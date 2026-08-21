@@ -1,0 +1,35 @@
+# Render Blueprint（可選）
+#
+# 用法：把這個 repo 連到 Render → New → Blueprint，Render 會自動照這裡建 Cron Job。
+# 你也可以完全不用這個檔案，在 Render 網頁上手動建 Cron Job（README 有步驟）。
+#
+# 排程是 UTC： */15 21-23,0-7 * * *  ≈ 台灣時間每天 05:00–15:45，每 15 分鐘跑一次。
+# 標成 sync: false 的變數不會寫在檔案裡，要在 Render 網頁的 Environment 分頁自己填。
+
+services:
+  - type: cron
+    name: whoop-briefing
+    runtime: node
+    plan: starter
+    schedule: "*/15 21-23,0-7 * * *"
+    buildCommand: npm ci
+    startCommand: npm start
+    envVars:
+      - key: TIMEZONE
+        value: Asia/Taipei
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
+      - key: WHOOP_CLIENT_ID
+        sync: false
+      - key: WHOOP_CLIENT_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

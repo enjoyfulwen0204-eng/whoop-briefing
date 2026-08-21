@@ -1,0 +1,23 @@
+{
+  "name": "whoop-briefing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Daily WHOOP recovery briefing with an AI coach, delivered to Telegram.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "migrate": "node scripts/migrate.js",
+    "authorize": "node scripts/authorize.js",
+    "probe": "node scripts/probe-fields.js",
+    "check": "node scripts/preflight.js",
+    "dry-run": "node scripts/dry-run.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.72.0",
+    "@libsql/client": "^0.15.0"
+  }
+}

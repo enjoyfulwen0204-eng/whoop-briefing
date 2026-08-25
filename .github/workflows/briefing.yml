@@ -1,8 +1,8 @@
 # 備案排程：如果你不想用 Render（或想省錢），GitHub Actions 也能跑同一支程式。
 #
 # 差別：GitHub Actions 的 cron 不保證準時，可能延遲幾分鐘到十幾分鐘。
-# 因為我們的視窗很寬（台灣 05:00–15:45 每 15 分鐘），而且有去重機制，
-# 延遲不會漏發，只是簡報可能晚一點到。要準時就用 Render。
+# 因為排程是全天每 30 分鐘，而且去重用的是 health_date（主睡眠結束的當地日期，
+# 不是執行當下的日期），延遲不會漏發，只是簡報可能晚一點到。要準時就用 Render。
 #
 # 用法：
 #   1. 把這個 repo 推到 GitHub（private 就好）
@@ -15,7 +15,7 @@ name: WHOOP 早晨簡報
 
 on:
   schedule:
-    - cron: "*/15 21-23,0-7 * * *" # UTC ≈ 台灣 05:00–15:45
+    - cron: "*/30 * * * *" # 全天每 30 分鐘（去重靠 health_date，晚起床也能補發）
   workflow_dispatch: # 也可以手動按一下立刻跑
 
 concurrency:
@@ -29,6 +29,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      # 給「60 天無 commit 會被停用排程」的提醒用。checkout 預設 depth=1，
+      # 拿最後一次 commit 的時間就夠了。
+      - name: 讀取最後一次 commit 時間
+        id: repo
+        run: echo "last_commit_at=$(git log -1 --format=%cI)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -38,10 +43,11 @@ jobs:
         env:
           WHOOP_CLIENT_ID: ${{ secrets.WHOOP_CLIENT_ID }}
           WHOOP_CLIENT_SECRET: ${{ secrets.WHOOP_CLIENT_SECRET }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_MODEL: claude-sonnet-5
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: anthropic/claude-sonnet-5
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           TIMEZONE: Asia/Taipei
+          REPO_LAST_COMMIT_AT: ${{ steps.repo.outputs.last_commit_at }}

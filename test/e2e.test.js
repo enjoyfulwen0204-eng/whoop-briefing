@@ -1,5 +1,5 @@
 /**
- * 端到端：直接跑 src/index.js 的 main()，把 WHOOP / Anthropic / Telegram 三個
+ * 端到端：直接跑 src/index.js 的 main()，把 WHOOP / OpenRouter / Telegram 三個
  * 外部服務都攔下來，Turso 換成本機 SQLite 檔案。
  * 驗證整條線接得起來，而且第二次執行不會重複發。
  */
@@ -12,7 +12,7 @@ import path from 'node:path';
 
 import { main } from '../src/index.js';
 import { createDb } from '../src/db.js';
-import { localDate } from '../src/time.js';
+import { addDays, localDate } from '../src/time.js';
 import { makeDataset } from './fixtures.js';
 
 const TZ = 'Asia/Taipei';
@@ -51,17 +51,21 @@ function installMockFetch({ dataset, calls }) {
       return json({ error: 'unexpected path' }, 404);
     }
 
-    if (url.host === 'api.anthropic.com') {
+    if (url.host === 'openrouter.ai') {
       const body = JSON.parse(init.body);
-      calls.push({ host: 'anthropic', model: body.model, thinking: body.thinking });
+      calls.push({
+        host: 'openrouter', path: url.pathname, model: body.model, reasoning: body.reasoning,
+      });
       return json({
-        id: 'msg_e2e',
-        type: 'message',
-        role: 'assistant',
+        id: 'gen_e2e',
+        object: 'chat.completion',
         model: body.model,
-        content: [{ type: 'text', text: '早安 Kelvin，今天狀態看起來不錯，放心去衝 💪' }],
-        stop_reason: 'end_turn',
-        usage: { input_tokens: 500, output_tokens: 80 },
+        choices: [{
+          index: 0,
+          message: { role: 'assistant', content: '早安 Kelvin，今天狀態看起來不錯，放心去衝 💪' },
+          finish_reason: 'stop',
+        }],
+        usage: { prompt_tokens: 500, completion_tokens: 80, total_tokens: 580 },
       });
     }
 
@@ -96,8 +100,8 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
       WHOOP_CLIENT_ID: 'cid',
       WHOOP_CLIENT_SECRET: 'sec',
       WHOOP_REDIRECT_URI: 'http://localhost:8788/callback',
-      ANTHROPIC_API_KEY: 'sk-test',
-      ANTHROPIC_MODEL: 'claude-sonnet-5',
+      OPENROUTER_API_KEY: 'sk-or-test',
+      OPENROUTER_MODEL: 'anthropic/claude-sonnet-5',
       TELEGRAM_BOT_TOKEN: '123:abc',
       TELEGRAM_CHAT_ID: '999',
       TURSO_DATABASE_URL: dbUrl,
@@ -132,10 +136,11 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     assert.equal(tg[0].parse_mode, undefined, 'Telegram 要用 plain text，不設 parse_mode');
     assert.ok(tg[0].text.length <= 4096);
 
-    const claude = calls.filter((c) => c.host === 'anthropic');
-    assert.equal(claude.length, 1);
-    assert.equal(claude[0].model, 'claude-sonnet-5');
-    assert.deepEqual(claude[0].thinking, { type: 'disabled' });
+    const ai = calls.filter((c) => c.host === 'openrouter');
+    assert.equal(ai.length, 1);
+    assert.equal(ai[0].path, '/api/v1/chat/completions');
+    assert.equal(ai[0].model, 'anthropic/claude-sonnet-5');
+    assert.deepEqual(ai[0].reasoning, { enabled: false });
 
     // token 還有效 → 不該打 token endpoint
     assert.equal(calls.filter((c) => c.path === '/oauth/oauth2/token').length, 0);
@@ -153,14 +158,43 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     assert.equal(Number(runs[0].telegram_message_id), 4242);
     check.close();
 
-    // ---- 第二次執行：沒事可做，連 WHOOP 都不該打 ----
+    // ---- 第二次執行：同一個 health_date 已 SENT → 不會重複發 ----
+    // 這次還是會輪詢 WHOOP：快速返回的條件是「今天與昨天兩個 health_date 都已 SENT」，
+    // 而測試 DB 是全新的、昨天那筆從來沒發過，所以條件不成立。但重點是不會重複發。
     const before = calls.length;
     const second = await main({ now });
-    assert.equal(second.daily, null);
+    assert.equal(second.daily.status, 'already_sent');
     assert.equal(second.weekly, null);
     assert.equal(second.errors.length, 0);
     const after = calls.slice(before);
-    assert.equal(after.length, 0, `第二次不該有任何外部呼叫，實際：${JSON.stringify(after)}`);
+    assert.equal(
+      after.filter((c) => c.host === 'telegram').length, 0,
+      `不可重複發訊息，實際：${JSON.stringify(after)}`,
+    );
+    assert.equal(
+      after.filter((c) => c.host === 'openrouter').length, 0,
+      '已發過就不該再花錢呼叫模型',
+    );
+
+    // ---- 第三次執行：把「昨天」也補記成 SENT → 走快速返回，完全不打外部服務 ----
+    const seed2 = createDb({ url: dbUrl });
+    const yesterdayKey = addDays(today, -1);
+    await seed2.recordRun({
+      reportType: 'daily',
+      localDateKey: yesterdayKey,
+      healthDate: yesterdayKey,
+      status: 'SENT',
+    });
+    seed2.close();
+
+    const before3 = calls.length;
+    const third = await main({ now });
+    assert.equal(third.daily, null, '快速返回時 runDaily 不該被呼叫');
+    assert.equal(third.weekly, null);
+    assert.equal(
+      calls.slice(before3).length, 0,
+      `快速返回不該有任何外部呼叫，實際：${JSON.stringify(calls.slice(before3))}`,
+    );
   } finally {
     restoreFetch();
     process.chdir(cwd);
@@ -187,8 +221,8 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
     Object.assign(process.env, {
       WHOOP_CLIENT_ID: 'cid',
       WHOOP_CLIENT_SECRET: 'sec',
-      ANTHROPIC_API_KEY: 'sk-test',
-      ANTHROPIC_MODEL: 'claude-sonnet-5',
+      OPENROUTER_API_KEY: 'sk-or-test',
+      OPENROUTER_MODEL: 'anthropic/claude-sonnet-5',
       TELEGRAM_BOT_TOKEN: '123:abc',
       TELEGRAM_CHAT_ID: '999',
       TURSO_DATABASE_URL: dbUrl,

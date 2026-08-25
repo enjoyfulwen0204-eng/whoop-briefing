@@ -25,7 +25,10 @@ export const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS report_runs (
      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
      report_type         TEXT NOT NULL,
+     -- 去重 key。daily 放 health_date（主睡眠結束的當地日期），weekly 放上週一日期
      local_date          TEXT NOT NULL,
+     -- 稽核用：daily 會另外明確記一份 health_date（舊資料為 NULL）
+     health_date         TEXT,
      sleep_id            TEXT,
      cycle_id            TEXT,
      telegram_message_id INTEGER,
@@ -45,11 +48,37 @@ export const SCHEMA = [
    )`,
 ];
 
+/**
+ * 是不是撞到唯一索引（同一天、同一種報告已經有一筆 SENT）。
+ *
+ * 刻意只認 UNIQUE，不認整個 SQLITE_CONSTRAINT —— NOT NULL / CHECK 之類的違反
+ * 是程式 bug，必須浮出來，不能跟「另一個 run 已送出」混為一談。
+ * 實測 Turso 回的是 code='SQLITE_CONSTRAINT'、message 含 'UNIQUE constraint failed'。
+ */
+export function isDuplicateSentError(err) {
+  return /UNIQUE constraint failed/i.test(String(err?.message ?? ''));
+}
+
 export function createDb({ url, authToken }) {
   const client = createClient({ url, authToken });
 
+  /**
+   * 若欄位不存在就補上（向後相容 migration，不動既有資料）。
+   * SQLite 的 ALTER TABLE ADD COLUMN 沒有 IF NOT EXISTS，所以先問 table_info。
+   */
+  async function ensureColumn(table, column, type) {
+    const rs = await client.execute(`PRAGMA table_info(${table})`);
+    if (rs.rows.some((r) => r.name === column)) return false;
+    await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    log.info('schema_column_added', { table, column });
+    return true;
+  }
+
   async function migrate() {
     for (const stmt of SCHEMA) await client.execute(stmt);
+    // health_date：稽核用的明確欄位。去重 key 仍然是 local_date（唯一索引綁在它上面），
+    // daily 會把 health_date 一併寫進來，舊資料留 NULL。
+    await ensureColumn('report_runs', 'health_date', 'TEXT');
   }
 
   // ----- tokens -----------------------------------------------------------
@@ -115,31 +144,57 @@ export function createDb({ url, authToken }) {
     return rs.rows.length > 0;
   }
 
+  /**
+   * 寫一筆發送紀錄。
+   *
+   * 兩種失敗要分清楚，這是刻意的：
+   *  - **撞到 uniq_report_sent**（另一個 run 已經送出了）→ 預期中的安全行為，
+   *    回 false 就好，不吵。
+   *  - **其他 DB 錯誤**（Turso 短暫故障等）→ 危險。沒有 SENT 紀錄，下一輪
+   *    `isSent` 會回 false 而重複發送。所以要重試，重試用完就往上拋，
+   *    讓呼叫端決定怎麼喊（`throwOnError: false` 可改成只寫 log）。
+   */
   async function recordRun({
-    reportType, localDateKey, sleepId = null, cycleId = null,
+    reportType, localDateKey, healthDate = null, sleepId = null, cycleId = null,
     telegramMessageId = null, status, detail = null,
-  }) {
-    try {
-      await client.execute({
-        sql: `INSERT INTO report_runs
-               (report_type, local_date, sleep_id, cycle_id,
-                telegram_message_id, status, detail, sent_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          reportType, localDateKey, sleepId, cycleId,
-          telegramMessageId, status, detail ? String(detail).slice(0, 500) : null,
-          new Date().toISOString(),
-        ],
-      });
-      return true;
-    } catch (err) {
-      // 撞到 uniq_report_sent = 另一個 run 已經送出了，這是預期中的安全行為
-      log.warn('record_run_failed', {
-        report_type: reportType, local_date: localDateKey, status,
-        error: String(err?.message ?? err),
-      });
-      return false;
+  }, { retries = 3, throwOnError = true } = {}) {
+    const sql = `INSERT INTO report_runs
+           (report_type, local_date, health_date, sleep_id, cycle_id,
+            telegram_message_id, status, detail, sent_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const args = [
+      reportType, localDateKey, healthDate, sleepId, cycleId,
+      telegramMessageId, status, detail ? String(detail).slice(0, 500) : null,
+      new Date().toISOString(),
+    ];
+
+    let lastErr;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        await client.execute({ sql, args });
+        return true;
+      } catch (err) {
+        if (isDuplicateSentError(err)) {
+          log.warn('record_run_duplicate', {
+            report_type: reportType, local_date: localDateKey, status,
+          });
+          return false;
+        }
+        lastErr = err;
+        log.warn('record_run_retry', {
+          report_type: reportType, local_date: localDateKey, status, attempt,
+          error: String(err?.message ?? err),
+        });
+        if (attempt < retries) await sleep(500 * 2 ** (attempt - 1));
+      }
     }
+
+    const msg = `發送紀錄寫入 Turso 連續 ${retries} 次失敗：${lastErr?.message ?? lastErr}`;
+    if (throwOnError) throw new Error(msg);
+    log.error('record_run_failed', {
+      report_type: reportType, local_date: localDateKey, status, error: msg,
+    });
+    return false;
   }
 
   async function recentRuns(limit = 20) {

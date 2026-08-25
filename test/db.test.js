@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb, isDuplicateSentError } from '../src/db.js';
 import { ERROR_NOTIFY_COOLDOWN_HOURS } from '../src/config.js';
 
 function tempDb() {
@@ -185,6 +185,54 @@ test('token 寫入失敗會 retry，連續失敗才拋錯', async () => {
       /中止本次執行/,
     );
     assert.equal(attempts, 2);
+  } finally {
+    db.close();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 修正 B：unique 衝突（安全）與其他 DB 錯誤（危險）必須分開處理
+// ---------------------------------------------------------------------------
+test('isDuplicateSentError 只認 UNIQUE，其他 constraint 違反要浮出來', () => {
+  // 這兩個字串是對真的 Turso 實測抓下來的形狀
+  assert.equal(isDuplicateSentError({
+    code: 'SQLITE_CONSTRAINT',
+    message: 'SQLITE_CONSTRAINT: SQLite error: UNIQUE constraint failed: report_runs.report_type, report_runs.local_date',
+  }), true);
+  assert.equal(isDuplicateSentError({
+    code: 'SQLITE_CONSTRAINT',
+    message: 'SQLITE_CONSTRAINT: SQLite error: NOT NULL constraint failed: report_runs.status',
+  }), false, 'NOT NULL 違反是程式 bug，不可當成「另一個 run 已送出」');
+  assert.equal(isDuplicateSentError({ message: 'connection reset by peer' }), false);
+  assert.equal(isDuplicateSentError(null), false);
+});
+
+test('紀錄寫入失敗（非 unique）→ 重試用完後拋錯，不被靜默吞掉', async () => {
+  const { db } = tempDb();
+  try {
+    await db.migrate();
+    await db.raw.execute('DROP TABLE report_runs'); // 製造一個「不是 unique」的失敗
+    await assert.rejects(
+      () => db.recordRun(
+        { reportType: 'daily', localDateKey: '2026-08-21', status: 'SENT' },
+        { retries: 1 },
+      ),
+      /發送紀錄寫入 Turso 連續 1 次失敗/,
+    );
+  } finally {
+    db.close();
+  }
+});
+
+test('throwOnError: false → 只寫 log 回 false（記錄失敗原因時用，不蓋掉真正的錯誤）', async () => {
+  const { db } = tempDb();
+  try {
+    await db.migrate();
+    await db.raw.execute('DROP TABLE report_runs');
+    assert.equal(await db.recordRun(
+      { reportType: 'daily', localDateKey: '2026-08-21', status: 'FAILED', detail: 'x' },
+      { retries: 1, throwOnError: false },
+    ), false);
   } finally {
     db.close();
   }

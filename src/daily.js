@@ -8,44 +8,46 @@
 
 import { BASELINE } from './config.js';
 import {
-  buildRecords, completedCycles, detectWake, baselineRecords, stageFor,
-  computeBaselines, evaluateAll, detectTrends,
+  buildObservations, completedCycles, detectWake, baselineRecords, stageFor,
+  computeBaselines, evaluateAll, detectTrends, yesterdayCycleFor,
 } from './analyze.js';
 import { renderDaily } from './format.js';
-import { localDate } from './time.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
 
-const STALE_CYCLE_MS = 48 * 60 * 60 * 1000;
-
 export async function runDaily({ db, source, coach, telegram, timezone, now = new Date() }) {
-  const today = localDate(now, timezone);
-
-  // 1) 去重：今天（台灣時間）的 daily 是否已成功送出
-  if (await db.isSent('daily', today)) {
-    log.info('daily_already_sent', { local_date: today });
-    return { status: 'already_sent', localDate: today };
-  }
-
-  // 2) 輕量 polling：只抓最近幾天的睡眠 / 恢復來判斷起床
+  // 1) 輕量 polling。刻意放在去重之前：health_date 是從最新那筆睡眠算出來的，
+  //    沒抓資料就不知道要用哪個 key 去重。「完全沒事做」的快速返回在 index.js。
   const { sleeps: pollSleeps, recoveries: pollRecoveries } = await source.poll();
   const wake = detectWake({
-    records: buildRecords({ sleeps: pollSleeps, recoveries: pollRecoveries, timezone }),
+    observations: buildObservations({
+      sleeps: pollSleeps, recoveries: pollRecoveries, timezone,
+    }),
     now,
     timezone,
   });
 
   if (!wake.ready) {
     log.info('daily_not_ready', {
-      local_date: today,
       reason: wake.reason,
       minutes_since_wake: wake.minutesSinceWake ?? null,
+      hours_since_wake: wake.hoursSinceWake ?? null,
+      health_date: wake.healthDate ?? null,
     });
-    return { status: 'not_ready', reason: wake.reason, localDate: today };
+    return { status: 'not_ready', reason: wake.reason };
+  }
+
+  const healthDate = wake.healthDate;
+
+  // 2) 去重：用 health_date，不是執行當天。所以下午才起床、或跨午夜才跑到，
+  //    都還是同一個 key，不會漏發也不會重複發。
+  if (await db.isSent('daily', healthDate)) {
+    log.info('daily_already_sent', { health_date: healthDate });
+    return { status: 'already_sent', healthDate, localDate: healthDate };
   }
 
   log.info('daily_wake_detected', {
-    local_date: today,
+    health_date: healthDate,
     sleep_id: wake.record.sleepId,
     minutes_since_wake: wake.minutesSinceWake,
   });
@@ -54,89 +56,123 @@ export async function runDaily({ db, source, coach, telegram, timezone, now = ne
   const { sleeps, recoveries, cycles } = await source.history();
 
   const briefing = buildBriefing({
-    sleeps, recoveries, cycles, timezone, today, wakeSleepId: wake.record.sleepId,
+    sleeps, recoveries, cycles, timezone, healthDate, wakeSleepId: wake.record.sleepId,
   });
 
-  // 4) Claude 只負責講話；掛掉就走 fallback（照樣發數據簡報）
+  // 4) AI 只負責講話；掛掉就走 fallback（照樣發數據簡報）
   const coachText = await coach.daily(briefing);
   const text = renderDaily(briefing, coachText);
 
-  // 5) 發送 + 記錄
+  // 5) 發送
+  let sent;
   try {
-    const sent = await telegram.send(text);
+    sent = await telegram.send(text);
+  } catch (err) {
+    // 記錄失敗原因時不能再拋錯，否則會蓋掉真正的錯誤
     await db.recordRun({
       reportType: 'daily',
-      localDateKey: today,
+      localDateKey: healthDate,
+      healthDate,
+      sleepId: briefing.sleepId,
+      cycleId: briefing.cycleId,
+      status: 'FAILED',
+      detail: describeError(err),
+    }, { throwOnError: false });
+    if (err instanceof TelegramError) {
+      // Telegram 自己掛了 → 只寫 log，不遞迴再呼叫 Telegram
+      log.error('daily_telegram_failed', { health_date: healthDate, error: describeError(err) });
+      return {
+        status: 'telegram_failed', healthDate, localDate: healthDate, error: describeError(err),
+      };
+    }
+    throw err;
+  }
+
+  // 6) 記錄。訊息已經發出去、收不回來了 —— 紀錄寫入失敗不能當成「發送失敗」，
+  //    但一定要大聲喊：沒有 SENT 紀錄，下一輪 isSent 會回 false 而重複發送。
+  let recorded = true;
+  try {
+    await db.recordRun({
+      reportType: 'daily',
+      localDateKey: healthDate,
+      healthDate,
       sleepId: briefing.sleepId,
       cycleId: briefing.cycleId,
       telegramMessageId: sent.messageId,
       status: 'SENT',
       detail: coachText ? null : 'coach_fallback',
     });
-    log.info('daily_sent', {
-      local_date: today, stage: briefing.stage, samples: briefing.sampleCount,
-      coach: coachText ? 'ok' : 'fallback', chars: text.length,
-    });
-    return { status: 'sent', localDate: today, text, briefing, coachUsed: Boolean(coachText) };
   } catch (err) {
-    await db.recordRun({
-      reportType: 'daily',
-      localDateKey: today,
-      sleepId: briefing.sleepId,
-      cycleId: briefing.cycleId,
-      status: 'FAILED',
-      detail: describeError(err),
+    recorded = false;
+    log.error('daily_record_failed_after_send', {
+      health_date: healthDate, error: describeError(err),
     });
-    if (err instanceof TelegramError) {
-      // Telegram 自己掛了 → 只寫 log，不遞迴再呼叫 Telegram
-      log.error('daily_telegram_failed', { local_date: today, error: describeError(err) });
-      return { status: 'telegram_failed', localDate: today, error: describeError(err) };
-    }
-    throw err;
+    await telegram.notifyError(
+      'daily_record',
+      `今天的簡報已經發出去了，但發送紀錄寫不進 Turso → 下一輪可能會重複發一次。${describeError(err)}`,
+    );
   }
+
+  log.info('daily_sent', {
+    health_date: healthDate, stage: briefing.stage, samples: briefing.sampleCount,
+    coach: coachText ? 'ok' : 'fallback', chars: text.length, recorded,
+  });
+  return {
+    status: 'sent', healthDate, localDate: healthDate, text, briefing,
+    coachUsed: Boolean(coachText), recorded,
+  };
 }
 
-/** 純函式：原始資料 → 算好的 briefing 物件（好測、dry-run 也用它）。 */
-export function buildBriefing({ sleeps, recoveries, cycles, timezone, today, wakeSleepId }) {
-  const records = buildRecords({ sleeps, recoveries, timezone });
-  const todayRecord = records.find((r) => r.sleepId === String(wakeSleepId)) ?? records[0];
+/**
+ * 純函式：原始資料 → 算好的 briefing 物件（好測、dry-run 也用它）。
+ *
+ * healthDate 是「要報告哪一個健康日」。一律用它做顯示日期、baseline 排除與趨勢
+ * 起點，執行當下的日期完全不參與。
+ */
+export function buildBriefing({
+  sleeps, recoveries, cycles, timezone, healthDate = null, wakeSleepId,
+}) {
+  // 每個 health_date 一筆（同日多筆主睡眠取 sleep.end 最晚那筆）
+  const observations = buildObservations({ sleeps, recoveries, timezone });
+
+  const todayRecord = (healthDate
+      ? observations.find((o) => o.healthDate === healthDate)
+      : null)
+    ?? observations.find((o) => o.sleepId === String(wakeSleepId))
+    ?? observations[0];
   if (!todayRecord) throw new Error('buildBriefing：找不到任何主睡眠紀錄');
 
-  // 昨日 Strain = 上一個「已完成」cycle 的 day strain（不是當日剛起床那個）
+  const reportDate = healthDate ?? todayRecord.healthDate;
+
+  // 昨日 Strain：sleep.end 之前最近一個已完成 cycle（單向，不會拿到起床後的）
   const cyclesDesc = completedCycles(cycles);
-  const candidate = cyclesDesc[0] ?? null;
-  const yesterdayCycle = candidate
-    && Math.abs(new Date(candidate.end) - todayRecord.endUtc) <= STALE_CYCLE_MS
-    ? candidate
-    : null;
+  const yesterdayCycle = yesterdayCycleFor(todayRecord, cyclesDesc);
 
   const baseSet = baselineRecords({
-    records,
-    todayLocalDate: today,
+    records: observations,
+    healthDate: reportDate,
     excludeSleepId: todayRecord.sleepId,
   });
   const sampleCount = Math.min(baseSet.length, BASELINE.TARGET_SAMPLES);
   const stage = stageFor(baseSet.length);
 
-  const baselines = computeBaselines({
-    records: baseSet,
-    cycles: cyclesDesc,
-    excludeCycleId: yesterdayCycle?.id ?? null,
-  });
+  // strain 的基準也走 yesterdayCycleFor，跟今日顯示值同一個口徑
+  const baselines = computeBaselines({ records: baseSet, cycles: cyclesDesc });
 
   const metrics = evaluateAll({ record: todayRecord, cycle: yesterdayCycle, baselines, stage });
 
-  // 趨勢用「含今天」的連續資料點
+  // 趨勢：從本次報告的 health_date 往回取逐日相鄰的健康日，缺一天就中斷
   const trends = detectTrends({
-    records: records.filter((r) => r.sleep.score_state === 'SCORED'),
+    observations,
     baselines,
     stage,
-    cycles: cyclesDesc,
+    anchorDate: reportDate,
   });
 
   return {
     kind: 'daily',
-    localDate: today,
+    healthDate: reportDate,
+    localDate: reportDate, // 舊欄位名，值與 healthDate 相同
     sleepId: todayRecord.sleepId,
     cycleId: yesterdayCycle ? String(yesterdayCycle.id) : null,
     stage,

@@ -3,10 +3,11 @@
  *
  * - plain text（不設 parse_mode），避免 Markdown escaping 出包。
  * - Telegram API 本身出錯：只寫 log，絕不遞迴再呼叫 Telegram。
- * - 錯誤通知有 cooldown（同一 error_type 2 小時內最多一次），避免每 15 分鐘洗版。
+ * - 錯誤通知有 cooldown（同一 error_type 2 小時內最多一次），避免每 30 分鐘洗版。
  */
 
 import { ERROR_NOTIFY_COOLDOWN_HOURS, TELEGRAM_MAX_CHARS } from './config.js';
+import { clamp } from './format.js';
 import { log, describeError } from './logger.js';
 
 export class TelegramError extends Error {
@@ -18,9 +19,15 @@ export class TelegramError extends Error {
 
 export function createTelegram({ botToken, chatId, dryRun = false, fetchImpl = fetch, db = null }) {
   async function send(text) {
-    const body = text.length > TELEGRAM_MAX_CHARS
-      ? `${text.slice(0, TELEGRAM_MAX_CHARS - 3)}...`
-      : text;
+    // 共用同一個 clamp（format.js），不再各自實作一份
+    const body = clamp(text);
+    // 發送層的最後防線：clamp 若哪天壞了，寧可在這裡爆掉也不要送出超長訊息
+    // 讓 Telegram 回 400（那會被記成發送失敗，還要多繞一輪才看得出原因）
+    if (body.length > TELEGRAM_MAX_CHARS) {
+      throw new TelegramError(
+        `訊息長度收斂失敗：${body.length} > ${TELEGRAM_MAX_CHARS}（clamp 有 bug）`,
+      );
+    }
 
     if (dryRun) {
       log.info('telegram_dry_run', { chars: body.length });

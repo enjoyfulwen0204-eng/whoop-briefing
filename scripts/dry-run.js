@@ -5,8 +5,8 @@
  *
  * 用法：
  *   npm run dry-run            假資料 + 假教練文字（完全離線）
- *   npm run dry-run -- --live  假資料 + 真的呼叫 Claude 生成教練文字
- *                              （需要 ANTHROPIC_API_KEY，會花一點點錢）
+ *   npm run dry-run -- --live  假資料 + 真的呼叫 OpenRouter 生成教練文字
+ *                              （需要 OPENROUTER_API_KEY，會花一點點錢）
  */
 
 import { runDaily } from '../src/daily.js';
@@ -24,8 +24,8 @@ loadDotEnvIfPresent();
 const live = process.argv.includes('--live');
 const TZ = process.env.TIMEZONE || 'Asia/Taipei';
 
-if (live && !process.env.ANTHROPIC_API_KEY) {
-  console.error('--live 需要 ANTHROPIC_API_KEY（放在 .env 裡）');
+if (live && !process.env.OPENROUTER_API_KEY) {
+  console.error('--live 需要 OPENROUTER_API_KEY（放在 .env 裡）');
   process.exit(1);
 }
 
@@ -33,8 +33,8 @@ const coachFor = (fail = false) => {
   if (fail) return fakeCoach({ fail: true });
   if (live) {
     return createCoach({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      model: process.env.ANTHROPIC_MODEL || COACH.DEFAULT_MODEL,
+      apiKey: process.env.OPENROUTER_API_KEY,
+      model: process.env.OPENROUTER_MODEL || COACH.DEFAULT_MODEL,
     });
   }
   return fakeCoach({
@@ -94,7 +94,7 @@ async function scenario({ title, dataset, now, coachFails = false, telegramFails
 
 // ---------------------------------------------------------------------------
 console.log('WHOOP 早晨簡報 — 假資料 dry run');
-console.log(`模式：${live ? '真的呼叫 Claude' : '離線（假教練文字）'}｜時區：${TZ}`);
+console.log(`模式：${live ? '真的呼叫 OpenRouter' : '離線（假教練文字）'}｜時區：${TZ}`);
 
 const normal = makeDataset({ days: 45 });
 await scenario({ title: '一切正常（>=30 筆正式基準）', dataset: normal, now: normal.now });
@@ -120,7 +120,7 @@ await scenario({
 });
 
 await scenario({
-  title: 'Claude 掛掉 → 照樣發數據簡報 + fallback 說明',
+  title: 'AI 教練掛掉 → 照樣發數據簡報 + fallback 說明',
   dataset: normal,
   now: normal.now,
   coachFails: true,

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 一鍵健康檢查：確認 Turso / WHOOP / Claude / Telegram 四個服務都通。
+ * 一鍵健康檢查：確認 Turso / WHOOP / OpenRouter / Telegram 四個服務都通。
  *
  * 用法：
  *   npm run check            （會發一則測試訊息到 Telegram，順便確認 chat id 正確）
@@ -69,9 +69,9 @@ if (tokens) {
   }
 }
 
-// ---- 3. Claude ----
+// ---- 3. OpenRouter（AI 教練）----
 try {
-  const coach = createCoach({ apiKey: env.anthropicApiKey, model: env.anthropicModel });
+  const coach = createCoach({ apiKey: env.openrouterApiKey, model: env.openrouterModel });
   const text = await coach.daily({
     localDate: localDate(new Date(), env.timezone),
     stage: 'cold',
@@ -79,10 +79,10 @@ try {
     metrics: [],
     trends: { enabled: false, alerts: [] },
   });
-  if (text) ok('Claude', `${env.anthropicModel} 回應正常（${text.length} 字）`);
-  else bad('Claude', '呼叫失敗，詳細原因看上面的 coach_daily_failed log');
+  if (text) ok('OpenRouter', `${env.openrouterModel} 回應正常（${text.length} 字）`);
+  else bad('OpenRouter', '呼叫失敗，詳細原因看上面的 coach_daily_failed log');
 } catch (err) {
-  bad('Claude', err.message);
+  bad('OpenRouter', err.message);
 }
 
 // ---- 4. Telegram ----

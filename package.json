@@ -5,7 +5,7 @@
   "description": "Daily WHOOP recovery briefing with an AI coach, delivered to Telegram.",
   "type": "module",
   "engines": {
-    "node": ">=20.6.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "start": "node src/index.js",
@@ -17,7 +17,6 @@
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.72.0",
     "@libsql/client": "^0.15.0"
   }
 }

@@ -3,7 +3,7 @@
  * 介面與正式版一致，所以 daily/weekly 流程可以原封不動測。
  */
 
-export function fakeDb() {
+export function fakeDb({ failSentRecord = null } = {}) {
   const runs = [];
   const notifies = new Map();
   let tokens = {
@@ -22,7 +22,12 @@ export function fakeDb() {
     isSent: async (type, key) => runs.some(
       (r) => r.reportType === type && r.localDateKey === key && r.status === 'SENT',
     ),
-    recordRun: async (r) => {
+    recordRun: async (r, { throwOnError = true } = {}) => {
+      // 模擬「Turso 短暫故障」：SENT 寫不進去
+      if (failSentRecord && r.status === 'SENT') {
+        if (throwOnError) throw failSentRecord;
+        return false;
+      }
       // 模擬 uniq_report_sent：同 type+date 只能有一筆 SENT
       if (r.status === 'SENT' && runs.some(
         (x) => x.reportType === r.reportType && x.localDateKey === r.localDateKey && x.status === 'SENT',

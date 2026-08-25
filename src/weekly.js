@@ -1,6 +1,9 @@
 /**
  * 每週回顧流程（與 daily 完全獨立：各自去重、各自 retry）。
  *
+ * 統計口徑：一個 health_date 算一天（同日多筆主睡眠取 sleep.end 最晚那筆），
+ * 跟 daily / 趨勢 / baseline 完全一致。
+ *
  * 觸發條件：
  *  - 今天（台灣時間）是週一
  *  - 本週的 weekly 尚未 SENT（週 key = 上週一的日期）
@@ -14,7 +17,7 @@
  */
 
 import { WEEKLY } from './config.js';
-import { buildRecords, detectWake, weeklyStats, weekOverWeek } from './analyze.js';
+import { buildObservations, detectWake, weeklyStats, weekOverWeek } from './analyze.js';
 import { renderWeekly } from './format.js';
 import { completedWeeks, localDate, localHour, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
@@ -39,7 +42,7 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
   if (!trigger) {
     const { sleeps, recoveries } = await source.poll();
     const wake = detectWake({
-      records: buildRecords({ sleeps, recoveries, timezone }),
+      observations: buildObservations({ sleeps, recoveries, timezone }),
       now,
       timezone,
     });
@@ -51,7 +54,10 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
   }
 
   const { sleeps, recoveries } = await source.history();
-  const records = buildRecords({ sleeps, recoveries, timezone });
+  // 用 observations（每個 health_date 一筆）而不是 records（一筆睡眠一筆）：
+  // 分段睡的那天 WHOOP 會回兩筆主睡眠，用 records 會讓「有效天數」變成 8 天，
+  // 而且那天的數值在平均裡被算兩次。跟 daily / 趨勢 / baseline 共用同一套口徑。
+  const records = buildObservations({ sleeps, recoveries, timezone });
 
   const last = weeklyStats({ records, week: weeks.last });
   const prev = weeklyStats({ records, week: weeks.prev });
@@ -63,7 +69,7 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
       localDateKey: weekKey,
       status: 'SKIPPED',
       detail: 'no_data_last_week',
-    });
+    }, { throwOnError: false });
     return { status: 'no_data', weekKey };
   }
 
@@ -71,8 +77,26 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
   const coachText = await coach.weekly(weekly);
   const text = renderWeekly(weekly, coachText);
 
+  let sent;
   try {
-    const sent = await telegram.send(text);
+    sent = await telegram.send(text);
+  } catch (err) {
+    await db.recordRun({
+      reportType: 'weekly',
+      localDateKey: weekKey,
+      status: 'FAILED',
+      detail: describeError(err),
+    }, { throwOnError: false });
+    if (err instanceof TelegramError) {
+      log.error('weekly_telegram_failed', { week_key: weekKey, error: describeError(err) });
+      return { status: 'telegram_failed', weekKey, error: describeError(err) };
+    }
+    throw err;
+  }
+
+  // 同 daily：訊息已送出，紀錄寫入失敗只能大聲喊，不能當成發送失敗
+  let recorded = true;
+  try {
     await db.recordRun({
       reportType: 'weekly',
       localDateKey: weekKey,
@@ -80,22 +104,18 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
       status: 'SENT',
       detail: coachText ? `trigger=${trigger}` : `trigger=${trigger};coach_fallback`,
     });
-    log.info('weekly_sent', {
-      week_key: weekKey, days: last.days, trigger,
-      coach: coachText ? 'ok' : 'fallback', chars: text.length,
-    });
-    return { status: 'sent', weekKey, text, weekly, coachUsed: Boolean(coachText) };
   } catch (err) {
-    await db.recordRun({
-      reportType: 'weekly',
-      localDateKey: weekKey,
-      status: 'FAILED',
-      detail: describeError(err),
-    });
-    if (err instanceof TelegramError) {
-      log.error('weekly_telegram_failed', { week_key: weekKey, error: describeError(err) });
-      return { status: 'telegram_failed', weekKey, error: describeError(err) };
-    }
-    throw err;
+    recorded = false;
+    log.error('weekly_record_failed_after_send', { week_key: weekKey, error: describeError(err) });
+    await telegram.notifyError(
+      'weekly_record',
+      `週回顧已經發出去了，但發送紀錄寫不進 Turso → 下一輪可能會重複發一次。${describeError(err)}`,
+    );
   }
+
+  log.info('weekly_sent', {
+    week_key: weekKey, days: last.days, trigger,
+    coach: coachText ? 'ok' : 'fallback', chars: text.length, recorded,
+  });
+  return { status: 'sent', weekKey, text, weekly, coachUsed: Boolean(coachText), recorded };
 }

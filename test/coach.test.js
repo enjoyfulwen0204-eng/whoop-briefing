@@ -1,12 +1,13 @@
 /**
- * 驗證真正送到 Anthropic API 的 request body 長什麼樣。
+ * 驗證真正送到 OpenRouter 的 request body 長什麼樣。
  * 用本機假伺服器攔下請求，不需要真的 API key、也不會花錢。
  *
- * 要確認的重點（Sonnet 5 的規矩）：
- *  - 有 thinking:{type:"disabled"} 與 output_config.effort="low"（省 token）
- *  - 沒有 temperature / top_p / top_k（Sonnet 5 設非預設值會回 400）
+ * 要確認的重點：
+ *  - 打的是 OpenAI 格式的 /chat/completions（OpenRouter 沒有 /v1/messages）
+ *  - 有 reasoning:{enabled:false}（教練文字不需要推理，省 token）
+ *  - 沒有 temperature / top_p / top_k，語氣全靠 system prompt
  *  - model 走環境變數、max_tokens 抓足夠但不過大
- *  - 遇到 400 會自動退一階參數，不會整個掛掉
+ *  - 遇到 400 會自動退一階參數；429/5xx 會重試；全掛才回 null
  */
 
 import test from 'node:test';
@@ -19,21 +20,23 @@ import { localDate } from '../src/time.js';
 import { makeDataset, degradedOverrides } from './fixtures.js';
 
 const TZ = 'Asia/Taipei';
+const MODEL = 'anthropic/claude-sonnet-5';
 
 function okResponse(text = '早安 Kelvin，今天狀態不錯，放心去衝 💪') {
   return {
-    id: 'msg_test',
-    type: 'message',
-    role: 'assistant',
-    model: 'claude-sonnet-5',
-    content: [{ type: 'text', text }],
-    stop_reason: 'end_turn',
-    stop_sequence: null,
-    usage: { input_tokens: 420, output_tokens: 90 },
+    id: 'gen-test',
+    object: 'chat.completion',
+    model: MODEL,
+    choices: [{
+      index: 0,
+      message: { role: 'assistant', content: text },
+      finish_reason: 'stop',
+    }],
+    usage: { prompt_tokens: 420, completion_tokens: 90, total_tokens: 510 },
   };
 }
 
-/** 起一個假的 Anthropic API，把收到的 request body 記下來。 */
+/** 起一個假的 OpenRouter，把收到的 request 記下來。 */
 async function mockApi(handler) {
   const seen = [];
   const server = http.createServer((req, res) => {
@@ -41,7 +44,7 @@ async function mockApi(handler) {
     req.on('data', (c) => { body += c; });
     req.on('end', () => {
       const parsed = JSON.parse(body);
-      seen.push({ path: req.url, body: parsed });
+      seen.push({ path: req.url, headers: req.headers, body: parsed });
       const out = handler(parsed, seen.length);
       res.writeHead(out.status, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(out.json));
@@ -51,44 +54,56 @@ async function mockApi(handler) {
   const { port } = server.address();
   return {
     seen,
-    baseUrl: `http://127.0.0.1:${port}`,
+    baseUrl: `http://127.0.0.1:${port}/api/v1`,
     close: () => new Promise((r) => server.close(r)),
   };
+}
+
+/** 測試用 coach：不真的等 backoff。 */
+function coachFor(api, extra = {}) {
+  return createCoach({
+    apiKey: 'test-key',
+    model: MODEL,
+    baseUrl: api.baseUrl,
+    backoffFor: () => 0,
+    ...extra,
+  });
 }
 
 function sampleBriefing() {
   const ds = makeDataset({ days: 45, overrides: degradedOverrides() });
   return buildBriefing({
-    ...ds, timezone: TZ, today: localDate(ds.now, TZ), wakeSleepId: 'sleep-000-uuid',
+    ...ds, timezone: TZ, healthDate: localDate(ds.now, TZ), wakeSleepId: 'sleep-000-uuid',
   });
 }
 
-test('daily 呼叫：thinking disabled + effort low，且沒有 temperature/top_p/top_k', async () => {
+test('daily 呼叫：OpenAI 格式 + reasoning 關掉，且沒有 temperature/top_p/top_k', async () => {
   const api = await mockApi(() => ({ status: 200, json: okResponse() }));
   try {
-    const coach = createCoach({ apiKey: 'test-key', model: 'claude-sonnet-5', baseUrl: api.baseUrl });
+    const coach = coachFor(api);
     const text = await coach.daily(sampleBriefing());
 
     assert.equal(text, '早安 Kelvin，今天狀態不錯，放心去衝 💪');
     assert.equal(api.seen.length, 1, '第一階參數就該成功，不用重試');
 
-    const body = api.seen[0].body;
-    assert.equal(api.seen[0].path, '/v1/messages');
-    assert.equal(body.model, 'claude-sonnet-5');
-    assert.deepEqual(body.thinking, { type: 'disabled' });
-    assert.deepEqual(body.output_config, { effort: 'low' });
+    const { path, headers, body } = api.seen[0];
+    assert.equal(path, '/api/v1/chat/completions');
+    assert.equal(headers.authorization, 'Bearer test-key', 'OpenRouter 用 Bearer，不是 x-api-key');
+    assert.equal(body.model, MODEL);
+    assert.deepEqual(body.reasoning, { enabled: false });
     assert.equal(body.max_tokens, 1200);
 
-    for (const banned of ['temperature', 'top_p', 'top_k']) {
-      assert.ok(!(banned in body), `不可以送 ${banned}（Sonnet 5 會回 400）`);
+    for (const banned of ['temperature', 'top_p', 'top_k', 'thinking', 'output_config']) {
+      assert.ok(!(banned in body), `不該送 ${banned}`);
     }
 
-    assert.equal(body.system, SYSTEM_PROMPT);
-    assert.equal(body.messages.length, 1);
-    assert.equal(body.messages[0].role, 'user');
-    assert.match(body.messages[0].content, /今日指標（程式已判定）/);
-    assert.match(body.messages[0].content, /判定：差很多/);
-    assert.match(body.messages[0].content, /趨勢預警/);
+    assert.equal(body.messages.length, 2);
+    assert.equal(body.messages[0].role, 'system');
+    assert.equal(body.messages[0].content, SYSTEM_PROMPT);
+    assert.equal(body.messages[1].role, 'user');
+    assert.match(body.messages[1].content, /今日指標（程式已判定）/);
+    assert.match(body.messages[1].content, /判定：差很多/);
+    assert.match(body.messages[1].content, /趨勢預警/);
   } finally {
     await api.close();
   }
@@ -96,34 +111,60 @@ test('daily 呼叫：thinking disabled + effort low，且沒有 temperature/top_
 
 test('模型不吃某個參數時（400）會自動退一階，不會整個失敗', async () => {
   const api = await mockApi((body, n) => {
-    if (n === 1 && body.output_config) {
+    if (n === 1 && body.reasoning) {
       return {
         status: 400,
-        json: { type: 'error', error: { type: 'invalid_request_error', message: 'output_config not supported' } },
+        json: { error: { code: 400, message: 'reasoning is not supported by this model' } },
       };
     }
     return { status: 200, json: okResponse('退一階之後成功') };
   });
   try {
-    const coach = createCoach({ apiKey: 'test-key', model: 'claude-sonnet-5', baseUrl: api.baseUrl });
-    const text = await coach.daily(sampleBriefing());
+    const text = await coachFor(api).daily(sampleBriefing());
     assert.equal(text, '退一階之後成功');
     assert.equal(api.seen.length, 2);
-    assert.ok(!('output_config' in api.seen[1].body));
-    assert.deepEqual(api.seen[1].body.thinking, { type: 'disabled' });
+    assert.ok(!('reasoning' in api.seen[1].body));
   } finally {
     await api.close();
   }
 });
 
-test('Claude 一直掛 → 回 null（上層走 fallback，不讓整份簡報消失）', async () => {
+test('429 會重試，重試成功就照樣回文字', async () => {
+  const api = await mockApi((_body, n) => {
+    if (n === 1) return { status: 429, json: { error: { code: 429, message: 'rate limited' } } };
+    return { status: 200, json: okResponse('重試之後成功') };
+  });
+  try {
+    const text = await coachFor(api).daily(sampleBriefing());
+    assert.equal(text, '重試之後成功');
+    assert.equal(api.seen.length, 2);
+  } finally {
+    await api.close();
+  }
+});
+
+test('OpenRouter 一直掛 → 重試用完後回 null（上層走 fallback，不讓整份簡報消失）', async () => {
   const api = await mockApi(() => ({
     status: 500,
-    json: { type: 'error', error: { type: 'api_error', message: 'boom' } },
+    json: { error: { code: 500, message: 'boom' } },
   }));
   try {
-    const coach = createCoach({ apiKey: 'test-key', model: 'claude-sonnet-5', baseUrl: api.baseUrl });
-    const text = await coach.daily(sampleBriefing());
+    const text = await coachFor(api, { maxRetries: 2 }).daily(sampleBriefing());
+    assert.equal(text, null);
+    // 兩階參數 × 每階重試 2 次 = 4 次請求（400 才退階，500 不退階 → 只有第一階打）
+    assert.equal(api.seen.length, 2, '5xx 不該退參數階梯，只重試');
+  } finally {
+    await api.close();
+  }
+});
+
+test('200 但 body 裡包 error（上游 provider 掛了）也算失敗 → 回 null', async () => {
+  const api = await mockApi(() => ({
+    status: 200,
+    json: { error: { code: 502, message: 'upstream provider error' } },
+  }));
+  try {
+    const text = await coachFor(api, { maxRetries: 1 }).daily(sampleBriefing());
     assert.equal(text, null);
   } finally {
     await api.close();
@@ -133,7 +174,6 @@ test('Claude 一直掛 → 回 null（上層走 fallback，不讓整份簡報消
 test('weekly 呼叫用較大的 max_tokens，system prompt 會加上週回顧指示', async () => {
   const api = await mockApi(() => ({ status: 200, json: okResponse('上週整體很穩') }));
   try {
-    const coach = createCoach({ apiKey: 'test-key', model: 'claude-sonnet-5', baseUrl: api.baseUrl });
     const weekly = {
       last: {
         startDate: '2026-08-17', endDate: '2026-08-23', days: 7,
@@ -144,12 +184,12 @@ test('weekly 呼叫用較大的 max_tokens，system prompt 會加上週回顧指
       prev: { days: 7 },
       wow: { recovery_score: { delta: 3, pct: 4.7, direction: 'up' } },
     };
-    const text = await coach.weekly(weekly);
+    const text = await coachFor(api).weekly(weekly);
     assert.equal(text, '上週整體很穩');
     const body = api.seen[0].body;
     assert.equal(body.max_tokens, 1800);
-    assert.match(body.system, /每週回顧/);
-    assert.match(body.messages[0].content, /上週區間/);
+    assert.match(body.messages[0].content, /每週回顧/);
+    assert.match(body.messages[1].content, /上週區間/);
   } finally {
     await api.close();
   }
@@ -157,7 +197,7 @@ test('weekly 呼叫用較大的 max_tokens，system prompt 會加上週回顧指
 
 test('教練輸入不含原始 API payload（只給算好的結論）', () => {
   const msg = buildDailyUserMessage(sampleBriefing());
-  assert.ok(!msg.includes('score_state'), '不該把 WHOOP 原始欄位丟給 Claude');
+  assert.ok(!msg.includes('score_state'), '不該把 WHOOP 原始欄位丟給模型');
   assert.ok(!msg.includes('sleep-000-uuid'));
   assert.ok(!msg.includes('hrv_rmssd_milli'));
   assert.match(msg, /HRV/);

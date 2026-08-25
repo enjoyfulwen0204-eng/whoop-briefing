@@ -117,6 +117,11 @@ export function prettyDate(dateStr) {
   return `${Number(m)}/${Number(d)}（${names[localWeekday(dateStr) - 1]}）`;
 }
 
+/** 兩個 local date 字串相差幾天（a - b，可為負）。 */
+export function daysBetween(a, b) {
+  return Math.round((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86_400_000);
+}
+
 export function minutesBetween(a, b) {
   return (toDate(a).getTime() - toDate(b).getTime()) / 60000;
 }

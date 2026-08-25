@@ -3,7 +3,7 @@
  * 上半數據、下半教練的話。單則不超過 4096 字元。
  */
 
-import { BASELINE, TELEGRAM_MAX_CHARS } from './config.js';
+import { BASELINE, TELEGRAM_MAX_CHARS, TREND } from './config.js';
 import { prettyDate } from './time.js';
 
 const LIGHT = { green: '🟢', yellow: '🟡', red: '🔴⚠️' };
@@ -48,10 +48,12 @@ function metricLine(m, stage) {
 /**
  * 組每日簡報。
  * @param {object} briefing analyze 算好的結果
- * @param {string|null} coachText Claude 的教練文字；null = Claude 掛了走 fallback
+ * @param {string|null} coachText AI 教練的文字；null = 模型掛了走 fallback
  */
 export function renderDaily(briefing, coachText) {
-  const { localDate, stage, sampleCount, metrics, trends } = briefing;
+  const { stage, sampleCount, metrics, trends } = briefing;
+  // 顯示日期一律是 health_date（主睡眠結束那天），不是執行當下的日期
+  const reportDate = briefing.healthDate ?? briefing.localDate;
   const byKey = Object.fromEntries(metrics.map((m) => [m.key, m]));
   const recovery = byKey.recovery_score;
 
@@ -66,6 +68,11 @@ export function renderDaily(briefing, coachText) {
 
   lines.push('');
   lines.push(stage === 'cold' ? '📊 今日指標' : '📊 指標 vs 你的基準');
+
+  // WHOOP 校正期：數值照顯示，但不給燈（跟 cold stage 同樣的原則），要說清楚為什麼
+  if (metrics.some((m) => m.calibrating && m.available)) {
+    lines.push('ℹ️ WHOOP 恢復數據還在校正中，恢復類指標今天只顯示數值、不做好壞判斷');
+  }
 
   const order = [
     'hrv', 'rhr', 'respiratory_rate',
@@ -89,11 +96,11 @@ export function renderDaily(briefing, coachText) {
   }
 
   lines.push('—');
-  // Claude 掛掉時 coachText 是 null → 照樣發數據簡報，底下加上 fallback 說明
+  // 模型掛掉時 coachText 是 null → 照樣發數據簡報，底下加上 fallback 說明
   lines.push(capCoachText(coachText, COACH_MAX_CHARS.daily) ?? FALLBACK_NOTE);
 
   lines.push('');
-  lines.push(footer(stage, sampleCount, localDate));
+  lines.push(footer(stage, sampleCount, reportDate));
 
   return clamp(lines.join('\n'));
 }
@@ -111,7 +118,8 @@ function renderTrendLines(trends) {
   for (const a of sorted.slice(0, MAX_TREND_LINES)) {
     const kind = a.types.includes('worsening') && a.types.includes('sustained_low')
       ? '連續偏離且逐日變差'
-      : (a.types.includes('worsening') ? '逐日變差' : '連續 3 天偏離基準');
+      // streakFor 保證這 3 天是逐日相鄰的健康日，所以「連續 N 天」是準確的說法
+      : (a.types.includes('worsening') ? '逐日變差' : `連續 ${TREND.WINDOW} 天偏離基準`);
     lines.push(`· ${a.label} ${kind}：${a.series.map((p) => p.display).join(' → ')}`);
   }
   if (sorted.length > MAX_TREND_LINES) {
@@ -120,11 +128,11 @@ function renderTrendLines(trends) {
   return lines;
 }
 
-function footer(stage, sampleCount, localDate) {
+function footer(stage, sampleCount, reportDate) {
   const n = stage === 'full'
     ? `基準 ${BASELINE.TARGET_SAMPLES}/${BASELINE.TARGET_SAMPLES} 筆`
     : `基準 ${sampleCount}/${BASELINE.TARGET_SAMPLES} 筆`;
-  return `${prettyDate(localDate)} · ${n}`;
+  return `${prettyDate(reportDate)} · ${n}`;
 }
 
 /** 組每週回顧。 */
@@ -179,7 +187,14 @@ function fmtRange(a, b) {
   return `${prettyDate(a)} ～ ${prettyDate(b)}`;
 }
 
-/** 超過 4096 字元時，從教練文字尾端裁掉（數據永遠保留）。 */
+/**
+ * Telegram 長度收斂 —— **全系統唯一一份**。
+ *
+ * format.js 與 telegram.js 以前各有一份一模一樣的實作，行為很容易漂移。
+ * 現在組訊息與發送前都呼叫這一個；發送層再另外做一次 assertion 當防線。
+ *
+ * 從尾端裁（數據在訊息前半，永遠保留；被犧牲的一定是教練文字）。
+ */
 export function clamp(text, max = TELEGRAM_MAX_CHARS) {
   if (text.length <= max) return text;
   return `${text.slice(0, max - 3)}...`;

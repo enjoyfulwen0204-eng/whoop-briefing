@@ -1,15 +1,17 @@
 /**
- * Claude 教練文字生成。
+ * AI 教練文字生成（走 OpenRouter）。
  *
- * 重點（照官方做法）：
- *  - model 走環境變數 ANTHROPIC_MODEL，預設 claude-sonnet-5。
- *  - 這種簡單教練文字不需要深度推理 → thinking 關掉、effort 設 low，省 token。
- *  - 不設 temperature / top_p / top_k（Sonnet 5 設非預設值會回 400）。
- *    語氣風格全靠 system prompt 控制。
- *  - Claude 只把「程式算好的結果」講成人話，不做任何好壞判斷。
+ * 為什麼是 OpenRouter：一把 key 就能換不同模型 / 不同供應商，模型掛了可以直接改
+ * OPENROUTER_MODEL 換一個。OpenRouter 只提供 OpenAI 格式的 /chat/completions，
+ * 沒有 Anthropic Messages API，所以這裡用 fetch 自己打，不用任何 SDK。
+ *
+ * 重點：
+ *  - model 走環境變數 OPENROUTER_MODEL，預設 anthropic/claude-sonnet-5（要帶 namespace）。
+ *  - 這種簡單教練文字不需要推理 → reasoning 關掉，省 token。
+ *  - 不設 temperature / top_p / top_k，語氣風格全靠 system prompt 控制。
+ *  - 模型只把「程式算好的結果」講成人話，不做任何好壞判斷。
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import { COACH } from './config.js';
 import { log, describeError } from './logger.js';
 
@@ -29,13 +31,16 @@ const WEEKLY_EXTRA = `
 const SEVERITY_ZH = { green: '正常', yellow: '偏離', red: '差很多', null: '未判定' };
 
 /**
- * 把算好的結果轉成給 Claude 的輸入。
+ * 把算好的結果轉成給模型的輸入。
  * 只給結論與必要數字，不給原始 API payload。
  */
 export function buildDailyUserMessage(briefing) {
   const lines = [];
   lines.push(`日期：${briefing.localDate}`);
   lines.push(`基準狀態：${stageZh(briefing.stage, briefing.sampleCount)}`);
+  if (briefing.metrics.some((m) => m.calibrating && m.available)) {
+    lines.push('恢復數據狀態：WHOOP 校正中。恢復類指標只顯示數值、未做判定，請不要評論這幾項的好壞。');
+  }
   lines.push('');
   lines.push('今日指標（程式已判定）：');
   for (const m of briefing.metrics) {
@@ -44,7 +49,7 @@ export function buildDailyUserMessage(briefing) {
       continue;
     }
     const parts = [`- ${m.label}：${m.display}`];
-    // 冷啟動階段基準還不可信，就不要餵給 Claude，免得它拿來評論
+    // 冷啟動階段基準還不可信，就不要餵給模型，免得它拿來評論
     if (briefing.stage !== 'cold') {
       if (m.baselineDisplay) parts.push(`基準 ${m.baselineDisplay}`);
       if (m.pct !== null) parts.push(`${m.pct >= 0 ? '+' : ''}${m.pct.toFixed(1)}%`);
@@ -117,53 +122,131 @@ function stageZh(stage, n) {
 
 // ---------------------------------------------------------------------------
 
-export function createCoach({ apiKey, model = COACH.DEFAULT_MODEL, baseUrl = undefined }) {
-  const client = new Anthropic({
-    apiKey,
-    timeout: COACH.TIMEOUT_MS,
-    ...(baseUrl ? { baseURL: baseUrl } : {}),
-  });
+export class CoachApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = 'CoachApiError';
+    this.status = status;
+  }
+}
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function backoffMs(attempt) {
+  return Math.min(2000 * 2 ** (attempt - 1), COACH.MAX_BACKOFF_MS);
+}
+
+/** OpenRouter 正常回字串；少數 provider 會回 content parts 陣列，兩種都吃。 */
+function contentToText(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content.map((p) => (typeof p === 'string' ? p : p?.text ?? '')).join('');
+  }
+  return '';
+}
+
+export function createCoach({
+  apiKey,
+  model = COACH.DEFAULT_MODEL,
+  baseUrl = COACH.BASE_URL,
+  fetchImpl = fetch,
+  maxRetries = COACH.MAX_RETRIES,
+  backoffFor = backoffMs,
+}) {
   /**
-   * 參數階梯：先用最省的組合，若該模型不接受某個參數（400）就退一階。
-   * 這樣換模型（例如改成 claude-haiku-4-5-20251001）也不會直接掛掉。
+   * 參數階梯：先用最省的組合，若該模型 / provider 不吃某個參數（400）就退一階。
+   * 這樣換模型（例如改成 anthropic/claude-haiku-4.5）也不會直接掛掉。
    */
   const PARAM_TIERS = [
-    { thinking: { type: 'disabled' }, output_config: { effort: 'low' } },
-    { thinking: { type: 'disabled' } },
-    { output_config: { effort: 'low' } },
+    { reasoning: { enabled: false } }, // 教練文字不需要推理，關掉省 token
     {},
   ];
+
+  /** 單次 POST。非 2xx 一律丟 CoachApiError（帶 status，外層才知道要退參數還是重試）。 */
+  async function post(body) {
+    const res = await fetchImpl(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        'content-type': 'application/json',
+        // OpenRouter 用來標示來源 app（選填，只影響它自己的排行榜）
+        'x-title': 'whoop-briefing',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(COACH.TIMEOUT_MS),
+    });
+
+    const text = await res.text();
+    let json = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      /* 不是 JSON（例如 gateway 的 HTML 錯誤頁），下面用原始文字報錯 */
+    }
+
+    if (!res.ok) {
+      const msg = json?.error?.message || text.slice(0, 200) || `HTTP ${res.status}`;
+      throw new CoachApiError(`OpenRouter ${res.status}: ${msg}`, res.status);
+    }
+    // OpenRouter 有時用 200 包一個 error（上游 provider 出錯時）
+    if (json?.error) {
+      const msg = json.error.message ?? JSON.stringify(json.error);
+      throw new CoachApiError(`OpenRouter error: ${msg}`, Number(json.error.code) || 502);
+    }
+    return json;
+  }
+
+  /** 429 / 5xx / 連線錯誤時 exponential backoff 重試；timeout 不重試（避免拖太久）。 */
+  async function send(body) {
+    let lastErr;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await post(body);
+      } catch (err) {
+        lastErr = err;
+        const status = err instanceof CoachApiError ? err.status : null;
+        const retryable = status !== null
+          ? (status === 429 || status >= 500)
+          : (err?.name !== 'AbortError' && err?.name !== 'TimeoutError');
+        if (!retryable || attempt === maxRetries) throw err;
+        const wait = backoffFor(attempt);
+        log.warn('coach_retry', { attempt, status, wait_ms: wait, error: describeError(err) });
+        await sleep(wait);
+      }
+    }
+    throw lastErr;
+  }
 
   async function complete({ system, userMessage, maxTokens }) {
     let lastErr;
     for (const [i, extra] of PARAM_TIERS.entries()) {
       try {
-        const res = await client.messages.create({
+        const json = await send({
           model,
           max_tokens: maxTokens,
-          system,
-          messages: [{ role: 'user', content: userMessage }],
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMessage },
+          ],
           ...extra,
         });
-        const text = res.content
-          .filter((b) => b.type === 'text')
-          .map((b) => b.text)
-          .join('\n')
-          .trim();
+        const choice = json?.choices?.[0];
+        const text = contentToText(choice?.message?.content).trim();
         log.info('coach_ok', {
-          model,
+          model: json?.model ?? model,
           param_tier: i,
-          stop_reason: res.stop_reason,
-          input_tokens: res.usage?.input_tokens,
-          output_tokens: res.usage?.output_tokens,
+          finish_reason: choice?.finish_reason,
+          input_tokens: json?.usage?.prompt_tokens,
+          output_tokens: json?.usage?.completion_tokens,
           chars: text.length,
         });
-        if (!text) throw new Error('Claude 回傳空白內容');
+        if (!text) throw new Error('OpenRouter 回傳空白內容');
         return text;
       } catch (err) {
         lastErr = err;
-        if (err instanceof Anthropic.BadRequestError && i < PARAM_TIERS.length - 1) {
+        const status = err instanceof CoachApiError ? err.status : null;
+        // 400 / 422 = 這個模型不吃某個參數 → 退一階再試
+        if ((status === 400 || status === 422) && i < PARAM_TIERS.length - 1) {
           log.warn('coach_param_tier_rejected', { param_tier: i, error: describeError(err) });
           continue;
         }

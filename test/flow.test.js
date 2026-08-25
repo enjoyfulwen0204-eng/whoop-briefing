@@ -170,3 +170,51 @@ test('教練文字長度受控（daily 假文字也不會撐爆訊息）', async
   await runDaily(ctx);
   assert.ok(ctx.telegram.sent[0].length <= 4096);
 });
+
+test('daily：訊息已送出但紀錄寫不進 DB → 仍算 sent，並警告可能重複發送', async () => {
+  const ds = makeDataset({ days: 45 });
+  const db = fakeDb({ failSentRecord: new Error('Turso 連線中斷') });
+  const ctx = ctxFor({ now: ds.now, dataset: ds, db });
+
+  const res = await runDaily(ctx);
+  assert.equal(res.status, 'sent', '訊息真的發出去了，不可報成失敗');
+  assert.equal(res.recorded, false, '要標記出「沒記錄成功」');
+
+  // 第一則是簡報本身，第二則是「可能重複發送」的警告
+  assert.equal(ctx.telegram.sent.length, 2);
+  assert.match(ctx.telegram.sent[0], /早安，Kelvin/);
+  assert.match(ctx.telegram.sent[1], /\[ERROR:daily_record\]/);
+  assert.match(ctx.telegram.sent[1], /可能會重複發一次/);
+});
+
+test('daily 跨午夜：去重 key 與紀錄用 health_date，不是執行當天', async () => {
+  // 台灣 2026-08-23 00:30 執行，睡眠 2026-08-22 23:00 結束
+  const now = new Date('2026-08-22T16:30:00Z');
+  const ds = makeDataset({ days: 45, now, wakeMinutesAgo: 90 });
+  assert.equal(localDate(now, TZ), '2026-08-23');
+
+  const ctx = ctxFor({ now, dataset: ds });
+  const res = await runDaily(ctx);
+
+  assert.equal(res.status, 'sent');
+  assert.equal(res.healthDate, '2026-08-22', '要用睡眠結束那天當 health_date');
+  const run = ctx.db.runs.at(-1);
+  assert.equal(run.localDateKey, '2026-08-22', '去重 key 是 health_date');
+  assert.equal(run.healthDate, '2026-08-22', 'health_date 也要明確記一份');
+
+  // 同一輪再跑一次 → 認得出已送出，不重複發
+  const again = await runDaily(ctx);
+  assert.equal(again.status, 'already_sent');
+  assert.equal(ctx.telegram.sent.length, 1, '不可重複發');
+});
+
+test('daily：sleep.end 超過 24 小時 → 不補發（不會把舊資料重報）', async () => {
+  const ds = makeDataset({ days: 45, wakeMinutesAgo: 30 * 60 });
+  const ctx = ctxFor({ now: ds.now, dataset: ds });
+
+  const res = await runDaily(ctx);
+  assert.equal(res.status, 'not_ready');
+  assert.equal(res.reason, 'sleep_too_old');
+  assert.equal(ctx.telegram.sent.length, 0);
+  assert.equal(ctx.db.runs.length, 0);
+});

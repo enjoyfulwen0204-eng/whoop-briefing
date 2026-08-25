@@ -2,7 +2,7 @@
  * 全系統唯一的設定 / 門檻來源。
  *
  * 重要原則：所有「好壞判斷」都在這裡定義、由 Node 計算。
- * Claude 只負責把算好的結果講成人話，永遠不決定顏色或嚴重度。
+ * AI 教練只負責把算好的結果講成人話，永遠不決定顏色或嚴重度。
  */
 
 // ---------------------------------------------------------------------------
@@ -57,10 +57,15 @@ export const BASELINE = {
 export const WAKE = {
   MIN_MINUTES_AFTER_SLEEP_END: 30, // 起床後至少 30 分鐘才發（直接比 UTC timestamp）
   POLL_LOOKBACK_DAYS: 5,           // polling 只抓最近幾天的最新資料
+  // 允許補發的期限：sleep.end 距現在超過這個時數就不發了。
+  // 這條取代舊的「睡眠結束日必須等於執行當天」—— 晚起床 / 跨午夜也能補發，
+  // 但不會把幾天前的舊資料重新報一次。防重複靠 health_date 去重。
+  MAX_AGE_HOURS: 24,
 };
 
 export const TREND = {
-  WINDOW: 3,              // 連續 3 個資料點
+  // 連續 3 個「逐日相鄰」的 health_date。缺一天就中斷，不會跳過缺日去湊。
+  WINDOW: 3,
   MIN_STAGE: 'full',      // 只有正式 baseline（>=30 筆）才做趨勢預警
   // 兩個以上生理訊號同時異常 → 較強提醒
   STRONG_PAIRS: [
@@ -72,13 +77,26 @@ export const TREND = {
 
 export const ERROR_NOTIFY_COOLDOWN_HOURS = 2;
 
+// GitHub 會在 repo 連續 60 天無 commit 時自動停用 scheduled workflow，
+// 而且是安靜地停 —— 沒有 run 就沒有錯誤通知。所以提前用 Telegram 提醒。
+// 只在 GitHub Actions 環境生效（靠 REPO_LAST_COMMIT_AT 這個變數，由 workflow 注入）。
+export const REPO_FRESHNESS = {
+  WARN_AFTER_DAYS: 55,
+  DISABLE_AFTER_DAYS: 60,
+  NOTIFY_COOLDOWN_HOURS: 24, // 同一天最多提醒一次
+};
+
 export const TELEGRAM_MAX_CHARS = 4096;
 
 export const COACH = {
   DAILY_MAX_TOKENS: 1200,   // 新 tokenizer 約多 30% token，抓足夠但不過大
   WEEKLY_MAX_TOKENS: 1800,
-  DEFAULT_MODEL: 'claude-sonnet-5',
+  // OpenRouter 的 model id 要帶 namespace，清單見 https://openrouter.ai/models
+  DEFAULT_MODEL: 'anthropic/claude-sonnet-5',
+  BASE_URL: 'https://openrouter.ai/api/v1',
   TIMEOUT_MS: 60_000,
+  MAX_RETRIES: 3,           // 429 / 5xx / 連線錯誤才重試
+  MAX_BACKOFF_MS: 30_000,
 };
 
 // 每週回顧只在週一發；若當天沒抓到睡眠（沒戴錶等），過了這個台灣時間仍會補發
@@ -86,6 +104,11 @@ export const WEEKLY = {
   WEEKDAY: 1,                    // 1 = 週一
   FALLBACK_SEND_AFTER_HOUR: 12,  // 台灣時間 12:00 之後就算沒偵測到起床也補發
 };
+
+// 「昨日 Strain」：從主睡眠 sleep.end 往「前」找最近一個已完成 cycle，
+// 最多往前找這麼久。超過就視為過期 → 該健康日的 Strain 記為 null。
+// 刻意是單向的（只往前找）：結束在起床「之後」的 cycle 不是昨天的負荷。
+export const STRAIN = { MAX_CYCLE_AGE_MS: 48 * 60 * 60 * 1000 };
 
 // ---------------------------------------------------------------------------
 // 3. WHOOP API
@@ -242,7 +265,7 @@ export function formatDuration(ms) {
 const REQUIRED_ENV = [
   'WHOOP_CLIENT_ID',
   'WHOOP_CLIENT_SECRET',
-  'ANTHROPIC_API_KEY',
+  'OPENROUTER_API_KEY',
   'TELEGRAM_BOT_TOKEN',
   'TELEGRAM_CHAT_ID',
   'TURSO_DATABASE_URL',
@@ -258,22 +281,35 @@ export function loadEnv({ require: requireList = REQUIRED_ENV } = {}) {
     whoopClientId: process.env.WHOOP_CLIENT_ID,
     whoopClientSecret: process.env.WHOOP_CLIENT_SECRET,
     whoopRedirectUri: process.env.WHOOP_REDIRECT_URI,
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-    anthropicModel: process.env.ANTHROPIC_MODEL || COACH.DEFAULT_MODEL,
+    openrouterApiKey: process.env.OPENROUTER_API_KEY,
+    openrouterModel: process.env.OPENROUTER_MODEL || COACH.DEFAULT_MODEL,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
     tursoUrl: process.env.TURSO_DATABASE_URL,
     tursoToken: process.env.TURSO_AUTH_TOKEN,
     timezone: process.env.TIMEZONE || 'Asia/Taipei',
     dryRun: process.env.DRY_RUN === '1',
+    // 由 GitHub Actions workflow 注入（git log -1 --format=%cI）。
+    // Render / 本機不會有 → 60 天提醒自動跳過。
+    repoLastCommitAt: process.env.REPO_LAST_COMMIT_AT || null,
   };
 }
 
-/** 本機開發：如果有 .env 就載入（Render 上用平台環境變數，不會有 .env）。 */
+/**
+ * 本機開發：如果有 .env 就載入（雲端用平台環境變數，不會有 .env）。
+ *
+ * 只忽略「檔案不存在」（ENOENT）—— 那是雲端的正常情況。其他錯誤（權限不足、
+ * 格式壞掉、Node 版本太舊沒有 loadEnvFile）一律重新拋出：以前全部吞掉的話，
+ * 使用者明明填好了 .env 卻會收到「缺少環境變數」這種完全誤導的訊息。
+ */
 export function loadDotEnvIfPresent() {
   try {
     process.loadEnvFile('.env');
-  } catch {
-    /* 沒有 .env 檔就跳過，正常情況 */
+  } catch (err) {
+    if (err?.code === 'ENOENT') return; // 沒有 .env，正常
+    throw new Error(
+      `.env 存在但載入失敗（${err?.code ?? err?.name ?? 'unknown'}）：${err?.message ?? err}`,
+      { cause: err },
+    );
   }
 }

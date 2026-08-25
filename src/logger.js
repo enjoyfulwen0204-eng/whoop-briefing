@@ -11,7 +11,7 @@ const SECRET_KEYS = [
 const SECRET_ENV_VALUES = () =>
   [
     process.env.WHOOP_CLIENT_SECRET,
-    process.env.ANTHROPIC_API_KEY,
+    process.env.OPENROUTER_API_KEY,
     process.env.TELEGRAM_BOT_TOKEN,
     process.env.TURSO_AUTH_TOKEN,
   ].filter((v) => typeof v === 'string' && v.length >= 8);

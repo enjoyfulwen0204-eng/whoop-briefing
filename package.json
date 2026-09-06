@@ -14,7 +14,10 @@
     "probe": "node scripts/probe-fields.js",
     "check": "node scripts/preflight.js",
     "dry-run": "node scripts/dry-run.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "sync": "node scripts/sync.js",
+    "health-status": "node scripts/health-status.js",
+    "bot": "node src/bot/index.js"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0"

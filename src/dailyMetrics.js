@@ -1,0 +1,349 @@
+/**
+ * 每日正規化指標（daily_metrics）。
+ *
+ * ## 為什麼從 raw_json 還原
+ *
+ * health_date、「同日多筆主睡眠取 end 最晚那筆」、「昨日 Strain 單向對應」
+ * 這幾條規則是全系統的時間軸，已經有大量測試保護。與其在扁平的 DB 欄位上
+ * 重寫一套（勢必漂移），不如把 raw_json 還原成 WHOOP 原始形狀，
+ * 直接呼叫 analyze.js 既有的 buildObservations / yesterdayCycleFor。
+ * 口徑保證 100% 一致。
+ *
+ * ## 「前一天」的定義
+ *
+ * previous_day_strain 用的是 sleep.end 之前最近一個已完成 cycle。
+ * 為了口徑一致，**運動、小睡、全日心率、熱量全部取自同一個 cycle 的時間窗**，
+ * 而不是各用各的日期算法。這樣「昨天的負荷」在每一個欄位上都是同一段時間。
+ *
+ * ## 缺欄位不等於這一天無效
+ *
+ * 少一個 optional 欄位（例如 SpO2）只會讓那個欄位是 null，
+ * 絕不會讓整天的 daily_metrics 失效。
+ */
+
+import { num } from './config.js';
+import {
+  buildObservations, completedCycles, yesterdayCycleFor, isCalibrating,
+} from './analyze.js';
+import { localDate, localTime } from './time.js';
+import { log } from './logger.js';
+
+const MIN_MS = 60_000;
+
+/**
+ * WHOOP 的 sport_name 裡屬於「肌力訓練」的類型。
+ * ⚠️ 這是**推導值不是官方欄位** —— Developer API 沒有 strength minutes，
+ * 這裡用運動類型近似。凡是用到的地方都要標明是推導的。
+ */
+export const STRENGTH_SPORTS = new Set([
+  'weightlifting', 'powerlifting', 'functional_fitness', 'strength_trainer',
+  'cross_country_skiing', // 佔位：實際清單以 probe 到的 sport_name 為準
+]);
+
+/** DB 列 → 原始 WHOOP 物件（raw_json 存在就用它，確保與 API 完全一致）。 */
+function reviveRow(row) {
+  if (row?.raw_json) {
+    try {
+      return JSON.parse(row.raw_json);
+    } catch { /* raw_json 壞掉就退回用扁平欄位重建 */ }
+  }
+  return null;
+}
+
+function reviveSleep(row) {
+  return reviveRow(row) ?? {
+    id: row.id,
+    start: row.start_at,
+    end: row.end_at,
+    timezone_offset: row.timezone_offset,
+    nap: row.nap === 1,
+    score_state: row.score_state,
+    score: {
+      respiratory_rate: num(row.respiratory_rate),
+      sleep_performance_percentage: num(row.sleep_performance_percentage),
+      sleep_consistency_percentage: num(row.sleep_consistency_percentage),
+      sleep_efficiency_percentage: num(row.sleep_efficiency_percentage),
+      stage_summary: {
+        total_light_sleep_time_milli: num(row.light_sleep_milli),
+        total_slow_wave_sleep_time_milli: num(row.slow_wave_sleep_milli),
+        total_rem_sleep_time_milli: num(row.rem_sleep_milli),
+        total_awake_time_milli: num(row.awake_milli),
+        total_in_bed_time_milli: num(row.in_bed_milli),
+        disturbance_count: num(row.disturbance_count),
+        sleep_cycle_count: num(row.sleep_cycle_count),
+      },
+      sleep_needed: {
+        baseline_milli: num(row.sleep_need_baseline_milli),
+        need_from_sleep_debt_milli: num(row.sleep_debt_milli),
+      },
+    },
+  };
+}
+
+function reviveRecovery(row) {
+  return reviveRow(row) ?? {
+    sleep_id: row.sleep_id,
+    cycle_id: row.cycle_id,
+    score_state: row.score_state,
+    score: {
+      recovery_score: num(row.recovery_score),
+      hrv_rmssd_milli: num(row.hrv_rmssd_milli),
+      resting_heart_rate: num(row.resting_heart_rate),
+      spo2_percentage: num(row.spo2_percentage),
+      skin_temp_celsius: num(row.skin_temp_celsius),
+      user_calibrating: row.user_calibrating === 1,
+    },
+  };
+}
+
+function reviveCycle(row) {
+  return reviveRow(row) ?? {
+    id: row.id,
+    start: row.start_at,
+    end: row.end_at,
+    score_state: row.score_state,
+    score: {
+      strain: num(row.strain),
+      kilojoule: num(row.kilojoule),
+      average_heart_rate: num(row.average_heart_rate),
+      max_heart_rate: num(row.max_heart_rate),
+    },
+  };
+}
+
+/** 落在 [fromMs, toMs) 的運動，彙總成一天的數字。 */
+function summariseWorkouts(workoutRows, fromMs, toMs) {
+  const inWindow = workoutRows.filter((w) => {
+    const t = Date.parse(w.start_at);
+    return Number.isFinite(t) && t >= fromMs && t < toMs;
+  });
+  const scored = inWindow.filter((w) => w.score_state === 'SCORED');
+
+  const sum = (f) => scored.reduce((acc, w) => acc + (num(f(w)) ?? 0), 0);
+  const durationMs = scored.reduce((acc, w) => {
+    const a = Date.parse(w.start_at);
+    const b = Date.parse(w.end_at);
+    return acc + (Number.isFinite(a) && Number.isFinite(b) && b > a ? b - a : 0);
+  }, 0);
+
+  const zone13 = sum((w) => w.zone_one_milli) + sum((w) => w.zone_two_milli)
+    + sum((w) => w.zone_three_milli);
+  const zone45 = sum((w) => w.zone_four_milli) + sum((w) => w.zone_five_milli);
+
+  const strengthMs = scored
+    .filter((w) => STRENGTH_SPORTS.has(String(w.sport_name ?? '').toLowerCase()))
+    .reduce((acc, w) => {
+      const a = Date.parse(w.start_at);
+      const b = Date.parse(w.end_at);
+      return acc + (Number.isFinite(a) && Number.isFinite(b) && b > a ? b - a : 0);
+    }, 0);
+
+  return {
+    workout_count: inWindow.length,
+    workout_scored_count: scored.length,
+    workout_strain_total: scored.length ? sum((w) => w.strain) : null,
+    workout_duration_minutes: scored.length ? Math.round(durationMs / MIN_MS) : null,
+    workout_kilojoule: scored.length ? sum((w) => w.kilojoule) : null,
+    zone1_3_minutes: scored.length ? Math.round(zone13 / MIN_MS) : null,
+    zone4_5_minutes: scored.length ? Math.round(zone45 / MIN_MS) : null,
+    // 推導值，非官方欄位
+    strength_minutes_derived: scored.length ? Math.round(strengthMs / MIN_MS) : null,
+    workout_sports: [...new Set(scored.map((w) => w.sport_name).filter(Boolean))],
+  };
+}
+
+/** 落在 [fromMs, toMs) 的小睡。 */
+function summariseNaps(napRows, fromMs, toMs) {
+  const inWindow = napRows.filter((n) => {
+    const t = Date.parse(n.end_at);
+    return Number.isFinite(t) && t >= fromMs && t < toMs;
+  });
+  return {
+    nap_count: inWindow.length,
+    nap_total_milli: inWindow.reduce((a, n) => a + (num(n.total_sleep_milli) ?? 0), 0),
+  };
+}
+
+/**
+ * 純函式：DB 列 → 每日正規化指標（新→舊）。
+ *
+ * @param {object[]} sleepRows  whoop_sleeps 的列（含 nap）
+ * @param {object[]} recoveryRows
+ * @param {object[]} cycleRows
+ * @param {object[]} workoutRows
+ * @param {?object}  bodyMeasurement 最新一筆
+ */
+export function computeDailyMetrics({
+  sleepRows = [], recoveryRows = [], cycleRows = [], workoutRows = [],
+  bodyMeasurement = null, timezone,
+} = {}) {
+  const mainSleepRows = sleepRows.filter((r) => r.nap === 0 || r.nap === false);
+  const napRows = sleepRows.filter((r) => r.nap === 1 || r.nap === true);
+
+  const sleeps = mainSleepRows.map(reviveSleep);
+  const recoveries = recoveryRows.map(reviveRecovery);
+  const cycles = cycleRows.map(reviveCycle);
+
+  // ★ 直接沿用簡報用的同一套日曆口徑
+  const observations = buildObservations({ sleeps, recoveries, timezone });
+  const cyclesDesc = completedCycles(cycles);
+
+  const weight = num(bodyMeasurement?.weight_kilogram);
+  const height = num(bodyMeasurement?.height_meter);
+  const bodyMaxHr = num(bodyMeasurement?.max_heart_rate);
+
+  return observations.map((obs) => {
+    const s = obs.sleep;
+    const r = obs.recovery;
+    const g = s?.score?.stage_summary ?? {};
+
+    // 「昨天」= sleep.end 之前最近一個已完成 cycle（與 previous_day_strain 同一個）
+    const cycle = yesterdayCycleFor(obs, cyclesDesc);
+    const winFrom = cycle?.start ? Date.parse(cycle.start) : null;
+    const winTo = cycle?.end ? Date.parse(cycle.end) : null;
+    const hasWindow = Number.isFinite(winFrom) && Number.isFinite(winTo);
+
+    const workouts = hasWindow
+      ? summariseWorkouts(workoutRows, winFrom, winTo)
+      : {
+        workout_count: null, workout_scored_count: null, workout_strain_total: null,
+        workout_duration_minutes: null, workout_kilojoule: null,
+        zone1_3_minutes: null, zone4_5_minutes: null,
+        strength_minutes_derived: null, workout_sports: [],
+      };
+    const naps = hasWindow
+      ? summariseNaps(napRows, winFrom, winTo)
+      : { nap_count: null, nap_total_milli: null };
+
+    const light = num(g.total_light_sleep_time_milli);
+    const sws = num(g.total_slow_wave_sleep_time_milli);
+    const rem = num(g.total_rem_sleep_time_milli);
+    const sleepTotal = (light === null && sws === null && rem === null)
+      ? null : (light ?? 0) + (sws ?? 0) + (rem ?? 0);
+
+    const recoveryScored = r?.score_state === 'SCORED';
+    const calibrating = isCalibrating(obs);
+    // 校正期的 recovery 數值不可信 → 統計層一律當成 null（與簡報的 baseline 同規則）
+    const rec = (k) => (recoveryScored && !calibrating ? num(r?.score?.[k]) : null);
+
+    return {
+      health_date: obs.healthDate,
+
+      // --- 恢復 ---
+      recovery: rec('recovery_score'),
+      hrv: rec('hrv_rmssd_milli'),
+      rhr: rec('resting_heart_rate'),
+      spo2: rec('spo2_percentage'),
+      skin_temp: rec('skin_temp_celsius'),
+
+      // --- 睡眠時機（★ 之前完全沒有保存）---
+      sleep_start: s?.start ?? null,
+      sleep_end: s?.end ?? null,
+      bedtime_local: s?.start ? localTime(s.start, timezone) : null,
+      wake_time_local: s?.end ? localTime(s.end, timezone) : null,
+      bedtime_date_local: s?.start ? localDate(s.start, timezone) : null,
+      timezone_offset: s?.timezone_offset ?? null,
+
+      // --- 睡眠品質 ---
+      respiratory_rate: num(s?.score?.respiratory_rate),
+      sleep_total: sleepTotal,
+      deep_sleep: sws,
+      rem_sleep: rem,
+      light_sleep: light,
+      awake_time: num(g.total_awake_time_milli),
+      in_bed_time: num(g.total_in_bed_time_milli),
+      sleep_performance: num(s?.score?.sleep_performance_percentage),
+      sleep_consistency: num(s?.score?.sleep_consistency_percentage),
+      sleep_efficiency: num(s?.score?.sleep_efficiency_percentage),
+      sleep_debt: num(s?.score?.sleep_needed?.need_from_sleep_debt_milli),
+      sleep_need_baseline: num(s?.score?.sleep_needed?.baseline_milli),
+      disturbances: num(g.disturbance_count),
+      sleep_cycle_count: num(g.sleep_cycle_count),
+
+      // --- 前一天（全部取自同一個 cycle 時間窗）---
+      previous_day_strain: cycle ? num(cycle?.score?.strain) : null,
+      cycle_avg_hr: cycle ? num(cycle?.score?.average_heart_rate) : null,
+      cycle_max_hr: cycle ? num(cycle?.score?.max_heart_rate) : null,
+      kilojoule: cycle ? num(cycle?.score?.kilojoule) : null,
+      cycle_id: cycle ? String(cycle.id) : null,
+      ...workouts,
+      ...naps,
+
+      // --- 身體量測（最新一筆，非每日）---
+      weight,
+      height,
+      body_max_hr: bodyMaxHr,
+
+      // --- 官方 API 沒有的（永遠 null，絕不假造）---
+      steps: null,              // APP_ONLY_UNAVAILABLE_TO_API
+      vo2max: null,             // APP_ONLY_UNAVAILABLE_TO_API
+      lean_body_mass: null,     // APP_ONLY_UNAVAILABLE_TO_API
+
+      // --- 資料品質旗標（缺欄位不會讓整天失效）---
+      has_sleep: Boolean(s),
+      sleep_scored: s?.score_state === 'SCORED',
+      has_recovery: Boolean(r),
+      recovery_scored: recoveryScored,
+      calibrating,
+      has_previous_cycle: Boolean(cycle),
+    };
+  });
+}
+
+/**
+ * DB 版：抓出區間內所有原始資料再算。
+ *
+ * ⚠️ 這裡刻意用 allSettled 而不是 Promise.all。
+ *
+ * Promise.all 遇到第一個 reject 就往外拋，**其餘還在飛的 promise 之後才 reject
+ * 就變成 unhandledRejection** —— Node 22 預設會直接終止 process。也就是說
+ * 一個 optional 查詢失敗有可能整支 cron 被殺掉，連已經算好的簡報都發不出去。
+ *
+ * 現在：睡眠是唯一的必要資料，它失敗就往外拋（呼叫端已包 try/catch）；
+ * 其餘任何一個失敗都只是那部分沒有值，不影響其他欄位。
+ */
+export async function loadDailyMetrics({ db, timezone, from, to, fromIso, toIso }) {
+  const startIso = fromIso ?? `${from}T00:00:00.000Z`;
+  const endIso = toIso ?? `${to}T23:59:59.999Z`;
+  // cycle / workout 用時間戳篩，而且要比 health_date 區間再往前一天，
+  // 因為 from 那天的「昨日 cycle」落在 from 的前一天。
+  const padStart = new Date(Date.parse(startIso) - 2 * 86_400_000).toISOString();
+
+  const settled = await Promise.allSettled([
+    db.getSleeps({ from, to, includeNaps: true }),
+    db.getRecoveries({ from, to }),
+    db.getCycles({ fromIso: padStart, toIso: endIso }),
+    db.getWorkouts({ fromIso: padStart, toIso: endIso }),
+    db.getLatestBodyMeasurement(),
+  ]);
+
+  const names = ['sleeps', 'recoveries', 'cycles', 'workouts', 'bodyMeasurement'];
+  const value = (i, fallback) => {
+    if (settled[i].status === 'fulfilled') return settled[i].value ?? fallback;
+    log.warn('daily_metrics_partial_failure', {
+      part: names[i],
+      error: String(settled[i].reason?.message ?? settled[i].reason).slice(0, 200),
+    });
+    return fallback;
+  };
+
+  // 睡眠是骨架：沒有它就沒有任何 health_date 可言
+  if (settled[0].status === 'rejected') throw settled[0].reason;
+
+  return computeDailyMetrics({
+    sleepRows: value(0, []),
+    recoveryRows: value(1, []),
+    cycleRows: value(2, []),
+    workoutRows: value(3, []),
+    bodyMeasurement: value(4, null),
+    timezone,
+  });
+}
+
+/** 把 daily metrics 轉成某個欄位的時間序列（舊→新），null 會被略過。 */
+export function seriesOf(rows, key) {
+  return [...rows]
+    .filter((r) => num(r[key]) !== null)
+    .sort((a, b) => (a.health_date < b.health_date ? -1 : 1))
+    .map((r) => ({ date: r.health_date, value: num(r[key]) }));
+}

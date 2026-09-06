@@ -4,6 +4,7 @@
  */
 
 import { BASELINE, TELEGRAM_MAX_CHARS, TREND } from './config.js';
+import { INSIGHT_LABELS } from './insights.js';
 import { prettyDate } from './time.js';
 
 const LIGHT = { green: '🟢', yellow: '🟡', red: '🔴⚠️' };
@@ -14,12 +15,37 @@ const FALLBACK_NOTE = '⚠️ AI 教練分析今天暫時無法生成，數據�
 // 這是防止模型失控時把訊息撐爆的保險 —— 數據永遠不會被裁掉。
 const COACH_MAX_CHARS = { daily: 900, weekly: 1400 };
 
+/**
+ * 安全截斷 —— **全系統唯一一份**。
+ *
+ * JS 的 slice 是以 UTF-16 code unit 為單位，直接切會把 emoji 的 surrogate pair
+ * 剖成兩半，產生落單的 surrogate（在 Telegram 上顯示成 �）。
+ * 這裡把切壞的尾巴修掉：
+ *   1. 尾端是落單的 high surrogate → 丟掉
+ *   2. 尾端是 ZWJ / variation selector → 丟掉（否則 👩‍💻 會斷成「👩‍」）
+ */
+export function safeSlice(text, end) {
+  if (end <= 0) return '';
+  if (end >= text.length) return text;
+  let cut = text.slice(0, end);
+  // 落單的 high surrogate（pair 的前半被留下、後半被切掉）
+  const last = cut.charCodeAt(cut.length - 1);
+  if (last >= 0xd800 && last <= 0xdbff) cut = cut.slice(0, -1);
+  // 懸空的組合字元：ZWJ(U+200D) 與 variation selector(U+FE0E/U+FE0F)
+  while (cut.length) {
+    const c = cut.codePointAt(cut.length - 1);
+    if (c === 0x200d || c === 0xfe0e || c === 0xfe0f) cut = cut.slice(0, -1);
+    else break;
+  }
+  return cut;
+}
+
 /** 超長時在句子邊界收尾，不留半句話。 */
 function capCoachText(text, max) {
   if (!text) return null;
   const t = text.trim();
   if (t.length <= max) return t;
-  const cut = t.slice(0, max);
+  const cut = safeSlice(t, max);
   const lastStop = Math.max(
     cut.lastIndexOf('。'), cut.lastIndexOf('！'), cut.lastIndexOf('？'), cut.lastIndexOf('\n'),
   );
@@ -95,6 +121,14 @@ export function renderDaily(briefing, coachText) {
     lines.push(...trendLines);
   }
 
+  // 「今天最值得注意」—— 由 Node 算好排序的 top 2~3 項（見 analytics/whatChanged.js）。
+  // briefing.whatChanged 不存在時整段不出現，簡報與以前一模一樣。
+  const changeLines = renderWhatChanged(briefing.whatChanged);
+  if (changeLines.length) {
+    lines.push('');
+    lines.push(...changeLines);
+  }
+
   lines.push('—');
   // 模型掛掉時 coachText 是 null → 照樣發數據簡報，底下加上 fallback 說明
   lines.push(capCoachText(coachText, COACH_MAX_CHARS.daily) ?? FALLBACK_NOTE);
@@ -126,6 +160,29 @@ function renderTrendLines(trends) {
     lines.push(`· 另有 ${sorted.length - MAX_TREND_LINES} 項指標也在偏離`);
   }
   return lines;
+}
+
+/** 簡報上限 2 行，避免訊息變成長篇報表。 */
+const MAX_CHANGE_LINES = 2;
+
+/**
+ * 「今天最值得注意」。排序與挑選都已經由 Node 做完，這裡只負責排版。
+ * 刻意用「偏離平常」而不是「異常」—— 這是拿自己的歷史當基準的統計描述。
+ */
+function renderWhatChanged(whatChanged) {
+  if (!Array.isArray(whatChanged) || !whatChanged.length) return [];
+  const lines = ['🔎 今天最值得注意'];
+  for (const c of whatChanged.slice(0, MAX_CHANGE_LINES)) {
+    const meta = INSIGHT_LABELS[c.metric];
+    if (!meta || c.current === null || c.current === undefined) continue;
+    const parts = [`${meta.emoji} ${meta.label} ${meta.fmt(c.current)}`];
+    if (c.vs_30d_pct !== null) {
+      parts.push(`比 30 天平均${c.vs_30d_pct >= 0 ? '高' : '低'} ${Math.abs(c.vs_30d_pct).toFixed(0)}%`);
+    }
+    if (c.z_score !== null) parts.push(`z=${c.z_score.toFixed(1)}`);
+    lines.push(`· ${parts.join('，')}`);
+  }
+  return lines.length > 1 ? lines : [];
 }
 
 function footer(stage, sampleCount, reportDate) {
@@ -172,6 +229,12 @@ export function renderWeekly(weekly, coachText) {
 
 function wowSuffix(w, key) {
   if (!w || w.delta === null) return '（前週無資料可比）';
+  // 前週平均為 0 → 算不出百分比。以前會走到下面用 Math.abs(null) 印出「比前週 0%」，
+  // 明明有變化卻顯示 0，比不顯示還糟。
+  if (w.pct === null && key !== 'sleep_debt' && key !== 'sleep_total') {
+    if (w.direction === 'flat') return '（與前週差不多）';
+    return `（${w.direction === 'up' ? '↑ 高於' : '↓ 低於'}前週，前週基準為 0 無法算百分比）`;
+  }
   // 時間類指標用分鐘講，比百分比直觀（睡眠債基準小，百分比會失真）
   if (key === 'sleep_debt' || key === 'sleep_total') {
     const min = Math.round(w.delta / 60000);
@@ -197,7 +260,8 @@ function fmtRange(a, b) {
  */
 export function clamp(text, max = TELEGRAM_MAX_CHARS) {
   if (text.length <= max) return text;
-  return `${text.slice(0, max - 3)}...`;
+  // safeSlice 可能會少切 1 個 code unit（修掉半個 emoji），所以結果一定 <= max
+  return `${safeSlice(text, max - 3)}...`;
 }
 
 export { FALLBACK_NOTE };

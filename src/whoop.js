@@ -7,12 +7,15 @@
  *    refresh_token / access_token / expires_at 寫回 Turso，
  *    寫成功前不做任何 WHOOP 資料處理。DB 寫入失敗會 retry 並中止本次執行。
  *  - 動態 token 只存 Turso，不放環境變數。
+ *  - **兩層互斥**：process 內用記憶體 mutex（refreshing），跨 process 再加一層
+ *    Turso lease lock。WHOOP 會輪替 refresh_token，兩個 process 同時 refresh
+ *    會讓慢的那一方手上的 refresh_token 直接失效（必須重新授權才能恢復）。
  *
  * Rate limit：預設 100 req/分、10,000 req/日。遇到 429 用 exponential backoff，
  * 若有 X-RateLimit-Reset / Retry-After 就依它等待。
  */
 
-import { WHOOP } from './config.js';
+import { LOCKS, WHOOP } from './config.js';
 import { log } from './logger.js';
 
 export class WhoopAuthError extends Error {
@@ -99,7 +102,7 @@ export function refreshTokens({ refreshToken, clientId, clientSecret, tokenUrl }
 // ---------------------------------------------------------------------------
 
 export function createWhoopClient({
-  db, clientId, clientSecret, fetchImpl = fetch,
+  db, clientId, clientSecret, fetchImpl = fetch, sleepImpl = sleep,
   // 下面兩個只有測試會覆寫，正式執行一律用官方 endpoint
   apiBase = WHOOP.API_BASE, tokenUrl = WHOOP.TOKEN_URL,
   backoffFor = backoffMs,
@@ -133,30 +136,102 @@ export function createWhoopClient({
     return refreshing;
   }
 
+  /**
+   * DB 裡這組 token 現在能不能直接用？
+   *  - 一般情況：還有 >5 分鐘效期就能用。
+   *  - force（剛剛吃了 401）：只有「跟剛才失敗的那個不同」的 token 才算數，
+   *    否則會拿同一個壞掉的 token 再撞一次牆。
+   */
+  function tokenUsable(t, { force, staleAccessToken }) {
+    if (!t?.accessToken) return false;
+    if (force) return t.accessToken !== staleAccessToken;
+    return t.expiresAt.getTime() - Date.now() > WHOOP.TOKEN_REFRESH_SKEW_MS;
+  }
+
+  /**
+   * 別的 process 正握著 refresh lock。等它做完，然後從 DB 撿現成的新 token。
+   *
+   * 刻意**不會**在等不到時自己硬 refresh —— 那正好會造成這個 lock 要防的
+   * refresh_token 輪替競態。寧可這一輪失敗（30 分鐘後排程會再來），
+   * 也不要把 refresh_token 弄丟而需要人工重新授權。
+   */
+  async function waitForPeerRefresh({ force, staleAccessToken }) {
+    const attempts = Math.max(1, Math.ceil(LOCKS.TOKEN_REFRESH_WAIT_MS / LOCKS.TOKEN_REFRESH_POLL_MS));
+    log.warn('token_refresh_lock_busy', { attempts, poll_ms: LOCKS.TOKEN_REFRESH_POLL_MS });
+    for (let i = 1; i <= attempts; i++) {
+      await sleepImpl(LOCKS.TOKEN_REFRESH_POLL_MS);
+      const latest = await db.getTokens();
+      if (tokenUsable(latest, { force, staleAccessToken })) {
+        cached = latest;
+        log.info('token_adopted_from_peer', { waited_polls: i });
+        return latest.accessToken;
+      }
+    }
+    throw new WhoopAuthError(
+      '另一個執行中的 process 正在 refresh WHOOP token，等待逾時。'
+      + '本次執行中止（不自行 refresh，避免 refresh_token 輪替競態）。',
+    );
+  }
+
   async function doRefresh(t, force) {
+    const staleAccessToken = t.accessToken;
     const msLeft = t.expiresAt.getTime() - Date.now();
-    log.info('token_refresh_start', { minutes_left: Math.round(msLeft / 60000), force });
-    const fresh = await refreshTokens({
-      refreshToken: t.refreshToken,
-      clientId,
-      clientSecret,
-      tokenUrl,
-    });
-    // ⚠️ 第一件事：寫回 Turso。寫成功前不做任何 WHOOP 資料處理。
-    await db.saveTokens({
-      accessToken: fresh.accessToken,
-      refreshToken: fresh.refreshToken ?? t.refreshToken,
-      expiresAt: fresh.expiresAt,
-      scope: fresh.scope,
-    });
-    cached = {
-      accessToken: fresh.accessToken,
-      refreshToken: fresh.refreshToken ?? t.refreshToken,
-      expiresAt: fresh.expiresAt,
-      scope: fresh.scope,
-    };
-    log.info('token_refresh_done', { expires_at: fresh.expiresAt.toISOString() });
-    return cached.accessToken;
+
+    // 跨 process lease lock。db 沒有實作時退回只有 process 內互斥（並警告）。
+    let owner = null;
+    const lockable = typeof db.acquireLock === 'function';
+    if (lockable) {
+      owner = await db.acquireLock(LOCKS.TOKEN_REFRESH_NAME, {
+        ttlMs: LOCKS.TOKEN_REFRESH_TTL_MS,
+      });
+      if (!owner) return waitForPeerRefresh({ force, staleAccessToken });
+    } else {
+      log.warn('token_refresh_lock_unavailable', { reason: 'db.acquireLock 未實作' });
+    }
+
+    try {
+      // 拿到 lock 之後【重新讀一次 DB】：剛剛卡住的那段時間，別的 process
+      // 可能已經 refresh 完了。有現成的就直接用，不要浪費一次輪替。
+      const latest = await db.getTokens();
+      if (tokenUsable(latest, { force, staleAccessToken })) {
+        cached = latest;
+        log.info('token_refresh_skipped_peer_won', {});
+        return latest.accessToken;
+      }
+
+      const base = latest ?? t;
+      log.info('token_refresh_start', { minutes_left: Math.round(msLeft / 60000), force });
+      const fresh = await refreshTokens({
+        refreshToken: base.refreshToken,
+        clientId,
+        clientSecret,
+        tokenUrl,
+      });
+      // ⚠️ 第一件事：寫回 Turso。寫成功前不做任何 WHOOP 資料處理。
+      await db.saveTokens({
+        accessToken: fresh.accessToken,
+        refreshToken: fresh.refreshToken ?? base.refreshToken,
+        expiresAt: fresh.expiresAt,
+        scope: fresh.scope,
+      });
+      cached = {
+        accessToken: fresh.accessToken,
+        refreshToken: fresh.refreshToken ?? base.refreshToken,
+        expiresAt: fresh.expiresAt,
+        scope: fresh.scope,
+      };
+      log.info('token_refresh_done', { expires_at: fresh.expiresAt.toISOString() });
+      return cached.accessToken;
+    } finally {
+      if (owner) {
+        try {
+          await db.releaseLock(LOCKS.TOKEN_REFRESH_NAME, owner);
+        } catch (err) {
+          // 放不掉沒關係，TTL 到了自然過期。絕不能因此蓋掉真正的結果 / 錯誤。
+          log.warn('token_refresh_lock_release_failed', { error: String(err?.message ?? err) });
+        }
+      }
+    }
   }
 
   /** 單一 GET，含 429 / 5xx backoff 與 401 自動 refresh 一次。 */
@@ -248,7 +323,33 @@ export function createWhoopClient({
     recoveries: (start, end) => collect('/recovery', { start: iso(start), end: iso(end) }),
     /** 生理週期（day strain 在這裡）。 */
     cycles: (start, end) => collect('/cycle', { start: iso(start), end: iso(end) }),
+    /**
+     * 運動紀錄。需要 read:workout scope —— 舊 token 沒有這個 scope，
+     * 會拿到 401/403。呼叫端必須自己接住（不可以讓簡報因此掛掉）。
+     */
+    workouts: (start, end) => collect('/activity/workout', { start: iso(start), end: iso(end) }),
+    /**
+     * 身體量測（身高 / 體重 / 最大心率）。
+     * ⚠️ 這個 endpoint 回傳**單一物件**，不是 collection，所以不走 collect()、
+     * 沒有 records / next_token / 分頁。需要 read:body_measurement scope。
+     */
+    bodyMeasurement: () => apiGet('/user/measurement/body'),
   };
+}
+
+/**
+ * 這個錯誤是不是「token 沒有這個 scope」？
+ *
+ * 加了 read:workout / read:body_measurement 之後，既有 token 在重新授權前
+ * 一定會撞到這個。呼叫端用它來把 capability 標成 UNAUTHORIZED，
+ * 而不是當成系統故障去發錯誤通知。
+ */
+export function isScopeError(err) {
+  const status = err?.status;
+  if (status === 403) return true;
+  // refresh 過還是 401 → WhoopAuthError；scope 不足時 WHOOP 也可能回 401
+  if (status === 401) return true;
+  return err?.name === 'WhoopAuthError' && /401/.test(String(err?.message ?? ''));
 }
 
 function backoffMs(attempt) {

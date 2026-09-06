@@ -139,14 +139,17 @@ test('weekly：daily 失敗也不影響 weekly 發送（互不阻擋）', async 
   assert.ok(ds.sleeps.length > 0);
 });
 
-test('weekly：非週一不發', async () => {
+test('weekly：超過補發寬限（週四以後）不發', async () => {
+  // 行為變更（A3）：以前只有週一會發，現在週一～週三都可以補發上一週。
+  // 所以「不發」的邊界從週二移到週四。週二 / 週三的補發行為見
+  // test/weekly-catchup.test.js。
   const monday = mondayMorning();
-  const tuesday = new Date(monday.getTime() + 86_400_000);
-  const dataset = makeDataset({ days: 45, now: tuesday });
-  const ctx = ctxFor({ now: tuesday, dataset });
+  const thursday = new Date(monday.getTime() + 3 * 86_400_000);
+  const dataset = makeDataset({ days: 45, now: thursday });
+  const ctx = ctxFor({ now: thursday, dataset });
 
   const res = await runWeekly(ctx);
-  assert.equal(res.status, 'not_monday');
+  assert.equal(res.status, 'outside_window');
   assert.equal(ctx.telegram.sent.length, 0);
 });
 

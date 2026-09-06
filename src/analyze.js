@@ -509,11 +509,16 @@ export function weekOverWeek(lastWeek, prevWeek) {
     }
     const delta = a - b;
     const pct = b > 0 ? (delta / b) * 100 : null;
-    out[key] = {
-      delta,
-      pct,
-      direction: Math.abs(pct ?? 0) < 2 ? 'flat' : (delta > 0 ? 'up' : 'down'),
-    };
+    // 前週平均為 0（或負）時算不出百分比。以前這裡是 `Math.abs(pct ?? 0) < 2`，
+    // null 會被當成 0 而一律判成 flat —— 明明從 0 變成 40 分鐘也說「差不多」。
+    // 沒有百分比時改用絕對差判方向：只有真的沒變才是 flat。
+    let direction;
+    if (pct === null) {
+      direction = delta === 0 ? 'flat' : (delta > 0 ? 'up' : 'down');
+    } else {
+      direction = Math.abs(pct) < 2 ? 'flat' : (delta > 0 ? 'up' : 'down');
+    }
+    out[key] = { delta, pct, direction };
   }
   return out;
 }

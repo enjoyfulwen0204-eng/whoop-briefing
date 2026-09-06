@@ -1,15 +1,29 @@
-# Render Blueprint（可選）
+# Render Blueprint
 #
-# 用法：把這個 repo 連到 Render → New → Blueprint，Render 會自動照這裡建 Cron Job。
-# 你也可以完全不用這個檔案，在 Render 網頁上手動建 Cron Job（README 有步驟）。
+# 兩個服務，共用同一個 Turso / WHOOP token / OpenRouter / Telegram bot：
 #
-# 排程： */30 * * * *  全天每 30 分鐘跑一次（cron 一律 UTC，但這個排程全天候所以無差別）。
-# 為什麼全天跑：daily 的去重 key 是 health_date（主睡眠結束的當地日期），不是執行
-# 當下的日期。所以下午才起床、或跨午夜才跑到，都能正確補發且不會重複。
-# 「完全沒事做」的那些 run 只查 DB 不打 WHOOP API，很便宜。
+#   1. cron   whoop-briefing      每 30 分鐘：發簡報 + 同步 WHOOP 長期資料
+#   2. worker whoop-telegram-bot  常駐：Telegram long polling，回答問題與記 journal
+#
+# 為什麼要分開：long polling 需要常駐 process，cron 是「跑完就結束」的一次性容器。
+# 把 polling 塞進 cron 會卡住簡報排程。
+#
+# 兩個 process 同時活著是安全的：
+#   - WHOOP token refresh 有 Turso lease lock（resource_locks）
+#   - 報告發送權有 report_claims，不會重複發送
+#   - worker 只讀健康資料、只寫 journal；唯一會寫健康資料的仍然只有 cron
+#
+# ⚠️ plan 欄位：這裡沿用 cron 既有的 starter。**worker 的 plan 需要你自己確認**
+#    你的 Render 方案是否支援 Background Worker 以及費用 —— 我無法從 repo 得知。
+#    如果不想付 worker 的費用，可以改在自己的機器 / NAS 跑 `npm run bot`，
+#    架構完全不用改（它只需要那幾個環境變數）。
+#
 # 標成 sync: false 的變數不會寫在檔案裡，要在 Render 網頁的 Environment 分頁自己填。
 
 services:
+  # ---------------------------------------------------------------------------
+  # 1. 每日簡報 + 長期資料同步
+  # ---------------------------------------------------------------------------
   - type: cron
     name: whoop-briefing
     runtime: node
@@ -22,6 +36,36 @@ services:
         value: Asia/Taipei
       - key: OPENROUTER_MODEL
         value: anthropic/claude-sonnet-5
+      - key: WHOOP_CLIENT_ID
+        sync: false
+      - key: WHOOP_CLIENT_SECRET
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+
+  # ---------------------------------------------------------------------------
+  # 2. Telegram bot（常駐 long polling）
+  # ---------------------------------------------------------------------------
+  - type: worker
+    name: whoop-telegram-bot
+    runtime: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm run bot
+    envVars:
+      - key: TIMEZONE
+        value: Asia/Taipei
+      - key: OPENROUTER_MODEL
+        value: anthropic/claude-sonnet-5
+      # 與 cron 完全相同的一組憑證（共用 Turso 與 WHOOP token）
       - key: WHOOP_CLIENT_ID
         sync: false
       - key: WHOOP_CLIENT_SECRET

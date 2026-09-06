@@ -103,6 +103,10 @@ export const COACH = {
 export const WEEKLY = {
   WEEKDAY: 1,                    // 1 = 週一
   FALLBACK_SEND_AFTER_HOUR: 12,  // 台灣時間 12:00 之後就算沒偵測到起床也補發
+  // 補發寬限：週一當天沒發成功（系統故障 / 沒戴錶）時，還可以往後補幾天。
+  // 1 = 只有週一；3 = 週一、週二、週三都可以補發「上一個完整週」。
+  // 週 key 仍然是上週一的日期，配合 uniq_report_sent 保證一週只發一次。
+  CATCHUP_DAYS: 3,
 };
 
 // 「昨日 Strain」：從主睡眠 sleep.end 往「前」找最近一個已完成 cycle，
@@ -117,8 +121,11 @@ export const WHOOP = {
   AUTH_URL: 'https://api.prod.whoop.com/oauth/oauth2/auth',
   TOKEN_URL: 'https://api.prod.whoop.com/oauth/oauth2/token',
   API_BASE: 'https://api.prod.whoop.com/developer/v2',
-  // 最小 scope，注意單複數。offline 必要，否則不給 refresh token。
-  SCOPES: 'offline read:recovery read:sleep read:cycles',
+  // 注意單複數。offline 必要，否則不給 refresh token。
+  // read:workout / read:body_measurement 是後來加的 —— 既有 token 不會自動
+  // 取得新 scope，必須重跑一次 `npm run authorize`。在那之前相關 endpoint
+  // 會回 401/403，由 capability probe 標成 UNAUTHORIZED，簡報不受影響。
+  SCOPES: 'offline read:recovery read:sleep read:cycles read:workout read:body_measurement',
   PAGE_LIMIT: 25,          // collection 每頁最多 25 筆
   MAX_PAGES: 12,           // 45 天 * 每天 1~2 筆，12 頁綽綽有餘（安全上限）
   TOKEN_REFRESH_SKEW_MS: 5 * 60 * 1000, // 還有 >5 分鐘效期就直接重用
@@ -240,6 +247,233 @@ export const METRICS = [
 ];
 
 export const METRIC_BY_KEY = Object.fromEntries(METRICS.map((m) => [m.key, m]));
+
+// ---------------------------------------------------------------------------
+// 4b. 併發控制（跨 process）
+// ---------------------------------------------------------------------------
+export const LOCKS = {
+  // token refresh 的 lease 長度。要比「一次 refresh + 寫 DB」久得多，
+  // 但不能久到 process crash 後要等太久才能恢復。
+  TOKEN_REFRESH_NAME: 'whoop_token_refresh',
+  TOKEN_REFRESH_TTL_MS: 60_000,
+  // 拿不到 lock 時最多等多久（等別人 refresh 完，再從 DB 讀新 token）
+  TOKEN_REFRESH_WAIT_MS: 15_000,
+  TOKEN_REFRESH_POLL_MS: 500,
+};
+
+export const REPORT_CLAIM = {
+  // 發送權租期。要涵蓋「抓 45 天資料 + 呼叫 LLM + 送 Telegram」的最壞情況。
+  // 太短會讓另一個 run 在前一個還在跑時搶走 claim 而重複發送。
+  TTL_MS: 10 * 60_000,
+};
+
+// ---------------------------------------------------------------------------
+// 4a-2. AI：用途、prompt 版本、model routing、價格
+// ---------------------------------------------------------------------------
+
+/** 每一次 LLM 呼叫都要標明用途（寫進 ai_usage.purpose）。 */
+export const AI_PURPOSE = {
+  DAILY: 'DAILY',
+  WEEKLY: 'WEEKLY',
+  QA: 'QA',
+  INTENT_PARSE: 'INTENT_PARSE',
+  JOURNAL_PARSE: 'JOURNAL_PARSE',
+  FOLLOWUP: 'FOLLOWUP',
+  EXPERIMENT: 'EXPERIMENT',
+  OTHER: 'OTHER',
+};
+
+/**
+ * Prompt 版本。
+ *
+ * 改 prompt 內容時**一定要同時升版**，否則事後無法回答
+ * 「這句健康建議是哪一版 prompt 生出來的」。
+ * 這一輪只加 metadata，daily / weekly 的 prompt 文字一個字都沒動。
+ */
+export const PROMPT_VERSIONS = {
+  DAILY: 'daily-v1',
+  WEEKLY: 'weekly-v1',
+  QA: 'qa-v1',
+  INTENT_PARSE: 'intent-parser-v1',
+  JOURNAL_PARSE: 'journal-parser-v1',
+  OTHER: 'generic-v1',
+};
+
+/**
+ * 依任務挑模型。
+ *
+ * 優先序（由高到低）：
+ *   1. 該任務專屬的環境變數（MODEL_QA 等）
+ *   2. MODEL_DEFAULT
+ *   3. 既有的 OPENROUTER_MODEL（向後相容，現有部署就是靠這個）
+ *   4. COACH.DEFAULT_MODEL
+ *
+ * ⚠️ 這一輪所有任務的預設值都**留空**，所以實際行為與現在完全相同 ——
+ * 全部都會落到 OPENROUTER_MODEL。要換便宜模型跑 parsing 時，
+ * 只要在環境變數設 MODEL_PARSE 就好，不用改程式。
+ */
+export function resolveModel(purpose, env = process.env, fallback = null) {
+  const byPurpose = {
+    [AI_PURPOSE.DAILY]: env.MODEL_DAILY,
+    [AI_PURPOSE.WEEKLY]: env.MODEL_WEEKLY,
+    [AI_PURPOSE.QA]: env.MODEL_QA,
+    [AI_PURPOSE.FOLLOWUP]: env.MODEL_QA,
+    [AI_PURPOSE.INTENT_PARSE]: env.MODEL_PARSE,
+    [AI_PURPOSE.JOURNAL_PARSE]: env.MODEL_PARSE,
+    [AI_PURPOSE.EXPERIMENT]: env.MODEL_ADVANCED,
+  };
+  return byPurpose[purpose]
+    || env.MODEL_DEFAULT
+    || fallback                 // createCoach 建構時拿到的 model（現有部署走這條）
+    || env.OPENROUTER_MODEL
+    || COACH.DEFAULT_MODEL;
+}
+
+/**
+ * 模型價格（USD / 每百萬 token）。
+ *
+ * ⚠️ 價格**會變**，而且這份表是人工維護的。所以：
+ *  - 每一筆都標 effective_date 與來源
+ *  - 表裡沒有的模型 → estimated_cost_usd = null（**絕不猜**）
+ *  - 可以用環境變數 MODEL_PRICING_JSON 覆蓋，不必改程式碼重新部署
+ */
+export const PRICING_VERSION = '2026-09-06';
+
+export const MODEL_PRICING = {
+  'anthropic/claude-sonnet-5': {
+    input_per_million: 3,
+    output_per_million: 15,
+    effective_date: '2026-09-06',
+    source: 'openrouter.ai/models（人工抄錄，可能過期）',
+  },
+  'anthropic/claude-haiku-4.5': {
+    input_per_million: 1,
+    output_per_million: 5,
+    effective_date: '2026-09-06',
+    source: 'openrouter.ai/models（人工抄錄，可能過期）',
+  },
+  'anthropic/claude-opus-4.1': {
+    input_per_million: 15,
+    output_per_million: 75,
+    effective_date: '2026-09-06',
+    source: 'openrouter.ai/models（人工抄錄，可能過期）',
+  },
+};
+
+/** 讀取價格表（含環境變數覆蓋）。壞掉的 JSON 一律忽略並記 log。 */
+export function loadPricing(env = process.env) {
+  const base = { ...MODEL_PRICING };
+  const raw = env.MODEL_PRICING_JSON;
+  if (!raw) return base;
+  try {
+    const override = JSON.parse(raw);
+    if (override && typeof override === 'object') Object.assign(base, override);
+  } catch {
+    // 覆蓋壞掉時退回內建表，不要讓整個系統起不來
+  }
+  return base;
+}
+
+// ---------------------------------------------------------------------------
+// 4b-2. Telegram bot（常駐 worker）
+// ---------------------------------------------------------------------------
+export const TELEGRAM_BOT = {
+  // long polling 的 timeout（秒）。Telegram 建議 50 以下；連線會掛著等訊息，
+  // 沒訊息就到時間回空陣列 —— 這比每秒輪詢省太多。
+  POLL_TIMEOUT_S: 50,
+  // fetch 自己的逾時要比 long poll 久，否則永遠等不到訊息就被自己砍掉
+  REQUEST_TIMEOUT_MS: 65_000,
+  // 連線失敗 / 5xx 的退避
+  BASE_BACKOFF_MS: 1_000,
+  MAX_BACKOFF_MS: 60_000,
+  // 一次最多拿幾則
+  BATCH_LIMIT: 20,
+  // 追問的存活時間
+  PENDING_TTL_MS: 30 * 60_000,
+  // 回覆長度上限（沿用 Telegram 的 4096，但留一點餘裕）
+  MAX_REPLY_CHARS: 3800,
+  // LLM 產生回答的 token 上限
+  ANSWER_MAX_TOKENS: 1000,
+  PARSE_MAX_TOKENS: 400,
+};
+
+// ---------------------------------------------------------------------------
+// 4c. 長期同步
+// ---------------------------------------------------------------------------
+export const WHOOP_SYNC = {
+  // 第一次要往回抓多久。WHOOP 帳號較新時會自然提早結束。
+  BACKFILL_DAYS: 365,
+  // 每次執行最多推進幾個 chunk（避免單一 cron run 太久 / 打爆 rate limit）
+  BACKFILL_CHUNK_DAYS: 30,
+  MAX_CHUNKS_PER_RUN: 3,
+  // 增量同步的重疊天數：WHOOP 會重新評分或事後修正，所以每次都重抓最近幾天
+  INCREMENTAL_OVERLAP_DAYS: 5,
+  // 增量同步的節流：排程每 30 分鐘跑一次，但不需要每次都同步。
+  MIN_INTERVAL_MS: 60 * 60_000,
+  // 同步失敗絕不能讓簡報掛掉
+  RESOURCES: ['sleep', 'recovery', 'cycle', 'workout', 'body_measurement'],
+};
+
+// ---------------------------------------------------------------------------
+// 4d. 統計 / 個人偏離（Phase H / I）
+// ---------------------------------------------------------------------------
+export const ANALYTICS = {
+  // 日曆窗口（天）。注意：window 是日曆天數，n 是該窗口內實際有效樣本數，
+  // 兩者永遠分開記錄，不可混用。
+  WINDOWS: [7, 14, 30, 90],
+  // 少於這個樣本數就不輸出該窗口的統計結論
+  MIN_SAMPLES: 5,
+  // 標準差小於這個比例（相對於平均）視為變異不足，不算 z-score
+  MIN_STDDEV_RATIO: 0.001,
+  // z-score 分級（用絕對值）
+  Z_THRESHOLDS: { MILD: 1, NOTABLE: 1.5, STRONG: 2 },
+  // 個人偏離用的基準窗口
+  DEFAULT_BASELINE_WINDOW: 30,
+};
+
+/**
+ * 每個指標「哪個方向算不好」。
+ *   'higher_better' → 偏低才值得注意
+ *   'lower_better'  → 偏高才值得注意
+ *   'both'          → 兩個方向偏離都值得看
+ * 這裡刻意不用「正常 / 異常」這種醫學語彙，全系統一律稱 personal deviation。
+ */
+export const METRIC_DIRECTION = {
+  recovery_score: 'higher_better',
+  hrv: 'higher_better',
+  rhr: 'lower_better',
+  respiratory_rate: 'both',
+  sleep_total: 'higher_better',
+  slow_wave: 'higher_better',
+  rem: 'higher_better',
+  sleep_performance: 'higher_better',
+  sleep_efficiency: 'higher_better',
+  sleep_consistency: 'higher_better',
+  sleep_debt: 'lower_better',
+  disturbance_count: 'lower_better',
+  spo2: 'higher_better',
+  skin_temp: 'both',
+  strain: 'both',
+};
+
+// Phase K：趨勢引擎
+export const TREND_ENGINE = {
+  WINDOWS: [7, 30, 90],
+  MIN_SAMPLES: 5,
+  // 斜率要達到「每天變動 > 基準的這個比例」才算真的有方向
+  MIN_SLOPE_RATIO_PER_DAY: 0.0015,
+  // change point：最近 N 天 vs 前 N 天
+  SHIFT_WINDOW_DAYS: 14,
+  MIN_SHIFT_EFFECT_SIZE: 0.6,   // Cohen's d 門檻
+  MIN_SHIFT_SAMPLES: 7,
+};
+
+// Phase J：What Changed Today
+export const WHAT_CHANGED = {
+  MAX_ITEMS: 3,
+  // 重要度低於這個值就不顯示（避免每天都在報雜訊）
+  MIN_IMPORTANCE: 0.35,
+};
 
 // ---------------------------------------------------------------------------
 // 5. 小工具

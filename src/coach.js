@@ -12,7 +12,8 @@
  *  - 模型只把「程式算好的結果」講成人話，不做任何好壞判斷。
  */
 
-import { COACH } from './config.js';
+import { AI_PURPOSE, COACH, PROMPT_VERSIONS, resolveModel } from './config.js';
+import { recordUsage, extractTokens } from './usage.js';
 import { log, describeError } from './logger.js';
 
 export const SYSTEM_PROMPT = `你是 Kelvin 的私人健康教練，語氣像溫暖、專業、體貼的女教練。你會收到「程式已算好」的今日數據、個人基準、三級判斷結果、趨勢資訊。你只負責把這些用繁體中文、口語、溫暖但不啰嗦地講給他聽。
@@ -145,6 +146,17 @@ function contentToText(content) {
   return '';
 }
 
+/**
+ * 這個錯誤是不是「這個模型用不了」（而不是暫時性故障）？
+ * 只有這種情況才值得退回預設模型重試一次。
+ */
+export function isModelUnavailableError(err) {
+  const status = err?.status;
+  if (status === 404 || status === 402) return true;
+  if (status !== 400) return false;
+  return /model|not.{0,10}found|unavailable|no endpoints/i.test(String(err?.message ?? ''));
+}
+
 export function createCoach({
   apiKey,
   model = COACH.DEFAULT_MODEL,
@@ -152,6 +164,10 @@ export function createCoach({
   fetchImpl = fetch,
   maxRetries = COACH.MAX_RETRIES,
   backoffFor = backoffMs,
+  // 下面兩個是這一輪新增的，都有安全預設值 —— 不傳的話行為與以前完全相同
+  db = null,               // 有給才會記 ai_usage
+  env = process.env,       // model routing 讀這裡
+  now = () => new Date(),
 }) {
   /**
    * 參數階梯：先用最省的組合，若該模型 / provider 不吃某個參數（400）就退一階。
@@ -217,12 +233,13 @@ export function createCoach({
     throw lastErr;
   }
 
-  async function complete({ system, userMessage, maxTokens }) {
+  /** 用指定模型跑完整的參數階梯。回傳 { text, json }。 */
+  async function completeWithModel({ system, userMessage, maxTokens, useModel }) {
     let lastErr;
     for (const [i, extra] of PARAM_TIERS.entries()) {
       try {
         const json = await send({
-          model,
+          model: useModel,
           max_tokens: maxTokens,
           messages: [
             { role: 'system', content: system },
@@ -233,7 +250,7 @@ export function createCoach({
         const choice = json?.choices?.[0];
         const text = contentToText(choice?.message?.content).trim();
         log.info('coach_ok', {
-          model: json?.model ?? model,
+          model: json?.model ?? useModel,
           param_tier: i,
           finish_reason: choice?.finish_reason,
           input_tokens: json?.usage?.prompt_tokens,
@@ -241,7 +258,7 @@ export function createCoach({
           chars: text.length,
         });
         if (!text) throw new Error('OpenRouter 回傳空白內容');
-        return text;
+        return { text, json };
       } catch (err) {
         lastErr = err;
         const status = err instanceof CoachApiError ? err.status : null;
@@ -256,8 +273,125 @@ export function createCoach({
     throw lastErr;
   }
 
+  /**
+   * 一次完整的 LLM 呼叫：model routing → 呼叫 →（必要時）fallback → 記帳。
+   *
+   * 記帳一定會發生（成功或失敗都記），而且 recordUsage 自己吞掉所有錯誤，
+   * 所以帳本壞掉不會影響回覆。
+   */
+  async function complete({
+    system, userMessage, maxTokens,
+    purpose = AI_PURPOSE.OTHER,
+    promptVersion = PROMPT_VERSIONS.OTHER,
+  }) {
+    const requestedModel = resolveModel(purpose, env, model);
+    const startedAt = Date.now();
+    let usedModel = requestedModel;
+    let fallbackOccurred = false;
+
+    const finish = async (json, status, detail) => {
+      const tokens = extractTokens(json?.usage);
+      await recordUsage(db, {
+        provider: 'openrouter',
+        requestedModel,
+        // 以 provider 實際回報的 model 為準（OpenRouter 可能路由到別的）
+        model: json?.model ?? usedModel,
+        fallbackOccurred,
+        purpose,
+        promptVersion,
+        ...tokens,
+        requestStatus: status,
+        latencyMs: Date.now() - startedAt,
+        detail,
+      }, { now: now() });
+    };
+
+    try {
+      const { text, json } = await completeWithModel({
+        system, userMessage, maxTokens, useModel: requestedModel,
+      });
+      await finish(json, 'OK', null);
+      return text;
+    } catch (err) {
+      // 模型本身用不了 → 退回建構時的預設模型再試一次（**只試一次**，不無限重試）
+      if (isModelUnavailableError(err) && requestedModel !== model) {
+        log.warn('coach_model_fallback', {
+          requested: requestedModel, fallback: model, error: describeError(err),
+        });
+        fallbackOccurred = true;
+        usedModel = model;
+        try {
+          const { text, json } = await completeWithModel({
+            system, userMessage, maxTokens, useModel: model,
+          });
+          await finish(json, 'OK', `fallback_from:${requestedModel}`);
+          return text;
+        } catch (err2) {
+          await finish(null, 'FAILED', describeError(err2));
+          throw err2;
+        }
+      }
+      await finish(null, 'FAILED', describeError(err));
+      throw err;
+    }
+  }
+
+  /**
+   * 抽出 JSON。模型常常會用 ```json 包起來，或前後加一句廢話。
+   * 抓第一個 {...} 區塊來解析；解析不出來就回 null（呼叫端走 fallback）。
+   */
+  function extractJson(text) {
+    if (!text) return null;
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const candidate = fenced ? fenced[1] : text;
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start === -1 || end === -1 || end <= start) return null;
+    try {
+      return JSON.parse(candidate.slice(start, end + 1));
+    } catch {
+      return null;
+    }
+  }
+
   return {
     model,
+
+    /**
+     * 通用文字生成（Telegram Q&A 用）。失敗回 null，呼叫端必須有 fallback。
+     * 與 daily/weekly 完全獨立，不共用 prompt。
+     */
+    async ask({ system, user, maxTokens = 800, purpose = AI_PURPOSE.QA, promptVersion = PROMPT_VERSIONS.QA }) {
+      try {
+        return await complete({ system, userMessage: user, maxTokens, purpose, promptVersion });
+      } catch (err) {
+        log.error('coach_ask_failed', { error: describeError(err) });
+        return null;
+      }
+    },
+
+    /**
+     * 要一包 JSON 回來（intent parsing / journal parsing 用）。
+     *
+     * ⚠️ 這裡的 LLM **只做語言理解**：把一句話變成結構化提案。
+     * 它不做任何計算、不查資料庫、不決定健康好壞。
+     * 回傳的東西一律要再經過 Node 的 validate 才會被採用。
+     */
+    async json({
+      system, user, maxTokens = 400,
+      purpose = AI_PURPOSE.OTHER, promptVersion = PROMPT_VERSIONS.OTHER,
+    }) {
+      try {
+        const text = await complete({ system, userMessage: user, maxTokens, purpose, promptVersion });
+        const parsed = extractJson(text);
+        if (!parsed) log.warn('coach_json_unparsable', { chars: text?.length ?? 0 });
+        return parsed;
+      } catch (err) {
+        log.error('coach_json_failed', { error: describeError(err) });
+        return null;
+      }
+    },
+
     /** 失敗回 null → 上層走 fallback（照樣發數據簡報）。 */
     async daily(briefing) {
       try {
@@ -265,6 +399,8 @@ export function createCoach({
           system: SYSTEM_PROMPT,
           userMessage: buildDailyUserMessage(briefing),
           maxTokens: COACH.DAILY_MAX_TOKENS,
+          purpose: AI_PURPOSE.DAILY,
+          promptVersion: PROMPT_VERSIONS.DAILY,
         });
       } catch (err) {
         log.error('coach_daily_failed', { error: describeError(err) });
@@ -277,6 +413,8 @@ export function createCoach({
           system: SYSTEM_PROMPT + WEEKLY_EXTRA,
           userMessage: buildWeeklyUserMessage(weeklyData),
           maxTokens: COACH.WEEKLY_MAX_TOKENS,
+          purpose: AI_PURPOSE.WEEKLY,
+          promptVersion: PROMPT_VERSIONS.WEEKLY,
         });
       } catch (err) {
         log.error('coach_weekly_failed', { error: describeError(err) });

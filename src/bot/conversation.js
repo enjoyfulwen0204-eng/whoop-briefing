@@ -1,0 +1,66 @@
+/**
+ * 追問 / 多輪對話（Phase O）。
+ *
+ * 場景：
+ *   使用者：「為什麼今天 recovery 很差？」
+ *   系統發現 WHOOP 指標本身解釋不了 → 反問「昨天有喝酒、旅行或睡特別晚嗎？」
+ *   使用者：「喝了三杯」
+ *   系統：解析 → 寫 journal → 重新取得 context → 回答原問題 → 清掉 pending
+ *
+ * 設計重點：
+ *  - 一個 chat 同時只有一個 OPEN 的追問（新的會把舊的標成 SUPERSEDED）
+ *  - 30 分鐘過期。過期的追問不會硬接使用者的下一句話（那多半已經換話題了）
+ *  - 沒有 WHOOP 資料時照樣能運作：至少會把 journal 記下來
+ */
+
+import { TELEGRAM_BOT } from '../config.js';
+import { log } from '../logger.js';
+
+/** 追問哪些 journal 類別可能解釋恢復變差。 */
+export const FOLLOW_UP_CATEGORIES = ['alcohol', 'sickness', 'travel', 'late_sleep', 'stress'];
+
+export const FOLLOW_UP_QUESTION =
+  '昨天有喝酒、旅行、生病、壓力特別大，或睡得特別晚嗎？\n'
+  + '（直接回我就好，例如「喝了三杯酒」或「沒有」。我會記下來，之後就能幫你把這些對照著看。）';
+
+/** 使用者是不是在說「沒有」。 */
+export function isNegativeAnswer(text) {
+  return /^(沒有|沒|無|none|no|nope|不用|都沒有|沒事)\s*[。.!！]?$/i.test(String(text ?? '').trim());
+}
+
+/**
+ * 要不要對這個問題發出追問？
+ *
+ * 條件（全部成立才問）：
+ *  - 使用者問的是「今天狀態」或「有什麼變化」
+ *  - 真的有值得注意的偏離
+ *  - 而且那一天**沒有**任何 journal 紀錄（有的話就不必再問了）
+ */
+export function shouldFollowUp({ result, journalCountForDay }) {
+  if (!result || result.available === false) return false;
+  if (!['today_status', 'what_changed'].includes(result.intent)) return false;
+  if (journalCountForDay > 0) return false;
+
+  const items = result.what_changed ?? result.items ?? [];
+  const noteworthy = items.filter((c) => c.noteworthy || c.level === 'STRONG' || c.level === 'NOTABLE');
+  return noteworthy.length > 0;
+}
+
+/** 開一個追問。 */
+export async function openFollowUp({ db, chatId, originalMessage, result, now = new Date() }) {
+  const id = await db.openPendingQuestion({
+    chatId,
+    originalMessage,
+    question: FOLLOW_UP_QUESTION,
+    intent: result.intent,
+    contextJson: {
+      health_date: result.health_date,
+      items: (result.what_changed ?? result.items ?? []).slice(0, 3).map((c) => ({
+        metric: c.metric, z_score: c.z_score, level: c.level,
+      })),
+    },
+    ttlMs: TELEGRAM_BOT.PENDING_TTL_MS,
+  }, { now });
+  log.info('follow_up_opened', { id, chat_id: String(chatId), intent: result.intent });
+  return id;
+}

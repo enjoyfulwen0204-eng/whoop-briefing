@@ -17,6 +17,7 @@ import { createTelegram } from './telegram.js';
 import { runDaily } from './daily.js';
 import { runWeekly } from './weekly.js';
 import { checkRepoFreshness } from './maintenance.js';
+import { createSync } from './sync.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
 
@@ -40,7 +41,7 @@ export async function main({ now = new Date() } = {}) {
     db,
   });
 
-  const summary = { daily: null, weekly: null, errors: [] };
+  const summary = { daily: null, weekly: null, sync: null, errors: [] };
 
   try {
     await db.migrate();
@@ -60,7 +61,8 @@ export async function main({ now = new Date() } = {}) {
 
     const dailySettled = (await db.isSent('daily', today))
       && (await db.isSent('daily', yesterday));
-    const weeklyDue = localWeekday(today) === WEEKLY.WEEKDAY
+    // 補發寬限內（預設週一～週三）都算「該檢查週報」，週一故障不會整週漏掉
+    const weeklyDue = localWeekday(today) <= WEEKLY.CATCHUP_DAYS
       && !(await db.isSent('weekly', weekKey));
 
     log.info('due_check', {
@@ -83,7 +85,10 @@ export async function main({ now = new Date() } = {}) {
     await whoop.getAccessToken();
 
     const source = createDataSource({ whoop, now });
-    const coach = createCoach({ apiKey: env.openrouterApiKey, model: env.openrouterModel });
+    // 傳 db 進去才會記 ai_usage；記帳失敗不會影響簡報（recordUsage 自己吞錯）
+    const coach = createCoach({
+      apiKey: env.openrouterApiKey, model: env.openrouterModel, db,
+    });
     const ctx = { db, source, coach, telegram, timezone: tz, now };
 
     // ---- daily ----
@@ -106,6 +111,16 @@ export async function main({ now = new Date() } = {}) {
         log.error('weekly_failed', { error: describeError(err), stack: err?.stack?.split('\n').slice(0, 4) });
         await telegram.notifyError('weekly_report', describeError(err));
       }
+    }
+
+    // ---- 長期資料同步 ----
+    // 刻意放在最後：簡報永遠優先，同步只是附加工作。
+    // syncAll 自己永遠不拋錯（每個 resource 各自 try/catch），
+    // 這裡再包一層純粹是保險 —— 同步絕不能影響已經發出去的簡報。
+    try {
+      summary.sync = await createSync({ whoop, db, timezone: tz, now }).syncAll();
+    } catch (err) {
+      log.error('sync_unexpected', { error: describeError(err) });
     }
   } catch (err) {
     // 基礎設施層失敗（Turso / token / 環境變數）

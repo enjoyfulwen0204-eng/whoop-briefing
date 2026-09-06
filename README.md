@@ -86,7 +86,14 @@ npm run dry-run -- --live
 # 4. 四個服務都設定好之後，一鍵健康檢查（會發一則測試訊息到 Telegram）
 npm run check
 
-# 5. 看你的 WHOOP 帳號實際有哪些欄位（WHOOP One 可能沒有 SpO2 / 皮膚溫度）
+# 4b. 系統體檢：同步進度、歷史涵蓋、capability、token scope（只讀 Turso，免費）
+npm run health-status
+
+# 4c. 手動推進長期資料同步 / backfill
+npm run sync                  # 跑一輪（忽略節流）
+npm run sync -- --until-done  # 一直跑到 365 天 backfill 完成
+
+# 5. 看你的 WHOOP 帳號實際有哪些欄位（結果會寫進 Turso 的 whoop_capabilities）
 npm run probe
 
 # 6. 手動完整跑一次真的流程（會真的發簡報，如果條件成立）
@@ -222,6 +229,247 @@ B 後面那個條件是刻意加的。只看「是否單調下降」的話，在
 反過來的順序（先寫 `PROCESSING` 再發）並不能解決問題 —— 只是把失敗模式從「可能重複發」換成「可能永久漏發」（卡在 `PROCESSING` 的紀錄若阻擋後續補發，那天就永遠收不到了）。所以刻意不做。
 
 ---
+
+## 長期健康資料庫（v2 新增）
+
+以前這個系統**完全沒有把健康資料存下來** —— 每次執行都重抓 45 天、算完就丟。
+所有超過 45 天的分析在架構上都不可能做。現在改了。
+
+### 落地的資料表
+
+| Table | 內容 | 主鍵 |
+|---|---|---|
+| `whoop_sleeps` | 睡眠（含小睡），30 個欄位 + `raw_json` | `id` |
+| `whoop_recoveries` | 恢復 | `sleep_id` |
+| `whoop_cycles` | 生理週期（含全日平均/最高心率、熱量） | `id` |
+| `whoop_workouts` | 運動（完全依官方 v2 schema，含 6 段 zone durations） | `id` |
+| `whoop_body_measurements` | 身高 / 體重 / 最大心率，逐日保留版本 | `recorded_at` |
+| `whoop_sync_state` | 每個 resource 的同步進度與斷點 | `resource` |
+| `whoop_capabilities` | probe 出來的能力表 | `key` |
+| `resource_locks` | 跨 process lease lock | `name` |
+| `report_claims` | 報告發送權（防重複發送） | `(report_type, local_date)` |
+
+每一列都保留 `raw_json`。未來 WHOOP 新增欄位時，不必重抓就能回頭解析。
+
+### 之前被浪費、現在開始保存的欄位
+
+最重要的是 **`sleep.start`（入睡時間）** —— 以前完全沒讀，導致
+「幾點睡」「睡眠時機」「晚睡對恢復的影響」這類分析根本做不了。
+
+其他新保存的：`timezone_offset`、`total_awake_time_milli`、`total_in_bed_time_milli`、
+`sleep_cycle_count`、`sleep_needed` 的三個分量、cycle 的
+`average_heart_rate` / `max_heart_rate` / `kilojoule`、以及小睡紀錄
+（以前 `nap === true` 的資料抓下來就直接丟掉）。
+
+### Backfill 與增量同步
+
+- **第一次**：往回抓 365 天（`WHOOP_SYNC.BACKFILL_DAYS`），切成 30 天一個 chunk，
+  每個 chunk 寫完就存檔 → 中途失敗下次從斷點續傳，不會從頭再來。
+- **之後**：每次只抓最近 5 天並**刻意重疊** —— WHOOP 的 `PENDING_SCORE` 會在數小時後
+  變成 `SCORED`，只抓新資料會永遠留著未評分的殘骸。全部 upsert，重跑安全。
+- 排程每次執行都會同步，但有 60 分鐘節流；backfill 未完成時不受節流限制。
+- **同步永遠排在簡報之後，而且不會拋錯。** 同步壞掉不影響簡報。
+
+## Capability：能力靠資料判斷，不靠 membership
+
+WHOOP One 與 Peak 用的是同一顆 WHOOP 5.0 硬體。所以程式裡**沒有任何**
+`if (membership === 'one')` 這種判斷。唯一的判準是：
+
+> API 這個欄位實際有沒有值 → 有就 available，沒有就 unavailable
+
+`npm run probe` 會把結果寫進 `whoop_capabilities`，狀態有六種：
+
+| 狀態 | 意思 |
+|---|---|
+| `SUPPORTED` | 取樣範圍內每筆都有值 |
+| `PARTIAL` | 有些有、有些沒有 |
+| `UNAVAILABLE` | 有樣本，但這個欄位全是 null → 這個帳號沒有 |
+| `UNKNOWN` | 樣本不足，無從判斷（**不猜**） |
+| `UNAUTHORIZED` | token 缺 scope，重跑 `npm run authorize` 就會有 |
+| `APP_ONLY_UNAVAILABLE_TO_API` | App 看得到但官方 API 沒有這個欄位 |
+
+`APP_ONLY` 目前包含：steps、VO2 Max、lean body mass、Stress Monitor、
+WHOOP Age、Healthspan、血壓、ECG/AFib、荷爾蒙洞察、WHOOP Journal。
+這些**不會**用 scraping 或 private API 去取 —— 標成拿不到就是拿不到。
+
+## ⚠️ Scope 變更：部署後需要重新授權一次
+
+新增了兩個 scope：
+
+```
+read:workout  read:body_measurement
+```
+
+**既有的 token 不會自動獲得新 scope。** 部署後要在本機跑一次：
+
+```bash
+npm run authorize
+```
+
+在重新授權之前會怎樣：
+
+- ✅ Daily Brief 正常
+- ✅ Weekly Report 正常
+- ✅ 睡眠 / 恢復 / 週期的同步正常
+- ⚠️ 運動與身體量測會拿到 401/403 → 記成 `scope_missing`，**不會**觸發錯誤通知
+- ⚠️ probe 把相關 capability 標成 `UNAUTHORIZED`
+
+跑 `npm run health-status` 會直接告訴你目前 token 缺哪些 scope。
+
+## 統計層（v2 新增）
+
+既有的紅黃燈（`severityFor`，固定百分比門檻）**完全保留不動**。
+統計層是新增的第二個視角，兩者並存：
+
+- **7/14/30/90 天統計**：count / mean / median / stddev（樣本標準差，除以 n-1）/
+  min / max / 百分位 / 變化量。
+  日曆窗口（`windowDays`）與有效樣本數（`n`）**永遠分開記錄**。
+- **z-score**：`(current − mean) / stddev`。stddev 為 0 或極小時回 `null` 並標
+  `insufficient_variance`，不會爆成無限大。
+  分級 `|z|` < 1 NORMAL、1–1.5 MILD、1.5–2 NOTABLE、≥2 STRONG。
+- **方向感知**：HRV 偏低才值得留意，RHR 偏高才值得留意，呼吸率與皮膚溫度兩個方向都看。
+  一律稱 **personal deviation**，不用「異常」這種醫學語彙。
+- **趨勢**：7/30/90 天線性斜率 + R²，方向判斷 metric-aware（HRV 上升=改善、RHR 上升=惡化）。
+  用真實日期算 x，缺日不會被當成等距而扭曲斜率。
+- **baseline shift**：最近 14 天 vs 前 14 天，用 Cohen's d，超過門檻才標
+  `possible_baseline_shift`（是提示不是結論）。
+- **What Changed Today**：importance 由 Node 用確定性公式算好、排序、截到 top 2–3
+  才交給 LLM 講。**排序絕不由 LLM 決定。**
+
+簡報上會多出一小段（最多 2 行）：
+
+```
+🔎 今天最值得注意
+· ❤️ HRV 38ms，比 30 天平均低 31%，z=-2.4
+```
+
+資料不足、DB 查詢失敗、分析爆炸 —— 任何情況下這一段都只是消失，簡報照發。
+
+## 併發保護（v2 新增）
+
+| 風險 | 保護 |
+|---|---|
+| 兩個 process 同時 refresh token（會讓 refresh_token 失效、需人工重新授權） | Turso lease lock + 既有的 process 內 mutex。拿不到 lock 就等別人寫好再撿現成的；等不到就**中止本次執行，絕不自己 refresh** |
+| 兩個 process 同時發同一份報告 | `report_claims` 發送權。送出成功後立刻寫 `telegram_sent_at`，之後永遠不再授予 |
+| process crash 卡死 | 所有 lock / claim 都有 TTL 租約 |
+
+**注意**：這不是 exactly-once delivery（分散式系統做不到）。
+Telegram 送出成功、但連那個極小的 `markClaimSent` UPDATE 都失敗、而且 claim 租期
+（10 分鐘）也過了 —— 這種情況仍可能重發一次。但比原本的
+「`isSent` → 送出 → 寫 SENT」三步無鎖已經大幅收斂。
+
+## Telegram Bot（v3 新增）
+
+從單向推播變成雙向。**架構上是獨立的常駐 worker，不在 cron 裡面。**
+
+### 為什麼是 long polling 不是 webhook
+
+webhook 需要一個對外可達的 HTTPS endpoint；getUpdates 只要能連出去就好，
+更容易部署、也更容易測。代價是需要一個常駐 process。
+
+### 不會重複處理訊息（三層防線）
+
+1. Telegram 端：送出 offset 之後，比它小的 update 伺服器就刪掉了
+2. **每處理完一則就立刻把 offset 寫進 Turso**（不是整批做完才寫）
+   → worker 被殺掉，重啟後最多重做「正在處理的那一則」
+3. 本地防線：`update_id < 已存 offset` 的一律跳過
+
+### 授權
+
+只回應 `TELEGRAM_CHAT_ID`。其他 chat 的訊息**只記 log、完全不回應** ——
+連「你沒有權限」都不回，避免向陌生人洩漏 bot 的存在。
+
+### 可以問什麼
+
+```
+我今天狀態怎樣？
+最近 HRV 如何？
+最近睡眠有沒有變差？
+最近 30 天最好是哪一天？
+今天最值得注意的是什麼？
+```
+
+指令：`/start`、`/help`、`/healthdata`、`/log`
+
+### Q&A 的資料流
+
+```
+Telegram 訊息
+  → intent（先確定性關鍵字，認不出來才問 LLM，且結果一定要過 validate）
+  → healthQuery.js（★ Node 算完所有數字）
+  → structured context（只有結論，沒有 raw JSON）
+  → LLM（只把結論講成人話）
+  → 回覆
+```
+
+LLM **不會**拿到資料庫、不會算平均、不會挑「最好的一天」、不會決定健康好壞。
+LLM 掛掉時走純 Node 排版的 fallback，資訊一樣完整。
+
+### Journal
+
+```
+/log alcohol 3 drinks
+/log caffeine 2 coffee
+/log flight TPE SGN
+/log sick
+/log magnesium 300mg
+```
+
+也可以直接用講的：「昨天喝了三杯酒」「今天飛胡志明」。
+自然語言由 LLM 轉成**提案**，一定要過 `validateEvent()` 才會寫進 DB。
+**LLM 不直接寫資料庫，也不決定 health_date**（那是日期運算，不是語言理解）。
+
+health_date 用凌晨 4 點當界線 —— 半夜 2 點喝的酒算前一天，因為你還沒睡。
+
+### 追問（多輪）
+
+指標明顯偏離、而且當天沒有任何 journal 時，bot 會反問
+「昨天有喝酒、旅行、生病或睡得特別晚嗎？」。
+你回答之後系統會：解析 → 寫 journal → 重新取得 context → 回答原問題 → 清除狀態。
+
+追問 30 分鐘過期。過期的不會硬接你後來講的話（那多半已經換話題了）。
+
+## WHOOP 還沒到手時可以做什麼
+
+這是目前的真實狀態，而且是刻意設計成可用的：
+
+| 功能 | 現在 |
+|---|---|
+| `/start`、`/help` | ✅ 正常 |
+| `/healthdata` | ✅ 顯示全部 0，**不是錯誤** |
+| `/log` 與自然語言記錄 | ✅ 完全可用，資料會完整保存 |
+| 追問 / 多輪對話 | ✅ 可用 |
+| 健康問答 | ⚠️ 誠實回「目前還沒有足夠的 WHOOP 資料」，**絕不編數字** |
+| 每日簡報 / 週報 | ⏸ 等有資料才會開始 |
+
+手錶到手之後，只需要三個指令就會自動啟用全部功能，**不需要改任何架構**：
+
+```bash
+npm run authorize          # 取得含新 scope 的 token
+npm run probe              # 偵測這個帳號實際有哪些欄位
+npm run sync -- --until-done   # 抓回 365 天歷史
+```
+
+## 分析基礎建設（v3 新增，尚未產生任何結論）
+
+這一輪建立的是**骨架與數學**，全部用 synthetic data 驗證。
+沒有真實資料，所以**不會**輸出任何真實的 insight、預測或生理年齡。
+
+| 模組 | 狀態 |
+|---|---|
+| 相似歷史日 `analytics/similarDays.js` | 演算法完成（標準化距離、缺欄位容忍） |
+| 相關性 `analytics/correlation.js` | Pearson / Spearman / p 值 / journal 關聯 |
+| 迴歸 `analytics/regression.js` | 多元線性迴歸 + VIF 共線性警告 |
+| 預測 `prediction.js` | 框架完成，**強制 temporal split**，資料不足回 `INSUFFICIENT_DATA` |
+| Insight 記憶 `healthMemory.js` | 狀態機 + 版本鏈（舊版本永不刪除） |
+| 實驗 `experiments.js` | 生命週期 + baseline vs intervention 分析 |
+| Healthspan `healthspan.js` | contributor 盤點，**score 永遠是 null** |
+
+用詞紀律（寫在程式碼裡，不只是文件）：
+- 相關與實驗一律稱 **within-person observed association**，`causal: false`
+- 資料充分度（INSUFFICIENT / LOW / MODERATE / BETTER_SUPPORTED）
+  **不是**統計顯著性的替代品
+- steps / VO2 Max / lean body mass 一律 `APP_ONLY_UNAVAILABLE_TO_API`，值永遠 null
 
 ## 資料庫長什麼樣
 

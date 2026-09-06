@@ -6,12 +6,13 @@
  *  - 只有真的準備發報告了，才抓 45 天歷史算 baseline。
  */
 
-import { BASELINE } from './config.js';
+import { BASELINE, REPORT_CLAIM } from './config.js';
 import {
   buildObservations, completedCycles, detectWake, baselineRecords, stageFor,
   computeBaselines, evaluateAll, detectTrends, yesterdayCycleFor,
 } from './analyze.js';
 import { renderDaily } from './format.js';
+import { buildInsightsSafe } from './insights.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
 
@@ -52,22 +53,65 @@ export async function runDaily({ db, source, coach, telegram, timezone, now = ne
     minutes_since_wake: wake.minutesSinceWake,
   });
 
-  // 3) 準備發報告了 → 才抓 45 天歷史
-  const { sleeps, recoveries, cycles } = await source.history();
+  // 3) 取得發送權（跨 process）。isSent 到寫入 SENT 之間有 TOCTOU 空窗，
+  //    claim 把那段空窗鎖起來：同一份報告同時只有一個 process 會做事。
+  //    刻意放在「抓歷史 / 呼叫 LLM」之前 —— 沒搶到就不必浪費那些成本。
+  const claiming = typeof db.claimReport === 'function';
+  const claimKey = { reportType: 'daily', localDateKey: healthDate };
+  let claim = { granted: true, owner: null };
+  if (claiming) {
+    claim = await db.claimReport({ ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS });
+    if (!claim.granted) {
+      log.info('daily_claim_denied', {
+        health_date: healthDate, already_sent: claim.alreadySent,
+      });
+      return {
+        status: claim.alreadySent ? 'already_sent' : 'claim_busy',
+        healthDate,
+        localDate: healthDate,
+      };
+    }
+  }
 
-  const briefing = buildBriefing({
-    sleeps, recoveries, cycles, timezone, healthDate, wakeSleepId: wake.record.sleepId,
-  });
+  /** 還沒送出就失敗時把發送權還回去，讓下一輪立刻重試（不必等 TTL）。 */
+  const releaseClaim = async () => {
+    if (!claiming || !claim.owner) return;
+    try {
+      await db.releaseClaim({ ...claimKey, owner: claim.owner });
+    } catch (err) {
+      log.warn('daily_claim_release_failed', { error: describeError(err) });
+    }
+  };
 
-  // 4) AI 只負責講話；掛掉就走 fallback（照樣發數據簡報）
-  const coachText = await coach.daily(briefing);
-  const text = renderDaily(briefing, coachText);
+  // 4) 準備發報告了 → 才抓 45 天歷史
+  let briefing;
+  let coachText;
+  let text;
+  try {
+    const { sleeps, recoveries, cycles } = await source.history();
+    briefing = buildBriefing({
+      sleeps, recoveries, cycles, timezone, healthDate, wakeSleepId: wake.record.sleepId,
+    });
+    // 統計層（z-score / What Changed）。**任何失敗都只是沒有這一段**，
+    // 絕不影響簡報本身 —— buildInsightsSafe 自己吞掉所有錯誤回 null。
+    const insights = await buildInsightsSafe({ db, timezone, healthDate });
+    briefing.whatChanged = insights?.whatChanged ?? null;
+    briefing.historyDays = insights?.historyDays ?? null;
+
+    // AI 只負責講話；掛掉就走 fallback（照樣發數據簡報）
+    coachText = await coach.daily(briefing);
+    text = renderDaily(briefing, coachText);
+  } catch (err) {
+    await releaseClaim();
+    throw err;
+  }
 
   // 5) 發送
   let sent;
   try {
     sent = await telegram.send(text);
   } catch (err) {
+    await releaseClaim();
     // 記錄失敗原因時不能再拋錯，否則會蓋掉真正的錯誤
     await db.recordRun({
       reportType: 'daily',
@@ -88,7 +132,24 @@ export async function runDaily({ db, source, coach, telegram, timezone, now = ne
     throw err;
   }
 
-  // 6) 記錄。訊息已經發出去、收不回來了 —— 紀錄寫入失敗不能當成「發送失敗」，
+  // 6) ★ 訊息已經出去了 —— 立刻把「已送出」這件事釘進 claim。
+  //    這是一個極小的 UPDATE，比整筆 report_runs insert 更可能成功，
+  //    而且它才是防重發的關鍵證據：claim 一旦有 telegram_sent_at，
+  //    之後永遠不會再被授予，即使下面的 SENT 紀錄寫失敗。
+  if (claiming && claim.owner) {
+    try {
+      const marked = await db.markClaimSent({
+        ...claimKey, owner: claim.owner, messageId: sent.messageId,
+      });
+      if (!marked) log.warn('daily_claim_mark_noop', { health_date: healthDate });
+    } catch (err) {
+      log.error('daily_claim_mark_failed', {
+        health_date: healthDate, error: describeError(err),
+      });
+    }
+  }
+
+  // 7) 記錄。訊息已經發出去、收不回來了 —— 紀錄寫入失敗不能當成「發送失敗」，
   //    但一定要大聲喊：沒有 SENT 紀錄，下一輪 isSent 會回 false 而重複發送。
   let recorded = true;
   try {

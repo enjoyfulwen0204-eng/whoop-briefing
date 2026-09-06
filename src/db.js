@@ -11,42 +11,15 @@
  */
 
 import { createClient } from '@libsql/client';
+import { randomUUID } from 'node:crypto';
+import { SCHEMA } from './schema.js';
+import { createHealthStore } from './store.js';
+import { createBotStore } from './botStore.js';
+import { createAnalysisStore } from './analysisStore.js';
 import { log } from './logger.js';
 
-export const SCHEMA = [
-  `CREATE TABLE IF NOT EXISTS whoop_tokens (
-     id                      INTEGER PRIMARY KEY CHECK (id = 1),
-     access_token            TEXT NOT NULL,
-     refresh_token           TEXT NOT NULL,
-     access_token_expires_at TEXT NOT NULL,
-     scope                   TEXT,
-     updated_at              TEXT NOT NULL
-   )`,
-  `CREATE TABLE IF NOT EXISTS report_runs (
-     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-     report_type         TEXT NOT NULL,
-     -- 去重 key。daily 放 health_date（主睡眠結束的當地日期），weekly 放上週一日期
-     local_date          TEXT NOT NULL,
-     -- 稽核用：daily 會另外明確記一份 health_date（舊資料為 NULL）
-     health_date         TEXT,
-     sleep_id            TEXT,
-     cycle_id            TEXT,
-     telegram_message_id INTEGER,
-     status              TEXT NOT NULL,
-     detail              TEXT,
-     sent_at             TEXT NOT NULL
-   )`,
-  // 同一天、同一種報告只能有一筆 SENT —— 資料庫層級的去重保險
-  `CREATE UNIQUE INDEX IF NOT EXISTS uniq_report_sent
-     ON report_runs (report_type, local_date) WHERE status = 'SENT'`,
-  `CREATE INDEX IF NOT EXISTS idx_report_lookup
-     ON report_runs (report_type, local_date)`,
-  `CREATE TABLE IF NOT EXISTS error_notifications (
-     error_type       TEXT PRIMARY KEY,
-     last_notified_at TEXT NOT NULL,
-     hits             INTEGER NOT NULL DEFAULT 1
-   )`,
-];
+// SCHEMA 定義集中在 schema.js（唯一 DDL 來源）。這裡 re-export 維持既有 import 路徑。
+export { SCHEMA } from './schema.js';
 
 /**
  * 是不是撞到唯一索引（同一天、同一種報告已經有一筆 SENT）。
@@ -234,6 +207,129 @@ export function createDb({ url, authToken }) {
     return true;
   }
 
+  // ----- 跨 process lease lock (A1) --------------------------------------
+  /**
+   * 取得一個具名 lease lock。
+   *
+   * 原子性來自單一 SQL：ON CONFLICT DO UPDATE ... WHERE 只有在既有 lock
+   * 已過期時才會改寫，否則整句話不動任何列（rowsAffected = 0）。
+   * 因為所有時間戳都是等寬的 ISO8601 UTC，字串比較 == 時間比較。
+   *
+   * @returns {Promise<?string>} 拿到就回 owner token，沒拿到回 null
+   */
+  async function acquireLock(name, { ttlMs, owner = randomUUID(), now = new Date() } = {}) {
+    const nowIso = now.toISOString();
+    const expiresIso = new Date(now.getTime() + ttlMs).toISOString();
+    const rs = await client.execute({
+      sql: `INSERT INTO resource_locks (name, owner, acquired_at, expires_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+              owner       = excluded.owner,
+              acquired_at = excluded.acquired_at,
+              expires_at  = excluded.expires_at
+            WHERE resource_locks.expires_at <= excluded.acquired_at`,
+      args: [name, owner, nowIso, expiresIso],
+    });
+    const got = Number(rs.rowsAffected ?? 0) > 0;
+    log.info(got ? 'lock_acquired' : 'lock_busy', { lock: name, ttl_ms: ttlMs });
+    return got ? owner : null;
+  }
+
+  /** 只有持有者能釋放（避免釋放掉別人接手的 lock）。 */
+  async function releaseLock(name, owner) {
+    const rs = await client.execute({
+      sql: 'DELETE FROM resource_locks WHERE name = ? AND owner = ?',
+      args: [name, owner],
+    });
+    const released = Number(rs.rowsAffected ?? 0) > 0;
+    log.info('lock_released', { lock: name, released });
+    return released;
+  }
+
+  // ----- 報告發送權 (A2) --------------------------------------------------
+  /**
+   * 取得某份報告的「發送權」。
+   *
+   * 三種結果：
+   *   { granted: true }                   → 你負責發，發完要呼叫 markClaimSent
+   *   { granted: false, alreadySent: true}→ 已經有人真的送出去過了，永遠不要再送
+   *   { granted: false }                  → 別人正在送（claim 未過期），這輪跳過
+   *
+   * telegram_sent_at 不為 null 時永遠不給 claim —— 這是「已送出」的耐久證據，
+   * 即使後續 report_runs 的 SENT 寫入失敗也不會導致重發。
+   */
+  async function claimReport({ reportType, localDateKey, ttlMs, owner = randomUUID(), now = new Date() }) {
+    const nowIso = now.toISOString();
+    const expiresIso = new Date(now.getTime() + ttlMs).toISOString();
+    const rs = await client.execute({
+      sql: `INSERT INTO report_claims
+              (report_type, local_date, owner, claimed_at, expires_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(report_type, local_date) DO UPDATE SET
+              owner      = excluded.owner,
+              claimed_at = excluded.claimed_at,
+              expires_at = excluded.expires_at
+            WHERE report_claims.telegram_sent_at IS NULL
+              AND report_claims.expires_at <= excluded.claimed_at`,
+      args: [reportType, localDateKey, owner, nowIso, expiresIso],
+    });
+    if (Number(rs.rowsAffected ?? 0) > 0) {
+      log.info('report_claimed', { report_type: reportType, local_date: localDateKey });
+      return { granted: true, owner };
+    }
+    const existing = await getClaim(reportType, localDateKey);
+    const alreadySent = Boolean(existing?.telegramSentAt);
+    log.info('report_claim_denied', {
+      report_type: reportType, local_date: localDateKey, already_sent: alreadySent,
+    });
+    return { granted: false, alreadySent, owner: null };
+  }
+
+  /**
+   * Telegram 送出成功後「第一件事」就是呼叫這個。
+   * 刻意是一個極小的 UPDATE：比整筆 report_runs insert 更可能成功，
+   * 而且它才是防重發的關鍵證據。
+   */
+  async function markClaimSent({ reportType, localDateKey, owner, messageId = null, now = new Date() }) {
+    const rs = await client.execute({
+      sql: `UPDATE report_claims
+               SET telegram_sent_at = ?, telegram_message_id = ?
+             WHERE report_type = ? AND local_date = ? AND owner = ?
+               AND telegram_sent_at IS NULL`,
+      args: [now.toISOString(), messageId, reportType, localDateKey, owner],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  async function getClaim(reportType, localDateKey) {
+    const rs = await client.execute({
+      sql: 'SELECT * FROM report_claims WHERE report_type = ? AND local_date = ?',
+      args: [reportType, localDateKey],
+    });
+    const row = rs.rows[0];
+    if (!row) return null;
+    return {
+      reportType: row.report_type,
+      localDate: row.local_date,
+      owner: row.owner,
+      claimedAt: row.claimed_at,
+      expiresAt: row.expires_at,
+      telegramSentAt: row.telegram_sent_at ?? null,
+      telegramMessageId: row.telegram_message_id ?? null,
+    };
+  }
+
+  /** 釋放發送權（失敗時呼叫，讓下一輪可以立刻重試，不必等 TTL）。 */
+  async function releaseClaim({ reportType, localDateKey, owner }) {
+    const rs = await client.execute({
+      sql: `DELETE FROM report_claims
+             WHERE report_type = ? AND local_date = ? AND owner = ?
+               AND telegram_sent_at IS NULL`,
+      args: [reportType, localDateKey, owner],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
   return {
     raw: client,
     migrate,
@@ -243,6 +339,15 @@ export function createDb({ url, authToken }) {
     recordRun,
     recentRuns,
     claimErrorNotify,
+    acquireLock,
+    releaseLock,
+    claimReport,
+    markClaimSent,
+    getClaim,
+    releaseClaim,
+    ...createHealthStore(client),
+    ...createBotStore(client),
+    ...createAnalysisStore(client),
     close: () => client.close(),
   };
 }

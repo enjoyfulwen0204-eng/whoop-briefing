@@ -16,7 +16,7 @@
  *  - 前週 = 再前一個完整週
  */
 
-import { WEEKLY } from './config.js';
+import { REPORT_CLAIM, WEEKLY } from './config.js';
 import { buildObservations, detectWake, weeklyStats, weekOverWeek } from './analyze.js';
 import { renderWeekly } from './format.js';
 import { completedWeeks, localDate, localHour, localWeekday } from './time.js';
@@ -28,9 +28,15 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
   const weeks = completedWeeks(now, timezone);
   const weekKey = weeks.last.key;
 
-  if (localWeekday(today) !== WEEKLY.WEEKDAY) {
-    return { status: 'not_monday', localDate: today };
+  // 補發寬限（A3）：以前只有週一會跑，週一整天故障就永遠漏掉那一週。
+  // completedWeeks() 在週一～週日都會回同一個「上一個完整週」，所以週二、
+  // 週三補發用的 weekKey 與週一完全相同 —— uniq_report_sent 保證一週一次。
+  const weekday = localWeekday(today);
+  if (weekday > WEEKLY.CATCHUP_DAYS) {
+    return { status: 'outside_window', localDate: today, weekday, weekKey };
   }
+  const isCatchup = weekday !== WEEKLY.WEEKDAY;
+
   if (await db.isSent('weekly', weekKey)) {
     log.info('weekly_already_sent', { week_key: weekKey });
     return { status: 'already_sent', weekKey };
@@ -39,6 +45,7 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
   // 時機判斷：偵測到起床，或已過中午（補發保險）
   const hour = localHour(now, timezone);
   let trigger = hour >= WEEKLY.FALLBACK_SEND_AFTER_HOUR ? 'after_noon' : null;
+  if (trigger && isCatchup) trigger = `after_noon_catchup_d${weekday}`;
   if (!trigger) {
     const { sleeps, recoveries } = await source.poll();
     const wake = detectWake({
@@ -46,14 +53,41 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
       now,
       timezone,
     });
-    if (wake.ready) trigger = 'wake';
+    if (wake.ready) trigger = isCatchup ? `wake_catchup_d${weekday}` : 'wake';
     else {
       log.info('weekly_waiting', { week_key: weekKey, reason: wake.reason, local_hour: hour });
       return { status: 'waiting', reason: wake.reason, weekKey };
     }
   }
 
-  const { sleeps, recoveries } = await source.history();
+  // 發送權（A2）—— 與 daily 同一套機制，各自獨立的 key
+  const claiming = typeof db.claimReport === 'function';
+  const claimKey = { reportType: 'weekly', localDateKey: weekKey };
+  let claim = { granted: true, owner: null };
+  if (claiming) {
+    claim = await db.claimReport({ ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS });
+    if (!claim.granted) {
+      log.info('weekly_claim_denied', { week_key: weekKey, already_sent: claim.alreadySent });
+      return { status: claim.alreadySent ? 'already_sent' : 'claim_busy', weekKey };
+    }
+  }
+  const releaseClaim = async () => {
+    if (!claiming || !claim.owner) return;
+    try {
+      await db.releaseClaim({ ...claimKey, owner: claim.owner });
+    } catch (err) {
+      log.warn('weekly_claim_release_failed', { error: describeError(err) });
+    }
+  };
+
+  let sleeps;
+  let recoveries;
+  try {
+    ({ sleeps, recoveries } = await source.history());
+  } catch (err) {
+    await releaseClaim();
+    throw err;
+  }
   // 用 observations（每個 health_date 一筆）而不是 records（一筆睡眠一筆）：
   // 分段睡的那天 WHOOP 會回兩筆主睡眠，用 records 會讓「有效天數」變成 8 天，
   // 而且那天的數值在平均裡被算兩次。跟 daily / 趨勢 / baseline 共用同一套口徑。
@@ -63,6 +97,7 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
   const prev = weeklyStats({ records, week: weeks.prev });
 
   if (last.days === 0) {
+    await releaseClaim();
     log.warn('weekly_no_data', { week_key: weekKey });
     await db.recordRun({
       reportType: 'weekly',
@@ -81,6 +116,7 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
   try {
     sent = await telegram.send(text);
   } catch (err) {
+    await releaseClaim();
     await db.recordRun({
       reportType: 'weekly',
       localDateKey: weekKey,
@@ -92,6 +128,15 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
       return { status: 'telegram_failed', weekKey, error: describeError(err) };
     }
     throw err;
+  }
+
+  // ★ 送出成功後第一件事：把「已送出」釘進 claim（見 daily.js 的說明）
+  if (claiming && claim.owner) {
+    try {
+      await db.markClaimSent({ ...claimKey, owner: claim.owner, messageId: sent.messageId });
+    } catch (err) {
+      log.error('weekly_claim_mark_failed', { week_key: weekKey, error: describeError(err) });
+    }
   }
 
   // 同 daily：訊息已送出，紀錄寫入失敗只能大聲喊，不能當成發送失敗

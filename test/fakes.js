@@ -6,6 +6,11 @@
 export function fakeDb({ failSentRecord = null } = {}) {
   const runs = [];
   const notifies = new Map();
+  // 記憶體版的 lease lock / 報告發送權（語義與 db.js 的 SQL 版本一致）
+  const locks = new Map();   // name -> { owner, expiresAt }
+  const claims = new Map();  // "type|date" -> { owner, expiresAt, telegramSentAt, messageId }
+  let seq = 0;
+  const nextOwner = () => `fake-owner-${++seq}`;
   let tokens = {
     accessToken: 'fake-access',
     refreshToken: 'fake-refresh',
@@ -16,7 +21,58 @@ export function fakeDb({ failSentRecord = null } = {}) {
   return {
     runs,
     notifies,
+    locks,
+    claims,
     migrate: async () => {},
+
+    async acquireLock(name, { ttlMs, owner = nextOwner(), now = new Date() } = {}) {
+      const cur = locks.get(name);
+      if (cur && new Date(cur.expiresAt).getTime() > now.getTime()) return null;
+      locks.set(name, { owner, expiresAt: new Date(now.getTime() + ttlMs).toISOString() });
+      return owner;
+    },
+    async releaseLock(name, owner) {
+      const cur = locks.get(name);
+      if (!cur || cur.owner !== owner) return false;
+      locks.delete(name);
+      return true;
+    },
+
+    async claimReport({ reportType, localDateKey, ttlMs, owner = nextOwner(), now = new Date() }) {
+      const k = `${reportType}|${localDateKey}`;
+      const cur = claims.get(k);
+      if (cur?.telegramSentAt) return { granted: false, alreadySent: true, owner: null };
+      if (cur && new Date(cur.expiresAt).getTime() > now.getTime()) {
+        return { granted: false, alreadySent: false, owner: null };
+      }
+      claims.set(k, {
+        owner,
+        expiresAt: new Date(now.getTime() + ttlMs).toISOString(),
+        telegramSentAt: null,
+        messageId: null,
+      });
+      return { granted: true, owner };
+    },
+    async markClaimSent({ reportType, localDateKey, owner, messageId = null, now = new Date() }) {
+      const k = `${reportType}|${localDateKey}`;
+      const cur = claims.get(k);
+      if (!cur || cur.owner !== owner || cur.telegramSentAt) return false;
+      cur.telegramSentAt = now.toISOString();
+      cur.messageId = messageId;
+      return true;
+    },
+    async getClaim(reportType, localDateKey) {
+      const cur = claims.get(`${reportType}|${localDateKey}`);
+      return cur ? { ...cur, reportType, localDate: localDateKey } : null;
+    },
+    async releaseClaim({ reportType, localDateKey, owner }) {
+      const k = `${reportType}|${localDateKey}`;
+      const cur = claims.get(k);
+      if (!cur || cur.owner !== owner || cur.telegramSentAt) return false;
+      claims.delete(k);
+      return true;
+    },
+
     getTokens: async () => tokens,
     saveTokens: async (t) => { tokens = { ...t, expiresAt: new Date(t.expiresAt) }; },
     isSent: async (type, key) => runs.some(

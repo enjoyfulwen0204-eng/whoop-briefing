@@ -5,3 +5,12 @@ node_modules/
 *.log
 .DS_Store
 tmp/
+
+# 本機 SQLite / libSQL 檔案（測試與 migration 演練會產生，絕不進版控）
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal

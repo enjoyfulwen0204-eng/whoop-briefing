@@ -6,6 +6,7 @@
  */
 
 import { log } from './logger.js';
+import { requireUserId } from './userContext.js';
 
 const nowIso = (d = new Date()) => d.toISOString();
 
@@ -49,29 +50,31 @@ export function createBotStore(client) {
   // -------------------------------------------------------------------------
   // journal_events
   // -------------------------------------------------------------------------
-  async function addJournalEvent(e, { now = new Date() } = {}) {
+  async function addJournalEvent(userId, e, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'addJournalEvent');
     const ts = nowIso(now);
     const rs = await client.execute({
       sql: `INSERT INTO journal_events
-              (event_at, health_date, category, subtype, numeric_value, text_value,
+              (user_id, event_at, health_date, category, subtype, numeric_value, text_value,
                unit, severity, note, source, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       args: [
-        e.eventAt, e.healthDate, e.category, e.subtype ?? null,
+        uid, e.eventAt, e.healthDate, e.category, e.subtype ?? null,
         e.numericValue ?? null, e.textValue ?? null, e.unit ?? null,
         e.severity ?? null, e.note ?? null, e.source ?? 'manual', ts, ts,
       ],
     });
     const id = Number(rs.lastInsertRowid ?? 0);
     log.info('journal_event_added', {
-      id, category: e.category, health_date: e.healthDate, source: e.source,
+      user_id: uid, id, category: e.category, health_date: e.healthDate, source: e.source,
     });
     return id;
   }
 
-  async function getJournalEvents({ from, to, category = null, limit = 500 } = {}) {
-    const where = ['health_date >= ?', 'health_date <= ?'];
-    const args = [from, to];
+  async function getJournalEvents(userId, { from, to, category = null, limit = 500 } = {}) {
+    const uid = requireUserId(userId, 'getJournalEvents');
+    const where = ['user_id = ?', 'health_date >= ?', 'health_date <= ?'];
+    const args = [uid, from, to];
     if (category) { where.push('category = ?'); args.push(category); }
     args.push(limit);
     const rs = await client.execute({
@@ -82,15 +85,21 @@ export function createBotStore(client) {
     return rs.rows.map((r) => ({ ...r }));
   }
 
-  async function countJournalEvents() {
-    const rs = await client.execute('SELECT COUNT(*) AS c FROM journal_events');
+  async function countJournalEvents(userId) {
+    const uid = requireUserId(userId, 'countJournalEvents');
+    const rs = await client.execute({
+      sql: 'SELECT COUNT(*) AS c FROM journal_events WHERE user_id = ?',
+      args: [uid],
+    });
     return Number(rs.rows[0].c);
   }
 
-  async function deleteJournalEvent(id) {
+  async function deleteJournalEvent(userId, id) {
+    const uid = requireUserId(userId, 'deleteJournalEvent');
     const rs = await client.execute({
-      sql: 'DELETE FROM journal_events WHERE id = ?',
-      args: [id],
+      // user_id 條件是防越權刪除：帶別人的 id 進來一律刪不到
+      sql: 'DELETE FROM journal_events WHERE user_id = ? AND id = ?',
+      args: [uid, id],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -102,25 +111,28 @@ export function createBotStore(client) {
    * 開一個新的追問。同一個 chat 先前還開著的會被標成 SUPERSEDED ——
    * 同時只允許一個 OPEN，否則使用者的下一句話不知道要接哪一個。
    */
-  async function openPendingQuestion(q, { now = new Date() } = {}) {
+  async function openPendingQuestion(userId, q, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'openPendingQuestion');
+    // 「一個使用者同時只有一個 OPEN」—— 依 user_id 而不是 chat_id，
+    // 這樣使用者換 chat 也不會同時留著兩個未回答的追問。
     await client.execute({
       sql: `UPDATE pending_questions SET status = 'SUPERSEDED'
-             WHERE chat_id = ? AND status = 'OPEN'`,
-      args: [String(q.chatId)],
+             WHERE user_id = ? AND status = 'OPEN'`,
+      args: [uid],
     });
     const rs = await client.execute({
       sql: `INSERT INTO pending_questions
-              (chat_id, original_message, question, intent, context_json,
+              (user_id, chat_id, original_message, question, intent, context_json,
                asked_at, expires_at, status)
-            VALUES (?,?,?,?,?,?,?, 'OPEN')`,
+            VALUES (?,?,?,?,?,?,?,?, 'OPEN')`,
       args: [
-        String(q.chatId), q.originalMessage ?? null, q.question,
+        uid, String(q.chatId), q.originalMessage ?? null, q.question,
         q.intent ?? null, q.contextJson ? JSON.stringify(q.contextJson) : null,
         nowIso(now), new Date(now.getTime() + q.ttlMs).toISOString(),
       ],
     });
     const id = Number(rs.lastInsertRowid ?? 0);
-    log.info('pending_question_opened', { id, chat_id: String(q.chatId), intent: q.intent });
+    log.info('pending_question_opened', { user_id: uid, id, intent: q.intent });
     return id;
   }
 
@@ -129,12 +141,13 @@ export function createBotStore(client) {
    * **過期的一律回 null**，並順手標成 EXPIRED —— 三十分鐘前問的問題，
    * 使用者現在講的話多半跟它無關，硬接會答非所問。
    */
-  async function getOpenPendingQuestion(chatId, { now = new Date() } = {}) {
+  async function getOpenPendingQuestion(userId, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'getOpenPendingQuestion');
     const rs = await client.execute({
       sql: `SELECT * FROM pending_questions
-             WHERE chat_id = ? AND status = 'OPEN'
+             WHERE user_id = ? AND status = 'OPEN'
              ORDER BY id DESC LIMIT 1`,
-      args: [String(chatId)],
+      args: [uid],
     });
     const row = rs.rows[0];
     if (!row) return null;
@@ -159,20 +172,23 @@ export function createBotStore(client) {
     };
   }
 
-  async function resolvePendingQuestion(id, answerText, { now = new Date() } = {}) {
+  async function resolvePendingQuestion(userId, id, answerText, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'resolvePendingQuestion');
     const rs = await client.execute({
       sql: `UPDATE pending_questions
                SET status = 'ANSWERED', answered_at = ?, answer_text = ?
-             WHERE id = ? AND status = 'OPEN'`,
-      args: [nowIso(now), answerText ?? null, id],
+             WHERE user_id = ? AND id = ? AND status = 'OPEN'`,
+      args: [nowIso(now), answerText ?? null, uid, id],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
 
-  async function cancelPendingQuestion(id) {
+  async function cancelPendingQuestion(userId, id) {
+    const uid = requireUserId(userId, 'cancelPendingQuestion');
     const rs = await client.execute({
-      sql: "UPDATE pending_questions SET status = 'CANCELLED' WHERE id = ? AND status = 'OPEN'",
-      args: [id],
+      sql: `UPDATE pending_questions SET status = 'CANCELLED'
+             WHERE user_id = ? AND id = ? AND status = 'OPEN'`,
+      args: [uid, id],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }

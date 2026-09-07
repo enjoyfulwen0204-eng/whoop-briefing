@@ -6,6 +6,7 @@
  */
 
 import { log } from './logger.js';
+import { requireUserId } from './userContext.js';
 
 const nowIso = (d = new Date()) => d.toISOString();
 const rowsOf = (rs) => rs.rows.map((r) => ({ ...r }));
@@ -14,52 +15,61 @@ export function createAnalysisStore(client) {
   // -------------------------------------------------------------------------
   // Healthspan
   // -------------------------------------------------------------------------
-  async function saveHealthspanMetrics(metrics = [], { now = new Date() } = {}) {
+  async function saveHealthspanMetrics(userId, metrics = [], { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'saveHealthspanMetrics');
     if (!metrics.length) return 0;
     const calculatedAt = nowIso(now);
     const stmts = metrics.map((m) => ({
       sql: `INSERT INTO healthspan_metrics
-              (calculated_at, metric_key, value, unit, window_days, sample_count,
+              (user_id, calculated_at, metric_key, value, unit, window_days, sample_count,
                coverage, availability, source, confidence, detail)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(calculated_at, metric_key) DO UPDATE SET
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(user_id, calculated_at, metric_key) DO UPDATE SET
               value=excluded.value, unit=excluded.unit,
               window_days=excluded.window_days, sample_count=excluded.sample_count,
               coverage=excluded.coverage, availability=excluded.availability,
               source=excluded.source, confidence=excluded.confidence,
               detail=excluded.detail`,
       args: [
-        calculatedAt, m.metricKey, m.value ?? null, m.unit ?? null,
+        uid, calculatedAt, m.metricKey, m.value ?? null, m.unit ?? null,
         m.windowDays ?? null, m.sampleCount ?? null, m.coverage ?? null,
         m.availability, m.source ?? null, m.confidence ?? null, m.detail ?? null,
       ],
     }));
     await client.batch(stmts, 'write');
-    log.info('healthspan_metrics_saved', { count: stmts.length, calculated_at: calculatedAt });
+    log.info('healthspan_metrics_saved', { user_id: uid, count: stmts.length, calculated_at: calculatedAt });
     return stmts.length;
   }
 
   /** 最近一次計算的全部 contributor。 */
-  async function getLatestHealthspanMetrics() {
-    const rs = await client.execute(`
+  async function getLatestHealthspanMetrics(userId) {
+    const uid = requireUserId(userId, 'getLatestHealthspanMetrics');
+    // 內層 MAX 也必須限定 user，否則會拿別人的 calculated_at 去比對自己的列
+    const rs = await client.execute({
+      sql: `
       SELECT * FROM healthspan_metrics
-       WHERE calculated_at = (SELECT MAX(calculated_at) FROM healthspan_metrics)
-       ORDER BY metric_key`);
+       WHERE user_id = ?
+         AND calculated_at = (SELECT MAX(calculated_at) FROM healthspan_metrics
+                               WHERE user_id = ?)
+       ORDER BY metric_key`,
+      args: [uid, uid],
+    });
     return rowsOf(rs);
   }
 
-  async function saveHealthspanSnapshot(snap, { now = new Date() } = {}) {
+  async function saveHealthspanSnapshot(userId, snap, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'saveHealthspanSnapshot');
     await client.execute({
       sql: `INSERT INTO healthspan_snapshots
-              (snapshot_date, algorithm_version, score, score_kind,
+              (user_id, snapshot_date, algorithm_version, score, score_kind,
                contributors_json, coverage, status, created_at)
-            VALUES (?,?,?,?,?,?,?,?)
-            ON CONFLICT(snapshot_date, algorithm_version) DO UPDATE SET
+            VALUES (?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(user_id, snapshot_date, algorithm_version) DO UPDATE SET
               score=excluded.score, score_kind=excluded.score_kind,
               contributors_json=excluded.contributors_json,
               coverage=excluded.coverage, status=excluded.status`,
       args: [
-        snap.snapshotDate, snap.algorithmVersion, snap.score ?? null,
+        uid, snap.snapshotDate, snap.algorithmVersion, snap.score ?? null,
         snap.scoreKind ?? null,
         snap.contributors ? JSON.stringify(snap.contributors) : null,
         snap.coverage ?? null, snap.status, nowIso(now),
@@ -68,10 +78,12 @@ export function createAnalysisStore(client) {
     return true;
   }
 
-  async function getHealthspanSnapshots(limit = 20) {
+  async function getHealthspanSnapshots(userId, limit = 20) {
+    const uid = requireUserId(userId, 'getHealthspanSnapshots');
     const rs = await client.execute({
-      sql: 'SELECT * FROM healthspan_snapshots ORDER BY snapshot_date DESC LIMIT ?',
-      args: [limit],
+      sql: `SELECT * FROM healthspan_snapshots WHERE user_id = ?
+             ORDER BY snapshot_date DESC LIMIT ?`,
+      args: [uid, limit],
     });
     return rowsOf(rs);
   }
@@ -79,20 +91,21 @@ export function createAnalysisStore(client) {
   // -------------------------------------------------------------------------
   // Prediction
   // -------------------------------------------------------------------------
-  async function savePrediction(p, { now = new Date() } = {}) {
+  async function savePrediction(userId, p, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'savePrediction');
     await client.execute({
       sql: `INSERT INTO prediction_runs
-              (target_date, target_metric, model_version, status, features_json,
+              (user_id, target_date, target_metric, model_version, status, features_json,
                predicted_value, predicted_low, predicted_high, n_train, created_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(target_date, target_metric, model_version) DO UPDATE SET
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(user_id, target_date, target_metric, model_version) DO UPDATE SET
               status=excluded.status, features_json=excluded.features_json,
               predicted_value=excluded.predicted_value,
               predicted_low=excluded.predicted_low,
               predicted_high=excluded.predicted_high,
               n_train=excluded.n_train, created_at=excluded.created_at`,
       args: [
-        p.targetDate, p.targetMetric, p.modelVersion, p.status,
+        uid, p.targetDate, p.targetMetric, p.modelVersion, p.status,
         p.features ? JSON.stringify(p.features) : null,
         p.predictedValue ?? null, p.predictedLow ?? null, p.predictedHigh ?? null,
         p.nTrain ?? null, nowIso(now),
@@ -103,6 +116,7 @@ export function createAnalysisStore(client) {
 
   /** 事後回填實際值並算誤差（預測記分卡的基礎）。 */
   async function recordPredictionActual({
+    userId,
     targetDate, targetMetric, modelVersion, actualValue,
   }, { now = new Date() } = {}) {
     const rs = await client.execute({
@@ -111,21 +125,23 @@ export function createAnalysisStore(client) {
                    error = CASE WHEN predicted_value IS NULL THEN NULL
                                 ELSE ? - predicted_value END,
                    evaluated_at = ?
-             WHERE target_date = ? AND target_metric = ? AND model_version = ?`,
-      args: [actualValue, actualValue, nowIso(now), targetDate, targetMetric, modelVersion],
+             WHERE user_id = ? AND target_date = ? AND target_metric = ? AND model_version = ?`,
+      args: [actualValue, actualValue, nowIso(now), uid, targetDate, targetMetric, modelVersion],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
 
-  async function getPredictions({ targetMetric = null, limit = 100 } = {}) {
+  async function getPredictions(userId, { targetMetric = null, limit = 100 } = {}) {
+    const uid = requireUserId(userId, 'getPredictions');
     const rs = targetMetric
       ? await client.execute({
-        sql: 'SELECT * FROM prediction_runs WHERE target_metric = ? ORDER BY target_date DESC LIMIT ?',
-        args: [targetMetric, limit],
+        sql: `SELECT * FROM prediction_runs WHERE user_id = ? AND target_metric = ?
+               ORDER BY target_date DESC LIMIT ?`,
+        args: [uid, targetMetric, limit],
       })
       : await client.execute({
-        sql: 'SELECT * FROM prediction_runs ORDER BY target_date DESC LIMIT ?',
-        args: [limit],
+        sql: 'SELECT * FROM prediction_runs WHERE user_id = ? ORDER BY target_date DESC LIMIT ?',
+        args: [uid, limit],
       });
     return rowsOf(rs);
   }
@@ -133,16 +149,17 @@ export function createAnalysisStore(client) {
   // -------------------------------------------------------------------------
   // Health insights（版本鏈：舊版本永遠不刪）
   // -------------------------------------------------------------------------
-  async function createInsight(i, { now = new Date() } = {}) {
+  async function createInsight(userId, i, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'createInsight');
     const ts = nowIso(now);
     const rs = await client.execute({
       sql: `INSERT INTO health_insights
-              (insight_type, subject, statement, evidence_json, sample_count,
+              (user_id, insight_type, subject, statement, evidence_json, sample_count,
                effect_size, confidence, status, first_detected_at,
                last_confirmed_at, last_recalculated_at, version, supersedes_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       args: [
-        i.insightType, i.subject, i.statement,
+        uid, i.insightType, i.subject, i.statement,
         i.evidence ? JSON.stringify(i.evidence) : null,
         i.sampleCount ?? null, i.effectSize ?? null, i.confidence ?? null,
         i.status ?? 'HYPOTHESIS', i.firstDetectedAt ?? ts,
@@ -158,14 +175,16 @@ export function createAnalysisStore(client) {
    * 用新版本取代舊的：舊列標成 RETIRED（保留），新列 version+1 並指回舊 id。
    * 這樣「我以前相信什麼、後來為什麼改變」是可以回溯的。
    */
-  async function superseiveInsight(oldId, next, { now = new Date() } = {}) {
-    const old = await getInsight(oldId);
+  async function supersedeInsight(userId, oldId, next, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'supersedeInsight');
+    const old = await getInsight(uid, oldId);
     if (!old) return null;
     await client.execute({
-      sql: "UPDATE health_insights SET status = 'RETIRED', retired_at = ? WHERE id = ?",
-      args: [nowIso(now), oldId],
+      sql: `UPDATE health_insights SET status = 'RETIRED', retired_at = ?
+             WHERE user_id = ? AND id = ?`,
+      args: [nowIso(now), uid, oldId],
     });
-    return createInsight({
+    return createInsight(uid, {
       insightType: next.insightType ?? old.insight_type,
       subject: next.subject ?? old.subject,
       statement: next.statement,
@@ -181,46 +200,54 @@ export function createAnalysisStore(client) {
     }, { now });
   }
 
-  async function updateInsightStatus(id, status, { now = new Date() } = {}) {
+  async function updateInsightStatus(userId, id, status, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'updateInsightStatus');
     const rs = await client.execute({
       sql: `UPDATE health_insights
                SET status = ?, last_recalculated_at = ?,
                    retired_at = CASE WHEN ? = 'RETIRED' THEN ? ELSE retired_at END
-             WHERE id = ?`,
-      args: [status, nowIso(now), status, nowIso(now), id],
+             WHERE user_id = ? AND id = ?`,
+      args: [status, nowIso(now), status, nowIso(now), uid, id],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
 
-  async function getInsight(id) {
+  async function getInsight(userId, id) {
+    const uid = requireUserId(userId, 'getInsight');
     const rs = await client.execute({
-      sql: 'SELECT * FROM health_insights WHERE id = ?',
-      args: [id],
+      sql: 'SELECT * FROM health_insights WHERE user_id = ? AND id = ?',
+      args: [uid, id],
     });
     return rs.rows[0] ? { ...rs.rows[0] } : null;
   }
 
-  async function getActiveInsights({ subject = null } = {}) {
+  async function getActiveInsights(userId, { subject = null } = {}) {
+    const uid = requireUserId(userId, 'getActiveInsights');
     const rs = subject
       ? await client.execute({
         sql: `SELECT * FROM health_insights
-               WHERE status NOT IN ('RETIRED') AND subject = ?
+               WHERE user_id = ? AND status NOT IN ('RETIRED') AND subject = ?
                ORDER BY id DESC`,
-        args: [subject],
+        args: [uid, subject],
       })
       : await client.execute(
-        "SELECT * FROM health_insights WHERE status NOT IN ('RETIRED') ORDER BY id DESC",
+        {
+          sql: `SELECT * FROM health_insights WHERE user_id = ? AND status NOT IN ('RETIRED')
+                 ORDER BY id DESC`,
+          args: [uid],
+        },
       );
     return rowsOf(rs);
   }
 
   /** 版本鏈：從某一列往回追它取代了誰。 */
-  async function getInsightHistory(id) {
+  async function getInsightHistory(userId, id) {
+    const uid = requireUserId(userId, 'getInsightHistory');
     const chain = [];
-    let cur = await getInsight(id);
+    let cur = await getInsight(uid, id);
     while (cur) {
       chain.push(cur);
-      cur = cur.supersedes_id ? await getInsight(Number(cur.supersedes_id)) : null;
+      cur = cur.supersedes_id ? await getInsight(uid, Number(cur.supersedes_id)) : null;
     }
     return chain;
   }
@@ -228,16 +255,17 @@ export function createAnalysisStore(client) {
   // -------------------------------------------------------------------------
   // Experiments
   // -------------------------------------------------------------------------
-  async function createExperiment(e, { now = new Date() } = {}) {
+  async function createExperiment(userId, e, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'createExperiment');
     const ts = nowIso(now);
     const rs = await client.execute({
       sql: `INSERT INTO experiments
-              (name, hypothesis, intervention, target_metrics, baseline_start,
+              (user_id, name, hypothesis, intervention, target_metrics, baseline_start,
                baseline_end, start_date, end_date, status, protocol_json,
                created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       args: [
-        e.name, e.hypothesis ?? null, e.intervention ?? null,
+        uid, e.name, e.hypothesis ?? null, e.intervention ?? null,
         JSON.stringify(e.targetMetrics ?? []),
         e.baselineStart ?? null, e.baselineEnd ?? null,
         e.startDate ?? null, e.endDate ?? null,
@@ -247,19 +275,20 @@ export function createAnalysisStore(client) {
       ],
     });
     const id = Number(rs.lastInsertRowid ?? 0);
-    log.info('experiment_created', { id, name: e.name });
+    log.info('experiment_created', { user_id: uid, id, name: e.name });
     return id;
   }
 
-  async function updateExperiment(id, patch, { now = new Date() } = {}) {
-    const cur = await getExperiment(id);
+  async function updateExperiment(userId, id, patch, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'updateExperiment');
+    const cur = await getExperiment(uid, id);
     if (!cur) return false;
     await client.execute({
       sql: `UPDATE experiments
                SET status = ?, start_date = ?, end_date = ?,
                    baseline_start = ?, baseline_end = ?,
                    result_json = ?, updated_at = ?
-             WHERE id = ?`,
+             WHERE user_id = ? AND id = ?`,
       args: [
         patch.status ?? cur.status,
         patch.startDate !== undefined ? patch.startDate : cur.start_date,
@@ -267,42 +296,52 @@ export function createAnalysisStore(client) {
         patch.baselineStart !== undefined ? patch.baselineStart : cur.baseline_start,
         patch.baselineEnd !== undefined ? patch.baselineEnd : cur.baseline_end,
         patch.result !== undefined ? JSON.stringify(patch.result) : cur.result_json,
-        nowIso(now), id,
+        nowIso(now), uid, id,
       ],
     });
     return true;
   }
 
-  async function getExperiment(id) {
+  async function getExperiment(userId, id) {
+    const uid = requireUserId(userId, 'getExperiment');
     const rs = await client.execute({
-      sql: 'SELECT * FROM experiments WHERE id = ?',
-      args: [id],
+      sql: 'SELECT * FROM experiments WHERE user_id = ? AND id = ?',
+      args: [uid, id],
     });
     return rs.rows[0] ? { ...rs.rows[0] } : null;
   }
 
-  async function listExperiments({ status = null } = {}) {
+  async function listExperiments(userId, { status = null } = {}) {
+    const uid = requireUserId(userId, 'listExperiments');
     const rs = status
       ? await client.execute({
-        sql: 'SELECT * FROM experiments WHERE status = ? ORDER BY id DESC',
-        args: [status],
+        sql: 'SELECT * FROM experiments WHERE user_id = ? AND status = ? ORDER BY id DESC',
+        args: [uid, status],
       })
-      : await client.execute('SELECT * FROM experiments ORDER BY id DESC');
+      : await client.execute({
+        sql: 'SELECT * FROM experiments WHERE user_id = ? ORDER BY id DESC',
+        args: [uid],
+      });
     return rowsOf(rs);
   }
 
   // -------------------------------------------------------------------------
   // AI 用量帳本
   // -------------------------------------------------------------------------
-  async function recordAiUsage(u, { now = new Date() } = {}) {
+  /**
+   * userId 允許 null，代表「系統層」用量（不屬於任何使用者的呼叫）。
+   * 刻意不把系統用量硬塞給某個隨機使用者。
+   */
+  async function recordAiUsage(userId, u, { now = new Date() } = {}) {
+    const uid = userId === null || userId === undefined ? null : String(userId);
     const rs = await client.execute({
       sql: `INSERT INTO ai_usage
-              (timestamp, provider, requested_model, model, fallback_occurred,
+              (user_id, timestamp, provider, requested_model, model, fallback_occurred,
                purpose, prompt_version, input_tokens, output_tokens, total_tokens,
                estimated_cost_usd, pricing_version, request_status, latency_ms, detail)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       args: [
-        u.timestamp ?? nowIso(now), u.provider ?? 'openrouter',
+        uid, u.timestamp ?? nowIso(now), u.provider ?? 'openrouter',
         u.requestedModel ?? null, u.model ?? null,
         u.fallbackOccurred ? 1 : 0,
         u.purpose, u.promptVersion ?? null,
@@ -316,18 +355,23 @@ export function createAnalysisStore(client) {
   }
 
   /** 某個時間區間（ISO 字串比較）的用量列。 */
-  async function getAiUsage({ fromIso, toIso, limit = 5000 } = {}) {
+  async function getAiUsage(userId, { fromIso, toIso, limit = 5000 } = {}) {
+    const uid = requireUserId(userId, 'getAiUsage');
     const rs = await client.execute({
       sql: `SELECT * FROM ai_usage
-             WHERE timestamp >= ? AND timestamp <= ?
+             WHERE user_id = ? AND timestamp >= ? AND timestamp <= ?
              ORDER BY timestamp DESC LIMIT ?`,
-      args: [fromIso, toIso, limit],
+      args: [uid, fromIso, toIso, limit],
     });
     return rowsOf(rs);
   }
 
-  async function countAiUsage() {
-    const rs = await client.execute('SELECT COUNT(*) AS c FROM ai_usage');
+  async function countAiUsage(userId) {
+    const uid = requireUserId(userId, 'countAiUsage');
+    const rs = await client.execute({
+      sql: 'SELECT COUNT(*) AS c FROM ai_usage WHERE user_id = ?',
+      args: [uid],
+    });
     return Number(rs.rows[0].c);
   }
 
@@ -343,7 +387,7 @@ export function createAnalysisStore(client) {
     recordPredictionActual,
     getPredictions,
     createInsight,
-    superseiveInsight,
+    supersedeInsight,
     updateInsightStatus,
     getInsight,
     getActiveInsights,

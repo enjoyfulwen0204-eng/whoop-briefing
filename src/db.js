@@ -4,15 +4,20 @@
  * 執行環境（Render Cron Job）的檔案系統是 ephemeral，所以「所有跨執行狀態」
  * 都存在 Turso，絕不使用本機 JSON / 檔案。
  *
- * 存三種東西：
- *   1. whoop_tokens        —— access_token / expires_at / refresh_token
- *   2. report_runs         —— 每日 / 每週報告的發送紀錄（去重 + 稽核）
- *   3. error_notifications —— 錯誤通知冷卻（同 error_type 2 小時最多一次）
+ * ## Multi-user
+ *
+ * 所有「屬於某個人」的操作**第一個參數一律是 userId**，而且用
+ * requireUserId() 硬性檢查 —— 缺就拋錯，絕不 fallback 到某個預設使用者。
+ * 刻意保持全域的只有：resource_locks（表結構）、telegram_state（bot offset）、
+ * 以及 error_notifications 的 'global' scope。
  */
 
 import { createClient } from '@libsql/client';
 import { randomUUID } from 'node:crypto';
-import { SCHEMA } from './schema.js';
+import { GLOBAL_SCOPE, userScope } from './schema.js';
+import { runMigrations } from './migrations.js';
+import { requireUserId } from './userContext.js';
+import { createIdentityStore } from './identityStore.js';
 import { createHealthStore } from './store.js';
 import { createBotStore } from './botStore.js';
 import { createAnalysisStore } from './analysisStore.js';
@@ -47,19 +52,27 @@ export function createDb({ url, authToken }) {
     return true;
   }
 
-  async function migrate() {
-    for (const stmt of SCHEMA) await client.execute(stmt);
-    // health_date：稽核用的明確欄位。去重 key 仍然是 local_date（唯一索引綁在它上面），
-    // daily 會把 health_date 一併寫進來，舊資料留 NULL。
-    await ensureColumn('report_runs', 'health_date', 'TEXT');
+  /**
+   * 版本化 migration（見 migrations.js）。
+   * 舊形狀的表只在「完全沒有資料」時才會被重建，有資料就中止並拋錯。
+   */
+  async function migrate(opts = {}) {
+    return runMigrations(client, opts);
   }
 
-  // ----- tokens -----------------------------------------------------------
-  async function getTokens() {
-    const rs = await client.execute('SELECT * FROM whoop_tokens WHERE id = 1');
+  // ----- tokens（per-user）-----------------------------------------------
+  /** 某個使用者的 WHOOP token。沒有就回 null。**絕不會回別人的。** */
+  async function getTokens(userId) {
+    const uid = requireUserId(userId, 'getTokens');
+    const rs = await client.execute({
+      sql: 'SELECT * FROM user_whoop_tokens WHERE user_id = ?',
+      args: [uid],
+    });
     const row = rs.rows[0];
     if (!row) return null;
     return {
+      userId: row.user_id,
+      whoopUserId: row.whoop_user_id ?? null,
       accessToken: row.access_token,
       refreshToken: row.refresh_token,
       expiresAt: new Date(row.access_token_expires_at),
@@ -69,20 +82,41 @@ export function createDb({ url, authToken }) {
   }
 
   /**
+   * 這個 WHOOP 帳號是否已經綁在**別的**內部使用者身上。
+   * 用來防止同一支手環被兩個內部帳號同時綁走。
+   */
+  async function findUserByWhoopUserId(whoopUserId, { excludeUserId = null } = {}) {
+    if (whoopUserId === null || whoopUserId === undefined || whoopUserId === '') return null;
+    const rs = await client.execute({
+      sql: 'SELECT user_id FROM user_whoop_tokens WHERE whoop_user_id = ?',
+      args: [String(whoopUserId)],
+    });
+    const hit = rs.rows.map((r) => String(r.user_id)).find((u) => u !== String(excludeUserId ?? ''));
+    return hit ?? null;
+  }
+
+  /**
    * 寫回 token。refresh 成功後「第一件事」就是呼叫這個，寫成功前不做任何
    * WHOOP 資料處理。DB 寫入失敗會 retry。
    */
-  async function saveTokens({ accessToken, refreshToken, expiresAt, scope }, { retries = 4 } = {}) {
-    const sql = `INSERT INTO whoop_tokens
-        (id, access_token, refresh_token, access_token_expires_at, scope, updated_at)
-      VALUES (1, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
+  async function saveTokens(userId, {
+    accessToken, refreshToken, expiresAt, scope, whoopUserId = null,
+  }, { retries = 4 } = {}) {
+    const uid = requireUserId(userId, 'saveTokens');
+    const sql = `INSERT INTO user_whoop_tokens
+        (user_id, whoop_user_id, access_token, refresh_token,
+         access_token_expires_at, scope, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET
+        whoop_user_id = COALESCE(excluded.whoop_user_id, user_whoop_tokens.whoop_user_id),
         access_token = excluded.access_token,
         refresh_token = excluded.refresh_token,
         access_token_expires_at = excluded.access_token_expires_at,
         scope = excluded.scope,
         updated_at = excluded.updated_at`;
     const args = [
+      uid,
+      whoopUserId === null || whoopUserId === undefined ? null : String(whoopUserId),
       accessToken,
       refreshToken,
       new Date(expiresAt).toISOString(),
@@ -94,11 +128,14 @@ export function createDb({ url, authToken }) {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         await client.execute({ sql, args });
-        log.info('tokens_saved', { attempt, expires_at: new Date(expiresAt).toISOString() });
+        // 絕不 log token 內容，只 log 使用者與到期時間
+        log.info('tokens_saved', {
+          user_id: uid, attempt, expires_at: new Date(expiresAt).toISOString(),
+        });
         return;
       } catch (err) {
         lastErr = err;
-        log.warn('tokens_save_failed', { attempt, error: String(err?.message ?? err) });
+        log.warn('tokens_save_failed', { user_id: uid, attempt, error: String(err?.message ?? err) });
         if (attempt < retries) await sleep(500 * 2 ** (attempt - 1));
       }
     }
@@ -107,12 +144,14 @@ export function createDb({ url, authToken }) {
   }
 
   // ----- report dedup -----------------------------------------------------
-  /** 該類型報告在該 local_date 是否已經成功送出。 */
-  async function isSent(reportType, localDateKey) {
+  /** **該使用者**的該類型報告在該 local_date 是否已經成功送出。 */
+  async function isSent(userId, reportType, localDateKey) {
+    const uid = requireUserId(userId, 'isSent');
     const rs = await client.execute({
       sql: `SELECT 1 FROM report_runs
-             WHERE report_type = ? AND local_date = ? AND status = 'SENT' LIMIT 1`,
-      args: [reportType, localDateKey],
+             WHERE user_id = ? AND report_type = ? AND local_date = ? AND status = 'SENT'
+             LIMIT 1`,
+      args: [uid, reportType, localDateKey],
     });
     return rs.rows.length > 0;
   }
@@ -128,15 +167,16 @@ export function createDb({ url, authToken }) {
    *    讓呼叫端決定怎麼喊（`throwOnError: false` 可改成只寫 log）。
    */
   async function recordRun({
-    reportType, localDateKey, healthDate = null, sleepId = null, cycleId = null,
+    userId, reportType, localDateKey, healthDate = null, sleepId = null, cycleId = null,
     telegramMessageId = null, status, detail = null,
   }, { retries = 3, throwOnError = true } = {}) {
+    const uid = requireUserId(userId, 'recordRun');
     const sql = `INSERT INTO report_runs
-           (report_type, local_date, health_date, sleep_id, cycle_id,
+           (user_id, report_type, local_date, health_date, sleep_id, cycle_id,
             telegram_message_id, status, detail, sent_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const args = [
-      reportType, localDateKey, healthDate, sleepId, cycleId,
+      uid, reportType, localDateKey, healthDate, sleepId, cycleId,
       telegramMessageId, status, detail ? String(detail).slice(0, 500) : null,
       new Date().toISOString(),
     ];
@@ -149,13 +189,13 @@ export function createDb({ url, authToken }) {
       } catch (err) {
         if (isDuplicateSentError(err)) {
           log.warn('record_run_duplicate', {
-            report_type: reportType, local_date: localDateKey, status,
+            user_id: uid, report_type: reportType, local_date: localDateKey, status,
           });
           return false;
         }
         lastErr = err;
         log.warn('record_run_retry', {
-          report_type: reportType, local_date: localDateKey, status, attempt,
+          user_id: uid, report_type: reportType, local_date: localDateKey, status, attempt,
           error: String(err?.message ?? err),
         });
         if (attempt < retries) await sleep(500 * 2 ** (attempt - 1));
@@ -165,47 +205,66 @@ export function createDb({ url, authToken }) {
     const msg = `發送紀錄寫入 Turso 連續 ${retries} 次失敗：${lastErr?.message ?? lastErr}`;
     if (throwOnError) throw new Error(msg);
     log.error('record_run_failed', {
-      report_type: reportType, local_date: localDateKey, status, error: msg,
+      user_id: uid, report_type: reportType, local_date: localDateKey, status, error: msg,
     });
     return false;
   }
 
-  async function recentRuns(limit = 20) {
+  async function recentRuns(userId, limit = 20) {
+    const uid = requireUserId(userId, 'recentRuns');
     const rs = await client.execute({
-      sql: 'SELECT * FROM report_runs ORDER BY id DESC LIMIT ?',
-      args: [limit],
+      sql: 'SELECT * FROM report_runs WHERE user_id = ? ORDER BY id DESC LIMIT ?',
+      args: [uid, limit],
     });
     return rs.rows;
   }
 
-  // ----- error notify cooldown -------------------------------------------
-  /** 回傳 true 表示「可以通知」，同時記錄這次通知時間。 */
-  async function claimErrorNotify(errorType, cooldownHours) {
+  // ----- error notify cooldown（scope 化）--------------------------------
+  /**
+   * 回傳 true 表示「可以通知」，同時記錄這次通知時間。
+   *
+   * scope 把「系統層」與「某個使用者」分開：
+   *   'global'        → Turso / Telegram 這類基礎設施故障
+   *   'user:<userId>' → 某人的 WHOOP token 失效
+   *
+   * 這樣 Alice 的 token 過期不會壓抑 Bob 的錯誤通知，
+   * 基礎設施故障也不會被歸到某個隨機使用者身上。
+   */
+  async function claimErrorNotify(scope, errorType, cooldownHours) {
+    if (!scope) throw new Error('claimErrorNotify 需要 scope（global 或 user:<id>）');
     const now = Date.now();
     const rs = await client.execute({
-      sql: 'SELECT last_notified_at, hits FROM error_notifications WHERE error_type = ?',
-      args: [errorType],
+      sql: `SELECT last_notified_at, hits FROM error_notifications
+             WHERE scope = ? AND error_type = ?`,
+      args: [scope, errorType],
     });
     const row = rs.rows[0];
     if (row) {
       const last = new Date(row.last_notified_at).getTime();
       if (Number.isFinite(last) && now - last < cooldownHours * 3600_000) {
         await client.execute({
-          sql: 'UPDATE error_notifications SET hits = hits + 1 WHERE error_type = ?',
-          args: [errorType],
+          sql: `UPDATE error_notifications SET hits = hits + 1
+                 WHERE scope = ? AND error_type = ?`,
+          args: [scope, errorType],
         });
         return false;
       }
     }
     await client.execute({
-      sql: `INSERT INTO error_notifications (error_type, last_notified_at, hits)
-            VALUES (?, ?, 1)
-            ON CONFLICT(error_type) DO UPDATE SET
+      sql: `INSERT INTO error_notifications (scope, error_type, last_notified_at, hits)
+            VALUES (?, ?, ?, 1)
+            ON CONFLICT(scope, error_type) DO UPDATE SET
               last_notified_at = excluded.last_notified_at, hits = 1`,
-      args: [errorType, new Date(now).toISOString()],
+      args: [scope, errorType, new Date(now).toISOString()],
     });
     return true;
   }
+
+  /** 便利包裝：系統層 / 使用者層。 */
+  const claimGlobalErrorNotify = (errorType, hours) =>
+    claimErrorNotify(GLOBAL_SCOPE, errorType, hours);
+  const claimUserErrorNotify = (userId, errorType, hours) =>
+    claimErrorNotify(userScope(requireUserId(userId, 'claimUserErrorNotify')), errorType, hours);
 
   // ----- 跨 process lease lock (A1) --------------------------------------
   /**
@@ -246,6 +305,12 @@ export function createDb({ url, authToken }) {
     return released;
   }
 
+  /**
+   * per-user 的鎖名。resource_locks 表結構保持全域，但鎖名必須帶 user，
+   * 否則 Alice 的 token refresh 會卡住 Bob。
+   */
+  const userLockName = (base, userId) => `${base}:${requireUserId(userId, 'userLockName')}`;
+
   // ----- 報告發送權 (A2) --------------------------------------------------
   /**
    * 取得某份報告的「發送權」。
@@ -258,29 +323,32 @@ export function createDb({ url, authToken }) {
    * telegram_sent_at 不為 null 時永遠不給 claim —— 這是「已送出」的耐久證據，
    * 即使後續 report_runs 的 SENT 寫入失敗也不會導致重發。
    */
-  async function claimReport({ reportType, localDateKey, ttlMs, owner = randomUUID(), now = new Date() }) {
+  async function claimReport({
+    userId, reportType, localDateKey, ttlMs, owner = randomUUID(), now = new Date(),
+  }) {
+    const uid = requireUserId(userId, 'claimReport');
     const nowIso = now.toISOString();
     const expiresIso = new Date(now.getTime() + ttlMs).toISOString();
     const rs = await client.execute({
       sql: `INSERT INTO report_claims
-              (report_type, local_date, owner, claimed_at, expires_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(report_type, local_date) DO UPDATE SET
+              (user_id, report_type, local_date, owner, claimed_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, report_type, local_date) DO UPDATE SET
               owner      = excluded.owner,
               claimed_at = excluded.claimed_at,
               expires_at = excluded.expires_at
             WHERE report_claims.telegram_sent_at IS NULL
               AND report_claims.expires_at <= excluded.claimed_at`,
-      args: [reportType, localDateKey, owner, nowIso, expiresIso],
+      args: [uid, reportType, localDateKey, owner, nowIso, expiresIso],
     });
     if (Number(rs.rowsAffected ?? 0) > 0) {
-      log.info('report_claimed', { report_type: reportType, local_date: localDateKey });
+      log.info('report_claimed', { user_id: uid, report_type: reportType, local_date: localDateKey });
       return { granted: true, owner };
     }
-    const existing = await getClaim(reportType, localDateKey);
+    const existing = await getClaim(uid, reportType, localDateKey);
     const alreadySent = Boolean(existing?.telegramSentAt);
     log.info('report_claim_denied', {
-      report_type: reportType, local_date: localDateKey, already_sent: alreadySent,
+      user_id: uid, report_type: reportType, local_date: localDateKey, already_sent: alreadySent,
     });
     return { granted: false, alreadySent, owner: null };
   }
@@ -290,25 +358,31 @@ export function createDb({ url, authToken }) {
    * 刻意是一個極小的 UPDATE：比整筆 report_runs insert 更可能成功，
    * 而且它才是防重發的關鍵證據。
    */
-  async function markClaimSent({ reportType, localDateKey, owner, messageId = null, now = new Date() }) {
+  async function markClaimSent({
+    userId, reportType, localDateKey, owner, messageId = null, now = new Date(),
+  }) {
+    const uid = requireUserId(userId, 'markClaimSent');
     const rs = await client.execute({
       sql: `UPDATE report_claims
                SET telegram_sent_at = ?, telegram_message_id = ?
-             WHERE report_type = ? AND local_date = ? AND owner = ?
+             WHERE user_id = ? AND report_type = ? AND local_date = ? AND owner = ?
                AND telegram_sent_at IS NULL`,
-      args: [now.toISOString(), messageId, reportType, localDateKey, owner],
+      args: [now.toISOString(), messageId, uid, reportType, localDateKey, owner],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
 
-  async function getClaim(reportType, localDateKey) {
+  async function getClaim(userId, reportType, localDateKey) {
+    const uid = requireUserId(userId, 'getClaim');
     const rs = await client.execute({
-      sql: 'SELECT * FROM report_claims WHERE report_type = ? AND local_date = ?',
-      args: [reportType, localDateKey],
+      sql: `SELECT * FROM report_claims
+             WHERE user_id = ? AND report_type = ? AND local_date = ?`,
+      args: [uid, reportType, localDateKey],
     });
     const row = rs.rows[0];
     if (!row) return null;
     return {
+      userId: row.user_id,
       reportType: row.report_type,
       localDate: row.local_date,
       owner: row.owner,
@@ -320,12 +394,13 @@ export function createDb({ url, authToken }) {
   }
 
   /** 釋放發送權（失敗時呼叫，讓下一輪可以立刻重試，不必等 TTL）。 */
-  async function releaseClaim({ reportType, localDateKey, owner }) {
+  async function releaseClaim({ userId, reportType, localDateKey, owner }) {
+    const uid = requireUserId(userId, 'releaseClaim');
     const rs = await client.execute({
       sql: `DELETE FROM report_claims
-             WHERE report_type = ? AND local_date = ? AND owner = ?
+             WHERE user_id = ? AND report_type = ? AND local_date = ? AND owner = ?
                AND telegram_sent_at IS NULL`,
-      args: [reportType, localDateKey, owner],
+      args: [uid, reportType, localDateKey, owner],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -333,18 +408,27 @@ export function createDb({ url, authToken }) {
   return {
     raw: client,
     migrate,
+    // per-user token
     getTokens,
     saveTokens,
+    findUserByWhoopUserId,
+    // per-user 報告
     isSent,
     recordRun,
     recentRuns,
-    claimErrorNotify,
-    acquireLock,
-    releaseLock,
     claimReport,
     markClaimSent,
     getClaim,
     releaseClaim,
+    // 錯誤通知（scope 化）
+    claimErrorNotify,
+    claimGlobalErrorNotify,
+    claimUserErrorNotify,
+    // 全域 lock（鎖名要自己帶 user）
+    acquireLock,
+    releaseLock,
+    userLockName,
+    ...createIdentityStore(client),
     ...createHealthStore(client),
     ...createBotStore(client),
     ...createAnalysisStore(client),

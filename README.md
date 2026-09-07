@@ -570,8 +570,23 @@ FROM report_runs ORDER BY id DESC LIMIT 20;
 LLM 不參與任何「要不要行動」的判斷，資料不足時管線在最早一步就自然停下，
 不會產生任何訊號或訊息。
 
+組成：**Data Readiness Engine**（17 個分析能力的確定性就緒判斷）→ Signal Engine
+→ Attention Engine → Information-Gain 問題引擎 → Journal → 自動重新分析 →
+Evidence → Insight Memory（信念修正狀態機）。
+
+V1 的邊界，先講清楚：
+
+- **沒有即時生理監測**。WHOOP 官方 API 沒有連續心率，系統看到的永遠是已同步的
+  歷史資料，也絕不會宣稱知道「你現在的心率」。
+- **不做醫療診斷**。所有對外文字都會過因果／診斷／即時宣稱的守門規則。
+- **主動訊息是 AT_MOST_ONCE**：極端情況（Telegram 逾時或當機）可能漏發一則，
+  但絕不會對同一件事重複打擾你。這是刻意的取捨。
+- **還需要真實 WHOOP 啟用**。目前沒有任何生理資料，主動代理會停在
+  NO_DATA/STAGE_0，不會產生任何預測、關聯結論或主動訊息。
+
 完整設計說明、安全邊界、冷啟動階段、反騷擾政策、multi-user 隔離保證、
-以及尚未執行的 WHOOP 正式啟用檢查清單，見 **[`docs/proactive-agent.md`](docs/proactive-agent.md)**。
+已知限制與 backlog、以及尚未執行的 WHOOP 正式啟用檢查清單，
+見 **[`docs/proactive-agent.md`](docs/proactive-agent.md)**。
 
 ---
 

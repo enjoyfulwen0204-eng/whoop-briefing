@@ -562,6 +562,19 @@ FROM report_runs ORDER BY id DESC LIMIT 20;
 
 ---
 
+## Proactive Physiological Agent（v5 新增）
+
+在 daily/weekly 簡報之外，系統會在 cron 每次同步偵測到「有意義的新資料」時，
+跑一條完全確定性的管線：readiness → 訊號 → Attention Engine（決定要不要打擾
+使用者）→ 視情況問一題 → 使用者回答變成 journal → 重新分析 → 更新長期規律。
+LLM 不參與任何「要不要行動」的判斷，資料不足時管線在最早一步就自然停下，
+不會產生任何訊號或訊息。
+
+完整設計說明、安全邊界、冷啟動階段、反騷擾政策、multi-user 隔離保證、
+以及尚未執行的 WHOOP 正式啟用檢查清單，見 **[`docs/proactive-agent.md`](docs/proactive-agent.md)**。
+
+---
+
 ## 之後想調整的地方
 
 - **簡報太囉唆／太簡短** → `src/coach.js` 的 `SYSTEM_PROMPT`（字數要求就寫在裡面）。

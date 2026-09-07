@@ -1,0 +1,610 @@
+/**
+ * Data Readiness Engine（Phase PA1）。
+ *
+ * ## 目的
+ *
+ * 這是整個 Proactive Physiological Agent 的地基：任何一個分析能力
+ * （z-score、趨勢、相關、迴歸、預測……）在被 AI 拿去講話之前，
+ * 都要先問過這裡：「這個使用者現在的資料，撐不撐得起這個結論？」
+ *
+ * DETERMINISTIC READINESS → ANALYSIS → AI INTERPRETATION
+ *
+ * LLM 永遠不判斷樣本夠不夠。這個檔案裡沒有任何一行呼叫 AI。
+ *
+ * ## 重用原則（不可違反）
+ *
+ * 每一個能力的「樣本夠不夠」判斷，一律呼叫既有模組自己的常數或函式
+ * （BASELINE.*／ANALYTICS.*／TREND_ENGINE.*／correlation.dataQualityOf／
+ * regression 的動態公式／prediction 的時序切分……），不重新發明數字、
+ * 也不複製貼上既有的門檻常數。唯一新增的數字都收在
+ * config.js 的 READINESS_HEURISTICS，而且明確標成「產品啟發式」。
+ *
+ * ## Readiness 是 per-user 的
+ *
+ * 這個檔案裡所有函式都是純函式：吃呼叫端已經用某個 userId 撈出來的資料，
+ * 自己不碰 DB、不知道有沒有其他使用者存在。Alice 的資料永遠不會流進
+ * Bob 的 readiness —— 因為呼叫端本來就是分別對每個 userId 撈資料、
+ * 分別呼叫這裡的函式。
+ */
+
+import {
+  BASELINE, ANALYTICS, TREND_ENGINE, READINESS_HEURISTICS,
+} from './config.js';
+import { describeWindow } from './analytics/statistics.js';
+import { trendsFor, detectBaselineShift } from './analytics/trend.js';
+import {
+  dataQualityOf, CONFIDENCE, analyseAssociation, journalAssociation,
+} from './analytics/correlation.js';
+import {
+  distanceBetween, buildScaler, DEFAULT_FEATURES as SIMILAR_DAYS_FEATURES, MIN_SHARED_FEATURES,
+} from './analytics/similarDays.js';
+import { analyzeRecoveryDrivers, MIN_ROWS_PER_FEATURE } from './analytics/regression.js';
+import {
+  train, MIN_TRAIN_ROWS, DEFAULT_FEATURES as PREDICTION_FEATURES, PREDICTION_STATUS,
+} from './prediction.js';
+import { EXPERIMENT_STATUS, MIN_PERIOD_DAYS } from './experiments.js';
+import { AVAILABILITY } from './healthspan.js';
+import { STATUS as CAPABILITY_STATUS } from './capabilities.js';
+
+export const READINESS_STATUS = Object.freeze({
+  NO_DATA: 'NO_DATA',
+  WARMING_UP: 'WARMING_UP',
+  LIMITED: 'LIMITED',
+  READY: 'READY',
+  DEGRADED: 'DEGRADED',
+  UNAVAILABLE: 'UNAVAILABLE',
+});
+
+export const CAPABILITY = Object.freeze({
+  DAILY_STATE: 'DAILY_STATE',
+  BASELINE: 'BASELINE',
+  DEVIATION: 'DEVIATION',
+  ZSCORE: 'ZSCORE',
+  TREND_SHORT: 'TREND_SHORT',
+  TREND_LONG: 'TREND_LONG',
+  WHAT_CHANGED: 'WHAT_CHANGED',
+  SIMILAR_DAYS: 'SIMILAR_DAYS',
+  CORRELATION: 'CORRELATION',
+  JOURNAL_ASSOCIATION: 'JOURNAL_ASSOCIATION',
+  REGRESSION: 'REGRESSION',
+  PREDICTION: 'PREDICTION',
+  CHANGE_DETECTION: 'CHANGE_DETECTION',
+  EXPERIMENT_ANALYSIS: 'EXPERIMENT_ANALYSIS',
+  INSIGHT_DISCOVERY: 'INSIGHT_DISCOVERY',
+  HEALTHSPAN_FOUNDATION: 'HEALTHSPAN_FOUNDATION',
+  PROACTIVE_MONITORING: 'PROACTIVE_MONITORING',
+});
+
+function isoNow(now) {
+  return (now instanceof Date ? now : new Date()).toISOString();
+}
+
+/** 統一的回傳形狀。每個能力的 assess 函式都只吐這個形狀。 */
+function result({
+  status, usable = 0, required = null, missing = [], quality = null, reason = null, now,
+}) {
+  return {
+    status,
+    usable_samples: usable,
+    required_samples: required,
+    missing_requirements: missing,
+    data_quality: quality,
+    reason,
+    updated_at: isoNow(now),
+  };
+}
+
+/**
+ * 結構性不可用（WHOOP 這個帳號的這個欄位就是拿不到）先擋在最前面。
+ * 這種情況不管累積多少天資料都不會變好，跟「還在累積樣本」是完全不同的
+ * 語意，所以獨立判斷、優先於樣本數。
+ */
+function capabilityGate(capabilityStatus, now) {
+  if (capabilityStatus === CAPABILITY_STATUS.APP_ONLY) {
+    return result({
+      status: READINESS_STATUS.UNAVAILABLE, required: null,
+      reason: 'not_provided_by_whoop_developer_api', now,
+    });
+  }
+  if (capabilityStatus === CAPABILITY_STATUS.UNAVAILABLE) {
+    return result({
+      status: READINESS_STATUS.UNAVAILABLE, required: null,
+      reason: 'field_unavailable_for_this_account', now,
+    });
+  }
+  if (capabilityStatus === CAPABILITY_STATUS.UNAUTHORIZED) {
+    return result({
+      status: READINESS_STATUS.UNAVAILABLE, required: null,
+      missing: ['reauthorize_whoop_scope'], reason: 'missing_oauth_scope', now,
+    });
+  }
+  return null; // SUPPORTED / PARTIAL / UNKNOWN / 沒給 → 交給樣本數判斷
+}
+
+/** 純粹「樣本數 vs 門檻」的通用分級：NO_DATA / WARMING_UP / READY。 */
+function classifyByCount({
+  usable, required, now, missing = [], reason,
+}) {
+  if (usable <= 0) {
+    return result({
+      status: READINESS_STATUS.NO_DATA, usable: 0, required, missing,
+      reason: reason ?? 'no_usable_samples', now,
+    });
+  }
+  if (usable < required) {
+    return result({
+      status: READINESS_STATUS.WARMING_UP, usable, required,
+      missing: [...missing, `need_${required - usable}_more_samples`],
+      reason: reason ?? 'below_minimum_sample_size', now,
+    });
+  }
+  return result({
+    status: READINESS_STATUS.READY, usable, required, missing, reason: reason ?? null, now,
+  });
+}
+
+// ===========================================================================
+// DAILY_STATE — 今天的快照
+// ===========================================================================
+
+/** @param {object[]} rows daily_metrics（loadDailyMetrics 的輸出） */
+export function assessDailyState({ rows = [], anchorDate, now = new Date() } = {}) {
+  if (!rows.length) {
+    return result({ status: READINESS_STATUS.NO_DATA, required: 1, reason: 'no_health_data_yet', now });
+  }
+  const today = rows.find((r) => r.health_date === anchorDate);
+  if (!today) {
+    return result({
+      status: READINESS_STATUS.DEGRADED, usable: 0, required: 1,
+      missing: ['today_row_missing'],
+      reason: 'historical_data_exists_but_today_not_synced_yet', now,
+    });
+  }
+  return result({ status: READINESS_STATUS.READY, usable: 1, required: 1, now });
+}
+
+// ===========================================================================
+// BASELINE — 個人基準（紅黃綠燈的地基）
+// ===========================================================================
+
+/** @param {object[]} rows daily_metrics，anchorDate 往回 LOOKBACK_DAYS 天內 */
+export function assessBaseline({ rows = [], anchorDate, now = new Date() } = {}) {
+  const cutoff = anchorDate
+    ? new Date(Date.parse(`${anchorDate}T00:00:00Z`) - (BASELINE.LOOKBACK_DAYS - 1) * 86_400_000)
+      .toISOString().slice(0, 10)
+    : null;
+  const usable = rows.filter((r) => !cutoff || (r.health_date >= cutoff && r.health_date <= anchorDate)).length;
+
+  if (usable === 0) {
+    return result({ status: READINESS_STATUS.NO_DATA, required: BASELINE.MIN_FOR_LIGHTS, now });
+  }
+  if (usable < BASELINE.MIN_FOR_LIGHTS) {
+    return result({
+      status: READINESS_STATUS.WARMING_UP, usable, required: BASELINE.MIN_FOR_LIGHTS,
+      missing: [`need_${BASELINE.MIN_FOR_LIGHTS - usable}_more_samples`], now,
+    });
+  }
+  if (usable < BASELINE.TARGET_SAMPLES) {
+    return result({
+      status: READINESS_STATUS.LIMITED, usable, required: BASELINE.TARGET_SAMPLES,
+      missing: [`below_target_of_${BASELINE.TARGET_SAMPLES}`],
+      reason: 'usable_but_below_full_baseline_target', now,
+    });
+  }
+  return result({ status: READINESS_STATUS.READY, usable, required: BASELINE.TARGET_SAMPLES, now });
+}
+
+// ===========================================================================
+// DEVIATION / ZSCORE — 個人偏離（同一套機制，直接重用 describeWindow）
+// ===========================================================================
+
+/**
+ * @param {{date:string,value:number}[]} series seriesOf(rows, metricKey) 的輸出
+ * @param {string} capabilityStatus 選填。capabilities.js 對這個欄位的判定。
+ */
+export function assessDeviation({
+  series = [], anchorDate, capabilityStatus = null, now = new Date(),
+} = {}) {
+  const gated = capabilityGate(capabilityStatus, now);
+  if (gated) return gated;
+  const w = describeWindow(series, {
+    endDate: anchorDate, days: ANALYTICS.DEFAULT_BASELINE_WINDOW, excludeEndDate: true,
+  });
+  return classifyByCount({ usable: w.n, required: ANALYTICS.MIN_SAMPLES, now });
+}
+
+/** z-score 用的是跟 deviation 完全同一套基準窗口，語意上是同一件事。 */
+export const assessZscore = assessDeviation;
+
+// ===========================================================================
+// TREND_SHORT / TREND_LONG — 重用 trend.js 的 trendsFor
+// ===========================================================================
+
+function assessTrendWindow({ metricKey, series = [], anchorDate, windowDays, now }) {
+  const out = trendsFor(metricKey, series, { endDate: anchorDate, windows: [windowDays] });
+  const w = out[`${windowDays}d`];
+  return classifyByCount({ usable: w.n, required: TREND_ENGINE.MIN_SAMPLES, now });
+}
+
+const SHORT_WINDOW = Math.min(...TREND_ENGINE.WINDOWS);
+const LONG_WINDOW = Math.max(...TREND_ENGINE.WINDOWS);
+
+export function assessTrendShort({ metricKey, series, anchorDate, now = new Date() } = {}) {
+  return assessTrendWindow({
+    metricKey, series, anchorDate, windowDays: SHORT_WINDOW, now,
+  });
+}
+
+export function assessTrendLong({ metricKey, series, anchorDate, now = new Date() } = {}) {
+  return assessTrendWindow({
+    metricKey, series, anchorDate, windowDays: LONG_WINDOW, now,
+  });
+}
+
+// ===========================================================================
+// WHAT_CHANGED — 今天要有值，而且至少一個指標的基準要足夠
+// ===========================================================================
+
+/**
+ * @param {object} seriesByMetric { metricKey: [{date,value}] }
+ * @param {string[]} metrics 要檢查哪些指標（預設由呼叫端傳 ANALYSED_METRICS）
+ */
+export function assessWhatChanged({
+  rows = [], seriesByMetric = {}, anchorDate, metrics = [], now = new Date(),
+} = {}) {
+  const daily = assessDailyState({ rows, anchorDate, now });
+  if (daily.status === READINESS_STATUS.NO_DATA) {
+    return result({ status: READINESS_STATUS.NO_DATA, required: 1, now });
+  }
+  if (daily.status === READINESS_STATUS.DEGRADED) {
+    return result({
+      status: READINESS_STATUS.DEGRADED, required: 1, missing: ['today_row_missing'],
+      reason: 'historical_data_exists_but_today_not_synced_yet', now,
+    });
+  }
+  const readyMetrics = metrics.filter((m) => assessDeviation({
+    series: seriesByMetric[m] ?? [], anchorDate, now,
+  }).status === READINESS_STATUS.READY);
+
+  // 走到這裡代表今天已經有資料（上面 daily state 檢查過了），只是還沒有
+  // 任何指標的基準夠深 —— 這是「還在累積」，不是「完全沒資料」，
+  // 所以不能借用 classifyByCount 在 usable=0 時回 NO_DATA 的通用邏輯。
+  if (!readyMetrics.length) {
+    return result({
+      status: READINESS_STATUS.WARMING_UP, required: 1,
+      missing: ['no_metric_has_a_sufficient_baseline_yet'], now,
+    });
+  }
+  return result({ status: READINESS_STATUS.READY, usable: readyMetrics.length, required: 1, now });
+}
+
+// ===========================================================================
+// SIMILAR_DAYS — 候選池大小是產品啟發式（既有模組沒有定義過這個數字）
+// ===========================================================================
+
+export function assessSimilarDays({ rows = [], anchorDate, now = new Date() } = {}) {
+  if (!rows.length) {
+    return result({
+      status: READINESS_STATUS.NO_DATA, required: READINESS_HEURISTICS.SIMILAR_DAYS_MIN_POOL, now,
+    });
+  }
+  const target = rows.find((r) => r.health_date === anchorDate);
+  if (!target) {
+    return result({
+      status: READINESS_STATUS.NO_DATA, required: READINESS_HEURISTICS.SIMILAR_DAYS_MIN_POOL,
+      missing: ['today_row_missing'], now,
+    });
+  }
+  const scaler = buildScaler(rows, SIMILAR_DAYS_FEATURES);
+  const usable = rows.filter((r) => {
+    if (r.health_date === anchorDate) return false;
+    return Boolean(distanceBetween(target, r, scaler, {
+      features: SIMILAR_DAYS_FEATURES, minShared: MIN_SHARED_FEATURES,
+    }));
+  }).length;
+
+  return classifyByCount({
+    usable, required: READINESS_HEURISTICS.SIMILAR_DAYS_MIN_POOL, now,
+  });
+}
+
+// ===========================================================================
+// CORRELATION — 重用 correlation.js 自己的信心分級，不重複定義門檻數字
+// ===========================================================================
+
+/** 從 dataQualityOf 本身反推「不再是 INSUFFICIENT」的最小 n，避免重複寫死 10。 */
+const CORRELATION_MIN_N = (() => {
+  let n = 0;
+  while (dataQualityOf(n) === CONFIDENCE.INSUFFICIENT) n += 1;
+  return n;
+})();
+
+function classifyByConfidence({
+  n, quality, usableGate = true, missingIfNotUsable = [], now,
+}) {
+  if (n <= 0) {
+    return result({ status: READINESS_STATUS.NO_DATA, required: CORRELATION_MIN_N, now });
+  }
+  if (n < CORRELATION_MIN_N) {
+    return result({
+      status: READINESS_STATUS.WARMING_UP, usable: n, required: CORRELATION_MIN_N,
+      missing: [`need_${CORRELATION_MIN_N - n}_more_samples`], quality, now,
+    });
+  }
+  if (!usableGate) {
+    return result({
+      status: READINESS_STATUS.LIMITED, usable: n, required: CORRELATION_MIN_N,
+      missing: missingIfNotUsable, quality,
+      reason: 'no_contrast_group_yet', now,
+    });
+  }
+  if (quality === CONFIDENCE.LOW) {
+    return result({
+      status: READINESS_STATUS.LIMITED, usable: n, required: CORRELATION_MIN_N, quality,
+      reason: 'usable_but_low_confidence', now,
+    });
+  }
+  return result({
+    status: READINESS_STATUS.READY, usable: n, required: CORRELATION_MIN_N, quality, now,
+  });
+}
+
+/**
+ * @param {{date:string,value:number}[]} xSeries
+ * @param {{date:string,value:number}[]} ySeries
+ */
+export function assessCorrelation({
+  xSeries = [], ySeries = [], lagDays = 0, now = new Date(),
+} = {}) {
+  const res = analyseAssociation({ xSeries, ySeries, lagDays });
+  return classifyByConfidence({ n: res.n, quality: res.data_quality, now });
+}
+
+// ===========================================================================
+// JOURNAL_ASSOCIATION — 同一套信心分級，額外要求「有對照組」
+// ===========================================================================
+
+/**
+ * @param {object[]} journalEvents db.getJournalEvents() 的輸出
+ * @param {{date:string,value:number}[]} metricSeries
+ */
+export function assessJournalAssociation({
+  journalEvents = [], metricSeries = [], category, lagDays = 1, useCount = false, now = new Date(),
+} = {}) {
+  const res = journalAssociation({
+    journalEvents, metricSeries, category, lagDays, useCount,
+  });
+  return classifyByConfidence({
+    n: res.n,
+    quality: res.data_quality,
+    usableGate: res.usable,
+    missingIfNotUsable: ['need_both_exposed_and_unexposed_days'],
+    now,
+  });
+}
+
+// ===========================================================================
+// REGRESSION — 重用 analyzeRecoveryDrivers 的動態樣本公式（不拉平成固定數字）
+// ===========================================================================
+
+/**
+ * @param {object[]} rows daily_metrics
+ * @param {string} target
+ * @param {string[]} features
+ */
+export function assessRegression({
+  rows = [], target = 'recovery', features = [], now = new Date(),
+} = {}) {
+  const fit = analyzeRecoveryDrivers({ rows, target, features });
+
+  if (fit.reason === 'no_features') {
+    return result({
+      status: READINESS_STATUS.UNAVAILABLE, required: null,
+      reason: 'no_features_requested', now,
+    });
+  }
+  if (fit.reason === 'no_usable_features') {
+    return result({
+      status: fit.n > 0 ? READINESS_STATUS.WARMING_UP : READINESS_STATUS.NO_DATA,
+      usable: fit.n, required: features.length * MIN_ROWS_PER_FEATURE,
+      missing: fit.warnings, reason: 'no_feature_has_variance_yet', now,
+    });
+  }
+  if (fit.reason === 'insufficient_data') {
+    return result({
+      status: READINESS_STATUS.WARMING_UP, usable: fit.n, required: fit.required_n,
+      missing: [`need_${fit.required_n - fit.n}_more_complete_rows`], now,
+    });
+  }
+  if (fit.reason === 'singular_matrix') {
+    // 樣本數已經達標，但矩陣退化（通常是特徵之間完全共線）——
+    // 這不是「還在累積資料」，是「這批資料結構性算不出來」。
+    const required = Math.max(fit.features_used.length + 2, fit.features_used.length * MIN_ROWS_PER_FEATURE);
+    return result({
+      status: READINESS_STATUS.DEGRADED, usable: fit.n, required,
+      missing: fit.warnings, reason: 'singular_matrix', now,
+    });
+  }
+
+  const required = Math.max(fit.features_used.length + 2, fit.features_used.length * MIN_ROWS_PER_FEATURE);
+  const hasMulticollinearityWarning = fit.warnings.some((w) => w.startsWith('multicollinearity')
+    || w.startsWith('severe_multicollinearity'));
+  return result({
+    status: hasMulticollinearityWarning ? READINESS_STATUS.LIMITED : READINESS_STATUS.READY,
+    usable: fit.n, required,
+    missing: hasMulticollinearityWarning ? fit.warnings : [],
+    reason: hasMulticollinearityWarning ? 'multicollinearity_among_features' : null,
+    now,
+  });
+}
+
+// ===========================================================================
+// PREDICTION — 重用 prediction.js 的 train()（含時序切分邏輯）
+// ===========================================================================
+
+/** @param {object[]} rows daily_metrics（未切分；train() 內部自己做時序配對） */
+export function assessPrediction({
+  rows = [], target = 'recovery', features = PREDICTION_FEATURES, now = new Date(),
+} = {}) {
+  const res = train(rows, { target, features });
+
+  if (res.status === PREDICTION_STATUS.INSUFFICIENT_DATA) {
+    return result({
+      status: res.n > 0 ? READINESS_STATUS.WARMING_UP : READINESS_STATUS.NO_DATA,
+      usable: res.n, required: MIN_TRAIN_ROWS,
+      missing: [`need_${Math.max(0, MIN_TRAIN_ROWS - res.n)}_more_day_pairs`], now,
+    });
+  }
+  if (res.status === PREDICTION_STATUS.MODEL_UNAVAILABLE) {
+    return result({
+      status: READINESS_STATUS.DEGRADED, usable: res.n, required: MIN_TRAIN_ROWS,
+      missing: res.warnings ?? [], reason: res.reason ?? 'model_unavailable', now,
+    });
+  }
+  const hasMulticollinearityWarning = (res.fit?.warnings ?? []).some(
+    (w) => w.startsWith('multicollinearity') || w.startsWith('severe_multicollinearity'),
+  );
+  return result({
+    status: hasMulticollinearityWarning ? READINESS_STATUS.LIMITED : READINESS_STATUS.READY,
+    usable: res.n, required: MIN_TRAIN_ROWS,
+    missing: hasMulticollinearityWarning ? res.fit.warnings : [],
+    now,
+  });
+}
+
+// ===========================================================================
+// CHANGE_DETECTION — 重用 trend.js 的 detectBaselineShift
+// ===========================================================================
+
+export function assessChangeDetection({
+  metricKey, series = [], anchorDate, now = new Date(),
+} = {}) {
+  const r = detectBaselineShift(metricKey, series, { endDate: anchorDate });
+  const usable = Math.min(r.recent_n, r.previous_n);
+  const classified = classifyByCount({ usable, required: TREND_ENGINE.MIN_SHIFT_SAMPLES, now });
+  if (classified.status === READINESS_STATUS.READY && r.reason === 'insufficient_variance') {
+    return result({
+      status: READINESS_STATUS.DEGRADED, usable, required: TREND_ENGINE.MIN_SHIFT_SAMPLES,
+      reason: 'insufficient_variance', now,
+    });
+  }
+  return classified;
+}
+
+// ===========================================================================
+// EXPERIMENT_ANALYSIS — 重用 experiments.js 的 MIN_PERIOD_DAYS
+// ===========================================================================
+
+/** @param {object} experiment db.getExperiment() 的一列 */
+export function assessExperimentAnalysis({ rows = [], experiment, now = new Date() } = {}) {
+  if (!experiment) {
+    return result({ status: READINESS_STATUS.NO_DATA, required: MIN_PERIOD_DAYS, reason: 'no_experiment', now });
+  }
+  if (experiment.status === EXPERIMENT_STATUS.DRAFT) {
+    return result({
+      status: READINESS_STATUS.NO_DATA, required: MIN_PERIOD_DAYS,
+      reason: 'experiment_not_started', now,
+    });
+  }
+  const inRange = (date, start, end) => start && date >= start && (!end || date <= end);
+  const baselineN = rows.filter(
+    (r) => inRange(r.health_date, experiment.baseline_start, experiment.baseline_end),
+  ).length;
+  const interventionN = rows.filter(
+    (r) => inRange(r.health_date, experiment.start_date, experiment.end_date),
+  ).length;
+  const usable = Math.min(baselineN, interventionN);
+
+  return classifyByCount({
+    usable, required: MIN_PERIOD_DAYS,
+    missing: usable < MIN_PERIOD_DAYS
+      ? [`baseline_days:${baselineN}`, `intervention_days:${interventionN}`]
+      : [],
+    now,
+  });
+}
+
+// ===========================================================================
+// INSIGHT_DISCOVERY — 重用 BASELINE 的「夠不夠格開口」門檻
+// ===========================================================================
+
+/**
+ * Insight discovery 是對既有分析結果做綜合判讀，不是獨立的新統計方法，
+ * 所以直接借用 BASELINE 的門檻：資料連紅黃燈都撐不起的時候，
+ * 更不該讓 AI 去「發現洞察」。
+ */
+export function assessInsightDiscovery({ rows = [], anchorDate, now = new Date() } = {}) {
+  const baseline = assessBaseline({ rows, anchorDate, now });
+  if (baseline.status === READINESS_STATUS.READY || baseline.status === READINESS_STATUS.LIMITED) {
+    return result({
+      status: READINESS_STATUS.READY, usable: baseline.usable_samples,
+      required: BASELINE.MIN_FOR_LIGHTS, now,
+    });
+  }
+  return result({
+    status: baseline.status, usable: baseline.usable_samples,
+    required: BASELINE.MIN_FOR_LIGHTS, missing: baseline.missing_requirements, now,
+  });
+}
+
+// ===========================================================================
+// HEALTHSPAN_FOUNDATION — 「一半以上的 contributor 算得出值」是產品啟發式
+// ===========================================================================
+
+/** @param {object[]} contributors healthspan.buildContributors() 的輸出 */
+export function assessHealthspanFoundation({ contributors = [], now = new Date() } = {}) {
+  const scoped = contributors.filter((c) => c.availability !== AVAILABILITY.APP_ONLY);
+  if (!scoped.length) {
+    return result({ status: READINESS_STATUS.NO_DATA, required: 1, now });
+  }
+  const usable = scoped.filter(
+    (c) => c.availability === AVAILABILITY.AVAILABLE || c.availability === AVAILABILITY.PARTIAL,
+  ).length;
+  const required = Math.max(1, Math.ceil(scoped.length * READINESS_HEURISTICS.HEALTHSPAN_MIN_COVERAGE_RATIO));
+
+  if (usable === 0) {
+    return result({ status: READINESS_STATUS.WARMING_UP, required, now });
+  }
+  if (usable < required) {
+    return result({
+      status: READINESS_STATUS.LIMITED, usable, required,
+      reason: 'below_half_of_contributors_computable', now,
+    });
+  }
+  return result({ status: READINESS_STATUS.READY, usable, required, now });
+}
+
+// ===========================================================================
+// PROACTIVE_MONITORING — 由核心指標各自的 DEVIATION readiness 組合而成
+// ===========================================================================
+
+/**
+ * @param {object} seriesByMetric { metricKey: [{date,value}] }
+ * @param {string[]} coreMetrics 預設用 READINESS_HEURISTICS.PROACTIVE_CORE_METRICS
+ */
+export function assessProactiveMonitoring({
+  seriesByMetric = {}, anchorDate, coreMetrics = READINESS_HEURISTICS.PROACTIVE_CORE_METRICS,
+  now = new Date(),
+} = {}) {
+  const perMetric = coreMetrics.map((m) => assessDeviation({
+    series: seriesByMetric[m] ?? [], anchorDate, now,
+  }));
+  const readyCount = perMetric.filter((r) => r.status === READINESS_STATUS.READY).length;
+  const anyData = perMetric.some((r) => r.status !== READINESS_STATUS.NO_DATA);
+  const required = coreMetrics.length;
+
+  if (readyCount === 0 && !anyData) {
+    return result({ status: READINESS_STATUS.NO_DATA, required, now });
+  }
+  if (readyCount === 0) {
+    return result({ status: READINESS_STATUS.WARMING_UP, required, now });
+  }
+  if (readyCount < required) {
+    return result({
+      status: READINESS_STATUS.LIMITED, usable: readyCount, required,
+      missing: coreMetrics.filter((_, i) => perMetric[i].status !== READINESS_STATUS.READY),
+      now,
+    });
+  }
+  return result({ status: READINESS_STATUS.READY, usable: readyCount, required, now });
+}

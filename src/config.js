@@ -460,6 +460,18 @@ export const METRIC_DIRECTION = {
   strain: 'both',
 };
 
+// Phase PA1：Data Readiness Engine 的「產品啟發式」門檻。
+// 跟 BASELINE / ANALYTICS / TREND_ENGINE 不同 —— 那些門檻背後有統計推導
+// 或既有已上線的邏輯撐腰。這裡是「還沒有任何既有模組定義過」的新能力
+// （相似日候選池大小、healthspan 基礎涵蓋率、proactive monitoring 觀察哪些指標），
+// 純粹是產品判斷，不是統計驗證過的數字，未來應該依實際使用調整、並且要能測試，
+// 絕不可以包裝成「這是科學算出來的」。
+export const READINESS_HEURISTICS = {
+  SIMILAR_DAYS_MIN_POOL: 14,
+  HEALTHSPAN_MIN_COVERAGE_RATIO: 0.5,
+  PROACTIVE_CORE_METRICS: ['recovery', 'hrv', 'rhr'],
+};
+
 // Phase K：趨勢引擎
 export const TREND_ENGINE = {
   WINDOWS: [7, 30, 90],

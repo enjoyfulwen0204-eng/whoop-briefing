@@ -458,6 +458,13 @@ export const METRIC_DIRECTION = {
   spo2: 'higher_better',
   skin_temp: 'both',
   strain: 'both',
+
+  // ⚠️ 稽核修正：daily_metrics 的欄位名跟上面幾個 METRICS key 不一樣
+  // （`recovery` vs `recovery_score`、`previous_day_strain` vs `strain`）。
+  // 缺這兩個 alias 時，anomaly.js 的 isNoteworthy() 查不到就 fallback 成
+  // 'both'，於是「恢復分數異常地好」也會被當成需要使用者解釋的訊號。
+  recovery: 'higher_better',
+  previous_day_strain: 'both',
 };
 
 // Phase PA1：Data Readiness Engine 的「產品啟發式」門檻。

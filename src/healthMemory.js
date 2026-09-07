@@ -91,7 +91,16 @@ export async function reviseInsight(db, userId, id, {
   const nextStatus = statusFromEvidence({ sampleCount, effectSize });
 
   if (nextStatus === old.status) {
-    await db.updateInsightStatus(uid, id, nextStatus, { now });
+    // 狀態沒變 → 不開新版本，但**新證據一定要寫進去**（稽核修正）。
+    // 舊版只呼叫 updateInsightStatus()，新的 evidence/sampleCount/effectSize
+    // 會被靜默丟棄，成熟 insight 的證據會永遠停在上一次狀態變動的時候。
+    await db.reconfirmInsight(uid, id, {
+      statement: statement ?? old.statement,
+      evidence,
+      sampleCount,
+      effectSize,
+      confidence: dataQualityOf(sampleCount ?? 0),
+    }, { now });
     log.info('insight_reconfirmed', { user_id: uid, id, status: nextStatus });
     return { ok: true, changed: false, id, status: nextStatus };
   }
@@ -108,6 +117,12 @@ export async function reviseInsight(db, userId, id, {
     confidence: dataQualityOf(sampleCount ?? 0),
     status: nextStatus,
   }, { now });
+
+  // supersedeInsight 在併發競爭中輸掉時回 null（另一個 job 已經把這一列
+  // RETIRE 掉了）。這時候不可以假裝成功——否則版本鏈會分叉。
+  if (newId === null || newId === undefined) {
+    return { ok: false, error: 'superseded_by_concurrent_update' };
+  }
 
   log.info('insight_revised', {
     user_id: uid, old_id: id, new_id: newId, from: old.status, to: nextStatus,

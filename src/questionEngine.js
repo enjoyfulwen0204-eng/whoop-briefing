@@ -4,11 +4,11 @@
  * 從「可能解釋這個訊號」的候選 journal 類別中，排出一個分數，
  * 選**恰好一個**最值得問的類別，組成**恰好一題**的訊息。
  *
- * ## 重用，不重造
+ * ## 政策與引擎分離
  *
- * 候選類別直接沿用 `src/bot/conversation.js` 既有的
- * `FOLLOW_UP_CATEGORIES`（反應式追問已經在用的同一組類別）——
- * 沒有理由主動代理用一套不同的分類法。
+ * 候選類別與問句樣板全部放在 `src/proactivePolicy.js` 的
+ * `INFORMATION_GAIN_POLICY.CANDIDATES`，這個檔案只負責排序與挑選。
+ * 要增減可以問的主題，改政策就好，不用動引擎。
  *
  * ## 分數不是統計量
  *
@@ -18,13 +18,23 @@
  * 判斷。
  */
 
-import { FOLLOW_UP_CATEGORIES } from './bot/conversation.js';
 import { assessJournalAssociation, READINESS_STATUS } from './readiness.js';
 import { CONFIDENCE } from './analytics/correlation.js';
 import { INFORMATION_GAIN_POLICY } from './proactivePolicy.js';
+import { CATEGORIES as JOURNAL_CATEGORIES } from './journal.js';
 import { DEVIATION } from './analytics/anomaly.js';
 
-export { FOLLOW_UP_CATEGORIES };
+/**
+ * 候選類別來自集中的政策設定（不是寫死在引擎裡）。
+ * 開機時就檢查每一個候選都真的是 Journal 支援的類別——政策 寫錯
+ * 會在這裡立刻爆掉，而不是等到某天真的要問問題時才發現寫不進 journal。
+ */
+export const QUESTION_CANDIDATES = Object.keys(INFORMATION_GAIN_POLICY.CANDIDATES);
+for (const c of QUESTION_CANDIDATES) {
+  if (!JOURNAL_CATEGORIES.includes(c)) {
+    throw new Error(`INFORMATION_GAIN_POLICY.CANDIDATES 含有 journal 不支援的類別：${c}`);
+  }
+}
 
 const QUALITY_SCORE = {
   [CONFIDENCE.BETTER]: 1,
@@ -35,17 +45,14 @@ const QUALITY_SCORE = {
 
 const SEVERITY_SCORE = { [DEVIATION.STRONG]: 1, [DEVIATION.NOTABLE]: 0.6, [DEVIATION.MILD]: 0.3 };
 
-const METRIC_LABEL = { hrv: 'HRV', rhr: '靜息心率', recovery: '恢復分數', respiratory_rate: '呼吸率' };
+const METRIC_LABEL = {
+  hrv: 'HRV', rhr: '靜息心率', recovery: '恢復分數', respiratory_rate: '呼吸率',
+  sleep_performance: '睡眠表現', sleep_debt: '睡眠債', previous_day_strain: '前一天的 Strain',
+};
 const DIRECTION_WORD = { low: '偏低', high: '偏高', flat: '有變化' };
 const LEVEL_WORD = { [DEVIATION.STRONG]: '不少', [DEVIATION.NOTABLE]: '一些' };
 
-const CATEGORY_PROMPT = {
-  alcohol: '昨天有喝酒嗎？',
-  sickness: '最近有沒有不舒服、感冒的感覺？',
-  travel: '昨天有搭飛機或跨時區旅行嗎？',
-  late_sleep: '昨晚是不是特別晚睡？',
-  stress: '最近是不是壓力特別大？',
-};
+const CATEGORY_PROMPT = INFORMATION_GAIN_POLICY.CANDIDATES;
 
 /**
  * 幫一個候選類別打分。
@@ -89,7 +96,7 @@ export function scoreCandidate({
 export function selectQuestion({
   signal, journalEvents = [], metricSeries = [], excludeCategories = new Set(),
 }) {
-  const candidates = FOLLOW_UP_CATEGORIES
+  const candidates = QUESTION_CANDIDATES
     .filter((c) => !excludeCategories.has(c))
     .map((category) => scoreCandidate({
       category, signal, journalEvents, metricSeries,
@@ -97,7 +104,7 @@ export function selectQuestion({
 
   if (!candidates.length) return null;
 
-  // 分數高者優先；同分時用 FOLLOW_UP_CATEGORIES 的既有順序（穩定排序），
+  // 分數高者優先；同分時用政策裡的宣告順序（穩定排序），
   // 保證同樣的輸入永遠選出同一個類別。
   const ranked = [...candidates].sort((a, b) => b.score - a.score);
   const top = ranked[0];

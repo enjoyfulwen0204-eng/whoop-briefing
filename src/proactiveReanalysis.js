@@ -56,9 +56,12 @@ function describeAssociation(category, metric, assoc) {
  * @param {string} category journal 類別（FOLLOW_UP_CATEGORIES 之一）
  * @param {string} metric   觸發這次追問的指標（例如 'hrv'）
  * @param {string} healthDate 觸發訊號當天（重新分析的錨點，不是回答當下）
+ * @param {?object} signal 觸發這次追問的訊號（detectSignals() 的一筆）。
+ *   有帶的話會做「這次異常的方向 vs 觀察到的關聯方向」一致性檢查，
+ *   沒帶就只看信念強度——不對方向做任何假設。
  */
 export async function reanalyzeAfterAnswer({
-  db, userId, timezone, category, metric, healthDate, now = new Date(),
+  db, userId, timezone, category, metric, healthDate, signal = null, now = new Date(),
 }) {
   const uid = requireUserId(userId, 'reanalyzeAfterAnswer');
 
@@ -93,7 +96,12 @@ export async function reanalyzeAfterAnswer({
     log.info('proactive_reanalysis_insufficient', {
       user_id: uid, category, metric, readiness_status: readiness.status, usable: assoc.usable,
     });
-    return { outcome: PROACTIVE_OUTCOME.STILL_UNEXPLAINED, insightChanged: false, followUpMessage: null };
+    return {
+      outcome: PROACTIVE_OUTCOME.STILL_UNEXPLAINED,
+      insightChanged: false, followUpMessage: null,
+      beliefStatus: null, directionConsistent: null,
+      reason: !assoc.usable ? 'no_contrast_group_yet' : 'insufficient_samples',
+    };
   }
 
   const subject = `${category}_vs_${metric}`;
@@ -134,18 +142,59 @@ export async function reanalyzeAfterAnswer({
     }
   }
 
-  const outcome = changed ? PROACTIVE_OUTCOME.EXPLAINED : PROACTIVE_OUTCOME.STILL_UNEXPLAINED;
+  // ---- 這一次的異常，到底有沒有被解釋？（稽核修正）----
+  //
+  // 舊版是 `changed ? EXPLAINED : STILL_UNEXPLAINED`，把「信念狀態有沒有
+  // 變動」當成「這次的異常有沒有被解釋」。這在成熟使用者身上完全相反：
+  // 一個已經 SUPPORTED 的「喝酒 → 隔天 HRV 低」規律，使用者回答「有喝酒」
+  // 時走的是 reconfirm（狀態不變、changed=false），於是系統回
+  // 「資料還不足以確認」——歷史越完整、答案越糟。
+  //
+  // 正確的判準是**信念本身**加上**方向一致性**：
+  //   1. 這個 subject 的證據強度要真的到 EMERGING/SUPPORTED
+  //   2. 而且觀察到的關聯方向要跟這次異常的方向一致
+  //      （曝露 → 指標下降 = 負相關；這次異常也是「偏低」才說得通）
+  const beliefStatus = toStatus ?? current?.status ?? null;
+  const beliefIsMeaningful = beliefStatus === INSIGHT_STATUS.EMERGING
+    || beliefStatus === INSIGHT_STATUS.SUPPORTED;
+
+  // 沒有帶訊號方向進來（舊的 pending context）或算不出相關係數時，
+  // 不對方向做任何假設——只看信念強度，不硬掰。
+  let directionConsistent = true;
+  if (signal?.direction && assoc.pearson !== null) {
+    directionConsistent = signal.direction === 'low' ? assoc.pearson < 0 : assoc.pearson > 0;
+  }
+
+  const outcome = beliefIsMeaningful && directionConsistent
+    ? PROACTIVE_OUTCOME.EXPLAINED
+    : PROACTIVE_OUTCOME.STILL_UNEXPLAINED;
+
+  // follow-up 仍然只在**信念真的改變**時才發——這是「不要謝謝式騷擾」的
+  // 規則，跟「這次異常有沒有被解釋」是兩件事，刻意分開。
   const followUpDecision = decideFollowUp({ insightChanged: changed, outcome });
 
   let followUpMessage = null;
   if (followUpDecision.decision === 'FOLLOW_UP') {
     const raw = buildFollowUpMessage({ statement, fromStatus: fromStatus ?? 'NEW', toStatus });
-    followUpMessage = guardProactiveMessage(raw, { label: 'follow_up' }).text;
+    // 這則訊息會帶 r 值與樣本數，所以一定要把確定性的分析結果當成
+    // evidenceContext 交給守門，否則 fail-closed 的數字檢查會（正確地）擋下它。
+    followUpMessage = guardProactiveMessage(raw, {
+      label: 'follow_up', evidenceContext: JSON.stringify(assoc),
+    }).text;
   }
 
   log.info('proactive_reanalysis_done', {
     user_id: uid, category, metric, outcome, insight_changed: changed,
+    belief_status: beliefStatus, direction_consistent: directionConsistent,
   });
 
-  return { outcome, insightChanged: changed, followUpMessage };
+  return {
+    outcome,
+    insightChanged: changed,
+    followUpMessage,
+    beliefStatus,
+    directionConsistent,
+    fromStatus,
+    toStatus,
+  };
 }

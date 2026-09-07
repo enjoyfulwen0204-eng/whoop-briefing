@@ -30,7 +30,7 @@ import {
 } from './commands.js';
 import * as experimentFlow from './experimentFlow.js';
 import {
-  shouldFollowUp, openFollowUp, isNegativeAnswer, FOLLOW_UP_CATEGORIES,
+  shouldFollowUp, openFollowUp, isNegativeAnswer, looksLikeQuestion, FOLLOW_UP_CATEGORIES,
 } from './conversation.js';
 
 const NO_DATA_REPLY = [
@@ -173,7 +173,15 @@ export function createRouter({
     const pending = typeof db.getOpenPendingQuestion === 'function'
       ? await db.getOpenPendingQuestion(userId, { now: t })
       : null;
-    if (pending && !parseCommand(text)) {
+    // 主動代理的問題是「不請自來」的，使用者當下可能正在想別的事。
+    // 明顯是在問問題的訊息不可以被當成答案吃掉——否則使用者的問題不會被
+    // 回答，還會收到一句「聽不懂」。主動問題保持開著，等真正的回答。
+    // （反應式追問不套用這條：那是使用者自己問完之後的對話延續。）
+    const swallowsUnrelatedQuestion = pending
+      && pending.intent === PROACTIVE_QUESTION_INTENT
+      && looksLikeQuestion(text);
+
+    if (pending && !parseCommand(text) && !swallowsUnrelatedQuestion) {
       // 多步驟實驗建立流程有自己的狀態機
       if (pending.context?.flow === experimentFlow.FLOW) {
         const reply = await experimentFlow.handleStep({
@@ -441,10 +449,11 @@ export function createRouter({
     const healthDate = pending.context?.health_date ?? null;
     const proactiveEventId = pending.context?.proactive_event_id ?? null;
 
-    const closeOut = async (outcome) => {
+    // journalEventId 讓「哪個主動問題 → 哪筆 Journal → 哪次重新分析」可追溯。
+    const closeOut = async (outcome, { journalEventId = null } = {}) => {
       await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
       if (proactiveEventId && typeof db.resolveProactiveEvent === 'function') {
-        await db.resolveProactiveEvent(userId, proactiveEventId, outcome, { now: t });
+        await db.resolveProactiveEvent(userId, proactiveEventId, outcome, { journalEventId, now: t });
       }
     };
 
@@ -482,7 +491,11 @@ export function createRouter({
     if (saved.ok && metric && healthDate) {
       try {
         const result = await reanalyzeAfterAnswer({
-          db, userId, timezone, category: saved.event.category, metric, healthDate, now: t,
+          db, userId, timezone, category: saved.event.category, metric, healthDate,
+          // 把觸發這次追問的訊號帶進去，重新分析才是「針對這個異常」，
+          // 而不是只看全域的 journal 關聯有沒有變。
+          signal: pending.context?.signal ?? null,
+          now: t,
         });
         outcome = result.outcome;
         if (result.outcome === PROACTIVE_OUTCOME.STILL_UNEXPLAINED) {
@@ -495,7 +508,7 @@ export function createRouter({
       }
     }
 
-    await closeOut(outcome);
+    await closeOut(outcome, { journalEventId: saved.ok ? saved.id : null });
     return savedLine ? `${savedLine}${followUpLine}` : `我先記下來了。${followUpLine}`;
   }
 

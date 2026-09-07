@@ -33,7 +33,11 @@
 // ---------------------------------------------------------------------------
 // 0. Schema 版本（migrations.js 用）
 // ---------------------------------------------------------------------------
-export const SCHEMA_VERSION = 2;
+// v3：新增 Proactive Agent 的兩張表。刻意**明確 bump 版本**而不是只依賴
+// 「SCHEMA 的 CREATE TABLE IF NOT EXISTS 每次都會跑」這個副作用——
+// 版本化之後，proactive_agent_state 才會進入 RESHAPED_TABLES 的形狀檢查，
+// 開發機上那種「舊三欄版本」的表才會被安全重建（空表才重建，有資料會中止）。
+export const SCHEMA_VERSION = 3;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -545,9 +549,18 @@ export const PROACTIVE_SCHEMA = [
   // cron 每次同步後，「這個使用者上次檢查到哪一天」的游標。
   // 沒有這張表就無法判斷「這次 sync 有沒有帶來新的 health_date」，
   // 會變成每次 cron 都重新跑一次訊號偵測（即使資料完全沒變）。
+  // `enabled` 是 per-user 的主動訊息開關（1=開，預設開）。刻意放在這張
+  // **全新的**表而不是 ALTER 既有的 users 表：這張表在 production 還不存在，
+  // 加欄位等於零風險；而且「要不要被主動打擾」本來就是 proactive agent
+  // 自己的狀態，不是身分資料。
+  //
+  // `last_fingerprint` 是「上次分析過的生理內容指紋」——只比對 health_date
+  // 會漏掉 WHOOP 事後改分（同一天、同一筆 sleep，recovery 才剛被評分）。
   `CREATE TABLE IF NOT EXISTS proactive_agent_state (
      user_id                   TEXT PRIMARY KEY,
      last_checked_health_date  TEXT,
+     last_fingerprint          TEXT,
+     enabled                   INTEGER NOT NULL DEFAULT 1,
      updated_at                TEXT NOT NULL
    )`,
 
@@ -571,6 +584,10 @@ export const PROACTIVE_SCHEMA = [
      reason_json         TEXT,
      policy_version      TEXT NOT NULL,
      pending_question_id INTEGER,
+     -- 這個主動問題最後促成了哪一筆 journal_events（可追溯性：
+     -- 哪個問題 → 哪筆 Journal → 哪次重新分析）。刻意放在這張新表而不是
+     -- ALTER journal_events：新表加欄位零風險。
+     journal_event_id    INTEGER,
      message_text        TEXT,
      sent_at             TEXT,
      created_at          TEXT NOT NULL,
@@ -650,6 +667,11 @@ export const RESHAPED_TABLES = [
   { table: 'health_insights', requiredColumn: 'user_id' },
   { table: 'experiments', requiredColumn: 'user_id' },
   { table: 'ai_usage', requiredColumn: 'user_id' },
+  // v3 期間加了 last_fingerprint / enabled / journal_event_id。production 還
+  // 沒有這兩張表（會直接以新形狀建立），這裡是為了保護「已經建過舊形狀」
+  // 的開發機資料庫：空表就重建，有資料一樣會中止並要求人工處理。
+  { table: 'proactive_agent_state', requiredColumn: 'enabled' },
+  { table: 'proactive_events', requiredColumn: 'journal_event_id' },
 ];
 
 /** 舊的 single-user 表，被取代後留著不刪（0 列，無害）。 */

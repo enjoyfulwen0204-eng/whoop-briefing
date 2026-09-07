@@ -131,7 +131,8 @@ test('★ PA3/PA4: 平穩基準資料沒有任何訊號 → IGNORE，且游標�
       db, userId: user.id, timezone: user.timezone, telegram, chatId, now,
     });
     assert.equal(again.triggered, false);
-    assert.equal(again.reason, 'no_new_health_date');
+    // 稽核後改名：判斷依據是「日期 + 內容指紋」，不只是日期。
+    assert.equal(again.reason, 'no_new_or_changed_data');
   } finally {
     db.close();
     cleanup();

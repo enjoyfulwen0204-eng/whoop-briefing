@@ -4,6 +4,9 @@
 啟用流程。程式碼是唯一的事實來源；這份文件描述的是設計意圖與邊界，如果
 兩者不一致，以程式碼與測試為準。
 
+> **稽核狀態**：2026-09-07 由獨立稽核重跑並修正過一輪（見文末「稽核修正紀錄」）。
+> 這份文件描述的是**修正後**的行為。
+
 ## 這不是什麼
 
 - **不是即時監測系統**：WHOOP 官方 Developer API 沒有連續心率 / 即時生理訊號的
@@ -35,6 +38,18 @@
   → 只有真的變化才發 follow-up
 ```
 
+### 觸發條件：新資料 **或** 被修正過的資料
+
+判斷依據是 `(health_date, fingerprint)`，不是只有日期：
+
+- `fingerprint` = 錨點那天所有被監看指標的值 + 監看清單 + 政策版本的 SHA-256。
+- 位元組／語意完全相同的重複 sync → 指紋相同 → **完全不做事**（0.8 ms 就返回）。
+- WHOOP 事後把 recovery 從 `PENDING_SCORE` 改成 `SCORED`（同一天、同一筆 sleep）
+  → 指紋改變 → **重新分析**。
+
+只比對 health_date 的舊做法會漏掉後者，而那正是 WHOOP 的正常流程——
+稽核時把它列為 CRITICAL 並修掉了。
+
 **資料不足時，管線在最早的一步就自然停下**：`assessDeviation()` /
 `assessChangeDetection()` 沒有 READY，`src/signals.js` 就不會產生任何訊號——
 不是靠後面的 Attention Engine 濾掉，而是訊號從一開始就不存在。這是「主動監測
@@ -45,7 +60,7 @@
 | 模組 | 責任 |
 |---|---|
 | `src/readiness.js` | 17 個分析能力的確定性 readiness（PA1）|
-| `src/signals.js` | readiness READY 的指標才可能產生訊號（DEVIATION / BASELINE_SHIFT）|
+| `src/signals.js` | readiness READY **且往「值得擔心」的方向**偏離才產生訊號 |
 | `src/attention.js` | 決定 IGNORE/LOG_ONLY/ASK_CONTEXT/NOTIFY，決策附完整 factors |
 | `src/proactivePolicy.js` | 所有反騷擾／注意力／資訊增益的產品啟發式常數（集中、可測試）|
 | `src/questionEngine.js` | 從候選 journal 類別中排序、選出恰好一題 |
@@ -69,6 +84,22 @@ readiness 狀態，不是日曆天數**：
 | STAGE_3 | READY | 完整管線啟用 |
 | STAGE_4 | READY 且已有非 HYPOTHESIS 的 insight | 完整管線啟用（可引用既有規律）|
 
+## 監看哪些指標、哪個方向才算訊號
+
+`SIGNAL_POLICY.MONITORED_METRICS`：recovery / hrv / rhr / respiratory_rate /
+sleep_performance / sleep_debt / previous_day_strain。
+（成熟度門檻仍然只看核心三項 recovery/hrv/rhr，見冷啟動階段。）
+
+`SIGNAL_POLICY.CONCERNING_DIRECTION` 決定**哪一邊**才算訊號：
+恢復/HRV/睡眠表現偏低、靜息心率/呼吸率/睡眠債/前一天 Strain 偏高。
+往「好」的方向偏離**永遠不會**產生訊號——稽核時實際抓到系統對著
+「呼吸更平穩 + 昨天比較沒操」兩個好消息跑去問使用者是不是喝酒了。
+
+`SIGNAL_POLICY.METRIC_DOMAIN` 把指標分成 autonomic / respiratory / sleep /
+load 四個領域。「多重訊號佐證」算的是**不同領域的數量**，不是訊號筆數——
+recovery 本來就是 WHOOP 用 hrv 與 rhr 算出來的，把它們當三個獨立證據
+等於同一件事數三次。
+
 ## 反騷擾政策
 
 集中在 `src/proactivePolicy.js` 的 `ANTI_SPAM_POLICY`／`ATTENTION_POLICY`：
@@ -78,17 +109,54 @@ readiness 狀態，不是日曆天數**：
 - 同時最多一個 OPEN 的主動問題（`MAX_OPEN_QUESTIONS = 1`）。
 - 單日、非持續、非多重佐證的訊號一律 `LOG_ONLY`（記錄但不打擾）——
   「不是每個異常都要通知使用者」是 `decide()` 的預設行為，不是例外。
+- **冷卻不會連坐**：某個主題在冷卻中時，引擎會改用當天第一個「不在冷卻中」
+  的訊號來判斷，而不是整天靜音。否則「昨天問過 HRV」會把今天新出現、
+  屬於不同生理領域的呼吸率升高一起悶掉 24 小時。
+
+## 使用者可以關掉
+
+`proactive_agent_state.enabled`（per-user，預設開）。關掉之後：
+資料照同步、分析照跑、稽核軌跡照記，但**不會再收到任何未經請求的訊息**；
+手動問答完全不受影響。Alice 關掉不影響 Bob。
 
 ## 冪等與重啟安全
 
-`proactive_events` 的 `UNIQUE(user_id, idempotency_key)`（`idempotency_key = 
-health_date::policy_version`）是唯一的持久化保證：
+`proactive_events` 的 `UNIQUE(user_id, idempotency_key)`
+（`idempotency_key = health_date::fingerprint::policy_version`）是唯一的持久化
+保證。指紋在 key 裡面，所以**被修正過的那一天可以產生新事件、一模一樣的資料
+不行**：
 
 - 游標 (`proactive_agent_state.last_checked_health_date`) **只在事件成功
   claim 之後才前進**，不是函式一開始就前進——crash 在 claim 與送出訊息之間，
   下次重跑會拿到同一把 idempotency key、claim 失敗、視為已處理，不重送。
-- 這是刻意選擇的 **at-most-once** 語意：寧可極端情況下漏發一次，也不要對
-  同一件事重複打擾使用者。沒有做到嚴格 exactly-once。
+- 這是刻意選擇的 **AT_MOST_ONCE + best-effort dedup** 語意：寧可極端情況下
+  漏發一次，也不要對同一件事重複打擾使用者。**沒有**做到 exactly-once。
+- 具體的當機視窗行為（都有對應測試，見 `test/proactive-audit.test.js`）：
+  - Telegram 送出成功、DB 標記前當機 → 重跑辨識為重複，**不重發**。
+  - Telegram 逾時（送達結果未知）→ **不重試**，事件的 `sent_at` 保持空值，
+    稽核軌跡誠實反映「決定送出，但沒能確認送達」。
+  - 事件 claim 成功但游標沒前進 → 下一輪重算拿到同一把 key，安全前進。
+
+## 可追溯性
+
+`proactive_events` 一列可以串起完整因果鏈：
+`signals_json`（當時偵測到什麼）→ `reason_json`（為什麼這樣決定）→
+`pending_question_id`（問了哪一題）→ `journal_event_id`（使用者的回答變成哪筆
+Journal）→ `outcome`（重新分析的誠實結論）。
+
+## 重新分析怎麼判斷「解釋了沒有」
+
+不是看「insight 狀態有沒有變動」（舊版這樣寫，結果**歷史越完整、答案越糟**：
+一個已經 SUPPORTED 的規律被再次佐證時 `changed=false`，系統反而回
+「資料還不足以確認」）。現在的判準是：
+
+1. 這個 subject 的證據強度真的到 EMERGING/SUPPORTED，**而且**
+2. 觀察到的關聯方向與這次異常的方向一致（曝露 → 指標下降 = 負相關，
+   這次異常也要是「偏低」才說得通）。
+
+兩者皆成立才算 `EXPLAINED`，否則誠實回 `STILL_UNEXPLAINED`。
+`follow-up` 仍然只在**信念真的改變**時才發（避免「謝謝你的回覆」式騷擾），
+這與「這次異常有沒有被解釋」是分開的兩件事。
 
 ## Multi-user 隔離
 
@@ -128,20 +196,24 @@ interface LiveSensorGateway {
 Engine**，不能繞過——「有即時資料」不代表「有資格產生確定性以外的結論」。
 在真的有這樣的資料源之前，這裡只留下設計意圖，不寫任何程式碼。
 
+## Schema
+
+`SCHEMA_VERSION = 3`（v3 = 新增 Proactive Agent 兩張表）。兩張表都是純新增，
+不動任何既有表；`migrations.js` 在版本推進時會檢查 `RESHAPED_TABLES`，
+空的舊形狀表才重建、有資料一律中止。production 目前還沒有這兩張表，
+所以會直接以最終形狀建立。
+
 ## 已知限制
 
-- `src/analysisStore.js` 的 `recordPredictionActual()` 有一個既有（非本次
-  新增）的 bug：函式內用了 `uid` 變數但從未從 `userId` 解構出來，會在被呼叫時
-  拋出 `ReferenceError`。這個函式目前沒有生產呼叫路徑用到，PA1 review 過程中
-  發現，記錄在此但刻意不在這次的 Proactive Agent 工作範圍內修改（避免無關
-  變更）。
-- Attention Engine 的持續性/冷卻判斷是以「當天最高嚴重度的訊號」為準；如果
-  同一天有兩個不同指標的訊號、且較嚴重的那個剛好在冷卻中，目前不會退而評估
-  次要訊號是否值得獨立行動。這是刻意的簡化（避免同一天發出多則主動訊息），
-  但代表某些次要但持續的訊號可能會被暫時遮蔽一天。
-- Information-Gain 問題引擎目前只覆蓋 `alcohol / sickness / travel /
-  late_sleep / stress` 五個類別（沿用既有 `FOLLOW_UP_CATEGORIES`）。新增類別
-  需要同時更新 `questionEngine.js` 的樣板文字。
+- 送達語意是 AT_MOST_ONCE：Telegram 逾時或當機時訊息可能遺失，不會重試。
+  這是刻意的取捨（不重複打擾 > 保證送達）。
+- 反應式追問（使用者自己問完之後的追問）仍然會把下一句話當成回答；
+  只有**主動代理**發起的問題才有「明顯是問句就不吃掉」的保護。
+- `journalAssociation` 的對照組門檻（exposed/unexposed 各 ≥3 天）意味著
+  很罕見的行為（例如一年只發生兩次）永遠不會形成 insight。這是誠實的，
+  不是 bug，但也代表系統對稀有事件天生無感。
+- 冷卻連坐已修掉，但同一天仍然最多只會送出一則訊息（每日上限預設 2、
+  同時只允許一個未答問題）。
 
 ## WHOOP 正式啟用檢查清單（文件化，本次未執行）
 
@@ -183,3 +255,25 @@ Engine**，不能繞過——「有即時資料」不代表「有資格產生確
 
 執行 `npm test` 涵蓋以上全部，全程不呼叫真的 WHOOP／Telegram／OpenRouter
 （一律用 `fakeTelegram`／假 coach／真的本機 libSQL 檔案）。
+
+
+## 稽核修正紀錄（2026-09-07）
+
+獨立稽核重跑並修正的問題（每一項都有對應的回歸測試，
+集中在 `test/proactive-audit.test.js`）：
+
+| 嚴重度 | 問題 |
+|---|---|
+| CRITICAL | 只比對 health_date → WHOOP 事後改分的同一天永遠不會被分析 |
+| HIGH | 已成熟的 insight 被再次佐證時，反而回報「資料還不足」 |
+| HIGH | 主動訊息的守門對捏造的即時生理數值完全無效（數字檢查被關掉，且拿訊息自己當出處）|
+| HIGH | 「好消息」也會產生訊號並觸發追問（缺 metric direction 對應 + 'both' 方向被當成可打擾）|
+| HIGH | 沒有 per-user 關閉主動訊息的機制 |
+| HIGH | `recordPredictionActual()` 的 `uid` 未定義，任何呼叫都 ReferenceError |
+| MEDIUM | insight 狀態不變時，新證據被靜默丟棄 |
+| MEDIUM | 併發修正同一個 insight 會讓版本鏈分叉出兩條 active |
+| MEDIUM | 主動問題開著時，使用者問別的問題會被當成答案吃掉 |
+| MEDIUM | 冷卻中的主題會連坐悶掉其他領域的新訊號 |
+| MEDIUM | 訊號覆蓋面過窄（缺呼吸率等既有可用欄位）|
+| MEDIUM | 耦合指標（recovery/hrv/rhr）被當成獨立佐證 |
+| MEDIUM | Journal 無法回溯到觸發它的 proactive event |

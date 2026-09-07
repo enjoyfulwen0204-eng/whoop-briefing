@@ -72,12 +72,32 @@ export function buildFollowUpMessage({ statement, fromStatus, toStatus }) {
 }
 
 /**
- * 深度防禦：任何要送出去的主動訊息，送出前都再驗一次因果/診斷語言。
- * 樣板本身已經設計成安全的，這裡失敗代表樣板被改壞了，
- * 此時退回最保守、不帶推論的純文字，**絕不送出未過關的原文**。
+ * 深度防禦：任何要送出去的主動訊息，送出前都再驗一次。
+ *
+ * ## 稽核修正：以前這個守門形同虛設
+ *
+ * 舊版是 `validateNarrative(text, text, { checkNumbers: false })`，有兩個
+ * 各自獨立的破口：
+ *   1. `checkNumbers: false` —— 數字守門根本沒跑。
+ *   2. 就算打開，context 傳的是 **text 自己** —— 訊息裡的任何數字都會在
+ *      「允許的數字」集合裡找到自己，永遠驗得過。
+ * 結果是「你的心率現在是 135 bpm」這種完全捏造的句子可以直接送出去。
+ *
+ * 現在改成 fail-closed：數字一律要能在 `evidenceContext`（呼叫端提供的
+ * 確定性分析結果）裡找到出處，沒給 context 就等於「沒有任何數字有出處」，
+ * 於是任何帶單位的數值都會被擋下來。
+ *
+ * @param {string} evidenceContext 這則訊息背後的確定性事實來源（JSON 或
+ *   純文字皆可）。樣板訊息如果會帶數字，呼叫端**必須**提供。
  */
-export function guardProactiveMessage(text, { label = 'proactive' } = {}) {
-  const check = validateNarrative(text, text, { checkNumbers: false });
+export function guardProactiveMessage(text, { label = 'proactive', evidenceContext = '' } = {}) {
+  const check = validateNarrative(text, evidenceContext, {
+    checkNumbers: true,
+    // 指標名稱來自我們自己的確定性訊號（不是 LLM 生成），沒有「憑空冒出
+    // 指標」的風險；而 evidenceContext 是 JSON 時中文指標名不會出現在裡面，
+    // 開著只會製造假警報。因果/診斷/即時宣稱與數字守門才是這裡的重點。
+    checkMetrics: false,
+  });
   if (check.ok) return { text, problems: [] };
   log.error('proactive_message_failed_guard', { label, problems: check.problems.slice(0, 6) });
   return { text: '你的生理數據最近有些變化，值得留意。', problems: check.problems };

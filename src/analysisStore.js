@@ -119,6 +119,10 @@ export function createAnalysisStore(client) {
     userId,
     targetDate, targetMetric, modelVersion, actualValue,
   }, { now = new Date() } = {}) {
+    // ⚠️ 稽核修正：這裡原本直接用 `uid` 但從來沒有定義過它，任何呼叫都會
+    // 拋 ReferenceError（等於 backfillActuals() 整條路徑是壞的，預測記分卡
+    // 永遠不可能有資料）。跟其他 store 函式一樣用 requireUserId 取得 uid。
+    const uid = requireUserId(userId, 'recordPredictionActual');
     const rs = await client.execute({
       sql: `UPDATE prediction_runs
                SET actual_value = ?,
@@ -179,11 +183,20 @@ export function createAnalysisStore(client) {
     const uid = requireUserId(userId, 'supersedeInsight');
     const old = await getInsight(uid, oldId);
     if (!old) return null;
-    await client.execute({
+    // ⚠️ 稽核修正：這個 UPDATE 同時當成 compare-and-swap 用。
+    // `AND status != 'RETIRED'` + 檢查 rowsAffected 是版本鏈不會分叉的關鍵：
+    // 兩個併發的 reviseInsight 讀到同一列時，只有先 RETIRE 成功的那個
+    // 可以繼續建新版本；輸的那個拿到 rowsAffected=0 就放棄，
+    // 否則會出現兩列 supersedes_id 相同、而且都是 active 的分叉狀態。
+    const retire = await client.execute({
       sql: `UPDATE health_insights SET status = 'RETIRED', retired_at = ?
-             WHERE user_id = ? AND id = ?`,
+             WHERE user_id = ? AND id = ? AND status != 'RETIRED'`,
       args: [nowIso(now), uid, oldId],
     });
+    if (Number(retire.rowsAffected ?? 0) === 0) {
+      log.warn('insight_supersede_lost_race', { user_id: uid, old_id: oldId });
+      return null;
+    }
     return createInsight(uid, {
       insightType: next.insightType ?? old.insight_type,
       subject: next.subject ?? old.subject,
@@ -198,6 +211,37 @@ export function createAnalysisStore(client) {
       version: Number(old.version) + 1,
       supersedesId: oldId,
     }, { now });
+  }
+
+  /**
+   * 狀態沒變、但證據更新了（樣本變多、效果量微調）。
+   *
+   * ⚠️ 稽核修正：以前這條路徑只呼叫 updateInsightStatus()，那個函式只寫
+   * status 與 last_recalculated_at——新的 evidence/sample_count/effect_size
+   * 會被靜默丟棄，導致一個成熟 insight 的 evidence_json 從此凍結在「上一次
+   * 狀態變動」的那一刻。版本鏈只在狀態改變時才開新版本（這是對的），
+   * 但同一版本內的證據仍然必須跟著更新。
+   */
+  async function reconfirmInsight(userId, id, next, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'reconfirmInsight');
+    const ts = nowIso(now);
+    const rs = await client.execute({
+      sql: `UPDATE health_insights
+               SET statement = COALESCE(?, statement),
+                   evidence_json = COALESCE(?, evidence_json),
+                   sample_count = COALESCE(?, sample_count),
+                   effect_size = COALESCE(?, effect_size),
+                   confidence = COALESCE(?, confidence),
+                   last_confirmed_at = ?, last_recalculated_at = ?
+             WHERE user_id = ? AND id = ? AND status != 'RETIRED'`,
+      args: [
+        next.statement ?? null,
+        next.evidence ? JSON.stringify(next.evidence) : null,
+        next.sampleCount ?? null, next.effectSize ?? null, next.confidence ?? null,
+        ts, ts, uid, id,
+      ],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
   }
 
   async function updateInsightStatus(userId, id, status, { now = new Date() } = {}) {
@@ -388,6 +432,7 @@ export function createAnalysisStore(client) {
     getPredictions,
     createInsight,
     supersedeInsight,
+    reconfirmInsight,
     updateInsightStatus,
     getInsight,
     getActiveInsights,

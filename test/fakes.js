@@ -197,13 +197,23 @@ export function fakeDb({ failSentRecord = null } = {}) {
     },
     async getProactiveState(userId) {
       const uid = requireUserId(userId, 'getProactiveState');
-      return proactiveState.has(uid)
-        ? { userId: uid, lastCheckedHealthDate: proactiveState.get(uid) }
-        : null;
+      return proactiveState.has(uid) ? { userId: uid, ...proactiveState.get(uid) } : null;
     },
-    async setProactiveState(userId, { lastCheckedHealthDate }) {
+    async setProactiveState(userId, { lastCheckedHealthDate, lastFingerprint = null }) {
       const uid = requireUserId(userId, 'setProactiveState');
-      proactiveState.set(uid, lastCheckedHealthDate);
+      proactiveState.set(uid, { lastCheckedHealthDate, lastFingerprint });
+      return true;
+    },
+    async isProactiveEnabled(userId) {
+      requireUserId(userId, 'isProactiveEnabled');
+      return true;
+    },
+    async setProactiveEnabled(userId) {
+      requireUserId(userId, 'setProactiveEnabled');
+      return true;
+    },
+    async resolveProactiveEvent(userId) {
+      requireUserId(userId, 'resolveProactiveEvent');
       return true;
     },
     async getActiveInsights(userId) {

@@ -23,19 +23,59 @@ export function createProactiveStore(client) {
     });
     const row = rs.rows[0];
     if (!row) return null;
-    return { userId: row.user_id, lastCheckedHealthDate: row.last_checked_health_date, updatedAt: row.updated_at };
+    return {
+      userId: row.user_id,
+      lastCheckedHealthDate: row.last_checked_health_date,
+      lastFingerprint: row.last_fingerprint ?? null,
+      enabled: Number(row.enabled ?? 1) === 1,
+      updatedAt: row.updated_at,
+    };
   }
 
-  async function setProactiveState(userId, { lastCheckedHealthDate }, { now = new Date() } = {}) {
+  /**
+   * 更新分析游標。**刻意不碰 `enabled`**——使用者的開關設定不可以被
+   * 每天的例行游標更新覆寫掉。
+   */
+  async function setProactiveState(userId, { lastCheckedHealthDate, lastFingerprint = null }, { now = new Date() } = {}) {
     const uid = requireUserId(userId, 'setProactiveState');
     await client.execute({
-      sql: `INSERT INTO proactive_agent_state (user_id, last_checked_health_date, updated_at)
-            VALUES (?,?,?)
+      sql: `INSERT INTO proactive_agent_state
+              (user_id, last_checked_health_date, last_fingerprint, updated_at)
+            VALUES (?,?,?,?)
             ON CONFLICT(user_id) DO UPDATE SET
               last_checked_health_date = excluded.last_checked_health_date,
+              last_fingerprint = excluded.last_fingerprint,
               updated_at = excluded.updated_at`,
-      args: [uid, lastCheckedHealthDate, nowIso(now)],
+      args: [uid, lastCheckedHealthDate, lastFingerprint, nowIso(now)],
     });
+    return true;
+  }
+
+  /** per-user 主動訊息開關。沒有紀錄 = 預設開啟。 */
+  async function isProactiveEnabled(userId) {
+    const uid = requireUserId(userId, 'isProactiveEnabled');
+    const rs = await client.execute({
+      sql: 'SELECT enabled FROM proactive_agent_state WHERE user_id = ?',
+      args: [uid],
+    });
+    if (!rs.rows[0]) return true;
+    return Number(rs.rows[0].enabled ?? 1) === 1;
+  }
+
+  /**
+   * 開／關某個使用者的主動訊息。**只影響這一個 user_id**。
+   * 關閉之後照樣同步資料、照樣可以手動問答，只是不會再收到未經請求的訊息。
+   */
+  async function setProactiveEnabled(userId, enabled, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'setProactiveEnabled');
+    await client.execute({
+      sql: `INSERT INTO proactive_agent_state (user_id, enabled, updated_at)
+            VALUES (?,?,?)
+            ON CONFLICT(user_id) DO UPDATE SET
+              enabled = excluded.enabled, updated_at = excluded.updated_at`,
+      args: [uid, enabled ? 1 : 0, nowIso(now)],
+    });
+    log.info('proactive_enabled_changed', { user_id: uid, enabled: Boolean(enabled) });
     return true;
   }
 
@@ -90,12 +130,18 @@ export function createProactiveStore(client) {
     return true;
   }
 
-  async function resolveProactiveEvent(userId, id, outcome, { now = new Date() } = {}) {
+  /**
+   * 結案：記下這次的結果，並（如果有的話）連回使用者的回答變成的那筆 journal。
+   * journalEventId 傳 null 代表「使用者說沒有 / 看不懂」，沒有 journal 產生。
+   */
+  async function resolveProactiveEvent(userId, id, outcome, { journalEventId = null, now = new Date() } = {}) {
     const uid = requireUserId(userId, 'resolveProactiveEvent');
     const rs = await client.execute({
-      sql: `UPDATE proactive_events SET outcome = ?, resolved_at = ?
+      sql: `UPDATE proactive_events
+               SET outcome = ?, resolved_at = ?,
+                   journal_event_id = COALESCE(?, journal_event_id)
              WHERE user_id = ? AND id = ?`,
-      args: [outcome, nowIso(now), uid, id],
+      args: [outcome, nowIso(now), journalEventId, uid, id],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -136,6 +182,8 @@ export function createProactiveStore(client) {
       reason: row.reason_json ? JSON.parse(row.reason_json) : null,
       policyVersion: row.policy_version,
       pendingQuestionId: row.pending_question_id === null ? null : Number(row.pending_question_id),
+      journalEventId: row.journal_event_id === null || row.journal_event_id === undefined
+        ? null : Number(row.journal_event_id),
       messageText: row.message_text,
       sentAt: row.sent_at,
       createdAt: row.created_at,
@@ -147,6 +195,8 @@ export function createProactiveStore(client) {
   return {
     getProactiveState,
     setProactiveState,
+    isProactiveEnabled,
+    setProactiveEnabled,
     claimProactiveEvent,
     markProactiveEventSent,
     resolveProactiveEvent,

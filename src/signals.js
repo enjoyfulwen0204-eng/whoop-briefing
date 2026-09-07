@@ -42,6 +42,23 @@ function codeFor(metric, direction) {
 }
 
 /**
+ * 這個方向的偏離值不值得**打擾使用者**？
+ *
+ * 跟 anomaly.js 的 isNoteworthy() 不一樣：那個用的是 analytics 層的
+ * METRIC_DIRECTION，對呼吸率／strain 這類指標是 'both'（描述性分析兩個
+ * 方向都想講）。主動打擾必須更嚴格——呼吸率「變低」、昨天「比較沒操」
+ * 都是好消息，不可以拿來當成要使用者解釋的訊號。
+ *
+ * 沒有列在政策裡的指標一律不產生訊號（fail-closed）：寧可漏看，
+ * 也不要對著好消息發問。
+ */
+function isConcerningDirection(metric, direction) {
+  const concerning = SIGNAL_POLICY.CONCERNING_DIRECTION[metric];
+  if (!concerning) return false;
+  return direction === concerning;
+}
+
+/**
  * 單一指標的 DEVIATION 訊號。readiness 沒 READY 就直接回 null——
  * 呼叫端不需要自己再檢查一次。
  */
@@ -61,6 +78,8 @@ export function deviationSignal({
   const dev = evaluateDeviation(metric, current, baseline);
   if (!dev.noteworthy || dev.level === DEVIATION.NORMAL) return null;
   if (!meetsMinLevel(dev.level)) return null;
+  // 只有往「值得擔心」的方向偏離才算訊號——好消息不打擾使用者。
+  if (!isConcerningDirection(metric, dev.direction)) return null;
 
   return {
     type: SIGNAL_TYPE.DEVIATION,
@@ -87,13 +106,21 @@ export function baselineShiftSignal({
   const shift = detectBaselineShift(metric, series, { endDate: anchorDate });
   if (!shift.shift) return null;
 
+  // ⚠️ direction 必須描述「平均值實際往哪邊移動」，不是「好還是壞」。
+  // 舊版把 interpretation==='worse' 直接寫成 'high'，對 HRV（越高越好）
+  // 這種指標剛好相反——HRV 下滑會被標成 'high'，方向過濾就會讀反。
+  const movedUp = shift.recent_mean > shift.previous_mean;
+  const shiftDirection = movedUp ? 'high' : 'low';
+  if (!isConcerningDirection(metric, shiftDirection)) return null;
+
   return {
     type: SIGNAL_TYPE.BASELINE_SHIFT,
-    code: `${metric.toUpperCase()}_SHIFT`,
+    code: `${metric.toUpperCase()}_SHIFT_${shiftDirection.toUpperCase()}`,
     metric,
     health_date: anchorDate,
     level: Math.abs(shift.effect_size) >= 1 ? DEVIATION.STRONG : DEVIATION.NOTABLE,
-    direction: shift.interpretation === 'worse' ? 'high' : shift.interpretation === 'better' ? 'low' : 'flat',
+    direction: shiftDirection,
+    interpretation: shift.interpretation,
     effect_size: shift.effect_size,
     recent_mean: shift.recent_mean,
     previous_mean: shift.previous_mean,

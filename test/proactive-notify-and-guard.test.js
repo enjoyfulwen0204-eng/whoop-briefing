@@ -30,8 +30,13 @@ function tempDb() {
   return { db, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
 }
 
-function calmValue(i, { recovery = 60, hrv = 50, rhr = 55 } = {}) {
-  return { recovery: recovery + (i % 3) - 1, hrv: hrv + (i % 4) - 2, rhr: rhr + (i % 3) - 1 };
+function calmValue(i, { recovery = 60, hrv = 50, rhr = 55, respiratory_rate = 15 } = {}) {
+  return {
+    recovery: recovery + (i % 3) - 1,
+    hrv: hrv + (i % 4) - 2,
+    rhr: rhr + (i % 3) - 1,
+    respiratory_rate: respiratory_rate + ((i % 5) - 2) * 0.2,
+  };
 }
 
 async function seedOneDay(db, user, dateIndex, values) {
@@ -43,7 +48,7 @@ async function seedOneDay(db, user, dateIndex, values) {
     id: sleepId, v1_id: dateIndex, user_id: 999, start, end,
     nap: false, score_state: 'SCORED', timezone_offset: '+08:00',
     score: {
-      respiratory_rate: 15, sleep_performance_percentage: 85,
+      respiratory_rate: values.respiratory_rate ?? 15, sleep_performance_percentage: 85,
       sleep_consistency_percentage: 85, sleep_efficiency_percentage: 90,
       stage_summary: {
         total_light_sleep_time_milli: 3_000_000, total_slow_wave_sleep_time_milli: 1_000_000,
@@ -107,7 +112,11 @@ test('★★★ PA8/PA15: 完整管線裡，NOTIFY 訊息確實不是問句、�
     await db.migrate();
     const user = await seedSingleUser(db);
     await seedCalmBaseline(db, user, BASELINE_DAYS);
-    await seedOneDay(db, user, BASELINE_DAYS, { ...calmValue(BASELINE_DAYS), hrv: 15, rhr: 80 });
+    // hrv 與 rhr 屬於同一個生理領域（autonomic），稽核後不再互相佐證。
+    // 用真正跨領域的組合：自律神經 + 呼吸。
+    await seedOneDay(db, user, BASELINE_DAYS, {
+      ...calmValue(BASELINE_DAYS), hrv: 15, respiratory_rate: 22,
+    });
 
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
@@ -154,13 +163,24 @@ test('PA16: guardProactiveMessage 放行正常的保守用語', () => {
   const allowedExamples = [
     '你的HRV今天比平常偏低了一些。昨天有喝酒嗎？',
     '留意一下：你的恢復分數最近持續偏低，不是單一天的雜訊。\n\n如果你覺得不舒服，建議考慮休息、就醫或諮詢醫療專業人員——我沒有能力做任何醫療判斷。',
-    '補充一下之前提到的觀察：「喝酒」與隔天HRV之間目前觀察到負向的關聯（r=-0.70，樣本 20 天，資料充分度 MODERATE）。這是個人層級觀察到的關聯，跟其他因素的影響無法完全分開。',
   ];
   for (const text of allowedExamples) {
     const { text: guarded, problems } = guardProactiveMessage(text, { label: 'test' });
     assert.equal(problems.length, 0, `這句話不該被攔下來：${text}`);
     assert.equal(guarded, text);
   }
+
+  // 帶數字的訊息：有提供 evidenceContext 就放行，沒提供就必須被擋
+  // （稽核後的 fail-closed 數字守門）。
+  const withNumbers = '補充一下之前提到的觀察：「喝酒」與隔天HRV之間目前觀察到負向的關聯'
+    + '（r=-0.70，樣本 20 天，資料充分度 MODERATE）。這是個人層級觀察到的關聯，跟其他因素的影響無法完全分開。';
+  const withContext = guardProactiveMessage(withNumbers, {
+    label: 'test', evidenceContext: JSON.stringify({ pearson: -0.70, n: 20 }),
+  });
+  assert.equal(withContext.problems.length, 0, '有出處的數字應該放行');
+
+  const withoutContext = guardProactiveMessage(withNumbers, { label: 'test' });
+  assert.ok(withoutContext.problems.length > 0, '★ 沒有出處的數字必須被擋（fail-closed）');
 });
 
 // ===========================================================================

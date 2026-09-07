@@ -166,6 +166,28 @@ export const DIAGNOSIS_PATTERNS = [
   { re: /你有(?:某種)?(?:疾病|感染|發炎)/, label: '斷言疾病' },
 ];
 
+/**
+ * 宣稱「即時／現在」的生理數值。
+ *
+ * WHOOP 官方 Developer API v2 **沒有**連續或即時的生理訊號 endpoint：
+ * 這個系統看得到的永遠是已經同步進來的歷史紀錄（最快也是幾十分鐘前）。
+ * 所以任何「你現在的心率是…」「偵測到你此刻…」都必然是捏造的，
+ * 不管數字本身有沒有出處都要擋。
+ *
+ * 刻意只攔「即時性副詞 + 生理名詞」的組合，不攔「今天」「最近」
+ * 這種正確的回顧性描述。
+ */
+const LIVE_METRIC = '心率|心跳|HRV|心率變異|血氧|體溫|呼吸率';
+export const LIVE_CLAIM_PATTERNS = [
+  // 「現在的心率」「目前 HRV」——即時副詞直接修飾一個生理量
+  { re: new RegExp(`(現在|目前|此刻|當下)的?\\s*(${LIVE_METRIC})`), label: '宣稱即時生理數值' },
+  // 「心率現在是 135」——生理量 + 即時副詞 + 斷言動詞
+  { re: new RegExp(`(${LIVE_METRIC})\\s*(現在|目前|此刻|當下)\\s*(是|為|達到|高達|偏|有)`), label: '宣稱即時生理數值' },
+  { re: /即時(心率|心跳|監測|數據|生理)/, label: '宣稱即時監測' },
+  { re: /偵測到你(現在|此刻|正在|目前)/, label: '宣稱即時偵測' },
+  { re: /\b(real[- ]?time|live)\b[^.\n]{0,20}\b(heart rate|hr|hrv)\b/i, label: 'real-time claim' },
+];
+
 /** 分析層認得的指標中文名（用來偵測憑空冒出來的指標）。 */
 export const KNOWN_METRIC_TERMS = [
   'HRV', '心率變異', '靜息心率', 'RHR', '恢復', '睡眠', '深睡', 'REM',
@@ -226,6 +248,11 @@ export function validateNarrative(answer, context, {
   // --- 醫學診斷措辭 ---
   for (const { re, label } of DIAGNOSIS_PATTERNS) {
     if (re.test(text)) problems.push(`diagnosis_language:${label}`);
+  }
+
+  // --- 宣稱即時生理數值（這個系統結構上不可能知道）---
+  for (const { re, label } of LIVE_CLAIM_PATTERNS) {
+    if (re.test(text)) problems.push(`live_claim:${label}`);
   }
 
   // --- 沒有出處的數字 ---

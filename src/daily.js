@@ -14,6 +14,8 @@ import {
 } from './analyze.js';
 import { renderDaily } from './format.js';
 import { buildInsightsSafe } from './insights.js';
+import { buildDailyUserMessage } from './coach.js';
+import { guardNarrative } from './llmValidation.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
 
@@ -110,6 +112,30 @@ export async function runDaily({
 
     // AI 只負責講話；掛掉就走 fallback（照樣發數據簡報）
     coachText = await coach.daily(briefing);
+
+    // ★ 敘述守門：與健康問答（bot/answer.js）用完全同一個 guardNarrative。
+    //
+    // context 一律是 buildDailyUserMessage(briefing) —— 也就是「餵給模型的
+    // 那份確定性資料」本身。它完全由 Node 從 briefing 算出來，不含任何 LLM
+    // 產物，所以「模型講了 context 裡沒有的數字 / 日期 / 指標」才抓得準。
+    //
+    // fallback 給 null 是刻意的：renderDaily(briefing, null) 本來就會印出
+    // FALLBACK_NOTE 並保留完整的確定性數據簡報。也就是說守門失敗只會讓
+    // 教練那段話消失，**數據簡報照常送出**。
+    const guarded = guardNarrative({
+      answer: coachText,
+      context: buildDailyUserMessage(briefing),
+      fallback: null,
+      label: 'daily',
+    });
+    if (coachText && guarded.used === 'fallback') {
+      log.warn('daily_narrative_rejected', {
+        health_date: healthDate,
+        problems: guarded.problems?.slice(0, 6) ?? [],
+      });
+    }
+    coachText = guarded.text;
+
     text = renderDaily(briefing, coachText);
   } catch (err) {
     await releaseClaim();

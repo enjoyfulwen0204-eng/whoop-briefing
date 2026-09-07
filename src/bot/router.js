@@ -11,6 +11,8 @@
  */
 
 import { AI_PURPOSE, PROMPT_VERSIONS, TELEGRAM_BOT } from '../config.js';
+import { PROACTIVE_QUESTION_INTENT, PROACTIVE_OUTCOME } from '../schema.js';
+import { reanalyzeAfterAnswer } from '../proactiveReanalysis.js';
 import { requireUserId } from '../userContext.js';
 import { structuredWithRetry } from '../llmValidation.js';
 import { buildDataQualityReport, renderDataQuality } from '../dataQuality.js';
@@ -231,8 +233,8 @@ export function createRouter({
         const rows = await loadRows(t, userId, timezone);
         let predictionReady = false;
         try {
-          const { buildSupervised, MIN_TRAIN_ROWS } = await import('../prediction.js');
-          predictionReady = buildSupervised(rows).length >= MIN_TRAIN_ROWS;
+          const { assessPrediction, READINESS_STATUS } = await import('../readiness.js');
+          predictionReady = assessPrediction({ rows }).status === READINESS_STATUS.READY;
         } catch { /* 忽略 */ }
         return buildHelp({ report, insightCount, predictionReady });
       }
@@ -391,6 +393,10 @@ export function createRouter({
    * 流程：解析 → 寫 journal → 重跑分析 → 回答原問題 → 清 pending。
    */
   async function handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach }) {
+    if (pending.intent === PROACTIVE_QUESTION_INTENT) {
+      return handleProactiveAnswer({ pending, text, chatId, t, userId, timezone, coach });
+    }
+
     // 明確說「沒有」→ 不寫 journal，但要把 pending 收掉
     if (isNegativeAnswer(text)) {
       await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
@@ -423,6 +429,74 @@ export function createRouter({
       coach,
     });
     return savedLine ? `${savedLine}\n\n${answer}` : answer;
+  }
+
+  /**
+   * 主動代理發起的問題被回答了（PA10-PA14）。
+   * 流程：解析 → 寫 journal（source=proactive_agent）→ 重新分析 → 決定
+   * 要不要 follow-up。允許「還是解釋不了」當作合法結果。
+   */
+  async function handleProactiveAnswer({ pending, text, chatId, t, userId, timezone, coach }) {
+    const metric = pending.context?.signal?.metric ?? null;
+    const healthDate = pending.context?.health_date ?? null;
+    const proactiveEventId = pending.context?.proactive_event_id ?? null;
+
+    const closeOut = async (outcome) => {
+      await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
+      if (proactiveEventId && typeof db.resolveProactiveEvent === 'function') {
+        await db.resolveProactiveEvent(userId, proactiveEventId, outcome, { now: t });
+      }
+    };
+
+    if (isNegativeAnswer(text)) {
+      await closeOut(PROACTIVE_OUTCOME.NO_EXPLANATION_OFFERED);
+      return '好，我先記著這件事，會繼續留意後續的數字。';
+    }
+
+    const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
+    if (!nat.ok) {
+      // 只允許一次澄清追問——不能無止盡盤問使用者。
+      if (!pending.context?.clarified) {
+        await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
+        const clarifyQuestion = '不好意思我沒有聽懂——可以更明確地說「有」還是「沒有」嗎？'
+          + '（例如「喝了兩杯」或「沒有」）';
+        await db.openPendingQuestion(userId, {
+          chatId,
+          originalMessage: pending.originalMessage,
+          question: clarifyQuestion,
+          intent: PROACTIVE_QUESTION_INTENT,
+          contextJson: { ...pending.context, clarified: true },
+          ttlMs: TELEGRAM_BOT.PENDING_TTL_MS,
+        }, { now: t });
+        return clarifyQuestion;
+      }
+      await closeOut(PROACTIVE_OUTCOME.NO_EXPLANATION_OFFERED);
+      return '好，我先記著，會繼續留意。';
+    }
+
+    const saved = await saveEvent(db, userId, { ...nat.event, source: 'proactive_agent' }, { now: t, timezone });
+    const savedLine = saved.ok ? `✅ 已記錄：${describeEvent(saved.event)}` : null;
+
+    let followUpLine = '';
+    let outcome = PROACTIVE_OUTCOME.NO_EXPLANATION_OFFERED;
+    if (saved.ok && metric && healthDate) {
+      try {
+        const result = await reanalyzeAfterAnswer({
+          db, userId, timezone, category: saved.event.category, metric, healthDate, now: t,
+        });
+        outcome = result.outcome;
+        if (result.outcome === PROACTIVE_OUTCOME.STILL_UNEXPLAINED) {
+          followUpLine = '\n\n目前累積的資料還不足以確認這是不是解釋，我會繼續追蹤。';
+        } else if (result.followUpMessage) {
+          followUpLine = `\n\n${result.followUpMessage}`;
+        }
+      } catch (err) {
+        log.warn('proactive_reanalysis_failed', { error: describeError(err) });
+      }
+    }
+
+    await closeOut(outcome);
+    return savedLine ? `${savedLine}${followUpLine}` : `我先記下來了。${followUpLine}`;
   }
 
   return { handle, route, handleQuestion, handlePendingAnswer, runIntent };

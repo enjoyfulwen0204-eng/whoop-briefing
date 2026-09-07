@@ -21,6 +21,7 @@ import { createIdentityStore } from './identityStore.js';
 import { createHealthStore } from './store.js';
 import { createBotStore } from './botStore.js';
 import { createAnalysisStore } from './analysisStore.js';
+import { createProactiveStore } from './proactiveStore.js';
 import { log } from './logger.js';
 
 // SCHEMA 定義集中在 schema.js（唯一 DDL 來源）。這裡 re-export 維持既有 import 路徑。
@@ -432,6 +433,7 @@ export function createDb({ url, authToken }) {
     ...createHealthStore(client),
     ...createBotStore(client),
     ...createAnalysisStore(client),
+    ...createProactiveStore(client),
     close: () => client.close(),
   };
 }

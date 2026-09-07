@@ -29,6 +29,7 @@ import { runDaily } from './daily.js';
 import { runWeekly } from './weekly.js';
 import { checkRepoFreshness } from './maintenance.js';
 import { createSync } from './sync.js';
+import { checkAndAct } from './proactiveAgent.js';
 import { mapWithConcurrency } from './concurrency.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
@@ -73,11 +74,12 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     daily = runDaily,
     weekly = runWeekly,
     makeSync = createSync,
+    proactive = checkAndAct,
   } = deps;
   const uid = user.id;
   const tz = user.timezone;
   const out = {
-    userId: uid, timezone: tz, daily: null, weekly: null, sync: null,
+    userId: uid, timezone: tz, daily: null, weekly: null, sync: null, proactive: null,
     skipped: null, errors: [],
   };
 
@@ -167,6 +169,19 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   } catch (err) {
     out.errors.push({ stage: 'sync', error: describeError(err) });
     log.error('sync_unexpected', { user_id: uid, error: describeError(err) });
+  }
+
+  // ---- Proactive Agent（PA3）----
+  // 在 sync 之後跑：只有這次 sync 真的帶來新的 health_date 才會做任何事
+  // （checkAndAct 內部自己比對游標）。一個使用者的訊號偵測失敗絕不影響
+  // 他的日報/週報已經送出的結果，也不影響其他使用者。
+  try {
+    out.proactive = await proactive({
+      db, userId: uid, timezone: tz, telegram, chatId, now,
+    });
+  } catch (err) {
+    out.errors.push({ stage: 'proactive', error: describeError(err) });
+    log.error('proactive_unexpected', { user_id: uid, error: describeError(err) });
   }
 
   return out;

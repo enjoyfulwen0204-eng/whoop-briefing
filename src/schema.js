@@ -538,6 +538,71 @@ export const LEDGER_SCHEMA = [
   `CREATE INDEX IF NOT EXISTS idx_ai_usage_purpose ON ai_usage (user_id, purpose, timestamp)`,
 ];
 
+// ---------------------------------------------------------------------------
+// 9. Proactive Agent（per-user）——純新增表，不動任何既有表
+// ---------------------------------------------------------------------------
+export const PROACTIVE_SCHEMA = [
+  // cron 每次同步後，「這個使用者上次檢查到哪一天」的游標。
+  // 沒有這張表就無法判斷「這次 sync 有沒有帶來新的 health_date」，
+  // 會變成每次 cron 都重新跑一次訊號偵測（即使資料完全沒變）。
+  `CREATE TABLE IF NOT EXISTS proactive_agent_state (
+     user_id                   TEXT PRIMARY KEY,
+     last_checked_health_date  TEXT,
+     updated_at                TEXT NOT NULL
+   )`,
+
+  // 主動事件的稽核軌跡，同時也是冪等鍵與反騷擾政策的資料來源。
+  //
+  // idempotency_key 由「health_date + policy 版本」決定性算出來
+  // （見 src/proactiveAgent.js），UNIQUE(user_id, idempotency_key) 保證：
+  //   - 同一個使用者、同一個 health_date、同一版政策，只會有一列
+  //   - cron 重跑 / worker 重啟時，重算出一樣的 key → INSERT 失敗 →
+  //     視為「已經處理過」，不會重複發送 Telegram 訊息
+  //
+  // 這是刻意選擇的「at-most-once」語意：寧可極端情況下漏發一次，
+  // 也不要對同一件事重複打擾使用者。詳見 docs/proactive-agent.md。
+  `CREATE TABLE IF NOT EXISTS proactive_events (
+     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id             TEXT NOT NULL,
+     health_date         TEXT NOT NULL,
+     idempotency_key     TEXT NOT NULL,
+     signals_json        TEXT,
+     decision            TEXT NOT NULL,
+     reason_json         TEXT,
+     policy_version      TEXT NOT NULL,
+     pending_question_id INTEGER,
+     message_text        TEXT,
+     sent_at             TEXT,
+     created_at          TEXT NOT NULL,
+     resolved_at         TEXT,
+     outcome             TEXT
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS uniq_proactive_event
+     ON proactive_events (user_id, idempotency_key)`,
+  `CREATE INDEX IF NOT EXISTS idx_proactive_user_created
+     ON proactive_events (user_id, created_at)`,
+];
+
+/** Attention Engine 的決策列舉（IGNORE 不落地，其餘都會寫進 proactive_events）。 */
+export const PROACTIVE_DECISION = {
+  IGNORE: 'IGNORE',
+  LOG_ONLY: 'LOG_ONLY',
+  ASK_CONTEXT: 'ASK_CONTEXT',
+  NOTIFY: 'NOTIFY',
+  FOLLOW_UP: 'FOLLOW_UP',
+};
+
+/** proactive_events.outcome 的允許值——事後 reanalysis 才會填。 */
+export const PROACTIVE_OUTCOME = {
+  STILL_UNEXPLAINED: 'STILL_UNEXPLAINED',
+  EXPLAINED: 'EXPLAINED',
+  NO_EXPLANATION_OFFERED: 'NO_EXPLANATION_OFFERED',
+  NO_RESPONSE: 'NO_RESPONSE',
+};
+
+/** pending_questions.intent 用這個值標記「這是主動代理發起的問題」。 */
+export const PROACTIVE_QUESTION_INTENT = 'proactive_signal';
+
 /** migrate() 實際執行的完整順序。 */
 export const SCHEMA = [
   ...VERSION_SCHEMA,
@@ -549,6 +614,7 @@ export const SCHEMA = [
   ...BOT_SCHEMA,
   ...ANALYSIS_SCHEMA,
   ...LEDGER_SCHEMA,
+  ...PROACTIVE_SCHEMA,
 ];
 
 /** 使用者狀態。 */

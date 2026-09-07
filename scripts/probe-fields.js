@@ -14,6 +14,7 @@
  */
 
 import { loadDotEnvIfPresent, loadEnv } from '../src/config.js';
+import { pickUser } from './pickUser.js';
 import { createDb } from '../src/db.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { probeCapabilities, STATUS } from '../src/capabilities.js';
@@ -37,12 +38,15 @@ const MARK = {
 
 try {
   await db.migrate();
+  const user = await pickUser(db);
   const whoop = createWhoopClient({
-    db, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+    db, userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
   });
 
+  console.log(`使用者：${user.id}（${user.displayName}，${user.timezone}）`);
+
   const { entries, scopeErrors } = await probeCapabilities({
-    db, whoop, timezone: env.timezone, days: DAYS,
+    db, whoop, userId: user.id, timezone: env.timezone, days: DAYS,
   });
 
   const group = (s) => entries.filter((e) => e.status === s);

@@ -18,7 +18,12 @@ export function fakeDb({ failSentRecord = null } = {}) {
   const users = new Map();   // userId -> user
   const links = new Map();   // chatId -> { userId, status }
   const tokensByUser = new Map();
+  const proactiveState = new Map();   // userId -> lastCheckedHealthDate
+  const proactiveEvents = [];         // claimed proactive_events rows
+  const pendingQuestions = [];        // pending_questions rows
   let seq = 0;
+  let eventSeq = 0;
+  let pendingSeq = 0;
   const nextOwner = () => `fake-owner-${++seq}`;
 
   const DEFAULT_TOKEN = {
@@ -178,6 +183,67 @@ export function fakeDb({ failSentRecord = null } = {}) {
       return true;
     },
     userLockName: (base, userId) => `${base}:${requireUserId(userId, 'userLockName')}`,
+
+    // ----- Proactive Agent（沒有健康資料的最小合法實作）-----
+    // 這個 fakeDb 本來就沒有 upsertSleeps 之類的方法，所以永遠沒有健康資料，
+    // coverage() 回傳 last_date: null 讓 checkAndAct() 直接 no-op 提前返回——
+    // 既有只測 daily/weekly 流程的測試因此完全不受影響。
+    async coverage(userId) {
+      requireUserId(userId, 'coverage');
+      return {
+        first_date: null, last_date: null, main_sleeps: 0, naps: 0,
+        recoveries: 0, scored_recoveries: 0, unscored_sleeps: 0, cycles: 0, workouts: 0,
+      };
+    },
+    async getProactiveState(userId) {
+      const uid = requireUserId(userId, 'getProactiveState');
+      return proactiveState.has(uid)
+        ? { userId: uid, lastCheckedHealthDate: proactiveState.get(uid) }
+        : null;
+    },
+    async setProactiveState(userId, { lastCheckedHealthDate }) {
+      const uid = requireUserId(userId, 'setProactiveState');
+      proactiveState.set(uid, lastCheckedHealthDate);
+      return true;
+    },
+    async getActiveInsights(userId) {
+      requireUserId(userId, 'getActiveInsights');
+      return [];
+    },
+    async getOpenPendingQuestion(userId) {
+      requireUserId(userId, 'getOpenPendingQuestion');
+      return null;
+    },
+    async getJournalEvents(userId) {
+      requireUserId(userId, 'getJournalEvents');
+      return [];
+    },
+    async getRecentProactiveEvents(userId) {
+      requireUserId(userId, 'getRecentProactiveEvents');
+      return [];
+    },
+    async claimProactiveEvent(userId, payload) {
+      const uid = requireUserId(userId, 'claimProactiveEvent');
+      const exists = proactiveEvents.some(
+        (e) => e.userId === uid && e.idempotencyKey === payload.idempotencyKey,
+      );
+      if (exists) return { claimed: false, id: null };
+      const id = ++eventSeq;
+      proactiveEvents.push({ id, userId: uid, ...payload });
+      return { claimed: true, id };
+    },
+    async markProactiveEventSent() {
+      return true;
+    },
+    async openPendingQuestion(userId, q) {
+      const uid = requireUserId(userId, 'openPendingQuestion');
+      const id = ++pendingSeq;
+      pendingQuestions.push({ id, userId: uid, ...q, status: 'OPEN' });
+      return id;
+    },
+    proactiveEvents,
+    pendingQuestions,
+
     close: () => {},
   };
 }

@@ -179,6 +179,64 @@ test('DEVIATION: APP_ONLY 欄位 → UNAVAILABLE，且原因要說明是 API 沒
 });
 
 // ===========================================================================
+// PA1 REVIEW: UNKNOWN / 還沒 probe 過 絕不能變成 UNAVAILABLE
+//
+// UNAVAILABLE 只能用在「已經證實」拿不到的三種狀態（APP_ONLY /
+// capabilities.UNAVAILABLE / UNAUTHORIZED，上面兩個測試已經涵蓋）。
+// 「還沒 probe」「探測到但樣本不足」「完全沒給 capabilityStatus」
+// 都必須被當成 NOT_YET_VERIFIED，落回樣本數邏輯，絕不能講成「不支援」。
+// 這對應真實 WHOOP 帳號在完成 npm run authorize / npm run probe 之前的狀態。
+// ===========================================================================
+
+test('★★ PA1 review: capabilityStatus = UNKNOWN（探測過但樣本不足，無法判斷）絕不能變成 UNAVAILABLE', () => {
+  const zeroSamples = assessDeviation({
+    series: [], anchorDate: '2026-09-30', capabilityStatus: CAPABILITY_STATUS.UNKNOWN,
+  });
+  assert.notEqual(zeroSamples.status, READINESS_STATUS.UNAVAILABLE);
+  assert.equal(zeroSamples.status, READINESS_STATUS.NO_DATA);
+  assert.ok(
+    zeroSamples.missing_requirements.includes('capability_not_yet_verified'),
+    '要誠實說明是「還沒驗證」，不是「查過了、沒有」',
+  );
+
+  const someSamples = seriesFrom('2026-09-01', [50, 51, 52]); // < ANALYTICS.MIN_SAMPLES
+  const warming = assessDeviation({
+    series: someSamples, anchorDate: '2026-09-30', capabilityStatus: CAPABILITY_STATUS.UNKNOWN,
+  });
+  assert.notEqual(warming.status, READINESS_STATUS.UNAVAILABLE);
+  assert.equal(warming.status, READINESS_STATUS.WARMING_UP);
+});
+
+test('★★ PA1 review: 完全沒有 WHOOP 授權／從沒 probe 過（capabilityStatus 根本沒給）絕不能變成 UNAVAILABLE', () => {
+  // 呼叫端如果連 capabilities 都還沒查過（例如剛連上帳號、還沒跑過 probe），
+  // capabilityStatus 就會是 undefined —— 這代表「未知」，不是「已知不可用」。
+  const r = assessDeviation({ series: [], anchorDate: '2026-09-30' });
+  assert.notEqual(r.status, READINESS_STATUS.UNAVAILABLE);
+  assert.equal(r.status, READINESS_STATUS.NO_DATA);
+});
+
+test('★★ PA1 review: capabilityStatus = SUPPORTED／PARTIAL（已知可用）但樣本不足 → WARMING_UP，不是 UNAVAILABLE', () => {
+  const short = seriesFrom('2026-09-01', [50, 51, 52]);
+  const supported = assessDeviation({
+    series: short, anchorDate: '2026-09-30', capabilityStatus: CAPABILITY_STATUS.SUPPORTED,
+  });
+  assert.equal(supported.status, READINESS_STATUS.WARMING_UP);
+
+  const partial = assessDeviation({
+    series: short, anchorDate: '2026-09-30', capabilityStatus: CAPABILITY_STATUS.PARTIAL,
+  });
+  assert.equal(partial.status, READINESS_STATUS.WARMING_UP);
+
+  // 樣本足夠時，SUPPORTED／PARTIAL 一樣可以正常升到 READY —— capability
+  // 已知可用不該被 UNKNOWN 分支誤傷。
+  const enough = seriesFrom('2026-09-01', Array.from({ length: ANALYTICS.MIN_SAMPLES }, () => 50));
+  const ready = assessDeviation({
+    series: enough, anchorDate: '2026-09-30', capabilityStatus: CAPABILITY_STATUS.SUPPORTED,
+  });
+  assert.equal(ready.status, READINESS_STATUS.READY);
+});
+
+// ===========================================================================
 // TREND_SHORT / TREND_LONG —— 重用 trend.js 的 trendsFor + TREND_ENGINE.WINDOWS
 // ===========================================================================
 
@@ -591,6 +649,89 @@ test('★★ Alice/Bob 隔離：Alice 用真的多天資料衝到 READY，Bob �
       'Bob 只有 1 天資料，絕不能因為 Alice 已經 READY 而跟著被判定 READY',
     );
     assert.equal(bobReadiness.status, READINESS_STATUS.WARMING_UP);
+  } finally {
+    db.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ===========================================================================
+// PA1 REVIEW: readiness 必須完全無副作用 —— 呼叫任意次都不會動到 DB
+//
+// 特別針對「readiness 內部會呼叫真正的分析函式」這幾個能力
+// （REGRESSION 呼叫 analyzeRecoveryDrivers()、PREDICTION 呼叫 train()、
+// CHANGE_DETECTION 呼叫 detectBaselineShift()、EXPERIMENT_ANALYSIS 讀取
+// experiment 列）—— 這些函式本身就是純函式，這裡用「整個資料庫每一張表
+// 的列數，呼叫前後完全一致」來做黑盒證明，不只是相信程式碼註解。
+// ===========================================================================
+
+test('★★★ PA1 review: readiness 呼叫兩次（含 REGRESSION／PREDICTION／CHANGE_DETECTION）完全不會寫入 DB', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'readiness-sideeffect-'));
+  const db = createDb({ url: `file:${path.join(dir, 't.db')}` });
+  try {
+    await db.migrate();
+    const { id: userId, timezone } = await (async () => {
+      const { seedSingleUser } = await import('./users.js');
+      return seedSingleUser(db);
+    })();
+
+    // 造出足夠讓 REGRESSION / PREDICTION 真的跑完整套統計（不是提早因為
+    // 樣本不足而 short-circuit）的資料量，確保這個測試真的觸碰到
+    // analyzeRecoveryDrivers() 與 train() 的完整運算路徑。
+    const noise = (i, seed) => (((i + 1) * 9301 + seed * 49297) % 233280) / 233280;
+    const rows = makeRows('2026-01-01', MIN_TRAIN_ROWS + 20, (i) => ({
+      recovery: 40 + noise(i, 1) * 40,
+      sleep_total: 20_000_000 + noise(i, 2) * 8_000_000,
+      previous_day_strain: 5 + noise(i, 3) * 15,
+      hrv: 30 + noise(i, 4) * 40,
+      rhr: 45 + noise(i, 5) * 20,
+      sleep_debt: noise(i, 6) * 3_000_000,
+    }));
+    const anchor = rows.at(-1).health_date;
+    const experiment = {
+      status: EXPERIMENT_STATUS.RUNNING,
+      baseline_start: '2026-01-01', baseline_end: '2026-01-10',
+      start_date: '2026-01-15', end_date: anchor,
+    };
+    const series = seriesOf(rows, 'hrv');
+
+    /** 每一張表的列數（黑盒快照，不管表名叫什麼）。 */
+    async function snapshotAllTableCounts() {
+      const tables = await db.raw.execute({
+        sql: "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+      });
+      const counts = {};
+      for (const row of tables.rows) {
+        const name = row.name;
+        const rs = await db.raw.execute({ sql: `SELECT COUNT(*) AS n FROM "${name}"` });
+        counts[name] = Number(rs.rows[0].n);
+      }
+      return counts;
+    }
+
+    const before = await snapshotAllTableCounts();
+
+    // 跑兩次，涵蓋所有「內部會呼叫真正分析函式」的能力。
+    for (let pass = 0; pass < 2; pass++) {
+      assessBaseline({ rows, anchorDate: anchor });
+      assessDeviation({ series, anchorDate: anchor });
+      assessTrendShort({ metricKey: 'hrv', series, anchorDate: anchor });
+      assessTrendLong({ metricKey: 'hrv', series, anchorDate: anchor });
+      assessChangeDetection({ metricKey: 'hrv', series, anchorDate: anchor });
+      assessRegression({ rows, target: 'recovery', features: ['hrv', 'previous_day_strain'] });
+      assessPrediction({ rows, target: 'recovery' });
+      assessExperimentAnalysis({ rows, experiment });
+      assessSimilarDays({ rows, anchorDate: anchor });
+      assessCorrelation({ xSeries: series, ySeries: seriesOf(rows, 'recovery') });
+      assessInsightDiscovery({ rows, anchorDate: anchor });
+    }
+
+    const after = await snapshotAllTableCounts();
+    assert.deepEqual(after, before, 'readiness 呼叫前後，DB 裡每一張表的列數必須完全一致');
+
+    // 額外用 userId/timezone，避免 lint 抱怨未使用（同時證明這條路徑真的
+    // 是走 per-user seed，不是巧合地什麼都沒建）。
+    assert.ok(userId && timezone);
   } finally {
     db.close();
     fs.rmSync(dir, { recursive: true, force: true });

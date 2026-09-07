@@ -9,9 +9,13 @@ import { buildDataQualityReport, renderDataQuality } from '../dataQuality.js';
 import { parseLogCommand, saveEvent, describeEvent, CATEGORIES } from '../journal.js';
 import { costSummary, renderCost } from '../usage.js';
 import { getEvidence, renderEvidence } from '../evidence.js';
-import { scorecard, MIN_TRAIN_ROWS, buildSupervised } from '../prediction.js';
+import { scorecard } from '../prediction.js';
 import { INSIGHT_STATUS } from '../healthMemory.js';
+import { assessPrediction, assessProactiveMonitoring, READINESS_STATUS } from '../readiness.js';
+import { deriveColdStartStage, COLD_START_STAGE } from '../proactiveMessages.js';
+import { READINESS_HEURISTICS } from '../config.js';
 import { addDays, localDate } from '../time.js';
+import { seriesOf } from '../dailyMetrics.js';
 import { log } from '../logger.js';
 
 /**
@@ -149,12 +153,11 @@ export async function handleStatus({ db, userId, timezone, now, rows = [] }) {
   lines.push(`Capability probe：${report.capabilities.probed ? '✅ 已執行' : '尚未執行'}`);
   lines.push('');
 
-  // 預測就緒度
-  let usable = 0;
-  try {
-    usable = buildSupervised(rows).length;
-  } catch { /* 沒資料就是 0 */ }
-  lines.push(`預測就緒：${usable >= MIN_TRAIN_ROWS ? '✅ 可訓練' : `尚未（${usable}/${MIN_TRAIN_ROWS} 筆可用樣本）`}`);
+  // 預測就緒度——直接問 readiness engine，不在這裡重複算一次門檻
+  const predictionReadiness = assessPrediction({ rows });
+  lines.push(`預測就緒：${predictionReadiness.status === READINESS_STATUS.READY
+    ? '✅ 可訓練'
+    : `尚未（${predictionReadiness.usable_samples}/${predictionReadiness.required_samples} 筆可用樣本）`}`);
 
   // insight 就緒度
   let insightCount = 0;
@@ -165,6 +168,59 @@ export async function handleStatus({ db, userId, timezone, now, rows = [] }) {
 
   lines.push('');
   lines.push(`Journal：${report.journal_count} 筆`);
+
+  // ---- Proactive Agent（PA22）----
+  // 刻意精簡：開關狀態、資料成熟度、有沒有正在等回答的問題、最近一次動作。
+  // 不展開成一堆新指令，維持 /status 是「一頁摘要」。
+  lines.push('');
+  lines.push(await renderProactiveStatusLines({ db, userId, timezone, rows, now }));
+
+  return lines.join('\n');
+}
+
+/** /status 裡「Proactive Agent」那幾行。獨立成函式方便測試。 */
+export async function renderProactiveStatusLines({ db, userId, timezone, rows = [], now }) {
+  const anchorDate = rows.length
+    ? [...rows].sort((a, b) => (a.health_date < b.health_date ? -1 : 1)).at(-1).health_date
+    : localDate(now, timezone);
+  const coreMetrics = READINESS_HEURISTICS.PROACTIVE_CORE_METRICS;
+  const seriesByMetric = {};
+  for (const m of coreMetrics) seriesByMetric[m] = seriesOf(rows, m);
+
+  const monitoring = assessProactiveMonitoring({ seriesByMetric, anchorDate, coreMetrics });
+  let hasMatureInsight = false;
+  try {
+    hasMatureInsight = (await db.getActiveInsights(userId, {}))
+      .some((i) => i.status !== INSIGHT_STATUS.HYPOTHESIS);
+  } catch { /* 忽略 */ }
+  const stage = deriveColdStartStage({ proactiveMonitoringStatus: monitoring.status, hasMatureInsight });
+
+  const STAGE_LABEL = {
+    [COLD_START_STAGE.STAGE_0]: '尚未開始累積資料',
+    [COLD_START_STAGE.STAGE_1]: '累積中，還不足以主動分析',
+    [COLD_START_STAGE.STAGE_2]: '資料有限，主動分析尚未啟用',
+    [COLD_START_STAGE.STAGE_3]: '✅ 已啟用',
+    [COLD_START_STAGE.STAGE_4]: '✅ 已啟用（已有長期規律）',
+  };
+
+  const lines = ['🔔 Proactive Agent', `狀態：${STAGE_LABEL[stage] ?? stage}`];
+
+  let openQuestion = null;
+  try {
+    openQuestion = await db.getOpenPendingQuestion(userId, { now });
+  } catch { /* 忽略 */ }
+  lines.push(`待回答問題：${openQuestion ? '有（' + (openQuestion.context?.category ?? '未分類') + '）' : '無'}`);
+
+  try {
+    const recent = await db.getRecentProactiveEvents(userId, {
+      sinceIso: addDays(anchorDate, -7),
+    });
+    const last = recent[0];
+    lines.push(`最近一次動作：${last ? `${last.createdAt?.slice(0, 10)} ${last.decision}` : '尚無'}`);
+  } catch {
+    lines.push('最近一次動作：尚無');
+  }
+
   return lines.join('\n');
 }
 
@@ -251,25 +307,25 @@ export async function handleInsights({ db, userId, argsText }) {
 // ---------------------------------------------------------------------------
 // /predictions
 // ---------------------------------------------------------------------------
-export async function handlePredictions({ db, rows = [] }) {
+export async function handlePredictions({ db, userId, rows = [] }) {
   const lines = ['🔮 恢復預測', ''];
 
-  let usable = 0;
-  try {
-    usable = buildSupervised(rows).length;
-  } catch { /* 0 */ }
+  // 用 readiness engine 判斷，不在這裡重複 MIN_TRAIN_ROWS 的門檻邏輯——
+  // prediction.js 的 train() 本身用的是「D 天特徵 → D+1 天結果」配對數，
+  // 不是原始列數，assessPrediction() 已經正確算過這件事。
+  const readiness = assessPrediction({ rows });
 
-  if (usable < MIN_TRAIN_ROWS) {
+  if (readiness.status !== READINESS_STATUS.READY) {
     lines.push('狀態：INSUFFICIENT_DATA');
     lines.push('');
-    lines.push(`目前可用樣本：${usable} 筆`);
-    lines.push(`最低需求：${MIN_TRAIN_ROWS} 筆`);
+    lines.push(`目前可用樣本：${readiness.usable_samples} 筆`);
+    lines.push(`最低需求：${readiness.required_samples} 筆`);
     lines.push('');
     lines.push('資料量還不足以訓練預測模型，所以我不會給你任何預測數字。');
     lines.push('（一個沒有足夠資料支撐的預測，比沒有預測更糟。）');
   } else {
     lines.push('狀態：可訓練');
-    lines.push(`可用樣本：${usable} 筆`);
+    lines.push(`可用樣本：${readiness.usable_samples} 筆`);
   }
 
   // 已經有記分卡就一併顯示

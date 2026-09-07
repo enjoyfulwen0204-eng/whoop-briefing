@@ -25,6 +25,27 @@
  * 自己不碰 DB、不知道有沒有其他使用者存在。Alice 的資料永遠不會流進
  * Bob 的 readiness —— 因為呼叫端本來就是分別對每個 userId 撈資料、
  * 分別呼叫這裡的函式。
+ *
+ * ## 完全無副作用（PA1 review 明文化）
+ *
+ * 這個檔案裡**沒有一個 export 是 async、沒有一個 export 接受 db 參數、
+ * 沒有一行 await**。全部是同步純函式：輸入資料 → 輸出 readiness 判斷，
+ * 不寫 DB、不呼叫 WHOOP／Telegram／OpenRouter、不改變任何狀態。
+ * 呼叫兩次、呼叫一百次，結果永遠一樣，也永遠不會有任何副作用。
+ *
+ * 這裡重用的 analyzeRecoveryDrivers() / train() / trendsFor() /
+ * detectBaselineShift() / analyseAssociation() 等既有函式本身也都是純函式
+ * （它們對應的「寫入」版本是 persistPrediction()／snapshotContributors()
+ * 之類的獨立函式，readiness 從來不呼叫那些）。
+ *
+ * ## KNOWN_UNAVAILABLE vs NOT_YET_VERIFIED（PA1 review 明文化）
+ *
+ * UNAVAILABLE 只能用在**已經證實**拿不到的情況（capabilities.js 的
+ * APP_ONLY／UNAVAILABLE／UNAUTHORIZED，見下面 capabilityGate() 的說明）。
+ * 「還沒 probe」「樣本不足無法判斷」「根本沒有 WHOOP 授權」一律不是
+ * UNAVAILABLE，而是用既有的 NO_DATA / WARMING_UP 表達，並在
+ * missing_requirements / reason 裡誠實說明原因，不可以講成「這個功能
+ * 不支援」。
  */
 
 import {
@@ -95,9 +116,28 @@ function result({
 }
 
 /**
- * 結構性不可用（WHOOP 這個帳號的這個欄位就是拿不到）先擋在最前面。
- * 這種情況不管累積多少天資料都不會變好，跟「還在累積樣本」是完全不同的
- * 語意，所以獨立判斷、優先於樣本數。
+ * 結構性不可用先擋在最前面——但只擋「已經被證實」的不可用。
+ *
+ * ## KNOWN_UNAVAILABLE vs NOT_YET_VERIFIED（PA1 review 修正）
+ *
+ * capabilities.js 的 STATUS 分成兩種完全不同的語意，這裡絕不能混為一談：
+ *
+ *   KNOWN_UNAVAILABLE（真的探測過，確認拿不到）——才可以回 UNAVAILABLE：
+ *     - APP_ONLY        官方 API 文件本來就沒有這個欄位（靜態事實，不需要 probe）
+ *     - UNAVAILABLE     probe 已經拿到 ≥3 筆樣本，而且每一筆都是 null
+ *     - UNAUTHORIZED    token 缺這個 scope（探測到「沒有權限」這個事實）
+ *
+ *   NOT_YET_VERIFIED（還沒問過、或問了但樣本太少無法下判斷）——絕不能回
+ *   UNAVAILABLE，一律放行給下面的樣本數邏輯去判斷 NO_DATA / WARMING_UP：
+ *     - UNKNOWN         capabilities.js 自己的定義：「樣本不足，無從判斷」
+ *     - undefined/null  這個 userId 根本還沒 probe 過（例如真實 WHOOP 帳號
+ *                       還沒授權、還沒跑過 npm run probe），呼叫端可能完全
+ *                       沒有把 capabilityStatus 傳進來
+ *     - SUPPORTED/PARTIAL 探測到「有」，但當下樣本可能還不夠 —— 這是純粹
+ *                       的樣本數問題，不是結構性問題，一樣要放行
+ *
+ * 絕對不可以把「還沒探測」講成「這個功能不支援」——真實 WHOOP 帳號
+ * 在完成 npm run authorize / npm run probe 之前，永遠是 NOT_YET_VERIFIED。
  */
 function capabilityGate(capabilityStatus, now) {
   if (capabilityStatus === CAPABILITY_STATUS.APP_ONLY) {
@@ -118,7 +158,9 @@ function capabilityGate(capabilityStatus, now) {
       missing: ['reauthorize_whoop_scope'], reason: 'missing_oauth_scope', now,
     });
   }
-  return null; // SUPPORTED / PARTIAL / UNKNOWN / 沒給 → 交給樣本數判斷
+  // NOT_YET_VERIFIED：UNKNOWN、undefined、SUPPORTED、PARTIAL 全部在這裡放行，
+  // 交給樣本數邏輯決定 NO_DATA / WARMING_UP / LIMITED / READY。
+  return null;
 }
 
 /** 純粹「樣本數 vs 門檻」的通用分級：NO_DATA / WARMING_UP / READY。 */
@@ -210,7 +252,14 @@ export function assessDeviation({
   const w = describeWindow(series, {
     endDate: anchorDate, days: ANALYTICS.DEFAULT_BASELINE_WINDOW, excludeEndDate: true,
   });
-  return classifyByCount({ usable: w.n, required: ANALYTICS.MIN_SAMPLES, now });
+  // 樣本是 0、而且這個欄位「還沒被 probe 過」時，講清楚是哪一種 NO_DATA——
+  // 不要讓人誤以為是「這個功能不支援」，而其實只是還沒跑過 npm run probe。
+  const notYetVerified = w.n === 0 && capabilityStatus === CAPABILITY_STATUS.UNKNOWN
+    ? ['capability_not_yet_verified']
+    : [];
+  return classifyByCount({
+    usable: w.n, required: ANALYTICS.MIN_SAMPLES, missing: notYetVerified, now,
+  });
 }
 
 /** z-score 用的是跟 deviation 完全同一套基準窗口，語意上是同一件事。 */

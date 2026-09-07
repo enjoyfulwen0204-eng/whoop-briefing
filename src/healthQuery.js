@@ -19,6 +19,7 @@
 import { ANALYTICS } from './config.js';
 import { addDays, localDate } from './time.js';
 import { loadDailyMetrics, seriesOf } from './dailyMetrics.js';
+import { requireUserId } from './userContext.js';
 import {
   describeWindow, summarise, evaluateDeviation, trendsFor,
   detectBaselineShift, whatChangedToday, seriesByMetric, ANALYSED_METRICS,
@@ -64,14 +65,21 @@ const NO_DATA = (reason = 'no_health_data') => ({ available: false, reason });
  * 建立查詢服務。
  * rows 是 lazy 載入的：同一次對話多個查詢共用同一份，不重複打 DB。
  */
-export function createHealthQuery({ db, timezone, now = new Date(), lookbackDays = 120 }) {
+/**
+ * @param {string} userId **必填**。這個 query 只看得到這個使用者的資料。
+ * @param {string} timezone 該使用者的時區。
+ */
+export function createHealthQuery({
+  db, userId, timezone, now = new Date(), lookbackDays = 120,
+}) {
+  const uid = requireUserId(userId, 'createHealthQuery');
   let rowsPromise = null;
 
   function loadRows() {
     if (!rowsPromise) {
       const to = localDate(now, timezone);
       const from = addDays(to, -lookbackDays);
-      rowsPromise = loadDailyMetrics({ db, timezone, from, to }).catch((err) => {
+      rowsPromise = loadDailyMetrics({ db, userId: uid, timezone, from, to }).catch((err) => {
         log.warn('health_query_load_failed', {
           error: String(err?.message ?? err).slice(0, 200),
         });

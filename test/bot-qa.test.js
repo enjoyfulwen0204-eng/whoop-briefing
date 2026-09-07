@@ -56,7 +56,7 @@ async function dbWithData({ days = 60, overrides = undefined } = {}) {
       workouts: async () => [],
       bodyMeasurement: async () => null,
     };
-    const sync = createSync({ db, whoop, timezone: TZ, now: NOW });
+    const sync = createSync({ db, whoop, userId: USER.id, timezone: TZ, now: NOW });
     await sync.incremental('sleep');
     await sync.incremental('recovery');
     await sync.incremental('cycle');
@@ -64,8 +64,10 @@ async function dbWithData({ days = 60, overrides = undefined } = {}) {
   return { db, cleanup };
 }
 
+const USER = { id: 'u-qa-test', timezone: TZ };
+
 const routerFor = (db, coach = fakeCoach()) =>
-  createRouter({ db, coach, timezone: TZ, now: () => NOW });
+  createRouter({ db, coachFor: () => coach, now: () => NOW });
 
 // ===========================================================================
 // Intent（確定性優先）
@@ -132,7 +134,7 @@ test('M: parseCommand', () => {
 test('★ 沒有任何 WHOOP 資料：/start 說明現況，不當成錯誤', async () => {
   const { db, cleanup } = await dbWithData({ days: 0 });
   try {
-    const reply = await routerFor(db).handle({ text: '/start', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/start', chatId: CHAT, user: USER });
     assert.match(reply, /還沒有同步到任何健康資料/);
     assert.match(reply, /自動開始分析/);
     assert.match(reply, /\/log/, '要告訴使用者現在已經能做什麼');
@@ -142,7 +144,7 @@ test('★ 沒有任何 WHOOP 資料：/start 說明現況，不當成錯誤', as
 test('★ 沒有任何 WHOOP 資料：/healthdata 顯示 0，不是 error', async () => {
   const { db, cleanup } = await dbWithData({ days: 0 });
   try {
-    const reply = await routerFor(db).handle({ text: '/healthdata', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/healthdata', chatId: CHAT, user: USER });
     assert.match(reply, /尚未開始/);
     assert.match(reply, /睡眠：0 筆/);
     assert.match(reply, /恢復：0 筆/);
@@ -158,7 +160,7 @@ test('★ 沒有任何 WHOOP 資料：問問題會誠實說沒資料，不編數
     const coach = fakeCoach();
     const router = routerFor(db, coach);
     for (const q of ['我今天狀態怎樣？', '最近 HRV 如何？', '最近 30 天最好是哪一天？']) {
-      const reply = await router.handle({ text: q, chatId: CHAT });
+      const reply = await router.handle({ text: q, chatId: CHAT, user: USER });
       assert.match(reply, /還沒有足夠的 WHOOP 資料/, `「${q}」應該誠實回答`);
       assert.ok(!/\d+\s*(ms|bpm|%)/.test(reply), `★「${q}」的回覆不可以出現任何數字`);
     }
@@ -169,11 +171,11 @@ test('★ 沒有任何 WHOOP 資料：問問題會誠實說沒資料，不編數
 test('★ 沒有任何 WHOOP 資料：/log 照樣可以成功保存', async () => {
   const { db, cleanup } = await dbWithData({ days: 0 });
   try {
-    const reply = await routerFor(db).handle({ text: '/log alcohol 3 drinks', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/log alcohol 3 drinks', chatId: CHAT, user: USER });
     assert.match(reply, /已記錄/);
     assert.match(reply, /alcohol/);
 
-    const events = await db.getJournalEvents({ from: '2026-01-01', to: '2027-01-01' });
+    const events = await db.getJournalEvents(USER.id, { from: '2026-01-01', to: '2027-01-01' });
     assert.equal(events.length, 1, '★ journal 不依賴 WHOOP 資料');
     assert.equal(events[0].category, 'alcohol');
     assert.equal(Number(events[0].numeric_value), 3);
@@ -189,7 +191,7 @@ test('M: 有資料時 today_status 會把算好的結論交給 LLM', async () =>
   const { db, cleanup } = await dbWithData({ days: 60 });
   try {
     const coach = fakeCoach({ answer: '早安 Kelvin，今天看起來不錯。' });
-    const reply = await routerFor(db, coach).handle({ text: '我今天狀態怎樣？', chatId: CHAT });
+    const reply = await routerFor(db, coach).handle({ text: '我今天狀態怎樣？', chatId: CHAT, user: USER });
     // 回覆一定以 LLM 的答案開頭；若當天有明顯偏離，後面可能再接一段追問（Phase O）
     assert.ok(reply.startsWith('早安 Kelvin，今天看起來不錯。'), `實際：${reply}`);
 
@@ -206,7 +208,7 @@ test('M: trend_query 會算出趨勢與樣本數', async () => {
   const { db, cleanup } = await dbWithData({ days: 60 });
   try {
     const coach = fakeCoach();
-    await routerFor(db, coach).handle({ text: '最近 HRV 如何？', chatId: CHAT });
+    await routerFor(db, coach).handle({ text: '最近 HRV 如何？', chatId: CHAT, user: USER });
     const ctx = coach.calls.ask[0].user;
     assert.match(ctx, /HRV/);
     assert.match(ctx, /樣本 n=\d+/, '一定要附樣本數');
@@ -218,7 +220,7 @@ test('M: best_worst_day 由 Node 挑出最好與最差的那一天', async () =>
   const { db, cleanup } = await dbWithData({ days: 60 });
   try {
     const coach = fakeCoach();
-    await routerFor(db, coach).handle({ text: '最近 30 天最好是哪一天？', chatId: CHAT });
+    await routerFor(db, coach).handle({ text: '最近 30 天最好是哪一天？', chatId: CHAT, user: USER });
     const ctx = coach.calls.ask[0].user;
     assert.match(ctx, /最好的一天：\d{4}-\d{2}-\d{2}/, '★ 日期由程式挑，不是 LLM 挑');
     assert.match(ctx, /最差的一天：\d{4}-\d{2}-\d{2}/);
@@ -229,7 +231,7 @@ test('★ M: LLM 掛掉時走 Node 排版的 fallback，資訊仍完整', async 
   const { db, cleanup } = await dbWithData({ days: 60 });
   try {
     const brokenCoach = { async ask() { return null; }, async json() { return null; } };
-    const reply = await routerFor(db, brokenCoach).handle({ text: '我今天狀態怎樣？', chatId: CHAT });
+    const reply = await routerFor(db, brokenCoach).handle({ text: '我今天狀態怎樣？', chatId: CHAT, user: USER });
     assert.match(reply, /恢復|HRV/, 'fallback 仍要有數據');
     assert.ok(reply.length > 10);
   } finally { db.close(); cleanup(); }
@@ -239,7 +241,7 @@ test('M: 不認得的問題會給提示，不會亂猜', async () => {
   const { db, cleanup } = await dbWithData({ days: 60 });
   try {
     const coach = fakeCoach({ json: { intent: 'unknown' } });
-    const reply = await routerFor(db, coach).handle({ text: '今天天氣如何', chatId: CHAT });
+    const reply = await routerFor(db, coach).handle({ text: '今天天氣如何', chatId: CHAT, user: USER });
     assert.match(reply, /不太確定你想問什麼/);
     assert.match(reply, /\/help/);
   } finally { db.close(); cleanup(); }
@@ -285,10 +287,10 @@ test('★ N: 自然語言 journal —— LLM 只提案，Node 驗證後才寫', 
         unit: 'drinks', day_offset: -1, confidence: 0.95,
       },
     });
-    const reply = await routerFor(db, coach).handle({ text: '昨天喝了三杯酒', chatId: CHAT });
+    const reply = await routerFor(db, coach).handle({ text: '昨天喝了三杯酒', chatId: CHAT, user: USER });
     assert.match(reply, /已記錄/);
 
-    const events = await db.getJournalEvents({ from: '2026-01-01', to: '2027-01-01' });
+    const events = await db.getJournalEvents(USER.id, { from: '2026-01-01', to: '2027-01-01' });
     assert.equal(events.length, 1);
     assert.equal(events[0].category, 'alcohol');
     assert.equal(Number(events[0].numeric_value), 3);
@@ -314,7 +316,7 @@ test('★ N: LLM 給不合法的 category → 拒絕寫入', async () => {
       ['schema_invalid', 'unknown_category'].includes(out.reason),
       `實際 reason=${out.reason}`,
     );
-    assert.equal((await db.getJournalEvents({ from: '2026-01-01', to: '2027-01-01' })).length, 0);
+    assert.equal((await db.getJournalEvents(USER.id, { from: '2026-01-01', to: '2027-01-01' })).length, 0);
   } finally { db.close(); cleanup(); }
 });
 
@@ -373,57 +375,57 @@ test('★ O: 完整追問流程 —— 反問 → 回答 → 寫 journal → 續
     const router = routerFor(db, coach);
 
     // 1. 問今天狀態 → 偏離明顯 + 當天沒有 journal → 應該反問
-    const first = await router.handle({ text: '我今天狀態怎樣？', chatId: CHAT });
+    const first = await router.handle({ text: '我今天狀態怎樣？', chatId: CHAT, user: USER });
     assert.match(first, /喝酒、旅行、生病/, '★ 應該發出追問');
 
-    const pending = await db.getOpenPendingQuestion(CHAT, { now: NOW });
+    const pending = await db.getOpenPendingQuestion(USER.id, { now: NOW });
     assert.ok(pending, 'pending 要被保存');
     assert.equal(pending.intent, 'today_status');
     assert.equal(pending.originalMessage, '我今天狀態怎樣？');
 
     // 2. 使用者回答
-    const second = await router.handle({ text: '喝了三杯酒', chatId: CHAT });
+    const second = await router.handle({ text: '喝了三杯酒', chatId: CHAT, user: USER });
     assert.match(second, /已記錄/, '要寫進 journal');
 
-    const events = await db.getJournalEvents({ from: '2026-01-01', to: '2027-01-01' });
+    const events = await db.getJournalEvents(USER.id, { from: '2026-01-01', to: '2027-01-01' });
     assert.equal(events.length, 1);
     assert.equal(events[0].category, 'alcohol');
 
     // 3. pending 被清掉
-    assert.equal(await db.getOpenPendingQuestion(CHAT, { now: NOW }), null, '★ 回答後要清除');
+    assert.equal(await db.getOpenPendingQuestion(USER.id, { now: NOW }), null, '★ 回答後要清除');
   } finally { db.close(); cleanup(); }
 });
 
 test('★ O: pending 30 分鐘後過期，不會硬接後來不相干的話', async () => {
   const { db, cleanup } = await dbWithData({ days: 0 });
   try {
-    await db.openPendingQuestion({
+    await db.openPendingQuestion(USER.id, {
       chatId: CHAT, originalMessage: '今天怎樣', question: '昨天喝酒嗎？',
       intent: 'today_status', ttlMs: 30 * 60_000,
     }, { now: NOW });
 
     // 29 分鐘：還在
-    assert.ok(await db.getOpenPendingQuestion(CHAT, { now: new Date(NOW.getTime() + 29 * 60_000) }));
+    assert.ok(await db.getOpenPendingQuestion(USER.id, { now: new Date(NOW.getTime() + 29 * 60_000) }));
 
     // 31 分鐘：過期
     const later = new Date(NOW.getTime() + 31 * 60_000);
-    assert.equal(await db.getOpenPendingQuestion(CHAT, { now: later }), null, '★ 必須過期');
+    assert.equal(await db.getOpenPendingQuestion(USER.id, { now: later }), null, '★ 必須過期');
 
     // 而且已被標成 EXPIRED，不會再被撿起來
-    assert.equal(await db.getOpenPendingQuestion(CHAT, { now: later }), null);
+    assert.equal(await db.getOpenPendingQuestion(USER.id, { now: later }), null);
   } finally { db.close(); cleanup(); }
 });
 
 test('O: 同一個 chat 同時只會有一個 OPEN 追問', async () => {
   const { db, cleanup } = await dbWithData({ days: 0 });
   try {
-    const a = await db.openPendingQuestion({
+    const a = await db.openPendingQuestion(USER.id, {
       chatId: CHAT, question: 'Q1', ttlMs: 60_000,
     }, { now: NOW });
-    const b = await db.openPendingQuestion({
+    const b = await db.openPendingQuestion(USER.id, {
       chatId: CHAT, question: 'Q2', ttlMs: 60_000,
     }, { now: NOW });
-    const open = await db.getOpenPendingQuestion(CHAT, { now: NOW });
+    const open = await db.getOpenPendingQuestion(USER.id, { now: NOW });
     assert.equal(open.id, b, '最新的那個才是 OPEN');
     assert.notEqual(open.id, a);
   } finally { db.close(); cleanup(); }
@@ -432,26 +434,26 @@ test('O: 同一個 chat 同時只會有一個 OPEN 追問', async () => {
 test('O: 回答「沒有」不會寫 journal，但會收掉 pending', async () => {
   const { db, cleanup } = await dbWithData({ days: 0 });
   try {
-    await db.openPendingQuestion({
+    await db.openPendingQuestion(USER.id, {
       chatId: CHAT, originalMessage: '今天怎樣', question: 'Q', ttlMs: 60_000,
     }, { now: NOW });
 
-    const reply = await routerFor(db).handle({ text: '沒有', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '沒有', chatId: CHAT, user: USER });
     assert.match(reply, /好，那我先/);
-    assert.equal((await db.getJournalEvents({ from: '2026-01-01', to: '2027-01-01' })).length, 0);
-    assert.equal(await db.getOpenPendingQuestion(CHAT, { now: NOW }), null);
+    assert.equal((await db.getJournalEvents(USER.id, { from: '2026-01-01', to: '2027-01-01' })).length, 0);
+    assert.equal(await db.getOpenPendingQuestion(USER.id, { now: NOW }), null);
   } finally { db.close(); cleanup(); }
 });
 
 test('O: 有 pending 時輸入指令仍走指令，不會被當成回答', async () => {
   const { db, cleanup } = await dbWithData({ days: 0 });
   try {
-    await db.openPendingQuestion({
+    await db.openPendingQuestion(USER.id, {
       chatId: CHAT, question: 'Q', ttlMs: 60_000,
     }, { now: NOW });
-    const reply = await routerFor(db).handle({ text: '/help', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/help', chatId: CHAT, user: USER });
     assert.match(reply, /我可以做這些事/);
-    assert.ok(await db.getOpenPendingQuestion(CHAT, { now: NOW }), 'pending 應該還在');
+    assert.ok(await db.getOpenPendingQuestion(USER.id, { now: NOW }), 'pending 應該還在');
   } finally { db.close(); cleanup(); }
 });
 
@@ -459,7 +461,7 @@ test('router 永遠不拋錯（handler 內部爆炸也要回一句人話）', as
   const broken = {
     getOpenPendingQuestion: async () => { throw new Error('DB 爆炸'); },
   };
-  const router = createRouter({ db: broken, coach: null, timezone: TZ, now: () => NOW });
-  const reply = await router.handle({ text: '我今天狀態怎樣？', chatId: CHAT });
+  const router = createRouter({ db: broken, coachFor: () => null, now: () => NOW });
+  const reply = await router.handle({ text: '我今天狀態怎樣？', chatId: CHAT, user: USER });
   assert.match(reply, /出了點問題/);
 });

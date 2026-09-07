@@ -108,8 +108,11 @@ export const TOKEN_SCHEMA = [
      scope                   TEXT,
      updated_at              TEXT NOT NULL
    )`,
-  `CREATE INDEX IF NOT EXISTS idx_whoop_token_whoop_user
-     ON user_whoop_tokens (whoop_user_id)`,
+  // ★ race-safe：同一個 WHOOP 帳號不可綁到兩個內部使用者。
+  // 只靠 SELECT-before-INSERT 會有競態，所以用 DB 層的 partial unique index。
+  // whoop_user_id 為 NULL 時不受限（還沒授權 / WHOOP 沒回傳 id 的情況）。
+  `CREATE UNIQUE INDEX IF NOT EXISTS uniq_whoop_account
+     ON user_whoop_tokens (whoop_user_id) WHERE whoop_user_id IS NOT NULL`,
 ];
 
 // ---------------------------------------------------------------------------

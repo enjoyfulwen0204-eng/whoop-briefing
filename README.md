@@ -358,6 +358,74 @@ Telegram 送出成功、但連那個極小的 `markClaimSent` UPDATE 都失敗�
 （10 分鐘）也過了 —— 這種情況仍可能重發一次。但比原本的
 「`isSent` → 送出 → 寫 SENT」三步無鎖已經大幅收斂。
 
+## Multi-user 架構（v4 新增）
+
+系統從單一使用者（你）擴充成可以支援多個內部帳號，同時保證**任何一個人都讀不到另一個人的資料**。這一節說明所有權模型怎麼運作；細節可以對照 `src/schema.js`、`src/identityStore.js`、`src/oauthFlow.js`、`src/index.js`。
+
+### 三種身分，不要混在一起
+
+| 身分 | 是什麼 | 存在哪 | 可以當主鍵嗎 |
+|---|---|---|---|
+| **內部使用者** | `users.id`（UUID） | `users` | ✅ 唯一的帳號主鍵 |
+| **Telegram chat id** | 使用者的 Telegram 對話 | `user_telegram` | ❌ 只是外部識別，使用者換 chat 就重綁一次，`users.id` 不變 |
+| **WHOOP user id** | WHOOP 自己的帳號 id | `user_whoop_tokens.whoop_user_id` | ❌ 只用來防止同一支手環被綁到兩個內部使用者 |
+
+沒有 `USER1_*` / `USER2_*` 這種環境變數式的寫法——新增一個人不需要改程式碼或重新部署，只需要在資料庫裡多一列。
+
+### 所有權：每一張「屬於某個人」的表都有 `user_id`
+
+`whoop_sleeps`、`whoop_recoveries`、`whoop_cycles`、`whoop_workouts`、`whoop_body_measurements`、`whoop_sync_state`、`whoop_capabilities`、`journal_events`、`pending_questions`、`report_runs`、`report_claims`、`healthspan_metrics`、`healthspan_snapshots`、`prediction_runs`、`health_insights`、`experiments`、`ai_usage`——**邏輯唯一性一律把 `user_id` 排在最前面**（例如 `report_runs` 的去重 key 是 `(user_id, report_type, local_date)`），因為 WHOOP 的 external id 在不同使用者之間並不保證唯一。
+
+所有 store 層函式的**第一個參數就是 `userId`**，而且用 `requireUserId()` 硬性檢查——缺就丟 `MissingUserIdError`，絕不會 fallback 到「第一個使用者」或靜默查出所有人的資料。這條規則貫穿 `db.js` / `store.js` / `botStore.js` / `analysisStore.js` 到 `sync.js` / `dailyMetrics.js` / `healthQuery.js` / `journal.js` / `insights.js` / `healthspan.js` / `prediction.js` / `experiments.js` / `usage.js` / `dataQuality.js` / `evidence.js` / `bot/router.js` / `daily.js` / `weekly.js`——Telegram 訊息一進來就解析出 `userId`，之後每一層都明確帶著它往下傳，不是「先撈全部再篩選」。
+
+### 兩張表刻意保持全域
+
+- **`telegram_state`**——Telegram `getUpdates` 的 offset 是**整個 bot 一份**，不是每個使用者一份。加 `user_id` 反而會讓同一則 update 被處理兩次或漏處理。
+- **`resource_locks`**——表結構全域，但 per-user 的鎖名會**帶上使用者 id**（例如 WHOOP token refresh 鎖是 `whoop_token_refresh:<userId>`），這樣 Alice 在 refresh 不會卡住 Bob。
+
+### 錯誤通知的 scope
+
+`error_notifications` 的邏輯鍵是 `(scope, error_type)`：`scope = 'global'` 給 Turso、Telegram 這類基礎設施故障；`scope = 'user:<userId>'` 給某個人的 WHOOP 授權過期。這樣 Alice 的 token 壞掉不會壓抑 Bob 收到自己的錯誤通知。
+
+### WHOOP 授權（per-user）
+
+`npm run authorize -- --user=<internalUserId>` 取代舊的無參數版本，沒帶 `--user` 會直接失敗。OAuth state 由 `oauth_states` 管理：
+
+- **只存 SHA-256 hash**，原始 state（32 bytes 隨機）只在產生的那一刻回給 authorize URL，之後系統裡任何地方都拿不到原文。
+- **一次性**：消耗用單一條件式 UPDATE 當原子閘門，兩個並發的 callback 用同一個 state，恰好一個會成功，另一個回 `consumed`。
+- **在建立的那一刻就綁死內部 userId**，callback 完全不信任外部傳來的身分——Alice 的 state 不可能把 token 存到 Bob 身上。
+- 同一個 WHOOP 帳號（`whoop_user_id`）不可以綁到兩個 ACTIVE 的內部使用者：`user_whoop_tokens` 上有一個 **partial unique index**（`WHERE whoop_user_id IS NOT NULL`），這是資料庫層級擋下來的，不是「先查再寫」那種有競態風險的做法。
+
+### 帳號綁定：`/link <一次性碼>`
+
+新增使用者的流程是：後台建立內部帳號 → 產生一次性綁定碼 → 對方在 Telegram 傳 `/link <碼>` → 綁定成功。碼跟 OAuth state 用同一套安全原則：**只存 hash、一次性、有效期限、原子消耗**。無效 / 過期 / 用過的碼一律回同一句中性訊息，不會變成「這個碼是不是存在過」的探測工具。已經綁定的 chat 不會被靜默搶走。
+
+### Cron：per-user 併發，失敗互相隔離
+
+排程每次執行會先撈出所有 `ACTIVE` 使用者，然後**各自獨立**處理——各自的時區、各自的 WHOOP token 與 refresh 鎖、各自的 Telegram 目的地、各自的去重 / claim key、各自的同步狀態。併發上限預設 `MAX_USER_CONCURRENCY=3`（可用環境變數覆寫），避免撞到 WHOOP 官方 100 req/分的速率限制。**一個使用者的 WHOOP 授權失敗或 daily 報告出錯，完全不會影響其他使用者**——每個人的流程各自 try/catch，失敗只發錯誤通知給那個人自己。
+
+### 時區：`users.timezone` 才是準的
+
+每日 / 週報的當地日期、去重 key、journal 的 `health_date`，一律用**該使用者自己的** `users.timezone`，不是全域的 `TIMEZONE` 環境變數（那個現在只是新使用者的預設值）。所以同一個 UTC 時間戳，Alice（Asia/Taipei）跟 Bob（America/New_York）算出來的「今天」可能是不同的日期——這是刻意的，不是 bug。
+
+### AI 用量與 `/cost`
+
+`ai_usage.user_id` 對「使用者發起的呼叫」（DAILY / WEEKLY / QA / INTENT_PARSE / JOURNAL_PARSE / FOLLOWUP / EXPERIMENT）**必填**；系統層用量（不屬於任何人）明確傳 `null`，不會被誤記成某個隨機使用者的花費。`/cost` 只查詢當前使用者自己的紀錄，沒有任何指令能看到別人的用量。
+
+### 加一個新使用者（例如朋友）的完整流程
+
+```
+1. 在後台建立內部帳號（display_name、預設 timezone）
+2. 產生一次性綁定碼（有效期限内使用一次即失效）
+3. 對方在 Telegram 傳 /link <碼> 完成綁定
+4. 對這個人跑 npm run authorize -- --user=<id> 完成 WHOOP 授權
+5. npm run probe -- --user=<id>（確認這個帳號實際回傳哪些欄位）
+6. 讓 cron 正常跑（會自動抓進 sync）
+7. 用 Alice/Bob 隔離測試套件的同一套邏輯手動驗證：這個人看不到別人的資料
+```
+
+（本文件不放真實的內部 id 或 Telegram chat id。）
+
 ## Telegram Bot（v3 新增）
 
 從單向推播變成雙向。**架構上是獨立的常駐 worker，不在 cron 裡面。**
@@ -374,10 +442,13 @@ webhook 需要一個對外可達的 HTTPS endpoint；getUpdates 只要能連出�
    → worker 被殺掉，重啟後最多重做「正在處理的那一則」
 3. 本地防線：`update_id < 已存 offset` 的一律跳過
 
-### 授權
+### 授權（Multi-user）
 
-只回應 `TELEGRAM_CHAT_ID`。其他 chat 的訊息**只記 log、完全不回應** ——
-連「你沒有權限」都不回，避免向陌生人洩漏 bot 的存在。
+**不再是單一 `TELEGRAM_CHAT_ID` allowlist。** 每則進來的訊息先查
+`telegram_chat_id → user_telegram（ACTIVE）→ users（ACTIVE）`，
+解析出內部使用者才會進到 router；解析不到的 chat**只記 log、完全不回應**——
+連「你沒有權限」都不回，避免向陌生人洩漏 bot 的存在、有幾個使用者、
+或任何內部 id。唯一的例外是 `/link <碼>`（見下面「Multi-user 架構」章節）。
 
 ### 可以問什麼
 

@@ -24,6 +24,7 @@
 import { METRICS, num } from './config.js';
 import { metricValueFromRecord, buildRecords, completedCycles } from './analyze.js';
 import { log } from './logger.js';
+import { requireUserId } from './userContext.js';
 
 export const STATUS = {
   SUPPORTED: 'SUPPORTED',
@@ -238,7 +239,11 @@ export function computeCapabilities({
  * 實際去 WHOOP 抓資料 → 算 capability → 寫進 Turso。
  * 任何一個 resource 缺 scope 都不會讓整個 probe 失敗。
  */
-export async function probeCapabilities({ db, whoop, timezone, days = 14, now = new Date() }) {
+/** @param {string} userId **必填**。probe 結果只寫給這個使用者。 */
+export async function probeCapabilities({
+  db, whoop, userId, timezone, days = 14, now = new Date(),
+}) {
+  const uid = requireUserId(userId, 'probeCapabilities');
   const start = new Date(now.getTime() - days * 86_400_000);
   const scopeErrors = [];
 
@@ -267,7 +272,7 @@ export async function probeCapabilities({ db, whoop, timezone, days = 14, now = 
   const entries = computeCapabilities({
     sleeps, recoveries, cycles, workouts, bodyMeasurement, timezone, scopeErrors,
   });
-  await db.saveCapabilities(entries, { now });
+  await db.saveCapabilities(uid, entries, { now });
   log.info('probe_done', {
     days,
     total: entries.length,

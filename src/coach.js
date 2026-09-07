@@ -166,6 +166,9 @@ export function createCoach({
   backoffFor = backoffMs,
   // 下面兩個是這一輪新增的，都有安全預設值 —— 不傳的話行為與以前完全相同
   db = null,               // 有給才會記 ai_usage
+  // ai_usage 的所有者。使用者發起的呼叫**必須**傳；
+  // 明確傳 null 代表系統層用量（不屬於任何使用者）。
+  userId = undefined,
   env = process.env,       // model routing 讀這裡
   now = () => new Date(),
 }) {
@@ -291,7 +294,7 @@ export function createCoach({
 
     const finish = async (json, status, detail) => {
       const tokens = extractTokens(json?.usage);
-      await recordUsage(db, {
+      await recordUsage(db, userId, {
         provider: 'openrouter',
         requestedModel,
         // 以 provider 實際回報的 model 為準（OpenRouter 可能路由到別的）

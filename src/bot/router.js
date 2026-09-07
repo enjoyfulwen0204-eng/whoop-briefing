@@ -11,6 +11,7 @@
  */
 
 import { AI_PURPOSE, PROMPT_VERSIONS, TELEGRAM_BOT } from '../config.js';
+import { requireUserId } from '../userContext.js';
 import { structuredWithRetry } from '../llmValidation.js';
 import { buildDataQualityReport, renderDataQuality } from '../dataQuality.js';
 import { createHealthQuery } from '../healthQuery.js';
@@ -134,84 +135,100 @@ export function looksLikeJournal(text) {
   return /(喝|吃|飛|睡|生病|不舒服|感冒|壓力|按摩|三溫暖|旅行|出差|加班|宵夜)/.test(t);
 }
 
+/**
+ * Multi-user router。
+ *
+ * 身分在**進入 router 之前**就已經解析完（bot/index.js 從 telegram_chat_id
+ * 查出內部使用者），所以這裡拿到的一定是 `{ id, timezone }`，不需要再猜。
+ *
+ * timezone 一律用**該使用者的**（users.timezone），不是全域 TIMEZONE。
+ * coach 用 coachFor(userId) 產生，這樣 ai_usage 才會記在正確的人身上。
+ */
 export function createRouter({
-  db, coach, timezone, now = () => new Date(), lookbackDays = 120,
+  db, coachFor, now = () => new Date(), lookbackDays = 120,
 }) {
   /**
    * 處理一則訊息，回傳要送出去的文字。
    * **永遠不拋錯** —— 出錯就回一句人話，讓 bot 繼續活著。
    */
-  async function handle({ text, chatId }) {
+  async function handle({ text, chatId, user }) {
     const t = new Date(now());
+    const userId = requireUserId(user?.id, 'router.handle');
+    const timezone = user.timezone;
+    const coach = coachFor(userId);
     try {
-      return await route({ text: String(text ?? '').trim(), chatId, t });
+      return await route({
+        text: String(text ?? '').trim(), chatId, t, userId, timezone, coach,
+      });
     } catch (err) {
       log.error('router_failed', { error: describeError(err) });
       return '抱歉，我這邊出了點問題，稍後再試一次。（錯誤已記錄）';
     }
   }
 
-  async function route({ text, chatId, t }) {
+  async function route({ text, chatId, t, userId, timezone, coach }) {
     // ---- 1. 有沒有等著被回答的追問 ----
     const pending = typeof db.getOpenPendingQuestion === 'function'
-      ? await db.getOpenPendingQuestion(chatId, { now: t })
+      ? await db.getOpenPendingQuestion(userId, { now: t })
       : null;
     if (pending && !parseCommand(text)) {
       // 多步驟實驗建立流程有自己的狀態機
       if (pending.context?.flow === experimentFlow.FLOW) {
         const reply = await experimentFlow.handleStep({
-          db, pending, text, now: t, timezone,
+          db, userId, pending, text, now: t, timezone,
         });
         if (reply !== null) return reply;
       }
-      return handlePendingAnswer({ pending, text, chatId, t });
+      return handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach });
     }
 
     // ---- 2. 指令 ----
     const cmd = parseCommand(text);
-    if (cmd) return handleCommand({ cmd, text, chatId, t });
+    if (cmd) return handleCommand({ cmd, text, chatId, t, userId, timezone, coach });
 
     // ---- 3. 看起來像在記錄事情 ----
     if (looksLikeJournal(text)) {
       const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
       if (nat.ok) {
-        const saved = await saveEvent(db, nat.event, { now: t, timezone });
+        const saved = await saveEvent(db, userId, nat.event, { now: t, timezone });
         if (saved.ok) return `✅ 已記錄：${describeEvent(saved.event)}`;
       }
       // 解析不出來就往下走，當成一般問題
     }
 
     // ---- 4. 一般問答 ----
-    return handleQuestion({ text, chatId, t });
+    return handleQuestion({ text, chatId, t, userId, timezone, coach });
   }
 
   /** 只有需要 daily_metrics 的指令才去載入（沒資料時是空陣列，不是錯誤）。 */
-  async function loadRows(t) {
+  async function loadRows(t, userId, timezone) {
     try {
       if (typeof db.getSleeps !== 'function') return [];
       const to = localDate(t, timezone);
-      return await loadDailyMetrics({ db, timezone, from: addDays(to, -lookbackDays), to });
+      return await loadDailyMetrics({
+        db, userId, timezone, from: addDays(to, -lookbackDays), to,
+      });
     } catch (err) {
       log.warn('router_rows_failed', { error: describeError(err) });
       return [];
     }
   }
 
-  async function handleCommand({ cmd, text, chatId, t }) {
+  async function handleCommand({ cmd, text, chatId, t, userId, timezone, coach }) {
     switch (cmd.command) {
       case 'start': {
-        const report = await buildDataQualityReport({ db, timezone, now: t });
+        const report = await buildDataQualityReport({ db, userId, timezone, now: t });
         return startText(report);
       }
 
       case 'help': {
         // 動態說明：沒有資料時不會把分析功能講得像已經可用
-        const report = await buildDataQualityReport({ db, timezone, now: t });
+        const report = await buildDataQualityReport({ db, userId, timezone, now: t });
         let insightCount = 0;
         try {
-          insightCount = (await db.getActiveInsights({})).length;
+          insightCount = (await db.getActiveInsights(userId, {})).length;
         } catch { /* 忽略 */ }
-        const rows = await loadRows(t);
+        const rows = await loadRows(t, userId, timezone);
         let predictionReady = false;
         try {
           const { buildSupervised, MIN_TRAIN_ROWS } = await import('../prediction.js');
@@ -222,34 +239,34 @@ export function createRouter({
 
       case 'healthdata':
       case 'health':
-        return handleHealthData({ db, timezone, now: t });
+        return handleHealthData({ db, userId, timezone, now: t });
 
       case 'status':
-        return handleStatus({ db, timezone, now: t, rows: await loadRows(t) });
+        return handleStatus({ db, userId, timezone, now: t, rows: await loadRows(t, userId, timezone) });
 
       case 'journal':
-        return handleJournal({ db, argsText: cmd.argsText, timezone, now: t });
+        return handleJournal({ db, userId, argsText: cmd.argsText, timezone, now: t });
 
       case 'insights':
-        return handleInsights({ db, argsText: cmd.argsText });
+        return handleInsights({ db, userId, argsText: cmd.argsText });
 
       case 'predictions':
       case 'prediction':
-        return handlePredictions({ db, rows: await loadRows(t) });
+        return handlePredictions({ db, userId, rows: await loadRows(t, userId, timezone) });
 
       case 'cost':
-        return handleCost({ db, timezone, now: t });
+        return handleCost({ db, userId, timezone, now: t });
 
       case 'evidence':
-        return handleEvidence({ db, now: t });
+        return handleEvidence({ db, userId, now: t });
 
       case 'experiment':
       case 'experiments':
-        return handleExperiment({ cmd, chatId, t });
+        return handleExperiment({ cmd, chatId, t, userId, timezone });
 
       case 'log':
         return handleLog({
-          db, argsText: cmd.argsText, rawText: text, timezone, now: t, coach,
+          db, userId, argsText: cmd.argsText, rawText: text, timezone, now: t, coach,
           parseNatural: parseNaturalJournal,
         });
 
@@ -259,23 +276,23 @@ export function createRouter({
   }
 
   /** /experiment create|list|status|stop */
-  async function handleExperiment({ cmd, chatId, t }) {
+  async function handleExperiment({ cmd, chatId, t, userId, timezone }) {
     const [sub, arg] = cmd.args;
     const action = String(sub ?? '').toLowerCase();
 
     switch (action) {
       case 'create':
       case 'new':
-        return experimentFlow.beginCreate({ db, chatId, now: t });
+        return experimentFlow.beginCreate({ db, userId, chatId, now: t });
       case 'list':
-        return experimentFlow.renderList(db);
+        return experimentFlow.renderList(db, userId);
       case 'status':
         return experimentFlow.renderStatus({
-          db, rows: await loadRows(t), id: arg, timezone, now: t,
+          db, userId, rows: await loadRows(t, userId, timezone), id: arg, timezone, now: t,
         });
       case 'stop':
       case 'complete':
-        return experimentFlow.stopExperiment({ db, id: arg, timezone, now: t });
+        return experimentFlow.stopExperiment({ db, userId, id: arg, timezone, now: t });
       default:
         return [
           '🧪 實驗指令：',
@@ -288,12 +305,12 @@ export function createRouter({
     }
   }
 
-  async function handleQuestion({ text, chatId, t }) {
+  async function handleQuestion({ text, chatId, t, userId, timezone, coach }) {
     // 「證據呢？」「你憑什麼？」「樣本多少？」→ 直接回 evidence 摘要。
     // ★ 必須在 intent 判定之前 —— 這類問句不會被任何 intent 認出來，
     // 放在後面會先被 unknown 分支攔截而永遠走不到。
     if (/(證據|憑什麼|可信嗎|樣本(數|多少)|怎麼知道|evidence)/i.test(text)) {
-      return handleEvidence({ db, now: t });
+      return handleEvidence({ db, userId, now: t });
     }
 
     const intent = await resolveIntent(text, { coach });
@@ -312,10 +329,10 @@ export function createRouter({
     }
 
     if (intent.intent === 'data_status') {
-      return handleHealthData({ db, timezone, now: t });
+      return handleHealthData({ db, userId, timezone, now: t });
     }
 
-    const q = createHealthQuery({ db, timezone, now: t, lookbackDays });
+    const q = createHealthQuery({ db, userId, timezone, now: t, lookbackDays });
     const result = await runIntent(q, intent);
 
     if (!result || result.available === false) {
@@ -333,11 +350,11 @@ export function createRouter({
     // ---- 需要的話發出追問（Phase O）----
     try {
       if (typeof db.openPendingQuestion === 'function' && result.health_date) {
-        const events = await db.getJournalEvents({
+        const events = await db.getJournalEvents(userId, {
           from: result.health_date, to: result.health_date,
         });
         if (shouldFollowUp({ result, journalCountForDay: events.length })) {
-          await openFollowUp({ db, chatId, originalMessage: text, result, now: t });
+          await openFollowUp({ db, userId, chatId, originalMessage: text, result, now: t });
           const { FOLLOW_UP_QUESTION } = await import('./conversation.js');
           return `${answer}\n\n———\n${FOLLOW_UP_QUESTION}`;
         }
@@ -373,24 +390,24 @@ export function createRouter({
    * 使用者回答追問。
    * 流程：解析 → 寫 journal → 重跑分析 → 回答原問題 → 清 pending。
    */
-  async function handlePendingAnswer({ pending, text, chatId, t }) {
+  async function handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach }) {
     // 明確說「沒有」→ 不寫 journal，但要把 pending 收掉
     if (isNegativeAnswer(text)) {
-      await db.resolvePendingQuestion(pending.id, text, { now: t });
+      await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
       return '好，那我先記著這幾天的數字，繼續幫你留意。';
     }
 
     const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
     let savedLine = null;
     if (nat.ok) {
-      const saved = await saveEvent(db, nat.event, { now: t, timezone });
+      const saved = await saveEvent(db, userId, nat.event, { now: t, timezone });
       if (saved.ok) savedLine = `✅ 已記錄：${describeEvent(saved.event)}`;
     }
 
-    await db.resolvePendingQuestion(pending.id, text, { now: t });
+    await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
 
     // 沒有 WHOOP 資料時也要能運作：至少確認 journal 寫進去了
-    const q = createHealthQuery({ db, timezone, now: t, lookbackDays });
+    const q = createHealthQuery({ db, userId, timezone, now: t, lookbackDays });
     const summary = await q.summary();
     if (!summary.history_days) {
       return savedLine

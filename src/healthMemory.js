@@ -20,6 +20,7 @@
 
 import { CONFIDENCE, dataQualityOf } from './analytics/correlation.js';
 import { log } from './logger.js';
+import { requireUserId } from './userContext.js';
 
 export const INSIGHT_STATUS = {
   HYPOTHESIS: 'HYPOTHESIS',
@@ -60,11 +61,12 @@ export function statusFromEvidence({ sampleCount = 0, effectSize = null }) {
   return strong ? INSIGHT_STATUS.SUPPORTED : INSIGHT_STATUS.EMERGING;
 }
 
-export async function recordInsight(db, {
+export async function recordInsight(db, userId, {
   insightType, subject, statement, evidence, sampleCount, effectSize,
 }, { now = new Date() } = {}) {
+  const uid = requireUserId(userId, 'recordInsight');
   const status = statusFromEvidence({ sampleCount, effectSize });
-  const id = await db.createInsight({
+  const id = await db.createInsight(uid, {
     insightType, subject, statement, evidence, sampleCount, effectSize,
     confidence: dataQualityOf(sampleCount ?? 0),
     status,
@@ -78,18 +80,19 @@ export async function recordInsight(db, {
  * 狀態沒變 → 只更新 last_recalculated_at（不開新版本）
  * 狀態變了 → 開新版本，舊的標 RETIRED 並串起來
  */
-export async function reviseInsight(db, id, {
+export async function reviseInsight(db, userId, id, {
   statement, evidence, sampleCount, effectSize,
 }, { now = new Date() } = {}) {
-  const old = await db.getInsight(id);
+  const uid = requireUserId(userId, 'reviseInsight');
+  const old = await db.getInsight(uid, id);
   if (!old) return { ok: false, error: 'not_found' };
   if (old.status === INSIGHT_STATUS.RETIRED) return { ok: false, error: 'already_retired' };
 
   const nextStatus = statusFromEvidence({ sampleCount, effectSize });
 
   if (nextStatus === old.status) {
-    await db.updateInsightStatus(id, nextStatus, { now });
-    log.info('insight_reconfirmed', { id, status: nextStatus });
+    await db.updateInsightStatus(uid, id, nextStatus, { now });
+    log.info('insight_reconfirmed', { user_id: uid, id, status: nextStatus });
     return { ok: true, changed: false, id, status: nextStatus };
   }
 
@@ -97,7 +100,7 @@ export async function reviseInsight(db, id, {
     return { ok: false, error: `illegal_transition:${old.status}->${nextStatus}` };
   }
 
-  const newId = await db.superseiveInsight(id, {
+  const newId = await db.supersedeInsight(uid, id, {
     statement: statement ?? old.statement,
     evidence,
     sampleCount,
@@ -107,23 +110,25 @@ export async function reviseInsight(db, id, {
   }, { now });
 
   log.info('insight_revised', {
-    old_id: id, new_id: newId, from: old.status, to: nextStatus,
+    user_id: uid, old_id: id, new_id: newId, from: old.status, to: nextStatus,
   });
   return { ok: true, changed: true, id: newId, supersedes: id, status: nextStatus };
 }
 
-export async function retireInsight(db, id, { now = new Date() } = {}) {
-  const old = await db.getInsight(id);
+export async function retireInsight(db, userId, id, { now = new Date() } = {}) {
+  const uid = requireUserId(userId, 'retireInsight');
+  const old = await db.getInsight(uid, id);
   if (!old) return { ok: false, error: 'not_found' };
   if (!canTransition(old.status, INSIGHT_STATUS.RETIRED)) {
     return { ok: false, error: 'already_retired' };
   }
-  await db.updateInsightStatus(id, INSIGHT_STATUS.RETIRED, { now });
+  await db.updateInsightStatus(uid, id, INSIGHT_STATUS.RETIRED, { now });
   return { ok: true };
 }
 
 /** 目前「相信」的東西（HYPOTHESIS 不算，證據太弱）。 */
-export async function activeBeliefs(db, { subject = null } = {}) {
-  const all = await db.getActiveInsights({ subject });
+export async function activeBeliefs(db, userId, { subject = null } = {}) {
+  const uid = requireUserId(userId, 'activeBeliefs');
+  const all = await db.getActiveInsights(uid, { subject });
   return all.filter((i) => i.status !== INSIGHT_STATUS.HYPOTHESIS);
 }

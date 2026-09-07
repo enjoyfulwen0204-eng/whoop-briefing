@@ -2,7 +2,8 @@
  * Telegram long polling（Phase L）。
  *
  * 全部 mock，不會碰到真的 Telegram API。
- * 重點在三件事：offset 正確推進、重啟不重複、未授權 chat 完全不回應。
+ * 重點在四件事：offset 正確推進、重啟不重複、未綁定 chat 完全不回應、
+ * 身分解析正確把 chat 對應到內部使用者（不是單一 TELEGRAM_CHAT_ID allowlist）。
  */
 
 import test from 'node:test';
@@ -16,6 +17,12 @@ import { createPoller } from '../src/bot/polling.js';
 import { TelegramApiError, backoffMs, waitForError } from '../src/bot/api.js';
 
 const CHAT = '12345';
+const USER = { id: 'u-poll-test', timezone: 'Asia/Taipei' };
+
+/** 預設只有 CHAT 綁定使用者，其他一律解析不到（模擬 db.resolveUserByChatId）。 */
+function defaultResolveUser(chatId) {
+  return chatId === CHAT ? Promise.resolve({ user: USER }) : Promise.resolve(null);
+}
 
 function tempDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whoop-bot-'));
@@ -57,7 +64,7 @@ function fakeApi(batches = [], { failures = [] } = {}) {
   };
 }
 
-async function setup({ batches = [], failures = [] } = {}) {
+async function setup({ batches = [], failures = [], resolveUser = defaultResolveUser } = {}) {
   const { url, cleanup } = tempDb();
   const db = createDb({ url });
   await db.migrate();
@@ -65,8 +72,8 @@ async function setup({ batches = [], failures = [] } = {}) {
   const handled = [];
   const poller = createPoller({
     db,
-    allowedChatId: CHAT,
     api,
+    resolveUser,
     sleepImpl: async () => {},
     handleMessage: async (m) => { handled.push(m); },
   });
@@ -94,7 +101,7 @@ test('★ L: 每處理完一則就存 offset（中途死掉最多只重做一則
     const seen = [];
     const poller = createPoller({
       db,
-      allowedChatId: CHAT,
+      resolveUser: defaultResolveUser,
       api: fakeApi(),
       sleepImpl: async () => {},
       handleMessage: async ({ text }) => {
@@ -121,7 +128,7 @@ test('★ L: 重啟後從 DB 的 offset 續傳，不會重頭處理', async () =
     const api1 = fakeApi([[update(200, 'first')]]);
     const h1 = [];
     const p1 = createPoller({
-      db, allowedChatId: CHAT, api: api1, sleepImpl: async () => {},
+      db, resolveUser: defaultResolveUser, api: api1, sleepImpl: async () => {},
       handleMessage: async (m) => { h1.push(m.text); },
     });
     await p1.pollOnce();
@@ -132,7 +139,7 @@ test('★ L: 重啟後從 DB 的 offset 續傳，不會重頭處理', async () =
     const api2 = fakeApi([[update(201, 'second')]]);
     const h2 = [];
     const p2 = createPoller({
-      db, allowedChatId: CHAT, api: api2, sleepImpl: async () => {},
+      db, resolveUser: defaultResolveUser, api: api2, sleepImpl: async () => {},
       handleMessage: async (m) => { h2.push(m.text); },
     });
     await p2.pollOnce();
@@ -157,15 +164,16 @@ test('★ L: Telegram 重送舊 update 時本地會擋掉（重複防線）', as
   } finally { db.close(); cleanup(); }
 });
 
-test('★ L: 未授權的 chat 完全不回應（連錯誤訊息都不給）', async () => {
+test('★ L: 未綁定的 chat 完全不回應（連錯誤訊息都不給）', async () => {
   const { db, poller, handled, api, cleanup } = await setup({
     batches: [[update(1, 'hi', '99999'), update(2, 'hi', CHAT)]],
   });
   try {
     await poller.pollOnce();
-    assert.equal(handled.length, 1, '只處理授權 chat 的訊息');
+    assert.equal(handled.length, 1, '只處理已綁定 chat 的訊息');
     assert.equal(handled[0].chatId, CHAT);
-    assert.equal(api.sent.length, 0, '★ 絕不主動回覆未授權 chat');
+    assert.deepEqual(handled[0].user, USER, '要把解析出來的內部使用者一起交給 handler');
+    assert.equal(api.sent.length, 0, '★ 絕不主動回覆未綁定 chat');
     assert.equal(await db.getUpdateOffset(), 3, 'offset 仍要推進，否則會卡住');
   } finally { db.close(); cleanup(); }
 });
@@ -193,7 +201,7 @@ test('★ L: 單一訊息處理失敗不會卡住整個 queue', async () => {
     await db.migrate();
     const seen = [];
     const poller = createPoller({
-      db, allowedChatId: CHAT, api: fakeApi(), sleepImpl: async () => {},
+      db, resolveUser: defaultResolveUser, api: fakeApi(), sleepImpl: async () => {},
       handleMessage: async ({ text }) => {
         if (text === 'boom') throw new Error('handler 爆炸');
         seen.push(text);
@@ -214,7 +222,7 @@ test('L: 網路錯誤會退避重試，不會讓迴圈死掉', async () => {
   try {
     const waits = [];
     const p = createPoller({
-      db, allowedChatId: CHAT,
+      db, resolveUser: defaultResolveUser,
       api: poller ? undefined : undefined,
       sleepImpl: async (ms) => { waits.push(ms); },
       handleMessage: async () => {},
@@ -261,7 +269,7 @@ test('L: 主迴圈遇錯會重試並在 maxIterations 後結束', async () => {
     };
     const handled = [];
     const poller = createPoller({
-      db, allowedChatId: CHAT, api,
+      db, resolveUser: defaultResolveUser, api,
       sleepImpl: async (ms) => { waits.push(ms); },
       handleMessage: async (m) => { handled.push(m.text); },
     });
@@ -279,7 +287,7 @@ test('L: stop() 會讓迴圈收工（graceful shutdown）', async () => {
     await db.migrate();
     let polls = 0;
     const poller = createPoller({
-      db, allowedChatId: CHAT,
+      db, resolveUser: defaultResolveUser,
       api: {
         async getUpdates() { polls += 1; if (polls >= 2) poller.stop(); return []; },
         async sendMessage() {},
@@ -293,12 +301,15 @@ test('L: stop() 會讓迴圈收工（graceful shutdown）', async () => {
   } finally { db.close(); cleanup(); }
 });
 
-test('L: classify 正確分類各種 update', async () => {
+test('L: classify 正確分類各種 update（身分解析為 async）', async () => {
   const { db, poller, cleanup } = await setup();
   try {
-    assert.equal(poller.classify(update(1, 'hi')).kind, 'ok');
-    assert.equal(poller.classify(update(1, 'hi', '999')).kind, 'unauthorized');
-    assert.equal(poller.classify({ update_id: 1 }).kind, 'not_a_message');
-    assert.equal(poller.classify({ update_id: 1, message: { chat: { id: CHAT } } }).kind, 'no_text');
+    assert.equal((await poller.classify(update(1, 'hi'))).kind, 'ok');
+    assert.equal((await poller.classify(update(1, 'hi', '999'))).kind, 'unlinked');
+    assert.equal((await poller.classify({ update_id: 1 })).kind, 'not_a_message');
+    assert.equal(
+      (await poller.classify({ update_id: 1, message: { chat: { id: CHAT } } })).kind,
+      'no_text',
+    );
   } finally { db.close(); cleanup(); }
 });

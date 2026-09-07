@@ -19,6 +19,7 @@
  */
 
 import { localDate, localHour, addDays } from './time.js';
+import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
 
 /** 凌晨幾點之前算前一天。 */
@@ -257,12 +258,14 @@ export function describeEvent(e) {
 }
 
 /** 驗證通過才寫 DB。回傳 { ok, id, event } 或 { ok:false, errors }。 */
-export async function saveEvent(db, candidate, opts = {}) {
+/** @param {string} userId **必填**。journal 一律綁在內部使用者身上。 */
+export async function saveEvent(db, userId, candidate, opts = {}) {
+  const uid = requireUserId(userId, 'saveEvent');
   const v = validateEvent(candidate, opts);
   if (!v.ok) {
     log.warn('journal_validation_failed', { errors: v.errors, category: candidate?.category });
     return v;
   }
-  const id = await db.addJournalEvent(v.event, { now: opts.now ?? new Date() });
+  const id = await db.addJournalEvent(uid, v.event, { now: opts.now ?? new Date() });
   return { ok: true, id, event: v.event };
 }

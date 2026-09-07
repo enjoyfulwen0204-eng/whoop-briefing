@@ -17,13 +17,21 @@
  */
 
 import { REPORT_CLAIM, WEEKLY } from './config.js';
+import { requireUserId } from './userContext.js';
 import { buildObservations, detectWake, weeklyStats, weekOverWeek } from './analyze.js';
 import { renderWeekly } from './format.js';
 import { completedWeeks, localDate, localHour, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
 
-export async function runWeekly({ db, source, coach, telegram, timezone, now = new Date() }) {
+/**
+ * @param {string} userId   **必填**。
+ * @param {string} timezone **該使用者的**時區。
+ */
+export async function runWeekly({
+  db, userId, source, coach, telegram, timezone, now = new Date(),
+}) {
+  const uid = requireUserId(userId, 'runWeekly');
   const today = localDate(now, timezone);
   const weeks = completedWeeks(now, timezone);
   const weekKey = weeks.last.key;
@@ -37,7 +45,7 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
   }
   const isCatchup = weekday !== WEEKLY.WEEKDAY;
 
-  if (await db.isSent('weekly', weekKey)) {
+  if (await db.isSent(uid, 'weekly', weekKey)) {
     log.info('weekly_already_sent', { week_key: weekKey });
     return { status: 'already_sent', weekKey };
   }
@@ -62,7 +70,8 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
 
   // 發送權（A2）—— 與 daily 同一套機制，各自獨立的 key
   const claiming = typeof db.claimReport === 'function';
-  const claimKey = { reportType: 'weekly', localDateKey: weekKey };
+  // claim / dedupe 的邏輯 key 一律含 userId：Alice 的 claim 不可阻塞 Bob
+  const claimKey = { userId: uid, ...{ reportType: 'weekly', localDateKey: weekKey } };
   let claim = { granted: true, owner: null };
   if (claiming) {
     claim = await db.claimReport({ ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS });
@@ -100,6 +109,7 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
     await releaseClaim();
     log.warn('weekly_no_data', { week_key: weekKey });
     await db.recordRun({
+      userId: uid,
       reportType: 'weekly',
       localDateKey: weekKey,
       status: 'SKIPPED',
@@ -118,6 +128,7 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
   } catch (err) {
     await releaseClaim();
     await db.recordRun({
+      userId: uid,
       reportType: 'weekly',
       localDateKey: weekKey,
       status: 'FAILED',
@@ -143,6 +154,7 @@ export async function runWeekly({ db, source, coach, telegram, timezone, now = n
   let recorded = true;
   try {
     await db.recordRun({
+      userId: uid,
       reportType: 'weekly',
       localDateKey: weekKey,
       telegramMessageId: sent.messageId,

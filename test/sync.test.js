@@ -160,13 +160,16 @@ function fakeWhoop(data, { failResource = null, failWith = null } = {}) {
   };
 }
 
+const U = 'u-sync-test';
+
 async function setup({ data = makeApiData(), whoopOpts = {}, now = NOW } = {}) {
   const { url, cleanup } = tempDb();
   const db = createDb({ url });
   await db.migrate();
+  await db.createUser({ id: U, displayName: 'SyncTest', timezone: TZ });
   const whoop = fakeWhoop(data, whoopOpts);
-  const sync = createSync({ db, whoop, timezone: TZ, now });
-  return { db, whoop, sync, cleanup, now };
+  const sync = createSync({ db, whoop, userId: U, timezone: TZ, now });
+  return { db, whoop, sync, cleanup, now, userId: U };
 }
 
 const count = async (db, table) => Number(
@@ -221,10 +224,10 @@ test('sync: body measurement 是單一物件（不分頁），並保存歷史版
   try {
     const r = await sync.syncResource('body_measurement');
     assert.equal(r.mode, 'point_in_time');
-    const bm = await db.getLatestBodyMeasurement();
+    const bm = await db.getLatestBodyMeasurement(U);
     assert.equal(Number(bm.weight_kilogram), 70.5);
     assert.equal(Number(bm.max_heart_rate), 190);
-    const state = await db.getSyncState('body_measurement');
+    const state = await db.getSyncState(U, 'body_measurement');
     assert.equal(state.backfillComplete, true, 'point-in-time 沒有 backfill 概念');
   } finally { db.close(); cleanup(); }
 });
@@ -274,7 +277,7 @@ test('sync: recovery 的 health_date 由對應的 sleep 補上（順序顛倒也
     assert.equal(row.health_date, null, '還沒有對應的 sleep → 先留 null');
 
     await sync.incremental('sleep');
-    await db.relinkRecoveryDates();
+    await db.relinkRecoveryDates(U);
 
     row = (await db.raw.execute("SELECT * FROM whoop_recoveries WHERE sleep_id='sleep-0'")).rows[0];
     assert.ok(row.health_date, '★ sleep 進來之後必須自動補上 health_date');
@@ -290,7 +293,7 @@ test('sync: backfill 分 chunk 推進，每個 chunk 都存檔（可 resume）',
     assert.equal(r1.chunks, WHOOP_SYNC.MAX_CHUNKS_PER_RUN, '一次只推進固定數量的 chunk');
     assert.equal(r1.complete, false);
 
-    const s1 = await db.getSyncState('sleep');
+    const s1 = await db.getSyncState(U, 'sleep');
     assert.ok(s1.backfillCursor, 'cursor 必須存檔');
     const cursor1 = Date.parse(s1.backfillCursor);
     const expected = NOW.getTime()
@@ -299,7 +302,7 @@ test('sync: backfill 分 chunk 推進，每個 chunk 都存檔（可 resume）',
 
     // 第二次執行：從斷點繼續，不會從頭再來
     const r2 = await sync.backfill('sleep');
-    const s2 = await db.getSyncState('sleep');
+    const s2 = await db.getSyncState(U, 'sleep');
     assert.ok(Date.parse(s2.backfillCursor) < cursor1, '★ 必須從斷點繼續往回');
     assert.equal(r2.chunks, WHOOP_SYNC.MAX_CHUNKS_PER_RUN);
   } finally { db.close(); cleanup(); }
@@ -316,7 +319,7 @@ test('sync: backfill 跑完整段歷史後標記 complete，之後不再重跑',
     } while (!r.complete && guard < 50);
 
     assert.ok(r.complete, 'backfill 應該要能跑完');
-    const state = await db.getSyncState('sleep');
+    const state = await db.getSyncState(U, 'sleep');
     assert.equal(state.backfillComplete, true);
 
     // 涵蓋到設定的天數
@@ -337,6 +340,7 @@ test('sync: backfill 中途失敗 → cursor 停在最後一個成功的 chunk�
   const db = createDb({ url });
   try {
     await db.migrate();
+    await db.createUser({ id: U, displayName: 'SyncTest', timezone: TZ });
     let failAfter = 2;
     const whoop = {
       ...fakeWhoop(data),
@@ -348,11 +352,11 @@ test('sync: backfill 中途失敗 → cursor 停在最後一個成功的 chunk�
         });
       },
     };
-    const sync = createSync({ db, whoop, timezone: TZ, now: NOW });
+    const sync = createSync({ db, whoop, userId: U, timezone: TZ, now: NOW });
 
     await assert.rejects(() => sync.backfill('sleep'), /模擬網路中斷/);
 
-    const state = await db.getSyncState('sleep');
+    const state = await db.getSyncState(U, 'sleep');
     assert.ok(state.backfillCursor, '★ 已成功的 chunk 必須留下 cursor');
     assert.equal(
       Date.parse(state.backfillCursor),
@@ -383,7 +387,7 @@ test('sync: scope 不足（403）不算故障、不拋錯，且明確標記', as
     const workout = results.find((r) => r.resource === 'workout');
     assert.equal(workout.status, 'scope_missing', '★ 缺 scope 要被辨識出來');
 
-    const state = await db.getSyncState('workout');
+    const state = await db.getSyncState(U, 'workout');
     assert.equal(state.lastError, 'scope_missing');
 
     // 其他 resource 完全不受影響
@@ -400,7 +404,7 @@ test('sync: 任何 resource 失敗都不會讓 syncAll 拋錯（簡報優先）'
     const results = await sync.syncAll({ force: true });
     assert.equal(results.find((r) => r.resource === 'cycle').status, 'failed');
     assert.equal(results.find((r) => r.resource === 'sleep').status, 'ok');
-    const state = await db.getSyncState('cycle');
+    const state = await db.getSyncState(U, 'cycle');
     assert.match(String(state.lastError), /Turso 爆炸/);
   } finally { db.close(); cleanup(); }
 });
@@ -417,7 +421,7 @@ test('sync: 節流 —— 剛同步過就不重複打 API，但 backfill 未完�
 
     // 把所有 resource 標成 backfill 完成 + 剛剛才成功
     for (const r of WHOOP_SYNC.RESOURCES) {
-      await db.saveSyncState(r, {
+      await db.saveSyncState(U, r, {
         backfillComplete: true,
         lastSuccessAt: NOW.toISOString(),
       }, { now: NOW });
@@ -434,7 +438,7 @@ test('sync: coverage() 回報實際涵蓋範圍', async () => {
   try {
     await sync.incremental('sleep');
     await sync.incremental('recovery');
-    const cov = await db.coverage();
+    const cov = await db.coverage(U);
     assert.ok(Number(cov.main_sleeps) > 0);
     assert.ok(cov.first_date && cov.last_date);
     assert.ok(cov.first_date <= cov.last_date);

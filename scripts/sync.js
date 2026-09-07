@@ -11,6 +11,7 @@
  */
 
 import { loadDotEnvIfPresent, loadEnv, WHOOP_SYNC } from '../src/config.js';
+import { pickUser } from './pickUser.js';
 import { createDb } from '../src/db.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { createSync } from '../src/sync.js';
@@ -22,11 +23,13 @@ const env = loadEnv({
 
 const untilDone = process.argv.includes('--until-done');
 const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+const user = await pickUser(db);
 
 try {
   await db.migrate();
   const whoop = createWhoopClient({
-    db, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+  db,
+  userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
   });
 
   let round = 0;
@@ -45,7 +48,7 @@ try {
     }
 
     if (!untilDone) break;
-    const states = await db.getAllSyncState();
+    const states = await db.getAllSyncState(user.id);
     const pending = states.filter((s) => Number(s.backfill_complete) !== 1);
     if (!pending.length) {
       console.log('\n✅ 全部 backfill 完成。');

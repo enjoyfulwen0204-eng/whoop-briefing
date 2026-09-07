@@ -6,7 +6,7 @@
  *   cron   whoop-briefing     每 30 分鐘跑一次就結束
  *   worker whoop-telegram-bot 一直活著，long polling
  *
- * 兩者共用同一個 Turso、同一組 WHOOP token。安全性靠：
+ * 兩者共用同一個 Turso。每個使用者各自一組 WHOOP token。安全性靠：
  *   - token refresh 有 Turso lease lock（src/whoop.js）
  *   - 報告發送權有 report_claims（src/db.js）
  * 所以兩個 process 同時活著不會互相破壞。
@@ -21,6 +21,7 @@ import { createCoach } from '../coach.js';
 import { createTelegramApi } from './api.js';
 import { createPoller } from './polling.js';
 import { createRouter } from './router.js';
+import { handleLinkAttempt } from './link.js';
 import { log, describeError } from '../logger.js';
 
 export async function main({ maxIterations = Infinity } = {}) {
@@ -30,8 +31,9 @@ export async function main({ maxIterations = Infinity } = {}) {
   const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
   await db.migrate();
 
-  const coach = createCoach({
-    apiKey: env.openrouterApiKey, model: env.openrouterModel, db,
+  // coach 要 per-user 建立，ai_usage 才會記在正確的人身上
+  const coachFor = (userId) => createCoach({
+    apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId,
   });
   const api = createTelegramApi({ botToken: env.telegramBotToken });
 
@@ -39,22 +41,28 @@ export async function main({ maxIterations = Infinity } = {}) {
     log.error('telegram_getme_failed', { error: describeError(err) });
     return null;
   });
+  const activeUsers = await db.listActiveUsers();
   log.info('bot_start', {
     username: me?.username ?? null,
-    chat_id: String(env.telegramChatId),
-    timezone: env.timezone,
+    active_users: activeUsers.length,
     model: env.openrouterModel,
   });
 
-  const router = createRouter({ db, coach, timezone: env.timezone });
+  const router = createRouter({ db, coachFor });
 
   const poller = createPoller({
     db,
     botToken: env.telegramBotToken,
-    allowedChatId: env.telegramChatId,
     api,
-    handleMessage: async ({ text, chatId }) => {
-      const reply = await router.handle({ text, chatId });
+    // 身分解析：chat → ACTIVE 綁定 → ACTIVE 使用者。解析不到回 null。
+    resolveUser: (chatId) => db.resolveUserByChatId(chatId),
+    handleMessage: async ({ text, chatId, user }) => {
+      const reply = await router.handle({ text, chatId, user });
+      if (reply) await api.sendMessage(chatId, reply);
+    },
+    // 未綁定的 chat：只吃 /link，其他一律不回
+    handleUnlinked: async ({ text, chatId }) => {
+      const reply = await handleLinkAttempt({ db, text, chatId });
       if (reply) await api.sendMessage(chatId, reply);
     },
   });

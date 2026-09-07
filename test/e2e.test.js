@@ -16,6 +16,7 @@ import { addDays, localDate } from '../src/time.js';
 import { makeDataset } from './fixtures.js';
 
 const TZ = 'Asia/Taipei';
+const U = 'u-e2e-test';
 
 function installMockFetch({ dataset, calls }) {
   const original = globalThis.fetch;
@@ -110,10 +111,13 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     });
     delete process.env.DRY_RUN;
 
-    // 先塞一組還有效的 token（模擬已經跑過 authorize）
+    // Multi-user：先建一個內部使用者並綁定 Telegram，再塞一組還有效的 token
+    // （模擬已經跑過 authorize + /link）
     const seed = createDb({ url: dbUrl });
     await seed.migrate();
-    await seed.saveTokens({
+    await seed.createUser({ id: U, displayName: 'E2E', timezone: TZ, status: 'ACTIVE' });
+    await seed.linkTelegram({ chatId: '999', userId: U });
+    await seed.saveTokens(U, {
       accessToken: 'seed-access',
       refreshToken: 'seed-refresh',
       // 到期時間要用真實時鐘算（token 是否過期本來就跟注入的 now 無關）
@@ -125,8 +129,10 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     // ---- 第一次執行 ----
     const first = await main({ now });
     assert.equal(first.errors.length, 0, JSON.stringify(first.errors));
-    assert.equal(first.daily.status, 'sent');
-    assert.equal(first.weekly, null, '不是週一，weekly 不該跑');
+    assert.equal(first.failed, 0, JSON.stringify(first.perUser));
+    const firstUser = first.perUser.find((p) => p.userId === U);
+    assert.equal(firstUser.daily, 'sent');
+    assert.equal(firstUser.weekly, 'not_run', '不是週一，weekly 不該跑');
 
     const tg = calls.filter((c) => c.host === 'telegram');
     assert.equal(tg.length, 1);
@@ -151,10 +157,11 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
 
     // DB 有 SENT 紀錄
     const check = createDb({ url: dbUrl });
-    assert.equal(await check.isSent('daily', today), true);
-    const runs = await check.recentRuns(5);
+    assert.equal(await check.isSent(U, 'daily', today), true);
+    const runs = await check.recentRuns(U, 5);
     assert.equal(runs[0].report_type, 'daily');
     assert.equal(runs[0].status, 'SENT');
+    assert.equal(String(runs[0].user_id), U, '紀錄必須明確歸屬這個使用者');
     assert.equal(Number(runs[0].telegram_message_id), 4242);
     check.close();
 
@@ -163,8 +170,8 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     // 而測試 DB 是全新的、昨天那筆從來沒發過，所以條件不成立。但重點是不會重複發。
     const before = calls.length;
     const second = await main({ now });
-    assert.equal(second.daily.status, 'already_sent');
-    assert.equal(second.weekly, null);
+    const secondUser = second.perUser.find((p) => p.userId === U);
+    assert.equal(secondUser.daily, 'already_sent');
     assert.equal(second.errors.length, 0);
     const after = calls.slice(before);
     assert.equal(
@@ -180,6 +187,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     const seed2 = createDb({ url: dbUrl });
     const yesterdayKey = addDays(today, -1);
     await seed2.recordRun({
+      userId: U,
       reportType: 'daily',
       localDateKey: yesterdayKey,
       healthDate: yesterdayKey,
@@ -189,8 +197,9 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
 
     const before3 = calls.length;
     const third = await main({ now });
-    assert.equal(third.daily, null, '快速返回時 runDaily 不該被呼叫');
-    assert.equal(third.weekly, null);
+    assert.equal(third.users, 1);
+    const thirdUser = third.perUser.find((p) => p.userId === U);
+    assert.equal(thirdUser.skipped, 'nothing_due', '兩天都已 SENT 且非週一 → 這個使用者沒事做');
     assert.equal(
       calls.slice(before3).length, 0,
       `快速返回不該有任何外部呼叫，實際：${JSON.stringify(calls.slice(before3))}`,
@@ -232,7 +241,9 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
 
     const seed = createDb({ url: dbUrl });
     await seed.migrate();
-    await seed.saveTokens({
+    await seed.createUser({ id: U, displayName: 'E2E', timezone: TZ, status: 'ACTIVE' });
+    await seed.linkTelegram({ chatId: '999', userId: U });
+    await seed.saveTokens(U, {
       accessToken: 'about-to-expire',
       refreshToken: 'seed-refresh',
       expiresAt: new Date(Date.now() + 2 * 60_000), // 只剩 2 分鐘 → 必須 refresh
@@ -242,7 +253,9 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
 
     const res = await main({ now });
     assert.equal(res.errors.length, 0, JSON.stringify(res.errors));
-    assert.equal(res.daily.status, 'sent');
+    assert.equal(res.failed, 0, JSON.stringify(res.perUser));
+    const resUser = res.perUser.find((p) => p.userId === U);
+    assert.equal(resUser.daily, 'sent');
 
     // refresh 只發生一次，而且在任何資料請求之前
     const tokenIdx = calls.findIndex((c) => c.path === '/oauth/oauth2/token');
@@ -252,7 +265,7 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
     assert.equal(calls.filter((c) => c.path === '/oauth/oauth2/token').length, 1);
 
     const check = createDb({ url: dbUrl });
-    const t = await check.getTokens();
+    const t = await check.getTokens(U);
     assert.equal(t.accessToken, 'e2e-access');
     assert.equal(t.refreshToken, 'e2e-refresh');
     check.close();

@@ -19,6 +19,7 @@
 
 import { CONFIDENCE, dataQualityOf } from './analytics/correlation.js';
 import { log } from './logger.js';
+import { requireUserId } from './userContext.js';
 
 export const EVIDENCE_METHODS = {
   PEARSON: 'pearson_correlation',
@@ -304,12 +305,14 @@ export function fromInsight(row, { recalculatedAt = null } = {}) {
  * 目前的來源是 health_insights 與 prediction scorecard —— 也就是系統
  * 真的保存下來的長期結論。沒有任何證據時**明講**，不編。
  */
-export async function getEvidence({ db, subject = null, now = new Date() }) {
+/** @param {string} userId **必填**。只回這個使用者的 evidence。 */
+export async function getEvidence({ db, userId, subject = null, now = new Date() }) {
+  const uid = requireUserId(userId, 'getEvidence');
   const cards = [];
 
   try {
     if (typeof db.getActiveInsights === 'function') {
-      const insights = await db.getActiveInsights({ subject });
+      const insights = await db.getActiveInsights(uid, { subject });
       for (const row of insights) cards.push(fromInsight(row));
     }
   } catch (err) {

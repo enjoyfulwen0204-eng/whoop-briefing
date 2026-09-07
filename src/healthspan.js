@@ -14,6 +14,7 @@
  */
 
 import { ANALYTICS } from './config.js';
+import { requireUserId } from './userContext.js';
 import { STATUS } from './capabilities.js';
 import { describeWindow } from './analytics/statistics.js';
 import { seriesOf } from './dailyMetrics.js';
@@ -160,10 +161,12 @@ export function buildContributors(rows = [], {
 
 /** 盤點並寫進 healthspan_metrics。 */
 export async function snapshotContributors({
+  userId,
   db, rows, endDate, windowDays = 90, capabilities = {}, now = new Date(),
 }) {
   const contributors = buildContributors(rows, { endDate, windowDays, capabilities });
-  await db.saveHealthspanMetrics(contributors, { now });
+  const uid = requireUserId(userId, 'snapshotContributors');
+  await db.saveHealthspanMetrics(uid, contributors, { now });
 
   const usable = contributors.filter(
     (c) => c.availability === AVAILABILITY.AVAILABLE || c.availability === AVAILABILITY.PARTIAL,
@@ -171,7 +174,7 @@ export async function snapshotContributors({
 
   // ⚠️ 刻意寫入 status='FOUNDATION_ONLY'、score=null。
   // 這一輪絕不產生任何生理年齡數字。
-  await db.saveHealthspanSnapshot({
+  await db.saveHealthspanSnapshot(uid, {
     snapshotDate: endDate ?? now.toISOString().slice(0, 10),
     algorithmVersion: 'foundation-v0',
     score: null,

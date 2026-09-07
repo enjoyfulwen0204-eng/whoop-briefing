@@ -9,6 +9,7 @@
  */
 
 import { STATUS } from './capabilities.js';
+import { requireUserId } from './userContext.js';
 import { daysBetween, localDate } from './time.js';
 import { log } from './logger.js';
 
@@ -29,14 +30,16 @@ async function safe(label, fn, fallback) {
  *
  * @returns 永遠是一個完整物件，never throws
  */
-export async function buildDataQualityReport({ db, timezone, now = new Date() }) {
+/** @param {string} userId **必填**。只評估這個使用者的資料品質。 */
+export async function buildDataQualityReport({ db, userId, timezone, now = new Date() }) {
+  const uid = requireUserId(userId, 'buildDataQualityReport');
   const today = localDate(now, timezone);
 
-  const coverage = await safe('coverage', () => db.coverage(), null);
-  const syncStates = await safe('sync', () => db.getAllSyncState(), []);
-  const capabilities = await safe('capabilities', () => db.getCapabilities(), {});
-  const journalCount = await safe('journal', () => db.countJournalEvents(), 0);
-  const tokens = await safe('tokens', () => db.getTokens(), null);
+  const coverage = await safe('coverage', () => db.coverage(uid), null);
+  const syncStates = await safe('sync', () => db.getAllSyncState(uid), []);
+  const capabilities = await safe('capabilities', () => db.getCapabilities(uid), {});
+  const journalCount = await safe('journal', () => db.countJournalEvents(uid), 0);
+  const tokens = await safe('tokens', () => db.getTokens(uid), null);
 
   const mainSleeps = Number(coverage?.main_sleeps ?? 0);
   const historyStart = coverage?.first_date ?? null;

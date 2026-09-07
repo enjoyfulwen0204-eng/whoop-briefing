@@ -7,6 +7,7 @@
  */
 
 import { loadDotEnvIfPresent, loadEnv, WHOOP_SYNC } from '../src/config.js';
+import { pickUser } from './pickUser.js';
 import { createDb } from '../src/db.js';
 import { STATUS } from '../src/capabilities.js';
 import { localDate, addDays, daysBetween } from '../src/time.js';
@@ -14,6 +15,8 @@ import { localDate, addDays, daysBetween } from '../src/time.js';
 loadDotEnvIfPresent();
 const env = loadEnv({ require: ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'] });
 const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+const user = await pickUser(db);
+console.log(`使用者：${user.displayName}（${user.id}）｜時區 ${user.timezone}\n`);
 
 const pad = (s, n) => String(s ?? '-').padEnd(n, ' ');
 
@@ -22,7 +25,7 @@ try {
   const today = localDate(new Date(), env.timezone);
 
   // ---- 歷史涵蓋 ----
-  const cov = await db.coverage();
+  const cov = await db.coverage(user.id);
   console.log('\n══════════ 健康資料 ══════════');
   if (!Number(cov.main_sleeps)) {
     console.log('  （還沒有任何健康資料 —— 排程跑過幾次之後就會開始累積）');
@@ -47,7 +50,7 @@ try {
 
   // ---- 同步狀態 ----
   console.log('\n══════════ 同步狀態 ══════════');
-  const states = await db.getAllSyncState();
+  const states = await db.getAllSyncState(user.id);
   if (!states.length) {
     console.log('  （尚未跑過同步）');
   } else {
@@ -71,7 +74,7 @@ try {
 
   // ---- capability ----
   console.log('\n══════════ Capability ══════════');
-  const caps = await db.getCapabilities();
+  const caps = await db.getCapabilities(user.id);
   const list = Object.values(caps);
   if (!list.length) {
     console.log('  （還沒 probe 過 —— 跑 `npm run probe` 就會有）');
@@ -92,14 +95,14 @@ try {
 
   // ---- 報告 ----
   console.log('\n══════════ 最近的報告 ══════════');
-  const runs = await db.recentRuns(8);
+  const runs = await db.recentRuns(user.id, 8);
   if (!runs.length) console.log('  （還沒有發過報告）');
   for (const r of runs) {
     console.log(`  ${pad(r.report_type, 8)}${pad(r.local_date, 12)}${pad(r.status, 8)}${r.sent_at}`);
   }
 
   // ---- token ----
-  const tokens = await db.getTokens();
+  const tokens = await db.getTokens(user.id);
   console.log('\n══════════ WHOOP token ══════════');
   if (!tokens) {
     console.log('  ❌ 沒有 token —— 請跑 `npm run authorize`');

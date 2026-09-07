@@ -16,6 +16,7 @@
  */
 
 import { LOCKS, WHOOP } from './config.js';
+import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
 
 export class WhoopAuthError extends Error {
@@ -101,21 +102,31 @@ export function refreshTokens({ refreshToken, clientId, clientSecret, tokenUrl }
 // Client
 // ---------------------------------------------------------------------------
 
+/**
+ * 每個內部使用者一個 client。
+ *
+ * userId 是**必填**：token 的擁有權、refresh 的 lease lock 名稱都綁在它上面。
+ * 這樣 Alice 的 refresh 不會卡住 Bob（鎖名不同），也不可能拿到別人的 token。
+ */
 export function createWhoopClient({
-  db, clientId, clientSecret, fetchImpl = fetch, sleepImpl = sleep,
+  db, userId, clientId, clientSecret, fetchImpl = fetch, sleepImpl = sleep,
   // 下面兩個只有測試會覆寫，正式執行一律用官方 endpoint
   apiBase = WHOOP.API_BASE, tokenUrl = WHOOP.TOKEN_URL,
   backoffFor = backoffMs,
 } = {}) {
+  const uid = requireUserId(userId, 'createWhoopClient');
+  // per-user 的 lease lock 名稱。全域鎖名會讓一個人的 refresh 卡住所有人。
+  const lockName = `${LOCKS.TOKEN_REFRESH_NAME}:${uid}`;
   let cached = null;       // 單次執行內的記憶體快取，避免同一 run 重複讀 DB
   let refreshing = null;   // mutex：同一 run 內平行請求時只會 refresh 一次
 
   async function loadTokens() {
     if (cached) return cached;
-    const t = await db.getTokens();
+    const t = await db.getTokens(uid);
     if (!t) {
       throw new WhoopAuthError(
-        'Turso 裡沒有 WHOOP token。請先在本機跑一次 `npm run authorize` 完成授權。',
+        `這個使用者（${uid}）在 Turso 裡沒有 WHOOP token。`
+        + '請先跑 `npm run authorize -- --user=<userId>` 完成授權。',
       );
     }
     cached = t;
@@ -127,7 +138,7 @@ export function createWhoopClient({
     const t = await loadTokens();
     const msLeft = t.expiresAt.getTime() - Date.now();
     if (!force && msLeft > WHOOP.TOKEN_REFRESH_SKEW_MS) {
-      log.info('token_reused', { minutes_left: Math.round(msLeft / 60000) });
+      log.info('token_reused', { user_id: uid, minutes_left: Math.round(msLeft / 60000) });
       return t.accessToken;
     }
     // 平行請求時只允許一個 refresh（WHOOP 會輪替 refresh_token，重複 refresh 會失效）
@@ -157,13 +168,13 @@ export function createWhoopClient({
    */
   async function waitForPeerRefresh({ force, staleAccessToken }) {
     const attempts = Math.max(1, Math.ceil(LOCKS.TOKEN_REFRESH_WAIT_MS / LOCKS.TOKEN_REFRESH_POLL_MS));
-    log.warn('token_refresh_lock_busy', { attempts, poll_ms: LOCKS.TOKEN_REFRESH_POLL_MS });
+    log.warn('token_refresh_lock_busy', { user_id: uid, attempts, poll_ms: LOCKS.TOKEN_REFRESH_POLL_MS });
     for (let i = 1; i <= attempts; i++) {
       await sleepImpl(LOCKS.TOKEN_REFRESH_POLL_MS);
-      const latest = await db.getTokens();
+      const latest = await db.getTokens(uid);
       if (tokenUsable(latest, { force, staleAccessToken })) {
         cached = latest;
-        log.info('token_adopted_from_peer', { waited_polls: i });
+        log.info('token_adopted_from_peer', { user_id: uid, waited_polls: i });
         return latest.accessToken;
       }
     }
@@ -181,7 +192,7 @@ export function createWhoopClient({
     let owner = null;
     const lockable = typeof db.acquireLock === 'function';
     if (lockable) {
-      owner = await db.acquireLock(LOCKS.TOKEN_REFRESH_NAME, {
+      owner = await db.acquireLock(lockName, {
         ttlMs: LOCKS.TOKEN_REFRESH_TTL_MS,
       });
       if (!owner) return waitForPeerRefresh({ force, staleAccessToken });
@@ -192,15 +203,15 @@ export function createWhoopClient({
     try {
       // 拿到 lock 之後【重新讀一次 DB】：剛剛卡住的那段時間，別的 process
       // 可能已經 refresh 完了。有現成的就直接用，不要浪費一次輪替。
-      const latest = await db.getTokens();
+      const latest = await db.getTokens(uid);
       if (tokenUsable(latest, { force, staleAccessToken })) {
         cached = latest;
-        log.info('token_refresh_skipped_peer_won', {});
+        log.info('token_refresh_skipped_peer_won', { user_id: uid });
         return latest.accessToken;
       }
 
       const base = latest ?? t;
-      log.info('token_refresh_start', { minutes_left: Math.round(msLeft / 60000), force });
+      log.info('token_refresh_start', { user_id: uid, minutes_left: Math.round(msLeft / 60000), force });
       const fresh = await refreshTokens({
         refreshToken: base.refreshToken,
         clientId,
@@ -208,7 +219,7 @@ export function createWhoopClient({
         tokenUrl,
       });
       // ⚠️ 第一件事：寫回 Turso。寫成功前不做任何 WHOOP 資料處理。
-      await db.saveTokens({
+      await db.saveTokens(uid, {
         accessToken: fresh.accessToken,
         refreshToken: fresh.refreshToken ?? base.refreshToken,
         expiresAt: fresh.expiresAt,
@@ -220,12 +231,12 @@ export function createWhoopClient({
         expiresAt: fresh.expiresAt,
         scope: fresh.scope,
       };
-      log.info('token_refresh_done', { expires_at: fresh.expiresAt.toISOString() });
+      log.info('token_refresh_done', { user_id: uid, expires_at: fresh.expiresAt.toISOString() });
       return cached.accessToken;
     } finally {
       if (owner) {
         try {
-          await db.releaseLock(LOCKS.TOKEN_REFRESH_NAME, owner);
+          await db.releaseLock(lockName, owner);
         } catch (err) {
           // 放不掉沒關係，TTL 到了自然過期。絕不能因此蓋掉真正的結果 / 錯誤。
           log.warn('token_refresh_lock_release_failed', { error: String(err?.message ?? err) });

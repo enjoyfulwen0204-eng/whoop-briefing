@@ -12,6 +12,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { createDb } from '../src/db.js';
+
+const U = 'u-dm-test';
 import { createSync } from '../src/sync.js';
 import { computeDailyMetrics, loadDailyMetrics, seriesOf } from '../src/dailyMetrics.js';
 import { buildObservations } from '../src/analyze.js';
@@ -34,6 +36,7 @@ async function seed({ days = 20, now = new Date('2026-09-01T00:00:00Z'), extra =
   const { url, cleanup } = tempDb();
   const db = createDb({ url });
   await db.migrate();
+  await db.createUser({ id: U, displayName: 'DM' });
   const ds = makeDataset({ days, now, ...extra });
   const workouts = [];
   // 在每天的 cycle 窗內放一筆運動
@@ -63,7 +66,7 @@ async function seed({ days = 20, now = new Date('2026-09-01T00:00:00Z'), extra =
     workouts: async () => workouts,
     bodyMeasurement: async () => ({ height_meter: 1.75, weight_kilogram: 70.5, max_heart_rate: 190 }),
   };
-  const sync = createSync({ db, whoop, timezone: TZ, now });
+  const sync = createSync({ db, whoop, userId: U, timezone: TZ, now });
   for (const r of ['sleep', 'recovery', 'cycle', 'workout', 'body_measurement']) {
     await sync.syncResource(r);
   }
@@ -77,7 +80,7 @@ test('★ daily_metrics 的 health_date 與 buildObservations 完全一致', asy
   try {
     const from = localDate(new Date(now.getTime() - 25 * DAY), TZ);
     const to = localDate(now, TZ);
-    const rows = await loadDailyMetrics({ db, timezone: TZ, from, to });
+    const rows = await loadDailyMetrics({ db, userId: U, timezone: TZ, from, to });
 
     const expected = buildObservations({ ...ds, timezone: TZ })
       .map((o) => o.healthDate)
@@ -94,7 +97,7 @@ test('★ bedtime：sleep.start 有被保存並換算成當地時間', async () 
   const { db, cleanup, now } = await seed({ days: 10 });
   try {
     const rows = await loadDailyMetrics({
-      db, timezone: TZ,
+      db, userId: U, timezone: TZ,
       from: localDate(new Date(now.getTime() - 12 * DAY), TZ),
       to: localDate(now, TZ),
     });
@@ -111,7 +114,7 @@ test('之前浪費掉的睡眠欄位現在都在 daily_metrics 裡', async () =>
   const { db, cleanup, now } = await seed({ days: 10 });
   try {
     const rows = await loadDailyMetrics({
-      db, timezone: TZ,
+      db, userId: U, timezone: TZ,
       from: localDate(new Date(now.getTime() - 12 * DAY), TZ),
       to: localDate(now, TZ),
     });
@@ -131,7 +134,7 @@ test('★ 前一天的 strain / 心率 / 熱量 / 運動全部取自同一個 cy
   const { db, cleanup, now } = await seed({ days: 15 });
   try {
     const rows = await loadDailyMetrics({
-      db, timezone: TZ,
+      db, userId: U, timezone: TZ,
       from: localDate(new Date(now.getTime() - 18 * DAY), TZ),
       to: localDate(now, TZ),
     });
@@ -152,7 +155,7 @@ test('運動彙總：zone 分組與推導的肌力分鐘', async () => {
   const { db, cleanup, now } = await seed({ days: 15 });
   try {
     const rows = await loadDailyMetrics({
-      db, timezone: TZ,
+      db, userId: U, timezone: TZ,
       from: localDate(new Date(now.getTime() - 18 * DAY), TZ),
       to: localDate(now, TZ),
     });
@@ -171,7 +174,7 @@ test('★ 官方 API 沒有的欄位永遠是 null，絕不假造', async () => 
   const { db, cleanup, now } = await seed({ days: 10 });
   try {
     const rows = await loadDailyMetrics({
-      db, timezone: TZ,
+      db, userId: U, timezone: TZ,
       from: localDate(new Date(now.getTime() - 12 * DAY), TZ),
       to: localDate(now, TZ),
     });
@@ -187,7 +190,7 @@ test('body measurement 的體重 / 最大心率會附在每一列上', async () 
   const { db, cleanup, now } = await seed({ days: 10 });
   try {
     const rows = await loadDailyMetrics({
-      db, timezone: TZ,
+      db, userId: U, timezone: TZ,
       from: localDate(new Date(now.getTime() - 12 * DAY), TZ),
       to: localDate(now, TZ),
     });
@@ -200,7 +203,7 @@ test('★ 缺一個 optional 欄位不會讓整天失效', async () => {
   const { db, cleanup, now } = await seed({ days: 10, extra: { omitFields: ['spo2', 'skin_temp'] } });
   try {
     const rows = await loadDailyMetrics({
-      db, timezone: TZ,
+      db, userId: U, timezone: TZ,
       from: localDate(new Date(now.getTime() - 12 * DAY), TZ),
       to: localDate(now, TZ),
     });
@@ -236,7 +239,7 @@ test('小睡不會污染主睡眠，但會被彙總成 nap_count / nap_total', a
   const { db, cleanup, now } = await seed({ days: 15 });
   try {
     const rows = await loadDailyMetrics({
-      db, timezone: TZ,
+      db, userId: U, timezone: TZ,
       from: localDate(new Date(now.getTime() - 18 * DAY), TZ),
       to: localDate(now, TZ),
     });

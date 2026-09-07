@@ -35,10 +35,13 @@ function dayAfterMondayAfternoon(n) {
   return new Date(mondayMorning().getTime() + n * 86_400_000 + 6 * 3_600_000);
 }
 
+const U = 'u-catchup-test';
+
 function ctxFor(now, { db = fakeDb(), datasetNow = mondayMorning() } = {}) {
   const dataset = makeDataset({ days: 45, now: datasetNow });
   return {
     db,
+    userId: U,
     telegram: fakeTelegram(),
     coach: fakeCoach(),
     source: staticDataSource(dataset),

@@ -7,6 +7,7 @@
  */
 
 import { BASELINE, REPORT_CLAIM } from './config.js';
+import { requireUserId } from './userContext.js';
 import {
   buildObservations, completedCycles, detectWake, baselineRecords, stageFor,
   computeBaselines, evaluateAll, detectTrends, yesterdayCycleFor,
@@ -16,7 +17,15 @@ import { buildInsightsSafe } from './insights.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
 
-export async function runDaily({ db, source, coach, telegram, timezone, now = new Date() }) {
+/**
+ * @param {string} userId   **必填**。這份報告屬於誰。
+ * @param {string} timezone **該使用者的**時區（不是全域 TIMEZONE）。
+ * @param {object} telegram 已經綁定到該使用者 chat 的 telegram client。
+ */
+export async function runDaily({
+  db, userId, source, coach, telegram, timezone, now = new Date(),
+}) {
+  const uid = requireUserId(userId, 'runDaily');
   // 1) 輕量 polling。刻意放在去重之前：health_date 是從最新那筆睡眠算出來的，
   //    沒抓資料就不知道要用哪個 key 去重。「完全沒事做」的快速返回在 index.js。
   const { sleeps: pollSleeps, recoveries: pollRecoveries } = await source.poll();
@@ -42,7 +51,7 @@ export async function runDaily({ db, source, coach, telegram, timezone, now = ne
 
   // 2) 去重：用 health_date，不是執行當天。所以下午才起床、或跨午夜才跑到，
   //    都還是同一個 key，不會漏發也不會重複發。
-  if (await db.isSent('daily', healthDate)) {
+  if (await db.isSent(uid, 'daily', healthDate)) {
     log.info('daily_already_sent', { health_date: healthDate });
     return { status: 'already_sent', healthDate, localDate: healthDate };
   }
@@ -57,7 +66,8 @@ export async function runDaily({ db, source, coach, telegram, timezone, now = ne
   //    claim 把那段空窗鎖起來：同一份報告同時只有一個 process 會做事。
   //    刻意放在「抓歷史 / 呼叫 LLM」之前 —— 沒搶到就不必浪費那些成本。
   const claiming = typeof db.claimReport === 'function';
-  const claimKey = { reportType: 'daily', localDateKey: healthDate };
+  // claim / dedupe 的邏輯 key 一律含 userId：Alice 的 claim 不可阻塞 Bob
+  const claimKey = { userId: uid, ...{ reportType: 'daily', localDateKey: healthDate } };
   let claim = { granted: true, owner: null };
   if (claiming) {
     claim = await db.claimReport({ ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS });
@@ -94,7 +104,7 @@ export async function runDaily({ db, source, coach, telegram, timezone, now = ne
     });
     // 統計層（z-score / What Changed）。**任何失敗都只是沒有這一段**，
     // 絕不影響簡報本身 —— buildInsightsSafe 自己吞掉所有錯誤回 null。
-    const insights = await buildInsightsSafe({ db, timezone, healthDate });
+    const insights = await buildInsightsSafe({ db, userId: uid, timezone, healthDate });
     briefing.whatChanged = insights?.whatChanged ?? null;
     briefing.historyDays = insights?.historyDays ?? null;
 
@@ -114,6 +124,7 @@ export async function runDaily({ db, source, coach, telegram, timezone, now = ne
     await releaseClaim();
     // 記錄失敗原因時不能再拋錯，否則會蓋掉真正的錯誤
     await db.recordRun({
+      userId: uid,
       reportType: 'daily',
       localDateKey: healthDate,
       healthDate,
@@ -154,6 +165,7 @@ export async function runDaily({ db, source, coach, telegram, timezone, now = ne
   let recorded = true;
   try {
     await db.recordRun({
+      userId: uid,
       reportType: 'daily',
       localDateKey: healthDate,
       healthDate,

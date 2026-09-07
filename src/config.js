@@ -80,6 +80,10 @@ export const ERROR_NOTIFY_COOLDOWN_HOURS = 2;
 // GitHub 會在 repo 連續 60 天無 commit 時自動停用 scheduled workflow，
 // 而且是安靜地停 —— 沒有 run 就沒有錯誤通知。所以提前用 Telegram 提醒。
 // 只在 GitHub Actions 環境生效（靠 REPO_LAST_COMMIT_AT 這個變數，由 workflow 注入）。
+// Multi-user cron：同時處理幾個使用者。保守起見預設 3，避免撞 WHOOP rate limit
+// （官方 100 req/分）。可用 MAX_USER_CONCURRENCY 覆寫。
+export const CRON = { MAX_USER_CONCURRENCY: 3 };
+
 export const REPO_FRESHNESS = {
   WARN_AFTER_DAYS: 55,
   DISABLE_AFTER_DAYS: 60,
@@ -526,6 +530,10 @@ export function loadEnv({ require: requireList = REQUIRED_ENV } = {}) {
     // 由 GitHub Actions workflow 注入（git log -1 --format=%cI）。
     // Render / 本機不會有 → 60 天提醒自動跳過。
     repoLastCommitAt: process.env.REPO_LAST_COMMIT_AT || null,
+    // cron 併發上限。TIMEZONE 只是 bootstrap 預設，真正的時區在 users.timezone。
+    maxUserConcurrency: Number(process.env.MAX_USER_CONCURRENCY) > 0
+      ? Number(process.env.MAX_USER_CONCURRENCY)
+      : CRON.MAX_USER_CONCURRENCY,
   };
 }
 

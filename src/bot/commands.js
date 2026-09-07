@@ -83,11 +83,11 @@ export function startText(report) {
  * /log 處理。
  * 先試確定性解析；失敗且有 coach 時，再讓 LLM 提案（仍要過 validate）。
  */
-export async function handleLog({ db, argsText, rawText, timezone, now, coach, parseNatural }) {
+export async function handleLog({ db, userId, argsText, rawText, timezone, now, coach, parseNatural }) {
   const parsed = parseLogCommand(`/log ${argsText}`, { now, timezone });
 
   if (parsed.ok) {
-    const saved = await saveEvent(db, parsed.event, { now, timezone });
+    const saved = await saveEvent(db, userId, parsed.event, { now, timezone });
     if (!saved.ok) return `⚠️ 這筆記錄有問題：${saved.errors.join(', ')}`;
     return `✅ 已記錄：${describeEvent(saved.event)}`;
   }
@@ -96,7 +96,7 @@ export async function handleLog({ db, argsText, rawText, timezone, now, coach, p
   if (parseNatural && argsText) {
     const nat = await parseNatural({ text: argsText, now, timezone, coach });
     if (nat.ok) {
-      const saved = await saveEvent(db, nat.event, { now, timezone });
+      const saved = await saveEvent(db, userId, nat.event, { now, timezone });
       if (saved.ok) return `✅ 已記錄：${describeEvent(saved.event)}`;
     }
   }
@@ -119,8 +119,8 @@ export async function handleLog({ db, argsText, rawText, timezone, now, coach, p
 }
 
 /** /healthdata */
-export async function handleHealthData({ db, timezone, now }) {
-  const report = await buildDataQualityReport({ db, timezone, now });
+export async function handleHealthData({ db, userId, timezone, now }) {
+  const report = await buildDataQualityReport({ db, userId, timezone, now });
   return renderDataQuality(report);
 }
 
@@ -128,8 +128,8 @@ export async function handleHealthData({ db, timezone, now }) {
 // ---------------------------------------------------------------------------
 // /status
 // ---------------------------------------------------------------------------
-export async function handleStatus({ db, timezone, now, rows = [] }) {
-  const report = await buildDataQualityReport({ db, timezone, now });
+export async function handleStatus({ db, userId, timezone, now, rows = [] }) {
+  const report = await buildDataQualityReport({ db, userId, timezone, now });
   const lines = ['🩺 系統狀態', ''];
 
   lines.push('Bot：✅ 運作中');
@@ -159,7 +159,7 @@ export async function handleStatus({ db, timezone, now, rows = [] }) {
   // insight 就緒度
   let insightCount = 0;
   try {
-    insightCount = (await db.getActiveInsights({})).length;
+    insightCount = (await db.getActiveInsights(userId, {})).length;
   } catch { /* 忽略 */ }
   lines.push(`長期規律：${insightCount > 0 ? `${insightCount} 項` : '尚未形成'}`);
 
@@ -171,13 +171,13 @@ export async function handleStatus({ db, timezone, now, rows = [] }) {
 // ---------------------------------------------------------------------------
 // /journal [days]
 // ---------------------------------------------------------------------------
-export async function handleJournal({ db, argsText, timezone, now }) {
+export async function handleJournal({ db, userId, argsText, timezone, now }) {
   const n = Number(String(argsText ?? '').trim());
   const days = Number.isFinite(n) && n >= 1 && n <= 365 ? Math.floor(n) : 14;
 
   const to = localDate(now, timezone);
   const from = addDays(to, -(days - 1));
-  const events = await db.getJournalEvents({ from, to, limit: 100 });
+  const events = await db.getJournalEvents(userId, { from, to, limit: 100 });
 
   if (!events.length) {
     return `目前沒有 Journal 紀錄。\n\n（最近 ${days} 天內）用 /log 開始記錄，例如 /log alcohol 3 drinks`;
@@ -202,12 +202,12 @@ export async function handleJournal({ db, argsText, timezone, now }) {
 // ---------------------------------------------------------------------------
 // /insights [history]
 // ---------------------------------------------------------------------------
-export async function handleInsights({ db, argsText }) {
+export async function handleInsights({ db, userId, argsText }) {
   const wantHistory = /^history$/i.test(String(argsText ?? '').trim());
 
   let all = [];
   try {
-    all = await db.getActiveInsights({});
+    all = await db.getActiveInsights(userId, {});
   } catch { /* 沒表就當空的 */ }
 
   // 預設只顯示 SUPPORTED / EMERGING / HYPOTHESIS，不顯示 RETIRED
@@ -235,7 +235,7 @@ export async function handleInsights({ db, argsText }) {
       + `，v${i.version}`);
     if (wantHistory && Number(i.supersedes_id)) {
       try {
-        const chain = await db.getInsightHistory(Number(i.id));
+        const chain = await db.getInsightHistory(userId, Number(i.id));
         for (const old of chain.slice(1)) {
           lines.push(`   ↳ v${old.version}（${old.status}）${old.statement}`);
         }
@@ -274,7 +274,7 @@ export async function handlePredictions({ db, rows = [] }) {
 
   // 已經有記分卡就一併顯示
   try {
-    const sc = await scorecard(db, {});
+    const sc = await scorecard(db, userId, {});
     if (sc.available) {
       lines.push('');
       lines.push('過往預測準確度：');
@@ -291,15 +291,15 @@ export async function handlePredictions({ db, rows = [] }) {
 // ---------------------------------------------------------------------------
 // /cost
 // ---------------------------------------------------------------------------
-export async function handleCost({ db, timezone, now }) {
-  const summary = await costSummary({ db, timezone, now });
+export async function handleCost({ db, userId, timezone, now }) {
+  const summary = await costSummary({ db, userId, timezone, now });
   return renderCost(summary);
 }
 
 // ---------------------------------------------------------------------------
 // /evidence
 // ---------------------------------------------------------------------------
-export async function handleEvidence({ db, now }) {
-  const result = await getEvidence({ db, now });
+export async function handleEvidence({ db, userId, now }) {
+  const result = await getEvidence({ db, userId, now });
   return renderEvidence(result);
 }

@@ -13,10 +13,19 @@
  *    這樣 worker 中途被殺，重啟後最多重做「正在處理的那一則」。
  * 3. 本地防線：`update_id < storedOffset` 的一律跳過（即使 Telegram 重送）。
  *
- * ## 授權
+ * ## 授權（Multi-user）
  *
- * 只回應設定的 TELEGRAM_CHAT_ID。其他 chat 的訊息**只記 log、不回任何內容**
- * —— 連「你沒有權限」都不回，避免把 bot 的存在洩漏給陌生人。
+ * 身分不再是單一的 TELEGRAM_CHAT_ID，而是查 `user_telegram` 表：
+ *
+ *   telegram_chat_id → user_telegram(ACTIVE) → users(ACTIVE) → userId
+ *
+ * 解析不到的 chat（沒綁定、綁定被撤銷、使用者被停用）一律視為未授權。
+ * **未授權的 chat 只記 log、不回任何內容** —— 連「你沒有權限」都不回。
+ * 它永遠學不到：有沒有其他使用者、有幾個、叫什麼名字、有沒有 WHOOP 帳號、
+ * 任何健康資訊、任何內部 id。
+ *
+ * 唯一的例外是 `/link <code>`：那是「還沒綁定的人」唯一能做的事，
+ * 由 handleUnlinked 處理（回覆刻意中性，不透露碼是否存在過）。
  */
 
 import { TELEGRAM_BOT } from '../config.js';
@@ -30,8 +39,14 @@ export const OFFSET_KEY = 'telegram_offset';
 export function createPoller({
   db,
   botToken,
-  allowedChatId,
+  /**
+   * chatId → { id, timezone, … } | null。由 bot/index.js 注入
+   * （實作就是 db.resolveUserByChatId）。回 null 代表未授權。
+   */
+  resolveUser,
   handleMessage,
+  /** 未授權 chat 的處理（目前只用來吃 /link）。回 null 代表完全不回。 */
+  handleUnlinked = null,
   api = createTelegramApi({ botToken }),
   sleepImpl = sleep,
   pollTimeoutS = TELEGRAM_BOT.POLL_TIMEOUT_S,
@@ -41,14 +56,20 @@ export function createPoller({
   let consecutiveFailures = 0;
   const stats = { polls: 0, updates: 0, handled: 0, ignored: 0, errors: 0 };
 
-  /** 這則 update 是不是我們要處理的、來自授權 chat 的文字訊息。 */
-  function classify(update) {
+  /**
+   * 這則 update 是不是我們要處理的文字訊息，以及它屬於哪個內部使用者。
+   * 身分解析在**進入 router 之前**完成，router 拿到的一定是已知使用者。
+   */
+  async function classify(update) {
     const msg = update?.message;
     if (!msg) return { kind: 'not_a_message' };
     const chatId = String(msg.chat?.id ?? '');
-    if (chatId !== String(allowedChatId)) return { kind: 'unauthorized', chatId };
     if (typeof msg.text !== 'string' || !msg.text.trim()) return { kind: 'no_text', chatId };
-    return { kind: 'ok', chatId, text: msg.text.trim(), message: msg };
+    const text = msg.text.trim();
+
+    const resolved = await resolveUser(chatId);
+    if (!resolved) return { kind: 'unlinked', chatId, text, message: msg };
+    return { kind: 'ok', chatId, text, message: msg, user: resolved.user ?? resolved };
   }
 
   /**
@@ -69,18 +90,30 @@ export function createPoller({
       }
 
       stats.updates += 1;
-      const c = classify(update);
+      const c = await classify(update);
 
-      if (c.kind === 'unauthorized') {
-        // 刻意什麼都不回：不確認 bot 存在，也不浪費配額
+      if (c.kind === 'unlinked') {
+        // 未綁定：唯一允許的動作是 /link。其他一律靜默忽略。
         stats.ignored += 1;
-        log.warn('telegram_unauthorized_chat', { update_id: updateId, chat_id: c.chatId });
+        log.warn('telegram_unlinked_chat', { update_id: updateId, chat_id: c.chatId });
+        if (handleUnlinked) {
+          try {
+            await handleUnlinked({ text: c.text, chatId: c.chatId, message: c.message });
+          } catch (err) {
+            stats.errors += 1;
+            log.error('telegram_unlinked_handle_failed', {
+              update_id: updateId, error: describeError(err),
+            });
+          }
+        }
       } else if (c.kind !== 'ok') {
         stats.ignored += 1;
         log.info('telegram_update_ignored', { update_id: updateId, reason: c.kind });
       } else {
         try {
-          await handleMessage({ text: c.text, chatId: c.chatId, message: c.message });
+          await handleMessage({
+            text: c.text, chatId: c.chatId, message: c.message, user: c.user,
+          });
           stats.handled += 1;
         } catch (err) {
           stats.errors += 1;
@@ -123,7 +156,7 @@ export function createPoller({
   async function start({ maxIterations = Infinity } = {}) {
     running = true;
     stopping = false;
-    log.info('telegram_poller_start', { poll_timeout_s: pollTimeoutS, chat_id: String(allowedChatId) });
+    log.info('telegram_poller_start', { poll_timeout_s: pollTimeoutS });
 
     let i = 0;
     while (!stopping && i < maxIterations) {

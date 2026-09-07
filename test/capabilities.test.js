@@ -16,6 +16,8 @@ import {
   STATUS, APP_ONLY_CAPABILITIES, probeCapabilities,
 } from '../src/capabilities.js';
 import { createDb } from '../src/db.js';
+
+const U = 'u-cap-test';
 import { WhoopApiError } from '../src/whoop.js';
 import { makeDataset } from './fixtures.js';
 
@@ -179,6 +181,7 @@ test('probe 結果寫進 Turso，可以再讀回來', async () => {
   const db = createDb({ url });
   try {
     await db.migrate();
+    await db.createUser({ id: U, displayName: 'Cap' });
     const ds = makeDataset({ days: 14, omitFields: ['spo2'] });
     const whoop = {
       sleeps: async () => ds.sleeps,
@@ -188,10 +191,10 @@ test('probe 結果寫進 Turso，可以再讀回來', async () => {
       bodyMeasurement: async () => ({ height_meter: 1.75, weight_kilogram: 70, max_heart_rate: 190 }),
     };
 
-    const { scopeErrors } = await probeCapabilities({ db, whoop, timezone: TZ, days: 14 });
+    const { scopeErrors } = await probeCapabilities({ db, whoop, userId: U, timezone: TZ, days: 14 });
     assert.deepEqual(scopeErrors, [{ resource: 'workout' }], 'workout 缺 scope 要被記錄');
 
-    const saved = await db.getCapabilities();
+    const saved = await db.getCapabilities(U);
     assert.equal(saved.hrv.status, STATUS.SUPPORTED);
     assert.equal(saved.spo2.status, STATUS.UNAVAILABLE);
     assert.equal(saved.workout_strain.status, STATUS.UNAUTHORIZED);
@@ -202,8 +205,8 @@ test('probe 結果寫進 Turso，可以再讀回來', async () => {
 
     // 再 probe 一次：first_seen_at 不可以被覆蓋掉
     const firstSeen = saved.hrv.firstSeenAt;
-    await probeCapabilities({ db, whoop, timezone: TZ, days: 14 });
-    const again = await db.getCapabilities();
+    await probeCapabilities({ db, whoop, userId: U, timezone: TZ, days: 14 });
+    const again = await db.getCapabilities(U);
     assert.equal(again.hrv.firstSeenAt, firstSeen, 'first_seen_at 必須維持第一次的值');
   } finally { db.close(); cleanup(); }
 });
@@ -213,6 +216,7 @@ test('probe 不會因為缺 scope 而整個失敗', async () => {
   const db = createDb({ url });
   try {
     await db.migrate();
+    await db.createUser({ id: U, displayName: 'Cap' });
     const ds = makeDataset({ days: 10 });
     const whoop = {
       sleeps: async () => ds.sleeps,
@@ -221,7 +225,7 @@ test('probe 不會因為缺 scope 而整個失敗', async () => {
       workouts: async () => { throw new WhoopApiError('401', 401); },
       bodyMeasurement: async () => { throw new WhoopApiError('403', 403); },
     };
-    const { entries } = await probeCapabilities({ db, whoop, timezone: TZ, days: 10 });
+    const { entries } = await probeCapabilities({ db, whoop, userId: U, timezone: TZ, days: 10 });
     assert.ok(entries.length > 20, '仍然要產出完整清單');
     assert.equal(byKey(entries).hrv.status, STATUS.SUPPORTED);
   } finally { db.close(); cleanup(); }

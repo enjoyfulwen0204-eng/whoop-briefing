@@ -47,8 +47,8 @@ export function shouldFollowUp({ result, journalCountForDay }) {
 }
 
 /** 開一個追問。 */
-export async function openFollowUp({ db, chatId, originalMessage, result, now = new Date() }) {
-  const id = await db.openPendingQuestion({
+export async function openFollowUp({ db, userId, chatId, originalMessage, result, now = new Date() }) {
+  const id = await db.openPendingQuestion(userId, {
     chatId,
     originalMessage,
     question: FOLLOW_UP_QUESTION,
@@ -61,6 +61,6 @@ export async function openFollowUp({ db, chatId, originalMessage, result, now = 
     },
     ttlMs: TELEGRAM_BOT.PENDING_TTL_MS,
   }, { now });
-  log.info('follow_up_opened', { id, chat_id: String(chatId), intent: result.intent });
+  log.info('follow_up_opened', { user_id: userId, id, chat_id: String(chatId), intent: result.intent });
   return id;
 }

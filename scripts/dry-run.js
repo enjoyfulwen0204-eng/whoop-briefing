@@ -23,6 +23,8 @@ loadDotEnvIfPresent();
 
 const live = process.argv.includes('--live');
 const TZ = process.env.TIMEZONE || 'Asia/Taipei';
+// Multi-user：dry-run 模擬單一個使用者，UUID 只是好認的假 id
+const U = 'dryrun-user';
 
 if (live && !process.env.OPENROUTER_API_KEY) {
   console.error('--live 需要 OPENROUTER_API_KEY（放在 .env 裡）');
@@ -75,6 +77,7 @@ async function scenario({ title, dataset, now, coachFails = false, telegramFails
 
   const res = await runDaily({
     db,
+    userId: U,
     telegram,
     coach: coachFor(coachFails),
     source: staticDataSource(dataset),
@@ -144,7 +147,8 @@ banner('每週回顧（週一）+ 同一天 daily 不互相阻擋');
   const db = fakeDb();
   const telegram = fakeTelegram();
   const ctx = {
-    db, telegram, coach: coachFor(), source: staticDataSource(dataset), timezone: TZ, now,
+    db, userId: U, telegram, coach: coachFor(),
+    source: staticDataSource(dataset), timezone: TZ, now,
   };
   const d = await runDaily(ctx);
   const w = await runWeekly(ctx);

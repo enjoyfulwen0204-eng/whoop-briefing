@@ -8,6 +8,7 @@
  */
 
 import { loadDotEnvIfPresent, loadEnv } from '../src/config.js';
+import { pickUser } from './pickUser.js';
 import { createDb } from '../src/db.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { createCoach } from '../src/coach.js';
@@ -35,12 +36,19 @@ try {
 console.log(`現在時間：UTC ${new Date().toISOString()} ／ ${env.timezone} ${localDate(new Date(), env.timezone)} ${localTime(new Date(), env.timezone)}\n`);
 
 const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+await db.migrate();
+let user;
+try { user = await pickUser(db); } catch (err) {
+  bad('內部使用者', err.message);
+  report();
+  process.exit(1);
+}
 
 // ---- 1. Turso ----
 let tokens = null;
 try {
   await db.migrate();
-  tokens = await db.getTokens();
+  tokens = await db.getTokens(user.id);
   ok('Turso', tokens
     ? `連線正常，已有 WHOOP token（到期 ${tokens.expiresAt.toISOString()}）`
     : '連線正常，但還沒有 WHOOP token');
@@ -53,12 +61,13 @@ try {
 if (tokens) {
   try {
     const whoop = createWhoopClient({
-      db, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+  db,
+  userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
     });
     const page = await whoop.apiGet('/recovery', { limit: 1 });
     const n = page?.records?.length ?? 0;
     ok('WHOOP API', `讀得到資料（本次取回 ${n} 筆 recovery）`);
-    const scope = (await db.getTokens())?.scope ?? '';
+    const scope = (await db.getTokens(user.id))?.scope ?? '';
     if (!String(scope).includes('offline')) {
       warn('WHOOP scope', `scope 裡沒有 offline（目前：${scope}），refresh token 可能拿不到`);
     } else {

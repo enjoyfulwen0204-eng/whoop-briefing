@@ -13,6 +13,7 @@
  */
 
 import { num } from './config.js';
+import { requireUserId } from './userContext.js';
 import { analyzeRecoveryDrivers, predictFrom } from './analytics/regression.js';
 import { mean } from './analytics/statistics.js';
 import { addDays } from './time.js';
@@ -192,10 +193,11 @@ export function evaluate(model, testSamples, { target = 'recovery' } = {}) {
 }
 
 /** 把一次預測寫進 prediction_runs（之後才能做記分卡）。 */
-export async function persistPrediction(db, {
+export async function persistPrediction(db, userId, {
   targetDate, targetMetric = 'recovery', prediction, features,
 }, { now = new Date() } = {}) {
-  await db.savePrediction({
+  const uid = requireUserId(userId, 'persistPrediction');
+  await db.savePrediction(uid, {
     targetDate,
     targetMetric,
     modelVersion: prediction.model_version ?? MODEL_VERSION,
@@ -213,7 +215,7 @@ export async function persistPrediction(db, {
 }
 
 /** 回填實際值。這是預測記分卡的基礎。 */
-export async function backfillActuals(db, rows, {
+export async function backfillActuals(db, userId, rows, {
   targetMetric = 'recovery', modelVersion = MODEL_VERSION, now = new Date(),
 } = {}) {
   let updated = 0;
@@ -221,6 +223,7 @@ export async function backfillActuals(db, rows, {
     const actual = num(r[targetMetric]);
     if (actual === null) continue;
     const ok = await db.recordPredictionActual({
+      userId: requireUserId(userId, 'backfillActuals'),
       targetDate: r.health_date, targetMetric, modelVersion, actualValue: actual,
     }, { now });
     if (ok) updated += 1;
@@ -229,8 +232,9 @@ export async function backfillActuals(db, rows, {
 }
 
 /** 記分卡：已經有實際值的那些預測表現如何。 */
-export async function scorecard(db, { targetMetric = 'recovery' } = {}) {
-  const runs = await db.getPredictions({ targetMetric });
+export async function scorecard(db, userId, { targetMetric = 'recovery' } = {}) {
+  const uid = requireUserId(userId, 'scorecard');
+  const runs = await db.getPredictions(uid, { targetMetric });
   const evaluated = runs.filter((r) => r.actual_value !== null && r.predicted_value !== null);
   if (!evaluated.length) {
     return { available: false, reason: 'no_evaluated_predictions', total_runs: runs.length };

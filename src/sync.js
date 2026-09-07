@@ -16,6 +16,7 @@
 
 import { WHOOP_SYNC } from './config.js';
 import { isScopeError } from './whoop.js';
+import { requireUserId } from './userContext.js';
 import { log, describeError } from './logger.js';
 
 const DAY_MS = 86_400_000;
@@ -23,7 +24,13 @@ const DAY_MS = 86_400_000;
 /** 只抓一次就好的 resource（沒有時間區間概念）。 */
 const POINT_IN_TIME = new Set(['body_measurement']);
 
-export function createSync({ db, whoop, timezone, now = new Date() }) {
+/**
+ * @param {object} o
+ * @param {string} o.userId  **必填**。這個 sync 屬於哪個內部使用者。
+ * @param {string} o.timezone 該使用者的時區（不是全域 TIMEZONE）
+ */
+export function createSync({ db, whoop, userId, timezone, now = new Date() }) {
+  const uid = requireUserId(userId, 'createSync');
   /**
    * 一個 resource 的抓取器。全部沿用 whoop client 既有的
    * collect / pagination / retry / rate-limit / 401-refresh 機制。
@@ -39,11 +46,11 @@ export function createSync({ db, whoop, timezone, now = new Date() }) {
   /** 把抓到的東西寫進對應的表。回傳寫入筆數。 */
   async function persist(resource, payload) {
     switch (resource) {
-      case 'sleep': return db.upsertSleeps(payload, { timezone, now });
-      case 'recovery': return db.upsertRecoveries(payload, { now });
-      case 'cycle': return db.upsertCycles(payload, { now });
-      case 'workout': return db.upsertWorkouts(payload, { timezone, now });
-      case 'body_measurement': return db.upsertBodyMeasurement(payload, { now });
+      case 'sleep': return db.upsertSleeps(uid, payload, { timezone, now });
+      case 'recovery': return db.upsertRecoveries(uid, payload, { now });
+      case 'cycle': return db.upsertCycles(uid, payload, { now });
+      case 'workout': return db.upsertWorkouts(uid, payload, { timezone, now });
+      case 'body_measurement': return db.upsertBodyMeasurement(uid, payload, { now });
       default: throw new Error(`未知的 resource：${resource}`);
     }
   }
@@ -67,7 +74,7 @@ export function createSync({ db, whoop, timezone, now = new Date() }) {
     const to = now;
     const from = new Date(now.getTime() - WHOOP_SYNC.INCREMENTAL_OVERLAP_DAYS * DAY_MS);
     const r = await syncWindow(resource, from.toISOString(), to.toISOString());
-    await db.saveSyncState(resource, {
+    await db.saveSyncState(uid, resource, {
       latestSynced: to.toISOString(),
       lastSuccessAt: to.toISOString(),
       lastError: null,
@@ -85,7 +92,7 @@ export function createSync({ db, whoop, timezone, now = new Date() }) {
    * 不會從頭再來。
    */
   async function backfill(resource) {
-    const state = (await db.getSyncState(resource)) ?? {};
+    const state = (await db.getSyncState(uid, resource)) ?? {};
     if (state.backfillComplete) return { resource, mode: 'backfill', status: 'already_complete' };
 
     const target = new Date(now.getTime() - WHOOP_SYNC.BACKFILL_DAYS * DAY_MS);
@@ -106,7 +113,7 @@ export function createSync({ db, whoop, timezone, now = new Date() }) {
       chunks += 1;
 
       // 每個 chunk 成功就存檔 —— 這就是 resume 的關鍵
-      await db.saveSyncState(resource, {
+      await db.saveSyncState(uid, resource, {
         backfillCursor: cursor.toISOString(),
         earliestSynced: cursor.toISOString(),
         lastSuccessAt: new Date().toISOString(),
@@ -120,7 +127,7 @@ export function createSync({ db, whoop, timezone, now = new Date() }) {
 
     const complete = cursor.getTime() <= target.getTime();
     if (complete) {
-      await db.saveSyncState(resource, { backfillComplete: true }, { now });
+      await db.saveSyncState(uid, resource, { backfillComplete: true }, { now });
       log.info('sync_backfill_complete', { resource, earliest: cursor.toISOString() });
     }
     return {
@@ -132,7 +139,7 @@ export function createSync({ db, whoop, timezone, now = new Date() }) {
   /** point-in-time resource（body measurement）沒有 backfill 的概念。 */
   async function syncPointInTime(resource) {
     const r = await syncWindow(resource, null, null);
-    await db.saveSyncState(resource, {
+    await db.saveSyncState(uid, resource, {
       backfillComplete: true,
       latestSynced: now.toISOString(),
       lastSuccessAt: now.toISOString(),
@@ -162,7 +169,7 @@ export function createSync({ db, whoop, timezone, now = new Date() }) {
     for (const resource of resources) {
       try {
         if (!force) {
-          const state = await db.getSyncState(resource);
+          const state = await db.getSyncState(uid, resource);
           const last = state?.lastSuccessAt ? Date.parse(state.lastSuccessAt) : 0;
           const dueForBackfill = state && !state.backfillComplete;
           if (
@@ -180,7 +187,7 @@ export function createSync({ db, whoop, timezone, now = new Date() }) {
         const scope = isScopeError(err);
         const detail = scope ? 'scope_missing' : describeError(err);
         try {
-          await db.saveSyncState(resource, {
+          await db.saveSyncState(uid, resource, {
             lastError: detail,
             lastErrorAt: new Date().toISOString(),
           }, { now });

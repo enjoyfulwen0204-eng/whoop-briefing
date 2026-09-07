@@ -19,9 +19,12 @@ function mondayMorning() {
   return d;
 }
 
-function ctxFor({ now, dataset, coach = fakeCoach(), telegram = fakeTelegram(), db = fakeDb() }) {
+const U = 'u-flow-test';
+
+function ctxFor({ now, dataset, coach = fakeCoach(), telegram = fakeTelegram(), db = fakeDb(), userId = U }) {
   return {
     db,
+    userId,
     telegram,
     coach,
     source: staticDataSource(dataset),
@@ -115,7 +118,7 @@ test('weekly：週一會發，且與 daily 各自獨立去重', async () => {
   assert.equal(weekly.status, 'sent');
   assert.equal(ctx.telegram.sent.length, 2);
   assert.match(ctx.telegram.sent[1], /上週回顧/);
-  assert.equal(await ctx.db.isSent('weekly', weekKey), true);
+  assert.equal(await ctx.db.isSent(U, 'weekly', weekKey), true);
 
   // weekly 再跑一次不會重複
   assert.equal((await runWeekly(ctx)).status, 'already_sent');

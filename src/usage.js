@@ -10,6 +10,7 @@
  */
 
 import { AI_PURPOSE, PRICING_VERSION, loadPricing } from './config.js';
+import { requireUserId } from './userContext.js';
 import { localDate } from './time.js';
 import { log } from './logger.js';
 
@@ -56,20 +57,34 @@ export function extractTokens(usage) {
  * 記一筆用量。**永遠不拋錯。**
  * db 沒有 recordAiUsage（舊 db shape）時安靜跳過。
  */
-export async function recordUsage(db, entry, { now = new Date() } = {}) {
+/**
+ * @param {?string} userId 使用者發起的用量**必填**；系統層用量明確傳 null。
+ *   不傳（undefined）視為實作錯誤 → 拋錯，避免把使用者流量誤記成系統用量。
+ */
+export async function recordUsage(db, userId, entry, { now = new Date() } = {}) {
+  // 沒有 db 就根本不記帳，所有權問題不存在（測試 / dry-run 常走這條）
   if (!db || typeof db.recordAiUsage !== 'function') return null;
+  // 有 db 卻沒明確指定所有者 → 實作錯誤。
+  // 絕不把使用者發起的流量默默記成系統用量。
+  if (userId === undefined) {
+    throw new Error(
+      'recordUsage 需要明確的 userId（使用者發起的用量必填；系統層用量請明確傳 null）',
+    );
+  }
+  const uid = userId === null ? null : requireUserId(userId, 'recordUsage');
   try {
     const cost = computeCost({
       model: entry.model,
       inputTokens: entry.inputTokens,
       outputTokens: entry.outputTokens,
     });
-    const id = await db.recordAiUsage({
+    const id = await db.recordAiUsage(uid, {
       ...entry,
       estimatedCostUsd: cost,
       pricingVersion: cost === null ? null : PRICING_VERSION,
     }, { now });
     log.info('ai_usage_recorded', {
+      user_id: uid,
       purpose: entry.purpose,
       model: entry.model,
       requested_model: entry.requestedModel,
@@ -141,7 +156,9 @@ function summariseRows(rows) {
  * /cost 用的摘要：今天 + 本月。
  * 沒有任何紀錄時回結構完整的空摘要（不是錯誤）。
  */
-export async function costSummary({ db, timezone, now = new Date() }) {
+/** @param {string} userId **必填**。/cost 只看自己的用量。 */
+export async function costSummary({ db, userId, timezone, now = new Date() }) {
+  const uid = requireUserId(userId, 'costSummary');
   const today = localDate(now, timezone);
   const monthStart = `${today.slice(0, 7)}-01`;
 
@@ -151,7 +168,7 @@ export async function costSummary({ db, timezone, now = new Date() }) {
   }
 
   try {
-    const monthRows = await db.getAiUsage({
+    const monthRows = await db.getAiUsage(uid, {
       fromIso: `${monthStart}T00:00:00.000Z`,
       toIso: `${today}T23:59:59.999Z`,
     });

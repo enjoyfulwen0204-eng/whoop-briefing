@@ -23,6 +23,7 @@ import { fakeDb, fakeTelegram, fakeCoach } from './fakes.js';
 
 const TZ = 'Asia/Taipei';
 const DAY = 86_400_000;
+const U = 'u-ins-test';
 
 function tempDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whoop-ins-'));
@@ -37,6 +38,7 @@ function tempDb() {
 test('★ 沒有健康資料表時，簡報與以前完全一樣（向後相容）', async () => {
   const ds = makeDataset({ days: 45 });
   const ctx = {
+    userId: U,
     db: fakeDb(), // fakeDb 沒有 getSleeps → insights 直接回 null
     telegram: fakeTelegram(),
     coach: fakeCoach(),
@@ -68,6 +70,7 @@ test('★ 分析層爆炸時，簡報照樣發（只是沒有那一段）', asyn
     getLatestBodyMeasurement: async () => { throw new Error('boom'); },
   };
   const ctx = {
+    userId: U,
     db: brokenDb,
     telegram: fakeTelegram(),
     coach: fakeCoach(),
@@ -96,7 +99,7 @@ test('★ 部分 DB 查詢失敗不會造成 unhandledRejection（會殺掉整�
     getWorkouts: slowFail(3),
     getLatestBodyMeasurement: slowFail(6),
   };
-  const rows = await loadDailyMetrics({ db, timezone: TZ, from: '2026-08-01', to: '2026-09-01' });
+  const rows = await loadDailyMetrics({ db, userId: U, timezone: TZ, from: '2026-08-01', to: '2026-09-01' });
   assert.deepEqual(rows, [], '沒有睡眠資料就是空的，但不可以爆炸');
   // 給那些「慢一步才 reject」的 promise 時間浮出來
   await new Promise((r) => { setTimeout(r, 30); });
@@ -111,13 +114,14 @@ test('必要資料（睡眠）查詢失敗時往外拋，由呼叫端決定', as
     getLatestBodyMeasurement: async () => null,
   };
   await assert.rejects(
-    () => loadDailyMetrics({ db, timezone: TZ, from: '2026-08-01', to: '2026-09-01' }),
+    () => loadDailyMetrics({ db, userId: U, timezone: TZ, from: '2026-08-01', to: '2026-09-01' }),
     /睡眠查詢失敗/,
   );
 });
 
 test('buildInsightsSafe 自己吞掉所有錯誤', async () => {
   const out = await buildInsightsSafe({
+    userId: U,
     db: {
       getSleeps: async () => { throw new Error('x'); },
       getRecoveries: async () => [],
@@ -133,6 +137,7 @@ test('buildInsightsSafe 自己吞掉所有錯誤', async () => {
 
 test('db 缺方法時直接跳過，不會留下沒人接的 rejection', async () => {
   const out = await buildInsightsSafe({
+    userId: U,
     db: { getSleeps: async () => { throw new Error('不該被呼叫'); } }, // 其他方法都沒有
     timezone: TZ,
     healthDate: '2026-09-01',
@@ -157,7 +162,7 @@ test('★ 有長期資料且今天明顯偏離 → 簡報出現「今天最值�
       workouts: async () => [],
       bodyMeasurement: async () => null,
     };
-    const sync = createSync({ db, whoop, timezone: TZ, now });
+    const sync = createSync({ db, whoop, userId: U, timezone: TZ, now });
     await sync.incremental('sleep');
     await sync.incremental('recovery');
     await sync.incremental('cycle');
@@ -174,6 +179,7 @@ test('★ 有長期資料且今天明顯偏離 → 簡報出現「今天最值�
     };
 
     const ctx = {
+      userId: U,
       db: hybrid,
       telegram: fakeTelegram(),
       coach: fakeCoach(),
@@ -211,13 +217,14 @@ test('資料很平穩時不會硬報「值得注意」（不製造雜訊）', as
       workouts: async () => [],
       bodyMeasurement: async () => null,
     };
-    const sync = createSync({ db, whoop, timezone: TZ, now });
+    const sync = createSync({ db, whoop, userId: U, timezone: TZ, now });
     await sync.incremental('sleep');
     await sync.incremental('recovery');
     await sync.incremental('cycle');
 
     const fake = fakeDb();
     const ctx = {
+      userId: U,
       db: {
         ...fake,
         getSleeps: db.getSleeps,
@@ -255,11 +262,12 @@ test('★ 長期資料只有幾天時不會亂報（樣本不足就不下結論�
       workouts: async () => [],
       bodyMeasurement: async () => null,
     };
-    const sync = createSync({ db, whoop, timezone: TZ, now });
+    const sync = createSync({ db, whoop, userId: U, timezone: TZ, now });
     await sync.incremental('sleep');
     await sync.incremental('recovery');
 
     const insights = await buildInsightsSafe({
+      userId: U,
       db, timezone: TZ, healthDate: localDate(new Date(now.getTime() - 3_600_000), TZ),
     });
     assert.ok(insights, '有資料就該回東西');

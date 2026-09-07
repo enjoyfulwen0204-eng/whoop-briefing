@@ -67,8 +67,10 @@ function fakeFetch({ usage = { prompt_tokens: 1000, completion_tokens: 500, tota
   };
 }
 
+const USER = { id: 'u-ledger-test', timezone: TZ };
+
 const routerFor = (db, coach = null) =>
-  createRouter({ db, coach, timezone: TZ, now: () => NOW });
+  createRouter({ db, coachFor: () => coach, now: () => NOW });
 
 // ===========================================================================
 // Phase AE — 用量與成本
@@ -126,12 +128,13 @@ test('★ AE: 真實 token 與成本會被寫進 ai_usage', async () => {
   try {
     const f = fakeFetch();
     const coach = createCoach({
+      userId: USER.id,
       apiKey: 'k', model: 'anthropic/claude-sonnet-5', db, env: {}, fetchImpl: f.impl,
     });
     const out = await coach.ask({ system: 's', user: 'u', purpose: AI_PURPOSE.QA });
     assert.equal(out, '好的');
 
-    const rows = await db.getAiUsage({ fromIso: '2000-01-01', toIso: '2100-01-01' });
+    const rows = await db.getAiUsage(USER.id, { fromIso: '2000-01-01', toIso: '2100-01-01' });
     assert.equal(rows.length, 1);
     const r = rows[0];
     assert.equal(r.purpose, 'QA');
@@ -150,11 +153,12 @@ test('★ AE: provider 沒回 usage → token 與 cost 都記 null，不猜', as
   try {
     const f = fakeFetch({ usage: null });
     const coach = createCoach({
+      userId: USER.id,
       apiKey: 'k', model: 'anthropic/claude-sonnet-5', db, env: {}, fetchImpl: f.impl,
     });
     await coach.ask({ system: 's', user: 'u' });
 
-    const r = (await db.getAiUsage({ fromIso: '2000-01-01', toIso: '2100-01-01' }))[0];
+    const r = (await db.getAiUsage(USER.id, { fromIso: '2000-01-01', toIso: '2100-01-01' }))[0];
     assert.equal(r.input_tokens, null);
     assert.equal(r.total_tokens, null);
     assert.equal(r.estimated_cost_usd, null, '★ 沒有 token 就不可以有成本');
@@ -165,6 +169,7 @@ test('AE: 呼叫失敗也會記一筆 FAILED', async () => {
   const { db, cleanup } = await freshDb();
   try {
     const coach = createCoach({
+      userId: USER.id,
       apiKey: 'k', model: 'anthropic/claude-sonnet-5', db, env: {},
       maxRetries: 1, backoffFor: () => 1,
       fetchImpl: async () => new Response(JSON.stringify({ error: { message: 'boom' } }), {
@@ -173,7 +178,7 @@ test('AE: 呼叫失敗也會記一筆 FAILED', async () => {
     });
     assert.equal(await coach.ask({ system: 's', user: 'u' }), null, 'ask 失敗回 null');
 
-    const r = (await db.getAiUsage({ fromIso: '2000-01-01', toIso: '2100-01-01' }))[0];
+    const r = (await db.getAiUsage(USER.id, { fromIso: '2000-01-01', toIso: '2100-01-01' }))[0];
     assert.equal(r.request_status, 'FAILED');
     assert.equal(r.estimated_cost_usd, null);
   } finally { db.close(); cleanup(); }
@@ -183,6 +188,7 @@ test('★ AE: 帳本寫入失敗不影響回覆（主功能優先）', async () 
   const brokenDb = { recordAiUsage: async () => { throw new Error('DB 爆炸'); } };
   const f = fakeFetch();
   const coach = createCoach({
+      userId: USER.id,
     apiKey: 'k', model: 'anthropic/claude-sonnet-5', db: brokenDb, env: {}, fetchImpl: f.impl,
   });
   assert.equal(await coach.ask({ system: 's', user: 'u' }), '好的', '★ 記帳壞掉還是要回答');
@@ -236,6 +242,7 @@ test('★ AF: 指定模型不可用 → 退回預設模型，且只退一次', a
   try {
     const f = fakeFetch({ failFor: 'broken/model' });
     const coach = createCoach({
+      userId: USER.id,
       apiKey: 'k', model: 'anthropic/claude-sonnet-5', db,
       env: { MODEL_QA: 'broken/model' },
       fetchImpl: f.impl, maxRetries: 1, backoffFor: () => 1,
@@ -243,7 +250,7 @@ test('★ AF: 指定模型不可用 → 退回預設模型，且只退一次', a
     const out = await coach.ask({ system: 's', user: 'u', purpose: AI_PURPOSE.QA });
     assert.equal(out, '好的', '退回預設模型後應該成功');
 
-    const r = (await db.getAiUsage({ fromIso: '2000-01-01', toIso: '2100-01-01' }))[0];
+    const r = (await db.getAiUsage(USER.id, { fromIso: '2000-01-01', toIso: '2100-01-01' }))[0];
     assert.equal(r.requested_model, 'broken/model', '★ 要記下原本想用哪個');
     assert.equal(Number(r.fallback_occurred), 1, '★ 要標記發生過 fallback');
     assert.equal(r.model, 'anthropic/claude-sonnet-5', '實際跑的是預設模型');
@@ -262,6 +269,7 @@ test('★ AG: 每個用途都有自己的 prompt 版本，並寫進帳本', asyn
   try {
     const f = fakeFetch({ content: '{"intent":"today_status"}' });
     const coach = createCoach({
+      userId: USER.id,
       apiKey: 'k', model: 'anthropic/claude-sonnet-5', db, env: {}, fetchImpl: f.impl,
     });
     await coach.ask({ system: 's', user: 'u', purpose: AI_PURPOSE.QA });
@@ -270,7 +278,7 @@ test('★ AG: 每個用途都有自己的 prompt 版本，並寫進帳本', asyn
       purpose: AI_PURPOSE.JOURNAL_PARSE, promptVersion: PROMPT_VERSIONS.JOURNAL_PARSE,
     });
 
-    const rows = await db.getAiUsage({ fromIso: '2000-01-01', toIso: '2100-01-01' });
+    const rows = await db.getAiUsage(USER.id, { fromIso: '2000-01-01', toIso: '2100-01-01' });
     const byPurpose = Object.fromEntries(rows.map((r) => [r.purpose, r.prompt_version]));
     assert.equal(byPurpose.QA, 'qa-v1');
     assert.equal(byPurpose.JOURNAL_PARSE, 'journal-parser-v1');
@@ -282,13 +290,14 @@ test('AG: daily / weekly 也帶版本（prompt 內容未變）', async () => {
   try {
     const f = fakeFetch();
     const coach = createCoach({
+      userId: USER.id,
       apiKey: 'k', model: 'anthropic/claude-sonnet-5', db, env: {}, fetchImpl: f.impl,
     });
     await coach.daily({
       localDate: '2026-09-01', stage: 'cold', sampleCount: 0, metrics: [],
       trends: { enabled: false, alerts: [] },
     });
-    const r = (await db.getAiUsage({ fromIso: '2000-01-01', toIso: '2100-01-01' }))[0];
+    const r = (await db.getAiUsage(USER.id, { fromIso: '2000-01-01', toIso: '2100-01-01' }))[0];
     assert.equal(r.purpose, 'DAILY');
     assert.equal(r.prompt_version, 'daily-v1');
   } finally { db.close(); cleanup(); }
@@ -397,7 +406,7 @@ test('AC: trend / deviation → card', () => {
 test('★ AC: 沒有任何證據時明講，不編', async () => {
   const { db, cleanup } = await freshDb();
   try {
-    const r = await getEvidence({ db, now: NOW });
+    const r = await getEvidence({ db, userId: USER.id, now: NOW });
     assert.equal(r.available, false);
     assert.deepEqual(r.cards, []);
     assert.match(r.note, /還沒有累積足夠的資料/);
@@ -410,13 +419,13 @@ test('★ AC: 沒有任何證據時明講，不編', async () => {
 test('AC: 有 insight 時 getEvidence 會回出來', async () => {
   const { db, cleanup } = await freshDb();
   try {
-    await recordInsight(db, {
+    await recordInsight(db, USER.id, {
       insightType: 'association', subject: 'alcohol->recovery',
       statement: '喝酒隔天恢復偏低', evidence: { pearson: -0.5 },
       sampleCount: 45, effectSize: 0.7,
     }, { now: NOW });
 
-    const r = await getEvidence({ db, now: NOW });
+    const r = await getEvidence({ db, userId: USER.id, now: NOW });
     assert.equal(r.available, true);
     assert.equal(r.cards.length, 1);
     assert.equal(r.cards[0].sample_count, 45);
@@ -434,7 +443,7 @@ test('AC: 有 insight 時 getEvidence 會回出來', async () => {
 test('★ AD: /help 不會把沒資料的分析講成已經可用', async () => {
   const { db, cleanup } = await freshDb();
   try {
-    const reply = await routerFor(db).handle({ text: '/help', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/help', chatId: CHAT, user: USER });
     assert.match(reply, /現在就能用/);
     assert.match(reply, /還不能用（等 WHOOP 資料）/);
     assert.match(reply, /健康問答 —— 目前沒有任何生理資料可以分析/);
@@ -446,7 +455,7 @@ test('★ AD: /help 不會把沒資料的分析講成已經可用', async () => 
 test('★ AD: /status 沒有 WHOOP 也正常', async () => {
   const { db, cleanup } = await freshDb();
   try {
-    const reply = await routerFor(db).handle({ text: '/status', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/status', chatId: CHAT, user: USER });
     assert.match(reply, /Bot：✅ 運作中/);
     assert.match(reply, /WHOOP 資料：尚未開始/);
     assert.match(reply, /授權：尚未授權/);
@@ -460,7 +469,7 @@ test('★ AD: /status 沒有 WHOOP 也正常', async () => {
 test('AD: /journal 空的時候給明確訊息', async () => {
   const { db, cleanup } = await freshDb();
   try {
-    const reply = await routerFor(db).handle({ text: '/journal', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/journal', chatId: CHAT, user: USER });
     assert.match(reply, /目前沒有 Journal 紀錄/);
     assert.match(reply, /\/log/);
   } finally { db.close(); cleanup(); }
@@ -470,10 +479,10 @@ test('AD: /journal 有資料時依日期分組，支援天數參數', async () =
   const { db, cleanup } = await freshDb();
   try {
     const r = routerFor(db);
-    await r.handle({ text: '/log alcohol 3 drinks', chatId: CHAT });
-    await r.handle({ text: '/log caffeine 2 coffee', chatId: CHAT });
+    await r.handle({ text: '/log alcohol 3 drinks', chatId: CHAT, user: USER });
+    await r.handle({ text: '/log caffeine 2 coffee', chatId: CHAT, user: USER });
 
-    const reply = await r.handle({ text: '/journal 7', chatId: CHAT });
+    const reply = await r.handle({ text: '/journal 7', chatId: CHAT, user: USER });
     assert.match(reply, /最近 7 天的記錄（2 筆）/);
     assert.match(reply, /alcohol/);
     assert.match(reply, /caffeine/);
@@ -484,7 +493,7 @@ test('AD: /journal 有資料時依日期分組，支援天數參數', async () =
 test('★ AD: /insights 空的時候不假裝有規律', async () => {
   const { db, cleanup } = await freshDb();
   try {
-    const reply = await routerFor(db).handle({ text: '/insights', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/insights', chatId: CHAT, user: USER });
     assert.match(reply, /目前資料還不足以形成長期規律/);
     assert.ok(!/effect size/.test(reply));
   } finally { db.close(); cleanup(); }
@@ -493,20 +502,20 @@ test('★ AD: /insights 空的時候不假裝有規律', async () => {
 test('AD: /insights 不顯示 RETIRED，history 可看版本鏈', async () => {
   const { db, cleanup } = await freshDb();
   try {
-    const { id } = await recordInsight(db, {
+    const { id } = await recordInsight(db, USER.id, {
       insightType: 'association', subject: 's', statement: '第一版說法',
       sampleCount: 15, effectSize: 0.6,
     }, { now: NOW });
     const { reviseInsight } = await import('../src/healthMemory.js');
-    await reviseInsight(db, id, {
+    await reviseInsight(db, USER.id, id, {
       statement: '第二版說法', sampleCount: 45, effectSize: 0.8,
     }, { now: NOW });
 
-    const reply = await routerFor(db).handle({ text: '/insights', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/insights', chatId: CHAT, user: USER });
     assert.match(reply, /第二版說法/);
     assert.ok(!reply.includes('第一版說法'), '★ RETIRED 的不顯示');
 
-    const hist = await routerFor(db).handle({ text: '/insights history', chatId: CHAT });
+    const hist = await routerFor(db).handle({ text: '/insights history', chatId: CHAT, user: USER });
     assert.match(hist, /第一版說法/, 'history 要看得到舊版本');
   } finally { db.close(); cleanup(); }
 });
@@ -514,7 +523,7 @@ test('AD: /insights 不顯示 RETIRED，history 可看版本鏈', async () => {
 test('★ AD: /predictions 資料不足時絕不給預測數字', async () => {
   const { db, cleanup } = await freshDb();
   try {
-    const reply = await routerFor(db).handle({ text: '/predictions', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/predictions', chatId: CHAT, user: USER });
     assert.match(reply, /INSUFFICIENT_DATA/);
     assert.match(reply, /目前可用樣本：0 筆/);
     assert.match(reply, /最低需求：30 筆/);
@@ -525,7 +534,7 @@ test('★ AD: /predictions 資料不足時絕不給預測數字', async () => {
 test('★ AD: /cost 空的時候顯示沒有紀錄', async () => {
   const { db, cleanup } = await freshDb();
   try {
-    const reply = await routerFor(db).handle({ text: '/cost', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/cost', chatId: CHAT, user: USER });
     assert.match(reply, /AI 使用成本/);
     assert.match(reply, /（沒有呼叫紀錄）/);
   } finally { db.close(); cleanup(); }
@@ -535,20 +544,20 @@ test('AD: /cost 有紀錄時分組顯示，未知成本明講 cost unavailable',
   const { db, cleanup } = await freshDb();
   try {
     // 一筆有 token、一筆沒有
-    await db.recordAiUsage({
+    await db.recordAiUsage(USER.id, {
       timestamp: NOW.toISOString(), provider: 'openrouter',
       model: 'anthropic/claude-sonnet-5', purpose: 'QA', promptVersion: 'qa-v1',
       inputTokens: 1000, outputTokens: 500, totalTokens: 1500,
       estimatedCostUsd: 0.0105, pricingVersion: 'x', requestStatus: 'OK', latencyMs: 100,
     });
-    await db.recordAiUsage({
+    await db.recordAiUsage(USER.id, {
       timestamp: NOW.toISOString(), provider: 'openrouter',
       model: 'unknown/model', purpose: 'JOURNAL_PARSE', promptVersion: 'journal-parser-v1',
       inputTokens: null, outputTokens: null, totalTokens: null,
       estimatedCostUsd: null, requestStatus: 'OK', latencyMs: 50,
     });
 
-    const summary = await costSummary({ db, timezone: TZ, now: NOW });
+    const summary = await costSummary({ db, userId: USER.id, timezone: TZ, now: NOW });
     assert.equal(summary.available, true);
     assert.equal(summary.todaySummary.calls, 2);
     assert.equal(summary.todaySummary.calls_with_unknown_cost, 1);
@@ -565,11 +574,11 @@ test('AD: /evidence 與自然語言「證據呢？」都能觸發', async () => 
   const { db, cleanup } = await freshDb();
   try {
     const r = routerFor(db);
-    const a = await r.handle({ text: '/evidence', chatId: CHAT });
+    const a = await r.handle({ text: '/evidence', chatId: CHAT, user: USER });
     assert.match(a, /目前的證據/);
 
     for (const q of ['證據呢？', '你憑什麼這樣說？', '樣本多少？', '這個結論可信嗎？']) {
-      const reply = await r.handle({ text: q, chatId: CHAT });
+      const reply = await r.handle({ text: q, chatId: CHAT, user: USER });
       assert.match(reply, /目前的證據/, `「${q}」應該觸發 evidence`);
     }
   } finally { db.close(); cleanup(); }
@@ -584,22 +593,22 @@ test('★ AD: /experiment 完整流程 —— create 五步 → list → status 
   try {
     const r = routerFor(db);
 
-    const start = await r.handle({ text: '/experiment create', chatId: CHAT });
+    const start = await r.handle({ text: '/experiment create', chatId: CHAT, user: USER });
     assert.match(start, /（1\/5）/);
     assert.match(start, /叫什麼名字/);
 
-    assert.match(await r.handle({ text: '睡前不喝咖啡', chatId: CHAT }), /（2\/5）/);
-    assert.match(await r.handle({ text: '深睡會變多', chatId: CHAT }), /（3\/5）/);
-    assert.match(await r.handle({ text: '14:00 後不喝咖啡因', chatId: CHAT }), /（4\/5）/);
+    assert.match(await r.handle({ text: '睡前不喝咖啡', chatId: CHAT, user: USER }), /（2\/5）/);
+    assert.match(await r.handle({ text: '深睡會變多', chatId: CHAT, user: USER }), /（3\/5）/);
+    assert.match(await r.handle({ text: '14:00 後不喝咖啡因', chatId: CHAT, user: USER }), /（4\/5）/);
 
     // 不認得的指標要重問，不推進
-    const badMetric = await r.handle({ text: '心情', chatId: CHAT });
+    const badMetric = await r.handle({ text: '心情', chatId: CHAT, user: USER });
     assert.match(badMetric, /我不認得/);
     assert.match(badMetric, /（4\/5）/, '★ 不合法時不可以推進步驟');
 
-    assert.match(await r.handle({ text: '深睡', chatId: CHAT }), /（5\/5）/);
+    assert.match(await r.handle({ text: '深睡', chatId: CHAT, user: USER }), /（5\/5）/);
 
-    const done = await r.handle({ text: '21', chatId: CHAT });
+    const done = await r.handle({ text: '21', chatId: CHAT, user: USER });
     assert.match(done, /實驗已建立並開始/);
     assert.match(done, /睡前不喝咖啡/);
     assert.match(done, /deep_sleep/);
@@ -608,17 +617,17 @@ test('★ AD: /experiment 完整流程 —— create 五步 → list → status 
     // pending 已清空
     assert.equal(await db.getOpenPendingQuestion(CHAT, { now: NOW }), null);
 
-    const list = await r.handle({ text: '/experiment list', chatId: CHAT });
+    const list = await r.handle({ text: '/experiment list', chatId: CHAT, user: USER });
     assert.match(list, /睡前不喝咖啡/);
     assert.match(list, /RUNNING/);
 
-    const status = await r.handle({ text: '/experiment status', chatId: CHAT });
+    const status = await r.handle({ text: '/experiment status', chatId: CHAT, user: USER });
     assert.match(status, /睡前不喝咖啡/);
     assert.match(status, /資料還不夠/, '★ 沒有健康資料時不可以生成結果');
 
-    const stopped = await r.handle({ text: '/experiment stop', chatId: CHAT });
+    const stopped = await r.handle({ text: '/experiment stop', chatId: CHAT, user: USER });
     assert.match(stopped, /已結束/);
-    const after = await db.listExperiments({});
+    const after = await db.listExperiments(USER.id, {});
     assert.equal(after[0].status, 'COMPLETED');
   } finally { db.close(); cleanup(); }
 });
@@ -627,18 +636,18 @@ test('AD: /experiment create 中途可以取消', async () => {
   const { db, cleanup } = await freshDb();
   try {
     const r = routerFor(db);
-    await r.handle({ text: '/experiment create', chatId: CHAT });
-    const cancelled = await r.handle({ text: '取消', chatId: CHAT });
+    await r.handle({ text: '/experiment create', chatId: CHAT, user: USER });
+    const cancelled = await r.handle({ text: '取消', chatId: CHAT, user: USER });
     assert.match(cancelled, /先不建立/);
     assert.equal(await db.getOpenPendingQuestion(CHAT, { now: NOW }), null);
-    assert.equal((await db.listExperiments({})).length, 0);
+    assert.equal((await db.listExperiments(USER.id, {})).length, 0);
   } finally { db.close(); cleanup(); }
 });
 
 test('AD: /experiment 沒有子指令時顯示用法', async () => {
   const { db, cleanup } = await freshDb();
   try {
-    const reply = await routerFor(db).handle({ text: '/experiment', chatId: CHAT });
+    const reply = await routerFor(db).handle({ text: '/experiment', chatId: CHAT, user: USER });
     assert.match(reply, /experiment create/);
     assert.match(reply, /experiment list/);
   } finally { db.close(); cleanup(); }
@@ -648,11 +657,11 @@ test('AD: /experiment status 沒有實驗時不會爆', async () => {
   const { db, cleanup } = await freshDb();
   try {
     assert.match(
-      await routerFor(db).handle({ text: '/experiment status', chatId: CHAT }),
+      await routerFor(db).handle({ text: '/experiment status', chatId: CHAT, user: USER }),
       /目前沒有任何實驗/,
     );
     assert.match(
-      await routerFor(db).handle({ text: '/experiment stop', chatId: CHAT }),
+      await routerFor(db).handle({ text: '/experiment stop', chatId: CHAT, user: USER }),
       /沒有進行中的實驗/,
     );
   } finally { db.close(); cleanup(); }

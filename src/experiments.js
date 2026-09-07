@@ -9,6 +9,7 @@
  */
 
 import { mean, median, stddev } from './analytics/statistics.js';
+import { requireUserId } from './userContext.js';
 import { seriesOf } from './dailyMetrics.js';
 import { log } from './logger.js';
 
@@ -21,31 +22,34 @@ export const EXPERIMENT_STATUS = {
 
 export const MIN_PERIOD_DAYS = 5;
 
-export async function createExperiment(db, spec, { now = new Date() } = {}) {
+export async function createExperiment(db, userId, spec, { now = new Date() } = {}) {
+  const uid = requireUserId(userId, 'createExperiment');
   if (!spec?.name) return { ok: false, error: 'name_required' };
   if (!Array.isArray(spec.targetMetrics) || !spec.targetMetrics.length) {
     return { ok: false, error: 'target_metrics_required' };
   }
-  const id = await db.createExperiment({ ...spec, status: EXPERIMENT_STATUS.DRAFT }, { now });
+  const id = await db.createExperiment(uid, { ...spec, status: EXPERIMENT_STATUS.DRAFT }, { now });
   return { ok: true, id };
 }
 
-export async function startExperiment(db, id, { startDate, baselineStart, baselineEnd, now = new Date() } = {}) {
-  const exp = await db.getExperiment(id);
+export async function startExperiment(db, userId, id, { startDate, baselineStart, baselineEnd, now = new Date() } = {}) {
+  const uid = requireUserId(userId, 'startExperiment');
+  const exp = await db.getExperiment(uid, id);
   if (!exp) return { ok: false, error: 'not_found' };
   if (exp.status !== EXPERIMENT_STATUS.DRAFT) return { ok: false, error: `cannot_start_from_${exp.status}` };
-  await db.updateExperiment(id, {
+  await db.updateExperiment(uid, id, {
     status: EXPERIMENT_STATUS.RUNNING, startDate, baselineStart, baselineEnd,
   }, { now });
   log.info('experiment_started', { id, start_date: startDate });
   return { ok: true };
 }
 
-export async function completeExperiment(db, id, { endDate, now = new Date() } = {}) {
-  const exp = await db.getExperiment(id);
+export async function completeExperiment(db, userId, id, { endDate, now = new Date() } = {}) {
+  const uid = requireUserId(userId, 'completeExperiment');
+  const exp = await db.getExperiment(uid, id);
   if (!exp) return { ok: false, error: 'not_found' };
   if (exp.status !== EXPERIMENT_STATUS.RUNNING) return { ok: false, error: `cannot_complete_from_${exp.status}` };
-  await db.updateExperiment(id, { status: EXPERIMENT_STATUS.COMPLETED, endDate }, { now });
+  await db.updateExperiment(uid, id, { status: EXPERIMENT_STATUS.COMPLETED, endDate }, { now });
   log.info('experiment_completed', { id, end_date: endDate });
   return { ok: true };
 }
@@ -133,10 +137,11 @@ export function analyseExperimentData({ rows, experiment }) {
   return { ...base, ok: true, metrics };
 }
 
-export async function analyzeExperiment(db, id, rows, { now = new Date() } = {}) {
-  const exp = await db.getExperiment(id);
+export async function analyzeExperiment(db, userId, id, rows, { now = new Date() } = {}) {
+  const uid = requireUserId(userId, 'analyzeExperiment');
+  const exp = await db.getExperiment(uid, id);
   if (!exp) return { ok: false, error: 'not_found' };
   const result = analyseExperimentData({ rows, experiment: exp });
-  await db.updateExperiment(id, { result }, { now });
+  await db.updateExperiment(uid, id, { result }, { now });
   return result;
 }

@@ -27,6 +27,7 @@ import {
 } from './analyze.js';
 import { localDate, localTime } from './time.js';
 import { log } from './logger.js';
+import { requireUserId } from './userContext.js';
 
 const MIN_MS = 60_000;
 
@@ -302,7 +303,12 @@ export function computeDailyMetrics({
  * 現在：睡眠是唯一的必要資料，它失敗就往外拋（呼叫端已包 try/catch）；
  * 其餘任何一個失敗都只是那部分沒有值，不影響其他欄位。
  */
-export async function loadDailyMetrics({ db, timezone, from, to, fromIso, toIso }) {
+/**
+ * @param {string} userId **必填**。所有資料讀取都限定這個使用者。
+ * @param {string} timezone 該使用者的時區。
+ */
+export async function loadDailyMetrics({ db, userId, timezone, from, to, fromIso, toIso }) {
+  const uid = requireUserId(userId, 'loadDailyMetrics');
   const startIso = fromIso ?? `${from}T00:00:00.000Z`;
   const endIso = toIso ?? `${to}T23:59:59.999Z`;
   // cycle / workout 用時間戳篩，而且要比 health_date 區間再往前一天，
@@ -310,17 +316,18 @@ export async function loadDailyMetrics({ db, timezone, from, to, fromIso, toIso 
   const padStart = new Date(Date.parse(startIso) - 2 * 86_400_000).toISOString();
 
   const settled = await Promise.allSettled([
-    db.getSleeps({ from, to, includeNaps: true }),
-    db.getRecoveries({ from, to }),
-    db.getCycles({ fromIso: padStart, toIso: endIso }),
-    db.getWorkouts({ fromIso: padStart, toIso: endIso }),
-    db.getLatestBodyMeasurement(),
+    db.getSleeps(uid, { from, to, includeNaps: true }),
+    db.getRecoveries(uid, { from, to }),
+    db.getCycles(uid, { fromIso: padStart, toIso: endIso }),
+    db.getWorkouts(uid, { fromIso: padStart, toIso: endIso }),
+    db.getLatestBodyMeasurement(uid),
   ]);
 
   const names = ['sleeps', 'recoveries', 'cycles', 'workouts', 'bodyMeasurement'];
   const value = (i, fallback) => {
     if (settled[i].status === 'fulfilled') return settled[i].value ?? fallback;
     log.warn('daily_metrics_partial_failure', {
+      user_id: uid,
       part: names[i],
       error: String(settled[i].reason?.message ?? settled[i].reason).slice(0, 200),
     });

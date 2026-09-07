@@ -31,8 +31,8 @@ export const STEPS = [
 const SKIP = /^(跳過|skip|無|沒有|-)$/i;
 
 /** 開始建立流程。 */
-export async function beginCreate({ db, chatId, now }) {
-  await db.openPendingQuestion({
+export async function beginCreate({ db, userId, chatId, now }) {
+  await db.openPendingQuestion(userId, {
     chatId,
     originalMessage: '/experiment create',
     question: STEPS[0].question,
@@ -47,12 +47,12 @@ export async function beginCreate({ db, chatId, now }) {
  * 收到使用者對某一步的回答。
  * @returns {?string} 回覆文字；不是這個 flow 就回 null
  */
-export async function handleStep({ db, pending, text, now, timezone }) {
+export async function handleStep({ db, userId, pending, text, now, timezone }) {
   const ctx = pending.context;
   if (ctx?.flow !== FLOW) return null;
 
   if (/^(取消|cancel|算了)$/i.test(text.trim())) {
-    await db.cancelPendingQuestion(pending.id);
+    await db.cancelPendingQuestion(userId, pending.id);
     return '好，這個實驗先不建立了。';
   }
 
@@ -84,8 +84,8 @@ export async function handleStep({ db, pending, text, now, timezone }) {
   // --- 還有下一步 ---
   const nextIndex = stepIndex + 1;
   if (nextIndex < STEPS.length) {
-    await db.resolvePendingQuestion(pending.id, answer, { now });
-    await db.openPendingQuestion({
+    await db.resolvePendingQuestion(userId, pending.id, answer, { now });
+    await db.openPendingQuestion(userId, {
       chatId: pending.chatId,
       originalMessage: '/experiment create',
       question: STEPS[nextIndex].question,
@@ -97,10 +97,10 @@ export async function handleStep({ db, pending, text, now, timezone }) {
   }
 
   // --- 全部問完 → 建立並啟動 ---
-  await db.resolvePendingQuestion(pending.id, answer, { now });
+  await db.resolvePendingQuestion(userId, pending.id, answer, { now });
 
   const today = localDate(now, timezone);
-  const created = await createExperiment(db, {
+  const created = await createExperiment(db, userId, {
     name: data.name || '未命名實驗',
     hypothesis: data.hypothesis,
     intervention: data.intervention,
@@ -113,7 +113,7 @@ export async function handleStep({ db, pending, text, now, timezone }) {
   // baseline 取實驗開始前同樣長度的一段
   const baselineEnd = addDays(today, -1);
   const baselineStart = addDays(baselineEnd, -(data.duration_days - 1));
-  await startExperiment(db, created.id, {
+  await startExperiment(db, userId, created.id, {
     startDate: today,
     baselineStart,
     baselineEnd,
@@ -138,8 +138,8 @@ export async function handleStep({ db, pending, text, now, timezone }) {
 }
 
 /** /experiment list */
-export async function renderList(db) {
-  const all = await db.listExperiments({});
+export async function renderList(db, userId) {
+  const all = await db.listExperiments(userId, {});
   if (!all.length) {
     return '目前沒有任何實驗。用 /experiment create 建立一個。';
   }
@@ -155,8 +155,8 @@ export async function renderList(db) {
 }
 
 /** /experiment status [id] */
-export async function renderStatus({ db, rows, id, timezone, now }) {
-  const list = await db.listExperiments({});
+export async function renderStatus({ db, userId, rows, id, timezone, now }) {
+  const list = await db.listExperiments(userId, {});
   const exp = id
     ? list.find((e) => Number(e.id) === Number(id))
     : list.find((e) => e.status === EXPERIMENT_STATUS.RUNNING) ?? list[0];
@@ -208,13 +208,13 @@ export async function renderStatus({ db, rows, id, timezone, now }) {
 }
 
 /** /experiment stop [id] */
-export async function stopExperiment({ db, id, timezone, now }) {
-  const list = await db.listExperiments({ status: EXPERIMENT_STATUS.RUNNING });
+export async function stopExperiment({ db, userId, id, timezone, now }) {
+  const list = await db.listExperiments(userId, { status: EXPERIMENT_STATUS.RUNNING });
   const exp = id ? list.find((e) => Number(e.id) === Number(id)) : list[0];
   if (!exp) return '目前沒有進行中的實驗。';
 
   const today = localDate(now, timezone);
-  const r = await completeExperiment(db, Number(exp.id), { endDate: today, now });
+  const r = await completeExperiment(db, userId, Number(exp.id), { endDate: today, now });
   if (!r.ok) return `無法結束：${r.error}`;
   return `✅ 實驗 #${exp.id}「${exp.name}」已結束（${exp.start_date} ～ ${today}）。\n用 /experiment status ${exp.id} 看前後對照結果。`;
 }

@@ -7,6 +7,7 @@
  */
 
 import { ERROR_NOTIFY_COOLDOWN_HOURS, TELEGRAM_MAX_CHARS } from './config.js';
+import { GLOBAL_SCOPE } from './schema.js';
 import { clamp } from './format.js';
 import { log, describeError } from './logger.js';
 
@@ -17,7 +18,15 @@ export class TelegramError extends Error {
   }
 }
 
-export function createTelegram({ botToken, chatId, dryRun = false, fetchImpl = fetch, db = null }) {
+/**
+ * @param {?string} errorScope 錯誤通知冷卻的 scope。
+ *   'global'（預設）= 基礎設施故障；`user:<userId>` = 某個使用者的帳號問題。
+ *   分開才不會讓 Alice 的 WHOOP token 過期壓抑掉 Bob 的同類通知。
+ */
+export function createTelegram({
+  botToken, chatId, dryRun = false, fetchImpl = fetch, db = null,
+  errorScope = GLOBAL_SCOPE,
+}) {
   async function send(text) {
     // 共用同一個 clamp（format.js），不再各自實作一份
     const body = clamp(text);
@@ -68,9 +77,11 @@ export function createTelegram({ botToken, chatId, dryRun = false, fetchImpl = f
   async function notifyError(errorType, message) {
     try {
       if (db) {
-        const allowed = await db.claimErrorNotify(errorType, ERROR_NOTIFY_COOLDOWN_HOURS);
+        const allowed = await db.claimErrorNotify(
+          errorScope, errorType, ERROR_NOTIFY_COOLDOWN_HOURS,
+        );
         if (!allowed) {
-          log.info('error_notify_suppressed', { error_type: errorType });
+          log.info('error_notify_suppressed', { scope: errorScope, error_type: errorType });
           return false;
         }
       }
@@ -78,7 +89,9 @@ export function createTelegram({ botToken, chatId, dryRun = false, fetchImpl = f
       return true;
     } catch (err) {
       // 不遞迴：Telegram 出錯就只留 log
-      log.error('error_notify_failed', { error_type: errorType, error: describeError(err) });
+      log.error('error_notify_failed', {
+        scope: errorScope, error_type: errorType, error: describeError(err),
+      });
       return false;
     }
   }

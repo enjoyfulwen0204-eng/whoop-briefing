@@ -102,7 +102,7 @@ test('Telegram 掛掉 → 回 failed 但不拋錯（不能影響簡報）', asyn
 });
 
 test('DB 掛掉 → 回 failed 但不拋錯', async () => {
-  const db = { ...fakeDb(), claimErrorNotify: async () => { throw new Error('Turso 掛了'); } };
+  const db = { ...fakeDb(), claimGlobalErrorNotify: async () => { throw new Error('Turso 掛了'); } };
   const res = await checkRepoFreshness({
     db, telegram: fakeTelegram(), now: NOW, lastCommitAt: agoDays(56),
   });

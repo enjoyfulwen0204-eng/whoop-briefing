@@ -87,8 +87,9 @@ function tokenDb({ expiresInMs = 3600_000, failSaves = 0 } = {}) {
       expiresAt: new Date(Date.now() + expiresInMs),
       scope: WHOOP.SCOPES,
     },
-    async getTokens() { return this.tokens; },
-    async saveTokens(t) {
+    async getTokens(userId) { if (!userId) throw new Error('MissingUserIdError'); return this.tokens; },
+    async saveTokens(userId, t) {
+      if (!userId) throw new Error('MissingUserIdError');
       if (saveFailures > 0) {
         saveFailures -= 1;
         throw new Error('模擬 Turso 寫入失敗');
@@ -100,6 +101,7 @@ function tokenDb({ expiresInMs = 3600_000, failSaves = 0 } = {}) {
 }
 
 const NO_BACKOFF = () => 1;
+const U = 'u-whoop-test';
 
 test('access token 還有效（>5 分鐘）→ 直接重用，完全不打 token endpoint', async () => {
   const api = await mockWhoop({
@@ -108,7 +110,7 @@ test('access token 還有效（>5 分鐘）→ 直接重用，完全不打 token
   const db = tokenDb({ expiresInMs: 30 * 60_000 });
   try {
     const whoop = createWhoopClient({
-      db, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
+      db, userId: U, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
     });
     const out = await whoop.collect('/recovery');
     assert.equal(out.length, 1);
@@ -127,10 +129,10 @@ test('剩不到 5 分鐘 → refresh，且「先寫回 DB」才去撈資料', as
   const db = tokenDb({ expiresInMs: 4 * 60_000 });
   const order = [];
   const origSave = db.saveTokens.bind(db);
-  db.saveTokens = async (t) => { order.push('save'); return origSave(t); };
+  db.saveTokens = async (userId, t) => { order.push('save'); return origSave(userId, t); };
   try {
     const whoop = createWhoopClient({
-      db, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
+      db, userId: U, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
     });
     const out = await whoop.collect('/recovery');
     order.push('fetch');
@@ -162,7 +164,7 @@ test('DB 寫入一直失敗 → 中止，不會用新 token 去撈資料（避�
   const db = tokenDb({ expiresInMs: 60_000, failSaves: 99 });
   try {
     const whoop = createWhoopClient({
-      db, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
+      db, userId: U, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
     });
     await assert.rejects(() => whoop.collect('/recovery'), /模擬 Turso 寫入失敗|寫入/);
     assert.ok(!api.calls.some((c) => c.path === '/recovery'), '不該在 token 沒存好時撈資料');
@@ -182,7 +184,7 @@ test('平行請求時只 refresh 一次', async () => {
   const db = tokenDb({ expiresInMs: 30_000 });
   try {
     const whoop = createWhoopClient({
-      db, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
+      db, userId: U, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
     });
     await Promise.all([
       whoop.collect('/recovery'),
@@ -211,7 +213,7 @@ test('collection 用 next_token 分頁，每頁 limit=25', async () => {
   const db = tokenDb();
   try {
     const whoop = createWhoopClient({
-      db, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
+      db, userId: U, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
     });
     const out = await whoop.sleeps(new Date('2026-07-01T00:00:00Z'), new Date('2026-08-21T00:00:00Z'));
     assert.equal(out.length, 57);
@@ -235,7 +237,7 @@ test('429 會 backoff 後重試成功', async () => {
   const db = tokenDb();
   try {
     const whoop = createWhoopClient({
-      db, clientId: 'cid', clientSecret: 'sec',
+      db, userId: U, clientId: 'cid', clientSecret: 'sec',
       apiBase: api.apiBase, tokenUrl: api.tokenUrl, backoffFor: NO_BACKOFF,
     });
     const out = await whoop.collect('/recovery');
@@ -253,7 +255,7 @@ test('429 一直不停 → 拋錯（讓上層記錄並通知）', async () => {
   const db = tokenDb();
   try {
     const whoop = createWhoopClient({
-      db, clientId: 'cid', clientSecret: 'sec',
+      db, userId: U, clientId: 'cid', clientSecret: 'sec',
       apiBase: api.apiBase, tokenUrl: api.tokenUrl, backoffFor: NO_BACKOFF,
     });
     await assert.rejects(() => whoop.collect('/recovery'), /429/);
@@ -269,7 +271,7 @@ test('401 → 強制 refresh 一次再重試；再 401 就明確要求重新授�
   const db = tokenDb();
   try {
     const whoop = createWhoopClient({
-      db, clientId: 'cid', clientSecret: 'sec',
+      db, userId: U, clientId: 'cid', clientSecret: 'sec',
       apiBase: api.apiBase, tokenUrl: api.tokenUrl, backoffFor: NO_BACKOFF,
     });
     await assert.rejects(
@@ -284,7 +286,7 @@ test('401 → 強制 refresh 一次再重試；再 401 就明確要求重新授�
 
 test('Turso 沒有 token → 明確叫你先跑授權腳本', async () => {
   const whoop = createWhoopClient({
-    db: { getTokens: async () => null }, clientId: 'cid', clientSecret: 'sec',
+    db: { getTokens: async () => null }, userId: U, clientId: 'cid', clientSecret: 'sec',
   });
   await assert.rejects(() => whoop.getAccessToken(), /npm run authorize/);
 });

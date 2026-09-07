@@ -10,6 +10,7 @@
  */
 
 import { addDays } from './time.js';
+import { requireUserId } from './userContext.js';
 import { loadDailyMetrics } from './dailyMetrics.js';
 import { seriesByMetric, whatChangedToday } from './analytics/index.js';
 import { log } from './logger.js';
@@ -51,20 +52,23 @@ const REQUIRED_DB_METHODS = [
   'getSleeps', 'getRecoveries', 'getCycles', 'getWorkouts', 'getLatestBodyMeasurement',
 ];
 
-export async function buildInsights({ db, timezone, healthDate }) {
+/** @param {string} userId **必填**。 */
+export async function buildInsights({ db, userId, timezone, healthDate }) {
+  const uid = requireUserId(userId, 'buildInsights');
   // 全部都要在才動手。少一個就當作「還沒有健康資料層」直接跳過 ——
   // 若在建 promise 陣列的中途才丟 TypeError，先前已經建立的 promise
   // 會變成沒人接的 rejection（Node 22 會直接殺掉 process）。
   if (REQUIRED_DB_METHODS.some((m) => typeof db?.[m] !== 'function')) return null;
 
   const from = addDays(healthDate, -INSIGHT_LOOKBACK_DAYS);
-  const rows = await loadDailyMetrics({ db, timezone, from, to: healthDate });
+  const rows = await loadDailyMetrics({ db, userId: uid, timezone, from, to: healthDate });
   if (!rows.length) return null;
 
   const series = seriesByMetric(rows);
   const whatChanged = whatChangedToday(series, healthDate);
 
   log.info('insights_built', {
+    user_id: uid,
     health_date: healthDate,
     history_days: rows.length,
     what_changed: whatChanged.length,
@@ -81,9 +85,9 @@ export async function buildInsights({ db, timezone, healthDate }) {
  * 安全版：任何失敗都回 null 並只寫 log。
  * 這是 daily.js 實際呼叫的入口。
  */
-export async function buildInsightsSafe({ db, timezone, healthDate }) {
+export async function buildInsightsSafe({ db, userId, timezone, healthDate }) {
   try {
-    return await buildInsights({ db, timezone, healthDate });
+    return await buildInsights({ db, userId, timezone, healthDate });
   } catch (err) {
     log.warn('insights_failed_ignored', {
       health_date: healthDate,

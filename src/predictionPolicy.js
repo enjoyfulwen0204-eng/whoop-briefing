@@ -142,21 +142,49 @@ export function qualifyModel(evaluation, { policy = PREDICTION_QUALITY_POLICY } 
   }
 
   // ---- 絕對門檻：**沒設定就是不合格**（fail-closed）----
+  //
+  // ⚠️ 量測值本身也必須是有限數。`Number(null)` 是 0，所以如果直接比
+  // `Number(evaluation.mae) <= threshold`，一個 **mae 是 null** 的模型會
+  // 因為 0 <= threshold 而**通過**——這是一個 fail-open 的洞。
+  // 目前踩不到（門檻都還是 null，根本走不到比較那一步），但只要有人把
+  // 門檻填上去就會踩到，而且完全不會報錯。
+  // ⚠️ 這個 helper 自己也差點踩同一個坑：`Number(null)` 是 0，而 0 是有限數，
+  // 所以只檢查 Number.isFinite 完全擋不住 null。null / undefined / 空字串
+  // 必須在轉型**之前**就先擋掉。（config.js 的 num() 是同一個立場。）
+  const metricOf = (v) => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = typeof v === 'number' ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
   for (const gate of REQUIRED_ABSOLUTE_GATES) {
     const threshold = policy[gate];
     if (threshold === null || threshold === undefined) {
       reasons.push(`quality_threshold_not_configured:${gate}`);
       continue;
     }
-    if (gate === 'MAX_MAE' && !(Number(evaluation.mae) <= threshold)) {
-      reasons.push(`mae_above_threshold:${evaluation.mae}>${threshold}`);
+
+    const field = {
+      MAX_MAE: 'mae',
+      MIN_R2: 'r2',
+      MIN_INTERVAL_COVERAGE: 'interval_coverage',
+    }[gate];
+    const value = metricOf(evaluation[field]);
+
+    // 量測不出來 → 不合格。「算不出 R²」不等於「R² 通過了」。
+    if (value === null) {
+      reasons.push(`metric_not_measurable:${field}`);
+      continue;
     }
-    if (gate === 'MIN_R2' && !(Number(evaluation.r2) >= threshold)) {
-      reasons.push(`r2_below_threshold:${evaluation.r2}<${threshold}`);
+
+    if (gate === 'MAX_MAE' && !(value <= threshold)) {
+      reasons.push(`mae_above_threshold:${value}>${threshold}`);
     }
-    if (gate === 'MIN_INTERVAL_COVERAGE'
-      && !(Number(evaluation.interval_coverage) >= threshold)) {
-      reasons.push(`coverage_below_threshold:${evaluation.interval_coverage}<${threshold}`);
+    if (gate === 'MIN_R2' && !(value >= threshold)) {
+      reasons.push(`r2_below_threshold:${value}<${threshold}`);
+    }
+    if (gate === 'MIN_INTERVAL_COVERAGE' && !(value >= threshold)) {
+      reasons.push(`coverage_below_threshold:${value}<${threshold}`);
     }
   }
 

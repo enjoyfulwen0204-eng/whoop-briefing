@@ -107,6 +107,29 @@ test('★★ 個別門檻沒過就不合格', () => {
   assert.ok(v.reasons.some((r) => r.startsWith('mae_above_threshold')));
 });
 
+test('★★★ 量測不出來的指標不可以被當成通過（Number(null) === 0 的陷阱）', () => {
+  // R² 在 ssTot === 0 時會是 null；interval_coverage 在沒有任何區間時也是 null。
+  // 直接比 Number(null) <= threshold 會變成 0 <= threshold → 靜靜地通過。
+  const nullMetrics = {
+    ok: true, n_test: 100, mae: null, rmse: null, r2: null,
+    interval_coverage: null, beats_baseline: true,
+  };
+  const v = qualifyModel(nullMetrics, { policy: CONFIGURED_POLICY });
+  assert.equal(v.qualified, false, '★ 算不出來 ≠ 通過');
+  assert.ok(v.reasons.some((r) => r.startsWith('metric_not_measurable:mae')));
+  assert.ok(v.reasons.some((r) => r.startsWith('metric_not_measurable:r2')));
+  assert.ok(v.reasons.some((r) => r.startsWith('metric_not_measurable:interval_coverage')));
+});
+
+test('★★ NaN / undefined 量測值同樣不合格', () => {
+  for (const bad of [NaN, undefined, 'abc', Infinity]) {
+    const v = qualifyModel({
+      ok: true, n_test: 100, mae: bad, r2: 0.5, interval_coverage: 0.9, beats_baseline: true,
+    }, { policy: CONFIGURED_POLICY });
+    assert.equal(v.qualified, false, `mae=${String(bad)} 不該通過`);
+  }
+});
+
 test('★ 測試集太小 → TRAINABLE，不是不合格（還沒評估，不是評估後被否決）', () => {
   const v = qualifyModel({ ok: true, n_test: 1, mae: 1, r2: 1, interval_coverage: 1, beats_baseline: true });
   assert.equal(v.maturity, PREDICTION_MATURITY.TRAINABLE);

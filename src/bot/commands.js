@@ -11,6 +11,7 @@ import { costSummary, renderCost } from '../usage.js';
 import { getEvidence, renderEvidence } from '../evidence.js';
 import { scorecard } from '../prediction.js';
 import { PREDICTION_MATURITY } from '../predictionPolicy.js';
+import { buildPersonalHealthspan, renderPersonalHealthspan } from '../healthspanEngine.js';
 import { INSIGHT_STATUS } from '../healthMemory.js';
 import { assessPrediction, assessProactiveMonitoring, READINESS_STATUS } from '../readiness.js';
 import { deriveColdStartStage, COLD_START_STAGE } from '../proactiveMessages.js';
@@ -57,6 +58,7 @@ export function buildHelp({ report, insightCount = 0, predictionReady = false })
   lines.push('【長期分析】');
   lines.push(`/insights — 長期規律${insightCount > 0 ? `（目前 ${insightCount} 項）` : '（目前尚未形成）'}`);
   lines.push(`/predictions — 恢復預測${predictionReady ? '' : '（資料量還不足）'}`);
+  lines.push('/healthspan — 長期生理盤點（目前只盤點資料，不給分數）');
   lines.push('/evidence — 目前結論背後的證據與樣本數');
 
   return lines.join('\n');
@@ -396,6 +398,26 @@ export async function handlePredictions({ db, userId, rows = [] }) {
   } catch { /* 忽略 */ }
 
   return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// /healthspan
+// ---------------------------------------------------------------------------
+
+/**
+ * 長期生理盤點。
+ *
+ * 完全確定性、沒有 LLM。目前**不會**輸出任何綜合分數或推估年齡——
+ * 見 healthspanPolicy.js 的說明。
+ */
+export async function handleHealthspan({ db, userId, rows = [] }) {
+  let capabilities = {};
+  try {
+    capabilities = await db.getCapabilities(userId);
+  } catch { /* 沒 probe 過就是空的，不影響盤點 */ }
+
+  const result = buildPersonalHealthspan(rows, { capabilities });
+  return renderPersonalHealthspan(result);
 }
 
 // ---------------------------------------------------------------------------

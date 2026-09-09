@@ -26,7 +26,7 @@ import { composeAnswer } from './answer.js';
 import {
   handleLog, handleHealthData, startText, buildHelp,
   handleStatus, handleJournal, handleInsights, handlePredictions,
-  handleCost, handleEvidence,
+  handleCost, handleEvidence, handleHealthspan,
 } from './commands.js';
 import * as experimentFlow from './experimentFlow.js';
 import {
@@ -263,6 +263,9 @@ export function createRouter({
       case 'predictions':
       case 'prediction':
         return handlePredictions({ db, userId, rows: await loadRows(t, userId, timezone) });
+
+      case 'healthspan':
+        return handleHealthspan({ db, userId, rows: await loadRows(t, userId, timezone) });
 
       case 'cost':
         return handleCost({ db, userId, timezone, now: t });

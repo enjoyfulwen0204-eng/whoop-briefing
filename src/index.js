@@ -33,6 +33,7 @@ import { checkAndAct } from './proactiveAgent.js';
 import { reapExpiredProactiveQuestions } from './proactiveReaper.js';
 import { runGuardian } from './guardian.js';
 import { runPredictionCycle } from './predictionPipeline.js';
+import { runHealthspanSnapshot } from './healthspanEngine.js';
 import { loadDailyMetrics } from './dailyMetrics.js';
 import { capabilityStatusForField, isKnownUnavailable } from './capabilityMap.js';
 import { HEARTBEAT_COMPONENT } from './guardianPolicy.js';
@@ -86,12 +87,13 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     proactive = checkAndAct,
     reap = reapExpiredProactiveQuestions,
     predictionCycle = runPredictionCycle,
+    healthspan = runHealthspanSnapshot,
   } = deps;
   const uid = user.id;
   const tz = user.timezone;
   const out = {
     userId: uid, timezone: tz, daily: null, weekly: null, sync: null, proactive: null,
-    reaped: null, prediction: null, skipped: null, errors: [],
+    reaped: null, prediction: null, healthspan: null, skipped: null, errors: [],
   };
 
   // 1) 這個使用者的 Telegram 目的地。沒有綁定就不能發報告（也不該亂發）。
@@ -258,6 +260,14 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
         anchorDate: anchor,
         capabilityUnavailable: isKnownUnavailable(targetStatus),
         now,
+      });
+
+      // ---- Personal Healthspan 盤點（V1.1 Phase 12）----
+      // snapshotContributors 以前沒有任何生產呼叫端，兩張 healthspan 表
+      // 在正常運作下永遠是空的。現在每輪盤點一次。
+      // **分數永遠寫 null**——沒有經過驗證的權重，那是正確答案不是待辦。
+      out.healthspan = await healthspan({
+        db, userId: uid, rows: predRows, endDate: anchor, capabilities: caps, now,
       });
     }
   } catch (err) {

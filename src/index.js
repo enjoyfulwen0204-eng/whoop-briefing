@@ -31,6 +31,8 @@ import { checkRepoFreshness } from './maintenance.js';
 import { createSync, isSyncDue } from './sync.js';
 import { checkAndAct } from './proactiveAgent.js';
 import { reapExpiredProactiveQuestions } from './proactiveReaper.js';
+import { runGuardian } from './guardian.js';
+import { HEARTBEAT_COMPONENT } from './guardianPolicy.js';
 import { mapWithConcurrency } from './concurrency.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
@@ -232,6 +234,7 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
 }
 
 export async function main({ now = new Date(), deps = {} } = {}) {
+  const { guardian = runGuardian } = deps;
   loadDotEnvIfPresent();
   const env = loadEnv();
 
@@ -254,7 +257,9 @@ export async function main({ now = new Date(), deps = {} } = {}) {
     errorScope: GLOBAL_SCOPE,
   });
 
-  const summary = { users: 0, ok: 0, failed: 0, skipped: 0, perUser: [], errors: [] };
+  const summary = {
+    users: 0, ok: 0, failed: 0, skipped: 0, perUser: [], errors: [], guardian: null,
+  };
 
   try {
     await db.migrate();
@@ -276,6 +281,38 @@ export async function main({ now = new Date(), deps = {} } = {}) {
       env.maxUserConcurrency,
       (user) => runForUser({ db, env, user, now, deps }),
     );
+
+    // ---- 運維心跳（V1.1 Phase 9）----
+    // 「這一輪 cron 真的跑完了」是系統裡唯一沒有任何地方記錄的事實，
+    // 而 cron 死掉時是**安靜地**死（沒有 run 就沒有錯誤通知）。
+    // 記在成功跑完所有使用者之後，所以它代表的是「整輪走到底」。
+    try {
+      await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON, {
+        detail: `users=${users.length}`, now,
+      });
+    } catch (err) {
+      log.warn('heartbeat_failed', { error: describeError(err) });
+    }
+
+    // ---- System Guardian（V1.1 Phase 9）----
+    // 只看已經持久化的事實 → 判斷 →（必要時）發一則 Telegram。
+    // 健康時完全靜默。絕不修改任何東西。自己吞掉所有錯誤。
+    try {
+      summary.guardian = await guardian({
+        db,
+        systemTelegram,
+        makeTelegram: ({ chatId, errorScope }) => (deps.makeTelegram ?? createTelegram)({
+          botToken: env.telegramBotToken,
+          chatId,
+          dryRun: env.dryRun,
+          db,
+          errorScope,
+        }),
+        now,
+      });
+    } catch (err) {
+      log.error('guardian_unexpected', { error: describeError(err) });
+    }
 
     for (const [i, r] of results.entries()) {
       const uid = users[i].id;

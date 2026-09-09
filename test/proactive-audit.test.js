@@ -22,7 +22,7 @@ import { guardProactiveMessage } from '../src/proactiveMessages.js';
 import { createRouter } from '../src/bot/router.js';
 import { decide as decideFn } from '../src/attention.js';
 import { ANTI_SPAM_POLICY } from '../src/proactivePolicy.js';
-import { PROACTIVE_DECISION, PROACTIVE_OUTCOME } from '../src/schema.js';
+import { PROACTIVE_DECISION, PROACTIVE_OUTCOME, SCHEMA_VERSION } from '../src/schema.js';
 import { INSIGHT_STATUS } from '../src/healthMemory.js';
 import { fakeTelegram } from './fakes.js';
 import { ALICE, BOB, seedAliceAndBob, seedSingleUser } from './users.js';
@@ -598,7 +598,10 @@ test('★★★ 稽核 #10: production 等效狀態（v2、沒有 proactive 表�
     // 2) 跑 migration（就是 cron/bot 啟動時會做的那一件事）
     const summary = await db.migrate();
     assert.equal(summary.from, 2);
-    assert.equal(summary.to, 3);
+    // 綁常數而不是寫死 3：schema 版本之後還會往上走（v4 加了
+    // system_heartbeats / prediction_models），而這個測試真正要守的是
+    // 「從舊版升上來不會重建任何表、資料不會少」，不是某個特定數字。
+    assert.equal(summary.to, SCHEMA_VERSION);
     assert.deepEqual(summary.rebuilt, [], '★ 不可以重建任何既有的表——這是零資料遺失的關鍵');
 
     // 3) 兩張新表確實建出來了
@@ -617,7 +620,7 @@ test('★★★ 稽核 #10: production 等效狀態（v2、沒有 proactive 表�
 
     // 5) 冪等：再跑一次不會有任何變化
     const again = await db.migrate();
-    assert.equal(again.from, 3);
+    assert.equal(again.from, SCHEMA_VERSION, '第一次已經升到最新版');
     assert.deepEqual(again.rebuilt, []);
     assert.equal(await db.countJournalEvents(user.id), 1);
   } finally {

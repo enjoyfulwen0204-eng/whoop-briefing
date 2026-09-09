@@ -37,7 +37,14 @@
 // 「SCHEMA 的 CREATE TABLE IF NOT EXISTS 每次都會跑」這個副作用——
 // 版本化之後，proactive_agent_state 才會進入 RESHAPED_TABLES 的形狀檢查，
 // 開發機上那種「舊三欄版本」的表才會被安全重建（空表才重建，有資料會中止）。
-export const SCHEMA_VERSION = 3;
+//
+// v4：新增 system_heartbeats（運維觀測）與 prediction_models（預測成熟度）。
+// **兩張都是純新增**，不動任何既有表的形狀，所以：
+//   - 沒有任何 DROP、沒有 rename、沒有欄位型別變更
+//   - 兩張表都**刻意不加進 RESHAPED_TABLES**——那份清單的用途是「這張表
+//     以前存在過別的形狀」，而這兩張表在任何環境都是第一次出現。把全新的
+//     表加進去只會平白武裝一條它永遠不該走的 DROP 路徑。
+export const SCHEMA_VERSION = 4;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -600,6 +607,85 @@ export const PROACTIVE_SCHEMA = [
      ON proactive_events (user_id, created_at)`,
 ];
 
+// ---------------------------------------------------------------------------
+// 10. 運維觀測（v4 新增）—— 純新增表，不動任何既有表
+// ---------------------------------------------------------------------------
+export const GUARDIAN_SCHEMA = [
+  // 「某個元件最後一次成功運作是什麼時候」。
+  //
+  // 為什麼需要一張新表：系統裡幾乎所有**故障**的原始事實都已經有地方存了
+  // （whoop_sync_state.last_error、report_runs.status、ai_usage.request_status
+  // …），唯獨「這一輪 cron 真的有跑」這件事沒有任何紀錄——而那正是最需要
+  // 被監看的一件事，因為 cron 死掉時是**安靜地**死。沒有 run 就沒有錯誤。
+  //
+  // scope 沿用 error_notifications 已經在用的同一套語彙：
+  //   scope = 'global'        → cron / worker 這類不屬於任何人的元件
+  //   scope = 'user:<userId>' → 某個使用者的同步、主動代理…
+  //
+  // 刻意**不用 `user_id TEXT NULL` 當主鍵的一部分**：SQLite 的 UNIQUE 把
+  // NULL 視為互不相同，所以 (component, NULL) 可以重複插入無限多列，
+  // ON CONFLICT 也永遠對不上。error_notifications 當初就是為了這個問題
+  // 才用 scope 字串，這裡沿用同一個解法，不另外發明。
+  `CREATE TABLE IF NOT EXISTS system_heartbeats (
+     scope       TEXT NOT NULL,
+     component   TEXT NOT NULL,
+     last_ok_at  TEXT NOT NULL,
+     last_detail TEXT,
+     updated_at  TEXT NOT NULL,
+     PRIMARY KEY (scope, component)
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_heartbeat_component
+     ON system_heartbeats (component, last_ok_at)`,
+];
+
+// ---------------------------------------------------------------------------
+// 11. 預測模型成熟度（v4 新增）—— 純新增表，不動 prediction_runs
+// ---------------------------------------------------------------------------
+export const PREDICTION_MODEL_SCHEMA = [
+  // 「某一次訓練出來的模型長什麼樣、表現如何、夠不夠格發布」。
+  //
+  // 刻意跟 prediction_runs **分開**：那張表記的是「某一天的預測與它的實際
+  // 值」（run 層），這張記的是「模型本身」（model 層）。把模型層的統計混進
+  // run 層會讓每一列都重複同一份 MAE/RMSE，而且無法表達「模型還在，但今天
+  // 沒有產生預測」。
+  //
+  // qualified 預設 0：**沒有被證明夠好之前一律不夠格**。這不是保守的預設值
+  // 而已，是這張表的核心語義——見 predictionPolicy.js 的 fail-closed 說明。
+  `CREATE TABLE IF NOT EXISTS prediction_models (
+     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id             TEXT NOT NULL,
+     target_metric       TEXT NOT NULL,
+     model_version       TEXT NOT NULL,
+     features_json       TEXT,
+     trained_at          TEXT NOT NULL,
+     train_start         TEXT,
+     train_end           TEXT,
+     test_start          TEXT,
+     test_end            TEXT,
+     n_train             INTEGER,
+     n_test              INTEGER,
+     mae                 REAL,
+     rmse                REAL,
+     r2                  REAL,
+     interval_coverage   REAL,
+     baseline_kind       TEXT,
+     baseline_mae        REAL,
+     beats_baseline      INTEGER,
+     maturity            TEXT NOT NULL,
+     qualified           INTEGER NOT NULL DEFAULT 0,
+     unqualified_reason  TEXT,
+     policy_version      TEXT,
+     created_at          TEXT NOT NULL
+   )`,
+  // 冪等鍵：同一個使用者、同一個目標、同一版模型、同一段訓練資料
+  // （train_end 由資料決定，不是由時鐘決定）→ 重跑只會更新同一列。
+  // 所以「cron 每 30 分鐘重算一次」不會長出一堆重複的模型列。
+  `CREATE UNIQUE INDEX IF NOT EXISTS uniq_prediction_model
+     ON prediction_models (user_id, target_metric, model_version, train_end)`,
+  `CREATE INDEX IF NOT EXISTS idx_prediction_model_latest
+     ON prediction_models (user_id, target_metric, trained_at)`,
+];
+
 /** Attention Engine 的決策列舉（IGNORE 不落地，其餘都會寫進 proactive_events）。 */
 export const PROACTIVE_DECISION = {
   IGNORE: 'IGNORE',
@@ -632,6 +718,8 @@ export const SCHEMA = [
   ...ANALYSIS_SCHEMA,
   ...LEDGER_SCHEMA,
   ...PROACTIVE_SCHEMA,
+  ...GUARDIAN_SCHEMA,
+  ...PREDICTION_MODEL_SCHEMA,
 ];
 
 /** 使用者狀態。 */

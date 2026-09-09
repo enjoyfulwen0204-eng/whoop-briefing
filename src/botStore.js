@@ -152,8 +152,12 @@ export function createBotStore(client) {
     const row = rs.rows[0];
     if (!row) return null;
     if (Date.parse(row.expires_at) <= now.getTime()) {
+      // `AND status = 'OPEN'` 是刻意的：這句話與 resolvePendingQuestion 及
+      // 收割器互為競爭者，三者都用同一個條件式 UPDATE 當原子閘門。少了它，
+      // 一個剛剛被回答（已經是 ANSWERED）的問題可能被這裡覆寫回 EXPIRED，
+      // 使用者的答案就靜靜消失了。
       await client.execute({
-        sql: "UPDATE pending_questions SET status = 'EXPIRED' WHERE id = ?",
+        sql: "UPDATE pending_questions SET status = 'EXPIRED' WHERE id = ? AND status = 'OPEN'",
         args: [row.id],
       });
       log.info('pending_question_expired', { id: Number(row.id) });
@@ -183,6 +187,54 @@ export function createBotStore(client) {
     return Number(rs.rowsAffected ?? 0) > 0;
   }
 
+  /**
+   * 已經過期、但還掛在 OPEN 的追問（收割器用）。
+   *
+   * 刻意可以用 intent 過濾：主動代理發出的問題才需要補寫 NO_RESPONSE
+   * 這個終局狀態（它連著一筆 proactive_events）；反應式追問沒有對應的
+   * 事件列，維持既有的惰性過期就好。
+   */
+  async function listExpiredOpenQuestions(userId, { now = new Date(), intent = null, limit = 100 } = {}) {
+    const uid = requireUserId(userId, 'listExpiredOpenQuestions');
+    const where = ['user_id = ?', "status = 'OPEN'", 'expires_at <= ?'];
+    const args = [uid, nowIso(now)];
+    if (intent) { where.push('intent = ?'); args.push(intent); }
+    args.push(limit);
+    const rs = await client.execute({
+      sql: `SELECT * FROM pending_questions WHERE ${where.join(' AND ')}
+             ORDER BY id ASC LIMIT ?`,
+      args,
+    });
+    return rs.rows.map((row) => ({
+      id: Number(row.id),
+      chatId: row.chat_id,
+      question: row.question,
+      intent: row.intent,
+      context: row.context_json ? JSON.parse(row.context_json) : null,
+      askedAt: row.asked_at,
+      expiresAt: row.expires_at,
+      status: row.status,
+    }));
+  }
+
+  /**
+   * OPEN → EXPIRED 的**原子**轉移。
+   *
+   * 回傳 true 代表「這一次呼叫真的把它從 OPEN 收走了」。
+   * `AND status = 'OPEN'` 讓收割器與使用者的回答（resolvePendingQuestion
+   * 用的是同一個條件）恰好只有一個會成功——這就是「終局狀態只會有一個
+   * 贏家」的保證來源，不是靠呼叫端先查再寫。
+   */
+  async function expirePendingQuestion(userId, id, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'expirePendingQuestion');
+    const rs = await client.execute({
+      sql: `UPDATE pending_questions SET status = 'EXPIRED'
+             WHERE user_id = ? AND id = ? AND status = 'OPEN'`,
+      args: [uid, id],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
   async function cancelPendingQuestion(userId, id) {
     const uid = requireUserId(userId, 'cancelPendingQuestion');
     const rs = await client.execute({
@@ -206,5 +258,7 @@ export function createBotStore(client) {
     getOpenPendingQuestion,
     resolvePendingQuestion,
     cancelPendingQuestion,
+    listExpiredOpenQuestions,
+    expirePendingQuestion,
   };
 }

@@ -146,6 +146,33 @@ export function createProactiveStore(client) {
     return Number(rs.rowsAffected ?? 0) > 0;
   }
 
+  /**
+   * 把一個**還沒有結果**的事件標成某個終局結果。
+   *
+   * 與 resolveProactiveEvent 的差別只有一個、但很關鍵的條件：
+   * `AND outcome IS NULL`。收割器用這一個來寫 NO_RESPONSE，所以
+   *
+   *   - 使用者已經回答過（outcome 已經是 EXPLAINED / STILL_UNEXPLAINED /
+   *     NO_EXPLANATION_OFFERED）→ rowsAffected = 0，**絕不會被覆寫成
+   *     NO_RESPONSE**
+   *   - 遲到的回答走的是 resolvePendingQuestion，那條路在 pending 那一層
+   *     就已經被擋掉（狀態已經不是 OPEN），所以也不會反過來蓋掉
+   *     NO_RESPONSE
+   *   - 收割器重跑 → 第二次 rowsAffected = 0 → 天然冪等
+   *
+   * 回傳 true 代表這一次呼叫真的寫進去了。
+   */
+  async function resolveProactiveEventIfUnresolved(userId, id, outcome, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'resolveProactiveEventIfUnresolved');
+    const rs = await client.execute({
+      sql: `UPDATE proactive_events
+               SET outcome = ?, resolved_at = ?
+             WHERE user_id = ? AND id = ? AND outcome IS NULL`,
+      args: [outcome, nowIso(now), uid, id],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
   /** 找「這個使用者、由某個 pending_question_id 連過來」的事件（reanalysis 用）。 */
   async function getProactiveEventByPendingQuestion(userId, pendingQuestionId) {
     const uid = requireUserId(userId, 'getProactiveEventByPendingQuestion');
@@ -200,6 +227,7 @@ export function createProactiveStore(client) {
     claimProactiveEvent,
     markProactiveEventSent,
     resolveProactiveEvent,
+    resolveProactiveEventIfUnresolved,
     getProactiveEventByPendingQuestion,
     getRecentProactiveEvents,
   };

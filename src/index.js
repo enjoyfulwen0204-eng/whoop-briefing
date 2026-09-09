@@ -30,6 +30,7 @@ import { runWeekly } from './weekly.js';
 import { checkRepoFreshness } from './maintenance.js';
 import { createSync } from './sync.js';
 import { checkAndAct } from './proactiveAgent.js';
+import { reapExpiredProactiveQuestions } from './proactiveReaper.js';
 import { mapWithConcurrency } from './concurrency.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
@@ -75,12 +76,13 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     weekly = runWeekly,
     makeSync = createSync,
     proactive = checkAndAct,
+    reap = reapExpiredProactiveQuestions,
   } = deps;
   const uid = user.id;
   const tz = user.timezone;
   const out = {
     userId: uid, timezone: tz, daily: null, weekly: null, sync: null, proactive: null,
-    skipped: null, errors: [],
+    reaped: null, skipped: null, errors: [],
   };
 
   // 1) 這個使用者的 Telegram 目的地。沒有綁定就不能發報告（也不該亂發）。
@@ -182,6 +184,18 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   } catch (err) {
     out.errors.push({ stage: 'proactive', error: describeError(err) });
     log.error('proactive_unexpected', { user_id: uid, error: describeError(err) });
+  }
+
+  // ---- 過期主動問題的收割（V1.1 Phase 5）----
+  // 「問了但使用者從此沒再傳任何訊息」以前會永遠停在 OPEN、事件的 outcome
+  // 永遠是 NULL。這一步把它收成 EXPIRED + NO_RESPONSE，讓「被無視」變成
+  // 資料上真的存在的事實——那是之後要調 TTL 唯一能依據的東西。
+  // 純維護工作，reapExpiredProactiveQuestions 自己吞掉所有錯誤。
+  try {
+    out.reaped = await reap({ db, userId: uid, now });
+  } catch (err) {
+    out.errors.push({ stage: 'reap', error: describeError(err) });
+    log.error('proactive_reap_unexpected', { user_id: uid, error: describeError(err) });
   }
 
   return out;

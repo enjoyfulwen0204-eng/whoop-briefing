@@ -44,7 +44,7 @@ import {
 } from './proactiveMessages.js';
 import { PROACTIVE_DECISION, PROACTIVE_QUESTION_INTENT } from './schema.js';
 import { POLICY_VERSION, ANTI_SPAM_POLICY, SIGNAL_POLICY } from './proactivePolicy.js';
-import { READINESS_HEURISTICS, TELEGRAM_BOT } from './config.js';
+import { READINESS_HEURISTICS } from './config.js';
 import { INSIGHT_STATUS } from './healthMemory.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
@@ -252,7 +252,11 @@ export async function checkAndAct({
           category: questionCategory,
           proactive_event_id: claim.id,
         },
-        ttlMs: TELEGRAM_BOT.PENDING_TTL_MS,
+        // 主動問題有**自己的** TTL（見 ANTI_SPAM_POLICY.QUESTION_TTL_MS）。
+        // 以前借用 TELEGRAM_BOT.PENDING_TTL_MS——那個常數的語義是「使用者
+        // 自己問完之後的對話延續視窗」，跟「系統不請自來問一句話」完全
+        // 是兩回事，不該共用一個數字。
+        ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
       }, { now });
     }
     await db.markProactiveEventSent(uid, claim.id, { pendingQuestionId }, { now });

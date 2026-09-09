@@ -125,6 +125,28 @@ export const ANTI_SPAM_POLICY = {
   // 同時間最多開幾個未回答的 proactive 問題（目前先固定 1：
   // 「一次只問一件事」，不要讓使用者同時欠好幾筆債）。
   MAX_OPEN_QUESTIONS: 1,
+
+  /**
+   * 主動問題的存活時間。
+   *
+   * ⚠️ **DEFAULT / UNTUNED PRODUCT HEURISTIC —— 這個數字沒有被驗證過。**
+   *
+   * 它不是最佳值，也沒有任何行為資料支撐。目前刻意沿用既有的 30 分鐘，
+   * 純粹是為了向後相容：在這次改動之前，主動問題借用的是
+   * `TELEGRAM_BOT.PENDING_TTL_MS`，改成獨立常數的同時如果順手換掉數值，
+   * 就會在「沒有任何觀察」的情況下偷偷改變使用者體驗。
+   *
+   * 為什麼一定要跟 TELEGRAM_BOT.PENDING_TTL_MS 分開：那個常數的語義是
+   * 「使用者自己問完之後，對話延續的視窗」——使用者當下就在跟系統講話，
+   * 30 分鐘很合理。主動問題的語義完全不同：系統在早上七點不請自來地問
+   * 一句話，使用者可能在通勤、可能在開會，30 分鐘很可能太短。
+   * 兩者本來就不該共用一個數字。
+   *
+   * 要怎麼調：等 `proactive_events.outcome` 累積出真實的 NO_RESPONSE 比例
+   * 之後再說。**這正是先把生命週期做完的理由**——在有 NO_RESPONSE 資料
+   * 之前，任何 TTL 數字都只是意見。
+   */
+  QUESTION_TTL_MS: 30 * 60_000,
   // 完全一樣的 proactive event（同一個 idempotency key）在這個時間內
   // 重複出現，視為重複 sync，不重新發送。
   DUPLICATE_SUPPRESSION_HOURS: 24,

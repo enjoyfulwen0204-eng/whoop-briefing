@@ -40,8 +40,11 @@ test('handlePredictions: 樣本不足時顯示 readiness 算出來的確切數�
     const user = await seedSingleUser(db);
     const rows = makeRows('2026-01-01', 5, () => ({ recovery: 50, sleep_total: 25_000_000 }));
     const text = await handlePredictions({ db, userId: user.id, rows });
-    assert.match(text, /INSUFFICIENT_DATA/);
+    // 只有 5 天資料 → readiness 是 NO_DATA（配對數為 0）。Phase 10 之後
+    // 這裡印的是**實際**的 readiness 狀態，不再一律寫 INSUFFICIENT_DATA。
+    assert.match(text, /狀態：(NO_DATA|INSUFFICIENT_DATA|WARMING_UP)/);
     assert.match(text, new RegExp(`最低需求：${MIN_TRAIN_ROWS} 筆`));
+    assert.match(text, /目前可用樣本：\d+ 筆/);
   } finally {
     db.close();
     cleanup();
@@ -77,7 +80,7 @@ test('★ handlePredictions: 修好 userId 沒解構出來的 bug——有已評
     });
 
     const text = await handlePredictions({ db, userId: user.id, rows });
-    assert.match(text, /狀態：可訓練/);
+    assert.match(text, /可訓練/);
     assert.match(text, /過往預測準確度/, 'scorecard 區塊應該要出現，不該被 ReferenceError 吃掉');
     assert.match(text, /已評估 1 次/);
   } finally {

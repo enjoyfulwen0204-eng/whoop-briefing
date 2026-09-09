@@ -10,6 +10,7 @@ import { parseLogCommand, saveEvent, describeEvent, CATEGORIES } from '../journa
 import { costSummary, renderCost } from '../usage.js';
 import { getEvidence, renderEvidence } from '../evidence.js';
 import { scorecard } from '../prediction.js';
+import { PREDICTION_MATURITY } from '../predictionPolicy.js';
 import { INSIGHT_STATUS } from '../healthMemory.js';
 import { assessPrediction, assessProactiveMonitoring, READINESS_STATUS } from '../readiness.js';
 import { deriveColdStartStage, COLD_START_STAGE } from '../proactiveMessages.js';
@@ -307,6 +308,23 @@ export async function handleInsights({ db, userId, argsText }) {
 // ---------------------------------------------------------------------------
 // /predictions
 // ---------------------------------------------------------------------------
+
+/**
+ * 模型成熟度的對外說法。
+ *
+ * 刻意都用「還沒被證明」而不是「不好」——我們知道的是「沒有證據支持」，
+ * 不是「有證據反對」。這兩件事不一樣。
+ */
+const MATURITY_LABEL = {
+  [PREDICTION_MATURITY.NO_DATA]: '尚無資料',
+  [PREDICTION_MATURITY.INSUFFICIENT_DATA]: '資料累積中',
+  [PREDICTION_MATURITY.MODEL_UNAVAILABLE]: '目前的資料結構算不出模型',
+  [PREDICTION_MATURITY.TRAINABLE]: '已訓練，但還沒有足夠的測試資料可以評估',
+  [PREDICTION_MATURITY.EVALUATED_UNQUALIFIED]: '已評估，但還沒達到可發布的標準',
+  [PREDICTION_MATURITY.QUALIFIED]: '✅ 已通過品質門檻',
+  [PREDICTION_MATURITY.STALE]: '模型已過期，需要重新訓練',
+  [PREDICTION_MATURITY.UNSUPPORTED]: '這個帳號拿不到所需的欄位',
+};
 export async function handlePredictions({ db, userId, rows = [] }) {
   const lines = ['🔮 恢復預測', ''];
 
@@ -316,16 +334,52 @@ export async function handlePredictions({ db, userId, rows = [] }) {
   const readiness = assessPrediction({ rows });
 
   if (readiness.status !== READINESS_STATUS.READY) {
-    lines.push('狀態：INSUFFICIENT_DATA');
+    // ⚠️ 以前這裡對**所有**非 READY 狀態都印 INSUFFICIENT_DATA，包含
+    // DEGRADED（樣本夠了但結構上算不出來）。那會誤導：使用者以為只要
+    // 再等幾天就好，其實是特徵共線之類的問題。現在誠實印出實際狀態。
+    lines.push(`狀態：${readiness.status}`);
     lines.push('');
     lines.push(`目前可用樣本：${readiness.usable_samples} 筆`);
     lines.push(`最低需求：${readiness.required_samples} 筆`);
     lines.push('');
-    lines.push('資料量還不足以訓練預測模型，所以我不會給你任何預測數字。');
+    if (readiness.status === READINESS_STATUS.DEGRADED) {
+      lines.push('樣本數雖然夠了，但目前的資料結構算不出可用的模型，');
+      lines.push('所以我不會給你任何預測數字。');
+    } else {
+      lines.push('資料量還不足以訓練預測模型，所以我不會給你任何預測數字。');
+    }
     lines.push('（一個沒有足夠資料支撐的預測，比沒有預測更糟。）');
   } else {
-    lines.push('狀態：可訓練');
+    // ★ 資料夠訓練 ≠ 模型可信。這是兩個完全不同的問題，現在分開講。
+    lines.push('資料就緒：✅ 可訓練');
     lines.push(`可用樣本：${readiness.usable_samples} 筆`);
+    lines.push('');
+
+    let model = null;
+    try {
+      model = await db.getLatestPredictionModel(userId, { targetMetric: 'recovery' });
+    } catch { /* 沒有模型層資料就當作還沒訓練過 */ }
+
+    if (!model) {
+      lines.push('模型狀態：尚未訓練（下一次排程執行時會訓練）');
+    } else {
+      lines.push(`模型狀態：${MATURITY_LABEL[model.maturity] ?? model.maturity}`);
+      if (model.nTest) lines.push(`  測試樣本 ${model.nTest} 筆（時序切分，不含未來資料）`);
+      if (model.mae !== null) lines.push(`  MAE ${model.mae.toFixed(2)}`);
+      if (model.baselineMae !== null) {
+        const verdict = model.beatsBaseline === true ? '✅ 優於' : '❌ 沒有優於';
+        lines.push(`  對照「只用歷史平均猜」：${verdict}（基準 MAE ${model.baselineMae.toFixed(2)}）`);
+      }
+
+      lines.push('');
+      if (model.qualified) {
+        lines.push('這個模型已通過品質門檻。');
+      } else {
+        // ★ 這是整個功能的核心訊息：算得出來 ≠ 可以給你看
+        lines.push('目前**不會**給你預測數字。');
+        lines.push('模型還沒有被證明夠準——在證明之前，給出一個數字只會誤導你。');
+      }
+    }
   }
 
   // 已經有記分卡就一併顯示

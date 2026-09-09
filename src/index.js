@@ -32,10 +32,15 @@ import { createSync, isSyncDue } from './sync.js';
 import { checkAndAct } from './proactiveAgent.js';
 import { reapExpiredProactiveQuestions } from './proactiveReaper.js';
 import { runGuardian } from './guardian.js';
+import { runPredictionCycle } from './predictionPipeline.js';
+import { loadDailyMetrics } from './dailyMetrics.js';
 import { HEARTBEAT_COMPONENT } from './guardianPolicy.js';
 import { mapWithConcurrency } from './concurrency.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
+
+/** 預測要往回看幾天的 daily_metrics（涵蓋訓練 + 時序切分所需的長度）。 */
+const PREDICTION_LOOKBACK_DAYS = 180;
 
 /**
  * 判斷某個使用者現在有沒有事要做。**用該使用者自己的時區算**，
@@ -79,12 +84,13 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     makeSync = createSync,
     proactive = checkAndAct,
     reap = reapExpiredProactiveQuestions,
+    predictionCycle = runPredictionCycle,
   } = deps;
   const uid = user.id;
   const tz = user.timezone;
   const out = {
     userId: uid, timezone: tz, daily: null, weekly: null, sync: null, proactive: null,
-    reaped: null, skipped: null, errors: [],
+    reaped: null, prediction: null, skipped: null, errors: [],
   };
 
   // 1) 這個使用者的 Telegram 目的地。沒有綁定就不能發報告（也不該亂發）。
@@ -222,6 +228,29 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   } catch (err) {
     out.errors.push({ stage: 'proactive', error: describeError(err) });
     log.error('proactive_unexpected', { user_id: uid, error: describeError(err) });
+  }
+
+  // ---- 預測生產迴圈（V1.1 Phase 10）----
+  // 訓練 → 時序評估 → 對照樸素基準線 → 存模型 → 產生候選預測 → 回填實際值。
+  // **發布仍然是關著的**：品質門檻尚未設定，所以不會有任何預測數字被拿給
+  // 使用者看。照樣算、照樣存是刻意的——不存就永遠不會有記分卡，也就永遠
+  // 沒有資料能證明模型好不好，於是永遠不可能從「不合格」畢業。
+  //
+  // 放在 sync 之後：要用剛同步進來的資料。放在 proactive 之後：主動訊息
+  // 比預測重要，預測失敗絕不能影響它。
+  try {
+    const anchor = (await db.coverage(uid))?.last_date ?? null;
+    if (anchor) {
+      const predRows = await loadDailyMetrics({
+        db, userId: uid, timezone: tz, from: addDays(anchor, -PREDICTION_LOOKBACK_DAYS), to: anchor,
+      });
+      out.prediction = await predictionCycle({
+        db, userId: uid, rows: predRows, anchorDate: anchor, now,
+      });
+    }
+  } catch (err) {
+    out.errors.push({ stage: 'prediction', error: describeError(err) });
+    log.error('prediction_unexpected', { user_id: uid, error: describeError(err) });
   }
 
   // ---- 過期主動問題的收割（V1.1 Phase 5）----

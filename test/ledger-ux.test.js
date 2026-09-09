@@ -524,7 +524,10 @@ test('★ AD: /predictions 資料不足時絕不給預測數字', async () => {
   const { db, cleanup } = await freshDb();
   try {
     const reply = await routerFor(db).handle({ text: '/predictions', chatId: CHAT, user: USER });
-    assert.match(reply, /INSUFFICIENT_DATA/);
+    // 0 筆資料的 readiness 狀態是 NO_DATA。Phase 10 之後這裡印的是**實際**
+    // 的 readiness 狀態，不再一律寫 INSUFFICIENT_DATA（那對 DEGRADED 之類
+    // 的情況會誤導使用者以為只要再等幾天就好）。
+    assert.match(reply, /狀態：NO_DATA/);
     assert.match(reply, /目前可用樣本：0 筆/);
     assert.match(reply, /最低需求：30 筆/);
     assert.ok(!/預測.*\d+%/.test(reply), '★ 不可以出現任何預測值');

@@ -432,7 +432,9 @@ test('[char-D1] handlePredictions 樣本不足時不輸出任何預測數字', a
   await withDb(async (db) => {
     const text = await handlePredictions({ db, userId: ALICE.id, rows: [] });
 
-    assert.match(text, /INSUFFICIENT_DATA/);
+    // 0 筆資料的 readiness 狀態實際上是 NO_DATA。以前這裡對所有非 READY
+    // 狀態一律印 INSUFFICIENT_DATA，Phase 10 改成誠實印出實際狀態。
+    assert.match(text, /狀態：NO_DATA/);
     assert.match(text, /最低需求/);
     assert.ok(!/預測值/.test(text));
   });

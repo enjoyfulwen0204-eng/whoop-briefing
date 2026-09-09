@@ -135,6 +135,125 @@ export function createAnalysisStore(client) {
     return Number(rs.rowsAffected ?? 0) > 0;
   }
 
+  // -------------------------------------------------------------------------
+  // prediction_models —— 模型層（跟 prediction_runs 的 run 層刻意分開）
+  // -------------------------------------------------------------------------
+
+  /**
+   * 寫入一次訓練評估的結果。
+   *
+   * 冪等鍵是 (user_id, target_metric, model_version, train_end)：train_end
+   * 由資料決定而不是由時鐘決定，所以 cron 每 30 分鐘重算一次不會長出一堆
+   * 重複的列，只會更新同一列。
+   */
+  async function savePredictionModel(userId, m, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'savePredictionModel');
+    await client.execute({
+      sql: `INSERT INTO prediction_models
+              (user_id, target_metric, model_version, features_json, trained_at,
+               train_start, train_end, test_start, test_end, n_train, n_test,
+               mae, rmse, r2, interval_coverage,
+               baseline_kind, baseline_mae, beats_baseline,
+               maturity, qualified, unqualified_reason, policy_version, created_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(user_id, target_metric, model_version, train_end) DO UPDATE SET
+              features_json=excluded.features_json,
+              trained_at=excluded.trained_at,
+              train_start=excluded.train_start,
+              test_start=excluded.test_start,
+              test_end=excluded.test_end,
+              n_train=excluded.n_train,
+              n_test=excluded.n_test,
+              mae=excluded.mae, rmse=excluded.rmse, r2=excluded.r2,
+              interval_coverage=excluded.interval_coverage,
+              baseline_kind=excluded.baseline_kind,
+              baseline_mae=excluded.baseline_mae,
+              beats_baseline=excluded.beats_baseline,
+              maturity=excluded.maturity,
+              qualified=excluded.qualified,
+              unqualified_reason=excluded.unqualified_reason,
+              policy_version=excluded.policy_version`,
+      args: [
+        uid, m.targetMetric, m.modelVersion,
+        m.features ? JSON.stringify(m.features) : null,
+        nowIso(now),
+        m.trainStart ?? null, m.trainEnd ?? null, m.testStart ?? null, m.testEnd ?? null,
+        m.nTrain ?? null, m.nTest ?? null,
+        m.mae ?? null, m.rmse ?? null, m.r2 ?? null, m.intervalCoverage ?? null,
+        m.baselineKind ?? null, m.baselineMae ?? null,
+        m.beatsBaseline === null || m.beatsBaseline === undefined
+          ? null : (m.beatsBaseline ? 1 : 0),
+        m.maturity,
+        m.qualified ? 1 : 0,
+        m.unqualifiedReason ?? null,
+        m.policyVersion ?? null,
+        nowIso(now),
+      ],
+    });
+    log.info('prediction_model_saved', {
+      user_id: uid, target_metric: m.targetMetric, maturity: m.maturity,
+      qualified: Boolean(m.qualified), train_end: m.trainEnd ?? null,
+    });
+    return true;
+  }
+
+  function rowToModel(row) {
+    if (!row) return null;
+    return {
+      id: Number(row.id),
+      userId: String(row.user_id),
+      targetMetric: row.target_metric,
+      modelVersion: row.model_version,
+      features: row.features_json ? JSON.parse(row.features_json) : null,
+      trainedAt: row.trained_at,
+      trainStart: row.train_start,
+      trainEnd: row.train_end,
+      testStart: row.test_start,
+      testEnd: row.test_end,
+      nTrain: row.n_train === null ? null : Number(row.n_train),
+      nTest: row.n_test === null ? null : Number(row.n_test),
+      mae: row.mae === null ? null : Number(row.mae),
+      rmse: row.rmse === null ? null : Number(row.rmse),
+      r2: row.r2 === null ? null : Number(row.r2),
+      intervalCoverage: row.interval_coverage === null ? null : Number(row.interval_coverage),
+      baselineKind: row.baseline_kind,
+      baselineMae: row.baseline_mae === null ? null : Number(row.baseline_mae),
+      beatsBaseline: row.beats_baseline === null ? null : Number(row.beats_baseline) === 1,
+      maturity: row.maturity,
+      qualified: Number(row.qualified ?? 0) === 1,
+      unqualifiedReason: row.unqualified_reason,
+      policyVersion: row.policy_version,
+      createdAt: row.created_at,
+    };
+  }
+
+  /** 這個使用者、這個目標最新訓練出來的模型。 */
+  async function getLatestPredictionModel(userId, { targetMetric = 'recovery' } = {}) {
+    const uid = requireUserId(userId, 'getLatestPredictionModel');
+    const rs = await client.execute({
+      sql: `SELECT * FROM prediction_models
+             WHERE user_id = ? AND target_metric = ?
+             ORDER BY trained_at DESC, id DESC LIMIT 1`,
+      args: [uid, targetMetric],
+    });
+    return rowToModel(rs.rows[0]);
+  }
+
+  async function getPredictionModels(userId, { targetMetric = null, limit = 50 } = {}) {
+    const uid = requireUserId(userId, 'getPredictionModels');
+    const rs = targetMetric
+      ? await client.execute({
+        sql: `SELECT * FROM prediction_models WHERE user_id = ? AND target_metric = ?
+               ORDER BY trained_at DESC LIMIT ?`,
+        args: [uid, targetMetric, limit],
+      })
+      : await client.execute({
+        sql: 'SELECT * FROM prediction_models WHERE user_id = ? ORDER BY trained_at DESC LIMIT ?',
+        args: [uid, limit],
+      });
+    return rs.rows.map(rowToModel);
+  }
+
   async function getPredictions(userId, { targetMetric = null, limit = 100 } = {}) {
     const uid = requireUserId(userId, 'getPredictions');
     const rs = targetMetric
@@ -430,6 +549,9 @@ export function createAnalysisStore(client) {
     savePrediction,
     recordPredictionActual,
     getPredictions,
+    savePredictionModel,
+    getLatestPredictionModel,
+    getPredictionModels,
     createInsight,
     supersedeInsight,
     reconfirmInsight,

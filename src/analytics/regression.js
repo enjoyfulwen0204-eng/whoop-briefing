@@ -236,6 +236,12 @@ export function analyzeRecoveryDrivers({
     standardized_coefficients: standardized ? standardizedCoefficients : null,
     r2: rawFit.r2,
     adjusted_r2: rawFit.adjusted_r2,
+    // ⚠️ V1.1 修正：殘差平方和以前只留在內層 ordinaryLeastSquares 的結果裡，
+    // 沒有被帶出來。prediction.js 的 predict() 卻用 fit.ss_residual 去算
+    // 區間，於是拿到 undefined → Math.sqrt(NaN) → 區間變成 NaN。
+    // 以前踩不到是因為 persistPrediction() 從來沒有被呼叫過；V1.1 把預測
+    // 迴圈接起來之後就會踩到（libSQL 直接拒絕 NaN 參數）。
+    ss_residual: rawFit.ss_residual,
     vif,
     // 提醒呼叫端：R² 高不代表因果，也不代表對未來有預測力
     note: 'R² 只描述這批資料的配適程度，不是因果證據，也不是預測準確度。',

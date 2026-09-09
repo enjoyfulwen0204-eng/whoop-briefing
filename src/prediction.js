@@ -89,6 +89,39 @@ export function buildSupervised(rows, { target = 'recovery', features = DEFAULT_
   return out;
 }
 
+/**
+ * 直接對**已經配好對**的樣本擬合。
+ *
+ * ⚠️ 存在的理由（很重要）：`train()` 吃的是原始 daily_metrics，它自己會先
+ * 跑一次 buildSupervised。如果把已經配好對的樣本再餵進 train()，
+ * buildSupervised 會**再配一次對**——特徵來自 sample[i]、結果來自
+ * sample[i+1]，等於把目標整整多推了一天，訓練出來的是一個錯的模型，
+ * 而且完全不會報錯。時序切分之後必須用這個函式，不能再走 train()。
+ */
+export function trainOnSamples(samples, { target = 'recovery', features = DEFAULT_FEATURES } = {}) {
+  if (samples.length < MIN_TRAIN_ROWS) {
+    return {
+      ok: false,
+      status: PREDICTION_STATUS.INSUFFICIENT_DATA,
+      n: samples.length,
+      required: MIN_TRAIN_ROWS,
+      model_version: MODEL_VERSION,
+    };
+  }
+  const fit = analyzeRecoveryDrivers({ rows: samples, target, features });
+  if (!fit.ok) {
+    return {
+      ok: false,
+      status: PREDICTION_STATUS.MODEL_UNAVAILABLE,
+      reason: fit.reason,
+      warnings: fit.warnings,
+      n: samples.length,
+      model_version: MODEL_VERSION,
+    };
+  }
+  return { ok: true, status: PREDICTION_STATUS.OK, fit, n: samples.length, model_version: MODEL_VERSION };
+}
+
 /** 訓練。資料不足就明講，不硬解。 */
 export function train(rows, { target = 'recovery', features = DEFAULT_FEATURES } = {}) {
   const samples = buildSupervised(rows, { target, features });
@@ -139,13 +172,20 @@ export function predict(model, featureValues) {
       model_version: MODEL_VERSION,
     };
   }
-  const rmse = Math.sqrt(model.fit.ss_residual / Math.max(1, model.fit.n));
+  // 區間算不出來時一律回 null，**絕不回 NaN**。
+  // NaN 會一路流進 DB（libSQL 直接拒絕）、流進涵蓋率計算（`actual >= NaN`
+  // 永遠是 false，靜靜地把涵蓋率壓成 0）。算不出來就誠實說沒有。
+  const ssr = num(model.fit?.ss_residual);
+  const n = num(model.fit?.n);
+  const rmse = ssr !== null && n !== null && n > 0 ? Math.sqrt(ssr / Math.max(1, n)) : null;
+  const hasInterval = rmse !== null && Number.isFinite(rmse);
+
   return {
     status: PREDICTION_STATUS.OK,
     predicted_value: value,
-    predicted_low: value - rmse,
-    predicted_high: value + rmse,
-    interval_kind: 'rough_residual_sd',
+    predicted_low: hasInterval ? value - rmse : null,
+    predicted_high: hasInterval ? value + rmse : null,
+    interval_kind: hasInterval ? 'rough_residual_sd' : null,
     model_version: MODEL_VERSION,
     n_train: model.n,
   };
@@ -158,6 +198,7 @@ export function evaluate(model, testSamples, { target = 'recovery' } = {}) {
   }
   const errors = [];
   let covered = 0;
+  let intervalN = 0;
   const actuals = [];
   const preds = [];
 
@@ -169,7 +210,12 @@ export function evaluate(model, testSamples, { target = 'recovery' } = {}) {
     errors.push(actual - p.predicted_value);
     actuals.push(actual);
     preds.push(p.predicted_value);
-    if (actual >= p.predicted_low && actual <= p.predicted_high) covered += 1;
+    // 只有真的有區間的樣本才計入涵蓋率。少了這個判斷，`actual >= null`
+    // 會被當成 `actual >= 0`（多半為真），涵蓋率就變成一個假數字。
+    if (p.predicted_low !== null && p.predicted_high !== null) {
+      intervalN += 1;
+      if (actual >= p.predicted_low && actual <= p.predicted_high) covered += 1;
+    }
   }
 
   if (!errors.length) return { ok: false, status: PREDICTION_STATUS.INSUFFICIENT_DATA, n: 0 };
@@ -187,8 +233,173 @@ export function evaluate(model, testSamples, { target = 'recovery' } = {}) {
     mae,
     rmse,
     r2: ssTot === 0 ? null : 1 - ssRes / ssTot,
-    interval_coverage: covered / errors.length,
+    // 沒有任何樣本有區間時回 null（不是 0）——「算不出來」與「都沒涵蓋到」
+    // 是完全不同的兩件事。
+    interval_coverage: intervalN > 0 ? covered / intervalN : null,
+    interval_n: intervalN,
     model_version: MODEL_VERSION,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 樸素基準線（V1.1 Phase 10）
+// ---------------------------------------------------------------------------
+
+/**
+ * 「就用歷史平均猜」的基準線。
+ *
+ * ## 為什麼一定要有這個
+ *
+ * 一個 MAE = 8 的恢復預測到底算好還是爛？在沒有任何真實資料的現在，
+ * 這個問題無法回答——但**「它有沒有贏過完全不看特徵、只用歷史平均猜」**
+ * 這個問題現在就能回答，而且不需要任何憑空想像的門檻。這正是唯一一個
+ * 我們現在就能誠實設定的品質條件。
+ *
+ * ## 為什麼用訓練集的平均，而不是滾動平均
+ *
+ * 滾動平均（每一筆測試樣本都用「該日之前的所有資料」）在現實中是合法的
+ * ——預測 D+1 時本來就知道 D 的實際值。但那會讓基準線拿到比模型更多的
+ * 資訊（模型是凍結在訓練集上的），比較就不公平了。
+ *
+ * 用**訓練集的平均**則兩邊資訊完全對等，而且百分之百不可能洩漏：
+ * 訓練集在時間上整段早於測試集（temporalSplit + assertNoLeakage 保證）。
+ */
+export function naiveBaseline(trainSamples, { target = 'recovery' } = {}) {
+  const values = trainSamples
+    .map((s) => num(s[target]))
+    .filter((v) => v !== null);
+  if (!values.length) return { ok: false, kind: 'train_mean', value: null };
+  return { ok: true, kind: 'train_mean', value: mean(values) };
+}
+
+/** 基準線在測試集上的 MAE。 */
+export function evaluateBaseline(baseline, testSamples, { target = 'recovery' } = {}) {
+  if (!baseline?.ok || !testSamples.length) return { ok: false, mae: null, n: 0 };
+  const errs = [];
+  for (const s of testSamples) {
+    const actual = num(s[target]);
+    if (actual === null) continue;
+    errs.push(Math.abs(actual - baseline.value));
+  }
+  if (!errs.length) return { ok: false, mae: null, n: 0 };
+  return { ok: true, mae: mean(errs), n: errs.length };
+}
+
+/**
+ * 「要能訓練 **並且** 留一段測試集」所需的最少配對數。
+ *
+ * 純推導，不是新的門檻：訓練集拿 (1 - testRatio)，要讓它達到
+ * MIN_TRAIN_ROWS，總配對數就必須是 MIN_TRAIN_ROWS / (1 - testRatio)。
+ */
+export function requiredPairsFor(testRatio = 0.25) {
+  const trainShare = 1 - testRatio;
+  if (!(trainShare > 0)) return MIN_TRAIN_ROWS;
+  return Math.ceil(MIN_TRAIN_ROWS / trainShare);
+}
+
+/**
+ * 完整的「訓練 → 時序切分 → 評估 → 對照基準線」。
+ *
+ * **絕不 shuffle**，而且每一次都重新斷言沒有時間洩漏——洩漏檢查不是
+ * 一次性的設計決定，是每次執行都要通過的條件。
+ *
+ * @returns 一個可以直接寫進 prediction_models 的評估結果
+ */
+export function trainEvaluateAndCompare(rows, {
+  target = 'recovery', features = DEFAULT_FEATURES, testRatio = 0.25,
+} = {}) {
+  const samples = buildSupervised(rows, { target, features });
+
+  if (!samples.length) {
+    return {
+      ok: false, status: PREDICTION_STATUS.INSUFFICIENT_DATA, n_pairs: 0,
+      required: requiredPairsFor(testRatio),
+    };
+  }
+  // ★ 要留一段測試集出來，所以總配對數必須比 MIN_TRAIN_ROWS 更多。
+  // 這個數字是**推導**出來的，不是另外發明的門檻：訓練集拿到
+  // (1 - testRatio) 的比例，要讓它達到 MIN_TRAIN_ROWS，總數就得是
+  // MIN_TRAIN_ROWS / (1 - testRatio)。
+  //
+  // 這也正是「readiness READY」與「模型可評估」的差別：readiness 說的是
+  // 「有 30 組配對，夠 train() 跑」，這裡說的是「還要夠切出一個沒被看過的
+  // 測試集」。兩者本來就不是同一個問題。
+  const requiredPairs = requiredPairsFor(testRatio);
+  if (samples.length < requiredPairs) {
+    return {
+      ok: false,
+      status: PREDICTION_STATUS.INSUFFICIENT_DATA,
+      n_pairs: samples.length,
+      required: requiredPairs,
+    };
+  }
+
+  const split = temporalSplit(samples, { testRatio });
+  const leak = assertNoLeakage(split.train, split.test);
+  if (!leak.ok) {
+    // 走到這裡代表 temporalSplit 出了嚴重的 bug。寧可完全不輸出，
+    // 也絕不用一個可能洩漏的評估去決定要不要發布預測。
+    return {
+      ok: false,
+      status: PREDICTION_STATUS.MODEL_UNAVAILABLE,
+      reason: 'temporal_leakage_detected',
+      n_pairs: samples.length,
+    };
+  }
+
+  // 只用訓練集擬合。
+  // ★ 必須用 trainOnSamples 而不是 train：split.train 已經是配好對的樣本，
+  // 再走 train() 會被 buildSupervised 二次配對，把目標多推一天。
+  const model = trainOnSamples(split.train, { target, features });
+  if (!model.ok) {
+    return {
+      ok: false,
+      status: model.status,
+      reason: model.reason ?? null,
+      warnings: model.warnings ?? [],
+      n_pairs: samples.length,
+      n_train: split.train.length,
+    };
+  }
+
+  const evaluation = evaluate(model, split.test, { target });
+  const baseline = naiveBaseline(split.train, { target });
+  const baselineEval = evaluateBaseline(baseline, split.test, { target });
+
+  const dates = (arr) => {
+    const d = arr.map((s) => s.health_date).sort();
+    return { start: d[0] ?? null, end: d[d.length - 1] ?? null };
+  };
+  const trainDates = dates(split.train);
+  const testDates = dates(split.test);
+
+  const beatsBaseline = evaluation.ok && baselineEval.ok
+    ? evaluation.mae < baselineEval.mae
+    : null;
+
+  return {
+    ok: evaluation.ok === true,
+    status: evaluation.ok ? PREDICTION_STATUS.OK : PREDICTION_STATUS.INSUFFICIENT_DATA,
+    model,
+    model_version: MODEL_VERSION,
+    features,
+    target,
+    n_pairs: samples.length,
+    n_train: split.train.length,
+    n_test: evaluation.n ?? 0,
+    train_start: trainDates.start,
+    train_end: trainDates.end,
+    test_start: testDates.start,
+    test_end: testDates.end,
+    boundary_date: split.boundaryDate,
+    mae: evaluation.mae ?? null,
+    rmse: evaluation.rmse ?? null,
+    r2: evaluation.r2 ?? null,
+    interval_coverage: evaluation.interval_coverage ?? null,
+    baseline_kind: baseline.kind,
+    baseline_mae: baselineEval.mae,
+    beats_baseline: beatsBaseline,
+    leakage_checked: true,
   };
 }
 

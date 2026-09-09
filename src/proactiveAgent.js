@@ -46,6 +46,7 @@ import { PROACTIVE_DECISION, PROACTIVE_QUESTION_INTENT } from './schema.js';
 import { POLICY_VERSION, ANTI_SPAM_POLICY, SIGNAL_POLICY } from './proactivePolicy.js';
 import { READINESS_HEURISTICS } from './config.js';
 import { INSIGHT_STATUS } from './healthMemory.js';
+import { capabilityByMetricFor } from './capabilityMap.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
 
@@ -145,7 +146,20 @@ export async function checkAndAct({
     };
   }
 
-  const signals = detectSignals({ seriesByMetric, anchorDate, metrics: MONITORED_METRICS });
+  // ---- capability 接線（V1.1 Phase 11）----
+  // 以前這裡沒有把 capability 傳進去，於是 detectSignals 的
+  // capabilityByMetric 永遠是 {}，capabilityGate 形同虛設：一個
+  // **已經證實**這個帳號拿不到的欄位，會被報成 NO_DATA「還在累積中」，
+  // 而不是 UNAVAILABLE「這個帳號沒有」。
+  //
+  // 讀不到 capability 就用空物件——那會回到「還沒 probe」的語義，
+  // 也就是繼續走樣本數邏輯，絕不會誤判成不支援。
+  const capabilities = await db.getCapabilities(uid).catch(() => ({}));
+  const capabilityByMetric = capabilityByMetricFor(MONITORED_METRICS, capabilities);
+
+  const signals = detectSignals({
+    seriesByMetric, capabilityByMetric, anchorDate, metrics: MONITORED_METRICS,
+  });
 
   const [openQuestion, journalToday, recentEvents] = await Promise.all([
     db.getOpenPendingQuestion(uid, { now }).catch(() => null),

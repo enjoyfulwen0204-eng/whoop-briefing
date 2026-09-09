@@ -34,6 +34,7 @@ import { reapExpiredProactiveQuestions } from './proactiveReaper.js';
 import { runGuardian } from './guardian.js';
 import { runPredictionCycle } from './predictionPipeline.js';
 import { loadDailyMetrics } from './dailyMetrics.js';
+import { capabilityStatusForField, isKnownUnavailable } from './capabilityMap.js';
 import { HEARTBEAT_COMPONENT } from './guardianPolicy.js';
 import { mapWithConcurrency } from './concurrency.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
@@ -244,8 +245,19 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
       const predRows = await loadDailyMetrics({
         db, userId: uid, timezone: tz, from: addDays(anchor, -PREDICTION_LOOKBACK_DAYS), to: anchor,
       });
+      // capability 接線：目標指標**已經證實**拿不到時，成熟度是
+      // UNSUPPORTED 而不是「資料還在累積」。查不到 capability（還沒 probe）
+      // 一律當成 null → 繼續走樣本數邏輯，絕不誤判成不支援。
+      const caps = await db.getCapabilities(uid).catch(() => ({}));
+      const targetStatus = capabilityStatusForField('recovery', caps);
+
       out.prediction = await predictionCycle({
-        db, userId: uid, rows: predRows, anchorDate: anchor, now,
+        db,
+        userId: uid,
+        rows: predRows,
+        anchorDate: anchor,
+        capabilityUnavailable: isKnownUnavailable(targetStatus),
+        now,
       });
     }
   } catch (err) {

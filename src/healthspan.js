@@ -16,6 +16,7 @@
 import { ANALYTICS } from './config.js';
 import { requireUserId } from './userContext.js';
 import { STATUS } from './capabilities.js';
+import { capabilityStatusForContributor } from './capabilityMap.js';
 import { describeWindow } from './analytics/statistics.js';
 import { seriesOf } from './dailyMetrics.js';
 import { STRENGTH_SPORTS } from './dailyMetrics.js';
@@ -137,9 +138,16 @@ export function buildContributors(rows = [], {
     const w = describeWindow(series, { endDate: anchor, days: windowDays });
     const availability = availabilityOf({ n: w.n, windowDays, source: c.source });
 
-    // capability probe 說這個欄位這個帳號沒有 → 以 probe 為準
-    const capStatus = capabilities?.[c.key]?.status ?? capabilities?.[c.field]?.status ?? null;
+    // capability probe 說這個帳號拿不到 → 以 probe 為準。
+    //
+    // ⚠️ V1.1 修正：以前是 `capabilities[c.key] ?? capabilities[c.field]`，
+    // 直接拿 contributor key 或 daily_metrics 欄位名去查 probe。但 probe 用的
+    // 是第三套命名（`recovery_score` / `strain` / `body_weight`…），
+    // 所以 `resting_heart_rate`、`sleep_duration`、`weight` 這些永遠查不到，
+    // 安靜地變成 undefined。現在走集中、明確、有測試的對應表。
+    const capStatus = capabilityStatusForContributor(c.key, capabilities);
     const finalAvailability = capStatus === STATUS.UNAVAILABLE
+      || capStatus === STATUS.UNAUTHORIZED
       ? AVAILABILITY.UNAVAILABLE
       : availability;
 

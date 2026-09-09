@@ -22,6 +22,16 @@ export class MissingUserIdError extends Error {
  */
 export function requireUserId(userId, where = 'store') {
   if (userId === null || userId === undefined) throw new MissingUserIdError(where);
+  // ⚠️ 稽核修正（evidence.js 真的踩到了）：物件是 truthy，而且 String({})
+  // 會變成字面上的 "[object Object]" —— 守衛安靜地放行，查詢卻拿一個垃圾
+  // 字串當 user id，永遠 0 列。這正是「忘記帶 user 就查」的變形，而且比
+  // 忘記帶還難發現，因為它連錯誤都不會拋。
+  //
+  // 只接受 string 與 number：number 是合法的（測試與外部 id 可能是數字），
+  // 其他型別（object / array / boolean / function / symbol）一律大聲拒絕。
+  const t = typeof userId;
+  if (t !== 'string' && t !== 'number') throw new MissingUserIdError(where);
+  if (t === 'number' && !Number.isFinite(userId)) throw new MissingUserIdError(where);
   const s = String(userId).trim();
   if (!s) throw new MissingUserIdError(where);
   return s;

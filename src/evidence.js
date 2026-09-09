@@ -322,7 +322,14 @@ export async function getEvidence({ db, userId, subject = null, now = new Date()
   try {
     if (typeof db.getPredictions === 'function') {
       const { scorecard } = await import('./prediction.js');
-      const sc = await scorecard(db, {});
+      // ⚠️ 稽核修正：這裡原本是 `scorecard(db, {})`。`{}` 是 truthy，
+      // requireUserId 又用 String() 正規化，所以 `String({})` 會變成
+      // 字面上的 "[object Object]" —— 守衛不會拋錯，查詢卻是
+      // `WHERE user_id = '[object Object]'`，永遠 0 列。結果是預測記分卡
+      // **從來不曾**出現在 /evidence，而且完全靜默（外層 catch 也不會觸發）。
+      // 沒有跨使用者外洩（那個 id 是垃圾字串，不是別人的 id），但
+      // requireUserId 的保護在這條路徑上等於被繞過。
+      const sc = await scorecard(db, uid);
       if (sc.available) cards.push(fromPrediction(sc, { recalculatedAt: now.toISOString() }));
     }
   } catch (err) {

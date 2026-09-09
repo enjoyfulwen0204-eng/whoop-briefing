@@ -404,10 +404,23 @@ test('[char-C2] 報告都已送出時：目前會整個早退，sync 與 proacti
       db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now, deps: spyDeps(calls),
     });
 
-    // 這是**現況**：沒有報告要發 → 連 sync 與 proactive 都不跑。
-    // Phase 7 會刻意改掉這一點，屆時這個測試會被同步更新成新的預期。
-    assert.equal(out.skipped, 'nothing_due');
-    assert.deepEqual(calls, []);
+    // ⚠️ V1.1 Phase 7 刻意改變了這裡的行為。
+    //
+    // 舊行為（這個測試原本凍結的）：沒有報告要發 → 整個早退，
+    // 連 sync 與 proactive 都不跑。
+    //
+    // 新行為：報告 due 與資料新鮮度是獨立的。這個使用者從來沒同步過
+    // （沒有任何 whoop_sync_state 列），所以 sync 仍然是 due 的 →
+    // 即使沒有報告要發，同步與主動代理照樣執行。
+    //
+    // 報告本身完全沒有被放寬：daily/weekly 都沒有被呼叫。
+    assert.equal(out.skipped, null);
+    assert.equal(out.syncDue, true);
+    assert.ok(calls.includes('sync'), '沒有報告要發時，同步仍然要跑');
+    assert.ok(calls.includes('proactive'));
+    assert.ok(!calls.includes('daily'), '報告已送出就不可以再發一次');
+    assert.ok(!calls.includes('weekly'));
+    assert.ok(!calls.includes('telegram.send'), '不可以送出任何報告訊息');
   });
 });
 

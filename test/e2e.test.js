@@ -13,6 +13,7 @@ import path from 'node:path';
 import { main } from '../src/index.js';
 import { createDb } from '../src/db.js';
 import { addDays, localDate } from '../src/time.js';
+import { WHOOP_SYNC } from '../src/config.js';
 import { makeDataset } from './fixtures.js';
 
 const TZ = 'Asia/Taipei';
@@ -195,14 +196,51 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     });
     seed2.close();
 
+    // ⚠️ V1.1 Phase 7：報告排程與資料新鮮度已經解耦。
+    //
+    // 「兩天都已 SENT 且非週一」現在只代表**報告**沒事做，不代表整輪沒事做：
+    // 這個帳號的 backfill 還沒跑完，而 backfill 一向不受 MIN_INTERVAL_MS
+    // 節流（見 resourceSyncDue），所以同步仍然應該繼續推進。以前它被
+    // 報告排程綁住，365 天的 backfill 只能在有報告要發的那幾輪前進。
+    //
+    // 真正該保證的是：**不可以再發一次報告、不可以再花錢呼叫模型**。
     const before3 = calls.length;
     const third = await main({ now });
     assert.equal(third.users, 1);
     const thirdUser = third.perUser.find((p) => p.userId === U);
-    assert.equal(thirdUser.skipped, 'nothing_due', '兩天都已 SENT 且非週一 → 這個使用者沒事做');
+    assert.equal(thirdUser.daily, 'not_run', '報告已送出 → 不可以再跑一次日報');
+    assert.equal(thirdUser.weekly, 'not_run');
+
+    const after3 = calls.slice(before3);
     assert.equal(
-      calls.slice(before3).length, 0,
-      `快速返回不該有任何外部呼叫，實際：${JSON.stringify(calls.slice(before3))}`,
+      after3.filter((c) => c.host === 'telegram').length, 0,
+      `不可以再送出任何 Telegram 訊息，實際：${JSON.stringify(after3)}`,
+    );
+    assert.equal(
+      after3.filter((c) => c.host === 'openrouter').length, 0,
+      '已發過就不該再花錢呼叫模型',
+    );
+
+    // ---- 第四次執行：backfill 完成 + 剛同步過 → 真正的 no-op，零外部呼叫 ----
+    const seed3 = createDb({ url: dbUrl });
+    for (const resource of WHOOP_SYNC.RESOURCES) {
+      await seed3.saveSyncState(U, resource, {
+        backfillComplete: true,
+        lastSuccessAt: now.toISOString(),
+      }, { now });
+    }
+    seed3.close();
+
+    const before4 = calls.length;
+    const fourth = await main({ now });
+    const fourthUser = fourth.perUser.find((p) => p.userId === U);
+    assert.equal(
+      fourthUser.skipped, 'nothing_due',
+      '報告沒事做 + 同步在節流窗內 → 這一輪真的沒事做',
+    );
+    assert.equal(
+      calls.slice(before4).length, 0,
+      `完全沒事做時不該有任何外部呼叫，實際：${JSON.stringify(calls.slice(before4))}`,
     );
   } finally {
     restoreFetch();

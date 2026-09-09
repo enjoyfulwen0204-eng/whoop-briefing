@@ -28,7 +28,7 @@ import { createTelegram } from './telegram.js';
 import { runDaily } from './daily.js';
 import { runWeekly } from './weekly.js';
 import { checkRepoFreshness } from './maintenance.js';
-import { createSync } from './sync.js';
+import { createSync, isSyncDue } from './sync.js';
 import { checkAndAct } from './proactiveAgent.js';
 import { reapExpiredProactiveQuestions } from './proactiveReaper.js';
 import { mapWithConcurrency } from './concurrency.js';
@@ -102,14 +102,46 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     errorScope: userScope(uid),
   });
 
+  /**
+   * 過期主動問題的收割：純 DB 維護，不需要 WHOOP token，也跟報告排程無關。
+   * 定義在這裡讓「完全沒事做」的那條路也跑得到——不然沒有報告的日子
+   * 就永遠不會有人去收尾那些被無視的問題。
+   */
+  const runReaper = async () => {
+    try {
+      out.reaped = await reap({ db, userId: uid, now });
+    } catch (err) {
+      out.errors.push({ stage: 'reap', error: describeError(err) });
+      log.error('proactive_reap_unexpected', { user_id: uid, error: describeError(err) });
+    }
+  };
+
   // 2) per-user due 判斷（用他自己的時區）
+  //
+  // ⚠️ V1.1：報告排程與資料新鮮度是**兩件獨立的事**。
+  //
+  // 舊版只問「有沒有報告要發」，沒有就整個 return —— 於是每天日報送出之後
+  // 的那十幾個小時，WHOOP 同步與主動代理**一次都不會跑**。後果是 WHOOP
+  // 的事後改分／補值要等到隔天才會被看到，而主動代理的指紋變更偵測
+  // （它存在的理由就是為了抓「sleep 先進來、recovery 稍後才被評分」）
+  // 根本沒有機會觸發。
+  //
+  // 「報告不用發」不等於「健康資料不需要更新」。
   const due = await dueForUser({ db, userId: uid, timezone: tz, now });
+  const syncDue = await isSyncDue({ db, userId: uid, now }).catch(() => true);
+  out.syncDue = syncDue;
+
   log.info('due_check', {
     user_id: uid, timezone: tz, local_date: due.today, week_key: due.weekKey,
     daily_settled: due.dailySettled, weekly_due: due.weeklyDue,
+    reports_due: due.anythingDue, sync_due: syncDue,
   });
-  if (!due.anythingDue) {
+
+  // 報告不用發、資料也還在節流窗內 → 乾淨的 no-op。
+  // 刻意在拿 WHOOP token **之前** 就返回：這一輪完全不碰 WHOOP。
+  if (!due.anythingDue && !syncDue) {
     out.skipped = 'nothing_due';
+    await runReaper();
     return out;
   }
 
@@ -139,6 +171,7 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   const ctx = { db, userId: uid, source, coach, telegram, timezone: tz, now };
 
   // ---- daily ----
+  // 報告的條件維持原樣（health_date 去重 + report_claims），完全沒有放寬。
   if (!due.dailySettled) {
     try {
       out.daily = await daily(ctx);
@@ -165,7 +198,10 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   }
 
   // ---- 長期資料同步 ----
-  // 刻意放在最後：簡報永遠優先，同步只是附加工作。
+  // 刻意放在報告之後：簡報永遠優先，同步只是附加工作。
+  // 這裡**不**再看報告有沒有要發——syncAll 內部本來就有 per-resource 節流
+  // （resourceSyncDue），它才是節流的權威。上面的 syncDue 只用來決定
+  // 「這一輪要不要為了同步而去拿 token」，不重複做逐一 resource 的判斷。
   try {
     out.sync = await makeSync({ whoop, db, userId: uid, timezone: tz, now }).syncAll();
   } catch (err) {
@@ -190,13 +226,7 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   // 「問了但使用者從此沒再傳任何訊息」以前會永遠停在 OPEN、事件的 outcome
   // 永遠是 NULL。這一步把它收成 EXPIRED + NO_RESPONSE，讓「被無視」變成
   // 資料上真的存在的事實——那是之後要調 TTL 唯一能依據的東西。
-  // 純維護工作，reapExpiredProactiveQuestions 自己吞掉所有錯誤。
-  try {
-    out.reaped = await reap({ db, userId: uid, now });
-  } catch (err) {
-    out.errors.push({ stage: 'reap', error: describeError(err) });
-    log.error('proactive_reap_unexpected', { user_id: uid, error: describeError(err) });
-  }
+  await runReaper();
 
   return out;
 }

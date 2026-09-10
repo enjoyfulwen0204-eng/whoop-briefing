@@ -68,6 +68,12 @@ export function validateStructured(raw, spec, { allowUnknown = false } = {}) {
       continue;
     }
 
+    if (rule.type === 'boolean') {
+      if (typeof v !== 'boolean') { errors.push(`not_a_boolean:${key}`); value[key] = null; continue; }
+      value[key] = v;
+      continue;
+    }
+
     if (rule.type === 'string') {
       if (typeof v !== 'string') { errors.push(`not_a_string:${key}`); value[key] = null; continue; }
       const sv = v.trim();

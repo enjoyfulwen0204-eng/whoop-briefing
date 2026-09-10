@@ -163,6 +163,131 @@ test('★★★ R2-M-01: 歷史身分查不到（DB 故障）→ fail closed', a
 });
 
 // ===========================================================================
+// ★★★ R3-M-01：歷史來源必須完整，而且查不到要 fail closed
+// ===========================================================================
+
+/** 一列運動資料 —— R2 漏掉的權威來源。 */
+async function seedWorkoutRow(db, userId, whoopUserId, { id = 'w1' } = {}) {
+  await db.raw.execute({
+    sql: `INSERT INTO whoop_workouts
+            (user_id, id, whoop_user_id, start_at, end_at, score_state, synced_at)
+          VALUES (?, ?, ?, '2026-09-01T10:00:00Z', '2026-09-01T11:00:00Z', 'SCORED', ?)`,
+    args: [userId, id, whoopUserId, new Date().toISOString()],
+  });
+}
+
+test('★★★ R3-M-01: whoop_workouts 是權威歷史來源（R2 漏掉它）', async () => {
+  await withUser(async (db, alice) => {
+    await seedLegacyTokenRow(db, alice.id);
+    await seedWorkoutRow(db, alice.id, 777);
+
+    assert.deepEqual(await db.getHistoricalWhoopUserIds(alice.id), ['777'],
+      '★ 只有運動資料時也要查得到歷史身分');
+
+    await assert.rejects(
+      () => authorize(db, alice.id, '888'),
+      (e) => e.code === 'WHOOP_ACCOUNT_MISMATCH',
+    );
+    assert.equal((await db.getTokens(alice.id)).whoopUserId, null,
+      '★ 拒絕之後不可以留下任何身分');
+  });
+});
+
+test('★★★ R3-M-01: 每一張帶 whoop_user_id 的 WHOOP 表都在權威來源清單裡', async () => {
+  await withUser(async (db) => {
+    // schema 裡真正帶 whoop_user_id 的 WHOOP 生理／歷史表
+    const expected = ['whoop_sleeps', 'whoop_recoveries', 'whoop_cycles', 'whoop_workouts'];
+    assert.deepEqual([...db.whoopHistoryTables()].sort(), [...expected].sort(),
+      '★ 新增 WHOOP 資料表時必須同步加進權威來源，否則身分檢查會有盲點');
+  });
+});
+
+test('★★★ R3-M-01: 任何一個歷史來源查不到 → 往上拋（不可以吞掉）', async () => {
+  await withUser(async (db, alice) => {
+    await seedHealthRow(db, alice.id, 333);
+    // 其中一張權威來源不可讀
+    await db.raw.execute('DROP TABLE whoop_cycles');
+
+    await assert.rejects(
+      () => db.getHistoricalWhoopUserIds(alice.id),
+      /whoop_cycles/,
+      '★ 部分歷史不是答案——「查不到」必須傳播出去',
+    );
+  });
+});
+
+test('★★★ R3-M-01: 歷史完全不可讀時，授權一律拒絕', async () => {
+  await withUser(async (db, alice) => {
+    await seedLegacyTokenRow(db, alice.id);
+    await seedHealthRow(db, alice.id, 333);
+    for (const t of ['whoop_sleeps', 'whoop_recoveries', 'whoop_cycles', 'whoop_workouts']) {
+      await db.raw.execute(`DROP TABLE ${t}`);
+    }
+    await assert.rejects(
+      () => authorize(db, alice.id, '666'),
+      (e) => e.code === 'IDENTITY_HISTORY_UNREADABLE',
+    );
+    assert.equal((await db.getTokens(alice.id)).whoopUserId, null);
+    assert.equal((await db.getTokens(alice.id)).accessToken, 'old-at',
+      '★ 舊 token 不可以被覆寫');
+  });
+});
+
+test('★★★ R3-M-01: 歷史橫跨多張表且一致 → 只有那個身分綁得上', async () => {
+  await withUser(async (db, alice) => {
+    await seedLegacyTokenRow(db, alice.id);
+    await seedHealthRow(db, alice.id, 555);
+    await seedWorkoutRow(db, alice.id, 555);
+
+    await assert.rejects(() => authorize(db, alice.id, '111'),
+      (e) => e.code === 'WHOOP_ACCOUNT_MISMATCH');
+    const r = await authorize(db, alice.id, '555');
+    assert.equal(r.whoopUserId, '555', '★ 只有歷史那個身分可以補綁');
+  });
+});
+
+test('★★★ R3-M-01: 睡眠與運動屬於不同帳號 → 資料已汙染，拒絕任何綁定', async () => {
+  await withUser(async (db, alice) => {
+    await seedHealthRow(db, alice.id, 111);
+    await seedWorkoutRow(db, alice.id, 222);
+    for (const id of ['111', '222', '333']) {
+      await assert.rejects(() => authorize(db, alice.id, id),
+        (e) => e.code === 'IDENTITY_HISTORY_AMBIGUOUS');
+    }
+    assert.equal(await db.getTokens(alice.id), null);
+  });
+});
+
+test('★★ R3-M-01: 完全沒有歷史的 legacy NULL 使用者可以建立一次身分', async () => {
+  await withUser(async (db, alice) => {
+    await seedLegacyTokenRow(db, alice.id);
+    assert.deepEqual(await db.getHistoricalWhoopUserIds(alice.id), []);
+    const r = await authorize(db, alice.id, '999');
+    assert.equal(r.whoopUserId, '999');
+    // 建立之後就不可以再換
+    await assert.rejects(() => authorize(db, alice.id, '000'),
+      (e) => e.code === 'WHOOP_ACCOUNT_MISMATCH');
+  });
+});
+
+test('★★★ R3-M-01: COALESCE 順序在 WHERE 之下是可證明等價的', () => {
+  // WHERE: existing IS NULL OR excluded IS NULL OR existing = excluded
+  const combos = [
+    [null, 'A'], ['A', null], ['A', 'A'], ['A', 'B'],
+  ];
+  for (const [existing, excluded] of combos) {
+    const wherePasses = existing === null || excluded === null || existing === excluded;
+    const newOrder = existing ?? excluded;     // COALESCE(existing, excluded)
+    const oldOrder = excluded ?? existing;     // COALESCE(excluded, existing)
+    if (wherePasses) {
+      assert.equal(newOrder, oldOrder,
+        `★ WHERE 通過時兩種順序必須同值（existing=${existing}, excluded=${excluded}）`);
+    }
+    // WHERE 不通過時整個 UPDATE 是 no-op，順序不影響任何東西
+  }
+});
+
+// ===========================================================================
 // ★★★ 繞過 2：並發 OAuth（儲存層原子性）
 // ===========================================================================
 

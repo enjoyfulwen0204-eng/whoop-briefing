@@ -72,7 +72,10 @@ async function askProactive(db, userId, chatId, { key = 'k1', now = LONG_AGO } =
   const qid = await db.openPendingQuestion(userId, {
     chatId, originalMessage: 'HRV 偏低', question: '昨天有喝酒嗎？',
     intent: PROACTIVE_QUESTION_INTENT,
-    contextJson: { proactive_event_id: id, health_date: '2026-09-08', signal: { metric: 'hrv' } },
+    contextJson: {
+      proactive_event_id: id, health_date: '2026-09-08', signal: { metric: 'hrv' },
+      question_target_date: '2026-09-07', category: 'alcohol',
+    },
     ttlMs: 30 * 60_000,
   }, { now });
   await db.markProactiveEventSent(userId, id, { pendingQuestionId: qid }, { now });

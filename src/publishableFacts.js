@@ -140,9 +140,24 @@ export const TERM_TO_METRIC = (() => {
  *   supporting  除了 value 之外還允許出現的數字（基準、n、z、百分比變化…）
  *   publishable 明確覆寫（例如 capability 判定拿不到）
  */
+/**
+ * 一筆事實在敘述裡扮演的角色（R3-H-02）。
+ *
+ * 角色決定**確定性渲染器**怎麼把它寫成一句話，所以它必須是型別的一部分，
+ * 不能靠呼叫端臨時決定。
+ */
+export const FACT_ROLE = {
+  CURRENT_VALUE: 'CURRENT_VALUE',
+  BASELINE: 'BASELINE',
+  CHANGE: 'CHANGE',
+  TREND: 'TREND',
+  SUPPORTING_STATISTIC: 'SUPPORTING_STATISTIC',
+};
+
 export function fact(metric, value, {
   unit = null, display = null, healthDate = null, windowDays = null,
   readiness = null, supporting = [], publishable = null, allowsStructural = null,
+  role = FACT_ROLE.CURRENT_VALUE, provenance = null,
 } = {}) {
   const known = Object.prototype.hasOwnProperty.call(METRIC_VOCABULARY, metric);
   const numeric = typeof value === 'number' && Number.isFinite(value);
@@ -150,7 +165,15 @@ export function fact(metric, value, {
     ? Boolean(publishable)
     : known && numeric && !NEVER_PUBLISHABLE.has(metric);
   return {
+    /**
+     * 這一筆事實的穩定識別碼。渲染出來的每一句斷言都帶著它，
+     * 所以「這句話是從哪一筆事實來的」永遠查得到（provenance）。
+     */
+    factId: `${metric}:${role}:${healthDate ?? windowDays ?? 'na'}`,
     metric,
+    role,
+    /** 這筆事實是從哪個確定性層算出來的（稽核用，絕不含使用者原話）。 */
+    provenance,
     labels: known ? METRIC_VOCABULARY[metric] : [metric],
     value: numeric ? value : null,
     unit,
@@ -248,6 +271,7 @@ export function factsFromBriefing(briefing) {
       healthDate: briefing?.localDate ?? null,
       readiness: m.available ? 'AVAILABLE' : 'UNAVAILABLE',
       supporting,
+      provenance: 'daily_briefing',
       publishable: Boolean(m.available) && Number.isFinite(m.value),
     }));
   }
@@ -279,6 +303,8 @@ export function factsFromWeekly(weekly) {
       windowDays: last.days ?? null,
       readiness: Number.isFinite(a?.mean) ? 'AVAILABLE' : 'UNAVAILABLE',
       supporting,
+      provenance: 'weekly_stats',
+      role: FACT_ROLE.CURRENT_VALUE,
       publishable: Number.isFinite(a?.mean),
     }));
   }
@@ -332,6 +358,7 @@ export function factsFromQaResult(result) {
       windowDays,
       readiness: value === null ? 'UNAVAILABLE' : 'AVAILABLE',
       supporting,
+      provenance: 'health_query',
       publishable: value !== null,
     }));
   };
@@ -385,6 +412,7 @@ export function factsFromProactive({ signal = null, association = null } = {}) {
       healthDate: signal.health_date ?? null,
       readiness: signal.readiness_status ?? null,
       supporting,
+      provenance: 'proactive_signal',
       publishable: Number.isFinite(signal.current),
     }));
     structural.push(...dateNumbers(signal.health_date));

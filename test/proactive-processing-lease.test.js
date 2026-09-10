@@ -300,7 +300,14 @@ test('★★ R2-M-03: 沒有人在處理時，過期／被取代的路徑照常�
   });
 });
 
-test('★★ R2-M-03: 租約機制不可用時仍然可以處理回答（不讓維護機制卡死使用者）', async () => {
+// R3-M-03 取代了原本的 R2 版本。R2 當時要求「租約壞掉就照常處理」（fail-open），
+// 理由是不要讓維護機制卡死使用者。第三輪的獨立稽核指出那個取捨是錯的：
+// 租約壞掉的時候，我們**無法知道**有沒有別人正在處理同一個事件，而收割器
+// 也可能同時把它推向終局；照常處理等於在無人擁有的狀態下改 Journal。
+//
+// 現在的取捨是 fail-closed，而且代價很小 —— 追問狀態不會被翻轉，所以使用者
+// 的回答沒有遺失，等一下再講一次就會被正常處理。
+test('★★★ R3-M-03: 租約機制不可用 → fail closed，完全沒有副作用', async () => {
   await withSetup(async ({ db, user, eventId }) => {
     const broken = {
       ...db,
@@ -312,12 +319,30 @@ test('★★ R2-M-03: 租約機制不可用時仍然可以處理回答（不讓�
       },
       async ask() { return null; },
     });
+    const journalCount = async () => (await db.getJournalEvents(
+      user.id, { from: '2026-09-01', to: '2026-09-30', limit: 50 },
+    )).length;
+    const before = await journalCount();
     const router = createRouter({ db: broken, coachFor, now: () => NOW });
     const reply = await router.handle({
       text: '有，喝了兩杯', chatId: '1', user: { id: user.id, timezone: 'Asia/Taipei' },
     });
-    assert.match(String(reply), /已記錄/, '★ 使用者的回答還是要被處理');
-    assert.ok((await outcomeOf(db, user.id, eventId)).outcome, '事件仍然被結案');
+
+    assert.doesNotMatch(String(reply), /已記錄/,
+      '★ 拿不到所有權就不可以宣稱記錄成功');
+    assert.equal(await journalCount(), before, '★ 不可以有任何 Journal 變更');
+    assert.equal((await outcomeOf(db, user.id, eventId)).outcome, null,
+      '★ 事件不可以被推向終局');
+
+    // 使用者的回答沒有被吃掉：追問還開著，再講一次就會被處理。
+    const pending = await db.getOpenPendingQuestion(user.id, { now: NOW });
+    assert.ok(pending, '★ 追問必須仍然開著（回答沒有遺失）');
+
+    const healthy = createRouter({ db, coachFor, now: () => NOW });
+    const retry = await healthy.handle({
+      text: '有，喝了兩杯', chatId: '1', user: { id: user.id, timezone: 'Asia/Taipei' },
+    });
+    assert.match(String(retry), /已記錄/, '★ 租約恢復之後同一句話要能正常處理');
   });
 });
 

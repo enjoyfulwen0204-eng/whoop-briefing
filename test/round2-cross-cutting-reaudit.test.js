@@ -22,6 +22,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { SCHEMA_VERSION } from '../src/schema.js';
 import { createDb } from '../src/db.js';
 import { runForUser } from '../src/index.js';
 import { createPoller } from '../src/bot/polling.js';
@@ -29,7 +30,8 @@ import { createRouter } from '../src/bot/router.js';
 import { reapExpiredProactiveQuestions } from '../src/proactiveReaper.js';
 import { gatherFacts, evaluate } from '../src/guardian.js';
 import { buildPersonalHealthspan } from '../src/healthspanEngine.js';
-import { validatePublication } from '../src/publishGuard.js';
+import { validateExplanation } from '../src/publishGuard.js';
+import { renderAssertions } from '../src/assertionRenderer.js';
 import { factsFromQaResult } from '../src/publishableFacts.js';
 import { authorizesProactiveMessaging } from '../src/capabilityMap.js';
 import { prepareAuthorization, completeAuthorization } from '../src/oauthFlow.js';
@@ -302,7 +304,7 @@ test('★★★ 再稽核 9: 只有 SUPPORTED 授權主動訊息', () => {
 // 10. 敘述的結構化證據邊界
 // ===========================================================================
 
-test('★★★ 再稽核 10: 發布邊界仍然擋下所有必擋的宣稱家族', () => {
+test('★★★ 再稽核 10: 發布邊界 —— 斷言來自渲染器，說明不得含任何生理斷言', () => {
   const set = factsFromQaResult({
     available: true, health_date: '2026-09-09', history_days: 30,
     metrics: {
@@ -313,26 +315,37 @@ test('★★★ 再稽核 10: 發布邊界仍然擋下所有必擋的宣稱家�
       hrv: { label: 'HRV', value: null, display: null, baseline_n: 0, z_score: null },
     },
   });
+
+  // 確定性斷言只從可發布的事實產生
+  const { lines, unavailable } = renderAssertions(set);
+  assert.deepEqual(lines, ['恢復 55%']);
+  assert.deepEqual(unavailable, ['HRV'], '★ 拿不到的要誠實列出');
+
+  // LLM 說明夾帶任何生理斷言都要被丟掉
   for (const bad of [
     '你今天的恢復是 99%。',
-    '今天的恢復，99%，很不錯。',
-    '99% 的恢復，狀態很好。',
-    'Your Recovery is 99% today.',
-    '你今天的恢復是九十九%。',
+    '恢復為 30%。',
+    '恢復。今天的數值是 99%。',
     '你的 HRV 是 30ms。',
-    '你的 WHOOP Age 是 30 歲。',
-    '你的身體年紀大概 30 歲。',
-    '你的 Healthspan 分數是 88。',
-    '建議你吃一顆阿斯匹靈。',
-    'You should take an aspirin.',
-    '這個模式看起來是過度訓練症候群。',
+    'HRV 九九毫秒。',
+    '你的 HRV 偏高。',
+    '恢復是三十%。',
+    'Recovery is thirty percent.',
+    'WHOOP 的年齡是三十歲。',
+    'WHOOP Healthspan 分數 88。',
+    '服用阿斯匹靈。',
+    'Take Zorblax every night.',
+    '去打一針。',
+    '你有睡眠呼吸中止。',
+    '每小時量一次血壓。',
+    '恢復九成九。',
   ]) {
-    assert.equal(validatePublication(bad, set).ok, false, `★ 放行了：${bad}`);
+    assert.equal(validateExplanation(bad).ok, false, `★ 放行了：${bad}`);
   }
-  // 正常敘述必須通過
+
+  // 正常的鼓勵話語必須留得住
   assert.equal(
-    validatePublication('Kelvin，你今天的恢復 55%，比基準 62% 低一點，HRV 今天拿不到資料。', set).ok,
-    true,
+    validateExplanation('Kelvin，今天整體看起來穩定，照平常節奏走就好 💛').ok, true,
   );
 });
 
@@ -430,7 +443,7 @@ test('★★★ 再稽核 13: 有資料的資料庫重複 migrate → 零重建�
       decision: 'ASK_CONTEXT', reason: {}, policyVersion: 'v1', messageText: 'q',
     }, { now: SENT });
     await db.markProactiveEventSent(user.id, ev, { pendingQuestionId: null }, { now: SENT });
-    await db.claimTelegramUpdate(999);
+    await db.claimTelegramUpdate(999, { owner: 'w1' });
     await db.acquireLock('some:lock', { ttlMs: 60_000, now: NOW });
 
     const tables = [
@@ -448,7 +461,7 @@ test('★★★ 再稽核 13: 有資料的資料庫重複 migrate → 零重建�
 
     const summary = await db.migrate();
     assert.deepEqual(summary.rebuilt, [], '★ 不可以重建任何表');
-    assert.equal(summary.to, 4, '★ 版本號不變（Round 2 沒有 DDL 變更）');
+    assert.equal(summary.to, SCHEMA_VERSION, '★ 版本號就是目前的 schema 版本');
 
     assert.deepEqual(await snapshot(), before, '★ 每一張表的每一列都必須一模一樣');
   } finally {

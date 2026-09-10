@@ -38,13 +38,39 @@
 // 版本化之後，proactive_agent_state 才會進入 RESHAPED_TABLES 的形狀檢查，
 // 開發機上那種「舊三欄版本」的表才會被安全重建（空表才重建，有資料會中止）。
 //
+// v5：telegram_processed_updates 加上處理狀態機的欄位（R3-M-05）。純加欄位，
+//     走 ADDITIVE_COLUMNS，既有資料原封不動（回填成 COMPLETED）。
+//
 // v4：新增 system_heartbeats（運維觀測）與 prediction_models（預測成熟度）。
 // **兩張都是純新增**，不動任何既有表的形狀，所以：
 //   - 沒有任何 DROP、沒有 rename、沒有欄位型別變更
 //   - 兩張表都**刻意不加進 RESHAPED_TABLES**——那份清單的用途是「這張表
 //     以前存在過別的形狀」，而這兩張表在任何環境都是第一次出現。把全新的
 //     表加進去只會平白武裝一條它永遠不該走的 DROP 路徑。
-export const SCHEMA_VERSION = 4;
+/**
+ * 一則 Telegram update 的持久化處理狀態（R3-M-05）。
+ *
+ * 「收到」不是一個狀態，因為在我們寫下任何東西之前，訊息的耐久性是由
+ * Telegram 自己保證的（沒有推進 offset 就會再送一次）。我們的第一個
+ * 持久化事實就是 CLAIMED。
+ *
+ *   CLAIMED    我拿到所有權了，**還沒有 dispatch**，所以保證零副作用。
+ *              → 租約過期後可以被安全地重新認領（重做沒有任何代價）。
+ *   PROCESSING 已經 dispatch，副作用可能已經發生。
+ *              → 租約過期代表有人做到一半死了，**不可以自動重做**
+ *                （會寫出第二筆 journal，而 journal 的重複永遠不會自己修好）。
+ *   COMPLETED  終局：確定做完了。
+ *   ABANDONED  終局：在 PROCESSING 階段失去所有權，做到哪裡不確定。
+ *              明確記下來讓人可以查，而不是靜靜地消失。
+ */
+export const TELEGRAM_UPDATE_STATUS = {
+  CLAIMED: 'CLAIMED',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  ABANDONED: 'ABANDONED',
+};
+
+export const SCHEMA_VERSION = 5;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -434,10 +460,50 @@ export const BOT_SCHEMA = [
   //
   // 刻意**不**分 user：update_id 對一個 bot 是全域唯一且遞增的，
   // 而且認領必須發生在身分解析之前之後都安全的位置。純新增表，零風險。
+  //
+  // ★ R3-M-05：一列的**存在**曾經同時代表「認領了」和「做完了」。
+  //
+  // 那兩件事在崩潰的時候會分開，而分開的時候後果相反：
+  //   - 認領完、還沒 dispatch 就死 → 這則訊息其實一件事都沒做，
+  //     但重送時看到列就被當成重複 → **永久遺失**（實測重現）。
+  //   - 副作用做完、還沒標記完成就死 → 重做會寫出第二筆 journal。
+  //
+  // 所以狀態必須是持久化且分階段的，而且要有 owner + 租約，
+  // 才能分辨「別人正在做」與「有人做到一半死了」。
   `CREATE TABLE IF NOT EXISTS telegram_processed_updates (
-     update_id    INTEGER PRIMARY KEY,
-     processed_at TEXT NOT NULL
+     update_id        INTEGER PRIMARY KEY,
+     processed_at     TEXT,
+     status           TEXT NOT NULL DEFAULT '${TELEGRAM_UPDATE_STATUS.COMPLETED}',
+     owner            TEXT,
+     claimed_at       TEXT,
+     lease_expires_at TEXT,
+     dispatched_at    TEXT,
+     attempts         INTEGER NOT NULL DEFAULT 1
    )`,
+];
+
+/**
+ * 既有資料庫的加欄位遷移（R3-M-05）。
+ *
+ * telegram_processed_updates 在正式環境是**有資料**的（每一則處理過的
+ * update 都在裡面），所以不能走 RESHAPED_TABLES 的「空表才重建」路徑 ——
+ * 那條路徑遇到有資料的表會直接中止 migration。
+ *
+ * ALTER TABLE ADD COLUMN 在 SQLite 是 O(1) 的中繼資料變更，不重寫資料列，
+ * 而且可以重複執行（先檢查欄位在不在）。既有的列一律回填成 COMPLETED：
+ * 它們的語義本來就是「這則已經處理完了」。
+ */
+export const ADDITIVE_COLUMNS = [
+  {
+    table: 'telegram_processed_updates',
+    column: 'status',
+    ddl: `ALTER TABLE telegram_processed_updates ADD COLUMN status TEXT NOT NULL DEFAULT '${TELEGRAM_UPDATE_STATUS.COMPLETED}'`,
+  },
+  { table: 'telegram_processed_updates', column: 'owner', ddl: 'ALTER TABLE telegram_processed_updates ADD COLUMN owner TEXT' },
+  { table: 'telegram_processed_updates', column: 'claimed_at', ddl: 'ALTER TABLE telegram_processed_updates ADD COLUMN claimed_at TEXT' },
+  { table: 'telegram_processed_updates', column: 'lease_expires_at', ddl: 'ALTER TABLE telegram_processed_updates ADD COLUMN lease_expires_at TEXT' },
+  { table: 'telegram_processed_updates', column: 'dispatched_at', ddl: 'ALTER TABLE telegram_processed_updates ADD COLUMN dispatched_at TEXT' },
+  { table: 'telegram_processed_updates', column: 'attempts', ddl: 'ALTER TABLE telegram_processed_updates ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1' },
 ];
 
 // ---------------------------------------------------------------------------

@@ -69,6 +69,8 @@ async function askAboutYesterday(db, userId) {
     intent: PROACTIVE_QUESTION_INTENT,
     contextJson: {
       proactive_event_id: eventId, health_date: SIGNAL_DAY,
+      // R3-M-02：這一題在問哪一天，是建立時就決定並持久化的事實
+      question_target_date: SIGNAL_DAY,
       signal: { metric: 'hrv', direction: 'low' }, category: 'alcohol',
     },
     ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
@@ -145,7 +147,7 @@ test('★★★ M-06: 使用者說「前天」時不覆蓋（day_offset = -2 相
   await withDb(async (db, user) => {
     await askAboutYesterday(db, user.id);
     const router = createRouter({
-      db, coachFor: coachWith({ day_offset: -2 }), now: () => REPLY_AT,
+      db, coachFor: coachWith({ date_explicit: true, day_offset: -2 }), now: () => REPLY_AT,
     });
     await router.handle({
       text: '前天喝的', chatId: '1', user: { id: user.id, timezone: TZ },
@@ -162,7 +164,7 @@ test('★★ M-06: 使用者說「今天」（day_offset = 0）也尊重', async
   await withDb(async (db, user) => {
     await askAboutYesterday(db, user.id);
     const router = createRouter({
-      db, coachFor: coachWith({ day_offset: 0 }), now: () => REPLY_AT,
+      db, coachFor: coachWith({ date_explicit: true, day_offset: 0 }), now: () => REPLY_AT,
     });
     await router.handle({
       text: '今天早上喝的', chatId: '1', user: { id: user.id, timezone: TZ },
@@ -189,13 +191,35 @@ test('★★★ M-06: 模型沒給 day_offset → statedDayOffset 是 null，不
   assert.equal(nat.event.healthDate, '2026-09-09', '沒有錨點時仍然預設今天');
 });
 
-test('★★ M-06: 模型給了 day_offset 就要如實回報', async () => {
+test('★★ M-06 / R3-M-02: 只有 date_explicit=true 才算「使用者說了日期」', async () => {
   for (const offset of [0, -1, -2]) {
     const nat = await parseNaturalJournal({
       text: 'x', now: REPLY_AT, timezone: TZ,
-      coach: { async json() { return { category: 'alcohol', confidence: 0.9, day_offset: offset }; } },
+      coach: {
+        async json() {
+          return { category: 'alcohol', confidence: 0.9, date_explicit: true, day_offset: offset };
+        },
+      },
     });
     assert.equal(nat.statedDayOffset, offset);
+  }
+});
+
+test('★★★ R3-M-02: date_explicit=false（或缺席）一律當成「沒說」', async () => {
+  for (const extra of [
+    { date_explicit: false, day_offset: 0 },
+    { day_offset: 0 },                       // 欄位缺席
+    { date_explicit: 'yes', day_offset: 0 }, // 型別不對
+    { date_explicit: false, day_offset: -1 },
+  ]) {
+    const nat = await parseNaturalJournal({
+      text: 'x', now: REPLY_AT, timezone: TZ,
+      coach: { async json() { return { category: 'alcohol', confidence: 0.9, ...extra }; } },
+    });
+    // 型別不對時 validateStructured 會讓整個解析失敗（也是安全結果：
+    // 不寫入任何東西）。兩種情況都不可以產生一個「明確日期」。
+    assert.ok(nat.statedDayOffset === null || nat.statedDayOffset === undefined,
+      `★ ${JSON.stringify(extra)} 不可以被當成明確日期（實際 ${nat.statedDayOffset}）`);
   }
 });
 
@@ -257,7 +281,9 @@ test('★★ M-06: 反應式追問的答案也記在它問的那一天', async (
       chatId: '1', originalMessage: '我今天怎樣？',
       question: '昨天有做什麼特別的事嗎？',
       intent: 'today_status',
-      contextJson: { health_date: SIGNAL_DAY, items: [] },
+      contextJson: {
+        health_date: SIGNAL_DAY, question_target_date: SIGNAL_DAY, items: [],
+      },
       ttlMs: 30 * 60_000,
     }, { now: ASK_AT });
 

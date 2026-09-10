@@ -349,10 +349,7 @@ export async function checkAndAct({
   if (messageText) {
     // R2-H-02：訊息背後的確定性事實 = 這次真的評估到的那個訊號。
     // 沒有訊號 → 空事實集 → 任何數字都歸屬不到 → fail closed。
-    messageText = guardProactiveMessage(messageText, {
-      label: decision.decision,
-      signal: decision.evaluatedSignal ?? signals[0] ?? null,
-    }).text;
+    messageText = guardProactiveMessage(messageText, { label: decision.decision }).text;
   }
 
   // 指紋進 key：被修正過的那一天可以產生新事件，一模一樣的資料不行。

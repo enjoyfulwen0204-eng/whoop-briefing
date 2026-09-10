@@ -12,7 +12,7 @@
 
 import { AI_PURPOSE, PROMPT_VERSIONS, TELEGRAM_BOT } from '../config.js';
 import { PROACTIVE_QUESTION_INTENT, PROACTIVE_OUTCOME } from '../schema.js';
-import { PROACTIVE_PROCESSING_LEASE } from '../proactivePolicy.js';
+import { PROACTIVE_PROCESSING_LEASE, INFORMATION_GAIN_POLICY } from '../proactivePolicy.js';
 import { reanalyzeAfterAnswer } from '../proactiveReanalysis.js';
 import { requireUserId } from '../userContext.js';
 import { structuredWithRetry } from '../llmValidation.js';
@@ -45,7 +45,7 @@ export const JOURNAL_SYSTEM_PROMPT = `你要把使用者用自然語言講的一
 只輸出 JSON，不要任何其他文字、不要 markdown 圍欄。
 
 格式：
-{"category":"<類別>","subtype":"<子類或 null>","numeric_value":<數字或 null>,"unit":"<單位或 null>","day_offset":<0 表示今天、-1 表示昨天、-2 表示前天>,"confidence":<0 到 1>}
+{"category":"<類別>","subtype":"<子類或 null>","numeric_value":<數字或 null>,"unit":"<單位或 null>","date_explicit":<true 或 false>,"day_offset":<0 表示今天、-1 表示昨天、-2 表示前天>,"confidence":<0 到 1>}
 
 category 只能是下列其中一個：
 alcohol, caffeine, late_meal, supplement, medication, sickness, stress,
@@ -55,12 +55,17 @@ travel, flight, location, late_sleep, exercise_note, sauna, massage, food, custo
 - 你只做語言理解，不要做任何計算，也不要推測使用者的健康狀況。
 - 如果句子裡沒有明確數量，numeric_value 給 null。
 - 如果無法判斷是哪個類別，category 給 "custom"，confidence 給低分。
-- day_offset 只能是 0、-1 或 -2。沒提到時間就給 0。
+- ★ date_explicit：句子裡**有沒有真的講到是哪一天**。
+  有講（今天／昨天／前天／昨晚…）→ true，並給對應的 day_offset。
+  沒講 → **false**，day_offset 給 0（那只是佔位，不代表今天）。
+  這兩種情況必須分清楚：系統會把「沒講」接回它問的那一天。
+- day_offset 只能是 0、-1 或 -2。
 
 範例：
-「昨天喝了三杯酒」→ {"category":"alcohol","subtype":null,"numeric_value":3,"unit":"drinks","day_offset":-1,"confidence":0.95}
-「今天飛胡志明」→ {"category":"flight","subtype":"HCMC","numeric_value":null,"unit":null,"day_offset":0,"confidence":0.9}
-「昨晚兩點才睡」→ {"category":"late_sleep","subtype":null,"numeric_value":2,"unit":"hour","day_offset":-1,"confidence":0.9}`;
+「昨天喝了三杯酒」→ {"category":"alcohol","subtype":null,"numeric_value":3,"unit":"drinks","date_explicit":true,"day_offset":-1,"confidence":0.95}
+「今天飛胡志明」→ {"category":"flight","subtype":"HCMC","numeric_value":null,"unit":null,"date_explicit":true,"day_offset":0,"confidence":0.9}
+「昨晚兩點才睡」→ {"category":"late_sleep","subtype":null,"numeric_value":2,"unit":"hour","date_explicit":true,"day_offset":-1,"confidence":0.9}
+「喝了兩杯」→ {"category":"alcohol","subtype":null,"numeric_value":2,"unit":"drinks","date_explicit":false,"day_offset":0,"confidence":0.9}`;
 
 const CATEGORY_SET = new Set(CATEGORIES);
 
@@ -74,6 +79,7 @@ export const JOURNAL_SCHEMA = {
   subtype: { type: 'string', nullable: true, maxLength: 60 },
   numeric_value: { type: 'number', min: 0, max: 100_000, nullable: true },
   unit: { type: 'string', nullable: true, maxLength: 20 },
+  date_explicit: { type: 'boolean', nullable: true },
   day_offset: { type: 'integer', min: -2, max: 0, nullable: true },
   confidence: { type: 'number', min: 0, max: 1, nullable: true },
 };
@@ -108,16 +114,21 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
     return { ok: false, reason: 'low_confidence', confidence };
   }
 
-  // ★ M-06：要區分「使用者真的說了哪一天」與「模型什麼都沒說所以當成今天」。
-  // 後者不可以被當成事實——它只是預設值，而追問的答案幾乎都是短句
-  // （「有」「喝了兩杯」），根本沒有時間資訊。
-  // ⚠️ `Number(null) === 0`，而 validateStructured 會把「模型沒給的欄位」
-  // 補成 null。少了這一行，「沒說」會被讀成「說了今天」——正是這個修正
-  // 要擋掉的東西。先排除空值再轉數字。
+  // ★ R3-M-02：「沒說日期」與「明確說今天」必須是**兩個不同的狀態**。
+  //
+  // 舊版靠 day_offset 是不是 null 來判斷，但 prompt 自己就寫著
+  // 「沒提到時間就給 0」—— 模型於是**永遠**回 0，「沒說」在資料上完全
+  // 等同「說了今天」。實測：訊號日 2026-02-06 的問題（問的是 02-05），
+  // 短答「喝了兩杯」仍然被記在 02-06。
+  //
+  // 現在由模型明確回報 `date_explicit`，而且**只有 true 才算使用者說了**。
+  // 欄位缺席、不是布林、或 false，一律當成「沒說」（fail safe：沒說就
+  // 繼承問題的目標日，而不是預設今天）。
+  const explicit = raw.date_explicit === true;
   const rawOffset = raw.day_offset === null || raw.day_offset === undefined || raw.day_offset === ''
     ? null
     : Number(raw.day_offset);
-  const statedOffset = rawOffset !== null && Number.isInteger(rawOffset)
+  const statedOffset = explicit && rawOffset !== null && Number.isInteger(rawOffset)
     && rawOffset <= 0 && rawOffset >= -2
     ? rawOffset
     : null;
@@ -163,8 +174,22 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
 export function questionTargetDateOf(pending) {
   const explicit = pending?.context?.question_target_date;
   if (typeof explicit === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(explicit)) return explicit;
-  const legacy = pending?.context?.health_date;
-  return typeof legacy === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(legacy) ? legacy : null;
+
+  // ★ R3-M-02：舊追問沒有這個欄位時，只在**明確可推導**的情況下推導。
+  //
+  // 主動問題的 context 帶著 category，而每個 category 的目標日偏移是
+  // 明文政策（INFORMATION_GAIN_POLICY.TARGET_DAY_OFFSET）。那是確定性的
+  // 推導，不是猜測。
+  const healthDate = pending?.context?.health_date;
+  const category = pending?.context?.category;
+  if (typeof healthDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(healthDate)) {
+    const offset = INFORMATION_GAIN_POLICY.TARGET_DAY_OFFSET?.[category];
+    if (Number.isInteger(offset)) return addDays(healthDate, offset);
+  }
+
+  // 推導不出來 → **null**。呼叫端據此改成問使用者是哪一天，
+  // 而不是默默用今天寫下一個很可能錯的日期（見 processProactiveAnswer）。
+  return null;
 }
 
 /**
@@ -258,6 +283,73 @@ export function createRouter({
     }
   }
 
+  /**
+   * 取得「我正在處理這個主動事件」的所有權（R3-M-03）。
+   *
+   * 一定要在**翻轉追問狀態之前**呼叫。回 `{ ok: false, reply }` 代表
+   * 不可以產生任何副作用。
+   *
+   * 三種結果：
+   *   沒有事件可鎖  → ok（反應式追問沒有 proactive_events 可言）
+   *   拿到租約      → ok，帶著 name / owner 供後續 fence
+   *   拿不到 / 出錯 → **fail closed**
+   *
+   * ⚠️ R2 的版本在 acquireLock 拋錯時「放行」，理由是不要讓維護機制卡住
+   * 使用者。那個取捨是錯的：實測顯示租約機制壞掉時處理照跑、Journal 照寫，
+   * 而此時完全沒有任何東西擋得住收割器同時settle 這個事件。
+   * 沒有所有權就不可以變更狀態 —— 這是這一輪的核心不變量。
+   */
+  async function acquireProcessingOwnership({ pending, userId, t }) {
+    const eventId = pending?.context?.proactive_event_id ?? null;
+    if (!eventId || typeof db.acquireLock !== 'function') {
+      return { ok: true, name: null, owner: null };
+    }
+    const name = PROACTIVE_PROCESSING_LEASE.name(userId, eventId);
+    let owner = null;
+    try {
+      owner = await db.acquireLock(name, {
+        ttlMs: PROACTIVE_PROCESSING_LEASE.TTL_MS, now: t,
+      });
+    } catch (err) {
+      log.error('proactive_ownership_unavailable', {
+        user_id: userId, event_id: eventId, error: describeError(err),
+      });
+      return {
+        ok: false,
+        reply: '我這邊暫時處理不了，稍後再說一次好嗎？（你的訊息沒有被記錄）',
+      };
+    }
+    if (!owner) {
+      log.warn('proactive_answer_lease_busy', { user_id: userId, event_id: eventId });
+      return { ok: false, reply: '我還在處理你上一句回覆，稍等一下再說一次好嗎？' };
+    }
+    return { ok: true, name, owner, eventId };
+  }
+
+  async function releaseProcessingOwnership(ownership) {
+    if (!ownership?.owner || typeof db.releaseLock !== 'function') return;
+    try {
+      await db.releaseLock(ownership.name, ownership.owner);
+    } catch { /* 放不掉沒關係，TTL 到了自然過期 */ }
+  }
+
+  /**
+   * 在產生副作用之前重新確認所有權還在（R3-M-03 的 fence）。
+   *
+   * 租約會過期。過期之後收割器可能已經把事件推向終局，這時候再寫 Journal
+   * 就是一個「沒有人擁有」的變更。所以每一個副作用之前都要再問一次。
+   */
+  async function stillOwns(ownership, t) {
+    if (!ownership?.owner || typeof db.holdsLock !== 'function') return true;
+    try {
+      return await db.holdsLock(ownership.name, ownership.owner, { now: t });
+    } catch (err) {
+      // 確認不了就當作沒有 —— fail closed
+      log.warn('proactive_ownership_check_failed', { error: describeError(err) });
+      return false;
+    }
+  }
+
   async function route({ text, chatId, t, userId, timezone, coach }) {
     // ---- 1. 有沒有等著被回答的追問 ----
     const pending = typeof db.getOpenPendingQuestion === 'function'
@@ -294,13 +386,32 @@ export function createRouter({
       // 輸了代表這題已經不屬於我們（被收割 / 被別的 handler 處理），
       // 就當作沒有這個追問，讓訊息走一般路徑 —— 使用者的話不會被吞掉，
       // 而且絕不會回頭覆寫任何已經定案的結果。
-      const claimed = await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
-      if (claimed) {
-        return handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach });
+      //
+      // ★ R3-M-03：**先取得處理所有權，再翻轉追問狀態。**
+      //
+      // R2 的順序是「認領 → 取租約」，中間有一個窗口：追問已經是 ANSWERED
+      // （所以收割器的孤兒判準完全命中），但還沒有租約可以擋住它。實測：
+      // 收割器在那個窗口寫了 ABANDONED，處理者恢復後照樣寫了 Journal。
+      //
+      // 把租約移到認領**之前**，那個窗口就不存在了：追問一旦變成 ANSWERED，
+      // 租約必定已經在我們手上，收割器的 requireNoLease 會跳過它。
+      const ownership = await acquireProcessingOwnership({ pending, userId, t });
+      if (!ownership.ok) {
+        return ownership.reply;
       }
-      log.warn('pending_question_claim_lost', {
-        user_id: userId, pending_question_id: pending.id, intent: pending.intent,
-      });
+      try {
+        const claimed = await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
+        if (claimed) {
+          return await handlePendingAnswer({
+            pending, text, chatId, t, userId, timezone, coach, ownership,
+          });
+        }
+        log.warn('pending_question_claim_lost', {
+          user_id: userId, pending_question_id: pending.id, intent: pending.intent,
+        });
+      } finally {
+        await releaseProcessingOwnership(ownership);
+      }
     }
 
     // ---- 2. 指令 ----
@@ -518,9 +629,13 @@ export function createRouter({
    * ANSWERED）。所以下面不再呼叫 resolvePendingQuestion —— 認領是前置
    * 條件，不是流程中段的一步（見 route() 的 M-02 說明）。
    */
-  async function handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach }) {
+  async function handlePendingAnswer({
+    pending, text, chatId, t, userId, timezone, coach, ownership = null,
+  }) {
     if (pending.intent === PROACTIVE_QUESTION_INTENT) {
-      return handleProactiveAnswer({ pending, text, chatId, t, userId, timezone, coach });
+      return handleProactiveAnswer({
+        pending, text, chatId, t, userId, timezone, coach, ownership,
+      });
     }
 
     // 明確說「沒有」→ 不寫 journal（pending 已在 route() 認領時收掉）
@@ -537,6 +652,10 @@ export function createRouter({
         statedDayOffset: nat.statedDayOffset,
         timezone,
       });
+      if (!await stillOwns(ownership, t)) {
+        log.warn('pending_answer_ownership_lost', { user_id: userId, pending_question_id: pending.id });
+        return '我這邊處理到一半被中斷了，這則先沒有記錄；需要的話再跟我說一次。';
+      }
       const saved = await saveEvent(db, userId, event, { now: t, timezone });
       if (saved.ok) savedLine = `✅ 已記錄：${describeEvent(saved.event)}`;
     }
@@ -565,59 +684,22 @@ export function createRouter({
    * 流程：解析 → 寫 journal（source=proactive_agent）→ 重新分析 → 決定
    * 要不要 follow-up。允許「還是解釋不了」當作合法結果。
    */
-  async function handleProactiveAnswer({ pending, text, chatId, t, userId, timezone, coach }) {
-    const metric = pending.context?.signal?.metric ?? null;
-    const healthDate = pending.context?.health_date ?? null;
-    const proactiveEventId = pending.context?.proactive_event_id ?? null;
-
-    // ★ R2-M-03：宣告「這個事件正在被處理」。
-    //
-    // 收割器的孤兒判準（送出很久了、沒有 OPEN 的追問指著它）剛好完全命中
-    // 一個正在被處理的事件：追問已經是 ANSWERED，而 sent_at 可能是好幾天
-    // 前（使用者隔天才回）。租約讓「正在處理」變成一個明確、有時效、原子
-    // 的事實，收割器據此跳過它。
-    //
-    // 拿不到租約（另一個 process 正在處理同一個事件）→ 立刻放棄，
-    // 不產生任何副作用。租約機制本身不可用時放行（維護機制不該讓
-    // 使用者的回答整條斷掉），此時仍有 closeOut 的條件式寫入當後盾。
-    let lease = null;
-    if (proactiveEventId && typeof db.acquireLock === 'function') {
-      try {
-        lease = await db.acquireLock(
-          PROACTIVE_PROCESSING_LEASE.name(userId, proactiveEventId),
-          { ttlMs: PROACTIVE_PROCESSING_LEASE.TTL_MS, now: t },
-        );
-        if (!lease) {
-          log.warn('proactive_answer_lease_busy', {
-            user_id: userId, event_id: proactiveEventId,
-          });
-          return '我還在處理你上一句回覆，稍等一下再說一次好嗎？';
-        }
-      } catch (err) {
-        log.warn('proactive_answer_lease_failed', {
-          user_id: userId, error: describeError(err),
-        });
-      }
-    }
-    try {
-      return await processProactiveAnswer({
-        pending, text, chatId, t, userId, timezone, coach,
-        metric, healthDate, proactiveEventId,
-      });
-    } finally {
-      if (lease && typeof db.releaseLock === 'function') {
-        try {
-          await db.releaseLock(
-            PROACTIVE_PROCESSING_LEASE.name(userId, proactiveEventId), lease,
-          );
-        } catch { /* 放不掉沒關係，TTL 到了自然過期 */ }
-      }
-    }
+  async function handleProactiveAnswer({
+    pending, text, chatId, t, userId, timezone, coach, ownership = null,
+  }) {
+    // ★ R3-M-03：所有權在 route() 裡、**翻轉追問狀態之前**就已經取得。
+    // 這裡不再自己拿租約 —— 那個順序正是 R2 留下的競態窗口。
+    return processProactiveAnswer({
+      pending, text, chatId, t, userId, timezone, coach, ownership,
+      metric: pending.context?.signal?.metric ?? null,
+      healthDate: pending.context?.health_date ?? null,
+      proactiveEventId: pending.context?.proactive_event_id ?? null,
+    });
   }
 
-  /** handleProactiveAnswer 的實作（租約在外層取得與釋放）。 */
+  /** handleProactiveAnswer 的實作（所有權在 route() 取得與釋放）。 */
   async function processProactiveAnswer({
-    pending, text, chatId, t, userId, timezone, coach,
+    pending, text, chatId, t, userId, timezone, coach, ownership,
     metric, healthDate, proactiveEventId,
   }) {
 
@@ -668,12 +750,32 @@ export function createRouter({
       return '好，我先記著，會繼續留意。';
     }
 
-    // M-06：主動問題問的是 healthDate 那一天的異常，短答必須記在那一天
+    // ★ R3-M-02：使用者沒說日期、而且我們也推導不出這題在問哪一天
+    // → **不寫**，改成問清楚。默默用今天寫下去會產生一筆錯的關聯資料，
+    // 而且之後沒有任何辦法分辨它是不是錯的。
+    const targetDate = questionTargetDateOf(pending);
+    if (nat.statedDayOffset === null && targetDate === null) {
+      log.warn('proactive_answer_date_unresolvable', {
+        user_id: userId, pending_question_id: pending.id,
+      });
+      return '我想確認一下：這是哪一天的事？（今天、昨天，還是前天？）';
+    }
+
+    // 主動問題問的是 targetDate 那一天的行為，短答必須記在那一天
     const anchored = anchorToQuestionDay(nat.event, {
-      anchorHealthDate: questionTargetDateOf(pending),
+      anchorHealthDate: targetDate,
       statedDayOffset: nat.statedDayOffset,
       timezone,
     });
+    // ★ R3-M-03 fence：寫 Journal 之前重新確認所有權還在。
+    // 租約可能在 LLM 解析期間過期，而收割器已經把事件推向終局 ——
+    // 那時候再寫就是一個「沒有人擁有」的變更。
+    if (!await stillOwns(ownership, t)) {
+      log.warn('proactive_answer_ownership_lost', {
+        user_id: userId, event_id: proactiveEventId,
+      });
+      return '我這邊處理到一半被中斷了，這則先沒有記錄；需要的話再跟我說一次。';
+    }
     const saved = await saveEvent(db, userId, { ...anchored, source: 'proactive_agent' }, { now: t, timezone });
     const savedLine = saved.ok ? `✅ 已記錄：${describeEvent(saved.event)}` : null;
 

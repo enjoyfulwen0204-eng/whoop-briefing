@@ -392,6 +392,18 @@ export const TELEGRAM_BOT = {
   CLAIM_RETRIES: 3,
   CLAIM_RETRY_BASE_MS: 200,
 
+  /**
+   * 認領租約的長度（R3-M-05）。
+   *
+   * 語義是「一則訊息從認領到處理完的最壞情況時間」。一則訊息最多會打兩次
+   * LLM（解析 + 回覆），所以要留足夠餘裕；但也不能太長，否則一個真的死掉的
+   * worker 會讓它留下的那一則卡到租約到期才被判定。
+   *
+   * 注意：租約過期**不代表**會被自動重做 —— 只有還沒 dispatch 的
+   * CLAIMED 才可以被接手，PROCESSING 過期是走 ABANDONED。
+   */
+  CLAIM_LEASE_MS: 5 * 60_000,
+
   // long polling 的 timeout（秒）。Telegram 建議 50 以下；連線會掛著等訊息，
   // 沒訊息就到時間回空陣列 —— 這比每秒輪詢省太多。
   POLL_TIMEOUT_S: 50,

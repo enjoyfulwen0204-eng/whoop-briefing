@@ -187,13 +187,18 @@ test('★ 沒有任何 WHOOP 資料：/log 照樣可以成功保存', async () =
 // 有資料時的 Q&A
 // ===========================================================================
 
-test('M: 有資料時 today_status 會把算好的結論交給 LLM', async () => {
+test('M: 有資料時 today_status 先出確定性斷言，再接 LLM 說明', async () => {
   const { db, cleanup } = await dbWithData({ days: 60 });
   try {
     const coach = fakeCoach({ answer: '早安 Kelvin，今天看起來不錯。' });
     const reply = await routerFor(db, coach).handle({ text: '我今天狀態怎樣？', chatId: CHAT, user: USER });
-    // 回覆一定以 LLM 的答案開頭；若當天有明顯偏離，後面可能再接一段追問（Phase O）
-    assert.ok(reply.startsWith('早安 Kelvin，今天看起來不錯。'), `實際：${reply}`);
+
+    // ★ R3-H-02：生理數值一律由確定性渲染器輸出，而且排在最前面。
+    // LLM 的說明只是附加在後面的裝飾（而且必須不含任何生理斷言）。
+    assert.match(reply, /恢復 \d+%/, '★ 數值必須來自確定性渲染器');
+    const iAssert = reply.indexOf('恢復');
+    const iExplain = reply.indexOf('早安 Kelvin，今天看起來不錯。');
+    assert.ok(iExplain > iAssert, `★ 說明必須在斷言之後，實際：${reply}`);
 
     assert.equal(coach.calls.ask.length, 1);
     const ctx = coach.calls.ask[0].user;

@@ -163,11 +163,26 @@ test('★★★ H-02 端到端：composeAnswer 用可信事實驗證，注入的
   assert.ok(out.includes('55%'), '確定性 fallback 照常送出真實數字');
 });
 
-test('★★ H-02 端到端：合格的回答仍然原文放行（沒有把功能鎖死）', async () => {
-  const good = 'Kelvin，你今天的恢復 55%，比 30 天基準 62% 低一點；HRV 62ms 還算穩，今天照平常節奏走就好 💛';
-  const coach = { async ask() { return good; } };
-  const out = await composeAnswer({ question: '我今天怎麼樣？', result: RESULT, coach });
-  assert.equal(out, good, '★ 正常回答必須完整保留');
+test('★★★ R3-H-02 端到端：LLM 引述數字時被丟掉，但確定性斷言完整送出', async () => {
+  // R3 之後 LLM 不可以是生理宣稱的來源。它引述數字（即使數字是對的）
+  // 也一律丟掉 —— 因為那些數字已經由確定性渲染器輸出了，留著只是讓
+  // 「LLM 說了什麼」重新變成資訊來源。
+  const quotesNumbers = 'Kelvin，你今天的恢復 55%，比 30 天基準 62% 低一點；HRV 62ms 還算穩 💛';
+  const out = await composeAnswer({
+    question: '我今天怎麼樣？', result: RESULT, coach: { async ask() { return quotesNumbers; } },
+  });
+  assert.ok(!out.includes(quotesNumbers), '★ 引述數字的 LLM 文字必須被丟掉');
+  assert.match(out, /恢復 55%/, '★ 但確定性斷言一定要在');
+  assert.match(out, /HRV 62ms/);
+});
+
+test('★★ R3-H-02 端到端：不含生理斷言的說明會被保留在斷言之後', async () => {
+  const clean = '今天照平常節奏走就好，記得多喝水 💛';
+  const out = await composeAnswer({
+    question: '我今天怎麼樣？', result: RESULT, coach: { async ask() { return clean; } },
+  });
+  assert.ok(out.includes(clean), '★ 乾淨的說明必須被保留');
+  assert.ok(out.indexOf('恢復 55%') < out.indexOf(clean), '★ 而且排在斷言之後');
 });
 
 // ===========================================================================

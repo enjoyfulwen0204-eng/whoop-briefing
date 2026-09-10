@@ -6,6 +6,7 @@
  */
 
 import { log } from './logger.js';
+import { TELEGRAM_UPDATE_STATUS } from './schema.js';
 import { requireUserId } from './userContext.js';
 
 const nowIso = (d = new Date()) => d.toISOString();
@@ -64,7 +65,44 @@ export function createBotStore(client) {
   }
 
   /**
-   * 原子認領一則 Telegram update（M-09）。回 true 代表**這一次**認領成功。
+   * update_id 正規化。回 null 代表這不是一個合法的 id。
+   *
+   * ⚠️ `Number(null) === 0`、`Number('') === 0`、`Number([]) === 0`——
+   * 少了這幾行，一個空的 update_id 會被當成合法的 id 0 認領下去。
+   * 這個陷阱在這個 codebase 裡已經出現過三次，一律先排除空值再轉數字。
+   */
+  function normalizeUpdateId(updateId) {
+    if (updateId === null || updateId === undefined || updateId === '') return null;
+    if (typeof updateId === 'object' || typeof updateId === 'boolean') return null;
+    const id = Number(updateId);
+    return Number.isInteger(id) ? id : null;
+  }
+
+  /** 一列 → 對外的狀態物件。 */
+  const claimRow = (row) => (row ? {
+    updateId: Number(row.update_id),
+    status: String(row.status ?? TELEGRAM_UPDATE_STATUS.COMPLETED),
+    owner: row.owner ?? null,
+    attempts: Number(row.attempts ?? 1),
+    leaseExpiresAt: row.lease_expires_at ?? null,
+    dispatchedAt: row.dispatched_at ?? null,
+    processedAt: row.processed_at ?? null,
+  } : null);
+
+  async function getTelegramUpdate(updateId) {
+    const id = normalizeUpdateId(updateId);
+    if (id === null) return null;
+    const rs = await client.execute({
+      sql: `SELECT update_id, status, owner, attempts, lease_expires_at,
+                   dispatched_at, processed_at
+              FROM telegram_processed_updates WHERE update_id = ?`,
+      args: [id],
+    });
+    return claimRow(rs.rows[0]);
+  }
+
+  /**
+   * 原子認領一則 Telegram update（M-09 → R2-M-05 → R3-M-05）。
    *
    * ## 為什麼 offset 不夠
    *
@@ -73,45 +111,186 @@ export function createBotStore(client) {
    * 舊的，Telegram 會把同一則 update 再送一次 —— 同一句「喝了兩杯」就被
    * 寫成兩筆 journal。實測確認：重送一次 → 2 筆。
    *
-   * journal 是所有長期關聯分析的輸入，重複的曝露日會直接扭曲相關係數，
-   * 而且**永遠不會自己修好**。
+   * ## 為什麼「有列就跳過」也不夠（R3-M-05）
    *
-   * INSERT-first + PRIMARY KEY 衝突，跟 claimProactiveEvent 是同一個模式：
-   * 認領成功才有資格產生副作用。
+   * 舊版把「認領」和「做完」壓成同一個事實：列存在 = 處理過。實測重現兩個
+   * 後果相反的失敗：
+   *
+   *   A. 認領成功、**還沒 dispatch** 就被殺 → 重送時看到列 → 當成重複 →
+   *      這則訊息一件事都沒做卻永遠不會再被處理（靜默遺失）。
+   *   B. INSERT 其實 commit 了，但連線在回應前斷掉 → 重試撞主鍵 → 同樣被
+   *      當成重複 → 一樣靜默遺失。
+   *
+   * 所以認領帶 owner 與租約，而且分階段：
+   *
+   *   - 撞到自己的 owner（B）→ 這是我自己的認領，續租、繼續做。
+   *   - 撞到 CLAIMED 而租約過期（A）→ 前一個 worker 死在零副作用的區間，
+   *     安全接手。
+   *   - 撞到 PROCESSING → **永遠不接手**（副作用可能已經發生）。租約過期的話
+   *     回 'stale_processing'，交給呼叫端記錄成 ABANDONED。
+   *   - 撞到 COMPLETED → 真正的重複。
+   *   - 撞到還活著的租約 → 別人正在做，不要碰。
+   *
+   * 整段是**一句** SQL：ON CONFLICT ... DO UPDATE ... WHERE 讓「可不可以接手」
+   * 的判斷和寫入發生在同一個原子步驟裡，不是 SELECT 完再賭一把。
+   *
+   * @returns {{ok:boolean, state:string, status:string, attempts:number, owner:?string}}
+   *   state: 'claimed' | 'completed' | 'in_progress' | 'abandoned' | 'invalid'
    */
-  async function claimTelegramUpdate(updateId, { now = new Date() } = {}) {
-    // ⚠️ `Number(null) === 0`、`Number('') === 0`、`Number([]) === 0`——
-    // 少了這一行，一個空的 update_id 會被當成合法的 id 0 認領下去。
-    // 這個陷阱在這個 codebase 裡已經出現過三次，一律先排除空值再轉數字。
-    if (updateId === null || updateId === undefined || updateId === '') return false;
-    if (typeof updateId === 'object' || typeof updateId === 'boolean') return false;
-    const id = Number(updateId);
-    if (!Number.isInteger(id)) return false;
-    try {
-      await client.execute({
-        sql: `INSERT INTO telegram_processed_updates (update_id, processed_at)
-              VALUES (?, ?)`,
-        args: [id, nowIso(now)],
-      });
-      return true;
-    } catch (err) {
-      if (/UNIQUE constraint failed|PRIMARY KEY/i.test(String(err?.message ?? ''))) return false;
-      throw err;
+  async function claimTelegramUpdate(updateId, {
+    owner = 'default', leaseMs = 120_000, now = new Date(),
+  } = {}) {
+    const id = normalizeUpdateId(updateId);
+    if (id === null) return { ok: false, state: 'invalid', status: null, attempts: 0, owner: null };
+
+    const at = nowIso(now);
+    const until = nowIso(new Date(now.getTime() + leaseMs));
+    const rs = await client.execute({
+      sql: `INSERT INTO telegram_processed_updates
+              (update_id, status, owner, claimed_at, lease_expires_at, dispatched_at,
+               processed_at, attempts)
+            VALUES (?, ?, ?, ?, ?, NULL, ?, 1)
+            ON CONFLICT(update_id) DO UPDATE SET
+              owner            = excluded.owner,
+              claimed_at       = excluded.claimed_at,
+              lease_expires_at = excluded.lease_expires_at,
+              status           = excluded.status,
+              attempts         = telegram_processed_updates.attempts + 1
+            WHERE telegram_processed_updates.status = ?
+              AND (telegram_processed_updates.owner = excluded.owner
+                   OR telegram_processed_updates.lease_expires_at IS NULL
+                   OR telegram_processed_updates.lease_expires_at <= excluded.claimed_at)`,
+      args: [
+        // processed_at 填的是「最後一次狀態變動的時間」，不是「處理完成」。
+        // ⚠️ 它在既有的正式資料庫上是 NOT NULL，而 ALTER TABLE ADD COLUMN
+        // 沒辦法把既有欄位的 NOT NULL 拿掉 —— 塞 NULL 會讓每一次認領在
+        // 遷移過的資料庫上直接爆掉（有資料的遷移測試抓到的）。
+        // 「做完了沒有」現在由 status 決定，這一欄只是時間戳。
+        id, TELEGRAM_UPDATE_STATUS.CLAIMED, String(owner), at, until, at,
+        TELEGRAM_UPDATE_STATUS.CLAIMED,
+      ],
+    });
+
+    if (Number(rs.rowsAffected ?? 0) > 0) {
+      const row = await getTelegramUpdate(id);
+      return {
+        ok: true, state: 'claimed', status: TELEGRAM_UPDATE_STATUS.CLAIMED,
+        attempts: row?.attempts ?? 1, owner: String(owner),
+      };
     }
+
+    // 沒寫進去 —— 讀出來看是哪一種。這一次讀不需要原子性：
+    // COMPLETED / ABANDONED 是終局（不會變回來），而「別人的租約還活著」
+    // 最壞的誤判就是我們稍後再試一次，那是安全的。
+    const row = await getTelegramUpdate(id);
+    if (!row) {
+      // 條件式 UPDATE 沒中、列又不見了 —— 只可能是同時被裁剪掉。
+      // 當成不可用讓呼叫端 fail closed，比猜一個結果安全。
+      return { ok: false, state: 'in_progress', status: null, attempts: 0, owner: null };
+    }
+    if (row.status === TELEGRAM_UPDATE_STATUS.COMPLETED) {
+      return { ok: false, state: 'completed', status: row.status, attempts: row.attempts, owner: row.owner };
+    }
+    if (row.status === TELEGRAM_UPDATE_STATUS.ABANDONED) {
+      return { ok: false, state: 'abandoned', status: row.status, attempts: row.attempts, owner: row.owner };
+    }
+    // PROCESSING 永遠不會被自動接手（上面的 WHERE 只允許 CLAIMED）。
+    // 租約還在 → 真的有人在做；租約過期 → 有人死在副作用區間裡。
+    // 後者要讓呼叫端把它標成 ABANDONED，而不是安靜地重做或安靜地跳過。
+    if (row.status === TELEGRAM_UPDATE_STATUS.PROCESSING) {
+      const expired = !row.leaseExpiresAt || row.leaseExpiresAt <= at;
+      return {
+        ok: false, state: expired ? 'stale_processing' : 'in_progress',
+        status: row.status, attempts: row.attempts, owner: row.owner,
+      };
+    }
+    // CLAIMED 而條件不成立 → 別人的租約還活著。
+    return { ok: false, state: 'in_progress', status: row.status, attempts: row.attempts, owner: row.owner };
+  }
+
+  /**
+   * CLAIMED → PROCESSING。**在 dispatch 之前**呼叫。
+   *
+   * 這一步就是「零副作用區間」的結束標記。沒有它就沒辦法分辨
+   * 「死在還沒做任何事的時候」（可以安全重做）和
+   * 「死在做到一半」（重做會產生第二筆 journal）。
+   *
+   * 條件帶 owner：租約掉了就不可以推進狀態。
+   */
+  async function markTelegramUpdateProcessing(updateId, { owner, now = new Date() } = {}) {
+    const id = normalizeUpdateId(updateId);
+    if (id === null) return false;
+    const rs = await client.execute({
+      sql: `UPDATE telegram_processed_updates
+               SET status = ?, dispatched_at = ?
+             WHERE update_id = ? AND owner = ? AND status = ?`,
+      args: [TELEGRAM_UPDATE_STATUS.PROCESSING, nowIso(now), id, String(owner),
+        TELEGRAM_UPDATE_STATUS.CLAIMED],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * → COMPLETED（終局）。只有持有所有權的人可以標記。
+   *
+   * 已經是 COMPLETED 就回 true（冪等）；被別人接手了就回 false ——
+   * 那代表我們已經不是這則訊息的處理者，不可以宣稱它完成。
+   */
+  async function completeTelegramUpdate(updateId, { owner, now = new Date() } = {}) {
+    const id = normalizeUpdateId(updateId);
+    if (id === null) return false;
+    const rs = await client.execute({
+      sql: `UPDATE telegram_processed_updates
+               SET status = ?, processed_at = ?, lease_expires_at = NULL
+             WHERE update_id = ? AND owner = ? AND status <> ?`,
+      args: [TELEGRAM_UPDATE_STATUS.COMPLETED, nowIso(now), id, String(owner),
+        TELEGRAM_UPDATE_STATUS.COMPLETED],
+    });
+    if (Number(rs.rowsAffected ?? 0) > 0) return true;
+    const row = await getTelegramUpdate(id);
+    return row?.status === TELEGRAM_UPDATE_STATUS.COMPLETED && row.owner === String(owner);
+  }
+
+  /**
+   * → ABANDONED（終局）。
+   *
+   * 用在「上一個 worker 死在 PROCESSING 階段」：副作用做到哪裡不確定，
+   * 自動重做的代價（重複的 journal 列，永遠不會自己修好）比放棄高。
+   * 明確寫成終局狀態而不是留著，是為了讓它可以被查詢、被人看見。
+   */
+  async function abandonTelegramUpdate(updateId, { reason = null, now = new Date() } = {}) {
+    const id = normalizeUpdateId(updateId);
+    if (id === null) return false;
+    const rs = await client.execute({
+      sql: `UPDATE telegram_processed_updates
+               SET status = ?, processed_at = ?, lease_expires_at = NULL
+             WHERE update_id = ? AND status = ?
+               AND (lease_expires_at IS NULL OR lease_expires_at <= ?)`,
+      args: [TELEGRAM_UPDATE_STATUS.ABANDONED, nowIso(now), id,
+        TELEGRAM_UPDATE_STATUS.PROCESSING, nowIso(now)],
+    });
+    const ok = Number(rs.rowsAffected ?? 0) > 0;
+    if (ok) log.warn('telegram_update_abandoned', { update_id: id, reason });
+    return ok;
   }
 
   /**
    * 把太舊的認領紀錄刪掉。update_id 對一個 bot 是單調遞增的，
    * 所以「保留最近 keep 個 id」就是一個確定性、O(索引) 的裁剪，
    * 不需要時間欄位、也不需要掃全表。
+   *
+   * ★ R3-M-05：**只刪終局的列**。刪掉一列 CLAIMED/PROCESSING 等於把
+   * 「這則正在被處理」這個事實丟掉 —— 下一次重送就會變成全新的認領，
+   * 也就是重新打開了重複寫 journal 的那個洞。
    */
   async function pruneTelegramUpdates(currentUpdateId, { keep = 10_000 } = {}) {
     if (currentUpdateId === null || currentUpdateId === undefined || currentUpdateId === '') return 0;
     const id = Number(currentUpdateId);
     if (!Number.isFinite(id) || id <= keep) return 0;
     const rs = await client.execute({
-      sql: 'DELETE FROM telegram_processed_updates WHERE update_id < ?',
-      args: [id - keep],
+      sql: `DELETE FROM telegram_processed_updates
+             WHERE update_id < ? AND status IN (?, ?)`,
+      args: [id - keep, TELEGRAM_UPDATE_STATUS.COMPLETED, TELEGRAM_UPDATE_STATUS.ABANDONED],
     });
     return Number(rs.rowsAffected ?? 0);
   }
@@ -439,6 +618,10 @@ export function createBotStore(client) {
     getUpdateOffset,
     setUpdateOffset,
     claimTelegramUpdate,
+    markTelegramUpdateProcessing,
+    completeTelegramUpdate,
+    abandonTelegramUpdate,
+    getTelegramUpdate,
     pruneTelegramUpdates,
     addJournalEvent,
     getJournalEvents,

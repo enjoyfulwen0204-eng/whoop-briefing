@@ -58,6 +58,8 @@ async function withSetup(fn) {
       intent: PROACTIVE_QUESTION_INTENT,
       contextJson: {
         proactive_event_id: eventId, signal: { metric: 'hrv' }, health_date: '2026-09-08',
+        // R3-M-02：這一題在問哪一天，必須是持久化的事實
+        question_target_date: '2026-09-07', category: 'alcohol',
       },
       ttlMs: 30 * 60_000,
     }, { now: T0 });

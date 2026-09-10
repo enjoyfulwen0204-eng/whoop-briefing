@@ -105,6 +105,18 @@ export function parseEnglishNumber(text) {
   return total + current;
 }
 
+/**
+ * 含數字字元、但完全不是數字的常見中文詞。
+ *
+ * 只用在積極模式的遮罩上。長詞優先，避免「第一」被「一」先吃掉。
+ */
+const ZH_NON_NUMERIC_WORDS = [
+  '一起', '一下', '一樣', '一直', '一定', '一點', '一些', '一切', '一律',
+  '一般', '一旦', '一連', '一時', '一向', '一面', '一邊', '一心', '一致',
+  '一度', '一如', '再一', '之一', '唯一', '統一', '專一', '單一',
+  '第一', '第二', '第三', '十分', '千萬', '萬一',
+].sort((a, b) => b.length - a.length);
+
 const ZH_NUMBER_CHARS = [...ZH_DIGIT.keys(), ...ZH_UNIT.keys()].join('');
 const EN_WORDS = [...EN_SMALL.keys(), 'hundred', 'thousand'].join('|');
 
@@ -152,6 +164,42 @@ const CONNECTOR_BEFORE = '是|為|達到|達|約|大約|有|到|：|:|=';
  * `metricTerms` 由呼叫端傳入（發布邊界會傳系統完整的指標詞彙表），
  * 沒傳就只用 (a) 與 (b)。
  */
+/**
+ * 「積極模式」：把**所有**看起來像數字的字詞都轉成阿拉伯數字。
+ *
+ * 只用在 R3-H-02 的「LLM 說明不得含任何生理斷言」檢查上。那個檢查的
+ * 誤判代價是**丟掉一段純裝飾的文字**（數字與判定都已經由確定性渲染器
+ * 輸出了），所以寧可錯殺 —— 而這正是它可以不依賴列舉的原因。
+ *
+ * 一般的正規化（下面那個）仍然保守，因為它會影響真正要發布的內容。
+ */
+export function normalizeNumberWordsAggressive(text) {
+  let out = String(text ?? '');
+  // 先把「含數字字元但完全不是數字」的常見詞遮起來。
+  //
+  // ⚠️ 這份清單是列舉沒錯，但它列的是**安全的東西**：漏掉一個只會多丟
+  // 一句裝飾文字，攻擊者也無法靠它夾帶數值（詞是固定字串）。
+  // 真正的防線是「來源只能是確定性渲染器」，不是這份清單。
+  const masked = [];
+  out = out.replace(new RegExp(ZH_NON_NUMERIC_WORDS.join('|'), 'g'), (m) => {
+    masked.push(m);
+    return `\u0000${masked.length - 1}\u0000`;
+  });
+  const zhRun = new RegExp(`[${ZH_NUMBER_CHARS}]{1,8}`, 'g');
+  out = out.replace(zhRun, (m) => {
+    // 積極模式連「兩三」這種約略說法也視為數字（寧可錯殺）
+    const n = parseChineseNumber(m) ?? parseChineseNumber(m[0]);
+    return n === null ? m : String(n);
+  });
+  out = out.replace(/\u0000(\d+)\u0000/g, (_, i) => masked[Number(i)]);
+  const enRun = new RegExp(`\\b(?:${EN_WORDS})(?:[\\s-](?:and[\\s-])?(?:${EN_WORDS}))*\\b`, 'gi');
+  out = out.replace(enRun, (m) => {
+    const n = parseEnglishNumber(m);
+    return n === null ? m : String(n);
+  });
+  return out;
+}
+
 export function normalizeNumberWords(text, { metricTerms = [] } = {}) {
   let out = String(text ?? '');
   const terms = metricTerms

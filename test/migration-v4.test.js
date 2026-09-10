@@ -47,8 +47,9 @@ const version = async (db) => Number(
 // 版本與清單
 // ---------------------------------------------------------------------------
 
-test('SCHEMA_VERSION 是 4', () => {
-  assert.equal(SCHEMA_VERSION, 4);
+test('SCHEMA_VERSION 是 5', () => {
+  // v5 = telegram_processed_updates 的狀態機欄位（R3-M-05，純加欄位）。
+  assert.equal(SCHEMA_VERSION, 5);
 });
 
 test('★★ 兩張新表都不在 RESHAPED_TABLES 裡（不可武裝 DROP 路徑）', () => {
@@ -78,7 +79,7 @@ test('全新 DB → v4，兩張新表都在', async () => {
     const t = await tables(db);
     assert.ok(t.includes('system_heartbeats'));
     assert.ok(t.includes('prediction_models'));
-    assert.equal(await version(db), 4);
+    assert.equal(await version(db), SCHEMA_VERSION);
     db.close();
   } finally { cleanup(); }
 });
@@ -92,7 +93,7 @@ test('全新 DB 連跑三次 migrate 是冪等的', async () => {
     await db.migrate();
     await db.migrate();
     assert.deepEqual(await tables(db), before);
-    assert.equal(await version(db), 4);
+    assert.equal(await version(db), SCHEMA_VERSION);
     db.close();
   } finally { cleanup(); }
 });
@@ -168,7 +169,7 @@ test('★★★ v3 帶著代表性資料升到 v4：所有既有資料完整保�
     const summary = await runMigrations(up.raw);
 
     assert.equal(summary.from, 3);
-    assert.equal(summary.to, 4);
+    assert.equal(summary.to, SCHEMA_VERSION);
     assert.deepEqual(summary.rebuilt, [], '★ v4 不可以重建任何表');
 
     // ---- 逐一比對：一列都不能少 ----
@@ -199,7 +200,7 @@ test('★★★ v3 帶著代表性資料升到 v4：所有既有資料完整保�
     assert.ok(t2.includes('prediction_models'));
     assert.equal(await count(up, 'system_heartbeats'), 0);
     assert.equal(await count(up, 'prediction_models'), 0);
-    assert.equal(await version(up), 4);
+    assert.equal(await version(up), SCHEMA_VERSION);
     up.close();
   } finally { cleanup(); }
 });
@@ -217,7 +218,7 @@ test('★ v3 → v4 之後再跑一次 migrate 仍然冪等，資料不變', asy
     await db.migrate();
 
     assert.deepEqual(await db.coverage(ALICE.id), before);
-    assert.equal(await version(db), 4);
+    assert.equal(await version(db), SCHEMA_VERSION);
     db.close();
   } finally { cleanup(); }
 });

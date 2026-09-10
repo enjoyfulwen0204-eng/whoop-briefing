@@ -17,8 +17,7 @@
  * 這一層只是確保「以後改樣板時不小心踩到」會被擋下來，而不是新增規則。
  */
 
-import { validatePublication } from './publishGuard.js';
-import { factsFromProactive } from './publishableFacts.js';
+import { validateDeterministicMessage } from './publishGuard.js';
 import { READINESS_STATUS } from './readiness.js';
 import { DEVIATION } from './analytics/anomaly.js';
 import { log } from './logger.js';
@@ -75,25 +74,21 @@ export function buildFollowUpMessage({ statement, fromStatus, toStatus }) {
 /**
  * 深度防禦：任何要送出去的主動訊息，送出前都再驗一次。
  *
- * ## 稽核修正史
+ * ## R3-H-02：這條路徑上根本沒有 LLM
  *
- * 第一版是 `validateNarrative(text, text, { checkNumbers: false })`，兩個
- * 破口：數字守門沒跑，而且 context 傳的是 text 自己（任何數字都找得到
- * 自己）。第二版改成 fail-closed 的字串比對，但獨立稽核證明字串比對會被
- * 改寫繞過。
+ * 主動訊息全部由確定性樣板產生（`buildNotifyMessage`、`selectQuestion`、
+ * `buildFollowUpMessage` 的 statement 都是 Node 算出來的），
+ * proactiveAgent 從頭到尾**沒有呼叫 coach**。所以「LLM 不可以是生理宣稱
+ * 的來源」這個不變量在這裡是**結構上成立**的，不需要靠檢查維持。
  *
- * 現在走**同一個發布邊界**（publishGuard）：訊息裡的每一個數值宣稱都要
- * 歸屬到一筆可發布的結構化事實。呼叫端傳 `factSet`（由
- * publishableFacts.factsFromProactive 從訊號／關聯統計建立）。
+ * 因此這裡用的是 `validateDeterministicMessage`：只擋類別性的違規
+ * （治療、診斷、強因果、即時宣稱、監測指示、專有分數），
+ * **不**擋指標名與數字 —— 那些正是樣板該輸出的東西。
  *
- * 沒傳 factSet → 空事實集 → 任何數字都歸屬不到 → 一律擋下並改用中性
- * 樣板。這正是 fail closed 該有的行為。
+ * 這是防止樣板被改壞的第二道防線，不是防幻覺的主防線。
  */
-export function guardProactiveMessage(text, {
-  label = 'proactive', factSet = null, signal = null, association = null,
-} = {}) {
-  const set = factSet ?? factsFromProactive({ signal, association });
-  const check = validatePublication(text, set);
+export function guardProactiveMessage(text, { label = 'proactive' } = {}) {
+  const check = validateDeterministicMessage(text);
   if (check.ok) return { text, violations: [] };
   log.error('proactive_message_failed_guard', { label, violations: check.violations.slice(0, 6) });
   return {

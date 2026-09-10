@@ -1,48 +1,54 @@
 /**
- * 結構化事實 → 敘述 的發布邊界（R2-H-02）。
+ * 發布邊界（R3-H-02）：LLM 永遠不是生理宣稱的來源。
  *
- * ## 不變量
+ * ## 為什麼架構被換掉
  *
- *   **LLM 不是生理事實的權威。**
- *   被發布的生理宣稱一律來自已驗證的結構化事實。
+ * 前兩輪都是「讓 LLM 自由寫，再驗證它說的對不對」：
+ *   R1 比對數字有沒有在 prompt 文字裡出現過
+ *   R2 比對數字有沒有歸屬到正確的結構化事實
  *
- * ## 為什麼上一輪的做法不夠
+ * 獨立稽核連續兩次證明這個方向追不完。R3 的探測在 R2 架構下仍然漏了
+ * 27 個裡的 **17** 個：
  *
- * 上一輪問的是「這個數字在 evidence context 這段**文字**裡出現過嗎」，
- * 歸屬靠「數字有沒有緊貼指標名」。兩者都在列舉措辭，所以獨立稽核用改寫
- * 就繞過了 13/22：
+ *   「恢復為 30%。」            30 剛好是基準窗天數（結構性數字）
+ *   「恢復。今天的數值是 99%。」 句子被切開，第二句裡沒有指標名
+ *   「你的 HRV 偏高。」          只有方向、沒有數字
+ *   「恢復九成九。」             「成」不在被涵蓋的單位寫法裡
+ *   「Take Zorblax every night.」不在任何藥名清單裡
  *
- *   逗號斷開鄰接、數字前置、英文指標名、中文數字詞、
- *   WHOOP Age 的各種改寫、阿斯匹靈（不在藥名清單裡）、病名改寫……
+ * 問題不在規則不夠多，在於**只要生理陳述由 LLM 產生，驗證就是在追一個
+ * 無限集合**。
  *
- * ## 現在的判準
+ * ## 現在的架構
  *
- * R1 數字閉合    敘述裡每一個數字都要歸屬到一筆事實的值／支援值／結構性數字
- * R2 指標歸屬    數字歸給句子裡**它前面最近**的指標，該指標必須允許這個數字
- * R3 封閉詞彙表  提到這次沒算出來的指標 → 違規；提到永不可發布的衍生分數
- *                （WHOOP Age / Healthspan）→ 光提起就違規
- * R4 語言規則    因果／診斷／即時宣稱／治療用藥（非數值的類別宣稱）
+ *   已驗證的結構化事實
+ *     → renderAssertions()   **所有**生理斷言（確定性樣板）
+ *     → LLM 說明（選配）      必須完全不含生理斷言
+ *     → assemblePublication()
  *
- * 關鍵性質：R1–R3 **不依賴列舉句子**。它們依賴「這次算出了哪些事實」，
- * 而那是我們自己產生的、有限的、確定性的清單。所以改寫、換語言、換標點、
- * 換語序都不會改變結果。
+ * 所以這個檔案測兩件事：
+ *   1. 渲染器**只**從可發布的事實產生句子（捏造在結構上不可能）
+ *   2. LLM 說明只要夾帶任何生理斷言就整段被丟掉
+ *
+ * 第 2 條可以調得很兇，因為丟掉它的代價只是少一句鼓勵的話 ——
+ * 數字與判定都已經由渲染器輸出。這個不對稱正是它不需要列舉每一種
+ * 幻覺句型的原因。
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { validatePublication, guardPublication } from '../src/publishGuard.js';
+import { validateExplanation, guardExplanation, validateDeterministicMessage } from '../src/publishGuard.js';
 import {
-  factsFromQaResult, factsFromBriefing, factsFromWeekly, factsFromProactive,
-  fact, factSet, NEVER_PUBLISHABLE, METRIC_VOCABULARY,
+  renderAssertion, renderAssertions, assemblePublication,
+} from '../src/assertionRenderer.js';
+import {
+  factsFromQaResult, fact, factSet, FACT_ROLE, NEVER_PUBLISHABLE, METRIC_VOCABULARY,
 } from '../src/publishableFacts.js';
-import { normalizeNumberWords, parseChineseNumber, parseEnglishNumber } from '../src/numberWords.js';
+import { normalizeNumberWordsAggressive } from '../src/numberWords.js';
 
 // ---------------------------------------------------------------------------
-// 基準事實集：恢復 55%（基準 62、n=30）、HRV **完全沒有資料**、睡眠表現 99%
-//
-// 「HRV 沒有資料」與「睡眠表現 99%」是刻意的：前者測「不可用的指標不能被
-// 給任何值」，後者測「別的指標的真實值不能被挪用」。
+// 事實集：恢復 55%（基準 62、n=30）、HRV **完全沒有資料**、睡眠表現 99%
 // ---------------------------------------------------------------------------
 const SET = factsFromQaResult({
   intent: 'today_status', available: true, health_date: '2026-09-09', history_days: 30,
@@ -62,335 +68,258 @@ const SET = factsFromQaResult({
   },
 });
 
-const blocked = (text, set = SET) => {
-  const v = validatePublication(text, set);
-  return { ok: v.ok, violations: v.violations };
-};
-
 // ===========================================================================
-// 前置：事實集的形狀
+// 1. 型別化事實
 // ===========================================================================
 
-test('前置：事實集正確標記哪些指標可發布', () => {
-  const byMetric = new Map(SET.facts.map((f) => [f.metric, f]));
-  assert.equal(byMetric.get('recovery').publishable, true);
-  assert.equal(byMetric.get('recovery').value, 55);
-  assert.equal(byMetric.get('hrv').publishable, false, '★ 沒有資料的指標不可發布');
-  assert.equal(byMetric.get('hrv').value, null);
-  assert.equal(byMetric.get('sleep_performance').value, 99);
+test('★★★ R3-H-02: 事實是型別化的（fact_id / role / provenance / publishable）', () => {
+  const f = SET.facts.find((x) => x.metric === 'recovery');
+  assert.equal(f.factId, 'recovery:CURRENT_VALUE:2026-09-09');
+  assert.equal(f.role, FACT_ROLE.CURRENT_VALUE);
+  assert.equal(f.provenance, 'health_query');
+  assert.equal(f.publishable, true);
+  assert.equal(f.value, 55);
+  assert.equal(f.readiness, 'AVAILABLE');
+
+  const hrv = SET.facts.find((x) => x.metric === 'hrv');
+  assert.equal(hrv.publishable, false, '★ 沒有資料 → 不可發布');
+  assert.equal(hrv.value, null);
 });
 
-test('前置：事實集裡沒有任何自由文字容器（使用者原話沒有進入管道）', () => {
-  for (const f of SET.facts) {
-    for (const [k, v] of Object.entries(f)) {
-      if (k === 'labels' || k === 'metric' || k === 'unit'
-          || k === 'display' || k === 'healthDate' || k === 'readiness') continue;
-      assert.ok(typeof v !== 'string' || v.length < 40,
-        `★ ${k} 不可以是長字串（那會變成夾帶原話的管道）`);
-    }
+test('★★★ R3-H-02: fact() 對不可發布的東西一律拒絕', () => {
+  assert.equal(fact('recovery', null).publishable, false);
+  assert.equal(fact('recovery', NaN).publishable, false);
+  assert.equal(fact('whoop_age', 30).publishable, false, '★ 專有分數即使有值也不可發布');
+  assert.equal(fact('healthspan_score', 88).publishable, false);
+  assert.equal(fact('not_a_metric', 5).publishable, false);
+  assert.equal(fact('recovery', 55).publishable, true);
+});
+
+// ===========================================================================
+// 2. 確定性渲染器：捏造在結構上不可能
+// ===========================================================================
+
+test('★★★ R3-H-02: 渲染器只從可發布的事實產生句子', () => {
+  const { lines, factIds, unavailable } = renderAssertions(SET);
+  assert.deepEqual(lines, ['恢復 55%', '睡眠表現 99%']);
+  assert.deepEqual(factIds, [
+    'recovery:CURRENT_VALUE:2026-09-09',
+    'sleep_performance:CURRENT_VALUE:2026-09-09',
+  ], '★ 每一句都帶著來源（provenance）');
+  assert.deepEqual(unavailable, ['HRV'], '★ 拿不到的要誠實列出，不是消失');
+});
+
+test('★★★ R3-H-02: 不可發布的事實渲染成 null（沒有事實就沒有句子）', () => {
+  assert.equal(renderAssertion(fact('hrv', null)), null);
+  assert.equal(renderAssertion(fact('whoop_age', 30)), null);
+  assert.equal(renderAssertion(null), null);
+  assert.equal(renderAssertion(fact('recovery', 55, { display: '55%' })).text, '恢復 55%');
+});
+
+test('★★★ R3-H-02: 空事實集渲染出空的斷言（而不是編一個）', () => {
+  const { lines } = renderAssertions(factSet([], { label: 'empty' }));
+  assert.deepEqual(lines, []);
+  const out = assemblePublication({ assertionLines: [], unavailable: [] });
+  assert.match(out, /還沒有足夠的資料/);
+});
+
+test('★★ R3-H-02: 每一種 role 都有固定樣板', () => {
+  for (const role of Object.values(FACT_ROLE)) {
+    const r = renderAssertion(fact('recovery', 55, { display: '55%', role }));
+    assert.ok(r && r.text.includes('55%'), `${role} 要渲染得出來`);
+    assert.ok(r.text.includes('恢復'));
   }
 });
 
+test('★★★ R3-H-02: 組裝順序固定 —— 確定性斷言永遠在前且永遠存在', () => {
+  const out = assemblePublication({
+    header: '📊 2026-09-09 的狀態',
+    assertionLines: ['恢復 55%', '睡眠表現 99%'],
+    unavailable: ['HRV'],
+    explanation: '今天照平常節奏走就好。',
+  });
+  const iAssert = out.indexOf('恢復 55%');
+  const iExplain = out.indexOf('今天照平常節奏走就好');
+  assert.ok(iAssert < iExplain, '★ 斷言必須在說明之前');
+  assert.ok(out.includes('目前拿不到：HRV'));
+
+  // 沒有說明時，斷言仍然完整
+  const bare = assemblePublication({
+    assertionLines: ['恢復 55%'], explanation: null,
+  });
+  assert.ok(bare.includes('恢復 55%'));
+});
+
 // ===========================================================================
-// ★★★ R2 稽核明確要求的攻擊
+// ★★★ 3. LLM 說明：稽核要求的 26 種攻擊
 // ===========================================================================
 
 const REQUIRED_ATTACKS = [
-  ['恢復 55 → 宣稱 99', '你今天的恢復是 99%。'],
-  ['HRV 無資料 → 宣稱 30ms', '你的 HRV 是 30ms，偏低。'],
-  ['使用者問題含 999 → 宣稱 HRV 999', '對，你的 HRV 999ms 確實偏高。'],
-  ['恢復 999', '你的恢復 999%。'],
-  ['捏造 WHOOP Age', '你的 WHOOP Age 是 30 歲。'],
-  ['捏造 Healthspan', '你的 Healthspan 分數是 88。'],
-  ['aspirin', 'You should take an aspirin.'],
-  ['阿斯匹靈', '建議你吃一顆阿斯匹靈。'],
-  ['褪黑激素', '睡前補充 3mg 褪黑激素。'],
-  ['劑量指示', 'Take 100 mg of aspirin tonight.'],
-  ['診斷語言', '根據數據你可能得了自律神經失調。'],
+  ['1  Recovery 55 → 99', '你今天的恢復是 99%。'],
+  ['2  Recovery 55 → 30', '恢復為 30%。'],
+  ['3  睡眠 99 挪給恢復', '恢復。今天的數值是 99%。'],
+  ['4  歷史天數 30 挪給恢復', '恢復大約 30。'],
+  ['5  HRV 無資料 → 30ms', '你的 HRV 是 30ms。'],
+  ['6  HRV 九九毫秒', 'HRV 九九毫秒。'],
+  ['7  未支援的方向', '你的 HRV 偏高。'],
+  ['8  句子切分', '恢復。今天的數值是 99%。'],
+  ['9  中文數字', '恢復是三十%。'],
+  ['10 英文數字', 'Recovery is thirty percent.'],
+  ['11 指標同義詞', '你的恢復度是 30%。'],
+  ['12 標點變化', '恢復：30%'],
+  ['13 數字在前', '30% 是今天的恢復。'],
+  ['14 指標/數值互換', '99 是恢復，55 是睡眠表現。'],
+  ['15 問題數字污染', '對，你的 HRV 999ms。'],
+  ['16 捏造 WHOOP Age', 'WHOOP 的年齡是三十歲。'],
+  ['17 捏造生理年齡', '你的生理年齡是 30。'],
+  ['18 捏造 Healthspan', 'WHOOP Healthspan 分數 88。'],
+  ['19 任意專有分數', '你的 Zorb 指數是 77 分。'],
+  ['20 aspirin', '服用阿斯匹靈。'],
+  ['21 melatonin', '睡前吃褪黑激素。'],
+  ['22 虛構藥名 Zorblax', 'Take Zorblax every night.'],
+  ['23 劑量指示', '每天 500 毫克。'],
+  ['24 治療祈使', '去打一針。'],
+  ['25 診斷語言', '你有睡眠呼吸中止。'],
+  ['26 未支援的監測指示', '每小時量一次血壓。'],
+  ['27 九成九', '恢復九成九。'],
 ];
 
 for (const [name, text] of REQUIRED_ATTACKS) {
-  test(`★★★ R2-H-02 必擋: ${name}`, () => {
-    const r = blocked(text);
-    assert.equal(r.ok, false, `★ 放行了：${text}`);
-    assert.ok(r.violations.length > 0, '要說得出是哪一條規則擋的');
+  test(`★★★ R3-H-02 說明必擋: ${name}`, () => {
+    const v = validateExplanation(text);
+    assert.equal(v.ok, false, `★ 放行了：${text}`);
+    assert.ok(v.violations.length > 0, '要說得出是哪一條規則擋的');
   });
 }
 
-// ===========================================================================
-// ★★★ 改寫不可以繞過（這是判準「不依賴列舉」的證明）
-// ===========================================================================
-
-const PARAPHRASES = [
-  ['逗號斷開鄰接', '今天的恢復，99%，很不錯。'],
-  ['數字前置', '99% 的恢復，狀態很好。'],
-  ['英文指標名', 'Your Recovery is 99% today.'],
-  ['英文完整句', 'Recovery came in at 99 percent this morning.'],
-  ['中文數字詞', '你今天的恢復是九十九%。'],
-  ['英文數字詞', 'Your recovery is ninety nine percent.'],
-  ['省略單位', '你的恢復 99。'],
-  ['子句重排', '睡眠表現不錯；恢復同樣是 99%。'],
-  ['換句話說', '恢復方面，數字落在 99 這個位置。'],
-  ['全形標點', '你的恢復：９９％。'.replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0))],
-  ['HRV 英文數字詞', 'HRV came in at thirty milliseconds.'],
-  ['HRV 中文數字詞', '你的 HRV 大約三十毫秒。'],
-  ['身體年紀（WHOOP Age 改寫）', '你的身體年紀大概 30 歲。'],
-  ['估算年齡（WHOOP Age 改寫）', 'WHOOP 估算的年齡是三十。'],
-  ['健康壽命指數（Healthspan 改寫）', '你的健康壽命指數是 88 分。'],
-  ['fitness age（英文改寫）', 'Your fitness age looks younger than expected.'],
-  ['病名標籤改寫', '這個模式看起來是過度訓練症候群。'],
-  ['英文 syndrome', 'This looks like overtraining syndrome.'],
-  ['處置文法（清單外藥名）', '建議你吃一顆普拿疼。'],
-  ['英文處置（清單外）', 'You should take some ibuprofen.'],
-];
-
-for (const [name, text] of PARAPHRASES) {
-  test(`★★★ R2-H-02 改寫不可繞過: ${name}`, () => {
-    const r = blocked(text);
-    assert.equal(r.ok, false, `★ 改寫繞過了判準：${text}`);
-  });
-}
-
-// ===========================================================================
-// ★★★ R1 數字閉合：句子裡沒有指標名時的兜底
-// ===========================================================================
-//
-// 這一條是最後一道防線：一個句子裡完全沒有指標名，但有一個數字。
-// 那個數字仍然必須歸屬到某一筆事實或結構性數字，否則就是憑空冒出來的。
-//
-// 沒有這一條，「你昨晚睡了 7 小時」會整句通過 —— 因為「睡了」不是指標詞
-// （「睡眠」才是），所以 R2 的歸屬與 R3 的詞彙表都不會被觸發。
-
-for (const [name, text, expected] of [
-  ['睡眠時長憑空（沒有指標詞）', '你昨晚睡了 7 小時。', 7],
-  ['步數憑空（「步」不是指標詞）', '你今天走了 8000 步。', 8000],
-  ['純數字', '這個數字是 4242。', 4242],
-  ['時數憑空', '昨天大概 12 個小時都在坐著。', 12],
-  ['分數憑空', '你的分數是 77。', 77],
-]) {
-  test(`★★★ R2-H-02 數字閉合: ${name} → 擋下`, () => {
-    const r = blocked(text);
-    assert.equal(r.ok, false, `★ 放行了無法歸屬的數字：${text}`);
-    assert.ok(r.violations.includes(`unattributable_number:${expected}`),
-      `★ 要標成 unattributable_number，實際：${r.violations.join()}`);
-  });
-}
-
-test('★★ R2-H-02 數字閉合: 結構性數字（日期、樣本數、z 值）不受影響', () => {
-  // 30 是 baseline_n、-0.80 是 z 值——都是確定性層算出來的
-  assert.equal(blocked('過去 30 天的樣本裡，z 值是 -0.80。').ok, true);
-});
-
-test('★★ R2-H-02 數字閉合: 沒有數字的句子完全不受這一條影響', () => {
-  assert.equal(blocked('今天整體看起來穩定，照平常節奏走就好。').ok, true);
-});
-
-// ===========================================================================
-// ★★★ 不可用的指標：任何數字都不行
-// ===========================================================================
-
-test('★★★ R2-H-02: 沒有資料的指標不可以被給任何數值（連結構性數字也不行）', () => {
-  // 30 剛好是基準窗天數（結構性數字）——上一輪就是這樣漏掉的
-  assert.equal(blocked('你的 HRV 是 30ms。').ok, false);
-  assert.equal(blocked('你的 HRV 是 55ms。').ok, false, '★ 別的指標的真實值也不行');
-  assert.equal(blocked('你的 HRV 是 62ms。').ok, false, '★ 恢復的基準值也不行');
-});
-
-test('★★ R2-H-02: 沒有資料的指標可以被**誠實地**提起（不給數值）', () => {
-  const r = blocked('HRV 今天拿不到資料，所以我只能就恢復跟睡眠表現跟你說。');
-  assert.equal(r.ok, true, `★ 誠實說沒資料不可以被誤擋：${r.violations.join()}`);
-});
-
-// ===========================================================================
-// ★★★ 跨指標挪用
-// ===========================================================================
-
-test('★★★ R2-H-02: 每一個真實值都只屬於它自己的指標', () => {
-  // 55 是恢復的、99 是睡眠表現的、62 是恢復的基準
-  assert.equal(blocked('你的恢復 55%。').ok, true, '★ 自己的值可以');
-  assert.equal(blocked('你的睡眠表現 99%。').ok, true);
-  assert.equal(blocked('你的恢復 99%。').ok, false, '★ 挪用睡眠表現的值 → 擋');
-  assert.equal(blocked('你的睡眠表現 55%。').ok, false, '★ 挪用恢復的值 → 擋');
-});
-
-test('★★★ R2-H-02: 歸屬取「數字前面最近」的指標，不是字元距離最近', () => {
-  // 62 是恢復的基準；如果只比距離會被歸給後面的睡眠表現而誤判
-  const text = '恢復 55%，比 30 天基準 62% 低一點；睡眠表現 99% 很漂亮。';
-  const r = blocked(text);
-  assert.equal(r.ok, true, `★ 正常敘述被誤擋：${r.violations.join()}`);
-});
-
-// ===========================================================================
-// ★★★ 永不可發布的衍生分數：光提起就違規
-// ===========================================================================
-
-test('★★★ R2-H-02: WHOOP Age / Healthspan 的每一種說法都被擋（不需要數字）', () => {
+test('★★★ R3-H-02: 每一種永不可發布的分數說法都被擋（不需要數字）', () => {
   for (const key of NEVER_PUBLISHABLE) {
     for (const term of METRIC_VOCABULARY[key]) {
-      const r = blocked(`關於${term}，看起來還可以。`);
-      assert.equal(r.ok, false, `★ 「${term}」不可以被提起`);
-      assert.ok(r.violations.some((v) => v.startsWith('forbidden_metric')),
-        `★ 要標成 forbidden_metric：${term} → ${r.violations.join()}`);
+      assert.equal(validateExplanation(`關於${term}，看起來還可以。`).ok, false,
+        `★ 「${term}」不可以出現在說明裡`);
     }
   }
 });
 
-test('★★ R2-H-02: 誠實說「這個系統算不出那種分數」不會被誤判', () => {
-  const r = blocked('這個系統目前算不出那種綜合分數，我只能就手上的指標跟你說。');
-  assert.equal(r.ok, true, r.violations.join());
+test('★★★ R3-H-02: 任何指標名出現在說明裡都會被丟掉（方向型斷言也一起關掉）', () => {
+  for (const key of Object.keys(METRIC_VOCABULARY)) {
+    const term = METRIC_VOCABULARY[key][0];
+    const v = validateExplanation(`你的${term}看起來還行。`);
+    assert.equal(v.ok, false, `★ 說明不可以提到 ${term}`);
+  }
 });
 
-// ===========================================================================
-// ★★★ 封閉詞彙表：沒算出來的指標
-// ===========================================================================
-
-test('★★★ R2-H-02: 提到這次沒算出來的指標 → 擋', () => {
+test('★★★ R3-H-02: 任何數字出現在說明裡都會被丟掉', () => {
   for (const text of [
-    '你的步數今天不錯。',
-    '你的最大攝氧量看起來很好。',
-    '你的體重穩定。',
-    'Your VO2 Max is improving.',
+    '大概 7 小時。', '差不多 30 天。', '三十天。', 'about thirty days.',
+    '第 3 名。', '99', '0.5 倍。',
   ]) {
-    assert.equal(blocked(text).ok, false, `★ 放行了沒算出來的指標：${text}`);
-  }
-});
-
-test('★★ R2-H-02: 中文裡當動詞用的「恢復」不算指標提及', () => {
-  const proactive = factsFromProactive({
-    signal: { metric: 'hrv', current: 40, baseline_mean: 55, baseline_n: 30 },
-  });
-  for (const text of [
-    '一起加油，兩三天內會恢復。',
-    '你已經恢復了，很好。',
-    '身體會慢慢恢復，別急。',
-  ]) {
-    const r = blocked(text, proactive);
-    assert.equal(r.ok, true, `★ 動詞用法被誤判成指標宣稱：${text} ${r.violations.join()}`);
+    assert.equal(validateExplanation(text).ok, false, `★ 放行了數字：${text}`);
   }
 });
 
 // ===========================================================================
-// ★★★ 空／缺席的事實集一律 fail closed
+// ★★ 4. 不能過度封鎖：正常的鼓勵話語必須保留
 // ===========================================================================
 
-for (const [name, set] of [
-  ['null', null], ['undefined', undefined], ['沒有 facts 欄位', {}],
-  ['空事實集', factSet([], { label: 'empty' })],
-]) {
-  test(`★★★ R2-H-02 fail closed: 事實集是 ${name} → 任何數值宣稱都擋`, () => {
-    const v = validatePublication('你的恢復 55%。', set);
-    assert.equal(v.ok, false, '★ 沒有事實就沒有任何數字可以被發布');
-  });
-}
-
-test('★★★ R2-H-02 fail closed: 空敘述不可以被發布', () => {
-  for (const empty of ['', '   ', null, undefined]) {
-    assert.equal(validatePublication(empty, SET).ok, false);
-  }
-});
-
-// ===========================================================================
-// ★★★ guardPublication：原文一個字都不外流
-// ===========================================================================
-
-test('★★★ R2-H-02: 被擋下時原文完全不外流，且 fallback 仍然有用', () => {
-  const bad = '你的 WHOOP Age 是 30 歲，HRV 999ms，建議吃 3mg 褪黑激素。';
-  const g = guardPublication({
-    narrative: bad, factSet: SET, fallback: '（確定性版本：恢復 55%）', label: 'test',
-  });
-  assert.equal(g.used, 'fallback');
-  assert.equal(g.text, '（確定性版本：恢復 55%）', '★ fallback 必須仍然有資訊');
-  for (const fragment of ['WHOOP Age', '999', '褪黑激素', '30 歲']) {
-    assert.ok(!g.text.includes(fragment), `★ 不可以殘留「${fragment}」`);
-  }
-  assert.ok(g.violations.length >= 2, '要列出所有違規');
-});
-
-test('★★ R2-H-02: 驗證通過時原文原封不動放行', () => {
-  const good = 'Kelvin，你今天的恢復 55%，比基準 62% 低一點；睡眠表現 99% 很漂亮 💛';
-  const g = guardPublication({ narrative: good, factSet: SET, fallback: 'FB' });
-  assert.equal(g.used, 'llm');
-  assert.equal(g.text, good);
-});
-
-// ===========================================================================
-// ★★ 不能過度封鎖：正常的教練文字
-// ===========================================================================
-
-const SAFE = [
-  ['引用真實數字', 'Kelvin，你今天的恢復 55%，比 30 天基準 62% 低一點；睡眠表現 99% 很漂亮 💛'],
-  ['完全不含數字', 'Kelvin，今天恢復比平常略低，睡眠品質不錯，照平常節奏走就好。'],
-  ['相對描述', '今天的恢復比平常低一些，睡眠表現則比平常好。'],
-  ['生活建議', '今天可以早點睡，記得多喝水，訓練量稍微降一點。'],
-  ['吃東西是安全的', '記得吃早餐，也可以補充一點水。'],
+const SAFE_EXPLANATIONS = [
+  ['鼓勵', 'Kelvin，今天整體看起來穩定，照平常節奏走就好 💛'],
+  ['早睡', '今天可以早點睡，讓身體多一點修復時間。'],
+  ['減量', '訓練量稍微降一點，明天再加回來就好。'],
   ['就醫提醒', '如果你覺得不舒服，還是找醫師看一下比較安心。'],
-  ['資料不足的誠實說法', '資料還不夠多，這只是初步觀察，我會繼續留意。'],
-  ['中文慣用語', '一起加油，第一次看到這個規律，十分穩定。'],
-  ['z 值與樣本數', '恢復 55%（z=-0.80，基準 62%，n=30）算是輕微偏低。'],
-  ['日期', '2026-09-09 的恢復是 55%。'],
+  ['資料不足', '資料還不夠多，這只是初步觀察，我會繼續留意。'],
+  ['中文慣用語', '一起加油，十分穩定，第一次看到這個規律。'],
+  ['吃東西', '記得吃早餐，也可以補充一點水。'],
+  ['動詞恢復', '身體會慢慢恢復，別急。'],
+  ['純鼓勵', '你最近很努力，我看得到，繼續保持 💪'],
 ];
 
-for (const [name, text] of SAFE) {
-  test(`★★ R2-H-02 false positive: ${name}`, () => {
-    const r = blocked(text);
-    assert.equal(r.ok, true, `★ 正常敘述被誤擋：${r.violations.join()}`);
+for (const [name, text] of SAFE_EXPLANATIONS) {
+  test(`★★ R3-H-02 說明 false positive: ${name}`, () => {
+    const v = validateExplanation(text);
+    assert.equal(v.ok, true, `★ 正常的鼓勵話語被誤擋：${v.violations.join()}`);
+  });
+}
+
+test('★★★ R3-H-02: 丟掉說明時原文一個字都不外流，斷言完全不受影響', () => {
+  const bad = '你的 WHOOP Age 是 30 歲，HRV 999ms，建議吃 3mg 褪黑激素。';
+  const g = guardExplanation(bad, { label: 'test' });
+  assert.equal(g.used, 'discarded');
+  assert.equal(g.text, null, '★ 丟掉就是丟掉，不留任何片段');
+
+  const out = assemblePublication({
+    assertionLines: renderAssertions(SET).lines,
+    explanation: g.text,
+    unavailable: renderAssertions(SET).unavailable,
+  });
+  for (const fragment of ['WHOOP Age', '999', '褪黑激素', '3mg', '30 歲']) {
+    assert.ok(!out.includes(fragment), `★ 不可以殘留「${fragment}」`);
+  }
+  assert.ok(out.includes('恢復 55%'), '★ 確定性斷言必須完整保留');
+  assert.ok(out.includes('睡眠表現 99%'));
+});
+
+test('★★ R3-H-02: 空的 / 缺席的說明是合法的（沒有說明就只有斷言）', () => {
+  for (const empty of ['', '   ', null, undefined]) {
+    const g = guardExplanation(empty);
+    assert.equal(g.text, null);
+  }
+});
+
+// ===========================================================================
+// ★★★ 5. 確定性樣板訊息（主動路徑）的規則比較寬，但仍擋類別性違規
+// ===========================================================================
+
+test('★★★ R3-H-02: 確定性樣板可以含指標與數字（那正是渲染器該做的）', () => {
+  const v = validateDeterministicMessage('留意一下：你的 HRV 最近持續偏低（40ms，基準 55ms）。');
+  assert.equal(v.ok, true, `★ 樣板輸出被誤擋：${v.violations.join()}`);
+});
+
+for (const [name, text] of [
+  ['治療', '建議你吃一顆阿斯匹靈。'],
+  ['虛構藥名', 'You should take Zorblax.'],
+  ['診斷', '你可能得了自律神經失調。'],
+  ['強因果', '熬夜導致你的恢復下降。'],
+  ['即時宣稱', '你現在的心率偏高。'],
+  ['監測指示', '每小時量一次血壓。'],
+  ['專有分數', '你的 WHOOP Age 是 30 歲。'],
+]) {
+  test(`★★★ R3-H-02 樣板深度防禦: 擋下「${name}」`, () => {
+    assert.equal(validateDeterministicMessage(text).ok, false, `★ 放行了：${text}`);
   });
 }
 
 // ===========================================================================
-// 數字詞正規化（發布邊界的前置零件）
+// 數字詞正規化
 // ===========================================================================
 
-test('★★ R2-H-02: 中文數字詞在「宣稱一個量」時才會被轉換', () => {
-  assert.equal(parseChineseNumber('九十九'), 99);
-  assert.equal(parseChineseNumber('三十'), 30);
-  assert.equal(parseChineseNumber('一百'), 100);
-  assert.equal(parseChineseNumber('兩三'), null, '★ 約略說法不是數字');
-  assert.equal(parseEnglishNumber('ninety nine'), 99);
-  assert.equal(parseEnglishNumber('one hundred'), 100);
-});
-
-test('★★ R2-H-02: 慣用語不會被誤轉成數字（否則正常句子會憑空多出數字）', () => {
-  const M = ['恢復', 'HRV'];
-  for (const idiom of [
-    '一起加油', '第一次看到', '十分穩定', '千萬不要熬夜', '一下子就好',
-    '再一次確認', '一天一天累積', '進步了一成', '有一度覺得累',
-    '兩三天內會恢復', '第三次了', '三四次深呼吸', '七八分飽',
-    'one of your best days',
+test('★★★ R3-H-02: 把英文指標名拆開來寫也擋得住（正規化，不是加同義詞）', () => {
+  for (const t of [
+    '你的 r e c o v e r y 很低',
+    'H R V 一直往下',
+    's t r a i n 有點高',
+    '你的 r-e-c-o-v-e-r-y 需要注意',
   ]) {
-    assert.equal(normalizeNumberWords(idiom, { metricTerms: M }), idiom,
-      `★ 「${idiom}」不該被改動`);
+    assert.equal(validateExplanation(t).ok, false, `應該被擋下：${t}`);
   }
 });
 
-// ===========================================================================
-// 每一條發布路徑都用同一個邊界
-// ===========================================================================
-
-test('★★★ R2-H-02: 四個事實建構器都產生合法形狀的事實集', () => {
-  const sets = [
-    factsFromBriefing({ metrics: [], localDate: '2026-09-09', sampleCount: 30 }),
-    factsFromWeekly({ last: { averages: {}, days: 7 }, prev: { days: 7 }, wow: {} }),
-    factsFromQaResult({ available: false }),
-    factsFromProactive({}),
-  ];
-  for (const s of sets) {
-    assert.ok(Array.isArray(s.facts));
-    assert.ok(Array.isArray(s.structural));
-    assert.equal(typeof s.label, 'string');
-    // 空事實集必須 fail closed
-    if (!s.facts.length) {
-      assert.equal(validatePublication('你的恢復 55%。', s).ok, false);
-    }
+test('★★ R3-H-02: 拉丁字母的正規化不可以誤殺一般鼓勵語', () => {
+  for (const t of [
+    '今天就照平常的節奏走吧，不用特別加碼。',
+    '想動的話就動，不想動也完全沒關係。',
+    '一起加油，慢慢來就好。',
+    'OK，今天就這樣。',
+  ]) {
+    assert.equal(validateExplanation(t).ok, true, `不該被擋下：${t}`);
   }
 });
 
-test('★★★ R2-H-02: 事實不可發布時，fact() 一律拒絕（值是 null / 未知指標 / 專有分數）', () => {
-  assert.equal(fact('recovery', null).publishable, false);
-  assert.equal(fact('recovery', NaN).publishable, false);
-  assert.equal(fact('recovery', undefined).publishable, false);
-  assert.equal(fact('whoop_age', 30).publishable, false, '★ 專有分數即使有值也不可發布');
-  assert.equal(fact('healthspan_score', 88).publishable, false);
-  assert.equal(fact('not_a_real_metric', 5).publishable, false, '★ 詞彙表外的指標不可發布');
-  assert.equal(fact('recovery', 55).publishable, true);
+test('★★ R3-H-02: 積極正規化抓得到所有數字寫法，但不動慣用語', () => {
+  for (const t of ['恢復九成九', 'HRV 九九毫秒', '恢復是三十%', '去打一針', '每小時量一次血壓']) {
+    assert.match(normalizeNumberWordsAggressive(t), /\d/, `★ 沒抓到數字：${t}`);
+  }
+  for (const t of ['一起加油', '十分穩定', '千萬不要熬夜', '第一次看到', '有一度覺得累']) {
+    assert.equal(normalizeNumberWordsAggressive(t), t, `★ 慣用語不該被改：${t}`);
+  }
 });

@@ -115,9 +115,11 @@ test('★★ R2-M-05: 重送（認領回 false）→ 跳過但推進 offset', as
 test('★★ R2-M-05: 並發認領同一則 → 恰好一個成功', async () => {
   await withUser(async (db) => {
     const rs = await Promise.all([
-      db.claimTelegramUpdate(200), db.claimTelegramUpdate(200), db.claimTelegramUpdate(200),
+      db.claimTelegramUpdate(200, { owner: 'w1' }),
+      db.claimTelegramUpdate(200, { owner: 'w2' }),
+      db.claimTelegramUpdate(200, { owner: 'w3' }),
     ]);
-    assert.equal(rs.filter(Boolean).length, 1);
+    assert.equal(rs.filter((r) => r.ok).length, 1);
   });
 });
 
@@ -170,10 +172,10 @@ test('★★★ R2-M-05: 認領不可用時整批停下（不會把 offset 推�
     // 第一則認領失敗，之後都成功
     const flaky = {
       ...db,
-      claimTelegramUpdate: async (id) => {
+      claimTelegramUpdate: async (id, o) => {
         calls += 1;
         if (Number(id) === 100) throw new Error('down');
-        return db.claimTelegramUpdate(id);
+        return db.claimTelegramUpdate(id, o);
       },
     };
     const next = await makePoller(flaky, db).processBatch(
@@ -195,10 +197,10 @@ test('★★★ R2-M-05: 暫時性失敗重試之後成功 → 正常處理一�
     let attempts = 0;
     const flaky = {
       ...db,
-      claimTelegramUpdate: async (id) => {
+      claimTelegramUpdate: async (id, o) => {
         attempts += 1;
         if (attempts < TELEGRAM_BOT.CLAIM_RETRIES) throw new Error('transient');
-        return db.claimTelegramUpdate(id);
+        return db.claimTelegramUpdate(id, o);
       },
     };
     await makePoller(flaky, db).processBatch([update(100)], 0);

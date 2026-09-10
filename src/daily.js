@@ -14,8 +14,7 @@ import {
 } from './analyze.js';
 import { renderDaily } from './format.js';
 import { buildInsightsSafe } from './insights.js';
-import { guardPublication } from './publishGuard.js';
-import { factsFromBriefing } from './publishableFacts.js';
+import { guardExplanation } from './publishGuard.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
 
@@ -113,23 +112,16 @@ export async function runDaily({
     // AI 只負責講話；掛掉就走 fallback（照樣發數據簡報）
     coachText = await coach.daily(briefing);
 
-    // ★ 發布邊界（R2-H-02）：敘述裡的每一個數值宣稱都必須歸屬到一筆
-    // **可發布的結構化事實**。事實由 factsFromBriefing(briefing) 從確定性層
-    // 直接建立 —— 不是拿餵給模型的那段文字去比對字串。
+    // ★ R3-H-02：教練文字是**純裝飾**，不是資訊來源。
     //
-    // 為什麼換掉舊做法：舊版比對的是「這個數字在 prompt 文字裡出現過嗎」，
-    // 獨立稽核用改寫（逗號、語序、英文指標名、中文數字）繞過了 13/22。
+    // renderDaily() 已經把每一個指標、基準、判定都確定性地印出來了，
+    // 所以這一段只需要通過一個檢查：**它有沒有夾帶任何生理斷言**。
+    // 有就整段丟掉 —— 使用者少的只是一句鼓勵的話，資訊一個字都不會少。
     //
-    // fallback 給 null 是刻意的：renderDaily(briefing, null) 本來就會印出
-    // FALLBACK_NOTE 並保留完整的確定性數據簡報。也就是說守門失敗只會讓
-    // 教練那段話消失，**數據簡報照常送出**。
-    const guarded = guardPublication({
-      narrative: coachText,
-      factSet: factsFromBriefing(briefing),
-      fallback: null,
-      label: 'daily',
-    });
-    if (coachText && guarded.used === 'fallback') {
+    // 這個不對稱正是過濾器可以「寧可錯殺」的原因，也是它不必列舉每一種
+    // 幻覺句型的原因（前兩輪的做法連續兩次被改寫繞過）。
+    const guarded = guardExplanation(coachText, { label: 'daily' });
+    if (coachText && guarded.used === 'discarded') {
       log.warn('daily_narrative_rejected', {
         health_date: healthDate,
         violations: guarded.violations?.slice(0, 6) ?? [],

@@ -292,27 +292,18 @@ test('★★★ 稽核 #3: 捏造的「即時」生理數值必須被擋下來',
 });
 
 test('★★ 稽核 #3b: 正常的回顧性描述不可以被誤擋', () => {
-  // R2-H-02：訊息必須帶著它背後的訊號。生產路徑（proactiveAgent）一律會傳，
-  // 因為那正是「這則訊息在講哪個指標」的權威來源。沒有訊號 = 沒有證據 =
-  // fail closed（見下一題）。
+  // R3-H-02：主動訊息全部由確定性樣板產生（這條路徑沒有 LLM），
+  // 所以樣板**應該**含指標名與數字 —— 深度防禦只擋類別性的違規。
   const allowed = [
-    ['你的HRV今天比平常偏低了一些。昨天有喝酒嗎？', { metric: 'hrv', current: 40 }],
-    [
-      '留意一下：你的恢復分數最近持續偏低，不是單一天的雜訊。\n\n如果你覺得不舒服，建議考慮休息、就醫或諮詢醫療專業人員——我沒有能力做任何醫療判斷。',
-      { metric: 'recovery_score', current: 42 },
-    ],
+    '你的HRV今天比平常偏低了一些。昨天有喝酒嗎？',
+    '留意一下：你的恢復分數最近持續偏低，不是單一天的雜訊。\n\n如果你覺得不舒服，建議考慮休息、就醫或諮詢醫療專業人員——我沒有能力做任何醫療判斷。',
+    '補充一下之前提到的觀察：「喝酒」與隔天HRV之間目前觀察到負向的關聯（r=-0.70，樣本 20 天）。',
   ];
-  for (const [text, signal] of allowed) {
-    const r = guardProactiveMessage(text, { label: 'audit', signal });
-    assert.equal(r.violations.length, 0, `★ 這句話是正常的回顧性描述，不該被擋：${text}`);
+  for (const text of allowed) {
+    const r = guardProactiveMessage(text, { label: 'audit' });
+    assert.equal(r.violations.length, 0, `★ 這句話是正常的樣板輸出，不該被擋：${text}`);
     assert.equal(r.text, text, '★ 原文必須完整保留');
   }
-});
-
-test('★★★ R2-H-02: 沒有訊號（沒有證據）時，提到任何指標一律 fail closed', () => {
-  const r = guardProactiveMessage('你的HRV今天比平常偏低了一些。', { label: 'audit' });
-  assert.ok(r.violations.length > 0, '★ 沒有證據就不可以發布任何生理宣稱');
-  assert.notEqual(r.text, '你的HRV今天比平常偏低了一些。');
 });
 
 // ===========================================================================

@@ -14,8 +14,9 @@
 
 import { AI_PURPOSE, PROMPT_VERSIONS, TELEGRAM_BOT } from '../config.js';
 import { safeSlice } from '../format.js';
-import { guardPublication } from '../publishGuard.js';
+import { guardExplanation } from '../publishGuard.js';
 import { factsFromQaResult } from '../publishableFacts.js';
+import { renderAssertions, assemblePublication } from '../assertionRenderer.js';
 import { log } from '../logger.js';
 
 export const ANSWER_SYSTEM_PROMPT = `你是 Kelvin 的私人健康教練，語氣溫暖、專業、口語，用繁體中文。
@@ -230,49 +231,65 @@ export function renderFallback(result) {
 /**
  * structured result → 最終要送出去的文字。
  *
- * ★ LLM 的回答一定會先過 guardNarrative：如果它講出可信事實裡沒有的數字、
- * 日期、指標，或使用強因果 / 診斷措辭，**原文不會被送出去**，
- * 改用 renderFallback() 的純 Node 版本。
+ * ## R3-H-02：LLM 不是生理宣稱的來源
  *
- * ## USER TEXT IS NOT EVIDENCE（H-02）
+ * 前兩輪都是「讓 LLM 自由寫整個回答，再驗證它說的對不對」。獨立稽核
+ * 連續兩次證明那個方向追不完（第三輪仍然漏了 27 個攻擊裡的 17 個）。
  *
- * 舊版把 `buildAnswerContext()` 的輸出同時當成 prompt 和驗證用的 context，
- * 而那個字串的第一行就是 `使用者的問題：<原話>`。結果使用者可以自己
- * 授權自己的宣稱：
+ * 現在的流程是：
  *
- *   問：「我的 HRV 是 999ms 對嗎？」
- *   → 999 出現在 context → 「你的 HRV 999ms 偏高」通過驗證並送出
+ *   structured result
+ *     → factsFromQaResult()      型別化的可發布事實
+ *     → renderAssertions()       **所有**生理斷言（確定性樣板）
+ *     → LLM 說明（選配）          必須完全不含生理斷言
+ *     → assemblePublication()    組裝
  *
- * 現在 prompt 與可信事實是兩個分開產生的字串，guardNarrative 只拿得到
- * `buildTrustedFacts(result)` —— 100% 由確定性 / 統計層算出來的東西。
+ * 也就是說：數字、指標、方向、判定**永遠**來自確定性層。LLM 只能加一段
+ * 不含任何生理斷言的鼓勵話語；含了就整段丟掉，而使用者仍然拿到完整的
+ * 確定性回答。
+ *
+ * 使用者的問題只出現在 prompt 裡，從來沒有機會變成證據。
  */
 export async function composeAnswer({ question, result, coach, purpose = AI_PURPOSE.QA }) {
-  const fallback = renderFallback(result);
-  if (!result || result.available === false) return fallback;
-  if (!coach?.ask) return fallback;
+  if (!result || result.available === false) return renderFallback(result);
 
-  // prompt 仍然含問題（模型需要知道要回答什麼）；驗證則完全不看它，
-  // 而是看 factsFromQaResult(result) 建立的結構化事實。
+  // 1) 確定性斷言 —— 這一段永遠存在，而且與 LLM 無關
+  const factSet = factsFromQaResult(result);
+  const { lines, unavailable } = renderAssertions(factSet);
+  const header = result.health_date ? `📊 ${result.health_date} 的狀態` : null;
+
+  // 事實集算不出任何東西時，退回既有的確定性排版（它涵蓋 trend/best-worst
+  // 等 factsFromQaResult 不建模的 intent）。
+  const deterministic = lines.length
+    ? assemblePublication({ header, assertionLines: lines, unavailable })
+    : renderFallback(result);
+
+  if (!coach?.ask) return deterministic;
+
+  // 2) 選配的說明
   const prompt = buildAnswerContext(question, result);
-  const text = await coach.ask({
-    system: ANSWER_SYSTEM_PROMPT,
-    user: prompt,
-    maxTokens: TELEGRAM_BOT.ANSWER_MAX_TOKENS,
-    purpose,
-    promptVersion: PROMPT_VERSIONS.QA,
-  });
-  if (!text) return fallback;
-
-  // ★ 發布邊界（R2-H-02）：事實集直接從 structured result 建立。
-  // 使用者的問題**從來沒有機會**變成證據 —— 它只出現在 prompt 裡。
-  const guarded = guardPublication({
-    narrative: safeSlice(text.trim(), TELEGRAM_BOT.MAX_REPLY_CHARS),
-    factSet: factsFromQaResult(result),
-    fallback,
-    label: 'qa',
-  });
-  if (guarded.used === 'fallback') {
-    log.warn('qa_answer_replaced_by_fallback', { violations: guarded.violations?.slice(0, 4) });
+  let text = null;
+  try {
+    text = await coach.ask({
+      system: ANSWER_SYSTEM_PROMPT,
+      user: prompt,
+      maxTokens: TELEGRAM_BOT.ANSWER_MAX_TOKENS,
+      purpose,
+      promptVersion: PROMPT_VERSIONS.QA,
+    });
+  } catch (err) {
+    log.warn('qa_explanation_failed', { error: String(err?.message ?? err).slice(0, 160) });
   }
-  return guarded.text;
+  if (!text) return deterministic;
+
+  const guarded = guardExplanation(
+    safeSlice(String(text).trim(), TELEGRAM_BOT.MAX_REPLY_CHARS), { label: 'qa' },
+  );
+  if (guarded.used === 'discarded') {
+    log.warn('qa_explanation_discarded', { violations: guarded.violations?.slice(0, 4) });
+  }
+  // 3) 組裝：確定性斷言 + （通過檢查的）說明
+  return guarded.text ? `${deterministic}
+
+${guarded.text}` : deterministic;
 }

@@ -160,36 +160,32 @@ test('★★ PA16: guardProactiveMessage 擋下因果/診斷語言，換成保�
 });
 
 test('PA16: guardProactiveMessage 放行正常的保守用語', () => {
-  // R2-H-02：帶上訊號（生產路徑一律會傳），敘述才有可歸屬的事實。
+  // R3-H-02：這條路徑沒有 LLM，樣板本來就該含指標名與數字。
   const allowedExamples = [
-    ['你的HRV今天比平常偏低了一些。昨天有喝酒嗎？', { metric: 'hrv', current: 40 }],
-    ['留意一下：你的恢復分數最近持續偏低，不是單一天的雜訊。', { metric: 'recovery_score', current: 42 }],
-    ['我注意到一些變化，想跟你確認一下最近的作息。', null],
+    '你的HRV今天比平常偏低了一些。昨天有喝酒嗎？',
+    '留意一下：你的恢復分數最近持續偏低，不是單一天的雜訊。',
+    '我注意到一些變化，想跟你確認一下最近的作息。',
   ];
-  for (const [text, signal] of allowedExamples) {
-    const { text: guarded, violations } = guardProactiveMessage(text, { label: 'test', signal });
+  for (const text of allowedExamples) {
+    const { text: guarded, violations } = guardProactiveMessage(text, { label: 'test' });
     assert.equal(violations.length, 0, `這句話不該被擋：${text} ${JSON.stringify(violations)}`);
     assert.equal(guarded, text);
   }
 });
 
-test('★★★ PA16 / R2-H-02: 帶數字的訊息必須有可歸屬的結構化事實', () => {
+test('★★★ PA16 / R3-H-02: 帶統計量的樣板訊息照常放行，類別性違規仍然擋下', () => {
   const withNumbers = '補充一下之前提到的觀察：「喝酒」與隔天HRV之間目前觀察到負向的關聯'
     + '（r=-0.70，樣本 20 天，資料充分度 MODERATE）。這是個人層級觀察到的關聯，跟其他因素的影響無法完全分開。';
+  const ok = guardProactiveMessage(withNumbers, { label: 'test' });
+  assert.equal(ok.violations.length, 0,
+    `確定性樣板的統計量應該放行：${JSON.stringify(ok.violations)}`);
+  assert.equal(ok.text, withNumbers);
 
-  // 有關聯統計（確定性層算出來的）→ 數字都歸屬得到 → 放行
-  const withEvidence = guardProactiveMessage(withNumbers, {
-    label: 'test',
-    association: { metric: 'hrv', pearson: -0.70, n: 20 },
-  });
-  assert.equal(withEvidence.violations.length, 0,
-    `有出處的數字應該放行：${JSON.stringify(withEvidence.violations)}`);
-  assert.equal(withEvidence.text, withNumbers);
-
-  // 完全沒有事實 → 任何數字都歸屬不到 → fail closed
-  const withoutEvidence = guardProactiveMessage(withNumbers, { label: 'test' });
-  assert.ok(withoutEvidence.violations.length > 0, '★ 沒有出處的數字必須被擋（fail-closed）');
-  assert.notEqual(withoutEvidence.text, withNumbers);
+  // 但類別性違規即使出現在樣板裡也必須被擋（防止樣板被改壞）
+  const bad = '補充一下：建議你吃一顆阿斯匹靈。';
+  const blocked = guardProactiveMessage(bad, { label: 'test' });
+  assert.ok(blocked.violations.length > 0, '★ 治療指示必須被擋');
+  assert.notEqual(blocked.text, bad);
 });
 
 // ===========================================================================

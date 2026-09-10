@@ -21,7 +21,9 @@
  * 留著比執行不必要的破壞性 DDL 安全。
  */
 
-import { LEGACY_TABLES, RESHAPED_TABLES, SCHEMA, SCHEMA_VERSION } from './schema.js';
+import {
+  ADDITIVE_COLUMNS, LEGACY_TABLES, RESHAPED_TABLES, SCHEMA, SCHEMA_VERSION,
+} from './schema.js';
 import { log } from './logger.js';
 
 export class UnsafeMigrationError extends Error {
@@ -116,6 +118,22 @@ export async function runMigrations(client, { allowRebuild = true } = {}) {
   for (const stmt of SCHEMA) {
     await client.execute(stmt);
     summary.created += 1;
+  }
+
+  // ★ R3-M-05：加欄位式的遷移。
+  //
+  // CREATE TABLE IF NOT EXISTS 不會動既有的表，而 RESHAPED_TABLES 那條路徑
+  // 遇到有資料的表會中止 —— telegram_processed_updates 在正式環境一定有資料。
+  // ALTER TABLE ADD COLUMN 是唯一一條「保留資料又能改形狀」的路，而且它在
+  // SQLite 只改中繼資料。先檢查欄位在不在，所以可以重複執行。
+  summary.columnsAdded = [];
+  for (const { table, column, ddl } of ADDITIVE_COLUMNS) {
+    if (!(await tableExists(client, table))) continue;
+    const cols = await columnNames(client, table);
+    if (cols.includes(column)) continue;
+    await client.execute(ddl);
+    summary.columnsAdded.push(`${table}.${column}`);
+    log.info('schema_column_added', { table, column });
   }
 
   if (from < SCHEMA_VERSION) {

@@ -210,41 +210,55 @@ export function createDb({ url, authToken }) {
   }
 
   /**
-   * 這個使用者的健康資料**實際上**來自哪個 WHOOP 帳號（R2-M-01）。
+   * 這個使用者的健康資料**實際上**來自哪個 WHOOP 帳號。
    *
    * ## 為什麼不能只看 token 列
    *
    * 舊資料的 `user_whoop_tokens.whoop_user_id` 可能是 NULL（第一版的授權
    * 流程從來沒有寫過它）。但每一列健康資料**自己**都帶著 WHOOP 回傳的
-   * `whoop_user_id` —— 那是「這些生理資料屬於誰」的權威事實，而且
-   * 不會因為 token 列被覆寫而改變。
+   * `whoop_user_id` —— 那是「這些生理資料屬於誰」的權威事實。
    *
-   * 所以「這個內部使用者的生理歷史是否已經屬於某個 WHOOP 身分」要問資料，
-   * 不是問 token 列。
+   * ## R3-M-01：完整、而且失敗要傳播
    *
-   * @returns {Promise<string[]>} 出現過的 whoop_user_id（正常只會有一個；
-   *   有兩個以上代表資料已經被汙染，呼叫端必須拒絕任何綁定）
+   * R2 的版本有兩個缺口，獨立稽核兩個都重現了：
+   *
+   *   1. **漏了 whoop_workouts。** 只有運動資料的使用者會被判定成
+   *      「沒有歷史身分」，於是任何帳號都綁得上去。實測：歷史屬於
+   *      WHOOP#777，卻成功綁定 WHOOP#888。
+   *
+   *   2. **每張表各自 try/catch 吞掉錯誤。** 一次 DB 抽風會讓函式
+   *      「成功」回傳一份**部分**的歷史，呼叫端無從分辨那是「真的沒有
+   *      歷史」還是「查不到」。實測：所有來源都不可讀時回傳 []，
+   *      於是 WHOOP#666 綁定成功。
+   *
+   * 現在：**每一個**權威來源都要查，任何一個查詢失敗就往上拋。
+   * 「查不到」與「沒有」是兩件不同的事，只有後者可以放行綁定。
    */
+  const WHOOP_HISTORY_TABLES = Object.freeze([
+    'whoop_sleeps',
+    'whoop_recoveries',
+    'whoop_cycles',
+    'whoop_workouts',
+  ]);
+
   async function getHistoricalWhoopUserIds(userId) {
     const uid = requireUserId(userId, 'getHistoricalWhoopUserIds');
     const ids = new Set();
-    for (const table of ['whoop_sleeps', 'whoop_recoveries', 'whoop_cycles']) {
-      try {
-        const rs = await client.execute({
-          sql: `SELECT DISTINCT whoop_user_id FROM ${table}
-                 WHERE user_id = ? AND whoop_user_id IS NOT NULL LIMIT 10`,
-          args: [uid],
-        });
-        for (const row of rs.rows) ids.add(String(row.whoop_user_id));
-      } catch (err) {
-        // 表不存在（極舊的 schema）→ 當作沒有歷史身分可查。
-        log.warn('historical_identity_query_failed', {
-          user_id: uid, table, error: String(err?.message ?? err).slice(0, 120),
-        });
-      }
+    for (const table of WHOOP_HISTORY_TABLES) {
+      // ⚠️ 刻意**不** try/catch：查不到就是查不到，必須讓呼叫端知道。
+      // 吞掉錯誤等於把「不確定」偽裝成「沒有」，而那正是 R3 稽核重現的漏洞。
+      const rs = await client.execute({
+        sql: `SELECT DISTINCT whoop_user_id FROM ${table}
+               WHERE user_id = ? AND whoop_user_id IS NOT NULL LIMIT 10`,
+        args: [uid],
+      });
+      for (const row of rs.rows) ids.add(String(row.whoop_user_id));
     }
     return [...ids];
   }
+
+  /** 權威歷史來源清單（測試用：確保新增的 WHOOP 表不會被遺漏）。 */
+  const whoopHistoryTables = () => [...WHOOP_HISTORY_TABLES];
 
   // ----- report dedup -----------------------------------------------------
   /** **該使用者**的該類型報告在該 local_date 是否已經成功送出。 */
@@ -422,6 +436,22 @@ export function createDb({ url, authToken }) {
     return got ? owner : null;
   }
 
+  /**
+   * 這個 owner 現在**還**持有這把 lock 嗎（R3-M-03）。
+   *
+   * 用來在每一個副作用之前重新確認所有權：租約會過期，過期之後別人可能
+   * 已經接手並把狀態推向終局。「當初拿到了」不等於「現在還有」。
+   */
+  async function holdsLock(name, owner, { now = new Date() } = {}) {
+    if (!name || !owner) return false;
+    const rs = await client.execute({
+      sql: `SELECT 1 FROM resource_locks
+             WHERE name = ? AND owner = ? AND expires_at > ? LIMIT 1`,
+      args: [name, owner, now.toISOString()],
+    });
+    return rs.rows.length > 0;
+  }
+
   /** 只有持有者能釋放（避免釋放掉別人接手的 lock）。 */
   async function releaseLock(name, owner) {
     const rs = await client.execute({
@@ -540,6 +570,7 @@ export function createDb({ url, authToken }) {
     getTokens,
     saveTokens,
     getHistoricalWhoopUserIds,
+    whoopHistoryTables,
     findUserByWhoopUserId,
     // per-user 報告
     isSent,
@@ -558,6 +589,7 @@ export function createDb({ url, authToken }) {
     claimUserErrorNotify,
     // 全域 lock（鎖名要自己帶 user）
     acquireLock,
+    holdsLock,
     releaseLock,
     userLockName,
     ...createIdentityStore(client),

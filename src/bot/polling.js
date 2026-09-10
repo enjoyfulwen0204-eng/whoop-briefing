@@ -28,6 +28,8 @@
  * 由 handleUnlinked 處理（回覆刻意中性，不透露碼是否存在過）。
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { TELEGRAM_BOT } from '../config.js';
 import { createTelegramApi, waitForError } from './api.js';
 import { log, describeError } from '../logger.js';
@@ -50,6 +52,15 @@ export function createPoller({
   api = createTelegramApi({ botToken }),
   sleepImpl = sleep,
   pollTimeoutS = TELEGRAM_BOT.POLL_TIMEOUT_S,
+  /**
+   * 這個 worker 的身分（R3-M-05）。
+   *
+   * 每次啟動都是新的：重啟之後的自己**不可以**被認成上一輪的自己，
+   * 否則「上一個 worker 死在哪個階段」的判斷就失效了。
+   * 同一輪之內固定不變，所以 ambiguous commit 的重試認得出自己的認領。
+   */
+  workerId = `${process.pid}:${randomUUID()}`,
+  now = () => new Date(),
 }) {
   let running = false;
   let stopping = false;
@@ -108,28 +119,32 @@ export function createPoller({
     return { kind: 'ok', chatId, text, message: msg, user: resolved.user ?? resolved };
   }
 
-  /** 認領結果。 */
-  const CLAIM_OK = 'ok';
-  const CLAIM_DUPLICATE = 'duplicate';
-  const CLAIM_UNAVAILABLE = 'unavailable';
-
   /**
-   * 認領一則 update，暫時性失敗會重試（R2-M-05）。
+   * 認領一則 update，暫時性失敗會重試（R2-M-05 / R3-M-05）。
    *
-   * 分成三種結果，因為它們的處置完全不同：
+   * 分成幾種結果，因為它們的處置完全不同：
    *
-   *   ok          第一次看到 → 正常處理
-   *   duplicate   已經認領過 → 跳過，但要推進 offset
-   *   unavailable 認領機制本身不可用 → **不處理、也不推進 offset**
+   *   claimed          我拿到所有權（第一次，或安全接手前一個死掉的 worker）
+   *   completed        真正的重複 → 跳過，推進 offset
+   *   abandoned        之前就已經判定放棄 → 跳過，推進 offset
+   *   stale_processing 有人死在副作用區間 → 標記 ABANDONED、跳過、推進 offset
+   *   in_progress      別人正拿著活的租約 → 不處理、**不推進 offset**
+   *   unavailable      認領機制本身不可用 → 不處理、**不推進 offset**
    *
    * 重試是為了讓一次短暫的 DB 抽風不要把整批訊息卡住；重試用完仍然失敗
    * 就回 unavailable，讓呼叫端 fail closed。
+   *
+   * 重試帶著**同一個 workerId**，所以「INSERT 其實成功了但連線斷掉」
+   * （ambiguous commit）的下一次嘗試會認出那是自己的認領而續租，
+   * 不會把自己誤判成別人的重複。
    */
   async function claimWithRetry(updateId) {
     let lastErr = null;
     for (let attempt = 1; attempt <= TELEGRAM_BOT.CLAIM_RETRIES; attempt += 1) {
       try {
-        return await db.claimTelegramUpdate(updateId) ? CLAIM_OK : CLAIM_DUPLICATE;
+        return await db.claimTelegramUpdate(updateId, {
+          owner: workerId, leaseMs: TELEGRAM_BOT.CLAIM_LEASE_MS, now: now(),
+        });
       } catch (err) {
         lastErr = err;
         log.warn('telegram_update_claim_failed', {
@@ -143,7 +158,18 @@ export function createPoller({
     log.error('telegram_update_claim_unavailable', {
       update_id: updateId, error: describeError(lastErr),
     });
-    return CLAIM_UNAVAILABLE;
+    return { ok: false, state: 'unavailable' };
+  }
+
+  /** offset 存檔。失敗只記錄 —— 認領表才是防重複的那一層。 */
+  async function saveOffset(offset) {
+    try {
+      await db.setUpdateOffset(offset);
+      return true;
+    } catch (err) {
+      log.error('telegram_offset_save_failed', { offset, error: describeError(err) });
+      return false;
+    }
   }
 
   /**
@@ -165,46 +191,101 @@ export function createPoller({
 
       stats.updates += 1;
 
-      // ★ M-09：原子認領，而且**在任何副作用之前**。
+      // ★ M-09 / R3-M-05：原子認領，而且**在任何副作用之前**。
       //
       // 上面的 offset 防線只在「offset 存得下去」時有效。實際流程是
       // 「處理（寫 journal、跑分析、送訊息）→ 存 offset」兩段寫入，
       // 中間 worker 被殺（部署、OOM、SIGKILL）的話 offset 還是舊的，
       // Telegram 會把同一則 update 再送一次 —— 同一句話被寫成兩筆 journal。
-      // 實測確認：重送一次 → 2 筆。
       //
       // 認領放在 classify() **之前**：連身分解析都不做，就不可能有任何
       // 副作用（含 getOpenPendingQuestion 的惰性過期寫入）。
+      let claimed = false;
       if (typeof db.claimTelegramUpdate === 'function') {
         const claim = await claimWithRetry(updateId);
 
-        if (claim === CLAIM_UNAVAILABLE) {
-          // ★ R2-M-05：**拿不到持久化的所有權就不處理。**
+        if (claim.state === 'unavailable' || claim.state === 'in_progress') {
+          // ★ R2-M-05 / R3-M-05：**拿不到持久化的所有權就不處理。**
           //
           // 舊版在認領機制壞掉時放行（「寧可偶爾重複」），但那個取捨是錯的：
           // 實測的失敗序列是「claim 拋錯 → 副作用照做 → offset 也存不下去
           // → Telegram 重送 → 再做一次」，結果同一句話寫了兩筆 journal。
           //
           // 現在改成 fail closed，而且**刻意不推進 offset**：這一則不會被
-          // 丟掉，DB 恢復之後 Telegram 會再送一次，那時才第一次真正處理它。
+          // 丟掉，DB 恢復（或對方做完）之後 Telegram 會再送一次。
           // 整批在這裡停下 —— 繼續處理後面的 update 會把 offset 推過這一則。
           stats.errors += 1;
           log.error('telegram_batch_paused_claim_unavailable', {
-            update_id: updateId, offset,
+            update_id: updateId, offset, state: claim.state, holder: claim.owner ?? null,
           });
           return offset;
         }
 
-        if (claim === CLAIM_DUPLICATE) {
-          stats.ignored += 1;
-          log.info('telegram_update_skipped_replay', { update_id: updateId });
-          offset = updateId + 1;
+        if (claim.state === 'stale_processing') {
+          // 有人死在「已經 dispatch、還沒標記完成」的區間裡。副作用做到哪
+          // 不確定，而自動重做的代價是第二筆 journal —— journal 的重複會
+          // 直接扭曲長期相關性，而且永遠不會自己修好。
+          //
+          // 所以不重做，但也**不假裝沒事**：寫成終局的 ABANDONED，
+          // 用 error 記下來，讓它可以被查到。
+          stats.errors += 1;
           try {
-            await db.setUpdateOffset(offset);
+            await db.abandonTelegramUpdate(updateId, {
+              reason: 'worker_died_after_dispatch', now: now(),
+            });
           } catch (err) {
-            log.error('telegram_offset_save_failed', { offset, error: describeError(err) });
+            log.error('telegram_update_abandon_failed', {
+              update_id: updateId, error: describeError(err),
+            });
           }
+          log.error('telegram_update_abandoned_in_flight', {
+            update_id: updateId, previous_owner: claim.owner ?? null, attempts: claim.attempts ?? null,
+          });
+          offset = updateId + 1;
+          await saveOffset(offset);
           continue;
+        }
+
+        if (claim.state === 'completed' || claim.state === 'abandoned') {
+          stats.ignored += 1;
+          log.info('telegram_update_skipped_replay', { update_id: updateId, state: claim.state });
+          offset = updateId + 1;
+          await saveOffset(offset);
+          continue;
+        }
+
+        if (claim.state !== 'claimed') {
+          // 沒有列舉到的狀態一律 fail closed。
+          stats.errors += 1;
+          log.error('telegram_update_claim_unexpected_state', {
+            update_id: updateId, state: claim.state ?? null,
+          });
+          return offset;
+        }
+
+        claimed = true;
+
+        // ★ CLAIMED → PROCESSING，**就在 dispatch 之前**。
+        //
+        // 這一筆寫入劃出「零副作用區間」的終點。少了它，一個死在
+        // classify() 之前的 worker 和一個死在寫完 journal 之後的 worker
+        // 在資料庫裡長得一模一樣，而這兩種情況的正確處置正好相反。
+        let dispatchable = false;
+        try {
+          dispatchable = await db.markTelegramUpdateProcessing(updateId, {
+            owner: workerId, now: now(),
+          });
+        } catch (err) {
+          log.error('telegram_update_mark_processing_failed', {
+            update_id: updateId, error: describeError(err),
+          });
+        }
+        if (!dispatchable) {
+          // 推不進 PROCESSING = 所有權已經不在我手上（或寫不進去）。
+          // 這時候 dispatch 就是在沒有所有權的情況下產生副作用。
+          stats.errors += 1;
+          log.error('telegram_batch_paused_dispatch_fence', { update_id: updateId, offset });
+          return offset;
         }
       }
 
@@ -253,15 +334,32 @@ export function createPoller({
         }
       }
 
-      // ★ 每一則處理完就立刻存檔
-      offset = updateId + 1;
-      try {
-        await db.setUpdateOffset(offset);
-      } catch (err) {
-        log.error('telegram_offset_save_failed', {
-          offset, error: describeError(err),
-        });
+      // ★ R3-M-05：**先把處理狀態標成終局，再推進 offset。**
+      //
+      // 順序是刻意的。offset 只是「不要再拿到這一則」的最佳化，認領表才是
+      // 真正防重複的那一層；所以 offset 存不下去無所謂（重送會被
+      // COMPLETED 擋掉），但完成標記存不下去就必須被看見。
+      if (claimed) {
+        try {
+          const done = await db.completeTelegramUpdate(updateId, { owner: workerId, now: now() });
+          if (!done) {
+            log.error('telegram_update_complete_rejected', {
+              update_id: updateId, worker: workerId,
+            });
+          }
+        } catch (err) {
+          // 這一則的副作用已經做完了，但終局標記沒寫進去。重送時它會是
+          // 「PROCESSING + 租約過期」→ 被判為 ABANDONED 而不重做。
+          // 那正是我們要的：寧可少做一次，也不要多寫一筆 journal。
+          stats.errors += 1;
+          log.error('telegram_update_complete_failed', {
+            update_id: updateId, error: describeError(err),
+          });
+        }
       }
+
+      offset = updateId + 1;
+      await saveOffset(offset);
     }
 
     // 認領紀錄的裁剪：一批一次，不是一則一次。失敗完全無所謂。

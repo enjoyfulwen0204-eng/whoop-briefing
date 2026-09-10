@@ -108,25 +108,43 @@ test('★ P0-A weekly: 安全的教練文字通過守門並保留', async () => 
   assert.equal(res.coachUsed, true);
 });
 
-test('★★★ R2-H-02 daily: 引用**真實**數字的敘述必須被保留（事實集要真的接上）', async () => {
-  // 這些數字全部來自 fixture 的確定性簡報（恢復 73%、基準 65%、HRV 55ms、
-  // 靜息心率 52bpm）。如果 daily 的事實集接錯了（例如傳空集合），
-  // 這一句會被誤擋 —— 那是功能退化，不是安全性提升。
-  const good = '早安 Kelvin，今天的恢復 73%，比基準 65% 高一些；'
-    + 'HRV 55ms 跟平常差不多，靜息心率 52bpm 也穩 💛';
-  const { res, sent } = await runDailyWith(good);
+test('★★★ R3-H-02 daily: 教練文字引述數字 → 丟掉；報告的數字完全不受影響', async () => {
+  // R3 之後 LLM 不可以是生理宣稱的來源。renderDaily() 已經把每一個指標、
+  // 基準、判定都確定性地印出來了，所以教練那段話一旦引述數字就整段丟掉
+  // —— 使用者少的只是一句鼓勵的話，資訊一個字都不會少。
+  const quotesNumbers = '早安 Kelvin，今天的恢復 73%，比基準 65% 高一些；HRV 55ms 跟平常差不多 💛';
+  const { res, sent } = await runDailyWith(quotesNumbers);
+
   assertDeterministicReportIntact(sent, res, 'daily');
-  assert.ok(sent.includes(good), '★ 引用真實數字的敘述必須原文保留');
-  assert.ok(!sent.includes(FALLBACK_NOTE), '★ 不該退回 fallback');
+  assert.ok(!sent.includes(quotesNumbers), '★ 引述數字的教練文字必須被丟掉');
+  assert.ok(sent.includes(FALLBACK_NOTE), '要換成 fallback 說明');
+  assert.match(sent, /恢復 \d+%/, '★ 報告本身的數字必須完整保留');
+  assert.match(sent, /HRV \d+ms/);
+  assert.equal(res.coachUsed, false);
+});
+
+test('★★★ R3-H-02 daily: 不含生理斷言的教練文字被保留', async () => {
+  const clean = '早安 Kelvin，今天整體看起來穩定，照平常節奏走就好，記得多補水 💛';
+  const { res, sent } = await runDailyWith(clean);
+  assertDeterministicReportIntact(sent, res, 'daily');
+  assert.ok(sent.includes(clean), '★ 乾淨的鼓勵話語必須保留');
+  assert.ok(!sent.includes(FALLBACK_NOTE));
   assert.equal(res.coachUsed, true);
 });
 
-test('★★★ R2-H-02 weekly: 引用**真實**數字的敘述必須被保留', async () => {
-  const good = '上週恢復平均 65%，比前週低 2%；HRV 55ms 與前週差不多。';
-  const { res, sent } = await runWeeklyWith(good);
+test('★★★ R3-H-02 weekly: 教練文字引述數字 → 丟掉；週回顧的數字不受影響', async () => {
+  const quotesNumbers = '上週恢復平均 65%，比前週低 2%；HRV 55ms 與前週差不多。';
+  const { res, sent } = await runWeeklyWith(quotesNumbers);
   assertDeterministicReportIntact(sent, res, 'weekly');
-  assert.ok(sent.includes(good), '★ 引用真實數字的敘述必須原文保留');
-  assert.ok(!sent.includes(FALLBACK_NOTE));
+  assert.ok(!sent.includes(quotesNumbers), '★ 引述數字的教練文字必須被丟掉');
+  assert.match(sent, /恢復平均/, '★ 週回顧的數據段必須完整保留');
+});
+
+test('★★★ R3-H-02 weekly: 不含生理斷言的教練文字被保留', async () => {
+  const clean = '上週整體算穩定，這週我們把入睡時間再往前拉一點點就好 💪';
+  const { res, sent } = await runWeeklyWith(clean);
+  assertDeterministicReportIntact(sent, res, 'weekly');
+  assert.ok(sent.includes(clean));
 });
 
 // ===========================================================================

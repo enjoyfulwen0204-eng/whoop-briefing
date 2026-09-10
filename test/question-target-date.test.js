@@ -173,7 +173,7 @@ for (const [name, offset, expected] of [
     await withUser(async (db, user) => {
       await askProactive(db, user.id, { targetDate: BEHAVIOR_DAY });
       const router = createRouter({
-        db, coachFor: coachWith({ day_offset: offset }), now: () => REPLY_AT,
+        db, coachFor: coachWith({ date_explicit: true, day_offset: offset }), now: () => REPLY_AT,
       });
       await router.handle({ text: `${name}喝的`, chatId: '1', user: { id: user.id, timezone: TZ } });
       assert.deepEqual(await journalDates(db, user.id), [expected],
@@ -186,23 +186,76 @@ for (const [name, offset, expected] of [
 // ★★ 舊資料（沒有 question_target_date）
 // ===========================================================================
 
-test('★★ R2-M-02: 舊追問沒有 target date → 退回 health_date（不比舊版差）', async () => {
+test('★★★ R3-M-02: 舊追問沒有 target date，但 category 在 → 確定性推導', async () => {
   await withUser(async (db, user) => {
+    // 舊資料只有 health_date + category。目標日偏移是明文政策，
+    // 所以這是**確定性推導**，不是猜測。
     await askProactive(db, user.id, { targetDate: undefined });
     const router = createRouter({ db, coachFor: coachWith(), now: () => REPLY_AT });
     await router.handle({ text: '喝了兩杯', chatId: '1', user: { id: user.id, timezone: TZ } });
-    assert.deepEqual(await journalDates(db, user.id), [SIGNAL_DAY]);
+    assert.deepEqual(await journalDates(db, user.id), [BEHAVIOR_DAY],
+      '★ alcohol 的偏移是 -1，所以 02-06 的訊號問的是 02-05');
   });
 });
 
-test('★★ R2-M-02: questionTargetDateOf 優先用明確欄位，格式不對就退回', () => {
+test('★★★ R3-M-02: 推導不出來時**問清楚**，絕不默默寫一個猜的日期', async () => {
+  await withUser(async (db, user) => {
+    // 既沒有 question_target_date，也沒有 category → 無法確定性推導
+    await db.openPendingQuestion(user.id, {
+      chatId: '1', question: '有發生什麼事嗎？', intent: PROACTIVE_QUESTION_INTENT,
+      contextJson: { proactive_event_id: 1, signal: { metric: 'hrv' } },
+      ttlMs: 30 * 60_000,
+    }, { now: ASK_AT });
+
+    const router = createRouter({ db, coachFor: coachWith(), now: () => REPLY_AT });
+    const reply = await router.handle({
+      text: '喝了兩杯', chatId: '1', user: { id: user.id, timezone: TZ },
+    });
+
+    assert.deepEqual(await journalDates(db, user.id), [],
+      '★ 一筆都不可以寫——寫下去就是一筆無法辨識的錯誤關聯資料');
+    assert.match(String(reply), /哪一天/, '★ 要回頭問使用者是哪一天');
+  });
+});
+
+test('★★ R3-M-02: 推導不出來但使用者**自己說了**日期 → 照使用者的寫', async () => {
+  await withUser(async (db, user) => {
+    await db.openPendingQuestion(user.id, {
+      chatId: '1', question: '有發生什麼事嗎？', intent: PROACTIVE_QUESTION_INTENT,
+      contextJson: { proactive_event_id: 1, signal: { metric: 'hrv' } },
+      ttlMs: 30 * 60_000,
+    }, { now: ASK_AT });
+    const router = createRouter({
+      db, coachFor: coachWith({ date_explicit: true, day_offset: -1 }), now: () => REPLY_AT,
+    });
+    await router.handle({ text: '昨天喝的', chatId: '1', user: { id: user.id, timezone: TZ } });
+    assert.deepEqual(await journalDates(db, user.id), ['2026-02-05']);
+  });
+});
+
+test('★★★ R3-M-02: questionTargetDateOf —— 明確欄位 > 確定性推導 > null', () => {
+  // 1. 明確欄位最優先
   assert.equal(questionTargetDateOf({
-    context: { question_target_date: BEHAVIOR_DAY, health_date: SIGNAL_DAY },
+    context: { question_target_date: BEHAVIOR_DAY, health_date: SIGNAL_DAY, category: 'alcohol' },
+  }), BEHAVIOR_DAY);
+
+  // 2. 格式不合法 → 當作沒有，往下走推導
+  assert.equal(questionTargetDateOf({
+    context: { question_target_date: '2026/02/05', health_date: SIGNAL_DAY, category: 'alcohol' },
+  }), BEHAVIOR_DAY, '★ 不合法的欄位不可以被採用');
+
+  // 3. 只有 health_date + category → 確定性推導（政策明文的偏移）
+  assert.equal(questionTargetDateOf({
+    context: { health_date: SIGNAL_DAY, category: 'alcohol' },
   }), BEHAVIOR_DAY);
   assert.equal(questionTargetDateOf({
-    context: { question_target_date: '2026/02/05', health_date: SIGNAL_DAY },
-  }), SIGNAL_DAY, '★ 格式不合法就不用它');
-  assert.equal(questionTargetDateOf({ context: { health_date: SIGNAL_DAY } }), SIGNAL_DAY);
+    context: { health_date: SIGNAL_DAY, category: 'stress' },
+  }), SIGNAL_DAY, '★ 「最近…」類別的偏移是 0');
+
+  // 4. 推導不出來 → null（呼叫端會改成問清楚，而不是猜）
+  assert.equal(questionTargetDateOf({ context: { health_date: SIGNAL_DAY } }), null,
+    '★ 沒有 category 就無法確定性推導');
+  assert.equal(questionTargetDateOf({ context: { category: 'alcohol' } }), null);
   assert.equal(questionTargetDateOf({ context: {} }), null);
   assert.equal(questionTargetDateOf({}), null);
   assert.equal(questionTargetDateOf(null), null);

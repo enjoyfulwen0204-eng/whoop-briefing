@@ -175,20 +175,24 @@ test('★★★ M-09: 一批裡混著新舊訊息 → 只有新的產生副作�
 
 test('★★ M-09: 兩個 worker 同時處理同一則 → 只有一個認領成功', async () => {
   await withUser(async (db, user) => {
+    // owner 必須不同 —— 這一題問的是「不同的 worker」。
+    // 同一個 owner 重複認領是 ambiguous commit 的復原路徑（見 R3-M-05 測試）。
     const results = await Promise.all([
-      db.claimTelegramUpdate(200),
-      db.claimTelegramUpdate(200),
-      db.claimTelegramUpdate(200),
+      db.claimTelegramUpdate(200, { owner: 'w1' }),
+      db.claimTelegramUpdate(200, { owner: 'w2' }),
+      db.claimTelegramUpdate(200, { owner: 'w3' }),
     ]);
-    assert.equal(results.filter(Boolean).length, 1, '★ 恰好一個贏');
+    assert.equal(results.filter((r) => r.ok).length, 1, '★ 恰好一個贏');
     assert.ok(user.id);
   });
 });
 
-test('★★ M-09: claimTelegramUpdate 對不合法的 id 安全回 false', async () => {
+test('★★ M-09: claimTelegramUpdate 對不合法的 id 安全拒絕', async () => {
   await withUser(async (db) => {
     for (const bad of [null, undefined, 'abc', NaN, {}]) {
-      assert.equal(await db.claimTelegramUpdate(bad), false);
+      const r = await db.claimTelegramUpdate(bad);
+      assert.equal(r.ok, false);
+      assert.equal(r.state, 'invalid');
     }
   });
 });
@@ -199,19 +203,26 @@ test('★★ M-09: claimTelegramUpdate 對不合法的 id 安全回 false', asyn
 
 test('★★ M-09: 舊的認領紀錄會被裁剪，但保留窗內的一定還在', async () => {
   await withUser(async (db) => {
-    for (const id of [1, 2, 3, 50_000, 50_001]) await db.claimTelegramUpdate(id);
+    for (const id of [1, 2, 3, 50_000, 50_001]) {
+      await db.claimTelegramUpdate(id, { owner: 'w1' });
+      await db.completeTelegramUpdate(id, { owner: 'w1' });
+    }
     await db.pruneTelegramUpdates(50_002, { keep: 10 });
 
-    assert.equal(await db.claimTelegramUpdate(1), true, '很舊的被裁掉了（可以重新認領）');
-    assert.equal(await db.claimTelegramUpdate(50_001), false, '★ 保留窗內的絕不可以被裁掉');
+    assert.equal((await db.claimTelegramUpdate(1, { owner: 'w2' })).ok, true,
+      '很舊的被裁掉了（可以重新認領）');
+    assert.equal((await db.claimTelegramUpdate(50_001, { owner: 'w2' })).state, 'completed',
+      '★ 保留窗內的絕不可以被裁掉');
   });
 });
 
 test('★★ M-09: id 還沒超過保留窗時，裁剪是乾淨的 no-op', async () => {
   await withUser(async (db) => {
-    await db.claimTelegramUpdate(5);
+    await db.claimTelegramUpdate(5, { owner: 'w1' });
+    await db.completeTelegramUpdate(5, { owner: 'w1' });
     assert.equal(await db.pruneTelegramUpdates(9, { keep: 10 }), 0);
-    assert.equal(await db.claimTelegramUpdate(5), false, '★ 不可以被誤刪');
+    assert.equal((await db.claimTelegramUpdate(5, { owner: 'w2' })).state, 'completed',
+      '★ 不可以被誤刪');
   });
 });
 
@@ -241,7 +252,7 @@ test('★★★ M-09 遷移安全: 既有資料庫加上新表，一列資料都
     assert.deepEqual(after, before, '★ 既有資料必須一模一樣');
     assert.deepEqual(summary.rebuilt, [], '★ 不可以重建任何既有表');
     assert.equal(summary.to, SCHEMA_VERSION);
-    assert.equal(await db.claimTelegramUpdate(1), true, '新表可以用了');
+    assert.equal((await db.claimTelegramUpdate(1, { owner: 'w1' })).ok, true, '新表可以用了');
   } finally {
     db.close();
     cleanup();
@@ -252,10 +263,11 @@ test('★★★ M-09 遷移安全: 重複 migrate 不會清掉已經認領的紀
   const { db, cleanup } = tempDb();
   try {
     await db.migrate();
-    await db.claimTelegramUpdate(777);
+    await db.claimTelegramUpdate(777, { owner: 'w1' });
+    await db.completeTelegramUpdate(777, { owner: 'w1' });
     await db.migrate();
     await db.migrate();
-    assert.equal(await db.claimTelegramUpdate(777), false,
+    assert.equal((await db.claimTelegramUpdate(777, { owner: 'w2' })).state, 'completed',
       '★ CREATE TABLE IF NOT EXISTS 不可以把紀錄洗掉');
   } finally {
     db.close();

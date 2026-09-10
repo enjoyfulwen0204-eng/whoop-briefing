@@ -1,9 +1,11 @@
 # Render Blueprint
 #
-# 兩個服務，共用同一個 Turso / WHOOP token / OpenRouter / Telegram bot：
+# 三個服務：隱私政策 web service 完全獨立，cron 與 worker 共用
+# 同一個 Turso / WHOOP token / OpenRouter / Telegram bot：
 #
-#   1. cron   whoop-briefing      每 30 分鐘：發簡報 + 同步 WHOOP 長期資料
-#   2. worker whoop-telegram-bot  常駐：Telegram long polling，回答問題與記 journal
+#   1. web    whoop-privacy       公開靜態 /privacy，不需要憑證或資料庫
+#   2. cron   whoop-briefing      每 30 分鐘：發簡報 + 同步 WHOOP 長期資料
+#   3. worker whoop-telegram-bot  常駐：Telegram long polling，回答問題與記 journal
 #
 # 為什麼要分開：long polling 需要常駐 process，cron 是「跑完就結束」的一次性容器。
 # 把 polling 塞進 cron 會卡住簡報排程。
@@ -21,6 +23,17 @@
 # 標成 sync: false 的變數不會寫在檔案裡，要在 Render 網頁的 Environment 分頁自己填。
 
 services:
+  # ---------------------------------------------------------------------------
+  # Public privacy policy (no database or application credentials required)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: whoop-privacy
+    runtime: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm run privacy
+    healthCheckPath: /privacy
+
   # ---------------------------------------------------------------------------
   # 1. 每日簡報 + 長期資料同步
   # ---------------------------------------------------------------------------

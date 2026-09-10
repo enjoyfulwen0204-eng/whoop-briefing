@@ -294,16 +294,18 @@ WHOOP Age、Healthspan、血壓、ECG/AFib、荷爾蒙洞察、WHOOP Journal。
 
 ## ⚠️ Scope 變更：部署後需要重新授權一次
 
-新增了兩個 scope：
+應用需要下列 scope。`read:profile` 只用於授權後呼叫
+`/user/profile/basic` 取得 `user_id` 做身分驗證；程式不儲存該 endpoint
+回傳的姓名或 email：
 
 ```
-read:workout  read:body_measurement
+read:recovery  read:cycles  read:sleep  read:workout  read:profile  read:body_measurement
 ```
 
-**既有的 token 不會自動獲得新 scope。** 部署後要在本機跑一次：
+**既有的 token 不會自動獲得新 scope。** 部署後要在本機為指定使用者重跑授權：
 
 ```bash
-npm run authorize
+npm run authorize -- --user=<internalUserId>
 ```
 
 在重新授權之前會怎樣：

@@ -126,10 +126,11 @@ export const WHOOP = {
   TOKEN_URL: 'https://api.prod.whoop.com/oauth/oauth2/token',
   API_BASE: 'https://api.prod.whoop.com/developer/v2',
   // 注意單複數。offline 必要，否則不給 refresh token。
+  // read:profile 用於 OAuth 後的 /user/profile/basic 身分驗證。
   // read:workout / read:body_measurement 是後來加的 —— 既有 token 不會自動
   // 取得新 scope，必須重跑一次 `npm run authorize`。在那之前相關 endpoint
   // 會回 401/403，由 capability probe 標成 UNAUTHORIZED，簡報不受影響。
-  SCOPES: 'offline read:recovery read:sleep read:cycles read:workout read:body_measurement',
+  SCOPES: 'offline read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement',
   PAGE_LIMIT: 25,          // collection 每頁最多 25 筆
   MAX_PAGES: 12,           // 45 天 * 每天 1~2 筆，12 頁綽綽有餘（安全上限）
   TOKEN_REFRESH_SKEW_MS: 5 * 60 * 1000, // 還有 >5 分鐘效期就直接重用

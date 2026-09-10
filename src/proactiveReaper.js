@@ -30,8 +30,8 @@
  *
  * 兩個原子閘門，各自靠單一條件式 UPDATE：
  *
- *   pending_questions   `WHERE id = ? AND status = 'OPEN'`
- *   proactive_events    `WHERE id = ? AND outcome IS NULL`
+ *   pending_questions   `WHERE user_id = ? AND id = ? AND status = 'OPEN'`
+ *   proactive_events    `WHERE user_id = ? AND id = ? AND outcome IS NULL`
  *
  * 所以「使用者剛好在收割的同一瞬間回答」只會有一個贏家：
  *   - 回答先到 → pending 變 ANSWERED → 收割器的 UPDATE 影響 0 列 → 跳過，
@@ -39,7 +39,27 @@
  *   - 收割先到 → pending 變 EXPIRED → 使用者的 resolvePendingQuestion
  *     （條件同樣是 status='OPEN'）影響 0 列 → router 把它當成沒有 pending
  *
- * 重跑收割器是天然冪等的：第二次兩個閘門都會影響 0 列。
+ * 重跑收割器是天然冪等的：第二個閘門會影響 0 列。
+ *
+ * ## F-01：兩段寫入留下的半完成狀態，必須能自我修復
+ *
+ * 「問題收成 EXPIRED」與「事件寫 NO_RESPONSE」是**兩次**寫入，中間可能：
+ *
+ *   - process 死掉
+ *   - 或者 `getOpenPendingQuestion()` 的**惰性過期**搶先把問題收成
+ *     EXPIRED（它每次 cron 的 checkAndAct、每則使用者訊息、`/status`
+ *     都會觸發，而且它只收問題、不碰事件）
+ *
+ * 兩者留下同一個半完成狀態：`question = EXPIRED` 而 `outcome = NULL`。
+ *
+ * 舊版的收割器只看 `status = 'OPEN'`，所以這個狀態**永遠**修不回來，
+ * 事件會一直停在 NULL，Guardian 也會一直誤報「有事件卡住」。
+ *
+ * 現在收割器同時收 OPEN 與 EXPIRED（見
+ * `listReapablePendingQuestions`），已經是 EXPIRED 的直接跳到第二個閘門。
+ * `outcome IS NULL` 保證重跑仍然冪等，也保證已經有結果的事件不被覆寫。
+ * ANSWERED 與 SUPERSEDED 從來不在清單裡，所以它們永遠不可能變成
+ * NO_RESPONSE。
  *
  * ## 範圍
  *
@@ -57,20 +77,21 @@ import { log } from './logger.js';
  *
  * **永遠不拋錯**：這是背景維護工作，絕不可以讓簡報或同步失敗。
  *
- * @returns {Promise<{expired:number, noResponse:number, skipped:number}>}
- *   expired    真的從 OPEN 收走的問題數
+ * @returns {Promise<{expired:number, repaired:number, noResponse:number, skipped:number}>}
+ *   expired    這一次真的從 OPEN 收成 EXPIRED 的問題數
+ *   repaired   問題早就是 EXPIRED（惰性過期或中途死掉），這次只補事件
  *   noResponse 真的補寫成 NO_RESPONSE 的事件數
  *   skipped    競態下輸掉、或已經有結果、或沒有連到事件的數量
  */
 export async function reapExpiredProactiveQuestions({ db, userId, now = new Date() }) {
   const uid = requireUserId(userId, 'reapExpiredProactiveQuestions');
-  const out = { expired: 0, noResponse: 0, skipped: 0 };
+  const out = { expired: 0, repaired: 0, noResponse: 0, skipped: 0 };
 
-  if (typeof db.listExpiredOpenQuestions !== 'function') return out;
+  if (typeof db.listReapablePendingQuestions !== 'function') return out;
 
   let stale;
   try {
-    stale = await db.listExpiredOpenQuestions(uid, {
+    stale = await db.listReapablePendingQuestions(uid, {
       now, intent: PROACTIVE_QUESTION_INTENT,
     });
   } catch (err) {
@@ -81,13 +102,35 @@ export async function reapExpiredProactiveQuestions({ db, userId, now = new Date
 
   for (const q of stale) {
     try {
-      // 閘門 1：OPEN → EXPIRED。輸掉代表使用者剛好回答了，什麼都不要做。
-      const won = await db.expirePendingQuestion(uid, q.id, { now });
-      if (!won) {
-        out.skipped += 1;
-        continue;
+      // 閘門 1：把問題推到 EXPIRED。
+      //
+      // F-01：這裡要處理**兩種**來源的列。
+      //
+      //   status === 'OPEN'     還沒有人收過 → 由我們來收。輸掉這個原子
+      //                         閘門代表使用者剛好在同一瞬間回答了
+      //                         （resolvePendingQuestion 用同一個
+      //                         `status = 'OPEN'` 條件），那就什麼都不做。
+      //
+      //   status === 'EXPIRED'  已經被惰性過期（或前一次中途死掉的收割）
+      //                         收走了。問題那一層已經是終局，**不需要也
+      //                         不可能**再贏一次 expirePendingQuestion。
+      //                         直接往下走去補事件的 outcome —— 這正是
+      //                         「兩段寫入」留下的半完成狀態的修復路徑。
+      //
+      // 關鍵：EXPIRED 這條路徑**不**因為 expirePendingQuestion 回 false
+      // 就跳過。舊版就是卡在這裡，導致事件永遠停在 NULL。
+      if (q.status === 'OPEN') {
+        const won = await db.expirePendingQuestion(uid, q.id, { now });
+        if (!won) {
+          // 使用者贏了 → 這題是 ANSWERED，絕不可以寫 NO_RESPONSE
+          out.skipped += 1;
+          continue;
+        }
+        out.expired += 1;
+      } else {
+        // 已經是 EXPIRED：只是來補事件的，不重複計入 expired
+        out.repaired += 1;
       }
-      out.expired += 1;
 
       // 連回那筆事件。優先用 context 裡記的 id（開問題時就寫進去了），
       // 查不到再用 pending_question_id 反查。
@@ -118,9 +161,13 @@ export async function reapExpiredProactiveQuestions({ db, userId, now = new Date
     }
   }
 
-  if (out.expired || out.noResponse) {
+  if (out.expired || out.repaired || out.noResponse) {
     log.info('proactive_questions_reaped', {
-      user_id: uid, expired: out.expired, no_response: out.noResponse, skipped: out.skipped,
+      user_id: uid,
+      expired: out.expired,
+      repaired: out.repaired,
+      no_response: out.noResponse,
+      skipped: out.skipped,
     });
   }
   return out;

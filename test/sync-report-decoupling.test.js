@@ -336,3 +336,137 @@ test('★ 同步節流是 per-user 的：Alice 節流中，Bob 仍然會同步',
     assert.ok(kinds(b).includes('sync'), 'Bob 沒有被 Alice 的狀態影響');
   });
 });
+
+// ===========================================================================
+// ★★ F-02 —— 預測與 Healthspan 各自獨立的錯誤邊界
+//
+// 兩者以前共用一個 try/catch，所以預測一炸，Healthspan 就整個不會執行，
+// 而且只留下一筆 `prediction` 錯誤——看 log 的人根本不會發現 Healthspan
+// 從此再也沒有盤點過。
+// ===========================================================================
+
+/** 讓 runForUser 走到分析階段所需的最小健康資料。 */
+async function seedOneHealthDay(db, user) {
+  await db.upsertSleeps(user.id, [{
+    id: `s-${user.id}`, v1_id: 1, user_id: 9,
+    start: '2026-09-06T15:00:00Z', end: '2026-09-06T23:00:00Z',
+    nap: false, score_state: 'SCORED', timezone_offset: '+08:00',
+    score: {
+      respiratory_rate: 15,
+      stage_summary: {
+        total_light_sleep_time_milli: 1,
+        total_slow_wave_sleep_time_milli: 1,
+        total_rem_sleep_time_milli: 1,
+      },
+      sleep_needed: {},
+    },
+  }], { timezone: user.timezone });
+}
+
+/** deps 中把 prediction / healthspan 換成可控的替身。 */
+function analysisDeps(calls, { predictionThrows = false, healthspanThrows = false } = {}) {
+  return {
+    ...spyDeps(calls),
+    predictionCycle: async () => {
+      calls.push({ k: 'prediction' });
+      if (predictionThrows) throw new Error('prediction boom');
+      return { maturity: 'EVALUATED_UNQUALIFIED', qualified: false, publishedValue: null };
+    },
+    healthspan: async () => {
+      calls.push({ k: 'healthspan' });
+      if (healthspanThrows) throw new Error('healthspan boom');
+      return { maturity: 'STRUCTURALLY_READY', score: null, saved: true };
+    },
+  };
+}
+
+const runAnalysis = async (db, opts) => {
+  const calls = [];
+  const out = await runForUser({
+    db,
+    env: ENV,
+    user: { id: ALICE.id, timezone: ALICE.timezone },
+    now: NOW,
+    deps: analysisDeps(calls, opts),
+  });
+  return { calls: kinds(calls), out };
+};
+
+test('★★★ F-02 A: 預測拋錯 → Healthspan 仍然執行', async () => {
+  await withDb(async (db) => {
+    await seedOneHealthDay(db, ALICE);
+    const { calls, out } = await runAnalysis(db, { predictionThrows: true });
+
+    assert.ok(calls.includes('prediction'));
+    assert.ok(calls.includes('healthspan'), '★ 預測失敗絕不可以吃掉 Healthspan');
+    assert.ok(out.errors.some((e) => e.stage === 'prediction'));
+    assert.ok(!out.errors.some((e) => e.stage === 'healthspan'));
+    assert.equal(out.prediction, null);
+    assert.ok(out.healthspan, 'Healthspan 的結果要保留下來');
+  });
+});
+
+test('★★★ F-02 B: Healthspan 拋錯 → 預測結果完好保留', async () => {
+  await withDb(async (db) => {
+    await seedOneHealthDay(db, ALICE);
+    const { calls, out } = await runAnalysis(db, { healthspanThrows: true });
+
+    assert.ok(calls.includes('prediction'));
+    assert.ok(calls.includes('healthspan'));
+    assert.ok(out.errors.some((e) => e.stage === 'healthspan'));
+    assert.ok(!out.errors.some((e) => e.stage === 'prediction'));
+    assert.equal(out.prediction.maturity, 'EVALUATED_UNQUALIFIED', '★ 預測結果不可以被抹掉');
+  });
+});
+
+test('★★ F-02 C: 兩個都成功 → 各執行一次', async () => {
+  await withDb(async (db) => {
+    await seedOneHealthDay(db, ALICE);
+    const { calls, out } = await runAnalysis(db, {});
+
+    assert.equal(calls.filter((c) => c === 'prediction').length, 1);
+    assert.equal(calls.filter((c) => c === 'healthspan').length, 1);
+    assert.equal(out.errors.length, 0);
+    assert.ok(out.prediction && out.healthspan);
+  });
+});
+
+test('★★ F-02 D: 兩個都拋錯 → 都嘗試過，各一次，沒有重複嘗試', async () => {
+  await withDb(async (db) => {
+    await seedOneHealthDay(db, ALICE);
+    const { calls, out } = await runAnalysis(db, {
+      predictionThrows: true, healthspanThrows: true,
+    });
+
+    assert.equal(calls.filter((c) => c === 'prediction').length, 1);
+    assert.equal(calls.filter((c) => c === 'healthspan').length, 1);
+    assert.deepEqual(
+      out.errors.map((e) => e.stage).sort(),
+      ['healthspan', 'prediction'],
+    );
+  });
+});
+
+test('★★★ F-02 E: 兩個選配能力都炸掉，Daily/Weekly 完全不受影響', async () => {
+  await withDb(async (db) => {
+    await seedOneHealthDay(db, ALICE);
+    const calls = [];
+    const out = await runForUser({
+      db,
+      env: ENV,
+      user: { id: ALICE.id, timezone: ALICE.timezone },
+      now: NOW,
+      deps: analysisDeps(calls, { predictionThrows: true, healthspanThrows: true }),
+    });
+    const k = kinds(calls);
+
+    // 核心報告先跑、而且照樣完成
+    assert.ok(k.includes('daily'));
+    assert.ok(k.indexOf('daily') < k.indexOf('prediction'));
+    assert.ok(k.indexOf('sync') < k.indexOf('prediction'));
+    assert.ok(k.indexOf('proactive') < k.indexOf('prediction'));
+    assert.ok(out.daily, 'daily 結果必須保留');
+    // 收割器在最後，也照樣跑
+    assert.ok(k.includes('reap'));
+  });
+});

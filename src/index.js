@@ -241,6 +241,14 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   //
   // 放在 sync 之後：要用剛同步進來的資料。放在 proactive 之後：主動訊息
   // 比預測重要，預測失敗絕不能影響它。
+  // ⚠️ F-02：預測與 Healthspan 是**兩個互相獨立的選配能力**，各自要有自己的
+  // 錯誤邊界。它們以前共用一個 try/catch，所以預測一炸，Healthspan 就整個
+  // 不會執行——而且只會留下一筆 `prediction` 錯誤，看 log 的人根本不會發現
+  // Healthspan 從此再也沒有盤點過。
+  //
+  // 共用的只有「準備輸入」（錨點日期、daily_metrics、capability）。那一段
+  // 失敗時兩者都做不了，所以它有自己的邊界與自己的 stage 名稱。
+  let analysisInputs = null;
   try {
     const anchor = (await db.coverage(uid))?.last_date ?? null;
     if (anchor) {
@@ -251,28 +259,52 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
       // UNSUPPORTED 而不是「資料還在累積」。查不到 capability（還沒 probe）
       // 一律當成 null → 繼續走樣本數邏輯，絕不誤判成不支援。
       const caps = await db.getCapabilities(uid).catch(() => ({}));
-      const targetStatus = capabilityStatusForField('recovery', caps);
+      analysisInputs = { anchor, predRows, caps };
+    }
+  } catch (err) {
+    out.errors.push({ stage: 'analysis_inputs', error: describeError(err) });
+    log.error('analysis_inputs_failed', { user_id: uid, error: describeError(err) });
+  }
 
+  // ---- 預測生產迴圈（V1.1 Phase 10）----
+  if (analysisInputs) {
+    try {
+      const targetStatus = capabilityStatusForField('recovery', analysisInputs.caps);
       out.prediction = await predictionCycle({
         db,
         userId: uid,
-        rows: predRows,
-        anchorDate: anchor,
+        rows: analysisInputs.predRows,
+        anchorDate: analysisInputs.anchor,
         capabilityUnavailable: isKnownUnavailable(targetStatus),
         now,
       });
-
-      // ---- Personal Healthspan 盤點（V1.1 Phase 12）----
-      // snapshotContributors 以前沒有任何生產呼叫端，兩張 healthspan 表
-      // 在正常運作下永遠是空的。現在每輪盤點一次。
-      // **分數永遠寫 null**——沒有經過驗證的權重，那是正確答案不是待辦。
-      out.healthspan = await healthspan({
-        db, userId: uid, rows: predRows, endDate: anchor, capabilities: caps, now,
-      });
+    } catch (err) {
+      out.errors.push({ stage: 'prediction', error: describeError(err) });
+      log.error('prediction_unexpected', { user_id: uid, error: describeError(err) });
     }
-  } catch (err) {
-    out.errors.push({ stage: 'prediction', error: describeError(err) });
-    log.error('prediction_unexpected', { user_id: uid, error: describeError(err) });
+  }
+
+  // ---- Personal Healthspan 盤點（V1.1 Phase 12）----
+  // snapshotContributors 以前沒有任何生產呼叫端，兩張 healthspan 表
+  // 在正常運作下永遠是空的。現在每輪盤點一次。
+  // **分數永遠寫 null**——沒有經過驗證的權重，那是正確答案不是待辦。
+  //
+  // 自己的 try/catch：預測失敗絕不影響這裡，這裡失敗也絕不回頭影響
+  // 已經算好的 out.prediction。
+  if (analysisInputs) {
+    try {
+      out.healthspan = await healthspan({
+        db,
+        userId: uid,
+        rows: analysisInputs.predRows,
+        endDate: analysisInputs.anchor,
+        capabilities: analysisInputs.caps,
+        now,
+      });
+    } catch (err) {
+      out.errors.push({ stage: 'healthspan', error: describeError(err) });
+      log.error('healthspan_unexpected', { user_id: uid, error: describeError(err) });
+    }
   }
 
   // ---- 過期主動問題的收割（V1.1 Phase 5）----

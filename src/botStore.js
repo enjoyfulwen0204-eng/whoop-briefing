@@ -156,11 +156,20 @@ export function createBotStore(client) {
       // 收割器互為競爭者，三者都用同一個條件式 UPDATE 當原子閘門。少了它，
       // 一個剛剛被回答（已經是 ANSWERED）的問題可能被這裡覆寫回 EXPIRED，
       // 使用者的答案就靜靜消失了。
+      //
+      // F-05：`user_id = ?` 是外部稽核要求補上的。上面那個 SELECT 已經帶了
+      // user_id，所以這一列必然屬於 uid——但這是整個 codebase 裡唯一一句
+      // 沒有 user scope 的 per-user 寫入，不該靠「呼叫端剛好查對了」成立。
       await client.execute({
-        sql: "UPDATE pending_questions SET status = 'EXPIRED' WHERE id = ? AND status = 'OPEN'",
-        args: [row.id],
+        sql: `UPDATE pending_questions SET status = 'EXPIRED'
+               WHERE user_id = ? AND id = ? AND status = 'OPEN'`,
+        args: [uid, row.id],
       });
-      log.info('pending_question_expired', { id: Number(row.id) });
+      // ⚠️ 這裡**只**把問題收成 EXPIRED，不碰對應的 proactive_events。
+      // 事件的收尾（outcome = NO_RESPONSE）一律由收割器負責，而收割器
+      // 現在看得到已經 EXPIRED 的列（見 listReapablePendingQuestions），
+      // 所以「惰性過期先發生」不會再讓事件永遠停在 NULL。
+      log.info('pending_question_expired', { user_id: uid, id: Number(row.id) });
       return null;
     }
     return {
@@ -188,15 +197,46 @@ export function createBotStore(client) {
   }
 
   /**
-   * 已經過期、但還掛在 OPEN 的追問（收割器用）。
+   * 收割器要處理的追問：TTL 已到，而且**還沒有走到「使用者真的回應過」
+   * 的終局**。
    *
-   * 刻意可以用 intent 過濾：主動代理發出的問題才需要補寫 NO_RESPONSE
-   * 這個終局狀態（它連著一筆 proactive_events）；反應式追問沒有對應的
-   * 事件列，維持既有的惰性過期就好。
+   * ## F-01：為什麼一定要包含已經是 EXPIRED 的列
+   *
+   * `OPEN → EXPIRED` 這個轉移有**兩個**寫入者：收割器，以及
+   * `getOpenPendingQuestion()` 的惰性過期（它在 proactiveAgent 每次 cron、
+   * bot router 每則訊息、`/status` 都會被觸發，而且只收問題、不碰事件）。
+   *
+   * 舊版只選 `status = 'OPEN'`，所以只要惰性過期先發生一次，那一列就
+   * **永遠**從收割器的視野裡消失，連帶讓 proactive_events.outcome 永遠
+   * 停在 NULL —— 無法自我修復，而且會讓 Guardian 每 12 小時誤報一次
+   * 「有事件卡住」直到天荒地老。
+   *
+   * 現在兩條路徑匯流到同一個終局：不管誰先把問題收成 EXPIRED，收割器
+   * 都還看得到它，並用 `outcome IS NULL` 這個閘門補上 NO_RESPONSE。
+   *
+   * ANSWERED 與 SUPERSEDED **刻意不在清單裡**：
+   *   ANSWERED    使用者真的回答過，寫 NO_RESPONSE 會是事實錯誤
+   *   SUPERSEDED  被新問題取代，本來就不該有「沒回應」這個結論
+   *
+   * 一樣用 intent 過濾：只有主動代理發出的問題才連著 proactive_events。
    */
-  async function listExpiredOpenQuestions(userId, { now = new Date(), intent = null, limit = 100 } = {}) {
-    const uid = requireUserId(userId, 'listExpiredOpenQuestions');
-    const where = ['user_id = ?', "status = 'OPEN'", 'expires_at <= ?'];
+  async function listReapablePendingQuestions(userId, { now = new Date(), intent = null, limit = 100 } = {}) {
+    const uid = requireUserId(userId, 'listReapablePendingQuestions');
+    // OPEN：還沒收過，一律要處理（不管它有沒有連到事件）。
+    //
+    // EXPIRED：**只有**在它連著的事件還沒有結果時才需要處理——那正是
+    // 要修的半完成狀態。加上這個條件，已經修好的列就自然退出清單，
+    // 收割器會收斂到零工作量；否則每天累積一列 EXPIRED，每輪都要重新
+    // 拜訪一次。這個條件是**精確**的，不是時間窗猜測，不需要新門檻常數。
+    const where = [
+      'user_id = ?',
+      'expires_at <= ?',
+      `(status = 'OPEN' OR (status = 'EXPIRED' AND EXISTS (
+          SELECT 1 FROM proactive_events e
+           WHERE e.user_id = pending_questions.user_id
+             AND e.pending_question_id = pending_questions.id
+             AND e.outcome IS NULL)))`,
+    ];
     const args = [uid, nowIso(now)];
     if (intent) { where.push('intent = ?'); args.push(intent); }
     args.push(limit);
@@ -258,7 +298,7 @@ export function createBotStore(client) {
     getOpenPendingQuestion,
     resolvePendingQuestion,
     cancelPendingQuestion,
-    listExpiredOpenQuestions,
+    listReapablePendingQuestions,
     expirePendingQuestion,
   };
 }

@@ -1,10 +1,4 @@
-#!/usr/bin/env node
-
-import http from 'node:http';
-
-export const PRIVACY_CONTACT = 'enjoyfulwen@hotmail.com';
-
-export const PRIVACY_POLICY_HTML = `<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -50,7 +44,7 @@ export const PRIVACY_POLICY_HTML = `<!doctype html>
 
   <h2>Retention and deletion</h2>
   <p>Most account, WHOOP, Journal, derived, report, and operational records are retained without a fixed automatic expiration while the service is in use, unless they are replaced or pruned as part of normal operation. Some short-lived authorization and processing records expire or are pruned automatically. Telegram may retain messages under Telegram's own policies.</p>
-  <p>To request deletion of your application data or stored authorization tokens, email <a href="mailto:${PRIVACY_CONTACT}">${PRIVACY_CONTACT}</a>. Requests will be verified before action is taken. Some limited records may be retained when reasonably necessary for security, legal obligations, or integrity of completed operations.</p>
+  <p>To request deletion of your application data or stored authorization tokens, email <a href="mailto:enjoyfulwen@hotmail.com">enjoyfulwen@hotmail.com</a>. Requests will be verified before action is taken. Some limited records may be retained when reasonably necessary for security, legal obligations, or integrity of completed operations.</p>
 
   <h2>Authorization and revocation</h2>
   <p>You can revoke the application's WHOOP access through the controls provided by WHOOP. You may also ask the operator to revoke your Telegram link or remove stored authorization information. Revocation stops future access but does not by itself delete information already stored by the application; submit a deletion request if you also want retained application data removed.</p>
@@ -62,40 +56,7 @@ export const PRIVACY_POLICY_HTML = `<!doctype html>
   <p>This policy may be updated as the application or its providers change. The effective date above will be updated when material changes are made.</p>
 
   <h2>Contact</h2>
-  <p>Questions, privacy requests, and deletion requests: <a href="mailto:${PRIVACY_CONTACT}">${PRIVACY_CONTACT}</a>.</p>
+  <p>Questions, privacy requests, and deletion requests: <a href="mailto:enjoyfulwen@hotmail.com">enjoyfulwen@hotmail.com</a>.</p>
 </main>
 </body>
-</html>`;
-
-export function handlePrivacyRequest(req, res) {
-  const path = new URL(req.url ?? '/', 'http://localhost').pathname;
-  if ((req.method === 'GET' || req.method === 'HEAD') && path === '/privacy') {
-    const body = req.method === 'HEAD' ? '' : PRIVACY_POLICY_HTML;
-    res.writeHead(200, {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Content-Length': Buffer.byteLength(body),
-      'Cache-Control': 'public, max-age=300',
-      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-      'Referrer-Policy': 'no-referrer',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    res.end(body);
-    return;
-  }
-  res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end('Not found');
-}
-
-export function createPrivacyServer() {
-  return http.createServer(handlePrivacyRequest);
-}
-
-export function startPrivacyServer({ port = Number(process.env.PORT || 3000) } = {}) {
-  const server = createPrivacyServer();
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`Privacy policy server listening on port ${port}`);
-  });
-  return server;
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) startPrivacyServer();
+</html>

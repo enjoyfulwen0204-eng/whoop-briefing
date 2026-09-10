@@ -18,8 +18,7 @@
     "sync": "node scripts/sync.js",
     "health-status": "node scripts/health-status.js",
     "admin": "node scripts/admin.js",
-    "bot": "node src/bot/index.js",
-    "privacy": "node src/privacyServer.js"
+    "bot": "node src/bot/index.js"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0"

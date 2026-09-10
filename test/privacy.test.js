@@ -4,39 +4,34 @@ import fs from 'node:fs';
 
 import { WHOOP } from '../src/config.js';
 import { buildAuthorizeUrl } from '../src/whoop.js';
-import {
-  PRIVACY_CONTACT, PRIVACY_POLICY_HTML, handlePrivacyRequest,
-} from '../src/privacyServer.js';
+const policy = fs.readFileSync(new URL('../public/privacy.html', import.meta.url), 'utf8');
+const renderConfig = fs.readFileSync(new URL('../render.yaml', import.meta.url), 'utf8');
 
-function request(path, method = 'GET') {
-  const response = { status: null, headers: null, body: null };
-  handlePrivacyRequest({ url: path, method }, {
-    writeHead(status, headers) { response.status = status; response.headers = headers; },
-    end(body) { response.body = body; },
-  });
-  return response;
-}
-
-test('/privacy returns a standalone HTML policy with the required contact', () => {
-  const response = request('/privacy');
-  assert.equal(response.status, 200);
-  assert.match(response.headers['Content-Type'], /^text\/html; charset=utf-8$/);
-  assert.match(response.body, /Kelvin Health OS Privacy Policy/);
-  assert.match(response.body, new RegExp(PRIVACY_CONTACT.replace('.', '\\.')));
-  assert.match(response.body, /application-derived estimates/);
-  assert.doesNotMatch(response.body, /<script|https?:\/\/(?!localhost)/i);
+test('static privacy policy is standalone and contains the required contact', () => {
+  assert.match(policy, /^<!doctype html>/i);
+  assert.match(policy, /<meta charset="utf-8">/i);
+  assert.match(policy, /Kelvin Health OS Privacy Policy/);
+  assert.match(policy, /enjoyfulwen@hotmail\.com/);
+  assert.match(policy, /application-derived estimates/);
+  assert.doesNotMatch(policy, /<script|https?:\/\//i);
 });
 
-test('/privacy does not render common credential material', () => {
+test('static privacy policy contains no credential material or external assets', () => {
   for (const forbidden of [
     'WHOOP_CLIENT_SECRET', 'OPENROUTER_API_KEY', 'TELEGRAM_BOT_TOKEN',
     'TURSO_AUTH_TOKEN', ['-----BEGIN', 'PRIVATE KEY-----'].join(' '),
-  ]) assert.ok(!PRIVACY_POLICY_HTML.includes(forbidden));
+  ]) assert.ok(!policy.includes(forbidden));
+  assert.doesNotMatch(policy, /<(?:img|link|iframe|video|audio|source)\b/i);
 });
 
-test('unrelated routes are not exposed by the privacy service', () => {
-  assert.equal(request('/').status, 404);
-  assert.equal(request('/privacy', 'POST').status, 404);
+test('Render serves the policy as a credential-free static site at /privacy', () => {
+  const privacyService = renderConfig.match(
+    /- type: web\n    name: whoop-privacy\n([\s\S]*?)(?=\n  # -{10,}\n  # 1\.)/,
+  )?.[1] ?? '';
+  assert.match(privacyService, /runtime: static/);
+  assert.match(privacyService, /staticPublishPath: \.\/public/);
+  assert.match(privacyService, /source: \/privacy\n        destination: \/privacy\.html/);
+  assert.doesNotMatch(privacyService, /\b(?:plan|startCommand|healthCheckPath|envVars):/);
 });
 
 test('WHOOP production scopes are exactly the resources the application uses', () => {

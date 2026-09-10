@@ -1,6 +1,6 @@
 # Render Blueprint
 #
-# 三個服務：隱私政策 web service 完全獨立，cron 與 worker 共用
+# 三個服務：隱私政策 static site 完全獨立，cron 與 worker 共用
 # 同一個 Turso / WHOOP token / OpenRouter / Telegram bot：
 #
 #   1. web    whoop-privacy       公開靜態 /privacy，不需要憑證或資料庫
@@ -24,15 +24,27 @@
 
 services:
   # ---------------------------------------------------------------------------
-  # Public privacy policy (no database or application credentials required)
+  # Public privacy policy (free static site; no runtime or credentials)
   # ---------------------------------------------------------------------------
   - type: web
     name: whoop-privacy
-    runtime: node
-    plan: starter
-    buildCommand: npm ci
-    startCommand: npm run privacy
-    healthCheckPath: /privacy
+    runtime: static
+    buildCommand: "true"
+    staticPublishPath: ./public
+    routes:
+      - type: rewrite
+        source: /privacy
+        destination: /privacy.html
+    headers:
+      - path: /privacy*
+        name: Content-Security-Policy
+        value: "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"
+      - path: /privacy*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /privacy*
+        name: Referrer-Policy
+        value: no-referrer
 
   # ---------------------------------------------------------------------------
   # 1. 每日簡報 + 長期資料同步

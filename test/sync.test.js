@@ -24,6 +24,15 @@ const TZ = 'Asia/Taipei';
 const DAY = 86_400_000;
 const NOW = new Date('2026-09-01T00:00:00.000Z');
 
+test('sync CLI passes the explicitly selected application user into createSync', () => {
+  const source = fs.readFileSync(new URL('../scripts/sync.js', import.meta.url), 'utf8');
+  assert.match(
+    source,
+    /createSync\(\{[\s\S]*?\buserId:\s*user\.id\b[\s\S]*?\}\)/,
+    'scripts/sync.js must scope synchronization to the user selected by pickUser',
+  );
+});
+
 function tempDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whoop-sync-'));
   return {

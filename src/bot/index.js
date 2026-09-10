@@ -58,12 +58,21 @@ export async function main({ maxIterations = Infinity } = {}) {
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user }) => {
       const reply = await router.handle({ text, chatId, user });
-      if (reply) await api.sendMessage(chatId, reply);
+      return reply;
+    },
+    // Sending is outside the action transaction. A failed/ambiguous send retries
+    // the persisted reply, never the committed Journal/action.
+    sendReply: async ({ chatId, reply, userId }) => {
+      if (userId) {
+        const current = await db.resolveUserByChatId(chatId);
+        if (current?.id !== userId) return;
+      }
+      await api.sendMessage(chatId, reply);
     },
     // 未綁定的 chat：只吃 /link，其他一律不回
     handleUnlinked: async ({ text, chatId, isPrivateChat = false }) => {
       const reply = await handleLinkAttempt({ db, text, chatId, isPrivateChat });
-      if (reply) await api.sendMessage(chatId, reply);
+      return reply;
     },
   });
 

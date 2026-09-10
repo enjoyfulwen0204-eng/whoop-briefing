@@ -70,7 +70,7 @@ export const TELEGRAM_UPDATE_STATUS = {
   ABANDONED: 'ABANDONED',
 };
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -820,6 +820,13 @@ export const PROACTIVE_QUESTION_INTENT = 'proactive_signal';
 
 /** migrate() 實際執行的完整順序。 */
 export const SCHEMA = [
+  // Result and all database actions commit together. Retained independently of
+  // transport claim pruning; replay never repeats an already committed action.
+  `CREATE TABLE IF NOT EXISTS telegram_operations (
+     update_id INTEGER PRIMARY KEY,
+     result_json TEXT NOT NULL,
+     committed_at TEXT NOT NULL
+   )`,
   ...VERSION_SCHEMA,
   ...IDENTITY_SCHEMA,
   ...TOKEN_SCHEMA,

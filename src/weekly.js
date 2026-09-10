@@ -20,7 +20,6 @@ import { REPORT_CLAIM, WEEKLY } from './config.js';
 import { requireUserId } from './userContext.js';
 import { buildObservations, detectWake, weeklyStats, weekOverWeek } from './analyze.js';
 import { renderWeekly } from './format.js';
-import { guardExplanation } from './publishGuard.js';
 import { completedWeeks, localDate, localHour, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
@@ -120,19 +119,8 @@ export async function runWeekly({
   }
 
   const weekly = { last, prev, wow: weekOverWeek(last, prev) };
-  const rawCoachText = await coach.weekly(weekly);
-
-  // ★ R3-H-02：教練文字是**純裝飾**（見 daily.js 的說明）。
-  // renderWeekly() 已經確定性地印出所有數字，所以這裡只檢查「有沒有夾帶
-  // 生理斷言」，有就整段丟掉，週回顧的資料部分完全不受影響。
-  const guardedWeekly = guardExplanation(rawCoachText, { label: 'weekly' });
-  if (rawCoachText && guardedWeekly.used === 'discarded') {
-    log.warn('weekly_narrative_rejected', {
-      week_key: weekKey,
-      violations: guardedWeekly.violations?.slice(0, 6) ?? [],
-    });
-  }
-  const coachText = guardedWeekly.text;
+  // Production cut: never append provider prose to physiological facts.
+  const coachText = null;
 
   const text = renderWeekly(weekly, coachText);
 

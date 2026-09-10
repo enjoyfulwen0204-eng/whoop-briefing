@@ -203,7 +203,7 @@ test('★★★ R3-M-02: 推導不出來時**問清楚**，絕不默默寫一個
     // 既沒有 question_target_date，也沒有 category → 無法確定性推導
     await db.openPendingQuestion(user.id, {
       chatId: '1', question: '有發生什麼事嗎？', intent: PROACTIVE_QUESTION_INTENT,
-      contextJson: { proactive_event_id: 1, signal: { metric: 'hrv' } },
+      contextJson: { signal: { metric: 'hrv' } },
       ttlMs: 30 * 60_000,
     }, { now: ASK_AT });
 
@@ -222,7 +222,7 @@ test('★★ R3-M-02: 推導不出來但使用者**自己說了**日期 → 照�
   await withUser(async (db, user) => {
     await db.openPendingQuestion(user.id, {
       chatId: '1', question: '有發生什麼事嗎？', intent: PROACTIVE_QUESTION_INTENT,
-      contextJson: { proactive_event_id: 1, signal: { metric: 'hrv' } },
+      contextJson: { signal: { metric: 'hrv' } },
       ttlMs: 30 * 60_000,
     }, { now: ASK_AT });
     const router = createRouter({

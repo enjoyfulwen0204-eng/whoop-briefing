@@ -24,6 +24,7 @@ import { createAnalysisStore } from './analysisStore.js';
 import { createProactiveStore } from './proactiveStore.js';
 import { createGuardianStore } from './guardianStore.js';
 import { log } from './logger.js';
+import { processingTransactions } from './processingTransaction.js';
 
 // SCHEMA 定義集中在 schema.js（唯一 DDL 來源）。這裡 re-export 維持既有 import 路徑。
 export { SCHEMA } from './schema.js';
@@ -40,7 +41,52 @@ export function isDuplicateSentError(err) {
 }
 
 export function createDb({ url, authToken }) {
-  const client = createClient({ url, authToken });
+  const processing = processingTransactions(createClient({ url, authToken }));
+  const { client } = processing;
+
+  async function withAnswerOwnership(userId, ownership, now, fn) {
+    const uid = requireUserId(userId, 'withAnswerOwnership');
+    if (!ownership?.owner) throw new Error('answer_ownership_required');
+    const checkLease = async () => {
+      if (!await holdsLock(ownership.name, ownership.owner, { now: new Date(now()) })) {
+        throw new Error('answer_ownership_lost');
+      }
+    };
+    return processing.transaction(fn, {
+      before: async () => {
+        await checkLease();
+        const result = await client.execute({
+          sql: 'SELECT id FROM proactive_events WHERE id = ? AND user_id = ? AND outcome IS NULL',
+          args: [ownership.eventId, uid],
+        });
+        if (!result.rows.length) throw new Error('answer_event_settled');
+      },
+      after: checkLease,
+    });
+  }
+
+  async function processTelegramOperation(updateId, { owner, now = () => new Date() }, fn) {
+    const id = Number(updateId);
+    if (!Number.isSafeInteger(id) || id < 0) throw new Error('invalid_update_id');
+    const check = async () => {
+      const r = await client.execute({
+        sql: `SELECT update_id FROM telegram_processed_updates
+              WHERE update_id = ? AND owner = ? AND status = 'PROCESSING' AND lease_expires_at > ?`,
+        args: [id, owner, new Date(now()).toISOString()],
+      });
+      if (!r.rows.length) throw new Error('telegram_processing_ownership_lost');
+    };
+    return processing.transaction(async () => {
+      const prior = await client.execute({ sql: 'SELECT result_json FROM telegram_operations WHERE update_id = ?', args: [id] });
+      if (prior.rows.length) return JSON.parse(prior.rows[0].result_json);
+      const result = await fn();
+      await client.execute({
+        sql: 'INSERT INTO telegram_operations(update_id, result_json, committed_at) VALUES (?, ?, ?)',
+        args: [id, JSON.stringify(result ?? null), new Date(now()).toISOString()],
+      });
+      return result;
+    }, { before: check, after: check });
+  }
 
   /**
    * 若欄位不存在就補上（向後相容 migration，不動既有資料）。
@@ -565,6 +611,11 @@ export function createDb({ url, authToken }) {
 
   return {
     raw: client,
+    withAnswerOwnership,
+    processTelegramOperation,
+    outsideProcessingTransaction: processing.outside,
+    afterProcessingCommit: processing.afterCommit,
+    processingTransactionActive: processing.active,
     migrate,
     // per-user token
     getTokens,

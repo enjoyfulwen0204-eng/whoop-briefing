@@ -90,22 +90,22 @@ function assertDeterministicReportIntact(sent, res, kind) {
 // A. 安全的敘述 → 通過守門 → 保留在訊息裡
 // ===========================================================================
 
-test('★ P0-A daily: 安全的教練文字通過守門並保留', async () => {
+test('★ P0-A daily: 看似安全的教練文字也不發布', async () => {
   const safe = '早安 Kelvin，今天整體看起來穩定，照平常節奏走就好，記得多補水 💛';
   const { res, sent } = await runDailyWith(safe);
   assertDeterministicReportIntact(sent, res, 'daily');
-  assert.ok(sent.includes(safe), '安全的敘述必須被保留');
-  assert.ok(!sent.includes(FALLBACK_NOTE), '不該退回 fallback');
-  assert.equal(res.coachUsed, true);
+  assert.ok(!sent.includes(safe), '所有 provider 敘述都不發布');
+  assert.ok(sent.includes(FALLBACK_NOTE), '確定性資料照常發布');
+  assert.equal(res.coachUsed, false);
 });
 
-test('★ P0-A weekly: 安全的教練文字通過守門並保留', async () => {
+test('★ P0-A weekly: 看似安全的教練文字也不發布', async () => {
   const safe = '上週整體算穩定，這週我們把入睡時間再往前拉一點點就好 💪';
   const { res, sent } = await runWeeklyWith(safe);
   assertDeterministicReportIntact(sent, res, 'weekly');
-  assert.ok(sent.includes(safe), '安全的敘述必須被保留');
-  assert.ok(!sent.includes(FALLBACK_NOTE));
-  assert.equal(res.coachUsed, true);
+  assert.ok(!sent.includes(safe), '所有 provider 敘述都不發布');
+  assert.ok(sent.includes(FALLBACK_NOTE));
+  assert.equal(res.coachUsed, false);
 });
 
 test('★★★ R3-H-02 daily: 教練文字引述數字 → 丟掉；報告的數字完全不受影響', async () => {
@@ -123,13 +123,13 @@ test('★★★ R3-H-02 daily: 教練文字引述數字 → 丟掉；報告的�
   assert.equal(res.coachUsed, false);
 });
 
-test('★★★ R3-H-02 daily: 不含生理斷言的教練文字被保留', async () => {
+test('★★★ R3-H-02 daily: 不含生理斷言的教練文字也不發布', async () => {
   const clean = '早安 Kelvin，今天整體看起來穩定，照平常節奏走就好，記得多補水 💛';
   const { res, sent } = await runDailyWith(clean);
   assertDeterministicReportIntact(sent, res, 'daily');
-  assert.ok(sent.includes(clean), '★ 乾淨的鼓勵話語必須保留');
-  assert.ok(!sent.includes(FALLBACK_NOTE));
-  assert.equal(res.coachUsed, true);
+  assert.ok(!sent.includes(clean), '看似安全的 provider 敘述也不發布');
+  assert.ok(sent.includes(FALLBACK_NOTE));
+  assert.equal(res.coachUsed, false);
 });
 
 test('★★★ R3-H-02 weekly: 教練文字引述數字 → 丟掉；週回顧的數字不受影響', async () => {
@@ -140,11 +140,11 @@ test('★★★ R3-H-02 weekly: 教練文字引述數字 → 丟掉；週回顧�
   assert.match(sent, /恢復平均/, '★ 週回顧的數據段必須完整保留');
 });
 
-test('★★★ R3-H-02 weekly: 不含生理斷言的教練文字被保留', async () => {
+test('★★★ R3-H-02 weekly: 不含生理斷言的教練文字也不發布', async () => {
   const clean = '上週整體算穩定，這週我們把入睡時間再往前拉一點點就好 💪';
   const { res, sent } = await runWeeklyWith(clean);
   assertDeterministicReportIntact(sent, res, 'weekly');
-  assert.ok(sent.includes(clean));
+  assert.ok(!sent.includes(clean));
 });
 
 // ===========================================================================

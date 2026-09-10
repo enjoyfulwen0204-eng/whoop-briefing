@@ -126,8 +126,8 @@ export function createBotStore(client) {
    *   - 撞到自己的 owner（B）→ 這是我自己的認領，續租、繼續做。
    *   - 撞到 CLAIMED 而租約過期（A）→ 前一個 worker 死在零副作用的區間，
    *     安全接手。
-   *   - 撞到 PROCESSING → **永遠不接手**（副作用可能已經發生）。租約過期的話
-   *     回 'stale_processing'，交給呼叫端記錄成 ABANDONED。
+   *   - PROCESSING 租約過期 → 接手；telegram_operations 的交易性收據
+   *     決定重做未提交工作，或直接取回已提交結果，絕不重做已提交動作。
    *   - 撞到 COMPLETED → 真正的重複。
    *   - 撞到還活著的租約 → 別人正在做，不要碰。
    *
@@ -156,8 +156,8 @@ export function createBotStore(client) {
               lease_expires_at = excluded.lease_expires_at,
               status           = excluded.status,
               attempts         = telegram_processed_updates.attempts + 1
-            WHERE telegram_processed_updates.status = ?
-              AND (telegram_processed_updates.owner = excluded.owner
+            WHERE telegram_processed_updates.status IN (?, 'PROCESSING')
+              AND ((telegram_processed_updates.status = 'CLAIMED' AND telegram_processed_updates.owner = excluded.owner)
                    OR telegram_processed_updates.lease_expires_at IS NULL
                    OR telegram_processed_updates.lease_expires_at <= excluded.claimed_at)`,
       args: [
@@ -194,9 +194,8 @@ export function createBotStore(client) {
     if (row.status === TELEGRAM_UPDATE_STATUS.ABANDONED) {
       return { ok: false, state: 'abandoned', status: row.status, attempts: row.attempts, owner: row.owner };
     }
-    // PROCESSING 永遠不會被自動接手（上面的 WHERE 只允許 CLAIMED）。
-    // 租約還在 → 真的有人在做；租約過期 → 有人死在副作用區間裡。
-    // 後者要讓呼叫端把它標成 ABANDONED，而不是安靜地重做或安靜地跳過。
+    // 通常只會看到有效租約。若租約在認領失敗後才到期，暫停這批；
+    // 下一次原子認領會接手，不在這裡把尚未提交的工作當作完成。
     if (row.status === TELEGRAM_UPDATE_STATUS.PROCESSING) {
       const expired = !row.leaseExpiresAt || row.leaseExpiresAt <= at;
       return {
@@ -211,9 +210,8 @@ export function createBotStore(client) {
   /**
    * CLAIMED → PROCESSING。**在 dispatch 之前**呼叫。
    *
-   * 這一步就是「零副作用區間」的結束標記。沒有它就沒辦法分辨
-   * 「死在還沒做任何事的時候」（可以安全重做）和
-   * 「死在做到一半」（重做會產生第二筆 journal）。
+   * PROCESSING 只表示可以開始交易。副作用是否已提交由
+   * telegram_operations 收據決定，不能由這個狀態猜測。
    *
    * 條件帶 owner：租約掉了就不可以推進狀態。
    */
@@ -223,9 +221,9 @@ export function createBotStore(client) {
     const rs = await client.execute({
       sql: `UPDATE telegram_processed_updates
                SET status = ?, dispatched_at = ?
-             WHERE update_id = ? AND owner = ? AND status = ?`,
+             WHERE update_id = ? AND owner = ? AND status = ? AND lease_expires_at > ?`,
       args: [TELEGRAM_UPDATE_STATUS.PROCESSING, nowIso(now), id, String(owner),
-        TELEGRAM_UPDATE_STATUS.CLAIMED],
+        TELEGRAM_UPDATE_STATUS.CLAIMED, nowIso(now)],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }

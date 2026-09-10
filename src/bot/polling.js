@@ -49,6 +49,7 @@ export function createPoller({
   handleMessage,
   /** 未授權 chat 的處理（目前只用來吃 /link）。回 null 代表完全不回。 */
   handleUnlinked = null,
+  sendReply = null,
   api = createTelegramApi({ botToken }),
   sleepImpl = sleep,
   pollTimeoutS = TELEGRAM_BOT.POLL_TIMEOUT_S,
@@ -127,7 +128,7 @@ export function createPoller({
    *   claimed          我拿到所有權（第一次，或安全接手前一個死掉的 worker）
    *   completed        真正的重複 → 跳過，推進 offset
    *   abandoned        之前就已經判定放棄 → 跳過，推進 offset
-   *   stale_processing 有人死在副作用區間 → 標記 ABANDONED、跳過、推進 offset
+   *   stale_processing 認領後才觀察到過期 → 暫停，下一輪原子接手
    *   in_progress      別人正拿著活的租約 → 不處理、**不推進 offset**
    *   unavailable      認領機制本身不可用 → 不處理、**不推進 offset**
    *
@@ -222,28 +223,9 @@ export function createPoller({
         }
 
         if (claim.state === 'stale_processing') {
-          // 有人死在「已經 dispatch、還沒標記完成」的區間裡。副作用做到哪
-          // 不確定，而自動重做的代價是第二筆 journal —— journal 的重複會
-          // 直接扭曲長期相關性，而且永遠不會自己修好。
-          //
-          // 所以不重做，但也**不假裝沒事**：寫成終局的 ABANDONED，
-          // 用 error 記下來，讓它可以被查到。
-          stats.errors += 1;
-          try {
-            await db.abandonTelegramUpdate(updateId, {
-              reason: 'worker_died_after_dispatch', now: now(),
-            });
-          } catch (err) {
-            log.error('telegram_update_abandon_failed', {
-              update_id: updateId, error: describeError(err),
-            });
-          }
-          log.error('telegram_update_abandoned_in_flight', {
-            update_id: updateId, previous_owner: claim.owner ?? null, attempts: claim.attempts ?? null,
-          });
-          offset = updateId + 1;
-          await saveOffset(offset);
-          continue;
+          // A storage implementation without recoverable takeover must pause.
+          // Never acknowledge uncommitted work merely because a worker died.
+          return offset;
         }
 
         if (claim.state === 'completed' || claim.state === 'abandoned') {
@@ -267,9 +249,7 @@ export function createPoller({
 
         // ★ CLAIMED → PROCESSING，**就在 dispatch 之前**。
         //
-        // 這一筆寫入劃出「零副作用區間」的終點。少了它，一個死在
-        // classify() 之前的 worker 和一個死在寫完 journal 之後的 worker
-        // 在資料庫裡長得一模一樣，而這兩種情況的正確處置正好相反。
+        // PROCESSING 授權開始動作交易；動作與收據原子提交。
         let dispatchable = false;
         try {
           dispatchable = await db.markTelegramUpdateProcessing(updateId, {
@@ -289,73 +269,39 @@ export function createPoller({
         }
       }
 
-      const c = await classify(update);
-
-      if (c.kind === 'unlinked') {
-        // 未綁定：唯一允許的動作是 /link。其他一律靜默忽略。
-        stats.ignored += 1;
-        log.warn('telegram_unlinked_chat', { update_id: updateId, chat_id: c.chatId });
-        if (handleUnlinked) {
-          try {
-            // classify() 已經保證走到這裡的一定是私訊本人，明確傳下去
-            await handleUnlinked({
+      try {
+        const dispatch = async () => {
+          const c = await classify(update);
+          if (c.kind === 'unlinked') {
+            const reply = handleUnlinked ? await handleUnlinked({
               text: c.text, chatId: c.chatId, message: c.message, isPrivateChat: true,
-            });
-          } catch (err) {
-            stats.errors += 1;
-            log.error('telegram_unlinked_handle_failed', {
-              update_id: updateId, error: describeError(err),
-            });
+            }) : null;
+            return { chatId: c.chatId, reply, userId: null };
           }
-        }
-      } else if (c.kind !== 'ok') {
-        stats.ignored += 1;
-        // H-01：被授權閘門擋下的訊息記 warn（這是安全事件，不是雜訊），
-        // 但**不回覆任何內容**——群組成員不該從回覆推斷出這個 bot 綁了誰。
-        if (c.kind === 'non_private_chat' || c.kind === 'bot_sender' || c.kind === 'sender_chat_mismatch') {
-          log.warn('telegram_message_rejected', {
-            update_id: updateId, reason: c.kind, chat_id: c.chatId, chat_type: c.chatType ?? null,
-          });
-        } else {
-          log.info('telegram_update_ignored', { update_id: updateId, reason: c.kind });
-        }
-      } else {
-        try {
-          await handleMessage({
+          if (c.kind !== 'ok') {
+            stats.ignored += 1;
+            return null;
+          }
+          const reply = await handleMessage({
             text: c.text, chatId: c.chatId, message: c.message, user: c.user,
           });
-          stats.handled += 1;
-        } catch (err) {
-          stats.errors += 1;
-          // 處理失敗仍然要推進 offset，否則同一則壞訊息會永遠卡住整個 bot
-          log.error('telegram_handle_failed', {
-            update_id: updateId, error: describeError(err),
-          });
-        }
-      }
-
-      // ★ R3-M-05：**先把處理狀態標成終局，再推進 offset。**
-      //
-      // 順序是刻意的。offset 只是「不要再拿到這一則」的最佳化，認領表才是
-      // 真正防重複的那一層；所以 offset 存不下去無所謂（重送會被
-      // COMPLETED 擋掉），但完成標記存不下去就必須被看見。
-      if (claimed) {
-        try {
+          return { chatId: c.chatId, reply, userId: c.user.id };
+        };
+        // The operation receipt and every DB action share one transaction.
+        // Replaying after commit returns the saved reply without rerunning actions.
+        const result = claimed && db.processTelegramOperation
+          ? await db.processTelegramOperation(updateId, { owner: workerId, now }, dispatch)
+          : await dispatch();
+        if (result?.reply && sendReply) await sendReply(result);
+        if (claimed) {
           const done = await db.completeTelegramUpdate(updateId, { owner: workerId, now: now() });
-          if (!done) {
-            log.error('telegram_update_complete_rejected', {
-              update_id: updateId, worker: workerId,
-            });
-          }
-        } catch (err) {
-          // 這一則的副作用已經做完了，但終局標記沒寫進去。重送時它會是
-          // 「PROCESSING + 租約過期」→ 被判為 ABANDONED 而不重做。
-          // 那正是我們要的：寧可少做一次，也不要多寫一筆 journal。
-          stats.errors += 1;
-          log.error('telegram_update_complete_failed', {
-            update_id: updateId, error: describeError(err),
-          });
+          if (!done) throw new Error('telegram_update_complete_rejected');
         }
+        stats.handled += 1;
+      } catch (err) {
+        stats.errors += 1;
+        log.error('telegram_processing_retry_required', { update_id: updateId, error: describeError(err) });
+        return offset;
       }
 
       offset = updateId + 1;

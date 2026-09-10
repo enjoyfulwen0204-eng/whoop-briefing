@@ -1,23 +1,9 @@
-/**
- * structured context → 人話。
- *
- * ## LLM 在這裡能做什麼、不能做什麼
- *
- *  能：把 Node 算好的數字組織成一段好讀的中文。
- *  不能：計算任何東西、推論相關性、發明數字、判斷醫學意義。
- *
- * 所以送進 prompt 的永遠是**已經算完的結論**（平均、z-score、樣本數、趨勢方向），
- * 而且明確告訴模型「這些數字已經算好，不要重算也不要質疑」。
- *
- * LLM 掛掉時走 renderFallback()：純 Node 排版的版本，資訊一樣完整，只是比較乾。
- */
+/** Health answers use computed facts and application-owned templates only.
+ * Prompt/context exports remain for compatibility; publication never calls them. */
 
-import { AI_PURPOSE, PROMPT_VERSIONS, TELEGRAM_BOT } from '../config.js';
-import { safeSlice } from '../format.js';
-import { guardExplanation } from '../publishGuard.js';
+import { AI_PURPOSE } from '../config.js';
 import { factsFromQaResult } from '../publishableFacts.js';
 import { renderAssertions, assemblePublication } from '../assertionRenderer.js';
-import { log } from '../logger.js';
 
 export const ANSWER_SYSTEM_PROMPT = `你是 Kelvin 的私人健康教練，語氣溫暖、專業、口語，用繁體中文。
 
@@ -228,28 +214,8 @@ export function renderFallback(result) {
 }
 
 /** structured result → 最終要送出去的文字。 */
-/**
- * structured result → 最終要送出去的文字。
- *
- * ## R3-H-02：LLM 不是生理宣稱的來源
- *
- * 前兩輪都是「讓 LLM 自由寫整個回答，再驗證它說的對不對」。獨立稽核
- * 連續兩次證明那個方向追不完（第三輪仍然漏了 27 個攻擊裡的 17 個）。
- *
- * 現在的流程是：
- *
- *   structured result
- *     → factsFromQaResult()      型別化的可發布事實
- *     → renderAssertions()       **所有**生理斷言（確定性樣板）
- *     → LLM 說明（選配）          必須完全不含生理斷言
- *     → assemblePublication()    組裝
- *
- * 也就是說：數字、指標、方向、判定**永遠**來自確定性層。LLM 只能加一段
- * 不含任何生理斷言的鼓勵話語；含了就整段丟掉，而使用者仍然拿到完整的
- * 確定性回答。
- *
- * 使用者的問題只出現在 prompt 裡，從來沒有機會變成證據。
- */
+/** Render the computed result without invoking or appending provider prose.
+ * Trend templates preserve computed windows/sample counts in addition to values. */
 export async function composeAnswer({ question, result, coach, purpose = AI_PURPOSE.QA }) {
   if (!result || result.available === false) return renderFallback(result);
 
@@ -260,36 +226,10 @@ export async function composeAnswer({ question, result, coach, purpose = AI_PURP
 
   // 事實集算不出任何東西時，退回既有的確定性排版（它涵蓋 trend/best-worst
   // 等 factsFromQaResult 不建模的 intent）。
-  const deterministic = lines.length
+  const deterministic = lines.length && result.intent !== 'trend_query'
     ? assemblePublication({ header, assertionLines: lines, unavailable })
     : renderFallback(result);
 
-  if (!coach?.ask) return deterministic;
-
-  // 2) 選配的說明
-  const prompt = buildAnswerContext(question, result);
-  let text = null;
-  try {
-    text = await coach.ask({
-      system: ANSWER_SYSTEM_PROMPT,
-      user: prompt,
-      maxTokens: TELEGRAM_BOT.ANSWER_MAX_TOKENS,
-      purpose,
-      promptVersion: PROMPT_VERSIONS.QA,
-    });
-  } catch (err) {
-    log.warn('qa_explanation_failed', { error: String(err?.message ?? err).slice(0, 160) });
-  }
-  if (!text) return deterministic;
-
-  const guarded = guardExplanation(
-    safeSlice(String(text).trim(), TELEGRAM_BOT.MAX_REPLY_CHARS), { label: 'qa' },
-  );
-  if (guarded.used === 'discarded') {
-    log.warn('qa_explanation_discarded', { violations: guarded.violations?.slice(0, 4) });
-  }
-  // 3) 組裝：確定性斷言 + （通過檢查的）說明
-  return guarded.text ? `${deterministic}
-
-${guarded.text}` : deterministic;
+  // Provider prose has no publication authority, including optional explanations.
+  return deterministic;
 }

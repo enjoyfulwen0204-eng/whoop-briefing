@@ -207,7 +207,7 @@ test('L: 非文字訊息與非 message update 被安全略過', async () => {
   } finally { db.close(); cleanup(); }
 });
 
-test('★ L: 單一訊息處理失敗不會卡住整個 queue', async () => {
+test('★ L: 單一訊息處理失敗保留 offset 等待重試', async () => {
   const { url, cleanup } = tempDb();
   const db = createDb({ url });
   try {
@@ -221,8 +221,8 @@ test('★ L: 單一訊息處理失敗不會卡住整個 queue', async () => {
       },
     });
     await poller.processBatch([update(1, 'a'), update(2, 'boom'), update(3, 'c')], 0);
-    assert.deepEqual(seen, ['a', 'c'], '壞掉那則跳過，後面照常');
-    assert.equal(await db.getUpdateOffset(), 4, '★ offset 仍要推進，否則壞訊息會永遠重播');
+    assert.deepEqual(seen, ['a'], '失敗訊息不可跳過');
+    assert.equal(await db.getUpdateOffset(), 2, '保留失敗訊息等待恢復');
   } finally { db.close(); cleanup(); }
 });
 

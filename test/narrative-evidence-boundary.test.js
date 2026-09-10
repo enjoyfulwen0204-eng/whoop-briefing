@@ -159,7 +159,7 @@ test('★★★ H-02 端到端：composeAnswer 用可信事實驗證，注入的
 
   assert.ok(!out.includes('999'), '★ 使用者注入的數字絕不可以出現在最終回覆');
   assert.ok(!out.includes(injected), '★ 有問題的原文整段都不可以送出');
-  assert.ok(seen.prompt.includes(LOADED_QUESTION), '模型還是有看到問題');
+  assert.equal(seen.prompt, undefined, '健康發布不再呼叫模型');
   assert.ok(out.includes('55%'), '確定性 fallback 照常送出真實數字');
 });
 
@@ -176,13 +176,13 @@ test('★★★ R3-H-02 端到端：LLM 引述數字時被丟掉，但確定性�
   assert.match(out, /HRV 62ms/);
 });
 
-test('★★ R3-H-02 端到端：不含生理斷言的說明會被保留在斷言之後', async () => {
+test('★★ R3-H-02 端到端：即使看似安全的 LLM 說明也不發布', async () => {
   const clean = '今天照平常節奏走就好，記得多喝水 💛';
   const out = await composeAnswer({
     question: '我今天怎麼樣？', result: RESULT, coach: { async ask() { return clean; } },
   });
-  assert.ok(out.includes(clean), '★ 乾淨的說明必須被保留');
-  assert.ok(out.indexOf('恢復 55%') < out.indexOf(clean), '★ 而且排在斷言之後');
+  assert.ok(!out.includes(clean));
+  assert.match(out, /恢復 55%/);
 });
 
 // ===========================================================================

@@ -22,14 +22,13 @@
  * ## 現在的狀態機
  *
  *   （沒有列）→ CLAIMED → PROCESSING → COMPLETED
- *                            ↘ ABANDONED
  *
  *   CLAIMED    拿到所有權，**還沒 dispatch**，保證零副作用。
  *              → 租約過期可以安全接手（重做沒有代價）。這關掉 A。
  *              → 同一個 owner 撞到自己的 CLAIMED 就是續租。這關掉 B。
  *   PROCESSING 已經 dispatch，副作用可能發生了。
- *              → **永遠不會被自動接手**。租約過期 = 有人死在裡面 →
- *                寫成 ABANDONED，用 error 記下來（不是靜靜跳過）。
+ *              → 租約過期可以接手：動作與 telegram_operations 收據同交易。
+ *                有收據就回傳結果；無收據就重新處理。
  *   COMPLETED  終局。真正的重複。
  *
  * 「收到」不需要是一個狀態：在我們寫下第一列之前，訊息的耐久性由 Telegram
@@ -189,7 +188,7 @@ test('★★★ R3-M-05: 別的 owner 不可以靠重複認領搶走活著的租
 // ★★★ C：副作用之後、標記完成之前崩潰
 // ===========================================================================
 
-test('★★★ R3-M-05: PROCESSING 中途死掉 → 不重做，而且明確記成 ABANDONED', async () => {
+test('★★★ R3-M-05: PROCESSING 中途死掉 → 恢復未提交工作並完成', async () => {
   await withUser(async (db, user) => {
     // 上一個 worker 已經 dispatch（副作用可能發生了）然後死掉。
     const past = new Date(NOW.getTime() - 3600_000);
@@ -199,10 +198,8 @@ test('★★★ R3-M-05: PROCESSING 中途死掉 → 不重做，而且明確記
 
     const next = await makePoller(db, db, { workerId: 'fresh' }).processBatch([update(100)], 0);
 
-    assert.equal(await journalCount(db, user.id), 0,
-      '★ 副作用可能已經發生過，不可以自動重做（第二筆 journal 永遠不會自己修好）');
-    assert.equal(await statusOf(db, 100), TELEGRAM_UPDATE_STATUS.ABANDONED,
-      '★ 但也不可以靜靜跳過 —— 要留下可以被查到的終局狀態');
+    assert.equal(await journalCount(db, user.id), 1, '未提交工作必須恢復');
+    assert.equal(await statusOf(db, 100), TELEGRAM_UPDATE_STATUS.COMPLETED);
     assert.equal(next, 101, '★ 佇列要往前走，不可以卡死');
   });
 });
@@ -222,7 +219,7 @@ test('★★★ R3-M-05: 完成標記寫不進去 → 重送時不會重做', as
     await makePoller(db, db, { workerId: 'w2', now: () => later }).processBatch([update(100)], 0);
 
     assert.equal(await journalCount(db, user.id), 1, '★ 恰好一次');
-    assert.equal(await statusOf(db, 100), TELEGRAM_UPDATE_STATUS.ABANDONED);
+    assert.equal(await statusOf(db, 100), TELEGRAM_UPDATE_STATUS.COMPLETED);
   });
 });
 

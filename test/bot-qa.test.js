@@ -187,7 +187,7 @@ test('★ 沒有任何 WHOOP 資料：/log 照樣可以成功保存', async () =
 // 有資料時的 Q&A
 // ===========================================================================
 
-test('M: 有資料時 today_status 先出確定性斷言，再接 LLM 說明', async () => {
+test('M: 有資料時 today_status 只發布確定性斷言', async () => {
   const { db, cleanup } = await dbWithData({ days: 60 });
   try {
     const coach = fakeCoach({ answer: '早安 Kelvin，今天看起來不錯。' });
@@ -196,16 +196,8 @@ test('M: 有資料時 today_status 先出確定性斷言，再接 LLM 說明', a
     // ★ R3-H-02：生理數值一律由確定性渲染器輸出，而且排在最前面。
     // LLM 的說明只是附加在後面的裝飾（而且必須不含任何生理斷言）。
     assert.match(reply, /恢復 \d+%/, '★ 數值必須來自確定性渲染器');
-    const iAssert = reply.indexOf('恢復');
-    const iExplain = reply.indexOf('早安 Kelvin，今天看起來不錯。');
-    assert.ok(iExplain > iAssert, `★ 說明必須在斷言之後，實際：${reply}`);
-
-    assert.equal(coach.calls.ask.length, 1);
-    const ctx = coach.calls.ask[0].user;
-    assert.match(ctx, /今日指標（程式已算好）/);
-    assert.match(ctx, /z=/, '要把 z-score 一起給模型');
-    assert.match(ctx, /30 天基準/);
-    assert.match(coach.calls.ask[0].system, /不要重新計算/, '★ system prompt 必須禁止模型自己算');
+    assert.ok(!reply.includes('早安 Kelvin，今天看起來不錯。'));
+    assert.equal(coach.calls.ask.length, 0);
   } finally { db.close(); cleanup(); }
 });
 
@@ -213,11 +205,11 @@ test('M: trend_query 會算出趨勢與樣本數', async () => {
   const { db, cleanup } = await dbWithData({ days: 60 });
   try {
     const coach = fakeCoach();
-    await routerFor(db, coach).handle({ text: '最近 HRV 如何？', chatId: CHAT, user: USER });
-    const ctx = coach.calls.ask[0].user;
+    const ctx = await routerFor(db, coach).handle({ text: '最近 HRV 如何？', chatId: CHAT, user: USER });
+    assert.equal(coach.calls.ask.length, 0);
     assert.match(ctx, /HRV/);
-    assert.match(ctx, /樣本 n=\d+/, '一定要附樣本數');
-    assert.match(ctx, /趨勢（程式算的線性斜率）/);
+    assert.match(ctx, /n=\d+/, '一定要附樣本數');
+    assert.match(ctx, /趨勢/);
   } finally { db.close(); cleanup(); }
 });
 
@@ -225,10 +217,10 @@ test('M: best_worst_day 由 Node 挑出最好與最差的那一天', async () =>
   const { db, cleanup } = await dbWithData({ days: 60 });
   try {
     const coach = fakeCoach();
-    await routerFor(db, coach).handle({ text: '最近 30 天最好是哪一天？', chatId: CHAT, user: USER });
-    const ctx = coach.calls.ask[0].user;
-    assert.match(ctx, /最好的一天：\d{4}-\d{2}-\d{2}/, '★ 日期由程式挑，不是 LLM 挑');
-    assert.match(ctx, /最差的一天：\d{4}-\d{2}-\d{2}/);
+    const ctx = await routerFor(db, coach).handle({ text: '最近 30 天最好是哪一天？', chatId: CHAT, user: USER });
+    assert.equal(coach.calls.ask.length, 0);
+    assert.match(ctx, /最好：\d{4}-\d{2}-\d{2}/, '★ 日期由程式挑，不是 LLM 挑');
+    assert.match(ctx, /最差：\d{4}-\d{2}-\d{2}/);
   } finally { db.close(); cleanup(); }
 });
 

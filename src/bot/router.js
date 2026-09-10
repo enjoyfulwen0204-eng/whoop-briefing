@@ -168,8 +168,7 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
  * 所以「問哪一天」在**問題被建立時**就決定並持久化成
  * `context.question_target_date`，這裡只是讀出來 —— 絕不在這裡重新推論。
  *
- * 舊資料（R2 之前開的追問）沒有這個欄位，退回 `context.health_date`，
- * 也就是上一輪的行為；比什麼都不做好，而且不會比舊版更差。
+ * 舊資料只接受 category 政策可推導的日期；否則所有回答分支都先問清楚。
  */
 export function questionTargetDateOf(pending) {
   const explicit = pending?.context?.question_target_date;
@@ -272,14 +271,24 @@ export function createRouter({
     const t = new Date(now());
     const userId = requireUserId(user?.id, 'router.handle');
     const timezone = user.timezone;
-    const coach = coachFor(userId);
+    const provider = coachFor(userId);
+    const coach = provider && db.outsideProcessingTransaction ? new Proxy(provider, {
+      get(target, key) {
+        const value = target[key];
+        if (typeof value !== 'function') return value;
+        return (...args) => db.outsideProcessingTransaction(
+          JSON.stringify([userId, key, args]), () => value.apply(target, args),
+        );
+      },
+    }) : provider;
     try {
       return await route({
         text: String(text ?? '').trim(), chatId, t, userId, timezone, coach,
       });
     } catch (err) {
+      if (db.processingTransactionActive?.()) throw err;
       log.error('router_failed', { error: describeError(err) });
-      return '抱歉，我這邊出了點問題，稍後再試一次。（錯誤已記錄）';
+      return '抱歉，我這邊出了點問題，稍後再試一次。';
     }
   }
 
@@ -301,7 +310,7 @@ export function createRouter({
    */
   async function acquireProcessingOwnership({ pending, userId, t }) {
     const eventId = pending?.context?.proactive_event_id ?? null;
-    if (!eventId || typeof db.acquireLock !== 'function') {
+    if (!eventId) {
       return { ok: true, name: null, owner: null };
     }
     const name = PROACTIVE_PROCESSING_LEASE.name(userId, eventId);
@@ -327,6 +336,10 @@ export function createRouter({
   }
 
   async function releaseProcessingOwnership(ownership) {
+    if (db.processingTransactionActive?.()) {
+      db.afterProcessingCommit(() => releaseProcessingOwnership(ownership));
+      return;
+    }
     if (!ownership?.owner || typeof db.releaseLock !== 'function') return;
     try {
       await db.releaseLock(ownership.name, ownership.owner);
@@ -339,10 +352,11 @@ export function createRouter({
    * 租約會過期。過期之後收割器可能已經把事件推向終局，這時候再寫 Journal
    * 就是一個「沒有人擁有」的變更。所以每一個副作用之前都要再問一次。
    */
-  async function stillOwns(ownership, t) {
-    if (!ownership?.owner || typeof db.holdsLock !== 'function') return true;
+  async function stillOwns(ownership) {
+    if (!ownership?.eventId) return true;
+    if (!ownership.owner || typeof db.holdsLock !== 'function') return false;
     try {
-      return await db.holdsLock(ownership.name, ownership.owner, { now: t });
+      return await db.holdsLock(ownership.name, ownership.owner, { now: new Date(now()) });
     } catch (err) {
       // 確認不了就當作沒有 —— fail closed
       log.warn('proactive_ownership_check_failed', { error: describeError(err) });
@@ -400,15 +414,15 @@ export function createRouter({
         return ownership.reply;
       }
       try {
-        const claimed = await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
-        if (claimed) {
-          return await handlePendingAnswer({
-            pending, text, chatId, t, userId, timezone, coach, ownership,
-          });
-        }
-        log.warn('pending_question_claim_lost', {
-          user_id: userId, pending_question_id: pending.id, intent: pending.intent,
-        });
+        const processAnswer = async () => {
+          const claimed = await db.resolvePendingQuestion(userId, pending.id, text, { now: new Date(now()) });
+          if (!claimed) return null;
+          return handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach, ownership });
+        };
+        const reply = ownership.eventId
+          ? await db.withAnswerOwnership(userId, ownership, now, processAnswer)
+          : await processAnswer();
+        if (reply !== null) return reply;
       } finally {
         await releaseProcessingOwnership(ownership);
       }
@@ -647,12 +661,16 @@ export function createRouter({
     let savedLine = null;
     if (nat.ok) {
       // M-06：這題問的是哪一天，答案就記在哪一天（使用者自己講日期時除外）
+      const targetDate = questionTargetDateOf(pending);
+      if (nat.statedDayOffset === null && targetDate === null) {
+        return '我想確認一下：這是哪一天的事？（今天、昨天，還是前天？）';
+      }
       const event = anchorToQuestionDay(nat.event, {
-        anchorHealthDate: questionTargetDateOf(pending),
+        anchorHealthDate: targetDate,
         statedDayOffset: nat.statedDayOffset,
         timezone,
       });
-      if (!await stillOwns(ownership, t)) {
+      if (!await stillOwns(ownership)) {
         log.warn('pending_answer_ownership_lost', { user_id: userId, pending_question_id: pending.id });
         return '我這邊處理到一半被中斷了，這則先沒有記錄；需要的話再跟我說一次。';
       }
@@ -770,7 +788,7 @@ export function createRouter({
     // ★ R3-M-03 fence：寫 Journal 之前重新確認所有權還在。
     // 租約可能在 LLM 解析期間過期，而收割器已經把事件推向終局 ——
     // 那時候再寫就是一個「沒有人擁有」的變更。
-    if (!await stillOwns(ownership, t)) {
+    if (!await stillOwns(ownership)) {
       log.warn('proactive_answer_ownership_lost', {
         user_id: userId, event_id: proactiveEventId,
       });

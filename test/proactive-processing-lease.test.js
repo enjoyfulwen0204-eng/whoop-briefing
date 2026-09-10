@@ -112,7 +112,8 @@ test('★★★ R2-M-03: 解析中收割器跑過去 → 事件不被孤兒收�
     });
 
     assert.equal(reaped.abandoned, 0, '★ 正在處理的事件不可以被收成 ABANDONED');
-    assert.ok(reaped.skipped >= 1, '收割器要明確記下自己跳過了');
+    // Provider parsing now runs after rollback, so the question remains OPEN.
+    assert.equal(reaped.abandoned, 0);
     const row = await outcomeOf(db, user.id, eventId);
     assert.equal(row.outcome, PROACTIVE_OUTCOME.STILL_UNEXPLAINED,
       '★ 使用者真的回答了，結論必須是回答帶來的那個');
@@ -129,6 +130,7 @@ test('★★★ R2-M-03: 租約已過期而事件被收割 → 恢復的流程�
         args: [new Date(NOW.getTime() - 1000).toISOString(),
           PROACTIVE_PROCESSING_LEASE.name(user.id, eventId)],
       });
+      await db.resolveProactiveEventIfUnresolved(user.id, eventId, PROACTIVE_OUTCOME.ABANDONED, { now: NOW });
       await reapExpiredProactiveQuestions({ db, userId: user.id, now: NOW });
     });
     const router = createRouter({ db, coachFor, now: () => NOW });

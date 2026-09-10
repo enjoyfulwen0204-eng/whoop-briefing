@@ -14,7 +14,6 @@ import {
 } from './analyze.js';
 import { renderDaily } from './format.js';
 import { buildInsightsSafe } from './insights.js';
-import { guardExplanation } from './publishGuard.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
 
@@ -109,25 +108,8 @@ export async function runDaily({
     briefing.whatChanged = insights?.whatChanged ?? null;
     briefing.historyDays = insights?.historyDays ?? null;
 
-    // AI 只負責講話；掛掉就走 fallback（照樣發數據簡報）
-    coachText = await coach.daily(briefing);
-
-    // ★ R3-H-02：教練文字是**純裝飾**，不是資訊來源。
-    //
-    // renderDaily() 已經把每一個指標、基準、判定都確定性地印出來了，
-    // 所以這一段只需要通過一個檢查：**它有沒有夾帶任何生理斷言**。
-    // 有就整段丟掉 —— 使用者少的只是一句鼓勵的話，資訊一個字都不會少。
-    //
-    // 這個不對稱正是過濾器可以「寧可錯殺」的原因，也是它不必列舉每一種
-    // 幻覺句型的原因（前兩輪的做法連續兩次被改寫繞過）。
-    const guarded = guardExplanation(coachText, { label: 'daily' });
-    if (coachText && guarded.used === 'discarded') {
-      log.warn('daily_narrative_rejected', {
-        health_date: healthDate,
-        violations: guarded.violations?.slice(0, 6) ?? [],
-      });
-    }
-    coachText = guarded.text;
+    // Production cut: health publication is application-owned only.
+    coachText = null;
 
     text = renderDaily(briefing, coachText);
   } catch (err) {

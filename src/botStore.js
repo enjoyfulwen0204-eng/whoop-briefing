@@ -10,6 +10,22 @@ import { requireUserId } from './userContext.js';
 
 const nowIso = (d = new Date()) => d.toISOString();
 
+/**
+ * context_json → 物件。**壞掉就回 null，絕不拋錯。**
+ *
+ * 收割器一次處理一批追問；如果其中一列的 context 壞了就讓整個查詢的
+ * 結果映射拋錯，那個使用者的收割會永遠停擺——等於用一個新的永久卡死
+ * 取代舊的永久卡死。
+ */
+function safeParseContext(raw) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function createBotStore(client) {
   // -------------------------------------------------------------------------
   // telegram_state（key-value）
@@ -220,28 +236,80 @@ export function createBotStore(client) {
    *
    * 一樣用 intent 過濾：只有主動代理發出的問題才連著 proactive_events。
    */
+  /**
+   * 一個追問「還沒有結果、而且屬於同一個使用者」的事件 id。
+   *
+   * ## RF-01：為什麼需要**兩種**連結
+   *
+   * 問題與事件之間的關係在系統裡有兩種表示法：
+   *
+   *   1. `proactive_events.pending_question_id`（欄位）
+   *   2. `pending_questions.context_json.proactive_event_id`（context）
+   *
+   * 正常情況下兩者指向同一件事。但**澄清追問**會讓它們分岔：
+   * router 在聽不懂使用者的回答時會開一個新的追問（Q2），context 沿用同一個
+   * `proactive_event_id`，但**不會**呼叫 markProactiveEventSent——所以事件的
+   * `pending_question_id` 仍然指著原本那題（Q1，此時已經是 ANSWERED）。
+   *
+   * 只看欄位的話，Q2 過期之後永遠找不到它的事件，事件就永遠停在 NULL。
+   *
+   * ## 為什麼要用 json_valid 包起來
+   *
+   * 實測（libSQL）：對壞掉的 JSON 直接 `json_extract` 會拋
+   * `SQLITE_ERROR: malformed JSON`，而且是**整個查詢**失敗——一列壞資料
+   * 就會讓這個使用者的收割永遠停擺。`json_valid` 先擋一層之後，壞掉的
+   * JSON 與 NULL 都只會得到 NULL，`e.id = NULL` 為假，安全地不匹配。
+   *
+   * ## 為什麼是 COALESCE 兩個子查詢，而不是一個 OR
+   *
+   * 欄位是最權威的連結，context 是備援；兩者理論上指向不同事件時
+   * （目前沒有任何程式路徑會產生）必須有確定的優先順序。
+   *
+   * 一開始寫成單一子查詢 + `ORDER BY CASE WHEN e.pending_question_id =
+   * pending_questions.id ...`，但 SQLite 在子查詢的 ORDER BY 裡解析不到
+   * 外層的關聯欄位，實測直接拋 `no such column: pending_questions.id`。
+   * 拆成兩個子查詢之後，每個子查詢的 ORDER BY 只碰自己的表，關聯只出現
+   * 在 WHERE（那是合法的），優先順序也變得一目瞭然。
+   *
+   * 兩個子查詢的 `user_id` 條件缺一不可：**絕不能相信 context 裡的事件
+   * id**，它可能被偽造成別人的事件。
+   */
+  const UNRESOLVED_EVENT_ID_SQL = `COALESCE(
+    (SELECT e.id FROM proactive_events e
+      WHERE e.user_id = pending_questions.user_id
+        AND e.outcome IS NULL
+        AND e.pending_question_id = pending_questions.id
+      ORDER BY e.id ASC LIMIT 1),
+    (SELECT e2.id FROM proactive_events e2
+      WHERE e2.user_id = pending_questions.user_id
+        AND e2.outcome IS NULL
+        AND e2.id = CASE WHEN json_valid(pending_questions.context_json)
+                         THEN json_extract(pending_questions.context_json, '$.proactive_event_id')
+                    END
+      ORDER BY e2.id ASC LIMIT 1)
+  )`;
+
   async function listReapablePendingQuestions(userId, { now = new Date(), intent = null, limit = 100 } = {}) {
     const uid = requireUserId(userId, 'listReapablePendingQuestions');
     // OPEN：還沒收過，一律要處理（不管它有沒有連到事件）。
     //
-    // EXPIRED：**只有**在它連著的事件還沒有結果時才需要處理——那正是
+    // EXPIRED：**只有**在它連得到的事件還沒有結果時才需要處理——那正是
     // 要修的半完成狀態。加上這個條件，已經修好的列就自然退出清單，
     // 收割器會收斂到零工作量；否則每天累積一列 EXPIRED，每輪都要重新
     // 拜訪一次。這個條件是**精確**的，不是時間窗猜測，不需要新門檻常數。
     const where = [
       'user_id = ?',
       'expires_at <= ?',
-      `(status = 'OPEN' OR (status = 'EXPIRED' AND EXISTS (
-          SELECT 1 FROM proactive_events e
-           WHERE e.user_id = pending_questions.user_id
-             AND e.pending_question_id = pending_questions.id
-             AND e.outcome IS NULL)))`,
+      `(status = 'OPEN' OR (status = 'EXPIRED' AND ${UNRESOLVED_EVENT_ID_SQL} IS NOT NULL))`,
     ];
     const args = [uid, nowIso(now)];
     if (intent) { where.push('intent = ?'); args.push(intent); }
     args.push(limit);
+    // ★ 選取與解析用**同一個** SQL 運算式算出事件 id，所以兩者在結構上
+    // 不可能不一致——收割器不需要（也不可以）自己再推一次目標事件。
     const rs = await client.execute({
-      sql: `SELECT * FROM pending_questions WHERE ${where.join(' AND ')}
+      sql: `SELECT *, ${UNRESOLVED_EVENT_ID_SQL} AS unresolved_event_id
+              FROM pending_questions WHERE ${where.join(' AND ')}
              ORDER BY id ASC LIMIT ?`,
       args,
     });
@@ -250,10 +318,16 @@ export function createBotStore(client) {
       chatId: row.chat_id,
       question: row.question,
       intent: row.intent,
-      context: row.context_json ? JSON.parse(row.context_json) : null,
+      // 壞掉的 context 不可以讓整批收割爆掉：解析失敗就當作沒有 context。
+      // 事件 id 本來就不從這裡取（見 unresolvedEventId），所以完全無損。
+      context: safeParseContext(row.context_json),
       askedAt: row.asked_at,
       expiresAt: row.expires_at,
       status: row.status,
+      // 已經過同一使用者驗證的目標事件；沒有就是 null。
+      unresolvedEventId: row.unresolved_event_id === null || row.unresolved_event_id === undefined
+        ? null
+        : Number(row.unresolved_event_id),
     }));
   }
 

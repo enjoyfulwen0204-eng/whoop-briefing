@@ -132,15 +132,20 @@ export async function reapExpiredProactiveQuestions({ db, userId, now = new Date
         out.repaired += 1;
       }
 
-      // 連回那筆事件。優先用 context 裡記的 id（開問題時就寫進去了），
-      // 查不到再用 pending_question_id 反查。
-      const eventId = Number(q.context?.proactive_event_id) || null;
-      let target = eventId;
-      if (!target && typeof db.getProactiveEventByPendingQuestion === 'function') {
-        const ev = await db.getProactiveEventByPendingQuestion(uid, q.id);
-        target = ev?.id ?? null;
-      }
+      // 目標事件。
+      //
+      // ⚠️ RF-01：這裡**不再**自己從 context 推事件 id。目標由
+      // `listReapablePendingQuestions` 用**與選取條件完全相同的 SQL
+      // 運算式**算出來（見 UNRESOLVED_EVENT_ID_SQL），所以「選到的那一列」
+      // 與「要收尾的那個事件」在結構上不可能不一致。
+      //
+      // 那個運算式已經做完三件事：同一個使用者、outcome IS NULL、
+      // 欄位連結優先於 context 連結。context 裡偽造成別人的事件 id 在
+      // 那一步就被 `e.user_id = pending_questions.user_id` 濾掉了。
+      const target = q.unresolvedEventId ?? null;
       if (!target) {
+        // OPEN 但沒有連到任何未結案的事件（例如孤兒問題）：已經收成
+        // EXPIRED 就夠了，沒有事件要收尾。
         out.skipped += 1;
         continue;
       }

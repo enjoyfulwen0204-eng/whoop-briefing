@@ -714,3 +714,300 @@ test('★★ F-05: 直接對 store 施加跨使用者的過期嘗試也無效', 
     assert.equal((await questionRow(db, bob.questionId)).status, 'OPEN');
   });
 });
+
+// ===========================================================================
+// ★★★ RF-01 —— 澄清追問（clarification）的收斂
+//
+// router 聽不懂使用者的回答時會開一個**新的**追問 Q2，context 沿用同一個
+// proactive_event_id，但不會呼叫 markProactiveEventSent。所以事件的
+// pending_question_id 仍然指著 Q1（此時已 ANSWERED）。只看那個欄位的話，
+// Q2 過期之後永遠找不到自己的事件 → 事件永遠停在 NULL → Guardian 永遠誤報。
+// ===========================================================================
+
+/** 完整重現 router.handleProactiveAnswer 的澄清分支。 */
+async function askWithClarification(db, user, { key = 'c1', now = T0 } = {}) {
+  const claim = await db.claimProactiveEvent(user.id, {
+    healthDate: '2026-09-09',
+    idempotencyKey: key,
+    signals: [{ code: 'HRV_LOW', metric: 'hrv' }],
+    decision: PROACTIVE_DECISION.ASK_CONTEXT,
+    reason: { question_category: 'alcohol' },
+    policyVersion: 'p1',
+    messageText: '昨天有喝酒嗎？',
+  }, { now });
+  const q1 = await db.openPendingQuestion(user.id, {
+    chatId: user.chatId,
+    question: '昨天有喝酒嗎？',
+    intent: PROACTIVE_QUESTION_INTENT,
+    contextJson: { health_date: '2026-09-09', category: 'alcohol', proactive_event_id: claim.id },
+    ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
+  }, { now });
+  await db.markProactiveEventSent(user.id, claim.id, { pendingQuestionId: q1 }, { now });
+
+  // 使用者回了聽不懂的話 → Q1 收成 ANSWERED，開澄清追問 Q2
+  const t1 = new Date(now.getTime() + 60_000);
+  const ctx = (await db.getOpenPendingQuestion(user.id, { now: t1 })).context;
+  await db.resolvePendingQuestion(user.id, q1, '嗯……', { now: t1 });
+  const q2 = await db.openPendingQuestion(user.id, {
+    chatId: user.chatId,
+    originalMessage: '昨天有喝酒嗎？',
+    question: '不好意思我沒有聽懂——可以說「有」還是「沒有」嗎？',
+    intent: PROACTIVE_QUESTION_INTENT,
+    contextJson: { ...ctx, clarified: true },
+    ttlMs: TELEGRAM_BOT.PENDING_TTL_MS,
+  }, { now: t1 });
+
+  return { eventId: claim.id, q1, q2, t1 };
+}
+
+const AFTER_CLARIFY = later(60_000 + TELEGRAM_BOT.PENDING_TTL_MS + 60_000);
+
+test('★★★ RF-01 (1): 澄清追問過期 → 事件收斂到 NO_RESPONSE', async () => {
+  await withDb(async (db) => {
+    const { eventId, q1, q2 } = await askWithClarification(db, ALICE);
+
+    // 前提：事件的欄位連結指著 Q1，不是 Q2
+    assert.equal((await eventById(db, ALICE.id, eventId)).pendingQuestionId, q1);
+    assert.equal((await questionRow(db, q1)).status, 'ANSWERED');
+
+    const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
+    assert.equal(res.noResponse, 1);
+    assert.equal((await questionRow(db, q2)).status, 'EXPIRED');
+    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
+  });
+});
+
+test('★★★ RF-01 (2): 澄清追問先被惰性過期 → 之後的收割仍然修得回來', async () => {
+  await withDb(async (db) => {
+    const { eventId, q2 } = await askWithClarification(db, ALICE);
+
+    // checkAndAct / router / /status 都會走這一行
+    await db.getOpenPendingQuestion(ALICE.id, { now: AFTER_CLARIFY });
+    assert.equal((await questionRow(db, q2)).status, 'EXPIRED');
+    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, null, '半完成狀態');
+
+    const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
+    assert.deepEqual(res, { expired: 0, repaired: 1, noResponse: 1, skipped: 0 });
+    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
+  });
+});
+
+test('★★★ RF-01 (3): 澄清追問的半完成狀態可以跨 process 修復', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'v11-rf01-'));
+  const url = `file:${path.join(dir, 't.db')}`;
+  try {
+    const db1 = createDb({ url });
+    await db1.migrate();
+    await seedAliceAndBob(db1);
+    const { eventId } = await askWithClarification(db1, ALICE);
+    await db1.getOpenPendingQuestion(ALICE.id, { now: AFTER_CLARIFY });   // 惰性過期後崩潰
+    db1.close();
+
+    const db2 = createDb({ url });
+    const res = await reapExpiredProactiveQuestions({ db: db2, userId: ALICE.id, now: AFTER_CLARIFY });
+    assert.equal(res.noResponse, 1);
+    assert.equal((await eventById(db2, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
+    db2.close();
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('★★★ RF-01 (4): 澄清追問被回答 → 事件絕不可以變成 NO_RESPONSE', async () => {
+  await withDb(async (db) => {
+    const { eventId, q2, t1 } = await askWithClarification(db, ALICE);
+    await db.resolvePendingQuestion(ALICE.id, q2, '有喝兩杯', { now: new Date(t1.getTime() + 60_000) });
+
+    const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
+    assert.equal(res.noResponse, 0);
+    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, null, '使用者真的回答過');
+  });
+});
+
+test('★★★ RF-01 (5): 澄清追問被取代（SUPERSEDED）→ 事件不變成 NO_RESPONSE', async () => {
+  await withDb(async (db) => {
+    const { eventId, q2, t1 } = await askWithClarification(db, ALICE);
+    // 又有新的主動問題 → Q2 變 SUPERSEDED
+    await db.openPendingQuestion(ALICE.id, {
+      chatId: ALICE.chatId, question: '新問題', intent: PROACTIVE_QUESTION_INTENT,
+      contextJson: {}, ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
+    }, { now: new Date(t1.getTime() + 1000) });
+    assert.equal((await questionRow(db, q2)).status, 'SUPERSEDED');
+
+    await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
+    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, null);
+  });
+});
+
+test('★★★ RF-01 (6): 澄清追問已產生 NO_RESPONSE 後，遲到的回答蓋不掉', async () => {
+  await withDb(async (db) => {
+    const { eventId, q2 } = await askWithClarification(db, ALICE);
+    await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
+
+    const ok = await db.resolvePendingQuestion(
+      ALICE.id, q2, '啊我現在才看到', { now: later(9e6) },
+    );
+    assert.equal(ok, false);
+    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
+  });
+});
+
+test('★★★ RF-01 (7): Alice 的 context 偽造成 Bob 的事件 id → Bob 的事件毫髮無傷', async () => {
+  await withDb(async (db) => {
+    const bob = await askProactive(db, BOB, { key: 'bob-1' });
+
+    // Alice 開一個 context 指向 **Bob 事件** 的主動問題
+    await db.openPendingQuestion(ALICE.id, {
+      chatId: ALICE.chatId,
+      question: '惡意問題',
+      intent: PROACTIVE_QUESTION_INTENT,
+      contextJson: { proactive_event_id: bob.eventId },
+      ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
+    }, { now: T0 });
+
+    // ★ 第一層：**選取**階段就不可以把別人的事件當成目標。
+    // 只斷言「Bob 的事件沒被改」不夠——寫入層的 user_id 條件本來就會擋下來，
+    // 所以那樣測不出選取層到底有沒有防線（縱深防禦的兩層要分別驗）。
+    const rows = await db.listReapablePendingQuestions(ALICE.id, {
+      now: AFTER_TTL, intent: PROACTIVE_QUESTION_INTENT,
+    });
+    for (const r of rows) {
+      assert.notEqual(
+        r.unresolvedEventId, bob.eventId,
+        '★ 選取階段就絕不可以把 Bob 的事件挑成 Alice 的目標',
+      );
+    }
+
+    // ★ 第二層：就算選取層被繞過，寫入層也必須擋下來。
+    const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
+    assert.equal(res.noResponse, 0, '★ 絕不可以解析到別人的事件');
+    assert.equal(
+      (await eventById(db, BOB.id, bob.eventId)).outcome, null,
+      '★ Bob 的事件必須完全不受影響',
+    );
+  });
+});
+
+test('★★★ RF-01 (8): context_json 壞掉 → 不當掉、不寫入、fail closed', async () => {
+  await withDb(async (db) => {
+    const { eventId, q2 } = await askWithClarification(db, ALICE);
+    await db.raw.execute({
+      sql: "UPDATE pending_questions SET context_json = '{壞掉的 JSON' WHERE id = ?",
+      args: [q2],
+    });
+
+    // 不可以拋錯（json_extract 對壞 JSON 會讓整個查詢失敗，所以要有 json_valid 守門）
+    const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
+    assert.equal(res.noResponse, 0, 'context 壞掉 → 不解析任何事件');
+    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, null);
+  });
+});
+
+test('★★★ RF-01 (8b): 壞掉的 context 不會讓同一批的其他問題也收不了', async () => {
+  await withDb(async (db) => {
+    // 一筆壞掉的孤兒問題
+    const bad = await db.openPendingQuestion(ALICE.id, {
+      chatId: ALICE.chatId, question: 'bad', intent: PROACTIVE_QUESTION_INTENT,
+      contextJson: { proactive_event_id: 999 }, ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
+    }, { now: T0 });
+    await db.raw.execute({
+      sql: "UPDATE pending_questions SET context_json = '{broken' WHERE id = ?", args: [bad],
+    });
+    // 一筆正常的（會 SUPERSEDE 上面那筆，所以直接改回 OPEN 模擬兩筆並存）
+    const good = await askProactive(db, ALICE, { key: 'good' });
+    await db.raw.execute({
+      sql: "UPDATE pending_questions SET status = 'OPEN' WHERE id = ?", args: [bad],
+    });
+
+    const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
+    assert.equal(
+      (await eventById(db, ALICE.id, good.eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE,
+      '★ 一列壞資料不可以讓整個使用者的收割停擺',
+    );
+    assert.ok(res.expired >= 1);
+  });
+});
+
+test('★★★ RF-01 (9): context 沒有 proactive_event_id → 不亂解析任何事件', async () => {
+  await withDb(async (db) => {
+    const other = await askProactive(db, ALICE, { key: 'other' });
+    // 另開一個沒有事件連結的主動問題（會把上面那題 SUPERSEDE 掉）
+    const orphan = await db.openPendingQuestion(ALICE.id, {
+      chatId: ALICE.chatId, question: '沒有 context 的問題',
+      intent: PROACTIVE_QUESTION_INTENT, contextJson: { category: 'alcohol' },
+      ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
+    }, { now: later(1000) });
+
+    const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
+    assert.equal((await questionRow(db, orphan)).status, 'EXPIRED', '仍然要被收成 EXPIRED');
+    assert.equal(
+      (await eventById(db, ALICE.id, other.eventId)).outcome, null,
+      '★ 不可以隨便挑一個事件來收尾',
+    );
+    assert.equal(res.noResponse, 0);
+  });
+});
+
+test('★★★ RF-01 (10): 重複收割 → 第一次解析一次，之後零工作量', async () => {
+  await withDb(async (db) => {
+    const { eventId } = await askWithClarification(db, ALICE);
+    const first = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
+    assert.equal(first.noResponse, 1);
+
+    for (let i = 0; i < 3; i += 1) {
+      const again = await reapExpiredProactiveQuestions({
+        db, userId: ALICE.id, now: new Date(AFTER_CLARIFY.getTime() + (i + 1) * 3600_000),
+      });
+      assert.deepEqual(again, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+    }
+    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
+  });
+});
+
+test('★★★ RF-01 (11): 兩個收割器同時處理澄清追問 → 只寫一次', async () => {
+  await withDb(async (db) => {
+    const { eventId } = await askWithClarification(db, ALICE);
+    const [a, b] = await Promise.all([
+      reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY }),
+      reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY }),
+    ]);
+    assert.equal(a.noResponse + b.noResponse, 1);
+    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
+  });
+});
+
+test('★★★ RF-01: 多個未結案事件 → 只收尾真正連結的那一個', async () => {
+  await withDb(async (db) => {
+    const { eventId, q2 } = await askWithClarification(db, ALICE, { key: 'linked' });
+    // 另一個同樣未結案、但與 Q2 毫無連結的事件
+    const unrelated = await db.claimProactiveEvent(ALICE.id, {
+      healthDate: '2026-09-08', idempotencyKey: 'unrelated',
+      signals: [], decision: PROACTIVE_DECISION.NOTIFY,
+      reason: {}, policyVersion: 'p1', messageText: 'n',
+    }, { now: T0 });
+
+    await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
+
+    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
+    assert.equal(
+      (await eventById(db, ALICE.id, unrelated.id)).outcome, null,
+      '★ 沒有連結的事件絕不可以被順手收掉',
+    );
+    assert.equal((await questionRow(db, q2)).status, 'EXPIRED');
+  });
+});
+
+test('★★ RF-01: 選取與解析用同一個事件身分（store 直接回傳目標）', async () => {
+  await withDb(async (db) => {
+    const { eventId, q2 } = await askWithClarification(db, ALICE);
+    const rows = await db.listReapablePendingQuestions(ALICE.id, {
+      now: AFTER_CLARIFY, intent: PROACTIVE_QUESTION_INTENT,
+    });
+    const row = rows.find((r) => r.id === q2);
+    assert.ok(row, '澄清追問必須出現在待收清單裡');
+    assert.equal(
+      row.unresolvedEventId, eventId,
+      '★ store 直接給出目標事件 id，收割器不需要自己再推一次',
+    );
+  });
+});

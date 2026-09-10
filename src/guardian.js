@@ -143,7 +143,24 @@ export function evaluate({ cronHeartbeat = null, users = [], now = new Date() } 
     }
 
     // ---- 4. WHOOP 授權連續失敗 ----
-    if (Number(u.whoopAuthFailures) >= GUARDIAN_POLICY.WHOOP_AUTH_FAILURE_MIN_HITS) {
+    //
+    // ★ M-08：只報**還沒恢復**的失敗。
+    //
+    // `error_notifications` 的 hits 是累加的，而且在正常路徑上會由
+    // `clearUserErrorNotify()` 在拿到 token 時清掉。但 Guardian 不可以
+    // 只依賴那一步：清除失敗、舊資料、或是先前版本留下的列，都會讓
+    // hits 永遠停在 3，於是每 12 小時響一次假警報直到天荒地老。
+    //
+    // 所以這裡再加一道**獨立的**恢復證據：如果最近一次成功同步比最後
+    // 一次授權失敗還新，那就是已經恢復了——同步成功必然代表 token 有效。
+    // 假警報比沒有警報更糟：它會很快訓練出「看到 Guardian 就忽略」。
+    const failureAt = u.whoopAuthFailureAt ? Date.parse(u.whoopAuthFailureAt) : null;
+    const syncOkAt = u.lastSyncOkAt ? Date.parse(u.lastSyncOkAt) : null;
+    const recovered = Number.isFinite(failureAt) && Number.isFinite(syncOkAt)
+      && syncOkAt > failureAt;
+
+    if (!recovered
+        && Number(u.whoopAuthFailures) >= GUARDIAN_POLICY.WHOOP_AUTH_FAILURE_MIN_HITS) {
       out.push(finding({
         signal: GUARDIAN_SIGNAL.WHOOP_AUTH_REPEATED_FAILURE,
         level: GUARDIAN_LEVEL.LEVEL_2_NOTIFY,
@@ -223,6 +240,7 @@ export async function gatherFacts({ db, now = new Date() }) {
       stuckProactiveCount: 0,
       oldestStuckSentAt: null,
       whoopAuthFailures: 0,
+      whoopAuthFailureAt: null,
     };
 
     try {
@@ -250,6 +268,8 @@ export async function gatherFacts({ db, now = new Date() }) {
     try {
       const notif = await db.getErrorNotification(userScope(uid), 'whoop_auth');
       fact.whoopAuthFailures = notif?.hits ?? 0;
+      // M-08：失敗發生在什麼時候，才判斷得出來「後來有沒有恢復」
+      fact.whoopAuthFailureAt = notif?.lastNotifiedAt ?? null;
     } catch { /* 查不到就當作沒有失敗 */ }
 
     facts.users.push(fact);

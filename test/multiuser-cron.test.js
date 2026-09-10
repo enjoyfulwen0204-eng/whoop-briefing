@@ -241,7 +241,7 @@ test('/link：正確的碼可以綁定；之後該 chat 就能被解析成該使
     const { code } = await db.createLinkCode('u-friend', { ttlMs: 60_000 });
 
     assert.equal(await db.resolveUserByChatId('5001'), null);
-    const reply = await handleLinkAttempt({ db, text: `/link ${code}`, chatId: '5001' });
+    const reply = await handleLinkAttempt({ db, text: `/link ${code}`, chatId: '5001', isPrivateChat: true });
     assert.match(reply, /綁定完成/);
     assert.match(reply, /Friend/);
     assert.equal((await db.resolveUserByChatId('5001')).user.id, 'u-friend');
@@ -256,9 +256,9 @@ test('/link：無效 / 過期 / 用過的碼都回同一句中性訊息（不當
     const expired = await db.createLinkCode('u-f2', { ttlMs: -1000 });
 
     const replies = await Promise.all([
-      handleLinkAttempt({ db, text: '/link total-nonsense', chatId: '6002' }),
-      handleLinkAttempt({ db, text: `/link ${used.code}`, chatId: '6003' }),
-      handleLinkAttempt({ db, text: `/link ${expired.code}`, chatId: '6004' }),
+      handleLinkAttempt({ db, text: '/link total-nonsense', chatId: '6002', isPrivateChat: true }),
+      handleLinkAttempt({ db, text: `/link ${used.code}`, chatId: '6003', isPrivateChat: true }),
+      handleLinkAttempt({ db, text: `/link ${expired.code}`, chatId: '6004', isPrivateChat: true }),
     ]);
     assert.equal(new Set(replies).size, 1, '三種失敗必須是同一句話');
     assert.match(replies[0], /無法使用/);
@@ -273,7 +273,7 @@ test('/link：已經綁定的 chat 不會被靜默搶走', async () => {
   await withAliceBob(async (db) => {
     await db.createUser({ id: 'u-f3', displayName: 'F3' });
     const { code } = await db.createLinkCode('u-f3', { ttlMs: 60_000 });
-    const reply = await handleLinkAttempt({ db, text: `/link ${code}`, chatId: ALICE.chatId });
+    const reply = await handleLinkAttempt({ db, text: `/link ${code}`, chatId: ALICE.chatId, isPrivateChat: true });
     assert.match(reply, /已經綁定過/);
     assert.equal((await db.resolveUserByChatId(ALICE.chatId)).user.id, ALICE.id,
       'Alice 的綁定必須完好');
@@ -289,7 +289,7 @@ test('/link：未綁定的 chat 傳其他訊息 → 完全不回（不洩漏 bot
       );
     }
     // 只有 /link 沒帶碼會回用法
-    assert.match(await handleLinkAttempt({ db, text: '/link', chatId: '7001' }), /用法/);
+    assert.match(await handleLinkAttempt({ db, text: '/link', chatId: '7001', isPrivateChat: true }), /用法/);
   });
 });
 
@@ -298,8 +298,8 @@ test('/link：並發用同一組碼，只有一個 chat 綁成功', async () => 
     await db.createUser({ id: 'u-f4', displayName: 'F4' });
     const { code } = await db.createLinkCode('u-f4', { ttlMs: 60_000 });
     const replies = await Promise.all([
-      handleLinkAttempt({ db, text: `/link ${code}`, chatId: '8001' }),
-      handleLinkAttempt({ db, text: `/link ${code}`, chatId: '8002' }),
+      handleLinkAttempt({ db, text: `/link ${code}`, chatId: '8001', isPrivateChat: true }),
+      handleLinkAttempt({ db, text: `/link ${code}`, chatId: '8002', isPrivateChat: true }),
     ]);
     const wins = replies.filter((r) => /綁定完成/.test(r));
     assert.equal(wins.length, 1, `恰好一個成功，實際 ${wins.length}`);

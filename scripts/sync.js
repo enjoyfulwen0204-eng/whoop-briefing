@@ -35,7 +35,9 @@ try {
   let round = 0;
   for (;;) {
     round += 1;
-    const sync = createSync({ db, whoop, timezone: env.timezone, now: new Date() });
+    // ★ L-03 同一條：health_date 的歸屬由時區決定，一定要用**這個使用者的**。
+    // 用 bootstrap 時區同步別人的資料，會把睡眠記到錯的健康日上。
+    const sync = createSync({ db, whoop, timezone: user.timezone, now: new Date() });
     const results = await sync.syncAll({ force: true });
 
     console.log(`\n── 第 ${round} 輪 ──`);

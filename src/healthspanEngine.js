@@ -63,7 +63,30 @@ export function maturityFromReadiness(status, { policy = HEALTHSPAN_POLICY } = {
 export function buildPersonalHealthspan(rows = [], {
   endDate = null, windowDays = 90, capabilities = {}, policy = HEALTHSPAN_POLICY,
 } = {}) {
-  const anchor = endDate ?? (rows.length ? rows[rows.length - 1].health_date : null);
+  // ★ M-10：錨點必須是**最新**的健康日，而且不可以依賴陣列順序。
+  //
+  // 舊版寫 `rows[rows.length - 1]`，也就是假設 rows 是「舊→新」。但這個
+  // 系統的 daily metrics 是**新→舊**：`buildObservations()` 用
+  // `b.endUtc - a.endUtc` 排序，`healthQuery.js` 全篇也都拿 `rows[0]` 當
+  // 「最新」、`rows[at(-1)]` 當「最早」。所以 `/healthspan` 的錨點取到的是
+  // **最舊**的那一天。
+  //
+  // 後果不是差一天：以 120 天歷史為例，錨點會落在 119 天前，90 天窗口
+  // 於是覆蓋「四個月前到七個月前」，整份盤點都在描述一段早就過去的時間。
+  // 而且畫面上不會有任何地方看起來壞掉。
+  //
+  // 這裡直接取 max(health_date)：與順序無關，兩個呼叫端（cron 傳 endDate、
+  // bot 不傳）都不可能再被順序假設咬到。
+  const latestHealthDate = () => {
+    let best = null;
+    for (const r of rows) {
+      const d = r?.health_date;
+      if (typeof d !== 'string' || !d) continue;
+      if (best === null || d > best) best = d;
+    }
+    return best;
+  };
+  const anchor = endDate ?? latestHealthDate();
   const contributors = buildContributors(rows, { endDate: anchor, windowDays, capabilities });
 
   const readiness = assessHealthspanFoundation({ contributors });

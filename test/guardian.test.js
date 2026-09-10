@@ -20,7 +20,9 @@ import { evaluate, gatherFacts, runGuardian, renderFinding } from '../src/guardi
 import {
   GUARDIAN_LEVEL, GUARDIAN_POLICY, GUARDIAN_SIGNAL, HEARTBEAT_COMPONENT,
 } from '../src/guardianPolicy.js';
-import { GLOBAL_SCOPE, userScope, PROACTIVE_DECISION } from '../src/schema.js';
+import {
+  GLOBAL_SCOPE, userScope, PROACTIVE_DECISION, PROACTIVE_QUESTION_INTENT,
+} from '../src/schema.js';
 import { ALICE, BOB, seedAliceAndBob } from './users.js';
 
 function tempDb() {
@@ -493,15 +495,22 @@ test('gatherFacts 讀得到心跳、同步時間、卡住的事件與授權失�
       backfillComplete: true, lastSuccessAt: hoursAgo(2),
     }, { now: NOW });
 
-    // 一筆「送出了但沒收尾」而且夠老的事件
+    // 一筆「問了、送出了、但沒收尾」而且夠老的事件。
+    // ⚠️ 一定要真的開一個追問（M-07）：沒有追問的事件在送出時就已經是
+    // DELIVERED 終局，本來就不該被算成「卡住」。
+    const sentAt = new Date(NOW.getTime() - 72 * 3600_000);
     const claim = await db.claimProactiveEvent(ALICE.id, {
       healthDate: '2026-09-05', idempotencyKey: 'stuck-1',
       signals: [], decision: PROACTIVE_DECISION.ASK_CONTEXT,
       reason: {}, policyVersion: 'p1', messageText: 'q',
-    }, { now: new Date(NOW.getTime() - 72 * 3600_000) });
-    await db.markProactiveEventSent(ALICE.id, claim.id, {}, {
-      now: new Date(NOW.getTime() - 72 * 3600_000),
-    });
+    }, { now: sentAt });
+    const stuckQuestionId = await db.openPendingQuestion(ALICE.id, {
+      chatId: ALICE.chatId, question: 'q', intent: PROACTIVE_QUESTION_INTENT,
+      contextJson: { proactive_event_id: claim.id }, ttlMs: 30 * 60_000,
+    }, { now: sentAt });
+    await db.markProactiveEventSent(ALICE.id, claim.id, {
+      pendingQuestionId: stuckQuestionId,
+    }, { now: sentAt });
 
     // 授權失敗次數：用既有的 claimErrorNotify 累積
     await db.claimErrorNotify(userScope(ALICE.id), 'whoop_auth', 2);

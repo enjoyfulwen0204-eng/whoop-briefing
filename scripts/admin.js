@@ -116,7 +116,8 @@ export const COMMANDS = {
     out('');
     out('接下來：');
     out(`   1. node scripts/admin.js link:new --user=${user.id}`);
-    out('      把印出來的綁定碼給對方，請他在 Telegram 傳 /link <碼>');
+    out('      把印出來的綁定碼給對方，請他在 Telegram **私訊** bot 傳 /link <碼>');
+    out('      （群組裡送出無效——健康資料只在私訊裡運作）');
     out(`   2. npm run authorize -- --user=${user.id}`);
     out('      完成 WHOOP 授權（需要對方本人在場同意）');
     return 0;
@@ -189,7 +190,7 @@ export const COMMANDS = {
     out(`    ${code}`);
     out('');
     out(`有效期限：${expiresAt}（${ttlHours} 小時）`);
-    out('請對方在 Telegram 對 bot 傳：');
+    out('請對方**私訊** bot（不要在群組裡）傳：');
     out(`    /link ${code}`);
     out('');
     out('這組碼只能用一次。資料庫裡只存雜湊，遺失就重新產生一組。');

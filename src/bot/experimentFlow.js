@@ -84,7 +84,13 @@ export async function handleStep({ db, userId, pending, text, now, timezone }) {
   // --- 還有下一步 ---
   const nextIndex = stepIndex + 1;
   if (nextIndex < STEPS.length) {
-    await db.resolvePendingQuestion(userId, pending.id, answer, { now });
+    // M-02 同一條不變量：認領成功才有資格推進到下一步。
+    // 輸掉代表這一步已經被別人（或收割器）收走了，重開下一題會讓
+    // 使用者看到兩條互相打架的流程。
+    if (!await db.resolvePendingQuestion(userId, pending.id, answer, { now })) {
+      log.warn('experiment_flow_claim_lost', { user_id: userId, pending_question_id: pending.id });
+      return null;
+    }
     await db.openPendingQuestion(userId, {
       chatId: pending.chatId,
       originalMessage: '/experiment create',
@@ -97,7 +103,12 @@ export async function handleStep({ db, userId, pending, text, now, timezone }) {
   }
 
   // --- 全部問完 → 建立並啟動 ---
-  await db.resolvePendingQuestion(userId, pending.id, answer, { now });
+  // ★ 認領必須在 createExperiment **之前**且必須成功：否則同一段流程被
+  // 處理兩次會建立兩個一模一樣的實驗。
+  if (!await db.resolvePendingQuestion(userId, pending.id, answer, { now })) {
+    log.warn('experiment_flow_claim_lost', { user_id: userId, pending_question_id: pending.id });
+    return null;
+  }
 
   const today = localDate(now, timezone);
   const created = await createExperiment(db, userId, {

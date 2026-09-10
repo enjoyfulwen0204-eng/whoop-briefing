@@ -33,7 +33,9 @@ try {
   process.exit(1);
 }
 
-console.log(`現在時間：UTC ${new Date().toISOString()} ／ ${env.timezone} ${localDate(new Date(), env.timezone)} ${localTime(new Date(), env.timezone)}\n`);
+// 這一行在 pickUser() 之前，而且刻意標明是 **bootstrap** 時區——
+// 它描述的是執行環境，不是任何使用者的時區（L-03）。
+console.log(`現在時間：UTC ${new Date().toISOString()} ／ bootstrap 時區 ${env.timezone} ${localDate(new Date(), env.timezone)} ${localTime(new Date(), env.timezone)}\n`);
 
 const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
 await db.migrate();
@@ -82,7 +84,8 @@ if (tokens) {
 try {
   const coach = createCoach({ apiKey: env.openrouterApiKey, model: env.openrouterModel });
   const text = await coach.daily({
-    localDate: localDate(new Date(), env.timezone),
+    // L-03：這時候已經有 user 了，就用他的時區
+    localDate: localDate(new Date(), user.timezone),
     stage: 'cold',
     sampleCount: 0,
     metrics: [],

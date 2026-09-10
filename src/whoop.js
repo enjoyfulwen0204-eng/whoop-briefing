@@ -40,6 +40,55 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // OAuth
 // ---------------------------------------------------------------------------
 
+/**
+ * 用剛換到的 access token 問「這是誰的 WHOOP 帳號」（M-01）。
+ *
+ * ## 為什麼授權流程一定要做這一步
+ *
+ * `postToken()` 只回 access_token / refresh_token / expires_in / scope ——
+ * WHOOP 的 token endpoint **不會告訴你這是誰**。所以 `completeAuthorization`
+ * 裡的 `tokens.whoopUserId` 在正式路徑上永遠是 undefined，
+ * `user_whoop_tokens.whoop_user_id` 永遠寫進 NULL，而那個 partial unique
+ * index 的條件正是 `WHERE whoop_user_id IS NOT NULL` ——
+ * **所有防止「同一個 WHOOP 帳號綁到兩個內部使用者」的機制全部沒有生效。**
+ *
+ * 後果不是「少一個檢查」，是**身分被捏造**：兩個內部使用者可以指向同一個
+ * WHOOP 帳號，之後 Bob 的每日簡報、Journal 關聯、長期規律、預測，全部是
+ * Alice 的生理資料，而系統會自信地稱它為 Bob 的。
+ *
+ * 這支函式因此是授權流程的**必要**步驟，不是加值功能：
+ * 問不到身分就不存 token（見 completeAuthorization 的 fail-closed）。
+ *
+ * 用的是官方 v2 `/user/profile/basic`，只讀 `user_id`，
+ * **不儲存也不 log 姓名或 email**。
+ */
+export async function fetchWhoopUserId({
+  accessToken, apiBase = WHOOP.API_BASE, fetchImpl = fetch,
+}) {
+  if (!accessToken) throw new WhoopAuthError('fetchWhoopUserId：沒有 access token');
+  let res;
+  try {
+    res = await fetchImpl(`${apiBase}/user/profile/basic`, {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+    });
+  } catch (err) {
+    throw new WhoopApiError(`WHOOP 身分查詢連線失敗：${err?.message ?? err}`, 0);
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new WhoopApiError(
+      `WHOOP 身分查詢失敗 ${res.status}: ${body.slice(0, 200)}`, res.status,
+    );
+  }
+  const json = await res.json().catch(() => null);
+  const id = json?.user_id;
+  // 0 是不合法的 WHOOP user id；空字串 / null / undefined 也一樣不可接受
+  if (id === null || id === undefined || id === '' || Number(id) === 0) {
+    throw new WhoopApiError('WHOOP 身分查詢沒有回傳 user_id', res.status);
+  }
+  return String(id);
+}
+
 /** 建立授權網址（一次性授權腳本用）。 */
 export function buildAuthorizeUrl({ clientId, redirectUri, state }) {
   const u = new URL(WHOOP.AUTH_URL);

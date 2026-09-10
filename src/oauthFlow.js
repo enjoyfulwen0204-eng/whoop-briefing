@@ -57,11 +57,31 @@ export async function prepareAuthorization({
 /**
  * 完成授權：驗 state（原子消耗）→ 換 token → 存給 state 綁定的那個使用者。
  *
+ * ## M-01：身分必須被驗證，絕不可以捏造
+ *
+ * WHOOP 的 token endpoint **不會回傳這是誰的帳號**，所以 `exchange()` 的
+ * 結果裡沒有 `whoopUserId`。舊版直接 `tokens.whoopUserId ?? null`，於是正式
+ * 路徑上 `whoop_user_id` 永遠是 NULL，而 schema 的 partial unique index
+ * （`WHERE whoop_user_id IS NOT NULL`）與 `findUserByWhoopUserId()` 全部
+ * 形同虛設 —— 同一個 WHOOP 帳號可以綁到兩個內部使用者，之後 Bob 的簡報
+ * 其實是 Alice 的生理資料。實測確認：兩次授權都成功，兩筆都是 NULL。
+ *
+ * 現在身分驗證是**授權流程的必要步驟**，而且三個方向都 fail-closed：
+ *
+ *   1. 問不到 WHOOP user id  → 不存 token，`IDENTITY_UNVERIFIED`。
+ *   2. 這個 WHOOP 帳號已經屬於另一個內部使用者 → 拒絕（DB unique index
+ *      仍然是 race-safe 的最後一道）。
+ *   3. 這個內部使用者先前已經綁過**另一個** WHOOP 帳號 → 拒絕。
+ *      否則舊帳號累積的健康資料會被無聲地重新歸屬到新帳號名下。
+ *
  * @param {function} exchange async ({ code }) => { accessToken, refreshToken, expiresAt, scope, whoopUserId? }
  *   由呼叫端注入，測試時給 mock，正式跑時包 whoop.exchangeCode。
+ * @param {function} verifyIdentity async ({ accessToken }) => string
+ *   用剛拿到的 token 問出 WHOOP user id。**必填** —— 沒有它就沒有身分，
+ *   沒有身分就不存 token。正式跑時包 whoop.fetchWhoopUserId。
  */
 export async function completeAuthorization({
-  db, rawState, code, exchange, now = new Date(),
+  db, rawState, code, exchange, verifyIdentity, now = new Date(),
 }) {
   if (!code) throw new OAuthFlowError('NO_CODE', 'callback 沒有帶 authorization code');
 
@@ -79,7 +99,56 @@ export async function completeAuthorization({
   const tokens = await exchange({ code });
   if (!tokens?.accessToken) throw new OAuthFlowError('NO_TOKEN', 'WHOOP 沒有回傳 access_token');
 
-  const whoopUserId = tokens.whoopUserId ?? null;
+  // ---- M-01 身分閘門：先確定這是誰，才可能把 token 存到誰身上 ----
+  let whoopUserId = tokens.whoopUserId ?? null;
+  if (whoopUserId === null || whoopUserId === undefined || String(whoopUserId).trim() === '') {
+    if (typeof verifyIdentity !== 'function') {
+      throw new OAuthFlowError(
+        'IDENTITY_UNVERIFIED',
+        'WHOOP 沒有回傳帳號身分，而且沒有提供 verifyIdentity —— '
+        + '為避免把別人的生理資料歸到這個使用者名下，授權中止（token 未儲存）。',
+      );
+    }
+    try {
+      whoopUserId = await verifyIdentity({ accessToken: tokens.accessToken });
+    } catch (err) {
+      throw new OAuthFlowError(
+        'IDENTITY_UNVERIFIED',
+        `無法向 WHOOP 確認這是哪個帳號（${String(err?.message ?? err).slice(0, 160)}）——`
+        + '為避免身分錯置，授權中止（token 未儲存）。',
+      );
+    }
+  }
+  whoopUserId = whoopUserId === null || whoopUserId === undefined
+    ? null : String(whoopUserId).trim();
+  if (!whoopUserId) {
+    throw new OAuthFlowError(
+      'IDENTITY_UNVERIFIED',
+      'WHOOP 身分查詢回傳空值 —— 授權中止（token 未儲存）。',
+    );
+  }
+
+  // 這個 WHOOP 帳號已經是別人的？（DB unique index 是 race-safe 的最後一道，
+  // 這裡先擋是為了給人看得懂的錯誤，而且在寫入之前就停下來。）
+  const owner = await db.findUserByWhoopUserId(whoopUserId, { excludeUserId: userId });
+  if (owner) {
+    throw new OAuthFlowError(
+      'WHOOP_ACCOUNT_ALREADY_LINKED',
+      `這個 WHOOP 帳號已經綁在另一個內部使用者身上（${owner}），不可重複綁定。`,
+    );
+  }
+
+  // 這個內部使用者先前綁的是**另一個** WHOOP 帳號？
+  // 直接覆蓋會讓舊帳號累積的健康資料被無聲地重新歸屬，等同捏造身分。
+  const existing = await db.getTokens(userId);
+  if (existing?.whoopUserId && String(existing.whoopUserId) !== whoopUserId) {
+    throw new OAuthFlowError(
+      'WHOOP_ACCOUNT_MISMATCH',
+      `使用者 ${userId} 先前綁定的是另一個 WHOOP 帳號。`
+      + '換帳號會讓既有的健康資料被錯誤歸屬，因此拒絕。'
+      + '若確定要換人，請建立新的內部使用者。',
+    );
+  }
 
   try {
     await db.saveTokens(userId, {
@@ -103,7 +172,9 @@ export async function completeAuthorization({
   }
 
   log.info('oauth_authorize_completed', {
-    user_id: userId, has_refresh: Boolean(tokens.refreshToken),
+    user_id: userId,
+    has_refresh: Boolean(tokens.refreshToken),
+    whoop_user_id: whoopUserId,
   });
   return { userId, whoopUserId, scope: tokens.scope ?? null };
 }

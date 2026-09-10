@@ -59,13 +59,49 @@ export function createPoller({
   /**
    * 這則 update 是不是我們要處理的文字訊息，以及它屬於哪個內部使用者。
    * 身分解析在**進入 router 之前**完成，router 拿到的一定是已知使用者。
+   *
+   * ## H-01：身分是「私訊的那個人」，不是「這個聊天室」
+   *
+   * 舊版只看 `msg.chat.id`，完全不看訊息是**誰**送的、也不看聊天室型態。
+   * 於是只要有一個群組被綁定過（`/link` 在群組裡送出就會成功），
+   * **群組裡任何一個人**的訊息都會被解析成綁定者本人 —— 可以讀他的生理
+   * 資料、寫他的 Journal、看他的報告與長期規律。實測確認：Bob 在群組發言
+   * 被解析成 Alice。
+   *
+   * V1.1 沒有任何「群組共享」的產品模型，所以這裡採 **fail-closed 私訊限定**，
+   * 而不是臨時發明分享語義：
+   *
+   *   1. `chat.type` 必須是 `private`。群組 / 超級群組 / 頻道一律拒絕。
+   *   2. 送訊息的人必須是真人（`from.is_bot` 為真一律拒絕）。
+   *   3. `from.id` 必須等於 `chat.id`。Telegram 的私訊聊天室 id 就是對方的
+   *      使用者 id，所以這一條等於「這則訊息真的是這個帳號本人送的」，
+   *      而且**不需要改 schema** 就取得了寄件者綁定。
+   *
+   * 三條都必須明確成立才放行；缺欄位、型態不明、對不上一律當成未授權。
+   * 被拒絕的訊息**完全不回覆**（連錯誤都不回），與既有「未綁定 chat 一律
+   * 靜默」的立場一致：對方永遠學不到這個 bot 綁了誰、有沒有人在用。
+   *
+   * 這一段刻意放在 `resolveUser()` **之前** —— 連查都不查，就不可能因為
+   * 查詢副作用而洩漏任何東西。
    */
   async function classify(update) {
     const msg = update?.message;
     if (!msg) return { kind: 'not_a_message' };
-    const chatId = String(msg.chat?.id ?? '');
+    const chat = msg.chat ?? {};
+    const chatId = String(chat.id ?? '');
     if (typeof msg.text !== 'string' || !msg.text.trim()) return { kind: 'no_text', chatId };
     const text = msg.text.trim();
+
+    // ---- H-01 授權閘門（fail-closed，三條缺一不可）----
+    if (chat.type !== 'private') {
+      return { kind: 'non_private_chat', chatId, chatType: chat.type ?? 'unknown' };
+    }
+    const from = msg.from ?? {};
+    if (from.is_bot === true) return { kind: 'bot_sender', chatId };
+    const senderId = String(from.id ?? '');
+    if (!senderId || senderId !== chatId) {
+      return { kind: 'sender_chat_mismatch', chatId };
+    }
 
     const resolved = await resolveUser(chatId);
     if (!resolved) return { kind: 'unlinked', chatId, text, message: msg };
@@ -90,6 +126,41 @@ export function createPoller({
       }
 
       stats.updates += 1;
+
+      // ★ M-09：原子認領，而且**在任何副作用之前**。
+      //
+      // 上面的 offset 防線只在「offset 存得下去」時有效。實際流程是
+      // 「處理（寫 journal、跑分析、送訊息）→ 存 offset」兩段寫入，
+      // 中間 worker 被殺（部署、OOM、SIGKILL）的話 offset 還是舊的，
+      // Telegram 會把同一則 update 再送一次 —— 同一句話被寫成兩筆 journal。
+      // 實測確認：重送一次 → 2 筆。
+      //
+      // 認領放在 classify() **之前**：連身分解析都不做，就不可能有任何
+      // 副作用（含 getOpenPendingQuestion 的惰性過期寫入）。
+      if (typeof db.claimTelegramUpdate === 'function') {
+        let claimed = true;
+        try {
+          claimed = await db.claimTelegramUpdate(updateId);
+        } catch (err) {
+          // 認領機制本身壞掉時**放行**：寧可偶爾重複，也不要讓整個 bot
+          // 啞掉。這是刻意的取捨，而且會留下明確的 log。
+          log.error('telegram_update_claim_failed', {
+            update_id: updateId, error: describeError(err),
+          });
+        }
+        if (!claimed) {
+          stats.ignored += 1;
+          log.info('telegram_update_skipped_replay', { update_id: updateId });
+          offset = updateId + 1;
+          try {
+            await db.setUpdateOffset(offset);
+          } catch (err) {
+            log.error('telegram_offset_save_failed', { offset, error: describeError(err) });
+          }
+          continue;
+        }
+      }
+
       const c = await classify(update);
 
       if (c.kind === 'unlinked') {
@@ -98,7 +169,10 @@ export function createPoller({
         log.warn('telegram_unlinked_chat', { update_id: updateId, chat_id: c.chatId });
         if (handleUnlinked) {
           try {
-            await handleUnlinked({ text: c.text, chatId: c.chatId, message: c.message });
+            // classify() 已經保證走到這裡的一定是私訊本人，明確傳下去
+            await handleUnlinked({
+              text: c.text, chatId: c.chatId, message: c.message, isPrivateChat: true,
+            });
           } catch (err) {
             stats.errors += 1;
             log.error('telegram_unlinked_handle_failed', {
@@ -108,7 +182,15 @@ export function createPoller({
         }
       } else if (c.kind !== 'ok') {
         stats.ignored += 1;
-        log.info('telegram_update_ignored', { update_id: updateId, reason: c.kind });
+        // H-01：被授權閘門擋下的訊息記 warn（這是安全事件，不是雜訊），
+        // 但**不回覆任何內容**——群組成員不該從回覆推斷出這個 bot 綁了誰。
+        if (c.kind === 'non_private_chat' || c.kind === 'bot_sender' || c.kind === 'sender_chat_mismatch') {
+          log.warn('telegram_message_rejected', {
+            update_id: updateId, reason: c.kind, chat_id: c.chatId, chat_type: c.chatType ?? null,
+          });
+        } else {
+          log.info('telegram_update_ignored', { update_id: updateId, reason: c.kind });
+        }
       } else {
         try {
           await handleMessage({
@@ -132,6 +214,15 @@ export function createPoller({
         log.error('telegram_offset_save_failed', {
           offset, error: describeError(err),
         });
+      }
+    }
+
+    // 認領紀錄的裁剪：一批一次，不是一則一次。失敗完全無所謂。
+    if (offset > startOffset && typeof db.pruneTelegramUpdates === 'function') {
+      try {
+        await db.pruneTelegramUpdates(offset);
+      } catch (err) {
+        log.warn('telegram_update_prune_failed', { error: describeError(err) });
       }
     }
     return offset;

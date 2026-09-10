@@ -92,15 +92,39 @@ export async function reanalyzeAfterAnswer({
   const readyEnough = readiness.status === READINESS_STATUS.READY
     || readiness.status === READINESS_STATUS.LIMITED;
 
-  if (!readyEnough || !assoc.usable) {
+  // ★ 第三關（M-05）：這個關聯**真的算得出來**嗎？
+  //
+  // 前兩關都只看「數量」：readiness 看樣本數，usable 看有沒有對照組。
+  // 兩者都可能在關聯**根本無法測量**時通過 —— 最典型的情況是指標序列
+  // 沒有變異（WHOOP 某個欄位一直回同一個值、或感測器卡住）。此時
+  // `pearson()` 回 null，但 n 可能有 40、exposed/unexposed 都遠超過 3。
+  //
+  // 舊版沒有這一關，於是：
+  //   - `effectSize: null` 被寫進 insight，狀態卻由**樣本數**決定
+  //     （dataQualityOf(40) → SUPPORTED）
+  //   - 下面的方向一致性檢查因為 `assoc.pearson !== null` 為假而**整段跳過**，
+  //     `directionConsistent` 停在預設的 true
+  //   - 於是 outcome = EXPLAINED
+  //
+  // 也就是說：一個測量不出來的關聯，被當成「這次異常的解釋」告訴使用者，
+  // 而且會寫成一條看起來很有把握的 insight。實測確認（n=40、usable=true、
+  // pearson=null → EXPLAINED）。
+  //
+  // 統計上無法測量就是無法測量，數量再多也補不上。fail closed。
+  const measurable = Number.isFinite(assoc.pearson);
+
+  if (!readyEnough || !assoc.usable || !measurable) {
     log.info('proactive_reanalysis_insufficient', {
-      user_id: uid, category, metric, readiness_status: readiness.status, usable: assoc.usable,
+      user_id: uid, category, metric,
+      readiness_status: readiness.status, usable: assoc.usable, measurable,
     });
     return {
       outcome: PROACTIVE_OUTCOME.STILL_UNEXPLAINED,
       insightChanged: false, followUpMessage: null,
       beliefStatus: null, directionConsistent: null,
-      reason: !assoc.usable ? 'no_contrast_group_yet' : 'insufficient_samples',
+      reason: !assoc.usable ? 'no_contrast_group_yet'
+        : !readyEnough ? 'insufficient_samples'
+          : 'association_not_measurable',
     };
   }
 
@@ -158,10 +182,15 @@ export async function reanalyzeAfterAnswer({
   const beliefIsMeaningful = beliefStatus === INSIGHT_STATUS.EMERGING
     || beliefStatus === INSIGHT_STATUS.SUPPORTED;
 
-  // 沒有帶訊號方向進來（舊的 pending context）或算不出相關係數時，
-  // 不對方向做任何假設——只看信念強度，不硬掰。
+  // 沒有帶訊號方向進來（舊的 pending context）時不對方向做任何假設——
+  // 只看信念強度，不硬掰。
+  //
+  // ⚠️ M-05：`assoc.pearson` 在這裡**保證**是有限數字（上面的 measurable
+  // 關卡已經擋掉 null）。舊版把「算不出相關係數」也放進同一個條件，於是
+  // 那種情況會靜靜地落回 `directionConsistent = true` —— 一個 fail-open
+  // 的預設值，正好發生在最不該樂觀的時候。
   let directionConsistent = true;
-  if (signal?.direction && assoc.pearson !== null) {
+  if (signal?.direction) {
     directionConsistent = signal.direction === 'low' ? assoc.pearson < 0 : assoc.pearson > 0;
   }
 

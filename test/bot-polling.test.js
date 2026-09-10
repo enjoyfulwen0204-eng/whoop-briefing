@@ -32,11 +32,24 @@ function tempDb() {
   };
 }
 
-/** 造一則 Telegram update。 */
-function update(id, text, chatId = CHAT) {
+/**
+ * 造一則 Telegram update。
+ *
+ * ⚠️ H-01：真實的 Telegram 私訊一定帶 `chat.type === 'private'`，而且
+ * 私訊聊天室的 id 就等於對方的使用者 id（`from.id === chat.id`）。
+ * 舊的 fixture 兩者都沒有，等於在測一個 Telegram 不會送出的形狀；
+ * 授權閘門補上之後，fixture 也必須是真實的形狀。
+ */
+function update(id, text, chatId = CHAT, { chatType = 'private', fromId = null, isBot = false } = {}) {
   return {
     update_id: id,
-    message: { message_id: id, chat: { id: chatId }, text, date: 1 },
+    message: {
+      message_id: id,
+      chat: { id: chatId, type: chatType },
+      from: { id: fromId ?? chatId, is_bot: isBot, first_name: 'T' },
+      text,
+      date: 1,
+    },
   };
 }
 

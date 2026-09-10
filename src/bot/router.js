@@ -107,14 +107,28 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
     return { ok: false, reason: 'low_confidence', confidence };
   }
 
-  let offset = Number(raw.day_offset ?? 0);
-  if (!Number.isInteger(offset) || offset > 0 || offset < -2) offset = 0;
+  // ★ M-06：要區分「使用者真的說了哪一天」與「模型什麼都沒說所以當成今天」。
+  // 後者不可以被當成事實——它只是預設值，而追問的答案幾乎都是短句
+  // （「有」「喝了兩杯」），根本沒有時間資訊。
+  // ⚠️ `Number(null) === 0`，而 validateStructured 會把「模型沒給的欄位」
+  // 補成 null。少了這一行，「沒說」會被讀成「說了今天」——正是這個修正
+  // 要擋掉的東西。先排除空值再轉數字。
+  const rawOffset = raw.day_offset === null || raw.day_offset === undefined || raw.day_offset === ''
+    ? null
+    : Number(raw.day_offset);
+  const statedOffset = rawOffset !== null && Number.isInteger(rawOffset)
+    && rawOffset <= 0 && rawOffset >= -2
+    ? rawOffset
+    : null;
+  const offset = statedOffset ?? 0;
 
   const eventAt = new Date(now.getTime() + offset * 86_400_000);
 
   return {
     ok: true,
     confidence,
+    /** 使用者明確講出來的日期偏移；null 代表「沒說」（不是「今天」）。 */
+    statedDayOffset: statedOffset,
     event: {
       eventAt: eventAt.toISOString(),
       healthDate: healthDateFor(eventAt, timezone),
@@ -126,6 +140,58 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
       note: String(text).slice(0, 500),
       source: 'natural_language',
     },
+  };
+}
+
+/**
+ * 把追問的答案重新錨定到「這題問的是哪一天」（M-06）。
+ *
+ * ## 修的是什麼
+ *
+ * 主動代理在 09-09 早上問「**昨天**有喝酒嗎？」，問的是 09-08 的異常。
+ * 使用者回「有，喝了兩杯」。這種短答裡完全沒有時間資訊，於是
+ * `parseNaturalJournal()` 落回 `day_offset = 0`，事件被記成 **09-09**。
+ *
+ * 後果不是小小的日期誤差，而是三件事同時壞掉：
+ *   1. Journal 說了假話（那杯酒不是今天喝的）。
+ *   2. `reanalyzeAfterAnswer()` 用 lag=1 把 journal 日配到隔天的指標，
+ *      於是它去看 09-10 —— 根本不是我們在問的那個異常。我們主動問來的
+ *      答案，結構上永遠解釋不了我們主動問的問題。
+ *   3. 長期關聯學習被系統性地灌進差一天的資料。
+ *
+ * ## 規則
+ *
+ * 追問的 context 一定帶著 `health_date`（主動代理與反應式追問都是）。
+ * 那就是「這題在問哪一天」。所以：
+ *
+ *   - 使用者**沒有**講日期（statedDayOffset === null）→ 錨定到那一天。
+ *     這是絕大多數的情況，也是唯一會出錯的情況。
+ *   - 使用者**有**講（「前天喝的」）→ 完全尊重使用者，一個字都不動。
+ *     使用者講的偏移是相對於「今天」的，不是相對於問題的錨點。
+ *
+ * `eventAt` 跟著平移同樣的天數，保持與 health_date 一致 —— 它原本也只是
+ * 「回話當下」這個近似值，平移之後不會比原本更不精確。
+ */
+export function anchorToQuestionDay(event, { anchorHealthDate, statedDayOffset, timezone }) {
+  if (!anchorHealthDate || !/^\d{4}-\d{2}-\d{2}$/.test(anchorHealthDate)) return event;
+  if (statedDayOffset !== null && statedDayOffset !== undefined) return event;
+  if (event.healthDate === anchorHealthDate) return event;
+
+  const deltaDays = Math.round(
+    (Date.parse(`${event.healthDate}T00:00:00Z`) - Date.parse(`${anchorHealthDate}T00:00:00Z`))
+    / 86_400_000,
+  );
+  if (!Number.isFinite(deltaDays) || deltaDays === 0) return event;
+
+  const shifted = new Date(Date.parse(event.eventAt) - deltaDays * 86_400_000);
+  return {
+    ...event,
+    eventAt: shifted.toISOString(),
+    healthDate: healthDateFor(shifted, timezone) === anchorHealthDate
+      ? anchorHealthDate
+      // 時區換算若對不上（極端 DST 情況），以問題的那一天為準——
+      // 那是我們唯一確定的事實。
+      : anchorHealthDate,
   };
 }
 
@@ -189,7 +255,28 @@ export function createRouter({
         });
         if (reply !== null) return reply;
       }
-      return handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach });
+      // ★ M-02：原子認領，而且**在任何副作用之前**。
+      //
+      // `getOpenPendingQuestion()` 讀到的是一個瞬間的快照。接下來的解析要
+      // 打一次 LLM（秒級），這段時間裡 cron 的收割器可能已經把這題收成
+      // EXPIRED 並把對應的 proactive_event 寫成 NO_RESPONSE。
+      //
+      // 舊版把 `resolvePendingQuestion()` 埋在流程中段而且**丟掉回傳值**，
+      // 於是：journal 先被寫進去，然後 `resolveProactiveEvent()`（無條件
+      // UPDATE）把 NO_RESPONSE 覆寫成 STILL_UNEXPLAINED。實測確認：
+      // `resolvePendingQuestion -> false`，程式照樣走完並覆寫了結果。
+      //
+      // 現在認領是進入處理流程的**前置條件**：贏了才有資格產生副作用。
+      // 輸了代表這題已經不屬於我們（被收割 / 被別的 handler 處理），
+      // 就當作沒有這個追問，讓訊息走一般路徑 —— 使用者的話不會被吞掉，
+      // 而且絕不會回頭覆寫任何已經定案的結果。
+      const claimed = await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
+      if (claimed) {
+        return handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach });
+      }
+      log.warn('pending_question_claim_lost', {
+        user_id: userId, pending_question_id: pending.id, intent: pending.intent,
+      });
     }
 
     // ---- 2. 指令 ----
@@ -401,27 +488,34 @@ export function createRouter({
 
   /**
    * 使用者回答追問。
-   * 流程：解析 → 寫 journal → 重跑分析 → 回答原問題 → 清 pending。
+   * 流程：解析 → 寫 journal → 重跑分析 → 回答原問題。
+   *
+   * ⚠️ 進到這裡代表 `route()` 已經**原子認領**了這個追問（狀態已是
+   * ANSWERED）。所以下面不再呼叫 resolvePendingQuestion —— 認領是前置
+   * 條件，不是流程中段的一步（見 route() 的 M-02 說明）。
    */
   async function handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach }) {
     if (pending.intent === PROACTIVE_QUESTION_INTENT) {
       return handleProactiveAnswer({ pending, text, chatId, t, userId, timezone, coach });
     }
 
-    // 明確說「沒有」→ 不寫 journal，但要把 pending 收掉
+    // 明確說「沒有」→ 不寫 journal（pending 已在 route() 認領時收掉）
     if (isNegativeAnswer(text)) {
-      await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
       return '好，那我先記著這幾天的數字，繼續幫你留意。';
     }
 
     const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
     let savedLine = null;
     if (nat.ok) {
-      const saved = await saveEvent(db, userId, nat.event, { now: t, timezone });
+      // M-06：這題問的是哪一天，答案就記在哪一天（使用者自己講日期時除外）
+      const event = anchorToQuestionDay(nat.event, {
+        anchorHealthDate: pending.context?.health_date ?? null,
+        statedDayOffset: nat.statedDayOffset,
+        timezone,
+      });
+      const saved = await saveEvent(db, userId, event, { now: t, timezone });
       if (saved.ok) savedLine = `✅ 已記錄：${describeEvent(saved.event)}`;
     }
-
-    await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
 
     // 沒有 WHOOP 資料時也要能運作：至少確認 journal 寫進去了
     const q = createHealthQuery({ db, userId, timezone, now: t, lookbackDays });
@@ -453,8 +547,8 @@ export function createRouter({
     const proactiveEventId = pending.context?.proactive_event_id ?? null;
 
     // journalEventId 讓「哪個主動問題 → 哪筆 Journal → 哪次重新分析」可追溯。
+    // pending 已在 route() 認領（M-02），這裡只負責事件的終局。
     const closeOut = async (outcome, { journalEventId = null } = {}) => {
-      await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
       if (proactiveEventId && typeof db.resolveProactiveEvent === 'function') {
         await db.resolveProactiveEvent(userId, proactiveEventId, outcome, { journalEventId, now: t });
       }
@@ -469,7 +563,6 @@ export function createRouter({
     if (!nat.ok) {
       // 只允許一次澄清追問——不能無止盡盤問使用者。
       if (!pending.context?.clarified) {
-        await db.resolvePendingQuestion(userId, pending.id, text, { now: t });
         const clarifyQuestion = '不好意思我沒有聽懂——可以更明確地說「有」還是「沒有」嗎？'
           + '（例如「喝了兩杯」或「沒有」）';
         await db.openPendingQuestion(userId, {
@@ -486,7 +579,13 @@ export function createRouter({
       return '好，我先記著，會繼續留意。';
     }
 
-    const saved = await saveEvent(db, userId, { ...nat.event, source: 'proactive_agent' }, { now: t, timezone });
+    // M-06：主動問題問的是 healthDate 那一天的異常，短答必須記在那一天
+    const anchored = anchorToQuestionDay(nat.event, {
+      anchorHealthDate: healthDate,
+      statedDayOffset: nat.statedDayOffset,
+      timezone,
+    });
+    const saved = await saveEvent(db, userId, { ...anchored, source: 'proactive_agent' }, { now: t, timezone });
     const savedLine = saved.ok ? `✅ 已記錄：${describeEvent(saved.event)}` : null;
 
     let followUpLine = '';

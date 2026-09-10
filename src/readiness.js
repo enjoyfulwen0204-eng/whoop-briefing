@@ -51,6 +51,7 @@
 import {
   BASELINE, ANALYTICS, TREND_ENGINE, READINESS_HEURISTICS,
 } from './config.js';
+import { ANALYSED_METRICS } from './analytics/index.js';
 import { describeWindow } from './analytics/statistics.js';
 import { trendsFor, detectBaselineShift } from './analytics/trend.js';
 import {
@@ -189,6 +190,32 @@ function classifyByCount({
 // DAILY_STATE — 今天的快照
 // ===========================================================================
 
+/**
+ * 這一列**真的帶著至少一個可用的指標數值**嗎（L-02）。
+ *
+ * ## 為什麼「有這一列」不等於「有資料」
+ *
+ * `computeDailyMetrics()` 對每一個觀測到的睡眠都會產生一列，
+ * 即使 WHOOP 對那一天**沒有回傳任何評分**（score_state 不是 SCORED、
+ * 感測器沒戴好、資料還在計算中）。那樣的列每一個指標都是 null。
+ *
+ * 舊版的 `assessDailyState` 只確認「這一天有沒有列」，`assessBaseline`
+ * 只數「窗口內有幾列」。實測：40 列全 null 的資料，兩者都回報 **READY**——
+ * 系統於是宣稱「個人基準已建立」，然後對著一片空白算紅黃綠燈。
+ *
+ * readiness 的語義是「這件事現在做得出來嗎」，所以計數的單位必須是
+ * **可用的數值**，不是資料庫裡有幾列。
+ */
+function hasUsableMetric(row) {
+  if (!row || typeof row !== 'object') return false;
+  for (const key of ANALYSED_METRICS) {
+    const v = row[key];
+    if (v === null || v === undefined || v === '') continue;
+    if (typeof v === 'number' ? Number.isFinite(v) : Number.isFinite(Number(v))) return true;
+  }
+  return false;
+}
+
 /** @param {object[]} rows daily_metrics（loadDailyMetrics 的輸出） */
 export function assessDailyState({ rows = [], anchorDate, now = new Date() } = {}) {
   if (!rows.length) {
@@ -200,6 +227,16 @@ export function assessDailyState({ rows = [], anchorDate, now = new Date() } = {
       status: READINESS_STATUS.DEGRADED, usable: 0, required: 1,
       missing: ['today_row_missing'],
       reason: 'historical_data_exists_but_today_not_synced_yet', now,
+    });
+  }
+  // L-02：列存在但一個數值都沒有 —— 那是「今天的資料還沒算出來」，
+  // 不是「今天的狀態已經可以講」。與「完全沒有這一列」是不同的情況，
+  // 所以理由分開講，讓使用者知道到底卡在哪裡。
+  if (!hasUsableMetric(today)) {
+    return result({
+      status: READINESS_STATUS.DEGRADED, usable: 0, required: 1,
+      missing: ['today_row_has_no_scored_values'],
+      reason: 'today_row_exists_but_whoop_has_not_scored_it_yet', now,
     });
   }
   return result({ status: READINESS_STATUS.READY, usable: 1, required: 1, now });
@@ -215,7 +252,12 @@ export function assessBaseline({ rows = [], anchorDate, now = new Date() } = {})
     ? new Date(Date.parse(`${anchorDate}T00:00:00Z`) - (BASELINE.LOOKBACK_DAYS - 1) * 86_400_000)
       .toISOString().slice(0, 10)
     : null;
-  const usable = rows.filter((r) => !cutoff || (r.health_date >= cutoff && r.health_date <= anchorDate)).length;
+  // L-02：只數**真的帶著數值**的列。舊版只數「窗口內有幾列」，
+  // 於是 40 列全 null 也會回報 READY。
+  const usable = rows.filter(
+    (r) => (!cutoff || (r.health_date >= cutoff && r.health_date <= anchorDate))
+      && hasUsableMetric(r),
+  ).length;
 
   if (usable === 0) {
     return result({ status: READINESS_STATUS.NO_DATA, required: BASELINE.MIN_FOR_LIGHTS, now });
@@ -525,9 +567,26 @@ export function assessPrediction({
 // CHANGE_DETECTION — 重用 trend.js 的 detectBaselineShift
 // ===========================================================================
 
+/**
+ * ## M-04：capability 閘門對**所有**訊號型別一視同仁
+ *
+ * 舊版這支函式的參數列裡根本沒有 `capabilityStatus`。`baselineShiftSignal()`
+ * 一直有把它傳進來，但它只是一個被默默丟掉的多餘屬性 —— 於是
+ * `capabilityGate` 對 BASELINE_SHIFT **完全沒有生效**。
+ *
+ * 實測：把 HRV 標成 APP_ONLY / UNAVAILABLE / UNAUTHORIZED，
+ * `deviationSignal()` 正確回 null，`baselineShiftSignal()` 照樣吐出
+ * `HRV_SHIFT_LOW`。也就是說一個「已經證實拿不到」的欄位，只要庫裡還有
+ * 舊資料，就能拿去推論基準漂移、觸發主動追問、寫進使用者看得到的敘述。
+ *
+ * 不變量：**已經證實拿不到的指標，任何分析都不可能是 READY。**
+ * 判準與 assessDeviation 共用同一個 capabilityGate，不另外發明一套。
+ */
 export function assessChangeDetection({
-  metricKey, series = [], anchorDate, now = new Date(),
+  metricKey, series = [], anchorDate, capabilityStatus = null, now = new Date(),
 } = {}) {
+  const gated = capabilityGate(capabilityStatus, now);
+  if (gated) return gated;
   const r = detectBaselineShift(metricKey, series, { endDate: anchorDate });
   const usable = Math.min(r.recent_n, r.previous_n);
   const classified = classifyByCount({ usable, required: TREND_ENGINE.MIN_SHIFT_SAMPLES, now });

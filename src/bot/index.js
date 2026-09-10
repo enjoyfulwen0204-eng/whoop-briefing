@@ -61,8 +61,8 @@ export async function main({ maxIterations = Infinity } = {}) {
       if (reply) await api.sendMessage(chatId, reply);
     },
     // 未綁定的 chat：只吃 /link，其他一律不回
-    handleUnlinked: async ({ text, chatId }) => {
-      const reply = await handleLinkAttempt({ db, text, chatId });
+    handleUnlinked: async ({ text, chatId, isPrivateChat = false }) => {
+      const reply = await handleLinkAttempt({ db, text, chatId, isPrivateChat });
       if (reply) await api.sendMessage(chatId, reply);
     },
   });

@@ -262,6 +262,31 @@ export function createDb({ url, authToken }) {
     return true;
   }
 
+  /**
+   * 這個錯誤已經恢復了 —— 把累積的失敗紀錄清掉（M-08）。
+   *
+   * ## 為什麼一定要有這個
+   *
+   * `error_notifications` 只會被**失敗**寫入，從來沒有任何地方在成功時
+   * 清掉它。Guardian 讀 `hits` 來判斷「WHOOP 授權連續失敗 N 次」，
+   * 於是：使用者重新授權、同步恢復正常之後，那一列仍然停在 hits = 3，
+   * Guardian 每 12 小時（冷卻窗）就照樣發一次「需要重新授權」——
+   * **永遠不會停**。實測確認：最近一次同步在 10 分鐘前，Guardian 還是
+   * 回報 whoop_auth_repeated_failure。
+   *
+   * 假警報比沒有警報更糟：它會很快訓練出「看到 Guardian 就忽略」的習慣。
+   *
+   * 回傳有沒有真的刪掉一列（沒有紀錄可清時是乾淨的 no-op）。
+   */
+  async function clearErrorNotify(scope, errorType) {
+    if (!scope) throw new Error('clearErrorNotify 需要 scope（global 或 user:<id>）');
+    const rs = await client.execute({
+      sql: 'DELETE FROM error_notifications WHERE scope = ? AND error_type = ?',
+      args: [scope, errorType],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
   /** 便利包裝：系統層 / 使用者層。 */
   const claimGlobalErrorNotify = (errorType, hours) =>
     claimErrorNotify(GLOBAL_SCOPE, errorType, hours);
@@ -424,6 +449,9 @@ export function createDb({ url, authToken }) {
     releaseClaim,
     // 錯誤通知（scope 化）
     claimErrorNotify,
+    clearErrorNotify,
+    clearUserErrorNotify: (userId, errorType) =>
+      clearErrorNotify(userScope(requireUserId(userId, 'clearUserErrorNotify')), errorType),
     claimGlobalErrorNotify,
     claimUserErrorNotify,
     // 全域 lock（鎖名要自己帶 user）

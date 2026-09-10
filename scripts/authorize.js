@@ -32,7 +32,7 @@ import { spawn } from 'node:child_process';
 import { URL } from 'node:url';
 
 import { WHOOP, loadDotEnvIfPresent, loadEnv } from '../src/config.js';
-import { exchangeCode } from '../src/whoop.js';
+import { exchangeCode, fetchWhoopUserId } from '../src/whoop.js';
 import { createDb } from '../src/db.js';
 import {
   OAuthFlowError, assertAuthorizable, completeAuthorization, prepareAuthorization,
@@ -75,6 +75,12 @@ const exchange = ({ code }) => exchangeCode({
   redirectUri: env.whoopRedirectUri,
 });
 
+/**
+ * 身分驗證的實作（M-01）。WHOOP 的 token endpoint 不會說這是誰，
+ * 所以一定要用剛拿到的 token 再問一次。問不到就不存 token。
+ */
+const verifyIdentity = ({ accessToken }) => fetchWhoopUserId({ accessToken });
+
 async function report(userId) {
   const check = await db.getTokens(userId);
   const user = await db.getUser(userId);
@@ -82,7 +88,7 @@ async function report(userId) {
   console.log(`   scope            : ${check.scope}`);
   console.log(`   access token 到期 : ${check.expiresAt.toISOString()}`);
   console.log(`   refresh token     : 已儲存（長度 ${String(check.refreshToken).length}，不顯示內容）`);
-  if (check.whoopUserId) console.log(`   WHOOP user id    : ${check.whoopUserId}`);
+  console.log(`   WHOOP user id    : ${check.whoopUserId}`);
   if (!check.refreshToken) {
     console.log('\n⚠️  沒有拿到 refresh token！請確認 WHOOP App 的 scope 有勾 offline。');
   }
@@ -99,7 +105,7 @@ async function manual() {
   }
   console.log('使用你提供的 authorization code 換 token…');
   const res = await completeAuthorization({
-    db, rawState: manualState, code: manualCode, exchange,
+    db, rawState: manualState, code: manualCode, exchange, verifyIdentity,
   });
   await report(res.userId);
 }
@@ -178,7 +184,7 @@ async function browserFlow() {
   });
 
   const res = await completeAuthorization({
-    db, rawState: result.state, code: result.code, exchange,
+    db, rawState: result.state, code: result.code, exchange, verifyIdentity,
   });
   await report(res.userId);
 }

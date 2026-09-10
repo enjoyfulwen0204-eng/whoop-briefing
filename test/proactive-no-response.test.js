@@ -126,7 +126,10 @@ test('★★ 未回答的主動問題過期後 → EXPIRED + 事件 NO_RESPONSE 
     assert.equal(before.resolvedAt, null);
 
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
-    assert.deepEqual(res, { expired: 1, repaired: 0, noResponse: 1, skipped: 0 });
+    assert.deepEqual(res, {
+    expired: 1, repaired: 0, noResponse: 1,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
 
     assert.equal((await questionRow(db, questionId)).status, 'EXPIRED');
     const after = await eventById(db, ALICE.id, eventId);
@@ -142,7 +145,10 @@ test('尚未過期的問題完全不被碰', async () => {
     const res = await reapExpiredProactiveQuestions({
       db, userId: ALICE.id, now: later(60_000),
     });
-    assert.deepEqual(res, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+    assert.deepEqual(res, {
+    expired: 0, repaired: 0, noResponse: 0,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
 
     assert.equal((await questionRow(db, questionId)).status, 'OPEN');
     assert.equal((await eventById(db, ALICE.id, eventId)).outcome, null);
@@ -161,10 +167,16 @@ test('★ 收割器是冪等的：重跑不會重複寫，也不會改變任何�
     });
     const afterSecond = await eventById(db, ALICE.id, eventId);
 
-    assert.deepEqual(first, { expired: 1, repaired: 0, noResponse: 1, skipped: 0 });
+    assert.deepEqual(first, {
+    expired: 1, repaired: 0, noResponse: 1,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
     // 已經修好的列會退出待收清單 → 第二次是真正的零工作量，不是
     // 「又拜訪一次然後跳過」。這正是 EXISTS 條件存在的理由。
-    assert.deepEqual(second, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+    assert.deepEqual(second, {
+    expired: 0, repaired: 0, noResponse: 0,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
     // resolved_at 不可以被第二次收割改掉
     assert.equal(afterSecond.resolvedAt, afterFirst.resolvedAt);
     assert.equal(afterSecond.outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
@@ -174,7 +186,10 @@ test('★ 收割器是冪等的：重跑不會重複寫，也不會改變任何�
 test('沒有任何過期問題時是乾淨的 no-op', async () => {
   await withDb(async (db) => {
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
-    assert.deepEqual(res, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+    assert.deepEqual(res, {
+    expired: 0, repaired: 0, noResponse: 0,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
   });
 });
 
@@ -201,17 +216,25 @@ test('★★ 已回答的問題絕不會被收割成 NO_RESPONSE', async () => {
   });
 });
 
-test('★★ 回答了但事件還沒收尾（reanalysis 掛掉）→ 問題不是 OPEN，收割器不動它', async () => {
+test('★★ 回答了但事件還沒收尾（reanalysis 掛掉）→ 收斂成 ABANDONED，絕不是 NO_RESPONSE', async () => {
   await withDb(async (db) => {
     const { eventId, questionId } = await askProactive(db, ALICE);
     // 只 resolve pending，事件故意留 NULL（模擬 reanalysis 拋錯）
     await db.resolvePendingQuestion(ALICE.id, questionId, '有', { now: later(60_000) });
 
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
-    assert.deepEqual(res, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+    // 追問那一層不動它（ANSWERED 不在收割清單裡）……
+    assert.equal(res.expired, 0);
+    assert.equal(res.repaired, 0);
+    // ……但事件不可以永遠停在 NULL（M-03）
+    assert.equal(res.abandoned, 1);
+    assert.equal(res.noResponse, 0, '★ 使用者確實回答過，絕不可以被記成「沒回應」');
 
-    // 使用者確實回答過，所以絕不可以被記成「沒回應」
-    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, null);
+    assert.equal(
+      (await eventById(db, ALICE.id, eventId)).outcome,
+      PROACTIVE_OUTCOME.ABANDONED,
+    );
+    assert.equal((await questionRow(db, questionId)).status, 'ANSWERED', '追問狀態不被改動');
   });
 });
 
@@ -225,9 +248,15 @@ test('★★ SUPERSEDED 的問題不會變成 NO_RESPONSE', async () => {
 
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
 
-    // 只有第二題（還 OPEN 且已過期）被收
+    // 只有第二題（還 OPEN 且已過期）走「過期」那條路
     assert.equal(res.expired, 1);
-    assert.equal((await eventById(db, ALICE.id, first.eventId)).outcome, null);
+    // 第一題被取代 → 事件收斂成 SUPERSEDED（M-03），**不是** NO_RESPONSE
+    assert.equal(
+      (await eventById(db, ALICE.id, first.eventId)).outcome,
+      PROACTIVE_OUTCOME.SUPERSEDED,
+      '★ 被取代的問題不可以被記成「沒回應」',
+    );
+    assert.equal(res.superseded, 1);
     assert.equal(
       (await eventById(db, ALICE.id, second.eventId)).outcome,
       PROACTIVE_OUTCOME.NO_RESPONSE,
@@ -327,7 +356,10 @@ test('重啟安全：狀態全在 DB，換一個 db 連線收割結果一樣', a
     // 「process 重啟」
     const db2 = createDb({ url });
     const res = await reapExpiredProactiveQuestions({ db: db2, userId: ALICE.id, now: AFTER_TTL });
-    assert.deepEqual(res, { expired: 1, repaired: 0, noResponse: 1, skipped: 0 });
+    assert.deepEqual(res, {
+    expired: 1, repaired: 0, noResponse: 1,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
     assert.equal((await eventById(db2, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
     db2.close();
   } finally {
@@ -421,7 +453,10 @@ test('★ 反應式追問（沒有 proactive intent）不會被收割器碰到',
     }, { now: T0 });
 
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
-    assert.deepEqual(res, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+    assert.deepEqual(res, {
+    expired: 0, repaired: 0, noResponse: 0,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
     assert.equal((await questionRow(db, qid)).status, 'OPEN');
   });
 });
@@ -445,7 +480,10 @@ test('★ 收割器不能跨使用者收走別人的問題', async () => {
     const b = await askProactive(db, BOB);
     // 用 Alice 的身分去收 —— 應該什麼都收不到
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
-    assert.deepEqual(res, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+    assert.deepEqual(res, {
+    expired: 0, repaired: 0, noResponse: 0,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
     assert.equal((await questionRow(db, b.questionId)).status, 'OPEN');
   });
 });
@@ -471,8 +509,11 @@ test('★ 事件查詢失敗不會讓收割器拋錯（維護工作絕不影響�
       resolveProactiveEventIfUnresolved: async () => { throw new Error('boom'); },
     };
     const res = await reapExpiredProactiveQuestions({ db: broken, userId: ALICE.id, now: AFTER_TTL });
-    assert.equal(res.skipped, 1);
+    // 兩輪都會撞到同一個壞掉的寫入函式，兩次都只是被跳過——重點是不拋錯。
+    assert.ok(res.skipped >= 1);
     assert.equal(res.noResponse, 0);
+    assert.equal(res.superseded, 0);
+    assert.equal(res.abandoned, 0);
   });
 });
 
@@ -480,7 +521,10 @@ test('不支援新 store 函式的 db（舊 fake）→ 安全跳過', async () =
   const res = await reapExpiredProactiveQuestions({
     db: {}, userId: 'u-x', now: AFTER_TTL,
   });
-  assert.deepEqual(res, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+  assert.deepEqual(res, {
+    expired: 0, repaired: 0, noResponse: 0,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
 });
 
 test('★ 問題沒有連到任何事件時，仍然會被收成 EXPIRED（不卡在 OPEN）', async () => {
@@ -535,7 +579,10 @@ test('★★★ F-01: 惰性過期先發生 → 之後的收割仍然補上 NO_R
 
     // 收割器必須修得回來
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
-    assert.deepEqual(res, { expired: 0, repaired: 1, noResponse: 1, skipped: 0 });
+    assert.deepEqual(res, {
+    expired: 0, repaired: 1, noResponse: 1,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
 
     const ev = await eventById(db, ALICE.id, eventId);
     assert.equal(ev.outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
@@ -555,7 +602,10 @@ test('★★★ F-01: 修好之後不會被重複拜訪（收斂到零工作量�
       const again = await reapExpiredProactiveQuestions({
         db, userId: ALICE.id, now: later(ANTI_SPAM_POLICY.QUESTION_TTL_MS + (i + 2) * 3600_000),
       });
-      assert.deepEqual(again, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+      assert.deepEqual(again, {
+    expired: 0, repaired: 0, noResponse: 0,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
     }
   });
 });
@@ -577,7 +627,10 @@ test('★★★ F-01: 崩潰留下的半完成狀態（EXPIRED + outcome NULL）
     // 重啟
     const db2 = createDb({ url });
     const res = await reapExpiredProactiveQuestions({ db: db2, userId: ALICE.id, now: AFTER_TTL });
-    assert.deepEqual(res, { expired: 0, repaired: 1, noResponse: 1, skipped: 0 });
+    assert.deepEqual(res, {
+    expired: 0, repaired: 1, noResponse: 1,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
     assert.equal(
       (await eventById(db2, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE,
     );
@@ -595,10 +648,12 @@ test('★★★ F-01: ANSWERED 即使事件未收尾，也絕不會被補成 NO_
     assert.equal((await questionRow(db, questionId)).status, 'ANSWERED');
 
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
-    assert.deepEqual(res, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+    assert.equal(res.noResponse, 0, '★ 使用者真的回答過，寫 NO_RESPONSE 會是事實錯誤');
+    assert.equal(res.expired, 0);
+    assert.equal(res.repaired, 0);
+    // M-03：不寫 NO_RESPONSE，但也不可以永遠停在 NULL
     assert.equal(
-      (await eventById(db, ALICE.id, eventId)).outcome, null,
-      '★ 使用者真的回答過，寫 NO_RESPONSE 會是事實錯誤',
+      (await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.ABANDONED,
     );
   });
 });
@@ -610,10 +665,11 @@ test('★★★ F-01: SUPERSEDED 即使事件未收尾，也絕不會被補成 N
     assert.equal((await questionRow(db, first.questionId)).status, 'SUPERSEDED');
 
     await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
-    assert.equal(
-      (await eventById(db, ALICE.id, first.eventId)).outcome, null,
-      '被取代的問題不該有「沒回應」這個結論',
-    );
+    const outcome = (await eventById(db, ALICE.id, first.eventId)).outcome;
+    assert.notEqual(outcome, PROACTIVE_OUTCOME.NO_RESPONSE,
+      '被取代的問題不該有「沒回應」這個結論');
+    // M-03：收斂成誠實的 SUPERSEDED，而不是永遠停在 NULL
+    assert.equal(outcome, PROACTIVE_OUTCOME.SUPERSEDED);
   });
 });
 
@@ -787,7 +843,10 @@ test('★★★ RF-01 (2): 澄清追問先被惰性過期 → 之後的收割仍
     assert.equal((await eventById(db, ALICE.id, eventId)).outcome, null, '半完成狀態');
 
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
-    assert.deepEqual(res, { expired: 0, repaired: 1, noResponse: 1, skipped: 0 });
+    assert.deepEqual(res, {
+    expired: 0, repaired: 1, noResponse: 1,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
     assert.equal((await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
   });
 });
@@ -819,8 +878,11 @@ test('★★★ RF-01 (4): 澄清追問被回答 → 事件絕不可以變成 NO
     await db.resolvePendingQuestion(ALICE.id, q2, '有喝兩杯', { now: new Date(t1.getTime() + 60_000) });
 
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
-    assert.equal(res.noResponse, 0);
-    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, null, '使用者真的回答過');
+    assert.equal(res.noResponse, 0, '使用者真的回答過');
+    // M-03：澄清追問被回答但事件沒收尾（流程中途死掉）→ 收斂成 ABANDONED
+    assert.equal(
+      (await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.ABANDONED,
+    );
   });
 });
 
@@ -835,7 +897,10 @@ test('★★★ RF-01 (5): 澄清追問被取代（SUPERSEDED）→ 事件不變
     assert.equal((await questionRow(db, q2)).status, 'SUPERSEDED');
 
     await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
-    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, null);
+    const outcome = (await eventById(db, ALICE.id, eventId)).outcome;
+    assert.notEqual(outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
+    // M-03：收斂成 SUPERSEDED，而不是永遠停在 NULL
+    assert.equal(outcome, PROACTIVE_OUTCOME.SUPERSEDED);
   });
 });
 
@@ -896,10 +961,21 @@ test('★★★ RF-01 (8): context_json 壞掉 → 不當掉、不寫入、fail 
       args: [q2],
     });
 
+    // 另一個完全無關、而且還有 OPEN 追問的事件——它絕不可以被碰到
+    const untouched = await askProactive(db, BOB, { key: 'bob-live' });
+
     // 不可以拋錯（json_extract 對壞 JSON 會讓整個查詢失敗，所以要有 json_valid 守門）
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
-    assert.equal(res.noResponse, 0, 'context 壞掉 → 不解析任何事件');
-    assert.equal((await eventById(db, ALICE.id, eventId)).outcome, null);
+    assert.equal(res.noResponse, 0, '壞掉的 context 不可以被當成事件連結');
+    assert.equal(
+      (await eventById(db, BOB.id, untouched.eventId)).outcome, null,
+      '★ 別人的事件必須完全不受影響',
+    );
+    // M-03：事件仍然要收斂，但結論只能來自**權威的欄位連結**（指向 Q1，
+    // 狀態 ANSWERED），不是來自那個壞掉的 context。
+    assert.equal(
+      (await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.ABANDONED,
+    );
   });
 });
 
@@ -938,13 +1014,21 @@ test('★★★ RF-01 (9): context 沒有 proactive_event_id → 不亂解析任
       ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
     }, { now: later(1000) });
 
+    // 一個完全無關、而且還有 OPEN 追問的事件
+    const untouched = await askProactive(db, BOB, { key: 'bob-live' });
+
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_TTL });
     assert.equal((await questionRow(db, orphan)).status, 'EXPIRED', '仍然要被收成 EXPIRED');
+    assert.equal(res.noResponse, 0, '★ 沒有事件連結的孤兒問題不可以寫任何 NO_RESPONSE');
     assert.equal(
-      (await eventById(db, ALICE.id, other.eventId)).outcome, null,
+      (await eventById(db, BOB.id, untouched.eventId)).outcome, null,
       '★ 不可以隨便挑一個事件來收尾',
     );
-    assert.equal(res.noResponse, 0);
+    // other 的事件會收斂成 SUPERSEDED——但那是因為**它自己的**追問被取代了
+    // （欄位連結），不是因為那個孤兒問題（M-03）。
+    assert.equal(
+      (await eventById(db, ALICE.id, other.eventId)).outcome, PROACTIVE_OUTCOME.SUPERSEDED,
+    );
   });
 });
 
@@ -958,7 +1042,10 @@ test('★★★ RF-01 (10): 重複收割 → 第一次解析一次，之後零�
       const again = await reapExpiredProactiveQuestions({
         db, userId: ALICE.id, now: new Date(AFTER_CLARIFY.getTime() + (i + 1) * 3600_000),
       });
-      assert.deepEqual(again, { expired: 0, repaired: 0, noResponse: 0, skipped: 0 });
+      assert.deepEqual(again, {
+    expired: 0, repaired: 0, noResponse: 0,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  });
     }
     assert.equal((await eventById(db, ALICE.id, eventId)).outcome, PROACTIVE_OUTCOME.NO_RESPONSE);
   });

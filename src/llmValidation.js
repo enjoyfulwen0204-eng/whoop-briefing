@@ -196,6 +196,48 @@ export const KNOWN_METRIC_TERMS = [
   '心率', '卡路里', '熱量',
 ];
 
+/**
+ * 專有 / 衍生分數的宣稱（H-02）。
+ *
+ * 這幾個東西**在任何情況下都不可能**由 LLM 敘述出來：
+ *
+ *  - WHOOP Age / WHOOP Healthspan：WHOOP App 專有演算法，官方 Developer
+ *    API 根本沒有這個欄位（capabilities.js 標成 APP_ONLY）。任何數字都是編的。
+ *  - Personal Healthspan 分數 / 推估生理年齡：本系統自己的框架**刻意**
+ *    永遠回 null（healthspanPolicy.js 的三道閘門）。所以敘述層出現一個
+ *    數字，必然與確定性層矛盾。
+ *
+ * 這些不是「數字有沒有出處」的問題，是「這個宣稱本身不該存在」，
+ * 所以獨立成一組硬性攔截，不走數字比對。
+ */
+export const PROPRIETARY_CLAIM_PATTERNS = [
+  { re: /WHOOP\s*Age/i, label: 'WHOOP Age' },
+  { re: /WHOOP\s*Healthspan/i, label: 'WHOOP Healthspan' },
+  { re: /(?:身體|生理|體能)年齡/, label: '生理年齡' },
+  { re: /推估年齡/, label: '推估年齡' },
+  { re: /\bEstimated\s+(?:Physiological\s+)?Age\b/i, label: 'Estimated Age' },
+  { re: /Healthspan\s*(?:Score|分數)/i, label: 'Healthspan Score' },
+  { re: /Pace\s*Estimate/i, label: 'Pace Estimate' },
+];
+
+/**
+ * 治療 / 用藥指示（H-02）。
+ *
+ * 既有的 DIAGNOSIS_PATTERNS 只攔「斷言你有某個病」，完全沒有攔「你該吃
+ * 什麼」。但給出劑量或用藥建議比誤判疾病更危險，而且這個系統沒有任何
+ * 立場提供醫療處置。
+ *
+ * 刻意**不**攔「建議你早點睡」「多喝水」這類生活作息建議——那是這個
+ * 產品本來就該做的事。只攔藥物 / 補劑 / 劑量 / 就醫處置。
+ */
+export const TREATMENT_PATTERNS = [
+  { re: /(?:服用|吃|補充|注射|施打)\s*\S{0,12}?(?:藥|錠|膠囊|mg|毫克|IU|劑量)/, label: '用藥指示' },
+  { re: /(?:褪黑激素|安眠藥|抗生素|止痛藥|類固醇|退燒藥|鎮定劑)/, label: 'specific medication' },
+  { re: /\b\d+\s*(?:mg|mcg|IU)\b/i, label: '劑量' },
+  { re: /\b(?:prescri(?:be|ption)|dosage|medication|antibiotics?)\b/i, label: 'medication advice' },
+  { re: /建議你(?:去)?(?:打針|吃藥|停藥|加藥|減藥)/, label: '處置指示' },
+];
+
 /** 帶單位的數字，或小數 —— 這些才是「測量值」，才需要有出處。 */
 const MEASUREMENT_RE = /(\d+(?:\.\d+)?)\s*(%|％|ms|毫秒|bpm|°C|℃|度|分鐘|分|小時|h|kg|公斤|次|天)/gi;
 const DECIMAL_RE = /\b\d+\.\d+\b/g;
@@ -227,11 +269,123 @@ function isSupported(value, allowed) {
   return false;
 }
 
+// ---------------------------------------------------------------------------
+// 指標 ↔ 數值綁定（H-02 的核心修正）
+// ---------------------------------------------------------------------------
+
+/**
+ * ## 為什麼「數字有沒有出處」根本不夠
+ *
+ * 舊版把 context 裡**所有**數字倒進同一個集合，然後只問「這個數字有沒有
+ * 出現過」。於是任何數字都可以被安到任何指標上：
+ *
+ *   context: 恢復 55%、睡眠表現 99%、基準 30/30 筆
+ *   answer : 「你今天的恢復是 99%」        → 通過（99 來自睡眠表現）
+ *   answer : 「你的 HRV 是 30ms」          → 通過（30 來自基準窗天數）
+ *
+ * 兩句話都是**捏造的生理數值**，但每個數字都「有出處」。實測 11 個對抗
+ * 樣本中有 8 個被放行。
+ *
+ * 正確的問題不是「這個數字存在嗎」，而是
+ * **「這個數字被綁在這個指標上嗎」**。
+ *
+ * 所以這裡把 context 解析成 `指標 → 允許的數值集合`，答案端也用同樣的
+ * 方式抽出「指標 + 貼著它的數值」，然後逐一比對。
+ */
+// 長的指標名必須排在前面，否則 `睡眠` 會先吃掉 `睡眠表現`。
+const METRIC_ALTERNATION = [...KNOWN_METRIC_TERMS]
+  .sort((a, b) => b.length - a.length)
+  .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  .join('|');
+
+/**
+ * 指標名與它的數值之間允許出現的連接詞。
+ *
+ * 刻意**只列舉安全的字**，不用 `.{0,6}` 這種萬用 filler：萬用 filler 會
+ * 跨過另一個指標名，把「HRV 偏低、恢復 55%」錯讀成 `HRV → 55`。
+ * 這個字集裡沒有任何數字、也沒有任何指標名的片段。
+ */
+const BINDING_CONNECTOR = '(?:\\s|是|為|有|達到|達|約|大約|在|到|的|：|:|=|分數|指數|數值|值)*';
+
+/** 指標名 → 緊跟其後的數值。 */
+const BINDING_RE = new RegExp(
+  `(${METRIC_ALTERNATION})${BINDING_CONNECTOR}(-?\\d+(?:\\.\\d+)?)`,
+  'gi',
+);
+
+/** 正規化指標名，讓 HRV / hrv、RHR / 靜息心率 之類的同義詞落到同一個 key。 */
+const METRIC_ALIASES = new Map([
+  ['hrv', 'hrv'], ['心率變異', 'hrv'],
+  ['rhr', 'rhr'], ['靜息心率', 'rhr'],
+  ['spo2', 'spo2'], ['血氧', 'spo2'],
+  ['皮膚溫度', 'temp'], ['體溫', 'temp'],
+  ['vo2', 'vo2'], ['最大攝氧量', 'vo2'],
+  ['strain', 'strain'], ['負荷', 'strain'],
+  ['卡路里', 'kcal'], ['熱量', 'kcal'],
+]);
+const normalizeMetric = (term) => {
+  const k = String(term).toLowerCase();
+  return METRIC_ALIASES.get(k) ?? k;
+};
+
+/** 把一個值連同它的四捨五入變體塞進集合（與 allowedNumbersFrom 同一套寬容度）。 */
+function addRounded(set, n) {
+  if (!Number.isFinite(n)) return;
+  set.add(n);
+  set.add(Math.round(n));
+  set.add(Math.round(n * 10) / 10);
+  set.add(Math.abs(n));
+  set.add(Math.round(Math.abs(n)));
+  set.add(Math.round(Math.abs(n) * 10) / 10);
+}
+
+/**
+ * 可信 context → `Map<正規化指標, Set<允許數值>>`。
+ *
+ * ⚠️ 呼叫端必須傳**確定性事實**。使用者的原話不是證據，絕不可以混進來
+ * （見 validateNarrative 的 USER TEXT IS NOT EVIDENCE 說明）。
+ */
+export function metricBindingsFrom(context) {
+  const out = new Map();
+  for (const m of String(context ?? '').matchAll(BINDING_RE)) {
+    const key = normalizeMetric(m[1]);
+    const n = Number(m[2]);
+    if (!Number.isFinite(n)) continue;
+    if (!out.has(key)) out.set(key, new Set());
+    addRounded(out.get(key), n);
+  }
+  return out;
+}
+
+/** 答案裡出現的「指標 + 貼著它的數值」。 */
+export function metricClaimsIn(text) {
+  const claims = [];
+  for (const m of String(text ?? '').matchAll(BINDING_RE)) {
+    const n = Number(m[2]);
+    if (!Number.isFinite(n)) continue;
+    claims.push({ term: m[1], key: normalizeMetric(m[1]), value: n, raw: m[0].trim() });
+  }
+  return claims;
+}
+
 /**
  * 驗證一段敘述性回答。
  *
+ * ## USER TEXT IS NOT EVIDENCE
+ *
+ * `context` 是**唯一**的事實來源，而且它必須只包含確定性 / 統計層算出來的
+ * 事實。使用者自己打的字（問題、Journal 原文、任何轉述）**不是證據**：
+ * 只要它被混進 context，使用者就可以自己授權自己的健康宣稱——
+ *
+ *   問題：「我的 HRV 是 999ms 對嗎？」
+ *   → 舊版把問題塞進 context → 999 變成「有出處的數字」
+ *   → 回答「你的 HRV 999ms 偏高」通過驗證
+ *
+ * 呼叫端（bot/answer.js 的 composeAnswer）因此把「給模型看的 prompt」與
+ * 「用來驗證的可信事實」拆成兩個字串，只把後者傳進來。
+ *
  * @param {string} answer  LLM 的回答
- * @param {string} context 送給它的 evidence context（唯一的事實來源）
+ * @param {string} context 可信事實（**不含**使用者原話）
  */
 export function validateNarrative(answer, context, {
   checkNumbers = true, checkMetrics = true,
@@ -255,6 +409,16 @@ export function validateNarrative(answer, context, {
     if (re.test(text)) problems.push(`live_claim:${label}`);
   }
 
+  // --- 專有 / 衍生分數：不管數字有沒有出處，這個宣稱本身就不該存在 ---
+  for (const { re, label } of PROPRIETARY_CLAIM_PATTERNS) {
+    if (re.test(text)) problems.push(`proprietary_claim:${label}`);
+  }
+
+  // --- 治療 / 用藥指示 ---
+  for (const { re, label } of TREATMENT_PATTERNS) {
+    if (re.test(text)) problems.push(`treatment_advice:${label}`);
+  }
+
   // --- 沒有出處的數字 ---
   if (checkNumbers) {
     const allowed = allowedNumbersFrom(context);
@@ -276,6 +440,21 @@ export function validateNarrative(answer, context, {
     const ctx = String(context ?? '');
     for (const m of text.matchAll(DATE_RE)) {
       if (!ctx.includes(m[0])) problems.push(`unsupported_date:${m[0]}`);
+    }
+
+    // --- ★ 指標 ↔ 數值綁定 ---
+    // 上面那圈只問「這個數字在 context 裡出現過嗎」，任何數字都能被安到
+    // 任何指標上（恢復 55%、睡眠表現 99% → 「恢復 99%」通過）。
+    // 這裡改問「這個數字被綁在**這個**指標上嗎」，fail-closed：
+    // 指標在可信事實裡沒有任何數值 → 答案就不可以給它一個數值。
+    const bindings = metricBindingsFrom(context);
+    for (const claim of metricClaimsIn(text)) {
+      const allowedForMetric = bindings.get(claim.key);
+      if (!allowedForMetric) {
+        problems.push(`unsupported_metric_value:${claim.raw}`);
+      } else if (!isSupported(claim.value, allowedForMetric)) {
+        problems.push(`metric_value_mismatch:${claim.raw}`);
+      }
     }
   }
 

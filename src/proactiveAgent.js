@@ -161,12 +161,45 @@ export async function checkAndAct({
     seriesByMetric, capabilityByMetric, anchorDate, metrics: MONITORED_METRICS,
   });
 
-  const [openQuestion, journalToday, recentEvents] = await Promise.all([
-    db.getOpenPendingQuestion(uid, { now }).catch(() => null),
-    db.getJournalEvents(uid, { from: anchorDate, to: anchorDate }).catch(() => []),
-    db.getRecentProactiveEvents(uid, {
+  // ---- 權限與抑制狀態（M-11：**全部** fail-closed）----
+  //
+  // 這四個讀取決定「可不可以打擾使用者」：
+  //
+  //   isProactiveEnabled      使用者有沒有把主動訊息關掉（權限）
+  //   getOpenPendingQuestion  已經有一題還沒回答了（抑制）
+  //   getJournalEvents        使用者今天已經自己記過了（抑制）
+  //   getRecentProactiveEvents 冷卻窗、每日上限、持續性（抑制）
+  //
+  // 舊版每一個都是 `.catch(() => <寬鬆值>)`：讀不到就當成「沒關」「沒有
+  // 未回答的問題」「今天沒記過」。實測確認：把前三個任何一個弄壞，
+  // 系統照樣送出主動訊息。最嚴重的是第一個——一個**明確把主動訊息關掉**
+  // 的使用者，只要那次讀取失敗就會被打擾。
+  //
+  // 一個會不請自來發訊息的系統，「不確定可不可以發」的正確答案永遠是
+  // **不發**。所以這裡改成：任何一個讀取失敗 → 這一輪不送任何訊息。
+  //
+  // 分析照跑、事件照記（稽核軌跡與長期規律完全不受影響），
+  // 手動問答也完全不受影響——降級的只有「主動打擾」這一件事。
+  const gateFailures = [];
+  const gate = async (name, fn, fallback) => {
+    try {
+      return await fn();
+    } catch (err) {
+      gateFailures.push(name);
+      log.warn('proactive_gate_read_failed', {
+        user_id: uid, gate: name, error: String(err?.message ?? err).slice(0, 200),
+      });
+      return fallback;
+    }
+  };
+
+  const [openQuestion, journalToday, recentEvents, proactiveEnabled] = await Promise.all([
+    gate('open_question', () => db.getOpenPendingQuestion(uid, { now }), null),
+    gate('journal_today', () => db.getJournalEvents(uid, { from: anchorDate, to: anchorDate }), []),
+    gate('recent_events', () => db.getRecentProactiveEvents(uid, {
       sinceIso: new Date(now.getTime() - RECENT_EVENTS_WINDOW_DAYS * 86_400_000).toISOString(),
-    }).catch(() => []),
+    }), []),
+    gate('proactive_enabled', () => db.isProactiveEnabled(uid), null),
   ]);
 
   let decision = decide({
@@ -178,14 +211,25 @@ export async function checkAndAct({
   });
 
   // ---- per-user 主動訊息開關 ----
-  // 關閉的使用者：分析照跑、事件照記（稽核軌跡與長期規律不受影響），
-  // 但**絕不主動送出任何訊息**。手動問答完全不受影響。
-  const proactiveEnabled = await db.isProactiveEnabled(uid).catch(() => true);
-  if (!proactiveEnabled && isMessagingDecision(decision.decision)) {
+  // `proactiveEnabled === null` 代表**讀不到**（不是「關著」也不是「開著」）。
+  // 讀不到就不送——這正是 fail-closed 的意思。
+  if (proactiveEnabled === false && isMessagingDecision(decision.decision)) {
     decision = {
       decision: PROACTIVE_DECISION.LOG_ONLY,
       reason: 'proactive_disabled_by_user',
       factors: { ...decision.factors, proactive_enabled: false },
+    };
+  }
+
+  // ---- 任何一個閘門讀不到 → 這一輪不打擾 ----
+  if (gateFailures.length && isMessagingDecision(decision.decision)) {
+    log.warn('proactive_suppressed_gate_unreadable', {
+      user_id: uid, health_date: anchorDate, gates: gateFailures,
+    });
+    decision = {
+      decision: PROACTIVE_DECISION.LOG_ONLY,
+      reason: 'permission_state_unreadable',
+      factors: { ...decision.factors, unreadable_gates: gateFailures },
     };
   }
 
@@ -202,16 +246,34 @@ export async function checkAndAct({
         .filter((e) => Date.parse(e.createdAt) >= cooldownCutoff && e.reason?.question_category)
         .map((e) => e.reason.question_category),
     );
+    // M-11 同一條不變量：問題的挑選也依賴 journal 歷史（避免問使用者
+    // 早就回答過的事）。讀不到就不是「沒有歷史」，而是「不知道」——
+    // 不知道就不要開口問。
+    let journalHistoryReadable = true;
     const [fullMetricSeries, journalHistory] = await Promise.all([
       Promise.resolve(seriesOf(rows, topSignal.metric)),
       db.getJournalEvents(uid, {
         from: addDays(anchorDate, -180), to: anchorDate, limit: 2000,
-      }).catch(() => []),
+      }).catch((err) => {
+        journalHistoryReadable = false;
+        log.warn('proactive_gate_read_failed', {
+          user_id: uid, gate: 'journal_history', error: String(err?.message ?? err).slice(0, 200),
+        });
+        return [];
+      }),
     ]);
-    const selection = selectQuestion({
-      signal: topSignal, journalEvents: journalHistory, metricSeries: fullMetricSeries, excludeCategories,
-    });
-    if (!selection) {
+    const selection = journalHistoryReadable
+      ? selectQuestion({
+        signal: topSignal, journalEvents: journalHistory, metricSeries: fullMetricSeries, excludeCategories,
+      })
+      : null;
+    if (!journalHistoryReadable) {
+      decision = {
+        decision: PROACTIVE_DECISION.LOG_ONLY,
+        reason: 'permission_state_unreadable',
+        factors: { ...decision.factors, unreadable_gates: ['journal_history'] },
+      };
+    } else if (!selection) {
       decision = downgradeAskToNotify(decision, { reason: 'no_question_candidate' });
     } else {
       questionCategory = selection.category;

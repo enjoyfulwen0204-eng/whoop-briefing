@@ -63,6 +63,59 @@ export function createBotStore(client) {
     return setState('telegram_offset', String(offset), { now });
   }
 
+  /**
+   * 原子認領一則 Telegram update（M-09）。回 true 代表**這一次**認領成功。
+   *
+   * ## 為什麼 offset 不夠
+   *
+   * 每一則訊息的流程是「處理（寫 journal、跑分析、送訊息）→ 存 offset」，
+   * 這是兩段寫入。中間 worker 被殺（部署、OOM、SIGKILL）的話 offset 還是
+   * 舊的，Telegram 會把同一則 update 再送一次 —— 同一句「喝了兩杯」就被
+   * 寫成兩筆 journal。實測確認：重送一次 → 2 筆。
+   *
+   * journal 是所有長期關聯分析的輸入，重複的曝露日會直接扭曲相關係數，
+   * 而且**永遠不會自己修好**。
+   *
+   * INSERT-first + PRIMARY KEY 衝突，跟 claimProactiveEvent 是同一個模式：
+   * 認領成功才有資格產生副作用。
+   */
+  async function claimTelegramUpdate(updateId, { now = new Date() } = {}) {
+    // ⚠️ `Number(null) === 0`、`Number('') === 0`、`Number([]) === 0`——
+    // 少了這一行，一個空的 update_id 會被當成合法的 id 0 認領下去。
+    // 這個陷阱在這個 codebase 裡已經出現過三次，一律先排除空值再轉數字。
+    if (updateId === null || updateId === undefined || updateId === '') return false;
+    if (typeof updateId === 'object' || typeof updateId === 'boolean') return false;
+    const id = Number(updateId);
+    if (!Number.isInteger(id)) return false;
+    try {
+      await client.execute({
+        sql: `INSERT INTO telegram_processed_updates (update_id, processed_at)
+              VALUES (?, ?)`,
+        args: [id, nowIso(now)],
+      });
+      return true;
+    } catch (err) {
+      if (/UNIQUE constraint failed|PRIMARY KEY/i.test(String(err?.message ?? ''))) return false;
+      throw err;
+    }
+  }
+
+  /**
+   * 把太舊的認領紀錄刪掉。update_id 對一個 bot 是單調遞增的，
+   * 所以「保留最近 keep 個 id」就是一個確定性、O(索引) 的裁剪，
+   * 不需要時間欄位、也不需要掃全表。
+   */
+  async function pruneTelegramUpdates(currentUpdateId, { keep = 10_000 } = {}) {
+    if (currentUpdateId === null || currentUpdateId === undefined || currentUpdateId === '') return 0;
+    const id = Number(currentUpdateId);
+    if (!Number.isFinite(id) || id <= keep) return 0;
+    const rs = await client.execute({
+      sql: 'DELETE FROM telegram_processed_updates WHERE update_id < ?',
+      args: [id - keep],
+    });
+    return Number(rs.rowsAffected ?? 0);
+  }
+
   // -------------------------------------------------------------------------
   // journal_events
   // -------------------------------------------------------------------------
@@ -188,13 +241,34 @@ export function createBotStore(client) {
       log.info('pending_question_expired', { user_id: uid, id: Number(row.id) });
       return null;
     }
+    // ★ L-01：壞掉的 context 絕不可以把整個對話卡死。
+    //
+    // 舊版直接 `JSON.parse(row.context_json)`。一列壞掉的 context 會讓
+    // 這個 map 拋錯，而這支函式是 `route()` 的**第一步** —— 於是那個使用者
+    // 送的**每一則**訊息（連 `/status` 都算）都只會拿到「我這邊出了點問題」。
+    // 而且追問永遠停在 OPEN（惰性過期的 UPDATE 根本走不到），所以這是
+    // **永久**卡死，只能人工改資料庫才救得回來。實測確認。
+    //
+    // 解不開的 context 代表這一題已經沒辦法被正確回答了。與其保留一顆
+    // 地雷，不如就地收掉它：使用者的下一句話會走一般路徑，對話立刻復原。
+    const context = safeParseContext(row.context_json);
+    if (row.context_json && context === null) {
+      log.warn('pending_question_context_unparsable', { user_id: uid, id: Number(row.id) });
+      await client.execute({
+        sql: `UPDATE pending_questions SET status = 'EXPIRED'
+               WHERE user_id = ? AND id = ? AND status = 'OPEN'`,
+        args: [uid, row.id],
+      });
+      return null;
+    }
+
     return {
       id: Number(row.id),
       chatId: row.chat_id,
       originalMessage: row.original_message,
       question: row.question,
       intent: row.intent,
-      context: row.context_json ? JSON.parse(row.context_json) : null,
+      context,
       askedAt: row.asked_at,
       expiresAt: row.expires_at,
       status: row.status,
@@ -364,6 +438,8 @@ export function createBotStore(client) {
     setState,
     getUpdateOffset,
     setUpdateOffset,
+    claimTelegramUpdate,
+    pruneTelegramUpdates,
     addJournalEvent,
     getJournalEvents,
     countJournalEvents,

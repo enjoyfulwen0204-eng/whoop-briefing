@@ -415,6 +415,29 @@ export const BOT_SCHEMA = [
      answer_text      TEXT
    )`,
   `CREATE INDEX IF NOT EXISTS idx_pending_user ON pending_questions (user_id, status)`,
+
+  // 已經處理過的 Telegram update（M-09）。
+  //
+  // ## 為什麼光有 offset 不夠
+  //
+  // polling.js 有三層不重複機制，但全部建立在「offset 存得下去」上。
+  // 每一則訊息的流程是：處理（寫 journal、跑分析、送訊息）→ 存 offset。
+  // 這是**兩段寫入**，中間 worker 被殺（部署、OOM、SIGKILL）的話，
+  // offset 還是舊的，Telegram 會把同一則 update 再送一次，於是同一句
+  // 「喝了兩杯」被寫成兩筆 journal。實測確認：重送一次 → 2 筆。
+  //
+  // 而 journal 是所有長期關聯分析的輸入，重複的曝露日會直接扭曲相關係數。
+  //
+  // 解法沿用系統裡已經在用的同一套：**在副作用之前原子認領**
+  // （proactive_events.idempotency_key、pending_questions 的條件式 UPDATE
+  // 都是同一個模式）。這裡的認領鍵就是 update_id 本身。
+  //
+  // 刻意**不**分 user：update_id 對一個 bot 是全域唯一且遞增的，
+  // 而且認領必須發生在身分解析之前之後都安全的位置。純新增表，零風險。
+  `CREATE TABLE IF NOT EXISTS telegram_processed_updates (
+     update_id    INTEGER PRIMARY KEY,
+     processed_at TEXT NOT NULL
+   )`,
 ];
 
 // ---------------------------------------------------------------------------
@@ -695,12 +718,35 @@ export const PROACTIVE_DECISION = {
   FOLLOW_UP: 'FOLLOW_UP',
 };
 
-/** proactive_events.outcome 的允許值——事後 reanalysis 才會填。 */
+/**
+ * proactive_events.outcome 的允許值——事後 reanalysis 或收割器才會填。
+ *
+ * 前四個是「對話真的走完了」的結果。後兩個（M-03）是**收斂用的終局**：
+ * 有些狀態下這個事件永遠不可能再被正常流程結案，但它仍然必須有一個
+ * 誠實的終局，否則會永遠停在 NULL，讓 Guardian 每 12 小時誤報一次。
+ *
+ * 刻意**不**把後兩者併進 NO_RESPONSE：那會是事實錯誤（使用者其實回了，
+ * 或這題根本沒機會被回答），而 proactivePolicy 未來要拿 NO_RESPONSE 的
+ * 比例去調門檻——污染它等於用假資料調整騷擾程度。
+ */
 export const PROACTIVE_OUTCOME = {
   STILL_UNEXPLAINED: 'STILL_UNEXPLAINED',
   EXPLAINED: 'EXPLAINED',
   NO_EXPLANATION_OFFERED: 'NO_EXPLANATION_OFFERED',
   NO_RESPONSE: 'NO_RESPONSE',
+  /** 這題還沒被回答就被新的追問取代了。不是「沒回應」。 */
+  SUPERSEDED: 'SUPERSEDED',
+  /** 使用者確實回答了，但處理流程中途死掉，沒有走到真正的結論。 */
+  ABANDONED: 'ABANDONED',
+  /**
+   * 送出去了，而且**本來就沒有要問任何問題**（M-07）。
+   *
+   * NOTIFY 這類決策只是通知一句話，不會開追問，所以沒有人該回答它。
+   * 舊版讓這種事件的 outcome 永遠停在 NULL，而 Guardian 的「卡住」判準
+   * 正是 `sent_at IS NOT NULL AND outcome IS NULL` —— 於是每一則正常送出
+   * 的通知都會變成一筆永久的假警報。送出即終局。
+   */
+  DELIVERED: 'DELIVERED',
 };
 
 /** pending_questions.intent 用這個值標記「這是主動代理發起的問題」。 */

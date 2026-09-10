@@ -179,9 +179,11 @@ test('OAuth：replay 同一個 state 不會再存一次 token', async () => {
         expiresAt: new Date(Date.now() + 3600_000), scope: 'offline',
       };
     };
-    await completeAuthorization({ db, rawState: state, code: 'c', exchange });
+    // M-01：真實的 token endpoint 不回傳身分，所以身分一定另外查一次
+    const verifyIdentity = async () => '777';
+    await completeAuthorization({ db, rawState: state, code: 'c', exchange, verifyIdentity });
     await assert.rejects(
-      () => completeAuthorization({ db, rawState: state, code: 'c', exchange }),
+      () => completeAuthorization({ db, rawState: state, code: 'c', exchange, verifyIdentity }),
       (err) => err instanceof OAuthFlowError && err.code === 'STATE_CONSUMED',
     );
     assert.equal(exchanges, 1, '第二次不該再打 WHOOP');

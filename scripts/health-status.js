@@ -22,7 +22,14 @@ const pad = (s, n) => String(s ?? '-').padEnd(n, ' ');
 
 try {
   await db.migrate();
-  const today = localDate(new Date(), env.timezone);
+  // ★ L-03：時區必須是**這個使用者的**。
+  //
+  // `env.timezone` 只是 bootstrap 預設（config.js 已經寫明「真正的時區在
+  // users.timezone」）。這支腳本明明已經 pickUser() 而且把 user.timezone
+  // 印在標題上，卻用 env.timezone 算「今天」——只要使用者的時區跟跑腳本
+  // 的機器不同，「最新健康日已落後 N 天」與 backfill 進度就會整個差一天，
+  // 而且看起來完全正常。
+  const today = localDate(new Date(), user.timezone);
 
   // ---- 歷史涵蓋 ----
   const cov = await db.coverage(user.id);

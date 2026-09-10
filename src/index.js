@@ -166,6 +166,19 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   try {
     // 先把 token 準備好（序列化 refresh，避免後面平行請求同時 refresh）
     await whoop.getAccessToken();
+    // ★ M-08：拿得到 token 就代表授權已經恢復。把累積的失敗紀錄清掉，
+    // 否則 Guardian 會靠著那個永遠不會被清的 hits 計數，每 12 小時
+    // 重複通知「需要重新授權」——直到天荒地老。
+    if (typeof db.clearUserErrorNotify === 'function') {
+      try {
+        await db.clearUserErrorNotify(uid, 'whoop_auth');
+      } catch (err) {
+        // 清不掉不影響這一輪的任何事，只是 Guardian 可能晚一輪才安靜
+        log.warn('whoop_auth_recovery_clear_failed', {
+          user_id: uid, error: describeError(err),
+        });
+      }
+    }
   } catch (err) {
     // 這個人的授權壞了 → 只影響他自己，通知他自己
     out.errors.push({ stage: 'whoop_auth', error: describeError(err) });

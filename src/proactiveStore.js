@@ -6,6 +6,7 @@
  * proactiveAgent.js。
  */
 
+import { PROACTIVE_OUTCOME } from './schema.js';
 import { log } from './logger.js';
 import { requireUserId } from './userContext.js';
 
@@ -120,6 +121,21 @@ export function createProactiveStore(client) {
     }
   }
 
+  /**
+   * 標記「這則主動訊息已經送出去了」。
+   *
+   * ## M-07：沒有問問題的事件，送出即終局
+   *
+   * `pendingQuestionId` 是 null 代表這次**根本沒有開追問**——NOTIFY 這類
+   * 決策只是通知一句話，沒有人該回答它。舊版讓這種事件的 outcome 永遠
+   * 停在 NULL，而 Guardian 判斷「卡住」的條件正是
+   * `sent_at IS NOT NULL AND outcome IS NULL`。結果每一則**正常送出**的
+   * 通知，24 小時後都會變成一筆永久的假警報，每 12 小時響一次，
+   * 而且沒有任何辦法讓它消失。實測確認。
+   *
+   * 所以這裡在送出的同一步就寫上 DELIVERED。`outcome IS NULL` 的條件讓
+   * 它天然冪等，也不會覆寫任何已經有結論的事件。
+   */
   async function markProactiveEventSent(userId, id, { pendingQuestionId = null } = {}, { now = new Date() } = {}) {
     const uid = requireUserId(userId, 'markProactiveEventSent');
     await client.execute({
@@ -127,6 +143,14 @@ export function createProactiveStore(client) {
              WHERE user_id = ? AND id = ?`,
       args: [nowIso(now), pendingQuestionId, uid, id],
     });
+    if (pendingQuestionId === null || pendingQuestionId === undefined) {
+      await client.execute({
+        sql: `UPDATE proactive_events
+                 SET outcome = ?, resolved_at = ?
+               WHERE user_id = ? AND id = ? AND outcome IS NULL`,
+        args: [PROACTIVE_OUTCOME.DELIVERED, nowIso(now), uid, id],
+      });
+    }
     return true;
   }
 
@@ -171,6 +195,72 @@ export function createProactiveStore(client) {
       args: [outcome, nowIso(now), uid, id],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * 「已經送出、但永遠不可能再被正常流程結案」的事件（M-03）。
+   *
+   * ## 為什麼需要這一條路
+   *
+   * 收割器原本只看 pending_questions 的 OPEN / EXPIRED。但追問還有兩個
+   * **終局狀態**會把事件永久留在 outcome = NULL：
+   *
+   *   ANSWERED    澄清追問流程：Q1 被收成 ANSWERED → 接著開 Q2。
+   *               這是**兩次寫入**，中間 process 死掉的話 Q2 從來不存在，
+   *               而 Q1 已經是 ANSWERED——收割器的清單刻意排除 ANSWERED
+   *               （寫 NO_RESPONSE 會是事實錯誤），於是事件永遠卡住。
+   *
+   *   SUPERSEDED  這題還沒被回答就被新的追問取代了。同樣不在清單裡。
+   *
+   * 實測確認：兩種狀態下把收割器連跑三次，事件都還是 NULL。後果是
+   * Guardian 每 12 小時誤報一次「有事件卡住」，而且**永遠**不會消失——
+   * 這種假警報會很快讓人開始忽略真的警報。
+   *
+   * ## 判準
+   *
+   * 條件跟 Guardian 的 `countStuckProactiveEvents` 對齊（送出了、沒有結果、
+   * 夠舊），再加上一條關鍵的安全條件：
+   *
+   *   **沒有任何 OPEN 的追問還指著這個事件。**
+   *
+   * 這一條同時看兩種連結（欄位 `pending_question_id` 與 context 裡的
+   * `proactive_event_id`），所以澄清追問 Q2 還開著的時候，事件不會被誤判
+   * 成「無人接手」。`grace` 則保證不會跟一個正在處理中的請求打架。
+   *
+   * `last_status` 是最後一題（不管哪種連結）的狀態，呼叫端據此選出誠實的
+   * 終局標籤——絕不一律寫 NO_RESPONSE。
+   *
+   * json_valid 的理由與 UNRESOLVED_EVENT_ID_SQL 相同：libSQL 對壞掉的
+   * JSON 直接 json_extract 會讓**整個查詢**失敗。
+   */
+  async function listUnresolvableProactiveEvents(userId, { olderThanIso, limit = 100 } = {}) {
+    const uid = requireUserId(userId, 'listUnresolvableProactiveEvents');
+    const LINKED = `(q.id = e.pending_question_id
+                     OR (json_valid(q.context_json)
+                         AND json_extract(q.context_json, '$.proactive_event_id') = e.id))`;
+    const rs = await client.execute({
+      sql: `SELECT e.id AS event_id, e.sent_at,
+                   (SELECT COUNT(*) FROM pending_questions q
+                     WHERE q.user_id = e.user_id AND q.status = 'OPEN' AND ${LINKED}) AS open_links,
+                   (SELECT q.status FROM pending_questions q
+                     WHERE q.user_id = e.user_id AND ${LINKED}
+                     ORDER BY q.id DESC LIMIT 1) AS last_status
+              FROM proactive_events e
+             WHERE e.user_id = ?
+               AND e.sent_at IS NOT NULL
+               AND e.outcome IS NULL
+               AND e.sent_at <= ?
+             ORDER BY e.id ASC
+             LIMIT ?`,
+      args: [uid, olderThanIso, limit],
+    });
+    return rs.rows
+      .filter((r) => Number(r.open_links ?? 0) === 0)
+      .map((r) => ({
+        eventId: Number(r.event_id),
+        sentAt: r.sent_at,
+        lastStatus: r.last_status ?? null,
+      }));
   }
 
   /** 找「這個使用者、由某個 pending_question_id 連過來」的事件（reanalysis 用）。 */
@@ -228,6 +318,7 @@ export function createProactiveStore(client) {
     markProactiveEventSent,
     resolveProactiveEvent,
     resolveProactiveEventIfUnresolved,
+    listUnresolvableProactiveEvents,
     getProactiveEventByPendingQuestion,
     getRecentProactiveEvents,
   };

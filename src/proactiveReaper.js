@@ -68,6 +68,7 @@
  * 維持既有的惰性過期即可——這裡不去改它的語義。
  */
 
+import { TELEGRAM_BOT } from './config.js';
 import { PROACTIVE_OUTCOME, PROACTIVE_QUESTION_INTENT } from './schema.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
@@ -77,28 +78,38 @@ import { log } from './logger.js';
  *
  * **永遠不拋錯**：這是背景維護工作，絕不可以讓簡報或同步失敗。
  *
- * @returns {Promise<{expired:number, repaired:number, noResponse:number, skipped:number}>}
+ * @returns {Promise<{expired:number, repaired:number, noResponse:number,
+ *                    superseded:number, abandoned:number, skipped:number}>}
  *   expired    這一次真的從 OPEN 收成 EXPIRED 的問題數
  *   repaired   問題早就是 EXPIRED（惰性過期或中途死掉），這次只補事件
  *   noResponse 真的補寫成 NO_RESPONSE 的事件數
+ *   superseded 被新追問取代、因此永遠不會有回答的事件數（M-03）
+ *   abandoned  使用者確實回答了、但流程中途死掉的事件數（M-03）
+ *   delivered  從來沒有問過問題的事件（NOTIFY／舊資料）補上終局的數量（M-07）
  *   skipped    競態下輸掉、或已經有結果、或沒有連到事件的數量
  */
-export async function reapExpiredProactiveQuestions({ db, userId, now = new Date() }) {
+export async function reapExpiredProactiveQuestions({
+  db, userId, now = new Date(), graceMs = TELEGRAM_BOT.PENDING_TTL_MS,
+}) {
   const uid = requireUserId(userId, 'reapExpiredProactiveQuestions');
-  const out = { expired: 0, repaired: 0, noResponse: 0, skipped: 0 };
+  const out = {
+    expired: 0, repaired: 0, noResponse: 0,
+    superseded: 0, abandoned: 0, delivered: 0, skipped: 0,
+  };
 
-  if (typeof db.listReapablePendingQuestions !== 'function') return out;
-
-  let stale;
-  try {
-    stale = await db.listReapablePendingQuestions(uid, {
-      now, intent: PROACTIVE_QUESTION_INTENT,
-    });
-  } catch (err) {
-    log.warn('proactive_reap_list_failed', { user_id: uid, error: String(err?.message ?? err).slice(0, 200) });
-    return out;
+  // ⚠️ 這兩段都**不可以**提前 return：第二輪（M-03 的孤兒事件）與追問清單
+  // 完全無關，即使這裡一題都沒有，那邊仍然可能有事件卡住。
+  let stale = [];
+  if (typeof db.listReapablePendingQuestions === 'function') {
+    try {
+      stale = await db.listReapablePendingQuestions(uid, {
+        now, intent: PROACTIVE_QUESTION_INTENT,
+      });
+    } catch (err) {
+      log.warn('proactive_reap_list_failed', { user_id: uid, error: String(err?.message ?? err).slice(0, 200) });
+      stale = [];
+    }
   }
-  if (!stale.length) return out;
 
   for (const q of stale) {
     try {
@@ -166,12 +177,74 @@ export async function reapExpiredProactiveQuestions({ db, userId, now = new Date
     }
   }
 
-  if (out.expired || out.repaired || out.noResponse) {
+  // -------------------------------------------------------------------------
+  // 第二輪：收斂「永遠不可能再被正常流程結案」的事件（M-03）
+  // -------------------------------------------------------------------------
+  //
+  // 第一輪只看得到 OPEN / EXPIRED 的追問。ANSWERED 與 SUPERSEDED 是刻意
+  // 排除的（對它們寫 NO_RESPONSE 會是事實錯誤），但這也代表兩種真實情況
+  // 會讓事件**永遠**停在 NULL：
+  //
+  //   ANSWERED   澄清追問是「收掉 Q1」+「開 Q2」兩次寫入。中間死掉的話
+  //              Q2 從來不存在，Q1 已經 ANSWERED，沒有人會再回來收尾。
+  //   SUPERSEDED 這題還沒被回答就被新的追問取代了。
+  //
+  // 兩者都會讓 Guardian 每 12 小時誤報一次，而且永遠不會消失。
+  //
+  // 這一輪給它們一個**誠實的**終局，而不是硬塞 NO_RESPONSE：
+  // 使用者真的回了就叫 ABANDONED，被取代就叫 SUPERSEDED。
+  //
+  // 安全條件（在 SQL 裡）：沒有任何 OPEN 的追問還指著這個事件，而且事件
+  // 送出已經超過 graceMs——所以絕不會跟一個正在處理中的請求打架。
+  if (typeof db.listUnresolvableProactiveEvents === 'function') {
+    const olderThanIso = new Date(now.getTime() - graceMs).toISOString();
+    let orphans = [];
+    try {
+      orphans = await db.listUnresolvableProactiveEvents(uid, { olderThanIso });
+    } catch (err) {
+      log.warn('proactive_reap_orphan_list_failed', {
+        user_id: uid, error: String(err?.message ?? err).slice(0, 200),
+      });
+    }
+    for (const o of orphans) {
+      // 根據「最後一題的狀態」給一個誠實的終局：
+      //   ANSWERED   使用者回了，但流程沒走完 → ABANDONED
+      //   SUPERSEDED 還沒回就被新問題取代    → SUPERSEDED
+      //   EXPIRED    問了沒回                → NO_RESPONSE
+      //   null       **從來沒有問過任何問題**（NOTIFY，或舊資料）→ DELIVERED
+      //              對這種事件寫 NO_RESPONSE 是事實錯誤：沒有問題，
+      //              就沒有「沒回應」可言（M-07）。
+      const outcome = o.lastStatus === 'ANSWERED' ? PROACTIVE_OUTCOME.ABANDONED
+        : o.lastStatus === 'SUPERSEDED' ? PROACTIVE_OUTCOME.SUPERSEDED
+          : o.lastStatus === null || o.lastStatus === undefined
+            ? PROACTIVE_OUTCOME.DELIVERED
+            : PROACTIVE_OUTCOME.NO_RESPONSE;
+      try {
+        const wrote = await db.resolveProactiveEventIfUnresolved(uid, o.eventId, outcome, { now });
+        if (!wrote) { out.skipped += 1; continue; }
+        if (outcome === PROACTIVE_OUTCOME.ABANDONED) out.abandoned += 1;
+        else if (outcome === PROACTIVE_OUTCOME.SUPERSEDED) out.superseded += 1;
+        else if (outcome === PROACTIVE_OUTCOME.DELIVERED) out.delivered += 1;
+        else out.noResponse += 1;
+      } catch (err) {
+        out.skipped += 1;
+        log.warn('proactive_reap_orphan_failed', {
+          user_id: uid, event_id: o.eventId, error: String(err?.message ?? err).slice(0, 200),
+        });
+      }
+    }
+  }
+
+  if (out.expired || out.repaired || out.noResponse
+      || out.superseded || out.abandoned || out.delivered) {
     log.info('proactive_questions_reaped', {
       user_id: uid,
       expired: out.expired,
       repaired: out.repaired,
       no_response: out.noResponse,
+      superseded: out.superseded,
+      abandoned: out.abandoned,
+      delivered: out.delivered,
       skipped: out.skipped,
     });
   }

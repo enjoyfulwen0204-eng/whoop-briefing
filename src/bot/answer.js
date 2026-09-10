@@ -31,9 +31,14 @@ export const ANSWER_SYSTEM_PROMPT = `你是 Kelvin 的私人健康教練，語�
 - 回答控制在 120–250 字，重點先講，不要條列一大堆數字（數字使用者看得到）。
 - 可以用少量 emoji，稱呼對方 Kelvin。`;
 
-/** 把 structured result 轉成給模型看的文字。只給結論，不給 raw row。 */
-export function buildAnswerContext(question, result) {
-  const lines = [`使用者的問題：${question}`, ''];
+/**
+ * 把 structured result 轉成**可信事實**。
+ *
+ * ★ 這裡刻意不含使用者的問題。見 composeAnswer 的說明：
+ *   USER TEXT IS NOT EVIDENCE。
+ */
+export function buildTrustedFacts(result) {
+  const lines = [];
 
   if (!result || result.available === false) {
     lines.push(`目前無法回答，原因：${result?.reason ?? 'unknown'}`);
@@ -144,8 +149,23 @@ export function buildAnswerContext(question, result) {
       lines.push(JSON.stringify(result).slice(0, 1500));
   }
 
-  lines.push('', '請用溫暖口語的繁體中文回答上面的問題。只根據以上資訊，不要補任何沒給你的數字。');
   return lines.join('\n');
+}
+
+/**
+ * 給模型看的完整 prompt = 使用者的問題 + 可信事實 + 指示。
+ *
+ * 模型**需要**看到問題才知道要回答什麼；驗證層**絕不可以**看到問題
+ * （否則使用者可以用問題自己授權自己的健康宣稱）。所以兩者分開產生。
+ */
+export function buildAnswerContext(question, result) {
+  return [
+    `使用者的問題：${question}`,
+    '',
+    buildTrustedFacts(result),
+    '',
+    '請用溫暖口語的繁體中文回答上面的問題。只根據以上資訊，不要補任何沒給你的數字。',
+  ].join('\n');
 }
 
 /** LLM 不可用時的純 Node 版本 —— 資訊完整，只是比較乾。 */
@@ -204,19 +224,33 @@ export function renderFallback(result) {
 /**
  * structured result → 最終要送出去的文字。
  *
- * ★ LLM 的回答一定會先過 guardNarrative：如果它講出 context 裡沒有的數字、
+ * ★ LLM 的回答一定會先過 guardNarrative：如果它講出可信事實裡沒有的數字、
  * 日期、指標，或使用強因果 / 診斷措辭，**原文不會被送出去**，
  * 改用 renderFallback() 的純 Node 版本。
+ *
+ * ## USER TEXT IS NOT EVIDENCE（H-02）
+ *
+ * 舊版把 `buildAnswerContext()` 的輸出同時當成 prompt 和驗證用的 context，
+ * 而那個字串的第一行就是 `使用者的問題：<原話>`。結果使用者可以自己
+ * 授權自己的宣稱：
+ *
+ *   問：「我的 HRV 是 999ms 對嗎？」
+ *   → 999 出現在 context → 「你的 HRV 999ms 偏高」通過驗證並送出
+ *
+ * 現在 prompt 與可信事實是兩個分開產生的字串，guardNarrative 只拿得到
+ * `buildTrustedFacts(result)` —— 100% 由確定性 / 統計層算出來的東西。
  */
 export async function composeAnswer({ question, result, coach, purpose = AI_PURPOSE.QA }) {
   const fallback = renderFallback(result);
   if (!result || result.available === false) return fallback;
   if (!coach?.ask) return fallback;
 
-  const context = buildAnswerContext(question, result);
+  // ★ prompt 與驗證用的事實刻意分成兩個字串（USER TEXT IS NOT EVIDENCE）
+  const trustedFacts = buildTrustedFacts(result);
+  const prompt = buildAnswerContext(question, result);
   const text = await coach.ask({
     system: ANSWER_SYSTEM_PROMPT,
-    user: context,
+    user: prompt,
     maxTokens: TELEGRAM_BOT.ANSWER_MAX_TOKENS,
     purpose,
     promptVersion: PROMPT_VERSIONS.QA,
@@ -225,7 +259,8 @@ export async function composeAnswer({ question, result, coach, purpose = AI_PURP
 
   const guarded = guardNarrative({
     answer: safeSlice(text.trim(), TELEGRAM_BOT.MAX_REPLY_CHARS),
-    context,
+    // ★ 只用可信事實驗證，絕不含 question
+    context: trustedFacts,
     fallback,
     label: 'qa',
   });

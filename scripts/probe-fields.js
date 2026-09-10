@@ -46,7 +46,8 @@ try {
   console.log(`使用者：${user.id}（${user.displayName}，${user.timezone}）`);
 
   const { entries, scopeErrors } = await probeCapabilities({
-    db, whoop, userId: user.id, timezone: env.timezone, days: DAYS,
+    // ★ L-03 同一條：用這個使用者自己的時區，不是 bootstrap 預設
+    db, whoop, userId: user.id, timezone: user.timezone, days: DAYS,
   });
 
   const group = (s) => entries.filter((e) => e.status === s);

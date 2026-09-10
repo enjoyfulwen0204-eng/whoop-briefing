@@ -26,10 +26,24 @@ const USAGE = '用法：/link <綁定碼>';
  * @param {string} o.chatId
  * @returns {Promise<?string>} 要回覆的文字；null = 完全不回（靜默忽略）
  */
-export async function handleLinkAttempt({ db, text, chatId, now = new Date() }) {
+export async function handleLinkAttempt({
+  db, text, chatId, isPrivateChat = false, now = new Date(),
+}) {
   const m = LINK_COMMAND.exec(String(text ?? '').trim());
   // 不是 /link → 完全不回。未綁定的 chat 不該得到任何回應。
   if (!m) return null;
+
+  // ★ H-01 縱深防禦：綁定是整個系統最敏感的一步——它決定「這個 chat 之後
+  // 講的話算誰的」。呼叫端（polling.classify）已經擋掉非私訊，但這裡**再
+  // 擋一次**，而且預設是 false：任何忘記傳這個旗標的新呼叫端，行為會是
+  // 拒絕綁定，而不是默默把一個群組綁到某個人身上。
+  //
+  // 群組被綁定 = 群組裡每一個人都變成那個人（實測過）。這條路徑不可以
+  // 依賴「呼叫端有記得檢查」。
+  if (!isPrivateChat) {
+    log.warn('link_attempt_rejected_non_private', { chat_id: String(chatId) });
+    return null;   // 完全不回：不讓群組成員推斷出這個 bot 的任何狀態
+  }
 
   const code = m[1];
   if (!code) return USAGE;

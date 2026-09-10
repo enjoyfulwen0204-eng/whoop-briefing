@@ -40,7 +40,8 @@ async function withDb(fn) {
   const { db, cleanup } = tempDb();
   try {
     await db.migrate();
-    await seedAliceAndBob(db);
+    // 這個檔案專門測 capability 本身，所以刻意用**沒有 probe 過**的帳號
+    await seedAliceAndBob(db, { probed: false });
     await fn(db);
   } finally {
     db.close();

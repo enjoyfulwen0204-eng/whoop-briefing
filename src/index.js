@@ -94,7 +94,65 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   const out = {
     userId: uid, timezone: tz, daily: null, weekly: null, sync: null, proactive: null,
     reaped: null, prediction: null, healthspan: null, skipped: null, errors: [],
+    maintenance: null,
   };
+
+  /**
+   * 純 DB 狀態維護（R2-M-06）。
+   *
+   * **不呼叫 WHOOP、不呼叫 OpenRouter、不送 Telegram。** 只把資料庫裡的
+   * 狀態機推向終局：
+   *
+   *   - 過期／被取代／被遺棄的主動問題與事件 → 誠實的終局結果
+   *   - 歷史遺留的不安全 Telegram 綁定 → 退役（R2-H-01）
+   *
+   * 每一項都自己吞掉錯誤：維護是背景工作，絕不可以讓主流程失敗，
+   * 也絕不可以讓其中一項的故障擋住另一項。
+   */
+  const runMaintenance = async () => {
+    const result = { reaped: null, retiredLinks: null };
+    try {
+      result.reaped = await reap({ db, userId: uid, now });
+      out.reaped = result.reaped;
+    } catch (err) {
+      out.errors.push({ stage: 'reap', error: describeError(err) });
+      log.error('proactive_reap_unexpected', { user_id: uid, error: describeError(err) });
+    }
+    if (typeof db.retireUnsafeTelegramLinks === 'function') {
+      try {
+        result.retiredLinks = await db.retireUnsafeTelegramLinks();
+      } catch (err) {
+        out.errors.push({ stage: 'retire_unsafe_links', error: describeError(err) });
+        log.error('retire_unsafe_links_unexpected', {
+          user_id: uid, error: describeError(err),
+        });
+      }
+    }
+    out.maintenance = result;
+    return result;
+  };
+
+  // ---------------------------------------------------------------------
+  // 0) 純 DB 狀態維護（R2-M-06）
+  //
+  // ## 為什麼一定要在最前面、而且無條件
+  //
+  // 這一段完全不需要 WHOOP token，也不需要能送 Telegram —— 它只是把
+  // 資料庫裡的狀態機推向終局（過期的追問、卡住的主動事件、不安全的
+  // Telegram 綁定）。
+  //
+  // 舊版把它放在流程中段與尾端，於是兩條路徑會整個跳過它：
+  //   - WHOOP 授權失敗 → `return out`（在 reaper 之前）
+  //   - 沒有 Telegram 綁定 → `return out`（更早）
+  //
+  // 實測確認：兩種情況下 reaped 都是 null、事件的 outcome 永遠停在 NULL，
+  // 而 Guardian 每 12 小時就誤報一次「有事件卡住」—— 而且 WHOOP 一旦
+  // 掛久一點，那個假警報就永遠不會消失。
+  //
+  // 收斂本來就該在 WHOOP 中斷期間繼續進行。所以它現在是流程的**第一步**，
+  // 而且不在任何 early return 之後。
+  // ---------------------------------------------------------------------
+  await runMaintenance();
 
   // 1) 這個使用者的 Telegram 目的地。沒有綁定就不能發報告（也不該亂發）。
   const chatId = await db.getActiveChatIdForUser(uid);
@@ -113,19 +171,6 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     errorScope: userScope(uid),
   });
 
-  /**
-   * 過期主動問題的收割：純 DB 維護，不需要 WHOOP token，也跟報告排程無關。
-   * 定義在這裡讓「完全沒事做」的那條路也跑得到——不然沒有報告的日子
-   * 就永遠不會有人去收尾那些被無視的問題。
-   */
-  const runReaper = async () => {
-    try {
-      out.reaped = await reap({ db, userId: uid, now });
-    } catch (err) {
-      out.errors.push({ stage: 'reap', error: describeError(err) });
-      log.error('proactive_reap_unexpected', { user_id: uid, error: describeError(err) });
-    }
-  };
 
   // 2) per-user due 判斷（用他自己的時區）
   //
@@ -152,7 +197,6 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   // 刻意在拿 WHOOP token **之前** 就返回：這一輪完全不碰 WHOOP。
   if (!due.anythingDue && !syncDue) {
     out.skipped = 'nothing_due';
-    await runReaper();
     return out;
   }
 
@@ -324,8 +368,6 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   // 「問了但使用者從此沒再傳任何訊息」以前會永遠停在 OPEN、事件的 outcome
   // 永遠是 NULL。這一步把它收成 EXPIRED + NO_RESPONSE，讓「被無視」變成
   // 資料上真的存在的事實——那是之後要調 TTL 唯一能依據的東西。
-  await runReaper();
-
   return out;
 }
 

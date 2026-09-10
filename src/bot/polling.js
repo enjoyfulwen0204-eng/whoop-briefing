@@ -108,6 +108,44 @@ export function createPoller({
     return { kind: 'ok', chatId, text, message: msg, user: resolved.user ?? resolved };
   }
 
+  /** 認領結果。 */
+  const CLAIM_OK = 'ok';
+  const CLAIM_DUPLICATE = 'duplicate';
+  const CLAIM_UNAVAILABLE = 'unavailable';
+
+  /**
+   * 認領一則 update，暫時性失敗會重試（R2-M-05）。
+   *
+   * 分成三種結果，因為它們的處置完全不同：
+   *
+   *   ok          第一次看到 → 正常處理
+   *   duplicate   已經認領過 → 跳過，但要推進 offset
+   *   unavailable 認領機制本身不可用 → **不處理、也不推進 offset**
+   *
+   * 重試是為了讓一次短暫的 DB 抽風不要把整批訊息卡住；重試用完仍然失敗
+   * 就回 unavailable，讓呼叫端 fail closed。
+   */
+  async function claimWithRetry(updateId) {
+    let lastErr = null;
+    for (let attempt = 1; attempt <= TELEGRAM_BOT.CLAIM_RETRIES; attempt += 1) {
+      try {
+        return await db.claimTelegramUpdate(updateId) ? CLAIM_OK : CLAIM_DUPLICATE;
+      } catch (err) {
+        lastErr = err;
+        log.warn('telegram_update_claim_failed', {
+          update_id: updateId, attempt, error: describeError(err),
+        });
+        if (attempt < TELEGRAM_BOT.CLAIM_RETRIES) {
+          await sleepImpl(TELEGRAM_BOT.CLAIM_RETRY_BASE_MS * 2 ** (attempt - 1));
+        }
+      }
+    }
+    log.error('telegram_update_claim_unavailable', {
+      update_id: updateId, error: describeError(lastErr),
+    });
+    return CLAIM_UNAVAILABLE;
+  }
+
   /**
    * 處理一批 updates。回傳新的 offset。
    * 每一則都獨立 try/catch —— 一則訊息處理失敗不可以卡住整條 queue。
@@ -138,17 +176,26 @@ export function createPoller({
       // 認領放在 classify() **之前**：連身分解析都不做，就不可能有任何
       // 副作用（含 getOpenPendingQuestion 的惰性過期寫入）。
       if (typeof db.claimTelegramUpdate === 'function') {
-        let claimed = true;
-        try {
-          claimed = await db.claimTelegramUpdate(updateId);
-        } catch (err) {
-          // 認領機制本身壞掉時**放行**：寧可偶爾重複，也不要讓整個 bot
-          // 啞掉。這是刻意的取捨，而且會留下明確的 log。
-          log.error('telegram_update_claim_failed', {
-            update_id: updateId, error: describeError(err),
+        const claim = await claimWithRetry(updateId);
+
+        if (claim === CLAIM_UNAVAILABLE) {
+          // ★ R2-M-05：**拿不到持久化的所有權就不處理。**
+          //
+          // 舊版在認領機制壞掉時放行（「寧可偶爾重複」），但那個取捨是錯的：
+          // 實測的失敗序列是「claim 拋錯 → 副作用照做 → offset 也存不下去
+          // → Telegram 重送 → 再做一次」，結果同一句話寫了兩筆 journal。
+          //
+          // 現在改成 fail closed，而且**刻意不推進 offset**：這一則不會被
+          // 丟掉，DB 恢復之後 Telegram 會再送一次，那時才第一次真正處理它。
+          // 整批在這裡停下 —— 繼續處理後面的 update 會把 offset 推過這一則。
+          stats.errors += 1;
+          log.error('telegram_batch_paused_claim_unavailable', {
+            update_id: updateId, offset,
           });
+          return offset;
         }
-        if (!claimed) {
+
+        if (claim === CLAIM_DUPLICATE) {
           stats.ignored += 1;
           log.info('telegram_update_skipped_replay', { update_id: updateId });
           offset = updateId + 1;

@@ -220,7 +220,11 @@ export async function reapExpiredProactiveQuestions({
             ? PROACTIVE_OUTCOME.DELIVERED
             : PROACTIVE_OUTCOME.NO_RESPONSE;
       try {
-        const wrote = await db.resolveProactiveEventIfUnresolved(uid, o.eventId, outcome, { now });
+        // ★ R2-M-03：requireNoLease 讓「有人正在處理這個事件」成為 UPDATE
+        // 自己的條件。正在跑的回答流程持有租約 → 這一句寫不進去 → 跳過。
+        const wrote = await db.resolveProactiveEventIfUnresolved(uid, o.eventId, outcome, {
+          now, requireNoLease: true,
+        });
         if (!wrote) { out.skipped += 1; continue; }
         if (outcome === PROACTIVE_OUTCOME.ABANDONED) out.abandoned += 1;
         else if (outcome === PROACTIVE_OUTCOME.SUPERSEDED) out.superseded += 1;

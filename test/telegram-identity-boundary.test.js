@@ -37,6 +37,21 @@ const ALICE_CHAT = '1001';
 const BOB_CHAT = '1002';
 const GROUP_CHAT = '-100500';
 
+/**
+ * 直接寫進 DB 的「歷史遺留群組綁定」。
+ *
+ * 刻意**不**走 `db.linkTelegram()` —— R2-H-01 之後那條路會（正確地）拒絕
+ * 群組目的地。真實情況也正是如此：這些列是舊版程式留下來的，不是現在的
+ * 程式寫出來的。要測「已經存在的壞資料」就必須這樣造。
+ */
+async function seedLegacyGroupLink(db, chatId, userId) {
+  await db.raw.execute({
+    sql: `INSERT INTO user_telegram (telegram_chat_id, user_id, linked_at, status)
+          VALUES (?, ?, ?, 'ACTIVE')`,
+    args: [String(chatId), userId, '2026-01-01T00:00:00.000Z'],
+  });
+}
+
 async function withUsers(fn) {
   const { db, cleanup } = tempDb();
   try {
@@ -87,7 +102,7 @@ function spyPoller(db, box, unlinkedBox = []) {
 test('★★★ H-01: 群組成員絕不會被解析成綁定者（即使群組曾被綁定）', async () => {
   await withUsers(async (db) => {
     // 直接把群組綁到 Alice（模擬舊資料 / 繞過 /link 的最壞情況）
-    await db.linkTelegram({ chatId: GROUP_CHAT, userId: 'u-alice' });
+    await seedLegacyGroupLink(db, GROUP_CHAT, 'u-alice');
 
     const handled = [];
     const poller = spyPoller(db, handled);
@@ -103,7 +118,7 @@ test('★★★ H-01: 群組成員絕不會被解析成綁定者（即使群組�
 
 test('★★★ H-01: 連綁定者本人在群組裡發言也不被授權（私訊限定）', async () => {
   await withUsers(async (db) => {
-    await db.linkTelegram({ chatId: GROUP_CHAT, userId: 'u-alice' });
+    await seedLegacyGroupLink(db, GROUP_CHAT, 'u-alice');
     const handled = [];
     const poller = spyPoller(db, handled);
     // from.id 就是 Alice 本人，但場合是群組
@@ -116,7 +131,7 @@ test('★★★ H-01: 連綁定者本人在群組裡發言也不被授權（私�
 
 test('★★★ H-01: 群組訊息完全不回覆（不洩漏 bot 綁了誰）', async () => {
   await withUsers(async (db) => {
-    await db.linkTelegram({ chatId: GROUP_CHAT, userId: 'u-alice' });
+    await seedLegacyGroupLink(db, GROUP_CHAT, 'u-alice');
     const handled = [];
     const unlinked = [];
     const poller = spyPoller(db, handled, unlinked);
@@ -194,7 +209,7 @@ test('★★★ H-01 多使用者再稽核：兩個私訊 + 一個群組，零�
   await withUsers(async (db) => {
     await db.linkTelegram({ chatId: ALICE_CHAT, userId: 'u-alice' });
     await db.linkTelegram({ chatId: BOB_CHAT, userId: 'u-bob' });
-    await db.linkTelegram({ chatId: GROUP_CHAT, userId: 'u-alice' }); // 歷史遺留的群組綁定
+    await seedLegacyGroupLink(db, GROUP_CHAT, 'u-alice'); // 歷史遺留的群組綁定
 
     const handled = [];
     const poller = spyPoller(db, handled);

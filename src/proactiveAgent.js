@@ -46,7 +46,9 @@ import { PROACTIVE_DECISION, PROACTIVE_QUESTION_INTENT } from './schema.js';
 import { POLICY_VERSION, ANTI_SPAM_POLICY, SIGNAL_POLICY } from './proactivePolicy.js';
 import { READINESS_HEURISTICS } from './config.js';
 import { INSIGHT_STATUS } from './healthMemory.js';
-import { capabilityByMetricFor } from './capabilityMap.js';
+import {
+  capabilityByMetricFor, authorizesProactiveMessaging, normalizeCapabilityStatus,
+} from './capabilityMap.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
 
@@ -152,9 +154,24 @@ export async function checkAndAct({
   // **已經證實**這個帳號拿不到的欄位，會被報成 NO_DATA「還在累積中」，
   // 而不是 UNAVAILABLE「這個帳號沒有」。
   //
-  // 讀不到 capability 就用空物件——那會回到「還沒 probe」的語義，
-  // 也就是繼續走樣本數邏輯，絕不會誤判成不支援。
-  const capabilities = await db.getCapabilities(uid).catch(() => ({}));
+  // ★ R2-M-04：capability 查詢失敗**絕不**默默代換成空物件。
+  //
+  // 空物件的語義是「還沒 probe 過」，那會讓樣本數邏輯照常放行，於是
+  // 一次 DB 故障就變成「主動訊息照發」。實測確認：getCapabilities 拋錯
+  // 時系統仍然送出 ASK_CONTEXT。
+  //
+  // 現在讀不到就是讀不到（UNREADABLE），並且列入下面的閘門失敗清單 ——
+  // 分析照跑（用空物件的樣本數語義），但**不主動發訊息**。
+  let capabilities = {};
+  let capabilityUnreadable = false;
+  try {
+    capabilities = await db.getCapabilities(uid);
+  } catch (err) {
+    capabilityUnreadable = true;
+    log.warn('proactive_gate_read_failed', {
+      user_id: uid, gate: 'capabilities', error: String(err?.message ?? err).slice(0, 200),
+    });
+  }
   const capabilityByMetric = capabilityByMetricFor(MONITORED_METRICS, capabilities);
 
   const signals = detectSignals({
@@ -180,7 +197,7 @@ export async function checkAndAct({
   //
   // 分析照跑、事件照記（稽核軌跡與長期規律完全不受影響），
   // 手動問答也完全不受影響——降級的只有「主動打擾」這一件事。
-  const gateFailures = [];
+  const gateFailures = capabilityUnreadable ? ['capabilities'] : [];
   const gate = async (name, fn, fallback) => {
     try {
       return await fn();
@@ -222,6 +239,11 @@ export async function checkAndAct({
   }
 
   // ---- 任何一個閘門讀不到 → 這一輪不打擾 ----
+  //
+  // ⚠️ 這一段刻意排在 capability 授權**之前**：兩種抑制的處置完全不同。
+  //   permission_state_unreadable            → 去修資料庫／連線
+  //   capability_not_authorized_for_messaging → 去跑一次 npm run probe
+  // 順序固定，理由才是確定的，運維才知道該做什麼。
   if (gateFailures.length && isMessagingDecision(decision.decision)) {
     log.warn('proactive_suppressed_gate_unreadable', {
       user_id: uid, health_date: anchorDate, gates: gateFailures,
@@ -233,8 +255,46 @@ export async function checkAndAct({
     };
   }
 
+  // ---- ★ R2-M-04：主動分析訊息需要**已驗證**的資料能力 ----
+  //
+  // 只有 SUPPORTED 才授權。PARTIAL（degraded）、UNKNOWN（沒 probe 過）、
+  // UNAVAILABLE / UNAUTHORIZED / APP_ONLY、以及查不到，全部不授權。
+  //
+  // 風險不對稱：分析結果錯了只是內部狀態，主動訊息錯了是直接對使用者
+  // 說錯話。所以這一關比分析層嚴格，而且刻意不共用同一個判準。
+  //
+  // 分析、事件紀錄、稽核軌跡完全不受影響 —— 降級的只有「主動打擾」。
+  if (isMessagingDecision(decision.decision)) {
+    const target = decision.evaluatedSignal ?? signals[0] ?? null;
+    // 訊號自己就帶著授權結論（signals.js 算的），所以這裡不重算一套判準。
+    // 沒有訊號可言時一律不授權。
+    const status = target ? capabilityByMetric[target.metric] ?? null : null;
+    const authorized = target
+      ? (target.messaging_authorized ?? authorizesProactiveMessaging(status))
+      : false;
+    if (!authorized) {
+      log.warn('proactive_suppressed_capability_unverified', {
+        user_id: uid,
+        health_date: anchorDate,
+        metric: target?.metric ?? null,
+        authorization: normalizeCapabilityStatus(status),
+      });
+      decision = {
+        decision: PROACTIVE_DECISION.LOG_ONLY,
+        reason: 'capability_not_authorized_for_messaging',
+        factors: {
+          ...decision.factors,
+          capability_authorization: normalizeCapabilityStatus(status),
+          metric: target?.metric ?? null,
+        },
+      };
+    }
+  }
+
   let messageText = null;
   let questionCategory = null;
+  // ★ R2-M-02：這一題在問哪一天的行為。與訊號的 health_date 分開儲存。
+  let questionTargetDate = null;
 
   if (decision.decision === PROACTIVE_DECISION.ASK_CONTEXT) {
     // Attention Engine 可能因為冷卻而跳過了最嚴重的那個訊號，改判另一個。
@@ -277,6 +337,7 @@ export async function checkAndAct({
       decision = downgradeAskToNotify(decision, { reason: 'no_question_candidate' });
     } else {
       questionCategory = selection.category;
+      questionTargetDate = selection.targetDate ?? null;
       messageText = selection.question;
     }
   }
@@ -286,7 +347,12 @@ export async function checkAndAct({
   }
 
   if (messageText) {
-    messageText = guardProactiveMessage(messageText, { label: decision.decision }).text;
+    // R2-H-02：訊息背後的確定性事實 = 這次真的評估到的那個訊號。
+    // 沒有訊號 → 空事實集 → 任何數字都歸屬不到 → fail closed。
+    messageText = guardProactiveMessage(messageText, {
+      label: decision.decision,
+      signal: decision.evaluatedSignal ?? signals[0] ?? null,
+    }).text;
   }
 
   // 指紋進 key：被修正過的那一天可以產生新事件，一模一樣的資料不行。
@@ -324,6 +390,10 @@ export async function checkAndAct({
         intent: PROACTIVE_QUESTION_INTENT,
         contextJson: {
           health_date: anchorDate,
+          // ★ R2-M-02：**明確**記下這一題在問哪一天的行為。
+          // 「昨天有喝酒嗎？」問的是 anchorDate 的前一天；把它跟訊號日
+          // 分開存，回答時就不需要靠 parser 的預設值去猜。
+          question_target_date: questionTargetDate ?? anchorDate,
           signal: decision.evaluatedSignal ?? signals[0],
           category: questionCategory,
           proactive_event_id: claim.id,

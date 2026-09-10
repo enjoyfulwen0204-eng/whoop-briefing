@@ -131,10 +131,78 @@ export function capabilityByMetricFor(fields = [], capabilities = {}) {
 }
 
 /**
+ * capability 狀態對「主動分析訊息」的授權等級（R2-M-04）。
+ *
+ * ## 為什麼需要一套獨立的分級
+ *
+ * `isKnownUnavailable()` 回答的是「這個欄位是不是**已經證實**拿不到」，
+ * 用來決定分析要不要跑。那個問題的正確答案讓 UNKNOWN / PARTIAL 通過 ——
+ * 一個還沒 probe 過的正常帳號不該被整組關掉。
+ *
+ * 但「可不可以**主動發訊息打擾使用者**」是完全不同的問題，而且風險不對稱：
+ * 分析結果錯了只是內部狀態；主動訊息錯了是直接對使用者說錯話。
+ *
+ * 獨立稽核確認的三個殘留缺口：
+ *   getCapabilities 拋錯    → 仍然送出 ASK_CONTEXT
+ *   capability = PARTIAL    → 仍然送出
+ *   capability = UNKNOWN    → 仍然送出
+ *
+ * 所以這裡把狀態明確分級，而且**只有 AUTHORIZED 才授權主動訊息**：
+ *
+ *   AUTHORIZED   SUPPORTED —— 已經實際驗證過這個帳號拿得到這個欄位
+ *   DEGRADED     PARTIAL —— 只有部分資料，不足以主動打擾
+ *   UNVERIFIED   UNKNOWN / 沒 probe 過 / 認不出來的值
+ *   UNAVAILABLE  UNAVAILABLE / UNAUTHORIZED / APP_ONLY
+ *   UNREADABLE   查詢本身失敗（**絕不**默默代換成空物件）
+ */
+export const CAPABILITY_AUTHORIZATION = {
+  AUTHORIZED: 'AUTHORIZED',
+  DEGRADED: 'DEGRADED',
+  UNVERIFIED: 'UNVERIFIED',
+  UNAVAILABLE: 'UNAVAILABLE',
+  UNREADABLE: 'UNREADABLE',
+};
+
+/** capability 狀態 → 授權等級。認不出來的值一律 UNVERIFIED（fail closed）。 */
+export function normalizeCapabilityStatus(status) {
+  if (status === CAPABILITY_AUTHORIZATION.UNREADABLE) return CAPABILITY_AUTHORIZATION.UNREADABLE;
+  switch (status) {
+    case STATUS.SUPPORTED:
+      return CAPABILITY_AUTHORIZATION.AUTHORIZED;
+    case STATUS.PARTIAL:
+      return CAPABILITY_AUTHORIZATION.DEGRADED;
+    case STATUS.UNAVAILABLE:
+    case STATUS.UNAUTHORIZED:
+    case STATUS.APP_ONLY:
+      return CAPABILITY_AUTHORIZATION.UNAVAILABLE;
+    case STATUS.UNKNOWN:
+    case null:
+    case undefined:
+      return CAPABILITY_AUTHORIZATION.UNVERIFIED;
+    default:
+      return CAPABILITY_AUTHORIZATION.UNVERIFIED;
+  }
+}
+
+/**
+ * 這個 capability 狀態可以授權主動分析訊息嗎。
+ *
+ * **只有 SUPPORTED。** 其他一律不行 —— 包含「還沒 probe 過」。
+ * 這是刻意的取捨：主動打擾必須建立在**已經驗證**的資料能力上。
+ * 運維動作是跑一次 `npm run probe`。
+ */
+export function authorizesProactiveMessaging(status) {
+  return normalizeCapabilityStatus(status) === CAPABILITY_AUTHORIZATION.AUTHORIZED;
+}
+
+/**
  * 這個狀態算不算「已經證實拿不到」。
  *
  * 只有這三種才算——與 readiness.capabilityGate() 完全同一套判準。
  * UNKNOWN / undefined / SUPPORTED / PARTIAL 一律**不算**。
+ *
+ * ⚠️ 這支函式回答的是「分析要不要跑」，**不是**「可不可以發訊息」。
+ * 後者請用 authorizesProactiveMessaging()。
  */
 export function isKnownUnavailable(status) {
   return status === STATUS.APP_ONLY

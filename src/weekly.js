@@ -20,8 +20,8 @@ import { REPORT_CLAIM, WEEKLY } from './config.js';
 import { requireUserId } from './userContext.js';
 import { buildObservations, detectWake, weeklyStats, weekOverWeek } from './analyze.js';
 import { renderWeekly } from './format.js';
-import { buildWeeklyUserMessage } from './coach.js';
-import { guardNarrative } from './llmValidation.js';
+import { guardPublication } from './publishGuard.js';
+import { factsFromWeekly } from './publishableFacts.js';
 import { completedWeeks, localDate, localHour, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
@@ -123,20 +123,20 @@ export async function runWeekly({
   const weekly = { last, prev, wow: weekOverWeek(last, prev) };
   const rawCoachText = await coach.weekly(weekly);
 
-  // ★ 敘述守門：與 daily / 健康問答共用同一個 guardNarrative（見 daily.js 的說明）。
-  // context 是 buildWeeklyUserMessage(weekly)，純粹由 Node 從週統計算出來。
+  // ★ 發布邊界（R2-H-02）：與 daily / 健康問答 / 主動訊息共用同一個
+  // guardPublication。事實由 factsFromWeekly(weekly) 從週統計直接建立。
   // 守門失敗 → coachText 變 null → renderWeekly 印 FALLBACK_NOTE，
   // 週回顧的數據部分完整保留。
-  const guardedWeekly = guardNarrative({
-    answer: rawCoachText,
-    context: buildWeeklyUserMessage(weekly),
+  const guardedWeekly = guardPublication({
+    narrative: rawCoachText,
+    factSet: factsFromWeekly(weekly),
     fallback: null,
     label: 'weekly',
   });
   if (rawCoachText && guardedWeekly.used === 'fallback') {
     log.warn('weekly_narrative_rejected', {
       week_key: weekKey,
-      problems: guardedWeekly.problems?.slice(0, 6) ?? [],
+      violations: guardedWeekly.violations?.slice(0, 6) ?? [],
     });
   }
   const coachText = guardedWeekly.text;

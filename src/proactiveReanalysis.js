@@ -208,7 +208,7 @@ export async function reanalyzeAfterAnswer({
     // 這則訊息會帶 r 值與樣本數，所以一定要把確定性的分析結果當成
     // evidenceContext 交給守門，否則 fail-closed 的數字檢查會（正確地）擋下它。
     followUpMessage = guardProactiveMessage(raw, {
-      label: 'follow_up', evidenceContext: JSON.stringify(assoc),
+      label: 'follow_up', association: { ...assoc, metric },
     }).text;
   }
 

@@ -14,7 +14,8 @@
 
 import { AI_PURPOSE, PROMPT_VERSIONS, TELEGRAM_BOT } from '../config.js';
 import { safeSlice } from '../format.js';
-import { guardNarrative } from '../llmValidation.js';
+import { guardPublication } from '../publishGuard.js';
+import { factsFromQaResult } from '../publishableFacts.js';
 import { log } from '../logger.js';
 
 export const ANSWER_SYSTEM_PROMPT = `你是 Kelvin 的私人健康教練，語氣溫暖、專業、口語，用繁體中文。
@@ -29,7 +30,12 @@ export const ANSWER_SYSTEM_PROMPT = `你是 Kelvin 的私人健康教練，語�
   要講就講「和你平常比偏低／偏高」。
 - 如果輸入說某項資料不可用，就直說目前拿不到，不要猜。
 - 回答控制在 120–250 字，重點先講，不要條列一大堆數字（數字使用者看得到）。
-- 可以用少量 emoji，稱呼對方 Kelvin。`;
+- 可以用少量 emoji，稱呼對方 Kelvin。
+- ★ 需要提到數字時，只能照抄輸入裡的那一個，一個字都不能改；
+  沒把握就用「比平常低一些」這種相對描述，不要給數字。
+- ★ 絕對不要提到輸入裡沒有出現的指標，也不要提 WHOOP Age、Healthspan
+  分數、推估年齡這類分數（這個系統算不出它們）。
+- ★ 絕對不要建議任何藥物、補劑、劑量或醫療處置。`;
 
 /**
  * 把 structured result 轉成**可信事實**。
@@ -245,8 +251,8 @@ export async function composeAnswer({ question, result, coach, purpose = AI_PURP
   if (!result || result.available === false) return fallback;
   if (!coach?.ask) return fallback;
 
-  // ★ prompt 與驗證用的事實刻意分成兩個字串（USER TEXT IS NOT EVIDENCE）
-  const trustedFacts = buildTrustedFacts(result);
+  // prompt 仍然含問題（模型需要知道要回答什麼）；驗證則完全不看它，
+  // 而是看 factsFromQaResult(result) 建立的結構化事實。
   const prompt = buildAnswerContext(question, result);
   const text = await coach.ask({
     system: ANSWER_SYSTEM_PROMPT,
@@ -257,15 +263,16 @@ export async function composeAnswer({ question, result, coach, purpose = AI_PURP
   });
   if (!text) return fallback;
 
-  const guarded = guardNarrative({
-    answer: safeSlice(text.trim(), TELEGRAM_BOT.MAX_REPLY_CHARS),
-    // ★ 只用可信事實驗證，絕不含 question
-    context: trustedFacts,
+  // ★ 發布邊界（R2-H-02）：事實集直接從 structured result 建立。
+  // 使用者的問題**從來沒有機會**變成證據 —— 它只出現在 prompt 裡。
+  const guarded = guardPublication({
+    narrative: safeSlice(text.trim(), TELEGRAM_BOT.MAX_REPLY_CHARS),
+    factSet: factsFromQaResult(result),
     fallback,
     label: 'qa',
   });
   if (guarded.used === 'fallback') {
-    log.warn('qa_answer_replaced_by_fallback', { problems: guarded.problems?.slice(0, 4) });
+    log.warn('qa_answer_replaced_by_fallback', { violations: guarded.violations?.slice(0, 4) });
   }
   return guarded.text;
 }

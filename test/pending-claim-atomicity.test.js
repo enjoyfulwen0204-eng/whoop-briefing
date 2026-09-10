@@ -111,6 +111,14 @@ test('★★★ M-02: 收割器搶在認領之前 → NO_RESPONSE 絕不被覆�
 
 test('★★★ M-02: 認領失敗時不產生任何主動代理副作用', async () => {
   await withSetup(async ({ db, uid, qid }) => {
+    // 收割器在「讀到快照」與「認領」之間搶先，並寫下 NO_RESPONSE
+    let resolveCalls = 0;
+    const realResolve = db.resolveProactiveEventIfUnresolved.bind(db);
+    db.resolveProactiveEventIfUnresolved = async (...a) => {
+      resolveCalls += 1;
+      return realResolve(...a);
+    };
+
     const realGet = db.getOpenPendingQuestion.bind(db);
     let raced = false;
     db.getOpenPendingQuestion = async (...args) => {
@@ -118,20 +126,25 @@ test('★★★ M-02: 認領失敗時不產生任何主動代理副作用', asyn
       if (snapshot && !raced) {
         raced = true;
         await reapExpiredProactiveQuestions({ db, userId: uid, now: AFTER_TTL });
+        // 收割器自己的那一次寫入不算在「回答路徑的副作用」裡
+        resolveCalls = 0;
       }
       return snapshot;
     };
-    // 認領失敗之後絕不可以再打 resolveProactiveEvent
-    let resolveCalls = 0;
-    const realResolve = db.resolveProactiveEvent.bind(db);
-    db.resolveProactiveEvent = async (...a) => { resolveCalls += 1; return realResolve(...a); };
+
+    const before = await db.getProactiveEventByPendingQuestion(uid, qid);
+    assert.equal(before.outcome, null, '前置：這時還沒有結果');
 
     const router = createRouter({ db, coachFor, now: () => REPLY_AT });
     await router.handle({
       text: '有，喝了兩杯', chatId: '1', user: { id: uid, timezone: 'Asia/Taipei' },
     });
 
-    assert.equal(resolveCalls, 0, '★ 輸掉認領就不可以碰事件的終局結果');
+    assert.equal(resolveCalls, 0,
+      '★ 輸掉認領就不可以碰事件的終局結果（收割器自己的那次不算）');
+    const after = await db.getProactiveEventByPendingQuestion(uid, qid);
+    assert.equal(after.outcome, PROACTIVE_OUTCOME.NO_RESPONSE,
+      '★ 收割器定案的結果必須完整保留');
     const q = await db.getPendingQuestionById?.(uid, qid);
     if (q) assert.notEqual(q.status, 'ANSWERED', '★ 已經 EXPIRED 的題不可以被改成 ANSWERED');
   });
@@ -194,9 +207,13 @@ test('★★ M-02: 認領在 LLM 解析之前發生（副作用之前）', async
 
 test('★★★ M-02: 同一則回答被處理兩次 → 事件的終局結果只被寫一次', async () => {
   await withSetup(async ({ db, uid, qid }) => {
+    // R2-M-03 之後回答路徑改用條件式寫入 resolveProactiveEventIfUnresolved
     let resolveCalls = 0;
-    const realResolve = db.resolveProactiveEvent.bind(db);
-    db.resolveProactiveEvent = async (...a) => { resolveCalls += 1; return realResolve(...a); };
+    const realResolve = db.resolveProactiveEventIfUnresolved.bind(db);
+    db.resolveProactiveEventIfUnresolved = async (...a) => {
+      resolveCalls += 1;
+      return realResolve(...a);
+    };
 
     const router = createRouter({ db, coachFor, now: () => REPLY_AT });
     const msg = () => ({

@@ -772,7 +772,63 @@ export const SCHEMA = [
 export const USER_STATUS = { ACTIVE: 'ACTIVE', PAUSED: 'PAUSED', DISABLED: 'DISABLED' };
 
 /** Telegram 綁定狀態。 */
-export const LINK_STATUS = { ACTIVE: 'ACTIVE', REVOKED: 'REVOKED' };
+/**
+ * user_telegram.status。
+ *
+ * RETIRED_UNSAFE 是 R2-H-01 新增的：歷史遺留的群組綁定不可以被刪掉
+ * （那會讓運維看不出發生過什麼事），但也絕不可以再被選為遞送目的地。
+ * 改狀態是**唯一**需要的動作 —— 任何健康資料都不會被碰到，
+ * 而且對方重新在私訊裡 /link 就能恢復。
+ */
+export const LINK_STATUS = {
+  ACTIVE: 'ACTIVE',
+  REVOKED: 'REVOKED',
+  RETIRED_UNSAFE: 'RETIRED_UNSAFE',
+};
+
+/**
+ * 這個 Telegram chat id 可以安全地接收**私人生理資料**嗎（R2-H-01）。
+ *
+ * ## 為什麼需要一個結構性判準，而不是查一個欄位
+ *
+ * `user_telegram` 沒有存 chat 型態，而且**不能假設 migration 清理過歷史
+ * 資料**：舊版的 `/link` 在群組裡送出就會成功，所以資料庫裡可能已經躺著
+ * 一筆指向群組的 ACTIVE 綁定。入站身分邊界（polling.js）已經守住了，
+ * 但**出站遞送**完全沒有守 —— `getActiveChatIdForUser()` 照樣會把那個
+ * 群組 id 交給 daily / weekly / 主動訊息 / Guardian。實測確認。
+ *
+ * Telegram 的 chat id 有一個**保證**的結構性質：
+ *
+ *   私訊 chat 的 id **就是對方的 user id**，永遠是正整數。
+ *   群組 / 超級群組 / 頻道的 id 永遠是負數。
+ *
+ * 所以「正整數」是一個不需要列舉、也不需要新欄位的判準。任何不是正整數
+ * 的東西（負數、0、空值、非數字、小數、超出安全整數範圍）一律視為不安全
+ * —— fail closed，不猜。
+ *
+ * @returns {boolean}
+ */
+export function isSafePrivateChatId(chatId) {
+  if (chatId === null || chatId === undefined) return false;
+  if (typeof chatId === 'boolean' || typeof chatId === 'object') return false;
+  const raw = String(chatId).trim();
+  // 只接受純數字（允許前導 +），不接受空白、小數點、指數、任何符號
+  if (!/^\+?\d+$/.test(raw)) return false;
+  const n = Number(raw);
+  return Number.isSafeInteger(n) && n > 0;
+}
+
+/** 不安全的原因（只用於 log / 運維說明，絕不回給使用者）。 */
+export function unsafeChatReason(chatId) {
+  if (chatId === null || chatId === undefined || String(chatId).trim() === '') return 'missing';
+  const raw = String(chatId).trim();
+  if (!/^[+-]?\d+$/.test(raw)) return 'not_numeric';
+  const n = Number(raw);
+  if (!Number.isSafeInteger(n)) return 'out_of_safe_range';
+  if (n < 0) return 'group_or_channel';
+  if (n === 0) return 'zero';
+  return 'safe';
+}
 
 /** 錯誤通知的 scope。 */
 export const GLOBAL_SCOPE = 'global';

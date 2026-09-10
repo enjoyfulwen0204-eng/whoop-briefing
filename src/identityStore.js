@@ -12,7 +12,9 @@
  */
 
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { LINK_STATUS, USER_STATUS } from './schema.js';
+import {
+  LINK_STATUS, USER_STATUS, isSafePrivateChatId, unsafeChatReason,
+} from './schema.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
 
@@ -105,6 +107,24 @@ export function createIdentityStore(client) {
   async function linkTelegram({ chatId, userId, now = new Date(), force = false }) {
     const uid = requireUserId(userId, 'linkTelegram');
     const cid = String(chatId);
+
+    // ★ R2-H-01 綁定邊界：不安全的目的地**根本不可能**被寫進資料庫。
+    //
+    // polling.js 的入站閘門已經擋住群組訊息，但那是一層；這裡是儲存層。
+    // 綁定是「之後所有私人生理資料要送去哪裡」的唯一來源，所以它自己
+    // 必須成立，不可以靠「呼叫端剛好檢查過了」—— admin CLI、測試、
+    // 未來任何新的呼叫端都會經過這裡。
+    if (!isSafePrivateChatId(cid)) {
+      const err = new Error(
+        '只能綁定 Telegram 私訊（群組／頻道不可接收私人生理資料）',
+      );
+      err.code = 'UNSAFE_CHAT_DESTINATION';
+      log.warn('telegram_link_rejected_unsafe', {
+        user_id: uid, reason: unsafeChatReason(cid),
+      });
+      throw err;
+    }
+
     const existing = await getTelegramLink(cid);
     if (existing && existing.status === LINK_STATUS.ACTIVE && existing.userId !== uid && !force) {
       const err = new Error('這個 Telegram chat 已經綁在另一個使用者身上');
@@ -149,18 +169,99 @@ export function createIdentityStore(client) {
     if (!link || link.status !== LINK_STATUS.ACTIVE) return null;
     const user = await getUser(link.userId);
     if (!user || user.status !== USER_STATUS.ACTIVE) return null;
+    // R2-H-01 縱深防禦：入站也不信任儲存的列。polling.js 已經擋住群組
+    // 訊息，但這一層不該依賴呼叫端有沒有檢查。
+    if (!isSafePrivateChatId(link.chatId)) {
+      log.warn('telegram_resolve_rejected_unsafe', {
+        user_id: link.userId, reason: unsafeChatReason(link.chatId),
+      });
+      return null;
+    }
     return { user, link };
   }
 
-  /** 某個使用者目前 ACTIVE 的 Telegram chat（報告要送去哪裡）。 */
+  /**
+   * 某個使用者目前可以**安全接收私人生理資料**的 Telegram chat。
+   *
+   * ## R2-H-01 遞送邊界
+   *
+   * 這支函式是 daily / weekly / 主動訊息 / Guardian **唯一**的目的地來源。
+   * 舊版只問「有沒有一筆 ACTIVE 的綁定」，於是資料庫裡歷史遺留的群組綁定
+   * （舊版 `/link` 在群組裡送出就會成功）會被原封不動交出去 —— 私人生理
+   * 資料就這樣送進群組。實測確認。
+   *
+   * **絕不假設 migration 清理過歷史資料。** 所以每一次讀取都重新驗證，
+   * 而不是相信寫入時檢查過。
+   *
+   * 遇到不安全的列時就地退役（status → RETIRED_UNSAFE）：
+   *   - 只改狀態，**任何健康資料都不會被碰到**
+   *   - 冪等，而且下一輪就不會再被選到（不會每次都重新發現一次）
+   *   - 運維在 `user:list` / log 裡看得到發生過什麼事
+   *   - 對方重新在**私訊**裡 /link 就能恢復
+   *
+   * 退役之後繼續往下找同一個使用者其他的 ACTIVE 綁定 —— 一筆壞資料不該
+   * 讓一個其實有正常私訊綁定的使用者收不到報告。
+   */
   async function getActiveChatIdForUser(userId) {
     const uid = requireUserId(userId, 'getActiveChatIdForUser');
     const rs = await client.execute({
       sql: `SELECT telegram_chat_id FROM user_telegram
-             WHERE user_id = ? AND status = ? ORDER BY linked_at DESC LIMIT 1`,
+             WHERE user_id = ? AND status = ? ORDER BY linked_at DESC`,
       args: [uid, LINK_STATUS.ACTIVE],
     });
-    return rs.rows[0] ? String(rs.rows[0].telegram_chat_id) : null;
+    // ⚠️ 先把**所有**不安全的列退役，再挑安全的那一筆。
+    //
+    // 如果只是「遇到不安全的就跳過」，一個同時有私訊綁定與歷史群組綁定的
+    // 使用者會因為 ORDER BY linked_at DESC 先命中私訊而立刻回傳 —— 那筆
+    // 群組列就一直留在 ACTIVE。目前不會被選到，但只要私訊綁定被撤銷，
+    // 它就重新變成可達的目的地。留一顆休眠的地雷不可接受。
+    let safe = null;
+    for (const row of rs.rows) {
+      const cid = String(row.telegram_chat_id);
+      if (isSafePrivateChatId(cid)) {
+        if (safe === null) safe = cid;      // 最新的那一筆安全綁定
+        continue;
+      }
+      await retireUnsafeLink(cid, uid);
+    }
+    return safe;
+  }
+
+  /** 把一筆不安全的綁定退役。只改 status，不刪任何資料。 */
+  async function retireUnsafeLink(chatId, userId = null) {
+    const cid = String(chatId);
+    try {
+      await client.execute({
+        sql: `UPDATE user_telegram SET status = ?
+               WHERE telegram_chat_id = ? AND status = ?`,
+        args: [LINK_STATUS.RETIRED_UNSAFE, cid, LINK_STATUS.ACTIVE],
+      });
+      log.warn('telegram_link_retired_unsafe', {
+        user_id: userId, reason: unsafeChatReason(cid),
+      });
+    } catch (err) {
+      // 退役失敗完全不影響安全性——上面已經拒絕回傳它了。
+      log.warn('telegram_link_retire_failed', { error: String(err?.message ?? err).slice(0, 200) });
+    }
+  }
+
+  /**
+   * 掃出所有不安全的 ACTIVE 綁定並退役（運維用，可重複執行）。
+   * 回傳退役了幾筆。
+   */
+  async function retireUnsafeTelegramLinks() {
+    const rs = await client.execute({
+      sql: 'SELECT telegram_chat_id, user_id FROM user_telegram WHERE status = ?',
+      args: [LINK_STATUS.ACTIVE],
+    });
+    let n = 0;
+    for (const row of rs.rows) {
+      const cid = String(row.telegram_chat_id);
+      if (isSafePrivateChatId(cid)) continue;
+      await retireUnsafeLink(cid, String(row.user_id));
+      n += 1;
+    }
+    return n;
   }
 
   async function revokeTelegramLink(chatId) {
@@ -292,6 +393,7 @@ export function createIdentityStore(client) {
     getTelegramLink,
     resolveUserByChatId,
     getActiveChatIdForUser,
+    retireUnsafeTelegramLinks,
     revokeTelegramLink,
     createLinkCode,
     redeemLinkCode,

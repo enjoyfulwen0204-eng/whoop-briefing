@@ -12,6 +12,7 @@
 
 import { AI_PURPOSE, PROMPT_VERSIONS, TELEGRAM_BOT } from '../config.js';
 import { PROACTIVE_QUESTION_INTENT, PROACTIVE_OUTCOME } from '../schema.js';
+import { PROACTIVE_PROCESSING_LEASE } from '../proactivePolicy.js';
 import { reanalyzeAfterAnswer } from '../proactiveReanalysis.js';
 import { requireUserId } from '../userContext.js';
 import { structuredWithRetry } from '../llmValidation.js';
@@ -141,6 +142,29 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
       source: 'natural_language',
     },
   };
+}
+
+/**
+ * 「這一題在問哪一天的行為」（R2-M-02）。
+ *
+ * ## 為什麼不能用訊號的 health_date
+ *
+ * 問題文字是「你的 HRV **今天**比平常偏低。**昨天**有喝酒嗎？」——
+ * 「今天」是訊號日 D，被問的行為在 D-1。用 D 當錨點會把答案記在錯的一天，
+ * 而且錯的方向剛好讓 lag=1 的關聯分析永遠對不上。實測確認：訊號日
+ * 2026-02-06 的問題，答案被記成 2026-02-06 而不是 2026-02-05。
+ *
+ * 所以「問哪一天」在**問題被建立時**就決定並持久化成
+ * `context.question_target_date`，這裡只是讀出來 —— 絕不在這裡重新推論。
+ *
+ * 舊資料（R2 之前開的追問）沒有這個欄位，退回 `context.health_date`，
+ * 也就是上一輪的行為；比什麼都不做好，而且不會比舊版更差。
+ */
+export function questionTargetDateOf(pending) {
+  const explicit = pending?.context?.question_target_date;
+  if (typeof explicit === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(explicit)) return explicit;
+  const legacy = pending?.context?.health_date;
+  return typeof legacy === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(legacy) ? legacy : null;
 }
 
 /**
@@ -509,7 +533,7 @@ export function createRouter({
     if (nat.ok) {
       // M-06：這題問的是哪一天，答案就記在哪一天（使用者自己講日期時除外）
       const event = anchorToQuestionDay(nat.event, {
-        anchorHealthDate: pending.context?.health_date ?? null,
+        anchorHealthDate: questionTargetDateOf(pending),
         statedDayOffset: nat.statedDayOffset,
         timezone,
       });
@@ -546,11 +570,76 @@ export function createRouter({
     const healthDate = pending.context?.health_date ?? null;
     const proactiveEventId = pending.context?.proactive_event_id ?? null;
 
+    // ★ R2-M-03：宣告「這個事件正在被處理」。
+    //
+    // 收割器的孤兒判準（送出很久了、沒有 OPEN 的追問指著它）剛好完全命中
+    // 一個正在被處理的事件：追問已經是 ANSWERED，而 sent_at 可能是好幾天
+    // 前（使用者隔天才回）。租約讓「正在處理」變成一個明確、有時效、原子
+    // 的事實，收割器據此跳過它。
+    //
+    // 拿不到租約（另一個 process 正在處理同一個事件）→ 立刻放棄，
+    // 不產生任何副作用。租約機制本身不可用時放行（維護機制不該讓
+    // 使用者的回答整條斷掉），此時仍有 closeOut 的條件式寫入當後盾。
+    let lease = null;
+    if (proactiveEventId && typeof db.acquireLock === 'function') {
+      try {
+        lease = await db.acquireLock(
+          PROACTIVE_PROCESSING_LEASE.name(userId, proactiveEventId),
+          { ttlMs: PROACTIVE_PROCESSING_LEASE.TTL_MS, now: t },
+        );
+        if (!lease) {
+          log.warn('proactive_answer_lease_busy', {
+            user_id: userId, event_id: proactiveEventId,
+          });
+          return '我還在處理你上一句回覆，稍等一下再說一次好嗎？';
+        }
+      } catch (err) {
+        log.warn('proactive_answer_lease_failed', {
+          user_id: userId, error: describeError(err),
+        });
+      }
+    }
+    try {
+      return await processProactiveAnswer({
+        pending, text, chatId, t, userId, timezone, coach,
+        metric, healthDate, proactiveEventId,
+      });
+    } finally {
+      if (lease && typeof db.releaseLock === 'function') {
+        try {
+          await db.releaseLock(
+            PROACTIVE_PROCESSING_LEASE.name(userId, proactiveEventId), lease,
+          );
+        } catch { /* 放不掉沒關係，TTL 到了自然過期 */ }
+      }
+    }
+  }
+
+  /** handleProactiveAnswer 的實作（租約在外層取得與釋放）。 */
+  async function processProactiveAnswer({
+    pending, text, chatId, t, userId, timezone, coach,
+    metric, healthDate, proactiveEventId,
+  }) {
+
     // journalEventId 讓「哪個主動問題 → 哪筆 Journal → 哪次重新分析」可追溯。
     // pending 已在 route() 認領（M-02），這裡只負責事件的終局。
+    //
+    // ★ R2-M-03：改用**條件式**寫入（outcome IS NULL）。
+    //
+    // 舊版是無條件 UPDATE，所以一個「解析暫停很久、租約已經過期、事件已經
+    // 被收割器收成 ABANDONED」的流程恢復之後，會把那個終局覆寫掉。實測
+    // 確認：ABANDONED 被覆寫成 STILL_UNEXPLAINED——兩個結論都不可信。
+    //
+    // 現在已經定案的終局永遠贏；輸掉的流程只留下一行 log。
     const closeOut = async (outcome, { journalEventId = null } = {}) => {
-      if (proactiveEventId && typeof db.resolveProactiveEvent === 'function') {
-        await db.resolveProactiveEvent(userId, proactiveEventId, outcome, { journalEventId, now: t });
+      if (!proactiveEventId || typeof db.resolveProactiveEventIfUnresolved !== 'function') return;
+      const wrote = await db.resolveProactiveEventIfUnresolved(
+        userId, proactiveEventId, outcome, { now: t, journalEventId },
+      );
+      if (!wrote) {
+        log.warn('proactive_outcome_already_settled', {
+          user_id: userId, event_id: proactiveEventId, attempted: outcome,
+        });
       }
     };
 
@@ -581,7 +670,7 @@ export function createRouter({
 
     // M-06：主動問題問的是 healthDate 那一天的異常，短答必須記在那一天
     const anchored = anchorToQuestionDay(nat.event, {
-      anchorHealthDate: healthDate,
+      anchorHealthDate: questionTargetDateOf(pending),
       statedDayOffset: nat.statedDayOffset,
       timezone,
     });

@@ -14,6 +14,7 @@
  */
 
 import { TELEGRAM_BOT } from '../config.js';
+import { addDays } from '../time.js';
 import { log } from '../logger.js';
 
 /** 追問哪些 journal 類別可能解釋恢復變差。 */
@@ -73,6 +74,9 @@ export async function openFollowUp({ db, userId, chatId, originalMessage, result
     intent: result.intent,
     contextJson: {
       health_date: result.health_date,
+      // ★ R2-M-02：FOLLOW_UP_QUESTION 問的是「昨天」，也就是 health_date
+      // 的前一天（lag=1 的關聯分析要的正是那一天）。
+      question_target_date: result.health_date ? addDays(result.health_date, -1) : null,
       items: (result.what_changed ?? result.items ?? []).slice(0, 3).map((c) => ({
         metric: c.metric, z_score: c.z_score, level: c.level,
       })),

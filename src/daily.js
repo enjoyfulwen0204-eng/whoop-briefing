@@ -14,8 +14,8 @@ import {
 } from './analyze.js';
 import { renderDaily } from './format.js';
 import { buildInsightsSafe } from './insights.js';
-import { buildDailyUserMessage } from './coach.js';
-import { guardNarrative } from './llmValidation.js';
+import { guardPublication } from './publishGuard.js';
+import { factsFromBriefing } from './publishableFacts.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
 
@@ -113,25 +113,26 @@ export async function runDaily({
     // AI 只負責講話；掛掉就走 fallback（照樣發數據簡報）
     coachText = await coach.daily(briefing);
 
-    // ★ 敘述守門：與健康問答（bot/answer.js）用完全同一個 guardNarrative。
+    // ★ 發布邊界（R2-H-02）：敘述裡的每一個數值宣稱都必須歸屬到一筆
+    // **可發布的結構化事實**。事實由 factsFromBriefing(briefing) 從確定性層
+    // 直接建立 —— 不是拿餵給模型的那段文字去比對字串。
     //
-    // context 一律是 buildDailyUserMessage(briefing) —— 也就是「餵給模型的
-    // 那份確定性資料」本身。它完全由 Node 從 briefing 算出來，不含任何 LLM
-    // 產物，所以「模型講了 context 裡沒有的數字 / 日期 / 指標」才抓得準。
+    // 為什麼換掉舊做法：舊版比對的是「這個數字在 prompt 文字裡出現過嗎」，
+    // 獨立稽核用改寫（逗號、語序、英文指標名、中文數字）繞過了 13/22。
     //
     // fallback 給 null 是刻意的：renderDaily(briefing, null) 本來就會印出
     // FALLBACK_NOTE 並保留完整的確定性數據簡報。也就是說守門失敗只會讓
     // 教練那段話消失，**數據簡報照常送出**。
-    const guarded = guardNarrative({
-      answer: coachText,
-      context: buildDailyUserMessage(briefing),
+    const guarded = guardPublication({
+      narrative: coachText,
+      factSet: factsFromBriefing(briefing),
       fallback: null,
       label: 'daily',
     });
     if (coachText && guarded.used === 'fallback') {
       log.warn('daily_narrative_rejected', {
         health_date: healthDate,
-        problems: guarded.problems?.slice(0, 6) ?? [],
+        violations: guarded.violations?.slice(0, 6) ?? [],
       });
     }
     coachText = guarded.text;

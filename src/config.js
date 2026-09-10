@@ -382,6 +382,16 @@ export function loadPricing(env = process.env) {
 // 4b-2. Telegram bot（常駐 worker）
 // ---------------------------------------------------------------------------
 export const TELEGRAM_BOT = {
+  /**
+   * 認領一則 Telegram update 的重試次數與退避基數（R2-M-05）。
+   *
+   * 認領是「處理這則訊息」的持久化所有權。拿不到就不處理（fail closed），
+   * 但一次短暫的 DB 抽風不該讓整批訊息卡住，所以先重試幾次。
+   * 重試用完仍然失敗 → 這一則不處理、offset 不推進 → Telegram 之後會再送。
+   */
+  CLAIM_RETRIES: 3,
+  CLAIM_RETRY_BASE_MS: 200,
+
   // long polling 的 timeout（秒）。Telegram 建議 50 以下；連線會掛著等訊息，
   // 沒訊息就到時間回空陣列 —— 這比每秒輪詢省太多。
   POLL_TIMEOUT_S: 50,

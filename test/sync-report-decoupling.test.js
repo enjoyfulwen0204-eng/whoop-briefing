@@ -266,7 +266,7 @@ test('★★ 已送出的報告絕不會因為同步 due 而被重發', async ()
   });
 });
 
-test('★ 沒有 Telegram 綁定的使用者仍然直接跳過（先於任何 due 判斷）', async () => {
+test('★ 沒有 Telegram 綁定的使用者跳過所有「需要對外」的工作，但 DB 維護照跑', async () => {
   await withDb(async (db) => {
     await db.revokeTelegramLink(ALICE.chatId);
     const calls = [];
@@ -274,7 +274,12 @@ test('★ 沒有 Telegram 綁定的使用者仍然直接跳過（先於任何 du
       db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
     });
     assert.equal(out.skipped, 'no_active_telegram_link');
-    assert.deepEqual(calls, []);
+
+    // R2-M-06：純 DB 的狀態收斂**不可以**依賴 Telegram 綁定。
+    // 它是流程的第一步，而且在任何 early return 之前。
+    assert.deepEqual(kinds(calls), ['reap'],
+      '★ 只有維護該跑；WHOOP / 同步 / 報告 / Telegram 一律不可以被觸發');
+    assert.ok(out.reaped, '★ 收割結果要被回報');
   });
 });
 

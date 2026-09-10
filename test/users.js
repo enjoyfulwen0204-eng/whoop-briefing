@@ -35,13 +35,44 @@ export const SHARED = {
   algorithmVersion: 'alg-v1',
 };
 
+/**
+ * 把一個帳號的資料能力標成「已經 probe 過而且拿得到」。
+ *
+ * ## 為什麼測試需要這一步（R2-M-04）
+ *
+ * 主動分析訊息現在需要**已驗證**的資料能力（capability = SUPPORTED）。
+ * 「還沒 probe 過」不授權 —— 那是刻意的 fail-closed：主動打擾使用者必須
+ * 建立在已經確認拿得到的欄位上，而不是「大概拿得到吧」。
+ *
+ * 所以任何「預期會送出主動訊息」的測試都必須先讓帳號變成**運作中的**
+ * 帳號，也就是跑過 `npm run probe` 之後的樣子。少了這一步，測試模擬的是
+ * 一個從來沒被 probe 過的帳號 —— 那種帳號在生產環境也不會收到主動訊息。
+ */
+export const PROBED_CAPABILITY_KEYS = [
+  'recovery_score', 'hrv', 'rhr', 'respiratory_rate', 'sleep_total',
+  'slow_wave', 'rem', 'sleep_performance', 'sleep_consistency',
+  'sleep_efficiency', 'sleep_debt', 'strain', 'spo2', 'skin_temp',
+  'disturbance_count',
+];
+
+export async function seedProbedCapabilities(db, userId, {
+  keys = PROBED_CAPABILITY_KEYS, status = 'SUPPORTED', now = new Date(),
+} = {}) {
+  await db.saveCapabilities(userId, keys.map((key) => ({
+    key, status, sampleCount: 30, nonNullCount: 30, latestValue: null, detail: null,
+  })), { now });
+}
+
 /** 建立兩個使用者並綁好 Telegram。回傳 { alice, bob }。 */
-export async function seedAliceAndBob(db) {
+export async function seedAliceAndBob(db, { probed = true } = {}) {
   for (const u of [ALICE, BOB]) {
     await db.createUser({
       id: u.id, displayName: u.displayName, timezone: u.timezone, status: 'ACTIVE',
     });
     await db.linkTelegram({ chatId: u.chatId, userId: u.id });
+    // 預設是**運作中**的帳號（已經跑過 npm run probe）——見
+    // seedProbedCapabilities 的說明。
+    if (probed) await seedProbedCapabilities(db, u.id);
   }
   return { alice: ALICE, bob: BOB };
 }
@@ -49,9 +80,13 @@ export async function seedAliceAndBob(db) {
 /** 建立單一使用者（單人行為回歸測試用）。 */
 export async function seedSingleUser(db, {
   id = 'u-solo', displayName = 'Solo', timezone = 'Asia/Taipei', chatId = '9001',
+  probed = true,
 } = {}) {
   await db.createUser({ id, displayName, timezone, status: 'ACTIVE' });
   await db.linkTelegram({ chatId, userId: id });
+  // 預設是一個**運作中**的帳號（已經跑過 npm run probe）。
+  // 要測「從來沒 probe 過」的行為就傳 probed: false。
+  if (probed) await seedProbedCapabilities(db, id);
   return { id, displayName, timezone, chatId };
 }
 

@@ -7,6 +7,7 @@
  */
 
 import { PROACTIVE_OUTCOME } from './schema.js';
+import { PROACTIVE_PROCESSING_LEASE } from './proactivePolicy.js';
 import { log } from './logger.js';
 import { requireUserId } from './userContext.js';
 
@@ -186,13 +187,29 @@ export function createProactiveStore(client) {
    *
    * 回傳 true 代表這一次呼叫真的寫進去了。
    */
-  async function resolveProactiveEventIfUnresolved(userId, id, outcome, { now = new Date() } = {}) {
+  async function resolveProactiveEventIfUnresolved(userId, id, outcome, {
+    now = new Date(), requireNoLease = false, journalEventId = null,
+  } = {}) {
     const uid = requireUserId(userId, 'resolveProactiveEventIfUnresolved');
+    // ★ R2-M-03：收割孤兒時要在**同一句 SQL 裡**重新確認資格。
+    //
+    // 只在 SELECT 階段檢查「有沒有人在處理」是不夠的：SELECT 與 UPDATE
+    // 之間有一段時間，回答流程可以剛好在那一瞬間取得租約。把租約條件放進
+    // UPDATE 的 WHERE，「settle 孤兒」就變成一個真正原子的轉移。
+    const leaseGuard = requireNoLease
+      ? ` AND NOT EXISTS (SELECT 1 FROM resource_locks
+                           WHERE name = ? AND expires_at > ?)`
+      : '';
+    const args = [outcome, nowIso(now), journalEventId, uid, id];
+    if (requireNoLease) {
+      args.push(PROACTIVE_PROCESSING_LEASE.name(uid, id), nowIso(now));
+    }
     const rs = await client.execute({
       sql: `UPDATE proactive_events
-               SET outcome = ?, resolved_at = ?
-             WHERE user_id = ? AND id = ? AND outcome IS NULL`,
-      args: [outcome, nowIso(now), uid, id],
+               SET outcome = ?, resolved_at = ?,
+                   journal_event_id = COALESCE(?, journal_event_id)
+             WHERE user_id = ? AND id = ? AND outcome IS NULL${leaseGuard}`,
+      args,
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }

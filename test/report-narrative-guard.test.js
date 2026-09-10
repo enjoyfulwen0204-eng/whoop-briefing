@@ -108,6 +108,27 @@ test('★ P0-A weekly: 安全的教練文字通過守門並保留', async () => 
   assert.equal(res.coachUsed, true);
 });
 
+test('★★★ R2-H-02 daily: 引用**真實**數字的敘述必須被保留（事實集要真的接上）', async () => {
+  // 這些數字全部來自 fixture 的確定性簡報（恢復 73%、基準 65%、HRV 55ms、
+  // 靜息心率 52bpm）。如果 daily 的事實集接錯了（例如傳空集合），
+  // 這一句會被誤擋 —— 那是功能退化，不是安全性提升。
+  const good = '早安 Kelvin，今天的恢復 73%，比基準 65% 高一些；'
+    + 'HRV 55ms 跟平常差不多，靜息心率 52bpm 也穩 💛';
+  const { res, sent } = await runDailyWith(good);
+  assertDeterministicReportIntact(sent, res, 'daily');
+  assert.ok(sent.includes(good), '★ 引用真實數字的敘述必須原文保留');
+  assert.ok(!sent.includes(FALLBACK_NOTE), '★ 不該退回 fallback');
+  assert.equal(res.coachUsed, true);
+});
+
+test('★★★ R2-H-02 weekly: 引用**真實**數字的敘述必須被保留', async () => {
+  const good = '上週恢復平均 65%，比前週低 2%；HRV 55ms 與前週差不多。';
+  const { res, sent } = await runWeeklyWith(good);
+  assertDeterministicReportIntact(sent, res, 'weekly');
+  assert.ok(sent.includes(good), '★ 引用真實數字的敘述必須原文保留');
+  assert.ok(!sent.includes(FALLBACK_NOTE));
+});
+
 // ===========================================================================
 // B. 捏造的、沒有出處的數字 → 擋下
 // ===========================================================================

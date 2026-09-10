@@ -101,6 +101,43 @@ export function createDb({ url, authToken }) {
    * 寫回 token。refresh 成功後「第一件事」就是呼叫這個，寫成功前不做任何
    * WHOOP 資料處理。DB 寫入失敗會 retry。
    */
+  /**
+   * 寫回 token，並在**儲存層**保證 WHOOP 身分不可變（R2-M-01）。
+   *
+   * ## 兩個必須在 SQL 裡解決的繞過
+   *
+   * 1. **既有列的 whoop_user_id 是 NULL。** 舊版的
+   *    `COALESCE(excluded.whoop_user_id, existing)` 讓新來的身分覆寫 NULL。
+   *    於是一個已經累積了 WHOOP#111 健康資料的使用者，可以被換成
+   *    WHOOP#999，而歷史資料完全留在原地。實測確認。
+   *
+   * 2. **同一個未綁定使用者的並發 OAuth。** 兩個 callback 都讀到 NULL、
+   *    都通過應用層檢查、都寫入，最後一個贏。實測確認：兩個不同身分都
+   *    回報成功。應用層的 SELECT-before-WRITE 永遠關不掉這個競態。
+   *
+   * ## 解法
+   *
+   *   COALESCE 順序反過來 —— **既有的身分永遠贏**，新來的只能填 NULL。
+   *   再加上 ON CONFLICT 的 WHERE：身分不同時整個 UPDATE 變成 no-op，
+   *   rowsAffected = 0，呼叫端據此拋錯。
+   *
+   * 這讓「NULL → 某個身分」的轉移成為一個**原子的條件式寫入**：並發時
+   * 恰好一個贏，輸的那個讀到不同的身分而失敗。與 pending_questions 和
+   * proactive_events 用的是同一個模式。
+   *
+   * `excluded.whoop_user_id IS NULL` 這一條不可省：token refresh 不帶身分，
+   * 少了它每一次 refresh 都會變成 no-op（新的 refresh_token 寫不進去，
+   * 那是這個系統最危險的失敗）。
+   *
+   * ⚠️ 實作備註：在這個 WHERE 之下，COALESCE 的兩種順序其實是**等價**的
+   * （四種組合逐一驗算都相同），所以變異測試觀察不到單獨改動 COALESCE
+   * 順序的差異 —— 真正的閘門是 WHERE。這裡仍然寫成「既有的贏」，
+   * 因為那才是這段程式想表達的意思：**身分一旦確立就不再改變**。
+   * 不要把它當成獨立的防線。
+   *
+   * @returns {Promise<{identityBound:boolean}>} identityBound 代表這一次
+   *   呼叫帶了身分而且寫入成功（身分現在確定等於傳入的值）。
+   */
   async function saveTokens(userId, {
     accessToken, refreshToken, expiresAt, scope, whoopUserId = null,
   }, { retries = 4 } = {}) {
@@ -110,12 +147,15 @@ export function createDb({ url, authToken }) {
          access_token_expires_at, scope, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
-        whoop_user_id = COALESCE(excluded.whoop_user_id, user_whoop_tokens.whoop_user_id),
+        whoop_user_id = COALESCE(user_whoop_tokens.whoop_user_id, excluded.whoop_user_id),
         access_token = excluded.access_token,
         refresh_token = excluded.refresh_token,
         access_token_expires_at = excluded.access_token_expires_at,
         scope = excluded.scope,
-        updated_at = excluded.updated_at`;
+        updated_at = excluded.updated_at
+      WHERE user_whoop_tokens.whoop_user_id IS NULL
+         OR excluded.whoop_user_id IS NULL
+         OR user_whoop_tokens.whoop_user_id = excluded.whoop_user_id`;
     const args = [
       uid,
       whoopUserId === null || whoopUserId === undefined ? null : String(whoopUserId),
@@ -126,16 +166,40 @@ export function createDb({ url, authToken }) {
       new Date().toISOString(),
     ];
 
+    const wanted = whoopUserId === null || whoopUserId === undefined
+      ? null : String(whoopUserId);
+
     let lastErr;
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        await client.execute({ sql, args });
+        const rs = await client.execute({ sql, args });
+        if (Number(rs.rowsAffected ?? 0) === 0) {
+          // WHERE 沒過 → 既有身分與這次要寫的不同。這是**不可變**的違反，
+          // 不是暫時性錯誤，所以不重試。
+          const current = (await client.execute({
+            sql: 'SELECT whoop_user_id FROM user_whoop_tokens WHERE user_id = ?',
+            args: [uid],
+          })).rows[0]?.whoop_user_id ?? null;
+          const err = new Error(
+            `使用者 ${uid} 已經綁定另一個 WHOOP 帳號，身分不可變更`,
+          );
+          err.code = 'WHOOP_IDENTITY_IMMUTABLE';
+          err.currentWhoopUserId = current === null ? null : String(current);
+          log.error('tokens_identity_conflict', {
+            user_id: uid, current: err.currentWhoopUserId,
+          });
+          throw err;
+        }
         // 絕不 log token 內容，只 log 使用者與到期時間
         log.info('tokens_saved', {
           user_id: uid, attempt, expires_at: new Date(expiresAt).toISOString(),
         });
-        return;
+        // 不需要回頭讀一次：WHERE 通過而且 rowsAffected > 0 就代表
+        // 既有身分原本是 NULL（現在被設成 wanted）或本來就等於 wanted。
+        // 兩種情況下儲存的身分都是 wanted。
+        return { identityBound: wanted !== null };
       } catch (err) {
+        if (err?.code === 'WHOOP_IDENTITY_IMMUTABLE') throw err;
         lastErr = err;
         log.warn('tokens_save_failed', { user_id: uid, attempt, error: String(err?.message ?? err) });
         if (attempt < retries) await sleep(500 * 2 ** (attempt - 1));
@@ -143,6 +207,43 @@ export function createDb({ url, authToken }) {
     }
     // 這是最危險的失敗：新 refresh_token 沒寫進 DB。往上拋，不要繼續跑。
     throw new Error(`token 寫入 Turso 連續 ${retries} 次失敗，中止本次執行：${lastErr?.message ?? lastErr}`);
+  }
+
+  /**
+   * 這個使用者的健康資料**實際上**來自哪個 WHOOP 帳號（R2-M-01）。
+   *
+   * ## 為什麼不能只看 token 列
+   *
+   * 舊資料的 `user_whoop_tokens.whoop_user_id` 可能是 NULL（第一版的授權
+   * 流程從來沒有寫過它）。但每一列健康資料**自己**都帶著 WHOOP 回傳的
+   * `whoop_user_id` —— 那是「這些生理資料屬於誰」的權威事實，而且
+   * 不會因為 token 列被覆寫而改變。
+   *
+   * 所以「這個內部使用者的生理歷史是否已經屬於某個 WHOOP 身分」要問資料，
+   * 不是問 token 列。
+   *
+   * @returns {Promise<string[]>} 出現過的 whoop_user_id（正常只會有一個；
+   *   有兩個以上代表資料已經被汙染，呼叫端必須拒絕任何綁定）
+   */
+  async function getHistoricalWhoopUserIds(userId) {
+    const uid = requireUserId(userId, 'getHistoricalWhoopUserIds');
+    const ids = new Set();
+    for (const table of ['whoop_sleeps', 'whoop_recoveries', 'whoop_cycles']) {
+      try {
+        const rs = await client.execute({
+          sql: `SELECT DISTINCT whoop_user_id FROM ${table}
+                 WHERE user_id = ? AND whoop_user_id IS NOT NULL LIMIT 10`,
+          args: [uid],
+        });
+        for (const row of rs.rows) ids.add(String(row.whoop_user_id));
+      } catch (err) {
+        // 表不存在（極舊的 schema）→ 當作沒有歷史身分可查。
+        log.warn('historical_identity_query_failed', {
+          user_id: uid, table, error: String(err?.message ?? err).slice(0, 120),
+        });
+      }
+    }
+    return [...ids];
   }
 
   // ----- report dedup -----------------------------------------------------
@@ -438,6 +539,7 @@ export function createDb({ url, authToken }) {
     // per-user token
     getTokens,
     saveTokens,
+    getHistoricalWhoopUserIds,
     findUserByWhoopUserId,
     // per-user 報告
     isSent,

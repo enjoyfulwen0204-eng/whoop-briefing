@@ -150,6 +150,43 @@ export async function completeAuthorization({
     );
   }
 
+  // ★ R2-M-01：token 列的身分是 NULL **不代表**這個使用者還沒有身分。
+  //
+  // 第一版的授權流程從來沒有寫過 whoop_user_id，所以舊資料的 token 列
+  // 一律是 NULL —— 但健康資料每一列都帶著 WHOOP 回傳的 whoop_user_id。
+  // 那才是「這些生理資料屬於誰」的權威事實。
+  //
+  // 少了這一步，一個已經累積了 WHOOP#111 資料的使用者可以被換成
+  // WHOOP#999，而歷史資料完全留在原地。實測確認。
+  if (typeof db.getHistoricalWhoopUserIds === 'function') {
+    let historical = [];
+    try {
+      historical = await db.getHistoricalWhoopUserIds(userId);
+    } catch (err) {
+      // 查不到歷史身分時 fail closed：不確定這些資料屬於誰，就不綁。
+      throw new OAuthFlowError(
+        'IDENTITY_HISTORY_UNREADABLE',
+        `無法確認使用者 ${userId} 既有健康資料的歸屬`
+        + `（${String(err?.message ?? err).slice(0, 120)}）—— 為避免身分錯置，授權中止。`,
+      );
+    }
+    if (historical.length > 1) {
+      throw new OAuthFlowError(
+        'IDENTITY_HISTORY_AMBIGUOUS',
+        `使用者 ${userId} 的健康資料同時帶著多個 WHOOP 帳號`
+        + `（${historical.join(', ')}），資料歸屬已經不明確，拒絕任何綁定。`,
+      );
+    }
+    if (historical.length === 1 && historical[0] !== whoopUserId) {
+      throw new OAuthFlowError(
+        'WHOOP_ACCOUNT_MISMATCH',
+        `使用者 ${userId} 既有的健康資料屬於另一個 WHOOP 帳號。`
+        + '換帳號會讓那些資料被錯誤歸屬，因此拒絕。'
+        + '若確定要換人，請建立新的內部使用者。',
+      );
+    }
+  }
+
   try {
     await db.saveTokens(userId, {
       accessToken: tokens.accessToken,
@@ -159,6 +196,16 @@ export async function completeAuthorization({
       whoopUserId,
     });
   } catch (err) {
+    // ★ 儲存層的原子閘門輸了：並發的另一個 callback 已經把身分設成別的了。
+    // 這是應用層的 SELECT-before-WRITE 永遠關不掉的競態（實測確認：
+    // 兩個並發 callback 原本都會成功，最後一個贏）。
+    if (err?.code === 'WHOOP_IDENTITY_IMMUTABLE') {
+      throw new OAuthFlowError(
+        'WHOOP_ACCOUNT_MISMATCH',
+        `使用者 ${userId} 的 WHOOP 身分已經由另一次授權確立`
+        + `（${err.currentWhoopUserId ?? '未知'}），身分不可變更，本次授權中止。`,
+      );
+    }
     // DB 層的 partial unique index 才是真正 race-safe 的那道防線
     if (/UNIQUE constraint failed/i.test(String(err?.message ?? ''))) {
       const other = await db.findUserByWhoopUserId(whoopUserId, { excludeUserId: userId });

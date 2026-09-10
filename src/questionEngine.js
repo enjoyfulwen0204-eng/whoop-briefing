@@ -23,6 +23,7 @@ import { CONFIDENCE } from './analytics/correlation.js';
 import { INFORMATION_GAIN_POLICY } from './proactivePolicy.js';
 import { CATEGORIES as JOURNAL_CATEGORIES } from './journal.js';
 import { DEVIATION } from './analytics/anomaly.js';
+import { addDays } from './time.js';
 
 /**
  * 候選類別來自集中的政策設定（不是寫死在引擎裡）。
@@ -113,8 +114,30 @@ export function selectQuestion({
     category: top.category,
     score: top.score,
     question: buildQuestionText({ category: top.category, signal }),
+    /**
+     * ★ R2-M-02：這一題**在問哪一天的行為**。
+     *
+     * 由類別的樣板決定（「昨天有喝酒嗎？」問的是訊號日的前一天），
+     * 在問題被建立的這一刻就算出來並持久化 —— 絕不留到回答時再由
+     * parser 的預設值去猜。
+     */
+    targetDate: questionTargetDate({ category: top.category, signal }),
     candidates: ranked,
   };
+}
+
+/**
+ * 「這一題在問哪一天」。
+ *
+ * @returns {?string} YYYY-MM-DD；算不出來（訊號沒有 health_date）回 null，
+ *   呼叫端據此不寫 target date（fail open 到既有的 health_date 錨定）。
+ */
+export function questionTargetDate({ category, signal }) {
+  const anchor = signal?.health_date ?? null;
+  if (!anchor || !/^\d{4}-\d{2}-\d{2}$/.test(String(anchor))) return null;
+  const offset = INFORMATION_GAIN_POLICY.TARGET_DAY_OFFSET?.[category];
+  if (!Number.isInteger(offset)) return anchor;
+  return addDays(anchor, offset);
 }
 
 /** 訊號 + 類別 → 一句話的問題。純樣板，不是 LLM 生成。 */

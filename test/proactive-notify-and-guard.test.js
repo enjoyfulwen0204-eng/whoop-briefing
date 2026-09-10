@@ -153,34 +153,43 @@ test('★★ PA16: guardProactiveMessage 擋下因果/診斷語言，換成保�
     '你的心率變異已經確診異常，這是因果關係。',               // 確診 + 因果關係
   ];
   for (const text of blockedExamples) {
-    const { text: guarded, problems } = guardProactiveMessage(text, { label: 'test' });
-    assert.ok(problems.length > 0, `這句話應該被攔下來：${text}`);
+    const { text: guarded, violations } = guardProactiveMessage(text, { label: 'test' });
+    assert.ok(violations.length > 0, `這句話應該被攔下來：${text}`);
     assert.notEqual(guarded, text, '被攔下來的原文絕不能被送出去');
   }
 });
 
 test('PA16: guardProactiveMessage 放行正常的保守用語', () => {
+  // R2-H-02：帶上訊號（生產路徑一律會傳），敘述才有可歸屬的事實。
   const allowedExamples = [
-    '你的HRV今天比平常偏低了一些。昨天有喝酒嗎？',
-    '留意一下：你的恢復分數最近持續偏低，不是單一天的雜訊。\n\n如果你覺得不舒服，建議考慮休息、就醫或諮詢醫療專業人員——我沒有能力做任何醫療判斷。',
+    ['你的HRV今天比平常偏低了一些。昨天有喝酒嗎？', { metric: 'hrv', current: 40 }],
+    ['留意一下：你的恢復分數最近持續偏低，不是單一天的雜訊。', { metric: 'recovery_score', current: 42 }],
+    ['我注意到一些變化，想跟你確認一下最近的作息。', null],
   ];
-  for (const text of allowedExamples) {
-    const { text: guarded, problems } = guardProactiveMessage(text, { label: 'test' });
-    assert.equal(problems.length, 0, `這句話不該被攔下來：${text}`);
+  for (const [text, signal] of allowedExamples) {
+    const { text: guarded, violations } = guardProactiveMessage(text, { label: 'test', signal });
+    assert.equal(violations.length, 0, `這句話不該被擋：${text} ${JSON.stringify(violations)}`);
     assert.equal(guarded, text);
   }
+});
 
-  // 帶數字的訊息：有提供 evidenceContext 就放行，沒提供就必須被擋
-  // （稽核後的 fail-closed 數字守門）。
+test('★★★ PA16 / R2-H-02: 帶數字的訊息必須有可歸屬的結構化事實', () => {
   const withNumbers = '補充一下之前提到的觀察：「喝酒」與隔天HRV之間目前觀察到負向的關聯'
     + '（r=-0.70，樣本 20 天，資料充分度 MODERATE）。這是個人層級觀察到的關聯，跟其他因素的影響無法完全分開。';
-  const withContext = guardProactiveMessage(withNumbers, {
-    label: 'test', evidenceContext: JSON.stringify({ pearson: -0.70, n: 20 }),
-  });
-  assert.equal(withContext.problems.length, 0, '有出處的數字應該放行');
 
-  const withoutContext = guardProactiveMessage(withNumbers, { label: 'test' });
-  assert.ok(withoutContext.problems.length > 0, '★ 沒有出處的數字必須被擋（fail-closed）');
+  // 有關聯統計（確定性層算出來的）→ 數字都歸屬得到 → 放行
+  const withEvidence = guardProactiveMessage(withNumbers, {
+    label: 'test',
+    association: { metric: 'hrv', pearson: -0.70, n: 20 },
+  });
+  assert.equal(withEvidence.violations.length, 0,
+    `有出處的數字應該放行：${JSON.stringify(withEvidence.violations)}`);
+  assert.equal(withEvidence.text, withNumbers);
+
+  // 完全沒有事實 → 任何數字都歸屬不到 → fail closed
+  const withoutEvidence = guardProactiveMessage(withNumbers, { label: 'test' });
+  assert.ok(withoutEvidence.violations.length > 0, '★ 沒有出處的數字必須被擋（fail-closed）');
+  assert.notEqual(withoutEvidence.text, withNumbers);
 });
 
 // ===========================================================================

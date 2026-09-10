@@ -133,7 +133,8 @@ test('coverage / capability：Alice 有資料不會讓 Bob 變成 READY', async 
   const { db, cleanup } = tempDb();
   try {
     await db.migrate();
-    await seedAliceAndBob(db);
+    // 這一題要驗「Bob 的 capability 必須是空的」，所以刻意不 probe
+    await seedAliceAndBob(db, { probed: false });
     await seedHealthData(db, ALICE, 11);           // 只有 Alice 有資料
 
     const aCov = await db.coverage(ALICE.id);

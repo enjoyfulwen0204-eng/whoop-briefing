@@ -22,6 +22,9 @@ import {
   assessDeviation, assessChangeDetection, READINESS_STATUS,
 } from './readiness.js';
 import { SIGNAL_POLICY } from './proactivePolicy.js';
+import {
+  authorizesProactiveMessaging, normalizeCapabilityStatus,
+} from './capabilityMap.js';
 
 export const SIGNAL_TYPE = {
   DEVIATION: 'DEVIATION',
@@ -93,6 +96,17 @@ export function deviationSignal({
     baseline_mean: dev.baseline_mean,
     baseline_n: dev.baseline_n,
     readiness_status: readiness.status,
+    /**
+     * ★ R2-M-04：這個訊號可不可以授權「主動發訊息打擾使用者」。
+     *
+     * 只有 capability 是 SUPPORTED（已經實際驗證過這個帳號拿得到這個
+     * 欄位）才是 true。PARTIAL（degraded）、UNKNOWN（沒 probe 過）、
+     * UNAVAILABLE / UNAUTHORIZED / APP_ONLY、以及查不到，一律 false。
+     *
+     * 訊號本身照樣產生（分析與稽核軌跡不受影響），降級的只有主動打擾。
+     */
+    capability_authorization: normalizeCapabilityStatus(capabilityStatus),
+    messaging_authorized: authorizesProactiveMessaging(capabilityStatus),
   };
 }
 
@@ -125,6 +139,9 @@ export function baselineShiftSignal({
     recent_mean: shift.recent_mean,
     previous_mean: shift.previous_mean,
     readiness_status: readiness.status,
+    // ★ R2-M-04：同一條規則套用在**每一種**訊號型別上。
+    capability_authorization: normalizeCapabilityStatus(capabilityStatus),
+    messaging_authorized: authorizesProactiveMessaging(capabilityStatus),
   };
 }
 

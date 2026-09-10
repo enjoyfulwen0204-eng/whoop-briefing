@@ -17,7 +17,8 @@
  * 這一層只是確保「以後改樣板時不小心踩到」會被擋下來，而不是新增規則。
  */
 
-import { validateNarrative } from './llmValidation.js';
+import { validatePublication } from './publishGuard.js';
+import { factsFromProactive } from './publishableFacts.js';
 import { READINESS_STATUS } from './readiness.js';
 import { DEVIATION } from './analytics/anomaly.js';
 import { log } from './logger.js';
@@ -74,31 +75,29 @@ export function buildFollowUpMessage({ statement, fromStatus, toStatus }) {
 /**
  * 深度防禦：任何要送出去的主動訊息，送出前都再驗一次。
  *
- * ## 稽核修正：以前這個守門形同虛設
+ * ## 稽核修正史
  *
- * 舊版是 `validateNarrative(text, text, { checkNumbers: false })`，有兩個
- * 各自獨立的破口：
- *   1. `checkNumbers: false` —— 數字守門根本沒跑。
- *   2. 就算打開，context 傳的是 **text 自己** —— 訊息裡的任何數字都會在
- *      「允許的數字」集合裡找到自己，永遠驗得過。
- * 結果是「你的心率現在是 135 bpm」這種完全捏造的句子可以直接送出去。
+ * 第一版是 `validateNarrative(text, text, { checkNumbers: false })`，兩個
+ * 破口：數字守門沒跑，而且 context 傳的是 text 自己（任何數字都找得到
+ * 自己）。第二版改成 fail-closed 的字串比對，但獨立稽核證明字串比對會被
+ * 改寫繞過。
  *
- * 現在改成 fail-closed：數字一律要能在 `evidenceContext`（呼叫端提供的
- * 確定性分析結果）裡找到出處，沒給 context 就等於「沒有任何數字有出處」，
- * 於是任何帶單位的數值都會被擋下來。
+ * 現在走**同一個發布邊界**（publishGuard）：訊息裡的每一個數值宣稱都要
+ * 歸屬到一筆可發布的結構化事實。呼叫端傳 `factSet`（由
+ * publishableFacts.factsFromProactive 從訊號／關聯統計建立）。
  *
- * @param {string} evidenceContext 這則訊息背後的確定性事實來源（JSON 或
- *   純文字皆可）。樣板訊息如果會帶數字，呼叫端**必須**提供。
+ * 沒傳 factSet → 空事實集 → 任何數字都歸屬不到 → 一律擋下並改用中性
+ * 樣板。這正是 fail closed 該有的行為。
  */
-export function guardProactiveMessage(text, { label = 'proactive', evidenceContext = '' } = {}) {
-  const check = validateNarrative(text, evidenceContext, {
-    checkNumbers: true,
-    // 指標名稱來自我們自己的確定性訊號（不是 LLM 生成），沒有「憑空冒出
-    // 指標」的風險；而 evidenceContext 是 JSON 時中文指標名不會出現在裡面，
-    // 開著只會製造假警報。因果/診斷/即時宣稱與數字守門才是這裡的重點。
-    checkMetrics: false,
-  });
-  if (check.ok) return { text, problems: [] };
-  log.error('proactive_message_failed_guard', { label, problems: check.problems.slice(0, 6) });
-  return { text: '你的生理數據最近有些變化，值得留意。', problems: check.problems };
+export function guardProactiveMessage(text, {
+  label = 'proactive', factSet = null, signal = null, association = null,
+} = {}) {
+  const set = factSet ?? factsFromProactive({ signal, association });
+  const check = validatePublication(text, set);
+  if (check.ok) return { text, violations: [] };
+  log.error('proactive_message_failed_guard', { label, violations: check.violations.slice(0, 6) });
+  return {
+    text: '你的生理數據最近有些變化，值得留意。',
+    violations: check.violations,
+  };
 }

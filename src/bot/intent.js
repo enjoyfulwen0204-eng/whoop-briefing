@@ -12,6 +12,7 @@
 
 import { AI_PURPOSE, PROMPT_VERSIONS } from '../config.js';
 import { structuredWithRetry } from '../llmValidation.js';
+import { mentionsLoggableEvent } from './conversation.js';
 
 export const INTENTS = [
   'today_status',    // 我今天狀態怎樣
@@ -32,6 +33,23 @@ export const INTENTS = [
    * 而且是會誤導人的那種錯。寧可明講拿不到，也不要拿別的數字頂替。
    */
   'current_hr',
+  /**
+   * 「為什麼我這麼累／沒精神／狀態這麼差」—— 問的是**主觀症狀的原因**。
+   *
+   * 以前沒有這個意圖，這類問題被分到 what_changed，於是「沒偵測到偏離」被
+   * 講成「今天沒有特別值得注意的變化」。那是把「我們沒看到異常」偷換成
+   * 「你沒事」—— 而使用者明明就說了他很累。
+   */
+  'cause_query',
+  /**
+   * 「因為數據不夠嗎」「我的資料夠嗎」「你是不是還不了解我」——
+   * 問的是**分析成熟度**，不是要看資料庫診斷。
+   *
+   * 以前這類句子會撞到 data_status，於是回了一大塊內部診斷（涵蓋率、
+   * 各資源筆數、capability probe、backfill 狀態）。那是給維運看的，
+   * 不是對話。
+   */
+  'readiness_query',
   'unknown',
 ];
 
@@ -117,6 +135,27 @@ export function deterministicIntent(text) {
     return { intent: 'current_hr', source: 'deterministic' };
   }
 
+  // 主觀症狀的原因。**必須排在 what_changed / today_status 之前** ——
+  // 「為什麼我那麼累」問的是原因，不是「今天有什麼變化」。
+  if (/(為什麼|為何|怎麼會|怎麼[^，。,]{0,4}(這麼|那麼)|(是|不是)因為|會不會是|難道是)/.test(t)
+      && /(累|疲|沒精神|沒力|想睡|睏|昏|狀態差|不舒服|沉|虛|喘|恍神)/.test(t)) {
+    return { intent: 'cause_query', source: 'deterministic' };
+  }
+  // 「我做了 X，這會影響 Y 嗎？」——把某件事與某個指標連起來問因果。
+  // 跟單純的趨勢查詢（「最近 HRV 如何」）的差別就在這個因果連接詞。
+  if (/(是因為這樣|因為這樣|會不會影響|會影響|有沒有影響|有影響嗎|是不是這樣|是不是因為|難怪)/.test(t)
+      && (mentionsLoggableEvent(t) || metric
+          || /(累|疲|沒精神|沒力|想睡|睏|不舒服|沉|虛|喘)/.test(t))) {
+    return { intent: 'cause_query', metric: metric ?? null, source: 'deterministic' };
+  }
+
+  // 沒有疑問詞、但明顯在抱怨狀態（「今天怎麼這麼沒精神」已被上面接走；
+  // 這裡處理「好累喔」「整個人很沉」這種）。
+  if (/(好累|很累|累爆|沒精神|沒力氣|整個人.*(沉|重)|提不起勁)/.test(t)
+      && !/(記錄|記一下|幫我記)/.test(t)) {
+    return { intent: 'cause_query', source: 'deterministic' };
+  }
+
   // 今天最值得注意
   if (/(值得注意|最需要注意|what changed|有什麼變化|異常)/i.test(t)) {
     return { intent: 'what_changed', source: 'deterministic' };
@@ -149,8 +188,19 @@ export function deterministicIntent(text) {
     };
   }
 
-  // 資料狀況
-  if (/(資料|數據|同步|sync|data).*(狀態|多少|有嗎|status)/i.test(t)) {
+  // 分析成熟度（對話式）。**必須排在 data_status 之前** —— 否則
+  // 「因為數據不夠嗎」會被當成要看資料庫診斷。
+  if (/(資料|數據|紀錄|記錄|樣本|sample)/i.test(t)
+      && /(不夠|太少|不足|夠嗎|夠不夠|還太少|不多)/.test(t)) {
+    return { intent: 'readiness_query', source: 'deterministic' };
+  }
+  if (/(還不(夠)?了解我|不了解我|判斷不出來|沒辦法判斷|不能判斷|還不準)/.test(t)) {
+    return { intent: 'readiness_query', source: 'deterministic' };
+  }
+
+  // 資料狀況（內部診斷）。刻意收窄：要明確在問「同步/涵蓋狀態」才算，
+  // 「數據不夠嗎」這種對話句子上面已經先被 readiness_query 接走。
+  if (/(同步|sync|backfill|涵蓋)/i.test(t) && /(狀態|狀況|進度|多少|有嗎|status)/i.test(t)) {
     return { intent: 'data_status', source: 'deterministic' };
   }
 
@@ -205,6 +255,10 @@ intent 只能是下列其中一個：
 - current_hr：問**現在/當下**的心跳、心率、脈搏、bpm（例如「我心跳怎麼那麼快」
   「現在心率多少」）。注意：明確問「靜息心率 / RHR」的**不是**這一類，
   那是 trend_query + metric=rhr。
+- cause_query：問**主觀症狀的原因**（「為什麼我那麼累」「今天怎麼這麼沒精神」
+  「是不是因為喝酒」）。使用者在描述自己的感覺並問為什麼。
+- readiness_query：問**你的資料夠不夠、判斷準不準**（「因為數據不夠嗎」
+  「我的資料夠嗎」「你是不是還不了解我」）。這不是要看系統診斷。
 - unknown：以上都不是
 
 metric 只能是：hrv, rhr, recovery, sleep_total, deep_sleep, rem_sleep,

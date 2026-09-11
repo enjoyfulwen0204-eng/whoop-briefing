@@ -44,6 +44,8 @@ export function buildTrustedFacts(result) {
   lines.push('');
 
   switch (result.intent) {
+    case 'cause_query': return renderCauseAnswer(result);
+    case 'readiness_query': return renderReadinessAnswer(result);
     case 'today_status': {
       lines.push('今日指標（程式已算好）：');
       for (const [key, m] of Object.entries(result.metrics)) {
@@ -168,6 +170,8 @@ export function renderFallback(result) {
   }
   const lines = [];
   switch (result.intent) {
+    case 'cause_query': return renderCauseAnswer(result);
+    case 'readiness_query': return renderReadinessAnswer(result);
     case 'today_status':
       lines.push(`📊 ${result.health_date} 的狀態`);
       for (const m of Object.values(result.metrics)) {
@@ -219,6 +223,125 @@ export function renderFallback(result) {
       return '目前無法回答這個問題。';
   }
   return lines.join('\n');
+}
+
+
+/** 生活事件 → 人話。只認我們真的會記錄的類別。 */
+const CONTRIBUTOR_LABEL = {
+  alcohol: '喝酒', caffeine: '咖啡因', late_night: '晚睡', poor_sleep: '睡不好',
+  illness: '身體不適', stress: '壓力', travel: '出差或旅行', workout: '運動',
+  sauna: '三溫暖', massage: '按摩', nap: '小睡',
+};
+
+/**
+ * 「為什麼我這麼累」的回答。
+ *
+ * ## 這一段最重要的規則
+ *
+ * **「沒偵測到偏離」不可以講成「你沒事」。** 使用者說他累，那就是一個事實。
+ * 系統看不出異常只代表系統看不出來。以前這類問題回「今天沒有特別值得注意的
+ * 變化」，等於否定了他的感受。
+ *
+ * 所以順序固定是：先承認感受 → 講看得到的數字 → 講基準夠不夠 → 講**可能的**
+ * 因素（明確標成可能）→ 誠實講限制。
+ */
+export function renderCauseAnswer(result) {
+  const out = [];
+  const facts = result.facts ?? [];
+  const contributors = result.contributors ?? [];
+
+  out.push('你會覺得累，這件事本身就值得看一下。我把目前看得到的講給你聽。');
+
+  if (facts.length) {
+    out.push('');
+    out.push('目前這一天的數字：');
+    for (const f of facts) {
+      out.push(`· ${f.label} ${f.display}`
+        + (f.comparable && f.baseline_display
+          ? `（你平常大約 ${f.baseline_display}${f.noteworthy ? '，這次偏離比較明顯' : '，差不多'}）`
+          : ''));
+    }
+  }
+
+  // 基準夠不夠 —— 這是「能不能下判斷」的關鍵，不是資料庫筆數
+  const comparable = facts.filter((f) => f.comparable);
+  out.push('');
+  if (!comparable.length) {
+    out.push(result.calibrating
+      ? '不過這些數字現在還在 WHOOP 的校正期，而且我累積的天數還不夠，'
+        + '所以我沒辦法判斷它們算不算「你的不正常」。'
+      : '不過我累積的天數還不夠，還建立不出你的個人基準，'
+        + '所以我沒辦法判斷這些數字算不算「你的不正常」。');
+    out.push('也就是說：我現在無法確定你累的真正原因，而不是判斷你的身體沒有狀況。');
+  } else {
+    const odd = comparable.filter((f) => f.noteworthy);
+    out.push(odd.length
+      ? `跟你平常比，比較明顯的是：${odd.map((f) => f.label).join('、')}。`
+      : '跟你平常比，這些數字都還在你的常見範圍內 —— 但那只代表我沒看到明顯偏離，你的疲勞感仍然是真的。');
+  }
+
+  // 可能的因素（絕不講成證明）
+  if (contributors.length) {
+    const names = [...new Set(contributors
+      .map((c) => CONTRIBUTOR_LABEL[c.category] ?? null)
+      .filter(Boolean))];
+    if (names.length) {
+      out.push('');
+      out.push(`你最近記錄了：${names.join('、')}。這些都有可能讓人覺得累，`
+        + '不過以我手上的資料，還不足以確認它就是這次疲勞的原因。');
+      // ★ 時序：測量在前、事件在後 → 這組數字不可能反映那件事
+      if (contributors.some((c) => c.after_measurement)) {
+        out.push('而且要特別說：今天的恢復／HRV／靜息心率是睡眠期間量到的，'
+          + '時間點在你剛剛那件事之前，所以那組數字反映不出它的影響。');
+      }
+    }
+  }
+
+  out.push('');
+  out.push(comparable.length
+    ? '如果累的感覺一直持續，或伴隨其他不舒服，還是以你的身體感覺為準。'
+    : '再累積幾天資料之後，我才有辦法給你比較有依據的判斷。');
+  return out.join('\n');
+}
+
+/**
+ * 「因為數據不夠嗎」的回答。
+ *
+ * 直接回答是/不是，然後用**人話**解釋限制 —— 不是倒出涵蓋率、各資源筆數、
+ * capability probe 或 backfill 狀態。那些是給維運看的，對話裡不該出現。
+ */
+export function renderReadinessAnswer(result) {
+  const out = [];
+  const days = result.max_eligible_days ?? 0;
+  const need = result.min_samples_needed ?? null;
+
+  if (!result.baseline_ready) {
+    out.push('對，主要就是這個。');
+    out.push('');
+    if (result.has_today_facts) {
+      out.push('今天的數字我看得到，但我還沒有足夠的歷史可以建立「你平常是什麼樣子」，'
+        + '所以沒辦法判斷今天的數值算不算偏離你的常態。');
+    } else {
+      out.push('我目前累積到的資料還太少，還建立不出你的個人基準。');
+    }
+    if (days > 0 && Number.isFinite(need)) {
+      out.push('');
+      out.push(`目前可以拿來比較的大約是 ${days} 天份，至少要 ${need} 天左右才夠做比較。`);
+    }
+    if (result.calibrating) {
+      out.push('');
+      out.push('另外 WHOOP 本身也還在校正期，這段期間的數值不適合拿來當基準。');
+    }
+    out.push('');
+    out.push('再累積一段時間，我就能給你比較有依據的判斷。');
+  } else {
+    out.push('不完全是。');
+    out.push('');
+    out.push(`我已經有大約 ${days} 天可以比較的資料，基準是建立得起來的。`);
+    out.push('判斷不出來的原因比較可能是：這件事的答案本來就不在 WHOOP 量得到的範圍裡，'
+      + '或是目前的數字確實沒有明顯偏離。');
+  }
+  return out.join('\n');
 }
 
 /** structured result → 最終要送出去的文字。 */

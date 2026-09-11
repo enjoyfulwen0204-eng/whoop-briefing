@@ -44,7 +44,23 @@ export function looksLikeQuestion(text) {
   const t = String(text ?? '').trim();
   if (!t) return false;
   if (/[?？]\s*$/.test(t)) return true;
-  return /(怎樣|怎麼樣|如何|為什麼|為何|多少|哪一?天|可以嗎|是不是.*\?)/.test(t);
+  // 中文很常不打問號。「…嗎」「…呢」「…吧」結尾就是問句，
+  // 漏掉這一類的後果是：使用者在問問題，卻被當成在回答追問而被吃掉。
+  if (/(嗎|呢|吧|嘛)\s*[。.!！]?\s*$/.test(t)) return true;
+  // 「怎麼這麼累」「怎麼那麼喘」——沒有問號也沒有嗎，但確實是在問。
+  if (/怎麼(這麼|那麼|會)/.test(t)) return true;
+  return /(怎樣|怎麼樣|如何|為什麼|為何|多少|哪一?天|是不是|會不會|有沒有|難道|還是說)/.test(t);
+}
+
+/**
+ * 這句話裡有沒有「在報告一件發生過的事」。
+ *
+ * 與 looksLikeQuestion 是**正交**的：一句話可以同時是報告也是提問
+ * （「我剛喝了酒，是不是因為這樣才這麼累？」）。所以這裡刻意不排除問句。
+ */
+export function mentionsLoggableEvent(text) {
+  return /(喝酒|喝了|喝完|吃了|宵夜|熬夜|睡得?晚|沒睡|失眠|生病|不舒服|感冒|發燒|壓力|加班|出差|旅行|時差|按摩|三溫暖|運動|重訓|跑步|練)/
+    .test(String(text ?? ''));
 }
 
 /**

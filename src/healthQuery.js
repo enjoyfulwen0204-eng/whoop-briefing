@@ -183,6 +183,131 @@ export function createHealthQuery({
 
   // -------------------------------------------------------------------------
   /**
+   * 這個人的**分析成熟度**：現在的判斷能到什麼程度？
+   *
+   * 回的是結構化狀態，不是診斷報表。呼叫端據此用人話解釋「為什麼我還不能
+   * 下定論」，而不是把資料庫的筆數倒給使用者看。
+   */
+  async function readinessState() {
+    const rows = await loadRows();
+    const today = rows[0] ?? null;
+    // 「有幾天可以拿來當基準」：排除校正期之後，真正進得了統計的天數。
+    const eligible = {};
+    for (const key of ['recovery', 'hrv', 'rhr', 'sleep_total']) {
+      eligible[key] = seriesOf(rows, key).length;
+    }
+    const best = Math.max(0, ...Object.values(eligible));
+    return {
+      history_days: rows.length,
+      eligible_days: eligible,
+      max_eligible_days: best,
+      min_samples_needed: ANALYTICS.MIN_SAMPLES,
+      baseline_ready: best >= ANALYTICS.MIN_SAMPLES,
+      calibrating: today?.calibrating === true,
+      has_today_facts: Boolean(today && (
+        Number.isFinite(today.recovery) || Number.isFinite(today.hrv)
+        || Number.isFinite(today.rhr) || Number.isFinite(today.sleep_total)
+      )),
+      health_date: today?.health_date ?? null,
+    };
+  }
+
+  /** 「因為數據不夠嗎」—— 對話式的成熟度說明（不是系統診斷）。 */
+  async function readinessExplanation() {
+    const r = await readinessState();
+    return { available: true, intent: 'readiness_query', ...r };
+  }
+
+  // -------------------------------------------------------------------------
+  /**
+   * 「為什麼我那麼累？」—— 主觀症狀的原因。
+   *
+   * ## 這裡最重要的一條規則
+   *
+   * **「我們沒偵測到偏離」不等於「你沒事」。** 使用者說他很累，那本身就是
+   * 一個事實；系統看不出異常只代表系統看不出來，不代表他不累。以前這類問題
+   * 被分到 what_changed，於是回了「今天沒有特別值得注意的變化」——
+   * 等於否定了使用者的感受。
+   *
+   * 所以這裡回的是結構化的「我知道什麼 / 我還不知道什麼」，讓呈現層可以
+   * 誠實地分開講：觀察到的事實、能不能跟個人基準比、有哪些**可能**的因素、
+   * 以及哪些是這份資料證明不了的。
+   */
+  async function causeExplanation({ symptom = 'fatigue', metric = null } = {}) {
+    const rows = await loadRows();
+    if (!rows.length) {
+      return { available: true, intent: 'cause_query', symptom, ...(await readinessState()), facts: [], contributors: [] };
+    }
+    const today = rows[0];
+    const anchor = today.health_date;
+    const readiness = await readinessState();
+
+    // 只挑**跟疲勞有關**的指標，不要把所有欄位倒出來。
+    const relevant = metric
+      ? [metric]
+      : ['sleep_total', 'sleep_performance', 'recovery', 'hrv', 'rhr', 'previous_day_strain'];
+    const facts = [];
+    for (const key of relevant) {
+      const value = today[key] ?? null;
+      if (value === null) continue;
+      const series = seriesOf(rows, key);
+      const base = describeWindow(series, {
+        endDate: anchor, days: ANALYTICS.DEFAULT_BASELINE_WINDOW, excludeEndDate: true,
+      });
+      const dev = base.sufficient ? evaluateDeviation(key, value, base) : { z_score: null, level: null, noteworthy: false };
+      facts.push({
+        key,
+        label: labelOf(key),
+        value,
+        display: fmtOf(key, value),
+        baseline_mean: base.sufficient ? base.mean : null,
+        baseline_display: base.sufficient ? fmtOf(key, base.mean) : null,
+        baseline_n: base.n,
+        comparable: base.sufficient,
+        z_score: dev.z_score,
+        level: dev.level,
+        noteworthy: Boolean(dev.noteworthy),
+      });
+    }
+
+    // 當天（與前一天）已記錄的生活事件 —— 可能的因素，不是證明。
+    let journal = [];
+    if (typeof db.getJournalEvents === 'function') {
+      try {
+        journal = await db.getJournalEvents(uid, {
+          from: addDays(anchor, -1), to: anchor, limit: 20,
+        }) ?? [];
+      } catch { journal = []; }
+    }
+    const contributors = journal.map((e) => ({
+      category: e.category ?? null,
+      subtype: e.subtype ?? null,
+      health_date: e.health_date ?? null,
+      event_at: e.event_at ?? null,
+      /**
+       * ★ 時序：這件事發生在「今天這組測量」之後嗎？
+       *
+       * Recovery / HRV / RHR 是睡眠期間量到的，也就是**今天早上之前**。
+       * 剛剛才喝的酒不可能影響到那組數字 —— 拿它來證明因果是時序上不可能的。
+       */
+      after_measurement: Boolean(today.sleep_end && e.event_at
+        && Date.parse(e.event_at) > Date.parse(today.sleep_end)),
+    }));
+
+    return {
+      available: true,
+      intent: 'cause_query',
+      symptom,
+      health_date: anchor,
+      sleep_end: today.sleep_end ?? null,
+      facts,
+      contributors,
+      ...readiness,
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  /**
    * 「我現在心跳幾下？」—— 這個系統拿不到。
    *
    * WHOOP 的開發者 API 沒有即時心率串流。拿得到的心率只有：
@@ -420,6 +545,9 @@ export function createHealthQuery({
     latestDate,
     todayStatus,
     currentHeartRate,
+    causeExplanation,
+    readinessExplanation,
+    readinessState,
     trendQuery,
     sleepQuality,
     bestWorstDay,

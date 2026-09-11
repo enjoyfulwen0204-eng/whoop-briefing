@@ -31,7 +31,8 @@ import {
 } from './commands.js';
 import * as experimentFlow from './experimentFlow.js';
 import {
-  shouldFollowUp, openFollowUp, isNegativeAnswer, looksLikeQuestion, FOLLOW_UP_CATEGORIES,
+  shouldFollowUp, openFollowUp, isNegativeAnswer, looksLikeQuestion,
+  mentionsLoggableEvent, FOLLOW_UP_CATEGORIES,
 } from './conversation.js';
 
 const NO_DATA_REPLY = [
@@ -422,9 +423,16 @@ export function createRouter({
     // 明顯是在問問題的訊息不可以被當成答案吃掉——否則使用者的問題不會被
     // 回答，還會收到一句「聽不懂」。主動問題保持開著，等真正的回答。
     // （反應式追問不套用這條：那是使用者自己問完之後的對話延續。）
-    const swallowsUnrelatedQuestion = pending
-      && pending.intent === PROACTIVE_QUESTION_INTENT
-      && looksLikeQuestion(text);
+    // 明顯是在問問題的訊息**不可以**被當成追問的答案吃掉。
+    //
+    // 這條以前只套用在主動追問上，反應式追問（bot 問完「昨天有喝酒嗎」之後）
+    // 不套用。結果就是這次的事故：使用者問「我怎麼感覺那麼累 是因為剛剛也
+    // 喝酒嗎」，被當成那句追問的答案，只寫了 journal 就回
+    // 「✅ 已記錄：alcohol」，問題本身被丟掉。
+    //
+    // 兩種追問都套用：使用者在問問題的時候，回答他的問題永遠比收集脈絡重要。
+    // （單純的答覆如「喝了三杯」「沒有」不是問句，照舊被收下。）
+    const swallowsUnrelatedQuestion = pending && looksLikeQuestion(text);
 
     if (pending && !parseCommand(text) && !swallowsUnrelatedQuestion) {
       // 多步驟實驗建立流程有自己的狀態機
@@ -481,7 +489,31 @@ export function createRouter({
     const cmd = parseCommand(text);
     if (cmd) return handleCommand({ cmd, text, chatId, t, userId, timezone, coach });
 
-    // ---- 3. 看起來像在記錄事情 ----
+    // ---- 3. 複合訊息：既報告了一件事，又在問問題 ----
+    //
+    // 「我剛喝了酒，是不是因為這樣才這麼累？」同時是兩個言語行為：
+    //   (a) 記錄一件事  (b) 問這件事跟身體狀況的關係
+    //
+    // 以前只做了 (a) 就回「✅ 已記錄」，問題被丟掉。兩件事都要做：
+    // 先安全地寫下事件（寫入本身仍然走既有的冪等路徑），再回答問題，
+    // 最後把「已記錄」併進答案裡 —— 確認不可以取代回答。
+    if (looksLikeQuestion(text) && mentionsLoggableEvent(text)) {
+      let savedLine = null;
+      try {
+        const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
+        if (nat.ok) {
+          const saved = await saveEvent(db, userId, nat.event, { now: t, timezone });
+          if (saved.ok) savedLine = `✅ 順手幫你記下：${describeEvent(saved.event)}`;
+        }
+      } catch (err) {
+        // 記錄失敗不可以吃掉問題的答案
+        log.warn('compound_journal_failed', { error: describeError(err) });
+      }
+      const answer = await handleQuestion({ text, chatId, t, userId, timezone, coach });
+      return savedLine ? `${savedLine}\n\n${answer}` : answer;
+    }
+
+    // ---- 4. 看起來像在記錄事情（純記錄，沒有提問）----
     if (looksLikeJournal(text)) {
       const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
       if (nat.ok) {
@@ -491,7 +523,7 @@ export function createRouter({
       // 解析不出來就往下走，當成一般問題
     }
 
-    // ---- 4. 一般問答 ----
+    // ---- 5. 一般問答 ----
     return handleQuestion({ text, chatId, t, userId, timezone, coach });
   }
 
@@ -627,7 +659,17 @@ export function createRouter({
     }
 
     if (intent.intent === 'data_status') {
-      return handleHealthData({ db, userId, timezone, now: t });
+      // ⚠️ 內部診斷區塊（涵蓋率、各資源筆數、capability probe、backfill）
+      // **只走明確指令**。自然語言問句一律給對話式的成熟度說明。
+      //
+      // 事故當時「因為數據不夠嗎」撞到這條，於是使用者收到一整塊給維運看的
+      // 診斷輸出。那不是對話，是把人當成在操作資料庫主控台。
+      return composeAnswer({
+        question: text,
+        result: await createHealthQuery({ db, userId, timezone, now: t, lookbackDays })
+          .readinessExplanation(),
+        coach,
+      });
     }
 
     const q = createHealthQuery({ db, userId, timezone, now: t, lookbackDays });
@@ -674,6 +716,8 @@ export function createRouter({
           windowDays: intent.window_days ?? 30,
         });
       case 'what_changed': return q.whatChanged();
+      case 'cause_query': return q.causeExplanation({ metric: intent.metric ?? null });
+      case 'readiness_query': return q.readinessExplanation();
       case 'current_hr': return q.currentHeartRate();
       default: return null;
     }

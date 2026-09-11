@@ -97,7 +97,10 @@ async function withEnv(fn, opts = {}) {
     const router = createRouter({ db, coachFor, now: () => NOW });
     const mkProcessor = (o = {}) => createUpdateProcessor({
       db: o.db ?? db,
-      resolveUser: (c) => db.resolveUserByChatId(c),
+      resolveUser: async (c) => {
+        if (o.resolveDelay) await o.resolveDelay(c);
+        return db.resolveUserByChatId(c);
+      },
       handleMessage: async (m) => {
         if (o.onHandle) await o.onHandle(m);
         return router.handle({ text: m.text, chatId: m.chatId, user: m.user });
@@ -435,7 +438,19 @@ test('★★★ C2: 澄清流程 —— 問題落地之前，澄清回覆不會�
   const gate = makeGate();
 
   await withEnv(async ({ sent, mkProcessor }) => {
-    const q = mkProcessor({ workerId: 'q', onHandle: ({ text }) => { seen.push(text); } });
+    // ⚠️ 閘門要掛在**寫入交易之外**的地方。
+    //
+    //  · 不能掛在 coach 上：「為什麼我這麼累」現在走 cause_query，那條路是
+    //    全確定性的、根本不呼叫 LLM，閘門永遠不會觸發 → 測試卡死。
+    //  · 不能掛在 handleMessage 上：它在 processTelegramOperation 的寫入
+    //    交易裡面，卡在那裡等於抱著交易不放，後面那一則會拿不到所有權。
+    //
+    // resolveUser 在認領之後、動作交易之前被呼叫，剛好是我們要的位置。
+    const q = mkProcessor({
+      workerId: 'q',
+      onHandle: ({ text }) => { seen.push(text); },
+      resolveDelay: () => gate.wait(),
+    });
     const c = mkProcessor({ workerId: 'c', onHandle: ({ text }) => { seen.push(text); } });
 
     const pQ = q.processUpdate(upd(3000, '5001', '為什麼我這麼累'));
@@ -444,16 +459,22 @@ test('★★★ C2: 澄清流程 —— 問題落地之前，澄清回覆不會�
     const clar = await c.processUpdate(upd(3001, '5001', '昨天喝了兩杯'));
     assert.equal(clar.outcome, UPDATE_OUTCOME.RETRY,
       '★ 澄清不可以在問題的狀態落地之前就被處理');
-    assert.deepEqual(seen, ['為什麼我這麼累']);
+    // 真正要保證的是「澄清沒有先跑」，而不是問題跑到哪一步了
+    //（閘門現在卡在 resolveUser，問題還沒進到 handleMessage）。
+    assert.ok(!seen.includes('昨天喝了兩杯'),
+      '★ 澄清的業務邏輯絕不可以在問題之前執行');
 
     gate.release();
-    await pQ;
+    const rQ = await pQ;
+    assert.equal(rQ.outcome, UPDATE_OUTCOME.PROCESSED,
+      `★ 問題本身必須處理完（實際 ${rQ.outcome}/${rQ.reason}）`);
 
     // 問題結案之後，澄清就能進來了
     const retry = await mkProcessor({ workerId: 'c2' }).processUpdate(upd(3001, '5001', '昨天喝了兩杯'));
-    assert.equal(retry.outcome, UPDATE_OUTCOME.PROCESSED, '★ 前一則結案後就要能處理');
+    assert.equal(retry.outcome, UPDATE_OUTCOME.PROCESSED,
+      `★ 前一則結案後就要能處理（實際 ${retry.outcome}/${retry.reason}）`);
     assert.equal(sent.length, 2);
-  }, { coachDelay: () => gate.wait() });
+  });
 });
 
 test('★★★ C3: 通道被崩潰的執行鎖住 → 租約過期後自動恢復', async () => {

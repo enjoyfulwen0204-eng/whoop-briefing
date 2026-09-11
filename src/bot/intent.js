@@ -50,6 +50,14 @@ export const INTENTS = [
    * 不是對話。
    */
   'readiness_query',
+  /**
+   * 「WHOOP 有同步成功嗎」「今天的資料同步了嗎」—— 問**同步狀態**。
+   *
+   * 與 readiness_query（分析成熟度）和 data_status（完整診斷）是三件事：
+   * 同步問題的答案來自最後成功／失敗時間，不是樣本數，也不該吐出
+   * capability probe。
+   */
+  'sync_status',
   'unknown',
 ];
 
@@ -188,6 +196,19 @@ export function deterministicIntent(text) {
     };
   }
 
+  // 同步狀態（對話式）。**必須排在 data_status 與 readiness_query 之前** ——
+  // 「今天的資料同步了嗎」問的是同步，不是基準夠不夠，也不是要看診斷。
+  if (/(同步|sync|更新|連線|連得上|進來)/i.test(t)
+      && /(嗎|沒有|成功|失敗|時間|什麼時候|正常|了嗎|過嗎|到嗎)/.test(t)) {
+    return { intent: 'sync_status', source: 'deterministic' };
+  }
+  if (/(最後|上次|最近一次).{0,4}同步/.test(t)) {
+    return { intent: 'sync_status', source: 'deterministic' };
+  }
+  if (/為什麼.{0,10}(還沒|沒有).{0,6}(進來|更新|同步)/.test(t)) {
+    return { intent: 'sync_status', source: 'deterministic' };
+  }
+
   // 分析成熟度（對話式）。**必須排在 data_status 之前** —— 否則
   // 「因為數據不夠嗎」會被當成要看資料庫診斷。
   if (/(資料|數據|紀錄|記錄|樣本|sample)/i.test(t)
@@ -259,6 +280,8 @@ intent 只能是下列其中一個：
   「是不是因為喝酒」）。使用者在描述自己的感覺並問為什麼。
 - readiness_query：問**你的資料夠不夠、判斷準不準**（「因為數據不夠嗎」
   「我的資料夠嗎」「你是不是還不了解我」）。這不是要看系統診斷。
+- sync_status：問**WHOOP 有沒有同步成功／資料有沒有進來**（「今天的資料同步了嗎」
+  「最後同步時間」「為什麼今天的 sleep 還沒進來」）。這跟資料夠不夠是兩件事。
 - unknown：以上都不是
 
 metric 只能是：hrv, rhr, recovery, sleep_total, deep_sleep, rem_sleep,

@@ -173,7 +173,9 @@ test('★ 沒有任何 WHOOP 資料：/log 照樣可以成功保存', async () =
   try {
     const reply = await routerFor(db).handle({ text: '/log alcohol 3 drinks', chatId: CHAT, user: USER });
     assert.match(reply, /已記錄/);
-    assert.match(reply, /alcohol/);
+    // 顯示的是核可的中文標籤，不是內部鍵（內部鍵外洩過：「已記錄：alcohol」）
+    assert.match(reply, /飲酒/);
+    assert.doesNotMatch(reply, /alcohol/, '★ 內部類別鍵不可以出現在使用者看到的文字裡');
 
     const events = await db.getJournalEvents(USER.id, { from: '2026-01-01', to: '2027-01-01' });
     assert.equal(events.length, 1, '★ journal 不依賴 WHOOP 資料');
@@ -280,6 +282,7 @@ test('★ N: 自然語言 journal —— LLM 只提案，Node 驗證後才寫', 
   try {
     const coach = fakeCoach({
       json: {
+        asserted: true, about_self: true, negated: false, hypothetical: false,
         category: 'alcohol', subtype: null, numeric_value: 3,
         unit: 'drinks', day_offset: -1, confidence: 0.95,
       },
@@ -318,7 +321,7 @@ test('★ N: LLM 給不合法的 category → 拒絕寫入', async () => {
 });
 
 test('N: LLM 信心太低 → 不採用', async () => {
-  const coach = fakeCoach({ json: { category: 'alcohol', confidence: 0.2 } });
+  const coach = fakeCoach({ json: { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', confidence: 0.2 } });
   const out = await parseNaturalJournal({ text: '可能有喝一點', now: NOW, timezone: TZ, coach });
   assert.equal(out.ok, false);
   assert.equal(out.reason, 'low_confidence');
@@ -365,6 +368,7 @@ test('★ O: 完整追問流程 —— 反問 → 回答 → 寫 journal → 續
     const coach = fakeCoach({
       answer: '今天恢復偏低。',
       json: {
+        asserted: true, about_self: true, negated: false, hypothetical: false,
         category: 'alcohol', numeric_value: 3, unit: 'drinks',
         day_offset: -1, confidence: 0.95,
       },

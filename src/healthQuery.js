@@ -18,6 +18,7 @@
 
 import { ANALYTICS } from './config.js';
 import { addDays, localDate } from './time.js';
+import { labelForCategory } from './journal.js';
 import { loadDailyMetrics, seriesOf, RECOVERY_DERIVED_METRICS } from './dailyMetrics.js';
 import { requireUserId } from './userContext.js';
 import {
@@ -54,6 +55,40 @@ export function resolveMetric(name) {
 }
 
 const labelOf = (m) => INSIGHT_LABELS[m]?.label ?? m;
+
+/**
+ * 事件與「今天那組睡眠期間量測」的先後關係。
+ *
+ * 只有在兩邊時間都可信時才回 after／before；其餘一律 'unknown'，
+ * 讓呈現層用保守措辭，而不是編造一個確定的先後。
+ *
+ * ⚠️ 絕不拿同步時間當生理量測時間 —— 那是資料進到我們這裡的時間，
+ * 不是身體被量到的時間。
+ */
+export function temporalRelation(sleepEndIso, event) {
+  if (!sleepEndIso || !event?.event_at) return 'unknown';
+  // 只有日期、沒有時間的紀錄（或解析時就只知道日期）不足以判斷先後。
+  const precision = event.time_precision ?? null;
+  if (precision === 'date' || precision === 'unknown') return 'unknown';
+  const endMs = Date.parse(sleepEndIso);
+  const evMs = Date.parse(event.event_at);
+  if (!Number.isFinite(endMs) || !Number.isFinite(evMs)) return 'unknown';
+  return evMs > endMs ? 'after' : 'before';
+}
+
+/** 疲勞類問題真正相關的指標（不是全部欄位都倒出來）。 */
+export const READINESS_METRICS = ['sleep_total', 'recovery', 'hrv', 'rhr'];
+
+/**
+ * 允許被當成「可能因素」的類別。
+ *
+ * 白名單制：只有明確支援、而且與體感有合理關聯的類別才會被提出來。
+ * 未知／自訂／內部鍵一律排除（fail closed），也絕不印原始鍵。
+ */
+const CONTRIBUTOR_CATEGORIES = new Set([
+  'alcohol', 'late_sleep', 'stress', 'sickness', 'medication',
+  'late_meal', 'exercise_note', 'caffeine',
+]);
 const fmtOf = (m, v) => {
   const f = INSIGHT_LABELS[m]?.fmt;
   return f && v !== null && v !== undefined ? f(v) : v;
@@ -188,27 +223,91 @@ export function createHealthQuery({
    * 回的是結構化狀態，不是診斷報表。呼叫端據此用人話解釋「為什麼我還不能
    * 下定論」，而不是把資料庫的筆數倒給使用者看。
    */
-  async function readinessState() {
+  async function readinessState({ metrics = READINESS_METRICS } = {}) {
     const rows = await loadRows();
     const today = rows[0] ?? null;
-    // 「有幾天可以拿來當基準」：排除校正期之後，真正進得了統計的天數。
-    const eligible = {};
-    for (const key of ['recovery', 'hrv', 'rhr', 'sleep_total']) {
-      eligible[key] = seriesOf(rows, key).length;
+    const anchor = today?.health_date ?? null;
+
+    /**
+     * ★ 成熟度是**逐指標**的，不能用「最大值」代表全部。
+     *
+     * 舊版拿 Math.max(...eligible)：睡眠有 1 天就說「有 1 天可以比較」，
+     * 而 Recovery / HRV / RHR 其實是 0 天。睡眠準備好**不代表**恢復準備好。
+     *
+     * 而且算的是**先前的**合格樣本（不含今天）—— 因為比較的對象是基準，
+     * 今天那一筆是被比較的那一個，不能同時當成基準的一部分。
+     */
+    const per = {};
+    for (const key of metrics) {
+      const series = seriesOf(rows, key);
+      const prior = anchor ? series.filter((p) => p.date !== anchor) : series;
+      per[key] = {
+        eligible_total: series.length,
+        eligible_prior: prior.length,
+        has_current: Number.isFinite(today?.[key] ?? null),
+        ready: prior.length >= ANALYTICS.MIN_SAMPLES,
+      };
     }
-    const best = Math.max(0, ...Object.values(eligible));
+    const readyMetrics = metrics.filter((m) => per[m].ready);
+    const notReady = metrics.filter((m) => !per[m].ready && per[m].has_current);
     return {
+      health_date: anchor,
       history_days: rows.length,
-      eligible_days: eligible,
-      max_eligible_days: best,
+      per_metric: per,
+      ready_metrics: readyMetrics,
+      not_ready_metrics: notReady,
+      /** 全部相關指標都有基準才算「準備好」。一個指標合格不能代表全部。 */
+      all_ready: metrics.length > 0 && readyMetrics.length === metrics.length,
+      any_ready: readyMetrics.length > 0,
       min_samples_needed: ANALYTICS.MIN_SAMPLES,
-      baseline_ready: best >= ANALYTICS.MIN_SAMPLES,
       calibrating: today?.calibrating === true,
-      has_today_facts: Boolean(today && (
-        Number.isFinite(today.recovery) || Number.isFinite(today.hrv)
-        || Number.isFinite(today.rhr) || Number.isFinite(today.sleep_total)
-      )),
-      health_date: today?.health_date ?? null,
+      has_today_facts: metrics.some((m) => per[m].has_current),
+    };
+  }
+
+  /**
+   * 「WHOOP 有同步成功嗎」—— 簡潔的同步狀態（不是完整診斷）。
+   *
+   * ## 同步狀態 ≠ 分析成熟度 ≠ 完整診斷
+   *
+   * 這三件事以前糊在一起：問同步會得到基準不足的說法，或是一整塊 capability
+   * probe。它們的答案來源完全不同 ——
+   * 同步狀態要看 whoop_sync_state 的最後成功／失敗時間，不是看樣本數。
+   *
+   * 只用**既有的持久化證據**，不會為了回答這一題去打 WHOOP。
+   */
+  async function syncStatus() {
+    const states = typeof db.getAllSyncState === 'function'
+      ? (await db.getAllSyncState(uid).catch(() => [])) ?? [] : [];
+    const rows = await loadRows();
+    const today = rows[0] ?? null;
+
+    const resources = states.map((r) => ({
+      resource: String(r.resource),
+      last_success_at: r.last_success_at ?? null,
+      last_error: r.last_error ?? null,
+      last_error_at: r.last_error_at ?? null,
+    }));
+    const successes = resources.map((r) => r.last_success_at).filter(Boolean).sort();
+    const lastSuccess = successes.length ? successes[successes.length - 1] : null;
+    const failing = resources.filter((r) => r.last_error);
+
+    let verdict;
+    if (!resources.length) verdict = 'never_synced';       // 從來沒跑過同步
+    else if (failing.length && !lastSuccess) verdict = 'failing';
+    else if (failing.length) verdict = 'partial';          // 有成功過，但有資源出錯
+    else if (lastSuccess) verdict = 'ok';
+    else verdict = 'unknown';                              // 有狀態列但沒有時間 → 不確定
+
+    return {
+      available: true,
+      intent: 'sync_status',
+      verdict,
+      last_success_at: lastSuccess,
+      failing_resources: failing.map((r) => r.resource),
+      /** 最新一筆健康資料的日期（「資料有沒有進來」的直接證據）。 */
+      latest_health_date: today?.health_date ?? null,
+      now: new Date(now).toISOString(),
     };
   }
 
@@ -233,14 +332,18 @@ export function createHealthQuery({
    * 誠實地分開講：觀察到的事實、能不能跟個人基準比、有哪些**可能**的因素、
    * 以及哪些是這份資料證明不了的。
    */
-  async function causeExplanation({ symptom = 'fatigue', metric = null } = {}) {
+  async function causeExplanation({ symptom = 'fatigue', metric = null, justLogged = null } = {}) {
     const rows = await loadRows();
     if (!rows.length) {
-      return { available: true, intent: 'cause_query', symptom, ...(await readinessState()), facts: [], contributors: [] };
+      return {
+        available: true, intent: 'cause_query', symptom, facts: [], contributors: [],
+        ...(await readinessState({ metrics: metric ? [metric] : READINESS_METRICS })),
+      };
     }
     const today = rows[0];
     const anchor = today.health_date;
-    const readiness = await readinessState();
+    const relevantMetrics = metric ? [metric] : READINESS_METRICS;
+    const readiness = await readinessState({ metrics: relevantMetrics });
 
     // 只挑**跟疲勞有關**的指標，不要把所有欄位倒出來。
     const relevant = metric
@@ -279,20 +382,44 @@ export function createHealthQuery({
         }) ?? [];
       } catch { journal = []; }
     }
-    const contributors = journal.map((e) => ({
-      category: e.category ?? null,
-      subtype: e.subtype ?? null,
-      health_date: e.health_date ?? null,
-      event_at: e.event_at ?? null,
-      /**
-       * ★ 時序：這件事發生在「今天這組測量」之後嗎？
-       *
-       * Recovery / HRV / RHR 是睡眠期間量到的，也就是**今天早上之前**。
-       * 剛剛才喝的酒不可能影響到那組數字 —— 拿它來證明因果是時序上不可能的。
-       */
-      after_measurement: Boolean(today.sleep_end && e.event_at
-        && Date.parse(e.event_at) > Date.parse(today.sleep_end)),
-    }));
+    /**
+     * 可能的因素 —— 保守挑選。
+     *
+     * · 只收白名單類別（未知／自訂一律排除，也不會洩漏原始鍵）
+     * · 同一類別只留一筆（重複出現不代表證據更強）
+     * · 時序關係只有在**兩邊時間都可信**時才敢下判斷
+     */
+    const seenCategory = new Set();
+    const contributors = [];
+    for (const e of journal) {
+      const category = String(e.category ?? '');
+      if (!CONTRIBUTOR_CATEGORIES.has(category)) continue;
+      if (seenCategory.has(category)) continue;      // 去重：不因重複而放大信心
+      seenCategory.add(category);
+      // 剛剛這一輪才解析出來的那一筆，時間精確度是可信的（解析器明確認出
+      // 「剛剛／現在」）。從 DB 讀回來的舊資料沒有這個欄位，一律 unknown。
+      const fresh = justLogged && justLogged.category === category ? justLogged : null;
+      contributors.push({
+        category,
+        label: labelForCategory(category),
+        health_date: e.health_date ?? null,
+        event_at: e.event_at ?? null,
+        /**
+         * ★ 時序：這件事發生在「今天這組測量」之後嗎？
+         *
+         * Recovery / HRV / RHR 是睡眠期間量到的。剛剛才喝的酒不可能影響
+         * 那組數字 —— 拿它來證明因果在時序上就不可能。
+         *
+         * 但這個判斷只有在**兩邊的時間都可信**時才成立：
+         *   · 需要 sleep_end（量測結束時間）
+         *   · 需要事件時間，而且那個時間不是我們自己編出來的
+         * 任何一邊不確定 → 'unknown'，話就要說得保守。
+         */
+        temporal: temporalRelation(today.sleep_end ?? null, {
+          ...e, time_precision: fresh?.timePrecision ?? e.time_precision ?? null,
+        }),
+      });
+    }
 
     return {
       available: true,
@@ -547,6 +674,7 @@ export function createHealthQuery({
     currentHeartRate,
     causeExplanation,
     readinessExplanation,
+    syncStatus,
     readinessState,
     trendQuery,
     sleepQuality,

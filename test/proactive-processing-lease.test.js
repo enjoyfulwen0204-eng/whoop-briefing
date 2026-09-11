@@ -88,6 +88,7 @@ const racingCoach = (during) => {
     async json() {
       if (!fired) { fired = true; await during(); }
       return {
+        asserted: true, about_self: true, negated: false, hypothetical: false,
         category: 'alcohol', subtype: 'beer', numeric_value: 2,
         unit: 'cup', confidence: 0.9,
       };
@@ -183,7 +184,7 @@ test('★★★ R2-M-03: 兩個 process 同時處理同一個事件 → 只有�
 
     let parsed = false;
     const coachFor = () => ({
-      async json() { parsed = true; return { category: 'alcohol', confidence: 0.9 }; },
+      async json() { parsed = true; return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', confidence: 0.9 }; },
       async ask() { return null; },
     });
     const router = createRouter({ db, coachFor, now: () => NOW });
@@ -201,7 +202,7 @@ test('★★ R2-M-03: 處理完成後租約會被釋放（下一次回答不會�
   await withSetup(async ({ db, user, eventId }) => {
     const coachFor = () => ({
       async json() {
-        return { category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
+        return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
       },
       async ask() { return null; },
     });
@@ -317,7 +318,7 @@ test('★★★ R3-M-03: 租約機制不可用 → fail closed，完全沒有副
     };
     const coachFor = () => ({
       async json() {
-        return { category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
+        return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
       },
       async ask() { return null; },
     });

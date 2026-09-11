@@ -75,6 +75,7 @@ async function withSetup(fn) {
 const coachFor = () => ({
   async json() {
     return {
+      asserted: true, about_self: true, negated: false, hypothetical: false,
       category: 'alcohol', subtype: 'beer', numeric_value: 2,
       unit: 'cup', day_offset: 0, confidence: 0.9,
     };
@@ -195,7 +196,7 @@ test('★★ M-02: 認領在 LLM 解析之前發生（副作用之前）', async
     const realResolve = db.resolvePendingQuestion.bind(db);
     db.resolvePendingQuestion = async (...a) => { order.push('claim'); return realResolve(...a); };
     const spyCoach = () => ({
-      async json() { order.push('llm'); return { category: 'alcohol', confidence: 0.9 }; },
+      async json() { order.push('llm'); return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', confidence: 0.9 }; },
       async ask() { return null; },
     });
     const router = createRouter({ db, coachFor: spyCoach, now: () => REPLY_AT });

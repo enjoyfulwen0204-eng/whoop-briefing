@@ -830,6 +830,7 @@ test('★★ 稽核 #15: 由主動問題產生的 Journal 必須可以回溯到�
 
     const coachFor = () => ({
       json: async () => ({
+        asserted: true, about_self: true, negated: false, hypothetical: false,
         category: 'alcohol', subtype: null, numeric_value: 2, unit: 'drinks',
         day_offset: -1, confidence: 0.9,
       }),

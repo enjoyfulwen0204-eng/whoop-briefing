@@ -26,6 +26,9 @@ import { createDb } from '../src/db.js';
 import { createRouter } from '../src/bot/router.js';
 import { deterministicIntent } from '../src/bot/intent.js';
 import { looksLikeQuestion, mentionsLoggableEvent } from '../src/bot/conversation.js';
+import { createUpdateProcessor, UPDATE_OUTCOME } from '../src/bot/updateProcessor.js';
+import { createSendReply } from '../src/bot/index.js';
+import { createHealthQuery } from '../src/healthQuery.js';
 
 const NOW = new Date('2026-09-11T09:05:00Z');   // Asia/Taipei 17:05
 const HD = '2026-09-11';
@@ -96,7 +99,12 @@ async function seed({ days = 1, calibrating = true } = {}) {
 /** coach.json 回一個 alcohol 解析（journal 用），ask 不會被用到。 */
 const alcoholCoach = () => ({
   async json() {
-    return { category: 'alcohol', subtype: null, numeric_value: null, unit: null, confidence: 0.9 };
+    // 模擬「剛剛喝酒」：解析器明確認出是當下的事，時間精確度才可信。
+    return {
+      category: 'alcohol', subtype: null, numeric_value: null, unit: null, confidence: 0.9,
+      asserted: true, about_self: true, negated: false, hypothetical: false,
+      time_precision: 'now',
+    };
   },
   async ask() { return 'x'; },
 });
@@ -109,6 +117,47 @@ const makeBot = (db, user, coachFor = alcoholCoach) => {
 const journalCount = async (db, userId) => (await db.getJournalEvents(userId, {
   from: '2026-08-01', to: '2026-10-01', limit: 200,
 })).length;
+
+const tgUpdate = (updateId, text, chatId = 5001) => ({
+  update_id: updateId,
+  message: {
+    message_id: updateId, chat: { id: chatId, type: 'private' },
+    from: { id: chatId, is_bot: false }, text, date: 1,
+  },
+});
+
+/**
+ * 走**真正的**耐久邊界：telegram_updates 收據 → 對話通道 → 路由 → 送達狀態。
+ *
+ * 冪等的證據必須在這一層取得。只呼叫 router.handle() 完全繞過收據，那樣的
+ * 測試不論寫得多嚴格，都證明不了生產環境裡「Telegram 重送同一則 update」
+ * 會發生什麼事。
+ *
+ * ⚠️ 任何延遲都只能放在 coach 裡，不可以放進 handleMessage —— 後者持有寫入
+ * 交易，在交易裡等網路是生產環境不存在的情況，本機 SQLite 會直接 BUSY。
+ */
+function makeProcessor(db, sent, { workerId = 'instance-1' } = {}) {
+  let nextMessageId = 7000;
+  const api = {
+    async sendMessage(chatId, text) {
+      sent.push({ chatId, text });
+      nextMessageId += 1;
+      return { message_id: nextMessageId };
+    },
+  };
+  const router = createRouter({ db, coachFor: alcoholCoach, now: () => NOW });
+  const processor = createUpdateProcessor({
+    db,
+    resolveUser: async (chatId) => db.resolveUserByChatId(chatId),
+    handleMessage: async (m) => router.handle({ text: m.text, chatId: m.chatId, user: m.user }),
+    handleUnlinked: async () => null,
+    sendReply: createSendReply({ db, api }),
+    workerId,
+    now: () => NOW,
+    sleepImpl: async () => {},
+  });
+  return { processor, api };
+}
 
 /** 絕不可以出現在對話裡的內部診斷用語。 */
 const DIAGNOSTIC_LEAK = [
@@ -265,28 +314,124 @@ test('★★★ CASE 6: 校正期 → 值看得到、但不過度解讀，也不
     const reply = await makeBot(db, user)('為什麼我那麼累');
     assert.match(reply, /66ms|54bpm|63%/, '★ 當下的值要看得到');
     assert.ok(!/沒有.*資料|拿不到/.test(reply), '★ 不可以說這些值不存在');
-    assert.match(reply, /校正期|不夠/, '★ 限制要說成基準不足/校正期');
+    assert.match(reply, /合格歷史|個人基準|校正期/, '★ 限制要說成基準不足或校正期');
     assert.ok(!/等.*同步/.test(reply), '★ 不可以說是同步問題');
   } finally { cleanup(); }
 });
 
 // ===========================================================================
-// CASE 7 — 冪等
+// CASE 7 — 重播與冪等（走真正的耐久邊界）
 // ===========================================================================
+//
+// ⚠️ 這一組刻意**不**用 `after <= before + 1` 這種寫法。
+//
+// 那個斷言宣稱「重複輸入不會寫出第二筆」，但它同時允許 before=1 → after=2，
+// 也就是它允許它自己宣稱禁止的那件事。獨立稽核實際觀察到第 1 筆與第 2 筆，
+// 測試卻是綠的。任何「允許自己所禁止之事」的斷言都比沒有斷言更糟：它會
+// 買下一份不存在的保證。
+//
+// 這裡改成精確計數，而且分清楚兩種語義：
+//
+//   (a) **同一個 update_id 重播** —— Telegram 在沒收到 ack 時會重送同一則
+//       update。這必須是嚴格冪等：一筆 journal、一則回覆，結果是 REPLAYED。
+//       擋下它的是 telegram_operations 收據，不是任何啟發式判斷。
+//
+//   (b) **不同 update_id、同樣的字** —— 這是使用者真的又講了一次。系統
+//       無法、也不應該假裝這不是新的一則訊息：「我剛剛喝酒了」講兩次，
+//       第二次很可能就是第二杯。靜靜地丟掉它會竄改使用者自己陳述的事實。
+//       所以它**會**寫出第二筆 —— 這是行為的真相，測試如實記下來。
+//
+//       重複不會變成分析上的誤導，靠的是另一道防線（Repair 8）：可能因素
+//       在彙整時依類別去重，所以同一類別出現兩筆不會放大任何信心。
+//       下面的 7c 同時驗這一點。
 
-test('★★★ CASE 7: 同一句話再說一次不會寫出第二筆 journal（路由層冪等）', async () => {
+test('★★★ CASE 7a: 重播同一個 update_id → 恰好一筆 journal、恰好一則回覆', async () => {
   const { db, user, cleanup } = await seed();
   try {
-    const bot = makeBot(db, user);
-    const a = await bot('我怎麼感覺那麼累 是因為剛剛也喝酒嗎');
-    const before = await journalCount(db, user.id);
-    assert.equal(before, 1);
-    // 同一則 Telegram update 的重播由 telegram_operations 收據擋下（另有測試）；
-    // 這裡驗的是「複合分支本身不會因為多跑一次就重複寫入同一天同一類事件」。
-    const b = await bot('我怎麼感覺那麼累 是因為剛剛也喝酒嗎');
-    assert.ok(a.length > 0 && b.length > 0);
-    const after = await journalCount(db, user.id);
-    assert.ok(after <= before + 1, `★ 不可以無限累積（前 ${before} 後 ${after}）`);
+    const sent = [];
+    const { processor } = makeProcessor(db, sent);
+    const update = tgUpdate(9001, '我怎麼感覺那麼累 是因為剛剛也喝酒嗎');
+
+    const first = await processor.processUpdate(update);
+    assert.equal(first.outcome, UPDATE_OUTCOME.PROCESSED, '★ 第一次必須真的處理');
+    assert.equal(await journalCount(db, user.id), 1, '★ 第一次寫入恰好一筆');
+    assert.equal(sent.length, 1, '★ 第一次送出恰好一則');
+
+    const replay = await processor.processUpdate(update);
+    assert.equal(replay.outcome, UPDATE_OUTCOME.REPLAYED, '★ 重播必須被認出來');
+    assert.equal(await journalCount(db, user.id), 1, '★ 重播後仍然恰好一筆（不是「至多兩筆」）');
+    assert.equal(sent.length, 1, '★ 重播不可以再送一則回覆');
+
+    // 連續重播（Telegram 會重送多次）也一樣。
+    for (let i = 0; i < 3; i += 1) {
+      const again = await processor.processUpdate(update);
+      assert.equal(again.outcome, UPDATE_OUTCOME.REPLAYED);
+    }
+    assert.equal(await journalCount(db, user.id), 1, '★ 多次重播仍然恰好一筆');
+    assert.equal(sent.length, 1, '★ 多次重播仍然恰好一則回覆');
+  } finally { cleanup(); }
+});
+
+test('★★★ CASE 7b: 跨 processor 實例重播（另一個 Render 實例）也不重複', async () => {
+  const { db, user, cleanup } = await seed();
+  try {
+    const sent = [];
+    const a = makeProcessor(db, sent, { workerId: 'instance-1' }).processor;
+    const b = makeProcessor(db, sent, { workerId: 'instance-2' }).processor;
+    const update = tgUpdate(9002, '我剛剛喝酒了，為什麼這麼累？');
+
+    assert.equal((await a.processUpdate(update)).outcome, UPDATE_OUTCOME.PROCESSED);
+    assert.equal((await b.processUpdate(update)).outcome, UPDATE_OUTCOME.REPLAYED,
+      '★ 收據是耐久的，換一個實例也認得');
+    assert.equal(await journalCount(db, user.id), 1, '★ 恰好一筆');
+    assert.equal(sent.length, 1, '★ 恰好一則回覆');
+  } finally { cleanup(); }
+});
+
+test('★★★ CASE 7c: 不同 update_id、同樣的字 → 兩則都被處理、兩筆事實，但分析不被放大', async () => {
+  const { db, user, cleanup } = await seed();
+  try {
+    const sent = [];
+    const { processor } = makeProcessor(db, sent);
+    const text = '我怎麼感覺那麼累 是因為剛剛也喝酒嗎';
+
+    const r1 = await processor.processUpdate(tgUpdate(9101, text));
+    const r2 = await processor.processUpdate(tgUpdate(9102, text));
+
+    // 使用者真的講了兩次 —— 兩則都是新訊息，都必須得到答覆。
+    assert.equal(r1.outcome, UPDATE_OUTCOME.PROCESSED);
+    assert.equal(r2.outcome, UPDATE_OUTCOME.PROCESSED, '★ 新的 update 不可以被當成重播吞掉');
+    assert.equal(sent.length, 2, '★ 兩則訊息恰好兩則回覆');
+
+    // 兩次陳述 = 兩筆事實。系統不替使用者判斷第二句是不是「講錯了」。
+    assert.equal(await journalCount(db, user.id), 2,
+      '★ 兩個不同的 update 恰好兩筆（這是行為的真相，不是冪等）');
+
+    // ★ 但重複不可以放大分析上的信心：可能因素依類別去重。
+    const q = createHealthQuery({ db, userId: user.id, timezone: TZ, now: NOW });
+    const explained = await q.causeExplanation({});
+    assert.equal(explained.contributors.length, 1,
+      '★ 同一類別的兩筆事實在分析時只算一個因素');
+    assert.equal(explained.contributors[0].category, 'alcohol');
+  } finally { cleanup(); }
+});
+
+test('★★★ CASE 7d: 併發送出同一個 update → 只有一個成功，恰好一筆一則', async () => {
+  const { db, user, cleanup } = await seed();
+  try {
+    const sent = [];
+    const p1 = makeProcessor(db, sent, { workerId: 'same-process' }).processor;
+    const p2 = makeProcessor(db, sent, { workerId: 'same-process' }).processor;
+    const update = tgUpdate(9201, '我怎麼感覺那麼累 是因為剛剛也喝酒嗎');
+
+    const [r1, r2] = await Promise.all([
+      p1.processUpdate(update), p2.processUpdate(update),
+    ]);
+    const outcomes = [r1.outcome, r2.outcome];
+    assert.equal(outcomes.filter((o) => o === UPDATE_OUTCOME.PROCESSED).length, 1,
+      '★ 恰好一個宣稱處理完');
+    assert.equal(sent.length, 1, '★ 恰好一則回覆');
+    assert.equal(await journalCount(db, user.id), 1, '★ 恰好一筆 journal');
   } finally { cleanup(); }
 });
 

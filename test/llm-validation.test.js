@@ -70,7 +70,7 @@ test('AB: journal schema 擋掉負數量與超大數值', () => {
     { category: 'alcohol', numeric_value: 999_999_999 }, JOURNAL_SCHEMA,
   ).ok, false);
   assert.equal(validateStructured(
-    { category: 'alcohol', numeric_value: 3, day_offset: -1, confidence: 0.9 }, JOURNAL_SCHEMA,
+    { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', numeric_value: 3, day_offset: -1, confidence: 0.9 }, JOURNAL_SCHEMA,
   ).ok, true);
   assert.equal(validateStructured(
     { category: 'alcohol', day_offset: 5 }, JOURNAL_SCHEMA,

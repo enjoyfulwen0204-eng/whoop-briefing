@@ -46,7 +46,7 @@ async function withUser(fn) {
 // 只能人工改資料庫才救得回來。實測確認。
 
 const coachFor = () => ({
-  async json() { return { category: 'alcohol', confidence: 0.9 }; },
+  async json() { return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', confidence: 0.9 }; },
   async ask() { return null; },
 });
 

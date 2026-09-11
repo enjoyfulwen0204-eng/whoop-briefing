@@ -81,6 +81,7 @@ async function withWebhook(fn, { coachReply = '好的', coachThrows = false, sen
         // 與既有 Telegram 測試同一組解析結果，這樣「有沒有重複寫 journal」
         // 才是真的在測動作去重，而不是在測一個什麼都沒做的路徑。
         return {
+          asserted: true, about_self: true, negated: false, hypothetical: false,
           category: 'alcohol', subtype: 'beer', numeric_value: 2,
           unit: 'cup', confidence: 0.9,
         };

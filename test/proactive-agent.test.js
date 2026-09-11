@@ -362,6 +362,7 @@ test('★★★ PA10-11: 回答問題 → 寫入 journal（source=proactive_agen
     assert.ok(pending);
 
     const coachFor = fakeCoachFor({
+      asserted: true, about_self: true, negated: false, hypothetical: false,
       category: 'alcohol', subtype: null, numeric_value: 2, unit: 'drinks',
       day_offset: -1, confidence: 0.9,
     });

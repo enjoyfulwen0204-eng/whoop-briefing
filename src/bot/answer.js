@@ -45,6 +45,7 @@ export function buildTrustedFacts(result) {
 
   switch (result.intent) {
     case 'cause_query': return renderCauseAnswer(result);
+    case 'sync_status': return renderSyncAnswer(result);
     case 'readiness_query': return renderReadinessAnswer(result);
     case 'today_status': {
       lines.push('今日指標（程式已算好）：');
@@ -171,6 +172,7 @@ export function renderFallback(result) {
   const lines = [];
   switch (result.intent) {
     case 'cause_query': return renderCauseAnswer(result);
+    case 'sync_status': return renderSyncAnswer(result);
     case 'readiness_query': return renderReadinessAnswer(result);
     case 'today_status':
       lines.push(`📊 ${result.health_date} 的狀態`);
@@ -226,120 +228,177 @@ export function renderFallback(result) {
 }
 
 
-/** 生活事件 → 人話。只認我們真的會記錄的類別。 */
-const CONTRIBUTOR_LABEL = {
-  alcohol: '喝酒', caffeine: '咖啡因', late_night: '晚睡', poor_sleep: '睡不好',
-  illness: '身體不適', stress: '壓力', travel: '出差或旅行', workout: '運動',
-  sauna: '三溫暖', massage: '按摩', nap: '小睡',
+/** 幾小時前（人話）。時間不可信就回 null，不要編。 */
+function agoText(iso, nowIso) {
+  if (!iso || !nowIso) return null;
+  const ms = Date.parse(nowIso) - Date.parse(iso);
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const mins = Math.round(ms / 60_000);
+  if (mins < 60) return `${mins} 分鐘前`;
+  const hrs = ms / 3_600_000;
+  return hrs < 48 ? `${hrs.toFixed(1)} 小時前` : `${Math.round(hrs / 24)} 天前`;
+}
+
+/**
+ * 「WHOOP 有同步成功嗎」的回答。
+ *
+ * 只講**有證據**的事：最後一次成功同步的時間、哪些資源出錯、最新一筆資料
+ * 是哪一天。沒有證據就說不確定 —— 絕不因為「有資料」就宣稱「最近同步成功」，
+ * 那兩件事不一樣。
+ *
+ * 也絕不吐 capability probe／backfill／資源筆數 —— 那是 /healthdata 的事。
+ */
+export function renderSyncAnswer(result) {
+  const ago = agoText(result.last_success_at, result.now);
+  switch (result.verdict) {
+    case 'ok':
+      return [
+        `有，最後一次成功同步是${ago ? ` ${ago}` : '在最近'}。`,
+        result.latest_health_date ? `目前最新的健康資料是 ${result.latest_health_date}。` : null,
+      ].filter(Boolean).join('\n');
+    case 'partial':
+      return [
+        `大致有 —— 最後一次成功同步${ago ? `是 ${ago}` : '有紀錄'}，`
+        + `但有部分資料這次沒拿到（${result.failing_resources.join('、')}）。`,
+        '通常下一次排程就會補上。',
+      ].join('\n');
+    case 'failing':
+      return '目前看起來同步是失敗的，我這邊還沒有成功取得資料的紀錄。'
+        + '如果持續這樣，可能要重新授權一次 WHOOP。';
+    case 'never_synced':
+      return '我這邊還沒有任何同步紀錄，看起來同步從來沒有跑成功過。';
+    default:
+      return '我沒辦法確認最近一次同步的狀態 —— 手邊沒有可靠的同步紀錄可以判斷。'
+        + (result.latest_health_date
+          ? `目前最新的健康資料是 ${result.latest_health_date}，但那不保證最近一次同步成功。`
+          : '');
+  }
+}
+
+/** 指標 → 對話裡的稱呼。只用核可的標籤，絕不印內部鍵。 */
+const METRIC_WORD = {
+  sleep_total: '睡眠', sleep_performance: '睡眠表現', recovery: '恢復',
+  hrv: 'HRV', rhr: '靜息心率', previous_day_strain: '昨日 Strain',
 };
+const metricWord = (k) => METRIC_WORD[k] ?? null;
+
+/** 沒有基準的那幾個指標，用人話列出來。 */
+function notReadyPhrase(result) {
+  const names = (result.not_ready_metrics ?? []).map(metricWord).filter(Boolean);
+  return names.length ? names.join('、') : null;
+}
 
 /**
  * 「為什麼我這麼累」的回答。
  *
- * ## 這一段最重要的規則
+ * ## 兩條不可退讓的規則
  *
- * **「沒偵測到偏離」不可以講成「你沒事」。** 使用者說他累，那就是一個事實。
- * 系統看不出異常只代表系統看不出來。以前這類問題回「今天沒有特別值得注意的
- * 變化」，等於否定了他的感受。
+ * 1. **「沒偵測到偏離」不可以講成「你沒事」。** 使用者說他累，那是一個事實；
+ *    系統看不出異常只代表系統看不出來。
+ * 2. **成熟度是逐指標的。** 睡眠有基準不代表 Recovery／HRV／靜息心率也有。
+ *    以前拿最大值當「整體準備好了」，等於用睡眠的樣本數替恢復背書。
  *
- * 所以順序固定是：先承認感受 → 講看得到的數字 → 講基準夠不夠 → 講**可能的**
- * 因素（明確標成可能）→ 誠實講限制。
+ * 長度刻意壓到 4～7 短行：這是對話，不是報表。只挑對回答有幫助的觀察，
+ * 不機械式列出每一個欄位。
  */
 export function renderCauseAnswer(result) {
   const out = [];
   const facts = result.facts ?? [];
   const contributors = result.contributors ?? [];
-
-  out.push('你會覺得累，這件事本身就值得看一下。我把目前看得到的講給你聽。');
-
-  if (facts.length) {
-    out.push('');
-    out.push('目前這一天的數字：');
-    for (const f of facts) {
-      out.push(`· ${f.label} ${f.display}`
-        + (f.comparable && f.baseline_display
-          ? `（你平常大約 ${f.baseline_display}${f.noteworthy ? '，這次偏離比較明顯' : '，差不多'}）`
-          : ''));
-    }
-  }
-
-  // 基準夠不夠 —— 這是「能不能下判斷」的關鍵，不是資料庫筆數
   const comparable = facts.filter((f) => f.comparable);
-  out.push('');
-  if (!comparable.length) {
-    out.push(result.calibrating
-      ? '不過這些數字現在還在 WHOOP 的校正期，而且我累積的天數還不夠，'
-        + '所以我沒辦法判斷它們算不算「你的不正常」。'
-      : '不過我累積的天數還不夠，還建立不出你的個人基準，'
-        + '所以我沒辦法判斷這些數字算不算「你的不正常」。');
-    out.push('也就是說：我現在無法確定你累的真正原因，而不是判斷你的身體沒有狀況。');
-  } else {
-    const odd = comparable.filter((f) => f.noteworthy);
-    out.push(odd.length
-      ? `跟你平常比，比較明顯的是：${odd.map((f) => f.label).join('、')}。`
-      : '跟你平常比，這些數字都還在你的常見範圍內 —— 但那只代表我沒看到明顯偏離，你的疲勞感仍然是真的。');
+
+  out.push('你會覺得累，這件事本身就值得看一下。');
+
+  // 只講最相關的一兩項，而且優先講「有偏離的」或「睡眠」這種直覺相關的
+  const highlight = (comparable.filter((f) => f.noteworthy).slice(0, 2).length
+    ? comparable.filter((f) => f.noteworthy).slice(0, 2)
+    : facts.filter((f) => ['sleep_total', 'recovery'].includes(f.key)).slice(0, 2));
+  if (highlight.length) {
+    out.push(highlight
+      .map((f) => `${f.label} ${f.display}`
+        + (f.comparable && f.baseline_display
+          ? `（平常約 ${f.baseline_display}${f.noteworthy ? '，這次偏離比較明顯' : '，差不多'}）`
+          : ''))
+      .join('；') + '。');
   }
 
-  // 可能的因素（絕不講成證明）
+  // 能不能跟個人常態比 —— 逐指標，不用最大值
+  const missing = notReadyPhrase(result);
+  if (!comparable.length) {
+    out.push(missing
+      ? `不過${missing}目前還沒有足夠的合格歷史可以建立你的個人基準，`
+        + '我沒辦法判斷這些數字是否偏離你的個人常態，也就無法確定你累的真正原因。'
+      : '不過我還沒有足夠的合格歷史可以建立你的個人基準，'
+        + '沒辦法判斷這些數字是否偏離你的個人常態，也就無法確定你累的真正原因。');
+  } else if (missing) {
+    out.push(`要注意的是${missing}還沒有足夠的合格歷史，那幾項我暫時不下判斷。`);
+  }
+
+  // 可能的因素（白名單類別、已去重、絕不宣稱因果）
   if (contributors.length) {
-    const names = [...new Set(contributors
-      .map((c) => CONTRIBUTOR_LABEL[c.category] ?? null)
-      .filter(Boolean))];
+    const names = contributors.map((c) => c.label).filter(Boolean);
     if (names.length) {
       out.push('');
-      out.push(`你最近記錄了：${names.join('、')}。這些都有可能讓人覺得累，`
-        + '不過以我手上的資料，還不足以確認它就是這次疲勞的原因。');
-      // ★ 時序：測量在前、事件在後 → 這組數字不可能反映那件事
-      if (contributors.some((c) => c.after_measurement)) {
-        out.push('而且要特別說：今天的恢復／HRV／靜息心率是睡眠期間量到的，'
-          + '時間點在你剛剛那件事之前，所以那組數字反映不出它的影響。');
+      const after = contributors.some((c) => c.temporal === 'after');
+      const unknownTime = contributors.some((c) => c.temporal === 'unknown');
+      let line = `${names.join('、')}都有可能讓人短時間覺得疲倦，不過以目前的資料還不能確認就是這個原因。`;
+      if (after) {
+        line += '而且今天的恢復、HRV 和靜息心率是睡眠期間量到的，時間早於這件事，'
+          + '不能用來證明它的影響。';
+      } else if (unknownTime) {
+        line += '這筆紀錄的時間不夠精確，所以我也不能確認它和這次量測的先後關係。';
       }
+      out.push(line);
     }
   }
 
   out.push('');
   out.push(comparable.length
-    ? '如果累的感覺一直持續，或伴隨其他不舒服，還是以你的身體感覺為準。'
-    : '再累積幾天資料之後，我才有辦法給你比較有依據的判斷。');
+    ? '如果疲倦持續或伴隨其他不適，還是以你的身體感覺為準。'
+    : '先休息、補充水分並觀察；若出現胸痛、呼吸困難或快昏倒的情況，請立刻尋求協助。');
   return out.join('\n');
 }
 
 /**
  * 「因為數據不夠嗎」的回答。
  *
- * 直接回答是/不是，然後用**人話**解釋限制 —— 不是倒出涵蓋率、各資源筆數、
- * capability probe 或 backfill 狀態。那些是給維運看的，對話裡不該出現。
+ * 直接回答，然後用人話講限制 —— 不倒涵蓋率、不倒各資源筆數、不倒
+ * capability probe 或 backfill。那些是給維運看的。
+ *
+ * ⚠️ 不把 MIN_SAMPLES 講成「累積五天就能找出原因」。那個門檻只是**某一個
+ * 指標做基本比較**的最低合格樣本數，不是成熟個人化、更不是因果保證。
  */
 export function renderReadinessAnswer(result) {
   const out = [];
-  const days = result.max_eligible_days ?? 0;
+  const missing = notReadyPhrase(result);
   const need = result.min_samples_needed ?? null;
 
-  if (!result.baseline_ready) {
-    out.push('對，主要就是這個。');
+  if (!result.all_ready) {
+    out.push('對，主要是這個。');
     out.push('');
     if (result.has_today_facts) {
-      out.push('今天的數字我看得到，但我還沒有足夠的歷史可以建立「你平常是什麼樣子」，'
-        + '所以沒辦法判斷今天的數值算不算偏離你的常態。');
+      out.push(missing
+        ? `今天的數字我看得到，但${missing}還沒有足夠的合格歷史可以建立你的個人基準，`
+          + '所以我還不能可靠判斷它們是否偏離你平常的狀態。'
+        : '今天的數字我看得到，但合格的歷史還不夠建立你的個人基準。');
     } else {
-      out.push('我目前累積到的資料還太少，還建立不出你的個人基準。');
-    }
-    if (days > 0 && Number.isFinite(need)) {
-      out.push('');
-      out.push(`目前可以拿來比較的大約是 ${days} 天份，至少要 ${need} 天左右才夠做比較。`);
+      out.push('我目前累積到的合格資料還太少，還建立不出你的個人基準。');
     }
     if (result.calibrating) {
+      out.push('WHOOP 本身也還在校正期，這段期間的數值不適合當基準。');
+    }
+    if (Number.isFinite(need)) {
       out.push('');
-      out.push('另外 WHOOP 本身也還在校正期，這段期間的數值不適合拿來當基準。');
+      out.push(`做最基本的比較，每個指標大約需要 ${need} 筆先前的合格紀錄；`
+        + '不同的判斷（趨勢、預測、關聯）需要的更多。');
     }
     out.push('');
-    out.push('再累積一段時間，我就能給你比較有依據的判斷。');
+    out.push('再累積一段時間會好很多。不過就算歷史足夠，我能給的也是關聯，不是單一原因的證明。');
   } else {
     out.push('不完全是。');
     out.push('');
-    out.push(`我已經有大約 ${days} 天可以比較的資料，基準是建立得起來的。`);
-    out.push('判斷不出來的原因比較可能是：這件事的答案本來就不在 WHOOP 量得到的範圍裡，'
-      + '或是目前的數字確實沒有明顯偏離。');
+    out.push('相關指標的基準我都已經建立得起來了。判斷不出來比較可能是因為：'
+      + '這件事的答案本來就不在 WHOOP 量得到的範圍裡，或是目前的數字確實沒有明顯偏離。');
   }
   return out.join('\n');
 }

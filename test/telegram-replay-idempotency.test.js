@@ -63,6 +63,7 @@ async function withUser(fn) {
 const coachFor = () => ({
   async json() {
     return {
+      asserted: true, about_self: true, negated: false, hypothetical: false,
       category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9,
     };
   },

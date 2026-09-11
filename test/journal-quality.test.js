@@ -152,7 +152,9 @@ test('N: 寫進 DB 並讀回來', async () => {
     assert.equal(events[0].category, 'alcohol');
     assert.equal(events[0].source, 'command');
     assert.equal(await db.countJournalEvents(USER.id), 1);
-    assert.match(describeEvent(saved.event), /alcohol/);
+    // describeEvent 是給使用者看的 → 中文標籤，不是內部鍵
+    assert.match(describeEvent(saved.event), /飲酒/);
+    assert.doesNotMatch(describeEvent(saved.event), /alcohol/);
   } finally { db.close(); cleanup(); }
 });
 

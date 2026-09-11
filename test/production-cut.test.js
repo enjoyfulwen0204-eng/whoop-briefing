@@ -29,7 +29,7 @@ async function setup(fn) {
 }
 const journals = (db, id = 'alice') => db.getJournalEvents(id, { from: '2026-02-01', to: '2026-02-10' });
 const journal = (db) => db.addJournalEvent('alice', { healthDate: '2026-02-05', eventAt: AT.toISOString(), category: 'alcohol', numericValue: 2 });
-const parsed = { category: 'alcohol', numeric_value: 2, unit: 'drinks', day_offset: 0, date_explicit: false, confidence: .95 };
+const parsed = { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', numeric_value: 2, unit: 'drinks', day_offset: 0, date_explicit: false, confidence: .95 };
 async function question(db) {
   const e = await db.claimProactiveEvent('alice', { healthDate: '2026-02-06', idempotencyKey: 'q', signals: [], decision: 'ASK_CONTEXT', policyVersion: 'test' }, { now: AT });
   const q = await db.openPendingQuestion('alice', { chatId: '1001', question: '昨天有喝酒嗎？', intent: PROACTIVE_QUESTION_INTENT, contextJson: { proactive_event_id: e.id, question_target_date: '2026-02-05', health_date: '2026-02-06', category: 'alcohol' }, ttlMs: 86400000 }, { now: AT });

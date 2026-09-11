@@ -21,6 +21,8 @@ import { createHealthQuery } from '../healthQuery.js';
 import { saveEvent, describeEvent, healthDateFor, CATEGORIES } from '../journal.js';
 import { addDays, localDate } from '../time.js';
 import { loadDailyMetrics } from '../dailyMetrics.js';
+import { assessUrgency, urgentReply } from './triage.js';
+import { labelForCategory } from '../journal.js';
 import { log, describeError } from '../logger.js';
 import { resolveIntent, parseCommand } from './intent.js';
 import { composeAnswer } from './answer.js';
@@ -32,7 +34,7 @@ import {
 import * as experimentFlow from './experimentFlow.js';
 import {
   shouldFollowUp, openFollowUp, isNegativeAnswer, looksLikeQuestion,
-  mentionsLoggableEvent, FOLLOW_UP_CATEGORIES,
+  mentionsLoggableEvent, isExplicitLogCommand, FOLLOW_UP_CATEGORIES,
 } from './conversation.js';
 
 const NO_DATA_REPLY = [
@@ -52,8 +54,22 @@ category 只能是下列其中一個：
 alcohol, caffeine, late_meal, supplement, medication, sickness, stress,
 travel, flight, location, late_sleep, exercise_note, sauna, massage, food, custom
 
+格式裡還有四個判斷句意的欄位（全部必填）：
+{"asserted":<true/false>,"negated":<true/false>,"hypothetical":<true/false>,"about_self":<true/false>,"time_precision":"now|time|date|unknown"}
+
 規則：
 - 你只做語言理解，不要做任何計算，也不要推測使用者的健康狀況。
+- ★ asserted：使用者是不是在**陳述這件事真的發生過**。
+  只是在問這個類別的常識（「喝酒會讓人累嗎」）、在問我們知不知道
+  （「你覺得我昨天有喝酒嗎」）、或自己也不確定（「我不確定那杯有沒有酒精」）
+  → asserted 給 false。
+- ★ negated：句子是在說**沒有**發生（「我今天沒有喝酒」「我沒有熬夜」）→ true。
+- ★ hypothetical：假設語氣（「如果我喝酒…」「要是昨晚有喝…」）→ true。
+- ★ about_self：主詞是使用者本人才給 true。講別人（「我朋友…」）或泛指
+  （「為什麼有人運動完會累」）→ false。
+- ★ time_precision：
+  「剛剛／現在」→ "now"；有明確時間（「八點喝的」）→ "time"；
+  只有日期（「今天」「昨晚」）→ "date"；完全沒提 → "unknown"。
 - 如果句子裡沒有明確數量，numeric_value 給 null。
 - 如果無法判斷是哪個類別，category 給 "custom"，confidence 給低分。
 - ★ date_explicit：句子裡**有沒有真的講到是哪一天**。
@@ -77,6 +93,21 @@ const CATEGORY_SET = new Set(CATEGORIES);
  */
 export const JOURNAL_SCHEMA = {
   category: { type: 'string', enum: CATEGORIES, required: true },
+  /**
+   * ★ 「這句話有沒有真的主張這件事發生在使用者身上」。
+   *
+   * 只有關鍵字是**不足以**授權寫入個人健康紀錄的。「喝酒會讓人累嗎？」
+   * 「我朋友昨晚熬夜」「如果我喝酒…」「我今天沒有喝酒」全都含有事件詞，
+   * 但沒有一句在陳述使用者自己發生過這件事。
+   *
+   * 四個欄位都必須明確成立才會寫入；缺欄位、型別不對、互相矛盾一律不寫。
+   */
+  asserted: { type: 'boolean', nullable: true },
+  negated: { type: 'boolean', nullable: true },
+  hypothetical: { type: 'boolean', nullable: true },
+  about_self: { type: 'boolean', nullable: true },
+  /** 時間精確度：'now' | 'time' | 'date' | 'unknown'。決定敢不敢談先後關係。 */
+  time_precision: { type: 'string', enum: ['now', 'time', 'date', 'unknown'], nullable: true },
   subtype: { type: 'string', nullable: true, maxLength: 60 },
   numeric_value: { type: 'number', min: 0, max: 100_000, nullable: true },
   unit: { type: 'string', nullable: true, maxLength: 20 },
@@ -115,6 +146,19 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
     return { ok: false, reason: 'low_confidence', confidence };
   }
 
+  // ★ 寫入個人健康紀錄之前，四個條件缺一不可 —— 而且一律 fail closed：
+  // 欄位缺席、型別不對、或互相矛盾，都當成「沒有授權寫入」。
+  //
+  // 關鍵字出現不等於事情發生過。「喝酒會讓人累嗎？」裡有「喝酒」，
+  // 但它是一個衛教問題，不是一筆個人紀錄。
+  if (raw.asserted !== true) return { ok: false, reason: 'not_asserted' };
+  if (raw.negated === true) return { ok: false, reason: 'negated' };
+  if (raw.hypothetical === true) return { ok: false, reason: 'hypothetical' };
+  if (raw.about_self !== true) return { ok: false, reason: 'not_about_self' };
+
+  const timePrecision = ['now', 'time', 'date', 'unknown'].includes(raw.time_precision)
+    ? raw.time_precision : 'unknown';
+
   // ★ R3-M-02：「沒說日期」與「明確說今天」必須是**兩個不同的狀態**。
   //
   // 舊版靠 day_offset 是不是 null 來判斷，但 prompt 自己就寫著
@@ -142,6 +186,8 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
     confidence,
     /** 使用者明確講出來的日期偏移；null 代表「沒說」（不是「今天」）。 */
     statedDayOffset: statedOffset,
+    /** 時間精確度（決定敢不敢談與量測的先後關係）。 */
+    timePrecision,
     event: {
       eventAt: eventAt.toISOString(),
       healthDate: healthDateFor(eventAt, timezone),
@@ -415,6 +461,19 @@ export function createRouter({
   }
 
   async function route({ text, chatId, t, userId, timezone, coach }) {
+    // ---- 0. 緊急症狀（確定性，排在所有東西之前）----
+    //
+    // 這一關在追問消化、journal 寫入、Q&A、LLM fallback **全部之前**。
+    // 「我喝酒後胸痛又喘不過氣」同時符合好幾條規則，原本會先寫 journal、
+    // 再列數據、再談基準 —— 而使用者正在描述可能需要立刻就醫的狀況。
+    //
+    // 刻意不呼叫 LLM：分類器不可用或判錯都不該影響安全。攔下來之後
+    // **不寫入任何東西**。
+    if (assessUrgency(text).urgent) {
+      log.warn('urgent_symptom_intercepted', { user_id: userId });
+      return urgentReply();
+    }
+
     // ---- 1. 有沒有等著被回答的追問 ----
     const pending = typeof db.getOpenPendingQuestion === 'function'
       ? await db.getOpenPendingQuestion(userId, { now: t })
@@ -497,24 +556,47 @@ export function createRouter({
     // 以前只做了 (a) 就回「✅ 已記錄」，問題被丟掉。兩件事都要做：
     // 先安全地寫下事件（寫入本身仍然走既有的冪等路徑），再回答問題，
     // 最後把「已記錄」併進答案裡 —— 確認不可以取代回答。
-    if (looksLikeQuestion(text) && mentionsLoggableEvent(text)) {
+    //
+    // ⚠️ 明確的記錄指令（「記一下…」「幫我登記…」）不走這條路：那是單一
+    // 言語行為（只有 (a)），使用者要的是確認，不是分析。否則「記一下我昨晚
+    // 熬夜好嗎」會被當成複合問題，回一整段身體狀況說明。
+    if (!isExplicitLogCommand(text) && looksLikeQuestion(text) && mentionsLoggableEvent(text)) {
+      // ★ 使用者明顯換了話題（開始問一個帶事件的新問題），原本開著的追問
+      // 就不該再留著 —— 否則它會在稍後吃掉一句無關的短回覆，而且那句話
+      // 會被記在**追問問的那一天**（例如昨天），不是使用者現在講的事。
+      if (pending && typeof db.expirePendingQuestion === 'function') {
+        try {
+          await db.expirePendingQuestion(userId, pending.id, { now: t });
+          log.info('follow_up_superseded_by_new_topic', { user_id: userId, pending_id: pending.id });
+        } catch (err) {
+          log.warn('follow_up_supersede_failed', { error: describeError(err) });
+        }
+      }
       let savedLine = null;
+      let justLogged = null;
       try {
         const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
         if (nat.ok) {
           const saved = await saveEvent(db, userId, nat.event, { now: t, timezone });
-          if (saved.ok) savedLine = `✅ 順手幫你記下：${describeEvent(saved.event)}`;
+          if (saved.ok) {
+            savedLine = `我先幫你記下${labelForCategory(saved.event.category)}。`;
+            justLogged = { category: saved.event.category, timePrecision: nat.timePrecision };
+          }
         }
       } catch (err) {
         // 記錄失敗不可以吃掉問題的答案
         log.warn('compound_journal_failed', { error: describeError(err) });
       }
-      const answer = await handleQuestion({ text, chatId, t, userId, timezone, coach });
+      const answer = await handleQuestion({
+        text, chatId, t, userId, timezone, coach, justLogged,
+      });
       return savedLine ? `${savedLine}\n\n${answer}` : answer;
     }
 
     // ---- 4. 看起來像在記錄事情（純記錄，沒有提問）----
-    if (looksLikeJournal(text)) {
+    // 明確指令一律嘗試記錄，即使 looksLikeJournal() 的詞表沒收錄那個動詞
+    // （例如「熬夜」）—— 使用者已經直接說了要記什麼。
+    if (isExplicitLogCommand(text) || looksLikeJournal(text)) {
       const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
       if (nat.ok) {
         const saved = await saveEvent(db, userId, nat.event, { now: t, timezone });
@@ -635,7 +717,7 @@ export function createRouter({
     }
   }
 
-  async function handleQuestion({ text, chatId, t, userId, timezone, coach }) {
+  async function handleQuestion({ text, chatId, t, userId, timezone, coach, justLogged = null }) {
     // 「證據呢？」「你憑什麼？」「樣本多少？」→ 直接回 evidence 摘要。
     // ★ 必須在 intent 判定之前 —— 這類問句不會被任何 intent 認出來，
     // 放在後面會先被 unknown 分支攔截而永遠走不到。
@@ -673,7 +755,7 @@ export function createRouter({
     }
 
     const q = createHealthQuery({ db, userId, timezone, now: t, lookbackDays });
-    const result = await runIntent(q, intent);
+    const result = await runIntent(q, justLogged ? { ...intent, justLogged } : intent);
 
     if (!result || result.available === false) {
       return unavailableReply(result);
@@ -716,8 +798,10 @@ export function createRouter({
           windowDays: intent.window_days ?? 30,
         });
       case 'what_changed': return q.whatChanged();
-      case 'cause_query': return q.causeExplanation({ metric: intent.metric ?? null });
+      case 'cause_query':
+        return q.causeExplanation({ metric: intent.metric ?? null, justLogged: intent.justLogged ?? null });
       case 'readiness_query': return q.readinessExplanation();
+      case 'sync_status': return q.syncStatus();
       case 'current_hr': return q.currentHeartRate();
       default: return null;
     }

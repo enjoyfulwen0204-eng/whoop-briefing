@@ -248,8 +248,27 @@ export function validateEvent(candidate, { now = new Date(), timezone = 'Asia/Ta
 }
 
 /** 人看得懂的一行摘要（回訊息用）。 */
+/**
+ * 類別 → 使用者看得懂的繁體中文標籤。
+ *
+ * ⚠️ 這張表是**發布白名單**。category 是內部鍵（snake_case），直接印給
+ * 使用者看等於洩漏內部結構 —— 實測出現過「✅ 已記錄：alcohol」。
+ * 沒有對應標籤的一律用中性說法，絕不印原始鍵。
+ */
+export const CATEGORY_LABEL = {
+  alcohol: '飲酒', caffeine: '咖啡因', late_meal: '宵夜', supplement: '補充品',
+  medication: '用藥', sickness: '身體不適', stress: '壓力', travel: '出差或旅行',
+  flight: '搭機', location: '所在地', late_sleep: '晚睡', exercise_note: '運動',
+  sauna: '三溫暖', massage: '按摩', food: '飲食', custom: '一則紀錄',
+};
+
+/** 類別的中文標籤。沒有對應就回中性說法，**永遠不回原始鍵**。 */
+export function labelForCategory(category) {
+  return CATEGORY_LABEL[String(category ?? '')] ?? '一則紀錄';
+}
+
 export function describeEvent(e) {
-  const bits = [e.category];
+  const bits = [labelForCategory(e.category)];
   if (e.subtype) bits.push(e.subtype);
   if (e.numericValue !== null && e.numericValue !== undefined) {
     bits.push(`${e.numericValue}${e.unit ? ` ${e.unit}` : ''}`);

@@ -225,7 +225,7 @@ test('★★★ 再稽核 7: 「昨天有喝酒嗎？」的答案記在訊號日
       db,
       coachFor: () => ({
         async json() {
-          return { category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
+          return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
         },
         async ask() { return null; },
       }),
@@ -248,7 +248,7 @@ test('★★★ 再稽核 8: 重送不重複；認領不可用時不處理也不
       db,
       coachFor: () => ({
         async json() {
-          return { category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
+          return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
         },
         async ask() { return null; },
       }),

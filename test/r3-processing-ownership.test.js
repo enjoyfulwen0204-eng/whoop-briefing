@@ -98,7 +98,7 @@ const journalCount = async (db, userId) => (await db.getJournalEvents(
 
 const parsingCoach = () => ({
   async json() {
-    return { category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
+    return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
   },
   async ask() { return null; },
 });
@@ -167,7 +167,7 @@ test('★★★ R3-M-03: 解析期間所有權掉了 → 不可以再寫 Journal
           sql: 'DELETE FROM resource_locks WHERE name = ?',
           args: [PROACTIVE_PROCESSING_LEASE.name(user.id, eventId)],
         });
-        return { category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
+        return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', subtype: 'beer', numeric_value: 2, unit: 'cup', confidence: 0.9 };
       },
       async ask() { return null; },
     });

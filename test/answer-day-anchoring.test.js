@@ -83,6 +83,7 @@ async function askAboutYesterday(db, userId) {
 const coachWith = (extra = {}) => () => ({
   async json() {
     return {
+      asserted: true, about_self: true, negated: false, hypothetical: false,
       category: 'alcohol', subtype: 'beer', numeric_value: 2,
       unit: 'cup', confidence: 0.9, ...extra,
     };
@@ -183,7 +184,7 @@ test('★★ M-06: 使用者說「今天」（day_offset = 0）也尊重', async
 test('★★★ M-06: 模型沒給 day_offset → statedDayOffset 是 null，不是 0', async () => {
   const nat = await parseNaturalJournal({
     text: '有，喝了兩杯', now: REPLY_AT, timezone: TZ,
-    coach: { async json() { return { category: 'alcohol', confidence: 0.9 }; } },
+    coach: { async json() { return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', confidence: 0.9 }; } },
   });
   assert.equal(nat.ok, true);
   assert.equal(nat.statedDayOffset, null,
@@ -197,7 +198,7 @@ test('★★ M-06 / R3-M-02: 只有 date_explicit=true 才算「使用者說了�
       text: 'x', now: REPLY_AT, timezone: TZ,
       coach: {
         async json() {
-          return { category: 'alcohol', confidence: 0.9, date_explicit: true, day_offset: offset };
+          return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', confidence: 0.9, date_explicit: true, day_offset: offset };
         },
       },
     });
@@ -214,7 +215,7 @@ test('★★★ R3-M-02: date_explicit=false（或缺席）一律當成「沒說
   ]) {
     const nat = await parseNaturalJournal({
       text: 'x', now: REPLY_AT, timezone: TZ,
-      coach: { async json() { return { category: 'alcohol', confidence: 0.9, ...extra }; } },
+      coach: { async json() { return { asserted: true, about_self: true, negated: false, hypothetical: false, category: 'alcohol', confidence: 0.9, ...extra }; } },
     });
     // 型別不對時 validateStructured 會讓整個解析失敗（也是安全結果：
     // 不寫入任何東西）。兩種情況都不可以產生一個「明確日期」。

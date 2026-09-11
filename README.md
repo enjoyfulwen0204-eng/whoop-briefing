@@ -64,7 +64,7 @@
 | `scripts/probe-fields.js` | 看你的 WHOOP 帳號實際回傳哪些欄位。 |
 | `scripts/dry-run.js` | 用假資料把各種情境跑一遍，直接看到訊息長相。 |
 | `test/` | 63 個自動化測試。 |
-| `render.yaml` | Render 部署藍圖：隱私政策 static site + Telegram bot worker。**刻意不含 cron** —— 排程由 GitHub Actions 負責。 |
+| `render.yaml` | Render 部署藍圖：隱私政策 static site + Telegram webhook（**兩個都是免費方案**）。**刻意不含 cron，也不含 Background Worker**。 |
 | `.github/workflows/briefing.yml` | 正式環境的排程器（每 30 分鐘）。這是**唯一**的排程擁有者。 |
 
 ---
@@ -432,10 +432,63 @@ Telegram 送出成功、但連那個極小的 `markClaimSent` UPDATE 都失敗�
 
 從單向推播變成雙向。**架構上是獨立的常駐 worker，不在 cron 裡面。**
 
-### 為什麼是 long polling 不是 webhook
+### 入站是 webhook（正式環境），long polling 只留給本機
 
-webhook 需要一個對外可達的 HTTPS endpoint；getUpdates 只要能連出去就好，
-更容易部署、也更容易測。代價是需要一個常駐 process。
+正式環境的 Telegram 入站走 **webhook**：
+
+```
+Telegram → POST /telegram/webhook → Render 免費 Web Service → 同一條處理鏈
+```
+
+原因很實際：`getUpdates` 需要一個**永遠活著**的 process，在 Render 上那是
+**付費**的 Background Worker。webhook 只在有人傳訊息時才需要醒著，所以跑得起
+免費方案。
+
+代價（刻意接受）：免費 Web Service 閒置一段時間會睡著，睡著之後的第一則訊息
+要等幾十秒的冷啟動。Telegram 會重送，而耐久去重保證重送不會產生第二次副作用。
+
+**只換了傳輸，沒換處理。** 「收到一則 update 之後要做什麼」在
+[`src/bot/updateProcessor.js`](src/bot/updateProcessor.js)，webhook 與 long
+polling 共用同一份 —— 認領、PROCESSING 圍欄、動作與收據同一個交易、送出前的
+綁定守衛、標記完成，一行都沒有改。
+
+`npm run bot`（long polling）仍然可以在本機除錯用，但**沒有任何 Render 服務會
+啟動它**。
+
+#### 端點
+
+| 路徑 | 用途 |
+|---|---|
+| `POST /telegram/webhook` | Telegram 入站。認證靠 `X-Telegram-Bot-Api-Secret-Token`。 |
+| `GET /health` | Render 健康檢查。只回 `{"ok":true,"service":"telegram-webhook"}`，不碰 DB。 |
+
+路徑本身不是祕密 —— 認證靠 secret 標頭，而且在任何業務處理**之前**就驗。
+
+#### HTTP 回應的語義（很重要）
+
+回 2xx = 「收下了，不要再送」。所以**只有在 update 真的被耐久處理掉（或確認是
+重複）之後才回 200**；內部暫時性失敗一律回 **503** 讓 Telegram 重送。反過來做
+（先回 200 再處理）會在免費實例被回收時直接把訊息弄丟。
+
+| 情況 | 回應 |
+|---|---|
+| 正常處理完 | 200 |
+| 重複投遞（已完成／已放棄） | 200，什麼都不做 |
+| 結構不是 Update | 200（重送也不會變好） |
+| secret 不符 | 401 |
+| 內容過大 / 壞掉的 JSON | 413 / 400 |
+| 拿不到所有權、租約壞掉、處理中途失敗 | 503（Telegram 稍後重送） |
+
+#### 註冊 webhook
+
+```bash
+npm run telegram:webhook:status   # 唯讀
+npm run telegram:webhook:set      # 需要 TELEGRAM_WEBHOOK_URL + TELEGRAM_WEBHOOK_SECRET
+npm run telegram:webhook:delete
+```
+
+這些腳本**永遠不會**呼叫 `getUpdates`，也**永遠不會**送
+`drop_pending_updates=true` —— 待處理佇列必須被保留。
 
 ### 不會重複處理訊息（三層防線）
 

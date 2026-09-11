@@ -419,6 +419,17 @@ export const TELEGRAM_BOT = {
   PENDING_TTL_MS: 30 * 60_000,
   // 回覆長度上限（沿用 Telegram 的 4096，但留一點餘裕）
   MAX_REPLY_CHARS: 3800,
+
+  // ---- Webhook 入站（正式環境的傳輸方式）----
+  //
+  // 路徑刻意不含任何祕密：認證靠 Telegram 官方的
+  // X-Telegram-Bot-Api-Secret-Token 標頭，不是靠猜不到的網址。
+  WEBHOOK_PATH: '/telegram/webhook',
+  HEALTH_PATH: '/health',
+  // 一則 Telegram Update 的合理上限。Telegram 自己的訊息上限是 4096 字元，
+  // 加上實體與轉發等欄位也遠遠不到 100KB —— 超過就是濫用或壞掉的請求，
+  // 在讀完之前就中斷，不讓它吃掉 free instance 的記憶體。
+  WEBHOOK_MAX_BODY_BYTES: 100 * 1024,
   // LLM 產生回答的 token 上限
   ANSWER_MAX_TOKENS: 1000,
   PARSE_MAX_TOKENS: 400,

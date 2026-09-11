@@ -19,7 +19,11 @@
     "health-status": "node scripts/health-status.js",
     "phase0": "node scripts/phase0-status.js",
     "admin": "node scripts/admin.js",
-    "bot": "node src/bot/index.js"
+    "bot": "node src/bot/index.js",
+    "bot:webhook": "node src/bot/webhook.js",
+    "telegram:webhook:status": "node scripts/telegram-webhook.js status",
+    "telegram:webhook:set": "node scripts/telegram-webhook.js set",
+    "telegram:webhook:delete": "node scripts/telegram-webhook.js delete"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0"

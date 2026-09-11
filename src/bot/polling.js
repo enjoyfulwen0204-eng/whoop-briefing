@@ -32,6 +32,7 @@ import { randomUUID } from 'node:crypto';
 
 import { TELEGRAM_BOT } from '../config.js';
 import { createTelegramApi, waitForError } from './api.js';
+import { createUpdateProcessor, UPDATE_OUTCOME, isAcknowledgeable } from './updateProcessor.js';
 import { log, describeError } from '../logger.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -68,99 +69,12 @@ export function createPoller({
   let consecutiveFailures = 0;
   const stats = { polls: 0, updates: 0, handled: 0, ignored: 0, errors: 0 };
 
-  /**
-   * 這則 update 是不是我們要處理的文字訊息，以及它屬於哪個內部使用者。
-   * 身分解析在**進入 router 之前**完成，router 拿到的一定是已知使用者。
-   *
-   * ## H-01：身分是「私訊的那個人」，不是「這個聊天室」
-   *
-   * 舊版只看 `msg.chat.id`，完全不看訊息是**誰**送的、也不看聊天室型態。
-   * 於是只要有一個群組被綁定過（`/link` 在群組裡送出就會成功），
-   * **群組裡任何一個人**的訊息都會被解析成綁定者本人 —— 可以讀他的生理
-   * 資料、寫他的 Journal、看他的報告與長期規律。實測確認：Bob 在群組發言
-   * 被解析成 Alice。
-   *
-   * V1.1 沒有任何「群組共享」的產品模型，所以這裡採 **fail-closed 私訊限定**，
-   * 而不是臨時發明分享語義：
-   *
-   *   1. `chat.type` 必須是 `private`。群組 / 超級群組 / 頻道一律拒絕。
-   *   2. 送訊息的人必須是真人（`from.is_bot` 為真一律拒絕）。
-   *   3. `from.id` 必須等於 `chat.id`。Telegram 的私訊聊天室 id 就是對方的
-   *      使用者 id，所以這一條等於「這則訊息真的是這個帳號本人送的」，
-   *      而且**不需要改 schema** 就取得了寄件者綁定。
-   *
-   * 三條都必須明確成立才放行；缺欄位、型態不明、對不上一律當成未授權。
-   * 被拒絕的訊息**完全不回覆**（連錯誤都不回），與既有「未綁定 chat 一律
-   * 靜默」的立場一致：對方永遠學不到這個 bot 綁了誰、有沒有人在用。
-   *
-   * 這一段刻意放在 `resolveUser()` **之前** —— 連查都不查，就不可能因為
-   * 查詢副作用而洩漏任何東西。
-   */
-  async function classify(update) {
-    const msg = update?.message;
-    if (!msg) return { kind: 'not_a_message' };
-    const chat = msg.chat ?? {};
-    const chatId = String(chat.id ?? '');
-    if (typeof msg.text !== 'string' || !msg.text.trim()) return { kind: 'no_text', chatId };
-    const text = msg.text.trim();
-
-    // ---- H-01 授權閘門（fail-closed，三條缺一不可）----
-    if (chat.type !== 'private') {
-      return { kind: 'non_private_chat', chatId, chatType: chat.type ?? 'unknown' };
-    }
-    const from = msg.from ?? {};
-    if (from.is_bot === true) return { kind: 'bot_sender', chatId };
-    const senderId = String(from.id ?? '');
-    if (!senderId || senderId !== chatId) {
-      return { kind: 'sender_chat_mismatch', chatId };
-    }
-
-    const resolved = await resolveUser(chatId);
-    if (!resolved) return { kind: 'unlinked', chatId, text, message: msg };
-    return { kind: 'ok', chatId, text, message: msg, user: resolved.user ?? resolved };
-  }
-
-  /**
-   * 認領一則 update，暫時性失敗會重試（R2-M-05 / R3-M-05）。
-   *
-   * 分成幾種結果，因為它們的處置完全不同：
-   *
-   *   claimed          我拿到所有權（第一次，或安全接手前一個死掉的 worker）
-   *   completed        真正的重複 → 跳過，推進 offset
-   *   abandoned        之前就已經判定放棄 → 跳過，推進 offset
-   *   stale_processing 認領後才觀察到過期 → 暫停，下一輪原子接手
-   *   in_progress      別人正拿著活的租約 → 不處理、**不推進 offset**
-   *   unavailable      認領機制本身不可用 → 不處理、**不推進 offset**
-   *
-   * 重試是為了讓一次短暫的 DB 抽風不要把整批訊息卡住；重試用完仍然失敗
-   * 就回 unavailable，讓呼叫端 fail closed。
-   *
-   * 重試帶著**同一個 workerId**，所以「INSERT 其實成功了但連線斷掉」
-   * （ambiguous commit）的下一次嘗試會認出那是自己的認領而續租，
-   * 不會把自己誤判成別人的重複。
-   */
-  async function claimWithRetry(updateId) {
-    let lastErr = null;
-    for (let attempt = 1; attempt <= TELEGRAM_BOT.CLAIM_RETRIES; attempt += 1) {
-      try {
-        return await db.claimTelegramUpdate(updateId, {
-          owner: workerId, leaseMs: TELEGRAM_BOT.CLAIM_LEASE_MS, now: now(),
-        });
-      } catch (err) {
-        lastErr = err;
-        log.warn('telegram_update_claim_failed', {
-          update_id: updateId, attempt, error: describeError(err),
-        });
-        if (attempt < TELEGRAM_BOT.CLAIM_RETRIES) {
-          await sleepImpl(TELEGRAM_BOT.CLAIM_RETRY_BASE_MS * 2 ** (attempt - 1));
-        }
-      }
-    }
-    log.error('telegram_update_claim_unavailable', {
-      update_id: updateId, error: describeError(lastErr),
-    });
-    return { ok: false, state: 'unavailable' };
-  }
+  // ★ 每一則 update 的實際處理（認領 / 動作交易 / 送出 / 完成）全部在
+  // updateProcessor.js 裡，與 webhook 共用同一份。這裡只負責「長輪詢」這個
+  // 傳輸方式本身：抓一批、決定 offset 要不要往前推、退避重試。
+  const processor = createUpdateProcessor({
+    db, resolveUser, handleMessage, handleUnlinked, sendReply, workerId, now, sleepImpl,
+  });
 
   /** offset 存檔。失敗只記錄 —— 認領表才是防重複的那一層。 */
   async function saveOffset(offset) {
@@ -191,118 +105,20 @@ export function createPoller({
       }
 
       stats.updates += 1;
+      const r = await processor.processUpdate(update);
 
-      // ★ M-09 / R3-M-05：原子認領，而且**在任何副作用之前**。
-      //
-      // 上面的 offset 防線只在「offset 存得下去」時有效。實際流程是
-      // 「處理（寫 journal、跑分析、送訊息）→ 存 offset」兩段寫入，
-      // 中間 worker 被殺（部署、OOM、SIGKILL）的話 offset 還是舊的，
-      // Telegram 會把同一則 update 再送一次 —— 同一句話被寫成兩筆 journal。
-      //
-      // 認領放在 classify() **之前**：連身分解析都不做，就不可能有任何
-      // 副作用（含 getOpenPendingQuestion 的惰性過期寫入）。
-      let claimed = false;
-      if (typeof db.claimTelegramUpdate === 'function') {
-        const claim = await claimWithRetry(updateId);
-
-        if (claim.state === 'unavailable' || claim.state === 'in_progress') {
-          // ★ R2-M-05 / R3-M-05：**拿不到持久化的所有權就不處理。**
-          //
-          // 舊版在認領機制壞掉時放行（「寧可偶爾重複」），但那個取捨是錯的：
-          // 實測的失敗序列是「claim 拋錯 → 副作用照做 → offset 也存不下去
-          // → Telegram 重送 → 再做一次」，結果同一句話寫了兩筆 journal。
-          //
-          // 現在改成 fail closed，而且**刻意不推進 offset**：這一則不會被
-          // 丟掉，DB 恢復（或對方做完）之後 Telegram 會再送一次。
-          // 整批在這裡停下 —— 繼續處理後面的 update 會把 offset 推過這一則。
-          stats.errors += 1;
-          log.error('telegram_batch_paused_claim_unavailable', {
-            update_id: updateId, offset, state: claim.state, holder: claim.owner ?? null,
-          });
-          return offset;
-        }
-
-        if (claim.state === 'stale_processing') {
-          // A storage implementation without recoverable takeover must pause.
-          // Never acknowledge uncommitted work merely because a worker died.
-          return offset;
-        }
-
-        if (claim.state === 'completed' || claim.state === 'abandoned') {
-          stats.ignored += 1;
-          log.info('telegram_update_skipped_replay', { update_id: updateId, state: claim.state });
-          offset = updateId + 1;
-          await saveOffset(offset);
-          continue;
-        }
-
-        if (claim.state !== 'claimed') {
-          // 沒有列舉到的狀態一律 fail closed。
-          stats.errors += 1;
-          log.error('telegram_update_claim_unexpected_state', {
-            update_id: updateId, state: claim.state ?? null,
-          });
-          return offset;
-        }
-
-        claimed = true;
-
-        // ★ CLAIMED → PROCESSING，**就在 dispatch 之前**。
-        //
-        // PROCESSING 授權開始動作交易；動作與收據原子提交。
-        let dispatchable = false;
-        try {
-          dispatchable = await db.markTelegramUpdateProcessing(updateId, {
-            owner: workerId, now: now(),
-          });
-        } catch (err) {
-          log.error('telegram_update_mark_processing_failed', {
-            update_id: updateId, error: describeError(err),
-          });
-        }
-        if (!dispatchable) {
-          // 推不進 PROCESSING = 所有權已經不在我手上（或寫不進去）。
-          // 這時候 dispatch 就是在沒有所有權的情況下產生副作用。
-          stats.errors += 1;
-          log.error('telegram_batch_paused_dispatch_fence', { update_id: updateId, offset });
-          return offset;
-        }
-      }
-
-      try {
-        const dispatch = async () => {
-          const c = await classify(update);
-          if (c.kind === 'unlinked') {
-            const reply = handleUnlinked ? await handleUnlinked({
-              text: c.text, chatId: c.chatId, message: c.message, isPrivateChat: true,
-            }) : null;
-            return { chatId: c.chatId, reply, userId: null };
-          }
-          if (c.kind !== 'ok') {
-            stats.ignored += 1;
-            return null;
-          }
-          const reply = await handleMessage({
-            text: c.text, chatId: c.chatId, message: c.message, user: c.user,
-          });
-          return { chatId: c.chatId, reply, userId: c.user.id };
-        };
-        // The operation receipt and every DB action share one transaction.
-        // Replaying after commit returns the saved reply without rerunning actions.
-        const result = claimed && db.processTelegramOperation
-          ? await db.processTelegramOperation(updateId, { owner: workerId, now }, dispatch)
-          : await dispatch();
-        if (result?.reply && sendReply) await sendReply(result);
-        if (claimed) {
-          const done = await db.completeTelegramUpdate(updateId, { owner: workerId, now: now() });
-          if (!done) throw new Error('telegram_update_complete_rejected');
-        }
-        stats.handled += 1;
-      } catch (err) {
+      if (!isAcknowledgeable(r.outcome)) {
+        // 不可以 ack → **刻意不推進 offset**，而且整批在這裡停下。
+        // 繼續處理後面的 update 會把 offset 推過這一則，等於把它丟掉。
         stats.errors += 1;
-        log.error('telegram_processing_retry_required', { update_id: updateId, error: describeError(err) });
+        log.error('telegram_batch_paused', {
+          update_id: updateId, offset, reason: r.reason ?? null,
+        });
         return offset;
       }
+
+      if (r.outcome === UPDATE_OUTCOME.PROCESSED) stats.handled += 1;
+      else stats.ignored += 1;
 
       offset = updateId + 1;
       await saveOffset(offset);
@@ -376,7 +192,8 @@ export function createPoller({
     stop,
     pollOnce,
     processBatch,
-    classify,
+    // 既有測試與除錯會用到；實作在 updateProcessor（與 webhook 共用同一份）
+    classify: processor.classify,
     stats,
     isRunning: () => running,
   };

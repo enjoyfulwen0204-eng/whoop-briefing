@@ -1,31 +1,36 @@
 # Render Blueprint
 #
-# 兩個服務：隱私政策 static site 完全獨立，worker 需要 Turso / WHOOP / Telegram：
+# 兩個服務，**兩個都是免費方案**：
 #
-#   1. web    whoop-privacy       公開靜態 /privacy，不需要憑證或資料庫
-#   2. worker whoop-telegram-bot  常駐：Telegram long polling，回答問題與記 journal
+#   1. web  whoop-privacy          公開靜態 /privacy，不需要憑證或資料庫
+#   2. web  whoop-telegram-webhook Telegram 入站 webhook（免費 Web Service）
 #
-# ⚠️ 這裡**刻意沒有** cron 服務。
+# ⚠️ 這裡**刻意沒有** cron，也**刻意沒有** Background Worker。
 #
 # 排程只有一個擁有者：GitHub Actions（.github/workflows/briefing.yml，每 30 分鐘）。
-# 這個藍圖以前也宣告了一個一模一樣的 `type: cron` 跑 `npm start`。Render 的
-# Blueprint 會從 repo 同步，所以只要有人重新連結或重新套用它，那個 cron 就會被
-# 重新建立並啟用 —— 於是同一個 Turso 資料庫與同一個 WHOOP 帳號會有兩個排程器
-# 每 30 分鐘各跑一次。
+# 這個藍圖以前宣告過一個一模一樣的 `type: cron` 跑 `npm start`。Render 的
+# Blueprint 會從 repo 同步，所以只要有人重新套用它，那個 cron 就會被重新建立：
+# 同一個 Turso、同一個 WHOOP 帳號，兩個排程器各跑各的。資料不會壞
+# （report_claims 擋重複發送、resource_locks 擋 refresh_token 輪替競態），
+# 但 WHOOP 用量與 OpenRouter 花費會變成兩倍。要改用 Render 排程的話，
+# **先停掉 GitHub Actions 的 workflow** 再加回來 —— 不要兩個同時開著。
 #
-# 資料不會壞（report_claims 擋重複發送、resource_locks 擋 refresh_token 輪替競態），
-# 但 WHOOP API 用量、OpenRouter 花費與主動代理的評估都會變成兩倍，而且沒有任何
-# 地方看得出來為什麼。要改用 Render 排程的話，**先停掉 GitHub Actions 的
-# workflow**，再把 cron 服務加回來 —— 不要兩個同時開著。
+# ## 入站為什麼是 webhook 不是長輪詢
 #
-# worker 與排程器同時活著是安全的（這是刻意的分工）：
+# getUpdates 需要一個永遠活著的 process，在 Render 上那是**付費**的
+# Background Worker。webhook 只在有人傳訊息時才需要醒著，所以跑得起免費方案。
+#
+# 代價：免費 Web Service 閒置一段時間會睡著，睡著之後的第一則訊息要等幾十秒
+# 的冷啟動。Telegram 會重送，而耐久去重（telegram_processed_updates +
+# telegram_operations）保證重送不會產生第二次副作用。這是刻意接受的取捨。
+#
+# 正式環境的入站是 webhook；`npm run bot`（長輪詢）只留給本機除錯，
+# **任何 Render 服務的 startCommand 都不會啟動它**。
+#
+# webhook 與排程器同時活著是安全的（這是刻意的分工）：
 #   - WHOOP token refresh 有 Turso lease lock（resource_locks）
 #   - 報告發送權有 report_claims，不會重複發送
-#   - worker 只讀健康資料、只寫 journal；唯一會寫健康資料的仍然只有排程器
-#
-# ⚠️ plan 欄位：**worker 的 plan 需要你自己確認**你的 Render 方案是否支援
-#    Background Worker 以及費用 —— 我無法從 repo 得知。如果不想付 worker 的費用，
-#    可以改在自己的機器 / NAS 跑 `npm run bot`，架構完全不用改。
+#   - webhook 只讀健康資料、只寫 journal；唯一會寫健康資料的仍然只有排程器
 #
 # 標成 sync: false 的變數不會寫在檔案裡，要在 Render 網頁的 Environment 分頁自己填。
 
@@ -54,31 +59,31 @@ services:
         value: no-referrer
 
   # ---------------------------------------------------------------------------
-  # Telegram bot（常駐 long polling）
+  # Telegram 入站 webhook（免費 Web Service）
   # ---------------------------------------------------------------------------
-  - type: worker
-    name: whoop-telegram-bot
+  - type: web
+    name: whoop-telegram-webhook
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm ci
-    startCommand: npm run bot
+    startCommand: npm run bot:webhook
+    # Render 用這個判斷服務活著。這個端點不碰 DB，也不吐任何內部資訊。
+    healthCheckPath: /health
     envVars:
       - key: TIMEZONE
         value: Asia/Taipei
       - key: OPENROUTER_MODEL
         value: anthropic/claude-sonnet-5
-      # 與 cron 完全相同的一組憑證（共用 Turso 與 WHOOP token）
-      - key: WHOOP_CLIENT_ID
-        sync: false
-      - key: WHOOP_CLIENT_SECRET
-        sync: false
-      - key: OPENROUTER_API_KEY
-        sync: false
+      # 這個服務**只要**它真的會用到的東西。
+      # WHOOP_CLIENT_ID / WHOOP_CLIENT_SECRET 刻意不在這裡：入站只讀 Turso 裡
+      # 已經同步好的健康資料，不會自己去打 WHOOP API。
       - key: TELEGRAM_BOT_TOKEN
         sync: false
-      - key: TELEGRAM_CHAT_ID
+      - key: TELEGRAM_WEBHOOK_SECRET
         sync: false
       - key: TURSO_DATABASE_URL
         sync: false
       - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: OPENROUTER_API_KEY
         sync: false

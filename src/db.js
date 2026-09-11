@@ -154,39 +154,102 @@ export function createDb({ url, authToken }) {
   }
 
   /**
-   * 這個**對話**有沒有更早、而且還沒做完的訊息？
+   * 這個**對話**有沒有更早、而且還沒到終局的訊息？
    *
    * Telegram 的 update_id 單調遞增，所以「比我小而且還沒到終局」就是
    * 「有一則更早的訊息還沒處理完」。有的話這一則就要讓路。
    *
-   * ## 為什麼要有 graceMs
+   * ⚠️ 這個判斷是**嚴格**的：沒有任何寬限、沒有任何「太舊就當它不存在」。
    *
-   * 只看「還沒到終局」會有一個尾巴：如果某一則永遠沒有被重送（Telegram 放棄
-   * 重試、或它在某次崩潰後就沒人再碰），它會**永遠**擋住這個對話後面的每一則
-   * 訊息 —— 使用者的 bot 就此啞掉。
+   * 舊版用寬限期直接在查詢裡忽略太舊的那一則，於是出現一個更糟的狀態：
+   * 後面的訊息被放行了，而前面那一則**仍然可以恢復並執行** —— 最後的執行
+   * 順序變成 ["N+1", "N"]。
    *
-   * 所以只有「租約還活著、或剛過期不久」的更早訊息才有資格擋路。超過寬限期
-   * 還沒人接手的，視為已經沒有人在推進它，後面的訊息可以走。
-   *
-   * 這是刻意的取捨：極端情況下容許一次順序顛倒，換取「不會永久餓死」。
-   * 正常情況（Telegram 正在重送、或另一個實例正在處理）完全不受影響。
+   * 「久到沒人在推進了」現在的處置是**先把它原子地終結掉**
+   * （abandonStaleConversationUpdates），終結成功之後這裡自然就看不到它了。
+   * 先終結、再放行 —— 絕不放行一個還能回來的舊工作。
    */
-  async function hasEarlierUnfinishedInConversation(conversationKey, updateId, {
-    now = new Date(), graceMs = 0,
-  } = {}) {
+  async function hasEarlierUnfinishedInConversation(conversationKey, updateId) {
     const id = Number(updateId);
     if (!Number.isSafeInteger(id) || !conversationKey) return false;
-    const cutoff = new Date(now.getTime() - Math.max(0, graceMs)).toISOString();
     const rs = await client.execute({
       sql: `SELECT 1 FROM telegram_processed_updates
              WHERE user_id = ? AND update_id < ?
                AND status NOT IN (?, ?)
-               AND (lease_expires_at IS NULL OR lease_expires_at > ?)
              LIMIT 1`,
       args: [String(conversationKey), id,
-        TELEGRAM_UPDATE_STATUS_COMPLETED, TELEGRAM_UPDATE_STATUS_ABANDONED, cutoff],
+        TELEGRAM_UPDATE_STATUS_COMPLETED, TELEGRAM_UPDATE_STATUS_ABANDONED],
     });
     return rs.rows.length > 0;
+  }
+
+  /**
+   * 把這個對話裡「久到不可能還有人在推進」的更早訊息**原子地終結掉**。
+   *
+   * ## 為什麼必須先終結才能放行
+   *
+   * 只是在查詢裡忽略它，等於「後面的先跑，而前面那則之後還能回來跑」——
+   * 那正是 TG-R04-B。規則只有兩個選項：要嘛嚴格照順序，要嘛把舊工作徹底
+   * 放棄掉；**不可以**放行之後還讓它復活。
+   *
+   * ## 怎麼算「久到不可能」
+   *
+   * 租約已經過期，而且過期超過 graceMs。租約本身遠短於 graceMs，所以正常的
+   * 重送與接手完全不會走到這裡 —— 只有真的沒人再碰的才會。
+   *
+   * ## 圍欄：把舊 owner 弄死
+   *
+   * 終局狀態 + `owner = NULL` + `lease_expires_at = NULL` 三件一起寫。
+   * 舊的執行如果之後醒過來，它的每一個副作用邊界都會失敗：
+   *   · markTelegramUpdateProcessing  需要 status = CLAIMED         → 不成立
+   *   · processTelegramOperation 的圍欄 需要 PROCESSING + owner + 活租約 → 不成立
+   *   · completeTelegramUpdate         需要 owner 相符               → 不成立
+   * 所以它寫不了 Journal、打不了 OpenRouter、送不出 Telegram、也結不了案。
+   *
+   * ## 與送達狀態合作
+   *
+   * 已經確認送達（DELIVERED）的那一則，終局狀態用 COMPLETED 比較誠實 ——
+   * 它其實做完了，只是死在標記之前。其餘一律 ABANDONED。兩者都是終局，
+   * 都不會觸發重送。
+   *
+   * @returns {number} 被終結的筆數
+   */
+  async function abandonStaleConversationUpdates(conversationKey, updateId, {
+    now = new Date(), graceMs = 0, reason = 'stale_ordering_cleanup',
+  } = {}) {
+    const id = Number(updateId);
+    if (!Number.isSafeInteger(id) || !conversationKey) return 0;
+    const nowIso = now.toISOString();
+    const cutoff = new Date(now.getTime() - Math.max(0, graceMs)).toISOString();
+    const rs = await client.execute({
+      sql: `UPDATE telegram_processed_updates
+               SET status = CASE
+                     WHEN (SELECT o.delivery_state FROM telegram_operations o
+                            WHERE o.update_id = telegram_processed_updates.update_id) = ?
+                       THEN ? ELSE ? END,
+                   processed_at     = ?,
+                   owner            = NULL,
+                   lease_expires_at = NULL
+             WHERE user_id = ? AND update_id < ?
+               AND status NOT IN (?, ?)
+               AND lease_expires_at IS NOT NULL
+               AND lease_expires_at <= ?`,
+      args: [
+        TELEGRAM_DELIVERY_STATE.DELIVERED,
+        TELEGRAM_UPDATE_STATUS.COMPLETED, TELEGRAM_UPDATE_STATUS.ABANDONED,
+        nowIso,
+        String(conversationKey), id,
+        TELEGRAM_UPDATE_STATUS.COMPLETED, TELEGRAM_UPDATE_STATUS.ABANDONED,
+        cutoff,
+      ],
+    });
+    const n = Number(rs.rowsAffected ?? 0);
+    if (n) {
+      log.warn('telegram_stale_updates_terminalized', {
+        conversation: String(conversationKey), before_update_id: id, count: n, reason,
+      });
+    }
+    return n;
   }
 
   /** 讀一則 update 的動作／送達收據。沒有就回 null。 */
@@ -824,6 +887,7 @@ export function createDb({ url, authToken }) {
     markDeliverySuppressed,
     setTelegramUpdateConversation,
     hasEarlierUnfinishedInConversation,
+    abandonStaleConversationUpdates,
     outsideProcessingTransaction: processing.outside,
     afterProcessingCommit: processing.afterCommit,
     processingTransactionActive: processing.active,

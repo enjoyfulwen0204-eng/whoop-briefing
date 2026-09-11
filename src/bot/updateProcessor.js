@@ -163,12 +163,16 @@ export function createUpdateProcessor({
    * （ambiguous commit）的下一次嘗試會認出那是自己的認領而續租。
    * 因為 attemptId 是每次執行獨有的，這條路徑不會讓別的請求取得所有權。
    */
-  async function claimWithRetry(updateId, attemptId) {
+  async function claimWithRetry(updateId, attemptId, conversationKey) {
     let lastErr = null;
     for (let attempt = 1; attempt <= TELEGRAM_BOT.CLAIM_RETRIES; attempt += 1) {
       try {
         return await db.claimTelegramUpdate(updateId, {
           owner: attemptId, leaseMs: TELEGRAM_BOT.CLAIM_LEASE_MS, now: now(),
+          // ★ TG-R04-A：對話身分**與認領同一筆寫入**。
+          // 分兩步寫的話，中間崩潰就會留下一個「已認領但沒有對話身分」的列，
+          // 後來的訊息看不到它就會超車。
+          conversationKey,
         });
       } catch (err) {
         lastErr = err;
@@ -214,9 +218,23 @@ export function createUpdateProcessor({
     if (typeof db.hasEarlierUnfinishedInConversation === 'function') {
       let earlier = false;
       try {
-        earlier = await db.hasEarlierUnfinishedInConversation(conversationKey, updateId, {
-          now: now(), graceMs: TELEGRAM_BOT.ORDER_BLOCK_GRACE_MS,
-        });
+        // ★ TG-R04-B：先把「久到不可能還有人在推進」的更早訊息**原子地終結**。
+        //
+        // 順序是不可以反的：終結 → 再檢查 → 才放行。
+        // 舊版是在查詢裡用寬限期「忽略」太舊的那一則，於是後面的先跑了，
+        // 而前面那則之後還能恢復並執行 —— 執行順序變成 ["N+1", "N"]。
+        //
+        // 終結會把 owner 與租約一起清掉，所以舊的執行醒來之後每一個副作用
+        // 邊界都會失敗（詳見 abandonStaleConversationUpdates）。
+        //
+        // 這一段在對話鎖的保護之下，所以兩個併發的清理不會互相踩到。
+        if (typeof db.abandonStaleConversationUpdates === 'function') {
+          await db.abandonStaleConversationUpdates(conversationKey, updateId, {
+            now: now(), graceMs: TELEGRAM_BOT.ORDER_BLOCK_GRACE_MS,
+          });
+        }
+        // 然後是**嚴格**檢查：只要還有任何更早、未終局的，就讓路。
+        earlier = await db.hasEarlierUnfinishedInConversation(conversationKey, updateId);
       } catch (err) {
         log.error('telegram_order_check_failed', { update_id: updateId, error: describeError(err) });
         await leaveConversationLane({ name, owner });
@@ -327,8 +345,14 @@ export function createUpdateProcessor({
 
     let claimed = false;
     if (typeof db.claimTelegramUpdate === 'function') {
-      const claim = await claimWithRetry(updateId, attemptId);
+      const claim = await claimWithRetry(updateId, attemptId, conversationKey);
 
+      if (claim.state === 'identity_conflict') {
+        // 同一個 update_id 帶著不同的對話鍵 —— 資料完整性問題，不是競態。
+        // 不處理、也不 ack：這需要人看，不該靠重送自己好起來。
+        log.error('telegram_update_identity_conflict_refused', { update_id: updateId });
+        return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'identity_conflict', replied: false };
+      }
       if (claim.state === 'unavailable' || claim.state === 'in_progress') {
         log.info('telegram_update_not_acknowledged', { update_id: updateId, state: claim.state });
         return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: claim.state, replied: false };
@@ -346,20 +370,10 @@ export function createUpdateProcessor({
       claimed = true;
     }
 
-    // ---- 對話身分：**在解析內部身分之前**就落地（TG-R04 的修法）----
-    //
-    // 順序是刻意的：
-    //   認領 → 寫下對話鍵 → 進對話通道 → **然後才** resolveUser
-    //
-    // 舊版把 resolveUser 排在寫對話欄位之前，於是「已認領但還沒查完身分」
-    // 的那段空窗裡，這一列在別人眼中是無主的，後來的訊息就會超車。
-    if (claimed && conversationKey && typeof db.setTelegramUpdateConversation === 'function') {
-      await db.setTelegramUpdateConversation(updateId, {
-        owner: attemptId, conversationKey, now: now(),
-      });
-    }
-
     // ---- 對話通道：同一個對話一次一則，而且不可以超車 ----
+    //
+    // 對話身分已經在**認領那一筆**就落地了（見 claimWithRetry），所以這裡
+    // 不需要、也不可以再補寫一次：任何「認領成功但身分還沒寫」的空窗都不存在。
     let lane = null;
     if (claimed && conversationKey) {
       const entered = await enterConversationLane(conversationKey, updateId, attemptId);

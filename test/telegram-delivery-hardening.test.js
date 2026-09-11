@@ -123,6 +123,34 @@ const journalCount = async (db, userId) => (await db.getJournalEvents(userId, {
 // A1-A5 — 耐久所有權（不依賴 inFlight）
 // ===========================================================================
 
+
+/**
+ * 確定性的閘門，取代「睡 30 毫秒、希望對方已經進場」。
+ *
+ * 固定睡眠在忙碌的機器上會偶發失敗（觀察過一次無法重現的 flake），
+ * 而且失敗時看起來像產品的競態 —— 那種假訊號比測試本身更貴。
+ *
+ * `entered` 在對方真的進到閘門時 resolve，`release()` 才放它走。
+ */
+function makeGate() {
+  let release;
+  let signalEntered;
+  const opened = new Promise((r) => { release = r; });
+  const entered = new Promise((r) => { signalEntered = r; });
+  let used = false;
+  return {
+    entered,
+    release: () => release(),
+    /** 放進 coach / resolveUser 裡：第一個進來的會被擋住。 */
+    wait: async () => {
+      if (used) return;
+      used = true;
+      signalEntered();
+      await opened;
+    },
+  };
+}
+
 test('★★★ A1: 同一 process 兩個併發請求（繞過 inFlight）→ 只有一個送出', async () => {
   await withEnv(async ({ db, alice, sent, mkProcessor }) => {
     // 兩個獨立的 processor 實例 = 兩個獨立的 inFlight Map，
@@ -365,29 +393,25 @@ test('★★ 送達結果分類：有 HTTP 回應或連線沒建立 = 確定失�
 
 test('★★★ C1: 同一使用者 N 與 N+1 併發，N 被拖慢 → N+1 不可以超車', async () => {
   const seen = [];
-  let release;
-  const gate = new Promise((r) => { release = r; });
-  let gated = false;
+  const gate = makeGate();
 
   await withEnv(async ({ sent, mkProcessor }) => {
     const p1 = mkProcessor({ workerId: 'p1', onHandle: ({ text }) => { seen.push(text); } });
     const p2 = mkProcessor({ workerId: 'p2', onHandle: ({ text }) => { seen.push(text); } });
 
     const pN = p1.processUpdate(upd(2000, '5001', 'N'));
-    await new Promise((r) => setTimeout(r, 30));   // 讓 N 先進場並卡在 coach 上
+    await gate.entered;   // 確定 N 已經卡在 coach 上（不是靠睡固定時間）
 
     const rN1 = await p2.processUpdate(upd(2001, '5001', 'N+1'));
     assert.equal(rN1.outcome, UPDATE_OUTCOME.RETRY,
       '★ N 還在跑，N+1 必須讓路（而不是同時改狀態）');
     assert.deepEqual(seen, ['N'], '★ N+1 的業務邏輯根本不該被執行');
 
-    release();
+    gate.release();
     const rN = await pN;
     assert.equal(rN.outcome, UPDATE_OUTCOME.PROCESSED);
     assert.equal(sent.length, 1);
-  }, {
-    coachDelay: async () => { if (!gated) { gated = true; await gate; } },
-  });
+  }, { coachDelay: () => gate.wait() });
 });
 
 test('★★★ C1b: N 還沒結案時，N+1 即使單獨進來也要讓路（不可以超車）', async () => {
@@ -408,32 +432,28 @@ test('★★★ C1b: N 還沒結案時，N+1 即使單獨進來也要讓路（�
 
 test('★★★ C2: 澄清流程 —— 問題落地之前，澄清回覆不會被處理', async () => {
   const seen = [];
-  let release;
-  const gate = new Promise((r) => { release = r; });
-  let gated = false;
+  const gate = makeGate();
 
   await withEnv(async ({ sent, mkProcessor }) => {
     const q = mkProcessor({ workerId: 'q', onHandle: ({ text }) => { seen.push(text); } });
     const c = mkProcessor({ workerId: 'c', onHandle: ({ text }) => { seen.push(text); } });
 
     const pQ = q.processUpdate(upd(3000, '5001', '為什麼我這麼累'));
-    await new Promise((r) => setTimeout(r, 30));
+    await gate.entered;
 
     const clar = await c.processUpdate(upd(3001, '5001', '昨天喝了兩杯'));
     assert.equal(clar.outcome, UPDATE_OUTCOME.RETRY,
       '★ 澄清不可以在問題的狀態落地之前就被處理');
     assert.deepEqual(seen, ['為什麼我這麼累']);
 
-    release();
+    gate.release();
     await pQ;
 
     // 問題結案之後，澄清就能進來了
     const retry = await mkProcessor({ workerId: 'c2' }).processUpdate(upd(3001, '5001', '昨天喝了兩杯'));
     assert.equal(retry.outcome, UPDATE_OUTCOME.PROCESSED, '★ 前一則結案後就要能處理');
     assert.equal(sent.length, 2);
-  }, {
-    coachDelay: async () => { if (!gated) { gated = true; await gate; } },
-  });
+  }, { coachDelay: () => gate.wait() });
 });
 
 test('★★★ C3: 通道被崩潰的執行鎖住 → 租約過期後自動恢復', async () => {

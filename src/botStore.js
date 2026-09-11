@@ -81,6 +81,8 @@ export function createBotStore(client) {
   /** 一列 → 對外的狀態物件。 */
   const claimRow = (row) => (row ? {
     updateId: Number(row.update_id),
+    // 欄位名沿用歷史（user_id），存的是對話鍵（tg:<chat_id>），不是內部使用者 id。
+    conversationKey: row.user_id ?? null,
     status: String(row.status ?? TELEGRAM_UPDATE_STATUS.COMPLETED),
     owner: row.owner ?? null,
     attempts: Number(row.attempts ?? 1),
@@ -94,7 +96,7 @@ export function createBotStore(client) {
     if (id === null) return null;
     const rs = await client.execute({
       sql: `SELECT update_id, status, owner, attempts, lease_expires_at,
-                   dispatched_at, processed_at
+                   dispatched_at, processed_at, user_id
               FROM telegram_processed_updates WHERE update_id = ?`,
       args: [id],
     });
@@ -138,7 +140,7 @@ export function createBotStore(client) {
    *   state: 'claimed' | 'completed' | 'in_progress' | 'abandoned' | 'invalid'
    */
   async function claimTelegramUpdate(updateId, {
-    owner = 'default', leaseMs = 120_000, now = new Date(),
+    owner = 'default', leaseMs = 120_000, now = new Date(), conversationKey = null,
   } = {}) {
     const id = normalizeUpdateId(updateId);
     if (id === null) return { ok: false, state: 'invalid', status: null, attempts: 0, owner: null };
@@ -148,18 +150,26 @@ export function createBotStore(client) {
     const rs = await client.execute({
       sql: `INSERT INTO telegram_processed_updates
               (update_id, status, owner, claimed_at, lease_expires_at, dispatched_at,
-               processed_at, attempts)
-            VALUES (?, ?, ?, ?, ?, NULL, ?, 1)
+               processed_at, attempts, user_id)
+            VALUES (?, ?, ?, ?, ?, NULL, ?, 1, ?)
             ON CONFLICT(update_id) DO UPDATE SET
               owner            = excluded.owner,
               claimed_at       = excluded.claimed_at,
               lease_expires_at = excluded.lease_expires_at,
               status           = excluded.status,
-              attempts         = telegram_processed_updates.attempts + 1
+              attempts         = telegram_processed_updates.attempts + 1,
+              -- 對話身分只會從「還沒有」變成「有」，**永遠不會被換掉**。
+              -- 換掉等於讓 chat A 的訊息被記成 chat B 的，那是身分汙染。
+              user_id          = COALESCE(telegram_processed_updates.user_id, excluded.user_id)
             WHERE telegram_processed_updates.status IN (?, 'PROCESSING')
               AND ((telegram_processed_updates.status = 'CLAIMED' AND telegram_processed_updates.owner = excluded.owner)
                    OR telegram_processed_updates.lease_expires_at IS NULL
-                   OR telegram_processed_updates.lease_expires_at <= excluded.claimed_at)`,
+                   OR telegram_processed_updates.lease_expires_at <= excluded.claimed_at)
+              -- 身分完整性：同一個 update_id 不可以換對話。
+              -- 兩邊都有值而且不同 → 整筆寫入不成立，呼叫端會讀出 identity_conflict。
+              AND (telegram_processed_updates.user_id IS NULL
+                   OR excluded.user_id IS NULL
+                   OR telegram_processed_updates.user_id = excluded.user_id)`,
       args: [
         // processed_at 填的是「最後一次狀態變動的時間」，不是「處理完成」。
         // ⚠️ 它在既有的正式資料庫上是 NOT NULL，而 ALTER TABLE ADD COLUMN
@@ -167,6 +177,8 @@ export function createBotStore(client) {
         // 遷移過的資料庫上直接爆掉（有資料的遷移測試抓到的）。
         // 「做完了沒有」現在由 status 決定，這一欄只是時間戳。
         id, TELEGRAM_UPDATE_STATUS.CLAIMED, String(owner), at, until, at,
+        // user_id 欄位存的是**對話鍵**，與認領同一筆寫入（TG-R04-A）
+        conversationKey === null || conversationKey === undefined ? null : String(conversationKey),
         TELEGRAM_UPDATE_STATUS.CLAIMED,
       ],
     });
@@ -187,6 +199,19 @@ export function createBotStore(client) {
       // 條件式 UPDATE 沒中、列又不見了 —— 只可能是同時被裁剪掉。
       // 當成不可用讓呼叫端 fail closed，比猜一個結果安全。
       return { ok: false, state: 'in_progress', status: null, attempts: 0, owner: null };
+    }
+    // 身分衝突：同一個 update_id 卻帶著不同的對話鍵。這不是競態，是資料完整性
+    // 問題（或有人在偽造）。上面的條件式寫入已經擋下來了，這裡只是把原因講清楚。
+    // fail closed —— 這需要人看，不該靠重送自己好起來。
+    if (conversationKey && row.conversationKey
+        && row.conversationKey !== String(conversationKey)) {
+      log.error('telegram_update_identity_conflict', {
+        update_id: id, stored: row.conversationKey, incoming: String(conversationKey),
+      });
+      return {
+        ok: false, state: 'identity_conflict',
+        status: row.status, attempts: row.attempts, owner: row.owner,
+      };
     }
     if (row.status === TELEGRAM_UPDATE_STATUS.COMPLETED) {
       return { ok: false, state: 'completed', status: row.status, attempts: row.attempts, owner: row.owner };

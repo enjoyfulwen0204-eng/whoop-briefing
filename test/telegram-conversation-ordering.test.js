@@ -99,14 +99,40 @@ async function withEnv(fn, { resolveDelay = null } = {}) {
 // ★★★ Codex 重現：N 卡在 resolveUser 裡，N+1 很快
 // ===========================================================================
 
-test('★★★ TG-R04: N 卡在 resolveUser（身分未落地）→ N+1 不可以超車', async () => {
+
+/**
+ * 確定性的閘門，取代「睡 30 毫秒、希望對方已經進場」。
+ *
+ * 固定睡眠在忙碌的機器上會偶發失敗（觀察過一次無法重現的 flake），
+ * 而且失敗時看起來像產品的競態 —— 那種假訊號比測試本身更貴。
+ *
+ * `entered` 在對方真的進到閘門時 resolve，`release()` 才放它走。
+ */
+function makeGate() {
   let release;
-  const gate = new Promise((r) => { release = r; });
-  let gated = false;
+  let signalEntered;
+  const opened = new Promise((r) => { release = r; });
+  const entered = new Promise((r) => { signalEntered = r; });
+  let used = false;
+  return {
+    entered,
+    release: () => release(),
+    /** 放進 coach / resolveUser 裡：第一個進來的會被擋住。 */
+    wait: async () => {
+      if (used) return;
+      used = true;
+      signalEntered();
+      await opened;
+    },
+  };
+}
+
+test('★★★ TG-R04: N 卡在 resolveUser（身分未落地）→ N+1 不可以超車', async () => {
+  const gate = makeGate();
 
   await withEnv(async ({ exec, sent, mk }) => {
     const pN = mk('p1').processUpdate(upd(100, '5001', 'N'));
-    await new Promise((r) => setTimeout(r, 40));   // 確保 N 先進場並卡住
+    await gate.entered;   // 確定 N 已經進到 resolveUser 裡（不是靠睡固定時間）
 
     const rN1 = await mk('p2').processUpdate(upd(101, '5001', 'N+1'));
     assert.equal(rN1.outcome, UPDATE_OUTCOME.RETRY,
@@ -114,7 +140,7 @@ test('★★★ TG-R04: N 卡在 resolveUser（身分未落地）→ N+1 不可�
     assert.deepEqual(dedupeAdjacent(exec), [],
       '★ N+1 不可以在 N 之前執行任何業務邏輯（N 這時還卡在 resolveUser）');
 
-    release();
+    gate.release();
     await pN;
 
     // Telegram 重送被 503 的那一則
@@ -124,9 +150,7 @@ test('★★★ TG-R04: N 卡在 resolveUser（身分未落地）→ N+1 不可�
     assert.deepEqual(dedupeAdjacent(exec), ['N', 'N+1'], '★ 最終執行順序必須是 N → N+1');
     assert.deepEqual(sent.map((s) => s.chatId), ['5001', '5001']);
     assert.equal(sent.length, 2, '★ 各回一次');
-  }, {
-    resolveDelay: async () => { if (!gated) { gated = true; await gate; } },
-  });
+  }, { resolveDelay: () => gate.wait() });
 });
 
 // ===========================================================================
@@ -134,19 +158,17 @@ test('★★★ TG-R04: N 卡在 resolveUser（身分未落地）→ N+1 不可�
 // ===========================================================================
 
 test('★★★ O1: 同一對話，N 慢 N+1 快 → 順序仍是 N → N+1', async () => {
-  let release;
-  const gate = new Promise((r) => { release = r; });
-  let first = true;
+  const gate = makeGate();
   await withEnv(async ({ exec, mk }) => {
     const pN = mk('a').processUpdate(upd(200, '5001', 'N'));
-    await new Promise((r) => setTimeout(r, 30));
+    await gate.entered;
     const r1 = await mk('b').processUpdate(upd(201, '5001', 'N+1'));
     assert.equal(r1.outcome, UPDATE_OUTCOME.RETRY);
-    release();
+    gate.release();
     await pN;
     await mk('c').processUpdate(upd(201, '5001', 'N+1'));
     assert.deepEqual(dedupeAdjacent(exec), ['N', 'N+1']);
-  }, { resolveDelay: async () => { if (first) { first = false; await gate; } } });
+  }, { resolveDelay: () => gate.wait() });
 });
 
 test('★★★ O2: 更早的那則是未綁定的 chat → 終局，不會餓死後面的訊息', async () => {
@@ -198,18 +220,17 @@ test('★★★ O3b: 群組／寄件者不符的更早訊息根本不進通道�
 });
 
 test('★★★ O4: 不同對話互不等待（A 卡住不影響 B）', async () => {
-  let release;
-  const gate = new Promise((r) => { release = r; });
+  const gate = makeGate();
   await withEnv(async ({ exec, mk }) => {
     const pA = mk('a').processUpdate(upd(600, '5001', 'A'));
-    await new Promise((r) => setTimeout(r, 30));
+    await gate.entered;
     const rB = await mk('b').processUpdate(upd(601, '5002', 'B'));
     assert.equal(rB.outcome, UPDATE_OUTCOME.PROCESSED,
       '★ B 不可以被 A 的延遲拖住（update_id 更大也一樣）');
-    release();
+    gate.release();
     await pA;
     assert.ok(dedupeAdjacent(exec).includes('B'));
-  }, { resolveDelay: async (chatId) => { if (String(chatId) === '5001') await gate; } });
+  }, { resolveDelay: async (chatId) => { if (String(chatId) === '5001') await gate.wait(); } });
 });
 
 test('★★★ O5: 通道是 per-conversation，多個對話不互相排隊', async () => {
@@ -239,20 +260,18 @@ test('★★★ O5: 通道是 per-conversation，多個對話不互相排隊', a
 });
 
 test('★★★ O6: 澄清流程 —— 問題的狀態先落地，答案才讀得到', async () => {
-  let release;
-  const gate = new Promise((r) => { release = r; });
-  let first = true;
+  const gate = makeGate();
   await withEnv(async ({ exec, mk }) => {
     const pQ = mk('q').processUpdate(upd(800, '5001', '為什麼我這麼累'));
-    await new Promise((r) => setTimeout(r, 30));
+    await gate.entered;
     const rA = await mk('a').processUpdate(upd(801, '5001', '昨天喝了兩杯'));
     assert.equal(rA.outcome, UPDATE_OUTCOME.RETRY,
       '★ 答案不可以在問題的狀態落地之前被處理');
-    release();
+    gate.release();
     await pQ;
     await mk('a2').processUpdate(upd(801, '5001', '昨天喝了兩杯'));
     assert.deepEqual(dedupeAdjacent(exec), ['為什麼我這麼累', '昨天喝了兩杯']);
-  }, { resolveDelay: async () => { if (first) { first = false; await gate; } } });
+  }, { resolveDelay: () => gate.wait() });
 });
 
 test('★★★ O7: 持有排序狀態的執行崩潰 → 租約過期後可以繼續', async () => {

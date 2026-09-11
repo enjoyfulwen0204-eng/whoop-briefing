@@ -127,11 +127,21 @@ export async function runMigrations(client, { allowRebuild = true } = {}) {
   // ALTER TABLE ADD COLUMN 是唯一一條「保留資料又能改形狀」的路，而且它在
   // SQLite 只改中繼資料。先檢查欄位在不在，所以可以重複執行。
   summary.columnsAdded = [];
-  for (const { table, column, ddl } of ADDITIVE_COLUMNS) {
+  for (const { table, column, ddl, backfill } of ADDITIVE_COLUMNS) {
     if (!(await tableExists(client, table))) continue;
     const cols = await columnNames(client, table);
     if (cols.includes(column)) continue;
     await client.execute(ddl);
+    // 有些欄位光靠 DEFAULT 填不出正確的值 —— 舊資料的正確值要從**別的表**
+    // 推導。回填緊接在加欄位之後，而且只在這一次（欄位已存在就整段跳過），
+    // 所以它與加欄位一樣是冪等的。
+    //
+    // 順序是刻意的：DEFAULT 先給一個保守、安全的值，回填才把**證明得了**的
+    // 升級上去。萬一回填失敗，留下的是安全的那一邊。
+    if (backfill) {
+      await client.execute(backfill);
+      log.info('schema_column_backfilled', { table, column });
+    }
     summary.columnsAdded.push(`${table}.${column}`);
     log.info('schema_column_added', { table, column });
   }

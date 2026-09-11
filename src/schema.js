@@ -512,9 +512,18 @@ export const BOT_SCHEMA = [
      lease_expires_at TEXT,
      dispatched_at    TEXT,
      attempts         INTEGER NOT NULL DEFAULT 1,
-     -- 這一則屬於誰（身分解析出來之後才寫）。用途只有一個：**同一個人的
-     -- 訊息要照順序處理**。沒有它就沒辦法問「這個人還有沒有更早、還沒做完
-     -- 的訊息」，而那正是「澄清回覆不可以超車」的判準。
+     -- 這一則屬於哪一個**對話**。用途只有一個：同一個對話裡的訊息要照順序
+     -- 處理（沒有它就沒辦法問「這個對話還有沒有更早、還沒做完的訊息」，
+     -- 而那正是「澄清回覆不可以超車」的判準）。
+     --
+     -- ⚠️ 欄位名沿用歷史（v7 加的時候叫 user_id），但裡面存的**不是**內部
+     -- 使用者 id，而是對話鍵：私訊是 tg:<chat_id>。刻意加前綴，任何人看到
+     -- 值就知道它不是 users.id，也不可能與內部 id 混淆。
+     --
+     -- 為什麼不是內部 user_id：內部身分要查資料庫才知道，而查詢是會花時間的。
+     -- 在「已認領但還沒解析出身分」的那段空窗裡，後來的訊息看不到前一則，
+     -- 就會超車（TG-R04）。對話鍵可以**純粹從 Update 的結構**推導出來，
+     -- 不需要查任何東西，所以可以在認領的當下就寫下去。
      user_id          TEXT
    )`,
 ];
@@ -547,9 +556,37 @@ export const ADDITIVE_COLUMNS = [
   // 「還沒送」而觸發重送。
   { table: 'telegram_processed_updates', column: 'user_id', ddl: 'ALTER TABLE telegram_processed_updates ADD COLUMN user_id TEXT' },
   {
+    // ★ TG-R05：舊的收據**不等於**已經送達。
+    //
+    // v7 之前的順序是「提交動作收據 → 送出 Telegram → 標記 COMPLETED」。
+    // 所以一列 telegram_operations 存在，只代表**動作**提交了；那之後
+    // sendMessage 可能失敗、可能整個 process 死掉。把這種列一律回填成
+    // DELIVERED 等於宣稱一件我們證明不了的事。
+    //
+    // 但也**不可以**回填成「可以送」—— 那會讓歷史訊息在下一次重送時被
+    // 重新發出去一次。
+    //
+    // 兩個方向都危險，所以分兩步：
+    //
+    //   1. 欄位預設是 AMBIGUOUS（保守：不會被自動重送，也不宣稱送達）。
+    //      萬一回填沒跑到，留下的是安全的那一邊。
+    //   2. 只有**證明得了**的才升級成 DELIVERED。證據是：這一則
+    //      telegram_processed_updates 已經是 COMPLETED —— 舊程式碼只有在
+    //      sendReply 沒有拋錯之後才會走到 completeTelegramUpdate，
+    //      所以 COMPLETED 反過來就證明了當時送出去是成功的。
+    //
+    // 剩下的（收據在、但那一則沒有 COMPLETED）就是真正不確定的：崩潰在
+    // 「動作已提交、還沒標記完成」之間。它們留在 AMBIGUOUS，不會被重送，
+    // 也看得到（npm run phase0）。
     table: 'telegram_operations',
     column: 'delivery_state',
-    ddl: `ALTER TABLE telegram_operations ADD COLUMN delivery_state TEXT NOT NULL DEFAULT '${TELEGRAM_DELIVERY_STATE.DELIVERED}'`,
+    ddl: `ALTER TABLE telegram_operations ADD COLUMN delivery_state TEXT NOT NULL DEFAULT '${TELEGRAM_DELIVERY_STATE.AMBIGUOUS}'`,
+    backfill: `UPDATE telegram_operations
+                  SET delivery_state = '${TELEGRAM_DELIVERY_STATE.DELIVERED}'
+                WHERE update_id IN (
+                  SELECT update_id FROM telegram_processed_updates
+                   WHERE status = '${TELEGRAM_UPDATE_STATUS.COMPLETED}'
+                )`,
   },
   { table: 'telegram_operations', column: 'delivery_owner', ddl: 'ALTER TABLE telegram_operations ADD COLUMN delivery_owner TEXT' },
   { table: 'telegram_operations', column: 'delivery_started_at', ddl: 'ALTER TABLE telegram_operations ADD COLUMN delivery_started_at TEXT' },

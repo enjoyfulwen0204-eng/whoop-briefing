@@ -36,7 +36,9 @@ import { createRouter } from '../src/bot/router.js';
 import { createSendReply } from '../src/bot/index.js';
 import { createUpdateProcessor, UPDATE_OUTCOME } from '../src/bot/updateProcessor.js';
 import { TelegramApiError, classifySendOutcome } from '../src/bot/api.js';
-import { TELEGRAM_DELIVERY_STATE, TELEGRAM_UPDATE_STATUS } from '../src/schema.js';
+import {
+  TELEGRAM_DELIVERY_STATE, TELEGRAM_UPDATE_STATUS, ADDITIVE_COLUMNS,
+} from '../src/schema.js';
 
 const NOW = new Date('2026-09-11T06:00:00Z');
 
@@ -392,8 +394,9 @@ test('★★★ C1b: N 還沒結案時，N+1 即使單獨進來也要讓路（�
   await withEnv(async ({ db, mkProcessor }) => {
     // N 已經被認領、還在處理中（租約還活著）
     await db.claimTelegramUpdate(2100, { owner: 'busy-attempt', leaseMs: 300_000, now: NOW });
-    await db.setTelegramUpdateUser(2100, {
-      owner: 'busy-attempt', userId: (await db.resolveUserByChatId('5001')).user.id, now: NOW,
+    // 對話鍵，不是內部 user_id（TG-R04 之後排序身分改成從結構推導）
+    await db.setTelegramUpdateConversation(2100, {
+      owner: 'busy-attempt', conversationKey: 'tg:5001', now: NOW,
     });
 
     const r = await mkProcessor().processUpdate(upd(2101, '5001', 'N+1'));
@@ -435,8 +438,8 @@ test('★★★ C2: 澄清流程 —— 問題落地之前，澄清回覆不會�
 
 test('★★★ C3: 通道被崩潰的執行鎖住 → 租約過期後自動恢復', async () => {
   await withEnv(async ({ db, alice, sent, mkProcessor }) => {
-    // 有人鎖了 Alice 的通道然後死了
-    const lane = `telegram_lane:${alice.id}`;
+    // 有人鎖了 Alice 的對話通道然後死了
+    const lane = 'telegram_lane:tg:5001';
     await db.acquireLock(lane, {
       ttlMs: 1_000, owner: 'dead-attempt',
       now: new Date(NOW.getTime() - 3600_000),
@@ -450,7 +453,7 @@ test('★★★ C3: 通道被崩潰的執行鎖住 → 租約過期後自動恢�
 
 test('★★★ C4: Alice 的通道被佔住時，Bob 仍然照常處理', async () => {
   await withEnv(async ({ db, alice, sent, mkProcessor }) => {
-    await db.acquireLock(`telegram_lane:${alice.id}`, {
+    await db.acquireLock('telegram_lane:tg:5001', {
       ttlMs: 300_000, owner: 'alice-busy', now: NOW,
     });
     const rA = await mkProcessor().processUpdate(upd(5000, '5001'));
@@ -521,31 +524,83 @@ test('★★★ C5b: 依序處理多個使用者 → 每個人都成功，互不
 // 遷移安全（v6 → v7，純加欄位）
 // ===========================================================================
 
-test('★★★ 遷移: 舊形狀的 telegram_operations + 有資料 → 加欄位，回填成 DELIVERED', async () => {
+test('★★★ TG-R05 遷移: 舊收據只有「證明得了」的才算送達', async () => {
+  // v7 之前的順序是「提交收據 → 送出 → 標記 COMPLETED」，所以：
+  //   收據在 + 那一則 COMPLETED  ⇒ 當時送出去**成功了**（可以證明）
+  //   收據在 + 那一則沒 COMPLETED ⇒ 崩潰在中間，送了沒有**證明不了**
   const { db, cleanup } = tempDb();
   try {
     await db.migrate();
-    // 退回 v6 形狀並塞資料
+    // 退回 v6 形狀
     await db.raw.execute('DROP TABLE telegram_operations');
     await db.raw.execute(`CREATE TABLE telegram_operations (
       update_id INTEGER PRIMARY KEY, result_json TEXT NOT NULL, committed_at TEXT NOT NULL)`);
-    await db.raw.execute({
+    const receipt = (id) => db.raw.execute({
       sql: 'INSERT INTO telegram_operations (update_id, result_json, committed_at) VALUES (?,?,?)',
-      args: [11, JSON.stringify({ chatId: '5001', reply: '舊的回覆', userId: 'u1' }), NOW.toISOString()],
+      args: [id, JSON.stringify({ chatId: '5001', reply: '舊回覆', userId: 'u1' }), NOW.toISOString()],
+    });
+    await receipt(11);   // 會有 COMPLETED → 可以證明送出去了
+    await receipt(12);   // 只有收據，那一則沒走到 COMPLETED → 證明不了
+    await receipt(13);   // 連 processed 列都沒有 → 證明不了
+
+    await db.raw.execute({
+      sql: `INSERT INTO telegram_processed_updates (update_id, processed_at, status, attempts)
+            VALUES (?,?,?,1)`,
+      args: [11, NOW.toISOString(), TELEGRAM_UPDATE_STATUS.COMPLETED],
+    });
+    await db.raw.execute({
+      sql: `INSERT INTO telegram_processed_updates (update_id, processed_at, status, attempts)
+            VALUES (?,?,?,1)`,
+      args: [12, NOW.toISOString(), TELEGRAM_UPDATE_STATUS.PROCESSING],
     });
     await db.raw.execute('DELETE FROM schema_version');
 
     const summary = await db.migrate();
     assert.deepEqual(summary.rebuilt, [], '★ 不可以重建（會清掉歷史收據）');
 
-    const op = await db.getTelegramOperation(11);
-    assert.equal(op.deliveryState, TELEGRAM_DELIVERY_STATE.DELIVERED,
-      '★ 既有的收據代表「已經送完了」，必須回填成 DELIVERED —— '
-      + '回填成 ACTION_READY 會讓歷史訊息被重送一次');
+    assert.equal((await db.getTelegramOperation(11)).deliveryState,
+      TELEGRAM_DELIVERY_STATE.DELIVERED,
+      '★ COMPLETED 反過來證明了當時 sendReply 沒有拋錯 → 可以算送達');
+    assert.equal((await db.getTelegramOperation(12)).deliveryState,
+      TELEGRAM_DELIVERY_STATE.AMBIGUOUS,
+      '★ 崩潰在中間的證明不了 —— 不可以宣稱送達');
+    assert.equal((await db.getTelegramOperation(13)).deliveryState,
+      TELEGRAM_DELIVERY_STATE.AMBIGUOUS,
+      '★ 沒有任何證據的一律保守');
   } finally {
     db.close();
     cleanup();
   }
+});
+
+test('★★★ TG-R05: 不確定的舊收據不會被自動重送', async () => {
+  await withEnv(async ({ db, sent, mkProcessor }) => {
+    // 造出一則「有收據、但送達不確定」的舊資料
+    await db.raw.execute({
+      sql: `INSERT INTO telegram_operations
+              (update_id, result_json, committed_at, delivery_state, delivery_attempts)
+            VALUES (?,?,?,?,0)`,
+      args: [2200, JSON.stringify({ chatId: '5001', reply: '舊回覆', userId: 'u1' }),
+        NOW.toISOString(), TELEGRAM_DELIVERY_STATE.AMBIGUOUS],
+    });
+    const r = await mkProcessor().processUpdate(upd(2200, '5001'));
+    assert.equal(sent.length, 0, '★ 不確定的舊收據絕不可以被重新發出去');
+    assert.ok([UPDATE_OUTCOME.AMBIGUOUS_DELIVERY, UPDATE_OUTCOME.PROCESSED].includes(r.outcome));
+    assert.equal((await db.getTelegramOperation(2200)).deliveryState,
+      TELEGRAM_DELIVERY_STATE.AMBIGUOUS, '★ 狀態維持不變');
+  });
+});
+
+test('★★ TG-R05: 加欄位的預設值是保守的那一邊（回填沒跑到也安全）', () => {
+  const spec = ADDITIVE_COLUMNS.find(
+    (c) => c.table === 'telegram_operations' && c.column === 'delivery_state',
+  );
+  assert.ok(spec, '★ 必須有這個加欄位規格');
+  assert.match(spec.ddl, new RegExp(`DEFAULT '${TELEGRAM_DELIVERY_STATE.AMBIGUOUS}'`),
+    '★ 預設必須是 AMBIGUOUS —— 不宣稱送達，也不會被自動重送');
+  assert.ok(spec.backfill, '★ 必須有回填，才能把證明得了的升級成 DELIVERED');
+  assert.match(spec.backfill, /status = 'COMPLETED'/,
+    '★ 升級的證據必須是那一則真的走到了 COMPLETED');
 });
 
 test('★★ 遷移: 重複跑是冪等的', async () => {

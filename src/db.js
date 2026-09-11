@@ -131,37 +131,60 @@ export function createDb({ url, authToken }) {
   }
 
   /**
-   * 記下這一則 update 屬於哪個使用者（身分解析之後）。用 owner 圍欄。
-   * 這是「同一個人的訊息照順序處理」唯一需要的額外事實。
+   * 記下這一則 update 屬於哪一個**對話**。
+   *
+   * ⚠️ 關鍵在「什麼時候寫」：必須在認領之後、**解析內部身分之前**。
+   *
+   * TG-R04 的根因就是這個順序反了。內部 user_id 要查資料庫才知道，而在
+   * 「已認領但還沒查完」的那段空窗裡，這一列的對話欄位是 NULL —— 後來的
+   * 訊息去問「有沒有更早的還沒做完」時看不到它，於是超車。
+   *
+   * 對話鍵可以純粹從 Update 的結構推導（見 conversationKeyOf），不需要查
+   * 任何東西，所以可以在認領的當下就落地，空窗因此不存在。
    */
-  async function setTelegramUpdateUser(updateId, { owner, userId, now = new Date() } = {}) {
+  async function setTelegramUpdateConversation(updateId, { owner, conversationKey, now = new Date() } = {}) {
     const id = Number(updateId);
-    if (!Number.isSafeInteger(id) || !owner || !userId) return false;
+    if (!Number.isSafeInteger(id) || !owner || !conversationKey) return false;
     const rs = await client.execute({
       sql: `UPDATE telegram_processed_updates SET user_id = ?
              WHERE update_id = ? AND owner = ? AND lease_expires_at > ?`,
-      args: [String(userId), id, String(owner), now.toISOString()],
+      args: [String(conversationKey), id, String(owner), now.toISOString()],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
 
   /**
-   * 這個人有沒有**更早**而且還沒做完的訊息？
+   * 這個**對話**有沒有更早、而且還沒做完的訊息？
    *
-   * Telegram 的 update_id 在單調遞增，所以「比我小而且還沒到終局」就是
-   * 「有一則更早的訊息還在處理中或還沒被處理」。有的話這一則就要讓路 ——
-   * 否則澄清回覆可能會在問題本身還沒落地之前就被處理掉。
+   * Telegram 的 update_id 單調遞增，所以「比我小而且還沒到終局」就是
+   * 「有一則更早的訊息還沒處理完」。有的話這一則就要讓路。
+   *
+   * ## 為什麼要有 graceMs
+   *
+   * 只看「還沒到終局」會有一個尾巴：如果某一則永遠沒有被重送（Telegram 放棄
+   * 重試、或它在某次崩潰後就沒人再碰），它會**永遠**擋住這個對話後面的每一則
+   * 訊息 —— 使用者的 bot 就此啞掉。
+   *
+   * 所以只有「租約還活著、或剛過期不久」的更早訊息才有資格擋路。超過寬限期
+   * 還沒人接手的，視為已經沒有人在推進它，後面的訊息可以走。
+   *
+   * 這是刻意的取捨：極端情況下容許一次順序顛倒，換取「不會永久餓死」。
+   * 正常情況（Telegram 正在重送、或另一個實例正在處理）完全不受影響。
    */
-  async function hasEarlierUnfinishedUpdate(userId, updateId) {
+  async function hasEarlierUnfinishedInConversation(conversationKey, updateId, {
+    now = new Date(), graceMs = 0,
+  } = {}) {
     const id = Number(updateId);
-    if (!Number.isSafeInteger(id) || !userId) return false;
+    if (!Number.isSafeInteger(id) || !conversationKey) return false;
+    const cutoff = new Date(now.getTime() - Math.max(0, graceMs)).toISOString();
     const rs = await client.execute({
       sql: `SELECT 1 FROM telegram_processed_updates
              WHERE user_id = ? AND update_id < ?
                AND status NOT IN (?, ?)
+               AND (lease_expires_at IS NULL OR lease_expires_at > ?)
              LIMIT 1`,
-      args: [String(userId), id,
-        TELEGRAM_UPDATE_STATUS_COMPLETED, TELEGRAM_UPDATE_STATUS_ABANDONED],
+      args: [String(conversationKey), id,
+        TELEGRAM_UPDATE_STATUS_COMPLETED, TELEGRAM_UPDATE_STATUS_ABANDONED, cutoff],
     });
     return rs.rows.length > 0;
   }
@@ -799,8 +822,8 @@ export function createDb({ url, authToken }) {
     markDeliveryFailed,
     markDeliveryAmbiguous,
     markDeliverySuppressed,
-    setTelegramUpdateUser,
-    hasEarlierUnfinishedUpdate,
+    setTelegramUpdateConversation,
+    hasEarlierUnfinishedInConversation,
     outsideProcessingTransaction: processing.outside,
     afterProcessingCommit: processing.afterCommit,
     processingTransactionActive: processing.active,

@@ -57,6 +57,44 @@ export function isAcknowledgeable(outcome) {
   return outcome !== UPDATE_OUTCOME.RETRY;
 }
 
+/**
+ * 這則 Update 的**對話鍵** —— 純粹從結構推導，不查資料庫、不信任任何文字。
+ *
+ * ## 為什麼不能用內部 user_id 當排序身分（TG-R04）
+ *
+ * 內部身分要查資料庫才知道。在「已經認領、但還沒查完身分」的那段空窗裡，
+ * 這一列的對話欄位是空的，後來的訊息看不到它 —— 於是 N+1 超車 N。
+ * 對話鍵不需要查任何東西，所以可以在**認領的當下**就寫下去，空窗不存在。
+ *
+ * ## 安全性
+ *
+ * 只用 Telegram 自己的結構事實，而且與 H-01 授權閘門同一組條件：
+ *
+ *   1. 是私訊（chat.type === 'private'）
+ *   2. 寄件者是真人（from.is_bot 不為真）
+ *   3. from.id === chat.id —— Telegram 的私訊 chat id 就是對方的使用者 id，
+ *      所以這一條等於「這則訊息真的是這個帳號本人送的」
+ *
+ * 三條缺一就回 null：沒有對話鍵 → 不進任何通道 → **不可能**用一則偽造或
+ * 未綁定的訊息去鎖住別人的對話。而且鍵是 chat 自己的 id，不是內部 user_id，
+ * 所以連「對應到別人的內部身分」這件事在結構上都做不到。
+ *
+ * 刻意不看訊息文字、不看 username —— 那些都是對方可以隨意控制的。
+ */
+export function conversationKeyOf(update) {
+  const msg = update?.message;
+  if (!msg) return null;
+  if (typeof msg.text !== 'string' || !msg.text.trim()) return null;
+  const chat = msg.chat ?? {};
+  if (chat.type !== 'private') return null;
+  const from = msg.from ?? {};
+  if (from.is_bot === true) return null;
+  const chatId = String(chat.id ?? '');
+  const senderId = String(from.id ?? '');
+  if (!chatId || !senderId || chatId !== senderId) return null;
+  return `tg:${chatId}`;
+}
+
 /** 這個 process 的身分。用在日誌與除錯，**不是**所有權的依據。 */
 const PROCESS_INSTANCE_ID = `${process.pid}:${randomUUID()}`;
 
@@ -159,9 +197,9 @@ export function createUpdateProcessor({
    * 租約用既有的 resource_locks，自帶 owner / 到期 / 圍欄 / 過期回收：
    * 崩潰的執行不會永久鎖住這個使用者。
    */
-  async function enterUserLane(userId, updateId, attemptId) {
-    if (!userId || typeof db.acquireLock !== 'function') return { ok: true, lane: null };
-    const name = `telegram_lane:${userId}`;
+  async function enterConversationLane(conversationKey, updateId, attemptId) {
+    if (!conversationKey || typeof db.acquireLock !== 'function') return { ok: true, lane: null };
+    const name = `telegram_lane:${conversationKey}`;
     let owner = null;
     try {
       owner = await db.acquireLock(name, { ttlMs: laneTtlMs, owner: attemptId, now: now() });
@@ -173,25 +211,27 @@ export function createUpdateProcessor({
       log.info('telegram_lane_busy', { update_id: updateId });
       return { ok: false, reason: 'lane_busy' };
     }
-    if (typeof db.hasEarlierUnfinishedUpdate === 'function') {
+    if (typeof db.hasEarlierUnfinishedInConversation === 'function') {
       let earlier = false;
       try {
-        earlier = await db.hasEarlierUnfinishedUpdate(userId, updateId);
+        earlier = await db.hasEarlierUnfinishedInConversation(conversationKey, updateId, {
+          now: now(), graceMs: TELEGRAM_BOT.ORDER_BLOCK_GRACE_MS,
+        });
       } catch (err) {
         log.error('telegram_order_check_failed', { update_id: updateId, error: describeError(err) });
-        await leaveUserLane({ name, owner });
+        await leaveConversationLane({ name, owner });
         return { ok: false, reason: 'order_check_failed' };
       }
       if (earlier) {
         log.info('telegram_lane_waiting_for_earlier', { update_id: updateId });
-        await leaveUserLane({ name, owner });
+        await leaveConversationLane({ name, owner });
         return { ok: false, reason: 'earlier_update_pending' };
       }
     }
     return { ok: true, lane: { name, owner } };
   }
 
-  async function leaveUserLane(lane) {
+  async function leaveConversationLane(lane) {
     if (!lane?.owner || typeof db.releaseLock !== 'function') return;
     try {
       await db.releaseLock(lane.name, lane.owner);
@@ -282,6 +322,8 @@ export function createUpdateProcessor({
     }
 
     const attemptId = mkAttemptId();
+    // 純結構推導，不查資料庫 —— 所以它在認領的當下就可用。
+    const conversationKey = conversationKeyOf(update);
 
     let claimed = false;
     if (typeof db.claimTelegramUpdate === 'function') {
@@ -304,18 +346,23 @@ export function createUpdateProcessor({
       claimed = true;
     }
 
-    // ---- 身分解析（唯讀）。要先知道是誰，才知道要進哪一條對話通道。----
-    const c = await classify(update);
-    const laneUserId = c.kind === 'ok' ? c.user.id : null;
-
-    if (claimed && laneUserId && typeof db.setTelegramUpdateUser === 'function') {
-      await db.setTelegramUpdateUser(updateId, { owner: attemptId, userId: laneUserId, now: now() });
+    // ---- 對話身分：**在解析內部身分之前**就落地（TG-R04 的修法）----
+    //
+    // 順序是刻意的：
+    //   認領 → 寫下對話鍵 → 進對話通道 → **然後才** resolveUser
+    //
+    // 舊版把 resolveUser 排在寫對話欄位之前，於是「已認領但還沒查完身分」
+    // 的那段空窗裡，這一列在別人眼中是無主的，後來的訊息就會超車。
+    if (claimed && conversationKey && typeof db.setTelegramUpdateConversation === 'function') {
+      await db.setTelegramUpdateConversation(updateId, {
+        owner: attemptId, conversationKey, now: now(),
+      });
     }
 
-    // ---- 對話通道：同一個人一次一則，而且不可以超車 ----
+    // ---- 對話通道：同一個對話一次一則，而且不可以超車 ----
     let lane = null;
-    if (claimed && laneUserId) {
-      const entered = await enterUserLane(laneUserId, updateId, attemptId);
+    if (claimed && conversationKey) {
+      const entered = await enterConversationLane(conversationKey, updateId, attemptId);
       if (!entered.ok) {
         // 讓路：把這一則退回可再認領，讓 Telegram 重送時能馬上被接手。
         if (typeof db.releaseTelegramUpdate === 'function') {
@@ -325,6 +372,9 @@ export function createUpdateProcessor({
       }
       lane = entered.lane;
     }
+
+    // ---- 現在才解析內部身分（唯讀，而且已經在通道保護之下）----
+    const c = await classify(update);
 
     let ignored = false;
     try {
@@ -412,7 +462,7 @@ export function createUpdateProcessor({
       });
       return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'processing_failed', replied: false };
     } finally {
-      await leaveUserLane(lane);
+      await leaveConversationLane(lane);
     }
   }
 

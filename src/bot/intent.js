@@ -21,6 +21,17 @@ export const INTENTS = [
   'what_changed',    // 今天最值得注意的是什麼
   'data_status',     // 資料同步狀況
   'journal_log',     // 記一筆 journal
+  /**
+   * 問「現在心跳幾下」「心跳怎麼那麼快」—— 也就是**即時心率**。
+   *
+   * 這個系統拿得到的心率只有：recovery 的靜息心率、已完成 cycle 的平均／最高
+   * 心率、運動的心率、profile 的最大心率。**沒有**即時心率串流。
+   *
+   * 以前沒有這個意圖，於是分類器被迫在現有詞彙裡挑一個最像的 → 挑了 rhr，
+   * 結果系統把「靜息心率 54」當成使用者「現在的心跳」回答出去。那是錯的，
+   * 而且是會誤導人的那種錯。寧可明講拿不到，也不要拿別的數字頂替。
+   */
+  'current_hr',
   'unknown',
 ];
 
@@ -93,6 +104,17 @@ export function deterministicIntent(text) {
       window_days: windowDays ?? 30,
       source: 'deterministic',
     };
+  }
+
+  // 即時心率。**必須排在其他心率規則之前** —— 否則「現在心跳很快」會被
+  // 當成靜息心率的查詢，然後拿 RHR 頂替回答。
+  //
+  // 判準：提到心跳/心率/bpm，而且**沒有**明講靜息/RHR，再加上
+  // 「現在」或「跳很快」這類當下語氣。明確講靜息心率的一律讓給 rhr。
+  if (/(心跳|心率|脈搏|bpm|heart\s*rate)/i.test(t)
+      && !/(靜息|rhr|resting)/i.test(t)
+      && /(現在|目前|此刻|當下|剛剛|now|current|很快|太快|那麼快|狂跳|亂跳|加速|飆|fast|racing)/i.test(t)) {
+    return { intent: 'current_hr', source: 'deterministic' };
   }
 
   // 今天最值得注意
@@ -180,12 +202,18 @@ intent 只能是下列其中一個：
 - best_worst_day：問某段期間內最好或最差的一天
 - what_changed：問今天有什麼值得注意的變化
 - data_status：問資料同步/涵蓋狀況
+- current_hr：問**現在/當下**的心跳、心率、脈搏、bpm（例如「我心跳怎麼那麼快」
+  「現在心率多少」）。注意：明確問「靜息心率 / RHR」的**不是**這一類，
+  那是 trend_query + metric=rhr。
 - unknown：以上都不是
 
 metric 只能是：hrv, rhr, recovery, sleep_total, deep_sleep, rem_sleep,
 previous_day_strain, respiratory_rate, sleep_debt, spo2, skin_temp，或 null。
 
 window_days 是 1 到 365 的整數，沒有提到就給 null。
+
+★ 如果使用者問的是「現在的心跳」，一定要用 current_hr，**不要**改用 rhr。
+這個系統沒有即時心率，硬挑 rhr 會讓系統拿靜息心率冒充當下心跳，那是錯的。
 
 你不需要回答問題本身，也不要計算任何數字。只做分類。`;
 

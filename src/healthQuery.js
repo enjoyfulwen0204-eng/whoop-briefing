@@ -18,7 +18,7 @@
 
 import { ANALYTICS } from './config.js';
 import { addDays, localDate } from './time.js';
-import { loadDailyMetrics, seriesOf } from './dailyMetrics.js';
+import { loadDailyMetrics, seriesOf, RECOVERY_DERIVED_METRICS } from './dailyMetrics.js';
 import { requireUserId } from './userContext.js';
 import {
   describeWindow, summarise, evaluateDeviation, trendsFor,
@@ -60,6 +60,44 @@ const fmtOf = (m, v) => {
 };
 
 const NO_DATA = (reason = 'no_health_data') => ({ available: false, reason });
+
+/**
+ * 「為什麼給不出東西」的具體原因。
+ *
+ * 以前全部擠在一個 metric_unavailable，而呼叫端把它一律講成
+ * 「等 WHOOP 同步之後就能分析了」—— 那句話在絕大多數情況下是**錯的**：
+ * 實測那天 recovery / HRV / RHR 早在 12:32 就同步進資料庫了，使用者 17:05
+ * 問的時候卻被告知要等同步。
+ *
+ * 沒有證據顯示同步是問題時，就不可以把責任推給同步。
+ */
+export const UNAVAILABLE_REASON = Object.freeze({
+  /** 這個帳號在查詢窗內完全沒有健康資料 */
+  NO_DATA: 'no_health_data',
+  /** 認得這個指標，但這段期間沒有任何一筆紀錄 */
+  NO_METRIC_RECORDS: 'no_metric_records',
+  /** 不認得這個指標名 */
+  UNKNOWN_METRIC: 'unknown_metric',
+  /** 這個系統的資料來源本來就取不到（例如即時心率） */
+  UNSUPPORTED_CAPABILITY: 'unsupported_capability',
+  /** 有當下的值，但樣本太少，下不了統計結論 */
+  INSUFFICIENT_HISTORY: 'insufficient_history',
+  /** 有當下的值，但還在 WHOOP 校正期，不進統計 */
+  CALIBRATING: 'calibrating',
+});
+
+/**
+ * 當下有值、但統計結論給不出來時，說明是**哪一種**給不出來。
+ *
+ * 刻意不含「等同步」：那要有實際證據才能講。
+ */
+function analysisLimitFor({ row, key, seriesLength }) {
+  if (seriesLength >= ANALYTICS.MIN_SAMPLES) return null;
+  if (row?.calibrating === true && RECOVERY_DERIVED_METRICS.has(key)) {
+    return UNAVAILABLE_REASON.CALIBRATING;
+  }
+  return UNAVAILABLE_REASON.INSUFFICIENT_HISTORY;
+}
 
 /**
  * 建立查詢服務。
@@ -139,19 +177,61 @@ export function createHealthQuery({
   }
 
   // -------------------------------------------------------------------------
+  /**
+   * 「我現在心跳幾下？」—— 這個系統拿不到。
+   *
+   * WHOOP 的開發者 API 沒有即時心率串流。拿得到的心率只有：
+   *   · recovery 的靜息心率（睡眠期間量到的）
+   *   · 已完成 cycle 的平均／最高心率
+   *   · 運動的心率
+   *   · profile 的最大心率
+   *
+   * 全都不是「使用者此刻的心跳」。**絕不可以拿靜息心率頂替** —— 那會讓人
+   * 以為系統知道他現在的心跳，而那個數字在他心跳很快的當下正好是最誤導的。
+   *
+   * 順帶把今天的靜息心率一起給出來（明確標示是靜息心率），因為問這句話的人
+   * 通常想知道「跟平常比怎樣」，那是我們真的答得出來的部分。
+   */
+  async function currentHeartRate() {
+    const rows = await loadRows();
+    const today = rows[0] ?? null;
+    const rhr = today?.rhr ?? null;
+    return {
+      available: false,
+      reason: UNAVAILABLE_REASON.UNSUPPORTED_CAPABILITY,
+      capability: 'current_heart_rate',
+      metric: 'current_hr',
+      label: '即時心率',
+      health_date: today?.health_date ?? null,
+      /** 可以一起提的、確定答得出來的替代事實（明確標示是什麼）。 */
+      rhr_today: rhr,
+      rhr_today_display: rhr === null ? null : fmtOf('rhr', rhr),
+    };
+  }
+
+  // -------------------------------------------------------------------------
   /** 「最近 HRV 如何？」「最近 recovery 趨勢怎樣？」 */
   async function trendQuery({ metric, windowDays = 30 }) {
     const key = resolveMetric(metric);
-    if (!key) return { available: false, reason: 'unknown_metric', metric };
+    if (!key) return { available: false, reason: UNAVAILABLE_REASON.UNKNOWN_METRIC, metric };
 
     const rows = await loadRows();
     if (!rows.length) return NO_DATA();
 
     const anchor = rows[0].health_date;
     const series = seriesOf(rows, key);
-    if (!series.length) return { available: false, reason: 'metric_unavailable', metric: key };
-
     const current = rows[0][key] ?? null;
+
+    // ★ 事實與分析分開。
+    //
+    // 序列是空的**不代表**今天沒有這個值：校正期的 recovery 衍生值刻意不進
+    // 統計（seriesOf 會排除），但它今天確實被 WHOOP 算出來了。以前這裡直接
+    // 回 metric_unavailable，於是「今天 HRV 多少」被回成「還沒有資料」。
+    //
+    // 只有**連當下的值都沒有**才是真的給不出來。
+    if (!series.length && current === null) {
+      return { available: false, reason: UNAVAILABLE_REASON.NO_METRIC_RECORDS, metric: key };
+    }
     const windows = summarise(series, { endDate: anchor, current });
     const win = describeWindow(series, {
       endDate: anchor, days: windowDays, excludeEndDate: true,
@@ -178,6 +258,11 @@ export function createHealthQuery({
         max: win.max,
       },
       windows,
+      /**
+       * 當下的值給得出來、但統計結論給不出來時的具體原因。
+       * null 代表統計本身是成立的。
+       */
+      analysis_limited: analysisLimitFor({ row: rows[0], key, seriesLength: series.length }),
       trends: trendsFor(key, series, { endDate: anchor }),
       deviation: evaluateDeviation(key, current, describeWindow(series, {
         endDate: anchor, days: ANALYTICS.DEFAULT_BASELINE_WINDOW, excludeEndDate: true,
@@ -324,6 +409,7 @@ export function createHealthQuery({
     loadRows,
     latestDate,
     todayStatus,
+    currentHeartRate,
     trendQuery,
     sleepQuality,
     bestWorstDay,

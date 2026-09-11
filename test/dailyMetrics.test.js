@@ -217,7 +217,14 @@ test('★ 缺一個 optional 欄位不會讓整天失效', async () => {
   } finally { db.close(); cleanup(); }
 });
 
-test('校正期的 recovery 值在統計層一律當 null（與簡報 baseline 同規則）', () => {
+test('★★★ 校正期：事實值保留，但不進統計（兩件事分開）', () => {
+  // 以前這裡是把值抹成 null。那個做法把兩件不同的事綁在一起：
+  //
+  //   事實：WHOOP 今天真的算出了 HRV / recovery
+  //   分析資格：這些值還不能當 baseline / 趨勢的樣本
+  //
+  // 抹成 null 等於連事實都否認，於是 Q&A 回「目前拿不到 HRV」，而使用者
+  // 手機上明明看得到。現在事實留在列上，排除改在 seriesOf（分析層唯一入口）。
   const ds = makeDataset({ days: 5, calibratingDays: [0] });
   const rows = computeDailyMetrics({
     sleepRows: ds.sleeps.filter((s) => !s.nap).map((s) => ({
@@ -230,9 +237,43 @@ test('校正期的 recovery 值在統計層一律當 null（與簡報 baseline �
   });
   const today = rows[0];
   assert.equal(today.calibrating, true);
-  assert.equal(today.hrv, null, '校正期的 HRV 不可以進統計');
-  assert.equal(today.recovery, null);
+
+  // 1) 事實照樣在（Q&A 要用）
+  assert.ok(Number.isFinite(today.hrv), '★ 校正期的 HRV 事實值必須保留');
+  assert.ok(Number.isFinite(today.recovery), '★ 校正期的 recovery 事實值必須保留');
   assert.ok(today.sleep_total > 0, '睡眠資料與校正期無關，照常');
+
+  // 2) 但**不可以**進統計序列
+  for (const key of ['hrv', 'recovery', 'rhr']) {
+    const series = seriesOf(rows, key);
+    assert.ok(!series.some((p) => p.date === today.health_date),
+      `★ 校正期那一天不可以出現在 ${key} 的統計序列裡`);
+  }
+  // 3) 非 recovery 衍生的指標不受影響
+  const sleepSeries = seriesOf(rows, 'sleep_total');
+  assert.ok(sleepSeries.some((p) => p.date === today.health_date),
+    '★ 睡眠不是 recovery 衍生，校正期不該排除它');
+});
+
+test('★★★ 校正期排除只作用在 recovery 衍生指標上', () => {
+  const ds = makeDataset({ days: 5, calibratingDays: [0, 1] });
+  const rows = computeDailyMetrics({
+    sleepRows: ds.sleeps.filter((s) => !s.nap).map((s) => ({
+      id: s.id, nap: 0, health_date: localDate(s.end, TZ), raw_json: JSON.stringify(s),
+    })),
+    recoveryRows: ds.recoveries.map((r) => ({
+      sleep_id: r.sleep_id, raw_json: JSON.stringify(r),
+    })),
+    cycleRows: [], workoutRows: [], timezone: TZ,
+  });
+  const calibratingDates = rows.filter((r) => r.calibrating).map((r) => r.health_date);
+  assert.equal(calibratingDates.length, 2);
+  for (const key of ['hrv', 'recovery', 'rhr', 'spo2', 'skin_temp']) {
+    for (const d of calibratingDates) {
+      assert.ok(!seriesOf(rows, key).some((p) => p.date === d),
+        `★ ${key} 的序列不可以含校正期的 ${d}`);
+    }
+  }
 });
 
 test('小睡不會污染主睡眠，但會被彙總成 nap_count / nap_total', async () => {

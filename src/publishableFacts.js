@@ -97,9 +97,41 @@ export const METRIC_VOCABULARY = {
 /** 永遠不可發布的衍生／專有分數。 */
 export const NEVER_PUBLISHABLE = new Set(['whoop_age', 'healthspan_score']);
 
-/** config.METRICS 的 key → 詞彙表的 key（兩邊命名不完全一致）。 */
+/**
+ * 少數 key 正規化之後會丟失時間語義，要用明確的顯示標籤補回來。
+ *
+ * previous_day_strain 正規化成 strain 是對的（詞彙、守門都該當它是 strain），
+ * 但標籤如果只寫「Strain」，使用者會以為那是今天的 —— 它其實是前一個已完成
+ * cycle 的值。
+ */
+export const CONTEXT_DISPLAY_LABEL = {
+  previous_day_strain: '昨日 Strain',
+};
+
+/**
+ * **唯一的正規化邊界**：任何內部／儲存／分析的欄位名 → 詞彙表的 key。
+ *
+ * 系統裡同一個指標在不同層有不同名字（config.METRICS、dailyMetrics 的欄位、
+ * healthQuery 的輸出）。發布層只認得詞彙表那一套，所以所有進到事實集的 key
+ * 都必須先經過這裡。
+ *
+ * ⚠️ 漏掉一個對應的後果是**內部欄位名直接印給使用者看**
+ * （實測出現過「previous_day_strain 2.6」）。所以下面的 fact() 現在會
+ * fail closed：對應不到就不發布，而不是把 raw key 當標籤印出去。
+ */
 const CONFIG_KEY_TO_VOCAB = {
   recovery_score: 'recovery',
+  // --- dailyMetrics / healthQuery 的欄位名 ---
+  previous_day_strain: 'strain',
+  day_strain: 'strain',
+  deep_sleep: 'slow_wave',
+  rem_sleep: 'rem',
+  light_sleep: 'light_sleep',
+  disturbances: 'disturbance_count',
+  cycle_avg_hr: 'cycle_avg_hr',
+  cycle_max_hr: 'cycle_max_hr',
+  body_max_hr: 'max_heart_rate',
+  vo2max: 'vo2_max',
   strain: 'strain',
   hrv: 'hrv',
   rhr: 'rhr',
@@ -157,7 +189,7 @@ export const FACT_ROLE = {
 export function fact(metric, value, {
   unit = null, display = null, healthDate = null, windowDays = null,
   readiness = null, supporting = [], publishable = null, allowsStructural = null,
-  role = FACT_ROLE.CURRENT_VALUE, provenance = null,
+  role = FACT_ROLE.CURRENT_VALUE, provenance = null, displayLabel = null,
 } = {}) {
   const known = Object.prototype.hasOwnProperty.call(METRIC_VOCABULARY, metric);
   const numeric = typeof value === 'number' && Number.isFinite(value);
@@ -172,6 +204,8 @@ export function fact(metric, value, {
     factId: `${metric}:${role}:${healthDate ?? windowDays ?? 'na'}`,
     metric,
     role,
+    /** 覆寫顯示名稱（保留時間語義，例如「昨日 Strain」）。null 代表用預設標籤。 */
+    displayLabel,
     /** 這筆事實是從哪個確定性層算出來的（稽核用，絕不含使用者原話）。 */
     provenance,
     labels: known ? METRIC_VOCABULARY[metric] : [metric],
@@ -354,6 +388,7 @@ export function factsFromQaResult(result) {
       : Number.isFinite(m?.current) ? m.current : null;
     facts.push(fact(vocab, value, {
       display: m?.display ?? m?.current_display ?? null,
+      displayLabel: CONTEXT_DISPLAY_LABEL[key] ?? null,
       healthDate: result.health_date ?? null,
       windowDays,
       readiness: value === null ? 'UNAVAILABLE' : 'AVAILABLE',

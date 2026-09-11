@@ -30,8 +30,15 @@
  */
 
 import { FACT_ROLE } from './publishableFacts.js';
+import { log } from './logger.js';
 
-/** metric → 對外顯示名稱。與 METRIC_VOCABULARY 的第一個別名一致。 */
+/**
+ * metric → 對外顯示名稱。與 METRIC_VOCABULARY 的第一個別名一致。
+ *
+ * ⚠️ 這張表就是**發布的白名單**。不在表裡的 key 一律不發布 —— 見
+ * displayLabelFor()。以前這裡是 `DISPLAY_LABEL[k] ?? k`，於是任何漏掉對應的
+ * 內部欄位名會被原樣印給使用者看（實測出現過「previous_day_strain 2.6」）。
+ */
 const DISPLAY_LABEL = {
   recovery: '恢復',
   hrv: 'HRV',
@@ -56,6 +63,21 @@ const DISPLAY_LABEL = {
   calories: '熱量',
 };
 
+/**
+ * 取得可以印給使用者看的標籤。**沒有核可的標籤就回 null（fail closed）。**
+ *
+ * 絕不回傳 metric key 本身：那是內部識別碼（snake_case、DB 欄位名、分析用
+ * 的鍵），使用者看到只會困惑，而且等於洩漏內部結構。
+ */
+export function displayLabelFor(f) {
+  // 明確覆寫優先（保留「昨日 Strain」這種時間語義）
+  if (typeof f?.displayLabel === 'string' && f.displayLabel.trim()) return f.displayLabel;
+  const label = DISPLAY_LABEL[f?.metric];
+  if (typeof label === 'string' && label.trim()) return label;
+  log.warn('assertion_unmapped_metric_key', { metric: f?.metric ?? null });
+  return null;
+}
+
 /** 一筆事實 → 顯示字串。優先用確定性層算好的 display。 */
 function valueText(f) {
   if (f.display) return String(f.display);
@@ -71,7 +93,9 @@ function valueText(f) {
  */
 export function renderAssertion(f) {
   if (!f || !f.publishable) return null;
-  const label = DISPLAY_LABEL[f.metric] ?? f.metric;
+  // 沒有核可標籤 → 整筆不發布。寧可少一句話，也不要把內部欄位名印出去。
+  const label = displayLabelFor(f);
+  if (label === null) return null;
   const text = valueText(f);
   if (text === null) return null;
 
@@ -109,9 +133,11 @@ export function renderAssertions(factSet) {
       factIds.push(rendered.factId);
       continue;
     }
-    // 不可發布 = 這次沒有資料。誠實列出來，不要假裝它不存在。
+    // 不可發布 = 這次沒有資料。誠實列出來，不要假裝它不存在 ——
+    // 但一樣只用核可的標籤，沒有就整筆略過。
     if (f && f.value === null) {
-      unavailable.push(DISPLAY_LABEL[f.metric] ?? f.metric);
+      const label = displayLabelFor(f);
+      if (label !== null) unavailable.push(label);
     }
   }
   return { lines, factIds, unavailable };

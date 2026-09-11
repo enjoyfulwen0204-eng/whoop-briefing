@@ -181,9 +181,17 @@ export function renderFallback(result) {
       const w = result.window;
       lines.push(`📈 ${result.label}`);
       lines.push(`目前 ${result.current_display ?? '無資料'}`);
-      lines.push(`${w.window_days} 天平均 ${w.mean_display ?? 'n/a'}（n=${w.n}）`);
-      for (const [k, t] of Object.entries(result.trends)) {
-        lines.push(`${k} 趨勢：${t.sufficient ? t.direction : '資料不足'}`);
+      // 當下的值給得出來、統計給不出來時，講清楚是**哪一種**給不出來 ——
+      // 不要讓人以為是資料還沒同步進來。
+      if (result.analysis_limited === 'calibrating') {
+        lines.push('（還在 WHOOP 校正期，暫時不做趨勢判斷）');
+      } else if (result.analysis_limited === 'insufficient_history') {
+        lines.push('（樣本還太少，還不夠下結論）');
+      } else {
+        lines.push(`${w.window_days} 天平均 ${w.mean_display ?? 'n/a'}（n=${w.n}）`);
+        for (const [k, t] of Object.entries(result.trends)) {
+          lines.push(`${k} 趨勢：${t.sufficient ? t.direction : '資料不足'}`);
+        }
       }
       break;
     }

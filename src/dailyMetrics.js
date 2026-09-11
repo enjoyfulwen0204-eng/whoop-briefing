@@ -224,8 +224,22 @@ export function computeDailyMetrics({
 
     const recoveryScored = r?.score_state === 'SCORED';
     const calibrating = isCalibrating(obs);
-    // 校正期的 recovery 數值不可信 → 統計層一律當成 null（與簡報的 baseline 同規則）
-    const rec = (k) => (recoveryScored && !calibrating ? num(r?.score?.[k]) : null);
+    /**
+     * 已評分的 recovery 數值 —— **校正期也照樣保留**。
+     *
+     * 這裡以前會在校正期把值抹成 null，理由是「校正期的數字不可信，不能進
+     * 統計」。那個目的是對的，但做法把兩件不同的事綁在一起了：
+     *
+     *   事實：WHOOP 今天真的算出了 recovery 63 / HRV 65.6 / RHR 54
+     *   分析資格：這些值還不能拿來當 baseline、趨勢、預測的樣本
+     *
+     * 抹成 null 等於連「事實存在」都否認掉，於是 Q&A 回「目前拿不到 HRV」，
+     * 而使用者手機上明明就看得到。日報那條路早就做對了（analyze.js 用
+     * allowCalibrating 顯示數值、同時用 lightsAllowed 收掉判斷），Q&A 沒跟上。
+     *
+     * 現在事實保留在這一列，**分析資格由 seriesOf 那個邊界負責排除**。
+     */
+    const rec = (k) => (recoveryScored ? num(r?.score?.[k]) : null);
 
     return {
       health_date: obs.healthDate,
@@ -347,9 +361,30 @@ export async function loadDailyMetrics({ db, userId, timezone, from, to, fromIso
   });
 }
 
-/** 把 daily metrics 轉成某個欄位的時間序列（舊→新），null 會被略過。 */
+/**
+ * recovery 算出來的指標。校正期的這幾個值**不可以**進任何統計。
+ *
+ * 事實層仍然看得到它們（見 computeDailyMetrics 的 rec()）—— 分開的地方就在這裡。
+ */
+export const RECOVERY_DERIVED_METRICS = new Set([
+  'recovery', 'hrv', 'rhr', 'spo2', 'skin_temp',
+]);
+
+/**
+ * 把 daily metrics 轉成某個欄位的時間序列（舊→新），null 會被略過。
+ *
+ * ★ 這是**分析層唯一的入口**：baseline、趨勢、預測、異常、Insight、
+ * healthspan、實驗，全部都從這裡拿序列。所以「校正期的樣本不可以進統計」
+ * 這條規則放在這裡就夠了，不需要在每個消費者各寫一次。
+ *
+ * 校正期的 recovery 衍生值以前是在 computeDailyMetrics 就被抹成 null，
+ * 所以自然被下面的 null 過濾掉。現在值保留了（Q&A 要用），排除就改在這裡 ——
+ * 對分析層來說**序列完全一樣**，行為沒有任何改變。
+ */
 export function seriesOf(rows, key) {
+  const excludeCalibrating = RECOVERY_DERIVED_METRICS.has(key);
   return [...rows]
+    .filter((r) => !(excludeCalibrating && r.calibrating === true))
     .filter((r) => num(r[key]) !== null)
     .sort((a, b) => (a.health_date < b.health_date ? -1 : 1))
     .map((r) => ({ date: r.health_date, value: num(r[key]) }));

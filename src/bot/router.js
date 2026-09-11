@@ -260,6 +260,48 @@ export function looksLikeJournal(text) {
  * timezone 一律用**該使用者的**（users.timezone），不是全域 TIMEZONE。
  * coach 用 coachFor(userId) 產生，這樣 ai_usage 才會記在正確的人身上。
  */
+/**
+ * 「給不出東西」的具體說法。
+ *
+ * ⚠️ 刻意**不再**一律講「等 WHOOP 同步之後就能分析了」。
+ *
+ * 那句話原本套在每一種缺資料上，但它在絕大多數情況下是錯的：實測那天
+ * recovery / HRV / RHR 早就同步進資料庫了，使用者下午問的時候卻被告知要等
+ * 同步。沒有證據顯示同步有問題，就不可以把責任推給同步 —— 那會讓人白等，
+ * 也會掩蓋真正的原因。
+ */
+export function unavailableReply(result) {
+  const label = result?.label ?? result?.metric ?? '這個指標';
+  switch (result?.reason) {
+    case 'unknown_metric':
+      return `我還不認得「${result.metric}」這個指標。可以問 HRV、靜息心率、恢復、睡眠、Strain 等。`;
+    case 'unsupported_capability': {
+      // 即時心率：明講拿不到，並且把真正答得出來的東西（今天的靜息心率）
+      // 清楚標示出來 —— 但絕不讓人以為那就是他現在的心跳。
+      if (result?.capability === 'current_heart_rate') {
+        const lines = [
+          '我看不到你「現在」的心跳 —— WHOOP 的開發者 API 沒有即時心率，',
+          '我這邊只有睡眠期間量到的靜息心率、以及已完成週期的平均／最高心率。',
+        ];
+        if (result.rhr_today_display) {
+          lines.push('', `今天的靜息心率是 ${result.rhr_today_display}（這是睡眠時的值，不是你當下的心跳）。`);
+        }
+        lines.push('', '如果你手邊的錶或 App 正顯示一個數字，跟我說多少，我可以幫你對照看看。');
+        return lines.join('\n');
+      }
+      return `${label}不在這個系統拿得到的資料範圍內，所以我沒辦法回答這一題。`;
+    }
+    case 'no_metric_records':
+      return `我這邊還沒有${label}的任何一筆紀錄。`;
+    case 'insufficient_history':
+      return `${label}目前的樣本還太少，還不夠下結論。再累積幾天就可以了。`;
+    case 'calibrating':
+      return `${label}今天的數值有，但還在 WHOOP 的校正期，暫時不做趨勢判斷。`;
+    default:
+      return NO_DATA_REPLY;
+  }
+}
+
 export function createRouter({
   db, coachFor, now = () => new Date(), lookbackDays = 120,
 }) {
@@ -585,13 +627,7 @@ export function createRouter({
     const result = await runIntent(q, intent);
 
     if (!result || result.available === false) {
-      if (result?.reason === 'unknown_metric') {
-        return `我還不認得「${result.metric}」這個指標。可以問 HRV、靜息心率、恢復、睡眠、Strain 等。`;
-      }
-      if (result?.reason === 'metric_unavailable') {
-        return `目前還沒有 ${result.metric} 的資料。等 WHOOP 同步之後就能分析了。`;
-      }
-      return NO_DATA_REPLY;
+      return unavailableReply(result);
     }
 
     const answer = await composeAnswer({ question: text, result, coach });
@@ -631,6 +667,7 @@ export function createRouter({
           windowDays: intent.window_days ?? 30,
         });
       case 'what_changed': return q.whatChanged();
+      case 'current_hr': return q.currentHeartRate();
       default: return null;
     }
   }

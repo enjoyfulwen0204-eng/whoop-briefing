@@ -25,9 +25,13 @@ test('static privacy policy contains no credential material or external assets',
 });
 
 test('Render serves the policy as a credential-free static site at /privacy', () => {
+  // 切到**下一個服務**為止，而不是切到某一行註解為止。
+  // 舊版把結尾錨定在「# 1.」那行註解上，所以藍圖的註解一改（例如移除
+  // 重複的 cron 服務）這個測試就會失敗 —— 失敗的原因跟隱私政策無關。
   const privacyService = renderConfig.match(
-    /- type: web\n    name: whoop-privacy\n([\s\S]*?)(?=\n  # -{10,}\n  # 1\.)/,
+    /- type: web\n    name: whoop-privacy\n([\s\S]*?)(?=\n  - type:|$)/,
   )?.[1] ?? '';
+  assert.ok(privacyService.trim(), '必須真的抓到 whoop-privacy 服務區塊');
   assert.match(privacyService, /runtime: static/);
   assert.match(privacyService, /staticPublishPath: \.\/public/);
   assert.match(privacyService, /source: \/privacy\n        destination: \/privacy\.html/);

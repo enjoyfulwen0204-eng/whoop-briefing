@@ -30,7 +30,7 @@
 
 ## 這東西怎麼運作（30 秒版）
 
-1. 一台雲端排程器（GitHub Actions 或 Render Cron Job）**全天每 30 分鐘**執行一次這支程式。
+1. 一台雲端排程器 —— 正式環境是 **GitHub Actions**（`.github/workflows/briefing.yml`）—— **全天每 30 分鐘**執行一次這支程式。排程器**只能有一個**：兩個同時開著會讓 WHOOP 用量與 OpenRouter 花費變成兩倍（資料不會壞，report_claims 與 resource_locks 擋得住重複發送與 token 競態）。
 2. 每次執行先問 Turso：「今天和昨天的簡報都發過了嗎？而且週報也不待發？」都成立就直接結束，連 WHOOP 都不打。
 3. 否則 → 抓最新的睡眠與恢復資料，判斷「你是不是真的起床了」（最新主睡眠已評分、對應的 recovery 已評分、距離睡眠結束已超過 30 分鐘、而且不超過 24 小時）。
 4. 條件成立 → 才抓 45 天歷史，算出你的個人基準、紅黃燈、趨勢，然後請模型把結果講成人話，發到 Telegram，並在 Turso 記一筆「已送出」。
@@ -64,8 +64,8 @@
 | `scripts/probe-fields.js` | 看你的 WHOOP 帳號實際回傳哪些欄位。 |
 | `scripts/dry-run.js` | 用假資料把各種情境跑一遍，直接看到訊息長相。 |
 | `test/` | 63 個自動化測試。 |
-| `render.yaml` | Render 部署藍圖（可選）。 |
-| `.github/workflows/briefing.yml` | 用 GitHub Actions 排程的備案（可選）。 |
+| `render.yaml` | Render 部署藍圖：隱私政策 static site + Telegram bot worker。**刻意不含 cron** —— 排程由 GitHub Actions 負責。 |
+| `.github/workflows/briefing.yml` | 正式環境的排程器（每 30 分鐘）。這是**唯一**的排程擁有者。 |
 
 ---
 
@@ -611,6 +611,22 @@ V1 的邊界，先講清楚：
 純粹是為了 GitHub Actions 的免費分鐘數：private repo 每月 2,000 分鐘，而 Actions **每個 job 都向上取整到 1 分鐘**計費，全天每 30 分鐘 = 48 分鐘/天 ≈ 1,440 分鐘/月（吃掉 72%）。public repo 沒有這個上限。
 
 程式碼裡沒有任何 secret（都在 GitHub Secrets / `.env`，`.env` 從未進版控），所以公開沒有安全問題。
+
+### 怎麼確認排程還活著
+
+這個系統健康的時候是**完全安靜**的 —— 所以「排程死掉」和「一切正常」在你眼裡長得一模一樣。
+
+系統裡唯一會注意到心跳變舊的是 Guardian，而 Guardian 本身跑在 cron 裡面：排程一旦停掉，就再也沒有人去看那個心跳了。下面那一節處理了最常見的死因（滿 60 天無 commit），但 workflow 被手動停用、`npm ci` 壞掉、secret 過期、Actions 當機，這些都還是會安靜地死。
+
+所以要確認的時候跑：
+
+```bash
+npm run health-status
+```
+
+`排程器` 那一段會告訴你最後一次**完整跑完**是什麼時候。排程是每 30 分鐘一次，超過 3 小時沒跑完一輪就會標成 ⚠️ 已過期 —— 那代表它真的停了或一直失敗，去 GitHub 的 Actions 分頁看最近的 run 是失敗、還是根本沒有被觸發。
+
+這支指令只讀 Turso，不打 WHOOP / OpenRouter / Telegram，隨時跑都安全。
 
 ### 60 天不 commit，排程會被自動停用
 這是 GitHub 的既有行為：**repo 連續 60 天沒有任何 commit，scheduled workflow 會被自動停用**。而且是安靜地停 —— 不會有錯誤通知，因為根本沒有 run 被觸發，系統裡沒有任何東西知道自己死了。

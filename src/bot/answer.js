@@ -4,6 +4,7 @@
 import { AI_PURPOSE } from '../config.js';
 import { factsFromQaResult } from '../publishableFacts.js';
 import { renderAssertions, assemblePublication } from '../assertionRenderer.js';
+import { mechanismNoun } from './healthEducation.js';
 
 export const ANSWER_SYSTEM_PROMPT = `你是 Kelvin 的私人健康教練，語氣溫暖、專業、口語，用繁體中文。
 
@@ -291,72 +292,77 @@ function notReadyPhrase(result) {
 /**
  * 「為什麼我這麼累」的回答。
  *
- * ## 兩條不可退讓的規則
+ * ## 三條不可退讓的規則
  *
  * 1. **「沒偵測到偏離」不可以講成「你沒事」。** 使用者說他累，那是一個事實；
  *    系統看不出異常只代表系統看不出來。
  * 2. **成熟度是逐指標的。** 睡眠有基準不代表 Recovery／HRV／靜息心率也有。
- *    以前拿最大值當「整體準備好了」，等於用睡眠的樣本數替恢復背書。
+ * 3. **時序不明就不要講先後。** 只有日期的紀錄不足以支撐因果順序的說法。
  *
- * 長度刻意壓到 4～7 短行：這是對話，不是報表。只挑對回答有幫助的觀察，
- * 不機械式列出每一個欄位。
+ * ## 長度
+ *
+ * 目標 3～5 個短段、450 字以內。上一版雖然行數變少了，卻仍然是一份報表：
+ * 開場白、指標清單、基準說明、因果限制、時序說明、建議、緊急警語 —— 七個
+ * 區塊每次都出現，連「今天有點累」也會收到一段急診指引。
+ *
+ * 所以這一版把結論放到**第一句**，不確定性只講一次，緊急警語不再自動附加
+ * （明確的緊急症狀由 triage 那一層處理，它排在路由最前面）。
  */
 export function renderCauseAnswer(result) {
   const out = [];
   const facts = result.facts ?? [];
   const contributors = result.contributors ?? [];
   const comparable = facts.filter((f) => f.comparable);
+  const names = contributors.map((c) => c.label).filter(Boolean);
 
-  out.push('你會覺得累，這件事本身就值得看一下。');
+  // ---- 1. 先回答問題本身 ----
+  if (names.length) {
+    // 用自然的說法（「酒精」而不是「飲酒」），避免跟記錄確認那句重複。
+    const noun = contributors.map((c) => mechanismNoun(c.category) ?? c.label)
+      .filter(Boolean).join('、');
+    out.push(`${noun}確實可能讓人短時間覺得疲倦，不過目前還不能確定這就是主因。`);
+  } else {
+    out.push('你會覺得累是一個事實，值得看一下 —— 不過我還沒辦法指出原因。');
+  }
 
-  // 只講最相關的一兩項，而且優先講「有偏離的」或「睡眠」這種直覺相關的
+  // ---- 2. 只講最相關的一兩項觀察 ----
   const highlight = (comparable.filter((f) => f.noteworthy).slice(0, 2).length
     ? comparable.filter((f) => f.noteworthy).slice(0, 2)
     : facts.filter((f) => ['sleep_total', 'recovery'].includes(f.key)).slice(0, 2));
+  const parts = [];
   if (highlight.length) {
-    out.push(highlight
+    parts.push(`今天${highlight
       .map((f) => `${f.label} ${f.display}`
         + (f.comparable && f.baseline_display
           ? `（平常約 ${f.baseline_display}${f.noteworthy ? '，這次偏離比較明顯' : '，差不多'}）`
           : ''))
-      .join('；') + '。');
+      .join('、')}。`);
   }
 
-  // 能不能跟個人常態比 —— 逐指標，不用最大值
+  // ---- 3. 限制只講一次 ----
   const missing = notReadyPhrase(result);
   if (!comparable.length) {
-    out.push(missing
-      ? `不過${missing}目前還沒有足夠的合格歷史可以建立你的個人基準，`
-        + '我沒辦法判斷這些數字是否偏離你的個人常態，也就無法確定你累的真正原因。'
-      : '不過我還沒有足夠的合格歷史可以建立你的個人基準，'
-        + '沒辦法判斷這些數字是否偏離你的個人常態，也就無法確定你累的真正原因。');
+    parts.push(missing
+      ? `不過${missing}的個人基準還在累積，我沒辦法判斷這些數字是不是偏離你的常態。`
+      : '不過你的個人基準還在累積，我沒辦法判斷這些數字是不是偏離你的常態。');
   } else if (missing) {
-    out.push(`要注意的是${missing}還沒有足夠的合格歷史，那幾項我暫時不下判斷。`);
+    parts.push(`${missing}的基準還在累積，那幾項我暫時不下判斷。`);
   }
 
-  // 可能的因素（白名單類別、已去重、絕不宣稱因果）
-  if (contributors.length) {
-    const names = contributors.map((c) => c.label).filter(Boolean);
-    if (names.length) {
-      out.push('');
-      const after = contributors.some((c) => c.temporal === 'after');
-      const unknownTime = contributors.some((c) => c.temporal === 'unknown');
-      let line = `${names.join('、')}都有可能讓人短時間覺得疲倦，不過以目前的資料還不能確認就是這個原因。`;
-      if (after) {
-        line += '而且今天的恢復、HRV 和靜息心率是睡眠期間量到的，時間早於這件事，'
-          + '不能用來證明它的影響。';
-      } else if (unknownTime) {
-        line += '這筆紀錄的時間不夠精確，所以我也不能確認它和這次量測的先後關係。';
-      }
-      out.push(line);
+  // ---- 4. 時序：只有在確定的時候才講 ----
+  if (names.length) {
+    if (contributors.some((c) => c.temporal === 'after')) {
+      parts.push('而且今天的恢復與 HRV 是在這件事之前量到的，沒辦法用來看它的影響。');
     }
+    // 時間不確定就**不講**先後 —— 不需要為此多寫一句解釋。
   }
+  if (parts.length) out.push(parts.join(''));
 
-  out.push('');
-  out.push(comparable.length
-    ? '如果疲倦持續或伴隨其他不適，還是以你的身體感覺為準。'
-    : '先休息、補充水分並觀察；若出現胸痛、呼吸困難或快昏倒的情況，請立刻尋求協助。');
-  return out.join('\n');
+  // ---- 5. 一句可以實際做的事 ----
+  out.push(names.length
+    ? '先休息、補充水分並觀察。'
+    : '先照平常的節奏休息，有變化再跟我說。');
+  return out.join('\n\n');
 }
 
 /**

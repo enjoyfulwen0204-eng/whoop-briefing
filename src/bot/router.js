@@ -26,6 +26,9 @@ import { labelForCategory } from '../journal.js';
 import { log, describeError } from '../logger.js';
 import { resolveIntent, parseCommand } from './intent.js';
 import { composeAnswer } from './answer.js';
+import { resolvePerspective, intentIsInherentlyPersonal, PERSPECTIVE } from './perspective.js';
+import { educationAnswer, detectTopic } from './healthEducation.js';
+import { validateTimePrecision } from './timePrecision.js';
 import {
   handleLog, handleHealthData, startText, buildHelp,
   handleStatus, handleJournal, handleInsights, handlePredictions,
@@ -34,7 +37,7 @@ import {
 import * as experimentFlow from './experimentFlow.js';
 import {
   shouldFollowUp, openFollowUp, isNegativeAnswer, looksLikeQuestion,
-  mentionsLoggableEvent, isExplicitLogCommand, FOLLOW_UP_CATEGORIES,
+  mentionsLoggableEvent, isExplicitLogCommand, isSelfRecallQuestion, FOLLOW_UP_CATEGORIES,
 } from './conversation.js';
 
 const NO_DATA_REPLY = [
@@ -151,13 +154,32 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
   //
   // 關鍵字出現不等於事情發生過。「喝酒會讓人累嗎？」裡有「喝酒」，
   // 但它是一個衛教問題，不是一筆個人紀錄。
-  if (raw.asserted !== true) return { ok: false, reason: 'not_asserted' };
-  if (raw.negated === true) return { ok: false, reason: 'negated' };
-  if (raw.hypothetical === true) return { ok: false, reason: 'hypothetical' };
-  if (raw.about_self !== true) return { ok: false, reason: 'not_about_self' };
+  //
+  // ★ 訊號**不論通過與否都要回報**。上一輪它們只保護寫入，於是被拒絕之後
+  // 「這句話在講誰」的資訊就消失了，回答規劃只好重新猜 —— 那正是「我朋友
+  // 喝酒後很累」被用使用者自己的數據回答的原因。
+  const signals = {
+    asserted: raw.asserted === true,
+    negated: raw.negated === true,
+    hypothetical: raw.hypothetical === true,
+    aboutSelf: raw.about_self === true ? true : (raw.about_self === false ? false : null),
+  };
+  const reject = (reason) => ({ ok: false, reason, signals });
 
-  const timePrecision = ['now', 'time', 'date', 'unknown'].includes(raw.time_precision)
-    ? raw.time_precision : 'unknown';
+  if (raw.asserted !== true) return reject('not_asserted');
+  if (raw.negated === true) return reject('negated');
+  if (raw.hypothetical === true) return reject('hypothetical');
+  if (raw.about_self !== true) return reject('not_about_self');
+
+  // ★ 解析器只能**提議**時間精確度；原文支撐不起來就下修。
+  // 「我昨天喝酒」不會因為模型回了 now 就變成一個精確的時刻。
+  const validated = validateTimePrecision({ text, proposed: raw.time_precision });
+  if (validated.downgraded) {
+    log.info('time_precision_downgraded', {
+      proposed: validated.proposed, supported: validated.supported,
+    });
+  }
+  const timePrecision = validated.precision;
 
   // ★ R3-M-02：「沒說日期」與「明確說今天」必須是**兩個不同的狀態**。
   //
@@ -184,6 +206,9 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
   return {
     ok: true,
     confidence,
+    signals,
+    /** 時間精確度的驗證過程（稽核用：模型提議了什麼、原文撐得起什麼）。 */
+    timePrecisionAudit: validated,
     /** 使用者明確講出來的日期偏移；null 代表「沒說」（不是「今天」）。 */
     statedDayOffset: statedOffset,
     /** 時間精確度（決定敢不敢談與量測的先後關係）。 */
@@ -560,7 +585,16 @@ export function createRouter({
     // ⚠️ 明確的記錄指令（「記一下…」「幫我登記…」）不走這條路：那是單一
     // 言語行為（只有 (a)），使用者要的是確認，不是分析。否則「記一下我昨晚
     // 熬夜好嗎」會被當成複合問題，回一整段身體狀況說明。
-    if (!isExplicitLogCommand(text) && looksLikeQuestion(text) && mentionsLoggableEvent(text)) {
+    //
+    // ★ 兩種問句雖然含有事件詞，但都**不是**在陳述使用者身上發生的事：
+    //   「我是不是喝酒了？」 —— 在問我們有沒有那筆紀錄
+    //   「壓力可能讓 HRV 改變嗎？」 —— 一般衛教問題
+    // 它們不可以走到這條路：這裡會寫入 Journal，也會把正在等待的追問收掉。
+    const compoundPerspective = resolvePerspective({ text });
+    if (!isExplicitLogCommand(text)
+      && !isSelfRecallQuestion(text)
+      && compoundPerspective.usePersonalData
+      && looksLikeQuestion(text) && mentionsLoggableEvent(text)) {
       // ★ 使用者明顯換了話題（開始問一個帶事件的新問題），原本開著的追問
       // 就不該再留著 —— 否則它會在稍後吃掉一句無關的短回覆，而且那句話
       // 會被記在**追問問的那一天**（例如昨天），不是使用者現在講的事。
@@ -574,8 +608,11 @@ export function createRouter({
       }
       let savedLine = null;
       let justLogged = null;
+      let signals = null;
       try {
         const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
+        // ★ 訊號不論解析是否通過都要留下來：它是「這句話在講誰」的結構化證據。
+        signals = nat.signals ?? null;
         if (nat.ok) {
           const saved = await saveEvent(db, userId, nat.event, { now: t, timezone });
           if (saved.ok) {
@@ -588,7 +625,7 @@ export function createRouter({
         log.warn('compound_journal_failed', { error: describeError(err) });
       }
       const answer = await handleQuestion({
-        text, chatId, t, userId, timezone, coach, justLogged,
+        text, chatId, t, userId, timezone, coach, justLogged, signals,
       });
       return savedLine ? `${savedLine}\n\n${answer}` : answer;
     }
@@ -717,7 +754,46 @@ export function createRouter({
     }
   }
 
-  async function handleQuestion({ text, chatId, t, userId, timezone, coach, justLogged = null }) {
+  /**
+   * 回答規劃：這一題可不可以動用個人 WHOOP 資料？
+   *
+   * ★ 這是唯一的授權點。個人資料的使用必須**正面確立**，不是「沒被否定」。
+   *
+   * 兩種情況可以用：
+   *   (a) intent 本質上就是在問使用者自己的量測／歷史（今天狀態、趨勢、
+   *       同步、成熟度…）—— 這些 intent 沒有別的對象可以問。
+   *   (b) 解釋原因這一族，而且視角解析確立了在問使用者自己。
+   *
+   * 其餘一律走衛教路徑，而且**不會構造個人化的結果物件** —— 不是算出來
+   * 之後再過濾，是根本不去算。
+   */
+  function planAnswer({ text, intent, signals }) {
+    const resolved = resolvePerspective({ text, signals });
+
+    // ★ 視角的否決權優先於 intent。
+    //
+    // intent 只看句子在問什麼**主題**，不看在問**誰**：「有人喝酒後 HRV 會
+    // 降低嗎？」被判成 trend_query，「壓力可能讓 HRV 改變嗎？」也是。如果
+    // 只憑 intent 就放行，這兩句都會用使用者自己的 HRV 歷史去回答一個
+    // 一般性問題。明確指向別人或明確是一般問法時，個人資料一律不開放。
+    if (resolved.perspective === PERSPECTIVE.THIRD_PARTY
+      || resolved.perspective === PERSPECTIVE.GENERAL) {
+      return resolved;
+    }
+
+    // 主詞是使用者、或沒有主詞但 intent 本來就只問得到使用者自己的帳號
+    //（「因為數據不夠嗎」「WHOOP 有同步成功嗎」「最近 HRV 如何」）。
+    if (intentIsInherentlyPersonal(intent)) {
+      return {
+        ...resolved, perspective: PERSPECTIVE.SELF, usePersonalData: true, source: 'intent_scope',
+      };
+    }
+    return resolved;
+  }
+
+  async function handleQuestion({
+    text, chatId, t, userId, timezone, coach, justLogged = null, signals = null,
+  }) {
     // 「證據呢？」「你憑什麼？」「樣本多少？」→ 直接回 evidence 摘要。
     // ★ 必須在 intent 判定之前 —— 這類問句不會被任何 intent 認出來，
     // 放在後面會先被 unknown 分支攔截而永遠走不到。
@@ -725,8 +801,44 @@ export function createRouter({
       return handleEvidence({ db, userId, now: t });
     }
 
+    // 「我是不是喝酒了？」—— 問的是我們這邊有沒有紀錄。這題有確定性的答案，
+    // 不需要 intent 分類，也絕不該掉到指令清單或衛教說明。
+    if (isSelfRecallQuestion(text)) {
+      return journalRecall({ text, t, userId, timezone });
+    }
+
     const intent = await resolveIntent(text, { coach });
     log.info('intent_resolved', { intent: intent.intent, source: intent.source, metric: intent.metric });
+
+    // ---- 視角：這一題在問誰，可不可以用個人資料 ----
+    const plan = planAnswer({ text, intent: intent.intent, signals });
+    log.info('answer_plan', {
+      intent: intent.intent, perspective: plan.perspective,
+      use_personal_data: plan.usePersonalData, source: plan.source,
+    });
+
+    // ★ 不是在問使用者自己 → 走衛教，個人資料完全不碰。
+    // 放在 intent 分派之前，所以 cause_query 的個人化算式根本不會被執行。
+    if (!plan.usePersonalData) {
+      const edu = educationAnswer({ text, perspective: plan.perspective });
+      if (edu) {
+        log.info('health_education_answered', {
+          topic: edu.topic, aspect: edu.aspect, perspective: edu.perspective,
+        });
+        return edu.text;
+      }
+      // 認不出主題：誠實說沒把握，不要拿使用者的數據去回答別人的問題，
+      // 也不要丟指令清單。
+      if (plan.perspective === PERSPECTIVE.THIRD_PARTY) {
+        return '這題我沒辦法幫你判斷 —— 我看不到他的資料，也不該用你的數據去回答關於他的問題。\n\n'
+          + '如果他的狀況讓你不放心，尤其是有呼吸困難、胸痛、意識不清或叫不醒的情況，'
+          + '請直接尋求醫療協助。';
+      }
+      if (detectTopic(text) || plan.perspective === PERSPECTIVE.GENERAL) {
+        return '這個問題我沒有足夠把握給你一般性的說明，我不想憑印象回答健康問題。\n\n'
+          + '如果你想問的是自己的數據，可以直接問「我今天狀態怎樣」或「最近 HRV 如何」。';
+      }
+    }
 
     if (intent.intent === 'unknown') {
       return [
@@ -781,6 +893,38 @@ export function createRouter({
     }
 
     return answer;
+  }
+
+  /**
+   * 讀出今天的 Journal 紀錄來回答「我是不是…了」。
+   *
+   * 只講我們確實有的東西：沒有紀錄就說沒有紀錄，**不是**說「你沒有喝酒」——
+   * 系統看不到使用者沒告訴它的事。
+   */
+  async function journalRecall({ text, t, userId, timezone }) {
+    const today = localDate(t, timezone);
+    let events = [];
+    try {
+      if (typeof db.getJournalEvents === 'function') {
+        events = await db.getJournalEvents(userId, { from: today, to: today, limit: 50 });
+      }
+    } catch (err) {
+      log.warn('journal_recall_failed', { error: describeError(err) });
+    }
+    // 問的是哪一類（認不出來就全部列出）
+    const topic = detectTopic(text);
+    const matched = topic ? events.filter((e) => e.category === topic) : events;
+    if (matched.length) {
+      const names = [...new Set(matched.map((e) => labelForCategory(e.category)))].join('、');
+      return `你今天有告訴我：${names}。`;
+    }
+    if (events.length) {
+      const names = [...new Set(events.map((e) => labelForCategory(e.category)))].join('、');
+      return `我這邊今天沒有那筆紀錄，只有${names}。\n\n`
+        + '我只看得到你告訴我的事，所以沒有紀錄不代表沒發生。';
+    }
+    return '我這邊今天還沒有你的任何紀錄。\n\n'
+      + '我只看得到你告訴我的事，所以沒有紀錄不代表沒發生 —— 想記的話跟我說一聲就好。';
   }
 
   async function runIntent(q, intent) {

@@ -79,6 +79,20 @@ export function mentionsLoggableEvent(text) {
  * 這類句子必須**優先於**一般的問句／複合路由 —— 使用者已經明講要記，
  * 不需要再被當成問題來回答。
  */
+/**
+ * 「我是不是喝酒了？」「我今天有沒有熬夜？」
+ *
+ * 這是在問**我們這邊有沒有那筆紀錄**，不是在陳述事情發生過（所以絕不寫入），
+ * 也不是衛教問題（所以不該回一般機轉說明）。系統唯一誠實的答案是把自己的
+ * 紀錄讀出來 —— 它看得到的只有使用者自己說過的話。
+ */
+export function isSelfRecallQuestion(text) {
+  const t = String(text ?? '');
+  if (!/我/.test(t)) return false;
+  if (!/(是不是|有沒有|有沒|是否)/.test(t)) return false;
+  return mentionsLoggableEvent(t);
+}
+
 export function isExplicitLogCommand(text) {
   return /(幫我記|幫我登記|記一下|記錄一下|記下|登記一下|幫我寫下)/.test(String(text ?? ''));
 }

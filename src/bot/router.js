@@ -271,10 +271,17 @@ export function looksLikeJournal(text) {
  * 也會掩蓋真正的原因。
  */
 export function unavailableReply(result) {
-  const label = result?.label ?? result?.metric ?? '這個指標';
+  // Publication boundary: never echo an internal/model-provided metric key.
+  const publicLabels = {
+    hrv: 'HRV', rhr: '靜息心率', recovery: '恢復', sleep_total: '睡眠',
+    deep_sleep: '深睡', rem_sleep: 'REM', previous_day_strain: '昨日 Strain',
+    respiratory_rate: '呼吸率', sleep_debt: '睡眠債', spo2: '血氧',
+    skin_temp: '皮膚溫度', current_hr: '即時心率',
+  };
+  const label = publicLabels[result?.metric] ?? '這個指標';
   switch (result?.reason) {
     case 'unknown_metric':
-      return `我還不認得「${result.metric}」這個指標。可以問 HRV、靜息心率、恢復、睡眠、Strain 等。`;
+      return '我還不認得這個指標。可以問 HRV、靜息心率、恢復、睡眠、Strain 等。';
     case 'unsupported_capability': {
       // 即時心率：明講拿不到，並且把真正答得出來的東西（今天的靜息心率）
       // 清楚標示出來 —— 但絕不讓人以為那就是他現在的心跳。

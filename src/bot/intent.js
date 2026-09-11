@@ -111,7 +111,7 @@ export function deterministicIntent(text) {
   //
   // 判準：提到心跳/心率/bpm，而且**沒有**明講靜息/RHR，再加上
   // 「現在」或「跳很快」這類當下語氣。明確講靜息心率的一律讓給 rhr。
-  if (/(心跳|心率|脈搏|bpm|heart\s*rate)/i.test(t)
+  if (/(心跳|心率|脈搏|bpm|heart\s*rate|heartbeat|pulse|heart(?=\s+(?:is\s+)?racing))/i.test(t)
       && !/(靜息|rhr|resting)/i.test(t)
       && /(現在|目前|此刻|當下|剛剛|now|current|很快|太快|那麼快|狂跳|亂跳|加速|飆|fast|racing)/i.test(t)) {
     return { intent: 'current_hr', source: 'deterministic' };

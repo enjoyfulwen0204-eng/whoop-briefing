@@ -117,7 +117,12 @@ export function createHealthQuery({
     if (!rowsPromise) {
       const to = localDate(now, timezone);
       const from = addDays(to, -lookbackDays);
-      rowsPromise = loadDailyMetrics({ db, userId: uid, timezone, from, to }).catch((err) => {
+      rowsPromise = loadDailyMetrics({
+        db, userId: uid, timezone, from, to,
+        // Q&A must distinguish a factual current observation from whether that
+        // observation is eligible for statistical interpretation.
+        includeCalibratingFacts: true,
+      }).catch((err) => {
         log.warn('health_query_load_failed', {
           error: String(err?.message ?? err).slice(0, 200),
         });
@@ -230,7 +235,12 @@ export function createHealthQuery({
     //
     // 只有**連當下的值都沒有**才是真的給不出來。
     if (!series.length && current === null) {
-      return { available: false, reason: UNAVAILABLE_REASON.NO_METRIC_RECORDS, metric: key };
+      return {
+        available: false,
+        reason: UNAVAILABLE_REASON.NO_METRIC_RECORDS,
+        metric: key,
+        label: labelOf(key),
+      };
     }
     const windows = summarise(series, { endDate: anchor, current });
     const win = describeWindow(series, {

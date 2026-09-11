@@ -321,7 +321,10 @@ export function computeDailyMetrics({
  * @param {string} userId **必填**。所有資料讀取都限定這個使用者。
  * @param {string} timezone 該使用者的時區。
  */
-export async function loadDailyMetrics({ db, userId, timezone, from, to, fromIso, toIso }) {
+export async function loadDailyMetrics({
+  db, userId, timezone, from, to, fromIso, toIso,
+  includeCalibratingFacts = false,
+}) {
   const uid = requireUserId(userId, 'loadDailyMetrics');
   const startIso = fromIso ?? `${from}T00:00:00.000Z`;
   const endIso = toIso ?? `${to}T23:59:59.999Z`;
@@ -351,13 +354,24 @@ export async function loadDailyMetrics({ db, userId, timezone, from, to, fromIso
   // 睡眠是骨架：沒有它就沒有任何 health_date 可言
   if (settled[0].status === 'rejected') throw settled[0].reason;
 
-  return computeDailyMetrics({
+  const rows = computeDailyMetrics({
     sleepRows: value(0, []),
     recoveryRows: value(1, []),
     cycleRows: value(2, []),
     workoutRows: value(3, []),
     bodyMeasurement: value(4, null),
     timezone,
+  });
+
+  // Most callers are analytical pipelines. Preserve their pre-QAA semantics even
+  // when they consume rows directly instead of going through seriesOf(). Only a
+  // factual publication caller may opt in to the observed calibration values.
+  if (includeCalibratingFacts) return rows;
+  return rows.map((row) => {
+    if (row.calibrating !== true) return row;
+    const safe = { ...row };
+    for (const key of RECOVERY_DERIVED_METRICS) safe[key] = null;
+    return safe;
   });
 }
 

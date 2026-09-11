@@ -156,6 +156,7 @@ test('★★★ 分析安全：校正期的值不可以進統計序列', async (
   try {
     const rows = await loadDailyMetrics({
       db, userId: user.id, timezone: TZ, from: '2026-09-01', to: '2026-09-30',
+      includeCalibratingFacts: true,
     });
     const today = rows.find((r) => r.health_date === HD);
     assert.equal(today.calibrating, true);
@@ -199,7 +200,8 @@ test('★★★ Case 3: 「我的心跳怎麼那麼快」不可以被當成靜�
 
 test('★★★ 即時心率意圖：現在/很快類的問法不會落到 rhr', () => {
   for (const q of ['我的心跳怎麼那麼快', '我現在心跳很快', '現在心率多少',
-    '我現在幾 bpm', '目前心跳多少', '心跳狂跳']) {
+    '我現在幾 bpm', '目前心跳多少', '心跳狂跳', 'my heart is racing',
+    'current heart rate', 'what is my pulse now']) {
     const r = deterministicIntent(q);
     assert.equal(r?.intent, 'current_hr', `★ ${q} 應該是 current_hr`);
     assert.notEqual(r?.metric, 'rhr', `★ ${q} 絕不可以變成 rhr`);
@@ -251,6 +253,8 @@ test('★★ 不認得的指標 → 說不認得，而不是說要等同步', as
       () => ({ async json() { return { intent: 'trend_query', metric: 'blood_glucose' }; },
         async ask() { return 'x'; } }));
     assert.doesNotMatch(reply, /等 WHOOP 同步/);
+    assert.doesNotMatch(reply, /blood_glucose|unknown_internal_metric/,
+      '★ 未知的模型／內部 key 不可以被原樣回顯');
   } finally { cleanup(); }
 });
 

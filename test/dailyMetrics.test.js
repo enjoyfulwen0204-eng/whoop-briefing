@@ -276,6 +276,22 @@ test('★★★ 校正期排除只作用在 recovery 衍生指標上', () => {
   }
 });
 
+test('★★★ loadDailyMetrics 預設遮蔽校正值；只有事實查詢可明確 opt in', async () => {
+  const { db, cleanup, now } = await seed({ days: 2, extra: { calibratingDays: [0] } });
+  try {
+    const args = {
+      db, userId: U, timezone: TZ,
+      from: localDate(new Date(now.getTime() - 3 * DAY), TZ), to: localDate(now, TZ),
+    };
+    const analytical = await loadDailyMetrics(args);
+    const factual = await loadDailyMetrics({ ...args, includeCalibratingFacts: true });
+    const a = analytical.find((r) => r.calibrating);
+    const f = factual.find((r) => r.calibrating);
+    assert.equal(a.hrv, null, 'direct analytical row consumers must retain old exclusion');
+    assert.ok(Number.isFinite(f.hrv), 'factual publication may opt in explicitly');
+  } finally { db.close(); cleanup(); }
+});
+
 test('小睡不會污染主睡眠，但會被彙總成 nap_count / nap_total', async () => {
   const { db, cleanup, now } = await seed({ days: 15 });
   try {

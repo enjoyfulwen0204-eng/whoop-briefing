@@ -97,6 +97,12 @@ export function conversationKeyOf(update) {
 
 /** 這個 process 的身分。用在日誌與除錯，**不是**所有權的依據。 */
 const PROCESS_INSTANCE_ID = `${process.pid}:${randomUUID()}`;
+const PROCESS_STARTED_AT_MS = Date.now();
+
+/** Commands are intentionally kept quiet; startup feedback is for real Q&A. */
+function isNaturalLanguage(text) {
+  return typeof text === 'string' && Boolean(text.trim()) && !text.trim().startsWith('/');
+}
 
 export function createUpdateProcessor({
   db,
@@ -119,8 +125,80 @@ export function createUpdateProcessor({
   newAttemptId = null,
   /** 同一個使用者的對話通道租約長度。 */
   laneTtlMs = TELEGRAM_BOT.USER_LANE_TTL_MS,
+  /** Ephemeral Telegram activity; deliberately separate from durable replies. */
+  sendTyping = null,
+  processStartedAtMs = PROCESS_STARTED_AT_MS,
+  startupWindowMs = 90_000,
+  typingRefreshMs = 4_000,
+  typingMaxMs = 28_000,
+  setIntervalImpl = setInterval,
+  clearIntervalImpl = clearInterval,
 }) {
   const mkAttemptId = newAttemptId ?? (() => `${workerId}#${randomUUID()}`);
+  let startupFeedbackClaimed = false;
+
+  function claimStartupFeedback() {
+    if (startupFeedbackClaimed) return false;
+    const elapsed = now().getTime() - processStartedAtMs;
+    if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > startupWindowMs) return false;
+    // JavaScript runs this read/write without an await, so concurrent requests in
+    // this process cannot both observe false before one claims it.
+    startupFeedbackClaimed = true;
+    return true;
+  }
+
+  async function withTyping(c, startup, fn) {
+    if (typeof sendTyping !== 'function') return fn();
+    let timer = null;
+    let inFlight = null;
+    let stopped = false;
+    let refreshesLeft = typingRefreshMs > 0
+      ? Math.max(0, Math.floor(typingMaxMs / typingRefreshMs) - 1) : 0;
+
+    const tick = async () => {
+      if (stopped || inFlight) return true;
+      inFlight = Promise.resolve(sendTyping({
+        chatId: c.chatId, userId: c.user.id, startup,
+      })).then(() => true).catch((err) => {
+        log.warn('telegram_typing_failed', { error: describeError(err) });
+        return false;
+      });
+      const ok = await inFlight;
+      inFlight = null;
+      return ok;
+    };
+
+    // Start feedback before health context, analytics, or the model are touched.
+    const available = await tick();
+    if (startup && available) log.info('telegram_startup_feedback_started', {});
+    if (available && refreshesLeft > 0 && typingRefreshMs > 0) {
+      timer = setIntervalImpl(() => {
+        if (refreshesLeft <= 0) {
+          clearIntervalImpl(timer);
+          timer = null;
+          return;
+        }
+        refreshesLeft -= 1;
+        void tick().then((ok) => {
+          if (!ok && timer) {
+            clearIntervalImpl(timer);
+            timer = null;
+          }
+        });
+      }, typingRefreshMs);
+      timer?.unref?.();
+    }
+
+    try {
+      return await fn();
+    } finally {
+      stopped = true;
+      if (timer) clearIntervalImpl(timer);
+      // A refresh has a hard 3s API timeout in production. Waiting here ensures
+      // no activity task survives the request or races the durable final send.
+      if (inFlight) await inFlight;
+    }
+  }
 
   /**
    * 這則 update 是不是我們要處理的文字訊息，以及它屬於哪個內部使用者。
@@ -436,9 +514,14 @@ export function createUpdateProcessor({
 
       // 動作與收據共用同一個交易。提交之後重播會拿回存起來的回覆，
       // 不會把動作再做一次。
-      const result = claimed && db.processTelegramOperation
-        ? await db.processTelegramOperation(updateId, { owner: attemptId, now }, dispatch)
-        : await dispatch();
+      const execute = () => claimed && db.processTelegramOperation
+        ? db.processTelegramOperation(updateId, { owner: attemptId, now }, dispatch)
+        : dispatch();
+      const typingEligible = c.kind === 'ok' && isNaturalLanguage(c.text);
+      const startup = typingEligible ? claimStartupFeedback() : false;
+      const result = typingEligible
+        ? await withTyping(c, startup, execute)
+        : await execute();
 
       let replied = false;
       let ambiguous = false;

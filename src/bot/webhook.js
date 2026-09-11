@@ -255,6 +255,9 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       db, text, chatId, isPrivateChat,
     }),
     sendReply: createSendReply({ db, api }),
+    // Ephemeral only. The final answer still uses the existing durable delivery
+    // receipt/fencing path in updateProcessor.
+    sendTyping: ({ chatId }) => api.sendChatAction(chatId, 'typing'),
     // 每次啟動都是新的身分：免費方案會睡會醒，醒來之後的自己不可以被
     // 認成上一輪那個可能死在半路的自己。
     workerId: `${process.pid}:${randomUUID()}`,

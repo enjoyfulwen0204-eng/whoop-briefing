@@ -122,6 +122,14 @@ export function createTelegramApi({
       disable_web_page_preview: true,
     }, { timeoutMs: 30_000 }),
 
+    // Ephemeral UX only: Telegram clears chat actions automatically. Keep the
+    // timeout short so feedback can never hold up the durable business reply for
+    // more than a few seconds when Telegram is unavailable.
+    sendChatAction: (chatId, action = 'typing') => call('sendChatAction', {
+      chat_id: chatId,
+      action,
+    }, { timeoutMs: 3_000 }),
+
     getMe: () => call('getMe', {}, { timeoutMs: 15_000 }),
   };
 }

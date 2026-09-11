@@ -24,6 +24,38 @@ import { createRouter } from './router.js';
 import { handleLinkAttempt } from './link.js';
 import { log, describeError } from '../logger.js';
 
+/**
+ * 送出回覆前，重新確認這個 chat 現在**仍然**屬於當初產生這則回覆的使用者。
+ *
+ * 為什麼需要：送出發生在動作交易之外，而且失敗會重送。從產生回覆到真的送出
+ * 之間，綁定可能已經被撤銷、換綁到別人、或因為是群組列而被退役。那時候把
+ * 回覆送出去就是把一個人的生理資料送進別人的 chat。
+ *
+ * ⚠️ `resolveUserByChatId()` 回的是 `{ user, link }`，**不是 user 本身**。
+ * 舊版比的是 `current?.id` —— 那一層永遠是 `undefined`，於是
+ * `undefined !== userId` 恆真，**每一則給已綁定使用者的回覆都被靜靜丟掉**。
+ * （`/link` 那條路走的是 `userId: null`，守衛整段被跳過，所以它一直是好的
+ * —— 這也是為什麼這個 bug 可以躲過冒煙測試。）
+ *
+ * 解析不到（null）時 optional chaining 一樣得到 undefined → 比較不成立 →
+ * 不送。fail-closed 的行為刻意保持不變。
+ */
+export function createSendReply({ db, api }) {
+  return async function sendReply({ chatId, reply, userId }) {
+    if (userId) {
+      const current = await db.resolveUserByChatId(chatId);
+      if (current?.user?.id !== userId) {
+        // 靜靜不送是這個 bug 能存活這麼久的原因之一，所以留下紀錄。
+        log.warn('telegram_reply_suppressed_binding_changed', {
+          expected_user_id: userId, resolved_user_id: current?.user?.id ?? null,
+        });
+        return;
+      }
+    }
+    await api.sendMessage(chatId, reply);
+  };
+}
+
 export async function main({ maxIterations = Infinity } = {}) {
   loadDotEnvIfPresent();
   const env = loadEnv();
@@ -62,13 +94,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
-    sendReply: async ({ chatId, reply, userId }) => {
-      if (userId) {
-        const current = await db.resolveUserByChatId(chatId);
-        if (current?.id !== userId) return;
-      }
-      await api.sendMessage(chatId, reply);
-    },
+    sendReply: createSendReply({ db, api }),
     // 未綁定的 chat：只吃 /link，其他一律不回
     handleUnlinked: async ({ text, chatId, isPrivateChat = false }) => {
       const reply = await handleLinkAttempt({ db, text, chatId, isPrivateChat });

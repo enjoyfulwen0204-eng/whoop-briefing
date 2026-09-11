@@ -38,6 +38,9 @@
 // 版本化之後，proactive_agent_state 才會進入 RESHAPED_TABLES 的形狀檢查，
 // 開發機上那種「舊三欄版本」的表才會被安全重建（空表才重建，有資料會中止）。
 //
+// v7：telegram_operations 加上**送達**狀態機的欄位。純加欄位，走 ADDITIVE_COLUMNS，
+//     既有資料原封不動（回填成 DELIVERED —— 既有的收據都是已經送完的）。
+//
 // v5：telegram_processed_updates 加上處理狀態機的欄位（R3-M-05）。純加欄位，
 //     走 ADDITIVE_COLUMNS，既有資料原封不動（回填成 COMPLETED）。
 //
@@ -70,7 +73,37 @@ export const TELEGRAM_UPDATE_STATUS = {
   ABANDONED: 'ABANDONED',
 };
 
-export const SCHEMA_VERSION = 6;
+/**
+ * 一則回覆的**送達**狀態（與 update 的處理狀態分開）。
+ *
+ * ## 為什麼需要它
+ *
+ * 舊版的順序是「提交動作 → 送出 Telegram → 標記 COMPLETED」。中間死掉的話，
+ * 資料庫裡看起來只是「PROCESSING 而且租約過期」—— 完全分不出來是
+ * **還沒送**還是**已經送出去了**。那兩種情況的正確處置正好相反：
+ * 前者要重送，後者重送就是使用者收到兩則一模一樣的健康建議。
+ *
+ * 所以送達本身必須是一個持久化的事實，而且要在**真的打網路之前**先寫下來。
+ *
+ *   NOT_REQUIRED     這一則本來就不需要回覆（被閘門擋下、未綁定且無話可說）
+ *   ACTION_READY     動作已提交、回覆已產生，**還沒開始送**  → 可以安全地送
+ *   DELIVERY_STARTED 已經要打網路了，結果未知              → **不可以自動重送**
+ *   DELIVERED        Telegram 明確回報成功，message_id 已存 → 完成
+ *   AMBIGUOUS        網路層結果不明（逾時／連線被重置）     → **不可以自動重送**
+ *
+ * DELIVERY_STARTED 與 AMBIGUOUS 是同一件事的兩個時間點：前者是「我們死在
+ * 送出過程中」，後者是「我們活著但拿不到答案」。兩者都代表 Telegram 可能
+ * 已經收下了，所以都不自動重送。
+ */
+export const TELEGRAM_DELIVERY_STATE = Object.freeze({
+  NOT_REQUIRED: 'NOT_REQUIRED',
+  ACTION_READY: 'ACTION_READY',
+  DELIVERY_STARTED: 'DELIVERY_STARTED',
+  DELIVERED: 'DELIVERED',
+  AMBIGUOUS: 'AMBIGUOUS',
+});
+
+export const SCHEMA_VERSION = 7;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -478,7 +511,11 @@ export const BOT_SCHEMA = [
      claimed_at       TEXT,
      lease_expires_at TEXT,
      dispatched_at    TEXT,
-     attempts         INTEGER NOT NULL DEFAULT 1
+     attempts         INTEGER NOT NULL DEFAULT 1,
+     -- 這一則屬於誰（身分解析出來之後才寫）。用途只有一個：**同一個人的
+     -- 訊息要照順序處理**。沒有它就沒辦法問「這個人還有沒有更早、還沒做完
+     -- 的訊息」，而那正是「澄清回覆不可以超車」的判準。
+     user_id          TEXT
    )`,
 ];
 
@@ -504,6 +541,21 @@ export const ADDITIVE_COLUMNS = [
   { table: 'telegram_processed_updates', column: 'lease_expires_at', ddl: 'ALTER TABLE telegram_processed_updates ADD COLUMN lease_expires_at TEXT' },
   { table: 'telegram_processed_updates', column: 'dispatched_at', ddl: 'ALTER TABLE telegram_processed_updates ADD COLUMN dispatched_at TEXT' },
   { table: 'telegram_processed_updates', column: 'attempts', ddl: 'ALTER TABLE telegram_processed_updates ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1' },
+
+  // v7：送達狀態機。既有的 telegram_operations 列都是「動作提交了、回覆也送完了」
+  // 才會留下來的，所以預設回填成 DELIVERED —— 不可以讓遷移把歷史紀錄變成
+  // 「還沒送」而觸發重送。
+  { table: 'telegram_processed_updates', column: 'user_id', ddl: 'ALTER TABLE telegram_processed_updates ADD COLUMN user_id TEXT' },
+  {
+    table: 'telegram_operations',
+    column: 'delivery_state',
+    ddl: `ALTER TABLE telegram_operations ADD COLUMN delivery_state TEXT NOT NULL DEFAULT '${TELEGRAM_DELIVERY_STATE.DELIVERED}'`,
+  },
+  { table: 'telegram_operations', column: 'delivery_owner', ddl: 'ALTER TABLE telegram_operations ADD COLUMN delivery_owner TEXT' },
+  { table: 'telegram_operations', column: 'delivery_started_at', ddl: 'ALTER TABLE telegram_operations ADD COLUMN delivery_started_at TEXT' },
+  { table: 'telegram_operations', column: 'delivered_at', ddl: 'ALTER TABLE telegram_operations ADD COLUMN delivered_at TEXT' },
+  { table: 'telegram_operations', column: 'telegram_message_id', ddl: 'ALTER TABLE telegram_operations ADD COLUMN telegram_message_id INTEGER' },
+  { table: 'telegram_operations', column: 'delivery_attempts', ddl: 'ALTER TABLE telegram_operations ADD COLUMN delivery_attempts INTEGER NOT NULL DEFAULT 0' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -822,10 +874,24 @@ export const PROACTIVE_QUESTION_INTENT = 'proactive_signal';
 export const SCHEMA = [
   // Result and all database actions commit together. Retained independently of
   // transport claim pruning; replay never repeats an already committed action.
+  // 動作收據 + 送達收據。
+  //
+  // result_json 是「這一則 update 的處理結果」（含要送出去的回覆文字），與動作
+  // 在同一個交易裡提交 —— 所以重播會拿回同一份結果而不會把動作再做一次。
+  //
+  // delivery_* 是**送達**那一段的狀態機（見 TELEGRAM_DELIVERY_STATE）。
+  // 它必須與 result_json 分開，因為「動作做完了」和「回覆送到了」是兩件在
+  // 崩潰時會分開、而且處置相反的事。
   `CREATE TABLE IF NOT EXISTS telegram_operations (
-     update_id INTEGER PRIMARY KEY,
-     result_json TEXT NOT NULL,
-     committed_at TEXT NOT NULL
+     update_id            INTEGER PRIMARY KEY,
+     result_json          TEXT NOT NULL,
+     committed_at         TEXT NOT NULL,
+     delivery_state       TEXT NOT NULL DEFAULT '${TELEGRAM_DELIVERY_STATE.ACTION_READY}',
+     delivery_owner       TEXT,
+     delivery_started_at  TEXT,
+     delivered_at         TEXT,
+     telegram_message_id  INTEGER,
+     delivery_attempts    INTEGER NOT NULL DEFAULT 0
    )`,
   ...VERSION_SCHEMA,
   ...IDENTITY_SCHEMA,

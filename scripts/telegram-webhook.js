@@ -88,6 +88,9 @@ try {
       url,
       secret_token: secret,
       allowed_updates: ['message'],
+      // 併發連線數維持 >1。排他性與順序都由耐久狀態保證（每次執行有自己的
+      // attemptId、每個使用者有自己的對話通道），**不是**靠把併發壓成 1 來
+      // 掩蓋競態。壓成 1 只會讓冷啟動更慢，而且會讓真正的問題藏起來。
       max_connections: 10,
     });
     console.log(`✅ 已註冊：${url}`);

@@ -11,13 +11,52 @@ import { TELEGRAM_BOT } from '../config.js';
 import { log } from '../logger.js';
 
 export class TelegramApiError extends Error {
-  constructor(message, { status = null, retryAfterMs = null, isNetwork = false } = {}) {
+  constructor(message, {
+    status = null, retryAfterMs = null, isNetwork = false, cause = null,
+  } = {}) {
     super(message);
     this.name = 'TelegramApiError';
     this.status = status;
     this.retryAfterMs = retryAfterMs;
     this.isNetwork = isNetwork;
+    this.networkCode = cause?.cause?.code ?? cause?.code ?? cause?.name ?? null;
   }
+}
+
+/**
+ * 這次送出到底有沒有可能已經被 Telegram 收下？（R-A：模糊送達）
+ *
+ * Telegram 的 sendMessage **沒有**通用的呼叫端冪等鍵，所以在網路層失敗時
+ * 我們無法證明遠端有沒有接受。硬要重送就有機會讓使用者收到兩則一模一樣的
+ * 健康建議；硬要放棄又會在單純的網路抽風時吃掉回覆。所以要分類，不能一概而論。
+ *
+ *   'definite_failure' —— 有證據顯示**沒有**送成功：
+ *       · 收到了 Telegram 的 HTTP 回應（不論 4xx/5xx 或 ok:false）
+ *         → Telegram 自己講了話，就以它的話為準
+ *       · 連線根本沒建立起來（DNS 查不到、連線被拒、URL 不合法）
+ *         → 請求從來沒有離開過這台機器
+ *
+ *   'ambiguous' —— 連線已經建立、請求可能已經送出去了，但拿不到答案：
+ *       逾時、連線被重置、socket 中斷。**證明不了** Telegram 沒收到。
+ *
+ * 刻意不把所有網路錯誤都當成「確定失敗」—— 那正是會產生重複訊息的誤判。
+ */
+const DEFINITE_NETWORK_CODES = new Set([
+  'ENOTFOUND',      // DNS 查不到 → 連線沒建立
+  'EAI_AGAIN',      // DNS 暫時失敗 → 連線沒建立
+  'ECONNREFUSED',   // 對方拒絕連線 → 沒建立
+  'ERR_INVALID_URL',
+]);
+
+export function classifySendOutcome(err) {
+  if (!err) return 'definite_failure';
+  // 收到 HTTP 回應 = Telegram 親口回報結果，以它為準。
+  if (!err.isNetwork && err.status !== null && err.status !== undefined) return 'definite_failure';
+  if (!err.isNetwork) return 'definite_failure';
+  const code = err.networkCode ?? null;
+  if (code && DEFINITE_NETWORK_CODES.has(String(code))) return 'definite_failure';
+  // 逾時 / ECONNRESET / socket hang up / 其他不明 → 不可證明未送達
+  return 'ambiguous';
 }
 
 export function createTelegramApi({
@@ -38,7 +77,9 @@ export function createTelegramApi({
       });
     } catch (err) {
       // 網路層失敗（含 long poll 逾時）。這是常態，不是故障。
-      throw new TelegramApiError(`Telegram 連線失敗：${err?.message ?? err}`, { isNetwork: true });
+      throw new TelegramApiError(`Telegram 連線失敗：${err?.message ?? err}`, {
+        isNetwork: true, cause: err,
+      });
     }
 
     const raw = await res.text();

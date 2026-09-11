@@ -4,51 +4,61 @@
  * ## 為什麼要有這一層
  *
  * 正式環境的入站從 getUpdates 長輪詢改成 webhook，但「收到一則 update 之後
- * 要做什麼」完全沒有變：認領 → 推進 PROCESSING → 在動作交易裡處理 → 送出 →
- * 標記完成。那一段是整個系統最難的部分（R2-M-05 / R3-M-05 兩輪稽核的產物），
- * **絕對不可以為了換傳輸而複製一份**。
+ * 要做什麼」完全沒有變。那一段是整個系統最難的部分，**絕對不可以為了換傳輸
+ * 而複製一份**。polling 與 webhook 都呼叫這裡。
  *
- * 所以這裡把它抽出來，polling 與 webhook 都呼叫同一個函式：
+ * ## 三層耐久保護（全部在 DB，不依賴記憶體）
  *
- *     Telegram → getUpdates ─┐
- *                            ├→ processUpdate() → 認領 / 動作 / 送出 / 完成
- *     Telegram → webhook  ───┘
+ * 1. **執行權**：每一次執行有自己的 attemptId。同一則 update 的兩個併發
+ *    執行永遠是兩個不同的 owner，所以條件式寫入只會讓一個通過 —— 不論它們
+ *    來自同一個 process 還是不同的 Render 實例。
  *
- * 差別只剩下「怎麼回報結果」：
- *   - polling 用結果決定 offset 要不要往前推
- *   - webhook 用結果決定 HTTP 狀態碼（Telegram 要不要重送）
+ * 2. **送達狀態**：回覆送出去之前先把「要送了」寫進 DB。任何時間點死掉，
+ *    資料庫都說得出當時走到哪，所以恢復的執行分得出「還沒送」與「可能送了」。
+ *
+ * 3. **對話通道**：同一個使用者一次只有一則訊息在跑，而且不可以超車比自己
+ *    早、還沒結案的訊息。澄清回覆因此不會在問題本身落地之前就被處理。
  *
  * ## 結果語義（傳輸層據此決定 ack 與否）
  *
- *   processed  這一則真的被處理完了 → 可以 ack
- *   replayed   之前就已經處理完（或已放棄）→ 可以 ack，而且**不會**再做一次
- *   ignored    結構上不需要處理（不是文字訊息、群組、機器人…）→ 可以 ack
- *   invalid    update_id 根本不合法 → 可以 ack（重送也不會變好）
- *   retry      **不可以 ack**。拿不到所有權、租約壞掉、或處理中途失敗。
- *              Telegram 會重送；耐久去重保證重送不會產生第二次副作用。
- *
- * `retry` 是刻意保守的：在「有沒有人正在處理」不確定的時候，正確的行為是
- * 不處理也不承認，而不是賭一把。
+ *   processed           真的處理完了 → 可以 ack
+ *   replayed            之前就處理完（或已放棄）→ 可以 ack，不會再做一次
+ *   ignored             結構上不需要處理 → 可以 ack
+ *   invalid             update_id 不合法 → 可以 ack
+ *   ambiguous_delivery  動作已提交，但送達結果不明 → 可以 ack，**不自動重送**
+ *   retry               **不可以 ack**。沒拿到執行權、要讓路、或明確的失敗。
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { TELEGRAM_BOT } from '../config.js';
+import { TELEGRAM_DELIVERY_STATE } from '../schema.js';
+import { classifySendOutcome } from './api.js';
 import { log, describeError } from '../logger.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** 結果種類。傳輸層只需要看這個。 */
 export const UPDATE_OUTCOME = Object.freeze({
   PROCESSED: 'processed',
   REPLAYED: 'replayed',
   IGNORED: 'ignored',
   INVALID: 'invalid',
   RETRY: 'retry',
+  /**
+   * 動作已經耐久提交，但回覆的送達結果**無法確定**（逾時／連線被重置）。
+   * 不會自動重送 —— 重送有機會讓使用者收到兩則一樣的健康建議。
+   * 這是終局：可以 ack，讓 Telegram 停止重送。
+   */
+  AMBIGUOUS_DELIVERY: 'ambiguous_delivery',
 });
 
 /** 可以安全 ack（Telegram 不需要再送一次）的結果。 */
 export function isAcknowledgeable(outcome) {
   return outcome !== UPDATE_OUTCOME.RETRY;
 }
+
+/** 這個 process 的身分。用在日誌與除錯，**不是**所有權的依據。 */
+const PROCESS_INSTANCE_ID = `${process.pid}:${randomUUID()}`;
 
 export function createUpdateProcessor({
   db,
@@ -57,49 +67,35 @@ export function createUpdateProcessor({
   handleMessage,
   /** 未綁定 chat 的處理（目前只用來吃 /link）。回 null 代表完全不回。 */
   handleUnlinked = null,
-  /** 送出回覆。帶 HRD-R03 的綁定守衛。 */
+  /** 送出回覆。帶 HRD-R03 的綁定守衛，回 {sent, messageId}。 */
   sendReply = null,
-  workerId,
+  /**
+   * 這個 process 的身分。**只用於日誌**。
+   * 所有權一律用每次執行各自產生的 attemptId —— 這兩件事必須分開：
+   * 同一個 process 的兩個併發請求是**兩個不同的嘗試**，不可以互相繼承所有權。
+   */
+  workerId = PROCESS_INSTANCE_ID,
   now = () => new Date(),
   sleepImpl = sleep,
+  /** 每次執行的所有權 token。可注入是為了測試能製造確定的交錯。 */
+  newAttemptId = null,
+  /** 同一個使用者的對話通道租約長度。 */
+  laneTtlMs = TELEGRAM_BOT.USER_LANE_TTL_MS,
 }) {
-  /**
-   * 同一個 process 內、同一則 update 的併發合流（webhook 才會遇到）。
-   *
-   * 長輪詢是一批一則循序處理，不可能併發。webhook 不一樣：Telegram 可能在
-   * 第一個請求還沒回應時就重送，於是**同一個實例**同時處理同一則 update。
-   *
-   * 那時候兩個請求帶的是同一個 workerId，而同一個 owner 重複認領在耐久層
-   * 是合法的「續租」（ambiguous commit 的復原路徑），所以兩邊都會往下走。
-   * 動作本身不會做兩次 —— telegram_operations 的收據會讓第二個直接拿回
-   * 已存的結果 —— 但那個結果**帶著回覆文字**，於是回覆會被送出兩次。
-   *
-   * ⚠️ 這張表只是同一個 process 內的合流，**不是正確性的來源**：
-   *   - 跨實例的併發由 DB 的原子認領擋下（workerId 不同 → in_progress）
-   *   - 重啟之後這張表是空的，而正確性完全不受影響（收據在 Turso）
-   * 它解決的是「同一個實例重複回覆」這一個具體問題，沒有取代任何耐久機制。
-   */
-  const inFlight = new Map();
+  const mkAttemptId = newAttemptId ?? (() => `${workerId}#${randomUUID()}`);
+
   /**
    * 這則 update 是不是我們要處理的文字訊息，以及它屬於哪個內部使用者。
    *
    * ## H-01 授權閘門（fail-closed，三條缺一不可）
    *
-   * 一則訊息要被當成「這個使用者說的話」，必須同時滿足三個**結構性**條件，
-   * 而不是臨時發明分享語義：
-   *
    *   1. `chat.type` 必須是 `private`。群組 / 超級群組 / 頻道一律拒絕。
    *   2. 送訊息的人必須是真人（`from.is_bot` 為真一律拒絕）。
    *   3. `from.id` 必須等於 `chat.id`。Telegram 的私訊聊天室 id 就是對方的
-   *      使用者 id，所以這一條等於「這則訊息真的是這個帳號本人送的」，
-   *      而且**不需要改 schema** 就取得了寄件者綁定。
+   *      使用者 id，所以這一條等於「這則訊息真的是這個帳號本人送的」。
    *
    * 三條都必須明確成立才放行；缺欄位、型態不明、對不上一律當成未授權。
-   * 被拒絕的訊息**完全不回覆**（連錯誤都不回），與既有「未綁定 chat 一律
-   * 靜默」的立場一致：對方永遠學不到這個 bot 綁了誰、有沒有人在用。
-   *
-   * 這一段刻意放在 `resolveUser()` **之前** —— 連查都不查，就不可能因為
-   * 查詢副作用而洩漏任何東西。
+   * 被拒絕的訊息**完全不回覆**：對方永遠學不到這個 bot 綁了誰。
    */
   async function classify(update) {
     const msg = update?.message;
@@ -115,9 +111,7 @@ export function createUpdateProcessor({
     const from = msg.from ?? {};
     if (from.is_bot === true) return { kind: 'bot_sender', chatId };
     const senderId = String(from.id ?? '');
-    if (!senderId || senderId !== chatId) {
-      return { kind: 'sender_chat_mismatch', chatId };
-    }
+    if (!senderId || senderId !== chatId) return { kind: 'sender_chat_mismatch', chatId };
 
     const resolved = await resolveUser(chatId);
     if (!resolved) return { kind: 'unlinked', chatId, text, message: msg };
@@ -125,18 +119,18 @@ export function createUpdateProcessor({
   }
 
   /**
-   * 認領一則 update，暫時性失敗會重試（R2-M-05 / R3-M-05）。
+   * 認領，暫時性失敗會重試。
    *
-   * 重試帶著**同一個 workerId**，所以「INSERT 其實成功了但連線斷掉」
-   * （ambiguous commit）的下一次嘗試會認出那是自己的認領而續租，
-   * 不會把自己誤判成別人的重複。
+   * 重試帶著**同一個 attemptId**，所以「INSERT 其實成功了但連線斷掉」
+   * （ambiguous commit）的下一次嘗試會認出那是自己的認領而續租。
+   * 因為 attemptId 是每次執行獨有的，這條路徑不會讓別的請求取得所有權。
    */
-  async function claimWithRetry(updateId) {
+  async function claimWithRetry(updateId, attemptId) {
     let lastErr = null;
     for (let attempt = 1; attempt <= TELEGRAM_BOT.CLAIM_RETRIES; attempt += 1) {
       try {
         return await db.claimTelegramUpdate(updateId, {
-          owner: workerId, leaseMs: TELEGRAM_BOT.CLAIM_LEASE_MS, now: now(),
+          owner: attemptId, leaseMs: TELEGRAM_BOT.CLAIM_LEASE_MS, now: now(),
         });
       } catch (err) {
         lastErr = err;
@@ -155,102 +149,204 @@ export function createUpdateProcessor({
   }
 
   /**
-   * 處理一則 update。**永遠不拋錯** —— 一律回結果物件，讓傳輸層決定怎麼回應。
+   * 取得這個使用者的對話通道，並確認沒有更早、還沒做完的訊息。
    *
-   * 同一個 process 內針對同一則 update 的併發呼叫會合流成一次（見 inFlight），
-   * 第二個呼叫拿到的是第一個的結果。
+   * 兩件事缺一不可：
+   *   - 租約（互斥）：同一個人一次只有一則訊息在跑
+   *   - 順序檢查：比我早的那一則如果還沒結案，我就要讓路
+   * 只有互斥的話，N+1 先搶到通道就會超車 N。
    *
-   * @returns {{outcome:string, updateId:?number, reason:?string, replied:boolean}}
+   * 租約用既有的 resource_locks，自帶 owner / 到期 / 圍欄 / 過期回收：
+   * 崩潰的執行不會永久鎖住這個使用者。
    */
-  async function processUpdate(update) {
-    const id = Number(update?.update_id);
-    if (!Number.isFinite(id)) return processUpdateOnce(update);
-    const running = inFlight.get(id);
-    if (running) {
-      log.info('telegram_update_coalesced', { update_id: id });
-      // 等前一個做完，回報「這一則已經被處理過了」。
-      // 刻意不回傳它的 replied —— 這一次請求沒有送出任何東西。
-      const prior = await running;
-      return { ...prior, outcome: prior.outcome, replied: false, coalesced: true };
+  async function enterUserLane(userId, updateId, attemptId) {
+    if (!userId || typeof db.acquireLock !== 'function') return { ok: true, lane: null };
+    const name = `telegram_lane:${userId}`;
+    let owner = null;
+    try {
+      owner = await db.acquireLock(name, { ttlMs: laneTtlMs, owner: attemptId, now: now() });
+    } catch (err) {
+      log.error('telegram_lane_unavailable', { update_id: updateId, error: describeError(err) });
+      return { ok: false, reason: 'lane_unavailable' };
     }
-    const p = processUpdateOnce(update).finally(() => inFlight.delete(id));
-    inFlight.set(id, p);
-    return p;
+    if (!owner) {
+      log.info('telegram_lane_busy', { update_id: updateId });
+      return { ok: false, reason: 'lane_busy' };
+    }
+    if (typeof db.hasEarlierUnfinishedUpdate === 'function') {
+      let earlier = false;
+      try {
+        earlier = await db.hasEarlierUnfinishedUpdate(userId, updateId);
+      } catch (err) {
+        log.error('telegram_order_check_failed', { update_id: updateId, error: describeError(err) });
+        await leaveUserLane({ name, owner });
+        return { ok: false, reason: 'order_check_failed' };
+      }
+      if (earlier) {
+        log.info('telegram_lane_waiting_for_earlier', { update_id: updateId });
+        await leaveUserLane({ name, owner });
+        return { ok: false, reason: 'earlier_update_pending' };
+      }
+    }
+    return { ok: true, lane: { name, owner } };
   }
 
-  async function processUpdateOnce(update) {
+  async function leaveUserLane(lane) {
+    if (!lane?.owner || typeof db.releaseLock !== 'function') return;
+    try {
+      await db.releaseLock(lane.name, lane.owner);
+    } catch { /* 放不掉沒關係，TTL 到了自然過期 */ }
+  }
+
+  /**
+   * 送出回覆，並把送達狀態耐久地記下來。
+   *
+   * 這是這一輪修的核心。舊版是「提交動作 → 送出 → 標記完成」，中間死掉就
+   * 分不出「還沒送」和「已經送了」。現在**打網路之前**先寫 DELIVERY_STARTED。
+   *
+   * @returns {{outcome:'delivered'|'retry'|'ambiguous'}}
+   */
+  async function deliverReply(updateId, result, attemptId) {
+    const op = typeof db.getTelegramOperation === 'function'
+      ? await db.getTelegramOperation(updateId) : null;
+    const state = op?.deliveryState ?? null;
+
+    if (state === TELEGRAM_DELIVERY_STATE.DELIVERED
+        || state === TELEGRAM_DELIVERY_STATE.NOT_REQUIRED) {
+      return { outcome: 'delivered' };
+    }
+    if (state === TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED
+        || state === TELEGRAM_DELIVERY_STATE.AMBIGUOUS) {
+      // 上一次走到一半死了，或結果不明 —— Telegram 可能已經收下了。
+      // **絕不自動重送。**
+      log.warn('telegram_delivery_not_retried', { update_id: updateId, state });
+      return { outcome: 'ambiguous' };
+    }
+
+    if (typeof db.markDeliveryStarted === 'function') {
+      const started = await db.markDeliveryStarted(updateId, { owner: attemptId, now: now() });
+      if (!started) {
+        log.warn('telegram_delivery_start_rejected', { update_id: updateId });
+        return { outcome: 'ambiguous' };
+      }
+    }
+
+    let sendResult;
+    try {
+      sendResult = await sendReply(result);
+    } catch (err) {
+      const cls = classifySendOutcome(err);
+      if (cls === 'definite_failure') {
+        // Telegram 親口說沒收下（或連線根本沒建立）→ 退回可重送狀態。
+        if (typeof db.markDeliveryFailed === 'function') {
+          await db.markDeliveryFailed(updateId, { owner: attemptId, now: now() });
+        }
+        log.warn('telegram_delivery_failed_retryable', {
+          update_id: updateId, error: describeError(err),
+        });
+        return { outcome: 'retry' };
+      }
+      if (typeof db.markDeliveryAmbiguous === 'function') {
+        await db.markDeliveryAmbiguous(updateId, { owner: attemptId, now: now() });
+      }
+      log.error('telegram_delivery_ambiguous', { update_id: updateId, error: describeError(err) });
+      return { outcome: 'ambiguous' };
+    }
+
+    if (sendResult && sendResult.sent === false) {
+      // 綁定守衛擋下來的（HRD-R03）。不是失敗，是終局的正確決定。
+      if (typeof db.markDeliverySuppressed === 'function') {
+        await db.markDeliverySuppressed(updateId, { owner: attemptId, now: now() });
+      }
+      return { outcome: 'delivered' };
+    }
+
+    if (typeof db.markDelivered === 'function') {
+      await db.markDelivered(updateId, {
+        owner: attemptId, messageId: sendResult?.messageId ?? null, now: now(),
+      });
+    }
+    return { outcome: 'delivered' };
+  }
+
+  /**
+   * 處理一則 update。**永遠不拋錯** —— 一律回結果物件，讓傳輸層決定怎麼回應。
+   *
+   * 同一則 update 的併發呼叫（不論同一個 process 還是不同實例）由**資料庫**
+   * 決定誰贏。這裡刻意沒有任何記憶體層的合流：正確性不可以依賴記憶體。
+   */
+  async function processUpdate(update) {
     const updateId = Number(update?.update_id);
     if (!Number.isFinite(updateId)) {
       return { outcome: UPDATE_OUTCOME.INVALID, updateId: null, reason: 'bad_update_id', replied: false };
     }
 
-    // ★ M-09 / R3-M-05：原子認領，而且**在任何副作用之前**。
-    //
-    // 認領放在 classify() **之前**：連身分解析都不做，就不可能有任何
-    // 副作用（含 getOpenPendingQuestion 的惰性過期寫入）。
+    const attemptId = mkAttemptId();
+
     let claimed = false;
     if (typeof db.claimTelegramUpdate === 'function') {
-      const claim = await claimWithRetry(updateId);
+      const claim = await claimWithRetry(updateId, attemptId);
 
       if (claim.state === 'unavailable' || claim.state === 'in_progress') {
-        // ★ **拿不到持久化的所有權就不處理。**
-        //
-        // 舊版在認領機制壞掉時放行（「寧可偶爾重複」），但那個取捨是錯的：
-        // 實測的失敗序列是「claim 拋錯 → 副作用照做 → offset 也存不下去
-        // → Telegram 重送 → 再做一次」，結果同一句話寫了兩筆 journal。
-        log.error('telegram_update_not_acknowledged', {
-          update_id: updateId, state: claim.state, holder: claim.owner ?? null,
-        });
+        log.info('telegram_update_not_acknowledged', { update_id: updateId, state: claim.state });
         return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: claim.state, replied: false };
       }
-
-      if (claim.state === 'stale_processing') {
-        // 有人死在「已經 dispatch、還沒標記完成」的區間裡。副作用做到哪不確定。
-        // **絕不因為某個 worker 死了就承認未提交的工作。**
-        log.error('telegram_update_stale_processing', { update_id: updateId });
-        return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'stale_processing', replied: false };
-      }
-
       if (claim.state === 'completed' || claim.state === 'abandoned') {
-        // 真正的重複投遞。動作交易早就提交了，這裡**什麼都不做**。
         log.info('telegram_update_skipped_replay', { update_id: updateId, state: claim.state });
         return { outcome: UPDATE_OUTCOME.REPLAYED, updateId, reason: claim.state, replied: false };
       }
-
       if (claim.state !== 'claimed') {
-        // 沒有列舉到的狀態一律 fail closed。
         log.error('telegram_update_claim_unexpected_state', {
           update_id: updateId, state: claim.state ?? null,
         });
         return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'unexpected_claim_state', replied: false };
       }
-
       claimed = true;
+    }
 
-      // ★ CLAIMED → PROCESSING，**就在 dispatch 之前**。
-      // PROCESSING 授權開始動作交易；動作與收據原子提交。
-      let dispatchable = false;
-      try {
-        dispatchable = await db.markTelegramUpdateProcessing(updateId, {
-          owner: workerId, now: now(),
-        });
-      } catch (err) {
-        log.error('telegram_update_mark_processing_failed', {
-          update_id: updateId, error: describeError(err),
-        });
+    // ---- 身分解析（唯讀）。要先知道是誰，才知道要進哪一條對話通道。----
+    const c = await classify(update);
+    const laneUserId = c.kind === 'ok' ? c.user.id : null;
+
+    if (claimed && laneUserId && typeof db.setTelegramUpdateUser === 'function') {
+      await db.setTelegramUpdateUser(updateId, { owner: attemptId, userId: laneUserId, now: now() });
+    }
+
+    // ---- 對話通道：同一個人一次一則，而且不可以超車 ----
+    let lane = null;
+    if (claimed && laneUserId) {
+      const entered = await enterUserLane(laneUserId, updateId, attemptId);
+      if (!entered.ok) {
+        // 讓路：把這一則退回可再認領，讓 Telegram 重送時能馬上被接手。
+        if (typeof db.releaseTelegramUpdate === 'function') {
+          await db.releaseTelegramUpdate(updateId, { owner: attemptId, now: now() });
+        }
+        return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: entered.reason, replied: false };
       }
-      if (!dispatchable) {
-        // 推不進 PROCESSING = 所有權已經不在我手上（或寫不進去）。
-        // 這時候 dispatch 就是在沒有所有權的情況下產生副作用。
-        log.error('telegram_update_dispatch_fence', { update_id: updateId });
-        return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'dispatch_fence', replied: false };
-      }
+      lane = entered.lane;
     }
 
     let ignored = false;
     try {
+      if (claimed) {
+        // ★ CLAIMED → PROCESSING，就在動作交易之前。
+        let dispatchable = false;
+        try {
+          dispatchable = await db.markTelegramUpdateProcessing(updateId, {
+            owner: attemptId, now: now(),
+          });
+        } catch (err) {
+          log.error('telegram_update_mark_processing_failed', {
+            update_id: updateId, error: describeError(err),
+          });
+        }
+        if (!dispatchable) {
+          log.error('telegram_update_dispatch_fence', { update_id: updateId });
+          return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'dispatch_fence', replied: false };
+        }
+      }
+
       const dispatch = async () => {
-        const c = await classify(update);
         if (c.kind === 'unlinked') {
           const reply = handleUnlinked ? await handleUnlinked({
             text: c.text, chatId: c.chatId, message: c.message, isPrivateChat: true,
@@ -260,8 +356,6 @@ export function createUpdateProcessor({
         if (c.kind !== 'ok') {
           ignored = true;
           if (c.kind === 'non_private_chat' || c.kind === 'bot_sender' || c.kind === 'sender_chat_mismatch') {
-            // H-01：被授權閘門擋下的訊息記 warn（這是安全事件，不是雜訊），
-            // 但**不回覆任何內容**。
             log.warn('telegram_message_rejected', {
               update_id: updateId, reason: c.kind, chat_type: c.chatType ?? null,
             });
@@ -279,29 +373,46 @@ export function createUpdateProcessor({
       // 動作與收據共用同一個交易。提交之後重播會拿回存起來的回覆，
       // 不會把動作再做一次。
       const result = claimed && db.processTelegramOperation
-        ? await db.processTelegramOperation(updateId, { owner: workerId, now }, dispatch)
+        ? await db.processTelegramOperation(updateId, { owner: attemptId, now }, dispatch)
         : await dispatch();
 
       let replied = false;
+      let ambiguous = false;
       if (result?.reply && sendReply) {
-        await sendReply(result);
-        replied = true;
+        if (claimed) {
+          const d = await deliverReply(updateId, result, attemptId);
+          if (d.outcome === 'retry') {
+            return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'send_failed', replied: false };
+          }
+          ambiguous = d.outcome === 'ambiguous';
+          replied = d.outcome === 'delivered';
+        } else {
+          await sendReply(result);
+          replied = true;
+        }
       }
+
       if (claimed) {
-        const done = await db.completeTelegramUpdate(updateId, { owner: workerId, now: now() });
+        const done = await db.completeTelegramUpdate(updateId, { owner: attemptId, now: now() });
         if (!done) throw new Error('telegram_update_complete_rejected');
+      }
+      if (ambiguous) {
+        return {
+          outcome: UPDATE_OUTCOME.AMBIGUOUS_DELIVERY, updateId,
+          reason: 'ambiguous_send', replied: false,
+        };
       }
       return {
         outcome: ignored ? UPDATE_OUTCOME.IGNORED : UPDATE_OUTCOME.PROCESSED,
-        updateId,
-        reason: null,
-        replied,
+        updateId, reason: null, replied,
       };
     } catch (err) {
       log.error('telegram_processing_retry_required', {
         update_id: updateId, error: describeError(err),
       });
       return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'processing_failed', replied: false };
+    } finally {
+      await leaveUserLane(lane);
     }
   }
 

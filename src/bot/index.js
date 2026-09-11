@@ -41,6 +41,12 @@ import { log, describeError } from '../logger.js';
  * 不送。fail-closed 的行為刻意保持不變。
  */
 export function createSendReply({ db, api }) {
+  /**
+   * @returns {{sent:boolean, messageId:?number, reason:?string}}
+   *   sent=false 代表**刻意**沒送（綁定變了），不是失敗 —— 呼叫端據此把送達
+   *   狀態標成終局，而不是留下「還沒送」去誘發未來重送。
+   *   真正的送出失敗會**拋錯**，由呼叫端分類成確定失敗或模糊。
+   */
   return async function sendReply({ chatId, reply, userId }) {
     if (userId) {
       const current = await db.resolveUserByChatId(chatId);
@@ -49,10 +55,16 @@ export function createSendReply({ db, api }) {
         log.warn('telegram_reply_suppressed_binding_changed', {
           expected_user_id: userId, resolved_user_id: current?.user?.id ?? null,
         });
-        return;
+        return { sent: false, messageId: null, reason: 'binding_changed' };
       }
     }
-    await api.sendMessage(chatId, reply);
+    const res = await api.sendMessage(chatId, reply);
+    const messageId = Number(res?.message_id ?? res?.result?.message_id);
+    return {
+      sent: true,
+      messageId: Number.isFinite(messageId) ? messageId : null,
+      reason: null,
+    };
   };
 }
 

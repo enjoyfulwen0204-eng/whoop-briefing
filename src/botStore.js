@@ -208,6 +208,28 @@ export function createBotStore(client) {
   }
 
   /**
+   * 主動放掉一個還沒開始動作的認領（讓路，不是失敗）。
+   *
+   * 用在對話通道被同一個使用者的另一則訊息佔著、或有更早的訊息還沒結案的
+   * 時候：這一則什麼都還沒做，與其握著租約空等，不如立刻把它變回可認領，
+   * 讓 Telegram 重送時能馬上被接手。
+   *
+   * 只允許自己放掉自己的 CLAIMED —— 已經進 PROCESSING 的不可以退回去，
+   * 那代表動作交易可能已經開始了。
+   */
+  async function releaseTelegramUpdate(updateId, { owner, now = new Date() } = {}) {
+    const id = normalizeUpdateId(updateId);
+    if (id === null || !owner) return false;
+    const rs = await client.execute({
+      sql: `UPDATE telegram_processed_updates
+               SET lease_expires_at = ?
+             WHERE update_id = ? AND owner = ? AND status = ?`,
+      args: [nowIso(now), id, String(owner), TELEGRAM_UPDATE_STATUS.CLAIMED],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
    * CLAIMED → PROCESSING。**在 dispatch 之前**呼叫。
    *
    * PROCESSING 只表示可以開始交易。副作用是否已提交由
@@ -617,6 +639,7 @@ export function createBotStore(client) {
     setUpdateOffset,
     claimTelegramUpdate,
     markTelegramUpdateProcessing,
+    releaseTelegramUpdate,
     completeTelegramUpdate,
     abandonTelegramUpdate,
     getTelegramUpdate,

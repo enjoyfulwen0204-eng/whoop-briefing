@@ -26,6 +26,10 @@
  * 第二次副作用。反過來做（先回 200 再處理）會在 free instance 被回收時
  * 直接把訊息弄丟。
  *
+ * 唯一的例外是**送達結果不明**（逾時／連線被重置）：動作已經耐久提交，只是
+ * 不知道 Telegram 有沒有收到回覆。那一種回 200 —— 自動重送有機會讓使用者
+ * 收到兩則一樣的健康建議，而那比偶爾漏掉一則更糟。
+ *
  * ## 冷啟動安全
  *
  * 沒有任何正確性依賴記憶體：認領、動作收據、offset 全都在 Turso。
@@ -190,6 +194,13 @@ export function createWebhookHandler({
         update_id: result.updateId, reason: result.reason ?? null,
       });
       return send(res, 503, { ok: false, outcome: result.outcome });
+    }
+    if (result.outcome === UPDATE_OUTCOME.AMBIGUOUS_DELIVERY) {
+      // 動作已經耐久提交了，只是送達結果不明。**要 ack**：讓 Telegram 停止
+      // 重送，因為自動重送有機會讓使用者收到兩則一樣的健康建議。
+      // 這一則會留在 AMBIGUOUS 狀態讓人看得到（npm run phase0）。
+      log.warn('telegram_webhook_ambiguous_delivery', { update_id: result.updateId });
+      return send(res, 200, { ok: true, outcome: result.outcome });
     }
     return send(res, 200, { ok: true, outcome: result.outcome });
   };

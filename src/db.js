@@ -14,7 +14,12 @@
 
 import { createClient } from '@libsql/client';
 import { randomUUID } from 'node:crypto';
-import { GLOBAL_SCOPE, userScope } from './schema.js';
+import {
+  GLOBAL_SCOPE, userScope, TELEGRAM_DELIVERY_STATE, TELEGRAM_UPDATE_STATUS,
+} from './schema.js';
+
+const TELEGRAM_UPDATE_STATUS_COMPLETED = TELEGRAM_UPDATE_STATUS.COMPLETED;
+const TELEGRAM_UPDATE_STATUS_ABANDONED = TELEGRAM_UPDATE_STATUS.ABANDONED;
 import { runMigrations } from './migrations.js';
 import { requireUserId } from './userContext.js';
 import { createIdentityStore } from './identityStore.js';
@@ -65,6 +70,15 @@ export function createDb({ url, authToken }) {
     });
   }
 
+  /**
+   * 動作與收據同一個交易。
+   *
+   * 重播時回傳**已存的結果**而不重跑動作 —— 這是「同一則訊息不會寫出第二筆
+   * journal」的根本保證。前後都用 `check` 圍欄確認所有權還在（fencing）。
+   *
+   * 收據一併帶上送達狀態的起點：有回覆就是 ACTION_READY（可以安全地送），
+   * 沒有回覆就是 NOT_REQUIRED（本來就不需要送）。
+   */
   async function processTelegramOperation(updateId, { owner, now = () => new Date() }, fn) {
     const id = Number(updateId);
     if (!Number.isSafeInteger(id) || id < 0) throw new Error('invalid_update_id');
@@ -77,15 +91,181 @@ export function createDb({ url, authToken }) {
       if (!r.rows.length) throw new Error('telegram_processing_ownership_lost');
     };
     return processing.transaction(async () => {
-      const prior = await client.execute({ sql: 'SELECT result_json FROM telegram_operations WHERE update_id = ?', args: [id] });
+      const prior = await client.execute({
+        sql: 'SELECT result_json FROM telegram_operations WHERE update_id = ?',
+        args: [id],
+      });
       if (prior.rows.length) return JSON.parse(prior.rows[0].result_json);
       const result = await fn();
       await client.execute({
-        sql: 'INSERT INTO telegram_operations(update_id, result_json, committed_at) VALUES (?, ?, ?)',
-        args: [id, JSON.stringify(result ?? null), new Date(now()).toISOString()],
+        sql: `INSERT INTO telegram_operations
+                (update_id, result_json, committed_at, delivery_state, delivery_attempts)
+              VALUES (?, ?, ?, ?, 0)`,
+        args: [
+          id, JSON.stringify(result ?? null), new Date(now()).toISOString(),
+          result?.reply ? TELEGRAM_DELIVERY_STATE.ACTION_READY : TELEGRAM_DELIVERY_STATE.NOT_REQUIRED,
+        ],
       });
       return result;
     }, { before: check, after: check });
+  }
+
+  /**
+   * DELIVERY_STARTED → NOT_REQUIRED（這則回覆**刻意**不送）。
+   *
+   * 用在送出前的綁定守衛擋下的情況（HRD-R03）：chat 已經不屬於當初產生這則
+   * 回覆的人了。那不是失敗，而是一個終局的正確決定 —— 所以不重試、也不留下
+   * 「還沒送」的狀態去誘發未來重送。
+   */
+  async function markDeliverySuppressed(updateId, { owner, now = new Date() } = {}) {
+    const id = Number(updateId);
+    if (!Number.isSafeInteger(id) || !owner) return false;
+    const rs = await client.execute({
+      sql: `UPDATE telegram_operations
+               SET delivery_state = ?, delivered_at = ?
+             WHERE update_id = ? AND delivery_owner = ? AND delivery_state = ?`,
+      args: [TELEGRAM_DELIVERY_STATE.NOT_REQUIRED, now.toISOString(), id, String(owner),
+        TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * 記下這一則 update 屬於哪個使用者（身分解析之後）。用 owner 圍欄。
+   * 這是「同一個人的訊息照順序處理」唯一需要的額外事實。
+   */
+  async function setTelegramUpdateUser(updateId, { owner, userId, now = new Date() } = {}) {
+    const id = Number(updateId);
+    if (!Number.isSafeInteger(id) || !owner || !userId) return false;
+    const rs = await client.execute({
+      sql: `UPDATE telegram_processed_updates SET user_id = ?
+             WHERE update_id = ? AND owner = ? AND lease_expires_at > ?`,
+      args: [String(userId), id, String(owner), now.toISOString()],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * 這個人有沒有**更早**而且還沒做完的訊息？
+   *
+   * Telegram 的 update_id 在單調遞增，所以「比我小而且還沒到終局」就是
+   * 「有一則更早的訊息還在處理中或還沒被處理」。有的話這一則就要讓路 ——
+   * 否則澄清回覆可能會在問題本身還沒落地之前就被處理掉。
+   */
+  async function hasEarlierUnfinishedUpdate(userId, updateId) {
+    const id = Number(updateId);
+    if (!Number.isSafeInteger(id) || !userId) return false;
+    const rs = await client.execute({
+      sql: `SELECT 1 FROM telegram_processed_updates
+             WHERE user_id = ? AND update_id < ?
+               AND status NOT IN (?, ?)
+             LIMIT 1`,
+      args: [String(userId), id,
+        TELEGRAM_UPDATE_STATUS_COMPLETED, TELEGRAM_UPDATE_STATUS_ABANDONED],
+    });
+    return rs.rows.length > 0;
+  }
+
+  /** 讀一則 update 的動作／送達收據。沒有就回 null。 */
+  async function getTelegramOperation(updateId) {
+    const id = Number(updateId);
+    if (!Number.isSafeInteger(id) || id < 0) return null;
+    const rs = await client.execute({
+      sql: `SELECT update_id, committed_at, delivery_state, delivery_owner,
+                   delivery_started_at, delivered_at, telegram_message_id, delivery_attempts
+              FROM telegram_operations WHERE update_id = ?`,
+      args: [id],
+    });
+    const r = rs.rows[0];
+    if (!r) return null;
+    return {
+      updateId: Number(r.update_id),
+      committedAt: r.committed_at,
+      deliveryState: String(r.delivery_state ?? TELEGRAM_DELIVERY_STATE.DELIVERED),
+      deliveryOwner: r.delivery_owner ?? null,
+      deliveryStartedAt: r.delivery_started_at ?? null,
+      deliveredAt: r.delivered_at ?? null,
+      telegramMessageId: r.telegram_message_id === null || r.telegram_message_id === undefined
+        ? null : Number(r.telegram_message_id),
+      deliveryAttempts: Number(r.delivery_attempts ?? 0),
+    };
+  }
+
+  /**
+   * ACTION_READY → DELIVERY_STARTED。**在打網路之前**呼叫。
+   *
+   * 這一筆寫入就是「從這一刻起，Telegram 可能已經收到了」的持久化事實。
+   * 少了它，死在送出過程中的執行與死在送出之前的執行長得一模一樣。
+   *
+   * 只有 ACTION_READY 可以往前走：DELIVERY_STARTED / AMBIGUOUS / DELIVERED
+   * 都代表「已經試過或已經成功」，不可以再啟動一次。
+   */
+  async function markDeliveryStarted(updateId, { owner, now = new Date() } = {}) {
+    const id = Number(updateId);
+    if (!Number.isSafeInteger(id) || !owner) return false;
+    const rs = await client.execute({
+      sql: `UPDATE telegram_operations
+               SET delivery_state = ?, delivery_owner = ?, delivery_started_at = ?,
+                   delivery_attempts = delivery_attempts + 1
+             WHERE update_id = ? AND delivery_state = ?`,
+      args: [TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED, String(owner), now.toISOString(),
+        id, TELEGRAM_DELIVERY_STATE.ACTION_READY],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /** DELIVERY_STARTED → DELIVERED，並存下 Telegram 的 message_id。 */
+  async function markDelivered(updateId, { owner, messageId = null, now = new Date() } = {}) {
+    const id = Number(updateId);
+    if (!Number.isSafeInteger(id) || !owner) return false;
+    const mid = messageId === null || messageId === undefined ? null : Number(messageId);
+    const rs = await client.execute({
+      sql: `UPDATE telegram_operations
+               SET delivery_state = ?, delivered_at = ?, telegram_message_id = ?
+             WHERE update_id = ? AND delivery_owner = ? AND delivery_state = ?`,
+      args: [TELEGRAM_DELIVERY_STATE.DELIVERED, now.toISOString(),
+        Number.isFinite(mid) ? mid : null, id, String(owner),
+        TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * DELIVERY_STARTED → ACTION_READY（**明確**的送出失敗）。
+   *
+   * 只有在 Telegram 親口回報「我沒有收下」的時候才可以走這條：把狀態退回去，
+   * 下一次嘗試就能安全地重送（動作不會重做，收據還在）。
+   */
+  async function markDeliveryFailed(updateId, { owner, now = new Date() } = {}) {
+    const id = Number(updateId);
+    if (!Number.isSafeInteger(id) || !owner) return false;
+    const rs = await client.execute({
+      sql: `UPDATE telegram_operations
+               SET delivery_state = ?, delivery_owner = NULL, delivery_started_at = ?
+             WHERE update_id = ? AND delivery_owner = ? AND delivery_state = ?`,
+      args: [TELEGRAM_DELIVERY_STATE.ACTION_READY, now.toISOString(), id, String(owner),
+        TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * DELIVERY_STARTED → AMBIGUOUS（網路層結果不明）。
+   *
+   * 逾時、連線被重置 —— 我們**證明不了** Telegram 沒收到。自動重送有機會讓
+   * 使用者收到兩則一模一樣的健康建議，所以這裡停下來，交給人決定。
+   */
+  async function markDeliveryAmbiguous(updateId, { owner, now = new Date() } = {}) {
+    const id = Number(updateId);
+    if (!Number.isSafeInteger(id) || !owner) return false;
+    const rs = await client.execute({
+      sql: `UPDATE telegram_operations
+               SET delivery_state = ?
+             WHERE update_id = ? AND delivery_owner = ? AND delivery_state = ?`,
+      args: [TELEGRAM_DELIVERY_STATE.AMBIGUOUS, id, String(owner),
+        TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
   }
 
   /**
@@ -613,6 +793,14 @@ export function createDb({ url, authToken }) {
     raw: client,
     withAnswerOwnership,
     processTelegramOperation,
+    getTelegramOperation,
+    markDeliveryStarted,
+    markDelivered,
+    markDeliveryFailed,
+    markDeliveryAmbiguous,
+    markDeliverySuppressed,
+    setTelegramUpdateUser,
+    hasEarlierUnfinishedUpdate,
     outsideProcessingTransaction: processing.outside,
     afterProcessingCommit: processing.afterCommit,
     processingTransactionActive: processing.active,

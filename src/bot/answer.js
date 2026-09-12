@@ -5,6 +5,7 @@ import { AI_PURPOSE } from '../config.js';
 import { factsFromQaResult } from '../publishableFacts.js';
 import { renderAssertions, assemblePublication } from '../assertionRenderer.js';
 import { mechanismNoun } from './healthEducation.js';
+import { SYNC_VERDICT } from '../syncTruth.js';
 
 export const ANSWER_SYSTEM_PROMPT = `你是 Kelvin 的私人健康教練，語氣溫暖、專業、口語，用繁體中文。
 
@@ -249,30 +250,76 @@ function agoText(iso, nowIso) {
  *
  * 也絕不吐 capability probe／backfill／資源筆數 —— 那是 /healthdata 的事。
  */
+/**
+ * 同步狀態 → 使用者看得懂的一句話。
+ *
+ * ## 為什麼有這麼多種說法
+ *
+ * 「有同步成功嗎」底下其實是三個不同的問題：覆蓋率、最近一次的結果、
+ * 新鮮度。上一版把它們壓成 ok/partial/failing 三檔，於是「三週前 sleep
+ * 成功過一次、其他資源從來沒跑過」也會得到「有，最後一次成功同步是……」。
+ *
+ * 這裡每一種判定對應一句**只宣稱證據支持得起的事**的話。
+ *
+ * ⚠️ 一律不提資源的內部鍵、endpoint、capability probe、backfill。
+ * 使用者要知道的是「資料完不完整、新不新」，不是我們的資料管線長什麼樣。
+ */
 export function renderSyncAnswer(result) {
   const ago = agoText(result.last_success_at, result.now);
+  const when = ago ? `是 ${ago}` : '有紀錄但時間不明';
+  const latest = result.latest_health_date
+    ? `目前最新的健康資料是 ${result.latest_health_date}。` : null;
+
+  // 同步成功、但 WHOOP 還沒產生今天的分數 —— 這不是故障，必須分開講，
+  // 否則使用者會去修一個沒有壞的東西。
+  if (result.no_new_data) {
+    return [
+      `有，最近一次完整同步成功${ago ? `（${ago}）` : ''}，不過還沒有今天的新資料。`,
+      'WHOOP 通常要等當天的睡眠評分出來之後才會有新的數字。',
+      latest,
+    ].filter(Boolean).join('\n');
+  }
+
   switch (result.verdict) {
-    case 'ok':
+    case SYNC_VERDICT.LATEST_SUCCESS_COMPLETE:
+      return [`有，最近一次完整同步成功，時間${when}。`, latest].filter(Boolean).join('\n');
+
+    case SYNC_VERDICT.LATEST_SUCCESS_PARTIAL:
       return [
-        `有，最後一次成功同步是${ago ? ` ${ago}` : '在最近'}。`,
-        result.latest_health_date ? `目前最新的健康資料是 ${result.latest_health_date}。` : null,
+        `有部分資料同步成功${ago ? `（最近一次是 ${ago}）` : ''}，`
+        + '但不是每一項都確認拿到了，所以我沒辦法說這次是完整的。',
+        latest,
       ].filter(Boolean).join('\n');
-    case 'partial':
+
+    case SYNC_VERDICT.HISTORICAL_SUCCESS_LATEST_FAILED:
       return [
-        `大致有 —— 最後一次成功同步${ago ? `是 ${ago}` : '有紀錄'}，`
-        + `但有部分資料這次沒拿到（${result.failing_resources.join('、')}）。`,
-        '通常下一次排程就會補上。',
-      ].join('\n');
-    case 'failing':
+        `之前成功過${ago ? `（最近一次成功是 ${ago}）` : ''}，但最近一次有部分沒有成功。`,
+        '通常下一次排程會自己補上；如果一直這樣，可能要重新授權一次 WHOOP。',
+        latest,
+      ].filter(Boolean).join('\n');
+
+    case SYNC_VERDICT.STALE_SUCCESS:
+      return [
+        `有成功過，但已經有一段時間沒有更新了${ago ? `（最近一次成功是 ${ago}）` : ''}。`,
+        '如果你的 WHOOP 有在配戴而且有連上網，通常下一次排程就會補上。',
+        latest,
+      ].filter(Boolean).join('\n');
+
+    case SYNC_VERDICT.LATEST_FAILED:
       return '目前看起來同步是失敗的，我這邊還沒有成功取得資料的紀錄。'
         + '如果持續這樣，可能要重新授權一次 WHOOP。';
-    case 'never_synced':
+
+    case SYNC_VERDICT.NEVER_SYNCED:
       return '我這邊還沒有任何同步紀錄，看起來同步從來沒有跑成功過。';
+
+    case SYNC_VERDICT.INCOMPLETE_EVIDENCE:
     default:
-      return '我沒辦法確認最近一次同步的狀態 —— 手邊沒有可靠的同步紀錄可以判斷。'
-        + (result.latest_health_date
+      return [
+        '目前只能確認部分狀態 —— 我手邊的同步紀錄不完整，沒辦法確定最近一次的結果。',
+        result.latest_health_date
           ? `目前最新的健康資料是 ${result.latest_health_date}，但那不保證最近一次同步成功。`
-          : '');
+          : null,
+      ].filter(Boolean).join('\n');
   }
 }
 

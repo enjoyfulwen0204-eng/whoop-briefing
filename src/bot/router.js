@@ -21,7 +21,9 @@ import { createHealthQuery } from '../healthQuery.js';
 import { saveEvent, describeEvent, healthDateFor, CATEGORIES } from '../journal.js';
 import { addDays, localDate } from '../time.js';
 import { loadDailyMetrics } from '../dailyMetrics.js';
-import { assessUrgency, urgentReply } from './triage.js';
+import {
+  assessUrgency, urgentReply, isSymptomEducationQuestion, symptomEducationReply,
+} from './triage.js';
 import { labelForCategory } from '../journal.js';
 import { log, describeError } from '../logger.js';
 import { resolveIntent, parseCommand } from './intent.js';
@@ -29,6 +31,9 @@ import { composeAnswer } from './answer.js';
 import { resolvePerspective, intentIsInherentlyPersonal, PERSPECTIVE } from './perspective.js';
 import { educationAnswer, detectTopic } from './healthEducation.js';
 import { validateTimePrecision } from './timePrecision.js';
+import {
+  authorizeSemanticFields, rawTextVeto, negatedLogCommandReply, categoryHintOf,
+} from './journalAuthorization.js';
 import {
   handleLog, handleHealthData, startText, buildHelp,
   handleStatus, handleJournal, handleInsights, handlePredictions,
@@ -105,10 +110,17 @@ export const JOURNAL_SCHEMA = {
    *
    * 四個欄位都必須明確成立才會寫入；缺欄位、型別不對、互相矛盾一律不寫。
    */
-  asserted: { type: 'boolean', nullable: true },
-  negated: { type: 'boolean', nullable: true },
-  hypothetical: { type: 'boolean', nullable: true },
-  about_self: { type: 'boolean', nullable: true },
+  //
+  // ★ 四個欄位一律**必填、布林、不可為 null**。
+  //
+  // 上一版宣告成 nullable，於是模型只回 `{asserted:true, about_self:true}`
+  // 也算通過 schema，缺席的 negated / hypothetical 被 runtime 當成 false。
+  // 那是 fail open：沒有回答等於默認授權。現在缺一個就整份輸出作廢
+  //（retry → fallback → 不寫入）。
+  asserted: { type: 'boolean', required: true, nullable: false },
+  negated: { type: 'boolean', required: true, nullable: false },
+  hypothetical: { type: 'boolean', required: true, nullable: false },
+  about_self: { type: 'boolean', required: true, nullable: false },
   /** 時間精確度：'now' | 'time' | 'date' | 'unknown'。決定敢不敢談先後關係。 */
   time_precision: { type: 'string', enum: ['now', 'time', 'date', 'unknown'], nullable: true },
   subtype: { type: 'string', nullable: true, maxLength: 60 },
@@ -119,7 +131,9 @@ export const JOURNAL_SCHEMA = {
   confidence: { type: 'number', min: 0, max: 1, nullable: true },
 };
 
-export async function parseNaturalJournal({ text, now, timezone, coach, minConfidence = 0.5 }) {
+export async function parseNaturalJournal({
+  text, now, timezone, coach, minConfidence = 0.5, subjectEstablished = false,
+}) {
   if (!coach?.json) return { ok: false, reason: 'no_llm' };
 
   // schema 驗證 + 最多重試一次；兩次都不合法就放棄（確定性 fallback = 不寫入）
@@ -164,12 +178,24 @@ export async function parseNaturalJournal({ text, now, timezone, coach, minConfi
     hypothetical: raw.hypothetical === true,
     aboutSelf: raw.about_self === true ? true : (raw.about_self === false ? false : null),
   };
-  const reject = (reason) => ({ ok: false, reason, signals });
+  const reject = (reason, extra = {}) => ({ ok: false, reason, signals, ...extra });
 
-  if (raw.asserted !== true) return reject('not_asserted');
-  if (raw.negated === true) return reject('negated');
-  if (raw.hypothetical === true) return reject('hypothetical');
-  if (raw.about_self !== true) return reject('not_about_self');
+  // ★ 關卡 A：結構化契約。**不依賴 schema 已經驗過** —— runtime 必須自己
+  // 守得住，否則 schema 的一次放寬就會讓整條防線消失。
+  const fields = authorizeSemanticFields(raw);
+  if (!fields.ok) {
+    log.info('journal_mutation_denied', { gate: 'semantic_fields', reason: fields.reason, field: fields.field });
+    return reject(`fields_${fields.reason}`, { deniedField: fields.field ?? null });
+  }
+
+  // ★ 關卡 B：原文否決權。即使欄位齊全，模型也不能推翻使用者打出來的字。
+  //「我今天沒有喝酒，為什麼還是很累？」配上謊報 asserted:true 的解析結果，
+  // 以前會寫出一筆飲酒紀錄。
+  const veto = rawTextVeto({ text, category, subjectEstablished });
+  if (veto.vetoed) {
+    log.info('journal_mutation_denied', { gate: 'raw_text_veto', reason: veto.reason, cues: veto.cues });
+    return reject(`veto_${veto.reason}`, { veto });
+  }
 
   // ★ 解析器只能**提議**時間精確度；原文支撐不起來就下修。
   // 「我昨天喝酒」不會因為模型回了 now 就變成一個精確的時刻。
@@ -320,7 +346,11 @@ export function looksLikeJournal(text) {
   const t = String(text ?? '');
   if (/[?？]$/.test(t)) return false;
   if (/(怎樣|如何|為什麼|為何|嗎\s*$|多少|哪一?天)/.test(t)) return false;
-  return /(喝|吃|飛|睡|生病|不舒服|感冒|壓力|按摩|三溫暖|旅行|出差|加班|宵夜)/.test(t);
+  // ⚠️ 這張表以前漏了幾個很常見的動詞：「我昨晚熬夜到三點」「我剛運動完」
+  //「我今天壓力很大」都是清楚的個人陳述，卻因為詞表沒收錄而完全不會被記錄。
+  // 補齊之後仍然安全：問句在上面已經被排除，而寫入本身還要過
+  // journalAuthorization 的兩道關卡。
+  return /(喝|吃|飛|睡|熬夜|晚睡|生病|不舒服|感冒|發燒|壓力|按摩|三溫暖|旅行|出差|加班|宵夜|運動|重訓|跑步|訓練|健身|咖啡)/.test(t);
 }
 
 /**
@@ -499,6 +529,13 @@ export function createRouter({
       return urgentReply();
     }
 
+    // ---- 0b. 在問症狀是什麼（不是在描述自己現在的狀況）----
+    // 不觸發急診指引，也不掉到指令清單。
+    if (isSymptomEducationQuestion(text)) {
+      log.info('symptom_education_question', { user_id: userId });
+      return symptomEducationReply();
+    }
+
     // ---- 1. 有沒有等著被回答的追問 ----
     const pending = typeof db.getOpenPendingQuestion === 'function'
       ? await db.getOpenPendingQuestion(userId, { now: t })
@@ -634,7 +671,20 @@ export function createRouter({
     // 明確指令一律嘗試記錄，即使 looksLikeJournal() 的詞表沒收錄那個動詞
     // （例如「熬夜」）—— 使用者已經直接說了要記什麼。
     if (isExplicitLogCommand(text) || looksLikeJournal(text)) {
-      const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
+      // 「幫我記錄今天沒有喝酒」：journal_events 沒有「沒有發生」這種形狀，
+      // 記成一筆飲酒是反的，靜靜忽略又會讓人以為記到了。誠實說明限制。
+      if (isExplicitLogCommand(text)) {
+        const preVeto = rawTextVeto({ text, category: categoryHintOf(text), subjectEstablished: true });
+        if (preVeto.vetoed && preVeto.reason === 'negated') {
+          log.info('journal_mutation_denied', { gate: 'explicit_command_negated', cues: preVeto.cues });
+          return negatedLogCommandReply();
+        }
+      }
+      const nat = await parseNaturalJournal({
+        text, now: t, timezone, coach,
+        // 使用者直接下令要記自己的事，主詞由指令本身確立。
+        subjectEstablished: isExplicitLogCommand(text),
+      });
       if (nat.ok) {
         const saved = await saveEvent(db, userId, nat.event, { now: t, timezone });
         if (saved.ok) return `✅ 已記錄：${describeEvent(saved.event)}`;
@@ -973,7 +1023,12 @@ export function createRouter({
       return '好，那我先記著這幾天的數字，繼續幫你留意。';
     }
 
-    const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
+    const nat = await parseNaturalJournal({
+      text, now: t, timezone, coach,
+      // Bot 剛剛問了這個人一個問題，主詞在問題裡就定了：「喝了三杯酒」
+      // 沒有第一人稱，但它確實是在講自己。
+      subjectEstablished: true,
+    });
     let savedLine = null;
     if (nat.ok) {
       // M-06：這題問的是哪一天，答案就記在哪一天（使用者自己講日期時除外）
@@ -1064,7 +1119,12 @@ export function createRouter({
       return '好，我先記著這件事，會繼續留意後續的數字。';
     }
 
-    const nat = await parseNaturalJournal({ text, now: t, timezone, coach });
+    const nat = await parseNaturalJournal({
+      text, now: t, timezone, coach,
+      // Bot 剛剛問了這個人一個問題，主詞在問題裡就定了：「喝了三杯酒」
+      // 沒有第一人稱，但它確實是在講自己。
+      subjectEstablished: true,
+    });
     if (!nat.ok) {
       // 只允許一次澄清追問——不能無止盡盤問使用者。
       if (!pending.context?.clarified) {

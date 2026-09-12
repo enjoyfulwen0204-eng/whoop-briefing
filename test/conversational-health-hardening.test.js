@@ -139,26 +139,71 @@ test('★★★ REPAIR 1: 非主張的句子一律零寫入', async () => {
   }
 });
 
-test('★★★ REPAIR 1: 語意欄位缺席／矛盾一律不寫（fail closed）', async () => {
-  const bad = [
-    {},                                   // 全部缺席
-    { asserted: true },                   // 只有一半
-    { asserted: true, about_self: true, negated: true },       // 矛盾
-    { asserted: true, about_self: true, hypothetical: true },  // 矛盾
-    { asserted: 'yes', about_self: true },                     // 型別錯
-  ];
-  for (const over of bad) {
+/**
+ * ⚠️ 這個測試以前是無效的。
+ *
+ * 舊版的 fixture 是這樣寫的：
+ *
+ *   const base = { category:'alcohol', confidence:0.9,
+ *                  negated:false, hypothetical:false, about_self:false, asserted:false };
+ *   return { ...base, ...over };
+ *
+ * 於是「negated 缺席」這個 case 實際上收到 `negated: false` —— 測試聲稱在驗
+ * 缺欄位，實際上每個欄位都被補上了預設值。真正的漏洞（缺席被當成 false）
+ * 因此完全沒有被覆蓋到。
+ *
+ * 現在**原樣送出每一個物件**：沒有 base、沒有合併、沒有正規化。
+ * 完整合法的物件另外有一個 helper（validParse），而且不給缺欄位的 case 用。
+ */
+const MALFORMED = [
+  ['全部缺席', {}],
+  ['只有 asserted', { asserted: true }],
+  ['只有 asserted + about_self（Codex 實測的漏洞）', { asserted: true, about_self: true }],
+  ['缺 negated', { asserted: true, about_self: true, hypothetical: false }],
+  ['缺 hypothetical', { asserted: true, about_self: true, negated: false }],
+  ['缺 about_self', { asserted: true, negated: false, hypothetical: false }],
+  ['asserted=null', { asserted: null, negated: false, hypothetical: false, about_self: true }],
+  ['negated=null', { asserted: true, negated: null, hypothetical: false, about_self: true }],
+  ['hypothetical=null', { asserted: true, negated: false, hypothetical: null, about_self: true }],
+  ['about_self=null', { asserted: true, negated: false, hypothetical: false, about_self: null }],
+  ['asserted="yes"', { asserted: 'yes', negated: false, hypothetical: false, about_self: true }],
+  ['negated="false"', { asserted: true, negated: 'false', hypothetical: false, about_self: true }],
+  ['hypothetical=0', { asserted: true, negated: false, hypothetical: 0, about_self: true }],
+  ['about_self=1', { asserted: true, negated: false, hypothetical: false, about_self: 1 }],
+  ['asserted+negated 矛盾', { asserted: true, negated: true, hypothetical: false, about_self: true }],
+  ['asserted+hypothetical 矛盾', { asserted: true, negated: false, hypothetical: true, about_self: true }],
+  ['asserted=false 其餘安全', { asserted: false, negated: false, hypothetical: false, about_self: true }],
+  ['about_self=false 其餘安全', { asserted: true, negated: false, hypothetical: false, about_self: false }],
+];
+
+/** 原樣回傳給定的物件 —— 不補任何預設值。 */
+const rawCoach = (obj) => () => ({
+  async json() { return { category: 'alcohol', confidence: 0.9, ...obj }; },
+  async ask() { return 'x'; },
+});
+
+test('★★★ REPAIR 1: 18 種殘缺／錯型／矛盾的解析結果一律零寫入（欄位原樣送出）', async () => {
+  for (const [label, obj] of MALFORMED) {
     const { db, user, cleanup } = await seed();
     try {
-      const base = {
-        category: 'alcohol', confidence: 0.9,
-        negated: false, hypothetical: false, about_self: false, asserted: false,
-      };
-      const coachFor = () => ({ async json() { return { ...base, ...over }; }, async ask() { return 'x'; } });
-      await bot(db, user, coachFor)('我剛剛喝酒了，為什麼這麼累？');
-      assert.equal((await rows(db, user.id)).length, 0,
-        `★ ${JSON.stringify(over)} 不可以寫入`);
+      // 這句原文本身是清楚的個人主張，所以唯一能擋下寫入的就是語意欄位契約。
+      await bot(db, user, rawCoach(obj))('我剛剛喝酒了，為什麼這麼累？');
+      assert.equal((await rows(db, user.id)).length, 0, `★ ${label} 不可以寫入`);
     } finally { cleanup(); }
+  }
+});
+
+test('★★★ REPAIR 1: 契約層單獨驗證（不經過路由，確認 runtime 自己守得住）', async () => {
+  const { authorizeSemanticFields, AUTHORIZED_SEMANTICS } = await import('../src/bot/journalAuthorization.js');
+  for (const [label, obj] of MALFORMED) {
+    const r = authorizeSemanticFields({ category: 'alcohol', confidence: 0.9, ...obj });
+    assert.equal(r.ok, false, `★ ${label} 必須被契約拒絕`);
+  }
+  // 唯一被授權的組合
+  assert.equal(authorizeSemanticFields(AUTHORIZED_SEMANTICS).ok, true);
+  // 非物件
+  for (const bad of [null, undefined, 'x', 5, []]) {
+    assert.equal(authorizeSemanticFields(bad).ok, false, `★ ${JSON.stringify(bad)} 必須被拒絕`);
   }
 });
 

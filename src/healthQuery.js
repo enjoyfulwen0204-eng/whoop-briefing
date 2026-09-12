@@ -17,6 +17,7 @@
  */
 
 import { ANALYTICS } from './config.js';
+import { assessSync, producedNoNewData, SYNC_VERDICT } from './syncTruth.js';
 import { addDays, localDate } from './time.js';
 import { labelForCategory } from './journal.js';
 import { loadDailyMetrics, seriesOf, RECOVERY_DERIVED_METRICS } from './dailyMetrics.js';
@@ -279,35 +280,33 @@ export function createHealthQuery({
   async function syncStatus() {
     const states = typeof db.getAllSyncState === 'function'
       ? (await db.getAllSyncState(uid).catch(() => [])) ?? [] : [];
+
+    // capability 只用來把「這個帳號本來就拿不到」的資源移出預期範圍。
+    // 拿不到時就當成沒有 capability 資訊（不是當成「都支援」）。
+    let capabilities = null;
+    if (typeof db.getCapabilities === 'function') {
+      try {
+        const rows = (await db.getCapabilities(uid)) ?? [];
+        capabilities = {};
+        for (const r of rows) capabilities[String(r.key)] = { status: r.status ?? null };
+      } catch { capabilities = null; }
+    }
+
     const rows = await loadRows();
     const today = rows[0] ?? null;
 
-    const resources = states.map((r) => ({
-      resource: String(r.resource),
-      last_success_at: r.last_success_at ?? null,
-      last_error: r.last_error ?? null,
-      last_error_at: r.last_error_at ?? null,
-    }));
-    const successes = resources.map((r) => r.last_success_at).filter(Boolean).sort();
-    const lastSuccess = successes.length ? successes[successes.length - 1] : null;
-    const failing = resources.filter((r) => r.last_error);
-
-    let verdict;
-    if (!resources.length) verdict = 'never_synced';       // 從來沒跑過同步
-    else if (failing.length && !lastSuccess) verdict = 'failing';
-    else if (failing.length) verdict = 'partial';          // 有成功過，但有資源出錯
-    else if (lastSuccess) verdict = 'ok';
-    else verdict = 'unknown';                              // 有狀態列但沒有時間 → 不確定
+    // ★ 判定本身在 syncTruth：預期資源只有一份（WHOOP_SYNC.RESOURCES），
+    // 而且「覆蓋率／最新一次／新鮮度」三個問題分開回答。
+    const assessment = assessSync({
+      states, capabilities, now, latestHealthDate: today?.health_date ?? null,
+    });
 
     return {
       available: true,
       intent: 'sync_status',
-      verdict,
-      last_success_at: lastSuccess,
-      failing_resources: failing.map((r) => r.resource),
-      /** 最新一筆健康資料的日期（「資料有沒有進來」的直接證據）。 */
-      latest_health_date: today?.health_date ?? null,
-      now: new Date(now).toISOString(),
+      ...assessment,
+      /** 同步成功但沒有產生新的量測 —— 跟同步失敗完全不同，必須分開講。 */
+      no_new_data: producedNoNewData(assessment, { expectedHealthDate: localDate(now, timezone) }),
     };
   }
 

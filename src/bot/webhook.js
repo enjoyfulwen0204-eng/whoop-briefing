@@ -105,6 +105,14 @@ export function looksLikeUpdate(v) {
     && Number.isFinite(Number(v.update_id));
 }
 
+export function schedulerConfiguration(env, triggerSecret) {
+  const values = [env?.whoopClientId, env?.whoopClientSecret, env?.telegramChatId, triggerSecret];
+  return {
+    enabled: values.every(Boolean),
+    state: values.every(Boolean) ? 'enabled' : values.some(Boolean) ? 'incomplete' : 'disabled',
+  };
+}
+
 /**
  * 建立 HTTP 請求處理器。
  *
@@ -118,6 +126,7 @@ export function createWebhookHandler({
   webhookPath = TELEGRAM_BOT.WEBHOOK_PATH,
   healthPath = TELEGRAM_BOT.HEALTH_PATH,
   maxBodyBytes = TELEGRAM_BOT.WEBHOOK_MAX_BODY_BYTES,
+  schedulerConfigured = Boolean(briefingEndpoint),
 }) {
   const send = (res, status, obj) => {
     const text = JSON.stringify(obj);
@@ -138,10 +147,16 @@ export function createWebhookHandler({
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         return send(res, 405, { ok: false });
       }
-      return send(res, 200, { ok: true, service: 'telegram-webhook' });
+      return send(res, 200, {
+        ok: true, service: 'telegram-webhook', scheduler: schedulerConfigured ? 'enabled' : 'disabled',
+      });
     }
 
+    if (path === BRIEFING_TRIGGER.PATH && !briefingEndpoint) {
+      return send(res, 503, { ok: false, error: 'scheduler_unavailable' });
+    }
     if (path === BRIEFING_TRIGGER.PATH && briefingEndpoint) {
+      if (url !== path) return send(res, 400, { ok: false, error: 'query_not_allowed' });
       if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
       const schedulerBody = await readBody(req, { limit: BRIEFING_TRIGGER.MAX_BODY_BYTES });
       if (!schedulerBody.ok) {
@@ -248,7 +263,6 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     require: [
       'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET',
       'TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'OPENROUTER_API_KEY',
-      'WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET', 'BRIEFING_TRIGGER_SECRET',
     ],
   });
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -279,11 +293,17 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     workerId: `${process.pid}:${randomUUID()}`,
   });
 
-  const briefingEndpoint = createBriefingEndpoint({
-    secret: briefingTriggerSecret, runBriefing,
-  });
+  const scheduler = schedulerConfiguration(env, briefingTriggerSecret);
+  const schedulerConfigured = scheduler.enabled;
+  if (!schedulerConfigured) {
+    log.warn('briefing_scheduler_disabled', {
+      reason: scheduler.state === 'incomplete' ? 'incomplete_configuration' : 'not_configured',
+    });
+  }
+  const briefingEndpoint = schedulerConfigured
+    ? createBriefingEndpoint({ secret: briefingTriggerSecret, runBriefing }) : null;
   const server = createWebhookServer({
-    processUpdate: processor.processUpdate, secret, briefingEndpoint,
+    processUpdate: processor.processUpdate, secret, briefingEndpoint, schedulerConfigured,
   });
   if (!listen) return { server, db };
 

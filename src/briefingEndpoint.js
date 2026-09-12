@@ -25,13 +25,16 @@ export function createBriefingEndpoint({
   }
   if (typeof runBriefing !== 'function') throw new Error('runBriefing is required');
   const recent = new Map();
+  let activeRun = null;
   const prune = (at) => {
     for (const [id, v] of recent) if (at - v.at > BRIEFING_TRIGGER.MAX_CLOCK_SKEW_MS) recent.delete(id);
   };
 
   return async function briefingEndpoint(req, body) {
-    const path = String(req.url ?? '').split('?')[0];
+    const rawUrl = String(req.url ?? '');
+    const path = rawUrl.split('?')[0];
     if (path !== BRIEFING_TRIGGER.PATH) return null;
+    if (rawUrl !== path) return { status: 400, body: { ok: false, error: 'query_not_allowed' } };
     if (req.method !== 'POST') return { status: 405, body: { ok: false, error: 'method_not_allowed' } };
     if (!String(req.headers?.['content-type'] ?? '').toLowerCase().startsWith('application/json')) {
       return { status: 415, body: { ok: false, error: 'unsupported_media_type' } };
@@ -62,7 +65,13 @@ export function createBriefingEndpoint({
     log.info('briefing_trigger_received', { source: 'cloudflare', request_id: requestId });
     const promise = (async () => {
       try {
-        const result = aggregate(await runBriefing({ triggerSource: 'cloudflare' }));
+        // Different authenticated Cron invocations may overlap during a cold/slow run. They join
+        // one process-local canonical run; durable report_claims still protect across processes.
+        if (!activeRun) {
+          activeRun = Promise.resolve(runBriefing({ triggerSource: 'cloudflare' }))
+            .finally(() => { activeRun = null; });
+        }
+        const result = aggregate(await activeRun);
         const ok = result.application_errors === 0;
         log.info('briefing_trigger_finished', {
           source: 'cloudflare', request_id: requestId, ok, duration_ms: Date.now() - started,

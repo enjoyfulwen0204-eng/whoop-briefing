@@ -32,7 +32,7 @@ import { runDaily } from '../src/daily.js';
 import { detectWake, buildObservations } from '../src/analyze.js';
 import {
   assessBriefingStatus, renderBriefingStatus, decide,
-  BRIEFING_STATUS, SCHEDULER_STALE_AFTER_MS,
+  BRIEFING_STATUS,
 } from '../src/briefingStatus.js';
 import { deterministicIntent } from '../src/bot/intent.js';
 import { createHealthQuery } from '../src/healthQuery.js';
@@ -134,6 +134,12 @@ async function seed({
   if (heartbeatAt) {
     await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON, {
       detail: 'users=1', now: new Date(heartbeatAt),
+    });
+    await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CLOUDFLARE, {
+      detail: 'outcome=completed;users=1', now: new Date(heartbeatAt),
+    });
+    await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.GITHUB, {
+      detail: 'outcome=completed;users=1', now: new Date(heartbeatAt),
     });
   }
   return { db, user: u, cleanup: () => { db.close(); cleanup(); } };
@@ -454,8 +460,11 @@ test('★★★ 17: heartbeat 過期 → 狀態直接說「排程沒在跑」，
     heartbeatAt: '2026-09-12T00:54:49.260Z',
   });
   try {
-    // 現在是 03:55Z → heartbeat 已經 3 小時 old（> 90 分鐘）
+    // 主要排程 3 小時、備用排程 13 小時都已超過各自的角色門檻。
     const now = new Date('2026-09-12T03:55:00.000Z');
+    await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.GITHUB, {
+      detail: 'outcome=completed;users=1', now: new Date(now.getTime() - 13 * 60 * 60_000),
+    });
     const { status, evidence } = await assessBriefingStatus({ db, userId: user.id, timezone: TZ, now });
     assert.equal(evidence.scheduler_stale, true);
     assert.equal(status, BRIEFING_STATUS.SCHEDULER_STALE);
@@ -604,8 +613,4 @@ test('★★★ 22: decide() 判定表', () => {
   // 什麼都不知道
   assert.equal(decide({ ...base, wake_reason: null }), D.UNKNOWN);
   assert.equal(decide({ ...base, wake_reason: null, scheduler_stale: true }), D.SCHEDULER_STALE);
-});
-
-test('★★ 22b: 排程新鮮度門檻是 90 分鐘（比 guardian 的 3 小時敏感）', () => {
-  assert.equal(SCHEDULER_STALE_AFTER_MS, 90 * 60_000);
 });

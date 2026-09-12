@@ -29,6 +29,7 @@ import { detectWake, buildObservations } from './analyze.js';
 import { localDate, addDays } from './time.js';
 import { GLOBAL_SCOPE } from './schema.js';
 import { HEARTBEAT_COMPONENT } from './guardianPolicy.js';
+import { readSchedulerHealth } from './schedulerWatchdog.js';
 import { log, describeError } from './logger.js';
 
 /** 結構化判定。使用者看到的句子由 renderBriefingStatus 決定。 */
@@ -52,16 +53,6 @@ export const BRIEFING_STATUS = Object.freeze({
 });
 
 /**
- * 超過這個時間沒有跑完一輪，就把「排程器沒在跑」當成主要答案。
- *
- * 刻意比 guardian 的 3 小時短：guardian 是在決定「要不要吵使用者」，
- * 這裡是在回答使用者主動問的問題，寧可早一點誠實說「我最近沒被叫起來」。
- * 事故當天觀測到的排程間隔是 2h11m～4h33m，所以 90 分鐘足以區分
- * 「正常但慢」與「根本沒在跑」。
- */
-export const SCHEDULER_STALE_AFTER_MS = 90 * 60_000;
-
-/**
  * 收集證據並判定。**唯讀。**
  *
  * @param {object}  db        store（只會用到 getSleeps/getRecoveries/getCycles/isSent/getHeartbeat）
@@ -79,8 +70,9 @@ export async function assessBriefingStatus({ db, userId, timezone, now = new Dat
     scheduler_last_ok_at: null,
     scheduler_age_ms: null,
     scheduler_stale: null,
-    cloudflare_stale: null,
-    github_stale: null,
+    scheduler_state: 'unknown',
+    cloudflare_state: 'unknown',
+    github_state: 'unknown',
     sent_today: null,
     sent_yesterday: null,
     observation_health_date: null,
@@ -92,29 +84,19 @@ export async function assessBriefingStatus({ db, userId, timezone, now = new Dat
   // ---- 1. 排程器最近有跑完一輪嗎？----
   try {
     if (typeof db.getHeartbeat === 'function') {
-      const sourceChecks = [
-        ['cloudflare_stale', HEARTBEAT_COMPONENT.CLOUDFLARE, 30 * 60_000],
-        ['github_stale', HEARTBEAT_COMPONENT.GITHUB, 2 * 60 * 60_000],
-      ];
-      for (const [key, component, maxAge] of sourceChecks) {
-        const sourceHb = await db.getHeartbeat(GLOBAL_SCOPE, component);
-        if (sourceHb?.lastOkAt) {
-          const sourceAge = new Date(now).getTime() - Date.parse(sourceHb.lastOkAt);
-          if (Number.isFinite(sourceAge) && sourceAge >= 0) evidence[key] = sourceAge > maxAge;
-        }
-      }
+      const scheduler = await readSchedulerHealth({ db, now });
+      evidence.scheduler_state = scheduler.overall;
+      evidence.cloudflare_state = scheduler.cloudflare.state;
+      evidence.github_state = scheduler.github.state;
       const hb = await db.getHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON);
       if (hb?.lastOkAt) {
         evidence.scheduler_last_ok_at = hb.lastOkAt;
         const age = new Date(now).getTime() - Date.parse(hb.lastOkAt);
-        if (Number.isFinite(age) && age >= 0) {
-          evidence.scheduler_age_ms = age;
-          evidence.scheduler_stale = age > SCHEDULER_STALE_AFTER_MS;
-        }
+        if (Number.isFinite(age) && age >= 0) evidence.scheduler_age_ms = age;
       }
-      const knownSources = [evidence.cloudflare_stale, evidence.github_stale]
-        .filter((value) => value !== null);
-      if (knownSources.length) evidence.scheduler_stale = knownSources.every(Boolean);
+      if (scheduler.overall !== 'unknown' && scheduler.overall !== 'uninitialized') {
+        evidence.scheduler_stale = scheduler.overall === 'outage';
+      }
     }
   } catch (err) {
     log.warn('briefing_status_heartbeat_failed', { error: describeError(err) });
@@ -233,15 +215,13 @@ function ago(ms) {
  */
 export function renderBriefingStatus({ status, evidence }) {
   const e = evidence ?? {};
-  const sourceLine = e.cloudflare_stale === true && e.github_stale === false
-    ? 'Cloudflare 主排程最近沒有心跳，但 GitHub 備援仍有運作。'
-    : e.cloudflare_stale === false && e.github_stale === true
-      ? 'Cloudflare 主排程仍有運作，但 GitHub 備援最近沒有心跳。'
-      : e.cloudflare_stale === true && e.github_stale === true
-        ? 'Cloudflare 主排程和 GitHub 備援最近都沒有心跳。'
-        : e.cloudflare_stale === false && e.github_stale === false
-          ? 'Cloudflare 主排程和 GitHub 備援最近都有成功心跳。'
-          : null;
+  const sourceLine = e.scheduler_state === 'healthy'
+    ? '負責檢查晨報的排程最近有正常運作。'
+    : e.scheduler_state === 'degraded'
+      ? '排程最近仍有執行，但檢查頻率可能比平常慢。'
+      : e.scheduler_state === 'outage'
+        ? '負責檢查晨報的排程最近沒有正常執行。'
+        : null;
   const schedulerLine = e.scheduler_stale === true
     ? `另外，負責定時檢查的排程最近一次跑完是${ago(e.scheduler_age_ms) ?? '有一段時間了'}，`
       + '所以我現在沒辦法保證下一次檢查什麼時候會發生。'

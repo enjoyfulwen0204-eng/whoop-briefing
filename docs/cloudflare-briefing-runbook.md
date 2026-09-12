@@ -16,6 +16,11 @@ unbounded scheduling delay. If both providers fail there is no internal alert or
 
 ## Provision and validate
 
+> **Activation order:** provision all Render scheduler variables before deploying the new SHA.
+> Missing scheduler-only configuration now leaves Telegram inbound online and keeps the scheduler
+> route fail-closed as unavailable (`503`), but pre-provisioning avoids a partially activated
+> production state. The scheduler route never fails open.
+
 1. Create a Worker using `cloudflare/briefing-scheduler`; do not add WHOOP, Turso, OpenRouter, or
    Telegram credentials to it.
 2. Authenticate Wrangler using the account's standard least-privilege procedure.
@@ -55,3 +60,14 @@ response draining, and short retry waits. Each request timeout is two minutes an
 inside Cloudflare's 15-minute Cron wall-time limit. Network wait does not consume CPU time, but the
 Free plan's CPU allowance remains tight; verify CPU metrics after deployment. Cron execution is UTC
 and is not guaranteed, which is why the independent GitHub backup remains enabled.
+
+## WHOOP request budget and supported scale
+
+This V1.1 deployment is supported for its current personal, one-user use. A not-yet-settled daily
+briefing performs lightweight sleep/recovery polling on each invocation; full resource sync remains
+throttled to approximately hourly. Existing WHOOP handling backs off and retries `429` responses.
+At 144 primary invocations plus best-effort backup runs, the expected one-user budget is roughly
+122–250 WHOOP calls/day. Ten users can require roughly 1,220–2,500 calls/day. Do not expand toward
+100 users under this design: the repository's documented 10,000-request/day allowance would be at
+risk. Reassess batching/cadence before onboarding more than ten active users. OpenRouter is not
+called until wake eligibility is satisfied and the durable report claim is acquired.

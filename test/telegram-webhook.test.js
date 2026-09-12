@@ -159,7 +159,7 @@ test('★★ webhook: GET /health 回最小狀態，不碰 DB、不吐內部資�
     assert.ok(spy);
     const r = await get('/health');
     assert.equal(r.status, 200);
-    assert.deepEqual(r.json, { ok: true, service: 'telegram-webhook' });
+    assert.deepEqual(r.json, { ok: true, service: 'telegram-webhook', scheduler: 'disabled' });
     const text = JSON.stringify(r.json);
     for (const leak of ['5001', '5002', 'turso', 'token', 'secret', 'user_id']) {
       assert.ok(!text.toLowerCase().includes(leak), `不可以出現 ${leak}`);
@@ -550,7 +550,9 @@ test('★★★ webhook: 真的起一個 server，/health 與 webhook 都通', a
     try {
       const health = await fetch(`http://127.0.0.1:${port}/health`);
       assert.equal(health.status, 200);
-      assert.deepEqual(await health.json(), { ok: true, service: 'telegram-webhook' });
+      assert.deepEqual(await health.json(), {
+        ok: true, service: 'telegram-webhook', scheduler: 'disabled',
+      });
 
       const bad = await fetch(`http://127.0.0.1:${port}${PATH_}`, {
         method: 'POST',

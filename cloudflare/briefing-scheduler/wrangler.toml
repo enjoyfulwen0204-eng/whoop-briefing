@@ -8,9 +8,6 @@ crons = ["*/10 * * * *"]
 [vars]
 BRIEFING_ENDPOINT_URL = "https://REPLACE_WITH_RENDER_HOST/internal/briefing/run"
 
-[secrets]
-required = ["BRIEFING_TRIGGER_SECRET"]
-
 [observability]
 enabled = true
 

@@ -75,8 +75,9 @@ services:
       - key: OPENROUTER_MODEL
         value: anthropic/claude-sonnet-5
       # 這個服務**只要**它真的會用到的東西。
-      # WHOOP_CLIENT_ID / WHOOP_CLIENT_SECRET 刻意不在這裡：入站只讀 Turso 裡
-      # 已經同步好的健康資料，不會自己去打 WHOOP API。
+      # 同一個 Web Service 也承載 HMAC 驗證的 /internal/briefing/run。
+      # Telegram 入站路由本身仍只讀 Turso、不呼叫 WHOOP；只有 scheduler 路由
+      # 會執行 canonical briefing runner 並使用下面的 WHOOP credentials。
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_CHAT_ID

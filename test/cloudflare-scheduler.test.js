@@ -6,10 +6,13 @@ import {
   BRIEFING_TRIGGER, canonicalTriggerMessage, signTriggerRequest, verifyTriggerRequest,
 } from '../src/briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../src/briefingEndpoint.js';
-import { checkPeerScheduler } from '../src/schedulerWatchdog.js';
+import {
+  checkPeerScheduler, providerState, aggregateSchedulerState, SCHEDULER_POLICY,
+} from '../src/schedulerWatchdog.js';
 import { HEARTBEAT_COMPONENT } from '../src/guardianPolicy.js';
 import { signRequest, retryableStatus, invoke } from '../cloudflare/briefing-scheduler/worker.js';
 import { BRIEFING_STATUS, renderBriefingStatus } from '../src/briefingStatus.js';
+import { schedulerConfiguration } from '../src/bot/webhook.js';
 
 const SECRET = 'test-only-secret-with-sufficient-entropy';
 const NOW = 1_789_123_456_000;
@@ -81,6 +84,24 @@ test('endpoint returns aggregate-only result and suppresses duplicate request ID
   assert.deepEqual(a.body.result.daily, { sent: 1, not_ready: 1 });
 });
 
+test('different request IDs coalesce onto one active canonical process run', async () => {
+  let resolveRun;
+  let calls = 0;
+  const endpoint = createBriefingEndpoint({
+    secret: SECRET, now: () => NOW,
+    runBriefing: () => { calls += 1; return new Promise((resolve) => { resolveRun = resolve; }); },
+  });
+  const a = base();
+  const b = base();
+  const pa = endpoint(request(a, signTriggerRequest(a, SECRET)), a.body);
+  const pb = endpoint(request(b, signTriggerRequest(b, SECRET)), b.body);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls, 1);
+  resolveRun({ users: 0, ok: 0, failed: 0, skipped: 0, errors: [], perUser: [] });
+  assert.equal((await pa).status, 200);
+  assert.equal((await pb).status, 200);
+});
+
 test('endpoint rejects media type, malformed/large body, auth failure, and reports partial failure', async () => {
   const endpoint = createBriefingEndpoint({
     secret: SECRET, now: () => NOW,
@@ -92,19 +113,31 @@ test('endpoint rejects media type, malformed/large body, auth failure, and repor
   assert.equal((await endpoint(request(args, sig), '{')).status, 400);
   assert.equal((await endpoint(request(args, sig), 'x'.repeat(1025))).status, 413);
   assert.equal((await endpoint(request(args, 'bad'), '{}')).status, 401);
+  assert.equal((await endpoint({ ...request(args, sig), url: `${args.path}?unexpected=1` }, '{}')).status, 400);
   assert.equal((await endpoint(request(args, sig), '{}')).status, 207);
 });
 
-test('Worker retries only bounded transport/temporary failures and reuses request metadata', async () => {
+test('scheduler-only env is fail-closed without taking down inbound configuration', () => {
+  assert.deepEqual(schedulerConfiguration({}, ''), { enabled: false, state: 'disabled' });
+  assert.deepEqual(schedulerConfiguration({ whoopClientId: 'only-one' }, ''),
+    { enabled: false, state: 'incomplete' });
+  assert.deepEqual(schedulerConfiguration({
+    whoopClientId: 'id', whoopClientSecret: 'secret', telegramChatId: 'chat',
+  }, SECRET), { enabled: true, state: 'enabled' });
+});
+
+test('Worker re-signs each retry while preserving logical request ID', async () => {
   assert.equal(retryableStatus(503), true);
   assert.equal(retryableStatus(401), false);
   const requests = [];
   const statuses = [503, 502, 200];
+  let cleared = 0;
   const result = await invoke({
     BRIEFING_ENDPOINT_URL: 'https://example.invalid/internal/briefing/run',
     BRIEFING_TRIGGER_SECRET: SECRET,
   }, {
-    now: () => NOW, sleep: async () => {},
+    now: (() => { const times = [NOW, NOW + 120_000, NOW + 240_000]; return () => times.shift(); })(),
+    sleep: async () => {}, clearTimer: (timer) => { cleared += 1; clearTimeout(timer); },
     fetchImpl: async (_url, options) => {
       requests.push(options);
       const status = statuses.shift();
@@ -112,9 +145,26 @@ test('Worker retries only bounded transport/temporary failures and reuses reques
     },
   });
   assert.equal(result.attempt, 3);
+  assert.equal(cleared, 3, 'success and retry responses must clear their timers');
   assert.equal(requests.length, 3);
   assert.equal(new Set(requests.map((r) => r.headers['x-briefing-request-id'])).size, 1);
-  assert.equal(new Set(requests.map((r) => r.headers['x-briefing-signature'])).size, 1);
+  assert.deepEqual(requests.map((r) => Number(r.headers['x-briefing-timestamp'])),
+    [NOW, NOW + 120_000, NOW + 240_000]);
+  assert.equal(new Set(requests.map((r) => r.headers['x-briefing-signature'])).size, 3);
+  for (const r of requests) {
+    assert.deepEqual(verifyTriggerRequest({
+      timestamp: r.headers['x-briefing-timestamp'], requestId: r.headers['x-briefing-request-id'],
+      signature: r.headers['x-briefing-signature'], secret: SECRET, method: 'POST',
+      path: BRIEFING_TRIGGER.PATH, body: r.body, now: Number(r.headers['x-briefing-timestamp']),
+    }), { ok: true });
+  }
+  const first = requests[0];
+  assert.equal(verifyTriggerRequest({
+    timestamp: first.headers['x-briefing-timestamp'], requestId: first.headers['x-briefing-request-id'],
+    signature: first.headers['x-briefing-signature'], secret: SECRET, method: 'POST',
+    path: BRIEFING_TRIGGER.PATH, body: first.body,
+    now: NOW + BRIEFING_TRIGGER.MAX_CLOCK_SKEW_MS + 1,
+  }).reason, 'stale_timestamp');
 
   let authAttempts = 0;
   await assert.rejects(() => invoke({
@@ -130,34 +180,153 @@ test('Worker retries only bounded transport/temporary failures and reuses reques
   assert.equal(authAttempts, 1);
 });
 
-test('reciprocal watchdog distinguishes healthy, stale, unknown, and alert failure', async () => {
-  const notices = [];
-  const systemTelegram = { notifyError: async (...v) => { notices.push(v); return true; } };
-  const db = { getHeartbeat: async (_scope, component) => component === HEARTBEAT_COMPONENT.GITHUB
-    ? { lastOkAt: new Date(NOW - 60_000).toISOString() } : null };
-  assert.equal((await checkPeerScheduler({ db, source: 'cloudflare', systemTelegram, now: new Date(NOW) })).status, 'healthy');
-  db.getHeartbeat = async () => ({ lastOkAt: new Date(NOW - 3 * 60 * 60_000).toISOString() });
-  assert.equal((await checkPeerScheduler({ db, source: 'cloudflare', systemTelegram, now: new Date(NOW) })).status, 'stale');
-  assert.equal(notices.length, 1);
-  db.getHeartbeat = async () => null;
-  assert.equal((await checkPeerScheduler({ db, source: 'github', systemTelegram, now: new Date(NOW) })).status, 'unknown');
+test('scheduler role policy covers observed GitHub gaps without healthy-primary alerts', async () => {
+  const at = new Date(NOW);
+  for (const minutes of [120, 131, 137, 157, 226, 272, 273, 240, 420]) {
+    const state = providerState({ lastOkAt: new Date(NOW - minutes * 60_000).toISOString() }, 'github', at);
+    assert.notEqual(state.state, 'stale', `${minutes} minutes must not be severe`);
+  }
+  assert.equal(providerState({ lastOkAt: new Date(NOW - 13 * 3600_000).toISOString() }, 'github', at).state, 'stale');
+  assert.equal(providerState({ lastOkAt: 'malformed' }, 'github', at).state, 'unknown');
+  assert.equal(providerState({ lastOkAt: new Date(NOW + 1).toISOString() }, 'github', at).state, 'unknown');
+
+  let alerts = 0;
+  const systemTelegram = { notifyError: async () => { alerts += 1; return true; } };
+  const heartbeats = new Map([
+    [HEARTBEAT_COMPONENT.CLOUDFLARE, { lastOkAt: new Date(NOW - 5 * 60_000).toISOString() }],
+    [HEARTBEAT_COMPONENT.GITHUB, { lastOkAt: new Date(NOW - 13 * 3600_000).toISOString() }],
+  ]);
+  const db = { getHeartbeat: async (_scope, component) => heartbeats.get(component) ?? null };
+  for (let minute = 0; minute < 24 * 60; minute += 10) {
+    heartbeats.set(HEARTBEAT_COMPONENT.CLOUDFLARE,
+      { lastOkAt: new Date(NOW + minute * 60_000).toISOString() });
+    await checkPeerScheduler({ db, source: 'cloudflare', systemTelegram, now: new Date(NOW + minute * 60_000) });
+  }
+  assert.equal(alerts, 0, 'healthy-primary operation must emit zero product-channel backup alerts/24h');
+
+  heartbeats.set(HEARTBEAT_COMPONENT.CLOUDFLARE,
+    { lastOkAt: new Date(NOW - 60 * 60_000).toISOString() });
+  heartbeats.set(HEARTBEAT_COMPONENT.GITHUB,
+    { lastOkAt: new Date(NOW - 10 * 60_000).toISOString() });
+  const degraded = await checkPeerScheduler({ db, source: 'github', systemTelegram, now: at });
+  assert.equal(degraded.overall, 'degraded');
+  assert.equal(degraded.alerted, true);
+  assert.equal(alerts, 1);
+
+  heartbeats.clear();
+  const firstDeploy = await checkPeerScheduler({ db, source: 'cloudflare', systemTelegram, now: at });
+  assert.equal(firstDeploy.overall, 'uninitialized');
   db.getHeartbeat = async () => { throw new Error('db timeout'); };
-  assert.equal((await checkPeerScheduler({ db, source: 'github', systemTelegram, now: new Date(NOW) })).status, 'unknown');
+  assert.equal((await checkPeerScheduler({ db, source: 'github', systemTelegram, now: at })).overall, 'unknown');
 });
 
-test('briefing status reports each provider independently without promising timing when both stale', () => {
-  const one = renderBriefingStatus({
-    status: BRIEFING_STATUS.WAITING_FOR_SLEEP_DATA,
-    evidence: { cloudflare_stale: true, github_stale: false, scheduler_stale: false },
-  });
-  assert.match(one, /Cloudflare/);
-  assert.match(one, /GitHub/);
-  const both = renderBriefingStatus({
-    status: BRIEFING_STATUS.SCHEDULER_STALE,
-    evidence: { cloudflare_stale: true, github_stale: true, scheduler_stale: true },
-  });
-  assert.match(both, /都沒有心跳/);
-  assert.doesNotMatch(both, /10 分鐘|一小時後/);
+test('primary outage alerts obey cooldown, delivery failure, and concurrent atomic claims', async () => {
+  const heartbeats = new Map([
+    [HEARTBEAT_COMPONENT.CLOUDFLARE, { lastOkAt: new Date(NOW - 2 * 3600_000).toISOString() }],
+    [HEARTBEAT_COMPONENT.GITHUB, { lastOkAt: new Date(NOW).toISOString() }],
+  ]);
+  const db = { getHeartbeat: async (_scope, component) => heartbeats.get(component) };
+  let currentHour = 0;
+  let lastClaim = -Infinity;
+  let sends = 0;
+  const systemTelegram = { notifyError: async () => {
+    if (currentHour - lastClaim < 2) return false;
+    lastClaim = currentHour;
+    sends += 1;
+    return sends !== 1; // first delivery failure is surfaced as alerted=false
+  } };
+  const first = await checkPeerScheduler({ db, source: 'github', systemTelegram, now: new Date(NOW) });
+  assert.equal(first.alerted, false);
+  for (currentHour = 1; currentHour < 24; currentHour += 1) {
+    heartbeats.set(HEARTBEAT_COMPONENT.GITHUB,
+      { lastOkAt: new Date(NOW + currentHour * 3600_000).toISOString() });
+    await checkPeerScheduler({
+      db, source: 'github', systemTelegram, now: new Date(NOW + currentHour * 3600_000),
+    });
+  }
+  assert.equal(sends, 12, 'hourly fallback with a 2h cooldown produces exactly 12 attempts/24h');
+
+  currentHour = 30;
+  lastClaim = -Infinity;
+  sends = 0;
+  let claimed = false;
+  const atomicTelegram = { notifyError: async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    if (claimed) return false;
+    claimed = true;
+    sends += 1;
+    return true;
+  } };
+  const pair = await Promise.all([
+    checkPeerScheduler({ db, source: 'github', systemTelegram: atomicTelegram, now: new Date(NOW + 30 * 3600_000) }),
+    checkPeerScheduler({ db, source: 'github', systemTelegram: atomicTelegram, now: new Date(NOW + 30 * 3600_000) }),
+  ]);
+  assert.equal(sends, 1);
+  assert.deepEqual(pair.map((r) => r.alerted).sort(), [false, true]);
+});
+
+test('briefing status is vendor/topology-free in every product state', () => {
+  const forbidden = /Cloudflare|GitHub|cron|heartbeat|Render|Worker|Actions|endpoint|primary|backup|主排程|備援/i;
+  for (const status of Object.values(BRIEFING_STATUS)) {
+    for (const schedulerState of ['healthy', 'degraded', 'outage', 'unknown', 'uninitialized']) {
+      const message = renderBriefingStatus({
+        status,
+        evidence: { scheduler_state: schedulerState, scheduler_stale: schedulerState === 'outage' },
+      });
+      assert.doesNotMatch(message, forbidden, `${status}/${schedulerState}`);
+    }
+  }
+});
+
+test('redirects are terminal, never followed, and placeholder/query URLs fail closed', async () => {
+  for (const [status, location] of [
+    [301, 'https://render.example/other'],
+    [302, 'https://cross-origin.example/internal/briefing/run'],
+    [302, 'http://render.example/internal/briefing/run'],
+    [301, 'https://render.example/internal/briefing/run'],
+  ]) {
+    let calls = 0;
+    await assert.rejects(() => invoke({
+      BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
+      BRIEFING_TRIGGER_SECRET: SECRET,
+    }, {
+      now: () => NOW, sleep: async () => {},
+      fetchImpl: async (_url, options) => {
+        calls += 1;
+        assert.equal(options.redirect, 'error');
+        return { status, ok: false, headers: { get: () => location }, text: async () => 'redirect target hidden' };
+      },
+    }), new RegExp(String(status)));
+    assert.equal(calls, 1);
+  }
+  for (const url of [
+    'https://REPLACE_WITH_RENDER_HOST/internal/briefing/run',
+    'https://render.example/internal/briefing/run?x=1',
+    'https://render.example/internal/briefing/run#x',
+    'http://render.example/internal/briefing/run',
+  ]) {
+    await assert.rejects(() => invoke({ BRIEFING_ENDPOINT_URL: url, BRIEFING_TRIGGER_SECRET: SECRET }));
+  }
+});
+
+test('real AbortController path aborts each hanging attempt and clears every timer', async () => {
+  let attempts = 0;
+  let cleared = 0;
+  await assert.rejects(() => invoke({
+    BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
+    BRIEFING_TRIGGER_SECRET: SECRET,
+  }, {
+    now: (() => { let t = NOW; return () => (t += 120_000); })(), sleep: async () => {}, timeoutMs: 1,
+    setTimer: (fn) => { queueMicrotask(fn); return Symbol('timer'); },
+    clearTimer: () => { cleared += 1; },
+    fetchImpl: async (_url, { signal }) => new Promise((_resolve, reject) => {
+      attempts += 1;
+      signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')),
+        { once: true });
+    }),
+  }), { name: 'AbortError' });
+  assert.equal(attempts, 3);
+  assert.equal(cleared, 3);
 });
 
 test('CLI and Render endpoint reference the same exported canonical runner', async () => {
@@ -166,4 +335,49 @@ test('CLI and Render endpoint reference the same exported canonical runner', asy
   const webhookSource = (await import('node:fs')).readFileSync('src/bot/webhook.js', 'utf8');
   assert.match(webhookSource, /import \{ runBriefing \} from '\.\.\/index\.js'/);
   assert.doesNotMatch(webhookSource, /exec|spawn|npm start/);
+});
+
+test('zero-user execution is successful liveness, records heartbeat, and sends no alerts', async () => {
+  const index = await import('../src/index.js');
+  const heartbeats = [];
+  let alerts = 0;
+  const db = {
+    migrate: async () => {}, listActiveUsers: async () => [],
+    recordHeartbeat: async (...args) => { heartbeats.push(args); }, close: () => {},
+  };
+  const env = {
+    timezone: 'Asia/Taipei', dryRun: true, maxUserConcurrency: 3,
+    telegramBotToken: 'test', telegramChatId: 'test', tursoUrl: 'file:test', tursoToken: '',
+    repoLastCommitAt: null,
+  };
+  const result = await index.runBriefing({
+    triggerSource: 'cloudflare', deps: {
+      db, env, makeTelegram: () => ({ send: async () => {}, notifyError: async () => { alerts += 1; } }),
+    },
+  });
+  assert.equal(result.outcome, 'nothing_due');
+  assert.equal(result.users, 0);
+  assert.equal(heartbeats.length, 2);
+  assert.equal(alerts, 0);
+});
+
+test('partial application failure does not record a successful scheduler heartbeat', async () => {
+  const index = await import('../src/index.js');
+  const heartbeats = [];
+  const db = {
+    migrate: async () => {}, listActiveUsers: async () => [{ id: 'user-1' }],
+    recordHeartbeat: async (...args) => { heartbeats.push(args); },
+    getHeartbeat: async () => null, close: () => {},
+  };
+  const env = {
+    timezone: 'Asia/Taipei', dryRun: true, maxUserConcurrency: 1,
+    telegramBotToken: 'test', telegramChatId: 'test', tursoUrl: 'file:test', tursoToken: '',
+    repoLastCommitAt: null,
+  };
+  const result = await index.runBriefing({ triggerSource: 'cloudflare', deps: {
+    db, env, runUser: async () => ({ skipped: false, errors: [new Error('isolated failure')] }),
+  } });
+  assert.equal(result.outcome, 'partial_failure');
+  assert.equal(result.failed, 1);
+  assert.equal(heartbeats.length, 0);
 });

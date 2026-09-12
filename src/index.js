@@ -374,8 +374,8 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
 
 export async function runBriefing({ now = new Date(), deps = {}, triggerSource = 'github' } = {}) {
   const { guardian = runGuardian } = deps;
-  loadDotEnvIfPresent();
-  const env = loadEnv();
+  if (!deps.env) loadDotEnvIfPresent();
+  const env = deps.env ?? loadEnv();
 
   log.info('run_start', {
     utc: now.toISOString(),
@@ -385,7 +385,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     max_user_concurrency: env.maxUserConcurrency,
   });
 
-  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+  const db = deps.db ?? createDb({ url: env.tursoUrl, authToken: env.tursoToken });
 
   // 系統層 telegram：只用於「基礎設施故障」通知（Turso 掛了、找不到任何使用者）。
   // chat 用 bootstrap 的 TELEGRAM_CHAT_ID —— 這是唯一還會用到那個 env 的地方。
@@ -399,7 +399,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
 
   const summary = {
     users: 0, ok: 0, failed: 0, skipped: 0, perUser: [], errors: [], guardian: null,
-    schedulerWatchdog: null,
+    schedulerWatchdog: null, outcome: null,
   };
 
   try {
@@ -416,52 +416,12 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
       log.warn('run_no_active_users', {});
     }
 
+    const runUser = deps.runUser ?? runForUser;
     const results = await mapWithConcurrency(
       users,
       env.maxUserConcurrency,
-      (user) => runForUser({ db, env, user, now, deps }),
+      (user) => runUser({ db, env, user, now, deps }),
     );
-
-    // ---- 運維心跳（V1.1 Phase 9）----
-    // 「這一輪 cron 真的跑完了」是系統裡唯一沒有任何地方記錄的事實，
-    // 而 cron 死掉時是**安靜地**死（沒有 run 就沒有錯誤通知）。
-    // 記在成功跑完所有使用者之後，所以它代表的是「整輪走到底」。
-    try {
-      const component = triggerSource === 'cloudflare'
-        ? HEARTBEAT_COMPONENT.CLOUDFLARE : HEARTBEAT_COMPONENT.GITHUB;
-      await db.recordHeartbeat(GLOBAL_SCOPE, component, {
-        detail: `users=${users.length}`, now,
-      });
-      await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON, {
-        detail: `source=${triggerSource};users=${users.length}`, now,
-      });
-    } catch (err) {
-      log.warn('heartbeat_failed', { error: describeError(err) });
-    }
-
-    summary.schedulerWatchdog = await checkPeerScheduler({
-      db, source: triggerSource, systemTelegram, now,
-    });
-
-    // ---- System Guardian（V1.1 Phase 9）----
-    // 只看已經持久化的事實 → 判斷 →（必要時）發一則 Telegram。
-    // 健康時完全靜默。絕不修改任何東西。自己吞掉所有錯誤。
-    try {
-      summary.guardian = await guardian({
-        db,
-        systemTelegram,
-        makeTelegram: ({ chatId, errorScope }) => (deps.makeTelegram ?? createTelegram)({
-          botToken: env.telegramBotToken,
-          chatId,
-          dryRun: env.dryRun,
-          db,
-          errorScope,
-        }),
-        now,
-      });
-    } catch (err) {
-      log.error('guardian_unexpected', { error: describeError(err) });
-    }
 
     for (const [i, r] of results.entries()) {
       const uid = users[i].id;
@@ -478,13 +438,62 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
         if (v.errors.length) summary.failed += 1;
         else summary.ok += 1;
       } else {
-        // runForUser 本身爆掉（理論上不該發生，它內部已經全包）
         summary.failed += 1;
         summary.errors.push({ userId: uid, error: describeError(r.error) });
         summary.perUser.push({ userId: uid, fatal: describeError(r.error) });
         log.error('user_run_fatal', { user_id: uid, error: describeError(r.error) });
       }
     }
+    summary.outcome = users.length === 0 ? 'nothing_due'
+      : summary.failed || summary.errors.length ? 'partial_failure' : 'completed';
+
+    // ---- 運維心跳（V1.1 Phase 9）----
+    // 「這一輪 cron 真的跑完了」是系統裡唯一沒有任何地方記錄的事實，
+    // 而 cron 死掉時是**安靜地**死（沒有 run 就沒有錯誤通知）。
+    // 記在成功跑完所有使用者之後，所以它代表的是「整輪走到底」。
+    try {
+      const component = triggerSource === 'cloudflare'
+        ? HEARTBEAT_COMPONENT.CLOUDFLARE : HEARTBEAT_COMPONENT.GITHUB;
+      if (summary.outcome !== 'partial_failure') {
+        await db.recordHeartbeat(GLOBAL_SCOPE, component, {
+          detail: `outcome=${summary.outcome};users=${users.length}`, now,
+        });
+        await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON, {
+          detail: `source=${triggerSource};outcome=${summary.outcome};users=${users.length}`, now,
+        });
+      }
+    } catch (err) {
+      log.warn('heartbeat_failed', { error: describeError(err) });
+    }
+
+    if (users.length) {
+      summary.schedulerWatchdog = await checkPeerScheduler({
+        db, source: triggerSource, systemTelegram, now,
+      });
+    }
+
+    // ---- System Guardian（V1.1 Phase 9）----
+    // 只看已經持久化的事實 → 判斷 →（必要時）發一則 Telegram。
+    // 健康時完全靜默。絕不修改任何東西。自己吞掉所有錯誤。
+    try {
+      if (users.length) {
+        summary.guardian = await guardian({
+          db,
+          systemTelegram,
+          makeTelegram: ({ chatId, errorScope }) => (deps.makeTelegram ?? createTelegram)({
+            botToken: env.telegramBotToken,
+            chatId,
+            dryRun: env.dryRun,
+            db,
+            errorScope,
+          }),
+          now,
+        });
+      }
+    } catch (err) {
+      log.error('guardian_unexpected', { error: describeError(err) });
+    }
+
   } catch (err) {
     // 基礎設施層失敗（Turso / 環境變數）→ 全域 scope
     summary.errors.push({ stage: 'bootstrap', error: describeError(err) });

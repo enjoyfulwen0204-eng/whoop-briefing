@@ -1,6 +1,20 @@
-# Cloudflare briefing scheduler runbook
+# Cloudflare briefing scheduler runbook (V1.1)
 
 This runbook is intentionally inert. Commands below are for a reviewed production change window.
+
+## V1.1 release facts
+
+| Item | Value |
+|---|---|
+| Schema version | **8** (adds `briefing_evaluations`; additive, `IF NOT EXISTS`, never rebuilt) |
+| Canonical timezone | **Asia/Taipei** (Kelvin's stored `users.timezone`) |
+| Primary scheduler | Cloudflare Worker Cron, **every 10 minutes** |
+| Fallback scheduler | GitHub Actions, **hourly at minute 17** |
+| Wake readiness | main sleep SCORED + matching recovery SCORED + ≥ 30 min since sleep end |
+| Normal delivery | `age ≤ 24 h` |
+| Late delivery | `24 h < age ≤ 48 h` (inclusive) — labelled 補發, same `health_date` idempotency key |
+| Missed | `age > 48 h` — persisted `MISSED`, exactly one short notification, terminal |
+| Outage alert cooldown | 24 h for `scheduler_primary_stale`; 2 h for generic errors |
 
 ## Architecture
 
@@ -13,6 +27,32 @@ Telegram daily report per `(user_id, report_type, health_date)`.
 Normal detection delay is approximately 10 minutes plus provider/startup latency. With Cloudflare
 unavailable, the GitHub backup's configured upper bound is approximately 60 minutes plus GitHub's
 unbounded scheduling delay. If both providers fail there is no internal alert or delivery guarantee.
+
+## Required configuration
+
+**Render web service `whoop-telegram-webhook`** (values are set in the Render dashboard, never in git):
+
+| Variable | Purpose |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | inbound webhook + outbound delivery |
+| `TELEGRAM_WEBHOOK_SECRET` | Telegram webhook authentication |
+| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | production database |
+| `OPENROUTER_API_KEY` | narrative generation |
+| `TELEGRAM_CHAT_ID` | system-level notifications from the canonical runner |
+| `WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET` | the scheduler route runs the canonical runner, which polls WHOOP |
+| `BRIEFING_TRIGGER_SECRET` | ≥ 32 bytes; must match the Worker secret exactly |
+
+If the scheduler variables are absent or the secret is too weak, the service still starts and
+**inbound Telegram keeps working**; only `/internal/briefing/run` is disabled and returns `503`.
+`/health` reports `scheduler: enabled | incomplete | weak_secret | disabled` and never a value.
+
+**Cloudflare Worker `whoop-briefing-scheduler`** — only two settings, and no health credentials:
+
+| Setting | How |
+|---|---|
+| `BRIEFING_ENDPOINT_URL` | `[vars]` in `wrangler.toml`, replaced from the placeholder |
+| `BRIEFING_TRIGGER_SECRET` | `wrangler secret put` — never in `wrangler.toml`, never in git |
+| Cron trigger | `*/10 * * * *` |
 
 ## Provision and validate
 

@@ -30,13 +30,29 @@
 
 ## 這東西怎麼運作（30 秒版）
 
-1. 一台雲端排程器 —— 正式環境是 **GitHub Actions**（`.github/workflows/briefing.yml`）—— **全天每 30 分鐘**執行一次這支程式。排程器**只能有一個**：兩個同時開著會讓 WHOOP 用量與 OpenRouter 花費變成兩倍（資料不會壞，report_claims 與 resource_locks 擋得住重複發送與 token 競態）。
+1. **排程器有兩個，職責不同**（V1.1）：
+   - **主排程：Cloudflare Worker Cron，每 10 分鐘**（`cloudflare/briefing-scheduler/`）。它只做一件事 —— 用 HMAC 簽一個小小的 POST 打到 Render 上的 `/internal/briefing/run`，由那裡執行同一支 canonical runner。Cloudflare 不存任何 WHOOP／Telegram／Turso／OpenRouter 憑證。
+   - **備援：GitHub Actions，每小時第 17 分**（`.github/workflows/briefing.yml`）。它直接跑同一支程式。
+   - 兩個同時活著是**安全**的：去重靠 Turso 的 `report_claims`（同一個 `(user, report_type, health_date)` 最多送出一次），token 競態靠 `resource_locks`。
+   - 之所以不再是「唯一一個每 30 分鐘的 GitHub 排程」：實測 GitHub 只產生了約 15% 的預期 cron 事件（間隔 2～4.5 小時），2026-09-12 因此整個早上沒有任何一輪執行，簡報沒發出去。GitHub 的 cron 是 best-effort，不能當主排程。
 2. 每次執行先問 Turso：「今天和昨天的簡報都發過了嗎？而且週報也不待發？」都成立就直接結束，連 WHOOP 都不打。
-3. 否則 → 抓最新的睡眠與恢復資料，判斷「你是不是真的起床了」（最新主睡眠已評分、對應的 recovery 已評分、距離睡眠結束已超過 30 分鐘、而且不超過 24 小時）。
-4. 條件成立 → 才抓 45 天歷史，算出你的個人基準、紅黃燈、趨勢，然後請模型把結果講成人話，發到 Telegram，並在 Turso 記一筆「已送出」。
+3. 否則 → 抓最新的睡眠與恢復資料，判斷「你是不是真的起床了」：最新主睡眠已評分、對應的 recovery 已評分、距離睡眠結束已超過 30 分鐘。條件還沒到就**等下一輪**，而且把「在等什麼」寫進 `briefing_evaluations`（schema v8），所以使用者問「今天的晨報呢」時答得出來。
+4. 條件成立 → 才抓 45 天歷史，算出你的個人基準、紅黃燈、趨勢。**所有健康判斷都由程式做**；模型只負責把已經核可的事實講成自然的中文，而且輸出要通過發布守門，沒通過就用確定性敘述（見下）。發到 Telegram，並在 Turso 記一筆「已送出」。
 5. 週一時，每週回顧走**完全獨立**的一條線判斷與重試，跟每日簡報互不影響。
 
-因為全天每 30 分鐘都會試一次，加上去重用的是 **health_date**（你那筆主睡眠結束的當地日期，不是執行當下的日期），所以：**你幾點起床就幾點收到（誤差 30 分鐘內），睡到下午或跨午夜才跑到也照樣補發，同一個健康日只會收到一則。**
+### 送達時間窗（V1.1 明文政策）
+
+`age = 現在 − 主睡眠結束時間`（用**實際的** sleep.end，不從前一天的作息推估）：
+
+| age | 行為 |
+|---|---|
+| ≤ 24 小時 | 一般簡報 |
+| 24～**48 小時（含 48）** | **補發**：標示「📮 補發：<health_date> 的晨報」，去重鍵仍是原本的 health_date，所以不會出現「正常版＋補發版」兩份 |
+| > 48 小時 | **MISSED**：不送整份過期報告，只送一則簡短通知（同一天只通知一次），終局不再重試 |
+
+48 小時是**包含**的：恰好 48 小時仍可補發，超過一毫秒才是 MISSED。邊界上的錯誤代價不對稱 —— 晚送一份標示清楚的報告，遠好過把一份還救得回來的報告永久丟掉。
+
+因為主排程每 10 分鐘試一次，加上去重用的是 **health_date**（你那筆主睡眠結束的當地日期，不是執行當下的日期），所以：**你幾點起床就幾點收到（誤差通常在 10 分鐘內），睡到下午或跨午夜才跑到也照樣補發，同一個健康日只會收到一則。**
 
 ---
 
@@ -65,7 +81,11 @@
 | `scripts/dry-run.js` | 用假資料把各種情境跑一遍，直接看到訊息長相。 |
 | `test/` | 63 個自動化測試。 |
 | `render.yaml` | Render 部署藍圖：隱私政策 static site + Telegram webhook（**兩個都是免費方案**）。**刻意不含 cron，也不含 Background Worker**。 |
-| `.github/workflows/briefing.yml` | 正式環境的排程器（每 30 分鐘）。這是**唯一**的排程擁有者。 |
+| `.github/workflows/briefing.yml` | **備援**排程器（每小時第 17 分）。直接跑 canonical runner。 |
+| `cloudflare/briefing-scheduler/` | **主**排程器：Cloudflare Worker Cron（每 10 分鐘），HMAC 簽章後呼叫 Render 的 `/internal/briefing/run`。不存任何健康資料憑證。 |
+| `src/narrative.js` | 敘述層：確定性敘述（程式擁有事實）＋ 選配的模型潤飾（必須通過發布守門）。 |
+| `src/briefingState.js` | 送達時間窗政策（24／48 小時）與評估結果詞彙。 |
+| `src/schedulerWatchdog.js` | 兩個排程互相監看的政策與通知冷卻。 |
 
 ---
 
@@ -217,7 +237,7 @@ B 後面那個條件是刻意加的。只看「是否單調下降」的話，在
 | WHOOP 回 429 | 依 `Retry-After` / `X-RateLimit-Reset` 或指數退避重試，最多 4 次 |
 | WHOOP 回 401 | 自動 refresh 一次再試；還是 401 就明確告訴你需要重新授權 |
 
-錯誤通知有 **2 小時冷卻**：同一種錯誤 2 小時內最多通知你一次，不會每 30 分鐘洗版。
+錯誤通知有 **2 小時冷卻**：同一種錯誤 2 小時內最多通知你一次。**持續型**訊號（例如主排程離線）另外用 **24 小時**冷卻 —— 主排程掛一整天時，2 小時冷卻會送出 12 則一模一樣的警報，那不是通知而是把使用者訓練成忽略警報。通知送失敗時會把該次認領**還回去**（比較 `claimedAt` 後刪除，所以碰不到別人更新的成功認領），下一輪可以馬上重試，不會白白吃掉整個冷卻窗。
 
 ### 送達保證：at-least-once（刻意的取捨）
 訊息一定是**先發 Telegram、成功後才寫 `SENT` 紀錄**。Telegram 沒有 idempotency key，跨 Telegram / Turso 兩個系統也無法原子提交，所以**做不到 exactly-once**，第一版正式採 **at-least-once**：

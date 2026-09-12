@@ -1,6 +1,6 @@
 {
   "name": "whoop-briefing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Daily WHOOP recovery briefing with an AI coach, delivered to Telegram.",
   "type": "module",

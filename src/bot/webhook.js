@@ -105,12 +105,26 @@ export function looksLikeUpdate(v) {
     && Number.isFinite(Number(v.update_id));
 }
 
+/** 排程 HMAC 密鑰的最低長度（與 briefingEndpoint 的檢查一致）。 */
+export const MIN_TRIGGER_SECRET_BYTES = 32;
+
+/**
+ * 排程路由的設定狀態。
+ *
+ * ★ 三種結果都**不會**讓服務起不來。入站 Telegram 是獨立的職責，不該因為
+ * 排程設定不完整或密鑰太弱而整個掛掉 —— 那等於用一個次要功能的設定錯誤
+ * 換掉主要功能的可用性。密鑰太弱時排程維持關閉（fail closed），入站照跑。
+ */
 export function schedulerConfiguration(env, triggerSecret) {
-  const values = [env?.whoopClientId, env?.whoopClientSecret, env?.telegramChatId, triggerSecret];
-  return {
-    enabled: values.every(Boolean),
-    state: values.every(Boolean) ? 'enabled' : values.some(Boolean) ? 'incomplete' : 'disabled',
-  };
+  const present = [env?.whoopClientId, env?.whoopClientSecret, env?.telegramChatId, triggerSecret];
+  const secretStrong = typeof triggerSecret === 'string'
+    && Buffer.byteLength(triggerSecret) >= MIN_TRIGGER_SECRET_BYTES;
+  if (present.every(Boolean) && secretStrong) return { enabled: true, state: 'enabled' };
+  if (present.every(Boolean) && !secretStrong) {
+    // 設定齊全但密鑰不合格 —— 這是設定錯誤，不是「沒設定」。分開講才修得動。
+    return { enabled: false, state: 'weak_secret' };
+  }
+  return { enabled: false, state: present.some(Boolean) ? 'incomplete' : 'disabled' };
 }
 
 /**
@@ -127,6 +141,7 @@ export function createWebhookHandler({
   healthPath = TELEGRAM_BOT.HEALTH_PATH,
   maxBodyBytes = TELEGRAM_BOT.WEBHOOK_MAX_BODY_BYTES,
   schedulerConfigured = Boolean(briefingEndpoint),
+  schedulerState = schedulerConfigured ? 'enabled' : 'disabled',
 }) {
   const send = (res, status, obj) => {
     const text = JSON.stringify(obj);
@@ -148,7 +163,7 @@ export function createWebhookHandler({
         return send(res, 405, { ok: false });
       }
       return send(res, 200, {
-        ok: true, service: 'telegram-webhook', scheduler: schedulerConfigured ? 'enabled' : 'disabled',
+        ok: true, service: 'telegram-webhook', scheduler: schedulerState,
       });
     }
 
@@ -296,14 +311,14 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const scheduler = schedulerConfiguration(env, briefingTriggerSecret);
   const schedulerConfigured = scheduler.enabled;
   if (!schedulerConfigured) {
-    log.warn('briefing_scheduler_disabled', {
-      reason: scheduler.state === 'incomplete' ? 'incomplete_configuration' : 'not_configured',
-    });
+    // 只記狀態名稱，不記密鑰長度或任何值。
+    log.warn('briefing_scheduler_disabled', { reason: scheduler.state });
   }
   const briefingEndpoint = schedulerConfigured
     ? createBriefingEndpoint({ secret: briefingTriggerSecret, runBriefing }) : null;
   const server = createWebhookServer({
     processUpdate: processor.processUpdate, secret, briefingEndpoint, schedulerConfigured,
+    schedulerState: scheduler.state,
   });
   if (!listen) return { server, db };
 

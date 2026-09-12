@@ -471,12 +471,12 @@ test('★★★ 17: heartbeat 過期 → 狀態直接說「排程沒在跑」，
     const reply = renderBriefingStatus({ status, evidence });
     assert.match(reply, /排程/, '★ 要指出是排程沒跑');
     assert.match(reply, /問題不在你的資料/, '★ 要讓使用者知道不是他的資料有問題');
-    assert.doesNotMatch(reply, /下一次檢查就會/, '★ 排程掛著時不可以承諾下一輪');
+    assert.doesNotMatch(reply, /下一次檢查就會|後續排程成功檢查/, '★ 排程掛著時不可以承諾下一輪');
     assert.doesNotMatch(reply, /分鐘後|小時後|馬上/, '★ 不可以給時間承諾');
   } finally { cleanup(); }
 });
 
-test('★★★ 18: heartbeat 新鮮時才可以說「等下一次檢查」', async () => {
+test('★★★ 18: heartbeat 新鮮時才能提下一輪，而且只能用條件句', async () => {
   const { db, user, cleanup } = await seed({
     nights: [PRIOR, LAST_NIGHT], sentDates: ['2026-09-11'],
     heartbeatAt: '2026-09-12T03:40:00.000Z',
@@ -486,7 +486,10 @@ test('★★★ 18: heartbeat 新鮮時才可以說「等下一次檢查」', as
     const { status, evidence } = await assessBriefingStatus({ db, userId: user.id, timezone: TZ, now });
     assert.equal(evidence.scheduler_stale, false);
     assert.equal(status, BRIEFING_STATUS.READY_NOT_YET_PROCESSED);
-    assert.match(renderBriefingStatus({ status, evidence }), /下一次檢查/);
+    const reply = renderBriefingStatus({ status, evidence });
+    // ★ 心跳只證明上一輪跑完，證明不了下一輪會發生 —— 一律條件句。
+    assert.match(reply, /後續排程成功檢查/);
+    assert.doesNotMatch(reply, /下一次檢查就會發|馬上|立刻/, '★ 不可以給保證');
   } finally { cleanup(); }
 });
 
@@ -501,7 +504,7 @@ test('★★★ 18b: 看門狗的循環依賴 —— 狀態評估本身完全不
     assert.equal(evidence.scheduler_stale, null, '★ 沒有證據時不可以假裝知道');
     const reply = renderBriefingStatus({ status, evidence });
     assert.ok(reply.length > 10, '★ 仍然要給得出答案');
-    assert.doesNotMatch(reply, /下一次檢查就會/, '★ 不可以承諾');
+    assert.doesNotMatch(reply, /下一次檢查就會|後續排程成功檢查/, '★ 不可以承諾');
   } finally { cleanup(); }
 });
 

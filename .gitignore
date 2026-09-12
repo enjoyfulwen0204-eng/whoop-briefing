@@ -14,3 +14,6 @@ tmp/
 *.db-wal
 *.sqlite-shm
 *.sqlite-wal
+
+# Wrangler local build/cache output
+.wrangler/

@@ -399,7 +399,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
 
   const summary = {
     users: 0, ok: 0, failed: 0, skipped: 0, perUser: [], errors: [], guardian: null,
-    schedulerWatchdog: null, outcome: null,
+    schedulerWatchdog: null, outcome: null, runState: null,
   };
 
   try {
@@ -444,8 +444,24 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
         log.error('user_run_fatal', { user_id: uid, error: describeError(r.error) });
       }
     }
-    summary.outcome = users.length === 0 ? 'nothing_due'
-      : summary.failed || summary.errors.length ? 'partial_failure' : 'completed';
+    // ---- 供應商存活 vs 每個使用者的結果，是兩件事 ----
+    //
+    // 之前只要有任何一個使用者失敗就整輪不寫 heartbeat。一個使用者 token 過期，
+    // 就會讓排程器在監看眼中「死掉」，然後對等監看開始發假的離線警報 ——
+    // 而排程器其實每 10 分鐘都準時跑到。
+    //
+    // 所以分開記：
+    //   run_state  觸發與服務本身有沒有走完一輪（= 存活）
+    //   outcome    這一輪對使用者做了什麼（= 業務結果）
+    //
+    // 只有「全部使用者都失敗」才代表這個供應商實際上什麼也做不到，那時才
+    // 不算存活。部分失敗仍然是活著的排程器，由 guardian 去處理個別使用者。
+    const attempted = users.length;
+    const failed = summary.failed;
+    summary.outcome = attempted === 0 ? 'nothing_due'
+      : failed === 0 ? 'completed'
+        : failed === attempted ? 'all_users_failed' : 'partial_failure';
+    summary.runState = summary.outcome === 'all_users_failed' ? 'unhealthy' : 'alive';
 
     // ---- 運維心跳（V1.1 Phase 9）----
     // 「這一輪 cron 真的跑完了」是系統裡唯一沒有任何地方記錄的事實，
@@ -454,12 +470,12 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     try {
       const component = triggerSource === 'cloudflare'
         ? HEARTBEAT_COMPONENT.CLOUDFLARE : HEARTBEAT_COMPONENT.GITHUB;
-      if (summary.outcome !== 'partial_failure') {
-        await db.recordHeartbeat(GLOBAL_SCOPE, component, {
-          detail: `outcome=${summary.outcome};users=${users.length}`, now,
-        });
+      // heartbeat = 這個供應商還活著。全員失敗時才不寫（那時它確實沒產出）。
+      if (summary.runState === 'alive') {
+        const detail = `outcome=${summary.outcome};users=${attempted};failed=${failed}`;
+        await db.recordHeartbeat(GLOBAL_SCOPE, component, { detail, now });
         await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON, {
-          detail: `source=${triggerSource};outcome=${summary.outcome};users=${users.length}`, now,
+          detail: `source=${triggerSource};${detail}`, now,
         });
       }
     } catch (err) {

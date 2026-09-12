@@ -299,14 +299,101 @@ test('redirects are terminal, never followed, and placeholder/query URLs fail cl
     }), new RegExp(String(status)));
     assert.equal(calls, 1);
   }
-  for (const url of [
-    'https://REPLACE_WITH_RENDER_HOST/internal/briefing/run',
-    'https://render.example/internal/briefing/run?x=1',
-    'https://render.example/internal/briefing/run#x',
-    'http://render.example/internal/briefing/run',
+  // ★ 每一個都要斷言**確切的拒絕理由**，而且 fetch 一旦被呼叫就算失敗。
+  //
+  // 之前這裡是裸的 assert.rejects()：把守衛拿掉之後，invoke() 會掉到真正的
+  // fetch、打不到那個主機、丟出 TypeError —— 測試照樣「通過」。它驗證的是
+  // DNS 解析失敗，不是我們的驗證邏輯。
+  for (const [url, expected] of [
+    ['https://REPLACE_WITH_RENDER_HOST/internal/briefing/run', /placeholder must be replaced/],
+    ['https://placeholder.example/internal/briefing/run', /placeholder must be replaced/],
+    ['https://render.example/internal/briefing/run?x=1', /exact HTTPS scheduler endpoint/],
+    ['https://render.example/internal/briefing/run#x', /exact HTTPS scheduler endpoint/],
+    ['http://render.example/internal/briefing/run', /exact HTTPS scheduler endpoint/],
+    ['https://render.example/internal/briefing/run/', /exact HTTPS scheduler endpoint/],
+    ['https://render.example/other', /exact HTTPS scheduler endpoint/],
   ]) {
-    await assert.rejects(() => invoke({ BRIEFING_ENDPOINT_URL: url, BRIEFING_TRIGGER_SECRET: SECRET }));
+    let fetched = 0;
+    await assert.rejects(
+      () => invoke({ BRIEFING_ENDPOINT_URL: url, BRIEFING_TRIGGER_SECRET: SECRET }, {
+        sleep: async () => {},
+        fetchImpl: async () => { fetched += 1; throw new Error('network must not be reached'); },
+      }),
+      (err) => {
+        assert.match(err.message, expected, `wrong rejection reason for ${url}`);
+        assert.equal(err.category, 'configuration', `${url} must be a configuration error`);
+        assert.equal(err.nonRetryable, true, `${url} must not be retried`);
+        return true;
+      },
+    );
+    assert.equal(fetched, 0, `★ ${url} 必須在送出任何請求之前就被擋下`);
   }
+  // 密鑰太短同樣是設定錯誤，而且同樣不可以先打網路。
+  {
+    let fetched = 0;
+    await assert.rejects(
+      () => invoke({
+        BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
+        BRIEFING_TRIGGER_SECRET: 'short',
+      }, { fetchImpl: async () => { fetched += 1; return { ok: true, status: 200, text: async () => '' }; } }),
+      /at least 32 bytes/,
+    );
+    assert.equal(fetched, 0);
+  }
+});
+
+test('redirect rejection is terminal and never retried three times', async () => {
+  let attempts = 0;
+  await assert.rejects(() => invoke({
+    BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
+    BRIEFING_TRIGGER_SECRET: SECRET,
+  }, {
+    now: () => NOW, sleep: async () => {},
+    fetchImpl: async () => {
+      attempts += 1;
+      // undici 在 redirect:'error' 下就是丟這種 TypeError
+      throw new TypeError('fetch failed: unexpected redirect');
+    },
+  }), (err) => {
+    assert.equal(err.category, 'redirect');
+    assert.equal(err.nonRetryable, true);
+    return true;
+  });
+  assert.equal(attempts, 1, '★ 重新導向是永久狀況，不可以重試三次');
+});
+
+test('worker failure categories are distinguishable and leak nothing', async () => {
+  const cases = [
+    ['authentication', 401, null],
+    ['http_4xx', 400, null],
+    ['http_5xx', 500, null],
+  ];
+  for (const [category, status] of cases) {
+    await assert.rejects(() => invoke({
+      BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
+      BRIEFING_TRIGGER_SECRET: SECRET,
+    }, {
+      now: () => NOW, sleep: async () => {},
+      fetchImpl: async () => ({
+        status, ok: false, text: async () => 'secret-bearing server text that must never surface',
+      }),
+    }), (err) => {
+      assert.equal(err.category, category, `status ${status} -> ${category}`);
+      assert.doesNotMatch(err.message, /secret-bearing/, '★ 伺服器回傳的文字不可以進錯誤訊息');
+      return true;
+    });
+  }
+  // 逾時要被分類成 timeout
+  await assert.rejects(() => invoke({
+    BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
+    BRIEFING_TRIGGER_SECRET: SECRET,
+  }, {
+    now: () => NOW, sleep: async () => {}, timeoutMs: 1,
+    setTimer: (fn) => { queueMicrotask(fn); return Symbol('t'); }, clearTimer: () => {},
+    fetchImpl: (_u, { signal }) => new Promise((_r, reject) => {
+      signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
+    }),
+  }), (err) => { assert.equal(err.category, 'timeout'); return true; });
 });
 
 test('real AbortController path aborts each hanging attempt and clears every timer', async () => {
@@ -361,23 +448,53 @@ test('zero-user execution is successful liveness, records heartbeat, and sends n
   assert.equal(alerts, 0);
 });
 
-test('partial application failure does not record a successful scheduler heartbeat', async () => {
+test('provider liveness is separate from per-user outcomes', async () => {
   const index = await import('../src/index.js');
-  const heartbeats = [];
-  const db = {
-    migrate: async () => {}, listActiveUsers: async () => [{ id: 'user-1' }],
-    recordHeartbeat: async (...args) => { heartbeats.push(args); },
-    getHeartbeat: async () => null, close: () => {},
-  };
   const env = {
-    timezone: 'Asia/Taipei', dryRun: true, maxUserConcurrency: 1,
+    timezone: 'Asia/Taipei', dryRun: true, maxUserConcurrency: 2,
     telegramBotToken: 'test', telegramChatId: 'test', tursoUrl: 'file:test', tursoToken: '',
     repoLastCommitAt: null,
   };
-  const result = await index.runBriefing({ triggerSource: 'cloudflare', deps: {
-    db, env, runUser: async () => ({ skipped: false, errors: [new Error('isolated failure')] }),
-  } });
-  assert.equal(result.outcome, 'partial_failure');
-  assert.equal(result.failed, 1);
-  assert.equal(heartbeats.length, 0);
+  const run = async (users, runUser) => {
+    const heartbeats = [];
+    const db = {
+      migrate: async () => {}, listActiveUsers: async () => users,
+      recordHeartbeat: async (...args) => { heartbeats.push(args); },
+      getHeartbeat: async () => null, hasErrorNotify: async () => false,
+      clearErrorNotify: async () => false, close: () => {},
+    };
+    const result = await index.runBriefing({ triggerSource: 'cloudflare', deps: { db, env, runUser } });
+    return { result, heartbeats };
+  };
+  const ok = async () => ({ skipped: false, errors: [] });
+  const bad = async () => ({ skipped: false, errors: [new Error('isolated failure')] });
+
+  // 零使用者：服務活著，只是沒事做。
+  const zero = await run([], ok);
+  assert.equal(zero.result.outcome, 'nothing_due');
+  assert.equal(zero.result.runState, 'alive');
+  assert.equal(zero.heartbeats.length, 2);
+
+  // 全部成功。
+  const all = await run([{ id: 'u1' }, { id: 'u2' }], ok);
+  assert.equal(all.result.outcome, 'completed');
+  assert.equal(all.result.runState, 'alive');
+  assert.equal(all.heartbeats.length, 2);
+
+  // ★ 部分失敗：排程器仍然活著（它準時跑到了），heartbeat 照寫。
+  // 以前一個使用者失敗就整輪不寫，於是對等監看會發出假的離線警報。
+  const partial = await run([{ id: 'u1' }, { id: 'u2' }],
+    async ({ user }) => (user.id === 'u1' ? bad() : ok()));
+  assert.equal(partial.result.outcome, 'partial_failure');
+  assert.equal(partial.result.failed, 1);
+  assert.equal(partial.result.runState, 'alive');
+  assert.equal(partial.heartbeats.length, 2, '★ 部分失敗不可以抹掉供應商存活訊號');
+  assert.match(String(partial.heartbeats[0][2].detail), /failed=1/);
+
+  // ★ 全員失敗：這個供應商實際上什麼也沒產出 —— 不算存活。
+  const none = await run([{ id: 'u1' }, { id: 'u2' }], bad);
+  assert.equal(none.result.outcome, 'all_users_failed');
+  assert.equal(none.result.runState, 'unhealthy');
+  assert.equal(none.heartbeats.length, 0, '★ 全員失敗不可以宣稱健康');
 });
+

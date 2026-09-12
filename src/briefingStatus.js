@@ -203,7 +203,13 @@ function ago(ms) {
   const m = Math.round(ms / 60_000);
   if (m < 60) return `${m} 分鐘前`;
   const h = ms / 3600_000;
-  return h < 24 ? `${h.toFixed(1)} 小時前` : `${Math.round(h / 24)} 天前`;
+  if (h >= 24) return `${Math.round(h / 24)} 天前`;
+  // 「1.0 小時前」讀起來像機器輸出。整數就講整數，有餘數才講「多」。
+  const whole = Math.floor(h);
+  const rest = h - whole;
+  if (rest < 0.15) return `${whole} 小時前`;
+  if (rest > 0.85) return `${whole + 1} 小時前`;
+  return `${whole} 個多小時前`;
 }
 
 /**
@@ -226,7 +232,10 @@ export function renderBriefingStatus({ status, evidence }) {
     ? `另外，負責定時檢查的排程最近一次跑完是${ago(e.scheduler_age_ms) ?? '有一段時間了'}，`
       + '所以我現在沒辦法保證下一次檢查什麼時候會發生。'
     : null;
-  const nextCheck = e.scheduler_stale === false ? '下一次檢查就會處理。' : null;
+  // ⚠️ 心跳只證明**上一輪**跑完了，證明不了下一輪會發生。事故當天正是
+  // 「下一輪沒有來」。所以一律用條件句，不給承諾。
+  const nextCheck = e.scheduler_stale === false
+    ? '後續排程成功檢查、而且資料準備好之後就會處理。' : null;
 
   switch (status) {
     case BRIEFING_STATUS.DELIVERED:
@@ -241,7 +250,7 @@ export function renderBriefingStatus({ status, evidence }) {
         // ★ 只有在**有證據**排程最近跑過時才敢說「下一次檢查」。
         // 沒有 heartbeat（null）跟 heartbeat 過期（true）一樣不可以承諾 ——
         // 事故當天任何「等一下就會來」的說法都會是謊話。
-        nextCheck ? '資料一到，下一次檢查就會發給你。' : null,
+        nextCheck,
         sourceLine,
       ].filter(Boolean).join('\n\n');
 
@@ -250,7 +259,7 @@ export function renderBriefingStatus({ status, evidence }) {
         '睡眠已經記錄到了，但 WHOOP 還沒給出完整的評分（恢復分數通常會晚一點）。'
         + '沒有評分我不會硬算，那樣的數字不可靠。',
         schedulerLine ?? nextCheck,
-        sourceLine,
+        schedulerLine ? null : sourceLine,
       ].filter(Boolean).join('\n\n');
 
     case BRIEFING_STATUS.TOO_SOON_AFTER_WAKE:
@@ -258,20 +267,20 @@ export function renderBriefingStatus({ status, evidence }) {
         `你剛起來不久（大約 ${ago(e.observation_age_ms) ?? '不到半小時'}），`
         + `我會等超過 ${WAKE.MIN_MINUTES_AFTER_SLEEP_END} 分鐘再發，讓數字穩定下來。`,
         schedulerLine ?? nextCheck,
-        sourceLine,
+        schedulerLine ? null : sourceLine,
       ].filter(Boolean).join('\n\n');
 
     case BRIEFING_STATUS.READY_NOT_YET_PROCESSED:
-      return ['資料已經齊了，簡報還沒送出 —— 就等下一次檢查把它發出來。', sourceLine]
+      return ['資料已經齊了，簡報還沒送出 —— 等後續排程成功檢查之後就會發出來。', sourceLine]
         .filter(Boolean).join('\n\n');
 
     case BRIEFING_STATUS.SCHEDULER_STALE:
+      // 這個分支本身就是在講排程離線，不需要 sourceLine 再重複一次。
       return [
         '我這邊的資料看起來可以做簡報了，但負責定時檢查的排程最近沒有跑'
         + `（上一次跑完是${ago(e.scheduler_age_ms) ?? '有一段時間了'}）。`,
         '所以問題不在你的資料，是沒有人去把它發出來。我沒辦法自己叫醒那個排程，'
         + '也不想給你一個我保證不了的時間。',
-        sourceLine,
       ].join('\n\n');
 
     case BRIEFING_STATUS.WINDOW_EXPIRED:

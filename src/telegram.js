@@ -74,18 +74,26 @@ export function createTelegram({
    * 發錯誤通知（帶 cooldown）。
    * 這個函式自己絕不拋錯 —— Telegram 掛了只寫 log。
    */
-  async function notifyError(errorType, message) {
+  async function notifyError(errorType, message, { cooldownHours = ERROR_NOTIFY_COOLDOWN_HOURS } = {}) {
+    // ★ 冷卻時間可以逐訊號指定。
+    //
+    // 全域預設是 2 小時，那對「一次性的故障」剛好。但對**持續**的狀況它是災難：
+    // 排程器主要供應商掛掉一整天，2 小時的冷卻會送出 12 則一模一樣的警報，
+    // 48 小時就是 24 則。那不是通知，那是訓練使用者把警報靜音。
+    // 所以持續型訊號（例如排程器離線）自己指定一個長冷卻（24 小時）。
+    const hours = Number.isFinite(cooldownHours) && cooldownHours > 0
+      ? cooldownHours : ERROR_NOTIFY_COOLDOWN_HOURS;
     try {
       if (db) {
-        const allowed = await db.claimErrorNotify(
-          errorScope, errorType, ERROR_NOTIFY_COOLDOWN_HOURS,
-        );
+        const allowed = await db.claimErrorNotify(errorScope, errorType, hours);
         if (!allowed) {
-          log.info('error_notify_suppressed', { scope: errorScope, error_type: errorType });
+          log.info('error_notify_suppressed', {
+            scope: errorScope, error_type: errorType, cooldown_hours: hours,
+          });
           return false;
         }
       }
-      await send(`🚨 WHOOP 簡報系統異常\n類型：${errorType}\n${message}\n\n（同類型錯誤 ${ERROR_NOTIFY_COOLDOWN_HOURS} 小時內只通知一次）`);
+      await send(`🚨 WHOOP 簡報系統異常\n類型：${errorType}\n${message}\n\n（同類型錯誤 ${hours} 小時內只通知一次）`);
       return true;
     } catch (err) {
       // 不遞迴：Telegram 出錯就只留 log

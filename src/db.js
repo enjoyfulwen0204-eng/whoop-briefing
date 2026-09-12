@@ -659,34 +659,49 @@ export function createDb({ url, authToken }) {
    * 這樣 Alice 的 token 過期不會壓抑 Bob 的錯誤通知，
    * 基礎設施故障也不會被歸到某個隨機使用者身上。
    */
+  /**
+   * 認領一次錯誤通知（帶冷卻）。回 true 代表**這一個呼叫**有權送出。
+   *
+   * ★ 認領必須是原子的。
+   *
+   * 舊版是「先 SELECT 看冷卻、再 INSERT」。兩個併發的評估會同時讀到「沒有
+   * 紀錄」，然後兩個都認為自己贏了 —— 使用者收到兩則一模一樣的警報。
+   * 排程器的對等監看正好會併發（主要與備援可能同時跑完），所以這不是理論問題。
+   *
+   * 現在全部靠單一語句的條件式寫入決定勝負：
+   *   1. `INSERT ... ON CONFLICT DO NOTHING` —— 第一次通知，插入成功就是贏。
+   *   2. 沒插進去代表已有紀錄：用帶 cutoff 條件的 UPDATE 搶冷卻窗，
+   *      SQLite 逐語句序列化，所以只有一個呼叫會拿到 rowsAffected = 1。
+   *   3. 兩者都沒搶到 → 被冷卻擋下，只累加 hits。
+   */
   async function claimErrorNotify(scope, errorType, cooldownHours) {
     if (!scope) throw new Error('claimErrorNotify 需要 scope（global 或 user:<id>）');
     const now = Date.now();
-    const rs = await client.execute({
-      sql: `SELECT last_notified_at, hits FROM error_notifications
+    const nowIso = new Date(now).toISOString();
+    const cutoffIso = new Date(now - cooldownHours * 3600_000).toISOString();
+
+    const inserted = await client.execute({
+      sql: `INSERT INTO error_notifications (scope, error_type, last_notified_at, hits)
+            VALUES (?, ?, ?, 1)
+            ON CONFLICT(scope, error_type) DO NOTHING`,
+      args: [scope, errorType, nowIso],
+    });
+    if (Number(inserted.rowsAffected ?? 0) > 0) return true;
+
+    const claimed = await client.execute({
+      sql: `UPDATE error_notifications
+               SET last_notified_at = ?, hits = 1
+             WHERE scope = ? AND error_type = ? AND last_notified_at <= ?`,
+      args: [nowIso, scope, errorType, cutoffIso],
+    });
+    if (Number(claimed.rowsAffected ?? 0) > 0) return true;
+
+    await client.execute({
+      sql: `UPDATE error_notifications SET hits = hits + 1
              WHERE scope = ? AND error_type = ?`,
       args: [scope, errorType],
     });
-    const row = rs.rows[0];
-    if (row) {
-      const last = new Date(row.last_notified_at).getTime();
-      if (Number.isFinite(last) && now - last < cooldownHours * 3600_000) {
-        await client.execute({
-          sql: `UPDATE error_notifications SET hits = hits + 1
-                 WHERE scope = ? AND error_type = ?`,
-          args: [scope, errorType],
-        });
-        return false;
-      }
-    }
-    await client.execute({
-      sql: `INSERT INTO error_notifications (scope, error_type, last_notified_at, hits)
-            VALUES (?, ?, ?, 1)
-            ON CONFLICT(scope, error_type) DO UPDATE SET
-              last_notified_at = excluded.last_notified_at, hits = 1`,
-      args: [scope, errorType, new Date(now).toISOString()],
-    });
-    return true;
+    return false;
   }
 
   /**
@@ -712,6 +727,21 @@ export function createDb({ url, authToken }) {
       args: [scope, errorType],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * 這個 scope/type 目前有沒有一筆「已經通知過」的紀錄？
+   *
+   * 唯讀。用來回答「我們有沒有announce過這場故障」——復原通知只有在
+   * 真的送出過故障通知時才該送，否則使用者會收到一則莫名其妙的「恢復了」。
+   */
+  async function hasErrorNotify(scope, errorType) {
+    if (!scope) throw new Error('hasErrorNotify 需要 scope（global 或 user:<id>）');
+    const rs = await client.execute({
+      sql: 'SELECT 1 FROM error_notifications WHERE scope = ? AND error_type = ? LIMIT 1',
+      args: [scope, errorType],
+    });
+    return rs.rows.length > 0;
   }
 
   /** 便利包裝：系統層 / 使用者層。 */
@@ -909,6 +939,7 @@ export function createDb({ url, authToken }) {
     // 錯誤通知（scope 化）
     claimErrorNotify,
     clearErrorNotify,
+    hasErrorNotify,
     clearUserErrorNotify: (userId, errorType) =>
       clearErrorNotify(userScope(requireUserId(userId, 'clearUserErrorNotify')), errorType),
     claimGlobalErrorNotify,

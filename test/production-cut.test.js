@@ -49,9 +49,16 @@ for (const attack of attacks) test(`production health output never consumes prov
     const telegram = fakeTelegram();
     await run({ db: fakeDb(), userId: 'alice', coach, telegram, source: staticDataSource(data), timezone: 'UTC', now: data.now });
     assert.match(telegram.sent[0], /HRV/);
+    // ★ 契約變更（V1.1）：敘述層恢復了，所以模型**會**被呼叫。
+    // 不變的是結論：它的產出永遠不可以成為已發布的生理宣稱。
+    // 上面每一個 attack 都必須被 narrative 的驗證擋掉，一個字都不能出現。
     if (typeof attack === 'string' && attack.trim()) assert.ok(!telegram.sent[0].includes(attack));
+    // Q&A 那一條線仍然完全不用模型散文（那是另一套發布邊界）。
+    assert.doesNotMatch(telegram.sent[0], /心臟病|脈搏|血壓|阿斯匹靈|Zorblax|生物年紀/);
   }
-  assert.equal(calls, 0);
+  // Q&A 的 composeAnswer 仍然**一次都不**呼叫模型（那是另一套發布邊界）。
+  // daily 會問一次敘述；weekly 在這個 fixture 下不到發送條件，所以不一定會問。
+  assert.ok(calls >= 1, '敘述層已恢復，daily 至少會問一次');
 });
 
 for (const explicit of [false, true]) test(`ambiguous legacy reactive question date explicit=${explicit}`, () => setup(async db => {

@@ -143,8 +143,12 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     assert.equal(tg[0].parse_mode, undefined, 'Telegram 要用 plain text，不設 parse_mode');
     assert.ok(tg[0].text.length <= 4096);
 
+    // V1.1 契約變更：敘述層恢復了，所以 daily 會向 provider 要一段**語氣潤飾**。
+    // 不變的是：所有生理宣稱（數字、基準、判定）仍然由程式產生並確定性渲染，
+    // provider 的輸出必須通過發布守門才會被附加上去。
     const ai = calls.filter((c) => c.host === 'openrouter');
-    assert.equal(ai.length, 0, '健康發布不呼叫 prose provider');
+    assert.equal(ai.length, 1, 'daily 會問一次敘述（weekly 今天不跑）');
+    assert.doesNotMatch(tg[0].text, /暫時無法生成/, '★ 不可以宣稱沒發生過的故障');
 
     // token 還有效 → 不該打 token endpoint
     assert.equal(calls.filter((c) => c.path === '/oauth/oauth2/token').length, 0);

@@ -9,7 +9,15 @@ import { prettyDate } from './time.js';
 
 const LIGHT = { green: '🟢', yellow: '🟡', red: '🔴⚠️' };
 
-const FALLBACK_NOTE = '⚠️ AI 教練分析今天暫時無法生成，數據簡報仍正常';
+/**
+ * ⚠️ 舊的「AI 教練分析今天暫時無法生成」已經移除。
+ *
+ * 正式環境把教練關掉之後，那句話每天都出現 —— 而它是**假的**：根本沒有
+ * 嘗試生成過。使用者每天被告知一個不存在的故障。現在敘述一定存在
+ * （模型或確定性版本），呼叫端不會再傳 null 進來；真的傳了就整段省略，
+ * 絕不宣稱故障。
+ */
+const FALLBACK_NOTE = null;
 
 // 教練文字的硬上限。system prompt 已經要求 80–180 字（週回顧 150–300），
 // 這是防止模型失控時把訊息撐爆的保險 —— 數據永遠不會被裁掉。
@@ -131,7 +139,8 @@ export function renderDaily(briefing, coachText) {
 
   lines.push('—');
   // 模型掛掉時 coachText 是 null → 照樣發數據簡報，底下加上 fallback 說明
-  lines.push(capCoachText(coachText, COACH_MAX_CHARS.daily) ?? FALLBACK_NOTE);
+  const dailyNarrative = capCoachText(coachText, COACH_MAX_CHARS.daily) ?? FALLBACK_NOTE;
+  if (dailyNarrative) lines.push(dailyNarrative);
 
   lines.push('');
   lines.push(footer(stage, sampleCount, reportDate));
@@ -223,7 +232,8 @@ export function renderWeekly(weekly, coachText) {
   if (prev.days === 0) lines.push('（前一週沒有足夠資料，這次先不比較）');
 
   lines.push('—');
-  lines.push(capCoachText(coachText, COACH_MAX_CHARS.weekly) ?? FALLBACK_NOTE);
+  const weeklyNarrative = capCoachText(coachText, COACH_MAX_CHARS.weekly) ?? FALLBACK_NOTE;
+  if (weeklyNarrative) lines.push(weeklyNarrative);
   return clamp(lines.join('\n'));
 }
 

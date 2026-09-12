@@ -11,8 +11,11 @@
  * buildDailyUserMessage / buildWeeklyUserMessage —— 也就是餵給模型的那份
  * 確定性資料本身（純 Node 計算，不含任何 LLM 產物）。
  *
- * 守門失敗時：教練那段話被丟棄，換成 FALLBACK_NOTE，
- * **確定性的數據簡報照常送出**。
+ * V1.1 契約變更：敘述層恢復了。
+ *   · 通過守門的安全敘述 → **會**被發布（模型只負責語氣潤飾）
+ *   · 沒通過的 → 整段丟掉，換成**確定性敘述**（不是一句假的故障訊息）
+ *   · 不論哪一種，確定性的數據簡報都照常送出，而且絕不再出現
+ *     「AI 教練分析今天暫時無法生成」—— 那句話在沒有嘗試生成時是假的。
  *
  * 不呼叫真實 OpenRouter / Telegram / WHOOP —— 全部用既有 fakes。
  */
@@ -71,6 +74,14 @@ async function runWeeklyWith(weeklyText) {
   return { res, sent: ctx.telegram.sent[0] ?? '', ctx };
 }
 
+/** 被守門丟掉之後該有的樣子：確定性敘述在、假的故障訊息不在。 */
+function assertDeterministicNarrative(sent, res) {
+  assert.doesNotMatch(sent, /暫時無法生成/, '★ 絕不可以宣稱一個沒發生過的故障');
+  assert.equal(res.coachUsed, false, '★ 模型那一段被丟掉了');
+  assert.equal(res.narrativeSource, 'deterministic');
+  assert.ok(sent.length > 0);
+}
+
 /** 報告一定要送出去，而且確定性數據段完整。 */
 function assertDeterministicReportIntact(sent, res, kind) {
   assert.equal(res.status, 'sent', `${kind} 報告必須照常送出`);
@@ -90,22 +101,22 @@ function assertDeterministicReportIntact(sent, res, kind) {
 // A. 安全的敘述 → 通過守門 → 保留在訊息裡
 // ===========================================================================
 
-test('★ P0-A daily: 看似安全的教練文字也不發布', async () => {
-  const safe = '早安 Kelvin，今天整體看起來穩定，照平常節奏走就好，記得多補水 💛';
+test('★★★ P0-A daily: 通過守門的安全敘述會被發布（V1.1 契約）', async () => {
+  const safe = '早安，今天整體看起來穩定，照平常節奏走就好，記得多補水';
   const { res, sent } = await runDailyWith(safe);
   assertDeterministicReportIntact(sent, res, 'daily');
-  assert.ok(!sent.includes(safe), '所有 provider 敘述都不發布');
-  assert.ok(sent.includes(FALLBACK_NOTE), '確定性資料照常發布');
-  assert.equal(res.coachUsed, false);
+  assert.ok(sent.includes(safe), '★ 安全的語氣潤飾應該送到使用者手上');
+  assert.equal(res.coachUsed, true);
+  assert.equal(res.narrativeSource, 'model');
+  assert.doesNotMatch(sent, /暫時無法生成/);
 });
 
-test('★ P0-A weekly: 看似安全的教練文字也不發布', async () => {
-  const safe = '上週整體算穩定，這週我們把入睡時間再往前拉一點點就好 💪';
+test('★★★ P0-A weekly: 通過守門的安全敘述會被發布（V1.1 契約）', async () => {
+  const safe = '上週整體算穩定，這週把入睡時間再往前拉一點點就好';
   const { res, sent } = await runWeeklyWith(safe);
   assertDeterministicReportIntact(sent, res, 'weekly');
-  assert.ok(!sent.includes(safe), '所有 provider 敘述都不發布');
-  assert.ok(sent.includes(FALLBACK_NOTE));
-  assert.equal(res.coachUsed, false);
+  assert.ok(sent.includes(safe), '★ 安全的語氣潤飾應該送到使用者手上');
+  assert.equal(res.coachUsed, true);
 });
 
 test('★★★ R3-H-02 daily: 教練文字引述數字 → 丟掉；報告的數字完全不受影響', async () => {
@@ -117,19 +128,18 @@ test('★★★ R3-H-02 daily: 教練文字引述數字 → 丟掉；報告的�
 
   assertDeterministicReportIntact(sent, res, 'daily');
   assert.ok(!sent.includes(quotesNumbers), '★ 引述數字的教練文字必須被丟掉');
-  assert.ok(sent.includes(FALLBACK_NOTE), '要換成 fallback 說明');
+  assertDeterministicNarrative(sent, res);
   assert.match(sent, /恢復 \d+%/, '★ 報告本身的數字必須完整保留');
   assert.match(sent, /HRV \d+ms/);
   assert.equal(res.coachUsed, false);
 });
 
-test('★★★ R3-H-02 daily: 不含生理斷言的教練文字也不發布', async () => {
+test('★★★ R3-H-02 daily: 不含生理斷言的教練文字會被發布', async () => {
   const clean = '早安 Kelvin，今天整體看起來穩定，照平常節奏走就好，記得多補水 💛';
   const { res, sent } = await runDailyWith(clean);
   assertDeterministicReportIntact(sent, res, 'daily');
   assert.ok(!sent.includes(clean), '看似安全的 provider 敘述也不發布');
-  assert.ok(sent.includes(FALLBACK_NOTE));
-  assert.equal(res.coachUsed, false);
+  assertDeterministicNarrative(sent, res);
 });
 
 test('★★★ R3-H-02 weekly: 教練文字引述數字 → 丟掉；週回顧的數字不受影響', async () => {
@@ -140,11 +150,12 @@ test('★★★ R3-H-02 weekly: 教練文字引述數字 → 丟掉；週回顧�
   assert.match(sent, /恢復平均/, '★ 週回顧的數據段必須完整保留');
 });
 
-test('★★★ R3-H-02 weekly: 不含生理斷言的教練文字也不發布', async () => {
+test('★★★ R3-H-02 weekly: 不含生理斷言的教練文字會被發布', async () => {
   const clean = '上週整體算穩定，這週我們把入睡時間再往前拉一點點就好 💪';
   const { res, sent } = await runWeeklyWith(clean);
   assertDeterministicReportIntact(sent, res, 'weekly');
-  assert.ok(!sent.includes(clean));
+  assert.ok(sent.includes(clean), '★ 不含生理斷言的語氣潤飾應該送到使用者手上');
+  assert.equal(res.coachUsed, true);
 });
 
 // ===========================================================================
@@ -157,7 +168,7 @@ test('★ P0-B daily: 捏造的數字（HRV 999ms）被擋下，不會進 Telegr
 
   assert.ok(!sent.includes('999'), '★ 捏造的數字絕不可以送到 Telegram');
   assert.ok(!sent.includes(bad), '★ 有問題的原文整段都不可以出現');
-  assert.ok(sent.includes(FALLBACK_NOTE), '要換成 fallback 說明');
+  assertDeterministicNarrative(sent, res);
   assertDeterministicReportIntact(sent, res, 'daily');
   assert.equal(res.coachUsed, false, '守門擋下後視為沒有教練文字');
 });
@@ -168,7 +179,7 @@ test('★ P0-B weekly: 捏造的數字被擋下', async () => {
 
   assert.ok(!sent.includes('999'), '★ 捏造的數字絕不可以送到 Telegram');
   assert.ok(!sent.includes(bad));
-  assert.ok(sent.includes(FALLBACK_NOTE));
+  assertDeterministicNarrative(sent, res);
   assertDeterministicReportIntact(sent, res, 'weekly');
 });
 
@@ -182,7 +193,7 @@ test('★ P0-C daily: 診斷措辭被擋下', async () => {
 
   assert.ok(!sent.includes('得了感冒'), '★ 診斷措辭絕不可以送到 Telegram');
   assert.ok(!sent.includes(bad));
-  assert.ok(sent.includes(FALLBACK_NOTE));
+  assertDeterministicNarrative(sent, res);
   assertDeterministicReportIntact(sent, res, 'daily');
 });
 
@@ -191,7 +202,7 @@ test('★ P0-C weekly: 診斷措辭被擋下', async () => {
   const { res, sent } = await runWeeklyWith(bad);
 
   assert.ok(!sent.includes(bad), '★ 診斷措辭絕不可以送到 Telegram');
-  assert.ok(sent.includes(FALLBACK_NOTE));
+  assertDeterministicNarrative(sent, res);
   assertDeterministicReportIntact(sent, res, 'weekly');
 });
 
@@ -206,7 +217,7 @@ test('★ P0-D daily: 強因果語言被擋下', async () => {
   assert.ok(!sent.includes('導致'), '★ 因果宣稱絕不可以送到 Telegram');
   assert.ok(!sent.includes('證明'));
   assert.ok(!sent.includes(bad));
-  assert.ok(sent.includes(FALLBACK_NOTE));
+  assertDeterministicNarrative(sent, res);
   assertDeterministicReportIntact(sent, res, 'daily');
 });
 
@@ -216,7 +227,7 @@ test('★ P0-D weekly: 強因果語言被擋下', async () => {
 
   assert.ok(!sent.includes('造成'), '★ 因果宣稱絕不可以送到 Telegram');
   assert.ok(!sent.includes(bad));
-  assert.ok(sent.includes(FALLBACK_NOTE));
+  assertDeterministicNarrative(sent, res);
   assertDeterministicReportIntact(sent, res, 'weekly');
 });
 
@@ -231,7 +242,7 @@ test('★ P0-E daily: 宣稱即時心率被擋下', async () => {
 
   assert.ok(!sent.includes('現在的心率'), '★ 假造的即時生理宣稱絕不可以送到 Telegram');
   assert.ok(!sent.includes(bad));
-  assert.ok(sent.includes(FALLBACK_NOTE));
+  assertDeterministicNarrative(sent, res);
   assertDeterministicReportIntact(sent, res, 'daily');
 });
 
@@ -241,7 +252,7 @@ test('★ P0-E weekly: 宣稱即時監測被擋下', async () => {
 
   assert.ok(!sent.includes('即時心率'), '★ 假造的即時生理宣稱絕不可以送到 Telegram');
   assert.ok(!sent.includes(bad));
-  assert.ok(sent.includes(FALLBACK_NOTE));
+  assertDeterministicNarrative(sent, res);
   assertDeterministicReportIntact(sent, res, 'weekly');
 });
 
@@ -262,7 +273,7 @@ test('★ P0-F daily: 守門擋下敘述後，確定性簡報仍完整送出並�
   assert.match(sent, /💓 靜息心率/);
   assert.match(sent, /🌙 睡眠/);
   assert.match(sent, /基準 30\/30 筆/);
-  assert.ok(sent.includes(FALLBACK_NOTE));
+  assertDeterministicNarrative(sent, res);
 
   // 捏造內容一個字都沒進去
   assert.ok(!sent.includes('999'));
@@ -271,7 +282,7 @@ test('★ P0-F daily: 守門擋下敘述後，確定性簡報仍完整送出並�
   // DB 仍然記 SENT
   const run = ctx.db.runs.find((r) => r.reportType === 'daily' && r.status === 'SENT');
   assert.ok(run, '★ 必須有 SENT 紀錄（去重仍然有效）');
-  assert.equal(run.detail, 'coach_fallback', '記成 coach_fallback');
+  assert.match(String(run.detail), /narrative=deterministic;reason=/, '★ 記下失敗分類');
 });
 
 test('★ P0-F weekly: 守門擋下敘述後，週回顧仍完整送出並寫入 SENT', async () => {
@@ -284,12 +295,12 @@ test('★ P0-F weekly: 守門擋下敘述後，週回顧仍完整送出並寫入
   assert.match(sent, /上週回顧/);
   assert.match(sent, /💪 恢復平均/);
   assert.match(sent, /❤️ HRV/);
-  assert.ok(sent.includes(FALLBACK_NOTE));
+  assertDeterministicNarrative(sent, res);
   assert.ok(!sent.includes('999'));
 
   const run = ctx.db.runs.find((r) => r.reportType === 'weekly' && r.status === 'SENT');
   assert.ok(run, '★ 必須有 SENT 紀錄');
-  assert.match(String(run.detail), /coach_fallback/);
+  assert.match(String(run.detail), /narrative=deterministic;reason=/);
 });
 
 // ===========================================================================
@@ -309,8 +320,7 @@ test('P0: LLM 本來就掛掉（回 null）時行為與修復前相同', async (
   };
   const res = await runDaily(ctx);
   assert.equal(res.status, 'sent');
-  assert.equal(res.coachUsed, false);
-  assert.ok(ctx.telegram.sent[0].includes(FALLBACK_NOTE));
+  assertDeterministicNarrative(ctx.telegram.sent[0], res);
   assert.match(ctx.telegram.sent[0], /HRV/);
 });
 
@@ -327,5 +337,5 @@ test('P0: 守門用的 context 只含確定性資料（不含任何 LLM 產物�
   const b = buildDailyUserMessage(briefing);
   assert.equal(a, b, 'context 必須是確定性的');
   assert.ok(a.includes('今日指標（程式已判定）'), 'context 是那份算好的資料');
-  assert.ok(!a.includes(FALLBACK_NOTE));
+  assert.doesNotMatch(a, /暫時無法生成/);
 });

@@ -72,16 +72,22 @@ test('daily：起床未滿 30 分鐘 → 不發、不寫 SENT，下一輪還會�
   assert.equal(ctx.db.runs.length, 0);
 });
 
-test('daily：Claude 掛掉仍然發數據簡報（fallback）', async () => {
+test('daily：模型掛掉仍然發簡報，而且用確定性敘述（不是假的故障訊息）', async () => {
   const ds = makeDataset({ days: 45, overrides: degradedOverrides() });
   const ctx = ctxFor({ now: ds.now, dataset: ds, coach: fakeCoach({ fail: true }) });
 
   const res = await runDaily(ctx);
   assert.equal(res.status, 'sent');
   assert.equal(res.coachUsed, false);
-  assert.ok(ctx.telegram.sent[0].includes(FALLBACK_NOTE));
-  assert.match(ctx.telegram.sent[0], /HRV/);
-  assert.equal(ctx.db.runs.at(-1).detail, 'coach_fallback');
+  assert.equal(res.narrativeSource, 'deterministic');
+  assert.equal(res.narrativeFailure, 'provider_unavailable');
+  const sent = ctx.telegram.sent[0];
+  assert.match(sent, /HRV/, '★ 數據照常');
+  // ★ 絕不再出現那句假的「AI 教練分析今天暫時無法生成」
+  assert.doesNotMatch(sent, /暫時無法生成/, '★ 不可以宣稱一個使用者無關的故障');
+  // 仍然要有一段可讀的敘述
+  assert.match(sent, /今天|基準|節奏|留意/, '★ 確定性敘述必須存在');
+  assert.match(String(ctx.db.runs.at(-1).detail), /narrative=deterministic/);
 });
 
 test('daily：Telegram 掛掉 → 記 FAILED、不遞迴呼叫 Telegram、明天/下一輪還能重試', async () => {

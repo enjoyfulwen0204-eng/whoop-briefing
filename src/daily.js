@@ -16,6 +16,7 @@ import {
   computeBaselines, evaluateAll, detectTrends, yesterdayCycleFor,
 } from './analyze.js';
 import { renderDaily } from './format.js';
+import { buildNarrative } from './narrative.js';
 import { buildInsightsSafe } from './insights.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
@@ -221,6 +222,8 @@ export async function runDaily({
   // 4) 準備發報告了 → 才抓 45 天歷史
   let briefing;
   let coachText;
+  let narrativeSource = null;
+  let narrativeFailure = null;
   let text;
   try {
     const { sleeps, recoveries, cycles } = await source.history();
@@ -233,8 +236,16 @@ export async function runDaily({
     briefing.whatChanged = insights?.whatChanged ?? null;
     briefing.historyDays = insights?.historyDays ?? null;
 
-    // Production cut: health publication is application-owned only.
-    coachText = null;
+    // ★ 敘述層。健康判斷仍然完全由應用程式擁有 —— 模型只負責把**已經核可
+    // 的事實**講成自然的中文，輸出還要逐項通過驗證才會被採用。
+    // 驗證不過就用確定性敘述，使用者一樣拿得到一段可讀的話。
+    const narrative = await buildNarrative({
+      briefing,
+      generate: typeof coach?.daily === 'function' ? () => coach.daily(briefing) : null,
+    });
+    coachText = narrative.text;
+    narrativeSource = narrative.source;
+    narrativeFailure = narrative.failureCategory;
 
     text = renderDaily(briefing, coachText);
     // ★ 補發必須看得出來是補發。標示用的是**這份報告的 health_date**，
@@ -307,7 +318,7 @@ export async function runDaily({
       cycleId: briefing.cycleId,
       telegramMessageId: sent.messageId,
       status: 'SENT',
-      detail: coachText ? null : 'coach_fallback',
+      detail: narrativeFailure ? `narrative=${narrativeSource};reason=${narrativeFailure}` : null,
     });
   } catch (err) {
     recorded = false;
@@ -328,11 +339,13 @@ export async function runDaily({
   log.info('daily_sent', {
     health_date: healthDate, stage: briefing.stage, samples: briefing.sampleCount,
     late: Boolean(wake.late),
-    coach: coachText ? 'ok' : 'fallback', chars: text.length, recorded,
+    narrative_source: narrativeSource, narrative_failure: narrativeFailure,
+    chars: text.length, recorded,
   });
   return {
     status: 'sent', healthDate, localDate: healthDate, text, briefing,
-    late: Boolean(wake.late), coachUsed: Boolean(coachText), recorded,
+    late: Boolean(wake.late), coachUsed: narrativeSource === 'model',
+    narrativeSource, narrativeFailure, recorded,
   };
 }
 

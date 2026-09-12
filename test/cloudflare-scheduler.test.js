@@ -497,4 +497,3 @@ test('provider liveness is separate from per-user outcomes', async () => {
   assert.equal(none.result.runState, 'unhealthy');
   assert.equal(none.heartbeats.length, 0, '★ 全員失敗不可以宣稱健康');
 });
-

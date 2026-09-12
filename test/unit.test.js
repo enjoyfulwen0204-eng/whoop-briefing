@@ -347,13 +347,15 @@ test('Telegram：plain text、不超過 4096 字元', () => {
   assert.equal(clamp('a'.repeat(5000)).length, 4096);
 });
 
-test('Claude 掛掉：照樣發數據簡報 + fallback 說明', () => {
+test('沒有敘述時：照樣發數據簡報，而且不宣稱任何故障', () => {
   const ds = makeDataset({ days: 45 });
   const briefing = buildBriefing({
     ...ds, timezone: TZ, healthDate: localDate(ds.now, TZ), wakeSleepId: 'sleep-000-uuid',
   });
   const text = renderDaily(briefing, null);
-  assert.ok(text.includes(FALLBACK_NOTE));
+  // ★ 舊行為會印「AI 教練分析今天暫時無法生成」——在沒有嘗試生成時那是假的。
+  assert.doesNotMatch(text, /暫時無法生成/);
+  assert.equal(FALLBACK_NOTE, null, '★ 假的故障訊息已經移除');
   assert.match(text, /HRV/);
   assert.match(text, /恢復/);
 });

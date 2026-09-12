@@ -23,6 +23,34 @@ import { renderWeekly } from './format.js';
 import { completedWeeks, localDate, localHour, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
 import { TelegramError } from './telegram.js';
+import { buildNarrative } from './narrative.js';
+
+/**
+ * 把週報整理成驗證器看得懂的「已核可事實」形狀。
+ *
+ * 驗證器只需要知道兩件事：有哪些數字可以講、有沒有有效基準可以下判斷。
+ * 週報的平均值就是那些數字；樣本不足時 metrics 為空，於是任何「偏低／
+ * 異常」的說法都會被否決 —— 那正是我們要的。
+ */
+function weeklyBriefingShape(weekly) {
+  const metrics = [];
+  for (const [key, m] of Object.entries(weekly?.last?.metrics ?? {})) {
+    if (!m || m.display === undefined || m.display === null) continue;
+    metrics.push({
+      key, label: m.label ?? key, display: String(m.display), available: true,
+      baselineDisplay: weekly?.prev?.metrics?.[key]?.display ?? null,
+      severity: weekly?.wow?.[key]?.severity ?? null,
+      pct: Number.isFinite(weekly?.wow?.[key]?.pct) ? weekly.wow[key].pct : null,
+      calibrating: false, tier: 'core',
+    });
+  }
+  return {
+    stage: metrics.length ? 'warm' : 'cold',
+    sampleCount: weekly?.last?.days ?? 0,
+    metrics, trends: null,
+    localDate: weekly?.last?.key ?? null, healthDate: weekly?.last?.key ?? null,
+  };
+}
 
 /**
  * @param {string} userId   **必填**。
@@ -120,7 +148,15 @@ export async function runWeekly({
 
   const weekly = { last, prev, wow: weekOverWeek(last, prev) };
   // Production cut: never append provider prose to physiological facts.
-  const coachText = null;
+  // ★ 與 daily 同一套權責邊界：統計全部由程式算好，模型只負責講成自然的話，
+  // 而且輸出要通過守門。資料不足時確定性版本會誠實說出來，絕不編一個
+  // 不存在的「本週趨勢」。
+  const narrative = await buildNarrative({
+    briefing: weeklyBriefingShape(weekly),
+    generate: typeof coach?.weekly === 'function' ? () => coach.weekly(weekly) : null,
+    period: 'weekly',
+  });
+  const coachText = narrative.text;
 
   const text = renderWeekly(weekly, coachText);
 
@@ -161,7 +197,9 @@ export async function runWeekly({
       localDateKey: weekKey,
       telegramMessageId: sent.messageId,
       status: 'SENT',
-      detail: coachText ? `trigger=${trigger}` : `trigger=${trigger};coach_fallback`,
+      detail: narrative.failureCategory
+        ? `trigger=${trigger};narrative=${narrative.source};reason=${narrative.failureCategory}`
+        : `trigger=${trigger}`,
     });
   } catch (err) {
     recorded = false;
@@ -174,7 +212,12 @@ export async function runWeekly({
 
   log.info('weekly_sent', {
     week_key: weekKey, days: last.days, trigger,
-    coach: coachText ? 'ok' : 'fallback', chars: text.length, recorded,
+    narrative_source: narrative.source, narrative_failure: narrative.failureCategory,
+    chars: text.length, recorded,
   });
-  return { status: 'sent', weekKey, text, weekly, coachUsed: Boolean(coachText), recorded };
+  return {
+    status: 'sent', weekKey, text, weekly,
+    coachUsed: narrative.source === 'model',
+    narrativeSource: narrative.source, narrativeFailure: narrative.failureCategory, recorded,
+  };
 }

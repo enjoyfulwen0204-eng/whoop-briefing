@@ -49,6 +49,8 @@ export const GUARDIAN_SIGNAL = Object.freeze({
 /** 心跳元件名稱。 */
 export const HEARTBEAT_COMPONENT = Object.freeze({
   CRON: 'cron',
+  GITHUB: 'briefing_github',
+  CLOUDFLARE: 'briefing_cloudflare',
   BOT_WORKER: 'bot_worker',
 });
 
@@ -58,8 +60,8 @@ export const GUARDIAN_POLICY = {
   /**
    * cron 心跳超過這麼久沒更新就算異常。
    *
-   * 由排程週期推導：cron 是每 30 分鐘一次，所以連續漏掉 6 次才示警。
-   * 抓得寬是刻意的——GitHub Actions 的 cron 本來就不保證準時，
+   * 相容性的 aggregate heartbeat 由任一排程更新；三小時才示警。
+   * 抓得寬是刻意的——外部排程都不保證準時，
    * 偶爾延遲十幾分鐘是正常的，為此叫一次就會開始被無視。
    */
   CRON_HEARTBEAT_MAX_AGE_MS: 3 * 60 * 60_000,

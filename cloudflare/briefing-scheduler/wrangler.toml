@@ -1,0 +1,17 @@
+name = "whoop-briefing-scheduler"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+[vars]
+BRIEFING_ENDPOINT_URL = "https://REPLACE_WITH_RENDER_HOST/internal/briefing/run"
+
+[secrets]
+required = ["BRIEFING_TRIGGER_SECRET"]
+
+[observability]
+enabled = true
+
+# The secret value must be added with `wrangler secret put`; never place it here.

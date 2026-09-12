@@ -50,6 +50,9 @@ import { createSendReply } from './index.js';
 import { handleLinkAttempt } from './link.js';
 import { createUpdateProcessor, UPDATE_OUTCOME, isAcknowledgeable } from './updateProcessor.js';
 import { log, describeError } from '../logger.js';
+import { BRIEFING_TRIGGER } from '../briefingTriggerAuth.js';
+import { createBriefingEndpoint } from '../briefingEndpoint.js';
+import { runBriefing } from '../index.js';
 
 /**
  * 定長時間比較。長度不同直接回 false（長度本身不是祕密）。
@@ -111,6 +114,7 @@ export function looksLikeUpdate(v) {
 export function createWebhookHandler({
   processUpdate,
   secret,
+  briefingEndpoint = null,
   webhookPath = TELEGRAM_BOT.WEBHOOK_PATH,
   healthPath = TELEGRAM_BOT.HEALTH_PATH,
   maxBodyBytes = TELEGRAM_BOT.WEBHOOK_MAX_BODY_BYTES,
@@ -135,6 +139,16 @@ export function createWebhookHandler({
         return send(res, 405, { ok: false });
       }
       return send(res, 200, { ok: true, service: 'telegram-webhook' });
+    }
+
+    if (path === BRIEFING_TRIGGER.PATH && briefingEndpoint) {
+      if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
+      const schedulerBody = await readBody(req, { limit: BRIEFING_TRIGGER.MAX_BODY_BYTES });
+      if (!schedulerBody.ok) {
+        return send(res, schedulerBody.reason === 'too_large' ? 413 : 400, { ok: false });
+      }
+      const result = await briefingEndpoint(req, schedulerBody.body);
+      return send(res, result.status, result.body);
     }
 
     if (path !== webhookPath) return send(res, 404, { ok: false });
@@ -234,9 +248,11 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     require: [
       'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET',
       'TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'OPENROUTER_API_KEY',
+      'WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET', 'BRIEFING_TRIGGER_SECRET',
     ],
   });
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const briefingTriggerSecret = process.env.BRIEFING_TRIGGER_SECRET;
 
   const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
   await db.migrate();
@@ -263,7 +279,12 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     workerId: `${process.pid}:${randomUUID()}`,
   });
 
-  const server = createWebhookServer({ processUpdate: processor.processUpdate, secret });
+  const briefingEndpoint = createBriefingEndpoint({
+    secret: briefingTriggerSecret, runBriefing,
+  });
+  const server = createWebhookServer({
+    processUpdate: processor.processUpdate, secret, briefingEndpoint,
+  });
   if (!listen) return { server, db };
 
   const p = Number(port);

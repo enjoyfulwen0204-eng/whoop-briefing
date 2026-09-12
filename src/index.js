@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// 進入點：排程器每 30 分鐘跑這支。
+// 進入點：Cloudflare 主排程與 GitHub 備援共用這支 canonical runner。
 //
-// Cron（UTC）： */30 * * * *    全天每 30 分鐘
+// Cloudflare（UTC）： */10 * * * *；GitHub 備援：17 * * * *
 //
 // ## Multi-user
 //
@@ -40,6 +40,7 @@ import { HEARTBEAT_COMPONENT } from './guardianPolicy.js';
 import { mapWithConcurrency } from './concurrency.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
+import { checkPeerScheduler } from './schedulerWatchdog.js';
 
 /** 預測要往回看幾天的 daily_metrics（涵蓋訓練 + 時序切分所需的長度）。 */
 const PREDICTION_LOOKBACK_DAYS = 180;
@@ -371,13 +372,14 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   return out;
 }
 
-export async function main({ now = new Date(), deps = {} } = {}) {
+export async function runBriefing({ now = new Date(), deps = {}, triggerSource = 'github' } = {}) {
   const { guardian = runGuardian } = deps;
   loadDotEnvIfPresent();
   const env = loadEnv();
 
   log.info('run_start', {
     utc: now.toISOString(),
+    trigger_source: triggerSource,
     bootstrap_timezone: env.timezone,
     dry_run: env.dryRun,
     max_user_concurrency: env.maxUserConcurrency,
@@ -397,6 +399,7 @@ export async function main({ now = new Date(), deps = {} } = {}) {
 
   const summary = {
     users: 0, ok: 0, failed: 0, skipped: 0, perUser: [], errors: [], guardian: null,
+    schedulerWatchdog: null,
   };
 
   try {
@@ -411,7 +414,6 @@ export async function main({ now = new Date(), deps = {} } = {}) {
     summary.users = users.length;
     if (!users.length) {
       log.warn('run_no_active_users', {});
-      return summary;
     }
 
     const results = await mapWithConcurrency(
@@ -425,12 +427,21 @@ export async function main({ now = new Date(), deps = {} } = {}) {
     // 而 cron 死掉時是**安靜地**死（沒有 run 就沒有錯誤通知）。
     // 記在成功跑完所有使用者之後，所以它代表的是「整輪走到底」。
     try {
-      await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON, {
+      const component = triggerSource === 'cloudflare'
+        ? HEARTBEAT_COMPONENT.CLOUDFLARE : HEARTBEAT_COMPONENT.GITHUB;
+      await db.recordHeartbeat(GLOBAL_SCOPE, component, {
         detail: `users=${users.length}`, now,
+      });
+      await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON, {
+        detail: `source=${triggerSource};users=${users.length}`, now,
       });
     } catch (err) {
       log.warn('heartbeat_failed', { error: describeError(err) });
     }
+
+    summary.schedulerWatchdog = await checkPeerScheduler({
+      db, source: triggerSource, systemTelegram, now,
+    });
 
     // ---- System Guardian（V1.1 Phase 9）----
     // 只看已經持久化的事實 → 判斷 →（必要時）發一則 Telegram。
@@ -493,6 +504,8 @@ export async function main({ now = new Date(), deps = {} } = {}) {
   });
   return summary;
 }
+
+export const main = runBriefing;
 
 // 直接執行時才跑（被 import 時不跑）
 if (import.meta.url === `file://${process.argv[1]}`) {

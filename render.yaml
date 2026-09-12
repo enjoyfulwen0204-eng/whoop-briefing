@@ -79,6 +79,8 @@ services:
       # 已經同步好的健康資料，不會自己去打 WHOOP API。
       - key: TELEGRAM_BOT_TOKEN
         sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
       - key: TELEGRAM_WEBHOOK_SECRET
         sync: false
       - key: TURSO_DATABASE_URL
@@ -86,4 +88,10 @@ services:
       - key: TURSO_AUTH_TOKEN
         sync: false
       - key: OPENROUTER_API_KEY
+        sync: false
+      - key: WHOOP_CLIENT_ID
+        sync: false
+      - key: WHOOP_CLIENT_SECRET
+        sync: false
+      - key: BRIEFING_TRIGGER_SECRET
         sync: false

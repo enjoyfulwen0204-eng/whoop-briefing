@@ -79,6 +79,8 @@ export async function assessBriefingStatus({ db, userId, timezone, now = new Dat
     scheduler_last_ok_at: null,
     scheduler_age_ms: null,
     scheduler_stale: null,
+    cloudflare_stale: null,
+    github_stale: null,
     sent_today: null,
     sent_yesterday: null,
     observation_health_date: null,
@@ -90,6 +92,17 @@ export async function assessBriefingStatus({ db, userId, timezone, now = new Dat
   // ---- 1. 排程器最近有跑完一輪嗎？----
   try {
     if (typeof db.getHeartbeat === 'function') {
+      const sourceChecks = [
+        ['cloudflare_stale', HEARTBEAT_COMPONENT.CLOUDFLARE, 30 * 60_000],
+        ['github_stale', HEARTBEAT_COMPONENT.GITHUB, 2 * 60 * 60_000],
+      ];
+      for (const [key, component, maxAge] of sourceChecks) {
+        const sourceHb = await db.getHeartbeat(GLOBAL_SCOPE, component);
+        if (sourceHb?.lastOkAt) {
+          const sourceAge = new Date(now).getTime() - Date.parse(sourceHb.lastOkAt);
+          if (Number.isFinite(sourceAge) && sourceAge >= 0) evidence[key] = sourceAge > maxAge;
+        }
+      }
       const hb = await db.getHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON);
       if (hb?.lastOkAt) {
         evidence.scheduler_last_ok_at = hb.lastOkAt;
@@ -99,6 +112,9 @@ export async function assessBriefingStatus({ db, userId, timezone, now = new Dat
           evidence.scheduler_stale = age > SCHEDULER_STALE_AFTER_MS;
         }
       }
+      const knownSources = [evidence.cloudflare_stale, evidence.github_stale]
+        .filter((value) => value !== null);
+      if (knownSources.length) evidence.scheduler_stale = knownSources.every(Boolean);
     }
   } catch (err) {
     log.warn('briefing_status_heartbeat_failed', { error: describeError(err) });
@@ -217,6 +233,15 @@ function ago(ms) {
  */
 export function renderBriefingStatus({ status, evidence }) {
   const e = evidence ?? {};
+  const sourceLine = e.cloudflare_stale === true && e.github_stale === false
+    ? 'Cloudflare 主排程最近沒有心跳，但 GitHub 備援仍有運作。'
+    : e.cloudflare_stale === false && e.github_stale === true
+      ? 'Cloudflare 主排程仍有運作，但 GitHub 備援最近沒有心跳。'
+      : e.cloudflare_stale === true && e.github_stale === true
+        ? 'Cloudflare 主排程和 GitHub 備援最近都沒有心跳。'
+        : e.cloudflare_stale === false && e.github_stale === false
+          ? 'Cloudflare 主排程和 GitHub 備援最近都有成功心跳。'
+          : null;
   const schedulerLine = e.scheduler_stale === true
     ? `另外，負責定時檢查的排程最近一次跑完是${ago(e.scheduler_age_ms) ?? '有一段時間了'}，`
       + '所以我現在沒辦法保證下一次檢查什麼時候會發生。'
@@ -237,6 +262,7 @@ export function renderBriefingStatus({ status, evidence }) {
         // 沒有 heartbeat（null）跟 heartbeat 過期（true）一樣不可以承諾 ——
         // 事故當天任何「等一下就會來」的說法都會是謊話。
         nextCheck ? '資料一到，下一次檢查就會發給你。' : null,
+        sourceLine,
       ].filter(Boolean).join('\n\n');
 
     case BRIEFING_STATUS.WAITING_FOR_SCORING:
@@ -244,6 +270,7 @@ export function renderBriefingStatus({ status, evidence }) {
         '睡眠已經記錄到了，但 WHOOP 還沒給出完整的評分（恢復分數通常會晚一點）。'
         + '沒有評分我不會硬算，那樣的數字不可靠。',
         schedulerLine ?? nextCheck,
+        sourceLine,
       ].filter(Boolean).join('\n\n');
 
     case BRIEFING_STATUS.TOO_SOON_AFTER_WAKE:
@@ -251,10 +278,12 @@ export function renderBriefingStatus({ status, evidence }) {
         `你剛起來不久（大約 ${ago(e.observation_age_ms) ?? '不到半小時'}），`
         + `我會等超過 ${WAKE.MIN_MINUTES_AFTER_SLEEP_END} 分鐘再發，讓數字穩定下來。`,
         schedulerLine ?? nextCheck,
+        sourceLine,
       ].filter(Boolean).join('\n\n');
 
     case BRIEFING_STATUS.READY_NOT_YET_PROCESSED:
-      return '資料已經齊了，簡報還沒送出 —— 就等下一次檢查把它發出來。';
+      return ['資料已經齊了，簡報還沒送出 —— 就等下一次檢查把它發出來。', sourceLine]
+        .filter(Boolean).join('\n\n');
 
     case BRIEFING_STATUS.SCHEDULER_STALE:
       return [
@@ -262,6 +291,7 @@ export function renderBriefingStatus({ status, evidence }) {
         + `（上一次跑完是${ago(e.scheduler_age_ms) ?? '有一段時間了'}）。`,
         '所以問題不在你的資料，是沒有人去把它發出來。我沒辦法自己叫醒那個排程，'
         + '也不想給你一個我保證不了的時間。',
+        sourceLine,
       ].join('\n\n');
 
     case BRIEFING_STATUS.WINDOW_EXPIRED:

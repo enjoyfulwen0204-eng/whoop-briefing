@@ -50,9 +50,12 @@ test('★★★ 部署：repo 裡只能有一個排程器（render.yaml 不可�
     '★ render.yaml 不可以跑 npm start（那是排程器的進入點）');
 });
 
-test('★★★ 部署：GitHub Actions 仍然是那一個排程器，且維持 30 分鐘', () => {
+test('★★★ 部署：Cloudflare 是 10 分鐘主排程，GitHub 是錯開的每小時備援', () => {
   const wf = read('.github/workflows/briefing.yml');
-  assert.match(wf, /cron:\s*"\*\/30 \* \* \* \*"/, '★ 節奏必須維持每 30 分鐘');
+  assert.match(wf, /cron:\s*"17 \* \* \* \*"/, '★ GitHub 必須是每小時第 17 分備援');
+  const worker = fs.readFileSync('cloudflare/briefing-scheduler/wrangler.toml', 'utf8');
+  assert.match(worker, /crons\s*=\s*\["\*\/10 \* \* \* \*"\]/,
+    '★ Cloudflare 必須是每 10 分鐘主排程');
   assert.match(wf, /concurrency:/, '★ 必須有 concurrency 保護，避免 run 重疊');
   assert.match(wf, /cancel-in-progress:\s*false/,
     '★ 不可以取消進行中的 run（跑到一半被砍會留下未完成的狀態）');

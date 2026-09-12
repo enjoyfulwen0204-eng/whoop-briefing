@@ -1,8 +1,7 @@
-# 備案排程：如果你不想用 Render（或想省錢），GitHub Actions 也能跑同一支程式。
+# 備援排程：Cloudflare Cron 是每 10 分鐘主觸發；GitHub Actions 每小時獨立補位。
 #
-# 差別：GitHub Actions 的 cron 不保證準時，可能延遲幾分鐘到十幾分鐘。
-# 因為排程是全天每 30 分鐘，而且去重用的是 health_date（主睡眠結束的當地日期，
-# 不是執行當下的日期），延遲不會漏發，只是簡報可能晚一點到。要準時就用 Render。
+# GitHub Actions 的 cron 不保證準時，事故中曾漏掉多個時段，因此它不是主排程。
+# 去重仍由 Turso report_claims 的 health_date 鍵負責；與 Cloudflare 重疊也只會送一次。
 #
 # 用法：
 #   1. 把這個 repo 推到 GitHub（private 就好）
@@ -15,7 +14,7 @@ name: WHOOP 早晨簡報
 
 on:
   schedule:
-    - cron: "*/30 * * * *" # 全天每 30 分鐘（去重靠 health_date，晚起床也能補發）
+    - cron: "17 * * * *" # 每小時第 17 分：Cloudflare 10 分鐘主排程的獨立備援
   workflow_dispatch: # 也可以手動按一下立刻跑
 
 concurrency:

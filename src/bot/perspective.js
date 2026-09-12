@@ -160,7 +160,8 @@ function plan(perspective, source, cues) {
  */
 const INHERENTLY_PERSONAL = new Set([
   'today_status', 'trend_query', 'sleep_quality', 'best_worst_day', 'what_changed',
-  'readiness_query', 'sync_status', 'current_hr', 'data_status', 'journal_recall',
+  'readiness_query', 'sync_status', 'briefing_status', 'current_hr', 'data_status',
+  'journal_recall',
 ]);
 
 export function intentIsInherentlyPersonal(intent) {

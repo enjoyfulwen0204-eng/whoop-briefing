@@ -18,6 +18,7 @@
 
 import { ANALYTICS } from './config.js';
 import { assessSync, producedNoNewData, SYNC_VERDICT } from './syncTruth.js';
+import { assessBriefingStatus } from './briefingStatus.js';
 import { addDays, localDate } from './time.js';
 import { labelForCategory } from './journal.js';
 import { loadDailyMetrics, seriesOf, RECOVERY_DERIVED_METRICS } from './dailyMetrics.js';
@@ -307,6 +308,21 @@ export function createHealthQuery({
       ...assessment,
       /** 同步成功但沒有產生新的量測 —— 跟同步失敗完全不同，必須分開講。 */
       no_new_data: producedNoNewData(assessment, { expectedHealthDate: localDate(now, timezone) }),
+    };
+  }
+
+  /**
+   * 「今天的晨報呢？」—— 每日簡報那一則推送的狀態。
+   *
+   * **完全唯讀**：只讀 heartbeat / report_runs / 已同步的健康資料。
+   * 不寫任何東西，也不會去叫醒排程器 —— 診斷不可以改變被診斷的狀態。
+   */
+  async function briefingStatus() {
+    const { status, evidence } = await assessBriefingStatus({
+      db, userId: uid, timezone, now,
+    });
+    return {
+      available: true, intent: 'briefing_status', briefing_status: status, evidence,
     };
   }
 
@@ -674,6 +690,7 @@ export function createHealthQuery({
     causeExplanation,
     readinessExplanation,
     syncStatus,
+    briefingStatus,
     readinessState,
     trendQuery,
     sleepQuality,

@@ -996,6 +996,7 @@ export function createRouter({
         return q.causeExplanation({ metric: intent.metric ?? null, justLogged: intent.justLogged ?? null });
       case 'readiness_query': return q.readinessExplanation();
       case 'sync_status': return q.syncStatus();
+      case 'briefing_status': return q.briefingStatus();
       case 'current_hr': return q.currentHeartRate();
       default: return null;
     }

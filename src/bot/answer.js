@@ -6,6 +6,7 @@ import { factsFromQaResult } from '../publishableFacts.js';
 import { renderAssertions, assemblePublication } from '../assertionRenderer.js';
 import { mechanismNoun } from './healthEducation.js';
 import { SYNC_VERDICT } from '../syncTruth.js';
+import { renderBriefingStatus } from '../briefingStatus.js';
 
 export const ANSWER_SYSTEM_PROMPT = `你是 Kelvin 的私人健康教練，語氣溫暖、專業、口語，用繁體中文。
 
@@ -48,6 +49,8 @@ export function buildTrustedFacts(result) {
   switch (result.intent) {
     case 'cause_query': return renderCauseAnswer(result);
     case 'sync_status': return renderSyncAnswer(result);
+    case 'briefing_status':
+      return renderBriefingStatus({ status: result.briefing_status, evidence: result.evidence });
     case 'readiness_query': return renderReadinessAnswer(result);
     case 'today_status': {
       lines.push('今日指標（程式已算好）：');
@@ -175,6 +178,8 @@ export function renderFallback(result) {
   switch (result.intent) {
     case 'cause_query': return renderCauseAnswer(result);
     case 'sync_status': return renderSyncAnswer(result);
+    case 'briefing_status':
+      return renderBriefingStatus({ status: result.briefing_status, evidence: result.evidence });
     case 'readiness_query': return renderReadinessAnswer(result);
     case 'today_status':
       lines.push(`📊 ${result.health_date} 的狀態`);

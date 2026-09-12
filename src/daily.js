@@ -6,8 +6,9 @@
  *  - 只有真的準備發報告了，才抓 45 天歷史算 baseline。
  */
 
-import { BASELINE, REPORT_CLAIM } from './config.js';
+import { BASELINE, REPORT_CLAIM, WAKE } from './config.js';
 import { requireUserId } from './userContext.js';
+import { localDate } from './time.js';
 import {
   buildObservations, completedCycles, detectWake, baselineRecords, stageFor,
   computeBaselines, evaluateAll, detectTrends, yesterdayCycleFor,
@@ -37,14 +38,48 @@ export async function runDaily({
     timezone,
   });
 
+  // 每一次評估都留下足夠的欄位，讓事後可以區分「跑了但還不能發」與「根本
+  // 沒跑」。2026-09-12 的事故裡這兩者在紀錄上長得一模一樣，追查時只能靠
+  // cron heartbeat 反推。
+  //
+  // ⚠️ 這些只是 log。真正的耐久狀態需要一張新表（見 README / v8 提案）——
+  // 沒有經過核可之前不會寫任何新的 production 狀態。
+  const evaluatedAt = new Date(now).toISOString();
+  const todayLocal = localDate(now, timezone);
+  const observationAgeMinutes = wake.record?.endUtc
+    ? Math.round((new Date(now).getTime() - Date.parse(wake.record.endUtc)) / 60_000)
+    : null;
+  /** 這個 reason 會不會因為「等一下再跑一次」而改變？ */
+  const retryable = wake.reason !== 'sleep_too_old';
+  const base = {
+    evaluated_at: evaluatedAt,
+    local_date: todayLocal,
+    timezone,
+    observation_health_date: wake.healthDate ?? wake.record?.healthDate ?? null,
+    observation_age_minutes: observationAgeMinutes,
+  };
+
   if (!wake.ready) {
     log.info('daily_not_ready', {
+      ...base,
       reason: wake.reason,
       minutes_since_wake: wake.minutesSinceWake ?? null,
       hours_since_wake: wake.hoursSinceWake ?? null,
       health_date: wake.healthDate ?? null,
+      retryable,
     });
-    return { status: 'not_ready', reason: wake.reason };
+    // ★ 超過補發時限是**終局**：再跑一百次也不會變。以前它跟其他
+    // not_ready 用同一條 log，於是一整天被靜靜丟掉時沒有任何顯著訊號。
+    if (wake.reason === 'sleep_too_old') {
+      log.warn('daily_discarded_window_expired', {
+        ...base,
+        max_age_hours: WAKE.MAX_AGE_HOURS,
+        hours_since_wake: wake.hoursSinceWake ?? null,
+        terminal: true,
+        note: 'no further attempt will be made for this observation',
+      });
+    }
+    return { status: 'not_ready', reason: wake.reason, retryable };
   }
 
   const healthDate = wake.healthDate;
@@ -52,8 +87,20 @@ export async function runDaily({
   // 2) 去重：用 health_date，不是執行當天。所以下午才起床、或跨午夜才跑到，
   //    都還是同一個 key，不會漏發也不會重複發。
   if (await db.isSent(uid, 'daily', healthDate)) {
-    log.info('daily_already_sent', { health_date: healthDate });
-    return { status: 'already_sent', healthDate, localDate: healthDate };
+    // ★ 區分兩種 already_sent：
+    //   · 今天的份已經送了 → 使用者沒在等任何東西
+    //   · **前一天**的份已經送了，而今天的資料還沒出現 → 使用者正在等，
+    //     而系統看起來卻像「沒事做」。2026-09-12 事故走的正是這一條。
+    const staleObservation = healthDate !== todayLocal;
+    log.info('daily_already_sent', {
+      ...base,
+      health_date: healthDate,
+      stale_observation: staleObservation,
+      awaiting_current_date: staleObservation,
+    });
+    return {
+      status: 'already_sent', healthDate, localDate: healthDate, staleObservation,
+    };
   }
 
   log.info('daily_wake_detected', {

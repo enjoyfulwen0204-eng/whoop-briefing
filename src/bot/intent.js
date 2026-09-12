@@ -58,6 +58,14 @@ export const INTENTS = [
    * capability probe。
    */
   'sync_status',
+  /**
+   * 「今天的晨報呢？」「為什麼沒有 briefing？」
+   *
+   * 問的是**那一則主動推送的簡報跑了沒有**，不是問資料同步、也不是問身體
+   * 狀態。2026-09-12 的事故裡這句話沒有任何歸屬：使用者等了一個早上，
+   * 系統連「我在等什麼」都答不出來。
+   */
+  'briefing_status',
   'unknown',
 ];
 
@@ -196,6 +204,16 @@ export function deterministicIntent(text) {
     };
   }
 
+  // 簡報狀態。**必須排在 sync_status 之前** —— 「今天的簡報怎麼還沒來」同時
+  // 含有「還沒」與時間詞，會被同步那條規則吃掉，但使用者問的是簡報本身。
+  if (/(簡報|晨報|早報|briefing|報告|推送)/i.test(t)
+      && /(呢|沒來|沒有來|還沒|怎麼|為什麼|哪裡|在哪|跑了嗎|有跑|發了嗎|來了嗎|嗎)/.test(t)) {
+    return { intent: 'briefing_status', source: 'deterministic' };
+  }
+  if (/(起床|早上|今天).{0,6}(報告|簡報|晨報).{0,6}(呢|沒|還沒|怎麼)/.test(t)) {
+    return { intent: 'briefing_status', source: 'deterministic' };
+  }
+
   // 同步狀態（對話式）。**必須排在 data_status 與 readiness_query 之前** ——
   // 「今天的資料同步了嗎」問的是同步，不是基準夠不夠，也不是要看診斷。
   if (/(同步|sync|更新|連線|連得上|進來)/i.test(t)
@@ -280,6 +298,8 @@ intent 只能是下列其中一個：
   「是不是因為喝酒」）。使用者在描述自己的感覺並問為什麼。
 - readiness_query：問**你的資料夠不夠、判斷準不準**（「因為數據不夠嗎」
   「我的資料夠嗎」「你是不是還不了解我」）。這不是要看系統診斷。
+- briefing_status：問**每日簡報這則推送跑了沒有**（「今天的晨報呢」「為什麼沒有 briefing」
+  「起床報告怎麼沒來」）。問的是那一則訊息，不是同步、也不是身體狀態。
 - sync_status：問**WHOOP 有沒有同步成功／資料有沒有進來**（「今天的資料同步了嗎」
   「最後同步時間」「為什麼今天的 sleep 還沒進來」）。這跟資料夠不夠是兩件事。
 - unknown：以上都不是

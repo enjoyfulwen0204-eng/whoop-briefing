@@ -338,6 +338,23 @@ export function createHealthStore(client) {
   }
 
   /** cycles 用 end_at 篩（health_date 對 cycle 沒有意義）。 */
+  /**
+   * 最新的一個 cycle，**包含還沒結束的那一個**。
+   *
+   * `getCycles()` 刻意過濾掉 `end_at IS NULL`（分析只能用已結算的週期）。
+   * 但「這一夜還在進行中」正是「在等今晚的資料」與「資料掉了」之間唯一的
+   * 區別證據，所以診斷需要看得到它。純 SELECT，不改任何既有查詢的語意。
+   */
+  async function getLatestCycle(userId) {
+    const uid = requireUserId(userId, 'getLatestCycle');
+    const rs = await client.execute({
+      sql: `SELECT id, start_at, end_at, score_state, synced_at FROM whoop_cycles
+             WHERE user_id = ? ORDER BY start_at DESC LIMIT 1`,
+      args: [uid],
+    });
+    return rowsOf(rs)[0] ?? null;
+  }
+
   async function getCycles(userId, { fromIso, toIso } = {}) {
     const uid = requireUserId(userId, 'getCycles');
     const rs = await client.execute({
@@ -532,6 +549,7 @@ export function createHealthStore(client) {
     getSleeps,
     getRecoveries,
     getCycles,
+    getLatestCycle,
     getWorkouts,
     getLatestBodyMeasurement,
     coverage,

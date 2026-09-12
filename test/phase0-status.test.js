@@ -334,7 +334,8 @@ test('★★★ Phase 0: wake gate 沿用正式的 scored/recovery/時間視窗�
   assert.equal(observeWakeGate({ sleep, recovery: null, now: new Date('2026-09-11T02:00:00Z'), timezone: 'Asia/Taipei' }).reason, 'recovery_missing');
   assert.equal(observeWakeGate({ sleep: { ...sleep, score_state: 'PENDING_SCORE' }, recovery, now: new Date('2026-09-11T02:00:00Z'), timezone: 'Asia/Taipei' }).reason, 'sleep_not_scored');
   assert.equal(observeWakeGate({ sleep, recovery: { score_state: 'PENDING_SCORE' }, now: new Date('2026-09-11T02:00:00Z'), timezone: 'Asia/Taipei' }).reason, 'recovery_not_scored');
-  assert.equal(observeWakeGate({ sleep, recovery, now: new Date('2026-09-12T01:01:00Z'), timezone: 'Asia/Taipei' }).reason, 'sleep_too_old');
+  // 48 小時才是終局（24–48 是補發窗）
+  assert.equal(observeWakeGate({ sleep, recovery, now: new Date('2026-09-13T01:01:00Z'), timezone: 'Asia/Taipei' }).reason, 'sleep_too_old');
   assert.equal(observeWakeGate({ sleep, recovery, now: new Date('2026-09-11T02:00:00Z'), timezone: 'Asia/Taipei' }).ready, true);
 });
 

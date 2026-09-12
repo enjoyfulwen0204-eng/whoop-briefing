@@ -48,6 +48,16 @@ export const BRIEFING_STATUS = Object.freeze({
   WINDOW_EXPIRED: 'window_expired',
   /** 排程器太久沒有跑完一輪 —— 這件事本身就是答案。 */
   SCHEDULER_STALE: 'scheduler_stale',
+  /** 睡眠已評分，但還沒有對應的恢復資料。 */
+  WAITING_FOR_RECOVERY: 'waiting_for_recovery',
+  /** 另一個流程正握著發送權。 */
+  CLAIM_BUSY: 'claim_busy',
+  /** 已經以補發的形式送出。 */
+  SENT_LATE: 'sent_late',
+  /** 嘗試送出但失敗，還會再試。 */
+  FAILED_RETRYABLE: 'failed_retryable',
+  /** 超過 48 小時的補發期限，終局不再發送。 */
+  MISSED: 'missed',
   /** 證據不足，不猜。 */
   UNKNOWN: 'unknown',
 });
@@ -79,6 +89,10 @@ export async function assessBriefingStatus({ db, userId, timezone, now = new Dat
     observation_age_ms: null,
     wake_reason: null,
     cycle_open: null,
+    /** v8：最新一次評估的耐久結果（最可靠的證據，優先於重新推導）。 */
+    evaluation_outcome: null,
+    evaluation_health_date: null,
+    evaluation_retryable: null,
   };
 
   // ---- 1. 排程器最近有跑完一輪嗎？----
@@ -131,6 +145,23 @@ export async function assessBriefingStatus({ db, userId, timezone, now = new Dat
     log.warn('briefing_status_readiness_failed', { error: describeError(err) });
   }
 
+  // ---- 3b. v8：最新一次評估的耐久結果 ----
+  //
+  // 這比「重新推導一次」可靠：它記的是排程器**當時真的看到什麼**。
+  // MISSED 尤其只能從這裡知道 —— 重新推導只會說「資料太舊」。
+  try {
+    if (typeof db.getBriefingEvaluation === 'function') {
+      const ev = await db.getBriefingEvaluation(userId, 'daily');
+      if (ev) {
+        evidence.evaluation_outcome = ev.outcome;
+        evidence.evaluation_health_date = ev.targetHealthDate ?? null;
+        evidence.evaluation_retryable = ev.retryable;
+      }
+    }
+  } catch (err) {
+    log.warn('briefing_status_evaluation_failed', { error: describeError(err) });
+  }
+
   // ---- 4. 現在這一夜還在進行中嗎？（cycle 還沒關）----
   //
   // 這是「在等今晚的睡眠」與「睡眠資料遺失」之間唯一的區別證據：WHOOP 的
@@ -162,12 +193,35 @@ function parseRaw(row) {
 export function decide(e, wake = null) {
   if (e.sent_today === true) return BRIEFING_STATUS.DELIVERED;
 
+  // ★ v8 的耐久結果優先 —— 但只有在它講的是**今天**那一份時。
+  // 昨天的 MISSED 不該讓使用者以為今天的也沒救了。
+  const evalIsCurrent = e.evaluation_health_date
+    && e.evaluation_health_date === e.today;
+  if (evalIsCurrent) {
+    switch (e.evaluation_outcome) {
+      case 'MISSED': return BRIEFING_STATUS.MISSED;
+      case 'SENT_LATE': return BRIEFING_STATUS.SENT_LATE;
+      case 'FAILED': return BRIEFING_STATUS.FAILED_RETRYABLE;
+      case 'CLAIM_BUSY': return BRIEFING_STATUS.CLAIM_BUSY;
+      case 'WAITING_FOR_RECOVERY': return BRIEFING_STATUS.WAITING_FOR_RECOVERY;
+      default: break;
+    }
+  }
+
   const ready = wake?.ready === true;
   const reason = e.wake_reason;
 
   // 資料齊了、在時限內，卻還沒送 → 差的只有「有人去處理它」。
   // 這時排程器的狀態就是答案本身。
   if (ready) {
+    // ★ 「可以發」不代表「使用者在等的那一份可以發」。
+    // 補發窗（48 小時）讓前一天的觀測仍然是 ready 的，但那一天如果已經
+    // 送出去了，使用者真正在等的是**今晚**的資料。
+    const staleObservation = e.observation_health_date
+      && e.observation_health_date !== e.today;
+    if (staleObservation && e.sent_yesterday === true) {
+      return BRIEFING_STATUS.WAITING_FOR_SLEEP_DATA;
+    }
     return e.scheduler_stale === true
       ? BRIEFING_STATUS.SCHEDULER_STALE
       : BRIEFING_STATUS.READY_NOT_YET_PROCESSED;
@@ -282,6 +336,31 @@ export function renderBriefingStatus({ status, evidence }) {
         '所以問題不在你的資料，是沒有人去把它發出來。我沒辦法自己叫醒那個排程，'
         + '也不想給你一個我保證不了的時間。',
       ].join('\n\n');
+
+    case BRIEFING_STATUS.SENT_LATE:
+      return '今天的簡報已經發出來了 —— 它比平常晚一點，因為資料比較晚才備齊。';
+
+    case BRIEFING_STATUS.MISSED:
+      return [
+        '那一份已經超過我會補發的時間，所以不會再送了。',
+        '不是資料不見了 —— 是超過期限之後，一份太舊的報告對你已經沒有參考價值。'
+        + '下一次睡眠的簡報不受影響。',
+      ].join('\n\n');
+
+    case BRIEFING_STATUS.FAILED_RETRYABLE:
+      return [
+        '簡報已經做好了，但送出的時候失敗了。',
+        schedulerLine ?? '後續排程成功檢查之後會再試一次。',
+      ].filter(Boolean).join('\n\n');
+
+    case BRIEFING_STATUS.CLAIM_BUSY:
+      return '簡報正在處理中，稍等一下就會送出來。';
+
+    case BRIEFING_STATUS.WAITING_FOR_RECOVERY:
+      return [
+        '睡眠已經記錄到了，但對應的恢復資料還沒進來 —— 少了它我不會硬算。',
+        schedulerLine ?? nextCheck,
+      ].filter(Boolean).join('\n\n');
 
     case BRIEFING_STATUS.WINDOW_EXPIRED:
       return [

@@ -541,14 +541,25 @@ test('health_date：跨午夜也能補發（睡眠結束日 ≠ 執行當天）'
   assert.doesNotMatch(renderDaily(briefing, 'x'), /8\/23/);
 });
 
-test('health_date：sleep.end 超過 24 小時就不補發了', () => {
+test('health_date：25 小時仍在補發窗內（標示成 late）', () => {
   const ds = makeDataset({ days: 40, wakeMinutesAgo: 25 * 60 });
+  const wake = detectWake({
+    observations: buildObservations({ ...ds, timezone: TZ }), now: ds.now, timezone: TZ,
+  });
+  assert.equal(wake.ready, true);
+  assert.equal(wake.window, 'late');
+  assert.equal(wake.late, true);
+});
+
+test('health_date：超過 48 小時才終局不補發', () => {
+  const ds = makeDataset({ days: 40, wakeMinutesAgo: 49 * 60 });
   const wake = detectWake({
     observations: buildObservations({ ...ds, timezone: TZ }), now: ds.now, timezone: TZ,
   });
   assert.equal(wake.ready, false);
   assert.equal(wake.reason, 'sleep_too_old');
-  assert.equal(wake.hoursSinceWake, 25);
+  assert.equal(wake.window, 'missed');
+  assert.equal(wake.hoursSinceWake, 49);
 });
 
 test('health_date：剛好 24 小時內還發（邊界）', () => {

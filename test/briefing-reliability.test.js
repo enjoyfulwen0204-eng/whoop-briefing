@@ -322,9 +322,16 @@ test('★★★ 7: not_ready 之後換一個新的 db 連線（重啟）→ 資�
 // 8–10 24 小時邊界：丟棄必須是顯著的終局事件
 // ===========================================================================
 
-test('★★★ 8: 24 小時邊界 —— 之前可發、之後 sleep_too_old', async () => {
+test('★★★ 8: 補發邊界 —— 48 小時（含）可補發，超過就是終局', async () => {
   const end = Date.parse(LAST_NIGHT.end);
-  for (const [label, offsetH, wantReady] of [['23.5h', 23.5, true], ['24.5h', 24.5, false]]) {
+  for (const [label, offsetH, wantReady] of [
+    ['23.5h (normal)', 23.5, true],
+    ['24.5h (late)', 24.5, true],
+    ['47h59m59s (late)', 47 + 59 / 60 + 59 / 3600, true],
+    ['exactly 48h (late, inclusive)', 48, true],
+    ['48h + 1ms (missed)', 48 + 1 / 3_600_000, false],
+    ['72h (missed)', 72, false],
+  ]) {
     const { db, user, cleanup } = await seed({ nights: [LAST_NIGHT], sentDates: [] });
     try {
       const now = new Date(end + offsetH * 3600_000);
@@ -351,22 +358,75 @@ test('★★★ 9: 晚了但仍在時限內 → 照發（不是丟掉）', async
   } finally { cleanup(); }
 });
 
-test('★★★ 10: 超過時限的丟棄必須留下顯著的終局紀錄（不是沉默 return）', async () => {
+test('★★★ 10: 超過 48 小時 → 持久化 MISSED、顯著終局事件、只通知一次', async () => {
   const { db, user, cleanup } = await seed({ nights: [LAST_NIGHT], sentDates: [] });
   try {
+    const tg = telegramStub();
+    const notices = [];
+    tg.notifyError = async (type, msg) => { notices.push({ type, msg }); return true; };
+    const now = new Date(Date.parse(LAST_NIGHT.end) + 72 * 3600_000);
     const { result, events } = await captureLogs(() => runDaily({
-      db, userId: user.id, source: source(db, user.id), coach, telegram: telegramStub(),
-      timezone: TZ, now: new Date(Date.parse(LAST_NIGHT.end) + 30 * 3600_000),
+      db, userId: user.id, source: source(db, user.id), coach, telegram: tg,
+      timezone: TZ, now,
     }));
-    assert.equal(result.status, 'not_ready');
+    assert.equal(result.status, 'missed');
     assert.equal(result.reason, 'sleep_too_old');
     assert.equal(result.retryable, false, '★ 這是終局，不是可重試');
+
     const term = events.find((e) => e.event === 'daily_discarded_window_expired');
     assert.ok(term, '★ 必須有一條專門的終局事件');
-    assert.equal(term.level, 'warn', '★ 終局丟棄不可以只是 info');
+    assert.equal(term.level, 'warn');
     assert.equal(term.fields.terminal, true);
-    assert.equal(term.fields.max_age_hours, WAKE.MAX_AGE_HOURS);
-    assert.ok(term.fields.observation_health_date);
+    assert.equal(term.fields.late_window_hours, 48);
+
+    // 持久化的 MISSED
+    const evalRow = await db.getBriefingEvaluation(user.id, 'daily');
+    assert.equal(evalRow.outcome, 'MISSED');
+    assert.equal(evalRow.retryable, false);
+    assert.equal(evalRow.targetHealthDate, LAST_NIGHT.hd);
+
+    // 通知恰好一次，而且沒有整份過期報告
+    assert.equal(notices.length, 1, '★ 只通知一次');
+    assert.match(notices[0].type, /daily_missed_/);
+    assert.doesNotMatch(notices[0].msg, /7h16m|63%|66ms/, '★ 不可以倒一份過期的數據');
+    assert.equal(tg.sent.length, 0, '★ 不可以送出整份報告');
+
+    // 再跑幾輪都不可以重複通知，也不可以突然發出來
+    for (const extra of [73, 74, 80]) {
+      await runDaily({
+        db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
+        now: new Date(Date.parse(LAST_NIGHT.end) + extra * 3600_000),
+      });
+    }
+    assert.equal(notices.length, 1, '★ 每一輪都重複通知就是新的騷擾來源');
+    assert.equal(tg.sent.length, 0);
+  } finally { cleanup(); }
+});
+
+test('★★★ 10b: 補發窗內（24–48h）會送出，而且標示成補發', async () => {
+  const { db, user, cleanup } = await seed({ nights: [LAST_NIGHT], sentDates: [] });
+  try {
+    const tg = telegramStub();
+    const r = await runDaily({
+      db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
+      now: new Date(Date.parse(LAST_NIGHT.end) + 30 * 3600_000),
+    });
+    assert.equal(r.status, 'sent');
+    assert.equal(r.late, true);
+    assert.equal(r.healthDate, LAST_NIGHT.hd, '★ 去重鍵仍然是原本的 health_date');
+    assert.equal(tg.sent.length, 1, '★ 恰好一則');
+    assert.match(tg.sent[0], /補發/, '★ 必須看得出是補發');
+    assert.ok(tg.sent[0].includes(LAST_NIGHT.hd), '★ 要顯示是哪一天的報告');
+    const evalRow = await db.getBriefingEvaluation(user.id, 'daily');
+    assert.equal(evalRow.outcome, 'SENT_LATE');
+
+    // 不可以再送一份「正常版」
+    const again = await runDaily({
+      db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
+      now: new Date(Date.parse(LAST_NIGHT.end) + 31 * 3600_000),
+    });
+    assert.equal(again.status, 'already_sent');
+    assert.equal(tg.sent.length, 1, '★ 正常版與補發版不可以各送一次');
   } finally { cleanup(); }
 });
 
@@ -504,7 +564,9 @@ test('★★★ 18b: 看門狗的循環依賴 —— 狀態評估本身完全不
     assert.equal(evidence.scheduler_stale, null, '★ 沒有證據時不可以假裝知道');
     const reply = renderBriefingStatus({ status, evidence });
     assert.ok(reply.length > 10, '★ 仍然要給得出答案');
-    assert.doesNotMatch(reply, /下一次檢查就會|後續排程成功檢查/, '★ 不可以承諾');
+    // 條件句（「後續排程成功檢查之後」）是核可的措辭 —— 它沒有承諾時間。
+    // 要擋的是無條件承諾。
+    assert.doesNotMatch(reply, /下一次檢查就會發|馬上|立刻|分鐘後|小時後/, '★ 不可以給時間承諾');
   } finally { cleanup(); }
 });
 
@@ -611,8 +673,18 @@ test('★★★ 22: decide() 判定表', () => {
     sent_yesterday: false,
   }), D.WINDOW_EXPIRED);
   // 資料齊了：排程活著 → 等下一輪；排程掛了 → 那才是答案
-  assert.equal(decide(base, { ready: true }), D.READY_NOT_YET_PROCESSED);
-  assert.equal(decide({ ...base, scheduler_stale: true }, { ready: true }), D.SCHEDULER_STALE);
+  // ★ ready 的觀測屬於**已經送出**的前一天（補發窗讓它仍然 ready）
+  //   → 使用者真正在等的是今晚的資料。
+  assert.equal(decide(base, { ready: true }), D.WAITING_FOR_SLEEP_DATA);
+  // 觀測就是今天的 → 真的只差有人去處理
+  const todayObs = { ...base, observation_health_date: base.today };
+  assert.equal(decide(todayObs, { ready: true }), D.READY_NOT_YET_PROCESSED);
+  assert.equal(decide({ ...todayObs, scheduler_stale: true }, { ready: true }), D.SCHEDULER_STALE);
+  // 前一天還沒送出 → 那份仍然可以補發，不是在等今晚
+  assert.equal(
+    decide({ ...base, sent_yesterday: false }, { ready: true }),
+    D.READY_NOT_YET_PROCESSED,
+  );
   // 什麼都不知道
   assert.equal(decide({ ...base, wake_reason: null }), D.UNKNOWN);
   assert.equal(decide({ ...base, wake_reason: null, scheduler_stale: true }), D.SCHEDULER_STALE);

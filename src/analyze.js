@@ -16,6 +16,7 @@ import {
   BASELINE, METRICS, METRIC_BY_KEY, STRAIN, THRESHOLDS, TREND, WAKE, num,
 } from './config.js';
 import { addDays, localDate, minutesBetween } from './time.js';
+import { deliveryWindow } from './briefingState.js';
 import { log } from './logger.js';
 
 // ---------------------------------------------------------------------------
@@ -139,7 +140,7 @@ export function yesterdayCycleFor(obs, cyclesDesc = []) {
 export function detectWake({ observations, now, timezone }) {
   const latest = observations?.[0];
 
-  if (!latest) return { ready: false, reason: 'no_main_sleep' };
+  if (!latest) return { ready: false, reason: 'no_main_sleep', window: 'unknown' };
   if (latest.sleep.score_state !== 'SCORED') {
     return { ready: false, reason: 'sleep_not_scored', record: latest };
   }
@@ -159,10 +160,17 @@ export function detectWake({ observations, now, timezone }) {
       record: latest,
     };
   }
-  if (minutes > WAKE.MAX_AGE_HOURS * 60) {
+  // ★ 補發政策（使用者已核可）：正常窗之後仍然可以補發，直到 48 小時。
+  //
+  // 舊版在 24 小時就**靜靜丟掉**整天的簡報。排程器掛幾個小時就足以讓一天
+  // 永遠消失，而且沒有任何紀錄。現在超過正常窗只是「要標示成補發」，
+  // 真正的終局是 48 小時。
+  const window = deliveryWindow({ sleepEndIso: latest.endUtc, now });
+  if (window === 'missed') {
     return {
       ready: false,
       reason: 'sleep_too_old',
+      window,
       healthDate: latest.healthDate,
       hoursSinceWake: Math.round(minutes / 60),
       record: latest,
@@ -170,6 +178,9 @@ export function detectWake({ observations, now, timezone }) {
   }
   return {
     ready: true,
+    /** 'normal' | 'late' —— late 的簡報必須標示成補發。 */
+    window,
+    late: window === 'late',
     record: latest,
     healthDate: latest.healthDate,
     minutesSinceWake: Math.round(minutes),

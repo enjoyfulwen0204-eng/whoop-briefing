@@ -744,6 +744,68 @@ export function createDb({ url, authToken }) {
     return rs.rows.length > 0;
   }
 
+  // ----- 簡報評估的最新狀態（v8）-----------------------------------------
+  /**
+   * 寫下這個使用者/報告型別**最新一次**評估的結果。
+   *
+   * 單一 upsert：併發的 Cloudflare 與 GitHub 各寫各的，最後一個贏，表不會成長。
+   * created_at 用 COALESCE 保留第一次寫入的時間。
+   */
+  async function recordBriefingEvaluation({
+    userId, reportType = 'daily', evaluatedAt, localDate, targetHealthDate = null,
+    outcome, reason = null, retryable = true, observationAgeMinutes = null,
+    reportRunId = null, detail = null,
+  }) {
+    const uid = requireUserId(userId, 'recordBriefingEvaluation');
+    if (!outcome) throw new Error('recordBriefingEvaluation 需要 outcome');
+    const at = evaluatedAt ?? new Date().toISOString();
+    await client.execute({
+      sql: `INSERT INTO briefing_evaluations
+              (user_id, report_type, evaluated_at, local_date, target_health_date,
+               outcome, reason, retryable, observation_age_minutes, report_run_id,
+               detail, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(user_id, report_type) DO UPDATE SET
+              evaluated_at = excluded.evaluated_at,
+              local_date = excluded.local_date,
+              target_health_date = excluded.target_health_date,
+              outcome = excluded.outcome,
+              reason = excluded.reason,
+              retryable = excluded.retryable,
+              observation_age_minutes = excluded.observation_age_minutes,
+              report_run_id = excluded.report_run_id,
+              detail = excluded.detail,
+              updated_at = excluded.updated_at`,
+      args: [uid, reportType, at, localDate, targetHealthDate, outcome, reason,
+        retryable ? 1 : 0, observationAgeMinutes, reportRunId,
+        detail ? String(detail).slice(0, 500) : null, at, at],
+    });
+    return true;
+  }
+
+  async function getBriefingEvaluation(userId, reportType = 'daily') {
+    const uid = requireUserId(userId, 'getBriefingEvaluation');
+    const rs = await client.execute({
+      sql: 'SELECT * FROM briefing_evaluations WHERE user_id = ? AND report_type = ?',
+      args: [uid, reportType],
+    });
+    const row = rs.rows[0];
+    if (!row) return null;
+    return {
+      reportType: row.report_type,
+      evaluatedAt: row.evaluated_at,
+      localDate: row.local_date,
+      targetHealthDate: row.target_health_date ?? null,
+      outcome: row.outcome,
+      reason: row.reason ?? null,
+      retryable: Number(row.retryable) === 1,
+      observationAgeMinutes: row.observation_age_minutes ?? null,
+      reportRunId: row.report_run_id ?? null,
+      detail: row.detail ?? null,
+      updatedAt: row.updated_at,
+    };
+  }
+
   /** 便利包裝：系統層 / 使用者層。 */
   const claimGlobalErrorNotify = (errorType, hours) =>
     claimErrorNotify(GLOBAL_SCOPE, errorType, hours);
@@ -940,6 +1002,8 @@ export function createDb({ url, authToken }) {
     claimErrorNotify,
     clearErrorNotify,
     hasErrorNotify,
+    recordBriefingEvaluation,
+    getBriefingEvaluation,
     clearUserErrorNotify: (userId, errorType) =>
       clearErrorNotify(userScope(requireUserId(userId, 'clearUserErrorNotify')), errorType),
     claimGlobalErrorNotify,

@@ -214,13 +214,29 @@ test('daily 跨午夜：去重 key 與紀錄用 health_date，不是執行當天
   assert.equal(ctx.telegram.sent.length, 1, '不可重複發');
 });
 
-test('daily：sleep.end 超過 24 小時 → 不補發（不會把舊資料重報）', async () => {
+test('daily：sleep.end 超過 48 小時 → 終局 MISSED（不會把舊資料重報）', async () => {
+  // 24–48 小時現在是**補發窗**（使用者核可的政策），所以終局邊界在 48 小時。
+  const ds = makeDataset({ days: 45, wakeMinutesAgo: 72 * 60 });
+  const ctx = ctxFor({ now: ds.now, dataset: ds });
+
+  const res = await runDaily(ctx);
+  assert.equal(res.status, 'missed');
+  assert.equal(res.reason, 'sleep_too_old');
+  assert.equal(res.retryable, false);
+  // 只有一則簡短通知，而且**不是**整份過期報告。
+  assert.equal(ctx.telegram.sent.length, 1, '★ 恰好一則漏發通知');
+  assert.doesNotMatch(ctx.telegram.sent[0], /恢復|HRV|靜息心率|睡眠表現/,
+    '★ 漏發通知不可以倒一份過期的數據');
+  assert.equal(ctx.db.runs.length, 0, '★ 不可以寫出 SENT 紀錄');
+});
+
+test('daily：24–48 小時之間會補發，並標示成補發', async () => {
   const ds = makeDataset({ days: 45, wakeMinutesAgo: 30 * 60 });
   const ctx = ctxFor({ now: ds.now, dataset: ds });
 
   const res = await runDaily(ctx);
-  assert.equal(res.status, 'not_ready');
-  assert.equal(res.reason, 'sleep_too_old');
-  assert.equal(ctx.telegram.sent.length, 0);
-  assert.equal(ctx.db.runs.length, 0);
+  assert.equal(res.status, 'sent');
+  assert.equal(res.late, true);
+  assert.equal(ctx.telegram.sent.length, 1);
+  assert.match(ctx.telegram.sent[0], /補發/);
 });

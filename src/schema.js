@@ -103,7 +103,7 @@ export const TELEGRAM_DELIVERY_STATE = Object.freeze({
   AMBIGUOUS: 'AMBIGUOUS',
 });
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -598,6 +598,49 @@ export const ADDITIVE_COLUMNS = [
 // ---------------------------------------------------------------------------
 // 7. 分析基礎建設（per-user）
 // ---------------------------------------------------------------------------
+/**
+ * v8：簡報評估的**最新狀態**（per user / report_type 一列）。
+ *
+ * ## 為什麼需要它
+ *
+ * 2026-09-12 的事故裡，「跑了但還不能發」與「根本沒跑」在資料庫上長得
+ * 一模一樣：兩者都不寫任何東西。追查只能靠 cron heartbeat 反推，而使用者
+ * 問「今天的晨報呢」時系統連「我在等什麼」都答不出來。
+ *
+ * ## 為什麼不塞進 report_runs
+ *
+ * report_runs 的語意是「一份報告真的被送出去過」，`uniq_report_sent` 就建在
+ * status='SENT' 上。把「還在等睡眠評分」寫進同一張表會污染那個語意，而且
+ * 每 10 分鐘一列會讓它無限成長。
+ *
+ * 所以這裡是**狀態表不是日誌表**：主鍵 (user_id, report_type)，每次 upsert
+ * 覆寫，表不會成長，併發（Cloudflare 與 GitHub 同時跑）靠單一 upsert 語句
+ * 收斂。需要歷史時看 report_runs 與結構化日誌。
+ *
+ * 刻意**不存**：WHOOP 原始回應、報告全文、任何 token / chat id / 祕密、
+ * 以及跟這個判斷無關的健康數值。
+ */
+export const BRIEFING_STATE_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS briefing_evaluations (
+     user_id                TEXT NOT NULL,
+     report_type            TEXT NOT NULL,
+     evaluated_at           TEXT NOT NULL,
+     local_date             TEXT NOT NULL,
+     target_health_date     TEXT,
+     outcome                TEXT NOT NULL,
+     reason                 TEXT,
+     retryable              INTEGER NOT NULL DEFAULT 1,
+     observation_age_minutes INTEGER,
+     report_run_id          INTEGER,
+     detail                 TEXT,
+     created_at             TEXT NOT NULL,
+     updated_at             TEXT NOT NULL,
+     PRIMARY KEY (user_id, report_type)
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_briefing_eval_outcome
+     ON briefing_evaluations (outcome, updated_at)`,
+];
+
 export const ANALYSIS_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS healthspan_metrics (
      id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -935,6 +978,7 @@ export const SCHEMA = [
   ...TOKEN_SCHEMA,
   ...GLOBAL_SCHEMA,
   ...REPORT_SCHEMA,
+  ...BRIEFING_STATE_SCHEMA,
   ...HEALTH_SCHEMA,
   ...BOT_SCHEMA,
   ...ANALYSIS_SCHEMA,

@@ -7,8 +7,10 @@
  */
 
 import { BASELINE, REPORT_CLAIM, WAKE } from './config.js';
+import { LATE_POLICY } from './briefingState.js';
 import { requireUserId } from './userContext.js';
 import { localDate } from './time.js';
+import { BRIEFING_OUTCOME, isRetryableOutcome } from './briefingState.js';
 import {
   buildObservations, completedCycles, detectWake, baselineRecords, stageFor,
   computeBaselines, evaluateAll, detectTrends, yesterdayCycleFor,
@@ -59,6 +61,39 @@ export async function runDaily({
     observation_age_minutes: observationAgeMinutes,
   };
 
+  /**
+   * 把「這一輪看到什麼」寫成耐久狀態（v8）。
+   *
+   * 絕不讓它失敗影響簡報本身：診斷是附加價值，不是先決條件。
+   */
+  const recordEvaluation = async (outcome, extra = {}) => {
+    if (typeof db.recordBriefingEvaluation !== 'function') return;
+    try {
+      await db.recordBriefingEvaluation({
+        userId: uid,
+        reportType: 'daily',
+        evaluatedAt,
+        localDate: todayLocal,
+        targetHealthDate: wake.healthDate ?? wake.record?.healthDate ?? null,
+        outcome,
+        retryable: isRetryableOutcome(outcome),
+        observationAgeMinutes,
+        ...extra,
+      });
+    } catch (err) {
+      log.warn('briefing_evaluation_record_failed', { error: describeError(err) });
+    }
+  };
+
+  /** detectWake 的 reason → 耐久詞彙。分得細才答得出「我在等什麼」。 */
+  const OUTCOME_FOR_REASON = {
+    no_main_sleep: BRIEFING_OUTCOME.WAITING_FOR_SLEEP,
+    sleep_not_scored: BRIEFING_OUTCOME.WAITING_FOR_SLEEP_SCORE,
+    recovery_missing: BRIEFING_OUTCOME.WAITING_FOR_RECOVERY,
+    recovery_not_scored: BRIEFING_OUTCOME.WAITING_FOR_RECOVERY_SCORE,
+    too_soon: BRIEFING_OUTCOME.TOO_SOON,
+  };
+
   if (!wake.ready) {
     log.info('daily_not_ready', {
       ...base,
@@ -68,17 +103,54 @@ export async function runDaily({
       health_date: wake.healthDate ?? null,
       retryable,
     });
-    // ★ 超過補發時限是**終局**：再跑一百次也不會變。以前它跟其他
-    // not_ready 用同一條 log，於是一整天被靜靜丟掉時沒有任何顯著訊號。
+    // ★ 超過補發時限是**終局**：再跑一百次也不會變。
     if (wake.reason === 'sleep_too_old') {
+      const missedHealthDate = wake.healthDate ?? wake.record?.healthDate ?? null;
       log.warn('daily_discarded_window_expired', {
         ...base,
-        max_age_hours: WAKE.MAX_AGE_HOURS,
+        late_window_hours: LATE_POLICY.LATE_WINDOW_HOURS,
         hours_since_wake: wake.hoursSinceWake ?? null,
         terminal: true,
-        note: 'no further attempt will be made for this observation',
       });
+      // 已經送出過的那一天不算漏發 —— 那只是一筆過期的舊觀測。
+      const alreadyDelivered = missedHealthDate
+        ? await db.isSent(uid, 'daily', missedHealthDate).catch(() => false)
+        : false;
+      // ★ 冪等靠**耐久狀態**，不靠通知冷卻。
+      // 排程每 10 分鐘跑一次，如果每一輪都重新宣告一次漏發，那就是把一個
+      // 修好的問題換成另一個騷擾來源。已經記成 MISSED 的同一天就直接收工。
+      let alreadyMissed = false;
+      if (missedHealthDate && typeof db.getBriefingEvaluation === 'function') {
+        try {
+          const prev = await db.getBriefingEvaluation(uid, 'daily');
+          alreadyMissed = prev?.outcome === BRIEFING_OUTCOME.MISSED
+            && prev?.targetHealthDate === missedHealthDate;
+        } catch { alreadyMissed = false; }
+      }
+      if (!alreadyDelivered && !alreadyMissed) {
+        await recordEvaluation(BRIEFING_OUTCOME.MISSED, {
+          reason: wake.reason,
+          detail: `age_hours=${wake.hoursSinceWake ?? '?'}`,
+        });
+        // 只通知一次：用 health_date 當訊號名稱，所以同一天不會重複，
+        // 不同天各自可以通知。冷卻取很長，避免任何重播。
+        if (missedHealthDate) {
+          await telegram.notifyError(
+            `daily_missed_${missedHealthDate}`,
+            `${missedHealthDate} 的晨報沒有在可補發的時間內送出，所以我不會再補那一份了。`
+            + '後續的簡報不受影響。',
+            { cooldownHours: 24 * 30 },
+          ).catch(() => false);
+        }
+      }
+      return {
+        status: 'missed', reason: wake.reason, retryable: false, healthDate: missedHealthDate,
+      };
     }
+    await recordEvaluation(
+      OUTCOME_FOR_REASON[wake.reason] ?? BRIEFING_OUTCOME.WAITING_FOR_SLEEP,
+      { reason: wake.reason },
+    );
     return { status: 'not_ready', reason: wake.reason, retryable };
   }
 
@@ -97,6 +169,9 @@ export async function runDaily({
       health_date: healthDate,
       stale_observation: staleObservation,
       awaiting_current_date: staleObservation,
+    });
+    await recordEvaluation(BRIEFING_OUTCOME.ALREADY_SENT, {
+      reason: staleObservation ? 'prior_health_date' : 'current_health_date',
     });
     return {
       status: 'already_sent', healthDate, localDate: healthDate, staleObservation,
@@ -122,6 +197,9 @@ export async function runDaily({
       log.info('daily_claim_denied', {
         health_date: healthDate, already_sent: claim.alreadySent,
       });
+      await recordEvaluation(
+        claim.alreadySent ? BRIEFING_OUTCOME.ALREADY_SENT : BRIEFING_OUTCOME.CLAIM_BUSY,
+      );
       return {
         status: claim.alreadySent ? 'already_sent' : 'claim_busy',
         healthDate,
@@ -159,6 +237,13 @@ export async function runDaily({
     coachText = null;
 
     text = renderDaily(briefing, coachText);
+    // ★ 補發必須看得出來是補發。標示用的是**這份報告的 health_date**，
+    // 不是執行當下的日期 —— 使用者要知道這是哪一天的報告。
+    if (wake.late) {
+      text = `📮 補發：${healthDate} 的晨報\n`
+        + '（這份資料比平常晚才備齊或晚一步被處理，所以現在才送。）\n\n'
+        + text;
+    }
   } catch (err) {
     await releaseClaim();
     throw err;
@@ -181,6 +266,7 @@ export async function runDaily({
       status: 'FAILED',
       detail: describeError(err),
     }, { throwOnError: false });
+    await recordEvaluation(BRIEFING_OUTCOME.FAILED, { reason: 'telegram_send_failed' });
     if (err instanceof TelegramError) {
       // Telegram 自己掛了 → 只寫 log，不遞迴再呼叫 Telegram
       log.error('daily_telegram_failed', { health_date: healthDate, error: describeError(err) });
@@ -234,13 +320,19 @@ export async function runDaily({
     );
   }
 
+  await recordEvaluation(
+    wake.late ? BRIEFING_OUTCOME.SENT_LATE : BRIEFING_OUTCOME.SENT,
+    { reason: wake.late ? 'late_delivery' : null },
+  );
+
   log.info('daily_sent', {
     health_date: healthDate, stage: briefing.stage, samples: briefing.sampleCount,
+    late: Boolean(wake.late),
     coach: coachText ? 'ok' : 'fallback', chars: text.length, recorded,
   });
   return {
     status: 'sent', healthDate, localDate: healthDate, text, briefing,
-    coachUsed: Boolean(coachText), recorded,
+    late: Boolean(wake.late), coachUsed: Boolean(coachText), recorded,
   };
 }
 

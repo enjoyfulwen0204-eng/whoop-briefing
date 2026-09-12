@@ -674,7 +674,15 @@ export function createDb({ url, authToken }) {
    *      SQLite 逐語句序列化，所以只有一個呼叫會拿到 rowsAffected = 1。
    *   3. 兩者都沒搶到 → 被冷卻擋下，只累加 hits。
    */
-  async function claimErrorNotify(scope, errorType, cooldownHours) {
+  /**
+   * 認領一次通知，並回傳**這一次認領的擁有權憑證**。
+   *
+   * 憑證就是寫進去的那個 `last_notified_at`。它足以當 token，因為認領本身
+   * 是原子的：同一個窗只有一個呼叫拿得到，也就只有一個呼叫握著那個時間戳。
+   *
+   * @returns {{granted:boolean, claimedAt:?string}}
+   */
+  async function claimErrorNotifyOwned(scope, errorType, cooldownHours) {
     if (!scope) throw new Error('claimErrorNotify 需要 scope（global 或 user:<id>）');
     const now = Date.now();
     const nowIso = new Date(now).toISOString();
@@ -686,7 +694,7 @@ export function createDb({ url, authToken }) {
             ON CONFLICT(scope, error_type) DO NOTHING`,
       args: [scope, errorType, nowIso],
     });
-    if (Number(inserted.rowsAffected ?? 0) > 0) return true;
+    if (Number(inserted.rowsAffected ?? 0) > 0) return { granted: true, claimedAt: nowIso };
 
     const claimed = await client.execute({
       sql: `UPDATE error_notifications
@@ -694,14 +702,47 @@ export function createDb({ url, authToken }) {
              WHERE scope = ? AND error_type = ? AND last_notified_at <= ?`,
       args: [nowIso, scope, errorType, cutoffIso],
     });
-    if (Number(claimed.rowsAffected ?? 0) > 0) return true;
+    if (Number(claimed.rowsAffected ?? 0) > 0) return { granted: true, claimedAt: nowIso };
 
     await client.execute({
       sql: `UPDATE error_notifications SET hits = hits + 1
              WHERE scope = ? AND error_type = ?`,
       args: [scope, errorType],
     });
-    return false;
+    return { granted: false, claimedAt: null };
+  }
+
+  /** 舊介面：只關心「我可不可以送」。既有呼叫端（Guardian…）不受影響。 */
+  async function claimErrorNotify(scope, errorType, cooldownHours) {
+    return (await claimErrorNotifyOwned(scope, errorType, cooldownHours)).granted;
+  }
+
+  /**
+   * 送失敗了 —— 把**自己那一次**的認領還回去，讓下一輪可以馬上重試。
+   *
+   * ## 為什麼要帶 claimedAt
+   *
+   * 無條件 DELETE 會製造一個更難查的 bug：
+   *
+   *   A 認領 → A 送失敗（慢）
+   *   B 在下一輪認領（新的時間戳）→ B 送成功
+   *   A 的錯誤處理才跑到，DELETE 掉了**B** 的冷卻
+   *   → 下一輪又送一次，使用者收到重複警報
+   *
+   * 帶上自己的時間戳做比較後刪除，就只會刪掉自己那一列；別人已經接手的
+   * 認領（時間戳不同）碰不到。
+   *
+   * @returns {boolean} 有沒有真的釋放（false = 已經被新的認領取代，本來就不該動）
+   */
+  async function releaseErrorNotify(scope, errorType, claimedAt) {
+    if (!scope) throw new Error('releaseErrorNotify 需要 scope');
+    if (!claimedAt) return false;
+    const rs = await client.execute({
+      sql: `DELETE FROM error_notifications
+             WHERE scope = ? AND error_type = ? AND last_notified_at = ?`,
+      args: [scope, errorType, claimedAt],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
   }
 
   /**
@@ -1000,6 +1041,8 @@ export function createDb({ url, authToken }) {
     releaseClaim,
     // 錯誤通知（scope 化）
     claimErrorNotify,
+    claimErrorNotifyOwned,
+    releaseErrorNotify,
     clearErrorNotify,
     hasErrorNotify,
     recordBriefingEvaluation,

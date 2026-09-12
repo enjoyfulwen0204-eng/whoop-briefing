@@ -10,7 +10,7 @@
  *  - 這一層只做「存」與「取」，不做任何健康判斷。
  */
 
-import { num } from './config.js';
+import { num, sleepTotalMilli } from './config.js';
 import { localDate } from './time.js';
 import { log } from './logger.js';
 import { requireUserId } from './userContext.js';
@@ -50,9 +50,9 @@ export function createHealthStore(client) {
       const rem = num(g.total_rem_sleep_time_milli);
       // 與 config.js METRICS 的 sleep_total 完全同一套算法（三段相加，
       // 不含 awake / no-data，也不用 total_in_bed_time_milli）
-      const total = (light === null && sws === null && rem === null)
-        ? null
-        : (light ?? 0) + (sws ?? 0) + (rem ?? 0);
+      // 缺任何一段就存 null —— 存一個少算的總和等於把不完整的資料
+      // 偽裝成完整的（見 config.js sleepTotalMilli 的說明）。
+      const total = sleepTotalMilli(g);
 
       stmts.push({
         sql: `INSERT INTO whoop_sleeps (

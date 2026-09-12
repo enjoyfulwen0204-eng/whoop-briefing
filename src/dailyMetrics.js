@@ -21,7 +21,7 @@
  * 絕不會讓整天的 daily_metrics 失效。
  */
 
-import { num } from './config.js';
+import { num, sleepTotalMilli } from './config.js';
 import {
   buildObservations, completedCycles, yesterdayCycleFor, isCalibrating,
 } from './analyze.js';
@@ -120,35 +120,65 @@ function summariseWorkouts(workoutRows, fromMs, toMs) {
   });
   const scored = inWindow.filter((w) => w.score_state === 'SCORED');
 
-  const sum = (f) => scored.reduce((acc, w) => acc + (num(f(w)) ?? 0), 0);
-  const durationMs = scored.reduce((acc, w) => {
-    const a = Date.parse(w.start_at);
-    const b = Date.parse(w.end_at);
-    return acc + (Number.isFinite(a) && Number.isFinite(b) && b > a ? b - a : 0);
-  }, 0);
+  // ★ 缺值**不可以**壓低總和。
+  //
+  // 舊寫法是 `acc + (num(f(w)) ?? 0)`：一筆已評分的運動若缺 strain，它就
+  // 貢獻 0，於是總和看起來完整、實際上少算一筆。使用者看到的是一個可信
+  // 的數字，而它是錯的 —— 那比「無資料」更糟。
+  //
+  // 現在：任何一筆已評分紀錄缺該欄位 → 整個總和不可用（null）。
+  // 「完全沒有已評分的運動」是另一回事，由呼叫端的 scored.length 判斷。
+  const sumRequired = (records, f) => {
+    let acc = 0;
+    for (const r of records) {
+      const v = num(f(r));
+      if (v === null) return null;
+      acc += v;
+    }
+    return acc;
+  };
 
-  const zone13 = sum((w) => w.zone_one_milli) + sum((w) => w.zone_two_milli)
-    + sum((w) => w.zone_three_milli);
-  const zone45 = sum((w) => w.zone_four_milli) + sum((w) => w.zone_five_milli);
+  /** 時長同理：起訖時間有一筆解析不出來，整段時長就不可用。 */
+  const durationRequired = (records) => {
+    let acc = 0;
+    for (const r of records) {
+      const a = Date.parse(r.start_at);
+      const b = Date.parse(r.end_at);
+      if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return null;
+      acc += b - a;
+    }
+    return acc;
+  };
 
-  const strengthMs = scored
-    .filter((w) => STRENGTH_SPORTS.has(String(w.sport_name ?? '').toLowerCase()))
-    .reduce((acc, w) => {
-      const a = Date.parse(w.start_at);
-      const b = Date.parse(w.end_at);
-      return acc + (Number.isFinite(a) && Number.isFinite(b) && b > a ? b - a : 0);
-    }, 0);
+  /** null 會傳染：任何一項不可用，整個合計就不可用。 */
+  const addAll = (...parts) => (parts.some((p) => p === null)
+    ? null : parts.reduce((a, b) => a + b, 0));
+  const toMinutes = (ms) => (ms === null ? null : Math.round(ms / MIN_MS));
+
+  const durationMs = durationRequired(scored);
+  const zone13 = addAll(
+    sumRequired(scored, (w) => w.zone_one_milli),
+    sumRequired(scored, (w) => w.zone_two_milli),
+    sumRequired(scored, (w) => w.zone_three_milli),
+  );
+  const zone45 = addAll(
+    sumRequired(scored, (w) => w.zone_four_milli),
+    sumRequired(scored, (w) => w.zone_five_milli),
+  );
+  const strengthMs = durationRequired(scored
+    .filter((w) => STRENGTH_SPORTS.has(String(w.sport_name ?? '').toLowerCase())));
 
   return {
+    // 筆數是真正的計數：窗內沒有紀錄就是 0，那是事實不是缺值。
     workout_count: inWindow.length,
     workout_scored_count: scored.length,
-    workout_strain_total: scored.length ? sum((w) => w.strain) : null,
-    workout_duration_minutes: scored.length ? Math.round(durationMs / MIN_MS) : null,
-    workout_kilojoule: scored.length ? sum((w) => w.kilojoule) : null,
-    zone1_3_minutes: scored.length ? Math.round(zone13 / MIN_MS) : null,
-    zone4_5_minutes: scored.length ? Math.round(zone45 / MIN_MS) : null,
+    workout_strain_total: scored.length ? sumRequired(scored, (w) => w.strain) : null,
+    workout_duration_minutes: scored.length ? toMinutes(durationMs) : null,
+    workout_kilojoule: scored.length ? sumRequired(scored, (w) => w.kilojoule) : null,
+    zone1_3_minutes: scored.length ? toMinutes(zone13) : null,
+    zone4_5_minutes: scored.length ? toMinutes(zone45) : null,
     // 推導值，非官方欄位
-    strength_minutes_derived: scored.length ? Math.round(strengthMs / MIN_MS) : null,
+    strength_minutes_derived: scored.length ? toMinutes(strengthMs) : null,
     workout_sports: [...new Set(scored.map((w) => w.sport_name).filter(Boolean))],
   };
 }
@@ -159,9 +189,17 @@ function summariseNaps(napRows, fromMs, toMs) {
     const t = Date.parse(n.end_at);
     return Number.isFinite(t) && t >= fromMs && t < toMs;
   });
+  // 窗內沒有小睡 → 總時長真的是 0（那是事實）。
+  // 有小睡但某一筆缺時長 → 不可用；把它當成 0 分鐘的睡眠是捏造。
+  let napTotal = 0;
+  for (const n of inWindow) {
+    const v = num(n.total_sleep_milli);
+    if (v === null) { napTotal = null; break; }
+    napTotal += v;
+  }
   return {
     nap_count: inWindow.length,
-    nap_total_milli: inWindow.reduce((a, n) => a + (num(n.total_sleep_milli) ?? 0), 0),
+    nap_total_milli: napTotal,
   };
 }
 
@@ -216,11 +254,12 @@ export function computeDailyMetrics({
       ? summariseNaps(napRows, winFrom, winTo)
       : { nap_count: null, nap_total_milli: null };
 
+    // 各分期**各自**可為 null（那是誠實的「這一段拿不到」）。
     const light = num(g.total_light_sleep_time_milli);
     const sws = num(g.total_slow_wave_sleep_time_milli);
     const rem = num(g.total_rem_sleep_time_milli);
-    const sleepTotal = (light === null && sws === null && rem === null)
-      ? null : (light ?? 0) + (sws ?? 0) + (rem ?? 0);
+    // 但**總和**三段缺一不可（與 store 寫入、METRICS 顯示共用同一個函式）。
+    const sleepTotal = sleepTotalMilli(g);
 
     const recoveryScored = r?.score_state === 'SCORED';
     const calibrating = isCalibrating(obs);

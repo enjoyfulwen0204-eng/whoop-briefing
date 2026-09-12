@@ -83,10 +83,14 @@ export function createTelegram({
     // 所以持續型訊號（例如排程器離線）自己指定一個長冷卻（24 小時）。
     const hours = Number.isFinite(cooldownHours) && cooldownHours > 0
       ? cooldownHours : ERROR_NOTIFY_COOLDOWN_HOURS;
+    let claim = null;
     try {
       if (db) {
-        const allowed = await db.claimErrorNotify(errorScope, errorType, hours);
-        if (!allowed) {
+        // 有 owned 版本就用它 —— 送失敗時才有辦法「只還自己那一次」的認領。
+        claim = typeof db.claimErrorNotifyOwned === 'function'
+          ? await db.claimErrorNotifyOwned(errorScope, errorType, hours)
+          : { granted: await db.claimErrorNotify(errorScope, errorType, hours), claimedAt: null };
+        if (!claim.granted) {
           log.info('error_notify_suppressed', {
             scope: errorScope, error_type: errorType, cooldown_hours: hours,
           });
@@ -96,6 +100,23 @@ export function createTelegram({
       await send(`🚨 WHOOP 簡報系統異常\n類型：${errorType}\n${message}\n\n（同類型錯誤 ${hours} 小時內只通知一次）`);
       return true;
     } catch (err) {
+      // ★ 送失敗 → 把認領還回去。
+      //
+      // 以前這裡只寫 log：認領已經持久化了，於是一次 Telegram 故障就把整個
+      // 冷卻窗吃掉（排程離線警報是 24 小時）。使用者在那段時間完全不會被
+      // 告知系統掛了 —— 而那正是最需要通知的時候。
+      //
+      // 釋放時帶上自己的 claimedAt，所以碰不到別人**更新的**成功認領。
+      if (claim?.granted && claim.claimedAt && typeof db?.releaseErrorNotify === 'function') {
+        try {
+          const released = await db.releaseErrorNotify(errorScope, errorType, claim.claimedAt);
+          log.info('error_notify_claim_released', {
+            scope: errorScope, error_type: errorType, released,
+          });
+        } catch (releaseErr) {
+          log.warn('error_notify_release_failed', { error: describeError(releaseErr) });
+        }
+      }
       // 不遞迴：Telegram 出錯就只留 log
       log.error('error_notify_failed', {
         scope: errorScope, error_type: errorType, error: describeError(err),

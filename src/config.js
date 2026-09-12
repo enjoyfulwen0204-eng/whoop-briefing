@@ -181,15 +181,7 @@ export const METRICS = [
     // 也不用 total_in_bed_time。
     key: 'sleep_total', label: '睡眠', emoji: '🌙', tier: 'core',
     source: 'sleep',
-    get: (s) => {
-      const g = s?.score?.stage_summary;
-      if (!g) return null;
-      const light = num(g.total_light_sleep_time_milli);
-      const sws = num(g.total_slow_wave_sleep_time_milli);
-      const rem = num(g.total_rem_sleep_time_milli);
-      if (light === null && sws === null && rem === null) return null;
-      return (light ?? 0) + (sws ?? 0) + (rem ?? 0);
-    },
+    get: (s) => sleepTotalMilli(s?.score?.stage_summary),
     fmt: (v) => formatDuration(v),
   },
   {
@@ -560,6 +552,30 @@ export const WHAT_CHANGED = {
 // 5. 小工具
 // ---------------------------------------------------------------------------
 /** 只接受有限數字，其他（null / undefined / NaN / 字串）一律回 null。 */
+/**
+ * 主睡眠總時長（毫秒）—— 三個分期**缺一不可**。
+ *
+ * ## 為什麼不能用 `(light ?? 0) + (sws ?? 0) + (rem ?? 0)`
+ *
+ * 那個寫法在缺 REM 時會回「淺睡 + 深睡」，然後這個數字被當成**完整的**
+ * 睡眠總時長印給使用者、寫進資料庫、也進了統計。使用者看到的是一個
+ * 少算一段的總和，卻沒有任何標示說它不完整 —— 那比顯示「無資料」更糟，
+ * 因為它看起來是可信的。
+ *
+ * WHOOP 沒有提供獨立的權威總和欄位（DB 裡的 total_sleep_milli 就是用這個
+ * 函式算出來再存的），所以唯一誠實的規則是：三段都在才給總和，否則不可用。
+ *
+ * 這個函式是唯一的來源 —— 寫入（store）、顯示（METRICS）、彙總
+ *（dailyMetrics）三條路徑共用它，否則它們遲早會分岔。
+ */
+export function sleepTotalMilli(stage) {
+  const light = num(stage?.total_light_sleep_time_milli);
+  const sws = num(stage?.total_slow_wave_sleep_time_milli);
+  const rem = num(stage?.total_rem_sleep_time_milli);
+  if (light === null || sws === null || rem === null) return null;
+  return light + sws + rem;
+}
+
 export function num(v) {
   if (v === null || v === undefined) return null;
   const n = typeof v === 'number' ? v : Number(v);

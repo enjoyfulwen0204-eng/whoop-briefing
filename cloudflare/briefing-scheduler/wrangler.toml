@@ -6,7 +6,7 @@ compatibility_date = "2026-09-01"
 crons = ["*/10 * * * *"]
 
 [vars]
-BRIEFING_ENDPOINT_URL = "https://REPLACE_WITH_RENDER_HOST/internal/briefing/run"
+BRIEFING_ENDPOINT_URL = "https://whoop-telegram-webhook.onrender.com/internal/briefing/run"
 
 [observability]
 enabled = true

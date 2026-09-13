@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 import {
   BRIEFING_TRIGGER, canonicalTriggerMessage, signTriggerRequest, verifyTriggerRequest,
@@ -10,7 +11,10 @@ import {
   checkPeerScheduler, providerState, aggregateSchedulerState, SCHEDULER_POLICY,
 } from '../src/schedulerWatchdog.js';
 import { HEARTBEAT_COMPONENT } from '../src/guardianPolicy.js';
-import { signRequest, retryableStatus, invoke } from '../cloudflare/briefing-scheduler/worker.js';
+import {
+  signRequest, retryableStatus, invoke, isRedirect,
+  REDIRECT_MODE, ALLOWED_REDIRECT_MODES,
+} from '../cloudflare/briefing-scheduler/worker.js';
 import { BRIEFING_STATUS, renderBriefingStatus } from '../src/briefingStatus.js';
 import { schedulerConfiguration } from '../src/bot/webhook.js';
 
@@ -293,10 +297,19 @@ test('redirects are terminal, never followed, and placeholder/query URLs fail cl
       now: () => NOW, sleep: async () => {},
       fetchImpl: async (_url, options) => {
         calls += 1;
-        assert.equal(options.redirect, 'error');
+        // ★ 不能寫死 'error'：Workers runtime 不实作它。這裡只能斷言
+        // 「是 runtime 真的收的值」且「不跟隨重新導向」。
+        assert.ok(ALLOWED_REDIRECT_MODES.includes(options.redirect),
+          `redirect 必須是 Workers 支援的值，實際是 ${options.redirect}`);
+        assert.notEqual(options.redirect, 'follow', '簽名過的請求絕不可以被轉送');
         return { status, ok: false, headers: { get: () => location }, text: async () => 'redirect target hidden' };
       },
-    }), new RegExp(String(status)));
+    }), (err) => {
+      assert.match(err.message, new RegExp(String(status)));
+      assert.equal(err.category, 'redirect', '3xx 必須被归類為 redirect');
+      assert.equal(err.nonRetryable, true);
+      return true;
+    });
     assert.equal(calls, 1);
   }
   // ★ 每一個都要斷言**確切的拒絕理由**，而且 fetch 一旦被呼叫就算失敗。
@@ -496,4 +509,39 @@ test('provider liveness is separate from per-user outcomes', async () => {
   assert.equal(none.result.outcome, 'all_users_failed');
   assert.equal(none.result.runState, 'unhealthy');
   assert.equal(none.heartbeats.length, 0, '★ 全員失敗不可以宣稱健康');
+});
+
+/**
+ * ★ 2026-09-13 正式環境事故的回歸測試。
+ *
+ * Worker 之前用 `redirect: 'error'`。Node/undici 接受它，所以本機測試、
+ * `wrangler deploy --dry-run` 、以及用 Node 發出的手動簽名請求全部都通過了。
+ * 但 Cloudflare Workers runtime 沒有實作 'error'：它在**送出請求之前**就丟
+ * TypeError，於是每一次 Cron 執行都在 0 個 subrequest 的情況下死掉，
+ * 看起來就像「排程完全沒被觸發」。
+ *
+ * 所以這裡不測行為，直接釘住**常數本身**。
+ */
+test('redirect mode is one the Workers runtime actually implements', () => {
+  assert.ok(ALLOWED_REDIRECT_MODES.includes(REDIRECT_MODE));
+  assert.notEqual(REDIRECT_MODE, 'error', "Workers runtime 不實作 redirect:'error'");
+  assert.notEqual(REDIRECT_MODE, 'follow', '簽名過的請求絕不可以被轉送到別的主機');
+  assert.equal(REDIRECT_MODE, 'manual');
+
+  // 原始碼裡也不可以再出現 'error'。
+  const source = readFileSync(
+    new URL('../cloudflare/briefing-scheduler/worker.js', import.meta.url), 'utf8',
+  );
+  const optionLines = source.split('\n')
+    .filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l))   // 排掉註解：註解裡要能寫出這個錯誤值來解釋它
+    .filter((l) => /redirect:/.test(l));
+  assert.ok(optionLines.length > 0);
+  for (const line of optionLines) {
+    assert.doesNotMatch(line, /redirect:\s*'error'/, `★ ${line.trim()}`);
+  }
+
+  for (const [status, redirect] of [[301, true], [302, true], [307, true], [308, true],
+    [200, false], [299, false], [400, false], [503, false]]) {
+    assert.equal(isRedirect(status), redirect, `isRedirect(${status})`);
+  }
 });

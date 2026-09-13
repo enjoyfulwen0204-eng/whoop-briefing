@@ -21,6 +21,31 @@ export async function signRequest(args, secret) {
   return `v1=${hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(await canonicalMessage(args))))}`;
 }
 
+/**
+ * fetch 的 redirect 模式。
+ *
+ * ⚠️ **絕對不可以是 'error'。** Cloudflare Workers 的 runtime 沒有實作它，
+ * 會直接丟 TypeError：
+ *
+ *   Invalid redirect value, must be one of "follow" or "manual"
+ *   ("error" won't be implemented since it does not make sense at the edge…)
+ *
+ * 而且它是在**送出請求之前**就丟，所以每一次排程執行都會在還沒有
+ * 產生任何 subrequest 的情況下死掉 —— 看起來就像「排程完全沒有跑」。
+ * Node/undici 接受 'error'，所以本機測試跟 dry-run 都看不出來。
+ *
+ * 'manual' 同樣不會跟隨重新導向（這才是安全性要求：簽名過的請求絕不能
+ * 被轉送到別的主機），只是把 3xx 當成一個正常回應交給我們自己判斷。
+ */
+export const REDIRECT_MODE = 'manual';
+
+/** Workers runtime 允許的 redirect 值。'error' 不在其中。 */
+export const ALLOWED_REDIRECT_MODES = Object.freeze(['follow', 'manual']);
+
+export function isRedirect(status) {
+  return status >= 300 && status < 400;
+}
+
 export function retryableStatus(status) {
   return status === 429 || status === 502 || status === 503 || status === 504;
 }
@@ -64,7 +89,7 @@ export async function invoke(env, {
     const timer = setTimer(() => controller.abort(), timeoutMs);
     try {
       const response = await fetchImpl(endpoint.toString(), {
-        method: 'POST', body, signal: controller.signal, redirect: 'error',
+        method: 'POST', body, signal: controller.signal, redirect: REDIRECT_MODE,
         headers: {
           'content-type': 'application/json',
           'x-briefing-timestamp': timestamp,
@@ -81,14 +106,18 @@ export async function invoke(env, {
       lastError = new Error(`endpoint status ${response.status}`);
       lastError.category = response.status === 401 || response.status === 403
         ? 'authentication' : `http_${Math.floor(response.status / 100)}xx`;
-      if (response.status >= 300 && response.status < 400) lastError.nonRetryable = true;
+      // ★ 重新導向在 redirect:'manual' 下是一個**正常回傳的 3xx 回應**，不是例外。
+      // 它永遠是永久狀況：端點設定被改到別的地方了，重試三次只是白打三次。
+      if (isRedirect(response.status)) {
+        lastError.category = 'redirect';
+        lastError.nonRetryable = true;
+      }
       if (!retryableStatus(response.status)) lastError.nonRetryable = true;
       if (lastError.nonRetryable || attempt === MAX_ATTEMPTS) throw lastError;
     } catch (err) {
       lastError = err;
-      // ★ 重新導向是**永久**狀況，不是暫時性的傳輸錯誤。
-      // redirect:'error' 會讓 fetch 直接丟出來，所以在這裡分類；重試三次
-      // 只是白白打三次同一個壞設定。
+      // 有些 runtime（例如 Node/undici 在 redirect:'error' 下）是用丟的方式
+      // 表達重新導向。這裡保留分類，讓兩種 runtime 的結果一致。
       if (err?.name === 'TypeError' && /redirect/i.test(String(err?.message ?? ''))) {
         err.nonRetryable = true;
         err.category = 'redirect';

@@ -184,8 +184,9 @@ export const WHOOP_EVENT_TERMINAL = Object.freeze([
  * 墓碑狀態。
  *
  *   ACTIVE      這個資源已經被 WHOOP 刪除，canonical 不可以再長回來
- *   SUPERSEDED  來源真相**證明**它之後又出現了更新的版本（見 store.js），
- *               墓碑因此讓位。保留該列是為了「我們曾經刪過它」可回溯。
+ *   SUPERSEDED  **Phase 1 沒有任何程式路徑會寫入這個值。**
+ *               保留它只是為了讓未來有來源依據的對帳機制有地方可以落地，
+ *               而不必再改 schema。Phase 1 的墓碑一旦 ACTIVE 就永遠 ACTIVE。
  */
 export const TOMBSTONE_STATE = Object.freeze({
   ACTIVE: 'ACTIVE',
@@ -1167,21 +1168,22 @@ export const WHOOP_WEBHOOK_SCHEMA = [
    *
    * 那是「已刪除的健康資料復活」，而使用者看到的會是一筆他以為刪掉的紀錄。
    *
-   * ## 為什麼 last_known_updated_at 是關鍵欄位
+   * ## Phase 1 的規則：ACTIVE 墓碑永遠是權威，而且永遠不自動退位
    *
-   * 它記的是**刪除當下我們手上那一版的 WHOOP `updated_at`**。
-   * 之後要判斷「這是舊重播還是真的又更新了」時，兩邊比的都是 WHOOP 自己的
-   * 時鐘，所以這個比較是成立的：
+   * WHOOP 沒有提供任何可以證明「這則更新是在刪除**之後**才產生」的東西：
+   *   · 沒有投遞順序保證
+   *   · 沒有來源序號
+   *   · 簽章時間戳是「送出的時間」，重試會重新簽，不是變更發生的時間
+   *   · 資源的 updated_at 較新也不夠 —— 一則刪除前就在路上的更新，
+   *     它取到的資料本來就可以比我們刪掉的那一版新
+   *   · 本地帳本 id / received_at 只是我們收到的順序
    *
-   *   進來的 updated_at  >  last_known_updated_at → 來源證明它之後又變了
-   *   進來的 updated_at <=  last_known_updated_at → 舊重播，擋掉
+   * 所以 Phase 1 分不出「延遲抵達的刪除前更新」與「刪除後的真正重建」。
+   * 兩者一律維持墓碑。真正的重建會暫時看不到 —— 那比讓已刪除的生理資料
+   * 復活好得多。解決它需要有來源依據的對帳機制，那是後續 Phase 的事。
    *
-   * 刻意**不用**簽章時間戳做這個判斷：重試會重新簽章，一則很舊的更新在
-   * 重試時會帶著很新的時間戳，用它比較會直接讓復活防護失效。
-   *
-   * last_known_updated_at 為 NULL（刪除時我們根本沒有那一列）時，
-   * 沒有任何東西可以證明新舊 → 一律擋掉（fail closed，
-   * 限制說明見 docs/whoop-webhook.md）。
+   * last_known_updated_at / source_* 欄位因此只是**證據保存**，
+   * 給診斷與未來的對帳用，Phase 1 不會拿它們做任何自動判定。
    */
   `CREATE TABLE IF NOT EXISTS whoop_resource_tombstones (
      user_id               TEXT NOT NULL,
@@ -1193,9 +1195,11 @@ export const WHOOP_WEBHOOK_SCHEMA = [
      source_trace_id       TEXT,
      source_event_at       TEXT,
      -- 造成這次刪除的那一則事件在帳本裡的 id。
-     -- 它是**單調遞增的收下順序**，也就是「WHOOP 依序告訴我們什麼」的順序。
-     -- 判斷「這則更新到底是刪除之前的舊通知，還是刪除之後的新通知」只能靠它：
-     -- 資源自己的 updated_at 證明不了通知的先後，而簽章時間戳會因為重試而變新。
+     --
+     -- ⚠️ 純診斷，**不是** WHOOP 的來源時序。帳本 id 只代表本地收下的順序；
+     -- WHOOP 沒有文件保證 webhook 投遞順序，一則較早產生的更新完全可能因為
+     -- 網路延遲而在刪除之後才抵達，於是拿到**較大**的本地 id。
+     -- Phase 1 不拿它（也不拿任何本地順序）推論任何事情。
      source_event_id       INTEGER,
      blocked_count         INTEGER NOT NULL DEFAULT 0,
      last_blocked_at       TEXT,

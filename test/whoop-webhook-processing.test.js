@@ -587,29 +587,35 @@ test('★★★ DELETE 之後重播舊的 UPDATE → 絕不復活', async () => 
   } finally { cleanup(); }
 });
 
-test('★★★ 來源真相證明它之後又更新了 → 墓碑讓位（可證明才放行）', async () => {
+test('★★★ P1-R01：刪除後的「真正重建」在 Phase 1 仍然維持墓碑（保守，不猜）', async () => {
+  // 這一版的 updated_at 嚴格大於刪除當下那一版，帳本 id 也比刪除事件大 ——
+  // 看起來像重建。但 WHOOP 沒有任何可以證明「這則更新是在刪除之後才產生」
+  // 的東西：投遞順序沒有保證、簽章時間戳只是送出時間、本地 id 只是收下順序。
+  // Phase 1 分不出它和「延遲抵達的刪除前更新」，所以兩者一律維持墓碑。
   const { db, cleanup } = tempDb();
   try {
     await seed(db);
     await seedSleepRow(db, ALICE.id, '2026-09-12T10:00:00.000Z', 20);
-    await insertEvent(db, { eventType: 'sleep.deleted', traceId: 'del-1' });
+    const delId = await insertEvent(db, { eventType: 'sleep.deleted', traceId: 'del-1' });
     const delEvent = await claim(db, 'owner-D');
     await processWhoopEvent({ db, event: delEvent, owner: 'owner-D', whoopFor: fakeWhoop() });
 
-    // 這一版的 updated_at **嚴格大於**刪除當下那一版，**而且**這則通知是
-    // 在刪除通知之後才收到的（帳本 id 較大）→ 兩個證據都成立。
-    await insertEvent(db, { eventType: 'sleep.updated', traceId: 'newer-update' });
+    const updId = await insertEvent(db, { eventType: 'sleep.updated', traceId: 'newer-update' });
+    assert.ok(updId > delId, '本地 id 較大（但那證明不了任何事）');
     const whoopFor = fakeWhoop({
       routes: { [`/activity/sleep/${SLEEP_ID}`]: sleepRecord('2026-09-12T11:00:00.000Z', 55) },
     });
     const upEvent = await claim(db, 'owner-U');
-    await processWhoopEvent({ db, event: upEvent, owner: 'owner-U', whoopFor });
+    const r = await processWhoopEvent({ db, event: upEvent, owner: 'owner-U', whoopFor });
 
-    const row = await sleepRow(db, ALICE.id);
-    assert.ok(row, '★ 可證明的重建要放行');
-    assert.equal(Number(row.respiratory_rate), 55);
+    assert.equal(r.result, PROCESS_RESULT.BLOCKED_BY_TOMBSTONE);
+    assert.equal(await sleepRow(db, ALICE.id), null, '★★★ 不可以自動復活');
     const tomb = await db.getTombstone(ALICE.id, 'sleep', SLEEP_ID);
-    assert.equal(tomb.state, TOMBSTONE_STATE.SUPERSEDED, '★ 墓碑讓位但保留紀錄');
+    assert.equal(tomb.state, TOMBSTONE_STATE.ACTIVE, '★ 墓碑永遠 ACTIVE');
+    assert.ok(tomb.blockedCount >= 1, '★ 要留下證據給未來的對帳');
+    const ev = await db.getWhoopEvent(updId);
+    assert.equal(ev.state, WHOOP_EVENT_STATE.PROCESSED, '★ 終局、可診斷、不重試');
+    assert.equal(ev.lastErrorDetail, PROCESS_RESULT.BLOCKED_BY_TOMBSTONE);
   } finally { cleanup(); }
 });
 

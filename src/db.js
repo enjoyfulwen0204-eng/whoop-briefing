@@ -113,6 +113,47 @@ export function createDb({ url, authToken }) {
   }
 
   /**
+   * 代表某則 WHOOP webhook 事件執行 canonical / 墓碑變更（V1.2 Phase 1，P1-R02）。
+   *
+   * ## 這是唯一允許的變更邊界
+   *
+   * 「先用 JavaScript 檢查所有權，回 true，**之後**才變更」不夠：
+   * 檢查與變更之間租約可能過期、別人可能接手，於是一個已經失去所有權的
+   * 舊執行仍然把它手上（可能已經過時的）結果寫進 canonical。
+   *
+   * 所以所有權的證明必須是**變更交易的一部分**：
+   *   · 交易開始時驗（before）：event id + owner + PROCESSING + 租約仍有效
+   *   · 變更做完、commit 之前再驗一次（after）
+   *   · 任一次不成立 → 整個交易 rollback，**一個位元組都不會落地**
+   *
+   * fn 裡面的每一個 client.execute / batch 都自動走同一個交易
+   * （processingTransaction 的 Proxy），所以 upsertSleeps / deleteWhoopResource
+   * 這些既有的儲存層函式不需要知道自己在交易裡 —— 這正是重用既有
+   * 新鮮度規則而不分叉的方法。
+   *
+   * ## 不在交易裡等網路
+   *
+   * WHOOP API GET 一定在呼叫這支函式**之前**完成。交易只包 DB 變更。
+   *
+   * @throws {Error} message = 'whoop_event_ownership_lost' 代表被圍欄擋下，
+   *   呼叫端**不可以**再做任何變更、也不可以結案（那一則現在屬於接手者）。
+   */
+  async function mutateForWhoopEvent(eventId, { owner, now = () => new Date() }, fn) {
+    const id = Number(eventId);
+    if (!Number.isSafeInteger(id) || id <= 0) throw new Error('invalid_whoop_event_id');
+    if (!owner) throw new Error('whoop_event_owner_required');
+    const check = async () => {
+      const r = await client.execute({
+        sql: `SELECT 1 FROM whoop_webhook_events
+               WHERE id = ? AND owner = ? AND state = ? AND lease_expires_at > ? LIMIT 1`,
+        args: [id, String(owner), 'PROCESSING', new Date(now()).toISOString()],
+      });
+      if (!r.rows.length) throw new Error('whoop_event_ownership_lost');
+    };
+    return processing.transaction(fn, { before: check, after: check });
+  }
+
+  /**
    * DELIVERY_STARTED → NOT_REQUIRED（這則回覆**刻意**不送）。
    *
    * 用在送出前的綁定守衛擋下的情況（HRD-R03）：chat 已經不屬於當初產生這則
@@ -1290,6 +1331,7 @@ export function createDb({ url, authToken }) {
     raw: client,
     withAnswerOwnership,
     processTelegramOperation,
+    mutateForWhoopEvent,
     getTelegramOperation,
     markDeliveryStarted,
     markDelivered,

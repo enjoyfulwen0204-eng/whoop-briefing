@@ -122,44 +122,62 @@ t2  WHOOP 重送 t0 那一則 updated  → 若照做，資料就復活了
 
 所以刪除會：
 
-1. **先**寫墓碑（記下刪除當下那一版的 WHOOP `updated_at`，以及造成刪除的
-   事件帳本 id）
-2. 再移除 canonical 那一列
+1. 寫墓碑（記下刪除當下那一版的 WHOOP `updated_at` 作為證據）
+2. 移除 canonical 那一列
 
-順序不可以反：先刪列再立墓碑的話，中間崩潰會留下「資料沒了、但沒有東西
-擋住它被寫回來」。先寫墓碑的失敗模式相反而且可以自己收斂。
+兩步在**同一個交易**裡（見下），所以中間崩潰不會留下任何半套狀態。
 
-### 什麼時候可以復活
+### 什麼時候可以復活：**Phase 1 永遠不會自動復活**
 
-**兩個證據同時成立**才讓墓碑退位：
+WHOOP 沒有提供任何能證明「這則更新是在刪除**之後**才產生」的東西：
 
-1. 進來那一版的 `updated_at` **嚴格大於**刪除時記下的那一版
-   （WHOOP 自己的時鐘、同一個欄位語意，所以這個比較成立）
-2. 這則更新通知的事件帳本 id **大於**造成刪除的那一則
-   （＝ WHOOP 是在刪除**之後**才告訴我們這次更新）
+| 候選證據 | 為什麼不夠 |
+|---|---|
+| webhook 投遞順序 | 官方沒有文件保證；網路延遲可以讓較早產生的更新較晚抵達 |
+| 本地帳本 id / `received_at` | 只是**我們收下**的順序，不是 WHOOP 產生變更的順序 |
+| 簽章時間戳 | 是「送出的時間」，重試會重新簽章 —— 官方沒有把它定義為變更時序 |
+| 資源的 `updated_at` 較新 | 一則刪除**前**就在路上的更新，它取到的資料本來就可以比我們刪掉的那一版新 |
 
-第 2 條不可省略。只看版本的話，一則在刪除**之前**就已經在路上的更新
-（它取到的資料本來就比較新）會把剛刪掉的資料復活。
+所以 Phase 1 分不出這兩種情況：
 
-刻意**不用**簽章時間戳做這個判斷：重試會重新簽章，一則很舊的更新在重試時
-會帶著很新的時間戳。
+```
+延遲抵達的刪除前更新         ← 必須擋
+刪除後的真正重建（新資料）    ← 理想上該放行
+```
 
-### 排程同步永遠不能復活
+**兩者一律維持墓碑。** 真正的重建會暫時看不到 —— 那比讓已刪除的生理資料
+復活好得多，而且看得到（`blocked_count` 會累加）。
 
-`store.js` 那一層的墓碑守衛**只會擋、不會放行** —— 它看不到事件順序。
-退位的決定只在 webhook 處理路徑上，因為只有那裡同時看得到版本與通知順序。
+被擋下的 UPDATE 事件以 `PROCESSED` 結案，detail 為
+`blocked_by_active_tombstone`：處理**成功地**判定不可以寫，這是保守政策的
+正常結果，不是失敗，也不會重試。
 
-結果：排程同步**永遠**不可能復活已刪除的資源。
+墓碑上的 `last_known_updated_at` / `source_event_id` / `source_event_at` /
+`source_trace_id` 只是**證據保存**，給診斷與未來有來源依據的對帳機制用。
+Phase 1 不拿它們做任何自動判定；`SUPERSEDED` 狀態在 Phase 1 **沒有任何程式
+路徑會寫入**，保留它只是讓未來不必再改 schema。
 
-### 已知限制（保守失敗）
+### 變更一律在所有權圍欄的交易裡
 
-- 刪除時本地根本沒有那一列 ⇒ `last_known_updated_at` 是 NULL ⇒
-  **之後任何更新都不會復活它**。證明不了就擋。
-- 舊墓碑（沒有 `source_event_id`）同樣不可能退位。
+webhook 事件造成的每一次 canonical / 墓碑變更都走 `db.mutateForWhoopEvent`：
 
-擋錯的代價是一筆資料暫時看不到，而且**看得到**
-（`npm run whoop:webhook:status` 會顯示 blocked 次數）；放行錯的代價是
-使用者以為刪掉的健康資料復活，而且沒有人會發現。
+```
+交易開始 → 驗（event id + owner + PROCESSING + 租約仍有效）
+         → 變更（墓碑 upsert + 實體刪除；或 墓碑判定 + canonical 寫入）
+         → commit 之前**再驗一次**
+         → 任一次不成立 → 整個 rollback，一個位元組都不落地
+```
+
+「先用 JavaScript 檢查所有權、回 true、之後才變更」不算數：檢查與變更之間
+租約可能過期、別人可能接手。所有權的證明就是交易的一部分。
+
+結果：
+- 墓碑 + 實體刪除是**原子的**。不存在「有墓碑但列還在」或「列沒了但沒有墓碑」
+  的已提交狀態（除非資料庫被外部直接改壞）。
+- 失去所有權的舊執行寫不進任何東西；接手者的結果不會被蓋掉。
+- 交易**只包 DB 變更**。WHOOP API GET 一定在交易之前完成。
+- commit 之後、結案之前崩潰：重播是冪等的（墓碑 upsert + DELETE 都是），
+  結案本身另有 owner + PROCESSING 圍欄。
 
 ### 分析層看到什麼
 
@@ -237,9 +255,12 @@ npm run whoop:webhook:drain    # 排空：處理待處理的事件
 
 `whoop_webhook_received` / `_duplicate` / `_unauthorized` / `_unprocessable` /
 `_unsupported_event` / `_unknown_user` / `_ambiguous_user` / `_resource_gone` /
-`_fetch_failed` / `_processed` / `_fenced_before_persist` / `_fenced_at_settle` /
-`whoop_resource_deleted` / `whoop_tombstone_superseded` /
-`whoop_tombstone_blocked_write`
+`_fetch_failed` / `_processed` / `_blocked_by_tombstone` /
+`_fenced_before_persist` / `_fenced_delete` / `_fenced_at_settle` /
+`_delete_failed` / `whoop_resource_deleted` / `whoop_tombstone_blocked_write`
+
+事件帳本上的 `last_error_detail` 也會區分 `deleted` / `delete_idempotent_replay` /
+`blocked_by_active_tombstone`，Phase 2 對帳可以直接據此統計。
 
 ## 正式環境啟用（尚未執行）
 

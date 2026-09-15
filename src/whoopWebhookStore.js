@@ -306,9 +306,11 @@ export function createWhoopWebhookStore(client) {
    * 記下「這個資源被 WHOOP 刪掉了」。
    *
    * 重複刪除是冪等的：同一個 (user, type, id) 只會有一列，重放只更新
-   * 來源資訊，不會製造第二個墓碑，也不會把已經 SUPERSEDED 的墓碑
-   * 悄悄地變回 ACTIVE —— 後者需要一次**新的**刪除事件才會發生，
-   * 而那時候 lastKnownUpdatedAt 也會一起被更新。
+   * 來源資訊，不會製造第二個墓碑。
+   *
+   * ⚠️ Phase 1 **沒有任何自動退位路徑**。source_event_id / source_event_at /
+   * source_trace_id 只是診斷與未來對帳的證據，**不是** WHOOP 的來源時序：
+   * 帳本 id 只代表本地收下的順序，而 WHOOP 沒有文件保證投遞順序。
    */
   async function upsertTombstone({
     userId, resourceType, resourceId, lastKnownUpdatedAt = null,
@@ -342,60 +344,6 @@ export function createWhoopWebhookStore(client) {
         nowIso, nowIso, TOMBSTONE_STATE.ACTIVE],
     });
     return true;
-  }
-
-  /**
-   * 墓碑退位 —— **只有在證明得了的時候**。
-   *
-   * 需要兩個獨立的證據同時成立：
-   *
-   *   1. `incomingUpdatedAt > last_known_updated_at`
-   *      資源自己的版本比我們刪掉的那一版新（WHOOP 的時鐘，同一個欄位語意）。
-   *
-   *   2. `eventId > source_event_id`
-   *      這則更新通知是 WHOOP 在**刪除通知之後**才告訴我們的。
-   *
-   * 為什麼第 2 條不可省略：只看第 1 條的話，一則在刪除**之前**就已經在路上的
-   * 更新（它取到的資料本來就比較新）會把剛刪掉的資料復活。實際時序是
-   *
-   *     UPDATE 事件取得 canonical（updated_at = T2）
-   *     DELETE 事件處理完成（記下 last_known = T1，T1 < T2）
-   *     UPDATE 才寫入 → 只看版本的話 T2 > T1 → 復活
-   *
-   * 而帳本 id 是單調遞增的收下順序，它直接回答了「WHOOP 先說了哪一件事」。
-   *
-   * 兩個證據都拿不到的呼叫者（排程同步沒有事件 id）永遠不會走到這裡 ——
-   * 它們在 store.js 那一層就被無條件擋下。
-   *
-   * @returns {Promise<boolean>} 是否真的退位
-   */
-  async function supersedeTombstoneIfProven({
-    userId, resourceType, resourceId, incomingUpdatedAt, eventId, now = new Date(),
-  }) {
-    const uid = requireUserId(userId, 'supersedeTombstoneIfProven');
-    const tomb = await getTombstone(uid, resourceType, resourceId);
-    if (!tomb || tomb.state !== TOMBSTONE_STATE.ACTIVE) return false;
-    if (!tomb.lastKnownUpdatedAt || !incomingUpdatedAt) return false;
-    if (!(incomingUpdatedAt > tomb.lastKnownUpdatedAt)) return false;
-    // 證明不了通知順序（舊墓碑沒有記 event id）→ 保守，不退位。
-    if (tomb.sourceEventId === null || !Number.isFinite(Number(eventId))) return false;
-    if (!(Number(eventId) > tomb.sourceEventId)) return false;
-
-    const rs = await client.execute({
-      sql: `UPDATE whoop_resource_tombstones
-               SET state = ?, superseded_at = ?, superseded_updated_at = ?, updated_at = ?
-             WHERE user_id = ? AND resource_type = ? AND resource_id = ? AND state = ?`,
-      args: [TOMBSTONE_STATE.SUPERSEDED, iso(now), incomingUpdatedAt, iso(now),
-        uid, resourceType, String(resourceId), TOMBSTONE_STATE.ACTIVE],
-    });
-    const ok = Number(rs.rowsAffected ?? 0) > 0;
-    if (ok) {
-      log.warn('whoop_tombstone_superseded', {
-        user_id: uid, resource_type: resourceType, resource_id: String(resourceId),
-        event_id: Number(eventId),
-      });
-    }
-    return ok;
   }
 
   /** 記一次「有東西想復活但被擋下來了」。純觀測，不改變判定。 */
@@ -454,8 +402,9 @@ export function createWhoopWebhookStore(client) {
     if (!spec) throw new Error(`unsupported_resource_type:${resourceType}`);
     const rid = String(resourceId);
 
-    // 刪除當下那一版的 WHOOP updated_at —— 這是之後唯一能用來判斷
-    // 「舊重播 vs 真的又更新了」的證據（見 supersedeTombstoneIfProven）。
+    // 刪除當下那一版的 WHOOP updated_at。Phase 1 只把它**保留下來**給診斷與
+    // 未來的對帳用 —— 它本身不足以證明一則後來的更新是「真的重建」還是
+    // 「刪除前就在路上的舊通知」，所以 Phase 1 不會拿它做任何自動退位。
     const existing = await client.execute({
       sql: `SELECT updated_at FROM "${spec.table}" WHERE user_id = ? AND "${spec.idColumn}" = ?`,
       args: [uid, rid],
@@ -530,7 +479,6 @@ export function createWhoopWebhookStore(client) {
     activeTombstones,
     getTombstone,
     upsertTombstone,
-    supersedeTombstoneIfProven,
     recordTombstoneBlock,
   };
 }

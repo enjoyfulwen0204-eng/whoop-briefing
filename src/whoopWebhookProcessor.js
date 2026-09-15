@@ -30,7 +30,7 @@
  */
 
 import { WHOOP_WEBHOOK } from './config.js';
-import { WHOOP_EVENT_STATE } from './schema.js';
+import { WHOOP_EVENT_STATE, TOMBSTONE_STATE } from './schema.js';
 import { WhoopApiError, WhoopAuthError } from './whoop.js';
 import { log, describeError } from './logger.js';
 
@@ -41,7 +41,8 @@ export const PROCESS_RESULT = Object.freeze({
   IGNORED_UNKNOWN_USER: 'ignored_unknown_user',
   IGNORED_INACTIVE_USER: 'ignored_inactive_user',
   IGNORED_RESOURCE_GONE: 'ignored_resource_gone',
-  IGNORED_TOMBSTONED: 'ignored_tombstoned',
+  /** 有生效中的墓碑 → 刻意不寫。這是 Phase 1 的保守政策結果，不是失敗。 */
+  BLOCKED_BY_TOMBSTONE: 'blocked_by_active_tombstone',
   FENCED: 'fenced',
   RETRY: 'retry',
   FAILED: 'failed',
@@ -93,11 +94,18 @@ export function classifyWhoopError(err) {
   return { class: ERROR_CLASS.INTERNAL, retryable: true };
 }
 
+const WHOOP_WEBHOOP_MAX_ATTEMPTS = () => WHOOP_WEBHOOK.MAX_ATTEMPTS;
+
 /** 指數退避（有上限）。 */
 export function backoffFor(attempt, {
   base = WHOOP_WEBHOOK.RETRY_BASE_MS, max = WHOOP_WEBHOOK.RETRY_MAX_MS,
 } = {}) {
   return Math.min(base * 2 ** Math.max(0, attempt - 1), max);
+}
+
+/** 這個錯誤是不是「所有權已經不在了」（變更交易被圍欄擋下）。 */
+export function isOwnershipLost(err) {
+  return String(err?.message ?? '') === 'whoop_event_ownership_lost';
 }
 
 /** 回應看起來像不像我們要的那個資源。 */
@@ -255,24 +263,45 @@ export async function processWhoopEvent({
   }
 
   if (event.action === 'deleted') {
-    if (!await db.holdsWhoopEvent(event.id, owner, { now: at() })) {
-      log.warn('whoop_webhook_fenced_before_delete', { event_id: event.id });
-      return { result: PROCESS_RESULT.FENCED };
+    // ★ P1-R02：墓碑 + 實體刪除在**同一個交易**裡，而且交易本身證明所有權。
+    //
+    // 不是「先 holdsWhoopEvent() 回 true，再去刪」—— 那中間租約可能過期、
+    // 別人可能接手。所有權的證明就在交易的 before / after 裡，不成立就整個
+    // rollback：不會留下「有墓碑但列還在」或「列沒了但沒有墓碑」的半套狀態。
+    let deletion;
+    try {
+      deletion = await db.mutateForWhoopEvent(event.id, { owner, now }, () => db.deleteWhoopResource({
+        userId,
+        resourceType: event.resourceType,
+        resourceId: event.resourceId,
+        sourceTraceId: event.traceId,
+        sourceEventAt: event.eventAt,
+        // 純診斷。帳本 id 是**本地收下**的順序，不是 WHOOP 的來源時序，
+        // 絕不拿它推論任何事情。
+        sourceEventId: event.id,
+        now: at(),
+      }));
+    } catch (err) {
+      if (isOwnershipLost(err)) {
+        log.warn('whoop_webhook_fenced_delete', { event_id: event.id });
+        return { result: PROCESS_RESULT.FENCED };
+      }
+      // 交易失敗（rollback 已經發生）→ 事件仍然是 PROCESSING，
+      // 由租約過期後的重新認領處理；這裡不結案，避免蓋掉真正的錯誤。
+      log.error('whoop_webhook_delete_failed', { event_id: event.id, error: describeError(err) });
+      const exhausted = event.attemptCount >= WHOOP_WEBHOOP_MAX_ATTEMPTS();
+      await settle(exhausted ? WHOOP_EVENT_STATE.FAILED : WHOOP_EVENT_STATE.RETRY, {
+        userId, errorClass: ERROR_CLASS.INTERNAL, errorDetail: describeError(err),
+        nextAttemptAt: exhausted ? null : new Date(at().getTime() + backoffFor(event.attemptCount)),
+      });
+      return { result: exhausted ? PROCESS_RESULT.FAILED : PROCESS_RESULT.RETRY };
     }
-    await db.deleteWhoopResource({
-      userId,
-      resourceType: event.resourceType,
-      resourceId: event.resourceId,
-      sourceTraceId: event.traceId,
-      sourceEventAt: event.eventAt,
-      // 帳本 id = WHOOP 告訴我們這件事的順序。之後要判斷「某則更新是刪除
-      // 之前還是之後的通知」全靠它（見 supersedeTombstoneIfProven）。
-      sourceEventId: event.id,
-      now: at(),
+    // 重複刪除是冪等的（墓碑 upsert + DELETE 都是），所以崩潰後重播安全。
+    await settle(WHOOP_EVENT_STATE.PROCESSED, {
+      userId, errorClass: null,
+      errorDetail: deletion.removed ? 'deleted' : 'delete_idempotent_replay',
     });
-    // 重複刪除是冪等的（墓碑 upsert + DELETE 都是），所以重播安全。
-    await settle(WHOOP_EVENT_STATE.PROCESSED, { userId });
-    return { result: PROCESS_RESULT.DELETED };
+    return { result: PROCESS_RESULT.DELETED, removed: deletion.removed };
   }
 
   // ---- 3. UPDATED：向 WHOOP 取 canonical ----------------------------------
@@ -320,46 +349,37 @@ export async function processWhoopEvent({
     return { result: PROCESS_RESULT.IGNORED_RESOURCE_GONE };
   }
 
-  // ---- 4. 寫入之前**重新確認所有權** --------------------------------------
+  // ---- 4. 變更：所有權證明 + 墓碑判定 + canonical 寫入，同一個交易 ---------
   //
-  // 打 API 可能花很久，租約可能已經過期而且被別人接手。失去所有權就不寫：
-  // 接手者會拿到（可能更新的）資料並自己寫入。
+  // ★ P1-R02：不是「先檢查所有權、再檢查墓碑、再寫」三個分開的步驟 ——
+  // 每兩步之間都是一個可以被 DELETE 或接手者插進來的空窗。
+  // 全部放進同一個交易：交易的 before/after 證明所有權，墓碑判定與寫入
+  // 在交易裡讀寫同一份狀態，DELETE 不可能插在中間。
   //
-  // 就算這一關漏掉，canonical 層的新鮮度規則仍然擋得住「舊蓋新」——
-  // 但這裡先擋下來可以避免做白工，也讓「誰有權寫」這件事有單一答案。
-  if (!await db.holdsWhoopEvent(event.id, owner, { now: at() })) {
-    log.warn('whoop_webhook_fenced_before_persist', { event_id: event.id });
-    return { result: PROCESS_RESULT.FENCED };
-  }
-
-  // ---- 4b. 墓碑退位：只有在**兩個證據**都成立時 --------------------------
-  //
-  // canonical 儲存層對有墓碑的資源一律不寫（它沒有辦法判斷通知順序）。
-  // 所以「這個資源後來真的又被重建了」的判斷放在這裡 —— 這裡同時看得到
-  // 資源版本與事件順序，兩個都對得上才讓墓碑退位。
-  //
-  // 判斷不成立就什麼都不做：接下來的寫入會被墓碑擋下，事件照樣正常結案。
-  if (typeof db.supersedeTombstoneIfProven === 'function') {
-    await db.supersedeTombstoneIfProven({
-      userId,
-      resourceType: event.resourceType,
-      resourceId: event.resourceId,
-      incomingUpdatedAt: fetched.record?.updated_at
-        ? new Date(fetched.record.updated_at).toISOString() : null,
-      eventId: event.id,
-      now: at(),
-    });
-  }
-
-  // ---- 5. 走既有的 canonical 儲存層 ---------------------------------------
-  let written;
+  // ★ P1-R01：有生效中的墓碑就**不寫**，沒有任何例外。Phase 1 沒有能力
+  // 分辨「延遲抵達的刪除前更新」與「刪除後的真正重建」，兩者一律維持墓碑。
+  let mutation;
   try {
-    written = await persistCanonical({
-      db, userId, kind: fetched.kind, record: fetched.record,
-      timezone: resolved.user.timezone ?? 'UTC', now: at(),
+    mutation = await db.mutateForWhoopEvent(event.id, { owner, now }, async () => {
+      const tomb = await db.getTombstone(userId, event.resourceType, event.resourceId);
+      if (tomb && tomb.state === TOMBSTONE_STATE.ACTIVE) {
+        await db.recordTombstoneBlock({
+          userId, resourceType: event.resourceType, resourceId: event.resourceId, now: at(),
+        });
+        return { blocked: true, written: 0 };
+      }
+      const written = await persistCanonical({
+        db, userId, kind: fetched.kind, record: fetched.record,
+        timezone: resolved.user.timezone ?? 'UTC', now: at(),
+      });
+      return { blocked: false, written };
     });
   } catch (err) {
-    const exhausted = event.attemptCount >= WHOOP_WEBHOOK.MAX_ATTEMPTS;
+    if (isOwnershipLost(err)) {
+      log.warn('whoop_webhook_fenced_before_persist', { event_id: event.id });
+      return { result: PROCESS_RESULT.FENCED };
+    }
+    const exhausted = event.attemptCount >= WHOOP_WEBHOOP_MAX_ATTEMPTS();
     log.error('whoop_webhook_persist_failed', {
       event_id: event.id, error: describeError(err),
     });
@@ -371,6 +391,18 @@ export async function processWhoopEvent({
     });
     return { result: exhausted ? PROCESS_RESULT.FAILED : PROCESS_RESULT.RETRY };
   }
+
+  if (mutation.blocked) {
+    // 保守政策的正常結果：處理**成功地**判定不可以寫。終局、可診斷、不重試。
+    log.info('whoop_webhook_blocked_by_tombstone', {
+      event_id: event.id, resource_type: event.resourceType,
+    });
+    const settled = await settle(WHOOP_EVENT_STATE.PROCESSED, {
+      userId, errorClass: 'tombstone', errorDetail: PROCESS_RESULT.BLOCKED_BY_TOMBSTONE,
+    });
+    return { result: settled ? PROCESS_RESULT.BLOCKED_BY_TOMBSTONE : PROCESS_RESULT.FENCED };
+  }
+  const written = mutation.written;
 
   // written === 0 有兩種可能，而且兩種都是**正確**的結果：
   //   · 新鮮度守衛擋下：進來的版本不比資料庫裡那一版新

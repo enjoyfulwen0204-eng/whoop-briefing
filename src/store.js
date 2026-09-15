@@ -14,6 +14,7 @@ import { num, sleepTotalMilli } from './config.js';
 import { localDate } from './time.js';
 import { log } from './logger.js';
 import { requireUserId } from './userContext.js';
+import { TOMBSTONE_STATE } from './schema.js';
 
 /** 每批寫入的筆數上限（避免單一 batch payload 過大）。 */
 const BATCH_SIZE = 100;
@@ -82,6 +83,77 @@ const freshnessGuard = (table) => `
                  OR (excluded.updated_at IS NOT NULL AND ${table}.updated_at IS NOT NULL
                      AND excluded.updated_at >= ${table}.updated_at)`;
 
+/**
+ * 讀出這個使用者、這個資源類型底下**目前生效**的墓碑（V1.2 Phase 1）。
+ *
+ * 一次取回整組而不是用 `IN (...)`：一個人的墓碑數量很小，而動態拼 IN 清單
+ * 只會多一條字串組裝的風險，換不到任何東西。
+ *
+ * 表還不存在時（尚未遷移到 v10 的資料庫）回空 Map —— 這一層是**附加的**
+ * 保護，不可以因為它而讓既有的同步整個壞掉。
+ */
+async function readActiveTombstones(client, userId, resourceType) {
+  try {
+    const rs = await client.execute({
+      sql: `SELECT resource_id, last_known_updated_at
+              FROM whoop_resource_tombstones
+             WHERE user_id = ? AND resource_type = ? AND state = ?`,
+      args: [userId, resourceType, TOMBSTONE_STATE.ACTIVE],
+    });
+    const map = new Map();
+    for (const r of rs.rows) map.set(String(r.resource_id), r.last_known_updated_at ?? null);
+    return map;
+  } catch (err) {
+    if (/no such table/i.test(String(err?.message ?? ''))) return new Map();
+    throw err;
+  }
+}
+
+/**
+ * 套用墓碑判定，把「可以寫」與「被擋下」分開。
+ *
+ * ⚠️ 這一層**在新鮮度守衛之前**。兩者是不同的問題：
+ *   墓碑   這個資源還存在嗎？（已刪除的不可以復活）
+ *   新鮮度 這一版比資料庫裡那一版新嗎？（舊的不可以蓋新的）
+ * 兩關都要過。墓碑不會放寬新鮮度，新鮮度也不會放寬墓碑。
+ */
+function partitionByTombstone(records, tombstones, { idOf }) {
+  const writable = [];
+  const blocked = [];
+  for (const rec of records) {
+    const id = idOf(rec);
+    if (id === null) continue;
+    // ★ 這一層**只會擋，不會放行**。
+    //
+    // 「這個資源後來又被重建了」的判斷需要一個這裡拿不到的東西：
+    // WHOOP 是在刪除**之後**才通知我們這次更新的嗎？只有事件帳本知道，
+    // 而排程同步根本沒有事件。所以退位的決定放在 whoopWebhookProcessor，
+    // 這一層維持最保守的行為：有生效中的墓碑就不寫。
+    //
+    // 結果是排程同步**永遠**不可能復活已刪除的資料 —— 那正是我們要的。
+    if (tombstones.has(id)) { blocked.push(id); continue; }
+    writable.push(rec);
+  }
+  return { writable, blocked };
+}
+
+/** 墓碑退位／被擋下的後續記錄。純觀測與狀態維護，不影響已經做完的判定。 */
+async function settleTombstoneEffects(client, { userId, resourceType, blocked, now }) {
+  if (!blocked.length) return;
+  const nowIso = now.toISOString();
+  for (const id of blocked) {
+    await client.execute({
+      sql: `UPDATE whoop_resource_tombstones
+               SET blocked_count = blocked_count + 1, last_blocked_at = ?, updated_at = ?
+             WHERE user_id = ? AND resource_type = ? AND resource_id = ? AND state = ?`,
+      args: [nowIso, nowIso, userId, resourceType, id, TOMBSTONE_STATE.ACTIVE],
+    });
+  }
+  log.warn('whoop_tombstone_blocked_write', {
+    user_id: userId, resource_type: resourceType, count: blocked.length,
+  });
+}
+
 export function createHealthStore(client) {
   // -------------------------------------------------------------------------
   // Sleep
@@ -89,8 +161,15 @@ export function createHealthStore(client) {
   async function upsertSleeps(userId, sleeps = [], { timezone, now = new Date() } = {}) {
     const uid = requireUserId(userId, 'upsertSleeps');
     const syncedAt = now.toISOString();
+    // ★ V1.2 Phase 1：已刪除的資源不可以被寫回來。這一關對**所有**寫入者
+    // 生效（排程同步與 webhook 走同一條路），否則排程同步會默默地復活
+    // 使用者已經刪掉的睡眠。
+    const tombstones = await readActiveTombstones(client, uid, 'sleep');
+    const part = partitionByTombstone(sleeps, tombstones, {
+      idOf: (s) => (s?.id ? String(s.id) : null),
+    });
     const stmts = [];
-    for (const s of sleeps) {
+    for (const s of part.writable) {
       if (!s?.id) continue;
       const g = s?.score?.stage_summary ?? {};
       const need = s?.score?.sleep_needed ?? {};
@@ -157,6 +236,9 @@ export function createHealthStore(client) {
       });
     }
     const n = await writeBatched(client, stmts);
+    await settleTombstoneEffects(client, {
+      userId: uid, resourceType: 'sleep', blocked: part.blocked, now,
+    });
     if (n) log.info('store_sleeps_upserted', { user_id: uid, count: n });
     return n;
   }
@@ -167,8 +249,14 @@ export function createHealthStore(client) {
   async function upsertRecoveries(userId, recoveries = [], { now = new Date() } = {}) {
     const uid = requireUserId(userId, 'upsertRecoveries');
     const syncedAt = now.toISOString();
+    // recovery 的邏輯主鍵是 sleep_id，墓碑也用同一個識別（與 v2 webhook 的
+    // `id` 語意一致：官方文件說那是「關聯睡眠的 UUID」）。
+    const tombstones = await readActiveTombstones(client, uid, 'recovery');
+    const part = partitionByTombstone(recoveries, tombstones, {
+      idOf: (r) => (r?.sleep_id ? String(r.sleep_id) : null),
+    });
     const stmts = [];
-    for (const r of recoveries) {
+    for (const r of part.writable) {
       if (!r?.sleep_id) continue;
       stmts.push({
         sql: `INSERT INTO whoop_recoveries (
@@ -200,6 +288,9 @@ export function createHealthStore(client) {
       });
     }
     const n = await writeBatched(client, stmts);
+    await settleTombstoneEffects(client, {
+      userId: uid, resourceType: 'recovery', blocked: part.blocked, now,
+    });
     // ★ relink 的觸發條件是「這一輪**處理過** recovery」，不是「真的寫入了」。
     //
     // 新鮮度守衛（M-03）會讓已經是最新版的 recovery 不產生任何寫入，
@@ -281,8 +372,12 @@ export function createHealthStore(client) {
   async function upsertWorkouts(userId, workouts = [], { timezone, now = new Date() } = {}) {
     const uid = requireUserId(userId, 'upsertWorkouts');
     const syncedAt = now.toISOString();
+    const tombstones = await readActiveTombstones(client, uid, 'workout');
+    const part = partitionByTombstone(workouts, tombstones, {
+      idOf: (w) => (w?.id ? String(w.id) : null),
+    });
     const stmts = [];
-    for (const w of workouts) {
+    for (const w of part.writable) {
       if (!w?.id) continue;
       const z = w?.score?.zone_durations ?? {};
       stmts.push({
@@ -331,6 +426,9 @@ export function createHealthStore(client) {
       });
     }
     const n = await writeBatched(client, stmts);
+    await settleTombstoneEffects(client, {
+      userId: uid, resourceType: 'workout', blocked: part.blocked, now,
+    });
     if (n) log.info('store_workouts_upserted', { user_id: uid, count: n });
     return n;
   }

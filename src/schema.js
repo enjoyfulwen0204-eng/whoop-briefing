@@ -146,7 +146,53 @@ export const REPORT_TERMINAL_STATES = Object.freeze([
   REPORT_DELIVERY_STATE.AMBIGUOUS,
 ]);
 
-export const SCHEMA_VERSION = 9;
+/**
+ * WHOOP webhook 事件的處理狀態機（V1.2 Phase 1）。
+ *
+ * 一則 webhook 只代表「有東西變了」，不代表「這包 payload 就是生理事實」。
+ * 所以事件本身要有自己的生命週期，與它造成的 canonical 寫入分開：
+ *
+ *   RECEIVED   已經耐久收下並去重過，**還沒有任何副作用**
+ *              → 租約過期可以安全地被接手（重做零代價）
+ *   PROCESSING 有人握著，正在打 WHOOP API / 寫 canonical
+ *   PROCESSED  終局：canonical 已經依來源真相更新完畢
+ *   IGNORED    終局：**刻意**不做事（未知使用者、資源已不存在、
+ *              被墓碑擋下、不支援的事件）。這不是失敗。
+ *   RETRY      暫時性失敗，可以安全重試（有退避與次數上限）
+ *   FAILED     終局：不可重試，留著給人查
+ *
+ * 終局狀態永遠不會被復活 —— 這與 report_claims / telegram_operations
+ * 的規則一致：失去所有權的執行不可以因為 CPU 排到它就重新取得權力。
+ */
+export const WHOOP_EVENT_STATE = Object.freeze({
+  RECEIVED: 'RECEIVED',
+  PROCESSING: 'PROCESSING',
+  PROCESSED: 'PROCESSED',
+  IGNORED: 'IGNORED',
+  RETRY: 'RETRY',
+  FAILED: 'FAILED',
+});
+
+/** 終局：不可以再被 claim，也不可以再轉出去。 */
+export const WHOOP_EVENT_TERMINAL = Object.freeze([
+  WHOOP_EVENT_STATE.PROCESSED,
+  WHOOP_EVENT_STATE.IGNORED,
+  WHOOP_EVENT_STATE.FAILED,
+]);
+
+/**
+ * 墓碑狀態。
+ *
+ *   ACTIVE      這個資源已經被 WHOOP 刪除，canonical 不可以再長回來
+ *   SUPERSEDED  來源真相**證明**它之後又出現了更新的版本（見 store.js），
+ *               墓碑因此讓位。保留該列是為了「我們曾經刪過它」可回溯。
+ */
+export const TOMBSTONE_STATE = Object.freeze({
+  ACTIVE: 'ACTIVE',
+  SUPERSEDED: 'SUPERSEDED',
+});
+
+export const SCHEMA_VERSION = 10;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -1039,6 +1085,130 @@ export const PROACTIVE_OUTCOME = {
 export const PROACTIVE_QUESTION_INTENT = 'proactive_signal';
 
 /** migrate() 實際執行的完整順序。 */
+/**
+ * V1.2 Phase 1：WHOOP webhook 攝取（純新增，兩張全新的表）。
+ *
+ * ## 為什麼事件要有自己的耐久帳本
+ *
+ * WHOOP 對失敗的投遞會在大約一小時內重試五次，而且官方文件明說
+ * 「同一個觸發事件你會收到多次呼叫」。沒有耐久帳本就只能靠記憶體去重，
+ * 而免費方案會睡著、會重啟、會冷啟動 —— 記憶體去重等於沒有去重。
+ *
+ * ## 去重身分為什麼是複合鍵
+ *
+ * 官方文件說 trace_id 的用途是「偵測重複的 webhook」，但**沒有**定義它的
+ * 唯一性範圍（是否全域唯一）。在不確定的時候選保守的那一邊：
+ *
+ *   (whoop_user_id, event_type, resource_id, trace_id)
+ *
+ * · trace_id 若真的全域唯一 → 這個複合鍵一樣能正確去重同一則事件
+ * · trace_id 若會在不同事件間重複 → 複合鍵不會把兩則**不同**的事件
+ *   誤認成同一則（那會造成永久遺失，比重複處理更糟）
+ *
+ * 用 whoop_user_id（payload 裡就有）而不是內部 user_id 當第一段：去重必須
+ * 在「還沒解析出本地使用者」的時候就成立，未知使用者的事件也要能去重，
+ * 否則同一則未知事件會被無限重新插入。
+ *
+ * ## 不存什麼
+ *
+ * 不存簽章、不存密鑰、不存 access/refresh token。
+ * payload 本身只有四個欄位（user_id / id / type / trace_id），全部是識別資訊，
+ * 沒有任何生理數值 —— 所以完整保留是安全的，而且是重播診斷的必要條件。
+ * 生理資料一律只存在既有的 canonical 表裡。
+ */
+export const WHOOP_WEBHOOK_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS whoop_webhook_events (
+     id                INTEGER PRIMARY KEY AUTOINCREMENT,
+     provider          TEXT NOT NULL DEFAULT 'whoop',
+     -- WHOOP 自己的 user id（payload 給的）。去重與診斷都靠它，
+     -- 因為本地身分要查 DB 才知道，而去重必須更早成立。
+     whoop_user_id     TEXT NOT NULL,
+     -- 解析出來的本地使用者。解析發生在**處理**階段（權威），
+     -- 所以收下的當下是 NULL；未知使用者則永遠是 NULL。
+     user_id           TEXT,
+     event_type        TEXT NOT NULL,
+     resource_type     TEXT NOT NULL,
+     resource_id       TEXT NOT NULL,
+     trace_id          TEXT NOT NULL,
+     -- WHOOP 簽章時間戳（毫秒）。只當觀測用，**不**當事件排序的依據：
+     -- 重試會用新的時間戳重新簽章，所以它不代表原始事件發生順序。
+     event_at          TEXT,
+     received_at       TEXT NOT NULL,
+     state             TEXT NOT NULL DEFAULT '${WHOOP_EVENT_STATE.RECEIVED}',
+     attempt_count     INTEGER NOT NULL DEFAULT 0,
+     owner             TEXT,
+     lease_expires_at  TEXT,
+     next_attempt_at   TEXT,
+     last_error_class  TEXT,
+     last_error_detail TEXT,
+     processed_at      TEXT,
+     created_at        TEXT NOT NULL,
+     updated_at        TEXT NOT NULL
+   )`,
+  // ★ 去重的權威。DB 層的唯一索引，不是應用層的檢查 —— 兩個並行的投遞
+  // 同時插入時，由資料庫決定誰贏，輸的那個拿到 UNIQUE 違反並被當成重複。
+  `CREATE UNIQUE INDEX IF NOT EXISTS uniq_whoop_webhook_event
+     ON whoop_webhook_events (whoop_user_id, event_type, resource_id, trace_id)`,
+  // 排空用：挑「可以做」的事件。
+  `CREATE INDEX IF NOT EXISTS idx_whoop_webhook_pending
+     ON whoop_webhook_events (state, next_attempt_at, id)`,
+  `CREATE INDEX IF NOT EXISTS idx_whoop_webhook_user
+     ON whoop_webhook_events (user_id, resource_type, resource_id)`,
+
+  /**
+   * 刪除墓碑。
+   *
+   * ## 為什麼不能只做實體刪除
+   *
+   * 刪除事件與更新事件會亂序抵達，而且 WHOOP 會重送。只把列刪掉的話：
+   *
+   *   DELETE 處理完 → 一則更早的 UPDATE 重播 → canonical 又長回來
+   *   （或者：排程同步看到舊快取，把刪掉的資料重新寫進去）
+   *
+   * 那是「已刪除的健康資料復活」，而使用者看到的會是一筆他以為刪掉的紀錄。
+   *
+   * ## 為什麼 last_known_updated_at 是關鍵欄位
+   *
+   * 它記的是**刪除當下我們手上那一版的 WHOOP `updated_at`**。
+   * 之後要判斷「這是舊重播還是真的又更新了」時，兩邊比的都是 WHOOP 自己的
+   * 時鐘，所以這個比較是成立的：
+   *
+   *   進來的 updated_at  >  last_known_updated_at → 來源證明它之後又變了
+   *   進來的 updated_at <=  last_known_updated_at → 舊重播，擋掉
+   *
+   * 刻意**不用**簽章時間戳做這個判斷：重試會重新簽章，一則很舊的更新在
+   * 重試時會帶著很新的時間戳，用它比較會直接讓復活防護失效。
+   *
+   * last_known_updated_at 為 NULL（刪除時我們根本沒有那一列）時，
+   * 沒有任何東西可以證明新舊 → 一律擋掉（fail closed，
+   * 限制說明見 docs/whoop-webhook.md）。
+   */
+  `CREATE TABLE IF NOT EXISTS whoop_resource_tombstones (
+     user_id               TEXT NOT NULL,
+     resource_type         TEXT NOT NULL,
+     resource_id           TEXT NOT NULL,
+     state                 TEXT NOT NULL DEFAULT '${TOMBSTONE_STATE.ACTIVE}',
+     deleted_at            TEXT NOT NULL,
+     last_known_updated_at TEXT,
+     source_trace_id       TEXT,
+     source_event_at       TEXT,
+     -- 造成這次刪除的那一則事件在帳本裡的 id。
+     -- 它是**單調遞增的收下順序**，也就是「WHOOP 依序告訴我們什麼」的順序。
+     -- 判斷「這則更新到底是刪除之前的舊通知，還是刪除之後的新通知」只能靠它：
+     -- 資源自己的 updated_at 證明不了通知的先後，而簽章時間戳會因為重試而變新。
+     source_event_id       INTEGER,
+     blocked_count         INTEGER NOT NULL DEFAULT 0,
+     last_blocked_at       TEXT,
+     superseded_at         TEXT,
+     superseded_updated_at TEXT,
+     created_at            TEXT NOT NULL,
+     updated_at            TEXT NOT NULL,
+     PRIMARY KEY (user_id, resource_type, resource_id)
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_whoop_tombstone_active
+     ON whoop_resource_tombstones (user_id, resource_type, state)`,
+];
+
 export const SCHEMA = [
   // Result and all database actions commit together. Retained independently of
   // transport claim pruning; replay never repeats an already committed action.
@@ -1074,6 +1244,7 @@ export const SCHEMA = [
   ...PROACTIVE_SCHEMA,
   ...GUARDIAN_SCHEMA,
   ...PREDICTION_MODEL_SCHEMA,
+  ...WHOOP_WEBHOOK_SCHEMA,
 ];
 
 /** 使用者狀態。 */

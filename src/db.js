@@ -25,6 +25,7 @@ import { runMigrations } from './migrations.js';
 import { requireUserId } from './userContext.js';
 import { createIdentityStore } from './identityStore.js';
 import { createHealthStore } from './store.js';
+import { createWhoopWebhookStore } from './whoopWebhookStore.js';
 import { createBotStore } from './botStore.js';
 import { createAnalysisStore } from './analysisStore.js';
 import { createProactiveStore } from './proactiveStore.js';
@@ -1339,6 +1340,8 @@ export function createDb({ url, authToken }) {
     userLockName,
     ...createIdentityStore(client),
     ...createHealthStore(client),
+    // V1.2 Phase 1：WHOOP webhook 事件帳本 + 刪除墓碑。
+    ...createWhoopWebhookStore(client),
     ...createBotStore(client),
     ...createAnalysisStore(client),
     ...createProactiveStore(client),

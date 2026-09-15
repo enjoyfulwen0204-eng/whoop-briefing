@@ -90,6 +90,42 @@ export const REPO_FRESHNESS = {
   NOTIFY_COOLDOWN_HOURS: 24, // 同一天最多提醒一次
 };
 
+/**
+ * WHOOP webhook 攝取（V1.2 Phase 1）。
+ *
+ * ⚠️ **正式環境預設關閉。** 這一組常數只描述「如果啟用了要怎麼跑」，
+ * 啟用與否由 WHOOP_WEBHOOK_ENABLED 決定，而且還要 WHOOP_CLIENT_SECRET
+ * 存在才驗得了簽章 —— 兩者缺一，路由一律當作不存在。
+ */
+export const WHOOP_WEBHOOK = {
+  /** 路由。與 Telegram 完全分開，兩者的認證互不接受。 */
+  PATH: '/whoop/webhook',
+  /** payload 只有四個小欄位，上限抓得很緊。 */
+  MAX_BODY_BYTES: 16 * 1024,
+  /**
+   * 簽章時間戳的容許偏差（雙向）。
+   * 太鬆 = 側錄到的請求可以長時間重放；太緊 = 時鐘飄移就全部拒絕。
+   */
+  TIMESTAMP_TOLERANCE_MS: 5 * 60_000,
+  /** 處理事件的租約長度。要蓋過「打 WHOOP API + 寫 canonical」的最壞情況。 */
+  LEASE_MS: 2 * 60_000,
+  /**
+   * 一則事件最多嘗試幾次。超過就進終局 FAILED（留著給人查），
+   * 不會變成無限重試風暴。
+   */
+  MAX_ATTEMPTS: 5,
+  /** 重試退避（指數，上限）。 */
+  RETRY_BASE_MS: 30_000,
+  RETRY_MAX_MS: 30 * 60_000,
+  /** 一次排空最多處理幾則，避免單次執行無限跑。 */
+  DRAIN_BATCH: 25,
+  /**
+   * recovery 的 canonical 取得需要一個時間窗（見 whoopWebhookProcessor）。
+   * 以該筆睡眠的起訖為中心往外各推一天，涵蓋時區與評分延遲。
+   */
+  RECOVERY_WINDOW_PAD_MS: 24 * 60 * 60_000,
+};
+
 export const TELEGRAM_MAX_CHARS = 4096;
 
 /**

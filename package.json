@@ -23,7 +23,9 @@
     "bot:webhook": "node src/bot/webhook.js",
     "telegram:webhook:status": "node scripts/telegram-webhook.js status",
     "telegram:webhook:set": "node scripts/telegram-webhook.js set",
-    "telegram:webhook:delete": "node scripts/telegram-webhook.js delete"
+    "telegram:webhook:delete": "node scripts/telegram-webhook.js delete",
+    "whoop:webhook:status": "node scripts/whoop-webhook.js status",
+    "whoop:webhook:drain": "node scripts/whoop-webhook.js drain"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0"

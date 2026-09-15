@@ -41,7 +41,7 @@ import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { randomUUID } from 'node:crypto';
 
-import { loadDotEnvIfPresent, loadEnv, TELEGRAM_BOT } from '../config.js';
+import { loadDotEnvIfPresent, loadEnv, TELEGRAM_BOT, WHOOP_WEBHOOK } from '../config.js';
 import { createDb } from '../db.js';
 import { createCoach } from '../coach.js';
 import { createTelegramApi } from './api.js';
@@ -53,6 +53,7 @@ import { log, describeError } from '../logger.js';
 import { BRIEFING_TRIGGER } from '../briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../briefingEndpoint.js';
 import { runBriefing } from '../index.js';
+import { createWhoopWebhookIngest, statusForIngest } from '../whoopWebhookIngest.js';
 
 /**
  * 定長時間比較。長度不同直接回 false（長度本身不是祕密）。
@@ -128,6 +129,32 @@ export function schedulerConfiguration(env, triggerSecret) {
 }
 
 /**
+ * WHOOP webhook 攝取的啟用閘門（V1.2 Phase 1）。
+ *
+ * ## 預設關閉，而且需要兩個條件同時成立
+ *
+ *   1. `WHOOP_WEBHOOK_ENABLED` 明確打開（只認 '1' / 'true' / 'yes'）
+ *   2. `WHOOP_CLIENT_SECRET` 存在（沒有它就**不可能**驗證官方簽章）
+ *
+ * 第 2 條不是設定檢查，是安全邊界：缺了 client secret，驗簽只有兩種可能
+ * 的實作 —— 全部拒絕，或全部放行。既然全部拒絕等於沒有這條路由，
+ * 那就乾脆讓它不存在，而不是留一個永遠 401 的端點對外宣告「這裡有東西」。
+ *
+ * ## 為什麼旗標要「明確打開」
+ *
+ * 用 `Boolean(process.env.X)` 的話，`WHOOP_WEBHOOK_ENABLED=false` 會是 true。
+ * 這種端點不可以因為一個字串寫法就意外上線。
+ */
+export function whoopWebhookConfiguration({ enabledFlag, clientSecret } = {}) {
+  const enabled = ['1', 'true', 'yes', 'on'].includes(String(enabledFlag ?? '').trim().toLowerCase());
+  if (!enabled) return { enabled: false, state: 'disabled' };
+  if (typeof clientSecret !== 'string' || !clientSecret) {
+    return { enabled: false, state: 'missing_client_secret' };
+  }
+  return { enabled: true, state: 'enabled' };
+}
+
+/**
  * 建立 HTTP 請求處理器。
  *
  * 刻意與「開 port」分開：測試可以直接餵假的 req/res，不需要真的綁一個
@@ -137,6 +164,16 @@ export function createWebhookHandler({
   processUpdate,
   secret,
   briefingEndpoint = null,
+  /**
+   * WHOOP webhook 攝取（V1.2 Phase 1）。
+   *
+   * null = 這條路由**完全不存在**（回 404，與任何未知路徑一樣）。
+   * 正式環境預設就是 null —— 沒有啟用旗標、或沒有 client secret 可以驗簽時，
+   * 不可以留下一個「存在但永遠 401」的端點：那等於對外宣告這裡有東西。
+   */
+  whoopIngest = null,
+  whoopWebhookPath = WHOOP_WEBHOOK.PATH,
+  whoopMaxBodyBytes = WHOOP_WEBHOOK.MAX_BODY_BYTES,
   webhookPath = TELEGRAM_BOT.WEBHOOK_PATH,
   healthPath = TELEGRAM_BOT.HEALTH_PATH,
   maxBodyBytes = TELEGRAM_BOT.WEBHOOK_MAX_BODY_BYTES,
@@ -179,6 +216,44 @@ export function createWebhookHandler({
       }
       const result = await briefingEndpoint(req, schedulerBody.body);
       return send(res, result.status, result.body);
+    }
+
+    // ---- WHOOP webhook（V1.2 Phase 1，正式環境預設關閉）--------------------
+    //
+    // 與 Telegram 是**完全獨立**的一條路：不同路徑、不同標頭、不同祕密、
+    // 不同演算法。兩邊的認證絕不互相接受 —— 一個 Telegram 的 secret token
+    // 不可能讓 WHOOP 的簽章驗證通過，反之亦然。
+    if (path === whoopWebhookPath) {
+      if (!whoopIngest) return send(res, 404, { ok: false });
+      if (url !== path) return send(res, 400, { ok: false, error: 'query_not_allowed' });
+      if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
+
+      const whoopBody = await readBody(req, { limit: whoopMaxBodyBytes });
+      if (!whoopBody.ok) {
+        log.warn('whoop_webhook_body_rejected', { reason: whoopBody.reason });
+        if (whoopBody.reason === 'too_large') {
+          send(res, 413, { ok: false });
+          res.on('finish', () => { if (typeof req.destroy === 'function') req.destroy(); });
+          return undefined;
+        }
+        return send(res, 400, { ok: false });
+      }
+
+      let ingestResult;
+      try {
+        // ⚠️ 傳的是**原始字串**。簽章簽的是原始位元組，parse 再序列化回去
+        // 會改變鍵順序與空白，算出來的簽章就對不上。
+        ingestResult = await whoopIngest({
+          headers: req.headers ?? {}, rawBody: whoopBody.body,
+        });
+      } catch (err) {
+        log.error('whoop_webhook_unhandled', { error: describeError(err) });
+        return send(res, 503, { ok: false });
+      }
+      const status = statusForIngest(ingestResult.outcome);
+      return send(res, status, status === 200
+        ? { ok: true, outcome: ingestResult.outcome }
+        : { ok: false, outcome: ingestResult.outcome });
     }
 
     if (path !== webhookPath) return send(res, 404, { ok: false });
@@ -308,6 +383,17 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     workerId: `${process.pid}:${randomUUID()}`,
   });
 
+  // ---- WHOOP webhook（V1.2 Phase 1）：預設關閉 ----------------------------
+  const whoopWebhook = whoopWebhookConfiguration({
+    enabledFlag: process.env.WHOOP_WEBHOOK_ENABLED,
+    clientSecret: process.env.WHOOP_CLIENT_SECRET,
+  });
+  const whoopIngest = whoopWebhook.enabled
+    ? createWhoopWebhookIngest({ db, clientSecret: process.env.WHOOP_CLIENT_SECRET })
+    : null;
+  // 只記狀態名稱，絕不記密鑰或它的長度。
+  log.info('whoop_webhook_configuration', { state: whoopWebhook.state });
+
   const scheduler = schedulerConfiguration(env, briefingTriggerSecret);
   const schedulerConfigured = scheduler.enabled;
   if (!schedulerConfigured) {
@@ -319,6 +405,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const server = createWebhookServer({
     processUpdate: processor.processUpdate, secret, briefingEndpoint, schedulerConfigured,
     schedulerState: scheduler.state,
+    whoopIngest,
   });
   if (!listen) return { server, db };
 

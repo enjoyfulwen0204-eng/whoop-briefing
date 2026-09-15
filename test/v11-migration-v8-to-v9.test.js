@@ -105,7 +105,10 @@ test('★★★ v8 → v9：純新增欄位，既有資料一列不動', async (
     const summary = await runMigrations(client);
     assert.equal(summary.from, 8, '★ 起點必須被認成 8');
     assert.equal(summary.to, SCHEMA_VERSION);
-    assert.equal(SCHEMA_VERSION, 9);
+    // 這一支測的是「v8 的資料庫可以安全升到**最新版**」。最新版之後還會
+    // 往前走（v10 加了 WHOOP webhook 的表），所以這裡跟著 SCHEMA_VERSION 走，
+    // 但仍然斷言它至少已經過了 v9（report_claims 的送達狀態機）。
+    assert.ok(SCHEMA_VERSION >= 9);
     assert.deepEqual(summary.rebuilt, [], '★★★ 升級絕不可以重建（DROP）任何表');
     assert.ok(summary.columnsAdded.includes('report_claims.delivery_state'));
 

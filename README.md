@@ -480,6 +480,7 @@ polling 共用同一份 —— 認領、PROCESSING 圍欄、動作與收據同�
 | 路徑 | 用途 |
 |---|---|
 | `POST /telegram/webhook` | Telegram 入站。認證靠 `X-Telegram-Bot-Api-Secret-Token`。 |
+| `POST /whoop/webhook` | WHOOP 入站（V1.2 Phase 1）。認證靠官方的 `X-WHOOP-Signature` HMAC，與 Telegram **完全獨立**。**正式環境預設關閉**（關閉時回 404）。見 [docs/whoop-webhook.md](docs/whoop-webhook.md)。 |
 | `GET /health` | Render 健康檢查。只回 `{"ok":true,"service":"telegram-webhook"}`，不碰 DB。 |
 
 路徑本身不是祕密 —— 認證靠 secret 標頭，而且在任何業務處理**之前**就驗。

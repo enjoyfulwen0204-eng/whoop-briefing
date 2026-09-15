@@ -93,20 +93,24 @@ const freshnessGuard = (table) => `
  * 保護，不可以因為它而讓既有的同步整個壞掉。
  */
 async function readActiveTombstones(client, userId, resourceType) {
-  try {
-    const rs = await client.execute({
-      sql: `SELECT resource_id, last_known_updated_at
-              FROM whoop_resource_tombstones
-             WHERE user_id = ? AND resource_type = ? AND state = ?`,
-      args: [userId, resourceType, TOMBSTONE_STATE.ACTIVE],
-    });
-    const map = new Map();
-    for (const r of rs.rows) map.set(String(r.resource_id), r.last_known_updated_at ?? null);
-    return map;
-  } catch (err) {
-    if (/no such table/i.test(String(err?.message ?? ''))) return new Map();
-    throw err;
-  }
+  // ★ 刻意**不**吞掉 "no such table"。
+  //
+  // 早期版本在表不存在時回空 Map，理由是「附加的保護不該讓同步壞掉」。
+  // 但那等於：在還沒遷移到 v10 的資料庫上，墓碑保護會**靜默地不存在**，
+  // 而寫入照常發生 —— 那是 fail open。
+  //
+  // 每一個進入點（cron / webhook / 腳本）都會先跑 db.migrate()，所以
+  // 正常情況下這張表一定在。真的不在就代表有東西繞過了遷移，
+  // 那時候拒絕寫入才是對的。
+  const rs = await client.execute({
+    sql: `SELECT resource_id, last_known_updated_at
+            FROM whoop_resource_tombstones
+           WHERE user_id = ? AND resource_type = ? AND state = ?`,
+    args: [userId, resourceType, TOMBSTONE_STATE.ACTIVE],
+  });
+  const map = new Map();
+  for (const r of rs.rows) map.set(String(r.resource_id), r.last_known_updated_at ?? null);
+  return map;
 }
 
 /**
@@ -154,155 +158,184 @@ async function settleTombstoneEffects(client, { userId, resourceType, blocked, n
   });
 }
 
-export function createHealthStore(client) {
+/**
+ * @param {object} client 交易感知的 client（processingTransactions 的 Proxy）
+ * @param {object} opts
+ * @param {function} opts.transaction 「需要時才開交易」的執行器
+ *   （processing.transaction）。已經在交易裡就直接在裡面跑，沒有就開一個
+ *   最小的。這正是 P1-R02-RC2 的修法：墓碑判定與 canonical 寫入必須在
+ *   **同一個交易**裡，否則兩者之間可以插進一個 DELETE。
+ *
+ *   刻意沒有預設值：少了它，墓碑保護就是 TOCTOU。寧可在建構時就炸。
+ */
+export function createHealthStore(client, { transaction } = {}) {
+  if (typeof transaction !== 'function') {
+    throw new Error('createHealthStore 需要 transaction 執行器（墓碑判定與寫入必須同一交易）');
+  }
+  /**
+   * 墓碑保護的寫入一律走這裡。
+   *
+   * 在交易外呼叫 → 開一個最小的寫交易，把「讀墓碑 → 建語句 → 寫入 →
+   * 記錄被擋」整段包起來。與並行的 DELETE 交易由資料庫序列化：
+   * 誰先誰後都安全（先寫再刪 → 刪掉；先刪再寫 → 看到墓碑被擋）。
+   *
+   * 在交易內呼叫（webhook 的 mutateForWhoopEvent）→ 直接在那個交易裡跑，
+   * 不開巢狀交易；事件所有權的 before/after 圍欄照樣包住整段。
+   */
+  const tombstoneProtected = (fn) => transaction(fn);
+
   // -------------------------------------------------------------------------
   // Sleep
   // -------------------------------------------------------------------------
   async function upsertSleeps(userId, sleeps = [], { timezone, now = new Date() } = {}) {
-    const uid = requireUserId(userId, 'upsertSleeps');
-    const syncedAt = now.toISOString();
-    // ★ V1.2 Phase 1：已刪除的資源不可以被寫回來。這一關對**所有**寫入者
-    // 生效（排程同步與 webhook 走同一條路），否則排程同步會默默地復活
-    // 使用者已經刪掉的睡眠。
-    const tombstones = await readActiveTombstones(client, uid, 'sleep');
-    const part = partitionByTombstone(sleeps, tombstones, {
-      idOf: (s) => (s?.id ? String(s.id) : null),
-    });
-    const stmts = [];
-    for (const s of part.writable) {
-      if (!s?.id) continue;
-      const g = s?.score?.stage_summary ?? {};
-      const need = s?.score?.sleep_needed ?? {};
-      const light = num(g.total_light_sleep_time_milli);
-      const sws = num(g.total_slow_wave_sleep_time_milli);
-      const rem = num(g.total_rem_sleep_time_milli);
-      // 與 config.js METRICS 的 sleep_total 完全同一套算法（三段相加，
-      // 不含 awake / no-data，也不用 total_in_bed_time_milli）
-      // 缺任何一段就存 null —— 存一個少算的總和等於把不完整的資料
-      // 偽裝成完整的（見 config.js sleepTotalMilli 的說明）。
-      const total = sleepTotalMilli(g);
-
-      stmts.push({
-        sql: `INSERT INTO whoop_sleeps (
-                user_id, id, v1_id, whoop_user_id, health_date, start_at, end_at, timezone_offset,
-                nap, score_state, respiratory_rate, sleep_performance_percentage,
-                sleep_consistency_percentage, sleep_efficiency_percentage,
-                total_sleep_milli, light_sleep_milli, slow_wave_sleep_milli,
-                rem_sleep_milli, awake_milli, no_data_milli, in_bed_milli,
-                disturbance_count, sleep_cycle_count, sleep_need_baseline_milli,
-                sleep_debt_milli, sleep_need_recent_strain_milli,
-                sleep_need_recent_nap_milli, created_at, updated_at, synced_at, raw_json
-              ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-              ON CONFLICT(user_id, id) DO UPDATE SET
-                v1_id=excluded.v1_id, whoop_user_id=excluded.whoop_user_id,
-                health_date=excluded.health_date, start_at=excluded.start_at,
-                end_at=excluded.end_at, timezone_offset=excluded.timezone_offset,
-                nap=excluded.nap, score_state=excluded.score_state,
-                respiratory_rate=excluded.respiratory_rate,
-                sleep_performance_percentage=excluded.sleep_performance_percentage,
-                sleep_consistency_percentage=excluded.sleep_consistency_percentage,
-                sleep_efficiency_percentage=excluded.sleep_efficiency_percentage,
-                total_sleep_milli=excluded.total_sleep_milli,
-                light_sleep_milli=excluded.light_sleep_milli,
-                slow_wave_sleep_milli=excluded.slow_wave_sleep_milli,
-                rem_sleep_milli=excluded.rem_sleep_milli,
-                awake_milli=excluded.awake_milli, no_data_milli=excluded.no_data_milli,
-                in_bed_milli=excluded.in_bed_milli,
-                disturbance_count=excluded.disturbance_count,
-                sleep_cycle_count=excluded.sleep_cycle_count,
-                sleep_need_baseline_milli=excluded.sleep_need_baseline_milli,
-                sleep_debt_milli=excluded.sleep_debt_milli,
-                sleep_need_recent_strain_milli=excluded.sleep_need_recent_strain_milli,
-                sleep_need_recent_nap_milli=excluded.sleep_need_recent_nap_milli,
-                created_at=excluded.created_at, updated_at=excluded.updated_at,
-                synced_at=excluded.synced_at, raw_json=excluded.raw_json${freshnessGuard('whoop_sleeps')}`,
-        args: [
-          uid, String(s.id), num(s.v1_id), num(s.user_id),
-          s.end ? localDate(s.end, timezone) : null,
-          iso(s.start), iso(s.end), str(s.timezone_offset),
-          bool(s.nap), str(s.score_state),
-          num(s?.score?.respiratory_rate),
-          num(s?.score?.sleep_performance_percentage),
-          num(s?.score?.sleep_consistency_percentage),
-          num(s?.score?.sleep_efficiency_percentage),
-          total, light, sws, rem,
-          num(g.total_awake_time_milli), num(g.total_no_data_time_milli),
-          num(g.total_in_bed_time_milli),
-          num(g.disturbance_count), num(g.sleep_cycle_count),
-          num(need.baseline_milli), num(need.need_from_sleep_debt_milli),
-          num(need.need_from_recent_strain_milli), num(need.need_from_recent_nap_milli),
-          iso(s.created_at), iso(s.updated_at), syncedAt, JSON.stringify(s),
-        ],
+    return tombstoneProtected(async () => {
+      const uid = requireUserId(userId, 'upsertSleeps');
+      const syncedAt = now.toISOString();
+      // ★ V1.2 Phase 1：已刪除的資源不可以被寫回來。這一關對**所有**寫入者
+      // 生效（排程同步與 webhook 走同一條路），否則排程同步會默默地復活
+      // 使用者已經刪掉的睡眠。
+      const tombstones = await readActiveTombstones(client, uid, 'sleep');
+      const part = partitionByTombstone(sleeps, tombstones, {
+        idOf: (s) => (s?.id ? String(s.id) : null),
       });
-    }
-    const n = await writeBatched(client, stmts);
-    await settleTombstoneEffects(client, {
-      userId: uid, resourceType: 'sleep', blocked: part.blocked, now,
+      const stmts = [];
+      for (const s of part.writable) {
+        if (!s?.id) continue;
+        const g = s?.score?.stage_summary ?? {};
+        const need = s?.score?.sleep_needed ?? {};
+        const light = num(g.total_light_sleep_time_milli);
+        const sws = num(g.total_slow_wave_sleep_time_milli);
+        const rem = num(g.total_rem_sleep_time_milli);
+        // 與 config.js METRICS 的 sleep_total 完全同一套算法（三段相加，
+        // 不含 awake / no-data，也不用 total_in_bed_time_milli）
+        // 缺任何一段就存 null —— 存一個少算的總和等於把不完整的資料
+        // 偽裝成完整的（見 config.js sleepTotalMilli 的說明）。
+        const total = sleepTotalMilli(g);
+
+        stmts.push({
+          sql: `INSERT INTO whoop_sleeps (
+                  user_id, id, v1_id, whoop_user_id, health_date, start_at, end_at, timezone_offset,
+                  nap, score_state, respiratory_rate, sleep_performance_percentage,
+                  sleep_consistency_percentage, sleep_efficiency_percentage,
+                  total_sleep_milli, light_sleep_milli, slow_wave_sleep_milli,
+                  rem_sleep_milli, awake_milli, no_data_milli, in_bed_milli,
+                  disturbance_count, sleep_cycle_count, sleep_need_baseline_milli,
+                  sleep_debt_milli, sleep_need_recent_strain_milli,
+                  sleep_need_recent_nap_milli, created_at, updated_at, synced_at, raw_json
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(user_id, id) DO UPDATE SET
+                  v1_id=excluded.v1_id, whoop_user_id=excluded.whoop_user_id,
+                  health_date=excluded.health_date, start_at=excluded.start_at,
+                  end_at=excluded.end_at, timezone_offset=excluded.timezone_offset,
+                  nap=excluded.nap, score_state=excluded.score_state,
+                  respiratory_rate=excluded.respiratory_rate,
+                  sleep_performance_percentage=excluded.sleep_performance_percentage,
+                  sleep_consistency_percentage=excluded.sleep_consistency_percentage,
+                  sleep_efficiency_percentage=excluded.sleep_efficiency_percentage,
+                  total_sleep_milli=excluded.total_sleep_milli,
+                  light_sleep_milli=excluded.light_sleep_milli,
+                  slow_wave_sleep_milli=excluded.slow_wave_sleep_milli,
+                  rem_sleep_milli=excluded.rem_sleep_milli,
+                  awake_milli=excluded.awake_milli, no_data_milli=excluded.no_data_milli,
+                  in_bed_milli=excluded.in_bed_milli,
+                  disturbance_count=excluded.disturbance_count,
+                  sleep_cycle_count=excluded.sleep_cycle_count,
+                  sleep_need_baseline_milli=excluded.sleep_need_baseline_milli,
+                  sleep_debt_milli=excluded.sleep_debt_milli,
+                  sleep_need_recent_strain_milli=excluded.sleep_need_recent_strain_milli,
+                  sleep_need_recent_nap_milli=excluded.sleep_need_recent_nap_milli,
+                  created_at=excluded.created_at, updated_at=excluded.updated_at,
+                  synced_at=excluded.synced_at, raw_json=excluded.raw_json${freshnessGuard('whoop_sleeps')}`,
+          args: [
+            uid, String(s.id), num(s.v1_id), num(s.user_id),
+            s.end ? localDate(s.end, timezone) : null,
+            iso(s.start), iso(s.end), str(s.timezone_offset),
+            bool(s.nap), str(s.score_state),
+            num(s?.score?.respiratory_rate),
+            num(s?.score?.sleep_performance_percentage),
+            num(s?.score?.sleep_consistency_percentage),
+            num(s?.score?.sleep_efficiency_percentage),
+            total, light, sws, rem,
+            num(g.total_awake_time_milli), num(g.total_no_data_time_milli),
+            num(g.total_in_bed_time_milli),
+            num(g.disturbance_count), num(g.sleep_cycle_count),
+            num(need.baseline_milli), num(need.need_from_sleep_debt_milli),
+            num(need.need_from_recent_strain_milli), num(need.need_from_recent_nap_milli),
+            iso(s.created_at), iso(s.updated_at), syncedAt, JSON.stringify(s),
+          ],
+        });
+      }
+      const n = await writeBatched(client, stmts);
+      await settleTombstoneEffects(client, {
+        userId: uid, resourceType: 'sleep', blocked: part.blocked, now,
+      });
+      if (n) log.info('store_sleeps_upserted', { user_id: uid, count: n });
+      return n;
     });
-    if (n) log.info('store_sleeps_upserted', { user_id: uid, count: n });
-    return n;
   }
 
   // -------------------------------------------------------------------------
   // Recovery
   // -------------------------------------------------------------------------
   async function upsertRecoveries(userId, recoveries = [], { now = new Date() } = {}) {
-    const uid = requireUserId(userId, 'upsertRecoveries');
-    const syncedAt = now.toISOString();
-    // recovery 的邏輯主鍵是 sleep_id，墓碑也用同一個識別（與 v2 webhook 的
-    // `id` 語意一致：官方文件說那是「關聯睡眠的 UUID」）。
-    const tombstones = await readActiveTombstones(client, uid, 'recovery');
-    const part = partitionByTombstone(recoveries, tombstones, {
-      idOf: (r) => (r?.sleep_id ? String(r.sleep_id) : null),
-    });
-    const stmts = [];
-    for (const r of part.writable) {
-      if (!r?.sleep_id) continue;
-      stmts.push({
-        sql: `INSERT INTO whoop_recoveries (
-                user_id, sleep_id, cycle_id, whoop_user_id, health_date, score_state,
-                recovery_score, hrv_rmssd_milli, resting_heart_rate,
-                spo2_percentage, skin_temp_celsius, user_calibrating,
-                created_at, updated_at, synced_at, raw_json
-              ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-              ON CONFLICT(user_id, sleep_id) DO UPDATE SET
-                cycle_id=excluded.cycle_id, whoop_user_id=excluded.whoop_user_id,
-                score_state=excluded.score_state,
-                recovery_score=excluded.recovery_score,
-                hrv_rmssd_milli=excluded.hrv_rmssd_milli,
-                resting_heart_rate=excluded.resting_heart_rate,
-                spo2_percentage=excluded.spo2_percentage,
-                skin_temp_celsius=excluded.skin_temp_celsius,
-                user_calibrating=excluded.user_calibrating,
-                created_at=excluded.created_at, updated_at=excluded.updated_at,
-                synced_at=excluded.synced_at, raw_json=excluded.raw_json${freshnessGuard('whoop_recoveries')}`,
-        args: [
-          uid, String(r.sleep_id), str(r.cycle_id), num(r.user_id),
-          null, // health_date 由下面的 relink 從 whoop_sleeps 補上
-          str(r.score_state),
-          num(r?.score?.recovery_score), num(r?.score?.hrv_rmssd_milli),
-          num(r?.score?.resting_heart_rate), num(r?.score?.spo2_percentage),
-          num(r?.score?.skin_temp_celsius), bool(r?.score?.user_calibrating),
-          iso(r.created_at), iso(r.updated_at), syncedAt, JSON.stringify(r),
-        ],
+    return tombstoneProtected(async () => {
+      const uid = requireUserId(userId, 'upsertRecoveries');
+      const syncedAt = now.toISOString();
+      // recovery 的邏輯主鍵是 sleep_id，墓碑也用同一個識別（與 v2 webhook 的
+      // `id` 語意一致：官方文件說那是「關聯睡眠的 UUID」）。
+      const tombstones = await readActiveTombstones(client, uid, 'recovery');
+      const part = partitionByTombstone(recoveries, tombstones, {
+        idOf: (r) => (r?.sleep_id ? String(r.sleep_id) : null),
       });
-    }
-    const n = await writeBatched(client, stmts);
-    await settleTombstoneEffects(client, {
-      userId: uid, resourceType: 'recovery', blocked: part.blocked, now,
+      const stmts = [];
+      for (const r of part.writable) {
+        if (!r?.sleep_id) continue;
+        stmts.push({
+          sql: `INSERT INTO whoop_recoveries (
+                  user_id, sleep_id, cycle_id, whoop_user_id, health_date, score_state,
+                  recovery_score, hrv_rmssd_milli, resting_heart_rate,
+                  spo2_percentage, skin_temp_celsius, user_calibrating,
+                  created_at, updated_at, synced_at, raw_json
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(user_id, sleep_id) DO UPDATE SET
+                  cycle_id=excluded.cycle_id, whoop_user_id=excluded.whoop_user_id,
+                  score_state=excluded.score_state,
+                  recovery_score=excluded.recovery_score,
+                  hrv_rmssd_milli=excluded.hrv_rmssd_milli,
+                  resting_heart_rate=excluded.resting_heart_rate,
+                  spo2_percentage=excluded.spo2_percentage,
+                  skin_temp_celsius=excluded.skin_temp_celsius,
+                  user_calibrating=excluded.user_calibrating,
+                  created_at=excluded.created_at, updated_at=excluded.updated_at,
+                  synced_at=excluded.synced_at, raw_json=excluded.raw_json${freshnessGuard('whoop_recoveries')}`,
+          args: [
+            uid, String(r.sleep_id), str(r.cycle_id), num(r.user_id),
+            null, // health_date 由下面的 relink 從 whoop_sleeps 補上
+            str(r.score_state),
+            num(r?.score?.recovery_score), num(r?.score?.hrv_rmssd_milli),
+            num(r?.score?.resting_heart_rate), num(r?.score?.spo2_percentage),
+            num(r?.score?.skin_temp_celsius), bool(r?.score?.user_calibrating),
+            iso(r.created_at), iso(r.updated_at), syncedAt, JSON.stringify(r),
+          ],
+        });
+      }
+      const n = await writeBatched(client, stmts);
+      await settleTombstoneEffects(client, {
+        userId: uid, resourceType: 'recovery', blocked: part.blocked, now,
+      });
+      // ★ relink 的觸發條件是「這一輪**處理過** recovery」，不是「真的寫入了」。
+      //
+      // 新鮮度守衛（M-03）會讓已經是最新版的 recovery 不產生任何寫入，
+      // 但同一輪的 sleep 可能剛換了 health_date（重新評分會改 sleep.end）。
+      // 用寫入筆數當條件的話，那種情況下 recovery 的 health_date 會留在舊值。
+      //
+      // relink 本身是冪等的（沒有差異時 UPDATE 不會動任何列），所以多跑無害。
+      if (stmts.length) {
+        await relinkRecoveryDates(uid);
+        log.info('store_recoveries_upserted', { user_id: uid, count: n, considered: stmts.length });
+      }
+      return n;
     });
-    // ★ relink 的觸發條件是「這一輪**處理過** recovery」，不是「真的寫入了」。
-    //
-    // 新鮮度守衛（M-03）會讓已經是最新版的 recovery 不產生任何寫入，
-    // 但同一輪的 sleep 可能剛換了 health_date（重新評分會改 sleep.end）。
-    // 用寫入筆數當條件的話，那種情況下 recovery 的 health_date 會留在舊值。
-    //
-    // relink 本身是冪等的（沒有差異時 UPDATE 不會動任何列），所以多跑無害。
-    if (stmts.length) {
-      await relinkRecoveryDates(uid);
-      log.info('store_recoveries_upserted', { user_id: uid, count: n, considered: stmts.length });
-    }
-    return n;
   }
 
   /**
@@ -370,67 +403,69 @@ export function createHealthStore(client) {
   // Workout（欄位完全依官方 v2 WorkoutScore schema）
   // -------------------------------------------------------------------------
   async function upsertWorkouts(userId, workouts = [], { timezone, now = new Date() } = {}) {
-    const uid = requireUserId(userId, 'upsertWorkouts');
-    const syncedAt = now.toISOString();
-    const tombstones = await readActiveTombstones(client, uid, 'workout');
-    const part = partitionByTombstone(workouts, tombstones, {
-      idOf: (w) => (w?.id ? String(w.id) : null),
-    });
-    const stmts = [];
-    for (const w of part.writable) {
-      if (!w?.id) continue;
-      const z = w?.score?.zone_durations ?? {};
-      stmts.push({
-        sql: `INSERT INTO whoop_workouts (
-                user_id, id, v1_id, whoop_user_id, health_date, start_at, end_at, timezone_offset,
-                sport_name, sport_id, score_state, strain, average_heart_rate,
-                max_heart_rate, kilojoule, percent_recorded, distance_meter,
-                altitude_gain_meter, altitude_change_meter,
-                zone_zero_milli, zone_one_milli, zone_two_milli,
-                zone_three_milli, zone_four_milli, zone_five_milli,
-                created_at, updated_at, synced_at, raw_json
-              ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-              ON CONFLICT(user_id, id) DO UPDATE SET
-                v1_id=excluded.v1_id, whoop_user_id=excluded.whoop_user_id,
-                health_date=excluded.health_date, start_at=excluded.start_at,
-                end_at=excluded.end_at, timezone_offset=excluded.timezone_offset,
-                sport_name=excluded.sport_name, sport_id=excluded.sport_id,
-                score_state=excluded.score_state, strain=excluded.strain,
-                average_heart_rate=excluded.average_heart_rate,
-                max_heart_rate=excluded.max_heart_rate, kilojoule=excluded.kilojoule,
-                percent_recorded=excluded.percent_recorded,
-                distance_meter=excluded.distance_meter,
-                altitude_gain_meter=excluded.altitude_gain_meter,
-                altitude_change_meter=excluded.altitude_change_meter,
-                zone_zero_milli=excluded.zone_zero_milli,
-                zone_one_milli=excluded.zone_one_milli,
-                zone_two_milli=excluded.zone_two_milli,
-                zone_three_milli=excluded.zone_three_milli,
-                zone_four_milli=excluded.zone_four_milli,
-                zone_five_milli=excluded.zone_five_milli,
-                created_at=excluded.created_at, updated_at=excluded.updated_at,
-                synced_at=excluded.synced_at, raw_json=excluded.raw_json${freshnessGuard('whoop_workouts')}`,
-        args: [
-          uid, String(w.id), num(w.v1_id), num(w.user_id),
-          w.start ? localDate(w.start, timezone) : null,
-          iso(w.start), iso(w.end), str(w.timezone_offset),
-          str(w.sport_name), num(w.sport_id), str(w.score_state),
-          num(w?.score?.strain), num(w?.score?.average_heart_rate),
-          num(w?.score?.max_heart_rate), num(w?.score?.kilojoule),
-          num(w?.score?.percent_recorded), num(w?.score?.distance_meter),
-          num(w?.score?.altitude_gain_meter), num(w?.score?.altitude_change_meter),
-          num(z.zone_zero_milli), num(z.zone_one_milli), num(z.zone_two_milli),
-          num(z.zone_three_milli), num(z.zone_four_milli), num(z.zone_five_milli),
-          iso(w.created_at), iso(w.updated_at), syncedAt, JSON.stringify(w),
-        ],
+    return tombstoneProtected(async () => {
+      const uid = requireUserId(userId, 'upsertWorkouts');
+      const syncedAt = now.toISOString();
+      const tombstones = await readActiveTombstones(client, uid, 'workout');
+      const part = partitionByTombstone(workouts, tombstones, {
+        idOf: (w) => (w?.id ? String(w.id) : null),
       });
-    }
-    const n = await writeBatched(client, stmts);
-    await settleTombstoneEffects(client, {
-      userId: uid, resourceType: 'workout', blocked: part.blocked, now,
+      const stmts = [];
+      for (const w of part.writable) {
+        if (!w?.id) continue;
+        const z = w?.score?.zone_durations ?? {};
+        stmts.push({
+          sql: `INSERT INTO whoop_workouts (
+                  user_id, id, v1_id, whoop_user_id, health_date, start_at, end_at, timezone_offset,
+                  sport_name, sport_id, score_state, strain, average_heart_rate,
+                  max_heart_rate, kilojoule, percent_recorded, distance_meter,
+                  altitude_gain_meter, altitude_change_meter,
+                  zone_zero_milli, zone_one_milli, zone_two_milli,
+                  zone_three_milli, zone_four_milli, zone_five_milli,
+                  created_at, updated_at, synced_at, raw_json
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(user_id, id) DO UPDATE SET
+                  v1_id=excluded.v1_id, whoop_user_id=excluded.whoop_user_id,
+                  health_date=excluded.health_date, start_at=excluded.start_at,
+                  end_at=excluded.end_at, timezone_offset=excluded.timezone_offset,
+                  sport_name=excluded.sport_name, sport_id=excluded.sport_id,
+                  score_state=excluded.score_state, strain=excluded.strain,
+                  average_heart_rate=excluded.average_heart_rate,
+                  max_heart_rate=excluded.max_heart_rate, kilojoule=excluded.kilojoule,
+                  percent_recorded=excluded.percent_recorded,
+                  distance_meter=excluded.distance_meter,
+                  altitude_gain_meter=excluded.altitude_gain_meter,
+                  altitude_change_meter=excluded.altitude_change_meter,
+                  zone_zero_milli=excluded.zone_zero_milli,
+                  zone_one_milli=excluded.zone_one_milli,
+                  zone_two_milli=excluded.zone_two_milli,
+                  zone_three_milli=excluded.zone_three_milli,
+                  zone_four_milli=excluded.zone_four_milli,
+                  zone_five_milli=excluded.zone_five_milli,
+                  created_at=excluded.created_at, updated_at=excluded.updated_at,
+                  synced_at=excluded.synced_at, raw_json=excluded.raw_json${freshnessGuard('whoop_workouts')}`,
+          args: [
+            uid, String(w.id), num(w.v1_id), num(w.user_id),
+            w.start ? localDate(w.start, timezone) : null,
+            iso(w.start), iso(w.end), str(w.timezone_offset),
+            str(w.sport_name), num(w.sport_id), str(w.score_state),
+            num(w?.score?.strain), num(w?.score?.average_heart_rate),
+            num(w?.score?.max_heart_rate), num(w?.score?.kilojoule),
+            num(w?.score?.percent_recorded), num(w?.score?.distance_meter),
+            num(w?.score?.altitude_gain_meter), num(w?.score?.altitude_change_meter),
+            num(z.zone_zero_milli), num(z.zone_one_milli), num(z.zone_two_milli),
+            num(z.zone_three_milli), num(z.zone_four_milli), num(z.zone_five_milli),
+            iso(w.created_at), iso(w.updated_at), syncedAt, JSON.stringify(w),
+          ],
+        });
+      }
+      const n = await writeBatched(client, stmts);
+      await settleTombstoneEffects(client, {
+        userId: uid, resourceType: 'workout', blocked: part.blocked, now,
+      });
+      if (n) log.info('store_workouts_upserted', { user_id: uid, count: n });
+      return n;
     });
-    if (n) log.info('store_workouts_upserted', { user_id: uid, count: n });
-    return n;
   }
 
   // -------------------------------------------------------------------------

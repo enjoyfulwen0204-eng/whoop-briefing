@@ -1381,7 +1381,9 @@ export function createDb({ url, authToken }) {
     releaseLock,
     userLockName,
     ...createIdentityStore(client),
-    ...createHealthStore(client),
+    // 墓碑判定與 canonical 寫入必須同一交易（P1-R02-RC2）：把「需要時才開交易」
+    // 的執行器交給儲存層。已在 mutateForWhoopEvent 交易裡時會直接沿用，不巢狀。
+    ...createHealthStore(client, { transaction: processing.transaction }),
     // V1.2 Phase 1：WHOOP webhook 事件帳本 + 刪除墓碑。
     ...createWhoopWebhookStore(client),
     ...createBotStore(client),

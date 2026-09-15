@@ -289,6 +289,11 @@ B 後面那個條件是刻意加的。只看「是否單調下降」的話，在
   變成 `SCORED`，只抓新資料會永遠留著未評分的殘骸。全部 upsert，重跑安全。
 - 排程每次執行都會同步，但有 60 分鐘節流；backfill 未完成時不受節流限制。
 - **同步永遠排在簡報之後，而且不會拋錯。** 同步壞掉不影響簡報。
+- **V1.2 Phase 2 的對帳 + 增量同步**（`src/reconcile.js`）是這條路徑的接班人：
+  每個 (使用者, 資源) 一個帶租約圍欄的耐久狀態、水位只在整個窗完整成功後前進、
+  可續傳的分頁、遠端缺席只記差異不刪除、ACTIVE 墓碑純診斷。**目前只有本機
+  手動執行器（`npm run reconcile:status|run`），尚未接進正式排程器。**
+  見 [docs/whoop-reconciliation.md](docs/whoop-reconciliation.md)。
 
 ## Capability：能力靠資料判斷，不靠 membership
 

@@ -25,7 +25,9 @@
     "telegram:webhook:set": "node scripts/telegram-webhook.js set",
     "telegram:webhook:delete": "node scripts/telegram-webhook.js delete",
     "whoop:webhook:status": "node scripts/whoop-webhook.js status",
-    "whoop:webhook:drain": "node scripts/whoop-webhook.js drain"
+    "whoop:webhook:drain": "node scripts/whoop-webhook.js drain",
+    "reconcile:status": "node scripts/reconcile.js status",
+    "reconcile:run": "node scripts/reconcile.js run"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0"

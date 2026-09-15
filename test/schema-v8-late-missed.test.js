@@ -42,10 +42,11 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'v8-'));
 // 遷移
 // ===========================================================================
 
-test('★★★ SCHEMA_VERSION 是 10，且新表走純新增路徑', () => {
+test('★★★ SCHEMA_VERSION 是 11，且新表走純新增路徑', () => {
   // v9 = 報告送達狀態機（H-01 / H-02）。升版必須是刻意的，所以寫死比對。
   // v10 = WHOOP webhook 攝取（兩張全新的表）。升版必須是刻意的，所以寫死比對。
-  assert.equal(SCHEMA_VERSION, 10);
+  // v11 = 對帳 + 增量同步（三張全新的表 + 墓碑三個診斷欄位）。
+  assert.equal(SCHEMA_VERSION, 11);
   assert.ok(SCHEMA.some((s) => /CREATE TABLE IF NOT EXISTS briefing_evaluations/.test(s)));
   assert.ok(BRIEFING_STATE_SCHEMA.every((s) => /IF NOT EXISTS/.test(s)),
     '★ 每一句都必須是 IF NOT EXISTS（可重複執行）');

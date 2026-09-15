@@ -193,7 +193,45 @@ export const TOMBSTONE_STATE = Object.freeze({
   SUPERSEDED: 'SUPERSEDED',
 });
 
-export const SCHEMA_VERSION = 10;
+/**
+ * 對帳（reconciliation）執行的結果（V1.2 Phase 2）。
+ *
+ *   SUCCESS   整個時間窗的每一頁都抓完、每一筆都寫入（或被規則擋下）→ 水位前進
+ *   PARTIAL   頁數預算用完但還有下一頁 → 存續傳 token，**水位不前進**
+ *   FAILED    API / DB 失敗 → 水位不前進，記退避
+ *   FENCED    執行到一半失去所有權（租約過期、被接手）→ 什麼都不寫
+ *   SKIPPED   還沒到期（節流 / 退避中）
+ */
+export const RECONCILE_RESULT = Object.freeze({
+  SUCCESS: 'SUCCESS',
+  PARTIAL: 'PARTIAL',
+  FAILED: 'FAILED',
+  FENCED: 'FENCED',
+  SKIPPED: 'SKIPPED',
+});
+
+/**
+ * 對帳看到一個 ACTIVE 墓碑時的**診斷**判定。永遠不改變墓碑的 state。
+ *
+ *   STILL_DELETED               WHOOP 明確回 404（單筆端點）→ 與墓碑一致
+ *   REMOTE_PRESENT_UNRESOLVED   WHOOP 仍回得出這個資源，但 Phase 2 沒有來源
+ *                               時序可以證明它是「刪除之後又重建」還是
+ *                               「刪除通知比較晚到」→ **維持墓碑**，留給人看
+ *   UNRESOLVED                  這一輪沒有足夠證據（窗沒涵蓋、沒有單筆端點）
+ */
+export const TOMBSTONE_RECONCILE_VERDICT = Object.freeze({
+  STILL_DELETED: 'STILL_DELETED',
+  REMOTE_PRESENT_UNRESOLVED: 'REMOTE_PRESENT_UNRESOLVED',
+  UNRESOLVED: 'UNRESOLVED',
+});
+
+/** 對帳發現的差異類型（純紀錄，不會據此刪任何 canonical 資料）。 */
+export const DISCREPANCY_KIND = Object.freeze({
+  /** 本地有、而一個**完整**抓完的窗裡沒有。可能被刪、可能被改時間，證明不了。 */
+  MISSING_REMOTE: 'MISSING_REMOTE',
+});
+
+export const SCHEMA_VERSION = 11;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -728,6 +766,17 @@ export const ADDITIVE_COLUMNS = [
   { table: 'report_claims', column: 'delivery_started_at', ddl: 'ALTER TABLE report_claims ADD COLUMN delivery_started_at TEXT' },
   { table: 'report_claims', column: 'delivery_attempts', ddl: 'ALTER TABLE report_claims ADD COLUMN delivery_attempts INTEGER NOT NULL DEFAULT 0' },
   { table: 'report_claims', column: 'delivery_detail', ddl: 'ALTER TABLE report_claims ADD COLUMN delivery_detail TEXT' },
+
+  // -------------------------------------------------------------------------
+  // v11：墓碑的對帳診斷欄位（V1.2 Phase 2）
+  // -------------------------------------------------------------------------
+  //
+  // 純診斷。對帳**永遠不會**改 whoop_resource_tombstones.state ——
+  // Phase 1 的 P1-R01 規則不變：ACTIVE 墓碑是權威，沒有來源時序就不退位。
+  // 這幾欄只回答「上一次對帳看到了什麼」，給人與未來的機制參考。
+  { table: 'whoop_resource_tombstones', column: 'reconcile_checked_at', ddl: 'ALTER TABLE whoop_resource_tombstones ADD COLUMN reconcile_checked_at TEXT' },
+  { table: 'whoop_resource_tombstones', column: 'reconcile_verdict', ddl: 'ALTER TABLE whoop_resource_tombstones ADD COLUMN reconcile_verdict TEXT' },
+  { table: 'whoop_resource_tombstones', column: 'reconcile_remote_updated_at', ddl: 'ALTER TABLE whoop_resource_tombstones ADD COLUMN reconcile_remote_updated_at TEXT' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1205,12 +1254,105 @@ export const WHOOP_WEBHOOK_SCHEMA = [
      last_blocked_at       TEXT,
      superseded_at         TEXT,
      superseded_updated_at TEXT,
+     -- v11（Phase 2）：對帳的**診斷**欄位。對帳只寫這三欄，永遠不改 state。
+     reconcile_checked_at        TEXT,
+     reconcile_verdict           TEXT,
+     reconcile_remote_updated_at TEXT,
      created_at            TEXT NOT NULL,
      updated_at            TEXT NOT NULL,
      PRIMARY KEY (user_id, resource_type, resource_id)
    )`,
   `CREATE INDEX IF NOT EXISTS idx_whoop_tombstone_active
      ON whoop_resource_tombstones (user_id, resource_type, state)`,
+];
+
+/**
+ * V1.2 Phase 2：對帳 + 增量同步的耐久狀態（三張全新的表）。
+ *
+ * ## 為什麼不重用 whoop_sync_state
+ *
+ * 那張表是 V1.1 排程同步（createSync）的節流與 backfill 游標，正式環境
+ * 現在就在用。Phase 2 需要的是不同的語義：租約 / 擁有者圍欄、只在整個窗
+ * 完整成功之後才前進的水位、可續傳的分頁狀態、退避。把這些塞進舊表會改變
+ * 一個正在跑的東西的形狀。分開放，舊路徑一個字都不動。
+ *
+ * ## 水位（window_watermark）的語義 —— 這是整個 Phase 2 最重要的一個欄位
+ *
+ * 「到這個時間點為止的資料，我已經**完整**抓過並寫入」。
+ *
+ * WHOOP 的集合端點只能用**資源的 start 時間**過濾（沒有 updated_at 過濾），
+ * 所以下一次的窗是 [水位 − 重疊, now]。重疊是刻意的：晚評分、重新計算、
+ * 漏掉的 webhook 都靠它補回來。
+ *
+ * 水位**只有**在這一輪把窗裡每一頁都抓完、每一筆都送進 canonical 儲存層
+ * 之後才前進。任何一頁失敗、頁數預算用完、寫入失敗 → 不前進。
+ * 所以失敗永遠不會跳過資料。
+ */
+export const RECONCILIATION_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS whoop_reconciliation_state (
+     user_id                  TEXT NOT NULL,
+     resource                 TEXT NOT NULL,
+     -- 完整成功的窗的 end。NULL = 從來沒有成功過。
+     window_watermark         TEXT,
+     -- 遠端看過的最大 updated_at（純診斷，不當排序依據）。
+     latest_remote_updated_at TEXT,
+     -- 續傳：頁數預算用完時記下窗與 token，下一輪從同一個窗繼續。
+     continuation_token       TEXT,
+     continuation_from        TEXT,
+     continuation_to          TEXT,
+     -- 租約 / 擁有者（與 whoop_webhook_events 同一套模式）
+     owner                    TEXT,
+     lease_expires_at         TEXT,
+     -- 退避與診斷
+     last_attempt_at          TEXT,
+     last_success_at          TEXT,
+     last_failure_at          TEXT,
+     last_error_class         TEXT,
+     last_error_detail        TEXT,
+     consecutive_failures     INTEGER NOT NULL DEFAULT 0,
+     next_attempt_at          TEXT,
+     created_at               TEXT NOT NULL,
+     updated_at               TEXT NOT NULL,
+     PRIMARY KEY (user_id, resource)
+   )`,
+
+  // 每一次嘗試一列：誰、哪個資源、哪個窗、幾頁、抓了幾筆、寫了幾筆、
+  // 被墓碑擋了幾筆、錯在哪。不存任何生理數值。
+  `CREATE TABLE IF NOT EXISTS whoop_reconciliation_runs (
+     id            INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id       TEXT NOT NULL,
+     resource      TEXT NOT NULL,
+     owner         TEXT NOT NULL,
+     mode          TEXT NOT NULL,
+     window_from   TEXT,
+     window_to     TEXT,
+     started_at    TEXT NOT NULL,
+     finished_at   TEXT,
+     result        TEXT,
+     pages         INTEGER NOT NULL DEFAULT 0,
+     fetched       INTEGER NOT NULL DEFAULT 0,
+     written       INTEGER NOT NULL DEFAULT 0,
+     blocked       INTEGER NOT NULL DEFAULT 0,
+     error_class   TEXT,
+     error_detail  TEXT,
+     retryable     INTEGER
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_whoop_reconciliation_runs_user
+     ON whoop_reconciliation_runs (user_id, resource, id)`,
+
+  // 對帳發現、但**不敢**據以行動的差異。只記錄，給人與未來的機制看。
+  `CREATE TABLE IF NOT EXISTS whoop_reconciliation_discrepancies (
+     user_id        TEXT NOT NULL,
+     resource       TEXT NOT NULL,
+     resource_id    TEXT NOT NULL,
+     kind           TEXT NOT NULL,
+     first_seen_at  TEXT NOT NULL,
+     last_seen_at   TEXT NOT NULL,
+     seen_count     INTEGER NOT NULL DEFAULT 1,
+     window_from    TEXT,
+     window_to      TEXT,
+     PRIMARY KEY (user_id, resource, resource_id, kind)
+   )`,
 ];
 
 export const SCHEMA = [
@@ -1249,6 +1391,7 @@ export const SCHEMA = [
   ...GUARDIAN_SCHEMA,
   ...PREDICTION_MODEL_SCHEMA,
   ...WHOOP_WEBHOOK_SCHEMA,
+  ...RECONCILIATION_SCHEMA,
 ];
 
 /** 使用者狀態。 */

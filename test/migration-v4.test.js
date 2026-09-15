@@ -47,13 +47,15 @@ const version = async (db) => Number(
 // 版本與清單
 // ---------------------------------------------------------------------------
 
-test('SCHEMA_VERSION 是 10', () => {
+test('SCHEMA_VERSION 是 11', () => {
   // v9 adds the report delivery state machine to report_claims (additive
   // columns only); v8 added briefing_evaluations (a new table); v7 added the
   // delivery state machine to telegram_operations. Populated v4/v5/v6 tables
   // remain intact through all of them.
   // v10 adds the WHOOP webhook ingestion tables (two brand-new tables).
-  assert.equal(SCHEMA_VERSION, 10);
+  // v11 adds the reconciliation tables (three brand-new tables) plus three
+  // diagnostic columns on whoop_resource_tombstones (additive only).
+  assert.equal(SCHEMA_VERSION, 11);
 });
 
 test('★★ 兩張新表都不在 RESHAPED_TABLES 裡（不可武裝 DROP 路徑）', () => {

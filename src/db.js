@@ -26,6 +26,7 @@ import { requireUserId } from './userContext.js';
 import { createIdentityStore } from './identityStore.js';
 import { createHealthStore } from './store.js';
 import { createWhoopWebhookStore } from './whoopWebhookStore.js';
+import { createReconciliationStore } from './reconciliationStore.js';
 import { createBotStore } from './botStore.js';
 import { createAnalysisStore } from './analysisStore.js';
 import { createProactiveStore } from './proactiveStore.js';
@@ -149,6 +150,34 @@ export function createDb({ url, authToken }) {
         args: [id, String(owner), 'PROCESSING', new Date(now()).toISOString()],
       });
       if (!r.rows.length) throw new Error('whoop_event_ownership_lost');
+    };
+    return processing.transaction(fn, { before: check, after: check });
+  }
+
+  /**
+   * 代表某個 (user, resource) 的對帳執行寫入 canonical（V1.2 Phase 2）。
+   *
+   * 與 mutateForWhoopEvent 完全同一個模式：所有權（owner + 租約仍有效）的證明
+   * 是交易的 before 與 after，任一次不成立就整個 rollback。
+   *
+   * 為什麼 canonical 寫入也要圍欄，而不只圍水位：
+   * 失去所有權的舊執行手上的資料**通常**會被新鮮度規則擋下（同版或較舊），
+   * 但「通常」不是不變量。把它擋在交易門口，答案就只有一個。
+   *
+   * 交易只包 DB 寫入；WHOOP API 一定在呼叫之前完成。
+   *
+   * @throws {Error} message = 'reconcile_ownership_lost'
+   */
+  async function mutateForReconciliation({ userId, resource, owner, now = () => new Date() }, fn) {
+    const uid = requireUserId(userId, 'mutateForReconciliation');
+    if (!owner) throw new Error('reconcile_owner_required');
+    const check = async () => {
+      const r = await client.execute({
+        sql: `SELECT 1 FROM whoop_reconciliation_state
+               WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ? LIMIT 1`,
+        args: [uid, resource, String(owner), new Date(now()).toISOString()],
+      });
+      if (!r.rows.length) throw new Error('reconcile_ownership_lost');
     };
     return processing.transaction(fn, { before: check, after: check });
   }
@@ -1332,6 +1361,7 @@ export function createDb({ url, authToken }) {
     withAnswerOwnership,
     processTelegramOperation,
     mutateForWhoopEvent,
+    mutateForReconciliation,
     getTelegramOperation,
     markDeliveryStarted,
     markDelivered,
@@ -1386,6 +1416,8 @@ export function createDb({ url, authToken }) {
     ...createHealthStore(client, { transaction: processing.transaction }),
     // V1.2 Phase 1：WHOOP webhook 事件帳本 + 刪除墓碑。
     ...createWhoopWebhookStore(client),
+    // V1.2 Phase 2：對帳狀態 / 執行帳本 / 差異 / 墓碑診斷。
+    ...createReconciliationStore(client),
     ...createBotStore(client),
     ...createAnalysisStore(client),
     ...createProactiveStore(client),

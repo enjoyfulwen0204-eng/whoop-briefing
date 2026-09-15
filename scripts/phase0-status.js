@@ -179,7 +179,7 @@ export async function collectPhase0(db, { now = new Date(), sleepSample = 7 } = 
       const rec = (await ROWS(db, `SELECT score_state, created_at, updated_at, synced_at
              FROM whoop_recoveries WHERE user_id = ? AND sleep_id = ?
              ORDER BY updated_at DESC LIMIT 1`, [uid, String(s.id)]))[0] ?? null;
-      const claim = hd ? (await ROWS(db, `SELECT claimed_at, telegram_sent_at
+      const claim = hd ? (await ROWS(db, `SELECT claimed_at, telegram_sent_at, delivery_state
              FROM report_claims WHERE user_id = ? AND report_type = 'daily' AND local_date = ?`,
       [uid, hd]))[0] : null;
       const run = hd ? (await ROWS(db, `SELECT status, sent_at FROM report_runs
@@ -193,6 +193,7 @@ export async function collectPhase0(db, { now = new Date(), sleepSample = 7 } = 
         healthDate: hd,
         endAt: iso(s.end_at),
         sleepScoreState: s.score_state ?? null,
+        deliveryState: claim?.delivery_state ? String(claim.delivery_state) : null,
         // WHOOP 自己的時間戳。updated_at 只是 WHOOP 最後更新這筆資料的時間；
         // 不是評分完成時間，也不是我們觀測到的 API 可用時間。
         whoopCreatedAt: iso(s.created_at),
@@ -226,13 +227,24 @@ export async function collectPhase0(db, { now = new Date(), sleepSample = 7 } = 
     } : null;
 
     // ---- 報告 ----
+    // delivery_state 要看得到：AMBIGUOUS 是**終局**且需要人工處置的狀態
+    // （排程永遠不會自己補送那一份）。看不到它就等於沒有這個機制。
     const claims = await ROWS(db, `SELECT report_type, COUNT(*) n,
-           SUM(CASE WHEN telegram_sent_at IS NOT NULL THEN 1 ELSE 0 END) sent
+           SUM(CASE WHEN telegram_sent_at IS NOT NULL THEN 1 ELSE 0 END) sent,
+           SUM(CASE WHEN delivery_state = 'AMBIGUOUS' THEN 1 ELSE 0 END) ambiguous,
+           SUM(CASE WHEN delivery_state = 'DELIVERY_STARTED' THEN 1 ELSE 0 END) started
          FROM report_claims WHERE user_id = ? GROUP BY report_type`, [uid]);
     const runs = await ROWS(db, `SELECT report_type, status, COUNT(*) n FROM report_runs
          WHERE user_id = ? GROUP BY report_type, status`, [uid]);
     p.reports = {
-      claims: claims.map((r) => ({ type: String(r.report_type), claimed: Number(r.n), sent: Number(r.sent) })),
+      claims: claims.map((r) => ({
+        type: String(r.report_type),
+        claimed: Number(r.n),
+        sent: Number(r.sent),
+        // 需要人工判讀的：送出結果不明，或卡在送出過程中。
+        ambiguous: Number(r.ambiguous ?? 0),
+        deliveryStarted: Number(r.started ?? 0),
+      })),
       runs: runs.map((r) => ({ type: String(r.report_type), status: String(r.status), n: Number(r.n) })),
     };
 

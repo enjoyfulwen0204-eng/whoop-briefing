@@ -8,11 +8,13 @@
  */
 
 import { TELEGRAM_BOT } from '../config.js';
+import { SEND_OUTCOME, tagOutcome } from '../sendOutcome.js';
 import { log } from '../logger.js';
 
 export class TelegramApiError extends Error {
   constructor(message, {
     status = null, retryAfterMs = null, isNetwork = false, cause = null,
+    sendOutcome = null, sendStage = null,
   } = {}) {
     super(message);
     this.name = 'TelegramApiError';
@@ -20,44 +22,22 @@ export class TelegramApiError extends Error {
     this.retryAfterMs = retryAfterMs;
     this.isNetwork = isNetwork;
     this.networkCode = cause?.cause?.code ?? cause?.code ?? cause?.name ?? null;
+    // 產生錯誤的這一層最清楚發生在哪一個階段，所以由它**明確**標記，
+    // 不要讓下游從 status/isNetwork 去推測（推測錯 = 重複訊息）。
+    if (sendOutcome) this.sendOutcome = sendOutcome;
+    if (sendStage) this.sendStage = sendStage;
   }
 }
 
 /**
- * 這次送出到底有沒有可能已經被 Telegram 收下？（R-A：模糊送達）
+ * 送出結果分類**已經搬到 src/sendOutcome.js**。
  *
- * Telegram 的 sendMessage **沒有**通用的呼叫端冪等鍵，所以在網路層失敗時
- * 我們無法證明遠端有沒有接受。硬要重送就有機會讓使用者收到兩則一模一樣的
- * 健康建議；硬要放棄又會在單純的網路抽風時吃掉回覆。所以要分類，不能一概而論。
+ * 理由：簡報那條路（src/telegram.js）與 bot 這條路以前各判各的，而分類只要
+ * 有一邊判錯，使用者就會收到重複的健康訊息。判準集中在一處，兩邊共用。
  *
- *   'definite_failure' —— 有證據顯示**沒有**送成功：
- *       · 收到了 Telegram 的 HTTP 回應（不論 4xx/5xx 或 ok:false）
- *         → Telegram 自己講了話，就以它的話為準
- *       · 連線根本沒建立起來（DNS 查不到、連線被拒、URL 不合法）
- *         → 請求從來沒有離開過這台機器
- *
- *   'ambiguous' —— 連線已經建立、請求可能已經送出去了，但拿不到答案：
- *       逾時、連線被重置、socket 中斷。**證明不了** Telegram 沒收到。
- *
- * 刻意不把所有網路錯誤都當成「確定失敗」—— 那正是會產生重複訊息的誤判。
+ * 這裡 re-export 只是維持既有的 import 路徑（含測試），沒有第二份實作。
  */
-const DEFINITE_NETWORK_CODES = new Set([
-  'ENOTFOUND',      // DNS 查不到 → 連線沒建立
-  'EAI_AGAIN',      // DNS 暫時失敗 → 連線沒建立
-  'ECONNREFUSED',   // 對方拒絕連線 → 沒建立
-  'ERR_INVALID_URL',
-]);
-
-export function classifySendOutcome(err) {
-  if (!err) return 'definite_failure';
-  // 收到 HTTP 回應 = Telegram 親口回報結果，以它為準。
-  if (!err.isNetwork && err.status !== null && err.status !== undefined) return 'definite_failure';
-  if (!err.isNetwork) return 'definite_failure';
-  const code = err.networkCode ?? null;
-  if (code && DEFINITE_NETWORK_CODES.has(String(code))) return 'definite_failure';
-  // 逾時 / ECONNRESET / socket hang up / 其他不明 → 不可證明未送達
-  return 'ambiguous';
-}
+export { classifySendOutcome, SEND_OUTCOME } from '../sendOutcome.js';
 
 export function createTelegramApi({
   botToken,
@@ -82,13 +62,45 @@ export function createTelegramApi({
       });
     }
 
-    const raw = await res.text();
+    // ★ H-04：從這裡開始，Telegram **已經收到請求並回應了**。
+    //
+    // 所以後面每一個失敗都必須先問一句：「這是 Telegram 說它沒收，
+    // 還是只有我們自己讀不到答案？」前者可以重送，後者不可以。
+    //
+    // 分水嶺就是 res.ok：非 2xx 是它親口拒收（body 讀不讀得到都一樣），
+    // 2xx 之後的任何讀取／解析失敗都只是**我們**不知道。
+    const definiteReject = !res.ok;
+
+    let raw;
+    try {
+      raw = await res.text();
+    } catch (err) {
+      if (definiteReject) {
+        // 狀態碼就足以證明它沒收下，body 是什麼不重要。
+        throw new TelegramApiError(`Telegram ${res.status}（回應內容讀取失敗）`, {
+          status: res.status,
+          sendOutcome: SEND_OUTCOME.DEFINITE_FAILURE,
+          sendStage: 'body_read',
+        });
+      }
+      // 2xx 之後 body 讀到一半斷線：Telegram 很可能已經投遞了。
+      // 舊版讓這個原生錯誤直接往上冒，被預設成「確定失敗」而重送 —— 就是 H-04。
+      throw tagOutcome(
+        new TelegramApiError(`Telegram 回應內容讀取失敗：${err?.message ?? err}`, {
+          status: res.status,
+        }),
+        SEND_OUTCOME.AMBIGUOUS,
+        { stage: 'body_read' },
+      );
+    }
+
     let json = null;
+    let parseFailed = false;
     try {
       json = raw ? JSON.parse(raw) : null;
-    } catch { /* 下面用原始文字報錯 */ }
+    } catch { parseFailed = true; }
 
-    if (!res.ok || json?.ok === false) {
+    if (definiteReject || json?.ok === false) {
       // 429 會帶 parameters.retry_after（秒）
       const retryAfter = Number(json?.parameters?.retry_after);
       throw new TelegramApiError(
@@ -96,9 +108,22 @@ export function createTelegramApi({
         {
           status: res.status,
           retryAfterMs: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : null,
+          sendOutcome: SEND_OUTCOME.DEFINITE_FAILURE,
+          sendStage: 'telegram_rejected',
         },
       );
     }
+
+    // 2xx 但 body 不是合法 JSON（截斷 / 中間設備插手）。
+    // 它可能已經投遞了，我們只是看不懂回答 → 不可以重送。
+    if (parseFailed || (raw && json === null)) {
+      throw new TelegramApiError('Telegram 回應不是合法 JSON（可能截斷）', {
+        status: res.status,
+        sendOutcome: SEND_OUTCOME.AMBIGUOUS,
+        sendStage: 'body_parse',
+      });
+    }
+
     return json?.result;
   }
 
@@ -116,11 +141,31 @@ export function createTelegramApi({
         allowed_updates: ['message'],
       }, { timeoutMs: timeoutS * 1000 + 15_000 }),
 
-    sendMessage: (chatId, text) => call('sendMessage', {
-      chat_id: chatId,
-      text,
-      disable_web_page_preview: true,
-    }, { timeoutMs: 30_000 }),
+    /**
+     * 送出一則訊息。
+     *
+     * ★ 成功的**形狀**也要驗（H-04）。
+     *
+     * Telegram 回 ok:true 的時候一定會帶 result.message_id。沒帶就代表我們
+     * 拿到的不是一個完整的成功回應（截斷、中間設備改寫、API 行為改變）。
+     * 那種情況下訊息可能已經投遞了，但我們**證明不了** —— 所以既不宣稱
+     * 送達，也不重送，一律走模糊。
+     */
+    sendMessage: async (chatId, text) => {
+      const result = await call('sendMessage', {
+        chat_id: chatId,
+        text,
+        disable_web_page_preview: true,
+      }, { timeoutMs: 30_000 });
+      const messageId = Number(result?.message_id);
+      if (!Number.isFinite(messageId)) {
+        throw new TelegramApiError('Telegram 回報成功但沒有 message_id（無法證明送達）', {
+          sendOutcome: SEND_OUTCOME.AMBIGUOUS,
+          sendStage: 'success_shape',
+        });
+      }
+      return result;
+    },
 
     // Ephemeral UX only: Telegram clears chat actions automatically. Keep the
     // timeout short so feedback can never hold up the durable business reply for

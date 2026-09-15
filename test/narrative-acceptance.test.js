@@ -7,21 +7,24 @@
  * 結尾都是「⚠️ AI 教練分析今天暫時無法生成」。那句話是假的：根本沒有
  * 嘗試生成過。使用者每天被告知一個不存在的故障，同時也真的失去了敘述。
  *
- * ## 權責邊界
+ * ## 權責邊界（H-05 之後）
  *
- * 應用程式擁有所有健康判斷（數值、基準、樣本數、成熟度、嚴重度、趨勢、
- * 校正期限制）。模型只能把**已經核可的事實**講成自然的中文，而且輸出要
- * 通過發布守門。丟掉模型那一段的代價只是少一句鼓勵的話 —— 數字與判定
- * 本來就是程式算好也印好的。
+ * 應用程式擁有所有健康判斷**以及每一個被發布的字**。模型收到一份寫好的
+ * 句子清單，唯一能回的是一串 id；它沒有任何管道可以把自由文字送到使用者
+ * 眼前。所以對抗性輸出不再需要被「辨認」——它根本沒有地方可以出現。
+ *
+ * 這一輪改寫了「安全的語氣潤飾會被採用」那一題：那個行為（把模型寫的
+ * 散文附在後面）正是稽核判定必須移除的架構，不是要保住的性質。
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  buildNarrative, validateNarrative, deterministicNarrative,
+  buildNarrative, deterministicNarrative,
   NARRATIVE_SOURCE, NARRATIVE_FAILURE,
 } from '../src/narrative.js';
+import { buildFragmentCatalogue } from '../src/narrativePlan.js';
 import { renderDaily, FALLBACK_NOTE } from '../src/format.js';
 
 /** 三種成熟度的 briefing 骨架（只放驗證與敘述真的會用到的欄位）。 */
@@ -69,8 +72,21 @@ function briefingFor(mode) {
   };
 }
 
-const coachReturning = (text) => ({ daily: async () => text, weekly: async () => text });
-const run = (mode, coach) => buildNarrative({ briefing: briefingFor(mode), generate: coach ? () => coach.daily() : null });
+/**
+ * 模型「回傳這一包東西」。刻意涵蓋自由散文與各種不合法的計畫形狀 ——
+ * 兩者現在走同一條路：不是合法的 id 陣列就整包丟掉。
+ */
+const coachReturning = (payload) => ({ narrativePlan: async () => payload });
+const run = (mode, coach) => buildNarrative({
+  briefing: briefingFor(mode),
+  plan: coach ? (fragments) => coach.narrativePlan(fragments) : null,
+});
+
+/** 這份 briefing 的合法預設計畫（等於確定性順序）。 */
+const defaultPlan = (mode, period = 'daily') => {
+  const c = buildFragmentCatalogue(briefingFor(mode), { period });
+  return { order: c.defaultOrder };
+};
 
 // ===========================================================================
 // 三種成熟度
@@ -123,8 +139,10 @@ test('★★★ 失敗分類可分辨，而且使用者永遠拿得到敘述', a
   const cases = [
     ['未設定', null, NARRATIVE_FAILURE.NOT_CONFIGURED],
     ['供應商回 null', coachReturning(null), NARRATIVE_FAILURE.PROVIDER_UNAVAILABLE],
-    ['空字串', coachReturning('   '), NARRATIVE_FAILURE.EMPTY_OUTPUT],
-    ['過長', coachReturning('穩'.repeat(500)), NARRATIVE_FAILURE.TOO_LONG],
+    ['回散文而不是計畫', coachReturning('   '), NARRATIVE_FAILURE.INVALID_PLAN],
+    ['回一大段散文', coachReturning('穩'.repeat(500)), NARRATIVE_FAILURE.INVALID_PLAN],
+    ['編造 id', coachReturning({ order: ['f_made_up'] }), NARRATIVE_FAILURE.INVALID_PLAN],
+    ['丟掉事實骨幹', coachReturning({ order: [] }), NARRATIVE_FAILURE.INVALID_PLAN],
   ];
   for (const [label, coach, expected] of cases) {
     const r = await run('mature', coach);
@@ -138,12 +156,12 @@ test('★★★ 失敗分類可分辨，而且使用者永遠拿得到敘述', a
 test('★★★ 供應商丟例外 → 逾時與不可用要分得開', async () => {
   const timeout = await buildNarrative({
     briefing: briefingFor('mature'),
-    generate: async () => { throw new Error('request timeout after 60s'); },
+    plan: async () => { throw new Error('request timeout after 60s'); },
   });
   assert.equal(timeout.failureCategory, NARRATIVE_FAILURE.TIMEOUT);
   const down = await buildNarrative({
     briefing: briefingFor('mature'),
-    generate: async () => { throw new Error('503 upstream'); },
+    plan: async () => { throw new Error('503 upstream'); },
   });
   assert.equal(down.failureCategory, NARRATIVE_FAILURE.PROVIDER_UNAVAILABLE);
 });
@@ -172,27 +190,54 @@ const ADVERSARIAL = [
   ['矛盾建議', '建議你每天服用阿斯匹靈，並且完全不要休息。'],
   ['發明藥名', '晚餐後吃 Zorblax 就會好。'],
   ['全形數字', '你的脈搏為９９bpm。'],
+  // ★ 稽核重現的那一句。沒有數字、沒有指標名、沒有拉丁字母、沒有藥名病名
+  // —— 舊架構的每一條規則都放行它。新架構不需要認得它。
+  ['無證據的因果生理', '熬夜使你的免疫力下降。'],
+  ['發明生理概念', '你的粒線體效率今天特別低落。'],
+  ['發明自律神經結論', '長期壓力會讓你的自律神經失衡，讓身體更難進入深層修復。'],
+  ['發明訓練處方', '多做一些高強度間歇訓練會讓你明天更有精神。'],
 ];
 
-test('★★★ 每一種對抗性輸出都被否決，而且一個字都不進簡報', async () => {
+test('★★★ 每一種對抗性散文都到不了使用者眼前（模型沒有自由文字通道）', async () => {
   for (const [label, prose] of ADVERSARIAL) {
-    const check = validateNarrative(prose);
-    assert.equal(check.ok, false, `★ ${label} 必須被否決`);
     const r = await run('mature', coachReturning(prose));
     assert.equal(r.source, NARRATIVE_SOURCE.DETERMINISTIC, `★ ${label} 要退回確定性`);
+    assert.equal(r.failureCategory, NARRATIVE_FAILURE.INVALID_PLAN, `★ ${label} 分類`);
     assert.ok(!r.text.includes(prose.slice(0, 12)), `★ ${label} 不可以出現在輸出裡`);
     assert.ok(r.text.length > 10, `★ ${label} 仍然要有敘述`);
   }
 });
 
-test('★★★ 安全的語氣潤飾會被採用，並附在確定性敘述之後', async () => {
-  const safe = '今天就照平常的節奏走，有不舒服再跟我說。';
-  const r = await run('mature', coachReturning(safe));
+test('★★★ 把散文藏在合法計畫旁邊也沒有用（只有 order 會被讀）', async () => {
+  const r = await run('mature', coachReturning({
+    ...defaultPlan('mature'),
+    text: '熬夜使你的免疫力下降。',
+    explanation: '你的粒線體效率今天特別低落。',
+  }));
+  // 計畫本身合法 → 採用它的順序，但那些額外欄位完全不存在於輸出裡。
   assert.equal(r.source, NARRATIVE_SOURCE.MODEL);
-  assert.ok(r.text.includes(safe));
-  // 確定性那一段仍然在前面（事實不可以被潤飾取代）
-  assert.ok(r.text.indexOf(safe) > 0, '★ 確定性敘述必須在前');
-  assert.match(r.text, /28%/, '★ 事實仍然由程式輸出');
+  assert.doesNotMatch(r.text, /免疫|粒線體|熬夜/, '★ 模型的字一個都不可以進來');
+});
+
+test('★★★ 模型只能挑順序：輸出的每一個字都來自應用程式的句子清單', async () => {
+  const catalogue = buildFragmentCatalogue(briefingFor('mature'), { period: 'daily' });
+  const reversed = [...catalogue.defaultOrder].reverse();
+  const r = await run('mature', coachReturning({ order: reversed }));
+  assert.equal(r.source, NARRATIVE_SOURCE.MODEL, '★ 合法計畫要被採用');
+  // 輸出必須恰好是那些句子的串接 —— 一個字都不多。
+  const expected = reversed
+    .map((id) => catalogue.fragments.find((f) => f.id === id).text).join('');
+  assert.equal(r.text, expected);
+});
+
+test('★★★ 舊的自由散文介面（generate）不會被偷偷沿用', async () => {
+  const r = await buildNarrative({
+    briefing: briefingFor('mature'),
+    generate: async () => '熬夜使你的免疫力下降。',
+  });
+  assert.equal(r.source, NARRATIVE_SOURCE.DETERMINISTIC);
+  assert.equal(r.failureCategory, NARRATIVE_FAILURE.NOT_CONFIGURED);
+  assert.doesNotMatch(r.text, /免疫|熬夜/);
 });
 
 // ===========================================================================
@@ -223,11 +268,11 @@ test('★★★ 未知不可以變成 0：無資料顯示「無資料」，真�
 
 test('★★★ 週報用「上週」而不是「今天」（同一段文字不可以兩邊共用）', async () => {
   const weekly = await buildNarrative({
-    briefing: briefingFor('mature'), generate: null, period: 'weekly',
+    briefing: briefingFor('mature'), plan: null, period: 'weekly',
   });
   assert.match(weekly.text, /上週/, '★ 週報必須講上週');
   assert.doesNotMatch(weekly.text, /今天恢復|今天的指標/, '★ 週報不可以說「今天」');
-  const daily = await buildNarrative({ briefing: briefingFor('mature'), generate: null });
+  const daily = await buildNarrative({ briefing: briefingFor('mature'), plan: null });
   assert.match(daily.text, /今天/, '★ 日報仍然講今天');
   assert.doesNotMatch(daily.text, /上週/);
 });

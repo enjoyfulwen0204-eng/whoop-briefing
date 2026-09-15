@@ -92,9 +92,24 @@ export const REPO_FRESHNESS = {
 
 export const TELEGRAM_MAX_CHARS = 4096;
 
+/**
+ * 簡報 / 通知那條路的 Telegram 送出參數。
+ *
+ * 逾時是**必要**的，不是調校：沒有逾時的請求會一路掛著，讓發送權的租約
+ * 在等待中過期，於是另一個 run 接手並送出同一份報告。逾時本身仍然是
+ * 「模糊」結果（請求可能已經送到），所以它不會把重複風險換成另一種重複，
+ * 只是讓不確定的窗口有界。
+ */
+export const TELEGRAM_SEND = {
+  REQUEST_TIMEOUT_MS: 30_000,
+};
+
 export const COACH = {
   DAILY_MAX_TOKENS: 1200,   // 新 tokenizer 約多 30% token，抓足夠但不過大
   WEEKLY_MAX_TOKENS: 1800,
+  // 敘述計畫只回一串 id，不回任何散文，所以配額很小。
+  // 小配額本身也是一道防線：它裝不下一段編造的健康論述。
+  NARRATIVE_PLAN_MAX_TOKENS: 200,
   // OpenRouter 的 model id 要帶 namespace，清單見 https://openrouter.ai/models
   DEFAULT_MODEL: 'anthropic/claude-sonnet-5',
   BASE_URL: 'https://openrouter.ai/api/v1',
@@ -134,6 +149,9 @@ export const WHOOP = {
   PAGE_LIMIT: 25,          // collection 每頁最多 25 筆
   MAX_PAGES: 12,           // 45 天 * 每天 1~2 筆，12 頁綽綽有餘（安全上限）
   TOKEN_REFRESH_SKEW_MS: 5 * 60 * 1000, // 還有 >5 分鐘效期就直接重用
+  // token endpoint 的請求逾時。**必須**短於 LOCKS.TOKEN_REFRESH_TTL_MS，
+  // 否則請求還在飛的時候租約就過期了 —— 那正是 M-02 的競態。
+  TOKEN_REQUEST_TIMEOUT_MS: 20_000,
   MAX_RETRIES: 4,
   MAX_BACKOFF_MS: 60_000,
 };
@@ -260,8 +278,14 @@ export const LOCKS = {
 
 export const REPORT_CLAIM = {
   // 發送權租期。要涵蓋「抓 45 天資料 + 呼叫 LLM + 送 Telegram」的最壞情況。
-  // 太短會讓另一個 run 在前一個還在跑時搶走 claim 而重複發送。
+  //
+  // ⚠️ 這個數字**不是**安全機制。正確性由送出前的授權圍欄
+  // （db.authorizeReportDelivery）保證：失去所有權的舊 owner 在那裡會被擋下來，
+  // 不管租約設多長。TTL 只影響「當前持有者崩潰後多久可以被接手」。
   TTL_MS: 10 * 60_000,
+  // 長工作（抓歷史 / 等模型）跑完一個階段就續租一次，避免正常流程莫名
+  // 失去所有權。續租失敗不是錯誤 —— 圍欄仍然會在送出前擋住。
+  RENEW_MS: 10 * 60_000,
 };
 
 // ---------------------------------------------------------------------------
@@ -291,6 +315,8 @@ export const PROMPT_VERSIONS = {
   DAILY: 'daily-v1',
   WEEKLY: 'weekly-v1',
   QA: 'qa-v1',
+  // H-05：模型只挑句子 id，不再產生任何會被發布的文字。
+  NARRATIVE_PLAN: 'narrative-plan-v1',
   INTENT_PARSE: 'intent-parser-v1',
   JOURNAL_PARSE: 'journal-parser-v1',
   OTHER: 'generic-v1',

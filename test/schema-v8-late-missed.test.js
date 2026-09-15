@@ -42,8 +42,9 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'v8-'));
 // 遷移
 // ===========================================================================
 
-test('★★★ SCHEMA_VERSION 是 8，且新表走純新增路徑', () => {
-  assert.equal(SCHEMA_VERSION, 8);
+test('★★★ SCHEMA_VERSION 是 9，且新表走純新增路徑', () => {
+  // v9 = 報告送達狀態機（H-01 / H-02）。升版必須是刻意的，所以寫死比對。
+  assert.equal(SCHEMA_VERSION, 9);
   assert.ok(SCHEMA.some((s) => /CREATE TABLE IF NOT EXISTS briefing_evaluations/.test(s)));
   assert.ok(BRIEFING_STATE_SCHEMA.every((s) => /IF NOT EXISTS/.test(s)),
     '★ 每一句都必須是 IF NOT EXISTS（可重複執行）');
@@ -52,12 +53,12 @@ test('★★★ SCHEMA_VERSION 是 8，且新表走純新增路徑', () => {
     '★ 新表不可以被武裝成可重建（那是 DROP）');
 });
 
-test('★★★ 全新資料庫一次遷移到 v8', async () => {
+test('★★★ 全新資料庫一次遷移到最新版', async () => {
   const dir = tmp();
   try {
     const client = createClient({ url: `file:${path.join(dir, 'fresh.db')}` });
     const summary = await runMigrations(client);
-    assert.equal(summary.to, 8);
+    assert.equal(summary.to, SCHEMA_VERSION);
     const rs = await client.execute(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='briefing_evaluations'",
     );
@@ -66,7 +67,7 @@ test('★★★ 全新資料庫一次遷移到 v8', async () => {
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('★★★ 既有的 v7 資料庫升到 v8，而且原有資料原封不動', async () => {
+test('★★★ 既有的 v7 資料庫升到最新版，而且原有資料原封不動', async () => {
   const dir = tmp();
   try {
     const url = `file:${path.join(dir, 'v7.db')}`;
@@ -90,7 +91,7 @@ test('★★★ 既有的 v7 資料庫升到 v8，而且原有資料原封不動
 
     const summary = await runMigrations(client);
     assert.equal(summary.from, 7, '★ 起點必須被認成 7');
-    assert.equal(summary.to, 8);
+    assert.equal(summary.to, SCHEMA_VERSION);
     assert.deepEqual(summary.rebuilt, [], '★ 升級不可以重建（DROP）任何表');
 
     const after = await client.execute('SELECT COUNT(*) n FROM report_runs');
@@ -118,7 +119,7 @@ test('★★★ 遷移可以重跑（冪等），資料不變', async () => {
     });
     for (let i = 0; i < 3; i += 1) {
       const s = await runMigrations(client);
-      assert.equal(s.to, 8);
+      assert.equal(s.to, SCHEMA_VERSION);
       assert.deepEqual(s.rebuilt, []);
     }
     const rs = await client.execute('SELECT COUNT(*) n FROM briefing_evaluations');

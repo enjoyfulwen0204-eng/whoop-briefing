@@ -5,6 +5,7 @@ import { runDaily } from '../src/daily.js';
 import { runWeekly } from '../src/weekly.js';
 import { staticDataSource } from '../src/dataSource.js';
 import { TelegramError } from '../src/telegram.js';
+import { SEND_OUTCOME } from '../src/sendOutcome.js';
 import { localDate, localWeekday, completedWeeks } from '../src/time.js';
 import { FALLBACK_NOTE } from '../src/format.js';
 import { makeDataset, degradedOverrides } from './fixtures.js';
@@ -94,7 +95,13 @@ test('daily：Telegram 掛掉 → 記 FAILED、不遞迴呼叫 Telegram、明天
   const ds = makeDataset({ days: 45 });
   const telegram = {
     sent: [],
-    send: async () => { throw new TelegramError('Telegram 500'); },
+    // ★ 這一題測的是「Telegram **親口說**它沒收下」——HTTP 500 有回應，
+    // 所以是可以安全重送的確定失敗。模糊送出走的是另一條路（見 H-01 的測試）。
+    send: async () => {
+      throw new TelegramError('Telegram 500', {
+        status: 500, sendOutcome: SEND_OUTCOME.DEFINITE_FAILURE, sendStage: 'telegram_rejected',
+      });
+    },
     notifyError: async () => { throw new Error('notifyError 不該被呼叫'); },
   };
   const ctx = ctxFor({ now: ds.now, dataset: ds, telegram });
@@ -183,7 +190,7 @@ test('教練文字長度受控（daily 假文字也不會撐爆訊息）', async
   assert.ok(ctx.telegram.sent[0].length <= 4096);
 });
 
-test('daily：訊息已送出但紀錄寫不進 DB → 仍算 sent，並警告可能重複發送', async () => {
+test('daily：訊息已送出但紀錄寫不進 DB → 仍算 sent，而且**不會**重複發送', async () => {
   const ds = makeDataset({ days: 45 });
   const db = fakeDb({ failSentRecord: new Error('Turso 連線中斷') });
   const ctx = ctxFor({ now: ds.now, dataset: ds, db });
@@ -192,11 +199,21 @@ test('daily：訊息已送出但紀錄寫不進 DB → 仍算 sent，並警告�
   assert.equal(res.status, 'sent', '訊息真的發出去了，不可報成失敗');
   assert.equal(res.recorded, false, '要標記出「沒記錄成功」');
 
-  // 第一則是簡報本身，第二則是「可能重複發送」的警告
+  // 第一則是簡報本身，第二則是「紀錄寫不進去」的警告
   assert.equal(ctx.telegram.sent.length, 2);
   assert.match(ctx.telegram.sent[0], /早安，Kelvin/);
   assert.match(ctx.telegram.sent[1], /\[ERROR:daily_record\]/);
-  assert.match(ctx.telegram.sent[1], /可能會重複發一次/);
+  // ★ v9：report_runs 不再是防重發的最後防線 —— claim 的 delivery_state
+  // 已經是 DELIVERED（終局）。所以這裡**不可以**再宣稱「可能會重複發一次」，
+  // 那句話現在是假的，而假的警告比沒有警告更糟。
+  assert.doesNotMatch(ctx.telegram.sent[1], /可能會重複發一次/);
+  assert.match(ctx.telegram.sent[1], /不會重複發送/);
+
+  // 而且要真的證明它不會重複：下一輪重跑，一則都不可以再送出去。
+  const before = ctx.telegram.sent.length;
+  const again = await runDaily(ctxFor({ now: ds.now, dataset: ds, db, telegram: ctx.telegram }));
+  assert.equal(again.status, 'already_sent', '★ 發送權是終局的，下一輪不可以再取得');
+  assert.equal(ctx.telegram.sent.length, before, '★ 絕不可以送出第二份晨報');
 });
 
 test('daily 跨午夜：去重 key 與紀錄用 health_date，不是執行當天', async () => {

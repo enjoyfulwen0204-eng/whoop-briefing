@@ -263,6 +263,15 @@ test('A2: 標記已送出後，claim 永遠不會再被授予（即使租約過�
     const claim = await a.claimReport({ userId: U, ...key, ttlMs: 60_000, now: t0 });
     assert.equal(claim.granted, true);
 
+    // v9：送出前一定要先通過授權圍欄（DELIVERY_STARTED），
+    // 之後才可以宣稱送達。跳過圍欄的 markClaimSent 必須被拒絕。
+    assert.equal(
+      await a.markClaimSent({ userId: U, ...key, owner: claim.owner, messageId: 555, now: t0 }),
+      false, '★ 沒有先取得送出授權就不可以宣稱送達',
+    );
+    assert.equal(
+      await a.authorizeReportDelivery({ userId: U, ...key, owner: claim.owner, now: t0 }), true,
+    );
     // Telegram 送出成功 → 立刻標記
     assert.equal(await a.markClaimSent({ userId: U, ...key, owner: claim.owner, messageId: 555, now: t0 }), true);
 
@@ -298,9 +307,19 @@ test('A2: 尚未送出的 claim 過期後可以被接手（process crash 不會�
     const after = await db.claimReport({ userId: U, ...key, ttlMs: 60_000, now: new Date(t0.getTime() + 61_000) });
     assert.equal(after.granted, true, '過期未送出 → 必須可以接手重試');
 
+    // 接手者的租約是以 t0+61s 為起點算的，所以後面每一步都要用同一條時間軸，
+    // 否則測的會是「牆上時鐘早就超過租約」而不是所有權本身。
+    const resumeAt = new Date(t0.getTime() + 62_000);
+
+    // ★ H-02：舊持有者醒來之後，連**送出授權**都拿不到 —— 它送不出任何東西。
+    assert.equal(
+      await db.authorizeReportDelivery({ userId: U, ...key, owner: first.owner, now: resumeAt }), false,
+      '★ 失去所有權的舊 owner 不可以取得送出授權',
+    );
     // 舊持有者已經不是 owner，不能再標記已送出
-    assert.equal(await db.markClaimSent({ userId: U, ...key, owner: first.owner, messageId: 1 }), false);
-    assert.equal(await db.markClaimSent({ userId: U, ...key, owner: after.owner, messageId: 2 }), true);
+    assert.equal(await db.markClaimSent({ userId: U, ...key, owner: first.owner, messageId: 1, now: resumeAt }), false);
+    assert.equal(await db.authorizeReportDelivery({ userId: U, ...key, owner: after.owner, now: resumeAt }), true);
+    assert.equal(await db.markClaimSent({ userId: U, ...key, owner: after.owner, messageId: 2, now: resumeAt }), true);
   } finally {
     db.close(); cleanup();
   }
@@ -320,6 +339,7 @@ test('A2: releaseClaim 讓失敗的報告可以立刻重試，但已送出的不
     assert.equal(c2.granted, true, '釋放後不必等 TTL 就能重試');
 
     // 已送出的 claim 不可以被釋放掉
+    await db.authorizeReportDelivery({ userId: U, ...key, owner: c2.owner });
     await db.markClaimSent({ userId: U, ...key, owner: c2.owner, messageId: 9 });
     assert.equal(await db.releaseClaim({ userId: U, ...key, owner: c2.owner }), false);
     assert.equal((await db.claimReport({ userId: U, ...key, ttlMs: 600_000 })).alreadySent, true);

@@ -22,16 +22,65 @@ const iso = (v) => (v ? new Date(v).toISOString() : null);
 const bool = (v) => (typeof v === 'boolean' ? (v ? 1 : 0) : null);
 const str = (v) => (v === null || v === undefined ? null : String(v));
 
-/** 把 rows 切成小批，用 libSQL batch 寫入。回傳實際寫入筆數。 */
+/**
+ * 把 rows 切成小批，用 libSQL batch 寫入。
+ *
+ * 回傳的是**真的被寫入的列數**（sum of rowsAffected），不是送出去的敘述數。
+ * 這個差別在 M-03 之後才有意義：新鮮度守衛會讓「比較舊的版本」不產生任何
+ * 寫入，而那時候回報 statements.length 等於謊報。
+ */
 async function writeBatched(client, statements) {
   let written = 0;
   for (let i = 0; i < statements.length; i += BATCH_SIZE) {
     const chunk = statements.slice(i, i + BATCH_SIZE);
-    await client.batch(chunk, 'write');
-    written += chunk.length;
+    const results = await client.batch(chunk, 'write');
+    if (Array.isArray(results)) {
+      for (const r of results) written += Number(r?.rowsAffected ?? 0);
+    } else {
+      written += chunk.length;
+    }
   }
   return written;
 }
+
+/**
+ * 新鮮度守衛（M-03）：**已知較舊**的版本不可以覆蓋**已知較新**的版本。
+ *
+ * ## 為什麼需要它
+ *
+ * 兩個 sync 可以同時在跑（Cloudflare 排程 + GitHub Actions + 手動）。
+ * 本機的「請求回來的順序」與 WHOOP 那邊的「資料被修改的順序」沒有任何關係：
+ *
+ *   t0  A 抓到 sleep X（updated_at = 10:00）
+ *   t1  WHOOP 重新評分 X（updated_at = 10:05）
+ *   t2  B 抓到 X 的新版（10:05），寫入
+ *   t3  A 的回應才慢慢回來，無條件 upsert → **把 10:05 蓋回 10:00**
+ *
+ * 結果是一筆看起來完全正常、但其實是舊版的生理資料。沒有任何錯誤訊息。
+ *
+ * ## 規則（四種情況，每一種都明確決定）
+ *
+ *   incoming > existing   → 更新（更新的版本）
+ *   incoming = existing   → 更新（冪等：同一版重放，內容一樣）
+ *   incoming < existing   → **跳過**（絕不用舊的蓋新的）
+ *   existing IS NULL      → 更新。既有列沒有版本資訊，談不上「已知較新」，
+ *                           而寫進去反而讓它從此有版本可比。
+ *   incoming IS NULL      → 只有在 existing 也是 NULL 時才更新。
+ *                           拿一個來源不明的版本去覆蓋一個**已知**版本，
+ *                           正是稽核要求禁止的那一件事。
+ *
+ * 字串比較就夠：WHOOP 的 updated_at 一律是 ISO8601 UTC（同樣的格式與精度），
+ * 而 ISO8601 UTC 的字典序等於時間序。iso() 已經把每一筆正規化過了，
+ * 所以不會混進不同寫法。刻意**不**在 SQL 裡 parse 時間 —— 那會引進
+ * 一整類新的隱性轉型錯誤。
+ *
+ * @param {string} table 這張表的名字（要出現在 SQL 的 WHERE 裡）。
+ */
+const freshnessGuard = (table) => `
+              WHERE (excluded.updated_at IS NOT NULL AND ${table}.updated_at IS NULL)
+                 OR (excluded.updated_at IS NULL AND ${table}.updated_at IS NULL)
+                 OR (excluded.updated_at IS NOT NULL AND ${table}.updated_at IS NOT NULL
+                     AND excluded.updated_at >= ${table}.updated_at)`;
 
 export function createHealthStore(client) {
   // -------------------------------------------------------------------------
@@ -87,7 +136,7 @@ export function createHealthStore(client) {
                 sleep_need_recent_strain_milli=excluded.sleep_need_recent_strain_milli,
                 sleep_need_recent_nap_milli=excluded.sleep_need_recent_nap_milli,
                 created_at=excluded.created_at, updated_at=excluded.updated_at,
-                synced_at=excluded.synced_at, raw_json=excluded.raw_json`,
+                synced_at=excluded.synced_at, raw_json=excluded.raw_json${freshnessGuard('whoop_sleeps')}`,
         args: [
           uid, String(s.id), num(s.v1_id), num(s.user_id),
           s.end ? localDate(s.end, timezone) : null,
@@ -138,7 +187,7 @@ export function createHealthStore(client) {
                 skin_temp_celsius=excluded.skin_temp_celsius,
                 user_calibrating=excluded.user_calibrating,
                 created_at=excluded.created_at, updated_at=excluded.updated_at,
-                synced_at=excluded.synced_at, raw_json=excluded.raw_json`,
+                synced_at=excluded.synced_at, raw_json=excluded.raw_json${freshnessGuard('whoop_recoveries')}`,
         args: [
           uid, String(r.sleep_id), str(r.cycle_id), num(r.user_id),
           null, // health_date 由下面的 relink 從 whoop_sleeps 補上
@@ -151,9 +200,16 @@ export function createHealthStore(client) {
       });
     }
     const n = await writeBatched(client, stmts);
-    if (n) {
+    // ★ relink 的觸發條件是「這一輪**處理過** recovery」，不是「真的寫入了」。
+    //
+    // 新鮮度守衛（M-03）會讓已經是最新版的 recovery 不產生任何寫入，
+    // 但同一輪的 sleep 可能剛換了 health_date（重新評分會改 sleep.end）。
+    // 用寫入筆數當條件的話，那種情況下 recovery 的 health_date 會留在舊值。
+    //
+    // relink 本身是冪等的（沒有差異時 UPDATE 不會動任何列），所以多跑無害。
+    if (stmts.length) {
       await relinkRecoveryDates(uid);
-      log.info('store_recoveries_upserted', { user_id: uid, count: n });
+      log.info('store_recoveries_upserted', { user_id: uid, count: n, considered: stmts.length });
     }
     return n;
   }
@@ -204,7 +260,7 @@ export function createHealthStore(client) {
                 average_heart_rate=excluded.average_heart_rate,
                 max_heart_rate=excluded.max_heart_rate,
                 created_at=excluded.created_at, updated_at=excluded.updated_at,
-                synced_at=excluded.synced_at, raw_json=excluded.raw_json`,
+                synced_at=excluded.synced_at, raw_json=excluded.raw_json${freshnessGuard('whoop_cycles')}`,
         args: [
           uid, String(c.id), num(c.user_id), iso(c.start), iso(c.end),
           str(c.timezone_offset), str(c.score_state),
@@ -258,7 +314,7 @@ export function createHealthStore(client) {
                 zone_four_milli=excluded.zone_four_milli,
                 zone_five_milli=excluded.zone_five_milli,
                 created_at=excluded.created_at, updated_at=excluded.updated_at,
-                synced_at=excluded.synced_at, raw_json=excluded.raw_json`,
+                synced_at=excluded.synced_at, raw_json=excluded.raw_json${freshnessGuard('whoop_workouts')}`,
         args: [
           uid, String(w.id), num(w.v1_id), num(w.user_id),
           w.start ? localDate(w.start, timezone) : null,
@@ -286,8 +342,20 @@ export function createHealthStore(client) {
     const uid = requireUserId(userId, 'upsertBodyMeasurement');
     if (!bm) return 0;
     const syncedAt = now.toISOString();
-    // WHOOP 這個 endpoint 不回傳時間戳，所以用「當天」當版本鍵：
-    // 同一天重複同步會覆蓋，體重變化則逐日留下歷史。
+    // ★ M-03 的例外，而且是刻意的。
+    //
+    // /user/measurement/body 回的是**當下的量測值**，沒有 id、沒有
+    // created_at、也沒有 updated_at。WHOOP 不提供任何來源版本資訊，
+    // 所以這裡沒有「較新 / 較舊」可以比較 —— 而稽核明文要求
+    // 「不可以發明一個假的來源版本」。
+    //
+    // 保守規則：用**本地當天**當版本鍵。
+    //   · 同一天重複同步 → 覆蓋同一列（冪等，內容本來就一樣）
+    //   · 不同天          → 各自一列，體重變化留下歷史
+    //
+    // 這條規則不會讓「已知較新」被「已知較舊」覆蓋，因為這個資源上
+    // 根本不存在「已知較新」—— 每一次讀到的都是當下值。最壞情況是
+    // 同一天兩個併發 sync 互相覆蓋成同一個當下值，沒有資訊損失。
     const recordedAt = syncedAt.slice(0, 10);
     await client.execute({
       sql: `INSERT INTO whoop_body_measurements

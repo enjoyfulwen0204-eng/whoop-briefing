@@ -16,6 +16,7 @@ import { createClient } from '@libsql/client';
 import { randomUUID } from 'node:crypto';
 import {
   GLOBAL_SCOPE, userScope, TELEGRAM_DELIVERY_STATE, TELEGRAM_UPDATE_STATUS,
+  REPORT_DELIVERY_STATE,
 } from './schema.js';
 
 const TELEGRAM_UPDATE_STATUS_COMPLETED = TELEGRAM_UPDATE_STATUS.COMPLETED;
@@ -283,19 +284,73 @@ export function createDb({ url, authToken }) {
    * 這一筆寫入就是「從這一刻起，Telegram 可能已經收到了」的持久化事實。
    * 少了它，死在送出過程中的執行與死在送出之前的執行長得一模一樣。
    *
-   * 只有 ACTION_READY 可以往前走：DELIVERY_STARTED / AMBIGUOUS / DELIVERED
-   * 都代表「已經試過或已經成功」，不可以再啟動一次。
+   * ## 為什麼這裡要驗的不只是 delivery_state（H-03）
+   *
+   * 舊版只檢查 `delivery_state = ACTION_READY`。那擋得住「同一則被送兩次」，
+   * 但擋不住**順序被破壞**：
+   *
+   *   N 進入 PROCESSING，卡住
+   *   N 的租約過期 → abandonStaleConversationUpdates 把它終結成 ABANDONED，
+   *                  owner 與租約一起清空
+   *   N+1 放行、處理、送出
+   *   N 的 JavaScript 恢復執行 → 它手上的 operation 收據還是 ACTION_READY
+   *                            → 舊版讓它通過，於是使用者在 N+1 之後才收到 N
+   *
+   * 「失去所有權的執行不可以因為 CPU 排到它就重新取得權力」（全域不變量 8）。
+   * 所以送出授權必須**原子地**證明整條所有權鏈都還在：
+   *
+   *   1. 這則 update 還是我的           p.owner = ?
+   *   2. 它還在 PROCESSING              p.status = 'PROCESSING'
+   *   3. 我的租約現在還有效             p.lease_expires_at > now
+   *   4. 對話鍵沒被換掉                 p.user_id = ?
+   *   5. 這個對話裡沒有更早、未終局的    NOT EXISTS(...)
+   *   6. 收據還在可送狀態               delivery_state = ACTION_READY
+   *
+   * 第 5 條就是「排序權」：只有對話裡最早的那一則有資格製造外部副作用。
+   * 全部寫在同一句 SQL 裡，所以「檢查完到寫入之間」那個空窗不存在。
+   *
+   * 記憶體裡的 lane lock 仍然保留（它便宜、擋掉大多數併發），但**權威是
+   * 資料庫**：lane lock 只是最佳化，這裡才是正確性邊界。
+   *
+   * @param {string} conversationKey 這則 update 的對話鍵（tg:<chat_id>）。
+   *   缺它就沒辦法證明第 4、5 條 → 一律拒絕（fail closed）。
    */
-  async function markDeliveryStarted(updateId, { owner, now = new Date() } = {}) {
+  async function markDeliveryStarted(updateId, { owner, conversationKey = null, now = new Date() } = {}) {
     const id = Number(updateId);
     if (!Number.isSafeInteger(id) || !owner) return false;
+    // 對話鍵是排序權的判準。證明不了就不授權 —— 寧可少送一則，
+    // 也不要在順序上說謊。
+    if (!conversationKey) {
+      log.warn('telegram_delivery_start_no_conversation', { update_id: id });
+      return false;
+    }
+    const nowIso = now.toISOString();
     const rs = await client.execute({
       sql: `UPDATE telegram_operations
                SET delivery_state = ?, delivery_owner = ?, delivery_started_at = ?,
                    delivery_attempts = delivery_attempts + 1
-             WHERE update_id = ? AND delivery_state = ?`,
-      args: [TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED, String(owner), now.toISOString(),
-        id, TELEGRAM_DELIVERY_STATE.ACTION_READY],
+             WHERE update_id = ? AND delivery_state = ?
+               AND EXISTS (
+                 SELECT 1 FROM telegram_processed_updates p
+                  WHERE p.update_id = telegram_operations.update_id
+                    AND p.owner = ?
+                    AND p.status = ?
+                    AND p.lease_expires_at > ?
+                    AND p.user_id = ?
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM telegram_processed_updates e
+                  WHERE e.user_id = ?
+                    AND e.update_id < telegram_operations.update_id
+                    AND e.status NOT IN (?, ?)
+               )`,
+      args: [
+        TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED, String(owner), nowIso,
+        id, TELEGRAM_DELIVERY_STATE.ACTION_READY,
+        String(owner), TELEGRAM_UPDATE_STATUS.PROCESSING, nowIso, String(conversationKey),
+        String(conversationKey),
+        TELEGRAM_UPDATE_STATUS_COMPLETED, TELEGRAM_UPDATE_STATUS_ABANDONED,
+      ],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -450,10 +505,42 @@ export function createDb({ url, authToken }) {
    * @returns {Promise<{identityBound:boolean}>} identityBound 代表這一次
    *   呼叫帶了身分而且寫入成功（身分現在確定等於傳入的值）。
    */
+  /**
+   * 寫回一組 WHOOP token。
+   *
+   * @param {?string} opts.expectedUpdatedAt compare-and-swap 的版本戳（M-02）。
+   *
+   *   給了它，這次寫入就只有在 DB 上的 updated_at **仍然等於**它的時候才會
+   *   成立。這是「token 狀態只能單調前進」的最終保證：
+   *
+   *     A 讀到 v1 → A 的 refresh 請求卡住 → A 的租約過期
+   *     B 讀到 v1 → B refresh 成功 → 寫入 v2（WHOOP 已經輪替了 refresh_token）
+   *     A 的請求終於回來，手上是「以 v1 為基礎」的舊結果
+   *     → CAS 發現 DB 已經是 v2 ≠ v1 → **拒絕寫入**，回 false
+   *
+   *   沒有它的話 A 會蓋掉 v2，而 v1 的 refresh_token 已經被 WHOOP 作廢 ——
+   *   帳號就此需要人工重新授權。
+   *
+   *   `null` 代表「我讀的時候這一列根本不存在」，所以只有在它**現在仍然
+   *   不存在**時才可以寫（純 INSERT）。
+   *
+   *   不傳這個參數就是無條件寫入（授權流程用：那時沒有併發的第二個寫者）。
+   *
+   * @returns {Promise<{identityBound:boolean}|false>}
+   *   寫入成功回 `{ identityBound }`；CAS 落敗回 **`false`**
+   *   （不是錯誤 —— 併發控制正常運作，別人贏了而已）。
+   *   身分不可變的違反仍然拋錯，那是完全不同的一件事。
+   */
   async function saveTokens(userId, {
     accessToken, refreshToken, expiresAt, scope, whoopUserId = null,
-  }, { retries = 4 } = {}) {
+  }, { retries = 4, expectedUpdatedAt = undefined } = {}) {
     const uid = requireUserId(userId, 'saveTokens');
+    const fenced = expectedUpdatedAt !== undefined;
+    // CAS 條件。刻意用 `IS ?` 而不是 `= ?`，這樣 NULL 也能正確比較
+    // （SQL 的 `= NULL` 永遠不成立，會讓「我讀到的時候沒有這一列」無法表達）。
+    const casClause = fenced
+      ? '\n         AND user_whoop_tokens.updated_at IS ?'
+      : '';
     const sql = `INSERT INTO user_whoop_tokens
         (user_id, whoop_user_id, access_token, refresh_token,
          access_token_expires_at, scope, updated_at)
@@ -465,9 +552,9 @@ export function createDb({ url, authToken }) {
         access_token_expires_at = excluded.access_token_expires_at,
         scope = excluded.scope,
         updated_at = excluded.updated_at
-      WHERE user_whoop_tokens.whoop_user_id IS NULL
+      WHERE (user_whoop_tokens.whoop_user_id IS NULL
          OR excluded.whoop_user_id IS NULL
-         OR user_whoop_tokens.whoop_user_id = excluded.whoop_user_id`;
+         OR user_whoop_tokens.whoop_user_id = excluded.whoop_user_id)${casClause}`;
     const args = [
       uid,
       whoopUserId === null || whoopUserId === undefined ? null : String(whoopUserId),
@@ -476,6 +563,7 @@ export function createDb({ url, authToken }) {
       new Date(expiresAt).toISOString(),
       scope ?? null,
       new Date().toISOString(),
+      ...(fenced ? [expectedUpdatedAt] : []),
     ];
 
     const wanted = whoopUserId === null || whoopUserId === undefined
@@ -486,20 +574,50 @@ export function createDb({ url, authToken }) {
       try {
         const rs = await client.execute({ sql, args });
         if (Number(rs.rowsAffected ?? 0) === 0) {
-          // WHERE 沒過 → 既有身分與這次要寫的不同。這是**不可變**的違反，
-          // 不是暫時性錯誤，所以不重試。
-          const current = (await client.execute({
-            sql: 'SELECT whoop_user_id FROM user_whoop_tokens WHERE user_id = ?',
+          // WHERE 沒過。現在有**兩個**可能的原因，而它們的處置完全相反，
+          // 所以一定要分清楚 —— 把 CAS 落敗誤判成身分衝突會讓正常的
+          // refresh 競爭變成一個看起來很嚴重的假警報。
+          const row = (await client.execute({
+            sql: 'SELECT whoop_user_id, updated_at FROM user_whoop_tokens WHERE user_id = ?',
             args: [uid],
-          })).rows[0]?.whoop_user_id ?? null;
+          })).rows[0] ?? null;
+          const current = row?.whoop_user_id ?? null;
+          const currentStr = current === null || current === undefined ? null : String(current);
+
+          // (a) 身分不可變的違反：既有的 WHOOP 帳號與這次要寫的不同。
+          //     這是硬錯誤，不重試、也不可以被 CAS 的語意吃掉。
+          const identityConflict = wanted !== null && currentStr !== null && currentStr !== wanted;
+          if (identityConflict) {
+            const err = new Error(
+              `使用者 ${uid} 已經綁定另一個 WHOOP 帳號，身分不可變更`,
+            );
+            err.code = 'WHOOP_IDENTITY_IMMUTABLE';
+            err.currentWhoopUserId = currentStr;
+            log.error('tokens_identity_conflict', {
+              user_id: uid, current: currentStr,
+            });
+            throw err;
+          }
+
+          // (b) CAS 落敗：在我們讀到現在，有別人寫過了。這**不是**錯誤，
+          //     是併發控制正常運作。呼叫端要去撿贏家寫好的 token。
+          if (fenced) {
+            log.warn('tokens_save_stale_version', {
+              user_id: uid,
+              expected_present: expectedUpdatedAt !== null,
+              current_present: Boolean(row),
+            });
+            return false;
+          }
+
+          // 沒開 CAS 又走到這裡，代表身分條件擋下了一個我們沒預期的形狀。
+          // 保守當成身分衝突，讓它浮出來。
           const err = new Error(
             `使用者 ${uid} 已經綁定另一個 WHOOP 帳號，身分不可變更`,
           );
           err.code = 'WHOOP_IDENTITY_IMMUTABLE';
-          err.currentWhoopUserId = current === null ? null : String(current);
-          log.error('tokens_identity_conflict', {
-            user_id: uid, current: err.currentWhoopUserId,
-          });
+          err.currentWhoopUserId = currentStr;
+          log.error('tokens_identity_conflict', { user_id: uid, current: currentStr });
           throw err;
         }
         // 絕不 log token 內容，只 log 使用者與到期時間
@@ -914,17 +1032,26 @@ export function createDb({ url, authToken }) {
    */
   const userLockName = (base, userId) => `${base}:${requireUserId(userId, 'userLockName')}`;
 
-  // ----- 報告發送權 (A2) --------------------------------------------------
+  // ----- 報告發送權 / 送達狀態機 (A2 + H-01 + H-02) -----------------------
   /**
    * 取得某份報告的「發送權」。
    *
-   * 三種結果：
-   *   { granted: true }                   → 你負責發，發完要呼叫 markClaimSent
-   *   { granted: false, alreadySent: true}→ 已經有人真的送出去過了，永遠不要再送
-   *   { granted: false }                  → 別人正在送（claim 未過期），這輪跳過
+   * 結果：
+   *   { granted: true, owner }                  → 你負責發
+   *   { granted:false, alreadySent:true }       → 已經證明送出去過，永遠不要再送
+   *   { granted:false, ambiguous:true }         → 上一次送出結果不明 → **終局**，
+   *                                               不可以自動再送（需要人工處置）
+   *   { granted:false }                         → 別人正握著（claim 未過期）
    *
-   * telegram_sent_at 不為 null 時永遠不給 claim —— 這是「已送出」的耐久證據，
-   * 即使後續 report_runs 的 SENT 寫入失敗也不會導致重發。
+   * ## 為什麼只有 CLAIMED 可以被接手
+   *
+   * CLAIMED 的定義是「拿到權限了，但**還沒有任何外部副作用**」——
+   * 抓歷史、算 baseline、問模型全都在這個狀態裡，重做一次不會有任何代價。
+   * 所以它的租約過期之後被別人接手是安全的。
+   *
+   * 一旦跨過 authorizeReportDelivery（=可能已經打到 Telegram），狀態就變成
+   * DELIVERY_STARTED，而那是**終局**：租約過不過期都不再授予任何人。
+   * 「租約過期」永遠不可以變成「再送一次」的理由。
    */
   async function claimReport({
     userId, reportType, localDateKey, ttlMs, owner = randomUUID(), now = new Date(),
@@ -934,30 +1061,116 @@ export function createDb({ url, authToken }) {
     const expiresIso = new Date(now.getTime() + ttlMs).toISOString();
     const rs = await client.execute({
       sql: `INSERT INTO report_claims
-              (user_id, report_type, local_date, owner, claimed_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+              (user_id, report_type, local_date, owner, claimed_at, expires_at,
+               delivery_state, delivery_attempts)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0)
             ON CONFLICT(user_id, report_type, local_date) DO UPDATE SET
               owner      = excluded.owner,
               claimed_at = excluded.claimed_at,
               expires_at = excluded.expires_at
             WHERE report_claims.telegram_sent_at IS NULL
+              AND report_claims.delivery_state = ?
               AND report_claims.expires_at <= excluded.claimed_at`,
-      args: [uid, reportType, localDateKey, owner, nowIso, expiresIso],
+      args: [uid, reportType, localDateKey, owner, nowIso, expiresIso,
+        REPORT_DELIVERY_STATE.CLAIMED, REPORT_DELIVERY_STATE.CLAIMED],
     });
     if (Number(rs.rowsAffected ?? 0) > 0) {
       log.info('report_claimed', { user_id: uid, report_type: reportType, local_date: localDateKey });
       return { granted: true, owner };
     }
     const existing = await getClaim(uid, reportType, localDateKey);
-    const alreadySent = Boolean(existing?.telegramSentAt);
-    log.info('report_claim_denied', {
-      user_id: uid, report_type: reportType, local_date: localDateKey, already_sent: alreadySent,
-    });
-    return { granted: false, alreadySent, owner: null };
+    const state = existing?.deliveryState ?? null;
+    const alreadySent = Boolean(existing?.telegramSentAt)
+      || state === REPORT_DELIVERY_STATE.DELIVERED;
+    // DELIVERY_STARTED 與 AMBIGUOUS 是同一件事的兩個時間點：都代表
+    // 「Telegram 可能已經收下了，但我們證明不了」。兩者都不可以自動重送。
+    const ambiguous = !alreadySent
+      && (state === REPORT_DELIVERY_STATE.DELIVERY_STARTED
+        || state === REPORT_DELIVERY_STATE.AMBIGUOUS);
+    if (ambiguous) {
+      log.warn('report_claim_denied_ambiguous', {
+        user_id: uid, report_type: reportType, local_date: localDateKey, state,
+      });
+    } else {
+      log.info('report_claim_denied', {
+        user_id: uid, report_type: reportType, local_date: localDateKey, already_sent: alreadySent,
+      });
+    }
+    return { granted: false, alreadySent, ambiguous, owner: null };
   }
 
   /**
-   * Telegram 送出成功後「第一件事」就是呼叫這個。
+   * 延長租約（只有還握著、而且**還沒開始送**的持有者可以延）。
+   *
+   * 報告生成會抓 45 天歷史、算 baseline、再等模型回應 —— 那段時間可能比
+   * 租約長。沒有續租的話，正常的長工作會莫名其妙失去所有權。
+   *
+   * ⚠️ 這是**效率**機制，不是安全機制：即使續租失敗，送出前的
+   * authorizeReportDelivery 圍欄仍然會擋下失去所有權的舊 owner。
+   * 安全性永遠不依賴「租約夠長」。
+   */
+  async function renewClaim({
+    userId, reportType, localDateKey, owner, ttlMs, now = new Date(),
+  }) {
+    const uid = requireUserId(userId, 'renewClaim');
+    if (!owner) return false;
+    const rs = await client.execute({
+      sql: `UPDATE report_claims
+               SET expires_at = ?
+             WHERE user_id = ? AND report_type = ? AND local_date = ?
+               AND owner = ? AND expires_at > ?
+               AND delivery_state = ? AND telegram_sent_at IS NULL`,
+      args: [new Date(now.getTime() + ttlMs).toISOString(), uid, reportType, localDateKey,
+        String(owner), now.toISOString(), REPORT_DELIVERY_STATE.CLAIMED],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * ★ 外部送出的授權圍欄（H-02）。**在打 Telegram 之前**呼叫。
+   *
+   * 一個原子的 UPDATE 同時證明四件事：
+   *   1. 這份報告還是**我**的           owner = ?
+   *   2. 我的租約**現在**還有效          expires_at > now
+   *   3. 還沒有人開始送 / 送成功         delivery_state = CLAIMED
+   *   4. 沒有已證明的送出紀錄            telegram_sent_at IS NULL
+   *
+   * 四件事在同一句 SQL 裡成立，所以「檢查完到寫入之間被別人插隊」不存在。
+   *
+   * 回 false ⇒ 所有權已經不在了 ⇒ 呼叫端**絕對不可以送**，而且不可以
+   * releaseClaim（那會把接手者的狀態刪掉）。舊 owner 就地失效。
+   *
+   * 回 true 之後這一列就是 DELIVERY_STARTED —— 一個**終局**狀態。
+   * 從這一刻起，即使 process 立刻死掉，也不會有第二次自動送出。
+   */
+  async function authorizeReportDelivery({
+    userId, reportType, localDateKey, owner, now = new Date(),
+  }) {
+    const uid = requireUserId(userId, 'authorizeReportDelivery');
+    if (!owner) return false;
+    const rs = await client.execute({
+      sql: `UPDATE report_claims
+               SET delivery_state = ?, delivery_started_at = ?,
+                   delivery_attempts = delivery_attempts + 1
+             WHERE user_id = ? AND report_type = ? AND local_date = ?
+               AND owner = ? AND expires_at > ?
+               AND delivery_state = ? AND telegram_sent_at IS NULL`,
+      args: [REPORT_DELIVERY_STATE.DELIVERY_STARTED, now.toISOString(),
+        uid, reportType, localDateKey, String(owner), now.toISOString(),
+        REPORT_DELIVERY_STATE.CLAIMED],
+    });
+    const ok = Number(rs.rowsAffected ?? 0) > 0;
+    if (!ok) {
+      log.warn('report_delivery_authorization_denied', {
+        user_id: uid, report_type: reportType, local_date: localDateKey,
+      });
+    }
+    return ok;
+  }
+
+  /**
+   * DELIVERY_STARTED → DELIVERED。Telegram 明確回報成功之後的第一件事。
+   *
    * 刻意是一個極小的 UPDATE：比整筆 report_runs insert 更可能成功，
    * 而且它才是防重發的關鍵證據。
    */
@@ -967,12 +1180,43 @@ export function createDb({ url, authToken }) {
     const uid = requireUserId(userId, 'markClaimSent');
     const rs = await client.execute({
       sql: `UPDATE report_claims
-               SET telegram_sent_at = ?, telegram_message_id = ?
+               SET telegram_sent_at = ?, telegram_message_id = ?, delivery_state = ?
              WHERE user_id = ? AND report_type = ? AND local_date = ? AND owner = ?
-               AND telegram_sent_at IS NULL`,
-      args: [now.toISOString(), messageId, uid, reportType, localDateKey, owner],
+               AND delivery_state = ? AND telegram_sent_at IS NULL`,
+      args: [now.toISOString(), messageId, REPORT_DELIVERY_STATE.DELIVERED,
+        uid, reportType, localDateKey, owner, REPORT_DELIVERY_STATE.DELIVERY_STARTED],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * DELIVERY_STARTED → AMBIGUOUS（送出結果**證明不了**）。
+   *
+   * 終局。排程不會再自動送這一份報告。這是刻意的：Telegram 可能已經把
+   * 訊息交給使用者了，重送就是讓人收到兩份一樣的健康建議。
+   *
+   * 註記寫進 delivery_detail 方便事後人工判讀（絕不含訊息內容或祕密）。
+   */
+  async function markClaimAmbiguous({
+    userId, reportType, localDateKey, owner, detail = null, now = new Date(),
+  }) {
+    const uid = requireUserId(userId, 'markClaimAmbiguous');
+    if (!owner) return false;
+    const rs = await client.execute({
+      sql: `UPDATE report_claims
+               SET delivery_state = ?, delivery_detail = ?
+             WHERE user_id = ? AND report_type = ? AND local_date = ? AND owner = ?
+               AND delivery_state = ? AND telegram_sent_at IS NULL`,
+      args: [REPORT_DELIVERY_STATE.AMBIGUOUS, detail ? String(detail).slice(0, 200) : null,
+        uid, reportType, localDateKey, String(owner), REPORT_DELIVERY_STATE.DELIVERY_STARTED],
+    });
+    const ok = Number(rs.rowsAffected ?? 0) > 0;
+    if (ok) {
+      log.error('report_delivery_ambiguous', {
+        user_id: uid, report_type: reportType, local_date: localDateKey,
+      });
+    }
+    return ok;
   }
 
   async function getClaim(userId, reportType, localDateKey) {
@@ -993,17 +1237,50 @@ export function createDb({ url, authToken }) {
       expiresAt: row.expires_at,
       telegramSentAt: row.telegram_sent_at ?? null,
       telegramMessageId: row.telegram_message_id ?? null,
+      deliveryState: String(row.delivery_state ?? REPORT_DELIVERY_STATE.CLAIMED),
+      deliveryStartedAt: row.delivery_started_at ?? null,
+      deliveryAttempts: Number(row.delivery_attempts ?? 0),
+      deliveryDetail: row.delivery_detail ?? null,
     };
   }
 
-  /** 釋放發送權（失敗時呼叫，讓下一輪可以立刻重試，不必等 TTL）。 */
+  /**
+   * DELIVERY_STARTED → 整列刪除（回到 UNCLAIMED）。
+   *
+   * **只有在能證明 Telegram 沒收下時才可以呼叫**：它回了 4xx/5xx、
+   * 回了 ok:false，或連線根本沒建立起來。那三種情況下重送是安全的，
+   * 而且必要 —— 否則一次暫時性的 400 就讓那天的報告永遠消失。
+   *
+   * 其餘所有情況（body 讀不到、逾時、形狀不完整）一律走 markClaimAmbiguous。
+   * 兩者的差別就是「有沒有證據」，不是「看起來像不像失敗」。
+   */
+  async function releaseClaimAfterFailedSend({ userId, reportType, localDateKey, owner }) {
+    const uid = requireUserId(userId, 'releaseClaimAfterFailedSend');
+    if (!owner) return false;
+    const rs = await client.execute({
+      sql: `DELETE FROM report_claims
+             WHERE user_id = ? AND report_type = ? AND local_date = ? AND owner = ?
+               AND delivery_state = ? AND telegram_sent_at IS NULL`,
+      args: [uid, reportType, localDateKey, String(owner),
+        REPORT_DELIVERY_STATE.DELIVERY_STARTED],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * 釋放發送權 —— 只在「**確定**還沒有任何外部副作用」時呼叫。
+   *
+   * 所以條件除了 owner 相符，還要求 delivery_state 仍然是 CLAIMED：
+   * 一旦跨過 authorizeReportDelivery，這一列就不可以再被刪掉，
+   * 否則下一輪會重新 claim 而重送一份可能已經送達的報告。
+   */
   async function releaseClaim({ userId, reportType, localDateKey, owner }) {
     const uid = requireUserId(userId, 'releaseClaim');
     const rs = await client.execute({
       sql: `DELETE FROM report_claims
              WHERE user_id = ? AND report_type = ? AND local_date = ? AND owner = ?
-               AND telegram_sent_at IS NULL`,
-      args: [uid, reportType, localDateKey, owner],
+               AND delivery_state = ? AND telegram_sent_at IS NULL`,
+      args: [uid, reportType, localDateKey, owner, REPORT_DELIVERY_STATE.CLAIMED],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -1036,9 +1313,13 @@ export function createDb({ url, authToken }) {
     recordRun,
     recentRuns,
     claimReport,
+    renewClaim,
+    authorizeReportDelivery,
     markClaimSent,
+    markClaimAmbiguous,
     getClaim,
     releaseClaim,
+    releaseClaimAfterFailedSend,
     // 錯誤通知（scope 化）
     claimErrorNotify,
     claimErrorNotifyOwned,

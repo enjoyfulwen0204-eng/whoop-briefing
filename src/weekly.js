@@ -22,8 +22,8 @@ import { buildObservations, detectWake, weeklyStats, weekOverWeek } from './anal
 import { renderWeekly } from './format.js';
 import { completedWeeks, localDate, localHour, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
-import { TelegramError } from './telegram.js';
 import { buildNarrative } from './narrative.js';
+import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelivery.js';
 
 /**
  * 把週報整理成驗證器看得懂的「已核可事實」形狀。
@@ -104,6 +104,12 @@ export async function runWeekly({
   if (claiming) {
     claim = await db.claimReport({ ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS });
     if (!claim.granted) {
+      // 與 daily 完全相同的三分法（見 daily.js）：模糊是**終局**，
+      // 排程不會再自動送一次可能已經送達的週回顧。
+      if (claim.ambiguous) {
+        log.error('weekly_claim_denied_ambiguous', { week_key: weekKey });
+        return { status: 'delivery_ambiguous', weekKey, retryable: false };
+      }
       log.info('weekly_claim_denied', { week_key: weekKey, already_sent: claim.alreadySent });
       return { status: claim.alreadySent ? 'already_sent' : 'claim_busy', weekKey };
     }
@@ -153,40 +159,59 @@ export async function runWeekly({
   // 不存在的「本週趨勢」。
   const narrative = await buildNarrative({
     briefing: weeklyBriefingShape(weekly),
-    generate: typeof coach?.weekly === 'function' ? () => coach.weekly(weekly) : null,
+    plan: typeof coach?.narrativePlan === 'function'
+      ? (fragments) => coach.narrativePlan(fragments, { period: 'weekly' })
+      : null,
     period: 'weekly',
   });
   const coachText = narrative.text;
 
   const text = renderWeekly(weekly, coachText);
 
-  let sent;
-  try {
-    sent = await telegram.send(text);
-  } catch (err) {
-    await releaseClaim();
+  // ★ 送出邊界與 daily 共用同一支 deliverReport（見 reportDelivery.js）。
+  //   兩條路各自抄一份正是稽核點名的問題：只要有兩份，行為就會分岔。
+  await renewReportClaim({
+    db, claimKey, claim, ttlMs: REPORT_CLAIM.RENEW_MS, now, stage: 'pre_send',
+  });
+
+  const delivery = await deliverReport({
+    db, claimKey, claim, telegram, text, now: () => now,
+  });
+
+  if (delivery.result === DELIVERY_RESULT.FENCED) {
+    // 生成期間失去所有權 → 什麼都沒送，也不還 claim（那一列屬於接手者）。
+    log.warn('weekly_delivery_fenced', { week_key: weekKey });
+    return { status: 'claim_lost', weekKey };
+  }
+
+  if (delivery.result === DELIVERY_RESULT.DEFINITE_FAILURE) {
     await db.recordRun({
       userId: uid,
       reportType: 'weekly',
       localDateKey: weekKey,
       status: 'FAILED',
-      detail: describeError(err),
+      detail: delivery.error,
     }, { throwOnError: false });
-    if (err instanceof TelegramError) {
-      log.error('weekly_telegram_failed', { week_key: weekKey, error: describeError(err) });
-      return { status: 'telegram_failed', weekKey, error: describeError(err) };
-    }
-    throw err;
+    log.error('weekly_telegram_failed', { week_key: weekKey, error: delivery.error });
+    return { status: 'telegram_failed', weekKey, error: delivery.error };
   }
 
-  // ★ 送出成功後第一件事：把「已送出」釘進 claim（見 daily.js 的說明）
-  if (claiming && claim.owner) {
-    try {
-      await db.markClaimSent({ ...claimKey, owner: claim.owner, messageId: sent.messageId });
-    } catch (err) {
-      log.error('weekly_claim_mark_failed', { week_key: weekKey, error: describeError(err) });
-    }
+  if (delivery.result === DELIVERY_RESULT.AMBIGUOUS) {
+    // 可能已經送達，證明不了 → 終局，絕不自動重送。
+    await db.recordRun({
+      userId: uid,
+      reportType: 'weekly',
+      localDateKey: weekKey,
+      status: 'AMBIGUOUS',
+      detail: delivery.error,
+    }, { throwOnError: false });
+    log.error('weekly_delivery_ambiguous', { week_key: weekKey, error: delivery.error });
+    return {
+      status: 'delivery_ambiguous', weekKey, error: delivery.error, retryable: false,
+    };
   }
+
+  const sent = { messageId: delivery.messageId };
 
   // 同 daily：訊息已送出，紀錄寫入失敗只能大聲喊，不能當成發送失敗
   let recorded = true;
@@ -206,7 +231,9 @@ export async function runWeekly({
     log.error('weekly_record_failed_after_send', { week_key: weekKey, error: describeError(err) });
     await telegram.notifyError(
       'weekly_record',
-      `週回顧已經發出去了，但發送紀錄寫不進 Turso → 下一輪可能會重複發一次。${describeError(err)}`,
+      '週回顧已經發出去了，但發送紀錄寫不進 Turso。'
+      + '不會重複發送（發送權已經是終局狀態），但歷史紀錄會少一筆。'
+      + describeError(err),
     );
   }
 

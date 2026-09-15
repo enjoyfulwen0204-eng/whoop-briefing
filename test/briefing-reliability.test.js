@@ -41,6 +41,7 @@ import { GLOBAL_SCOPE } from '../src/schema.js';
 import { HEARTBEAT_COMPONENT } from '../src/guardianPolicy.js';
 import { WAKE } from '../src/config.js';
 import { TelegramError } from '../src/telegram.js';
+import { SEND_OUTCOME } from '../src/sendOutcome.js';
 
 const TZ = 'Asia/Taipei';
 /** 生產觀測到的唯一一筆睡眠（09-11 那一夜）。 */
@@ -161,7 +162,13 @@ function telegramStub({ fail = false } = {}) {
   return {
     sent,
     async send(text) {
-      if (fail) throw new TelegramError('telegram down');
+      // 明確的「Telegram 拒收」——可安全重送。沒有標記的錯誤現在一律
+      // fail closed 成模糊，所以測試替身也必須說清楚它模擬的是哪一種。
+      if (fail) {
+        throw new TelegramError('telegram down', {
+          status: 503, sendOutcome: SEND_OUTCOME.DEFINITE_FAILURE, sendStage: 'telegram_rejected',
+        });
+      }
       sent.push(text); return { messageId: 99 };
     },
     async notifyError() {},

@@ -23,10 +23,12 @@
  */
 
 import { addDays } from './time.js';
-import { loadDailyMetrics, seriesOf } from './dailyMetrics.js';
+import { loadDailyMetricsDetailed, seriesOf } from './dailyMetrics.js';
 import { assessJournalAssociation, READINESS_STATUS } from './readiness.js';
 import { journalAssociation } from './analytics/correlation.js';
-import { recordInsight, reviseInsight, INSIGHT_STATUS } from './healthMemory.js';
+import {
+  recordInsight, reviseInsight, INSIGHT_STATUS, EVIDENCE_SOURCE,
+} from './healthMemory.js';
 import { decideFollowUp } from './attention.js';
 import { buildFollowUpMessage, guardProactiveMessage } from './proactiveMessages.js';
 import { PROACTIVE_OUTCOME } from './schema.js';
@@ -66,10 +68,11 @@ export async function reanalyzeAfterAnswer({
   const uid = requireUserId(userId, 'reanalyzeAfterAnswer');
 
   const from = addDays(healthDate, -180);
-  const [rows, journalEvents] = await Promise.all([
-    loadDailyMetrics({ db, userId: uid, timezone, from, to: healthDate }),
+  const [loaded, journalEvents] = await Promise.all([
+    loadDailyMetricsDetailed({ db, userId: uid, timezone, from, to: healthDate }),
     db.getJournalEvents(uid, { from, to: healthDate, limit: 2000 }),
   ]);
+  const { rows, complete: evidenceComplete } = loaded;
   const metricSeries = seriesOf(rows, metric);
 
   const readiness = assessJournalAssociation({
@@ -156,9 +159,18 @@ export async function reanalyzeAfterAnswer({
     changed = created.status !== INSIGHT_STATUS.HYPOTHESIS;
     fromStatus = null;
   } else {
+    // ★ M-01：資料來源不完整時，這一輪的證據**不足以**改變一個長期信念。
+    //
+    // 少了這一步，一次 recovery 查詢失敗就會讓樣本數縮水，看起來像
+    // 「關係變弱了」，於是系統把一個其實仍然成立的規律降級。
+    // 那是用基礎建設故障偽造出來的生理結論。
     const revised = await reviseInsight(db, uid, current.id, {
       statement, evidence: assoc, sampleCount: assoc.n, effectSize: assoc.pearson,
-    }, { now });
+    }, {
+      now,
+      evidenceSource: evidenceComplete
+        ? EVIDENCE_SOURCE.AVAILABLE : EVIDENCE_SOURCE.UNAVAILABLE,
+    });
     if (revised.ok) {
       changed = revised.changed;
       fromStatus = current.status;

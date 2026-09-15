@@ -112,6 +112,24 @@ function reviveCycle(row) {
   };
 }
 
+/**
+ * 「運動資料不可用」的完整形狀。
+ *
+ * 集中定義，因為它有兩個產生點（沒有時間窗、查詢失敗），而兩邊少寫一個
+ * 欄位就會讓那個欄位保留上一次的值或變成 undefined。
+ */
+const UNKNOWN_WORKOUTS = Object.freeze({
+  workout_count: null,
+  workout_scored_count: null,
+  workout_strain_total: null,
+  workout_duration_minutes: null,
+  workout_kilojoule: null,
+  zone1_3_minutes: null,
+  zone4_5_minutes: null,
+  strength_minutes_derived: null,
+  workout_sports: [],
+});
+
 /** 落在 [fromMs, toMs) 的運動，彙總成一天的數字。 */
 function summariseWorkouts(workoutRows, fromMs, toMs) {
   const inWindow = workoutRows.filter((w) => {
@@ -212,10 +230,33 @@ function summariseNaps(napRows, fromMs, toMs) {
  * @param {object[]} workoutRows
  * @param {?object}  bodyMeasurement 最新一筆
  */
+/**
+ * @param {object} available 每一種資源「這次到底有沒有讀到」。
+ *
+ *   ★ H-06：空陣列與讀取失敗**不是同一件事**，而它們以前長得一模一樣。
+ *
+ *   查詢成功但沒有運動  → workout_count = 0   （這是事實）
+ *   查詢失敗            → workout_count = null（這是「不知道」）
+ *
+ *   舊版在 loadDailyMetrics 用 `value(3, [])` 把失敗折成空陣列，於是
+ *   `[].length === 0` 被當成真正的零，系統自信地宣稱「你昨天沒有運動」。
+ *   那是憑空生出來的健康事實 —— 全域不變量 2 明文禁止的那一種。
+ *
+ *   預設全部為 true：純函式呼叫端（測試、dry-run）傳進來的資料本來就是
+ *   「手上有什麼就是什麼」，沒有查詢失敗這回事。
+ */
 export function computeDailyMetrics({
   sleepRows = [], recoveryRows = [], cycleRows = [], workoutRows = [],
   bodyMeasurement = null, timezone,
+  available = {},
 } = {}) {
+  const has = {
+    sleeps: available.sleeps !== false,
+    recoveries: available.recoveries !== false,
+    cycles: available.cycles !== false,
+    workouts: available.workouts !== false,
+    bodyMeasurement: available.bodyMeasurement !== false,
+  };
   const mainSleepRows = sleepRows.filter((r) => r.nap === 0 || r.nap === false);
   const napRows = sleepRows.filter((r) => r.nap === 1 || r.nap === true);
 
@@ -242,15 +283,15 @@ export function computeDailyMetrics({
     const winTo = cycle?.end ? Date.parse(cycle.end) : null;
     const hasWindow = Number.isFinite(winFrom) && Number.isFinite(winTo);
 
-    const workouts = hasWindow
+    // 兩個獨立的理由會讓運動資料不可用，而它們都不可以變成 0：
+    //   · 沒有 cycle 時間窗  → 不知道要統計哪一段
+    //   · 查詢失敗           → 不知道那一段有什麼（H-06）
+    const workoutsKnown = hasWindow && has.workouts;
+    const workouts = workoutsKnown
       ? summariseWorkouts(workoutRows, winFrom, winTo)
-      : {
-        workout_count: null, workout_scored_count: null, workout_strain_total: null,
-        workout_duration_minutes: null, workout_kilojoule: null,
-        zone1_3_minutes: null, zone4_5_minutes: null,
-        strength_minutes_derived: null, workout_sports: [],
-      };
-    const naps = hasWindow
+      : { ...UNKNOWN_WORKOUTS };
+    // 小睡來自 sleepRows，所以它的可用性跟著睡眠走（睡眠失敗會直接往外拋）。
+    const naps = hasWindow && has.sleeps
       ? summariseNaps(napRows, winFrom, winTo)
       : { nap_count: null, nap_total_milli: null };
 
@@ -261,7 +302,7 @@ export function computeDailyMetrics({
     // 但**總和**三段缺一不可（與 store 寫入、METRICS 顯示共用同一個函式）。
     const sleepTotal = sleepTotalMilli(g);
 
-    const recoveryScored = r?.score_state === 'SCORED';
+    const recoveryScored = has.recoveries && r?.score_state === 'SCORED';
     const calibrating = isCalibrating(obs);
     /**
      * 已評分的 recovery 數值 —— **校正期也照樣保留**。
@@ -334,12 +375,19 @@ export function computeDailyMetrics({
       lean_body_mass: null,     // APP_ONLY_UNAVAILABLE_TO_API
 
       // --- 資料品質旗標（缺欄位不會讓整天失效）---
+      //
+      // ★ 旗標本身也是一種宣稱。查詢失敗時 `has_recovery: false` 等於說
+      // 「這個人今天沒有恢復資料」—— 我們其實不知道。所以資源讀不到時
+      // 旗標是 null（不知道），不是 false（確定沒有）。
       has_sleep: Boolean(s),
       sleep_scored: s?.score_state === 'SCORED',
-      has_recovery: Boolean(r),
-      recovery_scored: recoveryScored,
+      has_recovery: has.recoveries ? Boolean(r) : null,
+      recovery_scored: has.recoveries ? recoveryScored : null,
       calibrating,
-      has_previous_cycle: Boolean(cycle),
+      has_previous_cycle: has.cycles ? Boolean(cycle) : null,
+      // 這一天各資源的來源狀態。想知道「0 是真的零還是讀不到」的呼叫端
+      // 看這裡，不必去猜。
+      workouts_available: workoutsKnown,
     };
   });
 }
@@ -360,7 +408,26 @@ export function computeDailyMetrics({
  * @param {string} userId **必填**。所有資料讀取都限定這個使用者。
  * @param {string} timezone 該使用者的時區。
  */
-export async function loadDailyMetrics({
+export async function loadDailyMetrics(opts) {
+  return (await loadDailyMetricsDetailed(opts)).rows;
+}
+
+/**
+ * 同一個載入流程，但**同時回報資料來源的完整性**。
+ *
+ * ## 為什麼要有這個版本（M-01）
+ *
+ * 只回 rows 的介面沒辦法表達「這批資料是不是完整的」。分析層因此無法分辨：
+ *
+ *   樣本數掉到 12 —— 因為使用者真的只有 12 天資料
+ *   樣本數掉到 12 —— 因為 recovery 查詢這一輪失敗了
+ *
+ * 前者是可以據以降級信念的有效證據，後者什麼都不是。長期記憶要是把後者
+ * 當成前者，一次資料庫抽風就會開始拆掉使用者的健康規律，而且拆得很有自信。
+ *
+ * @returns {{rows: object[], available: object, complete: boolean}}
+ */
+export async function loadDailyMetricsDetailed({
   db, userId, timezone, from, to, fromIso, toIso,
   includeCalibratingFacts = false,
 }) {
@@ -380,8 +447,25 @@ export async function loadDailyMetrics({
   ]);
 
   const names = ['sleeps', 'recoveries', 'cycles', 'workouts', 'bodyMeasurement'];
+
+  /**
+   * ★ H-06 的根因就在這個 helper。
+   *
+   * 舊版是 `value(i, [])`：查詢失敗 → 空陣列 → 下游看到 `[].length === 0`
+   * → publish `workout_count: 0`。一個**讀取失敗**就這樣變成一個關於使用者
+   * 身體的事實宣稱。
+   *
+   * 修法不是在每個呼叫點各補一個判斷（那一定會漏），而是讓這一層**同時**
+   * 回傳資料與它的來源狀態，並把狀態一路帶進 computeDailyMetrics。
+   * 「有沒有讀到」從此是型別的一部分，不是呼叫端要記得問的問題。
+   */
+  const availability = {};
   const value = (i, fallback) => {
-    if (settled[i].status === 'fulfilled') return settled[i].value ?? fallback;
+    if (settled[i].status === 'fulfilled') {
+      availability[names[i]] = true;
+      return settled[i].value ?? fallback;
+    }
+    availability[names[i]] = false;
     log.warn('daily_metrics_partial_failure', {
       user_id: uid,
       part: names[i],
@@ -400,18 +484,23 @@ export async function loadDailyMetrics({
     workoutRows: value(3, []),
     bodyMeasurement: value(4, null),
     timezone,
+    available: availability,
   });
+
+  // 完整 = 每一個資源都讀到了。有任何一個失敗，這批資料就只能當作
+  // 「部分視野」，不可以拿去推翻既有的長期結論。
+  const complete = Object.values(availability).every(Boolean);
 
   // Most callers are analytical pipelines. Preserve their pre-QAA semantics even
   // when they consume rows directly instead of going through seriesOf(). Only a
   // factual publication caller may opt in to the observed calibration values.
-  if (includeCalibratingFacts) return rows;
-  return rows.map((row) => {
+  const finalRows = includeCalibratingFacts ? rows : rows.map((row) => {
     if (row.calibrating !== true) return row;
     const safe = { ...row };
     for (const key of RECOVERY_DERIVED_METRICS) safe[key] = null;
     return safe;
   });
+  return { rows: finalRows, available: { ...availability }, complete };
 }
 
 /**

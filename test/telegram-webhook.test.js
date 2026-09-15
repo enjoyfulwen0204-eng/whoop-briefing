@@ -31,6 +31,7 @@ import {
   createWebhookHandler, createWebhookServer, secretMatches, looksLikeUpdate,
 } from '../src/bot/webhook.js';
 import { TELEGRAM_BOT } from '../src/config.js';
+import { TelegramApiError } from '../src/bot/api.js';
 
 const SECRET = 'test-webhook-secret-value';
 const PATH_ = TELEGRAM_BOT.WEBHOOK_PATH;
@@ -64,7 +65,14 @@ async function withWebhook(fn, { coachReply = '好的', coachThrows = false, sen
     const aiCalls = [];
     const api = {
       async sendMessage(chatId, text) {
-        if (sendThrows) throw new Error('telegram send failed');
+        // ★ 測試替身也必須說清楚它模擬的是**哪一種**失敗。
+        // 沒有分類的送出錯誤現在一律 fail closed 成「模糊」（不重送），
+        // 所以要測「可以重送」就得明確模擬 Telegram 親口拒收。
+        if (sendThrows) {
+          throw new TelegramApiError('telegram send failed', {
+            status: 500, sendOutcome: 'definite_failure', sendStage: 'telegram_rejected',
+          });
+        }
         sent.push({ chatId, text });
         return { ok: true };
       },

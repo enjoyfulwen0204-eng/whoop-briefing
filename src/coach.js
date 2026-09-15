@@ -41,6 +41,29 @@ const SEVERITY_ZH = { green: '正常', yellow: '偏離', red: '差很多', null:
  * 把算好的結果轉成給模型的輸入。
  * 只給結論與必要數字，不給原始 API payload。
  */
+/**
+ * 敘述計畫的 system prompt。
+ *
+ * 注意它**沒有**要求模型「不要編造健康資訊」—— 那種請求正是前三輪失敗的
+ * 原因：它把安全性寄託在模型願不願意配合。這裡的安全性來自輸出的**形狀**，
+ * 所以 prompt 只需要說清楚格式；模型不配合的後果只是計畫被丟掉。
+ */
+const NARRATIVE_PLAN_SYSTEM = [
+  '你在整理一份健康簡報的敘述順序。',
+  '你會拿到一組已經寫好的中文句子，每一句都有一個 id。',
+  '',
+  '你的工作只有一件：挑選要用哪幾句、以及它們的先後順序。',
+  '',
+  '規則：',
+  '- 只能回傳 JSON：{"order": ["id1", "id2", ...]}',
+  '- 只能使用清單裡出現過的 id，不可以自己創造 id',
+  '- 標示（必要）的 id 一定要包含',
+  '- 同一個 id 不可以出現兩次',
+  '- 不要回傳任何句子文字，不要解釋，不要加上任何其他欄位',
+  '',
+  '挑選原則：先講事實，再講需要留意的地方，最後給一句可行的建議。',
+].join('\n');
+
 export function buildDailyUserMessage(briefing) {
   const lines = [];
   lines.push(`日期：${briefing.localDate}`);
@@ -397,6 +420,41 @@ export function createCoach({
         return parsed;
       } catch (err) {
         log.error('coach_json_failed', { error: describeError(err) });
+        return null;
+      }
+    },
+
+    /**
+     * ★ 敘述計畫（H-05）：模型**只挑順序**，不產生任何會被發布的文字。
+     *
+     * 它看到的是一份已經寫好的句子清單，回傳的必須是一串 id。
+     * 任何不是 id 的東西都到不了使用者眼前 —— 不是因為我們擋掉了它，
+     * 而是因為輸出通道裡根本沒有自由文字這個選項。
+     *
+     * 失敗一律回 null，上層用預設順序（見 narrative.js）。
+     *
+     * @param {{id:string,text:string,required:boolean}[]} fragments
+     * @returns {Promise<?{order:string[]}>}
+     */
+    async narrativePlan(fragments, { period = 'daily' } = {}) {
+      try {
+        const listing = fragments
+          .map((f) => `${f.id}${f.required ? '（必要）' : ''}：${f.text}`)
+          .join('\n');
+        // 刻意不走 this.json —— 被解構出去就會壞掉，而這是一條
+        // 「壞掉時會靜默退回確定性敘述」的路徑，不該有這種隱藏地雷。
+        const text = await complete({
+          system: NARRATIVE_PLAN_SYSTEM,
+          userMessage: `這是${period === 'weekly' ? '一份週回顧' : '今天的晨報'}可以使用的句子：\n\n${listing}\n\n`
+            + '請挑選並排序，只回 JSON。',
+          maxTokens: COACH.NARRATIVE_PLAN_MAX_TOKENS,
+          purpose: period === 'weekly' ? AI_PURPOSE.WEEKLY : AI_PURPOSE.DAILY,
+          promptVersion: PROMPT_VERSIONS.NARRATIVE_PLAN,
+        });
+        // 結構驗證在 narrativePlan.js（唯一的判準處），這裡只負責取回東西。
+        return extractJson(text) ?? null;
+      } catch (err) {
+        log.error('coach_narrative_plan_failed', { error: describeError(err) });
         return null;
       }
     },

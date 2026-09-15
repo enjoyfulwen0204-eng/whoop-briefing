@@ -40,7 +40,10 @@ const attacks = ['你有心臟病。', '你的脈搏偏快。', '你的血壓偏
 for (const attack of attacks) test(`production health output never consumes provider prose: ${JSON.stringify(attack)}`, async () => {
   let calls = 0;
   const emit = async () => { calls++; return attack; };
-  const coach = { ask: emit, daily: emit, weekly: emit };
+  // narrativePlan 是 H-05 之後敘述層唯一的模型介面。讓它回傳同一批攻擊
+  // 字串：模型仍然被呼叫，但它交回來的東西不是合法的 id 陣列，
+  // 所以一個字都到不了使用者眼前。
+  const coach = { ask: emit, daily: emit, weekly: emit, narrativePlan: emit };
   const result = { available: true, intent: 'today_status', health_date: '2026-02-06', metrics: { recovery: { value: 55, display: '55%' }, sleep_performance: { value: 99, display: '99%' } } };
   const qa = await composeAnswer({ question: 'HRV 999?', result, coach });
   assert.match(qa, /恢復 55%/); assert.match(qa, /睡眠表現 99%/);

@@ -100,12 +100,31 @@ export function buildAuthorizeUrl({ clientId, redirectUri, state }) {
   return u.toString();
 }
 
-async function postToken(body, tokenUrl = WHOOP.TOKEN_URL) {
-  const res = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(body),
-  });
+/**
+ * @param {function} fetchImpl 可注入，測試絕不打真的 WHOOP。
+ *   舊版寫死全域 fetch —— 於是 refreshTokens 完全無法在測試中被攔截，
+ *   而那正好是 M-02 最需要驗的那一段。
+ * @param {number} timeoutMs **必要**，不是調校。
+ *   沒有逾時的 refresh 會一路掛著，而 lease 的 TTL 是有限的：
+ *   owner A 卡在網路上 → 租約過期 → B 接手並換到新的 refresh_token
+ *   → A 的請求終於回來 → A 用**過期的結果**覆蓋掉 B 的新 token。
+ *   WHOOP 會輪替 refresh_token，所以那一寫會把帳號直接鎖死（要人工重新授權）。
+ */
+async function postToken(body, tokenUrl = WHOOP.TOKEN_URL, {
+  fetchImpl = fetch, timeoutMs = WHOOP.TOKEN_REQUEST_TIMEOUT_MS,
+} = {}) {
+  let res;
+  try {
+    res = await fetchImpl(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    // 逾時 / 連線失敗。絕不在訊息裡帶任何 token 內容。
+    throw new WhoopAuthError(`WHOOP token endpoint 連線失敗：${err?.name ?? ''} ${err?.message ?? ''}`.trim());
+  }
   const text = await res.text();
   if (!res.ok) {
     throw new WhoopAuthError(`WHOOP token endpoint ${res.status}: ${text.slice(0, 300)}`);
@@ -126,25 +145,29 @@ async function postToken(body, tokenUrl = WHOOP.TOKEN_URL) {
 }
 
 /** authorization_code → 第一組 token。 */
-export function exchangeCode({ code, clientId, clientSecret, redirectUri, tokenUrl }) {
+export function exchangeCode({
+  code, clientId, clientSecret, redirectUri, tokenUrl, fetchImpl, timeoutMs,
+}) {
   return postToken({
     grant_type: 'authorization_code',
     code,
     client_id: clientId,
     client_secret: clientSecret,
     redirect_uri: redirectUri,
-  }, tokenUrl);
+  }, tokenUrl, { fetchImpl, timeoutMs });
 }
 
 /** refresh_token → 新 token（WHOOP 會輪替 refresh_token）。 */
-export function refreshTokens({ refreshToken, clientId, clientSecret, tokenUrl }) {
+export function refreshTokens({
+  refreshToken, clientId, clientSecret, tokenUrl, fetchImpl, timeoutMs,
+}) {
   return postToken({
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
     client_id: clientId,
     client_secret: clientSecret,
     scope: 'offline',
-  }, tokenUrl);
+  }, tokenUrl, { fetchImpl, timeoutMs });
 }
 
 // ---------------------------------------------------------------------------
@@ -233,6 +256,28 @@ export function createWhoopClient({
     );
   }
 
+  /**
+   * 被圍欄擋下之後的善後：去看看**別人**寫了什麼。
+   *
+   * 這是刻意的非對稱設計 —— 我們放棄自己的結果，但不放棄這一輪執行：
+   * 接手者八成已經寫好一組可用的 token，直接用它就好。
+   * 撿不到才失敗（而失敗只是這一輪跑不了，30 分鐘後排程會再來）。
+   *
+   * 絕不 log 任何 token 內容。
+   */
+  async function adoptPeerToken({ force, staleAccessToken, reason }) {
+    const latest = await db.getTokens(uid);
+    if (tokenUsable(latest, { force, staleAccessToken })) {
+      cached = latest;
+      log.info('token_adopted_after_fence', { user_id: uid, reason });
+      return latest.accessToken;
+    }
+    throw new WhoopAuthError(
+      '這次 WHOOP token refresh 失去了所有權（另一個 process 已經接手），'
+      + '而且撿不到可用的新 token。本次執行中止，不覆寫任何 token 狀態。',
+    );
+  }
+
   async function doRefresh(t, force) {
     const staleAccessToken = t.accessToken;
     const msLeft = t.expiresAt.getTime() - Date.now();
@@ -260,20 +305,65 @@ export function createWhoopClient({
       }
 
       const base = latest ?? t;
+      // 這一版 token 的版本戳。等一下寫回去的時候要用它做 compare-and-swap：
+      // 如果 DB 上的 updated_at 已經不是它，代表在我們打網路的這段時間裡
+      // 有別人寫過了 —— 我們手上的結果就是舊的。
+      const baseUpdatedAt = base?.updatedAt ?? null;
+
       log.info('token_refresh_start', { user_id: uid, minutes_left: Math.round(msLeft / 60000), force });
       const fresh = await refreshTokens({
         refreshToken: base.refreshToken,
         clientId,
         clientSecret,
         tokenUrl,
+        fetchImpl,
       });
-      // ⚠️ 第一件事：寫回 Turso。寫成功前不做任何 WHOOP 資料處理。
-      await db.saveTokens(uid, {
-        accessToken: fresh.accessToken,
-        refreshToken: fresh.refreshToken ?? base.refreshToken,
-        expiresAt: fresh.expiresAt,
-        scope: fresh.scope,
-      });
+
+      // -------------------------------------------------------------------
+      // ★ M-02：寫入圍欄。網路回來了**不代表**我們還有權力寫。
+      // -------------------------------------------------------------------
+      //
+      // 兩道各自獨立、都必要的關卡：
+      //
+      //   1. 租約還在不在（lockable 時）。請求有逾時，但逾時仍可能長到
+      //      跨過租約；而且 GC / 排程延遲也會讓一個 process 停很久。
+      //   2. compare-and-swap。就算租約看起來還在（時鐘偏移、鎖被誤放），
+      //      DB 上的版本戳才是最終權威。
+      //
+      // 任一關卡不過就**放棄這次寫入**，改去撿別人寫好的新 token。
+      // WHOOP 會輪替 refresh_token：用舊結果覆蓋新狀態會讓帳號直接失效，
+      // 而那需要人工重新授權才能救回來。少 refresh 一次只是這一輪跑不了。
+      if (lockable && owner) {
+        const stillMine = typeof db.holdsLock === 'function'
+          ? await db.holdsLock(lockName, owner)
+          : true;
+        if (!stillMine) {
+          log.warn('token_refresh_fenced', { user_id: uid, reason: 'lease_lost' });
+          return adoptPeerToken({ force, staleAccessToken, reason: 'lease_lost' });
+        }
+      }
+
+      let written = true;
+      try {
+        // ⚠️ 第一件事：寫回 Turso。寫成功前不做任何 WHOOP 資料處理。
+        written = await db.saveTokens(uid, {
+          accessToken: fresh.accessToken,
+          refreshToken: fresh.refreshToken ?? base.refreshToken,
+          expiresAt: fresh.expiresAt,
+          scope: fresh.scope,
+        }, { expectedUpdatedAt: baseUpdatedAt });
+      } catch (err) {
+        // 身分不可變之類的硬錯誤要往上拋，不可以被當成「有人搶先寫了」。
+        if (err?.code === 'WHOOP_IDENTITY_IMMUTABLE') throw err;
+        throw err;
+      }
+
+      if (written === false) {
+        // CAS 失敗：在我們打網路的時候有人寫過了。我們手上的是舊結果。
+        log.warn('token_refresh_fenced', { user_id: uid, reason: 'stale_version' });
+        return adoptPeerToken({ force, staleAccessToken, reason: 'stale_version' });
+      }
+
       cached = {
         accessToken: fresh.accessToken,
         refreshToken: fresh.refreshToken ?? base.refreshToken,

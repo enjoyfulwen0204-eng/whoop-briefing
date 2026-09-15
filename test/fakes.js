@@ -8,6 +8,7 @@
  */
 
 import { requireUserId } from '../src/userContext.js';
+import { REPORT_DELIVERY_STATE } from '../src/schema.js';
 
 export function fakeDb({ failSentRecord = null } = {}) {
   const runs = [];
@@ -92,27 +93,84 @@ export function fakeDb({ failSentRecord = null } = {}) {
       return true;
     },
 
+    /**
+     * 報告發送權 + 送達狀態機（語義與 db.js 的 SQL 版本逐條對應）。
+     *
+     * 這裡的每一個條件都必須跟真的 SQL 一樣嚴格，否則測試會通過一個
+     * production 其實擋掉（或放行）的情境 —— 那比沒有測試更危險。
+     */
     async claimReport({ userId, reportType, localDateKey, ttlMs, owner = nextOwner(), now = new Date() }) {
       const k = `${requireUserId(userId, 'claimReport')}|${reportType}|${localDateKey}`;
       const cur = claims.get(k);
-      if (cur?.telegramSentAt) return { granted: false, alreadySent: true, owner: null };
-      if (cur && new Date(cur.expiresAt).getTime() > now.getTime()) {
-        return { granted: false, alreadySent: false, owner: null };
+      if (cur) {
+        const state = cur.deliveryState ?? REPORT_DELIVERY_STATE.CLAIMED;
+        const alreadySent = Boolean(cur.telegramSentAt)
+          || state === REPORT_DELIVERY_STATE.DELIVERED;
+        if (alreadySent) {
+          return { granted: false, alreadySent: true, ambiguous: false, owner: null };
+        }
+        // 終局：跨過授權圍欄之後永遠不再授予，租約過不過期都一樣。
+        if (state === REPORT_DELIVERY_STATE.DELIVERY_STARTED
+            || state === REPORT_DELIVERY_STATE.AMBIGUOUS) {
+          return { granted: false, alreadySent: false, ambiguous: true, owner: null };
+        }
+        if (new Date(cur.expiresAt).getTime() > now.getTime()) {
+          return { granted: false, alreadySent: false, ambiguous: false, owner: null };
+        }
       }
       claims.set(k, {
         owner,
+        claimedAt: now.toISOString(),
         expiresAt: new Date(now.getTime() + ttlMs).toISOString(),
         telegramSentAt: null,
         messageId: null,
+        deliveryState: REPORT_DELIVERY_STATE.CLAIMED,
+        deliveryStartedAt: null,
+        deliveryAttempts: 0,
+        deliveryDetail: null,
       });
       return { granted: true, owner };
+    },
+    async renewClaim({ userId, reportType, localDateKey, owner, ttlMs, now = new Date() }) {
+      const k = `${requireUserId(userId, 'renewClaim')}|${reportType}|${localDateKey}`;
+      const cur = claims.get(k);
+      if (!cur || cur.owner !== owner || cur.telegramSentAt) return false;
+      if ((cur.deliveryState ?? REPORT_DELIVERY_STATE.CLAIMED) !== REPORT_DELIVERY_STATE.CLAIMED) return false;
+      if (new Date(cur.expiresAt).getTime() <= now.getTime()) return false;
+      cur.expiresAt = new Date(now.getTime() + ttlMs).toISOString();
+      return true;
+    },
+    /** 外部送出的授權圍欄。四個條件必須同時成立（見 db.js）。 */
+    async authorizeReportDelivery({ userId, reportType, localDateKey, owner, now = new Date() }) {
+      const k = `${requireUserId(userId, 'authorizeReportDelivery')}|${reportType}|${localDateKey}`;
+      const cur = claims.get(k);
+      if (!cur || !owner) return false;
+      if (cur.owner !== owner) return false;                                   // 已經不是我的
+      if (new Date(cur.expiresAt).getTime() <= now.getTime()) return false;    // 租約過期
+      if ((cur.deliveryState ?? REPORT_DELIVERY_STATE.CLAIMED) !== REPORT_DELIVERY_STATE.CLAIMED) return false;
+      if (cur.telegramSentAt) return false;
+      cur.deliveryState = REPORT_DELIVERY_STATE.DELIVERY_STARTED;
+      cur.deliveryStartedAt = now.toISOString();
+      cur.deliveryAttempts = (cur.deliveryAttempts ?? 0) + 1;
+      return true;
     },
     async markClaimSent({ userId, reportType, localDateKey, owner, messageId = null, now = new Date() }) {
       const k = `${requireUserId(userId, 'markClaimSent')}|${reportType}|${localDateKey}`;
       const cur = claims.get(k);
       if (!cur || cur.owner !== owner || cur.telegramSentAt) return false;
+      if (cur.deliveryState !== REPORT_DELIVERY_STATE.DELIVERY_STARTED) return false;
       cur.telegramSentAt = now.toISOString();
       cur.messageId = messageId;
+      cur.deliveryState = REPORT_DELIVERY_STATE.DELIVERED;
+      return true;
+    },
+    async markClaimAmbiguous({ userId, reportType, localDateKey, owner, detail = null, now = new Date() }) {
+      const k = `${requireUserId(userId, 'markClaimAmbiguous')}|${reportType}|${localDateKey}`;
+      const cur = claims.get(k);
+      if (!cur || cur.owner !== owner || cur.telegramSentAt) return false;
+      if (cur.deliveryState !== REPORT_DELIVERY_STATE.DELIVERY_STARTED) return false;
+      cur.deliveryState = REPORT_DELIVERY_STATE.AMBIGUOUS;
+      cur.deliveryDetail = detail;
       return true;
     },
     async getClaim(userId, reportType, localDateKey) {
@@ -124,6 +182,17 @@ export function fakeDb({ failSentRecord = null } = {}) {
       const k = `${requireUserId(userId, 'releaseClaim')}|${reportType}|${localDateKey}`;
       const cur = claims.get(k);
       if (!cur || cur.owner !== owner || cur.telegramSentAt) return false;
+      // 跨過圍欄之後就不可以再刪掉這一列（那會讓下一輪重新 claim 而重送）。
+      if ((cur.deliveryState ?? REPORT_DELIVERY_STATE.CLAIMED) !== REPORT_DELIVERY_STATE.CLAIMED) return false;
+      claims.delete(k);
+      return true;
+    },
+    /** 只有「證明得了沒送出去」才可以走這條，把 DELIVERY_STARTED 退回 UNCLAIMED。 */
+    async releaseClaimAfterFailedSend({ userId, reportType, localDateKey, owner }) {
+      const k = `${requireUserId(userId, 'releaseClaimAfterFailedSend')}|${reportType}|${localDateKey}`;
+      const cur = claims.get(k);
+      if (!cur || cur.owner !== owner || cur.telegramSentAt) return false;
+      if (cur.deliveryState !== REPORT_DELIVERY_STATE.DELIVERY_STARTED) return false;
       claims.delete(k);
       return true;
     },
@@ -275,10 +344,31 @@ export function fakeTelegram({ failWith = null, print = false } = {}) {
   };
 }
 
-export function fakeCoach({ dailyText = '（假的教練文字）今天恢復不錯，Kelvin，放心去衝 💪', weeklyText = '（假的週回顧教練文字）', fail = false } = {}) {
+/**
+ * 假教練。
+ *
+ * ★ H-05 之後敘述層唯一的模型介面是 narrativePlan：它拿到一份已經寫好的
+ * 句子清單，只能回一串 id。這個替身預設回「照原順序全選」，也就是一個
+ * 合法計畫 —— 所以正常路徑上 narrativeSource 會是 'model'，但輸出的每一個
+ * 字仍然來自應用程式。
+ *
+ * daily/weekly 保留只是為了讓還在呼叫它們的舊測試不炸；敘述層**不再使用**
+ * 它們（narrative.js 會明確拒絕舊的 generate 介面）。
+ */
+export function fakeCoach({
+  dailyText = '（假的教練文字）今天恢復不錯，Kelvin，放心去衝 💪',
+  weeklyText = '（假的週回顧教練文字）',
+  fail = false,
+  plan = null,
+} = {}) {
   return {
     model: 'fake',
     daily: async () => (fail ? null : dailyText),
     weekly: async () => (fail ? null : weeklyText),
+    async narrativePlan(fragments) {
+      if (fail) return null;               // 供應商不可用
+      if (plan) return plan(fragments);    // 測試指定的（可能不合法的）計畫
+      return { order: fragments.map((f) => f.id) };
+    },
   };
 }

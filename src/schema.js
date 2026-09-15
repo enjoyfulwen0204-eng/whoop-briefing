@@ -103,7 +103,50 @@ export const TELEGRAM_DELIVERY_STATE = Object.freeze({
   AMBIGUOUS: 'AMBIGUOUS',
 });
 
-export const SCHEMA_VERSION = 8;
+/**
+ * 一份**報告**（daily / weekly）的送達狀態機。
+ *
+ * ## 為什麼報告也需要一套（v9）
+ *
+ * v8 的 report_claims 只有兩個可觀測狀態：「有人握著」與「telegram_sent_at
+ * 有值」。中間那一段 —— **已經開始打 Telegram、但還沒證明送成功** ——
+ * 沒有任何持久化痕跡。於是：
+ *
+ *   Telegram 收下了訊息
+ *     → 本地讀 response body 失敗（ECONNRESET）
+ *     → runDaily 當成失敗，releaseClaim() 把發送權還回去
+ *     → 下一輪排程重新 claim，**再送一次一模一樣的晨報**
+ *
+ * 這跟 telegram_operations 上已經修好的問題是同一個問題，所以用同一套詞彙
+ * （TELEGRAM_DELIVERY_STATE）與同一套規則，不另外發明一個比較弱的機制。
+ *
+ *   CLAIMED          拿到發送權，正在抓歷史／算 baseline／問模型。
+ *                    **保證零外部副作用** → 租約過期可以安全地被接手。
+ *   DELIVERY_STARTED 已經通過發送授權圍欄，Telegram 可能已經收下了。
+ *                    → **終局**，永遠不自動重送。
+ *   DELIVERED        Telegram 明確回報成功 → 完成。
+ *   AMBIGUOUS        送出結果不可證明（body 讀不到／逾時／連線重置）。
+ *                    → **終局**，永遠不自動重送。
+ *
+ * 「送出前就確定失敗」不是一個狀態：那種情況直接把整列刪掉
+ * （releaseClaim），回到 UNCLAIMED，下一輪可以立刻安全重試。
+ * 少一個狀態就少一條會寫錯的路。
+ */
+export const REPORT_DELIVERY_STATE = Object.freeze({
+  CLAIMED: 'CLAIMED',
+  DELIVERY_STARTED: 'DELIVERY_STARTED',
+  DELIVERED: 'DELIVERED',
+  AMBIGUOUS: 'AMBIGUOUS',
+});
+
+/** 終局狀態：絕不可以被重新 claim，也絕不可以自動再送一次。 */
+export const REPORT_TERMINAL_STATES = Object.freeze([
+  REPORT_DELIVERY_STATE.DELIVERY_STARTED,
+  REPORT_DELIVERY_STATE.DELIVERED,
+  REPORT_DELIVERY_STATE.AMBIGUOUS,
+]);
+
+export const SCHEMA_VERSION = 9;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -244,6 +287,9 @@ export const REPORT_SCHEMA = [
 
   // 發送權。telegram_sent_at 一旦寫入就是「已經送出去了」的耐久證據 ——
   // 即使之後 report_runs 的 SENT 寫入失敗，也不會被重新 claim 而重發。
+  //
+  // v9：delivery_* 是**送出**那一段的狀態機（見 REPORT_DELIVERY_STATE）。
+  // telegram_sent_at 保留原義（已證明送出），delivery_state 才是權威。
   `CREATE TABLE IF NOT EXISTS report_claims (
      user_id             TEXT NOT NULL,
      report_type         TEXT NOT NULL,
@@ -253,6 +299,10 @@ export const REPORT_SCHEMA = [
      expires_at          TEXT NOT NULL,
      telegram_sent_at    TEXT,
      telegram_message_id INTEGER,
+     delivery_state      TEXT NOT NULL DEFAULT '${REPORT_DELIVERY_STATE.CLAIMED}',
+     delivery_started_at TEXT,
+     delivery_attempts   INTEGER NOT NULL DEFAULT 0,
+     delivery_detail     TEXT,
      PRIMARY KEY (user_id, report_type, local_date)
    )`,
 ];
@@ -593,6 +643,44 @@ export const ADDITIVE_COLUMNS = [
   { table: 'telegram_operations', column: 'delivered_at', ddl: 'ALTER TABLE telegram_operations ADD COLUMN delivered_at TEXT' },
   { table: 'telegram_operations', column: 'telegram_message_id', ddl: 'ALTER TABLE telegram_operations ADD COLUMN telegram_message_id INTEGER' },
   { table: 'telegram_operations', column: 'delivery_attempts', ddl: 'ALTER TABLE telegram_operations ADD COLUMN delivery_attempts INTEGER NOT NULL DEFAULT 0' },
+
+  // -------------------------------------------------------------------------
+  // v9：報告送達狀態機（H-01 / H-02）
+  // -------------------------------------------------------------------------
+  //
+  // ★ 回填的方向是刻意不對稱的，理由與 telegram_operations 那一組完全相同。
+  //
+  // v8 的 report_claims 只有兩種列：
+  //
+  //   telegram_sent_at 有值  → 舊程式**證明**送出去過（markClaimSent 只有在
+  //                            telegram.send() 沒拋錯之後才會被呼叫）
+  //                          → 可以安全地升級成 DELIVERED
+  //
+  //   telegram_sent_at 是 NULL → 這一列的意思是「有人拿了發送權」。舊程式
+  //                            在每一條**已知**失敗路徑上都會 releaseClaim()
+  //                            把列刪掉，所以一列還留著而且沒有送出時間，
+  //                            代表那個 owner **沒有走完任何一條已知路徑**
+  //                            —— 它可能死在送出之前，也可能死在送出之中。
+  //                            兩者在資料上完全一樣。
+  //
+  // 把後者當成「可以重送」會在升級的當下製造重複發送的風險（這正是 H-01
+  // 要修的那個 bug），所以欄位預設值取**保守**的那一邊：AMBIGUOUS。
+  // 然後只有證明得了的才升級成 DELIVERED。
+  //
+  // 代價是「升級當下正好卡著一列沒送成的 claim」那一天不會自動補發。
+  // 那是漏發一次，不是發兩次 —— 而在這兩者之間，我們永遠選前者。
+  // 這種列看得到（npm run phase0 / report_claims 直接查），可以人工處置。
+  {
+    table: 'report_claims',
+    column: 'delivery_state',
+    ddl: `ALTER TABLE report_claims ADD COLUMN delivery_state TEXT NOT NULL DEFAULT '${REPORT_DELIVERY_STATE.AMBIGUOUS}'`,
+    backfill: `UPDATE report_claims
+                  SET delivery_state = '${REPORT_DELIVERY_STATE.DELIVERED}'
+                WHERE telegram_sent_at IS NOT NULL`,
+  },
+  { table: 'report_claims', column: 'delivery_started_at', ddl: 'ALTER TABLE report_claims ADD COLUMN delivery_started_at TEXT' },
+  { table: 'report_claims', column: 'delivery_attempts', ddl: 'ALTER TABLE report_claims ADD COLUMN delivery_attempts INTEGER NOT NULL DEFAULT 0' },
+  { table: 'report_claims', column: 'delivery_detail', ddl: 'ALTER TABLE report_claims ADD COLUMN delivery_detail TEXT' },
 ];
 
 // ---------------------------------------------------------------------------

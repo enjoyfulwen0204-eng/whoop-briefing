@@ -19,7 +19,7 @@ import { renderDaily } from './format.js';
 import { buildNarrative } from './narrative.js';
 import { buildInsightsSafe } from './insights.js';
 import { log, describeError } from './logger.js';
-import { TelegramError } from './telegram.js';
+import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelivery.js';
 
 /**
  * @param {string} userId   **必填**。這份報告屬於誰。
@@ -195,6 +195,18 @@ export async function runDaily({
   if (claiming) {
     claim = await db.claimReport({ ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS });
     if (!claim.granted) {
+      // ★ 三種拒絕要分開，因為處置完全不同：
+      //   already_sent  使用者已經收到了 → 什麼都不用做
+      //   ambiguous     上一次送出結果不明 → **終局**，排程永遠不再自動送。
+      //                 這是 fail-closed：寧可漏一次，也不要讓人收到兩份。
+      //   claim_busy    別人正在做 → 下一輪再看
+      if (claim.ambiguous) {
+        log.error('daily_claim_denied_ambiguous', { ...base, health_date: healthDate });
+        await recordEvaluation(BRIEFING_OUTCOME.FAILED, { reason: 'delivery_ambiguous' });
+        return {
+          status: 'delivery_ambiguous', healthDate, localDate: healthDate, retryable: false,
+        };
+      }
       log.info('daily_claim_denied', {
         health_date: healthDate, already_sent: claim.alreadySent,
       });
@@ -236,12 +248,15 @@ export async function runDaily({
     briefing.whatChanged = insights?.whatChanged ?? null;
     briefing.historyDays = insights?.historyDays ?? null;
 
-    // ★ 敘述層。健康判斷仍然完全由應用程式擁有 —— 模型只負責把**已經核可
-    // 的事實**講成自然的中文，輸出還要逐項通過驗證才會被採用。
-    // 驗證不過就用確定性敘述，使用者一樣拿得到一段可讀的話。
+    // ★ 敘述層（H-05）。健康判斷與**每一個字**都由應用程式擁有：
+    // 模型收到的是一份已經寫好的句子清單，它唯一能回的是一串 id。
+    // 它挑得不合法（編造 id、丟掉事實骨幹…）就用預設順序，
+    // 使用者一樣拿得到一段完整可讀的話。見 narrativePlan.js。
     const narrative = await buildNarrative({
       briefing,
-      generate: typeof coach?.daily === 'function' ? () => coach.daily(briefing) : null,
+      plan: typeof coach?.narrativePlan === 'function'
+        ? (fragments) => coach.narrativePlan(fragments, { period: 'daily' })
+        : null,
     });
     coachText = narrative.text;
     narrativeSource = narrative.source;
@@ -260,13 +275,29 @@ export async function runDaily({
     throw err;
   }
 
-  // 5) 發送
-  let sent;
-  try {
-    sent = await telegram.send(text);
-  } catch (err) {
-    await releaseClaim();
-    // 記錄失敗原因時不能再拋錯，否則會蓋掉真正的錯誤
+  // 5) ★ 生成結束、外部送出開始。
+  //
+  //    先續租一次：抓 45 天歷史 + 等模型回應可能已經吃掉大半個租期，
+  //    而正常的長工作不該因此失去所有權。續租只是效率 ——
+  //    真正的安全邊界是下面 deliverReport() 裡的授權圍欄。
+  await renewReportClaim({
+    db, claimKey, claim, ttlMs: REPORT_CLAIM.RENEW_MS, now, stage: 'pre_send',
+  });
+
+  const delivery = await deliverReport({
+    db, claimKey, claim, telegram, text, now: () => now,
+  });
+
+  if (delivery.result === DELIVERY_RESULT.FENCED) {
+    // 租約在生成期間過期，別人接手了（而且可能已經送出）。
+    // **不送、不還 claim、不寫 FAILED** —— 這一輪什麼都沒發生。
+    log.warn('daily_delivery_fenced', { ...base, health_date: healthDate });
+    await recordEvaluation(BRIEFING_OUTCOME.CLAIM_BUSY, { reason: 'ownership_lost' });
+    return { status: 'claim_lost', healthDate, localDate: healthDate };
+  }
+
+  if (delivery.result === DELIVERY_RESULT.DEFINITE_FAILURE) {
+    // 證明得了沒送出去 → 發送權已經歸還，下一輪可以安全重試。
     await db.recordRun({
       userId: uid,
       reportType: 'daily',
@@ -275,38 +306,43 @@ export async function runDaily({
       sleepId: briefing.sleepId,
       cycleId: briefing.cycleId,
       status: 'FAILED',
-      detail: describeError(err),
+      detail: delivery.error,
     }, { throwOnError: false });
     await recordEvaluation(BRIEFING_OUTCOME.FAILED, { reason: 'telegram_send_failed' });
-    if (err instanceof TelegramError) {
-      // Telegram 自己掛了 → 只寫 log，不遞迴再呼叫 Telegram
-      log.error('daily_telegram_failed', { health_date: healthDate, error: describeError(err) });
-      return {
-        status: 'telegram_failed', healthDate, localDate: healthDate, error: describeError(err),
-      };
-    }
-    throw err;
+    log.error('daily_telegram_failed', { health_date: healthDate, error: delivery.error });
+    return {
+      status: 'telegram_failed', healthDate, localDate: healthDate, error: delivery.error,
+    };
   }
 
-  // 6) ★ 訊息已經出去了 —— 立刻把「已送出」這件事釘進 claim。
-  //    這是一個極小的 UPDATE，比整筆 report_runs insert 更可能成功，
-  //    而且它才是防重發的關鍵證據：claim 一旦有 telegram_sent_at，
-  //    之後永遠不會再被授予，即使下面的 SENT 紀錄寫失敗。
-  if (claiming && claim.owner) {
-    try {
-      const marked = await db.markClaimSent({
-        ...claimKey, owner: claim.owner, messageId: sent.messageId,
-      });
-      if (!marked) log.warn('daily_claim_mark_noop', { health_date: healthDate });
-    } catch (err) {
-      log.error('daily_claim_mark_failed', {
-        health_date: healthDate, error: describeError(err),
-      });
-    }
+  if (delivery.result === DELIVERY_RESULT.AMBIGUOUS) {
+    // ★ 這就是 H-01。Telegram 可能已經把晨報交給使用者了，只是我們證明不了。
+    // claim 已經是終局狀態，排程**不會**再送一次。
+    await db.recordRun({
+      userId: uid,
+      reportType: 'daily',
+      localDateKey: healthDate,
+      healthDate,
+      sleepId: briefing.sleepId,
+      cycleId: briefing.cycleId,
+      status: 'AMBIGUOUS',
+      detail: delivery.error,
+    }, { throwOnError: false });
+    await recordEvaluation(BRIEFING_OUTCOME.FAILED, { reason: 'delivery_ambiguous' });
+    log.error('daily_delivery_ambiguous', { health_date: healthDate, error: delivery.error });
+    return {
+      status: 'delivery_ambiguous', healthDate, localDate: healthDate,
+      error: delivery.error, retryable: false,
+    };
   }
 
-  // 7) 記錄。訊息已經發出去、收不回來了 —— 紀錄寫入失敗不能當成「發送失敗」，
-  //    但一定要大聲喊：沒有 SENT 紀錄，下一輪 isSent 會回 false 而重複發送。
+  const sent = { messageId: delivery.messageId };
+
+  // 6) 記錄。訊息已經發出去、收不回來了 —— 紀錄寫入失敗不能當成「發送失敗」。
+  //
+  //    ★ 這裡**不再**是防重發的最後一道防線。claim 的 delivery_state 已經是
+  //    DELIVERED（終局），所以就算這筆 SENT 寫失敗，下一輪也拿不到發送權。
+  //    仍然要大聲喊：缺紀錄會讓事後追查與統計失真。
   let recorded = true;
   try {
     await db.recordRun({
@@ -327,7 +363,9 @@ export async function runDaily({
     });
     await telegram.notifyError(
       'daily_record',
-      `今天的簡報已經發出去了，但發送紀錄寫不進 Turso → 下一輪可能會重複發一次。${describeError(err)}`,
+      '今天的簡報已經發出去了，但發送紀錄寫不進 Turso。'
+      + '不會重複發送（發送權已經是終局狀態），但歷史紀錄會少一筆。'
+      + describeError(err),
     );
   }
 

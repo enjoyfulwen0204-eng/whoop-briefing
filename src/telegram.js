@@ -6,16 +6,31 @@
  * - 錯誤通知有 cooldown（同一 error_type 2 小時內最多一次），避免每 30 分鐘洗版。
  */
 
-import { ERROR_NOTIFY_COOLDOWN_HOURS, TELEGRAM_MAX_CHARS } from './config.js';
+import { ERROR_NOTIFY_COOLDOWN_HOURS, TELEGRAM_MAX_CHARS, TELEGRAM_SEND } from './config.js';
 import { GLOBAL_SCOPE } from './schema.js';
+import { SEND_OUTCOME, classifySendOutcome, DEFINITE_NETWORK_CODES } from './sendOutcome.js';
 import { clamp } from './format.js';
 import { log, describeError } from './logger.js';
 
 export class TelegramError extends Error {
-  constructor(message) {
+  /**
+   * @param {string} message
+   * @param {object} opts
+   * @param {?string} opts.sendOutcome 這次送出到底發生了什麼（見 sendOutcome.js）。
+   *   **一律明確指定**：讓下游去推測正是 H-04 的根因。
+   */
+  constructor(message, { sendOutcome = null, sendStage = null, status = null } = {}) {
     super(message);
     this.name = 'TelegramError';
+    if (sendOutcome) this.sendOutcome = sendOutcome;
+    if (sendStage) this.sendStage = sendStage;
+    if (status !== null) this.status = status;
   }
+}
+
+/** 這個送出錯誤可不可以安全地自動重送？（只有「確定沒送出」可以） */
+export function isDefiniteSendFailure(err) {
+  return classifySendOutcome(err) === SEND_OUTCOME.DEFINITE_FAILURE;
 }
 
 /**
@@ -33,8 +48,10 @@ export function createTelegram({
     // 發送層的最後防線：clamp 若哪天壞了，寧可在這裡爆掉也不要送出超長訊息
     // 讓 Telegram 回 400（那會被記成發送失敗，還要多繞一輪才看得出原因）
     if (body.length > TELEGRAM_MAX_CHARS) {
+      // 還沒打網路就擋下來了 → 確定沒有送出，可以安全重試。
       throw new TelegramError(
         `訊息長度收斂失敗：${body.length} > ${TELEGRAM_MAX_CHARS}（clamp 有 bug）`,
+        { sendOutcome: SEND_OUTCOME.DEFINITE_FAILURE, sendStage: 'pre_send' },
       );
     }
 
@@ -44,30 +61,99 @@ export function createTelegram({
       return { messageId: null, dryRun: true };
     }
 
-    const res = await fetchImpl(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: body,
-        disable_web_page_preview: true,
-      }),
-    });
-
-    const raw = await res.text();
-    if (!res.ok) {
-      throw new TelegramError(`Telegram ${res.status}: ${raw.slice(0, 300)}`);
+    // ★ H-04：一次送出有五個可以失敗的階段，而它們的**可重送性完全不同**。
+    // 每一個階段都明確標記結果，絕不讓一個沒有分類的錯誤往上冒
+    // （沒有分類的錯誤會被當成「確定失敗」而重送 → 使用者收到兩份晨報）。
+    let res;
+    try {
+      res = await fetchImpl(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: body,
+          disable_web_page_preview: true,
+        }),
+        // 沒有逾時的請求會讓發送權的租約在等待中過期。
+        signal: AbortSignal.timeout(TELEGRAM_SEND.REQUEST_TIMEOUT_MS),
+      });
+    } catch (err) {
+      // 連線階段。只有「確定沒連上」才算確定失敗，其餘（逾時、連線被重置）
+      // 都可能是請求已經送出去了。
+      const code = err?.cause?.code ?? err?.code ?? err?.name ?? null;
+      const definite = code && DEFINITE_NETWORK_CODES.has(String(code));
+      throw new TelegramError(`Telegram 連線失敗：${err?.message ?? err}`, {
+        sendOutcome: definite ? SEND_OUTCOME.DEFINITE_FAILURE : SEND_OUTCOME.AMBIGUOUS,
+        sendStage: 'connect',
+      });
     }
+
+    // 拿到 HTTP 狀態 = Telegram 回應了。非 2xx 是它**親口拒收**，
+    // 所以之後 body 讀不讀得到都不影響「它沒收下」這個結論。
+    const definiteReject = !res.ok;
+
+    let raw;
+    try {
+      raw = await res.text();
+    } catch (err) {
+      if (definiteReject) {
+        throw new TelegramError(`Telegram ${res.status}（回應內容讀取失敗）`, {
+          status: res.status,
+          sendOutcome: SEND_OUTCOME.DEFINITE_FAILURE,
+          sendStage: 'body_read',
+        });
+      }
+      // ★ 這就是稽核重現的那條路：HTTP 200 已經拿到，body 讀到一半斷線。
+      // Telegram 幾乎可以確定已經投遞了；重送等於送出第二份。
+      throw new TelegramError(`Telegram 回應內容讀取失敗：${err?.message ?? err}`, {
+        status: res.status,
+        sendOutcome: SEND_OUTCOME.AMBIGUOUS,
+        sendStage: 'body_read',
+      });
+    }
+
+    if (definiteReject) {
+      throw new TelegramError(`Telegram ${res.status}: ${raw.slice(0, 300)}`, {
+        status: res.status,
+        sendOutcome: SEND_OUTCOME.DEFINITE_FAILURE,
+        sendStage: 'telegram_rejected',
+      });
+    }
+
     let json;
     try {
       json = JSON.parse(raw);
     } catch {
-      throw new TelegramError('Telegram 回傳非 JSON');
+      // 2xx 但內容看不懂（截斷）。可能已經投遞 → 不可以重送。
+      throw new TelegramError('Telegram 回傳非 JSON（可能截斷）', {
+        status: res.status,
+        sendOutcome: SEND_OUTCOME.AMBIGUOUS,
+        sendStage: 'body_parse',
+      });
     }
-    if (!json.ok) throw new TelegramError(`Telegram 回應 ok=false: ${JSON.stringify(json).slice(0, 300)}`);
 
-    log.info('telegram_sent', { message_id: json.result?.message_id, chars: body.length });
-    return { messageId: json.result?.message_id ?? null, dryRun: false };
+    // ok:false 是 Telegram 明確說「我沒收下」→ 可以安全重送。
+    if (!json.ok) {
+      throw new TelegramError(`Telegram 回應 ok=false: ${JSON.stringify(json).slice(0, 300)}`, {
+        status: res.status,
+        sendOutcome: SEND_OUTCOME.DEFINITE_FAILURE,
+        sendStage: 'telegram_rejected',
+      });
+    }
+
+    // ok:true 一定會帶 message_id。沒帶就是一個形狀不完整的成功回應 ——
+    // 既不能宣稱送達，也不能重送。
+    const messageId = Number(json.result?.message_id);
+    if (!Number.isFinite(messageId)) {
+      throw new TelegramError('Telegram 回報成功但沒有 message_id（無法證明送達）', {
+        status: res.status,
+        sendOutcome: SEND_OUTCOME.AMBIGUOUS,
+        sendStage: 'success_shape',
+      });
+    }
+
+    log.info('telegram_sent', { message_id: messageId, chars: body.length });
+    return { messageId, dryRun: false };
   }
 
   /**

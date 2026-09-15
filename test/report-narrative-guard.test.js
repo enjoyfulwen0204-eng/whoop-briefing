@@ -11,11 +11,25 @@
  * buildDailyUserMessage / buildWeeklyUserMessage —— 也就是餵給模型的那份
  * 確定性資料本身（純 Node 計算，不含任何 LLM 產物）。
  *
- * V1.1 契約變更：敘述層恢復了。
- *   · 通過守門的安全敘述 → **會**被發布（模型只負責語氣潤飾）
- *   · 沒通過的 → 整段丟掉，換成**確定性敘述**（不是一句假的故障訊息）
- *   · 不論哪一種，確定性的數據簡報都照常送出，而且絕不再出現
+ * ## H-05 契約變更：模型不再產生任何被發布的文字
+ *
+ * 前一版的契約是「通過守門的安全敘述會被發布」。獨立稽核證明那個形狀
+ * （自由散文 → 規則檢查 → 發布）守不住：
+ *
+ *     「熬夜使你的免疫力下降。」
+ *
+ * 沒有數字、沒有指標名、沒有拉丁字母、沒有藥名病名 —— 每一條規則都放行，
+ * 而它是一個毫無根據的因果生理宣稱。
+ *
+ * 所以現在：
+ *   · 模型收到一份**應用程式寫好的句子清單**，只能回一串 id
+ *   · 它回散文（不論安全與否）→ 整包丟掉，用預設順序
+ *   · 它回合法計畫 → 採用那個**順序**，但文字仍然 100% 來自清單
+ *   · 不論哪一種，確定性的數據簡報都照常送出，而且絕不出現
  *     「AI 教練分析今天暫時無法生成」—— 那句話在沒有嘗試生成時是假的。
+ *
+ * 下面每一個對抗性案例的結論因此都一樣：**不會被發布**。
+ * 這不是因為我們認得它，而是因為它沒有地方可以出現。
  *
  * 不呼叫真實 OpenRouter / Telegram / WHOOP —— 全部用既有 fakes。
  */
@@ -48,7 +62,9 @@ async function runDailyWith(dailyText, { days = 45 } = {}) {
     db: fakeDb(),
     userId: U,
     telegram: fakeTelegram(),
-    coach: fakeCoach({ dailyText }),
+    // 模型「回傳這段散文」。narrativePlan 是敘述層唯一的模型介面，
+    // 所以散文在這裡就是一個不合法的計畫。
+    coach: fakeCoach({ plan: async () => dailyText }),
     source: staticDataSource(ds),
     timezone: TZ,
     now: ds.now,
@@ -65,7 +81,7 @@ async function runWeeklyWith(weeklyText) {
     db: fakeDb(),
     userId: U,
     telegram: fakeTelegram(),
-    coach: fakeCoach({ weeklyText }),
+    coach: fakeCoach({ plan: async () => weeklyText }),
     source: staticDataSource(ds),
     timezone: TZ,
     now,
@@ -98,31 +114,67 @@ function assertDeterministicReportIntact(sent, res, kind) {
 }
 
 // ===========================================================================
-// A. 安全的敘述 → 通過守門 → 保留在訊息裡
+// A. 模型的散文一律不發布 —— 「安全」也不例外
 // ===========================================================================
 
-test('★★★ P0-A daily: 通過守門的安全敘述會被發布（V1.1 契約）', async () => {
+test('★★★ H-05 daily: 看起來完全安全的語氣潤飾也不會被發布', async () => {
   const safe = '早安，今天整體看起來穩定，照平常節奏走就好，記得多補水';
   const { res, sent } = await runDailyWith(safe);
   assertDeterministicReportIntact(sent, res, 'daily');
-  assert.ok(sent.includes(safe), '★ 安全的語氣潤飾應該送到使用者手上');
-  assert.equal(res.coachUsed, true);
-  assert.equal(res.narrativeSource, 'model');
-  assert.doesNotMatch(sent, /暫時無法生成/);
+  assert.ok(!sent.includes(safe), '★ 模型的字一個都不可以進到已發布的訊息裡');
+  assertDeterministicNarrative(sent, res);
 });
 
-test('★★★ P0-A weekly: 通過守門的安全敘述會被發布（V1.1 契約）', async () => {
+test('★★★ H-05 weekly: 看起來完全安全的語氣潤飾也不會被發布', async () => {
   const safe = '上週整體算穩定，這週把入睡時間再往前拉一點點就好';
   const { res, sent } = await runWeeklyWith(safe);
   assertDeterministicReportIntact(sent, res, 'weekly');
-  assert.ok(sent.includes(safe), '★ 安全的語氣潤飾應該送到使用者手上');
+  assert.ok(!sent.includes(safe), '★ 模型的字一個都不可以進到已發布的訊息裡');
+  assertDeterministicNarrative(sent, res);
+});
+
+test('★★★ H-05 daily: 稽核重現的那一句（無數字、無指標名的因果生理宣稱）', async () => {
+  // 舊架構的每一條規則都放行它。新架構根本沒有讓它出現的通道。
+  const { res, sent } = await runDailyWith('熬夜使你的免疫力下降。');
+  assertDeterministicReportIntact(sent, res, 'daily');
+  assert.doesNotMatch(sent, /免疫力|熬夜/, '★ 絕不可以出現在已發布的訊息裡');
+  assertDeterministicNarrative(sent, res);
+});
+
+test('★★★ H-05 daily: 發明出來的生理概念也一樣進不來', async () => {
+  for (const bad of [
+    '你的粒線體效率今天特別低落。',
+    '長期壓力會讓你的自律神經失衡。',
+    '多做一些高強度間歇訓練會讓你明天更有精神。',
+  ]) {
+    const { res, sent } = await runDailyWith(bad);
+    assert.ok(!sent.includes(bad), `★ ${bad} 不可以被發布`);
+    assertDeterministicNarrative(sent, res);
+  }
+});
+
+test('★★★ H-05 daily: 合法計畫會被採用，但輸出仍然全部是應用程式的句子', async () => {
+  const ds = makeDataset({ days: 45 });
+  const ctx = {
+    db: fakeDb(),
+    userId: U,
+    telegram: fakeTelegram(),
+    // 全選、照原順序 —— 一個合法計畫。
+    coach: fakeCoach(),
+    source: staticDataSource(ds),
+    timezone: TZ,
+    now: ds.now,
+  };
+  const res = await runDaily(ctx);
+  const sent = ctx.telegram.sent[0] ?? '';
+  assertDeterministicReportIntact(sent, res, 'daily');
+  assert.equal(res.narrativeSource, 'model', '★ 合法計畫要被採用');
   assert.equal(res.coachUsed, true);
+  // 模型只挑了順序，所以輸出裡不可能有任何它自己寫的東西。
+  assert.doesNotMatch(sent, /免疫力|粒線體|自律神經/);
 });
 
 test('★★★ R3-H-02 daily: 教練文字引述數字 → 丟掉；報告的數字完全不受影響', async () => {
-  // R3 之後 LLM 不可以是生理宣稱的來源。renderDaily() 已經把每一個指標、
-  // 基準、判定都確定性地印出來了，所以教練那段話一旦引述數字就整段丟掉
-  // —— 使用者少的只是一句鼓勵的話，資訊一個字都不會少。
   const quotesNumbers = '早安 Kelvin，今天的恢復 73%，比基準 65% 高一些；HRV 55ms 跟平常差不多 💛';
   const { res, sent } = await runDailyWith(quotesNumbers);
 
@@ -134,28 +186,12 @@ test('★★★ R3-H-02 daily: 教練文字引述數字 → 丟掉；報告的�
   assert.equal(res.coachUsed, false);
 });
 
-test('★★★ R3-H-02 daily: 不含生理斷言的教練文字會被發布', async () => {
-  const clean = '早安 Kelvin，今天整體看起來穩定，照平常節奏走就好，記得多補水 💛';
-  const { res, sent } = await runDailyWith(clean);
-  assertDeterministicReportIntact(sent, res, 'daily');
-  assert.ok(!sent.includes(clean), '看似安全的 provider 敘述也不發布');
-  assertDeterministicNarrative(sent, res);
-});
-
 test('★★★ R3-H-02 weekly: 教練文字引述數字 → 丟掉；週回顧的數字不受影響', async () => {
   const quotesNumbers = '上週恢復平均 65%，比前週低 2%；HRV 55ms 與前週差不多。';
   const { res, sent } = await runWeeklyWith(quotesNumbers);
   assertDeterministicReportIntact(sent, res, 'weekly');
   assert.ok(!sent.includes(quotesNumbers), '★ 引述數字的教練文字必須被丟掉');
   assert.match(sent, /恢復平均/, '★ 週回顧的數據段必須完整保留');
-});
-
-test('★★★ R3-H-02 weekly: 不含生理斷言的教練文字會被發布', async () => {
-  const clean = '上週整體算穩定，這週我們把入睡時間再往前拉一點點就好 💪';
-  const { res, sent } = await runWeeklyWith(clean);
-  assertDeterministicReportIntact(sent, res, 'weekly');
-  assert.ok(sent.includes(clean), '★ 不含生理斷言的語氣潤飾應該送到使用者手上');
-  assert.equal(res.coachUsed, true);
 });
 
 // ===========================================================================

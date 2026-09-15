@@ -270,6 +270,14 @@ test('report claim：Alice 的 claim 不會阻塞 Bob', async () => {
     // 同一人重複 claim 被拒
     assert.equal((await db.claimReport({ userId: ALICE.id, ...key })).granted, false);
 
+    // v9：送出授權也必須是 per-user 的 —— Alice 的授權不可以讓 Bob 送東西。
+    assert.equal(await db.authorizeReportDelivery({
+      userId: ALICE.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: a.owner,
+    }), true);
+    assert.equal(await db.authorizeReportDelivery({
+      userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: a.owner,
+    }), false, '★ Bob 不可以用 Alice 的 owner 取得送出授權');
+
     // 標記已送出後永遠不再授權
     assert.equal(await db.markClaimSent({
       userId: ALICE.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: a.owner,
@@ -278,6 +286,14 @@ test('report claim：Alice 的 claim 不會阻塞 Bob', async () => {
     assert.equal(await db.markClaimSent({
       userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: a.owner,
     }), false);
+
+    // Bob 自己那一份完全不受影響：仍然可以走完整條路。
+    assert.equal(await db.authorizeReportDelivery({
+      userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: b.owner,
+    }), true);
+    assert.equal(await db.markClaimSent({
+      userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: b.owner,
+    }), true);
   });
 });
 

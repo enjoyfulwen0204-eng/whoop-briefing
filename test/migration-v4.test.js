@@ -47,11 +47,12 @@ const version = async (db) => Number(
 // 版本與清單
 // ---------------------------------------------------------------------------
 
-test('SCHEMA_VERSION 是 8', () => {
-  // v8 adds briefing_evaluations (a new table, purely additive); v7 added the
+test('SCHEMA_VERSION 是 9', () => {
+  // v9 adds the report delivery state machine to report_claims (additive
+  // columns only); v8 added briefing_evaluations (a new table); v7 added the
   // delivery state machine to telegram_operations. Populated v4/v5/v6 tables
-  // remain intact through both.
-  assert.equal(SCHEMA_VERSION, 8);
+  // remain intact through all of them.
+  assert.equal(SCHEMA_VERSION, 9);
 });
 
 test('★★ 兩張新表都不在 RESHAPED_TABLES 裡（不可武裝 DROP 路徑）', () => {

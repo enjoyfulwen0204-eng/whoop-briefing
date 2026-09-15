@@ -50,6 +50,17 @@ export const UPDATE_OUTCOME = Object.freeze({
    * 這是終局：可以 ack，讓 Telegram 停止重送。
    */
   AMBIGUOUS_DELIVERY: 'ambiguous_delivery',
+  /**
+   * 送出授權被圍欄擋下（H-03）：這個執行已經失去所有權或排序權。
+   *
+   * 它與 RETRY **不同**：這一則不是「稍後再試就會成功」，而是
+   * 「現在做這件事的不該是我」。接手的執行（或已經跑完的 N+1）才是權威。
+   *
+   * 也與 AMBIGUOUS_DELIVERY 不同：我們**確定沒有送出任何東西**。
+   *
+   * 終局。可以 ack —— 讓 Telegram 重送只會讓同一個失效的執行再撞一次牆。
+   */
+  FENCED: 'fenced',
 });
 
 /** 可以安全 ack（Telegram 不需要再送一次）的結果。 */
@@ -342,7 +353,7 @@ export function createUpdateProcessor({
    *
    * @returns {{outcome:'delivered'|'retry'|'ambiguous'}}
    */
-  async function deliverReply(updateId, result, attemptId) {
+  async function deliverReply(updateId, result, attemptId, conversationKey) {
     const op = typeof db.getTelegramOperation === 'function'
       ? await db.getTelegramOperation(updateId) : null;
     const state = op?.deliveryState ?? null;
@@ -359,11 +370,26 @@ export function createUpdateProcessor({
       return { outcome: 'ambiguous' };
     }
 
+    // ★ 不可逆外部副作用的唯一入口（H-03）。
+    //
+    // markDeliveryStarted 是一句**原子**的 SQL，同時證明：收據可送、這則
+    // update 還屬於我、我的租約還有效、對話鍵沒被換掉、而且這個對話裡沒有
+    // 更早、還沒到終局的訊息（＝我現在有排序權）。
+    //
+    // 任何一項不成立就拒絕。被放棄掉的舊執行醒來之後走到這裡會失敗，
+    // 所以它送不出任何東西 —— 「JavaScript 恢復執行」不等於「重新取得權力」。
+    //
+    // 記憶體的 lane lock 仍然在（它便宜），但權威是這一句 SQL。
     if (typeof db.markDeliveryStarted === 'function') {
-      const started = await db.markDeliveryStarted(updateId, { owner: attemptId, now: now() });
+      const started = await db.markDeliveryStarted(updateId, {
+        owner: attemptId, conversationKey, now: now(),
+      });
       if (!started) {
-        log.warn('telegram_delivery_start_rejected', { update_id: updateId });
-        return { outcome: 'ambiguous' };
+        // 失去所有權 / 失去排序權 / 已經有人送過。一律**不送**。
+        log.warn('telegram_delivery_start_rejected', {
+          update_id: updateId, conversation: conversationKey ? String(conversationKey) : null,
+        });
+        return { outcome: 'fenced' };
       }
     }
 
@@ -527,9 +553,18 @@ export function createUpdateProcessor({
       let ambiguous = false;
       if (result?.reply && sendReply) {
         if (claimed) {
-          const d = await deliverReply(updateId, result, attemptId);
+          const d = await deliverReply(updateId, result, attemptId, conversationKey);
           if (d.outcome === 'retry') {
             return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'send_failed', replied: false };
+          }
+          if (d.outcome === 'fenced') {
+            // ★ 失去所有權／排序權。什麼都沒送出去，而且**不可以**把這一則
+            // 標成完成 —— 那一列現在屬於別人（或已經被終結掉了），
+            // 我們對它沒有任何話語權。就地退出。
+            return {
+              outcome: UPDATE_OUTCOME.FENCED, updateId,
+              reason: 'ownership_lost', replied: false,
+            };
           }
           ambiguous = d.outcome === 'ambiguous';
           replied = d.outcome === 'delivered';

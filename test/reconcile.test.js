@@ -923,7 +923,7 @@ const colNames = async (c, t) => (await c.execute(`PRAGMA table_info(${t})`)).ro
 
 /** 把一個最新版 DB 退回 v10 的形狀（沒有三張新表、墓碑沒有三個診斷欄位）。 */
 async function downgradeToV10(db) {
-  for (const t of [...NEW_TABLES, 'analytics_invalidation', 'analytics_work_state', 'analytics_daily_state', 'analytics_runs']) await db.raw.execute(`DROP TABLE ${t}`);
+  for (const t of [...NEW_TABLES, 'analytics_invalidation', 'analytics_work_state', 'analytics_daily_state', 'analytics_runs', 'user_onboarding']) await db.raw.execute(`DROP TABLE IF EXISTS ${t}`);
   for (const c of TOMB_COLS) await db.raw.execute(`ALTER TABLE whoop_resource_tombstones DROP COLUMN ${c}`);
   await db.raw.execute('DELETE FROM schema_version WHERE version >= 11');
   await db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (10, '2026-09-01T00:00:00.000Z', 'v10')");
@@ -940,7 +940,7 @@ test('J1 v10 → v11：純新增（三張表 + 三欄），零重建，既有墓
     for (const c of TOMB_COLS) assert.ok(!(await colNames(e.db.raw, 'whoop_resource_tombstones')).includes(c));
 
     const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 10); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 13);
+    assert.equal(summary.from, 10); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 14);
     assert.deepEqual(summary.rebuilt, [], '★★★ 絕不重建');
     assert.deepEqual(summary.columnsAdded, TOMB_COLS.map((c) => `whoop_resource_tombstones.${c}`));
     // v12 的四張表在同一次遷移裡一起建起來（純新增）

@@ -22,7 +22,7 @@
  */
 
 import {
-  ADDITIVE_COLUMNS, LEGACY_TABLES, RESHAPED_TABLES, SCHEMA, SCHEMA_VERSION,
+  ADDITIVE_COLUMNS, DATA_MIGRATIONS, LEGACY_TABLES, RESHAPED_TABLES, SCHEMA, SCHEMA_VERSION,
 } from './schema.js';
 import { log } from './logger.js';
 
@@ -149,6 +149,22 @@ export async function runMigrations(client, { allowRebuild = true } = {}) {
     }
     summary.columnsAdded.push(`${table}.${column}`);
     log.info('schema_column_added', { table, column });
+  }
+
+  // ★ 版本閘門的**資料**遷移（不是結構）。
+  //
+  // 只在真的跨過那個版本時跑，所以它不會在之後每次啟動時又對新使用者生效
+  // —— 那正是 v14 的重點：「遷移當下就存在的使用者」才是舊使用者，之後
+  // 透過自助流程建立的人必須自己走完上線狀態機。
+  //
+  // 每一句自己也是冪等的（WHERE NOT EXISTS），所以遷移中途死掉再跑一次安全。
+  summary.dataMigrations = [];
+  for (const dm of DATA_MIGRATIONS) {
+    if (from === 0 || from >= dm.version) continue;
+    const rs = await client.execute(dm.sql);
+    const rows = Number(rs.rowsAffected ?? 0);
+    summary.dataMigrations.push({ version: dm.version, rows });
+    log.info('schema_data_migrated', { version: dm.version, rows, note: dm.note });
   }
 
   if (from < SCHEMA_VERSION) {

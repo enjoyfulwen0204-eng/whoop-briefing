@@ -716,12 +716,12 @@ test('遷移 v11 → v13：純新增四張表（+ v13 三欄），零重建、�
     const NEW = ['analytics_invalidation', 'analytics_work_state', 'analytics_daily_state', 'analytics_runs'];
     const tables = async () => (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")).rows.map((r) => String(r.name));
     // 退回 v11 形狀
-    for (const t of NEW) await e.db.raw.execute(`DROP TABLE ${t}`);
+    for (const t of [...NEW, 'user_onboarding']) await e.db.raw.execute(`DROP TABLE IF EXISTS ${t}`);
     await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 12');
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (11, '2026-09-10T00:00:00.000Z', 'v11')");
     for (const t of NEW) assert.ok(!(await tables()).includes(t));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 13);
+    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 14);
     assert.deepEqual(s.rebuilt, []); assert.deepEqual(s.columnsAdded, [], '從 v11 起跳：新表由 CREATE TABLE 直接建齊（含 v13 欄位）');
     for (const t of NEW) assert.ok((await tables()).includes(t));
     assert.equal((await e.db.getTombstone(ALICE.id, 'sleep', sid(1))).state, TOMBSTONE_STATE.ACTIVE, '墓碑原封不動');

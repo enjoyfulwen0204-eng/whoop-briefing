@@ -19,7 +19,7 @@
 // 當下的日期，所以下午才起床、或跨午夜才跑到都能正確補發，而且不會重複發。
 
 import { CRON, WEEKLY, loadDotEnvIfPresent, loadEnv } from './config.js';
-import { GLOBAL_SCOPE, userScope } from './schema.js';
+import { GLOBAL_SCOPE, userScope, USER_STATUS } from './schema.js';
 import { createDb } from './db.js';
 import { createWhoopClient } from './whoop.js';
 import { createDataSource } from './dataSource.js';
@@ -41,6 +41,7 @@ import { mapWithConcurrency } from './concurrency.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
 import { checkPeerScheduler } from './schedulerWatchdog.js';
+import { resumeOnboardingBootstraps as resumeOnboarding } from './onboardingBootstrap.js';
 
 /** 預測要往回看幾天的 daily_metrics（涵蓋訓練 + 時序切分所需的長度）。 */
 const PREDICTION_LOOKBACK_DAYS = 180;
@@ -410,7 +411,29 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
       db, telegram: systemTelegram, now, lastCommitAt: env.repoLastCommitAt,
     });
 
-    const users = await db.listActiveUsers();
+    // ---- V1.2 Phase 3.5：接手還沒走完的自助上線 ------------------------
+    //
+    // OAuth 回呼之後的 bootstrap（初次同步 + capability）刻意是非同步的：
+    // 那個程序可能在半路被回收。排程器每一輪都把還卡著的人往前推一格，
+    // 所以「授權完成但沒人接著做」不可能發生。有上限、永遠不拋錯。
+    try {
+      const resumed = await resumeOnboarding({ db, env, now: () => now });
+      if (resumed.length) {
+        summary.onboardingResumed = resumed.map((r) => ({ userId: r.userId, result: r.result }));
+        log.info('onboarding_resumed', { count: resumed.length });
+      }
+    } catch (err) {
+      log.error('onboarding_resume_unexpected', { error: describeError(err) });
+    }
+
+    // ★ 排程只看**上線走完**的使用者（Phase 3.5）。
+    //
+    // 一個剛按下 /start、連時區都還沒選的人不該收到「今天沒有資料」的日報 ——
+    // 那不是服務，那是雜訊。Phase 3.5 之前就存在的使用者沒有上線列，
+    // 一律視為 READY，所以既有的正式使用者完全不受影響。
+    const users = typeof db.listSchedulableUsers === 'function'
+      ? await db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE })
+      : await db.listActiveUsers();
     summary.users = users.length;
     if (!users.length) {
       log.warn('run_no_active_users', {});

@@ -21,10 +21,17 @@ import { buildAuthorizeUrl } from './whoop.js';
 import { log } from './logger.js';
 
 export class OAuthFlowError extends Error {
-  constructor(code, message) {
+  /**
+   * @param {?string} userId state 已經被消耗、我們已經知道這是誰時帶上。
+   *   自助上線的 callback 靠它把「授權失敗」記到正確的人身上。
+   *   **只在 state 驗證通過之後才會有值** —— state 本身無效時我們無權
+   *   宣稱這是誰。
+   */
+  constructor(code, message, userId = null) {
     super(message);
     this.name = 'OAuthFlowError';
     this.code = code;
+    this.userId = userId;
   }
 }
 
@@ -96,8 +103,34 @@ export async function completeAuthorization({
   // 使用者身分只來自 state，不來自任何外部輸入
   const userId = consumed.userId;
 
-  const tokens = await exchange({ code });
-  if (!tokens?.accessToken) throw new OAuthFlowError('NO_TOKEN', 'WHOOP 沒有回傳 access_token');
+  // ★ state 驗證通過之後，我們**已經知道這是誰**了。
+  //
+  // 從這裡開始的任何失敗（換 token、驗身分、帳號衝突）都應該能被記到正確的
+  // 人身上 —— 自助上線的 callback 靠它把使用者標成「需要重新連接」，而不是
+  // 讓人卡在一個沒有下一步的畫面。state 本身無效時**不會**走到這裡，所以
+  // 不存在「無權宣稱這是誰卻宣稱了」的情況。
+  try {
+    return await bindAuthorizedTokens({
+      db, userId, code, tokens: null, exchange, verifyIdentity, now,
+    });
+  } catch (err) {
+    if (err instanceof OAuthFlowError && err.userId === null) err.userId = userId;
+    throw err;
+  }
+}
+
+/** completeAuthorization 在「已知使用者」之後的部分（見上面的說明）。 */
+async function bindAuthorizedTokens({ db, userId, code, exchange, verifyIdentity, now }) {
+
+  let tokens;
+  try {
+    tokens = await exchange({ code });
+  } catch (err) {
+    // state 已經消耗掉了（fail closed）。帶上 userId，讓呼叫端可以把失敗
+    // 記到正確的人身上並提供「重新取得連結」的動作。
+    throw new OAuthFlowError('TOKEN_EXCHANGE_FAILED', `WHOOP token 交換失敗：${String(err?.message ?? err).slice(0, 160)}`, userId);
+  }
+  if (!tokens?.accessToken) throw new OAuthFlowError('NO_TOKEN', 'WHOOP 沒有回傳 access_token', userId);
 
   // ---- M-01 身分閘門：先確定這是誰，才可能把 token 存到誰身上 ----
   let whoopUserId = tokens.whoopUserId ?? null;

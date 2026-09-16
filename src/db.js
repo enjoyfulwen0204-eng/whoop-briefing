@@ -28,6 +28,7 @@ import { createHealthStore } from './store.js';
 import { createWhoopWebhookStore } from './whoopWebhookStore.js';
 import { createReconciliationStore } from './reconciliationStore.js';
 import { createAnalyticsWorkStore } from './analyticsWorkStore.js';
+import { createOnboardingStore } from './onboardingStore.js';
 import { withAnalyticsInvalidation } from './analyticsInvalidation.js';
 import { createBotStore } from './botStore.js';
 import { createAnalysisStore } from './analysisStore.js';
@@ -1428,6 +1429,8 @@ export function createDb({ url, authToken }) {
     ...createAnalysisStore(client),
     ...createProactiveStore(client),
     ...createGuardianStore(client),
+    // V1.2 Phase 3.5：自助上線的生命週期（沒有列 = 舊使用者 = READY）。
+    ...createOnboardingStore(client),
     // V1.2 Phase 3：分析工作狀態（失效 / 認領 / 結案 / 物化 / 帳本）。
     ...analytics,
     // V1.2 Phase 3：canonical 寫入器的**同交易**分析失效。放在最後，覆蓋上面

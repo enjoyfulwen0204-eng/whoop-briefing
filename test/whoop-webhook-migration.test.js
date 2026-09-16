@@ -87,7 +87,7 @@ test('★★★ v9 → v10：純新增，既有資料一列不動、零重建', 
     const summary = await runMigrations(client);
     assert.equal(summary.from, 9, '★ 起點必須被認成 9');
     assert.equal(summary.to, SCHEMA_VERSION);
-    assert.equal(SCHEMA_VERSION, 13);
+    assert.equal(SCHEMA_VERSION, 14);
     assert.deepEqual(summary.rebuilt, [], '★★★ 升級絕不可以重建（DROP）任何表');
     // v10 本身是純新增表。v11 在 v10 建的墓碑表上加了三個診斷欄位；從 v9
     // 起跳時墓碑表是這一輪剛用 v11 的 DDL 建的，欄位已經在裡面 →
@@ -124,7 +124,7 @@ test('★★★ 遷移冪等：重跑三次，schema 與資料都不變', async 
     }
     assert.deepEqual(await tableNames(client), snapshot, '★ 表結構不可以變');
     const versions = await client.execute('SELECT COUNT(*) n FROM schema_version');
-    assert.equal(Number(versions.rows[0].n), 2, '★ 只應該有 v9 與 v13 兩筆版本紀錄（v10 / v11 / v12 從未單獨落地）');
+    assert.equal(Number(versions.rows[0].n), 2, '★ 只應該有 v9 與 v14 兩筆版本紀錄（v10～v13 從未單獨落地）');
     client.close();
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

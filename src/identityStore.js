@@ -144,6 +144,46 @@ export function createIdentityStore(client) {
     return { chatId: cid, userId: uid, linkedAt: ts, status: LINK_STATUS.ACTIVE };
   }
 
+  /**
+   * **原子**認領一個 Telegram 私訊（自助上線用，V1.2 Phase 3.5）。
+   *
+   * 與 linkTelegram 的差別是併發語義：linkTelegram 先查再寫（應用層判斷），
+   * 兩個並發呼叫可以一起通過那個判斷然後互相覆蓋。這一支只有一條語句 ——
+   * 主鍵衝突時 **DO NOTHING**，然後讀回「現在的主人是誰」。
+   * 所以 20 個並發認領同一個 chat，恰好一個成功，其餘都拿到贏家的 id。
+   *
+   * 絕不搶走別人的綁定，也絕不復活被退役的綁定（那要管理者處理）。
+   *
+   * @returns {{ok:boolean, userId:?string, reason?:string}}
+   *   ok = 這一次真的由我建立；userId = 目前的主人（不論是不是我）。
+   */
+  async function claimTelegramChat({ chatId, userId, now = new Date() }) {
+    const uid = requireUserId(userId, 'claimTelegramChat');
+    const cid = String(chatId);
+    // 綁定邊界與 linkTelegram 相同：群組／頻道永遠不可能成為目的地。
+    if (!isSafePrivateChatId(cid)) {
+      log.warn('telegram_claim_rejected_unsafe', { user_id: uid, reason: unsafeChatReason(cid) });
+      return { ok: false, userId: null, reason: 'unsafe_chat' };
+    }
+    const ts = iso(now);
+    const rs = await client.execute({
+      sql: `INSERT INTO user_telegram (telegram_chat_id, user_id, linked_at, status)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(telegram_chat_id) DO NOTHING`,
+      args: [cid, uid, ts, LINK_STATUS.ACTIVE],
+    });
+    if (Number(rs.rowsAffected ?? 0) > 0) {
+      log.info('telegram_linked', { user_id: uid });
+      return { ok: true, userId: uid };
+    }
+    const existing = await getTelegramLink(cid);
+    if (!existing) return { ok: false, userId: null, reason: 'unknown' };
+    if (existing.status !== LINK_STATUS.ACTIVE) {
+      return { ok: false, userId: null, reason: `link_${String(existing.status).toLowerCase()}` };
+    }
+    return { ok: false, userId: existing.userId, reason: 'already_claimed' };
+  }
+
   async function getTelegramLink(chatId) {
     const rs = await client.execute({
       sql: 'SELECT * FROM user_telegram WHERE telegram_chat_id = ?',
@@ -383,6 +423,28 @@ export function createIdentityStore(client) {
     return { ok: true, userId };
   }
 
+  /**
+   * 只看、不消耗：這條 state 現在還有效嗎、綁的是誰。
+   *
+   * 給自助上線的 callback 用 —— 使用者在 WHOOP 那邊按了「拒絕」時，我們想把
+   * 他的上線狀態標成「需要處理」，但**不該**把他手上那條還沒用過的連結作廢
+   * （他可能只是按錯）。所以這是一個嚴格唯讀的查詢。
+   *
+   * 與 consume 一樣只比對 hash，原文永遠不進 DB、不進 log。
+   */
+  async function peekOAuthState(rawState, { now = new Date() } = {}) {
+    const hash = hashSecret(rawState ?? '');
+    const rs = await client.execute({
+      sql: 'SELECT user_id, consumed_at, expires_at FROM oauth_states WHERE state_hash = ?',
+      args: [hash],
+    });
+    const row = rs.rows[0];
+    if (!row) return { ok: false, reason: 'invalid', userId: null };
+    if (row.consumed_at) return { ok: false, reason: 'consumed', userId: String(row.user_id) };
+    if (String(row.expires_at) <= iso(now)) return { ok: false, reason: 'expired', userId: String(row.user_id) };
+    return { ok: true, userId: String(row.user_id), expiresAt: row.expires_at };
+  }
+
   return {
     createUser,
     getUser,
@@ -390,6 +452,7 @@ export function createIdentityStore(client) {
     listActiveUsers,
     updateUser,
     linkTelegram,
+    claimTelegramChat,
     getTelegramLink,
     resolveUserByChatId,
     getActiveChatIdForUser,
@@ -399,5 +462,6 @@ export function createIdentityStore(client) {
     redeemLinkCode,
     createOAuthState,
     consumeOAuthState,
+    peekOAuthState,
   };
 }

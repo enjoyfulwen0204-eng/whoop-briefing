@@ -268,7 +268,56 @@ export const CANONICAL_CHANGE = Object.freeze({
   DELETED: 'deleted',       // 權威 DELETE 移除了 canonical 列
 });
 
-export const SCHEMA_VERSION = 13;
+/**
+ * 自助上線的生命週期（V1.2 Phase 3.5）。
+ *
+ * 這是「這個人可不可以開始被當成正式使用者對待」的權威狀態，與
+ * `users.status`（帳號層級的啟用／停用）是兩件事：
+ *
+ *   users.status = ACTIVE  →  這個帳號沒有被停權
+ *   onboarding   = READY   →  上線流程真的走完了（有時區、有 WHOOP 綁定、
+ *                             初次同步與 capability 盤點都做過）
+ *
+ * 排程器要的是後者：一個剛按下 /start、連時區都還沒選的人，不應該收到
+ * 「今天沒有資料」的日報。
+ *
+ * ## 沒有列 = 舊使用者 = READY
+ *
+ * Phase 3.5 之前的使用者（管理員用 CLI 建的）沒有這張表的列。那不是
+ * 「還沒上線」，而是「上線這件事在當時是人工完成的」。所以查不到列一律
+ * 視為 READY —— Kelvin 的正式使用者因此完全不受影響。v13 → v14 的遷移
+ * 另外會把當下已存在的使用者明確補成 READY，讓狀態看得見。
+ */
+export const ONBOARDING_STATE = Object.freeze({
+  /** /start 收到了：使用者與 Telegram 綁定已經建立。 */
+  STARTED: 'STARTED',
+  /** 等使用者給時區。日期敏感的功能在這之前都不成立。 */
+  TIMEZONE_PENDING: 'TIMEZONE_PENDING',
+  /** 時區有了，等使用者完成 WHOOP 授權。 */
+  WHOOP_AUTH_PENDING: 'WHOOP_AUTH_PENDING',
+  /** OAuth 成功、token 已綁定，初次 bootstrap 還沒開始。 */
+  WHOOP_AUTHORIZED: 'WHOOP_AUTHORIZED',
+  /** 初次同步 / capability 盤點進行中。 */
+  SYNCING: 'SYNCING',
+  /** 系統可用（不代表所有分析都成熟）。 */
+  READY: 'READY',
+  /** 需要使用者自己做一件事才能繼續（重新授權、換一個 WHOOP 帳號…）。 */
+  ACTION_REQUIRED: 'ACTION_REQUIRED',
+});
+
+/** ACTION_REQUIRED 的原因（給使用者看的訊息由 onboarding.js 決定）。 */
+export const ONBOARDING_FAILURE = Object.freeze({
+  OAUTH_DENIED: 'OAUTH_DENIED',
+  OAUTH_STATE_INVALID: 'OAUTH_STATE_INVALID',
+  TOKEN_EXCHANGE_FAILED: 'TOKEN_EXCHANGE_FAILED',
+  IDENTITY_UNVERIFIED: 'IDENTITY_UNVERIFIED',
+  WHOOP_ACCOUNT_ALREADY_LINKED: 'WHOOP_ACCOUNT_ALREADY_LINKED',
+  WHOOP_ACCOUNT_MISMATCH: 'WHOOP_ACCOUNT_MISMATCH',
+  BOOTSTRAP_FAILED: 'BOOTSTRAP_FAILED',
+  REAUTH_REQUIRED: 'REAUTH_REQUIRED',
+});
+
+export const SCHEMA_VERSION = 14;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -1510,6 +1559,42 @@ export const ANALYTICS_WORK_SCHEMA = [
      ON analytics_runs (user_id, class, id)`,
 ];
 
+/**
+ * V1.2 Phase 3.5：自助上線的耐久生命週期（一張全新的表，純新增）。
+ *
+ * 每個使用者一列。狀態機是權威，Telegram 對話狀態只是它的投影 ——
+ * 程序重啟、webhook 換一台機器、使用者把對話刪掉，流程都接得回去。
+ *
+ * ## 這裡**不存**任何祕密
+ *
+ * OAuth state 的原文從來不進這張表（它只以 hash 存在 oauth_states），
+ * token 也不在這裡。這張表只記「走到哪一步、什麼時候、為什麼卡住」。
+ */
+export const ONBOARDING_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS user_onboarding (
+     user_id               TEXT PRIMARY KEY,
+     state                 TEXT NOT NULL,
+     -- 生命週期的時間戳（純診斷／可觀測性）
+     timezone_confirmed_at TEXT,
+     whoop_authorized_at   TEXT,
+     sync_started_at       TEXT,
+     ready_at              TEXT,
+     state_changed_at      TEXT NOT NULL,
+     -- ACTION_REQUIRED 的原因與人看得懂的細節（**不含**祕密）
+     failure_code          TEXT,
+     failure_detail        TEXT,
+     -- 濫用控制：授權連結的產生節奏（見 config 的 ONBOARDING）
+     auth_link_count       INTEGER NOT NULL DEFAULT 0,
+     last_auth_link_at     TEXT,
+     -- bootstrap 的嘗試次數（初次同步 + capability）
+     bootstrap_attempts    INTEGER NOT NULL DEFAULT 0,
+     last_bootstrap_at     TEXT,
+     created_at            TEXT NOT NULL,
+     updated_at            TEXT NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_user_onboarding_state ON user_onboarding (state)`,
+];
+
 export const SCHEMA = [
   // Result and all database actions commit together. Retained independently of
   // transport claim pruning; replay never repeats an already committed action.
@@ -1548,6 +1633,29 @@ export const SCHEMA = [
   ...WHOOP_WEBHOOK_SCHEMA,
   ...RECONCILIATION_SCHEMA,
   ...ANALYTICS_WORK_SCHEMA,
+  ...ONBOARDING_SCHEMA,
+];
+
+/**
+ * 版本閘門的**資料**遷移（不是結構）。只在 `from < version` 時跑一次。
+ *
+ * 每一句都必須自己冪等（用 WHERE NOT EXISTS / OR IGNORE），因為
+ * 「跑過一次」本身沒有另外的紀錄 —— 版本號就是紀錄。
+ */
+export const DATA_MIGRATIONS = [
+  {
+    version: 14,
+    note: 'existing users are pre-Phase-3.5 and therefore already onboarded',
+    // 遷移當下就存在的使用者 → 明確標成 READY。
+    // 全新資料庫（from = 0）沒有任何使用者，所以這一句什麼都不會做。
+    sql: `INSERT INTO user_onboarding
+            (user_id, state, timezone_confirmed_at, whoop_authorized_at, ready_at,
+             state_changed_at, created_at, updated_at)
+          SELECT u.id, 'READY', u.created_at, u.created_at, u.created_at,
+                 u.created_at, u.created_at, u.created_at
+            FROM users u
+           WHERE NOT EXISTS (SELECT 1 FROM user_onboarding o WHERE o.user_id = u.id)`,
+  },
 ];
 
 /** 使用者狀態。 */

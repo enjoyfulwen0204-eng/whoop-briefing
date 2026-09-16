@@ -647,13 +647,16 @@ test('遷移 v12 → v13：三個 nullable 欄位純新增；既有 canonical / 
     const cols = async () => (await e.db.raw.execute('PRAGMA table_info(analytics_work_state)')).rows.map((r) => String(r.name));
     // 退回真的 v12 形狀
     for (const c of COLS) await e.db.raw.execute(`ALTER TABLE analytics_work_state DROP COLUMN ${c}`);
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version = 13');
+    await e.db.raw.execute('DROP TABLE IF EXISTS user_onboarding');   // v14 的表也要退掉
+    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 13');
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (12, '2026-09-12T00:00:00.000Z', 'v12')");
     for (const c of COLS) assert.ok(!(await cols()).includes(c));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 12); assert.equal(s.to, 13); assert.equal(SCHEMA_VERSION, 13);
+    assert.equal(s.from, 12); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 14);
     assert.deepEqual(s.rebuilt, []);
     assert.deepEqual(s.columnsAdded, COLS.map((c) => `analytics_work_state.${c}`));
+    const tables = (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.map((r) => String(r.name));
+    assert.ok(tables.includes('user_onboarding'), 'v14 的表在同一次遷移裡一起建起來');
     const afterState = await work(e.db, ALICE, LIGHT);
     assert.equal(afterState.doneGeneration, beforeState.doneGeneration); assert.equal(afterState.lastSuccessAt, beforeState.lastSuccessAt);
     assert.equal(afterState.rangeFrom, null);
@@ -661,7 +664,7 @@ test('遷移 v12 → v13：三個 nullable 欄位純新增；既有 canonical / 
     for (let i = 0; i < 3; i += 1) { const s2 = await runMigrations(e.db.raw); assert.deepEqual(s2.columnsAdded, []); assert.deepEqual(s2.rebuilt, []); }
     // 中斷：只加了一個欄位
     for (const c of COLS) await e.db.raw.execute(`ALTER TABLE analytics_work_state DROP COLUMN ${c}`);
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version = 13');
+    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 13');
     await e.db.raw.execute('ALTER TABLE analytics_work_state ADD COLUMN range_generation INTEGER');
     const s3 = await runMigrations(e.db.raw);
     assert.deepEqual(s3.columnsAdded, ['analytics_work_state.range_from', 'analytics_work_state.range_to']);

@@ -54,6 +54,10 @@ import { BRIEFING_TRIGGER } from '../briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../briefingEndpoint.js';
 import { runBriefing } from '../index.js';
 import { createWhoopWebhookIngest, statusForIngest } from '../whoopWebhookIngest.js';
+import { createWhoopOAuthCallback, OAUTH_CALLBACK_PATH, renderScreen } from '../whoopOAuthCallback.js';
+import { handleUnlinkedMessage, handleOnboardingMessage, MESSAGES as ONBOARDING_MESSAGES } from '../onboarding.js';
+import { runOnboardingBootstrap } from '../onboardingBootstrap.js';
+import { exchangeCode, fetchWhoopUserId } from '../whoop.js';
 
 /**
  * 定長時間比較。長度不同直接回 false（長度本身不是祕密）。
@@ -98,6 +102,13 @@ export function readBody(req, { limit = TELEGRAM_BOT.WEBHOOK_MAX_BODY_BYTES } = 
     req.on('error', () => finish({ ok: false, reason: 'stream_error' }));
     req.on('aborted', () => finish({ ok: false, reason: 'aborted' }));
   });
+}
+
+/** bootstrap 的通知種類 → 使用者看得到的文字。 */
+export function onboardingNotice(kind) {
+  if (kind === 'ready') return ONBOARDING_MESSAGES.ready();
+  if (kind === 'bootstrap_failed') return ONBOARDING_MESSAGES.actionRequired('BOOTSTRAP_FAILED');
+  return ONBOARDING_MESSAGES.statusSyncing();
 }
 
 /** 這個物件像不像一則 Telegram Update（只檢查到不會讓下游爆掉為止）。 */
@@ -172,6 +183,14 @@ export function createWebhookHandler({
    * 不可以留下一個「存在但永遠 401」的端點：那等於對外宣告這裡有東西。
    */
   whoopIngest = null,
+  /**
+   * WHOOP OAuth 回呼（V1.2 Phase 3.5）。
+   *
+   * null = 這條路由不存在（回 404）。沒有 WHOOP client id/secret 可以換
+   * token 時就是 null —— 不留一個「存在但永遠失敗」的端點。
+   */
+  oauthCallback = null,
+  oauthCallbackPath = OAUTH_CALLBACK_PATH,
   whoopWebhookPath = WHOOP_WEBHOOK.PATH,
   whoopMaxBodyBytes = WHOOP_WEBHOOK.MAX_BODY_BYTES,
   webhookPath = TELEGRAM_BOT.WEBHOOK_PATH,
@@ -180,6 +199,20 @@ export function createWebhookHandler({
   schedulerConfigured = Boolean(briefingEndpoint),
   schedulerState = schedulerConfigured ? 'enabled' : 'disabled',
 }) {
+  /** OAuth 回呼回的是給人看的網頁（其餘端點一律 JSON）。 */
+  const sendHtml = (res, status, html) => {
+    res.writeHead(status, {
+      'content-type': 'text/html; charset=utf-8',
+      'content-length': Buffer.byteLength(html),
+      'cache-control': 'no-store',
+      'referrer-policy': 'no-referrer',
+      // 這一頁沒有任何腳本、樣式是內嵌的；把能關的都關掉。
+      'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      'x-content-type-options': 'nosniff',
+    });
+    res.end(html);
+  };
+
   const send = (res, status, obj) => {
     const text = JSON.stringify(obj);
     res.writeHead(status, {
@@ -216,6 +249,29 @@ export function createWebhookHandler({
       }
       const result = await briefingEndpoint(req, schedulerBody.body);
       return send(res, result.status, result.body);
+    }
+
+    // ---- WHOOP OAuth 回呼（V1.2 Phase 3.5）--------------------------------
+    //
+    // 使用者的瀏覽器會被 WHOOP 導到這裡，所以它回的是**網頁**而不是 JSON，
+    // 而且必須是 GET。這條路沒有自己的祕密：安全性完全來自一次性、
+    // 綁死使用者的 state（見 whoopOAuthCallback.js）。
+    if (path === oauthCallbackPath) {
+      if (!oauthCallback) return send(res, 404, { ok: false });
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        const page = renderScreen('not_found');
+        return sendHtml(res, 405, page.html);
+      }
+      const q = new URLSearchParams(url.includes('?') ? url.slice(url.indexOf('?') + 1) : '');
+      let result;
+      try {
+        result = await oauthCallback({ query: q });
+      } catch (err) {
+        log.error('oauth_callback_unhandled', { error: describeError(err) });
+        const page = renderScreen('error');
+        return sendHtml(res, page.status, page.html);
+      }
+      return sendHtml(res, result.status, result.html);
     }
 
     // ---- WHOOP webhook（V1.2 Phase 1，正式環境預設關閉）--------------------
@@ -367,13 +423,37 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const api = createTelegramApi({ botToken: env.telegramBotToken });
   const router = createRouter({ db, coachFor });
 
+  // ---- 自助上線（V1.2 Phase 3.5）----------------------------------------
+  //
+  // 需要 WHOOP client id + 回呼網址才能產生授權連結。缺任何一個就整條關閉：
+  // 與其給使用者一條一定失敗的連結，不如讓 /start 只走到「請聯絡管理者」。
+  const onboardingConfigured = Boolean(
+    env.whoopClientId && env.whoopClientSecret && env.whoopRedirectUri,
+  );
+  if (!onboardingConfigured) log.warn('self_service_onboarding_disabled', {});
+  const onboardingArgs = {
+    clientId: env.whoopClientId, redirectUri: env.whoopRedirectUri,
+  };
+
   const processor = createUpdateProcessor({
     db,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
-    handleMessage: ({ text, chatId, user }) => router.handle({ text, chatId, user }),
-    handleUnlinked: ({ text, chatId, isPrivateChat = false }) => handleLinkAttempt({
-      db, text, chatId, isPrivateChat,
-    }),
+    handleMessage: async ({ text, chatId, user }) => {
+      // 上線還沒走完的人：只給狀態與下一步，**不執行任何健康處理**
+      // （他的資料還沒進來，任何答案都會是假的）。
+      if (onboardingConfigured) {
+        const reply = await handleOnboardingMessage({ db, user, text, ...onboardingArgs });
+        if (reply !== null) return reply;
+      }
+      return router.handle({ text, chatId, user });
+    },
+    handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {
+      // 舊的 /link <碼> 仍然保留給管理者的復原路徑。
+      const legacy = await handleLinkAttempt({ db, text, chatId, isPrivateChat });
+      if (legacy !== null) return legacy;
+      if (!onboardingConfigured) return null;
+      return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
+    },
     sendReply: createSendReply({ db, api }),
     // Ephemeral only. The final answer still uses the existing durable delivery
     // receipt/fencing path in updateProcessor.
@@ -402,10 +482,42 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   }
   const briefingEndpoint = schedulerConfigured
     ? createBriefingEndpoint({ secret: briefingTriggerSecret, runBriefing }) : null;
+
+  // ---- OAuth 回呼（V1.2 Phase 3.5）---------------------------------------
+  //
+  // 授權成功之後做兩件**有界**的事：通知使用者、踢一次 bootstrap。
+  // bootstrap 刻意不 await —— 它可能要抓好幾分鐘的歷史，而瀏覽器在等。
+  // 死掉也沒關係：狀態機停在 WHOOP_AUTHORIZED，排程器每一輪都會接手。
+  const notifyUser = async (userId, text) => {
+    const chatId = await db.getActiveChatIdForUser(userId);
+    if (!chatId) return;
+    await api.sendMessage(chatId, text);
+  };
+  const oauthCallback = onboardingConfigured ? createWhoopOAuthCallback({
+    db,
+    exchange: ({ code }) => exchangeCode({
+      code, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+      redirectUri: env.whoopRedirectUri,
+    }),
+    verifyIdentity: ({ accessToken }) => fetchWhoopUserId({ accessToken }),
+    onAuthorized: async (userId) => {
+      await notifyUser(userId, ONBOARDING_MESSAGES.authorizedSyncing())
+        .catch((err) => log.warn('onboarding_notify_failed', { error: describeError(err) }));
+      // 不 await：回呼要在瀏覽器面前很快結束。
+      runOnboardingBootstrap({
+        db, userId, env,
+        deps: { notify: (uid, kind) => notifyUser(uid, onboardingNotice(kind)) },
+      }).catch((err) => log.error('onboarding_bootstrap_detached_failed', {
+        user_id: userId, error: describeError(err),
+      }));
+    },
+  }) : null;
+
   const server = createWebhookServer({
     processUpdate: processor.processUpdate, secret, briefingEndpoint, schedulerConfigured,
     schedulerState: scheduler.state,
     whoopIngest,
+    oauthCallback,
   });
   if (!listen) return { server, db };
 

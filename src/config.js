@@ -623,6 +623,47 @@ export const ANALYTICS_WORK = {
   RETRY_MAX_MS: 6 * 60 * 60_000,
 };
 
+/**
+ * V1.2 Phase 3.5：自助 Telegram 上線。
+ *
+ * ## 回呼網址
+ *
+ * WHOOP 只會導回**事先在 Developer Dashboard 註冊過**的網址，所以它必須是
+ * 一個固定、公開、HTTPS 的位址。`WHOOP_REDIRECT_URI` 就是那一個；本機開發
+ * 仍然可以指向 localhost（scripts/authorize.js 那條路沒有被拿掉）。
+ *
+ * ## 濫用控制為什麼只有這幾條
+ *
+ * 公開的 bot 會收到隨機流量，但這個系統的攻擊面很窄：一個 Telegram 私訊
+ * 只能綁一個使用者（儲存層擋的），而授權連結本身不洩漏任何東西 —— 它只是
+ * WHOOP 的官方授權頁加上一個一次性 state。所以這裡不需要一整套防濫用平台，
+ * 只需要讓「連按 Connect」與「無限產生 state」有界。
+ */
+export const ONBOARDING = {
+  /** 授權連結的有效期（與 oauthFlow 的 state TTL 同一個值）。 */
+  OAUTH_STATE_TTL_MS: 10 * 60_000,
+  /** 兩次產生授權連結之間的冷卻。 */
+  AUTH_LINK_COOLDOWN_MS: 20_000,
+  /** 一輪上線最多產生幾條授權連結（授權成功後歸零）。 */
+  MAX_AUTH_LINKS: 10,
+  /** bootstrap（初次同步 + capability）最多重試幾次才轉成 ACTION_REQUIRED。 */
+  MAX_BOOTSTRAP_ATTEMPTS: 5,
+  /** bootstrap 的鎖租約：初次同步可能要抓好幾個 chunk。 */
+  BOOTSTRAP_LEASE_MS: 10 * 60_000,
+  /** capability 取樣天數（與 npm run probe 的預設一致）。 */
+  CAPABILITY_PROBE_DAYS: 14,
+  /** 一次排程 tick 最多接手幾個還沒走完的上線。 */
+  MAX_BOOTSTRAPS_PER_RUN: 3,
+  /**
+   * 時區快捷選項。**不是**白名單 —— 使用者可以直接打任何合法的 IANA 時區，
+   * 驗證交給執行環境的 Intl（見 onboarding.js 的 normalizeTimezone）。
+   */
+  TIMEZONE_SUGGESTIONS: [
+    'Asia/Taipei', 'Asia/Ho_Chi_Minh', 'Asia/Kuala_Lumpur', 'Asia/Singapore',
+    'Asia/Tokyo', 'Asia/Bangkok', 'Europe/London', 'America/Los_Angeles',
+  ],
+};
+
 // ---------------------------------------------------------------------------
 // 4d. 統計 / 個人偏離（Phase H / I）
 // ---------------------------------------------------------------------------

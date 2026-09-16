@@ -287,6 +287,6 @@ test('RC2 多使用者：A 的過期不影響 Bob 的輕量進度', async () => 
   } finally { e.done(); }
 });
 
-test('RC2 schema 沒有變：仍是 v13', () => {
-  assert.equal(SCHEMA_VERSION, 13);
+test('RC2 的修復本身沒有動 schema（v13 的欄位仍在；v14 是 Phase 3.5 另外加的）', () => {
+  assert.ok(SCHEMA_VERSION >= 13);
 });

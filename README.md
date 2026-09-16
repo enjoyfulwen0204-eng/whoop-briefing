@@ -299,6 +299,17 @@ B 後面那個條件是刻意加的。只看「是否單調下降」的話，在
   重量分析各自 dirty-driven、有租約、有上限。**尚未接進正式排程器**
   （`npm run analytics:status|light|heavy`）。見 [docs/analytics-decoupling.md](docs/analytics-decoupling.md)。
 
+## 自助上線（V1.2 Phase 3.5，尚未部署）
+
+朋友在 Telegram 私訊送 `/start` 就能自己完成：建立身分 → 綁定這個私訊 → 選時區
+→ 點 Connect WHOOP → 官方授權 → 公開 HTTPS 回呼 → 自動初次同步與 capability 盤點
+→ 收到「準備好了」。管理員完全不需要建帳號、發綁定碼、跑授權腳本或複製 token。
+
+排程只看上線完成（READY）的人，所以還在設定中的人不會收到空的日報；
+Phase 3.5 之前的使用者一律視為 READY，行為不變。
+⚠️ 部署前必須先在 WHOOP Developer Dashboard 註冊公開回呼網址
+（`https://<網域>/whoop/oauth/callback`）。見 [docs/self-service-onboarding.md](docs/self-service-onboarding.md)。
+
 ## Capability：能力靠資料判斷，不靠 membership
 
 WHOOP One 與 Peak 用的是同一顆 WHOOP 5.0 硬體。所以程式裡**沒有任何**

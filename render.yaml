@@ -96,3 +96,8 @@ services:
         sync: false
       - key: BRIEFING_TRIGGER_SECRET
         sync: false
+      # V1.2 Phase 3.5：自助上線的 WHOOP OAuth 回呼就掛在這個服務上
+      # （GET /whoop/oauth/callback）。這個值必須與 WHOOP Developer
+      # Dashboard 註冊的網址**完全一樣**，否則 WHOOP 不會導回來。
+      - key: WHOOP_REDIRECT_URI
+        sync: false

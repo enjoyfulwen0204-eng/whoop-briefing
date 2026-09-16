@@ -22,6 +22,7 @@ import { createTelegramApi } from './api.js';
 import { createPoller } from './polling.js';
 import { createRouter } from './router.js';
 import { handleLinkAttempt } from './link.js';
+import { handleUnlinkedMessage, handleOnboardingMessage } from '../onboarding.js';
 import { log, describeError } from '../logger.js';
 
 /**
@@ -94,6 +95,13 @@ export async function main({ maxIterations = Infinity } = {}) {
 
   const router = createRouter({ db, coachFor });
 
+  // 自助上線需要 WHOOP client id + 回呼網址才能產生授權連結（見 webhook.js）。
+  const onboardingConfigured = Boolean(
+    env.whoopClientId && env.whoopClientSecret && env.whoopRedirectUri,
+  );
+  if (!onboardingConfigured) log.warn('self_service_onboarding_disabled', {});
+  const onboardingArgs = { clientId: env.whoopClientId, redirectUri: env.whoopRedirectUri };
+
   const poller = createPoller({
     db,
     botToken: env.telegramBotToken,
@@ -101,16 +109,22 @@ export async function main({ maxIterations = Infinity } = {}) {
     // 身分解析：chat → ACTIVE 綁定 → ACTIVE 使用者。解析不到回 null。
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user }) => {
-      const reply = await router.handle({ text, chatId, user });
-      return reply;
+      // 上線還沒走完的人：只給狀態與下一步（與 webhook 那條路同一份邏輯）。
+      if (onboardingConfigured) {
+        const onboardingReply = await handleOnboardingMessage({ db, user, text, ...onboardingArgs });
+        if (onboardingReply !== null) return onboardingReply;
+      }
+      return router.handle({ text, chatId, user });
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
     sendReply: createSendReply({ db, api }),
-    // 未綁定的 chat：只吃 /link，其他一律不回
-    handleUnlinked: async ({ text, chatId, isPrivateChat = false }) => {
-      const reply = await handleLinkAttempt({ db, text, chatId, isPrivateChat });
-      return reply;
+    // 未綁定的 chat：先看管理者的 /link <碼>，再走自助上線（Phase 3.5）。
+    handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {
+      const legacy = await handleLinkAttempt({ db, text, chatId, isPrivateChat });
+      if (legacy !== null) return legacy;
+      if (!onboardingConfigured) return null;
+      return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
   });
 

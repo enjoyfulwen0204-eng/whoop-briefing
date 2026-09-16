@@ -231,7 +231,43 @@ export const DISCREPANCY_KIND = Object.freeze({
   MISSING_REMOTE: 'MISSING_REMOTE',
 });
 
-export const SCHEMA_VERSION = 11;
+/**
+ * 分析工作的類別（V1.2 Phase 3）。
+ *
+ *   LIGHT  便宜、有界、確定性：受影響日期的 daily metrics 物化 + 當日就緒狀態
+ *   HEAVY  昂貴、延後：預測訓練／評估、Healthspan 盤點（180／90 天回看）
+ */
+export const ANALYTICS_CLASS = Object.freeze({ LIGHT: 'light', HEAVY: 'heavy' });
+
+/** 一次分析執行的結果。 */
+export const ANALYTICS_RESULT = Object.freeze({
+  SUCCESS: 'SUCCESS',
+  FAILED: 'FAILED',
+  FENCED: 'FENCED',
+  SKIPPED: 'SKIPPED',
+});
+
+/**
+ * 衍生分析相對於 canonical 的新鮮度。
+ *
+ *   CURRENT  done_generation = 目前的 generation（沒有更新的 canonical 變動）
+ *   PENDING  generation 已前進，還沒（成功）算過 → 衍生輸出是舊的
+ *   FAILED   最近一次嘗試失敗，而且仍然落後
+ *   NEVER    從來沒有任何 canonical 變動被記錄（也從來沒算過）
+ */
+export const ANALYTICS_FRESHNESS = Object.freeze({
+  CURRENT: 'CURRENT', PENDING: 'PENDING', FAILED: 'FAILED', NEVER: 'NEVER',
+});
+
+/** canonical 寫入相對於既有資料的語義結果（Phase 3 只對 CHANGED / DELETED 失效）。 */
+export const CANONICAL_CHANGE = Object.freeze({
+  CHANGED: 'changed',       // 新列，或來源版本（updated_at）嚴格更新
+  UNCHANGED: 'unchanged',   // 同一版本重放（冪等）
+  BLOCKED: 'blocked',       // M-03 擋下的舊版本，或 ACTIVE 墓碑擋下的復活
+  DELETED: 'deleted',       // 權威 DELETE 移除了 canonical 列
+});
+
+export const SCHEMA_VERSION = 12;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -1360,6 +1396,105 @@ export const RECONCILIATION_SCHEMA = [
    )`,
 ];
 
+/**
+ * V1.2 Phase 3：攝取 / 分析解耦的耐久狀態（四張全新的表，純新增）。
+ *
+ * ## 模型
+ *
+ *   analytics_invalidation   每個使用者一列：**generation** 計數器 + 這一代累積的
+ *                            受影響範圍。canonical 真的變了（新列 / 較新版本 /
+ *                            刪除）就在**同一個交易**裡 +1 並合併範圍。
+ *   analytics_work_state     每個 (使用者, 類別) 一列：算到哪一代（done_generation）、
+ *                            租約、退避、最近成功 / 失敗。
+ *   analytics_daily_state    輕量路徑的物化輸出：每個 (使用者, health_date) 一列
+ *                            daily metrics + 算它時的 generation。
+ *   analytics_runs           執行帳本。
+ *
+ * ## 為什麼是 generation 而不是 dirty 旗標
+ *
+ * 旗標會遺失更新：A 認領時是髒的、開始算；新資料進來又設成髒；A 算完把旗標
+ * 清掉 —— 新資料那一次就永遠沒人算。generation 是單調計數：A 認領時記住 N，
+ * 結案時只寫 done_generation = N；若此時 generation 已經是 N+1，
+ * done < generation 仍然成立 → 仍然髒。結構上不可能把 N+1 清掉。
+ *
+ * ## 為什麼失效寫在 canonical 交易裡
+ *
+ * canonical commit 之後、失效 commit 之前崩潰 = 分析永遠不知道資料變了。
+ * 兩者在同一個 BEGIN IMMEDIATE 交易裡提交：要嘛都在、要嘛都不在。
+ * 沒有「稍後補記」這種需要另一個機制去發現的漏洞。
+ */
+export const ANALYTICS_WORK_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS analytics_invalidation (
+     user_id             TEXT PRIMARY KEY,
+     -- 單調計數：每一次語義上的 canonical 變動 +1。0 = 從未變動。
+     generation          INTEGER NOT NULL DEFAULT 0,
+     -- 目前這一段「還沒被輕量路徑消化」的受影響 health_date 範圍（含），
+     -- 多次變動取聯集；輕量路徑用 CAS（generation 相符）清掉。
+     affected_from       TEXT,
+     affected_to         TEXT,
+     -- 受影響的資源與原因（排序過、去重的 CSV；診斷用）
+     resources           TEXT,
+     reasons             TEXT,
+     -- 第一次讓某個類別落後的時間；所有類別都追上時清掉
+     dirty_since         TEXT,
+     last_invalidated_at TEXT,
+     created_at          TEXT NOT NULL,
+     updated_at          TEXT NOT NULL
+   )`,
+
+  `CREATE TABLE IF NOT EXISTS analytics_work_state (
+     user_id              TEXT NOT NULL,
+     class                TEXT NOT NULL,
+     -- 這個類別**成功**算到的 generation。< analytics_invalidation.generation = 落後。
+     done_generation      INTEGER NOT NULL DEFAULT 0,
+     -- 目前持有者認領時看到的 generation（診斷）
+     claimed_generation   INTEGER,
+     owner                TEXT,
+     lease_expires_at     TEXT,
+     status               TEXT,
+     last_attempt_at      TEXT,
+     last_success_at      TEXT,
+     last_failure_at      TEXT,
+     last_error_class     TEXT,
+     last_error_detail    TEXT,
+     consecutive_failures INTEGER NOT NULL DEFAULT 0,
+     next_attempt_at      TEXT,
+     -- 最近一次成功的摘要（例如輕量：錨點日期與就緒狀態；重量：各模組結果）。不含生理數值。
+     summary_json         TEXT,
+     created_at           TEXT NOT NULL,
+     updated_at           TEXT NOT NULL,
+     PRIMARY KEY (user_id, class)
+   )`,
+
+  // 輕量路徑的物化：從 canonical 表算出的 daily metrics（可隨時重算）。
+  // generation 讓讀取端能判斷這一列是不是在最新的 canonical 之後算的。
+  `CREATE TABLE IF NOT EXISTS analytics_daily_state (
+     user_id      TEXT NOT NULL,
+     health_date  TEXT NOT NULL,
+     generation   INTEGER NOT NULL,
+     computed_at  TEXT NOT NULL,
+     daily_status TEXT NOT NULL,
+     metrics_json TEXT NOT NULL,
+     PRIMARY KEY (user_id, health_date)
+   )`,
+
+  `CREATE TABLE IF NOT EXISTS analytics_runs (
+     id            INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id       TEXT NOT NULL,
+     class         TEXT NOT NULL,
+     owner         TEXT NOT NULL,
+     generation    INTEGER NOT NULL,
+     started_at    TEXT NOT NULL,
+     finished_at   TEXT,
+     result        TEXT,
+     detail_json   TEXT,
+     error_class   TEXT,
+     error_detail  TEXT
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_analytics_runs_user
+     ON analytics_runs (user_id, class, id)`,
+];
+
 export const SCHEMA = [
   // Result and all database actions commit together. Retained independently of
   // transport claim pruning; replay never repeats an already committed action.
@@ -1397,6 +1532,7 @@ export const SCHEMA = [
   ...PREDICTION_MODEL_SCHEMA,
   ...WHOOP_WEBHOOK_SCHEMA,
   ...RECONCILIATION_SCHEMA,
+  ...ANALYTICS_WORK_SCHEMA,
 ];
 
 /** 使用者狀態。 */

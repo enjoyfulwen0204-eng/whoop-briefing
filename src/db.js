@@ -27,6 +27,8 @@ import { createIdentityStore } from './identityStore.js';
 import { createHealthStore } from './store.js';
 import { createWhoopWebhookStore } from './whoopWebhookStore.js';
 import { createReconciliationStore } from './reconciliationStore.js';
+import { createAnalyticsWorkStore } from './analyticsWorkStore.js';
+import { withAnalyticsInvalidation } from './analyticsInvalidation.js';
 import { createBotStore } from './botStore.js';
 import { createAnalysisStore } from './analysisStore.js';
 import { createProactiveStore } from './proactiveStore.js';
@@ -51,6 +53,9 @@ export function isDuplicateSentError(err) {
 export function createDb({ url, authToken }) {
   const processing = processingTransactions(createClient({ url, authToken }));
   const { client } = processing;
+  const health = createHealthStore(client, { transaction: processing.transaction });
+  const webhook = createWhoopWebhookStore(client);
+  const analytics = createAnalyticsWorkStore(client);
 
   async function withAnswerOwnership(userId, ownership, now, fn) {
     const uid = requireUserId(userId, 'withAnswerOwnership');
@@ -1413,15 +1418,23 @@ export function createDb({ url, authToken }) {
     ...createIdentityStore(client),
     // 墓碑判定與 canonical 寫入必須同一交易（P1-R02-RC2）：把「需要時才開交易」
     // 的執行器交給儲存層。已在 mutateForWhoopEvent 交易裡時會直接沿用，不巢狀。
-    ...createHealthStore(client, { transaction: processing.transaction }),
+    ...health,
     // V1.2 Phase 1：WHOOP webhook 事件帳本 + 刪除墓碑。
-    ...createWhoopWebhookStore(client),
+    ...webhook,
     // V1.2 Phase 2：對帳狀態 / 執行帳本 / 差異 / 墓碑診斷。
     ...createReconciliationStore(client),
     ...createBotStore(client),
     ...createAnalysisStore(client),
     ...createProactiveStore(client),
     ...createGuardianStore(client),
+    // V1.2 Phase 3：分析工作狀態（失效 / 認領 / 結案 / 物化 / 帳本）。
+    ...analytics,
+    // V1.2 Phase 3：canonical 寫入器的**同交易**分析失效。放在最後，覆蓋上面
+    // health / webhook 的同名函式 —— 所有寫入者（V1.1 同步、webhook 處理器、
+    // 對帳、腳本）都經過這一層；它呼叫的仍是原本的儲存層函式。
+    ...withAnalyticsInvalidation({
+      health, webhook, analytics, client, transaction: processing.transaction,
+    }),
     close: () => client.close(),
   };
 }

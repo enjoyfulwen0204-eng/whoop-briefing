@@ -27,7 +27,10 @@
     "whoop:webhook:status": "node scripts/whoop-webhook.js status",
     "whoop:webhook:drain": "node scripts/whoop-webhook.js drain",
     "reconcile:status": "node scripts/reconcile.js status",
-    "reconcile:run": "node scripts/reconcile.js run"
+    "reconcile:run": "node scripts/reconcile.js run",
+    "analytics:status": "node scripts/analytics.js status",
+    "analytics:light": "node scripts/analytics.js light",
+    "analytics:heavy": "node scripts/analytics.js heavy"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0"

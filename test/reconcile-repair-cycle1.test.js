@@ -737,9 +737,9 @@ async function makeDb(version) {
     await db.migrate();
     await db.createUser({ id: 'u1', displayName: 'u1', timezone: TZ });
     if (version === 10) {
-      for (const tbl of ['whoop_reconciliation_state', 'whoop_reconciliation_runs', 'whoop_reconciliation_discrepancies']) await db.raw.execute(`DROP TABLE ${tbl}`);
+      for (const tbl of ['whoop_reconciliation_state', 'whoop_reconciliation_runs', 'whoop_reconciliation_discrepancies', 'analytics_invalidation', 'analytics_work_state', 'analytics_daily_state', 'analytics_runs']) await db.raw.execute(`DROP TABLE ${tbl}`);
       for (const c of ['reconcile_checked_at', 'reconcile_verdict', 'reconcile_remote_updated_at']) await db.raw.execute(`ALTER TABLE whoop_resource_tombstones DROP COLUMN ${c}`);
-      await db.raw.execute('DELETE FROM schema_version WHERE version = 11');
+      await db.raw.execute('DELETE FROM schema_version WHERE version >= 11');
       await db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (10, '2026-09-01T00:00:00.000Z', 'v10')");
     } else if (version === 'malformed') {
       await db.raw.execute('DROP TABLE schema_version');
@@ -778,7 +778,7 @@ test('R05 真的 v10 DB → 閘拒絕，在 WHOOP 憑證 / 網路之前；不會
     assert.equal(t.version, 10);
     const a = runScript(['run', '--user=u1'], { url: t.url, cwd: t.dir, extraEnv: { WHOOP_CLIENT_ID: 'fake', WHOOP_CLIENT_SECRET: 'fake' } });
     assert.equal(a.code, 1);
-    assert.ok(/schema 版本 10 ≠ 程式碼 11/.test(a.out), a.out);
+    assert.ok(/schema 版本 10 ≠ 程式碼 12/.test(a.out), a.out);
     assert.ok(!/找不到使用者|缺少環境變數/.test(a.out), '在使用者 / 憑證之前就停');
     const db = createDb({ url: t.url });
     assert.equal(await currentVersion(db.raw), 10, '★ 沒有被自動 migrate');

@@ -592,6 +592,37 @@ export const WHOOP_RECONCILE = {
   },
 };
 
+/**
+ * V1.2 Phase 3：攝取 / 分析解耦。
+ *
+ * ⚠️ **正式環境尚未接線。** index.js 每一輪仍然直接跑預測與 Healthspan；
+ * 這一組只描述 dirty-driven 的分析工作者怎麼跑（本機腳本 / 測試）。
+ *
+ * ## 兩個類別
+ *
+ *   light  受影響日期（±1 天，有上限）的 daily metrics 物化 + 當日就緒狀態。
+ *          純 DB 讀 + 確定性計算，每個使用者一輪最多 LIGHT_MAX_DAYS 天。
+ *   heavy  預測訓練／時序評估（180 天）+ Healthspan 盤點（90 天）。整段重算，
+ *          與 canonical 變動的範圍無關；有節奏門檻（HEAVY_MIN_INTERVAL_MS）。
+ */
+export const ANALYTICS_WORK = {
+  /** 一次執行最多處理幾個使用者（每個類別）。 */
+  MAX_USERS_PER_RUN: 5,
+  /** 輕量物化的範圍：受影響範圍往前後各展開幾天（昨日 Strain、隔日目標）。 */
+  LIGHT_RANGE_PAD_DAYS: 1,
+  /** 輕量物化一輪最多算幾天（超過就只算最近的這麼多天；更早的交給重量整段重算）。 */
+  LIGHT_MAX_DAYS: 45,
+  /** 重量分析的回看天數（與 index.js 的 PREDICTION_LOOKBACK_DAYS 相同）。 */
+  HEAVY_LOOKBACK_DAYS: 180,
+  /** 兩次重量分析成功之間的最短間隔（節奏門檻；有變動才會跑，這只是上限頻率）。 */
+  HEAVY_MIN_INTERVAL_MS: 30 * 60_000,
+  /** 租約：要蓋過最壞情況的計算時間。 */
+  LEASE_MS: { light: 2 * 60_000, heavy: 10 * 60_000 },
+  /** 失敗退避：指數，有上限。 */
+  RETRY_BASE_MS: 2 * 60_000,
+  RETRY_MAX_MS: 6 * 60 * 60_000,
+};
+
 // ---------------------------------------------------------------------------
 // 4d. 統計 / 個人偏離（Phase H / I）
 // ---------------------------------------------------------------------------

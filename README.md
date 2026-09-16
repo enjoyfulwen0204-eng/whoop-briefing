@@ -294,6 +294,10 @@ B 後面那個條件是刻意加的。只看「是否單調下降」的話，在
   可續傳的分頁、遠端缺席只記差異不刪除、ACTIVE 墓碑純診斷。**目前只有本機
   手動執行器（`npm run reconcile:status|run`），尚未接進正式排程器。**
   見 [docs/whoop-reconciliation.md](docs/whoop-reconciliation.md)。
+- **V1.2 Phase 3 的攝取 / 分析解耦**：所有 canonical 寫入器在**同一個交易**裡記錄
+  「這個使用者的分析需要重算」（generation 計數 + 受影響日期範圍），輕量物化與
+  重量分析各自 dirty-driven、有租約、有上限。**尚未接進正式排程器**
+  （`npm run analytics:status|light|heavy`）。見 [docs/analytics-decoupling.md](docs/analytics-decoupling.md)。
 
 ## Capability：能力靠資料判斷，不靠 membership
 

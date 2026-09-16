@@ -508,7 +508,18 @@ export function createDb({ url, authToken }) {
   }
 
   // ----- tokens（per-user）-----------------------------------------------
-  /** 某個使用者的 WHOOP token。沒有就回 null。**絕不會回別人的。** */
+  /**
+   * 某個使用者的 WHOOP token。沒有就回 null。**絕不會回別人的。**
+   *
+   * ★ F04：回傳值**包含 `authGeneration`**，而且它與 access token 來自
+   * **同一次列讀取**。這不是順手多帶一個欄位 —— 它是整個授權歸屬圍欄的地基：
+   *
+   *   憑證與世代必須是同一個快照。分兩次讀（先讀 token、之後再讀世代）
+   *   就是 F04 的根因 —— 中間只要有一次成功的重新授權，用世代 N 觀測到的
+   *   結果就會被貼上 N+1 的標籤，而那是一個系統無法察覺的謊。
+   *
+   * 所以：**不要**另外加一支 getAuthGeneration 來組快照。要世代就讀這一列。
+   */
   async function getTokens(userId) {
     const uid = requireUserId(userId, 'getTokens');
     const rs = await client.execute({
@@ -517,6 +528,13 @@ export function createDb({ url, authToken }) {
     });
     const row = rs.rows[0];
     if (!row) return null;
+    // 世代必須是正整數。壞掉的值寧可讓這一輪失敗，也不可以被當成一個
+    // 可以拿來比對的數字 —— 圍欄用它做等值判定，NaN 會讓所有比對都不成立
+    // 而且理由完全看不出來。
+    const authGeneration = Number(row.auth_generation ?? 1);
+    if (!Number.isInteger(authGeneration) || authGeneration < 1) {
+      throw new Error(`auth_generation_invalid:${uid}`);
+    }
     return {
       userId: row.user_id,
       whoopUserId: row.whoop_user_id ?? null,
@@ -525,6 +543,7 @@ export function createDb({ url, authToken }) {
       expiresAt: new Date(row.access_token_expires_at),
       scope: row.scope,
       updatedAt: row.updated_at,
+      authGeneration,
     };
   }
 
@@ -620,14 +639,21 @@ export function createDb({ url, authToken }) {
    */
   async function saveTokens(userId, {
     accessToken, refreshToken, expiresAt, scope, whoopUserId = null,
-  }, { retries = 4, expectedUpdatedAt = undefined, bumpAuthGeneration = false } = {}) {
+  }, {
+    retries = 4, expectedUpdatedAt = undefined, bumpAuthGeneration = false,
+    expectedAuthGeneration = null,
+  } = {}) {
     const uid = requireUserId(userId, 'saveTokens');
     const fenced = expectedUpdatedAt !== undefined;
+    // ★ F04：世代圍欄。一個在世代 N 開始的例行 refresh，網路來回期間使用者
+    // 可能已經完成了一次新的授權（世代 N+1）。那組新 token 才是權威 ——
+    // 用舊世代的 refresh 結果蓋掉它會讓剛授權好的人立刻失效。
+    // updated_at 的 CAS 多數情況也擋得住，但世代是語意上正確的那一個。
+    const genFenced = Number.isInteger(expectedAuthGeneration) && expectedAuthGeneration >= 1;
     // CAS 條件。刻意用 `IS ?` 而不是 `= ?`，這樣 NULL 也能正確比較
     // （SQL 的 `= NULL` 永遠不成立，會讓「我讀到的時候沒有這一列」無法表達）。
-    const casClause = fenced
-      ? '\n         AND user_whoop_tokens.updated_at IS ?'
-      : '';
+    const casClause = (fenced ? '\n         AND user_whoop_tokens.updated_at IS ?' : '')
+      + (genFenced ? '\n         AND user_whoop_tokens.auth_generation = ?' : '');
     const sql = `INSERT INTO user_whoop_tokens
         (user_id, whoop_user_id, access_token, refresh_token,
          access_token_expires_at, scope, updated_at, auth_generation)
@@ -652,6 +678,7 @@ export function createDb({ url, authToken }) {
       scope ?? null,
       new Date().toISOString(),
       ...(fenced ? [expectedUpdatedAt] : []),
+      ...(genFenced ? [expectedAuthGeneration] : []),
     ];
 
     const wanted = whoopUserId === null || whoopUserId === undefined
@@ -666,7 +693,7 @@ export function createDb({ url, authToken }) {
           // 所以一定要分清楚 —— 把 CAS 落敗誤判成身分衝突會讓正常的
           // refresh 競爭變成一個看起來很嚴重的假警報。
           const row = (await client.execute({
-            sql: 'SELECT whoop_user_id, updated_at FROM user_whoop_tokens WHERE user_id = ?',
+            sql: 'SELECT whoop_user_id, updated_at, auth_generation FROM user_whoop_tokens WHERE user_id = ?',
             args: [uid],
           })).rows[0] ?? null;
           const current = row?.whoop_user_id ?? null;
@@ -685,6 +712,18 @@ export function createDb({ url, authToken }) {
               user_id: uid, current: currentStr,
             });
             throw err;
+          }
+
+          // (a2) ★ F04：世代已經往前走了 —— 使用者在我們打網路的時候完成了
+          //      一次新的授權。舊世代的 refresh 結果**必須**被丟掉。
+          //      這和 (b) 一樣不是錯誤，但理由不同，所以分開記。
+          if (genFenced && row && Number(row.auth_generation ?? 1) !== expectedAuthGeneration) {
+            log.warn('tokens_save_stale_generation', {
+              user_id: uid,
+              expected_generation: expectedAuthGeneration,
+              current_generation: Number(row.auth_generation ?? 1),
+            });
+            return false;
           }
 
           // (b) CAS 落敗：在我們讀到現在，有別人寫過了。這**不是**錯誤，
@@ -1440,7 +1479,7 @@ export function createDb({ url, authToken }) {
     ...createProactiveStore(client),
     ...createGuardianStore(client),
     // V1.2 Phase 3.5：自助上線的生命週期（沒有列 = 舊使用者 = READY）。
-    ...createOnboardingStore(client),
+    ...createOnboardingStore(client, { transaction: processing.transaction }),
     // V1.2 Phase 3：分析工作狀態（失效 / 認領 / 結案 / 物化 / 帳本）。
     ...analytics,
     // V1.2 Phase 3：canonical 寫入器的**同交易**分析失效。放在最後，覆蓋上面

@@ -212,6 +212,18 @@ export function createWhoopOAuthCallback({
       whoopAuthorized: true, failureCode: null, failureDetail: null, now: new Date(now()),
     });
     await db.resetAuthLinkBudget(userId, { now: new Date(now()) }).catch(() => {});
+    // ★ F04：一次成功的新授權 = 一個全新的 bootstrap 情境，嘗試次數歸零。
+    //
+    // 沒有這一條，純內部的世代競態（舊 bootstrap 以過期授權開始 → 中止）
+    // 會一次次吃掉使用者的重試額度，最後把一個什麼都沒做錯、只是重新
+    // 授權過幾次的人永久卡在 ACTION_REQUIRED。
+    //
+    // 刻意**獨立於上面那句狀態轉移**：最需要歸零的情境（舊 bootstrap 正在
+    // 跑、狀態是 SYNCING）正好是那句轉移不會成立的情境（SYNCING 不在它的
+    // from 白名單裡）。綁在一起等於在最需要的時候失效。
+    if (typeof db.resetBootstrapAttempts === 'function') {
+      await db.resetBootstrapAttempts(userId, { now: new Date(now()) }).catch(() => {});
+    }
 
     if (onAuthorized) {
       try {

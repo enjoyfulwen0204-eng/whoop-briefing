@@ -15,7 +15,7 @@
  */
 
 import { WHOOP_SYNC } from './config.js';
-import { isScopeError } from './whoop.js';
+import { isScopeError, isStaleAuthorizationError } from './whoop.js';
 import { requireUserId } from './userContext.js';
 import { log, describeError } from './logger.js';
 
@@ -226,6 +226,16 @@ export function createSync({ db, whoop, userId, timezone, now = new Date() }) {
         }
         results.push({ status: 'ok', ...(await syncResource(resource)) });
       } catch (err) {
+        // ★ F04：授權世代已經換了 —— 這一輪是以一個**過期的授權**開始的。
+        //
+        // 必須排在 scope 判定之前，而且必須**停止**後面的資源：繼續跑只會
+        // 產生更多無法歸屬的觀測。也不寫 lastError —— 這不是故障，寫進去
+        // 會讓一個純內部競態長得像 provider 壞掉。
+        if (isStaleAuthorizationError(err)) {
+          log.warn('sync_stale_authorization', { resource });
+          results.push({ resource, status: 'stale_authorization' });
+          break;
+        }
         // scope 不足是「還沒重新授權」，不是故障 —— 不可以觸發錯誤通知
         const scope = isScopeError(err);
         const detail = scope ? 'scope_missing' : describeError(err);

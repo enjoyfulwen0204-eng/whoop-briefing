@@ -34,6 +34,37 @@ export class WhoopApiError extends Error {
   }
 }
 
+/** 「這一輪是以一個已經過期的授權開始的」的統一代碼。 */
+export const STALE_AUTHORIZATION = 'STALE_AUTHORIZATION';
+
+/**
+ * ★ F04：授權世代圍欄被觸發。
+ *
+ * 意思是：這個 client 被綁定在授權世代 N 上，但 DB 現在給的是別的世代 ——
+ * 使用者在這一輪執行的中途重新授權了。
+ *
+ * 這**不是**權限不足，也**不是** provider 故障，更不是使用者做錯了什麼。
+ * 它是一個純粹的內部競態，正確的處置只有一個：這一輪放棄，什麼都不寫，
+ * 讓新的世代自己跑一輪。所以它有自己的型別與 code，不可以被
+ * `isScopeError` 吃掉變成「缺 scope」（那會對使用者發出錯誤的重新授權提示）。
+ *
+ * 錯誤內容只有兩個整數，沒有任何 token / refresh token / 授權碼 / state。
+ */
+export class WhoopAuthGenerationError extends WhoopAuthError {
+  constructor({ expected = null, actual = null } = {}) {
+    super('WHOOP 授權世代在本次執行期間改變（使用者重新授權），本輪以舊授權開始，中止且不寫入任何結論。');
+    this.name = 'WhoopAuthGenerationError';
+    this.code = STALE_AUTHORIZATION;
+    this.expectedAuthGeneration = expected;
+    this.actualAuthGeneration = actual;
+  }
+}
+
+/** 這個錯誤是不是「舊授權」競態（呼叫端據此回 RETRY，而不是失敗升級）。 */
+export function isStaleAuthorizationError(err) {
+  return err?.code === STALE_AUTHORIZATION;
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------------------------------------------------------------------------
@@ -185,16 +216,58 @@ export function createWhoopClient({
   // 下面兩個只有測試會覆寫，正式執行一律用官方 endpoint
   apiBase = WHOOP.API_BASE, tokenUrl = WHOOP.TOKEN_URL,
   backoffFor = backoffMs,
+  // ★ F04：把這個 client 綁死在**一次**授權上（見下方大段說明）。
+  // 不傳就是既有行為（不受約束），所以 index.js / reconcile.js 完全不受影響。
+  authorization = null,
 } = {}) {
   const uid = requireUserId(userId, 'createWhoopClient');
   // per-user 的 lease lock 名稱。全域鎖名會讓一個人的 refresh 卡住所有人。
   const lockName = `${LOCKS.TOKEN_REFRESH_NAME}:${uid}`;
-  let cached = null;       // 單次執行內的記憶體快取，避免同一 run 重複讀 DB
+  // ---------------------------------------------------------------------
+  // ★ F04：授權世代圍欄
+  // ---------------------------------------------------------------------
+  //
+  // 上線 bootstrap 會用同一個 client 連續做很多次 WHOOP 觀測（sync 五種資源
+  // 再加 capability 盤點）。這一整串觀測最後會變成「這次授權拿不拿得到這個
+  // 資源」的**耐久結論**，所以它們必須全部屬於**同一次授權**。
+  //
+  // 問題在於 client 會在好幾個地方從 DB 重新撿 token（peer refresh、圍欄
+  // 落敗後的 adopt、401 之後的強制 refresh）。使用者只要在這中間重新授權，
+  // 這些路徑就會安靜地換上**新世代**的憑證繼續跑 —— 於是同一組結論裡
+  // 一半是 N、一半是 N+1，而沒有任何人知道。
+  //
+  // 綁定之後：任何一次從 DB 撿到的 token 只要世代不是 N，就**不採用**，
+  // 直接拋 STALE_AUTHORIZATION。寧可這一輪整個放棄（新世代自己會跑一輪），
+  // 也不要產生一組跨世代、無法歸屬的觀測。
+  const expectedGeneration = Number.isInteger(authorization?.authGeneration)
+    ? authorization.authGeneration : null;
+  const constrained = expectedGeneration !== null;
+  // 受約束時直接用呼叫端已經讀好的那一列當快取：第一次 WHOOP 呼叫因此
+  // 不會再去讀一次 token 列（那次讀取本身就是一個新的、可能不同的快照）。
+  let cached = constrained ? authorization : null;
   let refreshing = null;   // mutex：同一 run 內平行請求時只會 refresh 一次
+
+  /**
+   * 從 DB 撿來的這一列，屬於我們這一輪綁定的那次授權嗎。
+   *
+   * 不受約束的 client 一律放行（既有行為）。受約束時世代不符就拋，
+   * 而且**在採用之前**拋 —— 圍欄的意義就是不讓它進到 `cached`。
+   */
+  function assertGeneration(t) {
+    if (!constrained || !t) return t;
+    const actual = Number.isInteger(t.authGeneration) ? t.authGeneration : null;
+    if (actual !== expectedGeneration) {
+      log.warn('whoop_stale_authorization', {
+        user_id: uid, expected_generation: expectedGeneration, actual_generation: actual,
+      });
+      throw new WhoopAuthGenerationError({ expected: expectedGeneration, actual });
+    }
+    return t;
+  }
 
   async function loadTokens() {
     if (cached) return cached;
-    const t = await db.getTokens(uid);
+    const t = assertGeneration(await db.getTokens(uid));
     if (!t) {
       throw new WhoopAuthError(
         `這個使用者（${uid}）在 Turso 裡沒有 WHOOP token。`
@@ -243,7 +316,9 @@ export function createWhoopClient({
     log.warn('token_refresh_lock_busy', { user_id: uid, attempts, poll_ms: LOCKS.TOKEN_REFRESH_POLL_MS });
     for (let i = 1; i <= attempts; i++) {
       await sleepImpl(LOCKS.TOKEN_REFRESH_POLL_MS);
-      const latest = await db.getTokens(uid);
+      // ★ F04：世代不符就**立刻**放棄，不繼續輪詢 —— 我們等的那個授權
+      // 已經不存在了，再等下去只會等到一個我們無權使用的憑證。
+      const latest = assertGeneration(await db.getTokens(uid));
       if (tokenUsable(latest, { force, staleAccessToken })) {
         cached = latest;
         log.info('token_adopted_from_peer', { user_id: uid, waited_polls: i });
@@ -266,7 +341,9 @@ export function createWhoopClient({
    * 絕不 log 任何 token 內容。
    */
   async function adoptPeerToken({ force, staleAccessToken, reason }) {
-    const latest = await db.getTokens(uid);
+    // ★ F04：接手者寫的可能是**下一次授權**的 token。撿別人的結果是好事，
+    // 撿到別的世代則是這個圍欄存在的唯一理由 —— 不採用，拋 STALE_AUTHORIZATION。
+    const latest = assertGeneration(await db.getTokens(uid));
     if (tokenUsable(latest, { force, staleAccessToken })) {
       cached = latest;
       log.info('token_adopted_after_fence', { user_id: uid, reason });
@@ -297,7 +374,7 @@ export function createWhoopClient({
     try {
       // 拿到 lock 之後【重新讀一次 DB】：剛剛卡住的那段時間，別的 process
       // 可能已經 refresh 完了。有現成的就直接用，不要浪費一次輪替。
-      const latest = await db.getTokens(uid);
+      const latest = assertGeneration(await db.getTokens(uid));
       if (tokenUsable(latest, { force, staleAccessToken })) {
         cached = latest;
         log.info('token_refresh_skipped_peer_won', { user_id: uid });
@@ -351,7 +428,10 @@ export function createWhoopClient({
           refreshToken: fresh.refreshToken ?? base.refreshToken,
           expiresAt: fresh.expiresAt,
           scope: fresh.scope,
-        }, { expectedUpdatedAt: baseUpdatedAt });
+          // ★ F04：例行 refresh **不會**動世代（世代代表「這次授權／同意」，
+          // 不是 token 字串的版本）。所以這裡寫的是「我還是在世代 N」，
+          // 而不是「把世代推進」。
+        }, { expectedUpdatedAt: baseUpdatedAt, expectedAuthGeneration: expectedGeneration });
       } catch (err) {
         // 身分不可變之類的硬錯誤要往上拋，不可以被當成「有人搶先寫了」。
         if (err?.code === 'WHOOP_IDENTITY_IMMUTABLE') throw err;
@@ -369,6 +449,10 @@ export function createWhoopClient({
         refreshToken: fresh.refreshToken ?? base.refreshToken,
         expiresAt: fresh.expiresAt,
         scope: fresh.scope,
+        whoopUserId: base.whoopUserId ?? null,
+        // 我們剛剛自己寫的那一列，世代照定義沒有變。保留它，否則下一次
+        // 需要比對世代的地方會拿到 undefined 而誤判成「世代不符」。
+        authGeneration: base.authGeneration ?? expectedGeneration ?? undefined,
       };
       log.info('token_refresh_done', { user_id: uid, expires_at: fresh.expiresAt.toISOString() });
       return cached.accessToken;
@@ -495,6 +579,10 @@ export function createWhoopClient({
  * 而不是當成系統故障去發錯誤通知。
  */
 export function isScopeError(err) {
+  // ★ F04：授權世代競態**絕不是**缺 scope。把它誤判成缺 scope 會讓系統
+  // 對一個剛剛才重新授權成功的人說「你少給了權限」，並且寫下一個永久的
+  // 錯誤結論。這一條必須排在所有 401/403 判斷之前。
+  if (isStaleAuthorizationError(err)) return false;
   const status = err?.status;
   if (status === 403) return true;
   // refresh 過還是 401 → WhoopAuthError；scope 不足時 WHOOP 也可能回 401

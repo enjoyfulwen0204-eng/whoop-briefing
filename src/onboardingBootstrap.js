@@ -33,7 +33,7 @@ import { ONBOARDING } from './config.js';
 import { ONBOARDING_STATE, ONBOARDING_FAILURE, RESOURCE_ACCESS_STATUS } from './schema.js';
 import { createSync } from './sync.js';
 import { probeCapabilities } from './capabilities.js';
-import { createWhoopClient } from './whoop.js';
+import { createWhoopClient, isStaleAuthorizationError } from './whoop.js';
 import { requireUserId } from './userContext.js';
 import { log, describeError } from './logger.js';
 
@@ -75,6 +75,16 @@ export const BOOTSTRAP_RESULT = Object.freeze({
   ACTION_REQUIRED: 'ACTION_REQUIRED',
   SKIPPED: 'SKIPPED',
   BUSY: 'BUSY',
+  /**
+   * ★ F04：這一輪是以一個**已經過期的授權**開始的（使用者在中途重新授權）。
+   *
+   * 語義上是 RETRY 的一種，但刻意獨立命名，因為它的處置與所有其他失敗都不同：
+   *   · 不寫任何權限判定（那些觀測屬於一個已經不存在的授權）
+   *   · 不寫 ACTION_REQUIRED（使用者沒有做錯任何事）
+   *   · 不通知使用者（這是純內部競態）
+   *   · 不累積失敗（新的世代會自己跑一輪，見 resetBootstrapAttempts）
+   */
+  STALE_AUTHORIZATION: 'STALE_AUTHORIZATION',
 });
 
 /**
@@ -137,8 +147,31 @@ export async function runOnboardingBootstrap({
       syncStarted: true, now: at(),
     });
 
+    // ---- 0. ★ F04：**在任何 WHOOP 觀測之前**捕捉授權快照 --------------
+    //
+    // 這是整個修正的核心，而且順序本身就是修正：
+    //
+    //   舊的做法是在 sync / probe **跑完之後**才去讀一次目前的授權世代，
+    //   然後用那個值去標記這些觀測。使用者只要在中間重新授權一次，
+    //   用世代 N 觀測到的「睡眠可讀」就會被貼上 N+1 的標籤 ——
+    //   而 setReadyIfEligible 看到的正是「目前世代的 ACCESSIBLE」，
+    //   於是一個剛剛才撤掉睡眠權限的人被宣告 READY。
+    //
+    // 現在：憑證與世代來自**同一次列讀取**（db.getTokens），在所有觀測
+    // 之前取得，並且在整輪執行中不變。之後的每一個判定都貼這個被捕捉的
+    // 世代，永遠不會有「事後才決定這些觀測屬於誰」這件事。
+    const authorization = await db.getTokens(uid).catch(() => null);
+    const expectedAuthGeneration = authorization?.authGeneration ?? null;
+    if (!authorization?.accessToken || !Number.isInteger(expectedAuthGeneration)) {
+      log.warn('onboarding_no_auth_snapshot', { user_id: uid });
+      return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: 'no_auth_generation' });
+    }
+
+    // client 被**綁死**在這次授權上：任何一次從 DB 撿到別的世代的 token
+    // 都會直接拋 STALE_AUTHORIZATION，而不是安靜地換一組憑證繼續跑。
     const whoop = makeWhoop({
       db, userId: uid, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+      authorization,
     });
 
     // ---- 1. 初次同步（重用 V1.1 的同步，含 backfill 的第一批 chunk）----
@@ -147,9 +180,15 @@ export async function runOnboardingBootstrap({
       results = await makeSync({ db, whoop, userId: uid, timezone: user.timezone, now: at() })
         .syncAll({ force: true });
     } catch (err) {
+      if (isStaleAuthorizationError(err)) return staleAuthorization(uid, 'sync');
       // syncAll 本身保證不拋，這是最後一道
       log.error('onboarding_sync_unexpected', { user_id: uid, error: describeError(err) });
       return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: describeError(err) });
+    }
+    // 世代已經換掉 → 這些觀測不屬於任何一個我們可以宣告的授權。
+    // 必須擋在 syncUsable 之前：stale 不是 'failed'，syncUsable 會放它過去。
+    if (results.some((r) => r?.status === 'stale_authorization')) {
+      return staleAuthorization(uid, 'sync');
     }
     if (!syncUsable(results)) {
       log.warn('onboarding_sync_incomplete', {
@@ -166,6 +205,9 @@ export async function runOnboardingBootstrap({
         days: ONBOARDING.CAPABILITY_PROBE_DAYS, now: at(),
       });
     } catch (err) {
+      // 世代競態不是 probe 失敗。probeCapabilities 只在**完全成功**時才寫
+      // capability，所以走到這裡代表什麼都沒被寫進去 —— 正是我們要的。
+      if (isStaleAuthorizationError(err)) return staleAuthorization(uid, 'probe');
       log.warn('onboarding_probe_failed', { user_id: uid, error: describeError(err) });
       return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: 'capability_probe_failed' });
     }
@@ -178,11 +220,6 @@ export async function runOnboardingBootstrap({
     //
     // 暫時性失敗（429 / 5xx / 逾時）**不寫任何判定**：那不是結論，是雜訊。
     const missing = missingScopes({ syncResults: results, scopeErrors: probed?.scopeErrors ?? [] });
-    const authGeneration = await db.getAuthGeneration(uid);
-    if (!Number.isFinite(authGeneration)) {
-      log.warn('onboarding_no_auth_generation', { user_id: uid });
-      return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: 'no_auth_generation' });
-    }
     const transient = new Set(results.filter((r) => r?.status === 'failed').map((r) => String(r.resource)));
     const verdicts = [];
     for (const r of ONBOARDING.RESOURCES ?? SYNC_RESOURCES) {
@@ -192,15 +229,33 @@ export async function runOnboardingBootstrap({
         status: missing.includes(r) ? RESOURCE_ACCESS_STATUS.UNAUTHORIZED : RESOURCE_ACCESS_STATUS.ACCESSIBLE,
       });
     }
-    await db.recordResourceAccess(uid, verdicts, { authGeneration, now: at() });
+    // 寫入時**在 SQL 裡**再證明一次「捕捉到的世代仍然是目前世代」。
+    // 觀測全部結束之後、判定寫進去之前，仍然有一個空隙可以被重新授權塞進來 ——
+    // 這個 CAS 就是那個空隙的封口：條件不成立就一列都不寫。
+    const recorded = await db.recordResourceAccess(uid, verdicts, {
+      expectedAuthGeneration, now: at(),
+    });
+    if (recorded && recorded.ok === false) return staleAuthorization(uid, 'record_access');
 
     const verdict = scopeVerdict(missing);
     if (!verdict.ok) {
-      await db.setOnboardingState(uid, ONBOARDING_STATE.ACTION_REQUIRED, {
+      // ★ F04：這是一個**以授權為前提的負面結論**。寫的時候要證明它講的
+      // 還是目前那次授權 —— 否則一個在世代 N 得出「缺睡眠權限」的舊 bootstrap
+      // 會把剛剛才重新授權好的人打成 ACTION_REQUIRED 並發出錯誤的提示。
+      const marked = await db.setOnboardingState(uid, ONBOARDING_STATE.ACTION_REQUIRED, {
         from: [ONBOARDING_STATE.SYNCING, ONBOARDING_STATE.WHOOP_AUTHORIZED],
         failureCode: ONBOARDING_FAILURE.WHOOP_SCOPE_INCOMPLETE,
-        failureDetail: `missing:${verdict.lacking.join(',')}`, now: at(),
+        failureDetail: `missing:${verdict.lacking.join(',')}`,
+        expectedAuthGeneration, now: at(),
       });
+      if (!marked) {
+        // 轉移沒成立。如果是因為世代變了，就是 stale（不通知、不升級失敗）。
+        if (await generationChanged(db, uid, expectedAuthGeneration)) {
+          return staleAuthorization(uid, 'scope_incomplete');
+        }
+        log.warn('onboarding_scope_incomplete_not_applied', { user_id: uid });
+        return { userId: uid, result: BOOTSTRAP_RESULT.RETRY, detail: 'scope_state_not_applied' };
+      }
       if (notify) await safeNotify(notify, uid, 'scope_incomplete');
       log.warn('onboarding_scope_incomplete', { user_id: uid, lacking: verdict.lacking });
       return { userId: uid, result: BOOTSTRAP_RESULT.ACTION_REQUIRED, lacking: verdict.lacking };
@@ -218,6 +273,11 @@ export async function runOnboardingBootstrap({
       now: at(),
     });
     if (!ready.ok) {
+      // 先分辨「授權換了」與「真的不符合資格」。前者不是失敗，不可以
+      // 累積失敗次數、也不可以走到 ACTION_REQUIRED。
+      if (await generationChanged(db, uid, expectedAuthGeneration)) {
+        return staleAuthorization(uid, 'ready');
+      }
       const why = await evaluateReadiness({ db, userId: uid });
       log.warn('onboarding_ready_rejected', {
         user_id: uid, reason: ready.reason, missing: why.missing,
@@ -231,11 +291,32 @@ export async function runOnboardingBootstrap({
     log.info('onboarding_ready', { user_id: uid });
     return { userId: uid, result: BOOTSTRAP_RESULT.READY, syncResults: results };
   } catch (err) {
+    // 任何一層漏上來的世代競態都不是「未預期的錯誤」。
+    if (isStaleAuthorizationError(err)) return staleAuthorization(uid, 'unhandled');
     log.error('onboarding_bootstrap_unhandled', { user_id: uid, error: describeError(err) });
     return { userId: uid, result: BOOTSTRAP_RESULT.RETRY, error: describeError(err) };
   } finally {
     await db.releaseLock(lockName, owner).catch(() => {});
   }
+}
+
+/**
+ * ★ F04：以過期授權開始的這一輪，統一的收尾。
+ *
+ * 刻意什麼都不做 —— 不寫判定、不改狀態、不通知、不累積失敗。
+ * 這一輪就當作沒發生過；新的世代由 callback 的 onAuthorized 或排程器
+ * 重新跑一輪，那一輪會在正確的授權下產生正確的結論。
+ */
+function staleAuthorization(uid, stage) {
+  log.warn('onboarding_stale_authorization', { user_id: uid, stage });
+  return { userId: uid, result: BOOTSTRAP_RESULT.STALE_AUTHORIZATION, stage };
+}
+
+/** 目前的授權世代是不是已經不是我們這一輪捕捉到的那一個。 */
+async function generationChanged(db, uid, expectedAuthGeneration) {
+  if (!Number.isInteger(expectedAuthGeneration)) return false;
+  const current = await db.getTokens(uid).catch(() => null);
+  return Boolean(current) && current.authGeneration !== expectedAuthGeneration;
 }
 
 /**

@@ -563,13 +563,22 @@ test('F02+F04 交互：身分不可信但權限良好 → 不 READY；身分好�
     await e.db.ensureOnboardingDerived(ok.id, { now: NOW });
     await e.db.setOnboardingState(ok.id, ONBOARDING_STATE.SYNCING, { timezoneConfirmed: true, now: NOW });
     const gen = await e.db.getAuthGeneration(ok.id);
-    await grantAccess(e.db, ok.id, { generation: gen - 1 });
+    // F04 之後「舊世代的判定列」只能用**真實的路徑**造出來：先在目前世代寫
+    // 判定，再重新授權讓世代往前走。直接寫一個不存在的世代已經被 CAS 圍欄
+    // 擋掉了（那正是這次修正的重點），所以測試也要照真實順序來。
+    await grantAccess(e.db, ok.id, { generation: gen });
+    await e.db.saveTokens(ok.id, {
+      accessToken: 'reauthorized', refreshToken: 'rt-new',
+      expiresAt: new Date(NOW.getTime() + HOUR), scope: 'offline read:sleep read:recovery',
+      whoopUserId: 'W9',
+    }, { bumpAuthGeneration: true });
+    assert.equal(await e.db.getAuthGeneration(ok.id), gen + 1, '★ 重新授權 → 世代 +1');
     assert.equal((await e.db.setReadyIfEligible({
       userId: ok.id, requiredResources: ONBOARDING.REQUIRED_SCOPES, now: NOW,
     })).ok, false, '★ 世代過期 → 不 READY');
 
-    // 兩者都對
-    await grantAccess(e.db, ok.id, { generation: gen });
+    // 兩者都對（在**新的**世代重新驗過）
+    await grantAccess(e.db, ok.id, { generation: gen + 1 });
     assert.equal((await e.db.setReadyIfEligible({
       userId: ok.id, requiredResources: ONBOARDING.REQUIRED_SCOPES, now: NOW,
     })).ok, true, '★ 兩者都對 → READY');

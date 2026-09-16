@@ -35,10 +35,22 @@ import { log } from './logger.js';
 const iso = (v) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
 const STATES = new Set(Object.values(ONBOARDING_STATE));
 
+/** 內部訊號：用來把整個判定交易回滾掉（不會外流給呼叫端）。 */
+class StaleGenerationError extends Error {
+  constructor() {
+    super('stale_authorization');
+    this.name = 'StaleGenerationError';
+  }
+}
+
 /** 這個上線狀態可以被排程器當成正式使用者嗎。**沒有狀態不算 READY。** */
 export const isOnboardingReady = (o) => o?.state === ONBOARDING_STATE.READY;
 
-export function createOnboardingStore(client) {
+export function createOnboardingStore(client, { transaction = null } = {}) {
+  // 沒有注入交易時退回「直接執行」。單句 CAS 本身仍然是原子的，
+  // 只是失去「整批判定要嘛全寫、要嘛全不寫」那一層保證。
+  const inTransaction = typeof transaction === 'function'
+    ? transaction : (fn) => fn();
   const rowTo = (r) => (r ? {
     userId: String(r.user_id),
     state: String(r.state),
@@ -201,28 +213,79 @@ export function createOnboardingStore(client) {
    * 只寫得出結論的兩種（ACCESSIBLE / UNAUTHORIZED）。暫時性失敗
    * （429 / 5xx / 逾時）**不呼叫這一支** —— 把它寫成 UNAUTHORIZED 會製造一個
    * 永久的假結論；留著舊世代的判定則會被 READY 的世代條件擋下來，兩者都安全。
+   *
+   * ## ★ F04：世代 CAS 圍欄
+   *
+   * `expectedAuthGeneration` 是**觀測開始之前**就捕捉好的世代，不是寫入當下
+   * 才去讀的值。這裡把「它現在是不是還是目前世代」寫進 SQL 語句本身：
+   *
+   *   · 條件成立 → 整批判定寫入，而且每一列都貼上這個被捕捉的世代
+   *   · 條件不成立 → **一列都不寫**，回 stale
+   *
+   * 為什麼一定要在語句裡證明：先讀一次世代再寫，中間就有空隙，而那個空隙
+   * 正是 F04 —— 用世代 N 觀測到的結果被貼上 N+1 的標籤，接著
+   * setReadyIfEligible 看到「目前世代的 ACCESSIBLE」而放行，使用者在一個
+   * 已經被撤掉睡眠權限的授權下變成 READY。
+   *
+   * 整批放在同一個寫入交易裡：不可以出現「sleep 寫了、recovery 沒寫」這種
+   * 半套結論 —— 那是一組沒有任何人下過的判定。
+   *
+   * @returns {{ok:boolean, written:number, reason?:string}}
    */
-  async function recordResourceAccess(userId, entries = [], { authGeneration, now = new Date() }) {
+  async function recordResourceAccess(userId, entries = [], {
+    expectedAuthGeneration, authGeneration, now = new Date(),
+  } = {}) {
     const uid = requireUserId(userId, 'recordResourceAccess');
-    if (!Number.isFinite(authGeneration)) throw new Error('resource_access_requires_generation');
+    const generation = expectedAuthGeneration ?? authGeneration;
+    if (!Number.isInteger(generation) || generation < 1) {
+      throw new Error('resource_access_requires_generation');
+    }
     const ts = iso(now);
-    let n = 0;
+    const rows = [];
     for (const e of entries) {
       if (!e?.resource) continue;
       if (!Object.values(RESOURCE_ACCESS_STATUS).includes(e.status)) {
         throw new Error(`invalid_resource_access_status:${e.status}`);
       }
-      await client.execute({
-        sql: `INSERT INTO whoop_resource_access (user_id, resource, status, auth_generation, checked_at)
-              VALUES (?, ?, ?, ?, ?)
-              ON CONFLICT(user_id, resource) DO UPDATE SET
-                status = excluded.status, auth_generation = excluded.auth_generation,
-                checked_at = excluded.checked_at`,
-        args: [uid, String(e.resource), e.status, Number(authGeneration), ts],
-      });
-      n += 1;
+      rows.push([uid, String(e.resource), e.status, generation, ts]);
     }
-    return n;
+    if (!rows.length) return { ok: true, written: 0 };
+
+    return inTransaction(async () => {
+      let written = 0;
+      for (const args of rows) {
+        const rs = await client.execute({
+          // INSERT … SELECT … WHERE：條件與寫入在**同一句**裡求值。
+          // （SQLite 也要求 INSERT…SELECT 形式的 upsert 必須有 WHERE 才能
+          //  無歧義地解析 ON CONFLICT —— 圍欄與語法需求剛好重合。）
+          sql: `INSERT INTO whoop_resource_access
+                  (user_id, resource, status, auth_generation, checked_at)
+                SELECT ?, ?, ?, ?, ?
+                 WHERE (SELECT k.auth_generation FROM user_whoop_tokens k
+                         WHERE k.user_id = ?) = ?
+                ON CONFLICT(user_id, resource) DO UPDATE SET
+                  status = excluded.status,
+                  auth_generation = excluded.auth_generation,
+                  checked_at = excluded.checked_at
+                 WHERE excluded.auth_generation >= whoop_resource_access.auth_generation`,
+          args: [...args, uid, generation],
+        });
+        if (Number(rs.rowsAffected ?? 0) === 0) {
+          // 世代已經不是我們那一個了。整批作廢 —— 交易回滾，什麼都沒寫。
+          log.warn('resource_access_stale_generation', {
+            user_id: uid, expected_generation: generation,
+          });
+          throw new StaleGenerationError();
+        }
+        written += 1;
+      }
+      return { ok: true, written };
+    }).catch((err) => {
+      if (err instanceof StaleGenerationError) {
+        return { ok: false, written: 0, reason: 'stale_authorization' };
+      }
+      throw err;
+    });
   }
 
   async function getResourceAccess(userId) {
@@ -313,6 +376,7 @@ export function createOnboardingStore(client) {
   async function setOnboardingState(userId, state, {
     from = null, failureCode = null, failureDetail = null,
     timezoneConfirmed = false, whoopAuthorized = false, syncStarted = false, ready = false,
+    expectedAuthGeneration = null,
     now = new Date(),
   } = {}) {
     const uid = requireUserId(userId, 'setOnboardingState');
@@ -320,6 +384,13 @@ export function createOnboardingStore(client) {
     const ts = iso(now);
     const guard = Array.isArray(from) && from.length
       ? ` AND state IN (${from.map(() => '?').join(',')})` : '';
+    // ★ F04：以授權為前提的**負面**結論（例如「這個帳號缺睡眠權限」）必須
+    // 證明自己講的還是目前那次授權。一個在世代 N 得出「缺 scope」的 bootstrap
+    // 不可以把已經重新授權成 N+1 的人打成 ACTION_REQUIRED —— 那個結論
+    // 描述的是一次已經不存在的授權，而使用者會收到一則完全錯誤的提示。
+    const genGuard = Number.isInteger(expectedAuthGeneration) && expectedAuthGeneration >= 1
+      ? `\n               AND (SELECT k.auth_generation FROM user_whoop_tokens k
+                            WHERE k.user_id = user_onboarding.user_id) = ?` : '';
     const rs = await client.execute({
       sql: `UPDATE user_onboarding
                SET state = ?, state_changed_at = ?,
@@ -329,13 +400,14 @@ export function createOnboardingStore(client) {
                    sync_started_at       = CASE WHEN ? = 1 THEN ? ELSE sync_started_at END,
                    ready_at              = CASE WHEN ? = 1 THEN ? ELSE ready_at END,
                    updated_at = ?
-             WHERE user_id = ?${guard}`,
+             WHERE user_id = ?${guard}${genGuard}`,
       args: [state, ts, failureCode, failureDetail ? String(failureDetail).slice(0, 300) : null,
         timezoneConfirmed ? 1 : 0, ts,
         whoopAuthorized ? 1 : 0, ts,
         syncStarted ? 1 : 0, ts,
         ready ? 1 : 0, ts,
-        ts, uid, ...(Array.isArray(from) ? from : [])],
+        ts, uid, ...(Array.isArray(from) ? from : []),
+        ...(genGuard ? [expectedAuthGeneration] : [])],
     });
     if (Number(rs.rowsAffected ?? 0) === 0) return null;
     log.info('onboarding_state', { user_id: uid, state, failure_code: failureCode });
@@ -381,6 +453,26 @@ export function createOnboardingStore(client) {
     const ts = iso(now);
     await client.execute({
       sql: 'UPDATE user_onboarding SET auth_link_count = 0, updated_at = ? WHERE user_id = ?',
+      args: [ts, uid],
+    });
+  }
+
+  /**
+   * ★ F04：一次成功的**新授權** = 一個全新的 bootstrap 情境，嘗試次數歸零。
+   *
+   * 為什麼是獨立的一句、而不是掛在「轉成 WHOOP_AUTHORIZED」那句 UPDATE 上：
+   * 需要歸零的那個情境（舊 bootstrap 正在跑，狀態是 SYNCING，使用者這時
+   * 重新授權）恰恰是那句狀態轉移**不會成立**的情境（SYNCING 不在它的
+   * from 白名單裡）。掛在上面等於在最需要它的時候失效。
+   *
+   * 只在新授權時歸零：沒有新授權的真實連續失敗，MAX_BOOTSTRAP_ATTEMPTS
+   * 的斷路器完全照舊 —— 這不是把重試變成無限迴圈。
+   */
+  async function resetBootstrapAttempts(userId, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'resetBootstrapAttempts');
+    const ts = iso(now);
+    await client.execute({
+      sql: 'UPDATE user_onboarding SET bootstrap_attempts = 0, updated_at = ? WHERE user_id = ?',
       args: [ts, uid],
     });
   }
@@ -454,6 +546,7 @@ export function createOnboardingStore(client) {
     recordAuthLinkIssued,
     resetAuthLinkBudget,
     recordBootstrapAttempt,
+    resetBootstrapAttempts,
     listOnboardingInState,
     listSchedulableUsers,
   };

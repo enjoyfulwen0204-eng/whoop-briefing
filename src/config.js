@@ -545,8 +545,15 @@ export const WHOOP_SYNC = {
  *   · WHOOP 的重新計算（例如基準更新）會回溯數天
  *   · 漏掉的 webhook 在 WHOOP 那邊會重試約一小時，超過就永遠漏
  * 5 天涵蓋以上全部，而且一天 25 筆的資源在 5 天內至多 5～6 頁，成本可控。
- * 超過重疊天數的重新評分，Phase 2 只能靠 webhook（sleep/recovery/workout）
- * 或明確的 backfill 窗補回 —— cycle 沒有 webhook，這是文件化的已知限制。
+ *
+ * ## 深度掃描（P2-R03）
+ *
+ * 集合端點的 start/end 過濾的是資源的**發生時間**，不是 updated_at。所以
+ * 「水位 − 5 天 … now」永遠看不到一筆 20 天前的睡眠今天被重新評分，也看不到
+ * 漏掉的 webhook 更新；cycle 更是連 webhook 都沒有。快路徑之外因此另有一條
+ * **有界的深度路徑**：每種資源每天回頭掃一片 30 天的歷史切片，切片由新到舊
+ * 輪轉，走完 365 天的水平線就從頭再來。每片最多 8 頁；13 片走完一輪。
+ * 深度路徑有自己的游標與租約，**不碰**快路徑的水位。
  */
 export const WHOOP_RECONCILE = {
   RESOURCES: ['sleep', 'recovery', 'cycle', 'workout', 'body_measurement'],
@@ -572,6 +579,17 @@ export const WHOOP_RECONCILE = {
    * WHOOP 的 intersect 語義而落在窗外，不可以被當成差異。
    */
   DISCREPANCY_EDGE_MARGIN_MS: 24 * 60 * 60_000,
+  /** 深度掃描（歷史切片輪轉）。 */
+  DEEP: {
+    /** 哪些資源做深度掃描（body_measurement 沒有歷史可掃）。 */
+    RESOURCES: ['sleep', 'recovery', 'cycle', 'workout'],
+    /** 歷史水平線：與 V1.1 backfill 相同（WHOOP_SYNC.BACKFILL_DAYS）。 */
+    HORIZON_DAYS: 365,
+    /** 一片多少天：30 天 × 每天 1～2 筆 ≈ 1～3 頁，與 V1.1 backfill chunk 相同。 */
+    SLICE_DAYS: 30,
+    /** 同一種資源兩片之間的最短間隔（每天一片）。有續傳 / 未完成的片不受此限。 */
+    MIN_INTERVAL_MS: 24 * 60 * 60_000,
+  },
 };
 
 // ---------------------------------------------------------------------------

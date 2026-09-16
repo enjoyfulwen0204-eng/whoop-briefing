@@ -104,47 +104,77 @@ export function createReconciliationStore(client) {
   }
 
   /**
+   * 把這一輪要做的**邏輯窗**寫成耐久的「未完成窗」（P2-R02）。
+   *
+   * 窗一旦寫下，就只有 SUCCESS 能清掉它。PARTIAL 在它上面加續傳 token、
+   * FAILED 只清 token —— 所以任何失敗之後，下一輪都會**用同一個窗從第一頁
+   * 重來**，而不是用往前走的時鐘重算一個新窗、讓窗的下緣永遠掉出去。
+   *
+   * 帶 owner + 租約圍欄；明確窗（backfill）不呼叫這一支。
+   */
+  async function openPendingWindow({ userId, resource, owner, from, to, now = new Date() }) {
+    const uid = requireUserId(userId, 'openPendingWindow');
+    if (!owner) return false;
+    const nowIso = iso(now);
+    const rs = await client.execute({
+      sql: `UPDATE whoop_reconciliation_state
+               SET continuation_from = ?, continuation_to = ?, updated_at = ?
+             WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?`,
+      args: [iso(from), iso(to), nowIso, uid, resource, String(owner), nowIso],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
    * 結案 —— 一句原子 UPDATE，帶 owner + 租約圍欄。
    *
-   *   SUCCESS  水位 = 窗的 end；清掉續傳；成功時間；失敗計數歸零
+   *   SUCCESS  依 watermarkMode 處理水位；清掉未完成窗與續傳；成功時間；失敗計數歸零
+   *              'advance'  window_watermark = MAX(舊, 窗 end)   —— 快路徑（單調不減）
+   *              'set'      window_watermark = cursor            —— 深度游標（輪轉，可倒退）
+   *              'keep'     不動                                  —— 明確窗（backfill）
    *   PARTIAL  存續傳 token + 窗；**水位不動**
-   *   FAILED   失敗計數 +1；退避；**水位不動**；續傳保留（下一輪可從同處繼續）
+   *   FAILED   失敗計數 +1；退避；**水位不動**；**只清 token、保留未完成窗**（P2-R02）
    *
    * 三種都會釋放租約（owner = NULL）。失去所有權的執行寫不進任何東西。
    */
   async function settleReconciliation({
-    userId, resource, owner, result, windowTo = null,
+    userId, resource, owner, result, windowTo = null, cursor = null,
     continuation = null, latestRemoteUpdatedAt = null,
     errorClass = null, errorDetail = null, nextAttemptAt = null, now = new Date(),
-    advanceWatermark = true,
+    watermarkMode = 'advance',
   }) {
     const uid = requireUserId(userId, 'settleReconciliation');
     if (!owner) return false;
     const nowIso = iso(now);
     let rs;
-    if (result === RECONCILE_RESULT.SUCCESS && advanceWatermark) {
-      if (!windowTo) throw new Error('reconcile_success_requires_window_to');
+    if (result === RECONCILE_RESULT.SUCCESS) {
+      if (!['advance', 'set', 'keep'].includes(watermarkMode)) {
+        throw new Error(`invalid_watermark_mode:${watermarkMode}`);
+      }
+      if (watermarkMode === 'advance' && !windowTo) throw new Error('reconcile_success_requires_window_to');
+      if (watermarkMode === 'set' && !cursor) throw new Error('reconcile_success_requires_cursor');
+      const watermarkSql = watermarkMode === 'advance'
+        ? 'window_watermark = MAX(COALESCE(window_watermark, \'\'), ?),'
+        : watermarkMode === 'set' ? 'window_watermark = ?,' : 'window_watermark = COALESCE(?, window_watermark),';
+      const watermarkArg = watermarkMode === 'advance' ? iso(windowTo)
+        : watermarkMode === 'set' ? iso(cursor) : null;
+      // 'keep'（明確窗）不清未完成窗 / 續傳：那是常規對帳的進度，不能被額外補一段改寫。
+      const clearPendingSql = watermarkMode === 'keep' ? ''
+        : 'continuation_token = NULL, continuation_from = NULL, continuation_to = NULL,';
+      const successSql = watermarkMode === 'keep' ? ''
+        : 'last_success_at = ?, last_error_class = NULL, last_error_detail = NULL, consecutive_failures = 0, next_attempt_at = NULL,';
       rs = await client.execute({
         sql: `UPDATE whoop_reconciliation_state
-                 SET window_watermark = MAX(COALESCE(window_watermark, ''), ?),
+                 SET ${watermarkSql}
                      latest_remote_updated_at = COALESCE(?, latest_remote_updated_at),
-                     continuation_token = NULL, continuation_from = NULL, continuation_to = NULL,
+                     ${clearPendingSql}
                      owner = NULL, lease_expires_at = NULL,
-                     last_success_at = ?, last_error_class = NULL, last_error_detail = NULL,
-                     consecutive_failures = 0, next_attempt_at = NULL, updated_at = ?
+                     ${successSql}
+                     updated_at = ?
                WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?`,
-        args: [iso(windowTo), latestRemoteUpdatedAt, nowIso, nowIso,
+        args: [watermarkArg, latestRemoteUpdatedAt,
+          ...(watermarkMode === 'keep' ? [] : [nowIso]), nowIso,
           uid, resource, String(owner), nowIso],
-      });
-    } else if (result === RECONCILE_RESULT.SUCCESS) {
-      // 明確窗（backfill / 修復）成功：**水位與續傳都不動**。它是額外補一段，
-      // 不是常規對帳；常規對帳的進度不能被它改寫。
-      rs = await client.execute({
-        sql: `UPDATE whoop_reconciliation_state
-                 SET latest_remote_updated_at = COALESCE(?, latest_remote_updated_at),
-                     owner = NULL, lease_expires_at = NULL, updated_at = ?
-               WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?`,
-        args: [latestRemoteUpdatedAt, nowIso, uid, resource, String(owner), nowIso],
       });
     } else if (result === RECONCILE_RESULT.PARTIAL) {
       rs = await client.execute({
@@ -162,12 +192,14 @@ export function createReconciliationStore(client) {
           uid, resource, String(owner), nowIso],
       });
     } else if (result === RECONCILE_RESULT.FAILED) {
-      // 失敗也清掉續傳：下一輪從頭重抓同一個窗（寫入冪等，重抓安全）。
-      // 不清的話，一個永遠無效的 token 會讓這個資源卡死在同一頁。
+      // P2-R02：失敗**只清 token、保留未完成窗**。下一輪用同一個 [from, to]
+      // 從第一頁重抓（寫入冪等，重抓安全）。不清 token 的話，一個永遠無效的
+      // token 會讓這個資源卡死在同一頁；清了窗的話，往前走的時鐘會讓窗的下緣
+      // 永遠掉出去。
       rs = await client.execute({
         sql: `UPDATE whoop_reconciliation_state
                  SET owner = NULL, lease_expires_at = NULL,
-                     continuation_token = NULL, continuation_from = NULL, continuation_to = NULL,
+                     continuation_token = NULL,
                      last_failure_at = ?, last_error_class = ?, last_error_detail = ?,
                      consecutive_failures = consecutive_failures + 1,
                      next_attempt_at = ?, updated_at = ?
@@ -326,6 +358,7 @@ export function createReconciliationStore(client) {
     getAllReconciliationState,
     claimReconciliation,
     holdsReconciliation,
+    openPendingWindow,
     settleReconciliation,
     openReconciliationRun,
     closeReconciliationRun,

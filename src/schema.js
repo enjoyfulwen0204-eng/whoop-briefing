@@ -1291,12 +1291,17 @@ export const WHOOP_WEBHOOK_SCHEMA = [
 export const RECONCILIATION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS whoop_reconciliation_state (
      user_id                  TEXT NOT NULL,
+     -- 快路徑一列（resource = 'sleep'），深度路徑另一列（resource = 'sleep/deep'）。
+     -- 兩列各自有租約、未完成窗、退避；深度成功永遠不碰快路徑那一列。
      resource                 TEXT NOT NULL,
-     -- 完整成功的窗的 end。NULL = 從來沒有成功過。
+     -- 快路徑列：完整成功的窗的 end（單調不減）。NULL = 從來沒有成功過。
+     -- 深度路徑列：深度游標 = 上一片完整掃完的**下緣**；下一片從這裡往更早
+     -- （輪轉，走完水平線就從 now 重來，所以可以倒退）。
      window_watermark         TEXT,
      -- 遠端看過的最大 updated_at（純診斷，不當排序依據）。
      latest_remote_updated_at TEXT,
-     -- 續傳：頁數預算用完時記下窗與 token，下一輪從同一個窗繼續。
+     -- 未完成的邏輯窗（P2-R02）：一輪開始就寫下 [from, to]；只有 SUCCESS 能清。
+     -- PARTIAL 另外存續傳 token；FAILED 只清 token → 下一輪同一個窗從第一頁重來。
      continuation_token       TEXT,
      continuation_from        TEXT,
      continuation_to          TEXT,

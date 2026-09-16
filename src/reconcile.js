@@ -10,6 +10,7 @@
  *   E. 哪些 webhook 可能漏了但現在補得回來？   → 重疊窗自然補回
  *   F. 哪些資源沒有 webhook，只能靠對帳？     → cycle、body_measurement
  *   G. 下一次該用什麼窗？                     → 水位 − 重疊 … now
+ *   H. 超過重疊天數的舊資源被改了怎麼辦？     → 深度掃描：每天回頭掃一片歷史
  *
  * ## 三條不可違反的規則
  *
@@ -26,6 +27,26 @@
  * 時間、剛好壓在邊界上、還在評分、或者根本是我們那一頁沒抓完。
  * 這些情況在 API 回應裡長得一模一樣。所以 Phase 2 只把它記成差異
  * （MISSING_REMOTE），刪除的唯一證據仍然是 webhook DELETE。
+ *
+ * ## 兩條路徑、兩列狀態（P2-R03）
+ *
+ * WHOOP 集合端點的 start/end 過濾的是資源的**發生時間**，不是 updated_at。
+ * 「水位 − 5 天 … now」看不到 20 天前的睡眠今天被重新評分。所以：
+ *
+ *   快路徑（resource = 'sleep'）       水位 − 5d … now，每小時，補最近的變動
+ *   深度路徑（resource = 'sleep/deep'） 每天一片 30 天的歷史切片，由新到舊輪轉，
+ *                                       走完 365 天就從頭；有自己的游標與租約
+ *
+ * 兩列互不相干：深度成功只動深度游標，**永遠不碰**快路徑的水位。
+ * 寫入走同一條 canonical 路徑（M-03 + 墓碑 + 所有權圍欄）。
+ *
+ * ## 未完成窗（P2-R02）
+ *
+ * 一輪開始時先把它的邏輯窗 [from, to] 寫成耐久的「未完成窗」。之後：
+ *   PARTIAL → 同一個窗 + 續傳 token
+ *   FAILED  → 同一個窗，token 清掉 → 下一輪**同一個窗從第一頁重來**
+ *   SUCCESS → 清掉窗；水位前進
+ * 所以失敗永遠不會讓時鐘往前走、把原本窗的下緣永遠丟掉。
  *
  * ## 寫入一律走既有的 canonical 儲存層
  *
@@ -117,34 +138,43 @@ export function reconcileBackoffMs(consecutiveFailures, {
 }
 
 /**
- * 現在該不該對這個資源做一輪？
+ * 現在該不該對這一列做一輪？
  *   · 退避中 → 否
- *   · 有續傳 → 是（要把上一個窗做完）
- *   · 距上次成功不到 MIN_INTERVAL → 否
+ *   · 有未完成窗（含續傳）→ 是（要把它做完；P2-R02）
+ *   · 距上次成功不到 minInterval → 否
  */
 export function isReconcileDue(state, { now = new Date(), minIntervalMs = WHOOP_RECONCILE.MIN_INTERVAL_MS } = {}) {
   const t = now.getTime();
   if (state?.nextAttemptAt && Date.parse(state.nextAttemptAt) > t) return false;
-  if (state?.continuationToken) return true;
+  if (hasPendingWindow(state)) return true;
   const last = state?.lastSuccessAt ? Date.parse(state.lastSuccessAt) : 0;
   return !(Number.isFinite(last) && t - last < minIntervalMs);
 }
 
+/** 狀態列上有沒有一個還沒完成的邏輯窗（不管有沒有續傳 token）。 */
+export function hasPendingWindow(state) {
+  return Boolean(state?.continuationFrom && state?.continuationTo);
+}
+
+/** 深度路徑的狀態列鍵。 */
+export const deepResourceKey = (resource) => `${resource}/deep`;
+export const isDeepResourceKey = (key) => /\/deep$/.test(String(key ?? ''));
+
 /**
- * 下一個窗。
+ * 快路徑的下一個窗。
  *
- *   有續傳 → 完全沿用上一個窗（同一組 [from, to]，從 token 繼續）
- *   有水位 → [水位 − 重疊, now]
- *   都沒有 → [now − INITIAL_WINDOW_DAYS, now]
+ *   有未完成窗 → 完全沿用（同一組 [from, to]；有 token 就續、沒有就從第一頁）
+ *   有水位     → [水位 − 重疊, now]
+ *   都沒有     → [now − INITIAL_WINDOW_DAYS, now]
  *
  * `to` 固定在窗開始的那一刻（而不是每頁重新取 now）：水位前進到 `to`
  * 代表「到這一刻為止都完整」，如果 to 一直往前跑，這句話就不成立。
  */
 export function nextWindow(resource, state, { now = new Date() } = {}) {
-  if (state?.continuationToken && state.continuationFrom && state.continuationTo) {
+  if (hasPendingWindow(state)) {
     return {
       from: new Date(state.continuationFrom), to: new Date(state.continuationTo),
-      token: state.continuationToken, resumed: true,
+      token: state.continuationToken ?? null, resumed: Boolean(state.continuationToken), pending: true,
     };
   }
   const overlapDays = WHOOP_RECONCILE.OVERLAP_DAYS[resource] ?? 5;
@@ -154,7 +184,64 @@ export function nextWindow(resource, state, { now = new Date() } = {}) {
     : new Date(now.getTime() - WHOOP_RECONCILE.INITIAL_WINDOW_DAYS * DAY_MS);
   // 時鐘倒退（水位在未來）：仍抓一個合法的窗；水位本身單調不減（store 用 MAX）。
   if (from.getTime() >= to.getTime()) from = new Date(to.getTime() - overlapDays * DAY_MS);
-  return { from, to, token: null, resumed: false };
+  return { from, to, token: null, resumed: false, pending: false };
+}
+
+/**
+ * 深度路徑的下一片（P2-R03）。
+ *
+ * 游標（深度列的 window_watermark）= 上一片完整掃完的**下緣**；下一片就從那裡
+ * 往更早掃：[max(游標 − SLICE, now − HORIZON), 游標]。游標掉到水平線之外
+ * （或從來沒有游標）→ 從 now 重新開始。有未完成片 → 完全沿用。
+ *
+ * 每一片的 `to` 同樣固定；游標只在整片完整成功之後才前進（同一條規則）。
+ */
+export function nextDeepSlice(state, { now = new Date(), deep = WHOOP_RECONCILE.DEEP } = {}) {
+  if (hasPendingWindow(state)) {
+    return {
+      from: new Date(state.continuationFrom), to: new Date(state.continuationTo),
+      token: state.continuationToken ?? null, resumed: Boolean(state.continuationToken), pending: true, wrapped: false,
+    };
+  }
+  const horizonStart = now.getTime() - deep.HORIZON_DAYS * DAY_MS;
+  const cursor = state?.windowWatermark ? Date.parse(state.windowWatermark) : NaN;
+  let to; let wrapped = false;
+  if (Number.isFinite(cursor) && cursor > horizonStart && cursor <= now.getTime()) {
+    to = new Date(cursor);
+  } else {
+    to = new Date(now);       // 沒游標 / 走完水平線 / 時鐘異常 → 從最新的一片重來
+    wrapped = true;
+  }
+  const from = new Date(Math.max(to.getTime() - deep.SLICE_DAYS * DAY_MS, horizonStart));
+  return { from, to, token: null, resumed: false, pending: false, wrapped };
+}
+
+/**
+ * 一頁集合回應的形狀驗證（P2-R01）。
+ *
+ * 只有「非 null 物件、records 存在且是陣列、next_token 缺席 / null / 空字串
+ * 或是非空字串」才是合法的一頁。其他一律視為畸形 → 這一輪 FAILED：
+ * 水位不前進、不記缺席、不寫任何 canonical。`{}` **不是**空的成功。
+ *
+ * token 形狀依 whoop.js collect() 的既有語義：`page.next_token || null`，
+ * 也就是字串；WHOOP v2 的 next_token 是不透明字串。
+ */
+export function validateCollectionPage(page) {
+  if (page === null || page === undefined || typeof page !== 'object' || Array.isArray(page)) {
+    throw new SyntaxError('whoop collection response malformed: not an object');
+  }
+  if (!Object.prototype.hasOwnProperty.call(page, 'records')) {
+    throw new SyntaxError('whoop collection response malformed: records missing');
+  }
+  if (!Array.isArray(page.records)) {
+    throw new SyntaxError('whoop collection response malformed: records is not an array');
+  }
+  const tok = page.next_token;
+  if (tok === undefined || tok === null || tok === '') return { records: page.records, nextToken: null };
+  if (typeof tok !== 'string') {
+    throw new SyntaxError('whoop collection response malformed: next_token is not a string');
+  }
+  return { records: page.records, nextToken: tok };
 }
 
 /**
@@ -166,6 +253,7 @@ export function createReconciler({
   db, whoop, userId, timezone, now = () => new Date(), ownerId = null,
   maxPagesPerRun = WHOOP_RECONCILE.MAX_PAGES_PER_RUN,
   leaseMs = WHOOP_RECONCILE.LEASE_MS,
+  deep = WHOOP_RECONCILE.DEEP,
 }) {
   const uid = requireUserId(userId, 'createReconciler');
   const owner = ownerId ?? `reconcile:${uid}:${process.pid}:${Math.random().toString(36).slice(2, 10)}`;
@@ -175,25 +263,26 @@ export function createReconciler({
    * 抓一個窗，**可續傳**，有頁數預算。
    *
    * 刻意不用 whoop.collect()：它在超過 MAX_PAGES 時只記一筆 warn 然後回傳
-   * 截斷的結果，呼叫端分不出「抓完了」跟「被截斷了」。這裡每一頁都明確。
+   * 截斷的結果，呼叫端分不出「抓完了」跟「被截斷了」。這裡每一頁都明確，
+   * 而且每一頁都先過形狀驗證（P2-R01）—— 任何一頁畸形，整輪作廢。
    *
+   * @param {object} progress 每消化一頁合法回應就 +1 的計數（失敗時帳本才看得到抓到哪）
    * @returns {{records, pages, nextToken, complete}}
    */
-  async function fetchWindow(spec, { from, to, token }) {
+  async function fetchWindow(spec, { from, to, token }, progress = { pages: 0 }) {
     const records = [];
     const seen = new Set();
     let nextToken = token ?? null;
     let pages = 0;
     do {
-      const page = await whoop.apiGet(spec.path, {
+      const raw = await whoop.apiGet(spec.path, {
         start: from.toISOString(), end: to.toISOString(),
         limit: WHOOP.PAGE_LIMIT, nextToken: nextToken ?? undefined,
       });
-      if (!page || typeof page !== 'object' || (page.records !== undefined && !Array.isArray(page.records))) {
-        throw new SyntaxError('whoop collection response malformed');
-      }
+      const page = validateCollectionPage(raw);
       pages += 1;
-      for (const r of Array.isArray(page.records) ? page.records : []) {
+      progress.pages = pages;
+      for (const r of page.records) {
         const id = spec.idOf(r);
         if (id === null || id === undefined) continue;
         // 同一筆跨頁重複（WHOOP 分頁在資料變動時可能重疊）→ 保留一份。
@@ -203,7 +292,7 @@ export function createReconciler({
         seen.add(key);
         records.push(r);
       }
-      nextToken = page.next_token || null;
+      nextToken = page.nextToken;
       if (nextToken && pages >= maxPagesPerRun) {
         return { records, pages, nextToken, complete: false };
       }
@@ -238,7 +327,8 @@ export function createReconciler({
   }
 
   /**
-   * 差異偵測：**只在窗完整成功時**，而且**只記錄、不刪除**。
+   * 差異偵測：**只在窗於同一輪、從第一頁完整抓完時**（P2-R04），
+   * 而且**只記錄、不刪除**。
    */
   async function recordMissingRemote(resource, spec, window, remoteIds) {
     const local = await localIdsInWindow(spec, window);
@@ -307,48 +397,70 @@ export function createReconciler({
    *
    * @param {{from?:Date, to?:Date}} explicitWindow 明確的 backfill / 修復窗（可選）。
    *   給了就不看水位、也不前進水位（那是「額外補一段」，不是常規對帳）。
+   * @param {'recent'|'deep'} scope 快路徑或深度路徑（各自一列狀態、各自的租約）。
    */
-  async function reconcileResource(resource, { explicitWindow = null } = {}) {
+  async function reconcileResource(resource, { explicitWindow = null, scope = 'recent' } = {}) {
     const spec = RESOURCE_SPEC[resource];
     if (!spec) throw new Error(`unsupported_resource:${resource}`);
+    if (scope !== 'recent' && scope !== 'deep') throw new Error(`invalid_scope:${scope}`);
+    const isDeep = scope === 'deep';
+    if (isDeep && (spec.pointInTime || explicitWindow)) throw new Error(`deep_scope_not_applicable:${resource}`);
+    // 狀態列鍵：快路徑 = 資源名；深度路徑 = 資源名/deep。租約、未完成窗、游標各自獨立。
+    const key = isDeep ? deepResourceKey(resource) : resource;
 
     const claimed = await db.claimReconciliation({
-      userId: uid, resource, owner, leaseMs, now: at(),
+      userId: uid, resource: key, owner, leaseMs, now: at(),
     });
-    if (!claimed) return { resource, result: RECONCILE_RESULT.SKIPPED, reason: 'claim_busy' };
+    if (!claimed) return { resource, scope, result: RECONCILE_RESULT.SKIPPED, reason: 'claim_busy' };
 
-    const state = await db.getReconciliationState(uid, resource);
-    const window = explicitWindow
-      ? { from: new Date(explicitWindow.from), to: new Date(explicitWindow.to), token: null, resumed: false }
-      : (spec.pointInTime ? { from: null, to: at(), token: null, resumed: false } : nextWindow(resource, state, { now: at() }));
-    const mode = spec.pointInTime ? 'point_in_time' : explicitWindow ? 'explicit_window' : 'incremental';
+    const state = await db.getReconciliationState(uid, key);
+    let window;
+    if (explicitWindow) {
+      window = { from: new Date(explicitWindow.from), to: new Date(explicitWindow.to), token: null, resumed: false, pending: false };
+    } else if (spec.pointInTime) {
+      window = { from: null, to: at(), token: null, resumed: false, pending: false };
+    } else if (isDeep) {
+      window = nextDeepSlice(state, { now: at(), deep });
+    } else {
+      window = nextWindow(resource, state, { now: at() });
+    }
+    const mode = spec.pointInTime ? 'point_in_time' : explicitWindow ? 'explicit_window' : isDeep ? 'deep_slice' : 'incremental';
     const runId = await db.openReconciliationRun({
-      userId: uid, resource, owner, mode, windowFrom: window.from, windowTo: window.to, now: at(),
+      userId: uid, resource: key, owner, mode, windowFrom: window.from, windowTo: window.to, now: at(),
     });
     const counters = { pages: 0, fetched: 0, written: 0, blocked: 0, missing: 0, tombstonesChecked: 0, tombstonesUnresolved: 0 };
+    const finish = async (result, extra = {}) => {
+      await db.closeReconciliationRun(runId, { result, ...counters, now: at(), ...extra });
+      return { resource, scope, result, ...counters, window: { from: window.from, to: window.to, resumed: window.resumed } };
+    };
 
     try {
       // ---- body measurement：單一物件、沒有時間戳、沿用日期快照 ----------
       if (spec.pointInTime) {
         const bm = await whoop.bodyMeasurement();
-        if (!bm || typeof bm !== 'object') throw new SyntaxError('whoop body measurement malformed');
+        if (!bm || typeof bm !== 'object' || Array.isArray(bm)) throw new SyntaxError('whoop body measurement malformed');
         counters.pages = 1;
         counters.fetched = 1;
         counters.written = await db.mutateForReconciliation(
-          { userId: uid, resource, owner, now },
+          { userId: uid, resource: key, owner, now },
           () => db.upsertBodyMeasurement(uid, bm, { now: at() }),
         );
         const settled = await db.settleReconciliation({
-          userId: uid, resource, owner, result: RECONCILE_RESULT.SUCCESS, windowTo: window.to, now: at(),
+          userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS, windowTo: window.to, now: at(),
         });
-        await db.closeReconciliationRun(runId, {
-          result: settled ? RECONCILE_RESULT.SUCCESS : RECONCILE_RESULT.FENCED, ...counters, now: at(),
-        });
-        return { resource, result: settled ? RECONCILE_RESULT.SUCCESS : RECONCILE_RESULT.FENCED, ...counters };
+        return finish(settled ? RECONCILE_RESULT.SUCCESS : RECONCILE_RESULT.FENCED);
       }
 
-      // ---- 集合資源：抓窗（可續傳）→ 圍欄交易內寫入 → 診斷 → 結案 --------
-      const fetched = await fetchWindow(spec, window);
+      // ---- 集合資源：記下未完成窗 → 抓（可續傳）→ 圍欄交易內寫入 → 診斷 → 結案 ----
+      // P2-R02：窗先耐久化。之後不管怎麼失敗，下一輪都用同一個 [from, to]。
+      if (!explicitWindow && !window.pending) {
+        const opened = await db.openPendingWindow({
+          userId: uid, resource: key, owner, from: window.from, to: window.to, now: at(),
+        });
+        if (!opened) throw new Error('reconcile_ownership_lost');
+      }
+
+      const fetched = await fetchWindow(spec, window, counters);
       counters.pages = fetched.pages;
       counters.fetched = fetched.records.length;
       const remoteById = new Map(fetched.records.map((r) => [String(spec.idOf(r)), r]));
@@ -359,98 +471,122 @@ export function createReconciler({
       }
 
       // 寫入：既有儲存層（M-03 + 墓碑）+ 所有權圍欄交易。
-      // 寫入筆數 < 抓到筆數的差額 = 被新鮮度或墓碑擋下的；墓碑擋下的另外從
-      // 墓碑的 blocked_count 差值推算會更精確，但那需要多一次讀 —— 這裡的
-      // blocked 是「沒寫進去的」，足以判讀。
+      // blocked = 抓到但沒寫進去的（新鮮度或墓碑擋下）。
       counters.written = fetched.records.length
-        ? await db.mutateForReconciliation({ userId: uid, resource, owner, now }, () => persist(resource, fetched.records))
+        ? await db.mutateForReconciliation({ userId: uid, resource: key, owner, now }, () => persist(resource, fetched.records))
         : 0;
       counters.blocked = Math.max(0, counters.fetched - counters.written);
 
       if (!fetched.complete) {
         // 頁數預算用完：存續傳，**水位不動**。
         const settled = await db.settleReconciliation({
-          userId: uid, resource, owner, result: RECONCILE_RESULT.PARTIAL,
+          userId: uid, resource: key, owner, result: RECONCILE_RESULT.PARTIAL,
           continuation: { token: fetched.nextToken, from: window.from, to: window.to },
           latestRemoteUpdatedAt, now: at(),
         });
-        await db.closeReconciliationRun(runId, {
-          result: settled ? RECONCILE_RESULT.PARTIAL : RECONCILE_RESULT.FENCED, ...counters, now: at(),
-        });
-        log.info('reconcile_partial', { user_id: uid, resource, pages: counters.pages, fetched: counters.fetched });
-        return { resource, result: settled ? RECONCILE_RESULT.PARTIAL : RECONCILE_RESULT.FENCED, ...counters };
+        log.info('reconcile_partial', { user_id: uid, resource: key, pages: counters.pages, fetched: counters.fetched });
+        return finish(settled ? RECONCILE_RESULT.PARTIAL : RECONCILE_RESULT.FENCED);
       }
 
-      // 窗完整 → 差異偵測（只記錄）與墓碑診斷。這兩件事失敗不影響水位：
-      // 資料已經寫進去了，它們是附加診斷。
+      // 窗完整 → 診斷。這兩件事失敗不影響水位：資料已經寫進去了，它們是附加診斷。
+      //
+      // P2-R04：缺席證據只在**這一輪從第一頁把整個窗抓完**時才成立。續傳完成的
+      // 窗只看到最後幾頁，remoteById 不是整個窗的觀察集合 —— 那樣記出來的
+      // MISSING_REMOTE 是假證據。寧可延後到下一次完整的窗。
       try {
-        counters.missing = await recordMissingRemote(resource, spec, window, new Set(remoteById.keys()));
-        const tomb = await inspectTombstones(resource, spec, remoteById);
-        counters.tombstonesChecked = tomb.checked;
-        counters.tombstonesUnresolved = tomb.unresolved;
+        if (window.resumed) {
+          log.info('reconcile_absence_skipped_resumed_window', { user_id: uid, resource: key });
+        } else {
+          counters.missing = await recordMissingRemote(resource, spec, window, new Set(remoteById.keys()));
+        }
+        // 墓碑的單筆 GET 診斷只在快路徑做（深度路徑的預算留給歷史切片）。
+        if (!isDeep) {
+          const tomb = await inspectTombstones(resource, spec, remoteById);
+          counters.tombstonesChecked = tomb.checked;
+          counters.tombstonesUnresolved = tomb.unresolved;
+        }
       } catch (err) {
-        log.warn('reconcile_diagnostics_failed', { user_id: uid, resource, error: describeError(err) });
+        log.warn('reconcile_diagnostics_failed', { user_id: uid, resource: key, error: describeError(err) });
       }
 
-      // 明確窗（backfill / 修復）不前進常規水位、不動續傳：它是「額外補一段」。
+      // 結案：快路徑 → 水位前進到窗的 end（單調）；深度 → 游標 = 這一片的下緣；
+      // 明確窗 → 什麼都不動。
       const settled = await db.settleReconciliation({
-        userId: uid, resource, owner, result: RECONCILE_RESULT.SUCCESS,
-        windowTo: window.to, latestRemoteUpdatedAt, now: at(),
-        advanceWatermark: !explicitWindow,
+        userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS,
+        windowTo: window.to, cursor: isDeep ? window.from : null, latestRemoteUpdatedAt, now: at(),
+        watermarkMode: explicitWindow ? 'keep' : isDeep ? 'set' : 'advance',
       });
       const result = settled ? RECONCILE_RESULT.SUCCESS : RECONCILE_RESULT.FENCED;
-      await db.closeReconciliationRun(runId, { result, ...counters, now: at() });
-      log.info('reconcile_done', { user_id: uid, resource, result, ...counters });
-      return { resource, result, ...counters };
+      log.info('reconcile_done', { user_id: uid, resource: key, result, ...counters });
+      return finish(result);
     } catch (err) {
       const cls = classifyReconcileError(err);
       if (cls.class === ERROR_CLASS.FENCED) {
-        await db.closeReconciliationRun(runId, { result: RECONCILE_RESULT.FENCED, ...counters, errorClass: cls.class, now: at() });
-        log.warn('reconcile_fenced', { user_id: uid, resource });
-        return { resource, result: RECONCILE_RESULT.FENCED, ...counters };
+        log.warn('reconcile_fenced', { user_id: uid, resource: key });
+        return finish(RECONCILE_RESULT.FENCED, { errorClass: cls.class });
       }
       const failures = (state?.consecutiveFailures ?? 0) + 1;
       // 可重試與不可重試都排退避：不可重試（scope / 4xx）多半要等人重新授權，
       // 但也不該每個排程 tick 都去撞一次 403 —— 退避上限把 API 用量綁死。
       const nextAttemptAt = new Date(at().getTime() + reconcileBackoffMs(failures));
       await db.settleReconciliation({
-        userId: uid, resource, owner, result: RECONCILE_RESULT.FAILED,
+        userId: uid, resource: key, owner, result: RECONCILE_RESULT.FAILED,
         errorClass: cls.class, errorDetail: describeError(err), nextAttemptAt, now: at(),
       });
-      await db.closeReconciliationRun(runId, {
-        result: RECONCILE_RESULT.FAILED, ...counters,
-        errorClass: cls.class, errorDetail: describeError(err), retryable: cls.retryable, now: at(),
-      });
       log[cls.class === ERROR_CLASS.SCOPE ? 'warn' : 'error']('reconcile_failed', {
-        user_id: uid, resource, error_class: cls.class, retryable: cls.retryable,
+        user_id: uid, resource: key, error_class: cls.class, retryable: cls.retryable,
       });
-      return { resource, result: RECONCILE_RESULT.FAILED, errorClass: cls.class, retryable: cls.retryable, ...counters };
+      const out = await finish(RECONCILE_RESULT.FAILED, {
+        errorClass: cls.class, errorDetail: describeError(err), retryable: cls.retryable,
+      });
+      return { ...out, errorClass: cls.class, retryable: cls.retryable };
     }
   }
 
+  /** 深度路徑：一片歷史切片。 */
+  const reconcileDeep = (resource) => reconcileResource(resource, { scope: 'deep' });
+
   /**
-   * 對一個使用者的所有資源各做一輪（有節流與退避）。**永遠不拋錯。**
+   * 對一個使用者的所有資源各做一輪（有節流與退避），然後對到期的資源做一片
+   * 深度掃描。**永遠不拋錯。**
+   *
+   * @param {boolean} includeDeep 是否做深度路徑（預設做；由各自的每日節流決定到期）。
    */
-  async function reconcileAll({ resources = WHOOP_RECONCILE.RESOURCES, force = false } = {}) {
+  async function reconcileAll({ resources = WHOOP_RECONCILE.RESOURCES, force = false, includeDeep = true } = {}) {
     const out = [];
-    for (const resource of resources) {
+    const guarded = async (resource, scope, fn) => {
       try {
-        if (!force) {
-          const state = await db.getReconciliationState(uid, resource);
-          if (!isReconcileDue(state, { now: at() })) {
-            out.push({ resource, result: RECONCILE_RESULT.SKIPPED, reason: 'not_due' });
-            continue;
-          }
-        }
-        out.push(await reconcileResource(resource));
+        out.push(await fn());
       } catch (err) {
         // reconcileResource 已經把可預期的錯誤都結案了；這是最後防線。
-        log.error('reconcile_unhandled', { user_id: uid, resource, error: describeError(err) });
-        out.push({ resource, result: RECONCILE_RESULT.FAILED, errorClass: ERROR_CLASS.INTERNAL });
+        log.error('reconcile_unhandled', { user_id: uid, resource, scope, error: describeError(err) });
+        out.push({ resource, scope, result: RECONCILE_RESULT.FAILED, errorClass: ERROR_CLASS.INTERNAL });
+      }
+    };
+    for (const resource of resources) {
+      await guarded(resource, 'recent', async () => {
+        if (!force) {
+          const state = await db.getReconciliationState(uid, resource);
+          if (!isReconcileDue(state, { now: at() })) return { resource, scope: 'recent', result: RECONCILE_RESULT.SKIPPED, reason: 'not_due' };
+        }
+        return reconcileResource(resource);
+      });
+    }
+    if (includeDeep) {
+      for (const resource of resources.filter((r) => deep.RESOURCES.includes(r))) {
+        await guarded(resource, 'deep', async () => {
+          if (!force) {
+            const state = await db.getReconciliationState(uid, deepResourceKey(resource));
+            if (!isReconcileDue(state, { now: at(), minIntervalMs: deep.MIN_INTERVAL_MS })) {
+              return { resource, scope: 'deep', result: RECONCILE_RESULT.SKIPPED, reason: 'not_due' };
+            }
+          }
+          return reconcileDeep(resource);
+        });
       }
     }
     return out;
   }
 
-  return { reconcileAll, reconcileResource, owner };
+  return { reconcileAll, reconcileResource, reconcileDeep, owner };
 }

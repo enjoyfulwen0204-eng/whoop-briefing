@@ -52,7 +52,12 @@ async function rowCount(client, table) {
   return Number(rs.rows[0].n);
 }
 
-async function currentVersion(client) {
+/**
+ * 資料庫目前的 schema 版本 —— 權威是 schema_version 表的 MAX(version)
+ * （不是 PRAGMA user_version；這個專案從來沒有設過它）。
+ * 沒有表 → 0。運維腳本要判斷「這個 DB 是不是程式碼要的版本」一律用這一支。
+ */
+export async function currentVersion(client) {
   if (!(await tableExists(client, 'schema_version'))) return 0;
   const rs = await client.execute('SELECT MAX(version) AS v FROM schema_version');
   return Number(rs.rows[0]?.v ?? 0);

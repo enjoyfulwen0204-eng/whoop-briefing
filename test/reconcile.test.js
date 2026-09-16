@@ -199,12 +199,12 @@ test('A2 第二輪：一小時內不到期 → SKIPPED；force → 窗 = 水位 
     const whoop = fakeWhoop({ pages: { '/activity/sleep': { records: [], next_token: null } } });
     await mk(e.db, whoop).reconcileResource('sleep');
     const later = new Date(NOW.getTime() + 10 * 60_000);
-    const r2 = await mk(e.db, whoop, { now: () => later }).reconcileAll({ resources: ['sleep'] });
+    const r2 = await mk(e.db, whoop, { now: () => later }).reconcileAll({ resources: ['sleep'], includeDeep: false });
     assert.equal(r2[0].result, RECONCILE_RESULT.SKIPPED);
     assert.equal(r2[0].reason, 'not_due');
     assert.equal(whoop.calls.length, 1, '不到期就不打 API');
 
-    const r3 = await mk(e.db, whoop, { now: () => later }).reconcileAll({ resources: ['sleep'], force: true });
+    const r3 = await mk(e.db, whoop, { now: () => later }).reconcileAll({ resources: ['sleep'], force: true, includeDeep: false });
     assert.equal(r3[0].result, RECONCILE_RESULT.SUCCESS);
     const c = whoop.calls[1];
     assert.equal(c.params.start, new Date(NOW.getTime() - WHOOP_RECONCILE.OVERLAP_DAYS.sleep * DAY).toISOString());
@@ -301,16 +301,18 @@ test('B2 中間一頁失敗：FAILED、水位不前進、下一輪從頭重抓�
     assert.equal(s.consecutiveFailures, 1);
     assert.ok(s.nextAttemptAt);
     assert.equal(s.continuationToken, null);
+    assert.equal(s.continuationFrom, new Date(NOW.getTime() - WHOOP_RECONCILE.INITIAL_WINDOW_DAYS * DAY).toISOString(), 'P2-R02：未完成窗保留');
+    assert.equal(s.continuationTo, NOW.toISOString());
 
     fail = false;
     const later = new Date(Date.parse(s.nextAttemptAt) + 1);
-    const r2 = await mk(e.db, whoop, { now: () => later }).reconcileAll({ resources: ['sleep'] });
+    const r2 = await mk(e.db, whoop, { now: () => later }).reconcileAll({ resources: ['sleep'], includeDeep: false });
     assert.equal(r2[0].result, RECONCILE_RESULT.SUCCESS);
     assert.equal(r2[0].written, 3);
     const tokens = whoop.calls.map((c) => c.params.nextToken);
     assert.deepEqual(tokens, [undefined, 't2', undefined, 't2', 't3'], '★ 從第一頁重來，不是從失敗那頁');
     s = await e.db.getReconciliationState(ALICE.id, 'sleep');
-    assert.equal(s.windowWatermark, later.toISOString());
+    assert.equal(s.windowWatermark, NOW.toISOString(), 'P2-R02：重來的是**原本的窗**，水位 = 原窗的 end');
     assert.equal(s.consecutiveFailures, 0, '成功歸零');
   } finally { e.done(); }
 });
@@ -329,7 +331,7 @@ test('B3 頁數預算用完：PARTIAL 存續傳、水位不動；下一輪從 to
     assert.equal(s.owner, null, 'PARTIAL 也釋放持有');
 
     const later = new Date(NOW.getTime() + 5 * 60_000);   // 5 分鐘後：有續傳所以到期
-    const r2 = await mk(e.db, whoop, { now: () => later, maxPagesPerRun: 2 }).reconcileAll({ resources: ['sleep'] });
+    const r2 = await mk(e.db, whoop, { now: () => later, maxPagesPerRun: 2 }).reconcileAll({ resources: ['sleep'], includeDeep: false });
     assert.equal(r2[0].result, RECONCILE_RESULT.SUCCESS);
     assert.equal(r2[0].pages, 1);
     const c = whoop.calls[2];
@@ -398,11 +400,13 @@ test('B7 續傳 token 失效（400）：FAILED 並清掉續傳，下一輪整個
     assert.equal(r2.result, RECONCILE_RESULT.FAILED);
     assert.equal(r2.errorClass, ERROR_CLASS.CLIENT);
     const s = await e.db.getReconciliationState(ALICE.id, 'sleep');
-    assert.equal(s.continuationToken, null, '★ 續傳被清掉');
+    assert.equal(s.continuationToken, null, '★ 續傳 token 被清掉');
+    assert.equal(s.continuationTo, NOW.toISOString(), '★ 但未完成窗保留（P2-R02）');
     assert.equal(s.windowWatermark, null);
     const later = new Date(Date.parse(s.nextAttemptAt) + 1);
-    await mk(e.db, whoop, { now: () => later, maxPagesPerRun: 1 }).reconcileAll({ resources: ['sleep'] });
+    await mk(e.db, whoop, { now: () => later, maxPagesPerRun: 1 }).reconcileAll({ resources: ['sleep'], includeDeep: false });
     assert.equal(whoop.calls.at(-1).params.nextToken, undefined, '從第一頁重來');
+    assert.equal(whoop.calls.at(-1).params.end, NOW.toISOString(), '同一個窗');
   } finally { e.done(); }
 });
 
@@ -768,12 +772,12 @@ test('I3 429：FAILED rate_limit、退避、退避中 SKIPPED、連續失敗退�
     assert.equal(s.lastErrorClass, ERROR_CLASS.RATE_LIMIT);
 
     t += 1000;
-    const r2 = await mk(e.db, whoop, { now }).reconcileAll({ resources: ['sleep'] });
+    const r2 = await mk(e.db, whoop, { now }).reconcileAll({ resources: ['sleep'], includeDeep: false });
     assert.equal(r2[0].result, RECONCILE_RESULT.SKIPPED);
     assert.equal(whoop.calls.length, 1, '★ 退避中不打 API');
 
     t += WHOOP_RECONCILE.RETRY_BASE_MS;
-    const r3 = await mk(e.db, whoop, { now }).reconcileAll({ resources: ['sleep'] });
+    const r3 = await mk(e.db, whoop, { now }).reconcileAll({ resources: ['sleep'], includeDeep: false });
     assert.equal(r3[0].result, RECONCILE_RESULT.FAILED);
     s = await e.db.getReconciliationState(ALICE.id, 'sleep');
     assert.equal(s.consecutiveFailures, 2);
@@ -781,7 +785,7 @@ test('I3 429：FAILED rate_limit、退避、退避中 SKIPPED、連續失敗退�
 
     fail = false;
     t += WHOOP_RECONCILE.RETRY_BASE_MS * 2 + 1;
-    const r4 = await mk(e.db, whoop, { now }).reconcileAll({ resources: ['sleep'] });
+    const r4 = await mk(e.db, whoop, { now }).reconcileAll({ resources: ['sleep'], includeDeep: false });
     assert.equal(r4[0].result, RECONCILE_RESULT.SUCCESS);
     s = await e.db.getReconciliationState(ALICE.id, 'sleep');
     assert.equal(s.consecutiveFailures, 0); assert.equal(s.nextAttemptAt, null); assert.equal(s.lastErrorClass, null);
@@ -799,7 +803,7 @@ test('I4 403 scope：FAILED、不可重試、但仍排退避（不會每個 tick
     assert.equal(r.errorClass, ERROR_CLASS.SCOPE); assert.equal(r.retryable, false);
     const s = await e.db.getReconciliationState(ALICE.id, 'sleep');
     assert.ok(s.nextAttemptAt);
-    const r2 = await mk(e.db, whoop, { now: () => new Date(NOW.getTime() + 1000) }).reconcileAll({ resources: ['sleep'] });
+    const r2 = await mk(e.db, whoop, { now: () => new Date(NOW.getTime() + 1000) }).reconcileAll({ resources: ['sleep'], includeDeep: false });
     assert.equal(r2[0].result, RECONCILE_RESULT.SKIPPED);
     assert.equal(whoop.calls.length, 1);
   } finally { e.done(); }
@@ -828,12 +832,15 @@ test('I6 reconcileAll 永遠不拋錯：一種資源炸掉不影響其他資源'
       body: { height_meter: 1.8, weight_kilogram: 70, max_heart_rate: 190 },
     });
     const out = await mk(e.db, whoop).reconcileAll();
-    assert.deepEqual(out.map((x) => [x.resource, x.result]), [
-      ['sleep', 'FAILED'], ['recovery', 'SUCCESS'], ['cycle', 'SUCCESS'], ['workout', 'SUCCESS'], ['body_measurement', 'SUCCESS'],
+    assert.deepEqual(out.map((x) => [x.resource, x.scope, x.result]), [
+      ['sleep', 'recent', 'FAILED'], ['recovery', 'recent', 'SUCCESS'], ['cycle', 'recent', 'SUCCESS'],
+      ['workout', 'recent', 'SUCCESS'], ['body_measurement', 'recent', 'SUCCESS'],
+      // 深度路徑：各自的狀態列，sleep 的深度切片一樣撞 500 → FAILED，其他成功
+      ['sleep', 'deep', 'FAILED'], ['recovery', 'deep', 'SUCCESS'], ['cycle', 'deep', 'SUCCESS'], ['workout', 'deep', 'SUCCESS'],
     ]);
     // 甚至 db 層炸掉也不拋
     const broken = { ...e.db, getReconciliationState: async () => { throw new Error('db down'); } };
-    const out2 = await createReconciler({ db: broken, whoop, userId: ALICE.id, timezone: TZ, now: () => NOW }).reconcileAll({ resources: ['sleep'] });
+    const out2 = await createReconciler({ db: broken, whoop, userId: ALICE.id, timezone: TZ, now: () => NOW }).reconcileAll({ resources: ['sleep'], includeDeep: false });
     assert.equal(out2[0].result, RECONCILE_RESULT.FAILED);
   } finally { e.done(); }
 });

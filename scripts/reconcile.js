@@ -3,7 +3,9 @@
  * WHOOP 對帳 + 增量同步的**本機 / 手動**執行器（V1.2 Phase 2）。
  *
  *   npm run reconcile:status -- --user=<id>              唯讀：狀態、最近執行、差異
- *   npm run reconcile:run -- --user=<id> [--resource=x]   跑一輪（可用 --force 忽略節流）
+ *   npm run reconcile:run -- --user=<id> [--resource=x]   跑一輪：快路徑 + 到期的深度切片
+ *                                                        （--force 忽略節流；--no-deep 只跑快路徑；
+ *                                                          --deep-only 只跑深度切片）
  *   npm run reconcile:run -- --user=<id> --resource=sleep --from=2026-06-01 --to=2026-07-01
  *                                                        明確窗（backfill / 修復；不動水位）
  *
@@ -14,8 +16,9 @@
  *   2. `run` 只接受 `file:` 本機資料庫，除非明確設 `RECONCILE_ALLOW_REMOTE=1`。
  *      `.env` 裡的 TURSO_DATABASE_URL 指向正式環境；沒有這個環境變數時，
  *      這支腳本對它**只讀不寫**（status），或直接拒絕（run）。
- *   3. `run` 不會 migrate：schema 版本不對就停，請先用 `npm run migrate`
- *      有意識地升級。
+ *   3. `run` 不會 migrate：schema 版本（權威 = `schema_version` 表的 MAX(version)，
+ *      與 migrations.js 同一個讀法）不等於程式碼的版本就停，在碰 WHOOP 憑證、
+ *      token、網路之前。請先用 `npm run migrate` 有意識地升級。
  *
  * 這支腳本不註冊 webhook、不送 Telegram、不改任何排程。
  */
@@ -23,8 +26,9 @@
 import { loadDotEnvIfPresent, loadEnv, WHOOP_RECONCILE } from '../src/config.js';
 import { createDb } from '../src/db.js';
 import { createWhoopClient } from '../src/whoop.js';
-import { createReconciler } from '../src/reconcile.js';
+import { createReconciler, isDeepResourceKey } from '../src/reconcile.js';
 import { SCHEMA_VERSION } from '../src/schema.js';
+import { currentVersion } from '../src/migrations.js';
 import { describeError } from '../src/logger.js';
 
 const argv = process.argv.slice(2);
@@ -56,10 +60,19 @@ if (command === 'run' && !isLocalDb && process.env.RECONCILE_ALLOW_REMOTE !== '1
 const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
 const fmt = (v) => (v ? String(v).replace('T', ' ').slice(0, 19) : '—');
 
+/**
+ * Schema 閘（P2-R05）：用遷移系統自己的讀法（schema_version 表）判斷版本。
+ * 沒有表 → 0 → 拒絕；版本不等於程式碼的版本 → 拒絕；表壞掉 → 拒絕。
+ * 一律在任何 WHOOP 憑證載入、token 讀取、網路工作之前。
+ */
 async function ensureSchema() {
-  const rs = await db.raw.execute('PRAGMA user_version');
-  const v = Number(rs.rows[0]?.user_version ?? 0);
-  if (v !== SCHEMA_VERSION) {
+  let v;
+  try {
+    v = await currentVersion(db.raw);
+  } catch (err) {
+    throw new Error(`無法讀取 schema_version（${describeError(err)}）；拒絕執行`);
+  }
+  if (!Number.isInteger(v) || v !== SCHEMA_VERSION) {
     throw new Error(`schema 版本 ${v} ≠ 程式碼 ${SCHEMA_VERSION}；請先有意識地執行 npm run migrate`);
   }
 }
@@ -73,8 +86,10 @@ async function status() {
   console.log('\n對帳狀態：');
   if (!states.length) console.log('   （尚未跑過任何一輪）');
   for (const s of states) {
-    console.log(`   ${s.resource.padEnd(17)} 水位 ${fmt(s.windowWatermark)}｜上次成功 ${fmt(s.lastSuccessAt)}`
-      + `｜續傳 ${s.continuationToken ? '有' : '無'}｜連續失敗 ${s.consecutiveFailures}`
+    const label = isDeepResourceKey(s.resource) ? '游標' : '水位';
+    const pending = s.continuationFrom ? `未完成窗 ${fmt(s.continuationFrom)}→${fmt(s.continuationTo)}` : '無未完成窗';
+    console.log(`   ${s.resource.padEnd(17)} ${label} ${fmt(s.windowWatermark)}｜上次成功 ${fmt(s.lastSuccessAt)}`
+      + `｜${pending}｜續傳 ${s.continuationToken ? '有' : '無'}｜連續失敗 ${s.consecutiveFailures}`
       + `${s.owner ? `｜持有中 ${s.owner}` : ''}`
       + `${s.lastErrorClass ? `｜最後錯誤 ${s.lastErrorClass}` : ''}`
       + `${s.nextAttemptAt ? `｜退避到 ${fmt(s.nextAttemptAt)}` : ''}`);
@@ -136,10 +151,16 @@ async function run() {
     results = [await reconciler.reconcileResource(resource, {
       explicitWindow: { from: new Date(from), to: new Date(to) },
     })];
+  } else if (flag('deep-only')) {
+    if (!resource || !WHOOP_RECONCILE.DEEP.RESOURCES.includes(resource)) {
+      throw new Error(`--deep-only 需要 --resource=<${WHOOP_RECONCILE.DEEP.RESOURCES.join('|')}>`);
+    }
+    results = [await reconciler.reconcileDeep(resource)];
   } else {
     results = await reconciler.reconcileAll({
       resources: resource ? [resource] : WHOOP_RECONCILE.RESOURCES,
       force: flag('force'),
+      includeDeep: !flag('no-deep'),
     });
   }
 
@@ -150,7 +171,8 @@ async function run() {
         : ` 頁 ${r.pages ?? 0} 抓 ${r.fetched ?? 0} 寫 ${r.written ?? 0} 擋 ${r.blocked ?? 0}`
           + `${r.missing ? ` 遠端缺 ${r.missing}` : ''}`
           + `${r.tombstonesChecked ? ` 墓碑檢 ${r.tombstonesChecked}/未解 ${r.tombstonesUnresolved}` : ''}`;
-    console.log(`  ${String(r.resource).padEnd(17)} ${String(r.result).padEnd(8)}${extra}`);
+    const name = r.scope === 'deep' ? `${r.resource}/deep` : r.resource;
+    console.log(`  ${String(name).padEnd(17)} ${String(r.result).padEnd(8)}${extra}`);
   }
   console.log('\n提示：`npm run reconcile:status -- --user=<id>` 看完整狀態。\n');
 }

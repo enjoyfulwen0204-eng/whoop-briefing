@@ -242,6 +242,7 @@ export const ANALYTICS_CLASS = Object.freeze({ LIGHT: 'light', HEAVY: 'heavy' })
 /** 一次分析執行的結果。 */
 export const ANALYTICS_RESULT = Object.freeze({
   SUCCESS: 'SUCCESS',
+  PARTIAL: 'PARTIAL',   // 輕量：這一片完成，還有剩餘範圍（F03）
   FAILED: 'FAILED',
   FENCED: 'FENCED',
   SKIPPED: 'SKIPPED',
@@ -267,7 +268,7 @@ export const CANONICAL_CHANGE = Object.freeze({
   DELETED: 'deleted',       // 權威 DELETE 移除了 canonical 列
 });
 
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -813,6 +814,14 @@ export const ADDITIVE_COLUMNS = [
   { table: 'whoop_resource_tombstones', column: 'reconcile_checked_at', ddl: 'ALTER TABLE whoop_resource_tombstones ADD COLUMN reconcile_checked_at TEXT' },
   { table: 'whoop_resource_tombstones', column: 'reconcile_verdict', ddl: 'ALTER TABLE whoop_resource_tombstones ADD COLUMN reconcile_verdict TEXT' },
   { table: 'whoop_resource_tombstones', column: 'reconcile_remote_updated_at', ddl: 'ALTER TABLE whoop_resource_tombstones ADD COLUMN reconcile_remote_updated_at TEXT' },
+
+  // -------------------------------------------------------------------------
+  // v13：輕量分析的剩餘範圍（V1.2 Phase 3 修復週期 1，F03）
+  // -------------------------------------------------------------------------
+  // 純 nullable、無回填。NULL = 沒有進行中的分片。
+  { table: 'analytics_work_state', column: 'range_generation', ddl: 'ALTER TABLE analytics_work_state ADD COLUMN range_generation INTEGER' },
+  { table: 'analytics_work_state', column: 'range_from', ddl: 'ALTER TABLE analytics_work_state ADD COLUMN range_from TEXT' },
+  { table: 'analytics_work_state', column: 'range_to', ddl: 'ALTER TABLE analytics_work_state ADD COLUMN range_to TEXT' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1461,6 +1470,12 @@ export const ANALYTICS_WORK_SCHEMA = [
      next_attempt_at      TEXT,
      -- 最近一次成功的摘要（例如輕量：錨點日期與就緒狀態；重量：各模組結果）。不含生理數值。
      summary_json         TEXT,
+     -- v13（P3-AUDIT-F03）：輕量路徑的**剩餘範圍**。長範圍分成有界的片段處理，
+     -- 每片完成就把 range_to 往前縮；range_generation 記錄這個剩餘範圍是為哪一代算的。
+     -- 只有剩餘範圍清空、而且 generation 沒有前進，done_generation 才會前進。
+     range_generation     INTEGER,
+     range_from           TEXT,
+     range_to             TEXT,
      created_at           TEXT NOT NULL,
      updated_at           TEXT NOT NULL,
      PRIMARY KEY (user_id, class)

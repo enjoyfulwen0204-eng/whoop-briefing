@@ -778,7 +778,7 @@ test('R05 真的 v10 DB → 閘拒絕，在 WHOOP 憑證 / 網路之前；不會
     assert.equal(t.version, 10);
     const a = runScript(['run', '--user=u1'], { url: t.url, cwd: t.dir, extraEnv: { WHOOP_CLIENT_ID: 'fake', WHOOP_CLIENT_SECRET: 'fake' } });
     assert.equal(a.code, 1);
-    assert.ok(/schema 版本 10 ≠ 程式碼 12/.test(a.out), a.out);
+    assert.ok(/schema 版本 10 ≠ 程式碼 13/.test(a.out), a.out);
     assert.ok(!/找不到使用者|缺少環境變數/.test(a.out), '在使用者 / 憑證之前就停');
     const db = createDb({ url: t.url });
     assert.equal(await currentVersion(db.raw), 10, '★ 沒有被自動 migrate');

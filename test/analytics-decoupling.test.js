@@ -21,7 +21,7 @@ import { createReconciler } from '../src/reconcile.js';
 import { drainWhoopWebhookEvents } from '../src/whoopWebhookProcessor.js';
 import {
   processAnalyticsForUser, processPendingAnalytics, runLightweightAnalysis, runHeavyAnalytics,
-  lightRangeFor, ANALYTICS_ERROR_CLASS,
+  lightRangeFor, nextLightChunk, ANALYTICS_ERROR_CLASS,
 } from '../src/analyticsWorker.js';
 import { classifyCanonicalWrite } from '../src/analyticsInvalidation.js';
 import { runMigrations } from '../src/migrations.js';
@@ -625,13 +625,14 @@ test('P3-ATTACK-16 大量待處理使用者 → 單次執行最多 MAX_USERS_PER
     assert.equal(r2.processed.length, users.length - ANALYTICS_WORK.MAX_USERS_PER_RUN, '剩下的下一輪');
     assert.equal((await processPendingAnalytics({ db: e.db, cls: LIGHT, now: () => NOW })).candidates, 0);
     assert.equal((await processPendingAnalytics({ db: e.db, cls: LIGHT, now: () => NOW, maxUsers: 2 })).candidates, 0);
-    // 輕量範圍上限
+    // 輕量：需要的範圍不截斷；一片最多 LIGHT_MAX_DAYS 天，剩餘耐久保留（F03）
     const wide = lightRangeFor({ affectedFrom: '2026-01-01', affectedTo: '2026-09-15', anchorDate: '2026-09-15' });
-    assert.equal(wide.truncated, true);
-    assert.equal(wide.to, '2026-09-16');
-    assert.equal(wide.from, '2026-08-03', `${ANALYTICS_WORK.LIGHT_MAX_DAYS} 天`);
+    assert.deepEqual(wide, { from: '2025-12-31', to: '2026-09-16' });
+    const c = nextLightChunk(wide);
+    assert.deepEqual(c, { chunk: { from: '2026-08-03', to: '2026-09-16' }, remainingTo: '2026-08-02', complete: false });
     const narrow = lightRangeFor({ affectedFrom: '2026-09-10', affectedTo: '2026-09-12', anchorDate: '2026-09-15' });
-    assert.deepEqual(narrow, { from: '2026-09-09', to: '2026-09-13', truncated: false });
+    assert.deepEqual(narrow, { from: '2026-09-09', to: '2026-09-13' });
+    assert.deepEqual(nextLightChunk(narrow), { chunk: narrow, remainingTo: null, complete: true });
     assert.equal(lightRangeFor({ affectedFrom: null, affectedTo: null, anchorDate: null }), null);
   } finally { e.done(); }
 });
@@ -643,11 +644,14 @@ test('P3-ATTACK-16 大量待處理使用者 → 單次執行最多 MAX_USERS_PER
 test('輕量邊界：物化 daily metrics + 當日就緒狀態；沒有資料 → NO_DATA、不寫任何列', async () => {
   const e = await env();
   try {
-    const r0 = await runLightweightAnalysis({ db: e.db, userId: ALICE.id, timezone: TZ, generation: 1, now: NOW });
+    const r0 = await runLightweightAnalysis({ db: e.db, userId: ALICE.id, timezone: TZ, generation: 1, owner: 'L', range: null, now: NOW });
     assert.equal(r0.days, 0); assert.equal(r0.dailyStatus, 'NO_DATA');
     await seedHistory(e.db, ALICE, 3);
     const i = await inv(e.db);
-    const r = await runLightweightAnalysis({ db: e.db, userId: ALICE.id, timezone: TZ, generation: i.generation, affectedFrom: i.affectedFrom, affectedTo: i.affectedTo, now: NOW });
+    // 直接呼叫邊界也必須持有租約（F01）：先認領
+    const claim = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'L', leaseMs: 60_000, now: NOW });
+    const range = lightRangeFor({ affectedFrom: i.affectedFrom, affectedTo: i.affectedTo, anchorDate: null });
+    const r = await runLightweightAnalysis({ db: e.db, userId: ALICE.id, timezone: TZ, generation: claim.generation, owner: 'L', range, now: NOW });
     assert.ok(r.days >= 3); assert.equal(r.anchorDate, (await e.db.coverage(ALICE.id)).last_date);
     assert.equal(r.dailyStatus, 'READY');
     const rows = await e.db.getAnalyticsDailyState(ALICE.id);
@@ -704,7 +708,7 @@ test('認領：同 (user, class) 只有一個持有者；不同 class 可並行�
   } finally { e.done(); }
 });
 
-test('遷移 v11 → v12：純新增四張表、零重建、既有資料一列不動；冪等；全新 DB；中斷後補齊', async () => {
+test('遷移 v11 → v13：純新增四張表（+ v13 三欄），零重建、既有資料一列不動；冪等；全新 DB；中斷後補齊', async () => {
   const e = await env();
   try {
     await e.db.upsertSleeps(ALICE.id, [sleepRecord({ id: sid(1) })], { timezone: TZ });
@@ -713,19 +717,19 @@ test('遷移 v11 → v12：純新增四張表、零重建、既有資料一列�
     const tables = async () => (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")).rows.map((r) => String(r.name));
     // 退回 v11 形狀
     for (const t of NEW) await e.db.raw.execute(`DROP TABLE ${t}`);
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version = 12');
+    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 12');
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (11, '2026-09-10T00:00:00.000Z', 'v11')");
     for (const t of NEW) assert.ok(!(await tables()).includes(t));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 11); assert.equal(s.to, 12); assert.equal(SCHEMA_VERSION, 12);
-    assert.deepEqual(s.rebuilt, []); assert.deepEqual(s.columnsAdded, []);
+    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 13);
+    assert.deepEqual(s.rebuilt, []); assert.deepEqual(s.columnsAdded, [], '從 v11 起跳：新表由 CREATE TABLE 直接建齊（含 v13 欄位）');
     for (const t of NEW) assert.ok((await tables()).includes(t));
     assert.equal((await e.db.getTombstone(ALICE.id, 'sleep', sid(1))).state, TOMBSTONE_STATE.ACTIVE, '墓碑原封不動');
     assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM whoop_reconciliation_state')).rows[0].n, 0);
     for (let i = 0; i < 3; i += 1) { const s2 = await runMigrations(e.db.raw); assert.deepEqual(s2.rebuilt, []); assert.deepEqual(s2.columnsAdded, []); }
     // 中斷：只建了第一張表
     for (const t of NEW) await e.db.raw.execute(`DROP TABLE ${t}`);
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version = 12');
+    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 12');
     await e.db.raw.execute(ANALYTICS_WORK_SCHEMA[0]);
     const s3 = await runMigrations(e.db.raw);
     assert.deepEqual(s3.rebuilt, []);

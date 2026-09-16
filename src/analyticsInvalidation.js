@@ -61,6 +61,10 @@ const SPEC = Object.freeze({
   recovery: {
     table: 'whoop_recoveries', idColumn: 'sleep_id', idOf: (r) => r?.sleep_id,
     dateSql: 'COALESCE(health_date, substr(created_at, 1, 10))',
+    // 日期**關聯**本身（可為 NULL）：變化偵測看這個，不看 COALESCE 過的日期，
+    // 否則「NULL → D」在 D 剛好等於 created_at 的日期時會被誤判成沒變。
+    linkSql: 'health_date',
+    relinks: true,   // upsertRecoveries 之後會 relink 整個使用者的 health_date
   },
   workout: {
     table: 'whoop_workouts', idColumn: 'id', idOf: (r) => r?.id,
@@ -78,16 +82,40 @@ const isoOrNull = (v) => {
   return Number.isFinite(t) ? new Date(t).toISOString() : null;
 };
 
+/**
+ * recovery 的 health_date 不是它自己的欄位，而是從對應的 sleep **關聯**過來的
+ * （store 的 relinkRecoveryDates 會在 upsertRecoveries 之後改寫**所有**列）。
+ * 所以 recovery 的快照要看這個使用者的全部列，不只這一批 —— 一次 upsert 可能
+ * 讓別的 recovery 換了日期。一天最多一筆，成本有界。（P3-AUDIT-F02）
+ */
+const rowEntry = (spec, r) => ({
+  updatedAt: isoOrNull(r.updated_at),
+  date: r.d ? String(r.d) : null,
+  // 有 linkSql 的資源：link 是原始的日期關聯，**NULL 就是 NULL**（不退回日期）
+  ...(spec.linkSql ? { link: r.l === null || r.l === undefined ? null : String(r.l) } : {}),
+});
+const selectCols = (spec) => `"${spec.idColumn}" id, updated_at, ${spec.dateSql} d, ${spec.linkSql ?? 'NULL'} l`;
+
+async function snapshotAll(client, spec, uid) {
+  const rs = await client.execute({
+    sql: `SELECT ${selectCols(spec)} FROM "${spec.table}" WHERE user_id = ?`,
+    args: [uid],
+  });
+  const out = new Map();
+  for (const r of rs.rows) out.set(String(r.id), rowEntry(spec, r));
+  return out;
+}
+
 async function snapshot(client, spec, uid, ids) {
   const out = new Map();
   for (let i = 0; i < ids.length; i += CHUNK) {
     const chunk = ids.slice(i, i + CHUNK);
     const rs = await client.execute({
-      sql: `SELECT "${spec.idColumn}" id, updated_at, ${spec.dateSql} d
+      sql: `SELECT ${selectCols(spec)}
               FROM "${spec.table}" WHERE user_id = ? AND "${spec.idColumn}" IN (${chunk.map(() => '?').join(',')})`,
       args: [uid, ...chunk],
     });
-    for (const r of rs.rows) out.set(String(r.id), { updatedAt: isoOrNull(r.updated_at), date: r.d ? String(r.d) : null });
+    for (const r of rs.rows) out.set(String(r.id), rowEntry(spec, r));
   }
   return out;
 }
@@ -98,6 +126,8 @@ async function snapshot(client, spec, uid, ids) {
  */
 export function classifyCanonicalWrite({ records, before, after, idOf, spansNextDay = false }) {
   const counts = { changed: 0, unchanged: 0, blocked: 0 };
+  // 日期關聯：有 link（可為 NULL 的原始 health_date）就看 link，否則看日期
+  const linkOf = (x) => (x.link !== undefined ? (x.link ?? null) : (x.date ?? null));
   let from = null; let to = null;
   const touch = (d) => {
     if (!d) return;
@@ -119,12 +149,26 @@ export function classifyCanonicalWrite({ records, before, after, idOf, spansNext
     const bu = b.updatedAt; const au = a.updatedAt;
     if (au && bu && au > bu) { counts.changed += 1; touch(b.date); touch(a.date); continue; }   // 較新版本
     if (au && bu && au < bu) { counts.blocked += 1; continue; }      // 不可能（M-03 擋）；保守歸 blocked
+    // 版本相同，但**日期關聯**變了（recovery 的 health_date 被 relink）：
+    // 語義上這一天的歸屬移動了，新舊兩天都要失效（P3-AUDIT-F02）。
+    if (linkOf(a) !== linkOf(b)) { counts.changed += 1; touch(b.date); touch(a.date); continue; }
     // 版本相同：進來的是同版本重放，或 M-03 擋下的較舊版本
     const incoming = isoOrNull(r?.updated_at);
     if (incoming && bu && incoming < bu) counts.blocked += 1;
     else counts.unchanged += 1;
   }
+  // 不在這一批裡、但日期關聯被同一交易改到的列（relink 會掃整個使用者）。
+  for (const [key, a] of after) {
+    if (seen.has(key)) continue;
+    const b = before.get(key) ?? null;
+    if (b && linkOf(a) !== linkOf(b)) { counts.changed += 1; touch(b.date); touch(a.date); }
+  }
   return { ...counts, affectedFrom: from, affectedTo: to };
+}
+
+/** relink 專用：比對前後所有列的日期，回傳 {changed, affectedFrom, affectedTo}。 */
+export function classifyRelink({ before, after }) {
+  return classifyCanonicalWrite({ records: [], before, after, idOf: () => null });
 }
 
 /**
@@ -143,9 +187,10 @@ export function withAnalyticsInvalidation({ health, webhook, analytics, client, 
     const now = opts.now ?? new Date();
     return transaction(async () => {
       const ids = [...new Set(records.map(spec.idOf).filter((v) => v !== null && v !== undefined).map(String))];
-      const before = await snapshot(client, spec, uid, ids);
+      const take = () => (spec.relinks ? snapshotAll(client, spec, uid) : snapshot(client, spec, uid, ids));
+      const before = await take();
       const written = await orig(uid, records, { ...opts, now });
-      const after = await snapshot(client, spec, uid, ids);
+      const after = await take();
       const cls = classifyCanonicalWrite({ records, before, after, idOf: spec.idOf, spansNextDay: Boolean(spec.spansNextDay) });
       if (cls.changed > 0) {
         await analytics.markAnalyticsDirty({
@@ -205,7 +250,34 @@ export function withAnalyticsInvalidation({ health, webhook, analytics, client, 
     });
   };
 
+  /**
+   * 公開的 relinkRecoveryDates（P3-AUDIT-F02）：真的改了日期關聯的列，
+   * 新舊兩個日期都在同一交易裡失效。沒有列改變 → 不失效。
+   * 在 upsertRecoveries 內部的 relink 已經被上面的包裝器一併分類，
+   * 不會重複 +1（那是同一個交易裡的同一次語義變化）。
+   */
+  const relinkRecoveryDates = async (userId, opts = {}) => {
+    const uid = requireUserId(userId, 'relinkRecoveryDates');
+    const spec = SPEC.recovery;
+    const now = opts.now ?? new Date();
+    return transaction(async () => {
+      const before = await snapshotAll(client, spec, uid);
+      const result = await health.relinkRecoveryDates(uid);
+      const after = await snapshotAll(client, spec, uid);
+      const cls = classifyRelink({ before, after });
+      if (cls.changed > 0) {
+        await analytics.markAnalyticsDirty({
+          userId: uid, resource: 'recovery', reason: 'relink',
+          affectedFrom: cls.affectedFrom, affectedTo: cls.affectedTo, now,
+        });
+      }
+      log.info('recovery_relink_classified', { user_id: uid, changed: cls.changed });
+      return result;
+    });
+  };
+
   return {
+    relinkRecoveryDates,
     upsertSleeps: wrapUpsert('sleep', health.upsertSleeps),
     upsertRecoveries: wrapUpsert('recovery', health.upsertRecoveries),
     upsertWorkouts: wrapUpsert('workout', health.upsertWorkouts),

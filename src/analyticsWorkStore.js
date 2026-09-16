@@ -35,7 +35,12 @@ const mergeCsv = (existing, add) => {
 const minDate = (a, b) => (!a ? b : !b ? a : (a < b ? a : b));
 const maxDate = (a, b) => (!a ? b : !b ? a : (a > b ? a : b));
 
-export function createAnalyticsWorkStore(client) {
+/**
+ * @param {object} client processing 代理 client
+ * @param {function} opts.transaction processing.transaction —— 輸出寫入的圍欄交易（F01）
+ */
+export function createAnalyticsWorkStore(client, { transaction } = {}) {
+  if (typeof transaction !== 'function') throw new Error('analytics_store_requires_transaction');
   const rowToInvalidation = (r) => (r ? {
     userId: String(r.user_id),
     generation: Number(r.generation ?? 0),
@@ -63,6 +68,9 @@ export function createAnalyticsWorkStore(client) {
     consecutiveFailures: Number(r.consecutive_failures ?? 0),
     nextAttemptAt: r.next_attempt_at ?? null,
     summary: r.summary_json ? JSON.parse(String(r.summary_json)) : null,
+    rangeGeneration: r.range_generation === null || r.range_generation === undefined ? null : Number(r.range_generation),
+    rangeFrom: r.range_from ?? null,
+    rangeTo: r.range_to ?? null,
   } : null);
 
   // ----- 失效 -------------------------------------------------------------
@@ -116,6 +124,40 @@ export function createAnalyticsWorkStore(client) {
     const uid = requireUserId(userId, 'getAnalyticsInvalidation');
     const rs = await client.execute({ sql: 'SELECT * FROM analytics_invalidation WHERE user_id = ?', args: [uid] });
     return rowToInvalidation(rs.rows[0]);
+  }
+
+  // ----- 所有權證明（F01）------------------------------------------------------
+
+  /**
+   * 「這個 owner 現在還握著這個 (使用者, 類別) 的**有效**租約，而且認領的是
+   * 這一代」。租約到期時刻本身算過期（lease_expires_at > now，嚴格）。
+   * 在圍欄交易裡執行 → 與寫入同一個 BEGIN IMMEDIATE，不存在 check 與 write 之間
+   * 的空隙（TOCTOU）。
+   */
+  async function proveOwnership({ userId, cls, owner, generation, now }) {
+    const rs = await client.execute({
+      sql: `SELECT 1 FROM analytics_work_state
+             WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
+               AND claimed_generation = ? LIMIT 1`,
+      args: [userId, cls, String(owner), iso(now), Number(generation)],
+    });
+    if (!rs.rows.length) throw new Error('analytics_ownership_lost');
+  }
+
+  /**
+   * 把一段耐久輸出寫入包進「所有權圍欄交易」：交易開始先證明所有權，交易結束
+   * 前再證明一次，兩次都過才 commit。失去租約的執行在這裡被擋下 —— 不是事後
+   * 檢查、不是事後刪除，而是寫入本身進不了資料庫。
+   *
+   * 昂貴的計算**不可以**放在 fn 裡：這是短的持久化交易。
+   */
+  async function mutateForAnalytics({ userId, cls, owner, generation, now = () => new Date() }, fn) {
+    const uid = requireUserId(userId, 'mutateForAnalytics');
+    if (!CLASSES.includes(cls)) throw new Error(`invalid_analytics_class:${cls}`);
+    if (!owner) throw new Error('analytics_owner_required');
+    if (!Number.isInteger(generation)) throw new Error('analytics_generation_required');
+    const check = () => proveOwnership({ userId: uid, cls, owner, generation, now: now() });
+    return transaction(fn, { before: check, after: check });
   }
 
   // ----- 工作狀態 -----------------------------------------------------------
@@ -198,7 +240,44 @@ export function createAnalyticsWorkStore(client) {
       generation, doneGeneration: work?.doneGeneration ?? 0,
       affectedFrom: inv?.affectedFrom ?? null, affectedTo: inv?.affectedTo ?? null,
       resources: inv?.resources ?? [], reasons: inv?.reasons ?? [],
+      rangeGeneration: work?.rangeGeneration ?? null, rangeFrom: work?.rangeFrom ?? null, rangeTo: work?.rangeTo ?? null,
     };
+  }
+
+  // ----- 輕量分片進度（F03）----------------------------------------------------
+
+  /**
+   * 把這一代的剩餘範圍寫成耐久狀態（owner + 租約圍欄）。
+   * 呼叫端在認領後決定剩餘範圍（同一代 → 沿用；換代 → 與失效範圍取聯集）。
+   */
+  async function setAnalyticsRange({ userId, cls, owner, generation, from, to, now = new Date() }) {
+    const uid = requireUserId(userId, 'setAnalyticsRange');
+    const nowIso = iso(now);
+    const rs = await client.execute({
+      sql: `UPDATE analytics_work_state
+               SET range_generation = ?, range_from = ?, range_to = ?, updated_at = ?
+             WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?`,
+      args: [Number(generation), from, to, nowIso, uid, cls, String(owner), nowIso],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
+  /**
+   * 一片完成：把剩餘範圍的上緣縮到這一片的下緣之前。
+   * 圍欄：owner + 有效租約 + range_generation 相符 + range_to 仍是這一片的上緣（CAS）。
+   * newTo = null 表示剩餘範圍清空。
+   */
+  async function advanceAnalyticsRange({ userId, cls, owner, generation, chunkTo, newTo, now = new Date() }) {
+    const uid = requireUserId(userId, 'advanceAnalyticsRange');
+    const nowIso = iso(now);
+    const rs = await client.execute({
+      sql: `UPDATE analytics_work_state
+               SET range_to = ?, range_from = CASE WHEN ? IS NULL THEN NULL ELSE range_from END, updated_at = ?
+             WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
+               AND range_generation = ? AND range_to = ?`,
+      args: [newTo, newTo, nowIso, uid, cls, String(owner), nowIso, Number(generation), chunkTo],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
   }
 
   /**
@@ -224,6 +303,7 @@ export function createAnalyticsWorkStore(client) {
       rs = await client.execute({
         sql: `UPDATE analytics_work_state
                  SET done_generation = MAX(done_generation, ?), status = 'SUCCESS',
+                     range_from = NULL, range_to = NULL,
                      owner = NULL, lease_expires_at = NULL, claimed_generation = NULL,
                      last_success_at = ?, last_error_class = NULL, last_error_detail = NULL,
                      consecutive_failures = 0, next_attempt_at = NULL,
@@ -316,13 +396,15 @@ export function createAnalyticsWorkStore(client) {
     for (const cls of CLASSES) {
       const w = await getAnalyticsWorkState(uid, cls);
       const done = w?.doneGeneration ?? 0;
+      const remaining = w?.rangeFrom && w?.rangeTo && w?.rangeGeneration === generation;
       let status;
       if (generation === 0 && done === 0) status = ANALYTICS_FRESHNESS.NEVER;
-      else if (done >= generation) status = ANALYTICS_FRESHNESS.CURRENT;
+      else if (done >= generation && !remaining) status = ANALYTICS_FRESHNESS.CURRENT;
       else if (w?.status === 'FAILED') status = ANALYTICS_FRESHNESS.FAILED;
       else status = ANALYTICS_FRESHNESS.PENDING;
       out[cls] = {
         status, doneGeneration: done, lastSuccessAt: w?.lastSuccessAt ?? null,
+        remainingRange: remaining ? { from: w.rangeFrom, to: w.rangeTo } : null,
         lastFailureAt: w?.lastFailureAt ?? null, lastErrorClass: w?.lastErrorClass ?? null,
         owner: w?.owner ?? null, leaseExpiresAt: w?.leaseExpiresAt ?? null,
         nextAttemptAt: w?.nextAttemptAt ?? null, consecutiveFailures: w?.consecutiveFailures ?? 0,
@@ -333,29 +415,46 @@ export function createAnalyticsWorkStore(client) {
 
   // ----- 輕量物化 -----------------------------------------------------------
 
-  async function saveAnalyticsDailyState(userId, rows, { generation, now = new Date() }) {
+  /**
+   * 輕量物化的寫入 —— **必須**帶所有權證明（F01）。整批在一個圍欄交易裡：
+   * 交易開頭與結尾都驗 owner / 有效租約 / claimed_generation；任何一項不成立
+   * 就整批不寫。同一代、不同 owner（接手之後）也進不來。
+   */
+  async function saveAnalyticsDailyState(userId, rows, { owner, generation, now = new Date() }) {
     const uid = requireUserId(userId, 'saveAnalyticsDailyState');
     if (!Number.isInteger(generation)) throw new Error('analytics_daily_state_requires_generation');
+    if (!owner) throw new Error('analytics_owner_required');
     const nowIso = iso(now);
-    let n = 0;
-    for (const r of rows) {
-      if (!r?.health_date) continue;
-      await client.execute({
-        sql: `INSERT INTO analytics_daily_state (user_id, health_date, generation, computed_at, daily_status, metrics_json)
-              VALUES (?, ?, ?, ?, ?, ?)
-              ON CONFLICT(user_id, health_date) DO UPDATE SET
-                generation = excluded.generation, computed_at = excluded.computed_at,
-                daily_status = excluded.daily_status, metrics_json = excluded.metrics_json
-              WHERE excluded.generation >= analytics_daily_state.generation`,
-        args: [uid, String(r.health_date), generation, nowIso, String(r.daily_status ?? 'UNKNOWN'), JSON.stringify(r.metrics)],
-      });
-      n += 1;
-    }
-    return n;
+    return mutateForAnalytics({ userId: uid, cls: ANALYTICS_CLASS.LIGHT, owner, generation, now: () => now }, async () => {
+      let n = 0;
+      for (const r of rows) {
+        if (!r?.health_date) continue;
+        await client.execute({
+          sql: `INSERT INTO analytics_daily_state (user_id, health_date, generation, computed_at, daily_status, metrics_json)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, health_date) DO UPDATE SET
+                  generation = excluded.generation, computed_at = excluded.computed_at,
+                  daily_status = excluded.daily_status, metrics_json = excluded.metrics_json
+                WHERE excluded.generation >= analytics_daily_state.generation`,
+          args: [uid, String(r.health_date), generation, nowIso, String(r.daily_status ?? 'UNKNOWN'), JSON.stringify(r.metrics)],
+        });
+        n += 1;
+      }
+      return n;
+    });
   }
 
+  /**
+   * 每一列帶 `stale`：算它時的 generation 比目前的 generation 舊，或輕量路徑
+   * 這一代還有剩餘範圍沒算完 —— 讀取端不能把它當成最新。
+   */
   async function getAnalyticsDailyState(userId, { from = null, to = null } = {}) {
     const uid = requireUserId(userId, 'getAnalyticsDailyState');
+    const inv = await getAnalyticsInvalidation(uid);
+    const work = await getAnalyticsWorkState(uid, ANALYTICS_CLASS.LIGHT);
+    const generation = inv?.generation ?? 0;
+    const incomplete = Boolean(work?.rangeFrom && work?.rangeTo && work?.rangeGeneration === generation)
+      || (work?.doneGeneration ?? 0) < generation;
     const rs = await client.execute({
       sql: `SELECT * FROM analytics_daily_state
              WHERE user_id = ? AND (? IS NULL OR health_date >= ?) AND (? IS NULL OR health_date <= ?)
@@ -365,6 +464,7 @@ export function createAnalyticsWorkStore(client) {
     return rs.rows.map((r) => ({
       healthDate: String(r.health_date), generation: Number(r.generation), computedAt: r.computed_at,
       dailyStatus: String(r.daily_status), metrics: JSON.parse(String(r.metrics_json)),
+      stale: Number(r.generation) < generation || incomplete,
     }));
   }
 
@@ -407,6 +507,9 @@ export function createAnalyticsWorkStore(client) {
     getAnalyticsWorkState,
     listPendingAnalytics,
     claimAnalyticsWork,
+    setAnalyticsRange,
+    advanceAnalyticsRange,
+    mutateForAnalytics,
     settleAnalyticsWork,
     releaseAnalyticsWork,
     holdsAnalyticsWork,

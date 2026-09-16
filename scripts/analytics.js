@@ -74,7 +74,8 @@ async function status() {
     const w = f[cls];
     console.log(`\n${cls.padEnd(6)} ${w.status.padEnd(8)} done=${w.doneGeneration}｜上次成功 ${fmt(w.lastSuccessAt)}｜上次失敗 ${fmt(w.lastFailureAt)}`
       + `${w.lastErrorClass ? `｜錯誤 ${w.lastErrorClass}` : ''}${w.owner ? `｜持有中 ${w.owner} 至 ${fmt(w.leaseExpiresAt)}` : ''}`
-      + `${w.nextAttemptAt ? `｜下次 ${fmt(w.nextAttemptAt)}` : ''}｜連續失敗 ${w.consecutiveFailures}`);
+      + `${w.nextAttemptAt ? `｜下次 ${fmt(w.nextAttemptAt)}` : ''}｜連續失敗 ${w.consecutiveFailures}`
+      + `${w.remainingRange ? `｜剩餘 ${w.remainingRange.from} → ${w.remainingRange.to}` : ''}`);
   }
   const runs = await db.recentAnalyticsRuns(user.id, { limit: 10 });
   console.log('\n最近執行：');
@@ -83,7 +84,7 @@ async function status() {
     console.log(`   #${String(r.id).padEnd(5)} ${r.class.padEnd(6)} gen ${String(r.generation).padEnd(4)} ${String(r.result ?? '執行中').padEnd(8)} ${fmt(r.startedAt)}${r.errorClass ? `｜${r.errorClass}` : ''}`);
   }
   const days = await db.getAnalyticsDailyState(user.id);
-  console.log(`\n輕量物化：${days.length} 天${days.length ? `（${days[0].healthDate} → ${days.at(-1).healthDate}，最舊 generation ${Math.min(...days.map((d) => d.generation))}）` : ''}`);
+  console.log(`\n輕量物化：${days.length} 天${days.length ? `（${days[0].healthDate} → ${days.at(-1).healthDate}，最舊 generation ${Math.min(...days.map((d) => d.generation))}，舊的 ${days.filter((d) => d.stale).length} 天）` : ''}`);
 }
 
 async function run(cls) {
@@ -101,7 +102,9 @@ async function run(cls) {
   }
   console.log(`\n${cls}：處理 ${processed.length} 位使用者（上限 ${ANALYTICS_WORK.MAX_USERS_PER_RUN}）`);
   for (const r of processed) {
-    const extra = r.result === 'SKIPPED' ? ` (${r.reason})` : r.result === 'FAILED' ? ` ${r.errorClass}` : ` gen ${r.generation}${r.stillDirty ? '（期間又有新變動，仍然髒）' : ''}`;
+    const extra = r.result === 'SKIPPED' ? ` (${r.reason})` : r.result === 'FAILED' ? ` ${r.errorClass}`
+      : r.result === 'PARTIAL' ? ` gen ${r.generation} 剩餘 ${r.summary?.remaining?.from} → ${r.summary?.remaining?.to}`
+        : ` gen ${r.generation}${r.stillDirty ? '（期間又有新變動，仍然髒）' : ''}`;
     console.log(`  ${String(r.userId).padEnd(38)} ${String(r.result).padEnd(8)}${extra}`);
   }
 }

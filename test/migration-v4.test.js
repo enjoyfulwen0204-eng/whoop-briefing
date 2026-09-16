@@ -47,7 +47,7 @@ const version = async (db) => Number(
 // 版本與清單
 // ---------------------------------------------------------------------------
 
-test('SCHEMA_VERSION 是 12', () => {
+test('SCHEMA_VERSION 是 13', () => {
   // v9 adds the report delivery state machine to report_claims (additive
   // columns only); v8 added briefing_evaluations (a new table); v7 added the
   // delivery state machine to telegram_operations. Populated v4/v5/v6 tables
@@ -56,7 +56,8 @@ test('SCHEMA_VERSION 是 12', () => {
   // v11 adds the reconciliation tables (three brand-new tables) plus three
   // diagnostic columns on whoop_resource_tombstones (additive only).
   // v12 adds the analytics work tables (four brand-new tables, Phase 3).
-  assert.equal(SCHEMA_VERSION, 12);
+  // v13 adds three nullable range columns on analytics_work_state (Phase 3 RC1).
+  assert.equal(SCHEMA_VERSION, 13);
 });
 
 test('★★ 兩張新表都不在 RESHAPED_TABLES 裡（不可武裝 DROP 路徑）', () => {

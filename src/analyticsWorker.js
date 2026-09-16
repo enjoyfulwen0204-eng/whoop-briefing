@@ -62,12 +62,12 @@ export function classifyAnalyticsError(err) {
 }
 
 /**
- * 輕量路徑要算哪些日期：受影響範圍 ± pad，最多 LIGHT_MAX_DAYS 天（保留最近的）。
- * 沒有範圍（例如只有刪除但沒有日期）→ 以最新的 health_date 為錨點算最近幾天。
- * 純函式（匯出給測試）。
+ * 這一代輕量路徑**需要**覆蓋的完整範圍：受影響範圍 ± pad。沒有範圍（例如只有
+ * 沒有日期的刪除）→ 以最新的 health_date 為錨點。**不截斷**：截斷是分片
+ * （nextLightChunk）的事，剩餘的部分耐久保留（F03）。純函式（匯出給測試）。
  */
 export function lightRangeFor({ affectedFrom, affectedTo, anchorDate }, {
-  pad = ANALYTICS_WORK.LIGHT_RANGE_PAD_DAYS, maxDays = ANALYTICS_WORK.LIGHT_MAX_DAYS,
+  pad = ANALYTICS_WORK.LIGHT_RANGE_PAD_DAYS,
 } = {}) {
   let from = affectedFrom ?? affectedTo ?? anchorDate;
   let to = affectedTo ?? affectedFrom ?? anchorDate;
@@ -75,32 +75,50 @@ export function lightRangeFor({ affectedFrom, affectedTo, anchorDate }, {
   if (anchorDate && to < anchorDate && !affectedTo) to = anchorDate;
   from = addDays(from, -pad);
   to = addDays(to, pad);
-  const truncated = addDays(to, -(maxDays - 1)) > from;
-  if (truncated) from = addDays(to, -(maxDays - 1));
-  return { from, to, truncated };
+  return { from, to };
+}
+
+/** 兩個日期範圍的聯集（都是連續區間，所以是 min/max）。 */
+export function unionRange(a, b) {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return { from: a.from < b.from ? a.from : b.from, to: a.to > b.to ? a.to : b.to };
 }
 
 /**
- * 輕量分析：受影響日期的 daily metrics 物化 + 當日就緒狀態。
+ * 剩餘範圍裡**最新**的一片（最多 maxDays 天）。回傳 chunk 與縮完之後的剩餘上緣
+ * （null = 這一片做完就沒有剩餘）。
+ */
+export function nextLightChunk({ from, to }, { maxDays = ANALYTICS_WORK.LIGHT_MAX_DAYS } = {}) {
+  const chunkFrom = addDays(to, -(maxDays - 1)) > from ? addDays(to, -(maxDays - 1)) : from;
+  const remainingTo = chunkFrom > from ? addDays(chunkFrom, -1) : null;
+  return { chunk: { from: chunkFrom, to }, remainingTo, complete: remainingTo === null };
+}
+
+/**
+ * 輕量分析（一片）：daily metrics 物化 + 當日就緒狀態。
  *
  * 為什麼只有這些：倉庫裡其他「便宜」的東西（基準、z-score、what-changed）
  * 都是讀取時從 daily metrics 現算，沒有耐久輸出可刷新；而 daily metrics 本身
  * 是所有分析的共同輸入，物化它才是 Phase 4「近事件回應」真正需要的東西。
  *
- * 讀取失敗（loadDailyMetricsDetailed.complete = false）→ 整輪失敗，**不**把
+ * 讀取失敗（loadDailyMetricsDetailed.complete = false）→ 整片失敗，**不**把
  * 讀不到的資源物化成「沒有」（H-06：讀取失敗不是生理事實）。
  *
- * @returns {{days:number, from:string, to:string, anchorDate:?string, dailyStatus:string, truncated:boolean}}
+ * 寫入走 saveAnalyticsDailyState 的所有權圍欄交易（F01）：owner / 有效租約 /
+ * claimed_generation 在寫入的同一個交易裡證明。
+ *
+ * @param {{from:string,to:string}} range 這一片要算的日期（呼叫端已切好）
+ * @returns {{days:number, from:string, to:string, anchorDate:?string, dailyStatus:string}}
  */
 export async function runLightweightAnalysis({
-  db, userId, timezone, generation, affectedFrom = null, affectedTo = null, now = new Date(),
+  db, userId, timezone, generation, owner, range, now = new Date(),
 }) {
   const uid = requireUserId(userId, 'runLightweightAnalysis');
   const coverage = await db.coverage(uid);
   const anchorDate = coverage?.last_date ?? null;
-  const range = lightRangeFor({ affectedFrom, affectedTo, anchorDate });
   if (!range) {
-    return { days: 0, from: null, to: null, anchorDate, dailyStatus: 'NO_DATA', truncated: false };
+    return { days: 0, from: null, to: null, anchorDate, dailyStatus: 'NO_DATA' };
   }
   const detailed = await loadDailyMetricsDetailed({ db, userId: uid, timezone, from: range.from, to: range.to });
   if (!detailed.complete) {
@@ -113,10 +131,40 @@ export async function runLightweightAnalysis({
     daily_status: assessDailyState({ rows: [m], anchorDate: m.health_date, now }).status,
     metrics: m,
   }));
-  const days = await db.saveAnalyticsDailyState(uid, rows, { generation, now });
+  const days = await db.saveAnalyticsDailyState(uid, rows, { owner, generation, now });
   const anchorRow = detailed.rows.find((r) => r.health_date === anchorDate) ?? null;
   const dailyStatus = assessDailyState({ rows: anchorRow ? [anchorRow] : [], anchorDate, now }).status;
-  return { days, from: range.from, to: range.to, anchorDate, dailyStatus, truncated: range.truncated };
+  return { days, from: range.from, to: range.to, anchorDate, dailyStatus };
+}
+
+/**
+ * 重量模組的**圍欄 db 視圖**（F01）：模組自己呼叫的每一個耐久寫入
+ * （savePredictionModel / savePrediction / recordPredictionActual /
+ * saveHealthspanMetrics / saveHealthspanSnapshot）都包進
+ * mutateForAnalytics —— 短的持久化交易，開頭與結尾都證明 owner / 有效租約 /
+ * claimed_generation。計算本身在交易外。失去租約的執行，寫入在資料庫層被擋下；
+ * `fence.lost` 記下這件事，讓工作者把整輪判成 FENCED。
+ */
+export const HEAVY_OUTPUT_WRITERS = Object.freeze([
+  'savePredictionModel', 'savePrediction', 'recordPredictionActual',
+  'saveHealthspanMetrics', 'saveHealthspanSnapshot',
+]);
+
+export function fencedAnalyticsDb(db, { userId, cls, owner, generation, now }) {
+  const fence = { lost: false, blockedWrites: 0 };
+  const view = { ...db };
+  for (const name of HEAVY_OUTPUT_WRITERS) {
+    if (typeof db[name] !== 'function') continue;
+    view[name] = async (...args) => {
+      try {
+        return await db.mutateForAnalytics({ userId, cls, owner, generation, now }, () => db[name](...args));
+      } catch (err) {
+        if (err?.message === 'analytics_ownership_lost') { fence.lost = true; fence.blockedWrites += 1; }
+        throw err;
+      }
+    };
+  }
+  return { db: view, fence };
 }
 
 /**
@@ -128,7 +176,7 @@ export async function runLightweightAnalysis({
  * FAILED，成功的模組輸出保留（它們自己寫自己的表），下一輪重算全部。
  * 這樣 heavy 的「CURRENT」才是一個誠實的整體宣稱。
  */
-export async function runHeavyAnalytics({ db, userId, timezone, now = new Date(), deps = {} }) {
+export async function runHeavyAnalytics({ db, userId, timezone, now = new Date(), deps = {}, fence = null }) {
   const uid = requireUserId(userId, 'runHeavyAnalytics');
   const { predictionCycle = runPredictionCycle, healthspan = runHealthspanSnapshot } = deps;
   const anchor = (await db.coverage(uid))?.last_date ?? null;
@@ -146,29 +194,43 @@ export async function runHeavyAnalytics({ db, userId, timezone, now = new Date()
   // capability 查不到（還沒 probe）一律當 {}：樣本數邏輯照走，絕不誤判成不支援。
   const caps = await db.getCapabilities(uid).catch(() => ({}));
 
+  // F01：有圍欄就用圍欄視圖；沒有（直接呼叫的開發邊界）就明講。
+  let outDb = db; let fenceState = null;
+  if (fence) {
+    const f = fencedAnalyticsDb(db, { userId: uid, cls: ANALYTICS_CLASS.HEAVY, owner: fence.owner, generation: fence.generation, now: fence.now ?? (() => now) });
+    outDb = f.db; fenceState = f.fence;
+  } else {
+    log.warn('analytics_heavy_unfenced', { user_id: uid });
+  }
+  const lost = () => Boolean(fenceState?.lost);
+
   const modules = {};
   const failed = [];
   try {
     const targetStatus = capabilityStatusForField('recovery', caps);
     const p = await predictionCycle({
-      db, userId: uid, rows, anchorDate: anchor,
+      db: outDb, userId: uid, rows, anchorDate: anchor,
       capabilityUnavailable: isKnownUnavailable(targetStatus), now,
     });
     modules.prediction = { maturity: p?.maturity ?? null, qualified: Boolean(p?.qualified), modelSaved: Boolean(p?.modelSaved) };
   } catch (err) {
+    if (err?.message === 'analytics_ownership_lost') throw err;
     failed.push('prediction');
     modules.prediction = { error: describeError(err) };
     log.error('analytics_heavy_prediction_failed', { user_id: uid, error: describeError(err) });
   }
+  if (lost()) throw new Error('analytics_ownership_lost');
   try {
-    const h = await healthspan({ db, userId: uid, rows, endDate: anchor, capabilities: caps, now });
+    const h = await healthspan({ db: outDb, userId: uid, rows, endDate: anchor, capabilities: caps, now });
     if (h?.error) throw new Error('healthspan_snapshot_failed');
     modules.healthspan = { maturity: h?.maturity ?? null, saved: Boolean(h?.saved) };
   } catch (err) {
+    if (err?.message === 'analytics_ownership_lost') throw err;
     failed.push('healthspan');
     modules.healthspan = { error: describeError(err) };
     log.error('analytics_heavy_healthspan_failed', { user_id: uid, error: describeError(err) });
   }
+  if (lost()) throw new Error('analytics_ownership_lost');
   if (failed.length) {
     const err = new Error(`heavy modules failed: ${failed.join(',')}`);
     err.code = 'analytics_module_failed';
@@ -211,12 +273,49 @@ export async function processAnalyticsForUser({
   const runId = await db.openAnalyticsRun({ userId: uid, cls, owner, generation, now: at() });
 
   try {
-    const summary = cls === ANALYTICS_CLASS.LIGHT
-      ? await runLightweightAnalysis({
-        db, userId: uid, timezone: user.timezone, generation,
-        affectedFrom: claim.affectedFrom, affectedTo: claim.affectedTo, now: at(),
-      })
-      : await runHeavyAnalytics({ db, userId: uid, timezone: user.timezone, now: at(), deps });
+    let summary; let partial = false;
+    if (cls === ANALYTICS_CLASS.LIGHT) {
+      // ---- F03：耐久的剩餘範圍 + 有界的一片 ----------------------------------
+      // 同一代 → 沿用剩餘範圍；換代 → 上一代還沒做完的剩餘 ∪ 這一代的失效範圍。
+      // 任何一天都不會掉：失效範圍在完成（CAS）之前不會被清。
+      const anchorDate = (await db.coverage(uid))?.last_date ?? null;
+      const needed = lightRangeFor({ affectedFrom: claim.affectedFrom, affectedTo: claim.affectedTo, anchorDate });
+      const carried = claim.rangeFrom && claim.rangeTo ? { from: claim.rangeFrom, to: claim.rangeTo } : null;
+      const remaining = claim.rangeGeneration === generation && carried ? carried : unionRange(carried, needed);
+      if (!remaining) {
+        summary = { days: 0, from: null, to: null, anchorDate, dailyStatus: 'NO_DATA' };
+      } else {
+        if (!(claim.rangeGeneration === generation && carried)) {
+          const set = await db.setAnalyticsRange({ userId: uid, cls, owner, generation, from: remaining.from, to: remaining.to, now: at() });
+          if (!set) throw new Error('analytics_ownership_lost');
+        }
+        const { chunk, remainingTo, complete } = nextLightChunk(remaining);
+        summary = await runLightweightAnalysis({
+          db, userId: uid, timezone: user.timezone, generation, owner, range: chunk, now: at(),
+        });
+        // 這一片完成 → 縮剩餘範圍（owner + 租約 + range_generation + range_to 的 CAS）
+        const advanced = await db.advanceAnalyticsRange({
+          userId: uid, cls, owner, generation, chunkTo: chunk.to, newTo: remainingTo, now: at(),
+        });
+        if (!advanced) throw new Error('analytics_ownership_lost');
+        summary = { ...summary, remaining: complete ? null : { from: remaining.from, to: remainingTo } };
+        partial = !complete;
+      }
+    } else {
+      summary = await runHeavyAnalytics({
+        db, userId: uid, timezone: user.timezone, now: at(), deps,
+        fence: { owner, generation, now },
+      });
+    }
+
+    if (partial) {
+      // 還有剩餘範圍：不結案（done 不動），只釋放租約讓下一輪（或別的工作者）接續。
+      const released = await db.releaseAnalyticsWork({ userId: uid, cls, owner, now: at() });
+      const result = released ? ANALYTICS_RESULT.PARTIAL : ANALYTICS_RESULT.FENCED;
+      await db.closeAnalyticsRun(runId, { result, detail: summary, now: at() });
+      log.info('analytics_partial', { user_id: uid, class: cls, generation, remaining: summary.remaining });
+      return { userId: uid, cls, result, generation, stillDirty: true, summary };
+    }
 
     // 結案前再驗一次所有權：租約過期被接手的話，這裡的結果不能寫成「最新」。
     if (!await db.holdsAnalyticsWork({ userId: uid, cls, owner, now: at() })) throw new Error('analytics_ownership_lost');

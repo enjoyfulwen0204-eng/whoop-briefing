@@ -55,7 +55,8 @@ export function createDb({ url, authToken }) {
   const { client } = processing;
   const health = createHealthStore(client, { transaction: processing.transaction });
   const webhook = createWhoopWebhookStore(client);
-  const analytics = createAnalyticsWorkStore(client);
+  // 輸出寫入走 processing.transaction 的所有權圍欄（F01）。
+  const analytics = createAnalyticsWorkStore(client, { transaction: processing.transaction });
 
   async function withAnswerOwnership(userId, ownership, now, fn) {
     const uid = requireUserId(userId, 'withAnswerOwnership');

@@ -383,8 +383,15 @@ test('ONB-ATTACK-10 同一個人重新連接同一個 WHOOP 帳號：安全支�
     const callback = createWhoopOAuthCallback({ db: e.db, ...fakeWhoopBackend({ whoopUserId: '888' }), now: () => NOW });
     const res = await callback({ query: new URLSearchParams({ code: 'good', state: st }) });
     assert.equal(res.outcome, 'ok');
-    assert.equal(await stateOf(e.db, user.id), ONBOARDING_STATE.READY, '★ READY 的人不會被重新連接打回上線中');
-    assert.equal((await e.db.getTokens(user.id)).whoopUserId, '888');
+    // ★ RC2 / F04：成功的重新授權讓舊的權限判定失效（授權世代 +1），所以連
+    // READY 的人也回到「已授權、待重新驗證」。bootstrap 隨即把他帶回 READY。
+    assert.equal(await stateOf(e.db, user.id), ONBOARDING_STATE.WHOOP_AUTHORIZED);
+    assert.equal((await e.db.getTokens(user.id)).whoopUserId, '888', '★ 綁定與資料完全沒有損失');
+    const reboot = await runOnboardingBootstrap({
+      db: e.db, userId: user.id, env: {}, now: () => NOW, deps: fakeBootstrapDeps({ db: e.db }),
+    });
+    assert.equal(reboot.result, BOOTSTRAP_RESULT.READY, '★ 重新驗證之後回到 READY');
+    assert.equal(await stateOf(e.db, user.id), ONBOARDING_STATE.READY);
   } finally { e.done(); }
 });
 
@@ -597,8 +604,10 @@ test('bootstrap 的判定規則：scope_missing 不算失敗、同步結果為�
     const a = await userFor(e.db, ALICE_CHAT);
     let v = await evaluateReadiness({ db: e.db, userId: a.id });
     assert.equal(v.ready, false);
-    assert.deepEqual(v.missing.sort(),
-      ['capabilities', 'sync_state', 'timezone_confirmed', 'whoop_identity', 'whoop_tokens'].sort());
+    assert.deepEqual(v.missing.sort(), [
+      'access_recovery_unknown', 'access_sleep_unknown',
+      'capabilities', 'sync_state', 'timezone_confirmed', 'whoop_identity', 'whoop_tokens',
+    ].sort());
     await onboardFully(e.db, BOB_CHAT, { whoopUserId: 'B9' });
     v = await evaluateReadiness({ db: e.db, userId: (await userFor(e.db, BOB_CHAT)).id });
     assert.deepEqual(v, { ready: true, missing: [] });
@@ -646,11 +655,11 @@ test('ONB-ATTACK-24 舊使用者（Kelvin）遷移：仍然 ACTIVE、READY、可
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (13, '2026-09-14T00:00:00.000Z', 'v13')");
 
     const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 15);
+    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 16);
     assert.deepEqual(summary.rebuilt, []);
     assert.deepEqual(summary.columnsAdded, []);
     // v14 依證據建列（Kelvin 證據齊全 → READY）；v15 的修正沒有東西要改
-    assert.deepEqual(summary.dataMigrations, [{ version: 14, rows: 1 }, { version: 15, rows: 0 }]);
+    assert.deepEqual(summary.dataMigrations, [{ version: 14, rows: 1 }, { version: 15, rows: 0 }, { version: 16, rows: 0 }]);
 
     const row = await e.db.getOnboardingRow(kelvin.id);
     assert.equal(row.state, ONBOARDING_STATE.READY);
@@ -685,7 +694,7 @@ test('遷移 v13 → v15：中斷後重跑補齊；全新資料庫不會憑空�
     await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 14');
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (13, '2026-09-14T00:00:00.000Z', 'v13')");
     const s = await runMigrations(e.db.raw);
-    assert.deepEqual(s.dataMigrations, [{ version: 14, rows: 1 }, { version: 15, rows: 0 }]);
+    assert.deepEqual(s.dataMigrations, [{ version: 14, rows: 1 }, { version: 15, rows: 0 }, { version: 16, rows: 0 }]);
     // 這個使用者只有帳號，沒有綁定 / token → truthful 的狀態是 STARTED，不是 READY
     assert.equal((await e.db.getOnboardingRow(u.id)).state, ONBOARDING_STATE.STARTED);
     assert.equal((await e.db.getOnboardingRow(u.id)).timezoneConfirmedAt, null);

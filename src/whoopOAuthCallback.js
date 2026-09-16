@@ -199,9 +199,16 @@ export function createWhoopOAuthCallback({
     await db.ensureOnboarding(userId, { state: ONBOARDING_STATE.WHOOP_AUTHORIZED, now: new Date(now()) })
       .catch(() => {});
     await db.setOnboardingState(userId, ONBOARDING_STATE.WHOOP_AUTHORIZED, {
-      // READY 的人重新連接同一個帳號 → 不要把他打回上線中（重放安全）。
+      // ★ RC2 / F04：**成功的重新授權會讓舊的權限判定失效**（授權世代 +1）。
+      //
+      // 所以連已經 READY 的人也要回到「已授權、待驗證」：這一次授權可能少勾了
+      // 睡眠或恢復權限，而那些判定必須重新驗過才算數。bootstrap 緊接著就會跑
+      // （回呼結束後立刻踢一次），通常同一輪就回到 READY。
+      //
+      // 重放不會走到這裡：state 是一次性的，重複的 callback 在消耗那一步就被擋下。
       from: [ONBOARDING_STATE.STARTED, ONBOARDING_STATE.TIMEZONE_PENDING,
-        ONBOARDING_STATE.WHOOP_AUTH_PENDING, ONBOARDING_STATE.ACTION_REQUIRED],
+        ONBOARDING_STATE.WHOOP_AUTH_PENDING, ONBOARDING_STATE.ACTION_REQUIRED,
+        ONBOARDING_STATE.READY],
       whoopAuthorized: true, failureCode: null, failureDetail: null, now: new Date(now()),
     });
     await db.resetAuthLinkBudget(userId, { now: new Date(now()) }).catch(() => {});

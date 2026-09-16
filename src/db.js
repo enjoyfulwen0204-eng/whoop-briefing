@@ -609,9 +609,18 @@ export function createDb({ url, authToken }) {
    *   （不是錯誤 —— 併發控制正常運作，別人贏了而已）。
    *   身分不可變的違反仍然拋錯，那是完全不同的一件事。
    */
+  /**
+   * @param {boolean} [opts.bumpAuthGeneration] 這是一次**新的授權**（不是例行
+   *   refresh）。只有 OAuth 完成那條路會傳 true。
+   *
+   *   授權世代是「這組 token 屬於哪一次授權」的非祕密識別（RC2 / F04）。
+   *   權限判定（whoop_resource_access）綁在它上面：使用者重新授權而這次沒勾
+   *   某個權限時，舊的判定就自動失效，READY 不可能用舊結論通過。
+   *   例行 refresh **不會** +1 —— 換的是同一次授權的新 access token，權限沒變。
+   */
   async function saveTokens(userId, {
     accessToken, refreshToken, expiresAt, scope, whoopUserId = null,
-  }, { retries = 4, expectedUpdatedAt = undefined } = {}) {
+  }, { retries = 4, expectedUpdatedAt = undefined, bumpAuthGeneration = false } = {}) {
     const uid = requireUserId(userId, 'saveTokens');
     const fenced = expectedUpdatedAt !== undefined;
     // CAS 條件。刻意用 `IS ?` 而不是 `= ?`，這樣 NULL 也能正確比較
@@ -621,10 +630,11 @@ export function createDb({ url, authToken }) {
       : '';
     const sql = `INSERT INTO user_whoop_tokens
         (user_id, whoop_user_id, access_token, refresh_token,
-         access_token_expires_at, scope, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+         access_token_expires_at, scope, updated_at, auth_generation)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
       ON CONFLICT(user_id) DO UPDATE SET
         whoop_user_id = COALESCE(user_whoop_tokens.whoop_user_id, excluded.whoop_user_id),
+        auth_generation = user_whoop_tokens.auth_generation + ${bumpAuthGeneration ? 1 : 0},
         access_token = excluded.access_token,
         refresh_token = excluded.refresh_token,
         access_token_expires_at = excluded.access_token_expires_at,

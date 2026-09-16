@@ -171,13 +171,31 @@ WHOOP 身分已驗證、同步狀態存在、capability 盤點跑過、
 那不是上線沒完成。既有的 `NO_DATA / WARMING_UP / LIMITED / UNAVAILABLE / DEGRADED`
 語義完全不變。
 
+### 授權世代與資源權限（RC2 / F04）
+
+一個「sleep 可讀」的判定，只有在**它被驗證的那一次授權**底下才有意義。
+使用者重新授權而這次沒勾睡眠權限之後，舊判定完全不能用。所以：
+
+- `user_whoop_tokens.auth_generation`：**只有重新授權會 +1**，例行的 token
+  refresh 不會（換的是同一次授權的新 access token，權限沒變）。
+- `whoop_resource_access(user_id, resource, status, auth_generation)`：每個資源
+  這一次授權**拿不拿得到**。`ACCESSIBLE`（端點成功，空集合也算）/
+  `UNAUTHORIZED`（401/403）。暫時性失敗（429／5xx／逾時）**完全不寫入** ——
+  那不是結論。
+- READY 的原子轉移要求「每個必要資源都有屬於**目前世代**的 `ACCESSIBLE`」。
+
+因此：舊世代的判定、被改成 `UNAUTHORIZED` 的判定、還沒驗過的新世代，
+三種情況都無法讓 READY 通過。成功的重新授權也會把已經 READY 的人送回
+`WHOOP_AUTHORIZED` 重新驗證（bootstrap 緊接著跑，通常同一輪就回到 READY）。
+
 ### 轉成 READY 是**原子**的（RC1 / F04）
 
 第一版的順序是「讀完前提 → 之後再寫 READY」。中間那段空隙足以讓 Telegram 綁定
 被退役、token 被撤銷、狀態被改成需要處理，而 bootstrap 仍然把 READY 寫下去。
 
 現在 `setReadyIfEligible()` 是**一句** UPDATE：所有關鍵前提都寫在它的 WHERE 裡
-（`EXISTS` 子查詢 + `timezone_confirmed_at IS NOT NULL` + 來源狀態白名單），
+（`EXISTS` 子查詢 + `timezone_confirmed_at IS NOT NULL` + STRICT 身分
++ 必要資源在**目前授權世代**下的 `ACCESSIBLE` + 來源狀態白名單），
 SQLite 對單一語句的求值與寫入是原子的，所以：
 
 - 讀與寫之間被撤銷的綁定／token／身分／capability → 轉移失敗，維持待處理。
@@ -242,14 +260,35 @@ SQLite 對單一語句的求值與寫入是原子的，所以：
 非 `/start` 的陌生訊息**不建立任何身分**，只回一句上線指引 ——
 未知的人問「我的恢復怎樣」永遠拿不到任何人的資料。
 
-## schema v15（純新增一張表 + 一次資料修正）
+## schema v16（純新增：一張表、一個欄位、兩次資料修正）
 
 `user_onboarding`（PK user_id）：state、各階段時間戳（含 `timezone_confirmed_at`）、
 失敗代碼與細節、授權連結計數、bootstrap 嘗試次數。**不存任何祕密**
 （state 原文只以 hash 存在 `oauth_states`，token 在 `user_whoop_tokens`）。
 
+v16 另外加了 `user_whoop_tokens.auth_generation`（nullable-safe，預設 1）與
+`whoop_resource_access`（每個資源在某個授權世代下的權限判定）。
+
 `DATA_MIGRATIONS` 是「版本閘門資料遷移」機制：只在 `from < version` 時跑一次，
-語句本身也冪等。
+語句本身也冪等。v16 的那一句把「宣稱 READY 但身分不可信」的列降級。
+
+### 身分：**access_token 不是身分證明**（RC2 / F02）
+
+「有一組 token」只代表某個時候有人完成過某次授權 —— 完全不能證明那組 token
+屬於這個內部使用者歷史上關聯的 WHOOP 帳號。所以身分有兩條**分開**的規則：
+
+| 規則 | 條件 | 誰用得到 |
+|------|------|---------|
+| **STRICT** | token 列上有 `whoop_user_id`，而且與 canonical 歷史身分**不衝突** | 新使用者、即時推導、CLI、READY 的原子轉移 |
+| **LEGACY** | token 身分是 NULL（pre-M-01 的形狀）**且** canonical 四張表裡恰好有唯一一致的身分 | **只有遷移** |
+
+衝突一律 fail closed：canonical 出現兩個以上的身分（W1/W2），或 token 說 W2 而
+canonical 說 W1 —— 兩種都不 READY，也不會默默挑一個。
+
+LEGACY 刻意不開放給即時路徑：一個剛用 CLI 建出來、只塞了一組任意 token 的
+新使用者永遠拿不到這個例外（`ensureOnboardingDerived` 只認 STRICT）。
+v16 的資料遷移會把先前被寫成 READY、但身分不可信的列降級成
+`ACTION_REQUIRED(REAUTH_REQUIRED)`，並立刻移出排程。
 
 ### 既有使用者的狀態是**推導**出來的（RC1 / F02）
 
@@ -263,7 +302,7 @@ SQLite 對單一語句的求值與寫入是原子的，所以：
 |------|---------|--------|
 | 帳號不是 ACTIVE | `ACTION_REQUIRED`（`ACCOUNT_INACTIVE`） | ✗ |
 | 沒有 ACTIVE 的 Telegram 綁定 | `STARTED` | ✗ |
-| 沒有 token 或沒有驗證過的 WHOOP 身分 | `TIMEZONE_PENDING` | ✗ |
+| 身分不可信（見上面的 STRICT / LEGACY） | `TIMEZONE_PENDING` | ✗ |
 | 沒有同步狀態 | `WHOOP_AUTHORIZED`（bootstrap 會接手） | ✗ |
 | 沒有 capability 盤點 | `SYNCING`（bootstrap 會接手） | ✗ |
 | 全部齊全 | `READY` | ✓ |

@@ -130,6 +130,11 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
       // 到期時間要用真實時鐘算（token 是否過期本來就跟注入的 now 無關）
       expiresAt: new Date(Date.now() + 40 * 60_000), // 還有 40 分鐘 → 不該 refresh
       scope: 'offline read:recovery read:sleep read:cycles',
+      // M-01 之後的 authorize 一定會寫下 WHOOP 身分（completeAuthorization 強制），
+      // 所以「已經跑過 authorize」的形狀就包含它。RC2 之後身分是 READY 的前提。
+      // 必須與 fixtures 資料集裡的 WHOOP user_id 一致：canonical 資料上帶的身分
+      // 是權威，token 上宣稱另一個帳號會（正確地）被判定為身分衝突。
+      whoopUserId: '12345',
     });
     seed.close();
 
@@ -293,6 +298,7 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
       refreshToken: 'seed-refresh',
       expiresAt: new Date(Date.now() + 2 * 60_000), // 只剩 2 分鐘 → 必須 refresh
       scope: 'offline read:recovery read:sleep read:cycles',
+      whoopUserId: '12345',   // 與 fixtures 資料集一致（見上一個測試的說明）
     });
     seed.close();
 

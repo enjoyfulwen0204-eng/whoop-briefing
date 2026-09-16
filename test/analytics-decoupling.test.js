@@ -721,7 +721,7 @@ test('遷移 v11 → v15：純新增（四張表 + v13 三欄 + v14 上線表）
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (11, '2026-09-10T00:00:00.000Z', 'v11')");
     for (const t of NEW) assert.ok(!(await tables()).includes(t));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 15);
+    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 16);
     assert.deepEqual(s.rebuilt, []); assert.deepEqual(s.columnsAdded, [], '從 v11 起跳：新表由 CREATE TABLE 直接建齊（含 v13 欄位）');
     for (const t of NEW) assert.ok((await tables()).includes(t));
     assert.equal((await e.db.getTombstone(ALICE.id, 'sleep', sid(1))).state, TOMBSTONE_STATE.ACTIVE, '墓碑原封不動');

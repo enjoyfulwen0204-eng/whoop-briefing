@@ -325,7 +325,7 @@ export const ONBOARDING_FAILURE = Object.freeze({
  * 從**既有證據**推導一個使用者的上線狀態（V1.2 Phase 3.5 RC1，F02）。
  *
  * 給兩個地方共用，所以只寫一次：
- *   1. v14 → v15 的資料遷移（修正 v14 那個「一律 READY」的錯誤）
+ *   1. v14 → v16 的資料遷移（修正 v14 那個「一律 READY」的錯誤）
  *   2. 遇到還沒有上線列的既有使用者時（ensureOnboardingDerived）
  *
  * ## 為什麼不能一律 READY
@@ -337,50 +337,110 @@ export const ONBOARDING_FAILURE = Object.freeze({
  *
  * ## 推導鏈（由證據決定，逐層往上）
  *
- *   不是 ACTIVE                   → ACTION_REQUIRED（要管理者處理）
- *   沒有 ACTIVE 的 Telegram 綁定   → STARTED（自助流程根本還沒開始）
- *   沒有 access token               → TIMEZONE_PENDING（從第一步重走）
- *   沒有同步狀態                   → WHOOP_AUTHORIZED（bootstrap 會接手）
- *   沒有 capability 盤點           → SYNCING（bootstrap 會接手）
- *   全部都有                       → READY
+ *   不是 ACTIVE                       → ACTION_REQUIRED（要管理者處理）
+ *   沒有 ACTIVE 的 Telegram 綁定       → STARTED（自助流程根本還沒開始）
+ *   WHOOP 身分不可信                   → TIMEZONE_PENDING（從第一步重走）
+ *   沒有同步狀態                       → WHOOP_AUTHORIZED（bootstrap 會接手）
+ *   沒有 capability 盤點               → SYNCING（bootstrap 會接手）
+ *   全部都有                           → READY
  *
- * ## 時區確認（F01）
+ * ## 身分：**access_token 不是身分證明**（RC2 / F02）
  *
- * 只有「已經連上 WHOOP」的使用者才會被視為時區已確認：那種列是管理者用
- * CLI 建的，建立時就必須給一個明確的時區。更早的階段無法證明時區是刻意選的，
- * 所以留 NULL，讓他們走一次兩步驟流程。
- * **絕不**用「timezone 這個字串長什麼樣」當作確認證據。
+ * 「有一組 token」只代表某個時候有人完成過某次授權，完全不能證明那組 token
+ * 屬於這個內部使用者歷史上關聯的 WHOOP 帳號。所以身分有兩條**分開**的規則：
  *
- * ## 為什麼推導只看 access_token，不看 whoop_user_id
+ *   STRICT（新使用者、即時推導、READY 的原子轉移都用這一條）
+ *     token 列上有 whoop_user_id，而且與 canonical 資料上的身分**不衝突**。
  *
- * R2-M-01 記載得很清楚：第一版的授權流程從來沒有寫過 `whoop_user_id`，
- * 所以**舊的 token 列一律是 NULL**，而那些使用者的健康資料每一列都帶著
- * WHOOP 回傳的身分。把 NULL 當成「沒有身分」會讓一個跑了好幾個月的正式
- * 使用者在遷移當下被降級成「還沒連 WHOOP」——那是捏造，而且會停掉他的日報。
+ *   LEGACY（**只有遷移**用得到）
+ *     token 列上是 NULL（R2-M-01：第一版授權流程從來沒寫過這個欄位），
+ *     但 canonical 資料裡恰好有**唯一一個**一致的 whoop_user_id。
  *
- * 新的綁定一律經過 completeAuthorization 的 M-01 身分閘門，所以「未驗證身分」
- * 只可能是歷史遺留。READY 的**原子轉移**（setReadyIfEligible）仍然要求身分，
- * 那條路只有走 bootstrap 的新使用者會經過。
+ * 兩條都要求「沒有互相矛盾的身分」。LEGACY 刻意**不**開放給即時路徑：
+ * 一個剛用 CLI 建出來、只塞了一組任意 token 的新使用者永遠拿不到它。
  */
-export const ONBOARDING_DERIVED_STATE_SQL = `
+
+/** canonical 四張表裡出現過的 WHOOP 身分數量（0 = 沒有證據，>1 = 互相矛盾）。 */
+export const ONBOARDING_CANONICAL_IDENTITY_COUNT_SQL = `
+  (SELECT COUNT(DISTINCT w) FROM (
+     SELECT whoop_user_id w FROM whoop_sleeps     WHERE user_id = u.id AND whoop_user_id IS NOT NULL
+     UNION SELECT whoop_user_id FROM whoop_recoveries WHERE user_id = u.id AND whoop_user_id IS NOT NULL
+     UNION SELECT whoop_user_id FROM whoop_cycles     WHERE user_id = u.id AND whoop_user_id IS NOT NULL
+     UNION SELECT whoop_user_id FROM whoop_workouts   WHERE user_id = u.id AND whoop_user_id IS NOT NULL
+   ))`;
+
+/** canonical 資料裡那個唯一的身分（數量不是 1 時沒有意義）。 */
+export const ONBOARDING_CANONICAL_IDENTITY_VALUE_SQL = `
+  (SELECT MIN(w) FROM (
+     SELECT whoop_user_id w FROM whoop_sleeps     WHERE user_id = u.id AND whoop_user_id IS NOT NULL
+     UNION SELECT whoop_user_id FROM whoop_recoveries WHERE user_id = u.id AND whoop_user_id IS NOT NULL
+     UNION SELECT whoop_user_id FROM whoop_cycles     WHERE user_id = u.id AND whoop_user_id IS NOT NULL
+     UNION SELECT whoop_user_id FROM whoop_workouts   WHERE user_id = u.id AND whoop_user_id IS NOT NULL
+   ))`;
+
+/**
+ * STRICT 身分：token 列上有身分，而且與 canonical 的歷史身分不衝突。
+ * 新使用者、即時推導、READY 的原子轉移一律用這一條。
+ */
+export const ONBOARDING_IDENTITY_STRICT_SQL = `
+  (EXISTS (SELECT 1 FROM user_whoop_tokens k
+            WHERE k.user_id = u.id AND k.access_token IS NOT NULL AND k.whoop_user_id IS NOT NULL)
+   AND ${ONBOARDING_CANONICAL_IDENTITY_COUNT_SQL} <= 1
+   AND (${ONBOARDING_CANONICAL_IDENTITY_COUNT_SQL} = 0
+        OR ${ONBOARDING_CANONICAL_IDENTITY_VALUE_SQL}
+           = (SELECT k2.whoop_user_id FROM user_whoop_tokens k2 WHERE k2.user_id = u.id)))`;
+
+/**
+ * LEGACY 身分（**只有遷移**可以用）：token 身分是 NULL（pre-M-01 的形狀），
+ * 但 canonical 資料裡恰好有唯一一個一致的身分。
+ */
+export const ONBOARDING_IDENTITY_LEGACY_SQL = `
+  (EXISTS (SELECT 1 FROM user_whoop_tokens k WHERE k.user_id = u.id AND k.access_token IS NOT NULL)
+   AND NOT EXISTS (SELECT 1 FROM user_whoop_tokens k3
+                    WHERE k3.user_id = u.id AND k3.whoop_user_id IS NOT NULL)
+   AND ${ONBOARDING_CANONICAL_IDENTITY_COUNT_SQL} = 1)`;
+
+/**
+ * 推導鏈的 SQL。
+ * @param {boolean} allowLegacyIdentity 只有遷移可以傳 true（見上面的說明）。
+ */
+export const onboardingDerivedStateSql = ({ allowLegacyIdentity = false } = {}) => {
+  const identity = allowLegacyIdentity
+    ? `(${ONBOARDING_IDENTITY_STRICT_SQL} OR ${ONBOARDING_IDENTITY_LEGACY_SQL})`
+    : ONBOARDING_IDENTITY_STRICT_SQL;
+  return `
   CASE
     WHEN u.status <> 'ACTIVE' THEN 'ACTION_REQUIRED'
     WHEN NOT EXISTS (SELECT 1 FROM user_telegram t
                       WHERE t.user_id = u.id AND t.status = 'ACTIVE') THEN 'STARTED'
-    WHEN NOT EXISTS (SELECT 1 FROM user_whoop_tokens k
-                      WHERE k.user_id = u.id AND k.access_token IS NOT NULL) THEN 'TIMEZONE_PENDING'
+    WHEN NOT ${identity} THEN 'TIMEZONE_PENDING'
     WHEN NOT EXISTS (SELECT 1 FROM whoop_sync_state s WHERE s.user_id = u.id) THEN 'WHOOP_AUTHORIZED'
     WHEN NOT EXISTS (SELECT 1 FROM whoop_capabilities c WHERE c.user_id = u.id) THEN 'SYNCING'
     ELSE 'READY'
   END`;
+};
 
-/** 同一條推導鏈裡「時區可以視為已確認」的條件（見上面的說明）。 */
+/** 即時路徑（新使用者 / CLI 使用者）：只認 STRICT 身分。 */
+export const ONBOARDING_DERIVED_STATE_SQL = onboardingDerivedStateSql();
+/** 遷移路徑：額外允許窄化的 LEGACY 例外。 */
+export const ONBOARDING_DERIVED_STATE_SQL_LEGACY = onboardingDerivedStateSql({ allowLegacyIdentity: true });
+
+/** 同一條推導鏈裡「時區可以視為已確認」的條件（有可信身分才算）。 */
 export const ONBOARDING_DERIVED_TZ_SQL = `
   CASE
     WHEN u.status = 'ACTIVE'
      AND EXISTS (SELECT 1 FROM user_telegram t WHERE t.user_id = u.id AND t.status = 'ACTIVE')
-     AND EXISTS (SELECT 1 FROM user_whoop_tokens k
-                  WHERE k.user_id = u.id AND k.access_token IS NOT NULL)
+     AND ${ONBOARDING_IDENTITY_STRICT_SQL}
+    THEN u.created_at
+    ELSE NULL
+  END`;
+
+/** 遷移版：LEGACY 身分也算數（那種列是管理者建的，時區一定是明確給過的）。 */
+export const ONBOARDING_DERIVED_TZ_SQL_LEGACY = `
+  CASE
+    WHEN u.status = 'ACTIVE'
+     AND EXISTS (SELECT 1 FROM user_telegram t WHERE t.user_id = u.id AND t.status = 'ACTIVE')
+     AND (${ONBOARDING_IDENTITY_STRICT_SQL} OR ${ONBOARDING_IDENTITY_LEGACY_SQL})
     THEN u.created_at
     ELSE NULL
   END`;
@@ -389,7 +449,7 @@ export const ONBOARDING_DERIVED_TZ_SQL = `
 export const ONBOARDING_DERIVED_FAILURE_SQL = `
   CASE WHEN u.status <> 'ACTIVE' THEN 'ACCOUNT_INACTIVE' ELSE NULL END`;
 
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -943,6 +1003,50 @@ export const ADDITIVE_COLUMNS = [
   { table: 'analytics_work_state', column: 'range_generation', ddl: 'ALTER TABLE analytics_work_state ADD COLUMN range_generation INTEGER' },
   { table: 'analytics_work_state', column: 'range_from', ddl: 'ALTER TABLE analytics_work_state ADD COLUMN range_from TEXT' },
   { table: 'analytics_work_state', column: 'range_to', ddl: 'ALTER TABLE analytics_work_state ADD COLUMN range_to TEXT' },
+
+  // -------------------------------------------------------------------------
+  // v16：授權世代（V1.2 Phase 3.5 修復週期 2，F04）
+  // -------------------------------------------------------------------------
+  //
+  // 「這組 token 屬於哪一次授權」。**只有重新授權會 +1**，例行的 refresh 不會 ——
+  // refresh 換的是同一次授權的新 access token，權限沒有變。
+  //
+  // 既有的列預設 1：它們的權限判定會在下一次 bootstrap 重新寫入同一個世代。
+  { table: 'user_whoop_tokens', column: 'auth_generation', ddl: 'ALTER TABLE user_whoop_tokens ADD COLUMN auth_generation INTEGER NOT NULL DEFAULT 1' },
+];
+
+/**
+ * V1.2 Phase 3.5 RC2：每個資源的**存取權限**判定，綁在授權世代上（F04）。
+ *
+ * 與 whoop_capabilities 是兩件事：
+ *   capabilities 回答「這個欄位有沒有資料、資料長什麼樣」
+ *   這張表回答「這一次授權**拿不拿得到**這個資源」
+ *
+ * 為什麼一定要綁世代：一個「sleep 可讀」的判定，只有在它被驗證的那一次授權
+ * 底下才有意義。使用者重新授權但這次沒勾睡眠權限之後，舊判定就完全不能用了。
+ * READY 的原子轉移因此要求「必要資源的判定屬於**目前**的授權世代」。
+ *
+ * status：
+ *   ACCESSIBLE    端點成功回應（**空集合也算**：沒有資料不等於沒有權限）
+ *   UNAUTHORIZED  WHOOP 回 401/403：這次授權沒有這個 scope
+ *   （暫時性失敗**不寫入**：429/5xx/逾時不可以變成一個永久結論）
+ */
+export const RESOURCE_ACCESS_STATUS = Object.freeze({
+  ACCESSIBLE: 'ACCESSIBLE',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+});
+
+export const RESOURCE_ACCESS_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS whoop_resource_access (
+     user_id         TEXT NOT NULL,
+     resource        TEXT NOT NULL,
+     status          TEXT NOT NULL,
+     auth_generation INTEGER NOT NULL,
+     checked_at      TEXT NOT NULL,
+     PRIMARY KEY (user_id, resource)
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_whoop_resource_access_user
+     ON whoop_resource_access (user_id, auth_generation)`,
 ];
 
 // ---------------------------------------------------------------------------
@@ -1706,6 +1810,7 @@ export const SCHEMA = [
   ...RECONCILIATION_SCHEMA,
   ...ANALYTICS_WORK_SCHEMA,
   ...ONBOARDING_SCHEMA,
+  ...RESOURCE_ACCESS_SCHEMA,
 ];
 
 /**
@@ -1728,11 +1833,11 @@ export const DATA_MIGRATIONS = [
             (user_id, state, timezone_confirmed_at, whoop_authorized_at, ready_at,
              failure_code, state_changed_at, created_at, updated_at)
           SELECT u.id,
-                 ${ONBOARDING_DERIVED_STATE_SQL},
-                 ${ONBOARDING_DERIVED_TZ_SQL},
-                 CASE WHEN ${ONBOARDING_DERIVED_STATE_SQL} IN ('WHOOP_AUTHORIZED', 'SYNCING', 'READY')
+                 ${ONBOARDING_DERIVED_STATE_SQL_LEGACY},
+                 ${ONBOARDING_DERIVED_TZ_SQL_LEGACY},
+                 CASE WHEN ${ONBOARDING_DERIVED_STATE_SQL_LEGACY} IN ('WHOOP_AUTHORIZED', 'SYNCING', 'READY')
                       THEN u.created_at ELSE NULL END,
-                 CASE WHEN ${ONBOARDING_DERIVED_STATE_SQL} = 'READY' THEN u.created_at ELSE NULL END,
+                 CASE WHEN ${ONBOARDING_DERIVED_STATE_SQL_LEGACY} = 'READY' THEN u.created_at ELSE NULL END,
                  ${ONBOARDING_DERIVED_FAILURE_SQL},
                  u.created_at, u.created_at, u.created_at
             FROM users u
@@ -1745,14 +1850,36 @@ export const DATA_MIGRATIONS = [
     // 但證據不支持」的列 —— 真的走完自助流程的人證據齊全，不會被碰到。
     // 冪等：修正過之後條件就不再成立。
     sql: `UPDATE user_onboarding
-             SET state = (SELECT ${ONBOARDING_DERIVED_STATE_SQL} FROM users u WHERE u.id = user_onboarding.user_id),
-                 timezone_confirmed_at = (SELECT ${ONBOARDING_DERIVED_TZ_SQL} FROM users u WHERE u.id = user_onboarding.user_id),
+             SET state = (SELECT ${ONBOARDING_DERIVED_STATE_SQL_LEGACY} FROM users u WHERE u.id = user_onboarding.user_id),
+                 timezone_confirmed_at = (SELECT ${ONBOARDING_DERIVED_TZ_SQL_LEGACY} FROM users u WHERE u.id = user_onboarding.user_id),
                  failure_code = (SELECT ${ONBOARDING_DERIVED_FAILURE_SQL} FROM users u WHERE u.id = user_onboarding.user_id),
                  ready_at = NULL,
                  state_changed_at = updated_at,
                  updated_at = updated_at
            WHERE state = 'READY'
-             AND (SELECT ${ONBOARDING_DERIVED_STATE_SQL} FROM users u WHERE u.id = user_onboarding.user_id) <> 'READY'`,
+             AND (SELECT ${ONBOARDING_DERIVED_STATE_SQL_LEGACY} FROM users u WHERE u.id = user_onboarding.user_id) <> 'READY'`,
+  },
+  {
+    version: 16,
+    note: 'demote READY rows whose WHOOP identity cannot be trusted (RC2 / F02)',
+    // v14/v15 的推導把「有一組 token」當成已經連上 WHOOP。那不能證明這組
+    // token 屬於這個內部使用者歷史上的 WHOOP 帳號。這一句把「宣稱 READY
+    // 但身分不可信」的列降級成需要重新連接。
+    //
+    // 窄化的歷史例外仍然成立：token 身分是 NULL（pre-M-01）而 canonical 資料
+    // 裡恰好有唯一一致身分的既有使用者不受影響。
+    // 冪等：修正過之後條件就不再成立。
+    sql: `UPDATE user_onboarding
+             SET state = 'ACTION_REQUIRED',
+                 failure_code = 'REAUTH_REQUIRED',
+                 failure_detail = 'whoop_identity_unverified',
+                 ready_at = NULL,
+                 state_changed_at = updated_at
+           WHERE state = 'READY'
+             AND NOT EXISTS (
+               SELECT 1 FROM users u
+                WHERE u.id = user_onboarding.user_id
+                  AND (${ONBOARDING_IDENTITY_STRICT_SQL} OR ${ONBOARDING_IDENTITY_LEGACY_SQL}))`,
   },
 ];
 

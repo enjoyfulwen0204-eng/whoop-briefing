@@ -26,7 +26,8 @@
 
 import {
   ONBOARDING_STATE, ONBOARDING_DERIVED_STATE_SQL, ONBOARDING_DERIVED_TZ_SQL,
-  ONBOARDING_DERIVED_FAILURE_SQL, USER_STATUS,
+  ONBOARDING_DERIVED_FAILURE_SQL, ONBOARDING_IDENTITY_STRICT_SQL,
+  RESOURCE_ACCESS_STATUS, USER_STATUS,
 } from './schema.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
@@ -182,6 +183,59 @@ export function createOnboardingStore(client) {
     return n;
   }
 
+  // ----- 授權世代與資源權限（RC2 / F04）-----------------------------------
+
+  /** 目前的授權世代（沒有 token 列就是 null）。 */
+  async function getAuthGeneration(userId) {
+    const uid = requireUserId(userId, 'getAuthGeneration');
+    const rs = await client.execute({
+      sql: 'SELECT auth_generation FROM user_whoop_tokens WHERE user_id = ?', args: [uid],
+    });
+    const row = rs.rows[0];
+    return row ? Number(row.auth_generation ?? 1) : null;
+  }
+
+  /**
+   * 記下「這一次授權**拿不拿得到**這個資源」。
+   *
+   * 只寫得出結論的兩種（ACCESSIBLE / UNAUTHORIZED）。暫時性失敗
+   * （429 / 5xx / 逾時）**不呼叫這一支** —— 把它寫成 UNAUTHORIZED 會製造一個
+   * 永久的假結論；留著舊世代的判定則會被 READY 的世代條件擋下來，兩者都安全。
+   */
+  async function recordResourceAccess(userId, entries = [], { authGeneration, now = new Date() }) {
+    const uid = requireUserId(userId, 'recordResourceAccess');
+    if (!Number.isFinite(authGeneration)) throw new Error('resource_access_requires_generation');
+    const ts = iso(now);
+    let n = 0;
+    for (const e of entries) {
+      if (!e?.resource) continue;
+      if (!Object.values(RESOURCE_ACCESS_STATUS).includes(e.status)) {
+        throw new Error(`invalid_resource_access_status:${e.status}`);
+      }
+      await client.execute({
+        sql: `INSERT INTO whoop_resource_access (user_id, resource, status, auth_generation, checked_at)
+              VALUES (?, ?, ?, ?, ?)
+              ON CONFLICT(user_id, resource) DO UPDATE SET
+                status = excluded.status, auth_generation = excluded.auth_generation,
+                checked_at = excluded.checked_at`,
+        args: [uid, String(e.resource), e.status, Number(authGeneration), ts],
+      });
+      n += 1;
+    }
+    return n;
+  }
+
+  async function getResourceAccess(userId) {
+    const uid = requireUserId(userId, 'getResourceAccess');
+    const rs = await client.execute({
+      sql: 'SELECT * FROM whoop_resource_access WHERE user_id = ? ORDER BY resource', args: [uid],
+    });
+    return rs.rows.map((r) => ({
+      resource: String(r.resource), status: String(r.status),
+      authGeneration: Number(r.auth_generation), checkedAt: r.checked_at,
+    }));
+  }
+
   /**
    * ★ F04：**原子**地轉成 READY。
    *
@@ -201,11 +255,24 @@ export function createOnboardingStore(client) {
    *   保持待處理／轉 ACTION_REQUIRED，而不是宣告 READY。
    */
   async function setReadyIfEligible({
-    userId, from = [ONBOARDING_STATE.WHOOP_AUTHORIZED, ONBOARDING_STATE.SYNCING], now = new Date(),
+    userId, from = [ONBOARDING_STATE.WHOOP_AUTHORIZED, ONBOARDING_STATE.SYNCING],
+    requiredResources = [], now = new Date(),
   }) {
     const uid = requireUserId(userId, 'setReadyIfEligible');
     const ts = iso(now);
     const states = Array.isArray(from) && from.length ? from : [ONBOARDING_STATE.SYNCING];
+    // ★ RC2 / F04：每一個必要資源都必須有「屬於**目前**授權世代」的
+    // ACCESSIBLE 判定。條件寫在同一句 UPDATE 裡，所以 JS 那邊算出來的舊結論
+    // 完全不參與決定 —— 重新授權（世代 +1）或判定被改成 UNAUTHORIZED，
+    // 這次轉移就會失敗。
+    const accessClauses = requiredResources.map(() => `
+               AND EXISTS (SELECT 1 FROM whoop_resource_access ra
+                            WHERE ra.user_id = user_onboarding.user_id AND ra.resource = ?
+                              AND ra.status = ?
+                              AND ra.auth_generation = (SELECT k3.auth_generation
+                                                          FROM user_whoop_tokens k3
+                                                         WHERE k3.user_id = user_onboarding.user_id))`).join('');
+    const accessArgs = requiredResources.flatMap((r) => [String(r), RESOURCE_ACCESS_STATUS.ACCESSIBLE]);
     const rs = await client.execute({
       sql: `UPDATE user_onboarding
                SET state = ?, state_changed_at = ?, ready_at = ?,
@@ -216,19 +283,16 @@ export function createOnboardingStore(client) {
                AND EXISTS (SELECT 1 FROM users u WHERE u.id = user_onboarding.user_id AND u.status = ?)
                AND EXISTS (SELECT 1 FROM user_telegram t
                             WHERE t.user_id = user_onboarding.user_id AND t.status = 'ACTIVE')
-               AND EXISTS (SELECT 1 FROM user_whoop_tokens k
-                            WHERE k.user_id = user_onboarding.user_id AND k.access_token IS NOT NULL)
-               -- 身分必須是**知道的**，但不一定寫在 token 列上（R2-M-01）：
-               -- 第一版的授權流程從來沒寫過 whoop_user_id，那些舊列一律是 NULL，
-               -- 而真正的權威是健康資料上帶的 whoop_user_id。兩者有其一就算數；
-               -- 新的自助綁定一律經過 M-01 身分閘門，所以永遠滿足第一條。
-               AND (EXISTS (SELECT 1 FROM user_whoop_tokens k2
-                             WHERE k2.user_id = user_onboarding.user_id AND k2.whoop_user_id IS NOT NULL)
-                 OR EXISTS (SELECT 1 FROM whoop_sleeps s2
-                             WHERE s2.user_id = user_onboarding.user_id AND s2.whoop_user_id IS NOT NULL))
+               -- ★ RC2 / F02：身分必須**可信**。「有一組 token」不是身分證明 ——
+               -- 它不能證明那組 token 屬於這個內部使用者歷史上的 WHOOP 帳號。
+               -- 這裡用 STRICT 規則（token 上有身分，且與 canonical 不衝突）；
+               -- 窄化的歷史例外只存在於遷移，即時路徑拿不到。
+               AND EXISTS (SELECT 1 FROM users u
+                            WHERE u.id = user_onboarding.user_id
+                              AND ${ONBOARDING_IDENTITY_STRICT_SQL})
                AND EXISTS (SELECT 1 FROM whoop_sync_state s WHERE s.user_id = user_onboarding.user_id)
-               AND EXISTS (SELECT 1 FROM whoop_capabilities c WHERE c.user_id = user_onboarding.user_id)`,
-      args: [ONBOARDING_STATE.READY, ts, ts, ts, uid, ...states, USER_STATUS.ACTIVE],
+               AND EXISTS (SELECT 1 FROM whoop_capabilities c WHERE c.user_id = user_onboarding.user_id)${accessClauses}`,
+      args: [ONBOARDING_STATE.READY, ts, ts, ts, uid, ...states, USER_STATUS.ACTIVE, ...accessArgs],
     });
     if (Number(rs.rowsAffected ?? 0) > 0) {
       log.info('onboarding_state', { user_id: uid, state: ONBOARDING_STATE.READY });
@@ -384,6 +448,9 @@ export function createOnboardingStore(client) {
     ensureOnboardingDerivedForAll,
     setOnboardingState,
     setReadyIfEligible,
+    getAuthGeneration,
+    recordResourceAccess,
+    getResourceAccess,
     recordAuthLinkIssued,
     resetAuthLinkBudget,
     recordBootstrapAttempt,

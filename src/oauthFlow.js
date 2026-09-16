@@ -231,6 +231,11 @@ async function bindAuthorizedTokens({ db, userId, code, exchange, verifyIdentity
       expiresAt: tokens.expiresAt,
       scope: tokens.scope,
       whoopUserId,
+    }, {
+      // ★ RC2 / F04：這是一次**新的授權**，權限可能跟上一次完全不同。
+      // 世代 +1 讓所有舊的資源權限判定立刻失效 —— 沒有重新驗證過，
+      // 就不可能用舊結論通過 READY。例行 refresh 不會走到這裡。
+      bumpAuthGeneration: true,
     });
   } catch (err) {
     // ★ 儲存層的原子閘門輸了：並發的另一個 callback 已經把身分設成別的了。

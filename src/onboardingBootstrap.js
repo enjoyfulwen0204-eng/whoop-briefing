@@ -30,7 +30,7 @@
  */
 
 import { ONBOARDING } from './config.js';
-import { ONBOARDING_STATE, ONBOARDING_FAILURE } from './schema.js';
+import { ONBOARDING_STATE, ONBOARDING_FAILURE, RESOURCE_ACCESS_STATUS } from './schema.js';
 import { createSync } from './sync.js';
 import { probeCapabilities } from './capabilities.js';
 import { createWhoopClient } from './whoop.js';
@@ -65,6 +65,9 @@ export function scopeVerdict(missing, { required = ONBOARDING.REQUIRED_SCOPES } 
   const lacking = required.filter((r) => missing.includes(r));
   return { ok: lacking.length === 0, lacking };
 }
+
+/** 初次 bootstrap 會碰到的 WHOOP 資源（與 WHOOP_SYNC.RESOURCES 一致）。 */
+const SYNC_RESOURCES = ['sleep', 'recovery', 'cycle', 'workout', 'body_measurement'];
 
 export const BOOTSTRAP_RESULT = Object.freeze({
   READY: 'READY',
@@ -167,11 +170,30 @@ export async function runOnboardingBootstrap({
       return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: 'capability_probe_failed' });
     }
 
-    // ---- 3. ★ F05：最低權限。沒有權限 ≠ 沒有資料 ----------------------
+    // ---- 3. ★ F05 / RC2 F04：把權限判定**綁在目前的授權世代**上 --------
     //
-    // 缺的是**必要** scope → 這不是重試能解決的，要使用者回去重新授權並
-    // 勾選權限。所以直接轉 ACTION_REQUIRED（不耗重試次數），並給明確訊息。
+    // 「sleep 可讀」只有在它被驗證的那一次授權底下才有意義。使用者重新授權
+    // 而這次沒勾睡眠權限之後，舊判定完全不能用 —— 所以判定與世代一起耐久，
+    // READY 的原子轉移再要求「必要資源的判定屬於目前世代」。
+    //
+    // 暫時性失敗（429 / 5xx / 逾時）**不寫任何判定**：那不是結論，是雜訊。
     const missing = missingScopes({ syncResults: results, scopeErrors: probed?.scopeErrors ?? [] });
+    const authGeneration = await db.getAuthGeneration(uid);
+    if (!Number.isFinite(authGeneration)) {
+      log.warn('onboarding_no_auth_generation', { user_id: uid });
+      return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: 'no_auth_generation' });
+    }
+    const transient = new Set(results.filter((r) => r?.status === 'failed').map((r) => String(r.resource)));
+    const verdicts = [];
+    for (const r of ONBOARDING.RESOURCES ?? SYNC_RESOURCES) {
+      if (transient.has(r)) continue;          // 暫時性失敗 → 不下結論
+      verdicts.push({
+        resource: r,
+        status: missing.includes(r) ? RESOURCE_ACCESS_STATUS.UNAUTHORIZED : RESOURCE_ACCESS_STATUS.ACCESSIBLE,
+      });
+    }
+    await db.recordResourceAccess(uid, verdicts, { authGeneration, now: at() });
+
     const verdict = scopeVerdict(missing);
     if (!verdict.ok) {
       await db.setOnboardingState(uid, ONBOARDING_STATE.ACTION_REQUIRED, {
@@ -192,6 +214,7 @@ export async function runOnboardingBootstrap({
     const ready = await db.setReadyIfEligible({
       userId: uid,
       from: [ONBOARDING_STATE.SYNCING, ONBOARDING_STATE.WHOOP_AUTHORIZED],
+      requiredResources: ONBOARDING.REQUIRED_SCOPES,
       now: at(),
     });
     if (!ready.ok) {
@@ -237,13 +260,27 @@ export async function evaluateReadiness({ db, userId }) {
 
   const tokens = await db.getTokens(uid).catch(() => null);
   if (!tokens?.accessToken) missing.push('whoop_tokens');
-  // 身分：token 列上有就算數；沒有的話看健康資料上的 whoop_user_id
-  // （R2-M-01：舊的授權流程從來沒寫過 token 列的身分，但資料每一列都帶著）。
-  if (!tokens?.whoopUserId) {
-    const historical = typeof db.getHistoricalWhoopUserIds === 'function'
-      ? await db.getHistoricalWhoopUserIds(uid).catch(() => [])
-      : [];
-    if (!historical.length) missing.push('whoop_identity');
+  // ★ RC2 / F02：身分必須可信。token 列上沒有身分就是沒有身分 ——
+  // 「有一組 token」不能證明它屬於這個人歷史上的 WHOOP 帳號。
+  // 有身分時再檢查它與 canonical 歷史身分是否衝突。
+  if (!tokens?.whoopUserId) missing.push('whoop_identity');
+  else if (typeof db.getHistoricalWhoopUserIds === 'function') {
+    const historical = await db.getHistoricalWhoopUserIds(uid).catch(() => null);
+    if (historical === null) missing.push('whoop_identity_unreadable');
+    else if (historical.length > 1) missing.push('whoop_identity_conflict');
+    else if (historical.length === 1 && historical[0] !== String(tokens.whoopUserId)) {
+      missing.push('whoop_identity_conflict');
+    }
+  }
+
+  // 必要資源的權限判定必須屬於**目前**的授權世代
+  const generation = typeof db.getAuthGeneration === 'function' ? await db.getAuthGeneration(uid) : null;
+  const access = typeof db.getResourceAccess === 'function'
+    ? await db.getResourceAccess(uid).catch(() => []) : [];
+  for (const r of ONBOARDING.REQUIRED_SCOPES) {
+    const row = access.find((a) => a.resource === r);
+    if (!row || row.authGeneration !== generation) missing.push(`access_${r}_unknown`);
+    else if (row.status !== RESOURCE_ACCESS_STATUS.ACCESSIBLE) missing.push(`access_${r}_unauthorized`);
   }
 
   // 同步狀態要真的存在（代表初次同步跑過），而且沒有全軍覆沒。

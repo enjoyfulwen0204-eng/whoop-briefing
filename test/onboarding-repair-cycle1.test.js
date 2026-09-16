@@ -282,7 +282,7 @@ test('RC1-ATTACK-03 / RC1-ATTACK-04 / RC1-ATTACK-14 遷移矩陣：每一種既�
     assert.equal(summary.from, 13);
     assert.equal(summary.to, SCHEMA_VERSION);
     assert.deepEqual(summary.rebuilt, []);
-    assert.deepEqual(summary.dataMigrations, [{ version: 14, rows: 6 }, { version: 15, rows: 0 }]);
+    assert.deepEqual(summary.dataMigrations, [{ version: 14, rows: 6 }, { version: 15, rows: 0 }, { version: 16, rows: 0 }]);
 
     const state = async (id) => (await e.db.getOnboardingRow(id)).state;
     assert.equal(await state('legacy-a'), ONBOARDING_STATE.READY, 'A 完整 → READY');
@@ -330,8 +330,8 @@ test('F02 v15 修正：v14 第一版盲目寫下的 READY 會被改回真實狀�
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (14, '2026-09-15T00:00:00.000Z', 'v14')");
 
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 14); assert.equal(s.to, 15);
-    assert.deepEqual(s.dataMigrations, [{ version: 15, rows: 1 }], '★ 只有一列需要修正');
+    assert.equal(s.from, 14); assert.equal(s.to, SCHEMA_VERSION);
+    assert.deepEqual(s.dataMigrations, [{ version: 15, rows: 1 }, { version: 16, rows: 0 }], '★ 只有一列需要修正');
     assert.equal((await e.db.getOnboardingRow('good')).state, ONBOARDING_STATE.READY, '★ 證據齊全的不動');
     assert.equal((await e.db.getOnboardingRow('bare')).state, ONBOARDING_STATE.STARTED, '★★★ 假的 READY 被改正');
     assert.equal((await e.db.getOnboardingRow('bare')).readyAt, null);

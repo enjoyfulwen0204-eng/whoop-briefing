@@ -81,8 +81,23 @@ ICU 會把合法別名正規化（`Asia/Ho_Chi_Minh` → `Asia/Saigon`），我�
 打的名字**，只有大小寫不同時才採用正規化寫法。
 
 不從 Telegram 推測、不用 IP 定位：兩者都給不出可靠的 IANA 時區，猜錯等於把
-整個人的「今天」算錯。時區沒設定之前，使用者的 `timezone` 是 `UTC` 這個標記值，
-而且 READY 判定會擋下來 —— 日期敏感的功能不會對他生效。
+整個人的「今天」算錯。
+
+### 「時區的值」與「時區已確認」是兩件事（RC1 / F01）
+
+第一版把 `timezone === 'UTC'` 當成「還沒設定」的哨兵值。那是錯的：**UTC 是一個
+真實存在的時區**，住在那裡（或就是想用它）的人選了 UTC 之後會永遠卡在上線中。
+
+現在確認是**明確記錄下來的證據**：`user_onboarding.timezone_confirmed_at`。
+
+| 情況 | `users.timezone` | 已確認 | 可以 READY |
+|------|------------------|--------|-----------|
+| 剛 `/start` 的新使用者 | `UTC`（預設值） | 否 | 否 |
+| 使用者選了 `UTC` | `UTC` | **是** | 是 |
+| 使用者選了 `Asia/Taipei` | `Asia/Taipei` | 是 | 是 |
+| 輸入不合法（`+08:00`） | 不變 | 否 | 否 |
+
+READY 判定與原子轉移看的都是 `timezone_confirmed_at`，**不是**字串長什麼樣。
 
 ## WHOOP OAuth
 
@@ -148,40 +163,117 @@ WHOOP_AUTHORIZED
 
 ## READY 的確定性條件
 
-`evaluateReadiness()` 全部成立才算：使用者 ACTIVE、時區已設定（不是 `UTC` 標記值）、
-Telegram 綁定有效、WHOOP token 存在、WHOOP 身分已驗證、同步狀態存在、
-capability 盤點跑過。
+使用者 ACTIVE、**時區已確認**、Telegram 綁定有效、WHOOP token 存在、
+WHOOP 身分已驗證、同步狀態存在、capability 盤點跑過、
+而且**核心 WHOOP 權限齊全**（見下）。
 
 **刻意不包含**「分析已經成熟」——一個剛買手錶的人本來就沒有 30 天基準，
 那不是上線沒完成。既有的 `NO_DATA / WARMING_UP / LIMITED / UNAVAILABLE / DEGRADED`
 語義完全不變。
 
+### 轉成 READY 是**原子**的（RC1 / F04）
+
+第一版的順序是「讀完前提 → 之後再寫 READY」。中間那段空隙足以讓 Telegram 綁定
+被退役、token 被撤銷、狀態被改成需要處理，而 bootstrap 仍然把 READY 寫下去。
+
+現在 `setReadyIfEligible()` 是**一句** UPDATE：所有關鍵前提都寫在它的 WHERE 裡
+（`EXISTS` 子查詢 + `timezone_confirmed_at IS NOT NULL` + 來源狀態白名單），
+SQLite 對單一語句的求值與寫入是原子的，所以：
+
+- 讀與寫之間被撤銷的綁定／token／身分／capability → 轉移失敗，維持待處理。
+- 期間狀態被改成 `ACTION_REQUIRED` → 過期的 bootstrap **不可能**覆蓋回 READY。
+
+### 最低 WHOOP 權限（RC1 / F05）
+
+**必要**：`sleep`、`recovery`。理由是實際的下游相依：
+
+- `sleep` —— daily metrics 唯一的必要來源；沒有它連 health_date 都建立不起來。
+- `recovery` —— 起床觸發（`detectWake`）要求對應的 recovery 已評分；沒有它日報
+  永遠不會發出，紅黃綠燈也沒有依據。
+
+`cycle`（昨日 Strain）、`workout`、`body_measurement` 是加值：缺了它們對應的指標
+會誠實地標成拿不到，系統仍然可用，所以**不**列入必要條件。
+
+⚠️ **「沒有資料」不是「沒有權限」。** 端點成功回傳空集合的人是正常的新使用者
+（READY 的正常起點）；只有 WHOOP 回 401/403（`syncAll` 的 `scope_missing`、
+`probeCapabilities` 的 `scopeErrors`）才算沒有權限。一般的失敗（429／5xx／逾時）
+一律當成暫時性 → 重試，**絕不**寫下「這個帳號沒有這個能力」的永久結論。
+
+核心權限缺失 → `ACTION_REQUIRED`（`WHOOP_SCOPE_INCOMPLETE`）+ 一條新的授權連結，
+訊息明確說「請把要求的健康權限全部勾選」。
+
 ## 排程器
 
-`listSchedulableUsers()` = ACTIVE **且**（上線 READY 或沒有上線列）。
+`listSchedulableUsers()` = ACTIVE **且**上線狀態是 `READY`（JOIN，不是 LEFT JOIN）。
 
-- 還在上線的人不會收到「今天沒有資料」的日報（那不是服務，是雜訊）。
-- Phase 3.5 之前的使用者沒有上線列 → 一律視為 READY → Kelvin 完全不受影響。
-  v13 → v14 的資料遷移另外把當下存在的使用者明確補成 READY，讓狀態看得見。
+| 上線狀態 | 收日報／週報 | bootstrap 接手 |
+|---|---|---|
+| STARTED / TIMEZONE_PENDING / WHOOP_AUTH_PENDING | ✗ | ✗ |
+| WHOOP_AUTHORIZED / SYNCING | ✗ | ✓ |
+| ACTION_REQUIRED | ✗ | ✗ |
+| READY | ✓ | ✗ |
+| 帳號非 ACTIVE（DISABLED / PAUSED） | ✗ | ✗ |
+| **沒有上線列** | ✗ | ✗ |
 
-## 濫用控制（有界，不是一整套平台）
+★ RC1 / F02：「沒有上線列」**不再**被當成 READY。那是一個繞過整個狀態機的
+後門 —— 一個剛被 CLI 建出來、什麼都還沒設定的 ACTIVE 使用者會立刻開始收日報。
+遷移保證每個既有使用者都有一列（依證據推導），讀取時若真的查不到列也是**推導**
+而不是假設 READY。
+
+## 濫用控制（有界、而且**會自己恢復**）
 
 公開的 bot 會收到隨機流量，但攻擊面很窄：一個私訊只能綁一個使用者（儲存層擋），
 授權連結本身不洩漏任何東西。所以只需要：私訊限定、原子的一 chat 一使用者、
-授權連結冷卻（20 秒）與每輪上限（10 條，授權成功後歸零）、
-bootstrap 重試上限。全部在既有的 DB，沒有引入 Redis 或任何外部佇列。
+授權連結的兩道閘門、bootstrap 重試上限。全部在既有的 DB，沒有 Redis 或外部佇列。
+
+### 授權連結（RC1 / F03）
+
+| 閘門 | 值 | 為什麼會自己恢復 |
+|------|----|-----------------|
+| 冷卻 | 20 秒 | 純時間條件 |
+| 同時有效的連結數 | 5 | 過期／用掉的 state 不再計入 |
+
+第一版用的是「這一輪總共發過幾條」的累積計數，十次之後就**永久**鎖死 ——
+自助復原因此失效。現在的上限是「**未完成**數量」：舊連結一過期或被用掉就釋出
+名額，所以不可能有永久鎖定。而且它由一句條件式 `INSERT … SELECT … WHERE
+(SELECT COUNT(*) …) < ?` 決定 —— 條件與寫入在同一個語句裡，所以並發的多個
+`/connect` 不可能一起穿過去（兩條執行緒各試 11 次，最後仍然恰好 5 條）。
 
 非 `/start` 的陌生訊息**不建立任何身分**，只回一句上線指引 ——
 未知的人問「我的恢復怎樣」永遠拿不到任何人的資料。
 
-## schema v14（純新增一張表）
+## schema v15（純新增一張表 + 一次資料修正）
 
-`user_onboarding`（PK user_id）：state、各階段時間戳、失敗代碼與細節、
-授權連結配額、bootstrap 嘗試次數。**不存任何祕密**（state 原文只以 hash 存在
-`oauth_states`，token 在 `user_whoop_tokens`）。
+`user_onboarding`（PK user_id）：state、各階段時間戳（含 `timezone_confirmed_at`）、
+失敗代碼與細節、授權連結計數、bootstrap 嘗試次數。**不存任何祕密**
+（state 原文只以 hash 存在 `oauth_states`，token 在 `user_whoop_tokens`）。
 
-`DATA_MIGRATIONS` 是新的「版本閘門資料遷移」機制：只在 `from < version` 時跑一次，
-而且語句本身冪等（`WHERE NOT EXISTS`）。v14 用它把遷移當下存在的使用者補成 READY。
+`DATA_MIGRATIONS` 是「版本閘門資料遷移」機制：只在 `from < version` 時跑一次，
+語句本身也冪等。
+
+### 既有使用者的狀態是**推導**出來的（RC1 / F02）
+
+第一版的 v14 把**每一個**既有使用者都寫成 READY。那對完整設定好的 Kelvin 是對的，
+對其他形狀全是捏造：被停用的帳號、沒有 Telegram 綁定的、沒有 WHOOP token 的，
+全部會被宣告成上線完成然後被排程。
+
+現在 v14 依**證據**推導（`ONBOARDING_DERIVED_STATE_SQL`，與讀取端共用同一段 SQL）：
+
+| 證據 | 推導狀態 | 可排程 |
+|------|---------|--------|
+| 帳號不是 ACTIVE | `ACTION_REQUIRED`（`ACCOUNT_INACTIVE`） | ✗ |
+| 沒有 ACTIVE 的 Telegram 綁定 | `STARTED` | ✗ |
+| 沒有 token 或沒有驗證過的 WHOOP 身分 | `TIMEZONE_PENDING` | ✗ |
+| 沒有同步狀態 | `WHOOP_AUTHORIZED`（bootstrap 會接手） | ✗ |
+| 沒有 capability 盤點 | `SYNCING`（bootstrap 會接手） | ✗ |
+| 全部齊全 | `READY` | ✓ |
+
+時區確認只給「已經有驗證過的 WHOOP 身分」的既有使用者 —— 那種列是管理者用 CLI
+建的，建立時就必須給一個明確的時區。更早的階段無法證明時區是刻意選的，
+所以留 NULL，讓他們走一次兩步驟流程。
+
+v15 的資料遷移負責**修正**已經被第一版 v14 寫成假 READY 的列：只動「宣稱 READY
+但證據不支持」的那些，真的走完流程的人不會被碰到。冪等。
 
 ## 舊的管理員路徑
 

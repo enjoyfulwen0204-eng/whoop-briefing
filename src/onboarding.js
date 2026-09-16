@@ -187,6 +187,10 @@ export const MESSAGES = {
       [ONBOARDING_FAILURE.WHOOP_ACCOUNT_MISMATCH]: '這個帳號先前連的是另一個 WHOOP 帳號。換帳號會讓既有資料被錯誤歸屬，所以擋下來了。',
       [ONBOARDING_FAILURE.BOOTSTRAP_FAILED]: '初次同步一直失敗。',
       [ONBOARDING_FAILURE.REAUTH_REQUIRED]: 'WHOOP 授權失效了，需要重新連接。',
+      [ONBOARDING_FAILURE.WHOOP_SCOPE_INCOMPLETE]:
+        'WHOOP 的權限不完整 —— 這個助理至少需要「睡眠」與「恢復」的讀取權限才能運作。'
+        + '請重新連接，並在 WHOOP 的授權頁面把要求的健康權限**全部勾選**。',
+      [ONBOARDING_FAILURE.ACCOUNT_INACTIVE]: '這個帳號目前是停用狀態，需要管理者處理。',
     }[code] ?? '授權沒有完成。';
     return [head, '', body, '', '輸入 /connect 重新取得一條新的授權連結。'].join('\n');
   },
@@ -216,11 +220,9 @@ export async function resolveOrCreateUser({ db, chatId, message, now = new Date(
   const cid = String(chatId);
   const existing = await db.resolveUserByChatId(cid);
   if (existing?.user) {
-    const onboarding = await db.ensureOnboarding(existing.user.id, {
-      // 已經存在的使用者第一次走到這裡（舊使用者）→ 明確補成 READY，
-      // 絕不把一個正在用的人打回 STARTED。
-      state: ONBOARDING_STATE.READY, now,
-    });
+    // 既有使用者第一次走到這裡（例如管理員用 CLI 建的）→ 依**證據**推導一列，
+    // 絕不預設 READY（F02），也絕不把一個正在用的人打回 STARTED（有列就不動）。
+    const onboarding = await db.ensureOnboardingDerived(existing.user.id, { now });
     return { user: existing.user, onboarding, created: false };
   }
 
@@ -255,7 +257,7 @@ export async function resolveOrCreateUser({ db, chatId, message, now = new Date(
     const winnerId = claim.userId ?? null;
     const winner = winnerId ? await db.getUser(winnerId) : null;
     if (winner && winner.status === USER_STATUS.ACTIVE) {
-      const onboarding = await db.ensureOnboarding(winner.id, { now });
+      const onboarding = await db.ensureOnboardingDerived(winner.id, { now });
       log.info('onboarding_lost_claim', { chat_id: cid });
       return { user: winner, onboarding, created: false };
     }
@@ -278,19 +280,23 @@ export async function resolveOrCreateUser({ db, chatId, message, now = new Date(
  */
 export async function issueAuthLink({
   db, userId, clientId, redirectUri, now = new Date(),
-  cooldownMs = ONBOARDING.AUTH_LINK_COOLDOWN_MS, maxLinks = ONBOARDING.MAX_AUTH_LINKS,
+  cooldownMs = ONBOARDING.AUTH_LINK_COOLDOWN_MS,
+  maxOutstanding = ONBOARDING.MAX_OUTSTANDING_AUTH_LINKS,
 }) {
-  const budget = await db.recordAuthLinkIssued(userId, { cooldownMs, maxLinks, now });
+  // 兩道閘門都**會自己恢復**（F03）：
+  //   冷卻 —— 純時間條件
+  //   未完成數量 —— 過期／用掉的 state 不再計入，而且是一句原子 INSERT
+  const budget = await db.recordAuthLinkIssued(userId, { cooldownMs, now });
   if (!budget.ok) return { ok: false, reason: budget.reason };
   try {
     const prepared = await prepareAuthorization({
-      db, userId, clientId, redirectUri, ttlMs: ONBOARDING.OAUTH_STATE_TTL_MS, now,
+      db, userId, clientId, redirectUri, ttlMs: ONBOARDING.OAUTH_STATE_TTL_MS, now, maxOutstanding,
     });
     return { ok: true, authUrl: prepared.authUrl, expiresAt: prepared.expiresAt };
   } catch (err) {
     if (err instanceof OAuthFlowError) {
       log.warn('onboarding_auth_link_failed', { user_id: userId, code: err.code });
-      return { ok: false, reason: err.code };
+      return { ok: false, reason: err.code === 'TOO_MANY_OUTSTANDING_STATES' ? 'too_many' : err.code };
     }
     throw err;
   }
@@ -364,8 +370,12 @@ export async function handleOnboardingMessage({
   if (tzCandidate !== null && tzCandidate !== undefined) {
     if (!String(tzCandidate).trim()) return MESSAGES.statusTimezonePending();
     const tz = normalizeTimezone(tzCandidate);
+    // 不合法 → 不寫時區、**也不記確認**（F01-D）
     if (!tz) return MESSAGES.timezoneInvalid();
     await db.updateUser(user.id, { timezone: tz }, { now });
+    // ★ F01：確認是一件**明確記錄下來的事**（timezone_confirmed_at），
+    // 不是從 timezone 這個字串長什麼樣推論出來的。所以選 UTC 的人
+    // 一樣算「確認過」，而預設值 UTC 的新使用者不算。
     await db.setOnboardingState(user.id, ONBOARDING_STATE.WHOOP_AUTH_PENDING, {
       timezoneConfirmed: true, failureCode: null, failureDetail: null, now,
     });

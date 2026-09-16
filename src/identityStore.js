@@ -376,20 +376,50 @@ export function createIdentityStore(client) {
    * 產生 OAuth state 並綁到某個內部使用者。
    * **原文只回傳一次**（要放進 authorize URL），DB 只留 hash。
    */
-  async function createOAuthState(userId, { ttlMs = 10 * 60_000, now = new Date() } = {}) {
+  /**
+   * 產生一組 OAuth state。
+   *
+   * @param {?number} opts.maxOutstanding 同時最多幾條**還有效**（未消耗、未過期）
+   *   的 state。給了就用**一句條件式 INSERT** 擋 —— 條件與寫入在同一個語句裡，
+   *   所以並發的多個請求不可能一起穿過去（V1.2 Phase 3.5 RC1 / F03）。
+   *
+   *   這種「有界的未完成數量」本身就會自己恢復：舊的 state 一旦過期或被用掉
+   *   就不再計入，不需要任何重置動作，也不可能把人永久鎖死。
+   *
+   * @returns {{ok:true, state, expiresAt} | {ok:false, reason:'too_many'}}
+   */
+  async function createOAuthState(userId, {
+    ttlMs = 10 * 60_000, now = new Date(), maxOutstanding = null,
+  } = {}) {
     const uid = requireUserId(userId, 'createOAuthState');
     const user = await getUser(uid);
     if (!user) throw new Error(`使用者不存在：${uid}`);
     // 32 bytes（256 bits）—— 比 WHOOP 要求的最低長度高出很多
     const state = generateSecret(32);
+    const nowIso = iso(now);
     const expiresAt = iso(new Date((now instanceof Date ? now : new Date(now)).getTime() + ttlMs));
+    if (Number.isFinite(maxOutstanding)) {
+      const rs = await client.execute({
+        sql: `INSERT INTO oauth_states (state_hash, user_id, created_at, expires_at)
+              SELECT ?, ?, ?, ?
+               WHERE (SELECT COUNT(*) FROM oauth_states
+                       WHERE user_id = ? AND consumed_at IS NULL AND expires_at > ?) < ?`,
+        args: [hashSecret(state), uid, nowIso, expiresAt, uid, nowIso, Number(maxOutstanding)],
+      });
+      if (Number(rs.rowsAffected ?? 0) === 0) {
+        log.warn('oauth_state_quota_exceeded', { user_id: uid });
+        return { ok: false, reason: 'too_many' };
+      }
+      log.info('oauth_state_created', { user_id: uid, expires_at: expiresAt });
+      return { ok: true, state, expiresAt };
+    }
     await client.execute({
       sql: `INSERT INTO oauth_states (state_hash, user_id, created_at, expires_at)
             VALUES (?, ?, ?, ?)`,
-      args: [hashSecret(state), uid, iso(now), expiresAt],
+      args: [hashSecret(state), uid, nowIso, expiresAt],
     });
     log.info('oauth_state_created', { user_id: uid, expires_at: expiresAt });
-    return { state, expiresAt };
+    return { ok: true, state, expiresAt };
   }
 
   /**

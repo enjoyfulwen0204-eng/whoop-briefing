@@ -37,6 +37,35 @@ import { createWhoopClient } from './whoop.js';
 import { requireUserId } from './userContext.js';
 import { log, describeError } from './logger.js';
 
+/**
+ * 這一輪同步 / 盤點裡，哪些資源是**沒有權限**（不是沒有資料）。
+ *
+ * 兩個來源都算數：
+ *   · syncAll 的 `status === 'scope_missing'`（isScopeError 判定的 401/403）
+ *   · probeCapabilities 回的 `scopeErrors`
+ *
+ * ⚠️ 只認這兩種。一般的失敗（429 / 5xx / 連線斷掉）**不算**沒有權限 ——
+ * 把暫時性故障當成「這個帳號沒有這個權限」會產生一個永久的錯誤結論。
+ */
+export function missingScopes({ syncResults = [], scopeErrors = [] } = {}) {
+  const out = new Set();
+  for (const r of syncResults) if (r?.status === 'scope_missing' && r.resource) out.add(String(r.resource));
+  for (const e of scopeErrors) if (e?.resource) out.add(String(e.resource));
+  return [...out].sort();
+}
+
+/**
+ * ★ F05：這個帳號有沒有達到「可用的 Health OS」的最低權限。
+ *
+ * 「沒有資料」與「沒有權限」是兩件事：端點成功回傳空集合的人是正常的新使用者
+ * （READY 的起點）；scope 缺失的人則是**拿不到**生理資料，讓他 READY 等於
+ * 給他一個永遠不會有內容的產品。
+ */
+export function scopeVerdict(missing, { required = ONBOARDING.REQUIRED_SCOPES } = {}) {
+  const lacking = required.filter((r) => missing.includes(r));
+  return { ok: lacking.length === 0, lacking };
+}
+
 export const BOOTSTRAP_RESULT = Object.freeze({
   READY: 'READY',
   RETRY: 'RETRY',
@@ -45,13 +74,20 @@ export const BOOTSTRAP_RESULT = Object.freeze({
   BUSY: 'BUSY',
 });
 
-/** 這一輪同步的結果，足夠讓系統「可用」嗎。 */
-export function syncUsable(results = []) {
+/**
+ * 這一輪同步的結果，足夠讓系統「可用」嗎。
+ *
+ * 只看**核心**資源（ONBOARDING.REQUIRED_SCOPES）有沒有真的失敗：
+ *
+ *   · `scope_missing` 不是我們的故障（由 F05 的權限判定另外處理）
+ *   · 選配資源（cycle / workout / body_measurement）暫時抓不到**不該**把人
+ *     永遠擋在上線外 —— 它們的指標會誠實地標成拿不到，而且排程同步之後
+ *     每一輪都會再試。讓一個時好時壞的選配端點無限期卡住上線是錯的。
+ *   · 核心資源（sleep / recovery）失敗 → 重試（這是暫時性故障，不是結論）
+ */
+export function syncUsable(results = [], { required = ONBOARDING.REQUIRED_SCOPES } = {}) {
   if (!Array.isArray(results) || !results.length) return false;
-  // 每個資源要嘛成功 / 節流，要嘛是「這個帳號沒有授權這個範圍」
-  // （syncAll 的 `scope_missing`）—— 後者是使用者的帳號狀態，不是我們的
-  // 故障，不該讓人永遠卡在上線中。只有 `failed` 才算真的失敗。
-  return results.every((r) => r?.status !== 'failed');
+  return !results.some((r) => r?.status === 'failed' && required.includes(String(r?.resource)));
 }
 
 /**
@@ -120,8 +156,9 @@ export async function runOnboardingBootstrap({
     }
 
     // ---- 2. capability 盤點（失敗不寫任何結論）----
+    let probed;
     try {
-      await probe({
+      probed = await probe({
         db, whoop, userId: uid, timezone: user.timezone,
         days: ONBOARDING.CAPABILITY_PROBE_DAYS, now: at(),
       });
@@ -130,18 +167,44 @@ export async function runOnboardingBootstrap({
       return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: 'capability_probe_failed' });
     }
 
-    // ---- 3. READY 判定 ----
-    const verdict = await evaluateReadiness({ db, userId: uid });
-    if (!verdict.ready) {
-      log.warn('onboarding_not_ready', { user_id: uid, missing: verdict.missing });
-      return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: `not_ready:${verdict.missing.join(',')}` });
+    // ---- 3. ★ F05：最低權限。沒有權限 ≠ 沒有資料 ----------------------
+    //
+    // 缺的是**必要** scope → 這不是重試能解決的，要使用者回去重新授權並
+    // 勾選權限。所以直接轉 ACTION_REQUIRED（不耗重試次數），並給明確訊息。
+    const missing = missingScopes({ syncResults: results, scopeErrors: probed?.scopeErrors ?? [] });
+    const verdict = scopeVerdict(missing);
+    if (!verdict.ok) {
+      await db.setOnboardingState(uid, ONBOARDING_STATE.ACTION_REQUIRED, {
+        from: [ONBOARDING_STATE.SYNCING, ONBOARDING_STATE.WHOOP_AUTHORIZED],
+        failureCode: ONBOARDING_FAILURE.WHOOP_SCOPE_INCOMPLETE,
+        failureDetail: `missing:${verdict.lacking.join(',')}`, now: at(),
+      });
+      if (notify) await safeNotify(notify, uid, 'scope_incomplete');
+      log.warn('onboarding_scope_incomplete', { user_id: uid, lacking: verdict.lacking });
+      return { userId: uid, result: BOOTSTRAP_RESULT.ACTION_REQUIRED, lacking: verdict.lacking };
     }
 
-    const moved = await db.setOnboardingState(uid, ONBOARDING_STATE.READY, {
+    // ---- 4. ★ F04：**原子**地轉成 READY ------------------------------
+    //
+    // 不是「讀完前提 → 之後盲目寫 READY」：所有關鍵前提都在同一句 UPDATE 的
+    // WHERE 裡重新驗證一次（包含目前狀態仍然是允許的來源狀態），所以
+    // 在讀與寫之間被撤銷的綁定／token／身分都會讓這次轉移失敗。
+    const ready = await db.setReadyIfEligible({
+      userId: uid,
       from: [ONBOARDING_STATE.SYNCING, ONBOARDING_STATE.WHOOP_AUTHORIZED],
-      ready: true, failureCode: null, failureDetail: null, now: at(),
+      now: at(),
     });
-    if (moved && notify) await safeNotify(notify, uid, 'ready');
+    if (!ready.ok) {
+      const why = await evaluateReadiness({ db, userId: uid });
+      log.warn('onboarding_ready_rejected', {
+        user_id: uid, reason: ready.reason, missing: why.missing,
+      });
+      return failOrRetry({
+        db, uid, onboarding, now: at(), notify,
+        detail: `ready_rejected:${ready.reason}:${why.missing.join(',')}`,
+      });
+    }
+    if (notify) await safeNotify(notify, uid, 'ready');
     log.info('onboarding_ready', { user_id: uid });
     return { userId: uid, result: BOOTSTRAP_RESULT.READY, syncResults: results };
   } catch (err) {
@@ -162,14 +225,26 @@ export async function evaluateReadiness({ db, userId }) {
 
   const user = await db.getUser(uid);
   if (!user || user.status !== 'ACTIVE') missing.push('user_active');
-  if (!user?.timezone || user.timezone === 'UTC') missing.push('timezone');
+  // ★ F01：時區看的是**明確的確認證據**，不是字串長什麼樣。
+  // `UTC` 是一個完全合法的時區 —— 住在 UTC 的人選了 UTC 就該算數；
+  // 而一個還沒選過的新使用者即使欄位是 UTC 也不算。
+  const onboarding = await db.getOnboarding(uid).catch(() => null);
+  if (!onboarding?.timezoneConfirmedAt) missing.push('timezone_confirmed');
+  if (!user?.timezone) missing.push('timezone');
 
   const chatId = await db.getActiveChatIdForUser(uid).catch(() => null);
   if (!chatId) missing.push('telegram_binding');
 
   const tokens = await db.getTokens(uid).catch(() => null);
   if (!tokens?.accessToken) missing.push('whoop_tokens');
-  if (!tokens?.whoopUserId) missing.push('whoop_identity');
+  // 身分：token 列上有就算數；沒有的話看健康資料上的 whoop_user_id
+  // （R2-M-01：舊的授權流程從來沒寫過 token 列的身分，但資料每一列都帶著）。
+  if (!tokens?.whoopUserId) {
+    const historical = typeof db.getHistoricalWhoopUserIds === 'function'
+      ? await db.getHistoricalWhoopUserIds(uid).catch(() => [])
+      : [];
+    if (!historical.length) missing.push('whoop_identity');
+  }
 
   // 同步狀態要真的存在（代表初次同步跑過），而且沒有全軍覆沒。
   const syncState = await db.getAllSyncState(uid).catch(() => []);

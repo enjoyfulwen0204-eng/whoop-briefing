@@ -8,12 +8,15 @@
  * 任何存在記憶體裡的對話狀態都會在這三者之間掉光。所以「走到哪一步」
  * 只有一個權威：`user_onboarding` 這一列。
  *
- * ## 沒有列 = 舊使用者 = READY
+ * ## 沒有列時**推導**，不預設 READY（RC1 / F02）
  *
- * Phase 3.5 之前的使用者是管理員用 CLI 建的，上線在當時就是人工完成的事。
- * 查不到列一律視為 READY（`LEGACY_ONBOARDING`），所以既有的正式使用者
- * 不會因為這個新表而變成「還沒上線」。v13 → v14 的資料遷移另外把當下
- * 存在的使用者明確補成 READY，讓狀態在 DB 裡看得見。
+ * 第一版把「查不到列」一律當成 READY。那對 Kelvin 是對的，對任何其他形狀
+ * 的列都是捏造 —— 被停用的帳號、沒有 Telegram 綁定的、沒有 WHOOP token 的，
+ * 全都會被宣告成「上線完成」。
+ *
+ * 現在查不到列就依**證據**推導（`ONBOARDING_DERIVED_STATE_SQL`，與 v14/v15
+ * 的資料遷移共用同一段 SQL，所以兩條路徑不可能給出不同答案）。
+ * 排程器那一條更嚴格：沒有列就不排程（JOIN，不是 LEFT JOIN）。
  *
  * ## 這裡不存祕密
  *
@@ -21,23 +24,18 @@
  * 為什麼卡住」。
  */
 
-import { ONBOARDING_STATE } from './schema.js';
+import {
+  ONBOARDING_STATE, ONBOARDING_DERIVED_STATE_SQL, ONBOARDING_DERIVED_TZ_SQL,
+  ONBOARDING_DERIVED_FAILURE_SQL, USER_STATUS,
+} from './schema.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
 
 const iso = (v) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
 const STATES = new Set(Object.values(ONBOARDING_STATE));
 
-/** 查不到列時代表的東西：Phase 3.5 之前就存在的使用者。 */
-export const LEGACY_ONBOARDING = Object.freeze({
-  state: ONBOARDING_STATE.READY,
-  legacy: true,
-  failureCode: null,
-  failureDetail: null,
-});
-
-/** 這個上線狀態可以被排程器當成正式使用者嗎。 */
-export const isOnboardingReady = (o) => (o?.state ?? ONBOARDING_STATE.READY) === ONBOARDING_STATE.READY;
+/** 這個上線狀態可以被排程器當成正式使用者嗎。**沒有狀態不算 READY。** */
+export const isOnboardingReady = (o) => o?.state === ONBOARDING_STATE.READY;
 
 export function createOnboardingStore(client) {
   const rowTo = (r) => (r ? {
@@ -66,10 +64,38 @@ export function createOnboardingStore(client) {
     return rowTo(rs.rows[0]);
   }
 
-  /** 有列就回列；沒有列代表舊使用者 → READY（見檔頭）。 */
+  /**
+   * 唯讀地推導一個使用者「應該處於哪個狀態」（不寫入）。
+   * 與 ensureOnboardingDerived / 資料遷移共用同一段 SQL。
+   */
+  async function deriveOnboardingState(userId) {
+    const uid = requireUserId(userId, 'deriveOnboardingState');
+    const rs = await client.execute({
+      sql: `SELECT ${ONBOARDING_DERIVED_STATE_SQL} state,
+                   ${ONBOARDING_DERIVED_TZ_SQL} tz,
+                   ${ONBOARDING_DERIVED_FAILURE_SQL} failure
+              FROM users u WHERE u.id = ?`,
+      args: [uid],
+    });
+    const r = rs.rows[0];
+    if (!r) return null;
+    return { state: String(r.state), timezoneConfirmedAt: r.tz ?? null, failureCode: r.failure ?? null };
+  }
+
+  /**
+   * 有列就回列；沒有列就**依證據推導**（不寫入）。
+   * 連使用者本身都不存在時回 STARTED —— 絕不回 READY。
+   */
   async function getOnboarding(userId) {
     const row = await getOnboardingRow(userId);
-    return row ?? { userId: String(userId), ...LEGACY_ONBOARDING };
+    if (row) return row;
+    const derived = await deriveOnboardingState(userId);
+    return {
+      userId: String(userId), legacy: true, failureDetail: null,
+      timezoneConfirmedAt: derived?.timezoneConfirmedAt ?? null,
+      failureCode: derived?.failureCode ?? null,
+      state: derived?.state ?? ONBOARDING_STATE.STARTED,
+    };
   }
 
   /**
@@ -91,6 +117,126 @@ export function createOnboardingStore(client) {
       args: [uid, state, ts, ts, ts],
     });
     return getOnboardingRow(uid);
+  }
+
+  /**
+   * 沒有上線列的既有使用者 → 依**證據**推導一列（F02）。
+   *
+   * 用在兩個地方：遷移之後才被管理員 CLI 建出來的使用者，以及任何
+   * 「資料庫裡有這個人但沒有上線狀態」的情況。與 v14/v15 的資料遷移共用
+   * 同一段推導 SQL，所以兩條路徑不可能給出不同的答案。
+   *
+   * **絕不**預設 READY —— 那正是 v14 的錯誤。
+   */
+  async function ensureOnboardingDerived(userId, { now = new Date() } = {}) {
+    const uid = requireUserId(userId, 'ensureOnboardingDerived');
+    const ts = iso(now);
+    await client.execute({
+      sql: `INSERT INTO user_onboarding
+              (user_id, state, timezone_confirmed_at, whoop_authorized_at, ready_at,
+               failure_code, state_changed_at, created_at, updated_at)
+            SELECT u.id,
+                   ${ONBOARDING_DERIVED_STATE_SQL},
+                   ${ONBOARDING_DERIVED_TZ_SQL},
+                   CASE WHEN ${ONBOARDING_DERIVED_STATE_SQL} IN ('WHOOP_AUTHORIZED', 'SYNCING', 'READY')
+                        THEN u.created_at ELSE NULL END,
+                   CASE WHEN ${ONBOARDING_DERIVED_STATE_SQL} = 'READY' THEN ? ELSE NULL END,
+                   ${ONBOARDING_DERIVED_FAILURE_SQL},
+                   ?, ?, ?
+              FROM users u
+             WHERE u.id = ?
+            ON CONFLICT(user_id) DO NOTHING`,
+      args: [ts, ts, ts, ts, uid],
+    });
+    return getOnboardingRow(uid);
+  }
+
+  /**
+   * 一次替**所有**還沒有上線列的使用者推導建立（排程器每一輪呼叫，冪等）。
+   *
+   * 為什麼需要：遷移只覆蓋「遷移當下存在」的人。之後被管理員 CLI 建出來的
+   * 使用者仍然沒有列，而「沒有列」已經不再等於 READY —— 沒有這一步，他們
+   * 會永遠不被排程。有了它：設定完整的立刻 READY，不完整的得到真實狀態
+   * （而且仍然不會被排程，繞不過狀態機）。
+   */
+  async function ensureOnboardingDerivedForAll({ now = new Date() } = {}) {
+    const ts = iso(now);
+    const rs = await client.execute({
+      sql: `INSERT INTO user_onboarding
+              (user_id, state, timezone_confirmed_at, whoop_authorized_at, ready_at,
+               failure_code, state_changed_at, created_at, updated_at)
+            SELECT u.id,
+                   ${ONBOARDING_DERIVED_STATE_SQL},
+                   ${ONBOARDING_DERIVED_TZ_SQL},
+                   CASE WHEN ${ONBOARDING_DERIVED_STATE_SQL} IN ('WHOOP_AUTHORIZED', 'SYNCING', 'READY')
+                        THEN u.created_at ELSE NULL END,
+                   CASE WHEN ${ONBOARDING_DERIVED_STATE_SQL} = 'READY' THEN ? ELSE NULL END,
+                   ${ONBOARDING_DERIVED_FAILURE_SQL},
+                   ?, ?, ?
+              FROM users u
+             WHERE NOT EXISTS (SELECT 1 FROM user_onboarding o WHERE o.user_id = u.id)`,
+      args: [ts, ts, ts, ts],
+    });
+    const n = Number(rs.rowsAffected ?? 0);
+    if (n) log.info('onboarding_backfilled', { count: n });
+    return n;
+  }
+
+  /**
+   * ★ F04：**原子**地轉成 READY。
+   *
+   * 一句 UPDATE 就把「條件」與「寫入」綁在一起：所有關鍵前提都寫在 WHERE 的
+   * EXISTS 子查詢裡，SQLite 對單一語句的求值與寫入是原子的，所以不存在
+   * 「讀完前提 → 交易結束 → 稍後盲目寫 READY」那個空隙。
+   *
+   * 重新驗證的前提（全部必須在**轉移的那一刻**仍然成立）：
+   *   · 使用者存在且 ACTIVE
+   *   · 時區已**確認**（timezone_confirmed_at 不是 NULL；不是看字串長什麼樣）
+   *   · 有 ACTIVE 的 Telegram 綁定
+   *   · 有 access token，而且 WHOOP 身分已驗證
+   *   · 有同步狀態、有 capability 盤點結果
+   *   · 目前狀態仍然是允許的來源狀態（擋掉過期的 bootstrap 覆蓋更新的狀態）
+   *
+   * @returns {{ok:boolean, reason?:string}} 沒成立時回 ok:false，呼叫端據此
+   *   保持待處理／轉 ACTION_REQUIRED，而不是宣告 READY。
+   */
+  async function setReadyIfEligible({
+    userId, from = [ONBOARDING_STATE.WHOOP_AUTHORIZED, ONBOARDING_STATE.SYNCING], now = new Date(),
+  }) {
+    const uid = requireUserId(userId, 'setReadyIfEligible');
+    const ts = iso(now);
+    const states = Array.isArray(from) && from.length ? from : [ONBOARDING_STATE.SYNCING];
+    const rs = await client.execute({
+      sql: `UPDATE user_onboarding
+               SET state = ?, state_changed_at = ?, ready_at = ?,
+                   failure_code = NULL, failure_detail = NULL, updated_at = ?
+             WHERE user_id = ?
+               AND state IN (${states.map(() => '?').join(',')})
+               AND timezone_confirmed_at IS NOT NULL
+               AND EXISTS (SELECT 1 FROM users u WHERE u.id = user_onboarding.user_id AND u.status = ?)
+               AND EXISTS (SELECT 1 FROM user_telegram t
+                            WHERE t.user_id = user_onboarding.user_id AND t.status = 'ACTIVE')
+               AND EXISTS (SELECT 1 FROM user_whoop_tokens k
+                            WHERE k.user_id = user_onboarding.user_id AND k.access_token IS NOT NULL)
+               -- 身分必須是**知道的**，但不一定寫在 token 列上（R2-M-01）：
+               -- 第一版的授權流程從來沒寫過 whoop_user_id，那些舊列一律是 NULL，
+               -- 而真正的權威是健康資料上帶的 whoop_user_id。兩者有其一就算數；
+               -- 新的自助綁定一律經過 M-01 身分閘門，所以永遠滿足第一條。
+               AND (EXISTS (SELECT 1 FROM user_whoop_tokens k2
+                             WHERE k2.user_id = user_onboarding.user_id AND k2.whoop_user_id IS NOT NULL)
+                 OR EXISTS (SELECT 1 FROM whoop_sleeps s2
+                             WHERE s2.user_id = user_onboarding.user_id AND s2.whoop_user_id IS NOT NULL))
+               AND EXISTS (SELECT 1 FROM whoop_sync_state s WHERE s.user_id = user_onboarding.user_id)
+               AND EXISTS (SELECT 1 FROM whoop_capabilities c WHERE c.user_id = user_onboarding.user_id)`,
+      args: [ONBOARDING_STATE.READY, ts, ts, ts, uid, ...states, USER_STATUS.ACTIVE],
+    });
+    if (Number(rs.rowsAffected ?? 0) > 0) {
+      log.info('onboarding_state', { user_id: uid, state: ONBOARDING_STATE.READY });
+      return { ok: true };
+    }
+    // 沒成立：把**為什麼**查出來給呼叫端（只用來寫 log 與決定下一步）。
+    const row = await getOnboardingRow(uid);
+    return { ok: false, reason: !row ? 'no_onboarding' : `state:${row.state}`, state: row?.state ?? null };
   }
 
   /**
@@ -138,16 +284,22 @@ export function createOnboardingStore(client) {
    * 兩個限制：冷卻（太快連按）與這一輪上線的總量。兩者都在 DB 裡，
    * 所以重啟、換機器都算數。
    */
-  async function recordAuthLinkIssued(userId, { cooldownMs, maxLinks, now = new Date() }) {
+  /**
+   * 授權連結的**冷卻**閘門（F03）。
+   *
+   * 這裡只管「兩次之間至少隔多久」—— 純時間條件，所以一定會自己恢復。
+   * 「同時最多幾條有效連結」由 identityStore 的 createOAuthState 用一句
+   * 條件式 INSERT 決定（那才是原子的，而且過期的 state 自然不再計入）。
+   *
+   * auth_link_count 從此只是診斷計數，**不再**是會把人永久鎖死的配額。
+   */
+  async function recordAuthLinkIssued(userId, { cooldownMs, now = new Date() }) {
     const uid = requireUserId(userId, 'recordAuthLinkIssued');
     const row = await getOnboardingRow(uid);
     if (!row) return { ok: false, reason: 'no_onboarding' };
     const t = new Date(now).getTime();
     if (row.lastAuthLinkAt && t - Date.parse(row.lastAuthLinkAt) < cooldownMs) {
       return { ok: false, reason: 'cooldown', retryAfterMs: cooldownMs - (t - Date.parse(row.lastAuthLinkAt)) };
-    }
-    if (Number.isFinite(maxLinks) && row.authLinkCount >= maxLinks) {
-      return { ok: false, reason: 'too_many' };
     }
     const ts = iso(now);
     await client.execute({
@@ -193,17 +345,23 @@ export function createOnboardingStore(client) {
   }
 
   /**
-   * 排程器的使用者清單：ACTIVE 而且上線走完（或舊使用者沒有列）。
+   * 排程器的使用者清單：ACTIVE **而且**上線狀態是 READY。
    *
-   * 用 LEFT JOIN 而不是先取全部再過濾：一個還在選時區的人根本不該出現在
-   * 日報流程裡，而不是「出現了但後面被跳過」。
+   * ★ F02/N06：「沒有上線列」**不再**被當成 READY。
+   *
+   * v14/v15 的遷移保證每個既有使用者都有一列（而且是依證據推導的），
+   * 之後任何新使用者都必須自己走完狀態機。把「查不到列」當成 READY 等於
+   * 留一個繞過上線流程的後門：一個剛被 CLI 建出來、什麼都還沒設定的
+   * ACTIVE 使用者會立刻開始收日報。
+   *
+   * 用 JOIN 而不是先取全部再過濾：一個還在選時區的人根本不該出現在日報
+   * 流程裡，而不是「出現了但後面被跳過」。
    */
   async function listSchedulableUsers({ activeStatus }) {
     const rs = await client.execute({
       sql: `SELECT u.* FROM users u
-              LEFT JOIN user_onboarding o ON o.user_id = u.id
-             WHERE u.status = ?
-               AND (o.state IS NULL OR o.state = ?)
+              JOIN user_onboarding o ON o.user_id = u.id
+             WHERE u.status = ? AND o.state = ?
              ORDER BY u.created_at`,
       args: [activeStatus, ONBOARDING_STATE.READY],
     });
@@ -220,8 +378,12 @@ export function createOnboardingStore(client) {
   return {
     getOnboarding,
     getOnboardingRow,
+    deriveOnboardingState,
     ensureOnboarding,
+    ensureOnboardingDerived,
+    ensureOnboardingDerivedForAll,
     setOnboardingState,
+    setReadyIfEligible,
     recordAuthLinkIssued,
     resetAuthLinkBudget,
     recordBootstrapAttempt,

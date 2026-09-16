@@ -50,6 +50,12 @@ function installMockFetch({ dataset, calls }) {
       if (url.pathname === '/developer/v2/activity/sleep') return json(page(dataset.sleeps, url));
       if (url.pathname === '/developer/v2/recovery') return json(page(dataset.recoveries, url));
       if (url.pathname === '/developer/v2/cycle') return json(page(dataset.cycles, url));
+      // V1.2 Phase 3.5：第一次執行會自動跑初次 bootstrap（同步 + capability 盤點），
+      // 所以這兩個端點現在真的會被打到。之前沒有實作是因為當時沒有任何路徑會用它們。
+      if (url.pathname === '/developer/v2/activity/workout') return json(page([], url));
+      if (url.pathname === '/developer/v2/user/measurement/body') {
+        return json({ height_meter: 1.75, weight_kilogram: 70, max_heart_rate: 190 });
+      }
       return json({ error: 'unexpected path' }, 404);
     }
 

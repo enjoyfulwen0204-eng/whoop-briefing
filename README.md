@@ -306,7 +306,7 @@ B 後面那個條件是刻意加的。只看「是否單調下降」的話，在
 → 收到「準備好了」。管理員完全不需要建帳號、發綁定碼、跑授權腳本或複製 token。
 
 排程只看上線完成（READY）的人，所以還在設定中的人不會收到空的日報；
-Phase 3.5 之前的使用者一律視為 READY，行為不變。
+既有使用者的上線狀態由**證據**推導（完整設定好的維持 READY，不完整的不會被排程）。
 ⚠️ 部署前必須先在 WHOOP Developer Dashboard 註冊公開回呼網址
 （`https://<網域>/whoop/oauth/callback`）。見 [docs/self-service-onboarding.md](docs/self-service-onboarding.md)。
 

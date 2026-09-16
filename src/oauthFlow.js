@@ -52,9 +52,13 @@ export async function assertAuthorizable(db, userId) {
  */
 export async function prepareAuthorization({
   db, userId, clientId, redirectUri, ttlMs = 10 * 60_000, now = new Date(),
+  /** 同時最多幾條有效 state（自助上線用；null = 不限）。見 createOAuthState。 */
+  maxOutstanding = null,
 }) {
   const user = await assertAuthorizable(db, userId);
-  const { state, expiresAt } = await db.createOAuthState(user.id, { ttlMs, now });
+  const created = await db.createOAuthState(user.id, { ttlMs, now, maxOutstanding });
+  if (created?.ok === false) throw new OAuthFlowError('TOO_MANY_OUTSTANDING_STATES', '這個使用者同時有太多條還沒用掉的授權連結');
+  const { state, expiresAt } = created;
   const authUrl = buildAuthorizeUrl({ clientId, redirectUri, state });
   // 只 log 使用者與到期時間，絕不 log state
   log.info('oauth_authorize_prepared', { user_id: user.id, expires_at: expiresAt });

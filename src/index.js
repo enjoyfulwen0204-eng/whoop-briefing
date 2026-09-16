@@ -411,6 +411,19 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
       db, telegram: systemTelegram, now, lastCommitAt: env.repoLastCommitAt,
     });
 
+    // ---- V1.2 Phase 3.5：任何還沒有上線狀態的使用者 → 依證據補一列 ------
+    //
+    // 遷移只覆蓋「遷移當下存在」的人；之後用 CLI 建出來的使用者仍然沒有列，
+    // 而「沒有列」不等於 READY（F02）。這一步冪等、便宜，而且讓設定完整的
+    // 使用者在**這一輪**就能被排程，不完整的仍然拿到真實狀態。
+    try {
+      if (typeof db.ensureOnboardingDerivedForAll === 'function') {
+        await db.ensureOnboardingDerivedForAll({ now });
+      }
+    } catch (err) {
+      log.error('onboarding_backfill_failed', { error: describeError(err) });
+    }
+
     // ---- V1.2 Phase 3.5：接手還沒走完的自助上線 ------------------------
     //
     // OAuth 回呼之後的 bootstrap（初次同步 + capability）刻意是非同步的：

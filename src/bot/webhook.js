@@ -108,6 +108,7 @@ export function readBody(req, { limit = TELEGRAM_BOT.WEBHOOK_MAX_BODY_BYTES } = 
 export function onboardingNotice(kind) {
   if (kind === 'ready') return ONBOARDING_MESSAGES.ready();
   if (kind === 'bootstrap_failed') return ONBOARDING_MESSAGES.actionRequired('BOOTSTRAP_FAILED');
+  if (kind === 'scope_incomplete') return ONBOARDING_MESSAGES.actionRequired('WHOOP_SCOPE_INCOMPLETE');
   return ONBOARDING_MESSAGES.statusSyncing();
 }
 

@@ -453,12 +453,15 @@ test('ONB-ATTACK-22 重複按 Connect：冷卻與總量都有界，且不影響�
       const r = await linked(e.db, a, '/connect', { now: new Date(t) });
       if (/https:\/\//.test(r)) issued += 1; else assert.match(r, /太多次/);
     }
-    assert.equal(issued, ONBOARDING.MAX_AUTH_LINKS, `★ 上限 ${ONBOARDING.MAX_AUTH_LINKS} 條`);
+    // 上限是「同時還有效的連結數」，不是「這輪總共能按幾次」（RC1 / F03）
+    assert.equal(issued, ONBOARDING.MAX_OUTSTANDING_AUTH_LINKS,
+      `★ 同時最多 ${ONBOARDING.MAX_OUTSTANDING_AUTH_LINKS} 條`);
     const states = await e.db.raw.execute('SELECT COUNT(*) n FROM oauth_states');
-    assert.equal(Number(states.rows[0].n), ONBOARDING.MAX_AUTH_LINKS);
-    // 授權成功後配額歸零（重新連線的人不會被上一輪卡住）
-    const last = await linked(e.db, a, '/start', { now: new Date(t) });
-    assert.match(last, /太多次|已經失效|連接你的 WHOOP/);
+    assert.equal(Number(states.rows[0].n), ONBOARDING.MAX_OUTSTANDING_AUTH_LINKS);
+    // ★ 自己會恢復：等舊的 state 全部過期之後就能再拿新的（不會永久鎖死）
+    const afterExpiry = new Date(t + ONBOARDING.OAUTH_STATE_TTL_MS + 1000);
+    const recovered = await linked(e.db, a, '/connect', { now: afterExpiry });
+    assert.match(recovered, /https:\/\//, '★★★ 過期之後可以再取得新連結');
   } finally { e.done(); }
 });
 
@@ -583,16 +586,19 @@ test('ONB-ATTACK-21 Alice 的 bootstrap 一直失敗：轉成 ACTION_REQUIRED，
 
 test('bootstrap 的判定規則：scope_missing 不算失敗、同步結果為空不算可用；READY 條件逐項', async () => {
   assert.equal(syncUsable([]), false);
-  assert.equal(syncUsable([{ status: 'ok' }, { status: 'scope_missing' }]), true);
-  assert.equal(syncUsable([{ status: 'ok' }, { status: 'failed' }]), false);
-  assert.equal(syncUsable([{ status: 'throttled' }]), true);
+  assert.equal(syncUsable([{ resource: 'sleep', status: 'ok' }, { resource: 'recovery', status: 'scope_missing' }]), true);
+  // 核心資源失敗 → 不可用（重試）；選配資源失敗 → 不擋上線
+  assert.equal(syncUsable([{ resource: 'sleep', status: 'ok' }, { resource: 'recovery', status: 'failed' }]), false);
+  assert.equal(syncUsable([{ resource: 'sleep', status: 'ok' }, { resource: 'workout', status: 'failed' }]), true);
+  assert.equal(syncUsable([{ resource: 'sleep', status: 'throttled' }]), true);
   const e = await env();
   try {
     await onb(e.db, ALICE_CHAT, '/start');
     const a = await userFor(e.db, ALICE_CHAT);
     let v = await evaluateReadiness({ db: e.db, userId: a.id });
     assert.equal(v.ready, false);
-    assert.deepEqual(v.missing.sort(), ['capabilities', 'sync_state', 'timezone', 'whoop_identity', 'whoop_tokens'].sort());
+    assert.deepEqual(v.missing.sort(),
+      ['capabilities', 'sync_state', 'timezone_confirmed', 'whoop_identity', 'whoop_tokens'].sort());
     await onboardFully(e.db, BOB_CHAT, { whoopUserId: 'B9' });
     v = await evaluateReadiness({ db: e.db, userId: (await userFor(e.db, BOB_CHAT)).id });
     assert.deepEqual(v, { ready: true, missing: [] });
@@ -630,15 +636,21 @@ test('ONB-ATTACK-24 舊使用者（Kelvin）遷移：仍然 ACTIVE、READY、可
       accessToken: 'at', refreshToken: 'rt', expiresAt: new Date(NOW.getTime() + HOUR),
       scope: 'offline', whoopUserId: 'KELVIN1',
     });
+    // 「完整設定好」的形狀：同步狀態與 capability 盤點都存在
+    await e.db.saveSyncState(kelvin.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
+    await e.db.saveCapabilities(kelvin.id, [
+      { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
+    ], { now: NOW });
     await e.db.raw.execute('DROP TABLE user_onboarding');
     await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 14');
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (13, '2026-09-14T00:00:00.000Z', 'v13')");
 
     const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 13); assert.equal(summary.to, 14); assert.equal(SCHEMA_VERSION, 14);
+    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 15);
     assert.deepEqual(summary.rebuilt, []);
     assert.deepEqual(summary.columnsAdded, []);
-    assert.deepEqual(summary.dataMigrations, [{ version: 14, rows: 1 }], '★ 既有使用者被明確補成 READY');
+    // v14 依證據建列（Kelvin 證據齊全 → READY）；v15 的修正沒有東西要改
+    assert.deepEqual(summary.dataMigrations, [{ version: 14, rows: 1 }, { version: 15, rows: 0 }]);
 
     const row = await e.db.getOnboardingRow(kelvin.id);
     assert.equal(row.state, ONBOARDING_STATE.READY);
@@ -648,17 +660,18 @@ test('ONB-ATTACK-24 舊使用者（Kelvin）遷移：仍然 ACTIVE、READY、可
     const schedulable = await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE });
     assert.deepEqual(schedulable.map((u) => u.id), [kelvin.id], '★★★ Kelvin 仍然可被排程');
 
+    assert.ok(row.timezoneConfirmedAt, '★ 完整設定好的既有使用者視為時區已確認');
     // 冪等：重跑三次不再動任何東西
     for (let i = 0; i < 3; i += 1) {
-      const s = await runMigrations(e.db.raw);
-      assert.deepEqual(s.rebuilt, []); assert.deepEqual(s.columnsAdded, []);
-      assert.deepEqual(s.dataMigrations, [], '★ 版本已經到了 → 資料遷移不再跑');
+      const s2 = await runMigrations(e.db.raw);
+      assert.deepEqual(s2.rebuilt, []); assert.deepEqual(s2.columnsAdded, []);
+      assert.deepEqual(s2.dataMigrations, [], '★ 版本已經到了 → 資料遷移不再跑');
     }
     assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM user_onboarding')).rows[0].n, 1);
   } finally { e.done(); }
 });
 
-test('遷移 v13 → v14：中斷後重跑補齊；全新資料庫不會憑空產生上線列', async () => {
+test('遷移 v13 → v15：中斷後重跑補齊；全新資料庫不會憑空產生上線列', async () => {
   const e = await env();
   try {
     // 全新 DB（from = 0）：沒有使用者 → 資料遷移不做任何事
@@ -672,8 +685,12 @@ test('遷移 v13 → v14：中斷後重跑補齊；全新資料庫不會憑空�
     await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 14');
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (13, '2026-09-14T00:00:00.000Z', 'v13')");
     const s = await runMigrations(e.db.raw);
-    assert.deepEqual(s.dataMigrations, [{ version: 14, rows: 1 }]);
-    assert.equal((await e.db.getOnboardingRow(u.id)).state, ONBOARDING_STATE.READY);
+    assert.deepEqual(s.dataMigrations, [{ version: 14, rows: 1 }, { version: 15, rows: 0 }]);
+    // 這個使用者只有帳號，沒有綁定 / token → truthful 的狀態是 STARTED，不是 READY
+    assert.equal((await e.db.getOnboardingRow(u.id)).state, ONBOARDING_STATE.STARTED);
+    assert.equal((await e.db.getOnboardingRow(u.id)).timezoneConfirmedAt, null);
+    assert.deepEqual(await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE }), [],
+      '★ 不完整的既有使用者不會被排程');
   } finally { e.done(); }
 });
 

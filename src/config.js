@@ -644,14 +644,37 @@ export const ONBOARDING = {
   OAUTH_STATE_TTL_MS: 10 * 60_000,
   /** 兩次產生授權連結之間的冷卻。 */
   AUTH_LINK_COOLDOWN_MS: 20_000,
-  /** 一輪上線最多產生幾條授權連結（授權成功後歸零）。 */
-  MAX_AUTH_LINKS: 10,
+  /**
+   * 同時最多幾條**還有效**（未消耗、未過期）的授權連結。
+   *
+   * ★ 這是「未完成數量」的上限，不是「一輪總次數」的配額（RC1 / F03）。
+   * 舊的 state 一過期或被用掉就不再計入，所以它**自己會恢復** ——
+   * 不可能出現「試了十次之後永遠被鎖住」。
+   */
+  MAX_OUTSTANDING_AUTH_LINKS: 5,
   /** bootstrap（初次同步 + capability）最多重試幾次才轉成 ACTION_REQUIRED。 */
   MAX_BOOTSTRAP_ATTEMPTS: 5,
   /** bootstrap 的鎖租約：初次同步可能要抓好幾個 chunk。 */
   BOOTSTRAP_LEASE_MS: 10 * 60_000,
   /** capability 取樣天數（與 npm run probe 的預設一致）。 */
   CAPABILITY_PROBE_DAYS: 14,
+  /**
+   * ★ F05：一個「可用的 Health OS」最少需要哪些 WHOOP 資源的**讀取權限**。
+   *
+   * 依實際的下游相依決定，不是把所有 scope 都要求一遍：
+   *   · sleep    —— daily_metrics 唯一的必要資料來源；沒有它連 health_date
+   *                 都建立不起來（loadDailyMetricsDetailed 對睡眠失敗會拋錯）。
+   *   · recovery —— 起床觸發（detectWake）要求對應的 recovery 已評分；
+   *                 沒有它，日報永遠不會發出，紅黃綠燈也沒有依據。
+   *
+   * cycle（昨日 Strain）、workout、body_measurement 都是加值：缺了它們
+   * 對應的指標會誠實地標成拿不到，但系統仍然可用。所以**不**列入必要條件。
+   *
+   * ⚠️ 「沒有資料」與「沒有權限」是兩件事：一個剛戴上手錶、還沒有任何睡眠
+   * 紀錄的人，端點會成功回傳空集合 —— 那是 READY 的正常起點。
+   * 只有 scope 真的缺（WHOOP 回 401/403）才算沒有權限。
+   */
+  REQUIRED_SCOPES: ['sleep', 'recovery'],
   /** 一次排程 tick 最多接手幾個還沒走完的上線。 */
   MAX_BOOTSTRAPS_PER_RUN: 3,
   /**

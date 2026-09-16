@@ -315,9 +315,81 @@ export const ONBOARDING_FAILURE = Object.freeze({
   WHOOP_ACCOUNT_MISMATCH: 'WHOOP_ACCOUNT_MISMATCH',
   BOOTSTRAP_FAILED: 'BOOTSTRAP_FAILED',
   REAUTH_REQUIRED: 'REAUTH_REQUIRED',
+  /** 授權成功了，但缺少產品真的需要的健康 scope（F05）。 */
+  WHOOP_SCOPE_INCOMPLETE: 'WHOOP_SCOPE_INCOMPLETE',
+  /** 帳號被停用 / 暫停，需要管理者處理。 */
+  ACCOUNT_INACTIVE: 'ACCOUNT_INACTIVE',
 });
 
-export const SCHEMA_VERSION = 14;
+/**
+ * 從**既有證據**推導一個使用者的上線狀態（V1.2 Phase 3.5 RC1，F02）。
+ *
+ * 給兩個地方共用，所以只寫一次：
+ *   1. v14 → v15 的資料遷移（修正 v14 那個「一律 READY」的錯誤）
+ *   2. 遇到還沒有上線列的既有使用者時（ensureOnboardingDerived）
+ *
+ * ## 為什麼不能一律 READY
+ *
+ * v14 把**所有**既有使用者都標成 READY。那對 Kelvin 是對的，對其他形狀的
+ * 列全都是錯的：被停用的帳號、沒有 Telegram 綁定的、沒有 WHOOP token 的，
+ * 全部會被宣告成「上線完成」，然後被排程器當成正式使用者。
+ * 那不是相容性，那是捏造狀態。
+ *
+ * ## 推導鏈（由證據決定，逐層往上）
+ *
+ *   不是 ACTIVE                   → ACTION_REQUIRED（要管理者處理）
+ *   沒有 ACTIVE 的 Telegram 綁定   → STARTED（自助流程根本還沒開始）
+ *   沒有 access token               → TIMEZONE_PENDING（從第一步重走）
+ *   沒有同步狀態                   → WHOOP_AUTHORIZED（bootstrap 會接手）
+ *   沒有 capability 盤點           → SYNCING（bootstrap 會接手）
+ *   全部都有                       → READY
+ *
+ * ## 時區確認（F01）
+ *
+ * 只有「已經連上 WHOOP」的使用者才會被視為時區已確認：那種列是管理者用
+ * CLI 建的，建立時就必須給一個明確的時區。更早的階段無法證明時區是刻意選的，
+ * 所以留 NULL，讓他們走一次兩步驟流程。
+ * **絕不**用「timezone 這個字串長什麼樣」當作確認證據。
+ *
+ * ## 為什麼推導只看 access_token，不看 whoop_user_id
+ *
+ * R2-M-01 記載得很清楚：第一版的授權流程從來沒有寫過 `whoop_user_id`，
+ * 所以**舊的 token 列一律是 NULL**，而那些使用者的健康資料每一列都帶著
+ * WHOOP 回傳的身分。把 NULL 當成「沒有身分」會讓一個跑了好幾個月的正式
+ * 使用者在遷移當下被降級成「還沒連 WHOOP」——那是捏造，而且會停掉他的日報。
+ *
+ * 新的綁定一律經過 completeAuthorization 的 M-01 身分閘門，所以「未驗證身分」
+ * 只可能是歷史遺留。READY 的**原子轉移**（setReadyIfEligible）仍然要求身分，
+ * 那條路只有走 bootstrap 的新使用者會經過。
+ */
+export const ONBOARDING_DERIVED_STATE_SQL = `
+  CASE
+    WHEN u.status <> 'ACTIVE' THEN 'ACTION_REQUIRED'
+    WHEN NOT EXISTS (SELECT 1 FROM user_telegram t
+                      WHERE t.user_id = u.id AND t.status = 'ACTIVE') THEN 'STARTED'
+    WHEN NOT EXISTS (SELECT 1 FROM user_whoop_tokens k
+                      WHERE k.user_id = u.id AND k.access_token IS NOT NULL) THEN 'TIMEZONE_PENDING'
+    WHEN NOT EXISTS (SELECT 1 FROM whoop_sync_state s WHERE s.user_id = u.id) THEN 'WHOOP_AUTHORIZED'
+    WHEN NOT EXISTS (SELECT 1 FROM whoop_capabilities c WHERE c.user_id = u.id) THEN 'SYNCING'
+    ELSE 'READY'
+  END`;
+
+/** 同一條推導鏈裡「時區可以視為已確認」的條件（見上面的說明）。 */
+export const ONBOARDING_DERIVED_TZ_SQL = `
+  CASE
+    WHEN u.status = 'ACTIVE'
+     AND EXISTS (SELECT 1 FROM user_telegram t WHERE t.user_id = u.id AND t.status = 'ACTIVE')
+     AND EXISTS (SELECT 1 FROM user_whoop_tokens k
+                  WHERE k.user_id = u.id AND k.access_token IS NOT NULL)
+    THEN u.created_at
+    ELSE NULL
+  END`;
+
+/** ACTION_REQUIRED 的原因（推導用）。 */
+export const ONBOARDING_DERIVED_FAILURE_SQL = `
+  CASE WHEN u.status <> 'ACTIVE' THEN 'ACCOUNT_INACTIVE' ELSE NULL END`;
+
+export const SCHEMA_VERSION = 15;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -1645,16 +1717,42 @@ export const SCHEMA = [
 export const DATA_MIGRATIONS = [
   {
     version: 14,
-    note: 'existing users are pre-Phase-3.5 and therefore already onboarded',
-    // 遷移當下就存在的使用者 → 明確標成 READY。
+    note: 'seed onboarding rows for pre-Phase-3.5 users (state derived from evidence)',
+    // 遷移當下就存在的使用者 → 依**證據**推導狀態（見 ONBOARDING_DERIVED_STATE_SQL）。
     // 全新資料庫（from = 0）沒有任何使用者，所以這一句什麼都不會做。
+    //
+    // ⚠️ v14 原本寫的是「一律 READY」。那對完整設定好的使用者是對的，對其他
+    // 形狀（停用、沒綁 Telegram、沒有 WHOOP token）全都是捏造。v15 會把那些
+    // 錯誤的列修正回來；這裡先讓新的 v14 升級一開始就是對的。
     sql: `INSERT INTO user_onboarding
             (user_id, state, timezone_confirmed_at, whoop_authorized_at, ready_at,
-             state_changed_at, created_at, updated_at)
-          SELECT u.id, 'READY', u.created_at, u.created_at, u.created_at,
+             failure_code, state_changed_at, created_at, updated_at)
+          SELECT u.id,
+                 ${ONBOARDING_DERIVED_STATE_SQL},
+                 ${ONBOARDING_DERIVED_TZ_SQL},
+                 CASE WHEN ${ONBOARDING_DERIVED_STATE_SQL} IN ('WHOOP_AUTHORIZED', 'SYNCING', 'READY')
+                      THEN u.created_at ELSE NULL END,
+                 CASE WHEN ${ONBOARDING_DERIVED_STATE_SQL} = 'READY' THEN u.created_at ELSE NULL END,
+                 ${ONBOARDING_DERIVED_FAILURE_SQL},
                  u.created_at, u.created_at, u.created_at
             FROM users u
            WHERE NOT EXISTS (SELECT 1 FROM user_onboarding o WHERE o.user_id = u.id)`,
+  },
+  {
+    version: 15,
+    note: 'correct blindly-READY onboarding rows written by the original v14 migration',
+    // v14 的第一版把**每一個**既有使用者都標成 READY。這一句只動「宣稱 READY
+    // 但證據不支持」的列 —— 真的走完自助流程的人證據齊全，不會被碰到。
+    // 冪等：修正過之後條件就不再成立。
+    sql: `UPDATE user_onboarding
+             SET state = (SELECT ${ONBOARDING_DERIVED_STATE_SQL} FROM users u WHERE u.id = user_onboarding.user_id),
+                 timezone_confirmed_at = (SELECT ${ONBOARDING_DERIVED_TZ_SQL} FROM users u WHERE u.id = user_onboarding.user_id),
+                 failure_code = (SELECT ${ONBOARDING_DERIVED_FAILURE_SQL} FROM users u WHERE u.id = user_onboarding.user_id),
+                 ready_at = NULL,
+                 state_changed_at = updated_at,
+                 updated_at = updated_at
+           WHERE state = 'READY'
+             AND (SELECT ${ONBOARDING_DERIVED_STATE_SQL} FROM users u WHERE u.id = user_onboarding.user_id) <> 'READY'`,
   },
 ];
 

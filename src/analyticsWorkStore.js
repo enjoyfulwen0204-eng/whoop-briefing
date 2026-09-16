@@ -129,10 +129,12 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
   // ----- 所有權證明（F01）------------------------------------------------------
 
   /**
-   * 「這個 owner 現在還握著這個 (使用者, 類別) 的**有效**租約，而且認領的是
+   * 「這個 owner **此刻**還握著這個 (使用者, 類別) 的有效租約，而且認領的是
    * 這一代」。租約到期時刻本身算過期（lease_expires_at > now，嚴格）。
    * 在圍欄交易裡執行 → 與寫入同一個 BEGIN IMMEDIATE，不存在 check 與 write 之間
    * 的空隙（TOCTOU）。
+   *
+   * ★ P3-RC1-F01：`now` 是**檢查當下**取的時刻，不是呼叫端稍早凍結的那一個。
    */
   async function proveOwnership({ userId, cls, owner, generation, now }) {
     const rs = await client.execute({
@@ -150,12 +152,27 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    * 檢查、不是事後刪除，而是寫入本身進不了資料庫。
    *
    * 昂貴的計算**不可以**放在 fn 裡：這是短的持久化交易。
+   *
+   * ## `now` 必須是**活的時鐘函式**（P3-RC1-F01）
+   *
+   * before 與 after 各自呼叫一次 `now()`，所以兩次檢查都拿到當下的時刻：
+   *
+   *   before:  now() → 證明 owner + generation + lease_expires_at > now()
+   *   寫入
+   *   after:   now() → 再證明一次（寫入期間才過期的話，這裡擋下 → 整段回滾）
+   *
+   * 傳一個**凍結的 Date**（或永遠回傳同一個瞬間的閉包）會讓租約證明用的是
+   * 呼叫端稍早捕捉的時間 —— 昂貴計算跑完之後，那個時刻早就過去了，於是
+   * 已經過期的工作者仍然寫得進去。這正是 P3-RC1-F01 的根因，所以這裡
+   * **結構上拒絕** Date：不是函式就直接拋錯，不能靠呼叫端自律。
    */
   async function mutateForAnalytics({ userId, cls, owner, generation, now = () => new Date() }, fn) {
     const uid = requireUserId(userId, 'mutateForAnalytics');
     if (!CLASSES.includes(cls)) throw new Error(`invalid_analytics_class:${cls}`);
     if (!owner) throw new Error('analytics_owner_required');
     if (!Number.isInteger(generation)) throw new Error('analytics_generation_required');
+    if (typeof now !== 'function') throw new Error('analytics_live_clock_required');
+    // 兩個 check 都是「現在再問一次」——刻意不共用同一個 Date。
     const check = () => proveOwnership({ userId: uid, cls, owner, generation, now: now() });
     return transaction(fn, { before: check, after: check });
   }
@@ -419,13 +436,25 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    * 輕量物化的寫入 —— **必須**帶所有權證明（F01）。整批在一個圍欄交易裡：
    * 交易開頭與結尾都驗 owner / 有效租約 / claimed_generation；任何一項不成立
    * 就整批不寫。同一代、不同 owner（接手之後）也進不來。
+   *
+   * ## 兩個時間是**不同**的東西（P3-RC1-F01）
+   *
+   *   now    分析錨點：`computed_at` 用它。它可以（也應該）是這一輪計算開始
+   *          時捕捉的穩定時刻 —— 健康日與就緒判定都靠它保持一致。
+   *   clock  租約證明：**活的時鐘函式**，在交易裡的 before / after 各取一次。
+   *
+   * 以前這裡把 `now` 當成租約時鐘（`() => now`），於是「計算花了比租約還久」
+   * 的過期工作者仍然寫得進去。錨點與租約證明從此分開。
    */
-  async function saveAnalyticsDailyState(userId, rows, { owner, generation, now = new Date() }) {
+  async function saveAnalyticsDailyState(userId, rows, {
+    owner, generation, now = new Date(), clock = () => new Date(),
+  }) {
     const uid = requireUserId(userId, 'saveAnalyticsDailyState');
     if (!Number.isInteger(generation)) throw new Error('analytics_daily_state_requires_generation');
     if (!owner) throw new Error('analytics_owner_required');
+    if (typeof clock !== 'function') throw new Error('analytics_live_clock_required');
     const nowIso = iso(now);
-    return mutateForAnalytics({ userId: uid, cls: ANALYTICS_CLASS.LIGHT, owner, generation, now: () => now }, async () => {
+    return mutateForAnalytics({ userId: uid, cls: ANALYTICS_CLASS.LIGHT, owner, generation, now: clock }, async () => {
       let n = 0;
       for (const r of rows) {
         if (!r?.health_date) continue;

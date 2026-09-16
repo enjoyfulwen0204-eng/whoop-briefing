@@ -644,14 +644,14 @@ test('P3-ATTACK-16 大量待處理使用者 → 單次執行最多 MAX_USERS_PER
 test('輕量邊界：物化 daily metrics + 當日就緒狀態；沒有資料 → NO_DATA、不寫任何列', async () => {
   const e = await env();
   try {
-    const r0 = await runLightweightAnalysis({ db: e.db, userId: ALICE.id, timezone: TZ, generation: 1, owner: 'L', range: null, now: NOW });
+    const r0 = await runLightweightAnalysis({ db: e.db, userId: ALICE.id, timezone: TZ, generation: 1, owner: 'L', range: null, now: NOW, clock: () => NOW });
     assert.equal(r0.days, 0); assert.equal(r0.dailyStatus, 'NO_DATA');
     await seedHistory(e.db, ALICE, 3);
     const i = await inv(e.db);
     // 直接呼叫邊界也必須持有租約（F01）：先認領
     const claim = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'L', leaseMs: 60_000, now: NOW });
     const range = lightRangeFor({ affectedFrom: i.affectedFrom, affectedTo: i.affectedTo, anchorDate: null });
-    const r = await runLightweightAnalysis({ db: e.db, userId: ALICE.id, timezone: TZ, generation: claim.generation, owner: 'L', range, now: NOW });
+    const r = await runLightweightAnalysis({ db: e.db, userId: ALICE.id, timezone: TZ, generation: claim.generation, owner: 'L', range, now: NOW, clock: () => NOW });
     assert.ok(r.days >= 3); assert.equal(r.anchorDate, (await e.db.coverage(ALICE.id)).last_date);
     assert.equal(r.dailyStatus, 'READY');
     const rows = await e.db.getAnalyticsDailyState(ALICE.id);

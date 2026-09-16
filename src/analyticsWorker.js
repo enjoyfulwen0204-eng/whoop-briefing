@@ -108,11 +108,18 @@ export function nextLightChunk({ from, to }, { maxDays = ANALYTICS_WORK.LIGHT_MA
  * 寫入走 saveAnalyticsDailyState 的所有權圍欄交易（F01）：owner / 有效租約 /
  * claimed_generation 在寫入的同一個交易裡證明。
  *
+ * ## `now` 與 `clock`（P3-RC1-F01）
+ *
+ *   now    分析錨點：就緒判定與 `computed_at` 用它，整輪保持穩定（健康日的
+ *          判斷不可以在計算中途跳動）。
+ *   clock  活的時鐘函式：**只**給租約證明用。載入 daily metrics 可能比租約還久，
+ *          所以持久化時必須重新問「現在還握著嗎」，而不是拿計算開始時的時刻。
+ *
  * @param {{from:string,to:string}} range 這一片要算的日期（呼叫端已切好）
  * @returns {{days:number, from:string, to:string, anchorDate:?string, dailyStatus:string}}
  */
 export async function runLightweightAnalysis({
-  db, userId, timezone, generation, owner, range, now = new Date(),
+  db, userId, timezone, generation, owner, range, now = new Date(), clock = () => new Date(),
 }) {
   const uid = requireUserId(userId, 'runLightweightAnalysis');
   const coverage = await db.coverage(uid);
@@ -131,7 +138,7 @@ export async function runLightweightAnalysis({
     daily_status: assessDailyState({ rows: [m], anchorDate: m.health_date, now }).status,
     metrics: m,
   }));
-  const days = await db.saveAnalyticsDailyState(uid, rows, { owner, generation, now });
+  const days = await db.saveAnalyticsDailyState(uid, rows, { owner, generation, now, clock });
   const anchorRow = detailed.rows.find((r) => r.health_date === anchorDate) ?? null;
   const dailyStatus = assessDailyState({ rows: anchorRow ? [anchorRow] : [], anchorDate, now }).status;
   return { days, from: range.from, to: range.to, anchorDate, dailyStatus };
@@ -151,6 +158,7 @@ export const HEAVY_OUTPUT_WRITERS = Object.freeze([
 ]);
 
 export function fencedAnalyticsDb(db, { userId, cls, owner, generation, now }) {
+  if (typeof now !== 'function') throw new Error('analytics_live_clock_required');
   const fence = { lost: false, blockedWrites: 0 };
   const view = { ...db };
   for (const name of HEAVY_OUTPUT_WRITERS) {
@@ -197,7 +205,8 @@ export async function runHeavyAnalytics({ db, userId, timezone, now = new Date()
   // F01：有圍欄就用圍欄視圖；沒有（直接呼叫的開發邊界）就明講。
   let outDb = db; let fenceState = null;
   if (fence) {
-    const f = fencedAnalyticsDb(db, { userId: uid, cls: ANALYTICS_CLASS.HEAVY, owner: fence.owner, generation: fence.generation, now: fence.now ?? (() => now) });
+    // fence.now 是工作者注入的**活時鐘**；沒給就用真實時鐘（絕不用計算開始時的 now）。
+    const f = fencedAnalyticsDb(db, { userId: uid, cls: ANALYTICS_CLASS.HEAVY, owner: fence.owner, generation: fence.generation, now: fence.now ?? (() => new Date()) });
     outDb = f.db; fenceState = f.fence;
   } else {
     log.warn('analytics_heavy_unfenced', { user_id: uid });
@@ -291,7 +300,8 @@ export async function processAnalyticsForUser({
         }
         const { chunk, remainingTo, complete } = nextLightChunk(remaining);
         summary = await runLightweightAnalysis({
-          db, userId: uid, timezone: user.timezone, generation, owner, range: chunk, now: at(),
+          // now = 這一片的分析錨點（穩定）；clock = 活時鐘，只給租約證明用。
+          db, userId: uid, timezone: user.timezone, generation, owner, range: chunk, now: at(), clock: at,
         });
         // 這一片完成 → 縮剩餘範圍（owner + 租約 + range_generation + range_to 的 CAS）
         const advanced = await db.advanceAnalyticsRange({

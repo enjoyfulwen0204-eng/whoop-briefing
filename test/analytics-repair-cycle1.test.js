@@ -124,7 +124,7 @@ test('F01-A / ATTACK 1（真併發）：A 認領 LIGHT、算完、租約過期�
     assert.equal(b.ok, true, b.error); assert.equal(b.generation, g, 'B 認領的是同一代');
     // A 恢復：透過真正的路徑寫（同一代、不同 owner、租約已過期）
     await assert.rejects(
-      e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(111, dates), { owner: 'A', generation: g, now: new Date(later + 1) }),
+      e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(111, dates), { owner: 'A', generation: g, now: new Date(later + 1), clock: () => new Date(later + 1) }),
       /analytics_ownership_lost/,
     );
     const rows = await e.db.getAnalyticsDailyState(ALICE.id);
@@ -132,7 +132,8 @@ test('F01-A / ATTACK 1（真併發）：A 認領 LIGHT、算完、租約過期�
     assert.ok(rows.every((r) => r.metrics.respiratory_rate === 222), '★★★ 資料庫裡只有 B 的輸出，A 的 0 列');
     // 也透過工作者路徑（runLightweightAnalysis）試一次
     await assert.rejects(runLightweightAnalysis({
-      db: e.db, userId: ALICE.id, timezone: TZ, generation: g, owner: 'A', range: { from: '2026-09-12', to: '2026-09-14' }, now: new Date(later + 1),
+      db: e.db, userId: ALICE.id, timezone: TZ, generation: g, owner: 'A', range: { from: '2026-09-12', to: '2026-09-14' },
+      now: new Date(later + 1), clock: () => new Date(later + 1),
     }), /analytics_ownership_lost/);
     assert.ok((await e.db.getAnalyticsDailyState(ALICE.id)).every((r) => r.metrics.respiratory_rate === 222));
     const f = await fresh(e.db);
@@ -191,7 +192,7 @@ test('F01-D 租約過期、沒有人接手 → A 的輸出寫入仍然是 0（LI
     const ch = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: HEAVY, owner: 'A', leaseMs: LEASE.heavy, now: NOW });
     const expiredL = new Date(NOW.getTime() + LEASE.light + 1);
     const expiredH = new Date(NOW.getTime() + LEASE.heavy + 1);
-    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { owner: 'A', generation: cl.generation, now: expiredL }), /analytics_ownership_lost/);
+    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { owner: 'A', generation: cl.generation, now: expiredL, clock: () => expiredL }), /analytics_ownership_lost/);
     const { db: fenced } = fencedAnalyticsDb(e.db, { userId: ALICE.id, cls: HEAVY, owner: 'A', generation: ch.generation, now: () => expiredH });
     await assert.rejects(fenced.savePredictionModel(ALICE.id, modelFor('A'), { now: expiredH }), /analytics_ownership_lost/);
     await assert.rejects(fenced.saveHealthspanSnapshot(ALICE.id, snapshotFor('A'), { now: expiredH }), /analytics_ownership_lost/);
@@ -211,12 +212,13 @@ test('F01-E 租約邊界：lease_expires_at == now 算過期 → 0 寫入；now 
     await seedHistory(e.db, ALICE, 1);
     const c = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW });
     const boundary = new Date(NOW.getTime() + 60_000);
-    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { owner: 'A', generation: c.generation, now: boundary }), /analytics_ownership_lost/);
+    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { owner: 'A', generation: c.generation, now: boundary, clock: () => boundary }), /analytics_ownership_lost/);
     assert.equal(await rowCount(e.db, 'analytics_daily_state', ALICE.id), 0);
-    const n = await e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { owner: 'A', generation: c.generation, now: new Date(boundary.getTime() - 1) });
+    const justBefore = new Date(boundary.getTime() - 1);
+    const n = await e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { owner: 'A', generation: c.generation, now: justBefore, clock: () => justBefore });
     assert.equal(n, 1);
     // 錯的 generation 也進不來（同 owner、租約有效）
-    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(2, ['2026-09-14']), { owner: 'A', generation: c.generation + 1, now: NOW }), /analytics_ownership_lost/);
+    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(2, ['2026-09-14']), { owner: 'A', generation: c.generation + 1, now: NOW, clock: () => NOW }), /analytics_ownership_lost/);
     assert.equal((await e.db.getAnalyticsDailyState(ALICE.id))[0].metrics.respiratory_rate, 1);
   } finally { e.done(); }
 });

@@ -94,7 +94,13 @@ sleep / recovery / workout 同一天連續三次變動 → 一次輕量 + 一次
 `claimed_generation` 相符」，任一不成立 → `analytics_ownership_lost`，整段回滾。
 證明與寫入在同一個 `BEGIN IMMEDIATE` 裡，沒有 check 與 write 之間的空隙。
 
-- 輕量：`saveAnalyticsDailyState(uid, rows, { owner, generation })` 必帶證明。
+- 輕量：`saveAnalyticsDailyState(uid, rows, { owner, generation, now, clock })` 必帶證明。
+- **時間是兩個不同的東西（P3-RC1-F01）**：`now` 是**分析錨點**（health_date 判定、
+  就緒狀態、`computed_at`），整輪穩定；`clock` 是**活的時鐘函式**，只給租約證明用，
+  before 與 after 各呼叫一次。載入 daily metrics 可能比租約還久，所以持久化當下
+  必須重新問「現在還握著嗎」——拿計算開始時捕捉的時刻去證明，等於讓已經過期的
+  工作者寫得進去。`mutateForAnalytics` 因此**結構上拒絕** Date：不是函式就拋
+  `analytics_live_clock_required`。
 - 重量：工作者把 `fencedAnalyticsDb` 視圖交給預測 / Healthspan 模組 ——
   `savePredictionModel / savePrediction / recordPredictionActual /
   saveHealthspanMetrics / saveHealthspanSnapshot` 各自包進 `mutateForAnalytics`。
@@ -103,6 +109,9 @@ sleep / recovery / workout 同一天連續三次變動 → 一次輕量 + 一次
 - 在租約有效時已寫入、結案前才過期：那些寫入是**合法的**（寫入當下有所有權），
   保留；結案 FENCED → `done_generation` 不前進 → 讀取端看到 `stale`，下一個
   工作者重算（冪等）。不把合法的圍欄寫入事後當成損壞。
+- 輸出被擋下時，分片游標也不會前進（`advanceAnalyticsRange` 同樣帶活時鐘的
+  owner / 租約 CAS）：剩餘範圍維持**整段**需要覆蓋的範圍，下一個 owner 從同一個
+  上緣接續。**不做任何事後補償刪除。**
 
 ## 分析端：兩條邊界（[src/analyticsWorker.js](../src/analyticsWorker.js)）
 

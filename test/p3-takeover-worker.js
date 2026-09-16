@@ -23,7 +23,8 @@ parentPort.on('message', async (msg) => {
     if (!claim) throw new Error('B could not claim');
     const generation = claim.generation;
     if (msg.action === 'light') {
-      await db.saveAnalyticsDailyState(msg.userId, msg.payload.rows, { owner: msg.owner, generation, now });
+      // 測試用的確定性時鐘注入：租約是用同一個邏輯時刻建立的。
+      await db.saveAnalyticsDailyState(msg.userId, msg.payload.rows, { owner: msg.owner, generation, now, clock: () => now });
     } else {
       const { db: fenced } = fencedAnalyticsDb(db, { userId: msg.userId, cls: msg.cls, owner: msg.owner, generation, now: () => now });
       if (msg.action === 'prediction') await fenced.savePredictionModel(msg.userId, msg.payload.model, { now });

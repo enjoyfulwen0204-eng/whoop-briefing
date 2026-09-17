@@ -164,7 +164,12 @@ export async function runOnboardingBootstrap({
     const expectedAuthGeneration = authorization?.authGeneration ?? null;
     if (!authorization?.accessToken || !Number.isInteger(expectedAuthGeneration)) {
       log.warn('onboarding_no_auth_snapshot', { user_id: uid });
-      return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: 'no_auth_generation' });
+      // 這一輪的授權快照是「沒有（可用的）token 列」。圍欄用 IS NULL 把它
+      // 釘在同一個事實上：如果現在已經有授權了，這個結論就不是我們的了。
+      return failOrRetry({
+        db, uid, now: at(), notify, detail: 'no_auth_generation',
+        expectedAuthGeneration: null,
+      });
     }
 
     // client 被**綁死**在這次授權上：任何一次從 DB 撿到別的世代的 token
@@ -183,7 +188,9 @@ export async function runOnboardingBootstrap({
       if (isStaleAuthorizationError(err)) return staleAuthorization(uid, 'sync');
       // syncAll 本身保證不拋，這是最後一道
       log.error('onboarding_sync_unexpected', { user_id: uid, error: describeError(err) });
-      return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: describeError(err) });
+      return failOrRetry({
+        db, uid, now: at(), notify, detail: describeError(err), expectedAuthGeneration,
+      });
     }
     // 世代已經換掉 → 這些觀測不屬於任何一個我們可以宣告的授權。
     // 必須擋在 syncUsable 之前：stale 不是 'failed'，syncUsable 會放它過去。
@@ -194,7 +201,9 @@ export async function runOnboardingBootstrap({
       log.warn('onboarding_sync_incomplete', {
         user_id: uid, failed: results.filter((r) => r?.status === 'failed').map((r) => r.resource),
       });
-      return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: 'initial_sync_failed' });
+      return failOrRetry({
+        db, uid, now: at(), notify, detail: 'initial_sync_failed', expectedAuthGeneration,
+      });
     }
 
     // ---- 2. capability 盤點（失敗不寫任何結論）----
@@ -209,7 +218,9 @@ export async function runOnboardingBootstrap({
       // capability，所以走到這裡代表什麼都沒被寫進去 —— 正是我們要的。
       if (isStaleAuthorizationError(err)) return staleAuthorization(uid, 'probe');
       log.warn('onboarding_probe_failed', { user_id: uid, error: describeError(err) });
-      return failOrRetry({ db, uid, onboarding, now: at(), notify, detail: 'capability_probe_failed' });
+      return failOrRetry({
+        db, uid, now: at(), notify, detail: 'capability_probe_failed', expectedAuthGeneration,
+      });
     }
 
     // ---- 3. ★ F05 / RC2 F04：把權限判定**綁在目前的授權世代**上 --------
@@ -283,7 +294,7 @@ export async function runOnboardingBootstrap({
         user_id: uid, reason: ready.reason, missing: why.missing,
       });
       return failOrRetry({
-        db, uid, onboarding, now: at(), notify,
+        db, uid, now: at(), notify, expectedAuthGeneration,
         detail: `ready_rejected:${ready.reason}:${why.missing.join(',')}`,
       });
     }
@@ -375,18 +386,53 @@ export async function evaluateReadiness({ db, userId }) {
   return { ready: missing.length === 0, missing };
 }
 
-async function failOrRetry({ db, uid, onboarding, now, notify, detail }) {
-  const attempts = (onboarding?.bootstrapAttempts ?? 0) + 1;
-  if (attempts >= ONBOARDING.MAX_BOOTSTRAP_ATTEMPTS) {
-    await db.setOnboardingState(uid, ONBOARDING_STATE.ACTION_REQUIRED, {
-      from: [ONBOARDING_STATE.SYNCING, ONBOARDING_STATE.WHOOP_AUTHORIZED],
-      failureCode: ONBOARDING_FAILURE.BOOTSTRAP_FAILED, failureDetail: detail, now,
-    });
+/**
+ * 一般性失敗（暫時性同步故障、capability 故障、READY 前提不足…）的收尾。
+ *
+ * ## ★ F04-FG-NEW-01：終局升級必須被世代圍住，而且不可以相信快取的次數
+ *
+ * 這裡曾經有兩個各自獨立、但湊在一起會憑空製造一次失敗的問題：
+ *
+ *   1. 它用 bootstrap **開跑時**讀到的 onboarding 快照算嘗試次數。
+ *      使用者中途重新授權時，callback 會把額度歸零 —— 而快照完全看不到
+ *      那件事，於是舊 worker 仍然認為「已經第 5 次了」。
+ *   2. 它寫 ACTION_REQUIRED / BOOTSTRAP_FAILED 時沒有任何世代條件。
+ *
+ * 結果：一個剛剛才授權成功、額度全新（attempts = 0）的人，被一個屬於
+ * **上一次授權**的 worker 用**上一次授權的故障**宣告上線失敗，還收到通知。
+ *
+ * 現在三個前提都在同一句 UPDATE 的 WHERE 裡於寫入當下求值（見
+ * failBootstrapIfExhausted）。這裡**刻意不做**「先檢查世代有沒有變、再寫」——
+ * 那只是把競態窗口縮小，沒有消除：授權可以在檢查與寫入之間改變。
+ * 被圍欄擋下來才是結論，不是事前的預測。
+ *
+ * 通知也因此移到**確認寫入成功之後**：沒有真的完成那次轉移的 worker，
+ * 一則訊息都不准送。
+ */
+async function failOrRetry({ db, uid, now, notify, detail, expectedAuthGeneration = null }) {
+  const outcome = await db.failBootstrapIfExhausted({
+    userId: uid,
+    from: [ONBOARDING_STATE.SYNCING, ONBOARDING_STATE.WHOOP_AUTHORIZED],
+    failureCode: ONBOARDING_FAILURE.BOOTSTRAP_FAILED,
+    failureDetail: detail,
+    expectedAuthGeneration,
+    maxAttempts: ONBOARDING.MAX_BOOTSTRAP_ATTEMPTS,
+    now,
+  });
+
+  if (outcome.ok) {
+    // 只有真的完成了這次轉移才通知。
     if (notify) await safeNotify(notify, uid, 'bootstrap_failed');
     return { userId: uid, result: BOOTSTRAP_RESULT.ACTION_REQUIRED, detail };
   }
-  // 留在 SYNCING：下一輪排程會再接手。
-  return { userId: uid, result: BOOTSTRAP_RESULT.RETRY, attempts, detail };
+  if (outcome.reason === 'stale_authorization') {
+    // 這一輪的故障屬於一次已經不存在的授權。不宣告失敗、不通知、不累積。
+    return staleAuthorization(uid, 'fail_or_retry');
+  }
+  // 還沒到上限（或狀態已經被別人動過）：留在 SYNCING，下一輪排程再接手。
+  return {
+    userId: uid, result: BOOTSTRAP_RESULT.RETRY, attempts: outcome.attempts, detail,
+  };
 }
 
 async function safeNotify(notify, userId, kind) {

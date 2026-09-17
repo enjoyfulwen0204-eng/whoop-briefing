@@ -477,6 +477,96 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     });
   }
 
+  /**
+   * ★ F04-FG-NEW-01：**原子**的終局失敗升級（ACTION_REQUIRED / BOOTSTRAP_FAILED）。
+   *
+   * ## 為什麼這不能用「讀完再寫」做
+   *
+   * 舊的做法是：bootstrap 開跑時把 onboarding 列讀進記憶體，失敗時用
+   * `snapshot.bootstrapAttempts + 1 >= MAX` 決定要不要宣告終局失敗，然後
+   * 盲目地寫下去。這在使用者於執行期間重新授權時會產生一個**憑空的失敗**：
+   *
+   *   1. 世代 1 的 bootstrap 開跑，把 attempts 推到 5（快取裡是 4）
+   *   2. 使用者成功重新授權 → 世代 2，callback 把 attempts 歸零
+   *   3. 世代 1 的同步這時才回報一個普通的暫時性故障
+   *   4. 舊 worker 拿**過期的快取**算出「已經 5 次了」，把一個剛剛才
+   *      授權成功、額度全新的人寫成 ACTION_REQUIRED / BOOTSTRAP_FAILED
+   *      並且通知他上線失敗
+   *
+   * 所以三個前提全部寫進**同一句** UPDATE 的 WHERE，在寫入的那一刻求值：
+   *
+   *   · 授權世代仍然是這一輪開跑時捕捉到的那一個
+   *   · **目前耐久的** bootstrap_attempts 真的已經達到上限（不是快取值）
+   *   · 狀態仍然是這個 bootstrap 擁有的來源狀態
+   *
+   * 世代條件用 `IS ?` 而不是 `= ?`：一輪在「根本還沒有 token 列」時開跑的
+   * bootstrap，它的授權快照就是 NULL，而 `= NULL` 永遠不成立，會讓
+   * 「我看到的授權狀態現在還是不是同一個」這件事無法表達。`IS` 對 NULL
+   * 與整數都給出正確答案，兩種情形共用同一個圍欄。
+   *
+   * @returns {{ok:boolean, attempts:number, reason?:string}} ok:false 時
+   *   reason 說明為什麼不該升級（stale_authorization / below_threshold /
+   *   state:X / no_onboarding）。呼叫端據此決定 STALE_AUTHORIZATION 或 RETRY，
+   *   **而且只有 ok:true 才可以通知使用者**。
+   */
+  async function failBootstrapIfExhausted({
+    userId, from = [], failureCode, failureDetail = null,
+    expectedAuthGeneration = null, maxAttempts, now = new Date(),
+  } = {}) {
+    const uid = requireUserId(userId, 'failBootstrapIfExhausted');
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
+      throw new Error('bootstrap_max_attempts_required');
+    }
+    const ts = iso(now);
+    const states = Array.isArray(from) && from.length ? from : [ONBOARDING_STATE.SYNCING];
+    const gen = Number.isInteger(expectedAuthGeneration) ? expectedAuthGeneration : null;
+
+    const rs = await client.execute({
+      sql: `UPDATE user_onboarding
+               SET state = ?, state_changed_at = ?,
+                   failure_code = ?, failure_detail = ?, updated_at = ?
+             WHERE user_id = ?
+               AND state IN (${states.map(() => '?').join(',')})
+               AND bootstrap_attempts >= ?
+               AND (SELECT k.auth_generation FROM user_whoop_tokens k
+                     WHERE k.user_id = user_onboarding.user_id) IS ?`,
+      args: [
+        ONBOARDING_STATE.ACTION_REQUIRED, ts, failureCode,
+        failureDetail ? String(failureDetail).slice(0, 300) : null, ts,
+        uid, ...states, maxAttempts, gen,
+      ],
+    });
+    if (Number(rs.rowsAffected ?? 0) > 0) {
+      log.info('onboarding_state', {
+        user_id: uid, state: ONBOARDING_STATE.ACTION_REQUIRED, failure_code: failureCode,
+      });
+      return { ok: true, attempts: maxAttempts };
+    }
+
+    // 條件沒過。查明原因**只是為了選一條不寫入的路**（STALE 還是 RETRY）——
+    // 它永遠不會授權任何寫入，所以這一次讀取即使又過期也沒有危險：
+    // 兩個結果都不動資料庫。
+    const row = (await client.execute({
+      sql: `SELECT o.state, o.bootstrap_attempts,
+                   (SELECT k.auth_generation FROM user_whoop_tokens k
+                     WHERE k.user_id = o.user_id) gen
+              FROM user_onboarding o WHERE o.user_id = ?`,
+      args: [uid],
+    })).rows[0] ?? null;
+    if (!row) return { ok: false, attempts: 0, reason: 'no_onboarding' };
+
+    const current = row.gen === null || row.gen === undefined ? null : Number(row.gen);
+    const attempts = Number(row.bootstrap_attempts ?? 0);
+    if (current !== gen) {
+      log.warn('onboarding_terminal_stale_generation', {
+        user_id: uid, expected_generation: gen, current_generation: current,
+      });
+      return { ok: false, attempts, reason: 'stale_authorization' };
+    }
+    if (attempts < maxAttempts) return { ok: false, attempts, reason: 'below_threshold' };
+    return { ok: false, attempts, reason: `state:${row.state}` };
+  }
+
   async function recordBootstrapAttempt(userId, { now = new Date() } = {}) {
     const uid = requireUserId(userId, 'recordBootstrapAttempt');
     const ts = iso(now);
@@ -547,6 +637,7 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     resetAuthLinkBudget,
     recordBootstrapAttempt,
     resetBootstrapAttempts,
+    failBootstrapIfExhausted,
     listOnboardingInState,
     listSchedulableUsers,
   };

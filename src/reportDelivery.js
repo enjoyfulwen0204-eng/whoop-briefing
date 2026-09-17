@@ -69,7 +69,9 @@ export const DELIVERY_RESULT = Object.freeze({
    * 永遠收不到那天的晨報。語義上最接近 DEFINITE_FAILURE（確定沒送出、
    * 可以安全重來），但原因完全不同，所以獨立命名。
    */
-  SUPPRESSED_INACTIVE: 'suppressed_inactive',
+  SUPPRESSED_STALE_LIFECYCLE: 'suppressed_stale_lifecycle',
+  /** @deprecated R2 名稱；語義與 SUPPRESSED_STALE_LIFECYCLE 完全相同。 */
+  SUPPRESSED_INACTIVE: 'suppressed_stale_lifecycle',
 });
 
 /**
@@ -128,6 +130,9 @@ export async function deliverReport({
   if (fenceable) {
     const authorized = await db.authorizeReportDelivery({
       ...claimKey, owner, now: new Date(now()),
+      // ★ R3 / R2-REPORT-01：授權跨進 DELIVERY_STARTED 時，連同認領的啟用
+      // 世代一起證明（帳號現在仍然在同一段啟用期）。
+      expectedLifecycleGeneration: claim?.lifecycleGeneration,
     });
     if (!authorized) {
       // 所有權已經不在了。**絕不送**，而且**絕不 releaseClaim** ——
@@ -200,7 +205,7 @@ export async function deliverReport({
     if (fenceable) await releaseAfterDefiniteFailure({ db, claimKey, owner, scope });
     log.info('report_delivery_suppressed_inactive', scope);
     return {
-      result: DELIVERY_RESULT.SUPPRESSED_INACTIVE, messageId: null,
+      result: DELIVERY_RESULT.SUPPRESSED_STALE_LIFECYCLE, messageId: null,
       error: null, authorized: true,
     };
   }

@@ -34,6 +34,7 @@
 
 import { createHash } from 'node:crypto';
 import { addDays } from './time.js';
+import { isSuppressedDelivery } from './accountLifecycle.js';
 import { loadDailyMetrics, seriesOf } from './dailyMetrics.js';
 import { assessProactiveMonitoring } from './readiness.js';
 import { detectSignals } from './signals.js';
@@ -377,7 +378,27 @@ export async function checkAndAct({
 
   let messageSent = false;
   if (messageText && telegram && isMessagingDecision(decision.decision)) {
-    await telegram.send(messageText);
+    const sent = await telegram.send(messageText);
+    // ---- ★ R3 / R2-PROACTIVE-01：被啟用授權擋下 = **使用者沒有看到** ------
+    //
+    // withDeliveryAuthorization 在帳號停用／換過啟用期時回一個標記結果而不是
+    // 拋錯。舊版把它當成送出成功，於是：開一個使用者永遠不會回答的待答
+    // 問題（他的下一則訊息會被誤判成在回答它）、把事件標成已送、推進游標
+    // 宣稱他收到了。全部都是一則不存在的訊息留下的耐久痕跡。
+    //
+    // 正確處置：不記已送、不開待答、不標事件、**不推游標**。
+    // Transport proved no send occurred: release this exact unsent event so a
+    // fresh lifecycle can retry without consuming the cursor or question budget.
+    if (isSuppressedDelivery(sent)) {
+      await db.releaseSuppressedProactiveEvent(uid, claim.id);
+      log.info('proactive_delivery_suppressed_lifecycle', {
+        user_id: uid, health_date: anchorDate, decision: decision.decision, stage,
+      });
+      return {
+        triggered: true, stage, decision: decision.decision, reason: decision.reason,
+        signals, messageSent: false, suppressed: 'stale_lifecycle',
+      };
+    }
     messageSent = true;
     let pendingQuestionId = null;
     if (decision.decision === PROACTIVE_DECISION.ASK_CONTEXT && chatId) {

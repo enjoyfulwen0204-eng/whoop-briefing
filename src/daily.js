@@ -18,6 +18,7 @@ import {
 import { renderDaily } from './format.js';
 import { buildNarrative } from './narrative.js';
 import { buildInsightsSafe } from './insights.js';
+import { requireLifecycle } from './accountLifecycle.js';
 import { log, describeError } from './logger.js';
 import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelivery.js';
 
@@ -28,11 +29,13 @@ import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelive
  */
 export async function runDaily({
   db, userId, source, coach, telegram, timezone, now = new Date(),
-  // ★ R2：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）。
-  // 報告認領會記下它，於是舊啟用期留下的未送出認領不會擋住新啟用期的報告。
-  expectedLifecycleGeneration = null,
+  // ★ R3：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）是**必填**的。
+  // 報告是使用者健康路徑：認領、遞送授權、送出都要帶著它。少傳就大聲失敗；
+  // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
+  expectedLifecycleGeneration,
 }) {
   const uid = requireUserId(userId, 'runDaily');
+  requireLifecycle(expectedLifecycleGeneration, 'runDaily');
   // 1) 輕量 polling。刻意放在去重之前：health_date 是從最新那筆睡眠算出來的，
   //    沒抓資料就不知道要用哪個 key 去重。「完全沒事做」的快速返回在 index.js。
   const { sleeps: pollSleeps, recoveries: pollRecoveries } = await source.poll();
@@ -301,6 +304,18 @@ export async function runDaily({
     log.warn('daily_delivery_fenced', { ...base, health_date: healthDate });
     await recordEvaluation(BRIEFING_OUTCOME.CLAIM_BUSY, { reason: 'ownership_lost' });
     return { status: 'claim_lost', healthDate, localDate: healthDate };
+  }
+
+  if (delivery.result === DELIVERY_RESULT.SUPPRESSED_STALE_LIFECYCLE) {
+    // ★ R3 / R2-REPORT-01：帳號在分析與送出之間被停用（或停用再啟用）。
+    //
+    // **什麼都沒送出去**，所以絕不可以掉進下面的 SENT 分支：寫下 SENT 會讓
+    // 這一天的晨報被當成已經送過，使用者在合法重新啟用之後就永遠收不到了。
+    // 不寫 SENT、不寫 FAILED（那不是故障）、不動任何送達成功的標記；
+    // 認領已經在 deliverReport 裡歸還，新的啟用期可以重新認領並真的送出。
+    log.info('daily_delivery_suppressed_lifecycle', { ...base, health_date: healthDate });
+    await recordEvaluation(BRIEFING_OUTCOME.CLAIM_BUSY, { reason: 'lifecycle_changed' });
+    return { status: 'suppressed_stale_lifecycle', healthDate, localDate: healthDate };
   }
 
   if (delivery.result === DELIVERY_RESULT.DEFINITE_FAILURE) {

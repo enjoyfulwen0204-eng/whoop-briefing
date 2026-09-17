@@ -48,7 +48,7 @@ export function createSendReply({ db, api }) {
    *   狀態標成終局，而不是留下「還沒送」去誘發未來重送。
    *   真正的送出失敗會**拋錯**，由呼叫端分類成確定失敗或模糊。
    */
-  return async function sendReply({ chatId, reply, userId }) {
+  return async function sendReply({ chatId, reply, userId, expectedLifecycleGeneration = null }) {
     if (userId) {
       const current = await db.resolveUserByChatId(chatId);
       if (current?.user?.id !== userId) {
@@ -57,6 +57,23 @@ export function createSendReply({ db, api }) {
           expected_user_id: userId, resolved_user_id: current?.user?.id ?? null,
         });
         return { sent: false, messageId: null, reason: 'binding_changed' };
+      }
+      if (!Number.isInteger(expectedLifecycleGeneration) || expectedLifecycleGeneration < 1) {
+        return { sent: false, messageId: null, reason: 'lifecycle_context_required' };
+      }
+      // ---- ★ R3 / R2-QA-DELIVERY-01：**最終**送出邊界的啟用授權 ----------
+      //
+      // 早一步的檢查不算數：分類、查資料、問模型都要時間，帳號可能在那之後
+      // 被停用，甚至停用又啟用 —— 那時候 `resolveUserByChatId` 又會通過，
+      // 因為它只看 ACTIVE。所以最後這一刻必須比對**進來時捕捉到的世代**。
+      if (Number.isInteger(expectedLifecycleGeneration)
+          && current.user.lifecycleGeneration !== expectedLifecycleGeneration) {
+        log.info('telegram_reply_suppressed_lifecycle', {
+          user_id: userId,
+          expected_lifecycle: expectedLifecycleGeneration,
+          current_lifecycle: current.user.lifecycleGeneration,
+        });
+        return { sent: false, messageId: null, reason: 'lifecycle_changed' };
       }
     }
     const res = await api.sendMessage(chatId, reply);

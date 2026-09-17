@@ -49,7 +49,7 @@ test('★★★ SCHEMA_VERSION 是 16，且新表走純新增路徑', () => {
   // v12 = 攝取 / 分析解耦（四張全新的表）。v13 = 輕量分片的剩餘範圍（三個 nullable 欄位）。
   // v14 = 自助上線的生命週期（一張全新的表）。v15 = 既有使用者狀態的資料修正。
   // v16 = 授權世代 + 資源權限判定表。
-  assert.equal(SCHEMA_VERSION, 18);
+  assert.equal(SCHEMA_VERSION, 19);
   assert.ok(SCHEMA.some((s) => /CREATE TABLE IF NOT EXISTS briefing_evaluations/.test(s)));
   assert.ok(BRIEFING_STATE_SCHEMA.every((s) => /IF NOT EXISTS/.test(s)),
     '★ 每一句都必須是 IF NOT EXISTS（可重複執行）');

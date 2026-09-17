@@ -18,7 +18,7 @@
 import { LOCKS, WHOOP } from './config.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
-import { LIFECYCLE_UNFENCED, requireLifecycle } from './accountLifecycle.js';
+import { requireLifecycle } from './accountLifecycle.js';
 
 export class WhoopAuthError extends Error {
   constructor(message) {
@@ -247,13 +247,17 @@ export function createWhoopClient({
   const expectedGeneration = Number.isInteger(authorization?.authGeneration)
     ? authorization.authGeneration : null;
   const constrained = expectedGeneration !== null;
-  // 受授權約束的 client（也就是上線 bootstrap 那種健康 worker）**必須**
-  // 同時帶著啟用脈絡：只鎖授權世代擋不住停用／ABA。
-  const lifecycleFence = constrained
-    ? requireLifecycle(expectedLifecycleGeneration, 'createWhoopClient(authorization)')
-    : (expectedLifecycleGeneration === LIFECYCLE_UNFENCED
-      ? null
-      : (Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null));
+  // ★ R3 / R2-FG-01：**每一個** client 都必須帶啟用脈絡，不只受授權約束的。
+  //
+  // R2 只在 `authorization` 出現時才要求它，於是所有「正常的」執行期
+  // client（排程器的 runForUser、手動同步、盤點、對帳、webhook 重放）
+  // 全都是不受約束的 —— 而那些正是會做例行 token refresh 的路徑。
+  // 一個在停用前開始的 refresh 因此仍然可以把輪替後的憑證寫回去。
+  //
+  // 現在少傳就大聲失敗；管理／測試要不受約束必須明確寫 LIFECYCLE_UNFENCED。
+  const lifecycleFence = requireLifecycle(
+    expectedLifecycleGeneration, 'createWhoopClient',
+  );
   // 受約束時直接用呼叫端已經讀好的那一列當快取：第一次 WHOOP 呼叫因此
   // 不會再去讀一次 token 列（那次讀取本身就是一個新的、可能不同的快照）。
   let cached = constrained ? authorization : null;
@@ -292,6 +296,7 @@ export function createWhoopClient({
 
   /** 取得可用的 access token（>5 分鐘效期就重用）。 */
   async function getAccessToken({ force = false } = {}) {
+    if (lifecycleFence !== null) await db.assertAccountActive(uid, lifecycleFence);
     const t = await loadTokens();
     const msLeft = t.expiresAt.getTime() - Date.now();
     if (!force && msLeft > WHOOP.TOKEN_REFRESH_SKEW_MS) {
@@ -445,7 +450,7 @@ export function createWhoopClient({
           // 而不是「把世代推進」。
         }, {
           expectedUpdatedAt: baseUpdatedAt,
-          expectedAuthGeneration: expectedGeneration,
+          expectedAuthGeneration: base.authGeneration ?? expectedGeneration,
           // ★ R2 / LIFE-FG-01：輪替後的憑證不可以寫進一個已經停用（或已經
           // 換過啟用期）的帳號。這是與授權世代正交的第二道 CAS。
           expectedLifecycleGeneration: lifecycleFence,

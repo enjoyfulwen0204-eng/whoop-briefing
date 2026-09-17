@@ -155,6 +155,18 @@ export function createProactiveStore(client) {
     return true;
   }
 
+  // Called only after the transport proves no send occurred. The unique row id
+  // prevents an old worker from releasing a replacement event.
+  async function releaseSuppressedProactiveEvent(userId, id) {
+    const uid = requireUserId(userId, 'releaseSuppressedProactiveEvent');
+    const rs = await client.execute({
+      sql: `DELETE FROM proactive_events WHERE user_id = ? AND id = ?
+              AND sent_at IS NULL AND pending_question_id IS NULL`,
+      args: [uid, id],
+    });
+    return Number(rs.rowsAffected ?? 0) > 0;
+  }
+
   /**
    * 結案：記下這次的結果，並（如果有的話）連回使用者的回答變成的那筆 journal。
    * journalEventId 傳 null 代表「使用者說沒有 / 看不懂」，沒有 journal 產生。
@@ -333,6 +345,7 @@ export function createProactiveStore(client) {
     setProactiveEnabled,
     claimProactiveEvent,
     markProactiveEventSent,
+    releaseSuppressedProactiveEvent,
     resolveProactiveEvent,
     resolveProactiveEventIfUnresolved,
     listUnresolvableProactiveEvents,

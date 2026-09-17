@@ -61,13 +61,17 @@ async function drain() {
   // 每個使用者一個 client：token refresh 的租約與 CAS 圍欄都綁在 userId 上，
   // 絕不共用，也絕不另外實作一份 refresh 邏輯。
   const clients = new Map();
-  const whoopFor = (userId) => {
-    if (!clients.has(userId)) {
-      clients.set(userId, createWhoopClient({
+  // ★ R3 / R2-FG-01：每個 client 綁定處理這則事件時的帳號啟用世代。
+  // 處理器把它傳進來（它剛剛才解析過使用者），所以這裡不必再讀一次。
+  const whoopFor = (userId, { expectedLifecycleGeneration = null } = {}) => {
+    const key = `${userId}:${expectedLifecycleGeneration ?? 'none'}`;
+    if (!clients.has(key)) {
+      clients.set(key, createWhoopClient({
         db, userId, clientId: full.whoopClientId, clientSecret: full.whoopClientSecret,
+        expectedLifecycleGeneration,
       }));
     }
-    return clients.get(userId);
+    return clients.get(key);
   };
 
   const owner = `drain:${process.pid}:${randomUUID()}`;

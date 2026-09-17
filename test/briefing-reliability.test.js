@@ -42,6 +42,7 @@ import { HEARTBEAT_COMPONENT } from '../src/guardianPolicy.js';
 import { WAKE } from '../src/config.js';
 import { TelegramError } from '../src/telegram.js';
 import { SEND_OUTCOME } from '../src/sendOutcome.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 
 const TZ = 'Asia/Taipei';
 /** 生產觀測到的唯一一筆睡眠（09-11 那一夜）。 */
@@ -196,7 +197,7 @@ async function captureLogs(fn) {
 test('★★★ 1: 起床前的排程執行 → already_sent（前一天），且標成 stale_observation', async () => {
   const { db, user, cleanup } = await seed();
   try {
-    const { result, events } = await captureLogs(() => runDaily({
+    const { result, events } = await captureLogs(() => runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach,
       telegram: telegramStub(), timezone: TZ, now: new Date(ONLY_RUN),
     }));
@@ -217,7 +218,7 @@ test('★★★ 1: 起床前的排程執行 → already_sent（前一天），�
 test('★★★ 2: 完全沒有主睡眠 → not_ready(no_main_sleep)，retryable', async () => {
   const { db, user, cleanup } = await seed({ nights: [], sentDates: [] });
   try {
-    const { result, events } = await captureLogs(() => runDaily({
+    const { result, events } = await captureLogs(() => runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach,
       telegram: telegramStub(), timezone: TZ, now: new Date(ONLY_RUN),
     }));
@@ -249,7 +250,7 @@ test('★★★ 4: 昨晚的睡眠終於進來 → 同一條流程就會發出 2
   const { db, user, cleanup } = await seed({ nights: [PRIOR, LAST_NIGHT] });
   try {
     const tg = telegramStub();
-    const r = await runDaily({
+    const r = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach,
       telegram: tg, timezone: TZ, now: new Date('2026-09-12T03:55:00.000Z'),
     });
@@ -270,13 +271,13 @@ test('★★★ 5-6: 連續缺好幾個排程時段之後才被叫起來 → 仍
     const tg = telegramStub();
     // 模擬 01:00～03:30 每個半小時都沒有人來，04:00 才有一輪
     const late = new Date('2026-09-12T04:00:00.000Z');
-    const first = await runDaily({
+    const first = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ, now: late,
     });
     assert.equal(first.status, 'sent');
     // 之後的每一輪都不可以再發
     for (const t of ['2026-09-12T04:30:00.000Z', '2026-09-12T05:00:00.000Z']) {
-      const again = await runDaily({
+      const again = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
         db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
         now: new Date(t),
       });
@@ -289,7 +290,7 @@ test('★★★ 5-6: 連續缺好幾個排程時段之後才被叫起來 → 仍
 test('★★★ 7: not_ready 之後換一個新的 db 連線（重啟）→ 資料到了照樣發', async () => {
   const { db, user, cleanup } = await seed({ nights: [], sentDates: [] });
   try {
-    const early = await runDaily({
+    const early = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach,
       telegram: telegramStub(), timezone: TZ, now: new Date('2026-09-11T22:00:00.000Z'),
     });
@@ -316,7 +317,7 @@ test('★★★ 7: not_ready 之後換一個新的 db 連線（重啟）→ 資�
         LAST_NIGHT.end, JSON.stringify(recRaw('sX'))],
     });
     const tg = telegramStub();
-    const later = await runDaily({
+    const later = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
       now: new Date('2026-09-12T03:00:00.000Z'),
     });
@@ -356,7 +357,7 @@ test('★★★ 9: 晚了但仍在時限內 → 照發（不是丟掉）', async
   const { db, user, cleanup } = await seed({ nights: [LAST_NIGHT], sentDates: [] });
   try {
     const tg = telegramStub();
-    const r = await runDaily({
+    const r = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
       now: new Date(Date.parse(LAST_NIGHT.end) + 20 * 3600_000),
     });
@@ -372,7 +373,7 @@ test('★★★ 10: 超過 48 小時 → 持久化 MISSED、顯著終局事件�
     const notices = [];
     tg.notifyError = async (type, msg) => { notices.push({ type, msg }); return true; };
     const now = new Date(Date.parse(LAST_NIGHT.end) + 72 * 3600_000);
-    const { result, events } = await captureLogs(() => runDaily({
+    const { result, events } = await captureLogs(() => runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach, telegram: tg,
       timezone: TZ, now,
     }));
@@ -400,7 +401,7 @@ test('★★★ 10: 超過 48 小時 → 持久化 MISSED、顯著終局事件�
 
     // 再跑幾輪都不可以重複通知，也不可以突然發出來
     for (const extra of [73, 74, 80]) {
-      await runDaily({
+      await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
         db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
         now: new Date(Date.parse(LAST_NIGHT.end) + extra * 3600_000),
       });
@@ -414,7 +415,7 @@ test('★★★ 10b: 補發窗內（24–48h）會送出，而且標示成補發
   const { db, user, cleanup } = await seed({ nights: [LAST_NIGHT], sentDates: [] });
   try {
     const tg = telegramStub();
-    const r = await runDaily({
+    const r = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
       now: new Date(Date.parse(LAST_NIGHT.end) + 30 * 3600_000),
     });
@@ -428,7 +429,7 @@ test('★★★ 10b: 補發窗內（24–48h）會送出，而且標示成補發
     assert.equal(evalRow.outcome, 'SENT_LATE');
 
     // 不可以再送一份「正常版」
-    const again = await runDaily({
+    const again = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
       now: new Date(Date.parse(LAST_NIGHT.end) + 31 * 3600_000),
     });
@@ -459,8 +460,8 @@ test('★★★ 14: 兩個併發的排程執行 → 只送一則', async () => {
     const tg = telegramStub();
     const now = new Date('2026-09-12T03:55:00.000Z');
     const [a, b] = await Promise.all([
-      runDaily({ db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ, now }),
-      runDaily({ db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ, now }),
+      runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ, now }),
+      runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ, now }),
     ]);
     assert.equal(tg.sent.length, 1, '★ 恰好一則');
     const statuses = [a.status, b.status].sort();
@@ -477,7 +478,7 @@ test('★★★ 15: Telegram 失敗 → 記 FAILED、釋放 claim、下一輪可
   const { db, user, cleanup } = await seed({ nights: [PRIOR, LAST_NIGHT] });
   try {
     const now = new Date('2026-09-12T03:55:00.000Z');
-    const bad = await runDaily({
+    const bad = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach,
       telegram: telegramStub({ fail: true }), timezone: TZ, now,
     });
@@ -485,7 +486,7 @@ test('★★★ 15: Telegram 失敗 → 記 FAILED、釋放 claim、下一輪可
     assert.equal(await db.isSent(user.id, 'daily', '2026-09-12'), false, '★ 不可以標成已送');
     // 下一輪重試會成功
     const tg = telegramStub();
-    const good = await runDaily({
+    const good = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
       now: new Date('2026-09-12T04:25:00.000Z'),
     });
@@ -503,7 +504,7 @@ test('★★★ 16: 收據寫入失敗 → 已送出的事實仍然釘在 claim 
       if (args.status === 'SENT') throw new Error('turso down');
       return origRecord(args, opts);
     };
-    const r = await runDaily({
+    const r = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: user.id, source: source(db, user.id), coach, telegram: tg, timezone: TZ,
       now: new Date('2026-09-12T03:55:00.000Z'),
     });

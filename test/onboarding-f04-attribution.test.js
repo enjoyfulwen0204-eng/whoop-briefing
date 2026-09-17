@@ -428,7 +428,9 @@ test('F04-MIX-03 未綁定的 client（index.js / reconcile.js 的路徑）行�
     const whoop = createWhoopClient({
       db: e.db, userId: user.id, clientId: 'c', clientSecret: 's',
       fetchImpl: backend.fetchImpl, sleepImpl: async () => {},
-      // 不傳 authorization → 不受約束
+      // 不傳 authorization → 不受**授權世代**約束。
+      // R3 之後啟用脈絡是必填的：這一組測的是授權維度，明確豁免。
+      expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
     });
     await whoop.sleeps(new Date(NOW.getTime() - HOUR), NOW);
     // 重新授權之後仍然可以繼續用（這正是排程同步該有的行為）

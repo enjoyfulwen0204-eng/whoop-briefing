@@ -8,7 +8,7 @@
  */
 
 import { loadDotEnvIfPresent, loadEnv } from '../src/config.js';
-import { pickUser } from './pickUser.js';
+import { pickUser, lifecycleContextFor } from './pickUser.js';
 import { createDb } from '../src/db.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { createCoach } from '../src/coach.js';
@@ -63,8 +63,10 @@ try {
 if (tokens) {
   try {
     const whoop = createWhoopClient({
-  db,
-  userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+      db,
+      userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+      // 連線自檢：綁定使用者目前的啟用世代，refresh 才不會寫進別的啟用期。
+      expectedLifecycleGeneration: lifecycleContextFor(user),
     });
     const page = await whoop.apiGet('/recovery', { limit: 1 });
     const n = page?.records?.length ?? 0;

@@ -1,3 +1,4 @@
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 /**
  * A3：每週回顧的補發寬限。
  *
@@ -40,7 +41,7 @@ const U = 'u-catchup-test';
 function ctxFor(now, { db = fakeDb(), datasetNow = mondayMorning() } = {}) {
   const dataset = makeDataset({ days: 45, now: datasetNow });
   return {
-    db,
+    expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db,
     userId: U,
     telegram: fakeTelegram(),
     coach: fakeCoach(),
@@ -63,7 +64,7 @@ test('A3: 週一～週三的 weekKey 完全相同（補發不會指到別週）'
 
 test('A3: 週一正常發送', async () => {
   const ctx = ctxFor(dayAfterMondayAfternoon(0));
-  const res = await runWeekly(ctx);
+  const res = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent');
   assert.equal(ctx.telegram.sent.length, 1);
   assert.match(res.weekly ? 'ok' : 'ok', /ok/);
@@ -71,7 +72,7 @@ test('A3: 週一正常發送', async () => {
 
 test('A3: 週二補發（週一整天故障的情況）', async () => {
   const ctx = ctxFor(dayAfterMondayAfternoon(1));
-  const res = await runWeekly(ctx);
+  const res = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent', '週二必須補得回來');
   assert.equal(ctx.telegram.sent.length, 1);
   const run = ctx.db.runs.find((r) => r.reportType === 'weekly' && r.status === 'SENT');
@@ -80,7 +81,7 @@ test('A3: 週二補發（週一整天故障的情況）', async () => {
 
 test('A3: 週三補發', async () => {
   const ctx = ctxFor(dayAfterMondayAfternoon(2));
-  const res = await runWeekly(ctx);
+  const res = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent');
   const run = ctx.db.runs.find((r) => r.reportType === 'weekly' && r.status === 'SENT');
   assert.match(String(run.detail), /catchup_d3/);
@@ -88,7 +89,7 @@ test('A3: 週三補發', async () => {
 
 test('A3: 週四已超過寬限 → 不再補發', async () => {
   const ctx = ctxFor(dayAfterMondayAfternoon(3));
-  const res = await runWeekly(ctx);
+  const res = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'outside_window');
   assert.equal(res.weekday, 4);
   assert.equal(ctx.telegram.sent.length, 0);
@@ -96,7 +97,7 @@ test('A3: 週四已超過寬限 → 不再補發', async () => {
 
 test('A3: 週日（上一週還沒結束）也不發', async () => {
   const ctx = ctxFor(dayAfterMondayAfternoon(6));
-  const res = await runWeekly(ctx);
+  const res = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'outside_window');
   assert.equal(ctx.telegram.sent.length, 0);
 });
@@ -125,7 +126,7 @@ test('A3: 週二補發也遵守「清晨先等」的規則（不會半夜吵人�
   const tuesdayWake = dayAfterMondayAfternoon(1);
   const earlyTuesday = new Date(tuesdayWake.getTime() - 9 * 3_600_000); // 台灣 05:00
   const ctx = ctxFor(earlyTuesday, { datasetNow: tuesdayWake });
-  const res = await runWeekly(ctx);
+  const res = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'waiting', '清晨不該硬發');
   assert.equal(ctx.telegram.sent.length, 0);
 });

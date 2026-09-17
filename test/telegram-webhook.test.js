@@ -478,7 +478,7 @@ test('★★★ webhook: HRD-R03 —— chat 換綁之後，前一個人的回�
     await sendReply({ chatId: '5001', reply: '你的 HRV 偏低', userId: alice.id });
     assert.equal(sent.length, 0, '★ 絕不可以把生理資料送進現在屬於別人的 chat');
 
-    await sendReply({ chatId: '5001', reply: '早安', userId: other.id });
+    await sendReply({ expectedLifecycleGeneration: other.lifecycleGeneration, chatId: '5001', reply: '早安', userId: other.id });
     assert.equal(sent.length, 1, '★ 新擁有者自己的回覆仍然要送得出去');
   });
 });

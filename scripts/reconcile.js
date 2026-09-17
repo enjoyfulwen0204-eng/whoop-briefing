@@ -78,24 +78,37 @@ async function ensureSchema() {
   }
 }
 
-async function status() {
+/**
+ * ★ R3 / R2-FG-03：兩個指令共用同一個閘門與同一個啟用脈絡。
+ *
+ * 上一輪把閘門放進 status()、卻在 run() 裡引用 `lifecycle` —— 那是一個
+ * ReferenceError，也就是說**正式的對帳指令根本跑不起來**。把它抽成一支
+ * 共用函式，兩條路徑就不可能再分岔。
+ *
+ * `--allow-inactive` 是**明確的管理者資料整備模式**，語義很窄：只做
+ * provider 對帳與 canonical 資料修復。因為它傳的是 LIFECYCLE_UNFENCED，
+ * 它產生的任何東西都不會被記成「目前啟用世代的資格證據」—— READY 仍然
+ * 只能由 setReadyIfEligible 在真實證據下給出。它也不發任何使用者可見的
+ * 健康通知（對帳本來就不發）。
+ *
+ * @returns {{user, lifecycle}} lifecycle 是正整數（受約束）或 LIFECYCLE_UNFENCED
+ */
+async function resolveUserAndLifecycle() {
   const user = await db.getUser(userId);
   if (!user) throw new Error(`找不到使用者：${userId}`);
-  // ★ R2 / LIFE-FG-03 §16：預設不對非 ACTIVE 帳號做健康處理。
-  //
-  // `--allow-inactive` 是**明確的管理者資料整備模式**，語義很窄：
-  // 它只做 provider 對帳與 canonical 資料修復，而且因為傳的是
-  // LIFECYCLE_UNFENCED，它產生的任何東西都不會被記成「目前啟用世代的
-  // 資格證據」——  READY 仍然只能由 setReadyIfEligible 在真實證據下給出。
-  // 它也不發任何使用者可見的健康通知（對帳本來就不發）。
   if (user.status !== 'ACTIVE' && !flag('allow-inactive')) {
     throw new Error(
       `使用者 ${user.id} 的狀態是 ${user.status}（非 ACTIVE）。`
       + '對帳預設不處理停用帳號；確定要做資料修復請加 --allow-inactive。',
     );
   }
-  const lifecycle = user.status === 'ACTIVE' && Number.isInteger(user.lifecycleGeneration)
+  const lifecycle = user.status === 'ACTIVE'
     ? user.lifecycleGeneration : LIFECYCLE_UNFENCED;
+  return { user, lifecycle };
+}
+
+async function status() {
+  const { user } = await resolveUserAndLifecycle();
   console.log(`使用者 ${user.id}（${user.timezone}）｜資料庫 ${isLocalDb ? '本機 file:' : '遠端（唯讀）'}`);
 
   const states = await db.getAllReconciliationState(user.id);
@@ -147,8 +160,7 @@ async function run() {
   const full = loadEnv({
     require: ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET'],
   });
-  const user = await db.getUser(userId);
-  if (!user) throw new Error(`找不到使用者：${userId}`);
+  const { user, lifecycle } = await resolveUserAndLifecycle();
 
   const whoop = createWhoopClient({
     db, userId: user.id, clientId: full.whoopClientId, clientSecret: full.whoopClientSecret,

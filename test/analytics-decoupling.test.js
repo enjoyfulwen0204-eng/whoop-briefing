@@ -268,7 +268,7 @@ test('P3-ATTACK-15 完整重啟：待處理的分析、認領中的租約、done
     await light(e.db);
     const before = await fresh(e.db);
     await e.db.upsertSleeps(ALICE.id, [sleepRecord({ id: sid(9), daysAgo: 1, updatedAt: at(1) })], { timezone: TZ });
-    const claimed = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: HEAVY, owner: 'old-proc', leaseMs: 60_000, now: NOW });
+    const claimed = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'old-proc', leaseMs: 60_000, now: NOW });
     assert.ok(claimed);
     e.db.close();
     const db2 = createDb({ url: e.url });
@@ -440,7 +440,7 @@ test('P3-ATTACK-07 A 租約過期、B 接手完成、A 晚到 → A 被圍欄擋
     const runs = await e.db.recentAnalyticsRuns(ALICE.id, { cls: HEAVY });
     assert.deepEqual(runs.map((r) => [r.owner, r.result]), [['B', 'SUCCESS'], ['A', 'FENCED']]);
     // store 層：A 直接 settle 也寫不進
-    assert.equal(await e.db.settleAnalyticsWork({ userId: ALICE.id, cls: HEAVY, owner: 'A', result: ANALYTICS_RESULT.SUCCESS, generation: 999, now: now() }), false);
+    assert.equal(await e.db.settleAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', result: ANALYTICS_RESULT.SUCCESS, generation: 999, now: now() }), false);
     assert.equal((await fresh(e.db)).heavy.doneGeneration, bResult.generation);
   } finally { e.done(); }
 });
@@ -532,11 +532,11 @@ test('P3-ATTACK-10 Alice / Bob 同 id 同日期：失效、認領、結果、物
     await e.db.upsertRecoveries(BOB.id, [recoveryRecord({ sleepId: sid(1) })]);
     assert.equal(await gen(e.db, ALICE), 1, 'Bob 的變動不動 Alice'); assert.equal(await gen(e.db, BOB), 2);
     // 認領互不衝突
-    assert.ok(await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'X', leaseMs: 60_000, now: NOW }));
-    assert.ok(await e.db.claimAnalyticsWork({ userId: BOB.id, cls: LIGHT, owner: 'Y', leaseMs: 60_000, now: NOW }));
-    assert.equal(await e.db.settleAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'Y', result: ANALYTICS_RESULT.SUCCESS, generation: 1, now: NOW }), false, 'Bob 的 owner 不能結 Alice 的案');
-    await e.db.releaseAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'X', now: NOW });
-    await e.db.releaseAnalyticsWork({ userId: BOB.id, cls: LIGHT, owner: 'Y', now: NOW });
+    assert.ok(await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'X', leaseMs: 60_000, now: NOW }));
+    assert.ok(await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: BOB.id, cls: LIGHT, owner: 'Y', leaseMs: 60_000, now: NOW }));
+    assert.equal(await e.db.settleAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'Y', result: ANALYTICS_RESULT.SUCCESS, generation: 1, now: NOW }), false, 'Bob 的 owner 不能結 Alice 的案');
+    await e.db.releaseAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'X', now: NOW });
+    await e.db.releaseAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: BOB.id, cls: LIGHT, owner: 'Y', now: NOW });
     await light(e.db, ALICE); await light(e.db, BOB);
     const a = await e.db.getAnalyticsDailyState(ALICE.id); const b = await e.db.getAnalyticsDailyState(BOB.id);
     assert.equal(a.find((r) => r.metrics.respiratory_rate === 11)?.metrics.respiratory_rate, 11);
@@ -645,14 +645,14 @@ test('P3-ATTACK-16 大量待處理使用者 → 單次執行最多 MAX_USERS_PER
 test('輕量邊界：物化 daily metrics + 當日就緒狀態；沒有資料 → NO_DATA、不寫任何列', async () => {
   const e = await env();
   try {
-    const r0 = await runLightweightAnalysis({ db: e.db, userId: ALICE.id, timezone: TZ, generation: 1, owner: 'L', range: null, now: NOW, clock: () => NOW });
+    const r0 = await runLightweightAnalysis({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db: e.db, userId: ALICE.id, timezone: TZ, generation: 1, owner: 'L', range: null, now: NOW, clock: () => NOW });
     assert.equal(r0.days, 0); assert.equal(r0.dailyStatus, 'NO_DATA');
     await seedHistory(e.db, ALICE, 3);
     const i = await inv(e.db);
     // 直接呼叫邊界也必須持有租約（F01）：先認領
-    const claim = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'L', leaseMs: 60_000, now: NOW });
+    const claim = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'L', leaseMs: 60_000, now: NOW });
     const range = lightRangeFor({ affectedFrom: i.affectedFrom, affectedTo: i.affectedTo, anchorDate: null });
-    const r = await runLightweightAnalysis({ db: e.db, userId: ALICE.id, timezone: TZ, generation: claim.generation, owner: 'L', range, now: NOW, clock: () => NOW });
+    const r = await runLightweightAnalysis({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db: e.db, userId: ALICE.id, timezone: TZ, generation: claim.generation, owner: 'L', range, now: NOW, clock: () => NOW });
     assert.ok(r.days >= 3); assert.equal(r.anchorDate, (await e.db.coverage(ALICE.id)).last_date);
     assert.equal(r.dailyStatus, 'READY');
     const rows = await e.db.getAnalyticsDailyState(ALICE.id);
@@ -668,7 +668,7 @@ test('重量邊界：真的跑預測 + Healthspan（少量資料 → 未成熟�
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 6);
-    const r = await runHeavyAnalytics({ db: e.db, userId: ALICE.id, timezone: TZ, now: NOW });
+    const r = await runHeavyAnalytics({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db: e.db, userId: ALICE.id, timezone: TZ, now: NOW });
     assert.ok(r.modules.prediction.maturity); assert.equal(r.modules.prediction.qualified, false, '品質門檻沒過 → 不合格');
     assert.ok(r.modules.healthspan.maturity);
     assert.equal(r.failed.length, 0);
@@ -698,14 +698,14 @@ test('認領：同 (user, class) 只有一個持有者；不同 class 可並行�
   const e = await env();
   try {
     await e.db.upsertSleeps(ALICE.id, [sleepRecord({ id: sid(1) })], { timezone: TZ });
-    assert.ok(await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW }));
-    assert.equal(await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'B', leaseMs: 60_000, now: NOW }), null);
-    assert.equal(await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW }), null, '不是續租');
-    assert.ok(await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: HEAVY, owner: 'B', leaseMs: 60_000, now: NOW }), '不同 class 各自的租約');
+    assert.ok(await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW }));
+    assert.equal(await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'B', leaseMs: 60_000, now: NOW }), null);
+    assert.equal(await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW }), null, '不是續租');
+    assert.ok(await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'B', leaseMs: 60_000, now: NOW }), '不同 class 各自的租約');
     const r = await light(e.db, ALICE, { owner: 'C' });
     assert.equal(r.result, ANALYTICS_RESULT.SKIPPED); assert.equal(r.reason, 'claim_busy');
-    assert.ok(await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'B', leaseMs: 60_000, now: new Date(NOW.getTime() + 60_001) }), '過期可接手');
-    await assert.rejects(e.db.claimAnalyticsWork({ userId: ALICE.id, cls: 'bogus', owner: 'A', leaseMs: 1, now: NOW }), /invalid_analytics_class/);
+    assert.ok(await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'B', leaseMs: 60_000, now: new Date(NOW.getTime() + 60_001) }), '過期可接手');
+    await assert.rejects(e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: 'bogus', owner: 'A', leaseMs: 1, now: NOW }), /invalid_analytics_class/);
   } finally { e.done(); }
 });
 
@@ -722,7 +722,7 @@ test('遷移 v11 → v15：純新增（四張表 + v13 三欄 + v14 上線表）
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (11, '2026-09-10T00:00:00.000Z', 'v11')");
     for (const t of NEW) assert.ok(!(await tables()).includes(t));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 18);
+    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 19);
     assert.deepEqual(s.rebuilt, []); assert.deepEqual(s.columnsAdded, [], '從 v11 起跳：新表由 CREATE TABLE 直接建齊（含 v13 欄位）');
     for (const t of NEW) assert.ok((await tables()).includes(t));
     assert.equal((await e.db.getTombstone(ALICE.id, 'sleep', sid(1))).state, TOMBSTONE_STATE.ACTIVE, '墓碑原封不動');

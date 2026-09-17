@@ -1,0 +1,164 @@
+{
+  "source": "8e1f1c3f7fbc8356684c823e6195d7c8774fe9d9:src/schema.js",
+  "version": 9,
+  "schema": [
+    "CREATE TABLE IF NOT EXISTS telegram_operations (\nupdate_id            INTEGER PRIMARY KEY,\nresult_json          TEXT NOT NULL,\ncommitted_at         TEXT NOT NULL,\ndelivery_state       TEXT NOT NULL DEFAULT 'ACTION_READY',\ndelivery_owner       TEXT,\ndelivery_started_at  TEXT,\ndelivered_at         TEXT,\ntelegram_message_id  INTEGER,\ndelivery_attempts    INTEGER NOT NULL DEFAULT 0\n)",
+    "CREATE TABLE IF NOT EXISTS schema_version (\nversion    INTEGER PRIMARY KEY,\napplied_at TEXT NOT NULL,\nnote       TEXT\n)",
+    "CREATE TABLE IF NOT EXISTS users (\nid           TEXT PRIMARY KEY,\ndisplay_name TEXT NOT NULL,\ntimezone     TEXT NOT NULL DEFAULT 'Asia/Taipei',\nstatus       TEXT NOT NULL,\ncreated_at   TEXT NOT NULL,\nupdated_at   TEXT NOT NULL\n)",
+    "CREATE INDEX IF NOT EXISTS idx_users_status ON users (status)",
+    "CREATE TABLE IF NOT EXISTS user_telegram (\ntelegram_chat_id TEXT PRIMARY KEY,\nuser_id          TEXT NOT NULL,\nlinked_at        TEXT NOT NULL,\nstatus           TEXT NOT NULL\n)",
+    "CREATE INDEX IF NOT EXISTS idx_user_telegram_user ON user_telegram (user_id, status)",
+    "CREATE TABLE IF NOT EXISTS user_link_codes (\nid         TEXT PRIMARY KEY,\nuser_id    TEXT NOT NULL,\ncode_hash  TEXT NOT NULL,\ncreated_at TEXT NOT NULL,\nexpires_at TEXT NOT NULL,\nused_at    TEXT,\nused_by    TEXT\n)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_link_code_hash ON user_link_codes (code_hash)",
+    "CREATE INDEX IF NOT EXISTS idx_link_code_user ON user_link_codes (user_id, used_at)",
+    "CREATE TABLE IF NOT EXISTS oauth_states (\nstate_hash  TEXT PRIMARY KEY,\nuser_id     TEXT NOT NULL,\ncreated_at  TEXT NOT NULL,\nexpires_at  TEXT NOT NULL,\nconsumed_at TEXT\n)",
+    "CREATE INDEX IF NOT EXISTS idx_oauth_state_user ON oauth_states (user_id, consumed_at)",
+    "CREATE TABLE IF NOT EXISTS user_whoop_tokens (\nuser_id                 TEXT PRIMARY KEY,\nwhoop_user_id           TEXT,\naccess_token            TEXT NOT NULL,\nrefresh_token           TEXT NOT NULL,\naccess_token_expires_at TEXT NOT NULL,\nscope                   TEXT,\nupdated_at              TEXT NOT NULL\n)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_whoop_account\nON user_whoop_tokens (whoop_user_id) WHERE whoop_user_id IS NOT NULL",
+    "CREATE TABLE IF NOT EXISTS telegram_state (\nkey        TEXT PRIMARY KEY,\nvalue      TEXT,\nupdated_at TEXT NOT NULL\n)",
+    "CREATE TABLE IF NOT EXISTS resource_locks (\nname        TEXT PRIMARY KEY,\nowner       TEXT NOT NULL,\nacquired_at TEXT NOT NULL,\nexpires_at  TEXT NOT NULL\n)",
+    "CREATE TABLE IF NOT EXISTS error_notifications (\nscope            TEXT NOT NULL,\nerror_type       TEXT NOT NULL,\nlast_notified_at TEXT NOT NULL,\nhits             INTEGER NOT NULL DEFAULT 1,\nPRIMARY KEY (scope, error_type)\n)",
+    "CREATE TABLE IF NOT EXISTS report_runs (\nid                  INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id             TEXT NOT NULL,\nreport_type         TEXT NOT NULL,\nlocal_date          TEXT NOT NULL,\nhealth_date         TEXT,\nsleep_id            TEXT,\ncycle_id            TEXT,\ntelegram_message_id INTEGER,\nstatus              TEXT NOT NULL,\ndetail              TEXT,\nsent_at             TEXT NOT NULL\n)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_report_sent\nON report_runs (user_id, report_type, local_date) WHERE status = 'SENT'",
+    "CREATE INDEX IF NOT EXISTS idx_report_lookup\nON report_runs (user_id, report_type, local_date)",
+    "CREATE TABLE IF NOT EXISTS report_claims (\nuser_id             TEXT NOT NULL,\nreport_type         TEXT NOT NULL,\nlocal_date          TEXT NOT NULL,\nowner               TEXT NOT NULL,\nclaimed_at          TEXT NOT NULL,\nexpires_at          TEXT NOT NULL,\ntelegram_sent_at    TEXT,\ntelegram_message_id INTEGER,\ndelivery_state      TEXT NOT NULL DEFAULT 'CLAIMED',\ndelivery_started_at TEXT,\ndelivery_attempts   INTEGER NOT NULL DEFAULT 0,\ndelivery_detail     TEXT,\nPRIMARY KEY (user_id, report_type, local_date)\n)",
+    "CREATE TABLE IF NOT EXISTS briefing_evaluations (\nuser_id                TEXT NOT NULL,\nreport_type            TEXT NOT NULL,\nevaluated_at           TEXT NOT NULL,\nlocal_date             TEXT NOT NULL,\ntarget_health_date     TEXT,\noutcome                TEXT NOT NULL,\nreason                 TEXT,\nretryable              INTEGER NOT NULL DEFAULT 1,\nobservation_age_minutes INTEGER,\nreport_run_id          INTEGER,\ndetail                 TEXT,\ncreated_at             TEXT NOT NULL,\nupdated_at             TEXT NOT NULL,\nPRIMARY KEY (user_id, report_type)\n)",
+    "CREATE INDEX IF NOT EXISTS idx_briefing_eval_outcome\nON briefing_evaluations (outcome, updated_at)",
+    "CREATE TABLE IF NOT EXISTS whoop_sleeps (\nuser_id                       TEXT NOT NULL,\nid                            TEXT NOT NULL,\nv1_id                         INTEGER,\nwhoop_user_id                 INTEGER,\nhealth_date                   TEXT,\nstart_at                      TEXT,\nend_at                        TEXT,\ntimezone_offset               TEXT,\nnap                           INTEGER,\nscore_state                   TEXT,\nrespiratory_rate              REAL,\nsleep_performance_percentage  REAL,\nsleep_consistency_percentage  REAL,\nsleep_efficiency_percentage   REAL,\ntotal_sleep_milli             INTEGER,\nlight_sleep_milli             INTEGER,\nslow_wave_sleep_milli         INTEGER,\nrem_sleep_milli               INTEGER,\nawake_milli                   INTEGER,\nno_data_milli                 INTEGER,\nin_bed_milli                  INTEGER,\ndisturbance_count             INTEGER,\nsleep_cycle_count             INTEGER,\nsleep_need_baseline_milli     INTEGER,\nsleep_debt_milli              INTEGER,\nsleep_need_recent_strain_milli INTEGER,\nsleep_need_recent_nap_milli   INTEGER,\ncreated_at                    TEXT,\nupdated_at                    TEXT,\nsynced_at                     TEXT NOT NULL,\nraw_json                      TEXT,\nPRIMARY KEY (user_id, id)\n)",
+    "CREATE INDEX IF NOT EXISTS idx_sleeps_health_date ON whoop_sleeps (user_id, health_date)",
+    "CREATE INDEX IF NOT EXISTS idx_sleeps_end        ON whoop_sleeps (user_id, end_at)",
+    "CREATE INDEX IF NOT EXISTS idx_sleeps_nap_date   ON whoop_sleeps (user_id, nap, health_date)",
+    "CREATE TABLE IF NOT EXISTS whoop_recoveries (\nuser_id             TEXT NOT NULL,\nsleep_id            TEXT NOT NULL,\ncycle_id            TEXT,\nwhoop_user_id       INTEGER,\nhealth_date         TEXT,\nscore_state         TEXT,\nrecovery_score      REAL,\nhrv_rmssd_milli     REAL,\nresting_heart_rate  REAL,\nspo2_percentage     REAL,\nskin_temp_celsius   REAL,\nuser_calibrating    INTEGER,\ncreated_at          TEXT,\nupdated_at          TEXT,\nsynced_at           TEXT NOT NULL,\nraw_json            TEXT,\nPRIMARY KEY (user_id, sleep_id)\n)",
+    "CREATE INDEX IF NOT EXISTS idx_recoveries_health_date ON whoop_recoveries (user_id, health_date)",
+    "CREATE INDEX IF NOT EXISTS idx_recoveries_cycle       ON whoop_recoveries (user_id, cycle_id)",
+    "CREATE TABLE IF NOT EXISTS whoop_cycles (\nuser_id            TEXT NOT NULL,\nid                 TEXT NOT NULL,\nwhoop_user_id      INTEGER,\nstart_at           TEXT,\nend_at             TEXT,\ntimezone_offset    TEXT,\nscore_state        TEXT,\nstrain             REAL,\nkilojoule          REAL,\naverage_heart_rate REAL,\nmax_heart_rate     REAL,\ncreated_at         TEXT,\nupdated_at         TEXT,\nsynced_at          TEXT NOT NULL,\nraw_json           TEXT,\nPRIMARY KEY (user_id, id)\n)",
+    "CREATE INDEX IF NOT EXISTS idx_cycles_end   ON whoop_cycles (user_id, end_at)",
+    "CREATE INDEX IF NOT EXISTS idx_cycles_start ON whoop_cycles (user_id, start_at)",
+    "CREATE TABLE IF NOT EXISTS whoop_workouts (\nuser_id                TEXT NOT NULL,\nid                     TEXT NOT NULL,\nv1_id                  INTEGER,\nwhoop_user_id          INTEGER,\nhealth_date            TEXT,\nstart_at               TEXT,\nend_at                 TEXT,\ntimezone_offset        TEXT,\nsport_name             TEXT,\nsport_id               INTEGER,\nscore_state            TEXT,\nstrain                 REAL,\naverage_heart_rate     REAL,\nmax_heart_rate         REAL,\nkilojoule              REAL,\npercent_recorded       REAL,\ndistance_meter         REAL,\naltitude_gain_meter    REAL,\naltitude_change_meter  REAL,\nzone_zero_milli        INTEGER,\nzone_one_milli         INTEGER,\nzone_two_milli         INTEGER,\nzone_three_milli       INTEGER,\nzone_four_milli        INTEGER,\nzone_five_milli        INTEGER,\ncreated_at             TEXT,\nupdated_at             TEXT,\nsynced_at              TEXT NOT NULL,\nraw_json               TEXT,\nPRIMARY KEY (user_id, id)\n)",
+    "CREATE INDEX IF NOT EXISTS idx_workouts_health_date ON whoop_workouts (user_id, health_date)",
+    "CREATE INDEX IF NOT EXISTS idx_workouts_start       ON whoop_workouts (user_id, start_at)",
+    "CREATE TABLE IF NOT EXISTS whoop_body_measurements (\nuser_id         TEXT NOT NULL,\nrecorded_at     TEXT NOT NULL,\nheight_meter    REAL,\nweight_kilogram REAL,\nmax_heart_rate  REAL,\nsynced_at       TEXT NOT NULL,\nraw_json        TEXT,\nPRIMARY KEY (user_id, recorded_at)\n)",
+    "CREATE TABLE IF NOT EXISTS whoop_sync_state (\nuser_id           TEXT NOT NULL,\nresource          TEXT NOT NULL,\nbackfill_complete INTEGER NOT NULL DEFAULT 0,\nbackfill_cursor   TEXT,\nearliest_synced   TEXT,\nlatest_synced     TEXT,\nlast_success_at   TEXT,\nlast_error        TEXT,\nlast_error_at     TEXT,\nupdated_at        TEXT NOT NULL,\nPRIMARY KEY (user_id, resource)\n)",
+    "CREATE TABLE IF NOT EXISTS whoop_capabilities (\nuser_id        TEXT NOT NULL,\nkey            TEXT NOT NULL,\nstatus         TEXT NOT NULL,\nsample_count   INTEGER,\nnon_null_count INTEGER,\nlatest_value   TEXT,\nfirst_seen_at  TEXT,\nlast_seen_at   TEXT,\nlast_probed_at TEXT NOT NULL,\ndetail         TEXT,\nPRIMARY KEY (user_id, key)\n)",
+    "CREATE TABLE IF NOT EXISTS journal_events (\nid            INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id       TEXT NOT NULL,\nevent_at      TEXT NOT NULL,\nhealth_date   TEXT NOT NULL,\ncategory      TEXT NOT NULL,\nsubtype       TEXT,\nnumeric_value REAL,\ntext_value    TEXT,\nunit          TEXT,\nseverity      INTEGER,\nnote          TEXT,\nsource        TEXT NOT NULL,\ncreated_at    TEXT NOT NULL,\nupdated_at    TEXT NOT NULL\n)",
+    "CREATE INDEX IF NOT EXISTS idx_journal_health_date ON journal_events (user_id, health_date)",
+    "CREATE INDEX IF NOT EXISTS idx_journal_category    ON journal_events (user_id, category, health_date)",
+    "CREATE INDEX IF NOT EXISTS idx_journal_event_at    ON journal_events (user_id, event_at)",
+    "CREATE TABLE IF NOT EXISTS pending_questions (\nid               INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id          TEXT NOT NULL,\nchat_id          TEXT NOT NULL,\noriginal_message TEXT,\nquestion         TEXT NOT NULL,\nintent           TEXT,\ncontext_json     TEXT,\nasked_at         TEXT NOT NULL,\nexpires_at       TEXT NOT NULL,\nstatus           TEXT NOT NULL,\nanswered_at      TEXT,\nanswer_text      TEXT\n)",
+    "CREATE INDEX IF NOT EXISTS idx_pending_user ON pending_questions (user_id, status)",
+    "CREATE TABLE IF NOT EXISTS telegram_processed_updates (\nupdate_id        INTEGER PRIMARY KEY,\nprocessed_at     TEXT,\nstatus           TEXT NOT NULL DEFAULT 'COMPLETED',\nowner            TEXT,\nclaimed_at       TEXT,\nlease_expires_at TEXT,\ndispatched_at    TEXT,\nattempts         INTEGER NOT NULL DEFAULT 1,\nuser_id          TEXT\n)",
+    "CREATE TABLE IF NOT EXISTS healthspan_metrics (\nid            INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id       TEXT NOT NULL,\ncalculated_at TEXT NOT NULL,\nmetric_key    TEXT NOT NULL,\nvalue         REAL,\nunit          TEXT,\nwindow_days   INTEGER,\nsample_count  INTEGER,\ncoverage      REAL,\navailability  TEXT NOT NULL,\nsource        TEXT,\nconfidence    REAL,\ndetail        TEXT\n)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_healthspan_metric\nON healthspan_metrics (user_id, calculated_at, metric_key)",
+    "CREATE INDEX IF NOT EXISTS idx_healthspan_metric_key\nON healthspan_metrics (user_id, metric_key, calculated_at)",
+    "CREATE TABLE IF NOT EXISTS healthspan_snapshots (\nid                INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id           TEXT NOT NULL,\nsnapshot_date     TEXT NOT NULL,\nalgorithm_version TEXT NOT NULL,\nscore             REAL,\nscore_kind        TEXT,\ncontributors_json TEXT,\ncoverage          REAL,\nstatus            TEXT NOT NULL,\ncreated_at        TEXT NOT NULL\n)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_healthspan_snapshot\nON healthspan_snapshots (user_id, snapshot_date, algorithm_version)",
+    "CREATE TABLE IF NOT EXISTS prediction_runs (\nid              INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id         TEXT NOT NULL,\ntarget_date     TEXT NOT NULL,\ntarget_metric   TEXT NOT NULL,\nmodel_version   TEXT NOT NULL,\nstatus          TEXT NOT NULL,\nfeatures_json   TEXT,\npredicted_value REAL,\npredicted_low   REAL,\npredicted_high  REAL,\nn_train         INTEGER,\ncreated_at      TEXT NOT NULL,\nactual_value    REAL,\nerror           REAL,\nevaluated_at    TEXT\n)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_prediction_run\nON prediction_runs (user_id, target_date, target_metric, model_version)",
+    "CREATE TABLE IF NOT EXISTS health_insights (\nid                  INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id             TEXT NOT NULL,\ninsight_type        TEXT NOT NULL,\nsubject             TEXT NOT NULL,\nstatement           TEXT NOT NULL,\nevidence_json       TEXT,\nsample_count        INTEGER,\neffect_size         REAL,\nconfidence          TEXT,\nstatus              TEXT NOT NULL,\nfirst_detected_at   TEXT NOT NULL,\nlast_confirmed_at   TEXT,\nlast_recalculated_at TEXT,\nversion             INTEGER NOT NULL DEFAULT 1,\nsupersedes_id       INTEGER,\nretired_at          TEXT\n)",
+    "CREATE INDEX IF NOT EXISTS idx_insight_subject ON health_insights (user_id, subject, status)",
+    "CREATE INDEX IF NOT EXISTS idx_insight_active  ON health_insights (user_id, status, insight_type)",
+    "CREATE TABLE IF NOT EXISTS experiments (\nid             INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id        TEXT NOT NULL,\nname           TEXT NOT NULL,\nhypothesis     TEXT,\nintervention   TEXT,\ntarget_metrics TEXT,\nbaseline_start TEXT,\nbaseline_end   TEXT,\nstart_date     TEXT,\nend_date       TEXT,\nstatus         TEXT NOT NULL,\nprotocol_json  TEXT,\nresult_json    TEXT,\ncreated_at     TEXT NOT NULL,\nupdated_at     TEXT NOT NULL\n)",
+    "CREATE INDEX IF NOT EXISTS idx_experiment_status ON experiments (user_id, status)",
+    "CREATE TABLE IF NOT EXISTS ai_usage (\nid                 INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id            TEXT,\ntimestamp          TEXT NOT NULL,\nprovider           TEXT NOT NULL,\nrequested_model    TEXT,\nmodel              TEXT,\nfallback_occurred  INTEGER NOT NULL DEFAULT 0,\npurpose            TEXT NOT NULL,\nprompt_version     TEXT,\ninput_tokens       INTEGER,\noutput_tokens      INTEGER,\ntotal_tokens       INTEGER,\nestimated_cost_usd REAL,\npricing_version    TEXT,\nrequest_status     TEXT NOT NULL,\nlatency_ms         INTEGER,\ndetail             TEXT\n)",
+    "CREATE INDEX IF NOT EXISTS idx_ai_usage_ts      ON ai_usage (user_id, timestamp)",
+    "CREATE INDEX IF NOT EXISTS idx_ai_usage_purpose ON ai_usage (user_id, purpose, timestamp)",
+    "CREATE TABLE IF NOT EXISTS proactive_agent_state (\nuser_id                   TEXT PRIMARY KEY,\nlast_checked_health_date  TEXT,\nlast_fingerprint          TEXT,\nenabled                   INTEGER NOT NULL DEFAULT 1,\nupdated_at                TEXT NOT NULL\n)",
+    "CREATE TABLE IF NOT EXISTS proactive_events (\nid                  INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id             TEXT NOT NULL,\nhealth_date         TEXT NOT NULL,\nidempotency_key     TEXT NOT NULL,\nsignals_json        TEXT,\ndecision            TEXT NOT NULL,\nreason_json         TEXT,\npolicy_version      TEXT NOT NULL,\npending_question_id INTEGER,\njournal_event_id    INTEGER,\nmessage_text        TEXT,\nsent_at             TEXT,\ncreated_at          TEXT NOT NULL,\nresolved_at         TEXT,\noutcome             TEXT\n)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_proactive_event\nON proactive_events (user_id, idempotency_key)",
+    "CREATE INDEX IF NOT EXISTS idx_proactive_user_created\nON proactive_events (user_id, created_at)",
+    "CREATE TABLE IF NOT EXISTS system_heartbeats (\nscope       TEXT NOT NULL,\ncomponent   TEXT NOT NULL,\nlast_ok_at  TEXT NOT NULL,\nlast_detail TEXT,\nupdated_at  TEXT NOT NULL,\nPRIMARY KEY (scope, component)\n)",
+    "CREATE INDEX IF NOT EXISTS idx_heartbeat_component\nON system_heartbeats (component, last_ok_at)",
+    "CREATE TABLE IF NOT EXISTS prediction_models (\nid                  INTEGER PRIMARY KEY AUTOINCREMENT,\nuser_id             TEXT NOT NULL,\ntarget_metric       TEXT NOT NULL,\nmodel_version       TEXT NOT NULL,\nfeatures_json       TEXT,\ntrained_at          TEXT NOT NULL,\ntrain_start         TEXT,\ntrain_end           TEXT,\ntest_start          TEXT,\ntest_end            TEXT,\nn_train             INTEGER,\nn_test              INTEGER,\nmae                 REAL,\nrmse                REAL,\nr2                  REAL,\ninterval_coverage   REAL,\nbaseline_kind       TEXT,\nbaseline_mae        REAL,\nbeats_baseline      INTEGER,\nmaturity            TEXT NOT NULL,\nqualified           INTEGER NOT NULL DEFAULT 0,\nunqualified_reason  TEXT,\npolicy_version      TEXT,\ncreated_at          TEXT NOT NULL\n)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_prediction_model\nON prediction_models (user_id, target_metric, model_version, train_end)",
+    "CREATE INDEX IF NOT EXISTS idx_prediction_model_latest\nON prediction_models (user_id, target_metric, trained_at)"
+  ],
+  "additive": [
+    {
+      "table": "telegram_processed_updates",
+      "column": "status",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN status TEXT NOT NULL DEFAULT 'COMPLETED'"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "owner",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN owner TEXT"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "claimed_at",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN claimed_at TEXT"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "lease_expires_at",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN lease_expires_at TEXT"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "dispatched_at",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN dispatched_at TEXT"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "attempts",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "user_id",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN user_id TEXT"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "delivery_state",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN delivery_state TEXT NOT NULL DEFAULT 'AMBIGUOUS'",
+      "backfill": "UPDATE telegram_operations\n                  SET delivery_state = 'DELIVERED'\n                WHERE update_id IN (\n                  SELECT update_id FROM telegram_processed_updates\n                   WHERE status = 'COMPLETED'\n                )"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "delivery_owner",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN delivery_owner TEXT"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "delivery_started_at",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN delivery_started_at TEXT"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "delivered_at",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN delivered_at TEXT"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "telegram_message_id",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN telegram_message_id INTEGER"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "delivery_attempts",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN delivery_attempts INTEGER NOT NULL DEFAULT 0"
+    },
+    {
+      "table": "report_claims",
+      "column": "delivery_state",
+      "ddl": "ALTER TABLE report_claims ADD COLUMN delivery_state TEXT NOT NULL DEFAULT 'AMBIGUOUS'",
+      "backfill": "UPDATE report_claims\n                  SET delivery_state = 'DELIVERED'\n                WHERE telegram_sent_at IS NOT NULL"
+    },
+    {
+      "table": "report_claims",
+      "column": "delivery_started_at",
+      "ddl": "ALTER TABLE report_claims ADD COLUMN delivery_started_at TEXT"
+    },
+    {
+      "table": "report_claims",
+      "column": "delivery_attempts",
+      "ddl": "ALTER TABLE report_claims ADD COLUMN delivery_attempts INTEGER NOT NULL DEFAULT 0"
+    },
+    {
+      "table": "report_claims",
+      "column": "delivery_detail",
+      "ddl": "ALTER TABLE report_claims ADD COLUMN delivery_detail TEXT"
+    }
+  ]
+}

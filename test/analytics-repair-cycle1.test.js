@@ -116,7 +116,7 @@ test('F01-A / ATTACK 1（真併發）：A 認領 LIGHT、算完、租約過期�
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 3);
-    const claimA = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: LEASE.light, now: NOW });
+    const claimA = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: LEASE.light, now: NOW });
     const g = claimA.generation;
     const dates = ['2026-09-12', '2026-09-13', '2026-09-14'];
     // A 已經算完（rows 在記憶體），還沒持久化；租約過期；B 接手
@@ -125,14 +125,14 @@ test('F01-A / ATTACK 1（真併發）：A 認領 LIGHT、算完、租約過期�
     assert.equal(b.ok, true, b.error); assert.equal(b.generation, g, 'B 認領的是同一代');
     // A 恢復：透過真正的路徑寫（同一代、不同 owner、租約已過期）
     await assert.rejects(
-      e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(111, dates), { owner: 'A', generation: g, now: new Date(later + 1), clock: () => new Date(later + 1) }),
+      e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(111, dates), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, owner: 'A', generation: g, now: new Date(later + 1), clock: () => new Date(later + 1) }),
       /analytics_ownership_lost/,
     );
     const rows = await e.db.getAnalyticsDailyState(ALICE.id);
     assert.equal(rows.length, 3);
     assert.ok(rows.every((r) => r.metrics.respiratory_rate === 222), '★★★ 資料庫裡只有 B 的輸出，A 的 0 列');
     // 也透過工作者路徑（runLightweightAnalysis）試一次
-    await assert.rejects(runLightweightAnalysis({
+    await assert.rejects(runLightweightAnalysis({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db: e.db, userId: ALICE.id, timezone: TZ, generation: g, owner: 'A', range: { from: '2026-09-12', to: '2026-09-14' },
       now: new Date(later + 1), clock: () => new Date(later + 1),
     }), /analytics_ownership_lost/);
@@ -146,13 +146,13 @@ test('F01-B / ATTACK 2（真併發）：HEAVY 預測輸出 —— B 接手寫入
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 3);
-    const claimA = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: HEAVY, owner: 'A', leaseMs: LEASE.heavy, now: NOW });
+    const claimA = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', leaseMs: LEASE.heavy, now: NOW });
     const g = claimA.generation;
     const later = NOW.getTime() + LEASE.heavy + 1;
     const b = await takeover({ url: e.url, userId: ALICE.id, cls: HEAVY, nowMs: later, action: 'prediction', payload: { model: modelFor('B') } });
     assert.equal(b.ok, true, b.error);
     // A 恢復：透過圍欄視圖寫模型 / 預測 / 實際值
-    const { db: fenced, fence } = fencedAnalyticsDb(e.db, { userId: ALICE.id, cls: HEAVY, owner: 'A', generation: g, now: () => new Date(later + 1) });
+    const { db: fenced, fence } = fencedAnalyticsDb(e.db, { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', generation: g, now: () => new Date(later + 1) });
     await assert.rejects(fenced.savePredictionModel(ALICE.id, modelFor('A'), { now: new Date(later + 1) }), /analytics_ownership_lost/);
     await assert.rejects(fenced.savePrediction(ALICE.id, { targetDate: '2026-09-16', targetMetric: 'recovery', modelVersion: 'v-A', status: 'CANDIDATE', features: {}, predictedValue: 50, nTrain: 1 }, { now: new Date(later + 1) }), /analytics_ownership_lost/);
     await assert.rejects(fenced.recordPredictionActual({ userId: ALICE.id, targetDate: '2026-09-16', targetMetric: 'recovery', modelVersion: 'v-A', actualValue: 1 }, { now: new Date(later + 1) }), /analytics_ownership_lost/);
@@ -161,7 +161,7 @@ test('F01-B / ATTACK 2（真併發）：HEAVY 預測輸出 —— B 接手寫入
     assert.deepEqual(models, ['v-B'], '★★★ 只有 B 的模型');
     assert.equal(await rowCount(e.db, 'prediction_runs', ALICE.id), 0);
     // 整條工作者路徑：A 帶著過期租約跑 runHeavyAnalytics → 模組內的寫入被擋 → FENCED
-    const r = await runHeavyAnalytics({ db: e.db, userId: ALICE.id, timezone: TZ, now: new Date(later + 1), fence: { owner: 'A', generation: g, now: () => new Date(later + 1) } }).catch((err) => err);
+    const r = await runHeavyAnalytics({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db: e.db, userId: ALICE.id, timezone: TZ, now: new Date(later + 1), fence: { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, owner: 'A', generation: g, now: () => new Date(later + 1) } }).catch((err) => err);
     assert.equal(r?.message, 'analytics_ownership_lost');
     assert.deepEqual((await e.db.raw.execute({ sql: 'SELECT model_version FROM prediction_models WHERE user_id = ?', args: [ALICE.id] })).rows.map((x) => x.model_version), ['v-B']);
     assert.equal(await rowCount(e.db, 'healthspan_snapshots', ALICE.id), 0);
@@ -172,11 +172,11 @@ test('F01-C / ATTACK 3（真併發）：HEAVY Healthspan 輸出 —— B 接手�
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 3);
-    const claimA = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: HEAVY, owner: 'A', leaseMs: LEASE.heavy, now: NOW });
+    const claimA = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', leaseMs: LEASE.heavy, now: NOW });
     const later = NOW.getTime() + LEASE.heavy + 1;
     const b = await takeover({ url: e.url, userId: ALICE.id, cls: HEAVY, nowMs: later, action: 'healthspan', payload: { snapshot: snapshotFor('B') } });
     assert.equal(b.ok, true, b.error);
-    const { db: fenced } = fencedAnalyticsDb(e.db, { userId: ALICE.id, cls: HEAVY, owner: 'A', generation: claimA.generation, now: () => new Date(later + 1) });
+    const { db: fenced } = fencedAnalyticsDb(e.db, { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', generation: claimA.generation, now: () => new Date(later + 1) });
     await assert.rejects(fenced.saveHealthspanSnapshot(ALICE.id, snapshotFor('A'), { now: new Date(later + 1) }), /analytics_ownership_lost/);
     await assert.rejects(fenced.saveHealthspanMetrics(ALICE.id, [{ metricKey: 'x', value: 1 }], { now: new Date(later + 1) }), /analytics_ownership_lost/);
     const snaps = (await e.db.raw.execute({ sql: 'SELECT algorithm_version FROM healthspan_snapshots WHERE user_id = ?', args: [ALICE.id] })).rows.map((r) => r.algorithm_version);
@@ -189,12 +189,12 @@ test('F01-D 租約過期、沒有人接手 → A 的輸出寫入仍然是 0（LI
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 2);
-    const cl = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: LEASE.light, now: NOW });
-    const ch = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: HEAVY, owner: 'A', leaseMs: LEASE.heavy, now: NOW });
+    const cl = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: LEASE.light, now: NOW });
+    const ch = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', leaseMs: LEASE.heavy, now: NOW });
     const expiredL = new Date(NOW.getTime() + LEASE.light + 1);
     const expiredH = new Date(NOW.getTime() + LEASE.heavy + 1);
-    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { owner: 'A', generation: cl.generation, now: expiredL, clock: () => expiredL }), /analytics_ownership_lost/);
-    const { db: fenced } = fencedAnalyticsDb(e.db, { userId: ALICE.id, cls: HEAVY, owner: 'A', generation: ch.generation, now: () => expiredH });
+    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, owner: 'A', generation: cl.generation, now: expiredL, clock: () => expiredL }), /analytics_ownership_lost/);
+    const { db: fenced } = fencedAnalyticsDb(e.db, { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', generation: ch.generation, now: () => expiredH });
     await assert.rejects(fenced.savePredictionModel(ALICE.id, modelFor('A'), { now: expiredH }), /analytics_ownership_lost/);
     await assert.rejects(fenced.saveHealthspanSnapshot(ALICE.id, snapshotFor('A'), { now: expiredH }), /analytics_ownership_lost/);
     assert.equal(await rowCount(e.db, 'analytics_daily_state', ALICE.id), 0);
@@ -211,15 +211,15 @@ test('F01-E 租約邊界：lease_expires_at == now 算過期 → 0 寫入；now 
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 1);
-    const c = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW });
+    const c = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW });
     const boundary = new Date(NOW.getTime() + 60_000);
-    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { owner: 'A', generation: c.generation, now: boundary, clock: () => boundary }), /analytics_ownership_lost/);
+    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, owner: 'A', generation: c.generation, now: boundary, clock: () => boundary }), /analytics_ownership_lost/);
     assert.equal(await rowCount(e.db, 'analytics_daily_state', ALICE.id), 0);
     const justBefore = new Date(boundary.getTime() - 1);
-    const n = await e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { owner: 'A', generation: c.generation, now: justBefore, clock: () => justBefore });
+    const n = await e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, owner: 'A', generation: c.generation, now: justBefore, clock: () => justBefore });
     assert.equal(n, 1);
     // 錯的 generation 也進不來（同 owner、租約有效）
-    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(2, ['2026-09-14']), { owner: 'A', generation: c.generation + 1, now: NOW, clock: () => NOW }), /analytics_ownership_lost/);
+    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(2, ['2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, owner: 'A', generation: c.generation + 1, now: NOW, clock: () => NOW }), /analytics_ownership_lost/);
     assert.equal((await e.db.getAnalyticsDailyState(ALICE.id))[0].metrics.respiratory_rate, 1);
   } finally { e.done(); }
 });
@@ -252,17 +252,17 @@ test('F01 圍欄在交易層：mutateForAnalytics 的 before / after 都驗，fn
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 1);
-    const c = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: HEAVY, owner: 'A', leaseMs: 60_000, now: NOW });
+    const c = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', leaseMs: 60_000, now: NOW });
     let ran = false;
-    await assert.rejects(e.db.mutateForAnalytics({ userId: ALICE.id, cls: HEAVY, owner: 'nobody', generation: c.generation, now: () => NOW }, async () => { ran = true; }), /analytics_ownership_lost/);
+    await assert.rejects(e.db.mutateForAnalytics({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'nobody', generation: c.generation, now: () => NOW }, async () => { ran = true; }), /analytics_ownership_lost/);
     assert.equal(ran, false, 'before 檢查擋下 → fn 不執行');
-    await assert.rejects(e.db.mutateForAnalytics({ userId: ALICE.id, cls: HEAVY, owner: 'A', generation: c.generation, now: () => NOW }, async () => {
+    await assert.rejects(e.db.mutateForAnalytics({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', generation: c.generation, now: () => NOW }, async () => {
       await e.db.savePredictionModel(ALICE.id, modelFor('A'), { now: NOW });
       throw new Error('boom');
     }), /boom/);
     assert.equal(await rowCount(e.db, 'prediction_models', ALICE.id), 0, '回滾');
-    await assert.rejects(e.db.mutateForAnalytics({ userId: ALICE.id, cls: 'bogus', owner: 'A', generation: 1 }, async () => {}), /invalid_analytics_class/);
-    await assert.rejects(e.db.mutateForAnalytics({ userId: ALICE.id, cls: HEAVY, owner: 'A', generation: 'x' }, async () => {}), /generation_required/);
+    await assert.rejects(e.db.mutateForAnalytics({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: 'bogus', owner: 'A', generation: 1 }, async () => {}), /invalid_analytics_class/);
+    await assert.rejects(e.db.mutateForAnalytics({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', generation: 'x' }, async () => {}), /generation_required/);
   } finally { e.done(); }
 });
 
@@ -620,15 +620,15 @@ test('F03 store 規則：advanceAnalyticsRange 的 CAS（owner / 租約 / range_
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 1);
-    const c = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW });
-    assert.ok(await e.db.setAnalyticsRange({ userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, from: '2026-01-01', to: '2026-03-01', now: NOW }));
-    assert.equal(await e.db.advanceAnalyticsRange({ userId: ALICE.id, cls: LIGHT, owner: 'B', generation: c.generation, chunkTo: '2026-03-01', newTo: '2026-02-01', now: NOW }), false, '別人');
-    assert.equal(await e.db.advanceAnalyticsRange({ userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation + 1, chunkTo: '2026-03-01', newTo: '2026-02-01', now: NOW }), false, '錯的代');
-    assert.equal(await e.db.advanceAnalyticsRange({ userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, chunkTo: '2026-02-28', newTo: '2026-02-01', now: NOW }), false, '上緣不符');
-    assert.equal(await e.db.advanceAnalyticsRange({ userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, chunkTo: '2026-03-01', newTo: '2026-02-01', now: new Date(NOW.getTime() + 60_000) }), false, '租約到期');
-    assert.equal(await e.db.advanceAnalyticsRange({ userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, chunkTo: '2026-03-01', newTo: '2026-02-01', now: NOW }), true);
+    const c = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW });
+    assert.ok(await e.db.setAnalyticsRange({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, from: '2026-01-01', to: '2026-03-01', now: NOW }));
+    assert.equal(await e.db.advanceAnalyticsRange({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'B', generation: c.generation, chunkTo: '2026-03-01', newTo: '2026-02-01', now: NOW }), false, '別人');
+    assert.equal(await e.db.advanceAnalyticsRange({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation + 1, chunkTo: '2026-03-01', newTo: '2026-02-01', now: NOW }), false, '錯的代');
+    assert.equal(await e.db.advanceAnalyticsRange({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, chunkTo: '2026-02-28', newTo: '2026-02-01', now: NOW }), false, '上緣不符');
+    assert.equal(await e.db.advanceAnalyticsRange({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, chunkTo: '2026-03-01', newTo: '2026-02-01', now: new Date(NOW.getTime() + 60_000) }), false, '租約到期');
+    assert.equal(await e.db.advanceAnalyticsRange({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, chunkTo: '2026-03-01', newTo: '2026-02-01', now: NOW }), true);
     assert.equal((await work(e.db, ALICE, LIGHT)).rangeTo, '2026-02-01');
-    assert.equal(await e.db.advanceAnalyticsRange({ userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, chunkTo: '2026-02-01', newTo: null, now: NOW }), true);
+    assert.equal(await e.db.advanceAnalyticsRange({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, chunkTo: '2026-02-01', newTo: null, now: NOW }), true);
     const w = await work(e.db, ALICE, LIGHT);
     assert.equal(w.rangeFrom, null); assert.equal(w.rangeTo, null);
   } finally { e.done(); }
@@ -653,7 +653,7 @@ test('遷移 v12 → v13：三個 nullable 欄位純新增；既有 canonical / 
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (12, '2026-09-12T00:00:00.000Z', 'v12')");
     for (const c of COLS) assert.ok(!(await cols()).includes(c));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 12); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 18);
+    assert.equal(s.from, 12); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 19);
     assert.deepEqual(s.rebuilt, []);
     assert.deepEqual(s.columnsAdded, COLS.map((c) => `analytics_work_state.${c}`));
     const tables = (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.map((r) => String(r.name));

@@ -201,7 +201,8 @@ async function persistCanonical({ db, userId, kind, record, timezone, now }) {
  *
  * @param {object} event     claimWhoopEvent 回來的事件
  * @param {string} owner     我們的所有權 token
- * @param {function} whoopFor (userId) => whoop client（重用既有的 token 圍欄）
+ * @param {function} whoopFor (userId, { expectedLifecycleGeneration }) => whoop client
+ *   （重用既有的 token 圍欄；啟用脈絡讓例行 refresh 也受同一段啟用期約束）
  */
 export async function processWhoopEvent({
   db, event, owner, whoopFor, now = () => new Date(),
@@ -329,7 +330,9 @@ export async function processWhoopEvent({
   // ---- 3. UPDATED：向 WHOOP 取 canonical ----------------------------------
   let fetched;
   try {
-    const whoop = whoopFor(userId);
+    // ★ R3 / R2-FG-01：client 也要帶啟用脈絡 —— 抓資料途中可能觸發
+    // 例行 refresh，而那個寫入必須屬於同一段啟用期。
+    const whoop = await whoopFor(userId, { expectedLifecycleGeneration: eventLifecycleGeneration });
     fetched = await fetchCanonical({
       whoop, resourceType: event.resourceType, resourceId: event.resourceId,
     });

@@ -1,3 +1,4 @@
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -50,7 +51,7 @@ for (const attack of attacks) test(`production health output never consumes prov
   for (const run of [runDaily, runWeekly]) {
     const data = makeDataset({ days: 45, now: new Date('2026-08-24T00:00:00Z') });
     const telegram = fakeTelegram();
-    await run({ db: fakeDb(), userId: 'alice', coach, telegram, source: staticDataSource(data), timezone: 'UTC', now: data.now });
+    await run({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db: fakeDb(), userId: 'alice', coach, telegram, source: staticDataSource(data), timezone: 'UTC', now: data.now });
     assert.match(telegram.sent[0], /HRV/);
     // ★ 契約變更（V1.1）：敘述層恢復了，所以模型**會**被呼叫。
     // 不變的是結論：它的產出永遠不可以成為已發布的生理宣稱。

@@ -14,7 +14,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
   LINK_STATUS, USER_STATUS, ONBOARDING_STATE, isSafePrivateChatId, unsafeChatReason,
-  lifecycleActiveSql,
+  lifecycleActiveSql, SCHEMA,
 } from './schema.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
@@ -29,6 +29,14 @@ export function hashSecret(raw) {
 }
 
 const iso = (d) => (d instanceof Date ? d : new Date(d)).toISOString();
+
+// A claim-race loser has no owned rows at all. Derive the checks from our
+// schema so journal, canonical, claim and future user-owned tables are covered.
+const orphanOwnershipGuard = SCHEMA.flatMap((sql) => {
+  const table = /^CREATE TABLE IF NOT EXISTS (\w+)\s*\(/.exec(sql)?.[1];
+  return table && /\n\s*user_id\s/.test(sql)
+    ? [`NOT EXISTS (SELECT 1 FROM ${table} debris WHERE debris.user_id = users.id)`] : [];
+}).join('\n                 AND ');
 
 function rowToUser(row) {
   if (!row) return null;
@@ -142,15 +150,20 @@ export function createIdentityStore(client, { transaction = null } = {}) {
       throw lastErr;
     };
 
-    // 孤兒列：單句原子轉移，不開交易（見 orphanCleanupOnly 的說明）。
+    // Only disable a pristine claim-race loser. A meaningful account is rejected;
+    // callers needing a real lifecycle transition must use the normal path.
     if (orphanCleanupOnly) {
-      const one = await client.execute({
+      if (targetStatus !== USER_STATUS.DISABLED) throw new Error('orphan_cleanup_requires_disable');
+      const one = await withBusyRetry(() => client.execute({
         sql: `UPDATE users
                  SET status = ?, lifecycle_generation = lifecycle_generation + 1, updated_at = ?
-               WHERE id = ? AND status <> ?`,
-        args: [targetStatus, ts, uid, targetStatus],
-      });
-      return { changed: Number(one.rowsAffected ?? 0) > 0, reason: 'orphan' };
+               WHERE id = ? AND status = 'ACTIVE' AND lifecycle_generation = 1
+                 AND (? IS NULL OR status = ?)
+                 AND ${orphanOwnershipGuard}`,
+        args: [targetStatus, ts, uid, expectedCurrentStatus, expectedCurrentStatus],
+      }));
+      if (Number(one.rowsAffected ?? 0) > 0) return { changed: true, reason: 'orphan' };
+      return { changed: false, reason: 'not_claim_race_debris' };
     }
 
     // ---- ★ R2：整個轉移是**一個**交易 ------------------------------------

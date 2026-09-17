@@ -266,13 +266,21 @@ export async function probeCapabilities({
     }
   };
 
-  const [sleeps, recoveries, cycles, workouts, bodyMeasurement] = await Promise.all([
-    tryFetch('sleep', () => whoop.sleeps(start, now)),
-    tryFetch('recovery', () => whoop.recoveries(start, now)),
-    tryFetch('cycle', () => whoop.cycles(start, now)),
-    tryFetch('workout', () => whoop.workouts(start, now)),
-    tryFetch('body_measurement', () => whoop.bodyMeasurement()),
-  ]);
+  // ---- ★ R3 / R2-STAGE-01：盤點的五個 provider 階段**依序**執行 ----------
+  //
+  // 舊版用 Promise.all 同時發出五個請求，於是「帳號在第一個回來之後被停用」
+  // 這件事沒有任何邊界可以攔：其餘四個早就在飛了。改成依序、每個階段開始
+  // 之前驗一次啟用脈絡（受約束時）。代價是盤點多花幾百毫秒，換到的是
+  // 停用之後不會再對 provider 發出任何新的健康請求。
+  const stage = async (resource, fn) => {
+    if (lifecycleFence !== null) await db.assertAccountActive(uid, lifecycleFence);
+    return tryFetch(resource, fn);
+  };
+  const sleeps = await stage('sleep', () => whoop.sleeps(start, now));
+  const recoveries = await stage('recovery', () => whoop.recoveries(start, now));
+  const cycles = await stage('cycle', () => whoop.cycles(start, now));
+  const workouts = await stage('workout', () => whoop.workouts(start, now));
+  const bodyMeasurement = await stage('body_measurement', () => whoop.bodyMeasurement());
 
   const entries = computeCapabilities({
     sleeps, recoveries, cycles, workouts, bodyMeasurement, timezone, scopeErrors,

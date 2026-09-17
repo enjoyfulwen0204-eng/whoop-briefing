@@ -47,7 +47,7 @@ test('★ 沒有健康資料表時，簡報與以前完全一樣（向後相容�
     timezone: TZ,
     now: ds.now,
   };
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent');
 
   const text = ctx.telegram.sent[0];
@@ -80,7 +80,7 @@ test('★ 分析層爆炸時，簡報照樣發（只是沒有那一段）', asyn
     now: ds.now,
   };
 
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent', '★ 分析掛掉不可以讓簡報失敗');
   assert.equal(ctx.telegram.sent.length, 1);
   assert.match(ctx.telegram.sent[0], /HRV/);
@@ -188,7 +188,7 @@ test('★ 有長期資料且今天明顯偏離 → 簡報出現「今天最值�
       timezone: TZ,
       now,
     };
-    const res = await runDaily(ctx);
+    const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
     assert.equal(res.status, 'sent');
 
     const text = ctx.telegram.sent[0];
@@ -240,7 +240,7 @@ test('資料很平穩時不會硬報「值得注意」（不製造雜訊）', as
       timezone: TZ,
       now,
     };
-    await runDaily(ctx);
+    await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
     const text = ctx.telegram.sent[0];
     // 平穩資料下最多只該有很弱的項目；至少不可以塞滿
     const changeLines = text.split('\n').filter((l) => l.startsWith('· ') && /z=/.test(l));

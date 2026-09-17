@@ -30,8 +30,7 @@ import { probeCapabilities } from '../src/capabilities.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { deliverReport, DELIVERY_RESULT } from '../src/reportDelivery.js';
 import {
-  LIFECYCLE_UNFENCED, LifecycleContextError, withDeliveryAuthorization,
-} from '../src/accountLifecycle.js';
+  LIFECYCLE_UNFENCED, LifecycleContextError, withDeliveryAuthorization } from '../src/accountLifecycle.js';
 import {
   ONBOARDING_STATE, USER_STATUS, ANALYTICS_CLASS, REPORT_DELIVERY_STATE, SCHEMA_VERSION,
 } from '../src/schema.js';
@@ -130,6 +129,13 @@ test('R2-API-01 ★★★ 正式健康 API 缺少啟用脈絡 → 大聲失敗�
         db: e.db, userId: user.id, clientId: 'c', clientSecret: 's', authorization: snapshot,
       }),
       LifecycleContextError, '★★★ 受授權約束的 client 也必須帶啟用脈絡',
+    );
+
+    // ★ R3 / R2-FG-01：連**不受授權約束**的一般 client 也不可以少了啟用脈絡 ——
+    // 那正是排程器、手動同步、對帳會做例行 refresh 的那種 client。
+    assert.throws(
+      () => createWhoopClient({ db: e.db, userId: user.id, clientId: 'c', clientSecret: 's' }),
+      LifecycleContextError, '★★★ 一般執行期 client 少了脈絡必須拋錯',
     );
 
     // 明確的豁免可以用（而且看得見）
@@ -742,7 +748,7 @@ test('MIG-LIFE-05/06 非 ACTIVE 維持不動；沒有世代出處的舊 OAuth st
 });
 
 test('MIG-LIFE-01 schema 版本推進到 18，而且新欄位都是可為 NULL 的純新增', async () => {
-  assert.equal(SCHEMA_VERSION, 18);
+  assert.equal(SCHEMA_VERSION, 19);
   const { ADDITIVE_COLUMNS } = await import('../src/schema.js');
   const added = ADDITIVE_COLUMNS.filter((c) => /lifecycle/.test(c.column));
   assert.ok(added.length >= 4);

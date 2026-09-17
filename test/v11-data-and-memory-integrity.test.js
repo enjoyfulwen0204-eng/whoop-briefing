@@ -23,6 +23,7 @@ import {
 import { createDb } from '../src/db.js';
 import { createWhoopClient, refreshTokens } from '../src/whoop.js';
 import { LOCKS } from '../src/config.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 
 const TZ = 'UTC';
 
@@ -292,7 +293,7 @@ test('★★★ M-02/3: A 租約過期 → B 寫入新 token → A 回來時被�
     const v1 = await db.getTokens(uid);
 
     let released = null;
-    const client = createWhoopClient({
+    const client = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: uid, clientId: 'c', clientSecret: 's',
       tokenUrl: 'https://example.invalid/token',
       // A 的 refresh 請求「卡住」：在它回來之前，B 已經完成整輪 refresh。
@@ -337,7 +338,7 @@ test('★★★ M-02/3b: 租約看起來還在，但 DB 已經前進 → CAS 仍
     });
     const v1 = await db.getTokens(uid);
 
-    const client = createWhoopClient({
+    const client = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: uid, clientId: 'c', clientSecret: 's',
       tokenUrl: 'https://example.invalid/token',
       fetchImpl: async () => {

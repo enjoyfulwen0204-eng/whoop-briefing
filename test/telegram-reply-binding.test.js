@@ -61,7 +61,7 @@ async function withBot(fn) {
 
 test('★★★ HRD-R03 A: 正確綁定的使用者，回覆必須送出去', async () => {
   await withBot(async ({ user, sent, sendReply }) => {
-    await sendReply({ chatId: CHAT, reply: '已記錄：啤酒 2 杯', userId: user.id });
+    await sendReply({ expectedLifecycleGeneration: user.lifecycleGeneration, chatId: CHAT, reply: '已記錄：啤酒 2 杯', userId: user.id });
 
     assert.equal(sent.length, 1,
       '★ 正確綁定的使用者不可以收不到回覆（舊版在這裡吞掉每一則）');
@@ -95,7 +95,7 @@ test('★★★ HRD-R03 B: chat 已經換綁給別人 → 不可以把前一個�
     await db.revokeTelegramLink(CHAT);
     await db.linkTelegram({ chatId: CHAT, userId: other.id });
 
-    await sendReply({ chatId: CHAT, reply: '你的 HRV 偏低', userId: user.id });
+    await sendReply({ expectedLifecycleGeneration: user.lifecycleGeneration, chatId: CHAT, reply: '你的 HRV 偏低', userId: user.id });
 
     assert.equal(sent.length, 0,
       '★ 絕不可以把一個人的生理資料送進現在屬於別人的 chat');
@@ -108,7 +108,7 @@ test('★★★ HRD-R03 B2: 新的擁有者自己的回覆仍然送得出去', a
     await db.revokeTelegramLink(CHAT);
     await db.linkTelegram({ chatId: CHAT, userId: other.id });
 
-    await sendReply({ chatId: CHAT, reply: '早安', userId: other.id });
+    await sendReply({ expectedLifecycleGeneration: other.lifecycleGeneration, chatId: CHAT, reply: '早安', userId: other.id });
 
     assert.equal(sent.length, 1, '★ 守衛只擋不相符的，不可以連對的也擋');
   });
@@ -121,7 +121,7 @@ test('★★★ HRD-R03 B2: 新的擁有者自己的回覆仍然送得出去', a
 test('★★★ HRD-R03 C: 綁定已被撤銷 → fail closed，不送', async () => {
   await withBot(async ({ db, user, sent, sendReply }) => {
     await db.revokeTelegramLink(CHAT);
-    await sendReply({ chatId: CHAT, reply: '你的恢復是 65%', userId: user.id });
+    await sendReply({ expectedLifecycleGeneration: user.lifecycleGeneration, chatId: CHAT, reply: '你的恢復是 65%', userId: user.id });
     assert.equal(sent.length, 0, '★ 解析不到就不可以送');
   });
 });
@@ -129,7 +129,7 @@ test('★★★ HRD-R03 C: 綁定已被撤銷 → fail closed，不送', async (
 test('★★★ HRD-R03 C2: 使用者被停用 → fail closed，不送', async () => {
   await withBot(async ({ db, user, sent, sendReply }) => {
     await db.transitionUserLifecycle({ userId: user.id, targetStatus: 'DISABLED' });
-    await sendReply({ chatId: CHAT, reply: '你的恢復是 65%', userId: user.id });
+    await sendReply({ expectedLifecycleGeneration: user.lifecycleGeneration, chatId: CHAT, reply: '你的恢復是 65%', userId: user.id });
     assert.equal(sent.length, 0, '★ 使用者不是 ACTIVE 就不可以送');
   });
 });

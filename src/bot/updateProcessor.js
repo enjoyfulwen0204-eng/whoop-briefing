@@ -359,10 +359,8 @@ export function createUpdateProcessor({
       ? await db.getTelegramOperation(updateId) : null;
     const state = op?.deliveryState ?? null;
 
-    if (state === TELEGRAM_DELIVERY_STATE.DELIVERED
-        || state === TELEGRAM_DELIVERY_STATE.NOT_REQUIRED) {
-      return { outcome: 'delivered' };
-    }
+    if (state === TELEGRAM_DELIVERY_STATE.DELIVERED) return { outcome: 'delivered' };
+    if (state === TELEGRAM_DELIVERY_STATE.NOT_REQUIRED) return { outcome: 'suppressed' };
     if (state === TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED
         || state === TELEGRAM_DELIVERY_STATE.AMBIGUOUS) {
       // 上一次走到一半死了，或結果不明 —— Telegram 可能已經收下了。
@@ -421,7 +419,7 @@ export function createUpdateProcessor({
       if (typeof db.markDeliverySuppressed === 'function') {
         await db.markDeliverySuppressed(updateId, { owner: attemptId, now: now() });
       }
-      return { outcome: 'delivered' };
+      return { outcome: 'suppressed' };
     }
 
     if (typeof db.markDelivered === 'function') {
@@ -559,7 +557,12 @@ export function createUpdateProcessor({
         const reply = await handleMessage({
           text: c.text, chatId: c.chatId, message: c.message, user: c.user,
         });
-        return { chatId: c.chatId, reply, userId: c.user.id };
+        return {
+          chatId: c.chatId, reply, userId: c.user.id,
+          // ★ R3 / R2-QA-DELIVERY-01：帶到**最終送出**那一刻。
+          expectedLifecycleGeneration: Number.isInteger(c.user?.lifecycleGeneration)
+            ? c.user.lifecycleGeneration : null,
+        };
       };
 
       // 動作與收據共用同一個交易。提交之後重播會拿回存起來的回覆，
@@ -614,8 +617,8 @@ export function createUpdateProcessor({
           ambiguous = d.outcome === 'ambiguous';
           replied = d.outcome === 'delivered';
         } else {
-          await sendReply(result);
-          replied = true;
+          const sent = await sendReply(result);
+          replied = sent?.sent !== false;
         }
       }
 

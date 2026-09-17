@@ -30,8 +30,9 @@ const lifecycle = lifecycleContextFor(user);
 try {
   await db.migrate();
   const whoop = createWhoopClient({
-  db,
-  userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+    db,
+    userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+    expectedLifecycleGeneration: lifecycle,
   });
 
   let round = 0;

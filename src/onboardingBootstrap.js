@@ -124,6 +124,7 @@ export function syncUsable(results = [], { required = ONBOARDING.REQUIRED_SCOPES
  */
 export async function runOnboardingBootstrap({
   db, userId, env, now = () => new Date(), deps = {},
+  expectedLifecycleGeneration: entryLifecycleGeneration,
 }) {
   const uid = requireUserId(userId, 'runOnboardingBootstrap');
   const {
@@ -159,7 +160,8 @@ export async function runOnboardingBootstrap({
     //
     // 捕捉到的世代之後會跟著整輪跑，而且每一個耐久變更都會在 SQL 裡再證明
     // 一次 —— 因為帳號可能在這之後才被停用（甚至停用又啟用，見 ABA）。
-    if (user.status !== USER_STATUS.ACTIVE) {
+    if (user.status !== USER_STATUS.ACTIVE
+        || (entryLifecycleGeneration !== undefined && user.lifecycleGeneration !== entryLifecycleGeneration)) {
       log.info('onboarding_account_inactive', { user_id: uid, user_status: user.status });
       return { userId: uid, result: BOOTSTRAP_RESULT.ACCOUNT_INACTIVE, reason: `status:${user.status}` };
     }

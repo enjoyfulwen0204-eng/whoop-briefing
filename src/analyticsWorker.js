@@ -28,6 +28,7 @@
  * （getAnalyticsFreshness）。這是 Phase 4 判斷「重量分析是不是最新」的依據。
  */
 
+import { requireLifecycle, LIFECYCLE_UNFENCED } from './accountLifecycle.js';
 import { ANALYTICS_WORK } from './config.js';
 import { ANALYTICS_CLASS, ANALYTICS_RESULT } from './schema.js';
 import { requireUserId } from './userContext.js';
@@ -54,7 +55,7 @@ export function analyticsBackoffMs(consecutiveFailures, {
 }
 
 export function classifyAnalyticsError(err) {
-  if (err?.message === 'analytics_ownership_lost') return { class: ANALYTICS_ERROR_CLASS.FENCED, retryable: false };
+  if (/analytics_ownership_lost|analytics_account_inactive/.test(err?.message ?? '')) return { class: ANALYTICS_ERROR_CLASS.FENCED, retryable: false };
   if (err?.code === 'analytics_input_incomplete') return { class: ANALYTICS_ERROR_CLASS.INPUT_INCOMPLETE, retryable: true };
   if (err?.code === 'analytics_module_failed') return { class: ANALYTICS_ERROR_CLASS.MODULE_FAILED, retryable: true };
   if (/SQLITE|libsql|database/i.test(String(err?.code ?? err?.message ?? ''))) return { class: ANALYTICS_ERROR_CLASS.DB, retryable: true };
@@ -119,9 +120,11 @@ export function nextLightChunk({ from, to }, { maxDays = ANALYTICS_WORK.LIGHT_MA
  * @returns {{days:number, from:string, to:string, anchorDate:?string, dailyStatus:string}}
  */
 export async function runLightweightAnalysis({
-  db, userId, timezone, generation, owner, range, now = new Date(), clock = () => new Date(),
+  db, userId, timezone, generation, owner, range, expectedLifecycleGeneration,
+  now = new Date(), clock = () => new Date(),
 }) {
   const uid = requireUserId(userId, 'runLightweightAnalysis');
+  requireLifecycle(expectedLifecycleGeneration, 'runLightweightAnalysis');
   const coverage = await db.coverage(uid);
   const anchorDate = coverage?.last_date ?? null;
   if (!range) {
@@ -138,7 +141,9 @@ export async function runLightweightAnalysis({
     daily_status: assessDailyState({ rows: [m], anchorDate: m.health_date, now }).status,
     metrics: m,
   }));
-  const days = await db.saveAnalyticsDailyState(uid, rows, { owner, generation, now, clock });
+  const days = await db.saveAnalyticsDailyState(uid, rows, {
+    owner, generation, expectedLifecycleGeneration, now, clock,
+  });
   const anchorRow = detailed.rows.find((r) => r.health_date === anchorDate) ?? null;
   const dailyStatus = assessDailyState({ rows: anchorRow ? [anchorRow] : [], anchorDate, now }).status;
   return { days, from: range.from, to: range.to, anchorDate, dailyStatus };
@@ -158,21 +163,24 @@ export const HEAVY_OUTPUT_WRITERS = Object.freeze([
 ]);
 
 export function fencedAnalyticsDb(db, {
-  userId, cls, owner, generation, expectedLifecycleGeneration = null, now,
+  userId, cls, owner, generation, expectedLifecycleGeneration, now,
 }) {
   if (typeof now !== 'function') throw new Error('analytics_live_clock_required');
+  requireLifecycle(expectedLifecycleGeneration, 'fencedAnalyticsDb');
   const fence = { lost: false, blockedWrites: 0 };
   const view = { ...db };
   for (const name of HEAVY_OUTPUT_WRITERS) {
     if (typeof db[name] !== 'function') continue;
     view[name] = async (...args) => {
+      const outputUserId = name === 'recordPredictionActual' ? args[0]?.userId : args[0];
+      if (outputUserId !== userId) throw new Error('analytics_output_user_mismatch');
       try {
         return await db.mutateForAnalytics(
           { userId, cls, owner, generation, expectedLifecycleGeneration, now },
           () => db[name](...args),
         );
       } catch (err) {
-        if (err?.message === 'analytics_ownership_lost') { fence.lost = true; fence.blockedWrites += 1; }
+        if (/analytics_ownership_lost|analytics_account_inactive/.test(err?.message ?? '')) { fence.lost = true; fence.blockedWrites += 1; }
         throw err;
       }
     };
@@ -189,8 +197,10 @@ export function fencedAnalyticsDb(db, {
  * FAILED，成功的模組輸出保留（它們自己寫自己的表），下一輪重算全部。
  * 這樣 heavy 的「CURRENT」才是一個誠實的整體宣稱。
  */
-export async function runHeavyAnalytics({ db, userId, timezone, now = new Date(), deps = {}, fence = null }) {
+export async function runHeavyAnalytics({ db, userId, timezone, now = new Date(), deps = {}, fence = null, expectedLifecycleGeneration }) {
   const uid = requireUserId(userId, 'runHeavyAnalytics');
+  requireLifecycle(fence?.expectedLifecycleGeneration ?? expectedLifecycleGeneration, 'runHeavyAnalytics');
+  if (!fence && expectedLifecycleGeneration !== LIFECYCLE_UNFENCED) throw new Error('analytics_ownership_required');
   const { predictionCycle = runPredictionCycle, healthspan = runHealthspanSnapshot } = deps;
   const anchor = (await db.coverage(uid))?.last_date ?? null;
   if (!anchor) return { anchorDate: null, modules: {}, failed: [] };
@@ -233,7 +243,7 @@ export async function runHeavyAnalytics({ db, userId, timezone, now = new Date()
     });
     modules.prediction = { maturity: p?.maturity ?? null, qualified: Boolean(p?.qualified), modelSaved: Boolean(p?.modelSaved) };
   } catch (err) {
-    if (err?.message === 'analytics_ownership_lost') throw err;
+    if (/analytics_ownership_lost|analytics_account_inactive/.test(err?.message ?? '')) throw err;
     failed.push('prediction');
     modules.prediction = { error: describeError(err) };
     log.error('analytics_heavy_prediction_failed', { user_id: uid, error: describeError(err) });
@@ -244,7 +254,7 @@ export async function runHeavyAnalytics({ db, userId, timezone, now = new Date()
     if (h?.error) throw new Error('healthspan_snapshot_failed');
     modules.healthspan = { maturity: h?.maturity ?? null, saved: Boolean(h?.saved) };
   } catch (err) {
-    if (err?.message === 'analytics_ownership_lost') throw err;
+    if (/analytics_ownership_lost|analytics_account_inactive/.test(err?.message ?? '')) throw err;
     failed.push('healthspan');
     modules.healthspan = { error: describeError(err) };
     log.error('analytics_heavy_healthspan_failed', { user_id: uid, error: describeError(err) });
@@ -275,6 +285,9 @@ export async function processAnalyticsForUser({
   const account = await db.getUser(uid).catch(() => null);
   const expectedLifecycleGeneration = Number.isInteger(account?.lifecycleGeneration)
     ? account.lifecycleGeneration : null;
+  if (!expectedLifecycleGeneration || account.status !== 'ACTIVE') {
+    return { userId: uid, cls, result: ANALYTICS_RESULT.SKIPPED, reason: 'account_inactive' };
+  }
   const claim = await db.claimAnalyticsWork({
     userId: uid, cls, owner, leaseMs, expectedLifecycleGeneration, now: at(),
   });
@@ -284,7 +297,7 @@ export async function processAnalyticsForUser({
 
   const release = async (reason, nextAttemptAt = null) => {
     // 沒有要算：釋放租約，不記成功也不記失敗（done 不動）。
-    await db.releaseAnalyticsWork({ userId: uid, cls, owner, nextAttemptAt, now: at() });
+    await db.releaseAnalyticsWork({ expectedLifecycleGeneration, userId: uid, cls, owner, nextAttemptAt, now: at() });
     return { userId: uid, cls, result: ANALYTICS_RESULT.SKIPPED, reason, generation };
   };
   if (!force && generation <= claim.doneGeneration) return release('already_current');
@@ -312,16 +325,17 @@ export async function processAnalyticsForUser({
         summary = { days: 0, from: null, to: null, anchorDate, dailyStatus: 'NO_DATA' };
       } else {
         if (!(claim.rangeGeneration === generation && carried)) {
-          const set = await db.setAnalyticsRange({ userId: uid, cls, owner, generation, from: remaining.from, to: remaining.to, now: at() });
+          const set = await db.setAnalyticsRange({ expectedLifecycleGeneration, userId: uid, cls, owner, generation, from: remaining.from, to: remaining.to, now: at() });
           if (!set) throw new Error('analytics_ownership_lost');
         }
         const { chunk, remainingTo, complete } = nextLightChunk(remaining);
         summary = await runLightweightAnalysis({
+          expectedLifecycleGeneration,
           // now = 這一片的分析錨點（穩定）；clock = 活時鐘，只給租約證明用。
           db, userId: uid, timezone: user.timezone, generation, owner, range: chunk, now: at(), clock: at,
         });
         // 這一片完成 → 縮剩餘範圍（owner + 租約 + range_generation + range_to 的 CAS）
-        const advanced = await db.advanceAnalyticsRange({
+        const advanced = await db.advanceAnalyticsRange({ expectedLifecycleGeneration,
           userId: uid, cls, owner, generation, chunkTo: chunk.to, newTo: remainingTo, now: at(),
         });
         if (!advanced) throw new Error('analytics_ownership_lost');
@@ -337,7 +351,7 @@ export async function processAnalyticsForUser({
 
     if (partial) {
       // 還有剩餘範圍：不結案（done 不動），只釋放租約讓下一輪（或別的工作者）接續。
-      const released = await db.releaseAnalyticsWork({ userId: uid, cls, owner, now: at() });
+      const released = await db.releaseAnalyticsWork({ expectedLifecycleGeneration, userId: uid, cls, owner, now: at() });
       const result = released ? ANALYTICS_RESULT.PARTIAL : ANALYTICS_RESULT.FENCED;
       await db.closeAnalyticsRun(runId, { result, detail: summary, now: at() });
       log.info('analytics_partial', { user_id: uid, class: cls, generation, remaining: summary.remaining });
@@ -345,10 +359,11 @@ export async function processAnalyticsForUser({
     }
 
     // 結案前再驗一次所有權：租約過期被接手的話，這裡的結果不能寫成「最新」。
-    if (!await db.holdsAnalyticsWork({ userId: uid, cls, owner, now: at() })) throw new Error('analytics_ownership_lost');
+    if (!await db.holdsAnalyticsWork({ expectedLifecycleGeneration, userId: uid, cls, owner, now: at() })) throw new Error('analytics_ownership_lost');
     const settled = await db.settleAnalyticsWork({
       userId: uid, cls, owner, result: ANALYTICS_RESULT.SUCCESS, generation,
-      summary: { ...summary, generation }, clearRange: cls === ANALYTICS_CLASS.LIGHT, now: at(),
+      summary: { ...summary, generation }, clearRange: cls === ANALYTICS_CLASS.LIGHT,
+      expectedLifecycleGeneration, now: at(),
     });
     const result = settled ? ANALYTICS_RESULT.SUCCESS : ANALYTICS_RESULT.FENCED;
     await db.closeAnalyticsRun(runId, { result, detail: summary, now: at() });
@@ -367,7 +382,8 @@ export async function processAnalyticsForUser({
     const nextAttemptAt = new Date(at().getTime() + analyticsBackoffMs(failures));
     await db.settleAnalyticsWork({
       userId: uid, cls, owner, result: ANALYTICS_RESULT.FAILED,
-      errorClass: c.class, errorDetail: describeError(err), nextAttemptAt, now: at(),
+      errorClass: c.class, errorDetail: describeError(err), nextAttemptAt,
+      expectedLifecycleGeneration, now: at(),
     });
     await db.closeAnalyticsRun(runId, {
       result: ANALYTICS_RESULT.FAILED, detail: err?.modules ?? null, errorClass: c.class, errorDetail: describeError(err), now: at(),

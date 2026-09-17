@@ -334,19 +334,56 @@ export async function runGuardian({
     for (const f of result.findings.slice(0, GUARDIAN_POLICY.MAX_MESSAGES_PER_RUN)) {
       if (f.level !== GUARDIAN_LEVEL.LEVEL_2_NOTIFY) continue;
 
-      // 冷卻沿用既有機制，不另外做一套
-      let allowed = true;
-      try {
-        allowed = await db.claimErrorNotify(
-          f.scope, `guardian:${f.signal}`, GUARDIAN_POLICY.NOTIFY_COOLDOWN_HOURS,
-        );
-      } catch {
-        allowed = false; // 冷卻查不到就不發，寧可漏一則也不要洗版
+      // ---- ★ R3 / R2-GUARDIAN-01：冷卻只有在**真的送出**時才算消耗 --------
+      //
+      // 舊版先認領冷卻、再送。帳號在兩者之間換過啟用期時，送出被擋下，
+      // 但冷卻已經被吃掉 —— 新啟用期裡一則真正該送的警告因此被擋
+      // 整整 NOTIFY_COOLDOWN_HOURS。
+      //
+      // 現在：(1) 先驗啟用資格，不合格連冷卻都不碰；(2) 用**帶時間戳**的
+      // 認領；(3) 送出被啟用授權擋下就把自己那一次認領還回去。
+      // releaseErrorNotify 只刪自己的時間戳，所以不會誤刪別人接手的認領。
+      const userScoped = f.scope !== GLOBAL_SCOPE;
+      const cooldownKey = userScoped
+        ? `guardian:${f.signal}:lifecycle:${f.lifecycleGeneration}` : `guardian:${f.signal}`;
+      if (userScoped) {
+        if (!Number.isInteger(f.lifecycleGeneration)) continue;
+        const uid = f.scope.startsWith('user:') ? f.scope.slice('user:'.length) : null;
+        const eligible = uid ? await db.getActiveChatIdForUser(uid, {
+          expectedLifecycleGeneration: Number.isInteger(f.lifecycleGeneration)
+            ? f.lifecycleGeneration : null,
+        }).catch(() => null) : null;
+        if (!eligible) {
+          log.info('guardian_finding_lifecycle_ineligible', { signal: f.signal });
+          continue;
+        }
       }
-      if (!allowed) continue;
+
+      // 冷卻沿用既有機制，不另外做一套 —— 但拿的是**帶時間戳**的認領。
+      let claim = { granted: false, claimedAt: null };
+      try {
+        claim = typeof db.claimErrorNotifyOwned === 'function'
+          ? await db.claimErrorNotifyOwned(
+            f.scope, cooldownKey, GUARDIAN_POLICY.NOTIFY_COOLDOWN_HOURS,
+          )
+          : { granted: await db.claimErrorNotify(
+            f.scope, cooldownKey, GUARDIAN_POLICY.NOTIFY_COOLDOWN_HOURS,
+          ), claimedAt: null };
+      } catch {
+        claim = { granted: false, claimedAt: null }; // 冷卻查不到就不發，寧可漏一則也不要洗版
+      }
+      if (!claim.granted) continue;
 
       const sent = await deliver({ db, makeTelegram, systemTelegram, finding: f });
-      if (sent) result.notified += 1;
+      if (sent) {
+        result.notified += 1;
+      } else if (userScoped && claim.claimedAt && typeof db.releaseErrorNotify === 'function') {
+        // 沒送出去（啟用授權在最後一刻擋下、或沒有可達的 chat）→ 還回冷卻，
+        // 新的啟用期才不會被一則沒人看到的訊息擋住。
+        await db.releaseErrorNotify(f.scope, cooldownKey, claim.claimedAt)
+          .catch(() => {});
+        log.info('guardian_cooldown_released', { signal: f.signal });
+      }
     }
 
     log.warn('guardian_findings', {

@@ -488,6 +488,19 @@ export const ONBOARDING_DERIVED_FAILURE_SQL = `
 export const LIFECYCLE_GENERATION_DOC = true;
 
 /**
+ * ★ R3 / R2-MIG-01：v18 當時執行期 READY 所要求的資源權限集合，**凍結**在
+ * schema 裡。
+ *
+ * 為什麼不直接引用 config.ONBOARDING.REQUIRED_SCOPES：
+ * 那是**會變**的執行期設定；歷史遷移必須可重現 —— 一年後對 v17 資料庫跑
+ * v18 遷移，結果必須和今天一模一樣。而且上一版只查了 sleep 一個，就是
+ * 「手寫一個子集」出的事。所以這裡是一份獨立的常數，v18 遷移只用它，
+ * 而執行期的 READY 述詞用 config —— 兩者在 v18 這一刻**相等**，
+ * 由 schema 測試釘死。
+ */
+export const V18_READY_REQUIRED_RESOURCES = Object.freeze(['sleep', 'recovery']);
+
+/**
  * 「這個使用者現在可以被做健康處理嗎」的 SQL 述詞。**恰好一個** `?`。
  *
  * 綁定捕捉到的啟用世代；綁 NULL 代表「只要求 ACTIVE，不約束世代」
@@ -506,7 +519,7 @@ export const lifecycleActiveSql = (userCol) => `EXISTS (
      AND lu.lifecycle_generation = COALESCE(?, lu.lifecycle_generation)
 )`;
 
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 19;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -1903,6 +1916,43 @@ export const SCHEMA = [
   ...RESOURCE_ACCESS_SCHEMA,
 ];
 
+// Frozen v18 runtime eligibility: this historical repair must not read mutable config.
+export const V18_READY_REVALIDATION_SQL = `UPDATE user_onboarding
+             SET state = 'WHOOP_AUTHORIZED',
+                 ready_at = NULL,
+                 failure_code = NULL,
+                 failure_detail = NULL,
+                 bootstrap_attempts = 0,
+                 state_changed_at = updated_at
+           WHERE state = 'READY'
+             AND NOT (
+               timezone_confirmed_at IS NOT NULL
+               AND EXISTS (
+                 SELECT 1 FROM users u
+                  WHERE u.id = user_onboarding.user_id AND u.status = 'ACTIVE'
+                    AND EXISTS (SELECT 1 FROM user_telegram t WHERE t.user_id = u.id AND t.status = 'ACTIVE')
+                    AND EXISTS (SELECT 1 FROM user_whoop_tokens k
+                                 WHERE k.user_id = u.id AND k.access_token IS NOT NULL AND k.whoop_user_id IS NOT NULL
+                                   AND NOT EXISTS (
+                                     SELECT 1 FROM (
+                                       SELECT whoop_user_id FROM whoop_sleeps WHERE user_id = u.id
+                                       UNION SELECT whoop_user_id FROM whoop_recoveries WHERE user_id = u.id
+                                       UNION SELECT whoop_user_id FROM whoop_cycles WHERE user_id = u.id
+                                       UNION SELECT whoop_user_id FROM whoop_workouts WHERE user_id = u.id
+                                     ) ids WHERE ids.whoop_user_id <> k.whoop_user_id))
+                    AND EXISTS (SELECT 1 FROM whoop_sync_state s WHERE s.user_id = u.id)
+                    AND EXISTS (SELECT 1 FROM whoop_capabilities c
+                                 WHERE c.user_id = u.id AND c.lifecycle_generation = u.lifecycle_generation)
+                    AND (SELECT COUNT(DISTINCT ra.resource) FROM whoop_resource_access ra
+                          WHERE ra.user_id = u.id
+                            AND ra.resource IN (${V18_READY_REQUIRED_RESOURCES.map((r) => `'${r}'`).join(', ')})
+                            AND ra.status = 'ACCESSIBLE'
+                            AND ra.lifecycle_generation = u.lifecycle_generation
+                            AND ra.auth_generation = (SELECT k.auth_generation FROM user_whoop_tokens k WHERE k.user_id = u.id)
+                        ) = ${V18_READY_REQUIRED_RESOURCES.length}
+               )
+             )`;
+
 /**
  * 版本閘門的**資料**遷移（不是結構）。只在 `from < version` 時跑一次。
  *
@@ -1994,24 +2044,12 @@ export const DATA_MIGRATIONS = [
     // 不需要重新連接（除非 token / scope 真的失效了，那本來就該處理）。
     //
     // 冪等：降級過的列不再是 READY，條件不再成立。
-    sql: `UPDATE user_onboarding
-             SET state = 'WHOOP_AUTHORIZED',
-                 ready_at = NULL,
-                 failure_code = NULL,
-                 failure_detail = NULL,
-                 bootstrap_attempts = 0,
-                 state_changed_at = updated_at
-           WHERE state = 'READY'
-             AND NOT EXISTS (
-               SELECT 1 FROM whoop_resource_access ra
-                JOIN users u ON u.id = ra.user_id
-                WHERE ra.user_id = user_onboarding.user_id
-                  AND ra.resource = 'sleep'
-                  AND ra.status = 'ACCESSIBLE'
-                  AND ra.lifecycle_generation = u.lifecycle_generation
-                  AND ra.auth_generation = (SELECT k.auth_generation
-                                              FROM user_whoop_tokens k
-                                             WHERE k.user_id = ra.user_id))`,
+    sql: V18_READY_REVALIDATION_SQL,
+  },
+  {
+    version: 19,
+    note: 'repair existing v18 READY rows with the complete frozen v18 invariant (R3)',
+    sql: V18_READY_REVALIDATION_SQL,
   },
 ];
 

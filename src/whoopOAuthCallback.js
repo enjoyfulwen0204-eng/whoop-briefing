@@ -26,6 +26,7 @@
 import { ONBOARDING_STATE, ONBOARDING_FAILURE } from './schema.js';
 import { completeAuthorization, OAuthFlowError } from './oauthFlow.js';
 import { log, describeError } from './logger.js';
+import { isAccountInactiveError } from './accountLifecycle.js';
 
 export const OAUTH_CALLBACK_PATH = '/whoop/oauth/callback';
 
@@ -205,46 +206,83 @@ export function createWhoopOAuthCallback({
 
     const userId = result.user?.id ?? result.userId ?? null;
 
-    // ---- 授權成功：狀態改成「已授權」（bootstrap 由別人接手）-------------
+    // ---- ★ R3 / R2-FG-02：**寫入成功 ≠ 後續副作用被授權** ----------------
     //
-    // 這一步必須在回應之前完成而且是耐久的：程序在回應送出前後任何一刻死掉，
-    // 重啟後排程器都看得到 WHOOP_AUTHORIZED 並接手。
-    await db.ensureOnboarding(userId, { state: ONBOARDING_STATE.WHOOP_AUTHORIZED, now: new Date(now()) })
-      .catch(() => {});
-    await db.setOnboardingState(userId, ONBOARDING_STATE.WHOOP_AUTHORIZED, {
-      // ★ RC2 / F04：**成功的重新授權會讓舊的權限判定失效**（授權世代 +1）。
-      //
-      // 所以連已經 READY 的人也要回到「已授權、待驗證」：這一次授權可能少勾了
-      // 睡眠或恢復權限，而那些判定必須重新驗過才算數。bootstrap 緊接著就會跑
-      // （回呼結束後立刻踢一次），通常同一輪就回到 READY。
-      //
-      // 重放不會走到這裡：state 是一次性的，重複的 callback 在消耗那一步就被擋下。
-      from: [ONBOARDING_STATE.STARTED, ONBOARDING_STATE.TIMEZONE_PENDING,
-        ONBOARDING_STATE.WHOOP_AUTH_PENDING, ONBOARDING_STATE.ACTION_REQUIRED,
-        ONBOARDING_STATE.READY],
-      whoopAuthorized: true, failureCode: null, failureDetail: null, now: new Date(now()),
+    // token 的持久化有自己的 CAS，而且它在 commit 的那一刻是合法的。
+    // 但 callback 接下來還要做一串**使用者可見、會改變上線狀態**的事：
+    // 轉成 WHOOP_AUTHORIZED、歸零額度與嘗試次數、送成功通知、踢一次
+    // bootstrap。帳號完全可能在 token 落地之後、這些副作用之前被停用
+    // （甚至停用又啟用）。
+    //
+    // 所以這裡重新驗一次**目前**的帳號狀態與啟用世代。不通過就停在這裡：
+    // token 列留著（它在當時是合法的，而且新的啟用期本來就會重新驗證
+    // 資格），但不推進任何上線狀態、不歸零、不通知、不啟動 bootstrap。
+    const stateLifecycle = result.lifecycleGeneration;
+    const inactiveResult = () => ({
+      ...renderScreen('error'), outcome: 'account_inactive',
+      failure: ONBOARDING_FAILURE.ACCOUNT_INACTIVE, userId,
     });
-    await db.resetAuthLinkBudget(userId, { now: new Date(now()) }).catch(() => {});
-    // ★ F04：一次成功的新授權 = 一個全新的 bootstrap 情境，嘗試次數歸零。
-    //
-    // 沒有這一條，純內部的世代競態（舊 bootstrap 以過期授權開始 → 中止）
-    // 會一次次吃掉使用者的重試額度，最後把一個什麼都沒做錯、只是重新
-    // 授權過幾次的人永久卡在 ACTION_REQUIRED。
-    //
-    // 刻意**獨立於上面那句狀態轉移**：最需要歸零的情境（舊 bootstrap 正在
-    // 跑、狀態是 SYNCING）正好是那句轉移不會成立的情境（SYNCING 不在它的
-    // from 白名單裡）。綁在一起等於在最需要的時候失效。
-    if (typeof db.resetBootstrapAttempts === 'function') {
-      await db.resetBootstrapAttempts(userId, { now: new Date(now()) }).catch(() => {});
+    if (!Number.isInteger(stateLifecycle)) return inactiveResult();
+    const authorizeContinuation = () => db.assertAccountActive(userId, stateLifecycle);
+    try {
+      await authorizeContinuation();
+      await db.transaction(async () => {
+        // ---- 授權成功：狀態改成「已授權」（bootstrap 由別人接手）-------------
+        //
+        // 這一步必須在回應之前完成而且是耐久的：程序在回應送出前後任何一刻死掉，
+        // 重啟後排程器都看得到 WHOOP_AUTHORIZED 並接手。
+        await db.ensureOnboarding(userId, { state: ONBOARDING_STATE.WHOOP_AUTHORIZED, now: new Date(now()) })
+          .catch(() => {});
+        await db.setOnboardingState(userId, ONBOARDING_STATE.WHOOP_AUTHORIZED, {
+          // ★ RC2 / F04：**成功的重新授權會讓舊的權限判定失效**（授權世代 +1）。
+          //
+          // 所以連已經 READY 的人也要回到「已授權、待驗證」：這一次授權可能少勾了
+          // 睡眠或恢復權限，而那些判定必須重新驗過才算數。bootstrap 緊接著就會跑
+          // （回呼結束後立刻踢一次），通常同一輪就回到 READY。
+          //
+          // 重放不會走到這裡：state 是一次性的，重複的 callback 在消耗那一步就被擋下。
+          from: [ONBOARDING_STATE.STARTED, ONBOARDING_STATE.TIMEZONE_PENDING,
+            ONBOARDING_STATE.WHOOP_AUTH_PENDING, ONBOARDING_STATE.ACTION_REQUIRED,
+            ONBOARDING_STATE.READY],
+          whoopAuthorized: true, failureCode: null, failureDetail: null,
+          // 連這一句也在 SQL 裡再證明一次（檢查與寫入之間仍然有空隙）。
+          expectedLifecycleGeneration: stateLifecycle, requireActiveLifecycle: true,
+          now: new Date(now()),
+        });
+        await db.resetAuthLinkBudget(userId, { now: new Date(now()) }).catch(() => {});
+        // ★ F04：一次成功的新授權 = 一個全新的 bootstrap 情境，嘗試次數歸零。
+        //
+        // 沒有這一條，純內部的世代競態（舊 bootstrap 以過期授權開始 → 中止）
+        // 會一次次吃掉使用者的重試額度，最後把一個什麼都沒做錯、只是重新
+        // 授權過幾次的人永久卡在 ACTION_REQUIRED。
+        //
+        // 刻意**獨立於上面那句狀態轉移**：最需要歸零的情境（舊 bootstrap 正在
+        // 跑、狀態是 SYNCING）正好是那句轉移不會成立的情境（SYNCING 不在它的
+        // from 白名單裡）。綁在一起等於在最需要的時候失效。
+        if (typeof db.resetBootstrapAttempts === 'function') {
+          await db.resetBootstrapAttempts(userId, { now: new Date(now()) }).catch(() => {});
+        }
+
+      }, { before: authorizeContinuation, after: authorizeContinuation });
+      await authorizeContinuation();
+    } catch (err) {
+      if (isAccountInactiveError(err)) return inactiveResult();
+      throw err;
     }
 
     if (onAuthorized) {
       try {
-        await onAuthorized(userId);
+        await authorizeContinuation();
+        await onAuthorized(userId, { expectedLifecycleGeneration: stateLifecycle });
       } catch (err) {
+        if (isAccountInactiveError(err)) return inactiveResult();
         // 綁定已經耐久了；通知／bootstrap 失敗不可以把成功變成失敗。
         log.warn('oauth_callback_post_hook_failed', { user_id: userId, error: describeError(err) });
       }
+    }
+    try { await authorizeContinuation(); } catch (err) {
+      if (isAccountInactiveError(err)) return inactiveResult();
+      throw err;
     }
     log.info('oauth_callback_ok', { user_id: userId });
     return { ...renderScreen('ok'), outcome: 'ok', userId };

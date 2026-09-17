@@ -283,7 +283,7 @@ test('RC1-ATTACK-03 / RC1-ATTACK-04 / RC1-ATTACK-14 遷移矩陣：每一種既�
     assert.equal(summary.to, SCHEMA_VERSION);
     assert.deepEqual(summary.rebuilt, []);
     assert.deepEqual(summary.dataMigrations, [{ version: 14, rows: 6 }, { version: 15, rows: 0 }, { version: 16, rows: 0 },
-      { version: 18, rows: 2 }]);
+      { version: 18, rows: 2 }, { version: 19, rows: 0 }]);
 
     const state = async (id) => (await e.db.getOnboardingRow(id)).state;
     // ★ R2 / LIFE-FG-10：證據**齊全到 v13 的標準**的人（A、F）曾經被寫成
@@ -344,7 +344,7 @@ test('F02 v15 修正：v14 第一版盲目寫下的 READY 會被改回真實狀�
 
     const s = await runMigrations(e.db.raw);
     assert.equal(s.from, 14); assert.equal(s.to, SCHEMA_VERSION);
-    assert.deepEqual(s.dataMigrations, [{ version: 15, rows: 1 }, { version: 16, rows: 0 }, { version: 18, rows: 1 }], '★ 只有一列需要修正');
+    assert.deepEqual(s.dataMigrations, [{ version: 15, rows: 1 }, { version: 16, rows: 0 }, { version: 18, rows: 1 }, { version: 19, rows: 0 }], '★ 只有一列需要修正');
     // ★ R2 / LIFE-FG-10：證據齊全的人也要在目前啟用世代重新驗證
     // （v13/v14 時代沒有資源權限判定這張表）。資料全留，立刻進入重新驗證。
     assert.equal((await e.db.getOnboardingRow('good')).state, ONBOARDING_STATE.WHOOP_AUTHORIZED,

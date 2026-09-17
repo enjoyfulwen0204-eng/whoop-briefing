@@ -19,6 +19,7 @@ import {
   OAuthFlowError, assertAuthorizable, completeAuthorization, prepareAuthorization,
 } from '../src/oauthFlow.js';
 import { LOCKS } from '../src/config.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 import { ALICE, BOB, seedAliceAndBob } from './users.js';
 
 function tempDb() {
@@ -311,7 +312,7 @@ test('Alice 的 token refresh 不會阻塞 Bob（鎖名帶 userId）', async () 
     const calls = [];
     const srv = await localTokenServer(calls);
     try {
-      const mk = (uid) => createWhoopClient({
+      const mk = (uid) => createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
         db, userId: uid, clientId: 'c', clientSecret: 's', tokenUrl: srv.tokenUrl,
       });
 
@@ -347,7 +348,7 @@ test('同一使用者兩個 process 真正併發 refresh → 只真的 refresh �
     // 真的走 waitForPeerRefresh 的輪詢路徑（不是「先後執行」的沿用路徑）
     const srv = await localTokenServer(calls, { delayMs: 40 });
     try {
-      const mk = (db) => createWhoopClient({
+      const mk = (db) => createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
         db, userId: ALICE.id, clientId: 'c', clientSecret: 's',
         tokenUrl: srv.tokenUrl,
         // 真的小睡，讓等待方有機會輪詢到對方寫好的新 token

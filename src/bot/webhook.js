@@ -503,17 +503,14 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       redirectUri: env.whoopRedirectUri,
     }),
     verifyIdentity: ({ accessToken }) => fetchWhoopUserId({ accessToken }),
-    onAuthorized: async (userId) => {
-      // 授權成功的那一刻捕捉啟用世代：bootstrap 是非同步的，帳號可能在它
-      // 跑完之前被停用，而那之後的通知一律不該送出。
-      const account = await db.getUser(userId).catch(() => null);
-      const expectedLifecycleGeneration = Number.isInteger(account?.lifecycleGeneration)
-        ? account.lifecycleGeneration : null;
+    onAuthorized: async (userId, { expectedLifecycleGeneration }) => {
+      await db.assertAccountActive(userId, expectedLifecycleGeneration);
       await notifyUser(userId, ONBOARDING_MESSAGES.authorizedSyncing(), { expectedLifecycleGeneration })
         .catch((err) => log.warn('onboarding_notify_failed', { error: describeError(err) }));
+      await db.assertAccountActive(userId, expectedLifecycleGeneration);
       // 不 await：回呼要在瀏覽器面前很快結束。
       runOnboardingBootstrap({
-        db, userId, env,
+        db, userId, env, expectedLifecycleGeneration,
         deps: {
           notify: (uid, kind) => notifyUser(uid, onboardingNotice(kind), {
             expectedLifecycleGeneration,

@@ -22,6 +22,7 @@
 
 import { requireUserId } from './userContext.js';
 import { lifecycleActiveSql } from './schema.js';
+import { requireLifecycle } from './accountLifecycle.js';
 import { ANALYTICS_CLASS, ANALYTICS_RESULT, ANALYTICS_FRESHNESS, USER_STATUS } from './schema.js';
 import { log } from './logger.js';
 
@@ -138,8 +139,9 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    * ★ P3-RC1-F01：`now` 是**檢查當下**取的時刻，不是呼叫端稍早凍結的那一個。
    */
   async function proveOwnership({
-    userId, cls, owner, generation, expectedLifecycleGeneration = null, now,
+    userId, cls, owner, generation, expectedLifecycleGeneration, now,
   }) {
+    const life = requireLifecycle(expectedLifecycleGeneration, 'proveOwnership');
     const rs = await client.execute({
       sql: `SELECT 1 FROM analytics_work_state
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
@@ -153,7 +155,7 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
     //
     // 分析世代擋不住這一種：停用（或停用再啟用）不會讓 analytics_invalidation
     // 前進，所以一個舊 worker 手上的 generation 仍然「正確」。
-    if (Number.isInteger(expectedLifecycleGeneration)) {
+    if (life !== null) {
       const live = await client.execute({
         sql: `SELECT 1 FROM analytics_work_state w
                 JOIN users u ON u.id = w.user_id
@@ -193,9 +195,11 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    * **結構上拒絕** Date：不是函式就直接拋錯，不能靠呼叫端自律。
    */
   async function mutateForAnalytics({
-    userId, cls, owner, generation, expectedLifecycleGeneration = null, now = () => new Date(),
+    userId, cls, owner, generation, expectedLifecycleGeneration, now = () => new Date(),
   }, fn) {
     const uid = requireUserId(userId, 'mutateForAnalytics');
+    // ★ R3 / R2-ANALYTICS-01：每一個輸出寫入都必須帶啟用脈絡。
+    requireLifecycle(expectedLifecycleGeneration, 'mutateForAnalytics');
     if (!CLASSES.includes(cls)) throw new Error(`invalid_analytics_class:${cls}`);
     if (!owner) throw new Error('analytics_owner_required');
     if (!Number.isInteger(generation)) throw new Error('analytics_generation_required');
@@ -265,59 +269,62 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    * 租約所有權或 live clock 的任何一個。
    */
   async function claimAnalyticsWork({
-    userId, cls, owner, leaseMs, expectedLifecycleGeneration = null, now = new Date(),
+    userId, cls, owner, leaseMs, expectedLifecycleGeneration, now = new Date(),
   }) {
-    const uid = requireUserId(userId, 'claimAnalyticsWork');
-    if (!CLASSES.includes(cls)) throw new Error(`invalid_analytics_class:${cls}`);
-    if (!owner) throw new Error('analytics_owner_required');
-    const nowIso = iso(now);
-    const leaseIso = iso(new Date(new Date(now).getTime() + leaseMs));
-    const life = Number.isInteger(expectedLifecycleGeneration)
-      ? expectedLifecycleGeneration : null;
-    const rs = await client.execute({
-      sql: `INSERT INTO analytics_work_state
-              (user_id, class, owner, lease_expires_at, last_attempt_at, status,
-               claimed_lifecycle, created_at, updated_at)
-            SELECT ?, ?, ?, ?, ?, 'RUNNING', ?, ?, ?
-             WHERE ${lifecycleActiveSql('?')}
-            ON CONFLICT(user_id, class) DO UPDATE SET
-              owner = excluded.owner,
-              lease_expires_at = excluded.lease_expires_at,
-              last_attempt_at = excluded.last_attempt_at,
-              status = 'RUNNING',
-              claimed_lifecycle = excluded.claimed_lifecycle,
-              updated_at = excluded.updated_at
-            WHERE analytics_work_state.owner IS NULL
-               OR analytics_work_state.lease_expires_at IS NULL
-               OR analytics_work_state.lease_expires_at <= excluded.last_attempt_at
-               -- ★ R2：**兩邊都知道**而且不同時才可以接手。
-               -- 一邊是 NULL（出處不明）時維持互斥，否則同一個世代的兩個
-               -- worker 會因為「NULL ≠ 1」互相搶走對方的租約。
-               OR (analytics_work_state.claimed_lifecycle IS NOT NULL
-                   AND excluded.claimed_lifecycle IS NOT NULL
-                   AND analytics_work_state.claimed_lifecycle <> excluded.claimed_lifecycle)`,
-      args: [uid, cls, String(owner), leaseIso, nowIso, life, nowIso, nowIso, uid, life],
+    return transaction(async () => {
+      const uid = requireUserId(userId, 'claimAnalyticsWork');
+      if (!CLASSES.includes(cls)) throw new Error(`invalid_analytics_class:${cls}`);
+      if (!owner) throw new Error('analytics_owner_required');
+      const nowIso = iso(now);
+      const leaseIso = iso(new Date(new Date(now).getTime() + leaseMs));
+      // ★ R3 / R2-ANALYTICS-01：啟用脈絡是**必填**的。少傳就大聲失敗；
+      // 測試／管理要不受約束必須明確寫 LIFECYCLE_UNFENCED。
+      const life = requireLifecycle(expectedLifecycleGeneration, 'claimAnalyticsWork');
+      const rs = await client.execute({
+        sql: `INSERT INTO analytics_work_state
+                (user_id, class, owner, lease_expires_at, last_attempt_at, status,
+                 claimed_lifecycle, created_at, updated_at)
+              SELECT ?, ?, ?, ?, ?, 'RUNNING', ?, ?, ?
+               WHERE ${lifecycleActiveSql('?')}
+              ON CONFLICT(user_id, class) DO UPDATE SET
+                owner = excluded.owner,
+                lease_expires_at = excluded.lease_expires_at,
+                last_attempt_at = excluded.last_attempt_at,
+                status = 'RUNNING',
+                claimed_lifecycle = excluded.claimed_lifecycle,
+                updated_at = excluded.updated_at
+              WHERE analytics_work_state.owner IS NULL
+                 OR analytics_work_state.lease_expires_at IS NULL
+                 OR analytics_work_state.lease_expires_at <= excluded.last_attempt_at
+                 -- ★ R2：**兩邊都知道**而且不同時才可以接手。
+                 -- 一邊是 NULL（出處不明）時維持互斥，否則同一個世代的兩個
+                 -- worker 會因為「NULL ≠ 1」互相搶走對方的租約。
+                 OR (analytics_work_state.claimed_lifecycle IS NOT NULL
+                     AND excluded.claimed_lifecycle IS NOT NULL
+                     AND analytics_work_state.claimed_lifecycle <> excluded.claimed_lifecycle)`,
+        args: [uid, cls, String(owner), leaseIso, nowIso, life, nowIso, nowIso, uid, life],
+      });
+      if (Number(rs.rowsAffected ?? 0) === 0) {
+        log.info('analytics_claim_busy', { user_id: uid, class: cls });
+        return null;
+      }
+      // 認領之後才讀 generation：認領成功前讀到的數字可能已經過期。
+      const inv = await getAnalyticsInvalidation(uid);
+      const work = await getAnalyticsWorkState(uid, cls);
+      const generation = inv?.generation ?? 0;
+      await client.execute({
+        sql: `UPDATE analytics_work_state SET claimed_generation = ?, updated_at = ?
+               WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?`,
+        args: [generation, nowIso, uid, cls, String(owner), nowIso],
+      });
+      return {
+        generation, doneGeneration: work?.doneGeneration ?? 0,
+        lifecycleGeneration: life,
+        affectedFrom: inv?.affectedFrom ?? null, affectedTo: inv?.affectedTo ?? null,
+        resources: inv?.resources ?? [], reasons: inv?.reasons ?? [],
+        rangeGeneration: work?.rangeGeneration ?? null, rangeFrom: work?.rangeFrom ?? null, rangeTo: work?.rangeTo ?? null,
+      };
     });
-    if (Number(rs.rowsAffected ?? 0) === 0) {
-      log.info('analytics_claim_busy', { user_id: uid, class: cls });
-      return null;
-    }
-    // 認領之後才讀 generation：認領成功前讀到的數字可能已經過期。
-    const inv = await getAnalyticsInvalidation(uid);
-    const work = await getAnalyticsWorkState(uid, cls);
-    const generation = inv?.generation ?? 0;
-    await client.execute({
-      sql: `UPDATE analytics_work_state SET claimed_generation = ?, updated_at = ?
-             WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?`,
-      args: [generation, nowIso, uid, cls, String(owner), nowIso],
-    });
-    return {
-      generation, doneGeneration: work?.doneGeneration ?? 0,
-      lifecycleGeneration: life,
-      affectedFrom: inv?.affectedFrom ?? null, affectedTo: inv?.affectedTo ?? null,
-      resources: inv?.resources ?? [], reasons: inv?.reasons ?? [],
-      rangeGeneration: work?.rangeGeneration ?? null, rangeFrom: work?.rangeFrom ?? null, rangeTo: work?.rangeTo ?? null,
-    };
   }
 
   // ----- 輕量分片進度（F03）----------------------------------------------------
@@ -326,14 +333,17 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    * 把這一代的剩餘範圍寫成耐久狀態（owner + 租約圍欄）。
    * 呼叫端在認領後決定剩餘範圍（同一代 → 沿用；換代 → 與失效範圍取聯集）。
    */
-  async function setAnalyticsRange({ userId, cls, owner, generation, from, to, now = new Date() }) {
+  async function setAnalyticsRange({ userId, cls, owner, generation, from, to, expectedLifecycleGeneration, now = new Date() }) {
     const uid = requireUserId(userId, 'setAnalyticsRange');
+    const life = requireLifecycle(expectedLifecycleGeneration, 'setAnalyticsRange');
     const nowIso = iso(now);
     const rs = await client.execute({
       sql: `UPDATE analytics_work_state
                SET range_generation = ?, range_from = ?, range_to = ?, updated_at = ?
-             WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?`,
-      args: [Number(generation), from, to, nowIso, uid, cls, String(owner), nowIso],
+             WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ? AND claimed_generation = ?
+               AND (? IS NULL OR claimed_lifecycle IS ?)
+               AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
+      args: [Number(generation), from, to, nowIso, uid, cls, String(owner), nowIso, generation, life, life, life, life],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -343,15 +353,18 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    * 圍欄：owner + 有效租約 + range_generation 相符 + range_to 仍是這一片的上緣（CAS）。
    * newTo = null 表示剩餘範圍清空。
    */
-  async function advanceAnalyticsRange({ userId, cls, owner, generation, chunkTo, newTo, now = new Date() }) {
+  async function advanceAnalyticsRange({ userId, cls, owner, generation, chunkTo, newTo, expectedLifecycleGeneration, now = new Date() }) {
     const uid = requireUserId(userId, 'advanceAnalyticsRange');
+    const life = requireLifecycle(expectedLifecycleGeneration, 'advanceAnalyticsRange');
     const nowIso = iso(now);
     const rs = await client.execute({
       sql: `UPDATE analytics_work_state
                SET range_to = ?, range_from = CASE WHEN ? IS NULL THEN NULL ELSE range_from END, updated_at = ?
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
-               AND range_generation = ? AND range_to = ?`,
-      args: [newTo, newTo, nowIso, uid, cls, String(owner), nowIso, Number(generation), chunkTo],
+               AND range_generation = ? AND range_to = ? AND claimed_generation = ?
+               AND (? IS NULL OR claimed_lifecycle IS ?)
+               AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
+      args: [newTo, newTo, nowIso, uid, cls, String(owner), nowIso, Number(generation), chunkTo, generation, life, life, life, life],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -368,94 +381,111 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    */
   async function settleAnalyticsWork({
     userId, cls, owner, result, generation, summary = null,
-    errorClass = null, errorDetail = null, nextAttemptAt = null, clearRange = false, now = new Date(),
+    errorClass = null, errorDetail = null, nextAttemptAt = null, clearRange = false,
+    expectedLifecycleGeneration, now = new Date(),
   }) {
-    const uid = requireUserId(userId, 'settleAnalyticsWork');
-    if (!owner) return false;
-    const nowIso = iso(now);
-    let rs;
-    if (result === ANALYTICS_RESULT.SUCCESS) {
-      if (!Number.isInteger(generation)) throw new Error('analytics_success_requires_generation');
-      rs = await client.execute({
-        sql: `UPDATE analytics_work_state
-                 SET done_generation = MAX(done_generation, ?), status = 'SUCCESS',
-                     range_from = NULL, range_to = NULL,
-                     owner = NULL, lease_expires_at = NULL, claimed_generation = NULL,
-                     last_success_at = ?, last_error_class = NULL, last_error_detail = NULL,
-                     consecutive_failures = 0, next_attempt_at = NULL,
-                     summary_json = ?, updated_at = ?
-               WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?`,
-        args: [generation, nowIso, summary ? JSON.stringify(summary) : null, nowIso,
-          uid, cls, String(owner), nowIso],
-      });
-      const settled = Number(rs.rowsAffected ?? 0) > 0;
-      if (settled && clearRange) {
-        // CAS：只有在沒有更新的 canonical 變動時才清範圍。
-        await client.execute({
-          sql: `UPDATE analytics_invalidation
-                   SET affected_from = NULL, affected_to = NULL, resources = NULL, reasons = NULL, updated_at = ?
-                 WHERE user_id = ? AND generation = ?`,
-          args: [nowIso, uid, generation],
+    return transaction(async () => {
+      const uid = requireUserId(userId, 'settleAnalyticsWork');
+      if (!owner) return false;
+      const nowIso = iso(now);
+      // ★ R3 / R2-ANALYTICS-01 §24：結案是「讓目前的分析狀態看起來完成了」，
+      // 所以它和輸出一樣必須帶啟用脈絡；SUCCESS 更要在 SQL 裡證明世代沒變。
+      const life = requireLifecycle(expectedLifecycleGeneration, 'settleAnalyticsWork');
+      let rs;
+      if (result === ANALYTICS_RESULT.SUCCESS) {
+        if (!Number.isInteger(generation)) throw new Error('analytics_success_requires_generation');
+        rs = await client.execute({
+          sql: `UPDATE analytics_work_state
+                   SET done_generation = MAX(done_generation, ?), status = 'SUCCESS',
+                       range_from = NULL, range_to = NULL,
+                       owner = NULL, lease_expires_at = NULL, claimed_generation = NULL,
+                       claimed_lifecycle = NULL,
+                       last_success_at = ?, last_error_class = NULL, last_error_detail = NULL,
+                       consecutive_failures = 0, next_attempt_at = NULL,
+                       summary_json = ?, updated_at = ?
+                 WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ? AND claimed_generation = ?
+                   AND (? IS NULL OR analytics_work_state.claimed_lifecycle IS ?)
+                   AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
+          args: [generation, nowIso, summary ? JSON.stringify(summary) : null, nowIso,
+            uid, cls, String(owner), nowIso, generation, life, life, life, life],
         });
+        const settled = Number(rs.rowsAffected ?? 0) > 0;
+        if (settled && clearRange) {
+          // CAS：只有在沒有更新的 canonical 變動時才清範圍。
+          await client.execute({
+            sql: `UPDATE analytics_invalidation
+                     SET affected_from = NULL, affected_to = NULL, resources = NULL, reasons = NULL, updated_at = ?
+                   WHERE user_id = ? AND generation = ?`,
+            args: [nowIso, uid, generation],
+          });
+        }
+        if (settled) {
+          // 所有類別都追上了 → dirty_since 清掉（純診斷）。
+          await client.execute({
+            sql: `UPDATE analytics_invalidation SET dirty_since = NULL, updated_at = ?
+                   WHERE user_id = ?
+                     AND NOT EXISTS (
+                       SELECT 1 FROM analytics_work_state w
+                        WHERE w.user_id = analytics_invalidation.user_id
+                          AND w.done_generation < analytics_invalidation.generation)
+                     AND (SELECT COUNT(*) FROM analytics_work_state w2 WHERE w2.user_id = analytics_invalidation.user_id) = ?`,
+            args: [nowIso, uid, CLASSES.length],
+          });
+        }
+        return settled;
       }
-      if (settled) {
-        // 所有類別都追上了 → dirty_since 清掉（純診斷）。
-        await client.execute({
-          sql: `UPDATE analytics_invalidation SET dirty_since = NULL, updated_at = ?
-                 WHERE user_id = ?
-                   AND NOT EXISTS (
-                     SELECT 1 FROM analytics_work_state w
-                      WHERE w.user_id = analytics_invalidation.user_id
-                        AND w.done_generation < analytics_invalidation.generation)
-                   AND (SELECT COUNT(*) FROM analytics_work_state w2 WHERE w2.user_id = analytics_invalidation.user_id) = ?`,
-          args: [nowIso, uid, CLASSES.length],
+      if (result === ANALYTICS_RESULT.FAILED) {
+        rs = await client.execute({
+          sql: `UPDATE analytics_work_state
+                   SET status = 'FAILED', owner = NULL, lease_expires_at = NULL, claimed_generation = NULL, claimed_lifecycle = NULL,
+                       last_failure_at = ?, last_error_class = ?, last_error_detail = ?,
+                       consecutive_failures = consecutive_failures + 1,
+                       next_attempt_at = ?, updated_at = ?
+                 WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
+                   AND (? IS NULL OR claimed_lifecycle IS ?)
+                   AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
+          args: [nowIso, errorClass, errorDetail ? String(errorDetail).slice(0, 300) : null,
+            nextAttemptAt ? iso(nextAttemptAt) : null, nowIso,
+            uid, cls, String(owner), nowIso, life, life, life, life],
         });
+        return Number(rs.rowsAffected ?? 0) > 0;
       }
-      return settled;
-    }
-    if (result === ANALYTICS_RESULT.FAILED) {
-      rs = await client.execute({
-        sql: `UPDATE analytics_work_state
-                 SET status = 'FAILED', owner = NULL, lease_expires_at = NULL, claimed_generation = NULL,
-                     last_failure_at = ?, last_error_class = ?, last_error_detail = ?,
-                     consecutive_failures = consecutive_failures + 1,
-                     next_attempt_at = ?, updated_at = ?
-               WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?`,
-        args: [nowIso, errorClass, errorDetail ? String(errorDetail).slice(0, 300) : null,
-          nextAttemptAt ? iso(nextAttemptAt) : null, nowIso,
-          uid, cls, String(owner), nowIso],
-      });
-      return Number(rs.rowsAffected ?? 0) > 0;
-    }
-    throw new Error(`invalid_analytics_result:${result}`);
+      throw new Error(`invalid_analytics_result:${result}`);
+    });
   }
 
   /**
    * 釋放租約而不結案（沒有要算：已經是最新、節奏未到）。done_generation 不動。
    * nextAttemptAt 可用來讓 listPendingAnalytics 在節奏到期前不再列出這個使用者。
    */
-  async function releaseAnalyticsWork({ userId, cls, owner, nextAttemptAt = null, now = new Date() }) {
+  async function releaseAnalyticsWork({ userId, cls, owner, nextAttemptAt = null, expectedLifecycleGeneration, now = new Date() }) {
     const uid = requireUserId(userId, 'releaseAnalyticsWork');
+    const life = requireLifecycle(expectedLifecycleGeneration, 'releaseAnalyticsWork');
     if (!owner) return false;
     const rs = await client.execute({
       sql: `UPDATE analytics_work_state
-               SET owner = NULL, lease_expires_at = NULL, claimed_generation = NULL,
+               SET owner = NULL, lease_expires_at = NULL, claimed_generation = NULL, claimed_lifecycle = NULL,
                    status = CASE WHEN status = 'RUNNING' THEN 'IDLE' ELSE status END,
                    next_attempt_at = ?, updated_at = ?
-             WHERE user_id = ? AND class = ? AND owner = ?`,
-      args: [nextAttemptAt ? iso(nextAttemptAt) : null, iso(now), uid, cls, String(owner)],
+             WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
+               AND (? IS NULL OR claimed_lifecycle IS ?)
+               AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
+      args: [nextAttemptAt ? iso(nextAttemptAt) : null, iso(now), uid, cls, String(owner), iso(now), life, life, life, life],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
 
   /** 這個 (使用者, 類別) 現在是不是還被 owner 有效持有。 */
-  async function holdsAnalyticsWork({ userId, cls, owner, now = new Date() }) {
+  async function holdsAnalyticsWork({ userId, cls, owner, expectedLifecycleGeneration, now = new Date() }) {
     const uid = requireUserId(userId, 'holdsAnalyticsWork');
+    const life = requireLifecycle(expectedLifecycleGeneration, 'holdsAnalyticsWork');
     if (!owner) return false;
     const rs = await client.execute({
       sql: `SELECT 1 FROM analytics_work_state
-             WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ? LIMIT 1`,
-      args: [uid, cls, String(owner), iso(now)],
+             WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
+               AND (? IS NULL OR claimed_lifecycle IS ?)
+               AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')}) LIMIT 1`,
+      args: [uid, cls, String(owner), iso(now), life, life, life, life],
     });
     return rs.rows.length > 0;
   }
@@ -506,14 +536,17 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    * 的過期工作者仍然寫得進去。錨點與租約證明從此分開。
    */
   async function saveAnalyticsDailyState(userId, rows, {
-    owner, generation, now = new Date(), clock = () => new Date(),
+    owner, generation, expectedLifecycleGeneration, now = new Date(), clock = () => new Date(),
   }) {
     const uid = requireUserId(userId, 'saveAnalyticsDailyState');
     if (!Number.isInteger(generation)) throw new Error('analytics_daily_state_requires_generation');
     if (!owner) throw new Error('analytics_owner_required');
     if (typeof clock !== 'function') throw new Error('analytics_live_clock_required');
     const nowIso = iso(now);
-    return mutateForAnalytics({ userId: uid, cls: ANALYTICS_CLASS.LIGHT, owner, generation, now: clock }, async () => {
+    return mutateForAnalytics({
+      userId: uid, cls: ANALYTICS_CLASS.LIGHT, owner, generation,
+      expectedLifecycleGeneration, now: clock,
+    }, async () => {
       let n = 0;
       for (const r of rows) {
         if (!r?.health_date) continue;

@@ -15,6 +15,7 @@ import http from 'node:http';
 
 import { createWhoopClient, WhoopAuthError } from '../src/whoop.js';
 import { WHOOP } from '../src/config.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 
 /** 假的 WHOOP API + token endpoint。 */
 async function mockWhoop({ pages = {}, tokenHandler = null, failures = {} } = {}) {
@@ -109,7 +110,7 @@ test('access token 還有效（>5 分鐘）→ 直接重用，完全不打 token
   });
   const db = tokenDb({ expiresInMs: 30 * 60_000 });
   try {
-    const whoop = createWhoopClient({
+    const whoop = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: U, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
     });
     const out = await whoop.collect('/recovery');
@@ -131,7 +132,7 @@ test('剩不到 5 分鐘 → refresh，且「先寫回 DB」才去撈資料', as
   const origSave = db.saveTokens.bind(db);
   db.saveTokens = async (userId, t) => { order.push('save'); return origSave(userId, t); };
   try {
-    const whoop = createWhoopClient({
+    const whoop = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: U, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
     });
     const out = await whoop.collect('/recovery');
@@ -163,7 +164,7 @@ test('DB 寫入一直失敗 → 中止，不會用新 token 去撈資料（避�
   });
   const db = tokenDb({ expiresInMs: 60_000, failSaves: 99 });
   try {
-    const whoop = createWhoopClient({
+    const whoop = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: U, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
     });
     await assert.rejects(() => whoop.collect('/recovery'), /模擬 Turso 寫入失敗|寫入/);
@@ -183,7 +184,7 @@ test('平行請求時只 refresh 一次', async () => {
   });
   const db = tokenDb({ expiresInMs: 30_000 });
   try {
-    const whoop = createWhoopClient({
+    const whoop = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: U, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
     });
     await Promise.all([
@@ -212,7 +213,7 @@ test('collection 用 next_token 分頁，每頁 limit=25', async () => {
   });
   const db = tokenDb();
   try {
-    const whoop = createWhoopClient({
+    const whoop = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: U, clientId: 'cid', clientSecret: 'sec', apiBase: api.apiBase, tokenUrl: api.tokenUrl,
     });
     const out = await whoop.sleeps(new Date('2026-07-01T00:00:00Z'), new Date('2026-08-21T00:00:00Z'));
@@ -236,7 +237,7 @@ test('429 會 backoff 後重試成功', async () => {
   });
   const db = tokenDb();
   try {
-    const whoop = createWhoopClient({
+    const whoop = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: U, clientId: 'cid', clientSecret: 'sec',
       apiBase: api.apiBase, tokenUrl: api.tokenUrl, backoffFor: NO_BACKOFF,
     });
@@ -254,7 +255,7 @@ test('429 一直不停 → 拋錯（讓上層記錄並通知）', async () => {
   });
   const db = tokenDb();
   try {
-    const whoop = createWhoopClient({
+    const whoop = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: U, clientId: 'cid', clientSecret: 'sec',
       apiBase: api.apiBase, tokenUrl: api.tokenUrl, backoffFor: NO_BACKOFF,
     });
@@ -270,7 +271,7 @@ test('401 → 強制 refresh 一次再重試；再 401 就明確要求重新授�
   });
   const db = tokenDb();
   try {
-    const whoop = createWhoopClient({
+    const whoop = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db, userId: U, clientId: 'cid', clientSecret: 'sec',
       apiBase: api.apiBase, tokenUrl: api.tokenUrl, backoffFor: NO_BACKOFF,
     });
@@ -285,7 +286,7 @@ test('401 → 強制 refresh 一次再重試；再 401 就明確要求重新授�
 });
 
 test('Turso 沒有 token → 明確叫你先跑授權腳本', async () => {
-  const whoop = createWhoopClient({
+  const whoop = createWhoopClient({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
     db: { getTokens: async () => null }, userId: U, clientId: 'cid', clientSecret: 'sec',
   });
   await assert.rejects(() => whoop.getAccessToken(), /npm run authorize/);

@@ -1,3 +1,4 @@
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 /**
  * v8 → v9 遷移閘門。
  *
@@ -152,16 +153,19 @@ test('★★★ v8 → v9 之後：歷史列的行為正確（已送的不重送
     const db = createDb({ url });
     try {
       await db.migrate();
+      // ★ R3 / R2-REPORT-01：認領現在要證明帳號 ACTIVE。歷史列本來就是
+      // 'u-1' 這個人的；這裡把他真的建出來，測的仍然是遷移後的歷史行為。
+      await db.createUser({ id: 'u-1', displayName: 'U1', timezone: 'Asia/Taipei' }).catch(() => {});
       const future = new Date(Date.now() + 365 * 86_400_000);   // 租約早就過期
 
-      const delivered = await db.claimReport({
+      const delivered = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
         userId: 'u-1', reportType: 'daily', localDateKey: '2026-09-10',
         ttlMs: 600_000, now: future,
       });
       assert.equal(delivered.granted, false);
       assert.equal(delivered.alreadySent, true, '★ 已證明送出 → 永遠不再授予');
 
-      const unknown = await db.claimReport({
+      const unknown = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
         userId: 'u-1', reportType: 'daily', localDateKey: '2026-09-11',
         ttlMs: 600_000, now: future,
       });
@@ -169,7 +173,7 @@ test('★★★ v8 → v9 之後：歷史列的行為正確（已送的不重送
       assert.equal(unknown.ambiguous, true, '★ 而且要能明確告訴呼叫端原因');
 
       // 全新的一天完全不受影響 —— 遷移不可以把系統凍住。
-      const fresh = await db.claimReport({
+      const fresh = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
         userId: 'u-1', reportType: 'daily', localDateKey: '2026-09-12',
         ttlMs: 600_000, now: future,
       });
@@ -213,7 +217,7 @@ test('★★★ 全新資料庫：report_claims 一開始就是新形狀，預�
       const s = await db.migrate();
       assert.equal(s.to, SCHEMA_VERSION);
       await db.createUser({ id: 'u-f', displayName: 'F' });
-      const c = await db.claimReport({
+      const c = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
         userId: 'u-f', reportType: 'daily', localDateKey: '2026-09-12', ttlMs: 600_000,
       });
       assert.equal(c.granted, true);

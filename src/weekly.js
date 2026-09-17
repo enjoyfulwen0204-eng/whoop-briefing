@@ -21,6 +21,7 @@ import { requireUserId } from './userContext.js';
 import { buildObservations, detectWake, weeklyStats, weekOverWeek } from './analyze.js';
 import { renderWeekly } from './format.js';
 import { completedWeeks, localDate, localHour, localWeekday } from './time.js';
+import { requireLifecycle } from './accountLifecycle.js';
 import { log, describeError } from './logger.js';
 import { buildNarrative } from './narrative.js';
 import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelivery.js';
@@ -58,11 +59,13 @@ function weeklyBriefingShape(weekly) {
  */
 export async function runWeekly({
   db, userId, source, coach, telegram, timezone, now = new Date(),
-  // ★ R2：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）。
-  // 報告認領會記下它，於是舊啟用期留下的未送出認領不會擋住新啟用期的報告。
-  expectedLifecycleGeneration = null,
+  // ★ R3：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）是**必填**的。
+  // 報告是使用者健康路徑：認領、遞送授權、送出都要帶著它。少傳就大聲失敗；
+  // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
+  expectedLifecycleGeneration,
 }) {
   const uid = requireUserId(userId, 'runWeekly');
+  requireLifecycle(expectedLifecycleGeneration, 'runWeekly');
   const today = localDate(now, timezone);
   const weeks = completedWeeks(now, timezone);
   const weekKey = weeks.last.key;
@@ -189,6 +192,12 @@ export async function runWeekly({
     // 生成期間失去所有權 → 什麼都沒送，也不還 claim（那一列屬於接手者）。
     log.warn('weekly_delivery_fenced', { week_key: weekKey });
     return { status: 'claim_lost', weekKey };
+  }
+
+  if (delivery.result === DELIVERY_RESULT.SUPPRESSED_STALE_LIFECYCLE) {
+    // ★ R3 / R2-REPORT-01：與 daily 相同 —— 沒送出去就不可以寫 SENT。
+    log.info('weekly_delivery_suppressed_lifecycle', { week_key: weekKey });
+    return { status: 'suppressed_stale_lifecycle', weekKey };
   }
 
   if (delivery.result === DELIVERY_RESULT.DEFINITE_FAILURE) {

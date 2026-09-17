@@ -225,6 +225,8 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     userId: uid,
     clientId: env.whoopClientId,
     clientSecret: env.whoopClientSecret,
+    // ★ R3 / R2-FG-01：例行 refresh 也屬於這一輪的帳號啟用期。
+    expectedLifecycleGeneration,
   });
   try {
     // 先把 token 準備好（序列化 refresh，避免後面平行請求同時 refresh）

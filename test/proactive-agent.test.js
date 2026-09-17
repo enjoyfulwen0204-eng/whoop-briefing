@@ -506,3 +506,41 @@ test('★★★ PA19: Alice 的持續性訊號、pending question 完全不影�
     cleanup();
   }
 });
+
+test('R3-13 suppressed proactive question creates no pending question, sent event or cursor advance', async () => {
+  const { withDeliveryAuthorization } = await import('../src/accountLifecycle.js');
+  const { db, cleanup } = tempDb();
+  try {
+    await db.migrate();
+    const user = await seedSingleUser(db);
+    await seedCalmBaseline(db, user, BASELINE_DAYS);
+    await seedOneDay(db, user, BASELINE_DAYS, { ...calmValue(BASELINE_DAYS), hrv: 15 });
+    const telegram = fakeTelegram();
+    const chatId = await db.getActiveChatIdForUser(user.id);
+    const ctx = { db, userId: user.id, timezone: user.timezone, chatId };
+    await checkAndAct({ ...ctx, telegram, now: new Date('2026-02-06T08:00:00Z') });
+    const before = await db.getProactiveState(user.id);
+    await seedOneDay(db, user, BASELINE_DAYS + 1, { ...calmValue(BASELINE_DAYS + 1), hrv: 14 });
+    const life = (await db.getUser(user.id)).lifecycleGeneration;
+    let attempts = 0;
+    const guarded = withDeliveryAuthorization(telegram, async () => {
+      attempts++;
+      await db.transitionUserLifecycle({ userId: user.id, targetStatus: 'DISABLED' });
+      await db.transitionUserLifecycle({ userId: user.id, targetStatus: 'ACTIVE' });
+      return Boolean(await db.getActiveChatIdForUser(user.id, { expectedLifecycleGeneration: life }));
+    });
+    const now = new Date('2026-02-07T08:00:00Z');
+    const result = await checkAndAct({ ...ctx, telegram: guarded, now });
+    assert.equal(attempts, 1);
+    assert.equal(result.decision, PROACTIVE_DECISION.ASK_CONTEXT);
+    assert.equal(result.messageSent, false);
+    assert.equal(result.suppressed, 'stale_lifecycle');
+    assert.equal(telegram.sent.length, 0);
+    assert.equal(await db.getOpenPendingQuestion(user.id, { now }), null);
+    assert.deepEqual(await db.getProactiveState(user.id), before);
+    assert.equal(Number((await db.raw.execute('SELECT COUNT(*) n FROM proactive_events WHERE sent_at IS NOT NULL')).rows[0].n), 0);
+    const fresh = await checkAndAct({ ...ctx, telegram, now });
+    assert.equal(fresh.messageSent, true);
+    assert.ok(await db.getOpenPendingQuestion(user.id, { now }));
+  } finally { db.close(); cleanup(); }
+});

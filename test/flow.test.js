@@ -1,3 +1,4 @@
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -24,7 +25,7 @@ const U = 'u-flow-test';
 
 function ctxFor({ now, dataset, coach = fakeCoach(), telegram = fakeTelegram(), db = fakeDb(), userId = U }) {
   return {
-    db,
+    expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db,
     userId,
     telegram,
     coach,
@@ -38,7 +39,7 @@ test('daily：正常情況會發送並寫入 SENT 紀錄', async () => {
   const ds = makeDataset({ days: 45 });
   const ctx = ctxFor({ now: ds.now, dataset: ds });
 
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent');
   assert.equal(ctx.telegram.sent.length, 1);
   assert.match(ctx.telegram.sent[0], /早安，Kelvin/);
@@ -56,8 +57,8 @@ test('daily：同一天第二次執行不會重複發（去重）', async () => 
   const ds = makeDataset({ days: 45 });
   const ctx = ctxFor({ now: ds.now, dataset: ds });
 
-  await runDaily(ctx);
-  const second = await runDaily(ctx);
+  await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
+  const second = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(second.status, 'already_sent');
   assert.equal(ctx.telegram.sent.length, 1);
 });
@@ -66,7 +67,7 @@ test('daily：起床未滿 30 分鐘 → 不發、不寫 SENT，下一輪還會�
   const ds = makeDataset({ days: 45, wakeMinutesAgo: 10 });
   const ctx = ctxFor({ now: ds.now, dataset: ds });
 
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'not_ready');
   assert.equal(res.reason, 'too_soon');
   assert.equal(ctx.telegram.sent.length, 0);
@@ -77,7 +78,7 @@ test('daily：模型掛掉仍然發簡報，而且用確定性敘述（不是假
   const ds = makeDataset({ days: 45, overrides: degradedOverrides() });
   const ctx = ctxFor({ now: ds.now, dataset: ds, coach: fakeCoach({ fail: true }) });
 
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent');
   assert.equal(res.coachUsed, false);
   assert.equal(res.narrativeSource, 'deterministic');
@@ -106,7 +107,7 @@ test('daily：Telegram 掛掉 → 記 FAILED、不遞迴呼叫 Telegram、明天
   };
   const ctx = ctxFor({ now: ds.now, dataset: ds, telegram });
 
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'telegram_failed');
   assert.equal(ctx.db.runs.at(-1).status, 'FAILED');
   assert.equal(await ctx.db.isSent('daily', localDate(ds.now, TZ)), false);
@@ -123,18 +124,18 @@ test('weekly：週一會發，且與 daily 各自獨立去重', async () => {
   const ctx = ctxFor({ now, dataset: ds });
   const weekKey = completedWeeks(now, TZ).last.key;
 
-  const daily = await runDaily(ctx);
+  const daily = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(daily.status, 'sent');
 
   // 關鍵：daily 已經 SENT，不可以擋掉 weekly
-  const weekly = await runWeekly(ctx);
+  const weekly = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(weekly.status, 'sent');
   assert.equal(ctx.telegram.sent.length, 2);
   assert.match(ctx.telegram.sent[1], /上週回顧/);
   assert.equal(await ctx.db.isSent(U, 'weekly', weekKey), true);
 
   // weekly 再跑一次不會重複
-  assert.equal((await runWeekly(ctx)).status, 'already_sent');
+  assert.equal((await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx })).status, 'already_sent');
   assert.equal(ctx.telegram.sent.length, 2);
 });
 
@@ -144,7 +145,7 @@ test('weekly：daily 失敗也不影響 weekly 發送（互不阻擋）', async 
   const dataset = makeDataset({ days: 45, now, unscoredDays: [0] });
   const ctx = ctxFor({ now, dataset });
 
-  const daily = await runDaily(ctx);
+  const daily = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(daily.status, 'not_ready');
 
   // 過中午的補發路徑：不需要偵測到起床
@@ -164,7 +165,7 @@ test('weekly：超過補發寬限（週四以後）不發', async () => {
   const dataset = makeDataset({ days: 45, now: thursday });
   const ctx = ctxFor({ now: thursday, dataset });
 
-  const res = await runWeekly(ctx);
+  const res = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'outside_window');
   assert.equal(ctx.telegram.sent.length, 0);
 });
@@ -176,7 +177,7 @@ test('weekly：清晨還沒起床時先等，過中午才補發', async () => {
   const dataset = makeDataset({ days: 45, now: monday });
   const ctx = ctxFor({ now: earlyUtc, dataset });
 
-  const early = await runWeekly(ctx);
+  const early = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(early.status, 'waiting');
   assert.equal(ctx.telegram.sent.length, 0);
 });
@@ -186,7 +187,7 @@ test('教練文字長度受控（daily 假文字也不會撐爆訊息）', async
   const ctx = ctxFor({
     now: ds.now, dataset: ds, coach: fakeCoach({ dailyText: '好'.repeat(3000) }),
   });
-  await runDaily(ctx);
+  await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.ok(ctx.telegram.sent[0].length <= 4096);
 });
 
@@ -195,7 +196,7 @@ test('daily：訊息已送出但紀錄寫不進 DB → 仍算 sent，而且**不
   const db = fakeDb({ failSentRecord: new Error('Turso 連線中斷') });
   const ctx = ctxFor({ now: ds.now, dataset: ds, db });
 
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent', '訊息真的發出去了，不可報成失敗');
   assert.equal(res.recorded, false, '要標記出「沒記錄成功」');
 
@@ -223,7 +224,7 @@ test('daily 跨午夜：去重 key 與紀錄用 health_date，不是執行當天
   assert.equal(localDate(now, TZ), '2026-08-23');
 
   const ctx = ctxFor({ now, dataset: ds });
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
 
   assert.equal(res.status, 'sent');
   assert.equal(res.healthDate, '2026-08-22', '要用睡眠結束那天當 health_date');
@@ -232,7 +233,7 @@ test('daily 跨午夜：去重 key 與紀錄用 health_date，不是執行當天
   assert.equal(run.healthDate, '2026-08-22', 'health_date 也要明確記一份');
 
   // 同一輪再跑一次 → 認得出已送出，不重複發
-  const again = await runDaily(ctx);
+  const again = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(again.status, 'already_sent');
   assert.equal(ctx.telegram.sent.length, 1, '不可重複發');
 });
@@ -242,7 +243,7 @@ test('daily：sleep.end 超過 48 小時 → 終局 MISSED（不會把舊資料�
   const ds = makeDataset({ days: 45, wakeMinutesAgo: 72 * 60 });
   const ctx = ctxFor({ now: ds.now, dataset: ds });
 
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'missed');
   assert.equal(res.reason, 'sleep_too_old');
   assert.equal(res.retryable, false);
@@ -257,7 +258,7 @@ test('daily：24–48 小時之間會補發，並標示成補發', async () => {
   const ds = makeDataset({ days: 45, wakeMinutesAgo: 30 * 60 });
   const ctx = ctxFor({ now: ds.now, dataset: ds });
 
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent');
   assert.equal(res.late, true);
   assert.equal(ctx.telegram.sent.length, 1);

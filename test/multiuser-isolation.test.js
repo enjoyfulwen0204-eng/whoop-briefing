@@ -1,3 +1,4 @@
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 /**
  * Multi-user 隔離套件（STEP 2 / 18–21）。
  *
@@ -262,19 +263,19 @@ test('報告去重：同一個 local_date 兩人各自獨立發送', async () =>
 test('report claim：Alice 的 claim 不會阻塞 Bob', async () => {
   await withAliceBob(async (db) => {
     const key = { reportType: 'daily', localDateKey: SHARED.healthDate, ttlMs: 60_000 };
-    const a = await db.claimReport({ userId: ALICE.id, ...key });
-    const b = await db.claimReport({ userId: BOB.id, ...key });
+    const a = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, ...key });
+    const b = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: BOB.id, ...key });
     assert.equal(a.granted, true);
     assert.equal(b.granted, true, 'Bob 必須也拿得到自己的發送權');
 
     // 同一人重複 claim 被拒
-    assert.equal((await db.claimReport({ userId: ALICE.id, ...key })).granted, false);
+    assert.equal((await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, ...key })).granted, false);
 
     // v9：送出授權也必須是 per-user 的 —— Alice 的授權不可以讓 Bob 送東西。
-    assert.equal(await db.authorizeReportDelivery({
+    assert.equal(await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       userId: ALICE.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: a.owner,
     }), true);
-    assert.equal(await db.authorizeReportDelivery({
+    assert.equal(await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: a.owner,
     }), false, '★ Bob 不可以用 Alice 的 owner 取得送出授權');
 
@@ -288,7 +289,7 @@ test('report claim：Alice 的 claim 不會阻塞 Bob', async () => {
     }), false);
 
     // Bob 自己那一份完全不受影響：仍然可以走完整條路。
-    assert.equal(await db.authorizeReportDelivery({
+    assert.equal(await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: b.owner,
     }), true);
     assert.equal(await db.markClaimSent({
@@ -440,7 +441,7 @@ test('缺 userId 的 store 呼叫全部拋 MissingUserIdError（不會靜默查�
       ['countAiUsage', () => db.countAiUsage()],
       ['getLatestHealthspanMetrics', () => db.getLatestHealthspanMetrics()],
       ['upsertSleeps', () => db.upsertSleeps(null, [])],
-      ['claimReport', () => db.claimReport({ reportType: 'daily', localDateKey: 'x', ttlMs: 1 })],
+      ['claimReport', () => db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, reportType: 'daily', localDateKey: 'x', ttlMs: 1 })],
     ];
     for (const [name, fn] of calls) {
       await assert.rejects(fn, MissingUserIdError, `${name} 缺 userId 應拋 MissingUserIdError`);

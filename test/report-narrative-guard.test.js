@@ -1,3 +1,4 @@
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 /**
  * P0 回歸測試：Daily / Weekly 的 AI 敘述必須通過 guardNarrative。
  *
@@ -69,7 +70,7 @@ async function runDailyWith(dailyText, { days = 45 } = {}) {
     timezone: TZ,
     now: ds.now,
   };
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   return { res, sent: ctx.telegram.sent[0] ?? '', ctx };
 }
 
@@ -86,7 +87,7 @@ async function runWeeklyWith(weeklyText) {
     timezone: TZ,
     now,
   };
-  const res = await runWeekly(ctx);
+  const res = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   return { res, sent: ctx.telegram.sent[0] ?? '', ctx };
 }
 
@@ -165,7 +166,7 @@ test('★★★ H-05 daily: 合法計畫會被採用，但輸出仍然全部是�
     timezone: TZ,
     now: ds.now,
   };
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   const sent = ctx.telegram.sent[0] ?? '';
   assertDeterministicReportIntact(sent, res, 'daily');
   assert.equal(res.narrativeSource, 'model', '★ 合法計畫要被採用');
@@ -354,7 +355,7 @@ test('P0: LLM 本來就掛掉（回 null）時行為與修復前相同', async (
     timezone: TZ,
     now: ds.now,
   };
-  const res = await runDaily(ctx);
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent');
   assertDeterministicNarrative(ctx.telegram.sent[0], res);
   assert.match(ctx.telegram.sent[0], /HRV/);

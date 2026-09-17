@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 /**
  * 用假資料把整條流程跑一遍，把「真的會發到 Telegram 的訊息」印在畫面上。
  * 不需要 WHOOP / Turso / Telegram 帳號。
@@ -76,6 +77,7 @@ async function scenario({ title, dataset, now, coachFails = false, telegramFails
     : fakeTelegram();
 
   const res = await runDaily({
+    expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
     db,
     userId: U,
     telegram,
@@ -147,6 +149,7 @@ banner('每週回顧（週一）+ 同一天 daily 不互相阻擋');
   const db = fakeDb();
   const telegram = fakeTelegram();
   const ctx = {
+    expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
     db, userId: U, telegram, coach: coachFor(),
     source: staticDataSource(dataset), timezone: TZ, now,
   };

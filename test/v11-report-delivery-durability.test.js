@@ -30,6 +30,7 @@ import { REPORT_DELIVERY_STATE } from '../src/schema.js';
 import { SEND_OUTCOME } from '../src/sendOutcome.js';
 import { TelegramError } from '../src/telegram.js';
 import { REPORT_CLAIM } from '../src/config.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 import { makeDataset } from './fixtures.js';
 import { fakeDb, fakeCoach } from './fakes.js';
 
@@ -93,7 +94,7 @@ function countingTelegram({ mode = 'ok' } = {}) {
 }
 
 const dailyCtx = (db, telegram, ds, now = ds.now) => ({
-  db, userId: U, telegram, coach: fakeCoach(), source: staticDataSource(ds), timezone: TZ, now,
+  expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db, userId: U, telegram, coach: fakeCoach(), source: staticDataSource(ds), timezone: TZ, now,
 });
 
 // ===========================================================================
@@ -129,13 +130,13 @@ test('★★★ H-01/2: weekly — 同樣的模糊送出，外部只收到一次
     db, userId: U, telegram: tg, coach: fakeCoach(), source: staticDataSource(ds), timezone: TZ, now,
   };
 
-  const first = await runWeekly(ctx);
+  const first = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(first.status, 'delivery_ambiguous');
   assert.equal(tg.accepted.length, 1);
 
   tg.mode = 'ok';
   for (let i = 0; i < 5; i += 1) {
-    const again = await runWeekly({ ...ctx, telegram: tg });
+    const again = await runWeekly({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx, telegram: tg });
     assert.equal(again.status, 'delivery_ambiguous');
   }
   assert.equal(tg.accepted.length, 1, '★★★ 週回顧也只可以被接受一次');
@@ -168,18 +169,18 @@ test('★★★ H-01/4: 授權發生在打網路之前（死在送出中也不�
     await db.createUser({ id: U, displayName: 'D' });
     const key = { userId: U, reportType: 'daily', localDateKey: '2026-09-12' };
 
-    const claim = await db.claimReport({ ...key, ttlMs: REPORT_CLAIM.TTL_MS });
+    const claim = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, ttlMs: REPORT_CLAIM.TTL_MS });
     assert.equal(claim.granted, true);
     assert.equal((await db.getClaim(U, 'daily', '2026-09-12')).deliveryState,
       REPORT_DELIVERY_STATE.CLAIMED);
 
     // 授權（= 打網路前的最後一步）
-    assert.equal(await db.authorizeReportDelivery({ ...key, owner: claim.owner }), true);
+    assert.equal(await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, owner: claim.owner }), true);
     assert.equal((await db.getClaim(U, 'daily', '2026-09-12')).deliveryState,
       REPORT_DELIVERY_STATE.DELIVERY_STARTED);
 
     // ★ process 在這裡死掉。重開機之後：
-    const after = await db.claimReport({
+    const after = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       ...key, ttlMs: REPORT_CLAIM.TTL_MS,
       now: new Date(Date.now() + 365 * 86_400_000),   // 租約早就過期
     });
@@ -201,16 +202,16 @@ test('★★★ H-02/1: A 過期 → B 接手並送出 → A 恢復執行 → �
   // A 取得發送權，然後「卡住」。
   const key = { userId: U, reportType: 'daily', localDateKey: localDate(ds.now, TZ) };
   const t0 = new Date(ds.now);
-  const a = await db.claimReport({ ...key, ttlMs: 60_000, now: t0 });
+  const a = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, ttlMs: 60_000, now: t0 });
   assert.equal(a.granted, true);
 
   // 租約過期之後 B 接手。
   const later = new Date(t0.getTime() + 61_000);
-  const b = await db.claimReport({ ...key, ttlMs: 60_000, now: later });
+  const b = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, ttlMs: 60_000, now: later });
   assert.equal(b.granted, true, 'B 必須能接手（A 還沒有任何外部副作用）');
 
   // B 走完完整的送出流程。
-  assert.equal(await db.authorizeReportDelivery({ ...key, owner: b.owner, now: later }), true);
+  assert.equal(await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, owner: b.owner, now: later }), true);
   await tg.send('B 送出的晨報');
   assert.equal(await db.markClaimSent({
     ...key, owner: b.owner, messageId: 1, now: later,
@@ -219,7 +220,7 @@ test('★★★ H-02/1: A 過期 → B 接手並送出 → A 恢復執行 → �
 
   // ★ A 的 JavaScript 現在恢復執行。它手上的 owner 已經沒有任何權力。
   assert.equal(
-    await db.authorizeReportDelivery({ ...key, owner: a.owner, now: later }), false,
+    await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, owner: a.owner, now: later }), false,
     '★ 失去所有權的 owner 不可以取得送出授權',
   );
   assert.equal(
@@ -253,9 +254,9 @@ test('★★★ H-02/2: 端到端 —— A 在生成期間失去所有權，runD
         // A 的 claim 是用**真實**時鐘建立的（runDaily 沒有注入 now 給 claimReport），
         // 所以「租約過期」也要用同一條時間軸算，否則測到的會是別的東西。
         const afterLease = new Date(Date.now() + REPORT_CLAIM.TTL_MS + 1_000);
-        const b = await db.claimReport({ ...key, ttlMs: 600_000, now: afterLease });
+        const b = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, ttlMs: 600_000, now: afterLease });
         assert.equal(b.granted, true, 'B 必須能接手');
-        await db.authorizeReportDelivery({ ...key, owner: b.owner, now: afterLease });
+        await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, owner: b.owner, now: afterLease });
         await tg.send('B 送出的晨報');
         await db.markClaimSent({ ...key, owner: b.owner, messageId: 1, now: afterLease });
       }
@@ -263,7 +264,7 @@ test('★★★ H-02/2: 端到端 —— A 在生成期間失去所有權，runD
     },
   };
 
-  const res = await runDaily({
+  const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
     db, userId: U, telegram: tg, coach: fakeCoach(), source, timezone: TZ, now: ds.now,
   });
 
@@ -280,7 +281,7 @@ test('★★★ H-02/3: 續租讓正常的長工作不會失去所有權', async
     const key = { userId: U, reportType: 'daily', localDateKey: '2026-09-12' };
     const t0 = new Date('2026-09-12T00:00:00.000Z');
 
-    const c = await db.claimReport({ ...key, ttlMs: 60_000, now: t0 });
+    const c = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, ttlMs: 60_000, now: t0 });
     // 生成花了 50 秒，續租一次。
     const mid = new Date(t0.getTime() + 50_000);
     assert.equal(await db.renewClaim({ ...key, owner: c.owner, ttlMs: 60_000, now: mid }), true);
@@ -288,7 +289,7 @@ test('★★★ H-02/3: 續租讓正常的長工作不會失去所有權', async
     // 原本會過期的時間點，現在仍然握得住。
     const afterOriginalTtl = new Date(t0.getTime() + 70_000);
     assert.equal(
-      await db.authorizeReportDelivery({ ...key, owner: c.owner, now: afterOriginalTtl }), true,
+      await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, owner: c.owner, now: afterOriginalTtl }), true,
       '★ 續租之後仍然是合法 owner',
     );
 
@@ -338,15 +339,15 @@ test('★★★ 重啟復原：每一種持久狀態下重跑都不會產生第�
     for (const [state, claimable, why] of cases) {
       const date = `2026-09-${state.length}`;   // 每個狀態各自一天
       const key = { userId: U, reportType: 'daily', localDateKey: date };
-      const c = await db.claimReport({ ...key, ttlMs: 1_000 });
+      const c = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, ttlMs: 1_000 });
       if (state !== 'CLAIMED') {
-        await db.authorizeReportDelivery({ ...key, owner: c.owner });
+        await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...key, owner: c.owner });
       }
       if (state === 'DELIVERED') await db.markClaimSent({ ...key, owner: c.owner, messageId: 1 });
       if (state === 'AMBIGUOUS') await db.markClaimAmbiguous({ ...key, owner: c.owner });
 
       // 重啟：一個全新的 runner，租約早就過期。
-      const restart = await db.claimReport({
+      const restart = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
         ...key, ttlMs: 60_000, now: new Date(Date.now() + 86_400_000),
       });
       assert.equal(restart.granted, claimable, `★ ${state}：${why}`);
@@ -374,18 +375,18 @@ test('★★★ 多使用者：Alice 的模糊送出完全不影響 Bob 的同�
     const kB = { userId: 'u-bob', reportType: 'daily', localDateKey: date };
 
     // Alice 走到模糊（終局）。
-    const a = await db.claimReport({ ...kA, ttlMs: 60_000 });
-    await db.authorizeReportDelivery({ ...kA, owner: a.owner });
+    const a = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...kA, ttlMs: 60_000 });
+    await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...kA, owner: a.owner });
     await db.markClaimAmbiguous({ ...kA, owner: a.owner, detail: 'body_read' });
 
     // Bob 完全不受影響：拿得到發送權，也送得出去。
-    const b = await db.claimReport({ ...kB, ttlMs: 60_000 });
+    const b = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...kB, ttlMs: 60_000 });
     assert.equal(b.granted, true, '★ Alice 的終局狀態不可以阻塞 Bob');
-    assert.equal(await db.authorizeReportDelivery({ ...kB, owner: b.owner }), true);
+    assert.equal(await db.authorizeReportDelivery({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...kB, owner: b.owner }), true);
     assert.equal(await db.markClaimSent({ ...kB, owner: b.owner, messageId: 7 }), true);
 
     // 反向：Bob 的成功也沒有讓 Alice 那筆變成可重送。
-    const aRetry = await db.claimReport({
+    const aRetry = await db.claimReport({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       ...kA, ttlMs: 60_000, now: new Date(Date.now() + 86_400_000),
     });
     assert.equal(aRetry.granted, false);

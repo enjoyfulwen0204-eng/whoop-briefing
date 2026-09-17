@@ -43,6 +43,7 @@ try {
   const lifecycle = lifecycleContextFor(user);
   const whoop = createWhoopClient({
     db, userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+    expectedLifecycleGeneration: lifecycle,
   });
 
   console.log(`使用者：${user.id}（${user.displayName}，${user.timezone}）`);

@@ -25,6 +25,7 @@ import {
   processAnalyticsForUser, runLightweightAnalysis, fencedAnalyticsDb, lightRangeFor,
 } from '../src/analyticsWorker.js';
 import { ANALYTICS_CLASS, ANALYTICS_RESULT, ANALYTICS_FRESHNESS, SCHEMA_VERSION } from '../src/schema.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 
 const TZ = 'Asia/Taipei';
 const ALICE = { id: 'u-alice', whoop: '1001' };
@@ -147,9 +148,9 @@ test('RC2 BEFORE 檢查：持久化交易開始前就過期 → before 擋下、
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 3);
-    const c = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: SHORT_LEASE, now: NOW });
+    const c = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: SHORT_LEASE, now: NOW });
     const expired = new Date(NOW.getTime() + SHORT_LEASE + 1);
-    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), {
+    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       owner: 'A', generation: c.generation, now: NOW, clock: () => expired,
     }), /analytics_ownership_lost/);
     assert.equal(await rowCount(e.db, 'analytics_daily_state', ALICE.id), 0, '★ 0 列');
@@ -160,21 +161,21 @@ test('RC2 AFTER 檢查（強制）：before 通過、寫入執行、寫入期間
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 3);
-    const c = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: SHORT_LEASE, now: NOW });
+    const c = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: SHORT_LEASE, now: NOW });
     // 時鐘：第一次（before）還在租約內；之後（after）已經過期。
     let calls = 0;
     const crossing = () => {
       calls += 1;
       return calls === 1 ? new Date(NOW.getTime() + SHORT_LEASE - 1) : new Date(NOW.getTime() + SHORT_LEASE + 1);
     };
-    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(7, ['2026-09-13', '2026-09-14']), {
+    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(7, ['2026-09-13', '2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       owner: 'A', generation: c.generation, now: NOW, clock: crossing,
     }), /analytics_ownership_lost/);
     assert.ok(calls >= 2, `★ before 與 after 各自取了一次時間（calls=${calls}）`);
     assert.equal(await rowCount(e.db, 'analytics_daily_state', ALICE.id), 0, '★★★ 交易回滾：0 列');
     // 對照組：同一段寫入、時鐘全程有效 → 真的寫進去（證明上面擋下的是 after，不是別的原因）
     const live = new Date(NOW.getTime() + SHORT_LEASE - 1);
-    const n = await e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(7, ['2026-09-13', '2026-09-14']), {
+    const n = await e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(7, ['2026-09-13', '2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       owner: 'A', generation: c.generation, now: NOW, clock: () => live,
     });
     assert.equal(n, 2);
@@ -186,10 +187,10 @@ test('RC2 mutateForAnalytics 結構上拒絕凍結時間：不是函式就拋錯
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 1);
-    const c = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW });
-    await assert.rejects(e.db.mutateForAnalytics({ userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, now: NOW }, async () => {}), /analytics_live_clock_required/);
-    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { owner: 'A', generation: c.generation, now: NOW, clock: NOW }), /analytics_live_clock_required/);
-    assert.throws(() => fencedAnalyticsDb(e.db, { userId: ALICE.id, cls: HEAVY, owner: 'A', generation: 1, now: NOW }), /analytics_live_clock_required/);
+    const c = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW });
+    await assert.rejects(e.db.mutateForAnalytics({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, now: NOW }, async () => {}), /analytics_live_clock_required/);
+    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, owner: 'A', generation: c.generation, now: NOW, clock: NOW }), /analytics_live_clock_required/);
+    assert.throws(() => fencedAnalyticsDb(e.db, { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', generation: 1, now: NOW }), /analytics_live_clock_required/);
     assert.equal(await rowCount(e.db, 'analytics_daily_state', ALICE.id), 0);
   } finally { e.done(); }
 });
@@ -198,13 +199,13 @@ test('RC2 租約相等邊界仍然是「過期」：lease_expires_at == now → 
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 2);
-    const c = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW });
+    const c = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 60_000, now: NOW });
     const boundary = new Date(NOW.getTime() + 60_000);
-    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), {
+    await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       owner: 'A', generation: c.generation, now: NOW, clock: () => boundary,
     }), /analytics_ownership_lost/);
     assert.equal(await rowCount(e.db, 'analytics_daily_state', ALICE.id), 0);
-    const n = await e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), {
+    const n = await e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(1, ['2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       owner: 'A', generation: c.generation, now: NOW, clock: () => new Date(boundary.getTime() - 1),
     });
     assert.equal(n, 1);
@@ -215,10 +216,10 @@ test('RC2 分析錨點與租約時鐘分開：計算中途時間前進，health_
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 3);
-    const c = await e.db.claimAnalyticsWork({ userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 600_000, now: NOW });
+    const c = await e.db.claimAnalyticsWork({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', leaseMs: 600_000, now: NOW });
     // 錨點固定在 NOW；活時鐘往前走（但還在租約內）
     let t = NOW.getTime();
-    const r = await runLightweightAnalysis({
+    const r = await runLightweightAnalysis({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
       db: e.db, userId: ALICE.id, timezone: TZ, generation: c.generation, owner: 'A',
       range: { from: '2026-09-11', to: '2026-09-15' }, now: NOW, clock: () => { t += 30_000; return new Date(t); },
     });

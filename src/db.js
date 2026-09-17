@@ -18,7 +18,7 @@ import {
   GLOBAL_SCOPE, userScope, TELEGRAM_DELIVERY_STATE, TELEGRAM_UPDATE_STATUS,
   REPORT_DELIVERY_STATE, USER_STATUS, lifecycleActiveSql,
 } from './schema.js';
-import { AccountInactiveError } from './accountLifecycle.js';
+import { AccountInactiveError, requireLifecycle } from './accountLifecycle.js';
 
 const TELEGRAM_UPDATE_STATUS_COMPLETED = TELEGRAM_UPDATE_STATUS.COMPLETED;
 const TELEGRAM_UPDATE_STATUS_ABANDONED = TELEGRAM_UPDATE_STATUS.ABANDONED;
@@ -202,9 +202,9 @@ export function createDb({ url, authToken }) {
     if (!Number.isSafeInteger(id) || !owner) return false;
     const rs = await client.execute({
       sql: `UPDATE telegram_operations
-               SET delivery_state = ?, delivered_at = ?
+               SET delivery_state = ?, delivered_at = NULL, telegram_message_id = NULL
              WHERE update_id = ? AND delivery_owner = ? AND delivery_state = ?`,
-      args: [TELEGRAM_DELIVERY_STATE.NOT_REQUIRED, now.toISOString(), id, String(owner),
+      args: [TELEGRAM_DELIVERY_STATE.NOT_REQUIRED, id, String(owner),
         TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
@@ -1216,7 +1216,7 @@ export function createDb({ url, authToken }) {
    *                                               不可以自動再送（需要人工處置）
    *   { granted:false }                         → 別人正握著（claim 未過期）
    *
-   * ## 為什麼只有 CLAIMED 可以被接手
+   * ## 同一啟用期只接手 CLAIMED；新啟用期可接手舊的 DELIVERY_STARTED
    *
    * CLAIMED 的定義是「拿到權限了，但**還沒有任何外部副作用**」——
    * 抓歷史、算 baseline、問模型全都在這個狀態裡，重做一次不會有任何代價。
@@ -1225,16 +1225,17 @@ export function createDb({ url, authToken }) {
    * 一旦跨過 authorizeReportDelivery（=可能已經打到 Telegram），狀態就變成
    * DELIVERY_STARTED，而那是**終局**：租約過不過期都不再授予任何人。
    * 「租約過期」永遠不可以變成「再送一次」的理由。
+   * 已知的不同啟用世代可回收未確認送達的 DELIVERY_STARTED；
+   * AMBIGUOUS 與已確認送達的歷史列仍然不在自動接手範圍內。
    */
   async function claimReport({
     userId, reportType, localDateKey, ttlMs, owner = randomUUID(),
-    expectedLifecycleGeneration = null, now = new Date(),
+    expectedLifecycleGeneration, now = new Date(),
   }) {
     const uid = requireUserId(userId, 'claimReport');
     const nowIso = now.toISOString();
     const expiresIso = new Date(now.getTime() + ttlMs).toISOString();
-    const life = Number.isInteger(expectedLifecycleGeneration)
-      ? expectedLifecycleGeneration : null;
+    const life = requireLifecycle(expectedLifecycleGeneration, 'claimReport');
     const rs = await client.execute({
       // ★ R2 / LIFE-FG-07 §20：認領記下它屬於哪一段啟用期，而且**別的
       // 啟用期留下的未送出認領一律可以被接手**（不必等租約過期）。
@@ -1245,25 +1246,33 @@ export function createDb({ url, authToken }) {
       sql: `INSERT INTO report_claims
               (user_id, report_type, local_date, owner, claimed_at, expires_at,
                delivery_state, delivery_attempts, lifecycle_generation)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+            SELECT ?, ?, ?, ?, ?, ?, ?, 0, ?
+             -- ★ R3 / R2-REPORT-01：認領本身就要證明帳號 ACTIVE 且仍在
+             -- 這個 worker 捕捉到的啟用期。舊 L1 worker 不可以在 L3 裡
+             -- 憑空建出一個認領（那會佔掉當天的遞送名額）。
+             WHERE ${lifecycleActiveSql('?')}
             ON CONFLICT(user_id, report_type, local_date) DO UPDATE SET
               owner      = excluded.owner,
               claimed_at = excluded.claimed_at,
               expires_at = excluded.expires_at,
-              lifecycle_generation = excluded.lifecycle_generation
+              lifecycle_generation = excluded.lifecycle_generation,
+              delivery_state = excluded.delivery_state, delivery_started_at = NULL, delivery_detail = NULL
             WHERE report_claims.telegram_sent_at IS NULL
-              AND report_claims.delivery_state = ?
-              AND (report_claims.expires_at <= excluded.claimed_at
+              AND ((report_claims.delivery_state = ? AND report_claims.expires_at <= excluded.claimed_at)
                 -- ★ R2：兩邊都知道而且不同時才接手（NULL = 出處不明，維持互斥）
-                OR (report_claims.lifecycle_generation IS NOT NULL
+                OR (report_claims.delivery_state IN ('CLAIMED', 'DELIVERY_STARTED')
+                    AND report_claims.lifecycle_generation IS NOT NULL
                     AND excluded.lifecycle_generation IS NOT NULL
                     AND report_claims.lifecycle_generation <> excluded.lifecycle_generation))`,
       args: [uid, reportType, localDateKey, owner, nowIso, expiresIso,
-        REPORT_DELIVERY_STATE.CLAIMED, life, REPORT_DELIVERY_STATE.CLAIMED],
+        REPORT_DELIVERY_STATE.CLAIMED, life,
+        uid, life,                       // INSERT 的啟用圍欄
+        REPORT_DELIVERY_STATE.CLAIMED],
     });
     if (Number(rs.rowsAffected ?? 0) > 0) {
       log.info('report_claimed', { user_id: uid, report_type: reportType, local_date: localDateKey });
-      return { granted: true, owner };
+      // 認領帶著它的啟用世代，deliverReport 據此在送出前再證明一次。
+      return { granted: true, owner, lifecycleGeneration: expectedLifecycleGeneration };
     }
     const existing = await getClaim(uid, reportType, localDateKey);
     const state = existing?.deliveryState ?? null;
@@ -1331,20 +1340,29 @@ export function createDb({ url, authToken }) {
    * 從這一刻起，即使 process 立刻死掉，也不會有第二次自動送出。
    */
   async function authorizeReportDelivery({
-    userId, reportType, localDateKey, owner, now = new Date(),
+    userId, reportType, localDateKey, owner, expectedLifecycleGeneration,
+    now = new Date(),
   }) {
     const uid = requireUserId(userId, 'authorizeReportDelivery');
     if (!owner) return false;
+    const life = requireLifecycle(expectedLifecycleGeneration, 'authorizeReportDelivery');
     const rs = await client.execute({
+      // ★ R3 / R2-REPORT-01：跨進 DELIVERY_STARTED（= 可能已經有外部副作用
+      // 的終局狀態）之前，同時證明：擁有權、認領的啟用世代、以及帳號
+      // **現在**仍然在同一段啟用期。三者任一不成立就不授權，於是
+      // 一個過期的 worker 連 DELIVERY_STARTED 都進不去（也就不會把
+      // 當天的遞送名額卡在一個沒有人會完成的狀態）。
       sql: `UPDATE report_claims
                SET delivery_state = ?, delivery_started_at = ?,
                    delivery_attempts = delivery_attempts + 1
              WHERE user_id = ? AND report_type = ? AND local_date = ?
                AND owner = ? AND expires_at > ?
-               AND delivery_state = ? AND telegram_sent_at IS NULL`,
+               AND delivery_state = ? AND telegram_sent_at IS NULL
+               AND report_claims.lifecycle_generation IS ?
+               AND ${lifecycleActiveSql('report_claims.user_id')}`,
       args: [REPORT_DELIVERY_STATE.DELIVERY_STARTED, now.toISOString(),
         uid, reportType, localDateKey, String(owner), now.toISOString(),
-        REPORT_DELIVERY_STATE.CLAIMED],
+        REPORT_DELIVERY_STATE.CLAIMED, life, life],
     });
     const ok = Number(rs.rowsAffected ?? 0) > 0;
     if (!ok) {

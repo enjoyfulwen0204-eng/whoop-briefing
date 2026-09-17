@@ -655,7 +655,7 @@ test('ONB-ATTACK-24 舊使用者（Kelvin）遷移：資料全留、進入重新
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (13, '2026-09-14T00:00:00.000Z', 'v13')");
 
     const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 18);
+    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 19);
     assert.deepEqual(summary.rebuilt, []);
     assert.deepEqual(summary.columnsAdded, []);
     // v14 依證據建列（Kelvin 證據齊全 → READY）；v15 的修正沒有東西要改
@@ -664,7 +664,7 @@ test('ONB-ATTACK-24 舊使用者（Kelvin）遷移：資料全留、進入重新
     // 資源權限判定」，而 v13 時代的資料一列都沒有。遷移**不捏造**那些判定。
     assert.deepEqual(summary.dataMigrations,
       [{ version: 14, rows: 1 }, { version: 15, rows: 0 }, { version: 16, rows: 0 },
-        { version: 18, rows: 1 }]);
+        { version: 18, rows: 1 }, { version: 19, rows: 0 }]);
 
     const row = await e.db.getOnboardingRow(kelvin.id);
     assert.equal(row.state, ONBOARDING_STATE.WHOOP_AUTHORIZED,
@@ -718,7 +718,7 @@ test('遷移 v13 → v15：中斷後重跑補齊；全新資料庫不會憑空�
     const s = await runMigrations(e.db.raw);
     // 這個使用者從來就不是 READY（只有帳號），所以 v18 沒有東西要降級。
     assert.deepEqual(s.dataMigrations, [{ version: 14, rows: 1 }, { version: 15, rows: 0 }, { version: 16, rows: 0 },
-      { version: 18, rows: 0 }]);
+      { version: 18, rows: 0 }, { version: 19, rows: 0 }]);
     // 這個使用者只有帳號，沒有綁定 / token → truthful 的狀態是 STARTED，不是 READY
     assert.equal((await e.db.getOnboardingRow(u.id)).state, ONBOARDING_STATE.STARTED);
     assert.equal((await e.db.getOnboardingRow(u.id)).timezoneConfirmedAt, null);

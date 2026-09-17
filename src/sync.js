@@ -138,6 +138,10 @@ export function createSync({
 
   /** 抓一個時間窗（純網路，不落地）。 */
   async function fetchWindow(resource, fromIso, toIso) {
+    // ★ R3 / R2-STAGE-01：每一次**獨立發出**的 provider 抓取之前重新驗證。
+    // 一個窗內的分頁序列是一個有界階段，不逐頁檢查；但 incremental 與
+    // backfill 的每一個 chunk 都是新的請求，各自驗一次。
+    if (lifecycleFenced) await db.assertAccountActive(uid, lifecycleFence);
     const payload = POINT_IN_TIME.has(resource)
       ? await fetchers[resource]()
       : await fetchers[resource](fromIso, toIso);
@@ -255,6 +259,8 @@ export function createSync({
     const results = [];
     for (const resource of resources) {
       try {
+        // ★ R3 / R2-STAGE-01：階段邊界在 fetchWindow 裡（每一次獨立的 provider
+        // 抓取之前）。落地圍欄仍然是最後一道。
         if (!force) {
           // 節流的唯一定義在 resourceSyncDue()，cron 的預先判斷用的是同一份
           const state = await db.getSyncState(uid, resource);

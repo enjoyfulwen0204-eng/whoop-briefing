@@ -319,5 +319,10 @@ async function bindAuthorizedTokens({
     has_refresh: Boolean(tokens.refreshToken),
     whoop_user_id: whoopUserId,
   });
-  return { userId, whoopUserId, scope: tokens.scope ?? null };
+  return {
+    userId, whoopUserId, scope: tokens.scope ?? null,
+    // ★ R3 / R2-FG-02：把這條 state 的啟用世代交給呼叫端 —— token 寫入成功
+    // **不代表**後續的上線副作用也被授權（見 whoopOAuthCallback 的說明）。
+    lifecycleGeneration: expectedLifecycleGeneration ?? null,
+  };
 }

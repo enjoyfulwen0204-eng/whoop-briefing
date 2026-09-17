@@ -28,6 +28,7 @@ import {
 } from '../src/schema.js';
 import { ANALYTICS_WORK } from '../src/config.js';
 import { addDays } from '../src/time.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 
 const TZ = 'Asia/Taipei';
 const ALICE = { id: 'u-alice', whoop: '1001' };
@@ -393,7 +394,7 @@ test('F02-G / ATTACK 11 深度對帳帶來 relink → 失效；快 / 深水位�
       '/recovery': { records: [recoveryRecord({ sleepId: sid(1), updatedAt: at(20) }), recoveryRecord({ sleepId: sid(2), updatedAt: at(0, -1), score: 99 })], next_token: null },
     };
     const whoop = { apiGet: async (p) => routes[p] ?? { records: [], next_token: null }, bodyMeasurement: async () => ({}) };
-    const rc = createReconciler({ db: e.db, whoop, userId: ALICE.id, timezone: TZ, now: () => NOW });
+    const rc = createReconciler({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db: e.db, whoop, userId: ALICE.id, timezone: TZ, now: () => NOW });
     const ds = await rc.reconcileDeep('sleep'); assert.equal(ds.result, 'SUCCESS'); assert.equal(ds.written, 1);
     const dr = await rc.reconcileDeep('recovery'); assert.equal(dr.result, 'SUCCESS'); assert.equal(dr.blocked, 1, '墓碑擋下 sid(2)');
     const D2 = await recoveryDate(e.db, ALICE.id, sid(1));
@@ -652,7 +653,7 @@ test('遷移 v12 → v13：三個 nullable 欄位純新增；既有 canonical / 
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (12, '2026-09-12T00:00:00.000Z', 'v12')");
     for (const c of COLS) assert.ok(!(await cols()).includes(c));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 12); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 17);
+    assert.equal(s.from, 12); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 18);
     assert.deepEqual(s.rebuilt, []);
     assert.deepEqual(s.columnsAdded, COLS.map((c) => `analytics_work_state.${c}`));
     const tables = (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.map((r) => String(r.name));
@@ -668,8 +669,10 @@ test('遷移 v12 → v13：三個 nullable 欄位純新增；既有 canonical / 
     await e.db.raw.execute('ALTER TABLE analytics_work_state ADD COLUMN range_generation INTEGER');
     const s3 = await runMigrations(e.db.raw);
     assert.deepEqual(s3.columnsAdded, ['analytics_work_state.range_from', 'analytics_work_state.range_to']);
+    // v13 的三個分片欄位 + v18 的 claimed_lifecycle（帳號啟用世代）。
+    // 全部都是 nullable、無回填的純新增。
     const v13 = ADDITIVE_COLUMNS.filter((c) => c.table === 'analytics_work_state');
-    assert.equal(v13.length, 3); assert.ok(v13.every((c) => !/NOT NULL/.test(c.ddl) && !c.backfill));
+    assert.equal(v13.length, 4); assert.ok(v13.every((c) => !/NOT NULL/.test(c.ddl) && !c.backfill));
     // 升級後分片可用
     await seedHistory(e.db, ALICE, 60, { startDaysAgo: 3 });
     const r = await light(e.db);

@@ -59,6 +59,7 @@ import { WHOOP_RECONCILE, WHOOP } from './config.js';
 import { RECONCILE_RESULT, TOMBSTONE_RECONCILE_VERDICT, DISCREPANCY_KIND } from './schema.js';
 import { WhoopApiError, WhoopAuthError, isScopeError } from './whoop.js';
 import { requireUserId } from './userContext.js';
+import { requireLifecycle } from './accountLifecycle.js';
 import { log, describeError } from './logger.js';
 
 const DAY_MS = 86_400_000;
@@ -254,8 +255,20 @@ export function createReconciler({
   maxPagesPerRun = WHOOP_RECONCILE.MAX_PAGES_PER_RUN,
   leaseMs = WHOOP_RECONCILE.LEASE_MS,
   deep = WHOOP_RECONCILE.DEEP,
+  // ★ R2 / LIFE-FG-03 §16：這一輪對帳屬於哪一段帳號啟用期。
+  // 受約束時，canonical 寫入在同一個交易裡再證明一次；
+  // LIFECYCLE_UNFENCED 是明確的管理者整備模式。
+  expectedLifecycleGeneration = null,
 }) {
   const uid = requireUserId(userId, 'createReconciler');
+  const lifecycleFence = requireLifecycle(
+    expectedLifecycleGeneration, 'createReconciler',
+  );
+  /** 在目前交易裡證明帳號仍然 ACTIVE 且仍在同一段啟用期（不受約束時是 no-op）。 */
+  const assertLifecycle = async () => {
+    if (lifecycleFence === null) return;
+    await db.assertAccountActive(uid, lifecycleFence);
+  };
   const owner = ownerId ?? `reconcile:${uid}:${process.pid}:${Math.random().toString(36).slice(2, 10)}`;
   const at = () => new Date(now());
 
@@ -443,7 +456,12 @@ export function createReconciler({
         counters.fetched = 1;
         counters.written = await db.mutateForReconciliation(
           { userId: uid, resource: key, owner, now },
-          () => db.upsertBodyMeasurement(uid, bm, { now: at() }),
+          async () => {
+            // ★ R2 §16：canonical 變更要在**同一個交易裡**證明啟用脈絡。
+            // 租約所有權只證明「沒有別的對帳在跑」，不證明這個帳號還該被處理。
+            await assertLifecycle();
+            return db.upsertBodyMeasurement(uid, bm, { now: at() });
+          },
         );
         const settled = await db.settleReconciliation({
           userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS, windowTo: window.to, now: at(),
@@ -473,7 +491,13 @@ export function createReconciler({
       // 寫入：既有儲存層（M-03 + 墓碑）+ 所有權圍欄交易。
       // blocked = 抓到但沒寫進去的（新鮮度或墓碑擋下）。
       counters.written = fetched.records.length
-        ? await db.mutateForReconciliation({ userId: uid, resource: key, owner, now }, () => persist(resource, fetched.records))
+        ? await db.mutateForReconciliation(
+          { userId: uid, resource: key, owner, now },
+          async () => {
+            await assertLifecycle();
+            return persist(resource, fetched.records);
+          },
+        )
         : 0;
       counters.blocked = Math.max(0, counters.fetched - counters.written);
 

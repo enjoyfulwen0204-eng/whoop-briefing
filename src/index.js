@@ -255,7 +255,11 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   const coach = makeCoach({
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId: uid,
   });
-  const ctx = { db, userId: uid, source, coach, telegram, timezone: tz, now };
+  const ctx = {
+    db, userId: uid, source, coach, telegram, timezone: tz, now,
+    // ★ R2：這一輪的帳號啟用世代，往下帶進報告認領與遞送授權。
+    expectedLifecycleGeneration,
+  };
 
   // ---- daily ----
   // 報告的條件維持原樣（health_date 去重 + report_claims），完全沒有放寬。

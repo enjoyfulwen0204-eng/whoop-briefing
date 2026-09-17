@@ -18,6 +18,7 @@
 import { LOCKS, WHOOP } from './config.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
+import { LIFECYCLE_UNFENCED, requireLifecycle } from './accountLifecycle.js';
 
 export class WhoopAuthError extends Error {
   constructor(message) {
@@ -219,6 +220,10 @@ export function createWhoopClient({
   // ★ F04：把這個 client 綁死在**一次**授權上（見下方大段說明）。
   // 不傳就是既有行為（不受約束），所以 index.js / reconcile.js 完全不受影響。
   authorization = null,
+  // ★ R2 §9：帳號啟用世代，與授權世代**各自獨立**。
+  // 一個受約束的健康 client 兩個都要帶：重新授權不動啟用期，
+  // 停用／再啟用不動授權期。
+  expectedLifecycleGeneration = null,
 } = {}) {
   const uid = requireUserId(userId, 'createWhoopClient');
   // per-user 的 lease lock 名稱。全域鎖名會讓一個人的 refresh 卡住所有人。
@@ -242,6 +247,13 @@ export function createWhoopClient({
   const expectedGeneration = Number.isInteger(authorization?.authGeneration)
     ? authorization.authGeneration : null;
   const constrained = expectedGeneration !== null;
+  // 受授權約束的 client（也就是上線 bootstrap 那種健康 worker）**必須**
+  // 同時帶著啟用脈絡：只鎖授權世代擋不住停用／ABA。
+  const lifecycleFence = constrained
+    ? requireLifecycle(expectedLifecycleGeneration, 'createWhoopClient(authorization)')
+    : (expectedLifecycleGeneration === LIFECYCLE_UNFENCED
+      ? null
+      : (Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null));
   // 受約束時直接用呼叫端已經讀好的那一列當快取：第一次 WHOOP 呼叫因此
   // 不會再去讀一次 token 列（那次讀取本身就是一個新的、可能不同的快照）。
   let cached = constrained ? authorization : null;
@@ -431,7 +443,13 @@ export function createWhoopClient({
           // ★ F04：例行 refresh **不會**動世代（世代代表「這次授權／同意」，
           // 不是 token 字串的版本）。所以這裡寫的是「我還是在世代 N」，
           // 而不是「把世代推進」。
-        }, { expectedUpdatedAt: baseUpdatedAt, expectedAuthGeneration: expectedGeneration });
+        }, {
+          expectedUpdatedAt: baseUpdatedAt,
+          expectedAuthGeneration: expectedGeneration,
+          // ★ R2 / LIFE-FG-01：輪替後的憑證不可以寫進一個已經停用（或已經
+          // 換過啟用期）的帳號。這是與授權世代正交的第二道 CAS。
+          expectedLifecycleGeneration: lifecycleFence,
+        });
       } catch (err) {
         // 身分不可變之類的硬錯誤要往上拋，不可以被當成「有人搶先寫了」。
         if (err?.code === 'WHOOP_IDENTITY_IMMUTABLE') throw err;

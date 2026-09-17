@@ -11,7 +11,7 @@
  */
 
 import { loadDotEnvIfPresent, loadEnv, WHOOP_SYNC } from '../src/config.js';
-import { pickUser } from './pickUser.js';
+import { pickUser, lifecycleContextFor } from './pickUser.js';
 import { createDb } from '../src/db.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { createSync } from '../src/sync.js';
@@ -24,6 +24,8 @@ const env = loadEnv({
 const untilDone = process.argv.includes('--until-done');
 const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
 const user = await pickUser(db);
+// ★ R2 / LIFE-FG-03：這一輪的啟用脈絡，往下傳給所有健康寫入。
+const lifecycle = lifecycleContextFor(user);
 
 try {
   await db.migrate();
@@ -38,6 +40,7 @@ try {
     // ★ L-03 同一條：health_date 的歸屬由時區決定，一定要用**這個使用者的**。
     // 用 bootstrap 時區同步別人的資料，會把睡眠記到錯的健康日上。
     const sync = createSync({
+      expectedLifecycleGeneration: lifecycle,
       db, whoop, userId: user.id, timezone: user.timezone, now: new Date(),
     });
     const results = await sync.syncAll({ force: true });

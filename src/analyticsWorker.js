@@ -157,7 +157,9 @@ export const HEAVY_OUTPUT_WRITERS = Object.freeze([
   'saveHealthspanMetrics', 'saveHealthspanSnapshot',
 ]);
 
-export function fencedAnalyticsDb(db, { userId, cls, owner, generation, now }) {
+export function fencedAnalyticsDb(db, {
+  userId, cls, owner, generation, expectedLifecycleGeneration = null, now,
+}) {
   if (typeof now !== 'function') throw new Error('analytics_live_clock_required');
   const fence = { lost: false, blockedWrites: 0 };
   const view = { ...db };
@@ -165,7 +167,10 @@ export function fencedAnalyticsDb(db, { userId, cls, owner, generation, now }) {
     if (typeof db[name] !== 'function') continue;
     view[name] = async (...args) => {
       try {
-        return await db.mutateForAnalytics({ userId, cls, owner, generation, now }, () => db[name](...args));
+        return await db.mutateForAnalytics(
+          { userId, cls, owner, generation, expectedLifecycleGeneration, now },
+          () => db[name](...args),
+        );
       } catch (err) {
         if (err?.message === 'analytics_ownership_lost') { fence.lost = true; fence.blockedWrites += 1; }
         throw err;
@@ -206,7 +211,12 @@ export async function runHeavyAnalytics({ db, userId, timezone, now = new Date()
   let outDb = db; let fenceState = null;
   if (fence) {
     // fence.now 是工作者注入的**活時鐘**；沒給就用真實時鐘（絕不用計算開始時的 now）。
-    const f = fencedAnalyticsDb(db, { userId: uid, cls: ANALYTICS_CLASS.HEAVY, owner: fence.owner, generation: fence.generation, now: fence.now ?? (() => new Date()) });
+    const f = fencedAnalyticsDb(db, {
+      userId: uid, cls: ANALYTICS_CLASS.HEAVY, owner: fence.owner, generation: fence.generation,
+      // ★ R2：帳號啟用世代與分析世代並存（兩個都要對才輸出得了）。
+      expectedLifecycleGeneration: fence.expectedLifecycleGeneration ?? null,
+      now: fence.now ?? (() => new Date()),
+    });
     outDb = f.db; fenceState = f.fence;
   } else {
     log.warn('analytics_heavy_unfenced', { user_id: uid });
@@ -260,7 +270,14 @@ export async function processAnalyticsForUser({
   if (!Object.values(ANALYTICS_CLASS).includes(cls)) throw new Error(`invalid_analytics_class:${cls}`);
   const at = () => new Date(now());
 
-  const claim = await db.claimAnalyticsWork({ userId: uid, cls, owner, leaseMs, now: at() });
+  // ★ R2 / LIFE-FG-06：認領時捕捉帳號啟用世代，往下帶到每一次輸出。
+  // 認領本身也要求 ACTIVE，所以停用的帳號連認領都拿不到。
+  const account = await db.getUser(uid).catch(() => null);
+  const expectedLifecycleGeneration = Number.isInteger(account?.lifecycleGeneration)
+    ? account.lifecycleGeneration : null;
+  const claim = await db.claimAnalyticsWork({
+    userId: uid, cls, owner, leaseMs, expectedLifecycleGeneration, now: at(),
+  });
   if (!claim) return { userId: uid, cls, result: ANALYTICS_RESULT.SKIPPED, reason: 'claim_busy' };
   const generation = claim.generation;
   const prior = await db.getAnalyticsWorkState(uid, cls);
@@ -314,7 +331,7 @@ export async function processAnalyticsForUser({
     } else {
       summary = await runHeavyAnalytics({
         db, userId: uid, timezone: user.timezone, now: at(), deps,
-        fence: { owner, generation, now },
+        fence: { owner, generation, expectedLifecycleGeneration, now },
       });
     }
 

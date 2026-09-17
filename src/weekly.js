@@ -58,6 +58,9 @@ function weeklyBriefingShape(weekly) {
  */
 export async function runWeekly({
   db, userId, source, coach, telegram, timezone, now = new Date(),
+  // ★ R2：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）。
+  // 報告認領會記下它，於是舊啟用期留下的未送出認領不會擋住新啟用期的報告。
+  expectedLifecycleGeneration = null,
 }) {
   const uid = requireUserId(userId, 'runWeekly');
   const today = localDate(now, timezone);
@@ -102,7 +105,11 @@ export async function runWeekly({
   const claimKey = { userId: uid, ...{ reportType: 'weekly', localDateKey: weekKey } };
   let claim = { granted: true, owner: null };
   if (claiming) {
-    claim = await db.claimReport({ ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS });
+    claim = await db.claimReport({
+      ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS,
+      // ★ R2：認領屬於這一輪的啟用期（見 db.claimReport）。
+      expectedLifecycleGeneration,
+    });
     if (!claim.granted) {
       // 與 daily 完全相同的三分法（見 daily.js）：模糊是**終局**，
       // 排程不會再自動送一次可能已經送達的週回顧。

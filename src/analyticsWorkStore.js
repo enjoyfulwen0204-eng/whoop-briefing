@@ -21,7 +21,8 @@
  */
 
 import { requireUserId } from './userContext.js';
-import { ANALYTICS_CLASS, ANALYTICS_RESULT, ANALYTICS_FRESHNESS } from './schema.js';
+import { lifecycleActiveSql } from './schema.js';
+import { ANALYTICS_CLASS, ANALYTICS_RESULT, ANALYTICS_FRESHNESS, USER_STATUS } from './schema.js';
 import { log } from './logger.js';
 
 const iso = (v) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
@@ -136,7 +137,9 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    *
    * ★ P3-RC1-F01：`now` 是**檢查當下**取的時刻，不是呼叫端稍早凍結的那一個。
    */
-  async function proveOwnership({ userId, cls, owner, generation, now }) {
+  async function proveOwnership({
+    userId, cls, owner, generation, expectedLifecycleGeneration = null, now,
+  }) {
     const rs = await client.execute({
       sql: `SELECT 1 FROM analytics_work_state
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
@@ -144,6 +147,29 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
       args: [userId, cls, String(owner), iso(now), Number(generation)],
     });
     if (!rs.rows.length) throw new Error('analytics_ownership_lost');
+
+    // ★ R2 / LIFE-FG-06：帳號啟用是**第四個**維度，加在 analytics generation、
+    // 租約所有權、live clock 之上，一個都不取代。
+    //
+    // 分析世代擋不住這一種：停用（或停用再啟用）不會讓 analytics_invalidation
+    // 前進，所以一個舊 worker 手上的 generation 仍然「正確」。
+    if (Number.isInteger(expectedLifecycleGeneration)) {
+      const live = await client.execute({
+        sql: `SELECT 1 FROM analytics_work_state w
+                JOIN users u ON u.id = w.user_id
+               WHERE w.user_id = ? AND w.class = ?
+                 AND w.claimed_lifecycle IS ?
+                 AND u.status = ? AND u.lifecycle_generation = ? LIMIT 1`,
+        args: [userId, cls, expectedLifecycleGeneration,
+          USER_STATUS.ACTIVE, expectedLifecycleGeneration],
+      });
+      if (!live.rows.length) {
+        log.warn('analytics_lifecycle_rejected', {
+          user_id: userId, class: cls, expected_lifecycle: expectedLifecycleGeneration,
+        });
+        throw new Error('analytics_account_inactive');
+      }
+    }
   }
 
   /**
@@ -166,14 +192,18 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    * 已經過期的工作者仍然寫得進去。這正是 P3-RC1-F01 的根因，所以這裡
    * **結構上拒絕** Date：不是函式就直接拋錯，不能靠呼叫端自律。
    */
-  async function mutateForAnalytics({ userId, cls, owner, generation, now = () => new Date() }, fn) {
+  async function mutateForAnalytics({
+    userId, cls, owner, generation, expectedLifecycleGeneration = null, now = () => new Date(),
+  }, fn) {
     const uid = requireUserId(userId, 'mutateForAnalytics');
     if (!CLASSES.includes(cls)) throw new Error(`invalid_analytics_class:${cls}`);
     if (!owner) throw new Error('analytics_owner_required');
     if (!Number.isInteger(generation)) throw new Error('analytics_generation_required');
     if (typeof now !== 'function') throw new Error('analytics_live_clock_required');
     // 兩個 check 都是「現在再問一次」——刻意不共用同一個 Date。
-    const check = () => proveOwnership({ userId: uid, cls, owner, generation, now: now() });
+    const check = () => proveOwnership({
+      userId: uid, cls, owner, generation, expectedLifecycleGeneration, now: now(),
+    });
     return transaction(fn, { before: check, after: check });
   }
 
@@ -223,26 +253,50 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
    *
    * @returns {?{generation:number, doneGeneration:number}} 認領時看到的 generation；沒拿到 → null
    */
-  async function claimAnalyticsWork({ userId, cls, owner, leaseMs, now = new Date() }) {
+  /**
+   * ★ R2 / LIFE-FG-06：認領要**捕捉帳號啟用世代**，而且只有 ACTIVE 帳號
+   * 才認領得到。
+   *
+   * 選取層過濾 ACTIVE 不夠：低階的認領 API 可以被直接呼叫，而且選到與認領
+   * 之間帳號可能就被停用了。認領當下記下啟用世代，輸出時再要求它沒變 ——
+   * 於是停用、或停用再啟用（ABA）之後，舊 worker 都發布不了。
+   *
+   * 這是**加在** Phase 3 既有圍欄之上的一個維度，不取代 analytics generation、
+   * 租約所有權或 live clock 的任何一個。
+   */
+  async function claimAnalyticsWork({
+    userId, cls, owner, leaseMs, expectedLifecycleGeneration = null, now = new Date(),
+  }) {
     const uid = requireUserId(userId, 'claimAnalyticsWork');
     if (!CLASSES.includes(cls)) throw new Error(`invalid_analytics_class:${cls}`);
     if (!owner) throw new Error('analytics_owner_required');
     const nowIso = iso(now);
     const leaseIso = iso(new Date(new Date(now).getTime() + leaseMs));
+    const life = Number.isInteger(expectedLifecycleGeneration)
+      ? expectedLifecycleGeneration : null;
     const rs = await client.execute({
       sql: `INSERT INTO analytics_work_state
-              (user_id, class, owner, lease_expires_at, last_attempt_at, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, 'RUNNING', ?, ?)
+              (user_id, class, owner, lease_expires_at, last_attempt_at, status,
+               claimed_lifecycle, created_at, updated_at)
+            SELECT ?, ?, ?, ?, ?, 'RUNNING', ?, ?, ?
+             WHERE ${lifecycleActiveSql('?')}
             ON CONFLICT(user_id, class) DO UPDATE SET
               owner = excluded.owner,
               lease_expires_at = excluded.lease_expires_at,
               last_attempt_at = excluded.last_attempt_at,
               status = 'RUNNING',
+              claimed_lifecycle = excluded.claimed_lifecycle,
               updated_at = excluded.updated_at
             WHERE analytics_work_state.owner IS NULL
                OR analytics_work_state.lease_expires_at IS NULL
-               OR analytics_work_state.lease_expires_at <= excluded.last_attempt_at`,
-      args: [uid, cls, String(owner), leaseIso, nowIso, nowIso, nowIso],
+               OR analytics_work_state.lease_expires_at <= excluded.last_attempt_at
+               -- ★ R2：**兩邊都知道**而且不同時才可以接手。
+               -- 一邊是 NULL（出處不明）時維持互斥，否則同一個世代的兩個
+               -- worker 會因為「NULL ≠ 1」互相搶走對方的租約。
+               OR (analytics_work_state.claimed_lifecycle IS NOT NULL
+                   AND excluded.claimed_lifecycle IS NOT NULL
+                   AND analytics_work_state.claimed_lifecycle <> excluded.claimed_lifecycle)`,
+      args: [uid, cls, String(owner), leaseIso, nowIso, life, nowIso, nowIso, uid, life],
     });
     if (Number(rs.rowsAffected ?? 0) === 0) {
       log.info('analytics_claim_busy', { user_id: uid, class: cls });
@@ -259,6 +313,7 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
     });
     return {
       generation, doneGeneration: work?.doneGeneration ?? 0,
+      lifecycleGeneration: life,
       affectedFrom: inv?.affectedFrom ?? null, affectedTo: inv?.affectedTo ?? null,
       resources: inv?.resources ?? [], reasons: inv?.reasons ?? [],
       rangeGeneration: work?.rangeGeneration ?? null, rangeFrom: work?.rangeFrom ?? null, rangeTo: work?.rangeTo ?? null,

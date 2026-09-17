@@ -506,7 +506,7 @@ export const lifecycleActiveSql = (userCol) => `EXISTS (
      AND lu.lifecycle_generation = COALESCE(?, lu.lifecycle_generation)
 )`;
 
-export const SCHEMA_VERSION = 17;
+export const SCHEMA_VERSION = 18;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -664,6 +664,9 @@ export const REPORT_SCHEMA = [
      expires_at          TEXT NOT NULL,
      telegram_sent_at    TEXT,
      telegram_message_id INTEGER,
+     -- ★ v18：認領這份報告時的帳號啟用世代。停用→再啟用之後，舊認領
+     -- 既不能遞送、也不可以繼續佔住新啟用期的那一格。
+     lifecycle_generation INTEGER,
      delivery_state      TEXT NOT NULL DEFAULT '${REPORT_DELIVERY_STATE.CLAIMED}',
      delivery_started_at TEXT,
      delivery_attempts   INTEGER NOT NULL DEFAULT 0,
@@ -1089,6 +1092,11 @@ export const ADDITIVE_COLUMNS = [
   { table: 'oauth_states', column: 'lifecycle_generation', ddl: 'ALTER TABLE oauth_states ADD COLUMN lifecycle_generation INTEGER' },
   { table: 'whoop_capabilities', column: 'lifecycle_generation', ddl: 'ALTER TABLE whoop_capabilities ADD COLUMN lifecycle_generation INTEGER NOT NULL DEFAULT 1' },
   { table: 'whoop_resource_access', column: 'lifecycle_generation', ddl: 'ALTER TABLE whoop_resource_access ADD COLUMN lifecycle_generation INTEGER NOT NULL DEFAULT 1' },
+
+  // v18：認領層的啟用世代。兩者都**可為 NULL**：v18 之前建立的認領沒有
+  // 世代出處，而「不知道它屬於哪一段啟用期」的正確處置是不讓它遞送／發布。
+  { table: 'report_claims', column: 'lifecycle_generation', ddl: 'ALTER TABLE report_claims ADD COLUMN lifecycle_generation INTEGER' },
+  { table: 'analytics_work_state', column: 'claimed_lifecycle', ddl: 'ALTER TABLE analytics_work_state ADD COLUMN claimed_lifecycle INTEGER' },
 ];
 
 /**
@@ -1762,6 +1770,9 @@ export const ANALYTICS_WORK_SCHEMA = [
      done_generation      INTEGER NOT NULL DEFAULT 0,
      -- 目前持有者認領時看到的 generation（診斷）
      claimed_generation   INTEGER,
+     -- ★ v18：認領當下的帳號**啟用世代**。與 claimed_generation 正交：
+     -- 前者是分析失效的紀元，這個是帳號啟用的紀元。輸出時兩個都要對。
+     claimed_lifecycle    INTEGER,
      owner                TEXT,
      lease_expires_at     TEXT,
      status               TEXT,
@@ -1959,6 +1970,48 @@ export const DATA_MIGRATIONS = [
                SELECT 1 FROM users u
                 WHERE u.id = user_onboarding.user_id
                   AND (${ONBOARDING_IDENTITY_STRICT_SQL} OR ${ONBOARDING_IDENTITY_LEGACY_SQL}))`,
+  },
+  {
+    version: 18,
+    note: 'demote migrated READY rows that the runtime READY predicate would now reject (R2 / LIFE-FG-10)',
+    // ★ R2 / LIFE-FG-10：**遷移寫下的 READY 必須是執行期 READY 述詞也會同意的 READY。**
+    //
+    // v14/v15 依證據推導狀態時，「必要資源的權限判定」這個條件還不存在
+    // （whoop_resource_access 是 v16 才有的表）。於是一個從 v9 升上來的
+    // 正式使用者會停在 READY —— 可被排程、每天發報告 —— 但
+    // setReadyIfEligible 現在絕對不會再讓他通過，因為他一列
+    // 目前啟用世代的 ACCESSIBLE 判定都沒有。
+    //
+    // 兩個狀態於是分岔：資料庫說 READY，而執行期的唯一真相說「不合格」。
+    //
+    // 正確的處置**不是**捏造權限判定（那等於憑空宣稱我們驗過某件事），
+    // 而是把他降級到一個**可續跑的**狀態，讓 bootstrap 在目前的啟用世代
+    // 重新產生真實的證據。WHOOP_AUTHORIZED 正是為此存在的狀態：
+    // 排程器不會發報告給他，但 resumeOnboardingBootstraps 會接手，
+    // 初次同步 + capability 盤點 + 權限判定跑完之後自動回到 READY。
+    //
+    // 對使用者而言是無感的：token、綁定、時區、歷史資料全都留著，
+    // 不需要重新連接（除非 token / scope 真的失效了，那本來就該處理）。
+    //
+    // 冪等：降級過的列不再是 READY，條件不再成立。
+    sql: `UPDATE user_onboarding
+             SET state = 'WHOOP_AUTHORIZED',
+                 ready_at = NULL,
+                 failure_code = NULL,
+                 failure_detail = NULL,
+                 bootstrap_attempts = 0,
+                 state_changed_at = updated_at
+           WHERE state = 'READY'
+             AND NOT EXISTS (
+               SELECT 1 FROM whoop_resource_access ra
+                JOIN users u ON u.id = ra.user_id
+                WHERE ra.user_id = user_onboarding.user_id
+                  AND ra.resource = 'sleep'
+                  AND ra.status = 'ACCESSIBLE'
+                  AND ra.lifecycle_generation = u.lifecycle_generation
+                  AND ra.auth_generation = (SELECT k.auth_generation
+                                              FROM user_whoop_tokens k
+                                             WHERE k.user_id = ra.user_id))`,
   },
 ];
 

@@ -16,7 +16,7 @@
 
 import { WHOOP_SYNC } from './config.js';
 import { isScopeError, isStaleAuthorizationError } from './whoop.js';
-import { isAccountInactiveError } from './accountLifecycle.js';
+import { isAccountInactiveError, requireLifecycle } from './accountLifecycle.js';
 import { requireUserId } from './userContext.js';
 import { log, describeError } from './logger.js';
 
@@ -79,9 +79,15 @@ export async function isSyncDue({
  * @param {string} o.timezone 該使用者的時區（不是全域 TIMEZONE）
  */
 export function createSync({
-  db, whoop, userId, timezone, expectedLifecycleGeneration = null, now = new Date(),
+  db, whoop, userId, timezone, expectedLifecycleGeneration, now = new Date(),
 }) {
   const uid = requireUserId(userId, 'createSync');
+  // ★ R2 §34：正式的健康同步**必須**帶啟用脈絡。
+  //
+  // 第一版讓它是選用的，沒傳就退化成不受約束 —— 於是手動同步 CLI 安靜地
+  // 失去了保護，而且沒有任何訊號。現在缺少就大聲失敗；測試夾具與管理用途
+  // 必須明確寫出 LIFECYCLE_UNFENCED，那是一個 grep 得到的決定。
+  const lifecycleFence = requireLifecycle(expectedLifecycleGeneration, 'createSync');
 
   /**
    * ★ v17：抓到的資料 + 游標推進 = **一個**不可分割的單位。
@@ -93,14 +99,14 @@ export function createSync({
    * 這個「一起成功或一起不動」是關鍵：如果只擋資料寫入而讓游標前進，
    * 那段時間的資料會被永久跳過，而且沒有任何地方看得出來。
    */
-  const lifecycleFenced = Number.isInteger(expectedLifecycleGeneration);
+  const lifecycleFenced = lifecycleFence !== null;
 
   async function commitWindow(resource, payload, cursorPatch) {
     return db.transaction(async () => {
       // 只有**帶著啟用脈絡**的呼叫端才受圍欄約束（與這次修正其他地方一致）。
       // 正式路徑（排程器 runForUser、上線 bootstrap）都會帶；沒有帶的是
       // 腳本／測試夾具那種「沒有帳號脈絡」的情境，行為維持不變。
-      if (lifecycleFenced) await db.assertAccountActive(uid, expectedLifecycleGeneration);
+      if (lifecycleFenced) await db.assertAccountActive(uid, lifecycleFence);
       const written = await persist(resource, payload);
       if (cursorPatch) await db.saveSyncState(uid, resource, cursorPatch, { now });
       return written;
@@ -207,7 +213,7 @@ export function createSync({
     const complete = cursor.getTime() <= target.getTime();
     if (complete) {
       await db.transaction(async () => {
-        if (lifecycleFenced) await db.assertAccountActive(uid, expectedLifecycleGeneration);
+        if (lifecycleFenced) await db.assertAccountActive(uid, lifecycleFence);
         await db.saveSyncState(uid, resource, { backfillComplete: true }, { now });
       });
       log.info('sync_backfill_complete', { resource, earliest: cursor.toISOString() });

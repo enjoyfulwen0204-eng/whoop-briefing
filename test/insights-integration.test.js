@@ -18,6 +18,7 @@ import { staticDataSource } from '../src/dataSource.js';
 import { buildInsightsSafe } from '../src/insights.js';
 import { loadDailyMetrics } from '../src/dailyMetrics.js';
 import { localDate } from '../src/time.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 import { makeDataset, degradedOverrides } from './fixtures.js';
 import { fakeDb, fakeTelegram, fakeCoach } from './fakes.js';
 
@@ -162,7 +163,7 @@ test('★ 有長期資料且今天明顯偏離 → 簡報出現「今天最值�
       workouts: async () => [],
       bodyMeasurement: async () => null,
     };
-    const sync = createSync({ db, whoop, userId: U, timezone: TZ, now });
+    const sync = createSync({ db, whoop, userId: U, timezone: TZ, expectedLifecycleGeneration: LIFECYCLE_UNFENCED, now });
     await sync.incremental('sleep');
     await sync.incremental('recovery');
     await sync.incremental('cycle');
@@ -217,7 +218,7 @@ test('資料很平穩時不會硬報「值得注意」（不製造雜訊）', as
       workouts: async () => [],
       bodyMeasurement: async () => null,
     };
-    const sync = createSync({ db, whoop, userId: U, timezone: TZ, now });
+    const sync = createSync({ db, whoop, userId: U, timezone: TZ, expectedLifecycleGeneration: LIFECYCLE_UNFENCED, now });
     await sync.incremental('sleep');
     await sync.incremental('recovery');
     await sync.incremental('cycle');
@@ -262,7 +263,7 @@ test('★ 長期資料只有幾天時不會亂報（樣本不足就不下結論�
       workouts: async () => [],
       bodyMeasurement: async () => null,
     };
-    const sync = createSync({ db, whoop, userId: U, timezone: TZ, now });
+    const sync = createSync({ db, whoop, userId: U, timezone: TZ, expectedLifecycleGeneration: LIFECYCLE_UNFENCED, now });
     await sync.incremental('sleep');
     await sync.incremental('recovery');
 

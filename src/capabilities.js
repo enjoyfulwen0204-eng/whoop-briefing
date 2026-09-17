@@ -25,6 +25,7 @@ import { METRICS, num } from './config.js';
 import { metricValueFromRecord, buildRecords, completedCycles } from './analyze.js';
 import { log } from './logger.js';
 import { requireUserId } from './userContext.js';
+import { requireLifecycle } from './accountLifecycle.js';
 
 export const STATUS = {
   SUPPORTED: 'SUPPORTED',
@@ -242,9 +243,12 @@ export function computeCapabilities({
 /** @param {string} userId **必填**。probe 結果只寫給這個使用者。 */
 export async function probeCapabilities({
   db, whoop, userId, timezone, days = 14,
-  expectedLifecycleGeneration = null, now = new Date(),
+  expectedLifecycleGeneration, now = new Date(),
 }) {
   const uid = requireUserId(userId, 'probeCapabilities');
+  // ★ R2 §35：盤點是 READY 會用到的資格證據，所以觀測的啟用期就是它被
+  // 記下來的啟用期 —— 不可以事後採用「目前的」世代。缺少脈絡就大聲失敗。
+  const lifecycleFence = requireLifecycle(expectedLifecycleGeneration, 'probeCapabilities');
   const start = new Date(now.getTime() - days * 86_400_000);
   const scopeErrors = [];
 
@@ -275,7 +279,9 @@ export async function probeCapabilities({
   });
   // ★ v17：盤點是**啟用期相關的資格證據**。寫入時證明帳號仍然 ACTIVE 且
   // 仍在同一段啟用期；否則這份盤點不屬於現在這個帳號（見 §35）。
-  const saved = await db.saveCapabilities(uid, entries, { expectedLifecycleGeneration, now });
+  const saved = await db.saveCapabilities(uid, entries, {
+    expectedLifecycleGeneration: lifecycleFence, now,
+  });
   if (entries.length && saved === 0) {
     const { AccountInactiveError } = await import('./accountLifecycle.js');
     throw new AccountInactiveError(uid);

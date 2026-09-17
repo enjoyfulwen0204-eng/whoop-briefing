@@ -188,7 +188,10 @@ export function createWhoopOAuthCallback({
           from: [ONBOARDING_STATE.WHOOP_AUTH_PENDING, ONBOARDING_STATE.ACTION_REQUIRED,
             ONBOARDING_STATE.WHOOP_AUTHORIZED, ONBOARDING_STATE.SYNCING],
           failureCode: failure, failureDetail: code2,
-          // 只有**目前**啟用期的失敗才算數（§20）。
+          // 只有**目前**啟用期的失敗才算數（§12 / §20）。帶上這條 state
+          // 被發出時的啟用世代 —— 停用再啟用之後 status 又是 ACTIVE，
+          // 光要求 ACTIVE 擋不住 ABA。
+          expectedLifecycleGeneration: err?.lifecycleGeneration ?? null,
           requireActiveLifecycle: true,
           now: new Date(now()),
         }).catch(() => {});

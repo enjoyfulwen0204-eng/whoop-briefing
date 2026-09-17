@@ -18,6 +18,7 @@ import { createSync } from '../src/sync.js';
 import { computeDailyMetrics, loadDailyMetrics, seriesOf } from '../src/dailyMetrics.js';
 import { buildObservations } from '../src/analyze.js';
 import { localDate } from '../src/time.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 import { makeDataset } from './fixtures.js';
 
 const TZ = 'Asia/Taipei';
@@ -66,7 +67,7 @@ async function seed({ days = 20, now = new Date('2026-09-01T00:00:00Z'), extra =
     workouts: async () => workouts,
     bodyMeasurement: async () => ({ height_meter: 1.75, weight_kilogram: 70.5, max_heart_rate: 190 }),
   };
-  const sync = createSync({ db, whoop, userId: U, timezone: TZ, now });
+  const sync = createSync({ db, whoop, userId: U, timezone: TZ, expectedLifecycleGeneration: LIFECYCLE_UNFENCED, now });
   for (const r of ['sleep', 'recovery', 'cycle', 'workout', 'body_measurement']) {
     await sync.syncResource(r);
   }

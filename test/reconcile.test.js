@@ -30,6 +30,7 @@ import {
 } from '../src/schema.js';
 import { WhoopApiError, WhoopAuthError } from '../src/whoop.js';
 import { WHOOP_RECONCILE, WHOOP } from '../src/config.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 
 const TZ = 'Asia/Taipei';
 const ALICE = { id: 'u-alice', whoop: '1001' };
@@ -156,7 +157,7 @@ async function webhookDelete(db, user, resourceType, resourceId, { owner = 'wh-t
   await db.settleWhoopEvent(ev.id, { owner, state: 'PROCESSED', userId: user.id });
 }
 
-const mk = (db, whoop, { user = ALICE, now = () => NOW, ...rest } = {}) => createReconciler({
+const mk = (db, whoop, { user = ALICE, now = () => NOW, ...rest } = {}) => createReconciler({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
   db, whoop, userId: user.id, timezone: TZ, now, ...rest,
 });
 
@@ -840,7 +841,7 @@ test('I6 reconcileAll 永遠不拋錯：一種資源炸掉不影響其他資源'
     ]);
     // 甚至 db 層炸掉也不拋
     const broken = { ...e.db, getReconciliationState: async () => { throw new Error('db down'); } };
-    const out2 = await createReconciler({ db: broken, whoop, userId: ALICE.id, timezone: TZ, now: () => NOW }).reconcileAll({ resources: ['sleep'], includeDeep: false });
+    const out2 = await createReconciler({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db: broken, whoop, userId: ALICE.id, timezone: TZ, now: () => NOW }).reconcileAll({ resources: ['sleep'], includeDeep: false });
     assert.equal(out2[0].result, RECONCILE_RESULT.FAILED);
   } finally { e.done(); }
 });
@@ -940,7 +941,7 @@ test('J1 v10 → v11：純新增（三張表 + 三欄），零重建，既有墓
     for (const c of TOMB_COLS) assert.ok(!(await colNames(e.db.raw, 'whoop_resource_tombstones')).includes(c));
 
     const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 10); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 17);
+    assert.equal(summary.from, 10); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 18);
     assert.deepEqual(summary.rebuilt, [], '★★★ 絕不重建');
     assert.deepEqual(summary.columnsAdded, TOMB_COLS.map((c) => `whoop_resource_tombstones.${c}`));
     // v12 的四張表在同一次遷移裡一起建起來（純新增）
@@ -1146,7 +1147,7 @@ test('ATK11 診斷步驟炸掉不影響已寫入的資料與水位前進', async
     const whoop = fakeWhoop({ pages: { '/activity/sleep': { records: [sleepRecord()], next_token: null } } });
     const db = { ...e.db, recordDiscrepancy: async () => { throw new Error('disc down'); } };
     await e.db.upsertSleeps(ALICE.id, [sleepRecord({ id: sid(2), start: daysAgo(20) })], { timezone: TZ });
-    const r = await createReconciler({ db, whoop, userId: ALICE.id, timezone: TZ, now: () => NOW }).reconcileResource('sleep');
+    const r = await createReconciler({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db, whoop, userId: ALICE.id, timezone: TZ, now: () => NOW }).reconcileResource('sleep');
     assert.equal(r.result, RECONCILE_RESULT.SUCCESS);
     assert.equal((await e.db.getReconciliationState(ALICE.id, 'sleep')).windowWatermark, NOW.toISOString());
     assert.equal(await count(e.db, 'whoop_sleeps', ALICE.id), 2);
@@ -1157,7 +1158,7 @@ test('ATK12 不支援的資源名 / 沒有 userId → 立刻拒絕，不碰 DB',
   const e = await env();
   try {
     await assert.rejects(mk(e.db, fakeWhoop()).reconcileResource('profile'), /unsupported_resource/);
-    assert.throws(() => createReconciler({ db: e.db, whoop: fakeWhoop(), userId: null, timezone: TZ }));
+    assert.throws(() => createReconciler({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db: e.db, whoop: fakeWhoop(), userId: null, timezone: TZ }));
     assert.equal((await e.db.recentReconciliationRuns(ALICE.id)).length, 0);
   } finally { e.done(); }
 });

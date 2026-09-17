@@ -26,6 +26,7 @@ import { currentVersion } from '../src/migrations.js';
 import { RECONCILE_RESULT, TOMBSTONE_STATE, SCHEMA_VERSION } from '../src/schema.js';
 import { WhoopApiError } from '../src/whoop.js';
 import { WHOOP_RECONCILE, WHOOP } from '../src/config.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 
 const TZ = 'Asia/Taipei';
 const ALICE = { id: 'u-alice', whoop: '1001' };
@@ -144,7 +145,7 @@ function windowed(all, { pageSize = 25, startOf = (r) => r.start, hook = null } 
   };
 }
 const empty = { records: [], next_token: null };
-const mk = (db, whoop, { user = ALICE, now = () => NOW, ...rest } = {}) => createReconciler({ db, whoop, userId: user.id, timezone: TZ, now, ...rest });
+const mk = (db, whoop, { user = ALICE, now = () => NOW, ...rest } = {}) => createReconciler({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db, whoop, userId: user.id, timezone: TZ, now, ...rest });
 
 async function webhookDelete(db, user, resourceType, resourceId, { owner = 'wh-test' } = {}) {
   const rec = await db.recordWhoopEvent({ whoopUserId: user.whoop, eventType: `${resourceType}.deleted`, resourceType, resourceId, traceId: `t-${resourceId}` });
@@ -778,7 +779,7 @@ test('R05 真的 v10 DB → 閘拒絕，在 WHOOP 憑證 / 網路之前；不會
     assert.equal(t.version, 10);
     const a = runScript(['run', '--user=u1'], { url: t.url, cwd: t.dir, extraEnv: { WHOOP_CLIENT_ID: 'fake', WHOOP_CLIENT_SECRET: 'fake' } });
     assert.equal(a.code, 1);
-    assert.ok(/schema 版本 10 ≠ 程式碼 17/.test(a.out), a.out);
+    assert.ok(/schema 版本 10 ≠ 程式碼 18/.test(a.out), a.out);
     assert.ok(!/找不到使用者|缺少環境變數/.test(a.out), '在使用者 / 憑證之前就停');
     const db = createDb({ url: t.url });
     assert.equal(await currentVersion(db.raw), 10, '★ 沒有被自動 migrate');

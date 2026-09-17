@@ -19,6 +19,7 @@ import {
 } from '../src/journal.js';
 import { buildDataQualityReport, renderDataQuality } from '../src/dataQuality.js';
 import { buildContributors, snapshotContributors, AVAILABILITY, CONTRIBUTORS } from '../src/healthspan.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 import {
   statusFromEvidence, canTransition, recordInsight, reviseInsight,
   retireInsight, activeBeliefs, INSIGHT_STATUS,
@@ -201,7 +202,7 @@ test('P: 有資料時報告涵蓋率與缺漏天數', async () => {
       workouts: async () => [],
       bodyMeasurement: async () => null,
     };
-    const sync = createSync({ db, whoop, userId: USER.id, timezone: TZ, now: new Date('2026-09-01T00:00:00Z') });
+    const sync = createSync({ db, whoop, userId: USER.id, timezone: TZ, expectedLifecycleGeneration: LIFECYCLE_UNFENCED, now: new Date('2026-09-01T00:00:00Z') });
     await sync.incremental('sleep');
     await sync.incremental('recovery');
 

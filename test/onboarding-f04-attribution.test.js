@@ -40,6 +40,7 @@ import {
 import { createSync } from '../src/sync.js';
 import { ONBOARDING_STATE, ONBOARDING_FAILURE, RESOURCE_ACCESS_STATUS } from '../src/schema.js';
 import { ONBOARDING } from '../src/config.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 
 const NOW = new Date('2026-09-15T12:00:00.000Z');
 const HOUR = 3_600_000;
@@ -351,6 +352,9 @@ test('F04-MIX-01 ★★★ 被釘住的 client 絕不採用另一個世代的 to
       db: e.db, userId: user.id, clientId: 'c', clientSecret: 's',
       fetchImpl: backend.fetchImpl, sleepImpl: async () => {},
       authorization: snapshot,
+      // 這一組測的是**授權世代**那個維度；帳號啟用世代有自己的套件，
+      // 所以這裡明確標示不受它約束（R2 §5 要求這是一個看得見的決定）。
+      expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
     });
 
     // 在第一個請求之前，使用者重新授權 → 世代 2 的 token 進了 DB。
@@ -393,6 +397,9 @@ test('F04-MIX-02 sleep 在世代 N 抓到、之後重新授權 → recovery 不�
       db: e.db, userId: user.id, clientId: 'c', clientSecret: 's',
       fetchImpl: backend.fetchImpl, sleepImpl: async () => {},
       authorization: snapshot,
+      // 這一組測的是**授權世代**那個維度；帳號啟用世代有自己的套件，
+      // 所以這裡明確標示不受它約束（R2 §5 要求這是一個看得見的決定）。
+      expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
     });
 
     // sleep 在世代 1 成功
@@ -462,6 +469,9 @@ test('F04-REFRESH-01 ★ 例行 refresh 不動世代，被釘住的 client 照�
       db: e.db, userId: user.id, clientId: 'c', clientSecret: 's',
       fetchImpl: backend.fetchImpl, sleepImpl: async () => {},
       authorization: snapshot,
+      // 這一組測的是**授權世代**那個維度；帳號啟用世代有自己的套件，
+      // 所以這裡明確標示不受它約束（R2 §5 要求這是一個看得見的決定）。
+      expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
     });
     await whoop.sleeps(new Date(NOW.getTime() - HOUR), NOW);
     await whoop.recoveries(new Date(NOW.getTime() - HOUR), NOW);
@@ -497,9 +507,12 @@ test('F04-REFRESH-02 完整 bootstrap 中途發生例行 refresh → 仍然 READ
         // 真實的 client（會 refresh），假的 HTTP
         makeWhoop: (opts) => createWhoopClient({
           ...opts, fetchImpl: backend.fetchImpl, sleepImpl: async () => {},
+          expectedLifecycleGeneration: LIFECYCLE_UNFENCED,
         }),
-        makeSync: ({ db, whoop, userId, timezone }) => {
-          const real = createSync({ db, whoop, userId, timezone, now: NOW });
+        makeSync: ({ db, whoop, userId, timezone, expectedLifecycleGeneration }) => {
+          const real = createSync({
+            db, whoop, userId, timezone, expectedLifecycleGeneration, now: NOW,
+          });
           return { syncAll: (o) => real.syncAll(o) };
         },
         probe: async ({ userId }) => {

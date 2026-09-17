@@ -215,6 +215,10 @@ export async function runOnboardingBootstrap({
     const whoop = makeWhoop({
       db, userId: uid, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
       authorization,
+      // ★ R2 §9：授權世代與帳號啟用世代是**兩個獨立**的維度，受約束的健康
+      // client 兩個都要帶。只鎖授權世代的話，停用（或 ABA）之後的 token
+      // 輪替仍然會寫進一個不該被處理的帳號（LIFE-FG-01）。
+      expectedLifecycleGeneration,
     });
 
     // ---- 1. 初次同步（重用 V1.1 的同步，含 backfill 的第一批 chunk）----

@@ -121,6 +121,10 @@ export function evaluate({ cronHeartbeat = null, users = [], now = new Date() } 
       const age = ageMs(u.lastSyncOkAt, now);
       if (age !== null && age > GUARDIAN_POLICY.SYNC_STALE_MAX_AGE_MS) {
         out.push(finding({
+          // ★ R2 / LIFE-FG-08：這是**使用者可見的健康告警**，必須帶著它
+          // 被算出來時的啟用世代，否則 ABA 之後會送出一則屬於上一段
+          // 啟用期的「你的資料停擺了」。
+          lifecycleGeneration,
           signal: GUARDIAN_SIGNAL.WHOOP_SYNC_STALE,
           level: GUARDIAN_LEVEL.LEVEL_2_NOTIFY,
           scope,

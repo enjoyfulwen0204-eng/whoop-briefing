@@ -45,7 +45,9 @@ function rowToUser(row) {
   };
 }
 
-export function createIdentityStore(client) {
+export function createIdentityStore(client, { transaction = null } = {}) {
+  // 沒有注入交易時退回直接執行（單句仍是原子的，只是失去多句的原子性）。
+  const inTransaction = typeof transaction === 'function' ? transaction : (fn) => fn();
   // ----- users -----------------------------------------------------------
   async function createUser({
     id = randomUUID(),
@@ -106,60 +108,140 @@ export function createIdentityStore(client) {
    */
   async function transitionUserLifecycle({
     userId, targetStatus, expectedCurrentStatus = null, now = new Date(),
+    /**
+     * 只給「這一列從來沒有成為一個帳號」的情境（併發 /start 認領輸掉的
+     * 孤兒列）。那種列**不可能**有上線狀態、報告認領或分析認領，所以清理
+     * 步驟全是 no-op —— 但它們仍然會佔住寫入交易，在 20 路併發的 /start
+     * 底下把正常流程餓到 SQLITE_BUSY。
+     *
+     * 世代仍然由**同一句** UPDATE 原子地推進，所以它不是一個繞過圍欄的
+     * 後門：狀態與世代永遠一起改變。
+     */
+    orphanCleanupOnly = false,
   } = {}) {
     const uid = requireUserId(userId, 'transitionUserLifecycle');
     if (!Object.values(USER_STATUS).includes(targetStatus)) {
       throw new Error(`不合法的 status：${targetStatus}`);
     }
-    const before = await getUser(uid);
-    if (!before) throw new Error(`使用者不存在：${uid}`);
-    if (expectedCurrentStatus !== null && before.status !== expectedCurrentStatus) {
-      return {
-        changed: false, reason: 'unexpected_current_status',
-        oldStatus: before.status, newStatus: before.status,
-        oldGeneration: before.lifecycleGeneration, newGeneration: before.lifecycleGeneration,
-      };
-    }
     const ts = iso(now);
-    const rs = await client.execute({
-      sql: `UPDATE users
-               SET status = ?,
-                   lifecycle_generation = lifecycle_generation + 1,
-                   updated_at = ?
-             WHERE id = ? AND status <> ?`,
-      args: [targetStatus, ts, uid, targetStatus],
-    });
-    if (Number(rs.rowsAffected ?? 0) === 0) {
-      // 狀態本來就是目標值 → 冪等的 no-op，世代不動。
-      return {
-        changed: false, reason: 'already',
-        oldStatus: before.status, newStatus: before.status,
-        oldGeneration: before.lifecycleGeneration, newGeneration: before.lifecycleGeneration,
-      };
-    }
-    const after = await getUser(uid);
-    // 新的啟用期 = 全新的嘗試額度，而且舊世代的 READY 資格不再成立。
-    await client.execute({
-      sql: `UPDATE user_onboarding
-               SET bootstrap_attempts = 0,
-                   state = CASE WHEN state = ? THEN ? ELSE state END,
-                   state_changed_at = CASE WHEN state = ? THEN ? ELSE state_changed_at END,
-                   updated_at = ?
-             WHERE user_id = ?`,
-      args: [
-        ONBOARDING_STATE.READY, ONBOARDING_STATE.WHOOP_AUTHORIZED,
-        ONBOARDING_STATE.READY, ts, ts, uid,
-      ],
-    }).catch(() => { /* 沒有上線列的使用者不需要降級 */ });
-    log.info('user_lifecycle_transition', {
-      user_id: uid, from: before.status, to: after.status,
-      from_generation: before.lifecycleGeneration, to_generation: after.lifecycleGeneration,
-    });
-    return {
-      changed: true,
-      oldStatus: before.status, newStatus: after.status,
-      oldGeneration: before.lifecycleGeneration, newGeneration: after.lifecycleGeneration,
+
+    // 轉移現在是一個寫入交易，所以高度併發時會碰到 SQLITE_BUSY。
+    // 狀態轉移本身很少見而且很短，有界重試是正確的處置（而不是放棄
+    // 原子性）。重試不會造成重複推進：狀態相同時是冪等的 no-op。
+    const withBusyRetry = async (fn) => {
+      let lastErr;
+      for (let attempt = 1; attempt <= 10; attempt++) {
+        try { return await fn(); } catch (err) {
+          if (!/SQLITE_BUSY|database is locked/i.test(String(err?.message ?? ''))) throw err;
+          lastErr = err;
+          // 指數退避 + 抖動：沒有抖動的話兩個競爭者會一直同步重試、一直互撞。
+          const backoff = Math.min(200, 5 * 2 ** (attempt - 1)) + Math.floor(Math.random() * 10);
+          await new Promise((r) => { setTimeout(r, backoff); });
+        }
+      }
+      throw lastErr;
     };
+
+    // 孤兒列：單句原子轉移，不開交易（見 orphanCleanupOnly 的說明）。
+    if (orphanCleanupOnly) {
+      const one = await client.execute({
+        sql: `UPDATE users
+                 SET status = ?, lifecycle_generation = lifecycle_generation + 1, updated_at = ?
+               WHERE id = ? AND status <> ?`,
+        args: [targetStatus, ts, uid, targetStatus],
+      });
+      return { changed: Number(one.rowsAffected ?? 0) > 0, reason: 'orphan' };
+    }
+
+    // ---- ★ R2：整個轉移是**一個**交易 ------------------------------------
+    //
+    // 第一版把它切成兩步（先改 status + 推世代，之後再歸零嘗試次數、降級
+    // READY）。那之間存在一個外部看得見的窗口：帳號已經是新世代的 ACTIVE，
+    // 但 onboarding 還是舊世代的 READY —— 排程器在那一瞬間會把他當成可以
+    // 發報告的正式使用者。併發的兩個轉移還會讓呼叫端拿到一個「不可能」的
+    // 結果（它回報的前後狀態不是它自己提交的那一次）。
+    //
+    // 現在：讀目前狀態、寫新狀態、推世代、降級 READY、歸零嘗試次數，
+    // 全部在同一個交易裡。外界只會看到轉移前或轉移後，沒有中間態。
+    return withBusyRetry(() => inTransaction(async () => {
+      const cur = (await client.execute({
+        sql: 'SELECT status, lifecycle_generation FROM users WHERE id = ?', args: [uid],
+      })).rows[0];
+      if (!cur) throw new Error(`使用者不存在：${uid}`);
+      const oldStatus = String(cur.status);
+      const oldGeneration = Number(cur.lifecycle_generation ?? 1);
+
+      if (expectedCurrentStatus !== null && oldStatus !== expectedCurrentStatus) {
+        return {
+          changed: false, reason: 'unexpected_current_status',
+          oldStatus, newStatus: oldStatus, oldGeneration, newGeneration: oldGeneration,
+        };
+      }
+
+      // 狀態本來就是目標值 → 冪等的 no-op，世代不動。
+      if (oldStatus === targetStatus) {
+        return {
+          changed: false, reason: 'already',
+          oldStatus, newStatus: oldStatus, oldGeneration, newGeneration: oldGeneration,
+        };
+      }
+
+      // CAS：證明我們看到的就是我們要改的那一版。並發的另一個轉移若先提交，
+      // 這一句就會影響零列，於是這個呼叫端**不會**回報一次它沒做的轉移。
+      const upd = await client.execute({
+        sql: `UPDATE users
+                 SET status = ?, lifecycle_generation = lifecycle_generation + 1, updated_at = ?
+               WHERE id = ? AND status = ? AND lifecycle_generation = ?`,
+        args: [targetStatus, ts, uid, oldStatus, oldGeneration],
+      });
+      if (Number(upd.rowsAffected ?? 0) === 0) {
+        return {
+          changed: false, reason: 'concurrent_transition',
+          oldStatus, newStatus: oldStatus, oldGeneration, newGeneration: oldGeneration,
+        };
+      }
+
+      // 同一個交易裡做完新啟用期的語義：
+      //   · READY 降級（舊世代的資格證據不能延用）
+      //   · 嘗試額度歸零（新的啟用期 = 全新的嘗試脈絡）
+      await client.execute({
+        sql: `UPDATE user_onboarding
+                 SET bootstrap_attempts = 0,
+                     state = CASE WHEN state = ? THEN ? ELSE state END,
+                     state_changed_at = CASE WHEN state = ? THEN ? ELSE state_changed_at END,
+                     updated_at = ?
+               WHERE user_id = ?`,
+        args: [
+          ONBOARDING_STATE.READY, ONBOARDING_STATE.WHOOP_AUTHORIZED,
+          ONBOARDING_STATE.READY, ts, ts, uid,
+        ],
+      });
+
+      // 舊啟用期的認領不可以繼續佔住新啟用期的格子。刪掉**還沒送出**的
+      // 報告認領：已經送出的（telegram_sent_at 有值）是歷史證據，留著。
+      await client.execute({
+        sql: `DELETE FROM report_claims
+               WHERE user_id = ? AND telegram_sent_at IS NULL`,
+        args: [uid],
+      });
+      // 分析認領同理：釋放租約，讓新啟用期可以重新認領。
+      await client.execute({
+        sql: `UPDATE analytics_work_state
+                 SET owner = NULL, lease_expires_at = NULL, claimed_lifecycle = NULL
+               WHERE user_id = ?`,
+        args: [uid],
+      }).catch(() => { /* 舊資料庫可能還沒有這張表 */ });
+
+      log.info('user_lifecycle_transition', {
+        user_id: uid, from: oldStatus, to: targetStatus,
+        from_generation: oldGeneration, to_generation: oldGeneration + 1,
+      });
+      return {
+        changed: true,
+        oldStatus, newStatus: targetStatus,
+        oldGeneration, newGeneration: oldGeneration + 1,
+      };
+    }));
   }
 
   /**

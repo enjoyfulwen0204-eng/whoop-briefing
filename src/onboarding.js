@@ -274,6 +274,10 @@ export async function resolveOrCreateUser({ db, chatId, message, now = new Date(
     // 入口），所以它也會拿到一個一致的啟用世代。
     await db.transitionUserLifecycle({
       userId: user.id, targetStatus: USER_STATUS.DISABLED, now,
+      // 這一列剛剛才被建立、而且認領輸了：沒有綁定、沒有 token、沒有上線
+      // 狀態、沒有任何認領。清理步驟全是 no-op，但在 20 路併發的 /start
+      // 底下會把贏家的正常流程餓到 SQLITE_BUSY。
+      orphanCleanupOnly: true,
     }).catch(() => {});
     const winnerId = claim.userId ?? null;
     const winner = winnerId ? await db.getUser(winnerId) : null;

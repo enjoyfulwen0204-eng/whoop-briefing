@@ -30,6 +30,7 @@ import {
   ANALYTICS_WORK_SCHEMA, RESHAPED_TABLES,
 } from '../src/schema.js';
 import { ANALYTICS_WORK } from '../src/config.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 
 const TZ = 'Asia/Taipei';
 const ALICE = { id: 'u-alice', whoop: '1001' };
@@ -563,7 +564,7 @@ test('P3-ATTACK-11 Phase 2 深度對帳修好舊資源 → 失效；快 / 深水
     const g = await gen(e.db);
     const remote = { records: [sleepRecord({ id: sid(1), daysAgo: 20, updatedAt: at(0, -1), rr: 16 })], next_token: null };
     const whoop = { apiGet: async () => remote, bodyMeasurement: async () => ({}) };
-    const rec = createReconciler({ db: e.db, whoop, userId: ALICE.id, timezone: TZ, now: () => NOW });
+    const rec = createReconciler({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db: e.db, whoop, userId: ALICE.id, timezone: TZ, now: () => NOW });
     const d = await rec.reconcileDeep('sleep');
     assert.equal(d.result, 'SUCCESS'); assert.equal(d.written, 1);
     assert.equal(await gen(e.db), g + 1, '★ 對帳的修復讓分析失效');
@@ -575,7 +576,7 @@ test('P3-ATTACK-11 Phase 2 深度對帳修好舊資源 → 失效；快 / 深水
     assert.equal(await e.db.getReconciliationState(ALICE.id, 'sleep'), null, '快路徑水位不受影響');
     // 快路徑：同版本重抓 → 不失效
     const whoop2 = { apiGet: async () => remote, bodyMeasurement: async () => ({}) };
-    const r = await createReconciler({ db: e.db, whoop: whoop2, userId: ALICE.id, timezone: TZ, now: () => NOW }).reconcileResource('sleep');
+    const r = await createReconciler({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, db: e.db, whoop: whoop2, userId: ALICE.id, timezone: TZ, now: () => NOW }).reconcileResource('sleep');
     assert.equal(r.result, 'SUCCESS');
     assert.equal(await gen(e.db), g + 1, '同版本 → 不失效');
     assert.equal((await e.db.getReconciliationState(ALICE.id, 'sleep')).windowWatermark, NOW.toISOString());
@@ -721,7 +722,7 @@ test('遷移 v11 → v15：純新增（四張表 + v13 三欄 + v14 上線表）
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (11, '2026-09-10T00:00:00.000Z', 'v11')");
     for (const t of NEW) assert.ok(!(await tables()).includes(t));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 17);
+    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 18);
     assert.deepEqual(s.rebuilt, []); assert.deepEqual(s.columnsAdded, [], '從 v11 起跳：新表由 CREATE TABLE 直接建齊（含 v13 欄位）');
     for (const t of NEW) assert.ok((await tables()).includes(t));
     assert.equal((await e.db.getTombstone(ALICE.id, 'sleep', sid(1))).state, TOMBSTONE_STATE.ACTIVE, '墓碑原封不動');

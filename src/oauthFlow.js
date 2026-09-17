@@ -141,15 +141,26 @@ export async function completeAuthorization({
   try {
     return await bindAuthorizedTokens({
       db, userId, code, tokens: null, exchange, verifyIdentity, now,
+      // ★ R2 / LIFE-FG-02：state 的啟用世代要一路帶到**持久化那一刻**。
+      // 只在交換之前檢查是不夠的 —— provider 往返期間帳號可能被停用，
+      // 甚至停用又啟用（那時候 status 又是 ACTIVE，光看狀態分不出來）。
+      expectedLifecycleGeneration: consumed.lifecycleGeneration,
     });
   } catch (err) {
     if (err instanceof OAuthFlowError && err.userId === null) err.userId = userId;
+    // ★ R2 / LIFE-FG-02 §12：失敗結論也屬於**發出這條 state 的那一段啟用期**。
+    // 帶著它，callback 才能把「舊世代的失敗」擋在新世代之外。
+    if (err instanceof OAuthFlowError && err.lifecycleGeneration === undefined) {
+      err.lifecycleGeneration = consumed.lifecycleGeneration ?? null;
+    }
     throw err;
   }
 }
 
 /** completeAuthorization 在「已知使用者」之後的部分（見上面的說明）。 */
-async function bindAuthorizedTokens({ db, userId, code, exchange, verifyIdentity, now }) {
+async function bindAuthorizedTokens({
+  db, userId, code, exchange, verifyIdentity, now, expectedLifecycleGeneration = null,
+}) {
 
   let tokens;
   try {
@@ -161,6 +172,7 @@ async function bindAuthorizedTokens({ db, userId, code, exchange, verifyIdentity
   }
   if (!tokens?.accessToken) throw new OAuthFlowError('NO_TOKEN', 'WHOOP 沒有回傳 access_token', userId);
 
+  let written;
   // ---- M-01 身分閘門：先確定這是誰，才可能把 token 存到誰身上 ----
   let whoopUserId = tokens.whoopUserId ?? null;
   if (whoopUserId === null || whoopUserId === undefined || String(whoopUserId).trim() === '') {
@@ -250,7 +262,7 @@ async function bindAuthorizedTokens({ db, userId, code, exchange, verifyIdentity
   }
 
   try {
-    await db.saveTokens(userId, {
+    written = await db.saveTokens(userId, {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       expiresAt: tokens.expiresAt,
@@ -261,7 +273,24 @@ async function bindAuthorizedTokens({ db, userId, code, exchange, verifyIdentity
       // 世代 +1 讓所有舊的資源權限判定立刻失效 —— 沒有重新驗證過，
       // 就不可能用舊結論通過 READY。例行 refresh 不會走到這裡。
       bumpAuthGeneration: true,
+      // ★ R2 / LIFE-FG-02：在**同一句 UPDATE 的 WHERE 裡**再證明一次
+      // 「帳號仍然 ACTIVE 且仍在發出這條 state 的那一段啟用期」。
+      // 交換前的檢查只是早期訊號；這裡才是不可繞過的邊界。
+      expectedLifecycleGeneration,
     });
+    if (written === false) {
+      // CAS 沒過。分辨是「啟用期變了」還是其他並發寫入。
+      const cur = await db.getUser(userId).catch(() => null);
+      if (!cur || cur.status !== USER_STATUS.ACTIVE
+          || cur.lifecycleGeneration !== expectedLifecycleGeneration) {
+        throw new OAuthFlowError(
+          'ACCOUNT_INACTIVE',
+          '這個帳號在授權往返期間變得無法完成授權（帳號狀態或啟用世代已改變）',
+          userId,
+        );
+      }
+      throw new OAuthFlowError('TOKEN_EXCHANGE_FAILED', '授權寫入被並發寫入擋下', userId);
+    }
   } catch (err) {
     // ★ 儲存層的原子閘門輸了：並發的另一個 callback 已經把身分設成別的了。
     // 這是應用層的 SELECT-before-WRITE 永遠關不掉的競態（實測確認：

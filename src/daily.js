@@ -28,6 +28,9 @@ import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelive
  */
 export async function runDaily({
   db, userId, source, coach, telegram, timezone, now = new Date(),
+  // ★ R2：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）。
+  // 報告認領會記下它，於是舊啟用期留下的未送出認領不會擋住新啟用期的報告。
+  expectedLifecycleGeneration = null,
 }) {
   const uid = requireUserId(userId, 'runDaily');
   // 1) 輕量 polling。刻意放在去重之前：health_date 是從最新那筆睡眠算出來的，
@@ -193,7 +196,11 @@ export async function runDaily({
   const claimKey = { userId: uid, ...{ reportType: 'daily', localDateKey: healthDate } };
   let claim = { granted: true, owner: null };
   if (claiming) {
-    claim = await db.claimReport({ ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS });
+    claim = await db.claimReport({
+      ...claimKey, ttlMs: REPORT_CLAIM.TTL_MS,
+      // ★ R2：認領屬於這一輪的啟用期（見 db.claimReport）。
+      expectedLifecycleGeneration,
+    });
     if (!claim.granted) {
       // ★ 三種拒絕要分開，因為處置完全不同：
       //   already_sent  使用者已經收到了 → 什麼都不用做

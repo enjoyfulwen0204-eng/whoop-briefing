@@ -35,6 +35,7 @@ import { TELEGRAM_BOT } from '../config.js';
 import { TELEGRAM_DELIVERY_STATE } from '../schema.js';
 import { classifySendOutcome } from './api.js';
 import { log, describeError } from '../logger.js';
+import { isAccountInactiveError } from '../accountLifecycle.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -531,6 +532,29 @@ export function createUpdateProcessor({
             log.info('telegram_update_ignored', { update_id: updateId, reason: c.kind });
           }
           return null;
+        }
+        // ---- ★ R2 / LIFE-FG-05：健康處理**之前**的啟用授權 ---------------
+        //
+        // 只在遞送時擋是不夠的：handleMessage 會查個人健康資料、可能打
+        // WHOOP、餵給模型，而且會寫下耐久的健康／脈絡狀態（journal、
+        // 追問狀態、答覆收據）。那些寫入都發生在遞送之前，所以一個在
+        // 停用（或 ABA）之後才跑到這裡的請求，光靠遞送圍欄會留下
+        // 一整串屬於舊啟用期的耐久痕跡。
+        //
+        // 這一段整個在 processTelegramOperation 的交易裡，所以拒絕就是
+        // 「什麼健康狀態都沒被寫下」。更新本身仍然會被正常結案
+        // （那是傳輸層的冪等中繼資料，不是健康狀態）。
+        if (typeof db?.assertAccountActive === 'function'
+            && Number.isInteger(c.user?.lifecycleGeneration)) {
+          try {
+            await db.assertAccountActive(c.user.id, c.user.lifecycleGeneration);
+          } catch (err) {
+            if (isAccountInactiveError(err)) {
+              log.info('telegram_message_lifecycle_skipped', { update_id: updateId });
+              return { chatId: c.chatId, reply: null, userId: c.user.id };
+            }
+            throw err;
+          }
         }
         const reply = await handleMessage({
           text: c.text, chatId: c.chatId, message: c.message, user: c.user,

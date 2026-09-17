@@ -14,7 +14,7 @@
  */
 
 import { loadDotEnvIfPresent, loadEnv } from '../src/config.js';
-import { pickUser } from './pickUser.js';
+import { pickUser, lifecycleContextFor } from './pickUser.js';
 import { createDb } from '../src/db.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { probeCapabilities, STATUS } from '../src/capabilities.js';
@@ -39,6 +39,8 @@ const MARK = {
 try {
   await db.migrate();
   const user = await pickUser(db);
+  // ★ R2 / §15：盤點在哪一段啟用期觀測，就只能被記成哪一段啟用期的證據。
+  const lifecycle = lifecycleContextFor(user);
   const whoop = createWhoopClient({
     db, userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
   });
@@ -46,6 +48,7 @@ try {
   console.log(`使用者：${user.id}（${user.displayName}，${user.timezone}）`);
 
   const { entries, scopeErrors } = await probeCapabilities({
+    expectedLifecycleGeneration: lifecycle,
     // ★ L-03 同一條：用這個使用者自己的時區，不是 bootstrap 預設
     db, whoop, userId: user.id, timezone: user.timezone, days: DAYS,
   });

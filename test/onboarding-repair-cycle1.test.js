@@ -282,21 +282,33 @@ test('RC1-ATTACK-03 / RC1-ATTACK-04 / RC1-ATTACK-14 遷移矩陣：每一種既�
     assert.equal(summary.from, 13);
     assert.equal(summary.to, SCHEMA_VERSION);
     assert.deepEqual(summary.rebuilt, []);
-    assert.deepEqual(summary.dataMigrations, [{ version: 14, rows: 6 }, { version: 15, rows: 0 }, { version: 16, rows: 0 }]);
+    assert.deepEqual(summary.dataMigrations, [{ version: 14, rows: 6 }, { version: 15, rows: 0 }, { version: 16, rows: 0 },
+      { version: 18, rows: 2 }]);
 
     const state = async (id) => (await e.db.getOnboardingRow(id)).state;
-    assert.equal(await state('legacy-a'), ONBOARDING_STATE.READY, 'A 完整 → READY');
+    // ★ R2 / LIFE-FG-10：證據**齊全到 v13 的標準**的人（A、F）曾經被寫成
+    // READY，但執行期的 READY 述詞現在還要求「目前啟用世代的資源權限判定」，
+    // 而 v13 時代沒有那張表。v18 因此把他們降級到可續跑的 WHOOP_AUTHORIZED
+    // —— 資料全留、立刻進入重新驗證、bootstrap 跑完就自動回到 READY。
+    assert.equal(await state('legacy-a'), ONBOARDING_STATE.WHOOP_AUTHORIZED,
+      'A 完整 → 進入重新驗證（不是未經證實的 READY）');
     assert.equal(await state('legacy-b'), ONBOARDING_STATE.STARTED, 'B 沒有綁定 → 自助流程還沒開始');
     assert.equal(await state('legacy-c'), ONBOARDING_STATE.TIMEZONE_PENDING, 'C 沒有 WHOOP → 從第一步重走');
     assert.equal(await state('legacy-d'), ONBOARDING_STATE.ACTION_REQUIRED, 'D 停用 → 要管理者處理');
     assert.equal((await e.db.getOnboardingRow('legacy-d')).failureCode, ONBOARDING_FAILURE.ACCOUNT_INACTIVE);
     assert.equal(await state('legacy-e'), ONBOARDING_STATE.SYNCING, 'E 缺 capability → 可續作');
-    assert.equal(await state('legacy-f'), ONBOARDING_STATE.READY, 'F token 過期但可 refresh → 仍然正常');
+    assert.equal(await state('legacy-f'), ONBOARDING_STATE.WHOOP_AUTHORIZED,
+      'F token 過期但可 refresh → 同樣進入重新驗證');
 
-    // 只有真的完整的人可以被排程
+    // ★★★ 遷移之後**沒有人**被直接排程：所有 READY 都必須由執行期的
+    // setReadyIfEligible 在真實證據下重新給出（LIFE-FG-10 的鎖定不變量）。
     const sched = await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE });
-    assert.deepEqual(sched.map((u) => u.id).sort(), ['legacy-a', 'legacy-f'],
-      '★★★ 不完整的既有使用者一個都不會被排程');
+    assert.deepEqual(sched.map((u) => u.id).sort(), [],
+      '★★★ 遷移不可以產生執行期述詞不會同意的可排程 READY');
+    // 但完整的人立刻進入重新驗證佇列（不需要人工介入）。
+    assert.deepEqual(
+      (await e.db.listOnboardingInState([ONBOARDING_STATE.WHOOP_AUTHORIZED])).map((o) => o.userId).sort(),
+      ['legacy-a', 'legacy-f'], '★★★ 完整的既有使用者自動排進重新驗證');
 
     // 時區確認證據只給「有驗證過的 WHOOP 身分」的人
     assert.ok((await e.db.getOnboardingRow('legacy-a')).timezoneConfirmedAt);
@@ -308,7 +320,8 @@ test('RC1-ATTACK-03 / RC1-ATTACK-04 / RC1-ATTACK-14 遷移矩陣：每一種既�
       const s2 = await runMigrations(e.db.raw);
       assert.deepEqual(s2.dataMigrations, []);
     }
-    assert.equal(await state('legacy-a'), ONBOARDING_STATE.READY);
+    assert.equal(await state('legacy-a'), ONBOARDING_STATE.WHOOP_AUTHORIZED,
+      '★ 冪等：重跑遷移不會再動已經降級的列');
   } finally { e.done(); }
 });
 
@@ -331,13 +344,20 @@ test('F02 v15 修正：v14 第一版盲目寫下的 READY 會被改回真實狀�
 
     const s = await runMigrations(e.db.raw);
     assert.equal(s.from, 14); assert.equal(s.to, SCHEMA_VERSION);
-    assert.deepEqual(s.dataMigrations, [{ version: 15, rows: 1 }, { version: 16, rows: 0 }], '★ 只有一列需要修正');
-    assert.equal((await e.db.getOnboardingRow('good')).state, ONBOARDING_STATE.READY, '★ 證據齊全的不動');
+    assert.deepEqual(s.dataMigrations, [{ version: 15, rows: 1 }, { version: 16, rows: 0 }, { version: 18, rows: 1 }], '★ 只有一列需要修正');
+    // ★ R2 / LIFE-FG-10：證據齊全的人也要在目前啟用世代重新驗證
+    // （v13/v14 時代沒有資源權限判定這張表）。資料全留，立刻進入重新驗證。
+    assert.equal((await e.db.getOnboardingRow('good')).state, ONBOARDING_STATE.WHOOP_AUTHORIZED,
+      '★ 證據齊全的人進入重新驗證，而不是未經證實的 READY');
     assert.equal((await e.db.getOnboardingRow('bare')).state, ONBOARDING_STATE.STARTED, '★★★ 假的 READY 被改正');
     assert.equal((await e.db.getOnboardingRow('bare')).readyAt, null);
     assert.equal((await e.db.getOnboardingRow('bare')).timezoneConfirmedAt, null);
+    // ★ R2 / LIFE-FG-10：遷移之後沒有人直接可排程；'good' 進入重新驗證。
     const sched = await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE });
-    assert.deepEqual(sched.map((u) => u.id), ['good']);
+    assert.deepEqual(sched.map((u) => u.id), []);
+    assert.deepEqual(
+      (await e.db.listOnboardingInState([ONBOARDING_STATE.WHOOP_AUTHORIZED])).map((o) => o.userId),
+      ['good'], '★ 證據齊全的人立刻進入重新驗證');
     // 冪等
     assert.deepEqual((await runMigrations(e.db.raw)).dataMigrations, []);
   } finally { e.done(); }

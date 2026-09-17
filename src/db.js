@@ -16,7 +16,7 @@ import { createClient } from '@libsql/client';
 import { randomUUID } from 'node:crypto';
 import {
   GLOBAL_SCOPE, userScope, TELEGRAM_DELIVERY_STATE, TELEGRAM_UPDATE_STATUS,
-  REPORT_DELIVERY_STATE, USER_STATUS,
+  REPORT_DELIVERY_STATE, USER_STATUS, lifecycleActiveSql,
 } from './schema.js';
 import { AccountInactiveError } from './accountLifecycle.js';
 
@@ -642,7 +642,7 @@ export function createDb({ url, authToken }) {
     accessToken, refreshToken, expiresAt, scope, whoopUserId = null,
   }, {
     retries = 4, expectedUpdatedAt = undefined, bumpAuthGeneration = false,
-    expectedAuthGeneration = null,
+    expectedAuthGeneration = null, expectedLifecycleGeneration = null,
   } = {}) {
     const uid = requireUserId(userId, 'saveTokens');
     const fenced = expectedUpdatedAt !== undefined;
@@ -653,12 +653,28 @@ export function createDb({ url, authToken }) {
     const genFenced = Number.isInteger(expectedAuthGeneration) && expectedAuthGeneration >= 1;
     // CAS 條件。刻意用 `IS ?` 而不是 `= ?`，這樣 NULL 也能正確比較
     // （SQL 的 `= NULL` 永遠不成立，會讓「我讀到的時候沒有這一列」無法表達）。
+    // ★ R2 / LIFE-FG-01：帳號啟用世代的 CAS。
+    //
+    // 授權世代擋不住這一種：停用（或停用再啟用）**不會**改 auth_generation，
+    // 所以一個在舊啟用期開始的例行 refresh，網路回來之後仍然握著「正確的」
+    // 授權世代，會把輪替後的憑證寫進一個已經不該被處理的帳號。
+    const lifeFenced = Number.isInteger(expectedLifecycleGeneration)
+      && expectedLifecycleGeneration >= 1;
     const casClause = (fenced ? '\n         AND user_whoop_tokens.updated_at IS ?' : '')
-      + (genFenced ? '\n         AND user_whoop_tokens.auth_generation = ?' : '');
+      + (genFenced ? '\n         AND user_whoop_tokens.auth_generation = ?' : '')
+      + (lifeFenced ? `\n         AND ${lifecycleActiveSql('user_whoop_tokens.user_id')}` : '');
+    // ★ R2 / LIFE-FG-02：啟用圍欄必須同時蓋住 **INSERT** 與 DO UPDATE。
+    //
+    // 只放在 ON CONFLICT 的 WHERE 裡是不夠的：**第一次**授權沒有既有列，
+    // 走的是 INSERT 路徑，那個 WHERE 根本不會被求值 —— 於是一個在
+    // provider 往返期間被停用的帳號，仍然會拿到它的第一組憑證。
+    // 改成 INSERT … SELECT … WHERE，讓條件對兩條路徑都成立。
+    const insertGuard = lifeFenced ? lifecycleActiveSql('?') : '1';
     const sql = `INSERT INTO user_whoop_tokens
         (user_id, whoop_user_id, access_token, refresh_token,
          access_token_expires_at, scope, updated_at, auth_generation)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      SELECT ?, ?, ?, ?, ?, ?, ?, 1
+       WHERE ${insertGuard}
       ON CONFLICT(user_id) DO UPDATE SET
         whoop_user_id = COALESCE(user_whoop_tokens.whoop_user_id, excluded.whoop_user_id),
         auth_generation = user_whoop_tokens.auth_generation + ${bumpAuthGeneration ? 1 : 0},
@@ -678,8 +694,11 @@ export function createDb({ url, authToken }) {
       new Date(expiresAt).toISOString(),
       scope ?? null,
       new Date().toISOString(),
+      // INSERT 路徑的啟用圍欄（uid + 世代），再來才是 ON CONFLICT 的 CAS
+      ...(lifeFenced ? [uid, expectedLifecycleGeneration] : []),
       ...(fenced ? [expectedUpdatedAt] : []),
       ...(genFenced ? [expectedAuthGeneration] : []),
+      ...(lifeFenced ? [expectedLifecycleGeneration] : []),
     ];
 
     const wanted = whoopUserId === null || whoopUserId === undefined
@@ -694,7 +713,11 @@ export function createDb({ url, authToken }) {
           // 所以一定要分清楚 —— 把 CAS 落敗誤判成身分衝突會讓正常的
           // refresh 競爭變成一個看起來很嚴重的假警報。
           const row = (await client.execute({
-            sql: 'SELECT whoop_user_id, updated_at, auth_generation FROM user_whoop_tokens WHERE user_id = ?',
+            sql: `SELECT t.whoop_user_id, t.updated_at, t.auth_generation,
+                         u.status user_status, u.lifecycle_generation user_lifecycle
+                    FROM user_whoop_tokens t
+                    LEFT JOIN users u ON u.id = t.user_id
+                   WHERE t.user_id = ?`,
             args: [uid],
           })).rows[0] ?? null;
           const current = row?.whoop_user_id ?? null;
@@ -713,6 +736,28 @@ export function createDb({ url, authToken }) {
               user_id: uid, current: currentStr,
             });
             throw err;
+          }
+
+          // (a0) ★ R2 / LIFE-FG-01 / LIFE-FG-02：帳號層級的原因**最優先**。
+          //
+          // 一個被停用（或已經換過啟用期）的帳號，它的寫入根本不該落地，
+          // 而且那既不是授權競態、更不是身分衝突 —— 用帳號自己的列判斷，
+          // 不是用 token 列：**第一次**授權時根本還沒有 token 列，而那正是
+          // 「停用期間完成第一次授權」這個情境。
+          const acct = lifeFenced ? (await client.execute({
+            sql: 'SELECT status, lifecycle_generation FROM users WHERE id = ?', args: [uid],
+          })).rows[0] ?? null : null;
+          if (lifeFenced
+              && (!acct
+                || String(acct.status) !== USER_STATUS.ACTIVE
+                || Number(acct.lifecycle_generation ?? 1) !== expectedLifecycleGeneration)) {
+            log.warn('tokens_save_lifecycle_rejected', {
+              user_id: uid,
+              user_status: acct ? String(acct.status) : null,
+              expected_lifecycle: expectedLifecycleGeneration,
+              current_lifecycle: acct ? Number(acct.lifecycle_generation ?? 1) : null,
+            });
+            return false;
           }
 
           // (a2) ★ F04：世代已經往前走了 —— 使用者在我們打網路的時候完成了
@@ -1182,25 +1227,39 @@ export function createDb({ url, authToken }) {
    * 「租約過期」永遠不可以變成「再送一次」的理由。
    */
   async function claimReport({
-    userId, reportType, localDateKey, ttlMs, owner = randomUUID(), now = new Date(),
+    userId, reportType, localDateKey, ttlMs, owner = randomUUID(),
+    expectedLifecycleGeneration = null, now = new Date(),
   }) {
     const uid = requireUserId(userId, 'claimReport');
     const nowIso = now.toISOString();
     const expiresIso = new Date(now.getTime() + ttlMs).toISOString();
+    const life = Number.isInteger(expectedLifecycleGeneration)
+      ? expectedLifecycleGeneration : null;
     const rs = await client.execute({
+      // ★ R2 / LIFE-FG-07 §20：認領記下它屬於哪一段啟用期，而且**別的
+      // 啟用期留下的未送出認領一律可以被接手**（不必等租約過期）。
+      //
+      // 沒有這一條，一個在停用前認領、之後被啟用授權擋下來的舊 worker，
+      // 會讓使用者在合法重新啟用之後整整一個租約週期收不到晨報 ——
+      // 而晨報是每天都要有的東西。
       sql: `INSERT INTO report_claims
               (user_id, report_type, local_date, owner, claimed_at, expires_at,
-               delivery_state, delivery_attempts)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+               delivery_state, delivery_attempts, lifecycle_generation)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
             ON CONFLICT(user_id, report_type, local_date) DO UPDATE SET
               owner      = excluded.owner,
               claimed_at = excluded.claimed_at,
-              expires_at = excluded.expires_at
+              expires_at = excluded.expires_at,
+              lifecycle_generation = excluded.lifecycle_generation
             WHERE report_claims.telegram_sent_at IS NULL
               AND report_claims.delivery_state = ?
-              AND report_claims.expires_at <= excluded.claimed_at`,
+              AND (report_claims.expires_at <= excluded.claimed_at
+                -- ★ R2：兩邊都知道而且不同時才接手（NULL = 出處不明，維持互斥）
+                OR (report_claims.lifecycle_generation IS NOT NULL
+                    AND excluded.lifecycle_generation IS NOT NULL
+                    AND report_claims.lifecycle_generation <> excluded.lifecycle_generation))`,
       args: [uid, reportType, localDateKey, owner, nowIso, expiresIso,
-        REPORT_DELIVERY_STATE.CLAIMED, REPORT_DELIVERY_STATE.CLAIMED],
+        REPORT_DELIVERY_STATE.CLAIMED, life, REPORT_DELIVERY_STATE.CLAIMED],
     });
     if (Number(rs.rowsAffected ?? 0) > 0) {
       log.info('report_claimed', { user_id: uid, report_type: reportType, local_date: localDateKey });
@@ -1502,7 +1561,7 @@ export function createDb({ url, authToken }) {
     holdsLock,
     releaseLock,
     userLockName,
-    ...createIdentityStore(client),
+    ...createIdentityStore(client, { transaction: processing.transaction }),
     // 墓碑判定與 canonical 寫入必須同一交易（P1-R02-RC2）：把「需要時才開交易」
     // 的執行器交給儲存層。已在 mutateForWhoopEvent 交易裡時會直接沿用，不巢狀。
     ...health,

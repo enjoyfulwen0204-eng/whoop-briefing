@@ -19,6 +19,7 @@ import {
 } from '../src/bot/intent.js';
 import { renderFallback, buildAnswerContext } from '../src/bot/answer.js';
 import { isNegativeAnswer, shouldFollowUp } from '../src/bot/conversation.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 import { makeDataset, degradedOverrides } from './fixtures.js';
 
 const TZ = 'Asia/Taipei';
@@ -56,7 +57,7 @@ async function dbWithData({ days = 60, overrides = undefined } = {}) {
       workouts: async () => [],
       bodyMeasurement: async () => null,
     };
-    const sync = createSync({ db, whoop, userId: USER.id, timezone: TZ, now: NOW });
+    const sync = createSync({ db, whoop, userId: USER.id, timezone: TZ, expectedLifecycleGeneration: LIFECYCLE_UNFENCED, now: NOW });
     await sync.incremental('sleep');
     await sync.incremental('recovery');
     await sync.incremental('cycle');

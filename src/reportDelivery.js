@@ -44,6 +44,7 @@
  */
 
 import { SEND_OUTCOME, classifySendOutcome } from './sendOutcome.js';
+import { isSuppressedDelivery } from './accountLifecycle.js';
 import { requireUserId } from './userContext.js';
 import { log, describeError } from './logger.js';
 
@@ -60,6 +61,15 @@ export const DELIVERY_RESULT = Object.freeze({
   FENCED: 'fenced',
   DEFINITE_FAILURE: 'definite_failure',
   AMBIGUOUS: 'ambiguous',
+  /**
+   * ★ R2 / LIFE-FG-07：帳號啟用授權在送出前把它擋下來了。
+   *
+   * **什麼都沒送出去**，所以它絕不可以被當成 DELIVERED：
+   * 標記成已送達會消耗掉這一天的遞送名額，讓使用者在合法重新啟用之後
+   * 永遠收不到那天的晨報。語義上最接近 DEFINITE_FAILURE（確定沒送出、
+   * 可以安全重來），但原因完全不同，所以獨立命名。
+   */
+  SUPPRESSED_INACTIVE: 'suppressed_inactive',
 });
 
 /**
@@ -178,6 +188,23 @@ export async function deliverReport({
   // 3) 證明送達。這個極小的 UPDATE 才是防重發的關鍵證據 ——
   //    它比整筆 report_runs insert 更可能成功。
   // -------------------------------------------------------------------------
+  // ---- ★ R2 / LIFE-FG-07：被啟用授權擋下 = **沒有送出** -------------------
+  //
+  // withDeliveryAuthorization 在帳號停用／換過啟用期時回一個標記結果而不是
+  // 拋錯。舊版把它當成「成功但沒有 message_id」，於是 markClaimSent 會把這
+  // 一天標成 DELIVERED —— 使用者重新啟用之後那天的晨報就再也發不出來了。
+  //
+  // 正確處置：把發送權還回去（確定沒送出，重來零風險），讓新的啟用期可以
+  // 重新認領並真的送出。
+  if (isSuppressedDelivery(sent)) {
+    if (fenceable) await releaseAfterDefiniteFailure({ db, claimKey, owner, scope });
+    log.info('report_delivery_suppressed_inactive', scope);
+    return {
+      result: DELIVERY_RESULT.SUPPRESSED_INACTIVE, messageId: null,
+      error: null, authorized: true,
+    };
+  }
+
   const messageId = sent?.messageId ?? null;
   if (fenceable && typeof db.markClaimSent === 'function') {
     try {

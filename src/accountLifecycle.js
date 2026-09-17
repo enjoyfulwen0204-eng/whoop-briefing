@@ -51,6 +51,52 @@ export function isAccountInactiveError(err) {
   return err?.code === ACCOUNT_INACTIVE;
 }
 
+// ---------------------------------------------------------------------------
+// 啟用脈絡的**契約**（R2 §4 / §5）
+// ---------------------------------------------------------------------------
+/**
+ * 明確的「這一次呼叫刻意不受啟用世代約束」記號。
+ *
+ * ## 為什麼需要一個記號，而不是「傳 null 就好」
+ *
+ * 第一版讓 `expectedLifecycleGeneration` 是選用的：沒傳就退化成「只檢查
+ * ACTIVE」。那看起來是體貼，實際上是把安全性押在「每個呼叫端都記得傳」
+ * 上面 —— 而獨立稽核找到的正是那些忘記傳的正式路徑（手動同步、盤點
+ * CLI、對帳）。忘記的後果是**安靜地**失去 ABA 防護，沒有任何訊號。
+ *
+ * 所以現在：正式的健康處理 API **必須**拿到一個世代，拿不到就大聲失敗。
+ * 真的需要不受約束的（測試夾具、管理者整備、資料修復）必須寫出這個記號，
+ * 於是它在 code review 與 grep 裡都是看得見的一個決定，不是一個疏忽。
+ */
+export const LIFECYCLE_UNFENCED = 'LIFECYCLE_UNFENCED_ADMIN';
+
+/** 正式健康路徑缺少啟用脈絡 —— 這是程式錯誤，不是執行期狀況。 */
+export class LifecycleContextError extends Error {
+  constructor(where) {
+    super(
+      `${where} 需要 expectedLifecycleGeneration（正式健康處理不可以沒有啟用脈絡）。`
+      + `測試／管理用途請明確傳 LIFECYCLE_UNFENCED。`,
+    );
+    this.name = 'LifecycleContextError';
+    this.code = 'LIFECYCLE_CONTEXT_REQUIRED';
+  }
+}
+
+/**
+ * 把呼叫端給的值轉成 SQL 圍欄要用的參數，**fail closed**。
+ *
+ * @returns {?number} 正整數 = 受約束；null = 呼叫端明確選擇不受約束
+ * @throws {LifecycleContextError} 什麼都沒給（最危險的那一種）
+ */
+export function requireLifecycle(value, where) {
+  if (value === LIFECYCLE_UNFENCED) return null;
+  if (Number.isInteger(value) && value >= 1) return value;
+  throw new LifecycleContextError(where);
+}
+
+/** 這個值是不是一個真正受約束的啟用世代。 */
+export const isLifecycleFenced = (v) => Number.isInteger(v) && v >= 1;
+
 /**
  * ★ v17 §27：**送出時**的健康訊息授權（單一入口）。
  *
@@ -70,14 +116,31 @@ export function isAccountInactiveError(err) {
  */
 export function withDeliveryAuthorization(telegram, authorize, { userId = null } = {}) {
   if (!telegram || typeof telegram.send !== 'function') return telegram;
+  const guarded = async (fn, ...args) => {
+    if (!await authorize()) {
+      // 不是錯誤：帳號在分析與送出之間變得不該再收到健康內容。
+      // 回傳一個**明確標記為未送出**的結果（見 SUPPRESSED）——
+      // 呼叫端必須看得出「這不是一次成功的遞送」。
+      return { messageId: null, suppressed: ACCOUNT_INACTIVE, userId };
+    }
+    return fn(...args);
+  };
   return {
     ...telegram,
-    async send(...args) {
-      if (!await authorize()) {
-        // 不是錯誤：帳號在分析與送出之間變得不該再收到健康內容。
-        return { messageId: null, suppressed: ACCOUNT_INACTIVE, userId };
-      }
-      return telegram.send(...args);
-    },
+    send: (...args) => guarded(telegram.send.bind(telegram), ...args),
+    // ★ R2 / LIFE-FG-09：user-scoped 的錯誤通知也是**送給使用者的訊息**。
+    //
+    // 舊版只包 send，於是「你的 WHOOP 授權壞了」「日報產生失敗」這類
+    // 使用者可見的帳號／健康告警會繞過整個啟用授權，在停用（甚至 ABA）
+    // 之後照樣送達。運維要看的系統告警走的是另一個 scope 的 client，
+    // 不經過這裡，所以不受影響。
+    notifyError: typeof telegram.notifyError === 'function'
+      ? (...args) => guarded(telegram.notifyError.bind(telegram), ...args)
+      : telegram.notifyError,
   };
+}
+
+/** 這個送出結果是不是被啟用授權擋下來的（**沒有**送出去）。 */
+export function isSuppressedDelivery(result) {
+  return result?.suppressed === ACCOUNT_INACTIVE;
 }

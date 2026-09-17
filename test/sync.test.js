@@ -19,6 +19,7 @@ import { createDb } from '../src/db.js';
 import { createSync } from '../src/sync.js';
 import { WhoopApiError } from '../src/whoop.js';
 import { WHOOP_SYNC } from '../src/config.js';
+import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 
 const TZ = 'Asia/Taipei';
 const DAY = 86_400_000;
@@ -177,7 +178,7 @@ async function setup({ data = makeApiData(), whoopOpts = {}, now = NOW } = {}) {
   await db.migrate();
   await db.createUser({ id: U, displayName: 'SyncTest', timezone: TZ });
   const whoop = fakeWhoop(data, whoopOpts);
-  const sync = createSync({ db, whoop, userId: U, timezone: TZ, now });
+  const sync = createSync({ db, whoop, userId: U, timezone: TZ, expectedLifecycleGeneration: LIFECYCLE_UNFENCED, now });
   return { db, whoop, sync, cleanup, now, userId: U };
 }
 
@@ -361,7 +362,7 @@ test('sync: backfill 中途失敗 → cursor 停在最後一個成功的 chunk�
         });
       },
     };
-    const sync = createSync({ db, whoop, userId: U, timezone: TZ, now: NOW });
+    const sync = createSync({ db, whoop, userId: U, timezone: TZ, expectedLifecycleGeneration: LIFECYCLE_UNFENCED, now: NOW });
 
     await assert.rejects(() => sync.backfill('sleep'), /模擬網路中斷/);
 

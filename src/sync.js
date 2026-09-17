@@ -16,6 +16,7 @@
 
 import { WHOOP_SYNC } from './config.js';
 import { isScopeError, isStaleAuthorizationError } from './whoop.js';
+import { isAccountInactiveError } from './accountLifecycle.js';
 import { requireUserId } from './userContext.js';
 import { log, describeError } from './logger.js';
 
@@ -77,8 +78,34 @@ export async function isSyncDue({
  * @param {string} o.userId  **必填**。這個 sync 屬於哪個內部使用者。
  * @param {string} o.timezone 該使用者的時區（不是全域 TIMEZONE）
  */
-export function createSync({ db, whoop, userId, timezone, now = new Date() }) {
+export function createSync({
+  db, whoop, userId, timezone, expectedLifecycleGeneration = null, now = new Date(),
+}) {
   const uid = requireUserId(userId, 'createSync');
+
+  /**
+   * ★ v17：抓到的資料 + 游標推進 = **一個**不可分割的單位。
+   *
+   * 網路在交易外（絕不在寫入交易裡等 provider），落地在交易內，而交易的
+   * 第一件事就是證明帳號仍然 ACTIVE 且仍在同一段啟用期。證不出來就拋，
+   * 整個交易回滾：canonical 列沒寫，游標也**沒有前進**。
+   *
+   * 這個「一起成功或一起不動」是關鍵：如果只擋資料寫入而讓游標前進，
+   * 那段時間的資料會被永久跳過，而且沒有任何地方看得出來。
+   */
+  const lifecycleFenced = Number.isInteger(expectedLifecycleGeneration);
+
+  async function commitWindow(resource, payload, cursorPatch) {
+    return db.transaction(async () => {
+      // 只有**帶著啟用脈絡**的呼叫端才受圍欄約束（與這次修正其他地方一致）。
+      // 正式路徑（排程器 runForUser、上線 bootstrap）都會帶；沒有帶的是
+      // 腳本／測試夾具那種「沒有帳號脈絡」的情境，行為維持不變。
+      if (lifecycleFenced) await db.assertAccountActive(uid, expectedLifecycleGeneration);
+      const written = await persist(resource, payload);
+      if (cursorPatch) await db.saveSyncState(uid, resource, cursorPatch, { now });
+      return written;
+    });
+  }
   /**
    * 一個 resource 的抓取器。全部沿用 whoop client 既有的
    * collect / pagination / retry / rate-limit / 401-refresh 機制。
@@ -103,14 +130,19 @@ export function createSync({ db, whoop, userId, timezone, now = new Date() }) {
     }
   }
 
-  /** 抓一個時間窗並寫入。 */
-  async function syncWindow(resource, fromIso, toIso) {
+  /** 抓一個時間窗（純網路，不落地）。 */
+  async function fetchWindow(resource, fromIso, toIso) {
     const payload = POINT_IN_TIME.has(resource)
       ? await fetchers[resource]()
       : await fetchers[resource](fromIso, toIso);
-    const count = Array.isArray(payload) ? payload.length : (payload ? 1 : 0);
-    const written = await persist(resource, payload);
-    return { fetched: count, written };
+    return { payload, fetched: Array.isArray(payload) ? payload.length : (payload ? 1 : 0) };
+  }
+
+  /** 抓一個時間窗並**與游標一起**落地。 */
+  async function syncWindow(resource, fromIso, toIso, cursorPatch = null) {
+    const { payload, fetched } = await fetchWindow(resource, fromIso, toIso);
+    const written = await commitWindow(resource, payload, cursorPatch);
+    return { fetched, written };
   }
 
   /**
@@ -121,13 +153,13 @@ export function createSync({ db, whoop, userId, timezone, now = new Date() }) {
   async function incremental(resource) {
     const to = now;
     const from = new Date(now.getTime() - WHOOP_SYNC.INCREMENTAL_OVERLAP_DAYS * DAY_MS);
-    const r = await syncWindow(resource, from.toISOString(), to.toISOString());
-    await db.saveSyncState(uid, resource, {
+    // 資料與進度在同一個交易裡（見 commitWindow）。
+    const r = await syncWindow(resource, from.toISOString(), to.toISOString(), {
       latestSynced: to.toISOString(),
       lastSuccessAt: to.toISOString(),
       lastError: null,
       lastErrorAt: null,
-    }, { now });
+    });
     log.info('sync_incremental_done', { resource, ...r });
     return { resource, mode: 'incremental', ...r };
   }
@@ -154,20 +186,19 @@ export function createSync({ db, whoop, userId, timezone, now = new Date() }) {
       const chunkStart = new Date(
         Math.max(target.getTime(), cursor.getTime() - WHOOP_SYNC.BACKFILL_CHUNK_DAYS * DAY_MS),
       );
-      const r = await syncWindow(resource, chunkStart.toISOString(), cursor.toISOString());
+      // 每個 chunk 的資料與它的游標在**同一個交易**裡落地 —— 這既是 resume
+      // 的關鍵，也是「被拒絕的資料不會讓進度前進」的保證。
+      const r = await syncWindow(resource, chunkStart.toISOString(), cursor.toISOString(), {
+        backfillCursor: chunkStart.toISOString(),
+        earliestSynced: chunkStart.toISOString(),
+        lastSuccessAt: new Date().toISOString(),
+        lastError: null,
+        lastErrorAt: null,
+      });
       fetched += r.fetched;
       written += r.written;
       cursor = chunkStart;
       chunks += 1;
-
-      // 每個 chunk 成功就存檔 —— 這就是 resume 的關鍵
-      await db.saveSyncState(uid, resource, {
-        backfillCursor: cursor.toISOString(),
-        earliestSynced: cursor.toISOString(),
-        lastSuccessAt: new Date().toISOString(),
-        lastError: null,
-        lastErrorAt: null,
-      }, { now });
       log.info('sync_backfill_chunk', {
         resource, from: chunkStart.toISOString(), to: cursor.toISOString(), ...r,
       });
@@ -175,7 +206,10 @@ export function createSync({ db, whoop, userId, timezone, now = new Date() }) {
 
     const complete = cursor.getTime() <= target.getTime();
     if (complete) {
-      await db.saveSyncState(uid, resource, { backfillComplete: true }, { now });
+      await db.transaction(async () => {
+        if (lifecycleFenced) await db.assertAccountActive(uid, expectedLifecycleGeneration);
+        await db.saveSyncState(uid, resource, { backfillComplete: true }, { now });
+      });
       log.info('sync_backfill_complete', { resource, earliest: cursor.toISOString() });
     }
     return {
@@ -186,14 +220,13 @@ export function createSync({ db, whoop, userId, timezone, now = new Date() }) {
 
   /** point-in-time resource（body measurement）沒有 backfill 的概念。 */
   async function syncPointInTime(resource) {
-    const r = await syncWindow(resource, null, null);
-    await db.saveSyncState(uid, resource, {
+    const r = await syncWindow(resource, null, null, {
       backfillComplete: true,
       latestSynced: now.toISOString(),
       lastSuccessAt: now.toISOString(),
       lastError: null,
       lastErrorAt: null,
-    }, { now });
+    });
     log.info('sync_point_in_time_done', { resource, ...r });
     return { resource, mode: 'point_in_time', ...r };
   }
@@ -231,6 +264,13 @@ export function createSync({ db, whoop, userId, timezone, now = new Date() }) {
         // 必須排在 scope 判定之前，而且必須**停止**後面的資源：繼續跑只會
         // 產生更多無法歸屬的觀測。也不寫 lastError —— 這不是故障，寫進去
         // 會讓一個純內部競態長得像 provider 壞掉。
+        // ★ v17：帳號層級的停止排在最前面 —— 它既不是缺 scope，也不是故障，
+        // 而且必須立刻停止後面的資源（繼續跑只會產生更多不屬於這個帳號的工作）。
+        if (isAccountInactiveError(err)) {
+          log.info('sync_account_inactive', { resource });
+          results.push({ resource, status: 'account_inactive' });
+          break;
+        }
         if (isStaleAuthorizationError(err)) {
           log.warn('sync_stale_authorization', { resource });
           results.push({ resource, status: 'stale_authorization' });

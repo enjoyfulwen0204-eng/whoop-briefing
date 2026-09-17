@@ -41,6 +41,7 @@ import { mapWithConcurrency } from './concurrency.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
 import { checkPeerScheduler } from './schedulerWatchdog.js';
+import { withDeliveryAuthorization } from './accountLifecycle.js';
 import { resumeOnboardingBootstraps as resumeOnboarding } from './onboardingBootstrap.js';
 
 /** 預測要往回看幾天的 daily_metrics（涵蓋訓練 + 時序切分所需的長度）。 */
@@ -92,6 +93,13 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     healthspan = runHealthspanSnapshot,
   } = deps;
   const uid = user.id;
+  // ★ v17：worker 進入點捕捉這一輪的帳號啟用世代。
+  //
+  // 選取時已經過濾 ACTIVE + READY，但選取到送出之間會經過 provider 往返、
+  // LLM 分析與多使用者併發 —— 帳號完全可能在那段時間被停用（甚至停用又
+  // 啟用）。捕捉值之後會一路帶到 provider 階段與**送出授權**。
+  const expectedLifecycleGeneration = Number.isInteger(user.lifecycleGeneration)
+    ? user.lifecycleGeneration : null;
   const tz = user.timezone;
   const out = {
     userId: uid, timezone: tz, daily: null, weekly: null, sync: null, proactive: null,
@@ -157,21 +165,30 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   await runMaintenance();
 
   // 1) 這個使用者的 Telegram 目的地。沒有綁定就不能發報告（也不該亂發）。
-  const chatId = await db.getActiveChatIdForUser(uid);
+  const chatId = await db.getActiveChatIdForUser(uid, { expectedLifecycleGeneration });
   if (!chatId) {
     out.skipped = 'no_active_telegram_link';
     log.warn('user_skipped_no_telegram', { user_id: uid });
     return out;
   }
 
-  // 每個使用者一個 telegram client：chat 綁死，錯誤通知也 scope 到這個人
-  const telegram = makeTelegram({
-    botToken: env.telegramBotToken,
-    chatId,
-    dryRun: env.dryRun,
-    db,
-    errorScope: userScope(uid),
-  });
+  // 每個使用者一個 telegram client：chat 綁死，錯誤通知也 scope 到這個人。
+  //
+  // ★ v17：再包一層**送出時**的帳號授權（§27）。日報／週報／主動訊息全部
+  // 經過同一個 send，所以這一層就涵蓋了這一輪所有的健康遞送。
+  const telegram = withDeliveryAuthorization(
+    makeTelegram({
+      botToken: env.telegramBotToken,
+      chatId,
+      dryRun: env.dryRun,
+      db,
+      errorScope: userScope(uid),
+    }),
+    async () => Boolean(
+      await db.getActiveChatIdForUser(uid, { expectedLifecycleGeneration }).catch(() => null),
+    ),
+    { userId: uid },
+  );
 
 
   // 2) per-user due 判斷（用他自己的時區）
@@ -273,7 +290,9 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   // （resourceSyncDue），它才是節流的權威。上面的 syncDue 只用來決定
   // 「這一輪要不要為了同步而去拿 token」，不重複做逐一 resource 的判斷。
   try {
-    out.sync = await makeSync({ whoop, db, userId: uid, timezone: tz, now }).syncAll();
+    out.sync = await makeSync({
+      whoop, db, userId: uid, timezone: tz, expectedLifecycleGeneration, now,
+    }).syncAll();
   } catch (err) {
     out.errors.push({ stage: 'sync', error: describeError(err) });
     log.error('sync_unexpected', { user_id: uid, error: describeError(err) });

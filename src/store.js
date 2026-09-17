@@ -14,7 +14,7 @@ import { num, sleepTotalMilli } from './config.js';
 import { localDate } from './time.js';
 import { log } from './logger.js';
 import { requireUserId } from './userContext.js';
-import { TOMBSTONE_STATE } from './schema.js';
+import { TOMBSTONE_STATE, lifecycleActiveSql } from './schema.js';
 
 /** 每批寫入的筆數上限（避免單一 batch payload 過大）。 */
 const BATCH_SIZE = 100;
@@ -686,16 +686,28 @@ export function createHealthStore(client, { transaction } = {}) {
   // -------------------------------------------------------------------------
   // Capability
   // -------------------------------------------------------------------------
-  async function saveCapabilities(userId, entries = [], { now = new Date() } = {}) {
+  /**
+   * ★ v17：capability 盤點是**啟用期相關的資格證據**，不是歷史生理資料。
+   *
+   * 盤點寫入時證明帳號仍然 ACTIVE 且仍在同一段啟用期；READY 也只認目前
+   * 啟用期的盤點。停用再啟用之後，舊盤點還在（可稽核），但不再構成資格。
+   */
+  async function saveCapabilities(userId, entries = [], {
+    expectedLifecycleGeneration = null, now = new Date(),
+  } = {}) {
     const uid = requireUserId(userId, 'saveCapabilities');
     const probedAt = now.toISOString();
+    const life = Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null;
     const stmts = entries.map((e) => ({
       sql: `INSERT INTO whoop_capabilities
               (user_id, key, status, sample_count, non_null_count, latest_value,
-               first_seen_at, last_seen_at, last_probed_at, detail)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+               first_seen_at, last_seen_at, last_probed_at, detail, lifecycle_generation)
+            SELECT ?,?,?,?,?,?,?,?,?,?,
+                   COALESCE(?, (SELECT lu.lifecycle_generation FROM users lu WHERE lu.id = ?))
+             WHERE ${lifecycleActiveSql('?')}
             ON CONFLICT(user_id, key) DO UPDATE SET
               status=excluded.status,
+              lifecycle_generation=excluded.lifecycle_generation,
               sample_count=excluded.sample_count,
               non_null_count=excluded.non_null_count,
               latest_value=excluded.latest_value,
@@ -710,9 +722,17 @@ export function createHealthStore(client, { transaction } = {}) {
         e.nonNullCount > 0 ? probedAt : null,
         e.nonNullCount > 0 ? probedAt : null,
         probedAt, e.detail ?? null,
+        // lifecycle_generation：呼叫端給的（worker 捕捉值），沒給就用目前值
+        life, uid,
+        // 圍欄：ACTIVE + 同一段啟用期
+        uid, life,
       ],
     }));
     const n = await writeBatched(client, stmts);
+    if (entries.length && n === 0) {
+      log.warn('capabilities_lifecycle_rejected', { user_id: uid });
+      return 0;
+    }
     log.info('capabilities_saved', { user_id: uid, count: n });
     return n;
   }

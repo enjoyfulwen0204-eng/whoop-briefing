@@ -233,6 +233,23 @@ export async function resolveOrCreateUser({ db, chatId, message, now = new Date(
     return { user: null, onboarding: null, created: false, blocked: 'link_retired' };
   }
 
+  // ★ v17 §22：這個 chat 已經屬於一個**非 ACTIVE** 的使用者。
+  //
+  // resolveUserByChatId 對非 ACTIVE 一律回 null（那是對的：停用的人不該
+  // 被當成已綁定的使用者），但如果就這樣往下走，每一次 /start 都會建一個
+  // 新使用者、輸掉認領、再把自己停用 —— 留下無限增生的孤兒列，而且它們與
+  // 真正被管理者停用的帳號在 user:list 裡長得一模一樣。
+  //
+  // 在**建立任何東西之前**就認出這個情況：不建使用者、不建第二條綁定、
+  // 不重啟上線流程、不發授權連結、不改任何狀態。
+  if (link && link.status === 'ACTIVE') {
+    const owner = await db.getUser(link.userId).catch(() => null);
+    if (owner && owner.status !== USER_STATUS.ACTIVE) {
+      log.info('onboarding_chat_owner_inactive', { chat_id: cid });
+      return { user: null, onboarding: null, created: false, blocked: 'account_inactive' };
+    }
+  }
+
   const user = await db.createUser({
     displayName: displayNameFrom(message),
     // 時區在下一步才確認。先放一個標記值，READY 之前不會有任何日期敏感的
@@ -253,7 +270,11 @@ export async function resolveOrCreateUser({ db, chatId, message, now = new Date(
   // 應用層判斷，兩個並發的呼叫可以一起通過它然後互相覆蓋。
   const claim = await db.claimTelegramChat({ chatId: cid, userId: user.id, now });
   if (!claim.ok || claim.userId !== user.id) {
-    await db.updateUser(user.id, { status: USER_STATUS.DISABLED }, { now }).catch(() => {});
+    // 認領輸掉的孤兒列：停用它。走 lifecycle 轉移路徑（唯一能改 status 的
+    // 入口），所以它也會拿到一個一致的啟用世代。
+    await db.transitionUserLifecycle({
+      userId: user.id, targetStatus: USER_STATUS.DISABLED, now,
+    }).catch(() => {});
     const winnerId = claim.userId ?? null;
     const winner = winnerId ? await db.getUser(winnerId) : null;
     if (winner && winner.status === USER_STATUS.ACTIVE) {
@@ -283,6 +304,17 @@ export async function issueAuthLink({
   cooldownMs = ONBOARDING.AUTH_LINK_COOLDOWN_MS,
   maxOutstanding = ONBOARDING.MAX_OUTSTANDING_AUTH_LINKS,
 }) {
+  // ★ v17 §21：**先**確認帳號有資格，再動額度。
+  //
+  // 順序是重點：不合資格的帳號一次都不該消耗冷卻／配額，否則一個被停用的
+  // 帳號在重新啟用之後會發現自己莫名其妙被冷卻著。真正的原子閘門仍然在
+  // createOAuthState 裡（它在同一句 INSERT 裡驗 ACTIVE + 啟用世代）。
+  const account = await db.getUser(userId).catch(() => null);
+  if (!account || account.status !== USER_STATUS.ACTIVE) {
+    log.info('onboarding_auth_link_account_inactive', { user_id: userId });
+    return { ok: false, reason: 'account_inactive' };
+  }
+
   // 兩道閘門都**會自己恢復**（F03）：
   //   冷卻 —— 純時間條件
   //   未完成數量 —— 過期／用掉的 state 不再計入，而且是一句原子 INSERT

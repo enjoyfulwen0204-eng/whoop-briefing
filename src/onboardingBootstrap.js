@@ -30,10 +30,13 @@
  */
 
 import { ONBOARDING } from './config.js';
-import { ONBOARDING_STATE, ONBOARDING_FAILURE, RESOURCE_ACCESS_STATUS } from './schema.js';
+import {
+  ONBOARDING_STATE, ONBOARDING_FAILURE, RESOURCE_ACCESS_STATUS, USER_STATUS,
+} from './schema.js';
 import { createSync } from './sync.js';
 import { probeCapabilities } from './capabilities.js';
 import { createWhoopClient, isStaleAuthorizationError } from './whoop.js';
+import { isAccountInactiveError } from './accountLifecycle.js';
 import { requireUserId } from './userContext.js';
 import { log, describeError } from './logger.js';
 
@@ -85,6 +88,14 @@ export const BOOTSTRAP_RESULT = Object.freeze({
    *   · 不累積失敗（新的世代會自己跑一輪，見 resetBootstrapAttempts）
    */
   STALE_AUTHORIZATION: 'STALE_AUTHORIZATION',
+  /**
+   * ★ v17：帳號不是 ACTIVE，或已經不在這一輪開跑時的那一段啟用期。
+   *
+   * 與 STALE_AUTHORIZATION 平行但**不同**：那個是「WHOOP 的同意換了」，
+   * 這個是「帳號的啟用期換了（或帳號被停用）」。處置相同 —— 什麼都不寫、
+   * 不通知、不累積失敗 —— 但原因必須分得開，否則診斷會指向錯誤的方向。
+   */
+  ACCOUNT_INACTIVE: 'ACCOUNT_INACTIVE',
 });
 
 /**
@@ -141,11 +152,38 @@ export async function runOnboardingBootstrap({
     const user = await db.getUser(uid);
     if (!user) return { userId: uid, result: BOOTSTRAP_RESULT.SKIPPED, reason: 'unknown_user' };
 
-    await db.recordBootstrapAttempt(uid, { now: at() });
-    await db.setOnboardingState(uid, ONBOARDING_STATE.SYNCING, {
-      from: [ONBOARDING_STATE.WHOOP_AUTHORIZED, ONBOARDING_STATE.SYNCING],
-      syncStarted: true, now: at(),
+    // ---- 0a. ★ v17：帳號啟用閘門 + 啟用世代捕捉 ------------------------
+    //
+    // 必須在**任何**副作用之前：一個被停用的帳號不該消耗嘗試次數、不該被
+    // 推進狀態、不該打 WHOOP、不該收到任何訊息。
+    //
+    // 捕捉到的世代之後會跟著整輪跑，而且每一個耐久變更都會在 SQL 裡再證明
+    // 一次 —— 因為帳號可能在這之後才被停用（甚至停用又啟用，見 ABA）。
+    if (user.status !== USER_STATUS.ACTIVE) {
+      log.info('onboarding_account_inactive', { user_id: uid, user_status: user.status });
+      return { userId: uid, result: BOOTSTRAP_RESULT.ACCOUNT_INACTIVE, reason: `status:${user.status}` };
+    }
+    const expectedLifecycleGeneration = user.lifecycleGeneration;
+
+    const attempt = await db.recordBootstrapAttempt(uid, {
+      expectedLifecycleGeneration, now: at(),
     });
+    if (attempt && attempt.ok === false) return accountInactive(uid, 'attempt');
+
+    const entered = await db.setOnboardingState(uid, ONBOARDING_STATE.SYNCING, {
+      from: [ONBOARDING_STATE.WHOOP_AUTHORIZED, ONBOARDING_STATE.SYNCING],
+      syncStarted: true,
+      expectedLifecycleGeneration, requireActiveLifecycle: true,
+      now: at(),
+    });
+    if (!entered) {
+      // 狀態沒轉成功：可能是帳號在這一瞬間被停用，也可能是別人動了狀態。
+      if (await lifecycleChanged(db, uid, expectedLifecycleGeneration)) {
+        return accountInactive(uid, 'syncing');
+      }
+      log.warn('onboarding_syncing_not_applied', { user_id: uid });
+      return { userId: uid, result: BOOTSTRAP_RESULT.RETRY, detail: 'syncing_state_not_applied' };
+    }
 
     // ---- 0. ★ F04：**在任何 WHOOP 觀測之前**捕捉授權快照 --------------
     //
@@ -182,14 +220,18 @@ export async function runOnboardingBootstrap({
     // ---- 1. 初次同步（重用 V1.1 的同步，含 backfill 的第一批 chunk）----
     let results;
     try {
-      results = await makeSync({ db, whoop, userId: uid, timezone: user.timezone, now: at() })
-        .syncAll({ force: true });
+      results = await makeSync({
+        db, whoop, userId: uid, timezone: user.timezone,
+        expectedLifecycleGeneration, now: at(),
+      }).syncAll({ force: true });
     } catch (err) {
+      if (isAccountInactiveError(err)) return accountInactive(uid, 'sync');
       if (isStaleAuthorizationError(err)) return staleAuthorization(uid, 'sync');
       // syncAll 本身保證不拋，這是最後一道
       log.error('onboarding_sync_unexpected', { user_id: uid, error: describeError(err) });
       return failOrRetry({
-        db, uid, now: at(), notify, detail: describeError(err), expectedAuthGeneration,
+        db, uid, now: at(), notify, detail: describeError(err),
+        expectedAuthGeneration, expectedLifecycleGeneration,
       });
     }
     // 世代已經換掉 → 這些觀測不屬於任何一個我們可以宣告的授權。
@@ -197,12 +239,16 @@ export async function runOnboardingBootstrap({
     if (results.some((r) => r?.status === 'stale_authorization')) {
       return staleAuthorization(uid, 'sync');
     }
+    if (results.some((r) => r?.status === 'account_inactive')) {
+      return accountInactive(uid, 'sync');
+    }
     if (!syncUsable(results)) {
       log.warn('onboarding_sync_incomplete', {
         user_id: uid, failed: results.filter((r) => r?.status === 'failed').map((r) => r.resource),
       });
       return failOrRetry({
-        db, uid, now: at(), notify, detail: 'initial_sync_failed', expectedAuthGeneration,
+        db, uid, now: at(), notify, detail: 'initial_sync_failed',
+        expectedAuthGeneration, expectedLifecycleGeneration,
       });
     }
 
@@ -211,15 +257,18 @@ export async function runOnboardingBootstrap({
     try {
       probed = await probe({
         db, whoop, userId: uid, timezone: user.timezone,
-        days: ONBOARDING.CAPABILITY_PROBE_DAYS, now: at(),
+        days: ONBOARDING.CAPABILITY_PROBE_DAYS,
+        expectedLifecycleGeneration, now: at(),
       });
     } catch (err) {
       // 世代競態不是 probe 失敗。probeCapabilities 只在**完全成功**時才寫
       // capability，所以走到這裡代表什麼都沒被寫進去 —— 正是我們要的。
+      if (isAccountInactiveError(err)) return accountInactive(uid, 'probe');
       if (isStaleAuthorizationError(err)) return staleAuthorization(uid, 'probe');
       log.warn('onboarding_probe_failed', { user_id: uid, error: describeError(err) });
       return failOrRetry({
-        db, uid, now: at(), notify, detail: 'capability_probe_failed', expectedAuthGeneration,
+        db, uid, now: at(), notify, detail: 'capability_probe_failed',
+        expectedAuthGeneration, expectedLifecycleGeneration,
       });
     }
 
@@ -244,9 +293,15 @@ export async function runOnboardingBootstrap({
     // 觀測全部結束之後、判定寫進去之前，仍然有一個空隙可以被重新授權塞進來 ——
     // 這個 CAS 就是那個空隙的封口：條件不成立就一列都不寫。
     const recorded = await db.recordResourceAccess(uid, verdicts, {
-      expectedAuthGeneration, now: at(),
+      expectedAuthGeneration, expectedLifecycleGeneration, now: at(),
     });
-    if (recorded && recorded.ok === false) return staleAuthorization(uid, 'record_access');
+    if (recorded && recorded.ok === false) {
+      // 判定沒寫成：分清楚是授權換了還是帳號啟用期換了。
+      if (await lifecycleChanged(db, uid, expectedLifecycleGeneration)) {
+        return accountInactive(uid, 'record_access');
+      }
+      return staleAuthorization(uid, 'record_access');
+    }
 
     const verdict = scopeVerdict(missing);
     if (!verdict.ok) {
@@ -257,10 +312,15 @@ export async function runOnboardingBootstrap({
         from: [ONBOARDING_STATE.SYNCING, ONBOARDING_STATE.WHOOP_AUTHORIZED],
         failureCode: ONBOARDING_FAILURE.WHOOP_SCOPE_INCOMPLETE,
         failureDetail: `missing:${verdict.lacking.join(',')}`,
-        expectedAuthGeneration, now: at(),
+        expectedAuthGeneration,
+        expectedLifecycleGeneration, requireActiveLifecycle: true,
+        now: at(),
       });
       if (!marked) {
-        // 轉移沒成立。如果是因為世代變了，就是 stale（不通知、不升級失敗）。
+        // 轉移沒成立。分清楚三種原因：帳號啟用期、授權世代、其他。
+        if (await lifecycleChanged(db, uid, expectedLifecycleGeneration)) {
+          return accountInactive(uid, 'scope_incomplete');
+        }
         if (await generationChanged(db, uid, expectedAuthGeneration)) {
           return staleAuthorization(uid, 'scope_incomplete');
         }
@@ -281,9 +341,13 @@ export async function runOnboardingBootstrap({
       userId: uid,
       from: [ONBOARDING_STATE.SYNCING, ONBOARDING_STATE.WHOOP_AUTHORIZED],
       requiredResources: ONBOARDING.REQUIRED_SCOPES,
+      expectedLifecycleGeneration,
       now: at(),
     });
     if (!ready.ok) {
+      if (await lifecycleChanged(db, uid, expectedLifecycleGeneration)) {
+        return accountInactive(uid, 'ready');
+      }
       // 先分辨「授權換了」與「真的不符合資格」。前者不是失敗，不可以
       // 累積失敗次數、也不可以走到 ACTION_REQUIRED。
       if (await generationChanged(db, uid, expectedAuthGeneration)) {
@@ -294,7 +358,7 @@ export async function runOnboardingBootstrap({
         user_id: uid, reason: ready.reason, missing: why.missing,
       });
       return failOrRetry({
-        db, uid, now: at(), notify, expectedAuthGeneration,
+        db, uid, now: at(), notify, expectedAuthGeneration, expectedLifecycleGeneration,
         detail: `ready_rejected:${ready.reason}:${why.missing.join(',')}`,
       });
     }
@@ -303,6 +367,7 @@ export async function runOnboardingBootstrap({
     return { userId: uid, result: BOOTSTRAP_RESULT.READY, syncResults: results };
   } catch (err) {
     // 任何一層漏上來的世代競態都不是「未預期的錯誤」。
+    if (isAccountInactiveError(err)) return accountInactive(uid, 'unhandled');
     if (isStaleAuthorizationError(err)) return staleAuthorization(uid, 'unhandled');
     log.error('onboarding_bootstrap_unhandled', { user_id: uid, error: describeError(err) });
     return { userId: uid, result: BOOTSTRAP_RESULT.RETRY, error: describeError(err) };
@@ -321,6 +386,26 @@ export async function runOnboardingBootstrap({
 function staleAuthorization(uid, stage) {
   log.warn('onboarding_stale_authorization', { user_id: uid, stage });
   return { userId: uid, result: BOOTSTRAP_RESULT.STALE_AUTHORIZATION, stage };
+}
+
+/**
+ * ★ v17：帳號是不是已經不能被這一輪繼續處理了。
+ *
+ * 兩種都算：不再是 ACTIVE，或啟用世代已經往前走（停用→再啟用的 ABA）。
+ * 只用來**選一條不寫入的路**，不授權任何寫入 —— 真正的圍欄在 SQL 裡。
+ */
+async function lifecycleChanged(db, uid, expectedLifecycleGeneration) {
+  const user = await db.getUser(uid).catch(() => null);
+  if (!user) return true;
+  if (user.status !== USER_STATUS.ACTIVE) return true;
+  if (!Number.isInteger(expectedLifecycleGeneration)) return false;
+  return user.lifecycleGeneration !== expectedLifecycleGeneration;
+}
+
+/** 帳號層級的停止：什麼都不寫、不通知、不累積失敗。 */
+function accountInactive(uid, stage) {
+  log.info('onboarding_account_inactive', { user_id: uid, stage });
+  return { userId: uid, result: BOOTSTRAP_RESULT.ACCOUNT_INACTIVE, stage };
 }
 
 /** 目前的授權世代是不是已經不是我們這一輪捕捉到的那一個。 */
@@ -409,13 +494,18 @@ export async function evaluateReadiness({ db, userId }) {
  * 通知也因此移到**確認寫入成功之後**：沒有真的完成那次轉移的 worker，
  * 一則訊息都不准送。
  */
-async function failOrRetry({ db, uid, now, notify, detail, expectedAuthGeneration = null }) {
+async function failOrRetry({
+  db, uid, now, notify, detail,
+  expectedAuthGeneration = null, expectedLifecycleGeneration = null,
+}) {
   const outcome = await db.failBootstrapIfExhausted({
     userId: uid,
     from: [ONBOARDING_STATE.SYNCING, ONBOARDING_STATE.WHOOP_AUTHORIZED],
     failureCode: ONBOARDING_FAILURE.BOOTSTRAP_FAILED,
     failureDetail: detail,
     expectedAuthGeneration,
+    // ★ v17：終局失敗也是一個「以帳號啟用為前提」的結論。
+    expectedLifecycleGeneration,
     maxAttempts: ONBOARDING.MAX_BOOTSTRAP_ATTEMPTS,
     now,
   });
@@ -424,6 +514,10 @@ async function failOrRetry({ db, uid, now, notify, detail, expectedAuthGeneratio
     // 只有真的完成了這次轉移才通知。
     if (notify) await safeNotify(notify, uid, 'bootstrap_failed');
     return { userId: uid, result: BOOTSTRAP_RESULT.ACTION_REQUIRED, detail };
+  }
+  if (outcome.reason === 'account_inactive') {
+    // 帳號被停用，或已經換過一段啟用期。這一輪的故障不屬於現在這個帳號。
+    return accountInactive(uid, 'fail_or_retry');
   }
   if (outcome.reason === 'stale_authorization') {
     // 這一輪的故障屬於一次已經不存在的授權。不宣告失敗、不通知、不累積。

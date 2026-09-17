@@ -489,8 +489,10 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   // 授權成功之後做兩件**有界**的事：通知使用者、踢一次 bootstrap。
   // bootstrap 刻意不 await —— 它可能要抓好幾分鐘的歷史，而瀏覽器在等。
   // 死掉也沒關係：狀態機停在 WHOOP_AUTHORIZED，排程器每一輪都會接手。
-  const notifyUser = async (userId, text) => {
-    const chatId = await db.getActiveChatIdForUser(userId);
+  // ★ v17：上線相關的通知也走送出時的帳號授權（§27）。可以帶上這一輪
+  // 捕捉到的啟用世代 —— 一則在停用之前算出來的訊息不該在重新啟用之後才送達。
+  const notifyUser = async (userId, text, { expectedLifecycleGeneration = null } = {}) => {
+    const chatId = await db.getActiveChatIdForUser(userId, { expectedLifecycleGeneration });
     if (!chatId) return;
     await api.sendMessage(chatId, text);
   };
@@ -502,12 +504,21 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     }),
     verifyIdentity: ({ accessToken }) => fetchWhoopUserId({ accessToken }),
     onAuthorized: async (userId) => {
-      await notifyUser(userId, ONBOARDING_MESSAGES.authorizedSyncing())
+      // 授權成功的那一刻捕捉啟用世代：bootstrap 是非同步的，帳號可能在它
+      // 跑完之前被停用，而那之後的通知一律不該送出。
+      const account = await db.getUser(userId).catch(() => null);
+      const expectedLifecycleGeneration = Number.isInteger(account?.lifecycleGeneration)
+        ? account.lifecycleGeneration : null;
+      await notifyUser(userId, ONBOARDING_MESSAGES.authorizedSyncing(), { expectedLifecycleGeneration })
         .catch((err) => log.warn('onboarding_notify_failed', { error: describeError(err) }));
       // 不 await：回呼要在瀏覽器面前很快結束。
       runOnboardingBootstrap({
         db, userId, env,
-        deps: { notify: (uid, kind) => notifyUser(uid, onboardingNotice(kind)) },
+        deps: {
+          notify: (uid, kind) => notifyUser(uid, onboardingNotice(kind), {
+            expectedLifecycleGeneration,
+          }),
+        },
       }).catch((err) => log.error('onboarding_bootstrap_detached_failed', {
         user_id: userId, error: describeError(err),
       }));

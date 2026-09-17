@@ -128,7 +128,7 @@ test('★★★ HRD-R03 C: 綁定已被撤銷 → fail closed，不送', async (
 
 test('★★★ HRD-R03 C2: 使用者被停用 → fail closed，不送', async () => {
   await withBot(async ({ db, user, sent, sendReply }) => {
-    await db.updateUser(user.id, { status: 'DISABLED' });
+    await db.transitionUserLifecycle({ userId: user.id, targetStatus: 'DISABLED' });
     await sendReply({ chatId: CHAT, reply: '你的恢復是 65%', userId: user.id });
     assert.equal(sent.length, 0, '★ 使用者不是 ACTIVE 就不可以送');
   });

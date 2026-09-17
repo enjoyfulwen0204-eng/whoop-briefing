@@ -13,7 +13,8 @@
 
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
-  LINK_STATUS, USER_STATUS, isSafePrivateChatId, unsafeChatReason,
+  LINK_STATUS, USER_STATUS, ONBOARDING_STATE, isSafePrivateChatId, unsafeChatReason,
+  lifecycleActiveSql,
 } from './schema.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
@@ -36,6 +37,9 @@ function rowToUser(row) {
     displayName: row.display_name,
     timezone: row.timezone,
     status: row.status,
+    // ★ v17：帳號啟用世代。健康工作在開跑時捕捉它，之後每一個耐久變更
+    // 都必須在 SQL 裡證明它沒變（見 schema.js 的 LIFECYCLE_GENERATION_DOC）。
+    lifecycleGeneration: Number(row.lifecycle_generation ?? 1),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -54,12 +58,16 @@ export function createIdentityStore(client) {
     if (!Object.values(USER_STATUS).includes(status)) throw new Error(`不合法的 status：${status}`);
     const ts = iso(now);
     await client.execute({
-      sql: `INSERT INTO users (id, display_name, timezone, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO users
+              (id, display_name, timezone, status, lifecycle_generation, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 1, ?, ?)`,
       args: [id, String(displayName).trim(), timezone, status, ts, ts],
     });
     log.info('user_created', { user_id: id, timezone, status });
-    return { id, displayName: String(displayName).trim(), timezone, status, createdAt: ts, updatedAt: ts };
+    return {
+      id, displayName: String(displayName).trim(), timezone, status,
+      lifecycleGeneration: 1, createdAt: ts, updatedAt: ts,
+    };
   }
 
   async function getUser(userId) {
@@ -78,16 +86,97 @@ export function createIdentityStore(client) {
   /** cron 用：只跑 ACTIVE 的使用者。 */
   const listActiveUsers = () => listUsers({ status: USER_STATUS.ACTIVE });
 
+  /**
+   * ★ v17：**唯一**可以改 users.status 的路徑，而且改的同時推進啟用世代。
+   *
+   * 為什麼一定要是同一句 UPDATE：世代的意義是「這一段啟用期」。只要
+   * 「改狀態」與「推世代」之間存在任何空隙，就會有一個 worker 在那個空隙裡
+   * 用舊世代通過檢查 —— 而那正是這個機制要擋的東西。
+   *
+   * 狀態沒有真的改變時**不推世代**（`WHERE status <> ?`）：重複執行
+   * `user:status --status=ACTIVE` 不該讓所有進行中的健康工作全部失效。
+   * 這也讓這支函式是冪等的。
+   *
+   * 同一個交易裡還做兩件與「新啟用期」語義綁死的事：
+   *   · bootstrap 嘗試額度歸零（新的啟用期 = 全新的嘗試脈絡）
+   *   · READY 降級成 WHOOP_AUTHORIZED（舊世代的資格證據不能延用到新世代，
+   *     見 §10；降級之後 bootstrap 會在新世代重新產生證據）
+   *
+   * @returns {{changed:boolean, oldStatus, newStatus, oldGeneration, newGeneration}}
+   */
+  async function transitionUserLifecycle({
+    userId, targetStatus, expectedCurrentStatus = null, now = new Date(),
+  } = {}) {
+    const uid = requireUserId(userId, 'transitionUserLifecycle');
+    if (!Object.values(USER_STATUS).includes(targetStatus)) {
+      throw new Error(`不合法的 status：${targetStatus}`);
+    }
+    const before = await getUser(uid);
+    if (!before) throw new Error(`使用者不存在：${uid}`);
+    if (expectedCurrentStatus !== null && before.status !== expectedCurrentStatus) {
+      return {
+        changed: false, reason: 'unexpected_current_status',
+        oldStatus: before.status, newStatus: before.status,
+        oldGeneration: before.lifecycleGeneration, newGeneration: before.lifecycleGeneration,
+      };
+    }
+    const ts = iso(now);
+    const rs = await client.execute({
+      sql: `UPDATE users
+               SET status = ?,
+                   lifecycle_generation = lifecycle_generation + 1,
+                   updated_at = ?
+             WHERE id = ? AND status <> ?`,
+      args: [targetStatus, ts, uid, targetStatus],
+    });
+    if (Number(rs.rowsAffected ?? 0) === 0) {
+      // 狀態本來就是目標值 → 冪等的 no-op，世代不動。
+      return {
+        changed: false, reason: 'already',
+        oldStatus: before.status, newStatus: before.status,
+        oldGeneration: before.lifecycleGeneration, newGeneration: before.lifecycleGeneration,
+      };
+    }
+    const after = await getUser(uid);
+    // 新的啟用期 = 全新的嘗試額度，而且舊世代的 READY 資格不再成立。
+    await client.execute({
+      sql: `UPDATE user_onboarding
+               SET bootstrap_attempts = 0,
+                   state = CASE WHEN state = ? THEN ? ELSE state END,
+                   state_changed_at = CASE WHEN state = ? THEN ? ELSE state_changed_at END,
+                   updated_at = ?
+             WHERE user_id = ?`,
+      args: [
+        ONBOARDING_STATE.READY, ONBOARDING_STATE.WHOOP_AUTHORIZED,
+        ONBOARDING_STATE.READY, ts, ts, uid,
+      ],
+    }).catch(() => { /* 沒有上線列的使用者不需要降級 */ });
+    log.info('user_lifecycle_transition', {
+      user_id: uid, from: before.status, to: after.status,
+      from_generation: before.lifecycleGeneration, to_generation: after.lifecycleGeneration,
+    });
+    return {
+      changed: true,
+      oldStatus: before.status, newStatus: after.status,
+      oldGeneration: before.lifecycleGeneration, newGeneration: after.lifecycleGeneration,
+    };
+  }
+
+  /**
+   * 一般欄位更新。**不接受 status** —— 改狀態一律走
+   * transitionUserLifecycle，否則會產生一個不推進世代的後門，
+   * 而 ABA 防護就是靠世代成立的。
+   */
   async function updateUser(userId, patch = {}, { now = new Date() } = {}) {
     const uid = requireUserId(userId, 'updateUser');
-    const allowed = { displayName: 'display_name', timezone: 'timezone', status: 'status' };
+    if (patch.status !== undefined) {
+      throw new Error('updateUser 不可以改 status：請用 transitionUserLifecycle（它會推進 lifecycle_generation）');
+    }
+    const allowed = { displayName: 'display_name', timezone: 'timezone' };
     const sets = [];
     const args = [];
     for (const [k, col] of Object.entries(allowed)) {
       if (patch[k] !== undefined) {
-        if (k === 'status' && !Object.values(USER_STATUS).includes(patch[k])) {
-          throw new Error(`不合法的 status：${patch[k]}`);
-        }
         sets.push(`${col} = ?`);
         args.push(patch[k]);
       }
@@ -242,12 +331,23 @@ export function createIdentityStore(client) {
    * 退役之後繼續往下找同一個使用者其他的 ACTIVE 綁定 —— 一筆壞資料不該
    * 讓一個其實有正常私訊綁定的使用者收不到報告。
    */
-  async function getActiveChatIdForUser(userId) {
+  async function getActiveChatIdForUser(userId, { expectedLifecycleGeneration = null } = {}) {
     const uid = requireUserId(userId, 'getActiveChatIdForUser');
+    // ★ v17：**送出時**的帳號授權閘門（§27）。
+    //
+    // 這支函式是 daily / weekly / 主動訊息 / Guardian / 上線通知 / Q&A 回覆
+    // 唯一的目的地來源，所以它是唯一一個必須擋住「選的時候還 ACTIVE、送的
+    // 時候已經不是」的地方。選取時過濾不夠：分析、LLM、provider 往返都要時間。
+    //
+    // 帶 expectedLifecycleGeneration 時還要求「仍然是同一段啟用期」——
+    // 否則一則在停用**之前**算出來的健康訊息，會在重新啟用之後才送達。
     const rs = await client.execute({
-      sql: `SELECT telegram_chat_id FROM user_telegram
-             WHERE user_id = ? AND status = ? ORDER BY linked_at DESC`,
-      args: [uid, LINK_STATUS.ACTIVE],
+      sql: `SELECT t.telegram_chat_id FROM user_telegram t
+             WHERE t.user_id = ? AND t.status = ?
+               AND ${lifecycleActiveSql('t.user_id')}
+             ORDER BY t.linked_at DESC`,
+      args: [uid, LINK_STATUS.ACTIVE,
+        Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null],
     });
     // ⚠️ 先把**所有**不安全的列退役，再挑安全的那一筆。
     //
@@ -394,32 +494,60 @@ export function createIdentityStore(client) {
     const uid = requireUserId(userId, 'createOAuthState');
     const user = await getUser(uid);
     if (!user) throw new Error(`使用者不存在：${uid}`);
+    // ★ v17：state 屬於**發出它的那一段啟用期**。把世代寫進列裡，
+    // callback 才有辦法分辨「ACTIVE→停用→再啟用之後回來的舊 state」——
+    // 那時候 status 又是 ACTIVE，光看狀態完全分不出來。
+    const lifecycle = user.lifecycleGeneration;
     // 32 bytes（256 bits）—— 比 WHOOP 要求的最低長度高出很多
     const state = generateSecret(32);
     const nowIso = iso(now);
     const expiresAt = iso(new Date((now instanceof Date ? now : new Date(now)).getTime() + ttlMs));
     if (Number.isFinite(maxOutstanding)) {
       const rs = await client.execute({
-        sql: `INSERT INTO oauth_states (state_hash, user_id, created_at, expires_at)
-              SELECT ?, ?, ?, ?
+        // 配額與**啟用資格**在同一句裡求值：一個在核發過程中被停用的帳號
+        // 不會拿到 state，也不會消耗任何額度（F03 的配額語義不變）。
+        sql: `INSERT INTO oauth_states
+                (state_hash, user_id, lifecycle_generation, created_at, expires_at)
+              SELECT ?, ?, ?, ?, ?
                WHERE (SELECT COUNT(*) FROM oauth_states
-                       WHERE user_id = ? AND consumed_at IS NULL AND expires_at > ?) < ?`,
-        args: [hashSecret(state), uid, nowIso, expiresAt, uid, nowIso, Number(maxOutstanding)],
+                       WHERE user_id = ? AND consumed_at IS NULL AND expires_at > ?) < ?
+                 AND EXISTS (SELECT 1 FROM users lu
+                              WHERE lu.id = ? AND lu.status = 'ACTIVE'
+                                AND lu.lifecycle_generation = ?)`,
+        args: [
+          hashSecret(state), uid, lifecycle, nowIso, expiresAt,
+          uid, nowIso, Number(maxOutstanding), uid, lifecycle,
+        ],
       });
       if (Number(rs.rowsAffected ?? 0) === 0) {
+        // 兩個原因：額度滿了，或帳號在核發途中變得不合資格。分開回報，
+        // 因為前者會自己恢復，後者要管理者處理。
+        const still = await getUser(uid);
+        if (!still || still.status !== USER_STATUS.ACTIVE || still.lifecycleGeneration !== lifecycle) {
+          log.warn('oauth_state_lifecycle_rejected', { user_id: uid });
+          return { ok: false, reason: 'account_inactive' };
+        }
         log.warn('oauth_state_quota_exceeded', { user_id: uid });
         return { ok: false, reason: 'too_many' };
       }
       log.info('oauth_state_created', { user_id: uid, expires_at: expiresAt });
       return { ok: true, state, expiresAt };
     }
-    await client.execute({
-      sql: `INSERT INTO oauth_states (state_hash, user_id, created_at, expires_at)
-            VALUES (?, ?, ?, ?)`,
-      args: [hashSecret(state), uid, nowIso, expiresAt],
+    const rs2 = await client.execute({
+      sql: `INSERT INTO oauth_states
+              (state_hash, user_id, lifecycle_generation, created_at, expires_at)
+            SELECT ?, ?, ?, ?, ?
+             WHERE EXISTS (SELECT 1 FROM users lu
+                            WHERE lu.id = ? AND lu.status = 'ACTIVE'
+                              AND lu.lifecycle_generation = ?)`,
+      args: [hashSecret(state), uid, lifecycle, nowIso, expiresAt, uid, lifecycle],
     });
+    if (Number(rs2.rowsAffected ?? 0) === 0) {
+      log.warn('oauth_state_lifecycle_rejected', { user_id: uid });
+      return { ok: false, reason: 'account_inactive' };
+    }
     log.info('oauth_state_created', { user_id: uid, expires_at: expiresAt });
-    return { ok: true, state, expiresAt };
+    return { ok: true, state, expiresAt, lifecycleGeneration: lifecycle };
   }
 
   /**
@@ -445,12 +573,17 @@ export function createIdentityStore(client) {
       return { ok: false, reason };
     }
     const rs = await client.execute({
-      sql: 'SELECT user_id FROM oauth_states WHERE state_hash = ?',
+      sql: 'SELECT user_id, lifecycle_generation FROM oauth_states WHERE state_hash = ?',
       args: [hash],
     });
-    const userId = String(rs.rows[0].user_id);
+    const row = rs.rows[0];
+    const userId = String(row.user_id);
+    // v17 之前發出的 state 沒有世代出處。回 null，呼叫端 fail closed ——
+    // 「不知道它屬於哪一段啟用期」的正確處置是拒絕，不是猜一個。
+    const lifecycleGeneration = row.lifecycle_generation === null
+      || row.lifecycle_generation === undefined ? null : Number(row.lifecycle_generation);
     log.info('oauth_state_consumed', { user_id: userId });
-    return { ok: true, userId };
+    return { ok: true, userId, lifecycleGeneration };
   }
 
   /**
@@ -465,19 +598,25 @@ export function createIdentityStore(client) {
   async function peekOAuthState(rawState, { now = new Date() } = {}) {
     const hash = hashSecret(rawState ?? '');
     const rs = await client.execute({
-      sql: 'SELECT user_id, consumed_at, expires_at FROM oauth_states WHERE state_hash = ?',
+      sql: `SELECT user_id, consumed_at, expires_at, lifecycle_generation
+              FROM oauth_states WHERE state_hash = ?`,
       args: [hash],
     });
     const row = rs.rows[0];
     if (!row) return { ok: false, reason: 'invalid', userId: null };
     if (row.consumed_at) return { ok: false, reason: 'consumed', userId: String(row.user_id) };
     if (String(row.expires_at) <= iso(now)) return { ok: false, reason: 'expired', userId: String(row.user_id) };
-    return { ok: true, userId: String(row.user_id), expiresAt: row.expires_at };
+    return {
+      ok: true, userId: String(row.user_id), expiresAt: row.expires_at,
+      lifecycleGeneration: row.lifecycle_generation === null || row.lifecycle_generation === undefined
+        ? null : Number(row.lifecycle_generation),
+    };
   }
 
   return {
     createUser,
     getUser,
+    transitionUserLifecycle,
     listUsers,
     listActiveUsers,
     updateUser,

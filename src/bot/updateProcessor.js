@@ -551,7 +551,28 @@ export function createUpdateProcessor({
 
       let replied = false;
       let ambiguous = false;
-      if (result?.reply && sendReply) {
+
+      // ---- ★ v17 §26：健康回覆的**送出時**帳號授權 --------------------
+      //
+      // 入站時 resolveUserByChatId 已經要求 ACTIVE，但從那一刻到這裡會經過
+      // 分類、資料查詢與 LLM 生成。帳號可能在那段時間被停用 —— 甚至停用又
+      // 啟用，那時候 status 又是 ACTIVE，只看狀態完全分不出來。
+      // 所以這裡比對的是**進來時捕捉到的啟用世代**。
+      //
+      // 只擋有使用者的回覆：未綁定 / 帳號管理類的回覆是傳輸層，照舊。
+      let deliverable = Boolean(result?.reply) && Boolean(sendReply);
+      if (deliverable && result.userId && typeof db?.getActiveChatIdForUser === 'function') {
+        const authorized = await db.getActiveChatIdForUser(result.userId, {
+          expectedLifecycleGeneration: Number.isInteger(c.user?.lifecycleGeneration)
+            ? c.user.lifecycleGeneration : null,
+        }).catch(() => null);
+        if (!authorized) {
+          log.info('telegram_reply_lifecycle_suppressed', { update_id: updateId });
+          deliverable = false;
+        }
+      }
+
+      if (deliverable) {
         if (claimed) {
           const d = await deliverReply(updateId, result, attemptId, conversationKey);
           if (d.outcome === 'retry') {

@@ -199,8 +199,12 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
       sql: `SELECT i.user_id, i.generation, i.last_invalidated_at, i.dirty_since,
                    COALESCE(w.done_generation, 0) done_generation, w.next_attempt_at, w.owner, w.lease_expires_at
               FROM analytics_invalidation i
+              JOIN users u ON u.id = i.user_id
               LEFT JOIN analytics_work_state w ON w.user_id = i.user_id AND w.class = ?
-             WHERE i.generation > COALESCE(w.done_generation, 0)
+             -- ★ v17：停用／暫停的帳號不產生新的分析計算。失效列本身保留
+             -- （那是資料事實），只是不再被選出來做工。
+             WHERE u.status = 'ACTIVE'
+               AND i.generation > COALESCE(w.done_generation, 0)
                AND (w.next_attempt_at IS NULL OR w.next_attempt_at <= ?)
                AND (w.owner IS NULL OR w.lease_expires_at IS NULL OR w.lease_expires_at <= ?)
              ORDER BY i.last_invalidated_at, i.user_id

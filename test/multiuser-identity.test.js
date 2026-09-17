@@ -49,7 +49,7 @@ test('Telegram 身分解析：chat → ACTIVE 綁定 → ACTIVE 使用者', asyn
 
 test('停用使用者 / 撤銷綁定後，該 chat 一律解析不到', async () => {
   await withDb(async (db) => {
-    await db.updateUser(ALICE.id, { status: 'DISABLED' });
+    await db.transitionUserLifecycle({ userId: ALICE.id, targetStatus: 'DISABLED' });
     assert.equal(await db.resolveUserByChatId(ALICE.chatId), null, 'DISABLED 使用者不可通過');
 
     await db.revokeTelegramLink(BOB.chatId);
@@ -130,7 +130,9 @@ test('OAuth state：原文不入庫、長度足夠、只存 hash', async () => {
 test('OAuth state：valid / replay / expired / invalid', async () => {
   await withDb(async (db) => {
     const { state } = await db.createOAuthState(ALICE.id, { ttlMs: 60_000 });
-    assert.deepEqual(await db.consumeOAuthState(state), { ok: true, userId: ALICE.id });
+    assert.deepEqual(await db.consumeOAuthState(state),
+      { ok: true, userId: ALICE.id, lifecycleGeneration: 1 },
+      '★ v17：state 帶著它被發出時的啟用世代');
     assert.deepEqual(await db.consumeOAuthState(state), { ok: false, reason: 'consumed' },
       'replay 必須被拒');
 
@@ -195,7 +197,7 @@ test('authorize 前置檢查：未知使用者 / 非 ACTIVE 一律拒絕', async
   await withDb(async (db) => {
     await assert.rejects(() => assertAuthorizable(db, 'u-nobody'),
       (e) => e.code === 'UNKNOWN_USER');
-    await db.updateUser(BOB.id, { status: 'PAUSED' });
+    await db.transitionUserLifecycle({ userId: BOB.id, targetStatus: 'PAUSED' });
     await assert.rejects(() => assertAuthorizable(db, BOB.id),
       (e) => e.code === 'USER_NOT_ACTIVE');
     await assert.rejects(() => assertAuthorizable(db, undefined), { name: 'MissingUserIdError' });

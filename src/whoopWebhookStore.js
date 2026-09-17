@@ -445,7 +445,7 @@ export function createWhoopWebhookStore(client) {
     const wid = whoopUserId === null || whoopUserId === undefined ? '' : String(whoopUserId);
     if (!wid) return { status: 'unknown', reason: 'empty_whoop_user_id' };
     const rs = await client.execute({
-      sql: `SELECT t.user_id, u.status, u.timezone, u.display_name
+      sql: `SELECT t.user_id, u.status, u.timezone, u.display_name, u.lifecycle_generation
               FROM user_whoop_tokens t
               JOIN users u ON u.id = t.user_id
              WHERE t.whoop_user_id = ?`,
@@ -462,6 +462,8 @@ export function createWhoopWebhookStore(client) {
       user: {
         id: String(row.user_id),
         status: String(row.status),
+        // ★ v17：處理這則事件時的帳號啟用世代（往下帶進 canonical 寫入）。
+        lifecycleGeneration: Number(row.lifecycle_generation ?? 1),
         timezone: row.timezone ? String(row.timezone) : null,
       },
     };

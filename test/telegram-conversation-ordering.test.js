@@ -189,7 +189,7 @@ test('★★★ O2: 更早的那則是未綁定的 chat → 終局，不會餓�
 
 test('★★★ O3: 更早的那則屬於被停用的使用者 → 不會永久擋住後面的訊息', async () => {
   await withEnv(async ({ db, alice, exec, mk }) => {
-    await db.updateUser(alice.id, { status: 'DISABLED' });
+    await db.transitionUserLifecycle({ userId: alice.id, targetStatus: 'DISABLED' });
     const rN = await mk('a').processUpdate(upd(400, '5001', 'N'));
     assert.equal(rN.outcome, UPDATE_OUTCOME.PROCESSED, '★ 要到終局');
     assert.equal((await db.getTelegramUpdate(400)).status, 'COMPLETED');

@@ -304,7 +304,7 @@ test('★★★ webhook: 綁定被撤銷 → fail closed，不回覆', async () 
 
 test('★★★ webhook: 使用者被停用 → fail closed，不回覆', async () => {
   await withWebhook(async ({ post, sent, db, alice }) => {
-    await db.updateUser(alice.id, { status: 'DISABLED' });
+    await db.transitionUserLifecycle({ userId: alice.id, targetStatus: 'DISABLED' });
     const r = await post(update(100, '5001'));
     assert.equal(r.status, 200);
     assert.equal(sent.length, 0);

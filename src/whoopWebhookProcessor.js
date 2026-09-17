@@ -32,6 +32,7 @@
 import { WHOOP_WEBHOOK } from './config.js';
 import { WHOOP_EVENT_STATE, TOMBSTONE_STATE } from './schema.js';
 import { WhoopApiError, WhoopAuthError } from './whoop.js';
+import { isAccountInactiveError } from './accountLifecycle.js';
 import { log, describeError } from './logger.js';
 
 /** 事件處理的結果分類（進日誌與事件帳本，方便事後統計）。 */
@@ -238,13 +239,34 @@ export async function processWhoopEvent({
   }
 
   const userId = resolved.userId;
-  if (resolved.user.status !== 'ACTIVE') {
+  const accountActive = resolved.user.status === 'ACTIVE';
+  // ★ v17：捕捉這一則事件開始處理時的帳號啟用世代，往下帶進 provider 抓取
+  // 與 canonical 寫入 —— 抓資料要時間，帳號可能在那之間被停用。
+  const eventLifecycleGeneration = Number.isInteger(resolved.user.lifecycleGeneration)
+    ? resolved.user.lifecycleGeneration : null;
+
+  // ---- ★ v17 §38：DELETE 是**例外**，而且是刻意的 --------------------
+  //
+  // 其他所有處理都在帳號非 ACTIVE 時停止。但 provider 的刪除**減少**我們
+  // 保留的資料，而且它是來源真相：把它擋下來，等於在使用者已經在 WHOOP
+  // 那邊刪掉資料之後，我們還替一個被停用的帳號留著那份生理資料 ——
+  // 那是隱私上錯的方向，也會讓 Phase 1 的墓碑不變量出現破洞
+  // （事件被終局忽略，但 canonical 列還在）。
+  //
+  // 所以停用帳號的 DELETE 仍然執行**本地**的墓碑 + canonical 刪除，
+  // 但不抓 provider 資料、不跑分析、不送任何通知。
+  if (!accountActive && event.action !== 'deleted') {
     // 使用者被停用／暫停：不動他的生理資料，但事件仍然留下紀錄。
     log.info('whoop_webhook_inactive_user', { event_id: event.id, user_status: resolved.user.status });
     await settle(WHOOP_EVENT_STATE.IGNORED, {
       userId, errorClass: 'inactive_user', errorDetail: resolved.user.status,
     });
     return { result: PROCESS_RESULT.IGNORED_INACTIVE_USER };
+  }
+  if (!accountActive) {
+    log.info('whoop_webhook_inactive_user_delete', {
+      event_id: event.id, user_status: resolved.user.status,
+    });
   }
 
   // ---- 2. DELETED：立墓碑 + 移除 canonical ---------------------------------
@@ -361,6 +383,10 @@ export async function processWhoopEvent({
   let mutation;
   try {
     mutation = await db.mutateForWhoopEvent(event.id, { owner, now }, async () => {
+      // ★ v17：抓 provider 資料要時間；在**同一個交易裡**再證明一次帳號仍然
+      // ACTIVE 且仍在同一段啟用期，否則這份 canonical 更新不屬於現在這個帳號。
+      // 拋出去 → 交易回滾 → 沒有 canonical 寫入、也沒有分析失效。
+      await db.assertAccountActive(userId, eventLifecycleGeneration);
       const tomb = await db.getTombstone(userId, event.resourceType, event.resourceId);
       if (tomb && tomb.state === TOMBSTONE_STATE.ACTIVE) {
         await db.recordTombstoneBlock({
@@ -375,6 +401,15 @@ export async function processWhoopEvent({
       return { blocked: false, written };
     });
   } catch (err) {
+    if (isAccountInactiveError(err)) {
+      // 帳號在抓取途中被停用（或換了啟用期）。事件仍然結案留痕，
+      // 但沒有任何 canonical 變更，也沒有分析失效。
+      log.info('whoop_webhook_lifecycle_rejected', { event_id: event.id });
+      await settle(WHOOP_EVENT_STATE.IGNORED, {
+        userId, errorClass: 'inactive_user', errorDetail: 'lifecycle_changed',
+      });
+      return { result: PROCESS_RESULT.IGNORED_INACTIVE_USER };
+    }
     if (isOwnershipLost(err)) {
       log.warn('whoop_webhook_fenced_before_persist', { event_id: event.id });
       return { result: PROCESS_RESULT.FENCED };

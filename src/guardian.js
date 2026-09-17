@@ -59,7 +59,7 @@ const hours = (ms) => Math.floor(ms / 3600_000);
 
 /** 統一的 finding 形狀。 */
 function finding({
-  signal, level, scope, summary, detail = {},
+  signal, level, scope, summary, detail = {}, lifecycleGeneration = null,
 }) {
   return {
     signal,
@@ -67,6 +67,8 @@ function finding({
     scope,
     summary,
     detail,
+    // ★ v17：per-user finding 帶著它被算出來時的啟用世代（遞送時再驗一次）。
+    lifecycleGeneration,
     policy_version: GUARDIAN_POLICY_VERSION,
   };
 }
@@ -106,6 +108,7 @@ export function evaluate({ cronHeartbeat = null, users = [], now = new Date() } 
   // ---- 2~4. per-user ----
   for (const u of users) {
     const scope = userScope(u.userId);
+    const lifecycleGeneration = u.lifecycleGeneration ?? null;
 
     // ★ 冷啟動閘門：還沒授權 WHOOP 的帳號，什麼都不該報。
     // 「還沒開始用」不是故障。
@@ -131,6 +134,7 @@ export function evaluate({ cronHeartbeat = null, users = [], now = new Date() } 
     // 送出了、但遠遠超過 TTL 還是沒有任何結果 → 收割器沒在跑。
     if (Number(u.stuckProactiveCount) > 0) {
       out.push(finding({
+        lifecycleGeneration,
         signal: GUARDIAN_SIGNAL.PROACTIVE_EVENT_STUCK,
         level: GUARDIAN_LEVEL.LEVEL_2_NOTIFY,
         scope,
@@ -162,6 +166,7 @@ export function evaluate({ cronHeartbeat = null, users = [], now = new Date() } 
     if (!recovered
         && Number(u.whoopAuthFailures) >= GUARDIAN_POLICY.WHOOP_AUTH_FAILURE_MIN_HITS) {
       out.push(finding({
+        lifecycleGeneration,
         signal: GUARDIAN_SIGNAL.WHOOP_AUTH_REPEATED_FAILURE,
         level: GUARDIAN_LEVEL.LEVEL_2_NOTIFY,
         scope,
@@ -235,6 +240,8 @@ export async function gatherFacts({ db, now = new Date() }) {
     const fact = {
       userId: uid,
       displayName: u.displayName,
+      // ★ v17：蒐集事實時的啟用世代，往下帶到遞送授權（§30）。
+      lifecycleGeneration: Number.isInteger(u.lifecycleGeneration) ? u.lifecycleGeneration : null,
       hasWhoopToken: false,
       lastSyncOkAt: null,
       stuckProactiveCount: 0,
@@ -376,8 +383,14 @@ async function deliver({ db, makeTelegram, systemTelegram, finding: f }) {
     const uid = f.scope.startsWith('user:') ? f.scope.slice('user:'.length) : null;
     if (!uid || typeof makeTelegram !== 'function') return false;
 
-    const chatId = await db.getActiveChatIdForUser(uid);
-    if (!chatId) return false; // 沒綁 Telegram 就沒有地方可以講
+    // ★ v17：送出時的帳號授權。finding 是在這一輪的事實蒐集階段算出來的，
+    // 帳號可能在那之後被停用 —— getActiveChatIdForUser 現在會擋下來。
+    // 帶上 finding 產生時捕捉到的啟用世代（有的話），連 ABA 也擋得住。
+    const chatId = await db.getActiveChatIdForUser(uid, {
+      expectedLifecycleGeneration: Number.isInteger(f.lifecycleGeneration)
+        ? f.lifecycleGeneration : null,
+    });
+    if (!chatId) return false; // 沒綁 Telegram（或帳號已停用）就沒有地方可以講
 
     const tg = makeTelegram({ chatId, errorScope: f.scope });
     await tg.send(text);

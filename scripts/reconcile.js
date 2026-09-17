@@ -80,6 +80,15 @@ async function ensureSchema() {
 async function status() {
   const user = await db.getUser(userId);
   if (!user) throw new Error(`找不到使用者：${userId}`);
+  // ★ v17 §39：預設不對非 ACTIVE 帳號做健康處理。運維要修停用帳號的資料
+  // 時必須明確表態（--allow-inactive），這樣「--user=<id> 順手跑一下」
+  // 不會意外對一個被停權的人做正常的健康工作。
+  if (user.status !== 'ACTIVE' && !flag('allow-inactive')) {
+    throw new Error(
+      `使用者 ${user.id} 的狀態是 ${user.status}（非 ACTIVE）。`
+      + '對帳預設不處理停用帳號；確定要做資料修復請加 --allow-inactive。',
+    );
+  }
   console.log(`使用者 ${user.id}（${user.timezone}）｜資料庫 ${isLocalDb ? '本機 file:' : '遠端（唯讀）'}`);
 
   const states = await db.getAllReconciliationState(user.id);

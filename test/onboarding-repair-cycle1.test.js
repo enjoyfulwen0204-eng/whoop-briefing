@@ -385,7 +385,7 @@ test('排程資格：逐一列出每個上線狀態的可排程性', async () =>
     const d = await fullyConfigured(e.db, { id: 'u-disabled', chatId: '899999', whoopUserId: 'WD9' });
     await e.db.ensureOnboardingDerived(d.id, { now: NOW });
     await e.db.setOnboardingState(d.id, ONBOARDING_STATE.READY, { ready: true, now: NOW });
-    await e.db.updateUser(d.id, { status: USER_STATUS.DISABLED }, { now: NOW });
+    await e.db.transitionUserLifecycle({ userId: d.id, targetStatus: USER_STATUS.DISABLED, now: NOW });
     const sched2 = (await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE })).map((u) => u.id);
     assert.ok(!sched2.includes(d.id), 'DISABLED → 不可排程');
     // bootstrap 的接手清單仍看得到 WHOOP_AUTHORIZED / SYNCING
@@ -529,7 +529,7 @@ test('F04-B/C/D token、WHOOP 身分、capability 在轉移前消失 → 一律�
     ['token 被撤銷', async (db, uid) => { await db.raw.execute({ sql: 'DELETE FROM user_whoop_tokens WHERE user_id = ?', args: [uid] }); }],
     ['WHOOP 身分被清掉', async (db, uid) => { await db.raw.execute({ sql: 'UPDATE user_whoop_tokens SET whoop_user_id = NULL WHERE user_id = ?', args: [uid] }); }],
     ['capability 被清掉', async (db, uid) => { await db.raw.execute({ sql: 'DELETE FROM whoop_capabilities WHERE user_id = ?', args: [uid] }); }],
-    ['帳號被停用', async (db, uid) => { await db.updateUser(uid, { status: USER_STATUS.DISABLED }, { now: NOW }); }],
+    ['帳號被停用', async (db, uid) => { await db.transitionUserLifecycle({ userId: uid, targetStatus: USER_STATUS.DISABLED, now: NOW }); }],
   ];
   for (const [label, sabotage] of cases) {
     const e = await env();

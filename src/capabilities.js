@@ -241,7 +241,8 @@ export function computeCapabilities({
  */
 /** @param {string} userId **必填**。probe 結果只寫給這個使用者。 */
 export async function probeCapabilities({
-  db, whoop, userId, timezone, days = 14, now = new Date(),
+  db, whoop, userId, timezone, days = 14,
+  expectedLifecycleGeneration = null, now = new Date(),
 }) {
   const uid = requireUserId(userId, 'probeCapabilities');
   const start = new Date(now.getTime() - days * 86_400_000);
@@ -272,7 +273,13 @@ export async function probeCapabilities({
   const entries = computeCapabilities({
     sleeps, recoveries, cycles, workouts, bodyMeasurement, timezone, scopeErrors,
   });
-  await db.saveCapabilities(uid, entries, { now });
+  // ★ v17：盤點是**啟用期相關的資格證據**。寫入時證明帳號仍然 ACTIVE 且
+  // 仍在同一段啟用期；否則這份盤點不屬於現在這個帳號（見 §35）。
+  const saved = await db.saveCapabilities(uid, entries, { expectedLifecycleGeneration, now });
+  if (entries.length && saved === 0) {
+    const { AccountInactiveError } = await import('./accountLifecycle.js');
+    throw new AccountInactiveError(uid);
+  }
   log.info('probe_done', {
     days,
     total: entries.length,

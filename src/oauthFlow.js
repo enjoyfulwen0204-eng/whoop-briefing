@@ -107,6 +107,31 @@ export async function completeAuthorization({
   // 使用者身分只來自 state，不來自任何外部輸入
   const userId = consumed.userId;
 
+  // ---- ★ v17：啟用世代閘門（在任何 provider 往來**之前**）------------
+  //
+  // state 是在某一段啟用期發出去的。如果那段啟用期已經結束（帳號被停用），
+  // 或已經換了一段（停用之後又啟用），這條 state 描述的授權意圖就不再屬於
+  // 現在這個帳號 —— 即使 `status` 現在又是 ACTIVE。
+  //
+  // 順序是刻意的：state 已經被原子消耗（不留下可重放的憑證），但
+  // **還沒有**跟 WHOOP 換過任何東西。所以一個不合資格的 callback 不會
+  // 產生 token、不會動 auth_generation、不會歸零額度、不會改上線狀態、
+  // 不會通知、不會啟動 bootstrap。
+  //
+  // lifecycleGeneration 是 null 代表這條 state 早於 v17，沒有世代出處 ——
+  // 猜一個是錯的，拒絕才是對的。
+  const account = await db.getUser(userId).catch(() => null);
+  if (!account
+      || account.status !== USER_STATUS.ACTIVE
+      || !Number.isInteger(consumed.lifecycleGeneration)
+      || account.lifecycleGeneration !== consumed.lifecycleGeneration) {
+    throw new OAuthFlowError(
+      'ACCOUNT_INACTIVE',
+      '這個帳號目前無法完成授權（帳號狀態或啟用世代已改變）',
+      userId,
+    );
+  }
+
   // ★ state 驗證通過之後，我們**已經知道這是誰**了。
   //
   // 從這裡開始的任何失敗（換 token、驗身分、帳號衝突）都應該能被記到正確的

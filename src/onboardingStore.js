@@ -27,7 +27,7 @@
 import {
   ONBOARDING_STATE, ONBOARDING_DERIVED_STATE_SQL, ONBOARDING_DERIVED_TZ_SQL,
   ONBOARDING_DERIVED_FAILURE_SQL, ONBOARDING_IDENTITY_STRICT_SQL,
-  RESOURCE_ACCESS_STATUS, USER_STATUS,
+  RESOURCE_ACCESS_STATUS, USER_STATUS, lifecycleActiveSql,
 } from './schema.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
@@ -233,13 +233,17 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
    * @returns {{ok:boolean, written:number, reason?:string}}
    */
   async function recordResourceAccess(userId, entries = [], {
-    expectedAuthGeneration, authGeneration, now = new Date(),
+    expectedAuthGeneration, authGeneration, expectedLifecycleGeneration = null,
+    now = new Date(),
   } = {}) {
     const uid = requireUserId(userId, 'recordResourceAccess');
     const generation = expectedAuthGeneration ?? authGeneration;
     if (!Number.isInteger(generation) || generation < 1) {
       throw new Error('resource_access_requires_generation');
     }
+    // ★ v17：判定屬於「哪一次授權」× 「哪一段啟用期」。兩個維度都要記，
+    // 因為它們各自獨立改變：重新授權不動啟用期，停用再啟用不動授權。
+    const life = Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : 1;
     const ts = iso(now);
     const rows = [];
     for (const e of entries) {
@@ -247,7 +251,7 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
       if (!Object.values(RESOURCE_ACCESS_STATUS).includes(e.status)) {
         throw new Error(`invalid_resource_access_status:${e.status}`);
       }
-      rows.push([uid, String(e.resource), e.status, generation, ts]);
+      rows.push([uid, String(e.resource), e.status, generation, life, ts]);
     }
     if (!rows.length) return { ok: true, written: 0 };
 
@@ -259,16 +263,20 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
           // （SQLite 也要求 INSERT…SELECT 形式的 upsert 必須有 WHERE 才能
           //  無歧義地解析 ON CONFLICT —— 圍欄與語法需求剛好重合。）
           sql: `INSERT INTO whoop_resource_access
-                  (user_id, resource, status, auth_generation, checked_at)
-                SELECT ?, ?, ?, ?, ?
+                  (user_id, resource, status, auth_generation, lifecycle_generation, checked_at)
+                SELECT ?, ?, ?, ?, ?, ?
                  WHERE (SELECT k.auth_generation FROM user_whoop_tokens k
                          WHERE k.user_id = ?) = ?
+                   AND ${lifecycleActiveSql('?')}
                 ON CONFLICT(user_id, resource) DO UPDATE SET
                   status = excluded.status,
                   auth_generation = excluded.auth_generation,
+                  lifecycle_generation = excluded.lifecycle_generation,
                   checked_at = excluded.checked_at
-                 WHERE excluded.auth_generation >= whoop_resource_access.auth_generation`,
-          args: [...args, uid, generation],
+                 WHERE excluded.auth_generation >= whoop_resource_access.auth_generation
+                   AND excluded.lifecycle_generation >= whoop_resource_access.lifecycle_generation`,
+          args: [...args, uid, generation, uid,
+            Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null],
         });
         if (Number(rs.rowsAffected ?? 0) === 0) {
           // 世代已經不是我們那一個了。整批作廢 —— 交易回滾，什麼都沒寫。
@@ -295,7 +303,9 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     });
     return rs.rows.map((r) => ({
       resource: String(r.resource), status: String(r.status),
-      authGeneration: Number(r.auth_generation), checkedAt: r.checked_at,
+      authGeneration: Number(r.auth_generation),
+      lifecycleGeneration: Number(r.lifecycle_generation ?? 1),
+      checkedAt: r.checked_at,
     }));
   }
 
@@ -319,7 +329,7 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
    */
   async function setReadyIfEligible({
     userId, from = [ONBOARDING_STATE.WHOOP_AUTHORIZED, ONBOARDING_STATE.SYNCING],
-    requiredResources = [], now = new Date(),
+    requiredResources = [], expectedLifecycleGeneration = null, now = new Date(),
   }) {
     const uid = requireUserId(userId, 'setReadyIfEligible');
     const ts = iso(now);
@@ -328,13 +338,20 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     // ACCESSIBLE 判定。條件寫在同一句 UPDATE 裡，所以 JS 那邊算出來的舊結論
     // 完全不參與決定 —— 重新授權（世代 +1）或判定被改成 UNAUTHORIZED，
     // 這次轉移就會失敗。
+    // ★ v17：判定必須同時屬於**目前的授權**與**目前的啟用期**。
+    //
+    // 只比對授權世代擋不住 ABA：停用再啟用不會動 auth_generation，
+    // 所以一段停用期之前產生的「睡眠可讀」會在新的啟用期裡看起來仍然有效。
     const accessClauses = requiredResources.map(() => `
                AND EXISTS (SELECT 1 FROM whoop_resource_access ra
                             WHERE ra.user_id = user_onboarding.user_id AND ra.resource = ?
                               AND ra.status = ?
                               AND ra.auth_generation = (SELECT k3.auth_generation
                                                           FROM user_whoop_tokens k3
-                                                         WHERE k3.user_id = user_onboarding.user_id))`).join('');
+                                                         WHERE k3.user_id = user_onboarding.user_id)
+                              AND ra.lifecycle_generation = (SELECT lu2.lifecycle_generation
+                                                               FROM users lu2
+                                                              WHERE lu2.id = user_onboarding.user_id))`).join('');
     const accessArgs = requiredResources.flatMap((r) => [String(r), RESOURCE_ACCESS_STATUS.ACCESSIBLE]);
     const rs = await client.execute({
       sql: `UPDATE user_onboarding
@@ -354,8 +371,17 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
                             WHERE u.id = user_onboarding.user_id
                               AND ${ONBOARDING_IDENTITY_STRICT_SQL})
                AND EXISTS (SELECT 1 FROM whoop_sync_state s WHERE s.user_id = user_onboarding.user_id)
-               AND EXISTS (SELECT 1 FROM whoop_capabilities c WHERE c.user_id = user_onboarding.user_id)${accessClauses}`,
-      args: [ONBOARDING_STATE.READY, ts, ts, ts, uid, ...states, USER_STATUS.ACTIVE, ...accessArgs],
+               -- capability 盤點也必須是**這一段啟用期**做的（§35）
+               AND EXISTS (SELECT 1 FROM whoop_capabilities c
+                            WHERE c.user_id = user_onboarding.user_id
+                              AND c.lifecycle_generation = (SELECT lu3.lifecycle_generation
+                                                              FROM users lu3
+                                                             WHERE lu3.id = user_onboarding.user_id))
+               -- 帳號本身：ACTIVE，而且仍然是這一輪 bootstrap 開跑的那一段啟用期
+               AND ${lifecycleActiveSql('user_onboarding.user_id')}${accessClauses}`,
+      args: [ONBOARDING_STATE.READY, ts, ts, ts, uid, ...states, USER_STATUS.ACTIVE,
+        Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null,
+        ...accessArgs],
     });
     if (Number(rs.rowsAffected ?? 0) > 0) {
       log.info('onboarding_state', { user_id: uid, state: ONBOARDING_STATE.READY });
@@ -377,6 +403,7 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     from = null, failureCode = null, failureDetail = null,
     timezoneConfirmed = false, whoopAuthorized = false, syncStarted = false, ready = false,
     expectedAuthGeneration = null,
+    expectedLifecycleGeneration = null, requireActiveLifecycle = false,
     now = new Date(),
   } = {}) {
     const uid = requireUserId(userId, 'setOnboardingState');
@@ -391,6 +418,13 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     const genGuard = Number.isInteger(expectedAuthGeneration) && expectedAuthGeneration >= 1
       ? `\n               AND (SELECT k.auth_generation FROM user_whoop_tokens k
                             WHERE k.user_id = user_onboarding.user_id) = ?` : '';
+    // ★ v17：以帳號啟用為前提的轉移（bootstrap 擁有的、以及 OAuth 回呼寫的
+    // 失敗結論）必須證明帳號現在仍然 ACTIVE，而且仍然在**同一段啟用期**。
+    // 光看 ACTIVE 不夠：停用再啟用之後 status 又是 ACTIVE（ABA）。
+    const lifeGuard = requireActiveLifecycle
+      ? `\n               AND ${lifecycleActiveSql('user_onboarding.user_id')}` : '';
+    const lifeArgs = requireActiveLifecycle
+      ? [Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null] : [];
     const rs = await client.execute({
       sql: `UPDATE user_onboarding
                SET state = ?, state_changed_at = ?,
@@ -400,14 +434,14 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
                    sync_started_at       = CASE WHEN ? = 1 THEN ? ELSE sync_started_at END,
                    ready_at              = CASE WHEN ? = 1 THEN ? ELSE ready_at END,
                    updated_at = ?
-             WHERE user_id = ?${guard}${genGuard}`,
+             WHERE user_id = ?${guard}${genGuard}${lifeGuard}`,
       args: [state, ts, failureCode, failureDetail ? String(failureDetail).slice(0, 300) : null,
         timezoneConfirmed ? 1 : 0, ts,
         whoopAuthorized ? 1 : 0, ts,
         syncStarted ? 1 : 0, ts,
         ready ? 1 : 0, ts,
         ts, uid, ...(Array.isArray(from) ? from : []),
-        ...(genGuard ? [expectedAuthGeneration] : [])],
+        ...(genGuard ? [expectedAuthGeneration] : []), ...lifeArgs],
     });
     if (Number(rs.rowsAffected ?? 0) === 0) return null;
     log.info('onboarding_state', { user_id: uid, state, failure_code: failureCode });
@@ -511,7 +545,8 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
    */
   async function failBootstrapIfExhausted({
     userId, from = [], failureCode, failureDetail = null,
-    expectedAuthGeneration = null, maxAttempts, now = new Date(),
+    expectedAuthGeneration = null, expectedLifecycleGeneration = null,
+    maxAttempts, now = new Date(),
   } = {}) {
     const uid = requireUserId(userId, 'failBootstrapIfExhausted');
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
@@ -520,6 +555,7 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     const ts = iso(now);
     const states = Array.isArray(from) && from.length ? from : [ONBOARDING_STATE.SYNCING];
     const gen = Number.isInteger(expectedAuthGeneration) ? expectedAuthGeneration : null;
+    const life = Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null;
 
     const rs = await client.execute({
       sql: `UPDATE user_onboarding
@@ -529,11 +565,12 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
                AND state IN (${states.map(() => '?').join(',')})
                AND bootstrap_attempts >= ?
                AND (SELECT k.auth_generation FROM user_whoop_tokens k
-                     WHERE k.user_id = user_onboarding.user_id) IS ?`,
+                     WHERE k.user_id = user_onboarding.user_id) IS ?
+               AND ${lifecycleActiveSql('user_onboarding.user_id')}`,
       args: [
         ONBOARDING_STATE.ACTION_REQUIRED, ts, failureCode,
         failureDetail ? String(failureDetail).slice(0, 300) : null, ts,
-        uid, ...states, maxAttempts, gen,
+        uid, ...states, maxAttempts, gen, life,
       ],
     });
     if (Number(rs.rowsAffected ?? 0) > 0) {
@@ -549,11 +586,27 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     const row = (await client.execute({
       sql: `SELECT o.state, o.bootstrap_attempts,
                    (SELECT k.auth_generation FROM user_whoop_tokens k
-                     WHERE k.user_id = o.user_id) gen
-              FROM user_onboarding o WHERE o.user_id = ?`,
+                     WHERE k.user_id = o.user_id) gen,
+                   u.status user_status, u.lifecycle_generation life
+              FROM user_onboarding o
+              JOIN users u ON u.id = o.user_id
+             WHERE o.user_id = ?`,
       args: [uid],
     })).rows[0] ?? null;
     if (!row) return { ok: false, attempts: 0, reason: 'no_onboarding' };
+
+    // ★ v17：帳號層級的原因優先於授權層級 —— 一個被停用（或已經換過啟用期）
+    // 的帳號，它的「失敗」根本不屬於現在這個帳號狀態，不該被當成授權問題回報。
+    const curLife = Number(row.life ?? 1);
+    if (String(row.user_status) !== USER_STATUS.ACTIVE || (life !== null && curLife !== life)) {
+      log.warn('onboarding_terminal_lifecycle_rejected', {
+        user_id: uid, user_status: String(row.user_status),
+        expected_lifecycle: life, current_lifecycle: curLife,
+      });
+      return {
+        ok: false, attempts: Number(row.bootstrap_attempts ?? 0), reason: 'account_inactive',
+      };
+    }
 
     const current = row.gen === null || row.gen === undefined ? null : Number(row.gen);
     const attempts = Number(row.bootstrap_attempts ?? 0);
@@ -567,25 +620,51 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     return { ok: false, attempts, reason: `state:${row.state}` };
   }
 
-  async function recordBootstrapAttempt(userId, { now = new Date() } = {}) {
+  /**
+   * ★ v17：嘗試次數只有**目前啟用期的 ACTIVE 帳號**才會被消耗。
+   *
+   * 進入點檢查擋得住常見情形，但擋不住「選出來之後、加一之前被停用」這個
+   * 空隙 —— 而被停用的人不該因為一個他無法控制的內部競態而燒掉重試額度。
+   *
+   * @returns {{ok:boolean, reason?:string}} ok:false 代表一次都沒加。
+   */
+  async function recordBootstrapAttempt(userId, {
+    expectedLifecycleGeneration = null, now = new Date(),
+  } = {}) {
     const uid = requireUserId(userId, 'recordBootstrapAttempt');
     const ts = iso(now);
-    await client.execute({
+    const rs = await client.execute({
       sql: `UPDATE user_onboarding
                SET bootstrap_attempts = bootstrap_attempts + 1, last_bootstrap_at = ?, updated_at = ?
-             WHERE user_id = ?`,
-      args: [ts, ts, uid],
+             WHERE user_id = ?
+               AND ${lifecycleActiveSql('user_onboarding.user_id')}`,
+      args: [ts, ts, uid,
+        Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null],
     });
+    if (Number(rs.rowsAffected ?? 0) > 0) return { ok: true };
+    log.warn('onboarding_attempt_lifecycle_rejected', { user_id: uid });
+    return { ok: false, reason: 'account_inactive' };
   }
 
-  /** 還沒走完的上線（排程器用來接手 bootstrap）。有上限。 */
+  /**
+   * 還沒走完的上線（排程器用來接手 bootstrap）。有上限。
+   *
+   * ★ v17 第一層：**只選 ACTIVE 的帳號**。用 JOIN 而不是事後過濾 ——
+   * 一個被停用的帳號根本不該進入健康處理的流程。
+   *
+   * 這只是第一層：選出來之後帳號仍然可能被停用，所以 worker 進入點與
+   * 每一個耐久變更都另外有自己的圍欄（見 §12–§15）。
+   */
   async function listOnboardingInState(states, { limit = 20 } = {}) {
     const list = Array.isArray(states) ? states : [states];
     if (!list.length) return [];
     const rs = await client.execute({
-      sql: `SELECT * FROM user_onboarding WHERE state IN (${list.map(() => '?').join(',')})
-             ORDER BY state_changed_at LIMIT ?`,
-      args: [...list, Number(limit)],
+      sql: `SELECT o.* FROM user_onboarding o
+              JOIN users u ON u.id = o.user_id
+             WHERE o.state IN (${list.map(() => '?').join(',')})
+               AND u.status = ?
+             ORDER BY o.state_changed_at LIMIT ?`,
+      args: [...list, USER_STATUS.ACTIVE, Number(limit)],
     });
     return rs.rows.map(rowTo);
   }
@@ -616,6 +695,8 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
       displayName: String(r.display_name),
       timezone: String(r.timezone),
       status: String(r.status),
+      // ★ v17：worker 用它當這一輪的啟用世代（選出來之後仍可能被停用）。
+      lifecycleGeneration: Number(r.lifecycle_generation ?? 1),
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     }));

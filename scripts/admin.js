@@ -159,13 +159,21 @@ export const COMMANDS = {
     const before = await db.getUser(userId);
     if (!before) throw new UsageError(`找不到使用者：${userId}`);
 
-    const after = await db.updateUser(userId, { status });
-    out(`✅ ${after.displayName}：${before.status} → ${after.status}`);
+    // ★ v17：唯一能改 status 的路徑。它在同一句 UPDATE 裡推進啟用世代，
+    // 所以任何還在跑的舊 worker 立刻失去寫入資格（ABA 也擋得住）。
+    const t = await db.transitionUserLifecycle({ userId, targetStatus: status });
+    if (!t.changed) {
+      out(`ℹ️  ${before.displayName} 已經是 ${status}，沒有變更（啟用世代不變）。`);
+      return 0;
+    }
+    out(`✅ ${before.displayName}：${t.oldStatus} → ${t.newStatus}`);
+    out(`   啟用世代：${t.oldGeneration} → ${t.newGeneration}`);
     if (status !== USER_STATUS.ACTIVE) {
-      out('   這個使用者不會再被排程處理。');
+      out('   這個使用者不會再被排程處理，進行中的健康工作也會立刻失效。');
       out('   **所有健康資料、journal、綁定都完整保留**，改回 ACTIVE 就會恢復。');
     } else {
       out('   這個使用者會重新被排程處理。');
+      out('   上線資格會在新的啟用世代重新驗證一次（READY 不沿用舊證據）。');
     }
     return 0;
   },

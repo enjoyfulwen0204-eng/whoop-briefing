@@ -16,8 +16,9 @@ import { createClient } from '@libsql/client';
 import { randomUUID } from 'node:crypto';
 import {
   GLOBAL_SCOPE, userScope, TELEGRAM_DELIVERY_STATE, TELEGRAM_UPDATE_STATUS,
-  REPORT_DELIVERY_STATE,
+  REPORT_DELIVERY_STATE, USER_STATUS,
 } from './schema.js';
+import { AccountInactiveError } from './accountLifecycle.js';
 
 const TELEGRAM_UPDATE_STATUS_COMPLETED = TELEGRAM_UPDATE_STATUS.COMPLETED;
 const TELEGRAM_UPDATE_STATUS_ABANDONED = TELEGRAM_UPDATE_STATUS.ABANDONED;
@@ -1412,8 +1413,43 @@ export function createDb({ url, authToken }) {
     return Number(rs.rowsAffected ?? 0) > 0;
   }
 
+  /**
+   * ★ v17：帳號啟用圍欄，**在目前的交易裡**求值。
+   *
+   * 給「已經抓回資料、準備落地」的寫入者用（同步、webhook、對帳）：
+   * 在同一個交易裡先證明帳號仍然 ACTIVE 且仍在同一段啟用期，證不出來就拋，
+   * 整個交易回滾 —— 於是 canonical 列與游標**一起**不動，不會出現
+   * 「資料沒寫進去但進度前進了」那種永久性的破洞。
+   *
+   * @throws {AccountInactiveError}
+   */
+  async function assertAccountActive(userId, expectedLifecycleGeneration = null) {
+    const uid = requireUserId(userId, 'assertAccountActive');
+    const rs = await client.execute({
+      sql: 'SELECT status, lifecycle_generation FROM users WHERE id = ?',
+      args: [uid],
+    });
+    const row = rs.rows[0];
+    const ok = row
+      && String(row.status) === USER_STATUS.ACTIVE
+      && (!Number.isInteger(expectedLifecycleGeneration)
+        || Number(row.lifecycle_generation ?? 1) === expectedLifecycleGeneration);
+    if (!ok) {
+      log.warn('account_lifecycle_rejected', {
+        user_id: uid,
+        user_status: row ? String(row.status) : null,
+        expected_lifecycle: expectedLifecycleGeneration,
+        current_lifecycle: row ? Number(row.lifecycle_generation ?? 1) : null,
+      });
+      throw new AccountInactiveError(uid);
+    }
+    return true;
+  }
+
   return {
     raw: client,
+    transaction: processing.transaction,
+    assertAccountActive,
     withAnswerOwnership,
     processTelegramOperation,
     mutateForWhoopEvent,

@@ -449,7 +449,64 @@ export const ONBOARDING_DERIVED_TZ_SQL_LEGACY = `
 export const ONBOARDING_DERIVED_FAILURE_SQL = `
   CASE WHEN u.status <> 'ACTIVE' THEN 'ACCOUNT_INACTIVE' ELSE NULL END`;
 
-export const SCHEMA_VERSION = 16;
+// ---------------------------------------------------------------------------
+// ★ v17：帳號啟用世代（lifecycle_generation）
+// ---------------------------------------------------------------------------
+/**
+ * ## 為什麼只看 status 不夠
+ *
+ * `users.status` 只回答「現在是不是 ACTIVE」。它回答不了「現在這一段啟用期，
+ * 跟你開始工作的時候是不是同一段」—— 而這兩件事在 ABA 之下會分岔：
+ *
+ *     t0  worker 在 ACTIVE 開跑
+ *     t1  帳號被停用（PAUSED / DISABLED）
+ *     t2  帳號又被啟用
+ *     t3  舊 worker 醒來寫入 → status 又是 ACTIVE → 通過
+ *
+ * 於是一段**停用期之前**產生的結論、報告、回覆、憑證、健康資料，會在一段
+ * 全新的啟用期裡被當成有效的。停用因此只是一個顯示用的旗標，不是邊界。
+ *
+ * ## 世代
+ *
+ * `lifecycle_generation` 是這個帳號的**啟用紀元**：建立時是 1，之後每一次
+ * **真正的**狀態轉移都 +1（ACTIVE→PAUSED、PAUSED→ACTIVE、DISABLED→ACTIVE…）。
+ * 狀態沒變就不動。單調遞增，只有一條原子路徑會寫它（transitionUserLifecycle）。
+ *
+ * 健康工作在開跑時捕捉 `(userId, L)`，此後每一個耐久的變更都必須在**同一句
+ * SQL 裡**證明 `status = 'ACTIVE' AND lifecycle_generation = L`。ABA 之後
+ * 世代是 L+2，條件不成立，舊 worker 什麼都改不了。
+ *
+ * ## 與其他世代的分工（不可混用）
+ *
+ *   auth_generation      WHOOP 授權（同意）的紀元
+ *   lifecycle_generation 內部帳號啟用的紀元
+ *   analytics generation 分析失效的紀元
+ *   lease / owner        worker 的所有權
+ *
+ * 四個保護的是四個不同的不變量。重新授權不動啟用世代；停用再啟用不動授權世代。
+ */
+export const LIFECYCLE_GENERATION_DOC = true;
+
+/**
+ * 「這個使用者現在可以被做健康處理嗎」的 SQL 述詞。**恰好一個** `?`。
+ *
+ * 綁定捕捉到的啟用世代；綁 NULL 代表「只要求 ACTIVE，不約束世代」
+ * （管理路徑、以及還沒有世代脈絡的舊呼叫端）。
+ *
+ * `COALESCE(?, lu.lifecycle_generation)` 就是那個開關：值是 NULL 時
+ * 欄位與自己比較（恆真），有值時就是嚴格等值。這樣只需要一個參數，
+ * 呼叫端不可能把兩個參數的順序放錯。
+ *
+ * @param {string} userCol 外層語句裡指向 users.id 的欄位運算式
+ */
+export const lifecycleActiveSql = (userCol) => `EXISTS (
+  SELECT 1 FROM users lu
+   WHERE lu.id = ${userCol}
+     AND lu.status = 'ACTIVE'
+     AND lu.lifecycle_generation = COALESCE(?, lu.lifecycle_generation)
+)`;
+
+export const SCHEMA_VERSION = 17;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -469,6 +526,8 @@ export const IDENTITY_SCHEMA = [
      display_name TEXT NOT NULL,
      timezone     TEXT NOT NULL DEFAULT 'Asia/Taipei',
      status       TEXT NOT NULL,
+     -- ★ v17：帳號**啟用世代**。見 LIFECYCLE_GENERATION_DOC。
+     lifecycle_generation INTEGER NOT NULL DEFAULT 1,
      created_at   TEXT NOT NULL,
      updated_at   TEXT NOT NULL
    )`,
@@ -502,6 +561,9 @@ export const IDENTITY_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS oauth_states (
      state_hash  TEXT PRIMARY KEY,
      user_id     TEXT NOT NULL,
+     -- ★ v17：這條 state 是在哪一個啟用世代發出去的。舊列是 NULL
+     -- （v17 之前發出、還沒用掉的），callback 對 NULL 一律 fail closed。
+     lifecycle_generation INTEGER,
      created_at  TEXT NOT NULL,
      expires_at  TEXT NOT NULL,
      consumed_at TEXT
@@ -773,6 +835,8 @@ export const HEALTH_SCHEMA = [
      user_id        TEXT NOT NULL,
      key            TEXT NOT NULL,
      status         TEXT NOT NULL,
+     -- ★ v17：這份盤點屬於哪一個啟用世代（READY 只認目前世代的證據）。
+     lifecycle_generation INTEGER NOT NULL DEFAULT 1,
      sample_count   INTEGER,
      non_null_count INTEGER,
      latest_value   TEXT,
@@ -1013,6 +1077,18 @@ export const ADDITIVE_COLUMNS = [
   //
   // 既有的列預設 1：它們的權限判定會在下一次 bootstrap 重新寫入同一個世代。
   { table: 'user_whoop_tokens', column: 'auth_generation', ddl: 'ALTER TABLE user_whoop_tokens ADD COLUMN auth_generation INTEGER NOT NULL DEFAULT 1' },
+
+  // v17：帳號啟用世代（lifecycle_generation）。
+  //
+  // 既有列一律從 1 開始 —— 不捏造歷史世代。任何一次**真正的**狀態轉移
+  // （ACTIVE ↔ PAUSED ↔ DISABLED）之後才會 +1，所以「1」的語義是
+  // 「這個帳號從建立到現在還沒被停用過」，對既有資料完全成立。
+  { table: 'users', column: 'lifecycle_generation', ddl: 'ALTER TABLE users ADD COLUMN lifecycle_generation INTEGER NOT NULL DEFAULT 1' },
+  // OAuth state 刻意**可為 NULL**：v17 之前發出、還沒用掉的 state 沒有世代
+  // 出處，而「不知道它屬於哪個世代」的正確處置是拒絕，不是猜一個。
+  { table: 'oauth_states', column: 'lifecycle_generation', ddl: 'ALTER TABLE oauth_states ADD COLUMN lifecycle_generation INTEGER' },
+  { table: 'whoop_capabilities', column: 'lifecycle_generation', ddl: 'ALTER TABLE whoop_capabilities ADD COLUMN lifecycle_generation INTEGER NOT NULL DEFAULT 1' },
+  { table: 'whoop_resource_access', column: 'lifecycle_generation', ddl: 'ALTER TABLE whoop_resource_access ADD COLUMN lifecycle_generation INTEGER NOT NULL DEFAULT 1' },
 ];
 
 /**
@@ -1042,6 +1118,9 @@ export const RESOURCE_ACCESS_SCHEMA = [
      resource        TEXT NOT NULL,
      status          TEXT NOT NULL,
      auth_generation INTEGER NOT NULL,
+     -- ★ v17：授權世代（哪一次 WHOOP 同意）與啟用世代（哪一段帳號啟用期）
+     -- 是**兩個獨立**的維度。READY 兩個都要求等於目前值。
+     lifecycle_generation INTEGER NOT NULL DEFAULT 1,
      checked_at      TEXT NOT NULL,
      PRIMARY KEY (user_id, resource)
    )`,

@@ -42,6 +42,8 @@ const FAILURE_BY_CODE = {
   IDENTITY_HISTORY_AMBIGUOUS: ONBOARDING_FAILURE.IDENTITY_UNVERIFIED,
   WHOOP_ACCOUNT_ALREADY_LINKED: ONBOARDING_FAILURE.WHOOP_ACCOUNT_ALREADY_LINKED,
   WHOOP_ACCOUNT_MISMATCH: ONBOARDING_FAILURE.WHOOP_ACCOUNT_MISMATCH,
+  // ★ v17：帳號已停用，或這條 state 屬於另一段啟用期。
+  ACCOUNT_INACTIVE: ONBOARDING_FAILURE.ACCOUNT_INACTIVE,
 };
 
 /** 畫面代碼 → 標題與內文。**全部是常數**，沒有任何外部字串。 */
@@ -98,6 +100,8 @@ const FAILURE_SCREEN = {
   [ONBOARDING_FAILURE.IDENTITY_UNVERIFIED]: 'identity',
   [ONBOARDING_FAILURE.WHOOP_ACCOUNT_ALREADY_LINKED]: 'already_linked',
   [ONBOARDING_FAILURE.WHOOP_ACCOUNT_MISMATCH]: 'mismatch',
+  // 刻意用通用畫面：瀏覽器那一端不該從畫面推斷出帳號被停用了。
+  [ONBOARDING_FAILURE.ACCOUNT_INACTIVE]: 'error',
 };
 
 /**
@@ -176,11 +180,17 @@ export function createWhoopOAuthCallback({
       // 綁的是誰」去標記失敗 —— 但那筆記錄已經沒了。改由 completeAuthorization
       // 拋出的錯誤附帶的 userId（有的話）標記。
       const userId = err?.userId ?? null;
-      if (userId) {
+      // ★ v17：帳號不合資格時**不寫任何上線狀態**。一個屬於舊啟用期的
+      // callback（或一個已停用帳號的 callback）不可以在新的啟用期裡留下
+      // ACTION_REQUIRED / failure_code。
+      if (userId && failure !== ONBOARDING_FAILURE.ACCOUNT_INACTIVE) {
         await db.setOnboardingState(userId, ONBOARDING_STATE.ACTION_REQUIRED, {
           from: [ONBOARDING_STATE.WHOOP_AUTH_PENDING, ONBOARDING_STATE.ACTION_REQUIRED,
             ONBOARDING_STATE.WHOOP_AUTHORIZED, ONBOARDING_STATE.SYNCING],
-          failureCode: failure, failureDetail: code2, now: new Date(now()),
+          failureCode: failure, failureDetail: code2,
+          // 只有**目前**啟用期的失敗才算數（§20）。
+          requireActiveLifecycle: true,
+          now: new Date(now()),
         }).catch(() => {});
       }
       log.warn('oauth_callback_failed', { code: code2 ?? 'unknown', user_id: userId });
@@ -249,9 +259,13 @@ async function markFailureByState({ db, rawState, failure, now }) {
   try {
     const peek = await db.peekOAuthState(rawState, { now: new Date(now()) });
     if (!peek?.userId) return null;
+    // ★ v17：舊啟用期的「使用者按了拒絕」不可以寫進新的啟用期。
     await db.setOnboardingState(peek.userId, ONBOARDING_STATE.ACTION_REQUIRED, {
       from: [ONBOARDING_STATE.WHOOP_AUTH_PENDING, ONBOARDING_STATE.ACTION_REQUIRED],
-      failureCode: failure, now: new Date(now()),
+      failureCode: failure,
+      expectedLifecycleGeneration: peek.lifecycleGeneration ?? null,
+      requireActiveLifecycle: true,
+      now: new Date(now()),
     });
     return peek.userId;
   } catch {

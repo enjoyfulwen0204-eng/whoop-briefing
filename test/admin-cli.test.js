@@ -122,7 +122,7 @@ test('user:list 列出所有使用者與綁定/授權狀態', async () => {
 
 test('user:list --status 可以過濾', async () => {
   await withDb(async (db) => {
-    await db.updateUser(BOB.id, { status: 'DISABLED' });
+    await db.transitionUserLifecycle({ userId: BOB.id, targetStatus: 'DISABLED' });
     const { text } = await run(db, ['user:list', '--status=ACTIVE']);
     assert.ok(text.includes(ALICE.id));
     assert.ok(!text.includes(BOB.id));
@@ -186,21 +186,34 @@ test('★★ 停用使用者不刪除任何資料，重新啟用後完全恢復'
     const beforeCoverage = await db.coverage(BOB.id);
     const beforeJournal = await db.countJournalEvents(BOB.id);
     const beforeChat = await db.getActiveChatIdForUser(BOB.id);
+    const beforeLife = (await db.getUser(BOB.id)).lifecycleGeneration;
     assert.ok(Number(beforeCoverage.main_sleeps) > 0);
     assert.equal(beforeJournal, 1);
+    assert.ok(beforeChat);
 
     await run(db, ['user:status', `--user=${BOB.id}`, '--status=DISABLED']);
 
     // 資料一列都不能少
     assert.deepEqual(await db.coverage(BOB.id), beforeCoverage);
     assert.equal(await db.countJournalEvents(BOB.id), beforeJournal);
-    assert.equal(await db.getActiveChatIdForUser(BOB.id), beforeChat);
+    // ★ v17：**綁定列**完整保留（停用不刪任何東西）……
+    assert.equal((await db.getTelegramLink(beforeChat))?.status, 'ACTIVE',
+      '★★★ 停用不可以動到 Telegram 綁定');
+    // ……但**遞送授權**要收回：停用的帳號不該再收到健康內容（§27）。
+    assert.equal(await db.getActiveChatIdForUser(BOB.id), null,
+      '★★★ 停用期間不可以有可遞送的目的地');
+    assert.equal((await db.getUser(BOB.id)).lifecycleGeneration, beforeLife + 1,
+      '★ 狀態轉移推進啟用世代');
 
     // 重新啟用
     await run(db, ['user:status', `--user=${BOB.id}`, '--status=ACTIVE']);
     const active = await db.listActiveUsers();
     assert.ok(active.some((u) => u.id === BOB.id));
     assert.equal(await db.countJournalEvents(BOB.id), beforeJournal);
+    assert.equal(await db.getActiveChatIdForUser(BOB.id), beforeChat,
+      '★★★ 重新啟用之後遞送完全恢復');
+    assert.equal((await db.getUser(BOB.id)).lifecycleGeneration, beforeLife + 2,
+      '★ 重新啟用是新的一段啟用期');
   });
 });
 

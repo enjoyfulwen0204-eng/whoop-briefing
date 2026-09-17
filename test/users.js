@@ -14,10 +14,10 @@
  */
 
 export const ALICE = {
-  id: 'u-alice', displayName: 'Alice', chatId: '1001', timezone: 'Asia/Taipei',
+  id: 'u-alice', lifecycleGeneration: 1, displayName: 'Alice', chatId: '1001', timezone: 'Asia/Taipei',
 };
 export const BOB = {
-  id: 'u-bob', displayName: 'Bob', chatId: '1002', timezone: 'America/New_York',
+  id: 'u-bob', lifecycleGeneration: 1, displayName: 'Bob', chatId: '1002', timezone: 'America/New_York',
 };
 
 /** 兩人共用的 external id / 時間戳 —— 刻意完全相同。 */
@@ -60,7 +60,7 @@ export async function seedProbedCapabilities(db, userId, {
 } = {}) {
   await db.saveCapabilities(userId, keys.map((key) => ({
     key, status, sampleCount: 30, nonNullCount: 30, latestValue: null, detail: null,
-  })), { now });
+  })), { expectedLifecycleGeneration: (await db.getUser(userId)).lifecycleGeneration, now });
 }
 
 /** 建立兩個使用者並綁好 Telegram。回傳 { alice, bob }。 */
@@ -87,7 +87,7 @@ export async function seedSingleUser(db, {
   // 預設是一個**運作中**的帳號（已經跑過 npm run probe）。
   // 要測「從來沒 probe 過」的行為就傳 probed: false。
   if (probed) await seedProbedCapabilities(db, id);
-  return { id, displayName, timezone, chatId };
+  return { id, displayName, timezone, chatId, lifecycleGeneration: 1 };
 }
 
 // ---------------------------------------------------------------------------

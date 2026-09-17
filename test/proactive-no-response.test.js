@@ -67,7 +67,7 @@ async function askProactive(db, user, {
     reason: { question_category: 'alcohol' },
     policyVersion: 'p1',
     messageText: '昨天有喝酒嗎？',
-  }, { now });
+  }, { expectedLifecycleGeneration: 1, now });
 
   const questionId = await db.openPendingQuestion(user.id, {
     chatId: user.chatId,
@@ -790,7 +790,7 @@ async function askWithClarification(db, user, { key = 'c1', now = T0 } = {}) {
     reason: { question_category: 'alcohol' },
     policyVersion: 'p1',
     messageText: '昨天有喝酒嗎？',
-  }, { now });
+  }, { expectedLifecycleGeneration: 1, now });
   const q1 = await db.openPendingQuestion(user.id, {
     chatId: user.chatId,
     question: '昨天有喝酒嗎？',
@@ -1071,7 +1071,7 @@ test('★★★ RF-01: 多個未結案事件 → 只收尾真正連結的那一�
       healthDate: '2026-09-08', idempotencyKey: 'unrelated',
       signals: [], decision: PROACTIVE_DECISION.NOTIFY,
       reason: {}, policyVersion: 'p1', messageText: 'n',
-    }, { now: T0 });
+    }, { expectedLifecycleGeneration: 1, now: T0 });
 
     await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_CLARIFY });
 

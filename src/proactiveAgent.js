@@ -34,7 +34,8 @@
 
 import { createHash } from 'node:crypto';
 import { addDays } from './time.js';
-import { isSuppressedDelivery } from './accountLifecycle.js';
+import { lifecycleOutputDb } from './lifecycleOutput.js';
+import { isSuppressedDelivery, withDeliveryAuthorization } from './accountLifecycle.js';
 import { loadDailyMetrics, seriesOf } from './dailyMetrics.js';
 import { assessProactiveMonitoring } from './readiness.js';
 import { detectSignals } from './signals.js';
@@ -90,9 +91,18 @@ export function fingerprintOf(anchorRow, metrics = MONITORED_METRICS) {
  *   `runForUser({ deps })` 的可注入慣例，開發/測試絕不打真的 Telegram）。
  */
 export async function checkAndAct({
-  db, userId, timezone, telegram, chatId, now = new Date(),
+  db, userId, timezone, telegram, chatId, expectedLifecycleGeneration, now = new Date(),
 }) {
   const uid = requireUserId(userId, 'checkAndAct');
+  db = lifecycleOutputDb(db, { userId: uid, expectedLifecycleGeneration, writers: [
+    'claimProactiveEvent', 'setProactiveState', 'openPendingQuestion', 'markProactiveEventSent',
+  ] });
+  const check = () => db.assertAccountActive(uid, expectedLifecycleGeneration);
+  await check();
+  const owned = { now, expectedLifecycleGeneration };
+  telegram = withDeliveryAuthorization(telegram, () => check().then(() => true, () => false), {
+    userId: uid, expectedLifecycleGeneration,
+  });
 
   const coverage = await db.coverage(uid);
   const latestHealthDate = coverage?.last_date ?? null;
@@ -111,7 +121,8 @@ export async function checkAndAct({
   const anchorRow = probeRows.find((r) => r.health_date === anchorDate) ?? null;
   const fingerprint = fingerprintOf(anchorRow);
 
-  if (state?.lastCheckedHealthDate === anchorDate && state?.lastFingerprint === fingerprint) {
+  if (state?.lifecycleGeneration === expectedLifecycleGeneration
+      && state?.lastCheckedHealthDate === anchorDate && state?.lastFingerprint === fingerprint) {
     return { triggered: false, reason: 'no_new_or_changed_data' };
   }
 
@@ -139,7 +150,7 @@ export async function checkAndAct({
   if (!stageAllowsMessaging(stage)) {
     // 這個分支從來不會 claim 任何事件（沒有訊號可言），游標可以立刻前進，
     // 沒有「claim 完但游標沒進」這種需要重試的中間狀態。
-    await db.setProactiveState(uid, { lastCheckedHealthDate: anchorDate, lastFingerprint: fingerprint }, { now });
+    await db.setProactiveState(uid, { lastCheckedHealthDate: anchorDate, lastFingerprint: fingerprint }, owned);
     log.info('proactive_stage_not_ready', {
       user_id: uid, health_date: anchorDate, stage, monitoring_status: monitoring.status,
     });
@@ -211,7 +222,7 @@ export async function checkAndAct({
     }
   };
 
-  const [openQuestion, journalToday, recentEvents, proactiveEnabled] = await Promise.all([
+  const [openQuestion, journalToday, eventHistory, proactiveEnabled] = await Promise.all([
     gate('open_question', () => db.getOpenPendingQuestion(uid, { now }), null),
     gate('journal_today', () => db.getJournalEvents(uid, { from: anchorDate, to: anchorDate }), []),
     gate('recent_events', () => db.getRecentProactiveEvents(uid, {
@@ -220,6 +231,10 @@ export async function checkAndAct({
     gate('proactive_enabled', () => db.isProactiveEnabled(uid), null),
   ]);
 
+  // Historical LOG_ONLY observations can corroborate signals. Old delivery claims
+  // cannot consume current cooldown, question category, or delivery availability.
+  const recentEvents = eventHistory.filter((e) => e.lifecycleGeneration === expectedLifecycleGeneration
+    || e.decision === PROACTIVE_DECISION.LOG_ONLY);
   let decision = decide({
     signals,
     now,
@@ -354,7 +369,7 @@ export async function checkAndAct({
   }
 
   // 指紋進 key：被修正過的那一天可以產生新事件，一模一樣的資料不行。
-  const idempotencyKey = `${anchorDate}::${fingerprint}::${POLICY_VERSION}`;
+  const idempotencyKey = `${anchorDate}::${fingerprint}::${POLICY_VERSION}::L${expectedLifecycleGeneration}`;
   const claim = await db.claimProactiveEvent(uid, {
     healthDate: anchorDate,
     idempotencyKey,
@@ -363,14 +378,17 @@ export async function checkAndAct({
     reason: { ...decision, question_category: questionCategory },
     policyVersion: POLICY_VERSION,
     messageText,
-  }, { now });
+  }, owned);
 
   if (!claim.claimed) {
+    if (claim.lifecycleGeneration !== expectedLifecycleGeneration) {
+      return { triggered: false, reason: 'stale_claim', messageSent: false };
+    }
     // 同一個 health_date、同一版政策已經處理過（cron 重跑／worker 重啟）。
     // 刻意不重送——見 schema.js PROACTIVE_SCHEMA 註解的 at-most-once 說明。
     // 游標在這裡才前進（不是一進函式就前進）：這代表「上一輪已經 claim
     // 成功但可能死在送出訊息之前」，現在確認過不需要重試，才安全前進。
-    await db.setProactiveState(uid, { lastCheckedHealthDate: anchorDate, lastFingerprint: fingerprint }, { now });
+    await db.setProactiveState(uid, { lastCheckedHealthDate: anchorDate, lastFingerprint: fingerprint }, owned);
     return {
       triggered: true, stage, decision: decision.decision, duplicate: true, signals,
     };
@@ -400,37 +418,41 @@ export async function checkAndAct({
       };
     }
     messageSent = true;
-    let pendingQuestionId = null;
-    if (decision.decision === PROACTIVE_DECISION.ASK_CONTEXT && chatId) {
-      pendingQuestionId = await db.openPendingQuestion(uid, {
-        chatId,
-        question: messageText,
-        intent: PROACTIVE_QUESTION_INTENT,
-        contextJson: {
-          health_date: anchorDate,
-          // ★ R2-M-02：**明確**記下這一題在問哪一天的行為。
-          // 「昨天有喝酒嗎？」問的是 anchorDate 的前一天；把它跟訊號日
-          // 分開存，回答時就不需要靠 parser 的預設值去猜。
-          question_target_date: questionTargetDate ?? anchorDate,
-          signal: decision.evaluatedSignal ?? signals[0],
-          category: questionCategory,
-          proactive_event_id: claim.id,
-        },
-        // 主動問題有**自己的** TTL（見 ANTI_SPAM_POLICY.QUESTION_TTL_MS）。
-        // 以前借用 TELEGRAM_BOT.PENDING_TTL_MS——那個常數的語義是「使用者
-        // 自己問完之後的對話延續視窗」，跟「系統不請自來問一句話」完全
-        // 是兩回事，不該共用一個數字。
-        ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
-      }, { now });
-    }
-    await db.markProactiveEventSent(uid, claim.id, { pendingQuestionId }, { now });
+    await db.transaction(async () => {
+      let pendingQuestionId = null;
+      if (decision.decision === PROACTIVE_DECISION.ASK_CONTEXT && chatId) {
+        pendingQuestionId = await db.openPendingQuestion(uid, {
+          chatId,
+          question: messageText,
+          intent: PROACTIVE_QUESTION_INTENT,
+          contextJson: {
+            health_date: anchorDate,
+            // ★ R2-M-02：**明確**記下這一題在問哪一天的行為。
+            // 「昨天有喝酒嗎？」問的是 anchorDate 的前一天；把它跟訊號日
+            // 分開存，回答時就不需要靠 parser 的預設值去猜。
+            question_target_date: questionTargetDate ?? anchorDate,
+            signal: decision.evaluatedSignal ?? signals[0],
+            category: questionCategory,
+            proactive_event_id: claim.id,
+            lifecycle_generation: expectedLifecycleGeneration,
+          },
+          // 主動問題有**自己的** TTL（見 ANTI_SPAM_POLICY.QUESTION_TTL_MS）。
+          // 以前借用 TELEGRAM_BOT.PENDING_TTL_MS——那個常數的語義是「使用者
+          // 自己問完之後的對話延續視窗」，跟「系統不請自來問一句話」完全
+          // 是兩回事，不該共用一個數字。
+          ttlMs: ANTI_SPAM_POLICY.QUESTION_TTL_MS,
+        }, { now });
+      }
+      await db.markProactiveEventSent(uid, claim.id, { pendingQuestionId }, { now });
+      await db.setProactiveState(uid, { lastCheckedHealthDate: anchorDate, lastFingerprint: fingerprint }, owned);
+    }, { before: check, after: check });
   }
 
   // 事件已經 claim 成功（不管有沒有真的送出訊息），這個 health_date 就算
   // 「處理過了」——游標在這裡前進，不是函式一開始就前進。如果剛好在
   // claim 成功、送出訊息之前當掉，下一輪重算會拿到同一把 idempotency key、
   // claim 失敗、落到上面的 duplicate 分支，一樣安全前進，不會重送。
-  await db.setProactiveState(uid, { lastCheckedHealthDate: anchorDate, lastFingerprint: fingerprint }, { now });
+  if (!messageSent) await db.setProactiveState(uid, { lastCheckedHealthDate: anchorDate, lastFingerprint: fingerprint }, owned);
 
   log.info('proactive_decision', {
     user_id: uid, health_date: anchorDate, decision: decision.decision,

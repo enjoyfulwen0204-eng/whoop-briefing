@@ -68,7 +68,7 @@ async function askProactive(db, userId, chatId, { key = 'k1', now = LONG_AGO } =
     healthDate: '2026-09-08', idempotencyKey: key,
     signals: [{ metric: 'hrv' }], decision: PROACTIVE_DECISION.ASK_CONTEXT,
     reason: {}, policyVersion: 'v1', messageText: '昨天有喝酒嗎？',
-  }, { now });
+  }, { expectedLifecycleGeneration: 1, now });
   const qid = await db.openPendingQuestion(userId, {
     chatId, originalMessage: 'HRV 偏低', question: '昨天有喝酒嗎？',
     intent: PROACTIVE_QUESTION_INTENT,
@@ -173,7 +173,7 @@ test('★★★ 再稽核 M-07: DELIVERED 只寫給自己的事件', async () =>
       const { id } = await db.claimProactiveEvent(userId, {
         healthDate: '2026-09-08', idempotencyKey: key, signals: [],
         decision: PROACTIVE_DECISION.NOTIFY, reason: {}, policyVersion: 'v1', messageText: 'x',
-      }, { now: LONG_AGO });
+      }, { expectedLifecycleGeneration: 1, now: LONG_AGO });
       return id;
     };
     const aid = await mk(alice.id, 'a1');

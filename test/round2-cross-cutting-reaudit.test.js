@@ -162,7 +162,7 @@ test('★★★ 再稽核 5+6: 每一種卡住狀態都收斂，Guardian 的 stu
       const { id } = await db.claimProactiveEvent(alice.id, {
         healthDate: '2026-09-08', idempotencyKey: key, signals: [],
         decision: 'ASK_CONTEXT', reason: {}, policyVersion: 'v1', messageText: 'q',
-      }, { now: SENT });
+      }, { expectedLifecycleGeneration: 1, now: SENT });
       const qid = await db.openPendingQuestion(alice.id, {
         chatId: '1001', question: 'q', intent: PROACTIVE_QUESTION_INTENT,
         contextJson: { proactive_event_id: id }, ttlMs: 30 * 60_000,
@@ -180,7 +180,7 @@ test('★★★ 再稽核 5+6: 每一種卡住狀態都收斂，Guardian 的 stu
     const { id: notify } = await db.claimProactiveEvent(alice.id, {
       healthDate: '2026-09-08', idempotencyKey: 'e3', signals: [],
       decision: 'NOTIFY', reason: {}, policyVersion: 'v1', messageText: 'n',
-    }, { now: SENT });
+    }, { expectedLifecycleGeneration: 1, now: SENT });
     await db.markProactiveEventSent(alice.id, notify, { pendingQuestionId: null }, { now: SENT });
 
     const before = await db.countStuckProactiveEvents(alice.id, { olderThanIso: NOW.toISOString() });
@@ -441,7 +441,7 @@ test('★★★ 再稽核 13: 有資料的資料庫重複 migrate → 零重建�
     const { id: ev } = await db.claimProactiveEvent(user.id, {
       healthDate: '2026-09-08', idempotencyKey: 'k1', signals: [],
       decision: 'ASK_CONTEXT', reason: {}, policyVersion: 'v1', messageText: 'q',
-    }, { now: SENT });
+    }, { expectedLifecycleGeneration: 1, now: SENT });
     await db.markProactiveEventSent(user.id, ev, { pendingQuestionId: null }, { now: SENT });
     await db.claimTelegramUpdate(999, { owner: 'w1' });
     await db.acquireLock('some:lock', { ttlMs: 60_000, now: NOW });

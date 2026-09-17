@@ -263,7 +263,7 @@ test('[char-B1] getRecentProactiveEvents 回傳 outcome/resolvedAt 欄位（預�
       reason: {},
       policyVersion: 'p1',
       messageText: 'q',
-    }, { now: NOW });
+    }, { expectedLifecycleGeneration: 1, now: NOW });
     assert.equal(claim.claimed, true);
 
     const rows = await db.getRecentProactiveEvents(ALICE.id, {
@@ -286,7 +286,7 @@ test('[char-B2] resolveProactiveEvent 只改 outcome/resolved_at，不動 decisi
       reason: {},
       policyVersion: 'p1',
       messageText: 'q',
-    }, { now: NOW });
+    }, { expectedLifecycleGeneration: 1, now: NOW });
 
     const before = (await db.getRecentProactiveEvents(ALICE.id, {
       sinceIso: '2026-01-01T00:00:00.000Z',
@@ -318,7 +318,7 @@ test('[char-B3] resolveProactiveEvent 不可跨使用者', async () => {
       reason: {},
       policyVersion: 'p1',
       messageText: 'n',
-    }, { now: NOW });
+    }, { expectedLifecycleGeneration: 1, now: NOW });
 
     const ok = await db.resolveProactiveEvent(
       BOB.id, claim.id, PROACTIVE_OUTCOME.EXPLAINED, { now: NOW },
@@ -365,7 +365,7 @@ test('[char-C1] 有報告要發時：daily / sync / proactive 都會執行', asy
     const calls = [];
     const now = new Date('2026-09-09T00:00:00Z');
     const out = await runForUser({
-      db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now, deps: spyDeps(calls),
+      db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now, deps: spyDeps(calls),
     });
 
     assert.equal(out.skipped, null);
@@ -401,7 +401,7 @@ test('[char-C2] 報告都已送出時：目前會整個早退，sync 與 proacti
 
     const calls = [];
     const out = await runForUser({
-      db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now, deps: spyDeps(calls),
+      db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now, deps: spyDeps(calls),
     });
 
     // ⚠️ V1.1 Phase 7 刻意改變了這裡的行為。

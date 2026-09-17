@@ -108,13 +108,13 @@ export const isLifecycleFenced = (v) => Number.isInteger(v) && v >= 1;
  * 「停用又啟用」：那時候 status 又是 ACTIVE，只看狀態的檢查會放行一則
  * **跨越了一整段停用期**的健康訊息。世代讓它變成可判定的。
  *
- * `notifyError` 不包：那是運維用的故障告警，不是健康內容，而且在帳號剛被
- * 停用時仍然應該讓管理者看得到。
+ * User-scoped notifyError also receives the final transport check, after cooldown I/O.
+ * Operator clients remain separate and do not use this wrapper.
  *
  * @param {object} telegram  createTelegram 的結果（{ send, notifyError }）
  * @param {function} authorize async () => boolean
  */
-export function withDeliveryAuthorization(telegram, authorize, { userId = null } = {}) {
+export function withDeliveryAuthorization(telegram, authorize, { userId = null, expectedLifecycleGeneration } = {}) {
   if (!telegram || typeof telegram.send !== 'function') return telegram;
   const guarded = async (fn, ...args) => {
     if (!await authorize()) {
@@ -135,7 +135,9 @@ export function withDeliveryAuthorization(telegram, authorize, { userId = null }
     // 之後照樣送達。運維要看的系統告警走的是另一個 scope 的 client，
     // 不經過這裡，所以不受影響。
     notifyError: typeof telegram.notifyError === 'function'
-      ? (...args) => guarded(telegram.notifyError.bind(telegram), ...args)
+      ? (type, message, options = {}) => guarded(telegram.notifyError.bind(telegram), type, message, {
+        ...options, authorize, userId, expectedLifecycleGeneration,
+      })
       : telegram.notifyError,
   };
 }

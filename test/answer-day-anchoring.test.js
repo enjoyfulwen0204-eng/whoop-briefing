@@ -63,7 +63,7 @@ async function askAboutYesterday(db, userId) {
     healthDate: SIGNAL_DAY, idempotencyKey: 'k1',
     signals: [{ metric: 'hrv', code: 'HRV_LOW' }], decision: 'ASK_CONTEXT',
     reason: {}, policyVersion: 'v1', messageText: '昨天有喝酒嗎？',
-  }, { now: ASK_AT });
+  }, { expectedLifecycleGeneration: 1, now: ASK_AT });
   const questionId = await db.openPendingQuestion(userId, {
     chatId: '1', originalMessage: 'HRV 偏低', question: '昨天有喝酒嗎？',
     intent: PROACTIVE_QUESTION_INTENT,

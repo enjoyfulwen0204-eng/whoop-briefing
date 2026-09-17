@@ -503,7 +503,7 @@ test('gatherFacts 讀得到心跳、同步時間、卡住的事件與授權失�
       healthDate: '2026-09-05', idempotencyKey: 'stuck-1',
       signals: [], decision: PROACTIVE_DECISION.ASK_CONTEXT,
       reason: {}, policyVersion: 'p1', messageText: 'q',
-    }, { now: sentAt });
+    }, { expectedLifecycleGeneration: 1, now: sentAt });
     const stuckQuestionId = await db.openPendingQuestion(ALICE.id, {
       chatId: ALICE.chatId, question: 'q', intent: PROACTIVE_QUESTION_INTENT,
       contextJson: { proactive_event_id: claim.id }, ttlMs: 30 * 60_000,

@@ -256,7 +256,7 @@ test('★★★ R2-H-01 proactive: 只有群組綁定時，主動訊息送不出
     const chatId = await db.getActiveChatIdForUser(user.id);
     assert.equal(chatId, null, '前置：目的地必須是 null');
     // 主動代理拿到的 chatId 就是上面那個 null → 不可能開追問也不可能送訊息
-    const r = await checkAndAct({
+    const r = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone,
       telegram: { async send(t) { sent.push(t); } },
       chatId, now: new Date('2026-09-09T00:00:00Z'),

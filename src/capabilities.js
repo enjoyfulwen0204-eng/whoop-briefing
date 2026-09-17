@@ -285,6 +285,8 @@ export async function probeCapabilities({
   const entries = computeCapabilities({
     sleeps, recoveries, cycles, workouts, bodyMeasurement, timezone, scopeErrors,
   });
+  // Unfenced admin observations are diagnostic only, never READY eligibility.
+  if (lifecycleFence === null) return { entries, scopeErrors, sampleDays: days, persisted: false };
   // ★ v17：盤點是**啟用期相關的資格證據**。寫入時證明帳號仍然 ACTIVE 且
   // 仍在同一段啟用期；否則這份盤點不屬於現在這個帳號（見 §35）。
   const saved = await db.saveCapabilities(uid, entries, {
@@ -301,7 +303,7 @@ export async function probeCapabilities({
     unavailable: entries.filter((e) => e.status === STATUS.UNAVAILABLE).length,
     unauthorized: entries.filter((e) => e.status === STATUS.UNAUTHORIZED).length,
   });
-  return { entries, scopeErrors, sampleDays: days };
+  return { entries, scopeErrors, sampleDays: days, persisted: true };
 }
 
 /**

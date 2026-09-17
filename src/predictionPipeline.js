@@ -28,6 +28,7 @@
  * 變成「因為還不能給看，所以乾脆不算」，然後永遠不會有資料證明它能不能給看。
  */
 
+import { isAccountInactiveError } from './accountLifecycle.js';
 import { addDays } from './time.js';
 import { num } from './config.js';
 import {
@@ -92,7 +93,7 @@ export function maturityOf(run, {
 /**
  * 跑一次完整的預測迴圈。
  *
- * **永遠不拋錯**：預測是附加能力，絕不能拖垮簡報或同步。
+ * 一般計算失敗不拋錯；啟用世代失效必須向上傳播，停止這一輪健康處理。
  *
  * @param {object[]} rows daily_metrics（呼叫端已經用 userId 撈好）
  * @param {string} anchorDate 目前最新的 health_date
@@ -152,6 +153,7 @@ export async function runPredictionCycle({
         }, { now });
         out.modelSaved = true;
       } catch (err) {
+        if (isAccountInactiveError(err)) throw err;
         log.warn('prediction_model_save_failed', { user_id: uid, error: describeError(err) });
       }
     }
@@ -190,6 +192,7 @@ export async function runPredictionCycle({
             predictedValue: p.predicted_value,
           });
         } catch (err) {
+          if (isAccountInactiveError(err)) throw err;
           log.warn('prediction_persist_failed', { user_id: uid, error: describeError(err) });
         }
       }
@@ -201,6 +204,7 @@ export async function runPredictionCycle({
         targetMetric: target, modelVersion: MODEL_VERSION, now,
       });
     } catch (err) {
+      if (isAccountInactiveError(err)) throw err;
       log.warn('prediction_backfill_failed', { user_id: uid, error: describeError(err) });
     }
 
@@ -216,6 +220,7 @@ export async function runPredictionCycle({
     });
     return out;
   } catch (err) {
+    if (isAccountInactiveError(err)) throw err;
     log.error('prediction_cycle_failed', { user_id: uid, error: describeError(err) });
     out.reasons = [...out.reasons, 'cycle_error'];
     return out;

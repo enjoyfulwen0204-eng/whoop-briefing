@@ -122,7 +122,7 @@ test('★★★ 稽核 #1: WHOOP 事後改分同一個 health_date，必須重�
     await seedOneDay(db, user, BASELINE_DAYS, calmValue(BASELINE_DAYS), {
       scoreState: 'PENDING_SCORE',
     });
-    const first = await checkAndAct({
+    const first = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -134,7 +134,7 @@ test('★★★ 稽核 #1: WHOOP 事後改分同一個 health_date，必須重�
     await seedOneDay(db, user, BASELINE_DAYS, { ...calmValue(BASELINE_DAYS), hrv: 15 }, {
       scoreState: 'SCORED',
     });
-    const second = await checkAndAct({
+    const second = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T10:00:00Z'),
     });
@@ -166,14 +166,14 @@ test('★★ 稽核 #1b: 完全相同的資料重跑，仍然不可以重新產�
     const chatId = await db.getActiveChatIdForUser(user.id);
     const now = new Date('2026-02-06T08:00:00Z');
 
-    const first = await checkAndAct({
+    const first = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId, now,
     });
     assert.equal(first.triggered, true);
 
     // 一模一樣的 sync（WHOOP 回傳同樣的 payload，upsert 沒有改變任何值）
     await seedOneDay(db, user, BASELINE_DAYS, { ...calmValue(BASELINE_DAYS), hrv: 15 });
-    const second = await checkAndAct({
+    const second = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:30:00Z'),
     });
@@ -336,7 +336,7 @@ test('★★★ 稽核 #4: 使用者可以個別關閉主動訊息，且不影�
       ...calmValue(BASELINE_DAYS), hrv: 15, respiratory_rate: 22,
     }, { idPrefix: 'alice' });
 
-    const result = await checkAndAct({
+    const result = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: ALICE.id, timezone: ALICE.timezone, telegram: aliceTelegram, chatId: aliceChat,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -351,7 +351,7 @@ test('★★★ 稽核 #4: 使用者可以個別關閉主動訊息，且不影�
     await seedOneDay(db, BOB, BASELINE_DAYS, {
       ...calmValue(BASELINE_DAYS), hrv: 15, respiratory_rate: 22,
     }, { idPrefix: 'bob' });
-    const bobResult = await checkAndAct({
+    const bobResult = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: BOB.id, timezone: BOB.timezone, telegram: bobTelegram, chatId: bobChat,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -502,7 +502,7 @@ test('★★ 稽核 #8: 主動問題開著時，使用者明顯在問問題不�
 
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
-    const asked = await checkAndAct({
+    const asked = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -543,12 +543,12 @@ test('★★★ 稽核 #9: Alice 與 Bob 在同一天產生「字面完全相同
       healthDate: '2026-02-06', idempotencyKey: sameKey,
       signals: [{ code: 'HRV_LOW' }], decision: PROACTIVE_DECISION.ASK_CONTEXT,
       reason: {}, policyVersion: 'proactive-policy-v1', messageText: 'alice',
-    });
+    }, { expectedLifecycleGeneration: 1 });
     const b = await db.claimProactiveEvent(BOB.id, {
       healthDate: '2026-02-06', idempotencyKey: sameKey,
       signals: [{ code: 'HRV_LOW' }], decision: PROACTIVE_DECISION.ASK_CONTEXT,
       reason: {}, policyVersion: 'proactive-policy-v1', messageText: 'bob',
-    });
+    }, { expectedLifecycleGeneration: 1 });
 
     assert.equal(a.claimed, true);
     assert.equal(b.claimed, true, '★ 相同的 key 字串在不同使用者底下必須都能成立');
@@ -558,7 +558,7 @@ test('★★★ 稽核 #9: Alice 與 Bob 在同一天產生「字面完全相同
       healthDate: '2026-02-06', idempotencyKey: sameKey,
       signals: [], decision: PROACTIVE_DECISION.NOTIFY,
       reason: {}, policyVersion: 'proactive-policy-v1', messageText: 'dup',
-    });
+    }, { expectedLifecycleGeneration: 1 });
     assert.equal(again.claimed, false);
 
     const aliceEvents = await db.getRecentProactiveEvents(ALICE.id, { sinceIso: '2026-01-01T00:00:00.000Z' });
@@ -677,7 +677,7 @@ test('★★★ 稽核 #11: 恢復分數異常地「好」不可以產生需要�
 
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
-    const result = await checkAndAct({
+    const result = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -713,7 +713,7 @@ test('★★ 稽核 #12: 呼吸率明顯上升（常見的生病早期徵兆）�
 
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
-    const result = await checkAndAct({
+    const result = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -823,7 +823,7 @@ test('★★ 稽核 #15: 由主動問題產生的 Journal 必須可以回溯到�
 
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
-    await checkAndAct({
+    await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -885,14 +885,14 @@ test('★★★ Phase F: Telegram 送出後、DB 標記前當機 → 重跑絕�
     };
     const telegram = { send: async (t) => { sent.push(t); return { messageId: 1 }; } };
 
-    await assert.rejects(() => checkAndAct({
+    await assert.rejects(() => checkAndAct({ expectedLifecycleGeneration: 1,
       db: flakyDb, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     }));
     assert.equal(sent.length, 1, '測試前提：第一輪確實送出去了');
 
     // 第二輪：正常重跑（游標當時沒能前進）
-    const second = await checkAndAct({
+    const second = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:30:00Z'),
     });
@@ -916,7 +916,7 @@ test('★★★ Phase F: Telegram 逾時（送達結果未知）→ 不重試，
     const flakyTelegram = {
       send: async () => { attempts += 1; throw new Error('ETIMEDOUT: delivery unknown'); },
     };
-    await assert.rejects(() => checkAndAct({
+    await assert.rejects(() => checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram: flakyTelegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     }));
@@ -924,7 +924,7 @@ test('★★★ Phase F: Telegram 逾時（送達結果未知）→ 不重試，
 
     // 事件已經被 claim 起來了 → 下一輪不會再送一次。
     // 這是刻意的取捨：訊息可能遺失，但絕不會重複打擾使用者。
-    const retry = await checkAndAct({
+    const retry = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram: flakyTelegram, chatId,
       now: new Date('2026-02-06T08:30:00Z'),
     });
@@ -957,7 +957,7 @@ test('★★★ Phase T: Alice 的冷卻與每日上限完全不影響 Bob（同
         healthDate: '2026-02-05', idempotencyKey: `alice-cap-${i}`,
         signals: [{ code: 'HRV_LOW' }], decision: PROACTIVE_DECISION.ASK_CONTEXT,
         reason: {}, policyVersion: 'v', messageText: 'x',
-      }, { now: new Date(now.getTime() - (i + 1) * 3600_000) });
+      }, { expectedLifecycleGeneration: 1, now: new Date(now.getTime() - (i + 1) * 3600_000) });
     }
 
     const aliceEvents = await db.getRecentProactiveEvents(ALICE.id, { sinceIso: '2026-01-01T00:00:00.000Z' });

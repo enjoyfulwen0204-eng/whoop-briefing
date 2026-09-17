@@ -70,7 +70,7 @@ async function withSetup(fn, { questionTtlMs = 96 * 3600_000 } = {}) {
       signals: [{ metric: 'hrv', direction: 'low' }],
       decision: PROACTIVE_DECISION.ASK_CONTEXT, reason: {},
       policyVersion: 'v1', messageText: '昨天有喝酒嗎？',
-    }, { now: SENT });
+    }, { expectedLifecycleGeneration: 1, now: SENT });
     const questionId = await db.openPendingQuestion(user.id, {
       chatId: '1', question: '昨天有喝酒嗎？', intent: PROACTIVE_QUESTION_INTENT,
       contextJson: {

@@ -41,7 +41,8 @@ import { mapWithConcurrency } from './concurrency.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
 import { checkPeerScheduler } from './schedulerWatchdog.js';
-import { withDeliveryAuthorization } from './accountLifecycle.js';
+import { lifecycleOutputDb, SCHEDULED_OUTPUT_WRITERS } from './lifecycleOutput.js';
+import { withDeliveryAuthorization, isAccountInactiveError } from './accountLifecycle.js';
 import { resumeOnboardingBootstraps as resumeOnboarding } from './onboardingBootstrap.js';
 
 /** 預測要往回看幾天的 daily_metrics（涵蓋訓練 + 時序切分所需的長度）。 */
@@ -105,6 +106,19 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     userId: uid, timezone: tz, daily: null, weekly: null, sync: null, proactive: null,
     reaped: null, prediction: null, healthspan: null, skipped: null, errors: [],
     maintenance: null,
+  };
+
+  const lifecycleRejected = (value) => Array.isArray(value) ? value.some(lifecycleRejected)
+    : ['ACCOUNT_INACTIVE', 'STALE_ACCOUNT_LIFECYCLE', 'account_inactive',
+      'stale_lifecycle', 'suppressed_stale_lifecycle'].includes(value?.code ?? value?.status ?? value?.suppressed);
+  const stopHealth = async (result) => {
+    if (lifecycleRejected(result)) { out.skipped = 'account_inactive'; return true; }
+    try { await db.assertAccountActive(uid, expectedLifecycleGeneration); }
+    catch (err) {
+      if (!isAccountInactiveError(err)) throw err;
+      out.skipped = 'account_inactive'; return true;
+    }
+    return false;
   };
 
   /**
@@ -187,7 +201,7 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     async () => Boolean(
       await db.getActiveChatIdForUser(uid, { expectedLifecycleGeneration }).catch(() => null),
     ),
-    { userId: uid },
+    { userId: uid, expectedLifecycleGeneration },
   );
 
 
@@ -263,12 +277,15 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     expectedLifecycleGeneration,
   };
 
+  if (await stopHealth()) return out;
+
   // ---- daily ----
   // 報告的條件維持原樣（health_date 去重 + report_claims），完全沒有放寬。
   if (!due.dailySettled) {
     try {
       out.daily = await daily(ctx);
     } catch (err) {
+      if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
       out.errors.push({ stage: 'daily', error: describeError(err) });
       log.error('daily_failed', {
         user_id: uid, error: describeError(err), stack: err?.stack?.split('\n').slice(0, 4),
@@ -277,11 +294,14 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     }
   }
 
+  if (await stopHealth(out.daily)) return out;
+
   // ---- weekly（不因為 daily 的結果而跳過）----
   if (due.weeklyDue) {
     try {
       out.weekly = await weekly(ctx);
     } catch (err) {
+      if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
       out.errors.push({ stage: 'weekly', error: describeError(err) });
       log.error('weekly_failed', {
         user_id: uid, error: describeError(err), stack: err?.stack?.split('\n').slice(0, 4),
@@ -289,6 +309,8 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
       await telegram.notifyError('weekly_report', describeError(err));
     }
   }
+
+  if (await stopHealth(out.weekly)) return out;
 
   // ---- 長期資料同步 ----
   // 刻意放在報告之後：簡報永遠優先，同步只是附加工作。
@@ -300,9 +322,12 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
       whoop, db, userId: uid, timezone: tz, expectedLifecycleGeneration, now,
     }).syncAll();
   } catch (err) {
+    if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
     out.errors.push({ stage: 'sync', error: describeError(err) });
     log.error('sync_unexpected', { user_id: uid, error: describeError(err) });
   }
+
+  if (await stopHealth(out.sync)) return out;
 
   // ---- Proactive Agent（PA3）----
   // 在 sync 之後跑：只有這次 sync 真的帶來新的 health_date 才會做任何事
@@ -310,12 +335,15 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   // 他的日報/週報已經送出的結果，也不影響其他使用者。
   try {
     out.proactive = await proactive({
-      db, userId: uid, timezone: tz, telegram, chatId, now,
+      db, userId: uid, timezone: tz, telegram, chatId, expectedLifecycleGeneration, now,
     });
   } catch (err) {
+    if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
     out.errors.push({ stage: 'proactive', error: describeError(err) });
     log.error('proactive_unexpected', { user_id: uid, error: describeError(err) });
   }
+
+  if (await stopHealth(out.proactive)) return out;
 
   // ---- 預測生產迴圈（V1.1 Phase 10）----
   // 訓練 → 時序評估 → 對照樸素基準線 → 存模型 → 產生候選預測 → 回填實際值。
@@ -346,16 +374,20 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
       analysisInputs = { anchor, predRows, caps };
     }
   } catch (err) {
+    if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
     out.errors.push({ stage: 'analysis_inputs', error: describeError(err) });
     log.error('analysis_inputs_failed', { user_id: uid, error: describeError(err) });
   }
+
+  if (await stopHealth()) return out;
+  const outputDb = lifecycleOutputDb(db, { userId: uid, expectedLifecycleGeneration, writers: SCHEDULED_OUTPUT_WRITERS });
 
   // ---- 預測生產迴圈（V1.1 Phase 10）----
   if (analysisInputs) {
     try {
       const targetStatus = capabilityStatusForField('recovery', analysisInputs.caps);
       out.prediction = await predictionCycle({
-        db,
+        db: outputDb,
         userId: uid,
         rows: analysisInputs.predRows,
         anchorDate: analysisInputs.anchor,
@@ -363,10 +395,13 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
         now,
       });
     } catch (err) {
+      if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
       out.errors.push({ stage: 'prediction', error: describeError(err) });
       log.error('prediction_unexpected', { user_id: uid, error: describeError(err) });
     }
   }
+
+  if (await stopHealth(out.prediction)) return out;
 
   // ---- Personal Healthspan 盤點（V1.1 Phase 12）----
   // snapshotContributors 以前沒有任何生產呼叫端，兩張 healthspan 表
@@ -378,7 +413,7 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   if (analysisInputs) {
     try {
       out.healthspan = await healthspan({
-        db,
+        db: outputDb,
         userId: uid,
         rows: analysisInputs.predRows,
         endDate: analysisInputs.anchor,
@@ -386,6 +421,7 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
         now,
       });
     } catch (err) {
+      if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
       out.errors.push({ stage: 'healthspan', error: describeError(err) });
       log.error('healthspan_unexpected', { user_id: uid, error: describeError(err) });
     }

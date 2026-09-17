@@ -486,6 +486,18 @@ export function createBotStore(client) {
       return null;
     }
 
+    // A proactive question belongs to the lifecycle that created its event.
+    // Unknown pre-v20 events are historical too; never attach them to a new life.
+    if (context?.proactive_event_id) {
+      const owner = await client.execute({
+        sql: `SELECT 1 FROM proactive_events e JOIN users u ON u.id = e.user_id
+              WHERE e.user_id = ? AND e.id = ? AND u.status = 'ACTIVE'
+                AND e.lifecycle_generation = u.lifecycle_generation`,
+        args: [uid, context.proactive_event_id],
+      });
+      if (!owner.rows.length) return null;
+    }
+
     return {
       id: Number(row.id),
       chatId: row.chat_id,

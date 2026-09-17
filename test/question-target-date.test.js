@@ -79,7 +79,7 @@ async function askProactive(db, userId, {
   const { id: eventId } = await db.claimProactiveEvent(userId, {
     healthDate: SIGNAL_DAY, idempotencyKey: 'k1', signals: [signal],
     decision: 'ASK_CONTEXT', reason: {}, policyVersion: 'v1', messageText: 'q',
-  }, { now });
+  }, { expectedLifecycleGeneration: 1, now });
   const context = {
     proactive_event_id: eventId, health_date: SIGNAL_DAY, signal, category,
   };

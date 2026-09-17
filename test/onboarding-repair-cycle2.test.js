@@ -91,10 +91,10 @@ function fakeBootstrapDeps({ db, scopeMissing = [], transient = [], notes = [] }
         }));
       },
     }),
-    probe: async ({ userId }) => {
+    probe: async ({ userId, expectedLifecycleGeneration }) => {
       await db.saveCapabilities(userId, [
         { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
-      ], { now: NOW });
+      ], { expectedLifecycleGeneration, now: NOW });
       return { entries: [], scopeErrors: scopeMissing.map((resource) => ({ resource })) };
     },
     notify: async (userId, kind) => { notes.push({ userId, kind }); },
@@ -112,7 +112,7 @@ async function cliUser(db, {
     scope: 'offline', whoopUserId,
   });
   await db.saveSyncState(u.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
-  await db.saveCapabilities(u.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { now: NOW });
+  await db.saveCapabilities(u.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { expectedLifecycleGeneration: (await db.getUser(u.id)).lifecycleGeneration, now: NOW });
   return u;
 }
 
@@ -466,7 +466,7 @@ test('RC2-ATTACK-06 / F04-G,H 重新授權後世代 +1：舊世代的判定不�
     // 世代 1 的判定：一切良好
     await grantAccess(e.db, user.id, { generation: gen1, resources: RESOURCES });
     await e.db.saveSyncState(user.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
-    await e.db.saveCapabilities(user.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { now: NOW });
+    await e.db.saveCapabilities(user.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { expectedLifecycleGeneration: (await e.db.getUser(user.id)).lifecycleGeneration, now: NOW });
     await e.db.setOnboardingState(user.id, ONBOARDING_STATE.SYNCING, { syncStarted: true, now: NOW });
 
     // 使用者重新授權（同一個 WHOOP 帳號）→ 世代 +1，舊判定立刻失效
@@ -546,7 +546,7 @@ test('RC2-ATTACK-06 補充 / F04-J 狀態已變成 ACTION_REQUIRED 時，過期�
     const user = await authorize(e.db, A_CHAT);
     await grantAccess(e.db, user.id);
     await e.db.saveSyncState(user.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
-    await e.db.saveCapabilities(user.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { now: NOW });
+    await e.db.saveCapabilities(user.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { expectedLifecycleGeneration: (await e.db.getUser(user.id)).lifecycleGeneration, now: NOW });
     await e.db.setOnboardingState(user.id, ONBOARDING_STATE.ACTION_REQUIRED, {
       failureCode: ONBOARDING_FAILURE.REAUTH_REQUIRED, now: NOW,
     });
@@ -666,7 +666,7 @@ test('遷移 v15 → v16：純新增（auth_generation 欄位 + 資源權限表�
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (15, '2026-09-15T00:00:00.000Z', 'v15')");
 
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 15); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 19);
+    assert.equal(s.from, 15); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 20);
     assert.deepEqual(s.rebuilt, []);
     assert.deepEqual(s.columnsAdded, ['user_whoop_tokens.auth_generation']);
     assert.equal(await e.db.getAuthGeneration(u.id), 1, '★ 既有 token 列預設世代 1');
@@ -698,6 +698,6 @@ test('遷移：全新資料庫直接到 v16，不會憑空產生上線列或權�
     assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM whoop_resource_access')).rows[0].n, 0);
     const s = await runMigrations(e.db.raw);
     assert.deepEqual(s.dataMigrations ?? [], []);
-    assert.equal(SCHEMA_VERSION, 19);
+    assert.equal(SCHEMA_VERSION, 20);
   } finally { e.done(); }
 });

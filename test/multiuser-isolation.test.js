@@ -145,7 +145,7 @@ test('coverage / capability：Alice 有資料不會讓 Bob 變成 READY', async 
     assert.equal(Number(bCov.cycles), 0);
     assert.equal(bCov.first_date, null);
 
-    await db.saveCapabilities(ALICE.id, [{ key: 'spo2', status: 'AVAILABLE', nonNullCount: 5 }]);
+    await db.saveCapabilities(ALICE.id, [{ key: 'spo2', status: 'AVAILABLE', nonNullCount: 5 }], { expectedLifecycleGeneration: (await db.getUser(ALICE.id)).lifecycleGeneration });
     assert.equal((await db.getCapabilities(ALICE.id)).spo2.status, 'AVAILABLE');
     assert.deepEqual(await db.getCapabilities(BOB.id), {}, 'Bob 的 capability 必須是空的');
   } finally { db.close(); cleanup(); }

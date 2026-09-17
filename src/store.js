@@ -15,6 +15,7 @@ import { localDate } from './time.js';
 import { log } from './logger.js';
 import { requireUserId } from './userContext.js';
 import { TOMBSTONE_STATE, lifecycleActiveSql } from './schema.js';
+import { isLifecycleFenced, LifecycleContextError } from './accountLifecycle.js';
 
 /** 每批寫入的筆數上限（避免單一 batch payload 過大）。 */
 const BATCH_SIZE = 100;
@@ -697,13 +698,15 @@ export function createHealthStore(client, { transaction } = {}) {
   } = {}) {
     const uid = requireUserId(userId, 'saveCapabilities');
     const probedAt = now.toISOString();
-    const life = Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null;
+    if (!isLifecycleFenced(expectedLifecycleGeneration)) {
+      throw new LifecycleContextError('saveCapabilities: eligibility evidence requires a captured generation; admin diagnostics cannot persist');
+    }
+    const life = expectedLifecycleGeneration;
     const stmts = entries.map((e) => ({
       sql: `INSERT INTO whoop_capabilities
               (user_id, key, status, sample_count, non_null_count, latest_value,
                first_seen_at, last_seen_at, last_probed_at, detail, lifecycle_generation)
-            SELECT ?,?,?,?,?,?,?,?,?,?,
-                   COALESCE(?, (SELECT lu.lifecycle_generation FROM users lu WHERE lu.id = ?))
+            SELECT ?,?,?,?,?,?,?,?,?,?,?
              WHERE ${lifecycleActiveSql('?')}
             ON CONFLICT(user_id, key) DO UPDATE SET
               status=excluded.status,
@@ -722,8 +725,7 @@ export function createHealthStore(client, { transaction } = {}) {
         e.nonNullCount > 0 ? probedAt : null,
         e.nonNullCount > 0 ? probedAt : null,
         probedAt, e.detail ?? null,
-        // lifecycle_generation：呼叫端給的（worker 捕捉值），沒給就用目前值
-        life, uid,
+        life,
         // 圍欄：ACTIVE + 同一段啟用期
         uid, life,
       ],

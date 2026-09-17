@@ -141,11 +141,11 @@ function failingDeps({ db = null, notes = [], onBeforeFailure = null, failing = 
         }));
       },
     }),
-    probe: async ({ userId }) => {
+    probe: async ({ userId, expectedLifecycleGeneration }) => {
       if (!failing) {
         await db.saveCapabilities(userId, [
           { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
-        ], { now: NOW });
+        ], { expectedLifecycleGeneration, now: NOW });
       }
       return { entries: [], scopeErrors: [] };
     },
@@ -638,10 +638,10 @@ test('FG-16 scope 缺失路徑（已經是世代圍欄的）不受影響', async
             }));
           },
         }),
-        probe: async ({ userId }) => {
+        probe: async ({ userId, expectedLifecycleGeneration }) => {
           await e.db.saveCapabilities(userId, [
             { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
-          ], { now: NOW });
+          ], { expectedLifecycleGeneration, now: NOW });
           return { entries: [], scopeErrors: [{ resource: 'sleep' }] };
         },
         notify: async (userId, kind) => { notes.push({ userId, kind }); },

@@ -107,12 +107,12 @@ function fakeBootstrapDeps({ db, syncStatus = 'ok', probeFails = false, notes = 
           .map((resource) => ({ resource, status: syncStatus === 'ok' ? 'ok' : syncStatus }));
       },
     }),
-    probe: async ({ userId }) => {
+    probe: async ({ userId, expectedLifecycleGeneration }) => {
       if (probeFails) throw new Error('probe boom');
       await db.saveCapabilities(userId, [
         { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
         { key: 'spo2', status: 'UNAVAILABLE', sampleCount: 5, nonNullCount: 0 },
-      ], { now: NOW });
+      ], { expectedLifecycleGeneration, now: NOW });
       return { entries: [], scopeErrors: [] };
     },
     notify: async (userId, kind) => { notes.push({ userId, kind }); },
@@ -649,13 +649,13 @@ test('ONB-ATTACK-24 舊使用者（Kelvin）遷移：資料全留、進入重新
     await e.db.saveSyncState(kelvin.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
     await e.db.saveCapabilities(kelvin.id, [
       { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
-    ], { now: NOW });
+    ], { expectedLifecycleGeneration: (await e.db.getUser(kelvin.id)).lifecycleGeneration, now: NOW });
     await e.db.raw.execute('DROP TABLE user_onboarding');
     await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 14');
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (13, '2026-09-14T00:00:00.000Z', 'v13')");
 
     const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 19);
+    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 20);
     assert.deepEqual(summary.rebuilt, []);
     assert.deepEqual(summary.columnsAdded, []);
     // v14 依證據建列（Kelvin 證據齊全 → READY）；v15 的修正沒有東西要改

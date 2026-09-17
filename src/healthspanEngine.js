@@ -18,6 +18,7 @@
  * 專有的名詞。分數欄位永遠寫入 null，而那是**正確答案**，不是待辦事項。
  */
 
+import { isAccountInactiveError } from './accountLifecycle.js';
 import { requireUserId } from './userContext.js';
 import { assessHealthspanFoundation, READINESS_STATUS } from './readiness.js';
 import { buildContributors, AVAILABILITY } from './healthspan.js';
@@ -178,6 +179,7 @@ export async function runHealthspanSnapshot({
     });
     return { ...result, saved: true };
   } catch (err) {
+    if (isAccountInactiveError(err)) throw err;
     log.warn('healthspan_snapshot_failed', { user_id: uid, error: describeError(err) });
     return {
       algorithmVersion: HEALTHSPAN_ALGORITHM_VERSION,

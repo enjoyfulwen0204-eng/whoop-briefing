@@ -676,7 +676,7 @@ test('MIG-LIFE-02/03/04 ★★★ 遷移的 READY 一定是執行期述詞也會
     await e.db.saveSyncState(u.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
     await e.db.saveCapabilities(u.id, [
       { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
-    ], { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, now: NOW });
+    ], { expectedLifecycleGeneration: 1, now: NOW });
     await e.db.ensureOnboarding(u.id, { state: ONBOARDING_STATE.READY, now: NOW });
     await e.db.raw.execute({
       sql: "UPDATE user_onboarding SET state='READY', ready_at=?, timezone_confirmed_at=? WHERE user_id=?",
@@ -748,7 +748,7 @@ test('MIG-LIFE-05/06 非 ACTIVE 維持不動；沒有世代出處的舊 OAuth st
 });
 
 test('MIG-LIFE-01 schema 版本推進到 18，而且新欄位都是可為 NULL 的純新增', async () => {
-  assert.equal(SCHEMA_VERSION, 19);
+  assert.equal(SCHEMA_VERSION, 20);
   const { ADDITIVE_COLUMNS } = await import('../src/schema.js');
   const added = ADDITIVE_COLUMNS.filter((c) => /lifecycle/.test(c.column));
   assert.ok(added.length >= 4);

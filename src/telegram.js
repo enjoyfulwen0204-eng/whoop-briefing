@@ -11,6 +11,7 @@ import { GLOBAL_SCOPE } from './schema.js';
 import { SEND_OUTCOME, classifySendOutcome, DEFINITE_NETWORK_CODES } from './sendOutcome.js';
 import { clamp } from './format.js';
 import { log, describeError } from './logger.js';
+import { ACCOUNT_INACTIVE, isSuppressedDelivery } from './accountLifecycle.js';
 
 export class TelegramError extends Error {
   /**
@@ -42,7 +43,7 @@ export function createTelegram({
   botToken, chatId, dryRun = false, fetchImpl = fetch, db = null,
   errorScope = GLOBAL_SCOPE,
 }) {
-  async function send(text) {
+  async function send(text, { authorize, userId = null } = {}) {
     // 共用同一個 clamp（format.js），不再各自實作一份
     const body = clamp(text);
     // 發送層的最後防線：clamp 若哪天壞了，寧可在這裡爆掉也不要送出超長訊息
@@ -55,6 +56,10 @@ export function createTelegram({
       );
     }
 
+    // Last awaited operation before transport, including notifyError's cooldown I/O.
+    if (authorize && !await authorize()) {
+      return { messageId: null, suppressed: ACCOUNT_INACTIVE, userId };
+    }
     if (dryRun) {
       log.info('telegram_dry_run', { chars: body.length });
       process.stdout.write(`\n----- DRY RUN Telegram 訊息 -----\n${body}\n----- 結束（${body.length} 字元）-----\n\n`);
@@ -160,7 +165,9 @@ export function createTelegram({
    * 發錯誤通知（帶 cooldown）。
    * 這個函式自己絕不拋錯 —— Telegram 掛了只寫 log。
    */
-  async function notifyError(errorType, message, { cooldownHours = ERROR_NOTIFY_COOLDOWN_HOURS } = {}) {
+  async function notifyError(errorType, message, {
+    cooldownHours = ERROR_NOTIFY_COOLDOWN_HOURS, authorize, userId, expectedLifecycleGeneration,
+  } = {}) {
     // ★ 冷卻時間可以逐訊號指定。
     //
     // 全域預設是 2 小時，那對「一次性的故障」剛好。但對**持續**的狀況它是災難：
@@ -174,7 +181,7 @@ export function createTelegram({
       if (db) {
         // 有 owned 版本就用它 —— 送失敗時才有辦法「只還自己那一次」的認領。
         claim = typeof db.claimErrorNotifyOwned === 'function'
-          ? await db.claimErrorNotifyOwned(errorScope, errorType, hours)
+          ? await db.claimErrorNotifyOwned(errorScope, errorType, hours, { expectedLifecycleGeneration })
           : { granted: await db.claimErrorNotify(errorScope, errorType, hours), claimedAt: null };
         if (!claim.granted) {
           log.info('error_notify_suppressed', {
@@ -183,7 +190,13 @@ export function createTelegram({
           return false;
         }
       }
-      await send(`🚨 WHOOP 簡報系統異常\n類型：${errorType}\n${message}\n\n（同類型錯誤 ${hours} 小時內只通知一次）`);
+      const result = await send(`🚨 WHOOP 簡報系統異常\n類型：${errorType}\n${message}\n\n（同類型錯誤 ${hours} 小時內只通知一次）`, { authorize, userId });
+      if (isSuppressedDelivery(result)) {
+        if (claim?.granted && claim.claimedAt && db?.releaseErrorNotify) {
+          await db.releaseErrorNotify(errorScope, errorType, claim.claimedAt, { expectedLifecycleGeneration });
+        }
+        return result;
+      }
       return true;
     } catch (err) {
       // ★ 送失敗 → 把認領還回去。
@@ -195,7 +208,7 @@ export function createTelegram({
       // 釋放時帶上自己的 claimedAt，所以碰不到別人**更新的**成功認領。
       if (claim?.granted && claim.claimedAt && typeof db?.releaseErrorNotify === 'function') {
         try {
-          const released = await db.releaseErrorNotify(errorScope, errorType, claim.claimedAt);
+          const released = await db.releaseErrorNotify(errorScope, errorType, claim.claimedAt, { expectedLifecycleGeneration });
           log.info('error_notify_claim_released', {
             scope: errorScope, error_type: errorType, released,
           });

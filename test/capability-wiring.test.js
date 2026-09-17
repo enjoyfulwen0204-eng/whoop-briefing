@@ -264,7 +264,7 @@ test('★★★ Alice 的 capability 完全不影響 Bob', async () => {
   await withDb(async (db) => {
     await db.saveCapabilities(ALICE.id, [{
       key: 'hrv', status: STATUS.UNAVAILABLE, sampleCount: 10, nonNullCount: 0,
-    }]);
+    }], { expectedLifecycleGeneration: (await db.getUser(ALICE.id)).lifecycleGeneration });
 
     const aliceCaps = await db.getCapabilities(ALICE.id);
     const bobCaps = await db.getCapabilities(BOB.id);

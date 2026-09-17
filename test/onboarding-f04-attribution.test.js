@@ -147,10 +147,10 @@ function racingDeps({
         return results;
       },
     }),
-    probe: async ({ userId }) => {
+    probe: async ({ userId, expectedLifecycleGeneration }) => {
       await db.saveCapabilities(userId, [
         { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
-      ], { now: NOW });
+      ], { expectedLifecycleGeneration, now: NOW });
       await onStage('after_probe');
       return { entries: [], scopeErrors: scopeMissing.map((resource) => ({ resource })) };
     },
@@ -517,10 +517,10 @@ test('F04-REFRESH-02 完整 bootstrap 中途發生例行 refresh → 仍然 READ
           });
           return { syncAll: (o) => real.syncAll(o) };
         },
-        probe: async ({ userId }) => {
+        probe: async ({ userId, expectedLifecycleGeneration }) => {
           await e.db.saveCapabilities(userId, [
             { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
-          ], { now: NOW });
+          ], { expectedLifecycleGeneration, now: NOW });
           return { entries: [], scopeErrors: [] };
         },
         notify: async () => {},

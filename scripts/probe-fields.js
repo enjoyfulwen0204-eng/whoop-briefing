@@ -48,7 +48,7 @@ try {
 
   console.log(`使用者：${user.id}（${user.displayName}，${user.timezone}）`);
 
-  const { entries, scopeErrors } = await probeCapabilities({
+  const { entries, scopeErrors, persisted } = await probeCapabilities({
     expectedLifecycleGeneration: lifecycle,
     // ★ L-03 同一條：用這個使用者自己的時區，不是 bootstrap 預設
     db, whoop, userId: user.id, timezone: user.timezone, days: DAYS,
@@ -90,7 +90,9 @@ try {
     console.log('─'.repeat(70));
   }
 
-  console.log('\n結果已寫入 Turso 的 whoop_capabilities（其他模組可用 getCapability 讀取）。\n');
+  console.log(persisted
+    ? '\n結果已寫入 Turso 的 whoop_capabilities（其他模組可用 getCapability 讀取）。\n'
+    : '\n管理診斷完成；觀測結果未儲存，不作為帳號就緒資格證據。\n');
 } catch (err) {
   console.error(`❌ 失敗：${err.message}`);
   process.exitCode = 1;

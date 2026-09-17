@@ -160,7 +160,7 @@ test('★★★ 沒有報告要發 + 同步 due → 同步照樣執行', async (
     // 從來沒同步過 → sync due
     const calls = [];
     const out = await runForUser({
-      db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
+      db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
     });
 
     assert.equal(out.skipped, null);
@@ -176,7 +176,7 @@ test('★★★ 沒有報告要發 + 同步 due → 主動代理也有機會評�
     await settleAllReports(db, ALICE, NOW);
     const calls = [];
     await runForUser({
-      db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
+      db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
     });
 
     assert.ok(kinds(calls).includes('proactive'));
@@ -192,7 +192,7 @@ test('★★★ 沒有報告要發 + 同步被節流 → 完全不碰 WHOOP', as
 
     const calls = [];
     const out = await runForUser({
-      db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
+      db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
     });
 
     assert.equal(out.skipped, 'nothing_due');
@@ -212,7 +212,7 @@ test('★ 完全沒事做時，過期問題的收割仍然會跑（純 DB，不�
 
     const calls = [];
     const out = await runForUser({
-      db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
+      db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
     });
 
     assert.equal(out.skipped, 'nothing_due');
@@ -229,7 +229,7 @@ test('★★ 報告要發時，行為與以前完全一樣', async () => {
   await withDb(async (db) => {
     const calls = [];
     const out = await runForUser({
-      db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
+      db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
     });
 
     assert.equal(out.skipped, null);
@@ -250,7 +250,7 @@ test('★★ 已送出的報告絕不會因為同步 due 而被重發', async ()
     for (let i = 0; i < 3; i += 1) {
       const calls = [];
       await runForUser({
-        db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
+        db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
       });
       assert.ok(!kinds(calls).includes('daily'), `第 ${i + 1} 輪不可以再發日報`);
       assert.ok(!kinds(calls).includes('weekly'));
@@ -271,7 +271,7 @@ test('★ 沒有 Telegram 綁定的使用者跳過所有「需要對外」的工
     await db.revokeTelegramLink(ALICE.chatId);
     const calls = [];
     const out = await runForUser({
-      db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
+      db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(calls),
     });
     assert.equal(out.skipped, 'no_active_telegram_link');
 
@@ -296,11 +296,11 @@ test('★★ 一個使用者的同步失敗不影響另一個使用者', async (
     const bobCalls = [];
 
     const aliceOut = await runForUser({
-      db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now: NOW,
+      db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now: NOW,
       deps: spyDeps(aliceCalls, { failSync: true }),
     });
     const bobOut = await runForUser({
-      db, env: ENV, user: { id: BOB.id, timezone: BOB.timezone }, now: NOW,
+      db, env: ENV, user: { lifecycleGeneration: 1, id: BOB.id, timezone: BOB.timezone }, now: NOW,
       deps: spyDeps(bobCalls),
     });
 
@@ -331,10 +331,10 @@ test('★ 同步節流是 per-user 的：Alice 節流中，Bob 仍然會同步',
     const a = [];
     const b = [];
     await runForUser({
-      db, env: ENV, user: { id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(a),
+      db, env: ENV, user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone }, now: NOW, deps: spyDeps(a),
     });
     await runForUser({
-      db, env: ENV, user: { id: BOB.id, timezone: BOB.timezone }, now: NOW, deps: spyDeps(b),
+      db, env: ENV, user: { lifecycleGeneration: 1, id: BOB.id, timezone: BOB.timezone }, now: NOW, deps: spyDeps(b),
     });
 
     assert.ok(!kinds(a).includes('sync'), 'Alice 在節流窗內');
@@ -390,7 +390,7 @@ const runAnalysis = async (db, opts) => {
   const out = await runForUser({
     db,
     env: ENV,
-    user: { id: ALICE.id, timezone: ALICE.timezone },
+    user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone },
     now: NOW,
     deps: analysisDeps(calls, opts),
   });
@@ -459,7 +459,7 @@ test('★★★ F-02 E: 兩個選配能力都炸掉，Daily/Weekly 完全不受�
     const out = await runForUser({
       db,
       env: ENV,
-      user: { id: ALICE.id, timezone: ALICE.timezone },
+      user: { lifecycleGeneration: 1, id: ALICE.id, timezone: ALICE.timezone },
       now: NOW,
       deps: analysisDeps(calls, { predictionThrows: true, healthspanThrows: true }),
     });

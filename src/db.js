@@ -973,32 +973,39 @@ export function createDb({ url, authToken }) {
    *
    * @returns {{granted:boolean, claimedAt:?string}}
    */
-  async function claimErrorNotifyOwned(scope, errorType, cooldownHours) {
+  async function claimErrorNotifyOwned(scope, errorType, cooldownHours, { expectedLifecycleGeneration = null } = {}) {
     if (!scope) throw new Error('claimErrorNotify 需要 scope（global 或 user:<id>）');
     const now = Date.now();
     const nowIso = new Date(now).toISOString();
     const cutoffIso = new Date(now - cooldownHours * 3600_000).toISOString();
+    const life = expectedLifecycleGeneration === null ? null
+      : requireLifecycle(expectedLifecycleGeneration, 'claimErrorNotifyOwned');
+    const uid = scope.startsWith('user:') ? scope.slice(5) : null;
+    const active = `(? IS NULL OR EXISTS (SELECT 1 FROM users
+      WHERE id = ? AND status = 'ACTIVE' AND lifecycle_generation = ?))`;
+    const guard = [life, uid, life];
 
     const inserted = await client.execute({
-      sql: `INSERT INTO error_notifications (scope, error_type, last_notified_at, hits)
-            VALUES (?, ?, ?, 1)
+      sql: `INSERT INTO error_notifications (scope, error_type, last_notified_at, hits, lifecycle_generation)
+            SELECT ?, ?, ?, 1, ? WHERE ${active}
             ON CONFLICT(scope, error_type) DO NOTHING`,
-      args: [scope, errorType, nowIso],
+      args: [scope, errorType, nowIso, life, ...guard],
     });
     if (Number(inserted.rowsAffected ?? 0) > 0) return { granted: true, claimedAt: nowIso };
 
     const claimed = await client.execute({
       sql: `UPDATE error_notifications
-               SET last_notified_at = ?, hits = 1
-             WHERE scope = ? AND error_type = ? AND last_notified_at <= ?`,
-      args: [nowIso, scope, errorType, cutoffIso],
+               SET last_notified_at = ?, hits = 1, lifecycle_generation = ?
+             WHERE scope = ? AND error_type = ? AND ${active}
+               AND (last_notified_at <= ? OR (? IS NOT NULL AND lifecycle_generation IS NOT ?))`,
+      args: [nowIso, life, scope, errorType, ...guard, cutoffIso, life, life],
     });
     if (Number(claimed.rowsAffected ?? 0) > 0) return { granted: true, claimedAt: nowIso };
 
     await client.execute({
       sql: `UPDATE error_notifications SET hits = hits + 1
-             WHERE scope = ? AND error_type = ?`,
-      args: [scope, errorType],
+             WHERE scope = ? AND error_type = ? AND ${active}`,
+      args: [scope, errorType, ...guard],
     });
     return { granted: false, claimedAt: null };
   }
@@ -1025,13 +1032,14 @@ export function createDb({ url, authToken }) {
    *
    * @returns {boolean} 有沒有真的釋放（false = 已經被新的認領取代，本來就不該動）
    */
-  async function releaseErrorNotify(scope, errorType, claimedAt) {
+  async function releaseErrorNotify(scope, errorType, claimedAt, { expectedLifecycleGeneration = null } = {}) {
     if (!scope) throw new Error('releaseErrorNotify 需要 scope');
     if (!claimedAt) return false;
     const rs = await client.execute({
       sql: `DELETE FROM error_notifications
-             WHERE scope = ? AND error_type = ? AND last_notified_at = ?`,
-      args: [scope, errorType, claimedAt],
+             WHERE scope = ? AND error_type = ? AND last_notified_at = ?
+               AND lifecycle_generation IS ?`,
+      args: [scope, errorType, claimedAt, expectedLifecycleGeneration],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }

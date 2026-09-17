@@ -122,7 +122,7 @@ test('★★★ PA8/PA15: 完整管線裡，NOTIFY 訊息確實不是問句、�
     const chatId = await db.getActiveChatIdForUser(user.id);
     // 單日但兩個指標同時異常 → multi-signal confirmation 成立，
     // 不需要等第二天就達到「嚴重 + 有佐證」的門檻。
-    const result = await checkAndAct({
+    const result = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });

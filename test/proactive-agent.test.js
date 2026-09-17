@@ -119,7 +119,7 @@ test('★ PA3/PA4: 平穩基準資料沒有任何訊號 → IGNORE，且游標�
     const chatId = await db.getActiveChatIdForUser(user.id);
     const now = new Date('2026-02-05T08:00:00Z');
 
-    const result = await checkAndAct({
+    const result = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId, now,
     });
 
@@ -127,7 +127,7 @@ test('★ PA3/PA4: 平穩基準資料沒有任何訊號 → IGNORE，且游標�
     assert.equal(result.decision, PROACTIVE_DECISION.IGNORE);
     assert.equal(telegram.sent.length, 0, '沒有訊號就不該送任何 Telegram 訊息');
 
-    const again = await checkAndAct({
+    const again = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId, now,
     });
     assert.equal(again.triggered, false);
@@ -150,7 +150,7 @@ test('PA5: 單一天、非持續性的嚴重偏離 → LOG_ONLY（不是每個�
 
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
-    const result = await checkAndAct({
+    const result = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -177,7 +177,7 @@ test('★★ PA5/PA7/PA8: 連續兩天同一個訊號（持續性）→ ASK_CONT
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
 
-    const day1 = await checkAndAct({
+    const day1 = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -185,7 +185,7 @@ test('★★ PA5/PA7/PA8: 連續兩天同一個訊號（持續性）→ ASK_CONT
 
     // 第二天：hrv 仍然低 → 跟前一天的 proactive_events 比對後視為「持續」。
     await seedOneDay(db, user, BASELINE_DAYS + 1, { ...calmValue(BASELINE_DAYS + 1), hrv: 14 });
-    const day2 = await checkAndAct({
+    const day2 = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-07T08:00:00Z'),
     });
@@ -214,14 +214,14 @@ test('PA9/PA20: 重跑同一天（模擬 cron 重複執行／worker 重啟）不
 
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
-    await checkAndAct({
+    await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
 
     await seedOneDay(db, user, BASELINE_DAYS + 1, { ...calmValue(BASELINE_DAYS + 1), hrv: 14 });
     const now2 = new Date('2026-02-07T08:00:00Z');
-    await checkAndAct({ db, userId: user.id, timezone: user.timezone, telegram, chatId, now: now2 });
+    await checkAndAct({ expectedLifecycleGeneration: 1, db, userId: user.id, timezone: user.timezone, telegram, chatId, now: now2 });
     assert.equal(telegram.sent.length, 1);
 
     const stateAfterDay2 = await db.getProactiveState(user.id);
@@ -230,7 +230,7 @@ test('PA9/PA20: 重跑同一天（模擬 cron 重複執行／worker 重啟）不
     // 再跑一次同一批資料（等同 worker 重啟／cron 重跑）。
     await db.setProactiveState(user.id, { lastCheckedHealthDate: healthDateOf(user, BASELINE_DAYS) }, { now: now2 });
 
-    const rerun = await checkAndAct({
+    const rerun = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId, now: now2,
     });
     assert.equal(rerun.duplicate, true, 'idempotency key 應該讓這次被視為重複');
@@ -254,7 +254,7 @@ test('PA6: 每日上限（DAILY_PROACTIVE_CAP）達到後 → 即使訊號持續
 
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
-    await checkAndAct({
+    await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -270,11 +270,11 @@ test('PA6: 每日上限（DAILY_PROACTIVE_CAP）達到後 → 即使訊號持續
         reason: {},
         policyVersion: 'test',
         messageText: 'x',
-      }, { now: new Date(now2.getTime() - (i + 1) * 3600_000) });
+      }, { expectedLifecycleGeneration: 1, now: new Date(now2.getTime() - (i + 1) * 3600_000) });
     }
 
     await seedOneDay(db, user, BASELINE_DAYS + 1, { ...calmValue(BASELINE_DAYS + 1), hrv: 14 });
-    const result = await checkAndAct({
+    const result = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId, now: now2,
     });
 
@@ -297,7 +297,7 @@ test('PA5: 今天已經有 journal 紀錄（脈絡已知）→ 即使訊號持�
 
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
-    await checkAndAct({
+    await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -309,7 +309,7 @@ test('PA5: 今天已經有 journal 紀錄（脈絡已知）→ 即使訊號持�
       numericValue: 2, unit: 'drinks', source: 'manual',
     });
 
-    const result = await checkAndAct({
+    const result = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: user.id, timezone: user.timezone, telegram, chatId,
       now: new Date('2026-02-07T08:00:00Z'),
     });
@@ -337,12 +337,12 @@ function fakeCoachFor(answer) {
 async function seedPersistentHrvSignal(db, user, telegram, chatId) {
   await seedCalmBaseline(db, user, BASELINE_DAYS);
   await seedOneDay(db, user, BASELINE_DAYS, { ...calmValue(BASELINE_DAYS), hrv: 15 });
-  await checkAndAct({
+  await checkAndAct({ expectedLifecycleGeneration: 1,
     db, userId: user.id, timezone: user.timezone, telegram, chatId,
     now: new Date('2026-02-06T08:00:00Z'),
   });
   await seedOneDay(db, user, BASELINE_DAYS + 1, { ...calmValue(BASELINE_DAYS + 1), hrv: 14 });
-  const day2 = await checkAndAct({
+  const day2 = await checkAndAct({ expectedLifecycleGeneration: 1,
     db, userId: user.id, timezone: user.timezone, telegram, chatId,
     now: new Date('2026-02-07T08:00:00Z'),
   });
@@ -465,11 +465,11 @@ test('★★★ PA19: Alice 的持續性訊號、pending question 完全不影�
     await seedCalmBaseline(db, BOB, BASELINE_DAYS, { idPrefix: 'bob' });
     await seedOneDay(db, BOB, BASELINE_DAYS, calmValue(BASELINE_DAYS), { idPrefix: 'bob' }); // Bob 完全平穩
 
-    await checkAndAct({
+    await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: ALICE.id, timezone: ALICE.timezone, telegram: aliceTelegram, chatId: aliceChatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
-    await checkAndAct({
+    await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: BOB.id, timezone: BOB.timezone, telegram: bobTelegram, chatId: bobChatId,
       now: new Date('2026-02-06T08:00:00Z'),
     });
@@ -477,14 +477,14 @@ test('★★★ PA19: Alice 的持續性訊號、pending question 完全不影�
     await seedOneDay(db, ALICE, BASELINE_DAYS + 1, { ...calmValue(BASELINE_DAYS + 1), hrv: 14 }, { idPrefix: 'alice' });
     await seedOneDay(db, BOB, BASELINE_DAYS + 1, calmValue(BASELINE_DAYS + 1), { idPrefix: 'bob' });
 
-    const aliceDay2 = await checkAndAct({
+    const aliceDay2 = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: ALICE.id, timezone: ALICE.timezone, telegram: aliceTelegram, chatId: aliceChatId,
       now: new Date('2026-02-07T08:00:00Z'),
     });
     assert.equal(aliceDay2.decision, PROACTIVE_DECISION.ASK_CONTEXT);
     assert.equal(aliceTelegram.sent.length, 1);
 
-    const bobResult = await checkAndAct({
+    const bobResult = await checkAndAct({ expectedLifecycleGeneration: 1,
       db, userId: BOB.id, timezone: BOB.timezone, telegram: bobTelegram, chatId: bobChatId,
       now: new Date('2026-02-07T08:00:00Z'),
     });
@@ -518,7 +518,7 @@ test('R3-13 suppressed proactive question creates no pending question, sent even
     const telegram = fakeTelegram();
     const chatId = await db.getActiveChatIdForUser(user.id);
     const ctx = { db, userId: user.id, timezone: user.timezone, chatId };
-    await checkAndAct({ ...ctx, telegram, now: new Date('2026-02-06T08:00:00Z') });
+    await checkAndAct({ expectedLifecycleGeneration: 1, ...ctx, telegram, now: new Date('2026-02-06T08:00:00Z') });
     const before = await db.getProactiveState(user.id);
     await seedOneDay(db, user, BASELINE_DAYS + 1, { ...calmValue(BASELINE_DAYS + 1), hrv: 14 });
     const life = (await db.getUser(user.id)).lifecycleGeneration;
@@ -530,7 +530,7 @@ test('R3-13 suppressed proactive question creates no pending question, sent even
       return Boolean(await db.getActiveChatIdForUser(user.id, { expectedLifecycleGeneration: life }));
     });
     const now = new Date('2026-02-07T08:00:00Z');
-    const result = await checkAndAct({ ...ctx, telegram: guarded, now });
+    const result = await checkAndAct({ expectedLifecycleGeneration: 1, ...ctx, telegram: guarded, now });
     assert.equal(attempts, 1);
     assert.equal(result.decision, PROACTIVE_DECISION.ASK_CONTEXT);
     assert.equal(result.messageSent, false);
@@ -539,7 +539,7 @@ test('R3-13 suppressed proactive question creates no pending question, sent even
     assert.equal(await db.getOpenPendingQuestion(user.id, { now }), null);
     assert.deepEqual(await db.getProactiveState(user.id), before);
     assert.equal(Number((await db.raw.execute('SELECT COUNT(*) n FROM proactive_events WHERE sent_at IS NOT NULL')).rows[0].n), 0);
-    const fresh = await checkAndAct({ ...ctx, telegram, now });
+    const fresh = await checkAndAct({ expectedLifecycleGeneration: 3, ...ctx, telegram, now });
     assert.equal(fresh.messageSent, true);
     assert.ok(await db.getOpenPendingQuestion(user.id, { now }));
   } finally { db.close(); cleanup(); }

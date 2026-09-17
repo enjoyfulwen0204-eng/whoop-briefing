@@ -98,11 +98,11 @@ async function runToDay2(patch = null) {
     const chatId = await db.getActiveChatIdForUser(user.id);
     const common = { userId: user.id, timezone: user.timezone, telegram, chatId };
 
-    const day1 = await checkAndAct({ db, ...common, now: DAY1 });
+    const day1 = await checkAndAct({ expectedLifecycleGeneration: 1, db, ...common, now: DAY1 });
     await seedOneDay(db, user, BASELINE_DAYS + 1, { ...calm(BASELINE_DAYS + 1), hrv: 14 });
 
     const sentBefore = telegram.sent.length;
-    const result = await checkAndAct({
+    const result = await checkAndAct({ expectedLifecycleGeneration: 1,
       db: patch ? patch(db) : db, ...common, now: DAY2,
     });
     return {

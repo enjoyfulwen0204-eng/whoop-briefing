@@ -60,7 +60,7 @@ async function setup({ link = true } = {}) {
   const { id: eventId } = await db.claimProactiveEvent(user.id, {
     healthDate: '2026-09-08', idempotencyKey: 'k1', signals: [],
     decision: 'ASK_CONTEXT', reason: {}, policyVersion: 'v1', messageText: 'q',
-  }, { now: SENT });
+  }, { expectedLifecycleGeneration: 1, now: SENT });
   const qid = await db.openPendingQuestion(user.id, {
     chatId: '9001', question: 'q', intent: PROACTIVE_QUESTION_INTENT,
     contextJson: { proactive_event_id: eventId }, ttlMs: 30 * 60_000,
@@ -106,7 +106,7 @@ test('★★★ R2-M-06: WHOOP 授權失敗時，過期問題仍然收斂', asyn
   const s = await setup();
   try {
     const out = await runForUser({
-      db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps({ authFails: true }),
     });
     assert.ok(out.reaped, '★ 維護結果一定要有');
@@ -127,7 +127,7 @@ test('★★★ R2-M-06: WHOOP 連續多輪失敗，Guardian 的 stuck 計數回
 
     for (let i = 0; i < 3; i += 1) {
       await runForUser({
-        db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+        db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
         now: NOW, deps: deps({ authFails: true }),
       });
     }
@@ -143,12 +143,12 @@ test('★★★ R2-M-06: 授權恢復之後，一切照常（維護不會擋住�
   const s = await setup();
   try {
     await runForUser({
-      db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps({ authFails: true }),
     });
     const calls = [];
     const out = await runForUser({
-      db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps({ authFails: false, calls }),
     });
     assert.ok(calls.some((c) => c.k === 'whoop.token'), '★ 授權恢復後要繼續跑');
@@ -164,7 +164,7 @@ test('★★★ R2-M-06: 沒有 Telegram 綁定時，過期問題仍然收斂', 
   const s = await setup({ link: false });
   try {
     const out = await runForUser({
-      db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps(),
     });
     assert.equal(out.skipped, 'no_active_telegram_link');
@@ -178,7 +178,7 @@ test('★★★ R2-M-06: 沒有綁定時絕不觸發任何需要對外的工作'
   try {
     const calls = [];
     await runForUser({
-      db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps({ calls }),
     });
     assert.deepEqual(calls, [],
@@ -195,7 +195,7 @@ test('★★★ R2-M-06: 只有群組綁定（不安全）時，維護照跑而�
       args: [s.user.id, '2026-01-01T00:00:00.000Z'],
     });
     const out = await runForUser({
-      db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps(),
     });
     assert.equal(out.skipped, 'no_active_telegram_link');
@@ -214,7 +214,7 @@ test('★★★ R2-M-06: 收割失敗不會擋住主流程', async () => {
   try {
     const calls = [];
     const out = await runForUser({
-      db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW,
       deps: {
         ...deps({ calls }),
@@ -235,7 +235,7 @@ test('★★★ R2-M-06: 退役綁定失敗不會擋住收割（兩項互相隔�
       retireUnsafeTelegramLinks: async () => { throw new Error('retire boom'); },
     };
     const out = await runForUser({
-      db: broken, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: broken, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps(),
     });
     assert.ok(out.reaped, '★ 收割仍然完成');
@@ -253,7 +253,7 @@ test('★★★ R2-M-06: 「完全沒事做」的那一輪也會跑維護', asyn
   try {
     // 先把所有報告標成已送出 → nothing_due
     const out = await runForUser({
-      db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps(),
     });
     assert.ok(out.reaped, '★ 不管走哪一條路，維護都要跑到');
@@ -264,7 +264,7 @@ test('★★ R2-M-06: 維護結果被明確回報（運維看得到它真的跑�
   const s = await setup();
   try {
     const out = await runForUser({
-      db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps({ authFails: true }),
     });
     assert.ok(out.maintenance, '★ 要有 maintenance 區塊');
@@ -285,7 +285,7 @@ test('★★★ R2-M-06: Alice 的 WHOOP 掛掉不影響 Bob 的維護', async (
     const { id: bobEvent } = await s.db.claimProactiveEvent(bob.id, {
       healthDate: '2026-09-08', idempotencyKey: 'b1', signals: [],
       decision: 'ASK_CONTEXT', reason: {}, policyVersion: 'v1', messageText: 'q',
-    }, { now: SENT });
+    }, { expectedLifecycleGeneration: 1, now: SENT });
     const bq = await s.db.openPendingQuestion(bob.id, {
       chatId: '9002', question: 'q', intent: PROACTIVE_QUESTION_INTENT,
       contextJson: { proactive_event_id: bobEvent }, ttlMs: 30 * 60_000,
@@ -293,7 +293,7 @@ test('★★★ R2-M-06: Alice 的 WHOOP 掛掉不影響 Bob 的維護', async (
     await s.db.markProactiveEventSent(bob.id, bobEvent, { pendingQuestionId: bq }, { now: SENT });
 
     await runForUser({
-      db: s.db, env: ENV, user: { id: s.user.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: s.user.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps({ authFails: true }),
     });
     // Alice 收斂了，Bob 還沒被處理過
@@ -301,7 +301,7 @@ test('★★★ R2-M-06: Alice 的 WHOOP 掛掉不影響 Bob 的維護', async (
     assert.equal(await outcomeOf(s.db, bobEvent), null, '★ 不可以跨使用者收割');
 
     await runForUser({
-      db: s.db, env: ENV, user: { id: bob.id, timezone: 'Asia/Taipei' },
+      db: s.db, env: ENV, user: { lifecycleGeneration: 1, id: bob.id, timezone: 'Asia/Taipei' },
       now: NOW, deps: deps(),
     });
     assert.equal(await outcomeOf(s.db, bobEvent), 'NO_RESPONSE');

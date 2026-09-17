@@ -519,7 +519,8 @@ export const lifecycleActiveSql = (userCol) => `EXISTS (
      AND lu.lifecycle_generation = COALESCE(?, lu.lifecycle_generation)
 )`;
 
-export const SCHEMA_VERSION = 19;
+// v20: durable lifecycle provenance for proactive work and user error cooldowns.
+export const SCHEMA_VERSION = 20;
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (
@@ -636,6 +637,7 @@ export const GLOBAL_SCHEMA = [
      error_type       TEXT NOT NULL,
      last_notified_at TEXT NOT NULL,
      hits             INTEGER NOT NULL DEFAULT 1,
+     lifecycle_generation INTEGER,
      PRIMARY KEY (scope, error_type)
    )`,
 ];
@@ -973,6 +975,11 @@ export const BOT_SCHEMA = [
  * 它們的語義本來就是「這則已經處理完了」。
  */
 export const ADDITIVE_COLUMNS = [
+  // Unknown historical ownership stays NULL; never adopt the current generation.
+  ...['proactive_agent_state', 'proactive_events', 'error_notifications'].map((table) => ({
+    table, column: 'lifecycle_generation',
+    ddl: `ALTER TABLE ${table} ADD COLUMN lifecycle_generation INTEGER`,
+  })),
   {
     table: 'telegram_processed_updates',
     column: 'status',
@@ -1340,6 +1347,7 @@ export const PROACTIVE_SCHEMA = [
   // 會漏掉 WHOOP 事後改分（同一天、同一筆 sleep，recovery 才剛被評分）。
   `CREATE TABLE IF NOT EXISTS proactive_agent_state (
      user_id                   TEXT PRIMARY KEY,
+     lifecycle_generation      INTEGER,
      last_checked_health_date  TEXT,
      last_fingerprint          TEXT,
      enabled                   INTEGER NOT NULL DEFAULT 1,
@@ -1348,9 +1356,9 @@ export const PROACTIVE_SCHEMA = [
 
   // 主動事件的稽核軌跡，同時也是冪等鍵與反騷擾政策的資料來源。
   //
-  // idempotency_key 由「health_date + policy 版本」決定性算出來
+  // idempotency_key 由「health_date + fingerprint + policy + lifecycle」決定性算出來
   // （見 src/proactiveAgent.js），UNIQUE(user_id, idempotency_key) 保證：
-  //   - 同一個使用者、同一個 health_date、同一版政策，只會有一列
+  //   - 同一個使用者、同一個 health_date / fingerprint / 政策 / 啟用世代，只會有一列
   //   - cron 重跑 / worker 重啟時，重算出一樣的 key → INSERT 失敗 →
   //     視為「已經處理過」，不會重複發送 Telegram 訊息
   //
@@ -1359,6 +1367,7 @@ export const PROACTIVE_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS proactive_events (
      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
      user_id             TEXT NOT NULL,
+     lifecycle_generation INTEGER,
      health_date         TEXT NOT NULL,
      idempotency_key     TEXT NOT NULL,
      signals_json        TEXT,

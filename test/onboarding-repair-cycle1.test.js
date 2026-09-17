@@ -104,14 +104,14 @@ function fakeBootstrapDeps({
         }));
       },
     }),
-    probe: async ({ userId }) => {
+    probe: async ({ userId, expectedLifecycleGeneration }) => {
       if (probeFails) throw new Error('probe boom');
       const entries = resources.filter((r) => !scopeMissing.includes(r)).map((r) => ({
         key: r === 'sleep' ? 'sleep_total' : r, status: emptyData ? 'UNKNOWN' : 'SUPPORTED',
         sampleCount: emptyData ? 0 : 5, nonNullCount: emptyData ? 0 : 5,
       }));
       for (const r of scopeMissing) entries.push({ key: r, status: 'UNAUTHORIZED', sampleCount: 0, nonNullCount: 0 });
-      await db.saveCapabilities(userId, entries, { now: NOW });
+      await db.saveCapabilities(userId, entries, { expectedLifecycleGeneration, now: NOW });
       return { entries, scopeErrors: scopeMissing.map((resource) => ({ resource })) };
     },
     notify: async (userId, kind) => { notes.push({ userId, kind }); },
@@ -173,7 +173,7 @@ test('RC1-ATTACK-02 / F01-B 預設 UTC 但從未確認 → 不可能 READY', asy
       scope: 'offline', whoopUserId: 'W1',
     });
     await e.db.saveSyncState(user.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
-    await e.db.saveCapabilities(user.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { now: NOW });
+    await e.db.saveCapabilities(user.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { expectedLifecycleGeneration: (await e.db.getUser(user.id)).lifecycleGeneration, now: NOW });
     await e.db.setOnboardingState(user.id, ONBOARDING_STATE.SYNCING, { now: NOW });
     const ready = await e.db.setReadyIfEligible({ userId: user.id, now: NOW });
     assert.equal(ready.ok, false, '★★★ 沒有時區確認就不可能 READY');
@@ -246,7 +246,7 @@ const fullyConfigured = async (db, { id, chatId, whoopUserId, status = USER_STAT
     scope: 'offline', whoopUserId,
   });
   await db.saveSyncState(u.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
-  await db.saveCapabilities(u.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { now: NOW });
+  await db.saveCapabilities(u.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { expectedLifecycleGeneration: (await db.getUser(u.id)).lifecycleGeneration, now: NOW });
   return u;
 };
 

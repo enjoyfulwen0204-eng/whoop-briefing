@@ -29,6 +29,7 @@ export function createProactiveStore(client) {
       userId: row.user_id,
       lastCheckedHealthDate: row.last_checked_health_date,
       lastFingerprint: row.last_fingerprint ?? null,
+      lifecycleGeneration: row.lifecycle_generation == null ? null : Number(row.lifecycle_generation),
       enabled: Number(row.enabled ?? 1) === 1,
       updatedAt: row.updated_at,
     };
@@ -38,17 +39,18 @@ export function createProactiveStore(client) {
    * 更新分析游標。**刻意不碰 `enabled`**——使用者的開關設定不可以被
    * 每天的例行游標更新覆寫掉。
    */
-  async function setProactiveState(userId, { lastCheckedHealthDate, lastFingerprint = null }, { now = new Date() } = {}) {
+  async function setProactiveState(userId, { lastCheckedHealthDate, lastFingerprint = null }, { now = new Date(), expectedLifecycleGeneration = null } = {}) {
     const uid = requireUserId(userId, 'setProactiveState');
     await client.execute({
       sql: `INSERT INTO proactive_agent_state
-              (user_id, last_checked_health_date, last_fingerprint, updated_at)
-            VALUES (?,?,?,?)
+              (user_id, last_checked_health_date, last_fingerprint, updated_at, lifecycle_generation)
+            VALUES (?,?,?,?,?)
             ON CONFLICT(user_id) DO UPDATE SET
               last_checked_health_date = excluded.last_checked_health_date,
               last_fingerprint = excluded.last_fingerprint,
+              lifecycle_generation = excluded.lifecycle_generation,
               updated_at = excluded.updated_at`,
-      args: [uid, lastCheckedHealthDate, lastFingerprint, nowIso(now)],
+      args: [uid, lastCheckedHealthDate, lastFingerprint, nowIso(now), expectedLifecycleGeneration],
     });
     return true;
   }
@@ -95,31 +97,31 @@ export function createProactiveStore(client) {
    */
   async function claimProactiveEvent(userId, {
     healthDate, idempotencyKey, signals, decision, reason, policyVersion, messageText,
-  }, { now = new Date() } = {}) {
+  }, { now = new Date(), expectedLifecycleGeneration = null } = {}) {
     const uid = requireUserId(userId, 'claimProactiveEvent');
-    try {
-      const rs = await client.execute({
-        sql: `INSERT INTO proactive_events
-                (user_id, health_date, idempotency_key, signals_json, decision, reason_json,
-                 policy_version, message_text, created_at)
-              VALUES (?,?,?,?,?,?,?,?,?)`,
-        args: [
-          uid, healthDate, idempotencyKey,
-          signals ? JSON.stringify(signals) : null,
-          decision, reason ? JSON.stringify(reason) : null,
-          policyVersion, messageText ?? null, nowIso(now),
-        ],
-      });
+    const rs = await client.execute({
+      sql: `INSERT INTO proactive_events
+              (user_id, health_date, idempotency_key, signals_json, decision, reason_json,
+               policy_version, message_text, created_at, lifecycle_generation)
+            VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id, idempotency_key) DO NOTHING`,
+      args: [
+        uid, healthDate, idempotencyKey,
+        signals ? JSON.stringify(signals) : null,
+        decision, reason ? JSON.stringify(reason) : null,
+        policyVersion, messageText ?? null, nowIso(now), expectedLifecycleGeneration,
+      ],
+    });
+    if (Number(rs.rowsAffected) > 0) {
       const id = Number(rs.lastInsertRowid ?? 0);
       log.info('proactive_event_claimed', { user_id: uid, id, health_date: healthDate, decision });
-      return { claimed: true, id };
-    } catch (err) {
-      if (/UNIQUE constraint failed/i.test(String(err?.message ?? ''))) {
-        log.info('proactive_event_duplicate_suppressed', { user_id: uid, health_date: healthDate });
-        return { claimed: false, id: null };
-      }
-      throw err;
+      return { claimed: true, id, lifecycleGeneration: expectedLifecycleGeneration };
     }
+    const existing = await client.execute({
+      sql: 'SELECT lifecycle_generation FROM proactive_events WHERE user_id = ? AND idempotency_key = ?',
+      args: [uid, idempotencyKey],
+    });
+    log.info('proactive_event_duplicate_suppressed', { user_id: uid, health_date: healthDate });
+    return { claimed: false, id: null, lifecycleGeneration: existing.rows[0]?.lifecycle_generation ?? null };
   }
 
   /**
@@ -321,6 +323,7 @@ export function createProactiveStore(client) {
     return {
       id: Number(row.id),
       userId: row.user_id,
+      lifecycleGeneration: row.lifecycle_generation == null ? null : Number(row.lifecycle_generation),
       healthDate: row.health_date,
       idempotencyKey: row.idempotency_key,
       signals: row.signals_json ? JSON.parse(row.signals_json) : [],

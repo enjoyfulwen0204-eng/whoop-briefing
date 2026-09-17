@@ -68,7 +68,7 @@ async function ask(db, user, { key = 'k1', now = T0 } = {}) {
     signals: [{ code: 'HRV_LOW', metric: 'hrv' }],
     decision: PROACTIVE_DECISION.ASK_CONTEXT,
     reason: {}, policyVersion: 'p1', messageText: '昨天有喝酒嗎？',
-  }, { now });
+  }, { expectedLifecycleGeneration: 1, now });
   const questionId = await db.openPendingQuestion(user.id, {
     chatId: user.chatId, question: '昨天有喝酒嗎？',
     intent: PROACTIVE_QUESTION_INTENT,
@@ -195,7 +195,7 @@ test('★★ M-03: 從未送出的事件不會被收斂（沒送出就沒有人�
       healthDate: '2026-09-09', idempotencyKey: 'never-sent',
       signals: [], decision: PROACTIVE_DECISION.LOG_ONLY,
       reason: {}, policyVersion: 'p1', messageText: null,
-    }, { now: T0 });
+    }, { expectedLifecycleGeneration: 1, now: T0 });
     // 刻意不呼叫 markProactiveEventSent
 
     const res = await reapExpiredProactiveQuestions({ db, userId: ALICE.id, now: AFTER_GRACE });

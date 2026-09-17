@@ -52,7 +52,7 @@ async function withSetup(fn) {
       healthDate: '2026-09-08', idempotencyKey: 'k1',
       signals: [{ metric: 'hrv' }], decision: 'ASK', reason: {},
       policyVersion: 'v1', messageText: '昨天有喝酒嗎？',
-    }, { now: T0 });
+    }, { expectedLifecycleGeneration: 1, now: T0 });
     const qid = await db.openPendingQuestion(uid, {
       chatId: '1', originalMessage: 'HRV 偏低', question: '昨天有喝酒嗎？',
       intent: PROACTIVE_QUESTION_INTENT,

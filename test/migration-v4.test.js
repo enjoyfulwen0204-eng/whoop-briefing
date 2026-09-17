@@ -60,7 +60,7 @@ test('SCHEMA_VERSION 是 16', () => {
   // v14 adds user_onboarding (self-service Telegram onboarding, Phase 3.5).
   // v15 is a data-only correction: legacy onboarding rows derived from evidence.
   // v16 adds the authorization generation + per-resource access evidence (Phase 3.5 RC2).
-  assert.equal(SCHEMA_VERSION, 19);
+  assert.equal(SCHEMA_VERSION, 20);
 });
 
 test('★★ 兩張新表都不在 RESHAPED_TABLES 裡（不可武裝 DROP 路徑）', () => {
@@ -151,7 +151,7 @@ test('★★★ v3 帶著代表性資料升到 v4：所有既有資料完整保�
       healthDate: '2026-09-07', idempotencyKey: 'kk',
       signals: [{ code: 'HRV_LOW' }], decision: 'ASK_CONTEXT',
       reason: {}, policyVersion: 'p1', messageText: 'q',
-    });
+    }, { expectedLifecycleGeneration: 1 });
     await db.setProactiveState(ALICE.id, {
       lastCheckedHealthDate: '2026-09-07', lastFingerprint: 'fp',
     });

@@ -59,7 +59,7 @@ async function withSetup(fn, { questionTtlMs = 72 * 3600_000, sent = SENT } = {}
       signals: [{ metric: 'hrv', direction: 'low' }],
       decision: PROACTIVE_DECISION.ASK_CONTEXT, reason: {},
       policyVersion: 'v1', messageText: '昨天有喝酒嗎？',
-    }, { now: sent });
+    }, { expectedLifecycleGeneration: 1, now: sent });
     const questionId = await db.openPendingQuestion(user.id, {
       chatId: '1', question: '昨天有喝酒嗎？', intent: PROACTIVE_QUESTION_INTENT,
       contextJson: {
@@ -267,7 +267,7 @@ test('★★ R2-M-03: 重啟安全（換一個 db 連線，狀態全在 DB）', 
       healthDate: '2026-09-08', idempotencyKey: 'k1', signals: [],
       decision: PROACTIVE_DECISION.ASK_CONTEXT, reason: {},
       policyVersion: 'v1', messageText: 'q',
-    }, { now: SENT });
+    }, { expectedLifecycleGeneration: 1, now: SENT });
     const qid = await db.openPendingQuestion(user.id, {
       chatId: '1', question: 'q', intent: PROACTIVE_QUESTION_INTENT,
       contextJson: { proactive_event_id: eventId }, ttlMs: 72 * 3600_000,
@@ -371,7 +371,7 @@ test('★★★ R2-M-03: Alice 的租約不會擋住 Bob 的事件', async () =>
       healthDate: '2026-09-08', idempotencyKey: 'b1', signals: [],
       decision: PROACTIVE_DECISION.ASK_CONTEXT, reason: {},
       policyVersion: 'v1', messageText: 'q',
-    }, { now: SENT });
+    }, { expectedLifecycleGeneration: 1, now: SENT });
     const bq = await db.openPendingQuestion(bob.id, {
       chatId: '2', question: 'q', intent: PROACTIVE_QUESTION_INTENT,
       contextJson: { proactive_event_id: bobEvent }, ttlMs: 72 * 3600_000,

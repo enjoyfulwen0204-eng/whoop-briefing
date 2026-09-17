@@ -1,0 +1,247 @@
+{
+  "version": 19,
+  "schema": [
+    "CREATE TABLE IF NOT EXISTS telegram_operations (\n     update_id            INTEGER PRIMARY KEY,\n     result_json          TEXT NOT NULL,\n     committed_at         TEXT NOT NULL,\n     delivery_state       TEXT NOT NULL DEFAULT 'ACTION_READY',\n     delivery_owner       TEXT,\n     delivery_started_at  TEXT,\n     delivered_at         TEXT,\n     telegram_message_id  INTEGER,\n     delivery_attempts    INTEGER NOT NULL DEFAULT 0\n   )",
+    "CREATE TABLE IF NOT EXISTS schema_version (\n     version    INTEGER PRIMARY KEY,\n     applied_at TEXT NOT NULL,\n     note       TEXT\n   )",
+    "CREATE TABLE IF NOT EXISTS users (\n     id           TEXT PRIMARY KEY,\n     display_name TEXT NOT NULL,\n     timezone     TEXT NOT NULL DEFAULT 'Asia/Taipei',\n     status       TEXT NOT NULL,\n     -- ★ v17：帳號**啟用世代**。見 LIFECYCLE_GENERATION_DOC。\n     lifecycle_generation INTEGER NOT NULL DEFAULT 1,\n     created_at   TEXT NOT NULL,\n     updated_at   TEXT NOT NULL\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_users_status ON users (status)",
+    "CREATE TABLE IF NOT EXISTS user_telegram (\n     telegram_chat_id TEXT PRIMARY KEY,\n     user_id          TEXT NOT NULL,\n     linked_at        TEXT NOT NULL,\n     status           TEXT NOT NULL\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_user_telegram_user ON user_telegram (user_id, status)",
+    "CREATE TABLE IF NOT EXISTS user_link_codes (\n     id         TEXT PRIMARY KEY,\n     user_id    TEXT NOT NULL,\n     code_hash  TEXT NOT NULL,\n     created_at TEXT NOT NULL,\n     expires_at TEXT NOT NULL,\n     used_at    TEXT,\n     used_by    TEXT\n   )",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_link_code_hash ON user_link_codes (code_hash)",
+    "CREATE INDEX IF NOT EXISTS idx_link_code_user ON user_link_codes (user_id, used_at)",
+    "CREATE TABLE IF NOT EXISTS oauth_states (\n     state_hash  TEXT PRIMARY KEY,\n     user_id     TEXT NOT NULL,\n     -- ★ v17：這條 state 是在哪一個啟用世代發出去的。舊列是 NULL\n     -- （v17 之前發出、還沒用掉的），callback 對 NULL 一律 fail closed。\n     lifecycle_generation INTEGER,\n     created_at  TEXT NOT NULL,\n     expires_at  TEXT NOT NULL,\n     consumed_at TEXT\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_oauth_state_user ON oauth_states (user_id, consumed_at)",
+    "CREATE TABLE IF NOT EXISTS user_whoop_tokens (\n     user_id                 TEXT PRIMARY KEY,\n     whoop_user_id           TEXT,\n     access_token            TEXT NOT NULL,\n     refresh_token           TEXT NOT NULL,\n     access_token_expires_at TEXT NOT NULL,\n     scope                   TEXT,\n     updated_at              TEXT NOT NULL\n   )",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_whoop_account\n     ON user_whoop_tokens (whoop_user_id) WHERE whoop_user_id IS NOT NULL",
+    "CREATE TABLE IF NOT EXISTS telegram_state (\n     key        TEXT PRIMARY KEY,\n     value      TEXT,\n     updated_at TEXT NOT NULL\n   )",
+    "CREATE TABLE IF NOT EXISTS resource_locks (\n     name        TEXT PRIMARY KEY,\n     owner       TEXT NOT NULL,\n     acquired_at TEXT NOT NULL,\n     expires_at  TEXT NOT NULL\n   )",
+    "CREATE TABLE IF NOT EXISTS error_notifications (\n     scope            TEXT NOT NULL,\n     error_type       TEXT NOT NULL,\n     last_notified_at TEXT NOT NULL,\n     hits             INTEGER NOT NULL DEFAULT 1,\n     PRIMARY KEY (scope, error_type)\n   )",
+    "CREATE TABLE IF NOT EXISTS report_runs (\n     id                  INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id             TEXT NOT NULL,\n     report_type         TEXT NOT NULL,\n     local_date          TEXT NOT NULL,\n     health_date         TEXT,\n     sleep_id            TEXT,\n     cycle_id            TEXT,\n     telegram_message_id INTEGER,\n     status              TEXT NOT NULL,\n     detail              TEXT,\n     sent_at             TEXT NOT NULL\n   )",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_report_sent\n     ON report_runs (user_id, report_type, local_date) WHERE status = 'SENT'",
+    "CREATE INDEX IF NOT EXISTS idx_report_lookup\n     ON report_runs (user_id, report_type, local_date)",
+    "CREATE TABLE IF NOT EXISTS report_claims (\n     user_id             TEXT NOT NULL,\n     report_type         TEXT NOT NULL,\n     local_date          TEXT NOT NULL,\n     owner               TEXT NOT NULL,\n     claimed_at          TEXT NOT NULL,\n     expires_at          TEXT NOT NULL,\n     telegram_sent_at    TEXT,\n     telegram_message_id INTEGER,\n     -- ★ v18：認領這份報告時的帳號啟用世代。停用→再啟用之後，舊認領\n     -- 既不能遞送、也不可以繼續佔住新啟用期的那一格。\n     lifecycle_generation INTEGER,\n     delivery_state      TEXT NOT NULL DEFAULT 'CLAIMED',\n     delivery_started_at TEXT,\n     delivery_attempts   INTEGER NOT NULL DEFAULT 0,\n     delivery_detail     TEXT,\n     PRIMARY KEY (user_id, report_type, local_date)\n   )",
+    "CREATE TABLE IF NOT EXISTS briefing_evaluations (\n     user_id                TEXT NOT NULL,\n     report_type            TEXT NOT NULL,\n     evaluated_at           TEXT NOT NULL,\n     local_date             TEXT NOT NULL,\n     target_health_date     TEXT,\n     outcome                TEXT NOT NULL,\n     reason                 TEXT,\n     retryable              INTEGER NOT NULL DEFAULT 1,\n     observation_age_minutes INTEGER,\n     report_run_id          INTEGER,\n     detail                 TEXT,\n     created_at             TEXT NOT NULL,\n     updated_at             TEXT NOT NULL,\n     PRIMARY KEY (user_id, report_type)\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_briefing_eval_outcome\n     ON briefing_evaluations (outcome, updated_at)",
+    "CREATE TABLE IF NOT EXISTS whoop_sleeps (\n     user_id                       TEXT NOT NULL,\n     id                            TEXT NOT NULL,\n     v1_id                         INTEGER,\n     whoop_user_id                 INTEGER,\n     health_date                   TEXT,\n     start_at                      TEXT,\n     end_at                        TEXT,\n     timezone_offset               TEXT,\n     nap                           INTEGER,\n     score_state                   TEXT,\n     respiratory_rate              REAL,\n     sleep_performance_percentage  REAL,\n     sleep_consistency_percentage  REAL,\n     sleep_efficiency_percentage   REAL,\n     total_sleep_milli             INTEGER,\n     light_sleep_milli             INTEGER,\n     slow_wave_sleep_milli         INTEGER,\n     rem_sleep_milli               INTEGER,\n     awake_milli                   INTEGER,\n     no_data_milli                 INTEGER,\n     in_bed_milli                  INTEGER,\n     disturbance_count             INTEGER,\n     sleep_cycle_count             INTEGER,\n     sleep_need_baseline_milli     INTEGER,\n     sleep_debt_milli              INTEGER,\n     sleep_need_recent_strain_milli INTEGER,\n     sleep_need_recent_nap_milli   INTEGER,\n     created_at                    TEXT,\n     updated_at                    TEXT,\n     synced_at                     TEXT NOT NULL,\n     raw_json                      TEXT,\n     PRIMARY KEY (user_id, id)\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_sleeps_health_date ON whoop_sleeps (user_id, health_date)",
+    "CREATE INDEX IF NOT EXISTS idx_sleeps_end        ON whoop_sleeps (user_id, end_at)",
+    "CREATE INDEX IF NOT EXISTS idx_sleeps_nap_date   ON whoop_sleeps (user_id, nap, health_date)",
+    "CREATE TABLE IF NOT EXISTS whoop_recoveries (\n     user_id             TEXT NOT NULL,\n     sleep_id            TEXT NOT NULL,\n     cycle_id            TEXT,\n     whoop_user_id       INTEGER,\n     health_date         TEXT,\n     score_state         TEXT,\n     recovery_score      REAL,\n     hrv_rmssd_milli     REAL,\n     resting_heart_rate  REAL,\n     spo2_percentage     REAL,\n     skin_temp_celsius   REAL,\n     user_calibrating    INTEGER,\n     created_at          TEXT,\n     updated_at          TEXT,\n     synced_at           TEXT NOT NULL,\n     raw_json            TEXT,\n     PRIMARY KEY (user_id, sleep_id)\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_recoveries_health_date ON whoop_recoveries (user_id, health_date)",
+    "CREATE INDEX IF NOT EXISTS idx_recoveries_cycle       ON whoop_recoveries (user_id, cycle_id)",
+    "CREATE TABLE IF NOT EXISTS whoop_cycles (\n     user_id            TEXT NOT NULL,\n     id                 TEXT NOT NULL,\n     whoop_user_id      INTEGER,\n     start_at           TEXT,\n     end_at             TEXT,\n     timezone_offset    TEXT,\n     score_state        TEXT,\n     strain             REAL,\n     kilojoule          REAL,\n     average_heart_rate REAL,\n     max_heart_rate     REAL,\n     created_at         TEXT,\n     updated_at         TEXT,\n     synced_at          TEXT NOT NULL,\n     raw_json           TEXT,\n     PRIMARY KEY (user_id, id)\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_cycles_end   ON whoop_cycles (user_id, end_at)",
+    "CREATE INDEX IF NOT EXISTS idx_cycles_start ON whoop_cycles (user_id, start_at)",
+    "CREATE TABLE IF NOT EXISTS whoop_workouts (\n     user_id                TEXT NOT NULL,\n     id                     TEXT NOT NULL,\n     v1_id                  INTEGER,\n     whoop_user_id          INTEGER,\n     health_date            TEXT,\n     start_at               TEXT,\n     end_at                 TEXT,\n     timezone_offset        TEXT,\n     sport_name             TEXT,\n     sport_id               INTEGER,\n     score_state            TEXT,\n     strain                 REAL,\n     average_heart_rate     REAL,\n     max_heart_rate         REAL,\n     kilojoule              REAL,\n     percent_recorded       REAL,\n     distance_meter         REAL,\n     altitude_gain_meter    REAL,\n     altitude_change_meter  REAL,\n     zone_zero_milli        INTEGER,\n     zone_one_milli         INTEGER,\n     zone_two_milli         INTEGER,\n     zone_three_milli       INTEGER,\n     zone_four_milli        INTEGER,\n     zone_five_milli        INTEGER,\n     created_at             TEXT,\n     updated_at             TEXT,\n     synced_at              TEXT NOT NULL,\n     raw_json               TEXT,\n     PRIMARY KEY (user_id, id)\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_workouts_health_date ON whoop_workouts (user_id, health_date)",
+    "CREATE INDEX IF NOT EXISTS idx_workouts_start       ON whoop_workouts (user_id, start_at)",
+    "CREATE TABLE IF NOT EXISTS whoop_body_measurements (\n     user_id         TEXT NOT NULL,\n     recorded_at     TEXT NOT NULL,\n     height_meter    REAL,\n     weight_kilogram REAL,\n     max_heart_rate  REAL,\n     synced_at       TEXT NOT NULL,\n     raw_json        TEXT,\n     PRIMARY KEY (user_id, recorded_at)\n   )",
+    "CREATE TABLE IF NOT EXISTS whoop_sync_state (\n     user_id           TEXT NOT NULL,\n     resource          TEXT NOT NULL,\n     backfill_complete INTEGER NOT NULL DEFAULT 0,\n     backfill_cursor   TEXT,\n     earliest_synced   TEXT,\n     latest_synced     TEXT,\n     last_success_at   TEXT,\n     last_error        TEXT,\n     last_error_at     TEXT,\n     updated_at        TEXT NOT NULL,\n     PRIMARY KEY (user_id, resource)\n   )",
+    "CREATE TABLE IF NOT EXISTS whoop_capabilities (\n     user_id        TEXT NOT NULL,\n     key            TEXT NOT NULL,\n     status         TEXT NOT NULL,\n     -- ★ v17：這份盤點屬於哪一個啟用世代（READY 只認目前世代的證據）。\n     lifecycle_generation INTEGER NOT NULL DEFAULT 1,\n     sample_count   INTEGER,\n     non_null_count INTEGER,\n     latest_value   TEXT,\n     first_seen_at  TEXT,\n     last_seen_at   TEXT,\n     last_probed_at TEXT NOT NULL,\n     detail         TEXT,\n     PRIMARY KEY (user_id, key)\n   )",
+    "CREATE TABLE IF NOT EXISTS journal_events (\n     id            INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id       TEXT NOT NULL,\n     event_at      TEXT NOT NULL,\n     health_date   TEXT NOT NULL,\n     category      TEXT NOT NULL,\n     subtype       TEXT,\n     numeric_value REAL,\n     text_value    TEXT,\n     unit          TEXT,\n     severity      INTEGER,\n     note          TEXT,\n     source        TEXT NOT NULL,\n     created_at    TEXT NOT NULL,\n     updated_at    TEXT NOT NULL\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_journal_health_date ON journal_events (user_id, health_date)",
+    "CREATE INDEX IF NOT EXISTS idx_journal_category    ON journal_events (user_id, category, health_date)",
+    "CREATE INDEX IF NOT EXISTS idx_journal_event_at    ON journal_events (user_id, event_at)",
+    "CREATE TABLE IF NOT EXISTS pending_questions (\n     id               INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id          TEXT NOT NULL,\n     chat_id          TEXT NOT NULL,\n     original_message TEXT,\n     question         TEXT NOT NULL,\n     intent           TEXT,\n     context_json     TEXT,\n     asked_at         TEXT NOT NULL,\n     expires_at       TEXT NOT NULL,\n     status           TEXT NOT NULL,\n     answered_at      TEXT,\n     answer_text      TEXT\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_pending_user ON pending_questions (user_id, status)",
+    "CREATE TABLE IF NOT EXISTS telegram_processed_updates (\n     update_id        INTEGER PRIMARY KEY,\n     processed_at     TEXT,\n     status           TEXT NOT NULL DEFAULT 'COMPLETED',\n     owner            TEXT,\n     claimed_at       TEXT,\n     lease_expires_at TEXT,\n     dispatched_at    TEXT,\n     attempts         INTEGER NOT NULL DEFAULT 1,\n     -- 這一則屬於哪一個**對話**。用途只有一個：同一個對話裡的訊息要照順序\n     -- 處理（沒有它就沒辦法問「這個對話還有沒有更早、還沒做完的訊息」，\n     -- 而那正是「澄清回覆不可以超車」的判準）。\n     --\n     -- ⚠️ 欄位名沿用歷史（v7 加的時候叫 user_id），但裡面存的**不是**內部\n     -- 使用者 id，而是對話鍵：私訊是 tg:<chat_id>。刻意加前綴，任何人看到\n     -- 值就知道它不是 users.id，也不可能與內部 id 混淆。\n     --\n     -- 為什麼不是內部 user_id：內部身分要查資料庫才知道，而查詢是會花時間的。\n     -- 在「已認領但還沒解析出身分」的那段空窗裡，後來的訊息看不到前一則，\n     -- 就會超車（TG-R04）。對話鍵可以**純粹從 Update 的結構**推導出來，\n     -- 不需要查任何東西，所以可以在認領的當下就寫下去。\n     user_id          TEXT\n   )",
+    "CREATE TABLE IF NOT EXISTS healthspan_metrics (\n     id            INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id       TEXT NOT NULL,\n     calculated_at TEXT NOT NULL,\n     metric_key    TEXT NOT NULL,\n     value         REAL,\n     unit          TEXT,\n     window_days   INTEGER,\n     sample_count  INTEGER,\n     coverage      REAL,\n     availability  TEXT NOT NULL,\n     source        TEXT,\n     confidence    REAL,\n     detail        TEXT\n   )",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_healthspan_metric\n     ON healthspan_metrics (user_id, calculated_at, metric_key)",
+    "CREATE INDEX IF NOT EXISTS idx_healthspan_metric_key\n     ON healthspan_metrics (user_id, metric_key, calculated_at)",
+    "CREATE TABLE IF NOT EXISTS healthspan_snapshots (\n     id                INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id           TEXT NOT NULL,\n     snapshot_date     TEXT NOT NULL,\n     algorithm_version TEXT NOT NULL,\n     score             REAL,\n     score_kind        TEXT,\n     contributors_json TEXT,\n     coverage          REAL,\n     status            TEXT NOT NULL,\n     created_at        TEXT NOT NULL\n   )",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_healthspan_snapshot\n     ON healthspan_snapshots (user_id, snapshot_date, algorithm_version)",
+    "CREATE TABLE IF NOT EXISTS prediction_runs (\n     id              INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id         TEXT NOT NULL,\n     target_date     TEXT NOT NULL,\n     target_metric   TEXT NOT NULL,\n     model_version   TEXT NOT NULL,\n     status          TEXT NOT NULL,\n     features_json   TEXT,\n     predicted_value REAL,\n     predicted_low   REAL,\n     predicted_high  REAL,\n     n_train         INTEGER,\n     created_at      TEXT NOT NULL,\n     actual_value    REAL,\n     error           REAL,\n     evaluated_at    TEXT\n   )",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_prediction_run\n     ON prediction_runs (user_id, target_date, target_metric, model_version)",
+    "CREATE TABLE IF NOT EXISTS health_insights (\n     id                  INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id             TEXT NOT NULL,\n     insight_type        TEXT NOT NULL,\n     subject             TEXT NOT NULL,\n     statement           TEXT NOT NULL,\n     evidence_json       TEXT,\n     sample_count        INTEGER,\n     effect_size         REAL,\n     confidence          TEXT,\n     status              TEXT NOT NULL,\n     first_detected_at   TEXT NOT NULL,\n     last_confirmed_at   TEXT,\n     last_recalculated_at TEXT,\n     version             INTEGER NOT NULL DEFAULT 1,\n     supersedes_id       INTEGER,\n     retired_at          TEXT\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_insight_subject ON health_insights (user_id, subject, status)",
+    "CREATE INDEX IF NOT EXISTS idx_insight_active  ON health_insights (user_id, status, insight_type)",
+    "CREATE TABLE IF NOT EXISTS experiments (\n     id             INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id        TEXT NOT NULL,\n     name           TEXT NOT NULL,\n     hypothesis     TEXT,\n     intervention   TEXT,\n     target_metrics TEXT,\n     baseline_start TEXT,\n     baseline_end   TEXT,\n     start_date     TEXT,\n     end_date       TEXT,\n     status         TEXT NOT NULL,\n     protocol_json  TEXT,\n     result_json    TEXT,\n     created_at     TEXT NOT NULL,\n     updated_at     TEXT NOT NULL\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_experiment_status ON experiments (user_id, status)",
+    "CREATE TABLE IF NOT EXISTS ai_usage (\n     id                 INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id            TEXT,\n     timestamp          TEXT NOT NULL,\n     provider           TEXT NOT NULL,\n     requested_model    TEXT,\n     model              TEXT,\n     fallback_occurred  INTEGER NOT NULL DEFAULT 0,\n     purpose            TEXT NOT NULL,\n     prompt_version     TEXT,\n     input_tokens       INTEGER,\n     output_tokens      INTEGER,\n     total_tokens       INTEGER,\n     estimated_cost_usd REAL,\n     pricing_version    TEXT,\n     request_status     TEXT NOT NULL,\n     latency_ms         INTEGER,\n     detail             TEXT\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_ai_usage_ts      ON ai_usage (user_id, timestamp)",
+    "CREATE INDEX IF NOT EXISTS idx_ai_usage_purpose ON ai_usage (user_id, purpose, timestamp)",
+    "CREATE TABLE IF NOT EXISTS proactive_agent_state (\n     user_id                   TEXT PRIMARY KEY,\n     last_checked_health_date  TEXT,\n     last_fingerprint          TEXT,\n     enabled                   INTEGER NOT NULL DEFAULT 1,\n     updated_at                TEXT NOT NULL\n   )",
+    "CREATE TABLE IF NOT EXISTS proactive_events (\n     id                  INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id             TEXT NOT NULL,\n     health_date         TEXT NOT NULL,\n     idempotency_key     TEXT NOT NULL,\n     signals_json        TEXT,\n     decision            TEXT NOT NULL,\n     reason_json         TEXT,\n     policy_version      TEXT NOT NULL,\n     pending_question_id INTEGER,\n     -- 這個主動問題最後促成了哪一筆 journal_events（可追溯性：\n     -- 哪個問題 → 哪筆 Journal → 哪次重新分析）。刻意放在這張新表而不是\n     -- ALTER journal_events：新表加欄位零風險。\n     journal_event_id    INTEGER,\n     message_text        TEXT,\n     sent_at             TEXT,\n     created_at          TEXT NOT NULL,\n     resolved_at         TEXT,\n     outcome             TEXT\n   )",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_proactive_event\n     ON proactive_events (user_id, idempotency_key)",
+    "CREATE INDEX IF NOT EXISTS idx_proactive_user_created\n     ON proactive_events (user_id, created_at)",
+    "CREATE TABLE IF NOT EXISTS system_heartbeats (\n     scope       TEXT NOT NULL,\n     component   TEXT NOT NULL,\n     last_ok_at  TEXT NOT NULL,\n     last_detail TEXT,\n     updated_at  TEXT NOT NULL,\n     PRIMARY KEY (scope, component)\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_heartbeat_component\n     ON system_heartbeats (component, last_ok_at)",
+    "CREATE TABLE IF NOT EXISTS prediction_models (\n     id                  INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id             TEXT NOT NULL,\n     target_metric       TEXT NOT NULL,\n     model_version       TEXT NOT NULL,\n     features_json       TEXT,\n     trained_at          TEXT NOT NULL,\n     train_start         TEXT,\n     train_end           TEXT,\n     test_start          TEXT,\n     test_end            TEXT,\n     n_train             INTEGER,\n     n_test              INTEGER,\n     mae                 REAL,\n     rmse                REAL,\n     r2                  REAL,\n     interval_coverage   REAL,\n     baseline_kind       TEXT,\n     baseline_mae        REAL,\n     beats_baseline      INTEGER,\n     maturity            TEXT NOT NULL,\n     qualified           INTEGER NOT NULL DEFAULT 0,\n     unqualified_reason  TEXT,\n     policy_version      TEXT,\n     created_at          TEXT NOT NULL\n   )",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_prediction_model\n     ON prediction_models (user_id, target_metric, model_version, train_end)",
+    "CREATE INDEX IF NOT EXISTS idx_prediction_model_latest\n     ON prediction_models (user_id, target_metric, trained_at)",
+    "CREATE TABLE IF NOT EXISTS whoop_webhook_events (\n     id                INTEGER PRIMARY KEY AUTOINCREMENT,\n     provider          TEXT NOT NULL DEFAULT 'whoop',\n     -- WHOOP 自己的 user id（payload 給的）。去重與診斷都靠它，\n     -- 因為本地身分要查 DB 才知道，而去重必須更早成立。\n     whoop_user_id     TEXT NOT NULL,\n     -- 解析出來的本地使用者。解析發生在**處理**階段（權威），\n     -- 所以收下的當下是 NULL；未知使用者則永遠是 NULL。\n     user_id           TEXT,\n     event_type        TEXT NOT NULL,\n     resource_type     TEXT NOT NULL,\n     resource_id       TEXT NOT NULL,\n     trace_id          TEXT NOT NULL,\n     -- WHOOP 簽章時間戳（毫秒）。只當觀測用，**不**當事件排序的依據：\n     -- 重試會用新的時間戳重新簽章，所以它不代表原始事件發生順序。\n     event_at          TEXT,\n     received_at       TEXT NOT NULL,\n     state             TEXT NOT NULL DEFAULT 'RECEIVED',\n     attempt_count     INTEGER NOT NULL DEFAULT 0,\n     owner             TEXT,\n     lease_expires_at  TEXT,\n     next_attempt_at   TEXT,\n     last_error_class  TEXT,\n     last_error_detail TEXT,\n     processed_at      TEXT,\n     created_at        TEXT NOT NULL,\n     updated_at        TEXT NOT NULL\n   )",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uniq_whoop_webhook_event\n     ON whoop_webhook_events (whoop_user_id, event_type, resource_id, trace_id)",
+    "CREATE INDEX IF NOT EXISTS idx_whoop_webhook_pending\n     ON whoop_webhook_events (state, next_attempt_at, id)",
+    "CREATE INDEX IF NOT EXISTS idx_whoop_webhook_user\n     ON whoop_webhook_events (user_id, resource_type, resource_id)",
+    "CREATE TABLE IF NOT EXISTS whoop_resource_tombstones (\n     user_id               TEXT NOT NULL,\n     resource_type         TEXT NOT NULL,\n     resource_id           TEXT NOT NULL,\n     state                 TEXT NOT NULL DEFAULT 'ACTIVE',\n     deleted_at            TEXT NOT NULL,\n     last_known_updated_at TEXT,\n     source_trace_id       TEXT,\n     source_event_at       TEXT,\n     -- 造成這次刪除的那一則事件在帳本裡的 id。\n     --\n     -- ⚠️ 純診斷，**不是** WHOOP 的來源時序。帳本 id 只代表本地收下的順序；\n     -- WHOOP 沒有文件保證 webhook 投遞順序，一則較早產生的更新完全可能因為\n     -- 網路延遲而在刪除之後才抵達，於是拿到**較大**的本地 id。\n     -- Phase 1 不拿它（也不拿任何本地順序）推論任何事情。\n     source_event_id       INTEGER,\n     blocked_count         INTEGER NOT NULL DEFAULT 0,\n     last_blocked_at       TEXT,\n     superseded_at         TEXT,\n     superseded_updated_at TEXT,\n     -- v11（Phase 2）：對帳的**診斷**欄位。對帳只寫這三欄，永遠不改 state。\n     reconcile_checked_at        TEXT,\n     reconcile_verdict           TEXT,\n     reconcile_remote_updated_at TEXT,\n     created_at            TEXT NOT NULL,\n     updated_at            TEXT NOT NULL,\n     PRIMARY KEY (user_id, resource_type, resource_id)\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_whoop_tombstone_active\n     ON whoop_resource_tombstones (user_id, resource_type, state)",
+    "CREATE TABLE IF NOT EXISTS whoop_reconciliation_state (\n     user_id                  TEXT NOT NULL,\n     -- 快路徑一列（resource = 'sleep'），深度路徑另一列（resource = 'sleep/deep'）。\n     -- 兩列各自有租約、未完成窗、退避；深度成功永遠不碰快路徑那一列。\n     resource                 TEXT NOT NULL,\n     -- 快路徑列：完整成功的窗的 end（單調不減）。NULL = 從來沒有成功過。\n     -- 深度路徑列：深度游標 = 上一片完整掃完的**下緣**；下一片從這裡往更早\n     -- （輪轉，走完水平線就從 now 重來，所以可以倒退）。\n     window_watermark         TEXT,\n     -- 遠端看過的最大 updated_at（純診斷，不當排序依據）。\n     latest_remote_updated_at TEXT,\n     -- 未完成的邏輯窗（P2-R02）：一輪開始就寫下 [from, to]；只有 SUCCESS 能清。\n     -- PARTIAL 另外存續傳 token；FAILED 只清 token → 下一輪同一個窗從第一頁重來。\n     continuation_token       TEXT,\n     continuation_from        TEXT,\n     continuation_to          TEXT,\n     -- 租約 / 擁有者（與 whoop_webhook_events 同一套模式）\n     owner                    TEXT,\n     lease_expires_at         TEXT,\n     -- 退避與診斷\n     last_attempt_at          TEXT,\n     last_success_at          TEXT,\n     last_failure_at          TEXT,\n     last_error_class         TEXT,\n     last_error_detail        TEXT,\n     consecutive_failures     INTEGER NOT NULL DEFAULT 0,\n     next_attempt_at          TEXT,\n     created_at               TEXT NOT NULL,\n     updated_at               TEXT NOT NULL,\n     PRIMARY KEY (user_id, resource)\n   )",
+    "CREATE TABLE IF NOT EXISTS whoop_reconciliation_runs (\n     id            INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id       TEXT NOT NULL,\n     resource      TEXT NOT NULL,\n     owner         TEXT NOT NULL,\n     mode          TEXT NOT NULL,\n     window_from   TEXT,\n     window_to     TEXT,\n     started_at    TEXT NOT NULL,\n     finished_at   TEXT,\n     result        TEXT,\n     pages         INTEGER NOT NULL DEFAULT 0,\n     fetched       INTEGER NOT NULL DEFAULT 0,\n     written       INTEGER NOT NULL DEFAULT 0,\n     blocked       INTEGER NOT NULL DEFAULT 0,\n     error_class   TEXT,\n     error_detail  TEXT,\n     retryable     INTEGER\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_whoop_reconciliation_runs_user\n     ON whoop_reconciliation_runs (user_id, resource, id)",
+    "CREATE TABLE IF NOT EXISTS whoop_reconciliation_discrepancies (\n     user_id        TEXT NOT NULL,\n     resource       TEXT NOT NULL,\n     resource_id    TEXT NOT NULL,\n     kind           TEXT NOT NULL,\n     first_seen_at  TEXT NOT NULL,\n     last_seen_at   TEXT NOT NULL,\n     seen_count     INTEGER NOT NULL DEFAULT 1,\n     window_from    TEXT,\n     window_to      TEXT,\n     PRIMARY KEY (user_id, resource, resource_id, kind)\n   )",
+    "CREATE TABLE IF NOT EXISTS analytics_invalidation (\n     user_id             TEXT PRIMARY KEY,\n     -- 單調計數：每一次語義上的 canonical 變動 +1。0 = 從未變動。\n     generation          INTEGER NOT NULL DEFAULT 0,\n     -- 目前這一段「還沒被輕量路徑消化」的受影響 health_date 範圍（含），\n     -- 多次變動取聯集；輕量路徑用 CAS（generation 相符）清掉。\n     affected_from       TEXT,\n     affected_to         TEXT,\n     -- 受影響的資源與原因（排序過、去重的 CSV；診斷用）\n     resources           TEXT,\n     reasons             TEXT,\n     -- 第一次讓某個類別落後的時間；所有類別都追上時清掉\n     dirty_since         TEXT,\n     last_invalidated_at TEXT,\n     created_at          TEXT NOT NULL,\n     updated_at          TEXT NOT NULL\n   )",
+    "CREATE TABLE IF NOT EXISTS analytics_work_state (\n     user_id              TEXT NOT NULL,\n     class                TEXT NOT NULL,\n     -- 這個類別**成功**算到的 generation。< analytics_invalidation.generation = 落後。\n     done_generation      INTEGER NOT NULL DEFAULT 0,\n     -- 目前持有者認領時看到的 generation（診斷）\n     claimed_generation   INTEGER,\n     -- ★ v18：認領當下的帳號**啟用世代**。與 claimed_generation 正交：\n     -- 前者是分析失效的紀元，這個是帳號啟用的紀元。輸出時兩個都要對。\n     claimed_lifecycle    INTEGER,\n     owner                TEXT,\n     lease_expires_at     TEXT,\n     status               TEXT,\n     last_attempt_at      TEXT,\n     last_success_at      TEXT,\n     last_failure_at      TEXT,\n     last_error_class     TEXT,\n     last_error_detail    TEXT,\n     consecutive_failures INTEGER NOT NULL DEFAULT 0,\n     next_attempt_at      TEXT,\n     -- 最近一次成功的摘要（例如輕量：錨點日期與就緒狀態；重量：各模組結果）。不含生理數值。\n     summary_json         TEXT,\n     -- v13（P3-AUDIT-F03）：輕量路徑的**剩餘範圍**。長範圍分成有界的片段處理，\n     -- 每片完成就把 range_to 往前縮；range_generation 記錄這個剩餘範圍是為哪一代算的。\n     -- 只有剩餘範圍清空、而且 generation 沒有前進，done_generation 才會前進。\n     range_generation     INTEGER,\n     range_from           TEXT,\n     range_to             TEXT,\n     created_at           TEXT NOT NULL,\n     updated_at           TEXT NOT NULL,\n     PRIMARY KEY (user_id, class)\n   )",
+    "CREATE TABLE IF NOT EXISTS analytics_daily_state (\n     user_id      TEXT NOT NULL,\n     health_date  TEXT NOT NULL,\n     generation   INTEGER NOT NULL,\n     computed_at  TEXT NOT NULL,\n     daily_status TEXT NOT NULL,\n     metrics_json TEXT NOT NULL,\n     PRIMARY KEY (user_id, health_date)\n   )",
+    "CREATE TABLE IF NOT EXISTS analytics_runs (\n     id            INTEGER PRIMARY KEY AUTOINCREMENT,\n     user_id       TEXT NOT NULL,\n     class         TEXT NOT NULL,\n     owner         TEXT NOT NULL,\n     generation    INTEGER NOT NULL,\n     started_at    TEXT NOT NULL,\n     finished_at   TEXT,\n     result        TEXT,\n     detail_json   TEXT,\n     error_class   TEXT,\n     error_detail  TEXT\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_analytics_runs_user\n     ON analytics_runs (user_id, class, id)",
+    "CREATE TABLE IF NOT EXISTS user_onboarding (\n     user_id               TEXT PRIMARY KEY,\n     state                 TEXT NOT NULL,\n     -- 生命週期的時間戳（純診斷／可觀測性）\n     timezone_confirmed_at TEXT,\n     whoop_authorized_at   TEXT,\n     sync_started_at       TEXT,\n     ready_at              TEXT,\n     state_changed_at      TEXT NOT NULL,\n     -- ACTION_REQUIRED 的原因與人看得懂的細節（**不含**祕密）\n     failure_code          TEXT,\n     failure_detail        TEXT,\n     -- 濫用控制：授權連結的產生節奏（見 config 的 ONBOARDING）\n     auth_link_count       INTEGER NOT NULL DEFAULT 0,\n     last_auth_link_at     TEXT,\n     -- bootstrap 的嘗試次數（初次同步 + capability）\n     bootstrap_attempts    INTEGER NOT NULL DEFAULT 0,\n     last_bootstrap_at     TEXT,\n     created_at            TEXT NOT NULL,\n     updated_at            TEXT NOT NULL\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_user_onboarding_state ON user_onboarding (state)",
+    "CREATE TABLE IF NOT EXISTS whoop_resource_access (\n     user_id         TEXT NOT NULL,\n     resource        TEXT NOT NULL,\n     status          TEXT NOT NULL,\n     auth_generation INTEGER NOT NULL,\n     -- ★ v17：授權世代（哪一次 WHOOP 同意）與啟用世代（哪一段帳號啟用期）\n     -- 是**兩個獨立**的維度。READY 兩個都要求等於目前值。\n     lifecycle_generation INTEGER NOT NULL DEFAULT 1,\n     checked_at      TEXT NOT NULL,\n     PRIMARY KEY (user_id, resource)\n   )",
+    "CREATE INDEX IF NOT EXISTS idx_whoop_resource_access_user\n     ON whoop_resource_access (user_id, auth_generation)"
+  ],
+  "additive": [
+    {
+      "table": "telegram_processed_updates",
+      "column": "status",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN status TEXT NOT NULL DEFAULT 'COMPLETED'"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "owner",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN owner TEXT"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "claimed_at",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN claimed_at TEXT"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "lease_expires_at",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN lease_expires_at TEXT"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "dispatched_at",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN dispatched_at TEXT"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "attempts",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1"
+    },
+    {
+      "table": "telegram_processed_updates",
+      "column": "user_id",
+      "ddl": "ALTER TABLE telegram_processed_updates ADD COLUMN user_id TEXT"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "delivery_state",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN delivery_state TEXT NOT NULL DEFAULT 'AMBIGUOUS'",
+      "backfill": "UPDATE telegram_operations\n                  SET delivery_state = 'DELIVERED'\n                WHERE update_id IN (\n                  SELECT update_id FROM telegram_processed_updates\n                   WHERE status = 'COMPLETED'\n                )"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "delivery_owner",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN delivery_owner TEXT"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "delivery_started_at",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN delivery_started_at TEXT"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "delivered_at",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN delivered_at TEXT"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "telegram_message_id",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN telegram_message_id INTEGER"
+    },
+    {
+      "table": "telegram_operations",
+      "column": "delivery_attempts",
+      "ddl": "ALTER TABLE telegram_operations ADD COLUMN delivery_attempts INTEGER NOT NULL DEFAULT 0"
+    },
+    {
+      "table": "report_claims",
+      "column": "delivery_state",
+      "ddl": "ALTER TABLE report_claims ADD COLUMN delivery_state TEXT NOT NULL DEFAULT 'AMBIGUOUS'",
+      "backfill": "UPDATE report_claims\n                  SET delivery_state = 'DELIVERED'\n                WHERE telegram_sent_at IS NOT NULL"
+    },
+    {
+      "table": "report_claims",
+      "column": "delivery_started_at",
+      "ddl": "ALTER TABLE report_claims ADD COLUMN delivery_started_at TEXT"
+    },
+    {
+      "table": "report_claims",
+      "column": "delivery_attempts",
+      "ddl": "ALTER TABLE report_claims ADD COLUMN delivery_attempts INTEGER NOT NULL DEFAULT 0"
+    },
+    {
+      "table": "report_claims",
+      "column": "delivery_detail",
+      "ddl": "ALTER TABLE report_claims ADD COLUMN delivery_detail TEXT"
+    },
+    {
+      "table": "whoop_resource_tombstones",
+      "column": "reconcile_checked_at",
+      "ddl": "ALTER TABLE whoop_resource_tombstones ADD COLUMN reconcile_checked_at TEXT"
+    },
+    {
+      "table": "whoop_resource_tombstones",
+      "column": "reconcile_verdict",
+      "ddl": "ALTER TABLE whoop_resource_tombstones ADD COLUMN reconcile_verdict TEXT"
+    },
+    {
+      "table": "whoop_resource_tombstones",
+      "column": "reconcile_remote_updated_at",
+      "ddl": "ALTER TABLE whoop_resource_tombstones ADD COLUMN reconcile_remote_updated_at TEXT"
+    },
+    {
+      "table": "analytics_work_state",
+      "column": "range_generation",
+      "ddl": "ALTER TABLE analytics_work_state ADD COLUMN range_generation INTEGER"
+    },
+    {
+      "table": "analytics_work_state",
+      "column": "range_from",
+      "ddl": "ALTER TABLE analytics_work_state ADD COLUMN range_from TEXT"
+    },
+    {
+      "table": "analytics_work_state",
+      "column": "range_to",
+      "ddl": "ALTER TABLE analytics_work_state ADD COLUMN range_to TEXT"
+    },
+    {
+      "table": "user_whoop_tokens",
+      "column": "auth_generation",
+      "ddl": "ALTER TABLE user_whoop_tokens ADD COLUMN auth_generation INTEGER NOT NULL DEFAULT 1"
+    },
+    {
+      "table": "users",
+      "column": "lifecycle_generation",
+      "ddl": "ALTER TABLE users ADD COLUMN lifecycle_generation INTEGER NOT NULL DEFAULT 1"
+    },
+    {
+      "table": "oauth_states",
+      "column": "lifecycle_generation",
+      "ddl": "ALTER TABLE oauth_states ADD COLUMN lifecycle_generation INTEGER"
+    },
+    {
+      "table": "whoop_capabilities",
+      "column": "lifecycle_generation",
+      "ddl": "ALTER TABLE whoop_capabilities ADD COLUMN lifecycle_generation INTEGER NOT NULL DEFAULT 1"
+    },
+    {
+      "table": "whoop_resource_access",
+      "column": "lifecycle_generation",
+      "ddl": "ALTER TABLE whoop_resource_access ADD COLUMN lifecycle_generation INTEGER NOT NULL DEFAULT 1"
+    },
+    {
+      "table": "report_claims",
+      "column": "lifecycle_generation",
+      "ddl": "ALTER TABLE report_claims ADD COLUMN lifecycle_generation INTEGER"
+    },
+    {
+      "table": "analytics_work_state",
+      "column": "claimed_lifecycle",
+      "ddl": "ALTER TABLE analytics_work_state ADD COLUMN claimed_lifecycle INTEGER"
+    }
+  ]
+}

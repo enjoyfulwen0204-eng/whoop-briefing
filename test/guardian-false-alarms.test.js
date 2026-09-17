@@ -83,7 +83,7 @@ async function sendNotify(db, userId, { key = 'n1', now = LONG_AGO } = {}) {
     healthDate: '2026-09-05', idempotencyKey: key,
     signals: [{ metric: 'hrv' }], decision: PROACTIVE_DECISION.NOTIFY,
     reason: {}, policyVersion: 'p1', messageText: 'HRV 連續三天偏低。',
-  }, { now });
+  }, { expectedLifecycleGeneration: 1, now });
   // NOTIFY 不開追問 —— 這正是 proactiveAgent 的實際行為
   await db.markProactiveEventSent(userId, id, { pendingQuestionId: null }, { now });
   return id;
@@ -129,7 +129,7 @@ test('★★ M-07: 真的卡住的 ASK_CONTEXT 事件仍然報得出來（沒有
       healthDate: '2026-09-05', idempotencyKey: 'ask-1',
       signals: [], decision: PROACTIVE_DECISION.ASK_CONTEXT,
       reason: {}, policyVersion: 'p1', messageText: 'q',
-    }, { now: LONG_AGO });
+    }, { expectedLifecycleGeneration: 1, now: LONG_AGO });
     const qid = await db.openPendingQuestion(uid, {
       chatId: '1', question: 'q', intent: PROACTIVE_QUESTION_INTENT,
       contextJson: { proactive_event_id: id }, ttlMs: 30 * 60_000,

@@ -306,7 +306,9 @@ B 後面那個條件是刻意加的。只看「是否單調下降」的話，在
 → 點 Connect WHOOP → 官方授權 → 公開 HTTPS 回呼 → 自動初次同步與 capability 盤點
 → 收到「準備好了」。管理員完全不需要建帳號、發綁定碼、跑授權腳本或複製 token。
 
-排程只看上線完成（READY）的人，所以還在設定中的人不會收到空的日報；
+正常排程健康處理只選同時符合 `users.status = ACTIVE` 與 `onboarding.state = READY` 的使用者：
+`ACTIVE` 表示帳號生命週期允許正常處理，`READY` 表示上線與資源存取 bootstrap 已完成到可排程狀態。
+`PAUSED`／`DISABLED`，以及仍未 `READY` 的 `ACTIVE` 使用者都不符合資格，所以還在設定中的人不會收到空的日報；
 既有使用者的上線狀態由**證據**推導（完整設定好的維持 READY，不完整的不會被排程）。
 ⚠️ 部署前必須先在 WHOOP Developer Dashboard 註冊公開回呼網址
 （`https://<網域>/whoop/oauth/callback`）。見 [docs/self-service-onboarding.md](docs/self-service-onboarding.md)。
@@ -445,7 +447,7 @@ Telegram 送出成功、但連那個極小的 `markClaimSent` UPDATE 都失敗�
 
 ### Cron：per-user 併發，失敗互相隔離
 
-排程每次執行會先撈出所有 `ACTIVE` 使用者，然後**各自獨立**處理——各自的時區、各自的 WHOOP token 與 refresh 鎖、各自的 Telegram 目的地、各自的去重 / claim key、各自的同步狀態。併發上限預設 `MAX_USER_CONCURRENCY=3`（可用環境變數覆寫），避免撞到 WHOOP 官方 100 req/分的速率限制。**一個使用者的 WHOOP 授權失敗或 daily 報告出錯，完全不會影響其他使用者**——每個人的流程各自 try/catch，失敗只發錯誤通知給那個人自己。
+排程每次執行只會選出同時為 `ACTIVE` 且上線狀態為 `READY` 的使用者，然後**各自獨立**處理——各自的時區、各自的 WHOOP token 與 refresh 鎖、各自的 Telegram 目的地、各自的去重 / claim key、各自的同步狀態。只有 `ACTIVE` 但尚未 `READY` 的使用者不會進入正常排程健康處理。併發上限預設 `MAX_USER_CONCURRENCY=3`（可用環境變數覆寫），避免撞到 WHOOP 官方 100 req/分的速率限制。**一個使用者的 WHOOP 授權失敗或 daily 報告出錯，完全不會影響其他使用者**——每個人的流程各自 try/catch，失敗只發錯誤通知給那個人自己。
 
 ### 時區：`users.timezone` 才是準的
 

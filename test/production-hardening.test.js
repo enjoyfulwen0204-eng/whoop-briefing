@@ -21,9 +21,11 @@ const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
 function readReadmeUnderTest() {
   const original = read('README.md');
-  const mutation = process.env.RC4_README_MUTATION;
+  const mutation = process.env.RC5_README_MUTATION ?? process.env.RC4_README_MUTATION;
   if (!mutation) return original;
-  const fraction = Number(process.env.RC4_README_MUTATION_AT ?? 0.5);
+  const fraction = Number(
+    process.env.RC5_README_MUTATION_AT ?? process.env.RC4_README_MUTATION_AT ?? 0.5,
+  );
   const offset = Math.floor(original.length * Math.min(1, Math.max(0, fraction)));
   return `${original.slice(0, offset)}\n${mutation}\n${original.slice(offset)}`;
 }
@@ -50,6 +52,12 @@ function assertReadmeSchedulerContract(readme) {
     '★ settled reports 必須只跳過 report delivery');
   assert.match(whole, /`src\/index\.js`.{0,320}Canonical scheduler\/application runner/i,
     '★ src/index.js 必須描述成 canonical runner');
+  assert.match(whole, /正常排程健康處理.{0,200}`?ACTIVE`?.{0,160}`?READY`?/i,
+    '★ normal scheduled health processing 必須同時要求 ACTIVE 與 READY');
+  assert.match(whole, /`?ACTIVE`?.{0,40}(?:帳號|account).{0,40}(?:生命週期|lifecycle).{0,40}(?:允許|permits).{0,40}(?:正常處理|normal processing)/i,
+    '★ README 必須說明 ACTIVE 的 lifecycle 語義');
+  assert.match(whole, /`?READY`?.{0,50}(?:上線|onboarding).{0,80}(?:bootstrap|資源存取).{0,80}(?:可排程|scheduler eligibility|eligible)/i,
+    '★ README 必須說明 READY 的 onboarding 語義');
 
   // Negative contradiction classes: scan the complete normalized README, not one line/section.
   const contradictions = [
@@ -109,6 +117,38 @@ function assertReadmeSchedulerContract(readme) {
       /runBriefing.{0,100}(?:only|just|solely|只).{0,100}(?:reports?|daily|weekly|報告|簡報)/i,
       'runBriefing 不可以被描述成 report-only',
     ],
+    [
+      /(?:All|Every) ACTIVE users? (?:are|is) (?:selected|scheduled|processed) by the scheduler|scheduler.{0,50}(?:selects|schedules|processes) (?:all|every) ACTIVE users?/i,
+      'README 不可以宣稱所有 ACTIVE 使用者都會被排程',
+    ],
+    [
+      /排程.{0,30}(?:撈出|選出|選取|處理)(?:所有|每個)?\s*`?ACTIVE`?\s*使用者/i,
+      'README 不可以把 ACTIVE 單獨當成排程選取條件',
+    ],
+    [
+      /ACTIVE status alone (?:makes|renders).{0,50}(?:eligible|scheduled)|ACTIVE alone (?:is|makes).{0,50}(?:sufficient|eligible)/i,
+      'ACTIVE alone 不可以被描述成足以排程',
+    ],
+    [
+      /(?:只要|僅需).{0,20}`?ACTIVE`?.{0,30}(?:就|即可|足以).{0,30}(?:排程|符合資格)|`?ACTIVE`?.{0,30}(?:本身|單獨).{0,30}(?:足以|即可).{0,30}(?:排程|符合資格)/i,
+      'README 不可以宣稱 ACTIVE 單獨就符合排程資格',
+    ],
+    [
+      /READY (?:onboarding )?state is not required for scheduling|READY is (?:optional|unnecessary) for (?:normal )?(?:scheduling|scheduled processing)/i,
+      'READY 不可以被描述成排程的非必要條件',
+    ],
+    [
+      /`?READY`?.{0,30}(?:不是必要|不需要|可有可無).{0,30}(?:排程|資格)|(?:排程|資格).{0,30}(?:不要求|不需要).{0,20}`?READY`?/i,
+      'README 不可以宣稱 READY 對排程資格是 optional',
+    ],
+    [
+      /onboarding state (?:does not|doesn't) (?:affect|matter for|determine) scheduler eligibility/i,
+      'onboarding state 必須影響 scheduler eligibility',
+    ],
+    [
+      /(?:scheduler.{0,30}(?:selects|processes) only (?:onboarding-complete|READY) users?|排程只看上線完成[（(]?\s*READY)/i,
+      'READY 不可以被描述成 normal scheduling 的唯一資格',
+    ],
   ];
   for (const [pattern, message] of contradictions) {
     assert.doesNotMatch(whole, pattern, `★ ${message}`);
@@ -146,7 +186,7 @@ test('★★★ 部署：Render blueprint 不可以宣告第三個排程器', ()
     '★ render.yaml 不可以跑 npm start（那是排程器的進入點）');
 });
 
-test('★★★ RC3/RC4 README whole-file scheduler contract', () => {
+test('★★★ RC3/RC4/RC5 README whole-file scheduler and eligibility contract', () => {
   assertReadmeSchedulerContract(readReadmeUnderTest());
 });
 

@@ -61,7 +61,7 @@
 | 檔案 | 用途 |
 |---|---|
 | `src/config.js` | **所有門檻與設定都在這裡**。紅黃燈的百分比、冷啟動筆數、指標怎麼取值與顯示。要調整敏感度只改這一個檔。 |
-| `src/index.js` | 進入點。判斷今天有沒有事要做，然後分別跑 daily 與 weekly（兩者互不阻擋）。 |
+| `src/index.js` | Canonical scheduler/application runner：協調有界 webhook drain、onboarding/resume、`ACTIVE` + `READY` 使用者工作（報告、增量同步、FAST 對帳、主動／同步 intelligence），以及 heartbeat、watchdog、Guardian。 |
 | `src/whoop.js` | WHOOP OAuth 與 v2 API。token 重用/更新、分頁、429 backoff、401 自動重試。 |
 | `src/db.js` | Turso（libSQL）。存 token、發送紀錄、錯誤通知冷卻。 |
 | `src/analyze.js` | **所有數值判斷**。起床偵測、基準計算、三級嚴重度、趨勢預警、週統計。 |
@@ -231,7 +231,7 @@ B 後面那個條件是刻意加的。只看「是否單調下降」的話，在
 | 壞的東西 | 行為 |
 |---|---|
 | AI 教練掛了 | **照樣發數據簡報**，底下加「⚠️ AI 教練分析今天暫時無法生成，數據簡報仍正常」 |
-| WHOOP 掛了 | 寫 log + 發 Telegram 錯誤通知，這一輪不發簡報，下一輪（30 分鐘後）自動重試 |
+| WHOOP 掛了 | 寫 log + 發 Telegram 錯誤通知，這一輪不發簡報；後續依有效的 Cloudflare 主排程／GitHub 備援 cadence，在符合 `Retry-After` 或持久化 backoff 後的 scheduler invocation 重試，不承諾固定間隔 |
 | Turso 掛了 | 同上 |
 | Telegram 掛了 | **只寫 log，絕不再呼叫 Telegram**（不然會無窮遞迴）。記一筆 FAILED，下一輪重試 |
 | WHOOP 回 429 | 依 `Retry-After` / `X-RateLimit-Reset` 或指數退避重試，最多 4 次 |

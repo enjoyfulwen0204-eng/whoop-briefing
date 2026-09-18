@@ -19,6 +19,102 @@ import { HEARTBEAT_COMPONENT, GUARDIAN_POLICY } from '../src/guardianPolicy.js';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
+function readReadmeUnderTest() {
+  const original = read('README.md');
+  const mutation = process.env.RC4_README_MUTATION;
+  if (!mutation) return original;
+  const fraction = Number(process.env.RC4_README_MUTATION_AT ?? 0.5);
+  const offset = Math.floor(original.length * Math.min(1, Math.max(0, fraction)));
+  return `${original.slice(0, offset)}\n${mutation}\n${original.slice(offset)}`;
+}
+
+function assertReadmeSchedulerContract(readme) {
+  const whole = readme.replace(/\s+/g, ' ');
+
+  // Positive truths: these may live in different README sections, but all are required.
+  assert.match(whole, /Cloudflare Worker Cron.{0,80}主排程|主排程.{0,80}Cloudflare Worker Cron/i,
+    '★ README 必須識別 Cloudflare Worker Cron 為主排程');
+  assert.match(whole, /GitHub Actions.{0,80}備援|備援.{0,80}GitHub Actions/i,
+    '★ README 必須識別 GitHub Actions 為備援');
+  assert.match(whole, /cloudflare\/briefing-scheduler\/wrangler\.toml/i,
+    '★ README 必須指出 Cloudflare primary cadence source');
+  assert.match(whole, /\.github\/workflows\/briefing\.yml/i,
+    '★ README 必須指出 GitHub backup cadence source');
+  assert.match(whole, /Render.{0,100}(?:沒有|不含|刻意不含) production cron/i,
+    '★ README 必須明示 Render 不是 production cron owner');
+  assert.match(whole, /scheduler readiness.{0,160}"scheduler":"enabled"/i,
+    '★ scheduler readiness 必須要求 enabled');
+  assert.match(whole, /webhook drain.{0,240}FAST 對帳.{0,240}(?:watchdog|Guardian)/i,
+    '★ canonical runner 必須涵蓋報告以外的 scheduler-owned 工作');
+  assert.match(whole, /報告已結案只會跳過報告遞送/i,
+    '★ settled reports 必須只跳過 report delivery');
+  assert.match(whole, /`src\/index\.js`.{0,320}Canonical scheduler\/application runner/i,
+    '★ src/index.js 必須描述成 canonical runner');
+
+  // Negative contradiction classes: scan the complete normalized README, not one line/section.
+  const contradictions = [
+    [
+      /Render (?:controls|sets|owns|manages) (?:the )?(?:production )?scheduler (?:cadence|frequency|schedule)/i,
+      'Render 不可以控制 production scheduler cadence',
+    ],
+    [
+      /執行頻率.{0,160}render\.yaml.{0,160}(?:兩邊都要改|也要改)|render\.yaml.{0,80}(?:controls|sets|owns|manages).{0,40}(?:cadence|frequency|schedule)/i,
+      'render.yaml 不可以是 cadence 變更控制面',
+    ],
+    [
+      /Render (?:runs|hosts|owns|provides|uses) (?:the )?(?:production )?cron/i,
+      'Render 不可以執行 production cron',
+    ],
+    [
+      /Render.{0,40}(?:執行|運行|提供|擁有).{0,30}(?:production )?cron/i,
+      'README 不可以宣稱 Render 擁有 production cron',
+    ],
+    [
+      /GitHub Actions (?:is|serves as|acts as) (?:the )?(?:primary|main) (?:production )?scheduler/i,
+      'GitHub Actions 不可以被稱為 primary production scheduler',
+    ],
+    [
+      /GitHub Actions.{0,40}(?:是|擔任|作為).{0,30}(?:正式環境的)?主排程/i,
+      'README 不可以把 GitHub Actions 稱為主排程',
+    ],
+    [
+      /HTTP 200 (?:from )?\/health (?:alone )?(?:means|proves|indicates|equals).{0,30}(?:scheduler is )?(?:ready|enabled|available)/i,
+      'HTTP 200 不可以等同 scheduler readiness',
+    ],
+    [
+      /HTTP 200.{0,50}(?:就代表|即代表|等於).{0,40}(?:scheduler|排程).{0,30}(?:ready|enabled|可用|就緒)/i,
+      'README 不可以讓 HTTP 200 單獨代表 scheduler-ready',
+    ],
+    [
+      /Once reports? (?:are )?(?:settled|not due).{0,50}(?:whole|entire).{0,30}(?:scheduled )?run (?:exits|ends|stops)/i,
+      'settled reports 不可以終止 whole scheduled run',
+    ],
+    [
+      /都成立就直接結束，連 WHOOP 都不打|報告(?:已)?(?:結案|不用發|不待發).{0,30}(?:就|後|時).{0,40}(?:整輪|整個).{0,20}(?:結束|退出)/i,
+      'README 不可以把 report settlement 當成整輪結束',
+    ],
+    [
+      /(?:failed operation|operation|it) retries? on the next run.{0,20}30 minutes later/i,
+      'README 不可以承諾 next run 30 minutes later',
+    ],
+    [
+      /下一輪[（(]?\s*30\s*分鐘後/i,
+      'README 不可以保留固定 30 分鐘 next-run 模型',
+    ],
+    [
+      /src\/index\.js.{0,120}判斷今天有沒有事要做.{0,120}(?:daily|weekly)/i,
+      'src/index.js 不可以被描述成 report-only entrypoint',
+    ],
+    [
+      /runBriefing.{0,100}(?:only|just|solely|只).{0,100}(?:reports?|daily|weekly|報告|簡報)/i,
+      'runBriefing 不可以被描述成 report-only',
+    ],
+  ];
+  for (const [pattern, message] of contradictions) {
+    assert.doesNotMatch(whole, pattern, `★ ${message}`);
+  }
+}
+
 // ===========================================================================
 // ★★★ Render 不可以成為第三個排程器
 // ===========================================================================
@@ -50,36 +146,8 @@ test('★★★ 部署：Render blueprint 不可以宣告第三個排程器', ()
     '★ render.yaml 不可以跑 npm start（那是排程器的進入點）');
 });
 
-test('★★★ RC3 README：cadence、canonical runner 與 readiness 說法一致', () => {
-  const readme = read('README.md');
-  const cadence = readme.split('\n').find((line) => line.includes('執行頻率想改')) ?? '';
-
-  assert.match(cadence, /cloudflare\/briefing-scheduler\/wrangler\.toml/,
-    '★ 主排程 cadence 必須指向 Cloudflare wrangler.toml');
-  assert.match(cadence, /\.github\/workflows\/briefing\.yml/,
-    '★ 備援 cadence 必須指向 GitHub workflow');
-  assert.match(cadence, /Render[^\n]+沒有 production cron/,
-    '★ README 必須明示 Render 沒有 production cron');
-  assert.doesNotMatch(cadence, /render\.yaml[^\n]+(兩邊都要改|調.*cron)/,
-    '★ README 不可以把 render.yaml 當成 cadence 控制面');
-
-  assert.match(readme, /Cloudflare Worker Cron[^\n]+主排程/,
-    '★ README 必須識別 Cloudflare 主排程');
-  assert.match(readme, /GitHub Actions[^\n]+備援/,
-    '★ README 必須識別 GitHub 備援');
-  assert.doesNotMatch(readme, /都成立就直接結束，連 WHOOP 都不打/,
-    '★ 報告結案不可以被描述成整輪直接退出');
-  assert.match(readme, /報告已結案只會跳過報告遞送/,
-    '★ README 必須說明報告結案只跳過報告遞送');
-  assert.match(readme, /webhook drain[^\n]+FAST 對帳/,
-    '★ canonical runner 說明必須涵蓋報告之外的 scheduler-owned 工作');
-  assert.doesNotMatch(readme, /每日簡報會安靜地停掉/,
-    '★ GitHub 備援停用不可以被描述成整個正式排程停止');
-
-  assert.match(readme, /HTTP 200[^\n]+不代表 scheduler 可用/,
-    '★ HTTP 200 必須維持 process-liveness 語義');
-  assert.match(readme, /"scheduler":"enabled"/,
-    '★ scheduler readiness 必須繼續要求 enabled');
+test('★★★ RC3/RC4 README whole-file scheduler contract', () => {
+  assertReadmeSchedulerContract(readReadmeUnderTest());
 });
 
 test('★★★ 部署：Cloudflare 是 10 分鐘主排程，GitHub 是錯開的每小時備援', () => {
@@ -117,9 +185,9 @@ test('★★ 部署：workflow 不可以把 secret 印出來', () => {
  * 這個系統健康的時候完全安靜，所以「排程死掉」和「一切正常」在使用者
  * 眼裡長得一模一樣。
  *
- * 唯一會注意到心跳變舊的是 Guardian，而 Guardian 跑在 cron 裡面 ——
- * 排程一停，就再也沒有人去看那個心跳。所以至少要有一個**唯讀、隨時可跑**
- * 的存活檢查，讓維運的人一個指令就問得到。
+ * Guardian 與 scheduler watchdog 都在 canonical runner 裡；只要 Cloudflare 或
+ * GitHub 還有一方活著，就能看見另一方的 heartbeat 變舊。兩邊同時停止時，
+ * repo 內無法自我偵測，所以仍要有一個**唯讀、隨時可跑**的存活檢查。
  */
 test('★★★ 觀測：health-status 會讀 cron 心跳並判斷是否過期', () => {
   const src = read('scripts/health-status.js');
@@ -150,7 +218,7 @@ test('★★★ 觀測：心跳的三種狀態都判斷正確', async () => {
     assert.equal(staleFor(fresh), false, '★ 剛跑完不可以被判成過期');
     assert.equal(fresh.lastDetail, 'users=1');
 
-    // 3) 停了四小時（排程是 30 分鐘一次 → 連漏 8 次）
+    // 3) 停了四小時（遠超過 10 分鐘主排程與每小時備援的正常 cadence）
     await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON, {
       detail: 'users=1', now: new Date(Date.now() - 4 * 3600_000),
     });
@@ -163,8 +231,11 @@ test('★★★ 觀測：心跳的三種狀態都判斷正確', async () => {
 });
 
 test('★★ 觀測：心跳門檻明顯大於排程週期（不會因為偶爾延遲就誤報）', () => {
-  const THIRTY_MIN = 30 * 60_000;
-  assert.ok(GUARDIAN_POLICY.CRON_HEARTBEAT_MAX_AGE_MS >= 4 * THIRTY_MIN,
+  const PRIMARY_CADENCE_MS = 10 * 60_000;
+  const BACKUP_CADENCE_MS = 60 * 60_000;
+  assert.ok(GUARDIAN_POLICY.CRON_HEARTBEAT_MAX_AGE_MS >= 12 * PRIMARY_CADENCE_MS,
+    '★ 門檻必須容忍多個 Cloudflare primary cadence');
+  assert.ok(GUARDIAN_POLICY.CRON_HEARTBEAT_MAX_AGE_MS >= 2 * BACKUP_CADENCE_MS,
     '★ 太短會被 GitHub Actions 正常的延遲誤觸發');
   assert.ok(GUARDIAN_POLICY.CRON_HEARTBEAT_MAX_AGE_MS <= 24 * 3600_000,
     '★ 太長就失去意義了');

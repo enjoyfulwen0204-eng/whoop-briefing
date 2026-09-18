@@ -120,6 +120,12 @@ export const WHOOP_WEBHOOK = {
   /** 一次排空最多處理幾則，避免單次執行無限跑。 */
   DRAIN_BATCH: 25,
   /**
+   * 排程器給 webhook 維護工作的整體時間預算。這個預算會一路傳到 WHOOP
+   * request、Retry-After 與 token-refresh 等待；到期的事件回 RETRY，讓同一輪
+   * 排程繼續處理 onboarding 與簡報。
+   */
+  DRAIN_BUDGET_MS: 25_000,
+  /**
    * recovery 的 canonical 取得需要一個時間窗（見 whoopWebhookProcessor）。
    * 以該筆睡眠的起訖為中心往外各推一天，涵蓋時區與評分延遲。
    */

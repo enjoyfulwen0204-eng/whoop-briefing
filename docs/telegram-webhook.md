@@ -7,10 +7,10 @@ Cloudflare Cron（每 10 分鐘） → canonical scheduler runner（主觸發）
 GitHub Actions（每小時）      → 同一個 canonical runner（獨立備援）
 canonical runner              → webhook drain / WHOOP 同步 / FAST 對帳 / 每日・每週簡報
 Render 靜態站（免費）          → /privacy 隱私政策
-Render Web Service（免費）     → Telegram 入站 webhook
+Render Web Service（免費）     → Telegram 入站 + canonical scheduler + WHOOP OAuth callback
 Turso                         → 所有耐久狀態（唯一的真相來源）
 OpenRouter                    → 需要時的 Q&A 理解
-WHOOP API                     → 個人生理資料（只有 canonical runner 與管理者工具會打）
+WHOOP API                     → 個人生理資料（shared service 內的 canonical runner 會打）
 ```
 
 **每月經常性基礎建設成本：$0。** 沒有付費的 Background Worker。
@@ -157,29 +157,61 @@ OpenRouter 呼叫、送出守衛 —— 全部沿用，實作在
 
 ## 環境變數
 
-只要求這個服務**真的會用到**的：
+正式部署是一個**共享的 Render Web Service**。Telegram 路由本身只需要第一組，
+但同一個 process 也承載 canonical scheduler 與 WHOOP OAuth callback；只設定
+Telegram ingress 會讓 HTTP server 活著，排程路由仍會停用。
 
-| 變數 | 類型 | 必要性 | 用途 |
-|---|---|---|---|
-| `TELEGRAM_BOT_TOKEN` | SECRET | REQUIRED | 送出回覆 |
-| `TELEGRAM_WEBHOOK_SECRET` | SECRET | REQUIRED | 驗證入站請求真的來自 Telegram |
-| `TURSO_DATABASE_URL` | SECRET | REQUIRED | 耐久狀態 |
-| `TURSO_AUTH_TOKEN` | SECRET | REQUIRED | 耐久狀態 |
-| `OPENROUTER_API_KEY` | SECRET | REQUIRED | Q&A 理解 |
-| `OPENROUTER_MODEL` | CONFIG | OPTIONAL | 預設在 config.js |
-| `TIMEZONE` | CONFIG | OPTIONAL | 只是 bootstrap 預設；真正的時區在 `users.timezone` |
-| `PORT` | CONFIG | Render 注入 | HTTP 監聽埠 |
+### 最小完整 shared production service
 
-**`WHOOP_CLIENT_ID` / `WHOOP_CLIENT_SECRET` 刻意不需要**：入站只讀 Turso 裡
-已經同步好的健康資料，不會自己去打 WHOOP API。正式自動寫入由 canonical
-scheduler 持有；管理者工具仍可被明確手動觸發。
+<!-- shared-service-required-env:start -->
+| 變數 | 類型 | 使用者 |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | SECRET | Telegram 收訊與送訊 |
+| `TELEGRAM_WEBHOOK_SECRET` | SECRET | Telegram ingress 驗證 |
+| `TELEGRAM_CHAT_ID` | SECRET | canonical runner 的系統層通知 |
+| `TURSO_DATABASE_URL` | SECRET | 所有耐久狀態 |
+| `TURSO_AUTH_TOKEN` | SECRET | 所有耐久狀態 |
+| `OPENROUTER_API_KEY` | SECRET | Q&A 與報告敘述 |
+| `WHOOP_CLIENT_ID` | SECRET | scheduler WHOOP client 與 OAuth |
+| `WHOOP_CLIENT_SECRET` | SECRET | scheduler WHOOP client 與 OAuth |
+| `WHOOP_REDIRECT_URI` | CONFIG | Phase 3.5 OAuth callback；須與 WHOOP Dashboard 完全一致 |
+| `BRIEFING_TRIGGER_SECRET` | SECRET | Cloudflare 簽章；至少 32 bytes |
+<!-- shared-service-required-env:end -->
 
-`TELEGRAM_CHAT_ID` 也不需要 —— 那只是排程器發系統層錯誤通知用的 bootstrap chat。
+各職責的實際邊界：
+
+- **Telegram ingress**：`TELEGRAM_BOT_TOKEN`、`TELEGRAM_WEBHOOK_SECRET`、兩個
+  `TURSO_*`、`OPENROUTER_API_KEY`。這五個是 process 的基礎啟動門檻。
+- **canonical scheduler**：再加 `TELEGRAM_CHAT_ID`、`WHOOP_CLIENT_ID`、
+  `WHOOP_CLIENT_SECRET`、`BRIEFING_TRIGGER_SECRET`（至少 32 bytes）。缺少或太弱時
+  `/internal/briefing/run` 會 fail closed 為 `503 scheduler_unavailable`。
+- **Phase 3.5 onboarding/OAuth**：`WHOOP_CLIENT_ID`、`WHOOP_CLIENT_SECRET` 與
+  `WHOOP_REDIRECT_URI`。缺任何一項，自助上線與 callback 都停用。
+- **選用的 WHOOP webhook ingress**：`WHOOP_WEBHOOK_ENABLED=true` 才啟用；預設
+  關閉，並以既有 `WHOOP_CLIENT_SECRET` 驗簽。它不是完整 shared service 的必要變數。
+
+`OPENROUTER_MODEL`、`TIMEZONE` 是選用設定；`PORT` 由 Render 注入。
+
+### `/health` 的判讀
+
+`GET /health` 回 HTTP 200 只證明 Web Service process 活著，**不證明 canonical
+scheduler 可用**。完整部署必須同時看到 JSON 的 `scheduler` 是 `"enabled"`：
+
+- `enabled`：scheduler prerequisites 完整，排程路由已建立。
+- `incomplete`：至少一個 scheduler 變數缺少。
+- `weak_secret`：trigger secret 存在但少於 32 bytes。
+- `disabled`：scheduler 專用設定完全沒有提供。
+
+完成設定後，Cloudflare 的有效 HMAC 請求應進入 canonical runner，而不是得到
+`503 scheduler_unavailable`。不要用手動產生真實簡報當 smoke test；依
+[`cloudflare-briefing-runbook.md`](./cloudflare-briefing-runbook.md) 觀察自然 invocation。
 
 ## 上線步驟
 
-1. Render 建立免費 Web Service（或套用 `render.yaml`），填上面 5 個 secret
-2. 等部署完成，確認 `GET /health` 回 `{"ok":true,"service":"telegram-webhook"}`
+1. Render 建立免費 Web Service（或套用 `render.yaml`），填入「最小完整 shared
+   production service」表中的十個變數
+2. 等部署完成，確認 `GET /health` 回 HTTP 200，且 body 同時包含
+   `{"ok":true,"service":"telegram-webhook","scheduler":"enabled"}`
 3. 設 `TELEGRAM_WEBHOOK_URL=https://<service>.onrender.com/telegram/webhook`
 4. `npm run telegram:webhook:set`
 5. `npm run telegram:webhook:status` 確認 `url` 已設定

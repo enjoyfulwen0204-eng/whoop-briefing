@@ -7,13 +7,10 @@
 #
 # ⚠️ 這裡**刻意沒有** cron，也**刻意沒有** Background Worker。
 #
-# 排程只有一個擁有者：GitHub Actions（.github/workflows/briefing.yml，每 30 分鐘）。
-# 這個藍圖以前宣告過一個一模一樣的 `type: cron` 跑 `npm start`。Render 的
-# Blueprint 會從 repo 同步，所以只要有人重新套用它，那個 cron 就會被重新建立：
-# 同一個 Turso、同一個 WHOOP 帳號，兩個排程器各跑各的。資料不會壞
-# （report_claims 擋重複發送、resource_locks 擋 refresh_token 輪替競態），
-# 但 WHOOP 用量與 OpenRouter 花費會變成兩倍。要改用 Render 排程的話，
-# **先停掉 GitHub Actions 的 workflow** 再加回來 —— 不要兩個同時開著。
+# 主排程是 Cloudflare Worker Cron（每 10 分鐘），GitHub Actions（每小時第 17 分）
+# 是獨立備援；兩者都進入同一支 canonical runner。這個藍圖刻意不宣告 Render
+# cron，避免產生第三個排程來源。重疊由 report_claims、resource_locks 與各維護
+# 工作的 lease 保護；Render Web Service 只承載受 HMAC 保護的 scheduler endpoint。
 #
 # ## 入站為什麼是 webhook 不是長輪詢
 #
@@ -27,10 +24,10 @@
 # 正式環境的入站是 webhook；`npm run bot`（長輪詢）只留給本機除錯，
 # **任何 Render 服務的 startCommand 都不會啟動它**。
 #
-# webhook 與排程器同時活著是安全的（這是刻意的分工）：
+# Telegram webhook 與排程器同時活著是安全的（這是刻意的分工）：
 #   - WHOOP token refresh 有 Turso lease lock（resource_locks）
 #   - 報告發送權有 report_claims，不會重複發送
-#   - webhook 只讀健康資料、只寫 journal；唯一會寫健康資料的仍然只有排程器
+#   - Telegram ingress 只讀健康資料、只寫 journal；scheduler 才會寫 WHOOP 健康資料
 #
 # 標成 sync: false 的變數不會寫在檔案裡，要在 Render 網頁的 Environment 分頁自己填。
 

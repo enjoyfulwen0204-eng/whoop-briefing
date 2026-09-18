@@ -61,12 +61,14 @@ async function drain() {
   const clients = new Map();
   // ★ R3 / R2-FG-01：每個 client 綁定處理這則事件時的帳號啟用世代。
   // 處理器把它傳進來（它剛剛才解析過使用者），所以這裡不必再讀一次。
-  const whoopFor = (userId, { expectedLifecycleGeneration = null } = {}) => {
+  const whoopFor = (userId, { expectedLifecycleGeneration = null, maintenance = null } = {}) => {
     const key = `${userId}:${expectedLifecycleGeneration ?? 'none'}`;
     if (!clients.has(key)) {
       clients.set(key, createWhoopClient({
         db, userId, clientId: full.whoopClientId, clientSecret: full.whoopClientSecret,
         expectedLifecycleGeneration,
+        requestSignal: maintenance?.signal ?? null,
+        requestDeadlineAt: maintenance?.deadlineAt ?? null,
       }));
     }
     return clients.get(key);

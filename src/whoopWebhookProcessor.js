@@ -201,11 +201,12 @@ async function persistCanonical({ db, userId, kind, record, timezone, now }) {
  *
  * @param {object} event     claimWhoopEvent 回來的事件
  * @param {string} owner     我們的所有權 token
- * @param {function} whoopFor (userId, { expectedLifecycleGeneration }) => whoop client
- *   （重用既有的 token 圍欄；啟用脈絡讓例行 refresh 也受同一段啟用期約束）
+ * @param {function} whoopFor (userId, { expectedLifecycleGeneration, maintenance }) => whoop client
+ *   （重用既有的 token 圍欄；啟用脈絡讓例行 refresh 也受同一段啟用期約束；
+ *    maintenance 把 scheduler 的 AbortSignal/deadline 傳到 provider 邊界）
  */
 export async function processWhoopEvent({
-  db, event, owner, whoopFor, now = () => new Date(),
+  db, event, owner, whoopFor, now = () => new Date(), maintenance = null,
 }) {
   const at = () => new Date(now());
   const settle = (state, extra = {}) => db.settleWhoopEvent(event.id, {
@@ -332,7 +333,10 @@ export async function processWhoopEvent({
   try {
     // ★ R3 / R2-FG-01：client 也要帶啟用脈絡 —— 抓資料途中可能觸發
     // 例行 refresh，而那個寫入必須屬於同一段啟用期。
-    const whoop = await whoopFor(userId, { expectedLifecycleGeneration: eventLifecycleGeneration });
+    const whoop = await whoopFor(userId, {
+      expectedLifecycleGeneration: eventLifecycleGeneration,
+      maintenance,
+    });
     fetched = await fetchCanonical({
       whoop, resourceType: event.resourceType, resourceId: event.resourceId,
     });
@@ -463,47 +467,80 @@ export async function processWhoopEvent({
  * 排空：把還沒處理完的事件一則一則處理掉。
  *
  * 正式環境由 canonical scheduler 呼叫這個同一入口；本機腳本也沿用它。
- * 每輪最多處理 batch 則，所以 backlog 會安全留給下一輪，不會壟斷排程器。
+ * 每輪同時受 batch 與 wall-clock budget 約束；deadline 會傳到 WHOOP client，
+ * 所以已認領事件的 provider fetch / retry sleep 也不能繞過上限。剩餘 backlog
+ * 安全留給下一輪。
  */
 export async function drainWhoopWebhookEvents({
   db, whoopFor, owner, now = () => new Date(),
   batch = WHOOP_WEBHOOK.DRAIN_BATCH,
+  budgetMs = WHOOP_WEBHOOK.DRAIN_BUDGET_MS,
   leaseMs = WHOOP_WEBHOOK.LEASE_MS,
   maxAttempts = WHOOP_WEBHOOK.MAX_ATTEMPTS,
+  monotonicNow = Date.now,
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
 }) {
+  const requestedBudget = Number(budgetMs);
+  // This is an internal test/maintenance override, not an escape hatch: callers may
+  // choose a smaller budget, but no canonical invocation can enlarge the hard cap.
+  const effectiveBudgetMs = Number.isFinite(requestedBudget) && requestedBudget >= 0
+    ? Math.min(requestedBudget, WHOOP_WEBHOOK.DRAIN_BUDGET_MS)
+    : WHOOP_WEBHOOK.DRAIN_BUDGET_MS;
+  const startedAt = Number(monotonicNow());
+  const deadlineAt = startedAt + effectiveBudgetMs;
+  const controller = new AbortController();
+  const expire = () => controller.abort(new Error('whoop_webhook_drain_deadline'));
+  const timer = setTimer(expire, effectiveBudgetMs);
+  timer?.unref?.();
   const summary = {
     claimed: 0, processed: 0, ignored: 0, retryable: 0, failed: 0, fenced: 0,
-    remaining: null, results: {},
+    remaining: null, results: {}, budgetMs: effectiveBudgetMs, budgetExhausted: false,
   };
-  for (let i = 0; i < batch; i += 1) {
-    const event = await db.claimWhoopEvent({
-      owner, leaseMs, now: new Date(now()), maxAttempts,
-    });
-    if (!event) break;
-    summary.claimed += 1;
-    let outcome;
-    try {
-      const r = await processWhoopEvent({ db, event, owner, whoopFor, now });
-      outcome = r.result;
-    } catch (err) {
-      // processWhoopEvent 內部已經盡量自己處理；這是最後一道防線，
-      // 絕不讓一則事件把整個排空打斷。
-      log.error('whoop_webhook_process_unhandled', {
-        event_id: event.id, error: describeError(err),
+  try {
+    for (let i = 0; i < batch; i += 1) {
+      if (controller.signal.aborted || Number(monotonicNow()) >= deadlineAt) {
+        summary.budgetExhausted = true;
+        break;
+      }
+      const event = await db.claimWhoopEvent({
+        owner, leaseMs, now: new Date(now()), maxAttempts,
       });
-      const exhausted = event.attemptCount >= maxAttempts;
-      await db.settleWhoopEvent(event.id, {
-        owner,
-        state: exhausted ? WHOOP_EVENT_STATE.FAILED : WHOOP_EVENT_STATE.RETRY,
-        errorClass: ERROR_CLASS.INTERNAL,
-        errorDetail: describeError(err),
-        nextAttemptAt: exhausted
-          ? null : new Date(new Date(now()).getTime() + backoffFor(event.attemptCount)),
-        now: new Date(now()),
-      }).catch(() => false);
-      outcome = exhausted ? PROCESS_RESULT.FAILED : PROCESS_RESULT.RETRY;
+      if (!event) break;
+      summary.claimed += 1;
+      let outcome;
+      try {
+        const r = await processWhoopEvent({
+          db, event, owner, whoopFor, now,
+          maintenance: { signal: controller.signal, deadlineAt },
+        });
+        outcome = r.result;
+      } catch (err) {
+        // processWhoopEvent 內部已經盡量自己處理；這是最後一道防線，
+        // 絕不讓一則事件把整個排空打斷。
+        log.error('whoop_webhook_process_unhandled', {
+          event_id: event.id, error: describeError(err),
+        });
+        const exhausted = event.attemptCount >= maxAttempts;
+        await db.settleWhoopEvent(event.id, {
+          owner,
+          state: exhausted ? WHOOP_EVENT_STATE.FAILED : WHOOP_EVENT_STATE.RETRY,
+          errorClass: ERROR_CLASS.INTERNAL,
+          errorDetail: describeError(err),
+          nextAttemptAt: exhausted
+            ? null : new Date(new Date(now()).getTime() + backoffFor(event.attemptCount)),
+          now: new Date(now()),
+        }).catch(() => false);
+        outcome = exhausted ? PROCESS_RESULT.FAILED : PROCESS_RESULT.RETRY;
+      }
+      summary.results[outcome] = (summary.results[outcome] ?? 0) + 1;
+      if (controller.signal.aborted || Number(monotonicNow()) >= deadlineAt) {
+        summary.budgetExhausted = true;
+        break;
+      }
     }
-    summary.results[outcome] = (summary.results[outcome] ?? 0) + 1;
+  } finally {
+    clearTimer(timer);
   }
   const countResults = (...keys) => keys.reduce((n, key) => n + (summary.results[key] ?? 0), 0);
   summary.processed = countResults(

@@ -60,7 +60,7 @@ import { WHOOP_RECONCILE, WHOOP } from './config.js';
 import { RECONCILE_RESULT, TOMBSTONE_RECONCILE_VERDICT, DISCREPANCY_KIND } from './schema.js';
 import { WhoopApiError, WhoopAuthError, isScopeError } from './whoop.js';
 import { requireUserId } from './userContext.js';
-import { requireLifecycle } from './accountLifecycle.js';
+import { AccountInactiveError, isAccountInactiveError, requireLifecycle } from './accountLifecycle.js';
 import { log, describeError } from './logger.js';
 
 const DAY_MS = 86_400_000;
@@ -349,10 +349,12 @@ export function createReconciler({
     let n = 0;
     for (const id of local) {
       if (remoteIds.has(id)) continue;
-      await db.recordDiscrepancy({
+      const recorded = await db.recordDiscrepancy({
         userId: uid, resource, resourceId: id, kind: DISCREPANCY_KIND.MISSING_REMOTE,
         windowFrom: window.from, windowTo: window.to, now: at(),
+        lifecycleGeneration: lifecycleFence,
       });
+      if (!recorded) throw new AccountInactiveError(uid);
       n += 1;
     }
     if (n) log.warn('reconcile_missing_remote_recorded', { user_id: uid, resource, count: n });
@@ -389,11 +391,12 @@ export function createReconciler({
           else throw err;   // 其他錯誤照樣往上（會被分類成這一輪的失敗）
         }
       }
-      await db.recordTombstoneVerdict({
+      const recorded = await db.recordTombstoneVerdict({
         userId: uid, resourceType: resource, resourceId: t.resourceId,
         verdict, remoteUpdatedAt: remoteUpdatedAt ? new Date(remoteUpdatedAt).toISOString() : null,
-        now: at(),
+        now: at(), lifecycleGeneration: lifecycleFence,
       });
+      if (!recorded) throw new AccountInactiveError(uid);
       if (verdict === TOMBSTONE_RECONCILE_VERDICT.REMOTE_PRESENT_UNRESOLVED) {
         unresolved += 1;
         // 這是 Phase 2 刻意不解決的情況：資源在遠端存在，但我們沒有來源時序
@@ -424,6 +427,7 @@ export function createReconciler({
 
     const claimed = await db.claimReconciliation({
       userId: uid, resource: key, owner, leaseMs, now: at(),
+      lifecycleGeneration: lifecycleFence,
     });
     if (!claimed) return { resource, scope, result: RECONCILE_RESULT.SKIPPED, reason: 'claim_busy' };
 
@@ -466,6 +470,7 @@ export function createReconciler({
         );
         const settled = await db.settleReconciliation({
           userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS, windowTo: window.to, now: at(),
+          lifecycleGeneration: lifecycleFence,
         });
         return finish(settled ? RECONCILE_RESULT.SUCCESS : RECONCILE_RESULT.FENCED);
       }
@@ -475,6 +480,7 @@ export function createReconciler({
       if (!explicitWindow && !window.pending) {
         const opened = await db.openPendingWindow({
           userId: uid, resource: key, owner, from: window.from, to: window.to, now: at(),
+          lifecycleGeneration: lifecycleFence,
         });
         if (!opened) throw new Error('reconcile_ownership_lost');
       }
@@ -507,7 +513,7 @@ export function createReconciler({
         const settled = await db.settleReconciliation({
           userId: uid, resource: key, owner, result: RECONCILE_RESULT.PARTIAL,
           continuation: { token: fetched.nextToken, from: window.from, to: window.to },
-          latestRemoteUpdatedAt, now: at(),
+          latestRemoteUpdatedAt, now: at(), lifecycleGeneration: lifecycleFence,
         });
         log.info('reconcile_partial', { user_id: uid, resource: key, pages: counters.pages, fetched: counters.fetched });
         return finish(settled ? RECONCILE_RESULT.PARTIAL : RECONCILE_RESULT.FENCED);
@@ -540,11 +546,16 @@ export function createReconciler({
         userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS,
         windowTo: window.to, cursor: isDeep ? window.from : null, latestRemoteUpdatedAt, now: at(),
         watermarkMode: explicitWindow ? 'keep' : isDeep ? 'set' : 'advance',
+        lifecycleGeneration: lifecycleFence,
       });
       const result = settled ? RECONCILE_RESULT.SUCCESS : RECONCILE_RESULT.FENCED;
       log.info('reconcile_done', { user_id: uid, resource: key, result, ...counters });
       return finish(result);
     } catch (err) {
+      if (isAccountInactiveError(err)) {
+        log.warn('reconcile_lifecycle_fenced', { user_id: uid, resource: key });
+        return finish(RECONCILE_RESULT.FENCED, { errorClass: ERROR_CLASS.FENCED });
+      }
       const cls = classifyReconcileError(err);
       if (cls.class === ERROR_CLASS.FENCED) {
         log.warn('reconcile_fenced', { user_id: uid, resource: key });
@@ -554,10 +565,15 @@ export function createReconciler({
       // 可重試與不可重試都排退避：不可重試（scope / 4xx）多半要等人重新授權，
       // 但也不該每個排程 tick 都去撞一次 403 —— 退避上限把 API 用量綁死。
       const nextAttemptAt = new Date(at().getTime() + reconcileBackoffMs(failures));
-      await db.settleReconciliation({
+      const settled = await db.settleReconciliation({
         userId: uid, resource: key, owner, result: RECONCILE_RESULT.FAILED,
         errorClass: cls.class, errorDetail: describeError(err), nextAttemptAt, now: at(),
+        lifecycleGeneration: lifecycleFence,
       });
+      if (!settled) {
+        log.warn('reconcile_settlement_fenced', { user_id: uid, resource: key });
+        return finish(RECONCILE_RESULT.FENCED, { errorClass: ERROR_CLASS.FENCED });
+      }
       log[cls.class === ERROR_CLASS.SCOPE ? 'warn' : 'error']('reconcile_failed', {
         user_id: uid, resource: key, error_class: cls.class, retryable: cls.retryable,
       });

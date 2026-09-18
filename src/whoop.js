@@ -35,6 +35,15 @@ export class WhoopApiError extends Error {
   }
 }
 
+/** 排程維護預算耗盡：對 webhook 而言是可重試的網路邊界，不是終局失敗。 */
+export class WhoopMaintenanceDeadlineError extends WhoopApiError {
+  constructor() {
+    super('WHOOP 維護工作已用完本輪時間預算', 0);
+    this.name = 'WhoopMaintenanceDeadlineError';
+    this.code = 'WHOOP_MAINTENANCE_DEADLINE';
+  }
+}
+
 /** 「這一輪是以一個已經過期的授權開始的」的統一代碼。 */
 export const STALE_AUTHORIZATION = 'STALE_AUTHORIZATION';
 
@@ -143,7 +152,7 @@ export function buildAuthorizeUrl({ clientId, redirectUri, state }) {
  *   WHOOP 會輪替 refresh_token，所以那一寫會把帳號直接鎖死（要人工重新授權）。
  */
 async function postToken(body, tokenUrl = WHOOP.TOKEN_URL, {
-  fetchImpl = fetch, timeoutMs = WHOOP.TOKEN_REQUEST_TIMEOUT_MS,
+  fetchImpl = fetch, timeoutMs = WHOOP.TOKEN_REQUEST_TIMEOUT_MS, signal = null,
 } = {}) {
   let res;
   try {
@@ -151,9 +160,12 @@ async function postToken(body, tokenUrl = WHOOP.TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(body),
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
+    if (signal?.aborted) throw new WhoopMaintenanceDeadlineError();
     // 逾時 / 連線失敗。絕不在訊息裡帶任何 token 內容。
     throw new WhoopAuthError(`WHOOP token endpoint 連線失敗：${err?.name ?? ''} ${err?.message ?? ''}`.trim());
   }
@@ -178,7 +190,7 @@ async function postToken(body, tokenUrl = WHOOP.TOKEN_URL, {
 
 /** authorization_code → 第一組 token。 */
 export function exchangeCode({
-  code, clientId, clientSecret, redirectUri, tokenUrl, fetchImpl, timeoutMs,
+  code, clientId, clientSecret, redirectUri, tokenUrl, fetchImpl, timeoutMs, signal,
 }) {
   return postToken({
     grant_type: 'authorization_code',
@@ -186,12 +198,12 @@ export function exchangeCode({
     client_id: clientId,
     client_secret: clientSecret,
     redirect_uri: redirectUri,
-  }, tokenUrl, { fetchImpl, timeoutMs });
+  }, tokenUrl, { fetchImpl, timeoutMs, signal });
 }
 
 /** refresh_token → 新 token（WHOOP 會輪替 refresh_token）。 */
 export function refreshTokens({
-  refreshToken, clientId, clientSecret, tokenUrl, fetchImpl, timeoutMs,
+  refreshToken, clientId, clientSecret, tokenUrl, fetchImpl, timeoutMs, signal,
 }) {
   return postToken({
     grant_type: 'refresh_token',
@@ -199,7 +211,7 @@ export function refreshTokens({
     client_id: clientId,
     client_secret: clientSecret,
     scope: 'offline',
-  }, tokenUrl, { fetchImpl, timeoutMs });
+  }, tokenUrl, { fetchImpl, timeoutMs, signal });
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +236,11 @@ export function createWhoopClient({
   // 一個受約束的健康 client 兩個都要帶：重新授權不動啟用期，
   // 停用／再啟用不動授權期。
   expectedLifecycleGeneration = null,
+  // Scheduler-owned webhook drains bind one client to one overall maintenance
+  // deadline. Other clients omit these fields and retain their existing behavior.
+  requestSignal = null,
+  requestDeadlineAt = null,
+  nowMs = Date.now,
 } = {}) {
   const uid = requireUserId(userId, 'createWhoopClient');
   // per-user 的 lease lock 名稱。全域鎖名會讓一個人的 refresh 卡住所有人。
@@ -263,6 +280,35 @@ export function createWhoopClient({
   let cached = constrained ? authorization : null;
   let refreshing = null;   // mutex：同一 run 內平行請求時只會 refresh 一次
 
+  const deadline = requestDeadlineAt === null || requestDeadlineAt === undefined
+    ? null : Number(requestDeadlineAt);
+  const remainingBudgetMs = () => deadline === null ? Infinity : deadline - Number(nowMs());
+  const ensureRequestBudget = () => {
+    if (requestSignal?.aborted || remainingBudgetMs() <= 0) {
+      throw new WhoopMaintenanceDeadlineError();
+    }
+  };
+  const boundedSleep = async (ms) => {
+    ensureRequestBudget();
+    if (Number(ms) >= remainingBudgetMs()) throw new WhoopMaintenanceDeadlineError();
+    if (!requestSignal) {
+      await sleepImpl(ms);
+      ensureRequestBudget();
+      return;
+    }
+    let rejectOnAbort;
+    const aborted = new Promise((resolve, reject) => {
+      rejectOnAbort = () => reject(new WhoopMaintenanceDeadlineError());
+      requestSignal.addEventListener('abort', rejectOnAbort, { once: true });
+    });
+    try {
+      await Promise.race([Promise.resolve(sleepImpl(ms)), aborted]);
+      ensureRequestBudget();
+    } finally {
+      requestSignal.removeEventListener('abort', rejectOnAbort);
+    }
+  };
+
   /**
    * 從 DB 撿來的這一列，屬於我們這一輪綁定的那次授權嗎。
    *
@@ -296,6 +342,7 @@ export function createWhoopClient({
 
   /** 取得可用的 access token（>5 分鐘效期就重用）。 */
   async function getAccessToken({ force = false } = {}) {
+    ensureRequestBudget();
     if (lifecycleFence !== null) await db.assertAccountActive(uid, lifecycleFence);
     const t = await loadTokens();
     const msLeft = t.expiresAt.getTime() - Date.now();
@@ -332,7 +379,7 @@ export function createWhoopClient({
     const attempts = Math.max(1, Math.ceil(LOCKS.TOKEN_REFRESH_WAIT_MS / LOCKS.TOKEN_REFRESH_POLL_MS));
     log.warn('token_refresh_lock_busy', { user_id: uid, attempts, poll_ms: LOCKS.TOKEN_REFRESH_POLL_MS });
     for (let i = 1; i <= attempts; i++) {
-      await sleepImpl(LOCKS.TOKEN_REFRESH_POLL_MS);
+      await boundedSleep(LOCKS.TOKEN_REFRESH_POLL_MS);
       // ★ F04：世代不符就**立刻**放棄，不繼續輪詢 —— 我們等的那個授權
       // 已經不存在了，再等下去只會等到一個我們無權使用的憑證。
       const latest = assertGeneration(await db.getTokens(uid));
@@ -373,6 +420,7 @@ export function createWhoopClient({
   }
 
   async function doRefresh(t, force) {
+    ensureRequestBudget();
     const staleAccessToken = t.accessToken;
     const msLeft = t.expiresAt.getTime() - Date.now();
 
@@ -411,7 +459,12 @@ export function createWhoopClient({
         clientSecret,
         tokenUrl,
         fetchImpl,
+        signal: requestSignal,
+        timeoutMs: Math.max(1, Math.min(
+          WHOOP.TOKEN_REQUEST_TIMEOUT_MS, remainingBudgetMs(),
+        )),
       });
+      ensureRequestBudget();
 
       // -------------------------------------------------------------------
       // ★ M-02：寫入圍欄。網路回來了**不代表**我們還有權力寫。
@@ -493,6 +546,7 @@ export function createWhoopClient({
 
   /** 單一 GET，含 429 / 5xx backoff 與 401 自動 refresh 一次。 */
   async function apiGet(path, params = {}, { retriedAfterAuth = false } = {}) {
+    ensureRequestBudget();
     const token = await getAccessToken();
     const url = new URL(apiBase + path);
     for (const [k, v] of Object.entries(params)) {
@@ -502,15 +556,20 @@ export function createWhoopClient({
     for (let attempt = 1; attempt <= WHOOP.MAX_RETRIES; attempt++) {
       let res;
       try {
+        ensureRequestBudget();
         res = await fetchImpl(url.toString(), {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          ...(requestSignal ? { signal: requestSignal } : {}),
         });
       } catch (err) {
+        if (requestSignal?.aborted || remainingBudgetMs() <= 0) {
+          throw new WhoopMaintenanceDeadlineError();
+        }
         // 網路層失敗也重試
         if (attempt === WHOOP.MAX_RETRIES) {
           throw new WhoopApiError(`WHOOP 連線失敗：${err?.message ?? err}`, 0);
         }
-        await sleep(backoffFor(attempt));
+        await boundedSleep(backoffFor(attempt));
         continue;
       }
 
@@ -527,7 +586,7 @@ export function createWhoopClient({
         if (attempt === WHOOP.MAX_RETRIES) {
           throw new WhoopApiError(`WHOOP ${res.status}（已重試 ${attempt} 次）`, res.status);
         }
-        await sleep(wait);
+        await boundedSleep(wait);
         continue;
       }
 

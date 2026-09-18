@@ -20,6 +20,18 @@ import { log } from './logger.js';
 
 const iso = (v) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
 
+// Production callers pass a captured lifecycle generation. `null` is reserved for
+// the explicit administrator repair mode selected by createReconciler. Keeping the
+// predicate in the same SQL statement as each mutation closes both disable and ABA
+// races; a check performed before the statement would still leave a write window.
+const LIFECYCLE_PREDICATE = `(? IS NULL OR EXISTS (
+  SELECT 1 FROM users lifecycle_user
+   WHERE lifecycle_user.id = ?
+     AND lifecycle_user.status = 'ACTIVE'
+     AND lifecycle_user.lifecycle_generation = ?
+))`;
+const lifecycleArgs = (uid, generation) => [generation, uid, generation];
+
 export function createReconciliationStore(client) {
   const rowToState = (r) => (r ? {
     userId: String(r.user_id),
@@ -67,7 +79,9 @@ export function createReconciliationStore(client) {
    * 退避（next_attempt_at）在**這裡**不檢查 —— 那是「該不該跑」的決定，
    * 由呼叫端用 isReconcileDue 判斷；認領只回答「能不能持有」。
    */
-  async function claimReconciliation({ userId, resource, owner, leaseMs, now = new Date() }) {
+  async function claimReconciliation({
+    userId, resource, owner, leaseMs, now = new Date(), lifecycleGeneration = null,
+  }) {
     const uid = requireUserId(userId, 'claimReconciliation');
     if (!owner) throw new Error('reconcile_owner_required');
     const nowIso = iso(now);
@@ -75,7 +89,8 @@ export function createReconciliationStore(client) {
     const rs = await client.execute({
       sql: `INSERT INTO whoop_reconciliation_state
               (user_id, resource, owner, lease_expires_at, last_attempt_at, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            SELECT ?, ?, ?, ?, ?, ?, ?
+             WHERE ${LIFECYCLE_PREDICATE}
             ON CONFLICT(user_id, resource) DO UPDATE SET
               owner = excluded.owner,
               lease_expires_at = excluded.lease_expires_at,
@@ -84,7 +99,8 @@ export function createReconciliationStore(client) {
             WHERE whoop_reconciliation_state.owner IS NULL
                OR whoop_reconciliation_state.lease_expires_at IS NULL
                OR whoop_reconciliation_state.lease_expires_at <= excluded.last_attempt_at`,
-      args: [uid, resource, String(owner), leaseIso, nowIso, nowIso, nowIso],
+      args: [uid, resource, String(owner), leaseIso, nowIso, nowIso, nowIso,
+        ...lifecycleArgs(uid, lifecycleGeneration)],
     });
     const got = Number(rs.rowsAffected ?? 0) > 0;
     if (!got) log.info('reconcile_claim_busy', { user_id: uid, resource });
@@ -112,15 +128,19 @@ export function createReconciliationStore(client) {
    *
    * 帶 owner + 租約圍欄；明確窗（backfill）不呼叫這一支。
    */
-  async function openPendingWindow({ userId, resource, owner, from, to, now = new Date() }) {
+  async function openPendingWindow({
+    userId, resource, owner, from, to, now = new Date(), lifecycleGeneration = null,
+  }) {
     const uid = requireUserId(userId, 'openPendingWindow');
     if (!owner) return false;
     const nowIso = iso(now);
     const rs = await client.execute({
       sql: `UPDATE whoop_reconciliation_state
                SET continuation_from = ?, continuation_to = ?, updated_at = ?
-             WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?`,
-      args: [iso(from), iso(to), nowIso, uid, resource, String(owner), nowIso],
+             WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?
+               AND ${LIFECYCLE_PREDICATE}`,
+      args: [iso(from), iso(to), nowIso, uid, resource, String(owner), nowIso,
+        ...lifecycleArgs(uid, lifecycleGeneration)],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -142,6 +162,7 @@ export function createReconciliationStore(client) {
     continuation = null, latestRemoteUpdatedAt = null,
     errorClass = null, errorDetail = null, nextAttemptAt = null, now = new Date(),
     watermarkMode = 'advance',
+    lifecycleGeneration = null,
   }) {
     const uid = requireUserId(userId, 'settleReconciliation');
     if (!owner) return false;
@@ -171,10 +192,12 @@ export function createReconciliationStore(client) {
                      owner = NULL, lease_expires_at = NULL,
                      ${successSql}
                      updated_at = ?
-               WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?`,
+               WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?
+                 AND ${LIFECYCLE_PREDICATE}`,
         args: [watermarkArg, latestRemoteUpdatedAt,
           ...(watermarkMode === 'keep' ? [] : [nowIso]), nowIso,
-          uid, resource, String(owner), nowIso],
+          uid, resource, String(owner), nowIso,
+          ...lifecycleArgs(uid, lifecycleGeneration)],
       });
     } else if (result === RECONCILE_RESULT.PARTIAL) {
       rs = await client.execute({
@@ -184,12 +207,14 @@ export function createReconciliationStore(client) {
                      owner = NULL, lease_expires_at = NULL,
                      last_error_class = NULL, last_error_detail = NULL,
                      next_attempt_at = NULL, updated_at = ?
-               WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?`,
+               WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?
+                 AND ${LIFECYCLE_PREDICATE}`,
         args: [continuation?.token ?? null,
           continuation?.from ? iso(continuation.from) : null,
           continuation?.to ? iso(continuation.to) : null,
           latestRemoteUpdatedAt, nowIso,
-          uid, resource, String(owner), nowIso],
+          uid, resource, String(owner), nowIso,
+          ...lifecycleArgs(uid, lifecycleGeneration)],
       });
     } else if (result === RECONCILE_RESULT.FAILED) {
       // P2-R02：失敗**只清 token、保留未完成窗**。下一輪用同一個 [from, to]
@@ -203,10 +228,12 @@ export function createReconciliationStore(client) {
                      last_failure_at = ?, last_error_class = ?, last_error_detail = ?,
                      consecutive_failures = consecutive_failures + 1,
                      next_attempt_at = ?, updated_at = ?
-               WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?`,
+               WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?
+                 AND ${LIFECYCLE_PREDICATE}`,
         args: [nowIso, errorClass, errorDetail ? String(errorDetail).slice(0, 300) : null,
           nextAttemptAt ? iso(nextAttemptAt) : null, nowIso,
-          uid, resource, String(owner), nowIso],
+          uid, resource, String(owner), nowIso,
+          ...lifecycleArgs(uid, lifecycleGeneration)],
       });
     } else {
       throw new Error(`invalid_reconcile_result:${result}`);
@@ -271,22 +298,26 @@ export function createReconciliationStore(client) {
   /** 記一筆差異。同一個 (user, resource, id, kind) 只有一列，重複看到就累加。 */
   async function recordDiscrepancy({
     userId, resource, resourceId, kind, windowFrom = null, windowTo = null, now = new Date(),
+    lifecycleGeneration = null,
   }) {
     const uid = requireUserId(userId, 'recordDiscrepancy');
     const nowIso = iso(now);
-    await client.execute({
+    const rs = await client.execute({
       sql: `INSERT INTO whoop_reconciliation_discrepancies
               (user_id, resource, resource_id, kind, first_seen_at, last_seen_at, seen_count,
                window_from, window_to)
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+            SELECT ?, ?, ?, ?, ?, ?, 1, ?, ?
+             WHERE ${LIFECYCLE_PREDICATE}
             ON CONFLICT(user_id, resource, resource_id, kind) DO UPDATE SET
               last_seen_at = excluded.last_seen_at,
               seen_count = whoop_reconciliation_discrepancies.seen_count + 1,
               window_from = excluded.window_from,
               window_to = excluded.window_to`,
       args: [uid, resource, String(resourceId), kind, nowIso, nowIso,
-        windowFrom ? iso(windowFrom) : null, windowTo ? iso(windowTo) : null],
+        windowFrom ? iso(windowFrom) : null, windowTo ? iso(windowTo) : null,
+        ...lifecycleArgs(uid, lifecycleGeneration)],
     });
+    return Number(rs.rowsAffected ?? 0) > 0;
   }
 
   async function listDiscrepancies(userId, { resource = null } = {}) {
@@ -337,6 +368,7 @@ export function createReconciliationStore(client) {
    */
   async function recordTombstoneVerdict({
     userId, resourceType, resourceId, verdict, remoteUpdatedAt = null, now = new Date(),
+    lifecycleGeneration = null,
   }) {
     const uid = requireUserId(userId, 'recordTombstoneVerdict');
     if (!Object.values(TOMBSTONE_RECONCILE_VERDICT).includes(verdict)) {
@@ -346,9 +378,11 @@ export function createReconciliationStore(client) {
       sql: `UPDATE whoop_resource_tombstones
                SET reconcile_checked_at = ?, reconcile_verdict = ?, reconcile_remote_updated_at = ?,
                    updated_at = ?
-             WHERE user_id = ? AND resource_type = ? AND resource_id = ? AND state = ?`,
+             WHERE user_id = ? AND resource_type = ? AND resource_id = ? AND state = ?
+               AND ${LIFECYCLE_PREDICATE}`,
       args: [iso(now), verdict, remoteUpdatedAt, iso(now),
-        uid, resourceType, String(resourceId), TOMBSTONE_STATE.ACTIVE],
+        uid, resourceType, String(resourceId), TOMBSTONE_STATE.ACTIVE,
+        ...lifecycleArgs(uid, lifecycleGeneration)],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }

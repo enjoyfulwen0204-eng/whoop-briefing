@@ -583,20 +583,22 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
 
     // ---- V1.2 production activation：scheduler-owned webhook drain -------
     // Cloudflare 主排程與 GitHub 備援都走 runBriefing，所以共享這一份實作。
-    // 即使 ingress 目前關閉，已經耐久收下的 backlog 仍會被處理；一輪最多
-    // WHOOP_WEBHOOK.DRAIN_BATCH 則，單一 poison event 由既有 retry/terminal
-    // state 隔離，不會擋住 onboarding 或任何使用者排程。
+    // 即使 ingress 目前關閉，已經耐久收下的 backlog 仍會被處理；一輪同時受
+    // WHOOP_WEBHOOK.DRAIN_BATCH 與 DRAIN_BUDGET_MS 約束。單一慢／poison event
+    // 由 deadline 與既有 retry/terminal state 隔離，不會擋住 onboarding 或排程。
     if (deps.drainWebhook || typeof db.claimWhoopEvent === 'function') {
       try {
         const clients = new Map();
         const whoopFor = deps.webhookWhoopFor ?? ((userId, {
-          expectedLifecycleGeneration = null,
+          expectedLifecycleGeneration = null, maintenance = null,
         } = {}) => {
           const key = `${userId}:${expectedLifecycleGeneration ?? 'none'}`;
           if (!clients.has(key)) {
             clients.set(key, createWhoopClient({
               db, userId, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
               expectedLifecycleGeneration,
+              requestSignal: maintenance?.signal ?? null,
+              requestDeadlineAt: maintenance?.deadlineAt ?? null,
             }));
           }
           return clients.get(key);
@@ -616,6 +618,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
           retryable: drained.retryable,
           failed: drained.failed,
           remaining: drained.remaining,
+          budget_exhausted: drained.budgetExhausted,
         });
       } catch (err) {
         summary.webhookDrain = { status: 'failed', error: describeError(err) };

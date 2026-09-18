@@ -397,12 +397,13 @@ export function createWebhookServer(opts) {
 /**
  * 正式環境進入點。
  *
- * env 只要求這個服務**真的會用到**的東西：
+ * process 的基礎啟動門檻：
  *   - TELEGRAM_BOT_TOKEN / TELEGRAM_WEBHOOK_SECRET：收訊與送訊
  *   - TURSO_*：所有耐久狀態
  *   - OPENROUTER_API_KEY：Q&A 需要
- * WHOOP 的 client id/secret **不需要** —— bot 只讀 Turso 裡已經同步好的
- * 健康資料，不會自己去打 WHOOP API（正式自動寫入由 canonical scheduler 持有）。
+ * 同一個 shared service 還承載 canonical scheduler 與 Phase 3.5 OAuth callback；
+ * 它們的額外設定採 fail-closed feature gate，缺少時 /health 會明確回報 scheduler
+ * 狀態，詳見 docs/telegram-webhook.md。
  */
 export async function main({ port = process.env.PORT, listen = true } = {}) {
   loadDotEnvIfPresent();

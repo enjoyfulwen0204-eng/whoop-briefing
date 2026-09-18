@@ -26,13 +26,19 @@ Telegram daily report per `(user_id, report_type, health_date)`.
 
 Both triggers therefore also share the same production-maintenance ownership:
 
-- webhook ledger drain runs once per canonical invocation with a 25-event batch bound; event claims
-  and leases make overlap safe, and ingress may remain disabled while an existing backlog drains;
+- webhook ledger drain runs once per canonical invocation with both a 25-event count bound and an
+  independent 25-second wall-clock budget; the deadline cancels provider I/O and retry waits, event
+  claims and leases make overlap safe, and ingress may remain disabled while a backlog drains;
 - existing daily/weekly claim work keeps its delivery priority; normal incremental sync follows,
   then FAST reconciliation runs when durable per-user/per-resource state is due (about every 24 hours),
   before proactive and synchronous analytics work;
 - DEEP reconciliation remains operator-triggered;
 - Phase 3 `analytics:light` / `analytics:heavy` workers remain dormant.
+
+The 25-second webhook budget is independent of the rest of a canonical run. FAST reconciliation
+retains its existing resource/page caps, and normal user work retains the configured bounded user
+concurrency. These bounds reserve scheduler time after webhook maintenance; they do not claim a
+single hard wall-clock limit for every possible multi-user sync/report workload.
 
 Normal detection delay is approximately 10 minutes plus provider/startup latency. With Cloudflare
 unavailable, the GitHub backup's configured upper bound is approximately 60 minutes plus GitHub's
@@ -50,11 +56,15 @@ unbounded scheduling delay. If both providers fail there is no internal alert or
 | `OPENROUTER_API_KEY` | narrative generation |
 | `TELEGRAM_CHAT_ID` | system-level notifications from the canonical runner |
 | `WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET` | the scheduler route runs the canonical runner, which polls WHOOP |
+| `WHOOP_REDIRECT_URI` | Phase 3.5 OAuth callback; must exactly match the WHOOP Dashboard value |
 | `BRIEFING_TRIGGER_SECRET` | ≥ 32 bytes; must match the Worker secret exactly |
 
 If the scheduler variables are absent or the secret is too weak, the service still starts and
 **inbound Telegram keeps working**; only `/internal/briefing/run` is disabled and returns `503`.
-`/health` reports `scheduler: enabled | incomplete | weak_secret | disabled` and never a value.
+`/health` reports `scheduler: enabled | incomplete | weak_secret | disabled` and never a secret
+value. HTTP 200 alone means only that the web process is live; scheduler readiness requires
+`scheduler: "enabled"`. Optional WHOOP event ingress remains off unless
+`WHOOP_WEBHOOK_ENABLED=true`; it is not a scheduler prerequisite.
 
 **Cloudflare Worker `whoop-briefing-scheduler`** — only two settings, and no health credentials:
 

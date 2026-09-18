@@ -7,7 +7,9 @@
 
 Cloudflare 主排程（每 10 分鐘）與 GitHub 備援（每小時）都進入同一支
 `runBriefing` canonical runner。每輪先用既有 claim/lease/state machine 排空至多
-`WHOOP_WEBHOOK.DRAIN_BATCH`（25）則，再繼續 onboarding 與使用者排程。
+`WHOOP_WEBHOOK.DRAIN_BATCH`（25）則且至多 25 秒，再繼續 onboarding 與使用者排程。
+時間預算會傳進 provider fetch、token refresh 與 retry sleep；超時事件安全回到
+RETRY，不會讓一個已認領的慢請求繞過整體上限。
 
 Ingress 仍由 `WHOOP_WEBHOOK_ENABLED` 明確控制，程式不會自行開啟。即使 ingress
 關閉，已經寫入 ledger 的 backlog 仍會繼續排空，避免事件被永久擱置。單一事件
@@ -247,7 +249,7 @@ npm run whoop:webhook:status   # 唯讀：帳本與墓碑統計
 npm run whoop:webhook:drain    # 管理者手動排空（與正式排程重用同一處理器）
 ```
 
-正式排空由 canonical scheduler 持有；每輪有 25 則上限，剩餘 backlog 下一輪
+正式排空由 canonical scheduler 持有；每輪同時有 25 則與 25 秒上限，剩餘 backlog 下一輪
 續作。summary 提供 claimed / processed / ignored / retryable / failed / remaining，
 足以在啟用 smoke test 確認 backlog 是否回到 0。手動指令保留給管理者診斷。
 

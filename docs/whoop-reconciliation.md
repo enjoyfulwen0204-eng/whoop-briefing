@@ -1,7 +1,9 @@
 # WHOOP 對帳 + 增量同步（V1.2 Phase 2）
 
-> 狀態：**已實作、有測試、未接進正式排程器。** 正式環境目前仍由 V1.1 的
-> `createSync`（`src/sync.js`）同步。Phase 2 的引擎只能透過本機腳本執行。
+> 狀態：FAST reconciliation 已由 canonical scheduler 持有，每位 ACTIVE + READY
+> 使用者約 24 小時一次，排在既有 `createSync` 之後。既有 daily/weekly report
+> claim 保留同步前的優先順序。DEEP reconciliation 保持
+> 管理者／CLI 明確觸發；Phase 3 async analytics 仍不在正式排程路徑。
 
 ## 它解決什麼
 
@@ -106,7 +108,7 @@ WHOOP 一頁合法的空回應是 `{ records: [] }`。`{}`、`null`、`{ records
 集合端點的 `start`/`end` 過濾的是**資源的發生時間**，不是 `updated_at`。
 「水位 − 5d … now」永遠看不到 20 天前的睡眠今天被重新評分，也看不到漏掉的
 webhook 更新；cycle 更是連 webhook 都沒有。所以在快路徑之外另有一條**有界的
-深度路徑**（`reconcileDeep(resource)`，`reconcileAll` 會在到期時自動做）：
+深度路徑**（`reconcileDeep(resource)`；只由管理者／CLI 明確觸發）：
 
 | 項目 | 值 |
 |------|----|
@@ -126,6 +128,11 @@ webhook 更新；cycle 更是連 webhook 都沒有。所以在快路徑之外另
 
 
 `reconcileAll()` 按 `WHOOP_RECONCILE.RESOURCES` 順序各跑一次，**永遠不拋錯**。
+正式 canonical scheduler 在既有 report claim 與 incremental sync 之後呼叫它，
+使用 24 小時的
+durable FAST cadence 並固定傳 `includeDeep: false`。未完成窗與 retry/backoff 仍由
+既有 state 決定下一輪續作；Cloudflare 與 GitHub 重疊時由 per-resource lease
+決定唯一擁有者。CLI 預設能力保留，供管理者做 DEEP 或差異調查。
 
 ### 身體量測
 
@@ -210,8 +217,8 @@ npm run reconcile:run    -- --user=<id> --resource=sleep --from=2026-06-01 --to=
 - NB-02 5 分鐘租約在極端慢的 API 下可能過期；圍欄讓它 fail closed（FENCED、零寫入）。
 - NB-03 重複 / 循環的續傳 token 沒有明確的異常偵測；頁數預算綁住單輪成本。
 
-## 尚未做（刻意留給下一階段）
+## 尚未自動化（刻意保留管理者判斷）
 
-- 接進正式排程器（`src/index.js` 的 `makeSync` 注入點是未來的切換位置）。
+- DEEP reconciliation 與明確 backfill 不由 scheduler 自動觸發。
 - `REMOTE_PRESENT_UNRESOLVED` 的自動解決 —— 需要 WHOOP 提供可信的來源時序。
 - 差異的自動處置。

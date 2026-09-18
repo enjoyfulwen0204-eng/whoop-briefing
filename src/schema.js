@@ -1463,7 +1463,7 @@ export const PREDICTION_MODEL_SCHEMA = [
    )`,
   // 冪等鍵：同一個使用者、同一個目標、同一版模型、同一段訓練資料
   // （train_end 由資料決定，不是由時鐘決定）→ 重跑只會更新同一列。
-  // 所以「cron 每 30 分鐘重算一次」不會長出一堆重複的模型列。
+  // 所以「每個 scheduler tick 重算一次」不會長出一堆重複的模型列。
   `CREATE UNIQUE INDEX IF NOT EXISTS uniq_prediction_model
      ON prediction_models (user_id, target_metric, model_version, train_end)`,
   `CREATE INDEX IF NOT EXISTS idx_prediction_model_latest

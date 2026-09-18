@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 /**
- * WHOOP webhook 事件的**本機**維運工具（V1.2 Phase 1）。
+ * WHOOP webhook 事件的**本機**維運工具（V1.2 Phase 1）。正式排空由
+ * Cloudflare 主排程／GitHub 備援共用的 canonical runner 持有；這支保留給
+ * 狀態查詢與管理者明確手動排空。
  *
  *   npm run whoop:webhook:status   唯讀：帳本與墓碑的狀態統計
  *   npm run whoop:webhook:drain    排空：把還沒處理完的事件處理掉
  *
- * ## 為什麼排空是一支腳本而不是接進排程器
- *
- * Phase 1 的範圍是**攝取基礎**。把它接進 V1.1 剛穩定下來的排程器是 Phase 2
- * 的事 —— 那一步會改變排程器每一輪要做的事，值得它自己的一次審查。
- * 在那之前，這支腳本提供一個明確、可觀測、人為觸發的入口。
+ * 這支腳本與正式排程重用同一個 drainWhoopWebhookEvents，不存在第二套處理邏輯。
  *
  * ## 這支腳本不會註冊任何 webhook
  *

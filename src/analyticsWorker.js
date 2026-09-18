@@ -395,7 +395,7 @@ export async function processAnalyticsForUser({
 
 /**
  * 處理某個類別所有落後的使用者，**有上限**（maxUsers）。永遠不拋錯。
- * 這是未來排程器（每 30～60 分鐘）要呼叫的入口；目前只有本機腳本與測試呼叫。
+ * 這是未來專用非同步排程要呼叫的入口；目前只有本機腳本與測試呼叫。
  */
 export async function processPendingAnalytics({
   db, cls, owner = null, now = () => new Date(), maxUsers = ANALYTICS_WORK.MAX_USERS_PER_RUN, deps = {},

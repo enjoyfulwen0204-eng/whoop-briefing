@@ -1,12 +1,12 @@
-# Cloudflare briefing scheduler runbook (V1.1)
+# Cloudflare briefing scheduler runbook (V1.2)
 
 This runbook is intentionally inert. Commands below are for a reviewed production change window.
 
-## V1.1 release facts
+## V1.2 scheduler facts
 
 | Item | Value |
 |---|---|
-| Schema version | **8** (adds `briefing_evaluations`; additive, `IF NOT EXISTS`, never rebuilt) |
+| Repository schema | **20** |
 | Canonical timezone | **Asia/Taipei** (Kelvin's stored `users.timezone`) |
 | Primary scheduler | Cloudflare Worker Cron, **every 10 minutes** |
 | Fallback scheduler | GitHub Actions, **hourly at minute 17** |
@@ -23,6 +23,16 @@ Cloudflare Cron (`*/10 * * * *`, UTC) signs a small POST to
 canonical briefing runner. GitHub Actions runs that same runner directly at `17 * * * *` as an
 independent hourly backup. Overlap is safe because `report_claims` enforces at most one accepted
 Telegram daily report per `(user_id, report_type, health_date)`.
+
+Both triggers therefore also share the same production-maintenance ownership:
+
+- webhook ledger drain runs once per canonical invocation with a 25-event batch bound; event claims
+  and leases make overlap safe, and ingress may remain disabled while an existing backlog drains;
+- existing daily/weekly claim work keeps its delivery priority; normal incremental sync follows,
+  then FAST reconciliation runs when durable per-user/per-resource state is due (about every 24 hours),
+  before proactive and synchronous analytics work;
+- DEEP reconciliation remains operator-triggered;
+- Phase 3 `analytics:light` / `analytics:heavy` workers remain dormant.
 
 Normal detection delay is approximately 10 minutes plus provider/startup latency. With Cloudflare
 unavailable, the GitHub backup's configured upper bound is approximately 60 minutes plus GitHub's

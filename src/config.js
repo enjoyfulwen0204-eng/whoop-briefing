@@ -524,7 +524,7 @@ export const WHOOP_SYNC = {
   MAX_CHUNKS_PER_RUN: 3,
   // 增量同步的重疊天數：WHOOP 會重新評分或事後修正，所以每次都重抓最近幾天
   INCREMENTAL_OVERLAP_DAYS: 5,
-  // 增量同步的節流：排程每 30 分鐘跑一次，但不需要每次都同步。
+  // 增量同步的節流：canonical runner 可能每 10 分鐘進來，但不需要每次都同步。
   MIN_INTERVAL_MS: 60 * 60_000,
   // 同步失敗絕不能讓簡報掛掉
   RESOURCES: ['sleep', 'recovery', 'cycle', 'workout', 'body_measurement'],
@@ -533,8 +533,8 @@ export const WHOOP_SYNC = {
 /**
  * V1.2 Phase 2：對帳 + 增量同步。
  *
- * ⚠️ **正式環境尚未接線。** 這一組只描述引擎怎麼跑；排程器仍然呼叫 V1.1 的
- * createSync。切換是另一次審查的事。
+ * 正式排程仍以 V1.1 incremental sync 為主要新鮮度路徑；其後每天至多一次
+ * 自動執行有界的 FAST reconciliation。DEEP reconciliation 保持管理者手動觸發。
  *
  * ## 重疊天數為什麼是 5
  *
@@ -565,6 +565,8 @@ export const WHOOP_RECONCILE = {
   MAX_PAGES_PER_RUN: 8,
   /** 同一種資源兩次成功對帳之間的最短間隔（節流）。 */
   MIN_INTERVAL_MS: 60 * 60_000,
+  /** 正式排程自動 FAST 對帳的低頻節奏；手動工具仍沿用上面的引擎節奏。 */
+  AUTOMATIC_MIN_INTERVAL_MS: 24 * 60 * 60_000,
   /** 租約。要蓋過「最多 8 頁 + 寫入」的最壞情況。 */
   LEASE_MS: 5 * 60_000,
   /** 失敗退避：指數，有上限。 */

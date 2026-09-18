@@ -3,12 +3,14 @@
 ## 正式環境架構
 
 ```
-GitHub Actions（每 30 分鐘）  → WHOOP 同步 / 每日・每週簡報      ← 唯一的排程器
+Cloudflare Cron（每 10 分鐘） → canonical scheduler runner（主觸發）
+GitHub Actions（每小時）      → 同一個 canonical runner（獨立備援）
+canonical runner              → webhook drain / WHOOP 同步 / FAST 對帳 / 每日・每週簡報
 Render 靜態站（免費）          → /privacy 隱私政策
 Render Web Service（免費）     → Telegram 入站 webhook
 Turso                         → 所有耐久狀態（唯一的真相來源）
 OpenRouter                    → 需要時的 Q&A 理解
-WHOOP API                     → 個人生理資料（只有排程器會打）
+WHOOP API                     → 個人生理資料（只有 canonical runner 與管理者工具會打）
 ```
 
 **每月經常性基礎建設成本：$0。** 沒有付費的 Background Worker。
@@ -169,7 +171,8 @@ OpenRouter 呼叫、送出守衛 —— 全部沿用，實作在
 | `PORT` | CONFIG | Render 注入 | HTTP 監聽埠 |
 
 **`WHOOP_CLIENT_ID` / `WHOOP_CLIENT_SECRET` 刻意不需要**：入站只讀 Turso 裡
-已經同步好的健康資料，不會自己去打 WHOOP API。唯一會寫健康資料的仍然只有排程器。
+已經同步好的健康資料，不會自己去打 WHOOP API。正式自動寫入由 canonical
+scheduler 持有；管理者工具仍可被明確手動觸發。
 
 `TELEGRAM_CHAT_ID` 也不需要 —— 那只是排程器發系統層錯誤通知用的 bootstrap chat。
 

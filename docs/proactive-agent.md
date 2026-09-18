@@ -10,7 +10,8 @@
 ## 這不是什麼
 
 - **不是即時監測系統**：WHOOP 官方 Developer API 沒有連續心率 / 即時生理訊號的
-  endpoint。系統唯一的資料來源是 cron 每 30 分鐘一次的 WHOOP 同步，分析的對象
+  endpoint。系統唯一的資料來源是 canonical scheduler 的 WHOOP 同步（Cloudflare
+  每 10 分鐘主觸發、GitHub 每小時補位；同步本身有節流），分析的對象
   永遠是「已經同步進來的 daily_metrics」，不是這一刻的身體狀態。**系統絕不能、
   也從未宣稱看得到即時心率。**
 - **不是診斷系統**：所有輸出都經過 `guardNarrative`/`guardProactiveMessage`

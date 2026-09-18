@@ -83,7 +83,7 @@ try {
     if (beat.lastDetail) console.log(`  當時處理      ${beat.lastDetail}`);
     if (stale) {
       console.log(`\n  ⚠️  超過 ${Math.round(GUARDIAN_POLICY.CRON_HEARTBEAT_MAX_AGE_MS / 3600_000)} 小時沒有完整跑完一輪。`);
-      console.log('     排程每 30 分鐘一次，所以這代表它真的停了或一直失敗。');
+      console.log('     Cloudflare 每 10 分鐘主觸發、GitHub 每小時補位；這代表兩邊都停了或一直失敗。');
       console.log('     → GitHub → Actions 分頁 → 看最近的 run 是失敗還是根本沒有被觸發');
     }
   }

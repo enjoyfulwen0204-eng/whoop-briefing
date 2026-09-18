@@ -30,7 +30,7 @@ const POINT_IN_TIME = new Set(['body_measurement']);
  *
  * 抽出來當獨立函式，是為了讓 **syncAll 的節流** 與 **cron 的「這次要不要
  * 連 WHOOP」預先判斷** 共用同一份定義。兩邊各寫一次遲早會走鐘，
- * 而走鐘的後果是「每 30 分鐘白打一次 WHOOP」或「該同步的時候不同步」。
+ * 而走鐘的後果是「每個 scheduler tick 白打一次 WHOOP」或「該同步的時候不同步」。
  *
  * 語義（與抽出來之前逐字等價）：
  *   - 從來沒同步過（沒有狀態列 / lastSuccessAt 是 null）→ 該同步

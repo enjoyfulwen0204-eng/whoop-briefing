@@ -402,7 +402,7 @@ export function createWebhookServer(opts) {
  *   - TURSO_*：所有耐久狀態
  *   - OPENROUTER_API_KEY：Q&A 需要
  * WHOOP 的 client id/secret **不需要** —— bot 只讀 Turso 裡已經同步好的
- * 健康資料，不會自己去打 WHOOP API（唯一會寫健康資料的仍然只有排程器）。
+ * 健康資料，不會自己去打 WHOOP API（正式自動寫入由 canonical scheduler 持有）。
  */
 export async function main({ port = process.env.PORT, listen = true } = {}) {
   loadDotEnvIfPresent();

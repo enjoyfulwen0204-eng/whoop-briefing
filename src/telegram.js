@@ -3,7 +3,7 @@
  *
  * - plain text（不設 parse_mode），避免 Markdown escaping 出包。
  * - Telegram API 本身出錯：只寫 log，絕不遞迴再呼叫 Telegram。
- * - 錯誤通知有 cooldown（同一 error_type 2 小時內最多一次），避免每 30 分鐘洗版。
+ * - 錯誤通知有 cooldown（同一 error_type 2 小時內最多一次），避免每個排程 tick 洗版。
  */
 
 import { ERROR_NOTIFY_COOLDOWN_HOURS, TELEGRAM_MAX_CHARS, TELEGRAM_SEND } from './config.js';

@@ -18,7 +18,7 @@ on:
   workflow_dispatch: # 也可以手動按一下立刻跑
 
 concurrency:
-  # 保證同一時間只有一個 run（避免兩個 run 同時 refresh token）
+  # 只序列化 GitHub 自己的 run；跨 Cloudflare 的重疊由 Turso lease/CAS 保護。
   group: whoop-briefing
   cancel-in-progress: false
 

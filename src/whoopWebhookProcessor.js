@@ -462,9 +462,8 @@ export async function processWhoopEvent({
 /**
  * 排空：把還沒處理完的事件一則一則處理掉。
  *
- * ⚠️ **Phase 1 刻意沒有把它接進排程器。** 正式環境的 webhook 本來就是關閉的，
- * 而把攝取接進 V1.1 剛穩定下來的排程器是 Phase 2 的事。這裡提供的是一個
- * 乾淨、可測試、可由腳本手動呼叫的入口。
+ * 正式環境由 canonical scheduler 呼叫這個同一入口；本機腳本也沿用它。
+ * 每輪最多處理 batch 則，所以 backlog 會安全留給下一輪，不會壟斷排程器。
  */
 export async function drainWhoopWebhookEvents({
   db, whoopFor, owner, now = () => new Date(),
@@ -472,7 +471,10 @@ export async function drainWhoopWebhookEvents({
   leaseMs = WHOOP_WEBHOOK.LEASE_MS,
   maxAttempts = WHOOP_WEBHOOK.MAX_ATTEMPTS,
 }) {
-  const summary = { claimed: 0, results: {} };
+  const summary = {
+    claimed: 0, processed: 0, ignored: 0, retryable: 0, failed: 0, fenced: 0,
+    remaining: null, results: {},
+  };
   for (let i = 0; i < batch; i += 1) {
     const event = await db.claimWhoopEvent({
       owner, leaseMs, now: new Date(now()), maxAttempts,
@@ -489,19 +491,43 @@ export async function drainWhoopWebhookEvents({
       log.error('whoop_webhook_process_unhandled', {
         event_id: event.id, error: describeError(err),
       });
+      const exhausted = event.attemptCount >= maxAttempts;
       await db.settleWhoopEvent(event.id, {
         owner,
-        state: event.attemptCount >= maxAttempts
-          ? WHOOP_EVENT_STATE.FAILED : WHOOP_EVENT_STATE.RETRY,
+        state: exhausted ? WHOOP_EVENT_STATE.FAILED : WHOOP_EVENT_STATE.RETRY,
         errorClass: ERROR_CLASS.INTERNAL,
         errorDetail: describeError(err),
-        nextAttemptAt: event.attemptCount >= maxAttempts
+        nextAttemptAt: exhausted
           ? null : new Date(new Date(now()).getTime() + backoffFor(event.attemptCount)),
         now: new Date(now()),
       }).catch(() => false);
-      outcome = PROCESS_RESULT.RETRY;
+      outcome = exhausted ? PROCESS_RESULT.FAILED : PROCESS_RESULT.RETRY;
     }
     summary.results[outcome] = (summary.results[outcome] ?? 0) + 1;
+  }
+  const countResults = (...keys) => keys.reduce((n, key) => n + (summary.results[key] ?? 0), 0);
+  summary.processed = countResults(
+    PROCESS_RESULT.PERSISTED, PROCESS_RESULT.DELETED, PROCESS_RESULT.BLOCKED_BY_TOMBSTONE,
+  );
+  summary.ignored = countResults(
+    PROCESS_RESULT.IGNORED_UNKNOWN_USER,
+    PROCESS_RESULT.IGNORED_INACTIVE_USER,
+    PROCESS_RESULT.IGNORED_RESOURCE_GONE,
+  );
+  summary.retryable = countResults(PROCESS_RESULT.RETRY);
+  summary.failed = countResults(PROCESS_RESULT.FAILED);
+  summary.fenced = countResults(PROCESS_RESULT.FENCED);
+  // 輕量 backlog 觀測：只數事件狀態，不讀 payload，也不讓統計失敗推翻已完成的處理。
+  try {
+    const stats = await db.whoopEventStats();
+    const pendingStates = new Set([
+      WHOOP_EVENT_STATE.RECEIVED, WHOOP_EVENT_STATE.RETRY, WHOOP_EVENT_STATE.PROCESSING,
+    ]);
+    summary.remaining = stats
+      .filter((row) => pendingStates.has(row.state))
+      .reduce((n, row) => n + Number(row.count ?? 0), 0);
+  } catch (err) {
+    log.warn('whoop_webhook_backlog_stats_failed', { error: describeError(err) });
   }
   return summary;
 }

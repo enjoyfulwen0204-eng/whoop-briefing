@@ -3,14 +3,18 @@
 > **正式環境目前是關閉的。** 這份文件描述已經實作好的架構，
 > 不代表 production 已經在接收 WHOOP webhook。啟用步驟見最後一節。
 
-## 這一期做了什麼、沒做什麼
+## 生產 ownership
 
-做了：一條**耐久的攝取管線** —— 收下事件、去重、認領、向 WHOOP 取
-canonical 資料、走既有的儲存層寫入、把結果記下來。
+Cloudflare 主排程（每 10 分鐘）與 GitHub 備援（每小時）都進入同一支
+`runBriefing` canonical runner。每輪先用既有 claim/lease/state machine 排空至多
+`WHOOP_WEBHOOK.DRAIN_BATCH`（25）則，再繼續 onboarding 與使用者排程。
 
-沒做（屬於後續 Phase）：把排空接進排程器、對帳（reconciliation）、
-增量同步重設計、攝取與分析解耦、Body Energy。
-**排程同步完全沒有被移除或改變。**
+Ingress 仍由 `WHOOP_WEBHOOK_ENABLED` 明確控制，程式不會自行開啟。即使 ingress
+關閉，已經寫入 ledger 的 backlog 仍會繼續排空，避免事件被永久擱置。單一事件
+失敗會進 retry/backoff 或終局狀態，不會阻斷後續事件與正常簡報工作。
+
+Phase 2 FAST reconciliation 也由 canonical runner 低頻執行；DEEP reconciliation
+保持管理者手動觸發。Phase 3 async analytics worker 仍未接進正式排程。
 
 ## 為什麼 webhook 不是生理事實的來源
 
@@ -240,14 +244,12 @@ V1.1 修好的新鮮度規則對 webhook 與排程同步是**同一套**：
 
 ```bash
 npm run whoop:webhook:status   # 唯讀：帳本與墓碑統計
-npm run whoop:webhook:drain    # 排空：處理待處理的事件
+npm run whoop:webhook:drain    # 管理者手動排空（與正式排程重用同一處理器）
 ```
 
-排空**刻意沒有接進排程器**：那會改變排程器每一輪要做的事，值得它自己的
-一次審查（Phase 2）。在那之前這是明確、可觀測、人為觸發的入口。
-
-> ⚠️ 啟用端點但不排空的話，事件會累積在 `RECEIVED`。
-> 這是已知且刻意的狀態 —— 正式環境本來就還沒啟用。
+正式排空由 canonical scheduler 持有；每輪有 25 則上限，剩餘 backlog 下一輪
+續作。summary 提供 claimed / processed / ignored / retryable / failed / remaining，
+足以在啟用 smoke test 確認 backlog 是否回到 0。手動指令保留給管理者診斷。
 
 ## 觀測
 
@@ -269,10 +271,10 @@ npm run whoop:webhook:drain    # 排空：處理待處理的事件
 1. `WHOOP_WEBHOOK_ENABLED=true`（只認 `1` / `true` / `yes` / `on`）
 2. `WHOOP_CLIENT_SECRET` 存在（沒有它不可能驗證官方簽章）
 
-啟用還需要（這一期**都沒有做**）：
+啟用還需要由 rollout change window 明確完成：
 
+- 先部署含 durable drain owner 的 reviewed SHA
 - 在 WHOOP Developer Dashboard 設定 webhook URL
-- 決定排空由誰驅動（Phase 2）
-- 一次 production schema 遷移到 v10
+- 準備 signed-ingress → ledger → drain → backlog=0 的 smoke plan
 
-目前狀態：**以上皆未執行，production 仍是 v9 且沒有 WHOOP webhook。**
+freeze/patch 本身不會改 `WHOOP_WEBHOOK_ENABLED`、Developer Dashboard 或 production。

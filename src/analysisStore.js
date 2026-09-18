@@ -143,7 +143,7 @@ export function createAnalysisStore(client) {
    * 寫入一次訓練評估的結果。
    *
    * 冪等鍵是 (user_id, target_metric, model_version, train_end)：train_end
-   * 由資料決定而不是由時鐘決定，所以 cron 每 30 分鐘重算一次不會長出一堆
+   * 由資料決定而不是由時鐘決定，所以每個 scheduler tick 重算也不會長出一堆
    * 重複的列，只會更新同一列。
    */
   async function savePredictionModel(userId, m, { now = new Date() } = {}) {

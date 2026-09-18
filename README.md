@@ -132,7 +132,7 @@ npm start
 ### Token 不會每次都 refresh
 access token 只要還有 **5 分鐘以上**效期就直接重用。真的快過期才 refresh，而且 refresh 成功後**第一件事**就是把新的 access/refresh token 寫回 Turso —— 寫成功前不做任何 WHOOP 資料處理。這一步很關鍵：WHOOP 每次 refresh 都會換一組新的 refresh_token，舊的立刻失效；如果拿到新 token 卻沒存下來就去撈資料然後中途掛掉，整個授權就死了，得重新跑一次授權腳本。DB 寫入失敗會重試 4 次，全失敗就中止本次執行（寧可今天不發，也不要把授權弄壞）。
 
-跨系統無法真原子，所以另外靠兩件事避免競態：同一次執行內用 mutex 保證只 refresh 一次，以及排程器保證同一時間只有一個 run。
+跨系統無法真原子，所以另外靠兩件事避免競態：同一次執行內用 mutex 保證只 refresh 一次，以及 Turso 的 token lease/CAS 在 Cloudflare、GitHub 與手動執行重疊時只允許一個持有者更新 token。
 
 ### 「哪一天」一律用 health_date，不用執行當下的日期
 **`health_date` = 主睡眠 `sleep.end` 換算到 `TIMEZONE`（預設 Asia/Taipei）的日期。**
@@ -289,10 +289,11 @@ B 後面那個條件是刻意加的。只看「是否單調下降」的話，在
   變成 `SCORED`，只抓新資料會永遠留著未評分的殘骸。全部 upsert，重跑安全。
 - 排程每次執行都會同步，但有 60 分鐘節流；backfill 未完成時不受節流限制。
 - **同步永遠排在簡報之後，而且不會拋錯。** 同步壞掉不影響簡報。
-- **V1.2 Phase 2 的對帳 + 增量同步**（`src/reconcile.js`）是這條路徑的接班人：
+- **V1.2 Phase 2 的對帳 + 增量同步**（`src/reconcile.js`）補強這條路徑：
   每個 (使用者, 資源) 一個帶租約圍欄的耐久狀態、水位只在整個窗完整成功後前進、
-  可續傳的分頁、遠端缺席只記差異不刪除、ACTIVE 墓碑純診斷。**目前只有本機
-  手動執行器（`npm run reconcile:status|run`），尚未接進正式排程器。**
+  可續傳的分頁、遠端缺席只記差異不刪除、ACTIVE 墓碑純診斷。FAST 對帳由
+  canonical scheduler 在正常同步後以每位使用者約 24 小時一次的節奏自動執行；
+  DEEP 對帳仍只由管理者透過 `npm run reconcile:run` 明確觸發。
   見 [docs/whoop-reconciliation.md](docs/whoop-reconciliation.md)。
 - **V1.2 Phase 3 的攝取 / 分析解耦**：所有 canonical 寫入器在**同一個交易**裡記錄
   「這個使用者的分析需要重算」（generation 計數 + 受影響日期範圍），輕量物化與
@@ -717,7 +718,7 @@ V1 的邊界，先講清楚：
 ## 運維
 
 ### repo 是 public
-純粹是為了 GitHub Actions 的免費分鐘數：private repo 每月 2,000 分鐘，而 Actions **每個 job 都向上取整到 1 分鐘**計費，全天每 30 分鐘 = 48 分鐘/天 ≈ 1,440 分鐘/月（吃掉 72%）。public repo 沒有這個上限。
+純粹是為了 GitHub Actions 的免費分鐘數：private repo 每月 2,000 分鐘，而 Actions **每個 job 都向上取整到 1 分鐘**計費。現在 GitHub 每小時跑一次獨立備援，約 720 分鐘/月；public repo 沒有這個上限。
 
 程式碼裡沒有任何 secret（都在 GitHub Secrets / `.env`，`.env` 從未進版控），所以公開沒有安全問題。
 
@@ -733,7 +734,7 @@ V1 的邊界，先講清楚：
 npm run health-status
 ```
 
-`排程器` 那一段會告訴你最後一次**完整跑完**是什麼時候。排程是每 30 分鐘一次，超過 3 小時沒跑完一輪就會標成 ⚠️ 已過期 —— 那代表它真的停了或一直失敗，去 GitHub 的 Actions 分頁看最近的 run 是失敗、還是根本沒有被觸發。
+`排程器` 那一段會告訴你最後一次**完整跑完**是什麼時候。Cloudflare 每 10 分鐘主觸發，GitHub Actions 每小時獨立補位；超過 3 小時沒跑完一輪就會標成 ⚠️ 已過期。先看 Cloudflare，再看 GitHub Actions 最近的 run 是失敗、還是根本沒有被觸發。
 
 這支指令只讀 Turso，不打 WHOOP / OpenRouter / Telegram，隨時跑都安全。
 
@@ -754,6 +755,6 @@ GitHub 會在滿 60 天無活動時自動停用排程 —— 屆時每日簡報�
 
 實作細節：
 - 天數由 workflow 用 `git log -1 --format=%cI` 取得，透過 `REPO_LAST_COMMIT_AT` 注入。**本機與 Render 沒有這個變數 → 自動跳過**（它們也沒有 60 天問題）。
-- 冷卻 **24 小時**：全天每 30 分鐘跑一次，但一天最多只提醒一則。
+- 冷卻 **24 小時**：每個 canonical scheduler tick 都會檢查，但一天最多只提醒一則。
 - 這個檢查放在「有沒有事要做」的判斷**之前**，所以沒事做的那些 run 也會檢查。
 - **提醒失敗絕不影響簡報** —— 所有錯誤在 `maintenance.js` 內部吞掉並寫 log。

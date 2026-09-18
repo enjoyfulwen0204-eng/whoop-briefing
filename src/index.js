@@ -18,8 +18,14 @@
 // 刻意全天跑：daily 的去重 key 是 health_date（主睡眠結束的當地日期），不是執行
 // 當下的日期，所以下午才起床、或跨午夜才跑到都能正確補發，而且不會重複發。
 
-import { CRON, WEEKLY, loadDotEnvIfPresent, loadEnv } from './config.js';
-import { GLOBAL_SCOPE, userScope, USER_STATUS } from './schema.js';
+import { randomUUID } from 'node:crypto';
+
+import {
+  CRON, WEEKLY, WHOOP_RECONCILE, loadDotEnvIfPresent, loadEnv,
+} from './config.js';
+import {
+  GLOBAL_SCOPE, userScope, USER_STATUS, RECONCILE_RESULT,
+} from './schema.js';
 import { createDb } from './db.js';
 import { createWhoopClient } from './whoop.js';
 import { createDataSource } from './dataSource.js';
@@ -44,6 +50,8 @@ import { checkPeerScheduler } from './schedulerWatchdog.js';
 import { lifecycleOutputDb, SCHEDULED_OUTPUT_WRITERS } from './lifecycleOutput.js';
 import { withDeliveryAuthorization, isAccountInactiveError } from './accountLifecycle.js';
 import { resumeOnboardingBootstraps as resumeOnboarding } from './onboardingBootstrap.js';
+import { drainWhoopWebhookEvents } from './whoopWebhookProcessor.js';
+import { createReconciler, isReconcileDue } from './reconcile.js';
 
 /** 預測要往回看幾天的 daily_metrics（涵蓋訓練 + 時序切分所需的長度）。 */
 const PREDICTION_LOOKBACK_DAYS = 180;
@@ -73,13 +81,56 @@ export async function dueForUser({ db, userId, timezone, now }) {
 }
 
 /**
+ * 正式排程的 FAST reconciliation 到期判斷。
+ *
+ * 權威是既有的 per-user/per-resource durable state。未完成窗永遠優先續跑；
+ * 成功完成的資源則以正式排程的 24 小時節奏節流。DEEP state 不在這裡讀。
+ */
+export async function automaticFastReconciliationDue({
+  db, userId, now,
+  resources = WHOOP_RECONCILE.RESOURCES,
+  minIntervalMs = WHOOP_RECONCILE.AUTOMATIC_MIN_INTERVAL_MS,
+}) {
+  const states = await db.getAllReconciliationState(userId);
+  const byResource = new Map(states.map((state) => [state.resource, state]));
+  const dueResources = resources.filter((resource) => isReconcileDue(
+    byResource.get(resource) ?? null, { now, minIntervalMs },
+  ));
+  return { due: dueResources.length > 0, dueResources };
+}
+
+/** 只保留排程觀測需要的安全 metadata，不把 provider payload 放進 summary。 */
+export function summarizeFastReconciliation(plan, results = []) {
+  const count = (value) => results.filter((r) => r?.result === value).length;
+  return {
+    due: Boolean(plan?.due),
+    dueResources: [...(plan?.dueResources ?? [])],
+    attempted: results.filter((r) => r?.result !== RECONCILE_RESULT.SKIPPED).length,
+    completed: count(RECONCILE_RESULT.SUCCESS),
+    partial: count(RECONCILE_RESULT.PARTIAL),
+    failed: count(RECONCILE_RESULT.FAILED),
+    fenced: count(RECONCILE_RESULT.FENCED),
+    deferred: count(RECONCILE_RESULT.SKIPPED),
+    discrepancies: results.reduce(
+      (n, r) => n + Number(r?.missing ?? 0) + Number(r?.tombstonesUnresolved ?? 0), 0,
+    ),
+    results: results.map((r) => ({
+      resource: r?.resource, scope: r?.scope, result: r?.result,
+      reason: r?.reason ?? null, errorClass: r?.errorClass ?? null,
+    })),
+  };
+}
+
+/**
  * 跑一個使用者的完整流程。**這個函式不對外拋錯以外的副作用**：
  * 每個階段各自 try/catch，回傳結構化結果。
  *
  * `deps` 讓測試可以注入替身（預設就是真的實作），這樣「報告有沒有送到正確的
  * chat」「一個人失敗會不會影響另一個人」都可以真的驗，而不是只讀程式碼。
  */
-export async function runForUser({ db, env, user, now, deps = {} }) {
+export async function runForUser({
+  db, env, user, now, deps = {}, productionMaintenance = false,
+}) {
   const {
     makeTelegram = createTelegram,
     makeWhoop = createWhoopClient,
@@ -92,6 +143,7 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     reap = reapExpiredProactiveQuestions,
     predictionCycle = runPredictionCycle,
     healthspan = runHealthspanSnapshot,
+    makeReconciler = createReconciler,
   } = deps;
   const uid = user.id;
   // ★ v17：worker 進入點捕捉這一輪的帳號啟用世代。
@@ -105,7 +157,7 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   const out = {
     userId: uid, timezone: tz, daily: null, weekly: null, sync: null, proactive: null,
     reaped: null, prediction: null, healthspan: null, skipped: null, errors: [],
-    maintenance: null,
+    maintenance: null, reconciliation: null,
   };
 
   const lifecycleRejected = (value) => Array.isArray(value) ? value.some(lifecycleRejected)
@@ -219,16 +271,33 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   const due = await dueForUser({ db, userId: uid, timezone: tz, now });
   const syncDue = await isSyncDue({ db, userId: uid, now }).catch(() => true);
   out.syncDue = syncDue;
+  let reconciliationPlan = { due: false, dueResources: [] };
+  if (productionMaintenance && typeof db.getAllReconciliationState === 'function') {
+    try {
+      reconciliationPlan = await automaticFastReconciliationDue({ db, userId: uid, now });
+      out.reconciliation = summarizeFastReconciliation(reconciliationPlan);
+    } catch (err) {
+      out.reconciliation = {
+        due: null, dueResources: [], attempted: 0, completed: 0, partial: 0,
+        failed: 0, fenced: 0, deferred: 1, discrepancies: 0,
+        status: 'due_check_failed',
+      };
+      log.warn('fast_reconciliation_due_check_failed', {
+        user_id: uid, error: describeError(err),
+      });
+    }
+  }
 
   log.info('due_check', {
     user_id: uid, timezone: tz, local_date: due.today, week_key: due.weekKey,
     daily_settled: due.dailySettled, weekly_due: due.weeklyDue,
     reports_due: due.anythingDue, sync_due: syncDue,
+    fast_reconciliation_due: reconciliationPlan.due,
   });
 
   // 報告不用發、資料也還在節流窗內 → 乾淨的 no-op。
   // 刻意在拿 WHOOP token **之前** 就返回：這一輪完全不碰 WHOOP。
-  if (!due.anythingDue && !syncDue) {
+  if (!due.anythingDue && !syncDue && !reconciliationPlan.due) {
     out.skipped = 'nothing_due';
     return out;
   }
@@ -328,6 +397,47 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
   }
 
   if (await stopHealth(out.sync)) return out;
+
+  // ---- V1.2 production activation：低頻、FAST-only 對帳 -----------------
+  // 正常 incremental sync 仍是主要新鮮度路徑；對帳在它之後驗證與修復分歧。
+  // 報告沿用既有的優先順序，已在同步之前完成，所以 retryable 對帳失敗不會
+  // 阻擋例行報告。DEEP 不在 canonical scheduler 裡，仍由管理者手動觸發。
+  if (productionMaintenance && reconciliationPlan.due) {
+    try {
+      const reconciliationResults = await makeReconciler({
+        db, whoop, userId: uid, timezone: tz, expectedLifecycleGeneration,
+        now: deps.reconcileNow ?? (() => new Date()),
+      }).reconcileAll({
+        resources: reconciliationPlan.dueResources,
+        includeDeep: false,
+      });
+      out.reconciliation = summarizeFastReconciliation(
+        reconciliationPlan, reconciliationResults,
+      );
+      log.info('fast_reconciliation_finished', {
+        user_id: uid,
+        due: out.reconciliation.due,
+        attempted: out.reconciliation.attempted,
+        completed: out.reconciliation.completed,
+        partial: out.reconciliation.partial,
+        failed: out.reconciliation.failed,
+        deferred: out.reconciliation.deferred,
+        discrepancies: out.reconciliation.discrepancies,
+      });
+    } catch (err) {
+      // 最後一道隔離：對帳引擎本身會把預期失敗結案；即使這裡有未預期錯誤，
+      // 也不回頭破壞已完成的同步／報告，下一輪仍會依 durable state 重試。
+      out.reconciliation = {
+        ...summarizeFastReconciliation(reconciliationPlan),
+        failed: 1, status: 'unexpected_failure', error: describeError(err),
+      };
+      log.error('fast_reconciliation_unexpected', {
+        user_id: uid, error: describeError(err),
+      });
+    }
+  }
+
+  if (await stopHealth(out.reconciliation)) return out;
 
   // ---- Proactive Agent（PA3）----
   // 在 sync 之後跑：只有這次 sync 真的帶來新的 health_date 才會做任何事
@@ -461,11 +571,57 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
 
   const summary = {
     users: 0, ok: 0, failed: 0, skipped: 0, perUser: [], errors: [], guardian: null,
-    schedulerWatchdog: null, outcome: null, runState: null,
+    schedulerWatchdog: null, outcome: null, runState: null, webhookDrain: null,
+    fastReconciliation: {
+      dueUsers: 0, attempted: 0, completed: 0, partial: 0,
+      failed: 0, fenced: 0, deferred: 0, discrepancies: 0,
+    },
   };
 
   try {
     await db.migrate();
+
+    // ---- V1.2 production activation：scheduler-owned webhook drain -------
+    // Cloudflare 主排程與 GitHub 備援都走 runBriefing，所以共享這一份實作。
+    // 即使 ingress 目前關閉，已經耐久收下的 backlog 仍會被處理；一輪最多
+    // WHOOP_WEBHOOK.DRAIN_BATCH 則，單一 poison event 由既有 retry/terminal
+    // state 隔離，不會擋住 onboarding 或任何使用者排程。
+    if (deps.drainWebhook || typeof db.claimWhoopEvent === 'function') {
+      try {
+        const clients = new Map();
+        const whoopFor = deps.webhookWhoopFor ?? ((userId, {
+          expectedLifecycleGeneration = null,
+        } = {}) => {
+          const key = `${userId}:${expectedLifecycleGeneration ?? 'none'}`;
+          if (!clients.has(key)) {
+            clients.set(key, createWhoopClient({
+              db, userId, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
+              expectedLifecycleGeneration,
+            }));
+          }
+          return clients.get(key);
+        });
+        const drained = await (deps.drainWebhook ?? drainWhoopWebhookEvents)({
+          db,
+          whoopFor,
+          owner: deps.webhookDrainOwner
+            ?? `scheduler:${triggerSource}:${process.pid}:${randomUUID()}`,
+          now: deps.maintenanceNow ?? (() => new Date()),
+        });
+        summary.webhookDrain = { status: 'completed', ...drained };
+        log.info('scheduled_webhook_drain_finished', {
+          claimed: drained.claimed,
+          processed: drained.processed,
+          ignored: drained.ignored,
+          retryable: drained.retryable,
+          failed: drained.failed,
+          remaining: drained.remaining,
+        });
+      } catch (err) {
+        summary.webhookDrain = { status: 'failed', error: describeError(err) };
+        log.error('scheduled_webhook_drain_failed', { error: describeError(err) });
+      }
+    }
 
     // 運維提醒：GitHub 滿 60 天無 commit 會停用排程。系統層，不屬於任何使用者。
     await checkRepoFreshness({
@@ -517,20 +673,33 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     const results = await mapWithConcurrency(
       users,
       env.maxUserConcurrency,
-      (user) => runUser({ db, env, user, now, deps }),
+      (user) => runUser({
+        db, env, user, now, deps, productionMaintenance: true,
+      }),
     );
 
     for (const [i, r] of results.entries()) {
       const uid = users[i].id;
       if (r.ok) {
         const v = r.value;
+        const reconciliation = v.reconciliation ?? null;
         summary.perUser.push({
           userId: uid,
           daily: v.daily?.status ?? 'not_run',
           weekly: v.weekly?.status ?? 'not_run',
           skipped: v.skipped,
           errors: v.errors.length,
+          reconciliation,
         });
+        if (reconciliation) {
+          if (reconciliation.due) summary.fastReconciliation.dueUsers += 1;
+          for (const key of [
+            'attempted', 'completed', 'partial', 'failed',
+            'fenced', 'deferred', 'discrepancies',
+          ]) {
+            summary.fastReconciliation[key] += Number(reconciliation[key] ?? 0);
+          }
+        }
         if (v.skipped) summary.skipped += 1;
         if (v.errors.length) summary.failed += 1;
         else summary.ok += 1;

@@ -997,13 +997,18 @@ test('J3 新表不在 RESHAPED_TABLES（不可武裝 DROP 路徑），DDL 全是
 // K. 回歸守衛
 // ===========================================================================
 
-test('K1 正式排程器沒有接線：src/index.js 與 bot 不 import reconcile', () => {
+test('K1 正式排程只接 FAST reconciliation；bot 不得另做一份、DEEP 保持手動', () => {
   const root = new URL('../src/', import.meta.url);
-  const files = ['index.js', 'daily.js', 'sync.js', 'bot/index.js', 'bot/webhook.js']
+  const index = fs.readFileSync(new URL('index.js', root), 'utf8');
+  assert.match(index, /createReconciler/);
+  assert.match(index, /includeDeep:\s*false/);
+  assert.doesNotMatch(index, /reconcileDeep\s*\(/);
+  const files = ['daily.js', 'sync.js', 'bot/index.js', 'bot/webhook.js']
     .map((f) => new URL(f, root)).filter((u) => fs.existsSync(u));
   for (const u of files) {
     const src = fs.readFileSync(u, 'utf8');
-    assert.ok(!/reconcile\.js|createReconciler|reconciliationStore/.test(src), `${u.pathname} 不該接線 Phase 2`);
+    assert.ok(!/reconcile\.js|createReconciler|reconciliationStore/.test(src),
+      `${u.pathname} 不得複製 canonical scheduler 的 Phase 2 ownership`);
   }
 });
 

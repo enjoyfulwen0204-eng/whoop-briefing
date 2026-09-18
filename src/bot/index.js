@@ -2,8 +2,8 @@
 /**
  * Telegram bot worker（常駐 process）。
  *
- * 與每日簡報的 cron **完全分開**部署：
- *   cron   whoop-briefing     每 30 分鐘跑一次就結束
+ * 與每日簡報的 canonical scheduler **完全分開**部署：
+ *   cron   whoop-briefing     Cloudflare 主觸發、GitHub 備援，每次跑完就結束
  *   worker whoop-telegram-bot 一直活著，long polling
  *
  * 兩者共用同一個 Turso。每個使用者各自一組 WHOOP token。安全性靠：
@@ -12,7 +12,7 @@
  * 所以兩個 process 同時活著不會互相破壞。
  *
  * ⚠️ 這個 worker **不發簡報、不同步 WHOOP**。它只讀 DB 回答問題、寫 journal。
- * 這是刻意的：唯一會寫健康資料的地方仍然只有 cron，責任邊界很清楚。
+ * 這是刻意的：正式自動寫入由 canonical scheduler 持有；管理者工具保持手動。
  */
 
 import { loadDotEnvIfPresent, loadEnv } from '../config.js';

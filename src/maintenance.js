@@ -58,7 +58,7 @@ export async function checkRepoFreshness({ db, telegram, now = new Date(), lastC
   if (days < REPO_FRESHNESS.WARN_AFTER_DAYS) return { status: 'fresh', days };
 
   try {
-    // 借用錯誤通知的冷卻表：同一天最多提醒一次，不然每 30 分鐘就洗一次版
+    // 借用錯誤通知的冷卻表：同一天最多提醒一次，不然每個 scheduler tick 都會洗版
     const allowed = await db.claimGlobalErrorNotify('repo_stale', REPO_FRESHNESS.NOTIFY_COOLDOWN_HOURS);
     if (!allowed) {
       log.info('repo_stale_suppressed', { days: Math.floor(days) });

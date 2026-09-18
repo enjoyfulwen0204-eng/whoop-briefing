@@ -1,12 +1,12 @@
 # WHOOP Personal Health OS Phase 4 Architecture Decision Record
 
-Status: Repair candidate; Stage 2 prohibited pending independent Stage 1 Final Gate PASS
+Status: Repair cycle 3 candidate; Stage 2/Foundation Pack prohibited pending independent Stage 1 Final Gate PASS
 
 Decision date: 2026-09-19
 
 Repository baseline: v20 schema at commit ecbd23287cac591e76741771d77caa3d814f84a3
 
-Architecture version: phase4-adr-v1-repair-2
+Architecture version: phase4-adr-v1-repair-3
 
 This record defines the repaired contracts for Phase 4. It is deliberately implementation-free. Every Phase 4 feature described here remains disabled, and Stage 2 remains prohibited, until this repair passes independent re-review. Later implementation does not authorize merge, migration, deployment, or delivery; Section 17 is controlling.
 
@@ -121,7 +121,7 @@ Key alternatives and failure behavior are frozen as follows:
 
 ### Stage outline
 
-Implementation is divided into dependency-ordered stages. Section 19 is the normative stage graph and gate list.
+Implementation is divided into dependency-ordered stages. Stages 2–4 are the eight-commit Foundation Pack, with complete disabled v21–v24 persistence before stores/Body/Journal runtime. Section 19 is the normative stage graph and aggregate gate list.
 
 1. Stage 1 ADR and independent repair gate.
 2. Additive persistence and tenant-scoped stores.
@@ -214,7 +214,7 @@ The repaired first contract is:
 - attainable initial-charge range: integers 40 through 100; attainable intraday range: integers 0 through 100;
 - internal arithmetic: full-precision IEEE 754 numbers; no intermediate rounding; initial charge and final intraday publication each use JavaScript Math.round at their respective output boundary;
 - deterministic manifest encoding: sorted object keys, finite numbers serialized with JavaScript JSON.stringify round-trip precision, normalized negative zero, explicit nulls; no six-decimal truncation before calculation or hashing;
-- as-of buckets for persisted intraday checkpoints: 15-minute UTC buckets, while calculation still receives the exact as-of instant;
+- exact result time: integer UTC milliseconds plus its canonical ISO timestamp; optional 15-minute checkpoint scheduling never replaces exact identity;
 - retrospective recomputation horizon after an eligible correction: 45 local health days.
 
 A constants change requires a new constants version. A formula or input-semantic change requires a new algorithm version. Historical results are never silently rewritten under the same version.
@@ -482,27 +482,35 @@ Unless stated otherwise, fixtures have current resources, valid zero-load cycle,
 ### Health-day and DST rules
 
 - The health day is the local calendar date of the chosen main-sleep end in the user timezone snapshot.
+- A null/NO_DATA result with no eligible wake anchor still needs a persistence day: use the explicit requested health date when provided, otherwise localDate(as_of_utc, timezone). Record day_assignment = REQUESTED_UNANCHORED or AS_OF_UNANCHORED in its manifest; an anchored result records MAIN_SLEEP_END. This identity label never supplies a missing input or implies a sleep observation.
 - All depletion and freshness durations use UTC instants.
 - A timezone change does not relabel an already persisted result. New calculations use the current lifecycle-authorized timezone and store it.
 - Ambiguous or nonexistent local wall times are never used for elapsed arithmetic.
 - For scheduling only, a duplicated local delivery time selects the first occurrence; a nonexistent local time advances to the first valid instant after the gap.
-- The persisted unique identity includes user, health day, UTC as-of bucket, algorithm version, and input generation. DST cannot create a duplicate identity.
+- The persisted unique identity is (user_id, health_date, as_of_epoch_ms, algorithm_version, input_generation, execution_mode). UTC milliseconds distinguish exact instants, including across DST; local display time is not an identity.
 
 ### Persistence and reproducibility
 
-Persist a result whenever it is used in a Morning Brief, Q&A answer, episode, decision, or user-visible explanation. Optional periodic checkpoints may be persisted at most once per 15-minute bucket.
+Persist a result whenever it is used in a Morning Brief, Q&A answer, episode, decision, or user-visible explanation. That consumer cites the exact (user_id, execution_mode, result_id), never a bucket or a mutable latest pointer.
+
+**Exact result identity (mandatory).** The unique key is exactly (user_id, health_date, as_of_epoch_ms, algorithm_version, input_generation, execution_mode). as_of_epoch_ms is a safe integer UTC millisecond instant; as_of_utc must equal new Date(as_of_epoch_ms).toISOString(). Fractional milliseconds, invalid dates, and inconsistent representations reject the write. Repeating this entire tuple returns the same result_id and captured manifest; competing identical writes converge on the winner. A conflicting manifest/value for the same tuple is a deterministic-computation invariant failure, not permission to overwrite or add another revision dimension. input_manifest_hash is provenance, not identity. Different exact instants within one bucket are different rows; a new input_generation permits a new revision at the same exact instant. Algorithm and mode are explicit dimensions, with no implicit revision number.
+
+**Optional checkpoints (separate throttling).** body_energy_checkpoints is a separate v23 reference table, not the result uniqueness index. checkpoint_kind is PERIODIC_15M; checkpoint_bucket_start is the UTC epoch-ms multiple of 900000. Its canonical checkpoint_as_of_epoch_ms is bucket start + 900000 (the closing instant); the scheduler computes only closed buckets, never rounds an arbitrary Q&A request into one. A partial unique checkpoint index on (user_id, execution_mode, checkpoint_kind, checkpoint_bucket_start, algorithm_version, input_generation) WHERE checkpoint_kind = 'PERIODIC_15M' makes concurrent workers converge. Each checkpoint references the exact result at its canonical instant. A Q&A calculation at that same instant may supply that result; the separate reference is inserted without changing its immutable content. If the historical inputs are unavailable, record no successful checkpoint; never substitute now while labeling it the closing instant.
+
+Reusing a checkpoint returns its original exact as_of_utc, age/freshness and result_id; it is not an exact answer for the caller's later instant. Exact Q&A/publication reads calculate or select the exact requested tuple. A 12:00:00 result and a 12:14:00 result can coexist even though both requests fall in the 12:00 bucket. Neither a checkpoint claim nor a cache hit may replace either result's timestamp, value, manifest or citations.
 
 Each stored result contains:
 
+- result_id, user_id, health_date, execution_mode, as_of_epoch_ms and matching as_of_utc;
 - exact normalized input values, row identities, and source version timestamps captured at calculation time;
 - ingestion timestamps used by the as-of fence;
 - factor values, omitted-factor reasons, baselines, and intermediate depletion terms;
 - algorithm, constants, and baseline versions;
 - canonical input generation and lifecycle generation;
-- deterministic input hash and result hash;
+- input_manifest_hash and result hash, and created_at;
 - invalidation timestamp and reason, when superseded by corrected inputs.
 
-Historical audit reproduces a persisted result from its captured input manifest while content is retained. The non-health envelope is immutable except defined state transitions; redaction/purge is the sole exception to append-only health content. Purged manifests return CONTENT_REDACTED, never reconstructed health data. Later recalculation uses current canonical rows at a new as-of and creates a new result.
+Historical audit reproduces a persisted result from its captured input manifest while content is retained. The non-health envelope is immutable except defined state transitions; redaction/purge is the sole exception to append-only health content. Purged manifests return CONTENT_REDACTED, never reconstructed health data. Later recalculation uses current eligible canonical rows at a new as-of or new input generation and creates a new result. Same-instant recalculation still obeys as-of source visibility; a post-as-of correction cannot masquerade as the overwritten historical input.
 
 V20 canonical tables retain the latest row, not every overwritten source revision. If an older source row was overwritten before a Body Energy manifest captured it, the earlier source state cannot be reconstructed. The API must return **NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS** and must never substitute today’s row while claiming historical reconstruction.
 
@@ -948,7 +956,7 @@ A deletion tombstone must not contain category, subtype, value, unit, severity, 
 
 ### Context questions
 
-**pending_questions** remains the Telegram conversation-state mechanism and is **reused** for one open interaction. A new typed **context_questions** record is the analytical provenance:
+**phase4_question_interaction_slots**, keyed by (user_id, execution_mode), is the exclusive interaction authority from selection through answer/expiry. **pending_questions** is only its LIVE Telegram conversation projection, never the exclusivity mechanism. A new typed **context_questions** record is the analytical provenance:
 
 - candidate set and scores;
 - selected question;
@@ -961,14 +969,14 @@ A deletion tombstone must not contain category, subtype, value, unit, severity, 
 - answer fact ID;
 - expiry and lifecycle generation.
 
-The context question is not opened in **pending_questions** until its outbound message is DELIVERED or has a provider-confirmed accepted message ID. AMBIGUOUS delivery does not open a second question or trigger a retry; it enters reconciliation/manual-safe handling.
+The context question is not opened in **pending_questions** until DELIVERED or a provider-confirmed accepted message ID proves receipt of that same slot/request, with current content/authorization fences. Unconfirmed AMBIGUOUS delivery retains the occupied slot and routes only an explicitly matching structured answer through that slot, without inventing an OPEN pending row. Section 12 defines the fixed answer window, atomic selection, ambiguity handling and legacy coexistence.
 
 ### Known context and question eligibility
 
 A candidate is ineligible when:
 
 - an ACTIVE current fact already supplies the same context for the relevant window;
-- a semantically equivalent question is open;
+- any question occupies this tenant/mode's interaction slot, even for another episode, factor, kind or target window (an idempotent continuation of the same request is not a new selection);
 - the user answered or declined the same category inside its versioned fatigue window;
 - the answer cannot change evidence interpretation, episode state, or the next decision;
 - the question is merely a mechanical reaction to an anomaly;
@@ -987,7 +995,7 @@ The user-facing journal read lists current ACTIVE facts with logical fact ID, no
 
 **Rationale:** Current journal data is useful and tenant-scoped, while question lifecycle and evidence provenance require indexed invariants, idempotency, and deletion semantics.
 
-**Compatibility impact:** Existing journal readers continue to see revision-1 rows during dual-read migration. Phase 4 readers select ACTIVE facts only. Legacy pending-question behavior remains until the context-question flag is enabled.
+**Compatibility impact:** Existing journal readers continue to see revision-1 rows during dual-read migration. Phase 4 readers select ACTIVE facts only. Before LIVE question cutover, every legacy pending/open/send entry point must honor the same LIVE interaction guard; superseding a pending row after two sends is forbidden. Pre-cutover legacy-only behavior remains otherwise unchanged.
 
 **Failure mode controlled:** Retried answers, corrected context, or deleted facts cannot continue to influence evidence invisibly.
 
@@ -1184,11 +1192,11 @@ Phase 4 adds an indexed **lifecycle_disposition** for terminal meaning:
 
 An active insight has no terminal disposition. A RETIRED insight must have exactly one disposition. This preserves current consumers while making rejected, refuted, expired, corrected, and superseded memory unambiguous.
 
-Populated v20 health_insights are **LEGACY_UNVERIFIED**, read-only except mandatory redaction, and excluded from Phase 4 current/promoted/proactive reads. Migration does not invent evidence versions, dispositions, or supporting items. Historical Q&A may label an unredacted, source-linked one as legacy/unverified; eligible Phase 4 memory is recomputed through Section 10 and may retain only its opaque legacy source ID.
+Populated v20 health_insights are **LEGACY_UNVERIFIED**, read-only except mandatory redaction, and excluded from Phase 4 current/promoted/proactive reads. Migration does not invent evidence versions, dispositions, or supporting items. A legacy-history surface may label an unredacted, source-linked one as legacy/unverified; it is not a Phase 4 ScopedHealthContext input or a LIVE artifact merely because it survived migration. Eligible Phase 4 memory is recomputed through Section 10 and may retain only its opaque legacy source ID.
 
 ### Identity and versioning
 
-An insight key is tenant plus normalized subject, outcome, direction, exposure category, algorithm family, and evidence-contract major version. At most one non-retired current insight exists for a key.
+An insight key is tenant/mode plus normalized subject, outcome, direction, exposure category, algorithm family, and evidence-contract major version. At most one non-retired current insight exists for a key within that execution_mode.
 
 Each transition creates a new **insight_revision** and updates the current pointer with compare-and-swap on revision/input generation. The revision stores supporting/contradicting evidence IDs. The non-health envelope is immutable except defined state transitions; redaction/purge is the sole exception to append-only health content. Section 14 specifies in-place redaction, including the fixed sentinel for v20 health_insights.statement NOT NULL.
 
@@ -1472,7 +1480,7 @@ Eligible triggers are:
 - canonical tombstones;
 - reconciliation corrections;
 - journal create, correction, and deletion;
-- user answers to a delivered context question;
+- accepted structured answers to the matching AWAITING_ANSWER or AMBIGUOUS_WAIT slot;
 - timezone or relevant preference changes;
 - lifecycle, authorization, capability, or resource-access changes relevant to computation or delivery;
 - algorithm or registry rollout backfills.
@@ -1484,30 +1492,30 @@ An idempotent no-op canonical write does not increment the Phase 4 generation.
 When a canonical or journal write changes semantics, the same **processing.transaction** must:
 
 - commit the source change;
-- increment the tenant Phase 4 input generation;
-- merge the affected health-date range, subject keys, and reason codes into **phase4_invalidations**;
-- enqueue or advance the corresponding **phase4_jobs** generation.
+- advance the shared source_generation and each existing mode's input_generation once, recording source_generation_seen;
+- merge allowed health scope and finite reasons into mode-qualified **phase4_invalidations**, retaining FULL_TENANT_RECOMPUTE dominance after redaction;
+- enqueue or advance corresponding same-mode **phase4_jobs** generations. Do not create unauthorized LIVE state merely because a source changed.
 
 This extends the safe invalidation pattern in [src/analyticsInvalidation.js](../src/analyticsInvalidation.js) but does not enqueue the existing analytics worker classes.
 
 ### Job model
 
-Jobs are coalesced by tenant and job kind. A job contains requested generation, completed generation, affected range, reason set, attempt, next-attempt time, lease owner, and lease expiry.
+Jobs are coalesced by (user_id, execution_mode, job_kind). A job contains requested generation, completed generation, SCOPE kind/revision, nullable health range, reason set, attempt, next-attempt time, lease owner and lease expiry. FULL_TENANT_RECOMPUTE takes precedence over empty ranges and completed-generation equality.
 
 The worker:
 
 1. claims with a bounded lease;
-2. captures requested generation and lifecycle generation;
+2. captures execution_mode, requested/scope/purge/lifecycle/auth generations;
 3. performs provider-free calculations from a stable read snapshot;
 4. commits derived writes only if lifecycle, authorization, capability, and input-generation fences still pass;
-5. advances completed generation;
+5. advances only its own mode's completed generation after the entire requested scope succeeds;
 6. immediately requeues when a newer requested generation arrived during work.
 
 Retry backoff is bounded and observable. Poison jobs move to a repair-required state without blocking other tenants.
 
 The default retry schedule is 1 minute, 5 minutes, 15 minutes, 1 hour, and 6 hours. After five failed claims for the same requested generation, the job becomes REPAIR_REQUIRED and emits an operational alert. A newer input generation can create a fresh attempt only after the prior typed error is re-evaluated.
 
-In shadow-reanalysis mode, the worker may persist artifacts marked SHADOW but cannot create an outbound proposal. In shadow-decision mode, it may persist a decision but cannot create an outbound message. Removing the SHADOW mark requires recomputation under the enabled production contract; a shadow row is never silently promoted.
+In shadow-reanalysis mode, the worker may persist SHADOW evidence/episodes but cannot create an outbound proposal. In shadow-decision mode it may persist SHADOW decisions; only the separate shadow-proposal evaluator may create non-dispatchable SHADOW outbound_messages. All use the durable execution_mode column and Section 14 mode-qualified keys, not a process flag or JSON label. No UPDATE from SHADOW to LIVE is allowed; LIVE requires separately authorized recomputation and fresh LIVE rows after the conjunctive gate.
 
 ### Reanalysis contract
 
@@ -1685,6 +1693,8 @@ DELIVERED, AMBIGUOUS, SUPPRESSED, INVALIDATED, and FAILED_TERMINAL are terminal.
 
 No key contains a decision/job/attempt ID, lifecycle/auth/input generation, algorithm/policy version, payload/content hash, wording/template version, or recomputation timestamp. Those are provenance only. The key builder cannot be version-bumped to resend the same semantics. A migration must reuse the durable IDs and existing keys.
 
+The durable reservation namespace is (user_id, execution_mode, message_family, semantic_key). execution_mode partitions SHADOW simulation from LIVE authority without changing these four canonical builders. Mode is immutable, never a knob for retrying a LIVE event. All references and uniqueness tuples in this section additionally include execution_mode as specified in Section 14; a SHADOW reservation never blocks a LIVE reservation, or vice versa.
+
 **Episode semantic event creation.** In the same CAS transaction as the accepted episode transition/revision, insert one **episode_semantic_events** row, unique on (user_id, episode_id, resulting_revision). Allowed event_kind values are:
 
 - OPENED: newly observed evidence opens a new live episode under the normal persistence/severity gates, including a qualified direction reversal or recurrence;
@@ -1694,15 +1704,15 @@ No key contains a decision/job/attempt ID, lifecycle/auth/input generation, algo
 
 No other transition/revision creates an event. No event is created solely by daily recomputation, payload revision, correction/backfill, algorithm migration, lifecycle change, or new decision. The transaction compares all prior episode semantic events, not only delivered history; creation of a genuinely new meaning is independent of whether the previous event was sent. Semantic comparisons use registered severity ordinal, explained uncertainty key, claim key, and action key, not prose. Once committed, later decisions and payload proposals reference the existing episode_semantic_event_id. If purged content prevents proving novelty, fail closed; deletion is not permission to issue a replacement event. Algorithm-major replacement episodes carry predecessor links and inherit prior semantic-event barriers.
 
-**Question request creation.** Before decision/outbox creation, allocate **question_request_id** in context_questions under uniqueness on (user_id, episode_id, factor_question_kind, target_window_start_utc, target_window_end_utc, question_cycle_ordinal). factor_question_kind is a registered closed factor/template kind, not wording; windows are exact UTC half-open intervals from the candidate registry. The first cycle ordinal is 1. A tenant/episode/window transaction looks up and reuses the existing request, even when it has not yet acquired a decision. Retries, rescoring, expiry, algorithm/lifecycle changes, and later decisions never increment the ordinal.
+**Question request creation.** In the atomic selection transaction below, before decision/outbox insertion, allocate or reuse **question_request_id** in context_questions under uniqueness on (user_id, execution_mode, episode_id, factor_question_kind, target_window_start_utc, target_window_end_utc, question_cycle_ordinal). factor_question_kind is a registered closed factor/template kind, not wording; windows are exact UTC half-open intervals from the candidate registry. The first cycle ordinal is 1. The tenant/mode slot serializes different requests, while tuple uniqueness deduplicates the same request. Retries, rescoring, expiry, algorithm/lifecycle changes, and later decisions never increment the ordinal.
 
-A further ordinal for the same tuple is permitted only by an explicit authenticated user request to revisit that context after the prior cycle is terminal and not AMBIGUOUS/in flight; atomically record its unique source-update receipt in question_cycle_source_key and allocate previous+1. Replay of that receipt returns the existing request. Ordinary policy never creates a new ordinal to evade fatigue or a consumed/closed reservation. A genuinely different episode/factor/window is a different tuple but still passes all known-context/fatigue gates. Decision linkage is nullable until the selecting decision commits; allocation itself creates no pending interaction or send.
+A further ordinal for the same tuple is permitted only by an explicit authenticated user request to revisit that context after the prior cycle is terminal and its slot is unoccupied, never while AMBIGUOUS_WAIT/in flight; atomically record its unique source-update receipt in question_cycle_source_key and allocate previous+1. Replay of that receipt returns the existing request. Ordinary policy never creates a new ordinal to evade fatigue or a consumed/closed reservation. A genuinely different episode/factor/window is a different tuple but still must acquire the same tenant/mode slot and pass all known-context/fatigue gates. Request ID allocation precedes decision linkage within the transaction; selected_decision_id may remain null only for a shadow selection-only evaluation. It grants no provider capability.
 
 **Answer event creation.** When an accepted structured answer revision commits with its journal fact/coverage mutation, create one **structured_answer_events.answer_event_id**, unique on (user_id, logical_answer_id, answer_revision), and link source-update receipt and question_request_id. logical_answer_id is the stable question-response lineage. Compare normalized polarity, factor, value/unit, exact target window, and coverage set with the current answer revision. Equivalent wording, retry, or parser-version-only changes reuse the same answer event. A semantically changed accepted correction creates the next revision/event; deletion creates no answer event. A receipt for any superseded/redacted revision returns a no-op, never resurrects it.
 
 The finite **followup_kind** registry is INTERPRETATION_UPDATE (current evidence/explanation meaning changed) or OBSERVATION_PLAN (only the next observation plan changed). Select at most one kind per answer event, with INTERPRETATION_UPDATE taking precedence, and persist selected_followup_kind once before the first proposal. No later decision may choose the other kind to bypass a reservation. No qualifying change means no follow-up. A new decision for an existing answer event always reuses its kind and key.
 
-**Reservation lifecycle.** Reserve the canonical key transactionally before delivery ownership; reservation plus first message creation is atomic. States are RESERVED, CONSUMED, and CLOSED. DELIVERED or AMBIGUOUS permanently sets CONSUMED. SUPPRESSED/INVALIDATED before start, and FAILED_TERMINAL after only definite non-acceptance, set CLOSED. Neither CONSUMED nor CLOSED is released, deleted, or recreated for that semantic event. INVALIDATED cannot acquire an alternate key or payload version. Reservation and semantic-event identity metadata remain for the tenant's lifetime, independent of 400-day message-history retention. Source deletion purges content, never the reservation.
+**Reservation lifecycle.** Reserve the canonical key transactionally before delivery ownership; LIVE reservation plus first message creation is atomic. Selection-only SHADOW question evaluation is the explicit exception: request/reservation/slot commit without a message and can only attach its same-mode simulation proposal later. States are RESERVED, CONSUMED, and CLOSED. DELIVERED or AMBIGUOUS permanently sets CONSUMED. SUPPRESSED/INVALIDATED before start, and FAILED_TERMINAL after only definite non-acceptance, set CLOSED. Neither CONSUMED nor CLOSED is released, deleted, or recreated for that semantic event. INVALIDATED cannot acquire an alternate key or payload version. Reservation and semantic-event identity metadata remain for the tenant's lifetime, independent of 400-day message-history retention. Source deletion purges content, never the reservation.
 
 One reservation owns at most one outbound message (unique user_id, reservation_id); its outbox idempotency key is the canonical semantic key, not message version. Candidate wording may change before first proposal only. After PROPOSED, retry uses the same payload and same message; a stale/corrected proposal is invalidated and closed, not replaced. This deliberately favors non-duplication over replacement delivery. Only an explicitly new semantic event or the next Morning Brief date creates a new key. The record stores:
 
@@ -1723,11 +1733,11 @@ Payload is frozen before PROPOSED commits. Retry sends the same payload; it does
 |---|---|---|
 | u1, MORNING_BRIEF_V1, 2026-09-19 | Provider accepts, response lost; AMBIGUOUS and CONSUMED | Changed schedule/timezone, new decision, resumed lifecycle, and revised text still hit the same date key; zero second sends |
 | u1, EPISODE_NOTIFICATION, event-e7 | Decision d1 sends and loses response; CONSUMED | Decision d2 from new generation references event-e7; suppressed without new event or message |
-| u1, CONTEXT_QUESTION, request-q4 | AMBIGUOUS | Rescore/retry references q4 and ordinal1; no increment, no pending-question opening, no competing send for that request |
+| u1, CONTEXT_QUESTION, request-q4 | AMBIGUOUS | q4's key stays CONSUMED forever and the tenant/mode slot stays AMBIGUOUS_WAIT through its answer deadline; q5 for another episode/factor/window also cannot send during that window |
 | u1, ANSWER_FOLLOWUP, answer-a3, INTERPRETATION_UPDATE | AMBIGUOUS | d9 then d10 reference a3 and its fixed kind; both reuse CONSUMED. Equivalent answer wording reuses a3. A genuine corrected answer creates a4 and must independently pass policy |
 | Any class, invalidated before start | CLOSED; payload purged | Later decision cannot mint an alternative key/version; same event remains closed |
 
-For every class a crash after DELIVERY_STARTED but before outcome commit recovers to AMBIGUOUS/CONSUMED, including after pause/reauthorization. Proven non-acceptance alone permits bounded retry of the same message while RESERVED; it never creates a new semantic event. Tenant u2's identities remain independent.
+For every class a crash after DELIVERY_STARTED but before outcome commit recovers to AMBIGUOUS/CONSUMED, including after pause/reauthorization. Proven non-acceptance alone permits bounded retry of the same message while RESERVED for non-question classes. CONTEXT_QUESTION uses the stricter terminal non-acceptance rule below, never an automatic replacement question. Tenant u2's identities remain independent.
 
 ### Exact lifecycle behavior
 
@@ -1747,25 +1757,52 @@ A lifecycle or authorization transition may move PROPOSED, ELIGIBLE, or CLAIMED 
 ### Claim and send protocol
 
 1. Claim ELIGIBLE with owner and lease.
-2. Recheck user ACTIVE, READY, destination binding, notifications not paused, message expiry, decision currentness, and no prior delivery.
-3. In a transaction, insert the attempt and set DELIVERY_STARTED with exact attempt ID.
+2. Recheck user ACTIVE, READY, destination binding, notifications not paused, message expiry, decision currentness, durable execution_mode = LIVE throughout the parent chain, and no prior delivery. For a question, require its matching RESERVED slot and revision.
+3. In a transaction, insert the LIVE-only attempt and set DELIVERY_STARTED with exact attempt ID; atomically move a question's matching slot to DELIVERY_STARTED and set its deadline.
 4. Commit.
 5. Call Telegram outside the transaction.
 6. On confirmed acceptance, store DELIVERED and provider message ID.
-7. On definite non-acceptance, store FAILED_DEFINITE and retry only the registered retryable errors with bounded backoff.
+7. On definite non-acceptance, store FAILED_DEFINITE and retry only the registered retryable errors with bounded backoff for non-question classes. A question immediately proceeds to FAILED_TERMINAL/CLOSED and the slot cancellation below.
 8. On timeout, connection loss after request write, malformed success, or process crash after step 4, set or recover as AMBIGUOUS and do not automatically resend.
 
 A startup repair changes expired CLAIMED records back to ELIGIBLE because no provider call began. Expired DELIVERY_STARTED records become AMBIGUOUS.
 
 ### Question-specific behavior
 
-A DELIVERED question creates or activates its **pending_questions** row idempotently. A definite terminal failure leaves no open pending question. An ambiguous outcome reserves the question semantic key so a competing question is not sent; it does not assume the user received it.
+**Exclusive slot.** phase4_question_interaction_slots has exactly one row per (user_id, execution_mode), initially FREE with revision 0. Occupied states are RESERVED, DELIVERY_STARTED, AMBIGUOUS_WAIT and AWAITING_ANSWER. FREE, RESOLVED, EXPIRED and CANCELLED_PRE_SEND are unoccupied. The latter three retain the previous request/outcome until the next acquisition CAS; the context request and reservation preserve permanent history. Reacquisition increments revision, replaces only current slot references/timestamps and clears prior-cycle timestamps. It cannot reopen the previous consumed/closed request.
+
+**Atomic selection.** A short tenant/mode transaction validates input/lifecycle/auth/purge generations and authoritative family mode, CAS-acquires an unoccupied slot, allocates/reuses the request and ordinal, selects the decision, reserves its semantic key and creates its frozen outbound proposal when proposal evaluation is enabled. All effects commit together or none do. Selection-only SHADOW evaluation may reserve the slot/request with outbound_message_id null; a later proposal attaches only by CAS to that same request. LIVE selection always includes its outbound proposal. An occupied different request rejects the whole transaction (including request, decision and reservation inserts), even when its episode/factor/kind/window and semantic key are all different. Same-request replay returns the committed result without extending a deadline. No check-then-insert outside this transaction is sufficient.
+
+**Normative transitions and window (question-slot-v1).** Answer window is 30 UTC minutes; equality with answer_deadline is expired. reserved_at is selection time; an unstarted reservation expires at reserved_at + 30 minutes by CANCELLED_PRE_SEND with RESERVATION_EXPIRED, not evidence of a user nonresponse. All transitions CAS user/mode/revision/request. Recheck durable content/lifecycle/auth/purge fences for start, answer interpretation and pending projection. Non-health transport settlement and expiry remain permitted after pause/lifecycle change or purge, without reopening health access; a confirmed outcome may record AWAITING_ANSWER while projection is withheld and the slot waits for expiry.
+
+| From | Event | To and atomic effects |
+|---|---|---|
+| Any unoccupied state | New eligible selection wins CAS | RESERVED; write request/decision/reservation/proposal as above |
+| RESERVED | Start authorized provider call | DELIVERY_STARTED; set delivery_started_at and answer_deadline = delivery_started_at + 30 minutes in the attempt/start transaction |
+| RESERVED | Definite pre-send failure, pause/disable/auth change, source invalidation or reservation expiry | CANCELLED_PRE_SEND; cancellation_reason, closed request and CLOSED reservation; unstarted outbox SUPPRESSED (INVALIDATED for stale source); no OPEN pending row |
+| DELIVERY_STARTED | Confirmed provider acceptance | AWAITING_ANSWER; delivered_at; answer_deadline = max(existing deadline, delivered_at + 30 minutes); reservation CONSUMED; create one matching pending projection |
+| DELIVERY_STARTED | Crash, uncertain acceptance or lost response | AMBIGUOUS_WAIT; ambiguous_at set once at first durable classification; answer_deadline = max(existing deadline, ambiguous_at + 30 minutes); reservation permanently CONSUMED; no resend and no ordinary pending projection |
+| DELIVERY_STARTED | Proven non-acceptance | CANCELLED_PRE_SEND with PROVIDER_DEFINITE_NON_ACCEPTANCE (name means no accepted question); outbox FAILED_DEFINITE then FAILED_TERMINAL, reservation CLOSED; no retry |
+| AWAITING_ANSWER or AMBIGUOUS_WAIT | Matching validated structured answer before deadline | RESOLVED; resolved_at and accepted answer/fact/coverage receipt commit atomically; matching pending projection ANSWERED if present |
+| AWAITING_ANSWER or AMBIGUOUS_WAIT | Deadline reached without accepted answer | EXPIRED; expired_at and matching pending projection EXPIRED; CONSUMED reservation remains forever |
+
+DELIVERY_STARTED cannot time out directly to FREE/EXPIRED; classify it as AMBIGUOUS_WAIT first and retain the full conservative window. Restart never resets ambiguous_at or extends an already classified deadline. If a late provider success confirms the same ambiguous request before expiry, record delivered_at/provider ID and move it to AWAITING_ANSWER, extend to max(existing deadline, delivered_at + 30 minutes), and project that same question only; this confirms transport, never resends. Confirmation after terminal slot resolution/expiry only updates transport history and cannot reopen the slot or pending row. The outbox's AMBIGUOUS terminal non-retryability is unchanged.
+
+Recheck the matching slot before DELIVERY_STARTED, on lifecycle/auth changes, scheduler retry/lease takeover, and before every pending-question open/update. Pause/disable may cancel RESERVED but must not free DELIVERY_STARTED, AMBIGUOUS_WAIT or AWAITING_ANSWER early; pause/resume cannot issue a replacement during their window. Changed auth/lifecycle prevents stale answer interpretation, but not non-health expiry. Purge redacts question content and pending fields while retaining an occupied post-start slot through its deadline; without current unredacted matching context, an answer cannot reconstruct the erased question. Expiry does not release its semantic reservation.
+
+**Conversation projection and routing.** Existing [openPendingQuestion](../src/botStore.js) supersedes all OPEN rows for a tenant; it is not safe for Phase 4. The compatibility adapter must instead verify the authoritative LIVE slot and upsert only its linked request, unique (user_id, execution_mode, context_question_id) where non-null; a different OPEN interaction causes rollback, never silent supersession. Ordinary implicit replies may resolve only the slot's AWAITING_ANSWER request and matching pending ID/destination binding. AMBIGUOUS_WAIT accepts only an explicit opaque question reference (validated button token or reply-to ID that can be proven to match), authenticated to the same tenant/mode; generic unrelated chat is not an answer. No match means no answer/fact/follow-up and the slot remains occupied.
+
+Answer receipt lookup precedes routing. Replay returns the same answer event or redacted no-op, never resolves a newer occupant. A subsequent correction targets the tenant-qualified fact/answer lineage and may create a semantically changed answer event, but never reopens or releases an unrelated current slot. Answer/expiry race uses the same slot CAS and durable transaction clock. SHADOW answers use synthetic receipts and SHADOW normalized answer content only, never real pending rows, Telegram receipts or canonical Journal mutations.
+
+**Legacy coexistence/cutover.** LIVE acquisition also serializes against any legacy OPEN pending interaction (including the multi-step experiment flow) and legacy question send in flight. Before PHASE4 question cutover, deploy the compatibility guard to every legacy open/resolve/expire/send path; inability to enumerate/guard a path blocks cutover. Under the same tenant lock, import a legacy active interaction into the LIVE slot with origin LEGACY, legacy_pending_question_id/legacy_operation_id, and no invented Phase 4 question request. Confirmed legacy OPEN uses its existing expires_at, an in-flight send uses DELIVERY_STARTED, and ambiguous legacy transport uses the conservative AMBIGUOUS_WAIT window plus a lifetime LEGACY_BARRIER reservation. An unclassifiable legacy send defers cutover, never assumes FREE. The mode cannot finish cutover while that slot is occupied. Legacy resolves/expires by slot CAS; no legacy path may supersede a Phase 4 occupant. A user-started multi-step flow advances only after resolving its own step and acquiring the next under this guard. Post-cutover legacy proactive question sending is prohibited. These changes do not alter unrelated inbound Q&A replies, which cannot create a proactive question slot.
+
+SHADOW slots are independent, may model these transitions without a provider/real attempt, and never block or mutate LIVE conversation state. LIVE slot allocation itself requires the Section 14 server-owned capability; before the release gate, cutover is tested only with synthetic in-memory authority and fake transport.
 
 An answer can trigger invalidation and reanalysis. A useful follow-up requires a durable decision referencing the canonical answer_event_id/followup_kind; a later decision is not a new semantic identity. The inbound answer handler and reanalysis worker cannot send the follow-up directly.
 
 ### Atomic legacy-to-Phase-4 cutover
 
-**tenant_delivery_modes** is keyed by user_id and message_family and has LEGACY, CUTOVER_PENDING, or PHASE4 mode. It is default LEGACY and cannot enter PHASE4 while the Phase 4 delivery flag is off.
+**tenant_delivery_modes** is keyed by user_id, execution_mode and message_family and has LEGACY, CUTOVER_PENDING, or PHASE4 mode. It is default LEGACY; LIVE cannot enter PHASE4 while the delivery flag/gate is off. SHADOW may simulate cutover only within its namespace, never owning a legacy sender or destination.
 
 Cutover occurs at a deterministic boundary: the next local health-day boundary for MORNING_BRIEF_V1 and the next semantic transition after the recorded cutover instant for other families. One transaction:
 
@@ -1800,6 +1837,7 @@ Only the delivery dispatcher owns a Telegram send capability for Phase 4 outboun
 All Phase 4 Q&A reads go through one **ScopedHealthContext** service. Its required input is:
 
 - authenticated internal user ID derived from the inbound Telegram binding;
+- server-owned execution_mode = LIVE for the product service (a separate non-publishing evaluator binds SHADOW); caller/model mode fields are rejected;
 - perspective classification;
 - exact as-of instant;
 - purpose and requested subjects;
@@ -1837,7 +1875,7 @@ The context service returns only:
 
 - canonical rows current under tombstone and source-version rules;
 - ACTIVE journal facts;
-- non-invalidated Body Energy results compatible with requested as-of;
+- non-invalidated LIVE Body Energy results at the exact requested as_of_epoch_ms and current input generation/version; any explicitly permitted checkpoint summary instead discloses its original exact time/freshness;
 - current episodes;
 - non-invalidated evidence items;
 - promoted EMERGING or SUPPORTED insights under Section 8 by default;
@@ -1845,6 +1883,8 @@ The context service returns only:
 - explicit missingness and generation lag.
 
 If requested derived data is behind the current input generation, the answer either computes a pure current result synchronously within a bounded budget or says analysis is updating. It never serves a stale insight as current.
+
+All derived reads and their entire parent chains require the service's explicit mode and Section 14 currentness/purge rules. A SHADOW result cannot become a product answer after restart or a flag change. Canonical/shared assertions use their explicitly allowed source-root path, not a mixed-mode derived join.
 
 A user who explicitly asks what the system is still testing may receive a HYPOTHESIS, clearly labelled unpromoted and never phrased as a finding.
 
@@ -1900,7 +1940,51 @@ The current schema is version 20 in [src/schema.js](../src/schema.js). Phase 4 m
 
 ### Cross-cutting entity contract
 
-**input_generation** is the Phase 4 computation generation. Any artifact derived from WHOOP data also stores the current authorization generation; anything used for a user-visible action stores lifecycle generation. Currentness compares all applicable generations, not timestamps alone.
+**input_generation** is the Phase 4 computation generation within (user_id, execution_mode), owned by phase4_computation_state. Shared source mutation advances phase4_user_state.source_generation once and increments each existing mode's input_generation once in the same transaction; mode-specific algorithm changes increment only that mode. No SHADOW completion can advance LIVE currentness. Any artifact derived from WHOOP data also stores the current authorization generation; anything used for a user-visible action stores lifecycle generation. Currentness compares all applicable generations, not timestamps alone.
+
+### Durable execution-mode contract
+
+**M** means execution_mode TEXT NOT NULL DEFAULT 'SHADOW' CHECK (execution_mode IN ('SHADOW','LIVE')). Every table in the mode/key matrix below receives M in its listed version. Mode is a typed immutable column, never a JSON tag. Store APIs require an explicit server-owned execution context: missing/unknown mode rejects health access/publication, even though omitted SQL inserts default safely to SHADOW. Null/unknown stored mode or mixed-mode parent chains are corrupt/non-publishable. Schema CHECKs reject invalid values; a BEFORE UPDATE trigger rejects any execution_mode change (including LIVE to SHADOW). Live delivery attempts additionally CHECK (execution_mode = 'LIVE'), so default/omitted mode cannot create an attempt.
+
+The LIVE write factory requires a non-serializable server-owned capability issued only after all four Section 17 gate conditions and the named operation authorization are verified. Request bodies, user messages, LLM output and an environment flag cannot issue it. Pre-gate processes have no LIVE factory/provider capability. Local tests inject a separate synthetic factory bound to an in-memory fixture and fake transport; it cannot open a real database or destination. Privacy/control adapters may redact/invalidate already existing LIVE rows without publication capability, but cannot insert LIVE computation/output, advance completion or send. Fresh LIVE computation state and outputs are created only by the authorized LIVE factory, not by backfilling SHADOW data.
+
+**Exact mode/key expansion.** The following matrix is normative wherever shorter table descriptions below say “user plus ID” or omit mode. All listed primary/unique indexes include execution_mode exactly as shown; ordinary secondary health indexes start (user_id, execution_mode). Parent lookup, update/delete/CAS predicates, leases, current pointers, caches, source-change lookup digests and computation-run identities repeat that same pair. No ID-only or user-only fallback is allowed.
+
+All new primary-key components are explicitly NOT NULL, including composite TEXT IDs (do not rely on SQLite's implicit primary-key nullability). Nullable health-bearing unique-key components are required while PRESENT and cleared only under the specified purge contract; their keyed lookup barriers remain unique afterward.
+
+| Version / table(s) receiving M | Exact primary/identity key | Mode-qualified unique/current key in addition to primary key |
+|---|---|---|
+| v21 phase4_computation_state | (user_id, execution_mode) | None; each mode has its own input/last_completed generation |
+| v22 context_questions (including bounded candidate-set diagnostics) | (user_id, execution_mode, question_request_id) | (user_id, execution_mode, request_lookup_key); typed episode/factor/window/ordinal tuple from Section 12 while PRESENT; (user_id, execution_mode, question_cycle_source_key) when non-null; (user_id, execution_mode, selected_decision_id) when non-null |
+| v22 structured_answer_events | (user_id, execution_mode, answer_event_id) | (user_id, execution_mode, logical_answer_id, answer_revision); (user_id, execution_mode, source_update_id) |
+| v22 pending_questions additive extension | Existing id PK unchanged; validated owner/mode lookup (user_id, execution_mode, id) | Unique (user_id, execution_mode, context_question_id) WHERE context_question_id IS NOT NULL; only LIVE may hold a Phase 4 Telegram projection |
+| v23 body_energy_results | (user_id, execution_mode, result_id) | Exact tuple and result_lookup_key described below |
+| v23 body_energy_checkpoints | (user_id, execution_mode, checkpoint_id) | Partial checkpoint uniqueness from Section 3; (user_id, execution_mode, checkpoint_lookup_key) |
+| v23 evidence_runs | (user_id, execution_mode, run_id) | (user_id, execution_mode, deterministic_run_key) |
+| v23 evidence_items | (user_id, execution_mode, evidence_item_id) | (user_id, execution_mode, run_id, item_key) |
+| v23 observation_episodes | (user_id, execution_mode, episode_id) | Separate unique indexes on (user_id, execution_mode, episode_family_key) and (user_id, execution_mode, fingerprint), each WHERE state IN ('OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING') |
+| v23 episode_observations | (user_id, execution_mode, episode_id, observation_key) | None |
+| v23 episode_evidence | (user_id, execution_mode, episode_id, evidence_item_id) | None |
+| v23 episode_events | (user_id, execution_mode, episode_event_id) | (user_id, execution_mode, deterministic_event_key) |
+| v23 episode_semantic_events | (user_id, execution_mode, episode_semantic_event_id) | (user_id, execution_mode, episode_id, resulting_revision) |
+| v23 health_insights additive extension | Existing id PK unchanged; validated (user_id, execution_mode, id) | (user_id, execution_mode, insight_key) WHERE insight_key IS NOT NULL AND status <> 'RETIRED' AND legacy_classification = 'PHASE4'; current_revision points only to same-mode revision |
+| v23 insight_revisions | (user_id, execution_mode, insight_id, revision) | None |
+| v24 phase4_invalidations | (user_id, execution_mode) | None |
+| v24 phase4_jobs | (user_id, execution_mode, job_kind) | None; mode belongs to complete lease identity |
+| v24 phase4_proactive_decisions | (user_id, execution_mode, decision_id) | (user_id, execution_mode, deterministic_decision_key) |
+| v24 tenant_delivery_modes | (user_id, execution_mode, message_family) | None; SHADOW cutover has no legacy authority |
+| v24 outbound_semantic_reservations | (user_id, execution_mode, reservation_id) | (user_id, execution_mode, message_family, semantic_key) |
+| v24 phase4_question_interaction_slots | (user_id, execution_mode) | None; one occupied request maximum per tenant/mode |
+| v24 outbound_messages (SHADOW proposals and LIVE outbox) | (user_id, execution_mode, message_id) | (user_id, execution_mode, idempotency_key); (user_id, execution_mode, reservation_id) |
+| v24 outbound_delivery_attempts | (user_id, execution_mode, attempt_id) | (user_id, execution_mode, message_id, attempt_number); LIVE-only CHECK |
+
+No separate question-candidate table or calculation-run table is implicit: candidate snapshots are context_questions/phase4_proactive_decisions content, calculation runs are body_energy_results/evidence_runs plus phase4_jobs. They inherit the container's mode. A SHADOW proposal is never eligible for dispatcher selection, attempt insertion or a real pending_questions projection. Simulated transport outcomes remain in the SHADOW proposal/slot with simulation-only reason codes; they do not create outbound_delivery_attempts.
+
+**Mode-neutral roots and privacy graph.** users/lifecycle/destination identity, notification preferences, canonical WHOOP sources/tombstones, real Journal revisions/coverage/tombstones, independently authored experiment fields, inbound telegram_operations receipts, and the tenant privacy ledger/fence are shared authorities, not mode-owned derived outputs. SHADOW may read eligible source projections but may not mutate these real roots/preferences/receipts or legacy analytics. Synthetic shadow answers stay in SHADOW structured_answer_events.normalized_answer_json, with logical_fact_id/fact_revision/coverage_window_id null; no real source is fabricated. LIVE accepted answers atomically write their shared authenticated assertion and same-mode answer event. Source-root references require tenant validation plus the allowlisted root type, not a fabricated root mode. Legacy copied/derived records remain unverified and cannot become LIVE evidence merely because mode was backfilled.
+
+phase4_source_links adds artifact_execution_mode and source_execution_mode, each NOT NULL CHECK in ('SHADOW','LIVE','SHARED'); its composite PK is (user_id, artifact_execution_mode, artifact_type, artifact_id, source_execution_mode, source_type, source_id, relationship). SHARED denotes only the enumerated roots or legacy privacy targets, not permission to consume legacy derived artifacts as Phase 4 parents. PHASE4-to-PHASE4 references require equal mode; a SHADOW child cannot cite a LIVE parent or vice versa. Privacy traversal intentionally follows an authenticated source into **both** modes in one T1; source deletion is not a simulation. privacy_artifact_id includes execution_mode for mode-owned rows; purge targets store that opaque ID and artifact_execution_mode, with both in their PK. This permits cross-mode purge without cross-mode health reads.
+
+**Reader precedence and restart.** Morning Brief, production Q&A and dispatcher queries explicitly require LIVE and a completely LIVE derived ancestry, current mode generations, R/source/purge fences and release capability where applicable. Shadow evaluators explicitly require SHADOW; no “latest regardless of mode,” fallback, or promotion UPDATE exists. Mode-qualified cache keys, job claims and leases survive restart; LIVE claims cannot select SHADOW pending work. Recalculation after an algorithm change writes a new version/generation in the selected mode and changes only its pointers. A fresh LIVE run after authorization recomputes from current roots, not copied SHADOW results, decisions, reservations, slots or current pointers. Purge invalidates both modes and fences every reader, including caches, until completion.
 
 The non-health envelope is immutable except defined state transitions; redaction/purge is the sole exception to append-only health content. “Immutable” never prohibits mandatory purge. This ADR chooses **in-place nullable/redactable content** for every retained health-bearing entity, with exact physical-deletion exceptions in the expansion table; there is no deferred content-table choice. Journal deletion physically removes fact revisions after writing its minimal tombstone. Legacy NOT NULL content uses the sentinel map below; no table rebuild or nullability alteration is needed.
 
@@ -1921,14 +2005,14 @@ REDACTED requires health_content_redacted_at, health_content_redaction_reason an
 
 | Version | Tables receiving every R column | Purge mechanism |
 |---|---|---|
-| v21 | None: phase4_user_state, user_notification_preferences, phase4_migration_checkpoints contain operational metadata only | Tenant purge counter/fence below; no health content |
+| v21 | None: phase4_user_state, phase4_computation_state, user_notification_preferences, phase4_migration_checkpoints contain operational metadata only | Tenant purge counter/fence below; no health content |
 | v22 existing | journal_events, pending_questions, telegram_operations, proactive_events, health_insights | In-place R/sentinels; journal all revisions physically removed on deletion |
-| v22 legacy inventory extensions | whoop_capabilities, healthspan_metrics, healthspan_snapshots, prediction_runs, prediction_models, experiments, analytics_daily_state, analytics_work_state, analytics_runs, report_runs, report_claims, briefing_evaluations, whoop_sync_state, whoop_webhook_events, whoop_reconciliation_state, whoop_reconciliation_runs, user_onboarding, ai_usage, system_heartbeats, proactive_agent_state | R plus in-place redaction except physical deletion for healthspan_metrics, healthspan_snapshots, prediction_runs, prediction_models, analytics_daily_state (D in Section 15); no worker activation or transport-state reset |
-| v22 new | journal_coverage_windows, context_questions, structured_answer_events, health_purge_replacements | In-place nullable content plus R; replacement staging deleted after content transaction; durable question/answer identities survive |
-| v23 new | body_energy_results, evidence_runs, evidence_items, observation_episodes, episode_observations, episode_evidence, episode_events, episode_semantic_events, insight_revisions | In-place nullable content plus R |
+| v22 legacy inventory extensions | whoop_capabilities, healthspan_metrics, healthspan_snapshots, prediction_runs, prediction_models, analytics_daily_state, analytics_invalidation, analytics_work_state, analytics_runs, report_runs, report_claims, briefing_evaluations, whoop_sync_state, whoop_webhook_events, whoop_reconciliation_state, whoop_reconciliation_runs, user_onboarding, ai_usage, system_heartbeats, proactive_agent_state | R plus in-place redaction except physical deletion for healthspan_metrics, healthspan_snapshots, prediction_runs, prediction_models, analytics_daily_state (D in Section 15); scopes use the exact SCOPE extension below; no worker activation or transport-state reset |
+| v22 new | journal_coverage_windows, context_questions, structured_answer_events, health_purge_replacements, experiment_field_groups | In-place nullable content plus R; experiments uses per-column-leaf R within named groups, not a row-wide marker; replacement staging deleted after content transaction; durable question/answer identities survive |
+| v23 new | body_energy_results, body_energy_checkpoints, evidence_runs, evidence_items, observation_episodes, episode_observations, episode_evidence, episode_events, episode_semantic_events, insight_revisions | In-place nullable content plus R |
 | v24 new | phase4_invalidations, phase4_jobs, phase4_proactive_decisions, outbound_messages, outbound_delivery_attempts | In-place nullable content plus R; attempt health content prohibited, markers support incident redaction |
 
-The v23 health_insights additions extend its R columns already installed in v22, not a duplicate add. phase4_source_links, health_plaintext_purges, health_purge_targets, journal_event_tombstones, tenant_delivery_modes, and outbound_semantic_reservations contain no health content and do not receive R. Canonical whoop_sleeps/recoveries/cycles/workouts/body_measurements remain v20 source tables; source deletion physically removes canonical payload under authoritative tombstone policy rather than fabricating redacted physiological rows.
+The v23 health_insights additions extend its R columns already installed in v22, not a duplicate add. phase4_source_links, health_plaintext_purges, health_purge_targets, journal_event_tombstones, tenant_delivery_modes, phase4_question_interaction_slots, and outbound_semantic_reservations contain no health content and do not receive R. Slot answer-deadline/transport timestamps are interaction timing, never a physiological target window. Canonical whoop_sleeps/recoveries/cycles/workouts/body_measurements remain v20 source tables; source deletion physically removes canonical payload under authoritative tombstone policy rather than fabricating redacted physiological rows.
 
 **Envelope/content classification (normative for column lists below).** Only opaque IDs and references after unlinking, keyed non-reconstructable hashes, algorithm/method versions, CAS/input/lifecycle/auth/purge generations, creation/transport timestamps, finite transport/audit state/reason codes, and semantic reservation identities belong to retained envelopes. All normalized values, health dates/windows/subject/direction labels, factor sets, severity/novelty/confidence, statistics (including p/q, effects, intervals, counts and UNKNOWN fractions), quality/confound details, claim/explanation text, utility components/branch signatures, JSON manifests/context, payloads and free-text errors are purgeable. Exact health-window keys needed for question dedup are retained only as keyed opaque lookup digests after redaction; their typed timestamps/factor kind become null. Generic creation times may remain; physiological observation times may not.
 
@@ -1949,7 +2033,7 @@ Allocate/reuse the artifact's hash context only after its deterministic identity
 | Decisions | user_id plus decision ID | lifecycle, auth, input generation | Envelope stable except invalidation/expiry; content append-only except purge | episode revision, policy/evidence/template versions, gate results | 400 days or earlier purge |
 | Reservations/messages/attempts | user_id in every identity | delivery mode plus lifecycle/auth/input/purge at proposal and pre-send | Reservation/state CAS; payload frozen except mandatory purge | expiry, versions, provider timestamps | Plaintext 90 days; detailed metadata 400 days; reservation/semantic identity tenant lifetime |
 
-All cache keys repeat user_id plus artifact ID or semantic key, version, and applicable generation. An artifact ID alone is never a cache key.
+All derived cache keys repeat user_id, execution_mode, artifact ID or semantic key, version, and applicable generations. Shared-root projections also include the consuming mode. An artifact ID alone is never a cache key.
 
 ### Existing storage mapping
 
@@ -1966,7 +2050,8 @@ All cache keys repeat user_id plus artifact ID or semantic key, version, and app
 | **report_claims**, **report_runs** | LEGACY READ-ONLY AT CUTOVER | V1.2 delivery history and barriers only; never Phase 4 outbox rows |
 | **telegram_processed_updates**, **telegram_operations** | REUSE receipt identity; EXTEND operations | Completed action receipt survives content purge; owner_user_id is explicit |
 | **ai_usage** | REUSE | LLM usage audit without storing unrestricted prompt content |
-| **analytics_invalidation**, **analytics_work_state** | DO NOT OVERLOAD | Phase 3 workers must stay dormant |
+| **analytics_invalidation**, **analytics_work_state** | EXTEND only for privacy-safe scope redaction | Preserve Phase 3 queue generations, add full-tenant scope marker; never use as Phase 4 jobs or activate their worker |
+| **experiments** | EXTEND with field-group sidecar | Keep independent authored assertions while redacting linked or unproven derived groups |
 | **proactive_events** | DO NOT OVERLOAD | It combines legacy decision and send behavior and lacks the new delivery state machine |
 | **briefing_evaluations** | DO NOT OVERLOAD | It is not an episode, evidence, or decision ledger |
 | **pending_questions.context_json** | DO NOT OVERLOAD | Lifecycle invariants require typed indexed columns |
@@ -1979,26 +2064,36 @@ Schema versions advance independently; v21 through v24 are not one atomic instal
 
 | Version | Version row advances only after | Stores available | Phase 4 behavior allowed | Flags that remain off |
 |---|---|---|---|---|
-| v21 | Tenant-state/preferences tables, indexes, deterministic user backfill, and postconditions pass | Phase 4 user state and preferences | Store/migration tests only | All Phase 4 behavior flags |
-| v22 | Journal/coverage/tombstone/source-link/purge/question/answer objects, all legacy R extensions, receipt-owner/backfill/sentinel/replay postconditions pass | Structured context, purge, and redaction-aware receipts | Local dual-write/replay only after exact-schema startup check | Body, evidence, episodes, jobs, decisions, Q&A publication, all delivery |
-| v23 | Body Energy, evidence, episode/revision/semantic-event and insight structures plus legacy-insight classification postconditions pass | Calculation/evidence/episode/insight stores | Local calculation and historical shadow replay only | Reanalysis worker, decisions, Q&A publication, all delivery |
-| v24 | Invalidation/jobs, decisions, semantic reservations, delivery modes, outbox, and attempts pass | Complete Phase 4 persistence | Local shadow reanalysis/decisions with provider sending technically absent | Every real delivery, production migration/flags, cutover |
+| v21 | Complete tenant state, mode-qualified computation state, preferences, migration checkpoints, indexes, backfills, CHECKs/triggers and postconditions | Disabled metadata persistence | Migration/contract fixtures only | All Phase 4 flags |
+| v22 | Complete Journal/coverage/tombstone/source-link/purge/question/answer objects; M/R extensions; legacy SCOPE and experiment field groups; owner/backfill/sentinel/replay postconditions | Disabled structured context and privacy persistence | Migration/contract fixtures only; no T0 admission, dual-write or correction/deletion runtime | All Phase 4 flags |
+| v23 | Complete Body Energy/results/checkpoints, evidence, episodes/memberships/events/semantic events, insight revisions/current pointers; M/R and legacy classification postconditions | Disabled calculation/intelligence persistence | Migration/contract fixtures only; no partial “Body-only v23” | All Phase 4 flags |
+| v24 | Complete invalidations/jobs/SCOPE, decisions, modes, reservations, interaction slots, outbox and LIVE-only attempts; every M/R/key/index/trigger postcondition | Complete disabled Phase 4 persistence | Only subsequent authorized Foundation internal commits may implement stores/calculation/Journal using all v21–v24 objects; flags remain off | All Phase 4 flags; no dispatcher/provider wiring in Foundation |
 
 For each version, partial DDL/backfill leaves the prior schema-version row unchanged and all features requiring the incomplete version off. Rerun introspects and resumes. A Phase 4 writer/worker binary requires its exact declared **EXPECTED_SCHEMA_VERSION**; behind or ahead makes Phase 4 startup fail closed. The dedicated migration command may run from an earlier supported version. A defect after version advancement is repaired by a new reviewed forward-fix version, never by editing the meaning of an applied version.
 
 The runner advances one version at a time: it records v21 only after v21 postconditions, then v22, v23, and v24 in order. It never records v24 as a shortcut for partially or fully applied earlier DDL.
+
+Complete disabled v21–v24 persistence precedes any Foundation privacy T0/T1 wiring, stores, Body Energy or Journal revision runtime. T1 requires v24 full-tenant invalidations, jobs, slot/outbox fencing and therefore must not run with v22/v23 alone. Missing any required postcondition rejects purge admission before T0. Version advancement is not feature activation. Section 19 fixes the eight internal commit boundaries; this repair authorizes none of them.
 
 ### V21: tenant state and preferences
 
 **phase4_user_state**
 
 - primary key: user_id;
-- input_generation, default 0;
-- last_completed_generation, default 0;
+- source_generation INTEGER NOT NULL DEFAULT 0, tenant-wide monotonic source mutation counter (not completion);
 - purge_generation INTEGER NOT NULL DEFAULT 0, incremented at durable purge admission;
 - pending_purge_count INTEGER NOT NULL DEFAULT 0; authoritative read/write/send fence while positive;
 - created_at and updated_at;
-- invariant: generations are nonnegative and completed is not greater than input.
+- invariant: generations/counters are nonnegative; no shared last_completed_generation exists.
+
+**phase4_computation_state**
+
+- M; primary key (user_id, execution_mode);
+- input_generation INTEGER NOT NULL DEFAULT 0, last_completed_generation INTEGER NOT NULL DEFAULT 0;
+- source_generation_seen INTEGER NOT NULL DEFAULT 0; algorithm_set_version TEXT NOT NULL; revision INTEGER NOT NULL DEFAULT 0; created_at, updated_at;
+- CHECK last_completed_generation <= input_generation, all generations nonnegative; completion requires captured source_generation_seen = current tenant source_generation and a same-mode generation/lease CAS;
+- deterministic migration backfill creates SHADOW state only; the authorized LIVE factory later inserts fresh LIVE state at input_generation 1, last_completed_generation 0 and current source_generation_seen, then queues a LIVE FULL_TENANT_RECOMPUTE. No copying SHADOW completion/pointers;
+- shared source changes fan out to existing mode rows; mode-only algorithm changes increment only their own input_generation. Purge increments existing mode generations and invalidations without minting unauthorized LIVE rows.
 
 **user_notification_preferences**
 
@@ -2086,7 +2181,7 @@ Indexes:
 
 **phase4_source_links**
 
-- primary key: user_id, artifact_type, artifact_id, source_type, source_id, relationship;
+- primary key: user_id, artifact_execution_mode, artifact_type, artifact_id, source_execution_mode, source_type, source_id, relationship;
 - every health-bearing derived artifact links to its journal fact, coverage window, canonical row, or earlier artifact;
 - linked_at, unlinked_at, purge_id; purge clears reconstructive relationships after complete traversal, leaving only opaque artifact/purge linkage;
 - source_type = TENANT_LEGACY with source_id = user_id is the explicit conservative dependency for attributable legacy copies whose exact inputs cannot be established;
@@ -2100,7 +2195,7 @@ artifact_id is privacy_artifact_id for R-bearing rows. A canonical UUID is alrea
 - primary key: user_id plus purge_id;
 - unique user_id/purge_generation;
 - unique user_id/deletion_or_correction_idempotency_key;
-- target source type/ID, purge_generation, requested_input_generation;
+- target source type/ID, purge_generation, requested_source_generation (the shared tenant counter; per-mode queue generations are recorded by their own rows);
 - state: ADMITTED, DB_REDACTED, CACHE_CONFIRMED, COMPLETE; no failed state releases the fence;
 - admitted_at, db_redacted_at, cache_confirmed_at, completed_at, updated_at, attempt, last_error_code;
 - operation_kind CORRECTION, DELETION, RETENTION, or INCIDENT; source_update_id and replacement_receipt_id (opaque only, never replacement text);
@@ -2108,7 +2203,8 @@ artifact_id is privacy_artifact_id for R-bearing rows. A canonical UUID is alrea
 
 **health_purge_targets**
 
-- primary key: user_id, purge_id, artifact_type, artifact_id;
+- primary key: user_id, purge_id, artifact_execution_mode, artifact_type, artifact_id;
+- artifact_execution_mode TEXT NOT NULL CHECK in ('SHADOW','LIVE','SHARED'), matching the validated target's privacy-graph namespace;
 - state PENDING, REDACTED, or REMOVED; completed_at;
 - opaque table/record identity only, no values, health windows or source explanations;
 - inserted/completed in T1 before graph edges are deleted; provides the audit marker for physically removed rows and prevents losing deletion coverage.
@@ -2116,7 +2212,8 @@ artifact_id is privacy_artifact_id for R-bearing rows. A canonical UUID is alrea
 **health_purge_replacements**
 
 - primary key: user_id plus purge_id; used only for an accepted correction awaiting its content transaction;
-- normalized_replacement_json (nullable bounded validated new fact/coverage value, never old content), replacement_source_key, parser_version, normalizer_version, created_at, expires_at;
+- replacement_kind TEXT NOT NULL CHECK in ('JOURNAL_FACT','JOURNAL_COVERAGE','EXPERIMENT_FIELDS'); normalized_replacement_json (nullable bounded validated new fact/coverage or experiment column patch, never old content), replacement_source_key, parser_version, normalizer_version, created_at, expires_at;
+- EXPERIMENT_FIELDS carries the tenant-owned experiment ID, exact group/field names, expected current field revisions, new values and server-bound provenance for changed columns only. T1 uses the field-leaf CAS/replacement rule below; a synthetic analysis replacement stages only its newly computed result, never old result_json. Missing new source validity on retry rejects completion and keeps the fence; no LLM rerun;
 - every R column; expires_at is admission plus 30 days, normally deleted synchronously in the next transaction;
 - source links refer to the new user assertion/source update, not the old corrected revision; only the purge worker may read it behind a pending fence;
 - a deletion of the logical subject also removes any staged replacement, so a racing correction cannot resurrect it;
@@ -2124,7 +2221,7 @@ artifact_id is privacy_artifact_id for R-bearing rows. A canonical UUID is alrea
 
 **context_questions**
 
-- primary key: user_id plus question_request_id; question_id in API prose is an alias for this ID, not another identity;
+- M; primary key: user_id, execution_mode, question_request_id; question_id in API prose is an alias for this ID, not another identity;
 - nullable selected_decision_id, unique when non-null;
 - factor_question_kind, target_window_start_utc, target_window_end_utc, question_cycle_ordinal, question_cycle_source_key;
 - request_lookup_key: keyed tuple digest; unique user_id/request_lookup_key, plus typed tuple uniqueness while PRESENT; unique user_id/question_cycle_source_key when non-null;
@@ -2138,7 +2235,8 @@ artifact_id is privacy_artifact_id for R-bearing rows. A canonical UUID is alrea
 - sensitivity and fatigue class;
 - outbound message ID;
 - pending-question ID;
-- status, expiry, answered_at;
+- status TEXT NOT NULL mirrors the last slot state for this request, with CHECK in ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER','RESOLVED','EXPIRED','CANCELLED_PRE_SEND'); expires_at TEXT NOT NULL, answered_at TEXT NULL;
+- expires_at starts at reserved_at + 30 minutes and thereafter mirrors that request's slot answer_deadline; update request/slot/pending projections in the same transition transaction. Terminal request status persists even when the slot acquires another request; answered_at equals resolved_at only for an accepted answer;
 - answer logical_fact_id;
 - lifecycle generation;
 - authorization and input generations;
@@ -2149,7 +2247,7 @@ Full candidate diagnostics are bounded, purgeable JSON; status, selected key, qu
 
 **structured_answer_events**
 
-- primary key: user_id plus answer_event_id;
+- M; primary key: user_id, execution_mode, answer_event_id;
 - logical_answer_id, answer_revision; unique user_id/logical_answer_id/answer_revision;
 - question_request_id, logical_fact_id, fact_revision, coverage_window_id;
 - unique user_id/source_update_id for accepted revision receipt;
@@ -2159,7 +2257,7 @@ Full candidate diagnostics are bounded, purgeable JSON; status, selected key, qu
 
 **Exact v22 legacy extensions**
 
-- pending_questions: every R column plus context_question_id, source_logical_fact_id, input_generation. Apply redaction to question, context_json, original_message, answer_text, and intent, not only answer fields.
+- pending_questions: every R column plus M, context_question_id, source_logical_fact_id, input_generation, slot_revision INTEGER NULL. Apply redaction to question, context_json, original_message, answer_text, and intent, not only answer fields. Existing v20 rows have null context_question_id and retain legacy identity; default SHADOW does not reclassify them as simulated or publishable Phase 4 records. Legacy guard uses their explicit origin/legacy ID, not inferred mode. Its legacy_pending_question_id reference is a transport coexistence barrier, never a Phase 4 derived parent or a LIVE health projection of that default-SHADOW row. Only an authorized new LIVE projection may set a non-null context_question_id, and the matching LIVE slot must authorize it. SHADOW projections never use this real conversation table.
 - telegram_operations: every R column plus owner_user_id TEXT NULL, operation_state TEXT NOT NULL DEFAULT COMMITTED, source_update_key TEXT NULL; unique owner_user_id/source_update_key when non-null, index owner_user_id/content_state/update_id. Keep existing update_id primary key and result_json NOT NULL.
 - proactive_events: every R column; keep delivery/idempotency state while purging signals_json, reason_json, message_text and other health fields listed in Section 15.
 - health_insights: every R column now, preserving statement NOT NULL; v23 adds lifecycle fields below.
@@ -2167,30 +2265,87 @@ Full candidate diagnostics are bounded, purgeable JSON; status, selected key, qu
 
 For system_heartbeats (key scope/component) and null-owner diagnostic rows in ai_usage/whoop_webhook_events, no new internal tenant is inferred. Only verified attributable rows receive source links; unowned free-text detail is nulled in privacy backfill and future writes permit non-health enum codes only. Their operational index is content_state/purge_generation plus their existing key, not a nonexistent user_id column on system_heartbeats. proactive_agent_state receives R so its health-date/fingerprint copies are explicitly purgeable without toggling enabled or lifecycle state.
 
+### Privacy-safe persisted work scope (v22 legacy; v24 Phase 4)
+
+**Chosen strategy: additive in-place scope redaction.** V20 analytics_invalidation.affected_from/affected_to and analytics_work_state.range_from/range_to are already nullable TEXT in [schema.js](../src/schema.js); no rebuild or replacement table is needed. These are physiological health-date ranges, not harmless scheduling timestamps. [analyticsWorkStore.js](../src/analyticsWorkStore.js) merges them, clears them on settlement and exposes them through freshness; [analyticsWorker.js](../src/analyticsWorker.js) falls back to an anchor when a range is null. Those existing interpretations are insufficient after privacy redaction and must be guarded before privacy activation, without invoking the worker.
+
+**SCOPE** adds these exact columns to each of the four tables below: scope_kind TEXT NOT NULL DEFAULT 'FULL_TENANT_RECOMPUTE' CHECK in ('NONE','HEALTH_DATE_RANGE','FULL_TENANT_RECOMPUTE'); scope_revision INTEGER NOT NULL DEFAULT 0; health_scope_redacted_at TEXT NULL; health_scope_redaction_reason TEXT NULL CHECK in ('SOURCE_CORRECTED','SOURCE_DELETED','RETENTION_EXPIRED','UNATTRIBUTED_LEGACY','INCIDENT_COPY') when non-null; full_scan_cursor TEXT NULL (opaque source-row identity only, never a date/timestamp or encoded range). purge_generation comes from R, not a second column. V22 analytics_work_state additionally receives claimed_scope_revision INTEGER NULL and claimed_purge_generation INTEGER NULL, matching the v24 job claim fields. Full-tenant scope carries no subject/factor/resource-derived scope text; finite reason codes alone may remain. Source linkage uses each row's R.privacy_artifact_id and phase4_source_links; unknown legacy ranges link TENANT_LEGACY. Purge unlinks after recording targets/redaction, as for other content.
+
+| Version/table | Existing/new date fields to clear | Requested/completed generation authority |
+|---|---|---|
+| v22 analytics_invalidation | existing affected_from, affected_to; clear resources/reasons if health-bearing, replace diagnostic reason with finite HEALTH_SCOPE_REDACTED | existing generation is requested; completion belongs to each work class |
+| v22 analytics_work_state | existing range_from, range_to; summary_json = {}, last_error_detail = null; range_generation = null | requested from analytics_invalidation.generation; existing done_generation is completed |
+| v24 phase4_invalidations | nullable affected_from, affected_to, subject_key | requested_generation = same-mode input_generation |
+| v24 phase4_jobs | nullable affected_from, affected_to, subject_key, health-bearing error detail | requested_generation and completed_generation; completed never changes merely because scope is purged |
+
+For HEALTH_DATE_RANGE, both mapped date fields are non-null with from <= to, content_state = PRESENT and complete provenance. NONE and FULL_TENANT_RECOMPUTE require both null; FULL also requires subject_key null where present. On new tables enforce these with CHECKs; on legacy tables use additive insert/update validation triggers plus store checks (no table reshape). Backfill valid attributable existing ranges as HEALTH_DATE_RANGE with complete or conservative legacy links; otherwise FULL_TENANT_RECOMPUTE. NONE may be backfilled only if all work classes demonstrably caught up and no range remains. An unproven range is nulled during backfill, marked UNATTRIBUTED_LEGACY and replaced with FULL, never treated as completed.
+
+**T1 scope replacement.** After T0 durably fences the tenant, the same T1 that purges a linked source nulls every linked/coalesced date range (and unknown TENANT_LEGACY ranges) in all four tables and both Phase 4 modes, sets scope_kind = FULL_TENANT_RECOMPUTE, increments scope_revision, sets health_scope_redacted_at/reason/purge_generation and R redaction markers, and clears full_scan_cursor and any claimed owner/lease/generation. If the aggregate range contained other sources too, widening to FULL safely retains their work without retaining the deleted interval. Preserve existing legacy generation exactly; a separate real canonical mutation may advance it normally, but privacy redaction never lowers it, fabricates done_generation, or marks SUCCESS. Phase 4 requested generations take the new same-mode input_generation from the source mutation and never decrease; completed generations remain unchanged. Keep dirty_since/pending status and create missing class job envelopes where required, without claiming/running anything. Repeated T1 is idempotent under its purge ledger; no double generation increment.
+
+**Reader/worker precedence (mandatory compatibility adapter):** (1) missing privacy/SCOPE schema or positive tenant pending_purge_count fails closed; (2) FULL_TENANT_RECOMPUTE means PENDING regardless of null date fields or requested == completed, and takes precedence over carried partial ranges, prior success summaries and freshness-by-generation; (3) HEALTH_DATE_RANGE may expose only current PRESENT/linked dates; (4) NONE is current only if all applicable completed generations caught up and normal fences pass. getAnalyticsInvalidation/getAnalyticsWorkState, getAnalyticsFreshness/getAnalyticsDailyState, pending/claim/settle/range mutators and the Phase 4 equivalents must implement this precedence. Health/Q&A readers expose no redacted range or old materialization; internal queue readers may see the non-health FULL marker/generations even when R is REDACTED. No fallback to anchorDate, empty range, “zero days processed,” or already_current can satisfy FULL.
+
+Claim identity adds scope_revision and purge_generation; any old partial lease loses its CAS after scope replacement. A separately authorized future worker must enumerate **all retained current tenant sources** for FULL, recompute affected derived families from those sources, and invalidate unsupported outputs; it cannot consult the erased interval. Keep FULL throughout processing, storing at most an opaque source-row cursor; no old physiological range returns on restart. Only successful whole-pass completion with unchanged user/mode/requested generation/scope_revision/lifecycle/auth/purge fences may atomically set scope_kind = NONE, clear cursor, and advance the appropriate completed generation. New source mutation during a pass invalidates its completion and restarts the full scan. Phase 3 has no activation in this ADR: its FULL marker may remain pending indefinitely until a separate future authorization, and no Phase 4 adapter calls activatePhase3, drainAnalytics or processAnalyticsForUser. Phase 4's later authorized worker consumes its own FULL rows only.
+
+Crash after T0 but before scope replacement leaves the entire tenant fenced; restart resumes the same T1. Crash after T1 sees only null ranges/FULL and unchanged completion, then resumes T2, not the dormant worker. Queue scope is the sole mutable-content reset exception: a later legitimate computation may write newly derived current scope under new provenance, never rehydrate an erased historical range or bypass a FULL pass.
+
+### Field-scoped experiment provenance (v22)
+
+The actual write paths are [experimentFlow.js](../src/bot/experimentFlow.js), [experiments.js](../src/experiments.js) and createExperiment/updateExperiment in [analysisStore.js](../src/analysisStore.js). The Telegram flow collects name, hypothesis, intervention, target metric and duration directly from answers, writes protocol_json with duration_days/created_via, and deterministically derives planned baseline/start dates. Start/complete update dates/status. analyzeExperiment writes result_json from supplied daily rows; renderStatus computes a transient result without persisting it. The current schema has **no separate source_context or generated_summary column**. Journal/Q&A integration is not automatically proven by a name, a matching value or the mere existence of an experiment row.
+
+**Chosen representation:** additive **experiment_field_groups** sidecar, with no v20 experiments table reshape. Provenance has a per-column leaf inside each named group, so a copied hypothesis cannot cause deletion of an independently authored name. Its primary key is (user_id, experiment_id, field_group, field_name, field_revision), with field_group TEXT NOT NULL, field_name TEXT NOT NULL, field_revision INTEGER NOT NULL DEFAULT 1, is_current INTEGER NOT NULL DEFAULT 1 CHECK in (0,1), unique (user_id, privacy_artifact_id), source_kind TEXT NOT NULL, assertion_id TEXT NULL, source_update_key TEXT NULL, writer_kind TEXT NOT NULL, provenance_state TEXT NOT NULL DEFAULT 'QUARANTINED', supersedes_privacy_artifact_id TEXT NULL, created_at/updated_at and **every R column**. A partial unique index on (user_id, experiment_id, field_name) WHERE is_current = 1 selects one current leaf. Unique (user_id, assertion_id) WHERE assertion_id IS NOT NULL resolves each authored assertion revision to exactly one leaf; CHECKs enforce the exact group/column mapping and closed source_kind/writer_kind/provenance_state enums below. No duplicate value_json is stored: health values remain only in the mapped experiments column, a projection of its current leaf. Current-leaf revision CAS and source links commit with create/update/redaction of that column. Source links target the leaf's privacy_artifact_id (which includes field_revision), never the whole experiment as a substitute for scope. assertion_id is a tenant-qualified opaque authored root revision, not a Journal logical_fact_id. The root resolver validates that leaf's owner, currentness, DIRECT/source_kind and unredacted content; no separate assertion table is assumed. An authored-operation key is an opaque provenance receipt, not a dependency on copied Journal content.
+
+| field_group (closed enum) | Exact owned v20 columns | Provenance rule |
+|---|---|---|
+| DEFINITION | name, hypothesis, target_metrics | Each direct authored column may be EXPERIMENT_DIRECT_ASSERTION; a copied/generated column requires its own dependencies, without tainting independent siblings |
+| INTERVENTION_PROTOCOL | intervention, protocol_json | Direct authored intervention/duration protocol may be EXPERIMENT_DIRECT_ASSERTION; embedded/copied context makes that containing column dependent, not the entire group |
+| SCHEDULE | baseline_start, baseline_end, start_date, end_date | User start/stop and deterministic dates from their chosen protocol may be EXPERIMENT_DIRECT_ASSERTION; observed/analytically inferred physiological dates require actual source links |
+| DERIVED_RESULT | result_json, including copied name, summaries, counts, statistics and any nested source context | Never a direct assertion merely because the experiment was user-created; link all daily/WHOOP/Journal/context inputs and each definition/protocol/schedule group read |
+
+source_kind is one of EXPERIMENT_DIRECT_ASSERTION, JOURNAL_DERIVED, WHOOP_DERIVED, QA_DERIVED, ANALYSIS_DERIVED, MIXED_DERIVED, LEGACY_UNPROVEN. writer_kind is a finite server-set value EXPERIMENT_FLOW, EXPERIMENT_API, EXPERIMENT_ANALYSIS or LEGACY_BACKFILL. provenance_state is DIRECT, LINKED, QUARANTINED or REDACTED. Direct requires a verified authored operation/import attestation and assertion root; linked requires every dependency. Generated summaries or copied source context use the leaf containing the actual column; there is no invented summary/context storage column. Different columns within DEFINITION or INTERVENTION_PROTOCOL can have different origins and independent purge outcomes. If origins mix inside a single text/JSON column, use MIXED_DERIVED and all dependencies, purging that column as one unit. New APIs must keep copied analysis/context in result_json rather than append it to an independently authored name/protocol; they cannot silently widen a direct assertion's loss boundary.
+
+**Legacy classification is field scoped.** Verified authored creation/start/stop receipts or an authenticated non-health provenance attestation establish independent definition/protocol/schedule roots without depending on the retention of receipt plaintext. The known flow's protocol shape alone is not sufficient proof: generic createExperiment can write the same shape. Proven Journal copies link exact facts/revisions; proven WHOOP outputs link canonical sources and use their authoritative deletion policy; derived result_json with incomplete provenance is quarantined and immediately redacted ({}), not retained indefinitely behind a hidden flag. Other ambiguous health-bearing leaves are also QUARANTINED with R REDACTED and fixed sentinels/nulls; do not infer independence from missing links. Proven independent columns survive even if another leaf in the same group is unproven. Migration postconditions require exactly **ten current** classified sidecar leaves at field_revision 1 per legacy experiment (3 DEFINITION, 2 INTERVENTION_PROTOCOL, 4 SCHEDULE, 1 DERIVED_RESULT), including empty columns, complete roots/links for readable content, and no unproven plaintext. No live/proactive/evidence/Q&A reader may use quarantined content.
+
+**Read/write/delete contract.** getExperiment/listExperiments and every render/analysis caller use a field-scoped projection: validate owner and each sidecar leaf before exposing its column. A retained direct name can still be listed when hypothesis or DERIVED_RESULT is redacted; analysis rejects missing required fields rather than interpreting {} as valid results or reconstructing old values. createExperiment and each updateExperiment/start/complete/analyze write declare each changed column's origin server-side, commit sidecars/source links atomically, and never inherit source_kind solely from the row's previous classification. Source correction/deletion traverses and P-redacts only linked derived/copied leaves plus their dependents. An unrelated Journal deletion leaves all independent EXPERIMENT_DIRECT_ASSERTION fields and independent WHOOP canonical inputs unchanged. A WHOOP deletion purges its linked results under source policy, not unrelated authored protocols. Direct assertion correction/deletion requires an authenticated request targeting that experiment/group/field; explicit whole-experiment deletion purges all ten fields across four groups and their dependents (name sentinel, JSON {}, other nullable health fields null), preserving only opaque experiment identity/status, leaf revision and deletion barriers. Neither operation is full-account erasure.
+
+For partially readable experiments, R belongs to each sidecar field leaf, not experiments as a whole. T0's tenant fence still applies to all reads. Sentinel mapping applies **only to targeted columns**: DEFINITION.name becomes [HEALTH_CONTENT_REDACTED], hypothesis null, target_metrics {}; INTERVENTION_PROTOCOL.intervention null/protocol_json {}; SCHEDULE dates null; DERIVED_RESULT.result_json {}. Purging one leaf never marks its independent siblings REDACTED. Old readers that blindly parse/render these fields must not run after privacy admission; the Foundation compatibility commit installs these projections before Journal purge can be enabled. No experiment source health content is copied into sidecar audit metadata or hashes.
+
+**Replacement is a new leaf, not rehydration.** Any changed column first fences/purges its previous current leaf and dependents using T0/T1. In T1, CAS the expected current field_revision, mark that leaf is_current = 0 while leaving its R REDACTED forever, insert field_revision + 1 with a new privacy_artifact_id/assertion revision and complete current provenance, and update only that experiments projection column. All four operations are atomic. A later fresh derived analysis after source deletion follows the same new-leaf rule and can use only retained current sources; it cannot refill the old leaf or cite its old source links. Purging a historical non-current leaf never clears a newer projection column. Whole-experiment deletion purges all current/historical leaf dependencies and leaves all ten current columns redacted; replay cannot create a new leaf from a deleted assertion. No retained artifact is repopulated in place.
+
 All Phase 4-capable readers/writers, including legacy stores used during coexistence, must enforce R and the purge fence before Stage 4 correction/deletion is enabled. Flags off cannot bypass privacy. Old binaries may inspect the additive schema but must not run against it after a purge has been admitted; rollback requires the redaction-aware compatibility binary. This is not a production upgrade authorization.
 
 ### V23: Body Energy, evidence, episodes, and memory
 
 **body_energy_results**
 
-- primary key: user_id plus result_id;
-- unique user, health_date, as_of_bucket_utc, algorithm_version, input_generation;
-- exact as_of_utc, wake_at_utc, timezone, health_date;
-- nullable integer value;
-- quality state, confidence, confidence label;
+- M; primary key: user_id, execution_mode, result_id;
+- unique (user_id, health_date, as_of_epoch_ms, algorithm_version, input_generation, execution_mode); no as-of bucket in result identity;
+- as_of_epoch_ms INTEGER NULL, canonical as_of_utc TEXT NULL; PRESENT requires integer milliseconds, matching ISO representation and non-null health_date;
+- result_lookup_key TEXT NOT NULL, unique (user_id, execution_mode, result_lookup_key): opaque keyed digest of exactly the canonical tuple, solely to preserve the same replay barrier after health_date/as-of purge; not an extra revision dimension;
+- wake_at_utc TEXT NULL, timezone TEXT NULL, health_date TEXT NULL;
+- value INTEGER NULL;
+- quality_state TEXT NULL constrained to UNAVAILABLE, NO_DATA, DEGRADED, WARMING_UP, LIMITED, AVAILABLE while PRESENT; confidence and confidence label;
 - algorithm, constants, baseline, and metric-registry versions;
 - input generation, lifecycle generation, and authorization generation;
 - input_manifest_json, driver_json, missingness_json;
-- input hash and result hash;
+- input_manifest_hash and result hash;
 - invalidated_at and reason;
 - created_at.
 
-Add every R column and supersedes_result_id. Health value, quality/confidence, physiological times/date/timezone, manifest, drivers and missingness are nullable. JSON is a bounded captured manifest, append-only except purge, never lifecycle state.
+Add every R column and supersedes_result_id. PRESENT requires non-null exact time/day, algorithm_version, input_generation, input_manifest_hash, input_manifest_json, quality_state and created_at even when value is null; no manifest-less null result is persisted. Health value, quality/confidence, physiological times/date/timezone, manifest, drivers and missingness are nullable for purge. JSON is a bounded captured manifest, append-only except purge, never lifecycle state.
+
+**body_energy_checkpoints**
+
+- M; primary key (user_id, execution_mode, checkpoint_id); every R column;
+- checkpoint_kind TEXT NOT NULL CHECK = 'PERIODIC_15M'; checkpoint_bucket_start INTEGER NULL, checkpoint_as_of_epoch_ms INTEGER NULL, result_id TEXT NULL, algorithm_version TEXT NOT NULL, input_generation INTEGER NOT NULL, created_at TEXT NOT NULL;
+- partial unique index from Section 3; checkpoint_lookup_key TEXT NOT NULL unique (user_id, execution_mode, checkpoint_lookup_key), keyed over that same checkpoint tuple and retained only as a purge-safe barrier;
+- PRESENT requires bucket-start multiple of 900000, exact checkpoint_as_of_epoch_ms = checkpoint_bucket_start + 900000 and same-user/mode/version/generation exact-result parent with as_of_epoch_ms equal to that instant;
+- result/reference insertion is atomic and append-only except purge; purging the parent purges checkpoint time/reference fields, destroys its salt and keeps only opaque checkpoint identity/barrier. Never point it to a different replacement result;
+- Body Energy result reads check result_lookup_key before insertion; a previously redacted exact identity returns CONTENT_REDACTED. Nulling physiological identity fields cannot enable recreation under the same tuple. New generation/version/time is required for a genuinely new eligible calculation.
 
 **evidence_runs**
 
-- primary key: user_id plus run_id;
-- deterministic run key unique per tenant;
+- M; primary key: user_id, execution_mode, run_id;
+- deterministic_run_key unique per tenant/execution_mode;
 - subject key, method, window start/end, as-of, timezone;
 - algorithm, registry, and evidence-contract versions;
 - input, lifecycle, and authorization generations;
@@ -2205,8 +2360,8 @@ Add every R column and supersedes_result_id. Health value, quality/confidence, p
 
 **evidence_items**
 
-- primary key: user_id plus evidence_item_id;
-- unique user, run_id, item_key;
+- M; primary key: user_id, execution_mode, evidence_item_id;
+- unique user_id, execution_mode, run_id, item_key;
 - typed claim key, direction, unit;
 - effect, lower and upper bound;
 - raw and adjusted significance;
@@ -2219,7 +2374,7 @@ Add every R column and supersedes_result_id. Health value, quality/confidence, p
 
 **observation_episodes**
 
-- primary key: user_id plus episode_id;
+- M; primary key: user_id, execution_mode, episode_id;
 - fingerprint, episode_family_key, and revision/CAS;
 - domain, subject key, direction;
 - state, severity, current_confidence, current_novelty;
@@ -2241,8 +2396,8 @@ Add every R column and supersedes_result_id. Health value, quality/confidence, p
 
 Index:
 
-- unique user and fingerprint for active states OPEN, UPDATING, ESCALATED, EXPLAINED, STABILIZING;
-- unique user and episode_family_key for those active states, preventing opposite directions concurrently;
+- unique user_id, execution_mode and fingerprint for active states OPEN, UPDATING, ESCALATED, EXPLAINED, STABILIZING;
+- unique user_id, execution_mode and episode_family_key for those active states, preventing opposite directions concurrently within each mode;
 - user, state, updated_at;
 - user, subject key, health-window end.
 
@@ -2250,7 +2405,7 @@ observation_episodes also has every R column, explanation_json, current_context_
 
 **episode_observations**
 
-- primary key: user_id, episode_id, observation_key;
+- M; primary key: user_id, execution_mode, episode_id, observation_key;
 - source type, source ID, source version;
 - observed_at, health_date;
 - normalized value, unit, robust-z, meaningfulness;
@@ -2260,15 +2415,15 @@ observation_episodes also has every R column, explanation_json, current_context_
 
 **episode_evidence**
 
-- primary key: user_id, episode_id, evidence_item_id;
+- M; primary key: user_id, execution_mode, episode_id, evidence_item_id;
 - episode revision and relationship type;
 - linked_at and unlinked_at.
 - every R column; purge unlinks the relationship; only opaque row/purge audit remains.
 
 **episode_events**
 
-- primary key: user_id plus episode_event_id;
-- unique user_id/deterministic_event_key;
+- M; primary key: user_id, execution_mode, episode_event_id;
+- unique user_id/execution_mode/deterministic_event_key;
 - event_kind STATE_TRANSITION or SAME_STATE_REVISION;
 - episode ID, from state, to state, reason;
 - expected and resulting revision;
@@ -2279,8 +2434,8 @@ observation_episodes also has every R column, explanation_json, current_context_
 
 **episode_semantic_events**
 
-- primary key: user_id plus episode_semantic_event_id;
-- unique user_id/episode_id/resulting_revision;
+- M; primary key: user_id, execution_mode, episode_semantic_event_id;
+- unique user_id/execution_mode/episode_id/resulting_revision;
 - episode_id, resulting_revision, episode_event_id;
 - event_kind OPENED, ESCALATED, EXPLAINED, or MATERIAL_ESCALATION;
 - nullable severity_ordinal, explained_uncertainty_key, claim_key, recommended_action_key and semantic_content_hash;
@@ -2300,13 +2455,13 @@ Add nullable columns to **health_insights**:
 - input_generation;
 - legacy_classification.
 
-Add a unique partial index for one non-RETIRED current insight per tenant and insight key after backfill validation.
+Add M and the exact unique partial index for one non-RETIRED PHASE4 current insight per tenant/mode/insight_key from the mode/key matrix after backfill validation. New Phase 4 rows set legacy_classification = PHASE4; existing rows remain LEGACY_UNVERIFIED despite the safe SHADOW column default.
 
 Populated v20 **health_insights** rows are not backfilled as Phase 4 current/promoted insights. Beyond v22 privacy/linkage columns they receive only **legacy_classification = LEGACY_UNVERIFIED** and remain historical records subject to mandatory redaction. They have no invented evidence contract, disposition, current revision, or Phase 4 insight key. Only unredacted, linked content may be described as legacy/unverified history. Purge replaces statement, insight_type and subject with the fixed sentinel, evidence_json with {}, and clears sample_count/effect_size/confidence; never retain copied health text because a row is historical.
 
 **insight_revisions**
 
-- primary key: user_id, insight_id, revision;
+- M; primary key: user_id, execution_mode, insight_id, revision;
 - status and lifecycle disposition;
 - normalized claim and claim hash;
 - evidence contract version;
@@ -2320,34 +2475,34 @@ Populated v20 **health_insights** rows are not backfilled as Phase 4 current/pro
 
 **phase4_invalidations**
 
-- primary key: user_id;
+- M; primary key: user_id, execution_mode;
 - requested_generation;
-- minimum and maximum affected health dates;
+- SCOPE; affected_from TEXT NULL, affected_to TEXT NULL;
 - bounded reason-code set;
-- bounded subject-key set;
+- subject_key TEXT NULL (one optional registered scope label; multiple subjects coalesce to full-tenant scope);
 - updated_at.
 
 This is a coalesced current-work marker, not health history.
 
-phase4_invalidations includes every R column: affected health dates and subject keys are nullable health content. After purge, a new-generation full-tenant invalidation may replace only this mutable queue scope, not restore an old artifact's content.
+phase4_invalidations includes every R column. FULL_TENANT_RECOMPUTE is authoritative even while its old content is REDACTED and its dates are null. Only the exact SCOPE protocol may reset mutable queue scope; no old artifact is restored.
 
 **phase4_jobs**
 
-- primary key: user_id plus job_kind;
-- requested and completed generations;
-- affected range and reason set;
+- M; primary key: user_id, execution_mode, job_kind;
+- requested_generation and completed_generation;
+- SCOPE; affected_from TEXT NULL, affected_to TEXT NULL, subject_key TEXT NULL and finite reason set;
 - state, attempt, next_attempt_at;
-- lease owner and lease expiry;
-- claimed lifecycle and authorization generations;
+- lease_owner TEXT NULL and lease_expires_at TEXT NULL;
+- claimed lifecycle and authorization generations; claimed_scope_revision INTEGER NULL, claimed_purge_generation INTEGER NULL;
 - last typed error and updated_at.
-- every R column; affected range/subject detail is nullable, error must be a finite non-health code. A new fenced generation may reset the mutable queue to PRESENT with a newly linked full-tenant scope after purge completes.
+- every R column; affected range/subject detail is nullable, error must be a finite non-health code. Queue-envelope readers honor FULL before R health-content predicates; a full pass, not clearing fields or toggling R to PRESENT, is required for completion.
 
 Permitted job kinds are explicit, including RECOMPUTE_DERIVED and REPAIR_CURRENTNESS. No Phase 3 worker class is accepted.
 
 **phase4_proactive_decisions**
 
-- primary key: user_id plus decision_id;
-- unique deterministic decision key;
+- M; primary key: user_id, execution_mode, decision_id;
+- unique user_id/execution_mode/deterministic_decision_key;
 - exact action constrained to the four values in Section 9;
 - episode ID and revision;
 - input, lifecycle, and authorization generations;
@@ -2363,17 +2518,17 @@ Permitted job kinds are explicit, including RECOMPUTE_DERIVED and REPAIR_CURRENT
 
 **tenant_delivery_modes**
 
-- primary key: user_id plus message_family;
+- M; primary key: user_id, execution_mode, message_family;
 - mode LEGACY, CUTOVER_PENDING, or PHASE4;
 - deterministic cutover boundary and timezone;
 - mode revision/CAS, lifecycle/auth generations;
 - changed_at and non-health reason code;
-- unique authoritative mode per tenant/family.
+- unique authoritative mode per tenant/execution_mode/family.
 
 **outbound_semantic_reservations**
 
-- primary key: user_id plus reservation_id;
-- unique user_id, message_family, semantic_key;
+- M; primary key: user_id, execution_mode, reservation_id;
+- unique user_id, execution_mode, message_family, semantic_key;
 - state RESERVED, CONSUMED, or CLOSED;
 - origin PHASE4 or LEGACY_BARRIER and optional legacy row reference;
 - message ID, canonical event/request/answer ID or local_health_date, followup_kind;
@@ -2381,20 +2536,34 @@ Permitted job kinds are explicit, including RECOMPUTE_DERIVED and REPAIR_CURRENT
 - no payload or health plaintext.
 - retain for tenant lifetime; detailed outbox retention never frees a key.
 
+**phase4_question_interaction_slots**
+
+- M; primary key (user_id, execution_mode); revision INTEGER NOT NULL DEFAULT 0;
+- state TEXT NOT NULL DEFAULT 'FREE' CHECK in ('FREE','RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER','RESOLVED','EXPIRED','CANCELLED_PRE_SEND');
+- question_request_id TEXT NULL, outbound_message_id TEXT NULL; origin TEXT NOT NULL DEFAULT 'PHASE4' CHECK in ('PHASE4','LEGACY'); legacy_pending_question_id INTEGER NULL, legacy_operation_id TEXT NULL;
+- lifecycle_generation INTEGER NULL, auth_generation INTEGER NULL;
+- reserved_at TEXT NULL, delivery_started_at TEXT NULL, delivered_at TEXT NULL, answer_deadline TEXT NULL, resolved_at TEXT NULL, expired_at TEXT NULL, ambiguous_at TEXT NULL, updated_at TEXT NOT NULL;
+- cancellation_reason TEXT NULL constrained to finite RESERVATION_EXPIRED, PRE_SEND_FAILURE, PROVIDER_DEFINITE_NON_ACCEPTANCE, PAUSED, LIFECYCLE_CHANGED, AUTH_CHANGED, SOURCE_INVALIDATED, CONTENT_REDACTED;
+- occupied PHASE4 requires question_request_id and captured lifecycle/auth generations; LIVE PHASE4 requires outbound_message_id; legacy guard instead requires at least one verified legacy reference. FREE has no active references;
+- post-start occupied states require delivery_started_at/answer_deadline; AMBIGUOUS_WAIT requires ambiguous_at; AWAITING_ANSWER requires delivered_at; RESOLVED requires resolved_at; EXPIRED requires expired_at; CANCELLED_PRE_SEND requires cancellation_reason;
+- no health text, factor, target-window or physiology columns; transport IDs/deadlines/reasons only. No R. Source purge cancels RESERVED or redacts linked content while keeping occupied post-start transport state until Section 12 resolution/expiry;
+- index (user_id, execution_mode, state, answer_deadline); operational expiry index (execution_mode, state, answer_deadline, user_id) returns opaque owners for immediate scoped CAS;
+- every state change increments revision once. A stale owner cannot release a new occupant or extend its deadline; RESERVED acquisition is serialized before any provider boundary.
+
 **outbound_messages**
 
-- primary key: user_id plus message_id;
-- unique tenant and idempotency key;
-- unique user_id/reservation_id;
+- M; primary key: user_id, execution_mode, message_id;
+- unique user_id/execution_mode/idempotency_key;
+- unique user_id/execution_mode/reservation_id;
 - message class: MORNING_BRIEF_V1, EPISODE_NOTIFICATION, CONTEXT_QUESTION, or ANSWER_FOLLOWUP;
 - required semantic reservation ID and semantic key version;
 - decision, episode, question_request_id, episode_semantic_event_id, answer_event_id, followup_kind;
-- authenticated destination binding ID;
+- destination_binding_id TEXT NULL; LIVE requires a current authenticated binding, SHADOW requires null and cannot carry a real destination. Synthetic LIVE fixtures use only in-memory fake bindings;
 - nullable payload_json, payload_text, payload_hash, semantic_hash; frozen across retry except mandatory purge;
 - state and revision;
 - lifecycle, authorization, and input generations;
 - attempt count, next_attempt_at, expires_at;
-- lease owner and expiry;
+- lease_owner TEXT NULL and lease_expires_at TEXT NULL;
 - provider message ID;
 - terminal reason;
 - created_at, updated_at.
@@ -2402,8 +2571,8 @@ Permitted job kinds are explicit, including RECOMPUTE_DERIVED and REPAIR_CURRENT
 
 **outbound_delivery_attempts**
 
-- primary key: user_id plus attempt_id;
-- unique user, message ID, attempt number;
+- M plus CHECK (execution_mode = 'LIVE'); primary key: user_id, execution_mode, attempt_id;
+- unique user_id/execution_mode/message_id/attempt_number;
 - state, request hash, provider status class;
 - delivery_started_at, completed_at;
 - provider message ID;
@@ -2428,22 +2597,23 @@ Required secondary indexes additionally include each R table's tenant/content_st
 - outbound messages by state/next-attempt, lease expiry, reservation, source decision, and semantic hash;
 - delivery attempts by user/message/attempt number and state/completed time.
 
-Every index begins with user_id unless it is an operational queue index whose selected rows return only opaque tenant IDs and are immediately re-scoped before health access.
+For every M table the above secondary indexes expand to (user_id, execution_mode, ...); jobs/outbox queue/lease indexes are (execution_mode, state, next_attempt_at, user_id) and (execution_mode, lease_expires_at, user_id). LIVE dispatcher queries explicitly bind execution_mode = LIVE and never scan SHADOW proposals. Additional exact privacy indexes are (user_id, scope_kind, scope_revision) on the two legacy SCOPE tables, (user_id, execution_mode, scope_kind, requested_generation) on Phase 4 SCOPE tables, and (user_id, provenance_state, field_group) on experiment_field_groups. Every health index begins with user_id; operational queue indexes may return only opaque tenant IDs for immediate owner/mode re-scoping. No global queue selection returns health content.
 
 ### Store invariant matrix
 
-Every store method receives authenticated user_id separately from payload data. It verifies every parent with user_id plus parent ID inside the write transaction; cross-tenant, missing, stale, or generation-mismatched parents reject the write.
+Every store method receives authenticated user_id and server-owned execution context separately from payload data. It verifies every derived parent with user_id/execution_mode/parent ID inside the write transaction; cross-tenant, cross-mode, missing, stale or generation-mismatched parents reject the write. Shared roots use the explicit root allowlist above, never an omitted-mode fallback.
 
 | Store | Create invariants | Update invariants | Delete/invalidate invariants |
 |---|---|---|---|
 | Phase 4 user state/preferences | Existing user parent; lifecycle generation readable; deterministic defaults | Preference version CAS; generations monotonic | Account lifecycle only; no child cascade by unscoped ID |
 | Journal facts/coverage/tombstones/purge | Existing tenant; unique source key; validator accepted; coverage window exact | Active revision CAS; correction creates revision; input generation increments | Source-link traversal, synchronous plaintext purge, minimal tombstone, generation increment |
-| Context questions/pending links/answer events | Current episode/lifecycle; canonical request allocated before selecting decision; accepted answer revision unique | Status/revision CAS; delivered question before pending row; semantic answer dedup | Expire/invalidate; purge content, retain request/answer receipt barriers |
+| Context questions/slots/pending links/answer events | Current same-mode episode; acquire tenant/mode slot with request/reservation/proposal atomically; accepted answer revision unique | Slot/request/revision CAS; confirmed same LIVE question before pending projection; explicit ambiguous answer matching | Cancel unstarted; post-start slot waits through answer/expiry; purge content, retain receipt/reservation barriers |
 | Body Energy results | Current tenant/lifecycle/auth/input/purge generations; captured manifest; deterministic key | Numeric result append-only except purge; invalidation CAS | Purge full manifest/value/quality; opaque audit remains |
 | Evidence runs/items | Current observations/source links; run completes before publication | Completed statistics append-only except purge; invalidation CAS | Purge values/counts/statistics/text and invalidate; opaque audit remains |
 | Episodes/memberships/events | Current durable evidence; family uniqueness; scoped parents | Revision CAS; legal state changes or separate same_state_revision; semantic event atomic | Terminalize/invalidate and purge all health fields; semantic barrier survives |
 | Insights/revisions | Current compatible evidence; legacy rows prohibited as parents | Expected revision CAS; legal status/disposition pair; USER_DISMISSED atomic | Retire/invalidate and purge health text; revision metadata remains |
-| Invalidations/jobs | Existing tenant; requested generation monotonic | Owner/lease/generation CAS; completed never exceeds requested | Repair/retention only; deleting a job cannot mark work complete |
+| Invalidations/jobs | Existing tenant/mode; requested generation monotonic | Owner/lease/generation/scope_revision/purge CAS; FULL overrides null ranges | Null linked scope and set FULL; preserve requested/completed progress, no fake success or worker activation |
+| Experiment field groups | Tenant-owned experiment; ten column leaves in exact four groups; verified roots or complete input links | Leaf revision CAS; column/sidecar writes atomic; reject unproven readable content | Purge only dependent fields; explicit experiment delete covers its own roots, not other tenant/source assertions |
 | Decisions | Current episode/evidence and exact policy versions | Envelope stable except invalidation/expiry CAS; content append-only except purge | Purge rationale/diagnostics/branch signatures; no action mutation |
 | Delivery modes/reservations | Existing tenant/destination; family mode CAS; semantic key tenant-qualified | Cutover boundary CAS; CONSUMED reservation never released | Reversible only before any Phase 4 DELIVERY_STARTED; legacy barrier retained |
 | Outbox/attempts | Authoritative PHASE4 mode, current parents/purge fence, reservation atomic | Message/lease CAS; attempt outcome transitions; payload only purgeable | Unstarted invalidation closes key; started/delivered/ambiguous history preserved with no plaintext |
@@ -2452,7 +2622,7 @@ Orphan prevention is a synchronous primary store responsibility. The offline int
 
 ### Referential integrity decision
 
-Current v20 tables do not declare SQL foreign keys. New Phase 4 records therefore use tenant-qualified composite references and mandatory application validation rather than relying on partially enabled foreign-key behavior. Every child row carries user_id, and parent lookup uses user_id plus parent ID.
+Current v20 tables do not declare SQL foreign keys. New Phase 4 records therefore use tenant/mode-qualified composite references and mandatory application validation rather than relying on partially enabled foreign-key behavior. Every derived child row carries user_id and execution_mode; parent lookup repeats both plus parent ID. Shared-root and legacy privacy exceptions are explicitly enumerated above. Integrity audits also check mixed-mode chains.
 
 An offline integrity audit must detect orphans and cross-tenant ID collisions as defense in depth. A future all-schema foreign-key migration may replace this decision, but Phase 4 must not create a false impression that only some relationships are database-enforced.
 
@@ -2502,15 +2672,15 @@ There is no family or administrator read surface. Operational staff receive only
 
 Before a read or write, the scoped store verifies tenant ownership and the lifecycle required for the purpose. Provider-derived computation additionally checks authorization generation, capability, and resource access. Delivery-sensitive reads check ACTIVE, READY, current destination binding, and notification pause immediately before provider start.
 
-Derived rows carry input, lifecycle, and authorization generations as specified in Section 14. A mismatch makes the row non-current even if its timestamp is recent. Caches use tenant, semantic/artifact identity, algorithm version, and all applicable generations. No cache is keyed only by metric, health date, Telegram ID, or WHOOP ID.
+Derived rows carry execution_mode, input, lifecycle, and authorization generations as specified in Section 14. A mismatch makes the row non-current even if its timestamp is recent. Caches use tenant, execution_mode, semantic/artifact identity, algorithm version, and all applicable generations. No cache is keyed only by metric, health date, Telegram ID, or WHOOP ID.
 
 Every join repeats user_id on both sides. Store APIs do not accept a child artifact ID without the authenticated user ID. Batch code receives an opaque tenant ID, constructs a fresh scoped store, and cannot reuse another tenant’s in-memory context.
 
-Every lease identity includes user_id, work/message key, owner token, claimed generation, and expiry. Lease takeover requires compare-and-swap on that complete identity. A lease never conveys authorization to read another tenant or to bypass a newer lifecycle/auth generation.
+Every Phase 4 lease identity includes user_id, execution_mode, work/message key, owner token, claimed generation, scope_revision/purge generation where applicable, and expiry. Lease takeover requires compare-and-swap on that complete identity. A lease never conveys authorization to read another tenant/mode or to bypass a newer lifecycle/auth generation.
 
 ### Data minimization
 
-- Body Energy stores only inputs needed to reproduce a user-visible checkpoint.
+- Body Energy stores only inputs needed to reproduce an exact cited result; optional checkpoint references do not change result identity.
 - Journal raw text is limited to the relevant 500-code-point answer span, not the surrounding chat.
 - Evidence provenance stores row identifiers, source versions, and bounded summaries, not copies of full canonical records.
 - Episode and insight summaries use normalized claims and hashes.
@@ -2536,6 +2706,8 @@ These exact action codes define correction, deletion, replay and markers for eve
 
 Normal retention below is an upper bound absent earlier correction/deletion; “400d/current” means 400 days after terminal state, extended only while a current artifact actually requires it. “No replay content” explicitly means plaintext is unnecessary for dedup; keep its envelope if replay identity is required.
 
+For experiments, “group-scoped P” in this inventory means traversal to the exact column leaves in Section 14. Group names organize the inventory; they never authorize wiping an independent sibling column or the entire row.
+
 | Current/proposed table.store and exact health-bearing fields | Direct/derived and source linkage | Retention | Action / replay need / survives |
 |---|---|---|---|
 | whoop_sleeps: raw_json; health_date/start_at/end_at/timezone_offset/nap/score_state; respiratory_rate, sleep_performance_percentage, sleep_consistency_percentage, sleep_efficiency_percentage; total_sleep_milli, light_sleep_milli, slow_wave_sleep_milli, rem_sleep_milli, awake_milli, no_data_milli, in_bed_milli, disturbance_count, sleep_cycle_count, sleep_need_baseline_milli, sleep_debt_milli, sleep_need_recent_strain_milli, sleep_need_recent_nap_milli | Direct provider source (user_id,id); source links use sleep/id | Existing canonical policy, until source deletion | S; canonical payload not required for replay; source tombstone only |
@@ -2558,9 +2730,12 @@ Normal retention below is an upper bound absent earlier correction/deletion; “
 | healthspan_snapshots: snapshot_date, score, score_kind, contributors_json, coverage, status | Derived healthspan inputs | <=400d | D; no replay content |
 | prediction_runs: target_date, target_metric, features_json, predicted_value, predicted_low, predicted_high, n_train, actual_value, error, status | Derived canonical/model inputs | <=400d | D; no replay content |
 | prediction_models: target_metric, features_json, train_start/end, test_start/end, n_train/n_test, mae/rmse/r2, interval_coverage, baseline_kind/mae, beats_baseline, maturity, qualified, unqualified_reason | Derived training/evaluation inputs, not exempt model content | <=400d | D; no replay content; Phase 3 remains dormant |
-| experiments: name, hypothesis, intervention, target_metrics, baseline_start/end, start_date/end_date, protocol_json, result_json | Direct user protocol plus derived health results; source updates/facts/outcomes | Active then <=400d | P; name sentinel, JSON {}, nullable text/dates null; opaque ID/status E |
+| experiments.DEFINITION: name, hypothesis, target_metrics; experiment_field_groups group metadata | Verified direct EXPERIMENT_DIRECT_ASSERTION root or actual copied/generated dependencies; never blanket TENANT_LEGACY for a proven root | Active then <=400d | Group-scoped P only on its own assertion deletion/correction, retention, or a linked copied source; unrelated Journal deletion leaves independent columns intact |
+| experiments.INTERVENTION_PROTOCOL: intervention, protocol_json; SCHEDULE: baseline_start/end, start_date/end_date | Independently authored protocol/planned schedule roots where verified; otherwise actual source links; ambiguous groups quarantined/redacted | Active then <=400d | Group-scoped P; null text/dates and {} JSON only in targeted groups; independent groups remain readable |
+| experiments.DERIVED_RESULT: result_json and all nested generated summary/source-context/statistical content | Derived WHOOP/daily/Journal/Q&A inputs and experiment field groups actually read; no invented summary/context columns | <=400d; unproven content immediately redacted | Group-scoped P, result_json {}; redact linked or ambiguous output, not independent definition/protocol; whole-experiment deletion purges all groups and own assertions |
 | analytics_daily_state.metrics_json, health_date, daily_status | Derived canonical daily cache | <=400d | D entire row avoids primary-key collisions on health-date redaction; no worker activation |
-| analytics_work_state.summary_json, last_error_detail, range_from/to; analytics_runs.detail_json, error_detail | Derived summary/diagnostic input scope; full inputs or TENANT_LEGACY | Summaries <=400d, errors <=30d | P/G; JSON {}, nullable detail/range null; queue generations/lease E, never treat purge as completed computation |
+| analytics_invalidation.affected_from/affected_to and any health-bearing resources/reasons | Copied physiological mutation range, linked source or TENANT_LEGACY; not scheduling-only metadata | Pending work; linked deletion/correction immediately overrides retention | P + SCOPE: null dates, FULL_TENANT_RECOMPUTE, scope redaction markers; preserve generation, no health-range replay or Phase 3 activation |
+| analytics_work_state.summary_json, last_error_detail, range_from/to; analytics_runs.detail_json, error_detail | Derived summary/diagnostic input scope; full inputs or TENANT_LEGACY | Summaries <=400d, errors <=30d | P/G + SCOPE on work row; JSON {}, null detail/ranges; clear stale lease/cursor, preserve done_generation and requested work; FULL is pending, not completion |
 | whoop_capabilities.latest_value, sample_count, non_null_count, detail | Derived canonical values (including sport/nap details), not merely capability enums | Until next probe, maximum 400d | P; null these fields, current eligibility invalidated; access/lifecycle truth unchanged |
 | report_runs.detail, health_date, sleep_id/cycle_id after dependency unlinking; report_claims.delivery_detail; briefing_evaluations.reason/detail, target_health_date, observation_age_minutes | Derived readiness/provider diagnostics; report source inputs or TENANT_LEGACY | Detail <=30d, copied health scope <=400d | P/G; null health fields; report_type/local_date and actual delivery barriers E survive |
 | whoop_sync_state.last_error; whoop_webhook_events.last_error_detail; whoop_reconciliation_state.last_error_detail; whoop_reconciliation_runs.error_detail; user_onboarding.failure_detail | Potential health-bearing provider/error text; scoped operation/source, or TENANT_LEGACY | <=30d | G; null; retain typed errors, source transport keys and lifecycle/sync state, no new source fetch from purge |
@@ -2568,27 +2743,27 @@ Normal retention below is an upper bound absent earlier correction/deletion; “
 | context_questions: candidate diagnostics, selected factor/window, utility and U/D/R/A/T/K/P/F, branch_signatures_json, question/prompt normalized context | Derived episode/evidence/fact/template inputs; request ID and complete links | <=400d; prose <=30d | P; null scores and context, not just text; opaque request lookup/ordinal/receipt E for tenant lifetime |
 | structured_answer_events.normalized_answer_json and answer semantic preimage | Direct normalized accepted answer; fact/coverage and source receipt | Fact-active, then <=400d | P; opaque answer event/revision, selected kind and receipt E survive |
 | health_purge_replacements.normalized_replacement_json | Direct validated new correction assertion; source update and purge ID | Until synchronous content commit, hard maximum 30d | J/P staging exception; delete staging on commit or subject deletion; no old-health replay |
-| body_energy_results: value, confidence/quality, wake/health-date/as-of projection, input_manifest_json, driver_json, missingness_json and baseline/intermediate values | Derived exact selected canonical rows and snapshot versions | 400d/current | P; CONTENT_REDACTED on replay; envelope E only |
+| body_energy_results: value, confidence/quality, wake/health-date/as_of_epoch_ms/as_of_utc, input_manifest_json, driver_json, missingness_json and baseline/intermediate values; body_energy_checkpoints.bucket/as-of/result reference | Derived exact selected canonical rows/snapshot versions; checkpoint links exact result | 400d/current | P; CONTENT_REDACTED on replay; mode/opaque lookup barrier E only, no physiological-time identity retained in plaintext |
 | evidence_runs/items: captured input manifest, subject/window/timezone, counts/fraction, missingness, claim/summary, direction/unit, effect/bounds, p/q, effective n, quality/recency/confound/provenance JSON | Derived every canonical/fact/coverage input | 400d/current | P all health statistics; no historical reconstruction; E incl method/constant versions only |
 | observation_episodes, episode_observations, episode_evidence, episode_events, episode_semantic_events: health labels/window/times, normalized values, robust-z, severity/confidence/novelty, explained status, explanation_json/current_context_json, claim/action keys, evidence/context relationship details | Derived observation/evidence/fact membership | <=400d after terminal | P; E retains terminal states, opaque event IDs and reservation lineage only |
 | insight_revisions: normalized claim, support/contradiction details, health explanation | Derived evidence IDs and transitive inputs | <=400d after retirement | P; revision/status/disposition E |
 | phase4_proactive_decisions: gate results, candidate diagnostics, branch signatures, utility values, rationale/actionability text | Derived episode/evidence/question/answer inputs | <=400d, narrative <=90d | P; action/decision/event IDs and invalid state E; no proposal replay |
-| phase4_invalidations/phase4_jobs: affected health dates, subject keys, health-bearing error details if detected | Derived mutation scope/source links | Pending work; errors <=30d | P/G; clear scopes, request new full-tenant generation after fence clears; no old-artifact reconstruction |
+| phase4_invalidations/phase4_jobs: affected_from/affected_to, subject_key, health-bearing error details if detected | Derived mutation scope/source links, separately mode-qualified | Pending work; errors <=30d | P/G + SCOPE in T1 across both modes: FULL_TENANT_RECOMPUTE, null dates, markers, monotonic request and unchanged completion; no old-artifact reconstruction or early fence release |
 | proactive_agent_state.last_checked_health_date, last_fingerprint | Derived legacy health cursor/hash; tenant canonical inputs | Until next check, maximum 400d | P; null both on source purge; preserve enabled/lifecycle/operational E |
 | outbound_messages.payload_json/payload_text and all copied health context | Derived decision/evidence/facts plus semantic event | <=90d after terminal | P; unsent INVALIDATED/CLOSED; started/sent/ambiguous state retained, no resend; E only |
 | outbound_delivery_attempts and transient provider response text/body | Health text prohibited; linked message | Response bodies zero retention | G; no body column, no plaintext replay need; state/status/message ID/timings E only |
 | Q&A/prompt/context caches, LLM input/output transient envelopes | Derived source plan or direct user input; tenant/source IDs and all generations | In-memory <=15 minutes; no persistent prompt trace | C; invalidate/evict, return updating/redacted not old answer |
 | stdout/stderr application logs, traces, captured error/provider bodies | Health content prohibited; source/artifact correlation only | Non-health logs <=30d | C/G; incident cleanup for existing copies; no health reconstruction |
 
-**Fixed non-health sentinel map.** Required text uses exactly [HEALTH_CONTENT_REDACTED]: health_insights.statement/subject/insight_type, pending_questions.question, experiments.name, proactive_events.health_date, and superseded journal_events.event_at/health_date/category/source. JSON fields retained in rows become exactly {} (not an object containing original text); nullable text/numbers/times become null. The disposable tables above use D instead of risking collisions in required health-date/metric keys. All new health-bearing columns are nullable. R markers plus exclusion predicates prevent sentinels being interpreted as valid health facts.
+**Fixed non-health sentinel map.** Required text uses exactly [HEALTH_CONTENT_REDACTED]: health_insights.statement/subject/insight_type, pending_questions.question, experiments.name **only when its DEFINITION/name leaf is purged**, proactive_events.health_date, and superseded journal_events.event_at/health_date/category/source. JSON fields targeted for purge become exactly {} (not an object containing original text); nullable health text/numbers/times become null. Unrelated experiment fields remain untouched with their own sidecar R. The disposable tables above use D instead of risking collisions in required health-date/metric keys. All new health-bearing columns are nullable after purge; exact Body Energy time/date fields are mandatory while PRESENT. R markers plus exclusion predicates prevent sentinels being interpreted as valid health facts.
 
 ### Legacy linkage completeness and non-health exclusions
 
 New health-bearing writes commit phase4_source_links atomically with content and cannot be published without complete linkage. Link source updates even when no journal fact is created: a Q&A receipt links every cited/read canonical or derived source, and pending unparsed text links its source update. Correction/deletion traverses direct and transitive dependencies before unlinking anything.
 
-For attributable legacy content with incomplete provenance, v22 records TENANT_LEGACY for that owner; any source correction/deletion for that tenant conservatively purges all such derived/copy rows in this inventory. Do not pretend that an absent link proves non-dependence. Independent canonical WHOOP rows are never TENANT_LEGACY journal dependents. Unattributable legacy reply/diagnostic content is quarantined and redacted to fixed non-health sentinels during the local migration rehearsal and eventual specifically authorized migration; never infer ownership from a currently rebound chat. Privacy backfill completion is a migration postcondition.
+For attributable legacy derived/copied content with incomplete provenance, v22 records TENANT_LEGACY for that owner; any source correction/deletion for that tenant conservatively purges those dependent rows/groups. Do not pretend that an absent link proves non-dependence. Independent canonical WHOOP rows and verified EXPERIMENT_DIRECT_ASSERTION groups are not TENANT_LEGACY Journal dependents. Experiments follow Section 14's field-scoped backfill: ambiguous derived groups are immediately quarantined/redacted, without erasing proven independent groups. Unattributable legacy reply/diagnostic content is quarantined and redacted to fixed non-health sentinels during the local migration rehearsal and eventual specifically authorized migration; never infer ownership from a currently rebound chat. Privacy backfill completion is a migration postcondition.
 
-The schema scan also covered identity/OAuth/token/link-code tables; telegram_processed_updates and telegram_state.value (current writer uses only the polling offset); resource_locks; error_notifications; schema/migration checkpoints; proactive_agent_state; source tombstones; reconciliation cursors/discrepancies; analytics_invalidation. These are identity, transport, source IDs, finite codes or progress metadata, not health payload stores. Phase 4 forbids health payloads there. proactive_agent_state.last_fingerprint is a health-derived hash: on linked correction/deletion clear it and last_checked_health_date, never use it to recover content. Operational cursor/window times count as scheduling metadata, not physiological event times. This does not authorize reading secrets or changing identity/lifecycle truth.
+The schema scan also covered identity/OAuth/token/link-code tables; telegram_processed_updates and telegram_state.value (current writer uses only the polling offset); resource_locks; error_notifications; schema/migration checkpoints; source tombstones; reconciliation operational cursors/discrepancies. Identity/transport IDs, finite codes and actual scheduling timestamps are non-health metadata. This exclusion does **not** include analytics_invalidation affected dates, analytics_work_state remaining ranges, Phase 4 health scope or proactive_agent_state.last_checked_health_date/last_fingerprint: those are covered by the matrix and must be cleared on linked purge. A cursor describing a physiological event/window is health content even when used by a scheduler. No exemption authorizes reading secrets or changing identity/lifecycle truth.
 
 Logger secret redaction in [src/logger.js](../src/logger.js) is not health-text redaction. Current store log calls can include journal category, insight subject, experiment name, or provider error strings. Stage 4 must remove health fields from these paths and enforce a field allowlist before privacy activation. Existing external logs/backups are not verified erased by this ADR. Deletion status must distinguish DB_REDACTED, cache completion and external-copy verification; inability to verify an external retained copy is a disclosed residual/activation blocker, never a fabricated success.
 
@@ -2616,7 +2791,7 @@ Receipt identity/COMMITTED state and redaction markers remain for tenant lifetim
 | Active journal normalized fact | While active or until the account’s existing retention policy removes it |
 | Raw journal answer excerpt | 90 days maximum, or immediate redaction on correction/deletion |
 | Deleted-journal tombstone | While the tenant account exists, to prevent resurrection; contains no health content |
-| Body Energy checkpoints | 400 days, unless referenced by a retained user-visible artifact |
+| Body Energy exact results and optional checkpoint references | 400 days, unless referenced by a retained user-visible artifact; lookup barriers survive content purge |
 | Evidence runs/items and episode history | 400 days after terminal state; longer only while referenced by a current insight |
 | Retired insight revisions | 400 days after retirement |
 | Outbound plaintext payload | 90 days after terminal delivery state |
@@ -2624,7 +2799,7 @@ Receipt identity/COMMITTED state and redaction markers remain for tenant lifetim
 | Semantic reservations, semantic-event/request/answer IDs and keyed replay barriers | Tenant lifetime, with health content already purged at its shorter limit |
 | telegram_operations completed receipt and redaction envelope | Tenant lifetime; result health content at most 90 days |
 | Pending question content | Answer/expiry or 30 days, whichever first |
-| Legacy derived analytics/experiments/capability copies | Matrix limits, never exempt from linked purge |
+| Legacy derived analytics/experiment field groups/capability copies | Matrix limits; linked copies purge, independent experiment assertions are not unrelated Journal dependents |
 | Purge replacement staging | Content transaction completion, hard maximum 30 days |
 | Phase 4 job error detail | 30 days; aggregate operational metrics may remain without health content |
 | LLM request/response content | Not stored as unrestricted logs; approved normalized result only |
@@ -2638,7 +2813,7 @@ Full-account erasure is explicitly outside Phase 4. These defaults do not create
 Correction/deletion has a **durable admission transaction followed immediately by one synchronous content transaction**, not a fence that would vanish on rollback:
 
 1. **Admission T0:** authenticate tenant/target/source-update idempotency; serialize on phase4_user_state. Increment purge_generation once, insert health_plaintext_purges ADMITTED, increment pending_purge_count, and commit. For correction only, persist the already validated new assertion in health_purge_replacements in T0; never store deleted old text in the ledger. Replaying T0 returns the same purge ID/generation. Do not acknowledge deletion complete yet.
-2. **Content T1:** in one tenant-scoped transaction, lock the target revision and generation; read the complete transitive source graph including TENANT_LEGACY dependencies; apply J/P/D/O/G to all linked content and every revision before unlinking. Delete journal facts or atomically insert the staged corrected ACTIVE revision and supersede/redact old revisions. Invalidate evidence/episodes/insights/decisions, terminalize pending questions, redact Telegram receipts and legacy copies. Invalidate unstarted outbox rows and CLOSE reservations. For started/sent/ambiguous rows preserve transport/reservation truth, purge payload, and prohibit retry. Delete correction staging. Increment input_generation once, write full-tenant invalidation, and commit ledger state DB_REDACTED. All redacted rows record the same purge_generation/reason and deletion timestamp where applicable.
+2. **Content T1:** in one tenant-scoped transaction, lock the target revision and shared source generation; traverse complete source links across **both execution modes**, including TENANT_LEGACY copies but excluding unrelated independent experiment assertions. Apply J/P/D/O/G and field-scoped experiment redaction before unlinking. Delete Journal facts or insert the staged corrected ACTIVE revision and supersede/redact old revisions. Invalidate evidence/episodes/insights/decisions, redact pending/Telegram receipts and legacy copies. Invalidate unstarted outbox rows, CLOSE their reservations and cancel RESERVED question slots. For started/sent/ambiguous rows preserve transport/reservation truth and occupied answer-window slots, purge payload, prohibit retry and never free the slot early. Delete correction staging. Increment shared source_generation and each existing mode's input_generation once, set source_generation_seen, write that mode's FULL_TENANT_RECOMPUTE invalidations/jobs, and replace linked legacy/Phase 4 physiological ranges exactly per SCOPE. Preserve completed progress and existing legacy requested generation; never activate Phase 3. Commit ledger state DB_REDACTED. All redacted rows/groups record the same purge_generation/reason and deletion timestamp where applicable.
 3. **Cache completion:** publish tenant/purge-generation eviction and cancel in-flight health contexts not past a provider start. Every cache access, derived commit, reply return and pre-send CAS checks current purge_generation and pending_purge_count in durable state; missing/unreachable state fails closed. No TTL-only authorization. A crashed process discards its memory; on restart its old contexts are never restored. Retry eviction until every live process acknowledges or its bounded cache lifetime/worker lease has expired and the new generation is observed; mark CACHE_CONFIRMED.
 4. **Completion T2:** verify DB redaction postconditions, source unlinking, staging absence and cache acknowledgments; CAS ledger to COMPLETE and decrement pending_purge_count exactly once. Reads resume only when the count is zero, using current unredacted sources. Known external log/backup copies requiring cleanup are separately reported; do not claim their erasure from a DB/cache success.
 
@@ -2762,6 +2937,8 @@ Every new flag is false when absent, malformed, or unsupported:
 
 Dependencies are enforced in code. For example, outbound delivery requires schema writes, reanalysis, episodes, evidence, non-shadow decisions, authoritative PHASE4 tenant mode, passed conjunctive release-gate record, and explicit operation authorization. An invalid flag combination fails closed and emits configuration diagnostics. Pre-gate builds may write shadow proposals but have no configured provider adapter.
 
+Flags do not classify stored rows. Restart under a different flag set cannot publish SHADOW data: every reader/claim revalidates durable execution_mode and the entire same-mode ancestry. Enabling a future LIVE factory requires fresh authorized LIVE computation, not a SHADOW-to-LIVE UPDATE. During Foundation, **every flag above remains off**; internal tests invoke isolated stores/calculators with synthetic context, no scheduler or dispatcher registration.
+
 There is no flag that aliases or enables the Phase 3 analytics worker. Phase 4 names, job kinds, and drain functions remain separate.
 
 ### Conjunctive release gate
@@ -2794,7 +2971,7 @@ Before the conjunctive gate passes, work is limited to:
 4. historical replay on non-production copies;
 5. calculation-only evaluation;
 6. shadow reanalysis;
-7. shadow decisions with proposal creation and provider sending technically impossible;
+7. shadow decisions and separately enabled local shadow-proposal evaluation; LIVE proposal creation, LIVE attempts and provider sending technically impossible;
 8. independent review;
 9. freeze-candidate preparation and Final Gate evidence packaging.
 
@@ -2862,6 +3039,9 @@ Body Energy:
 - qualified-nap uniqueness and bounds;
 - exact reproduction from stored manifests;
 - algorithm-version separation;
+- exact-result uniqueness: 12:00 and 12:14 in one bucket create distinct result IDs and preserve different time-depletion values; identical exact tuple replay/concurrent insert returns one ID; same exact instant/new input_generation creates a distinct revision;
+- two checkpoint workers converge on the same PERIODIC_15M reference/exact closing-instant result; Q&A at a different instant and a checkpoint never overwrite one another; same-instant consumers cite the exact same result row;
+- checkpoint reuse discloses original exact as-of/freshness; late correction preserves citations or returns CONTENT_REDACTED and never retro-notifies;
 - shadow publication gates for correlation matrix, ablation, sensitivity, distribution/range, missingness, and duplicated-evidence dominance.
 
 Time and scheduling:
@@ -2937,7 +3117,13 @@ Delivery:
 - legacy Morning Brief versus Phase 4 local-health-date reservation prevention;
 - atomic cutover deferral for in-flight/ambiguous legacy delivery and reversal only before Phase 4 start;
 - narrow V1.2 report-claim duplicate reproduction: accepted provider send, lost response, lifecycle transition, reclaim;
-- pending question opens only after confirmed delivery;
+- pending projection opens only after confirmed matching LIVE delivery; the tenant/mode slot already exists before start;
+- two different episodes/factors/kinds/windows compete under the same tenant/mode: exactly one selection/request/reservation/proposal transaction wins; the loser's transaction leaves no partial rows;
+- slot rechecked at provider start, lifecycle/auth change, retry/takeover and pending open/update; stale CAS cannot release a newer request;
+- AMBIGUOUS_WAIT blocks a different question for the complete 30-minute window, accepts only explicit matching structured answers, survives restart/pause/disable/resume without resend, and expires without freeing its consumed key;
+- definite pre-send failure and unstarted invalidation cancel the slot; proven provider non-acceptance terminates a question without retry; confirmed/unanswered delivery expires conservatively;
+- answer replay/correction versus expiry/new occupant, legacy OPEN/experiment flow versus Phase 4 selection, legacy in-flight/ambiguous cutover, and tenant A versus tenant B;
+- SHADOW and LIVE same-tenant slots/reservations do not block one another; SHADOW cannot project real pending state;
 - no direct Telegram capability in reanalysis modules.
 
 Privacy and Q&A:
@@ -2953,6 +3139,11 @@ Privacy and Q&A:
 - crash after T0 leaves a durable fence; T1 rollback, correction staging/retry/expiry, crash after DB_REDACTED, cache loss/ack, T2 idempotent completion and simultaneous deletion/correction/send;
 - existing processTelegramOperation integration cannot nest/roll back T0; T1 mutation/receipt atomicity and ADMITTED duplicate replay bypass the original action;
 - legacy TENANT_LEGACY traversal, unowned receipt/diagnostic quarantine, full field inventory coverage, health-log allowlists and external-copy deletion disclosure;
+- scope privacy: delete while analytics invalidation is pending, delete after a partial range, crash after T0/before T1 replacement and restart; no old affected_from/to or range_from/to survives completed T1, requested progress is preserved and completed progress does not advance;
+- FULL_TENANT_RECOMPUTE remains pending with null dates and even equal requested/completed generations; all freshness/Q&A/store readers honor scope precedence, old claims lose scope/purge CAS and spies prove zero Phase 3 invocations;
+- a separately authorized synthetic worker later consumes FULL by scanning all retained current tenant sources, not an anchor/old range; only whole-pass same-generation success clears it; new mutation/restart cannot skip work;
+- experiments: unrelated Journal deletion preserves verified independent definition/intervention/protocol/schedule; linked derived result redacts; ambiguous legacy result immediately quarantines/redacts without losing proven direct fields; copied hypothesis and independent name within DEFINITION have different purge outcomes;
+- experiment owner-only reads and cross-user link rejection; explicit whole-experiment deletion purges its own four groups/assertions and dependents; Journal deletion is not whole-experiment or account erasure;
 - prompt injection in Journal and Q&A text remains role-separated data;
 - tenant-ID, policy, destination, feature-flag, and tool-argument override attempts fail closed;
 - Q&A cannot create an outbound proposal or invoke scheduler, dispatcher, or send paths;
@@ -2974,6 +3165,10 @@ For every post-v20 migration:
 - R expansion table exactly matches all v22 legacy and v23/v24 new objects; safe NOT NULL sentinels, D-table uniqueness, owner attribution and source linkage postconditions;
 - old application can inspect v20 fields during expand only; after purge admission only a privacy-compatible binary may read/serve, including rollback;
 - new application with behavior flags off changes no user-visible behavior.
+
+Durable SHADOW/LIVE isolation tests additionally cover every M table and source-link edge: restart with changed runtime flags; LIVE Morning Brief/Q&A/dispatcher exclusion of SHADOW parents; null/unknown/mixed-mode rejection; independent current pointers/generation completion/leases; identical semantic keys in separate modes; mode UPDATE rejection; default SHADOW insert; LIVE-only attempts plus server-owned capability; source purge through both modes; and algorithm-version recomputation without cross-mode cache/dedup leakage. Pure synthetic LIVE tests cannot issue real capabilities.
+
+Foundation migration tests stop/rerun at every internal boundary: complete v21, complete v22, **all** v23 objects (not only Body Energy), then **all** v24 objects including SCOPE/modes/slots. Missing one postcondition leaves that version unrecorded. Stores/T0 admission/calculator persistence/Journal correction must refuse an incomplete v24 schema. Tests verify later Intelligence/Delivery packs consume already installed tables, do not retroactively finish a recorded version, and all flags/Phase 3/dispatcher/provider wiring remain off throughout Foundation.
 
 ### Integration and end-to-end tests
 
@@ -3040,19 +3235,45 @@ This architecture stage changes only this document. Its gate is:
 - clean diff contains no source, schema, test, configuration, workflow, or package change;
 - local commit only, with no push or deployment.
 
+Cycle 3 read-only architecture fixtures exercise the specified keys/transitions in ephemeral models (including in-memory uniqueness/transaction rollback), not repository implementation or production migrations. Preserve the earlier formula/quality/main-sleep/matched-recovery/current-cycle contracts, pure D evaluator, UNKNOWN threshold and exact episode diagram/table parity.
+
+**Two self-review passes before this repair can be called ready:**
+
+| Counterexample pass | Required closed outcome |
+|---|---|
+| Different exact calculations in one 15-minute bucket; identical retry | Distinct exact IDs for different instants, one winner for identical tuple; no checkpoint collision |
+| Different question requests race | One tenant/mode slot, atomic loser rollback before any send |
+| Question acceptance lost, pause and resume | AMBIGUOUS_WAIT survives, blocks a different request until explicit answer/expiry, permanent consumed key |
+| Journal deletion while legacy range is pending/partially processed | All linked dates null + FULL marker; requested retained, completed unchanged, no Phase 3 call |
+| Crash between purge admission and scope replacement | Durable T0 fence prevents any health read; retry same T1 |
+| Restart with SHADOW rows and LIVE reader flags | Durable mode and ancestry exclusion; no promotion UPDATE or real attempt |
+| Same semantic key, one SHADOW and one LIVE | Independent reservations/slots/generations, no cross-mode blocking |
+| Unrelated Journal deletion beside direct experiment definition | Verified independent groups survive; linked result alone redacts |
+| Ambiguous legacy experiment group | Immediate group quarantine/redaction, no unproven plaintext or whole-row loss of proven assertions |
+| Body-only migration or v22 purge depends on v24 | Version withheld until complete objects; Foundation persists full v21–v24 before runtime T0/stores/Body/Journal |
+
+The second pass checks the exact M/R/SCOPE expansions, PK/unique predicates, typed fields, slot transitions/deadlines, experiment group mapping/read precedence, eight Foundation commit boundaries, all local links and changed-file scope. Any unresolved choice of column, identity, purge boundary or transition is HOLD, not an implementation decision deferred beyond this ADR.
+
 ## 19. Implementation stages and dependency graph
+
+Stages 2–4 form one **Foundation Pack**, Stages 5–6 the later Intelligence Pack, and Stages 7–8 the later Delivery Pack. These names are planning boundaries, not authorization. Foundation remains prohibited until independent Stage 1 Final Gate PASS and a new explicit implementation instruction. Internal commits receive tests/self-review, then one aggregate independent Foundation review; an internal commit is not a separately approved production rollout.
 
 ### Dependency graph
 
 ~~~mermaid
 flowchart TD
-    S1[Stage 1 ADR] --> S2[Stage 2 additive storage and stores]
-    S2 --> S3[Stage 3 Body Energy and quality]
-    S2 --> S4[Stage 4 journal revisions and context]
-    S3 --> S5[Stage 5 evidence episodes and insights]
-    S4 --> S5
+    S1[Stage 1 independent PASS plus new authorization] --> F1[Foundation 1 runner and complete v21]
+    F1 --> F2[Foundation 2 complete v22 and privacy backfills]
+    F2 --> F3[Foundation 3 complete v23 all intelligence tables]
+    F3 --> F4[Foundation 4 complete v24 including slots and modes]
+    F4 --> F5[Foundation 5 scoped stores and privacy compatibility]
+    F5 --> F6[Foundation 6 Body Energy exact persistence]
+    F6 --> F7[Foundation 7 Journal revisions and purge]
+    F7 --> F8[Foundation 8 aggregate crash privacy and migration tests]
+    F8 --> FG[One aggregate independent Foundation review]
+    FG --> S5[Intelligence Stage 5 evidence episodes and insights]
     S5 --> S6[Stage 6 invalidation and reanalysis]
-    S6 --> S7[Stage 7 decisions and outbound delivery]
+    S6 --> S7[Delivery Stage 7 decisions and outbound delivery]
     S7 --> S8[Stage 8 Morning Brief and Q&A]
     S8 --> S9[Stage 9 shadow evaluation and freeze package]
 ~~~
@@ -3077,9 +3298,26 @@ flowchart TD
 
 **Exit gate:** Section 18 Stage 1 gate.
 
+### Foundation Pack: exact internal commit boundaries
+
+All eight commits are disabled/local and require their own targeted verification plus the complete Node 22 suite. No production migration, scheduler activation, dispatcher registration, real Telegram adapter/send path, or Phase 3 activation is in this pack. No v21–v24 version row may be written before **every** object, column, CHECK/trigger, backfill, unique/secondary index and postcondition assigned to that version is complete.
+
+| Internal commit | Scope and dependency | Verification before commit |
+|---|---|---|
+| 1 | Restart-safe per-version migration runner/postcondition mechanism and **complete v21**, including SHADOW computation state; depends on independently approved ADR and explicit pack authorization | v20/empty/populated fixtures, stop/rerun each statement, exact v21 version advancement, all flags off |
+| 2 | **Complete v22**, all Journal/context/answer/privacy objects, legacy R/SCOPE extensions, receipt ownership/no-op compatibility, experiment field-group classification/redaction; no runtime purge admission | Every legacy plaintext/group/range backfill, tenant ownership, interruption and v22 postconditions; v24-dependent runtime remains unavailable |
+| 3 | **Complete v23**: exact Body results/checkpoints, evidence runs/items, episodes/memberships/events/semantic events, all insight revisions/current-pointer extensions and M/R/indexes | A missing evidence/episode/insight object prevents v23 advancement even when Body tables exist; mode/default/unique/legacy exclusion checks |
+| 4 | **Complete v24**: invalidations/jobs/SCOPE, decisions, delivery modes, semantic reservations, interaction slots, proposals/outbox and LIVE-only attempts; all schema remains dormant | Slot identity, mode/attempt CHECKs, scope/privacy metadata, all postconditions; complete v21–v24 startup readiness verified |
+| 5 | Tenant/mode-scoped stores/invariants, purge admission fencing, reader/writer/privacy compatibility adapters and experiment field projections, now using complete v24 storage | Mixed-tenant/mode rejection, R/SCOPE precedence, T0 survival, no-op receipts, legacy pending guard, no runnable dispatcher/provider path |
+| 6 | Body Energy selectors/calculator/shared quality and exact-as-of persistence/checkpoint references | Full formula/selector/quality and replay suite, same-bucket identities, new generations, checkpoint races, SHADOW persistence only outside isolated synthetic LIVE fixtures |
+| 7 | Journal revisions, tri-state context, answer lineage, correction/deletion T0/T1/T2 and logging allowlists, using existing v24 invalidations/slot/outbox fences | Full matrix/group/range purge, accepted-answer replay, no deleted content/cross-tenant access, zero Phase 3 calls; no proactive question delivery |
+| 8 | Aggregate migration/privacy/tenant/mode/concurrency/crash-restart verification and Foundation review evidence | End-to-end synthetic v20→v24 rehearsal, every interruption point, all RC2 fixtures and prior regressions, flags off, no sends; submit **one** Foundation macro-stage for independent review |
+
+Commits 1–4 may test persistence contracts but cannot run Foundation runtime behavior; commit 5 refuses admission if any v24 postcondition is absent. Later Intelligence and Delivery packs implement behavior against the complete installed schema, never finish a partially marked v23/v24. A newly discovered schema requirement requires an ADR amendment and a new reviewed forward migration, not reuse of a completed version number. The current repair changes only this ADR and does not begin commit 1.
+
 ### Stage 2: additive storage and tenant-scoped stores
 
-**Depends on:** Stage 1.
+**Depends on:** independent Stage 1 PASS and explicit Foundation authorization; covers internal commits 1–5 in the fixed order above.
 
 **Files/subsystems likely touched:** [src/schema.js](../src/schema.js), [src/migrations.js](../src/migrations.js), new tenant-scoped Phase 4 stores, and migration tests.
 
@@ -3099,7 +3337,7 @@ flowchart TD
 
 **Review focus:** no table reshape, no random backfill identity, no Phase 3 worker wiring, no user-visible behavior.
 
-**Independent review gate:** migration/data-integrity and multi-user-isolation review.
+**Independent review gate:** migration/data-integrity and multi-user-isolation evidence goes into the one aggregate Foundation review after internal commit 8; no partial version approval.
 
 **Explicit non-goals:** calculators, reanalysis, Q&A, message proposals, sends, or flag activation.
 
@@ -3107,7 +3345,7 @@ flowchart TD
 
 ### Stage 3: Body Energy and shared quality
 
-**Depends on:** Stage 2.
+**Depends on:** complete v21–v24 and Stage 2 stores/privacy compatibility (Foundation internal commit 5); this is internal commit 6.
 
 **Files/subsystems likely touched:** new Body Energy and quality modules/stores, plus adapters around [src/store.js](../src/store.js), [src/time.js](../src/time.js), and [src/readiness.js](../src/readiness.js).
 
@@ -3128,7 +3366,7 @@ flowchart TD
 
 **Review focus:** no LLM or journal input, no future leakage, no double-counted strain, label never implies WHOOP ownership.
 
-**Independent review gate:** formula, physiology-language, reproducibility, and temporal-integrity review.
+**Independent review gate:** formula, physiology-language, reproducibility and temporal-integrity evidence in the aggregate Foundation review after commit 8.
 
 **Explicit non-goals:** user display, episodes, proactive decisions, or delivery.
 
@@ -3136,11 +3374,11 @@ flowchart TD
 
 ### Stage 4: structured journal and context
 
-**Depends on:** Stage 2.
+**Depends on:** complete v21–v24, Stage 2 compatibility and internal commit 6; this is Foundation internal commit 7, followed by aggregate verification commit 8.
 
 **Files/subsystems likely touched:** [src/journal.js](../src/journal.js), journal store/router paths, context-question store, inbound processing, and their tests.
 
-**Migration impact:** use v22 journal columns and context tables from Stage 2; no destructive rewrite.
+**Migration impact:** use complete v22 Journal/context and v24 invalidation/job/slot/outbox tables already installed by Stage 2; no destructive rewrite and no privacy admission against v22 alone.
 
 **Work:**
 
@@ -3158,7 +3396,7 @@ flowchart TD
 
 **Review focus:** deletion leaves no health content, LLM parse remains a candidate only, existing journal readers remain compatible.
 
-**Independent review gate:** privacy/deletion, parser-authority, and cross-user review.
+**Independent review gate:** privacy/deletion, parser-authority and cross-user evidence in the one aggregate Foundation review after commit 8.
 
 **Explicit non-goals:** evidence promotion, proactive questions, outbound delivery, or account erasure.
 
@@ -3166,7 +3404,7 @@ flowchart TD
 
 ### Stage 5: evidence, episodes, and insight memory
 
-**Depends on:** Stages 3 and 4.
+**Depends on:** aggregate Foundation PASS covering Stages 2–4 and all eight internal commits, plus explicit Intelligence Pack authorization.
 
 **Files/subsystems likely touched:** new evidence/episode stores and domain modules, [src/evidence.js](../src/evidence.js), [src/healthMemory.js](../src/healthMemory.js), and approved adapters around [src/analyze.js](../src/analyze.js).
 
@@ -3224,7 +3462,7 @@ flowchart TD
 
 ### Stage 7: decisions and outbound delivery
 
-**Depends on:** Stage 6.
+**Depends on:** independently reviewed Intelligence Pack (Stages 5–6) and explicit Delivery Pack authorization.
 
 **Files/subsystems likely touched:** new policy, decision, outbound store, dispatcher, Telegram adapter, plus [src/accountLifecycle.js](../src/accountLifecycle.js), [src/attention.js](../src/attention.js), and [src/reportDelivery.js](../src/reportDelivery.js) boundaries.
 

@@ -20,22 +20,22 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
 // ===========================================================================
-// ★★★ 排程器只能有一個擁有者
+// ★★★ Render 不可以成為第三個排程器
 // ===========================================================================
 
 /**
- * 正式環境的排程器是 GitHub Actions，而且**只有**它。
+ * 正式環境由 Cloudflare Worker Cron 主觸發，GitHub Actions 獨立備援。
  *
  * render.yaml 以前宣告了一個一模一樣的 `type: cron` 跑 `npm start`。
  * Render 的 Blueprint 會從 repo 同步，所以只要有人重新連結或重新套用藍圖，
  * 那個 cron 就會被重新建立並啟用 —— 同一個 Turso、同一個 WHOOP 帳號，
- * 兩個排程器各跑各的。
+ * 形成不受控的第三個排程來源。
  *
  * 資料不會壞（report_claims 擋重複發送、resource_locks 擋 refresh_token
  * 輪替競態），但 WHOOP 用量、OpenRouter 花費、主動代理的評估全部變成兩倍，
  * 而且沒有任何地方看得出來為什麼。
  */
-test('★★★ 部署：repo 裡只能有一個排程器（render.yaml 不可以有 cron）', () => {
+test('★★★ 部署：Render blueprint 不可以宣告第三個排程器', () => {
   const blueprint = read('render.yaml');
   const services = blueprint
     .split('\n')
@@ -43,11 +43,43 @@ test('★★★ 部署：repo 裡只能有一個排程器（render.yaml 不可�
     .map((l) => l.replace(/^\s*-\s*type:\s*/, '').trim());
 
   assert.ok(!services.includes('cron'),
-    '★ render.yaml 不可以宣告 cron 服務 —— 排程的擁有者是 GitHub Actions');
+    '★ render.yaml 不可以宣告 cron 服務 —— Cloudflare 主排程與 GitHub 備援已經是完整拓撲');
   assert.ok(!/^\s*schedule:/m.test(blueprint),
-    '★ render.yaml 不可以有任何 schedule（那就是第二個排程器）');
+    '★ render.yaml 不可以有任何 schedule（那會成為第三個排程器）');
   assert.ok(!/startCommand:\s*npm start/.test(blueprint),
     '★ render.yaml 不可以跑 npm start（那是排程器的進入點）');
+});
+
+test('★★★ RC3 README：cadence、canonical runner 與 readiness 說法一致', () => {
+  const readme = read('README.md');
+  const cadence = readme.split('\n').find((line) => line.includes('執行頻率想改')) ?? '';
+
+  assert.match(cadence, /cloudflare\/briefing-scheduler\/wrangler\.toml/,
+    '★ 主排程 cadence 必須指向 Cloudflare wrangler.toml');
+  assert.match(cadence, /\.github\/workflows\/briefing\.yml/,
+    '★ 備援 cadence 必須指向 GitHub workflow');
+  assert.match(cadence, /Render[^\n]+沒有 production cron/,
+    '★ README 必須明示 Render 沒有 production cron');
+  assert.doesNotMatch(cadence, /render\.yaml[^\n]+(兩邊都要改|調.*cron)/,
+    '★ README 不可以把 render.yaml 當成 cadence 控制面');
+
+  assert.match(readme, /Cloudflare Worker Cron[^\n]+主排程/,
+    '★ README 必須識別 Cloudflare 主排程');
+  assert.match(readme, /GitHub Actions[^\n]+備援/,
+    '★ README 必須識別 GitHub 備援');
+  assert.doesNotMatch(readme, /都成立就直接結束，連 WHOOP 都不打/,
+    '★ 報告結案不可以被描述成整輪直接退出');
+  assert.match(readme, /報告已結案只會跳過報告遞送/,
+    '★ README 必須說明報告結案只跳過報告遞送');
+  assert.match(readme, /webhook drain[^\n]+FAST 對帳/,
+    '★ canonical runner 說明必須涵蓋報告之外的 scheduler-owned 工作');
+  assert.doesNotMatch(readme, /每日簡報會安靜地停掉/,
+    '★ GitHub 備援停用不可以被描述成整個正式排程停止');
+
+  assert.match(readme, /HTTP 200[^\n]+不代表 scheduler 可用/,
+    '★ HTTP 200 必須維持 process-liveness 語義');
+  assert.match(readme, /"scheduler":"enabled"/,
+    '★ scheduler readiness 必須繼續要求 enabled');
 });
 
 test('★★★ 部署：Cloudflare 是 10 分鐘主排程，GitHub 是錯開的每小時備援', () => {

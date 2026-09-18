@@ -35,8 +35,8 @@
    - **備援：GitHub Actions，每小時第 17 分**（`.github/workflows/briefing.yml`）。它直接跑同一支程式。
    - 兩個同時活著是**安全**的：去重靠 Turso 的 `report_claims`（同一個 `(user, report_type, health_date)` 最多送出一次），token 競態靠 `resource_locks`。
    - 之所以不再是「唯一一個每 30 分鐘的 GitHub 排程」：實測 GitHub 只產生了約 15% 的預期 cron 事件（間隔 2～4.5 小時），2026-09-12 因此整個早上沒有任何一輪執行，簡報沒發出去。GitHub 的 cron 是 best-effort，不能當主排程。
-2. 每次執行先問 Turso：「今天和昨天的簡報都發過了嗎？而且週報也不待發？」都成立就直接結束，連 WHOOP 都不打。
-3. 否則 → 抓最新的睡眠與恢復資料，判斷「你是不是真的起床了」：最新主睡眠已評分、對應的 recovery 已評分、距離睡眠結束已超過 30 分鐘。條件還沒到就**等下一輪**，而且把「在等什麼」寫進 `briefing_evaluations`（schema v8），所以使用者問「今天的晨報呢」時答得出來。
+2. 每次 canonical run 都先做 scheduler-owned 的有界維護（webhook drain、上線狀態補齊與 resume），再處理 `ACTIVE` + `READY` 使用者。每位使用者各自檢查報告、增量同步、到期的 FAST 對帳與主動／同步 intelligence；最後記錄 heartbeat，並執行 scheduler watchdog／Guardian。報告已結案只會跳過報告遞送，不會讓仍有其他到期工作的整輪提早結束。
+3. 每日報告路徑會抓最新的睡眠與恢復資料，判斷「你是不是真的起床了」：最新主睡眠已評分、對應的 recovery 已評分、距離睡眠結束已超過 30 分鐘。條件還沒到就**等下一輪**，而且把「在等什麼」寫進 `briefing_evaluations`（schema v8），所以使用者問「今天的晨報呢」時答得出來。
 4. 條件成立 → 才抓 45 天歷史，算出你的個人基準、紅黃燈、趨勢。**所有健康判斷都由程式做**；模型只負責把已經核可的事實講成自然的中文，而且輸出要通過發布守門，沒通過就用確定性敘述（見下）。發到 Telegram，並在 Turso 記一筆「已送出」。
 5. 週一時，每週回顧走**完全獨立**的一條線判斷與重試，跟每日簡報互不影響。
 
@@ -67,7 +67,7 @@
 | `src/analyze.js` | **所有數值判斷**。起床偵測、基準計算、三級嚴重度、趨勢預警、週統計。 |
 | `src/daily.js` | 每日簡報流程。 |
 | `src/weekly.js` | 每週回顧流程。 |
-| `src/maintenance.js` | 運維提醒（GitHub 60 天無 commit 會停用排程）。 |
+| `src/maintenance.js` | 運維提醒（GitHub 60 天無 commit 可能停用備援 scheduled workflow）。 |
 | `src/format.js` | 組 Telegram 訊息（plain text、4096 字元上限）。 |
 | `src/coach.js` | 呼叫 OpenRouter。system prompt、要餵給它的「已算好的結論」、參數階梯、重試。 |
 | `src/telegram.js` | 推送與錯誤通知（含 2 小時冷卻）。 |
@@ -715,7 +715,7 @@ V1 的邊界，先講清楚：
 - **燈太容易亮／太不容易亮** → `src/config.js` 最上方的 `THRESHOLDS`。
 - **想加或移除指標** → `src/config.js` 的 `METRICS` 陣列，加一筆就好（`tier: 'optional'` 表示沒資料就不顯示）。
 - **想更省錢** → `OPENROUTER_MODEL=anthropic/claude-haiku-4.5`。
-- **執行頻率想改** → 改 cron（記得是 UTC，而且 `render.yaml` 與 `.github/workflows/briefing.yml` 兩邊都要改）。程式不用動。
+- **執行頻率想改** → 主排程 cadence 改 `cloudflare/briefing-scheduler/wrangler.toml`；備援 cadence 獨立改 `.github/workflows/briefing.yml`。兩者刻意使用不同頻率，cron 都是 UTC。Render 只承載共享 Web Service，沒有 production cron；不要改 `render.yaml` 來調排程頻率。
 - **補發期限想改** → `src/config.js` 的 `WAKE.MAX_AGE_HOURS`（預設 24 小時）。
 - **每週回顧想改成別的星期** → `src/config.js` 的 `WEEKLY.WEEKDAY`。
 - **60 天提醒想提早／延後** → `src/config.js` 的 `REPO_FRESHNESS.WARN_AFTER_DAYS`。
@@ -733,7 +733,7 @@ V1 的邊界，先講清楚：
 
 這個系統健康的時候是**完全安靜**的 —— 所以「排程死掉」和「一切正常」在你眼裡長得一模一樣。
 
-系統裡唯一會注意到心跳變舊的是 Guardian，而 Guardian 本身跑在 cron 裡面：排程一旦停掉，就再也沒有人去看那個心跳了。下面那一節處理了最常見的死因（滿 60 天無 commit），但 workflow 被手動停用、`npm ci` 壞掉、secret 過期、Actions 當機，這些都還是會安靜地死。
+Guardian 與 scheduler watchdog 都由 canonical runner 執行；Cloudflare 或 GitHub 只要還有一方活著，就能看見另一方的 heartbeat 變舊。若兩個排程來源同時停止，repo 內的程式就無法自行發現完全靜默，必須靠外部監控或下面的唯讀狀態檢查。
 
 所以要確認的時候跑：
 
@@ -745,20 +745,10 @@ npm run health-status
 
 這支指令只讀 Turso，不打 WHOOP / OpenRouter / Telegram，隨時跑都安全。
 
-### 60 天不 commit，排程會被自動停用
-這是 GitHub 的既有行為：**repo 連續 60 天沒有任何 commit，scheduled workflow 會被自動停用**。而且是安靜地停 —— 不會有錯誤通知，因為根本沒有 run 被觸發，系統裡沒有任何東西知道自己死了。
+### 60 天不 commit，GitHub 備援可能被自動停用
+這是 GitHub 的既有行為：**repo 連續 60 天沒有任何 commit，scheduled workflow 可能被自動停用**。這只會移除每小時的 GitHub 備援；Cloudflare Worker Cron 仍是每 10 分鐘的主排程。維護提醒的目的，是在失去獨立備援之前通知操作員，而不是把 GitHub 描述成正式環境的主排程。
 
-所以 [`src/maintenance.js`](src/maintenance.js) 會在**滿 55 天**時發一則 Telegram 提醒：
-
-```
-🛠 WHOOP 簡報系統維護提醒
-
-這個 repo 已經 56 天沒有新的 commit。
-GitHub 會在滿 60 天無活動時自動停用排程 —— 屆時每日簡報會安靜地停掉，
-而且不會有任何錯誤通知（因為根本不會有 run 被觸發）。
-
-還剩約 4 天。推任何一個 commit 就會重置計時。
-```
+所以 [`src/maintenance.js`](src/maintenance.js) 會在**滿 55 天**時發 Telegram 提醒，讓操作員在 GitHub scheduled workflow 停用前保住獨立備援。即使備援停用，Cloudflare 主排程仍應繼續；若兩個來源都停止，則需要外部監控才能偵測。
 
 實作細節：
 - 天數由 workflow 用 `git log -1 --format=%cI` 取得，透過 `REPO_LAST_COMMIT_AT` 注入。**本機與 Render 沒有這個變數 → 自動跳過**（它們也沒有 60 天問題）。

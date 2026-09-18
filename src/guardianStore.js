@@ -6,6 +6,7 @@
  */
 
 import { requireUserId } from './userContext.js';
+import { requireLifecycle } from './accountLifecycle.js';
 
 const nowIso = (d = new Date()) => d.toISOString();
 
@@ -70,10 +71,22 @@ export function createGuardianStore(client) {
    * 刻意**只讀不寫**：這張表的寫入權在 claimErrorNotify 手上，
    * Guardian 不可以偷改別人的冷卻狀態。
    */
-  async function getErrorNotification(scope, errorType) {
+  async function getErrorNotification(scope, errorType, { expectedLifecycleGeneration = null } = {}) {
+    if (!scope) throw new Error('getErrorNotification 需要 scope');
+    const userScoped = scope.startsWith('user:');
+    const uid = userScoped ? requireUserId(scope.slice(5), 'getErrorNotification(scope)') : null;
+    const life = userScoped
+      ? requireLifecycle(expectedLifecycleGeneration, 'getErrorNotification(user)')
+      : null;
     const rs = await client.execute({
-      sql: 'SELECT * FROM error_notifications WHERE scope = ? AND error_type = ?',
-      args: [scope, errorType],
+      sql: `SELECT n.* FROM error_notifications n
+             WHERE n.scope = ? AND n.error_type = ?
+               AND (? IS NULL OR n.lifecycle_generation = ?)
+               AND (? IS NULL OR EXISTS (
+                 SELECT 1 FROM users u
+                  WHERE u.id = ? AND u.status = 'ACTIVE' AND u.lifecycle_generation = ?
+               ))`,
+      args: [scope, errorType, life, life, life, uid, life],
     });
     const row = rs.rows[0];
     if (!row) return null;
@@ -82,6 +95,8 @@ export function createGuardianStore(client) {
       errorType: String(row.error_type),
       lastNotifiedAt: row.last_notified_at,
       hits: Number(row.hits ?? 0),
+      lifecycleGeneration: row.lifecycle_generation == null
+        ? null : Number(row.lifecycle_generation),
     };
   }
 

@@ -250,7 +250,7 @@ export async function runForUser({ db, env, user, now, deps = {} }) {
     // 重複通知「需要重新授權」——直到天荒地老。
     if (typeof db.clearUserErrorNotify === 'function') {
       try {
-        await db.clearUserErrorNotify(uid, 'whoop_auth');
+        await db.clearUserErrorNotify(uid, 'whoop_auth', { expectedLifecycleGeneration });
       } catch (err) {
         // 清不掉不影響這一輪的任何事，只是 Guardian 可能晚一輪才安靜
         log.warn('whoop_auth_recovery_clear_failed', {

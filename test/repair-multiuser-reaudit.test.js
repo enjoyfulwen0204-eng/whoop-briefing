@@ -196,13 +196,19 @@ test('★★★ 再稽核 M-08: 清掉 Alice 的授權失敗不影響 Bob 的警
         accessToken: 'a', refreshToken: 'r',
         expiresAt: new Date('2026-12-31T00:00:00Z'), scope: 's', whoopUserId: `w-${u.id}`,
       });
-      for (let i = 0; i < 3; i += 1) await db.claimUserErrorNotify(u.id, 'whoop_auth', 12);
+      for (let i = 0; i < 3; i += 1) {
+        await db.claimUserErrorNotify(u.id, 'whoop_auth', 12, {
+          expectedLifecycleGeneration: 1,
+        });
+      }
       await db.raw.execute({
         sql: 'UPDATE error_notifications SET last_notified_at = ?, hits = 3 WHERE scope = ?',
         args: ['2026-09-08T00:00:00.000Z', userScope(u.id)],
       });
     }
-    await db.clearUserErrorNotify(alice.id, 'whoop_auth');
+    await db.clearUserErrorNotify(alice.id, 'whoop_auth', {
+      expectedLifecycleGeneration: 1,
+    });
 
     const facts = await gatherFacts({ db, now: NOW });
     const findings = evaluate({ ...facts, now: NOW });

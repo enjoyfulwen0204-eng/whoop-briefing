@@ -303,9 +303,10 @@ test('report claim：Alice 的 claim 不會阻塞 Bob', async () => {
 // ---------------------------------------------------------------------------
 test('錯誤通知冷卻：Alice 的 WHOOP 錯誤不壓抑 Bob 的同類通知', async () => {
   await withAliceBob(async (db) => {
-    assert.equal(await db.claimUserErrorNotify(ALICE.id, 'whoop_auth', 2), true);
-    assert.equal(await db.claimUserErrorNotify(ALICE.id, 'whoop_auth', 2), false, 'Alice 冷卻中');
-    assert.equal(await db.claimUserErrorNotify(BOB.id, 'whoop_auth', 2), true, 'Bob 不該被壓抑');
+    const life = { expectedLifecycleGeneration: 1 };
+    assert.equal(await db.claimUserErrorNotify(ALICE.id, 'whoop_auth', 2, life), true);
+    assert.equal(await db.claimUserErrorNotify(ALICE.id, 'whoop_auth', 2, life), false, 'Alice 冷卻中');
+    assert.equal(await db.claimUserErrorNotify(BOB.id, 'whoop_auth', 2, life), true, 'Bob 不該被壓抑');
     // 系統層與使用者層互不干擾
     assert.equal(await db.claimGlobalErrorNotify('whoop_auth', 2), true);
   });

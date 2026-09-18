@@ -978,9 +978,13 @@ export function createDb({ url, authToken }) {
     const now = Date.now();
     const nowIso = new Date(now).toISOString();
     const cutoffIso = new Date(now - cooldownHours * 3600_000).toISOString();
-    const life = expectedLifecycleGeneration === null ? null
-      : requireLifecycle(expectedLifecycleGeneration, 'claimErrorNotifyOwned');
-    const uid = scope.startsWith('user:') ? scope.slice(5) : null;
+    const userScoped = scope.startsWith('user:');
+    const uid = userScoped ? requireUserId(scope.slice(5), 'claimErrorNotifyOwned(scope)') : null;
+    // User-facing error evidence belongs to the lifecycle that observed it.
+    // Global/operator evidence has no account lifecycle.
+    const life = userScoped
+      ? requireLifecycle(expectedLifecycleGeneration, 'claimErrorNotifyOwned(user)')
+      : null;
     const active = `(? IS NULL OR EXISTS (SELECT 1 FROM users
       WHERE id = ? AND status = 'ACTIVE' AND lifecycle_generation = ?))`;
     const guard = [life, uid, life];
@@ -1010,9 +1014,9 @@ export function createDb({ url, authToken }) {
     return { granted: false, claimedAt: null };
   }
 
-  /** 舊介面：只關心「我可不可以送」。既有呼叫端（Guardian…）不受影響。 */
-  async function claimErrorNotify(scope, errorType, cooldownHours) {
-    return (await claimErrorNotifyOwned(scope, errorType, cooldownHours)).granted;
+  /** 簡化介面：只回傳是否取得通知權；user scope 仍須明確帶生命週期。 */
+  async function claimErrorNotify(scope, errorType, cooldownHours, options = {}) {
+    return (await claimErrorNotifyOwned(scope, errorType, cooldownHours, options)).granted;
   }
 
   /**
@@ -1034,12 +1038,17 @@ export function createDb({ url, authToken }) {
    */
   async function releaseErrorNotify(scope, errorType, claimedAt, { expectedLifecycleGeneration = null } = {}) {
     if (!scope) throw new Error('releaseErrorNotify 需要 scope');
+    const userScoped = scope.startsWith('user:');
+    if (userScoped) requireUserId(scope.slice(5), 'releaseErrorNotify(scope)');
+    const life = userScoped
+      ? requireLifecycle(expectedLifecycleGeneration, 'releaseErrorNotify(user)')
+      : null;
     if (!claimedAt) return false;
     const rs = await client.execute({
       sql: `DELETE FROM error_notifications
              WHERE scope = ? AND error_type = ? AND last_notified_at = ?
                AND lifecycle_generation IS ?`,
-      args: [scope, errorType, claimedAt, expectedLifecycleGeneration],
+      args: [scope, errorType, claimedAt, life],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -1060,11 +1069,22 @@ export function createDb({ url, authToken }) {
    *
    * 回傳有沒有真的刪掉一列（沒有紀錄可清時是乾淨的 no-op）。
    */
-  async function clearErrorNotify(scope, errorType) {
+  async function clearErrorNotify(scope, errorType, { expectedLifecycleGeneration = null } = {}) {
     if (!scope) throw new Error('clearErrorNotify 需要 scope（global 或 user:<id>）');
+    const userScoped = scope.startsWith('user:');
+    const uid = userScoped ? requireUserId(scope.slice(5), 'clearErrorNotify(scope)') : null;
+    const life = userScoped
+      ? requireLifecycle(expectedLifecycleGeneration, 'clearErrorNotify(user)')
+      : null;
     const rs = await client.execute({
-      sql: 'DELETE FROM error_notifications WHERE scope = ? AND error_type = ?',
-      args: [scope, errorType],
+      sql: `DELETE FROM error_notifications
+             WHERE scope = ? AND error_type = ?
+               AND (? IS NULL OR lifecycle_generation = ?)
+               AND (? IS NULL OR EXISTS (
+                 SELECT 1 FROM users
+                  WHERE id = ? AND status = 'ACTIVE' AND lifecycle_generation = ?
+               ))`,
+      args: [scope, errorType, life, life, life, uid, life],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -1075,11 +1095,23 @@ export function createDb({ url, authToken }) {
    * 唯讀。用來回答「我們有沒有announce過這場故障」——復原通知只有在
    * 真的送出過故障通知時才該送，否則使用者會收到一則莫名其妙的「恢復了」。
    */
-  async function hasErrorNotify(scope, errorType) {
+  async function hasErrorNotify(scope, errorType, { expectedLifecycleGeneration = null } = {}) {
     if (!scope) throw new Error('hasErrorNotify 需要 scope（global 或 user:<id>）');
+    const userScoped = scope.startsWith('user:');
+    const uid = userScoped ? requireUserId(scope.slice(5), 'hasErrorNotify(scope)') : null;
+    const life = userScoped
+      ? requireLifecycle(expectedLifecycleGeneration, 'hasErrorNotify(user)')
+      : null;
     const rs = await client.execute({
-      sql: 'SELECT 1 FROM error_notifications WHERE scope = ? AND error_type = ? LIMIT 1',
-      args: [scope, errorType],
+      sql: `SELECT 1 FROM error_notifications
+             WHERE scope = ? AND error_type = ?
+               AND (? IS NULL OR lifecycle_generation = ?)
+               AND (? IS NULL OR EXISTS (
+                 SELECT 1 FROM users
+                  WHERE id = ? AND status = 'ACTIVE' AND lifecycle_generation = ?
+               ))
+             LIMIT 1`,
+      args: [scope, errorType, life, life, life, uid, life],
     });
     return rs.rows.length > 0;
   }
@@ -1149,8 +1181,13 @@ export function createDb({ url, authToken }) {
   /** 便利包裝：系統層 / 使用者層。 */
   const claimGlobalErrorNotify = (errorType, hours) =>
     claimErrorNotify(GLOBAL_SCOPE, errorType, hours);
-  const claimUserErrorNotify = (userId, errorType, hours) =>
-    claimErrorNotify(userScope(requireUserId(userId, 'claimUserErrorNotify')), errorType, hours);
+  const claimUserErrorNotify = (userId, errorType, hours, { expectedLifecycleGeneration } = {}) =>
+    claimErrorNotify(
+      userScope(requireUserId(userId, 'claimUserErrorNotify')),
+      errorType,
+      hours,
+      { expectedLifecycleGeneration },
+    );
 
   // ----- 跨 process lease lock (A1) --------------------------------------
   /**
@@ -1578,8 +1615,12 @@ export function createDb({ url, authToken }) {
     hasErrorNotify,
     recordBriefingEvaluation,
     getBriefingEvaluation,
-    clearUserErrorNotify: (userId, errorType) =>
-      clearErrorNotify(userScope(requireUserId(userId, 'clearUserErrorNotify')), errorType),
+    clearUserErrorNotify: (userId, errorType, { expectedLifecycleGeneration } = {}) =>
+      clearErrorNotify(
+        userScope(requireUserId(userId, 'clearUserErrorNotify')),
+        errorType,
+        { expectedLifecycleGeneration },
+      ),
     claimGlobalErrorNotify,
     claimUserErrorNotify,
     // 全域 lock（鎖名要自己帶 user）

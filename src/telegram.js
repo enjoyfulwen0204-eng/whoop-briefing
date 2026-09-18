@@ -182,7 +182,9 @@ export function createTelegram({
         // 有 owned 版本就用它 —— 送失敗時才有辦法「只還自己那一次」的認領。
         claim = typeof db.claimErrorNotifyOwned === 'function'
           ? await db.claimErrorNotifyOwned(errorScope, errorType, hours, { expectedLifecycleGeneration })
-          : { granted: await db.claimErrorNotify(errorScope, errorType, hours), claimedAt: null };
+          : { granted: await db.claimErrorNotify(
+            errorScope, errorType, hours, { expectedLifecycleGeneration },
+          ), claimedAt: null };
         if (!claim.granted) {
           log.info('error_notify_suppressed', {
             scope: errorScope, error_type: errorType, cooldown_hours: hours,

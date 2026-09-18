@@ -513,8 +513,12 @@ test('gatherFacts 讀得到心跳、同步時間、卡住的事件與授權失�
     }, { now: sentAt });
 
     // 授權失敗次數：用既有的 claimErrorNotify 累積
-    await db.claimErrorNotify(userScope(ALICE.id), 'whoop_auth', 2);
-    await db.claimErrorNotify(userScope(ALICE.id), 'whoop_auth', 2);
+    await db.claimErrorNotify(userScope(ALICE.id), 'whoop_auth', 2, {
+      expectedLifecycleGeneration: 1,
+    });
+    await db.claimErrorNotify(userScope(ALICE.id), 'whoop_auth', 2, {
+      expectedLifecycleGeneration: 1,
+    });
 
     const facts = await gatherFacts({ db, now: NOW });
     const alice = facts.users.find((u) => u.userId === ALICE.id);

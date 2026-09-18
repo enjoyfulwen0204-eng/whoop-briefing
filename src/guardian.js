@@ -277,7 +277,9 @@ export async function gatherFacts({ db, now = new Date() }) {
     } catch { /* 查不到就當作沒有卡住的事件 */ }
 
     try {
-      const notif = await db.getErrorNotification(userScope(uid), 'whoop_auth');
+      const notif = await db.getErrorNotification(userScope(uid), 'whoop_auth', {
+        expectedLifecycleGeneration: fact.lifecycleGeneration,
+      });
       fact.whoopAuthFailures = notif?.hits ?? 0;
       // M-08：失敗發生在什麼時候，才判斷得出來「後來有沒有恢復」
       fact.whoopAuthFailureAt = notif?.lastNotifiedAt ?? null;
@@ -365,9 +367,11 @@ export async function runGuardian({
         claim = typeof db.claimErrorNotifyOwned === 'function'
           ? await db.claimErrorNotifyOwned(
             f.scope, cooldownKey, GUARDIAN_POLICY.NOTIFY_COOLDOWN_HOURS,
+            { expectedLifecycleGeneration: userScoped ? f.lifecycleGeneration : null },
           )
           : { granted: await db.claimErrorNotify(
             f.scope, cooldownKey, GUARDIAN_POLICY.NOTIFY_COOLDOWN_HOURS,
+            { expectedLifecycleGeneration: userScoped ? f.lifecycleGeneration : null },
           ), claimedAt: null };
       } catch {
         claim = { granted: false, claimedAt: null }; // 冷卻查不到就不發，寧可漏一則也不要洗版
@@ -380,7 +384,9 @@ export async function runGuardian({
       } else if (userScoped && claim.claimedAt && typeof db.releaseErrorNotify === 'function') {
         // 沒送出去（啟用授權在最後一刻擋下、或沒有可達的 chat）→ 還回冷卻，
         // 新的啟用期才不會被一則沒人看到的訊息擋住。
-        await db.releaseErrorNotify(f.scope, cooldownKey, claim.claimedAt)
+        await db.releaseErrorNotify(f.scope, cooldownKey, claim.claimedAt, {
+          expectedLifecycleGeneration: f.lifecycleGeneration,
+        })
           .catch(() => {});
         log.info('guardian_cooldown_released', { signal: f.signal });
       }

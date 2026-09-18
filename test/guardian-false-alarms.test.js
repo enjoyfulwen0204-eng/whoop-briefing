@@ -159,7 +159,9 @@ test('★★ M-07: markProactiveEventSent 冪等，不覆寫已有的結論', as
 
 /** 造一筆「授權在 failedAt 連續失敗 3 次」的紀錄。 */
 async function seedAuthFailures(db, uid, failedAt) {
-  for (let i = 0; i < 3; i += 1) await db.claimUserErrorNotify(uid, 'whoop_auth', 12);
+  for (let i = 0; i < 3; i += 1) {
+    await db.claimUserErrorNotify(uid, 'whoop_auth', 12, { expectedLifecycleGeneration: 1 });
+  }
   // claimErrorNotify 沒有可注入的時鐘，直接把時間改成我們要的
   await db.raw.execute({
     sql: 'UPDATE error_notifications SET last_notified_at = ?, hits = 3 WHERE scope = ?',
@@ -196,11 +198,17 @@ test('★★★ M-08: 還沒恢復（失敗比最後一次成功同步新）→ 
 test('★★★ M-08: 拿到 token 時清掉失敗紀錄（clearUserErrorNotify）', async () => {
   await withUser(async (db, uid) => {
     await seedAuthFailures(db, uid, '2026-09-09T00:00:00.000Z');
-    assert.equal((await db.getErrorNotification(userScope(uid), 'whoop_auth')).hits, 3);
+    assert.equal((await db.getErrorNotification(userScope(uid), 'whoop_auth', {
+      expectedLifecycleGeneration: 1,
+    })).hits, 3);
 
-    const cleared = await db.clearUserErrorNotify(uid, 'whoop_auth');
+    const cleared = await db.clearUserErrorNotify(uid, 'whoop_auth', {
+      expectedLifecycleGeneration: 1,
+    });
     assert.equal(cleared, true);
-    assert.equal(await db.getErrorNotification(userScope(uid), 'whoop_auth'), null);
+    assert.equal(await db.getErrorNotification(userScope(uid), 'whoop_auth', {
+      expectedLifecycleGeneration: 1,
+    }), null);
 
     const { signals } = await signalsFrom(db);
     assert.ok(!signals.includes(GUARDIAN_SIGNAL.WHOOP_AUTH_REPEATED_FAILURE));
@@ -209,22 +217,30 @@ test('★★★ M-08: 拿到 token 時清掉失敗紀錄（clearUserErrorNotify�
 
 test('★★ M-08: 沒有紀錄可清時是乾淨的 no-op', async () => {
   await withUser(async (db, uid) => {
-    assert.equal(await db.clearUserErrorNotify(uid, 'whoop_auth'), false);
+    assert.equal(await db.clearUserErrorNotify(uid, 'whoop_auth', {
+      expectedLifecycleGeneration: 1,
+    }), false);
   });
 });
 
 test('★★★ M-08: 清除只影響這個使用者、這個錯誤類型', async () => {
   await withUser(async (db, uid) => {
     const other = await db.createUser({ displayName: 'B' });
-    await db.claimUserErrorNotify(uid, 'whoop_auth', 12);
-    await db.claimUserErrorNotify(uid, 'sync', 12);
-    await db.claimUserErrorNotify(other.id, 'whoop_auth', 12);
+    await db.claimUserErrorNotify(uid, 'whoop_auth', 12, { expectedLifecycleGeneration: 1 });
+    await db.claimUserErrorNotify(uid, 'sync', 12, { expectedLifecycleGeneration: 1 });
+    await db.claimUserErrorNotify(other.id, 'whoop_auth', 12, { expectedLifecycleGeneration: 1 });
 
-    await db.clearUserErrorNotify(uid, 'whoop_auth');
+    await db.clearUserErrorNotify(uid, 'whoop_auth', { expectedLifecycleGeneration: 1 });
 
-    assert.equal(await db.getErrorNotification(userScope(uid), 'whoop_auth'), null);
-    assert.ok(await db.getErrorNotification(userScope(uid), 'sync'), '★ 別的錯誤類型不可以被清掉');
-    assert.ok(await db.getErrorNotification(userScope(other.id), 'whoop_auth'),
+    assert.equal(await db.getErrorNotification(userScope(uid), 'whoop_auth', {
+      expectedLifecycleGeneration: 1,
+    }), null);
+    assert.ok(await db.getErrorNotification(userScope(uid), 'sync', {
+      expectedLifecycleGeneration: 1,
+    }), '★ 別的錯誤類型不可以被清掉');
+    assert.ok(await db.getErrorNotification(userScope(other.id), 'whoop_auth', {
+      expectedLifecycleGeneration: 1,
+    }),
       '★ 別人的紀錄不可以被清掉');
   });
 });

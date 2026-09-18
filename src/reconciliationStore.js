@@ -32,6 +32,26 @@ const LIFECYCLE_PREDICATE = `(? IS NULL OR EXISTS (
 ))`;
 const lifecycleArgs = (uid, generation) => [generation, uid, generation];
 
+// Diagnostics are reconciliation output too. Normal workers must still own the
+// exact per-user/per-state-resource lease when the diagnostic statement commits.
+// The base diagnostic resource (`sleep`) may use either its FAST state key
+// (`sleep`) or its explicit DEEP key (`sleep/deep`); no other pairing is valid.
+const RECONCILIATION_OWNERSHIP_PREDICATE = `EXISTS (
+  SELECT 1 FROM whoop_reconciliation_state diagnostic_owner
+   WHERE diagnostic_owner.user_id = ?
+     AND diagnostic_owner.resource = ?
+     AND diagnostic_owner.owner = ?
+     AND diagnostic_owner.lease_expires_at > ?
+)`;
+const ownershipArgs = (uid, stateResource, owner, nowIso) => [
+  uid, stateResource, String(owner), nowIso,
+];
+const ownsDiagnosticResource = (resource, stateResource) => {
+  const base = String(resource);
+  const state = String(stateResource ?? '');
+  return state === base || state === `${base}/deep`;
+};
+
 export function createReconciliationStore(client) {
   const rowToState = (r) => (r ? {
     userId: String(r.user_id),
@@ -298,9 +318,10 @@ export function createReconciliationStore(client) {
   /** 記一筆差異。同一個 (user, resource, id, kind) 只有一列，重複看到就累加。 */
   async function recordDiscrepancy({
     userId, resource, resourceId, kind, windowFrom = null, windowTo = null, now = new Date(),
-    lifecycleGeneration = null,
+    lifecycleGeneration = null, owner = null, reconciliationResource = null,
   }) {
     const uid = requireUserId(userId, 'recordDiscrepancy');
+    if (!owner || !ownsDiagnosticResource(resource, reconciliationResource)) return false;
     const nowIso = iso(now);
     const rs = await client.execute({
       sql: `INSERT INTO whoop_reconciliation_discrepancies
@@ -308,6 +329,7 @@ export function createReconciliationStore(client) {
                window_from, window_to)
             SELECT ?, ?, ?, ?, ?, ?, 1, ?, ?
              WHERE ${LIFECYCLE_PREDICATE}
+               AND ${RECONCILIATION_OWNERSHIP_PREDICATE}
             ON CONFLICT(user_id, resource, resource_id, kind) DO UPDATE SET
               last_seen_at = excluded.last_seen_at,
               seen_count = whoop_reconciliation_discrepancies.seen_count + 1,
@@ -315,7 +337,8 @@ export function createReconciliationStore(client) {
               window_to = excluded.window_to`,
       args: [uid, resource, String(resourceId), kind, nowIso, nowIso,
         windowFrom ? iso(windowFrom) : null, windowTo ? iso(windowTo) : null,
-        ...lifecycleArgs(uid, lifecycleGeneration)],
+        ...lifecycleArgs(uid, lifecycleGeneration),
+        ...ownershipArgs(uid, reconciliationResource, owner, nowIso)],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -368,21 +391,25 @@ export function createReconciliationStore(client) {
    */
   async function recordTombstoneVerdict({
     userId, resourceType, resourceId, verdict, remoteUpdatedAt = null, now = new Date(),
-    lifecycleGeneration = null,
+    lifecycleGeneration = null, owner = null, reconciliationResource = null,
   }) {
     const uid = requireUserId(userId, 'recordTombstoneVerdict');
     if (!Object.values(TOMBSTONE_RECONCILE_VERDICT).includes(verdict)) {
       throw new Error(`invalid_tombstone_verdict:${verdict}`);
     }
+    if (!owner || !ownsDiagnosticResource(resourceType, reconciliationResource)) return false;
+    const nowIso = iso(now);
     const rs = await client.execute({
       sql: `UPDATE whoop_resource_tombstones
                SET reconcile_checked_at = ?, reconcile_verdict = ?, reconcile_remote_updated_at = ?,
                    updated_at = ?
              WHERE user_id = ? AND resource_type = ? AND resource_id = ? AND state = ?
-               AND ${LIFECYCLE_PREDICATE}`,
-      args: [iso(now), verdict, remoteUpdatedAt, iso(now),
+               AND ${LIFECYCLE_PREDICATE}
+               AND ${RECONCILIATION_OWNERSHIP_PREDICATE}`,
+      args: [nowIso, verdict, remoteUpdatedAt, nowIso,
         uid, resourceType, String(resourceId), TOMBSTONE_STATE.ACTIVE,
-        ...lifecycleArgs(uid, lifecycleGeneration)],
+        ...lifecycleArgs(uid, lifecycleGeneration),
+        ...ownershipArgs(uid, reconciliationResource, owner, nowIso)],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }

@@ -60,7 +60,7 @@ import { WHOOP_RECONCILE, WHOOP } from './config.js';
 import { RECONCILE_RESULT, TOMBSTONE_RECONCILE_VERDICT, DISCREPANCY_KIND } from './schema.js';
 import { WhoopApiError, WhoopAuthError, isScopeError } from './whoop.js';
 import { requireUserId } from './userContext.js';
-import { AccountInactiveError, isAccountInactiveError, requireLifecycle } from './accountLifecycle.js';
+import { isAccountInactiveError, requireLifecycle } from './accountLifecycle.js';
 import { log, describeError } from './logger.js';
 
 const DAY_MS = 86_400_000;
@@ -344,7 +344,7 @@ export function createReconciler({
    * 差異偵測：**只在窗於同一輪、從第一頁完整抓完時**（P2-R04），
    * 而且**只記錄、不刪除**。
    */
-  async function recordMissingRemote(resource, spec, window, remoteIds) {
+  async function recordMissingRemote(resource, reconciliationResource, spec, window, remoteIds) {
     const local = await localIdsInWindow(spec, window);
     let n = 0;
     for (const id of local) {
@@ -352,9 +352,9 @@ export function createReconciler({
       const recorded = await db.recordDiscrepancy({
         userId: uid, resource, resourceId: id, kind: DISCREPANCY_KIND.MISSING_REMOTE,
         windowFrom: window.from, windowTo: window.to, now: at(),
-        lifecycleGeneration: lifecycleFence,
+        lifecycleGeneration: lifecycleFence, owner, reconciliationResource,
       });
-      if (!recorded) throw new AccountInactiveError(uid);
+      if (!recorded) throw new Error('reconcile_ownership_lost');
       n += 1;
     }
     if (n) log.warn('reconcile_missing_remote_recorded', { user_id: uid, resource, count: n });
@@ -367,7 +367,7 @@ export function createReconciler({
    * sleep / workout 有單筆端點：404 → STILL_DELETED；200 → REMOTE_PRESENT_UNRESOLVED。
    * recovery 沒有：只能看這一輪的窗有沒有觀察到它。
    */
-  async function inspectTombstones(resource, spec, remoteById) {
+  async function inspectTombstones(resource, reconciliationResource, spec, remoteById) {
     if (!spec.tombstoned) return { checked: 0, unresolved: 0 };
     const due = await db.tombstonesDueForCheck(uid, resource, {
       recheckMs: WHOOP_RECONCILE.TOMBSTONE_RECHECK_MS,
@@ -395,8 +395,9 @@ export function createReconciler({
         userId: uid, resourceType: resource, resourceId: t.resourceId,
         verdict, remoteUpdatedAt: remoteUpdatedAt ? new Date(remoteUpdatedAt).toISOString() : null,
         now: at(), lifecycleGeneration: lifecycleFence,
+        owner, reconciliationResource,
       });
-      if (!recorded) throw new AccountInactiveError(uid);
+      if (!recorded) throw new Error('reconcile_ownership_lost');
       if (verdict === TOMBSTONE_RECONCILE_VERDICT.REMOTE_PRESENT_UNRESOLVED) {
         unresolved += 1;
         // 這是 Phase 2 刻意不解決的情況：資源在遠端存在，但我們沒有來源時序
@@ -528,11 +529,13 @@ export function createReconciler({
         if (window.resumed) {
           log.info('reconcile_absence_skipped_resumed_window', { user_id: uid, resource: key });
         } else {
-          counters.missing = await recordMissingRemote(resource, spec, window, new Set(remoteById.keys()));
+          counters.missing = await recordMissingRemote(
+            resource, key, spec, window, new Set(remoteById.keys()),
+          );
         }
         // 墓碑的單筆 GET 診斷只在快路徑做（深度路徑的預算留給歷史切片）。
         if (!isDeep) {
-          const tomb = await inspectTombstones(resource, spec, remoteById);
+          const tomb = await inspectTombstones(resource, key, spec, remoteById);
           counters.tombstonesChecked = tomb.checked;
           counters.tombstonesUnresolved = tomb.unresolved;
         }

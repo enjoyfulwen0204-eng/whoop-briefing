@@ -502,7 +502,14 @@ polling 共用同一份 —— 認領、PROCESSING 圍欄、動作與收據同�
 |---|---|
 | `POST /telegram/webhook` | Telegram 入站。認證靠 `X-Telegram-Bot-Api-Secret-Token`。 |
 | `POST /whoop/webhook` | WHOOP 入站（V1.2 Phase 1）。認證靠官方的 `X-WHOOP-Signature` HMAC，與 Telegram **完全獨立**。**正式環境預設關閉**（關閉時回 404）。見 [docs/whoop-webhook.md](docs/whoop-webhook.md)。 |
-| `GET /health` | Render 健康檢查。只回 `{"ok":true,"service":"telegram-webhook"}`，不碰 DB。 |
+| `GET /health` | Render process liveness；回應包含 `{"ok":true,"service":"telegram-webhook","scheduler":"enabled|incomplete|weak_secret|disabled"}`，不碰 DB。HTTP 200 本身不代表 scheduler 可用。 |
+| `POST /internal/briefing/run` | Cloudflare 主排程的 HMAC 驗證入口。scheduler 設定不完整時 fail closed 為 `503 scheduler_unavailable`。 |
+
+正式環境的 scheduler readiness 必須在 `/health` JSON 看到
+`"scheduler":"enabled"`。HTTP 200 只證明共享 Render Web Service process 還活著；
+`incomplete`、`weak_secret`、`disabled` 都表示 canonical scheduler 尚不可用。部署驗證
+依 [`docs/cloudflare-briefing-runbook.md`](docs/cloudflare-briefing-runbook.md) 觀察自然產生的
+已驗證 scheduler invocation；不要手動觸發真實簡報作為 smoke test。
 
 路徑本身不是祕密 —— 認證靠 secret 標頭，而且在任何業務處理**之前**就驗。
 

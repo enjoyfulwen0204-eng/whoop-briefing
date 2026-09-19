@@ -98,7 +98,7 @@ test('Telegram 掛掉 → 回 failed 但不拋錯（不能影響簡報）', asyn
     db: fakeDb(), telegram, now: NOW, lastCommitAt: agoDays(56),
   });
   assert.equal(res.status, 'failed');
-  assert.match(res.error, /Telegram 500/);
+  assert.equal(res.error, 'OPERATION_FAILED');
 });
 
 test('DB 掛掉 → 回 failed 但不拋錯', async () => {

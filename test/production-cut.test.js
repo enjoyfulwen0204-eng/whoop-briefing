@@ -148,11 +148,11 @@ for (const crash of ['claimed', 'processing', 'during_dispatch', 'after_commit',
 test('v6 additive migration preserves populated replay rows and operation receipt across restart', () => setup(async (db, url) => {
   await db.claimTelegramUpdate(500, { owner: 'a', now: AT });
   await db.markTelegramUpdateProcessing(500, { owner: 'a', now: AT });
-  await db.processTelegramOperation(500, { owner: 'a', now: () => AT }, async () => { await journal(db); return { reply: 'saved' }; });
+  await db.processTelegramOperation(500, { owner: 'a', ownerUserId: 'alice', now: () => AT }, async () => { await journal(db); return { reply: 'saved' }; });
   await db.migrate(); await db.migrate();
   const restarted = createDb({ url });
   try {
-    const result = await restarted.processTelegramOperation(500, { owner: 'a', now: () => AT }, async () => { throw new Error('must not replay'); });
+    const result = await restarted.processTelegramOperation(500, { owner: 'a', ownerUserId: 'alice', now: () => AT }, async () => { throw new Error('must not replay'); });
     assert.deepEqual(result, { reply: 'saved' }); assert.equal((await journals(db)).length, 1);
   } finally { restarted.close(); }
 }));
@@ -164,17 +164,21 @@ test('ambiguous operation commit response replays receipt without duplicate acti
   let inject = true;
   db.raw.transaction = async (...args) => {
     const tx = await original(...args), commit = tx.commit.bind(tx);
-    tx.commit = async () => { await commit(); if (inject) { inject = false; throw new Error('commit succeeded, response lost'); } };
+    tx.commit = async () => {
+      const hasAction=(await tx.execute('SELECT 1 FROM telegram_operations WHERE update_id=500')).rows.length>0;
+      await commit();
+      if (inject && hasAction) { inject = false; throw new Error('commit succeeded, response lost'); }
+    };
     return tx;
   };
-  await assert.rejects(db.processTelegramOperation(500, { owner: 'first', now: () => AT }, async () => {
+  await assert.rejects(db.processTelegramOperation(500, { owner: 'first', ownerUserId: 'alice', now: () => AT }, async () => {
     await journal(db); return { userId: 'alice', reply: 'saved' };
   }));
   db.raw.transaction = original;
   const later = new Date(+AT + 3600000);
   await db.claimTelegramUpdate(500, { owner: 'second', now: later });
   await db.markTelegramUpdateProcessing(500, { owner: 'second', now: later });
-  const result = await db.processTelegramOperation(500, { owner: 'second', now: () => later }, async () => { throw new Error('duplicate action'); });
+  const result = await db.processTelegramOperation(500, { owner: 'second', ownerUserId: 'alice', now: () => later }, async () => { throw new Error('duplicate action'); });
   assert.equal(result.userId, 'alice'); assert.equal((await journals(db)).length, 1);
 }));
 

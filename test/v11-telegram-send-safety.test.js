@@ -210,10 +210,11 @@ async function seedProcessing(db, { updateId, conversationKey, owner, leaseMs = 
   });
   await db.raw.execute({
     sql: `INSERT INTO telegram_operations
-            (update_id, result_json, committed_at, delivery_state, delivery_attempts)
-          VALUES (?, ?, ?, ?, 0)`,
+            (update_id, result_json, committed_at, delivery_state, delivery_attempts,
+             content_state,source_linkage_state,privacy_artifact_id,source_update_key)
+          VALUES (?, ?, ?, ?, 0,'PRESENT','COMPLETE',?,?)`,
     args: [updateId, JSON.stringify({ reply: 'hi' }), new Date().toISOString(),
-      TELEGRAM_DELIVERY_STATE.ACTION_READY],
+      TELEGRAM_DELIVERY_STATE.ACTION_READY,`synthetic-non-health:${updateId}`,String(updateId)],
   });
 }
 

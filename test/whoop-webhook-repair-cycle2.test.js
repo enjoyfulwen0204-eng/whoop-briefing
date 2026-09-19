@@ -104,8 +104,14 @@ function installPauseBeforeCanonicalWrite(db) {
   const orig = db.raw.transaction;
   db.raw.transaction = async (...a) => {
     const tx = await orig(...a);
-    const batch = tx.batch.bind(tx);
-    tx.batch = async (...b) => { signal(); await gate; return batch(...b); };
+    const execute = tx.execute.bind(tx);
+    tx.execute = async (statement, ...rest) => {
+      const sql=typeof statement==='string'?statement:statement.sql;
+      // The privacy adapter classifies each write in this same transaction;
+      // pause at the actual canonical SQL, independent of batch mechanics.
+      if(/^\s*INSERT INTO whoop_(sleeps|recoveries|cycles|workouts)\b/i.test(sql)) {signal();await gate;}
+      return execute(statement,...rest);
+    };
     return tx;
   };
   return { paused, release, restore: () => { db.raw.transaction = orig; } };

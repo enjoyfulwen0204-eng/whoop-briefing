@@ -67,7 +67,7 @@ export function createReconciliationStore(client) {
     lastSuccessAt: r.last_success_at ?? null,
     lastFailureAt: r.last_failure_at ?? null,
     lastErrorClass: r.last_error_class ?? null,
-    lastErrorDetail: r.last_error_detail ?? null,
+    lastErrorDetail: null,
     consecutiveFailures: Number(r.consecutive_failures ?? 0),
     nextAttemptAt: r.next_attempt_at ?? null,
   } : null);
@@ -250,7 +250,7 @@ export function createReconciliationStore(client) {
                      next_attempt_at = ?, updated_at = ?
                WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ?
                  AND ${LIFECYCLE_PREDICATE}`,
-        args: [nowIso, errorClass, errorDetail ? String(errorDetail).slice(0, 300) : null,
+        args: [nowIso, errorClass, null,
           nextAttemptAt ? iso(nextAttemptAt) : null, nowIso,
           uid, resource, String(owner), nowIso,
           ...lifecycleArgs(uid, lifecycleGeneration)],
@@ -276,18 +276,19 @@ export function createReconciliationStore(client) {
     return Number(rs.lastInsertRowid ?? 0);
   }
 
-  async function closeReconciliationRun(runId, {
+  async function closeReconciliationRun(userId, runId, {
     result, pages = 0, fetched = 0, written = 0, blocked = 0,
     errorClass = null, errorDetail = null, retryable = null, now = new Date(),
   }) {
+    const uid=requireUserId(userId,'closeReconciliationRun');
     await client.execute({
       sql: `UPDATE whoop_reconciliation_runs
                SET finished_at = ?, result = ?, pages = ?, fetched = ?, written = ?, blocked = ?,
                    error_class = ?, error_detail = ?, retryable = ?
-             WHERE id = ?`,
+             WHERE user_id = ? AND id = ?`,
       args: [iso(now), result, pages, fetched, written, blocked,
-        errorClass, errorDetail ? String(errorDetail).slice(0, 300) : null,
-        retryable === null ? null : (retryable ? 1 : 0), Number(runId)],
+        errorClass, null,
+        retryable === null ? null : (retryable ? 1 : 0), uid, Number(runId)],
     });
   }
 
@@ -309,7 +310,7 @@ export function createReconciliationStore(client) {
       startedAt: r.started_at, finishedAt: r.finished_at ?? null, result: r.result ?? null,
       pages: Number(r.pages ?? 0), fetched: Number(r.fetched ?? 0),
       written: Number(r.written ?? 0), blocked: Number(r.blocked ?? 0),
-      errorClass: r.error_class ?? null, errorDetail: r.error_detail ?? null,
+      errorClass: r.error_class ?? null, errorDetail: null,
       retryable: r.retryable === null || r.retryable === undefined ? null : Number(r.retryable) === 1,
     }));
   }

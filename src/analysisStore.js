@@ -511,7 +511,7 @@ export function createAnalysisStore(client) {
         u.inputTokens ?? null, u.outputTokens ?? null, u.totalTokens ?? null,
         u.estimatedCostUsd ?? null, u.pricingVersion ?? null,
         u.requestStatus, u.latencyMs ?? null,
-        u.detail ? String(u.detail).slice(0, 300) : null,
+        null, // Token/cost metadata only; prompts and provider diagnostics are not a usage field.
       ],
     });
     return Number(rs.lastInsertRowid ?? 0);
@@ -526,7 +526,7 @@ export function createAnalysisStore(client) {
              ORDER BY timestamp DESC LIMIT ?`,
       args: [uid, fromIso, toIso, limit],
     });
-    return rowsOf(rs);
+    return rowsOf(rs).map(row=>({...row,detail:null}));
   }
 
   async function countAiUsage(userId) {

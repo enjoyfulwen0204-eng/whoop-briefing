@@ -381,7 +381,7 @@ export function createUpdateProcessor({
     // 記憶體的 lane lock 仍然在（它便宜），但權威是這一句 SQL。
     if (typeof db.markDeliveryStarted === 'function') {
       const started = await db.markDeliveryStarted(updateId, {
-        owner: attemptId, conversationKey, now: now(),
+        owner: attemptId, conversationKey, replyContext:result,now: now(),
       });
       if (!started) {
         // 失去所有權 / 失去排序權 / 已經有人送過。一律**不送**。
@@ -436,7 +436,20 @@ export function createUpdateProcessor({
    * 同一則 update 的併發呼叫（不論同一個 process 還是不同實例）由**資料庫**
    * 決定誰贏。這裡刻意沒有任何記憶體層的合流：正確性不可以依賴記憶體。
    */
+  const localConversations=new Set();
   async function processUpdate(update) {
+    const key=conversationKeyOf(update);
+    // This is only a fast negative gate, never processing/sending authority.
+    // The durable claim/order/lease checks below remain mandatory across
+    // processes. A second local request must not wait behind a transaction
+    // whose handler is awaiting the first request's completion.
+    if(key&&localConversations.has(key))return {outcome:UPDATE_OUTCOME.RETRY,
+      updateId:Number(update?.update_id),reason:'conversation_busy',replied:false};
+    if(key)localConversations.add(key);
+    try {return await processClaimedUpdate(update);}
+    finally {if(key)localConversations.delete(key);}
+  }
+  async function processClaimedUpdate(update) {
     const updateId = Number(update?.update_id);
     if (!Number.isFinite(updateId)) {
       return { outcome: UPDATE_OUTCOME.INVALID, updateId: null, reason: 'bad_update_id', replied: false };
@@ -473,6 +486,25 @@ export function createUpdateProcessor({
       claimed = true;
     }
 
+    // Privacy replay is checked before identity routing, typing, Q&A, source
+    // actions or scheduling, including when processed-update rows were pruned.
+    if(typeof db.getRedactedTelegramReplay==='function') {
+      try {
+        const redacted=await db.getRedactedTelegramReplay(updateId);
+        if(redacted) {
+          if(claimed) {
+            if(!await db.markTelegramUpdateProcessing(updateId,{owner:attemptId,now:now()}))
+              return {outcome:UPDATE_OUTCOME.RETRY,updateId,reason:'dispatch_fence',replied:false};
+            if(!await db.completeTelegramUpdate(updateId,{owner:attemptId,now:now()}))
+              return {outcome:UPDATE_OUTCOME.RETRY,updateId,reason:'completion_fence',replied:false};
+          }
+          return {outcome:UPDATE_OUTCOME.REPLAYED,updateId,reason:'HEALTH_CONTENT_REDACTED',replied:false};
+        }
+      } catch {
+        return {outcome:UPDATE_OUTCOME.RETRY,updateId,reason:'privacy_state_unavailable',replied:false};
+      }
+    }
+
     // ---- 對話通道：同一個對話一次一則，而且不可以超車 ----
     //
     // 對話身分已經在**認領那一筆**就落地了（見 claimWithRetry），所以這裡
@@ -493,7 +525,7 @@ export function createUpdateProcessor({
     // ---- 現在才解析內部身分（唯讀，而且已經在通道保護之下）----
     const c = await classify(update);
 
-    let ignored = false;
+    let ignored = false,healthResult=null;
     try {
       if (claimed) {
         // ★ CLAIMED → PROCESSING，就在動作交易之前。
@@ -568,13 +600,15 @@ export function createUpdateProcessor({
       // 動作與收據共用同一個交易。提交之後重播會拿回存起來的回覆，
       // 不會把動作再做一次。
       const execute = () => claimed && db.processTelegramOperation
-        ? db.processTelegramOperation(updateId, { owner: attemptId, now }, dispatch)
+        ? db.processTelegramOperation(updateId, { owner: attemptId, ownerUserId:c.kind==='ok'?c.user.id:null,
+          nonHealthOperation:c.kind!=='ok',now }, dispatch)
         : dispatch();
       const typingEligible = c.kind === 'ok' && isNaturalLanguage(c.text);
       const startup = typingEligible ? claimStartupFeedback() : false;
       const result = typingEligible
         ? await withTyping(c, startup, execute)
         : await execute();
+      healthResult=result;
 
       let replied = false;
       let ambiguous = false;
@@ -642,7 +676,9 @@ export function createUpdateProcessor({
       });
       return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'processing_failed', replied: false };
     } finally {
-      await leaveConversationLane(lane);
+      try {
+        if(typeof db.releaseTelegramReply==='function')await db.releaseTelegramReply(healthResult);
+      } finally { await leaveConversationLane(lane); }
     }
   }
 

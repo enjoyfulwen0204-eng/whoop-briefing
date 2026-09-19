@@ -37,6 +37,14 @@ import { createProactiveStore } from './proactiveStore.js';
 import { createGuardianStore } from './guardianStore.js';
 import { log } from './logger.js';
 import { processingTransactions } from './processingTransaction.js';
+import { legacyPrivacyFence } from './legacyPrivacyFence.js';
+import { addPrivacyLink, REDACTED_RECEIPT } from './phase4V22Backfill.js';
+import { readableRow, fail } from './phase4Core.js';
+import { requirePhase4Keys } from './phase4Keys.js';
+import { createLegacyHealthAdapter } from './legacyHealthAdapter.js';
+import { createPhase4QueueStore } from './phase4QueueStore.js';
+import { createPhase4Foundation } from './phase4Foundation.js';
+import { legacyExperimentAdapter } from './legacyExperimentAdapter.js';
 
 // SCHEMA 定義集中在 schema.js（唯一 DDL 來源）。這裡 re-export 維持既有 import 路徑。
 export { SCHEMA } from './schema.js';
@@ -53,12 +61,31 @@ export function isDuplicateSentError(err) {
 }
 
 export function createDb({ url, authToken, phase4Keys }) {
-  const processing = processingTransactions(createClient({ url, authToken }));
-  const { client } = processing;
-  const health = createHealthStore(client, { transaction: processing.transaction });
+  return composeDb(createClient({ url, authToken }), { phase4Keys });
+}
+
+/** Internal composition seam: tests can own a named, shared-cache in-memory
+ * connection without changing the application's URL/credential factory. */
+export function composeDb(baseClient, { phase4Keys } = {}) {
+  const processing = processingTransactions(baseClient);
+  const transactionClient=processing.client;
+  const privacy=legacyPrivacyFence(transactionClient,phase4Keys);
+  const replyContexts=new WeakMap();
+  const compatibility=createLegacyHealthAdapter({client:transactionClient,processing,privacy,keys:phase4Keys});
+  const client=compatibility.client;
+  const phase4Queue=createPhase4QueueStore({client,processing,transaction:processing.transaction,keys:phase4Keys,timestamp:()=>new Date().toISOString()});
+  let foundationStore;
+  async function privacyFoundation() {
+    if(!foundationStore)foundationStore=createPhase4Foundation({db:{raw:client,transaction:processing.transaction,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit},keys:phase4Keys});
+    try {return await foundationStore;} catch(error) {foundationStore=null;throw error;}
+  }
+  const health = compatibility.wrap(createHealthStore(compatibility.client, { transaction: processing.transaction }));
   const webhook = createWhoopWebhookStore(client);
   // 輸出寫入走 processing.transaction 的所有權圍欄（F01）。
-  const analytics = createAnalyticsWorkStore(client, { transaction: processing.transaction, privacyKeys: phase4Keys });
+  const analytics = compatibility.wrap(createAnalyticsWorkStore(compatibility.client, { transaction: processing.transaction, privacyKeys: phase4Keys }),
+    ['markAnalyticsDirty','getAnalyticsInvalidation','getAnalyticsWorkState','claimAnalyticsWork','setAnalyticsRange','advanceAnalyticsRange',
+      'mutateForAnalytics','settleAnalyticsWork','releaseAnalyticsWork','holdsAnalyticsWork','getAnalyticsFreshness','saveAnalyticsDailyState',
+      'getAnalyticsDailyState','openAnalyticsRun','recentAnalyticsRuns']);
 
   async function withAnswerOwnership(userId, ownership, now, fn) {
     const uid = requireUserId(userId, 'withAnswerOwnership');
@@ -90,9 +117,14 @@ export function createDb({ url, authToken, phase4Keys }) {
    * 收據一併帶上送達狀態的起點：有回覆就是 ACTION_READY（可以安全地送），
    * 沒有回覆就是 NOT_REQUIRED（本來就不需要送）。
    */
-  async function processTelegramOperation(updateId, { owner, now = () => new Date() }, fn) {
+  async function processTelegramOperation(updateId, { owner, ownerUserId=null, nonHealthOperation=false, now = () => new Date() }, fn) {
     const id = Number(updateId);
     if (!Number.isSafeInteger(id) || id < 0) throw new Error('invalid_update_id');
+    if(processing.active())fail('PHASE4_TELEGRAM_OPERATION_MUST_BE_ROOT');
+    const replay=await getRedactedTelegramReplay(id);if(replay)return replay;
+    const operationFence=ownerUserId?await processing.transaction(async()=>{
+      const captured=await privacy.capture(ownerUserId);await privacy.track(captured);return captured;
+    }):null;
     const check = async () => {
       const r = await client.execute({
         sql: `SELECT update_id FROM telegram_processed_updates
@@ -100,14 +132,36 @@ export function createDb({ url, authToken, phase4Keys }) {
         args: [id, owner, new Date(now()).toISOString()],
       });
       if (!r.rows.length) throw new Error('telegram_processing_ownership_lost');
+      await privacy.assert(operationFence);await privacy.checkLease(operationFence);
     };
-    return processing.transaction(async () => {
+    try {
+    const committed=await processing.transaction(async () => {
       const prior = await client.execute({
-        sql: 'SELECT result_json FROM telegram_operations WHERE update_id = ?',
+        sql: 'SELECT * FROM telegram_operations WHERE update_id = ?',
         args: [id],
       });
-      if (prior.rows.length) return JSON.parse(prior.rows[0].result_json);
+      if (prior.rows.length) {
+        const row=prior.rows[0];
+        if(row.content_state==='REDACTED')return JSON.parse(REDACTED_RECEIPT);
+        if(await privacy.available()) {
+          if(!readableRow(row))fail('PHASE4_RECEIPT_NOT_READABLE');
+          if(row.owner_user_id) {
+            if(row.owner_user_id!==ownerUserId)fail('PHASE4_RECEIPT_OWNER_MISMATCH');
+            const fence=await privacy.capture(ownerUserId);
+            const valid=(await client.execute({sql:`SELECT 1 FROM phase4_source_links WHERE user_id=? AND artifact_type='telegram_operations'
+              AND artifact_id=? AND relationship=? AND unlinked_at IS NULL`,args:[ownerUserId,row.privacy_artifact_id,
+                `RECEIPT_FENCE:${fence.lifecycleGeneration}:${fence.authGeneration}:${fence.purgeGeneration}`]})).rows.length;
+            if(!valid)fail('PHASE4_RECEIPT_GENERATION_STALE');
+          } else if(!nonHealthOperation)fail('PHASE4_RECEIPT_OWNER_REQUIRED');
+        }
+        return JSON.parse(row.result_json);
+      }
+      const enabled=await privacy.available();
+      if(enabled && !ownerUserId && !nonHealthOperation)fail('PHASE4_RECEIPT_OWNER_REQUIRED');
+      const fence=operationFence;
       const result = await fn();
+      if(ownerUserId && result?.userId!=null && result.userId!==ownerUserId)fail('PHASE4_RESULT_OWNER_MISMATCH');
+      await privacy.assert(fence);
       await client.execute({
         sql: `INSERT INTO telegram_operations
                 (update_id, result_json, committed_at, delivery_state, delivery_attempts)
@@ -117,8 +171,39 @@ export function createDb({ url, authToken, phase4Keys }) {
           result?.reply ? TELEGRAM_DELIVERY_STATE.ACTION_READY : TELEGRAM_DELIVERY_STATE.NOT_REQUIRED,
         ],
       });
+      if(enabled) {
+        const keys=requirePhase4Keys(phase4Keys),artifact=keys.lookup(['privacy-artifact-v1','telegram_operations',ownerUserId??'NON_HEALTH','SHARED',[id]]);
+        await client.execute({sql:`UPDATE telegram_operations SET owner_user_id=?,source_update_key=?,privacy_artifact_id=?,
+          content_state='PRESENT',source_linkage_state='COMPLETE',purge_generation=? WHERE update_id=?`,
+          args:[ownerUserId,String(id),artifact,fence?.purgeGeneration??0,id]});
+        // Complete source collection replaces this conservative legacy edge as
+        // individual legacy health APIs become provenance-aware. It never
+        // asserts independence merely because the handler returned no fact.
+        if(ownerUserId)await addPrivacyLink(client,{userId:ownerUserId,table:'telegram_operations',artifactId:artifact,
+          sourceType:'TENANT_LEGACY',sourceId:ownerUserId,at:new Date(now()).toISOString(),
+          relationship:`RECEIPT_FENCE:${fence.lifecycleGeneration}:${fence.authGeneration}:${fence.purgeGeneration}`});
+      }
       return result;
     }, { before: check, after: check });
+    if(committed && typeof committed==='object' && committed.reply && operationFence)replyContexts.set(committed,operationFence);
+    else await processing.transaction(()=>privacy.release(operationFence));
+    return committed;
+    } catch(error) {
+      await processing.transaction(()=>privacy.release(operationFence));throw error;
+    }
+  }
+
+  async function releaseTelegramReply(result) {
+    const fence=result&&typeof result==='object'?replyContexts.get(result):null;
+    if(!fence)return;
+    replyContexts.delete(result);await processing.transaction(()=>privacy.release(fence));
+  }
+
+  async function getRedactedTelegramReplay(updateId) {
+    if(!await privacy.available())return null;
+    const id=Number(updateId);if(!Number.isSafeInteger(id)||id<0)return null;
+    const row=(await client.execute({sql:'SELECT content_state FROM telegram_operations WHERE update_id=?',args:[id]})).rows[0];
+    return row?.content_state==='REDACTED'?JSON.parse(REDACTED_RECEIPT):null;
   }
 
   /**
@@ -394,7 +479,7 @@ export function createDb({ url, authToken, phase4Keys }) {
    * @param {string} conversationKey 這則 update 的對話鍵（tg:<chat_id>）。
    *   缺它就沒辦法證明第 4、5 條 → 一律拒絕（fail closed）。
    */
-  async function markDeliveryStarted(updateId, { owner, conversationKey = null, now = new Date() } = {}) {
+  async function markDeliveryStarted(updateId, { owner, conversationKey = null, replyContext=null, now = new Date() } = {}) {
     const id = Number(updateId);
     if (!Number.isSafeInteger(id) || !owner) return false;
     // 對話鍵是排序權的判準。證明不了就不授權 —— 寧可少送一則，
@@ -404,11 +489,24 @@ export function createDb({ url, authToken, phase4Keys }) {
       return false;
     }
     const nowIso = now.toISOString();
+    if(replyContext) {
+      const captured=replyContexts.get(replyContext);
+      if(replyContext.userId && !captured)return false;
+      try {await privacy.assert(captured);await privacy.checkLease(captured);} catch{return false;}
+    }
+    const privacySql=await privacy.available()?`AND content_state='PRESENT' AND source_linkage_state='COMPLETE'
+      AND health_content_redacted_at IS NULL AND (owner_user_id IS NULL OR EXISTS
+        (SELECT 1 FROM phase4_user_state ps JOIN users pu ON pu.id=ps.user_id WHERE ps.user_id=telegram_operations.owner_user_id
+          AND ps.pending_purge_count=0 AND ps.purge_generation=telegram_operations.purge_generation AND pu.status='ACTIVE'
+          AND EXISTS (SELECT 1 FROM phase4_source_links sl WHERE sl.user_id=pu.id AND sl.artifact_type='telegram_operations'
+            AND sl.artifact_id=telegram_operations.privacy_artifact_id AND sl.unlinked_at IS NULL
+            AND sl.relationship='RECEIPT_FENCE:'||pu.lifecycle_generation||':'||COALESCE((SELECT auth_generation FROM user_whoop_tokens ut WHERE ut.user_id=pu.id),0)||':'||ps.purge_generation)))`:'';
     const rs = await client.execute({
       sql: `UPDATE telegram_operations
                SET delivery_state = ?, delivery_owner = ?, delivery_started_at = ?,
                    delivery_attempts = delivery_attempts + 1
              WHERE update_id = ? AND delivery_state = ?
+               ${privacySql}
                AND EXISTS (
                  SELECT 1 FROM telegram_processed_updates p
                   WHERE p.update_id = telegram_operations.update_id
@@ -441,11 +539,13 @@ export function createDb({ url, authToken, phase4Keys }) {
     const mid = messageId === null || messageId === undefined ? null : Number(messageId);
     const rs = await client.execute({
       sql: `UPDATE telegram_operations
-               SET delivery_state = ?, delivered_at = ?, telegram_message_id = ?
-             WHERE update_id = ? AND delivery_owner = ? AND delivery_state = ?`,
+               SET delivery_state = CASE WHEN delivery_state='AMBIGUOUS' THEN 'AMBIGUOUS' ELSE ? END,
+                 delivered_at = COALESCE(delivered_at,?), telegram_message_id = COALESCE(telegram_message_id,?)
+             WHERE update_id = ? AND delivery_owner = ? AND delivery_state IN (?, 'AMBIGUOUS')
+               AND (telegram_message_id IS NULL OR telegram_message_id IS ?)`,
       args: [TELEGRAM_DELIVERY_STATE.DELIVERED, now.toISOString(),
         Number.isFinite(mid) ? mid : null, id, String(owner),
-        TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED],
+        TELEGRAM_DELIVERY_STATE.DELIVERY_STARTED,Number.isFinite(mid)?mid:null],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -886,6 +986,7 @@ export function createDb({ url, authToken, phase4Keys }) {
    *    `isSent` 會回 false 而重複發送。所以要重試，重試用完就往上拋，
    *    讓呼叫端決定怎麼喊（`throwOnError: false` 可改成只寫 log）。
    */
+  const insertReportRun=compatibility.wrap({insertReportRun:async (userId,sql,args)=>client.execute({sql,args})}).insertReportRun;
   async function recordRun({
     userId, reportType, localDateKey, healthDate = null, sleepId = null, cycleId = null,
     telegramMessageId = null, status, detail = null,
@@ -894,7 +995,8 @@ export function createDb({ url, authToken, phase4Keys }) {
     const sql = `INSERT INTO report_runs
            (user_id, report_type, local_date, health_date, sleep_id, cycle_id,
             telegram_message_id, status, detail, sent_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(user_id,report_type,local_date) WHERE status='SENT' DO NOTHING`;
     const args = [
       uid, reportType, localDateKey, healthDate, sleepId, cycleId,
       telegramMessageId, status, detail ? String(detail).slice(0, 500) : null,
@@ -904,8 +1006,8 @@ export function createDb({ url, authToken, phase4Keys }) {
     let lastErr;
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        await client.execute({ sql, args });
-        return true;
+        const inserted=await insertReportRun(uid,sql,args);
+        return inserted.rowsAffected===1;
       } catch (err) {
         if (isDuplicateSentError(err)) {
           log.warn('record_run_duplicate', {
@@ -1457,7 +1559,7 @@ export function createDb({ url, authToken, phase4Keys }) {
                SET delivery_state = ?, delivery_detail = ?
              WHERE user_id = ? AND report_type = ? AND local_date = ? AND owner = ?
                AND delivery_state = ? AND telegram_sent_at IS NULL`,
-      args: [REPORT_DELIVERY_STATE.AMBIGUOUS, detail ? String(detail).slice(0, 200) : null,
+      args: [REPORT_DELIVERY_STATE.AMBIGUOUS, null,
         uid, reportType, localDateKey, String(owner), REPORT_DELIVERY_STATE.DELIVERY_STARTED],
     });
     const ok = Number(rs.rowsAffected ?? 0) > 0;
@@ -1569,7 +1671,7 @@ export function createDb({ url, authToken, phase4Keys }) {
   }
 
   return {
-    raw: client,
+    raw: transactionClient,
     transaction: processing.transaction,
     assertAccountActive,
     withAnswerOwnership,
@@ -1577,6 +1679,8 @@ export function createDb({ url, authToken, phase4Keys }) {
     mutateForWhoopEvent,
     mutateForReconciliation,
     getTelegramOperation,
+    getRedactedTelegramReplay,
+    releaseTelegramReply,
     markDeliveryStarted,
     markDelivered,
     markDeliveryFailed,
@@ -1636,19 +1740,56 @@ export function createDb({ url, authToken, phase4Keys }) {
     ...webhook,
     // V1.2 Phase 2：對帳狀態 / 執行帳本 / 差異 / 墓碑診斷。
     ...createReconciliationStore(client),
-    ...createBotStore(client),
-    ...createAnalysisStore(client),
-    ...createProactiveStore(client),
+    ...compatibility.wrap(createBotStore(compatibility.client),['addJournalEvent','getJournalEvents','countJournalEvents',
+      'openPendingQuestion','getOpenPendingQuestion','resolvePendingQuestion','cancelPendingQuestion','listReapablePendingQuestions','expirePendingQuestion']),
+    deleteJournalEvent:async(userId,id)=>{
+      const uid=requireUserId(userId,'deleteJournalEvent');
+      if(!await privacy.available())return createBotStore(client).deleteJournalEvent(uid,id);
+      const row=(await transactionClient.execute({sql:'SELECT id FROM journal_events WHERE user_id=? AND id=?',args:[uid,id]})).rows[0];
+      if(!row)return false;
+      // The dedicated revision/control route (Journal integration) owns T0.
+      // A bare DELETE cannot bypass the durable fence and transitive purge.
+      fail('PHASE4_JOURNAL_CONTROL_ROUTE_REQUIRED');
+    },
+    ...compatibility.wrap(createAnalysisStore(compatibility.client),['saveHealthspanMetrics','getLatestHealthspanMetrics',
+      'saveHealthspanSnapshot','getHealthspanSnapshots','savePrediction','recordPredictionActual','getPredictions','savePredictionModel',
+      'getLatestPredictionModel','getPredictionModels','createInsight','supersedeInsight','reconfirmInsight','updateInsightStatus',
+      'getInsight','getActiveInsights','getInsightHistory']),
+    ...legacyExperimentAdapter({client,keys:phase4Keys,foundation:privacyFoundation,transaction:processing.transaction,privacy}),
+    ...compatibility.wrap(createProactiveStore(compatibility.client),['getProactiveState','setProactiveState','claimProactiveEvent',
+      'releaseSuppressedProactiveEvent','resolveProactiveEvent','resolveProactiveEventIfUnresolved','listUnresolvableProactiveEvents',
+      'getProactiveEventByPendingQuestion','getRecentProactiveEvents']),
     ...createGuardianStore(client),
     // V1.2 Phase 3.5：自助上線的生命週期（沒有列 = 舊使用者 = READY）。
     ...createOnboardingStore(client, { transaction: processing.transaction }),
     // V1.2 Phase 3：分析工作狀態（失效 / 認領 / 結案 / 物化 / 帳本）。
     ...analytics,
+    ...compatibility.wrap({recentRuns,recordBriefingEvaluation,getBriefingEvaluation}),
     // V1.2 Phase 3：canonical 寫入器的**同交易**分析失效。放在最後，覆蓋上面
     // health / webhook 的同名函式 —— 所有寫入者（V1.1 同步、webhook 處理器、
     // 對帳、腳本）都經過這一層；它呼叫的仍是原本的儲存層函式。
     ...withAnalyticsInvalidation({
       health, webhook, analytics, client, transaction: processing.transaction,
+      sourceChanged:async userId=>{
+        if(!await privacy.available())return;
+        await privacy.capture(userId);
+        await phase4Queue.advanceSource(userId);
+      },
+      removedSource:async change=>{
+        // Provider tombstones are authoritative even for disabled accounts.
+        // Only this canonical-removal hook may update non-health FULL scope
+        // without granting health-read/write authority to the inactive user.
+        const user=(await client.execute({sql:'SELECT status FROM users WHERE id=?',args:[change.userId]})).rows[0];
+        if(!user)fail('PHASE4_TENANT_NOT_FOUND');
+        const full=user.status!=='ACTIVE';
+        const writer=full?createAnalyticsWorkStore(client,{transaction:processing.transaction,privacyKeys:phase4Keys}):analytics;
+        await writer.markAnalyticsDirty(full?{...change,affectedFrom:null,affectedTo:null,fullRecompute:true}:change);
+        if(await privacy.available()) {
+          const at=new Date().toISOString();
+          await client.execute({sql:`INSERT INTO phase4_user_state(user_id,created_at,updated_at) VALUES (?,?,?) ON CONFLICT DO NOTHING`,args:[change.userId,at,at]});
+          await phase4Queue.advanceSource(change.userId,'SOURCE_DELETED',{removal:true});
+        }
+      },
     }),
     close: () => client.close(),
   };

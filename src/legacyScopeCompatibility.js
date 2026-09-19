@@ -19,11 +19,11 @@ export function legacyScopeCompatibility(client, keys) {
       cls ? [userId,cls] : [userId]]);
     if (!(await client.execute({sql:'SELECT 1 FROM users WHERE id=?',args:[userId]})).rows.length) throw new Error('phase4_scope_tenant_missing');
     if (prior?.content_state !== 'REDACTED') await addPrivacyLink(client,{userId,table,artifactId:id,sourceType:'TENANT_LEGACY',sourceId:userId,at:now});
-    const fields = ['scope_kind','privacy_artifact_id','content_state','source_linkage_state'];
+    const fields = ['scope_kind','privacy_artifact_id','content_state','source_linkage_state','scope_revision'];
     const values = [kind,id,prior?.content_state === 'REDACTED' ? 'REDACTED' : 'PRESENT',
-      prior?.content_state === 'REDACTED' ? 'DISCONNECTED' : 'COMPLETE'];
+      prior?.content_state === 'REDACTED' ? 'DISCONNECTED' : 'COMPLETE',Number(prior?.scope_revision??0)+1];
     return { suffix: ', '+fields.map(f=>`${f}=?`).join(','), values, columns: ', '+fields.join(','),
-      placeholders: ', '+fields.map(()=>'?').join(','), full: kind === 'FULL_TENANT_RECOMPUTE' };
+      placeholders: ', '+fields.map(()=>'?').join(','), full: kind === 'FULL_TENANT_RECOMPUTE',scopeRevision:values.at(-1) };
   }
   return { available, range };
 }

@@ -624,9 +624,11 @@ test('★★★ TG-R05: 不確定的舊收據不會被自動重送', async () =>
       args: [2200, JSON.stringify({ chatId: '5001', reply: '舊回覆', userId: 'u1' }),
         NOW.toISOString(), TELEGRAM_DELIVERY_STATE.AMBIGUOUS],
     });
-    const r = await mkProcessor().processUpdate(upd(2200, '5001'));
+    let handled=0;
+    const r = await mkProcessor({onHandle:()=>{handled++;}}).processUpdate(upd(2200, '5001'));
     assert.equal(sent.length, 0, '★ 不確定的舊收據絕不可以被重新發出去');
-    assert.ok([UPDATE_OUTCOME.AMBIGUOUS_DELIVERY, UPDATE_OUTCOME.PROCESSED].includes(r.outcome));
+    assert.equal(r.outcome,UPDATE_OUTCOME.RETRY,'Unclassified post-migration fixture fails closed before result decoding.');
+    assert.equal(handled,0);
     assert.equal((await db.getTelegramOperation(2200)).deliveryState,
       TELEGRAM_DELIVERY_STATE.AMBIGUOUS, '★ 狀態維持不變');
   });

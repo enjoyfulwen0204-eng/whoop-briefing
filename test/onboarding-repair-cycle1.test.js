@@ -239,7 +239,7 @@ async function migrateLegacy(db, seed) {
   return runMigrations(db.raw);
 }
 const fullyConfigured = async (db, { id, chatId, whoopUserId, status = USER_STATUS.ACTIVE, tz = 'Asia/Taipei' }) => {
-  const u = await db.createUser({ id, displayName: id, timezone: tz, status, now: NOW });
+  const u = await db.createUser({ id, displayName: id, timezone: tz, status:USER_STATUS.ACTIVE, now: NOW });
   await db.linkTelegram({ chatId, userId: u.id, now: NOW });
   await db.saveTokens(u.id, {
     accessToken: 'at', refreshToken: 'rt', expiresAt: new Date(NOW.getTime() + HOUR),
@@ -247,6 +247,7 @@ const fullyConfigured = async (db, { id, chatId, whoopUserId, status = USER_STAT
   });
   await db.saveSyncState(u.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
   await db.saveCapabilities(u.id, [{ key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 }], { expectedLifecycleGeneration: (await db.getUser(u.id)).lifecycleGeneration, now: NOW });
+  if(status!==USER_STATUS.ACTIVE)await db.transitionUserLifecycle({userId:u.id,targetStatus:status,now:NOW});
   return u;
 };
 

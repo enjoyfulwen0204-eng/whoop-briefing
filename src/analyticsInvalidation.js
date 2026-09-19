@@ -180,7 +180,7 @@ export function classifyRelink({ before, after }) {
  * @param {object} opts.client processing 代理 client（交易內讀取）
  * @param {function} opts.transaction processing.transaction
  */
-export function withAnalyticsInvalidation({ health, webhook, analytics, client, transaction }) {
+export function withAnalyticsInvalidation({ health, webhook, analytics, client, transaction, sourceChanged=async()=>{}, removedSource=null }) {
   const wrapUpsert = (resource, orig) => async (userId, records = [], opts = {}) => {
     const uid = requireUserId(userId, `upsert:${resource}`);
     const spec = SPEC[resource];
@@ -197,6 +197,7 @@ export function withAnalyticsInvalidation({ health, webhook, analytics, client, 
           userId: uid, resource, reason: opts.invalidationReason ?? 'upsert',
           affectedFrom: cls.affectedFrom, affectedTo: cls.affectedTo, now,
         });
+        await sourceChanged(uid);
       }
       log.info('canonical_write_classified', {
         user_id: uid, resource, written, changed: cls.changed, unchanged: cls.unchanged, blocked: cls.blocked,
@@ -226,6 +227,7 @@ export function withAnalyticsInvalidation({ health, webhook, analytics, client, 
           userId: uid, resource: 'body_measurement', reason: opts.invalidationReason ?? 'upsert',
           affectedFrom: day, affectedTo: day, now,
         });
+        await sourceChanged(uid);
       }
       return written;
     });
@@ -241,10 +243,12 @@ export function withAnalyticsInvalidation({ health, webhook, analytics, client, 
       const result = await webhook.deleteWhoopResource({ ...args, now });
       if (Number(result?.removed ?? 0) > 0) {
         const d = before.get(String(args.resourceId))?.date ?? null;
-        await analytics.markAnalyticsDirty({
+        const invalidation={
           userId: uid, resource: args.resourceType, reason: 'delete',
           affectedFrom: d, affectedTo: d && spec?.spansNextDay ? addDays(d, 1) : d, now,
-        });
+        };
+        if(removedSource)await removedSource(invalidation);
+        else {await analytics.markAnalyticsDirty(invalidation);await sourceChanged(uid);}
       }
       return result;
     });
@@ -270,6 +274,7 @@ export function withAnalyticsInvalidation({ health, webhook, analytics, client, 
           userId: uid, resource: 'recovery', reason: 'relink',
           affectedFrom: cls.affectedFrom, affectedTo: cls.affectedTo, now,
         });
+        await sourceChanged(uid);
       }
       log.info('recovery_relink_classified', { user_id: uid, changed: cls.changed });
       return result;

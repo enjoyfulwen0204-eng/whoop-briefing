@@ -256,7 +256,7 @@ test('★★★ 觀測：心跳的三種狀態都判斷正確', async () => {
     });
     const fresh = await db.getHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON);
     assert.equal(staleFor(fresh), false, '★ 剛跑完不可以被判成過期');
-    assert.equal(fresh.lastDetail, 'users=1');
+    assert.equal(fresh.lastDetail, null, 'v22 prohibits free-text diagnostic narratives, including unowned heartbeat detail');
 
     // 3) 停了四小時（遠超過 10 分鐘主排程與每小時備援的正常 cadence）
     await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON, {

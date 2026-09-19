@@ -30,6 +30,7 @@ import {
   RESOURCE_ACCESS_STATUS, USER_STATUS, lifecycleActiveSql,
 } from './schema.js';
 import { requireUserId } from './userContext.js';
+import { operationalDiagnostic } from './operationalDiagnostic.js';
 import { log } from './logger.js';
 
 const iso = (v) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
@@ -61,7 +62,7 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     readyAt: r.ready_at ?? null,
     stateChangedAt: r.state_changed_at,
     failureCode: r.failure_code ?? null,
-    failureDetail: r.failure_detail ?? null,
+    failureDetail: operationalDiagnostic(r.failure_detail),
     authLinkCount: Number(r.auth_link_count ?? 0),
     lastAuthLinkAt: r.last_auth_link_at ?? null,
     bootstrapAttempts: Number(r.bootstrap_attempts ?? 0),
@@ -435,7 +436,7 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
                    ready_at              = CASE WHEN ? = 1 THEN ? ELSE ready_at END,
                    updated_at = ?
              WHERE user_id = ?${guard}${genGuard}${lifeGuard}`,
-      args: [state, ts, failureCode, failureDetail ? String(failureDetail).slice(0, 300) : null,
+      args: [state, ts, failureCode, operationalDiagnostic(failureDetail),
         timezoneConfirmed ? 1 : 0, ts,
         whoopAuthorized ? 1 : 0, ts,
         syncStarted ? 1 : 0, ts,
@@ -569,7 +570,7 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
                AND ${lifecycleActiveSql('user_onboarding.user_id')}`,
       args: [
         ONBOARDING_STATE.ACTION_REQUIRED, ts, failureCode,
-        failureDetail ? String(failureDetail).slice(0, 300) : null, ts,
+        operationalDiagnostic(failureDetail), ts,
         uid, ...states, maxAttempts, gen, life,
       ],
     });

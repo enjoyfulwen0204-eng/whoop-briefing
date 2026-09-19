@@ -496,7 +496,7 @@ test('Z: 缺日期時明講，不硬算', () => {
   assert.equal(r.reason, 'missing_period_dates');
 });
 
-test('Z: analyzeExperiment 會把結果存回 DB', async () => {
+test('Z: analysis with unproven legacy fields is unavailable and its copied result is immediately quarantined', async () => {
   const { db, cleanup } = await freshDb();
   try {
     const c = await createExperiment(db, USER.id, {
@@ -510,9 +510,10 @@ test('Z: analyzeExperiment 會把結果存回 DB', async () => {
       recovery: i < 14 ? 60 : 70,
     }));
     const res = await analyzeExperiment(db, USER.id, c.id, rows, { now: NOW });
-    assert.equal(res.ok, true);
+    assert.equal(res.ok, false);
+    assert.equal(res.reason, 'content_redacted');
     const stored = await db.getExperiment(USER.id, c.id);
-    assert.ok(stored.result_json, '結果要存回 DB');
-    assert.equal(JSON.parse(stored.result_json).metrics.recovery.mean_difference, 10);
+    assert.equal(stored.result_json,'{}');
+    assert.ok(stored.privacyRedactedFields.includes('result_json'));
   } finally { db.close(); cleanup(); }
 });

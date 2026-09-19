@@ -274,8 +274,9 @@ for (const status of INACTIVE) {
         sql: 'SELECT COUNT(*) n FROM whoop_sleeps WHERE user_id = ?', args: [user.id],
       });
       assert.equal(Number(rows.rows[0].n), 0, '★★★ canonical 一列都不可以寫進去');
-      const st = await e.db.getSyncState(user.id, 'sleep');
-      assert.ok(!st?.lastSuccessAt, '★★★ 游標／進度絕不可以前進（否則那段資料被永久跳過）');
+      await assert.rejects(() => e.db.getSyncState(user.id, 'sleep'), { code: 'ACCOUNT_INACTIVE' });
+      const st = (await e.db.raw.execute({sql:'SELECT last_success_at FROM whoop_sync_state WHERE user_id=? AND resource=?',args:[user.id,'sleep']})).rows[0];
+      assert.ok(!st?.last_success_at, '★★★ 游標／進度絕不可以前進（否則那段資料被永久跳過）');
     } finally { e.done(); }
   });
 

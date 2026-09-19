@@ -415,7 +415,7 @@ test('sync: 任何 resource 失敗都不會讓 syncAll 拋錯（簡報優先）'
     assert.equal(results.find((r) => r.resource === 'cycle').status, 'failed');
     assert.equal(results.find((r) => r.resource === 'sleep').status, 'ok');
     const state = await db.getSyncState(U, 'cycle');
-    assert.match(String(state.lastError), /Turso 爆炸/);
+    assert.equal(state.lastError, 'OPERATION_FAILED');
   } finally { db.close(); cleanup(); }
 });
 

@@ -45,12 +45,15 @@ const maxDate = (a, b) => (!a ? b : !b ? a : (a > b ? a : b));
 export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = {}) {
   if (typeof transaction !== 'function') throw new Error('analytics_store_requires_transaction');
   const scope = legacyScopeCompatibility(client, privacyKeys);
+  const privacyLeaseSql=async()=>await scope.available()?`AND claimed_scope_revision=scope_revision
+    AND EXISTS (SELECT 1 FROM phase4_user_state ps WHERE ps.user_id=analytics_work_state.user_id
+      AND ps.pending_purge_count=0 AND ps.purge_generation=analytics_work_state.claimed_purge_generation)` : '';
   const rowToInvalidation = (r) => (r ? {
     userId: String(r.user_id),
     generation: Number(r.generation ?? 0),
-    affectedFrom: r.affected_from ?? null,
-    affectedTo: r.affected_to ?? null,
-    resources: r.resources ? String(r.resources).split(',') : [],
+    affectedFrom: r.scope_kind==='FULL_TENANT_RECOMPUTE'?null:r.affected_from ?? null,
+    affectedTo: r.scope_kind==='FULL_TENANT_RECOMPUTE'?null:r.affected_to ?? null,
+    resources: r.scope_kind==='FULL_TENANT_RECOMPUTE'?[]:r.resources ? String(r.resources).split(',') : [],
     reasons: r.reasons ? String(r.reasons).split(',') : [],
     dirtySince: r.dirty_since ?? null,
     lastInvalidatedAt: r.last_invalidated_at ?? null,
@@ -69,13 +72,13 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
     lastSuccessAt: r.last_success_at ?? null,
     lastFailureAt: r.last_failure_at ?? null,
     lastErrorClass: r.last_error_class ?? null,
-    lastErrorDetail: r.last_error_detail ?? null,
+    lastErrorDetail: r.scope_kind==='FULL_TENANT_RECOMPUTE'?null:r.last_error_detail ?? null,
     consecutiveFailures: Number(r.consecutive_failures ?? 0),
     nextAttemptAt: r.next_attempt_at ?? null,
-    summary: r.summary_json ? JSON.parse(String(r.summary_json)) : null,
+    summary: r.scope_kind==='FULL_TENANT_RECOMPUTE'?{}:r.summary_json ? JSON.parse(String(r.summary_json)) : null,
     rangeGeneration: r.range_generation === null || r.range_generation === undefined ? null : Number(r.range_generation),
-    rangeFrom: r.range_from ?? null,
-    rangeTo: r.range_to ?? null,
+    rangeFrom: r.scope_kind==='FULL_TENANT_RECOMPUTE'?null:r.range_from ?? null,
+    rangeTo: r.scope_kind==='FULL_TENANT_RECOMPUTE'?null:r.range_to ?? null,
     ...(r.scope_kind ? { scopeKind: r.scope_kind } : {}),
   } : null);
 
@@ -91,7 +94,7 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
    * @returns {number} 新的 generation
    */
   async function markAnalyticsDirty({
-    userId, resource, reason, affectedFrom = null, affectedTo = null, now = new Date(),
+    userId, resource, reason, affectedFrom = null, affectedTo = null, fullRecompute=false, now = new Date(),
   }) {
     const uid = requireUserId(userId, 'markAnalyticsDirty');
     const nowIso = iso(now);
@@ -99,8 +102,8 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
       sql: 'SELECT * FROM analytics_invalidation WHERE user_id = ?', args: [uid],
     });
     const row = cur.rows[0];
-    const mergedFrom = minDate(row?.affected_from ?? null, affectedFrom);
-    const mergedTo = maxDate(row?.affected_to ?? null, affectedTo);
+    const mergedFrom = fullRecompute?null:minDate(row?.affected_from ?? null, affectedFrom);
+    const mergedTo = fullRecompute?null:maxDate(row?.affected_to ?? null, affectedTo);
     const privacy = await scope.range(uid, 'analytics_invalidation', mergedFrom, mergedTo, nowIso);
     if (!row) {
       await client.execute({
@@ -108,7 +111,7 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
                 (user_id, generation, affected_from, affected_to, resources, reasons,
                  dirty_since, last_invalidated_at, created_at, updated_at${privacy.columns})
               VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?${privacy.placeholders})`,
-        args: [uid, privacy.full ? null : affectedFrom, privacy.full ? null : affectedTo, mergeCsv(null, [resource]), mergeCsv(null, [reason]),
+        args: [uid, privacy.full ? null : affectedFrom, privacy.full ? null : affectedTo, privacy.full?null:mergeCsv(null, [resource]), privacy.full?'HEALTH_SCOPE_REDACTED':mergeCsv(null, [reason]),
           nowIso, nowIso, nowIso, nowIso, ...privacy.values],
       });
       log.info('analytics_invalidated', { user_id: uid, generation: 1, resource, reason });
@@ -122,7 +125,7 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
              WHERE user_id = ?`,
       args: [generation,
         privacy.full ? null : mergedFrom, privacy.full ? null : mergedTo,
-        mergeCsv(row.resources, [resource]), mergeCsv(row.reasons, [reason]),
+        privacy.full?null:mergeCsv(row.resources, [resource]), privacy.full?'HEALTH_SCOPE_REDACTED':mergeCsv(row.reasons, [reason]),
         nowIso, nowIso, nowIso, ...privacy.values, uid],
     });
     log.info('analytics_invalidated', { user_id: uid, generation, resource, reason });
@@ -157,7 +160,7 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
     const rs = await client.execute({
       sql: `SELECT 1 FROM analytics_work_state
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
-               AND claimed_generation = ? LIMIT 1`,
+               AND claimed_generation = ? ${await privacyLeaseSql()} LIMIT 1`,
       args: [userId, cls, String(owner), iso(now), Number(generation)],
     });
     if (!rs.rows.length) throw new Error('analytics_ownership_lost');
@@ -251,6 +254,7 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
              -- ★ v17：停用／暫停的帳號不產生新的分析計算。失效列本身保留
              -- （那是資料事實），只是不再被選出來做工。
              WHERE u.status = 'ACTIVE'
+               ${scoped?"AND EXISTS (SELECT 1 FROM phase4_user_state ps WHERE ps.user_id=i.user_id AND ps.pending_purge_count=0)":''}
                AND (i.generation > COALESCE(w.done_generation, 0)
                  ${scoped ? "OR i.scope_kind = 'FULL_TENANT_RECOMPUTE' OR w.scope_kind = 'FULL_TENANT_RECOMPUTE'" : ''})
                AND (w.next_attempt_at IS NULL OR w.next_attempt_at <= ?)
@@ -334,6 +338,7 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
       const generation = inv?.generation ?? 0;
       await client.execute({
         sql: `UPDATE analytics_work_state SET claimed_generation = ?, updated_at = ?
+          ${scoped?',claimed_scope_revision=scope_revision,claimed_purge_generation=(SELECT purge_generation FROM phase4_user_state WHERE user_id=analytics_work_state.user_id)':''}
                WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?`,
         args: [generation, nowIso, uid, cls, String(owner), nowIso],
       });
@@ -362,10 +367,12 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
     const rs = await client.execute({
       sql: `UPDATE analytics_work_state
                SET range_generation = ?, range_from = ?, range_to = ?, updated_at = ?${privacy.suffix}
+                 ${privacy.scopeRevision!==undefined?',claimed_scope_revision=?':''}
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ? AND claimed_generation = ?
+               ${await privacyLeaseSql()}
                AND (? IS NULL OR claimed_lifecycle IS ?)
                AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
-      args: [Number(generation), from, to, nowIso, ...privacy.values, uid, cls, String(owner), nowIso, generation, life, life, life, life],
+      args: [Number(generation), from, to, nowIso, ...privacy.values,...(privacy.scopeRevision!==undefined?[privacy.scopeRevision]:[]), uid, cls, String(owner), nowIso, generation, life, life, life, life],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -383,9 +390,10 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
     const rs = await client.execute({
       sql: `UPDATE analytics_work_state
                SET range_to = ?, range_from = CASE WHEN ? IS NULL THEN NULL ELSE range_from END, updated_at = ?
-                 ${scoped ? ", scope_kind = CASE WHEN ? IS NULL THEN 'NONE' ELSE 'HEALTH_DATE_RANGE' END" : ''}
+                 ${scoped ? ", scope_kind = CASE WHEN ? IS NULL THEN 'NONE' ELSE 'HEALTH_DATE_RANGE' END,scope_revision=scope_revision+1,claimed_scope_revision=scope_revision+1" : ''}
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
                AND range_generation = ? AND range_to = ? AND claimed_generation = ?
+               ${await privacyLeaseSql()}
                AND (? IS NULL OR claimed_lifecycle IS ?)
                AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
       args: [newTo, newTo, nowIso, ...(scoped ? [newTo] : []), uid, cls, String(owner), nowIso, Number(generation), chunkTo, generation, life, life, life, life],
@@ -431,6 +439,7 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
                        summary_json = ?, updated_at = ?
                  WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ? AND claimed_generation = ?
                    ${scoped ? "AND scope_kind <> 'FULL_TENANT_RECOMPUTE' AND NOT EXISTS (SELECT 1 FROM analytics_invalidation i WHERE i.user_id = analytics_work_state.user_id AND i.scope_kind = 'FULL_TENANT_RECOMPUTE')" : ''}
+                   ${await privacyLeaseSql()}
                    AND (? IS NULL OR analytics_work_state.claimed_lifecycle IS ?)
                    AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
           args: [generation, nowIso, summary ? JSON.stringify(summary) : null, nowIso,
@@ -470,6 +479,7 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
                        consecutive_failures = consecutive_failures + 1,
                        next_attempt_at = ?, updated_at = ?
                  WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
+                   ${await privacyLeaseSql()}
                    AND (? IS NULL OR claimed_lifecycle IS ?)
                    AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
           args: [nowIso, errorClass, errorDetail ? String(errorDetail).slice(0, 300) : null,
@@ -496,6 +506,7 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
                    status = CASE WHEN status = 'RUNNING' THEN 'IDLE' ELSE status END,
                    next_attempt_at = ?, updated_at = ?
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
+               ${await privacyLeaseSql()}
                AND (? IS NULL OR claimed_lifecycle IS ?)
                AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
       args: [nextAttemptAt ? iso(nextAttemptAt) : null, iso(now), uid, cls, String(owner), iso(now), life, life, life, life],
@@ -511,6 +522,7 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
     const rs = await client.execute({
       sql: `SELECT 1 FROM analytics_work_state
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
+               ${await privacyLeaseSql()}
                AND (? IS NULL OR claimed_lifecycle IS ?)
                AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')}) LIMIT 1`,
       args: [uid, cls, String(owner), iso(now), life, life, life, life],
@@ -630,11 +642,24 @@ export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = 
     return Number(rs.lastInsertRowid ?? 0);
   }
 
-  async function closeAnalyticsRun(runId, { result, detail = null, errorClass = null, errorDetail = null, now = new Date() }) {
-    await client.execute({
-      sql: `UPDATE analytics_runs SET finished_at = ?, result = ?, detail_json = ?, error_class = ?, error_detail = ? WHERE id = ?`,
-      args: [iso(now), result, detail ? JSON.stringify(detail) : null, errorClass,
-        errorDetail ? String(errorDetail).slice(0, 300) : null, Number(runId)],
+  async function closeAnalyticsRun(userId, runId, { result, detail=null, expectedLifecycleGeneration,
+    errorClass = null, now = new Date() }) {
+    const uid=requireUserId(userId,'closeAnalyticsRun');
+    if(!Object.values(ANALYTICS_RESULT).includes(result))throw new Error('analytics_result_required');
+    return transaction(async()=>{
+      const scoped=await scope.available();
+      const eligible=scoped?(await client.execute({sql:`SELECT 1 FROM analytics_runs r JOIN users u ON u.id=r.user_id
+        JOIN phase4_user_state p ON p.user_id=r.user_id JOIN analytics_invalidation i ON i.user_id=r.user_id
+        WHERE r.user_id=? AND r.id=? AND u.status='ACTIVE' AND u.lifecycle_generation=?
+          AND p.pending_purge_count=0 AND p.purge_generation=r.purge_generation AND i.generation=r.generation
+          AND r.content_state='PRESENT' AND r.source_linkage_state='COMPLETE' AND r.health_content_redacted_at IS NULL`,
+        args:[uid,Number(runId),expectedLifecycleGeneration??null]})).rows.length>0:false;
+      // Late closing may record finite operational truth after revocation, but
+      // only a same-lifecycle/current privacy envelope may receive summaries.
+      await client.execute({
+        sql: `UPDATE analytics_runs SET finished_at = ?, result = ?, detail_json = ?, error_class = ?, error_detail = NULL WHERE user_id = ? AND id = ?`,
+        args: [iso(now),result,eligible&&detail?JSON.stringify(detail):null,errorClass,uid,Number(runId)],
+      });
     });
   }
 

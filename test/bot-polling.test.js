@@ -17,7 +17,7 @@ import { createPoller } from '../src/bot/polling.js';
 import { TelegramApiError, backoffMs, waitForError } from '../src/bot/api.js';
 
 const CHAT = '12345';
-const USER = { id: 'u-poll-test', timezone: 'Asia/Taipei' };
+const USER = { id: 'u-poll-test', displayName:'Synthetic polling user', timezone: 'Asia/Taipei' };
 
 /** 預設只有 CHAT 綁定使用者，其他一律解析不到（模擬 db.resolveUserByChatId）。 */
 function defaultResolveUser(chatId) {
@@ -81,6 +81,7 @@ async function setup({ batches = [], failures = [], resolveUser = defaultResolve
   const { url, cleanup } = tempDb();
   const db = createDb({ url });
   await db.migrate();
+  await db.createUser(USER);
   const api = fakeApi(batches, { failures });
   const handled = [];
   const poller = createPoller({
@@ -136,6 +137,8 @@ test('★ L: 重啟後從 DB 的 offset 續傳，不會重頭處理', async () =
   const db = createDb({ url });
   try {
     await db.migrate();
+
+    await db.createUser(USER);
 
     // 第一個 worker 生命週期
     const api1 = fakeApi([[update(200, 'first')]]);
@@ -213,6 +216,7 @@ test('★ L: 單一訊息處理失敗保留 offset 等待重試', async () => {
   try {
     await db.migrate();
     const seen = [];
+    await db.createUser(USER);
     const poller = createPoller({
       db, resolveUser: defaultResolveUser, api: fakeApi(), sleepImpl: async () => {},
       handleMessage: async ({ text }) => {
@@ -271,6 +275,7 @@ test('L: 主迴圈遇錯會重試並在 maxIterations 後結束', async () => {
   try {
     await db.migrate();
     let call = 0;
+    await db.createUser(USER);
     const waits = [];
     const api = {
       async getUpdates() {

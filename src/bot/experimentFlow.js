@@ -117,7 +117,8 @@ export async function handleStep({ db, userId, pending, text, now, timezone }) {
     intervention: data.intervention,
     targetMetrics: [data.target_metric],
     protocol: { duration_days: data.duration_days, created_via: 'telegram' },
-  }, { now });
+  }, { now, provenance:{kind:'DIRECT',writerKind:'EXPERIMENT_FLOW',sourceUpdateKey:`experiment-flow:${pending.id}`,
+    fields:['name','hypothesis','intervention','target_metrics','protocol_json']} });
 
   if (!created.ok) return `建立失敗：${created.error}`;
 
@@ -129,6 +130,8 @@ export async function handleStep({ db, userId, pending, text, now, timezone }) {
     baselineStart,
     baselineEnd,
     now,
+    provenance:{kind:'DIRECT',writerKind:'EXPERIMENT_FLOW',sourceUpdateKey:`experiment-flow-schedule:${pending.id}`,
+      fields:['start_date','baseline_start','baseline_end']},
   });
 
   log.info('experiment_created_via_telegram', { id: created.id, name: data.name });
@@ -156,7 +159,8 @@ export async function renderList(db, userId) {
   }
   const lines = ['🧪 實驗清單', ''];
   for (const e of all) {
-    const metrics = JSON.parse(e.target_metrics ?? '[]').join('、');
+    const parsedMetrics = JSON.parse(e.target_metrics ?? '[]');
+    const metrics = Array.isArray(parsedMetrics)?parsedMetrics.join('、'):'';
     lines.push(`#${e.id} ${e.name}  [${e.status}]`);
     lines.push(`   指標：${metrics || '未指定'}`);
     if (e.start_date) lines.push(`   期間：${e.start_date} ～ ${e.end_date ?? '進行中'}`);
@@ -185,10 +189,8 @@ export async function renderStatus({ db, userId, rows, id, timezone, now }) {
 
   // 進行中的實驗還沒有 end_date。用「今天」當暫定結束日，
   // 這樣可以看到目前為止的進度，而不是只回一句「缺少期間日期」。
-  const provisional = exp.end_date
-    ? exp
-    : { ...exp, end_date: localDate(now, timezone) };
-  const result = analyseExperimentData({ rows, experiment: provisional });
+  const result = analyseExperimentData({ rows, experiment: exp,
+    asOfDate:exp.status===EXPERIMENT_STATUS.RUNNING?localDate(now,timezone):null });
   if (!result.ok) {
     lines.push('目前還無法分析（缺少期間日期）。');
     return lines.join('\n');
@@ -225,7 +227,8 @@ export async function stopExperiment({ db, userId, id, timezone, now }) {
   if (!exp) return '目前沒有進行中的實驗。';
 
   const today = localDate(now, timezone);
-  const r = await completeExperiment(db, userId, Number(exp.id), { endDate: today, now });
+  const r = await completeExperiment(db, userId, Number(exp.id), { endDate: today, now,
+    provenance:{kind:'DIRECT',writerKind:'EXPERIMENT_FLOW',sourceUpdateKey:`experiment-stop:${exp.id}:${today}`,fields:['end_date']} });
   if (!r.ok) return `無法結束：${r.error}`;
   return `✅ 實驗 #${exp.id}「${exp.name}」已結束（${exp.start_date} ～ ${today}）。\n用 /experiment status ${exp.id} 看前後對照結果。`;
 }

@@ -449,7 +449,7 @@ export function createReconciler({
     });
     const counters = { pages: 0, fetched: 0, written: 0, blocked: 0, missing: 0, tombstonesChecked: 0, tombstonesUnresolved: 0 };
     const finish = async (result, extra = {}) => {
-      await db.closeReconciliationRun(runId, { result, ...counters, now: at(), ...extra });
+      await db.closeReconciliationRun(uid,runId, { result, ...counters, now: at(), ...extra });
       return { resource, scope, result, ...counters, window: { from: window.from, to: window.to, resumed: window.resumed } };
     };
 

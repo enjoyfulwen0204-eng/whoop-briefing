@@ -22,34 +22,34 @@ export const EXPERIMENT_STATUS = {
 
 export const MIN_PERIOD_DAYS = 5;
 
-export async function createExperiment(db, userId, spec, { now = new Date() } = {}) {
+export async function createExperiment(db, userId, spec, { now = new Date(), provenance=null } = {}) {
   const uid = requireUserId(userId, 'createExperiment');
   if (!spec?.name) return { ok: false, error: 'name_required' };
   if (!Array.isArray(spec.targetMetrics) || !spec.targetMetrics.length) {
     return { ok: false, error: 'target_metrics_required' };
   }
-  const id = await db.createExperiment(uid, { ...spec, status: EXPERIMENT_STATUS.DRAFT }, { now });
+  const id = await db.createExperiment(uid, { ...spec, status: EXPERIMENT_STATUS.DRAFT }, { now, provenance });
   return { ok: true, id };
 }
 
-export async function startExperiment(db, userId, id, { startDate, baselineStart, baselineEnd, now = new Date() } = {}) {
+export async function startExperiment(db, userId, id, { startDate, baselineStart, baselineEnd, now = new Date(), provenance=null } = {}) {
   const uid = requireUserId(userId, 'startExperiment');
   const exp = await db.getExperiment(uid, id);
   if (!exp) return { ok: false, error: 'not_found' };
   if (exp.status !== EXPERIMENT_STATUS.DRAFT) return { ok: false, error: `cannot_start_from_${exp.status}` };
   await db.updateExperiment(uid, id, {
     status: EXPERIMENT_STATUS.RUNNING, startDate, baselineStart, baselineEnd,
-  }, { now });
+  }, { now, provenance });
   log.info('experiment_started', { id, start_date: startDate });
   return { ok: true };
 }
 
-export async function completeExperiment(db, userId, id, { endDate, now = new Date() } = {}) {
+export async function completeExperiment(db, userId, id, { endDate, now = new Date(), provenance=null } = {}) {
   const uid = requireUserId(userId, 'completeExperiment');
   const exp = await db.getExperiment(uid, id);
   if (!exp) return { ok: false, error: 'not_found' };
   if (exp.status !== EXPERIMENT_STATUS.RUNNING) return { ok: false, error: `cannot_complete_from_${exp.status}` };
-  await db.updateExperiment(uid, id, { status: EXPERIMENT_STATUS.COMPLETED, endDate }, { now });
+  await db.updateExperiment(uid, id, { status: EXPERIMENT_STATUS.COMPLETED, endDate }, { now, provenance });
   log.info('experiment_completed', { id, end_date: endDate });
   return { ok: true };
 }
@@ -67,12 +67,17 @@ function valuesIn(rows, metric, start, end) {
  * 輸出平均差、中位數差、effect size（Cohen's d）與樣本數。
  * 任一期樣本不足就標 insufficient，**不下結論**。
  */
-export function analyseExperimentData({ rows, experiment }) {
+export function analyseExperimentData({ rows, experiment, asOfDate=null }) {
+  if(asOfDate!==null && (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)||!Number.isFinite(Date.parse(asOfDate))
+    ||new Date(asOfDate).toISOString().slice(0,10)!==asOfDate))return {ok:false,reason:'invalid_as_of',metrics:{}};
+  const required=['name','target_metrics','baseline_start','baseline_end','start_date',...(asOfDate!==null?[]:['end_date'])];
+  if(required.some(field=>experiment.privacyRedactedFields?.includes(field)))return {ok:false,reason:'content_redacted',metrics:{}};
   const targets = JSON.parse(experiment.target_metrics ?? '[]');
+  if(!Array.isArray(targets))return {ok:false,reason:'content_redacted',metrics:{}};
   const baselineStart = experiment.baseline_start;
   const baselineEnd = experiment.baseline_end;
   const start = experiment.start_date;
-  const end = experiment.end_date;
+  const end = asOfDate??experiment.end_date;
 
   const base = {
     experiment_id: Number(experiment.id),
@@ -143,5 +148,7 @@ export async function analyzeExperiment(db, userId, id, rows, { now = new Date()
   if (!exp) return { ok: false, error: 'not_found' };
   const result = analyseExperimentData({ rows, experiment: exp });
   await db.updateExperiment(uid, id, { result }, { now });
+  const retained=await db.getExperiment(uid,id);
+  if(result.ok&&retained?.privacyRedactedFields?.includes('result_json'))return {ok:false,reason:'unproven_result_provenance',metrics:{}};
   return result;
 }

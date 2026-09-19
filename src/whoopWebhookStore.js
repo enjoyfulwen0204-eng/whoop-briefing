@@ -16,6 +16,7 @@
  */
 
 import { requireUserId } from './userContext.js';
+import { operationalDiagnostic } from './operationalDiagnostic.js';
 import { WHOOP_EVENT_STATE, WHOOP_EVENT_TERMINAL, TOMBSTONE_STATE } from './schema.js';
 import { WHOOP_EVENT_TYPES } from './whoopWebhookEvent.js';
 import { log } from './logger.js';
@@ -97,7 +98,7 @@ export function createWhoopWebhookStore(client) {
     leaseExpiresAt: r.lease_expires_at ?? null,
     nextAttemptAt: r.next_attempt_at ?? null,
     lastErrorClass: r.last_error_class ?? null,
-    lastErrorDetail: r.last_error_detail ?? null,
+    lastErrorDetail: operationalDiagnostic(r.last_error_detail),
     processedAt: r.processed_at ?? null,
   } : null);
 
@@ -234,7 +235,7 @@ export function createWhoopWebhookStore(client) {
         state,
         userId === undefined ? null : (userId === null ? null : String(userId)),
         nextAttemptAt === null || nextAttemptAt === undefined ? null : iso(nextAttemptAt),
-        errorClass, errorDetail === null ? null : String(errorDetail).slice(0, 300),
+        errorClass, operationalDiagnostic(errorDetail),
         terminal ? 1 : 0, nowIso,
         nowIso,
         Number(id), String(owner), WHOOP_EVENT_STATE.PROCESSING,

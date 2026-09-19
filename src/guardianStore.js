@@ -28,7 +28,7 @@ export function createGuardianStore(client) {
               last_ok_at = excluded.last_ok_at,
               last_detail = excluded.last_detail,
               updated_at = excluded.updated_at`,
-      args: [scope, component, ts, detail === null ? null : String(detail).slice(0, 500), ts],
+      args: [scope, component, ts, null, ts],
     });
     return true;
   }
@@ -44,7 +44,7 @@ export function createGuardianStore(client) {
       scope: String(row.scope),
       component: String(row.component),
       lastOkAt: row.last_ok_at,
-      lastDetail: row.last_detail ?? null,
+      lastDetail: null,
       updatedAt: row.updated_at,
     };
   }
@@ -60,7 +60,7 @@ export function createGuardianStore(client) {
       scope: String(row.scope),
       component: String(row.component),
       lastOkAt: row.last_ok_at,
-      lastDetail: row.last_detail ?? null,
+      lastDetail: null,
       updatedAt: row.updated_at,
     }));
   }

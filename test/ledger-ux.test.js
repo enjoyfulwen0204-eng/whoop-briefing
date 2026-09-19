@@ -40,6 +40,7 @@ async function freshDb() {
   const { url, cleanup } = tempDb();
   const db = createDb({ url });
   await db.migrate();
+  await db.createUser(USER);
   return { db, cleanup };
 }
 
@@ -67,7 +68,7 @@ function fakeFetch({ usage = { prompt_tokens: 1000, completion_tokens: 500, tota
   };
 }
 
-const USER = { id: 'u-ledger-test', timezone: TZ };
+const USER = { id: 'u-ledger-test', displayName:'Synthetic ledger user', timezone: TZ };
 
 const routerFor = (db, coach = null) =>
   createRouter({ db, coachFor: () => coach, now: () => NOW });
@@ -618,7 +619,7 @@ test('★ AD: /experiment 完整流程 —— create 五步 → list → status 
     assert.match(done, /不能證明因果/, '★ 一定要標明非因果');
 
     // pending 已清空
-    assert.equal(await db.getOpenPendingQuestion(CHAT, { now: NOW }), null);
+    assert.equal(await db.getOpenPendingQuestion(USER.id, { now: NOW }), null);
 
     const list = await r.handle({ text: '/experiment list', chatId: CHAT, user: USER });
     assert.match(list, /睡前不喝咖啡/);
@@ -642,7 +643,7 @@ test('AD: /experiment create 中途可以取消', async () => {
     await r.handle({ text: '/experiment create', chatId: CHAT, user: USER });
     const cancelled = await r.handle({ text: '取消', chatId: CHAT, user: USER });
     assert.match(cancelled, /先不建立/);
-    assert.equal(await db.getOpenPendingQuestion(CHAT, { now: NOW }), null);
+    assert.equal(await db.getOpenPendingQuestion(USER.id, { now: NOW }), null);
     assert.equal((await db.listExperiments(USER.id, {})).length, 0);
   } finally { db.close(); cleanup(); }
 });

@@ -353,7 +353,7 @@ export async function processAnalyticsForUser({
       // 還有剩餘範圍：不結案（done 不動），只釋放租約讓下一輪（或別的工作者）接續。
       const released = await db.releaseAnalyticsWork({ expectedLifecycleGeneration, userId: uid, cls, owner, now: at() });
       const result = released ? ANALYTICS_RESULT.PARTIAL : ANALYTICS_RESULT.FENCED;
-      await db.closeAnalyticsRun(runId, { result, detail: summary, now: at() });
+      await db.closeAnalyticsRun(uid, runId, { result, detail:summary, expectedLifecycleGeneration, now: at() });
       log.info('analytics_partial', { user_id: uid, class: cls, generation, remaining: summary.remaining });
       return { userId: uid, cls, result, generation, stillDirty: true, summary };
     }
@@ -366,7 +366,7 @@ export async function processAnalyticsForUser({
       expectedLifecycleGeneration, now: at(),
     });
     const result = settled ? ANALYTICS_RESULT.SUCCESS : ANALYTICS_RESULT.FENCED;
-    await db.closeAnalyticsRun(runId, { result, detail: summary, now: at() });
+    await db.closeAnalyticsRun(uid, runId, { result, detail:summary, expectedLifecycleGeneration, now: at() });
     const after = await db.getAnalyticsInvalidation(uid);
     const stillDirty = (after?.generation ?? 0) > generation;
     log.info('analytics_done', { user_id: uid, class: cls, result, generation, still_dirty: stillDirty });
@@ -374,7 +374,7 @@ export async function processAnalyticsForUser({
   } catch (err) {
     const c = classifyAnalyticsError(err);
     if (c.class === ANALYTICS_ERROR_CLASS.FENCED) {
-      await db.closeAnalyticsRun(runId, { result: ANALYTICS_RESULT.FENCED, errorClass: c.class, now: at() });
+      await db.closeAnalyticsRun(uid, runId, { result: ANALYTICS_RESULT.FENCED, errorClass: c.class, now: at() });
       log.warn('analytics_fenced', { user_id: uid, class: cls, generation });
       return { userId: uid, cls, result: ANALYTICS_RESULT.FENCED, generation };
     }
@@ -385,8 +385,8 @@ export async function processAnalyticsForUser({
       errorClass: c.class, errorDetail: describeError(err), nextAttemptAt,
       expectedLifecycleGeneration, now: at(),
     });
-    await db.closeAnalyticsRun(runId, {
-      result: ANALYTICS_RESULT.FAILED, detail: err?.modules ?? null, errorClass: c.class, errorDetail: describeError(err), now: at(),
+    await db.closeAnalyticsRun(uid, runId, {
+      result: ANALYTICS_RESULT.FAILED, detail:err?.modules??null, expectedLifecycleGeneration, errorClass: c.class, now: at(),
     });
     log.error('analytics_failed', { user_id: uid, class: cls, generation, error_class: c.class });
     return { userId: uid, cls, result: ANALYTICS_RESULT.FAILED, generation, errorClass: c.class, retryable: c.retryable };

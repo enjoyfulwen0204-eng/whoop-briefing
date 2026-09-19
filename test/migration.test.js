@@ -287,11 +287,10 @@ test('約束：libSQL 預設不強制 FK —— 明確記錄實際行為，並�
     assert.equal(orphan, 1, '目前沒有 FK 約束，孤兒列寫得進去（已知且刻意）');
 
     // 但**應用層**讀不到它：查詢一律帶 user_id，所以不存在的使用者查不到東西
-    assert.deepEqual(
-      await db.getJournalEvents('u-real', { from: '2026-01-01', to: '2026-12-31' }), [],
-    );
+    await assert.rejects(db.getJournalEvents('u-real', { from: '2026-01-01', to: '2026-12-31' }), /TENANT_NOT_FOUND/);
     // 而且刪除使用者不會連帶刪掉健康歷史（沒有 CASCADE），這是刻意的設計
     await db.createUser({ id: 'u-real', displayName: 'R' });
+    assert.deepEqual(await db.getJournalEvents('u-real', { from: '2026-01-01', to: '2026-12-31' }), []);
     await db.raw.execute("DELETE FROM users WHERE id = 'u-real'");
     assert.equal(await countOf(db, 'journal_events'), 1, '刪 user 不該 cascade 掉歷史資料');
 

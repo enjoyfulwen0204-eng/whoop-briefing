@@ -187,15 +187,19 @@ test('★★ 停用使用者不刪除任何資料，重新啟用後完全恢復'
     const beforeJournal = await db.countJournalEvents(BOB.id);
     const beforeChat = await db.getActiveChatIdForUser(BOB.id);
     const beforeLife = (await db.getUser(BOB.id)).lifecycleGeneration;
+    const retainedTables = ['whoop_sleeps','whoop_recoveries','whoop_cycles','whoop_workouts','journal_events'];
+    const retained = await Promise.all(retainedTables.map(table => db.raw.execute({sql:`SELECT * FROM ${table} WHERE user_id=?`,args:[BOB.id]})));
     assert.ok(Number(beforeCoverage.main_sleeps) > 0);
     assert.equal(beforeJournal, 1);
     assert.ok(beforeChat);
 
     await run(db, ['user:status', `--user=${BOB.id}`, '--status=DISABLED']);
 
-    // 資料一列都不能少
-    assert.deepEqual(await db.coverage(BOB.id), beforeCoverage);
-    assert.equal(await db.countJournalEvents(BOB.id), beforeJournal);
+    // 資料完整保留，但停用帳號不能透過健康 API 讀取。
+    await assert.rejects(() => db.coverage(BOB.id), {code:'ACCOUNT_INACTIVE'});
+    await assert.rejects(() => db.countJournalEvents(BOB.id), {code:'ACCOUNT_INACTIVE'});
+    for (const [index,table] of retainedTables.entries())
+      assert.deepEqual((await db.raw.execute({sql:`SELECT * FROM ${table} WHERE user_id=?`,args:[BOB.id]})).rows, retained[index].rows);
     // ★ v17：**綁定列**完整保留（停用不刪任何東西）……
     assert.equal((await db.getTelegramLink(beforeChat))?.status, 'ACTIVE',
       '★★★ 停用不可以動到 Telegram 綁定');
@@ -210,6 +214,7 @@ test('★★ 停用使用者不刪除任何資料，重新啟用後完全恢復'
     const active = await db.listActiveUsers();
     assert.ok(active.some((u) => u.id === BOB.id));
     assert.equal(await db.countJournalEvents(BOB.id), beforeJournal);
+    assert.deepEqual(await db.coverage(BOB.id), beforeCoverage);
     assert.equal(await db.getActiveChatIdForUser(BOB.id), beforeChat,
       '★★★ 重新啟用之後遞送完全恢復');
     assert.equal((await db.getUser(BOB.id)).lifecycleGeneration, beforeLife + 2,

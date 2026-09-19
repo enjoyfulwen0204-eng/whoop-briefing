@@ -141,7 +141,7 @@ test('CASE A：全新空 DB → 建出 multi-user schema，且第二次 migrate 
     assert.deepEqual(second.rebuilt, []);
     assert.deepEqual(await tableNames(db), beforeTables, '第二次不可改變表結構');
     const v = await db.raw.execute('SELECT COUNT(*) AS n FROM schema_version');
-    assert.equal(Number(v.rows[0].n), 1, 'schema_version 不該重複寫入');
+    assert.equal(Number(v.rows[0].n), SCHEMA_VERSION - 19, 'v20 base and each post-v20 version appear once');
   } finally { db.close(); t.cleanup(); }
 });
 

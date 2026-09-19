@@ -519,8 +519,11 @@ export const lifecycleActiveSql = (userCol) => `EXISTS (
      AND lu.lifecycle_generation = COALESCE(?, lu.lifecycle_generation)
 )`;
 
-// v20: durable lifecycle provenance for proactive work and user error cooldowns.
-export const SCHEMA_VERSION = 20;
+// v20 remains the frozen legacy installation boundary. Post-v20 versions are
+// installed and verified separately; never flatten them into one version write.
+export const LEGACY_SCHEMA_VERSION = 20;
+export const SCHEMA_VERSION = 21;
+export { PHASE4_MIGRATIONS } from './phase4Schema.js';
 
 export const VERSION_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_version (

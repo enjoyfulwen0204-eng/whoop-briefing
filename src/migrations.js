@@ -23,8 +23,10 @@
 
 import {
   ADDITIVE_COLUMNS, DATA_MIGRATIONS, LEGACY_TABLES, RESHAPED_TABLES, SCHEMA, SCHEMA_VERSION,
+  LEGACY_SCHEMA_VERSION,
 } from './schema.js';
 import { log } from './logger.js';
+import { applyPhase4Migrations, Phase4SchemaError } from './phase4Migrations.js';
 
 export class UnsafeMigrationError extends Error {
   constructor(message, details) {
@@ -85,11 +87,13 @@ export async function inspectReshape(client) {
  * @param {object} client libsql client
  * @param {{ allowRebuild?: boolean }} opts allowRebuild=false 時只建新表、不重建舊形狀表
  */
-export async function runMigrations(client, { allowRebuild = true } = {}) {
+export async function runMigrations(client, { allowRebuild = true, targetVersion = SCHEMA_VERSION } = {}) {
   const from = await currentVersion(client);
-  const summary = { from, to: SCHEMA_VERSION, rebuilt: [], created: 0, skipped: from >= SCHEMA_VERSION };
+  if (!Number.isInteger(targetVersion) || targetVersion < LEGACY_SCHEMA_VERSION || targetVersion > SCHEMA_VERSION
+      || from > targetVersion) throw new Phase4SchemaError('schema_version_incompatible');
+  const summary = { from, to: targetVersion, rebuilt: [], created: 0, skipped: from === targetVersion };
 
-  if (from < SCHEMA_VERSION) {
+  if (from < targetVersion) {
     const insp = await inspectReshape(client);
 
     if (insp.blocked.length) {
@@ -101,9 +105,9 @@ export async function runMigrations(client, { allowRebuild = true } = {}) {
     }
 
     if (insp.rebuild.length) {
-      if (!allowRebuild) {
+      if (!allowRebuild || from >= LEGACY_SCHEMA_VERSION) {
         throw new UnsafeMigrationError(
-          `有 ${insp.rebuild.length} 張舊形狀空表需要重建，但 allowRebuild=false`,
+          `有 ${insp.rebuild.length} 張舊形狀空表需要重建，但此遷移禁止重建`,
           insp.rebuild,
         );
       }
@@ -167,14 +171,16 @@ export async function runMigrations(client, { allowRebuild = true } = {}) {
     log.info('schema_data_migrated', { version: dm.version, rows, note: dm.note });
   }
 
-  if (from < SCHEMA_VERSION) {
+  if (from < LEGACY_SCHEMA_VERSION) {
     await client.execute({
       sql: `INSERT INTO schema_version (version, applied_at, note) VALUES (?, ?, ?)
             ON CONFLICT(version) DO NOTHING`,
-      args: [SCHEMA_VERSION, new Date().toISOString(), `multi-user (from v${from})`],
+      args: [LEGACY_SCHEMA_VERSION, new Date().toISOString(), `multi-user (from v${from})`],
     });
-    log.info('schema_migrated', { from, to: SCHEMA_VERSION, rebuilt: summary.rebuilt });
+    log.info('schema_migrated', { from, to: LEGACY_SCHEMA_VERSION, rebuilt: summary.rebuilt });
   }
+
+  summary.versionsApplied = await applyPhase4Migrations(client, Math.max(from, LEGACY_SCHEMA_VERSION), targetVersion);
 
   return summary;
 }

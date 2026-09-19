@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { WHOOP_EVENT_STATE, TOMBSTONE_STATE } from '../src/schema.js';
 import { WhoopApiError, WhoopAuthError } from '../src/whoop.js';
 import {

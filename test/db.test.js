@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb, isDuplicateSentError } from '../src/db.js';
+import { createDb, isDuplicateSentError } from './localDb.js';
 
 const U = 'u-test';
 const U2 = 'u-test-2';

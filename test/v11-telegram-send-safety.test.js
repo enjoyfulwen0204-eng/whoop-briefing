@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createTelegram } from '../src/telegram.js';
 import { createTelegramApi, TelegramApiError } from '../src/bot/api.js';
 import { SEND_OUTCOME, classifySendOutcome } from '../src/sendOutcome.js';

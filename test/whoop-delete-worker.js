@@ -14,7 +14,7 @@
  */
 
 import { parentPort } from 'node:worker_threads';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 
 let db = null;
 let ev = null;

@@ -21,7 +21,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { handleUnlinkedMessage, handleOnboardingMessage } from '../src/onboarding.js';
 import { createWhoopOAuthCallback } from '../src/whoopOAuthCallback.js';
 import { createWhoopClient } from '../src/whoop.js';
@@ -491,7 +491,7 @@ test('R3-15 ★★★ 分析 API 少了啟用脈絡 → 拋錯（claim / output 
   const e = await env();
   try {
     const u = await authorize(e.db, A_CHAT);
-    await e.db.markAnalyticsDirty({ userId: u.id, resource: 'sleep', reason: 't', now: NOW });
+    await e.db.markAnalyticsDirty({ userId: u.id, resource: 'sleep', reason: 't', affectedFrom: '2026-09-14', affectedTo: '2026-09-14', now: NOW });
     await assert.rejects(() => e.db.claimAnalyticsWork({ userId: u.id, cls: ANALYTICS_CLASS.LIGHT, owner: 'w', leaseMs: 60_000, now: NOW }), LifecycleContextError);
     await assert.rejects(() => e.db.mutateForAnalytics({ userId: u.id, cls: ANALYTICS_CLASS.LIGHT, owner: 'w', generation: 1, now: () => NOW }, async () => 1), LifecycleContextError);
     await assert.rejects(() => e.db.settleAnalyticsWork({ userId: u.id, cls: ANALYTICS_CLASS.LIGHT, owner: 'w', result: 'SUCCESS', generation: 1, now: NOW }), LifecycleContextError);
@@ -503,7 +503,7 @@ test('R3-16 ★★★ 分析：L1 認領 → ABA → 舊的 saveAnalyticsDailySt
   const e = await env();
   try {
     const u = await authorize(e.db, A_CHAT);
-    await e.db.markAnalyticsDirty({ userId: u.id, resource: 'sleep', reason: 't', now: NOW });
+    await e.db.markAnalyticsDirty({ userId: u.id, resource: 'sleep', reason: 't', affectedFrom: '2026-09-14', affectedTo: '2026-09-14', now: NOW });
     const life = await lifeOf(e.db, u.id);
     const claim = await e.db.claimAnalyticsWork({ userId: u.id, cls: ANALYTICS_CLASS.LIGHT, owner: 'w', leaseMs: 600_000, expectedLifecycleGeneration: life, now: NOW });
     assert.ok(claim);
@@ -817,7 +817,7 @@ for (const scenario of ['valid', 'recovery_denied', 'inactive']) {
       await db.raw.execute({ sql: "INSERT INTO whoop_capabilities(user_id, key, status, last_probed_at) VALUES (?, 'recovery', 'SUPPORTED', ?)", args: [uid, ts] });
       const migrated = await db.migrate();
       assert.equal(migrated.from, 9);
-      assert.equal(migrated.to, 21);
+      assert.equal(migrated.to, 22);
       assert.equal((await db.raw.execute('SELECT COUNT(*) n FROM whoop_resource_access')).rows[0].n, 0);
       const state = await db.getOnboardingRow(uid);
       assert.notEqual(state.state, 'READY');
@@ -916,7 +916,7 @@ test('R3 migration repairs false READY on an already-v18 database exactly once',
     await e.db.raw.execute("INSERT INTO schema_version(version, applied_at, note) VALUES (18, '2026-09-15', 'prior candidate')");
     const result = await e.db.migrate();
     assert.equal(result.from, 18);
-    assert.equal(result.to, 21);
+    assert.equal(result.to, 22);
     assert.deepEqual(result.dataMigrations, [{ version: 19, rows: 1 }]);
     assert.equal((await e.db.getOnboardingRow(u.id)).state, 'WHOOP_AUTHORIZED');
     assert.deepEqual((await e.db.migrate()).dataMigrations, []);

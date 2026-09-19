@@ -18,12 +18,12 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { createClient } from '@libsql/client';
-import { runMigrations } from '../src/migrations.js';
+import { runMigrations } from './localMigrations.js';
 import {
   SCHEMA_VERSION, RESHAPED_TABLES, WHOOP_WEBHOOK_SCHEMA,
   IDENTITY_SCHEMA, REPORT_SCHEMA, HEALTH_SCHEMA, TOKEN_SCHEMA, VERSION_SCHEMA,
 } from '../src/schema.js';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'v9-v10-'));
 const NEW_TABLES = ['whoop_webhook_events', 'whoop_resource_tombstones'];
@@ -87,7 +87,7 @@ test('★★★ v9 → v10：純新增，既有資料一列不動、零重建', 
     const summary = await runMigrations(client);
     assert.equal(summary.from, 9, '★ 起點必須被認成 9');
     assert.equal(summary.to, SCHEMA_VERSION);
-    assert.equal(SCHEMA_VERSION, 21);
+    assert.equal(SCHEMA_VERSION, 22);
     assert.deepEqual(summary.rebuilt, [], '★★★ 升級絕不可以重建（DROP）任何表');
     // v10 本身是純新增表。v11 在 v10 建的墓碑表上加了三個診斷欄位；從 v9
     // 起跳時墓碑表是這一輪剛用 v11 的 DDL 建的，欄位已經在裡面。

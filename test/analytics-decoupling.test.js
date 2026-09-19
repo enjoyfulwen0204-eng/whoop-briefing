@@ -16,7 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createReconciler } from '../src/reconcile.js';
 import { drainWhoopWebhookEvents } from '../src/whoopWebhookProcessor.js';
 import {
@@ -24,7 +24,7 @@ import {
   lightRangeFor, nextLightChunk, ANALYTICS_ERROR_CLASS,
 } from '../src/analyticsWorker.js';
 import { classifyCanonicalWrite } from '../src/analyticsInvalidation.js';
-import { runMigrations } from '../src/migrations.js';
+import { runMigrations } from './localMigrations.js';
 import {
   ANALYTICS_CLASS, ANALYTICS_RESULT, ANALYTICS_FRESHNESS, TOMBSTONE_STATE, SCHEMA_VERSION,
   ANALYTICS_WORK_SCHEMA, RESHAPED_TABLES,
@@ -722,7 +722,7 @@ test('遷移 v11 → v15：純新增（四張表 + v13 三欄 + v14 上線表）
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (11, '2026-09-10T00:00:00.000Z', 'v11')");
     for (const t of NEW) assert.ok(!(await tables()).includes(t));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 21);
+    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 22);
     assert.deepEqual(s.rebuilt, []); assert.deepEqual(s.columnsAdded, [], '從 v11 起跳：新表由 CREATE TABLE 直接建齊（含 v13 欄位）');
     for (const t of NEW) assert.ok((await tables()).includes(t));
     assert.equal((await e.db.getTombstone(ALICE.id, 'sleep', sid(1))).state, TOMBSTONE_STATE.ACTIVE, '墓碑原封不動');

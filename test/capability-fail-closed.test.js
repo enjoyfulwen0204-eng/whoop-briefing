@@ -35,7 +35,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { checkAndAct } from '../src/proactiveAgent.js';
 import { deviationSignal, baselineShiftSignal, detectSignals } from '../src/signals.js';
 import {

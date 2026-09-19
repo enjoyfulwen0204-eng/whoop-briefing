@@ -28,7 +28,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createSendReply } from '../src/bot/index.js';
 
 const CHAT = '555123456';   // 私訊 chat id 一定是正數（群組是負數）

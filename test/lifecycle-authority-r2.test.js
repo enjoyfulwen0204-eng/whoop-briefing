@@ -21,7 +21,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { handleUnlinkedMessage, handleOnboardingMessage } from '../src/onboarding.js';
 import { createWhoopOAuthCallback } from '../src/whoopOAuthCallback.js';
 import { completeAuthorization } from '../src/oauthFlow.js';
@@ -564,7 +564,7 @@ test('AN-LIFE-03 ★★★ 停用的使用者不可能被直接認領', async ()
   const e = await env();
   try {
     const u = await authorize(e.db, A_CHAT);
-    await e.db.markAnalyticsDirty({ userId: u.id, resource: 'sleep', reason: 't', now: NOW });
+    await e.db.markAnalyticsDirty({ userId: u.id, resource: 'sleep', reason: 't', affectedFrom: '2026-09-14', affectedTo: '2026-09-14', now: NOW });
     await e.db.transitionUserLifecycle({ userId: u.id, targetStatus: USER_STATUS.DISABLED });
     const claim = await e.db.claimAnalyticsWork({
       userId: u.id, cls: ANALYTICS_CLASS.LIGHT, owner: 'w1', leaseMs: 60_000,
@@ -579,7 +579,7 @@ for (const via of INACTIVE) {
     const e = await env();
     try {
       const u = await authorize(e.db, A_CHAT);
-      await e.db.markAnalyticsDirty({ userId: u.id, resource: 'sleep', reason: 't', now: NOW });
+      await e.db.markAnalyticsDirty({ userId: u.id, resource: 'sleep', reason: 't', affectedFrom: '2026-09-14', affectedTo: '2026-09-14', now: NOW });
       const life = await lifeOf(e.db, u.id);
       const claim = await e.db.claimAnalyticsWork({
         userId: u.id, cls: ANALYTICS_CLASS.LIGHT, owner: 'w1', leaseMs: 600_000,
@@ -611,7 +611,7 @@ test('AN-LIFE-04/05 新世代認領得到；分析世代 / 租約 / 活時鐘圍
   const e = await env();
   try {
     const u = await authorize(e.db, A_CHAT);
-    await e.db.markAnalyticsDirty({ userId: u.id, resource: 'sleep', reason: 't', now: NOW });
+    await e.db.markAnalyticsDirty({ userId: u.id, resource: 'sleep', reason: 't', affectedFrom: '2026-09-14', affectedTo: '2026-09-14', now: NOW });
     await aba(e.db, u.id);
     const life = await lifeOf(e.db, u.id);
     const claim = await e.db.claimAnalyticsWork({
@@ -748,7 +748,7 @@ test('MIG-LIFE-05/06 非 ACTIVE 維持不動；沒有世代出處的舊 OAuth st
 });
 
 test('MIG-LIFE-01 schema 版本推進到 18，而且新欄位都是可為 NULL 的純新增', async () => {
-  assert.equal(SCHEMA_VERSION, 21);
+  assert.equal(SCHEMA_VERSION, 22);
   const { ADDITIVE_COLUMNS } = await import('../src/schema.js');
   const added = ADDITIVE_COLUMNS.filter((c) => /lifecycle/.test(c.column));
   assert.ok(added.length >= 4);

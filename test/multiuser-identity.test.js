@@ -12,7 +12,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { hashSecret } from '../src/identityStore.js';
 import {

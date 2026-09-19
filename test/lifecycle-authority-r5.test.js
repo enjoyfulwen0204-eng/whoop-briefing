@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createTelegram } from '../src/telegram.js';
 import { withDeliveryAuthorization, LifecycleContextError } from '../src/accountLifecycle.js';
 import { runForUser } from '../src/index.js';

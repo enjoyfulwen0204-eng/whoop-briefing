@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { runAdmin, parseArgs } from '../scripts/admin.js';
 import { hashSecret } from '../src/identityStore.js';
 import { ALICE, BOB, seedAliceAndBob, seedHealthData } from './users.js';

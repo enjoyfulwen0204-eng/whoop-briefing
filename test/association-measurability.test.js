@@ -33,7 +33,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { reanalyzeAfterAnswer } from '../src/proactiveReanalysis.js';
 import { journalAssociation } from '../src/analytics/correlation.js';
 import { assessJournalAssociation, READINESS_STATUS } from '../src/readiness.js';

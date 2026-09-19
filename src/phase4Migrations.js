@@ -1,4 +1,6 @@
 import { PHASE4_MIGRATIONS, SCHEMA_VERSION } from './schema.js';
+import { backfillV22, verifyV22Data } from './phase4V22Backfill.js';
+import { requirePhase4Keys } from './phase4Keys.js';
 
 // This is an exact binary/schema contract, not a minimum supported version.
 export const EXPECTED_SCHEMA_VERSION = SCHEMA_VERSION;
@@ -25,6 +27,14 @@ export async function verifyPhase4Definition(client, ddl) {
   if (rs.rows.length !== 1 || rs.rows[0].type !== kind.toLowerCase().replace('unique ', '')
       || normalizeSql(rs.rows[0].sql) !== normalizeSql(ddl)) {
     throw new Phase4SchemaError('phase4_schema_postcondition_failed', name);
+  }
+}
+
+async function verifyColumn(client, { table, column, definition }) {
+  const info = (await client.execute(`PRAGMA table_info(${table})`)).rows;
+  const sql = (await client.execute({ sql: "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", args: [table] })).rows[0]?.sql;
+  if (!info.some(r => r.name === column) || !normalizeSql(sql).includes(normalizeSql(`${column} ${definition}`))) {
+    throw new Phase4SchemaError('phase4_column_postcondition_failed', `${table}.${column}`);
   }
 }
 
@@ -99,8 +109,11 @@ async function backfillV21(client) {
 export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSION, options = {}) {
   for (const migration of PHASE4_MIGRATIONS.filter(m => m.version <= version)) {
     for (const ddl of migration.ddl) await verifyPhase4Definition(client, ddl);
+    for (const column of migration.columns ?? []) await verifyColumn(client, column);
+    for (const ddl of [...(migration.indexes ?? []), ...(migration.triggers ?? [])]) await verifyPhase4Definition(client, ddl);
   }
   if (version >= 21) await verifyV21(client, options);
+  if (version >= 22) await verifyV22Data(client, { backfill: options.backfillVersion === 22 });
 }
 
 export async function assertPhase4Schema(client, expected = EXPECTED_SCHEMA_VERSION) {
@@ -112,8 +125,9 @@ export async function assertPhase4Schema(client, expected = EXPECTED_SCHEMA_VERS
   return actual;
 }
 
-export async function applyPhase4Migrations(client, from, target) {
+export async function applyPhase4Migrations(client, from, target, options = {}) {
   const applied = [];
+  if (from < 22 && target >= 22) requirePhase4Keys(options.privacyKeys);
   // Applied versions are immutable. Do not repair drift with IF NOT EXISTS.
   if (from >= 21) await verifyPhase4Schema(client, from);
   for (const migration of PHASE4_MIGRATIONS.filter(m => m.version > from && m.version <= target)) {
@@ -121,8 +135,20 @@ export async function applyPhase4Migrations(client, from, target) {
       await client.execute(ddl);
       await verifyPhase4Definition(client, ddl);
     }
+    for (const column of migration.columns ?? []) {
+      const info = (await client.execute(`PRAGMA table_info(${column.table})`)).rows;
+      if (!info.some(r => r.name === column.column)) await client.execute(`ALTER TABLE ${column.table} ADD COLUMN ${column.column} ${column.definition}`);
+      await verifyColumn(client, column);
+    }
     if (migration.version === 21) await backfillV21(client);
-    await verifyPhase4Schema(client, migration.version, { backfill: migration.version === 21 });
+    if (migration.version === 22) await backfillV22(client, options);
+    for (const ddl of [...(migration.indexes ?? []), ...(migration.triggers ?? [])]) {
+      await client.execute(ddl);
+      await verifyPhase4Definition(client, ddl);
+    }
+    await verifyPhase4Schema(client, migration.version, { backfill: migration.version === 21, backfillVersion: migration.version });
+    if (migration.version === 22) await client.execute(`UPDATE phase4_migration_checkpoints SET postcondition_state='COMPLETE'
+      WHERE target_version=22 AND step_key='privacy_backfill'`);
     await client.execute({
       sql: `INSERT INTO schema_version (version, applied_at, note) VALUES (?, ?, ?)
         ON CONFLICT(version) DO NOTHING`,

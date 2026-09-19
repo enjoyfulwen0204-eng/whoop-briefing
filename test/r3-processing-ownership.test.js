@@ -39,7 +39,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createRouter } from '../src/bot/router.js';
 import { reapExpiredProactiveQuestions } from '../src/proactiveReaper.js';
 import { PROACTIVE_PROCESSING_LEASE } from '../src/proactivePolicy.js';

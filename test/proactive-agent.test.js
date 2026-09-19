@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { loadDailyMetrics } from '../src/dailyMetrics.js';
 import { localDate } from '../src/time.js';
 import { checkAndAct } from '../src/proactiveAgent.js';

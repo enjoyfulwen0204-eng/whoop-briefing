@@ -12,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { runDaily } from '../src/daily.js';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createSync } from '../src/sync.js';
 import { staticDataSource } from '../src/dataSource.js';
 import { buildInsightsSafe } from '../src/insights.js';
@@ -152,6 +152,7 @@ test('★ 有長期資料且今天明顯偏離 → 簡報出現「今天最值�
   const db = createDb({ url });
   try {
     await db.migrate();
+    await db.createUser({id: U, displayName: 'Synthetic insight', timezone: TZ});
     const now = new Date('2026-09-01T00:00:00Z');
     const ds = makeDataset({ days: 60, now, overrides: degradedOverrides() });
 
@@ -208,6 +209,7 @@ test('資料很平穩時不會硬報「值得注意」（不製造雜訊）', as
   const db = createDb({ url });
   try {
     await db.migrate();
+    await db.createUser({id: U, displayName: 'Synthetic insight', timezone: TZ});
     const now = new Date('2026-09-01T00:00:00Z');
     const ds = makeDataset({ days: 60, now }); // 沒有 overrides = 正常波動
 
@@ -253,6 +255,7 @@ test('★ 長期資料只有幾天時不會亂報（樣本不足就不下結論�
   const db = createDb({ url });
   try {
     await db.migrate();
+    await db.createUser({id: U, displayName: 'Synthetic insight', timezone: TZ});
     const now = new Date('2026-09-01T00:00:00Z');
     const ds = makeDataset({ days: 3, now, overrides: degradedOverrides() });
 

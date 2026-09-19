@@ -12,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { GLOBAL_SCOPE } from '../src/schema.js';
 import { HEARTBEAT_COMPONENT, GUARDIAN_POLICY } from '../src/guardianPolicy.js';
 

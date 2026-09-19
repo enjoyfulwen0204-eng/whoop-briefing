@@ -4,7 +4,7 @@ import { createClient } from '@libsql/client';
 import { currentVersion, runMigrations } from '../src/migrations.js';
 import { assertPhase4Schema, verifyPhase4Schema } from '../src/phase4Migrations.js';
 import { V21_SCHEMA } from '../src/phase4Schema.js';
-import { LEGACY_SCHEMA_VERSION, SCHEMA_VERSION } from '../src/schema.js';
+import { LEGACY_SCHEMA_VERSION, PHASE4_MIGRATIONS } from '../src/schema.js';
 
 const now = '2026-09-19T00:00:00.000Z';
 async function fixture(t, populated = true) {
@@ -26,7 +26,7 @@ const versions = async db => (await db.execute('SELECT version FROM schema_versi
 
 test('v21: frozen v20 boundary, complete schema and sequential version history', async t => {
   assert.equal(LEGACY_SCHEMA_VERSION, 20);
-  assert.equal(SCHEMA_VERSION, 21);
+  assert.equal(PHASE4_MIGRATIONS[0].version, 21);
   const db = await fixture(t);
   const before = await rows(db, 'journal_events');
   const users = await rows(db, 'users');

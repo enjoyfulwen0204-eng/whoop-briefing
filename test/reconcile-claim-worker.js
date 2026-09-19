@@ -9,7 +9,7 @@
  */
 
 import { parentPort } from 'node:worker_threads';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 
 parentPort.on('message', async (msg) => {
   let db = null;

@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { main } from '../src/index.js';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { addDays, localDate } from '../src/time.js';
 import { WHOOP_SYNC } from '../src/config.js';
 import { makeDataset } from './fixtures.js';
@@ -139,7 +139,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     seed.close();
 
     // ---- 第一次執行 ----
-    const first = await main({ now });
+    const first = await main({ now, deps: { db: createDb({ url: dbUrl }) } });
     assert.equal(first.errors.length, 0, JSON.stringify(first.errors));
     assert.equal(first.failed, 0, JSON.stringify(first.perUser));
     const firstUser = first.perUser.find((p) => p.userId === U);
@@ -182,7 +182,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     // 這次還是會輪詢 WHOOP：快速返回的條件是「今天與昨天兩個 health_date 都已 SENT」，
     // 而測試 DB 是全新的、昨天那筆從來沒發過，所以條件不成立。但重點是不會重複發。
     const before = calls.length;
-    const second = await main({ now });
+    const second = await main({ now, deps: { db: createDb({ url: dbUrl }) } });
     const secondUser = second.perUser.find((p) => p.userId === U);
     assert.equal(secondUser.daily, 'already_sent');
     assert.equal(second.errors.length, 0);
@@ -217,7 +217,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     //
     // 真正該保證的是：**不可以再發一次報告、不可以再花錢呼叫模型**。
     const before3 = calls.length;
-    const third = await main({ now });
+    const third = await main({ now, deps: { db: createDb({ url: dbUrl }) } });
     assert.equal(third.users, 1);
     const thirdUser = third.perUser.find((p) => p.userId === U);
     assert.equal(thirdUser.daily, 'not_run', '報告已送出 → 不可以再跑一次日報');
@@ -244,7 +244,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     seed3.close();
 
     const before4 = calls.length;
-    const fourth = await main({ now });
+    const fourth = await main({ now, deps: { db: createDb({ url: dbUrl }) } });
     const fourthUser = fourth.perUser.find((p) => p.userId === U);
     assert.equal(
       fourthUser.skipped, 'nothing_due',
@@ -302,7 +302,7 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
     });
     seed.close();
 
-    const res = await main({ now });
+    const res = await main({ now, deps: { db: createDb({ url: dbUrl }) } });
     assert.equal(res.errors.length, 0, JSON.stringify(res.errors));
     assert.equal(res.failed, 0, JSON.stringify(res.perUser));
     const resUser = res.perUser.find((p) => p.userId === U);

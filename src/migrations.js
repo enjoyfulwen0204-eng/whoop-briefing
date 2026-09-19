@@ -87,7 +87,9 @@ export async function inspectReshape(client) {
  * @param {object} client libsql client
  * @param {{ allowRebuild?: boolean }} opts allowRebuild=false 時只建新表、不重建舊形狀表
  */
-export async function runMigrations(client, { allowRebuild = true, targetVersion = SCHEMA_VERSION } = {}) {
+export async function runMigrations(client, { allowRebuild = true, targetVersion = SCHEMA_VERSION,
+  privacyKeys, experimentAttestations = [],
+} = {}) {
   const from = await currentVersion(client);
   if (!Number.isInteger(targetVersion) || targetVersion < LEGACY_SCHEMA_VERSION || targetVersion > SCHEMA_VERSION
       || from > targetVersion) throw new Phase4SchemaError('schema_version_incompatible');
@@ -180,7 +182,8 @@ export async function runMigrations(client, { allowRebuild = true, targetVersion
     log.info('schema_migrated', { from, to: LEGACY_SCHEMA_VERSION, rebuilt: summary.rebuilt });
   }
 
-  summary.versionsApplied = await applyPhase4Migrations(client, Math.max(from, LEGACY_SCHEMA_VERSION), targetVersion);
+  summary.versionsApplied = await applyPhase4Migrations(client, Math.max(from, LEGACY_SCHEMA_VERSION), targetVersion,
+    { privacyKeys, experimentAttestations });
 
   return summary;
 }

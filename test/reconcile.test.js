@@ -19,11 +19,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import {
   createReconciler, classifyReconcileError, reconcileBackoffMs, isReconcileDue, nextWindow, ERROR_CLASS,
 } from '../src/reconcile.js';
-import { runMigrations } from '../src/migrations.js';
+import { runMigrations } from './localMigrations.js';
 import {
   RECONCILE_RESULT, TOMBSTONE_RECONCILE_VERDICT, TOMBSTONE_STATE, DISCREPANCY_KIND,
   SCHEMA_VERSION, RECONCILIATION_SCHEMA, RESHAPED_TABLES, ADDITIVE_COLUMNS,
@@ -941,7 +941,7 @@ test('J1 v10 → v11：純新增（三張表 + 三欄），零重建，既有墓
     for (const c of TOMB_COLS) assert.ok(!(await colNames(e.db.raw, 'whoop_resource_tombstones')).includes(c));
 
     const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 10); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 21);
+    assert.equal(summary.from, 10); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 22);
     assert.deepEqual(summary.rebuilt, [], '★★★ 絕不重建');
     assert.deepEqual(summary.columnsAdded, TOMB_COLS.map((c) => `whoop_resource_tombstones.${c}`));
     // v12 的四張表在同一次遷移裡一起建起來（純新增）

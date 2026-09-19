@@ -20,7 +20,7 @@ import {
   INSIGHT_STATUS, EVIDENCE_SOURCE, nextStatusFor, contradicts,
   canTransition, recordInsight, reviseInsight,
 } from '../src/healthMemory.js';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createWhoopClient, refreshTokens } from '../src/whoop.js';
 import { LOCKS } from '../src/config.js';
 import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';

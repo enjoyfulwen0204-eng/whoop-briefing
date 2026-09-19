@@ -36,7 +36,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { checkAndAct } from '../src/proactiveAgent.js';
 import { PROACTIVE_DECISION } from '../src/schema.js';
 import { fakeTelegram } from './fakes.js';

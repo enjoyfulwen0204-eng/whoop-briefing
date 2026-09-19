@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createReconciler } from '../src/reconcile.js';
 import { WhoopApiError } from '../src/whoop.js';
 import { createBriefingEndpoint } from '../src/briefingEndpoint.js';

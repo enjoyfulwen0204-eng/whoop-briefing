@@ -52,13 +52,13 @@ export function isDuplicateSentError(err) {
   return /UNIQUE constraint failed/i.test(String(err?.message ?? ''));
 }
 
-export function createDb({ url, authToken }) {
+export function createDb({ url, authToken, phase4Keys }) {
   const processing = processingTransactions(createClient({ url, authToken }));
   const { client } = processing;
   const health = createHealthStore(client, { transaction: processing.transaction });
   const webhook = createWhoopWebhookStore(client);
   // 輸出寫入走 processing.transaction 的所有權圍欄（F01）。
-  const analytics = createAnalyticsWorkStore(client, { transaction: processing.transaction });
+  const analytics = createAnalyticsWorkStore(client, { transaction: processing.transaction, privacyKeys: phase4Keys });
 
   async function withAnswerOwnership(userId, ownership, now, fn) {
     const uid = requireUserId(userId, 'withAnswerOwnership');
@@ -505,7 +505,7 @@ export function createDb({ url, authToken }) {
    * 舊形狀的表只在「完全沒有資料」時才會被重建，有資料就中止並拋錯。
    */
   async function migrate(opts = {}) {
-    return runMigrations(client, opts);
+    return runMigrations(client, { privacyKeys: phase4Keys, ...opts });
   }
 
   // ----- tokens（per-user）-----------------------------------------------

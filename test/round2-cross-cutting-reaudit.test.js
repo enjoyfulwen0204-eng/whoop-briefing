@@ -23,7 +23,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { SCHEMA_VERSION } from '../src/schema.js';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { runForUser } from '../src/index.js';
 import { createPoller } from '../src/bot/polling.js';
 import { createRouter } from '../src/bot/router.js';

@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createSync } from '../src/sync.js';
 import {
   parseLogCommand, validateEvent, healthDateFor, parseAmount,
@@ -46,6 +46,7 @@ async function freshDb() {
   const { url, cleanup } = tempDb();
   const db = createDb({ url });
   await db.migrate();
+  await db.createUser({id: USER.id, displayName: 'Synthetic Journal', timezone: TZ});
   return { db, cleanup };
 }
 

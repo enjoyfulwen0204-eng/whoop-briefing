@@ -16,13 +16,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createReconciler } from '../src/reconcile.js';
 import {
   processAnalyticsForUser, processPendingAnalytics, runLightweightAnalysis, runHeavyAnalytics,
   fencedAnalyticsDb, nextLightChunk, unionRange,
 } from '../src/analyticsWorker.js';
-import { runMigrations } from '../src/migrations.js';
+import { runMigrations } from './localMigrations.js';
 import {
   ANALYTICS_CLASS, ANALYTICS_RESULT, ANALYTICS_FRESHNESS, TOMBSTONE_STATE, SCHEMA_VERSION, ADDITIVE_COLUMNS,
 } from '../src/schema.js';
@@ -647,13 +647,14 @@ test('遷移 v12 → v13：三個 nullable 欄位純新增；既有 canonical / 
     const COLS = ['range_generation', 'range_from', 'range_to'];
     const cols = async () => (await e.db.raw.execute('PRAGMA table_info(analytics_work_state)')).rows.map((r) => String(r.name));
     // 退回真的 v12 形狀
+    for (const event of ['insert','update']) await e.db.raw.execute(`DROP TRIGGER p4_analytics_work_state_scope_${event}`);
     for (const c of COLS) await e.db.raw.execute(`ALTER TABLE analytics_work_state DROP COLUMN ${c}`);
     await e.db.raw.execute('DROP TABLE IF EXISTS user_onboarding');   // v14 的表也要退掉
     await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 13');
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (12, '2026-09-12T00:00:00.000Z', 'v12')");
     for (const c of COLS) assert.ok(!(await cols()).includes(c));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 12); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 21);
+    assert.equal(s.from, 12); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 22);
     assert.deepEqual(s.rebuilt, []);
     assert.deepEqual(s.columnsAdded, COLS.map((c) => `analytics_work_state.${c}`));
     const tables = (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.map((r) => String(r.name));
@@ -664,6 +665,7 @@ test('遷移 v12 → v13：三個 nullable 欄位純新增；既有 canonical / 
     assert.equal(await rowCount(e.db, 'whoop_sleeps', ALICE.id), 2);
     for (let i = 0; i < 3; i += 1) { const s2 = await runMigrations(e.db.raw); assert.deepEqual(s2.columnsAdded, []); assert.deepEqual(s2.rebuilt, []); }
     // 中斷：只加了一個欄位
+    for (const event of ['insert','update']) await e.db.raw.execute(`DROP TRIGGER p4_analytics_work_state_scope_${event}`);
     for (const c of COLS) await e.db.raw.execute(`ALTER TABLE analytics_work_state DROP COLUMN ${c}`);
     await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 13');
     await e.db.raw.execute('ALTER TABLE analytics_work_state ADD COLUMN range_generation INTEGER');

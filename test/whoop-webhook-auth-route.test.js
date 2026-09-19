@@ -16,7 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHmac } from 'node:crypto';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import {
   verifyWhoopWebhook, computeWhoopSignature,
   WHOOP_AUTH_FAILURE, WHOOP_SIGNATURE_HEADER, WHOOP_TIMESTAMP_HEADER,

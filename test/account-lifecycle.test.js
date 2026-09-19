@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { handleUnlinkedMessage, handleOnboardingMessage, issueAuthLink } from '../src/onboarding.js';
 import { createWhoopOAuthCallback } from '../src/whoopOAuthCallback.js';
 import { runOnboardingBootstrap, resumeOnboardingBootstraps, BOOTSTRAP_RESULT } from '../src/onboardingBootstrap.js';
@@ -184,7 +184,7 @@ test('LIFE-GEN-02 ★★★ updateUser 不可以改 status（沒有繞過世代�
 test('LIFE-GEN-03 遷移：既有使用者一律從世代 1 開始，schema 為 v17', async () => {
   const e = await env();
   try {
-    assert.equal(SCHEMA_VERSION, 21);
+    assert.equal(SCHEMA_VERSION, 22);
     const user = await authorize(e.db, A_CHAT);
     assert.equal(await lifeOf(e.db, user.id), 1);
     // 重跑遷移是冪等的，而且不動世代

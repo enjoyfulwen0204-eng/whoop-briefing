@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createWhoopClient, WhoopAuthError } from '../src/whoop.js';
 import { LOCKS, REPORT_CLAIM, WHOOP } from '../src/config.js';
 import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';

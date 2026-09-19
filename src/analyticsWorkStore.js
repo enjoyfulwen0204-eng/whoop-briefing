@@ -25,6 +25,7 @@ import { lifecycleActiveSql } from './schema.js';
 import { requireLifecycle } from './accountLifecycle.js';
 import { ANALYTICS_CLASS, ANALYTICS_RESULT, ANALYTICS_FRESHNESS, USER_STATUS } from './schema.js';
 import { log } from './logger.js';
+import { legacyScopeCompatibility } from './legacyScopeCompatibility.js';
 
 const iso = (v) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
 const CLASSES = Object.values(ANALYTICS_CLASS);
@@ -41,8 +42,9 @@ const maxDate = (a, b) => (!a ? b : !b ? a : (a > b ? a : b));
  * @param {object} client processing 代理 client
  * @param {function} opts.transaction processing.transaction —— 輸出寫入的圍欄交易（F01）
  */
-export function createAnalyticsWorkStore(client, { transaction } = {}) {
+export function createAnalyticsWorkStore(client, { transaction, privacyKeys } = {}) {
   if (typeof transaction !== 'function') throw new Error('analytics_store_requires_transaction');
+  const scope = legacyScopeCompatibility(client, privacyKeys);
   const rowToInvalidation = (r) => (r ? {
     userId: String(r.user_id),
     generation: Number(r.generation ?? 0),
@@ -52,6 +54,7 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
     reasons: r.reasons ? String(r.reasons).split(',') : [],
     dirtySince: r.dirty_since ?? null,
     lastInvalidatedAt: r.last_invalidated_at ?? null,
+    ...(r.scope_kind ? { scopeKind: r.scope_kind } : {}),
   } : null);
 
   const rowToWork = (r) => (r ? {
@@ -73,6 +76,7 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
     rangeGeneration: r.range_generation === null || r.range_generation === undefined ? null : Number(r.range_generation),
     rangeFrom: r.range_from ?? null,
     rangeTo: r.range_to ?? null,
+    ...(r.scope_kind ? { scopeKind: r.scope_kind } : {}),
   } : null);
 
   // ----- 失效 -------------------------------------------------------------
@@ -95,14 +99,17 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
       sql: 'SELECT * FROM analytics_invalidation WHERE user_id = ?', args: [uid],
     });
     const row = cur.rows[0];
+    const mergedFrom = minDate(row?.affected_from ?? null, affectedFrom);
+    const mergedTo = maxDate(row?.affected_to ?? null, affectedTo);
+    const privacy = await scope.range(uid, 'analytics_invalidation', mergedFrom, mergedTo, nowIso);
     if (!row) {
       await client.execute({
         sql: `INSERT INTO analytics_invalidation
                 (user_id, generation, affected_from, affected_to, resources, reasons,
-                 dirty_since, last_invalidated_at, created_at, updated_at)
-              VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [uid, affectedFrom, affectedTo, mergeCsv(null, [resource]), mergeCsv(null, [reason]),
-          nowIso, nowIso, nowIso, nowIso],
+                 dirty_since, last_invalidated_at, created_at, updated_at${privacy.columns})
+              VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?${privacy.placeholders})`,
+        args: [uid, privacy.full ? null : affectedFrom, privacy.full ? null : affectedTo, mergeCsv(null, [resource]), mergeCsv(null, [reason]),
+          nowIso, nowIso, nowIso, nowIso, ...privacy.values],
       });
       log.info('analytics_invalidated', { user_id: uid, generation: 1, resource, reason });
       return 1;
@@ -111,12 +118,12 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
     await client.execute({
       sql: `UPDATE analytics_invalidation
                SET generation = ?, affected_from = ?, affected_to = ?, resources = ?, reasons = ?,
-                   dirty_since = COALESCE(dirty_since, ?), last_invalidated_at = ?, updated_at = ?
+                   dirty_since = COALESCE(dirty_since, ?), last_invalidated_at = ?, updated_at = ?${privacy.suffix}
              WHERE user_id = ?`,
       args: [generation,
-        minDate(row.affected_from ?? null, affectedFrom), maxDate(row.affected_to ?? null, affectedTo),
+        privacy.full ? null : mergedFrom, privacy.full ? null : mergedTo,
         mergeCsv(row.resources, [resource]), mergeCsv(row.reasons, [reason]),
-        nowIso, nowIso, nowIso, uid],
+        nowIso, nowIso, nowIso, ...privacy.values, uid],
     });
     log.info('analytics_invalidated', { user_id: uid, generation, resource, reason });
     return generation;
@@ -142,6 +149,11 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
     userId, cls, owner, generation, expectedLifecycleGeneration, now,
   }) {
     const life = requireLifecycle(expectedLifecycleGeneration, 'proveOwnership');
+    if (await scope.available() && (await client.execute({
+      sql: `SELECT 1 FROM analytics_invalidation WHERE user_id=? AND scope_kind='FULL_TENANT_RECOMPUTE'
+        UNION ALL SELECT 1 FROM analytics_work_state WHERE user_id=? AND class=? AND scope_kind='FULL_TENANT_RECOMPUTE'`,
+      args: [userId,userId,cls],
+    })).rows.length) throw new Error('analytics_full_scope_requires_authorized_worker');
     const rs = await client.execute({
       sql: `SELECT 1 FROM analytics_work_state
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
@@ -229,6 +241,7 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
   async function listPendingAnalytics(cls, { limit = 10, now = new Date() } = {}) {
     if (!CLASSES.includes(cls)) throw new Error(`invalid_analytics_class:${cls}`);
     const nowIso = iso(now);
+    const scoped = await scope.available();
     const rs = await client.execute({
       sql: `SELECT i.user_id, i.generation, i.last_invalidated_at, i.dirty_since,
                    COALESCE(w.done_generation, 0) done_generation, w.next_attempt_at, w.owner, w.lease_expires_at
@@ -238,7 +251,8 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
              -- ★ v17：停用／暫停的帳號不產生新的分析計算。失效列本身保留
              -- （那是資料事實），只是不再被選出來做工。
              WHERE u.status = 'ACTIVE'
-               AND i.generation > COALESCE(w.done_generation, 0)
+               AND (i.generation > COALESCE(w.done_generation, 0)
+                 ${scoped ? "OR i.scope_kind = 'FULL_TENANT_RECOMPUTE' OR w.scope_kind = 'FULL_TENANT_RECOMPUTE'" : ''})
                AND (w.next_attempt_at IS NULL OR w.next_attempt_at <= ?)
                AND (w.owner IS NULL OR w.lease_expires_at IS NULL OR w.lease_expires_at <= ?)
              ORDER BY i.last_invalidated_at, i.user_id
@@ -280,11 +294,17 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
       // ★ R3 / R2-ANALYTICS-01：啟用脈絡是**必填**的。少傳就大聲失敗；
       // 測試／管理要不受約束必須明確寫 LIFECYCLE_UNFENCED。
       const life = requireLifecycle(expectedLifecycleGeneration, 'claimAnalyticsWork');
+      const scoped = await scope.available();
+      if (scoped && (await client.execute({
+        sql: `SELECT 1 FROM analytics_invalidation WHERE user_id=? AND scope_kind='FULL_TENANT_RECOMPUTE'
+          UNION ALL SELECT 1 FROM analytics_work_state WHERE user_id=? AND class=? AND scope_kind='FULL_TENANT_RECOMPUTE'`,
+        args: [uid,uid,cls],
+      })).rows.length) return null;
       const rs = await client.execute({
         sql: `INSERT INTO analytics_work_state
                 (user_id, class, owner, lease_expires_at, last_attempt_at, status,
-                 claimed_lifecycle, created_at, updated_at)
-              SELECT ?, ?, ?, ?, ?, 'RUNNING', ?, ?, ?
+                 claimed_lifecycle, created_at, updated_at${scoped ? ',scope_kind' : ''})
+              SELECT ?, ?, ?, ?, ?, 'RUNNING', ?, ?, ?${scoped ? ",'NONE'" : ''}
                WHERE ${lifecycleActiveSql('?')}
               ON CONFLICT(user_id, class) DO UPDATE SET
                 owner = excluded.owner,
@@ -337,13 +357,15 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
     const uid = requireUserId(userId, 'setAnalyticsRange');
     const life = requireLifecycle(expectedLifecycleGeneration, 'setAnalyticsRange');
     const nowIso = iso(now);
+    const privacy = await scope.range(uid, 'analytics_work_state', from, to, nowIso, cls);
+    if (privacy.full) return false;
     const rs = await client.execute({
       sql: `UPDATE analytics_work_state
-               SET range_generation = ?, range_from = ?, range_to = ?, updated_at = ?
+               SET range_generation = ?, range_from = ?, range_to = ?, updated_at = ?${privacy.suffix}
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ? AND claimed_generation = ?
                AND (? IS NULL OR claimed_lifecycle IS ?)
                AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
-      args: [Number(generation), from, to, nowIso, uid, cls, String(owner), nowIso, generation, life, life, life, life],
+      args: [Number(generation), from, to, nowIso, ...privacy.values, uid, cls, String(owner), nowIso, generation, life, life, life, life],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -357,14 +379,16 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
     const uid = requireUserId(userId, 'advanceAnalyticsRange');
     const life = requireLifecycle(expectedLifecycleGeneration, 'advanceAnalyticsRange');
     const nowIso = iso(now);
+    const scoped = await scope.available();
     const rs = await client.execute({
       sql: `UPDATE analytics_work_state
                SET range_to = ?, range_from = CASE WHEN ? IS NULL THEN NULL ELSE range_from END, updated_at = ?
+                 ${scoped ? ", scope_kind = CASE WHEN ? IS NULL THEN 'NONE' ELSE 'HEALTH_DATE_RANGE' END" : ''}
              WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ?
                AND range_generation = ? AND range_to = ? AND claimed_generation = ?
                AND (? IS NULL OR claimed_lifecycle IS ?)
                AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
-      args: [newTo, newTo, nowIso, uid, cls, String(owner), nowIso, Number(generation), chunkTo, generation, life, life, life, life],
+      args: [newTo, newTo, nowIso, ...(scoped ? [newTo] : []), uid, cls, String(owner), nowIso, Number(generation), chunkTo, generation, life, life, life, life],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
   }
@@ -388,6 +412,7 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
       const uid = requireUserId(userId, 'settleAnalyticsWork');
       if (!owner) return false;
       const nowIso = iso(now);
+      const scoped = await scope.available();
       // ★ R3 / R2-ANALYTICS-01 §24：結案是「讓目前的分析狀態看起來完成了」，
       // 所以它和輸出一樣必須帶啟用脈絡；SUCCESS 更要在 SQL 裡證明世代沒變。
       const life = requireLifecycle(expectedLifecycleGeneration, 'settleAnalyticsWork');
@@ -398,12 +423,14 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
           sql: `UPDATE analytics_work_state
                    SET done_generation = MAX(done_generation, ?), status = 'SUCCESS',
                        range_from = NULL, range_to = NULL,
+                       ${scoped ? "scope_kind = 'NONE'," : ''}
                        owner = NULL, lease_expires_at = NULL, claimed_generation = NULL,
                        claimed_lifecycle = NULL,
                        last_success_at = ?, last_error_class = NULL, last_error_detail = NULL,
                        consecutive_failures = 0, next_attempt_at = NULL,
                        summary_json = ?, updated_at = ?
                  WHERE user_id = ? AND class = ? AND owner = ? AND lease_expires_at > ? AND claimed_generation = ?
+                   ${scoped ? "AND scope_kind <> 'FULL_TENANT_RECOMPUTE' AND NOT EXISTS (SELECT 1 FROM analytics_invalidation i WHERE i.user_id = analytics_work_state.user_id AND i.scope_kind = 'FULL_TENANT_RECOMPUTE')" : ''}
                    AND (? IS NULL OR analytics_work_state.claimed_lifecycle IS ?)
                    AND (? IS NULL OR ${lifecycleActiveSql('analytics_work_state.user_id')})`,
           args: [generation, nowIso, summary ? JSON.stringify(summary) : null, nowIso,
@@ -415,6 +442,7 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
           await client.execute({
             sql: `UPDATE analytics_invalidation
                      SET affected_from = NULL, affected_to = NULL, resources = NULL, reasons = NULL, updated_at = ?
+                       ${scoped ? ", scope_kind = 'NONE'" : ''}
                    WHERE user_id = ? AND generation = ?`,
             args: [nowIso, uid, generation],
           });
@@ -504,7 +532,8 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
       const done = w?.doneGeneration ?? 0;
       const remaining = w?.rangeFrom && w?.rangeTo && w?.rangeGeneration === generation;
       let status;
-      if (generation === 0 && done === 0) status = ANALYTICS_FRESHNESS.NEVER;
+      if (inv?.scopeKind === 'FULL_TENANT_RECOMPUTE' || w?.scopeKind === 'FULL_TENANT_RECOMPUTE') status = ANALYTICS_FRESHNESS.PENDING;
+      else if (generation === 0 && done === 0) status = ANALYTICS_FRESHNESS.NEVER;
       else if (done >= generation && !remaining) status = ANALYTICS_FRESHNESS.CURRENT;
       else if (w?.status === 'FAILED') status = ANALYTICS_FRESHNESS.FAILED;
       else status = ANALYTICS_FRESHNESS.PENDING;
@@ -573,6 +602,7 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
     const uid = requireUserId(userId, 'getAnalyticsDailyState');
     const inv = await getAnalyticsInvalidation(uid);
     const work = await getAnalyticsWorkState(uid, ANALYTICS_CLASS.LIGHT);
+    if (inv?.scopeKind === 'FULL_TENANT_RECOMPUTE' || work?.scopeKind === 'FULL_TENANT_RECOMPUTE') return [];
     const generation = inv?.generation ?? 0;
     const incomplete = Boolean(work?.rangeFrom && work?.rangeTo && work?.rangeGeneration === generation)
       || (work?.doneGeneration ?? 0) < generation;
@@ -623,12 +653,12 @@ export function createAnalyticsWorkStore(client, { transaction } = {}) {
   }
 
   return {
-    markAnalyticsDirty,
+    markAnalyticsDirty: (...args) => transaction(() => markAnalyticsDirty(...args)),
     getAnalyticsInvalidation,
     getAnalyticsWorkState,
     listPendingAnalytics,
     claimAnalyticsWork,
-    setAnalyticsRange,
+    setAnalyticsRange: (...args) => transaction(() => setAnalyticsRange(...args)),
     advanceAnalyticsRange,
     mutateForAnalytics,
     settleAnalyticsWork,

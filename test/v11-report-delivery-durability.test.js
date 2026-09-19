@@ -25,7 +25,7 @@ import { runDaily } from '../src/daily.js';
 import { runWeekly } from '../src/weekly.js';
 import { staticDataSource } from '../src/dataSource.js';
 import { localDate, localWeekday } from '../src/time.js';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { REPORT_DELIVERY_STATE } from '../src/schema.js';
 import { SEND_OUTCOME } from '../src/sendOutcome.js';
 import { TelegramError } from '../src/telegram.js';

@@ -30,7 +30,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createTelegram } from '../src/telegram.js';
 import {
   checkPeerScheduler, SCHEDULER_ALERT_COOLDOWN_HOURS, SCHEDULER_ALERT_TYPE,

@@ -17,7 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createHealthStore } from '../src/store.js';
 import { TOMBSTONE_STATE, WHOOP_EVENT_STATE } from '../src/schema.js';
 import { WhoopApiError } from '../src/whoop.js';

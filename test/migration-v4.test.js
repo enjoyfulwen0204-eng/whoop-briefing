@@ -16,11 +16,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import {
   SCHEMA_VERSION, RESHAPED_TABLES, GUARDIAN_SCHEMA, PREDICTION_MODEL_SCHEMA,
 } from '../src/schema.js';
-import { runMigrations, inspectReshape } from '../src/migrations.js';
+import { runMigrations, inspectReshape } from './localMigrations.js';
 import { ALICE, BOB, seedAliceAndBob, seedHealthData } from './users.js';
 
 function tempDir() {
@@ -60,7 +60,7 @@ test('SCHEMA_VERSION 是 16', () => {
   // v14 adds user_onboarding (self-service Telegram onboarding, Phase 3.5).
   // v15 is a data-only correction: legacy onboarding rows derived from evidence.
   // v16 adds the authorization generation + per-resource access evidence (Phase 3.5 RC2).
-  assert.equal(SCHEMA_VERSION, 21);
+  assert.equal(SCHEMA_VERSION, 22);
 });
 
 test('★★ 兩張新表都不在 RESHAPED_TABLES 裡（不可武裝 DROP 路徑）', () => {
@@ -314,14 +314,16 @@ test('★ prediction_models 與 prediction_runs 是兩張獨立的表', async ()
     assert.ok(t.includes('prediction_runs'));
     assert.ok(t.includes('prediction_models'));
 
-    // prediction_runs 的形狀完全沒被改動（沒有偷加欄位）
+    // All original columns remain; v22 adds only the required privacy envelope.
     const cols = (await db.raw.execute('PRAGMA table_info("prediction_runs")'))
       .rows.map((r) => String(r.name));
     assert.deepEqual(cols, [
       'id', 'user_id', 'target_date', 'target_metric', 'model_version', 'status',
       'features_json', 'predicted_value', 'predicted_low', 'predicted_high',
       'n_train', 'created_at', 'actual_value', 'error', 'evaluated_at',
-    ], 'prediction_runs 的形狀在 v4 完全沒被動過');
+      'content_state', 'health_content_redacted_at', 'health_content_redaction_reason',
+      'source_subject_deleted_at', 'purge_generation', 'source_linkage_state', 'content_digest_salt', 'privacy_artifact_id',
+    ], 'prediction_runs preserves v20 columns and adds exactly R');
 
     // 模型層的統計絕不可以被偷偷塞進 run 層
     for (const c of ['mae', 'rmse', 'r2', 'qualified', 'maturity', 'baseline_mae']) {

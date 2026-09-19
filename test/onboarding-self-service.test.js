@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import {
   handleUnlinkedMessage, handleOnboardingMessage, normalizeTimezone, resolveOrCreateUser,
   issueAuthLink, MESSAGES,
@@ -29,7 +29,7 @@ import {
   runOnboardingBootstrap, resumeOnboardingBootstraps, evaluateReadiness, syncUsable, BOOTSTRAP_RESULT,
 } from '../src/onboardingBootstrap.js';
 import { createWebhookHandler } from '../src/bot/webhook.js';
-import { runMigrations } from '../src/migrations.js';
+import { runMigrations } from './localMigrations.js';
 import { ONBOARDING_STATE, ONBOARDING_FAILURE, USER_STATUS, SCHEMA_VERSION } from '../src/schema.js';
 import { ONBOARDING } from '../src/config.js';
 
@@ -655,7 +655,7 @@ test('ONB-ATTACK-24 舊使用者（Kelvin）遷移：資料全留、進入重新
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (13, '2026-09-14T00:00:00.000Z', 'v13')");
 
     const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 21);
+    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 22);
     assert.deepEqual(summary.rebuilt, []);
     assert.deepEqual(summary.columnsAdded, []);
     // v14 依證據建列（Kelvin 證據齊全 → READY）；v15 的修正沒有東西要改

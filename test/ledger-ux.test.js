@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createCoach, isModelUnavailableError } from '../src/coach.js';
 import { computeCost, extractTokens, costSummary, renderCost } from '../src/usage.js';
 import { resolveModel, AI_PURPOSE, PROMPT_VERSIONS, loadPricing } from '../src/config.js';

@@ -17,7 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import {
   handleUnlinkedMessage, handleOnboardingMessage, issueAuthLink, normalizeTimezone,
 } from '../src/onboarding.js';
@@ -26,7 +26,7 @@ import {
   runOnboardingBootstrap, resumeOnboardingBootstraps, evaluateReadiness,
   missingScopes, scopeVerdict, BOOTSTRAP_RESULT,
 } from '../src/onboardingBootstrap.js';
-import { runMigrations } from '../src/migrations.js';
+import { runMigrations } from './localMigrations.js';
 import {
   ONBOARDING_STATE, ONBOARDING_FAILURE, USER_STATUS, SCHEMA_VERSION,
 } from '../src/schema.js';

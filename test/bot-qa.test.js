@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createSync } from '../src/sync.js';
 import { createRouter, looksLikeJournal, parseNaturalJournal } from '../src/bot/router.js';
 import {
@@ -48,6 +48,7 @@ async function dbWithData({ days = 60, overrides = undefined } = {}) {
   const { url, cleanup } = tempDb();
   const db = createDb({ url });
   await db.migrate();
+  await db.createUser({id: USER.id, displayName: 'Synthetic QA', timezone: TZ});
   if (days > 0) {
     const ds = makeDataset({ days, now: NOW, overrides });
     const whoop = {

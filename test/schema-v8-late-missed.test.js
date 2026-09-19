@@ -24,9 +24,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createClient } from '@libsql/client';
-import { runMigrations } from '../src/migrations.js';
+import { runMigrations } from './localMigrations.js';
 import {
   SCHEMA_VERSION, SCHEMA, REPORT_SCHEMA, IDENTITY_SCHEMA, VERSION_SCHEMA,
   BRIEFING_STATE_SCHEMA, RESHAPED_TABLES,
@@ -49,7 +49,7 @@ test('★★★ SCHEMA_VERSION 是 16，且新表走純新增路徑', () => {
   // v12 = 攝取 / 分析解耦（四張全新的表）。v13 = 輕量分片的剩餘範圍（三個 nullable 欄位）。
   // v14 = 自助上線的生命週期（一張全新的表）。v15 = 既有使用者狀態的資料修正。
   // v16 = 授權世代 + 資源權限判定表。
-  assert.equal(SCHEMA_VERSION, 21);
+  assert.equal(SCHEMA_VERSION, 22);
   assert.ok(SCHEMA.some((s) => /CREATE TABLE IF NOT EXISTS briefing_evaluations/.test(s)));
   assert.ok(BRIEFING_STATE_SCHEMA.every((s) => /IF NOT EXISTS/.test(s)),
     '★ 每一句都必須是 IF NOT EXISTS（可重複執行）');
@@ -85,6 +85,7 @@ test('★★★ 既有的 v7 資料庫升到最新版，而且原有資料原封
       sql: 'INSERT INTO schema_version (version, applied_at, note) VALUES (7, ?, ?)',
       args: [new Date().toISOString(), 'test v7'],
     });
+    await client.execute("INSERT INTO users(id,display_name,status,created_at,updated_at) VALUES ('u-1','Synthetic','ACTIVE','2026-09-11','2026-09-11')");
     await client.execute({
       sql: `INSERT INTO report_runs
               (user_id, report_type, local_date, health_date, status, sent_at)

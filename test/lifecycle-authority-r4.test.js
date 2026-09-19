@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createTelegram } from '../src/telegram.js';
 import { withDeliveryAuthorization, LIFECYCLE_UNFENCED, LifecycleContextError } from '../src/accountLifecycle.js';
 import { checkAndAct } from '../src/proactiveAgent.js';
@@ -289,10 +289,11 @@ test('MIG-R4: real v19 schema upgrades to v20 without adopting historical owners
     if (!columns.some((c) => c.name === col.column)) await db.raw.execute(col.ddl);
   }
   await db.raw.execute("INSERT INTO schema_version (version, applied_at, note) VALUES (19, '2026-09-16', 'R3')");
+  await db.createUser({id: 'old', displayName: 'Synthetic legacy'});
   await db.raw.execute("INSERT INTO proactive_agent_state(user_id, last_checked_health_date, last_fingerprint, enabled, updated_at) VALUES ('old', '2026-09-16', 'fp', 0, '2026-09-16')");
   await db.raw.execute("INSERT INTO proactive_events(user_id, health_date, idempotency_key, decision, policy_version, created_at) VALUES ('old', '2026-09-16', 'key', 'ASK_CONTEXT', 'test', '2026-09-16')");
   const migration = await db.migrate(); assert.equal(migration.from, 19); assert.equal(migration.to, SCHEMA_VERSION);
-  assert.equal(SCHEMA_VERSION, 21);
+  assert.equal(SCHEMA_VERSION, 22);
   assert.deepEqual(migration.columnsAdded.sort(), ['error_notifications.lifecycle_generation', 'proactive_agent_state.lifecycle_generation', 'proactive_events.lifecycle_generation']);
   assert.equal((await db.getProactiveState('old')).lifecycleGeneration, null);
   assert.equal((await db.getProactiveState('old')).enabled, false);

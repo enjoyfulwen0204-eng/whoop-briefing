@@ -15,7 +15,7 @@ import {
   computeCapabilities, classify, getCapability, isUsable,
   STATUS, APP_ONLY_CAPABILITIES, probeCapabilities,
 } from '../src/capabilities.js';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 
 const U = 'u-cap-test';
 import { WhoopApiError } from '../src/whoop.js';

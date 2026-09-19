@@ -9,7 +9,7 @@
  */
 
 import { parentPort } from 'node:worker_threads';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { fencedAnalyticsDb } from '../src/analyticsWorker.js';
 import { LIFECYCLE_UNFENCED } from '../src/accountLifecycle.js';
 

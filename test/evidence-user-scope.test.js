@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { getEvidence, EVIDENCE_METHODS } from '../src/evidence.js';
 import { persistPrediction, backfillActuals, scorecard, MODEL_VERSION } from '../src/prediction.js';
 import { requireUserId, MissingUserIdError } from '../src/userContext.js';

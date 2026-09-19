@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createRouter, parseNaturalJournal } from '../src/bot/router.js';
 import { assessUrgency } from '../src/bot/triage.js';
 import { deterministicIntent } from '../src/bot/intent.js';

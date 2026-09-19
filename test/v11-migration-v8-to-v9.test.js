@@ -29,12 +29,12 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { createClient } from '@libsql/client';
-import { runMigrations } from '../src/migrations.js';
+import { runMigrations } from './localMigrations.js';
 import {
   SCHEMA_VERSION, REPORT_DELIVERY_STATE,
   IDENTITY_SCHEMA, REPORT_SCHEMA, VERSION_SCHEMA,
 } from '../src/schema.js';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'v8-v9-'));
 
@@ -68,6 +68,10 @@ async function seedV8(url) {
   });
 
   const t = new Date().toISOString();
+  for (const id of ['u-1','u-2']) await client.execute({
+    sql: 'INSERT INTO users(id,display_name,status,created_at,updated_at) VALUES (?, ?, ?, ?, ?)',
+    args: [id,'Synthetic legacy','ACTIVE',t,t],
+  });
   // (a) 證明得了送出去過的歷史列
   await client.execute({
     sql: `INSERT INTO report_claims

@@ -13,9 +13,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { SCHEMA_VERSION } from '../src/schema.js';
-import { UnsafeMigrationError, inspectReshape, legacyTableStatus } from '../src/migrations.js';
+import { UnsafeMigrationError, inspectReshape, legacyTableStatus } from './localMigrations.js';
 
 function tempDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mu-mig-'));

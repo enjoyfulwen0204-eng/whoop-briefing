@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { decide } from '../src/attention.js';
 import { PROACTIVE_DECISION, PROACTIVE_OUTCOME } from '../src/schema.js';
 import { ANTI_SPAM_POLICY, ATTENTION_POLICY } from '../src/proactivePolicy.js';

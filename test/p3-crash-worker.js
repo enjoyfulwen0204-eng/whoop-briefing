@@ -4,7 +4,7 @@
  *
  * 用法：node test/p3-crash-worker.js <url> <userId> <op:upsert|delete> <json>
  */
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 
 const [url, userId, op, json] = process.argv.slice(2);
 const db = createDb({ url });

@@ -30,7 +30,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createRouter, questionTargetDateOf } from '../src/bot/router.js';
 import { selectQuestion, questionTargetDate, buildQuestionText } from '../src/questionEngine.js';
 import { openFollowUp } from '../src/bot/conversation.js';

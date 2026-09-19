@@ -28,7 +28,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { buildPersonalHealthspan } from '../src/healthspanEngine.js';
 import { handleHealthspan } from '../src/bot/commands.js';
 import { buildObservations } from '../src/analyze.js';

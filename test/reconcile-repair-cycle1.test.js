@@ -18,11 +18,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import {
   createReconciler, validateCollectionPage, nextDeepSlice, deepResourceKey, isReconcileDue, hasPendingWindow, ERROR_CLASS,
 } from '../src/reconcile.js';
-import { currentVersion } from '../src/migrations.js';
+import { currentVersion } from './localMigrations.js';
 import { RECONCILE_RESULT, TOMBSTONE_STATE, SCHEMA_VERSION } from '../src/schema.js';
 import { WhoopApiError } from '../src/whoop.js';
 import { WHOOP_RECONCILE, WHOOP } from '../src/config.js';

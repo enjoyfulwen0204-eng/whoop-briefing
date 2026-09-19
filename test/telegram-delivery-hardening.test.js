@@ -31,7 +31,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createRouter } from '../src/bot/router.js';
 import { createSendReply } from '../src/bot/index.js';
 import { createUpdateProcessor, UPDATE_OUTCOME } from '../src/bot/updateProcessor.js';

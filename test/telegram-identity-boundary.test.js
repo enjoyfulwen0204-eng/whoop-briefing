@@ -22,7 +22,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 import { createPoller } from '../src/bot/polling.js';
 import { handleLinkAttempt } from '../src/bot/link.js';
 

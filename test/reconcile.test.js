@@ -941,7 +941,7 @@ test('J1 v10 → v11：純新增（三張表 + 三欄），零重建，既有墓
     for (const c of TOMB_COLS) assert.ok(!(await colNames(e.db.raw, 'whoop_resource_tombstones')).includes(c));
 
     const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 10); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 22);
+    assert.equal(summary.from, 10); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 23);
     assert.deepEqual(summary.rebuilt, [], '★★★ 絕不重建');
     assert.deepEqual(summary.columnsAdded, TOMB_COLS.map((c) => `whoop_resource_tombstones.${c}`));
     // v12 的四張表在同一次遷移裡一起建起來（純新增）

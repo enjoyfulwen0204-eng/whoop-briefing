@@ -106,14 +106,50 @@ async function backfillV21(client) {
     WHERE target_version = 21 AND step_key = 'tenant_metadata'`);
 }
 
+async function backfillV23(client) {
+  await client.execute({sql:`INSERT INTO phase4_migration_checkpoints
+    (target_version,step_key,postcondition_state,updated_at) VALUES (23,'legacy_insights','PENDING',?)
+    ON CONFLICT(target_version,step_key) DO NOTHING`,args:[new Date().toISOString()]});
+  for (;;) {
+    const rows = (await client.execute(`SELECT id FROM health_insights WHERE legacy_classification IS NULL
+      ORDER BY id LIMIT 100`)).rows;
+    if (!rows.length) break;
+    for (const row of rows) await client.execute({sql:`UPDATE health_insights SET legacy_classification='LEGACY_UNVERIFIED'
+      WHERE id=? AND legacy_classification IS NULL`,args:[row.id]});
+    await client.execute({sql:`INSERT INTO phase4_migration_checkpoints
+      (target_version,step_key,last_cursor,postcondition_state,updated_at) VALUES (23,'legacy_insights',?,'PENDING',?)
+      ON CONFLICT(target_version,step_key) DO UPDATE SET last_cursor=excluded.last_cursor,updated_at=excluded.updated_at`,
+    args:[String(rows.at(-1).id),new Date().toISOString()]});
+  }
+}
+
 export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSION, options = {}) {
-  for (const migration of PHASE4_MIGRATIONS.filter(m => m.version <= version)) {
+  const migrations = PHASE4_MIGRATIONS.filter(m => m.version <= version);
+  const replacements = migrations.flatMap(m=>m.replacements ?? []);
+  const nextReplacements = options.resuming ? PHASE4_MIGRATIONS.find(m=>m.version === version + 1)?.replacements ?? [] : [];
+  for (const migration of migrations) {
     for (const ddl of migration.ddl) await verifyPhase4Definition(client, ddl);
     for (const column of migration.columns ?? []) await verifyColumn(client, column);
-    for (const ddl of [...(migration.indexes ?? []), ...(migration.triggers ?? [])]) await verifyPhase4Definition(client, ddl);
+    for (const ddl of [...(migration.indexes ?? []), ...(migration.triggers ?? [])]) {
+      const name = ddl.match(/^CREATE (?:UNIQUE )?(?:INDEX|TRIGGER) IF NOT EXISTS (\w+)/)?.[1];
+      if (replacements.some(r=>r.oldName === name)) continue;
+      const pending = nextReplacements.find(r=>r.oldName === name);
+      const exists = pending && (await client.execute({sql:'SELECT 1 FROM sqlite_master WHERE name=?',args:[name]})).rows.length;
+      await verifyPhase4Definition(client,pending && !exists ? pending.ddl : ddl);
+    }
+  }
+  for (const {oldName,ddl} of replacements) {
+    await verifyPhase4Definition(client,ddl);
+    if ((await client.execute({sql:'SELECT 1 FROM sqlite_master WHERE name=?',args:[oldName]})).rows.length) {
+      throw new Phase4SchemaError('phase4_retired_index_present',oldName);
+    }
   }
   if (version >= 21) await verifyV21(client, options);
   if (version >= 22) await verifyV22Data(client, { backfill: options.backfillVersion === 22 });
+  if (version >= 23 && options.backfillVersion === 23) await requireZero(client, `SELECT 1 FROM health_insights
+    WHERE legacy_classification IS NOT 'LEGACY_UNVERIFIED' OR insight_key IS NOT NULL OR current_revision IS NOT NULL
+      OR evidence_contract_version IS NOT NULL OR lifecycle_disposition IS NOT NULL OR lifecycle_generation IS NOT NULL
+      OR auth_generation IS NOT NULL OR input_generation IS NOT NULL LIMIT 1`, 'v23_legacy_insights');
 }
 
 export async function assertPhase4Schema(client, expected = EXPECTED_SCHEMA_VERSION) {
@@ -129,7 +165,7 @@ export async function applyPhase4Migrations(client, from, target, options = {}) 
   const applied = [];
   if (from < 22 && target >= 22) requirePhase4Keys(options.privacyKeys);
   // Applied versions are immutable. Do not repair drift with IF NOT EXISTS.
-  if (from >= 21) await verifyPhase4Schema(client, from);
+  if (from >= 21) await verifyPhase4Schema(client, from, { resuming: from < target });
   for (const migration of PHASE4_MIGRATIONS.filter(m => m.version > from && m.version <= target)) {
     for (const ddl of migration.ddl) {
       await client.execute(ddl);
@@ -142,13 +178,21 @@ export async function applyPhase4Migrations(client, from, target, options = {}) 
     }
     if (migration.version === 21) await backfillV21(client);
     if (migration.version === 22) await backfillV22(client, options);
+    if (migration.version === 23) await backfillV23(client);
     for (const ddl of [...(migration.indexes ?? []), ...(migration.triggers ?? [])]) {
       await client.execute(ddl);
       await verifyPhase4Definition(client, ddl);
     }
+    for (const {oldName,ddl} of migration.replacements ?? []) {
+      await client.execute(ddl);
+      await verifyPhase4Definition(client,ddl);
+      await client.execute(`DROP INDEX IF EXISTS ${oldName}`);
+    }
     await verifyPhase4Schema(client, migration.version, { backfill: migration.version === 21, backfillVersion: migration.version });
     if (migration.version === 22) await client.execute(`UPDATE phase4_migration_checkpoints SET postcondition_state='COMPLETE'
       WHERE target_version=22 AND step_key='privacy_backfill'`);
+    if (migration.version === 23) await client.execute(`UPDATE phase4_migration_checkpoints SET postcondition_state='COMPLETE'
+      WHERE target_version=23 AND step_key='legacy_insights'`);
     await client.execute({
       sql: `INSERT INTO schema_version (version, applied_at, note) VALUES (?, ?, ?)
         ON CONFLICT(version) DO NOTHING`,

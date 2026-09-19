@@ -817,7 +817,7 @@ for (const scenario of ['valid', 'recovery_denied', 'inactive']) {
       await db.raw.execute({ sql: "INSERT INTO whoop_capabilities(user_id, key, status, last_probed_at) VALUES (?, 'recovery', 'SUPPORTED', ?)", args: [uid, ts] });
       const migrated = await db.migrate();
       assert.equal(migrated.from, 9);
-      assert.equal(migrated.to, 22);
+      assert.equal(migrated.to, 23);
       assert.equal((await db.raw.execute('SELECT COUNT(*) n FROM whoop_resource_access')).rows[0].n, 0);
       const state = await db.getOnboardingRow(uid);
       assert.notEqual(state.state, 'READY');
@@ -916,7 +916,7 @@ test('R3 migration repairs false READY on an already-v18 database exactly once',
     await e.db.raw.execute("INSERT INTO schema_version(version, applied_at, note) VALUES (18, '2026-09-15', 'prior candidate')");
     const result = await e.db.migrate();
     assert.equal(result.from, 18);
-    assert.equal(result.to, 22);
+    assert.equal(result.to, 23);
     assert.deepEqual(result.dataMigrations, [{ version: 19, rows: 1 }]);
     assert.equal((await e.db.getOnboardingRow(u.id)).state, 'WHOOP_AUTHORIZED');
     assert.deepEqual((await e.db.migrate()).dataMigrations, []);

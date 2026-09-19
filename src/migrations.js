@@ -127,6 +127,9 @@ export async function runMigrations(client, { allowRebuild = true, targetVersion
   }
 
   for (const stmt of SCHEMA) {
+    // v23 explicitly replaces these legacy health indexes with mode-qualified
+    // indexes; a later idempotent run must not recreate the retired definitions.
+    if (from >= 23 && /^CREATE INDEX IF NOT EXISTS idx_insight_(subject|active)\b/.test(stmt.trim())) continue;
     await client.execute(stmt);
     summary.created += 1;
   }

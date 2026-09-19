@@ -1,0 +1,97 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { syntheticPhase4Fixture } from './phase4Fixture.js';
+import { journalQuestion,inboundAnswer } from './journalQuestionFixture.js';
+const coverageAnswer={sourceText:'none',candidate:{confirmed:true,extractionConfidence:1,excerptStart:0,excerptEnd:4}};
+const factAnswer={sourceText:'caffeine 100mg',candidate:{category:'caffeine',eventAt:'2026-09-18T00:00:00.000Z',valueKind:'NUMERIC',numericValue:100,
+  unit:'mg',exposureState:'EXPOSED',extractionConfidence:1,excerptStart:0,excerptEnd:14}};
+const request=(p,patch={})=>({questionRequestId:p.selected.questionRequestId,replyToQuestionRequestId:p.selected.questionRequestId,expectedRevision:p.slot.revision,...patch});
+
+test('SHADOW validated answers stay synthetic; invalid, cross-tenant and mismatched answers cannot resolve an occupied request',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f,{coverage:true}),options=request(p,{...coverageAnswer,sourceUpdateId:'shadow:1'});
+  const b=await f.stores.capture('b',{executionMode:'SHADOW'});
+  await assert.rejects(f.stores.journalAnswers.accept(b,options),/PARENT_NOT_FOUND/);
+  await assert.rejects(f.stores.journalAnswers.accept(p.context,{...options,sourceUpdateId:'123'}),/SHADOW_SIMULATION/);
+  await assert.rejects(f.stores.journalAnswers.accept(p.context,{...options,replyToQuestionRequestId:'other'}),/EXACT_QUESTION/);
+  const ambiguous=await f.stores.journalAnswers.accept(p.context,{...options,candidate:{...options.candidate,confirmed:false}});
+  assert.equal(ambiguous.status,'REQUIRE_CLARIFICATION');assert.equal((await f.stores.slots.read(p.control,'SHADOW')).state,'AMBIGUOUS_WAIT');
+  const accepted=await f.stores.journalAnswers.accept(p.context,options);assert.equal(accepted.status,'ACCEPT');assert.equal(accepted.slot.state,'RESOLVED');
+  const replay=await f.stores.journalAnswers.accept(p.context,{sourceUpdateId:'shadow:1',candidate:new Proxy({}, {get(){throw Error('parser invoked');}})});
+  assert.equal(replay.created,false);assert.equal(replay.answerEventId,accepted.answerEventId);
+  for(const table of ['journal_events','journal_coverage_windows','telegram_operations','pending_questions','outbound_delivery_attempts'])
+    assert.equal((await f.db.raw.execute(`SELECT count(*) n FROM ${table}`)).rows[0].n,0,table);
+  const answer=(await f.db.raw.execute('SELECT * FROM structured_answer_events')).rows[0];
+  assert.equal(answer.logical_fact_id,null);assert.equal(answer.coverage_window_id,null);
+});
+
+test('LIVE accepted fact, source generation, answer receipt and matching slot resolve commit atomically without send capability',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f,{mode:'LIVE'}),proof=await inboundAnswer(f,p.control);
+  const options=request(p,{...factAnswer,sourceUpdateId:'9101',inboundAuthority:proof});
+  await assert.rejects(f.stores.journalAnswers.accept(p.context,{...options,inboundAuthority:{}}),/AUTHORITY_REQUIRED/);
+  await f.db.raw.execute("CREATE TRIGGER synthetic_answer_failure BEFORE INSERT ON structured_answer_events BEGIN SELECT RAISE(ABORT,'synthetic_answer_failure'); END");
+  await assert.rejects(f.stores.journalAnswers.accept(p.context,options),/synthetic_answer_failure/);
+  for(const table of ['journal_events','telegram_operations','structured_answer_events'])assert.equal((await f.db.raw.execute(`SELECT count(*) n FROM ${table}`)).rows[0].n,0);
+  assert.equal((await f.stores.slots.read(p.control,'LIVE')).state,'AMBIGUOUS_WAIT');
+  await f.db.raw.execute('DROP TRIGGER synthetic_answer_failure');
+  const accepted=await f.stores.journalAnswers.accept(p.context,options);assert.equal(accepted.status,'ACCEPT');assert.equal(accepted.reply,null);
+  const context=await f.stores.capture('a',{executionMode:'LIVE'});
+  assert.equal((await f.stores.journal.read(context,accepted.logicalFactId)).row.numeric_value,100);
+  const answer=await f.stores.readArtifact(context,'structured_answer_events',{answer_event_id:accepted.answerEventId});
+  assert.equal(answer.row.input_generation,context.inputGeneration);assert.equal(answer.row.logical_fact_id,accepted.logicalFactId);
+  assert.equal((await f.stores.journalAnswers.accept(context,{sourceUpdateId:'9101',inboundAuthority:proof})).answerEventId,accepted.answerEventId);
+  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM outbound_delivery_attempts')).rows[0].n,1); // synthetic question only
+  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,1);
+});
+
+test('Coverage confirmation, window correction and deletion recompute exact tri-state classification and redact prior answer/receipt without expanding factors',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f,{mode:'LIVE',coverage:true}),proof=await inboundAnswer(f,p.control);
+  const accepted=await f.stores.journalAnswers.accept(p.context,request(p,{...coverageAnswer,sourceUpdateId:'9101',inboundAuthority:proof}));
+  assert.equal(accepted.status,'ACCEPT');assert.ok(accepted.coverageWindowId);await f.stores.release(p.context);
+  let context=await f.stores.capture('a',{executionMode:'SHADOW'});
+  const window={factor:'caffeine',windowStart:p.question.target_window_start_utc,windowEnd:p.question.target_window_end_utc};
+  assert.equal((await f.stores.journal.classify(context,window)).state,'CONFIRMED_UNEXPOSED');
+  assert.equal((await f.stores.journal.classify(context,{...window,factor:'sauna'})).state,'UNKNOWN');await f.stores.release(context);
+  const start='2026-09-18T12:00:00.000Z',sourceText=`none ${start}`;
+  const change={coverageWindowId:accepted.coverageWindowId,expectedRevision:1,candidate:{...coverageAnswer.candidate,excerptEnd:sourceText.length},
+    sourceText,windowStart:start,factors:['caffeine'],idempotencyKey:'coverage-correct'};
+  await assert.rejects(f.stores.journalCoverage.correct(p.control,{...change,factors:['sauna']}),/EXPANSION_FORBIDDEN/);
+  const correction=await f.stores.journalCoverage.correct(p.control,change);await f.stores.privacy.complete(p.control,correction.purgeId);
+  context=await f.stores.capture('a',{executionMode:'SHADOW'});
+  assert.equal((await f.stores.journal.classify(context,window)).state,'UNKNOWN');
+  assert.equal((await f.stores.journal.classify(context,{...window,windowStart:start})).state,'CONFIRMED_UNEXPOSED');
+  assert.equal((await f.stores.journal.classify(context,{...window,factor:'alcohol',windowStart:start})).state,'UNKNOWN');await f.stores.release(context);
+  const rows=(await f.db.raw.execute('SELECT * FROM journal_coverage_windows ORDER BY revision')).rows;
+  assert.equal(rows[0].content_state,'REDACTED');assert.equal(rows[1].revision,2);assert.equal(rows[1].supersedes_coverage_window_id,rows[0].coverage_window_id);
+  assert.equal((await f.db.raw.execute('SELECT content_state FROM structured_answer_events ORDER BY answer_revision')).rows[0].content_state,'REDACTED');
+  const revisions=(await f.db.raw.execute('SELECT * FROM structured_answer_events ORDER BY answer_revision')).rows;
+  assert.equal(revisions.length,2);assert.equal(revisions[1].answer_revision,2);assert.equal(revisions[1].coverage_window_id,rows[1].coverage_window_id);
+  assert.equal(revisions[1].supersedes_answer_event_id,revisions[0].answer_event_id);assert.equal(revisions[1].logical_answer_id,revisions[0].logical_answer_id);
+  assert.equal((await f.db.raw.execute('SELECT content_state FROM telegram_operations')).rows[0].content_state,'REDACTED');
+  const deletion=await f.stores.journalCoverage.remove(p.control,{coverageWindowId:rows[1].coverage_window_id,idempotencyKey:'coverage-delete'});
+  await f.stores.privacy.complete(p.control,deletion.purgeId);
+  context=await f.stores.capture('a',{executionMode:'SHADOW'});assert.equal((await f.stores.journal.classify(context,{...window,windowStart:start})).state,'UNKNOWN');
+});
+
+test('Semantically changed answer correction creates exactly one fresh revision; equivalent wording reuses it and deletion creates no answer event or slot transition',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f,{mode:'LIVE'}),proof=await inboundAnswer(f,p.control);
+  const first=await f.stores.journalAnswers.accept(p.context,request(p,{...factAnswer,sourceUpdateId:'9101',inboundAuthority:proof}));
+  await f.stores.release(p.context);await f.db.completeTelegramUpdate(9101,{owner:'answer-owner',now:f.core.now()});
+  const correctedProof=await inboundAnswer(f,p.control,9102),sourceText='caffeine 200mg';
+  const corrected=await f.stores.journalInbound.process(p.control,correctedProof,{operation:'CORRECTION',logicalFactId:first.logicalFactId,expectedRevision:1,
+    sourceText,candidate:{...factAnswer.candidate,numericValue:200,excerptEnd:sourceText.length}});
+  assert.equal(corrected.complete,true);
+  const answers=(await f.db.raw.execute('SELECT * FROM structured_answer_events ORDER BY answer_revision')).rows;
+  assert.equal(answers.length,2);assert.equal(answers[0].content_state,'REDACTED');assert.equal(answers[1].answer_revision,2);assert.equal(answers[1].fact_revision,2);
+  assert.equal(answers[1].logical_answer_id,answers[0].logical_answer_id);assert.equal(answers[1].source_update_id,'9102');assert.equal(answers[1].selected_followup_kind,null);
+  const live=await f.stores.capture('a',{executionMode:'LIVE'});await f.stores.readArtifact(live,'structured_answer_events',{answer_event_id:answers[1].answer_event_id});await f.stores.release(live);
+  const before=await f.stores.slots.read(p.control,'LIVE');assert.equal(before.state,'RESOLVED');
+  const same=await f.stores.journal.correct(p.control,{logicalFactId:first.logicalFactId,expectedRevision:2,idempotencyKey:'wording-only',sourceText:'caffeine 200mg today',
+    candidate:{...factAnswer.candidate,numericValue:200,extractionConfidence:0.95,excerptEnd:14}});
+  assert.equal(same.unchanged,true);assert.equal(same.answerEventId,answers[1].answer_event_id);
+  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM structured_answer_events')).rows[0].n,2);
+  const deletion=await f.stores.journal.remove(p.control,{logicalFactId:first.logicalFactId,idempotencyKey:'delete-answer'});await f.stores.privacy.complete(p.control,deletion.purgeId);
+  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM structured_answer_events')).rows[0].n,2);
+  assert.equal((await f.db.raw.execute("SELECT count(*) n FROM structured_answer_events WHERE content_state='PRESENT'")).rows[0].n,0);
+  assert.equal((await f.db.raw.execute("SELECT count(*) n FROM telegram_operations WHERE content_state='PRESENT'")).rows[0].n,0);
+  assert.deepEqual(await f.stores.slots.read(p.control,'LIVE'),before);
+});

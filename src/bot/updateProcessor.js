@@ -123,6 +123,9 @@ export function createUpdateProcessor({
   handleMessage,
   /** 未綁定 chat 的處理（目前只用來吃 /link）。回 null 代表完全不回。 */
   handleUnlinked = null,
+  /** Default-off dedicated control path, before the ordinary action/receipt
+   * transaction. No production entry point supplies this foundation adapter. */
+  phase4JournalControl = null,
   /** 送出回覆。帶 HRD-R03 的綁定守衛，回 {sent, messageId}。 */
   sendReply = null,
   /**
@@ -542,6 +545,16 @@ export function createUpdateProcessor({
         if (!dispatchable) {
           log.error('telegram_update_dispatch_fence', { update_id: updateId });
           return { outcome: UPDATE_OUTCOME.RETRY, updateId, reason: 'dispatch_fence', replied: false };
+        }
+      }
+
+      if (claimed && c.kind === 'ok' && phase4JournalControl) {
+        const control = await phase4JournalControl({user:c.user,updateId,owner:attemptId,text:c.text});
+        if (control?.handled) {
+          if (!control.complete) return {outcome:UPDATE_OUTCOME.RETRY,updateId,reason:'privacy_completion_pending',replied:false};
+          if (!await db.completeTelegramUpdate(updateId,{owner:attemptId,now:now()}))
+            return {outcome:UPDATE_OUTCOME.FENCED,updateId,reason:'ownership_lost',replied:false};
+          return {outcome:UPDATE_OUTCOME.PROCESSED,updateId,reason:null,replied:false};
         }
       }
 

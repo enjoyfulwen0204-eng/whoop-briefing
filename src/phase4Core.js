@@ -221,7 +221,7 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     if(verified.has(node))return;
     path.add(node);
     const logical=['observation_episodes','health_insights'].includes(table);
-    const links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id FROM phase4_source_links
+    const links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM phase4_source_links
       WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL
       ${logical?'AND relationship=?':''}`,
     args:[context.userId,context.executionMode,table,artifactId,...(logical?[`INPUT_GENERATION:${context.inputGeneration}`]:[])]})).rows;
@@ -234,6 +234,16 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
           args:[context.userId,context.executionMode,link.source_id]})).rows[0];
         if(!readableRow(parent) || parent.invalidated_at
           || (link.source_type==='health_insights' && parent.legacy_classification!=='PHASE4'))fail('PHASE4_PARENT_STALE');
+        if(link.relationship==='ANSWER_LINEAGE') {
+          // The independently authenticated answer supplies its own assertion
+          // root. This edge records the question it answered, NOT old numeric
+          // evidence. It still participates fully in tenant/mode/purge closure.
+          const answer=table==='structured_answer_events'?(await client.execute({sql:`SELECT question_request_id FROM structured_answer_events
+            WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?`,args:[context.userId,context.executionMode,artifactId]})).rows[0]:null;
+          if(link.source_type!=='context_questions'||!answer||answer.question_request_id!==parent.question_request_id||parent.status!=='RESOLVED'
+            ||parent.lifecycle_generation!==context.lifecycleGeneration||parent.auth_generation!==context.authGeneration)fail('PHASE4_ANSWER_LINEAGE_INVALID');
+          continue;
+        }
         for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],['auth_generation',context.authGeneration]])
           if(Object.hasOwn(parent,column) && parent[column]!==value)fail('PHASE4_PARENT_STALE');
         await validateStoredGraph(context,link.source_type,link.source_id,path,verified);

@@ -20,11 +20,13 @@ export async function syntheticPhase4Fixture(t,options={}) {
   if((await db.raw.execute('PRAGMA database_list')).rows.some(r=>r.file!==''))fail('SYNTHETIC_DATABASE_NOT_MEMORY');
   await db.migrate();
   const connection=db.raw;
-  const core=await buildPhase4Core({processing:{client:connection,transaction:db.transaction,active:db.processingTransactionActive,afterCommit:db.afterProcessingCommit},keys:fixtureKeys,now,
+  const build=()=>buildPhase4Core({processing:{client:connection,transaction:db.transaction,active:db.processingTransactionActive,afterCommit:db.afterProcessingCommit},keys:fixtureKeys,now,
     authorizeMode(mode,client){if(client!==connection || !['SHADOW','LIVE'].includes(mode))fail('SYNTHETIC_AUTHORITY_MISMATCH');}});
+  const core=await build();
   for(const id of ['a','b']) {
     await db.createUser({id,displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'},{now:now()});
     await core.initializeTenant(id,'SHADOW');
   }
-  return {db,core,stores:composePhase4Stores(core),keys:fixtureKeys,fakeTransport:Object.freeze({kind:'IN_MEMORY_FAKE_ONLY'})};
+  return {db,core,stores:composePhase4Stores(core),keys:fixtureKeys,fakeTransport:Object.freeze({kind:'IN_MEMORY_FAKE_ONLY'}),
+    restart:async()=>{const restarted=await build();return {core:restarted,stores:composePhase4Stores(restarted)};}};
 }

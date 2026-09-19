@@ -86,6 +86,12 @@ export function createPhase4Redactor(core) {
   }
   async function apply(userId,node,purge) {
     const {row,where,args}=await locate(userId,node);if(!row)return 'REMOVED';
+    if(node.type==='journal_events'&&purge.operation_kind==='DELETION'&&purge.target_source_type==='JOURNAL_FACT'
+      &&row.logical_fact_id===purge.target_source_id) {
+      // Logical deletion removes every revision, including previously redacted
+      // correction audit rows; the dedicated non-health tombstone survives.
+      await client.execute({sql:`DELETE FROM journal_events WHERE ${where}`,args});return 'REMOVED';
+    }
     if(row.content_state==='REDACTED')return 'REDACTED';
     if(DISPOSABLE.has(node.type)) {
       await client.execute({sql:`DELETE FROM ${node.type} WHERE ${where}`,args});return 'REMOVED';
@@ -96,9 +102,6 @@ export function createPhase4Redactor(core) {
     const patch={...FIELDS[node.type],content_state:'REDACTED',source_linkage_state:'DISCONNECTED',health_content_redacted_at:at,
       health_content_redaction_reason:reason,source_subject_deleted_at:deletion?at:null,content_digest_salt:null,purge_generation:purge.purge_generation};
     if(node.type==='journal_events') {
-      if(deletion && purge.target_source_type==='JOURNAL_FACT' && row.logical_fact_id===purge.target_source_id) {
-        await client.execute({sql:`DELETE FROM journal_events WHERE ${where}`,args});return 'REMOVED';
-      }
       Object.assign(patch,{fact_status:'SUPERSEDED',invalidated_at:at,invalidation_reason:reason});
     }
     if(node.type==='journal_coverage_windows')patch.status=deletion?'DELETED':'SUPERSEDED';
@@ -145,6 +148,10 @@ export function createPhase4Redactor(core) {
   async function verify(userId,node,targetState) {
     const {row}=await locate(userId,node);
     if(targetState==='REMOVED') {if(row)fail('PHASE4_PURGE_ROW_REAPPEARED');return;}
+    if(!row&&(await client.execute({sql:`SELECT 1 FROM health_purge_targets t JOIN health_plaintext_purges p
+      ON p.user_id=t.user_id AND p.purge_id=t.purge_id WHERE t.user_id=? AND t.artifact_execution_mode=?
+      AND t.artifact_type=? AND t.artifact_id=? AND t.state='REMOVED' AND p.state IN ('DB_REDACTED','CACHE_CONFIRMED','COMPLETE')`,
+      args:[userId,node.mode,node.type,node.id]})).rows.length)return;
     if(!row || row.content_state!=='REDACTED' || row.source_linkage_state!=='DISCONNECTED'
       || !row.health_content_redacted_at || row.content_digest_salt!==null)fail('PHASE4_REDACTION_POSTCONDITION');
     for(const [field,value] of Object.entries(FIELDS[node.type]||{}))if(row[field]!==value)fail('PHASE4_REDACTION_PLAINTEXT_REMAINS');

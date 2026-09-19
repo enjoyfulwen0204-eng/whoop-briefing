@@ -2,6 +2,7 @@ import { fail } from './phase4Core.js';
 import { assertPhase4Schema } from './phase4Migrations.js';
 import { createPhase4Redactor } from './phase4Redaction.js';
 import { canonicalJson } from './phase4EntityStore.js';
+import { addPrivacyLink } from './phase4V22Backfill.js';
 
 const nodeKey=n=>JSON.stringify([n.mode,n.type,n.id]);
 const toNode=row=>({mode:row.artifact_execution_mode,type:row.artifact_type,id:row.artifact_id});
@@ -11,6 +12,11 @@ export function createPhase4PrivacyStore(core,queue) {
   const {client,transaction,timestamp,keys}=core,redactor=createPhase4Redactor(core);
   const replacements=new WeakMap();
   const handlers=new Map();
+  let inbound=null;
+  function registerInbound(adapter) {
+    if(inbound||typeof adapter?.validate!=='function'||typeof adapter?.commitReceipt!=='function')fail('PHASE4_INBOUND_ADAPTER_CONFLICT');
+    inbound=adapter;
+  }
   function registerReplacement(kind,handler) {
     if(handlers.has(kind)||!['JOURNAL_FACT','JOURNAL_COVERAGE','EXPERIMENT_FIELDS'].includes(kind))fail('PHASE4_REPLACEMENT_HANDLER_CONFLICT');
     handlers.set(kind,handler);
@@ -22,12 +28,15 @@ export function createPhase4PrivacyStore(core,queue) {
     const json=canonicalJson(normalized);
     if(Buffer.byteLength(json)>32768||!sourceKey||!parserVersion||!normalizerVersion)fail('PHASE4_INVALID_REPLACEMENT');
     const ticket=Object.freeze({kind});
-    replacements.set(ticket,{userId:control.userId,targetType,targetId,async stage(purgeId,generation) {
+    replacements.set(ticket,{userId:control.userId,targetType,targetId,validate:()=>handler.validate(control,normalized),async stage(purgeId,generation) {
       const at=timestamp(),expires=new Date(Date.parse(at)+30*86400000).toISOString();
+      const artifact=keys.lookup(['purge-replacement-v1',control.userId,purgeId]);
       await client.execute({sql:`INSERT INTO health_purge_replacements(user_id,purge_id,replacement_kind,normalized_replacement_json,
         replacement_source_key,parser_version,normalizer_version,created_at,expires_at,content_state,source_linkage_state,privacy_artifact_id,purge_generation)
         VALUES (?,?,?,?,?,?,?,?,?,'PRESENT','COMPLETE',?,?)`,args:[control.userId,purgeId,kind,json,sourceKey,parserVersion,normalizerVersion,at,expires,
-          keys.lookup(['purge-replacement-v1',control.userId,purgeId]),generation]});
+          artifact,generation]});
+      await addPrivacyLink(client,{userId:control.userId,table:'health_purge_replacements',artifactId:artifact,
+        sourceType:'USER',sourceId:control.userId,relationship:`CORRECTION_ASSERTION:${sourceKey}`,at});
     }});
     return ticket;
   }
@@ -35,6 +44,20 @@ export function createPhase4PrivacyStore(core,queue) {
     await core.assertPrivacyControl(control);
     const row=(await client.execute({sql:'SELECT * FROM health_plaintext_purges WHERE user_id=? AND purge_id=?',args:[control.userId,purgeId]})).rows[0];
     if(!row)fail('PHASE4_PURGE_NOT_FOUND');return row;
+  }
+  async function restage(control,purgeId,replacement,{inboundAuthority=null}={}) {
+    if(core.processing.active())fail('PHASE4_T0_MUST_BE_STANDALONE');
+    return transaction(async()=>{
+      await core.assertControl(control);const purge=await ledger(control,purgeId),prepared=replacements.get(replacement);
+      if(purge.state!=='ADMITTED'||purge.operation_kind!=='CORRECTION'||!prepared||prepared.userId!==control.userId
+        ||prepared.targetType!==purge.target_source_type||prepared.targetId!==purge.target_source_id)fail('PHASE4_VALIDATED_REPLACEMENT_REQUIRED');
+      if(purge.source_update_id!==null)await inbound.validate(control,inboundAuthority,purge.source_update_id,{purge});
+      const stage=(await client.execute({sql:'SELECT expires_at FROM health_purge_replacements WHERE user_id=? AND purge_id=?',args:[control.userId,purgeId]})).rows[0];
+      if(stage&&stage.expires_at>timestamp())fail('PHASE4_REPLACEMENT_NOT_EXPIRED');
+      await prepared.validate();await discardStaging(control.userId,purgeId);await prepared.stage(purgeId,purge.purge_generation);
+      await client.execute({sql:'UPDATE health_plaintext_purges SET last_error_code=NULL,updated_at=? WHERE user_id=? AND purge_id=?',args:[timestamp(),control.userId,purgeId]});
+      return {...purge};
+    });
   }
   async function targetNodes(userId,type,id,{alreadyAdmitted=false}={}) {
     let table,where,args=[userId,id];
@@ -55,13 +78,16 @@ export function createPhase4PrivacyStore(core,queue) {
         ...(table==='journal_coverage_windows'?[['JOURNAL_COVERAGE',row.coverage_window_id]]:[]),
         ...(table==='experiment_field_groups'&&row.assertion_id?[['EXPERIMENT_DIRECT_ASSERTION',row.assertion_id]]:[])]}));
   }
-  async function admit(control,{targetType,targetId,idempotencyKey,operationKind='DELETION',replacement,sourceUpdateId=null}) {
+  async function admit(control,{targetType,targetId,idempotencyKey,operationKind='DELETION',replacement,sourceUpdateId=null,inboundAuthority=null}) {
     if(core.processing.active())fail('PHASE4_T0_MUST_BE_STANDALONE');
     await core.assertPrivacyControl(control);
     if(typeof idempotencyKey!=='string'||!idempotencyKey || typeof targetId!=='string'||!targetId
       || !['CORRECTION','DELETION','RETENTION','INCIDENT'].includes(operationKind))fail('PHASE4_PURGE_COMMAND_REQUIRED');
     const prepared=replacement&&replacements.get(replacement);
-    if(sourceUpdateId!==null)fail('PHASE4_INBOUND_CONTROL_AUTHORITY_REQUIRED'); // Journal adapter installs authenticated receipt admission in commit 7.
+    if(sourceUpdateId!==null) {
+      if(!inbound)fail('PHASE4_INBOUND_CONTROL_AUTHORITY_REQUIRED');
+      await inbound.validate(control,inboundAuthority,sourceUpdateId);
+    }
     if(operationKind==='CORRECTION' && (!prepared || prepared.userId!==control.userId || prepared.targetType!==targetType || prepared.targetId!==targetId))
       fail('PHASE4_VALIDATED_REPLACEMENT_REQUIRED');
     // Detect drift before the durable fence, not after a partially applied
@@ -69,6 +95,7 @@ export function createPhase4PrivacyStore(core,queue) {
     await assertPhase4Schema(client,24);
     return transaction(async()=>{
       const state=await core.assertPrivacyControl(control);
+      if(sourceUpdateId!==null)await inbound.validate(control,inboundAuthority,sourceUpdateId);
       const key=keys.lookup(['purge-command-v1',control.userId,idempotencyKey]);
       const prior=(await client.execute({sql:`SELECT * FROM health_plaintext_purges
         WHERE user_id=? AND deletion_or_correction_idempotency_key=?`,args:[control.userId,key]})).rows[0];
@@ -77,6 +104,9 @@ export function createPhase4PrivacyStore(core,queue) {
           || prior.source_update_id!==sourceUpdateId)fail('PHASE4_PURGE_REPLAY_CONFLICT');
         return {...prior};
       }
+      if((await client.execute({sql:`SELECT 1 FROM health_plaintext_purges WHERE user_id=? AND target_source_type=? AND target_source_id=? AND state='ADMITTED'`,
+        args:[control.userId,targetType,targetId]})).rows.length)fail('PHASE4_SUBJECT_PURGE_PENDING');
+      if(prepared)await prepared.validate();
       await targetNodes(control.userId,targetType,targetId);
       if(state.purge_generation===null)fail('PHASE4_PRIVACY_STATE_MISSING');
       const id=core.newId(),at=timestamp(),generation=state.purge_generation+1;
@@ -87,17 +117,19 @@ export function createPhase4PrivacyStore(core,queue) {
         admitted_at,updated_at,operation_kind,source_update_id) VALUES (?,?,?,?,?,?,?,'ADMITTED',?,?,?,?)`,
         args:[control.userId,id,generation,key,targetType,targetId,state.source_generation,at,at,operationKind,sourceUpdateId]});
       if(prepared)await prepared.stage(id,generation);
+      if(sourceUpdateId!==null)await inbound.validate(control,inboundAuthority,sourceUpdateId);
       await core.assertPrivacyControl(control);return {...await ledger(control,id)};
     });
   }
   async function discover(userId,purge) {
     const seeds=await targetNodes(userId,purge.target_source_type,purge.target_source_id,{alreadyAdmitted:true});
-    const links=(await client.execute({sql:`SELECT * FROM phase4_source_links WHERE user_id=? AND unlinked_at IS NULL`,args:[userId]})).rows;
+    const links=(await client.execute({sql:`SELECT * FROM phase4_source_links WHERE user_id=?`,args:[userId]})).rows;
     const nodes=new Map(),frontier=[...seeds];
     for(const link of links)if(link.source_type==='TENANT_LEGACY' && link.source_execution_mode==='SHARED' && link.source_id===userId)
       frontier.push(toNode(link));
     while(frontier.length) {
       const node=frontier.shift(),key=nodeKey(node);if(nodes.has(key))continue;
+      node.aliases=await aliasesOf(userId,node);
       nodes.set(key,node);
       if(nodes.size>100000)fail('PHASE4_PURGE_GRAPH_TOO_LARGE');
       const identities=[[node.type,node.id],...(node.aliases||[])];
@@ -105,6 +137,13 @@ export function createPhase4PrivacyStore(core,queue) {
         frontier.push(toNode(link));
     }
     return [...nodes.values()];
+  }
+  async function aliasesOf(userId,node) {
+    if(node.type==='journal_events')return [['JOURNAL_FACT',node.id]];
+    const spec={journal_coverage_windows:['coverage_window_id','JOURNAL_COVERAGE'],experiment_field_groups:['assertion_id','EXPERIMENT_DIRECT_ASSERTION']}[node.type];
+    if(!spec)return node.aliases||[];
+    const row=(await client.execute({sql:`SELECT ${spec[0]} AS identity FROM ${node.type} WHERE user_id=? AND privacy_artifact_id=?`,args:[userId,node.id]})).rows[0];
+    return row?.identity?[[spec[1],row.identity]]:node.aliases||[];
   }
   async function recordTarget(userId,purgeId,node) {
     await client.execute({sql:`INSERT INTO health_purge_targets(user_id,purge_id,artifact_execution_mode,artifact_type,artifact_id,state)
@@ -118,27 +157,49 @@ export function createPhase4PrivacyStore(core,queue) {
       args:[state,timestamp(),userId,purge.purge_id,node.mode,node.type,node.id]});
   }
   async function unlink(userId,purge,node) {
-    await client.execute({sql:`UPDATE phase4_source_links SET unlinked_at=?,purge_id=? WHERE user_id=? AND unlinked_at IS NULL
+    // After the complete closure is persisted as opaque purge targets, remove
+    // reconstructive edges, including ordinary historical supersession links.
+    // A timestamped old relationship is not a permissible purge tombstone.
+    await client.execute({sql:`DELETE FROM phase4_source_links WHERE user_id=?
       AND ((artifact_execution_mode=? AND artifact_type=? AND artifact_id=?) OR (source_execution_mode=? AND source_type=? AND source_id=?))`,
-      args:[timestamp(),purge.purge_id,userId,node.mode,node.type,node.id,node.mode,node.type,node.id]});
-    for(const [type,id] of node.aliases||[])await client.execute({sql:`UPDATE phase4_source_links SET unlinked_at=?,purge_id=?
-      WHERE user_id=? AND unlinked_at IS NULL AND source_execution_mode=? AND source_type=? AND source_id=?`,
-      args:[timestamp(),purge.purge_id,userId,node.mode,type,id]});
+      args:[userId,node.mode,node.type,node.id,node.mode,node.type,node.id]});
+    for(const [type,id] of node.aliases||[])await client.execute({sql:`DELETE FROM phase4_source_links
+      WHERE user_id=? AND source_execution_mode=? AND source_type=? AND source_id=?`,args:[userId,node.mode,type,id]});
   }
-  async function redact(control,purgeId) {
+  async function redact(control,purgeId,{inboundAuthority=null}={}) {
+    // Expiry destruction must commit independently of the failed T1 attempt.
+    // It never releases the privacy fence or discards the admitted command.
+    const expired=await transaction(async()=>{
+      const purge=await ledger(control,purgeId);
+      if(purge.state!=='ADMITTED'||purge.operation_kind!=='CORRECTION')return false;
+      const stage=(await client.execute({sql:'SELECT * FROM health_purge_replacements WHERE user_id=? AND purge_id=?',args:[control.userId,purgeId]})).rows[0];
+      if(!stage||stage.expires_at>timestamp())return false;
+      await discardStaging(control.userId,purgeId);
+      await client.execute({sql:"UPDATE health_plaintext_purges SET last_error_code='REPLACEMENT_EXPIRED',updated_at=? WHERE user_id=? AND purge_id=?",
+        args:[timestamp(),control.userId,purgeId]});
+      return true;
+    });
+    if(expired)fail('PHASE4_REPLACEMENT_EXPIRED');
     try {return await transaction(async()=>{
       const purge=await ledger(control,purgeId);if(purge.state!=='ADMITTED')return {...purge};
+      if(purge.source_update_id!==null) {
+        if(!inbound)fail('PHASE4_INBOUND_CONTROL_AUTHORITY_REQUIRED');
+        await inbound.validate(control,inboundAuthority,purge.source_update_id,{purge});
+      }
       if((await client.execute({sql:`SELECT 1 FROM health_plaintext_purges WHERE user_id=? AND state='ADMITTED' AND purge_generation<?`,
         args:[control.userId,purge.purge_generation]})).rows.length)fail('PHASE4_PRIOR_PURGE_PENDING');
       await redactor.classifyLegacyForPurge(control.userId,purge.purge_generation);
       const at=timestamp(),nodes=await discover(control.userId,purge);
+      const deletedSourceKey=purge.target_source_type==='JOURNAL_FACT'?(await client.execute({sql:
+        'SELECT source_event_key FROM journal_events WHERE user_id=? AND logical_fact_id=? ORDER BY revision LIMIT 1',
+        args:[control.userId,purge.target_source_id]})).rows[0]?.source_event_key:null;
       // Persist the complete opaque closure before mutating or unlinking any
       // content. A transaction failure leaves the independently committed T0.
       for(const node of nodes)await recordTarget(control.userId,purgeId,node);
       for(const node of nodes)await redactTarget(control.userId,purge,node);
       if(purge.target_source_type==='JOURNAL_FACT' && purge.operation_kind==='DELETION') {
-        await client.execute({sql:`INSERT INTO journal_event_tombstones(user_id,logical_fact_id,deletion_idempotency_key,deleted_at)
-          VALUES (?,?,?,?) ON CONFLICT DO NOTHING`,args:[control.userId,purge.target_source_id,purge.deletion_or_correction_idempotency_key,at]});
+        await client.execute({sql:`INSERT INTO journal_event_tombstones(user_id,logical_fact_id,source_event_hash,deletion_idempotency_key,deleted_at)
+          VALUES (?,?,?,?,?) ON CONFLICT DO NOTHING`,args:[control.userId,purge.target_source_id,deletedSourceKey?keys.lookup(['journal-deleted-source-v1',control.userId,deletedSourceKey]):null,purge.deletion_or_correction_idempotency_key,at]});
       }
       if(purge.operation_kind==='CORRECTION') {
         const staged=(await client.execute({sql:'SELECT * FROM health_purge_replacements WHERE user_id=? AND purge_id=?',args:[control.userId,purgeId]})).rows[0];
@@ -147,7 +208,7 @@ export function createPhase4PrivacyStore(core,queue) {
         const value=await handler.validate(control,JSON.parse(staged.normalized_replacement_json));
         await handler.commit(control,purge,value,staged);
       }
-      await client.execute({sql:'DELETE FROM health_purge_replacements WHERE user_id=? AND purge_id=?',args:[control.userId,purgeId]});
+      await discardStaging(control.userId,purgeId);
       await client.execute({sql:`UPDATE phase4_user_state SET source_generation=source_generation+1,updated_at=? WHERE user_id=?`,args:[at,control.userId]});
       const state=await core.userState(control.userId);
       await client.execute({sql:`UPDATE phase4_computation_state SET input_generation=input_generation+1,
@@ -172,14 +233,8 @@ export function createPhase4PrivacyStore(core,queue) {
         args:[at,control.userId,control.userId]});
       for(const node of nodes)await unlink(control.userId,purge,node);
       if(purge.source_update_id!==null) {
-        const id=Number(purge.source_update_id);if(!Number.isSafeInteger(id)||id<0)fail('PHASE4_SOURCE_UPDATE_REQUIRED');
-        const prior=(await client.execute({sql:'SELECT owner_user_id,content_state FROM telegram_operations WHERE update_id=?',args:[id]})).rows[0];
-        if(prior && prior.owner_user_id!==control.userId)fail('PHASE4_RECEIPT_OWNER_MISMATCH');
-        if(!prior)await client.execute({sql:`INSERT INTO telegram_operations(update_id,owner_user_id,source_update_key,result_json,committed_at,
-          delivery_state,operation_state,content_state,source_linkage_state,privacy_artifact_id,purge_generation)
-          VALUES (?,?,?,?,?,'ACTION_READY','COMMITTED','PRESENT','COMPLETE',?,?)`,args:[id,control.userId,String(id),
-            JSON.stringify({reply:purge.operation_kind==='CORRECTION'?'Health record updated.':'Health record deleted.',userId:control.userId}),at,
-            keys.lookup(['privacy-artifact-v1','telegram_operations',control.userId,'SHARED',[id]]),state.purge_generation]});
+        await inbound.commitReceipt(control,inboundAuthority,purge);
+        await inbound.validate(control,inboundAuthority,purge.source_update_id,{purge});
       }
       await client.execute({sql:`UPDATE health_plaintext_purges SET state='DB_REDACTED',db_redacted_at=?,updated_at=?,attempt=attempt+1,last_error_code=NULL
         WHERE user_id=? AND purge_id=? AND state='ADMITTED'`,args:[at,at,control.userId,purgeId]});
@@ -193,6 +248,12 @@ export function createPhase4PrivacyStore(core,queue) {
       throw error;
     }
   }
+  async function discardStaging(userId,purgeId) {
+    await client.execute({sql:`DELETE FROM phase4_source_links WHERE user_id=? AND artifact_execution_mode='SHARED'
+      AND artifact_type='health_purge_replacements' AND artifact_id IN (SELECT privacy_artifact_id FROM health_purge_replacements WHERE user_id=? AND purge_id=?)`,
+      args:[userId,userId,purgeId]});
+    await client.execute({sql:'DELETE FROM health_purge_replacements WHERE user_id=? AND purge_id=?',args:[userId,purgeId]});
+  }
   async function verify(control,purgeId) {
     await ledger(control,purgeId);
     await redactor.verifyNoUnclassifiedPlaintext(control.userId);
@@ -200,10 +261,13 @@ export function createPhase4PrivacyStore(core,queue) {
     if(!targets.length || targets.some(r=>r.state==='PENDING'))fail('PHASE4_PURGE_INCOMPLETE');
     for(const target of targets) {
       const node=toNode(target);await redactor.verify(control.userId,node,target.state);
-      if((await client.execute({sql:`SELECT 1 FROM phase4_source_links WHERE user_id=? AND unlinked_at IS NULL AND
+      if((await client.execute({sql:`SELECT 1 FROM phase4_source_links WHERE user_id=? AND
         ((artifact_execution_mode=? AND artifact_type=? AND artifact_id=?) OR (source_execution_mode=? AND source_type=? AND source_id=?)
         OR (?='journal_events' AND source_execution_mode='SHARED' AND source_type='JOURNAL_FACT' AND source_id=?))`,
         args:[control.userId,node.mode,node.type,node.id,node.mode,node.type,node.id,node.type,node.id]})).rows.length)
+        fail('PHASE4_PURGE_LINK_REMAINS');
+      for(const [type,id] of await aliasesOf(control.userId,node))if((await client.execute({sql:`SELECT 1 FROM phase4_source_links
+        WHERE user_id=? AND source_execution_mode=? AND source_type=? AND source_id=?`,args:[control.userId,node.mode,type,id]})).rows.length)
         fail('PHASE4_PURGE_LINK_REMAINS');
     }
     if((await client.execute({sql:'SELECT 1 FROM health_purge_replacements WHERE user_id=? AND purge_id=?',args:[control.userId,purgeId]})).rows.length)
@@ -229,5 +293,5 @@ export function createPhase4PrivacyStore(core,queue) {
       return {...await ledger(control,purgeId)};
     });
   }
-  return {admit,redact,complete,status:ledger,verify,registerReplacement,prepareReplacement};
+  return {admit,redact,complete,status:ledger,verify,registerReplacement,prepareReplacement,registerInbound,restage};
 }

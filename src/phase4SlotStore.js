@@ -174,29 +174,6 @@ export function createPhase4SlotStore(core,entities,messages) {
       return slot;
     });
   }
-  async function answer(context,{questionRequestId,replyToQuestionRequestId,expectedRevision,answer,sourceRefs=[]}) {
-    return core.run(context,async()=>{
-      const slot=await row(context.userId,context.executionMode),at=timestamp();
-      if(!slot||slot.question_request_id!==questionRequestId||slot.revision!==expectedRevision)fail('PHASE4_SLOT_CAS_LOST');
-      if(!['AMBIGUOUS_WAIT','AWAITING_ANSWER'].includes(slot.state)||slot.answer_deadline<=at)fail('PHASE4_ANSWER_WINDOW_CLOSED');
-      if(replyToQuestionRequestId!==questionRequestId)fail('PHASE4_EXACT_QUESTION_REFERENCE_REQUIRED');
-      if(!answer || Object.hasOwn(answer,'question_request_id') || answer.answer_revision!==1
-        || (context.executionMode==='SHADOW' && (!String(answer.source_update_id).startsWith('shadow:')
-          || answer.logical_fact_id!=null||answer.fact_revision!=null||answer.coverage_window_id!=null)))fail('PHASE4_ANSWER_AUTHORITY_REQUIRED');
-      if(context.executionMode==='LIVE') {
-        const refs=await core.revalidateSources(context,sourceRefs);
-        if(!refs.some(s=>s.type==='TELEGRAM_OPERATION'&&s.id===String(answer.source_update_id)))fail('PHASE4_ANSWER_RECEIPT_REQUIRED');
-      }
-      const question=await core.artifact(context,'context_questions',{question_request_id:questionRequestId});
-      const saved=await entities.append(context,'structured_answer_events',{...answer,question_request_id:questionRequestId,committed_at:at},[question.ref,...sourceRefs]);
-      const next=await cas(context.userId,context.executionMode,slot,{state:'RESOLVED',resolved_at:at});
-      await client.execute({sql:`UPDATE context_questions SET status='RESOLVED',answered_at=?,updated_at=? WHERE user_id=? AND execution_mode=? AND question_request_id=?`,
-        args:[at,at,context.userId,context.executionMode,questionRequestId]});
-      if(context.executionMode==='LIVE')await client.execute({sql:`UPDATE pending_questions SET status='ANSWERED',answered_at=?
-        WHERE user_id=? AND execution_mode='LIVE' AND context_question_id=? AND status='OPEN'`,args:[at,context.userId,questionRequestId]});
-      return {answer:saved,slot:next};
-    });
-  }
   async function reconcile(control,mode) {
     return core.runMaintenance(control,mode,async()=>{
       const slot=await row(control.userId,mode);if(!slot||slot.state!=='RESERVED')return slot;
@@ -206,6 +183,19 @@ export function createPhase4SlotStore(core,entities,messages) {
         state.auth_generation!==slot.auth_generation?'AUTH_CHANGED':prefs?.notifications_paused?'PAUSED':null;
       return reason?cancel(control.userId,mode,slot,reason):slot;
     });
+  }
+  async function resolveValidated(control,mode,{questionRequestId,expectedRevision,logicalFactId=null}) {
+    if(!core.processing.active())fail('PHASE4_TRANSACTION_REQUIRED');
+    await core.assertControl(control);
+    const slot=await row(control.userId,mode),at=timestamp();
+    if(!slot||slot.question_request_id!==questionRequestId||slot.revision!==expectedRevision)fail('PHASE4_SLOT_CAS_LOST');
+    if(!['AMBIGUOUS_WAIT','AWAITING_ANSWER'].includes(slot.state)||slot.answer_deadline<=at)fail('PHASE4_ANSWER_WINDOW_CLOSED');
+    const next=await cas(control.userId,mode,slot,{state:'RESOLVED',resolved_at:at});
+    await client.execute({sql:`UPDATE context_questions SET status='RESOLVED',logical_fact_id=?,answered_at=?,updated_at=?
+      WHERE user_id=? AND execution_mode=? AND question_request_id=?`,args:[logicalFactId,at,at,control.userId,mode,questionRequestId]});
+    if(mode==='LIVE')await client.execute({sql:`UPDATE pending_questions SET status='ANSWERED',answered_at=?
+      WHERE user_id=? AND execution_mode='LIVE' AND context_question_id=? AND status='OPEN'`,args:[at,control.userId,questionRequestId]});
+    return next;
   }
   async function pauseExisting(control) {
     if(!core.processing.active())fail('PHASE4_TRANSACTION_REQUIRED');
@@ -322,7 +312,7 @@ export function createPhase4SlotStore(core,entities,messages) {
       return {blocked:true,reason:'LEGACY_OCCUPIED',slot};
     });
   }
-  return {acquire,beginSimulation,classifySimulation,expire,answer,reconcile,
+  return {acquire,beginSimulation,classifySimulation,expire,reconcile,resolveValidated,
     syncLegacy,projectPending,
     pauseExisting,transportStart,transportSettle,read:(control,mode)=>core.runMaintenance(control,mode,()=>row(control.userId,mode))};
 }

@@ -9,6 +9,10 @@ import { createPhase4ExperimentStore } from './phase4ExperimentStore.js';
 import { createPhase4InsightStore } from './phase4InsightStore.js';
 import { createPhase4TransportStore } from './phase4TransportStore.js';
 import { createBodyEnergyStore } from './bodyEnergyStore.js';
+import { createPhase4JournalStore } from './phase4JournalStore.js';
+import { createPhase4JournalInbound } from './phase4JournalInbound.js';
+import { createPhase4CoverageStore } from './phase4CoverageStore.js';
+import { createPhase4JournalAnswers } from './phase4JournalAnswers.js';
 
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
@@ -19,6 +23,9 @@ export function composePhase4Stores(core) {
   const episodes=createPhase4EpisodeStore(core,entities);
   const messages=createPhase4MessageStore(core,entities),slots=createPhase4SlotStore(core,entities,messages);
   const experiments=createPhase4ExperimentStore(core,privacy,queue);
+  const journal=createPhase4JournalStore(core,privacy,queue),journalInbound=createPhase4JournalInbound(core,privacy,journal);
+  const coverage=createPhase4CoverageStore(core,privacy);
+  const journalAnswers=createPhase4JournalAnswers(core,journal,coverage,slots,journalInbound,queue);
   async function initializeTenant(userId,mode) {
     return transaction(async()=>{
       const result=await core.initializeTenant(userId,mode);
@@ -64,10 +71,13 @@ export function composePhase4Stores(core) {
     episodes:Object.freeze(episodes),
     insights:Object.freeze(createPhase4InsightStore(core,entities)),
     messages:Object.freeze({propose:messages.propose,readReservation:messages.readReservation,simulate:messages.simulate}),
-    slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle'].includes(name)))),
+    slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle','answer','resolveValidated'].includes(name)))),
     transport:Object.freeze(createPhase4TransportStore(core,entities,{start:slots.transportStart,settle:slots.transportSettle})),
     experiments:Object.freeze(experiments),
     bodyEnergy:createBodyEnergyStore(core,entities,queue),
+    journal:Object.freeze(Object.fromEntries(Object.entries(journal).filter(([name])=>!['prepareAnswer','forAnswer'].includes(name)))),
+    journalInbound:Object.freeze({capture:journalInbound.capture,process:journalInbound.process,route:journalInbound.route}),
+    journalCoverage:Object.freeze({read:coverage.read,correct:coverage.correct,remove:coverage.remove}),journalAnswers:Object.freeze(journalAnswers),
     decisions:Object.freeze({append:(context,data,refs)=>entities.append(context,'phase4_proactive_decisions',data,refs)}),
     evidence:Object.freeze({
       start:(context,data,refs)=>entities.append(context,'evidence_runs',{...data,state:'STARTED'},refs),

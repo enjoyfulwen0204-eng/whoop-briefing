@@ -97,6 +97,7 @@ test('Atomic question selection has one winner; losing decision/request/reservat
 test('Ambiguous occupancy requires exact reply lineage; replayed classification cannot extend the 30-minute window',async t=>{
   let time=new Date('2026-09-19T00:00:00.000Z');
   const f=await syntheticPhase4Fixture(t,{now:()=>time}),p=await prepared(f),control=await f.stores.captureControl('a');
+  Object.assign(p.question,{factor_question_kind:'COVERAGE:caffeine',question_template_version:'journal-coverage-v1',utility_score:0.9,eligibility_threshold:0.5});
   const selected=await f.stores.slots.acquire(p.context,p);
   let slot=await f.stores.slots.beginSimulation(p.context,{questionRequestId:selected.questionRequestId,expectedRevision:selected.slot.revision});
   time=new Date(+time+60000);
@@ -107,9 +108,9 @@ test('Ambiguous occupancy requires exact reply lineage; replayed classification 
   assert.equal(replay.answer_deadline,deadline);assert.equal(replay.revision,slot.revision);
   await f.stores.preferences.update(control,0,{notifications_paused:1});
   assert.equal((await f.stores.slots.reconcile(control,'SHADOW')).state,'AMBIGUOUS_WAIT');
-  const answer={logical_answer_id:'answer',answer_revision:1,source_update_id:'shadow:answer',normalized_answer_json:{state:'EXPOSED'}};
-  await assert.rejects(f.stores.slots.answer(p.context,{questionRequestId:selected.questionRequestId,expectedRevision:slot.revision,answer}),/EXACT_QUESTION_REFERENCE/);
-  const accepted=await f.stores.slots.answer(p.context,{questionRequestId:selected.questionRequestId,replyToQuestionRequestId:selected.questionRequestId,expectedRevision:slot.revision,answer});
+  const answer={sourceUpdateId:'shadow:answer',sourceText:'none',candidate:{confirmed:true,extractionConfidence:1,excerptStart:0,excerptEnd:4}};
+  await assert.rejects(f.stores.journalAnswers.accept(p.context,{questionRequestId:selected.questionRequestId,expectedRevision:slot.revision,...answer}),/EXACT_QUESTION_REFERENCE/);
+  const accepted=await f.stores.journalAnswers.accept(p.context,{questionRequestId:selected.questionRequestId,replyToQuestionRequestId:selected.questionRequestId,expectedRevision:slot.revision,...answer});
   assert.equal(accepted.slot.state,'RESOLVED');
   for(const table of ['journal_events','pending_questions','telegram_operations','outbound_delivery_attempts'])
     assert.equal((await f.db.raw.execute(`SELECT count(*) n FROM ${table}`)).rows[0].n,0,table);

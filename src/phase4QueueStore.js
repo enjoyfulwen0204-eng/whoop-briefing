@@ -9,8 +9,11 @@ export function createPhase4QueueStore(core) {
   async function markFull(userId,mode,generation,purgeGeneration,reasonCode) {
     if(!core.processing.active())fail('PHASE4_TRANSACTION_REQUIRED');
     const at=timestamp(),reasons=reason(reasonCode);
+    const pending=(await client.execute({sql:'SELECT pending_purge_count FROM phase4_user_state WHERE user_id=?',args:[userId]})).rows[0]?.pending_purge_count>0;
     for(const [table,kind] of [['phase4_invalidations',null],...JOB_KINDS.map(k=>['phase4_jobs',k])]) {
       const artifactId=id(table,userId,mode,kind);
+      const keepRedacted=pending&&(await client.execute({sql:`SELECT content_state FROM ${table} WHERE user_id=? AND privacy_artifact_id=?`,
+        args:[userId,artifactId]})).rows[0]?.content_state==='REDACTED';
       await client.execute({sql:`INSERT INTO ${table}
         (user_id,execution_mode,${kind?'job_kind,':''}requested_generation,scope_kind,reason_codes_json,updated_at,
           content_state,source_linkage_state,privacy_artifact_id,purge_generation)
@@ -19,13 +22,16 @@ export function createPhase4QueueStore(core) {
           requested_generation=MAX(requested_generation,excluded.requested_generation),scope_kind='FULL_TENANT_RECOMPUTE',
           affected_from=NULL,affected_to=NULL,subject_key=NULL,full_scan_cursor=NULL,scope_revision=scope_revision+1,
           reason_codes_json=excluded.reason_codes_json,updated_at=excluded.updated_at,
-          purge_generation=excluded.purge_generation,content_state='PRESENT',source_linkage_state='COMPLETE',
+          purge_generation=excluded.purge_generation,${keepRedacted?'':`content_state='PRESENT',source_linkage_state='COMPLETE',
           health_content_redacted_at=NULL,health_content_redaction_reason=NULL,source_subject_deleted_at=NULL,
-          health_scope_redacted_at=NULL,health_scope_redaction_reason=NULL,content_digest_salt=NULL
+          health_scope_redacted_at=NULL,health_scope_redaction_reason=NULL,`}content_digest_salt=NULL
           ${kind?",state='PENDING',attempt=0,next_attempt_at=NULL,lease_owner=NULL,lease_expires_at=NULL,claimed_generation=NULL,claimed_lifecycle_generation=NULL,claimed_auth_generation=NULL,claimed_scope_revision=NULL,claimed_purge_generation=NULL,last_error_code=NULL":''}`,
-      args:[userId,mode,...(kind?[kind]:[]),generation,reasons,at,artifactId,purgeGeneration]});
+      args:[userId,mode,...(kind?[kind]:[]),generation,keepRedacted?'["HEALTH_SCOPE_REDACTED"]':reasons,at,artifactId,purgeGeneration]});
       // Queue scope is the ADR's explicit mutable-content reset exception.
       // This is new non-health FULL scope, never a restored old interval.
+      // Canonical cleanup may advance generations between T1 and T2. Preserve
+      // the pending purge's redaction proof and disconnected graph until T2.
+      if(keepRedacted)continue;
       await client.execute({sql:`INSERT INTO phase4_source_links
         (user_id,artifact_execution_mode,artifact_type,artifact_id,source_execution_mode,source_type,source_id,relationship,linked_at)
         VALUES (?,?,?,?,'SHARED','USER',?,'DEPENDS_ON',?)

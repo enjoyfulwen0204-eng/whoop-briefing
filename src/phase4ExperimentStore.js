@@ -19,6 +19,10 @@ function fieldValue(field,value) {
 
 export function createPhase4ExperimentStore(core,privacy,queue) {
   const {client,transaction,timestamp,keys}=core,tickets=new WeakMap();
+  async function assertNotDeleted(userId,experimentId) {
+    if((await client.execute({sql:`SELECT 1 FROM health_plaintext_purges WHERE user_id=? AND target_source_type='EXPERIMENT'
+      AND target_source_id=? AND operation_kind='DELETION'`,args:[userId,String(experimentId)]})).rows.length)fail('PHASE4_EXPERIMENT_DELETED');
+  }
   async function assertDirect(control,{field,value,sourceUpdateKey,writerKind='EXPERIMENT_API'}) {
     const state=await core.assertControl(control);
     if(state.pending_purge_count)fail('PHASE4_PURGE_FENCED');
@@ -152,8 +156,7 @@ export function createPhase4ExperimentStore(core,privacy,queue) {
       || status!==undefined&&!['DRAFT','RUNNING','COMPLETED','ABANDONED'].includes(status))fail('PHASE4_EXPERIMENT_PATCH_INVALID');
     return transaction(async()=>{
       const state=await core.assertControl(control);if(state.pending_purge_count)fail('PHASE4_PURGE_FENCED');
-      if((await client.execute({sql:`SELECT 1 FROM health_plaintext_purges WHERE user_id=? AND target_source_type='EXPERIMENT'
-        AND target_source_id=? AND operation_kind='DELETION'`,args:[control.userId,String(experimentId)]})).rows.length)fail('PHASE4_EXPERIMENT_DELETED');
+      await assertNotDeleted(control.userId,experimentId);
       const existing=await read(control,experimentId);if(!existing)return false;
       let changed=false;
       for(const [field,value] of Object.entries(fields)) {
@@ -175,13 +178,21 @@ export function createPhase4ExperimentStore(core,privacy,queue) {
     });
   }
   privacy.registerReplacement('EXPERIMENT_FIELDS',{
-    async validate(control,value) {
+    async validate(control,value,{purge=null}={}) {
+      const state=await core.assertControl(control);
       if(!value||value.userId!==control.userId||!Number.isSafeInteger(value.experimentId)||!Array.isArray(value.fields)||value.fields.length!==1)
         fail('PHASE4_EXPERIMENT_REPLACEMENT_INVALID');
+      await assertNotDeleted(control.userId,value.experimentId);
+      const old=(await client.execute({sql:`SELECT * FROM experiment_field_groups WHERE user_id=? AND privacy_artifact_id=?`,
+        args:[control.userId,value.targetId]})).rows[0];
+      if(!old||old.experiment_id!==value.experimentId||old.field_name!==value.fields[0].field||old.is_current!==1
+        ||old.field_revision!==value.expectedRevision||(purge&&purge.target_source_id!==value.targetId))fail('PHASE4_EXPERIMENT_REVISION_CONFLICT');
       for(const proof of value.fields) {
-        if(!['DIRECT','LINKED'].includes(proof.kind)||proof.value!==fieldValue(proof.field,proof.value)
+        if(proof.userId!==control.userId||!['DIRECT','LINKED'].includes(proof.kind)||proof.value!==fieldValue(proof.field,proof.value)
           || (proof.kind==='DIRECT'&&(proof.field==='result_json'||proof.sourceKind!=='EXPERIMENT_DIRECT_ASSERTION')))
           fail('PHASE4_EXPERIMENT_REPLACEMENT_INVALID');
+        if(proof.lifecycleGeneration!==state.lifecycle_generation||proof.authGeneration!==state.auth_generation
+          ||proof.purgeGeneration!==(purge?purge.purge_generation-1:state.purge_generation))fail('PHASE4_EXPERIMENT_PROOF_STALE');
         if(proof.kind==='LINKED')await validateSources(control.userId,proof.sources);
       }
       return value;
@@ -207,12 +218,13 @@ export function createPhase4ExperimentStore(core,privacy,queue) {
         ||target?.experiment_id!==experimentId||target.field_name!==field||target.field_revision!==expectedRevision)fail('PHASE4_PURGE_REPLAY_CONFLICT');
       await privacy.redact(control,prior.purge_id);return prior.purge_id;
     }
+    await assertNotDeleted(control.userId,experimentId);
     const proof=tickets.get(assertion);
     if(!proof||proof.userId!==control.userId||proof.field!==field)fail('PHASE4_EXPERIMENT_PROOF_MISMATCH');
     const existing=await read(control,experimentId),old=existing?.fields.find(r=>r.field_name===field);
     if(!old||old.field_revision!==expectedRevision)fail('PHASE4_EXPERIMENT_REVISION_CONFLICT');
     const replacement=await privacy.prepareReplacement(control,{targetType:'EXPERIMENT_FIELD',targetId:old.privacy_artifact_id,kind:'EXPERIMENT_FIELDS',
-      value:{userId:control.userId,experimentId,fields:[proof]},sourceKey:proof.sourceUpdateKey,parserVersion:'experiment-field-v1',normalizerVersion:'experiment-field-v1'});
+      value:{userId:control.userId,experimentId,targetId:old.privacy_artifact_id,expectedRevision,fields:[proof]},sourceKey:proof.sourceUpdateKey,parserVersion:'experiment-field-v1',normalizerVersion:'experiment-field-v1'});
     const purge=await privacy.admit(control,{targetType:'EXPERIMENT_FIELD',targetId:old.privacy_artifact_id,operationKind:'CORRECTION',replacement,idempotencyKey,sourceUpdateId});
     await privacy.redact(control,purge.purge_id);return purge.purge_id;
   }

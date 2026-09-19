@@ -83,6 +83,10 @@ export function createPhase4PrivacyStore(core,queue) {
     await core.assertPrivacyControl(control);
     if(typeof idempotencyKey!=='string'||!idempotencyKey || typeof targetId!=='string'||!targetId
       || !['CORRECTION','DELETION','RETENTION','INCIDENT'].includes(operationKind))fail('PHASE4_PURGE_COMMAND_REQUIRED');
+    // SQLite integer affinity accepts aliases such as "01"/"1e0" for row 1.
+    // The durable subject ledger must use the same identity as field writers.
+    if(targetType==='EXPERIMENT'&&(!/^[1-9]\d*$/.test(targetId)||!Number.isSafeInteger(Number(targetId))
+      ||String(Number(targetId))!==targetId))fail('PHASE4_EXPERIMENT_ID_REQUIRED');
     const prepared=replacement&&replacements.get(replacement);
     if(sourceUpdateId!==null) {
       if(!inbound)fail('PHASE4_INBOUND_CONTROL_AUTHORITY_REQUIRED');
@@ -106,6 +110,17 @@ export function createPhase4PrivacyStore(core,queue) {
       }
       if((await client.execute({sql:`SELECT 1 FROM health_plaintext_purges WHERE user_id=? AND target_source_type=? AND target_source_id=? AND state='ADMITTED'`,
         args:[control.userId,targetType,targetId]})).rows.length)fail('PHASE4_SUBJECT_PURGE_PENDING');
+      // Whole-experiment and leaf commands address overlapping subjects even
+      // though their public target types differ. Serialize their T0/T1 phases.
+      if(['EXPERIMENT','EXPERIMENT_FIELD'].includes(targetType)) {
+        const experimentId=targetType==='EXPERIMENT'?targetId:(await client.execute({sql:
+          'SELECT experiment_id FROM experiment_field_groups WHERE user_id=? AND privacy_artifact_id=?',args:[control.userId,targetId]})).rows[0]?.experiment_id;
+        if((await client.execute({sql:`SELECT 1 FROM health_plaintext_purges p WHERE p.user_id=? AND p.state='ADMITTED'
+          AND ((p.target_source_type='EXPERIMENT' AND p.target_source_id=?) OR
+          (?='EXPERIMENT' AND p.target_source_type='EXPERIMENT_FIELD' AND p.target_source_id IN
+            (SELECT privacy_artifact_id FROM experiment_field_groups WHERE user_id=? AND experiment_id=?)))`,
+          args:[control.userId,String(experimentId),targetType,control.userId,experimentId??null]})).rows.length)fail('PHASE4_SUBJECT_PURGE_PENDING');
+      }
       if(prepared)await prepared.validate();
       await targetNodes(control.userId,targetType,targetId);
       if(state.purge_generation===null)fail('PHASE4_PRIVACY_STATE_MISSING');
@@ -205,7 +220,7 @@ export function createPhase4PrivacyStore(core,queue) {
         const staged=(await client.execute({sql:'SELECT * FROM health_purge_replacements WHERE user_id=? AND purge_id=?',args:[control.userId,purgeId]})).rows[0];
         const handler=staged&&handlers.get(staged.replacement_kind);
         if(!staged||!handler||staged.expires_at<=at)fail('PHASE4_VALID_REPLACEMENT_REQUIRED');
-        const value=await handler.validate(control,JSON.parse(staged.normalized_replacement_json));
+        const value=await handler.validate(control,JSON.parse(staged.normalized_replacement_json),{purge});
         await handler.commit(control,purge,value,staged);
       }
       await discardStaging(control.userId,purgeId);

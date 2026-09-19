@@ -33,8 +33,8 @@ while retaining old dependencies for transitive purge. Old revisions are not
 promoted to current data. New comparison evidence validates UNKNOWN counts and
 the exact denominator/fraction relationship.
 
-Privacy APIs are manually invoked storage foundations only. No command admits
-a purge and no worker runs it. T0 must commit independently; T1 atomically
+Privacy APIs are manually invoked storage foundations only. No production command
+admits a purge and no worker runs it. T0 must commit independently; T1 atomically
 redacts its complete closure in both modes; T2 verifies targets and waits for
 all older context leases. Clearing cached values without releasing the context
 does not complete T2. Legacy health adapters fail closed during pending purge,
@@ -44,9 +44,10 @@ accept closed non-health codes, not arbitrary error narratives.
 
 Owned Telegram action receipts carry durable lifecycle/auth/purge fences and a
 separate server-supplied owner. Redacted replay is the exact fixed no-reply
-object and bypasses routing, models, mutation, typing and delivery. The later
-Journal control adapter must prove inbound admission separately; a primitive
-`sourceUpdateId` cannot authorize it.
+object and bypasses routing, models, mutation, typing and delivery. The disabled
+Journal control adapter proves inbound admission separately; a primitive
+`sourceUpdateId` cannot authorize it. Its optional processor hook remains null
+in every production caller; see `phase4-structured-journal.md`.
 
 ## Question and transport state
 
@@ -56,6 +57,9 @@ Ambiguity permanently consumes the reservation and retains an answer window;
 expiry and late transport proof never create another semantic identity.
 Projection into real pending questions is a separate, current LIVE-only check
 after proven acceptance. Legacy readers cannot consume that projection.
+Only `journalAnswers.accept` may resolve a structured answer: it requires the
+deterministic validator and exact occupied-question lineage, plus a proven
+inbound receipt for LIVE fixtures. There is no raw slot-answer write API.
 
 The legacy guard can import an owned OPEN interaction without inventing a
 Phase 4 request, preserve its existing deadline, and resolve it by CAS. Unknown
@@ -82,9 +86,14 @@ T0/T1/T2. Durable replay does not require recreating an in-memory assertion.
 Whole-experiment deletion covers all revisions, while source deletion preserves
 proven independent sibling fields. Semantic source changes fan out to existing
 computation modes only and never create a LIVE mode.
+The whole-deletion ledger is a permanent field-write barrier. Whole/leaf T0
+admissions cannot overlap an ADMITTED command for the same subject.
 
 FULL_TENANT_RECOMPUTE remains pending even with null dates or equal generation
 counters. This Foundation contains no authorized full-scan worker, so its job
 completion API cannot claim such work completed. The Phase 3 worker remains
 dormant. The later Intelligence Pack owns computation/decision policy and
 worker activation under the ADR's separate release gates.
+Canonical cleanup between T1 and T2 may advance requested generations, but
+cannot reset a pending purge's REDACTED/DISCONNECTED queue proof or recreate
+its removed source links. Completed progress is preserved.

@@ -93,15 +93,18 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     if(!contexts.has(context))fail('PHASE4_SERVER_CONTEXT_REQUIRED');
     authorizeMode(context.executionMode,client);
     await contextRegistry.assertLease(context);
+    try {
     const state=await userState(context.userId);
     if(state.purge_generation===null || state.pending_purge_count===null)fail('PHASE4_PRIVACY_STATE_MISSING');
     if(!allowPurge && (state.pending_purge_count!==0 || state.purge_generation!==context.purgeGeneration))fail('PHASE4_PURGE_FENCED');
     if(!allowInactive && (state.status!=='ACTIVE' || state.lifecycle_generation!==context.lifecycleGeneration))fail('PHASE4_LIFECYCLE_FENCED');
+    if(state.timezone!==context.timezone)fail('PHASE4_TIMEZONE_FENCED');
     if(state.auth_generation!==context.authGeneration || (context.providerRequired && state.auth_generation<1))fail('PHASE4_AUTH_FENCED');
     const current=(await client.execute({sql:'SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode=?',args:[context.userId,context.executionMode]})).rows[0];
     if(!current || (!ignoreInput && (current.input_generation!==context.inputGeneration
       || current.source_generation_seen!==state.source_generation || current.algorithm_set_version!==context.algorithmSetVersion)))fail('PHASE4_INPUT_FENCED');
     return {state,computation:current};
+    } catch(error) {contextRegistry.clear(context);throw error;}
   }
   // Shared source/privacy control is a separate authenticated purpose, never a
   // SHADOW context promoted into authority over real Journal/receipt roots.
@@ -150,14 +153,18 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
   }
   function reference(context,type,id,mode,row) {
     const ref=Object.freeze({type,id:String(id),executionMode:mode});
-    sources.set(ref,{context,type,id:String(id),mode,row});return ref;
+    const snapshotKey=row===null?null:['source-snapshot-v1',randomUUID()];
+    if(snapshotKey)contextRegistry.set(context,snapshotKey,row);
+    sources.set(ref,{context,type,id:String(id),mode,snapshotKey});return ref;
   }
   function validateReferences(context,refs) {
     if(!Array.isArray(refs))fail('PHASE4_SOURCE_REFERENCES_REQUIRED');
     return refs.map(ref=>{
       const source=sources.get(ref);
       if(!source || source.context!==context || (source.mode!=='SHARED' && source.mode!==context.executionMode))fail('PHASE4_INVALID_SOURCE_REFERENCE');
-      return source;
+      const row=source.snapshotKey?contextRegistry.get(context,source.snapshotKey):null;
+      if(source.snapshotKey&&!row)fail('PHASE4_SOURCE_SNAPSHOT_EVICTED');
+      return {...source,row};
     });
   }
   async function root(context,type,id) {

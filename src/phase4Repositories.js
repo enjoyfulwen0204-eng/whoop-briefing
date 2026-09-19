@@ -8,6 +8,7 @@ import { createPhase4SlotStore } from './phase4SlotStore.js';
 import { createPhase4ExperimentStore } from './phase4ExperimentStore.js';
 import { createPhase4InsightStore } from './phase4InsightStore.js';
 import { createPhase4TransportStore } from './phase4TransportStore.js';
+import { createBodyEnergyStore } from './bodyEnergyStore.js';
 
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
@@ -66,6 +67,7 @@ export function composePhase4Stores(core) {
     slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle'].includes(name)))),
     transport:Object.freeze(createPhase4TransportStore(core,entities,{start:slots.transportStart,settle:slots.transportSettle})),
     experiments:Object.freeze(experiments),
+    bodyEnergy:createBodyEnergyStore(core,entities,queue),
     decisions:Object.freeze({append:(context,data,refs)=>entities.append(context,'phase4_proactive_decisions',data,refs)}),
     evidence:Object.freeze({
       start:(context,data,refs)=>entities.append(context,'evidence_runs',{...data,state:'STARTED'},refs),

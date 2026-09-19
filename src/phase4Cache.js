@@ -44,7 +44,7 @@ export function createPhase4ContextRegistry({client,keys,now,timestamp,newId}) {
     return keys.lookup(['context-cache-v1',context.userId,context.executionMode,identity,context.algorithmSetVersion,
       context.inputGeneration,context.lifecycleGeneration,context.authGeneration,context.purgeGeneration]);
   }
-  return {register,assertLease,release,pending,
+  return {register,assertLease,release,pending,clear:context=>local.get(context)?.values.clear(),
     get:(context,identity)=>state(context).values.get(cacheKey(context,identity)),
     set:(context,identity,value)=>state(context).values.set(cacheKey(context,identity),structuredClone(value))};
 }

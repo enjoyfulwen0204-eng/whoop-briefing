@@ -666,7 +666,7 @@ test('遷移 v15 → v16：純新增（auth_generation 欄位 + 資源權限表�
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (15, '2026-09-15T00:00:00.000Z', 'v15')");
 
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 15); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 23);
+    assert.equal(s.from, 15); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 24);
     assert.deepEqual(s.rebuilt, []);
     assert.deepEqual(s.columnsAdded, ['user_whoop_tokens.auth_generation']);
     assert.equal(await e.db.getAuthGeneration(u.id), 1, '★ 既有 token 列預設世代 1');
@@ -698,6 +698,6 @@ test('遷移：全新資料庫直接到 v16，不會憑空產生上線列或權�
     assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM whoop_resource_access')).rows[0].n, 0);
     const s = await runMigrations(e.db.raw);
     assert.deepEqual(s.dataMigrations ?? [], []);
-    assert.equal(SCHEMA_VERSION, 23);
+    assert.equal(SCHEMA_VERSION, 24);
   } finally { e.done(); }
 });

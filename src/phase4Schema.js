@@ -1,6 +1,7 @@
 /** Post-v20 DDL, re-exported by schema.js. No runtime activation or providers. */
 import { buildV22 } from './phase4V22Schema.js';
 import { buildV23 } from './phase4V23Schema.js';
+import { buildV24 } from './phase4V24Schema.js';
 export const MODE_COLUMN = `execution_mode TEXT NOT NULL DEFAULT 'SHADOW'
   CHECK (execution_mode IN ('SHADOW','LIVE'))`;
 
@@ -57,4 +58,5 @@ export const PHASE4_MIGRATIONS = Object.freeze([
   Object.freeze({ version: 21, ddl: V21_SCHEMA }),
   buildV22(MODE_COLUMN, modeImmutableTrigger),
   buildV23(MODE_COLUMN, modeImmutableTrigger),
+  buildV24(MODE_COLUMN, modeImmutableTrigger),
 ]);

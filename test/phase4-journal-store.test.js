@@ -89,6 +89,66 @@ test('Expired correction staging is physically destroyed outside failed T1; only
   assert.equal((await db.raw.execute('SELECT count(*) n FROM health_plaintext_purges')).rows[0].n,1);
 });
 
+test('A valid unexpired correction staging cannot be replaced by arbitrary content or cross-tenant authority',async t=>{
+  const f=await syntheticPhase4Fixture(t),{stores,db}=f,control=await stores.captureControl('a'),fact=await stores.journal.create(control,input());
+  await db.raw.execute("CREATE TRIGGER synthetic_unexpired_failure BEFORE UPDATE ON journal_events BEGIN SELECT RAISE(ABORT,'synthetic_unexpired_failure'); END");
+  await assert.rejects(stores.journal.correct(control,{logicalFactId:fact.logicalFactId,expectedRevision:1,idempotencyKey:'unexpired',...input(200)}),/synthetic_unexpired_failure/);
+  const purge=(await db.raw.execute('SELECT * FROM health_plaintext_purges')).rows[0],before=(await db.raw.execute('SELECT * FROM health_purge_replacements')).rows[0];
+  await db.raw.execute('DROP TRIGGER synthetic_unexpired_failure');
+  await assert.rejects(stores.journal.resumeCorrection(control,{purgeId:purge.purge_id,expectedRevision:1,...input(300)}),/REPLACEMENT_NOT_EXPIRED/);
+  await assert.rejects(stores.journal.resumeCorrection(await stores.captureControl('b'),{purgeId:purge.purge_id,expectedRevision:1,...input(300)}),/PURGE_NOT_FOUND/);
+  await assert.rejects(stores.journal.resumeCorrection({}, {purgeId:purge.purge_id,expectedRevision:1,...input(300)}),/SOURCE_CONTROL_REQUIRED/);
+  assert.deepEqual((await db.raw.execute('SELECT * FROM health_purge_replacements')).rows[0],before);
+  assert.equal((await db.raw.execute("SELECT pending_purge_count FROM phase4_user_state WHERE user_id='a'")).rows[0].pending_purge_count,1);
+  await stores.privacy.redact(control,purge.purge_id);await stores.privacy.complete(control,purge.purge_id);
+  assert.equal((await db.raw.execute("SELECT numeric_value FROM journal_events WHERE fact_status='ACTIVE'")).rows[0].numeric_value,200);
+});
+
+test('Authenticated restaging replaces stale unexpired authority atomically and converges once after lifecycle, auth or timezone drift',async t=>{
+  const scenarios=[
+    ['lifecycle',async ({db})=>{await db.transitionUserLifecycle({userId:'a',targetStatus:'DISABLED'});await db.transitionUserLifecycle({userId:'a',targetStatus:'ACTIVE'});}],
+    ['authorization',async ({db,core})=>db.raw.execute({sql:`INSERT INTO user_whoop_tokens
+      (user_id,access_token,refresh_token,access_token_expires_at,updated_at,auth_generation) VALUES ('a','synthetic','synthetic',?,?,1)`,
+      args:[new Date(core.now().getTime()+3600000).toISOString(),core.timestamp()]})],
+    ['timezone',async ({db})=>db.updateUser('a',{timezone:'UTC'})],
+  ];
+  for(const [name,drift] of scenarios)await t.test(name,async t=>{
+    const f=await syntheticPhase4Fixture(t),{stores,db}=f,control=await stores.captureControl('a'),fact=await stores.journal.create(control,input());
+    await db.raw.execute({sql:`CREATE TRIGGER synthetic_${name}_failure BEFORE UPDATE ON journal_events BEGIN SELECT RAISE(ABORT,'synthetic_${name}_failure'); END`});
+    await assert.rejects(stores.journal.correct(control,{logicalFactId:fact.logicalFactId,expectedRevision:1,idempotencyKey:`${name}-restage`,...input(200)}),
+      new RegExp(`synthetic_${name}_failure`));
+    const purge=(await db.raw.execute('SELECT * FROM health_plaintext_purges')).rows[0],oldStage=(await db.raw.execute('SELECT * FROM health_purge_replacements')).rows[0];
+    const counters=(await db.raw.execute("SELECT purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id='a'")).rows[0];
+    await drift(f);
+    if(name!=='timezone')await assert.rejects(stores.journal.resumeCorrection(control,{purgeId:purge.purge_id,expectedRevision:1,...input(300)}),
+      name==='lifecycle'?/LIFECYCLE_FENCED/:/AUTH_FENCED/);
+    const freshControl=await stores.captureControl('a');
+    const invalid=input(300);invalid.candidate.extractionConfidence=0.5;
+    assert.equal((await stores.journal.resumeCorrection(freshControl,{purgeId:purge.purge_id,expectedRevision:1,...invalid})).status,'REQUIRE_CLARIFICATION');
+    assert.deepEqual((await db.raw.execute('SELECT * FROM health_purge_replacements')).rows[0],oldStage);
+    await assert.rejects(stores.journal.resumeCorrection(freshControl,{purgeId:purge.purge_id,expectedRevision:1,...input(300)}),
+      new RegExp(`synthetic_${name}_failure`));
+    const freshStage=(await db.raw.execute('SELECT * FROM health_purge_replacements')).rows[0],value=JSON.parse(freshStage.normalized_replacement_json);
+    assert.equal(value.fact.numeric_value,300);assert.notEqual(freshStage.normalized_replacement_json,oldStage.normalized_replacement_json);
+    assert.equal((await db.raw.execute('SELECT count(*) n FROM health_purge_replacements')).rows[0].n,1);
+    const links=(await db.raw.execute("SELECT relationship FROM phase4_source_links WHERE artifact_type='health_purge_replacements'")).rows;
+    assert.equal(links.length,1);assert.ok(links[0].relationship.includes(freshStage.replacement_source_key));
+    assert.ok(!links[0].relationship.includes(oldStage.replacement_source_key));
+    assert.equal((await db.raw.execute('SELECT purge_generation FROM health_plaintext_purges')).rows[0].purge_generation,purge.purge_generation);
+    assert.deepEqual((await db.raw.execute("SELECT purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id='a'")).rows[0],counters);
+    await db.raw.execute(`DROP TRIGGER synthetic_${name}_failure`);
+    assert.equal((await stores.journal.resumeCorrection(freshControl,{purgeId:purge.purge_id,expectedRevision:1,...input(300)})).purgeId,purge.purge_id);
+    assert.equal((await db.raw.execute('SELECT count(*) n FROM health_purge_replacements')).rows[0].n,0);
+    assert.equal((await db.raw.execute("SELECT count(*) n FROM phase4_source_links WHERE artifact_type='health_purge_replacements'")).rows[0].n,0);
+    await stores.privacy.complete(freshControl,purge.purge_id);await stores.privacy.complete(freshControl,purge.purge_id);
+    const current=(await db.raw.execute("SELECT * FROM journal_events WHERE fact_status='ACTIVE'")).rows[0];
+    assert.equal(current.numeric_value,300);assert.equal(current.revision,2);
+    const final=(await db.raw.execute("SELECT purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id='a'")).rows[0];
+    assert.equal(final.purge_generation,counters.purge_generation);assert.equal(final.pending_purge_count,0);
+    assert.equal((await db.raw.execute('SELECT state FROM health_plaintext_purges')).rows[0].state,'COMPLETE');
+  });
+});
+
 test('A later deletion may finish before the earlier correction cache acknowledgment without invalidating T2 proof or leaving old revision edges',async t=>{
   const {stores,db}=await syntheticPhase4Fixture(t),control=await stores.captureControl('a'),fact=await stores.journal.create(control,input());
   const old=await stores.capture('a',{executionMode:'SHADOW'});await stores.journal.read(old,fact.logicalFactId);

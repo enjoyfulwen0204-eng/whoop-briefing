@@ -24,6 +24,27 @@ test('SHADOW validated answers stay synthetic; invalid, cross-tenant and mismatc
   assert.equal(answer.logical_fact_id,null);assert.equal(answer.coverage_window_id,null);
 });
 
+test('Ambiguous multi-factor negation cannot resolve a factor slot or create any durable answer state',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f),before=await f.stores.slots.read(p.control,'SHADOW');
+  const sourceText='no alcohol, had coffee',result=await f.stores.journalAnswers.accept(p.context,request(p,{sourceUpdateId:'shadow:m1-factor',sourceText,
+    candidate:{category:'caffeine',eventAt:p.question.target_window_start_utc,valueKind:'PRESENCE',exposureState:'CONFIRMED_UNEXPOSED',
+      extractionConfidence:1,excerptStart:0,excerptEnd:[...sourceText].length}}));
+  assert.equal(result.status,'REQUIRE_CLARIFICATION');assert.deepEqual(await f.stores.slots.read(p.control,'SHADOW'),before);
+  for(const table of ['journal_events','journal_coverage_windows','structured_answer_events','telegram_operations'])
+    assert.equal((await f.db.raw.execute(`SELECT count(*) n FROM ${table}`)).rows[0].n,0,table);
+});
+
+test('Uncertainty cannot resolve an exact coverage slot or create facts, coverage, receipts or generation changes',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f,{coverage:true}),before=await f.stores.slots.read(p.control,'SHADOW');
+  const state=(await f.db.raw.execute("SELECT source_generation,purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id='a'")).rows[0];
+  const sourceText='no idea',result=await f.stores.journalAnswers.accept(p.context,request(p,{sourceUpdateId:'shadow:m1-coverage',sourceText,
+    candidate:{confirmed:true,extractionConfidence:1,excerptStart:0,excerptEnd:[...sourceText].length}}));
+  assert.equal(result.status,'REQUIRE_CLARIFICATION');assert.deepEqual(await f.stores.slots.read(p.control,'SHADOW'),before);
+  assert.deepEqual((await f.db.raw.execute("SELECT source_generation,purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id='a'")).rows[0],state);
+  for(const table of ['journal_events','journal_coverage_windows','structured_answer_events','telegram_operations'])
+    assert.equal((await f.db.raw.execute(`SELECT count(*) n FROM ${table}`)).rows[0].n,0,table);
+});
+
 test('LIVE accepted fact, source generation, answer receipt and matching slot resolve commit atomically without send capability',async t=>{
   const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f,{mode:'LIVE'}),proof=await inboundAnswer(f,p.control);
   const options=request(p,{...factAnswer,sourceUpdateId:'9101',inboundAuthority:proof});

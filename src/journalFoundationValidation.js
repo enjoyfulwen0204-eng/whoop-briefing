@@ -22,6 +22,37 @@ const validInstant=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{
 const bounded=(value,max)=>value==null?null:typeof value==='string'&&[...value.trim()].length<=max?value.trim():undefined;
 const contains=(text,word)=>/^[a-z_]+$/i.test(word)
   ?new RegExp(`\\b${word}\\b`,'i').test(text):text.toLowerCase().includes(word.toLowerCase());
+const factorAliases=Object.freeze(Object.fromEntries(CATEGORIES.map(category=>[category,
+  [...new Set([category,category.replaceAll('_',' '),...Object.entries(ALIASES).filter(([,value])=>value[0]===category).map(([word])=>word)])]])));
+const uncertaintyPatterns=Object.freeze([
+  /\bno\s+idea\b/iu,/\bi\s+(?:do\s+not|don['’]?t)\s+know\b/iu,
+  /\b(?:i\s+)?(?:do\s+not|don['’]?t)\s+remember\b/iu,/\b(?:i\s+)?(?:can\s*not|can['’]?t)\s+recall\b/iu,
+  /\b(?:i\s+)?forgot\b/iu,/\b(?:maybe|unsure|not\s+sure|perhaps)\b/iu,
+  /(?:不知道|不記得|不记得|記不清|记不清|忘了|忘記了|忘记了|不確定|不确定|不清楚)/u,
+]);
+const clauses=text=>text.split(/[,;.!?，；。！？]|\b(?:but|however|then|and)\b|(?:但是|不過|然後|然后)/iu).map(value=>value.trim()).filter(Boolean);
+function categoriesIn(text) {
+  const found=new Set(CATEGORIES.filter(category=>factorAliases[category].some(alias=>contains(text,alias))));
+  // `drink` is an alcohol noun only when it is not the verb immediately
+  // governing an explicit non-alcohol beverage alias ("drink coffee/tea").
+  const alcoholSpecific=factorAliases.alcohol.filter(alias=>alias!=='drink').some(alias=>contains(text,alias));
+  if(found.has('caffeine')&&found.has('alcohol')&&!alcoholSpecific&&/\bdrink(?:ing)?\s+(?:coffee|tea|caffeine)\b/iu.test(text))found.delete('alcohol');
+  return found;
+}
+const escapeRegExp=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+function factorClauseNegative(clause,category) {
+  return factorAliases[category].some(alias=>{
+    const escaped=escapeRegExp(alias).replaceAll(' ','\\s+'),token=/^[a-z_ ]+$/i.test(alias)?`\\b${escaped}\\b`:escaped;
+    return new RegExp(`\\b(?:no|without|never|did\\s+not|didn['’]?t|not\\s+consumed)\\s+(?:(?:any|a|the|more|drink|drank|drinking|consume|consumed|use|used|take|took|had)\\s+){0,3}${token}`,'iu').test(clause)
+      ||new RegExp(`(?:沒有|没有|沒|没|未|不曾)[\\s喝吃用服攝摄取了]*${token}`,'iu').test(clause);
+  });
+}
+const factorNegative=(text,category)=>clauses(text).some(clause=>categoriesIn(clause).has(category)&&factorClauseNegative(clause,category));
+const factorPolarityConflict=(text,category)=>{const relevant=clauses(text).filter(clause=>categoriesIn(clause).has(category));
+  return relevant.some(clause=>factorClauseNegative(clause,category))&&relevant.some(clause=>!factorClauseNegative(clause,category));};
+const uncertain=text=>uncertaintyPatterns.some(pattern=>pattern.test(text));
+const genericNegative=text=>/^(?:no|none|nothing|neither|沒有|没有|都沒有|都没有|無|无)$/iu.test(text
+  .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})/gu,' ').trim().replace(/[.!?，；。！？]+$/u,''));
 
 /** The role/instruction channel is constant. User-controlled text is a data
  * field, never a caller-supplied messages array, system prompt or tool schema.
@@ -35,7 +66,8 @@ export function journalParserInput(sourceText) {
 /** Closed deterministic candidate validation. Trusted options come from the
  * owning controller, not from model fields. No candidate-supplied ID, health
  * day, timezone, mode, generation, destination or tool argument is accepted. */
-export function validateJournalCandidate(candidate,{sourceText,timezone,now=new Date(),displayedWindow=null,displayedFactors=[],trustedEventAt=null,trustedEventEndAt=null}={}) {
+export function validateJournalCandidate(candidate,{sourceText,timezone,now=new Date(),displayedWindow=null,displayedFactors=[],trustedEventAt=null,trustedEventEndAt=null,
+  exactDisplayedFactorSet=false}={}) {
   if(!candidate||Object.getPrototypeOf(candidate)!==Object.prototype||Object.keys(candidate).some(k=>!fields.has(k)))return outcome('REJECT','UNSUPPORTED_CANDIDATE_FIELDS');
   if(typeof sourceText!=='string'||[...sourceText].length>8000)return outcome('REJECT','INVALID_SOURCE_TEXT');
   try {new Intl.DateTimeFormat('en-US',{timeZone:timezone}).format(now);}catch{return outcome('REJECT','INVALID_TIMEZONE');}
@@ -97,8 +129,15 @@ export function validateJournalCandidate(candidate,{sourceText,timezone,now=new 
     ||c.excerptEnd>points.length||c.excerptEnd-c.excerptStart>500)return outcome('REJECT','MINIMAL_SOURCE_SPAN_REQUIRED');
   const excerpt=points.slice(c.excerptStart,c.excerptEnd).join('').trim();
   if(!excerpt)return outcome('REJECT','MINIMAL_SOURCE_SPAN_REQUIRED');
+  if(uncertain(excerpt))return outcome('REQUIRE_CLARIFICATION','AMBIGUOUS_ASSERTION');
+  const evidencedCategories=categoriesIn(excerpt),displayedSet=new Set(displayedFactors),exactDisplayed=exactDisplayedFactorSet
+    &&displayedSet.size===displayedFactors.length&&evidencedCategories.size===displayedSet.size
+    &&[...displayedSet].every(category=>evidencedCategories.has(category));
+  if(evidencedCategories.size>1&&!exactDisplayed)return outcome('REQUIRE_CLARIFICATION','AMBIGUOUS_FACTOR_SOURCE');
+  if(evidencedCategories.size&&(!evidencedCategories.has(c.category)||exactDisplayedFactorSet&&!exactDisplayed))
+    return outcome('REQUIRE_CLARIFICATION','CONTRADICTORY_FACTOR_SOURCE');
   const matchedAliases=Object.entries(ALIASES).filter(([word,[category]])=>category===c.category&&contains(excerpt,word));
-  if(!displayedFactors.includes(c.category)&&!contains(excerpt,c.category)&&!matchedAliases.length)
+  if(!displayedFactors.includes(c.category)&&!factorAliases[c.category].some(alias=>contains(excerpt,alias)))
     return outcome('REQUIRE_CLARIFICATION','FACTOR_SOURCE_EVIDENCE_REQUIRED');
   if(subtype&&!contains(excerpt,subtype.replaceAll('_',' '))&&!matchedAliases.some(([,[,value]])=>value===subtype))
     return outcome('REJECT','UNSUPPORTED_SUBTYPE_PROVENANCE');
@@ -109,9 +148,11 @@ export function validateJournalCandidate(candidate,{sourceText,timezone,now=new 
   }
   if(severity!==null&&!new RegExp(`(^|[^0-9])${severity}([^0-9]|$)`).test(normalizeChineseNumbers(excerpt)))
     return outcome('REQUIRE_CLARIFICATION','ORDINAL_SOURCE_EVIDENCE_REQUIRED');
-  if(/\b(maybe|unsure|not sure|perhaps)\b|可能|也許|不確定|不清楚/i.test(excerpt))return outcome('REQUIRE_CLARIFICATION','AMBIGUOUS_ASSERTION');
+  if(/可能|也許|也许/u.test(excerpt))return outcome('REQUIRE_CLARIFICATION','AMBIGUOUS_ASSERTION');
   if(/\b(but|except|although)\b|但是|不過|除了/i.test(excerpt))return outcome('REQUIRE_CLARIFICATION','INCONSISTENT_ASSERTION');
-  const negative=/\b(no|none|never|without|did not|didn't|not consumed)\b|沒有|没[有喝吃用]|未[喝吃用]|不曾/i.test(excerpt);
+  if(factorPolarityConflict(excerpt,c.category))return outcome('REQUIRE_CLARIFICATION','INCONSISTENT_ASSERTION');
+  const trustedGeneric=genericNegative(excerpt)&&displayedWindow!==null&&displayedFactors.includes(c.category);
+  const negative=factorNegative(excerpt,c.category)||trustedGeneric;
   if(polarity==='CONFIRMED_UNEXPOSED'&&!negative||polarity==='EXPOSED'&&negative)return outcome('REQUIRE_CLARIFICATION','NEGATION_AMBIGUOUS');
   // Free text is retained only if it is part of the supplied minimal source
   // span. A model cannot invent a note or copy a separate conversation/log.
@@ -168,8 +209,12 @@ export function validateCoverageCandidate(candidate,{sourceText,displayedWindow,
     ||Date.parse(displayedWindow.end)>now.getTime())return outcome('REJECT','DISPLAYED_WINDOW_REQUIRED');
   const accepted=validateJournalCandidate({category:displayedFactors[0],eventAt:displayedWindow.start,eventEndAt:displayedWindow.end,
     timeScope:'INTERVAL',valueKind:'PRESENCE',exposureState:'CONFIRMED_UNEXPOSED',extractionConfidence:candidate.extractionConfidence,
-    excerptStart:candidate.excerptStart,excerptEnd:candidate.excerptEnd},{sourceText,timezone,now,displayedFactors,displayedWindow});
+    excerptStart:candidate.excerptStart,excerptEnd:candidate.excerptEnd},{sourceText,timezone,now,displayedFactors,displayedWindow,exactDisplayedFactorSet:true});
   if(accepted.status!=='ACCEPT')return accepted;
+  const excerpt=accepted.fact.raw_answer_excerpt,evidenced=categoriesIn(excerpt);
+  if(!genericNegative(excerpt)&&(evidenced.size!==displayedFactors.length
+    ||displayedFactors.some(factor=>!evidenced.has(factor)||!factorNegative(excerpt,factor))))
+    return outcome('REQUIRE_CLARIFICATION','INCOMPLETE_COVERAGE_CONFIRMATION');
   return {status:'ACCEPT',reasons:[],coverage:{window_start_utc:new Date(displayedWindow.start).toISOString(),window_end_utc:new Date(displayedWindow.end).toISOString(),
     health_date_start:healthDateFor(new Date(displayedWindow.start),timezone),health_date_end:healthDateFor(new Date(Date.parse(displayedWindow.end)-1),timezone),
     recorded_timezone:timezone,factor_set_version:JOURNAL_VERSIONS.factors,factor_keys_json:canonicalJson([...displayedFactors].sort()),

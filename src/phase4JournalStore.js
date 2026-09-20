@@ -108,6 +108,11 @@ export function createPhase4JournalStore(core,privacy,queue) {
       exposureState:fact.exposure_state,extractionConfidence:fact.extraction_confidence,excerptStart:0,excerptEnd:[...fact.raw_answer_excerpt].length};
   }
   privacy.registerReplacement('JOURNAL_FACT',{
+    async authorityStale(control,value) {
+      const state=await core.assertControl(control);
+      if(!value||!Object.hasOwn(value,'lifecycleGeneration')||!Object.hasOwn(value,'authGeneration')||!Object.hasOwn(value,'timezone'))return false;
+      return value.lifecycleGeneration!==state.lifecycle_generation||value.authGeneration!==state.auth_generation||value.timezone!==state.timezone;
+    },
     async validate(control,value) {
       const state=await core.assertControl(control);
       if(!value||Object.keys(value).some(k=>!['logicalId','expectedRevision','fact','lifecycleGeneration','authGeneration','timezone'].includes(k))

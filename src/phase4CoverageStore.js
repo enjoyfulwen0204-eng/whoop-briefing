@@ -44,6 +44,11 @@ export function createPhase4CoverageStore(core,privacy) {
     return insert(control,coverage,{id:keys.lookup(['coverage-id-v1',control.userId,key]),key,generation:context.purgeGeneration,inputGeneration:context.inputGeneration+1});
   }
   privacy.registerReplacement('JOURNAL_COVERAGE',{
+    async authorityStale(control,value) {
+      const state=await core.assertControl(control);
+      if(!value||!Object.hasOwn(value,'lifecycle')||!Object.hasOwn(value,'auth')||!Object.hasOwn(value,'timezone'))return false;
+      return value.lifecycle!==state.lifecycle_generation||value.auth!==state.auth_generation||value.timezone!==state.timezone;
+    },
     async validate(control,value) {
       const state=await core.assertControl(control),prior=await get(control.userId,value?.coverageId);
       if(!prior||prior.revision!==value.expectedRevision||value.lifecycle!==state.lifecycle_generation||value.auth!==state.auth_generation

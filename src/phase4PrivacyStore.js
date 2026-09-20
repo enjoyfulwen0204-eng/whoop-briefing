@@ -28,7 +28,8 @@ export function createPhase4PrivacyStore(core,queue) {
     const json=canonicalJson(normalized);
     if(Buffer.byteLength(json)>32768||!sourceKey||!parserVersion||!normalizerVersion)fail('PHASE4_INVALID_REPLACEMENT');
     const ticket=Object.freeze({kind});
-    replacements.set(ticket,{userId:control.userId,targetType,targetId,validate:()=>handler.validate(control,normalized),async stage(purgeId,generation) {
+    replacements.set(ticket,{userId:control.userId,targetType,targetId,kind,json,sourceKey,parserVersion,normalizerVersion,
+      validate:()=>handler.validate(control,normalized),async stage(purgeId,generation) {
       const at=timestamp(),expires=new Date(Date.parse(at)+30*86400000).toISOString();
       const artifact=keys.lookup(['purge-replacement-v1',control.userId,purgeId]);
       await client.execute({sql:`INSERT INTO health_purge_replacements(user_id,purge_id,replacement_kind,normalized_replacement_json,
@@ -52,9 +53,18 @@ export function createPhase4PrivacyStore(core,queue) {
       if(purge.state!=='ADMITTED'||purge.operation_kind!=='CORRECTION'||!prepared||prepared.userId!==control.userId
         ||prepared.targetType!==purge.target_source_type||prepared.targetId!==purge.target_source_id)fail('PHASE4_VALIDATED_REPLACEMENT_REQUIRED');
       if(purge.source_update_id!==null)await inbound.validate(control,inboundAuthority,purge.source_update_id,{purge});
-      const stage=(await client.execute({sql:'SELECT expires_at FROM health_purge_replacements WHERE user_id=? AND purge_id=?',args:[control.userId,purgeId]})).rows[0];
-      if(stage&&stage.expires_at>timestamp())fail('PHASE4_REPLACEMENT_NOT_EXPIRED');
-      await prepared.validate();await discardStaging(control.userId,purgeId);await prepared.stage(purgeId,purge.purge_generation);
+      await prepared.validate();
+      const stage=(await client.execute({sql:'SELECT * FROM health_purge_replacements WHERE user_id=? AND purge_id=?',args:[control.userId,purgeId]})).rows[0];
+      if(stage&&stage.expires_at>timestamp()) {
+        if(stage.replacement_kind===prepared.kind&&stage.normalized_replacement_json===prepared.json
+          &&stage.replacement_source_key===prepared.sourceKey&&stage.parser_version===prepared.parserVersion
+          &&stage.normalizer_version===prepared.normalizerVersion)return {...purge};
+        const handler=handlers.get(stage.replacement_kind);let value;
+        try {value=JSON.parse(stage.normalized_replacement_json);}catch {fail('PHASE4_REPLACEMENT_NOT_EXPIRED');}
+        if(stage.replacement_kind!==prepared.kind||typeof handler?.authorityStale!=='function'
+          ||!await handler.authorityStale(control,value))fail('PHASE4_REPLACEMENT_NOT_EXPIRED');
+      }
+      await discardStaging(control.userId,purgeId);await prepared.stage(purgeId,purge.purge_generation);
       await client.execute({sql:'UPDATE health_plaintext_purges SET last_error_code=NULL,updated_at=? WHERE user_id=? AND purge_id=?',args:[timestamp(),control.userId,purgeId]});
       return {...purge};
     });

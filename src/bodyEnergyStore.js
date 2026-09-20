@@ -35,16 +35,40 @@ export function createBodyEnergyStore(core,entities,queue) {
   function calculationHash(row,result) {
     return keys.digest(row.content_digest_salt,canonicalJson({result_lookup_key:row.result_lookup_key,calculation:result}));
   }
-  function reproduce(context,row) {
+  function reproduceHistorical(row) {
     if(!readableRow(row))fail('CONTENT_REDACTED');
-    if(row.lifecycle_generation!==context.lifecycleGeneration||row.auth_generation!==context.authGeneration)fail('PHASE4_PARENT_STALE');
-    const manifest=JSON.parse(row.input_manifest_json),calculation=calculateBodyEnergy(manifest);
-    if(keys.digest(row.content_digest_salt,canonicalJson(manifest))!==row.input_manifest_hash
+    let manifest,calculation;
+    try {manifest=JSON.parse(row.input_manifest_json);calculation=calculateBodyEnergy(manifest);}
+    catch {fail('BODY_ENERGY_REPRODUCTION_CONFLICT');}
+    const identity=keys.lookup(['body-energy-result-v1',row.user_id,row.health_date,row.as_of_epoch_ms,row.algorithm_version,
+      row.input_generation,row.execution_mode]);
+    if(identity!==row.result_lookup_key||manifest.input_generation!==row.input_generation
+      ||manifest.lifecycle_generation!==row.lifecycle_generation||manifest.auth_generation!==row.auth_generation
+      ||manifest.as_of_epoch_ms!==row.as_of_epoch_ms||manifest.as_of_utc!==row.as_of_utc||manifest.health_date!==row.health_date
+      ||manifest.timezone!==row.timezone||calculation.algorithm_version!==row.algorithm_version
+      ||calculation.constants_version!==row.constants_version||calculation.baseline_version!==row.baseline_version
+      ||calculation.metric_registry_version!==row.metric_registry_version
+      ||keys.digest(row.content_digest_salt,canonicalJson(manifest))!==row.input_manifest_hash
       ||calculationHash(row,calculation)!==row.result_hash||row.value!==calculation.value
       ||row.quality_state!==calculation.quality_state||row.confidence!==calculation.confidence
       ||row.confidence_label!==calculation.confidence_label||row.driver_json!==canonicalJson(calculation.drivers)
       ||row.missingness_json!==canonicalJson(calculation.reasons))fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
     return {row:{...row},manifest,calculation};
+  }
+  function reproduceCurrent(context,row) {
+    if(!readableRow(row))fail('CONTENT_REDACTED');
+    if(row.input_generation!==context.inputGeneration||row.lifecycle_generation!==context.lifecycleGeneration
+      ||row.auth_generation!==context.authGeneration||row.purge_generation!==context.purgeGeneration||row.invalidated_at!==null)
+      fail('PHASE4_PARENT_STALE');
+    return reproduceHistorical(row);
+  }
+  async function reproduceAudit(row) {
+    if(!readableRow(row))fail('CONTENT_REDACTED');
+    const linked=(await client.execute({sql:`SELECT 1 FROM phase4_source_links WHERE user_id=? AND artifact_execution_mode=?
+      AND artifact_type='body_energy_results' AND artifact_id=? AND unlinked_at IS NULL LIMIT 1`,
+      args:[row.user_id,row.execution_mode,row.privacy_artifact_id]})).rows.length;
+    if(!linked)fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
+    return reproduceHistorical(row);
   }
   async function prepare(context,options) {
     const req=request(options);
@@ -84,14 +108,14 @@ export function createBodyEnergyStore(core,entities,queue) {
         if(!readableRow(prior))fail('CONTENT_REDACTED');
         if(prior.input_manifest_json!==json||prior.result_hash!==calculationHash(prior,calculation)
           ||prior.supersedes_result_id!==req.supersedesResultId)fail('BODY_ENERGY_IDENTITY_CONTENT_CONFLICT');
-        return {...reproduce(context,prior),created:false};
+        return {...reproduceCurrent(context,prior),created:false};
       }
       await core.revalidateSources(context,refs);
       if(req.supersedesResultId!==null) {
         const previous=(await client.execute({sql:`SELECT * FROM body_energy_results WHERE user_id=? AND execution_mode=? AND result_id=?`,
           args:[context.userId,context.executionMode,req.supersedesResultId]})).rows[0];
         if(!previous)fail('PHASE4_PARENT_NOT_FOUND');
-        reproduce(context,previous);
+        reproduceHistorical(previous);
         if(previous.input_generation>=context.inputGeneration||previous.as_of_epoch_ms>req.asOfEpochMs)fail('BODY_ENERGY_INVALID_SUPERSESSION');
       }
       const row={...core.envelope(context,'body_energy_results',[key]),result_id:core.newId(),result_lookup_key:key,
@@ -111,7 +135,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       if(req.supersedesResultId!==null)await client.execute({sql:`UPDATE body_energy_results SET invalidated_at=COALESCE(invalidated_at,?),
         invalidation_reason=COALESCE(invalidation_reason,'SOURCE_CORRECTION') WHERE user_id=? AND execution_mode=? AND result_id=?`,
         args:[core.timestamp(),context.userId,context.executionMode,req.supersedesResultId]});
-      return {...reproduce(context,await find(context,key)),created:true};
+      return {...reproduceCurrent(context,await find(context,key)),created:true};
     });
   }
   async function compute(context,options) {
@@ -119,7 +143,7 @@ export function createBodyEnergyStore(core,entities,queue) {
     return core.run(context,async()=>{
       if(req.targetHealthDate!==null) {
         const prior=await find(context,lookup(context,req.targetHealthDate,req.asOfEpochMs,req.algorithmVersion));
-        if(prior)return {...reproduce(context,prior),created:false};
+        if(prior)return {...reproduceCurrent(context,prior),created:false};
       }
       return persist(context,await prepare(context,req));
     });
@@ -128,7 +152,7 @@ export function createBodyEnergyStore(core,entities,queue) {
     return core.run(context,async()=>{
       const row=(await client.execute({sql:`SELECT * FROM body_energy_results WHERE user_id=? AND execution_mode=? AND result_id=?`,
         args:[context.userId,context.executionMode,resultId]})).rows[0];
-      if(!row)fail('PHASE4_PARENT_NOT_FOUND');return reproduce(context,row);
+      if(!row)fail('PHASE4_PARENT_NOT_FOUND');return reproduceAudit(row);
     });
   }
   async function readExact(context,{healthDate,asOfEpochMs,algorithmVersion=C.algorithm,inputGeneration=context.inputGeneration}) {
@@ -136,7 +160,7 @@ export function createBodyEnergyStore(core,entities,queue) {
     if(!validHealthDate(healthDate)||!Number.isSafeInteger(inputGeneration)||inputGeneration<0||inputGeneration>context.inputGeneration)fail('BODY_ENERGY_INVALID_IDENTITY');
     return core.run(context,async()=>{
       const row=await find(context,lookup(context,healthDate,asOfEpochMs,algorithmVersion,inputGeneration));
-      if(!row)fail('NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS');return reproduce(context,row);
+      if(!row)fail('NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS');return reproduceAudit(row);
     });
   }
   async function checkpoint(context,{bucketStart,algorithmVersion=C.algorithm}) {
@@ -150,13 +174,17 @@ export function createBodyEnergyStore(core,entities,queue) {
         args:[context.userId,context.executionMode,key]})).rows[0];
       if(existing) {
         if(!readableRow(existing))fail('CONTENT_REDACTED');
-        return {row:{...existing},result:await audit(context,existing.result_id),created:false};
+        await core.artifact(context,'body_energy_checkpoints',{checkpoint_id:existing.checkpoint_id});
+        const parent=(await client.execute({sql:`SELECT * FROM body_energy_results WHERE user_id=? AND execution_mode=? AND result_id=?`,
+          args:[context.userId,context.executionMode,existing.result_id]})).rows[0];
+        if(!parent)fail('PHASE4_PARENT_NOT_FOUND');
+        return {row:{...existing},result:reproduceCurrent(context,parent),created:false};
       }
       const candidates=(await client.execute({sql:`SELECT * FROM body_energy_results WHERE user_id=? AND execution_mode=? AND as_of_epoch_ms=?
         AND algorithm_version=? AND input_generation=? AND invalidated_at IS NULL`,args:[context.userId,context.executionMode,closing,algorithmVersion,context.inputGeneration]})).rows;
       // Reuse only an unambiguous, exact closing result, never a bucket-rounded
       // arbitrary instant. Otherwise the selector resolves the health day.
-      const result=candidates.length===1?reproduce(context,candidates[0]):await compute(context,{asOfEpochMs:closing,algorithmVersion});
+      const result=candidates.length===1?reproduceCurrent(context,candidates[0]):await compute(context,{asOfEpochMs:closing,algorithmVersion});
       const stored=await entities.append(context,'body_energy_checkpoints',{checkpoint_kind:'PERIODIC_15M',checkpoint_bucket_start:bucketStart,
         checkpoint_as_of_epoch_ms:closing,result_id:result.row.result_id,algorithm_version:algorithmVersion,checkpoint_lookup_key:key});
       return {...stored,result};
@@ -168,9 +196,13 @@ export function createBodyEnergyStore(core,entities,queue) {
         args:[context.userId,context.executionMode,checkpointId]})).rows[0];
       if(!row)fail('PHASE4_PARENT_NOT_FOUND');
       if(!readableRow(row))fail('CONTENT_REDACTED');
+      if(!(await client.execute({sql:`SELECT 1 FROM phase4_source_links WHERE user_id=? AND artifact_execution_mode=?
+        AND artifact_type='body_energy_checkpoints' AND artifact_id=? AND unlinked_at IS NULL LIMIT 1`,
+        args:[row.user_id,row.execution_mode,row.privacy_artifact_id]})).rows.length)fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
       const result=await audit(context,row.result_id);
       if(result.row.as_of_epoch_ms!==row.checkpoint_as_of_epoch_ms||result.row.input_generation!==row.input_generation
-        ||result.row.algorithm_version!==row.algorithm_version)fail('PHASE4_CHECKPOINT_PARENT_MISMATCH');
+        ||result.row.algorithm_version!==row.algorithm_version||result.row.purge_generation!==row.purge_generation)
+        fail('PHASE4_CHECKPOINT_PARENT_MISMATCH');
       return {row:{...row},result};
     });
   }

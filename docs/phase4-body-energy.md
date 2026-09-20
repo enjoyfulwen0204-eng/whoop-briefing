@@ -15,6 +15,12 @@ the manifest's numeric inputs, quality or confidence. Only initial and final
 scores round. These are engineering estimates authored by Kelvin Health OS,
 not medically validated constants or a prediction of safety.
 
+Confidence threshold checks share one deterministic comparator. It accepts
+only the immediately adjacent IEEE-754 value below 0.80, 0.60 or 0.40 as the
+corresponding mathematical boundary; a value 1e-12 below remains below. The
+stored confidence is never rounded or rewritten. This is a conformance repair
+within `body-energy-v1.2.0`, not a new algorithm or constants version.
+
 `bodyEnergyInputs.js` selects tenant-owned retained canonical rows using exact
 UTC availability fences, current resource/auth/lifecycle access, capabilities,
 active tombstones, matched sleep IDs and deterministic binary ordering. It
@@ -37,6 +43,11 @@ an exact result. Supplying the known `targetHealthDate` makes the full exact
 tuple explicit and returns its retained winner without reselecting current
 canonical data. `readExact` and `audit` provide historical reproduction from
 the saved manifest; they deliberately return no current-parent reference.
+These explicit historical APIs authenticate a current tenant/mode context and
+require a clear purge fence, retained readable content and durable source
+linkage, but reproduce with the row's captured lifecycle/auth/input generations.
+Later reauthorization, lifecycle ABA, timezone, source/input generation or
+algorithm-set changes do not erase retained mathematical history.
 `read` is the separate current, full-provenance-validated parent interface.
 
 V20 is not a source-revision archive. Uncaptured as-of requests fail with

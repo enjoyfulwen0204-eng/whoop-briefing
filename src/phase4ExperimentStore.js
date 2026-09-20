@@ -96,6 +96,7 @@ export function createPhase4ExperimentStore(core,privacy,queue) {
   async function create(control,{creationKey,fields={},proofs={},status='DRAFT'}) {
     if(typeof creationKey!=='string'||!creationKey||status!=='DRAFT'||Object.keys(fields).some(f=>!Object.hasOwn(EXPERIMENT_FIELDS,f)))
       fail('PHASE4_EXPERIMENT_CREATE_REQUIRED');
+    for(const field of Object.keys(fields))if(!proofs[field])fail('PHASE4_EXPERIMENT_PROVENANCE_REQUIRED');
     return transaction(async()=>{
       const state=await core.assertControl(control);if(state.pending_purge_count)fail('PHASE4_PURGE_FENCED');
       const key=keys.lookup(['experiment-create-v1',control.userId,creationKey]);
@@ -154,6 +155,7 @@ export function createPhase4ExperimentStore(core,privacy,queue) {
   async function writeNewFields(control,{experimentId,fields={},proofs={},sourceKey,status}) {
     if(!sourceKey || Object.keys(fields).some(f=>!Object.hasOwn(EXPERIMENT_FIELDS,f))
       || status!==undefined&&!['DRAFT','RUNNING','COMPLETED','ABANDONED'].includes(status))fail('PHASE4_EXPERIMENT_PATCH_INVALID');
+    for(const field of Object.keys(fields))if(!proofs[field])fail('PHASE4_EXPERIMENT_PROVENANCE_REQUIRED');
     return transaction(async()=>{
       const state=await core.assertControl(control);if(state.pending_purge_count)fail('PHASE4_PURGE_FENCED');
       await assertNotDeleted(control.userId,experimentId);

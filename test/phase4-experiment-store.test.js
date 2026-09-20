@@ -3,21 +3,35 @@ import assert from 'node:assert/strict';
 import { syntheticPhase4Fixture } from './phase4Fixture.js';
 import { HEALTH_REDACTED } from '../src/phase4V22Backfill.js';
 
-test('Experiment creation always classifies ten leaves, quarantines unproven content, and preserves explicit independent assertions',async t=>{
+test('Runtime experiment writes require provenance before mutation while valid DIRECT fields create and update',async t=>{
   const f=await syntheticPhase4Fixture(t),{stores,db}=f,control=await stores.captureControl('a');
   const fields={name:'Independent synthetic name',hypothesis:'Unproven copied claim',intervention:'Independent protocol',result_json:{copied:'synthetic secret'}};
+  await assert.rejects(stores.experiments.create(control,{creationKey:'unproven-create',fields}),/PROVENANCE_REQUIRED/);
+  assert.equal((await db.raw.execute('SELECT count(*) n FROM experiments')).rows[0].n,0);
+  assert.equal((await db.raw.execute('SELECT count(*) n FROM experiment_field_groups')).rows[0].n,0);
+  assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_source_links')).rows[0].n,0);
   const proofs={};
   for(const field of ['name','intervention'])proofs[field]=await stores.experiments.assertDirect(control,{field,value:fields[field],sourceUpdateKey:`assert-${field}`});
-  const created=await stores.experiments.create(control,{creationKey:'create-one',fields,proofs});
+  const supplied={name:fields.name,intervention:fields.intervention};
+  const created=await stores.experiments.create(control,{creationKey:'create-one',fields:supplied,proofs});
   const read=await stores.experiments.read(control,created.experimentId);
   assert.equal(read.fields.length,10);assert.ok(read.fields.every(r=>r.field_revision===1));
   assert.equal(read.row.name,fields.name);assert.equal(read.row.intervention,fields.intervention);
   assert.equal(read.row.hypothesis,null);assert.equal(read.row.result_json,'{}');
   assert.equal((await db.raw.execute('SELECT hypothesis,result_json FROM experiments')).rows[0].hypothesis,null);
-  assert.equal((await stores.experiments.create(control,{creationKey:'create-one',fields,proofs})).created,false);
+  assert.equal((await stores.experiments.create(control,{creationKey:'create-one',fields:supplied,proofs})).created,false);
   await assert.rejects(stores.experiments.read(control,created.experimentId,{requiredFields:['result_json']}),/REQUIRED_FIELD_REDACTED/);
+  const before=await db.raw.execute({sql:'SELECT * FROM experiments WHERE id=?',args:[created.experimentId]});
+  const leafCount=(await db.raw.execute('SELECT count(*) n FROM experiment_field_groups')).rows[0].n;
+  await assert.rejects(stores.experiments.writeNewFields(control,{experimentId:created.experimentId,fields:{hypothesis:'No proof'},sourceKey:'missing'}),/PROVENANCE_REQUIRED/);
+  assert.deepEqual((await db.raw.execute({sql:'SELECT * FROM experiments WHERE id=?',args:[created.experimentId]})).rows,before.rows);
+  assert.equal((await db.raw.execute('SELECT count(*) n FROM experiment_field_groups')).rows[0].n,leafCount);
+  const hypothesis=await stores.experiments.assertDirect(control,{field:'hypothesis',value:'Direct hypothesis',sourceUpdateKey:'hypothesis'});
+  assert.equal(await stores.experiments.writeNewFields(control,{experimentId:created.experimentId,fields:{hypothesis:'Direct hypothesis'},
+    proofs:{hypothesis},sourceKey:'hypothesis'}),true);
+  assert.equal((await stores.experiments.read(control,created.experimentId)).row.hypothesis,'Direct hypothesis');
   const other=await stores.captureControl('b');assert.equal(await stores.experiments.read(other,created.experimentId),null);
-  await assert.rejects(stores.experiments.create(other,{creationKey:'x',fields,proofs}),/PROOF_MISMATCH/);
+  await assert.rejects(stores.experiments.create(other,{creationKey:'x',fields:supplied,proofs}),/PROOF_MISMATCH/);
   await assert.rejects(stores.experiments.assertDirect(control,{field:'result_json',value:{x:1},sourceUpdateKey:'unproven'}),/DIRECT_ASSERTION_REQUIRED/);
 });
 
@@ -54,12 +68,15 @@ test('Journal-derived field purges transitively while independent experiment sib
   const fields={name:'Independent protocol',result_json:{syntheticResult:100}};
   const proofs={name:await stores.experiments.assertDirect(control,{field:'name',value:fields.name,sourceUpdateKey:'direct'}),
     result_json:await stores.experiments.attestDerived(c,{field:'result_json',value:fields.result_json,sourceUpdateKey:'derived',sourceRefs:[source.ref]})};
-  const created=await stores.experiments.create(control,{creationKey:'field-linked',fields,proofs});
+  const created=await stores.experiments.create(control,{creationKey:'field-linked',fields:{name:fields.name},proofs:{name:proofs.name}});
+  assert.equal((await stores.experiments.read(control,created.experimentId)).row.result_json,'{}');
+  await stores.experiments.writeNewFields(control,{experimentId:created.experimentId,fields:{result_json:fields.result_json},
+    proofs:{result_json:proofs.result_json},sourceKey:'derived-result'});
   await assert.rejects(stores.assertCurrent(c),/INPUT_FENCED/);await stores.release(c);
   assert.equal((await stores.experiments.read(control,created.experimentId)).row.result_json,'{"syntheticResult":100}');
-  assert.equal((await db.raw.execute("SELECT source_generation FROM phase4_user_state WHERE user_id='a'")).rows[0].source_generation,1);
-  await stores.experiments.create(control,{creationKey:'field-linked',fields,proofs});
-  assert.equal((await db.raw.execute("SELECT source_generation FROM phase4_user_state WHERE user_id='a'")).rows[0].source_generation,1);
+  assert.equal((await db.raw.execute("SELECT source_generation FROM phase4_user_state WHERE user_id='a'")).rows[0].source_generation,2);
+  await stores.experiments.create(control,{creationKey:'field-linked',fields:{name:fields.name},proofs:{name:proofs.name}});
+  assert.equal((await db.raw.execute("SELECT source_generation FROM phase4_user_state WHERE user_id='a'")).rows[0].source_generation,2);
   const purge=await stores.privacy.admit(control,{targetType:'JOURNAL_FACT',targetId:'experiment-source',idempotencyKey:'journal-delete'});
   await stores.privacy.redact(control,purge.purge_id);await stores.privacy.complete(control,purge.purge_id);
   const retained=await stores.experiments.read(control,created.experimentId);

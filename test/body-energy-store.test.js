@@ -73,6 +73,61 @@ test('Corrected inputs create new generation/as-of, leave retained historical ma
   assert.notEqual(revision.row.result_id,corrected.row.result_id);assert.equal(revision.row.as_of_epoch_ms,corrected.row.as_of_epoch_ms);
 });
 
+test('Historical Body audit survives current generation changes without becoming a current parent',async t=>{
+  const {stores,db,context}=await setup(t),body=stores.bodyEnergy;
+  const historical=await body.compute(context,request),checkpoint=await body.checkpoint(context,{bucketStart:at-900000});
+  await stores.release(context);
+  await db.raw.execute("UPDATE user_whoop_tokens SET auth_generation=2 WHERE user_id='a'");
+  await db.raw.execute("UPDATE whoop_resource_access SET auth_generation=2 WHERE user_id='a'");
+  await db.transitionUserLifecycle({userId:'a',targetStatus:'DISABLED'});
+  await db.transitionUserLifecycle({userId:'a',targetStatus:'ACTIVE'});
+  const lifecycle=(await db.raw.execute("SELECT lifecycle_generation FROM users WHERE id='a'")).rows[0].lifecycle_generation;
+  await db.raw.execute({sql:"UPDATE whoop_resource_access SET lifecycle_generation=? WHERE user_id='a'",args:[lifecycle]});
+  await db.updateUser('a',{timezone:'UTC'});
+  const aba=await stores.capture('a',{executionMode:'SHADOW'});
+  await assert.rejects(body.read(aba,historical.row.result_id),/PARENT_STALE/);
+  await assert.rejects(body.checkpoint(aba,{bucketStart:at-900000}),/PARENT_STALE/);
+  await stores.release(aba);
+  await stores.queue.sourceChanged(await stores.captureControl('a'),{reasonCode:'SOURCE_CHANGED'});
+  await db.raw.execute("UPDATE phase4_computation_state SET algorithm_set_version='phase4-foundation-v2' WHERE user_id='a' AND execution_mode='SHADOW'");
+  const current=await stores.capture('a',{executionMode:'SHADOW'});
+  const audit=await body.audit(current,historical.row.result_id);
+  assert.equal(audit.calculation.value,70);assert.equal(audit.row.lifecycle_generation,1);assert.equal(audit.row.auth_generation,1);
+  assert.equal(Object.hasOwn(audit,'ref'),false);
+  assert.equal((await body.readExact(current,{healthDate:date,asOfEpochMs:at,inputGeneration:historical.row.input_generation})).row.result_id,
+    historical.row.result_id);
+  assert.equal((await body.auditCheckpoint(current,checkpoint.row.checkpoint_id)).result.row.result_id,historical.row.result_id);
+  await assert.rejects(body.read(current,historical.row.result_id),/PARENT_STALE/);
+  const currentResult=await body.compute(current,request);assert.notEqual(currentResult.row.result_id,historical.row.result_id);
+  const currentCheckpoint=await body.checkpoint(current,{bucketStart:at-900000});
+  assert.notEqual(currentCheckpoint.row.checkpoint_id,checkpoint.row.checkpoint_id);
+  const other=await stores.capture('b',{executionMode:'SHADOW'});
+  await assert.rejects(body.audit(other,historical.row.result_id),/PARENT_NOT_FOUND/);
+  await stores.initializeTenant('a','LIVE');const live=await stores.capture('a',{executionMode:'LIVE'});
+  await assert.rejects(body.audit(live,historical.row.result_id),/PARENT_NOT_FOUND/);
+});
+
+test('Historical Body reproduction fails with one deterministic invariant error after manifest, hash or result tampering',async t=>{
+  const {stores,db,context}=await setup(t),body=stores.bodyEnergy,result=await body.compute(context,request),original=result.row;
+  await db.raw.execute('DROP TRIGGER p4_body_energy_results_envelope_immutable');
+  await db.raw.execute('DROP TRIGGER p4_body_energy_results_content_append_only');
+  for(const [column,value] of [['input_manifest_json','not-json'],['input_manifest_hash','tampered'],['result_hash','tampered'],['value',71]]) {
+    await db.raw.execute({sql:`UPDATE body_energy_results SET ${column}=? WHERE user_id='a' AND result_id=?`,args:[value,original.result_id]});
+    await assert.rejects(body.audit(context,original.result_id),/BODY_ENERGY_REPRODUCTION_CONFLICT/,column);
+    await db.raw.execute({sql:`UPDATE body_energy_results SET ${column}=? WHERE user_id='a' AND result_id=?`,args:[original[column],original.result_id]});
+  }
+});
+
+test('Persisted Body confidence keeps the full IEEE-754 value while threshold classification uses the bounded comparator',async t=>{
+  const fixture=await syntheticPhase4Fixture(t),input=bodyInput();
+  for(const sync of input.sync)sync.last_success_at=new Date(input.asOfEpochMs-24*3600000).toISOString();
+  await fixture.db.transaction(()=>seedBodyInput(fixture.db,input));
+  const context=await fixture.stores.capture('a',{executionMode:'SHADOW'});
+  const result=await fixture.stores.bodyEnergy.compute(context,request);
+  assert.equal(result.row.confidence,0.7249999999999999);assert.equal(result.calculation.confidence,0.7249999999999999);
+  assert.equal(result.row.confidence_label,'MEDIUM');assert.equal(result.row.quality_state,'DEGRADED');
+});
+
 test('Body facade is tenant/mode/lifecycle/purge fenced and the public factory cannot issue LIVE',async t=>{
   const {stores,db,keys,context}=await setup(t),body=stores.bodyEnergy;
   const shadow=await body.compute(context,request),other=await stores.capture('b',{executionMode:'SHADOW'});

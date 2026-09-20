@@ -4,6 +4,25 @@ import { exactBodyInstant } from './bodyEnergyInputs.js';
 
 export const clamp=(lo,hi,value)=>Math.min(hi,Math.max(lo,value));
 const finite=value=>typeof value==='number'&&Number.isFinite(value);
+const float=new DataView(new ArrayBuffer(8));
+function previousFloat(value) {
+  if(value===-Infinity)return -Infinity;
+  if(Object.is(value,0))return -Number.MIN_VALUE;
+  float.setFloat64(0,value,false);
+  const bits=float.getBigUint64(0,false)+(value>0?-1n:1n);
+  float.setBigUint64(0,bits,false);return float.getFloat64(0,false);
+}
+/** Treat only the immediately adjacent representable value below a contract
+ * threshold as meeting it. This repairs IEEE-754 evaluation artifacts without
+ * rounding the score or introducing a broad decimal tolerance. */
+export function meetsConfidenceThreshold(value,threshold) {
+  if(!finite(value)||!finite(threshold))fail('BODY_ENERGY_CONFIDENCE_INVALID');
+  return value>=previousFloat(threshold);
+}
+export function bodyConfidenceLabel(confidence) {
+  return meetsConfidenceThreshold(confidence,0.8)?'HIGH':meetsConfidenceThreshold(confidence,0.6)?'MEDIUM'
+    :meetsConfidenceThreshold(confidence,0.4)?'LOW':'INSUFFICIENT';
+}
 export function linearQuantile(sorted,p) {
   if(!sorted.length)return null;
   const h=(sorted.length-1)*p,lo=Math.floor(h),hi=Math.ceil(h);
@@ -81,11 +100,12 @@ export function calculateBodyEnergy(manifest) {
   const noData=!manifest.main_sleep||!manifest.eligibility.matched_scored_recovery||!manifest.eligibility.required_sync_valid;
   const warming=(hrv!==null&&!baseline.hrv.usable)||(rhr!==null&&!baseline.rhr.usable);
   const quality=bodyQuality({unavailable:manifest.eligibility.unavailable,noData,degraded:warnings.size>0||manifest.eligibility.failed_required,
-    warming,limited:sleep===null||hrv===null||rhr===null||baseline.hrv.n<C.baselineTarget||baseline.rhr.n<C.baselineTarget||confidence<0.80});
+    warming,limited:sleep===null||hrv===null||rhr===null||baseline.hrv.n<C.baselineTarget||baseline.rhr.n<C.baselineTarget
+      ||!meetsConfidenceThreshold(confidence,0.80)});
   for(const warning of warnings)reasons.add(warning);
   return {algorithm_version:C.algorithm,constants_version:C.constants,baseline_version:C.baseline,metric_registry_version:C.metrics,
     constants_hash:BODY_ENERGY_CONSTANTS_HASH,authorship:'Kelvin Health OS',interpretation:'Engineering estimate; not a diagnosis or medical-safety prediction.',
-    value:score,quality_state:quality,confidence,confidence_label:confidence>=0.8?'HIGH':confidence>=0.6?'MEDIUM':confidence>=0.4?'LOW':'INSUFFICIENT',
+    value:score,quality_state:quality,confidence,confidence_label:bodyConfidenceLabel(confidence),
     reasons:[...reasons].sort(),drivers:{sleep_domain:sleep,hrv_z:hrvZ,rhr_z:rhrZ,hrv_score:hrvScore,rhr_score:rhrScore,autonomic_domain:autonomic,
       domain_mean:sleep===null||autonomic===null?null:C.sleepWeight*sleep+C.autonomicWeight*autonomic,
       initial_charge:initial,wake_hours:hours,time_depletion:time,load_kind:manifest.load.kind,load_depletion:load,

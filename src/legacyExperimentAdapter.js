@@ -6,6 +6,14 @@ const MAP={name:'name',hypothesis:'hypothesis',intervention:'intervention',targe
 /** Provenance is a separate server-owned options argument, never inferred from
  * value shape, a previous leaf, or an LLM-produced experiment object. */
 export function legacyExperimentAdapter({client,keys,foundation,transaction,privacy}) {
+  function requireProvenance(fields,provenance) {
+    if(!Object.keys(fields).length&&!provenance)return;
+    if(!provenance||provenance.kind!=='DIRECT'||!Array.isArray(provenance.fields)||!provenance.sourceUpdateKey
+      ||!['EXPERIMENT_FLOW','EXPERIMENT_API'].includes(provenance.writerKind)
+      ||Object.keys(fields).some(field=>!provenance.fields.includes(field))
+      ||provenance.fields.some(field=>!Object.hasOwn(fields,field))||provenance.fields.includes('result_json'))
+      fail('PHASE4_EXPERIMENT_PROVENANCE_REQUIRED');
+  }
   async function owner(userId) {
     await transaction(()=>privacy.capture(userId));
     const stores=await foundation();return {stores,control:await stores.captureControl(userId)};
@@ -13,8 +21,6 @@ export function legacyExperimentAdapter({client,keys,foundation,transaction,priv
   async function proofsFor(stores,control,fields,provenance) {
     const proofs={};
     if(!provenance)return proofs;
-    if(provenance.kind!=='DIRECT'||!Array.isArray(provenance.fields)||!provenance.sourceUpdateKey
-      ||!['EXPERIMENT_FLOW','EXPERIMENT_API'].includes(provenance.writerKind))fail('PHASE4_EXPERIMENT_PROVENANCE_REQUIRED');
     for(const field of provenance.fields) {
       if(!Object.hasOwn(fields,field))fail('PHASE4_EXPERIMENT_PROVENANCE_FIELD_MISMATCH');
       proofs[field]=await stores.experiments.assertDirect(control,{field,value:fields[field],sourceUpdateKey:provenance.sourceUpdateKey,writerKind:provenance.writerKind});
@@ -22,17 +28,19 @@ export function legacyExperimentAdapter({client,keys,foundation,transaction,priv
     return proofs;
   }
   async function createExperiment(userId,value,{provenance=null,sourceUpdateKey=null,now=new Date()}={}) {
-    const {stores,control}=await owner(userId);
     const fields=Object.fromEntries(Object.entries(MAP).filter(([key])=>Object.hasOwn(value,key)).map(([key,field])=>[field,value[key]]));
+    requireProvenance(fields,provenance);
+    const {stores,control}=await owner(userId);
     const proofs=await proofsFor(stores,control,fields,provenance);
     const created=await stores.experiments.create(control,{fields,proofs,creationKey:sourceUpdateKey??provenance?.sourceUpdateKey??
       keys.lookup(['legacy-experiment-create-v1',control.userId,now.toISOString(),canonicalJson(fields)])});
     return created.experimentId;
   }
   async function updateExperiment(userId,id,patch,{provenance=null,sourceUpdateKey=null,now=new Date()}={}) {
-    const {stores,control}=await owner(userId);
     if(Object.keys(patch).some(k=>!Object.hasOwn(MAP,k)&&k!=='status'))fail('PHASE4_EXPERIMENT_PATCH_INVALID');
     const fields=Object.fromEntries(Object.entries(patch).filter(([key])=>key!=='status').map(([key,value])=>[MAP[key],value]));
+    requireProvenance(fields,provenance);
+    const {stores,control}=await owner(userId);
     const proofs=await proofsFor(stores,control,fields,provenance);
     return stores.experiments.writeNewFields(control,{experimentId:Number(id),fields,proofs,status:patch.status,
       sourceKey:sourceUpdateKey??provenance?.sourceUpdateKey??keys.lookup(['legacy-experiment-update-v1',control.userId,id,now.toISOString(),canonicalJson(patch)])});

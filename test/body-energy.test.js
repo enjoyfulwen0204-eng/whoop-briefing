@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateBodyEnergy,initialBodyCharge,robustBaseline,linearQuantile,bodyFreshness,bodyQuality } from '../src/bodyEnergy.js';
+import { calculateBodyEnergy,initialBodyCharge,robustBaseline,linearQuantile,bodyFreshness,bodyQuality,
+  meetsConfidenceThreshold,bodyConfidenceLabel } from '../src/bodyEnergy.js';
 import { selectBodyEnergyInputs,exactBodyInstant,bodyHealthDate,validHealthDate } from '../src/bodyEnergyInputs.js';
 import { canonicalJson } from '../src/phase4EntityStore.js';
 import { bodyInput } from './bodyEnergyFixture.js';
@@ -8,6 +9,32 @@ import { bodyInput } from './bodyEnergyFixture.js';
 const calculate=input=>calculateBodyEnergy(selectBodyEnergyInputs(input).manifest);
 const iso=ms=>new Date(ms).toISOString();
 const hour=3600000;
+const adjacent=(value,direction)=>{
+  const view=new DataView(new ArrayBuffer(8));view.setFloat64(0,value,false);
+  view.setBigUint64(0,view.getBigUint64(0,false)+(direction>0?1n:-1n),false);return view.getFloat64(0,false);
+};
+
+test('Body confidence thresholds tolerate only the adjacent lower float and never round stored confidence',()=>{
+  for(const [threshold,label] of [[0.8,'HIGH'],[0.6,'MEDIUM'],[0.4,'LOW']]) {
+    const below=adjacent(threshold,-1),above=adjacent(threshold,1);
+    assert.equal(meetsConfidenceThreshold(threshold,threshold),true);
+    assert.equal(meetsConfidenceThreshold(below,threshold),true);
+    assert.equal(meetsConfidenceThreshold(above,threshold),true);
+    assert.equal(meetsConfidenceThreshold(adjacent(below,-1),threshold),false);
+    assert.equal(meetsConfidenceThreshold(threshold-1e-12,threshold),false);
+    assert.equal(bodyConfidenceLabel(threshold),label);
+  }
+  assert.equal(bodyConfidenceLabel(adjacent(0.6,-1)),'MEDIUM');
+  assert.equal(bodyConfidenceLabel(adjacent(0.4,-1)),'LOW');
+  assert.equal(bodyConfidenceLabel(0.4-1e-12),'INSUFFICIENT');
+  for(const bad of [NaN,Infinity,-Infinity])assert.throws(()=>meetsConfidenceThreshold(bad,0.8),/CONFIDENCE_INVALID/);
+  const manifest=selectBodyEnergyInputs(bodyInput()).manifest;
+  for(const sync of Object.values(manifest.sync))sync.age_ms=24*hour;
+  manifest.load.sync.age_ms=24*hour;manifest.warnings=[];manifest.reasons=[];
+  const result=calculateBodyEnergy(manifest);
+  assert.equal(result.confidence,0.7999999999999999);
+  assert.equal(result.confidence_label,'HIGH');assert.equal(result.quality_state,'AVAILABLE');
+});
 
 test('Body Energy normative scale, rounding, robust median/MAD/IQR and registered versions',()=>{
   for(const [domain,result] of [[0,40],[25,55],[50,70],[75,85],[100,100]])assert.equal(initialBodyCharge(domain,domain),result);

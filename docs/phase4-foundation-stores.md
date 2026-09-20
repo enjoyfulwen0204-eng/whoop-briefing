@@ -78,8 +78,12 @@ definitely failed message. Questions and purged payloads never retry.
 
 ## Experiment fields
 
-Every experiment has ten current classified field leaves. New unproven fields
-are quarantined, not inferred to be independent from their shape or caller.
+Every experiment has ten current classified field leaves. Migration/backfill
+continues to quarantine unproven legacy fields rather than infer independence
+from their shape or caller. Runtime create and update instead reject every
+supplied field lacking a matching server-issued DIRECT or LINKED proof before
+committing a row, leaf, link or sentinel projection. DIRECT is forbidden for
+`result_json`; a runtime result requires complete LINKED sources.
 Direct assertions are separately issued and generation-bound; derived leaves
 carry verified roots. A field correction stages only its new value and uses
 T0/T1/T2. Durable replay does not require recreating an in-memory assertion.

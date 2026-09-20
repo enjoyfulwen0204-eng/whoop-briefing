@@ -357,10 +357,10 @@ test('experiment 隔離：相同名稱兩人各自存在', async () => {
   await withAliceBob(async (db) => {
     const aId = await db.createExperiment(ALICE.id, {
       name: SHARED.experimentName, targetMetrics: ['recovery'], status: 'DRAFT',
-    });
+    }, {provenance:{kind:'DIRECT',writerKind:'EXPERIMENT_API',sourceUpdateKey:'alice-experiment',fields:['name','target_metrics']}});
     const bId = await db.createExperiment(BOB.id, {
       name: SHARED.experimentName, targetMetrics: ['hrv'], status: 'DRAFT',
-    });
+    }, {provenance:{kind:'DIRECT',writerKind:'EXPERIMENT_API',sourceUpdateKey:'bob-experiment',fields:['name','target_metrics']}});
     assert.notEqual(aId, bId);
     assert.equal((await db.listExperiments(ALICE.id, {})).length, 1);
     assert.equal((await db.listExperiments(BOB.id, {})).length, 1);

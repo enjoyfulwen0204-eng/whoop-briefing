@@ -33,6 +33,7 @@ import { makeDataset } from './fixtures.js';
 const TZ = 'Asia/Taipei';
 const NOW = new Date('2026-09-01T04:00:00Z'); // 台灣 12:00
 const USER = { id: 'u-jq-test' };
+const experimentProvenance=(sourceUpdateKey,fields)=>({kind:'DIRECT',writerKind:'EXPERIMENT_API',sourceUpdateKey,fields});
 
 function tempDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whoop-jq-'));
@@ -414,13 +415,14 @@ test('Z: 實驗生命週期 DRAFT → RUNNING → COMPLETED', async () => {
     const c = await createExperiment(db, USER.id, {
       name: '睡前不喝咖啡', hypothesis: '深睡會變多',
       intervention: '14:00 後不攝取咖啡因', targetMetrics: ['deep_sleep', 'recovery'],
-    }, { now: NOW });
+    }, { now: NOW,provenance:experimentProvenance('journal-quality-create',['name','hypothesis','intervention','target_metrics']) });
     assert.equal(c.ok, true);
 
     assert.equal((await db.getExperiment(USER.id, c.id)).status, EXPERIMENT_STATUS.DRAFT);
 
     const s = await startExperiment(db, USER.id, c.id, {
       startDate: '2026-08-15', baselineStart: '2026-08-01', baselineEnd: '2026-08-14', now: NOW,
+      provenance:experimentProvenance('journal-quality-start',['start_date','baseline_start','baseline_end']),
     });
     assert.equal(s.ok, true);
     assert.equal((await db.getExperiment(USER.id, c.id)).status, EXPERIMENT_STATUS.RUNNING);
@@ -428,7 +430,8 @@ test('Z: 實驗生命週期 DRAFT → RUNNING → COMPLETED', async () => {
     // 不能重複啟動
     assert.equal((await startExperiment(db, USER.id, c.id, { startDate: '2026-08-20' })).ok, false);
 
-    const done = await completeExperiment(db, USER.id, c.id, { endDate: '2026-08-28', now: NOW });
+    const done = await completeExperiment(db, USER.id, c.id, { endDate: '2026-08-28', now: NOW,
+      provenance:experimentProvenance('journal-quality-complete',['end_date']) });
     assert.equal(done.ok, true);
     assert.equal((await db.getExperiment(USER.id, c.id)).status, EXPERIMENT_STATUS.COMPLETED);
   } finally { db.close(); cleanup(); }
@@ -496,24 +499,29 @@ test('Z: 缺日期時明講，不硬算', () => {
   assert.equal(r.reason, 'missing_period_dates');
 });
 
-test('Z: analysis with unproven legacy fields is unavailable and its copied result is immediately quarantined', async () => {
+test('Z: runtime adapter rejects unproven create/result writes with zero mutation', async () => {
   const { db, cleanup } = await freshDb();
   try {
+    await assert.rejects(db.createExperiment(USER.id,{name:'unproven',targetMetrics:['recovery']}),/PROVENANCE_REQUIRED/);
+    assert.equal((await db.raw.execute('SELECT count(*) n FROM experiments')).rows[0].n,0);
+    assert.equal((await db.raw.execute('SELECT count(*) n FROM experiment_field_groups')).rows[0].n,0);
+    assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_user_state')).rows[0].n,0);
+    assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_computation_state')).rows[0].n,0);
     const c = await createExperiment(db, USER.id, {
       name: 'x', targetMetrics: ['recovery'],
       baselineStart: '2026-08-01', baselineEnd: '2026-08-14',
       startDate: '2026-08-15', endDate: '2026-08-28',
-    }, { now: NOW });
+    }, { now: NOW,provenance:experimentProvenance('analysis-create',
+      ['name','target_metrics','baseline_start','baseline_end','start_date','end_date']) });
     const rows = Array.from({ length: 28 }, (_, i) => ({
       health_date: new Date(Date.parse('2026-08-01T00:00:00Z') + i * 86_400_000)
         .toISOString().slice(0, 10),
       recovery: i < 14 ? 60 : 70,
     }));
-    const res = await analyzeExperiment(db, USER.id, c.id, rows, { now: NOW });
-    assert.equal(res.ok, false);
-    assert.equal(res.reason, 'content_redacted');
+    const before=await db.getExperiment(USER.id,c.id);
+    await assert.rejects(analyzeExperiment(db, USER.id, c.id, rows, { now: NOW }),/PROVENANCE_REQUIRED/);
     const stored = await db.getExperiment(USER.id, c.id);
-    assert.equal(stored.result_json,'{}');
-    assert.ok(stored.privacyRedactedFields.includes('result_json'));
+    assert.deepEqual(stored,before);assert.equal(stored.result_json,'{}');
+    assert.equal((await db.raw.execute("SELECT count(*) n FROM experiment_field_groups WHERE field_name='result_json'")).rows[0].n,1);
   } finally { db.close(); cleanup(); }
 });

@@ -24,14 +24,20 @@ const contains=(text,word)=>/^[a-z_]+$/i.test(word)
   ?new RegExp(`\\b${word}\\b`,'i').test(text):text.toLowerCase().includes(word.toLowerCase());
 const factorAliases=Object.freeze(Object.fromEntries(CATEGORIES.map(category=>[category,
   [...new Set([category,category.replaceAll('_',' '),...Object.entries(ALIASES).filter(([,value])=>value[0]===category).map(([word])=>word)])]])));
-const stripInstants=text=>text.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})/gu,' ');
+const instantPattern='\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d{1,3})?)?(?:Z|[+-]\\d{2}:\\d{2})';
+const stripInstants=text=>text.replace(new RegExp(`(?:\\b(?:at|from|to|through|until)\\s+)?${instantPattern}`,'giu'),' ');
 const clauses=text=>stripInstants(text).split(/[,;.!?，；。！？]|\b(?:but|however|then|and)\b|(?:但是|不過|然後|然后)/iu).map(value=>value.trim()).filter(Boolean);
 function categoriesIn(text) {
   const found=new Set(CATEGORIES.filter(category=>factorAliases[category].some(alias=>contains(text,alias))));
-  // `drink` is an alcohol noun only when it is not the verb immediately
-  // governing an explicit non-alcohol beverage alias ("drink coffee/tea").
+  // The generic `drink` alias proves alcohol only in a closed noun position.
+  // A base-form verb governing any object is not alcohol evidence; explicit
+  // alcohol aliases still establish the category independently.
   const alcoholSpecific=factorAliases.alcohol.filter(alias=>alias!=='drink').some(alias=>contains(text,alias));
-  if(found.has('caffeine')&&found.has('alcohol')&&!alcoholSpecific&&/\bdrink(?:ing)?\s+(?:coffee|tea|caffeine)\b/iu.test(text))found.delete('alcohol');
+  const drinkNoun=/^(?:drink)$/iu.test(text.trim())
+    ||/\b(?:had|have|having)\s+(?:(?:a|one|some)\s+)?drink\b/iu.test(text)
+    ||/\b(?:no|without)\s+(?:(?:any|a|one|more)\s+)?drink\b/iu.test(text)
+    ||/(?:^|\s)(?:a|one|some|\d+(?:\.\d+)?)\s+drink\b/iu.test(text);
+  if(found.has('alcohol')&&!alcoholSpecific&&!drinkNoun)found.delete('alcohol');
   return found;
 }
 const escapeRegExp=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -50,27 +56,48 @@ function factorClauseAuthoritativeNegative(clause,category) {
       ||new RegExp(`^(?:我)?(?:沒有|没有|沒|没|未|不曾)\\s*(?:喝|吃|用|服|攝取|摄取)?(?:了)?\\s*(?:${token})$`,'iu').test(value);
   });
 }
-function factorClausePositive(clause,category) {
+const authorityTemporalSuffix=/\s+(?:today|tonight|yesterday|last\s+night|just\s+now|今天|今晚|昨天|昨晚|剛剛)$/iu;
+const authorityValue=value=>escapeRegExp(value.trim()).replaceAll(' ','\\s+');
+function factorClausePositive(clause,category,candidate=null) {
   if(factorClauseAuthoritativeNegative(clause,category))return false;
+  const value=clause.trim().replace(/^[^\p{L}\p{N}_]+|[^\p{L}\p{N}_]+$/gu,'').replace(authorityTemporalSuffix,'').trim();
   return factorAliases[category].some(alias=>{
     const escaped=escapeRegExp(alias).replaceAll(' ','\\s+'),token=/^[a-z_ ]+$/i.test(alias)?`\\b${escaped}\\b`:escaped;
-    return new RegExp(`\\b(?:had|have|drank|drink|drinking|consumed|consume|used|use|took|take)\\s+(?:(?:some|a|the)\\s+)?${token}`,'iu').test(clause)
-      ||new RegExp(`(?:喝|吃|用|服|攝取|摄取)(?:了)?\\s*${token}`,'iu').test(clause);
+    if(new RegExp(`^${token}$`,'iu').test(value))return true;
+    if(new RegExp(`^(?:(?:i|we)\\s+)?(?:had|have|drank|drink|drinking|consumed|consume|used|use|took|take)\\s+(?:(?:some|a|an|the)\\s+)?${token}$`,'iu').test(value)
+      ||new RegExp(`^(?:我)?(?:喝|吃|用|服|攝取|摄取)(?:了)?\\s*${token}$`,'iu').test(value))return true;
+    const registeredUnits=(units[category]??[]).flatMap(unit=>[unit,...Object.entries(aliases).filter(([,canonical])=>canonical===unit).map(([source])=>source)]);
+    if(registeredUnits.some(unit=>{
+      const u=escapeRegExp(unit);
+      return new RegExp(`^(?:${token}\\s+\\d+(?:\\.\\d+)?\\s*${u}|\\d+(?:\\.\\d+)?\\s*${u}\\s+${token})$`,'iu').test(value);
+    }))return true;
+    if(candidate?.category!==category)return false;
+    if(candidate.valueKind==='ORDINAL'&&Number.isInteger(candidate.severity)
+      &&new RegExp(`^${token}\\s+${candidate.severity}$`,'iu').test(value))return true;
+    if(candidate.valueKind==='CATEGORICAL'&&typeof candidate.subtype==='string'&&candidate.subtype.trim()) {
+      const subtype=authorityValue(candidate.subtype.replaceAll('_',' '));
+      if(new RegExp(`^(?:${token}\\s+(?::|=)?\\s*${subtype}|${subtype}\\s+${token})$`,'iu').test(value))return true;
+    }
+    if(candidate.valueKind==='TEXT'&&typeof candidate.textValue==='string'&&candidate.textValue.trim()) {
+      const text=authorityValue(candidate.textValue);
+      if(new RegExp(`^${token}\\s+(?::|=)?\\s*${text}$`,'iu').test(value))return true;
+    }
+    return false;
   });
 }
 const factorNegative=(text,category)=>clauses(text).some(clause=>categoriesIn(clause).has(category)&&factorClauseNegative(clause,category));
 const uncertaintyGrammar=text=>{
   const memoryFailure=/\b(?:(?:i|we)\s+)?(?:do\s+not|don['’]?t|can\s*not|can['’]?t)\s+(?:know|remember|recall)\b/iu;
-  const qualified=/\b(?:no\s+idea|forgot|forget|unsure|not\s+(?:sure|certain)|maybe|perhaps|possibly|probably|guess)\b/iu;
+  const qualified=/\b(?:no\s+idea|forgot|forget|unsure|not\s+(?:sure|certain)|maybe|perhaps|possibly|probably|guess|(?:i|we)\s+think)\b/iu;
   const chinese=/(?:不知道|不曉得|不晓得|不記得|不记得|記不清|记不清|想不起來|想不起来|忘了|忘記了|忘记了|不確定|不确定|不清楚)/u;
   return memoryFailure.test(text)||qualified.test(text)||chinese.test(text);
 };
 const unresolvedAlternative=text=>/\b(?:or|either)\b|(?:或者|或是|還是|还是)/iu.test(text);
 const genericNegative=text=>typeof text==='string'&&/^(?:no|none|nothing|neither|沒有|没有|都沒有|都没有|無|无)$/iu.test(
-  stripInstants(text).trim().replace(/[.!?，；。！？]+$/u,''));
-function sourceAuthority(text) {
+  stripInstants(text).trim().replace(/[\s.!?,;:，；：。！？\-–—]+$/u,''));
+function sourceAuthority(text,candidate=null) {
   const result={ambiguous:uncertaintyGrammar(text)||unresolvedAlternative(text),unknown:false,generic:false,
-    categories:categoriesIn(text),polarities:new Map(CATEGORIES.map(category=>[category,new Set()]))};
+    categories:categoriesIn(text),unknownCategories:new Set(),polarities:new Map(CATEGORIES.map(category=>[category,new Set()]))};
   for(const clause of clauses(text)) {
     const semantic=stripInstants(clause).trim();
     if(!semantic)continue;
@@ -81,10 +108,11 @@ function sourceAuthority(text) {
       continue;
     }
     for(const category of found) {
-      const negative=factorClauseNegative(semantic,category),authoritative=factorClauseAuthoritativeNegative(semantic,category);
+      const negative=factorClauseAuthoritativeNegative(semantic,category);
+      const positive=factorClausePositive(semantic,category,candidate);
       if(negative)result.polarities.get(category).add('NEGATIVE');
-      if(factorClausePositive(semantic,category)||!negative)result.polarities.get(category).add('POSITIVE');
-      if(negative&&!authoritative)result.unknown=true;
+      if(positive)result.polarities.get(category).add('POSITIVE');
+      if(!negative&&!positive) {result.unknown=true;result.unknownCategories.add(category);}
     }
   }
   if(result.generic&&result.categories.size)result.unknown=true;
@@ -166,7 +194,7 @@ export function validateJournalCandidate(candidate,{sourceText,timezone,now=new 
     ||c.excerptEnd>points.length||c.excerptEnd-c.excerptStart>500)return outcome('REJECT','MINIMAL_SOURCE_SPAN_REQUIRED');
   const excerpt=points.slice(c.excerptStart,c.excerptEnd).join('').trim();
   if(!excerpt)return outcome('REJECT','MINIMAL_SOURCE_SPAN_REQUIRED');
-  const authority=sourceAuthority(sourceText);
+  const authority=sourceAuthority(sourceText,c);
   if(authority.ambiguous)return outcome('REQUIRE_CLARIFICATION','AMBIGUOUS_ASSERTION');
   const evidencedCategories=categoriesIn(excerpt),displayedSet=new Set(displayedFactors),exactDisplayed=exactDisplayedFactorSet
     &&displayedSet.size===displayedFactors.length&&evidencedCategories.size===displayedSet.size
@@ -175,7 +203,11 @@ export function validateJournalCandidate(candidate,{sourceText,timezone,now=new 
   if(evidencedCategories.size&&(!evidencedCategories.has(c.category)||exactDisplayedFactorSet&&!exactDisplayed))
     return outcome('REQUIRE_CLARIFICATION','CONTRADICTORY_FACTOR_SOURCE');
   const matchedAliases=Object.entries(ALIASES).filter(([word,[category]])=>category===c.category&&contains(excerpt,word));
-  if(!displayedFactors.includes(c.category)&&!factorAliases[c.category].some(alias=>contains(excerpt,alias)))
+  const sourceGeneric=authority.generic&&!authority.categories.size&&!authority.unknown&&!authority.ambiguous;
+  const serverOwnsGeneric=displayedWindow!==null&&displayedSet.has(c.category)
+    &&(exactDisplayedFactorSet?displayedSet.size===displayedFactors.length:displayedSet.size===1);
+  const trustedGeneric=sourceGeneric&&serverOwnsGeneric&&genericNegative(excerpt);
+  if(!trustedGeneric&&!factorAliases[c.category].some(alias=>contains(excerpt,alias)))
     return outcome('REQUIRE_CLARIFICATION','FACTOR_SOURCE_EVIDENCE_REQUIRED');
   if(subtype&&!contains(excerpt,subtype.replaceAll('_',' '))&&!matchedAliases.some(([,[,value]])=>value===subtype))
     return outcome('REJECT','UNSUPPORTED_SUBTYPE_PROVENANCE');
@@ -190,11 +222,12 @@ export function validateJournalCandidate(candidate,{sourceText,timezone,now=new 
   if(/\b(but|except|although)\b|但是|不過|除了/i.test(excerpt))return outcome('REQUIRE_CLARIFICATION','INCONSISTENT_ASSERTION');
   const sourcePolarity=authority.polarities.get(c.category);
   if(sourcePolarity.has('NEGATIVE')&&sourcePolarity.has('POSITIVE'))return outcome('REQUIRE_CLARIFICATION','INCONSISTENT_ASSERTION');
-  const trustedGeneric=genericNegative(excerpt)&&displayedWindow!==null&&displayedFactors.includes(c.category);
   const negative=factorNegative(excerpt,c.category)||trustedGeneric;
   if(polarity==='CONFIRMED_UNEXPOSED'&&(authority.unknown||!trustedGeneric&&!sourcePolarity.has('NEGATIVE')))
     return outcome('REQUIRE_CLARIFICATION','AMBIGUOUS_ASSERTION');
   if(polarity==='CONFIRMED_UNEXPOSED'&&!negative||polarity==='EXPOSED'&&negative)return outcome('REQUIRE_CLARIFICATION','NEGATION_AMBIGUOUS');
+  if(polarity==='EXPOSED'&&(authority.unknownCategories.has(c.category)||!sourcePolarity.has('POSITIVE')||sourcePolarity.has('NEGATIVE')))
+    return outcome('REQUIRE_CLARIFICATION','AMBIGUOUS_ASSERTION');
   // Free text is retained only if it is part of the supplied minimal source
   // span. A model cannot invent a note or copy a separate conversation/log.
   if([text,note].some(v=>v&&!excerpt.includes(v)))return outcome('REJECT','UNSUPPORTED_TEXT_PROVENANCE');

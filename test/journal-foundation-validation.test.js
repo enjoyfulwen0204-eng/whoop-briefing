@@ -75,6 +75,61 @@ test('Journal factor and polarity authority is clause-bound, uncertainty-safe, b
   assert.equal(coverage('no alcohol, no caffeine, had coffee').status,'REQUIRE_CLARIFICATION');
 });
 
+test('Complete-source authority cannot be manufactured by generic or polarity-trimmed excerpts',()=>{
+  const window={start:'2026-09-18T00:00:00.000Z',end:now.toISOString()};
+  const presence=(sourceText,{category='caffeine',exposureState='EXPOSED',excerpt=sourceText,displayedFactors=[]}={})=>{
+    const offset=sourceText.indexOf(excerpt),start=[...sourceText.slice(0,offset)].length;
+    return validateJournalCandidate({category,eventAt:now.toISOString(),valueKind:'PRESENCE',exposureState,extractionConfidence:1,
+      excerptStart:start,excerptEnd:start+[...excerpt].length},{sourceText,timezone,now,displayedWindow:displayedFactors.length?window:null,displayedFactors});
+  };
+  const genericAttacks=[
+    ['no alcohol, had coffee','no','caffeine'],
+    ['no caffeine','no','alcohol'],
+    ['had coffee, none for alcohol','none','caffeine'],
+    ['none, had coffee','none','caffeine'],
+    ['no alcohol, no caffeine','no','caffeine'],
+    ['none, no alcohol','none','caffeine'],
+  ];
+  for(const [sourceText,excerpt,category] of genericAttacks)
+    assert.equal(presence(sourceText,{category,exposureState:'CONFIRMED_UNEXPOSED',excerpt,displayedFactors:[category]}).status,
+      'REQUIRE_CLARIFICATION',`${sourceText} -> ${excerpt}`);
+  for(const sourceText of ['no','none',`none from ${window.start} to ${window.end}`])
+    assert.equal(presence(sourceText,{exposureState:'CONFIRMED_UNEXPOSED',displayedFactors:['caffeine']}).status,'ACCEPT',sourceText);
+
+  const trimmedPositiveAttacks=[
+    ['no caffeine','caffeine'],["didn't drink coffee",'drink coffee'],['did not drink coffee','drink coffee'],
+    ['沒有喝咖啡','喝咖啡'],['沒有喝咖啡','咖啡'],['no caffeine, actually had coffee','no caffeine'],
+    ['no caffeine, actually had coffee','had coffee'],["I don't remember, had coffee",'had coffee'],
+    ['maybe had coffee','had coffee'],['I think I had coffee','had coffee'],['I think I had coffee','I think I had coffee'],
+    ['probably had coffee','had coffee'],
+  ];
+  for(const [sourceText,excerpt] of trimmedPositiveAttacks)
+    assert.equal(presence(sourceText,{excerpt}).status,'REQUIRE_CLARIFICATION',`${sourceText} -> ${excerpt}`);
+});
+
+test('Closed positive grammar preserves registered declarations, verbs and independent facts without ordinary-verb alcohol collisions',()=>{
+  const presence=(sourceText,category,patch={})=>validateJournalCandidate({category,eventAt:now.toISOString(),valueKind:'PRESENCE',
+    exposureState:'EXPOSED',extractionConfidence:1,excerptStart:0,excerptEnd:[...sourceText].length,...patch},{sourceText,timezone,now});
+  for(const text of ['drink water','drink juice','drink milk','drink coffee','drink tea'])
+    assert.equal(presence(text,'alcohol').status,'REQUIRE_CLARIFICATION',text);
+  for(const text of ['drink coffee','drink tea'])assert.equal(presence(text,'caffeine').status,'ACCEPT',text);
+  assert.equal(presence('had a drink','alcohol').status,'ACCEPT');
+  for(const text of ['alcohol','beer','wine','whisky','sake','酒','啤酒','紅酒'])assert.equal(presence(text,'alcohol').status,'ACCEPT',text);
+  for(const text of ['caffeine','had coffee','drank coffee','喝了咖啡','喝咖啡'])assert.equal(presence(text,'caffeine').status,'ACCEPT',text);
+  assert.equal(validate().status,'ACCEPT');
+  assert.equal(presence('stress 3','stress',{valueKind:'ORDINAL',severity:3}).status,'ACCEPT');
+  assert.equal(presence('supplement magnesium','supplement',{valueKind:'CATEGORICAL',subtype:'magnesium'}).status,'ACCEPT');
+  assert.equal(presence('custom headache','custom',{valueKind:'TEXT',textValue:'headache'}).status,'ACCEPT');
+  const independent='no alcohol, had coffee',excerpt='had coffee',start=[...independent.slice(0,independent.indexOf(excerpt))].length;
+  assert.equal(validateJournalCandidate({category:'caffeine',eventAt:now.toISOString(),valueKind:'PRESENCE',exposureState:'EXPOSED',
+    extractionConfidence:1,excerptStart:start,excerptEnd:start+[...excerpt].length},{sourceText:independent,timezone,now}).status,'ACCEPT');
+  for(const text of ['no caffeine','did not drink coffee',"didn't drink coffee",'沒有喝咖啡'])
+    assert.equal(presence(text,'caffeine',{exposureState:'CONFIRMED_UNEXPOSED'}).status,'ACCEPT',text);
+  for(const text of ['I think I had coffee','probably had coffee','maybe had coffee',"I don't remember, had coffee"])
+    assert.equal(presence(text,'caffeine').status,'REQUIRE_CLARIFICATION',text);
+  assert.equal(presence('caffeine I think I had coffee','caffeine',{valueKind:'TEXT',textValue:'I think I had coffee'}).status,'REQUIRE_CLARIFICATION');
+});
+
 test('Journal authority-shaped candidate fields and injected messages remain untrusted data, never roles or capabilities',()=>{
   for(const field of ['userId','user_id','tenantId','healthDate','logicalFactId','id','timezone','executionMode','lifecycleGeneration',
     'purgeGeneration','destination','send','tools','toolArguments','role','messages','flags','sourceEventKey','questionId'])

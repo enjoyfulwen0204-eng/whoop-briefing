@@ -28,6 +28,42 @@ test('Journal create is source-controller-only, validated, idempotent and atomic
   assert.equal((await db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,1);
 });
 
+test('Journal create and correction require complete-source polarity before any fact, purge or generation mutation',async t=>{
+  const {stores,db}=await syntheticPhase4Fixture(t),control=await stores.captureControl('a');
+  const state=async()=>({facts:(await db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,
+    purges:(await db.raw.execute('SELECT count(*) n FROM health_plaintext_purges')).rows[0].n,
+    replacements:(await db.raw.execute('SELECT count(*) n FROM health_purge_replacements')).rows[0].n,
+    links:(await db.raw.execute('SELECT count(*) n FROM phase4_source_links')).rows[0].n,
+    user:{...(await db.raw.execute("SELECT source_generation,purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id='a'")).rows[0]}});
+  const attempt=async(sourceText,excerpt,category='caffeine',exposureState='EXPOSED',key=sourceText)=>{
+    const offset=sourceText.indexOf(excerpt),start=[...sourceText.slice(0,offset)].length;
+    const before=await state(),result=await stores.journal.create(control,{sourceEventKey:`authority:${key}`,sourceText,candidate:{category,eventAt:at,
+      valueKind:'PRESENCE',exposureState,extractionConfidence:1,excerptStart:start,excerptEnd:start+[...excerpt].length}});
+    assert.equal(result.status,'REQUIRE_CLARIFICATION',`${sourceText} -> ${excerpt}`);assert.deepEqual(await state(),before);
+  };
+  await attempt('no alcohol, had coffee','no','caffeine','CONFIRMED_UNEXPOSED','generic-excerpt');
+  await attempt('no caffeine','caffeine','caffeine','EXPOSED','negative-trim');
+  await attempt("didn't drink coffee",'drink coffee','caffeine','EXPOSED','verb-trim');
+  await attempt('沒有喝咖啡','咖啡','caffeine','EXPOSED','chinese-trim');
+  for(const beverage of ['water','juice','milk'])await attempt(`drink ${beverage}`,`drink ${beverage}`,'alcohol','EXPOSED',beverage);
+  for(const beverage of ['coffee','tea']) {
+    const sourceText=`drink ${beverage}`,created=await stores.journal.create(control,{sourceEventKey:`caffeine:${beverage}`,sourceText,
+      candidate:{category:'caffeine',eventAt:at,valueKind:'PRESENCE',exposureState:'EXPOSED',extractionConfidence:1,
+        excerptStart:0,excerptEnd:sourceText.length}});
+    assert.equal(created.status,'ACCEPT',beverage);
+  }
+  assert.equal((await db.raw.execute("SELECT count(*) n FROM journal_events WHERE category='caffeine'")).rows[0].n,2);
+  assert.equal((await db.raw.execute("SELECT count(*) n FROM journal_events WHERE category='alcohol'")).rows[0].n,0);
+
+  const first=await stores.journal.create(control,input()),sourceText='no caffeine',excerpt='caffeine',offset=sourceText.indexOf(excerpt);
+  const before=await state(),correction=await stores.journal.correct(control,{logicalFactId:first.logicalFactId,expectedRevision:1,
+    idempotencyKey:'polarity-attack',sourceText,candidate:{category:'caffeine',eventAt:at,valueKind:'PRESENCE',exposureState:'EXPOSED',
+      extractionConfidence:1,excerptStart:offset,excerptEnd:offset+excerpt.length}});
+  assert.equal(correction.status,'REQUIRE_CLARIFICATION');assert.deepEqual(await state(),before);
+  assert.equal((await db.raw.execute({sql:"SELECT numeric_value FROM journal_events WHERE fact_status='ACTIVE' AND logical_fact_id=?",
+    args:[first.logicalFactId]})).rows[0].numeric_value,100);
+});
+
 test('Journal correction redacts prior revision, preserves its immutable identity, and delete removes all revisions with a permanent no-resurrection tombstone',async t=>{
   const {stores,db}=await syntheticPhase4Fixture(t),control=await stores.captureControl('a');
   const first=await stores.journal.create(control,input()),secondInput=input(200);

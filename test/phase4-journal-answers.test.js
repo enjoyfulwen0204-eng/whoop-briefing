@@ -6,6 +6,19 @@ const coverageAnswer={sourceText:'none',candidate:{confirmed:true,extractionConf
 const factAnswer={sourceText:'caffeine 100mg',candidate:{category:'caffeine',eventAt:'2026-09-18T00:00:00.000Z',valueKind:'NUMERIC',numericValue:100,
   unit:'mg',exposureState:'EXPOSED',extractionConfidence:1,excerptStart:0,excerptEnd:14}};
 const request=(p,patch={})=>({questionRequestId:p.selected.questionRequestId,replyToQuestionRequestId:p.selected.questionRequestId,expectedRevision:p.slot.revision,...patch});
+const mutationTables=['journal_events','journal_coverage_windows','structured_answer_events','telegram_operations','pending_questions',
+  'context_questions','phase4_question_interaction_slots','phase4_source_links','phase4_jobs','phase4_invalidations','health_plaintext_purges',
+  'health_purge_targets','health_purge_replacements','phase4_user_state','phase4_computation_state','outbound_messages','outbound_delivery_attempts'];
+async function durableState(f) {
+  const state={};
+  for(const table of mutationTables)state[table]=(await f.db.raw.execute(`SELECT * FROM ${table}`)).rows.map(row=>({...row}));
+  return state;
+}
+function presenceAnswer(p,sourceText,excerpt,{exposureState='EXPOSED',category='caffeine'}={}) {
+  const offset=sourceText.indexOf(excerpt),start=[...sourceText.slice(0,offset)].length;
+  return {sourceText,candidate:{category,eventAt:p.question.target_window_start_utc,valueKind:'PRESENCE',exposureState,extractionConfidence:1,
+    excerptStart:start,excerptEnd:start+[...excerpt].length}};
+}
 
 test('SHADOW validated answers stay synthetic; invalid, cross-tenant and mismatched answers cannot resolve an occupied request',async t=>{
   const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f,{coverage:true}),options=request(p,{...coverageAnswer,sourceUpdateId:'shadow:1'});
@@ -56,6 +69,53 @@ test('Full-source ambiguity cannot be hidden by a retained excerpt and leaves an
   assert.deepEqual((await f.db.raw.execute("SELECT source_generation,purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id='a'")).rows[0],state);
   for(const table of ['journal_events','journal_coverage_windows','structured_answer_events','telegram_operations'])
     assert.equal((await f.db.raw.execute(`SELECT count(*) n FROM ${table}`)).rows[0].n,0,table);
+});
+
+test('SHADOW factor answers reject generic and positive-authority excerpt attacks with no durable or slot mutation',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f),attacks=[
+    ['no alcohol, had coffee','no',{exposureState:'CONFIRMED_UNEXPOSED'}],
+    ['no caffeine','caffeine',{}],["didn't drink coffee",'drink coffee',{}],['沒有喝咖啡','喝咖啡',{}],
+    ['I think I had coffee','had coffee',{}],['probably had coffee','had coffee',{}],['maybe had coffee','had coffee',{}],
+    ["I don't remember, had coffee",'had coffee',{}],
+  ];
+  for(const [index,[sourceText,excerpt,options]] of attacks.entries()) {
+    const before=await durableState(f),result=await f.stores.journalAnswers.accept(p.context,request(p,{sourceUpdateId:`shadow:authority-${index}`,
+      ...presenceAnswer(p,sourceText,excerpt,options)}));
+    assert.equal(result.status,'REQUIRE_CLARIFICATION',`${sourceText} -> ${excerpt}`);assert.deepEqual(await durableState(f),before);
+  }
+});
+
+test('LIVE factor answers reject complete-source polarity attacks before receipts, facts, classification or any durable state changes',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f,{mode:'LIVE'}),proof=await inboundAnswer(f,p.control),window={factor:'caffeine',
+    windowStart:p.question.target_window_start_utc,windowEnd:p.question.target_window_end_utc};
+  const beforeClassify=await f.stores.journal.classify(p.context,window),attacks=[
+    ['no alcohol, had coffee','no',{exposureState:'CONFIRMED_UNEXPOSED'}],
+    ['no caffeine','caffeine',{}],['did not drink coffee','drink coffee',{}],['沒有喝咖啡','咖啡',{}],
+  ];
+  for(const [sourceText,excerpt,options] of attacks) {
+    const before=await durableState(f),result=await f.stores.journalAnswers.accept(p.context,request(p,{sourceUpdateId:'9101',inboundAuthority:proof,
+      ...presenceAnswer(p,sourceText,excerpt,options)}));
+    assert.equal(result.status,'REQUIRE_CLARIFICATION',`${sourceText} -> ${excerpt}`);assert.deepEqual(await durableState(f),before);
+    assert.deepEqual(await f.stores.journal.classify(p.context,window),beforeClassify);
+  }
+});
+
+test('Closed positive authority still accepts a bounded independent fact through the answer path',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f),sourceText='no alcohol, had coffee',excerpt='had coffee';
+  const accepted=await f.stores.journalAnswers.accept(p.context,request(p,{sourceUpdateId:'shadow:independent-positive',
+    ...presenceAnswer(p,sourceText,excerpt)}));
+  assert.equal(accepted.status,'ACCEPT');assert.equal(accepted.slot.state,'RESOLVED');
+  const normalized=JSON.parse((await f.db.raw.execute('SELECT normalized_answer_json FROM structured_answer_events')).rows[0].normalized_answer_json);
+  assert.equal(normalized.category,'caffeine');assert.equal(normalized.exposure_state,'EXPOSED');assert.equal(normalized.raw_answer_excerpt,'had coffee');
+});
+
+test('An exact complete-source generic negative remains valid for one server-owned factor and window',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f),sourceText='no';
+  const accepted=await f.stores.journalAnswers.accept(p.context,request(p,{sourceUpdateId:'shadow:generic-negative',
+    ...presenceAnswer(p,sourceText,sourceText,{exposureState:'CONFIRMED_UNEXPOSED'})}));
+  assert.equal(accepted.status,'ACCEPT');assert.equal(accepted.slot.state,'RESOLVED');
+  const normalized=JSON.parse((await f.db.raw.execute('SELECT normalized_answer_json FROM structured_answer_events')).rows[0].normalized_answer_json);
+  assert.equal(normalized.category,'caffeine');assert.equal(normalized.exposure_state,'CONFIRMED_UNEXPOSED');assert.equal(normalized.raw_answer_excerpt,'no');
 });
 
 test('LIVE accepted fact, source generation, answer receipt and matching slot resolve commit atomically without send capability',async t=>{

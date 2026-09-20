@@ -45,6 +45,19 @@ test('Uncertainty cannot resolve an exact coverage slot or create facts, coverag
     assert.equal((await f.db.raw.execute(`SELECT count(*) n FROM ${table}`)).rows[0].n,0,table);
 });
 
+test('Full-source ambiguity cannot be hidden by a retained excerpt and leaves answer state untouched',async t=>{
+  const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f),before=await f.stores.slots.read(p.control,'SHADOW');
+  const state=(await f.db.raw.execute("SELECT source_generation,purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id='a'")).rows[0];
+  const sourceText="don't know, no caffeine",excerpt='no caffeine',start=[...sourceText.slice(0,sourceText.indexOf(excerpt))].length;
+  const result=await f.stores.journalAnswers.accept(p.context,request(p,{sourceUpdateId:'shadow:m1-trimmed',sourceText,
+    candidate:{category:'caffeine',eventAt:p.question.target_window_start_utc,valueKind:'PRESENCE',exposureState:'CONFIRMED_UNEXPOSED',
+      extractionConfidence:1,excerptStart:start,excerptEnd:start+[...excerpt].length}}));
+  assert.equal(result.status,'REQUIRE_CLARIFICATION');assert.deepEqual(await f.stores.slots.read(p.control,'SHADOW'),before);
+  assert.deepEqual((await f.db.raw.execute("SELECT source_generation,purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id='a'")).rows[0],state);
+  for(const table of ['journal_events','journal_coverage_windows','structured_answer_events','telegram_operations'])
+    assert.equal((await f.db.raw.execute(`SELECT count(*) n FROM ${table}`)).rows[0].n,0,table);
+});
+
 test('LIVE accepted fact, source generation, answer receipt and matching slot resolve commit atomically without send capability',async t=>{
   const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f,{mode:'LIVE'}),proof=await inboundAnswer(f,p.control);
   const options=request(p,{...factAnswer,sourceUpdateId:'9101',inboundAuthority:proof});

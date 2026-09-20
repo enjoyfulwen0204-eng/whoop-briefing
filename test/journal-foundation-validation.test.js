@@ -26,29 +26,53 @@ test('Journal deterministic normalization accepts only closed typed vocabulary a
 });
 
 test('Journal factor and polarity authority is clause-bound, uncertainty-safe, bilingual and coverage-exact',()=>{
-  const presence=(sourceText,category,exposureState,options={})=>validateJournalCandidate({category,eventAt:now.toISOString(),valueKind:'PRESENCE',
-    exposureState,extractionConfidence:1,excerptStart:0,excerptEnd:[...sourceText].length},{sourceText,timezone,now,...options});
+  const presence=(sourceText,category,exposureState,options={},excerpt=sourceText)=>{const start=sourceText.indexOf(excerpt);
+    return validateJournalCandidate({category,eventAt:now.toISOString(),valueKind:'PRESENCE',exposureState,extractionConfidence:1,
+      excerptStart:[...sourceText.slice(0,start)].length,excerptEnd:[...sourceText.slice(0,start+excerpt.length)].length},{sourceText,timezone,now,...options});};
   assert.equal(presence('no alcohol, had coffee','caffeine','CONFIRMED_UNEXPOSED').status,'REQUIRE_CLARIFICATION');
   assert.equal(presence('no alcohol, had coffee','caffeine','EXPOSED').status,'REQUIRE_CLARIFICATION');
+  assert.equal(presence('no alcohol, had coffee','caffeine','EXPOSED',{},'had coffee').status,'ACCEPT');
   assert.equal(presence('no sleep, had coffee','caffeine','CONFIRMED_UNEXPOSED').status,'REQUIRE_CLARIFICATION');
   assert.equal(presence('no coffee and had caffeine','caffeine','CONFIRMED_UNEXPOSED').status,'REQUIRE_CLARIFICATION');
   assert.equal(presence('no alcohol','alcohol','CONFIRMED_UNEXPOSED').status,'ACCEPT');
   assert.equal(presence('had coffee','caffeine','EXPOSED').status,'ACCEPT');
   const displayed={displayedWindow:{start:'2026-09-18T00:00:00.000Z',end:now.toISOString()},displayedFactors:['caffeine']};
   for(const text of ['no idea',"I don't know",'I do not know',"I don't remember",'I do not remember',"I can't recall",'I cannot recall',
-    'I forgot','not sure','不知道','不記得','記不清','忘了','不確定'])
+    "don't know",'do not know',"can't remember",'cannot remember','I do not recall','not certain','I guess no caffeine','probably no caffeine',
+    'I forgot','not sure','不知道','不曉得','不記得','記不清','想不起來','忘了','不確定'])
     assert.equal(presence(text,'caffeine','CONFIRMED_UNEXPOSED',displayed).status,'REQUIRE_CLARIFICATION',text);
-  assert.equal(presence("I don't remember, no caffeine",'caffeine','CONFIRMED_UNEXPOSED',displayed).status,'REQUIRE_CLARIFICATION');
-  assert.equal(presence('不記得，沒有喝咖啡','caffeine','CONFIRMED_UNEXPOSED',displayed).status,'REQUIRE_CLARIFICATION');
-  assert.equal(presence('did not drink coffee','caffeine','CONFIRMED_UNEXPOSED').status,'ACCEPT');
-  assert.equal(presence('沒有喝咖啡','caffeine','CONFIRMED_UNEXPOSED').status,'ACCEPT');
+  for(const text of ["I don't remember, no caffeine","don't know, no caffeine",'do not know, no caffeine',"can't remember, no caffeine",
+    'cannot remember, no caffeine','I do not recall, no caffeine','not certain, no caffeine','想不起來，沒有喝咖啡','不曉得，沒有喝咖啡']) {
+    assert.equal(presence(text,'caffeine','CONFIRMED_UNEXPOSED',displayed).status,'REQUIRE_CLARIFICATION',text);
+    const excerpt=text.includes('no caffeine')?'no caffeine':'沒有喝咖啡';
+    assert.equal(presence(text,'caffeine','CONFIRMED_UNEXPOSED',displayed,excerpt).status,'REQUIRE_CLARIFICATION',`${text} trimmed`);
+  }
+  const contradiction='no caffeine, actually had coffee';
+  assert.equal(presence(contradiction,'caffeine','CONFIRMED_UNEXPOSED',{},'no caffeine').status,'REQUIRE_CLARIFICATION');
+  for(const text of ['no caffeine','did not drink coffee',"didn't drink coffee",'didn’t drink coffee','沒有喝咖啡'])
+    assert.equal(presence(text,'caffeine','CONFIRMED_UNEXPOSED').status,'ACCEPT',text);
+  for(const text of ['had coffee','喝了咖啡'])assert.equal(presence(text,'caffeine','EXPOSED').status,'ACCEPT',text);
   assert.equal(presence('coffee and caffeine','caffeine','EXPOSED').status,'ACCEPT');
   assert.equal(presence('alcohol','caffeine','EXPOSED',displayed).status,'REQUIRE_CLARIFICATION');
-  const coverage=candidate=>validateCoverageCandidate({confirmed:true,extractionConfidence:1,excerptStart:0,excerptEnd:[...candidate].length},
-    {sourceText:candidate,displayedWindow:displayed.displayedWindow,displayedFactors:['alcohol','caffeine'],timezone,now});
+  const coverage=(sourceText,factors=['alcohol','caffeine'],excerpt=sourceText)=>{const start=sourceText.indexOf(excerpt);return validateCoverageCandidate({confirmed:true,
+    extractionConfidence:1,excerptStart:[...sourceText.slice(0,start)].length,excerptEnd:[...sourceText.slice(0,start+excerpt.length)].length},
+    {sourceText,displayedWindow:displayed.displayedWindow,displayedFactors:factors,timezone,now});};
   assert.equal(coverage('none').status,'ACCEPT');
+  assert.equal(coverage('none',['caffeine']).status,'ACCEPT');
   assert.equal(coverage('no alcohol, no caffeine').status,'ACCEPT');
   for(const text of ['no idea','no caffeine','no alcohol, had coffee'])assert.equal(coverage(text).status,'REQUIRE_CLARIFICATION',text);
+  for(const text of ["don't know, no caffeine",'do not know, no caffeine',"can't remember, no caffeine",'cannot remember, no caffeine',
+    'I do not recall, no caffeine','not certain, no caffeine','I guess no caffeine','probably no caffeine',
+    '想不起來，沒有喝咖啡','不曉得，沒有喝咖啡'])
+    assert.equal(coverage(text,['caffeine']).status,'REQUIRE_CLARIFICATION',text);
+  for(const text of ["don't know, no caffeine",'do not know, no caffeine',"can't remember, no caffeine",'cannot remember, no caffeine',
+    'I do not recall, no caffeine','not certain, no caffeine','I guess no caffeine','probably no caffeine',
+    '想不起來，沒有喝咖啡','不曉得，沒有喝咖啡'])
+    assert.equal(coverage(text,['caffeine'],text.includes('no caffeine')?'no caffeine':'沒有喝咖啡').status,'REQUIRE_CLARIFICATION',`${text} trimmed coverage`);
+  assert.equal(coverage('no caffeine, actually had coffee',['caffeine'],'no caffeine').status,'REQUIRE_CLARIFICATION');
+  assert.equal(coverage('none, had coffee',['caffeine'],'none').status,'REQUIRE_CLARIFICATION');
+  assert.equal(coverage('no alcohol, no caffeine, no sauna',['alcohol','caffeine'],'no alcohol, no caffeine').status,'REQUIRE_CLARIFICATION');
+  assert.equal(coverage('no alcohol, no caffeine, had coffee').status,'REQUIRE_CLARIFICATION');
 });
 
 test('Journal authority-shaped candidate fields and injected messages remain untrusted data, never roles or capabilities',()=>{

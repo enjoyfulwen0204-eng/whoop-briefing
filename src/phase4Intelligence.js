@@ -271,11 +271,18 @@ export function evaluateJournalAssociation({ factor, outcomeMetric, days, replic
   const missingExposed = exposedMissingBase.length ? exposedMissingBase.filter(day => !day.outcomeValid).length / exposedMissingBase.length : 0;
   const missingUnexposed = unexposedMissingBase.length ? unexposedMissingBase.filter(day => !day.outcomeValid).length / unexposedMissingBase.length : 0;
   const mean = rows => rows.length ? rows.reduce((total, day) => total + day.outcome, 0) / rows.length : null;
-  const exposedMean = mean(exposed), unexposedMean = mean(unexposed);
-  const effect = exposedMean === null || unexposedMean === null ? null : exposedMean - unexposedMean;
+  const rawExposedMean = mean(exposed), rawUnexposedMean = mean(unexposed);
+  const rawEffect = rawExposedMean === null || rawUnexposedMean === null ? null : rawExposedMean - rawUnexposedMean;
   const classifiedFraction = denominator === 0 ? 0 : classified / denominator;
-  const candidate = exposed.length >= 5 && unexposed.length >= 5 && classified >= 20 && classifiedFraction >= 0.25
-    && effect !== null && Math.abs(effect) >= effectFloor && missingExposed <= 0.4 && missingUnexposed <= 0.4;
+  const comparisonEligible = exposed.length >= 5 && unexposed.length >= 5 && classified >= 20 && classifiedFraction >= 0.25
+    && rawEffect !== null && missingExposed <= 0.4 && missingUnexposed <= 0.4;
+  // The ADR forbids emitting an exposed-vs-unexposed statistic before every
+  // comparison floor passes. Keep the internal candidate check deterministic,
+  // but fail closed at the public evidence boundary.
+  const effect = comparisonEligible ? rawEffect : null;
+  const exposedMean = comparisonEligible ? rawExposedMean : null;
+  const unexposedMean = comparisonEligible ? rawUnexposedMean : null;
+  const candidate = comparisonEligible && Math.abs(effect) >= effectFloor;
   const windows = [...replicationWindows].sort((a, b) => String(a.start).localeCompare(String(b.start)));
   const replicationValid = windows.length >= 2 && windows.every((window, index) => validInstant(window.start) && validInstant(window.end)
     && window.start < window.end && window.direction === (effect >= 0 ? 'HIGHER' : 'LOWER')
@@ -294,7 +301,7 @@ export function evaluateJournalAssociation({ factor, outcomeMetric, days, replic
   if (unexposed.length < 5) reasons.push('INSUFFICIENT_CONFIRMED_UNEXPOSED_DAYS');
   if (classified < 20) reasons.push('INSUFFICIENT_CLASSIFIED_DAYS');
   if (classifiedFraction < 0.25) reasons.push('INSUFFICIENT_EXPOSURE_CLASSIFICATION');
-  if (effect === null || Math.abs(effect) < effectFloor) reasons.push('EFFECT_BELOW_FLOOR');
+  if (rawEffect === null || Math.abs(rawEffect) < effectFloor) reasons.push('EFFECT_BELOW_FLOOR');
   if (missingExposed > 0.4 || missingUnexposed > 0.4) reasons.push('DIFFERENTIAL_MISSINGNESS');
   if (promotionConfound) reasons.push(promotionConfound);
   if (hardConfoundFlags.length) reasons.push('HARD_CONFOUND');

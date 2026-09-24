@@ -6,7 +6,8 @@ const NEXT={OPEN:['UPDATING','ESCALATED','EXPLAINED','STABILIZING'],UPDATING:['E
   ESCALATED:['UPDATING','EXPLAINED','STABILIZING'],EXPLAINED:['UPDATING','ESCALATED','STABILIZING'],
   STABILIZING:['UPDATING','ESCALATED','EXPLAINED','RESOLVED']};
 const PATCH_FIELDS=new Set(['severity','current_confidence','explained_status','explanation_evidence_item_id','explanation_context_id',
-  'last_observed_at','latest_evidence_item_id','semantic_summary_hash','explanation_json','current_context_json']);
+  'last_observed_at','latest_evidence_item_id','semantic_summary_hash','explanation_json','current_context_json','current_novelty',
+  'max_semantic_severity_ordinal']);
 export function createPhase4EpisodeStore(core,entities) {
   const {client,keys,timestamp}=core;
   const current=(context,id)=>core.artifact(context,'observation_episodes',{episode_id:id});
@@ -141,5 +142,38 @@ export function createPhase4EpisodeStore(core,entities) {
       return current(context,episodeId);
     });
   }
-  return {open,revise:(context,change)=>reviseInternal(context,change),reverse,refresh,read:current};
+  async function semantic(context,{episodeId,expectedRevision,episodeEventId,eventKind,severityOrdinal=null,
+    explainedUncertaintyKey=null,claimKey=null,recommendedActionKey=null,semanticContentHash}) {
+    requireInteger(expectedRevision,1);
+    if(!['OPENED','ESCALATED','EXPLAINED','MATERIAL_ESCALATION'].includes(eventKind)||!semanticContentHash)
+      fail('PHASE4_SEMANTIC_EVENT_INVALID');
+    return core.run(context,async()=>{
+      const episode=await current(context,episodeId);
+      if(episode.row.revision!==expectedRevision)fail('PHASE4_EPISODE_CAS_LOST');
+      const event=await core.artifact(context,'episode_events',{episode_event_id:episodeEventId});
+      if(event.row.episode_id!==episodeId||event.row.resulting_revision!==expectedRevision)fail('PHASE4_EVENT_PARENT_MISMATCH');
+      const prior=(await client.execute({sql:`SELECT * FROM episode_semantic_events WHERE user_id=? AND execution_mode=?
+        AND episode_id=? AND resulting_revision=?`,args:[context.userId,context.executionMode,episodeId,expectedRevision]})).rows[0];
+      let semantic;
+      if(prior) {
+        if(prior.episode_event_id!==episodeEventId||prior.event_kind!==eventKind||prior.severity_ordinal!==severityOrdinal
+          ||prior.claim_key!==claimKey||prior.semantic_content_hash!==semanticContentHash)fail('PHASE4_IDENTITY_CONTENT_CONFLICT');
+        semantic=await core.artifact(context,'episode_semantic_events',{episode_semantic_event_id:prior.episode_semantic_event_id});
+      } else semantic=await entities.append(context,'episode_semantic_events',{episode_id:episodeId,resulting_revision:expectedRevision,
+          episode_event_id:episodeEventId,event_kind:eventKind,severity_ordinal:severityOrdinal,
+          explained_uncertainty_key:explainedUncertaintyKey,claim_key:claimKey,recommended_action_key:recommendedActionKey,
+          semantic_content_hash:semanticContentHash,predecessor_semantic_event_id:episode.row.last_semantic_event_id,
+          algorithm_version:'phase4-intelligence-v1'},[event.ref]);
+      const maximum=severityOrdinal===null?episode.row.max_semantic_severity_ordinal
+        :Math.max(episode.row.max_semantic_severity_ordinal??0,severityOrdinal);
+      const updated=await client.execute({sql:`UPDATE observation_episodes SET last_semantic_event_id=?,max_semantic_severity_ordinal=?
+        WHERE user_id=? AND execution_mode=? AND episode_id=? AND revision=?
+          AND (last_semantic_event_id IS ? OR last_semantic_event_id=?)`,args:[semantic.row.episode_semantic_event_id,maximum,
+        context.userId,context.executionMode,episodeId,expectedRevision,prior?.predecessor_semantic_event_id??episode.row.last_semantic_event_id,
+        semantic.row.episode_semantic_event_id]});
+      if(updated.rowsAffected!==1)fail('PHASE4_EPISODE_CAS_LOST');
+      return semantic;
+    });
+  }
+  return {open,revise:(context,change)=>reviseInternal(context,change),reverse,refresh,semantic,read:current};
 }

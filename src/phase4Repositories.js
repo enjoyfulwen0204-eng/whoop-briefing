@@ -13,6 +13,7 @@ import { createPhase4JournalStore } from './phase4JournalStore.js';
 import { createPhase4JournalInbound } from './phase4JournalInbound.js';
 import { createPhase4CoverageStore } from './phase4CoverageStore.js';
 import { createPhase4JournalAnswers } from './phase4JournalAnswers.js';
+import { createPhase4IntelligenceStore } from './phase4IntelligenceStore.js';
 
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
@@ -21,6 +22,8 @@ export function composePhase4Stores(core) {
   const queue=createPhase4QueueStore(core);
   const entities=createPhase4EntityStore(core),privacy=createPhase4PrivacyStore(core,queue);
   const episodes=createPhase4EpisodeStore(core,entities);
+  const insights=createPhase4InsightStore(core,entities);
+  const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights);
   const messages=createPhase4MessageStore(core,entities),slots=createPhase4SlotStore(core,entities,messages);
   const experiments=createPhase4ExperimentStore(core,privacy,queue);
   const journal=createPhase4JournalStore(core,privacy,queue),journalInbound=createPhase4JournalInbound(core,privacy,journal);
@@ -69,7 +72,8 @@ export function composePhase4Stores(core) {
     }),
     privacy:Object.freeze({admit:privacy.admit,redact:privacy.redact,complete:privacy.complete,status:privacy.status}),
     episodes:Object.freeze(episodes),
-    insights:Object.freeze(createPhase4InsightStore(core,entities)),
+    intelligence,
+    insights:Object.freeze(insights),
     messages:Object.freeze({propose:messages.propose,readReservation:messages.readReservation,simulate:messages.simulate}),
     slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle','answer','resolveValidated'].includes(name)))),
     transport:Object.freeze(createPhase4TransportStore(core,entities,{start:slots.transportStart,settle:slots.transportSettle})),

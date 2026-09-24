@@ -224,6 +224,9 @@ test('Journal association fails closed on sample, effect, missingness, replicati
   const insufficient = evaluateJournalAssociation({ factor: 'caffeine', outcomeMetric: 'recovery_score',
     days: associationDays({ exposed: 5, unexposed: 5 }), asOfUtc: asOf });
   assert.equal(insufficient.candidate, false);
+  assert.equal(insufficient.effect, null, 'comparative effect stays closed until every comparison floor passes');
+  assert.equal(insufficient.exposedMean, null);
+  assert.equal(insufficient.confirmedUnexposedMean, null);
   assert.equal(insufficient.readiness, 'INSUFFICIENT_EXPOSURE_CLASSIFICATION');
   const candidate = evaluateJournalAssociation({ factor: 'caffeine', outcomeMetric: 'recovery_score',
     days: associationDays({ exposed: 10, unexposed: 10 }), asOfUtc: asOf });

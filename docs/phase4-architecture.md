@@ -1,14 +1,27 @@
 # WHOOP Personal Health OS Phase 4 Architecture Decision Record
 
-Status: Repair cycle 3 candidate; Stage 2/Foundation Pack prohibited pending independent Stage 1 Final Gate PASS
+Status: Locked-product-decision alignment; Foundation Stages 1–4 implemented default-off; aggregate Foundation review pending; Stage 5 not started
 
-Decision date: 2026-09-19
+Decision date: 2026-09-19; locked-decision amendment: 2026-09-25
 
 Repository baseline: v20 schema at commit ecbd23287cac591e76741771d77caa3d814f84a3
 
-Architecture version: phase4-adr-v1-repair-3
+Architecture version: phase4-adr-v1-repair-4
 
-This record defines the repaired contracts for Phase 4. It is deliberately implementation-free. Every Phase 4 feature described here remains disabled, and Stage 2 remains prohibited, until this repair passes independent re-review. Later implementation does not authorize merge, migration, deployment, or delivery; Section 17 is controlling.
+This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence now exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and await one independent aggregate Foundation review. The 2026-09-25 amendment records locked product decisions that are not implemented: Quick Actions, Owner Monitoring, display-name isolation, mixed scheduler/watchdog behavior, and later Stage 5+ work. Stage 5 has not started. This amendment authorizes no source, schema, test, scheduler, workflow, configuration, deployment, production, or feature-flag change; Section 17 remains controlling.
+
+Amendment precedence and audit classification:
+
+| Topic | Classification after this amendment | Controlling disposition |
+|---|---|---|
+| Foundation Stage 1 gate and eight-commit plan | HISTORICAL BUT CLEAR | Retained as the provenance of implemented Stages 1–4; no longer phrased as future work |
+| Foundation current state, disabled flags, SHADOW authority, aggregate review | CURRENT | Foundation exists; all behavior stays disabled; aggregate review remains pending |
+| Categorical family/administrator prohibition | SUPERSEDED | Replaced only for Kelvin's explicit selected-user Owner Monitoring capability; ordinary and unrestricted access remains prohibited |
+| All-day Cloudflare primary / GitHub emergency-only assumptions | SUPERSEDED | Replaced by Section 10's Asia/Taipei morning Cloudflare window and normal GitHub hourly background role |
+| Quick Actions, display-name isolation, Owner Monitoring, v25, mixed watchdog | CURRENT REQUIREMENT; NOT IMPLEMENTED | Assigned to future Stages 6–8 and default-off authority |
+| Raw real-time physiology positioning | CURRENT | Explicitly rejected; event-driven plus longitudinal positioning controls |
+| Production activation or delivery | CURRENT PROHIBITION | This documentation amendment grants none |
+| Materially contradictory current statement | CONTRADICTORY | None may remain; the 2026-09-25 amendment controls if historical wording is read out of context |
 
 ## 1. Scope, non-goals, and implementation stages
 
@@ -19,27 +32,37 @@ Phase 4 adds a deterministic Personal Health OS layer above the existing tenant-
 - Body Energy v1, an OS-authored 0–100 estimate with provenance and confidence.
 - Meaningful-change detection and durable Observation Episodes.
 - Structured context capture with correction and deletion.
+- Buttons-first Structured Journal Quick Actions with free-text fallback.
 - Durable evidence and insight lifecycles.
 - A proactive decision policy with an exact four-action output.
 - Event-driven reanalysis separated from delivery.
 - A once-per-local-health-day Morning Brief.
 - A tenant-scoped Q&A read boundary for all Phase 4 claims.
 - Crash-safe outbound delivery for Phase 4 questions and notifications.
+- Explicit Owner Monitoring for Kelvin over selected enrolled users, limited initially to Daily Summary, Important Alerts, and Weekly Summary.
+- Per-user display-name authority for every user-facing and owner-directed message.
+- Mixed scheduler and watchdog behavior for the Asia/Taipei morning window and the existing hourly background path.
+
+### Product positioning
+
+Phase 4 is **event-driven and longitudinal proactive intelligence**, not raw real-time physiological monitoring. WHOOP public API inputs are processed records such as recovery, sleep, workout, cycle, and body measurement. Phase 4 combines those records with historical personal baselines, Structured Journal context, durable evidence/insight memory, and event invalidations.
+
+The product does not claim or require a continuous raw heart-rate or PPG stream, minute-by-minute physiological surveillance, real-time medical monitoring, or a real-time safety SLA. Event-driven HTTP ingress may wake the service, but background proactive computation outside the morning window may wait for a later scheduled run. This positioning does not weaken the durable backlog or daily Morning Brief contracts below.
 
 ### Non-goals
 
 Phase 4 does not:
 
-- deploy to production, enable production flags, or change production scheduler behavior in this stage;
+- deploy to production, enable production flags, or apply the scheduler target to production in this documentation stage;
 - present Body Energy as a WHOOP metric, medical diagnosis, or physiological measurement;
 - provide medical diagnosis, treatment, emergency monitoring, or assurance of safety;
 - infer causality from observational associations;
-- enable family, coach, employer, administrator, or cross-user health-data browsing;
+- enable ordinary-user, family, coach, employer, support, or unrestricted administrator health-data browsing; the narrow Owner Monitoring capability in Section 13 is the only approved cross-user exception;
 - perform population-health inference, cohort comparison, or cross-tenant model training;
 - enable the dormant Phase 3 analytics workers or route Phase 4 work through them;
 - replace WHOOP as the authoritative source for WHOOP records;
 - change webhook authentication, reconciliation semantics, OAuth identity, or lifecycle truth;
-- change the Cloudflare or GitHub scheduler cadence in this architecture stage;
+- change Cloudflare, GitHub Actions, Render, or watchdog runtime configuration as part of this ADR-only alignment; Section 10 nevertheless defines the locked future target;
 - send directly from analysis, evidence, episode, or decision code;
 - introduce a normal-operation notification quota;
 - build a new mobile application, broad health dashboard, or unrelated platform rewrite;
@@ -83,7 +106,7 @@ Legacy behavior remains unchanged until the default-off, per-tenant/message-fami
 
 ### Requirement and engineering-decision provenance
 
-Confirmed product requirements are the Morning Brief entitlement, OS ownership of Body Energy, correction/deletion behavior, association-only language, dormant Phase 3, no normal message cap, one highest-value question, no ASK-to-NOTIFY conversion, and strict tenant privacy. This ADR does not reopen them.
+Confirmed product requirements are the Morning Brief entitlement, OS ownership of Body Energy, correction/deletion/undo behavior, buttons-first Quick Actions, Owner Monitoring, per-user display-name isolation, the mixed scheduler target, event-driven/longitudinal positioning, association-only language, dormant Phase 3, no normal message cap, one highest-value question, no ASK-to-NOTIFY conversion, and strict ordinary-user tenant privacy. This ADR does not reopen them.
 
 The formulas, coefficients, time windows, state names, migration layout, default Morning Brief schedule, statistical floors, retention periods, and abnormal circuit-breaker threshold are engineering decisions made here to make those requirements implementable. They are versioned and may change only through an ADR amendment and compatible version transition.
 
@@ -117,6 +140,10 @@ Key alternatives and failure behavior are frozen as follows:
 | Referential integrity — engineering | ADD tenant-qualified application checks and an integrity audit | Introduce isolated SQL foreign keys into only new tables | Matches v20 behavior and avoids partially enforced assumptions; detected orphans invalidate artifacts |
 | Migration recovery — engineering | EXTEND [src/migrations.js](../src/migrations.js) with introspection, deterministic backfill, and forward fixes | Assume the version is globally atomic or roll back destructively | Partial application safely reruns; flags remain off on failed postconditions |
 | Journal deletion — confirmed product plus engineering | EXTEND [src/journal.js](../src/journal.js) facts and physically remove deleted health content with a minimal tombstone | Soft-delete health payload indefinitely | Deleted data is immediately unreadable; tombstone prevents replay without preserving health content |
+| Quick Actions — confirmed product plus engineering | REUSE Structured Journal facts and revisions; ADD versioned, tenant-bound interaction state only where callback safety requires it | Create a parallel button-event journal or classify every button through an LLM | Deterministic button values become ordinary Journal evidence exactly once; presentation labels never become analytical authority |
+| Owner Monitoring — confirmed product plus engineering | ADD a dual-principal owner capability, followed-user configuration, authorization envelope, and audited owner route over approved synthesized outputs | Weaken tenant predicates or grant generic admin queries | Ordinary users remain self-only; every cross-user read/send proves owner, followed subject, enabled class, and reason |
+| Display-name authority — confirmed product plus engineering | Resolve names from the message recipient's tenant-scoped identity in the fixed precedence in Section 11 | Global owner-name constant or last-rendered user cache | A recipient cannot inherit Kelvin's or another user's name |
+| Mixed scheduler — confirmed product plus engineering | Cloudflare 10-minute morning window plus normal GitHub hourly background scheduling, both invoking the canonical replay-safe runner | All-day Cloudflare polling or treating GitHub as emergency-only | Lower idle cost without losing durable pending work; watchdog expectations vary by schedule window |
 | Retention defaults — engineering | Versioned bounded retention in Section 15 | Indefinite derived payload and message retention | Minimizes sensitive data; loss of reproducibility becomes explicit rather than fabricated |
 
 ### Stage outline
@@ -126,11 +153,11 @@ Implementation is divided into dependency-ordered stages. Stages 2–4 are the e
 1. Stage 1 ADR and independent repair gate.
 2. Additive persistence and tenant-scoped stores.
 3. Body Energy and quality calculation.
-4. Structured Journal, exposure, and context discovery.
+4. Structured Journal, exposure, and context discovery foundation.
 5. Evidence, episodes, and insight memory.
-6. Event-driven invalidation and reanalysis.
-7. Proactive decisions, semantic reservations, and mocked delivery.
-8. Shadow Morning Brief and Q&A.
+6. Event-driven invalidation, reanalysis, mixed scheduler, and cadence-aware watchdog.
+7. Proactive decisions, Quick Actions, semantic reservations, and mocked delivery.
+8. Shadow Morning Brief, display-name isolation, Q&A, and Owner Monitoring.
 9. Shadow evaluation, freeze candidate, and Final Gate evidence package.
 
 No real delivery, production migration, merge, deploy, canary, or production flag is permitted before the Section 17 conjunctive gate.
@@ -152,15 +179,18 @@ The following terms are normative:
 - **Promoted insight**: an EMERGING or SUPPORTED insight that met the repeated-evidence contract and may be used with status-appropriate association language.
 - **Rejected, refuted, or expired insight**: a historical RETIRED insight whose disposition respectively records failure to meet promotion gates, sufficient contradictory evidence, or loss of current support with time.
 - **Context fact**: a normalized journal assertion with logical identity, provenance, and revision state.
+- **Quick Action**: a versioned Telegram button interaction whose deterministic canonical selection creates or updates a Structured Journal fact without unnecessary LLM classification.
 - **Context question**: the single highest-value eligible question selected to reduce decision-relevant uncertainty.
 - **Decision**: a durable evaluation producing exactly one action from the Phase 4 action space.
-- **Outbound message**: a versioned delivery proposal linked to a decision or Morning Brief; content is immutable across retry but may be synchronously redacted for correction/deletion while state/hash history remains.
+- **Outbound message**: a versioned delivery proposal linked to a decision, Morning Brief, or explicit Owner Monitoring authorization; content is immutable across retry but may be synchronously redacted for correction/deletion while state/hash history remains.
 - **Morning Brief**: the once-per-active-ready-unpaused-user, once-per-local-health-day report that explicitly represents missing data rather than disappearing.
 - **Current**: not deleted, superseded, invalidated, expired, lifecycle-stale, or based on an older input generation than the read contract permits.
 - **Invalidation**: a durable declaration that a derived scope may no longer be current. Invalidation does not itself recompute or send.
 - **Reanalysis**: deterministic recomputation of invalidated derived state. Reanalysis does not itself deliver.
 - **OS-authored**: calculated by this application. The user-visible name and provenance must not imply WHOOP authorship.
 - **Tenant**: one internal **users.id**. Telegram chat IDs and WHOOP user IDs are external identifiers, never tenant primary keys.
+- **Owner principal**: Kelvin's specifically configured internal identity plus a server-issued Owner Monitoring capability. A name, Telegram handle, model claim, or ordinary administrator role is not owner authority.
+- **Follow subscription**: the durable, revisioned selection that permits the owner principal to receive one or more approved monitoring classes for one enrolled subject user.
 - **Definite delivery failure**: a provider result proving the message was not accepted.
 - **Ambiguous delivery outcome**: delivery may have occurred, but the application cannot prove either success or failure. It must not be blindly retried.
 - **Delivery attempt**: a provider-call envelope created before the call, with explicit terminal state transitions; health content is prohibited and any accidental copy must be purged.
@@ -865,6 +895,49 @@ The fact value shape is closed:
 
 Unknown units or ambiguous categories are not silently normalized. Taxonomy additions require a new taxonomy/normalizer version.
 
+### Quick Actions: buttons first, free-text fallback
+
+Structured Journal plus Quick Actions is a Phase 4 must-have. A constrained interaction presents Telegram buttons whenever a closed, safe value set exists; free text remains available for `other/add note`, unsupported detail, correction, and unconstrained journal entry. A button callback maps directly through a versioned server-owned action registry and the deterministic Journal validator. It must not call an LLM merely to rediscover the category or value already encoded by the selected action.
+
+Presentation labels are localization and UX. Canonical category, factor, subtype/value, polarity, unit, and taxonomy/normalizer version are the evidence contract. Analytics reads canonical fields only and never groups by button text. The initial presentation-to-canonical registry covers at least:
+
+| Presentation category | Example labels | Canonical Journal mapping |
+|---|---|---|
+| Exercise | Running; Golf; Strength training; Walking; Cycling; Other | `exercise_note` plus registered subtype `running`, `golf`, `strength_training`, `walking`, `cycling`, or validated other detail |
+| Alcohol | None; 1 drink; 2–3 drinks; 4+ drinks; Other/add note | `alcohol` plus explicit-negative or registered categorical/numeric range value for the displayed context window |
+| Caffeine | None; Morning; Afternoon; Evening; Other/add note | `caffeine` plus explicit-negative or registered time-of-day subtype for the displayed context window |
+| Stress | Low; Normal; High; Very high | `stress` plus registered ordinal/categorical value; the normalizer version fixes any ordinal mapping |
+| Meals | Normal; Late meal; Heavy meal; Skipped meal; Other/add note | registered `food`/`late_meal` factor plus normalized subtype |
+| Sleep Context | Screen before bed; Room hot; Nap; Late bedtime; Other/add note | registered sleep-context factor such as `screen_before_bed`, `sleep_environment_hot`, `nap`, or `late_sleep` |
+| Travel / Illness | Travelling; Jet lag; Long-distance travel; Feeling ill; Other/add note | registered `travel`, `flight`, or `sickness` factor and subtype |
+| Other | Add note | bounded free-text fallback through the existing candidate/validation path; never independently promotion-eligible as an unregistered custom factor |
+
+Those English strings are non-normative. Changing a label or localization does not change stored evidence. Adding or changing a canonical value requires a new registered taxonomy/normalizer version and compatible evidence handling.
+
+### Quick Action data and callback contract
+
+A completed selection creates no competing event type. It creates an ordinary Structured Journal logical fact and uses the existing revision, invalidation, correction, deletion, source-link, privacy, and evidence rules. The accepted fact or its interaction provenance preserves, as applicable:
+
+- authenticated tenant/user identity and destination binding;
+- effective occurrence in existing `event_at` (the `occurred_at` semantic), optional interval end, context health date, and recorded IANA timezone;
+- `answered_at`/callback receipt time separately from the effective context time;
+- canonical category, subtype/value, polarity, unit, and taxonomy/normalizer version;
+- source kind `quick_action`, `bot_question`, `free_text`, or `manual` (a versioned implementation may use one `free_text_manual` enum only when the underlying provenance still distinguishes typed free text from a manual/operator entry);
+- interaction, question/request, Telegram update/callback, and source-event lineage where applicable;
+- logical fact ID, revision, correction/deletion status, and invalidation generation.
+
+Self-initiated “I am running now” resolves its effective occurrence (`event_at`) from the authenticated action at receipt time in the user's recorded timezone. A bot question such as “Did you drink yesterday?” carries a server-owned target interval/context date and timezone from interaction creation; clicking today sets `answered_at` today but does not rewrite `event_at`/the occurred-at semantic or the context date to the click time. The validator rejects an expired interaction, invalid timezone snapshot, or ambiguous target instead of using the callback timestamp as a universal occurrence time.
+
+Every callback is replay-safe:
+
+1. The issued interaction is opaque, versioned, time-bounded, and bound server-side to one user, execution mode, destination, interaction revision, action registry version, and target-time semantics.
+2. The private Telegram sender is authenticated before lookup; payload-supplied tenant, category, time, or destination fields are never trusted.
+3. Telegram update/callback receipt identity and the interaction's semantic completion key are admitted durably. A double-click, provider retry, or process replay returns the prior result and cannot create a second fact, revision, receipt, or invalidation.
+4. A callback for another user/destination, a replaced menu revision, an expired target, or a terminal interaction is rejected as stale. Replaying the same completed choice may return its fixed acknowledgment; a conflicting later choice must use correction rather than silently overwrite evidence.
+5. Journal fact creation, source lineage, input-generation advance, and interaction completion commit atomically or not at all.
+
+The user-facing **Undo** for a recent Quick Action is a convenience command over the existing authenticated deletion/tombstone operation. “Correct” uses the existing new-revision/supersession operation. Neither introduces a second durable meaning for undo, bypasses T0/T1/T2 privacy fencing, or releases a consumed source idempotency key. Replayed undo/correction returns the existing operation result.
+
 ### Tri-state exposure semantics
 
 Every factor/outcome comparison uses exactly:
@@ -1452,6 +1525,8 @@ The non-health envelope is immutable except defined state transitions; redaction
 
 ## 10. Event-driven invalidation and reanalysis
 
+Phase 4 consumes processed WHOOP records and application events; it does not poll or infer a continuous raw HR/PPG stream. A webhook is an invalidation/refetch signal, not a physiological sample. Historical baselines and durable pending work allow the same canonical runner to converge whether it was prompted by ingress, the morning high-frequency schedule, or the hourly background schedule.
+
 ### Required separation
 
 The pipeline is:
@@ -1543,7 +1618,31 @@ Provider refresh and WHOOP canonicalization remain in their existing ingestion/r
 
 ### Scheduling
 
-The existing scheduler may invoke a lightweight Phase 4 queue drain only after the relevant feature flag is enabled. This is an additive call in the existing application process, not a cron-frequency change and not a call to the dormant analytics drain. The same worker can also be prompted after an inbound event, but durable queue state remains the source of truth.
+The locked scheduler timezone is **Asia/Taipei**. The target schedule is:
+
+- **Morning High-Frequency Window:** from 08:00 inclusive to 12:00 exclusive, Cloudflare invokes the canonical scheduler every 10 minutes.
+- **Outside the morning window:** Cloudflare cron does not run. Its absence is intentional, not a failure.
+- **Background cadence:** the existing GitHub hourly scheduler invokes background work independently. Outside the morning window it is the expected scheduled driver; it does not call or wake Render merely to drain background work.
+- **Event-driven ingress:** Telegram webhook, WHOOP webhook ingress, OAuth callback, and any other explicitly supported HTTP ingress may wake Render on demand and enqueue or prompt eligible work. The request path still crosses the durable invalidation/job boundary and cannot send directly from analysis.
+
+The morning window improves Morning Brief timing and morning intelligence responsiveness. It does not turn the Morning Brief into a universal 08:00 send: Section 11's per-user timezone, due/eligibility, wake/readiness, missing-data, lifecycle, and semantic-reservation rules remain authoritative.
+
+The scheduler entry points call the same idempotent, lease-fenced canonical runner. Concurrent Cloudflare, GitHub, webhook, or retry invocations converge through the existing queue, generation, reservation, and transport invariants. They never use the dormant Phase 3 drain.
+
+Outside the morning window, proactive/background computation may wait approximately until a later GitHub scheduled run. GitHub scheduled workflows do not provide an exact hourly SLA, so product copy and monitoring must not promise completion within exactly one hour. Event-driven ingress can improve latency but is not a real-time monitoring guarantee.
+
+### Durable backlog and cadence-aware watchdog
+
+Cadence affects when work is attempted, never whether it remains owed. Webhook ledger items, invalidations, reanalysis jobs, scheduled maintenance, reconciliation state, and other admitted work remain durable across a delayed, missed, failed, or overlapping scheduled invocation. The next successful canonical run scans and catches up eligible pending work; “delayed” must never be represented as “completed” or discarded.
+
+Watchdog evaluation first resolves the current Asia/Taipei schedule window and scheduler class:
+
+- During 08:00–12:00, Cloudflare's 10-minute primary cadence is expected and monitored with a tolerance that permits ordinary execution and reporting delay.
+- Outside 08:00–12:00, Cloudflare inactivity is normal. The watchdog must not emit `scheduler_primary_stale` solely because no Cloudflare heartbeat exists.
+- Outside the morning window, GitHub hourly is the expected background cadence. Its stale threshold includes realistic GitHub scheduling jitter, job duration, and heartbeat-reporting delay rather than treating the nominal cron minute as an SLA.
+- A missing heartbeat alert identifies the expected scheduler class, evaluated window, last successful canonical run, durable backlog age, and tolerance policy version. A successful event-driven run may reduce backlog but does not fabricate a missing scheduled heartbeat.
+
+The exact operational tolerance is versioned in implementation/runbook configuration and reviewed with observed scheduler behavior; this ADR fixes the behavioral boundary, not an unjustified minute constant.
 
 ### Failure behavior
 
@@ -1612,6 +1711,21 @@ It must not wait indefinitely for a scored recovery. A later data arrival may up
 
 The Morning Brief does not ask a context question inline in v1. A separately eligible question follows the proactive decision and outbound state machine, preventing one report send from creating two conversational intents.
 
+### Recipient display-name authority
+
+Every message renderer resolves its recipient name inside the authenticated recipient's tenant scope. The authority order is:
+
+1. a non-empty explicit user-chosen display name;
+2. the bound recipient's Telegram `first_name` from authenticated Telegram identity;
+3. the bound recipient's WHOOP profile first name;
+4. a neutral greeting that contains no person's name.
+
+The canonical `users.display_name` may satisfy step 1 only when its provenance establishes that it is an explicit value for that same user. Legacy, placeholder, copied, global, or unproven values must be re-resolved or treated as absent. Name resolution is completed before any optional wording model call, and the model cannot substitute a different identity.
+
+Kelvin is never a universal or default recipient name. Kelvin's name may appear in another user's message only as an intentional reference to the system owner, never as that user's greeting or identity. Caches and templates key recipient identity by internal user ID plus the relevant identity/binding generation; a process-global name, previous-user value, or batch-loop variable cannot be a fallback.
+
+An owner-directed monitoring message has two named roles: the authenticated recipient is Kelvin, while the monitored subject may be identified explicitly (for example, “Alice — Daily Summary”). Naming the subject does not change the recipient or tenant semantics of the delivery route.
+
 ### Phase 4 delivery
 
 MORNING_BRIEF_V1 uses the typed Phase 4 outbox and semantic reservation in Section 12. It does not reuse or reinterpret **report_claims**. Existing **report_claims** and **report_runs** remain legacy V1.2 delivery records until a tenant/message-family cutover completes.
@@ -1633,9 +1747,14 @@ The typed Phase 4 outbox handles every Phase 4 message class:
 - MORNING_BRIEF_V1;
 - EPISODE_NOTIFICATION;
 - CONTEXT_QUESTION;
-- ANSWER_FOLLOWUP.
+- ANSWER_FOLLOWUP;
+- OWNER_DAILY_SUMMARY;
+- OWNER_IMPORTANT_ALERT;
+- OWNER_WEEKLY_SUMMARY.
 
 Each class has its own semantic-key builder, while lifecycle and provider-attempt behavior are shared. A follow-up decision references an existing accepted answer event; only a new answer semantic event can authorize a new ANSWER_FOLLOWUP identity. Answering never sends inline.
+
+For an owner class, `outbound_messages.user_id` is the recipient owner and the message must reference one current dual-principal Owner Monitoring authorization envelope. The envelope—not a generic outbox join—identifies the followed subject and approved synthesized source artifacts. Owner classes do not become available to ordinary tenant callers.
 
 - **report_claims** and **report_runs** remain legacy V1.2 delivery mechanisms until atomic cutover.
 - **telegram_operations** remains the receipt for replies to inbound updates.
@@ -1645,7 +1764,7 @@ Each class has its own semantic-key builder, while lifecycle and provider-attemp
 
 | State | Meaning |
 |---|---|
-| PROPOSED | Immutable payload and source decision persisted |
+| PROPOSED | Immutable payload and its source decision, brief identity, or owner authorization persisted |
 | ELIGIBLE | Latest lifecycle, pause, currentness, and novelty checks passed |
 | CLAIMED | Dispatcher owns a bounded lease; provider call has not begun |
 | DELIVERY_STARTED | Pre-send transaction committed; provider outcome may become ambiguous |
@@ -1690,10 +1809,13 @@ DELIVERED, AMBIGUOUS, SUPPRESSED, INVALIDATED, and FAILED_TERMINAL are terminal.
 | Episode notification | JSON.stringify([user_id, "EPISODE_NOTIFICATION", episode_semantic_event_id]) |
 | Context question | JSON.stringify([user_id, "CONTEXT_QUESTION", question_request_id]) |
 | Answer follow-up | JSON.stringify([user_id, "ANSWER_FOLLOWUP", answer_event_id, followup_kind]) |
+| Owner Daily Summary | JSON.stringify([owner_user_id, subject_user_id, "OWNER_DAILY_SUMMARY", subject_local_health_date]) |
+| Owner Important Alert | JSON.stringify([owner_user_id, subject_user_id, "OWNER_IMPORTANT_ALERT", subject_semantic_event_id]) |
+| Owner Weekly Summary | JSON.stringify([owner_user_id, subject_user_id, "OWNER_WEEKLY_SUMMARY", subject_local_week_key]) |
 
 No key contains a decision/job/attempt ID, lifecycle/auth/input generation, algorithm/policy version, payload/content hash, wording/template version, or recomputation timestamp. Those are provenance only. The key builder cannot be version-bumped to resend the same semantics. A migration must reuse the durable IDs and existing keys.
 
-The durable reservation namespace is (user_id, execution_mode, message_family, semantic_key). execution_mode partitions SHADOW simulation from LIVE authority without changing these four canonical builders. Mode is immutable, never a knob for retrying a LIVE event. All references and uniqueness tuples in this section additionally include execution_mode as specified in Section 14; a SHADOW reservation never blocks a LIVE reservation, or vice versa.
+The durable reservation namespace is (user_id, execution_mode, message_family, semantic_key), where `user_id` is the transport recipient (the owner for owner classes). execution_mode partitions SHADOW simulation from LIVE authority without changing these canonical builders. Mode is immutable, never a knob for retrying a LIVE event. All references and uniqueness tuples in this section additionally include execution_mode as specified in Section 14; a SHADOW reservation never blocks a LIVE reservation, or vice versa.
 
 **Episode semantic event creation.** In the same CAS transaction as the accepted episode transition/revision, insert one **episode_semantic_events** row, unique on (user_id, episode_id, resulting_revision). Allowed event_kind values are:
 
@@ -1914,9 +2036,43 @@ Body Energy answers include algorithm version, as-of, quality, confidence, and �
 
 The LLM may reorder or phrase approved claims. It may not introduce a metric, causal statement, diagnosis, treatment instruction, unapproved third-party context, or uncited numeric value.
 
-### Tenant and administrative isolation
+### Ordinary isolation and Owner Monitoring
 
-There is no administrator or family bypass. Operational interfaces may inspect job IDs, states, timings, hashes, and reason codes, but not plaintext health content. A support or admin role cannot use Q&A to browse tenants.
+Ordinary Q&A has no administrator, family, or third-party bypass. User A resolves only user A; user B resolves only user B. Support/operations roles may inspect allowed operational metadata but cannot use Q&A or a generic tenant selector to browse health content.
+
+The one approved cross-user path is **Owner Monitoring**. Kelvin is the system owner and may select enrolled users to follow. Enrollment plus Kelvin's explicit follow configuration is the product authorization; no separate per-user approval workflow is required. Every followed user still receives their own normal Telegram experience, and follow state never changes that user's identity, destination, preferences, lifecycle, or self-only Q&A scope.
+
+Owner Monitoring v1 supports exactly these notification classes per followed user:
+
+- `DAILY_SUMMARY`;
+- `IMPORTANT_ALERT`;
+- `WEEKLY_SUMMARY`.
+
+The owner may enable or disable each class independently. V1 consumes approved, current synthesized intelligence for that subject—brief/summary claims, qualified important alerts, and weekly synthesized claims—where possible. It does not grant unrestricted raw WHOOP-record browsing, arbitrary SQL/admin access, another user's Journal browser, or open-ended owner Q&A over a subject.
+
+“Important Alert” means a high-value Phase 4 longitudinal/event-driven alert under the approved policy. It is not an emergency, medical, continuous-monitoring, or exact-latency service and remains subject to the Section 10 cadence outside the morning window.
+
+Owner authority is a server-issued capability bound to Kelvin's configured internal user ID and current authenticated destination/lifecycle. It cannot be inferred from the string “Kelvin,” a Telegram username, a role claimed in text, an environment value supplied to a model, or ordinary administrator access. A cross-user monitoring operation requires all of the following in one auditable authorization decision:
+
+1. authenticated owner principal and current owner destination;
+2. enrolled subject user and current subject lifecycle/privacy fences;
+3. an active, revisioned follow subscription for that owner/subject/notification class;
+4. an approved current synthesized artifact or deterministic summary plan within the class's data scope;
+5. captured owner and subject generations, subscription revision, purpose, reason code, and exact as-of;
+6. a dedicated owner-monitoring route whose store/API accepts both principals explicitly and rejects every ordinary-user caller.
+
+The subject-scoped reader first selects only approved synthesized outputs under the subject's normal currentness and purge rules. It then creates a dual-principal authorization envelope. Only that envelope may hand an approved claim bundle to the owner-recipient outbox; generic joins and direct cross-tenant source references remain forbidden. The transport destination belongs to Kelvin, while the envelope retains the monitored subject identity for content attribution, purge traversal, and audit. Subject correction/deletion invalidates or redacts linked unsent owner content under the same privacy rules; already accepted Telegram copies retain the Section 15 external-copy limitation.
+
+Durable audit state must answer, without plaintext log scraping:
+
+- which enrolled user Kelvin followed at any point in time;
+- which of the three notification classes were enabled and the subscription revision/effective interval;
+- when and through which authenticated owner operation follow state changed;
+- which subject produced each owner-directed summary/alert and which approved artifact/plan it used;
+- which owner capability, subscription revision, purpose, and reason authorized the cross-user read and send;
+- the owner destination, message/attempt outcome, and relevant owner/subject lifecycle, auth, input, and purge generations.
+
+Revocation prevents new owner authorization envelopes immediately. It does not falsify immutable historical authorization/transport metadata, and it does not create a new right for ordinary users. No LLM selects the followed user, expands data scope, or authorizes an owner send.
 
 ### Significant decision
 
@@ -1929,6 +2085,8 @@ There is no administrator or family bypass. Operational interfaces may inspect j
 **Compatibility impact:** Existing queries can be adapted behind the service. Inbound operation identity/idempotency remains, with Section 15 additive content redaction and no-op replay; receipt health payload is not immutable.
 
 **Failure mode controlled:** A specialized evidence route cannot bypass perspective semantics or currentness policy; cross-tenant ownership checks remain independently mandatory.
+
+**Owner Monitoring decision:** Add a dual-principal, subscription- and capability-gated path over approved synthesized outputs. Do not weaken tenant predicates or reuse ordinary Q&A/admin access. This supersedes earlier categorical “no family or administrator access” language only for Kelvin's explicit Owner Monitoring capability; all broader cross-user access remains prohibited.
 
 ## 14. Additive post-v20 schema and migration proposal
 
@@ -2599,14 +2757,56 @@ Required secondary indexes additionally include each R table's tenant/content_st
 
 For every M table the above secondary indexes expand to (user_id, execution_mode, ...); jobs/outbox queue/lease indexes are (execution_mode, state, next_attempt_at, user_id) and (execution_mode, lease_expires_at, user_id). LIVE dispatcher queries explicitly bind execution_mode = LIVE and never scan SHADOW proposals. Additional exact privacy indexes are (user_id, scope_kind, scope_revision) on the two legacy SCOPE tables, (user_id, execution_mode, scope_kind, requested_generation) on Phase 4 SCOPE tables, and (user_id, provenance_state, field_group) on experiment_field_groups. Every health index begins with user_id; operational queue indexes may return only opaque tenant IDs for immediate owner/mode re-scoping. No global queue selection returns health content.
 
+### V25 future additive locked-scope extension (not implemented)
+
+V21–v24 are completed Foundation versions and must not be reopened, renumbered, or silently extended. The locked requirements added on 2026-09-25 require a new reviewed forward migration before their implementation. This ADR reserves **v25** for the minimum additive contracts below; no v25 source, migration, or runtime behavior exists at the current checkpoint.
+
+**Display-name authority extensions**
+
+- Add tenant-scoped explicit, Telegram-first-name, and WHOOP-first-name candidates or equivalent normalized source records, plus source, observed/verified time, binding/profile generation, and a monotonic display-name identity generation.
+- Keep `users.display_name` as the bounded materialized resolved value only when its source is recorded. Allowed sources are EXPLICIT, TELEGRAM_FIRST_NAME, WHOOP_FIRST_NAME, NEUTRAL, and LEGACY_UNVERIFIED.
+- Backfill existing values as LEGACY_UNVERIFIED unless their same-user provenance is mechanically proven. Before personalized rendering, re-resolve them in Section 11 order or use the neutral fallback. Never infer another user's value from string equality or a batch/global default.
+
+**quick_action_interactions**
+
+- primary key: user_id plus interaction_id; execution mode and authenticated destination binding are explicit;
+- action-registry/taxonomy version, interaction revision, parent interaction/question request, allowed-choice digest, selected canonical choice, target-time rule, exact target interval/context date/timezone, created/expires/answered times, state and CAS revision;
+- source-event semantic completion key and provider update/callback receipt hash; unique user/mode/semantic completion key and unique accepted provider callback identity;
+- states ISSUED, AWAITING_DETAIL, COMPLETED, STALE, CANCELLED, or UNDONE; terminal replay cannot create another Journal fact;
+- resulting Journal logical fact/revision and correction/deletion operation reference;
+- every category/value/target/detail field is purgeable health content under R; the opaque interaction, receipt/idempotency barrier, transport times, terminal state, and non-health reason survive according to Section 15.
+
+This table is interaction transport/provenance, not a journal. Accepted content exists authoritatively in `journal_events`; no analytics query treats the interaction row as evidence.
+
+**owner_follow_subscriptions and owner_follow_subscription_events**
+
+- explicit owner_user_id and subject_user_id, constrained so the stable configured owner principal corresponding to Kelvin—not a name comparison—is used and the subject is a distinct enrolled user;
+- one current row per owner/subject/notification class, where the class is DAILY_SUMMARY, IMPORTANT_ALERT, or WEEKLY_SUMMARY;
+- ENABLED/DISABLED state, monotonic revision, effective interval, authenticated owner operation receipt, changed_at, and finite reason code;
+- append-only event history records every transition and prior/new revision. No health payload is stored.
+
+**owner_monitoring_authorizations**
+
+- primary identity includes owner_user_id, subject_user_id, execution_mode, authorization_id; uniqueness binds the owner message semantic reservation to one authorization;
+- notification class, subscription revision, purpose/reason, exact as-of, approved synthesized artifact/plan references and versions, and content/provenance hash;
+- captured owner lifecycle/destination generation and subject lifecycle/auth/input/purge generations;
+- authorization state, created/expires/invalidated times, linked owner outbound message/reservation and transport outcome reference;
+- the only permitted cross-user source linkage is the typed owner/subject linkage declared here. It is indexed by both principals and participates in subject correction/deletion traversal; health-bearing labels, summaries, dates, and reconstructive references use R and are purged/redacted under Section 15.
+
+Extend `outbound_messages` and `outbound_semantic_reservations` additively for the three owner message classes and nullable `owner_monitoring_authorization_id`. For owner classes, outbox `user_id` is the owner recipient; the authorization envelope supplies the distinct subject. Non-owner classes require that field null. The dispatcher revalidates owner capability, subscription revision/class, both principals' current fences, approved synthesized source, and owner destination immediately before start. No ordinary outbox caller may supply a subject user ID.
+
+Required v25 indexes support interaction replay/staleness, current follow selection, follow history, authorizations by owner/subject/class/as-of, subject purge traversal, and owner outbox authorization lookup. Every composite identity carries both principals where applicable. The migration and stores remain default-off and must pass interruption, backfill, privacy, multi-user, and SHADOW/LIVE tests before any behavior flag can use them.
+
 ### Store invariant matrix
 
-Every store method receives authenticated user_id and server-owned execution context separately from payload data. It verifies every derived parent with user_id/execution_mode/parent ID inside the write transaction; cross-tenant, cross-mode, missing, stale or generation-mismatched parents reject the write. Shared roots use the explicit root allowlist above, never an omitted-mode fallback.
+Every ordinary store method receives authenticated user_id and server-owned execution context separately from payload data. It verifies every derived parent with user_id/execution_mode/parent ID inside the write transaction; cross-tenant, cross-mode, missing, stale or generation-mismatched parents reject the write. Shared roots use the explicit root allowlist above, never an omitted-mode fallback. The v25 Owner Monitoring store is the sole dual-principal exception: it requires both owner and subject plus the complete Section 13 capability/subscription envelope and is not exposed through an ordinary store interface.
 
 | Store | Create invariants | Update invariants | Delete/invalidate invariants |
 |---|---|---|---|
 | Phase 4 user state/preferences | Existing user parent; lifecycle generation readable; deterministic defaults | Preference version CAS; generations monotonic | Account lifecycle only; no child cascade by unscoped ID |
+| Display-name authority | Same-user proven candidates only; legacy source unverified | Identity-generation CAS; fixed precedence; neutral on unproven data | Remove/re-resolve one user's candidate only; never fall through to another user's value |
 | Journal facts/coverage/tombstones/purge | Existing tenant; unique source key; validator accepted; coverage window exact | Active revision CAS; correction creates revision; input generation increments | Source-link traversal, synchronous plaintext purge, minimal tombstone, generation increment |
+| Quick Action interactions | Authenticated own destination; issued registry revision and exact target semantics | Interaction/source-key CAS; one terminal selection and one Journal fact | Stale/cancel/undo retains replay barrier; Journal content follows existing purge/tombstone contract |
 | Context questions/slots/pending links/answer events | Current same-mode episode; acquire tenant/mode slot with request/reservation/proposal atomically; accepted answer revision unique | Slot/request/revision CAS; confirmed same LIVE question before pending projection; explicit ambiguous answer matching | Cancel unstarted; post-start slot waits through answer/expiry; purge content, retain receipt/reservation barriers |
 | Body Energy results | Current tenant/lifecycle/auth/input/purge generations; captured manifest; deterministic key | Numeric result append-only except purge; invalidation CAS | Purge full manifest/value/quality; opaque audit remains |
 | Evidence runs/items | Current observations/source links; run completes before publication | Completed statistics append-only except purge; invalidation CAS | Purge values/counts/statistics/text and invalidate; opaque audit remains |
@@ -2617,6 +2817,7 @@ Every store method receives authenticated user_id and server-owned execution con
 | Decisions | Current episode/evidence and exact policy versions | Envelope stable except invalidation/expiry CAS; content append-only except purge | Purge rationale/diagnostics/branch signatures; no action mutation |
 | Delivery modes/reservations | Existing tenant/destination; family mode CAS; semantic key tenant-qualified | Cutover boundary CAS; CONSUMED reservation never released | Reversible only before any Phase 4 DELIVERY_STARTED; legacy barrier retained |
 | Outbox/attempts | Authoritative PHASE4 mode, current parents/purge fence, reservation atomic | Message/lease CAS; attempt outcome transitions; payload only purgeable | Unstarted invalidation closes key; started/delivered/ambiguous history preserved with no plaintext |
+| Owner follow/authorization | Configured owner plus distinct enrolled subject; enabled class and explicit dual-principal capability | Subscription revision and both-principal generation CAS; append-only follow events | Revocation blocks new envelopes; subject purge traverses authorization and unsent owner payload |
 
 Orphan prevention is a synchronous primary store responsibility. The offline integrity audit is defense in depth and can quarantine a corrupt artifact; it is not the mechanism that makes ordinary writes safe.
 
@@ -2662,11 +2863,11 @@ Rollback disables Phase 4 readers, workers, and delivery flags while leaving add
 
 ### Tenant isolation
 
-Every Phase 4 table is tenant-scoped by internal user_id. Every primary, unique, join, update, and delete path includes user_id. External IDs are resolved through existing identity mappings before any health query.
+Every ordinary Phase 4 table/path is tenant-scoped by internal user_id. Every primary, unique, join, update, and delete path includes user_id. External IDs are resolved through existing identity mappings before any health query.
 
-Cross-tenant batch processing may enumerate opaque user IDs, but each tenant is processed in a separate scoped store. Derived input manifests cannot reference a row owned by another tenant. A cross-tenant reference is a hard invariant violation that invalidates the artifact and raises an operational alert.
+Cross-tenant batch processing may enumerate opaque user IDs, but each tenant is processed in a separate scoped store. Ordinary derived input manifests cannot reference a row owned by another tenant. A cross-tenant reference is a hard invariant violation that invalidates the artifact and raises an operational alert unless it is the exact dual-principal Owner Monitoring authorization envelope defined in Sections 13–14.
 
-There is no family or administrator read surface. Operational staff receive only opaque IDs, state, timing, version, count, and reason-code metadata unless a separate, user-authorized support policy is designed later.
+There is no ordinary family, support, administrator, or generic owner read surface. Operational staff receive only opaque IDs, state, timing, version, count, and reason-code metadata. Kelvin's Owner Monitoring capability is a distinct narrow product path over selected users and approved synthesized outputs; it does not weaken or bypass the ordinary tenant store.
 
 ### Ownership and fencing
 
@@ -2674,7 +2875,7 @@ Before a read or write, the scoped store verifies tenant ownership and the lifec
 
 Derived rows carry execution_mode, input, lifecycle, and authorization generations as specified in Section 14. A mismatch makes the row non-current even if its timestamp is recent. Caches use tenant, execution_mode, semantic/artifact identity, algorithm version, and all applicable generations. No cache is keyed only by metric, health date, Telegram ID, or WHOOP ID.
 
-Every join repeats user_id on both sides. Store APIs do not accept a child artifact ID without the authenticated user ID. Batch code receives an opaque tenant ID, constructs a fresh scoped store, and cannot reuse another tenant’s in-memory context.
+Every ordinary join repeats user_id on both sides. Store APIs do not accept a child artifact ID without the authenticated user ID. Batch code receives an opaque tenant ID, constructs a fresh scoped store, and cannot reuse another tenant’s in-memory context. Owner Monitoring uses only its dedicated dual-principal join and never exposes that join primitive to an ordinary reader.
 
 Every Phase 4 lease identity includes user_id, execution_mode, work/message key, owner token, claimed generation, scope_revision/purge generation where applicable, and expiry. Lease takeover requires compare-and-swap on that complete identity. A lease never conveys authorization to read another tenant/mode or to bypass a newer lifecycle/auth generation.
 
@@ -2861,7 +3062,7 @@ An LLM may not:
 - infer unreported sensitive context;
 - claim causality, diagnosis, medication changes, or treatment;
 - mutate a normalized fact without deterministic schema validation;
-- access another tenant or an administrator-wide health context.
+- request, select, or access another tenant or an administrator-wide health context; an optional wording call for Owner Monitoring receives only the already authorized bounded claim plan and cannot choose the subject, source, scope, or destination.
 - treat Journal/Q&A text as executable instructions;
 - provide or override tenant IDs, lifecycle/auth context, policy, tool arguments, destinations, feature flags, or send authority.
 
@@ -2935,6 +3136,12 @@ Every new flag is false when absent, malformed, or unsupported:
 - **PHASE4_MORNING_BRIEF**
 - **PHASE4_QA_CONTEXT**
 
+The v25 locked-scope extension additionally reserves these future default-off controls; they do not exist in current runtime code:
+
+- **PHASE4_QUICK_ACTIONS**
+- **PHASE4_OWNER_MONITORING**
+- **PHASE4_OWNER_MONITORING_DELIVERY**
+
 Dependencies are enforced in code. For example, outbound delivery requires schema writes, reanalysis, episodes, evidence, non-shadow decisions, authoritative PHASE4 tenant mode, passed conjunctive release-gate record, and explicit operation authorization. An invalid flag combination fails closed and emits configuration diagnostics. Pre-gate builds may write shadow proposals but have no configured provider adapter.
 
 Flags do not classify stored rows. Restart under a different flag set cannot publish SHADOW data: every reader/claim revalidates durable execution_mode and the entire same-mode ancestry. Enabling a future LIVE factory requires fresh authorized LIVE computation, not a SHADOW-to-LIVE UPDATE. During Foundation, **every flag above remains off**; internal tests invoke isolated stores/calculators with synthetic context, no scheduler or dispatcher registration.
@@ -2990,7 +3197,7 @@ This plan is documentation only and grants no authority. After the conjunctive g
 7. enable test-user delivery, then canary delivery, only under separate named approvals and stop criteria;
 8. expand only after reviewed canary evidence.
 
-Tenant cohorts are explicit allowlists or stable hashes, never inferred from health status. No step changes production scheduler cadence without a separate design and authorization.
+Tenant cohorts are explicit allowlists or stable hashes, never inferred from health status. Section 10 is the approved scheduler design; applying its Cloudflare/GitHub/watchdog configuration remains a separate named production operation requiring the full conjunctive gate and explicit Kelvin authorization.
 
 ### Kill switches
 
@@ -2999,6 +3206,8 @@ Independent switches must stop:
 - queue claims;
 - outbound claims;
 - Morning Brief claims;
+- Quick Action issuance/new callback mutation while preserving authenticated correction, deletion, replay, and privacy completion paths;
+- Owner Monitoring authorization/claims and, independently, owner-directed delivery;
 - LLM calls;
 - Q&A derived reads.
 
@@ -3015,9 +3224,12 @@ Required metrics include:
 - insight transition and expiry rates;
 - decision action distribution and reason codes;
 - question answer, decline, correction, and deletion rates;
+- Quick Action completion, stale/rejected callback, replay-deduplication, correction, undo, and free-text-fallback rates;
 - proposals per tenant with abnormal-volume breaker trips;
 - delivery definite failure and ambiguity rates;
 - Morning Brief due, claimed, delivered, ambiguous, and outage-expired counts;
+- owner follow changes and owner notification class/outcome counts, with no health values or plaintext;
+- scheduler success and durable-backlog age by Cloudflare-morning, GitHub-hourly, and event-driven class, plus cadence-aware watchdog alerts;
 - stale-read blocks and cross-tenant invariant violations.
 
 Health values and message text are excluded from operational metrics.
@@ -3050,7 +3262,11 @@ Time and scheduling:
 - spring-forward nonexistent time;
 - fall-back duplicated time;
 - UTC elapsed hours across both transitions;
-- health-day and one semantic-reservation identity.
+- health-day and one semantic-reservation identity;
+- Asia/Taipei 08:00 inclusive and 12:00 exclusive boundaries, every-10-minute Cloudflare eligibility only inside the window, and no Cloudflare stale alert outside it;
+- GitHub hourly as the normal outside-window background driver with delayed-start tolerance rather than an exact-hour SLA;
+- missed, delayed, failed, overlapping, and recovered runs drain durable webhook, invalidation, reanalysis, maintenance, and reconciliation backlog without loss or false completion;
+- event-driven ingress may wake Render while a GitHub background run never needs to wake it; every path converges through the same canonical runner.
 
 Meaningfulness and episodes:
 
@@ -3075,7 +3291,13 @@ Journal and context:
 - known context excludes redundant questions;
 - EXPOSED, CONFIRMED_UNEXPOSED, and UNKNOWN parser/storage/alignment/correction/deletion behavior;
 - an absent log and a different logged factor remain UNKNOWN;
-- exactly one highest-utility eligible question.
+- exactly one highest-utility eligible question;
+- presentation-label changes/localization preserve the same canonical Quick Action value and evidence grouping;
+- button selection uses no LLM classification and atomically creates exactly one existing Journal logical fact;
+- Telegram double-click, duplicate update, provider retry, process restart, and callback replay return one result with one generation advance;
+- callback ownership rejects tenant/destination mismatch, and expired/replaced interactions reject stale selections;
+- “running now” uses authenticated receipt time while “yesterday” preserves the server-issued target date/window and records a distinct answered time;
+- Quick Action correction creates the existing revision semantics and Undo invokes the existing deletion/tombstone semantics without a second evidence system.
 
 Evidence and insights:
 
@@ -3110,7 +3332,7 @@ Delivery:
 - lifecycle, pause, and stale-decision suppression;
 - lifecycle transition after provider acceptance/lost response remains AMBIGUOUS and non-retryable;
 - AMBIGUOUS semantic reservation suppresses later decisions with new IDs/generations;
-- all four canonical key builders exclude decision/job/attempt/generation/algorithm/payload/wording values;
+- all seven canonical key builders exclude decision/job/attempt/generation/algorithm/payload/wording values;
 - atomic episode-event creation, question request allocation before decision, ordinal/source-receipt replay, semantic answer correction versus equivalent wording, finite fixed followup_kind;
 - CLOSED invalidated/suppressed/exhausted keys cannot be replaced; 400-day history cleanup never frees tenant-lifetime reservations/receipts;
 - legacy proactive versus Phase 4 semantic-duplication prevention;
@@ -3129,6 +3351,10 @@ Delivery:
 Privacy and Q&A:
 
 - cross-tenant property tests across every store method;
+- ordinary Alice/Bob/self Q&A and store paths cannot invoke or forge Owner Monitoring authority;
+- only the configured Kelvin owner principal plus an active subject/class subscription can create a dual-principal authorization; revocation, stale subscription revision, wrong destination, or either principal's stale generation fails closed;
+- Owner Daily Summary, Important Alert, and Weekly Summary consume approved synthesized outputs only, identify the subject explicitly, route to Kelvin, and record capability/reason/artifact audit without unrestricted raw browsing;
+- subject correction/deletion invalidates/redacts linked unsent owner content while preserving non-health authorization/transport audit and the external-copy limitation;
 - third-party and general evidence questions cannot load self context;
 - specialized handlers cannot precede the perspective gate;
 - deleted, superseded, expired, invalidated, or generation-stale artifacts are absent;
@@ -3148,6 +3374,14 @@ Privacy and Q&A:
 - tenant-ID, policy, destination, feature-flag, and tool-argument override attempts fail closed;
 - Q&A cannot create an outbound proposal or invoke scheduler, dispatcher, or send paths;
 - logs and metrics contain no raw health or answer text.
+
+Identity presentation:
+
+- Kelvin brief resolves Kelvin, Alice brief resolves Alice, and Bob brief resolves Bob from each recipient's own identity scope;
+- Alice cannot inherit Kelvin and Bob cannot inherit Alice across batching, cache reuse, retries, or missing candidate fields;
+- a missing/unproven-name user receives a neutral unnamed greeting;
+- explicit name overrides authenticated Telegram `first_name`, which overrides the same user's WHOOP profile first name;
+- an owner-directed message can name the monitored subject while retaining Kelvin as recipient, without changing either principal's authority or identity semantics.
 
 ### Migration tests
 
@@ -3224,9 +3458,9 @@ The measurable Phase 4 Final Gate is:
 
 This is a release gate, not a claim that the system is 100 percent bug-free.
 
-### Stage 1 documentation gate
+### Historical Stage 1 documentation gate
 
-This architecture stage changes only this document. Its gate is:
+This gate governed the original pre-Foundation architecture stage and is retained as historical rationale, not as a claim that Foundation is still prohibited or as the current push instruction. It required:
 
 - all 19 required sections present;
 - internal paths and named behaviors checked against the baseline;
@@ -3254,9 +3488,11 @@ Cycle 3 read-only architecture fixtures exercise the specified keys/transitions 
 
 The second pass checks the exact M/R/SCOPE expansions, PK/unique predicates, typed fields, slot transitions/deadlines, experiment group mapping/read precedence, eight Foundation commit boundaries, all local links and changed-file scope. Any unresolved choice of column, identity, purge boundary or transition is HOLD, not an implementation decision deferred beyond this ADR.
 
+The 2026-09-25 locked-decision amendment gate is documentation-only: no runtime/schema/test/config/workflow change; explicit current-vs-future status; no false implementation claim; all feature flags remain disabled; whole-ADR contradiction audit complete; exactly one commit on `v1.2-phase4` and only that branch pushed. Passing it does not start Stage 5 or replace the pending aggregate Foundation review.
+
 ## 19. Implementation stages and dependency graph
 
-Stages 2–4 form one **Foundation Pack**, Stages 5–6 the later Intelligence Pack, and Stages 7–8 the later Delivery Pack. These names are planning boundaries, not authorization. Foundation remains prohibited until independent Stage 1 Final Gate PASS and a new explicit implementation instruction. Internal commits receive tests/self-review, then one aggregate independent Foundation review; an internal commit is not a separately approved production rollout.
+Stages 2–4 form the implemented **Foundation Pack**, Stages 5–6 the later Intelligence Pack, and Stages 7–8 the later Delivery Pack. These names are planning boundaries, not authorization. Foundation is present on the isolated branch, default-off and SHADOW-only; its one aggregate independent review remains pending. Stage 5 has not started and requires that aggregate PASS plus a new explicit implementation instruction. An internal commit is not a separately approved production rollout.
 
 ### Dependency graph
 
@@ -3273,8 +3509,8 @@ flowchart TD
     F8 --> FG[One aggregate independent Foundation review]
     FG --> S5[Intelligence Stage 5 evidence episodes and insights]
     S5 --> S6[Stage 6 invalidation and reanalysis]
-    S6 --> S7[Delivery Stage 7 decisions and outbound delivery]
-    S7 --> S8[Stage 8 Morning Brief and Q&A]
+    S6 --> S7[Delivery Stage 7 decisions Quick Actions and outbound delivery]
+    S7 --> S8[Stage 8 Brief Q&A display names and Owner Monitoring]
     S8 --> S9[Stage 9 shadow evaluation and freeze package]
 ~~~
 
@@ -3298,9 +3534,9 @@ flowchart TD
 
 **Exit gate:** Section 18 Stage 1 gate.
 
-### Foundation Pack: exact internal commit boundaries
+### Foundation Pack: exact internal commit boundaries (implemented, default off)
 
-All eight commits are disabled/local and require their own targeted verification plus the complete Node 22 suite. No production migration, scheduler activation, dispatcher registration, real Telegram adapter/send path, or Phase 3 activation is in this pack. No v21–v24 version row may be written before **every** object, column, CHECK/trigger, backfill, unique/secondary index and postcondition assigned to that version is complete.
+The table below is the historical plan realized by the Foundation commits now on this branch. All eight boundaries remain disabled and require their targeted verification plus the complete Node 22 suite for aggregate review. No production migration, scheduler activation, dispatcher registration, real Telegram adapter/send path, or Phase 3 activation is in this pack. No v21–v24 version row may be written before **every** object, column, CHECK/trigger, backfill, unique/secondary index and postcondition assigned to that version is complete.
 
 | Internal commit | Scope and dependency | Verification before commit |
 |---|---|---|
@@ -3313,9 +3549,11 @@ All eight commits are disabled/local and require their own targeted verification
 | 7 | Journal revisions, tri-state context, answer lineage, correction/deletion T0/T1/T2 and logging allowlists, using existing v24 invalidations/slot/outbox fences | Full matrix/group/range purge, accepted-answer replay, no deleted content/cross-tenant access, zero Phase 3 calls; no proactive question delivery |
 | 8 | Aggregate migration/privacy/tenant/mode/concurrency/crash-restart verification and Foundation review evidence | End-to-end synthetic v20→v24 rehearsal, every interruption point, all RC2 fixtures and prior regressions, flags off, no sends; submit **one** Foundation macro-stage for independent review |
 
-Commits 1–4 may test persistence contracts but cannot run Foundation runtime behavior; commit 5 refuses admission if any v24 postcondition is absent. Later Intelligence and Delivery packs implement behavior against the complete installed schema, never finish a partially marked v23/v24. A newly discovered schema requirement requires an ADR amendment and a new reviewed forward migration, not reuse of a completed version number. The current repair changes only this ADR and does not begin commit 1.
+Commits 1–4 test persistence contracts but cannot run Foundation runtime behavior; commit 5 refuses admission if any v24 postcondition is absent. Later Intelligence and Delivery packs implement behavior against the complete installed schema, never finish a partially marked v23/v24. The locked-scope requirements use the reviewed future v25 extension in Section 14 rather than reopening completed versions. This amendment changes documentation only and does not begin v25 or Stage 5.
 
 ### Stage 2: additive storage and tenant-scoped stores
+
+**Status:** IMPLEMENTED FOUNDATION; default off; included in pending aggregate Foundation review.
 
 **Depends on:** independent Stage 1 PASS and explicit Foundation authorization; covers internal commits 1–5 in the fixed order above.
 
@@ -3345,6 +3583,8 @@ Commits 1–4 may test persistence contracts but cannot run Foundation runtime b
 
 ### Stage 3: Body Energy and shared quality
 
+**Status:** IMPLEMENTED FOUNDATION; SHADOW-only; included in pending aggregate Foundation review.
+
 **Depends on:** complete v21–v24 and Stage 2 stores/privacy compatibility (Foundation internal commit 5); this is internal commit 6.
 
 **Files/subsystems likely touched:** new Body Energy and quality modules/stores, plus adapters around [src/store.js](../src/store.js), [src/time.js](../src/time.js), and [src/readiness.js](../src/readiness.js).
@@ -3373,6 +3613,8 @@ Commits 1–4 may test persistence contracts but cannot run Foundation runtime b
 **Exit gate:** fixed-fixture calculation and stored-hash-context replay are byte-identical, shadow results have complete provenance, and publication remains prohibited pending every Section 3 publication gate.
 
 ### Stage 4: structured journal and context
+
+**Status:** IMPLEMENTED FOUNDATION for persistence/validation/correction/deletion/answer lineage; Quick Action UI/callback runtime is not implemented and belongs to Stage 7.
 
 **Depends on:** complete v21–v24, Stage 2 compatibility and internal commit 6; this is Foundation internal commit 7, followed by aggregate verification commit 8.
 
@@ -3404,6 +3646,8 @@ Commits 1–4 may test persistence contracts but cannot run Foundation runtime b
 
 ### Stage 5: evidence, episodes, and insight memory
 
+**Status:** NOT STARTED.
+
 **Depends on:** aggregate Foundation PASS covering Stages 2–4 and all eight internal commits, plus explicit Intelligence Pack authorization.
 
 **Files/subsystems likely touched:** new evidence/episode stores and domain modules, [src/evidence.js](../src/evidence.js), [src/healthMemory.js](../src/healthMemory.js), and approved adapters around [src/analyze.js](../src/analyze.js).
@@ -3433,9 +3677,11 @@ Commits 1–4 may test persistence contracts but cannot run Foundation runtime b
 
 ### Stage 6: invalidation and reanalysis
 
+**Status:** NOT STARTED.
+
 **Depends on:** Stage 5.
 
-**Files/subsystems likely touched:** canonical/journal mutation adapters, new Phase 4 invalidation/job stores and drain, [src/processingTransaction.js](../src/processingTransaction.js), and scheduler integration behind a flag.
+**Files/subsystems likely touched:** canonical/journal mutation adapters, new Phase 4 invalidation/job stores and drain, [src/processingTransaction.js](../src/processingTransaction.js), canonical scheduler integration, cadence-aware heartbeat/watchdog evaluation, and non-production scheduler fixtures behind default-off authority.
 
 **Migration impact:** use v24 invalidation/job tables; no scheduler-schema or Phase 3 worker change.
 
@@ -3444,11 +3690,13 @@ Commits 1–4 may test persistence contracts but cannot run Foundation runtime b
 - add Phase 4 generation writes to actual semantic canonical and journal changes;
 - implement coalesced jobs, lease claims, fences, backoff, and repair;
 - add an independently named Phase 4 drain behind a default-off flag;
+- implement the Section 10 Asia/Taipei schedule-window predicate, source-specific heartbeat expectations, realistic GitHub tolerance policy, and durable catch-up scans;
+- make Cloudflare-morning, GitHub-hourly, and event-driven invocations call the same replay-safe runner without requiring GitHub to wake Render;
 - keep provider calls outside database transactions.
 
 **Existing boundaries reused:** [src/analyticsInvalidation.js](../src/analyticsInvalidation.js) as a transactional pattern only, and [src/processingTransaction.js](../src/processingTransaction.js).
 
-**Tests:** change/no-change distinction, crash recovery, generation race, coalescing, poison tenant isolation, Phase 3 zero-invocation assertions.
+**Tests:** change/no-change distinction, crash recovery, generation race, coalescing, poison tenant isolation, missed/delayed scheduler catch-up, morning-window boundaries, outside-window watchdog behavior, realistic GitHub jitter, and Phase 3 zero-invocation assertions.
 
 **Output:** disabled-by-default event-to-current-derived-state pipeline.
 
@@ -3456,31 +3704,35 @@ Commits 1–4 may test persistence contracts but cannot run Foundation runtime b
 
 **Independent review gate:** lifecycle/auth/computation fencing, lease/crash recovery, and dormant-Phase-3 review.
 
-**Explicit non-goals:** message delivery, scheduler cadence change, production flag enablement, or provider fetch inside a transaction.
+**Explicit non-goals:** message delivery, applying production cron/watchdog configuration, production flag enablement, or provider fetch inside a transaction.
 
 **Exit gate:** event and replay paths converge to identical derived state in shadow mode.
 
 ### Stage 7: decisions and outbound delivery
 
+**Status:** NOT STARTED.
+
 **Depends on:** independently reviewed Intelligence Pack (Stages 5–6) and explicit Delivery Pack authorization.
 
-**Files/subsystems likely touched:** new policy, decision, outbound store, dispatcher, Telegram adapter, plus [src/accountLifecycle.js](../src/accountLifecycle.js), [src/attention.js](../src/attention.js), and [src/reportDelivery.js](../src/reportDelivery.js) boundaries.
+**Files/subsystems likely touched:** new policy, decision, v25 Quick Action/owner authorization persistence, outbound store, dispatcher, Telegram adapter/callback router, plus [src/accountLifecycle.js](../src/accountLifecycle.js), [src/attention.js](../src/attention.js), [src/journal.js](../src/journal.js), and [src/reportDelivery.js](../src/reportDelivery.js) boundaries.
 
-**Migration impact:** use v24 decision/outbound tables; legacy proactive rows are not migrated into Phase 4 decisions.
+**Migration impact:** use v24 decision/outbound tables and implement the reviewed additive v25 extension before dependent behavior; legacy proactive rows are not migrated into Phase 4 decisions and v21–v24 are not modified.
 
 **Work:**
 
 - implement the exact four-action policy;
 - implement question_utility_v1 with non-recursive counterfactual_decision_impact_v1 and independent notification evaluation;
 - remove Phase 4 dependence on count caps and **downgradeAskToNotify**;
-- implement all four canonical key builders, event/request/answer reuse, non-releasable reservations, message proposal, dispatcher, attempts, ambiguity recovery, and atomic legacy cutover;
+- implement all seven canonical key builders, event/request/answer reuse, non-releasable reservations, message proposal, dispatcher, attempts, ambiguity recovery, and atomic legacy cutover;
+- implement the buttons-first Quick Action registry and tenant-bound callback state, writing accepted values directly into existing Structured Journal facts with replay-safe callback receipts and existing correction/delete/undo semantics;
+- implement v25 display-name provenance and Owner Monitoring subscription/authorization stores, but expose no real owner delivery capability before Stage 8 and the release gates;
 - use fake provider adapters only; real Telegram capability remains technically unavailable.
 
 **Existing boundaries reused:** lifecycle checks in [src/accountLifecycle.js](../src/accountLifecycle.js) and the pre-send boundary pattern in [src/reportDelivery.js](../src/reportDelivery.js).
 
-**Tests:** exhaustive decisions/utility, no downgrade, V1.2 duplicate reproduction, semantic reservation across later decisions, legacy/new double-ownership prevention, lifecycle-after-acceptance, failure injection around every provider boundary, stale/lifecycle suppression, abnormal circuit breaker.
+**Tests:** exhaustive decisions/utility, no downgrade, V1.2 duplicate reproduction, semantic reservation across later decisions, legacy/new double-ownership prevention, lifecycle-after-acceptance, failure injection around every provider boundary, stale/lifecycle suppression, abnormal circuit breaker, Quick Action double-click/replay/ownership/staleness/time semantics, and v25 migration interruption/isolation/privacy.
 
-**Output:** local shadow decisions and mocked delivery evidence only; no real test-user or canary delivery.
+**Output:** local shadow decisions, deterministic Quick Action fixtures, v25 default-off stores, and mocked delivery evidence only; no real test-user or canary delivery.
 
 **Review focus:** only dispatcher can send; normal operation has no numeric message cap; ambiguous sends never automatically repeat.
 
@@ -3492,9 +3744,11 @@ Commits 1–4 may test persistence contracts but cannot run Foundation runtime b
 
 ### Stage 8: Morning Brief and Q&A
 
+**Status:** NOT STARTED.
+
 **Depends on:** Stage 7.
 
-**Files/subsystems likely touched:** [src/daily.js](../src/daily.js), [src/reportDelivery.js](../src/reportDelivery.js), [src/healthQuery.js](../src/healthQuery.js), [src/bot/router.js](../src/bot/router.js), notification preferences, and presentation tests.
+**Files/subsystems likely touched:** [src/daily.js](../src/daily.js), [src/reportDelivery.js](../src/reportDelivery.js), [src/healthQuery.js](../src/healthQuery.js), [src/bot/router.js](../src/bot/router.js), recipient-name resolution, Owner Monitoring services, notification preferences, and presentation tests.
 
 **Migration impact:** use v21 preferences and the v24 typed outbox/reservations/modes; existing report tables remain legacy.
 
@@ -3503,27 +3757,31 @@ Commits 1–4 may test persistence contracts but cannot run Foundation runtime b
 - add MORNING_BRIEF_V1 eligibility, schedule, missing-data rendering, semantic reservation, and typed outbox proposal;
 - add notification preferences;
 - introduce **ScopedHealthContext** and place perspective authorization before all specialized reads;
+- enforce the Section 11 per-user display-name resolution order for every renderer and cache;
+- implement Kelvin's explicit followed-user/class configuration and dual-principal Owner Monitoring authorization over Daily Summary, Important Alerts, and Weekly Summary only;
 - use validated deterministic plans with optional LLM wording.
 
 **Existing boundaries reused:** [src/daily.js](../src/daily.js) scheduling concepts, the pre-provider transaction pattern but not row lifecycle from [src/reportDelivery.js](../src/reportDelivery.js), [src/healthQuery.js](../src/healthQuery.js), and [src/bot/router.js](../src/bot/router.js) after correcting route order.
 
-**Tests:** complete/partial/no-data briefs, exactly one health-day semantic reservation across legacy/new modes, DST, pause/lifecycle races, perspective-order regression, currentness lag, and proof Q&A cannot propose/send.
+**Tests:** complete/partial/no-data briefs, exactly one health-day semantic reservation across legacy/new modes, DST, pause/lifecycle races, perspective-order regression, currentness lag, Kelvin/Alice/Bob/neutral display-name isolation, owner subscription/audit/approved-output routing, ordinary-user cross-tenant denial, and proof Q&A cannot propose/send.
 
-**Output:** local/shadow Morning Brief proposals and scoped Phase 4 Q&A with real sending technically impossible.
+**Output:** local/shadow Morning Brief and owner-monitoring proposals plus scoped Phase 4 Q&A, with real sending technically impossible.
 
-**Review focus:** missing data never cancels, Body Energy attribution is explicit, no cross-tenant or third-party personal read.
+**Review focus:** missing data never cancels, Body Energy attribution is explicit, display names never bleed across users, ordinary users remain self-only, and every owner cross-user read/send has explicit dual-principal authorization and synthesized scope.
 
 **Independent review gate:** product-language, privacy, scheduling, missing-data, and Q&A-boundary review.
 
-**Explicit non-goals:** dashboard/mobile UI, family sharing, emergency monitoring, or opportunistic brief suppression.
+**Explicit non-goals:** dashboard/mobile UI, unrestricted family/admin/raw-record browsing, emergency or real-time monitoring, or opportunistic brief suppression. The selected-user Owner Monitoring contract above is in scope and is not “family sharing.”
 
 **Exit gate:** synthetic end-to-end runs create at most one correct reservation/proposal and authorized Q&A answers under failure injection, with zero real sends.
 
 ### Stage 9: shadow evaluation and freeze candidate
 
+**Status:** NOT STARTED.
+
 **Depends on:** Stage 8 and all reviews.
 
-**Files/subsystems likely touched:** local feature configuration, metrics, runbooks, freeze manifest, and non-production/synthetic load-test harnesses; scheduler cadence remains untouched.
+**Files/subsystems likely touched:** local feature configuration, metrics, runbooks, freeze manifest, non-production/synthetic load-test harnesses, and rehearsal fixtures for the Section 10 mixed-cadence/watchdog target; production scheduler configuration remains untouched.
 
 **Migration impact:** none expected; any newly discovered schema need requires a reviewed forward migration.
 
@@ -3549,6 +3807,11 @@ Commits 1–4 may test persistence contracts but cannot run Foundation runtime b
 There are no unresolved product decisions blocking implementation of the disabled shadow stages. This ADR adopts:
 
 - AFTER_WAKE plus 30 minutes with 10:00 local fallback for migrated Morning Brief users;
+- buttons-first Quick Actions with deterministic Structured Journal values and free-text fallback;
+- Kelvin Owner Monitoring for selected users and the three v1 synthesized notification classes;
+- per-user display-name authority with neutral fallback and no universal Kelvin default;
+- Asia/Taipei 08:00–12:00 Cloudflare high-frequency scheduling, GitHub hourly background work, and cadence-aware watchdog behavior;
+- event-driven plus longitudinal product positioning with no raw real-time physiological-monitoring claim;
 - the exact Body Energy v1 formula and quality thresholds in Section 3;
 - the evidence and insight minimums in Sections 7 and 8;
 - the question threshold and abnormal-only circuit breaker in Section 9;
@@ -3569,7 +3832,9 @@ Before any post-gate production activation, product, privacy, and statistical re
 - Application-enforced referential integrity requires strong store encapsulation and regular audits because the existing schema does not use SQL foreign keys.
 - Morning Brief is protected by a semantic reservation, not a claim of provider-level exactly-once delivery; ambiguity and prolonged outage are explicit terminal outcomes.
 - Legacy proactive/report paths coexist before per-family cutover. Authoritative modes, barriers, and semantic reservations are required to prevent double delivery.
+- Owner Monitoring intentionally introduces a narrow dual-principal path; an implementation error that exposes it through ordinary Q&A/store APIs would be a critical isolation defect.
+- Mixed third-party scheduling is not an exact latency SLA. Durable backlog and cadence-aware watchdog design reduce loss/false alarms but still require operational validation.
 
 ### Final architecture verdict
 
-The architecture is ready for re-review, not Stage 2, until this repair passes the independent Stage 1 Final Gate. Any later staged implementation remains local and non-delivering until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.
+The ADR is aligned for Architecture Owner review. Foundation Stages 1–4 exist default-off and SHADOW-only; their independent aggregate review remains pending. Stage 5 has not started and is not authorized by this amendment. Quick Actions, Owner Monitoring, display-name isolation, v25, and mixed scheduler/watchdog behavior are specified future work and must not be reported as implemented. Any later staged implementation remains local and non-delivering until its stage is explicitly authorized, and no production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.

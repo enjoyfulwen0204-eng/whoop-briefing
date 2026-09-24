@@ -1,9 +1,22 @@
 # Foundation Pack verification map
 
-This is a review handoff, not approval to activate or deploy. Baseline:
-`1140cc9e1b16412027f599a7cc363d8e2b10dcff`, branch `v1.2-phase4`, schema v20.
-All fixtures are synthetic. No credentials, provider, production database,
-real send, additional scheduler, dispatcher or Intelligence Pack is required.
+This is a review handoff, not approval to activate or deploy. The Foundation
+lineage began from ADR baseline `1140cc9e1b16412027f599a7cc363d8e2b10dcff`;
+the verified implementation checkpoint before the locked-decision documentation
+alignment is `9d97c10ed6df5694708c18f6f07b5dc20ceaf465` on branch `v1.2-phase4`.
+Foundation Stages 1–4, including additive v21–v24, tenant/mode/privacy stores,
+Body Energy, and Structured Journal persistence/validation/correction/deletion,
+exist default-off and SHADOW-only. All fixtures are synthetic. No credentials,
+provider, production database, real send, additional scheduler, dispatcher or
+Intelligence Pack is required.
+
+The 2026-09-25 ADR alignment adds current Phase 4 requirements that are
+**specified but not implemented**: Quick Actions, Owner Monitoring, per-user
+display-name isolation, the future additive v25 contract, and mixed
+Cloudflare/GitHub scheduler plus cadence-aware watchdog behavior. Stage 5 has
+not started. One independent aggregate Foundation review remains pending; this
+document does not claim that the new locked requirements passed implementation
+review.
 
 ## Reproducible commands
 
@@ -31,7 +44,7 @@ is substantially slower than an empty-database migration. Do not omit it.
 | Closed parser boundary, Unicode excerpt, ambiguity, tri-state exposure and UNKNOWN gate | `journal-foundation-validation`, `phase4-journal-store` |
 | Structured fact/coverage answer, authenticated receipt, correction revisions, no send | `phase4-journal-answers`, `phase4-journal-inbound` |
 | T0/T1/T2 crash/restart, transitive plaintext inventory, cache fence, no replay resurrection | `phase4-privacy`, `phase4-journal-inventory`, `phase4-foundation-privacy` |
-| Public LIVE denial, all thirteen flags false, no provider/timer/production wiring | `phase4-stores`, `phase4-foundation-isolation`; aggregate entry-point diff review |
+| Public LIVE denial, all thirteen implemented Foundation flags false, future locked-scope flags absent/disabled, no provider/timer/production wiring | `phase4-stores`, `phase4-foundation-isolation`; aggregate entry-point diff review |
 
 Each name above is a `test/<name>.test.js` file. All are included in the full
 suite and the focused Foundation command. Existing V1.2 regression tests remain
@@ -74,6 +87,9 @@ in the full suite; new gates do not replace them.
 - Local purge does not claim deletion from Telegram clients, external logs or
   backups. Body Energy is a deterministic product metric, not medical validation.
 
-The architecture owner's next action is independent aggregate Session B review
-against the ADR, including both authoritative rulings. Do not enable flags,
-push, deploy, migrate production, or begin the Intelligence Pack from this map.
+After the locked-decision alignment report is returned to the Architecture
+Owner, the next implementation checkpoint remains the independent aggregate
+Session B Foundation review against the amended ADR. Do not enable flags,
+deploy, migrate production, or begin Stage 5/the Intelligence Pack from this
+map. Pushing the single documentation-alignment commit only to
+`v1.2-phase4` does not change that prohibition.

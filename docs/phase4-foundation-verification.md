@@ -10,13 +10,21 @@ exist default-off and SHADOW-only. All fixtures are synthetic. No credentials,
 provider, production database, real send, additional scheduler, dispatcher or
 Intelligence Pack is required.
 
-The 2026-09-25 ADR alignment adds current Phase 4 requirements that are
-**specified but not implemented**: Quick Actions, Owner Monitoring, per-user
-display-name isolation, the future additive v25 contract, and mixed
-Cloudflare/GitHub scheduler plus cadence-aware watchdog behavior. Stage 5 has
-not started. One independent aggregate Foundation review remains pending; this
-document does not claim that the new locked requirements passed implementation
-review.
+The 2026-09-25 ADR alignment documentation repair is complete at this handoff;
+the repaired requirements are **specified but not implemented**. Stage 7 Quick Actions
+require future v25 interaction transport plus Journal-side `TRUSTED_REGISTRY`
+and `source_kind` provenance; pure button facts have no fabricated user-text
+excerpt. Stage 8 Owner Monitoring persistence is separately owned by future
+v26. Display-name isolation preferentially uses existing same-user identity
+sources and does not receive a migration merely because Stage 8 contains the
+fix. The one global Asia/Taipei 08:00–12:00 Cloudflare window maps to the exact
+UTC trigger `*/10 0-3 * * *`; deployment verification must inspect that trigger,
+and higher hourly-path latency for non-Taipei due times outside the global
+window is an accepted v1 trade-off. None of v25, v26, Quick Actions, Owner
+Monitoring, display-name repair, or scheduler/watchdog changes is implemented.
+Stage 5 has not started. One independent aggregate Foundation review remains
+pending; this document does not claim that the repaired requirements passed
+implementation review.
 
 ## Reproducible commands
 
@@ -44,7 +52,7 @@ is substantially slower than an empty-database migration. Do not omit it.
 | Closed parser boundary, Unicode excerpt, ambiguity, tri-state exposure and UNKNOWN gate | `journal-foundation-validation`, `phase4-journal-store` |
 | Structured fact/coverage answer, authenticated receipt, correction revisions, no send | `phase4-journal-answers`, `phase4-journal-inbound` |
 | T0/T1/T2 crash/restart, transitive plaintext inventory, cache fence, no replay resurrection | `phase4-privacy`, `phase4-journal-inventory`, `phase4-foundation-privacy` |
-| Public LIVE denial, all thirteen implemented Foundation flags false, future locked-scope flags absent/disabled, no provider/timer/production wiring | `phase4-stores`, `phase4-foundation-isolation`; aggregate entry-point diff review |
+| Public LIVE denial, all thirteen runtime-enforced Foundation flags false, future v25/v26 locked-scope flag names without runtime consumers absent/unreachable, no provider/timer/production wiring | `phase4-stores`, `phase4-foundation-isolation`; aggregate entry-point diff review |
 
 Each name above is a `test/<name>.test.js` file. All are included in the full
 suite and the focused Foundation command. Existing V1.2 regression tests remain
@@ -87,9 +95,9 @@ in the full suite; new gates do not replace them.
 - Local purge does not claim deletion from Telegram clients, external logs or
   backups. Body Energy is a deterministic product metric, not medical validation.
 
-After the locked-decision alignment report is returned to the Architecture
-Owner, the next implementation checkpoint remains the independent aggregate
-Session B Foundation review against the amended ADR. Do not enable flags,
-deploy, migrate production, or begin Stage 5/the Intelligence Pack from this
-map. Pushing the single documentation-alignment commit only to
+After the targeted-repair report is returned to the Architecture Owner, the
+next implementation checkpoint remains the independent aggregate Session B
+Foundation review against the repaired ADR. Do not enable flags, implement
+v25/v26, deploy, migrate production, or begin Stage 5/the Intelligence Pack
+from this map. Pushing the single documentation-repair commit only to
 `v1.2-phase4` does not change that prohibition.

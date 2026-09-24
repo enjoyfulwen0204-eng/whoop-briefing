@@ -2,11 +2,11 @@
 
 Status: Locked-product-decision alignment; Foundation Stages 1–4 implemented default-off; aggregate Foundation review pending; Stage 5 not started
 
-Decision date: 2026-09-19; locked-decision amendment: 2026-09-25
+Decision date: 2026-09-19; locked-decision amendment and targeted repair 1: 2026-09-25
 
-Repository baseline: v20 schema at commit ecbd23287cac591e76741771d77caa3d814f84a3
+Original V1.2 production baseline from which Phase 4 branched: v20 schema at commit ecbd23287cac591e76741771d77caa3d814f84a3. The current isolated Phase 4 development branch already implements the default-off v21–v24 Foundation migrations.
 
-Architecture version: phase4-adr-v1-repair-4
+Architecture version: phase4-adr-v1-repair-5
 
 This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence now exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and await one independent aggregate Foundation review. The 2026-09-25 amendment records locked product decisions that are not implemented: Quick Actions, Owner Monitoring, display-name isolation, mixed scheduler/watchdog behavior, and later Stage 5+ work. Stage 5 has not started. This amendment authorizes no source, schema, test, scheduler, workflow, configuration, deployment, production, or feature-flag change; Section 17 remains controlling.
 
@@ -18,7 +18,7 @@ Amendment precedence and audit classification:
 | Foundation current state, disabled flags, SHADOW authority, aggregate review | CURRENT | Foundation exists; all behavior stays disabled; aggregate review remains pending |
 | Categorical family/administrator prohibition | SUPERSEDED | Replaced only for Kelvin's explicit selected-user Owner Monitoring capability; ordinary and unrestricted access remains prohibited |
 | All-day Cloudflare primary / GitHub emergency-only assumptions | SUPERSEDED | Replaced by Section 10's Asia/Taipei morning Cloudflare window and normal GitHub hourly background role |
-| Quick Actions, display-name isolation, Owner Monitoring, v25, mixed watchdog | CURRENT REQUIREMENT; NOT IMPLEMENTED | Assigned to future Stages 6–8 and default-off authority |
+| Quick Actions, display-name isolation, Owner Monitoring, v25/v26, mixed watchdog | CURRENT REQUIREMENT; NOT IMPLEMENTED | Assigned to future Stages 6–8 and default-off authority; v25 belongs to Stage 7 Quick Actions and v26 to Stage 8 Owner Monitoring |
 | Raw real-time physiology positioning | CURRENT | Explicitly rejected; event-driven plus longitudinal positioning controls |
 | Production activation or delivery | CURRENT PROHIBITION | This documentation amendment grants none |
 | Materially contradictory current statement | CONTRADICTORY | None may remain; the 2026-09-25 amendment controls if historical wording is read out of context |
@@ -868,7 +868,7 @@ The existing **journal_events** table is **extended**, not replaced. Each logica
 - **question_id** and optional **episode_id**;
 - **parser_version** and **normalizer_version**;
 - **extraction_confidence**;
-- **raw_answer_excerpt**: the minimum relevant answer span, trimmed and bounded to 500 Unicode code points;
+- **raw_answer_excerpt**: the minimum relevant genuine user-authored answer span, trimmed and bounded to 500 Unicode code points; required by the user-text provenance path and null for a `TRUSTED_REGISTRY` button fact unless the user supplied supplemental text;
 - **recorded_timezone**;
 - **invalidated_at** and reason.
 
@@ -925,6 +925,33 @@ A completed selection creates no competing event type. It creates an ordinary St
 - source kind `quick_action`, `bot_question`, `free_text`, or `manual` (a versioned implementation may use one `free_text_manual` enum only when the underlying provenance still distinguishes typed free text from a manual/operator entry);
 - interaction, question/request, Telegram update/callback, and source-event lineage where applicable;
 - logical fact ID, revision, correction/deletion status, and invalidation generation.
+
+`source_kind` is Journal-side provenance on each fact revision, not merely a transport-table attribute. The future v25 contract distinguishes at least `quick_action`, `bot_question`, `free_text`, and `manual`; downstream Journal and Evidence readers receive it with the fact. A correction records the source kind and provenance of the new assertion rather than silently inheriting a transport label from the prior revision.
+
+### Trusted registry provenance and validator relationship
+
+The existing deterministic Journal validator's user-text mode remains authoritative for free text, manual text entry, and any value derived from a typed answer. That mode still requires genuine `sourceText`, a minimal `raw_answer_excerpt`, and field-level text/excerpt support for category/factor, subtype, value, unit, ordinal/severity, and polarity. Quick Actions add a second deterministic provenance mode named **`TRUSTED_REGISTRY`**; they do not weaken or bypass the validator.
+
+In `TRUSTED_REGISTRY` mode, a server-owned validation context supplies the canonical category/factor, subtype/value, unit when applicable, ordinal/severity when applicable, polarity when applicable, and taxonomy/normalizer versions from one allowlisted registry choice. The mode is valid only when the action is server-issued, registry-versioned, interaction-bound, authenticated-user-bound, unexpired, and replay-safe. The validator still enforces the closed Journal taxonomy, value shape, unit/range rules, temporal rules, tenant/interaction ownership, and idempotency. A caller-supplied candidate, Telegram label, callback text, model output, or arbitrary API field cannot select this provenance mode or assert canonical health values.
+
+For a button-origin fact, `raw_answer_excerpt` is null/absent unless the user supplied genuine supplemental text. The implementation must not fabricate a phrase such as “I drank 2–3 drinks” to satisfy text-excerpt validation. If an `other/add note` flow includes user-authored detail, only that actual text may be retained as the bounded excerpt and the user-text rules apply to every field derived from it; the registry remains the authority for the button-selected fields.
+
+The minimum durable Journal-side provenance is conceptually:
+
+- provenance mode and `source_kind`;
+- registry/action identifier and registry version;
+- server-issued canonical choice identifier;
+- interaction identifier and authenticated callback/update receipt identity;
+- optional presentation-label snapshot for audit only, never analytical authority;
+- authenticated actor/user identity;
+- effective occurrence/context time and timezone;
+- separate answered/clicked time.
+
+This must answer: “this Journal fact exists because user X clicked server-issued action Y from registry version Z.” The server resolves an opaque callback token/action identifier to the stored interaction and then to the authoritative registry entry before constructing the validation context:
+
+`callback token/action ID → authenticated interaction → versioned registry entry → canonical structured value`
+
+Telegram callback payload text and client-visible presentation labels are never parsed or trusted as canonical health data. A missing, changed, disabled, or mismatched registry entry fails closed; it cannot fall back to free-text synthesis.
 
 Self-initiated “I am running now” resolves its effective occurrence (`event_at`) from the authenticated action at receipt time in the user's recorded timezone. A bot question such as “Did you drink yesterday?” carries a server-owned target interval/context date and timezone from interaction creation; clicking today sets `answered_at` today but does not rewrite `event_at`/the occurred-at semantic or the context date to the click time. The validator rejects an expired interaction, invalid timezone snapshot, or ambiguous target instead of using the callback timestamp as a universal occurrence time.
 
@@ -1625,7 +1652,13 @@ The locked scheduler timezone is **Asia/Taipei**. The target schedule is:
 - **Background cadence:** the existing GitHub hourly scheduler invokes background work independently. Outside the morning window it is the expected scheduled driver; it does not call or wake Render merely to drain background work.
 - **Event-driven ingress:** Telegram webhook, WHOOP webhook ingress, OAuth callback, and any other explicitly supported HTTP ingress may wake Render on demand and enqueue or prompt eligible work. The request path still crosses the durable invalidation/job boundary and cannot send directly from analysis.
 
+Cloudflare Cron Triggers are evaluated in UTC. Asia/Taipei is fixed at UTC+8 and has no daylight-saving-time transition, so the intended production trigger is exactly **`*/10 0-3 * * *`**: 00:00–03:50 UTC, which maps to 08:00–11:50 Asia/Taipei. **`*/10 8-11 * * *` is incorrect** because it would run at 16:00–19:50 Asia/Taipei. This expression is a future deployment target only; this documentation repair does not change Cloudflare configuration.
+
+Scheduler verification is two-layered. Tests must prove the application/local-time predicate's inclusive 08:00 and exclusive 12:00 boundaries, and deployment/runbook verification must independently read the actual Cloudflare trigger and assert that it equals `*/10 0-3 * * *`. Passing only the in-code window predicate is insufficient to approve scheduler activation.
+
 The morning window improves Morning Brief timing and morning intelligence responsiveness. It does not turn the Morning Brief into a universal 08:00 send: Section 11's per-user timezone, due/eligibility, wake/readiness, missing-data, lifecycle, and semantic-reservation rules remain authoritative.
+
+This is one global Asia/Taipei high-frequency window, not a per-user window. A user whose own local Morning Brief due time falls outside it may be detected or delivered by the normal GitHub hourly path rather than Cloudflare's 10-minute path and can therefore experience higher latency. Phase 4 v1 accepts that cost/latency trade-off and does not promise equal high-frequency Morning Brief latency across timezones. Per-user Cloudflare windows are outside the current scope; a later version may revisit them if multi-timezone usage warrants it.
 
 The scheduler entry points call the same idempotent, lease-fenced canonical runner. Concurrent Cloudflare, GitHub, webhook, or retry invocations converge through the existing queue, generation, reservation, and transport invariants. They never use the dormant Phase 3 drain.
 
@@ -1754,7 +1787,7 @@ The typed Phase 4 outbox handles every Phase 4 message class:
 
 Each class has its own semantic-key builder, while lifecycle and provider-attempt behavior are shared. A follow-up decision references an existing accepted answer event; only a new answer semantic event can authorize a new ANSWER_FOLLOWUP identity. Answering never sends inline.
 
-For an owner class, `outbound_messages.user_id` is the recipient owner and the message must reference one current dual-principal Owner Monitoring authorization envelope. The envelope—not a generic outbox join—identifies the followed subject and approved synthesized source artifacts. Owner classes do not become available to ordinary tenant callers.
+For an owner class, `outbound_messages.user_id` is the recipient owner and the message must reference one current dual-principal Owner Monitoring authorization envelope. The envelope—not a generic outbox join—identifies the followed subject and the approved current synthesized artifact or bounded deterministic summary plan. Owner classes do not become available to ordinary tenant callers, and absence of either permitted source produces no message.
 
 - **report_claims** and **report_runs** remain legacy V1.2 delivery mechanisms until atomic cutover.
 - **telegram_operations** remains the receipt for replies to inbound updates.
@@ -2048,11 +2081,11 @@ Owner Monitoring v1 supports exactly these notification classes per followed use
 - `IMPORTANT_ALERT`;
 - `WEEKLY_SUMMARY`.
 
-The owner may enable or disable each class independently. V1 consumes approved, current synthesized intelligence for that subject—brief/summary claims, qualified important alerts, and weekly synthesized claims—where possible. It does not grant unrestricted raw WHOOP-record browsing, arbitrary SQL/admin access, another user's Journal browser, or open-ended owner Q&A over a subject.
+The owner may enable or disable each class independently. V1 may consume only either (A) an approved, current synthesized artifact within the permitted notification class or (B) an approved deterministic summary plan whose declared inputs are explicitly inside that class's allowed data scope. If neither exists, **no owner message is produced**. There is no fallback to raw WHOOP rows, Journal browsing, arbitrary SQL/admin access, broad user-health joins, or open-ended owner Q&A over a subject.
 
 “Important Alert” means a high-value Phase 4 longitudinal/event-driven alert under the approved policy. It is not an emergency, medical, continuous-monitoring, or exact-latency service and remains subject to the Section 10 cadence outside the morning window.
 
-Owner authority is a server-issued capability bound to Kelvin's configured internal user ID and current authenticated destination/lifecycle. It cannot be inferred from the string “Kelvin,” a Telegram username, a role claimed in text, an environment value supplied to a model, or ordinary administrator access. A cross-user monitoring operation requires all of the following in one auditable authorization decision:
+Owner authority is a server-issued capability bound to Kelvin's configured internal user ID and current authenticated destination/lifecycle. It cannot be inferred from the string “Kelvin,” a Telegram username, a role claimed in text, an environment value supplied to a model, or ordinary administrator access. A cross-user monitoring operation requires all of the following conjunctive predicates in one auditable authorization decision:
 
 1. authenticated owner principal and current owner destination;
 2. enrolled subject user and current subject lifecycle/privacy fences;
@@ -2061,7 +2094,9 @@ Owner authority is a server-issued capability bound to Kelvin's configured inter
 5. captured owner and subject generations, subscription revision, purpose, reason code, and exact as-of;
 6. a dedicated owner-monitoring route whose store/API accepts both principals explicitly and rejects every ordinary-user caller.
 
-The subject-scoped reader first selects only approved synthesized outputs under the subject's normal currentness and purge rules. It then creates a dual-principal authorization envelope. Only that envelope may hand an approved claim bundle to the owner-recipient outbox; generic joins and direct cross-tenant source references remain forbidden. The transport destination belongs to Kelvin, while the envelope retains the monitored subject identity for content attribution, purge traversal, and audit. Subject correction/deletion invalidates or redacts linked unsent owner content under the same privacy rules; already accepted Telegram copies retain the Section 15 external-copy limitation.
+Failure, absence, staleness, or mismatch of any applicable predicate fails closed before a cross-user read or owner-directed message is authorized. Destination ownership and audit provenance are authorization requirements, not after-the-fact logging. The deterministic summary-plan option does not authorize a broad query: its input types, subject, time range, notification class, and output claim schema are allowlisted and recorded before execution.
+
+The subject-scoped reader first selects only an allowed approved synthesized artifact or executes an approved bounded deterministic summary plan under the subject's normal currentness and purge rules. It then creates a dual-principal authorization envelope. Only that envelope may hand an approved claim bundle to the owner-recipient outbox; generic joins and direct cross-tenant source references remain forbidden. The transport destination belongs to Kelvin, while the envelope retains the monitored subject identity for content attribution, purge traversal, and audit. Subject correction/deletion invalidates or redacts linked unsent owner content under the same privacy rules; already accepted Telegram copies retain the Section 15 external-copy limitation.
 
 Durable audit state must answer, without plaintext log scraping:
 
@@ -2092,9 +2127,11 @@ Revocation prevents new owner authorization envelopes immediately. It does not f
 
 ### Migration posture
 
-The current schema is version 20 in [src/schema.js](../src/schema.js). Phase 4 migrations begin at v21 and are additive. They must not rebuild, drop, rename, or reinterpret a populated v20 table.
+The original V1.2 production baseline schema is version 20 in [src/schema.js](../src/schema.js). The isolated Phase 4 branch implements additive v21–v24 Foundation migrations; future locked-scope work begins at v25. No Phase 4 migration may rebuild, drop, rename, or reinterpret a populated v20 table.
 
 [src/migrations.js](../src/migrations.js) does not wrap the entire migration sequence in one global transaction. A process can therefore stop after DDL or backfill work but before the schema-version row is written. Every Phase 4 migration step must be safe to rerun after any prior statement succeeded.
+
+The completeness invariant applies to **every** Phase 4 schema version, including v25 and later: its version row must not be recorded until every table/object, additive column, index, trigger, backfill, validation, and postcondition assigned to that version is complete. Stage/version ownership is fixed below so a later stage never depends on a partially installed earlier or same-numbered version.
 
 ### Cross-cutting entity contract
 
@@ -2757,55 +2794,71 @@ Required secondary indexes additionally include each R table's tenant/content_st
 
 For every M table the above secondary indexes expand to (user_id, execution_mode, ...); jobs/outbox queue/lease indexes are (execution_mode, state, next_attempt_at, user_id) and (execution_mode, lease_expires_at, user_id). LIVE dispatcher queries explicitly bind execution_mode = LIVE and never scan SHADOW proposals. Additional exact privacy indexes are (user_id, scope_kind, scope_revision) on the two legacy SCOPE tables, (user_id, execution_mode, scope_kind, requested_generation) on Phase 4 SCOPE tables, and (user_id, provenance_state, field_group) on experiment_field_groups. Every health index begins with user_id; operational queue indexes may return only opaque tenant IDs for immediate owner/mode re-scoping. No global queue selection returns health content.
 
-### V25 future additive locked-scope extension (not implemented)
+### V25 and v26 future additive locked-scope extensions (not implemented)
 
-V21–v24 are completed Foundation versions and must not be reopened, renumbered, or silently extended. The locked requirements added on 2026-09-25 require a new reviewed forward migration before their implementation. This ADR reserves **v25** for the minimum additive contracts below; no v25 source, migration, or runtime behavior exists at the current checkpoint.
+V21–v24 are completed Foundation versions and must not be reopened, renumbered, or silently extended. The locked requirements added on 2026-09-25 require reviewed forward migrations before implementation. Version ownership is dependency ordered and indivisible:
 
-**Display-name authority extensions**
+- **Stage 7 owns v25:** Quick Action interaction transport plus Journal-side `TRUSTED_REGISTRY` and `source_kind` provenance.
+- **Stage 8 owns v26:** Owner Monitoring subscriptions, authorization, notification state/preferences, and owner-outbox linkage.
 
-- Add tenant-scoped explicit, Telegram-first-name, and WHOOP-first-name candidates or equivalent normalized source records, plus source, observed/verified time, binding/profile generation, and a monotonic display-name identity generation.
-- Keep `users.display_name` as the bounded materialized resolved value only when its source is recorded. Allowed sources are EXPLICIT, TELEGRAM_FIRST_NAME, WHOOP_FIRST_NAME, NEUTRAL, and LEGACY_UNVERIFIED.
-- Backfill existing values as LEGACY_UNVERIFIED unless their same-user provenance is mechanically proven. Before personalized rendering, re-resolve them in Section 11 order or use the neutral fallback. Never infer another user's value from string equality or a batch/global default.
+No v25 or v26 source, migration, or runtime behavior exists at the current checkpoint. A v25 version row cannot be recorded until all v25 objects, columns, indexes, triggers, backfills, and postconditions below are complete; the same all-or-nothing rule applies independently to v26. Stage 8 cannot place its tables in v25 or start v26 before complete v25 postconditions pass.
 
-**quick_action_interactions**
+**Display-name schema stance**
+
+Display-name isolation preferentially uses the existing tenant-scoped identity model: the same user's explicit `users.display_name`, authenticated Telegram identity, WHOOP profile identity, and neutral fallback in Section 11. Stage 8 does not receive a schema migration merely to implement that resolution order. Existing values with unproven provenance are treated as legacy/unverified and cannot outrank a mechanically proven same-user source or the neutral fallback. Only if Stage 8 implementation proves the current identity schema insufficient may a later, separately reviewed additive migration add source provenance or an identity generation; neither v25 nor v26 reserves such a change now.
+
+**v25 Journal-side provenance extension**
+
+The accepted Structured Journal fact/revision, not only its interaction row, durably carries:
+
+- `source_kind` with at least `quick_action`, `bot_question`, `free_text`, and `manual`, plus a conservative `legacy_unverified` disposition for a row whose source cannot be mechanically proven;
+- provenance mode `USER_TEXT`, `TRUSTED_REGISTRY`, or `LEGACY_UNVERIFIED`;
+- for `TRUSTED_REGISTRY`, registry/action identifier, registry version, server-issued canonical choice identifier, interaction/callback receipt identity, optional presentation-label snapshot, authenticated actor/user identity, effective context time/timezone, and answered/clicked time;
+- the existing logical-fact/revision, source-event, question/interaction, correction/deletion, and purge lineage.
+
+Existing rows receive a restart-safe deterministic backfill. Mechanically proven bot-question, free-text, or manual provenance may receive that exact source kind and `USER_TEXT`; every ambiguous legacy row receives `legacy_unverified`/`LEGACY_UNVERIFIED`. No existing row is inferred to be `quick_action` or `TRUSTED_REGISTRY`, and null/default behavior must fail closed rather than confer registry trust. Journal/Evidence readers can distinguish these dispositions without joining transport state.
+
+`raw_answer_excerpt` remains the actual bounded user-authored span for `USER_TEXT`. It is null for a pure registry selection and contains only genuine supplemental user text when present. V25 extends the deterministic validator with the Section 6 trusted server context; it does not relax existing free-text evidence checks or permit caller-selected canonical facts.
+
+**v25 `quick_action_interactions`**
 
 - primary key: user_id plus interaction_id; execution mode and authenticated destination binding are explicit;
-- action-registry/taxonomy version, interaction revision, parent interaction/question request, allowed-choice digest, selected canonical choice, target-time rule, exact target interval/context date/timezone, created/expires/answered times, state and CAS revision;
+- registry action identifier, action-registry/taxonomy version, server-issued canonical choice identifier, interaction revision, parent interaction/question request, allowed-choice digest, selected canonical choice, target-time rule, exact target interval/context date/timezone, created/expires/answered times, state and CAS revision;
 - source-event semantic completion key and provider update/callback receipt hash; unique user/mode/semantic completion key and unique accepted provider callback identity;
 - states ISSUED, AWAITING_DETAIL, COMPLETED, STALE, CANCELLED, or UNDONE; terminal replay cannot create another Journal fact;
 - resulting Journal logical fact/revision and correction/deletion operation reference;
 - every category/value/target/detail field is purgeable health content under R; the opaque interaction, receipt/idempotency barrier, transport times, terminal state, and non-health reason survive according to Section 15.
 
-This table is interaction transport/provenance, not a journal. Accepted content exists authoritatively in `journal_events`; no analytics query treats the interaction row as evidence.
+This table is interaction transport/provenance, not a journal. Accepted content exists authoritatively in `journal_events`; no analytics query treats the interaction row as evidence. V25 indexes support interaction replay/staleness, registry/version lookup, Journal provenance traversal, and unique callback/semantic completion. V25 remains default-off and must pass interruption, source-kind backfill, validator-boundary, privacy, tenant/mode, and replay tests before Quick Action behavior can use it.
 
-**owner_follow_subscriptions and owner_follow_subscription_events**
+**v26 `owner_follow_subscriptions` and `owner_follow_subscription_events`**
 
 - explicit owner_user_id and subject_user_id, constrained so the stable configured owner principal corresponding to Kelvin—not a name comparison—is used and the subject is a distinct enrolled user;
 - one current row per owner/subject/notification class, where the class is DAILY_SUMMARY, IMPORTANT_ALERT, or WEEKLY_SUMMARY;
-- ENABLED/DISABLED state, monotonic revision, effective interval, authenticated owner operation receipt, changed_at, and finite reason code;
+- ENABLED/DISABLED state, monotonic revision, effective interval, authenticated owner operation receipt, changed_at, finite reason code, and any class-specific owner notification preference/state;
 - append-only event history records every transition and prior/new revision. No health payload is stored.
 
-**owner_monitoring_authorizations**
+**v26 `owner_monitoring_authorizations`**
 
 - primary identity includes owner_user_id, subject_user_id, execution_mode, authorization_id; uniqueness binds the owner message semantic reservation to one authorization;
-- notification class, subscription revision, purpose/reason, exact as-of, approved synthesized artifact/plan references and versions, and content/provenance hash;
+- notification class, subscription revision, purpose/reason, exact as-of, approved synthesized artifact or bounded deterministic summary-plan references and versions, and content/provenance hash;
 - captured owner lifecycle/destination generation and subject lifecycle/auth/input/purge generations;
 - authorization state, created/expires/invalidated times, linked owner outbound message/reservation and transport outcome reference;
 - the only permitted cross-user source linkage is the typed owner/subject linkage declared here. It is indexed by both principals and participates in subject correction/deletion traversal; health-bearing labels, summaries, dates, and reconstructive references use R and are purged/redacted under Section 15.
 
-Extend `outbound_messages` and `outbound_semantic_reservations` additively for the three owner message classes and nullable `owner_monitoring_authorization_id`. For owner classes, outbox `user_id` is the owner recipient; the authorization envelope supplies the distinct subject. Non-owner classes require that field null. The dispatcher revalidates owner capability, subscription revision/class, both principals' current fences, approved synthesized source, and owner destination immediately before start. No ordinary outbox caller may supply a subject user ID.
+V26 extends `outbound_messages` and `outbound_semantic_reservations` additively for the three owner message classes and nullable `owner_monitoring_authorization_id`. For owner classes, outbox `user_id` is the owner recipient; the authorization envelope supplies the distinct subject. Non-owner classes require that field null. The dispatcher conjunctively revalidates owner capability, followed subject, subscription revision/class, both principals' current fences, approved synthesized artifact or bounded plan, owner destination, and audit provenance immediately before start. Any failed predicate produces no message. No ordinary outbox caller may supply a subject user ID.
 
-Required v25 indexes support interaction replay/staleness, current follow selection, follow history, authorizations by owner/subject/class/as-of, subject purge traversal, and owner outbox authorization lookup. Every composite identity carries both principals where applicable. The migration and stores remain default-off and must pass interruption, backfill, privacy, multi-user, and SHADOW/LIVE tests before any behavior flag can use them.
+V26 indexes support current follow selection, follow history, authorizations by owner/subject/class/as-of, subject purge traversal, and owner-outbox authorization lookup. Every composite identity carries both principals where applicable. V26 remains default-off and must pass interruption, backfill, authorization, fail-closed data-scope, privacy, multi-user, and SHADOW/LIVE tests before any Owner Monitoring behavior flag can use it.
 
 ### Store invariant matrix
 
-Every ordinary store method receives authenticated user_id and server-owned execution context separately from payload data. It verifies every derived parent with user_id/execution_mode/parent ID inside the write transaction; cross-tenant, cross-mode, missing, stale or generation-mismatched parents reject the write. Shared roots use the explicit root allowlist above, never an omitted-mode fallback. The v25 Owner Monitoring store is the sole dual-principal exception: it requires both owner and subject plus the complete Section 13 capability/subscription envelope and is not exposed through an ordinary store interface.
+Every ordinary store method receives authenticated user_id and server-owned execution context separately from payload data. It verifies every derived parent with user_id/execution_mode/parent ID inside the write transaction; cross-tenant, cross-mode, missing, stale or generation-mismatched parents reject the write. Shared roots use the explicit root allowlist above, never an omitted-mode fallback. The future v26 Owner Monitoring store is the sole dual-principal exception: it requires both owner and subject plus the complete Section 13 capability/subscription envelope and is not exposed through an ordinary store interface.
 
 | Store | Create invariants | Update invariants | Delete/invalidate invariants |
 |---|---|---|---|
 | Phase 4 user state/preferences | Existing user parent; lifecycle generation readable; deterministic defaults | Preference version CAS; generations monotonic | Account lifecycle only; no child cascade by unscoped ID |
-| Display-name authority | Same-user proven candidates only; legacy source unverified | Identity-generation CAS; fixed precedence; neutral on unproven data | Remove/re-resolve one user's candidate only; never fall through to another user's value |
-| Journal facts/coverage/tombstones/purge | Existing tenant; unique source key; validator accepted; coverage window exact | Active revision CAS; correction creates revision; input generation increments | Source-link traversal, synchronous plaintext purge, minimal tombstone, generation increment |
+| Display-name resolution (existing identity stores unless later proven insufficient) | Same-user proven candidates only; legacy source unverified | Fixed precedence; neutral on unproven data; use existing binding/profile generations | Remove/re-resolve one user's candidate only; never fall through to another user's value |
+| Journal facts/coverage/tombstones/purge | Existing tenant; unique source key; validator accepted in USER_TEXT or server-issued TRUSTED_REGISTRY mode; coverage window exact | Active revision CAS; correction creates revision with its own source kind/provenance; input generation increments | Source-link traversal, synchronous plaintext purge, minimal tombstone, generation increment |
 | Quick Action interactions | Authenticated own destination; issued registry revision and exact target semantics | Interaction/source-key CAS; one terminal selection and one Journal fact | Stale/cancel/undo retains replay barrier; Journal content follows existing purge/tombstone contract |
 | Context questions/slots/pending links/answer events | Current same-mode episode; acquire tenant/mode slot with request/reservation/proposal atomically; accepted answer revision unique | Slot/request/revision CAS; confirmed same LIVE question before pending projection; explicit ambiguous answer matching | Cancel unstarted; post-start slot waits through answer/expiry; purge content, retain receipt/reservation barriers |
 | Body Energy results | Current tenant/lifecycle/auth/input/purge generations; captured manifest; deterministic key | Numeric result append-only except purge; invalidation CAS | Purge full manifest/value/quality; opaque audit remains |
@@ -2916,7 +2969,7 @@ For experiments, “group-scoped P” in this inventory means traversal to the e
 | whoop_cycles: raw_json, start_at, end_at, timezone_offset, score_state, strain, kilojoule, average_heart_rate, max_heart_rate | Direct provider source (user_id,id) | Existing canonical policy | S; no health replay payload retained after delete |
 | whoop_workouts: raw_json, health_date/start_at/end_at/timezone_offset, sport_name/sport_id, score_state, strain, average_heart_rate/max_heart_rate, kilojoule, percent_recorded, distance_meter, altitude_gain_meter/altitude_change_meter, zone_zero_milli through zone_five_milli | Direct provider source (user_id,id) | Existing canonical policy | S; no health replay payload retained after delete |
 | whoop_body_measurements: recorded_at, height_meter, weight_kilogram, max_heart_rate, raw_json | Direct provider source keyed by tenant/recorded_at; not a Body Energy input | Existing canonical policy | S when source/account policy authorizes removal; journal deletion does not erase independent measurements |
-| journal_events current and all revisions: event_at, health_date, category, subtype, numeric_value, text_value, unit, severity, note, raw_answer_excerpt, extraction_confidence, recorded_timezone, time_scope, event_end_at, alignment fields, exposure_state | Direct user fact; logical_fact_id/revision and source receipt | ACTIVE values; excerpt <=90d | J; values unnecessary for idempotency; tombstone/receipt only |
+| journal_events current and all revisions: event_at, health_date, category, subtype, numeric_value, text_value, unit, severity, note, raw_answer_excerpt, extraction_confidence, recorded_timezone, time_scope, event_end_at, alignment fields, exposure_state, future v25 source-kind/registry provenance | Authenticated user fact; USER_TEXT excerpt or server-issued TRUSTED_REGISTRY lineage; logical_fact_id/revision and source receipt | ACTIVE values; genuine excerpt <=90d; pure button excerpt null | J; values unnecessary for idempotency; tombstone/receipt only |
 | journal_coverage_windows: factor-key set, UTC/date window, timezone, confirmation text/hash preimage | Direct user coverage; source receipt/fact linkage | ACTIVE, then <=400d | P; opaque coverage/receipt E |
 | pending_questions.question | Derived generated health question; context request and every source fact/evidence | Answer/expiry or 30d, whichever first | P; question NOT NULL sentinel; pending status terminal, never reopens |
 | pending_questions.context_json | Direct/derived parser context including copied health fields; all context inputs and answer facts | <=30d | P, {}; no replay content; E |
@@ -3120,7 +3173,7 @@ If safe deterministic wording is unavailable for an optional proactive message, 
 
 ### Default-off flags
 
-Every new flag is false when absent, malformed, or unsupported:
+The following **13 currently implemented Foundation flags** are parsed and fail closed by current runtime code: each is false when absent, malformed, or unsupported.
 
 - **PHASE4_SCHEMA_WRITES**
 - **PHASE4_JOURNAL_REVISIONS**
@@ -3136,15 +3189,17 @@ Every new flag is false when absent, malformed, or unsupported:
 - **PHASE4_MORNING_BRIEF**
 - **PHASE4_QA_CONTEXT**
 
-The v25 locked-scope extension additionally reserves these future default-off controls; they do not exist in current runtime code:
+The v25/v26 locked-scope extensions reserve these future default-off controls; they do not exist and have no consumers in current runtime code:
 
 - **PHASE4_QUICK_ACTIONS**
 - **PHASE4_OWNER_MONITORING**
 - **PHASE4_OWNER_MONITORING_DELIVERY**
 
-Dependencies are enforced in code. For example, outbound delivery requires schema writes, reanalysis, episodes, evidence, non-shadow decisions, authoritative PHASE4 tenant mode, passed conjunctive release-gate record, and explicit operation authorization. An invalid flag combination fails closed and emits configuration diagnostics. Pre-gate builds may write shadow proposals but have no configured provider adapter.
+Dependencies among the 13 implemented flags are enforced in current code. For example, outbound delivery requires schema writes, reanalysis, episodes, evidence, non-shadow decisions, authoritative PHASE4 tenant mode, passed conjunctive release-gate record, and explicit operation authorization. An invalid implemented-flag combination fails closed and emits configuration diagnostics. Pre-gate builds may write shadow proposals but have no configured provider adapter.
 
-Flags do not classify stored rows. Restart under a different flag set cannot publish SHADOW data: every reader/claim revalidates durable execution_mode and the entire same-mode ancestry. Enabling a future LIVE factory requires fresh authorized LIVE computation, not a SHADOW-to-LIVE UPDATE. During Foundation, **every flag above remains off**; internal tests invoke isolated stores/calculators with synthetic context, no scheduler or dispatcher registration.
+The three future names are specification reservations, not evidence of mechanical runtime enforcement. Until their v25/v26 stages implement both the controls and their dependency checks, the associated entry points, stores, callbacks, owner capability, and delivery routes must be absent/unreachable. Absence therefore means unavailable, never implicitly enabled.
+
+Flags do not classify stored rows. Restart under a different flag set cannot publish SHADOW data: every reader/claim revalidates durable execution_mode and the entire same-mode ancestry. Enabling a future LIVE factory requires fresh authorized LIVE computation, not a SHADOW-to-LIVE UPDATE. During Foundation, **all 13 implemented flags remain off**, and the three future controls and their runtime paths remain unimplemented; internal tests invoke isolated stores/calculators with synthetic context, no scheduler or dispatcher registration.
 
 There is no flag that aliases or enables the Phase 3 analytics worker. Phase 4 names, job kinds, and drain functions remain separate.
 
@@ -3263,7 +3318,9 @@ Time and scheduling:
 - fall-back duplicated time;
 - UTC elapsed hours across both transitions;
 - health-day and one semantic-reservation identity;
-- Asia/Taipei 08:00 inclusive and 12:00 exclusive boundaries, every-10-minute Cloudflare eligibility only inside the window, and no Cloudflare stale alert outside it;
+- Asia/Taipei 08:00 inclusive and 12:00 exclusive boundaries, every-10-minute Cloudflare eligibility only inside the window, no Cloudflare stale alert outside it, and the no-DST UTC mapping 00:00–03:50;
+- deployment/runbook inspection asserts the actual Cloudflare trigger is exactly `*/10 0-3 * * *` and rejects `*/10 8-11 * * *`; an application predicate test alone cannot pass the scheduler gate;
+- a non-Taipei user's due time outside the global window follows normal GitHub-hourly detection without any equal-10-minute-latency claim or implicit per-user Cloudflare schedule;
 - GitHub hourly as the normal outside-window background driver with delayed-start tolerance rather than an exact-hour SLA;
 - missed, delayed, failed, overlapping, and recovered runs drain durable webhook, invalidation, reanalysis, maintenance, and reconciliation backlog without loss or false completion;
 - event-driven ingress may wake Render while a GitHub background run never needs to wake it; every path converges through the same canonical runner.
@@ -3293,7 +3350,10 @@ Journal and context:
 - an absent log and a different logged factor remain UNKNOWN;
 - exactly one highest-utility eligible question;
 - presentation-label changes/localization preserve the same canonical Quick Action value and evidence grouping;
-- button selection uses no LLM classification and atomically creates exactly one existing Journal logical fact;
+- button selection uses no LLM classification and atomically creates exactly one existing Journal logical fact with Journal-side `quick_action`/`TRUSTED_REGISTRY` provenance;
+- the server resolves opaque callback → authenticated interaction → versioned allowlisted registry choice; forged callback labels/canonical fields and caller-selected provenance modes reject;
+- a pure button fact stores null `raw_answer_excerpt` and never fabricates source text; genuine supplemental text alone receives an excerpt and user-text validation;
+- v25 backfill mechanically classifies proven bot-question/free-text/manual rows and assigns ambiguous rows `legacy_unverified`/`LEGACY_UNVERIFIED`, never registry trust;
 - Telegram double-click, duplicate update, provider retry, process restart, and callback replay return one result with one generation advance;
 - callback ownership rejects tenant/destination mismatch, and expired/replaced interactions reject stale selections;
 - “running now” uses authenticated receipt time while “yesterday” preserves the server-issued target date/window and records a distinct answered time;
@@ -3353,7 +3413,8 @@ Privacy and Q&A:
 - cross-tenant property tests across every store method;
 - ordinary Alice/Bob/self Q&A and store paths cannot invoke or forge Owner Monitoring authority;
 - only the configured Kelvin owner principal plus an active subject/class subscription can create a dual-principal authorization; revocation, stale subscription revision, wrong destination, or either principal's stale generation fails closed;
-- Owner Daily Summary, Important Alert, and Weekly Summary consume approved synthesized outputs only, identify the subject explicitly, route to Kelvin, and record capability/reason/artifact audit without unrestricted raw browsing;
+- Owner Daily Summary, Important Alert, and Weekly Summary consume only an approved current synthesized artifact or an approved bounded deterministic summary plan, identify the subject explicitly, route to Kelvin, and record capability/reason/artifact-or-plan audit without unrestricted raw browsing;
+- absent/stale artifact or plan, wrong subject/class/subscription revision, disallowed plan input, wrong owner destination, or missing audit provenance fails closed with no owner message and no raw/Journal/SQL fallback;
 - subject correction/deletion invalidates/redacts linked unsent owner content while preserving non-health authorization/transport audit and the external-copy limitation;
 - third-party and general evidence questions cannot load self context;
 - specialized handlers cannot precede the perspective gate;
@@ -3509,8 +3570,8 @@ flowchart TD
     F8 --> FG[One aggregate independent Foundation review]
     FG --> S5[Intelligence Stage 5 evidence episodes and insights]
     S5 --> S6[Stage 6 invalidation and reanalysis]
-    S6 --> S7[Delivery Stage 7 decisions Quick Actions and outbound delivery]
-    S7 --> S8[Stage 8 Brief Q&A display names and Owner Monitoring]
+    S6 --> S7[Delivery Stage 7 v25 Quick Actions decisions and outbound delivery]
+    S7 --> S8[Stage 8 v26 Owner Monitoring Brief Q&A and display names]
     S8 --> S9[Stage 9 shadow evaluation and freeze package]
 ~~~
 
@@ -3549,7 +3610,7 @@ The table below is the historical plan realized by the Foundation commits now on
 | 7 | Journal revisions, tri-state context, answer lineage, correction/deletion T0/T1/T2 and logging allowlists, using existing v24 invalidations/slot/outbox fences | Full matrix/group/range purge, accepted-answer replay, no deleted content/cross-tenant access, zero Phase 3 calls; no proactive question delivery |
 | 8 | Aggregate migration/privacy/tenant/mode/concurrency/crash-restart verification and Foundation review evidence | End-to-end synthetic v20→v24 rehearsal, every interruption point, all RC2 fixtures and prior regressions, flags off, no sends; submit **one** Foundation macro-stage for independent review |
 
-Commits 1–4 test persistence contracts but cannot run Foundation runtime behavior; commit 5 refuses admission if any v24 postcondition is absent. Later Intelligence and Delivery packs implement behavior against the complete installed schema, never finish a partially marked v23/v24. The locked-scope requirements use the reviewed future v25 extension in Section 14 rather than reopening completed versions. This amendment changes documentation only and does not begin v25 or Stage 5.
+Commits 1–4 test persistence contracts but cannot run Foundation runtime behavior; commit 5 refuses admission if any v24 postcondition is absent. Later Intelligence and Delivery packs implement behavior against the complete installed schema, never finish a partially marked version. The locked-scope requirements use the reviewed future v25 Stage 7 and v26 Stage 8 extensions in Section 14 rather than reopening completed versions. Each future version remains withheld until every assigned object, index, trigger, backfill, and postcondition is complete. This amendment changes documentation only and does not begin v25, v26, or Stage 5.
 
 ### Stage 2: additive storage and tenant-scoped stores
 
@@ -3690,13 +3751,14 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 - add Phase 4 generation writes to actual semantic canonical and journal changes;
 - implement coalesced jobs, lease claims, fences, backoff, and repair;
 - add an independently named Phase 4 drain behind a default-off flag;
-- implement the Section 10 Asia/Taipei schedule-window predicate, source-specific heartbeat expectations, realistic GitHub tolerance policy, and durable catch-up scans;
+- implement the Section 10 Asia/Taipei schedule-window predicate, exact Cloudflare UTC trigger `*/10 0-3 * * *`, source-specific heartbeat expectations, realistic GitHub tolerance policy, and durable catch-up scans;
+- verify both application-local-time behavior and the deployed Cloudflare trigger value, and preserve the accepted hourly-path latency trade-off for non-Taipei due times outside the one global window;
 - make Cloudflare-morning, GitHub-hourly, and event-driven invocations call the same replay-safe runner without requiring GitHub to wake Render;
 - keep provider calls outside database transactions.
 
 **Existing boundaries reused:** [src/analyticsInvalidation.js](../src/analyticsInvalidation.js) as a transactional pattern only, and [src/processingTransaction.js](../src/processingTransaction.js).
 
-**Tests:** change/no-change distinction, crash recovery, generation race, coalescing, poison tenant isolation, missed/delayed scheduler catch-up, morning-window boundaries, outside-window watchdog behavior, realistic GitHub jitter, and Phase 3 zero-invocation assertions.
+**Tests:** change/no-change distinction, crash recovery, generation race, coalescing, poison tenant isolation, missed/delayed scheduler catch-up, morning-window boundaries, exact deployed UTC cron verification, non-Taipei global-window behavior, outside-window watchdog behavior, realistic GitHub jitter, and Phase 3 zero-invocation assertions.
 
 **Output:** disabled-by-default event-to-current-derived-state pipeline.
 
@@ -3714,9 +3776,9 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 **Depends on:** independently reviewed Intelligence Pack (Stages 5–6) and explicit Delivery Pack authorization.
 
-**Files/subsystems likely touched:** new policy, decision, v25 Quick Action/owner authorization persistence, outbound store, dispatcher, Telegram adapter/callback router, plus [src/accountLifecycle.js](../src/accountLifecycle.js), [src/attention.js](../src/attention.js), [src/journal.js](../src/journal.js), and [src/reportDelivery.js](../src/reportDelivery.js) boundaries.
+**Files/subsystems likely touched:** new policy, decision, v25 Quick Action interaction and Journal-provenance persistence, outbound store, dispatcher, Telegram adapter/callback router, plus [src/accountLifecycle.js](../src/accountLifecycle.js), [src/attention.js](../src/attention.js), [src/journal.js](../src/journal.js), and [src/reportDelivery.js](../src/reportDelivery.js) boundaries.
 
-**Migration impact:** use v24 decision/outbound tables and implement the reviewed additive v25 extension before dependent behavior; legacy proactive rows are not migrated into Phase 4 decisions and v21–v24 are not modified.
+**Migration impact:** use v24 decision/outbound tables and implement complete v25 for Quick Action transport plus Journal-side trusted-registry/source-kind provenance before dependent behavior; legacy proactive rows are not migrated into Phase 4 decisions, v21–v24 are not modified, and no Stage 8 Owner Monitoring table belongs to v25.
 
 **Work:**
 
@@ -3724,13 +3786,13 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 - implement question_utility_v1 with non-recursive counterfactual_decision_impact_v1 and independent notification evaluation;
 - remove Phase 4 dependence on count caps and **downgradeAskToNotify**;
 - implement all seven canonical key builders, event/request/answer reuse, non-releasable reservations, message proposal, dispatcher, attempts, ambiguity recovery, and atomic legacy cutover;
-- implement the buttons-first Quick Action registry and tenant-bound callback state, writing accepted values directly into existing Structured Journal facts with replay-safe callback receipts and existing correction/delete/undo semantics;
-- implement v25 display-name provenance and Owner Monitoring subscription/authorization stores, but expose no real owner delivery capability before Stage 8 and the release gates;
+- implement the buttons-first Quick Action registry and tenant-bound callback state, resolving opaque callbacks server-side and writing accepted values directly into existing Structured Journal facts through the `TRUSTED_REGISTRY` validator mode with replay-safe callback receipts and existing correction/delete/undo semantics;
+- implement v25 Journal-side `source_kind`, registry provenance, conservative legacy backfill, and nullable genuine-user-text excerpt behavior; withhold the v25 version row until every assigned object and postcondition is complete;
 - use fake provider adapters only; real Telegram capability remains technically unavailable.
 
 **Existing boundaries reused:** lifecycle checks in [src/accountLifecycle.js](../src/accountLifecycle.js) and the pre-send boundary pattern in [src/reportDelivery.js](../src/reportDelivery.js).
 
-**Tests:** exhaustive decisions/utility, no downgrade, V1.2 duplicate reproduction, semantic reservation across later decisions, legacy/new double-ownership prevention, lifecycle-after-acceptance, failure injection around every provider boundary, stale/lifecycle suppression, abnormal circuit breaker, Quick Action double-click/replay/ownership/staleness/time semantics, and v25 migration interruption/isolation/privacy.
+**Tests:** exhaustive decisions/utility, no downgrade, V1.2 duplicate reproduction, semantic reservation across later decisions, legacy/new double-ownership prevention, lifecycle-after-acceptance, failure injection around every provider boundary, stale/lifecycle suppression, abnormal circuit breaker, Quick Action double-click/replay/ownership/staleness/time semantics, trusted-registry versus user-text validation, no fabricated excerpt, source-kind backfill, and complete-v25 migration interruption/isolation/privacy.
 
 **Output:** local shadow decisions, deterministic Quick Action fixtures, v25 default-off stores, and mocked delivery evidence only; no real test-user or canary delivery.
 
@@ -3748,9 +3810,9 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 **Depends on:** Stage 7.
 
-**Files/subsystems likely touched:** [src/daily.js](../src/daily.js), [src/reportDelivery.js](../src/reportDelivery.js), [src/healthQuery.js](../src/healthQuery.js), [src/bot/router.js](../src/bot/router.js), recipient-name resolution, Owner Monitoring services, notification preferences, and presentation tests.
+**Files/subsystems likely touched:** complete v26 Owner Monitoring persistence, [src/daily.js](../src/daily.js), [src/reportDelivery.js](../src/reportDelivery.js), [src/healthQuery.js](../src/healthQuery.js), [src/bot/router.js](../src/bot/router.js), recipient-name resolution over existing identity sources, Owner Monitoring services, notification preferences, and presentation tests.
 
-**Migration impact:** use v21 preferences and the v24 typed outbox/reservations/modes; existing report tables remain legacy.
+**Migration impact:** use v21 preferences and the v24 typed outbox/reservations/modes, then implement complete v26 Owner Monitoring subscriptions/events, authorization, notification state/preferences, and owner-outbox linkage before Owner Monitoring behavior. Existing report tables remain legacy. Display-name isolation uses the current identity model unless implementation proves it insufficient; it does not itself justify a v25 or v26 migration.
 
 **Work:**
 
@@ -3758,14 +3820,15 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 - add notification preferences;
 - introduce **ScopedHealthContext** and place perspective authorization before all specialized reads;
 - enforce the Section 11 per-user display-name resolution order for every renderer and cache;
-- implement Kelvin's explicit followed-user/class configuration and dual-principal Owner Monitoring authorization over Daily Summary, Important Alerts, and Weekly Summary only;
+- implement v26 and Kelvin's explicit followed-user/class configuration plus conjunctive dual-principal Owner Monitoring authorization over Daily Summary, Important Alerts, and Weekly Summary only;
+- permit only an approved current synthesized artifact or approved bounded deterministic summary plan; any failed authority/data-scope/destination/audit predicate produces no owner message;
 - use validated deterministic plans with optional LLM wording.
 
 **Existing boundaries reused:** [src/daily.js](../src/daily.js) scheduling concepts, the pre-provider transaction pattern but not row lifecycle from [src/reportDelivery.js](../src/reportDelivery.js), [src/healthQuery.js](../src/healthQuery.js), and [src/bot/router.js](../src/bot/router.js) after correcting route order.
 
-**Tests:** complete/partial/no-data briefs, exactly one health-day semantic reservation across legacy/new modes, DST, pause/lifecycle races, perspective-order regression, currentness lag, Kelvin/Alice/Bob/neutral display-name isolation, owner subscription/audit/approved-output routing, ordinary-user cross-tenant denial, and proof Q&A cannot propose/send.
+**Tests:** complete/partial/no-data briefs, exactly one health-day semantic reservation across legacy/new modes, DST, pause/lifecycle races, perspective-order regression, currentness lag, Kelvin/Alice/Bob/neutral display-name isolation using existing identity sources, complete-v26 interruption/postconditions, owner subscription/audit/approved-artifact-or-plan routing, fail-closed no-source behavior, ordinary-user cross-tenant denial, and proof Q&A cannot propose/send.
 
-**Output:** local/shadow Morning Brief and owner-monitoring proposals plus scoped Phase 4 Q&A, with real sending technically impossible.
+**Output:** complete default-off v26 Owner Monitoring stores plus local/shadow Morning Brief and owner-monitoring proposals and scoped Phase 4 Q&A, with real sending technically impossible.
 
 **Review focus:** missing data never cancels, Body Energy attribution is explicit, display names never bleed across users, ordinary users remain self-only, and every owner cross-user read/send has explicit dual-principal authorization and synthesized scope.
 
@@ -3807,10 +3870,10 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 There are no unresolved product decisions blocking implementation of the disabled shadow stages. This ADR adopts:
 
 - AFTER_WAKE plus 30 minutes with 10:00 local fallback for migrated Morning Brief users;
-- buttons-first Quick Actions with deterministic Structured Journal values and free-text fallback;
+- buttons-first Quick Actions with deterministic Structured Journal values, server-issued `TRUSTED_REGISTRY` provenance, genuine-text excerpts only, and free-text fallback;
 - Kelvin Owner Monitoring for selected users and the three v1 synthesized notification classes;
 - per-user display-name authority with neutral fallback and no universal Kelvin default;
-- Asia/Taipei 08:00–12:00 Cloudflare high-frequency scheduling, GitHub hourly background work, and cadence-aware watchdog behavior;
+- one global Asia/Taipei 08:00–12:00 Cloudflare high-frequency window using UTC cron `*/10 0-3 * * *`, GitHub hourly background work, cadence-aware watchdog behavior, and the accepted higher-latency trade-off for non-Taipei due times outside that window;
 - event-driven plus longitudinal product positioning with no raw real-time physiological-monitoring claim;
 - the exact Body Energy v1 formula and quality thresholds in Section 3;
 - the evidence and insight minimums in Sections 7 and 8;
@@ -3837,4 +3900,4 @@ Before any post-gate production activation, product, privacy, and statistical re
 
 ### Final architecture verdict
 
-The ADR is aligned for Architecture Owner review. Foundation Stages 1–4 exist default-off and SHADOW-only; their independent aggregate review remains pending. Stage 5 has not started and is not authorized by this amendment. Quick Actions, Owner Monitoring, display-name isolation, v25, and mixed scheduler/watchdog behavior are specified future work and must not be reported as implemented. Any later staged implementation remains local and non-delivering until its stage is explicitly authorized, and no production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.
+The ADR is aligned for Architecture Owner review after targeted repair 1. Foundation Stages 1–4 exist default-off and SHADOW-only; their independent aggregate review remains pending. Stage 5 has not started and is not authorized by this amendment. Quick Actions and their v25 Journal trusted-registry/source-kind provenance, Owner Monitoring and its v26 persistence, display-name isolation through existing identity sources, and mixed scheduler/watchdog behavior are specified future work and must not be reported as implemented. Any later staged implementation remains local and non-delivering until its stage is explicitly authorized, and no production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.

@@ -26,7 +26,7 @@ const present=id=>({user_id:'a',execution_mode:'SHADOW',content_state:'PRESENT',
 
 test('v25 fresh install and v20→v25 expose exact complete schema, constraints and no invented rows',async t=>{
   for(const from of [0,20,24])await t.test(`v${from}→v25`,async t=>{
-    const f=await database(t,from||25);await f.db.migrate();await assertPhase4Schema(f.db.raw,25);
+    const f=await database(t,from||25);await f.db.migrate({targetVersion:25});await assertPhase4Schema(f.db.raw,25);
     assert.equal(await currentVersion(f.db.raw),25);
     const fields=(await f.db.raw.execute('PRAGMA table_info(phase4_episode_revisions)')).rows;
     for(const key of Object.keys(R_COLUMNS))assert.ok(fields.some(f=>f.name===key));
@@ -35,7 +35,7 @@ test('v25 fresh install and v20→v25 expose exact complete schema, constraints 
     assert.equal((await f.db.raw.execute('PRAGMA integrity_check')).rows[0].integrity_check,'ok');
     assert.deepEqual((await f.db.raw.execute('PRAGMA foreign_key_check')).rows,[]);
     const schema=(await f.db.raw.execute('SELECT type,name,sql FROM sqlite_master ORDER BY name')).rows;
-    f.reopen();await f.db.migrate();assert.deepEqual((await f.db.raw.execute('SELECT type,name,sql FROM sqlite_master ORDER BY name')).rows,schema);
+    f.reopen();await f.db.migrate({targetVersion:25});assert.deepEqual((await f.db.raw.execute('SELECT type,name,sql FROM sqlite_master ORDER BY name')).rows,schema);
   });
 });
 
@@ -53,7 +53,7 @@ test('v25 interruption at every durable DDL/index/trigger/replacement/version bo
     }};
     await assert.rejects(runMigrations(broken),/RC4_INTERRUPTION/);assert.ok(stopped);
     assert.equal(await currentVersion(f.db.raw),target==='VERSION_ROW'?25:24);
-    f.reopen();await f.db.migrate();await assertPhase4Schema(f.db.raw,25);await f.db.migrate();
+    f.reopen();await f.db.migrate({targetVersion:25});await assertPhase4Schema(f.db.raw,25);await f.db.migrate({targetVersion:25});
     assert.equal((await f.db.raw.execute('SELECT count(*) n FROM schema_version WHERE version=25')).rows[0].n,1);
     assert.equal((await f.db.raw.execute('SELECT count(*) n FROM phase4_episode_revisions')).rows[0].n,0);
     assert.equal((await f.db.raw.execute('PRAGMA integrity_check')).rows[0].integrity_check,'ok');

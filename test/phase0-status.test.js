@@ -49,7 +49,9 @@ async function snapshot(db) {
   )).rows.map((r) => String(r.name));
   const out = {};
   for (const t of tables) {
-    out[t] = (await db.raw.execute(`SELECT * FROM "${t}" ORDER BY rowid`)).rows.map((r) => ({ ...r }));
+    const keys = (await db.raw.execute(`PRAGMA table_info("${t}")`)).rows
+      .filter(column => column.pk).sort((a, b) => a.pk - b.pk).map(column => `"${column.name}"`);
+    out[t] = (await db.raw.execute(`SELECT * FROM "${t}" ORDER BY ${keys.length ? keys.join(',') : 'rowid'}`)).rows.map((r) => ({ ...r }));
   }
   return out;
 }

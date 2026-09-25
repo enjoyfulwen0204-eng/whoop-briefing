@@ -1,5 +1,6 @@
 # Phase 4 Stage 5 RC4 — durable episode revision history
 
+Historical verification record: original-result and complete required-root authority claims are superseded by the [v26 RC6 repair](phase4-stage5-rc6-verification.md). V25 snapshot integrity remains required but is not sufficient for evidence replay.
 Work package: `PHASE4_STAGE5_RC4_DURABLE_REVISION_HISTORY`.
 Starting commit: `5e4269533fd0add72bbea7f651307ec80dc758a8` on `v1.2-phase4`.
 Production baseline and peeled release tag: `ecbd23287cac591e76741771d77caa3d814f84a3`.

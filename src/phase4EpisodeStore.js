@@ -84,7 +84,7 @@ export function createPhase4EpisodeStore(core,entities) {
         if(!directionReversal && (row.state!=='STABILIZING'||!closeThresholdPassed||!row.stabilization_started_at
           || Date.parse(at)-Date.parse(row.stabilization_started_at)<resolutionHoldMs))fail('PHASE4_RESOLUTION_HOLD_NOT_MET');
       }
-      if(toState==='EXPIRED' && ((!continuityGapPassed&&(!row.expires_at||row.expires_at>at))
+      if(toState==='EXPIRED' && ((!continuityGapPassed&&(!row.expires_at||Date.parse(row.expires_at)>Date.parse(at)))
         ||continuityGapPassed&&reasonCode!=='CONTINUITY_GAP'))fail('PHASE4_EXPIRY_NOT_REACHED');
       if(toState==='STABILIZING' && !closeThresholdPassed)fail('PHASE4_CLOSE_THRESHOLD_REQUIRED');
       if(patch.severity!=null && row.severity!=null && patch.severity<row.severity && !closeThresholdPassed)fail('PHASE4_HYSTERESIS_REQUIRED');

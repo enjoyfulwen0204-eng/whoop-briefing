@@ -319,10 +319,13 @@ export function evaluateJournalAssociation({ factor, outcomeMetric, days, replic
   const exposedMean = comparisonEligible ? rawExposedMean : null;
   const unexposedMean = comparisonEligible ? rawUnexposedMean : null;
   const candidate = comparisonEligible && Math.abs(effect) >= effectFloor;
-  const windows = [...replicationWindows].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+  const windows = replicationWindows.map(window => ({ ...window,
+    start: validInstant(window.start) ? new Date(window.start).toISOString() : window.start,
+    end: validInstant(window.end) ? new Date(window.end).toISOString() : window.end,
+  })).sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
   const replicationValid = windows.length >= 2 && windows.every((window, index) => validInstant(window.start) && validInstant(window.end)
-    && window.start < window.end && window.direction === (effect >= 0 ? 'HIGHER' : 'LOWER')
-    && (index === 0 || windows[index - 1].end <= window.start))
+    && Date.parse(window.start) < Date.parse(window.end) && window.direction === (effect >= 0 ? 'HIGHER' : 'LOWER')
+    && (index === 0 || Date.parse(windows[index - 1].end) <= Date.parse(window.start)))
     && Date.parse(windows.at(-1).end) - Date.parse(windows[0].start) >= 7 * DAY_MS;
   const promotionConfound = denominator === 0 ? 'NO_ELIGIBLE_OBSERVATION_DAYS'
     : unknownFraction > 0.5 ? 'UNKNOWN_FRACTION_EXCEEDED' : null;

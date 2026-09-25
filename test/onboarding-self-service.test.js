@@ -655,7 +655,7 @@ test('ONB-ATTACK-24 舊使用者（Kelvin）遷移：資料全留、進入重新
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (13, '2026-09-14T00:00:00.000Z', 'v13')");
 
     const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 25);
+    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 26);
     assert.deepEqual(summary.rebuilt, []);
     assert.deepEqual(summary.columnsAdded, []);
     // v14 依證據建列（Kelvin 證據齊全 → READY）；v15 的修正沒有東西要改

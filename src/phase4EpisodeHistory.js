@@ -1,3 +1,4 @@
+import { createResultAuthority } from './phase4ResultAuthority.js';
 import { fail, requireInteger, readableRow, DERIVED_TABLES } from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { EPISODE_SNAPSHOT_VERSION } from './phase4V25Schema.js';
@@ -24,7 +25,7 @@ export function requireSemanticTime(value) {
 }
 
 export function createEpisodeHistory(core) {
-  const {client,keys}=core,table='phase4_episode_revisions';
+  const {client,keys}=core,table='phase4_episode_revisions',authorities=createResultAuthority(core);
   async function validateEpisode(row) {
     const fields=(await core.tableInfo('observation_episodes')).filter(c=>!excluded.has(c.name));
     if(!row||!same(Object.keys(row).sort(),fields.map(c=>c.name).sort()))invalid();
@@ -75,6 +76,7 @@ export function createEpisodeHistory(core) {
   async function read(context,{episodeId,revision,evidenceItemId=null,semanticAt=null}) {
     requireInteger(revision,1);
     return core.run(context,async()=>{
+      if(evidenceItemId!==null)await authorities.metricOrigin(context,evidenceItemId,{episodeId,revision});
       const found=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND execution_mode=? AND episode_id=? AND revision=?`,
         args:[context.userId,context.executionMode,episodeId,revision]})).rows[0];
       if(!found)fail('PHASE4_EPISODE_HISTORY_UNAVAILABLE');
@@ -110,6 +112,12 @@ export function createEpisodeHistory(core) {
         if(!Array.isArray(ref)||ref.length!==2||ref.some(value=>typeof value!=='string'||!value))invalid();
         if(ref[0]==='evidence_items') {
           const item=await core.artifact(context,'evidence_items',{evidence_item_id:ref[1]});
+          const run=await core.artifact(context,'evidence_runs',{run_id:item.row.run_id});
+          // Revision history permits later reuse; only evidence-specific replay
+          // requires this revision to be the original. Both paths require the
+          // complete authenticated calculation roots for registered results.
+          if(run.row.algorithm_version==='phase4-intelligence-v1')
+            await authorities.read(context,ref[1],run.row.method==='PERSONAL_BASELINE_DEVIATION'?'METRIC':'INSIGHT_CURRENT');
           bindings.push(['episode_events',event.privacy_artifact_id,'evidence_items',item.row.privacy_artifact_id]);
         } else bindings.push(['episode_events',event.privacy_artifact_id,ref[0],ref[1],
           DERIVED_TABLES.includes(ref[0])?context.executionMode:'SHARED']);

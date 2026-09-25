@@ -1,5 +1,6 @@
 # Phase 4 Stage 5 Intelligence Core RC1 verification
 
+Historical verification record: original-result and complete required-root authority claims are superseded by the [v26 RC6 repair](phase4-stage5-rc6-verification.md). V25 snapshot integrity remains required but is not sufficient for evidence replay.
 Historical verification record. Its v24 replay-authority claims are superseded by the [v25 RC4 repair](phase4-stage5-rc4-verification.md): missing v24 history is unavailable; only full durable snapshots authorize episode replay.
 
 This is the independent-review handoff for Stage 5 Repair Cycle 1. It is not authorization to

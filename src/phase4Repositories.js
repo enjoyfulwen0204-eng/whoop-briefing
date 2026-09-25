@@ -14,6 +14,8 @@ import { createPhase4JournalInbound } from './phase4JournalInbound.js';
 import { createPhase4CoverageStore } from './phase4CoverageStore.js';
 import { createPhase4JournalAnswers } from './phase4JournalAnswers.js';
 import { createPhase4IntelligenceStore } from './phase4IntelligenceStore.js';
+import { createResultAuthority } from './phase4ResultAuthority.js';
+import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
@@ -40,6 +42,11 @@ export function composePhase4Stores(core) {
     });
   }
   async function readArtifact(context,table,key) {
+    if(table===RESULT_AUTHORITY_TABLE)return core.run(context,async()=>{
+      const artifact=await core.artifact(context,table,key);
+      await createResultAuthority(core).read(context,artifact.row.evidence_item_id,artifact.row.result_scope);
+      return artifact;
+    });
     if(table!=='phase4_episode_revisions')return core.artifact(context,table,key);
     return core.run(context,async()=>{
       const artifact=await core.artifact(context,table,key);

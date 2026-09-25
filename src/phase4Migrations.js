@@ -2,6 +2,7 @@ import { PHASE4_MIGRATIONS, SCHEMA_VERSION } from './schema.js';
 import { backfillV22, verifyV22Data } from './phase4V22Backfill.js';
 import { requirePhase4Keys } from './phase4Keys.js';
 import { V23_TABLES } from './phase4V23Schema.js';
+import { V26_TABLES } from './phase4V26Schema.js';
 import { V25_TABLES } from './phase4V25Schema.js';
 import { V24_TABLES } from './phase4V24Schema.js';
 
@@ -153,7 +154,7 @@ export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSI
     WHERE legacy_classification IS NOT 'LEGACY_UNVERIFIED' OR insight_key IS NOT NULL OR current_revision IS NOT NULL
       OR evidence_contract_version IS NOT NULL OR lifecycle_disposition IS NOT NULL OR lifecycle_generation IS NOT NULL
       OR auth_generation IS NOT NULL OR input_generation IS NOT NULL LIMIT 1`, 'v23_legacy_insights');
-  for (const table of [...(version >= 23 ? V23_TABLES : []), ...(version >= 24 ? V24_TABLES : []), ...(version >= 25 ? V25_TABLES : [])]) {
+  for (const table of [...(version >= 23 ? V23_TABLES : []), ...(version >= 24 ? V24_TABLES : []), ...(version >= 25 ? V25_TABLES : []), ...(version >= 26 ? V26_TABLES : [])]) {
     await requireZero(client, `SELECT 1 FROM ${table} p LEFT JOIN users u ON u.id=p.user_id WHERE u.id IS NULL LIMIT 1`, `${table}_tenant`);
     if (options.backfillVersion === 24 && V24_TABLES.includes(table)) await requireZero(client,
       `SELECT 1 FROM ${table} WHERE execution_mode <> 'SHADOW' LIMIT 1`, `${table}_no_migration_live`);

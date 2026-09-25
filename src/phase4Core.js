@@ -7,6 +7,7 @@ import { requirePhase4Keys } from './phase4Keys.js';
 import { requireUserId } from './userContext.js';
 import { addPrivacyLink } from './phase4V22Backfill.js';
 import { V23_TABLES } from './phase4V23Schema.js';
+import { V26_TABLES } from './phase4V26Schema.js';
 import { V25_TABLES } from './phase4V25Schema.js';
 import { V24_TABLES } from './phase4V24Schema.js';
 import { createPhase4ContextRegistry } from './phase4Cache.js';
@@ -21,7 +22,7 @@ export const requireInteger = (value, minimum=0) => {
 };
 export const readableRow = row => Boolean(row && row.content_state==='PRESENT'
   && row.source_linkage_state==='COMPLETE' && row.health_content_redacted_at===null);
-export const DERIVED_TABLES = Object.freeze(['context_questions','structured_answer_events',...V23_TABLES,'health_insights',...V24_TABLES,...V25_TABLES]);
+export const DERIVED_TABLES = Object.freeze(['context_questions','structured_answer_events',...V23_TABLES,'health_insights',...V24_TABLES,...V25_TABLES,...V26_TABLES]);
 const ROOTS = Object.freeze({
   sleep:['whoop_sleeps','id'],recovery:['whoop_recoveries','sleep_id'],cycle:['whoop_cycles','id'],workout:['whoop_workouts','id'],
   JOURNAL_FACT:['journal_events','privacy_artifact_id'],JOURNAL_COVERAGE:['journal_coverage_windows','coverage_window_id'],
@@ -206,22 +207,22 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     const row=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND ${key}=?`,
       args:[context.userId,source.id]})).rows[0];
     if(!readableRow(row))fail('CONTENT_REDACTED');
-    if(!row.created_at||row.created_at>source.historicalAsOf)fail('PHASE4_HISTORICAL_SOURCE_INVALID');
+    if(!row.created_at||Date.parse(row.created_at)>Date.parse(source.historicalAsOf))fail('PHASE4_HISTORICAL_SOURCE_INVALID');
     if(source.type==='JOURNAL_FACT') {
       const authoritative=(await client.execute({sql:`SELECT privacy_artifact_id FROM journal_events
-        WHERE user_id=? AND logical_fact_id=? AND created_at<=? ORDER BY revision DESC,created_at DESC LIMIT 1`,
+        WHERE user_id=? AND logical_fact_id=? AND julianday(created_at)<=julianday(?) ORDER BY revision DESC,created_at DESC LIMIT 1`,
       args:[context.userId,row.logical_fact_id,source.historicalAsOf]})).rows[0];
       const tombstone=(await client.execute({sql:`SELECT deleted_at FROM journal_event_tombstones
         WHERE user_id=? AND logical_fact_id=?`,args:[context.userId,row.logical_fact_id]})).rows[0];
       if(!authoritative||authoritative.privacy_artifact_id!==source.id
-        ||tombstone?.deleted_at<=source.historicalAsOf)fail('PHASE4_HISTORICAL_SOURCE_INVALID');
+        ||Date.parse(tombstone?.deleted_at)<=Date.parse(source.historicalAsOf))fail('PHASE4_HISTORICAL_SOURCE_INVALID');
     } else {
       const descendants=(await client.execute({sql:`WITH RECURSIVE lineage(coverage_window_id,created_at,revision) AS (
           SELECT coverage_window_id,created_at,revision FROM journal_coverage_windows WHERE user_id=? AND coverage_window_id=?
           UNION ALL
           SELECT child.coverage_window_id,child.created_at,child.revision FROM journal_coverage_windows child
           JOIN lineage parent ON child.supersedes_coverage_window_id=parent.coverage_window_id WHERE child.user_id=?
-        ) SELECT coverage_window_id FROM lineage WHERE created_at<=? ORDER BY revision DESC,created_at DESC LIMIT 1`,
+        ) SELECT coverage_window_id FROM lineage WHERE julianday(created_at)<=julianday(?) ORDER BY revision DESC,created_at DESC LIMIT 1`,
       args:[context.userId,source.id,context.userId,source.historicalAsOf]})).rows[0];
       if(!descendants||descendants.coverage_window_id!==source.id)fail('PHASE4_HISTORICAL_SOURCE_INVALID');
     }
@@ -230,6 +231,7 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
   }
   async function journalSourcesAsOf(context,refs,asOfUtc) {
     if(!Number.isFinite(Date.parse(asOfUtc)))fail('PHASE4_HISTORICAL_AS_OF_REQUIRED');
+    asOfUtc=new Date(asOfUtc).toISOString();
     return run(context,async()=>{
       const inputs=await revalidateSources(context,refs),selected=[];
       for(const source of inputs) {
@@ -237,11 +239,11 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
         let row=null;
         if(source.type==='JOURNAL_FACT') {
           row=(await client.execute({sql:`SELECT * FROM journal_events WHERE user_id=? AND logical_fact_id=?
-            AND created_at<=? ORDER BY revision DESC,created_at DESC LIMIT 1`,
+            AND julianday(created_at)<=julianday(?) ORDER BY revision DESC,created_at DESC LIMIT 1`,
           args:[context.userId,source.row.logical_fact_id,asOfUtc]})).rows[0]??null;
         } else {
           row={...source.row};
-          while(row&&row.created_at>asOfUtc)row=row.supersedes_coverage_window_id
+          while(row&&Date.parse(row.created_at)>Date.parse(asOfUtc))row=row.supersedes_coverage_window_id
             ?(await client.execute({sql:`SELECT * FROM journal_coverage_windows WHERE user_id=? AND coverage_window_id=?`,
               args:[context.userId,row.supersedes_coverage_window_id]})).rows[0]??null:null;
         }
@@ -357,5 +359,5 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
   }
   return Object.freeze({client,processing,transaction,keys,now,timestamp,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
     capturePrivacyControl,assertPrivacyControl,run,runControl,runMaintenance,contextRegistry,
-    tableInfo,root,artifact,link,envelope,validateReferences,revalidateSources,journalSourcesAsOf,validateStoredGraph,newId:()=>randomUUID()});
+    tableInfo,root,artifact,link,envelope,validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});
 }

@@ -39,7 +39,7 @@ async function assertPreserved(f) {
 
 test('Aggregate migration: populated v20 passes every exact intermediate version and physical restart without changing unrelated legacy columns',async t=>{
   const f=await populated20(t);
-  for(const version of [21,22,23,24,25]) {
+  for(const version of [21,22,23,24,25,26]) {
     await runMigrations(f.db,{...options,targetVersion:version});await assertPhase4Schema(f.db,version);await assertPreserved(f);
     assert.equal(await currentVersion(f.db),version);
     assert.deepEqual((await f.db.execute('SELECT version FROM schema_version ORDER BY version')).rows.map(r=>r.version),Array.from({length:version-19},(_,i)=>i+20));

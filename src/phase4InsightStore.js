@@ -49,8 +49,8 @@ export function createPhase4InsightStore(core,entities) {
         && components && ['dataQuality','sampleSufficiency','replication','effectStability','recency','multiplicityControl','softConfoundFraction']
           .every(key=>Number.isFinite(components[key])&&components[key]>=0&&components[key]<=1)
         && p?.replication_windows?.length>=2 && p.replication_windows.every((w,j,a)=>
-          Number.isFinite(Date.parse(w.start))&&Number.isFinite(Date.parse(w.end))&&w.start<w.end
-          && w.direction===i.direction && (j===0||a[j-1].end<=w.start))
+          Number.isFinite(Date.parse(w.start))&&Number.isFinite(Date.parse(w.end))&&Date.parse(w.start)<Date.parse(w.end)
+          && w.direction===i.direction && (j===0||Date.parse(a[j-1].end)<=Date.parse(w.start)))
         && Date.parse(p.replication_windows.at(-1).end)-Date.parse(p.replication_windows[0].start)>=7*86400000
         && Number.isFinite(p.minimum_effect_size) && p.minimum_effect_size>0 && Math.abs(i.effect)>=p.minimum_effect_size
         && c?.hard_flags?.length===0 && c?.outcome_missing_fraction_exposed<=.4 && c?.outcome_missing_fraction_unexposed<=.4
@@ -61,19 +61,18 @@ export function createPhase4InsightStore(core,entities) {
     if(!qualified.length)fail('PHASE4_REPEATED_EVIDENCE_REQUIRED');
     if(status==='SUPPORTED') {
       const supported=qualified.filter(({item:{row:i},run:{row:r}})=>r.multiple_testing_family && i.adjusted_significance!=null
-        && i.adjusted_significance<=.10 && r.window_end_utc>=new Date(Date.parse(semanticAt)-30*86400000).toISOString());
+        && i.adjusted_significance<=.10 && Date.parse(r.window_end_utc)>=Date.parse(semanticAt)-30*86400000);
       if(!supported.some((a,j)=>supported.some((b,k)=>j!==k && a.run.row.run_id!==b.run.row.run_id
         && a.item.row.direction===b.item.row.direction
-        && (a.run.row.window_end_utc<=b.run.row.window_start_utc||b.run.row.window_end_utc<=a.run.row.window_start_utc))))
+        && (Date.parse(a.run.row.window_end_utc)<=Date.parse(b.run.row.window_start_utc)||Date.parse(b.run.row.window_end_utc)<=Date.parse(a.run.row.window_start_utc)))))
         fail('PHASE4_INDEPENDENT_REPLICATION_REQUIRED');
     }
   }
   async function read(context,insightId,{history=false,asOfUtc=null}={}) {
     return core.run(context,async()=>{
       const artifact=await core.artifact(context,'health_insights',{id:insightId});
-      const r=artifact.row,semanticAt=asOfUtc;
-      if(!history)requireSemanticTime(semanticAt);
-      if(!history&&(r.status==='RETIRED'||r.lifecycle_disposition||r.expires_at<=semanticAt))fail('PHASE4_INSIGHT_NOT_CURRENT');
+      const r=artifact.row,semanticAt=history?null:requireSemanticTime(asOfUtc);
+      if(!history&&(r.status==='RETIRED'||r.lifecycle_disposition||Date.parse(r.expires_at)<=Date.parse(semanticAt)))fail('PHASE4_INSIGHT_NOT_CURRENT');
       const revision=await core.artifact(context,'insight_revisions',{insight_id:insightId,revision:r.current_revision});
       if(revision.row.status!==r.status||revision.row.lifecycle_disposition!==r.lifecycle_disposition)fail('PHASE4_INSIGHT_POINTER_INVALID');
       return {...artifact,revision:revision.row};
@@ -99,6 +98,7 @@ export function createPhase4InsightStore(core,entities) {
   async function create(context,{identity,claim,evidenceContractVersion,supportingEvidenceIds,expiresAt,creationKey,supersedesId=null,semanticAt=null}) {
     return core.run(context,async()=>{
       const at=requireSemanticTime(semanticAt);
+      expiresAt=requireSemanticTime(expiresAt);
       if(!creationKey||!evidenceContractVersion||!Number.isFinite(Date.parse(expiresAt))||expiresAt<=at
         || Date.parse(expiresAt)>Date.parse(at)+90*86400000)fail('PHASE4_INSIGHT_CREATE_INVALID');
       const key=identityKey(context,identity);

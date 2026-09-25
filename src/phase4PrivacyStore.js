@@ -3,6 +3,7 @@ import { assertPhase4Schema } from './phase4Migrations.js';
 import { createPhase4Redactor } from './phase4Redaction.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { addPrivacyLink } from './phase4V22Backfill.js';
+import { RESULT_AUTHORITY_TABLE, RESULT_ROOT_VERSION } from './phase4V26Schema.js';
 
 const nodeKey=n=>JSON.stringify([n.mode,n.type,n.id]);
 const toNode=row=>({mode:row.artifact_execution_mode,type:row.artifact_type,id:row.artifact_id});
@@ -148,8 +149,30 @@ export function createPhase4PrivacyStore(core,queue) {
   }
   async function discover(userId,purge) {
     const seeds=await targetNodes(userId,purge.target_source_type,purge.target_source_id,{alreadyAdmitted:true});
-    const links=(await client.execute({sql:`SELECT * FROM phase4_source_links WHERE user_id=?`,args:[userId]})).rows;
+    const links=[...(await client.execute({sql:`SELECT * FROM phase4_source_links WHERE user_id=?`,args:[userId]})).rows];
     const nodes=new Map(),frontier=[...seeds];
+    // The immutable closure is also a privacy index. Losing mutable naming
+    // edges must not strand the new authority's sensitive payload or result.
+    // These are traversal-only edges, never a repair/backfill of stored links.
+    const authorities=(await client.execute({sql:`SELECT a.*,i.privacy_artifact_id item_artifact,r.privacy_artifact_id run_artifact
+      FROM ${RESULT_AUTHORITY_TABLE} a LEFT JOIN evidence_items i ON i.user_id=a.user_id
+        AND i.execution_mode=a.execution_mode AND i.evidence_item_id=a.evidence_item_id
+      LEFT JOIN evidence_runs r ON r.user_id=a.user_id AND r.execution_mode=a.execution_mode AND r.run_id=a.run_id
+      WHERE a.user_id=? AND a.content_state<>'REDACTED'`,args:[userId]})).rows;
+    for(const authority of authorities) {
+      const targets=[[RESULT_AUTHORITY_TABLE,authority.privacy_artifact_id],['evidence_items',authority.item_artifact],
+        ['evidence_runs',authority.run_artifact]].filter(([,id])=>id).map(([type,id])=>({mode:authority.execution_mode,type,id}));
+      let manifest;try {manifest=JSON.parse(authority.required_roots_json);}catch {manifest=null;}
+      if(manifest?.version!==RESULT_ROOT_VERSION||!Array.isArray(manifest.roots)||!manifest.roots.length
+        ||manifest.roots.length>10000||manifest.roots.some(root=>!root||typeof root.id!=='string'||typeof root.type!=='string'
+          ||!['SHARED',authority.execution_mode].includes(root.mode))) {
+        // Unreadable/corrupt payload cannot justify retention. Erase only this
+        // tenant's affected authority/result, never trust it to grant access.
+        frontier.push(...targets);continue;
+      }
+      for(const root of manifest.roots)for(const target of targets)links.push({artifact_execution_mode:target.mode,
+        artifact_type:target.type,artifact_id:target.id,source_execution_mode:root.mode,source_type:root.type,source_id:root.id});
+    }
     for(const link of links)if(link.source_type==='TENANT_LEGACY' && link.source_execution_mode==='SHARED' && link.source_id===userId)
       frontier.push(toNode(link));
     while(frontier.length) {

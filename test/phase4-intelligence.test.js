@@ -149,6 +149,30 @@ test('Hysteresis holds between open and close, stabilizes below close, and resol
   assert.equal(heldLongEnough.classification, 'RESOLVED');
 });
 
+test('Robust-z thresholds are stable at 2.49/2.50/2.51 and 1.49/1.50/1.51 in both directions', () => {
+  const baseline={median:50,scale:5},q={status:'AVAILABLE',confidence:1,freshnessAgeMs:0};
+  const calculate=(z,activeEpisode=null)=>evaluateMeaningfulChange({metricKey:'recovery_score',baseline,quality:q,
+    current:{...day(0,50+z*5),observedAt:'2026-09-25T10:00:00.000Z',ingestedAt:'2026-09-25T11:00:00.000Z'},activeEpisode});
+  for(const sign of [-1,1]) {
+    assert.equal(calculate(sign*2.49).openPass,false);
+    assert.equal(calculate(sign*2.50).openPass,true);
+    assert.equal(calculate(sign*2.51).openPass,true);
+    const active={state:'OPEN',direction:sign<0?'LOWER':'HIGHER',severity:1};
+    assert.equal(calculate(sign*1.49,active).closePass,true);
+    assert.equal(calculate(sign*1.50,active).closePass,false);
+    assert.equal(calculate(sign*1.51,active).closePass,false);
+  }
+  const floating=(median,scale,value,activeEpisode=null)=>evaluateMeaningfulChange({metricKey:'recovery_score',
+    baseline:{median,scale},quality:q,current:{...day(0,value),observedAt:'2026-09-25T10:00:00.000Z',
+      ingestedAt:'2026-09-25T11:00:00.000Z'},activeEpisode});
+  assert.equal(floating(10,1.23,13.075).robustZ,2.4999999999999996);
+  assert.equal(floating(10,1.23,13.075).openPass,true);
+  assert.equal(floating(10,1.24,6.9).robustZ,-2.4999999999999996);
+  assert.equal(floating(10,1.24,6.9).openPass,true);
+  assert.equal(Math.abs(floating(.11,.026,.07100000000000001).robustZ),1.4999999999999998);
+  assert.equal(floating(.11,.026,.07100000000000001,{state:'OPEN',direction:'LOWER',severity:1}).closePass,false);
+});
+
 test('Metric polarity is explicit and opposite qualified direction requests reversal', () => {
   const rhrBaseline = mature('rhr', 60), high = { ...day(0, 75), observedAt: '2026-09-25T10:00:00.000Z', ingestedAt: '2026-09-25T11:00:00.000Z' };
   const highChange = evaluateMeaningfulChange({ metricKey: 'rhr', current: high, baseline: rhrBaseline,
@@ -247,6 +271,26 @@ test('Journal association rejects duplicate health days and invalid exposure sta
   assert.throws(() => evaluateJournalAssociation({ factor: 'travel', outcomeMetric: 'recovery_score', days: duplicate, asOfUtc: asOf }), /ASSOCIATION_DAY_INVALID/);
   const invalid = associationDays({ exposed: 10, unexposed: 10 }); invalid[0].exposureState = 'ABSENT';
   assert.throws(() => evaluateJournalAssociation({ factor: 'travel', outcomeMetric: 'recovery_score', days: invalid, asOfUtc: asOf }), /ASSOCIATION_DAY_INVALID/);
+});
+
+test('Journal missingness distinguishes absent from present-but-invalid outcomes while gating on both',()=>{
+  const days=associationDays({exposed:10,unexposed:10});
+  Object.assign(days[0],{outcome:null,outcomeStatus:'MISSING',quality:'NO_DATA'});
+  Object.assign(days[1],{outcome:null,outcomeStatus:'INVALID',quality:'DEGRADED'});
+  const result=evaluateJournalAssociation({factor:'travel',outcomeMetric:'recovery_score',days,asOfUtc:asOf});
+  assert.equal(result.exposedOutcomeMissingCount,1);assert.equal(result.exposedOutcomeInvalidCount,1);
+  assert.equal(result.exposedOutcomePresentCount,8);assert.equal(result.missingOutcomeFractionExposed,.2);
+});
+
+test('Exactly 40% group missingness remains eligible while UNKNOWN never becomes unexposed',()=>{
+  const days=associationDays({exposed:20,unexposed:20,unknown:5});
+  for(const day of days.filter(value=>value.exposureState==='EXPOSED').slice(0,8))
+    Object.assign(day,{outcome:null,outcomeStatus:'MISSING',quality:'NO_DATA'});
+  const result=evaluateJournalAssociation({factor:'travel',outcomeMetric:'recovery_score',days,asOfUtc:asOf});
+  assert.equal(result.missingOutcomeFractionExposed,.4);assert.equal(result.missingOutcomeFractionUnexposed,0);
+  assert.equal(result.confirmedUnexposedCount,20);assert.equal(result.unknownCount,5);
+  assert.ok(!result.reasonCodes.includes('DIFFERENTIAL_MISSINGNESS'));
+  assert.equal(result.candidate,true);
 });
 
 test('Monotonic trend has an explicit bounded window, real elapsed-day slope and serial-correlation caveat', () => {

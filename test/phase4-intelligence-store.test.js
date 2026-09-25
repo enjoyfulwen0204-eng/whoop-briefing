@@ -14,8 +14,8 @@ async function recoveryRefs(stores, context, ids) {
   return refs;
 }
 
-async function setup(t) {
-  let now = new Date(start);
+async function setup(t,{wallClock=start}={}) {
+  let now = new Date(wallClock);
   const fixture = await syntheticPhase4Fixture(t, { now: () => now });
   const input = bodyInput({ asOf: start, days: 30 });
   for (let index = 0; index < input.sources.recovery.length; index += 1) {
@@ -30,6 +30,17 @@ async function setup(t) {
     setNow(value) { now = new Date(value); } };
 }
 
+async function qualifyingAtGap(f,gapMs,id,{degraded=false}={}) {
+  const opened=(await f.db.raw.execute('SELECT last_observed_at FROM observation_episodes LIMIT 1')).rows[0];
+  const observedAt=new Date(Date.parse(opened.last_observed_at)+gapMs).toISOString(),asOfUtc=new Date(Date.parse(observedAt)+60*60*1000).toISOString();
+  f.setNow(asOfUtc);const healthDate=observedAt.slice(0,10);
+  await f.db.raw.execute({sql:`INSERT INTO whoop_recoveries(user_id,sleep_id,health_date,score_state,recovery_score,
+    hrv_rmssd_milli,resting_heart_rate,user_calibrating,updated_at,synced_at) VALUES ('a',?,?,'SCORED',10,50,60,0,?,?)`,
+  args:[id,healthDate,degraded?null:observedAt,asOfUtc]});
+  const context=await f.stores.capture('a',{executionMode:'SHADOW'}),refs=await recoveryRefs(f.stores,context,[id,...f.recoveryIds.slice(0,30)]);
+  return f.stores.intelligence.analyzeMetric(context,request(refs[0],refs.slice(1),asOfUtc));
+}
+
 test('Metric analysis persists completed traceable evidence before one OPEN episode and semantic event', async t => {
   const f = await setup(t), result = await f.stores.intelligence.analyzeMetric(f.context, request(f.currentSource, f.baselineSources));
   assert.equal(result.baseline.sampleCount, 30);
@@ -41,6 +52,9 @@ test('Metric analysis persists completed traceable evidence before one OPEN epis
   assert.equal(result.run.row.method, 'PERSONAL_BASELINE_DEVIATION');
   assert.equal(result.item.row.causal_status, 'ASSOCIATION_ONLY');
   assert.equal(result.item.row.direction, 'LOWER');
+  const durableConfidence=JSON.parse(result.item.row.provenance_json).confidence;
+  assert.equal(durableConfidence.version,'evidence-confidence-v1');
+  assert.equal(result.episode.episode.row.current_confidence,Math.min(result.quality.confidence,durableConfidence.score));
   assert.equal(result.episode.episode.row.state, 'OPEN');
   assert.equal(result.episode.episode.row.execution_mode, 'SHADOW');
   assert.ok(result.episode.episode.row.last_semantic_event_id);
@@ -52,6 +66,59 @@ test('Metric analysis persists completed traceable evidence before one OPEN epis
   assert.deepEqual(counts, { runs: 1, items: 1, episodes: 1, observations: 1, links: 1, events: 1, semantic: 1 });
   assert.equal((await f.db.raw.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n, 0);
   assert.equal((await f.db.raw.execute('SELECT count(*) n FROM phase4_proactive_decisions')).rows[0].n, 0);
+});
+
+test('Episode merge continuity is inclusive through exactly 36 hours and splits beyond it',async t=>{
+  for(const [label,gapMs,merged] of [['under',36*60*60*1000-1000,true],['exact',36*60*60*1000,true],
+    ['over',36*60*60*1000+1,false],['118-hours',118*60*60*1000,false]]) {
+    await t.test(label,async t=>{
+      const f=await setup(t),first=await f.stores.intelligence.analyzeMetric(f.context,request(f.currentSource,f.baselineSources));
+      const second=await qualifyingAtGap(f,gapMs,`gap-${label}`);
+      assert.equal(second.episode.episode.row.episode_id===first.episode.episode.row.episode_id,merged);
+      const episodes=(await f.db.raw.execute('SELECT state FROM observation_episodes ORDER BY created_at')).rows;
+      if(merged)assert.equal(episodes.length,1);
+      else {
+        assert.equal(episodes.length,2);assert.equal(episodes[0].state,'EXPIRED');assert.equal(episodes[1].state,'OPEN');
+        assert.equal((await f.db.raw.execute("SELECT count(*) n FROM episode_events WHERE reason='CONTINUITY_GAP'")).rows[0].n,1);
+      }
+    });
+  }
+});
+
+test('A DEGRADED current observation persists diagnostics but cannot join or advance an active episode',async t=>{
+  const f=await setup(t),opened=await f.stores.intelligence.analyzeMetric(f.context,request(f.currentSource,f.baselineSources));
+  const result=await qualifyingAtGap(f,24*60*60*1000,'degraded-current',{degraded:true});
+  assert.equal(result.quality.status,'DEGRADED');assert.equal(result.calculation.classification,'INSUFFICIENT_QUALITY');
+  assert.equal(result.episode,null);assert.equal(result.item.row.quality,'DEGRADED');
+  const current=(await f.db.raw.execute({sql:'SELECT revision,state FROM observation_episodes WHERE episode_id=?',
+    args:[opened.episode.episode.row.episode_id]})).rows[0];
+  assert.deepEqual(current,{revision:1,state:'OPEN'});
+  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM episode_observations')).rows[0].n,1);
+  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM episode_evidence')).rows[0].n,1);
+});
+
+test('Fixed semantic as-of yields identical evidence and episode lifecycle fields under different wall clocks',async t=>{
+  const fixtures=[];
+  for(const wallClock of [start,Date.parse('2026-10-01T12:00:00.000Z'),Date.parse('2026-11-01T12:00:00.000Z')])
+    fixtures.push(await setup(t,{wallClock}));
+  const results=[];
+  for(const fixture of fixtures)results.push(await fixture.stores.intelligence.analyzeMetric(fixture.context,
+    request(fixture.currentSource,fixture.baselineSources)));
+  for(const result of results.slice(1)) {
+    assert.equal(result.run.row.deterministic_run_key,results[0].run.row.deterministic_run_key);
+    assert.equal(result.run.row.input_manifest_hash,results[0].run.row.input_manifest_hash);
+    for(const field of ['opened_at','first_observed_at','last_observed_at','last_material_change_at','expires_at'])
+      assert.equal(result.episode.episode.row[field],results[0].episode.episode.row[field],field);
+  }
+});
+
+test('Episode expiry evaluates explicit semantic time, not a later processing clock',async t=>{
+  const f=await setup(t),opened=await f.stores.intelligence.analyzeMetric(f.context,request(f.currentSource,f.baselineSources));
+  f.setNow('2026-12-31T12:00:00.000Z');const context=await f.stores.capture('a',{executionMode:'SHADOW'}),id=opened.episode.episode.row.episode_id;
+  await assert.rejects(f.stores.intelligence.expireEpisode(context,{episodeId:id,asOfUtc:new Date(start).toISOString()}),/NOT_EXPIRED/);
+  const after=new Date(Date.parse(opened.episode.episode.row.expires_at)+1).toISOString();
+  const expired=await f.stores.intelligence.expireEpisode(context,{episodeId:id,asOfUtc:after});
+  assert.equal(expired.row.state,'EXPIRED');
 });
 
 test('Exact replay converges on the same evidence, episode, observation and semantic identities', async t => {
@@ -179,10 +246,11 @@ test('A qualified recurrence within seven days opens a linked episode without mu
 test('Episode expiry is explicit, auditable, and cannot happen before its registered boundary', async t => {
   const f = await setup(t), opened = await f.stores.intelligence.analyzeMetric(f.context, request(f.currentSource, f.baselineSources)),
     id = opened.episode.episode.row.episode_id;
-  await assert.rejects(f.stores.intelligence.expireEpisode(f.context, { episodeId: id }), /NOT_EXPIRED/);
+  await assert.rejects(f.stores.intelligence.expireEpisode(f.context, { episodeId: id,asOfUtc:new Date(start).toISOString() }), /NOT_EXPIRED/);
   f.setNow(new Date(Date.parse(opened.episode.episode.row.expires_at) + 1).toISOString());
   const fresh = await f.stores.capture('a', { executionMode: 'SHADOW' });
-  const expired = await f.stores.intelligence.expireEpisode(fresh, { episodeId: id });
+  const expired = await f.stores.intelligence.expireEpisode(fresh, { episodeId: id,
+    asOfUtc:new Date(Date.parse(opened.episode.episode.row.expires_at)+1).toISOString() });
   assert.equal(expired.row.state, 'EXPIRED');
   const event = (await f.db.raw.execute("SELECT * FROM episode_events WHERE reason='WINDOW_EXPIRED'")).rows[0];
   assert.equal(event.from_state, 'OPEN');

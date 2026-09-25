@@ -68,3 +68,40 @@ test('A logical insight refresh uses new-generation evidence without promoting t
   assert.equal((await db.raw.execute("SELECT count(*) n FROM phase4_source_links WHERE artifact_type='health_insights' AND unlinked_at IS NULL")).rows[0].n,2);
   await assert.rejects(stores.insights.transition(fresh,change),/REFRESH_INVALID|CAS_LOST/);
 });
+
+test('Insight promotion fails closed on missing or low durable confidence and accepts a compatible persisted score',async t=>{
+  const f=await syntheticPhase4Fixture(t,{now:()=>new Date('2026-09-25T12:00:00.000Z')}),c=await f.stores.capture('a',{executionMode:'SHADOW'}),
+    source=await f.stores.root(c,'USER','a'),semanticAt='2026-09-25T12:00:00.000Z';
+  const components=value=>({dataQuality:value,sampleSufficiency:value,replication:value,effectStability:value,
+    recency:value,multiplicityControl:value,softConfoundFraction:0});
+  async function candidate(name,confidence) {
+    let run=await f.stores.evidence.start(c,{deterministic_run_key:`confidence-${name}`,subject_key:name,method:'JOURNAL_ASSOCIATION',
+      window_start_utc:'2026-09-01T00:00:00.000Z',window_end_utc:'2026-09-20T00:00:00.000Z',as_of_utc:semanticAt,timezone:'Asia/Taipei',
+      algorithm_version:'fixture',registry_version:'fixture',evidence_contract_version:'fixture-v1',
+      promotion_confound_version:'unknown-promotion-confound-v1',exposure_classification_version:'fixture',factor_set_version:'fixture',
+      multiple_testing_family:`family-${name}`,started_at:semanticAt},[source.ref]);
+    run=await f.stores.evidence.complete(c,run.row.run_id,{eligible_observation_days:30,unknown_eligible_days:0,unknown_fraction:0});
+    const provenance={replication_windows:[{start:'2026-09-01T00:00:00.000Z',end:'2026-09-08T00:00:00.000Z',direction:'LOWER'},
+      {start:'2026-09-08T00:00:00.000Z',end:'2026-09-20T00:00:00.000Z',direction:'LOWER'}],minimum_effect_size:5};
+    if(confidence!==undefined)provenance.confidence=confidence;
+    const item=await f.stores.evidence.addItem(c,{run_id:run.row.run_id,item_key:`item-${name}`,claim_key:name,direction:'LOWER',unit:'score',
+      effect:-10,adjusted_significance:.05,exposed_count:15,confirmed_unexposed_count:15,unknown_count:0,effective_sample_count:30,
+      exposure_classification_version:'fixture',factor_set_version:'fixture',quality:'AVAILABLE',recency_weight:1,causal_status:'ASSOCIATION_ONLY',
+      provenance_json:provenance,confound_json:{hard_flags:[],outcome_missing_fraction_exposed:0,outcome_missing_fraction_unexposed:0}},[source.ref]);
+    const insight=await f.stores.insights.create(c,{identity:{subject:name,outcome:'recovery',direction:'lower',exposureCategory:name,
+      algorithmFamily:'journal-association',evidenceContractMajor:'1'},claim:`${name} candidate`,creationKey:`create-${name}`,
+      evidenceContractVersion:'fixture-v1',supportingEvidenceIds:[item.row.evidence_item_id],expiresAt:'2026-12-01T00:00:00.000Z',semanticAt});
+    return {item,insight};
+  }
+  const missing=await candidate('missing',undefined),low=await candidate('low',{version:'evidence-confidence-v1',score:.4,label:'LOW',
+      components:components(.4),hardConfound:false,uncertaintyAvailable:true}),
+    inconsistent=await candidate('inconsistent',{version:'evidence-confidence-v1',score:.8,label:'HIGH',components:components(.4),
+      hardConfound:false,uncertaintyAvailable:true}),
+    valid=await candidate('valid',{version:'evidence-confidence-v1',score:.8,label:'HIGH',components:components(.8),
+      hardConfound:false,uncertaintyAvailable:true});
+  const promote=value=>f.stores.insights.transition(c,{insightId:value.insight.row.id,expectedRevision:1,status:'EMERGING',
+    claim:value.insight.row.statement,supportingEvidenceIds:[value.item.row.evidence_item_id],reason:'REPEATED_EVIDENCE',semanticAt});
+  await assert.rejects(promote(missing),/REPEATED_EVIDENCE_REQUIRED/);await assert.rejects(promote(low),/REPEATED_EVIDENCE_REQUIRED/);
+  await assert.rejects(promote(inconsistent),/REPEATED_EVIDENCE_REQUIRED/);
+  assert.equal((await promote(valid)).row.status,'EMERGING');
+});

@@ -1,14 +1,14 @@
 # WHOOP Personal Health OS Phase 4 Architecture Decision Record
 
-Status: Foundation Stages 1–4 aggregate review passed; Stage 5 Intelligence Core RC1 repairs implemented SHADOW-only and awaiting independent Stage 5 RC1 review; Stages 6–8 not started
+Status: Foundation Stages 1–4 aggregate review passed; Stage 5 Intelligence Core RC2 repairs implemented SHADOW-only and awaiting independent Stage 5 RC2 review; Stages 6–8 not started
 
 Decision date: 2026-09-19; locked-decision amendment and targeted repair 1: 2026-09-25
 
 Original V1.2 production baseline from which Phase 4 branched: v20 schema at commit ecbd23287cac591e76741771d77caa3d814f84a3. The current isolated Phase 4 development branch already implements the default-off v21–v24 Foundation migrations.
 
-Architecture version: phase4-adr-v1-repair-5
+Architecture version: phase4-adr-v1-repair-6
 
-This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and have passed their aggregate Foundation review. Under the subsequent explicit Stage 5 implementation authorization, the deterministic evidence, episode, and insight-memory runtime and its RC1 blocker repairs are now implemented SHADOW-only and await independent Stage 5 RC1 review. The 2026-09-25 amendment itself remains a documentation-only historical boundary: it authorized no source, schema, test, scheduler, workflow, configuration, deployment, production, or feature-flag change. Quick Actions, Owner Monitoring, display-name isolation, and mixed scheduler/watchdog behavior remain unimplemented later-stage work; Section 17 remains controlling.
+This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and have passed their aggregate Foundation review. Under the subsequent explicit Stage 5 implementation authorization, the deterministic evidence, episode, and insight-memory runtime and its RC1 and RC2 blocker repairs are now implemented SHADOW-only and await independent Stage 5 RC2 review. RC2 recognizes an exact durable historical replay before consulting the current active episode, reconstructs the historical result from validated durable bindings without semantic writes, preserves the chronological guard for unseen older input, and requires explicit semantic time in episode and insight state-changing APIs. The 2026-09-25 amendment itself remains a documentation-only historical boundary: it authorized no source, schema, test, scheduler, workflow, configuration, deployment, production, or feature-flag change. Quick Actions, Owner Monitoring, display-name isolation, and mixed scheduler/watchdog behavior remain unimplemented later-stage work; Section 17 remains controlling.
 
 Amendment precedence and audit classification:
 
@@ -3725,7 +3725,7 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 ### Stage 5: evidence, episodes, and insight memory
 
-**Status:** IMPLEMENTED SHADOW-ONLY; Stage 5 RC1 blocker repairs complete and awaiting independent Stage 5 RC1 review.
+**Status:** IMPLEMENTED SHADOW-ONLY; Stage 5 RC2 blocker repairs complete and awaiting independent Stage 5 RC2 review.
 
 **Depends on:** aggregate Foundation PASS covering Stages 2–4 and all eight internal commits, plus explicit Intelligence Pack authorization. Both prerequisites were satisfied for this implementation checkpoint.
 
@@ -3754,7 +3754,7 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 **Exit gate:** complete historical replay produces stable episode/evidence/insight results without messages.
 
-**Implementation checkpoint:** the closed metric/evidence registries, robust-baseline and quality calculations, meaningful-change/hysteresis engine, durable evidence adapters, episode lifecycle/semantic-event integration, Journal association family analysis, and versioned insight promotion/weakening/expiry runtime are implemented in `src/phase4IntelligenceRegistry.js`, `src/phase4Intelligence.js`, and `src/phase4IntelligenceStore.js`. RC1 additionally enforces Journal revision/coverage authority at semantic as-of, an outcome-independent comparison-day universe, canonical association identity, the inclusive 36-hour continuity boundary, DEGRADED non-support, explicit semantic clocks, versioned durable confidence, and stable numeric thresholds. Runtime entry points reject LIVE authority. Reanalysis workers and scheduler integration remain Stage 6; proactive decisions, context-question policy, Quick Actions, and outbound delivery remain Stage 7; Morning Brief, Q&A, Owner Monitoring, and display-name work remain Stage 8.
+**Implementation checkpoint:** the closed metric/evidence registries, robust-baseline and quality calculations, meaningful-change/hysteresis engine, durable evidence adapters, episode lifecycle/semantic-event integration, Journal association family analysis, and versioned insight promotion/weakening/expiry runtime are implemented in `src/phase4IntelligenceRegistry.js`, `src/phase4Intelligence.js`, and `src/phase4IntelligenceStore.js`. RC1 additionally enforces Journal revision/coverage authority at semantic as-of, an outcome-independent comparison-day universe, canonical association identity, the inclusive 36-hour continuity boundary, DEGRADED non-support, explicit semantic clocks, versioned durable confidence, and stable numeric thresholds. RC2 derives deterministic replay identity after rooted input validation but before current active-episode chronology; a readable same-generation durable run/item and its episode or insight revision binding are historical authority for pure replay. That path validates provenance, confidence, tenant, mode, lifecycle/generation, source lineage, and privacy state, performs no semantic write, and cannot move the active episode backward. A genuinely unseen older observation still enters current chronology and fails closed at the negative-gap guard. Episode open/revise and insight create/transition/current-read require an explicit semantic timestamp; processing time remains operational metadata only. Runtime entry points reject LIVE authority. Reanalysis workers and scheduler integration remain Stage 6; proactive decisions, context-question policy, Quick Actions, and outbound delivery remain Stage 7; Morning Brief, Q&A, Owner Monitoring, and display-name work remain Stage 8.
 
 ### Stage 6: invalidation and reanalysis
 
@@ -3920,4 +3920,4 @@ Before any post-gate production activation, product, privacy, and statistical re
 
 ### Final architecture verdict
 
-The ADR remains the controlling contract. Foundation Stages 1–4 exist default-off and SHADOW-only and passed aggregate review. Stage 5 is implemented SHADOW-only under its subsequent explicit authorization and awaits independent Stage 5 review. Quick Actions and their v25 Journal trusted-registry/source-kind provenance, Owner Monitoring and its v26 persistence, display-name isolation through existing identity sources, mixed scheduler/watchdog behavior, and Stage 6 reanalysis remain future work and must not be reported as implemented. No production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.
+The ADR remains the controlling contract. Foundation Stages 1–4 exist default-off and SHADOW-only and passed aggregate review. Stage 5 is implemented SHADOW-only under its subsequent explicit authorization; its RC2 repair awaits independent Stage 5 review. Quick Actions and their v25 Journal trusted-registry/source-kind provenance, Owner Monitoring and its v26 persistence, display-name isolation through existing identity sources, mixed scheduler/watchdog behavior, and Stage 6 reanalysis remain future work and must not be reported as implemented. No production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.

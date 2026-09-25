@@ -13,7 +13,8 @@ async function prepared(f,key='one',executionMode='SHADOW') {
   await stores.evidence.complete(context,run.row.run_id,{});
   const item=await stores.evidence.addItem(context,{run_id:run.row.run_id,item_key:key,exposure_classification_version:'fixture',factor_set_version:'fixture'});
   const episode=await stores.episodes.open(context,{identity:{algorithmMajor:'fixture',direction:'DOWN',domain:'sleep',metric:'synthetic',subject:'synthetic',windowFamily:key},
-    data:{episode_type:'SYNTHETIC',severity:1,expires_at:'2026-09-26T00:00:00.000Z'},evidenceItemId:item.row.evidence_item_id});
+    data:{episode_type:'SYNTHETIC',severity:1,expires_at:'2026-09-26T00:00:00.000Z'},evidenceItemId:item.row.evidence_item_id,
+    semanticAt:core.timestamp()});
   const question={episode_id:episode.row.episode_id,episode_revision:1,factor_question_kind:'synthetic',
     target_window_start_utc:'2026-09-18T00:00:00.000Z',target_window_end_utc:'2026-09-19T00:00:00.000Z',
     question_template_version:'fixture',policy_version:'fixture',question_utility_version:'fixture',counterfactual_evaluator_version:'fixture'};

@@ -197,9 +197,8 @@ test('Insight expiry uses explicit semantic time even when processing happens mu
 
 test('A second non-overlapping supporting run promotes EMERGING to SUPPORTED, never HYPOTHESIS directly', async t => {
   const f = await setup(t), oldIndexes = Array.from({ length: 30 }, (_, index) => index + 30),
-    recentIndexes = Array.from({ length: 30 }, (_, index) => index);
-  const first = await f.stores.intelligence.analyzeAssociationFamily(f.context,
-    family('caffeine-recovery-old', hypothesis(f, oldIndexes)));
+    recentIndexes = Array.from({ length: 30 }, (_, index) => index),oldRequest=family('caffeine-recovery-old',hypothesis(f,oldIndexes));
+  const first = await f.stores.intelligence.analyzeAssociationFamily(f.context,oldRequest);
   assert.equal(first.items[0].insight.current.row.status, 'EMERGING');
   assert.equal(first.items[0].insight.current.row.current_revision, 2);
   const second = await f.stores.intelligence.analyzeAssociationFamily(f.context,
@@ -210,6 +209,15 @@ test('A second non-overlapping supporting run promotes EMERGING to SUPPORTED, ne
   const history = (await f.db.raw.execute('SELECT status FROM insight_revisions ORDER BY revision')).rows.map(row => row.status);
   assert.deepEqual(history, ['HYPOTHESIS', 'EMERGING', 'SUPPORTED']);
   assert.equal((await f.db.raw.execute('SELECT count(*) n FROM health_insights')).rows[0].n, 1);
+  const before=(await f.db.raw.execute(`SELECT (SELECT count(*) FROM evidence_runs) runs,
+    (SELECT count(*) FROM evidence_items) items,(SELECT count(*) FROM insight_revisions) revisions`)).rows[0];
+  const replay=await f.stores.intelligence.analyzeAssociationFamily(f.context,oldRequest);
+  assert.equal(replay.items[0].replayed,true);
+  assert.equal(replay.items[0].insight.current.row.status,'EMERGING');
+  assert.equal(replay.items[0].insight.current.row.current_revision,2);
+  assert.equal((await f.db.raw.execute('SELECT status FROM health_insights')).rows[0].status,'SUPPORTED');
+  assert.deepEqual((await f.db.raw.execute(`SELECT (SELECT count(*) FROM evidence_runs) runs,
+    (SELECT count(*) FROM evidence_items) items,(SELECT count(*) FROM insight_revisions) revisions`)).rows[0],before);
 });
 
 test('Association replay is byte-stable and does not append evidence or insight revisions', async t => {
@@ -250,15 +258,22 @@ test('Repeated opposite evidence weakens a supported insight and records contrad
   }
   const oppositeRefs = [];
   for (let index = 0; index < 30; index += 1) oppositeRefs.push((await f.stores.root(f.context, 'recovery', `opposite-${index}`)).ref);
-  const opposite = await f.stores.intelligence.analyzeAssociationFamily(f.context, family('opposite-recent', {
+  const oppositeRequest=family('opposite-recent',{
     factor: 'caffeine', outcomeMetric: 'recovery_score', lagDays: 1,
     comparisonHealthDates:f.input.sources.recovery.slice(0,30).map(row=>row.health_date),outcomeSources: oppositeRefs,
-    journalFactSources: f.factRefs, coverageSources: [f.coverageRef] }));
+    journalFactSources: f.factRefs, coverageSources: [f.coverageRef] }),
+    opposite=await f.stores.intelligence.analyzeAssociationFamily(f.context,oppositeRequest);
   assert.equal(opposite.items[0].analysis.direction, 'HIGHER');
   assert.equal(opposite.items[0].insight.contradiction.row.id, supportedId);
   assert.equal(opposite.items[0].insight.contradiction.row.status, 'WEAKENED');
   assert.equal(opposite.items[0].insight.contradiction.revision.transition_reason, 'CONTRADICTORY_EVIDENCE');
   assert.equal(opposite.items[0].insight.current.row.status, 'EMERGING');
+  const before=(await f.db.raw.execute('SELECT count(*) n FROM insight_revisions')).rows[0].n,
+    replay=await f.stores.intelligence.analyzeAssociationFamily(f.context,oppositeRequest);
+  assert.equal(replay.items[0].replayed,true);
+  assert.equal(replay.items[0].insight.contradiction.row.status,'WEAKENED');
+  assert.equal(replay.items[0].insight.current.row.status,'EMERGING');
+  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM insight_revisions')).rows[0].n,before);
 });
 
 test('Insight expiry is an explicit retained revision and expired memory is not current', async t => {
@@ -272,7 +287,7 @@ test('Insight expiry is an explicit retained revision and expired memory is not 
   assert.equal(expired.row.status, 'RETIRED');
   assert.equal(expired.row.lifecycle_disposition, 'EXPIRED');
   assert.equal(expired.revision.transition_reason, 'EXPIRED');
-  await assert.rejects(f.stores.insights.read(fresh, id), /NOT_CURRENT/);
+  await assert.rejects(f.stores.insights.read(fresh, id,{asOfUtc:new Date(Date.parse(expiresAt)+1).toISOString()}), /NOT_CURRENT/);
   assert.equal((await f.db.raw.execute({ sql: 'SELECT count(*) n FROM insight_revisions WHERE insight_id=?', args: [id] })).rows[0].n, 3);
 });
 

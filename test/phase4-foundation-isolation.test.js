@@ -18,7 +18,8 @@ test('Aggregate isolation: every derived store family rejects foreign actual par
   const accepted=await s.journalAnswers.accept(q.context,answer(q,{sourceUpdateId:'shadow:aggregate'}));
   const item=(await f.db.raw.execute('SELECT * FROM evidence_items')).rows[0];
   const insight=await s.insights.create(q.context,{identity:{subject:'synthetic',outcome:'synthetic',direction:'DOWN',exposureCategory:'synthetic',algorithmFamily:'synthetic',evidenceContractMajor:'1'},
-    claim:'Synthetic candidate only',creationKey:'aggregate',evidenceContractVersion:'fixture',supportingEvidenceIds:[item.evidence_item_id],expiresAt:'2026-10-01T00:00:00.000Z'});
+    claim:'Synthetic candidate only',creationKey:'aggregate',evidenceContractVersion:'fixture',supportingEvidenceIds:[item.evidence_item_id],
+    expiresAt:'2026-10-01T00:00:00.000Z',semanticAt:'2026-09-19T00:00:00.000Z'});
   const root=await s.root(q.context,'USER','a');
   const message=await s.messages.propose(q.context,{semantic:{family:'MORNING_BRIEF_V1',identity:'2026-09-19'},
     message:{payload_text:'Synthetic unsent brief',expires_at:'2026-09-20T00:00:00.000Z'},sourceRefs:[root.ref]});

@@ -12,7 +12,7 @@ async function fixture(t) {
   const item=await f.stores.evidence.addItem(c,{run_id:run.row.run_id,item_key:'candidate',exposure_classification_version:'fixture',factor_set_version:'fixture'});
   const candidate={identity:{subject:'Synthetic',outcome:'Synthetic',direction:'DOWN',exposureCategory:'synthetic',algorithmFamily:'synthetic',evidenceContractMajor:'1'},
     claim:'Synthetic candidate; still checking.',creationKey:'synthetic-create',evidenceContractVersion:'fixture-v1',
-    supportingEvidenceIds:[item.row.evidence_item_id],expiresAt:'2026-10-01T00:00:00.000Z'};
+    supportingEvidenceIds:[item.row.evidence_item_id],expiresAt:'2026-10-01T00:00:00.000Z',semanticAt:'2026-09-25T12:00:00.000Z'};
   return {...f,c,candidate};
 }
 
@@ -32,7 +32,8 @@ test('Insight parent stub, first revision and current pointer commit atomically;
 
 test('Insight transitions require legal edges and durable replication; dismissal is atomic terminal disposition and CAS has one winner',async t=>{
   const {stores,c,candidate,db}=await fixture(t),one=await stores.insights.create(c,candidate);
-  const change={insightId:one.row.id,expectedRevision:1,claim:candidate.claim,supportingEvidenceIds:candidate.supportingEvidenceIds};
+  const change={insightId:one.row.id,expectedRevision:1,claim:candidate.claim,supportingEvidenceIds:candidate.supportingEvidenceIds,
+    semanticAt:candidate.semanticAt};
   await assert.rejects(stores.insights.transition(c,{...change,status:'SUPPORTED',reason:'REPLICATED_SUPPORT'}),/ILLEGAL_INSIGHT_TRANSITION/);
   await assert.rejects(stores.insights.transition(c,{...change,status:'EMERGING',reason:'REPEATED_EVIDENCE'}),/REPEATED_EVIDENCE_REQUIRED/);
   const outcomes=await Promise.allSettled([
@@ -41,7 +42,7 @@ test('Insight transitions require legal edges and durable replication; dismissal
   ]);
   assert.equal(outcomes.filter(v=>v.status==='fulfilled').length,1);
   assert.match(outcomes.find(v=>v.status==='rejected').reason.message,/CAS_LOST/);
-  await assert.rejects(stores.insights.read(c,one.row.id),/NOT_CURRENT/);
+  await assert.rejects(stores.insights.read(c,one.row.id,{asOfUtc:candidate.semanticAt}),/NOT_CURRENT/);
   const historical=await stores.insights.read(c,one.row.id,{history:true});
   assert.equal(historical.row.status,'RETIRED');assert.equal(historical.row.lifecycle_disposition,'USER_DISMISSED');
   assert.equal(historical.revision.lifecycle_disposition,'USER_DISMISSED');
@@ -60,7 +61,7 @@ test('A logical insight refresh uses new-generation evidence without promoting t
   await stores.evidence.complete(fresh,run.row.run_id,{});
   const item=await stores.evidence.addItem(fresh,{run_id:run.row.run_id,item_key:'new',exposure_classification_version:'fixture',factor_set_version:'fixture'});
   const change={insightId:old.row.id,expectedRevision:1,status:'HYPOTHESIS',claim:'Fresh synthetic candidate.',
-    supportingEvidenceIds:[item.row.evidence_item_id],reason:'CANDIDATE_EVIDENCE',refresh:true};
+    supportingEvidenceIds:[item.row.evidence_item_id],reason:'CANDIDATE_EVIDENCE',refresh:true,semanticAt:'2026-09-25T12:00:00.000Z'};
   const updated=await stores.insights.transition(fresh,change);
   assert.equal(updated.row.id,old.row.id);assert.equal(updated.row.current_revision,2);assert.equal(updated.row.input_generation,1);
   const history=(await db.raw.execute('SELECT revision,input_generation FROM insight_revisions ORDER BY revision')).rows;

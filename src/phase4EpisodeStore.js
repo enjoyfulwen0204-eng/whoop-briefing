@@ -13,7 +13,8 @@ export function createPhase4EpisodeStore(core,entities) {
   const current=(context,id)=>core.artifact(context,'observation_episodes',{episode_id:id});
   async function open(context,{identity,data,evidenceItemId,reopensEpisodeId=null,reversesEpisodeId=null,semanticAt=null}) {
     return core.run(context,async()=>{
-      const at=semanticAt??timestamp();if(!Number.isFinite(Date.parse(at)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
+      if(!Number.isFinite(Date.parse(semanticAt)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
+      const at=semanticAt;
       if(!identity || Object.keys(identity).sort().join(',')!=='algorithmMajor,direction,domain,metric,subject,windowFamily'
         || Object.values(identity).some(v=>typeof v!=='string'||!v||v.length>128))fail('PHASE4_EPISODE_IDENTITY_REQUIRED');
       const family=keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,identity.algorithmMajor,identity.subject,identity.windowFamily]);
@@ -69,8 +70,8 @@ export function createPhase4EpisodeStore(core,entities) {
       }
       if(!EPISODE_ACTIVE.includes(row.state))fail('PHASE4_EPISODE_TERMINAL');
       if(row.revision!==expectedRevision)fail('PHASE4_EPISODE_CAS_LOST');
-      const operationalAt=timestamp(),at=semanticAt??operationalAt,same=row.state===toState;
-      if(!Number.isFinite(Date.parse(at)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
+      if(!Number.isFinite(Date.parse(semanticAt)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
+      const operationalAt=timestamp(),at=semanticAt,same=row.state===toState;
       if(!same && !NEXT[row.state]?.includes(toState) && !['EXPIRED','INVALIDATED'].includes(toState)
         && !(toState==='RESOLVED'&&directionReversal))fail('PHASE4_ILLEGAL_EPISODE_TRANSITION');
       if(toState==='RESOLVED') {

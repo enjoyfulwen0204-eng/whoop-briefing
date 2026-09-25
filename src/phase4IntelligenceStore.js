@@ -97,11 +97,40 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         samples:baseline.samples,exclusions:baseline.exclusions,median:baseline.median,mad:baseline.mad,q1:baseline.q1,q3:baseline.q3,
         scale:baseline.scale,scale_method:baseline.scaleMethod},quality,calculation};
   }
-  async function durableEvidence(context,{metricKey,sourceSet,baseline,quality,calculation,asOfUtc}) {
+  function metricEvidencePlan(context,{metricKey,sourceSet,baseline,quality,calculation,asOfUtc}) {
     const input=manifest(metricKey,sourceSet.current,baseline,quality,calculation,asOfUtc),json=canonicalJson(input);
     const inputHash=keys.lookup(['phase4-evidence-input-v1',context.userId,context.executionMode,context.inputGeneration,json]);
     const runKey=keys.lookup(['phase4-evidence-run-v1',context.userId,context.executionMode,'PERSONAL_BASELINE_DEVIATION',
       metricKey,asOfUtc,context.inputGeneration,inputHash]);
+    const recency=recencyWeight((Date.parse(asOfUtc)-Date.parse(sourceSet.current.observedAt))/86400000);
+    const confidence=evidenceConfidence({dataQuality:quality.confidence,
+      sampleSufficiency:Math.min(1,baseline.sampleCount/phase4Metric(metricKey).baselineTarget),
+      replication:calculation.persistent?1:calculation.severeSingle?.5:0,effectStability:calculation.openPass?1:0,
+      recency,multiplicityControl:1,uncertaintyAvailable:baseline.scale!==null});
+    const itemKey=keys.lookup(['phase4-evidence-item-v1',runKey,'baseline-deviation']);
+    return {input,inputHash,runKey,itemKey,recency,confidence};
+  }
+  function metricItemData(metricKey,sourceSet,baseline,quality,calculation,plan) {
+    return {run_id:null,item_key:plan.itemKey,claim_key:`metric:${metricKey}`,direction:calculation.direction,
+      unit:phase4Metric(metricKey).unit,effect:calculation.absoluteDelta,lower_bound:baseline.q1,upper_bound:baseline.q3,
+      raw_significance:null,adjusted_significance:null,exposed_count:null,confirmed_unexposed_count:null,unknown_count:null,
+      effective_sample_count:baseline.sampleCount,exposure_classification_version:INTELLIGENCE_VERSIONS.exposureClassification,
+      factor_set_version:INTELLIGENCE_VERSIONS.factorSet,quality:quality.status,recency_weight:plan.recency,
+      causal_status:'ASSOCIATION_ONLY',provenance_json:{method:'CURRENT_VS_ROBUST_BASELINE',baseline_version:baseline.version,
+        registry_version:INTELLIGENCE_VERSIONS.registry,current:sourceSet.current,absolute_delta:calculation.absoluteDelta,
+        relative_delta:calculation.relativeDelta,robust_z:calculation.robustZ,meaningfulness:calculation.meaningfulness,
+        persistent:calculation.persistent,severe_single:calculation.severeSingle,semantic_hash:calculation.semanticHash,
+        confidence:plan.confidence},confound_json:{hard_flags:quality.status==='DEGRADED'?quality.reasonCodes:[],
+        soft_flags:quality.status==='LIMITED'?quality.reasonCodes:[]}};
+  }
+  function validateMetricItem(row,data,runId) {
+    for(const [key,value] of Object.entries({...data,run_id:runId})) {
+      const expected=key.endsWith('_json')&&value!==null?canonicalJson(value):value;
+      if(row[key]!==expected)fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
+    }
+  }
+  async function durableEvidence(context,{metricKey,sourceSet,baseline,quality,calculation,asOfUtc,plan}) {
+    const {input,inputHash,runKey}=plan;
     let runRow=(await client.execute({sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND deterministic_run_key=?',
       args:[context.userId,context.executionMode,runKey]})).rows[0],run;
     if(runRow) {
@@ -121,25 +150,10 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         exclusion_count:baseline.exclusions.length,input_manifest_json:input,input_manifest_hash:inputHash,
         missingness_json:{quality_state:quality.status,reason_codes:quality.reasonCodes}});
     }
-    const recency=recencyWeight((Date.parse(asOfUtc)-Date.parse(sourceSet.current.observedAt))/86400000);
-    const confidence=evidenceConfidence({dataQuality:quality.confidence,
-      sampleSufficiency:Math.min(1,baseline.sampleCount/phase4Metric(metricKey).baselineTarget),
-      replication:calculation.persistent?1:calculation.severeSingle?.5:0,effectStability:calculation.openPass?1:0,
-      recency,multiplicityControl:1,uncertaintyAvailable:baseline.scale!==null});
-    const itemKey=keys.lookup(['phase4-evidence-item-v1',runKey,'baseline-deviation']);
-    const item=await entities.append(context,'evidence_items',{run_id:run.row.run_id,item_key:itemKey,
-      claim_key:`metric:${metricKey}`,direction:calculation.direction,unit:phase4Metric(metricKey).unit,effect:calculation.absoluteDelta,
-      lower_bound:baseline.q1,upper_bound:baseline.q3,exposed_count:null,confirmed_unexposed_count:null,unknown_count:null,
-      effective_sample_count:baseline.sampleCount,exposure_classification_version:INTELLIGENCE_VERSIONS.exposureClassification,
-      factor_set_version:INTELLIGENCE_VERSIONS.factorSet,quality:quality.status,
-      recency_weight:recency,causal_status:'ASSOCIATION_ONLY',
-      provenance_json:{method:'CURRENT_VS_ROBUST_BASELINE',baseline_version:baseline.version,registry_version:INTELLIGENCE_VERSIONS.registry,
-        current:sourceSet.current,absolute_delta:calculation.absoluteDelta,relative_delta:calculation.relativeDelta,
-        robust_z:calculation.robustZ,meaningfulness:calculation.meaningfulness,persistent:calculation.persistent,
-        severe_single:calculation.severeSingle,semantic_hash:calculation.semanticHash,confidence},
-      confound_json:{hard_flags:quality.status==='DEGRADED'?quality.reasonCodes:[],soft_flags:quality.status==='LIMITED'?quality.reasonCodes:[]}},sourceSet.refs);
+    const itemData=metricItemData(metricKey,sourceSet,baseline,quality,calculation,plan);
+    const item=await entities.append(context,'evidence_items',{...itemData,run_id:run.row.run_id},sourceSet.refs);
     const storedConfidence=durableConfidence(item);
-    if(canonicalJson(storedConfidence)!==canonicalJson(confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
+    if(canonicalJson(storedConfidence)!==canonicalJson(plan.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
     return {run,item,inputHash,confidence:storedConfidence};
   }
   async function eventFor(context,episodeId,revision) {
@@ -181,6 +195,119 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       expires_at:new Date(Date.parse(sourceSet.current.observedAt)+contract.episodeExpiryMs).toISOString(),
       health_window_start:sourceSet.current.observedAt,health_window_end:asOfUtc,timezone:context.timezone,
       semantic_summary_hash:calculation.semanticHash,max_semantic_severity_ordinal:calculation.severity};
+  }
+  async function priorEpisodeSemanticHash(context,episodeId,revision) {
+    const row=(await client.execute({sql:`SELECT i.evidence_item_id FROM episode_evidence x JOIN evidence_items i
+      ON i.user_id=x.user_id AND i.execution_mode=x.execution_mode AND i.evidence_item_id=x.evidence_item_id
+      WHERE x.user_id=? AND x.execution_mode=? AND x.episode_id=? AND x.episode_revision<?
+        AND x.unlinked_at IS NULL ORDER BY x.episode_revision DESC LIMIT 1`,
+    args:[context.userId,context.executionMode,episodeId,revision]})).rows[0];
+    if(!row)return null;
+    const item=await core.artifact(context,'evidence_items',{evidence_item_id:row.evidence_item_id});
+    let provenance;try {provenance=JSON.parse(item.row.provenance_json??'null');}catch {fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');}
+    return typeof provenance?.semantic_hash==='string'?provenance.semantic_hash:null;
+  }
+  async function semanticTimeForEpisodeRevision(context,episodeRow,revision,fallback) {
+    if(revision===1)return episodeRow.first_observed_at??fallback;
+    const relation=(await client.execute({sql:`SELECT evidence_item_id FROM episode_evidence WHERE user_id=? AND execution_mode=?
+      AND episode_id=? AND episode_revision=? AND unlinked_at IS NULL`,
+    args:[context.userId,context.executionMode,episodeRow.episode_id,revision]})).rows[0];
+    if(!relation)return fallback;
+    const item=await core.artifact(context,'evidence_items',{evidence_item_id:relation.evidence_item_id});
+    const run=await core.artifact(context,'evidence_runs',{run_id:item.row.run_id});
+    return run.row.as_of_utc??fallback;
+  }
+  function replayClassification(event,episodeRow,observationCalculation) {
+    if(event.resulting_revision===1)return episodeRow.reverses_episode_id?'DIRECTION_REVERSAL':observationCalculation.classification;
+    return {NEW_EVIDENCE:'CONTINUING_CHANGE',SEVERITY_CROSSING:'WORSENING',CLOSE_THRESHOLD:'IMPROVING',
+      RESOLUTION_HOLD:'RESOLVED'}[event.reason]??observationCalculation.classification;
+  }
+  function replayTargetState(classification,event) {
+    if(classification==='NEW_CHANGE')return 'OPEN';
+    if(['WORSENING','DIRECTION_REVERSAL'].includes(classification))return 'ESCALATED';
+    if(classification==='CONTINUING_CHANGE')return event.from_state==='STABILIZING'?'UPDATING':event.from_state;
+    if(classification==='IMPROVING')return 'STABILIZING';
+    if(classification==='RESOLVED')return 'RESOLVED';
+    return null;
+  }
+  async function historicalEpisodeReplay(context,{item,sourceSet,baseline,quality,priorQualifying,
+    observationCalculation,confidence,asOfUtc}) {
+    const links=(await client.execute({sql:`SELECT * FROM episode_evidence WHERE user_id=? AND execution_mode=?
+      AND evidence_item_id=? ORDER BY episode_revision`,args:[context.userId,context.executionMode,item.row.evidence_item_id]})).rows;
+    if(!links.length) {
+      if(observationCalculation.targetEpisodeState)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+      return {calculation:observationCalculation,episode:null};
+    }
+    if(links.length!==1||links[0].unlinked_at!==null||!readableRow(links[0]))fail('CONTENT_REDACTED');
+    const binding=await core.artifact(context,'episode_evidence',{episode_id:links[0].episode_id,
+      evidence_item_id:item.row.evidence_item_id});
+    const current=await core.artifact(context,'observation_episodes',{episode_id:binding.row.episode_id});
+    const observationRows=(await client.execute({sql:`SELECT * FROM episode_observations WHERE user_id=? AND execution_mode=?
+      AND episode_id=? AND source_type=? AND source_id=? AND source_version=?`,args:[context.userId,context.executionMode,
+      binding.row.episode_id,sourceSet.current.sourceType,sourceSet.current.sourceId,sourceSet.current.sourceVersion]})).rows;
+    if(observationRows.length!==1)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+    const observation=await core.artifact(context,'episode_observations',{episode_id:binding.row.episode_id,
+      observation_key:observationRows[0].observation_key});
+    const eventRow=(await client.execute({sql:`SELECT * FROM episode_events WHERE user_id=? AND execution_mode=?
+      AND episode_id=? AND resulting_revision=?`,args:[context.userId,context.executionMode,binding.row.episode_id,
+      binding.row.episode_revision]})).rows[0];
+    if(!eventRow)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+    const event=await core.artifact(context,'episode_events',{episode_event_id:eventRow.episode_event_id});
+    if(event.row.resulting_revision!==binding.row.episode_revision)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+    let priorHash=await priorEpisodeSemanticHash(context,binding.row.episode_id,binding.row.episode_revision);
+    if(!priorHash&&binding.row.episode_revision===1&&current.row.reverses_episode_id)
+      priorHash=await priorEpisodeSemanticHash(context,current.row.reverses_episode_id,Number.MAX_SAFE_INTEGER);
+    const replayBase=evaluateMeaningfulChange({metricKey:observationCalculation.metricKey,current:sourceSet.current,baseline,quality,
+      priorQualifying,recentSemanticHashes:priorHash?[priorHash]:[],nowUtc:asOfUtc});
+    const classification=replayClassification(event.row,current.row,observationCalculation);
+    const calculation=Object.freeze({...replayBase,classification,targetEpisodeState:replayTargetState(classification,event.row)});
+    if(observation.row.observed_at!==sourceSet.current.observedAt||observation.row.robust_z!==calculation.robustZ
+      ||observation.row.quality!==calculation.qualityStatus)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+    const semanticRows=(await client.execute({sql:`SELECT * FROM episode_semantic_events WHERE user_id=? AND execution_mode=?
+      AND episode_id=? AND resulting_revision<=? ORDER BY resulting_revision`,args:[context.userId,context.executionMode,
+      binding.row.episode_id,binding.row.episode_revision]})).rows;
+    for(const row of semanticRows)await core.artifact(context,'episode_semantic_events',{episode_semantic_event_id:row.episode_semantic_event_id});
+    const transitions=(await client.execute({sql:`SELECT * FROM episode_events WHERE user_id=? AND execution_mode=?
+      AND episode_id=? AND resulting_revision<=? AND event_kind='STATE_TRANSITION' ORDER BY resulting_revision`,
+    args:[context.userId,context.executionMode,binding.row.episode_id,binding.row.episode_revision]})).rows;
+    const material=transitions.at(-1),lastMaterialAt=material
+      ?await semanticTimeForEpisodeRevision(context,current.row,material.resulting_revision,current.row.last_material_change_at)
+      :current.row.first_observed_at;
+    const stabilizing=[...transitions].reverse().find(row=>row.to_state==='STABILIZING');
+    const stabilizationStartedAt=stabilizing
+      ?await semanticTimeForEpisodeRevision(context,current.row,stabilizing.resulting_revision,current.row.stabilization_started_at):null;
+    const historicalRow={...current.row,revision:binding.row.episode_revision,state:event.row.to_state,
+      severity:calculation.severity,current_confidence:Math.min(calculation.confidence,confidence.score),
+      current_novelty:Number(calculation.novelty),last_observed_at:sourceSet.current.observedAt,
+      last_material_change_at:lastMaterialAt,stabilization_started_at:stabilizationStartedAt,
+      resolved_at:event.row.to_state==='RESOLVED'?asOfUtc:null,
+      resolution_reason:event.row.to_state==='RESOLVED'?(event.row.reason==='DIRECTION_REVERSAL'?'DIRECTION_REVERSAL':'RESOLUTION_HOLD'):null,
+      latest_evidence_item_id:item.row.evidence_item_id,semantic_summary_hash:calculation.semanticHash,
+      last_semantic_event_id:semanticRows.at(-1)?.episode_semantic_event_id??null,
+      max_semantic_severity_ordinal:semanticRows.reduce((maximum,row)=>Math.max(maximum,row.severity_ordinal??0),0),
+      updated_at:event.row.created_at};
+    return {calculation,episode:{episode:{row:historicalRow},created:false,replayed:true,
+      historicalRevision:binding.row.episode_revision}};
+  }
+  async function exactMetricReplay(context,{metricKey,sourceSet,baseline,quality,priorQualifying,observationCalculation,asOfUtc,plan}) {
+    const runRow=(await client.execute({sql:`SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND deterministic_run_key=?`,
+      args:[context.userId,context.executionMode,plan.runKey]})).rows[0];
+    if(!runRow)return null;
+    if(!readableRow(runRow)||runRow.invalidated_at)fail('CONTENT_REDACTED');
+    if(runRow.state!=='COMPLETED'||runRow.input_manifest_hash!==plan.inputHash
+      ||runRow.input_manifest_json!==canonicalJson(plan.input))fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
+    const run=await core.artifact(context,'evidence_runs',{run_id:runRow.run_id});
+    const itemRow=(await client.execute({sql:`SELECT * FROM evidence_items WHERE user_id=? AND execution_mode=? AND run_id=? AND item_key=?`,
+      args:[context.userId,context.executionMode,run.row.run_id,plan.itemKey]})).rows[0];
+    if(!itemRow)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+    if(!readableRow(itemRow)||itemRow.invalidated_at)fail('CONTENT_REDACTED');
+    const item=await core.artifact(context,'evidence_items',{evidence_item_id:itemRow.evidence_item_id});
+    validateMetricItem(item.row,metricItemData(metricKey,sourceSet,baseline,quality,observationCalculation,plan),run.row.run_id);
+    const storedConfidence=durableConfidence(item);
+    if(canonicalJson(storedConfidence)!==canonicalJson(plan.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
+    const historical=await historicalEpisodeReplay(context,{item,sourceSet,baseline,quality,priorQualifying,
+      observationCalculation,confidence:storedConfidence,asOfUtc});
+    return {run,item,inputHash:plan.inputHash,confidence:storedConfidence,...historical};
   }
   async function episodeForEvidence(context,{identity,active,staleActive,sourceSet,calculation,item,asOfUtc,confidence}) {
     if(calculation.classification==='NO_MEANINGFUL_CHANGE'||!calculation.targetEpisodeState)return null;
@@ -251,6 +378,12 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         robustZ:baseline.scale? (source.value-baseline.median)/baseline.scale:null,
         direction:baseline.scale?source.value>=baseline.median?'HIGHER':'LOWER':null}));
       const observationCalculation=evaluateMeaningfulChange({metricKey:request.metricKey,current:sourceSet.current,baseline,quality,priorQualifying});
+      const plan=metricEvidencePlan(context,{metricKey:request.metricKey,sourceSet,baseline,quality,
+        calculation:observationCalculation,asOfUtc:request.asOfUtc});
+      const replay=await exactMetricReplay(context,{metricKey:request.metricKey,sourceSet,baseline,quality,priorQualifying,
+        observationCalculation,asOfUtc:request.asOfUtc,plan});
+      if(replay)return Object.freeze({baseline,quality,calculation:replay.calculation,run:replay.run,item:replay.item,
+        episode:replay.episode});
       const identity={...baseIdentity,direction:observationCalculation.direction??'UNKNOWN'},activeResult=observationCalculation.direction
         ?await activeEpisode(context,identity,sourceSet.current.observedAt):null;
       const active=activeResult?.continuous?activeResult.row:null,staleActive=activeResult&&!activeResult.continuous
@@ -260,7 +393,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
           stabilizationStartedAt:active.stabilization_started_at}:null,
         recentSemanticHashes:active?.semantic_summary_hash?[active.semantic_summary_hash]:[],nowUtc:request.asOfUtc});
       const evidence=await durableEvidence(context,{metricKey:request.metricKey,sourceSet,baseline,quality,
-        calculation:observationCalculation,asOfUtc:request.asOfUtc});
+        calculation:observationCalculation,asOfUtc:request.asOfUtc,plan});
       const episode=await episodeForEvidence(context,{identity:baseIdentity,active,staleActive,sourceSet,calculation,item:evidence.item,
         asOfUtc:request.asOfUtc,confidence:evidence.confidence});
       return Object.freeze({baseline,quality,calculation,run:evidence.run,item:evidence.item,episode});
@@ -363,6 +496,56 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       AND status<>'RETIRED' AND legacy_classification='PHASE4'`,args:[context.userId,context.executionMode,insightKey(context,identity)]})).rows[0];
     return row?insights.read(context,row.id,{history:true}):null;
   }
+  function revisionEvidenceIds(row,field) {
+    let ids;try {ids=JSON.parse(row[field]??'[]');}catch {fail('PHASE4_INSIGHT_POINTER_INVALID');}
+    if(!Array.isArray(ids)||ids.some(id=>typeof id!=='string'))fail('PHASE4_INSIGHT_POINTER_INVALID');
+    return ids;
+  }
+  async function historicalInsightArtifact(context,insightId,revisionNumber,asOfUtc) {
+    const parent=await core.artifact(context,'health_insights',{id:insightId});
+    const revision=await core.artifact(context,'insight_revisions',{insight_id:insightId,revision:revisionNumber});
+    const row={...parent.row,status:revision.row.status,lifecycle_disposition:revision.row.lifecycle_disposition,
+      statement:revision.row.normalized_claim,current_revision:revision.row.revision,version:revision.row.revision,
+      last_recalculated_at:revision.row.revision>1?asOfUtc:null,retired_at:revision.row.status==='RETIRED'?asOfUtc:null};
+    return {...parent,row,revision:revision.row};
+  }
+  async function revisionBoundToEvidence(context,itemId,field,{expectedInsightKey=null,asOfUtc}) {
+    const rows=(await client.execute({sql:`SELECT * FROM insight_revisions WHERE user_id=? AND execution_mode=? ORDER BY insight_id,revision`,
+      args:[context.userId,context.executionMode]})).rows;
+    const candidates=[];
+    for(const row of rows)if(revisionEvidenceIds(row,field).includes(itemId))candidates.push(row);
+    const matches=[];
+    for(const first of candidates.filter((row,index,array)=>!array.some(other=>other.insight_id===row.insight_id&&other.revision<row.revision))) {
+      const parent=(await client.execute({sql:`SELECT insight_key FROM health_insights WHERE user_id=? AND execution_mode=? AND id=?`,
+        args:[context.userId,context.executionMode,first.insight_id]})).rows[0];
+      if(!parent||expectedInsightKey!==null&&parent.insight_key!==expectedInsightKey)continue;
+      const preceding=rows.filter(row=>row.insight_id===first.insight_id&&row.revision<first.revision).at(-1),allowed=new Set([
+        ...revisionEvidenceIds(preceding??{},'supporting_evidence_ids_json'),
+        ...revisionEvidenceIds(preceding??{},'contradicting_evidence_ids_json'),
+        ...revisionEvidenceIds(first,'supporting_evidence_ids_json'),...revisionEvidenceIds(first,'contradicting_evidence_ids_json')]);
+      const allowedReasons=field==='supporting_evidence_ids_json'
+        ?new Set(['CANDIDATE_EVIDENCE','REPEATED_EVIDENCE','REPLICATED_SUPPORT'])
+        :new Set(['CONTRADICTORY_EVIDENCE','REFUTED']);
+      let selected=first;
+      for(const next of rows.filter(row=>row.insight_id===first.insight_id&&row.revision>first.revision)) {
+        const all=[...revisionEvidenceIds(next,'supporting_evidence_ids_json'),...revisionEvidenceIds(next,'contradicting_evidence_ids_json')];
+        if(!allowedReasons.has(next.transition_reason)||!revisionEvidenceIds(next,field).includes(itemId)
+          ||all.some(id=>!allowed.has(id)))break;
+        selected=next;
+      }
+      matches.push(selected);
+    }
+    if(matches.length>1)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+    return matches[0]?historicalInsightArtifact(context,matches[0].insight_id,matches[0].revision,asOfUtc):null;
+  }
+  async function replayAssociationInsight(context,hypothesis,analysis,item,asOfUtc) {
+    if(!analysis.candidate||!analysis.direction)return null;
+    const identity=insightIdentity(hypothesis,analysis.direction),current=await revisionBoundToEvidence(context,
+      item.row.evidence_item_id,'supporting_evidence_ids_json',{expectedInsightKey:insightKey(context,identity),asOfUtc});
+    if(!current)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+    const contradiction=await revisionBoundToEvidence(context,item.row.evidence_item_id,'contradicting_evidence_ids_json',{asOfUtc});
+    return {current,contradiction};
+  }
   const associationClaim=(hypothesis,direction,status)=>status==='SUPPORTED'
     ? `${hypothesis.factor} has been repeatedly associated in your data with ${direction.toLowerCase()} ${hypothesis.outcomeMetric}.`
     : `${hypothesis.factor} may be associated with ${direction.toLowerCase()} ${hypothesis.outcomeMetric}; we are still checking.`;
@@ -430,6 +613,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
             context.executionMode,'JOURNAL_ASSOCIATION',request.multipleTestingFamily,focusKey,request.asOfUtc,context.inputGeneration,inputHash]);
         let runRow=(await client.execute({sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND deterministic_run_key=?',
           args:[context.userId,context.executionMode,runKey]})).rows[0],run;
+        const durableReplay=Boolean(runRow);
         if(runRow) {
           if(!readableRow(runRow)||runRow.invalidated_at||runRow.state!=='COMPLETED'||runRow.input_manifest_hash!==inputHash)
             fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
@@ -476,8 +660,11 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
             confidence:analysis.confidence},
           confound_json:{hard_flags:analysis.hardConfoundFlags,outcome_missing_fraction_exposed:analysis.missingOutcomeFractionExposed,
             outcome_missing_fraction_unexposed:analysis.missingOutcomeFractionUnexposed,soft_confound_fraction:analysis.confidence.components.softConfoundFraction}},value.refs);
+        if(durableReplay&&item.created)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
         if(canonicalJson(durableConfidence(item))!==canonicalJson(analysis.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
-        const insight=await updateInsight(context,hypothesis,analysis,item,request.asOfUtc);outputs.push(Object.freeze({analysis,item,insight}));
+        const insight=durableReplay?await replayAssociationInsight(context,hypothesis,analysis,item,request.asOfUtc)
+          :await updateInsight(context,hypothesis,analysis,item,request.asOfUtc);
+        outputs.push(Object.freeze({analysis,item,insight,replayed:durableReplay}));
       }
       return Object.freeze({runs:Object.freeze(runs),items:Object.freeze(outputs)});
     });

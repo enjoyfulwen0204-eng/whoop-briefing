@@ -23,8 +23,10 @@ UTC trigger `*/10 0-3 * * *`; deployment verification must inspect that trigger,
 and higher hourly-path latency for non-Taipei due times outside the global
 window is an accepted v1 trade-off. None of v25, v26, Quick Actions, Owner
 Monitoring, display-name repair, or scheduler/watchdog changes is implemented.
-Stage 5 is now implemented SHADOW-only and has its own verification handoff in
-`docs/phase4-stage5-verification.md`; Stage 6 has not started. The Foundation
+Stage 5 and its RC1 blocker repairs are now implemented SHADOW-only against the
+unchanged v24 schema and have their own verification handoff in
+`docs/phase4-stage5-verification.md`; independent RC1 review is pending and
+Stage 6 has not started. The Foundation
 aggregate PASS does not approve Stage 5 or any production activation.
 
 ## Reproducible commands
@@ -97,6 +99,6 @@ in the full suite; new gates do not replace them.
   backups. Body Energy is a deterministic product metric, not medical validation.
 
 The Foundation aggregate review has passed. The next checkpoint is independent
-Stage 5 review against the ADR and `docs/phase4-stage5-verification.md`. Do not
+Stage 5 RC1 review against the ADR and `docs/phase4-stage5-verification.md`. Do not
 begin Stage 6, enable flags, implement v25/v26, deploy, or migrate production
 from this map.

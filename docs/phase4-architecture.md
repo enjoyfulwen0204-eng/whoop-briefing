@@ -1,6 +1,6 @@
 # WHOOP Personal Health OS Phase 4 Architecture Decision Record
 
-Status: Foundation Stages 1–4 aggregate review passed; Stage 5 Intelligence Core implemented SHADOW-only and awaiting independent Stage 5 review; Stages 6–8 not started
+Status: Foundation Stages 1–4 aggregate review passed; Stage 5 Intelligence Core RC1 repairs implemented SHADOW-only and awaiting independent Stage 5 RC1 review; Stages 6–8 not started
 
 Decision date: 2026-09-19; locked-decision amendment and targeted repair 1: 2026-09-25
 
@@ -8,7 +8,7 @@ Original V1.2 production baseline from which Phase 4 branched: v20 schema at com
 
 Architecture version: phase4-adr-v1-repair-5
 
-This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and have passed their aggregate Foundation review. Under the subsequent explicit Stage 5 implementation authorization, the deterministic evidence, episode, and insight-memory runtime is now implemented SHADOW-only and awaits independent Stage 5 review. The 2026-09-25 amendment itself remains a documentation-only historical boundary: it authorized no source, schema, test, scheduler, workflow, configuration, deployment, production, or feature-flag change. Quick Actions, Owner Monitoring, display-name isolation, and mixed scheduler/watchdog behavior remain unimplemented later-stage work; Section 17 remains controlling.
+This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and have passed their aggregate Foundation review. Under the subsequent explicit Stage 5 implementation authorization, the deterministic evidence, episode, and insight-memory runtime and its RC1 blocker repairs are now implemented SHADOW-only and await independent Stage 5 RC1 review. The 2026-09-25 amendment itself remains a documentation-only historical boundary: it authorized no source, schema, test, scheduler, workflow, configuration, deployment, production, or feature-flag change. Quick Actions, Owner Monitoring, display-name isolation, and mixed scheduler/watchdog behavior remain unimplemented later-stage work; Section 17 remains controlling.
 
 Amendment precedence and audit classification:
 
@@ -638,7 +638,9 @@ For observation x and an earlier-only baseline:
 3. Calculate relative_delta only when the registry denominator floor is met.
 4. Calculate robust_z using the median/MAD method in Section 3 and the IQR fallback.
 5. Require the metric’s absolute or relative magnitude floor.
-6. Require the open robust-z threshold.
+6. Require the open robust-z threshold. Inclusive/exclusive threshold comparisons use a
+   scale-aware machine-epsilon normalization so a mathematical boundary is not changed by
+   binary floating-point representation; the tolerance must not move a materially distinct value.
 7. Apply persistence, unless the metric permits a single observation at its material-severity threshold.
 8. Compare the semantic observation against current and recent episode history.
 9. Compare it with recent delivered semantic claim/action hashes.
@@ -809,7 +811,10 @@ Remaining ESCALATED only creates a semantic event under MATERIAL_ESCALATION: cur
 ### Open, merge, split, and reopen
 
 - **Open:** observation selection first creates a candidate observation, then a durable evidence run/item. Only that evidence item can create OPEN.
-- **Merge:** the same fingerprint merges while windows overlap or the gap is at most 36 elapsed hours. Each source observation can be a member once.
+- **Merge:** the same fingerprint merges while windows overlap or the semantic
+  `last_observed_at` gap is at most 36 elapsed hours, inclusive. A larger gap
+  terminalizes the stale active episode as `EXPIRED` with an auditable continuity-gap
+  event before a new episode is opened. Each source observation can be a member once.
 - **Update:** a merged observation may legally move to UPDATING; if the state remains unchanged it is a same_state_revision, never a self-transition.
 - **Escalate:** requires a registry-defined severity crossing, materially greater persistence, or newly actionable evidence. A recomputation with equivalent semantics cannot escalate.
 - **Explain:** requires current explanatory evidence and any supporting user-confirmed context to be linked before the transition commits. “Explained” never means causal.
@@ -1156,6 +1161,10 @@ The following are mandatory:
 
 - Baselines contain only observations strictly earlier than the target health day.
 - An evidence item’s as-of read cannot see a row ingested after that instant.
+- Journal association reads resolve the fact revision and coverage revision that were
+  authoritative at the requested as-of instant. A later assertion or correction cannot
+  leak backward. When privacy purge has removed required historical content, replay fails
+  closed with `CONTENT_REDACTED` rather than reconstructing or adopting a later revision.
 - Exposure must precede or overlap the defined outcome window; future context cannot explain an earlier outcome.
 - Timezone and health-day mapping are stored with the run.
 - Recomputed results use a new run ID and link to the superseded run.
@@ -1163,7 +1172,12 @@ The following are mandatory:
 
 ### Association guardrails
 
-An exposed-versus-unexposed context association uses EXPOSED and CONFIRMED_UNEXPOSED days only. UNKNOWN days are excluded, reported, and never silently placed in the unexposed group.
+An exposed-versus-unexposed context association first constructs the complete declared
+comparison-health-date universe independently of outcome availability. Each day receives
+one exposure state (EXPOSED, CONFIRMED_UNEXPOSED, or UNKNOWN) and, separately, one outcome
+state (PRESENT, MISSING, or INVALID). EXPOSED and CONFIRMED_UNEXPOSED days with missing or
+invalid outcomes remain in their group missingness denominator. UNKNOWN days are excluded
+from both comparison groups, reported, and never silently placed in the unexposed group.
 
 The effect is not calculated at all unless:
 
@@ -1196,7 +1210,11 @@ It becomes **insight-supporting evidence** only when, in addition:
 
 These are minimum statistical guardrails, not proof of causation. A metric registry may require stricter thresholds.
 
-Every run records exposure-state source IDs, coverage-window IDs, classification version, UNKNOWN-day count, and selection/ascertainment-bias flags.
+Every run records the canonical sorted comparison dates, as-of-authoritative Journal
+revision identities, exposure-state source IDs, coverage-window IDs, outcome present/missing/
+invalid counts by classified group, classification version, UNKNOWN-day count, and selection/
+ascertainment-bias flags. Hypotheses and unordered source collections are canonicalized by
+stable semantic keys before manifests, hashes, run keys, or item keys are derived.
 
 ### Versioned UNKNOWN-fraction promotion confound
 
@@ -1240,7 +1258,7 @@ evidence_confidence = clamp(0, 1,
 0.10 × multiplicity_control −
 0.15 × soft_confound_fraction)
 
-The components are deterministic 0–1 values defined by the method registry. Any hard confound caps confidence below 0.40. A missing uncertainty estimate caps it below 0.60. The item exposes each component, the score, and LOW, MEDIUM, or HIGH label using the Section 3 label thresholds.
+The components are deterministic 0–1 values defined by the method registry. Any hard confound caps confidence below 0.40. A missing uncertainty estimate caps it below 0.60. The evidence item durably exposes the confidence method/version, every component, the score, and LOW, MEDIUM, or HIGH label using the Section 3 label thresholds. Episode confidence is derived from the qualifying observation confidence and compatible durable evidence confidence; insight promotion consumes the stored compatible confidence and fails closed when it is absent or malformed.
 
 ### Confounds
 
@@ -3707,7 +3725,7 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 ### Stage 5: evidence, episodes, and insight memory
 
-**Status:** IMPLEMENTED SHADOW-ONLY; awaiting independent Stage 5 review.
+**Status:** IMPLEMENTED SHADOW-ONLY; Stage 5 RC1 blocker repairs complete and awaiting independent Stage 5 RC1 review.
 
 **Depends on:** aggregate Foundation PASS covering Stages 2–4 and all eight internal commits, plus explicit Intelligence Pack authorization. Both prerequisites were satisfied for this implementation checkpoint.
 
@@ -3736,7 +3754,7 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 **Exit gate:** complete historical replay produces stable episode/evidence/insight results without messages.
 
-**Implementation checkpoint:** the closed metric/evidence registries, robust-baseline and quality calculations, meaningful-change/hysteresis engine, durable evidence adapters, episode lifecycle/semantic-event integration, Journal association family analysis, and versioned insight promotion/weakening/expiry runtime are implemented in `src/phase4IntelligenceRegistry.js`, `src/phase4Intelligence.js`, and `src/phase4IntelligenceStore.js`. Runtime entry points reject LIVE authority. Reanalysis workers and scheduler integration remain Stage 6; proactive decisions, context-question policy, Quick Actions, and outbound delivery remain Stage 7; Morning Brief, Q&A, Owner Monitoring, and display-name work remain Stage 8.
+**Implementation checkpoint:** the closed metric/evidence registries, robust-baseline and quality calculations, meaningful-change/hysteresis engine, durable evidence adapters, episode lifecycle/semantic-event integration, Journal association family analysis, and versioned insight promotion/weakening/expiry runtime are implemented in `src/phase4IntelligenceRegistry.js`, `src/phase4Intelligence.js`, and `src/phase4IntelligenceStore.js`. RC1 additionally enforces Journal revision/coverage authority at semantic as-of, an outcome-independent comparison-day universe, canonical association identity, the inclusive 36-hour continuity boundary, DEGRADED non-support, explicit semantic clocks, versioned durable confidence, and stable numeric thresholds. Runtime entry points reject LIVE authority. Reanalysis workers and scheduler integration remain Stage 6; proactive decisions, context-question policy, Quick Actions, and outbound delivery remain Stage 7; Morning Brief, Q&A, Owner Monitoring, and display-name work remain Stage 8.
 
 ### Stage 6: invalidation and reanalysis
 

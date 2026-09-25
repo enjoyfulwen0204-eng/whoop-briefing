@@ -338,3 +338,17 @@ test('Body Energy evidence consumes the existing deterministic result without re
   assert.throws(() => evaluateBodyEnergyDriverEvidence({ value: 72, quality_state: 'DEGRADED',
     metric_registry_version: 'body-energy-metrics-v1' }), /EVIDENCE_UNAVAILABLE/);
 });
+
+test('RC4 baseline exclusions and duplicate-day decisions are canonical across permutations without erasing source changes',()=>{
+  const rows=Array.from({length:35},(_,i)=>day(i+1,40+i));
+  rows.push(day(0),day(50),day(3,999),day(2,51,{sourceId:'duplicate'}),null,{});
+  const baseline=observations=>buildPersonalBaseline({metricKey:'recovery_score',targetHealthDate:'2026-09-25',asOfUtc:asOf,observations});
+  const expected=baseline(rows);
+  assert.deepEqual(baseline([...rows].reverse()),expected);
+  assert.deepEqual(baseline([...rows.slice(15),...rows.slice(0,15)]),expected);
+  assert.equal(expected.sampleCount,30);assert.equal(expected.exclusions.length,rows.length-30);
+  assert.ok(expected.exclusions.some(x=>x.reason==='DUPLICATE_HEALTH_DAY'));
+  assert.equal(expected.exclusions.filter(x=>x.reason==='INVALID_HEALTH_DATE').length,2);
+  const changed=rows.map((row,i)=>i===0?{...row,sourceVersion:'new-source-version'}:row);
+  assert.notDeepEqual(baseline(changed),expected);
+});

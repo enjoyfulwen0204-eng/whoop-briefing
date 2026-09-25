@@ -190,6 +190,7 @@ test('RC2 equivalent users cannot resolve each other durable replay state',async
   assert.notEqual(aReplay.episode.episode.row.episode_id,bReplay.episode.episode.row.episode_id);
   assert.equal((await f.db.raw.execute("SELECT count(*) n FROM evidence_runs WHERE user_id='a'")).rows[0].n,2);
   assert.equal((await f.db.raw.execute("SELECT count(*) n FROM evidence_runs WHERE user_id='b'")).rows[0].n,2);
+  for(const userId of ['a','b'])assert.equal((await f.db.raw.execute({sql:'SELECT count(*) n FROM phase4_episode_revisions WHERE user_id=?',args:[userId]})).rows[0].n,2);
 });
 
 test('RC2 SHADOW replay cannot resolve or mutate LIVE state',async t=>{
@@ -199,6 +200,7 @@ test('RC2 SHADOW replay cannot resolve or mutate LIVE state',async t=>{
   await assert.rejects(f.stores.intelligence.analyzeMetric(live,request(f.initialRefs[0],f.initialRefs.slice(1))),/SHADOW_ONLY/);
   assert.equal((await f.db.raw.execute("SELECT count(*) n FROM evidence_runs WHERE execution_mode='LIVE'")).rows[0].n,0);
   assert.equal((await f.db.raw.execute("SELECT count(*) n FROM observation_episodes WHERE execution_mode='LIVE'")).rows[0].n,0);
+  assert.equal((await f.db.raw.execute("SELECT count(*) n FROM phase4_episode_revisions WHERE execution_mode='LIVE'")).rows[0].n,0);
 });
 
 test('RC2 unseen older observation remains deterministic fail-closed and cannot move the episode backward',async t=>{

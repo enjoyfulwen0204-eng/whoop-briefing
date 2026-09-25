@@ -654,7 +654,7 @@ test('遷移 v12 → v13：三個 nullable 欄位純新增；既有 canonical / 
     await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (12, '2026-09-12T00:00:00.000Z', 'v12')");
     for (const c of COLS) assert.ok(!(await cols()).includes(c));
     const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 12); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 24);
+    assert.equal(s.from, 12); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 25);
     assert.deepEqual(s.rebuilt, []);
     assert.deepEqual(s.columnsAdded, COLS.map((c) => `analytics_work_state.${c}`));
     const tables = (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.map((r) => String(r.name));

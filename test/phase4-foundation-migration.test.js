@@ -39,7 +39,7 @@ async function assertPreserved(f) {
 
 test('Aggregate migration: populated v20 passes every exact intermediate version and physical restart without changing unrelated legacy columns',async t=>{
   const f=await populated20(t);
-  for(const version of [21,22,23,24]) {
+  for(const version of [21,22,23,24,25]) {
     await runMigrations(f.db,{...options,targetVersion:version});await assertPhase4Schema(f.db,version);await assertPreserved(f);
     assert.equal(await currentVersion(f.db),version);
     assert.deepEqual((await f.db.execute('SELECT version FROM schema_version ORDER BY version')).rows.map(r=>r.version),Array.from({length:version-19},(_,i)=>i+20));
@@ -53,7 +53,7 @@ test('Aggregate migration: populated v20 passes every exact intermediate version
       assert.equal(leaves.length,20);assert.ok(leaves.every(r=>r.field_revision===1&&r.is_current===1&&r.content_state==='REDACTED'));
     }
   }
-  for(const table of ['body_energy_results','evidence_runs','phase4_jobs','phase4_proactive_decisions','outbound_messages','outbound_delivery_attempts'])
+  for(const table of ['body_energy_results','evidence_runs','phase4_episode_revisions','phase4_jobs','phase4_proactive_decisions','outbound_messages','outbound_delivery_attempts'])
     assert.equal((await f.db.execute(`SELECT count(*) n FROM ${table}`)).rows[0].n,0,table);
 });
 

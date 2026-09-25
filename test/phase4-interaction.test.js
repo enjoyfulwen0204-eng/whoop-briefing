@@ -74,7 +74,7 @@ test('Episode refresh keeps logical identity while requiring a complete fresh pr
   const identity={algorithmMajor:'fixture',direction:'DOWN',domain:'sleep',metric:'synthetic',subject:'synthetic',windowFamily:'refresh'};
   const projection=Object.fromEntries(V23_HEALTH_FIELDS.observation_episodes.filter(k=>k!=='max_semantic_severity_ordinal').map(k=>[k,null]));
   Object.assign(projection,{episode_type:'SYNTHETIC',domain:'sleep',subject_key:'synthetic',direction:'DOWN',severity:2});
-  const request={episodeId:old.episode.row.episode_id,expectedRevision:1,identity,projection,evidenceItemId:item.row.evidence_item_id};
+  const request={episodeId:old.episode.row.episode_id,expectedRevision:1,identity,projection,evidenceItemId:item.row.evidence_item_id,semanticAt:f.core.timestamp()};
   await assert.rejects(f.stores.episodes.read(context,request.episodeId),/PARENT_STALE/);
   await assert.rejects(f.stores.episodes.refresh(context,{...request,projection:{severity:2}}),/COMPLETE_CURRENT_PROJECTION/);
   const fresh=await f.stores.episodes.refresh(context,request);

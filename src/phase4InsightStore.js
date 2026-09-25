@@ -1,3 +1,4 @@
+import { requireSemanticTime } from './phase4EpisodeHistory.js';
 import { fail, readableRow, requireInteger } from './phase4Core.js';
 import { INSIGHT_DISPOSITIONS } from './phase4V23Schema.js';
 import { canonicalJson } from './phase4EntityStore.js';
@@ -71,7 +72,7 @@ export function createPhase4InsightStore(core,entities) {
     return core.run(context,async()=>{
       const artifact=await core.artifact(context,'health_insights',{id:insightId});
       const r=artifact.row,semanticAt=asOfUtc;
-      if(!history&&!Number.isFinite(Date.parse(semanticAt)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
+      if(!history)requireSemanticTime(semanticAt);
       if(!history&&(r.status==='RETIRED'||r.lifecycle_disposition||r.expires_at<=semanticAt))fail('PHASE4_INSIGHT_NOT_CURRENT');
       const revision=await core.artifact(context,'insight_revisions',{insight_id:insightId,revision:r.current_revision});
       if(revision.row.status!==r.status||revision.row.lifecycle_disposition!==r.lifecycle_disposition)fail('PHASE4_INSIGHT_POINTER_INVALID');
@@ -97,8 +98,7 @@ export function createPhase4InsightStore(core,entities) {
   }
   async function create(context,{identity,claim,evidenceContractVersion,supportingEvidenceIds,expiresAt,creationKey,supersedesId=null,semanticAt=null}) {
     return core.run(context,async()=>{
-      const at=semanticAt;
-      if(!Number.isFinite(Date.parse(at)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
+      const at=requireSemanticTime(semanticAt);
       if(!creationKey||!evidenceContractVersion||!Number.isFinite(Date.parse(expiresAt))||expiresAt<=at
         || Date.parse(expiresAt)>Date.parse(at)+90*86400000)fail('PHASE4_INSIGHT_CREATE_INVALID');
       const key=identityKey(context,identity);
@@ -128,7 +128,7 @@ export function createPhase4InsightStore(core,entities) {
   async function transition(context,{insightId,expectedRevision,status,disposition=null,claim,supportingEvidenceIds,contradictingEvidenceIds=[],reason,refresh=false,semanticAt=null}) {
     requireInteger(expectedRevision,1);
     return core.run(context,async()=>{
-      const at=semanticAt;if(!Number.isFinite(Date.parse(at)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
+      const at=requireSemanticTime(semanticAt);
       // Refresh admits no stale health projection as input. Its predecessor is
       // read as lifecycle/identity metadata only; claim and evidence must be
       // newly supplied and validated in the current computation generation.

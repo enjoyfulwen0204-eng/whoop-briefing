@@ -4,7 +4,7 @@ import { addDays, localDate } from './time.js';
 import { phase4Metric, INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
 import { assessDataQuality, benjaminiHochberg, buildPersonalBaseline, evaluateJournalAssociation,
   evaluateMeaningfulChange, evidenceConfidence, recencyWeight, validMetricValue,
-  validateEvidenceConfidence } from './phase4Intelligence.js';
+  validateEvidenceConfidence, compareBaselineSources } from './phase4Intelligence.js';
 import { pearson, pValue } from './analytics/correlation.js';
 
 const ACTIVE = ['OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING'];
@@ -62,7 +62,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     if(!currentSource||new Set(refs).size!==refs.length)fail('PHASE4_METRIC_SOURCES_REQUIRED');
     const resolved=await core.revalidateSources(context,refs);
     return {refs,current:sourceValue(metricKey,resolved[0],context,asOfUtc),
-      baseline:resolved.slice(1).map(source=>sourceValue(metricKey,source,context,asOfUtc))};
+      baseline:resolved.slice(1).map(source=>sourceValue(metricKey,source,context,asOfUtc)).sort(compareBaselineSources)};
   }
   function family(context,identity) {
     return keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,identity.algorithmMajor,identity.subject,identity.windowFamily]);
@@ -156,12 +156,6 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     if(canonicalJson(storedConfidence)!==canonicalJson(plan.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
     return {run,item,inputHash,confidence:storedConfidence};
   }
-  async function eventFor(context,episodeId,revision) {
-    const row=(await client.execute({sql:`SELECT episode_event_id FROM episode_events WHERE user_id=? AND execution_mode=?
-      AND episode_id=? AND resulting_revision=?`,args:[context.userId,context.executionMode,episodeId,revision]})).rows[0];
-    if(!row)fail('PHASE4_EPISODE_EVENT_REQUIRED');
-    return row.episode_event_id;
-  }
   async function linkMembership(context,episode,item,sourceSet,calculation,confidence) {
     if(!['LIMITED','AVAILABLE'].includes(calculation.qualityStatus)
       ||confidence?.version!==INTELLIGENCE_VERSIONS.evidenceConfidence||!Number.isFinite(confidence.score))
@@ -181,11 +175,9 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       linked_at:sourceSet.current.observedAt},[item.ref]);
     return {observation,evidence};
   }
-  async function semantic(context,episode,eventKind,calculation) {
-    const eventId=await eventFor(context,episode.row.episode_id,episode.row.revision);
-    return episodes.semantic(context,{episodeId:episode.row.episode_id,expectedRevision:episode.row.revision,episodeEventId:eventId,
-      eventKind,severityOrdinal:calculation.severity,claimKey:`metric:${calculation.metricKey}`,
-      semanticContentHash:calculation.semanticHash});
+  function semanticEvent(eventKind,calculation) {
+    return {eventKind,severityOrdinal:calculation.severity,claimKey:`metric:${calculation.metricKey}`,
+      semanticContentHash:calculation.semanticHash};
   }
   function episodeData(context,sourceSet,calculation,asOfUtc,confidence) {
     const contract=phase4Metric(calculation.metricKey);
@@ -207,16 +199,6 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     let provenance;try {provenance=JSON.parse(item.row.provenance_json??'null');}catch {fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');}
     return typeof provenance?.semantic_hash==='string'?provenance.semantic_hash:null;
   }
-  async function semanticTimeForEpisodeRevision(context,episodeRow,revision,fallback) {
-    if(revision===1)return episodeRow.first_observed_at??fallback;
-    const relation=(await client.execute({sql:`SELECT evidence_item_id FROM episode_evidence WHERE user_id=? AND execution_mode=?
-      AND episode_id=? AND episode_revision=? AND unlinked_at IS NULL`,
-    args:[context.userId,context.executionMode,episodeRow.episode_id,revision]})).rows[0];
-    if(!relation)return fallback;
-    const item=await core.artifact(context,'evidence_items',{evidence_item_id:relation.evidence_item_id});
-    const run=await core.artifact(context,'evidence_runs',{run_id:item.row.run_id});
-    return run.row.as_of_utc??fallback;
-  }
   function replayClassification(event,episodeRow,observationCalculation) {
     if(event.resulting_revision===1)return episodeRow.reverses_episode_id?'DIRECTION_REVERSAL':observationCalculation.classification;
     return {NEW_EVIDENCE:'CONTINUING_CHANGE',SEVERITY_CROSSING:'WORSENING',CLOSE_THRESHOLD:'IMPROVING',
@@ -231,7 +213,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     return null;
   }
   async function historicalEpisodeReplay(context,{item,sourceSet,baseline,quality,priorQualifying,
-    observationCalculation,confidence,asOfUtc}) {
+    observationCalculation,asOfUtc}) {
     const links=(await client.execute({sql:`SELECT * FROM episode_evidence WHERE user_id=? AND execution_mode=?
       AND evidence_item_id=? ORDER BY episode_revision`,args:[context.userId,context.executionMode,item.row.evidence_item_id]})).rows;
     if(!links.length) {
@@ -241,7 +223,8 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     if(links.length!==1||links[0].unlinked_at!==null||!readableRow(links[0]))fail('CONTENT_REDACTED');
     const binding=await core.artifact(context,'episode_evidence',{episode_id:links[0].episode_id,
       evidence_item_id:item.row.evidence_item_id});
-    const current=await core.artifact(context,'observation_episodes',{episode_id:binding.row.episode_id});
+    const historical=await episodes.readRevision(context,{episodeId:binding.row.episode_id,revision:binding.row.episode_revision,
+      evidenceItemId:item.row.evidence_item_id,semanticAt:asOfUtc});
     const observationRows=(await client.execute({sql:`SELECT * FROM episode_observations WHERE user_id=? AND execution_mode=?
       AND episode_id=? AND source_type=? AND source_id=? AND source_version=?`,args:[context.userId,context.executionMode,
       binding.row.episode_id,sourceSet.current.sourceType,sourceSet.current.sourceId,sourceSet.current.sourceVersion]})).rows;
@@ -255,38 +238,15 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     const event=await core.artifact(context,'episode_events',{episode_event_id:eventRow.episode_event_id});
     if(event.row.resulting_revision!==binding.row.episode_revision)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
     let priorHash=await priorEpisodeSemanticHash(context,binding.row.episode_id,binding.row.episode_revision);
-    if(!priorHash&&binding.row.episode_revision===1&&current.row.reverses_episode_id)
-      priorHash=await priorEpisodeSemanticHash(context,current.row.reverses_episode_id,Number.MAX_SAFE_INTEGER);
+    if(!priorHash&&binding.row.episode_revision===1&&historical.row.reverses_episode_id)
+      priorHash=await priorEpisodeSemanticHash(context,historical.row.reverses_episode_id,Number.MAX_SAFE_INTEGER);
     const replayBase=evaluateMeaningfulChange({metricKey:observationCalculation.metricKey,current:sourceSet.current,baseline,quality,
       priorQualifying,recentSemanticHashes:priorHash?[priorHash]:[],nowUtc:asOfUtc});
-    const classification=replayClassification(event.row,current.row,observationCalculation);
+    const classification=replayClassification(event.row,historical.row,observationCalculation);
     const calculation=Object.freeze({...replayBase,classification,targetEpisodeState:replayTargetState(classification,event.row)});
     if(observation.row.observed_at!==sourceSet.current.observedAt||observation.row.robust_z!==calculation.robustZ
       ||observation.row.quality!==calculation.qualityStatus)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
-    const semanticRows=(await client.execute({sql:`SELECT * FROM episode_semantic_events WHERE user_id=? AND execution_mode=?
-      AND episode_id=? AND resulting_revision<=? ORDER BY resulting_revision`,args:[context.userId,context.executionMode,
-      binding.row.episode_id,binding.row.episode_revision]})).rows;
-    for(const row of semanticRows)await core.artifact(context,'episode_semantic_events',{episode_semantic_event_id:row.episode_semantic_event_id});
-    const transitions=(await client.execute({sql:`SELECT * FROM episode_events WHERE user_id=? AND execution_mode=?
-      AND episode_id=? AND resulting_revision<=? AND event_kind='STATE_TRANSITION' ORDER BY resulting_revision`,
-    args:[context.userId,context.executionMode,binding.row.episode_id,binding.row.episode_revision]})).rows;
-    const material=transitions.at(-1),lastMaterialAt=material
-      ?await semanticTimeForEpisodeRevision(context,current.row,material.resulting_revision,current.row.last_material_change_at)
-      :current.row.first_observed_at;
-    const stabilizing=[...transitions].reverse().find(row=>row.to_state==='STABILIZING');
-    const stabilizationStartedAt=stabilizing
-      ?await semanticTimeForEpisodeRevision(context,current.row,stabilizing.resulting_revision,current.row.stabilization_started_at):null;
-    const historicalRow={...current.row,revision:binding.row.episode_revision,state:event.row.to_state,
-      severity:calculation.severity,current_confidence:Math.min(calculation.confidence,confidence.score),
-      current_novelty:Number(calculation.novelty),last_observed_at:sourceSet.current.observedAt,
-      last_material_change_at:lastMaterialAt,stabilization_started_at:stabilizationStartedAt,
-      resolved_at:event.row.to_state==='RESOLVED'?asOfUtc:null,
-      resolution_reason:event.row.to_state==='RESOLVED'?(event.row.reason==='DIRECTION_REVERSAL'?'DIRECTION_REVERSAL':'RESOLUTION_HOLD'):null,
-      latest_evidence_item_id:item.row.evidence_item_id,semantic_summary_hash:calculation.semanticHash,
-      last_semantic_event_id:semanticRows.at(-1)?.episode_semantic_event_id??null,
-      max_semantic_severity_ordinal:semanticRows.reduce((maximum,row)=>Math.max(maximum,row.severity_ordinal??0),0),
-      updated_at:event.row.created_at};
-    return {calculation,episode:{episode:{row:historicalRow},created:false,replayed:true,
+    return {calculation,episode:{episode:historical,created:false,replayed:true,
       historicalRevision:binding.row.episode_revision}};
   }
   async function exactMetricReplay(context,{metricKey,sourceSet,baseline,quality,priorQualifying,observationCalculation,asOfUtc,plan}) {
@@ -313,10 +273,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     if(calculation.classification==='NO_MEANINGFUL_CHANGE'||!calculation.targetEpisodeState)return null;
     if((await client.execute({sql:`SELECT 1 FROM episode_evidence WHERE user_id=? AND execution_mode=? AND evidence_item_id=?`,
       args:[context.userId,context.executionMode,item.row.evidence_item_id]})).rows.length) {
-      const row=(await client.execute({sql:`SELECT e.* FROM observation_episodes e JOIN episode_evidence x
-        ON x.user_id=e.user_id AND x.execution_mode=e.execution_mode AND x.episode_id=e.episode_id
-        WHERE x.user_id=? AND x.execution_mode=? AND x.evidence_item_id=?`,args:[context.userId,context.executionMode,item.row.evidence_item_id]})).rows[0];
-      return {episode:{row},created:false,replayed:true};
+      fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
     }
     if(staleActive)await episodes.revise(context,{episodeId:staleActive.episode_id,expectedRevision:staleActive.revision,toState:'EXPIRED',
       patch:{latest_evidence_item_id:staleActive.latest_evidence_item_id},sourceRefs:[item.ref],reasonCode:'CONTINUITY_GAP',
@@ -324,9 +281,8 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     if(!active) {
       const reopened=await recentResolvedEpisode(context,identity,calculation.direction,asOfUtc);
       const opened=await episodes.open(context,{identity:{...identity,direction:calculation.direction},data:episodeData(context,sourceSet,calculation,asOfUtc,confidence),
-        evidenceItemId:item.row.evidence_item_id,reopensEpisodeId:reopened?.episode_id??null,semanticAt:asOfUtc});
+        evidenceItemId:item.row.evidence_item_id,reopensEpisodeId:reopened?.episode_id??null,semanticAt:asOfUtc,semanticEvent:semanticEvent('OPENED',calculation)});
       await linkMembership(context,opened,item,sourceSet,calculation,confidence);
-      await semantic(context,opened,'OPENED',calculation);
       return {episode:await episodes.read(context,opened.row.episode_id),created:true,replayed:false};
     }
     const patch={severity:calculation.severity,current_confidence:Math.min(calculation.confidence,confidence.score),current_novelty:Number(calculation.novelty),
@@ -335,8 +291,8 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     if(calculation.classification==='DIRECTION_REVERSAL') {
       const reversed=await episodes.reverse(context,{prior:{episodeId:active.episode_id,expectedRevision:active.revision,patch,
         sourceRefs:[item.ref],reasonCode:'DIRECTION_REVERSAL'},opposite:{identity:{...identity,direction:calculation.direction},
-        data:episodeData(context,sourceSet,calculation,asOfUtc,confidence),evidenceItemId:item.row.evidence_item_id},semanticAt:asOfUtc});
-      await linkMembership(context,reversed,item,sourceSet,calculation,confidence);await semantic(context,reversed,'OPENED',calculation);
+        data:episodeData(context,sourceSet,calculation,asOfUtc,confidence),evidenceItemId:item.row.evidence_item_id,semanticEvent:semanticEvent('OPENED',calculation)},semanticAt:asOfUtc});
+      await linkMembership(context,reversed,item,sourceSet,calculation,confidence);
       return {episode:await episodes.read(context,reversed.row.episode_id),created:true,replayed:false,reversedEpisodeId:active.episode_id};
     }
     let toState=active.state,reasonCode='NEW_EVIDENCE',closeThresholdPassed=false,semanticKind=null;
@@ -349,10 +305,9 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     else if(calculation.classification==='RESOLVED'){toState='RESOLVED';reasonCode='RESOLUTION_HOLD';closeThresholdPassed=true;}
     const revised=await episodes.revise(context,{episodeId:active.episode_id,expectedRevision:active.revision,toState,patch,
       sourceRefs:[item.ref],reasonCode,closeThresholdPassed,resolutionHoldMs:phase4Metric(calculation.metricKey).resolutionHoldMs,
-      semanticAt:asOfUtc});
+      semanticAt:asOfUtc,semanticEvent:semanticKind?semanticEvent(semanticKind,calculation):null});
     const current=await episodes.read(context,active.episode_id,{history:true});
     await linkMembership(context,current,item,sourceSet,calculation,confidence);
-    if(semanticKind)await semantic(context,current,semanticKind,calculation);
     return {episode:await episodes.read(context,active.episode_id),created:false,replayed:false,event:revised};
   }
   async function analyzeMetric(context,request) {

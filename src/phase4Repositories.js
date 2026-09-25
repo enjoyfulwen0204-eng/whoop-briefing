@@ -39,6 +39,14 @@ export function composePhase4Stores(core) {
       return result;
     });
   }
+  async function readArtifact(context,table,key) {
+    if(table!=='phase4_episode_revisions')return core.artifact(context,table,key);
+    return core.run(context,async()=>{
+      const artifact=await core.artifact(context,table,key);
+      await episodes.readRevision(context,{episodeId:artifact.row.episode_id,revision:artifact.row.revision});
+      return artifact;
+    });
+  }
   async function preferences(control) {
     return transaction(async()=>{
       await core.assertControl(control);
@@ -64,7 +72,7 @@ export function composePhase4Stores(core) {
     });
   }
   return Object.freeze({initializeTenant,capture:core.capture,captureControl:core.captureControl,capturePrivacyControl:core.capturePrivacyControl,
-    assertCurrent:context=>core.assertContext(context),root:core.root,readArtifact:core.artifact,
+    assertCurrent:context=>core.assertContext(context),root:core.root,readArtifact,
     release:context=>transaction(()=>core.contextRegistry.release(context)),
     cache:Object.freeze({
       get:(context,key)=>core.run(context,()=>structuredClone(core.contextRegistry.get(context,key))),

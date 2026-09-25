@@ -1,5 +1,6 @@
 import { fail, requireInteger } from './phase4Core.js';
 import { EPISODE_ACTIVE, V23_HEALTH_FIELDS } from './phase4V23Schema.js';
+import { createEpisodeHistory, requireSemanticTime } from './phase4EpisodeHistory.js';
 import { canonicalJson } from './phase4EntityStore.js';
 
 const NEXT={OPEN:['UPDATING','ESCALATED','EXPLAINED','STABILIZING'],UPDATING:['ESCALATED','EXPLAINED','STABILIZING'],
@@ -9,12 +10,11 @@ const PATCH_FIELDS=new Set(['severity','current_confidence','explained_status','
   'last_observed_at','latest_evidence_item_id','semantic_summary_hash','explanation_json','current_context_json','current_novelty',
   'max_semantic_severity_ordinal']);
 export function createPhase4EpisodeStore(core,entities) {
-  const {client,keys,timestamp}=core;
+  const {client,keys,timestamp}=core,history=createEpisodeHistory(core);
   const current=(context,id)=>core.artifact(context,'observation_episodes',{episode_id:id});
-  async function open(context,{identity,data,evidenceItemId,reopensEpisodeId=null,reversesEpisodeId=null,semanticAt=null}) {
+  async function open(context,{identity,data,evidenceItemId,reopensEpisodeId=null,reversesEpisodeId=null,semanticAt=null,semanticEvent=null}) {
     return core.run(context,async()=>{
-      if(!Number.isFinite(Date.parse(semanticAt)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
-      const at=semanticAt;
+      const at=requireSemanticTime(semanticAt);
       if(!identity || Object.keys(identity).sort().join(',')!=='algorithmMajor,direction,domain,metric,subject,windowFamily'
         || Object.values(identity).some(v=>typeof v!=='string'||!v||v.length>128))fail('PHASE4_EPISODE_IDENTITY_REQUIRED');
       const family=keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,identity.algorithmMajor,identity.subject,identity.windowFamily]);
@@ -37,20 +37,24 @@ export function createPhase4EpisodeStore(core,entities) {
           || prior.direction===identity.direction)fail('PHASE4_INVALID_REVERSAL');
       }
       if(!data || data.state || data.revision || data.fingerprint || data.episode_family_key || data.last_question_id
-        || data.last_delivered_notification_id || data.last_ambiguous_attempt_id)fail('PHASE4_EPISODE_OPEN_FIELDS');
+        || data.last_delivered_notification_id || data.last_ambiguous_attempt_id || data.last_semantic_event_id)fail('PHASE4_EPISODE_OPEN_FIELDS');
       const source=await core.artifact(context,'evidence_items',{evidence_item_id:evidenceItemId});
       const id=core.newId();
-      const episode=await entities.append(context,'observation_episodes',{...data,episode_id:id,fingerprint,episode_family_key:family,
+      await entities.append(context,'observation_episodes',{...data,episode_id:id,fingerprint,episode_family_key:family,
         domain:identity.domain,subject_key:identity.subject,direction:identity.direction,state:'OPEN',revision:1,
         latest_evidence_item_id:evidenceItemId,opened_at:at,reopens_episode_id:reopensEpisodeId,reverses_episode_id:reversesEpisodeId},[source.ref]);
-      await entities.append(context,'episode_events',{episode_id:id,deterministic_event_key:keys.lookup(['episode-open-v1',context.userId,context.executionMode,id]),
+      const event=await entities.append(context,'episode_events',{episode_id:id,deterministic_event_key:keys.lookup(['episode-open-v1',context.userId,context.executionMode,id]),
         event_kind:'STATE_TRANSITION',from_state:null,to_state:'OPEN',reason:'QUALIFIED_EVIDENCE',expected_revision:0,resulting_revision:1,
-        actor_type:'DETERMINISTIC_ENGINE',evidence_references_json:[evidenceItemId]},[source.ref]);
-      return episode;
+        actor_type:'DETERMINISTIC_ENGINE',evidence_references_json:[['evidence_items',evidenceItemId]]},[source.ref]);
+      if(semanticEvent)await semantic(context,{...semanticEvent,episodeId:id,expectedRevision:1,episodeEventId:event.row.episode_event_id,semanticAt:at},true);
+      const final=await current(context,id);
+      await history.persist(context,final.row,event.row.episode_event_id,at);
+      return {...final,created:true};
     });
   }
   async function reviseInternal(context,{episodeId,expectedRevision,toState,patch={},sourceRefs=[],reasonCode,
-    closeThresholdPassed=false,resolutionHoldMs=86400000,semanticAt=null,continuityGapPassed=false},directionReversal=false) {
+    closeThresholdPassed=false,resolutionHoldMs=86400000,semanticAt=null,continuityGapPassed=false,semanticEvent=null},directionReversal=false) {
+    semanticAt=requireSemanticTime(semanticAt);
     requireInteger(expectedRevision,1);requireInteger(resolutionHoldMs,1);
     if(Object.keys(patch).some(k=>!PATCH_FIELDS.has(k)))fail('PHASE4_INVALID_EPISODE_PATCH');
     if(!['NEW_EVIDENCE','SEVERITY_CROSSING','PERSISTENCE','ACTIONABILITY','CURRENT_EXPLANATION','CLOSE_THRESHOLD',
@@ -61,16 +65,17 @@ export function createPhase4EpisodeStore(core,entities) {
       const sources=await core.revalidateSources(context,sourceRefs);
       if(!sources.length)fail('PHASE4_NEW_EVIDENCE_REQUIRED');
       const changeKey=keys.digest(row.content_digest_salt,canonicalJson(sources.map(s=>[s.type,s.id,s.mode,s.row]).sort((a,b)=>canonicalJson(a).localeCompare(canonicalJson(b)))));
-      const eventKey=keys.lookup(['episode-change-v1',context.userId,context.executionMode,episodeId,changeKey,row.state===toState?'SAME_STATE_REVISION':'STATE_TRANSITION']);
+      const eventKey=keys.lookup(['episode-change-v25',context.userId,context.executionMode,episodeId,expectedRevision,changeKey,
+        canonicalJson({toState,patch,reasonCode,semanticAt,semanticEvent,closeThresholdPassed,resolutionHoldMs,continuityGapPassed})]);
       const prior=(await client.execute({sql:`SELECT episode_event_id,to_state,reason FROM episode_events WHERE user_id=? AND execution_mode=? AND deterministic_event_key=?`,
         args:[context.userId,context.executionMode,eventKey]})).rows[0];
       if(prior) {
         if(prior.to_state!==toState || prior.reason!==reasonCode)fail('PHASE4_IDENTITY_CONTENT_CONFLICT');
+        await history.read(context,{episodeId,revision:expectedRevision+1,semanticAt});
         return {...await core.artifact(context,'episode_events',{episode_event_id:prior.episode_event_id}),created:false};
       }
       if(!EPISODE_ACTIVE.includes(row.state))fail('PHASE4_EPISODE_TERMINAL');
       if(row.revision!==expectedRevision)fail('PHASE4_EPISODE_CAS_LOST');
-      if(!Number.isFinite(Date.parse(semanticAt)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
       const operationalAt=timestamp(),at=semanticAt,same=row.state===toState;
       if(!same && !NEXT[row.state]?.includes(toState) && !['EXPIRED','INVALIDATED'].includes(toState)
         && !(toState==='RESOLVED'&&directionReversal))fail('PHASE4_ILLEGAL_EPISODE_TRANSITION');
@@ -97,21 +102,29 @@ export function createPhase4EpisodeStore(core,entities) {
       const event=await entities.append(context,'episode_events',{episode_id:episodeId,deterministic_event_key:eventKey,
         event_kind:same?'SAME_STATE_REVISION':'STATE_TRANSITION',from_state:row.state,to_state:toState,reason:reasonCode,
         expected_revision:expectedRevision,resulting_revision:expectedRevision+1,actor_type:'DETERMINISTIC_ENGINE',
-        evidence_references_json:sources.map(s=>[s.type,s.id])},sourceRefs);
+        evidence_references_json:sources.map(s=>[s.type,s.type==='evidence_items'?s.row.evidence_item_id:s.id])
+          .sort((a,b)=>canonicalJson(a).localeCompare(canonicalJson(b)))},sourceRefs);
+      await core.link(context,'observation_episodes',row.privacy_artifact_id,[...sourceRefs,...parentRefs]);
       const result=await client.execute({sql:`UPDATE observation_episodes SET ${entries.map(([k])=>`${k}=?`).join(',')}
         WHERE user_id=? AND execution_mode=? AND episode_id=? AND revision=?`,args:[...entries.map(([,v])=>v),context.userId,context.executionMode,episodeId,expectedRevision]});
       if(result.rowsAffected!==1)fail('PHASE4_EPISODE_CAS_LOST');
-      await core.link(context,'observation_episodes',row.privacy_artifact_id,[...sourceRefs,...parentRefs]);
+      if(semanticEvent)await semantic(context,{...semanticEvent,episodeId,expectedRevision:expectedRevision+1,
+        episodeEventId:event.row.episode_event_id,semanticAt:at},true);
+      const final=(await client.execute({sql:'SELECT * FROM observation_episodes WHERE user_id=? AND execution_mode=? AND episode_id=?',
+        args:[context.userId,context.executionMode,episodeId]})).rows[0];
+      await history.persist(context,final,event.row.episode_event_id,at);
       return toState==='INVALIDATED'?{eventId:event.row.episode_event_id,created:true}:event;
     });
   }
   async function reverse(context,{prior,opposite,semanticAt=null}) {
+    semanticAt=requireSemanticTime(semanticAt);
     return core.run(context,async()=>{
       await reviseInternal(context,{...prior,toState:'RESOLVED',reasonCode:'DIRECTION_REVERSAL',semanticAt},true);
       return open(context,{...opposite,reversesEpisodeId:prior.episodeId,semanticAt});
     });
   }
-  async function refresh(context,{episodeId,expectedRevision,identity,projection,evidenceItemId}) {
+  async function refresh(context,{episodeId,expectedRevision,identity,projection,evidenceItemId,semanticAt=null}) {
+    semanticAt=requireSemanticTime(semanticAt);
     requireInteger(expectedRevision,1);
     return core.run(context,async()=>{
       const row=(await client.execute({sql:`SELECT episode_id,fingerprint,episode_family_key,state,revision,input_generation,
@@ -139,15 +152,18 @@ export function createPhase4EpisodeStore(core,entities) {
         args:[...names.map(k=>changes[k]),context.userId,context.executionMode,episodeId,expectedRevision,row.input_generation]});
       if(result.rowsAffected!==1)fail('PHASE4_EPISODE_CAS_LOST');
       await core.link(context,'observation_episodes',row.privacy_artifact_id,[item.ref,...refs]);
-      await entities.append(context,'episode_events',{episode_id:episodeId,
+      const event=await entities.append(context,'episode_events',{episode_id:episodeId,
         deterministic_event_key:keys.lookup(['episode-refresh-v1',context.userId,context.executionMode,episodeId,evidenceItemId]),
         event_kind:'SAME_STATE_REVISION',from_state:row.state,to_state:row.state,reason:'NEW_EVIDENCE',expected_revision:expectedRevision,
-        resulting_revision:expectedRevision+1,actor_type:'DETERMINISTIC_ENGINE',evidence_references_json:[evidenceItemId]},[item.ref]);
-      return current(context,episodeId);
+        resulting_revision:expectedRevision+1,actor_type:'DETERMINISTIC_ENGINE',evidence_references_json:[['evidence_items',evidenceItemId]]},[item.ref]);
+      const final=await current(context,episodeId);
+      await history.persist(context,final.row,event.row.episode_event_id,semanticAt);
+      return final;
     });
   }
   async function semantic(context,{episodeId,expectedRevision,episodeEventId,eventKind,severityOrdinal=null,
-    explainedUncertaintyKey=null,claimKey=null,recommendedActionKey=null,semanticContentHash}) {
+    explainedUncertaintyKey=null,claimKey=null,recommendedActionKey=null,semanticContentHash,semanticAt=null},withinRevision=false) {
+    semanticAt=requireSemanticTime(semanticAt);
     requireInteger(expectedRevision,1);
     if(!['OPENED','ESCALATED','EXPLAINED','MATERIAL_ESCALATION'].includes(eventKind)||!semanticContentHash)
       fail('PHASE4_SEMANTIC_EVENT_INVALID');
@@ -158,16 +174,20 @@ export function createPhase4EpisodeStore(core,entities) {
       if(event.row.episode_id!==episodeId||event.row.resulting_revision!==expectedRevision)fail('PHASE4_EVENT_PARENT_MISMATCH');
       const prior=(await client.execute({sql:`SELECT * FROM episode_semantic_events WHERE user_id=? AND execution_mode=?
         AND episode_id=? AND resulting_revision=?`,args:[context.userId,context.executionMode,episodeId,expectedRevision]})).rows[0];
+      if(!withinRevision&&!prior)fail('PHASE4_EPISODE_REVISION_IMMUTABLE');
+      if(!withinRevision)await history.read(context,{episodeId,revision:expectedRevision,semanticAt});
       let semantic;
       if(prior) {
         if(prior.episode_event_id!==episodeEventId||prior.event_kind!==eventKind||prior.severity_ordinal!==severityOrdinal
-          ||prior.claim_key!==claimKey||prior.semantic_content_hash!==semanticContentHash)fail('PHASE4_IDENTITY_CONTENT_CONFLICT');
+          ||prior.claim_key!==claimKey||prior.semantic_content_hash!==semanticContentHash
+          ||prior.explained_uncertainty_key!==explainedUncertaintyKey||prior.recommended_action_key!==recommendedActionKey)fail('PHASE4_IDENTITY_CONTENT_CONFLICT');
         semantic=await core.artifact(context,'episode_semantic_events',{episode_semantic_event_id:prior.episode_semantic_event_id});
       } else semantic=await entities.append(context,'episode_semantic_events',{episode_id:episodeId,resulting_revision:expectedRevision,
           episode_event_id:episodeEventId,event_kind:eventKind,severity_ordinal:severityOrdinal,
           explained_uncertainty_key:explainedUncertaintyKey,claim_key:claimKey,recommended_action_key:recommendedActionKey,
           semantic_content_hash:semanticContentHash,predecessor_semantic_event_id:episode.row.last_semantic_event_id,
           algorithm_version:'phase4-intelligence-v1'},[event.ref]);
+      if(!withinRevision)return semantic;
       const maximum=severityOrdinal===null?episode.row.max_semantic_severity_ordinal
         :Math.max(episode.row.max_semantic_severity_ordinal??0,severityOrdinal);
       const updated=await client.execute({sql:`UPDATE observation_episodes SET last_semantic_event_id=?,max_semantic_severity_ordinal=?
@@ -179,5 +199,5 @@ export function createPhase4EpisodeStore(core,entities) {
       return semantic;
     });
   }
-  return {open,revise:(context,change)=>reviseInternal(context,change),reverse,refresh,semantic,read:current};
+  return {open,revise:(context,change)=>reviseInternal(context,change),reverse,refresh,semantic:(context,request)=>semantic(context,request),read:current,readRevision:history.read};
 }

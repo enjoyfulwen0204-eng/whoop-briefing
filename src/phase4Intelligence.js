@@ -37,10 +37,21 @@ export function validMetricValue(metricKey, value) {
   return contract.maximum === undefined || value <= contract.maximum;
 }
 
+// Shared by sampling and provenance before any manifest/identity construction.
+// Stable semantic source identity, never caller or database row order.
+export const compareBaselineSources = (a,b) =>
+  String(b?.healthDate ?? '').localeCompare(String(a?.healthDate ?? ''))
+  || (Date.parse(b?.observedAt)-Date.parse(a?.observedAt) || 0)
+  || String(b?.sourceVersion ?? '').localeCompare(String(a?.sourceVersion ?? ''))
+  || String(a?.sourceId ?? '').localeCompare(String(b?.sourceId ?? ''))
+  || String(a?.sourceType ?? '').localeCompare(String(b?.sourceType ?? ''))
+  || String(a?.ingestedAt ?? '').localeCompare(String(b?.ingestedAt ?? ''))
+  || String(a?.value ?? '').localeCompare(String(b?.value ?? ''));
+
 function normalizeObservations(metricKey, observations, targetHealthDate, asOfUtc) {
   const contract = phase4Metric(metricKey), asOf = Date.parse(asOfUtc), target = dayNumber(targetHealthDate);
   const exclusions = [], candidates = [];
-  for (const raw of Array.isArray(observations) ? observations : []) {
+  for (const raw of [...(Array.isArray(observations) ? observations : [])].sort(compareBaselineSources)) {
     const observation = { ...raw };
     let reason = null;
     if (!validHealthDate(observation.healthDate)) reason = 'INVALID_HEALTH_DATE';
@@ -55,10 +66,7 @@ function normalizeObservations(metricKey, observations, targetHealthDate, asOfUt
     if (reason) exclusions.push({ sourceId: observation.sourceId ?? null, healthDate: observation.healthDate ?? null, reason });
     else candidates.push(observation);
   }
-  candidates.sort((a, b) => dayNumber(b.healthDate) - dayNumber(a.healthDate)
-    || Date.parse(b.observedAt) - Date.parse(a.observedAt)
-    || String(b.sourceVersion ?? '').localeCompare(String(a.sourceVersion ?? ''))
-    || String(a.sourceId ?? '').localeCompare(String(b.sourceId ?? '')));
+  candidates.sort(compareBaselineSources);
   const days = new Set(), samples = [];
   for (const candidate of candidates) {
     if (days.has(candidate.healthDate)) {

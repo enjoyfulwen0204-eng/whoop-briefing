@@ -106,7 +106,7 @@ export function createPhase4PrivacyStore(core,queue) {
       fail('PHASE4_VALIDATED_REPLACEMENT_REQUIRED');
     // Detect drift before the durable fence, not after a partially applied
     // compatibility path. This is read-only verification of frozen versions.
-    await assertPhase4Schema(client,24);
+    await assertPhase4Schema(client);
     return transaction(async()=>{
       const state=await core.assertPrivacyControl(control);
       if(sourceUpdateId!==null)await inbound.validate(control,inboundAuthority,sourceUpdateId);

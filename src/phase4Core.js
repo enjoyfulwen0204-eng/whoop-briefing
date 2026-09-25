@@ -7,6 +7,7 @@ import { requirePhase4Keys } from './phase4Keys.js';
 import { requireUserId } from './userContext.js';
 import { addPrivacyLink } from './phase4V22Backfill.js';
 import { V23_TABLES } from './phase4V23Schema.js';
+import { V25_TABLES } from './phase4V25Schema.js';
 import { V24_TABLES } from './phase4V24Schema.js';
 import { createPhase4ContextRegistry } from './phase4Cache.js';
 
@@ -20,7 +21,7 @@ export const requireInteger = (value, minimum=0) => {
 };
 export const readableRow = row => Boolean(row && row.content_state==='PRESENT'
   && row.source_linkage_state==='COMPLETE' && row.health_content_redacted_at===null);
-export const DERIVED_TABLES = Object.freeze(['context_questions','structured_answer_events',...V23_TABLES,'health_insights',...V24_TABLES]);
+export const DERIVED_TABLES = Object.freeze(['context_questions','structured_answer_events',...V23_TABLES,'health_insights',...V24_TABLES,...V25_TABLES]);
 const ROOTS = Object.freeze({
   sleep:['whoop_sleeps','id'],recovery:['whoop_recoveries','sleep_id'],cycle:['whoop_cycles','id'],workout:['whoop_workouts','id'],
   JOURNAL_FACT:['journal_events','privacy_artifact_id'],JOURNAL_COVERAGE:['journal_coverage_windows','coverage_window_id'],
@@ -34,7 +35,7 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
   requirePhase4Keys(keys);
   if(typeof modeAuthority!=='function' || typeof processing?.transaction!=='function')fail('PHASE4_SERVER_FACTORY_REQUIRED');
   const {client,transaction}=processing;
-  await assertPhase4Schema(client,24);
+  await assertPhase4Schema(client);
   const databases=(await client.execute('PRAGMA database_list')).rows;
   const isolatedMemory=client.protocol==='file'&&databases.length===1&&databases[0].name==='main'&&databases[0].file==='';
   function authorizeMode(mode,connection) {

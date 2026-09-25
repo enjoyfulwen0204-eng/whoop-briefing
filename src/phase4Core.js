@@ -151,11 +151,11 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     if(!columns.has(table))columns.set(table,(await client.execute(`PRAGMA table_info(${table})`)).rows);
     return columns.get(table);
   }
-  function reference(context,type,id,mode,row) {
+  function reference(context,type,id,mode,row,{historicalAsOf=null}={}) {
     const ref=Object.freeze({type,id:String(id),executionMode:mode});
     const snapshotKey=row===null?null:['source-snapshot-v1',randomUUID()];
     if(snapshotKey)contextRegistry.set(context,snapshotKey,row);
-    sources.set(ref,{context,type,id:String(id),mode,snapshotKey});return ref;
+    sources.set(ref,{context,type,id:String(id),mode,snapshotKey,historicalAsOf});return ref;
   }
   function validateReferences(context,refs) {
     if(!Array.isArray(refs))fail('PHASE4_SOURCE_REFERENCES_REQUIRED');
@@ -198,6 +198,69 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
       return {row:{...row},ref:reference(context,type,id,'SHARED',row)};
     });
   }
+  async function validateHistoricalJournal(context,source) {
+    if(!['JOURNAL_FACT','JOURNAL_COVERAGE'].includes(source.type)||!source.historicalAsOf
+      ||!Number.isFinite(Date.parse(source.historicalAsOf)))fail('PHASE4_HISTORICAL_SOURCE_INVALID');
+    const [table,key]=ROOTS[source.type];
+    const row=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND ${key}=?`,
+      args:[context.userId,source.id]})).rows[0];
+    if(!readableRow(row))fail('CONTENT_REDACTED');
+    if(!row.created_at||row.created_at>source.historicalAsOf)fail('PHASE4_HISTORICAL_SOURCE_INVALID');
+    if(source.type==='JOURNAL_FACT') {
+      const authoritative=(await client.execute({sql:`SELECT privacy_artifact_id FROM journal_events
+        WHERE user_id=? AND logical_fact_id=? AND created_at<=? ORDER BY revision DESC,created_at DESC LIMIT 1`,
+      args:[context.userId,row.logical_fact_id,source.historicalAsOf]})).rows[0];
+      const tombstone=(await client.execute({sql:`SELECT deleted_at FROM journal_event_tombstones
+        WHERE user_id=? AND logical_fact_id=?`,args:[context.userId,row.logical_fact_id]})).rows[0];
+      if(!authoritative||authoritative.privacy_artifact_id!==source.id
+        ||tombstone?.deleted_at<=source.historicalAsOf)fail('PHASE4_HISTORICAL_SOURCE_INVALID');
+    } else {
+      const descendants=(await client.execute({sql:`WITH RECURSIVE lineage(coverage_window_id,created_at,revision) AS (
+          SELECT coverage_window_id,created_at,revision FROM journal_coverage_windows WHERE user_id=? AND coverage_window_id=?
+          UNION ALL
+          SELECT child.coverage_window_id,child.created_at,child.revision FROM journal_coverage_windows child
+          JOIN lineage parent ON child.supersedes_coverage_window_id=parent.coverage_window_id WHERE child.user_id=?
+        ) SELECT coverage_window_id FROM lineage WHERE created_at<=? ORDER BY revision DESC,created_at DESC LIMIT 1`,
+      args:[context.userId,source.id,context.userId,source.historicalAsOf]})).rows[0];
+      if(!descendants||descendants.coverage_window_id!==source.id)fail('PHASE4_HISTORICAL_SOURCE_INVALID');
+    }
+    if(source.row&&JSON.stringify(row)!==JSON.stringify(source.row))fail('PHASE4_PARENT_STALE');
+    return row;
+  }
+  async function journalSourcesAsOf(context,refs,asOfUtc) {
+    if(!Number.isFinite(Date.parse(asOfUtc)))fail('PHASE4_HISTORICAL_AS_OF_REQUIRED');
+    return run(context,async()=>{
+      const inputs=await revalidateSources(context,refs),selected=[];
+      for(const source of inputs) {
+        if(!['JOURNAL_FACT','JOURNAL_COVERAGE'].includes(source.type))fail('PHASE4_JOURNAL_SOURCE_REQUIRED');
+        let row=null;
+        if(source.type==='JOURNAL_FACT') {
+          row=(await client.execute({sql:`SELECT * FROM journal_events WHERE user_id=? AND logical_fact_id=?
+            AND created_at<=? ORDER BY revision DESC,created_at DESC LIMIT 1`,
+          args:[context.userId,source.row.logical_fact_id,asOfUtc]})).rows[0]??null;
+        } else {
+          row={...source.row};
+          while(row&&row.created_at>asOfUtc)row=row.supersedes_coverage_window_id
+            ?(await client.execute({sql:`SELECT * FROM journal_coverage_windows WHERE user_id=? AND coverage_window_id=?`,
+              args:[context.userId,row.supersedes_coverage_window_id]})).rows[0]??null:null;
+        }
+        // A genuinely new assertion after T did not exist at T. A correction
+        // whose prior revision was purged is different: historical replay is
+        // unavailable and must fail closed instead of adopting the correction.
+        if(!row) {
+          if((source.row.revision??1)>1||source.row.supersedes_coverage_window_id)fail('CONTENT_REDACTED');
+          continue;
+        }
+        if(!readableRow(row))fail('CONTENT_REDACTED');
+        const id=source.type==='JOURNAL_FACT'?row.privacy_artifact_id:row.coverage_window_id;
+        const ref=reference(context,source.type,id,'SHARED',{...row},{historicalAsOf:asOfUtc});
+        const historical={context,type:source.type,id:String(id),mode:'SHARED',row:{...row},historicalAsOf:asOfUtc};
+        await validateHistoricalJournal(context,historical);
+        selected.push({...historical,ref});
+      }
+      return selected;
+    });
+  }
   async function artifact(context,table,key) {
     if(!DERIVED_TABLES.includes(table))fail('PHASE4_UNKNOWN_ENTITY');
     return run(context,async()=>{
@@ -227,7 +290,11 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     args:[context.userId,context.executionMode,table,artifactId,...(logical?[`INPUT_GENERATION:${context.inputGeneration}`]:[])]})).rows;
     if(!links.length)fail('PHASE4_INCOMPLETE_PROVENANCE');
     for(const link of links) {
-      if(link.source_execution_mode==='SHARED')await root(context,link.source_type,link.source_id);
+      if(link.source_execution_mode==='SHARED') {
+        if(link.relationship.startsWith('DEPENDS_ON_AS_OF:'))await validateHistoricalJournal(context,{type:link.source_type,
+          id:link.source_id,mode:'SHARED',historicalAsOf:link.relationship.slice('DEPENDS_ON_AS_OF:'.length),row:null});
+        else await root(context,link.source_type,link.source_id);
+      }
       else {
         if(link.source_execution_mode!==context.executionMode || !DERIVED_TABLES.includes(link.source_type))fail('PHASE4_MIXED_MODE_PARENT');
         const parent=(await client.execute({sql:`SELECT * FROM ${link.source_type} WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?`,
@@ -255,8 +322,11 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     const list=validateReferences(context,refs);
     for(const source of list) {
       if(source.mode==='SHARED') {
-        const current=await root(context,source.type,source.id);
-        if(source.row && JSON.stringify(current.row)!==JSON.stringify(source.row))fail('PHASE4_PARENT_STALE');
+        if(source.historicalAsOf)await validateHistoricalJournal(context,source);
+        else {
+          const current=await root(context,source.type,source.id);
+          if(source.row && JSON.stringify(current.row)!==JSON.stringify(source.row))fail('PHASE4_PARENT_STALE');
+        }
       }
       else {
         const row=(await client.execute({sql:`SELECT * FROM ${source.type} WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?`,
@@ -275,7 +345,8 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     if(!list.length)fail('PHASE4_COMPLETE_PROVENANCE_REQUIRED');
     for(const source of list)await addPrivacyLink(client,{userId:context.userId,mode:context.executionMode,table,artifactId,
       sourceMode:source.mode,sourceType:source.type,sourceId:source.id,at:timestamp(),
-      relationship:['observation_episodes','health_insights'].includes(table)?`INPUT_GENERATION:${context.inputGeneration}`:'DEPENDS_ON'});
+      relationship:['observation_episodes','health_insights'].includes(table)?`INPUT_GENERATION:${context.inputGeneration}`
+        :source.historicalAsOf?`DEPENDS_ON_AS_OF:${source.historicalAsOf}`:'DEPENDS_ON'});
   }
   function envelope(context,table,identity,{salt=keys.newSalt()}={}) {
     if(!contexts.has(context))fail('PHASE4_SERVER_CONTEXT_REQUIRED');
@@ -285,5 +356,5 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
   }
   return Object.freeze({client,processing,transaction,keys,now,timestamp,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
     capturePrivacyControl,assertPrivacyControl,run,runControl,runMaintenance,contextRegistry,
-    tableInfo,root,artifact,link,envelope,validateReferences,revalidateSources,validateStoredGraph,newId:()=>randomUUID()});
+    tableInfo,root,artifact,link,envelope,validateReferences,revalidateSources,journalSourcesAsOf,validateStoredGraph,newId:()=>randomUUID()});
 }

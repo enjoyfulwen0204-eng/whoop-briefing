@@ -10,6 +10,7 @@ export const INTELLIGENCE_VERSIONS = Object.freeze({
   algorithm: 'phase4-intelligence-v1',
   registry: 'phase4-metric-registry-v1',
   evidenceContract: 'phase4-evidence-v1',
+  evidenceConfidence: 'evidence-confidence-v1',
   baseline: 'robust-baseline-v1',
   exposureClassification: 'journal-exposure-v1',
   promotionConfound: 'unknown-promotion-confound-v1',

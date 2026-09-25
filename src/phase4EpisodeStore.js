@@ -11,8 +11,9 @@ const PATCH_FIELDS=new Set(['severity','current_confidence','explained_status','
 export function createPhase4EpisodeStore(core,entities) {
   const {client,keys,timestamp}=core;
   const current=(context,id)=>core.artifact(context,'observation_episodes',{episode_id:id});
-  async function open(context,{identity,data,evidenceItemId,reopensEpisodeId=null,reversesEpisodeId=null}) {
+  async function open(context,{identity,data,evidenceItemId,reopensEpisodeId=null,reversesEpisodeId=null,semanticAt=null}) {
     return core.run(context,async()=>{
+      const at=semanticAt??timestamp();if(!Number.isFinite(Date.parse(at)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
       if(!identity || Object.keys(identity).sort().join(',')!=='algorithmMajor,direction,domain,metric,subject,windowFamily'
         || Object.values(identity).some(v=>typeof v!=='string'||!v||v.length>128))fail('PHASE4_EPISODE_IDENTITY_REQUIRED');
       const family=keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,identity.algorithmMajor,identity.subject,identity.windowFamily]);
@@ -27,7 +28,7 @@ export function createPhase4EpisodeStore(core,entities) {
       if(reopensEpisodeId) {
         const prior=(await current(context,reopensEpisodeId)).row;
         if(prior.state!=='RESOLVED'||prior.fingerprint!==fingerprint||!prior.resolved_at
-          || Date.parse(timestamp())-Date.parse(prior.resolved_at)>7*86400000)fail('PHASE4_INVALID_REOPEN');
+          || Date.parse(at)-Date.parse(prior.resolved_at)>7*86400000)fail('PHASE4_INVALID_REOPEN');
       }
       if(reversesEpisodeId) {
         const prior=(await current(context,reversesEpisodeId)).row;
@@ -37,7 +38,7 @@ export function createPhase4EpisodeStore(core,entities) {
       if(!data || data.state || data.revision || data.fingerprint || data.episode_family_key || data.last_question_id
         || data.last_delivered_notification_id || data.last_ambiguous_attempt_id)fail('PHASE4_EPISODE_OPEN_FIELDS');
       const source=await core.artifact(context,'evidence_items',{evidence_item_id:evidenceItemId});
-      const id=core.newId(),at=timestamp();
+      const id=core.newId();
       const episode=await entities.append(context,'observation_episodes',{...data,episode_id:id,fingerprint,episode_family_key:family,
         domain:identity.domain,subject_key:identity.subject,direction:identity.direction,state:'OPEN',revision:1,
         latest_evidence_item_id:evidenceItemId,opened_at:at,reopens_episode_id:reopensEpisodeId,reverses_episode_id:reversesEpisodeId},[source.ref]);
@@ -48,11 +49,11 @@ export function createPhase4EpisodeStore(core,entities) {
     });
   }
   async function reviseInternal(context,{episodeId,expectedRevision,toState,patch={},sourceRefs=[],reasonCode,
-    closeThresholdPassed=false,resolutionHoldMs=86400000},directionReversal=false) {
+    closeThresholdPassed=false,resolutionHoldMs=86400000,semanticAt=null,continuityGapPassed=false},directionReversal=false) {
     requireInteger(expectedRevision,1);requireInteger(resolutionHoldMs,1);
     if(Object.keys(patch).some(k=>!PATCH_FIELDS.has(k)))fail('PHASE4_INVALID_EPISODE_PATCH');
     if(!['NEW_EVIDENCE','SEVERITY_CROSSING','PERSISTENCE','ACTIONABILITY','CURRENT_EXPLANATION','CLOSE_THRESHOLD',
-      'RESOLUTION_HOLD','WINDOW_EXPIRED','SOURCE_INVALIDATED','DIRECTION_REVERSAL'].includes(reasonCode))fail('PHASE4_EPISODE_REASON_REQUIRED');
+      'RESOLUTION_HOLD','WINDOW_EXPIRED','CONTINUITY_GAP','SOURCE_INVALIDATED','DIRECTION_REVERSAL'].includes(reasonCode))fail('PHASE4_EPISODE_REASON_REQUIRED');
     return core.run(context,async()=>{
       const episode=await current(context,episodeId),row=episode.row;
       if(resolutionHoldMs<86400000)fail('PHASE4_REGISTERED_RESOLUTION_HOLD_REQUIRED');
@@ -68,7 +69,8 @@ export function createPhase4EpisodeStore(core,entities) {
       }
       if(!EPISODE_ACTIVE.includes(row.state))fail('PHASE4_EPISODE_TERMINAL');
       if(row.revision!==expectedRevision)fail('PHASE4_EPISODE_CAS_LOST');
-      const at=timestamp(),same=row.state===toState;
+      const operationalAt=timestamp(),at=semanticAt??operationalAt,same=row.state===toState;
+      if(!Number.isFinite(Date.parse(at)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
       if(!same && !NEXT[row.state]?.includes(toState) && !['EXPIRED','INVALIDATED'].includes(toState)
         && !(toState==='RESOLVED'&&directionReversal))fail('PHASE4_ILLEGAL_EPISODE_TRANSITION');
       if(toState==='RESOLVED') {
@@ -76,7 +78,8 @@ export function createPhase4EpisodeStore(core,entities) {
         if(!directionReversal && (row.state!=='STABILIZING'||!closeThresholdPassed||!row.stabilization_started_at
           || Date.parse(at)-Date.parse(row.stabilization_started_at)<resolutionHoldMs))fail('PHASE4_RESOLUTION_HOLD_NOT_MET');
       }
-      if(toState==='EXPIRED' && (!row.expires_at||row.expires_at>at))fail('PHASE4_EXPIRY_NOT_REACHED');
+      if(toState==='EXPIRED' && ((!continuityGapPassed&&(!row.expires_at||row.expires_at>at))
+        ||continuityGapPassed&&reasonCode!=='CONTINUITY_GAP'))fail('PHASE4_EXPIRY_NOT_REACHED');
       if(toState==='STABILIZING' && !closeThresholdPassed)fail('PHASE4_CLOSE_THRESHOLD_REQUIRED');
       if(patch.severity!=null && row.severity!=null && patch.severity<row.severity && !closeThresholdPassed)fail('PHASE4_HYSTERESIS_REQUIRED');
       if(toState==='EXPLAINED' && !(patch.explanation_evidence_item_id??row.explanation_evidence_item_id))fail('PHASE4_CURRENT_EXPLANATION_REQUIRED');
@@ -84,7 +87,7 @@ export function createPhase4EpisodeStore(core,entities) {
       for(const key of ['explanation_json','current_context_json'])if(Object.hasOwn(changes,key))changes[key]=canonicalJson(changes[key]);
       const parentRefs=await entities.validateParents(context,'observation_episodes',{...row,...changes});
       if(same && Object.entries(changes).every(([k,v])=>row[k]===v))return {...episode,created:false};
-      Object.assign(changes,{state:toState,revision:row.revision+1,updated_at:at});
+      Object.assign(changes,{state:toState,revision:row.revision+1,updated_at:operationalAt});
       if(!same)changes.last_material_change_at=at;
       if(!same && toState==='STABILIZING')changes.stabilization_started_at=at;
       if(!same && toState==='RESOLVED')Object.assign(changes,{resolved_at:at,resolution_reason:directionReversal?'DIRECTION_REVERSAL':'RESOLUTION_HOLD'});
@@ -101,10 +104,10 @@ export function createPhase4EpisodeStore(core,entities) {
       return toState==='INVALIDATED'?{eventId:event.row.episode_event_id,created:true}:event;
     });
   }
-  async function reverse(context,{prior,opposite}) {
+  async function reverse(context,{prior,opposite,semanticAt=null}) {
     return core.run(context,async()=>{
-      await reviseInternal(context,{...prior,toState:'RESOLVED',reasonCode:'DIRECTION_REVERSAL'},true);
-      return open(context,{...opposite,reversesEpisodeId:prior.episodeId});
+      await reviseInternal(context,{...prior,toState:'RESOLVED',reasonCode:'DIRECTION_REVERSAL',semanticAt},true);
+      return open(context,{...opposite,reversesEpisodeId:prior.episodeId,semanticAt});
     });
   }
   async function refresh(context,{episodeId,expectedRevision,identity,projection,evidenceItemId}) {

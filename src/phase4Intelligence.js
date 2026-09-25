@@ -6,6 +6,10 @@ const DAY_MS = 86_400_000;
 const clamp = (minimum, maximum, value) => Math.min(maximum, Math.max(minimum, value));
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 const validInstant = value => typeof value === 'string' && value.length > 0 && Number.isFinite(Date.parse(value));
+const comparisonTolerance = (left, right) => Number.EPSILON * 8 * Math.max(1, Math.abs(left), Math.abs(right));
+const thresholdEqual = (left, right) => finite(left) && finite(right) && Math.abs(left - right) <= comparisonTolerance(left, right);
+const thresholdAtLeast = (left, right) => finite(left) && finite(right) && (left > right || thresholdEqual(left, right));
+const thresholdBelow = (left, right) => finite(left) && finite(right) && left < right && !thresholdEqual(left, right);
 const validHealthDate = value => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const instant = Date.parse(`${value}T00:00:00.000Z`);
@@ -155,7 +159,7 @@ function semanticImpact(contract, direction) {
 
 function severityOf(contract, absoluteRobustZ) {
   let severity = 0;
-  for (const threshold of contract.severityRobustZ) if (absoluteRobustZ >= threshold) severity += 1;
+  for (const threshold of contract.severityRobustZ) if (thresholdAtLeast(absoluteRobustZ, threshold)) severity += 1;
   return severity;
 }
 
@@ -171,24 +175,26 @@ export function evaluateMeaningfulChange({ metricKey, current, baseline, quality
   const absoluteRobustZ = robustZ === null ? null : Math.abs(robustZ), direction = robustZ === null ? null : robustZ >= 0 ? 'HIGHER' : 'LOWER';
   const magnitudePass = absoluteDelta !== null && (Math.abs(absoluteDelta) >= contract.absoluteFloor
     || relativeDelta !== null && Math.abs(relativeDelta) >= contract.relativeFloor);
-  const openPass = magnitudePass && absoluteRobustZ !== null && absoluteRobustZ >= contract.openRobustZ;
-  const closePass = absoluteRobustZ !== null && absoluteRobustZ < contract.closeRobustZ;
+  const openPass = magnitudePass && absoluteRobustZ !== null && thresholdAtLeast(absoluteRobustZ, contract.openRobustZ);
+  const closePass = absoluteRobustZ !== null && thresholdBelow(absoluteRobustZ, contract.closeRobustZ);
   const eligibleQuality = ['LIMITED', 'AVAILABLE'].includes(quality.status) && quality.confidence > 0;
   const prior = (Array.isArray(priorQualifying) ? priorQualifying : []).filter(item => item.direction === direction
-    && finite(item.robustZ) && Math.abs(item.robustZ) >= contract.openRobustZ && validInstant(item.observedAt)
+    && finite(item.robustZ) && thresholdAtLeast(Math.abs(item.robustZ), contract.openRobustZ) && validInstant(item.observedAt)
     && Date.parse(current.observedAt) - Date.parse(item.observedAt) >= contract.persistenceMinimumSeparationMs
     && Date.parse(current.observedAt) - Date.parse(item.observedAt) <= contract.persistenceMaximumSeparationMs);
   const persistent = openPass && prior.length + 1 >= contract.persistenceMinimum;
-  const severeSingle = openPass && absoluteRobustZ >= contract.severeSingleRobustZ && quality.confidence >= contract.severeSingleConfidence;
+  const severeSingle = openPass && thresholdAtLeast(absoluteRobustZ, contract.severeSingleRobustZ)
+    && thresholdAtLeast(quality.confidence, contract.severeSingleConfidence);
   const qualified = eligibleQuality && (persistent || severeSingle);
   const severity = absoluteRobustZ === null ? 0 : severityOf(contract, absoluteRobustZ);
   const semanticHash = `${INTELLIGENCE_VERSIONS.algorithm}:${metricKey}:${direction}:${severity}:${semanticImpact(contract, direction)}`;
   const novelty = !recentSemanticHashes.includes(semanticHash);
   let classification = 'NO_MEANINGFUL_CHANGE', targetEpisodeState = null;
-  if (activeEpisode) {
+  if (activeEpisode && !eligibleQuality) classification = 'INSUFFICIENT_QUALITY';
+  else if (activeEpisode) {
     if (qualified && activeEpisode.direction !== direction) classification = 'DIRECTION_REVERSAL';
     else if (qualified && severity > (activeEpisode.severity ?? 0)) classification = 'WORSENING';
-    else if (qualified || absoluteRobustZ >= contract.closeRobustZ) classification = 'CONTINUING_CHANGE';
+    else if (qualified || thresholdAtLeast(absoluteRobustZ, contract.closeRobustZ)) classification = 'CONTINUING_CHANGE';
     else if (closePass) {
       const elapsed = activeEpisode.stabilizationStartedAt ? Date.parse(now) - Date.parse(activeEpisode.stabilizationStartedAt) : 0;
       classification = activeEpisode.state === 'STABILIZING' && elapsed >= contract.resolutionHoldMs ? 'RESOLVED' : 'IMPROVING';
@@ -206,7 +212,7 @@ export function evaluateMeaningfulChange({ metricKey, current, baseline, quality
     + 0.15 * recencyComponent + 0.15 * Number(novelty) + 0.15 * quality.confidence);
   return Object.freeze({ metricKey, absoluteDelta, relativeDelta, robustZ, direction, semanticImpact: semanticImpact(contract, direction),
     magnitudePass, openPass, closePass, persistent, severeSingle, qualified, severity, novelty, semanticHash,
-    classification, targetEpisodeState, meaningfulness, confidence: quality.confidence,
+    classification, targetEpisodeState, meaningfulness, confidence: quality.confidence, qualityStatus: quality.status,
     components: Object.freeze({ magnitude: magnitudeComponent, persistence: persistenceComponent, recency: recencyComponent,
       novelty: Number(novelty), quality: quality.confidence }) });
 }
@@ -223,9 +229,24 @@ export function evidenceConfidence({ dataQuality, sampleSufficiency, replication
     + 0.15 * effectStability + 0.10 * recency + 0.10 * multiplicityControl - 0.15 * softConfoundFraction);
   if (hardConfound) score = Math.min(score, 0.399999);
   if (!uncertaintyAvailable) score = Math.min(score, 0.599999);
-  return Object.freeze({ score, label: score >= 0.8 ? 'HIGH' : score >= 0.5 ? 'MEDIUM' : 'LOW',
+  return Object.freeze({ version: INTELLIGENCE_VERSIONS.evidenceConfidence,
+    score, label: score >= 0.8 ? 'HIGH' : score >= 0.5 ? 'MEDIUM' : 'LOW',
     components: Object.freeze({ dataQuality, sampleSufficiency, replication, effectStability, recency, multiplicityControl,
       softConfoundFraction }), hardConfound: Boolean(hardConfound), uncertaintyAvailable: Boolean(uncertaintyAvailable) });
+}
+
+export function validateEvidenceConfidence(value) {
+  const names=['dataQuality','sampleSufficiency','replication','effectStability','recency','multiplicityControl','softConfoundFraction'];
+  if(!value||value.version!==INTELLIGENCE_VERSIONS.evidenceConfidence||!value.components
+    ||typeof value.hardConfound!=='boolean'||typeof value.uncertaintyAvailable!=='boolean')
+    throw new Error('PHASE4_EVIDENCE_CONFIDENCE_INVALID');
+  let expected;
+  try {expected=evidenceConfidence({...Object.fromEntries(names.map(name=>[name,value.components[name]])),
+    hardConfound:value.hardConfound,uncertaintyAvailable:value.uncertaintyAvailable});}
+  catch {throw new Error('PHASE4_EVIDENCE_CONFIDENCE_INVALID');}
+  if(!finite(value.score)||!thresholdEqual(value.score,expected.score)||value.label!==expected.label)
+    throw new Error('PHASE4_EVIDENCE_CONFIDENCE_INVALID');
+  return value;
 }
 
 /** Benjamini-Hochberg correction over the complete declared family. */
@@ -258,7 +279,10 @@ export function evaluateJournalAssociation({ factor, outcomeMetric, days, replic
     seen.add(day.healthDate);
     const qualityEligible = ['LIMITED', 'AVAILABLE'].includes(day.quality);
     const outcomeValid = validMetricValue(outcomeMetric, day.outcome);
-    if (day.exposureState !== 'UNKNOWN') classifiedWithMissingOutcome.push({ ...day, outcomeValid });
+    const outcomeStatus=day.outcomeStatus??(outcomeValid?'PRESENT':'MISSING');
+    if(!['PRESENT','MISSING','INVALID'].includes(outcomeStatus)||(outcomeStatus==='PRESENT')!==outcomeValid)
+      throw new Error('PHASE4_ASSOCIATION_DAY_INVALID');
+    if (day.exposureState !== 'UNKNOWN') classifiedWithMissingOutcome.push({ ...day, outcomeValid, outcomeStatus });
     if (qualityEligible && outcomeValid) eligible.push(day);
   }
   const exposed = eligible.filter(day => day.exposureState === 'EXPOSED');
@@ -268,8 +292,12 @@ export function evaluateJournalAssociation({ factor, outcomeMetric, days, replic
   const unknownFraction = denominator === 0 ? null : unknown.length / denominator;
   const exposedMissingBase = classifiedWithMissingOutcome.filter(day => day.exposureState === 'EXPOSED');
   const unexposedMissingBase = classifiedWithMissingOutcome.filter(day => day.exposureState === 'CONFIRMED_UNEXPOSED');
-  const missingExposed = exposedMissingBase.length ? exposedMissingBase.filter(day => !day.outcomeValid).length / exposedMissingBase.length : 0;
-  const missingUnexposed = unexposedMissingBase.length ? unexposedMissingBase.filter(day => !day.outcomeValid).length / unexposedMissingBase.length : 0;
+  const missingExposedCount = exposedMissingBase.filter(day => day.outcomeStatus==='MISSING').length;
+  const missingUnexposedCount = unexposedMissingBase.filter(day => day.outcomeStatus==='MISSING').length;
+  const invalidExposedCount = exposedMissingBase.filter(day => day.outcomeStatus==='INVALID').length;
+  const invalidUnexposedCount = unexposedMissingBase.filter(day => day.outcomeStatus==='INVALID').length;
+  const missingExposed = exposedMissingBase.length ? (missingExposedCount+invalidExposedCount) / exposedMissingBase.length : 0;
+  const missingUnexposed = unexposedMissingBase.length ? (missingUnexposedCount+invalidUnexposedCount) / unexposedMissingBase.length : 0;
   const mean = rows => rows.length ? rows.reduce((total, day) => total + day.outcome, 0) / rows.length : null;
   const rawExposedMean = mean(exposed), rawUnexposedMean = mean(unexposed);
   const rawEffect = rawExposedMean === null || rawUnexposedMean === null ? null : rawExposedMean - rawUnexposedMean;
@@ -314,6 +342,12 @@ export function evaluateJournalAssociation({ factor, outcomeMetric, days, replic
     : repeated ? 'REPEATED' : candidate ? 'CANDIDATE' : 'INSUFFICIENT_EXPOSURE_CLASSIFICATION',
     eligibleObservationDays: denominator, exposedCount: exposed.length, confirmedUnexposedCount: unexposed.length,
     unknownCount: unknown.length, unknownFraction, maxUnknownFractionForPromotion: 0.5,
+    comparisonDayCount: days.length, classifiedExposedDays: exposedMissingBase.length,
+    classifiedConfirmedUnexposedDays: unexposedMissingBase.length,
+    exposedOutcomePresentCount: exposedMissingBase.length-missingExposedCount-invalidExposedCount, exposedOutcomeMissingCount: missingExposedCount,
+    confirmedUnexposedOutcomePresentCount: unexposedMissingBase.length-missingUnexposedCount-invalidUnexposedCount,
+    confirmedUnexposedOutcomeMissingCount: missingUnexposedCount,exposedOutcomeInvalidCount:invalidExposedCount,
+    confirmedUnexposedOutcomeInvalidCount:invalidUnexposedCount,
     promotionConfoundVersion: INTELLIGENCE_VERSIONS.promotionConfound, exposedMean, confirmedUnexposedMean: unexposedMean,
     effect, unit: contract.unit, direction: effect === null ? null : effect >= 0 ? 'HIGHER' : 'LOWER',
     minimumEffectSize: effectFloor, candidate, repeated, insightSupporting: supporting,

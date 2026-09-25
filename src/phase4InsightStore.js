@@ -1,6 +1,7 @@
 import { fail, readableRow, requireInteger } from './phase4Core.js';
 import { INSIGHT_DISPOSITIONS } from './phase4V23Schema.js';
 import { canonicalJson } from './phase4EntityStore.js';
+import { validateEvidenceConfidence } from './phase4Intelligence.js';
 
 const NEXT={HYPOTHESIS:['EMERGING','RETIRED'],EMERGING:['SUPPORTED','WEAKENED','RETIRED'],
   SUPPORTED:['WEAKENED','RETIRED'],WEAKENED:['EMERGING','SUPPORTED','RETIRED'],RETIRED:[]};
@@ -30,9 +31,11 @@ export function createPhase4InsightStore(core,entities) {
     }
     return values;
   }
-  function promotion(context,items,status) {
+  function promotion(context,items,status,semanticAt) {
     const qualified=items.filter(({item:{row:i},run:{row:r}})=>{
       let p,c;try {p=JSON.parse(i.provenance_json??'null');c=JSON.parse(i.confound_json??'null');}catch{return false;}
+      const confidence=p?.confidence,components=confidence?.components;
+      try {validateEvidenceConfidence(confidence);}catch {return false;}
       // Missing stored replication/confound inputs fail closed. They are
       // populated by a registered evidence method, not by this repository.
       return r.promotion_confound_version==='unknown-promotion-confound-v1'
@@ -41,6 +44,9 @@ export function createPhase4InsightStore(core,entities) {
         && r.unknown_fraction===r.unknown_eligible_days/r.eligible_observation_days && r.unknown_fraction<=.5
         && i.exposed_count>=8 && i.confirmed_unexposed_count>=8 && i.exposed_count+i.confirmed_unexposed_count>=30
         && ['LIMITED','AVAILABLE'].includes(i.quality) && Number.isFinite(i.effect)
+        && confidence.score>=.5
+        && components && ['dataQuality','sampleSufficiency','replication','effectStability','recency','multiplicityControl','softConfoundFraction']
+          .every(key=>Number.isFinite(components[key])&&components[key]>=0&&components[key]<=1)
         && p?.replication_windows?.length>=2 && p.replication_windows.every((w,j,a)=>
           Number.isFinite(Date.parse(w.start))&&Number.isFinite(Date.parse(w.end))&&w.start<w.end
           && w.direction===i.direction && (j===0||a[j-1].end<=w.start))
@@ -48,37 +54,38 @@ export function createPhase4InsightStore(core,entities) {
         && Number.isFinite(p.minimum_effect_size) && p.minimum_effect_size>0 && Math.abs(i.effect)>=p.minimum_effect_size
         && c?.hard_flags?.length===0 && c?.outcome_missing_fraction_exposed<=.4 && c?.outcome_missing_fraction_unexposed<=.4
         && c.outcome_missing_fraction_exposed>=0 && c.outcome_missing_fraction_unexposed>=0
-        && Date.parse(r.window_end_utc)<=Date.parse(timestamp())
-        && Date.parse(r.window_end_utc)>=Date.parse(timestamp())-90*86400000;
+        && Date.parse(r.window_end_utc)<=Date.parse(semanticAt)
+        && Date.parse(r.window_end_utc)>=Date.parse(semanticAt)-90*86400000;
     });
     if(!qualified.length)fail('PHASE4_REPEATED_EVIDENCE_REQUIRED');
     if(status==='SUPPORTED') {
       const supported=qualified.filter(({item:{row:i},run:{row:r}})=>r.multiple_testing_family && i.adjusted_significance!=null
-        && i.adjusted_significance<=.10 && r.window_end_utc>=new Date(Date.parse(timestamp())-30*86400000).toISOString());
+        && i.adjusted_significance<=.10 && r.window_end_utc>=new Date(Date.parse(semanticAt)-30*86400000).toISOString());
       if(!supported.some((a,j)=>supported.some((b,k)=>j!==k && a.run.row.run_id!==b.run.row.run_id
         && a.item.row.direction===b.item.row.direction
         && (a.run.row.window_end_utc<=b.run.row.window_start_utc||b.run.row.window_end_utc<=a.run.row.window_start_utc))))
         fail('PHASE4_INDEPENDENT_REPLICATION_REQUIRED');
     }
   }
-  async function read(context,insightId,{history=false}={}) {
+  async function read(context,insightId,{history=false,asOfUtc=null}={}) {
     return core.run(context,async()=>{
       const artifact=await core.artifact(context,'health_insights',{id:insightId});
-      const r=artifact.row;
-      if(!history&&(r.status==='RETIRED'||r.lifecycle_disposition||r.expires_at<=timestamp()))fail('PHASE4_INSIGHT_NOT_CURRENT');
+      const r=artifact.row,semanticAt=asOfUtc??timestamp();
+      if(!Number.isFinite(Date.parse(semanticAt)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
+      if(!history&&(r.status==='RETIRED'||r.lifecycle_disposition||r.expires_at<=semanticAt))fail('PHASE4_INSIGHT_NOT_CURRENT');
       const revision=await core.artifact(context,'insight_revisions',{insight_id:insightId,revision:r.current_revision});
       if(revision.row.status!==r.status||revision.row.lifecycle_disposition!==r.lifecycle_disposition)fail('PHASE4_INSIGHT_POINTER_INVALID');
       return {...artifact,revision:revision.row};
     });
   }
-  async function appendRevision(context,row,{status,disposition=null,claim,supportingEvidenceIds=[],contradictingEvidenceIds=[],reason}) {
+  async function appendRevision(context,row,{status,disposition=null,claim,supportingEvidenceIds=[],contradictingEvidenceIds=[],reason,semanticAt}) {
     if(!NEXT[status] || (status==='RETIRED')!==(disposition!==null)
       || disposition!==null&&!INSIGHT_DISPOSITIONS.includes(disposition)||!REASONS.includes(reason)
       || typeof claim!=='string'||!claim.trim()||[...claim].length>4000)fail('PHASE4_INSIGHT_REVISION_INVALID');
     const supporting=await support(context,supportingEvidenceIds,row.evidence_contract_version);
     const contradicting=await support(context,contradictingEvidenceIds,row.evidence_contract_version);
     if(!supporting.length&&!contradicting.length)fail('PHASE4_INSIGHT_EVIDENCE_REQUIRED');
-    if(['EMERGING','SUPPORTED'].includes(status))promotion(context,supporting,status);
+    if(['EMERGING','SUPPORTED'].includes(status))promotion(context,supporting,status,semanticAt);
     if(status==='WEAKENED'&&!contradicting.length)fail('PHASE4_CONTRADICTORY_EVIDENCE_REQUIRED');
     const revision=await entities.append(context,'insight_revisions',{insight_id:row.id,revision:(row.current_revision??0)+1,
       status,lifecycle_disposition:disposition,normalized_claim:claim,claim_hash:keys.digest(row.content_digest_salt,claim),
@@ -88,10 +95,11 @@ export function createPhase4InsightStore(core,entities) {
     await core.link(context,'health_insights',row.privacy_artifact_id,[revision.ref]);
     return revision;
   }
-  async function create(context,{identity,claim,evidenceContractVersion,supportingEvidenceIds,expiresAt,creationKey,supersedesId=null}) {
+  async function create(context,{identity,claim,evidenceContractVersion,supportingEvidenceIds,expiresAt,creationKey,supersedesId=null,semanticAt=null}) {
     return core.run(context,async()=>{
-      if(!creationKey||!evidenceContractVersion||!Number.isFinite(Date.parse(expiresAt))||expiresAt<=timestamp()
-        || Date.parse(expiresAt)>Date.parse(timestamp())+90*86400000)fail('PHASE4_INSIGHT_CREATE_INVALID');
+      const at=semanticAt??timestamp();
+      if(!creationKey||!evidenceContractVersion||!Number.isFinite(Date.parse(at))||!Number.isFinite(Date.parse(expiresAt))||expiresAt<=at
+        || Date.parse(expiresAt)>Date.parse(at)+90*86400000)fail('PHASE4_INSIGHT_CREATE_INVALID');
       const key=identityKey(context,identity);
       const artifactId=keys.lookup(['insight-creation-v1',context.userId,context.executionMode,creationKey]);
       const prior=(await client.execute({sql:'SELECT * FROM health_insights WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',args:[context.userId,context.executionMode,artifactId]})).rows[0];
@@ -103,22 +111,23 @@ export function createPhase4InsightStore(core,entities) {
       if(supersedesId!=null)await read(context,supersedesId,{history:true});
       const r={...core.envelope(context,'health_insights',[creationKey]),privacy_artifact_id:artifactId,
         insight_type:normalized(identity.algorithmFamily),subject:normalized(identity.subject),statement:claim,status:'HYPOTHESIS',
-        first_detected_at:timestamp(),insight_key:key,evidence_contract_version:evidenceContractVersion,expires_at:expiresAt,
+        first_detected_at:at,insight_key:key,evidence_contract_version:evidenceContractVersion,expires_at:expiresAt,
         lifecycle_generation:context.lifecycleGeneration,auth_generation:context.authGeneration,input_generation:context.inputGeneration,
         supersedes_id:supersedesId};
       // The unclassified stub cannot be read by any Phase 4 API. It and its
       // first revision become visible together at this transaction's commit.
       const fields=Object.keys(r),insert=await client.execute({sql:`INSERT INTO health_insights(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(k=>r[k])});
       r.id=Number(insert.lastInsertRowid);
-      await appendRevision(context,r,{status:'HYPOTHESIS',claim,supportingEvidenceIds,reason:'CANDIDATE_EVIDENCE'});
+      await appendRevision(context,r,{status:'HYPOTHESIS',claim,supportingEvidenceIds,reason:'CANDIDATE_EVIDENCE',semanticAt:at});
       await client.execute({sql:`UPDATE health_insights SET legacy_classification='PHASE4',current_revision=1
         WHERE user_id=? AND execution_mode=? AND id=? AND current_revision IS NULL`,args:[context.userId,context.executionMode,r.id]});
-      return {...await read(context,r.id),created:true};
+      return {...await read(context,r.id,{asOfUtc:at}),created:true};
     });
   }
-  async function transition(context,{insightId,expectedRevision,status,disposition=null,claim,supportingEvidenceIds,contradictingEvidenceIds=[],reason,refresh=false}) {
+  async function transition(context,{insightId,expectedRevision,status,disposition=null,claim,supportingEvidenceIds,contradictingEvidenceIds=[],reason,refresh=false,semanticAt=null}) {
     requireInteger(expectedRevision,1);
     return core.run(context,async()=>{
+      const at=semanticAt??timestamp();if(!Number.isFinite(Date.parse(at)))fail('PHASE4_SEMANTIC_TIME_REQUIRED');
       // Refresh admits no stale health projection as input. Its predecessor is
       // read as lifecycle/identity metadata only; claim and evidence must be
       // newly supplied and validated in the current computation generation.
@@ -130,11 +139,11 @@ export function createPhase4InsightStore(core,entities) {
       if(row.invalidated_at||row.legacy_classification!=='PHASE4'||refresh&&row.input_generation>=context.inputGeneration)fail('PHASE4_INSIGHT_REFRESH_INVALID');
       if(row.current_revision!==expectedRevision)fail('PHASE4_INSIGHT_CAS_LOST');
       if(!NEXT[row.status]?.includes(status)&&!(refresh&&row.status===status&&status!=='RETIRED'))fail('PHASE4_ILLEGAL_INSIGHT_TRANSITION');
-      const revision=await appendRevision(context,row,{status,disposition,claim,supportingEvidenceIds,contradictingEvidenceIds,reason});
+      const revision=await appendRevision(context,row,{status,disposition,claim,supportingEvidenceIds,contradictingEvidenceIds,reason,semanticAt:at});
       const changed=await client.execute({sql:`UPDATE health_insights SET status=?,lifecycle_disposition=?,statement=?,current_revision=?,
         version=version+1,last_recalculated_at=?,retired_at=?,input_generation=?,lifecycle_generation=?,auth_generation=?,purge_generation=?
         WHERE user_id=? AND execution_mode=? AND id=? AND current_revision=? AND input_generation=?`,
-        args:[status,disposition,claim,revision.row.revision,timestamp(),status==='RETIRED'?timestamp():null,
+        args:[status,disposition,claim,revision.row.revision,at,status==='RETIRED'?at:null,
           context.inputGeneration,context.lifecycleGeneration,context.authGeneration,context.purgeGeneration,
           context.userId,context.executionMode,insightId,expectedRevision,row.input_generation]});
       if(changed.rowsAffected!==1)fail('PHASE4_INSIGHT_CAS_LOST');

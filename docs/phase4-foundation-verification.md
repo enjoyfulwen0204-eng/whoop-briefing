@@ -6,9 +6,10 @@ the verified implementation checkpoint before the locked-decision documentation
 alignment is `9d97c10ed6df5694708c18f6f07b5dc20ceaf465` on branch `v1.2-phase4`.
 Foundation Stages 1–4, including additive v21–v24, tenant/mode/privacy stores,
 Body Energy, and Structured Journal persistence/validation/correction/deletion,
-exist default-off and SHADOW-only. All fixtures are synthetic. No credentials,
-provider, production database, real send, additional scheduler, dispatcher or
-Intelligence Pack is required.
+exist default-off and SHADOW-only and passed aggregate independent review before
+the separately authorized Stage 5 implementation began. All fixtures are
+synthetic. No credentials, provider, production database, real send, additional
+scheduler, or dispatcher is required for Foundation verification.
 
 The 2026-09-25 ADR alignment documentation repair is complete at this handoff;
 the repaired requirements are **specified but not implemented**. Stage 7 Quick Actions
@@ -22,17 +23,17 @@ UTC trigger `*/10 0-3 * * *`; deployment verification must inspect that trigger,
 and higher hourly-path latency for non-Taipei due times outside the global
 window is an accepted v1 trade-off. None of v25, v26, Quick Actions, Owner
 Monitoring, display-name repair, or scheduler/watchdog changes is implemented.
-Stage 5 has not started. One independent aggregate Foundation review remains
-pending; this document does not claim that the repaired requirements passed
-implementation review.
+Stage 5 is now implemented SHADOW-only and has its own verification handoff in
+`docs/phase4-stage5-verification.md`; Stage 6 has not started. The Foundation
+aggregate PASS does not approve Stage 5 or any production activation.
 
 ## Reproducible commands
 
 Use Node v22.22.3. From the repository root:
 
 ```sh
-/Users/kelvinloh/.nvm/versions/node/v22.22.3/bin/node --test test/*.test.js
-/Users/kelvinloh/.nvm/versions/node/v22.22.3/bin/node --test test/phase4-*.test.js test/body-energy*.test.js test/journal-foundation-validation.test.js
+node --test --test-concurrency=1 test/*.test.js
+node --test --test-concurrency=1 test/phase4-*.test.js test/body-energy*.test.js test/journal-foundation-validation.test.js
 ```
 
 The complete existing suite includes local HTTP server fixtures. Those need
@@ -95,9 +96,7 @@ in the full suite; new gates do not replace them.
 - Local purge does not claim deletion from Telegram clients, external logs or
   backups. Body Energy is a deterministic product metric, not medical validation.
 
-After the targeted-repair report is returned to the Architecture Owner, the
-next implementation checkpoint remains the independent aggregate Session B
-Foundation review against the repaired ADR. Do not enable flags, implement
-v25/v26, deploy, migrate production, or begin Stage 5/the Intelligence Pack
-from this map. Pushing the single documentation-repair commit only to
-`v1.2-phase4` does not change that prohibition.
+The Foundation aggregate review has passed. The next checkpoint is independent
+Stage 5 review against the ADR and `docs/phase4-stage5-verification.md`. Do not
+begin Stage 6, enable flags, implement v25/v26, deploy, or migrate production
+from this map.

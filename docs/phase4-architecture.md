@@ -1,6 +1,6 @@
 # WHOOP Personal Health OS Phase 4 Architecture Decision Record
 
-Status: Locked-product-decision alignment; Foundation Stages 1–4 implemented default-off; aggregate Foundation review pending; Stage 5 not started
+Status: Foundation Stages 1–4 aggregate review passed; Stage 5 Intelligence Core implemented SHADOW-only and awaiting independent Stage 5 review; Stages 6–8 not started
 
 Decision date: 2026-09-19; locked-decision amendment and targeted repair 1: 2026-09-25
 
@@ -8,14 +8,14 @@ Original V1.2 production baseline from which Phase 4 branched: v20 schema at com
 
 Architecture version: phase4-adr-v1-repair-5
 
-This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence now exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and await one independent aggregate Foundation review. The 2026-09-25 amendment records locked product decisions that are not implemented: Quick Actions, Owner Monitoring, display-name isolation, mixed scheduler/watchdog behavior, and later Stage 5+ work. Stage 5 has not started. This amendment authorizes no source, schema, test, scheduler, workflow, configuration, deployment, production, or feature-flag change; Section 17 remains controlling.
+This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and have passed their aggregate Foundation review. Under the subsequent explicit Stage 5 implementation authorization, the deterministic evidence, episode, and insight-memory runtime is now implemented SHADOW-only and awaits independent Stage 5 review. The 2026-09-25 amendment itself remains a documentation-only historical boundary: it authorized no source, schema, test, scheduler, workflow, configuration, deployment, production, or feature-flag change. Quick Actions, Owner Monitoring, display-name isolation, and mixed scheduler/watchdog behavior remain unimplemented later-stage work; Section 17 remains controlling.
 
 Amendment precedence and audit classification:
 
 | Topic | Classification after this amendment | Controlling disposition |
 |---|---|---|
 | Foundation Stage 1 gate and eight-commit plan | HISTORICAL BUT CLEAR | Retained as the provenance of implemented Stages 1–4; no longer phrased as future work |
-| Foundation current state, disabled flags, SHADOW authority, aggregate review | CURRENT | Foundation exists; all behavior stays disabled; aggregate review remains pending |
+| Foundation current state, disabled flags, SHADOW authority, aggregate review | CURRENT | Foundation exists; all behavior stays disabled; aggregate review passed before Stage 5 authorization |
 | Categorical family/administrator prohibition | SUPERSEDED | Replaced only for Kelvin's explicit selected-user Owner Monitoring capability; ordinary and unrestricted access remains prohibited |
 | All-day Cloudflare primary / GitHub emergency-only assumptions | SUPERSEDED | Replaced by Section 10's Asia/Taipei morning Cloudflare window and normal GitHub hourly background role |
 | Quick Actions, display-name isolation, Owner Monitoring, v25/v26, mixed watchdog | CURRENT REQUIREMENT; NOT IMPLEMENTED | Assigned to future Stages 6–8 and default-off authority; v25 belongs to Stage 7 Quick Actions and v26 to Stage 8 Owner Monitoring |
@@ -3549,11 +3549,11 @@ Cycle 3 read-only architecture fixtures exercise the specified keys/transitions 
 
 The second pass checks the exact M/R/SCOPE expansions, PK/unique predicates, typed fields, slot transitions/deadlines, experiment group mapping/read precedence, eight Foundation commit boundaries, all local links and changed-file scope. Any unresolved choice of column, identity, purge boundary or transition is HOLD, not an implementation decision deferred beyond this ADR.
 
-The 2026-09-25 locked-decision amendment gate is documentation-only: no runtime/schema/test/config/workflow change; explicit current-vs-future status; no false implementation claim; all feature flags remain disabled; whole-ADR contradiction audit complete; exactly one commit on `v1.2-phase4` and only that branch pushed. Passing it does not start Stage 5 or replace the pending aggregate Foundation review.
+The 2026-09-25 locked-decision amendment gate was documentation-only: no runtime/schema/test/config/workflow change; explicit current-vs-future status; no false implementation claim; all feature flags remained disabled; whole-ADR contradiction audit complete; exactly one commit on `v1.2-phase4` and only that branch pushed. Passing that historical gate did not itself start Stage 5 or replace the Foundation review that was pending at that checkpoint.
 
 ## 19. Implementation stages and dependency graph
 
-Stages 2–4 form the implemented **Foundation Pack**, Stages 5–6 the later Intelligence Pack, and Stages 7–8 the later Delivery Pack. These names are planning boundaries, not authorization. Foundation is present on the isolated branch, default-off and SHADOW-only; its one aggregate independent review remains pending. Stage 5 has not started and requires that aggregate PASS plus a new explicit implementation instruction. An internal commit is not a separately approved production rollout.
+Stages 2–4 form the implemented **Foundation Pack**, Stages 5–6 the Intelligence Pack, and Stages 7–8 the later Delivery Pack. These names are planning boundaries, not authorization. Foundation is present on the isolated branch, default-off and SHADOW-only, and its aggregate independent review passed. Stage 5 was then explicitly authorized and is implemented SHADOW-only; it still requires its own independent review. Stage 6 has not started. An internal commit is not a separately approved production rollout.
 
 ### Dependency graph
 
@@ -3614,7 +3614,7 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 ### Stage 2: additive storage and tenant-scoped stores
 
-**Status:** IMPLEMENTED FOUNDATION; default off; included in pending aggregate Foundation review.
+**Status:** IMPLEMENTED FOUNDATION; default off; aggregate Foundation review passed.
 
 **Depends on:** independent Stage 1 PASS and explicit Foundation authorization; covers internal commits 1–5 in the fixed order above.
 
@@ -3644,7 +3644,7 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 ### Stage 3: Body Energy and shared quality
 
-**Status:** IMPLEMENTED FOUNDATION; SHADOW-only; included in pending aggregate Foundation review.
+**Status:** IMPLEMENTED FOUNDATION; SHADOW-only; aggregate Foundation review passed.
 
 **Depends on:** complete v21–v24 and Stage 2 stores/privacy compatibility (Foundation internal commit 5); this is internal commit 6.
 
@@ -3707,9 +3707,9 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 ### Stage 5: evidence, episodes, and insight memory
 
-**Status:** NOT STARTED.
+**Status:** IMPLEMENTED SHADOW-ONLY; awaiting independent Stage 5 review.
 
-**Depends on:** aggregate Foundation PASS covering Stages 2–4 and all eight internal commits, plus explicit Intelligence Pack authorization.
+**Depends on:** aggregate Foundation PASS covering Stages 2–4 and all eight internal commits, plus explicit Intelligence Pack authorization. Both prerequisites were satisfied for this implementation checkpoint.
 
 **Files/subsystems likely touched:** new evidence/episode stores and domain modules, [src/evidence.js](../src/evidence.js), [src/healthMemory.js](../src/healthMemory.js), and approved adapters around [src/analyze.js](../src/analyze.js).
 
@@ -3735,6 +3735,8 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 **Explicit non-goals:** queue activation, proactive decision, Telegram, or user-facing publication.
 
 **Exit gate:** complete historical replay produces stable episode/evidence/insight results without messages.
+
+**Implementation checkpoint:** the closed metric/evidence registries, robust-baseline and quality calculations, meaningful-change/hysteresis engine, durable evidence adapters, episode lifecycle/semantic-event integration, Journal association family analysis, and versioned insight promotion/weakening/expiry runtime are implemented in `src/phase4IntelligenceRegistry.js`, `src/phase4Intelligence.js`, and `src/phase4IntelligenceStore.js`. Runtime entry points reject LIVE authority. Reanalysis workers and scheduler integration remain Stage 6; proactive decisions, context-question policy, Quick Actions, and outbound delivery remain Stage 7; Morning Brief, Q&A, Owner Monitoring, and display-name work remain Stage 8.
 
 ### Stage 6: invalidation and reanalysis
 
@@ -3900,4 +3902,4 @@ Before any post-gate production activation, product, privacy, and statistical re
 
 ### Final architecture verdict
 
-The ADR is aligned for Architecture Owner review after targeted repair 1. Foundation Stages 1–4 exist default-off and SHADOW-only; their independent aggregate review remains pending. Stage 5 has not started and is not authorized by this amendment. Quick Actions and their v25 Journal trusted-registry/source-kind provenance, Owner Monitoring and its v26 persistence, display-name isolation through existing identity sources, and mixed scheduler/watchdog behavior are specified future work and must not be reported as implemented. Any later staged implementation remains local and non-delivering until its stage is explicitly authorized, and no production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.
+The ADR remains the controlling contract. Foundation Stages 1–4 exist default-off and SHADOW-only and passed aggregate review. Stage 5 is implemented SHADOW-only under its subsequent explicit authorization and awaits independent Stage 5 review. Quick Actions and their v25 Journal trusted-registry/source-kind provenance, Owner Monitoring and its v26 persistence, display-name isolation through existing identity sources, mixed scheduler/watchdog behavior, and Stage 6 reanalysis remain future work and must not be reported as implemented. No production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.

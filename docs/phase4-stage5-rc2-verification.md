@@ -1,5 +1,7 @@
 # Phase 4 Stage 5 Intelligence Core RC2 verification
 
+Historical verification record. Its v24 replay-authority claims are superseded by the [v25 RC4 repair](phase4-stage5-rc4-verification.md): missing v24 history is unavailable; only full durable snapshots authorize episode replay.
+
 This is the implementation handoff for Stage 5 Repair Cycle 2. It preserves the
 RC1 verification in `phase4-stage5-verification.md` and does not authorize Stage
 6, Stage 7, LIVE intelligence, deployment, production migration, scheduler work,

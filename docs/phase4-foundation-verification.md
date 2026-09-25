@@ -13,15 +13,15 @@ scheduler, or dispatcher is required for Foundation verification.
 
 The 2026-09-25 ADR alignment documentation repair is complete at this handoff;
 the repaired requirements are **specified but not implemented**. Stage 7 Quick Actions
-require future v25 interaction transport plus Journal-side `TRUSTED_REGISTRY`
+require future v26 interaction transport plus Journal-side `TRUSTED_REGISTRY`
 and `source_kind` provenance; pure button facts have no fabricated user-text
 excerpt. Stage 8 Owner Monitoring persistence is separately owned by future
-v26. Display-name isolation preferentially uses existing same-user identity
+v27. Display-name isolation preferentially uses existing same-user identity
 sources and does not receive a migration merely because Stage 8 contains the
 fix. The one global Asia/Taipei 08:00–12:00 Cloudflare window maps to the exact
 UTC trigger `*/10 0-3 * * *`; deployment verification must inspect that trigger,
 and higher hourly-path latency for non-Taipei due times outside the global
-window is an accepted v1 trade-off. None of v25, v26, Quick Actions, Owner
+window is an accepted v1 trade-off. At the Foundation checkpoint none of v26, v27, Quick Actions, Owner
 Monitoring, display-name repair, or scheduler/watchdog changes is implemented.
 Stage 5 and its RC1 blocker repairs are now implemented SHADOW-only against the
 unchanged v24 schema and have their own verification handoff in
@@ -55,7 +55,7 @@ is substantially slower than an empty-database migration. Do not omit it.
 | Closed parser boundary, Unicode excerpt, ambiguity, tri-state exposure and UNKNOWN gate | `journal-foundation-validation`, `phase4-journal-store` |
 | Structured fact/coverage answer, authenticated receipt, correction revisions, no send | `phase4-journal-answers`, `phase4-journal-inbound` |
 | T0/T1/T2 crash/restart, transitive plaintext inventory, cache fence, no replay resurrection | `phase4-privacy`, `phase4-journal-inventory`, `phase4-foundation-privacy` |
-| Public LIVE denial, all thirteen runtime-enforced Foundation flags false, future v25/v26 locked-scope flag names without runtime consumers absent/unreachable, no provider/timer/production wiring | `phase4-stores`, `phase4-foundation-isolation`; aggregate entry-point diff review |
+| Public LIVE denial, all thirteen runtime-enforced Foundation flags false, future v26/v27 locked-scope flag names without runtime consumers absent/unreachable, no provider/timer/production wiring | `phase4-stores`, `phase4-foundation-isolation`; aggregate entry-point diff review |
 
 Each name above is a `test/<name>.test.js` file. All are included in the full
 suite and the focused Foundation command. Existing V1.2 regression tests remain
@@ -100,5 +100,7 @@ in the full suite; new gates do not replace them.
 
 The Foundation aggregate review has passed. The next checkpoint is independent
 Stage 5 RC1 review against the ADR and `docs/phase4-stage5-verification.md`. Do not
-begin Stage 6, enable flags, implement v25/v26, deploy, or migrate production
+begin Stage 6, enable flags, implement the future v26/v27 stages, deploy, or migrate production
 from this map.
+
+RC4 schema-allocation amendment: Stage 5 now owns v25 durable episode history. The future reservations above are v26 Stage 7 and v27 Stage 8; Foundation execution counts remain the historical v24 results. See [RC4 verification](phase4-stage5-rc4-verification.md).

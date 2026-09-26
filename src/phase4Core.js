@@ -1,3 +1,4 @@
+import { coverageLineage } from './phase4CoverageLineage.js';
 /** Internal persistence kernel. No application entry point imports this module
  * directly. The public Foundation factory supplies SHADOW-only authority;
  * isolated tests supply a distinct factory that owns its in-memory database. */
@@ -217,14 +218,13 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
       if(!authoritative||authoritative.privacy_artifact_id!==source.id
         ||Date.parse(tombstone?.deleted_at)<=Date.parse(source.historicalAsOf))fail('PHASE4_HISTORICAL_SOURCE_INVALID');
     } else {
-      const descendants=(await client.execute({sql:`WITH RECURSIVE lineage(coverage_window_id,created_at,revision) AS (
-          SELECT coverage_window_id,created_at,revision FROM journal_coverage_windows WHERE user_id=? AND coverage_window_id=?
-          UNION ALL
-          SELECT child.coverage_window_id,child.created_at,child.revision FROM journal_coverage_windows child
-          JOIN lineage parent ON child.supersedes_coverage_window_id=parent.coverage_window_id WHERE child.user_id=?
-        ) SELECT coverage_window_id FROM lineage WHERE julianday(created_at)<=julianday(?) ORDER BY revision DESC,created_at DESC LIMIT 1`,
-      args:[context.userId,source.id,context.userId,source.historicalAsOf]})).rows[0];
-      if(!descendants||descendants.coverage_window_id!==source.id)fail('PHASE4_HISTORICAL_SOURCE_INVALID');
+      const lineage=await coverageLineage(client,context.userId,source.id),descendantIds=new Set([source.id]);
+      for(const candidate of lineage.rows)if(descendantIds.has(candidate.supersedes_coverage_window_id))descendantIds.add(candidate.coverage_window_id);
+      const authoritative=lineage.rows.filter(candidate=>descendantIds.has(candidate.coverage_window_id)
+        &&Date.parse(candidate.created_at)<=Date.parse(source.historicalAsOf))
+        .sort((a,b)=>b.revision-a.revision||Date.parse(b.created_at)-Date.parse(a.created_at)
+          ||a.coverage_window_id.localeCompare(b.coverage_window_id))[0];
+      if(!authoritative||authoritative.coverage_window_id!==source.id)fail('PHASE4_HISTORICAL_SOURCE_INVALID');
     }
     if(source.row&&JSON.stringify(row)!==JSON.stringify(source.row))fail('PHASE4_PARENT_STALE');
     return row;
@@ -242,10 +242,10 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
             AND julianday(created_at)<=julianday(?) ORDER BY revision DESC,created_at DESC LIMIT 1`,
           args:[context.userId,source.row.logical_fact_id,asOfUtc]})).rows[0]??null;
         } else {
-          row={...source.row};
+          const lineage=await coverageLineage(client,context.userId,source.id);
+          row=lineage.byId.get(source.id);
           while(row&&Date.parse(row.created_at)>Date.parse(asOfUtc))row=row.supersedes_coverage_window_id
-            ?(await client.execute({sql:`SELECT * FROM journal_coverage_windows WHERE user_id=? AND coverage_window_id=?`,
-              args:[context.userId,row.supersedes_coverage_window_id]})).rows[0]??null:null;
+            ?lineage.byId.get(row.supersedes_coverage_window_id):null;
         }
         // A genuinely new assertion after T did not exist at T. A correction
         // whose prior revision was purged is different: historical replay is

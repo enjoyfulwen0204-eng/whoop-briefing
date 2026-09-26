@@ -1,3 +1,4 @@
+import { healthSourceVersion, canonicalSourceTime } from './phase4SourceVersion.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
 import { requireSemanticTime } from './phase4EpisodeHistory.js';
 import { fail, readableRow } from './phase4Core.js';
@@ -28,21 +29,20 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     if(source.type==='cycle'&&row.score_state!==null&&row.score_state!==undefined&&row.score_state!=='SCORED')fail('PHASE4_METRIC_SOURCE_INVALID');
     if(source.type==='body_energy_results'&&!['LIMITED','AVAILABLE'].includes(row.quality_state))fail('PHASE4_METRIC_SOURCE_INVALID');
     const raw=row[contract.field],value=typeof raw==='number'&&Number.isFinite(raw)?raw/(contract.divisor??1):raw;
-    const observedAt=sourceTimestamp(row),ingestedAt=ingestedTimestamp(row);
+    const observedAt=canonicalSourceTime(sourceTimestamp(row)),ingestedAt=canonicalSourceTime(ingestedTimestamp(row));
     if(!validInstant(observedAt)||!validInstant(ingestedAt)||!validInstant(asOfUtc)
       ||Date.parse(observedAt)>Date.parse(asOfUtc)||Date.parse(ingestedAt)>Date.parse(asOfUtc)
       ||(row.updated_at!==null&&row.updated_at!==undefined
         &&(!validInstant(row.updated_at)||Date.parse(row.updated_at)>Date.parse(asOfUtc))))fail('PHASE4_METRIC_SOURCE_INVALID');
     const healthDate=row.health_date??localDate(new Date(observedAt),context.timezone);
     const versionKnown=!['sleep','recovery','cycle'].includes(source.type)||row.updated_at!==null&&row.updated_at!==undefined;
-    return {sourceType:source.type,sourceId:source.id,sourceVersion:canonicalJson([row.updated_at??null,row.synced_at??null,
-      row.as_of_utc??null,row.score_state??null]),healthDate,observedAt,ingestedAt,value,versionKnown};
+    return {sourceType:source.type,sourceId:source.id,sourceVersion:healthSourceVersion(row),healthDate,observedAt,ingestedAt,value,versionKnown};
   }
   function associationOutcomeValue(metricKey,source,context,asOfUtc) {
     const contract=phase4Metric(metricKey),row=source.row;
     if(!row||source.type!==contract.sourceType)fail('PHASE4_METRIC_SOURCE_MISMATCH');
     const raw=row[contract.field],value=typeof raw==='number'&&Number.isFinite(raw)?raw/(contract.divisor??1):raw,
-      observedAt=sourceTimestamp(row),ingestedAt=ingestedTimestamp(row);
+      observedAt=canonicalSourceTime(sourceTimestamp(row)),ingestedAt=canonicalSourceTime(ingestedTimestamp(row));
     if(!validInstant(observedAt)||!validInstant(ingestedAt)||Date.parse(observedAt)>Date.parse(asOfUtc)
       ||Date.parse(ingestedAt)>Date.parse(asOfUtc)||(row.updated_at!=null&&(!validInstant(row.updated_at)
         ||Date.parse(row.updated_at)>Date.parse(asOfUtc))))fail('PHASE4_METRIC_SOURCE_INVALID');
@@ -53,8 +53,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       :source.type==='cycle'?row.score_state==null||row.score_state==='SCORED'
       :source.type==='body_energy_results'?['LIMITED','AVAILABLE'].includes(row.quality_state):true;
     const versionKnown=!['sleep','recovery','cycle'].includes(source.type)||row.updated_at!=null;
-    return {sourceType:source.type,sourceId:source.id,sourceVersion:canonicalJson([row.updated_at??null,row.synced_at??null,
-      row.as_of_utc??null,row.score_state??null]),healthDate,observedAt,ingestedAt,value:scored&&versionKnown
+    return {sourceType:source.type,sourceId:source.id,sourceVersion:healthSourceVersion(row),healthDate,observedAt,ingestedAt,value:scored&&versionKnown
         &&validMetricValue(metricKey,value)?value:null,outcomeStatus:scored&&versionKnown&&validMetricValue(metricKey,value)
         ?'PRESENT':'INVALID',versionKnown};
   }
@@ -210,8 +209,8 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       AND evidence_item_id=? ORDER BY episode_revision`,args:[context.userId,context.executionMode,item.row.evidence_item_id]})).rows;
     if(!links.length) {
       if(authority.origin!==null)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
-      if(observationCalculation.targetEpisodeState)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
-      return {calculation:observationCalculation,episode:null};
+      if(!authority.calculation)fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');
+      return {calculation:Object.freeze(authority.calculation),episode:null};
     }
     if(links.length!==1||links[0].unlinked_at!==null||!readableRow(links[0]))fail('CONTENT_REDACTED');
     const binding=await core.artifact(context,'episode_evidence',{episode_id:links[0].episode_id,
@@ -355,7 +354,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       }
       await authorities.persist(context,{item:evidence.item,run:evidence.run,scope:'METRIC',
         origin:result?{episode_id:result.episode_id,revision:result.revision,episode_event_id:event.episode_event_id,
-          prior_semantic_hash:active?.semantic_summary_hash??null}:null,
+          prior_semantic_hash:active?.semantic_summary_hash??null}:null,calculation,
         sourceRefs:[...sourceSet.refs,...dependencies]});
       return Object.freeze({baseline,quality,calculation,run:evidence.run,item:evidence.item,episode});
     });
@@ -462,22 +461,24 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     if(!Array.isArray(ids)||ids.some(id=>typeof id!=='string'))fail('PHASE4_INSIGHT_POINTER_INVALID');
     return ids;
   }
-  async function historicalInsightArtifact(context,insightId,revisionNumber,asOfUtc) {
+  async function historicalInsightArtifact(context,insightId,revisionNumber,origin) {
     const parent=await core.artifact(context,'health_insights',{id:insightId});
     const revision=await core.artifact(context,'insight_revisions',{insight_id:insightId,revision:revisionNumber});
     const row={...parent.row,status:revision.row.status,lifecycle_disposition:revision.row.lifecycle_disposition,
       statement:revision.row.normalized_claim,current_revision:revision.row.revision,version:revision.row.revision,
-      last_recalculated_at:revision.row.revision>1?asOfUtc:null,retired_at:revision.row.status==='RETIRED'?asOfUtc:null};
+      last_recalculated_at:origin.last_recalculated_at,retired_at:origin.retired_at};
     return {...parent,row,revision:revision.row};
   }
   const insightBinding=value=>value?{insight_id:value.row.id,revision:value.revision.revision,
-    revision_json:canonicalJson(value.revision)}:null;
+    revision_json:canonicalJson(value.revision),projection_version:'stage5-insight-result-v2',
+    last_recalculated_at:value.row.last_recalculated_at,retired_at:value.row.retired_at}:null;
   async function replayAssociationInsight(context,hypothesis,analysis,item,asOfUtc) {
     const results={};
     for(const [scope,label] of [['INSIGHT_CURRENT','current'],['INSIGHT_CONTRADICTION','contradiction']]) {
       const {origin}=await authorities.read(context,item.row.evidence_item_id,scope);
       if(origin===null){results[label]=null;continue;}
-      const found=await historicalInsightArtifact(context,origin.insight_id,origin.revision,asOfUtc);
+      if(origin.projection_version!=='stage5-insight-result-v2')fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');
+      const found=await historicalInsightArtifact(context,origin.insight_id,origin.revision,origin);
       if(canonicalJson(found.revision)!==origin.revision_json)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
       results[label]=found;
     }

@@ -74,3 +74,18 @@ export async function syntheticEvidence(f,context,key,refs=null) {
 }
 export const historyCounts = async db => ({...await durableCounts(db),
   snapshots:(await db.raw.execute('SELECT count(*) n FROM phase4_episode_revisions')).rows[0].n});
+
+// Real registered no-artifact evidence for historical fixtures that require
+// v26 authority. It never fabricates or backfills authority for synthetic rows.
+export async function authoritativeEvidence(f,context,identity='registered-history') {
+  const source=(await f.db.raw.execute({sql:'SELECT * FROM whoop_recoveries WHERE user_id=? AND sleep_id=?',
+    args:[context.userId,f.recoveryIds[0]]})).rows[0];
+  const copy={...source,sleep_id:`history-${f.keys.lookup(['history-fixture-source-v1',identity])}`};
+  await f.db.raw.execute({sql:`INSERT INTO whoop_recoveries(${Object.keys(copy).join(',')}) VALUES (${Object.keys(copy).map(()=>'?').join(',')})
+    ON CONFLICT(user_id,sleep_id) DO NOTHING`,args:Object.values(copy)});
+  const current=(await f.stores.root(context,'recovery',copy.sleep_id)).ref;
+  const result=await f.stores.intelligence.analyzeMetric(context,{metricKey:'hrv',currentSource:current,
+    baselineSources:[],asOfUtc:new Date(T).toISOString(),windowFamily:'HISTORY_FIXTURE'});
+  if(result.episode!==null)throw Error('HISTORY_FIXTURE_EXPECTED_NULL_RESULT');
+  return result.item;
+}

@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setup, request, syntheticEvidence, semanticProjection } from './stage5HistoryFixture.js';
+import { setup, request, authoritativeEvidence, semanticProjection } from './stage5HistoryFixture.js';
 
 test('RC3-H-001 diagnostic: overwritten revision payload remains durable solely in full history',async t=>{
   const f=await setup(t),first=await f.stores.intelligence.analyzeMetric(f.context,request(f.initialRefs[0],f.initialRefs.slice(1))),
     id=first.episode.episode.row.episode_id;
   const originals=[];
   for(const revision of [2,3]) {
-    const item=await syntheticEvidence(f,f.context,`diagnostic-evidence-${revision}`);
+    const item=await authoritativeEvidence(f,f.context,`2026-09-25T${10+revision}:00:00.000Z`);
     await f.stores.episodes.revise(f.context,{episodeId:id,expectedRevision:revision-1,toState:'EXPLAINED',
       patch:{explained_status:1,explanation_evidence_item_id:item.row.evidence_item_id,explanation_context_id:`diagnostic-context-${revision}`,
         explanation_json:{value:revision===2?'RC3_OVERWRITTEN_EXPLANATION':'LATEST_EXPLANATION'},

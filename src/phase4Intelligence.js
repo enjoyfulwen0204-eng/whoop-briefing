@@ -1,3 +1,4 @@
+import { canonicalObservation, canonicalSourceVersion, canonicalSourceTime } from './phase4SourceVersion.js';
 import { phase4Metric, isPhase4Metric, INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
 import { pearson, spearman, pValue } from './analytics/correlation.js';
 import { findSimilarDays } from './analytics/similarDays.js';
@@ -42,17 +43,17 @@ export function validMetricValue(metricKey, value) {
 export const compareBaselineSources = (a,b) =>
   String(b?.healthDate ?? '').localeCompare(String(a?.healthDate ?? ''))
   || (Date.parse(b?.observedAt)-Date.parse(a?.observedAt) || 0)
-  || String(b?.sourceVersion ?? '').localeCompare(String(a?.sourceVersion ?? ''))
+  || String(canonicalSourceVersion(b?.sourceVersion) ?? '').localeCompare(String(canonicalSourceVersion(a?.sourceVersion) ?? ''))
   || String(a?.sourceId ?? '').localeCompare(String(b?.sourceId ?? ''))
   || String(a?.sourceType ?? '').localeCompare(String(b?.sourceType ?? ''))
-  || String(a?.ingestedAt ?? '').localeCompare(String(b?.ingestedAt ?? ''))
+  || String(canonicalSourceTime(a?.ingestedAt) ?? '').localeCompare(String(canonicalSourceTime(b?.ingestedAt) ?? ''))
   || String(a?.value ?? '').localeCompare(String(b?.value ?? ''));
 
 function normalizeObservations(metricKey, observations, targetHealthDate, asOfUtc) {
   const contract = phase4Metric(metricKey), asOf = Date.parse(asOfUtc), target = dayNumber(targetHealthDate);
   const exclusions = [], candidates = [];
   for (const raw of [...(Array.isArray(observations) ? observations : [])].sort(compareBaselineSources)) {
-    const observation = { ...raw };
+    const observation = canonicalObservation(raw);
     let reason = null;
     if (!validHealthDate(observation.healthDate)) reason = 'INVALID_HEALTH_DATE';
     else if (!validInstant(observation.observedAt) || !validInstant(observation.ingestedAt)) reason = 'INVALID_TIMESTAMP';

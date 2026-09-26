@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, request, progressOneDay, replayInitial, recoveryRefs, analyzeInserted, semanticProjection,
-  syntheticEvidence, historyCounts } from './stage5HistoryFixture.js';
+  syntheticEvidence, authoritativeEvidence, historyCounts } from './stage5HistoryFixture.js';
 import { syntheticPhase4Fixture } from './phase4Fixture.js';
 import { canonicalJson } from '../src/phase4EntityStore.js';
 import { V23_HEALTH_FIELDS } from '../src/phase4V23Schema.js';
@@ -12,8 +12,8 @@ const context=f=>f.stores.capture('a',{executionMode:'SHADOW'});
 const rawHistory=f=>f.db.raw.execute('SELECT * FROM phase4_episode_revisions ORDER BY revision').then(r=>r.rows);
 const read=(f,c,id,r,extra={})=>f.stores.episodes.readRevision(c,{episodeId:id,revision:r,...extra});
 
-async function explained(f,c,id,revision,label) {
-  const item=await syntheticEvidence(f,c,label);
+async function explained(f,c,id,revision,label,evidence=authoritativeEvidence) {
+  const item=await evidence(f,c,`2026-09-25T${12+revision}:00:00.000Z`);
   await f.stores.episodes.revise(c,{episodeId:id,expectedRevision:revision,toState:'EXPLAINED',
     patch:{explained_status:1,explanation_evidence_item_id:item.row.evidence_item_id,explanation_context_id:`context-${label}`,
       explanation_json:{z:[label],a:{nested:label}},current_context_json:{source:label},current_confidence:.7},
@@ -121,7 +121,7 @@ test('RC4 failures after event, materialization, snapshot and links roll back al
 });
 
 test('RC4 concurrent CAS has one winner and duplicate revision operation is read-only',async t=>{
-  const f=await setup(t),a=await first(f),id=a.episode.episode.row.episode_id,item=await syntheticEvidence(f,f.context,'race');
+  const f=await setup(t),a=await first(f),id=a.episode.episode.row.episode_id,item=await authoritativeEvidence(f,f.context,'race');
   const change={episodeId:id,expectedRevision:1,toState:'OPEN',patch:{current_novelty:0},sourceRefs:[item.ref],reasonCode:'NEW_EVIDENCE',semanticAt:T};
   const results=await Promise.allSettled([f.stores.episodes.revise(f.context,change),
     f.stores.episodes.revise(f.context,{...change,patch:{current_confidence:.4}})]);
@@ -161,7 +161,12 @@ test('RC4 generation refresh snapshots complete new state and fences old generat
     identity:{algorithmMajor:'phase4-intelligence-v1',direction:'LOWER',domain:'recovery',metric:'recovery_score',subject:'recovery_score',windowFamily:'DAILY_RECOVERY'},
     projection,evidenceItemId:item.row.evidence_item_id,semanticAt:T});
   assert.equal(fresh.row.revision,2);assert.equal(fresh.row.input_generation,c.inputGeneration);
-  assert.deepEqual(semanticProjection((await read(f,c,id,2)).row),semanticProjection(fresh.row));
+  // A Foundation refresh with synthetic evidence creates a valid v25 snapshot,
+  // but cannot fabricate the v26 calculation authority required by RC7 history.
+  const refreshedSnapshot=(await rawHistory(f))[1];
+  assert.equal(f.keys.digest(refreshedSnapshot.content_digest_salt,refreshedSnapshot.snapshot_json),refreshedSnapshot.snapshot_hash);
+  assert.deepEqual(JSON.parse(refreshedSnapshot.snapshot_json).episode,semanticProjection(fresh.row));
+  await assert.rejects(read(f,c,id,2),/EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE/);
   assert.deepEqual((await rawHistory(f))[0],old);
   await assert.rejects(read(f,f.context,id,1),/INPUT_FENCED/);
   await assert.rejects(read(f,c,id,1),/PARENT_STALE/);
@@ -189,7 +194,7 @@ test('RC4 Journal purge redacts R1/R2 payloads and hashes, fences replay, and ca
   const a=await f.stores.episodes.open(c,{identity:{algorithmMajor:'fixture',direction:'LOWER',domain:'recovery',metric:'test',subject:'test',windowFamily:'DAY'},
     data:{episode_type:'SYNTHETIC',explained_status:1,explanation_evidence_item_id:item.row.evidence_item_id,
       explanation_json:{secret:'R1-JOURNAL-HEALTH'},current_context_json:{dose:100}},evidenceItemId:item.row.evidence_item_id,semanticAt:T});
-  await explained(f,c,a.row.episode_id,1,'R2-overwrites');
+  await explained(f,c,a.row.episode_id,1,'R2-overwrites',syntheticEvidence);
   assert.deepEqual(semanticProjection((await read(f,c,a.row.episode_id,1)).row),semanticProjection(a.row));
   const control=await f.stores.capturePrivacyControl('a'),purge=await f.stores.privacy.admit(control,
     {targetType:'JOURNAL_FACT',targetId:'rc4-fact',idempotencyKey:'rc4-delete'});

@@ -1,9 +1,10 @@
+import { createResultAuthority } from './phase4ResultAuthority.js';
 import { fail } from './phase4Core.js';
 import { assertPhase4Schema } from './phase4Migrations.js';
 import { createPhase4Redactor } from './phase4Redaction.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { addPrivacyLink } from './phase4V22Backfill.js';
-import { RESULT_AUTHORITY_TABLE, RESULT_ROOT_VERSION } from './phase4V26Schema.js';
+import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 
 const nodeKey=n=>JSON.stringify([n.mode,n.type,n.id]);
 const toNode=row=>({mode:row.artifact_execution_mode,type:row.artifact_type,id:row.artifact_id});
@@ -154,24 +155,19 @@ export function createPhase4PrivacyStore(core,queue) {
     // The immutable closure is also a privacy index. Losing mutable naming
     // edges must not strand the new authority's sensitive payload or result.
     // These are traversal-only edges, never a repair/backfill of stored links.
-    const authorities=(await client.execute({sql:`SELECT a.*,i.privacy_artifact_id item_artifact,r.privacy_artifact_id run_artifact
-      FROM ${RESULT_AUTHORITY_TABLE} a LEFT JOIN evidence_items i ON i.user_id=a.user_id
-        AND i.execution_mode=a.execution_mode AND i.evidence_item_id=a.evidence_item_id
-      LEFT JOIN evidence_runs r ON r.user_id=a.user_id AND r.execution_mode=a.execution_mode AND r.run_id=a.run_id
-      WHERE a.user_id=? AND a.content_state<>'REDACTED'`,args:[userId]})).rows;
+    const authorities=(await client.execute({sql:`SELECT * FROM ${RESULT_AUTHORITY_TABLE}
+      WHERE user_id=? AND content_state<>'REDACTED'`,args:[userId]})).rows;
+    const verifier=createResultAuthority(core);
     for(const authority of authorities) {
-      const targets=[[RESULT_AUTHORITY_TABLE,authority.privacy_artifact_id],['evidence_items',authority.item_artifact],
-        ['evidence_runs',authority.run_artifact]].filter(([,id])=>id).map(([type,id])=>({mode:authority.execution_mode,type,id}));
-      let manifest;try {manifest=JSON.parse(authority.required_roots_json);}catch {manifest=null;}
-      if(manifest?.version!==RESULT_ROOT_VERSION||!Array.isArray(manifest.roots)||!manifest.roots.length
-        ||manifest.roots.length>10000||manifest.roots.some(root=>!root||typeof root.id!=='string'||typeof root.type!=='string'
-          ||!['SHARED',authority.execution_mode].includes(root.mode))) {
-        // Unreadable/corrupt payload cannot justify retention. Erase only this
-        // tenant's affected authority/result, never trust it to grant access.
-        frontier.push(...targets);continue;
-      }
-      for(const root of manifest.roots)for(const target of targets)links.push({artifact_execution_mode:target.mode,
-        artifact_type:target.type,artifact_id:target.id,source_execution_mode:root.mode,source_type:root.type,source_id:root.id});
+      const {roots,targets}=await verifier.privacyDependencies(userId,authority);
+      const authorityNode={mode:authority.execution_mode,type:RESULT_AUTHORITY_TABLE,id:authority.privacy_artifact_id};
+      const edge=(target,source)=>links.push({artifact_execution_mode:target.mode,artifact_type:target.type,artifact_id:target.id,
+        source_execution_mode:source.mode,source_type:source.type,source_id:source.id});
+      for(const root of [...roots,{mode:authority.execution_mode,type:'evidence_items',
+        id:targets.find(t=>t.type==='evidence_items').id}])edge(authorityNode,root);
+      // Factor the virtual graph through the authority instead of multiplying
+      // every root by every owned revision. Nothing is written to source_links.
+      for(const target of targets)if(nodeKey(target)!==nodeKey(authorityNode))edge(target,authorityNode);
     }
     for(const link of links)if(link.source_type==='TENANT_LEGACY' && link.source_execution_mode==='SHARED' && link.source_id===userId)
       frontier.push(toNode(link));

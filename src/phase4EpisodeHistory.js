@@ -95,6 +95,10 @@ export function createEpisodeHistory(core) {
       for(const key of ['user_id','execution_mode','episode_id','revision','input_generation','lifecycle_generation','auth_generation','purge_generation'])
         if(row[key]!==found[key])invalid();
       if(semanticAt!==null&&requireSemanticTime(semanticAt)!==found.semantic_at)invalid();
+      // The sealed snapshot identifies the result's evidence; mutable registration
+      // metadata never decides whether v26 is required. Later reuse may still
+      // refer to its authentic original revision.
+      if(row.episode_type==='METRIC_DEVIATION')await authorities.metricOrigin(context,row.latest_evidence_item_id,{episodeId});
       const event=await origin(context,episodeId,revision,found.episode_event_id);
       if(!same(eventProjection(event),snapshot.event)||event.to_state!==row.state||event.input_generation!==row.input_generation)invalid();
       const artifact=await core.artifact(context,table,{episode_id:episodeId,revision});
@@ -112,12 +116,7 @@ export function createEpisodeHistory(core) {
         if(!Array.isArray(ref)||ref.length!==2||ref.some(value=>typeof value!=='string'||!value))invalid();
         if(ref[0]==='evidence_items') {
           const item=await core.artifact(context,'evidence_items',{evidence_item_id:ref[1]});
-          const run=await core.artifact(context,'evidence_runs',{run_id:item.row.run_id});
-          // Revision history permits later reuse; only evidence-specific replay
-          // requires this revision to be the original. Both paths require the
-          // complete authenticated calculation roots for registered results.
-          if(run.row.algorithm_version==='phase4-intelligence-v1')
-            await authorities.read(context,ref[1],run.row.method==='PERSONAL_BASELINE_DEVIATION'?'METRIC':'INSIGHT_CURRENT');
+          await authorities.validateExisting(context,ref[1],{required:row.episode_type==='METRIC_DEVIATION'});
           bindings.push(['episode_events',event.privacy_artifact_id,'evidence_items',item.row.privacy_artifact_id]);
         } else bindings.push(['episode_events',event.privacy_artifact_id,ref[0],ref[1],
           DERIVED_TABLES.includes(ref[0])?context.executionMode:'SHARED']);

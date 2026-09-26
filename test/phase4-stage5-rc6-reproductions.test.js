@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setup, request, replayInitial, syntheticEvidence, historyCounts } from './stage5HistoryFixture.js';
+import { setup, request, replayInitial, syntheticEvidence, authoritativeEvidence, historyCounts } from './stage5HistoryFixture.js';
 
 const T='2026-09-25T12:00:00.000Z';
 const first=f=>f.stores.intelligence.analyzeMetric(f.context,request(f.initialRefs[0],f.initialRefs.slice(1)));
 
 test('RC6 pre/post H001: authentic R2 genuinely reuses A+B, forged A membership cannot select R2 after restart',async t=>{
-  const f=await setup(t),a=await first(f),b=await syntheticEvidence(f,f.context,'reuse-B');
+  const f=await setup(t),a=await first(f),b=await authoritativeEvidence(f,f.context);
   const episodeId=a.episode.episode.row.episode_id,itemId=a.item.row.evidence_item_id;
   await f.stores.episodes.revise(f.context,{episodeId,expectedRevision:1,toState:'OPEN',
     patch:{latest_evidence_item_id:itemId,current_novelty:0},sourceRefs:[a.item.ref,b.ref],reasonCode:'NEW_EVIDENCE',semanticAt:T});

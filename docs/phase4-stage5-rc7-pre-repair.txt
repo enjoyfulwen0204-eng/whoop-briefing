@@ -46,10 +46,10 @@ not ok 2 - RC6-H-002 real Journal purge reaches authenticated insight target aft
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
     + 'PRESENT'
     - 'REDACTED'
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: 'REDACTED'
@@ -70,10 +70,10 @@ not ok 3 - RC6-H-003 parseable manifest with invalid HMAC cannot veto Journal pu
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
     + 'PRESENT'
     - 'REDACTED'
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: 'REDACTED'
@@ -94,7 +94,7 @@ not ok 4 - RC6-M-001 degraded authenticated null result replays exact calculatio
   error: |-
     Expected values to be strictly deep-equal:
     + actual - expected
-    
+
       {
         absoluteDelta: -35,
     +   classification: 'NO_MEANINGFUL_CHANGE',
@@ -121,7 +121,7 @@ not ok 4 - RC6-M-001 degraded authenticated null result replays exact calculatio
         qualified: false,
         qualityStatus: 'DEGRADED',
         relativeDelta: -0.7,
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -194,11 +194,11 @@ not ok 5 - RC6-M-002 historical insight calculation time belongs to original rev
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
     + '2026-09-26T12:00:00.000Z'
     - '2026-09-25T12:00:00.000Z'
                 ^
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: '2026-09-25T12:00:00.000Z'
@@ -219,7 +219,7 @@ not ok 6 - RC6-M-003 equivalent source version instants preserve baseline select
   error: |-
     Expected values to be strictly deep-equal:
     + actual - expected
-    
+
       {
         asOfUtc: '2026-09-25T12:00:00.000Z',
         exclusions: [
@@ -261,7 +261,7 @@ not ok 6 - RC6-M-003 equivalent source version instants preserve baseline select
         scale: null,
         scaleMethod: null,
         sufficient: false,
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
@@ -352,10 +352,10 @@ not ok 7 - RC6-M-004 coverage self-cycle returns explicit integrity error prompt
   error: |-
     Expected PHASE4_COVERAGE_LINEAGE_INVALID; child ETIMEDOUT
     + actual - expected
-    
+
     + 'ETIMEDOUT'
     - undefined
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   actual: 'ETIMEDOUT'

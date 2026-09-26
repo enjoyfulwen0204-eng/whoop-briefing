@@ -21,8 +21,8 @@
     "classification": "Six assertion failures and one expected cycle deadline; all seven are logical defect reproductions.",
     "initial_evidence": "docs/phase4-stage5-rc7-pre-repair.txt",
     "final_permanent_test_evidence": "docs/phase4-stage5-rc7-final-tests-on-start.txt",
-    "initial_evidence_sha256": "5b1453095cb8ada99ab6586133d4b667e47f4cb3739e1bf1d42c4618e67f2711",
-    "final_permanent_test_evidence_sha256": "80c76d3ebae3e45494de0ad0ec4d58ad3a6b42dadce3ab18a3a4394a6b3921f2",
+    "initial_evidence_sha256": "1b1b62b6f425e003899fdc40acd24defc1c55698cdb8fd2c96977154dc781039",
+    "final_permanent_test_evidence_sha256": "ccf27a7f2702860fa2f5ff2163e0183210b48ad47c307803e0977765aee33bb3",
     "final_test_sha256": "27d5352f12d0ed56610a5e6fbe8724263aa4b7fc99feb2712a7533fcb04c6f2b",
     "baseline_checkout": {
       "directory": "/tmp/rc7-starting-head-c1gvlucx",
@@ -30,7 +30,10 @@
       "test_sha256": "27d5352f12d0ed56610a5e6fbe8724263aa4b7fc99feb2712a7533fcb04c6f2b",
       "final_primary_tests_sha256": "bff5c230ee3d2bac6a64cb2e6873feae844888b29233bc2f888c0733d012224b",
       "primary_tests_identical_to_final": true
-    }
+    },
+    "initial_evidence_raw_sha256": "5b1453095cb8ada99ab6586133d4b667e47f4cb3739e1bf1d42c4618e67f2711",
+    "final_permanent_test_evidence_raw_sha256": "80c76d3ebae3e45494de0ad0ec4d58ad3a6b42dadce3ab18a3a4394a6b3921f2",
+    "retained_text_normalization": "Trailing whitespace removed only; raw byte hashes retained separately."
   },
   "groups_overlap": true,
   "groups": {
@@ -4222,7 +4225,8 @@
       "src/phase4ResultAuthority.js": "271e1c52030c078bdb48debbf0a274d2d42125c46fcd0bc87eae37a23bf456c0",
       "src/phase4SourceVersion.js": "682beab71598b24cbe183f556ad93cf375e936d2d613c3e08ec9497867e1e27d",
       "src/phase4CoverageLineage.js": "6d8a775fd108b8994ae93e84f2f81eb53d5caf5034587a1a854fc4866a7f9bbc"
-    }
+    },
+    "diff_check": "Final patch against starting SHA checked, including all newly added files."
   },
   "development_runs": [
     {

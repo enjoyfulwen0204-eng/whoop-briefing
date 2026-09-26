@@ -6,7 +6,7 @@ Implementation commit: `e29abd0c0202b1e064d41aeb064db5a180ff0306`.
 
 ## Starting-HEAD proof
 
-The [retained pre-repair log](phase4-stage5-rc7-pre-repair.txt) was recorded before any runtime edits. The seven primary tests in [the permanent RC7 suite](../test/phase4-stage5-rc7.test.js) produced **0 passes / 7 behavioral failures**. The cycle child was killed by the deterministic 20-second safety deadline because the expected explicit integrity error never arrived; this is the expected logical defect reproduction, not an infrastructure timeout.
+Retained TAP text has trailing whitespace removed; the ledger preserves both raw and normalized SHA-256 hashes. The [retained pre-repair log](phase4-stage5-rc7-pre-repair.txt) was recorded before any runtime edits. The seven primary tests in [the permanent RC7 suite](../test/phase4-stage5-rc7.test.js) produced **0 passes / 7 behavioral failures**. The cycle child was killed by the deterministic 20-second safety deadline because the expected explicit integrity error never arrived; this is the expected logical defect reproduction, not an infrastructure timeout.
 
 | Finding | Starting behavior | Repair |
 |---|---|---|

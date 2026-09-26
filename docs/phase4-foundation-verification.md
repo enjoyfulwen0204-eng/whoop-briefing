@@ -103,4 +103,4 @@ Stage 5 RC1 review against the ADR and `docs/phase4-stage5-verification.md`. Do 
 begin Stage 6, enable flags, implement the future v26/v27 stages, deploy, or migrate production
 from this map.
 
-RC4 schema-allocation amendment: Stage 5 now owns v25 durable episode history. The future reservations above are v26 Stage 7 and v27 Stage 8; Foundation execution counts remain the historical v24 results. See [RC4 verification](phase4-stage5-rc4-verification.md).
+RC4 schema-allocation amendment: Stage 5 now owns v25 durable episode history. The RC6 allocation supersedes those reservations: v26 Stage 5 durable result authority, v27 Stage 7 and v28 Stage 8; Foundation execution counts remain the historical v24 results. See [RC4 verification](phase4-stage5-rc4-verification.md).

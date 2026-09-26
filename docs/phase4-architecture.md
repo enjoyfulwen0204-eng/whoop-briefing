@@ -1,6 +1,6 @@
 # WHOOP Personal Health OS Phase 4 Architecture Decision Record
 
-Status: Foundation Stages 1–4 aggregate review passed; Stage 5 RC6 durable result authority implemented SHADOW-only and awaiting independent Stage 5 RC6 review; Stages 6–8 not started
+Status: Foundation Stages 1–4 aggregate review passed; Stage 5 RC6 independent review failed; RC7 repair implemented and verified SHADOW-only, pending independent review; Stages 6–8 not started
 
 Decision date: 2026-09-19; locked-decision amendment and targeted repair 1: 2026-09-25
 
@@ -8,7 +8,7 @@ Original V1.2 production baseline from which Phase 4 branched: v20 schema at com
 
 Architecture version: phase4-adr-v1-repair-7
 
-This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and have passed their aggregate Foundation review. Under the explicit Stage 5 RC4 authorization, v25 adds full, immutable semantic episode revision snapshots. Exact historical replay loads the requested snapshot, validates its canonical format/hash and event/evidence/provenance binding, and never obtains historical semantic fields from the mutable materialized episode. Missing pre-v25 history is irrecoverable and fails with `PHASE4_EPISODE_HISTORY_UNAVAILABLE`; migration creates no synthetic backfill. RC4 also validates semantic clocks before idempotent success and canonicalizes baseline sources before provenance/manifest construction. The subsequent RC6 authority layer described below supersedes membership and surviving-edge inference. Stage 5 remains SHADOW-only and awaits independent RC6 review. The earlier 2026-09-25 locked-scope amendment remains a documentation-only historical boundary; the subsequent Architecture Owner RC4 decision expressly authorizes this v25 implementation and supersedes its old schema reservation. Quick Actions, Owner Monitoring, display-name isolation, and mixed scheduler/watchdog behavior remain unimplemented later-stage work; Section 17 remains controlling.
+This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and have passed their aggregate Foundation review. Under the explicit Stage 5 RC4 authorization, v25 adds full, immutable semantic episode revision snapshots. Exact historical replay loads the requested snapshot, validates its canonical format/hash and event/evidence/provenance binding, and never obtains historical semantic fields from the mutable materialized episode. Missing pre-v25 history is irrecoverable and fails with `PHASE4_EPISODE_HISTORY_UNAVAILABLE`; migration creates no synthetic backfill. RC4 also validates semantic clocks before idempotent success and canonicalizes baseline sources before provenance/manifest construction. The subsequent RC6 authority layer described below supersedes membership and surviving-edge inference. Stage 5 remains SHADOW-only; RC6 independent review failed and the RC7 amendment below controls repair status. The earlier 2026-09-25 locked-scope amendment remains a documentation-only historical boundary; the subsequent Architecture Owner RC4 decision expressly authorizes this v25 implementation and supersedes its old schema reservation. Quick Actions, Owner Monitoring, display-name isolation, and mixed scheduler/watchdog behavior remain unimplemented later-stage work; Section 17 remains controlling.
 
 Amendment precedence and audit classification:
 
@@ -2852,6 +2852,16 @@ Semantic timestamps are normalized to canonical UTC before comparison and determ
 
 See [RC6 verification](phase4-stage5-rc6-verification.md) for adversarial proofs, cutover fixtures, privacy and test results. Low-level Foundation persistence fixtures are not registered Stage 5 calculations; their v25 snapshot APIs remain distinct from evidence-specific deterministic replay, which always requires v26 authority.
 
+### Stage 5 RC7 repair amendment (schema v26 unchanged)
+
+The RC6 independent review failed with three High and four substantive Medium blockers. RC7 repairs historical authority bypass, purge target traversal and manifest authentication, exact null/insight projections, timestamp-version ordering and cyclic coverage lineage. The current implementation is still SHADOW-only and requires RC7 independent review; Stage 5 is not approved and Stage 6 remains unsafe.
+
+Generic metric history selects mandatory v26 authority from the authenticated v25 snapshot, never mutable run/algorithm metadata. Purge shares the reader's cryptographic verifier and follows authenticated original result targets independently of mutable edges. A corrupt payload supplies no privacy decisions: independently authenticated run inputs and scoped owned relationships bound conservative redaction, or the transaction fails under the admitted privacy fence.
+
+Existing flexible v26 JSON holds explicit `stage5-null-metric-result-v2` calculation projections and `stage5-insight-result-v2` historical semantic timestamp projections. Old bindings lacking exact projections remain unavailable for exact projection replay; no backfill or DDL change occurs. New `stage5-required-roots-v2` commitments normalize the existing health timestamp tuple; v1 commitments retain their old verification contract. Coverage traversal has explicit visited-node cycle detection, an existing-privacy-model 100,000-node corruption ceiling and an invariant error instead of truncation or unbounded recursion.
+
+See [RC7 verification](phase4-stage5-rc7-verification.md) for exact compatibility, privacy, test and trust-chain contracts. Schema allocation remains v25 Stage 5 revision history, v26 Stage 5 durable result authority, v27 Stage 7 and v28 Stage 8.
+
 ### V27 and v28 future additive locked-scope extensions (not implemented)
 
 V21–v24 are completed Foundation versions and must not be reopened, renumbered, or silently extended. The locked requirements added on 2026-09-25 require reviewed forward migrations before implementation. Version ownership is dependency ordered and indivisible:
@@ -3767,7 +3777,7 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 ### Stage 5: evidence, episodes, and insight memory
 
-**Status:** IMPLEMENTED SHADOW-ONLY; Stage 5 RC6 v26 repair implemented and awaiting independent Stage 5 RC6 review.
+**Status:** IMPLEMENTED SHADOW-ONLY; RC6 review failed; RC7 repair requires verification and independent review.
 
 **Depends on:** aggregate Foundation PASS covering Stages 2–4 and all eight internal commits, plus explicit Intelligence Pack authorization. Both prerequisites were satisfied for this implementation checkpoint.
 
@@ -3962,4 +3972,4 @@ Before any post-gate production activation, product, privacy, and statistical re
 
 ### Final architecture verdict
 
-The ADR remains the controlling contract. Foundation Stages 1–4 exist default-off and SHADOW-only and passed aggregate review. Stage 5 is implemented SHADOW-only under its subsequent explicit authorization; its v25/v26 RC6 repair awaits independent Stage 5 review. Quick Actions and their v27 Journal trusted-registry/source-kind provenance, Owner Monitoring and its v28 persistence, display-name isolation through existing identity sources, mixed scheduler/watchdog behavior, and Stage 6 reanalysis remain future work and must not be reported as implemented. No production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.
+The ADR remains the controlling contract. Foundation Stages 1–4 exist default-off and SHADOW-only and passed aggregate review. Stage 5 is implemented SHADOW-only under its subsequent explicit authorization; its v25/v26 RC7 repair requires independent Stage 5 review after the failed RC6 review. Quick Actions and their v27 Journal trusted-registry/source-kind provenance, Owner Monitoring and its v28 persistence, display-name isolation through existing identity sources, mixed scheduler/watchdog behavior, and Stage 6 reanalysis remain future work and must not be reported as implemented. No production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.

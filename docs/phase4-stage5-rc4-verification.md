@@ -8,7 +8,7 @@ Schema: v24 → v25. Authority: SHADOW-only; all Foundation flags remain off.
 
 ## Architecture decision
 
-The Architecture Owner explicitly replaced the old reservation:
+At the RC4 checkpoint, the Architecture Owner explicitly replaced the old reservation (historical allocation below):
 
 | Version | Owner / scope | Status |
 |---|---|---|
@@ -16,7 +16,7 @@ The Architecture Owner explicitly replaced the old reservation:
 | v26 | Stage 7 Quick Actions, TRUSTED_REGISTRY, Journal source-kind/provenance | Reserved; no functionality implemented |
 | v27 | Stage 8 Owner Monitoring / Family View persistence | Reserved; no functionality implemented |
 
-The [authoritative ADR](phase4-architecture.md) and stage graph use this allocation throughout. Earlier RC1/RC2 verification records remain historical evidence, not the current replay contract.
+The current [authoritative ADR](phase4-architecture.md) supersedes that checkpoint: v25 Stage 5 revision history, v26 Stage 5 durable result authority, v27 Stage 7, and v28 Stage 8. Earlier verification records remain historical evidence, not the current allocation or replay contract.
 
 ## Schema and immutable authority
 

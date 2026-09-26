@@ -1,0 +1,379 @@
+{"ts":"2026-09-26T04:40:45.406Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+{"ts":"2026-09-26T04:40:45.411Z","level":"info","event":"schema_migrated","from":0,"to":20}
+{"ts":"2026-09-26T04:40:47.184Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+{"ts":"2026-09-26T04:40:47.187Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+{"ts":"2026-09-26T04:40:50.667Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+{"ts":"2026-09-26T04:40:50.669Z","level":"info","event":"schema_migrated","from":0,"to":20}
+{"ts":"2026-09-26T04:40:52.605Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+{"ts":"2026-09-26T04:40:52.606Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+{"ts":"2026-09-26T04:40:55.957Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+{"ts":"2026-09-26T04:40:55.959Z","level":"info","event":"schema_migrated","from":0,"to":20}
+{"ts":"2026-09-26T04:40:57.616Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+{"ts":"2026-09-26T04:40:57.618Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+{"ts":"2026-09-26T04:41:01.029Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+{"ts":"2026-09-26T04:41:01.031Z","level":"info","event":"schema_migrated","from":0,"to":20}
+{"ts":"2026-09-26T04:41:02.628Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+{"ts":"2026-09-26T04:41:02.629Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+{"ts":"2026-09-26T04:41:07.100Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+{"ts":"2026-09-26T04:41:07.101Z","level":"info","event":"schema_migrated","from":0,"to":20}
+{"ts":"2026-09-26T04:41:08.734Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+{"ts":"2026-09-26T04:41:08.735Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+TAP version 13
+# Subtest: RC6-H-001 generic history cannot downgrade root authority through algorithm metadata
+not ok 1 - RC6-H-001 generic history cannot downgrade root authority through algorithm metadata
+  ---
+  duration_ms: 5270.961458
+  type: 'test'
+  location: '/private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:36:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:43:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: RC6-H-002 real Journal purge reaches authenticated insight target after evidence edge loss
+not ok 2 - RC6-H-002 real Journal purge reaches authenticated insight target after evidence edge loss
+  ---
+  duration_ms: 5298.516708
+  type: 'test'
+  location: '/private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:48:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'PRESENT'
+    - 'REDACTED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'REDACTED'
+  actual: 'PRESENT'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:55:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: RC6-H-003 parseable manifest with invalid HMAC cannot veto Journal purge
+not ok 3 - RC6-H-003 parseable manifest with invalid HMAC cannot veto Journal purge
+  ---
+  duration_ms: 5073.111417
+  type: 'test'
+  location: '/private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:58:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'PRESENT'
+    - 'REDACTED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'REDACTED'
+  actual: 'PRESENT'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:71:83)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: RC6-M-001 degraded authenticated null result replays exact calculation after restart
+not ok 4 - RC6-M-001 degraded authenticated null result replays exact calculation after restart
+  ---
+  duration_ms: 6069.339875
+  type: 'test'
+  location: '/private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:75:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        absoluteDelta: -35,
+    +   classification: 'NO_MEANINGFUL_CHANGE',
+    -   classification: 'INSUFFICIENT_QUALITY',
+        closePass: false,
+        components: {
+          magnitude: 1,
+    +     novelty: 1,
+    -     novelty: 0,
+          persistence: 1,
+          quality: 1,
+          recency: 1
+        },
+        confidence: 1,
+        direction: 'LOWER',
+        magnitudePass: true,
+    +   meaningfulness: 1,
+    -   meaningfulness: 0.8500000000000001,
+        metricKey: 'recovery_score',
+    +   novelty: true,
+    -   novelty: false,
+        openPass: true,
+        persistent: false,
+        qualified: false,
+        qualityStatus: 'DEGRADED',
+        relativeDelta: -0.7,
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    metricKey: 'recovery_score'
+    absoluteDelta: -35
+    relativeDelta: -0.7
+    robustZ: -4.721435316336167
+    direction: 'LOWER'
+    semanticImpact: 'UNFAVORABLE'
+    magnitudePass: true
+    openPass: true
+    closePass: false
+    persistent: false
+    severeSingle: true
+    qualified: false
+    severity: 3
+    novelty: false
+    semanticHash: 'phase4-intelligence-v1:recovery_score:LOWER:3:UNFAVORABLE'
+    classification: 'INSUFFICIENT_QUALITY'
+    targetEpisodeState: ~
+    meaningfulness: 0.8500000000000001
+    confidence: 1
+    qualityStatus: 'DEGRADED'
+    components:
+      magnitude: 1
+      persistence: 1
+      recency: 1
+      novelty: 0
+      quality: 1
+  actual:
+    metricKey: 'recovery_score'
+    absoluteDelta: -35
+    relativeDelta: -0.7
+    robustZ: -4.721435316336167
+    direction: 'LOWER'
+    semanticImpact: 'UNFAVORABLE'
+    magnitudePass: true
+    openPass: true
+    closePass: false
+    persistent: false
+    severeSingle: true
+    qualified: false
+    severity: 3
+    novelty: true
+    semanticHash: 'phase4-intelligence-v1:recovery_score:LOWER:3:UNFAVORABLE'
+    classification: 'NO_MEANINGFUL_CHANGE'
+    targetEpisodeState: ~
+    meaningfulness: 1
+    confidence: 1
+    qualityStatus: 'DEGRADED'
+    components:
+      magnitude: 1
+      persistence: 1
+      recency: 1
+      novelty: 1
+      quality: 1
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:87:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: RC6-M-002 historical insight calculation time belongs to original revision
+not ok 5 - RC6-M-002 historical insight calculation time belongs to original revision
+  ---
+  duration_ms: 16046.667542
+  type: 'test'
+  location: '/private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:90:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '2026-09-26T12:00:00.000Z'
+    - '2026-09-25T12:00:00.000Z'
+                ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '2026-09-25T12:00:00.000Z'
+  actual: '2026-09-26T12:00:00.000Z'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:102:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: RC6-M-003 equivalent source version instants preserve baseline selection
+not ok 6 - RC6-M-003 equivalent source version instants preserve baseline selection
+  ---
+  duration_ms: 1.8955
+  type: 'test'
+  location: '/private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:113:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        asOfUtc: '2026-09-25T12:00:00.000Z',
+        exclusions: [
+          {
+            healthDate: '2026-09-24',
+            reason: 'DUPLICATE_HEALTH_DAY',
+    +       sourceId: 'a'
+    -       sourceId: 'b'
+          }
+        ],
+        iqr: 0,
+        lookbackDays: 45,
+        mad: 0,
+        mature: false,
+    +   median: 90,
+    -   median: 10,
+        method: 'MEDIAN_MAD_IQR',
+        metricKey: 'recovery_score',
+        minimumSamples: 7,
+    +   q1: 90,
+    +   q3: 90,
+    -   q1: 10,
+    -   q3: 10,
+        sampleCount: 1,
+        samples: [
+          {
+            healthDate: '2026-09-24',
+            ingestedAt: '2026-09-25T12:00:00.000Z',
+            observedAt: '2026-09-24T12:00:00.000Z',
+    +       sourceId: 'b',
+    -       sourceId: 'a',
+            sourceType: 'recovery',
+            sourceVersion: '["2026-09-24T12:00:00.000Z","2026-09-25T12:00:00.000Z",null,"SCORED"]',
+    +       value: 90
+    -       value: 10
+          }
+        ],
+        scale: null,
+        scaleMethod: null,
+        sufficient: false,
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    metricKey: 'recovery_score'
+    unit: 'score'
+    method: 'MEDIAN_MAD_IQR'
+    version: 'robust-baseline-v1'
+    targetHealthDate: '2026-09-25'
+    asOfUtc: '2026-09-25T12:00:00.000Z'
+    lookbackDays: 45
+    targetSamples: 30
+    minimumSamples: 7
+    sampleCount: 1
+    sufficient: false
+    mature: false
+    median: 10
+    mad: 0
+    q1: 10
+    q3: 10
+    iqr: 0
+    scale: ~
+    scaleMethod: ~
+    samples:
+      0:
+        sourceId: 'a'
+        sourceType: 'recovery'
+        sourceVersion: '["2026-09-24T12:00:00.000Z","2026-09-25T12:00:00.000Z",null,"SCORED"]'
+        healthDate: '2026-09-24'
+        observedAt: '2026-09-24T12:00:00.000Z'
+        ingestedAt: '2026-09-25T12:00:00.000Z'
+        value: 10
+    exclusions:
+      0:
+        sourceId: 'b'
+        healthDate: '2026-09-24'
+        reason: 'DUPLICATE_HEALTH_DAY'
+  actual:
+    metricKey: 'recovery_score'
+    unit: 'score'
+    method: 'MEDIAN_MAD_IQR'
+    version: 'robust-baseline-v1'
+    targetHealthDate: '2026-09-25'
+    asOfUtc: '2026-09-25T12:00:00.000Z'
+    lookbackDays: 45
+    targetSamples: 30
+    minimumSamples: 7
+    sampleCount: 1
+    sufficient: false
+    mature: false
+    median: 90
+    mad: 0
+    q1: 90
+    q3: 90
+    iqr: 0
+    scale: ~
+    scaleMethod: ~
+    samples:
+      0:
+        sourceId: 'b'
+        sourceType: 'recovery'
+        sourceVersion: '["2026-09-24T12:00:00.000Z","2026-09-25T12:00:00.000Z",null,"SCORED"]'
+        healthDate: '2026-09-24'
+        observedAt: '2026-09-24T12:00:00.000Z'
+        ingestedAt: '2026-09-25T12:00:00.000Z'
+        value: 90
+    exclusions:
+      0:
+        sourceId: 'a'
+        healthDate: '2026-09-24'
+        reason: 'DUPLICATE_HEALTH_DAY'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:119:95)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: RC6-M-004 coverage self-cycle returns explicit integrity error promptly
+not ok 7 - RC6-M-004 coverage self-cycle returns explicit integrity error promptly
+  ---
+  duration_ms: 20015.384083
+  type: 'test'
+  location: '/private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:122:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected PHASE4_COVERAGE_LINEAGE_INVALID; child ETIMEDOUT
+    + actual - expected
+    
+    + 'ETIMEDOUT'
+    - undefined
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual: 'ETIMEDOUT'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///private/tmp/rc7-starting-head-c1gvlucx/test/phase4-stage5-rc7.test.js:124:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 0
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 58059.421042

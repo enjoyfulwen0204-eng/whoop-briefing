@@ -43,7 +43,12 @@ async function withDb(fn) {
     await seedAliceAndBob(db);
     await fn(db);
   } finally {
+    // Drain statement finalizers while the normal driver's connection is
+    // still alive, rather than accumulating closed native handles until exit.
+    const collect=async()=>{global.gc?.();await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));};
+    await collect();
     db.close();
+    await collect();
     cleanup();
   }
 }

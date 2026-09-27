@@ -16,7 +16,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 
-import { createDb } from './localDb.js';
+import { createOwnedDb as createDb } from './stage5OwnedDb.js';
 import { createReconciler } from '../src/reconcile.js';
 import {
   processAnalyticsForUser, processPendingAnalytics, runLightweightAnalysis, runHeavyAnalytics,
@@ -52,7 +52,7 @@ async function env(users = [ALICE]) {
     await db.createUser({ id: u.id, displayName: u.id, timezone: TZ });
     await db.saveTokens(u.id, { accessToken: `a-${u.id}`, refreshToken: `r-${u.id}`, expiresAt: new Date(Date.now() + HOUR), scope: 'offline', whoopUserId: u.whoop });
   }
-  return { db, url: t.url, done: () => { try { db.close(); } catch { /* ignore */ } t.cleanup(); } };
+  return { db, url: t.url, done: async () => { await db.close(); t.cleanup(); } };
 }
 
 const sid = (n) => `aaaaaaaa-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -139,7 +139,7 @@ test('F01-A / ATTACK 1（真併發）：A 認領 LIGHT、算完、租約過期�
     assert.ok((await e.db.getAnalyticsDailyState(ALICE.id)).every((r) => r.metrics.respiratory_rate === 222));
     const f = await fresh(e.db);
     assert.equal(f.light.doneGeneration, g); assert.equal(f.light.status, ANALYTICS_FRESHNESS.CURRENT); assert.equal(f.light.owner, null);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F01-B / ATTACK 2（真併發）：HEAVY 預測輸出 —— B 接手寫入新模型，過期的 A 寫入 0 列', async () => {
@@ -165,7 +165,7 @@ test('F01-B / ATTACK 2（真併發）：HEAVY 預測輸出 —— B 接手寫入
     assert.equal(r?.message, 'analytics_ownership_lost');
     assert.deepEqual((await e.db.raw.execute({ sql: 'SELECT model_version FROM prediction_models WHERE user_id = ?', args: [ALICE.id] })).rows.map((x) => x.model_version), ['v-B']);
     assert.equal(await rowCount(e.db, 'healthspan_snapshots', ALICE.id), 0);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F01-C / ATTACK 3（真併發）：HEAVY Healthspan 輸出 —— B 接手寫快照，過期的 A 寫入 0 列', async () => {
@@ -182,7 +182,7 @@ test('F01-C / ATTACK 3（真併發）：HEAVY Healthspan 輸出 —— B 接手�
     const snaps = (await e.db.raw.execute({ sql: 'SELECT algorithm_version FROM healthspan_snapshots WHERE user_id = ?', args: [ALICE.id] })).rows.map((r) => r.algorithm_version);
     assert.deepEqual(snaps, ['a-B'], '★★★ 只有 B 的快照');
     assert.equal(await rowCount(e.db, 'healthspan_metrics', ALICE.id), 0);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F01-D 租約過期、沒有人接手 → A 的輸出寫入仍然是 0（LIGHT 與 HEAVY）', async () => {
@@ -204,7 +204,7 @@ test('F01-D 租約過期、沒有人接手 → A 的輸出寫入仍然是 0（LI
     const r = await light(e.db, ALICE, { owner: 'A', now: () => expiredL });
     assert.equal(r.result, ANALYTICS_RESULT.SUCCESS);
     assert.equal((await fresh(e.db)).light.consecutiveFailures, 0);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F01-E 租約邊界：lease_expires_at == now 算過期 → 0 寫入；now − 1ms 仍有效', async () => {
@@ -221,7 +221,7 @@ test('F01-E 租約邊界：lease_expires_at == now 算過期 → 0 寫入；now 
     // 錯的 generation 也進不來（同 owner、租約有效）
     await assert.rejects(e.db.saveAnalyticsDailyState(ALICE.id, dailyRows(2, ['2026-09-14']), { expectedLifecycleGeneration: LIFECYCLE_UNFENCED, owner: 'A', generation: c.generation + 1, now: NOW, clock: () => NOW }), /analytics_ownership_lost/);
     assert.equal((await e.db.getAnalyticsDailyState(ALICE.id))[0].metrics.respiratory_rate, 1);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F01-F A 在租約有效時寫入、結案前才過期 → 輸出保留（合法）、結案 FENCED、工作仍待處理可安全重試', async () => {
@@ -245,7 +245,7 @@ test('F01-F A 在租約有效時寫入、結案前才過期 → 輸出保留（�
     assert.equal(r2.result, ANALYTICS_RESULT.SUCCESS);
     assert.equal((await fresh(e.db)).light.status, ANALYTICS_FRESHNESS.CURRENT);
     assert.ok((await e.db.getAnalyticsDailyState(ALICE.id)).every((x) => !x.stale));
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F01 圍欄在交易層：mutateForAnalytics 的 before / after 都驗，fn 拋錯整段回滾', async () => {
@@ -263,7 +263,7 @@ test('F01 圍欄在交易層：mutateForAnalytics 的 before / after 都驗，fn
     assert.equal(await rowCount(e.db, 'prediction_models', ALICE.id), 0, '回滾');
     await assert.rejects(e.db.mutateForAnalytics({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: 'bogus', owner: 'A', generation: 1 }, async () => {}), /invalid_analytics_class/);
     await assert.rejects(e.db.mutateForAnalytics({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: HEAVY, owner: 'A', generation: 'x' }, async () => {}), /generation_required/);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 // ===========================================================================
@@ -289,7 +289,7 @@ test('F02-A NULL → D：recovery 先到、sleep 後到 → relink 讓日期從 
     // 再重放一次（D → D）→ 不失效
     await e.db.upsertRecoveries(ALICE.id, [recoveryRecord({ sleepId: sid(1), updatedAt: at(2) })]);
     assert.equal(await gen(e.db), g2 + 1, 'F02-C：D → D 不失效');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F02-B / ATTACK 4 D1 → D2：sleep 換了 health_date → recovery relink → 範圍同時涵蓋 D1 與 D2', async () => {
@@ -315,7 +315,7 @@ test('F02-B / ATTACK 4 D1 → D2：sleep 換了 health_date → recovery relink 
     // 再 relink（沒有變化）→ 不失效
     await e.db.relinkRecoveryDates(ALICE.id);
     assert.equal(await gen(e.db), g + 2);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F02-D / ATTACK 5 同版本 recovery 重放透過 upsertRecoveries 內部的 relink 改了日期 → 失效（且只 +1，不重複）', async () => {
@@ -333,7 +333,7 @@ test('F02-D / ATTACK 5 同版本 recovery 重放透過 upsertRecoveries 內部�
     const i = await inv(e.db);
     assert.equal(i.generation, g + 1, '★ 恰好 +1（同一交易裡的同一次語義變化）');
     assert.ok(i.affectedFrom <= D1 && i.affectedTo >= D2);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F02-E / ATTACK 12 relink 交易回滾 → 日期與失效都不留下', async () => {
@@ -352,7 +352,7 @@ test('F02-E / ATTACK 12 relink 交易回滾 → 日期與失效都不留下', as
     }), /boom/);
     assert.equal(await recoveryDate(e.db, ALICE.id, sid(1)), D1, '★ 日期回滾');
     assert.equal(await gen(e.db), g, '★ 失效回滾');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F02-F Alice / Bob 同 sleep / recovery id：relink 只讓正確的使用者失效', async () => {
@@ -370,7 +370,7 @@ test('F02-F Alice / Bob 同 sleep / recovery id：relink 只讓正確的使用�
     assert.equal(await gen(e.db, BOB), gb, 'Bob 不受影響');
     await e.db.relinkRecoveryDates(BOB.id);
     assert.equal(await gen(e.db, BOB), gb, 'Bob 的 relink 沒有變化 → 不失效');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F02-G / ATTACK 11 深度對帳帶來 relink → 失效；快 / 深水位、墓碑、圍欄不變', async () => {
@@ -408,7 +408,7 @@ test('F02-G / ATTACK 11 深度對帳帶來 relink → 失效；快 / 深水位�
     assert.equal((await e.db.getReconciliationState(ALICE.id, 'recovery/deep')).owner, null, '租約釋放');
     assert.equal(await e.db.getReconciliationState(ALICE.id, 'sleep'), null, '快路徑水位不動');
     assert.equal((await fresh(e.db)).heavy.status, ANALYTICS_FRESHNESS.PENDING);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 // ===========================================================================
@@ -465,7 +465,7 @@ test('F03-A / ATTACK 6 120+ 天範圍：45 + 45 + 40 三片；前兩片後 PENDI
       [expectedFrom, addDays(expectedTo, -90), 41],
     ]);
     console.log('  progress after each chunk:', JSON.stringify(progress));
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F03-B / ATTACK 8 第一片 commit 之後「崩潰」（丟掉 process 內狀態）→ 重開接續剩餘範圍', async () => {
@@ -474,7 +474,7 @@ test('F03-B / ATTACK 8 第一片 commit 之後「崩潰」（丟掉 process 內�
     await seedLong(e.db);
     const r1 = await light(e.db, ALICE, { owner: 'proc-1' });
     assert.equal(r1.result, ANALYTICS_RESULT.PARTIAL);
-    e.db.close();
+    await e.db.close();
     const db2 = createDb({ url: e.url });
     const w = await db2.getAnalyticsWorkState(ALICE.id, LIGHT);
     assert.ok(w.rangeFrom && w.rangeTo, '剩餘範圍耐久');
@@ -484,8 +484,8 @@ test('F03-B / ATTACK 8 第一片 commit 之後「崩潰」（丟掉 process 內�
     const r3 = await processAnalyticsForUser({ db: db2, userId: ALICE.id, cls: LIGHT, owner: 'proc-2', now: () => NOW });
     assert.equal(r3.result, ANALYTICS_RESULT.SUCCESS);
     assert.equal((await db2.getAnalyticsFreshness(ALICE.id)).light.status, ANALYTICS_FRESHNESS.CURRENT);
-    db2.close();
-  } finally { e.done(); }
+    await db2.close();
+  } finally { await e.done(); }
 });
 
 test('F03-C 第二片失敗 → 第一片保留、剩餘範圍不動、退避後重試接續', async () => {
@@ -509,7 +509,7 @@ test('F03-C 第二片失敗 → 第一片保留、剩餘範圍不動、退避後
     const r4 = await light(e.db, ALICE, { now: () => later });
     assert.equal(r4.result, ANALYTICS_RESULT.SUCCESS);
     assert.equal((await fresh(e.db)).light.status, ANALYTICS_FRESHNESS.CURRENT);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F03-D / ATTACK 9 算完一片之後、持久化之前租約過期 → F01 擋下寫入、游標不前進、剩餘範圍完整', async () => {
@@ -532,7 +532,7 @@ test('F03-D / ATTACK 9 算完一片之後、持久化之前租約過期 → F01 
     // 新工作者接續
     const r3 = await light(e.db, ALICE, { owner: 'B', now: () => new Date(t + 1) });
     assert.equal(r3.result, ANALYTICS_RESULT.PARTIAL); assert.equal(r3.summary.to, before.rangeTo);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F03-E / ATTACK 7 第一片之後 N+1 到來（新 + 舊日期）→ 沒有任何受影響日期遺失', async () => {
@@ -560,7 +560,7 @@ test('F03-E / ATTACK 7 第一片之後 N+1 到來（新 + 舊日期）→ 沒有
     assert.ok(d100 && d100.generation === g2, '★ 100 天前那天也算了');
     assert.ok(rows.every((x) => !x.stale));
     console.log(`  chunks to converge after N+1: ${n}`);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F03-F 只有 100 天前的一筆修正 → 不會被「最新 45 天」吃掉，一片就算到它', async () => {
@@ -577,7 +577,7 @@ test('F03-F 只有 100 天前的一筆修正 → 不會被「最新 45 天」吃
     const row = (await e.db.getAnalyticsDailyState(ALICE.id)).find((x) => x.metrics.respiratory_rate === 77);
     assert.ok(row && row.generation === i.generation && !row.stale, '★ 100 天前那天被重算');
     assert.equal((await fresh(e.db)).light.status, ANALYTICS_FRESHNESS.CURRENT);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F03-G / ATTACK 10 Alice / Bob 各自的長範圍與分片進度互不影響', async () => {
@@ -599,7 +599,7 @@ test('F03-G / ATTACK 10 Alice / Bob 各自的長範圍與分片進度互不影�
     assert.equal(a3.result, ANALYTICS_RESULT.SUCCESS);
     assert.equal((await e.db.getAnalyticsDailyState(ALICE.id)).length, 130);
     assert.equal((await e.db.getAnalyticsDailyState(BOB.id)).length, 60);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F03-H ≤ 45 天的範圍一輪完成；分片純函式', async () => {
@@ -613,7 +613,7 @@ test('F03-H ≤ 45 天的範圍一輪完成；分片純函式', async () => {
     assert.deepEqual(nextLightChunk({ from: '2026-01-01', to: '2026-03-01' }, { maxDays: 30 }), { chunk: { from: '2026-01-31', to: '2026-03-01' }, remainingTo: '2026-01-30', complete: false });
     assert.deepEqual(unionRange({ from: '2026-01-05', to: '2026-01-10' }, { from: '2026-01-01', to: '2026-01-07' }), { from: '2026-01-01', to: '2026-01-10' });
     assert.deepEqual(unionRange(null, { from: 'a', to: 'b' }), { from: 'a', to: 'b' });
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F03 store 規則：advanceAnalyticsRange 的 CAS（owner / 租約 / range_generation / range_to）', async () => {
@@ -631,7 +631,7 @@ test('F03 store 規則：advanceAnalyticsRange 的 CAS（owner / 租約 / range_
     assert.equal(await e.db.advanceAnalyticsRange({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, userId: ALICE.id, cls: LIGHT, owner: 'A', generation: c.generation, chunkTo: '2026-02-01', newTo: null, now: NOW }), true);
     const w = await work(e.db, ALICE, LIGHT);
     assert.equal(w.rangeFrom, null); assert.equal(w.rangeTo, null);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 // ===========================================================================
@@ -679,5 +679,5 @@ test('遷移 v12 → v13：三個 nullable 欄位純新增；既有 canonical / 
     await seedHistory(e.db, ALICE, 60, { startDaysAgo: 3 });
     const r = await light(e.db);
     assert.equal(r.result, ANALYTICS_RESULT.PARTIAL);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });

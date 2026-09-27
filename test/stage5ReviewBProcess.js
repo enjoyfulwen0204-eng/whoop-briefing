@@ -6,7 +6,7 @@ import { fixtureKeys } from './localDb.js';
 import { createPhase4Foundation } from '../src/phase4Foundation.js';
 import { T } from './stage5ReviewBFixture.js';
 const [url,role]=process.argv.slice(2),client=createClient({url});
-let performing=false;
+let performing=false,context;
 const original=client.transaction.bind(client);
 client.transaction=async(...args)=>{
   try{return await original(...args);}catch(error){if(error.code==='SQLITE_BUSY')process.send({kind:performing?'busy':'startup-busy'});throw error;}
@@ -17,9 +17,15 @@ process.on('message',message=>{const queued=commands.get(message);if(typeof queu
 const command=name=>commands.get(name)===true?Promise.resolve():new Promise(resolve=>commands.set(name,resolve));
 try {
   process.send({kind:'initialized'});await command('capture');
-  const context=await stores.capture('a',{executionMode:'SHADOW'});
-  const rows=(await db.raw.execute("SELECT sleep_id FROM whoop_recoveries WHERE user_id='a' ORDER BY sleep_id")).rows,refs=[];
-  for(const row of rows)refs.push((await stores.root(context,'recovery',row.sleep_id)).ref);
+  context=await stores.capture('a',{executionMode:'SHADOW'});
+  // Prepare one coherent source snapshot before the deliberate operation race.
+  // Avoid retaining dozens of completed native connections at the IPC barrier.
+  const refs=await db.transaction(async()=>{
+    const rows=(await db.raw.execute("SELECT sleep_id FROM whoop_recoveries WHERE user_id='a' ORDER BY sleep_id")).rows,refs=[];
+    for(const row of rows)refs.push((await stores.root(context,'recovery',row.sleep_id)).ref);
+    return refs;
+  });
+  global.gc?.();await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));
   process.send({kind:'ready'});await command('go');performing=true;
   const perform=()=>stores.intelligence.analyzeMetric(context,{metricKey:'recovery_score',currentSource:refs[0],baselineSources:refs.slice(1),asOfUtc:T,windowFamily:'PROCESS_EQUIVALENT'});
   const result=role==='holder'?await db.transaction(async()=>{
@@ -29,6 +35,9 @@ try {
     episodeId:result.episode.episode.row.episode_id,revision:result.episode.episode.row.revision});
 } catch(error) {process.send({kind:'error',code:error.code,message:error.message,stack:error.stack});process.exitCode=1;}
 finally {
+  // Only preparation owns manual cleanup. Successful operation callers must
+  // prove the runtime itself released their leases; do not mask that assertion.
+  if(context&&!performing)await stores.release(context);
   global.gc?.();await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));
   db.close();global.gc?.();await new Promise(resolve=>setImmediate(resolve));process.disconnect();
 }

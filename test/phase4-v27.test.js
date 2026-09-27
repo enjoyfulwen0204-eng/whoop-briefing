@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createDb, fixtureKeys } from './localDb.js';
+import { fixtureKeys } from './localDb.js';
+import { createOwnedDb as createDb } from './stage5OwnedDb.js';
 import { runMigrations, currentVersion } from './localMigrations.js';
 import { PHASE4_MIGRATIONS } from '../src/phase4Schema.js';
 import { assertPhase4Schema } from '../src/phase4Migrations.js';
@@ -13,8 +14,11 @@ import { recoveryRefs,request as metricRequest } from './stage5HistoryFixture.js
 
 async function database(t,version=26) {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'stage5-v27-')),url=`file:${path.join(dir,'synthetic.db')}`;
-  let db=createDb({url});t.after(()=>{db.close();fs.rmSync(dir,{recursive:true,force:true});});
-  await db.migrate({targetVersion:version});return {get db(){return db;},reopen(){db.close();db=createDb({url});return db;}};
+  let db=createDb({url});
+  // The existing owned fixture keeps native statement finalizers attached to
+  // one live connection. SQL, transaction assertions and real reopen remain.
+  t.after(async()=>{await db.close();fs.rmSync(dir,{recursive:true,force:true});});
+  await db.migrate({targetVersion:version});return {get db(){return db;},async reopen(){await db.close();db=createDb({url});return db;}};
 }
 async function healthy(db) {
   assert.equal((await db.raw.execute('PRAGMA integrity_check')).rows[0].integrity_check,'ok');
@@ -26,7 +30,7 @@ test('M: fresh, v26 and full v20 migrations create no historical receipts',async
     const f=await database(t,from);
     await f.db.createUser({id:'preserved',displayName:'Synthetic',timezone:'UTC',status:'ACTIVE'});
     const before=(await f.db.raw.execute('SELECT * FROM users')).rows;
-    await f.db.migrate();await assertPhase4Schema(f.db.raw,27);f.reopen();await f.db.migrate();
+    await f.db.migrate();await assertPhase4Schema(f.db.raw,27);await f.reopen();await f.db.migrate();
     assert.deepEqual((await f.db.raw.execute('SELECT * FROM users')).rows,before);
     assert.equal((await f.db.raw.execute('SELECT count(*) n FROM phase4_operation_receipts')).rows[0].n,0);
     await healthy(f.db);
@@ -59,7 +63,7 @@ test('M: every v27 durable migration interruption resumes exactly',async t=>{
       }};
       await assert.rejects(runMigrations(interrupted),/V27_INTERRUPTION/);assert.ok(injected);
       assert.equal(await currentVersion(f.db.raw),target==='VERSION_ROW'?27:26);
-      f.reopen();await f.db.migrate();await f.db.migrate();await assertPhase4Schema(f.db.raw,27);await healthy(f.db);
+      await f.reopen();await f.db.migrate();await f.db.migrate();await assertPhase4Schema(f.db.raw,27);await healthy(f.db);
       assert.equal((await f.db.raw.execute('SELECT count(*) n FROM phase4_operation_receipts')).rows[0].n,0);
     });
 });

@@ -88,6 +88,10 @@ async function seedOneDay(db, user, i, v) {
 async function runToDay2(patch = null) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'm11-'));
   const db = createDb({ url: `file:${path.join(dir, 't.db')}` });
+  const cleanup=async()=>{
+    const collect=async()=>{global.gc?.();await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));};
+    await collect();db.close();await collect();fs.rmSync(dir,{recursive:true,force:true});
+  };
   try {
     await db.migrate();
     const user = await seedSingleUser(db);
@@ -115,11 +119,10 @@ async function runToDay2(patch = null) {
         });
         return rs.rows;
       },
-      cleanup: () => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); },
+      cleanup,
     };
   } catch (err) {
-    db.close();
-    fs.rmSync(dir, { recursive: true, force: true });
+    await cleanup();
     throw err;
   }
 }
@@ -135,7 +138,7 @@ test('前置：一切正常時第二天確實會 ASK_CONTEXT 並送出訊息', a
   try {
     assert.equal(r.result.decision, PROACTIVE_DECISION.ASK_CONTEXT);
     assert.equal(r.sentOnDay2, 1, '★ 前置必須真的會送，否則下面全是假通過');
-  } finally { r.cleanup(); }
+  } finally { await r.cleanup(); }
 });
 
 // ===========================================================================
@@ -156,7 +159,7 @@ for (const [name, patch] of GATES) {
       assert.equal(r.sentOnDay2, 0, `★ ${name} 讀不到就不可以打擾使用者`);
       assert.notEqual(r.result.decision, PROACTIVE_DECISION.ASK_CONTEXT);
       assert.notEqual(r.result.decision, PROACTIVE_DECISION.NOTIFY);
-    } finally { r.cleanup(); }
+    } finally { await r.cleanup(); }
   });
 }
 
@@ -170,7 +173,7 @@ test('★★★ M-11: 全部閘門同時讀不到 → 一樣不送', async () =>
   }));
   try {
     assert.equal(r.sentOnDay2, 0);
-  } finally { r.cleanup(); }
+  } finally { await r.cleanup(); }
 });
 
 // ===========================================================================
@@ -183,7 +186,7 @@ test('★★★ M-11: 閘門讀不到時，事件仍然被記錄下來（稽核�
     const events = await r.events();
     assert.equal(events.length, 2, '★ 兩天都要有事件紀錄');
     assert.equal(events[1].decision, PROACTIVE_DECISION.LOG_ONLY);
-  } finally { r.cleanup(); }
+  } finally { await r.cleanup(); }
 });
 
 test('★★★ M-11: 降級的理由被明確記下來（事後查得出為什麼沒送）', async () => {
@@ -193,7 +196,7 @@ test('★★★ M-11: 降級的理由被明確記下來（事後查得出為什�
     const reason = JSON.parse(events[1].reason_json);
     assert.equal(reason.reason, 'permission_state_unreadable');
     assert.deepEqual(reason.factors.unreadable_gates, ['proactive_enabled']);
-  } finally { r.cleanup(); }
+  } finally { await r.cleanup(); }
 });
 
 test('★★ M-11: 訊號分析本身完全不受影響', async () => {
@@ -201,7 +204,7 @@ test('★★ M-11: 訊號分析本身完全不受影響', async () => {
   try {
     assert.ok(r.result.signals.length >= 1, '★ 分析照跑');
     assert.equal(r.result.signals[0].metric, 'hrv');
-  } finally { r.cleanup(); }
+  } finally { await r.cleanup(); }
 });
 
 // ===========================================================================
@@ -214,7 +217,7 @@ test('★★ M-11: 使用者明確關閉 → LOG_ONLY，理由是 proactive_disa
     assert.equal(r.sentOnDay2, 0);
     const events = await r.events();
     assert.equal(JSON.parse(events[1].reason_json).reason, 'proactive_disabled_by_user');
-  } finally { r.cleanup(); }
+  } finally { await r.cleanup(); }
 });
 
 test('★★ M-11: isProactiveEnabled 回 true 時照常送（沒有把功能鎖死）', async () => {
@@ -222,5 +225,5 @@ test('★★ M-11: isProactiveEnabled 回 true 時照常送（沒有把功能鎖
   try {
     assert.equal(r.sentOnDay2, 1);
     assert.equal(r.result.decision, PROACTIVE_DECISION.ASK_CONTEXT);
-  } finally { r.cleanup(); }
+  } finally { await r.cleanup(); }
 });

@@ -10,8 +10,12 @@ import { EXPERIMENT_SENTINELS, REDACTED_RECEIPT } from '../src/phase4V22Backfill
 
 const ts = '2026-09-19T00:00:00.000Z';
 const options = { targetVersion: 22, privacyKeys: fixtureKeys };
+async function closeFixture(db) {
+  const collect=async()=>{global.gc?.();await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));};
+  await collect();db.close();await collect();
+}
 async function base(t, populated = false) {
-  const db = createClient({ url: ':memory:' }); t.after(() => db.close());
+  const db = createClient({ url: ':memory:' }); t?.after(() => closeFixture(db));
   await runMigrations(db, { targetVersion: 21 });
   if (!populated) return db;
   for (const id of ['a','b']) await db.execute({ sql: `INSERT INTO users(id,display_name,status,created_at,updated_at)
@@ -173,19 +177,22 @@ test('v22: every DDL, additive column, backfill, index and trigger interruption 
   await runMigrations(trace,options);
   assert.ok(writes.length>300);
   for(let stop=1;stop<=writes.length;stop++) {
-    const db=await base(t,true);let seen=0,active=false;
-    const crash={execute:async statement=>{
-      const sql=typeof statement==='string'?statement:statement.sql;
-      if(sql.startsWith('CREATE TABLE IF NOT EXISTS journal_event_tombstones'))active=true;
-      const result=await db.execute(statement);
-      if(active && /^(CREATE|ALTER|INSERT|UPDATE)/.test(sql.trim()) && ++seen===stop)throw new Error('synthetic_interruption');
-      return result;
-    }};
-    await assert.rejects(runMigrations(crash,options),/synthetic_interruption/);
-    assert.equal(await currentVersion(db),stop===writes.length?22:21,`interruption ${stop}`);
-    await runMigrations(db,options);await assertPhase4Schema(db,22);
-    assert.equal((await db.execute('SELECT count(*) n FROM experiment_field_groups')).rows[0].n,10);
-    assert.equal((await db.execute('SELECT result_json FROM telegram_operations WHERE update_id=2')).rows[0].result_json,REDACTED_RECEIPT);
-    db.close();
+    // This loop owns each fixture. Do not retain hundreds of already-closed
+    // native clients in the enclosing test's after hooks until process exit.
+    const db=await base(null,true);let seen=0,active=false;
+    try {
+      const crash={execute:async statement=>{
+        const sql=typeof statement==='string'?statement:statement.sql;
+        if(sql.startsWith('CREATE TABLE IF NOT EXISTS journal_event_tombstones'))active=true;
+        const result=await db.execute(statement);
+        if(active && /^(CREATE|ALTER|INSERT|UPDATE)/.test(sql.trim()) && ++seen===stop)throw new Error('synthetic_interruption');
+        return result;
+      }};
+      await assert.rejects(runMigrations(crash,options),/synthetic_interruption/);
+      assert.equal(await currentVersion(db),stop===writes.length?22:21,`interruption ${stop}`);
+      await runMigrations(db,options);await assertPhase4Schema(db,22);
+      assert.equal((await db.execute('SELECT count(*) n FROM experiment_field_groups')).rows[0].n,10);
+      assert.equal((await db.execute('SELECT result_json FROM telegram_operations WHERE update_id=2')).rows[0].result_json,REDACTED_RECEIPT);
+    } finally {await closeFixture(db);}
   }
 });

@@ -9,7 +9,7 @@ const output=process.env.STAGE5_TEST_OUTPUT??'/private/tmp/stage5-consolidated-c
 const files=process.argv.slice(2);
 if(!files.length)throw Error('EXPLICIT_TEST_FILES_REQUIRED');
 const timeoutMs=Number(process.env.STAGE5_TEST_TIMEOUT_MS??300000);
-if(!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>300000)throw Error('INVALID_TEST_TIMEOUT');
+if(!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>600000)throw Error('INVALID_TEST_TIMEOUT');
 await mkdir(output,{recursive:true});
 const results=[];
 for(const file of files) {
@@ -43,7 +43,7 @@ for(const file of files) {
   const classification=timedOut?'TIMEOUT':outcome.code===0?'PASS':/SIGSEGV/.test(text)||outcome.signal==='SIGSEGV'?'NATIVE_SIGSEGV'
     :/EPERM|EACCES/.test(text)?'ENVIRONMENT_EPERM':outcome.error?'HARNESS_ERROR'
       :/failureType: '(testCodeFailure|subtestsFailed)'/.test(text)?'ASSERTION_FAILURE':'HARNESS_FAILURE';
-  const result={file,...outcome,classification,tests:number('tests'),passed:number('pass'),failed:number('fail'),
+  const result={file,...outcome,classification,timeoutMs,tests:number('tests'),passed:number('pass'),failed:number('fail'),
     cancelled:number('cancelled'),skipped:number('skipped'),
     assertionFailures:[...text.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map(match=>match[1]),durationMs:Date.now()-started,log};results.push(result);
   await writeFile(path.join(output,'results.json'),JSON.stringify(results,null,2)+'\n');

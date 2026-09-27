@@ -449,6 +449,10 @@ export function createOperationReceipts(core) {
           args:[context.userId,context.executionMode,id]})).rows.length)unavailable();
       }
       if(kind==='INSIGHT_TRANSITION')await predecessor(context,'health_insights',request.insightId,request.expectedRevision);
+      if(kind==='EPISODE_OPEN')for(const id of [request.reopensEpisodeId,request.reversesEpisodeId].filter(Boolean)) {
+        const prior=await core.artifact(context,'observation_episodes',{episode_id:id});
+        await predecessor(context,'observation_episodes',id,prior.row.revision);
+      }
       if(['EPISODE_REVISE','EPISODE_REFRESH'].includes(kind))await predecessor(context,'observation_episodes',request.episodeId,request.expectedRevision);
       if(kind==='EPISODE_REVERSE')await predecessor(context,'observation_episodes',request.prior.episodeId,request.prior.expectedRevision);
       const result=['analyzeMetric','analyzeAssociationFamily'].includes(kind)

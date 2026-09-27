@@ -60,8 +60,10 @@ for(const reversal of [false,true])test(`M002: ${reversal?'reversal':'reopen'} p
   let before=await durable(f);
   await assert.rejects(call(f,'episodes','open',{...linked,semanticAt:'2026-09-26T11:59:59.999Z'}),/CHRONOLOGY/);
   assert.deepEqual(await durable(f),before);
-  await guards(f,'observation_episodes',()=>f.db.raw.execute({sql:'UPDATE observation_episodes SET resolved_at=? WHERE episode_id=?',args:['invalid',id]}));
-  before=await durable(f);await assert.rejects(call(f,'episodes','open',linked),/SEMANTIC_TIME_INVALID/);assert.deepEqual(await durable(f),before);
+  for(const invalidTime of ['invalid','2026-09-25T12:00:00.000Z']) {
+    await guards(f,'observation_episodes',()=>f.db.raw.execute({sql:'UPDATE observation_episodes SET resolved_at=? WHERE episode_id=?',args:[invalidTime,id]}));
+    before=await durable(f);await assert.rejects(call(f,'episodes','open',linked),/SEMANTIC_TIME_INVALID|RECEIPT_INTEGRITY/);assert.deepEqual(await durable(f),before);
+  }
   await guards(f,'observation_episodes',()=>f.db.raw.execute({sql:'UPDATE observation_episodes SET resolved_at=? WHERE episode_id=?',args:[resolvedAt,id]}));
   const exact=await call(f,'episodes','open',linked);assert.equal(exact.row.opened_at,resolvedAt);
   const after=new Date(Date.parse(resolvedAt)+1).toISOString();f.setNow(after);

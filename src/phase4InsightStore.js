@@ -22,7 +22,7 @@ export function requireCurrentInsightAt(row,asOfUtc) {
 /** Persistence/lifecycle validation only. No statistical method, policy worker,
  * model or delivery path is executed here. Promotion consumes durable evidence
  * and its recorded guardrail inputs, never a caller's "promote" boolean. */
-export function createPhase4InsightStore(core,entities) {
+export function createPhase4InsightStore(core,entities,{terminalPredecessor=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE')}={}) {
   const {client,keys}=core;
   function identityKey(context,identity) {
     if(!identity || Object.keys(identity).sort().join(',')!==[...IDENTITY].sort().join(','))fail('PHASE4_INSIGHT_IDENTITY_REQUIRED');
@@ -119,14 +119,9 @@ export function createPhase4InsightStore(core,entities) {
         return {...await read(context,prior.id,{history:true}),created:false};
       }
       if(supersedesId!=null) {
-        // Incarnation linkage consumes terminal identity metadata only. A
-        // privacy tombstone must never be read as an old health projection.
-        const predecessor=(await client.execute({sql:`SELECT id,status,insight_key,retired_at,legacy_classification
-          FROM health_insights WHERE user_id=? AND execution_mode=? AND id=?`,
-          args:[context.userId,context.executionMode,supersedesId]})).rows[0];
-        if(!predecessor||predecessor.status!=='RETIRED'||predecessor.insight_key!==key
-          ||predecessor.legacy_classification!=='PHASE4'||!predecessor.retired_at)fail('PHASE4_INSIGHT_INCARNATION_INVALID');
-        requireChronology(at,predecessor.retired_at,core.now());
+        // All direct and producer-driven successors share this authenticated
+        // lifecycle boundary. Redacted history cannot supply a terminal time.
+        await terminalPredecessor(context,supersedesId,key,at);
       }
       const r={...core.envelope(context,'health_insights',[creationKey]),privacy_artifact_id:artifactId,
         insight_type:normalized(identity.algorithmFamily),subject:normalized(identity.subject),statement:claim,status:'HYPOTHESIS',

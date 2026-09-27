@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync,spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, symlinkSync, rmSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -9,13 +9,19 @@ const versions={pre25:'5e42695',rc6:'8e377dc',rc7:'4e17fc13953ac7e21dbe1527851fe
 
 /** Generate cutover bytes with the real historical executable in an isolated
  * process. No current serializer, migration, or fixture re-signs old authority. */
-export function legacyFixture(t,{version='rc6',shape='metric',rawAlias=false,sourceSpelling=null,standaloneExplanation=false}={}) {
+export function legacyFixture(t,{version='rc6',shape='metric',rawAlias=false,sourceSpelling=null,standaloneExplanation=false,onExit=null}={}) {
   const sha=versions[version];if(!sha)throw Error('UNKNOWN_FIXTURE_VERSION');
   const dir=mkdtempSync(path.join(os.tmpdir(),'stage5-legacy-'));
   t.after(()=>rmSync(dir,{recursive:true,force:true}));
   const archive=execFileSync('git',['archive',sha,'src','test','package.json'],{cwd:repository,maxBuffer:40*1024*1024});
   execFileSync('tar',['-xf','-','-C',dir],{input:archive});
   symlinkSync(path.join(repository,'node_modules'),path.join(dir,'node_modules'),'dir');
+  const fixturePath=path.join(dir,'test/phase4Fixture.js'),historical=readFileSync(fixturePath,'utf8');
+  const oldCleanup='t.after(()=>{db.close();anchor.close();});';
+  if(historical.split(oldCleanup).length!==2)throw Error('HISTORICAL_FIXTURE_OWNERSHIP_CONTRACT_CHANGED');
+  writeFileSync(fixturePath,"import { ownHistoricalConnection } from './stage5LegacyOwnership.js';\n"
+    +historical.replace(oldCleanup,'ownHistoricalConnection(client,anchor,db,t);'));
+  writeFileSync(path.join(dir,'test/stage5LegacyOwnership.js'),readFileSync(new URL('./stage5LegacyOwnership.js',import.meta.url)));
   writeFileSync(path.join(dir,'test/stage5AssociationFixture.js'),
     readFileSync(new URL('./stage5AssociationFixture.js',import.meta.url)));
   if(version==='pre25')writeFileSync(path.join(dir,'test/stage5HistoryFixture.js'),
@@ -25,6 +31,8 @@ import {writeFileSync} from 'node:fs';
 import {setup,request,recoveryRefs} from './test/stage5HistoryFixture.js';
 import {setup as association,hypothesis,family} from './test/stage5AssociationFixture.js';
 const cleanups=[],t={after:fn=>cleanups.push(fn)},shape=${JSON.stringify(shape)},rawAlias=${JSON.stringify(rawAlias)},sourceSpelling=${JSON.stringify(sourceSpelling)};
+let assertions='INCOMPLETE';
+try {
 const f=shape.startsWith('association')?await association(t,{days:30,createFacts:shape!=='association-null'}):await setup(t);
 let requestShape,standaloneFact;
 if(${JSON.stringify(standaloneExplanation)}) {
@@ -71,11 +79,22 @@ for(const {name} of (await f.db.raw.execute("SELECT name FROM sqlite_master WHER
  if(rows.length)tables[name]=rows.map(row=>({...row}));
 }
 writeFileSync('fixture.json',JSON.stringify({version:${JSON.stringify(sha)},tables,request:requestShape}));
-for(const cleanup of cleanups.reverse())await cleanup();
-await new Promise(resolve=>setImmediate(resolve));global.gc?.();
+assertions='COMPLETED';
+} finally {
+ try {for(const cleanup of cleanups.reverse())await cleanup();}
+ finally {writeFileSync('child-diagnostics.json',JSON.stringify({assertions,ownership:globalThis.stage5HistoricalOwnership??null}));}
+}
 `;
   writeFileSync(path.join(dir,'generate.mjs'),runner);
-  execFileSync(process.execPath,['--expose-gc','generate.mjs'],{cwd:dir,timeout:120000,maxBuffer:1024*1024});
+  const env={...process.env};delete env.NODE_TEST_CONTEXT;
+  const child=spawnSync(process.execPath,['--expose-gc','generate.mjs'],{cwd:dir,timeout:120000,maxBuffer:1024*1024,env,encoding:'utf8'});
+  let diagnostics=null;try {diagnostics=JSON.parse(readFileSync(path.join(dir,'child-diagnostics.json'),'utf8'));}catch {}
+  let orphan=false;try {process.kill(child.pid,0);orphan=true;}catch(error){if(error.code!=='ESRCH')orphan=true;}
+  const outcome={version:sha,shape,pid:child.pid,status:child.status,signal:child.signal,error:child.error?.code??null,
+    orphan,...diagnostics};
+  onExit?.(outcome);
+  if(child.status!==0||child.signal||child.error||orphan||diagnostics?.ownership?.cleanup!=='CLOSED')
+    throw new Error(`HISTORICAL_FIXTURE_CHILD_FAILED ${JSON.stringify(outcome)}\n${child.stdout??''}${child.stderr??''}`);
   return JSON.parse(readFileSync(path.join(dir,'fixture.json'),'utf8'));
 }
 

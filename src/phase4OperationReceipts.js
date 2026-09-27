@@ -383,6 +383,22 @@ export function createOperationReceipts(core) {
     }
     unavailable();
   }
+  // Incarnation chronology is historical authority, not a current-row hint.
+  // The typed receipt reader authenticates the complete sealed projection,
+  // immutable revision and dependency/privacy chain before exposing its time.
+  async function terminalInsightPredecessor(context,id,insightKey,at) {
+    const current=await core.artifact(context,'health_insights',{id});
+    const sealed=await forArtifact(context,'health_insights',{id},{expectedRevision:current.row.current_revision});
+    const row=sealed.row,revision=sealed.revision;
+    if(row.status!=='RETIRED'||!row.lifecycle_disposition||row.insight_key!==insightKey
+      ||row.legacy_classification!=='PHASE4'||!revision||revision.insight_id!==id
+      ||revision.revision!==row.current_revision||revision.status!==row.status
+      ||revision.lifecycle_disposition!==row.lifecycle_disposition)fail('PHASE4_INSIGHT_INCARNATION_INVALID');
+    const retired=semanticTime(row.retired_at);
+    if(retired!==semanticTime(row.last_recalculated_at))invalid();
+    requireChronology(retired,semanticTime(row.first_detected_at),core.now());
+    requireChronology(at,retired,core.now());
+  }
   // This callback is wired only to the internal deterministic producers. A
   // request cannot mint a ticket, and an existing/replayed row never gets one.
   function producedEvidence(context,{run,item}) {
@@ -478,5 +494,5 @@ export function createOperationReceipts(core) {
       return result;
     });
   }
-  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,producedEvidence});instances.set(core,api);return api;
+  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,producedEvidence,terminalInsightPredecessor});instances.set(core,api);return api;
 }

@@ -46,7 +46,7 @@ export function composePhase4Stores(core) {
   const episodeStore=createPhase4EpisodeStore(core,entities,{operationAuthority:async(context,episodeId,revision)=>{
     const authority=await receipts.forArtifact(context,'observation_episodes',{}, {episodeId,revision,verifyOnly:true});
     return authority.operationKind.startsWith('EPISODE_');
-  }}),insightStore=createPhase4InsightStore(core,entities);
+  }}),insightStore=createPhase4InsightStore(core,entities,{terminalPredecessor:receipts.terminalInsightPredecessor});
   const episodes={...episodeStore,...Object.fromEntries(['open','revise','reverse','refresh']
     .map(name=>[name,recorded(`EPISODE_${name.toUpperCase()}`,episodeStore[name])])),
     semantic:(context,request)=>core.run(context,async()=>{

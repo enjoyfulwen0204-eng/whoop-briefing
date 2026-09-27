@@ -533,12 +533,10 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     const contradiction=await reviseContradiction(context,hypothesis,analysis,item,asOfUtc);
     let current=await currentInsight(context,identity,asOfUtc,{replaceExpired:true});
     if(!current) {
-      const predecessors=(await client.execute({sql:`SELECT id,first_detected_at,retired_at FROM health_insights WHERE user_id=? AND execution_mode=?
+      const predecessors=(await client.execute({sql:`SELECT id FROM health_insights WHERE user_id=? AND execution_mode=?
         AND insight_key=? AND status='RETIRED' AND legacy_classification='PHASE4' ORDER BY id DESC LIMIT 1`,
         args:[context.userId,context.executionMode,insightKey(context,identity)]})).rows;
       const predecessor=predecessors[0];
-      if(predecessor&&(Date.parse(requireSemanticTime(predecessor.first_detected_at))>Date.parse(asOfUtc)
-        ||Date.parse(requireSemanticTime(predecessor.retired_at))>Date.parse(asOfUtc)))fail('PHASE4_INSIGHT_AS_OF_UNAVAILABLE');
       current=await insights.create(context,{identity,claim,evidenceContractVersion:INTELLIGENCE_VERSIONS.evidenceContract,
         supportingEvidenceIds:[item.row.evidence_item_id],creationKey:keys.lookup(['insight-incarnation-v1',insightKey(context,identity),
           predecessor?.id??null,item.row.evidence_item_id]),supersedesId:predecessor?.id??null,

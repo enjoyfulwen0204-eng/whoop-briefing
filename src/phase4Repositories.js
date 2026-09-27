@@ -59,7 +59,8 @@ export function composePhase4Stores(core) {
     if(!options?.history)requireCurrentInsightAt(sealed.row,options?.asOfUtc);
     return sealed;
   }),create:recorded('INSIGHT_CREATE',insightStore.create),transition:recorded('INSIGHT_TRANSITION',insightStore.transition)};
-  const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights,{producedEvidence:receipts.producedEvidence});
+  const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights,{producedEvidence:receipts.producedEvidence,
+    discoverInsightPredecessor:receipts.discoverInsightPredecessor});
   const messages=createPhase4MessageStore(core,entities),slots=createPhase4SlotStore(core,entities,messages);
   const experiments=createPhase4ExperimentStore(core,privacy,queue);
   const journal=createPhase4JournalStore(core,privacy,queue),journalInbound=createPhase4JournalInbound(core,privacy,journal);

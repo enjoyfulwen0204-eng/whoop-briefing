@@ -19,7 +19,8 @@ const validHealthDate = value => typeof value==='string' && /^\d{4}-\d{2}-\d{2}$
 const sourceTimestamp = row => row.as_of_utc ?? row.end_at ?? row.updated_at ?? row.created_at ?? row.synced_at ?? null;
 const ingestedTimestamp = row => row.synced_at ?? row.created_at ?? row.as_of_utc ?? null;
 
-export function createPhase4IntelligenceStore(core, entities, episodes, insights,{producedEvidence=()=>{}}={}) {
+export function createPhase4IntelligenceStore(core, entities, episodes, insights,{producedEvidence=()=>{},
+  discoverInsightPredecessor=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE')}={}) {
   const {client,keys}=core,authorities=createResultAuthority(core);
   function sourceValue(metricKey, source, context, asOfUtc) {
     const contract=phase4Metric(metricKey),row=source.row;
@@ -533,13 +534,10 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     const contradiction=await reviseContradiction(context,hypothesis,analysis,item,asOfUtc);
     let current=await currentInsight(context,identity,asOfUtc,{replaceExpired:true});
     if(!current) {
-      const predecessors=(await client.execute({sql:`SELECT id FROM health_insights WHERE user_id=? AND execution_mode=?
-        AND insight_key=? AND status='RETIRED' AND legacy_classification='PHASE4' ORDER BY id DESC LIMIT 1`,
-        args:[context.userId,context.executionMode,insightKey(context,identity)]})).rows;
-      const predecessor=predecessors[0];
+      const predecessorId=await discoverInsightPredecessor(context,insightKey(context,identity),asOfUtc);
       current=await insights.create(context,{identity,claim,evidenceContractVersion:INTELLIGENCE_VERSIONS.evidenceContract,
         supportingEvidenceIds:[item.row.evidence_item_id],creationKey:keys.lookup(['insight-incarnation-v1',insightKey(context,identity),
-          predecessor?.id??null,item.row.evidence_item_id]),supersedesId:predecessor?.id??null,
+          predecessorId,item.row.evidence_item_id]),supersedesId:predecessorId,
         expiresAt:new Date(Date.parse(asOfUtc)+phase4Metric(hypothesis.outcomeMetric).evidenceExpiryMs).toISOString(),semanticAt:asOfUtc});
     }
     if(analysis.repeated&&promotionReady&&['HYPOTHESIS','WEAKENED'].includes(current.row.status))current=await insights.transition(context,{insightId:current.row.id,

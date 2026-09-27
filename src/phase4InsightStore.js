@@ -11,6 +11,13 @@ const IDENTITY=['subject','outcome','direction','exposureCategory','algorithmFam
 const REASONS=['CANDIDATE_EVIDENCE','REPEATED_EVIDENCE','REPLICATED_SUPPORT','CONTRADICTORY_EVIDENCE',...INSIGHT_DISPOSITIONS];
 const normalized=value=>typeof value==='string'?value.normalize('NFC').trim().replace(/\s+/g,' ').toLowerCase():'';
 
+export function insightIdentityKey(keys,context,identity) {
+  if(!identity||Object.keys(identity).sort().join(',')!==[...IDENTITY].sort().join(','))fail('PHASE4_INSIGHT_IDENTITY_REQUIRED');
+  const values=IDENTITY.map(k=>normalized(identity[k]));
+  if(values.some(v=>!v||v.length>256))fail('PHASE4_INSIGHT_IDENTITY_REQUIRED');
+  return keys.lookup(['insight-key-v1',context.userId,...values]);
+}
+
 export function requireCurrentInsightAt(row,asOfUtc) {
   const at=Date.parse(requireSemanticTime(asOfUtc));
   if(row.status==='RETIRED'||row.lifecycle_disposition
@@ -24,12 +31,7 @@ export function requireCurrentInsightAt(row,asOfUtc) {
  * and its recorded guardrail inputs, never a caller's "promote" boolean. */
 export function createPhase4InsightStore(core,entities,{terminalPredecessor=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE')}={}) {
   const {client,keys}=core;
-  function identityKey(context,identity) {
-    if(!identity || Object.keys(identity).sort().join(',')!==[...IDENTITY].sort().join(','))fail('PHASE4_INSIGHT_IDENTITY_REQUIRED');
-    const values=IDENTITY.map(k=>normalized(identity[k]));
-    if(values.some(v=>!v||v.length>256))fail('PHASE4_INSIGHT_IDENTITY_REQUIRED');
-    return keys.lookup(['insight-key-v1',context.userId,...values]);
-  }
+  const identityKey=(context,identity)=>insightIdentityKey(keys,context,identity);
   async function support(context,ids,contract) {
     if(!Array.isArray(ids)||ids.length>100||new Set(ids).size!==ids.length)fail('PHASE4_EVIDENCE_IDS_REQUIRED');
     const values=[];

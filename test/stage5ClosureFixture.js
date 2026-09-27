@@ -15,7 +15,7 @@ export async function call(f,group,method,request,...options) {
       return (await f.stores.readArtifact(context,value.type,key)).ref;
     }
     if(Array.isArray(value)){const values=[];for(const entry of value)values.push(await bind(entry));return values;}
-    const object={};for(const [key,entry] of Object.entries(value))object[key]=await bind(entry);return object;
+    const entries=[];for(const [key,entry] of Object.entries(value))entries.push([key,await bind(entry)]);return Object.fromEntries(entries);
   }
   try{return await f.stores[group][method](context,await bind(request),...options);}
   finally {await f.stores.release(context);}

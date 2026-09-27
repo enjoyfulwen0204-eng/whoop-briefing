@@ -9,7 +9,7 @@ const versions={pre25:'5e42695',rc6:'8e377dc',rc7:'4e17fc13953ac7e21dbe1527851fe
 
 /** Generate cutover bytes with the real historical executable in an isolated
  * process. No current serializer, migration, or fixture re-signs old authority. */
-export function legacyFixture(t,{version='rc6',shape='metric',rawAlias=false,sourceSpelling=null}={}) {
+export function legacyFixture(t,{version='rc6',shape='metric',rawAlias=false,sourceSpelling=null,standaloneExplanation=false}={}) {
   const sha=versions[version];if(!sha)throw Error('UNKNOWN_FIXTURE_VERSION');
   const dir=mkdtempSync(path.join(os.tmpdir(),'stage5-legacy-'));
   t.after(()=>rmSync(dir,{recursive:true,force:true}));
@@ -26,7 +26,13 @@ import {setup,request,recoveryRefs} from './test/stage5HistoryFixture.js';
 import {setup as association,hypothesis,family} from './test/stage5AssociationFixture.js';
 const cleanups=[],t={after:fn=>cleanups.push(fn)},shape=${JSON.stringify(shape)},rawAlias=${JSON.stringify(rawAlias)},sourceSpelling=${JSON.stringify(sourceSpelling)};
 const f=shape.startsWith('association')?await association(t,{days:30,createFacts:shape!=='association-null'}):await setup(t);
-let requestShape;
+let requestShape,standaloneFact;
+if(${JSON.stringify(standaloneExplanation)}) {
+ const control=await f.stores.captureControl('a'),sourceText='caffeine at 2026-09-25T10:00:00.000Z';
+ standaloneFact=await f.stores.journal.create(control,{sourceEventKey:'review-b-standalone',sourceText,candidate:{category:'caffeine',
+  eventAt:'2026-09-25T10:00:00.000Z',valueKind:'PRESENCE',exposureState:'EXPOSED',extractionConfidence:1,excerptStart:0,excerptEnd:sourceText.length}});
+}
+
 if(shape.startsWith('association')) {
  const h=hypothesis(f,Array.from({length:30},(_,i)=>i));requestShape=family('legacy-family',h);
  async function bind(value,c) {
@@ -48,6 +54,16 @@ if(shape.startsWith('association')) {
   requestShape=request(refs[0],shape==='metric-null'?[]:refs.slice(1));
   await f.stores.intelligence.analyzeMetric(c,requestShape);
  }
+}
+if(${JSON.stringify(standaloneExplanation)}) {
+ const context=await f.stores.capture('a',{executionMode:'SHADOW'});
+ const journal=(await f.db.raw.execute({sql:'SELECT privacy_artifact_id FROM journal_events WHERE logical_fact_id=?',args:[standaloneFact.logicalFactId]})).rows[0];
+ const episode=(await f.db.raw.execute('SELECT * FROM observation_episodes LIMIT 1')).rows[0];
+ const j=await f.stores.root(context,'JOURNAL_FACT',journal.privacy_artifact_id);
+ await f.stores.episodes.revise(context,{episodeId:episode.episode_id,expectedRevision:episode.revision,toState:'EXPLAINED',
+  patch:{explained_status:1,explanation_evidence_item_id:episode.latest_evidence_item_id,
+   explanation_json:{journal:'REVIEW_B_LEGACY_STANDALONE_SECRET'}},sourceRefs:[j.ref],reasonCode:'CURRENT_EXPLANATION',
+  semanticAt:'2026-09-25T12:00:00.000Z'});
 }
 const tables={};
 for(const {name} of (await f.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name<>'resource_locks'")).rows) {

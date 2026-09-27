@@ -8,16 +8,24 @@ import path from 'node:path';
 const output=process.env.STAGE5_TEST_OUTPUT??'/private/tmp/stage5-consolidated-closure/serialized';
 const files=process.argv.slice(2);
 if(!files.length)throw Error('EXPLICIT_TEST_FILES_REQUIRED');
+const timeoutMs=Number(process.env.STAGE5_TEST_TIMEOUT_MS??300000);
+if(!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>300000)throw Error('INVALID_TEST_TIMEOUT');
 await mkdir(output,{recursive:true});
 const results=[];
 for(const file of files) {
   if(!/^test\/[\w-]+\.test\.js$/.test(file))throw Error('TEST_FILE_REQUIRED');
   const started=Date.now(),chunks=[],log=path.join(output,path.basename(file)+'.log'),stream=createWriteStream(log);
-  const child=spawn(process.execPath,['--expose-gc','--test','--test-concurrency=1',file],{stdio:['ignore','pipe','pipe']});
+  const grouped=process.platform!=='win32';
+  const env={...process.env};delete env.NODE_TEST_CONTEXT;
+  const child=spawn(process.execPath,['--expose-gc','--test','--test-concurrency=1',file],{stdio:['ignore','pipe','pipe'],detached:grouped,env});
   const capture=chunk=>{chunks.push(chunk);stream.write(chunk);};
   child.stdout.on('data',capture);child.stderr.on('data',capture);
   let timedOut=false;
-  const timer=setTimeout(()=>{timedOut=true;child.kill('SIGKILL');},300000);
+  const timer=setTimeout(()=>{
+    timedOut=true;
+    if(grouped) {try {process.kill(-child.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}}
+    else spawn('taskkill',['/pid',String(child.pid),'/T','/F'],{stdio:'ignore'});
+  },timeoutMs);
   const outcome=await new Promise(resolve=>{
     child.on('error',error=>resolve({error:error.code}));
     child.on('close',(code,signal)=>resolve({code,signal}));

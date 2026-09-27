@@ -1,0 +1,236 @@
+[
+  {
+    "report": "node-2026-09-26-192747.ips",
+    "exception": {
+      "codes": "0x0000000000000001, 0x000000030c455681",
+      "rawCodes": [
+        1,
+        13090772609
+      ],
+      "type": "EXC_BAD_ACCESS",
+      "signal": "SIGSEGV",
+      "subtype": "KERN_INVALID_ADDRESS at 0x000000030c455681"
+    },
+    "frames": [
+      {
+        "imageOffset": 4618472,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 2513860,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 2740588,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 506516,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 380320,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 470324,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 863876,
+        "symbol": "void napi_env__::CallIntoModule<void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallbackIntoModule<true, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)::'lambda'(napi_env__*, v8::Local<v8::Value>)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)",
+        "symbolLocation": 64,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 843712,
+        "symbol": "node_napi_env__::CallFinalizer(void (*)(napi_env__*, void*, void*), void*, void*)",
+        "symbolLocation": 88,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 720876,
+        "symbol": "v8impl::Reference::Finalize()",
+        "symbolLocation": 92,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 864492,
+        "symbol": "node::CallbackQueue<void, node::Environment*>::CallbackImpl<node_napi_env__::EnqueueFinalizer(v8impl::RefTracker*)::$_0>::Call(node::Environment*)",
+        "symbolLocation": 100,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 645076,
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)::$_0::operator()(node::CallbackQueue<void, node::Environment*>*) const",
+        "symbolLocation": 100,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 641908,
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)",
+        "symbolLocation": 400,
+        "imageIndex": 0
+      }
+    ],
+    "nativeModule": "@libsql/darwin-arm64/index.node",
+    "nativeImageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+    "moduleMatch": "xcrun dwarfdump --uuid on installed module matches crash image 1"
+  },
+  {
+    "report": "node-2026-09-26-192057.ips",
+    "exception": {
+      "codes": "0x0000000000000001, 0x0000000362287661",
+      "rawCodes": [
+        1,
+        14531720801
+      ],
+      "type": "EXC_BAD_ACCESS",
+      "signal": "SIGSEGV",
+      "subtype": "KERN_INVALID_ADDRESS at 0x0000000362287661"
+    },
+    "frames": [
+      {
+        "imageOffset": 4618472,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 2513860,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 2740588,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 506516,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 380320,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 470324,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 863876,
+        "symbol": "void napi_env__::CallIntoModule<void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallbackIntoModule<true, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)::'lambda'(napi_env__*, v8::Local<v8::Value>)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)",
+        "symbolLocation": 64,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 843712,
+        "symbol": "node_napi_env__::CallFinalizer(void (*)(napi_env__*, void*, void*), void*, void*)",
+        "symbolLocation": 88,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 720876,
+        "symbol": "v8impl::Reference::Finalize()",
+        "symbolLocation": 92,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 864492,
+        "symbol": "node::CallbackQueue<void, node::Environment*>::CallbackImpl<node_napi_env__::EnqueueFinalizer(v8impl::RefTracker*)::$_0>::Call(node::Environment*)",
+        "symbolLocation": 100,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 645076,
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)::$_0::operator()(node::CallbackQueue<void, node::Environment*>*) const",
+        "symbolLocation": 100,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 641908,
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)",
+        "symbolLocation": 400,
+        "imageIndex": 0
+      }
+    ],
+    "nativeModule": "@libsql/darwin-arm64/index.node",
+    "nativeImageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+    "moduleMatch": "xcrun dwarfdump --uuid on installed module matches crash image 1"
+  },
+  {
+    "report": "node-2026-09-27-111516.ips",
+    "exception": {
+      "codes": "0x0000000000000001, 0x000000031da65c01",
+      "rawCodes": [
+        1,
+        13382343681
+      ],
+      "type": "EXC_BAD_ACCESS",
+      "signal": "SIGSEGV",
+      "subtype": "KERN_INVALID_ADDRESS at 0x000000031da65c01"
+    },
+    "frames": [
+      {
+        "imageOffset": 4618472,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 2513860,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 2740588,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 506516,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 380320,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 470324,
+        "imageIndex": 1
+      },
+      {
+        "imageOffset": 863876,
+        "symbol": "void napi_env__::CallIntoModule<void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallbackIntoModule<true, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)::'lambda'(napi_env__*, v8::Local<v8::Value>)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)",
+        "symbolLocation": 64,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 843712,
+        "symbol": "node_napi_env__::CallFinalizer(void (*)(napi_env__*, void*, void*), void*, void*)",
+        "symbolLocation": 88,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 720876,
+        "symbol": "v8impl::Reference::Finalize()",
+        "symbolLocation": 92,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 843176,
+        "symbol": "node_napi_env__::DeleteMe()",
+        "symbolLocation": 144,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 231048,
+        "symbol": "node::CleanupQueue::Drain()",
+        "symbolLocation": 244,
+        "imageIndex": 0
+      },
+      {
+        "imageOffset": 643424,
+        "symbol": "node::Environment::RunCleanup()",
+        "symbolLocation": 452,
+        "imageIndex": 0
+      }
+    ],
+    "nativeModule": "@libsql/darwin-arm64/index.node",
+    "nativeImageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+    "context": "final-19 v26 cleanup after all 22 application tests passed"
+  }
+]

@@ -1,0 +1,206 @@
+TAP version 13
+# {"ts":"2026-09-26T12:47:03.420Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:47:03.422Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:47:04.196Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:47:04.197Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: C: all metric reader routes enforce every applicable authority layer
+    # Subtest: missing v26
+    ok 1 - missing v26
+      ---
+      duration_ms: 523.437458
+      type: 'test'
+      ...
+    # Subtest: bad v26 HMAC
+    ok 2 - bad v26 HMAC
+      ---
+      duration_ms: 526.618292
+      type: 'test'
+      ...
+    # Subtest: wrong origin
+    ok 3 - wrong origin
+      ---
+      duration_ms: 525.402292
+      type: 'test'
+      ...
+    # Subtest: missing snapshot
+    ok 4 - missing snapshot
+      ---
+      duration_ms: 931.321792
+      type: 'test'
+      ...
+    # Subtest: wrong snapshot revision
+    ok 5 - wrong snapshot revision
+      ---
+      duration_ms: 1022.922667
+      type: 'test'
+      ...
+    # Subtest: corrupt semantic run
+    ok 6 - corrupt semantic run
+      ---
+      duration_ms: 1017.522334
+      type: 'test'
+      ...
+    # Subtest: structural graph loss
+    ok 7 - structural graph loss
+      ---
+      duration_ms: 801.429791
+      type: 'test'
+      ...
+    # Subtest: missing v27
+    ok 8 - missing v27
+      ---
+      duration_ms: 258.41975
+      type: 'test'
+      ...
+    # Subtest: bad v27 HMAC
+    ok 9 - bad v27 HMAC
+      ---
+      duration_ms: 297.641167
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:47:16.696Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:47:16.697Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:47:17.476Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:47:17.477Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    1..9
+ok 1 - C: all metric reader routes enforce every applicable authority layer
+  ---
+  duration_ms: 13280.83425
+  type: 'test'
+  ...
+# Subtest: C: every insight and association reader requires whole operation and evidence authority
+    # Subtest: one missing association scope
+    ok 1 - one missing association scope
+      ---
+      duration_ms: 387.973667
+      type: 'test'
+      ...
+    # Subtest: bad association HMAC
+    ok 2 - bad association HMAC
+      ---
+      duration_ms: 418.026792
+      type: 'test'
+      ...
+    # Subtest: wrong insight origin
+    ok 3 - wrong insight origin
+      ---
+      duration_ms: 454.935708
+      type: 'test'
+      ...
+    # Subtest: missing insight revision
+    ok 4 - missing insight revision
+      ---
+      duration_ms: 835.430834
+      type: 'test'
+      ...
+    # Subtest: corrupt insight revision
+    ok 5 - corrupt insight revision
+      ---
+      duration_ms: 1199.311459
+      type: 'test'
+      ...
+    # Subtest: corrupt run timezone
+    ok 6 - corrupt run timezone
+      ---
+      duration_ms: 1186.249792
+      type: 'test'
+      ...
+    # Subtest: missing v27
+    ok 7 - missing v27
+      ---
+      duration_ms: 257.59675
+      type: 'test'
+      ...
+    # Subtest: bad v27 HMAC
+    ok 8 - bad v27 HMAC
+      ---
+      duration_ms: 304.446542
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:47:27.665Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:47:27.666Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:47:28.425Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:47:28.425Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    1..8
+ok 2 - C: every insight and association reader requires whole operation and evidence authority
+  ---
+  duration_ms: 10967.374709
+  type: 'test'
+  ...
+# Subtest: C: every Body Energy result and retained audit reader requires complete receipt authority
+    # Subtest: missing receipt
+    ok 1 - missing receipt
+      ---
+      duration_ms: 132.463209
+      type: 'test'
+      ...
+    # Subtest: bad receipt
+    ok 2 - bad receipt
+      ---
+      duration_ms: 143.32075
+      type: 'test'
+      ...
+    # Subtest: corrupt result
+    not ok 3 - corrupt result
+      ---
+      duration_ms: 68.765542
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-readers.test.js:96:13'
+      failureType: 'testCodeFailure'
+      error: 'corrupt result: read'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual:
+      error: 'PHASE4_REQUIRED_ROOT_VERSION_MISMATCH'
+      stack: |-
+        fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+        Object.validateRoots (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:169:9)
+        async read (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:253:12)
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:339:9
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+        async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+        async Object.withContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:142:18)
+        async waitForActual (node:assert:644:5)
+        async Function.rejects (node:assert:767:25)
+        async file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-readers.test.js:97:39
+      operator: 'rejects'
+      stack: |-
+        async file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-readers.test.js:97:39
+        async withMutation (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-readers.test.js:11:25)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-readers.test.js:96:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: missing physical root
+    ok 4 - missing physical root
+      ---
+      duration_ms: 39.6475
+      type: 'test'
+      ...
+    # Subtest: graph loss
+    ok 5 - graph loss
+      ---
+      duration_ms: 13.427667
+      type: 'test'
+      ...
+    1..5
+not ok 3 - C: every Body Energy result and retained audit reader requires complete receipt authority
+  ---
+  duration_ms: 2374.622333
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-readers.test.js:77:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..3
+# tests 25
+# suites 0
+# pass 23
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 26762.776125

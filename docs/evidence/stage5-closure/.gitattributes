@@ -1,0 +1,3 @@
+# Preserve captured TAP/assertion output, including indentation on blank lines.
+*.tap -whitespace
+*.txt -whitespace

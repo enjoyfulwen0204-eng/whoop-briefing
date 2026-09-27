@@ -1,0 +1,508 @@
+TAP version 13
+# {"ts":"2026-09-26T11:43:25.687Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:25.692Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:26.952Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:26.954Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:28.212Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:28.213Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:29.440Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:29.441Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Metric analysis persists completed traceable evidence before one OPEN episode and semantic event
+not ok 1 - Metric analysis persists completed traceable evidence before one OPEN episode and semantic event
+  ---
+  duration_ms: 2533.240917
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:45:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:43:30.620Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:30.621Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:31.860Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:31.861Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Episode merge continuity is inclusive through exactly 36 hours and splits beyond it
+    # Subtest: under
+    not ok 1 - under
+      ---
+      duration_ms: 2408.694
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:75:13'
+      failureType: 'testCodeFailure'
+      error: 'SQLITE_ERROR: no such column: input_generation'
+      code: 'SQLITE_ERROR'
+      name: 'LibsqlError'
+      stack: |-
+        mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+        executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+        Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+        Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+        attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+        encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+        async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+        async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+      ...
+# {"ts":"2026-09-26T11:43:33.045Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:33.046Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:34.287Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:34.288Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: exact
+    not ok 2 - exact
+      ---
+      duration_ms: 2425.0965
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:75:13'
+      failureType: 'testCodeFailure'
+      error: 'SQLITE_ERROR: no such column: input_generation'
+      code: 'SQLITE_ERROR'
+      name: 'LibsqlError'
+      stack: |-
+        mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+        executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+        Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+        Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+        attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+        encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+        async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+        async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+      ...
+# {"ts":"2026-09-26T11:43:35.494Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:35.494Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:36.909Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:36.910Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: over
+    not ok 3 - over
+      ---
+      duration_ms: 2448.610458
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:75:13'
+      failureType: 'testCodeFailure'
+      error: 'SQLITE_ERROR: no such column: input_generation'
+      code: 'SQLITE_ERROR'
+      name: 'LibsqlError'
+      stack: |-
+        mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+        executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+        Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+        Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+        attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+        encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+        async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+        async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+      ...
+# {"ts":"2026-09-26T11:43:38.177Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:38.178Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:39.454Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:39.455Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: 118-hours
+    not ok 4 - 118-hours
+      ---
+      duration_ms: 2683.092375
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:75:13'
+      failureType: 'testCodeFailure'
+      error: 'SQLITE_ERROR: no such column: input_generation'
+      code: 'SQLITE_ERROR'
+      name: 'LibsqlError'
+      stack: |-
+        mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+        executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+        Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+        Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+        attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+        encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+        async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+        async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+      ...
+    1..4
+not ok 2 - Episode merge continuity is inclusive through exactly 36 hours and splits beyond it
+  ---
+  duration_ms: 9966.970125
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:72:1'
+  failureType: 'subtestsFailed'
+  error: '4 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# {"ts":"2026-09-26T11:43:40.932Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:40.933Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:42.245Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:42.246Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:42.288Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:42.289Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:43.552Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:43.552Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:43.592Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:43.593Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:45.922Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:45.923Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A DEGRADED current observation persists diagnostics but cannot join or advance an active episode
+not ok 3 - A DEGRADED current observation persists diagnostics but cannot join or advance an active episode
+  ---
+  duration_ms: 2752.774292
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:89:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:43:47.342Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:47.343Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:48.604Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:48.605Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Fixed semantic as-of yields identical evidence and episode lifecycle fields under different wall clocks
+not ok 4 - Fixed semantic as-of yields identical evidence and episode lifecycle fields under different wall clocks
+  ---
+  duration_ms: 6410.758958
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:101:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:43:49.867Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:49.867Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:51.163Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:51.164Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Episode expiry evaluates explicit semantic time, not a later processing clock
+not ok 5 - Episode expiry evaluates explicit semantic time, not a later processing clock
+  ---
+  duration_ms: 2524.432125
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:116:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:43:52.422Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:52.423Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:53.679Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:53.680Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Exact replay converges on the same evidence, episode, observation and semantic identities
+not ok 6 - Exact replay converges on the same evidence, episode, observation and semantic identities
+  ---
+  duration_ms: 2556.282375
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:125:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:43:56.017Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:56.018Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:57.313Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:57.314Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Concurrent exact replay has one durable winner for every logical artifact
+not ok 7 - Concurrent exact replay has one durable winner for every logical artifact
+  ---
+  duration_ms: 3593.954
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:140:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:43:58.507Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:58.508Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:59.793Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:59.794Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A new qualifying observation extends the same family instead of opening a duplicate episode
+not ok 8 - A new qualifying observation extends the same family instead of opening a duplicate episode
+  ---
+  duration_ms: 2489.949541
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:152:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:44:01.158Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:01.159Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:02.517Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:02.518Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Close-threshold evidence stabilizes and only a 24-hour hold resolves an episode
+not ok 9 - Close-threshold evidence stabilizes and only a 24-hour hold resolves an episode
+  ---
+  duration_ms: 2649.738917
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:170:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:44:03.784Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:03.785Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:05.116Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:05.117Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A qualified opposite direction atomically resolves the old episode and opens one linked reversal
+not ok 10 - A qualified opposite direction atomically resolves the old episode and opens one linked reversal
+  ---
+  duration_ms: 2625.664916
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:196:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:44:06.382Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:06.384Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:07.729Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:07.730Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A qualified recurrence within seven days opens a linked episode without mutating resolved history
+not ok 11 - A qualified recurrence within seven days opens a linked episode without mutating resolved history
+  ---
+  duration_ms: 2598.433666
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:216:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:44:09.015Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:09.016Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:10.433Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:10.434Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Episode expiry is explicit, auditable, and cannot happen before its registered boundary
+not ok 12 - Episode expiry is explicit, auditable, and cannot happen before its registered boundary
+  ---
+  duration_ms: 2632.0985
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-intelligence-store.test.js:247:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:44:10.567Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:10.568Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:11.927Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:11.928Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Canonical values are derived from branded source snapshots; cross-user and forged references fail closed
+ok 13 - Canonical values are derived from branded source snapshots; cross-user and forged references fail closed
+  ---
+  duration_ms: 1551.447583
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:44:12.188Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:12.189Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:13.547Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:13.548Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:13.584Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-26T11:44:13.584Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: Public and internal Stage 5 authority is SHADOW-only even though persistence identities remain mode-qualified
+ok 14 - Public and internal Stage 5 authority is SHADOW-only even though persistence identities remain mode-qualified
+  ---
+  duration_ms: 1620.422542
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:44:13.664Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:13.665Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:15.067Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:15.068Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Lifecycle, auth, input and purge generation changes fence stale analysis before commit
+    # Subtest: lifecycle ABA
+    ok 1 - lifecycle ABA
+      ---
+      duration_ms: 1473.3375
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T11:44:15.173Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:15.174Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:16.549Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:16.550Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: auth generation
+    ok 2 - auth generation
+      ---
+      duration_ms: 1510.053417
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T11:44:16.656Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:16.657Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:18.039Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:18.040Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: input generation
+    ok 3 - input generation
+      ---
+      duration_ms: 1482.31075
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T11:44:18.147Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:18.149Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:19.645Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:19.646Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: purge generation
+    ok 4 - purge generation
+      ---
+      duration_ms: 1490.905959
+      type: 'test'
+      ...
+    1..4
+ok 15 - Lifecycle, auth, input and purge generation changes fence stale analysis before commit
+  ---
+  duration_ms: 5959.24875
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:44:19.886Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:44:19.887Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:44:21.664Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:44:21.665Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Invalid, future, unsupported, unscored and mismatched canonical inputs cannot become evidence
+ok 16 - Invalid, future, unsupported, unscored and mismatched canonical inputs cannot become evidence
+  ---
+  duration_ms: 1736.63625
+  type: 'test'
+  ...
+# Subtest: A canonical revision ingested after the requested as-of cannot leak into historical evidence
+ok 17 - A canonical revision ingested after the requested as-of cannot leak into historical evidence
+  ---
+  duration_ms: 1944.177625
+  type: 'test'
+  ...
+1..17
+# tests 25
+# suites 0
+# pass 9
+# fail 16
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 56406.274041

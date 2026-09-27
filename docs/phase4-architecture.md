@@ -1,14 +1,14 @@
 # WHOOP Personal Health OS Phase 4 Architecture Decision Record
 
-Status: Foundation Stages 1–4 aggregate review passed; Stage 5 RC6 independent review failed; RC7 repair implemented and verified SHADOW-only, pending independent review; Stages 6–8 not started
+Status: Foundation Stages 1–4 aggregate review passed; Stage 5 consolidated v25/v26/v27 closure implemented SHADOW-only, pending fixed-scope independent review; Stages 6–8 not started
 
 Decision date: 2026-09-19; locked-decision amendment and targeted repair 1: 2026-09-25
 
-Original V1.2 production baseline from which Phase 4 branched: v20 schema at commit ecbd23287cac591e76741771d77caa3d814f84a3. The isolated Phase 4 branch implements default-off v21–v24 Foundation migrations and the explicitly authorized v25/v26 Stage 5 repairs.
+Original V1.2 production baseline from which Phase 4 branched: v20 schema at commit ecbd23287cac591e76741771d77caa3d814f84a3. The isolated Phase 4 branch implements default-off v21–v24 Foundation migrations and the explicitly authorized v25/v26/v27 Stage 5 closure.
 
-Architecture version: phase4-adr-v1-repair-7
+Architecture version: phase4-adr-v1-stage5-consolidated-closure
 
-This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and have passed their aggregate Foundation review. Under the explicit Stage 5 RC4 authorization, v25 adds full, immutable semantic episode revision snapshots. Exact historical replay loads the requested snapshot, validates its canonical format/hash and event/evidence/provenance binding, and never obtains historical semantic fields from the mutable materialized episode. Missing pre-v25 history is irrecoverable and fails with `PHASE4_EPISODE_HISTORY_UNAVAILABLE`; migration creates no synthetic backfill. RC4 also validates semantic clocks before idempotent success and canonicalizes baseline sources before provenance/manifest construction. The subsequent RC6 authority layer described below supersedes membership and surviving-edge inference. Stage 5 remains SHADOW-only; RC6 independent review failed and the RC7 amendment below controls repair status. The earlier 2026-09-25 locked-scope amendment remains a documentation-only historical boundary; the subsequent Architecture Owner RC4 decision expressly authorizes this v25 implementation and supersedes its old schema reservation. Quick Actions, Owner Monitoring, display-name isolation, and mixed scheduler/watchdog behavior remain unimplemented later-stage work; Section 17 remains controlling.
+This record defines the authoritative contracts for Phase 4. Foundation Stages 1–4 and the additive v21–v24 persistence exist on the isolated Phase 4 branch, remain default-off and SHADOW-only, and have passed their aggregate Foundation review. Under the explicit Stage 5 RC4 authorization, v25 adds full, immutable semantic episode revision snapshots. Exact historical replay loads the requested snapshot, validates its canonical format/hash and event/evidence/provenance binding, and never obtains historical semantic fields from the mutable materialized episode. Missing pre-v25 history is irrecoverable and fails with `PHASE4_EPISODE_HISTORY_UNAVAILABLE`; migration creates no synthetic backfill. RC4 also validates semantic clocks before idempotent success and canonicalizes baseline sources before provenance/manifest construction. The subsequent RC6 authority layer described below supersedes membership and surviving-edge inference. Stage 5 remains SHADOW-only. RC6/RC7 checkpoints below are historical; the consolidated v27 closure contract controls the current implementation and awaits fixed-scope independent review. The earlier 2026-09-25 locked-scope amendment remains a documentation-only historical boundary; the subsequent Architecture Owner RC4 decision expressly authorizes this v25 implementation and supersedes its old schema reservation. Quick Actions, Owner Monitoring, display-name isolation, and mixed scheduler/watchdog behavior remain unimplemented later-stage work; Section 17 remains controlling.
 
 Amendment precedence and audit classification:
 
@@ -18,8 +18,8 @@ Amendment precedence and audit classification:
 | Foundation current state, disabled flags, SHADOW authority, aggregate review | CURRENT | Foundation exists; all behavior stays disabled; aggregate review passed before Stage 5 authorization |
 | Categorical family/administrator prohibition | SUPERSEDED | Replaced only for Kelvin's explicit selected-user Owner Monitoring capability; ordinary and unrestricted access remains prohibited |
 | All-day Cloudflare primary / GitHub emergency-only assumptions | SUPERSEDED | Replaced by Section 10's Asia/Taipei morning Cloudflare window and normal GitHub hourly background role |
-| Stage 5 revision history v25 and durable result authority v26 | CURRENT; IMPLEMENTED SHADOW-ONLY | Authenticated original result, complete required roots and full snapshots; legacy authority is never synthesized |
-| Quick Actions, display-name isolation, Owner Monitoring, v27/v28, mixed watchdog | CURRENT REQUIREMENT; NOT IMPLEMENTED | Assigned to future Stages 6–8 and default-off authority; v27 belongs to Stage 7 Quick Actions and v28 to Stage 8 Owner Monitoring |
+| Stage 5 revision history v25, evidence authority v26 and complete operation receipts v27 | CURRENT; IMPLEMENTED SHADOW-ONLY; PENDING INDEPENDENT REVIEW | Authenticated full returns, request identities, required roots and snapshots; legacy authority is never synthesized |
+| Quick Actions, display-name isolation, Owner Monitoring, v28/v29, mixed watchdog | CURRENT REQUIREMENT; NOT IMPLEMENTED | Assigned to future Stages 6–8 and default-off authority; v28 belongs to Stage 7 Quick Actions and v29 to Stage 8 Owner Monitoring |
 | Raw real-time physiology positioning | CURRENT | Explicitly rejected; event-driven plus longitudinal positioning controls |
 | Production activation or delivery | CURRENT PROHIBITION | This documentation amendment grants none |
 | Materially contradictory current statement | CONTRADICTORY | None may remain; the 2026-09-25 amendment controls if historical wording is read out of context |
@@ -932,7 +932,7 @@ A completed selection creates no competing event type. It creates an ordinary St
 - interaction, question/request, Telegram update/callback, and source-event lineage where applicable;
 - logical fact ID, revision, correction/deletion status, and invalidation generation.
 
-`source_kind` is Journal-side provenance on each fact revision, not merely a transport-table attribute. The future v27 contract distinguishes at least `quick_action`, `bot_question`, `free_text`, and `manual`; downstream Journal and Evidence readers receive it with the fact. A correction records the source kind and provenance of the new assertion rather than silently inheriting a transport label from the prior revision.
+`source_kind` is Journal-side provenance on each fact revision, not merely a transport-table attribute. The future v28 contract distinguishes at least `quick_action`, `bot_question`, `free_text`, and `manual`; downstream Journal and Evidence readers receive it with the fact. A correction records the source kind and provenance of the new assertion rather than silently inheriting a transport label from the prior revision.
 
 ### Trusted registry provenance and validator relationship
 
@@ -2146,7 +2146,7 @@ Revocation prevents new owner authorization envelopes immediately. It does not f
 
 ### Migration posture
 
-The original V1.2 production baseline schema is version 20 in [src/schema.js](../src/schema.js). The isolated Phase 4 branch implements additive v21–v24 Foundation migrations; v25 adds Stage 5 durable episode history and v26 adds Stage 5 durable result authority. Future Quick Actions and Owner Monitoring belong to v27/v28 respectively. No Phase 4 migration may rebuild, drop, rename, or reinterpret a populated v20 table.
+The original V1.2 production baseline schema is version 20 in [src/schema.js](../src/schema.js). The isolated Phase 4 branch implements additive v21–v24 Foundation migrations; v25 adds Stage 5 durable episode history and v26 adds Stage 5 durable result authority, and v27 adds complete Stage 5 operation/result receipts. Future Quick Actions and Owner Monitoring belong to v28/v29 respectively. No Phase 4 migration may rebuild, drop, rename, or reinterpret a populated v20 table.
 
 [src/migrations.js](../src/migrations.js) does not wrap the entire migration sequence in one global transaction. A process can therefore stop after DDL or backfill work but before the schema-version row is written. Every Phase 4 migration step must be safe to rerun after any prior statement succeeded.
 
@@ -2815,7 +2815,7 @@ For every M table the above secondary indexes expand to (user_id, execution_mode
 
 ### V25 Stage 5 RC4: durable episode revision history
 
-The Architecture Owner's RC6 decision supersedes the earlier schema reservations. Schema ownership is now **v25 Stage 5 revision history**, **v26 Stage 5 durable result authority**, **v27 Stage 7 Quick Actions / TRUSTED_REGISTRY / Journal source-kind**, and **v28 Stage 8 Owner Monitoring / Family View persistence**. This allocation authorizes no Stage 6–8 functionality.
+The Architecture Owner's RC6 decision supersedes the earlier schema reservations. Schema ownership is now **v25 Stage 5 revision history**, **v26 Stage 5 durable result authority**, **v27 Stage 5 complete operation/result receipts**, **v28 Stage 7 Quick Actions / TRUSTED_REGISTRY / Journal source-kind**, and **v29 Stage 8 Owner Monitoring / Family View persistence**. This allocation authorizes no Stage 6–8 functionality.
 
 `phase4_episode_revisions` stores one full canonical semantic snapshot per `(user_id, execution_mode, episode_id, revision)`, plus the originating `episode_event_id`, explicit semantic time, format version, salted HMAC integrity value, lifecycle/auth/input authority, operational creation time, and the existing R privacy envelope. Unique event and revision identities, compound parent checks, append-only content, immutable envelopes and no-rehydration triggers fail closed. A unique episode-event revision index prohibits ambiguous origins. V25 replaces the frozen v23 monotonic trigger forward-only so privacy invalidation is an unreadable tombstone operation without creating a new semantic revision.
 
@@ -2860,22 +2860,28 @@ Generic metric history selects mandatory v26 authority from the authenticated v2
 
 Existing flexible v26 JSON holds explicit `stage5-null-metric-result-v2` calculation projections and `stage5-insight-result-v2` historical semantic timestamp projections. Old bindings lacking exact projections remain unavailable for exact projection replay; no backfill or DDL change occurs. New `stage5-required-roots-v2` commitments normalize the existing health timestamp tuple; v1 commitments retain their old verification contract. Coverage traversal has explicit visited-node cycle detection, an existing-privacy-model 100,000-node corruption ceiling and an invariant error instead of truncation or unbounded recursion.
 
-See [RC7 verification](phase4-stage5-rc7-verification.md) for exact compatibility, privacy, test and trust-chain contracts. Schema allocation remains v25 Stage 5 revision history, v26 Stage 5 durable result authority, v27 Stage 7 and v28 Stage 8.
+See [RC7 verification](phase4-stage5-rc7-verification.md) for exact compatibility, privacy, test and trust-chain contracts. The consolidated closure extends the allocation to v25 Stage 5 revision history, v26 evidence/result authority, v27 complete operation/result receipts, v28 Stage 7 and v29 Stage 8.
 
-### V27 and v28 future additive locked-scope extensions (not implemented)
+### Stage 5 consolidated closure (schema v27)
+
+The consolidated closure supersedes the partial RC6/RC7 return projections. V25 owns episode revision state, v26 owns evidence origins and required roots, and **v27 owns the complete public operation return**. Historical fields never fall back to the current health-insight parent. Complete request profiles, lossless explicit-offset millisecond instants, bounded legacy discovery, typed historical readers, operation-specific privacy dependencies, and scoped lease ownership form one contract. Existing artifacts receive no fabricated receipts or rewritten identity aliases.
+
+See [the complete closure contract](phase4-stage5-closure.md) for the projection inventory, replay surface, read/error contracts, bounds, privacy oracle and frozen A–N verification matrix. The v27 migration is additive and SHADOW-only. Stage 6 has not started; v28/v29 remain future specifications.
+
+### V28 and v29 future additive locked-scope extensions (not implemented)
 
 V21–v24 are completed Foundation versions and must not be reopened, renumbered, or silently extended. The locked requirements added on 2026-09-25 require reviewed forward migrations before implementation. Version ownership is dependency ordered and indivisible:
 
-- **Stage 7 owns v27:** Quick Action interaction transport plus Journal-side `TRUSTED_REGISTRY` and `source_kind` provenance.
-- **Stage 8 owns v28:** Owner Monitoring subscriptions, authorization, notification state/preferences, and owner-outbox linkage.
+- **Stage 7 owns v28:** Quick Action interaction transport plus Journal-side `TRUSTED_REGISTRY` and `source_kind` provenance.
+- **Stage 8 owns v29:** Owner Monitoring subscriptions, authorization, notification state/preferences, and owner-outbox linkage.
 
-No v27 or v28 source, migration, or runtime behavior exists at the current checkpoint. A v27 version row cannot be recorded until all v27 objects, columns, indexes, triggers, backfills, and postconditions below are complete; the same all-or-nothing rule applies independently to v28. Stage 8 cannot place its tables in v27 or start v28 before complete v27 postconditions pass.
+No v28 or v29 source, migration, or runtime behavior exists at the current checkpoint. A v28 version row cannot be recorded until all v28 objects, columns, indexes, triggers, backfills, and postconditions below are complete; the same all-or-nothing rule applies independently to v29. Stage 8 cannot place its tables in v28 or start v29 before complete v28 postconditions pass.
 
 **Display-name schema stance**
 
-Display-name isolation preferentially uses the existing tenant-scoped identity model: the same user's explicit `users.display_name`, authenticated Telegram identity, WHOOP profile identity, and neutral fallback in Section 11. Stage 8 does not receive a schema migration merely to implement that resolution order. Existing values with unproven provenance are treated as legacy/unverified and cannot outrank a mechanically proven same-user source or the neutral fallback. Only if Stage 8 implementation proves the current identity schema insufficient may a later, separately reviewed additive migration add source provenance or an identity generation; neither v27 nor v28 reserves such a change now.
+Display-name isolation preferentially uses the existing tenant-scoped identity model: the same user's explicit `users.display_name`, authenticated Telegram identity, WHOOP profile identity, and neutral fallback in Section 11. Stage 8 does not receive a schema migration merely to implement that resolution order. Existing values with unproven provenance are treated as legacy/unverified and cannot outrank a mechanically proven same-user source or the neutral fallback. Only if Stage 8 implementation proves the current identity schema insufficient may a later, separately reviewed additive migration add source provenance or an identity generation; neither v28 nor v29 reserves such a change now.
 
-**v27 Journal-side provenance extension**
+**v28 Journal-side provenance extension**
 
 The accepted Structured Journal fact/revision, not only its interaction row, durably carries:
 
@@ -2886,9 +2892,9 @@ The accepted Structured Journal fact/revision, not only its interaction row, dur
 
 Existing rows receive a restart-safe deterministic backfill. Mechanically proven bot-question, free-text, or manual provenance may receive that exact source kind and `USER_TEXT`; every ambiguous legacy row receives `legacy_unverified`/`LEGACY_UNVERIFIED`. No existing row is inferred to be `quick_action` or `TRUSTED_REGISTRY`, and null/default behavior must fail closed rather than confer registry trust. Journal/Evidence readers can distinguish these dispositions without joining transport state.
 
-`raw_answer_excerpt` remains the actual bounded user-authored span for `USER_TEXT`. It is null for a pure registry selection and contains only genuine supplemental user text when present. V27 extends the deterministic validator with the Section 6 trusted server context; it does not relax existing free-text evidence checks or permit caller-selected canonical facts.
+`raw_answer_excerpt` remains the actual bounded user-authored span for `USER_TEXT`. It is null for a pure registry selection and contains only genuine supplemental user text when present. V28 extends the deterministic validator with the Section 6 trusted server context; it does not relax existing free-text evidence checks or permit caller-selected canonical facts.
 
-**v27 `quick_action_interactions`**
+**v28 `quick_action_interactions`**
 
 - primary key: user_id plus interaction_id; execution mode and authenticated destination binding are explicit;
 - registry action identifier, action-registry/taxonomy version, server-issued canonical choice identifier, interaction revision, parent interaction/question request, allowed-choice digest, selected canonical choice, target-time rule, exact target interval/context date/timezone, created/expires/answered times, state and CAS revision;
@@ -2897,16 +2903,16 @@ Existing rows receive a restart-safe deterministic backfill. Mechanically proven
 - resulting Journal logical fact/revision and correction/deletion operation reference;
 - every category/value/target/detail field is purgeable health content under R; the opaque interaction, receipt/idempotency barrier, transport times, terminal state, and non-health reason survive according to Section 15.
 
-This table is interaction transport/provenance, not a journal. Accepted content exists authoritatively in `journal_events`; no analytics query treats the interaction row as evidence. V27 indexes support interaction replay/staleness, registry/version lookup, Journal provenance traversal, and unique callback/semantic completion. V27 remains default-off and must pass interruption, source-kind backfill, validator-boundary, privacy, tenant/mode, and replay tests before Quick Action behavior can use it.
+This table is interaction transport/provenance, not a journal. Accepted content exists authoritatively in `journal_events`; no analytics query treats the interaction row as evidence. V28 indexes support interaction replay/staleness, registry/version lookup, Journal provenance traversal, and unique callback/semantic completion. V28 remains default-off and must pass interruption, source-kind backfill, validator-boundary, privacy, tenant/mode, and replay tests before Quick Action behavior can use it.
 
-**v28 `owner_follow_subscriptions` and `owner_follow_subscription_events`**
+**v29 `owner_follow_subscriptions` and `owner_follow_subscription_events`**
 
 - explicit owner_user_id and subject_user_id, constrained so the stable configured owner principal corresponding to Kelvin—not a name comparison—is used and the subject is a distinct enrolled user;
 - one current row per owner/subject/notification class, where the class is DAILY_SUMMARY, IMPORTANT_ALERT, or WEEKLY_SUMMARY;
 - ENABLED/DISABLED state, monotonic revision, effective interval, authenticated owner operation receipt, changed_at, finite reason code, and any class-specific owner notification preference/state;
 - append-only event history records every transition and prior/new revision. No health payload is stored.
 
-**v28 `owner_monitoring_authorizations`**
+**v29 `owner_monitoring_authorizations`**
 
 - primary identity includes owner_user_id, subject_user_id, execution_mode, authorization_id; uniqueness binds the owner message semantic reservation to one authorization;
 - notification class, subscription revision, purpose/reason, exact as-of, approved synthesized artifact or bounded deterministic summary-plan references and versions, and content/provenance hash;
@@ -2914,13 +2920,13 @@ This table is interaction transport/provenance, not a journal. Accepted content 
 - authorization state, created/expires/invalidated times, linked owner outbound message/reservation and transport outcome reference;
 - the only permitted cross-user source linkage is the typed owner/subject linkage declared here. It is indexed by both principals and participates in subject correction/deletion traversal; health-bearing labels, summaries, dates, and reconstructive references use R and are purged/redacted under Section 15.
 
-V28 extends `outbound_messages` and `outbound_semantic_reservations` additively for the three owner message classes and nullable `owner_monitoring_authorization_id`. For owner classes, outbox `user_id` is the owner recipient; the authorization envelope supplies the distinct subject. Non-owner classes require that field null. The dispatcher conjunctively revalidates owner capability, followed subject, subscription revision/class, both principals' current fences, approved synthesized artifact or bounded plan, owner destination, and audit provenance immediately before start. Any failed predicate produces no message. No ordinary outbox caller may supply a subject user ID.
+V29 extends `outbound_messages` and `outbound_semantic_reservations` additively for the three owner message classes and nullable `owner_monitoring_authorization_id`. For owner classes, outbox `user_id` is the owner recipient; the authorization envelope supplies the distinct subject. Non-owner classes require that field null. The dispatcher conjunctively revalidates owner capability, followed subject, subscription revision/class, both principals' current fences, approved synthesized artifact or bounded plan, owner destination, and audit provenance immediately before start. Any failed predicate produces no message. No ordinary outbox caller may supply a subject user ID.
 
-V28 indexes support current follow selection, follow history, authorizations by owner/subject/class/as-of, subject purge traversal, and owner-outbox authorization lookup. Every composite identity carries both principals where applicable. V28 remains default-off and must pass interruption, backfill, authorization, fail-closed data-scope, privacy, multi-user, and SHADOW/LIVE tests before any Owner Monitoring behavior flag can use it.
+V29 indexes support current follow selection, follow history, authorizations by owner/subject/class/as-of, subject purge traversal, and owner-outbox authorization lookup. Every composite identity carries both principals where applicable. V29 remains default-off and must pass interruption, backfill, authorization, fail-closed data-scope, privacy, multi-user, and SHADOW/LIVE tests before any Owner Monitoring behavior flag can use it.
 
 ### Store invariant matrix
 
-Every ordinary store method receives authenticated user_id and server-owned execution context separately from payload data. It verifies every derived parent with user_id/execution_mode/parent ID inside the write transaction; cross-tenant, cross-mode, missing, stale or generation-mismatched parents reject the write. Shared roots use the explicit root allowlist above, never an omitted-mode fallback. The future v28 Owner Monitoring store is the sole dual-principal exception: it requires both owner and subject plus the complete Section 13 capability/subscription envelope and is not exposed through an ordinary store interface.
+Every ordinary store method receives authenticated user_id and server-owned execution context separately from payload data. It verifies every derived parent with user_id/execution_mode/parent ID inside the write transaction; cross-tenant, cross-mode, missing, stale or generation-mismatched parents reject the write. Shared roots use the explicit root allowlist above, never an omitted-mode fallback. The future v29 Owner Monitoring store is the sole dual-principal exception: it requires both owner and subject plus the complete Section 13 capability/subscription envelope and is not exposed through an ordinary store interface.
 
 | Store | Create invariants | Update invariants | Delete/invalidate invariants |
 |---|---|---|---|
@@ -3037,7 +3043,7 @@ For experiments, “group-scoped P” in this inventory means traversal to the e
 | whoop_cycles: raw_json, start_at, end_at, timezone_offset, score_state, strain, kilojoule, average_heart_rate, max_heart_rate | Direct provider source (user_id,id) | Existing canonical policy | S; no health replay payload retained after delete |
 | whoop_workouts: raw_json, health_date/start_at/end_at/timezone_offset, sport_name/sport_id, score_state, strain, average_heart_rate/max_heart_rate, kilojoule, percent_recorded, distance_meter, altitude_gain_meter/altitude_change_meter, zone_zero_milli through zone_five_milli | Direct provider source (user_id,id) | Existing canonical policy | S; no health replay payload retained after delete |
 | whoop_body_measurements: recorded_at, height_meter, weight_kilogram, max_heart_rate, raw_json | Direct provider source keyed by tenant/recorded_at; not a Body Energy input | Existing canonical policy | S when source/account policy authorizes removal; journal deletion does not erase independent measurements |
-| journal_events current and all revisions: event_at, health_date, category, subtype, numeric_value, text_value, unit, severity, note, raw_answer_excerpt, extraction_confidence, recorded_timezone, time_scope, event_end_at, alignment fields, exposure_state, future v27 source-kind/registry provenance | Authenticated user fact; USER_TEXT excerpt or server-issued TRUSTED_REGISTRY lineage; logical_fact_id/revision and source receipt | ACTIVE values; genuine excerpt <=90d; pure button excerpt null | J; values unnecessary for idempotency; tombstone/receipt only |
+| journal_events current and all revisions: event_at, health_date, category, subtype, numeric_value, text_value, unit, severity, note, raw_answer_excerpt, extraction_confidence, recorded_timezone, time_scope, event_end_at, alignment fields, exposure_state, future v28 source-kind/registry provenance | Authenticated user fact; USER_TEXT excerpt or server-issued TRUSTED_REGISTRY lineage; logical_fact_id/revision and source receipt | ACTIVE values; genuine excerpt <=90d; pure button excerpt null | J; values unnecessary for idempotency; tombstone/receipt only |
 | journal_coverage_windows: factor-key set, UTC/date window, timezone, confirmation text/hash preimage | Direct user coverage; source receipt/fact linkage | ACTIVE, then <=400d | P; opaque coverage/receipt E |
 | pending_questions.question | Derived generated health question; context request and every source fact/evidence | Answer/expiry or 30d, whichever first | P; question NOT NULL sentinel; pending status terminal, never reopens |
 | pending_questions.context_json | Direct/derived parser context including copied health fields; all context inputs and answer facts | <=30d | P, {}; no replay content; E |
@@ -3259,7 +3265,7 @@ The following **13 currently implemented Foundation flags** are parsed and fail 
 - **PHASE4_MORNING_BRIEF**
 - **PHASE4_QA_CONTEXT**
 
-The v27/v28 locked-scope extensions reserve these future default-off controls; they do not exist and have no consumers in current runtime code:
+The v28/v29 locked-scope extensions reserve these future default-off controls; they do not exist and have no consumers in current runtime code:
 
 - **PHASE4_QUICK_ACTIONS**
 - **PHASE4_OWNER_MONITORING**
@@ -3267,7 +3273,7 @@ The v27/v28 locked-scope extensions reserve these future default-off controls; t
 
 Dependencies among the 13 implemented flags are enforced in current code. For example, outbound delivery requires schema writes, reanalysis, episodes, evidence, non-shadow decisions, authoritative PHASE4 tenant mode, passed conjunctive release-gate record, and explicit operation authorization. An invalid implemented-flag combination fails closed and emits configuration diagnostics. Pre-gate builds may write shadow proposals but have no configured provider adapter.
 
-The three future names are specification reservations, not evidence of mechanical runtime enforcement. Until their v27/v28 stages implement both the controls and their dependency checks, the associated entry points, stores, callbacks, owner capability, and delivery routes must be absent/unreachable. Absence therefore means unavailable, never implicitly enabled.
+The three future names are specification reservations, not evidence of mechanical runtime enforcement. Until their v28/v29 stages implement both the controls and their dependency checks, the associated entry points, stores, callbacks, owner capability, and delivery routes must be absent/unreachable. Absence therefore means unavailable, never implicitly enabled.
 
 Flags do not classify stored rows. Restart under a different flag set cannot publish SHADOW data: every reader/claim revalidates durable execution_mode and the entire same-mode ancestry. Enabling a future LIVE factory requires fresh authorized LIVE computation, not a SHADOW-to-LIVE UPDATE. During Foundation, **all 13 implemented flags remain off**, and the three future controls and their runtime paths remain unimplemented; internal tests invoke isolated stores/calculators with synthetic context, no scheduler or dispatcher registration.
 
@@ -3423,7 +3429,7 @@ Journal and context:
 - button selection uses no LLM classification and atomically creates exactly one existing Journal logical fact with Journal-side `quick_action`/`TRUSTED_REGISTRY` provenance;
 - the server resolves opaque callback → authenticated interaction → versioned allowlisted registry choice; forged callback labels/canonical fields and caller-selected provenance modes reject;
 - a pure button fact stores null `raw_answer_excerpt` and never fabricates source text; genuine supplemental text alone receives an excerpt and user-text validation;
-- v27 backfill mechanically classifies proven bot-question/free-text/manual rows and assigns ambiguous rows `legacy_unverified`/`LEGACY_UNVERIFIED`, never registry trust;
+- v28 backfill mechanically classifies proven bot-question/free-text/manual rows and assigns ambiguous rows `legacy_unverified`/`LEGACY_UNVERIFIED`, never registry trust;
 - Telegram double-click, duplicate update, provider retry, process restart, and callback replay return one result with one generation advance;
 - callback ownership rejects tenant/destination mismatch, and expired/replaced interactions reject stale selections;
 - “running now” uses authenticated receipt time while “yesterday” preserves the server-issued target date/window and records a distinct answered time;
@@ -3638,10 +3644,10 @@ flowchart TD
     F6 --> F7[Foundation 7 Journal revisions and purge]
     F7 --> F8[Foundation 8 aggregate crash privacy and migration tests]
     F8 --> FG[One aggregate independent Foundation review]
-    FG --> S5[Intelligence Stage 5 v25 revision history and v26 durable result authority]
+    FG --> S5[Intelligence Stage 5 v25 history v26 evidence and v27 operation receipts]
     S5 --> S6[Stage 6 invalidation and reanalysis]
-    S6 --> S7[Delivery Stage 7 v27 Quick Actions decisions and outbound delivery]
-    S7 --> S8[Stage 8 v28 Owner Monitoring Brief Q&A and display names]
+    S6 --> S7[Delivery Stage 7 v28 Quick Actions decisions and outbound delivery]
+    S7 --> S8[Stage 8 v29 Owner Monitoring Brief Q&A and display names]
     S8 --> S9[Stage 9 shadow evaluation and freeze package]
 ~~~
 
@@ -3680,7 +3686,7 @@ The table below is the historical plan realized by the Foundation commits now on
 | 7 | Journal revisions, tri-state context, answer lineage, correction/deletion T0/T1/T2 and logging allowlists, using existing v24 invalidations/slot/outbox fences | Full matrix/group/range purge, accepted-answer replay, no deleted content/cross-tenant access, zero Phase 3 calls; no proactive question delivery |
 | 8 | Aggregate migration/privacy/tenant/mode/concurrency/crash-restart verification and Foundation review evidence | End-to-end synthetic v20→v24 rehearsal, every interruption point, all RC2 fixtures and prior regressions, flags off, no sends; submit **one** Foundation macro-stage for independent review |
 
-Commits 1–4 test persistence contracts but cannot run Foundation runtime behavior; commit 5 refuses admission if any v24 postcondition is absent. Later Intelligence and Delivery packs implement behavior against the complete installed schema, never finish a partially marked version. The locked-scope requirements use the reviewed future v27 Stage 7 and v28 Stage 8 extensions in Section 14 rather than reopening completed versions. Each future version remains withheld until every assigned object, index, trigger, backfill, and postcondition is complete. The earlier locked-scope amendment was documentation-only. The subsequent RC4/RC6 decisions authorize v25/v26 for Stage 5; v27/v28 and Stages 6–8 remain unimplemented.
+Commits 1–4 test persistence contracts but cannot run Foundation runtime behavior; commit 5 refuses admission if any v24 postcondition is absent. Later Intelligence and Delivery packs implement behavior against the complete installed schema, never finish a partially marked version. The locked-scope requirements use the reviewed future v28 Stage 7 and v29 Stage 8 extensions in Section 14 rather than reopening completed versions. Each future version remains withheld until every assigned object, index, trigger, backfill, and postcondition is complete. The earlier locked-scope amendment was documentation-only. The subsequent RC4/RC6 and consolidated closure decisions authorize v25/v26/v27 for Stage 5; v28/v29 and Stages 6–8 remain unimplemented.
 
 ### Stage 2: additive storage and tenant-scoped stores
 
@@ -3777,13 +3783,13 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 ### Stage 5: evidence, episodes, and insight memory
 
-**Status:** IMPLEMENTED SHADOW-ONLY; RC6 review failed; RC7 repair requires verification and independent review.
+**Status:** Consolidated v27 closure implementation, SHADOW-only. The current contract is [Stage 5 consolidated closure](phase4-stage5-closure.md); historical RC6/RC7 verification remains historical evidence. Independent fixed-scope Stage 5 review is required before further stage work.
 
 **Depends on:** aggregate Foundation PASS covering Stages 2–4 and all eight internal commits, plus explicit Intelligence Pack authorization. Both prerequisites were satisfied for this implementation checkpoint.
 
 **Files/subsystems likely touched:** new evidence/episode stores and domain modules, [src/evidence.js](../src/evidence.js), [src/healthMemory.js](../src/healthMemory.js), and approved adapters around [src/analyze.js](../src/analyze.js).
 
-**Migration impact:** v25 adds durable episode revision snapshots; v26 adds immutable authenticated result origins and complete required-root manifests. Neither migration backfills missing historical authority. No Phase 3 table is repurposed.
+**Migration impact:** v25 adds durable episode revision snapshots; v26 adds immutable authenticated result origins and complete required-root manifests; v27 adds immutable complete operation/result receipts and insight no-rehydration guards. None backfills missing historical authority. No Phase 3 table is repurposed.
 
 **Work:**
 
@@ -3848,9 +3854,9 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 **Depends on:** independently reviewed Intelligence Pack (Stages 5–6) and explicit Delivery Pack authorization.
 
-**Files/subsystems likely touched:** new policy, decision, v27 Quick Action interaction and Journal-provenance persistence, outbound store, dispatcher, Telegram adapter/callback router, plus [src/accountLifecycle.js](../src/accountLifecycle.js), [src/attention.js](../src/attention.js), [src/journal.js](../src/journal.js), and [src/reportDelivery.js](../src/reportDelivery.js) boundaries.
+**Files/subsystems likely touched:** new policy, decision, v28 Quick Action interaction and Journal-provenance persistence, outbound store, dispatcher, Telegram adapter/callback router, plus [src/accountLifecycle.js](../src/accountLifecycle.js), [src/attention.js](../src/attention.js), [src/journal.js](../src/journal.js), and [src/reportDelivery.js](../src/reportDelivery.js) boundaries.
 
-**Migration impact:** use v24 decision/outbound tables and implement complete v27 for Quick Action transport plus Journal-side trusted-registry/source-kind provenance before dependent behavior; legacy proactive rows are not migrated into Phase 4 decisions, v21–v24 are not modified, and no Stage 8 Owner Monitoring table belongs to v27.
+**Migration impact:** use v24 decision/outbound tables and implement complete v28 for Quick Action transport plus Journal-side trusted-registry/source-kind provenance before dependent behavior; legacy proactive rows are not migrated into Phase 4 decisions, v21–v24 are not modified, and no Stage 8 Owner Monitoring table belongs to v28.
 
 **Work:**
 
@@ -3859,14 +3865,14 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 - remove Phase 4 dependence on count caps and **downgradeAskToNotify**;
 - implement all seven canonical key builders, event/request/answer reuse, non-releasable reservations, message proposal, dispatcher, attempts, ambiguity recovery, and atomic legacy cutover;
 - implement the buttons-first Quick Action registry and tenant-bound callback state, resolving opaque callbacks server-side and writing accepted values directly into existing Structured Journal facts through the `TRUSTED_REGISTRY` validator mode with replay-safe callback receipts and existing correction/delete/undo semantics;
-- implement v27 Journal-side `source_kind`, registry provenance, conservative legacy backfill, and nullable genuine-user-text excerpt behavior; withhold the v27 version row until every assigned object and postcondition is complete;
+- implement v28 Journal-side `source_kind`, registry provenance, conservative legacy backfill, and nullable genuine-user-text excerpt behavior; withhold the v28 version row until every assigned object and postcondition is complete;
 - use fake provider adapters only; real Telegram capability remains technically unavailable.
 
 **Existing boundaries reused:** lifecycle checks in [src/accountLifecycle.js](../src/accountLifecycle.js) and the pre-send boundary pattern in [src/reportDelivery.js](../src/reportDelivery.js).
 
-**Tests:** exhaustive decisions/utility, no downgrade, V1.2 duplicate reproduction, semantic reservation across later decisions, legacy/new double-ownership prevention, lifecycle-after-acceptance, failure injection around every provider boundary, stale/lifecycle suppression, abnormal circuit breaker, Quick Action double-click/replay/ownership/staleness/time semantics, trusted-registry versus user-text validation, no fabricated excerpt, source-kind backfill, and complete-v27 migration interruption/isolation/privacy.
+**Tests:** exhaustive decisions/utility, no downgrade, V1.2 duplicate reproduction, semantic reservation across later decisions, legacy/new double-ownership prevention, lifecycle-after-acceptance, failure injection around every provider boundary, stale/lifecycle suppression, abnormal circuit breaker, Quick Action double-click/replay/ownership/staleness/time semantics, trusted-registry versus user-text validation, no fabricated excerpt, source-kind backfill, and complete-v28 migration interruption/isolation/privacy.
 
-**Output:** local shadow decisions, deterministic Quick Action fixtures, v27 default-off stores, and mocked delivery evidence only; no real test-user or canary delivery.
+**Output:** local shadow decisions, deterministic Quick Action fixtures, v28 default-off stores, and mocked delivery evidence only; no real test-user or canary delivery.
 
 **Review focus:** only dispatcher can send; normal operation has no numeric message cap; ambiguous sends never automatically repeat.
 
@@ -3882,9 +3888,9 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 **Depends on:** Stage 7.
 
-**Files/subsystems likely touched:** complete v28 Owner Monitoring persistence, [src/daily.js](../src/daily.js), [src/reportDelivery.js](../src/reportDelivery.js), [src/healthQuery.js](../src/healthQuery.js), [src/bot/router.js](../src/bot/router.js), recipient-name resolution over existing identity sources, Owner Monitoring services, notification preferences, and presentation tests.
+**Files/subsystems likely touched:** complete v29 Owner Monitoring persistence, [src/daily.js](../src/daily.js), [src/reportDelivery.js](../src/reportDelivery.js), [src/healthQuery.js](../src/healthQuery.js), [src/bot/router.js](../src/bot/router.js), recipient-name resolution over existing identity sources, Owner Monitoring services, notification preferences, and presentation tests.
 
-**Migration impact:** use v21 preferences and the v24 typed outbox/reservations/modes, then implement complete v28 Owner Monitoring subscriptions/events, authorization, notification state/preferences, and owner-outbox linkage before Owner Monitoring behavior. Existing report tables remain legacy. Display-name isolation uses the current identity model unless implementation proves it insufficient; it does not itself justify a v27 or v28 migration.
+**Migration impact:** use v21 preferences and the v24 typed outbox/reservations/modes, then implement complete v29 Owner Monitoring subscriptions/events, authorization, notification state/preferences, and owner-outbox linkage before Owner Monitoring behavior. Existing report tables remain legacy. Display-name isolation uses the current identity model unless implementation proves it insufficient; it does not itself justify a v28 or v29 migration.
 
 **Work:**
 
@@ -3892,15 +3898,15 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 - add notification preferences;
 - introduce **ScopedHealthContext** and place perspective authorization before all specialized reads;
 - enforce the Section 11 per-user display-name resolution order for every renderer and cache;
-- implement v28 and Kelvin's explicit followed-user/class configuration plus conjunctive dual-principal Owner Monitoring authorization over Daily Summary, Important Alerts, and Weekly Summary only;
+- implement v29 and Kelvin's explicit followed-user/class configuration plus conjunctive dual-principal Owner Monitoring authorization over Daily Summary, Important Alerts, and Weekly Summary only;
 - permit only an approved current synthesized artifact or approved bounded deterministic summary plan; any failed authority/data-scope/destination/audit predicate produces no owner message;
 - use validated deterministic plans with optional LLM wording.
 
 **Existing boundaries reused:** [src/daily.js](../src/daily.js) scheduling concepts, the pre-provider transaction pattern but not row lifecycle from [src/reportDelivery.js](../src/reportDelivery.js), [src/healthQuery.js](../src/healthQuery.js), and [src/bot/router.js](../src/bot/router.js) after correcting route order.
 
-**Tests:** complete/partial/no-data briefs, exactly one health-day semantic reservation across legacy/new modes, DST, pause/lifecycle races, perspective-order regression, currentness lag, Kelvin/Alice/Bob/neutral display-name isolation using existing identity sources, complete-v28 interruption/postconditions, owner subscription/audit/approved-artifact-or-plan routing, fail-closed no-source behavior, ordinary-user cross-tenant denial, and proof Q&A cannot propose/send.
+**Tests:** complete/partial/no-data briefs, exactly one health-day semantic reservation across legacy/new modes, DST, pause/lifecycle races, perspective-order regression, currentness lag, Kelvin/Alice/Bob/neutral display-name isolation using existing identity sources, complete-v29 interruption/postconditions, owner subscription/audit/approved-artifact-or-plan routing, fail-closed no-source behavior, ordinary-user cross-tenant denial, and proof Q&A cannot propose/send.
 
-**Output:** complete default-off v28 Owner Monitoring stores plus local/shadow Morning Brief and owner-monitoring proposals and scoped Phase 4 Q&A, with real sending technically impossible.
+**Output:** complete default-off v29 Owner Monitoring stores plus local/shadow Morning Brief and owner-monitoring proposals and scoped Phase 4 Q&A, with real sending technically impossible.
 
 **Review focus:** missing data never cancels, Body Energy attribution is explicit, display names never bleed across users, ordinary users remain self-only, and every owner cross-user read/send has explicit dual-principal authorization and synthesized scope.
 
@@ -3972,4 +3978,4 @@ Before any post-gate production activation, product, privacy, and statistical re
 
 ### Final architecture verdict
 
-The ADR remains the controlling contract. Foundation Stages 1–4 exist default-off and SHADOW-only and passed aggregate review. Stage 5 is implemented SHADOW-only under its subsequent explicit authorization; its v25/v26 RC7 repair requires independent Stage 5 review after the failed RC6 review. Quick Actions and their v27 Journal trusted-registry/source-kind provenance, Owner Monitoring and its v28 persistence, display-name isolation through existing identity sources, mixed scheduler/watchdog behavior, and Stage 6 reanalysis remain future work and must not be reported as implemented. No production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.
+The ADR remains the controlling contract. Foundation Stages 1–4 exist default-off and SHADOW-only and passed aggregate review. Stage 5 is implemented SHADOW-only under its subsequent explicit authorization; its consolidated v25/v26/v27 closure requires the fixed Stage 5 review after implementation verification. Quick Actions and their v28 Journal trusted-registry/source-kind provenance, Owner Monitoring and its v29 persistence, display-name isolation through existing identity sources, mixed scheduler/watchdog behavior, and Stage 6 reanalysis remain future work and must not be reported as implemented. No production operation is allowed until the four-part conjunctive release gate passes. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.

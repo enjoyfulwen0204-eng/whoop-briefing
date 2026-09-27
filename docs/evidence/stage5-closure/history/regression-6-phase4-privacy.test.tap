@@ -1,0 +1,122 @@
+TAP version 13
+# {"ts":"2026-09-26T12:00:32.154Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:32.156Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:32.942Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:32.943Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:33.197Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:33.197Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:33.963Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:33.964Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Purge T0 survives failed T1; complete transitive content transaction and cache acknowledgment are both mandatory
+not ok 1 - Purge T0 survives failed T1; complete transitive content transaction and cache acknowledgment are both mandatory
+  ---
+  duration_ms: 1046.992959
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-privacy.test.js:23:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /CONTENT_REDACTED/. Input:
+    
+    'Phase4InvariantError: PHASE4_OPERATION_RESULT_UNAVAILABLE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    unavailable (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:14:23)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:288:7
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async waitForActual (node:assert:644:5)
+    async Function.rejects (node:assert:767:25)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-privacy.test.js:57:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-privacy.test.js:57:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# {"ts":"2026-09-26T12:00:34.197Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:34.197Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:34.969Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:34.970Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Concurrent purges count independently, expire bounded cache leases, preserve other tenants and no LIVE creation
+ok 2 - Concurrent purges count independently, expire bounded cache leases, preserve other tenants and no LIVE creation
+  ---
+  duration_ms: 1001.167167
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:00:35.108Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:35.109Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:35.881Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:35.882Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:35.883Z","level":"info","event":"telegram_update_skipped_replay","update_id":401,"state":"completed"}
+# Subtest: Legacy receipt and physiological range redaction preserve action barriers and requested/completed progress
+ok 3 - Legacy receipt and physiological range redaction preserve action barriers and requested/completed progress
+  ---
+  duration_ms: 910.958791
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:00:35.927Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:35.928Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:36.701Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:36.701Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Redacted replay never reaches identity/router/Q&A/LLM/mutation/typing/sender even after processed receipt pruning
+ok 4 - Redacted replay never reaches identity/router/Q&A/LLM/mutation/typing/sender even after processed receipt pruning
+  ---
+  duration_ms: 818.777791
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:00:36.845Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:36.846Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:37.622Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:37.623Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Receipt action owner is a server argument, pending purge blocks new action and stale reply start is fenced
+ok 5 - Receipt action owner is a server argument, pending purge blocks new action and stale reply start is fenced
+  ---
+  duration_ms: 918.305333
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:00:37.767Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:37.768Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:38.544Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:38.545Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:38.614Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: An external reply computation cannot survive purge by transaction retry, and T2 waits for its durable lease
+ok 6 - An external reply computation cannot survive purge by transaction retry, and T2 waits for its durable lease
+  ---
+  duration_ms: 922.401833
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:00:38.685Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:38.686Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:39.466Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:39.467Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:00:39.469Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-26T12:00:39.469Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: Privacy cleanup survives lifecycle change but its purpose-specific authority cannot read health or mutate preferences
+ok 7 - Privacy cleanup survives lifecycle change but its purpose-specific authority cannot read health or mutate preferences
+  ---
+  duration_ms: 917.549708
+  type: 'test'
+  ...
+# Subtest: Owned reply receipt cannot replay or start after disable/reactivate ABA, and late acceptance after purge preserves ambiguity
+ok 8 - Owned reply receipt cannot replay or start after disable/reactivate ABA, and late acceptance after purge preserves ambiguity
+  ---
+  duration_ms: 921.725541
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7600.447667

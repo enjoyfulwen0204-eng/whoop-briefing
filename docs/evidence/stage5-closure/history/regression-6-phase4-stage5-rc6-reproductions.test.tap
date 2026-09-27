@@ -1,0 +1,100 @@
+TAP version 13
+# {"ts":"2026-09-26T11:58:38.604Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:38.605Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:39.386Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:39.387Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:43.113Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:43.114Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:43.885Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:43.885Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 pre/post H001: authentic R2 genuinely reuses A+B, forged A membership cannot select R2 after restart
+not ok 1 - RC6 pre/post H001: authentic R2 genuinely reuses A+B, forged A membership cannot select R2 after restart
+  ---
+  duration_ms: 4513.249333
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6-reproductions.test.js:9:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /PHASE4_DURABLE_REPLAY_BINDING_INVALID/. Input:
+    
+    'Phase4InvariantError: PHASE4_OPERATION_RECEIPT_INTEGRITY'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_OPERATION_RECEIPT_INTEGRITY'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    invalid (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:13:19)
+    read (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:239:127)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.analyzeMetric (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async waitForActual (node:assert:644:5)
+    async Function.rejects (node:assert:767:25)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6-reproductions.test.js:23:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6-reproductions.test.js:23:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# {"ts":"2026-09-26T11:58:46.142Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:46.143Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:46.919Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:46.920Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 pre/post H002: deleting required baseline root AND every naming edge cannot authorize history after restart
+not ok 2 - RC6 pre/post H002: deleting required baseline root AND every naming edge cannot authorize history after restart
+  ---
+  duration_ms: 3030.41625
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6-reproductions.test.js:27:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6-reproductions.test.js:30:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  ...
+# Subtest: RC6 pre/post M001: equivalent insight expiry instants agree at the exclusive boundary
+not ok 3 - RC6 pre/post M001: equivalent insight expiry instants agree at the exclusive boundary
+  ---
+  duration_ms: 864.555792
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6-reproductions.test.js:39:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  code: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    incomplete (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:9:22)
+    descriptorsForRun (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:73:12)
+    Object.captureRoots (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:108:31)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:344:19
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.create (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async call (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ClosureFixture.js:20:14)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6-reproductions.test.js:41:17)
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 0
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8573.869708

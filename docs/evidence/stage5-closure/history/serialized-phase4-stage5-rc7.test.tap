@@ -1,0 +1,418 @@
+TAP version 13
+# {"ts":"2026-09-26T11:37:57.978Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:37:57.985Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:38:00.523Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:00.527Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:05.835Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:38:05.839Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:38:08.435Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:08.438Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:14.985Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:38:14.987Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:38:18.770Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:18.774Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:29.582Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:38:29.585Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:38:33.237Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:33.247Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:41.202Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:38:41.203Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:38:42.485Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:42.486Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:47.662Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:38:47.663Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:38:48.947Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:48.948Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:52.031Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:38:52.032Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:38:53.324Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:53.325Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:57.264Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:38:57.265Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:38:58.547Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:38:58.548Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:01.973Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:39:01.975Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:39:03.310Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:03.310Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:03.425Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:39:03.426Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:39:04.716Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:04.717Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:15.160Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:39:15.161Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:39:16.483Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:16.484Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:16.668Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:39:16.669Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:39:17.995Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:17.996Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:21.362Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:39:21.363Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:39:22.691Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:22.692Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:26.063Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:39:26.064Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:39:27.559Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:27.560Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:31.453Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:39:31.454Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:39:32.966Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:32.966Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:37.216Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:39:37.217Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:39:38.656Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:38.657Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:44.681Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:39:44.683Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:39:47.672Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:39:47.675Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6-H-001 generic history cannot downgrade root authority through algorithm metadata
+ok 1 - RC6-H-001 generic history cannot downgrade root authority through algorithm metadata
+  ---
+  duration_ms: 7842.528084
+  type: 'test'
+  ...
+# Subtest: RC6-H-002 real Journal purge reaches authenticated insight target after evidence edge loss
+ok 2 - RC6-H-002 real Journal purge reaches authenticated insight target after evidence edge loss
+  ---
+  duration_ms: 9166.816291
+  type: 'test'
+  ...
+# Subtest: RC6-H-003 parseable manifest with invalid HMAC cannot veto Journal purge
+ok 3 - RC6-H-003 parseable manifest with invalid HMAC cannot veto Journal purge
+  ---
+  duration_ms: 14581.157125
+  type: 'test'
+  ...
+# Subtest: RC6-M-001 degraded authenticated null result replays exact calculation after restart
+ok 4 - RC6-M-001 degraded authenticated null result replays exact calculation after restart
+  ---
+  duration_ms: 11643.27075
+  type: 'test'
+  ...
+# Subtest: RC6-M-002 historical insight calculation time belongs to original revision
+not ok 5 - RC6-M-002 historical insight calculation time belongs to original revision
+  ---
+  duration_ms: 4904.836542
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:90:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async Object.analyzeAssociationFamily (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:93:11)
+  ...
+# Subtest: RC6-M-003 equivalent source version instants preserve baseline selection
+ok 6 - RC6-M-003 equivalent source version instants preserve baseline selection
+  ---
+  duration_ms: 0.946375
+  type: 'test'
+  ...
+# Subtest: RC6-M-004 coverage self-cycle returns explicit integrity error promptly
+ok 7 - RC6-M-004 coverage self-cycle returns explicit integrity error promptly
+  ---
+  duration_ms: 1554.578041
+  type: 'test'
+  ...
+# Subtest: RC7 generic history validates known, unknown and malformed registration versions without writes
+not ok 8 - RC7 generic history validates known, unknown and malformed registration versions without writes
+  ---
+  duration_ms: 4364.678209
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:128:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:133:18)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  ...
+# Subtest: RC7 no-change and warming null projections survive later episode state and a different clock
+    # Subtest: no-change
+    ok 1 - no-change
+      ---
+      duration_ms: 5236.866291
+      type: 'test'
+      ...
+    # Subtest: warming
+    ok 2 - warming
+      ---
+      duration_ms: 4705.465708
+      type: 'test'
+      ...
+    1..2
+ok 9 - RC7 no-change and warming null projections survive later episode state and a different clock
+  ---
+  duration_ms: 9943.215625
+  type: 'test'
+  ...
+# Subtest: RC7 legacy signed null is unavailable; corrupt projection cannot authenticate or mutate on read
+not ok 10 - RC7 legacy signed null is unavailable; corrupt projection cannot authenticate or mutate on read
+  ---
+  duration_ms: 1454.526125
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:160:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /BINDING_INVALID/. Input:
+    
+    'Phase4InvariantError: PHASE4_CONTEXT_RELEASED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_CONTEXT_RELEASED'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async Object.analyzeMetric (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async waitForActual (node:assert:644:5)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:167:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: RC7 source timestamp representation and permutation preserve manifest, identity, provenance and replay
+ok 11 - RC7 source timestamp representation and permutation preserve manifest, identity, provenance and replay
+  ---
+  duration_ms: 8496.305542
+  type: 'test'
+  ...
+# Subtest: RC7 real source-version changes and opaque versions are not over-normalized
+ok 12 - RC7 real source-version changes and opaque versions are not over-normalized
+  ---
+  duration_ms: 1.681208
+  type: 'test'
+  ...
+# Subtest: RC7 coverage two-node and three-node cycles reject explicitly after restart
+ok 13 - RC7 coverage two-node and three-node cycles reject explicitly after restart
+  ---
+  duration_ms: 3236.511417
+  type: 'test'
+  ...
+# Subtest: RC7 long coverage lineage, shared predecessor and missing predecessor have deterministic semantics
+not ok 14 - RC7 long coverage lineage, shared predecessor and missing predecessor have deterministic semantics
+  ---
+  duration_ms: 1509.686959
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:212:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_COVERAGE_LINEAGE_INVALID'
+  code: 'PHASE4_COVERAGE_LINEAGE_INVALID'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    invalid (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4CoverageLineage.js:9:21)
+    validateCoverageNode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4CoverageLineage.js:16:22)
+    coverageLineage (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4CoverageLineage.js:63:7)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:200:11
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:225:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: RC7 authenticated METRIC result participates in Journal purge after root and episode edge loss
+    # Subtest: edge-loss
+    not ok 1 - edge-loss
+      ---
+      duration_ms: 4682.844667
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:235:76'
+      failureType: 'testCodeFailure'
+      error: 'PHASE4_CONTEXT_RELEASED'
+      code: 'PHASE4_CONTEXT_RELEASED'
+      name: 'Phase4InvariantError'
+      stack: |-
+        fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+        state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+        Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+        assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+        before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+        file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+        AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+        transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:242:12)
+        async Test.run (node:internal/test_runner/test:1054:7)
+      ...
+    # Subtest: corrupt-transitive-authority
+    not ok 2 - corrupt-transitive-authority
+      ---
+      duration_ms: 4709.938125
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:235:76'
+      failureType: 'testCodeFailure'
+      error: 'PHASE4_CONTEXT_RELEASED'
+      code: 'PHASE4_CONTEXT_RELEASED'
+      name: 'Phase4InvariantError'
+      stack: |-
+        fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+        state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+        Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+        assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+        before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+        file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+        AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+        transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:242:12)
+        async Test.run (node:internal/test_runner/test:1054:7)
+      ...
+    1..2
+not ok 15 - RC7 authenticated METRIC result participates in Journal purge after root and episode edge loss
+  ---
+  duration_ms: 9393.50825
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:234:1'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: RC7 both insight result scopes and transitive association targets purge without mutable revision edges
+not ok 16 - RC7 both insight result scopes and transitive association targets purge without mutable revision edges
+  ---
+  duration_ms: 5382.781083
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:262:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async Object.analyzeAssociationFamily (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:270:15)
+  ...
+# Subtest: RC7 corrupt-authority privacy is scoped, atomic, monotonic and unreadable after completion
+not ok 17 - RC7 corrupt-authority privacy is scoped, atomic, monotonic and unreadable after completion
+  ---
+  duration_ms: 5770.226459
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:296:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /BINDING_INVALID/. Input:
+    
+    'Phase4InvariantError: PHASE4_CONTEXT_RELEASED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_CONTEXT_RELEASED'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async waitForActual (node:assert:644:5)
+    async Function.rejects (node:assert:767:25)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:306:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: RC7 unauthenticated fallback aborts purge atomically and never reports completion
+not ok 18 - RC7 unauthenticated fallback aborts purge atomically and never reports completion
+  ---
+  duration_ms: 7457.927875
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:326:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /PHASE4_PURGE_AUTHORITY_INVALID/. Input:
+    
+    'Phase4InvariantError: PHASE4_DURABLE_REPLAY_BINDING_INVALID'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_DURABLE_REPLAY_BINDING_INVALID'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    invalid (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:8:19)
+    Object.descriptorsForRun (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:80:80)
+    stage5PrivacyIndex (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Stage5Privacy.js:48:39)
+    async discover (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4PrivacyStore.js:155:19)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4PrivacyStore.js:238:34
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.redact (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4PrivacyStore.js:229:17)
+    async waitForActual (node:assert:644:5)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:333:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: RC7 generic metric history also requires supplemental evidence authority regardless of registration
+not ok 19 - RC7 generic metric history also requires supplemental evidence authority regardless of registration
+  ---
+  duration_ms: 9300.633542
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:339:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async syntheticEvidence (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5HistoryFixture.js:68:12)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc7.test.js:341:45)
+  ...
+1..19
+# tests 23
+# suites 0
+# pass 12
+# fail 11
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 214399.3175

@@ -1,0 +1,116 @@
+TAP version 13
+# {"ts":"2026-09-26T12:27:25.802Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:27:25.804Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:27:26.586Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:27:26.587Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: C: all metric reader routes enforce every applicable authority layer
+    # Subtest: missing v26
+    ok 1 - missing v26
+      ---
+      duration_ms: 543.671834
+      type: 'test'
+      ...
+    # Subtest: bad v26 HMAC
+    ok 2 - bad v26 HMAC
+      ---
+      duration_ms: 559.542791
+      type: 'test'
+      ...
+    # Subtest: wrong origin
+    ok 3 - wrong origin
+      ---
+      duration_ms: 571.974458
+      type: 'test'
+      ...
+    # Subtest: missing snapshot
+    ok 4 - missing snapshot
+      ---
+      duration_ms: 942.823125
+      type: 'test'
+      ...
+    # Subtest: wrong snapshot revision
+    ok 5 - wrong snapshot revision
+      ---
+      duration_ms: 1036.119208
+      type: 'test'
+      ...
+    # Subtest: corrupt semantic run
+    ok 6 - corrupt semantic run
+      ---
+      duration_ms: 1037.395541
+      type: 'test'
+      ...
+    # Subtest: structural graph loss
+    ok 7 - structural graph loss
+      ---
+      duration_ms: 814.794708
+      type: 'test'
+      ...
+    # Subtest: missing v27
+    ok 8 - missing v27
+      ---
+      duration_ms: 270.661208
+      type: 'test'
+      ...
+    # Subtest: bad v27 HMAC
+    ok 9 - bad v27 HMAC
+      ---
+      duration_ms: 309.193834
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:27:39.489Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:27:39.490Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:27:40.256Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:27:40.257Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    1..9
+ok 1 - C: all metric reader routes enforce every applicable authority layer
+  ---
+  duration_ms: 13689.965
+  type: 'test'
+  ...
+# Subtest: C: every insight and association reader requires whole operation and evidence authority
+    # Subtest: one missing association scope
+    ok 1 - one missing association scope
+      ---
+      duration_ms: 393.414459
+      type: 'test'
+      ...
+    # Subtest: corrupt run timezone
+    ok 2 - corrupt run timezone
+      ---
+      duration_ms: 1229.796625
+      type: 'test'
+      ...
+    # Subtest: missing v27
+    ok 3 - missing v27
+      ---
+      duration_ms: 267.001959
+      type: 'test'
+      ...
+    # Subtest: bad v27 HMAC
+    ok 4 - bad v27 HMAC
+      ---
+      duration_ms: 306.597375
+      type: 'test'
+      ...
+# Subtest: test/phase4-stage5-readers.test.js
+not ok 1 - test/phase4-stage5-readers.test.js
+  ---
+  duration_ms: 21142.553625
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-readers.test.js:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: ~
+  signal: 'SIGSEGV'
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..2
+# tests 15
+# suites 0
+# pass 14
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21147.647

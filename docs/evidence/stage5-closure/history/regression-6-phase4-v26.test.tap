@@ -1,0 +1,399 @@
+TAP version 13
+# {"ts":"2026-09-26T11:59:55.430Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:59:55.433Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:59:56.353Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:59:56.639Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:59:56.641Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:59:56.641Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:59:57.752Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:59:57.753Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:59:58.561Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:59:58.921Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:59:58.922Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:00.124Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:00.125Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:01.298Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:01.299Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:02.479Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:02.480Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:03.641Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:03.642Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:05.026Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:05.027Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:06.208Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:06.209Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:07.382Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:07.383Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:08.563Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:08.564Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:09.755Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:09.756Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:10.921Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:10.922Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:12.187Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:12.188Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:13.426Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:13.427Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:14.636Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:14.637Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:15.838Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:15.839Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:17.041Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:17.042Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:00:18.785Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:00:18.786Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: v26 fresh, v25→v26 and full production v20→v26 preserve data and create zero authority rows
+    # Subtest: v0→v26
+    ok 1 - v0→v26
+      ---
+      duration_ms: 1205.417333
+      type: 'test'
+      ...
+    # Subtest: v20→v26
+    ok 2 - v20→v26
+      ---
+      duration_ms: 1117.139209
+      type: 'test'
+      ...
+    # Subtest: v25→v26
+    ok 3 - v25→v26
+      ---
+      duration_ms: 1168.517958
+      type: 'test'
+      ...
+    1..3
+ok 1 - v26 fresh, v25→v26 and full production v20→v26 preserve data and create zero authority rows
+  ---
+  duration_ms: 3491.7555
+  type: 'test'
+  ...
+# Subtest: v26 every table/index/trigger/version durable interruption reopens and resumes with exact definitions
+    # Subtest: boundary 1
+    not ok 1 - boundary 1
+      ---
+      duration_ms: 1205.43775
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 2
+    not ok 2 - boundary 2
+      ---
+      duration_ms: 1174.944666
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 3
+    not ok 3 - boundary 3
+      ---
+      duration_ms: 1185.052083
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 4
+    not ok 4 - boundary 4
+      ---
+      duration_ms: 1206.964334
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 5
+    not ok 5 - boundary 5
+      ---
+      duration_ms: 1395.003291
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 6
+    not ok 6 - boundary 6
+      ---
+      duration_ms: 1181.575125
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 7
+    not ok 7 - boundary 7
+      ---
+      duration_ms: 1171.24275
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 8
+    not ok 8 - boundary 8
+      ---
+      duration_ms: 1182.084292
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 9
+    not ok 9 - boundary 9
+      ---
+      duration_ms: 1191.103042
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 10
+    not ok 10 - boundary 10
+      ---
+      duration_ms: 1169.039084
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 11
+    not ok 11 - boundary 11
+      ---
+      duration_ms: 1264.412042
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 12
+    not ok 12 - boundary 12
+      ---
+      duration_ms: 1238.339708
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 13
+    not ok 13 - boundary 13
+      ---
+      duration_ms: 1202.05225
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 14
+    not ok 14 - boundary 14
+      ---
+      duration_ms: 1210.694333
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: boundary 15
+    not ok 15 - boundary 15
+      ---
+      duration_ms: 1195.736625
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:60'
+      failureType: 'testCodeFailure'
+      error: 'schema_version_incompatible'
+      code: 'schema_version_incompatible'
+      name: 'Phase4SchemaError'
+      stack: |-
+        runMigrations (file:///Users/kelvin/Desktop/whoop-briefing/src/migrations.js:95:38)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:53:37)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:44:52)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    1..15
+not ok 2 - v26 every table/index/trigger/version durable interruption reopens and resumes with exact definitions
+  ---
+  duration_ms: 18175.5055
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:42:1'
+  failureType: 'subtestsFailed'
+  error: '15 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: v26 real starting-HEAD R1/R2/R3 cutover: no backfill, first new B→R4 survives restart, reused legacy A remains unavailable
+not ok 3 - v26 real starting-HEAD R1/R2/R3 cutover: no backfill, first new B→R4 survives restart, reused legacy A remains unavailable
+  ---
+  duration_ms: 1747.678417
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:59:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE/. Input:
+    
+    'Phase4InvariantError: PHASE4_OPERATION_RESULT_UNAVAILABLE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    discover (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4LegacyDiscovery.js:92:23)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:333:19
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.analyzeMetric (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async waitForActual (node:assert:644:5)
+    async Function.rejects (node:assert:767:25)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:78:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:78:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: v26 drift is rejected and all phase4 defaults remain off
+ok 4 - v26 drift is rejected and all phase4 defaults remain off
+  ---
+  duration_ms: 1029.326125
+  type: 'test'
+  ...
+1..4
+# tests 22
+# suites 0
+# pass 5
+# fail 17
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 26111.381833

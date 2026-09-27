@@ -1,0 +1,250 @@
+TAP version 13
+# {"ts":"2026-09-26T11:42:39.209Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:42:39.212Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:42:40.646Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:42:40.648Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:42:41.940Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:42:41.941Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:42:43.212Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:42:43.212Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A: complete metric return survives restart and later revisions
+not ok 1 - A: complete metric return survives restart and later revisions
+  ---
+  duration_ms: 2736.050959
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-closure.test.js:33:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# Subtest: E: explicit offset and lossless millisecond instant contract
+ok 2 - E: explicit offset and lossless millisecond instant contract
+  ---
+  duration_ms: 1.180625
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:42:44.387Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:42:44.388Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:42:45.646Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:42:45.647Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: D/E: window family changes identity; branded aliases fail without writes
+not ok 3 - D/E: window family changes identity; branded aliases fail without writes
+  ---
+  duration_ms: 2448.966125
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-closure.test.js:50:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:42:46.834Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:42:46.835Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:42:48.106Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:42:48.107Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: B/C: column growth and missing roots cannot use generic fallback
+not ok 4 - B/C: column growth and missing roots cannot use generic fallback
+  ---
+  duration_ms: 2446.15825
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-closure.test.js:61:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:42:56.766Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:42:56.767Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:42:58.027Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:42:58.028Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A/J: complete insight historical return, direct retry and chronology
+ok 5 - A/J: complete insight historical return, direct retry and chronology
+  ---
+  duration_ms: 9932.529041
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:42:58.303Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:42:58.304Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:42:59.550Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:42:59.551Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H: empty association universe is a durable typed result
+ok 6 - H: empty association universe is a durable typed result
+  ---
+  duration_ms: 1536.724292
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:43:00.829Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:00.830Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:02.374Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:02.375Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: G: standalone explanation closure survives loss of every naming link
+not ok 7 - G: standalone explanation closure survives loss of every naming link
+  ---
+  duration_ms: 2523.838
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-closure.test.js:98:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:43:02.681Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:02.682Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:04.197Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:04.198Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: I: malformed coverage root is rejected before analysis writes
+ok 8 - I: malformed coverage root is rejected before analysis writes
+  ---
+  duration_ms: 1831.175083
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:43:05.430Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:05.431Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:06.697Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:06.697Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: C: every metric reader rejects receipt corruption, missing authority and missing required root
+not ok 9 - C: every metric reader rejects receipt corruption, missing authority and missing required root
+  ---
+  duration_ms: 2769.89375
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-closure.test.js:128:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# {"ts":"2026-09-26T11:43:13.271Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:13.272Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:14.526Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:14.526Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: K: required-root count and serialized bytes match an independent input oracle
+ok 10 - K: required-root count and serialized bytes match an independent input oracle
+  ---
+  duration_ms: 7842.51925
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:43:16.774Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:43:16.775Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:43:18.142Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:43:18.142Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: L/N: concurrent equivalent operations converge and release completed leases
+not ok 11 - L/N: concurrent equivalent operations converge and release completed leases
+  ---
+  duration_ms: 3503.545709
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-closure.test.js:177:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:352:21
+  ...
+# Subtest: L: receipt insertion failure rolls back every Stage 5 write and releases the lease
+not ok 12 - L: receipt insertion failure rolls back every Stage 5 write and releases the lease
+  ---
+  duration_ms: 2568.515958
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-closure.test.js:188:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /RECEIPT_INSERT_FAILURE/. Input:
+    
+    'LibsqlError: SQLITE_ERROR: no such column: input_generation'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'SQLITE_ERROR: no such column: input_generation'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Transaction.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:205:16)
+    value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:50)
+    f.db.raw.execute (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-closure.test.js:193:12)
+    attach (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:118:32)
+    encode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:127:15)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:298:44
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async episodeForEvidence (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:282:20)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-closure.test.js:195:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 5
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 40388.731458

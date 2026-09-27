@@ -1,0 +1,1 @@
+{"file":"test/phase4-stage5-readers.test.js","code":0,"signal":null,"classification":"PASS","tests":15,"passed":15,"failed":0,"assertionFailures":[],"durationMs":19570,"log":"/private/tmp/stage5-consolidated-closure/native-12/phase4-stage5-readers.test.js.log"}

@@ -1,0 +1,192 @@
+TAP version 13
+# {"ts":"2026-09-26T12:07:23.458Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:07:23.460Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:07:24.246Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:07:24.247Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:07:29.257Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:07:29.258Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:07:30.025Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:07:30.026Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 full-field R1/R2/R3 survives overwrite, restart and R4 without current-row semantic fallback
+not ok 1 - RC4 full-field R1/R2/R3 survives overwrite, restart and R4 without current-row semantic fallback
+  ---
+  duration_ms: 5802.637125
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4.test.js:28:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_SERVER_CONTEXT_REQUIRED'
+  code: 'PHASE4_SERVER_CONTEXT_REQUIRED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    Object.release (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:24:46)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:142:59
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:32
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async call (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ClosureFixture.js:5:16)
+    async explained (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4.test.js:21:3)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4.test.js:39:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  ...
+# {"ts":"2026-09-26T12:07:39.769Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:07:39.769Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:07:40.538Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:07:40.539Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 valid A→R1 and B→R2 replays keep all semantic state after T+2
+ok 2 - RC4 valid A→R1 and B→R2 replays keep all semantic state after T+2
+  ---
+  duration_ms: 10510.262625
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:07:49.479Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:07:49.480Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:07:50.255Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:07:50.256Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 snapshot integrity, structure, event and graph corruption all fail closed without repair
+ok 3 - RC4 snapshot integrity, structure, event and graph corruption all fail closed without repair
+  ---
+  duration_ms: 9710.963792
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:07:52.387Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:07:52.388Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:07:53.156Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:07:53.157Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 immutable SQL envelopes, snapshot content and committed episode semantics reject mutation
+ok 4 - RC4 immutable SQL envelopes, snapshot content and committed episode semantics reject mutation
+  ---
+  duration_ms: 2909.769875
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:07:57.686Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:07:57.686Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:07:58.455Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:07:58.456Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 failures after event, materialization, snapshot and links roll back all revision components
+ok 5 - RC4 failures after event, materialization, snapshot and links roll back all revision components
+  ---
+  duration_ms: 5298.990916
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:08:01.347Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:01.347Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:02.119Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:02.119Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 concurrent CAS has one winner and duplicate revision operation is read-only
+ok 6 - RC4 concurrent CAS has one winner and duplicate revision operation is read-only
+  ---
+  duration_ms: 3661.086833
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:08:05.198Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:05.198Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:05.981Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:05.982Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 semantic-time validation precedes open/no-op/refresh/reverse/semantic shortcuts
+ok 7 - RC4 semantic-time validation precedes open/no-op/refresh/reverse/semantic shortcuts
+  ---
+  duration_ms: 3851.023
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:08:08.262Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:08.262Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:09.068Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:09.068Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:10.997Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-26T12:08:10.997Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: RC4 generation refresh snapshots complete new state and fences old generation without rewriting history
+not ok 8 - RC4 generation refresh snapshots complete new state and fences old generation without rewriting history
+  ---
+  duration_ms: 3063.032
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4.test.js:161:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_DURABLE_REPLAY_BINDING_INVALID'
+  code: 'PHASE4_DURABLE_REPLAY_BINDING_INVALID'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    invalid (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:8:19)
+    Object.metricOrigin (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:283:113)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4EpisodeHistory.js:95:48
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4.test.js:176:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-26T12:08:11.280Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:11.280Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:12.058Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:12.058Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 snapshot readers isolate users/modes and current lifecycle/auth/purge/input authority
+ok 9 - RC4 snapshot readers isolate users/modes and current lifecycle/auth/purge/input authority
+  ---
+  duration_ms: 3018.649042
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:08:12.149Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:12.150Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:12.926Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:12.926Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:17.605Z","level":"info","event":"whoop_resource_deleted","user_id":"a","resource_type":"recovery"}
+# {"ts":"2026-09-26T12:08:17.608Z","level":"info","event":"analytics_invalidated","user_id":"a","generation":1,"resource":"recovery"}
+# Subtest: RC4 Journal purge redacts R1/R2 payloads and hashes, fences replay, and cannot rehydrate
+not ok 10 - RC4 Journal purge redacts R1/R2 payloads and hashes, fences replay, and cannot rehydrate
+  ---
+  duration_ms: 869.172667
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4.test.js:196:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  code: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    requireChronology (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Time.js:25:5)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4EpisodeStore.js:80:7
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async call (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ClosureFixture.js:20:14)
+    async explained (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4.test.js:21:3)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4.test.js:206:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-26T12:08:18.402Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:18.403Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:19.191Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:19.191Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 deleted health root invalidates historical snapshot through the existing provenance graph
+ok 11 - RC4 deleted health root invalidates historical snapshot through the existing provenance graph
+  ---
+  duration_ms: 6252.759292
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:08:19.414Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:19.415Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:20.202Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:20.203Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 every lifecycle revision path has exactly one full snapshot including reverse, expiry and invalidation
+ok 12 - RC4 every lifecycle revision path has exactly one full snapshot including reverse, expiry and invalidation
+  ---
+  duration_ms: 1012.360416
+  type: 'test'
+  ...
+# Subtest: RC4 sealed semantic events replay without mutation and cannot alter a committed snapshot
+ok 13 - RC4 sealed semantic events replay without mutation and cannot alter a committed snapshot
+  ---
+  duration_ms: 3777.713542
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 10
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 59909.897708

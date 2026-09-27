@@ -1,0 +1,40 @@
+TAP version 13
+# {"ts":"2026-09-27T04:18:44.881Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:44.883Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:45.657Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:45.658Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:45.786Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:45.787Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:46.543Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:46.543Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Foundation contexts are explicit, branded, tenant-bound, generation-fenced and SHADOW-only in the public factory
+ok 1 - Foundation contexts are explicit, branded, tenant-bound, generation-fenced and SHADOW-only in the public factory
+  ---
+  duration_ms: 908.409667
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:18:46.592Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:46.593Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:47.351Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:47.351Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Shared preferences require separate source-control authority and expected version CAS
+ok 2 - Shared preferences require separate source-control authority and expected version CAS
+  ---
+  duration_ms: 806.676166
+  type: 'test'
+  ...
+# Subtest: Source fanout advances existing modes only; LIVE starts fresh, and FULL cannot fake completion
+ok 3 - Source fanout advances existing modes only; LIVE starts fresh, and FULL cannot fake completion
+  ---
+  duration_ms: 818.7005
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2667.408084

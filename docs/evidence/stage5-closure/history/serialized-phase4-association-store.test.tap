@@ -1,0 +1,284 @@
+TAP version 13
+# {"ts":"2026-09-26T11:31:38.498Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:31:38.503Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:31:40.108Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:31:40.112Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:31:45.122Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:31:45.125Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:31:47.945Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:31:47.950Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:31:50.511Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:31:50.513Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:31:52.536Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:31:52.538Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:31:53.946Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:31:53.949Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:31:56.504Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:31:56.506Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:04.503Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:32:04.504Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:32:06.878Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:06.880Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:07.077Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:32:07.079Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:32:09.347Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:09.350Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:09.560Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:32:09.563Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:32:11.727Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:11.730Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:17.851Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:32:17.854Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:32:20.116Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:20.118Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:26.688Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:32:26.690Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:32:28.942Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:28.944Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:36.128Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:32:36.133Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:32:39.816Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:39.827Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:40.797Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:32:40.801Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:32:43.222Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:43.228Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:50.675Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:32:50.680Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:32:55.836Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:32:55.845Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:33:03.740Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:33:03.746Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:33:06.704Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:33:06.708Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:33:13.859Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:33:13.860Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:33:16.773Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:33:16.774Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:33:28.046Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:33:28.052Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:33:32.349Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:33:32.356Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Tri-state Journal association persists exact classified counts, multiplicity and non-causal provenance
+ok 1 - Tri-state Journal association persists exact classified counts, multiplicity and non-causal provenance
+  ---
+  duration_ms: 6622.075917
+  type: 'test'
+  ...
+# Subtest: Full comparison universe retains both 30-day groups with only 16 outcomes each and blocks >40% missingness
+ok 2 - Full comparison universe retains both 30-day groups with only 16 outcomes each and blocks >40% missingness
+  ---
+  duration_ms: 5396.452167
+  type: 'test'
+  ...
+# Subtest: UNKNOWN-heavy valid-outcome windows remain UNKNOWN and fail the promotion confound
+ok 3 - UNKNOWN-heavy valid-outcome windows remain UNKNOWN and fail the promotion confound
+  ---
+  duration_ms: 3402.148125
+  type: 'test'
+  ...
+# Subtest: Shuffled hypotheses and source arrays converge on identical association hashes and identities
+not ok 4 - Shuffled hypotheses and source arrays converge on identical association hashes and identities
+  ---
+  duration_ms: 10591.237125
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:65:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async Object.analyzeAssociationFamily (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:72:16)
+  ...
+# Subtest: A correction created after T cannot replace the readable revision authoritative at T
+ok 5 - A correction created after T cannot replace the readable revision authoritative at T
+  ---
+  duration_ms: 2573.882875
+  type: 'test'
+  ...
+# Subtest: Future-created Journal facts and coverage stay UNKNOWN at T and replay identically later
+not ok 6 - Future-created Journal facts and coverage stay UNKNOWN at T and replay identically later
+  ---
+  duration_ms: 2476.603208
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:101:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async Object.analyzeAssociationFamily (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:118:20)
+  ...
+# Subtest: Insight expiry uses explicit semantic time even when processing happens much later
+not ok 7 - Insight expiry uses explicit semantic time even when processing happens much later
+  ---
+  duration_ms: 8298.349667
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:130:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async Object.expireInsight (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:137:17)
+  ...
+# Subtest: A second non-overlapping supporting run promotes EMERGING to SUPPORTED, never HYPOTHESIS directly
+not ok 8 - A second non-overlapping supporting run promotes EMERGING to SUPPORTED, never HYPOTHESIS directly
+  ---
+  duration_ms: 8813.489459
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:142:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async Object.analyzeAssociationFamily (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:148:18)
+  ...
+# Subtest: Association replay is byte-stable and does not append evidence or insight revisions
+not ok 9 - Association replay is byte-stable and does not append evidence or insight revisions
+  ---
+  duration_ms: 9336.177542
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:167:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async Object.analyzeAssociationFamily (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:172:18)
+  ...
+# Subtest: Insufficient samples and UNKNOWN absence persist evidence but cannot create an insight
+ok 10 - Insufficient samples and UNKNOWN absence persist evidence but cannot create an insight
+  ---
+  duration_ms: 4767.575459
+  type: 'test'
+  ...
+# Subtest: Repeated opposite evidence weakens a supported insight and records contradiction without causal refutation
+not ok 11 - Repeated opposite evidence weakens a supported insight and records contradiction without causal refutation
+  ---
+  duration_ms: 9871.232708
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:192:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async Object.analyzeAssociationFamily (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:195:21)
+  ...
+# Subtest: Insight expiry is an explicit retained revision and expired memory is not current
+not ok 12 - Insight expiry is an explicit retained revision and expired memory is not current
+  ---
+  duration_ms: 13073.9605
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:223:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /NOT_EXPIRED/. Input:
+    
+    'Phase4InvariantError: PHASE4_CONTEXT_RELEASED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_CONTEXT_RELEASED'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async Object.expireInsight (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async waitForActual (node:assert:644:5)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-association-store.test.js:227:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: A candidate that ages out before repetition is retired as REJECTED, not promoted or silently deleted
+ok 13 - A candidate that ages out before repetition is retired as REJECTED, not promoted or silently deleted
+  ---
+  duration_ms: 10142.0695
+  type: 'test'
+  ...
+# Subtest: Deleting a linked Journal fact redacts transitive evidence and insight content and prevents source replay resurrection
+ok 14 - Deleting a linked Journal fact redacts transitive evidence and insight content and prevents source replay resurrection
+  ---
+  duration_ms: 14054.467792
+  type: 'test'
+  ...
+# Subtest: Association inputs remain tenant-bound and LIVE authority cannot execute Stage 5
+ok 15 - Association inputs remain tenant-bound and LIVE authority cannot execute Stage 5
+  ---
+  duration_ms: 5094.175958
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 8
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 282578.739625

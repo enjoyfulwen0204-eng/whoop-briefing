@@ -1,0 +1,59 @@
+TAP version 13
+# {"ts":"2026-09-27T04:19:24.715Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:24.717Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:25.497Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:25.498Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:25.500Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T04:19:25.500Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T04:19:25.580Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:25.581Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:26.356Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:26.357Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:26.358Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T04:19:26.358Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T04:19:26.378Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: LIVE storage claim/start requires an issued exact lease, bound destination and current computation; SHADOW cannot create attempts
+ok 1 - LIVE storage claim/start requires an issued exact lease, bound destination and current computation; SHADOW cannot create attempts
+  ---
+  duration_ms: 869.0425
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:19:26.430Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:26.430Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:27.191Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:27.192Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:27.192Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T04:19:27.192Z","level":"info","event":"telegram_linked","user_id":"a"}
+# Subtest: Late acceptance records only transport truth after disable; ambiguity remains permanently consumed and non-retryable
+ok 2 - Late acceptance records only transport truth after disable; ambiguity remains permanently consumed and non-retryable
+  ---
+  duration_ms: 850.289208
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:19:27.374Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:27.374Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:28.133Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:28.133Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:28.134Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T04:19:28.134Z","level":"info","event":"telegram_linked","user_id":"a"}
+# Subtest: A started synthetic transport settles after transitive purge without reading payload or permitting a definite retry
+ok 3 - A started synthetic transport settles after transitive purge without reading payload or permitting a definite retry
+  ---
+  duration_ms: 943.612458
+  type: 'test'
+  ...
+# Subtest: Lease recovery never retries a started attempt, while only registered definite failures can back off the frozen non-question payload
+ok 4 - Lease recovery never retries a started attempt, while only registered definite failures can back off the frozen non-question payload
+  ---
+  duration_ms: 846.45925
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3643.151083

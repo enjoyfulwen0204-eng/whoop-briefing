@@ -1,0 +1,1 @@
+{"file":"test/concurrency.test.js","code":0,"signal":null,"classification":"PASS","tests":11,"passed":11,"failed":0,"cancelled":0,"skipped":0,"assertionFailures":[],"durationMs":11092,"log":"/private/tmp/stage5-consolidated-closure/loopback-17/concurrency.test.js.log"}

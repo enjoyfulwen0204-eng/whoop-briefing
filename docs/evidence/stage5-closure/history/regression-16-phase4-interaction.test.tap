@@ -1,0 +1,168 @@
+TAP version 13
+# {"ts":"2026-09-26T12:49:05.079Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:49:05.080Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:49:05.849Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:49:05.850Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:49:05.851Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-26T12:49:05.852Z","level":"info","event":"telegram_linked","user_id":"a"}
+# Subtest: Semantic keys are exact stable four-family compact tuples and never contain versions or mode
+ok 1 - Semantic keys are exact stable four-family compact tuples and never contain versions or mode
+  ---
+  duration_ms: 1.787584
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:49:05.920Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:49:05.921Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:49:06.679Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:49:06.680Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: LIVE pending projection requires the current exact accepted slot, is idempotent and is hidden from legacy question routing
+not ok 2 - LIVE pending projection requires the current exact accepted slot, is idempotent and is hidden from legacy question routing
+  ---
+  duration_ms: 850.030417
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:35:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_INTELLIGENCE_SHADOW_ONLY'
+  code: 'PHASE4_INTELLIGENCE_SHADOW_ONLY'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:381:43
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:28
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:32
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.open (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async prepared (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:15:17)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:42:11)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-26T12:49:06.776Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:49:06.777Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:49:07.534Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:49:07.535Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Episode refresh keeps logical identity while requiring a complete fresh projection and retaining historical purge dependencies
+not ok 3 - Episode refresh keeps logical identity while requiring a complete fresh projection and retaining historical purge dependencies
+  ---
+  duration_ms: 856.910292
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:66:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  code: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    incomplete (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:9:22)
+    descriptorsForRun (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:73:12)
+    Object.captureRoots (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:111:31)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:403:19
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.open (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async prepared (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:15:17)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:67:47)
+  ...
+# {"ts":"2026-09-26T12:49:07.619Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:49:07.620Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:49:08.377Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:49:08.377Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Atomic question selection has one winner; losing decision/request/reservation all roll back, replay does not extend
+not ok 4 - Atomic question selection has one winner; losing decision/request/reservation all roll back, replay does not extend
+  ---
+  duration_ms: 843.17975
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:85:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  code: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    incomplete (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:9:22)
+    descriptorsForRun (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:73:12)
+    Object.captureRoots (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:111:31)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:403:19
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.open (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async prepared (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:15:17)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:86:47)
+  ...
+# {"ts":"2026-09-26T12:49:08.461Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:49:08.462Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:49:09.223Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:49:09.224Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Ambiguous occupancy requires exact reply lineage; replayed classification cannot extend the 30-minute window
+not ok 5 - Ambiguous occupancy requires exact reply lineage; replayed classification cannot extend the 30-minute window
+  ---
+  duration_ms: 841.94925
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:98:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  code: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    incomplete (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:9:22)
+    descriptorsForRun (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:73:12)
+    Object.captureRoots (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:111:31)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:403:19
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.open (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async prepared (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:15:17)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:100:60)
+  ...
+# {"ts":"2026-09-26T12:49:09.307Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:49:09.308Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:49:10.071Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:49:10.072Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Unresolved start recovers to a full ambiguity window, not immediate expiration; terminal late proof does not reopen
+not ok 6 - Unresolved start recovers to a full ambiguity window, not immediate expiration; terminal late proof does not reopen
+  ---
+  duration_ms: 845.883417
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:122:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  code: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    incomplete (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:9:22)
+    descriptorsForRun (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:73:12)
+    Object.captureRoots (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:111:31)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:403:19
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.open (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async prepared (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:15:17)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-interaction.test.js:124:60)
+  ...
+# {"ts":"2026-09-26T12:49:10.128Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:49:10.128Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:49:10.893Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:49:10.893Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: SHADOW outbox freezes payload and permanently consumes simulated ambiguous reservation without attempts
+ok 7 - SHADOW outbox freezes payload and permanently consumes simulated ambiguous reservation without attempts
+  ---
+  duration_ms: 820.561459
+  type: 'test'
+  ...
+# Subtest: Legacy guard imports only owned transport metadata, preserves deadline, CAS-resolves and defers unknown sends
+ok 8 - Legacy guard imports only owned transport metadata, preserves deadline, CAS-resolves and defers unknown sends
+  ---
+  duration_ms: 815.75925
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 3
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6011.819667

@@ -1,0 +1,111 @@
+TAP version 13
+# {"ts":"2026-09-26T11:36:21.483Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:36:21.489Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:36:24.252Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:36:24.255Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:36:24.318Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:36:24.321Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:36:26.206Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:36:26.207Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:36:26.257Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:36:26.260Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:36:28.046Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:36:28.048Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:36:28.092Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:36:28.094Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:36:30.481Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:36:30.482Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Insight parent stub, first revision and current pointer commit atomically; legacy and foreign parents cannot become current
+not ok 1 - Insight parent stub, first revision and current pointer commit atomically; legacy and foreign parents cannot become current
+  ---
+  duration_ms: 2885.486292
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-insight-store.test.js:19:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  code: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    requireChronology (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Time.js:25:5)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:251:16
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.create (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-insight-store.test.js:21:13)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: Insight transitions require legal edges and durable replication; dismissal is atomic terminal disposition and CAS has one winner
+not ok 2 - Insight transitions require legal edges and durable replication; dismissal is atomic terminal disposition and CAS has one winner
+  ---
+  duration_ms: 1945.21075
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-insight-store.test.js:33:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  code: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    requireChronology (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Time.js:25:5)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:251:16
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.create (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-insight-store.test.js:34:54)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: A logical insight refresh uses new-generation evidence without promoting the old revision or dropping purge lineage
+not ok 3 - A logical insight refresh uses new-generation evidence without promoting the old revision or dropping purge lineage
+  ---
+  duration_ms: 1835.471667
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-insight-store.test.js:53:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  code: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    requireChronology (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Time.js:25:5)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:251:16
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.create (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-insight-store.test.js:54:58)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Insight promotion fails closed on missing or low durable confidence and accepts a compatible persisted score
+not ok 4 - Insight promotion fails closed on missing or low durable confidence and accepts a compatible persisted score
+  ---
+  duration_ms: 2515.635834
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-insight-store.test.js:73:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  code: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    incomplete (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:9:22)
+    descriptorsForRun (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:73:12)
+    Object.captureRoots (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:108:31)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:259:19
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.create (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async candidate (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-insight-store.test.js:92:19)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-insight-store.test.js:97:17)
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 0
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10566.712625

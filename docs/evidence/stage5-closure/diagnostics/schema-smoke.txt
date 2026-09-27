@@ -1,0 +1,84 @@
+TAP version 13
+# {"ts":"2026-09-26T11:02:10.329Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:02:10.335Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:02:11.775Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:02:12.095Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:02:12.097Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:02:12.097Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:02:13.702Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:02:13.704Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:02:14.962Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# Subtest: v26 fresh, v25→v26 and full production v20→v26 preserve data and create zero authority rows
+    # Subtest: v0→v26
+    not ok 1 - v0→v26
+      ---
+      duration_ms: 1791.836041
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:26:39'
+      failureType: 'testCodeFailure'
+      error: 'phase4_schema_version_mismatch: 27/26'
+      code: 'phase4_schema_version_mismatch'
+      name: 'Phase4SchemaError'
+      stack: |-
+        assertPhase4Schema (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Migrations.js:169:34)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:30:26)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:26:31)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: v20→v26
+    not ok 2 - v20→v26
+      ---
+      duration_ms: 1609.1605
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:26:39'
+      failureType: 'testCodeFailure'
+      error: 'phase4_schema_version_mismatch: 27/26'
+      code: 'phase4_schema_version_mismatch'
+      name: 'Phase4SchemaError'
+      stack: |-
+        assertPhase4Schema (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Migrations.js:169:34)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:30:26)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:26:31)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: v25→v26
+    not ok 3 - v25→v26
+      ---
+      duration_ms: 1697.769042
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:26:39'
+      failureType: 'testCodeFailure'
+      error: 'phase4_schema_version_mismatch: 27/26'
+      code: 'phase4_schema_version_mismatch'
+      name: 'Phase4SchemaError'
+      stack: |-
+        assertPhase4Schema (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Migrations.js:169:34)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:30:26)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:26:31)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    1..3
+not ok 1 - v26 fresh, v25→v26 and full production v20→v26 preserve data and create zero authority rows
+  ---
+  duration_ms: 5099.876167
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v26.test.js:25:1'
+  failureType: 'subtestsFailed'
+  error: '3 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 4
+# suites 0
+# pass 0
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5490.841208

@@ -1,0 +1,112 @@
+TAP version 13
+# {"ts":"2026-09-27T04:06:44.848Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:44.849Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:44.873Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:44.873Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:44.890Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:44.891Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:44.935Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:44.935Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:44.946Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:44.947Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:44.956Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:44.957Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:44.972Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:44.973Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:44.996Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:44.997Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.019Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.020Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.041Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.042Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.066Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.067Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.088Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.088Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.110Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.111Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.132Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.133Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.155Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.155Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.178Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.179Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.200Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.201Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.225Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.226Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.248Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.248Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.270Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.271Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.284Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.285Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.300Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.300Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.319Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.319Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:06:45.335Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:06:45.335Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: v21: frozen v20 boundary, complete schema and sequential version history
+ok 1 - v21: frozen v20 boundary, complete schema and sequential version history
+  ---
+  duration_ms: 27.998292
+  type: 'test'
+  ...
+# Subtest: v21: empty installation has no fabricated tenants or LIVE computation
+ok 2 - v21: empty installation has no fabricated tenants or LIVE computation
+  ---
+  duration_ms: 17.574917
+  type: 'test'
+  ...
+# Subtest: v21: deterministic tenant backfill crosses bounded batches without changing preferences
+ok 3 - v21: deterministic tenant backfill crosses bounded batches without changing preferences
+  ---
+  duration_ms: 44.07025
+  type: 'test'
+  ...
+# Subtest: v21: populated or empty incompatible v20 shapes cannot be rebuilt
+ok 4 - v21: populated or empty incompatible v20 shapes cannot be rebuilt
+  ---
+  duration_ms: 22.041792
+  type: 'test'
+  ...
+# Subtest: v21: interruption after every DDL/backfill/checkpoint statement converges
+ok 5 - v21: interruption after every DDL/backfill/checkpoint statement converges
+  ---
+  duration_ms: 314.402125
+  type: 'test'
+  ...
+# Subtest: v21: conflicting partial shape and failed postconditions withhold version
+ok 6 - v21: conflicting partial shape and failed postconditions withhold version
+  ---
+  duration_ms: 29.046541
+  type: 'test'
+  ...
+# Subtest: v21: missing or drifted applied objects are refused, not silently repaired
+ok 7 - v21: missing or drifted applied objects are refused, not silently repaired
+  ---
+  duration_ms: 19.282958
+  type: 'test'
+  ...
+# Subtest: v21: exact startup refuses behind, ahead and absent versions
+ok 8 - v21: exact startup refuses behind, ahead and absent versions
+  ---
+  duration_ms: 15.547291
+  type: 'test'
+  ...
+# Subtest: v21: tenant/mode PKs, safe defaults, immutable modes and numeric constraints
+ok 9 - v21: tenant/mode PKs, safe defaults, immutable modes and numeric constraints
+  ---
+  duration_ms: 16.503833
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 673.250125

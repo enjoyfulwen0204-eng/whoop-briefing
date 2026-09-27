@@ -1,0 +1,481 @@
+TAP version 13
+# {"ts":"2026-09-26T11:57:27.314Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:57:27.316Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:57:28.123Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:57:28.124Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:57:30.457Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:57:30.458Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:57:31.236Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:57:31.236Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 original A→R1 remains immutable through legitimate R2/R3/R4 reuse and restarted exact retries
+not ok 1 - RC6 original A→R1 remains immutable through legitimate R2/R3/R4 reuse and restarted exact retries
+  ---
+  duration_ms: 3147.741917
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:28:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async syntheticEvidence (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5HistoryFixture.js:68:12)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:32:13)
+  ...
+# {"ts":"2026-09-26T11:57:36.884Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:57:36.885Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:57:37.664Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:57:37.665Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 historical calculation context cannot be reselected by another item’s forged membership
+not ok 2 - RC6 historical calculation context cannot be reselected by another item’s forged membership
+  ---
+  duration_ms: 6428.411375
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:42:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /BINDING_INVALID/. Input:
+    
+    'Phase4InvariantError: PHASE4_OPERATION_RECEIPT_INTEGRITY'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_OPERATION_RECEIPT_INTEGRITY'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    invalid (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:13:19)
+    read (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:239:127)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.analyzeMetric (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async waitForActual (node:assert:644:5)
+    async Function.rejects (node:assert:767:25)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:49:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:49:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-26T11:57:39.823Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:57:39.823Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:57:40.602Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:57:40.602Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 SQL NULL keys, REPLACE, upsert and origin/root/integrity rewrites reject without changing authority
+ok 3 - RC6 SQL NULL keys, REPLACE, upsert and origin/root/integrity rewrites reject without changing authority
+  ---
+  duration_ms: 2938.07675
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:57:43.960Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:57:43.960Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:57:44.739Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:57:44.739Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 independent origin/envelope/HMAC/salt/version corruptions and scoped transplants fail closed after guard bypass
+ok 4 - RC6 independent origin/envelope/HMAC/salt/version corruptions and scoped transplants fail closed after guard bypass
+  ---
+  duration_ms: 4136.759667
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:57:47.023Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:57:47.023Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:57:47.802Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:57:47.803Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 every recorded required root is scoped/versioned; root+edges, cross-user substitute and version substitute cannot authorize
+    # Subtest: delete-and-edges
+    ok 1 - delete-and-edges
+      ---
+      duration_ms: 3062.933084
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T11:57:50.090Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:57:50.090Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:57:50.871Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:57:50.871Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: cross-user
+    ok 2 - cross-user
+      ---
+      duration_ms: 3066.895042
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T11:57:53.144Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:57:53.145Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:57:53.929Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:57:53.930Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: version
+    ok 3 - version
+      ---
+      duration_ms: 3054.380167
+      type: 'test'
+      ...
+    1..3
+ok 5 - RC6 every recorded required root is scoped/versioned; root+edges, cross-user substitute and version substitute cannot authorize
+  ---
+  duration_ms: 9185.087292
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:57:56.608Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:57:56.609Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:57:57.398Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:57:57.398Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 graph contract: auxiliary root index loss is tolerated; required snapshot/event binding loss rejects
+ok 6 - RC6 graph contract: auxiliary root index loss is tolerated; required snapshot/event binding loss rejects
+  ---
+  duration_ms: 3462.648625
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:57:59.764Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:57:59.765Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:00.595Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:00.595Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 authority without snapshot and snapshot without authority both fail with no fallback
+    # Subtest: snapshot
+    not ok 1 - snapshot
+      ---
+      duration_ms: 3156.223834
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:124:57'
+      failureType: 'testCodeFailure'
+      error: |-
+        The input did not match the regular expression /EPISODE_HISTORY_UNAVAILABLE/. Input:
+        
+        'Phase4InvariantError: PHASE4_OPERATION_RESULT_UNAVAILABLE'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual:
+      error: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+      stack: |-
+        fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+        read (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:233:32)
+        async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+        async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+        async Object.analyzeMetric (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+        async waitForActual (node:assert:644:5)
+        async Function.rejects (node:assert:767:25)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:129:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:124:49)
+      operator: 'rejects'
+      stack: |-
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:129:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:124:49)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+# {"ts":"2026-09-26T11:58:02.927Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:02.927Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:03.721Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:03.722Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: authority
+    ok 2 - authority
+      ---
+      duration_ms: 3162.670833
+      type: 'test'
+      ...
+    1..2
+not ok 7 - RC6 authority without snapshot and snapshot without authority both fail with no fallback
+  ---
+  duration_ms: 6319.544875
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:123:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# {"ts":"2026-09-26T11:58:10.502Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:10.503Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:11.309Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:11.310Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 evidence/run/membership/event/materialization/snapshot/authority/link failures roll back the full first result
+ok 8 - RC6 evidence/run/membership/event/materialization/snapshot/authority/link failures roll back the full first result
+  ---
+  duration_ms: 7575.217459
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:58:11.915Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:11.915Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:12.745Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:12.746Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 family-wide multiplicity roots include other hypotheses; deleting those roots and edges rejects the focused result
+not ok 9 - RC6 family-wide multiplicity roots include other hypotheses; deleting those roots and edges rejects the focused result
+  ---
+  duration_ms: 1410.75225
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:152:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:158:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  ...
+# {"ts":"2026-09-26T11:58:20.113Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:20.114Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:20.913Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:20.914Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 association prior support is a transitive required dependency and Journal purge redacts all authorities without resurrection
+ok 10 - RC6 association prior support is a transitive required dependency and Journal purge redacts all authorities without resurrection
+  ---
+  duration_ms: 8199.893416
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T11:58:21.009Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:21.010Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:21.843Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:21.843Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 normalized insight expiry agrees before/exact/after for Z, both offsets and fractionless times
+not ok 11 - RC6 normalized insight expiry agrees before/exact/after for Z, both offsets and fractionless times
+  ---
+  duration_ms: 894.984375
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:189:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  code: 'PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    incomplete (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:9:22)
+    descriptorsForRun (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:73:12)
+    Object.captureRoots (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4ResultAuthority.js:108:31)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:344:19
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.create (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async call (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ClosureFixture.js:20:14)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:191:17)
+  ...
+# {"ts":"2026-09-26T11:58:22.208Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:22.209Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:23.046Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:23.047Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 Body Energy inputs retain complete transitive root authority after root and graph deletion
+not ok 12 - RC6 Body Energy inputs retain complete transitive root authority after root and graph deletion
+  ---
+  duration_ms: 1199.255167
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:204:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_CONTEXT_RELEASED'
+  code: 'PHASE4_CONTEXT_RELEASED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+    Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+    assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+    before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+    transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:206:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  ...
+# {"ts":"2026-09-26T11:58:25.460Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:25.461Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:26.293Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:26.294Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 authority honors current lifecycle/auth/input/purge fences and rejects cross-mode transplantation
+    # Subtest: lifecycle
+    not ok 1 - lifecycle
+      ---
+      duration_ms: 3251.460833
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:218:67'
+      failureType: 'testCodeFailure'
+      error: |-
+        The input did not match the regular expression /FENCED/. Input:
+        
+        'Phase4InvariantError: PHASE4_CONTEXT_RELEASED'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual:
+      error: 'PHASE4_CONTEXT_RELEASED'
+      stack: |-
+        fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+        state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+        Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+        assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+        before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+        file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+        AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+        transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+        async waitForActual (node:assert:644:5)
+        async Function.rejects (node:assert:767:25)
+      operator: 'rejects'
+      stack: |-
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:226:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:218:59)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+# {"ts":"2026-09-26T11:58:28.682Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:28.683Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:29.521Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:29.522Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: auth
+    not ok 2 - auth
+      ---
+      duration_ms: 3221.237708
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:218:67'
+      failureType: 'testCodeFailure'
+      error: |-
+        The input did not match the regular expression /FENCED/. Input:
+        
+        'Phase4InvariantError: PHASE4_CONTEXT_RELEASED'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual:
+      error: 'PHASE4_CONTEXT_RELEASED'
+      stack: |-
+        fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+        state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+        Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+        assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+        before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+        file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+        AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+        transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+        async waitForActual (node:assert:644:5)
+        async Function.rejects (node:assert:767:25)
+      operator: 'rejects'
+      stack: |-
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:226:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:218:59)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+# {"ts":"2026-09-26T11:58:31.922Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:31.923Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:32.758Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:32.758Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: input
+    not ok 3 - input
+      ---
+      duration_ms: 3241.142041
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:218:67'
+      failureType: 'testCodeFailure'
+      error: |-
+        The input did not match the regular expression /FENCED/. Input:
+        
+        'Phase4InvariantError: PHASE4_CONTEXT_RELEASED'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual:
+      error: 'PHASE4_CONTEXT_RELEASED'
+      stack: |-
+        fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+        state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+        Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+        assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+        before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+        file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+        AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+        transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+        async waitForActual (node:assert:644:5)
+        async Function.rejects (node:assert:767:25)
+      operator: 'rejects'
+      stack: |-
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:226:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:218:59)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+# {"ts":"2026-09-26T11:58:35.160Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:58:35.160Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:58:35.994Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:58:35.995Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: purge
+    not ok 4 - purge
+      ---
+      duration_ms: 3236.8615
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:218:67'
+      failureType: 'testCodeFailure'
+      error: |-
+        The input did not match the regular expression /FENCED/. Input:
+        
+        'Phase4InvariantError: PHASE4_CONTEXT_RELEASED'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual:
+      error: 'PHASE4_CONTEXT_RELEASED'
+      stack: |-
+        fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+        state (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:16:88)
+        Object.assertLease (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Cache.js:18:17)
+        assertContext (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:99:27)
+        before (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:141:52)
+        file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:73:29
+        AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
+        transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:36)
+        async waitForActual (node:assert:644:5)
+        async Function.rejects (node:assert:767:25)
+      operator: 'rejects'
+      stack: |-
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:226:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:218:59)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    1..4
+not ok 13 - RC6 authority honors current lifecycle/auth/input/purge fences and rejects cross-mode transplantation
+  ---
+  duration_ms: 16179.626666
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:217:1'
+  failureType: 'subtestsFailed'
+  error: '4 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: RC6 association replication intervals compare instants and canonicalize equivalent offsets
+ok 14 - RC6 association replication intervals compare instants and canonicalize equivalent offsets
+  ---
+  duration_ms: 0.53675
+  type: 'test'
+  ...
+1..14
+# tests 23
+# suites 0
+# pass 11
+# fail 12
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 71251.9475

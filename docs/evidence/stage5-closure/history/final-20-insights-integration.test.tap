@@ -1,0 +1,134 @@
+TAP version 13
+# {"ts":"2026-09-27T04:19:28.409Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T04:19:28.415Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T04:19:28.416Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T04:19:28.417Z","level":"warn","event":"insights_failed_ignored","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T04:19:28.418Z","level":"info","event":"daily_sent"}
+# Subtest: ★ 沒有健康資料表時，簡報與以前完全一樣（向後相容）
+ok 1 - ★ 沒有健康資料表時，簡報與以前完全一樣（向後相容）
+  ---
+  duration_ms: 20.280958
+  type: 'test'
+  ...
+# Subtest: ★ 分析層爆炸時，簡報照樣發（只是沒有那一段）
+ok 2 - ★ 分析層爆炸時，簡報照樣發（只是沒有那一段）
+  ---
+  duration_ms: 2.789084
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:19:28.427Z","level":"warn","event":"daily_metrics_partial_failure","user_id":"u-ins-test","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T04:19:28.427Z","level":"warn","event":"daily_metrics_partial_failure","user_id":"u-ins-test","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T04:19:28.427Z","level":"warn","event":"daily_metrics_partial_failure","user_id":"u-ins-test","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T04:19:28.427Z","level":"warn","event":"daily_metrics_partial_failure","user_id":"u-ins-test","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T04:19:28.461Z","level":"warn","event":"insights_failed_ignored","error":"OPERATION_FAILED"}
+# Subtest: ★ 部分 DB 查詢失敗不會造成 unhandledRejection（會殺掉整支 cron）
+ok 3 - ★ 部分 DB 查詢失敗不會造成 unhandledRejection（會殺掉整支 cron）
+  ---
+  duration_ms: 42.055291
+  type: 'test'
+  ...
+# Subtest: 必要資料（睡眠）查詢失敗時往外拋，由呼叫端決定
+ok 4 - 必要資料（睡眠）查詢失敗時往外拋，由呼叫端決定
+  ---
+  duration_ms: 0.479833
+  type: 'test'
+  ...
+# Subtest: buildInsightsSafe 自己吞掉所有錯誤
+ok 5 - buildInsightsSafe 自己吞掉所有錯誤
+  ---
+  duration_ms: 0.215958
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:19:28.529Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:28.530Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:29.471Z","level":"info","event":"user_created","user_id":"u-ins-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:29.481Z","level":"info","event":"store_sleeps_upserted","user_id":"u-ins-test","count":71}
+# {"ts":"2026-09-27T04:19:29.484Z","level":"info","event":"analytics_invalidated","user_id":"u-ins-test","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T04:19:29.486Z","level":"info","event":"canonical_write_classified","user_id":"u-ins-test","resource":"sleep","changed":71,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T04:19:29.488Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T04:19:29.496Z","level":"info","event":"store_recoveries_upserted","user_id":"u-ins-test","count":60}
+# {"ts":"2026-09-27T04:19:29.497Z","level":"info","event":"analytics_invalidated","user_id":"u-ins-test","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T04:19:29.499Z","level":"info","event":"canonical_write_classified","user_id":"u-ins-test","resource":"recovery","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T04:19:29.501Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T04:19:29.509Z","level":"info","event":"store_cycles_upserted","user_id":"u-ins-test","count":60}
+# {"ts":"2026-09-27T04:19:29.512Z","level":"info","event":"analytics_invalidated","user_id":"u-ins-test","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T04:19:29.513Z","level":"info","event":"canonical_write_classified","user_id":"u-ins-test","resource":"cycle","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T04:19:29.515Z","level":"info","event":"sync_incremental_done","resource":"cycle"}
+# {"ts":"2026-09-27T04:19:29.516Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T04:19:29.543Z","level":"info","event":"insights_built","user_id":"u-ins-test"}
+# {"ts":"2026-09-27T04:19:29.544Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T04:19:29.580Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:29.582Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:30.510Z","level":"info","event":"user_created","user_id":"u-ins-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:30.518Z","level":"info","event":"store_sleeps_upserted","user_id":"u-ins-test","count":71}
+# {"ts":"2026-09-27T04:19:30.520Z","level":"info","event":"analytics_invalidated","user_id":"u-ins-test","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T04:19:30.521Z","level":"info","event":"canonical_write_classified","user_id":"u-ins-test","resource":"sleep","changed":71,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T04:19:30.523Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T04:19:30.531Z","level":"info","event":"store_recoveries_upserted","user_id":"u-ins-test","count":60}
+# {"ts":"2026-09-27T04:19:30.532Z","level":"info","event":"analytics_invalidated","user_id":"u-ins-test","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T04:19:30.534Z","level":"info","event":"canonical_write_classified","user_id":"u-ins-test","resource":"recovery","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T04:19:30.535Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T04:19:30.543Z","level":"info","event":"store_cycles_upserted","user_id":"u-ins-test","count":60}
+# {"ts":"2026-09-27T04:19:30.544Z","level":"info","event":"analytics_invalidated","user_id":"u-ins-test","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T04:19:30.546Z","level":"info","event":"canonical_write_classified","user_id":"u-ins-test","resource":"cycle","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T04:19:30.547Z","level":"info","event":"sync_incremental_done","resource":"cycle"}
+# {"ts":"2026-09-27T04:19:30.548Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T04:19:30.576Z","level":"info","event":"insights_built","user_id":"u-ins-test"}
+# {"ts":"2026-09-27T04:19:30.576Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T04:19:30.610Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:30.611Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:31.547Z","level":"info","event":"user_created","user_id":"u-ins-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:31.548Z","level":"info","event":"store_sleeps_upserted","user_id":"u-ins-test","count":3}
+# {"ts":"2026-09-27T04:19:31.549Z","level":"info","event":"analytics_invalidated","user_id":"u-ins-test","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T04:19:31.551Z","level":"info","event":"canonical_write_classified","user_id":"u-ins-test","resource":"sleep","changed":3,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T04:19:31.552Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T04:19:31.556Z","level":"info","event":"store_recoveries_upserted","user_id":"u-ins-test","count":3}
+# {"ts":"2026-09-27T04:19:31.557Z","level":"info","event":"analytics_invalidated","user_id":"u-ins-test","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T04:19:31.559Z","level":"info","event":"canonical_write_classified","user_id":"u-ins-test","resource":"recovery","changed":3,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T04:19:31.560Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T04:19:31.581Z","level":"info","event":"insights_built","user_id":"u-ins-test"}
+# Subtest: db 缺方法時直接跳過，不會留下沒人接的 rejection
+ok 6 - db 缺方法時直接跳過，不會留下沒人接的 rejection
+  ---
+  duration_ms: 21.678917
+  type: 'test'
+  ...
+# Subtest: ★ 有長期資料且今天明顯偏離 → 簡報出現「今天最值得注意」
+ok 7 - ★ 有長期資料且今天明顯偏離 → 簡報出現「今天最值得注意」
+  ---
+  duration_ms: 1062.059334
+  type: 'test'
+  ...
+# Subtest: 資料很平穩時不會硬報「值得注意」（不製造雜訊）
+ok 8 - 資料很平穩時不會硬報「值得注意」（不製造雜訊）
+  ---
+  duration_ms: 1031.596125
+  type: 'test'
+  ...
+# Subtest: ★ 長期資料只有幾天時不會亂報（樣本不足就不下結論）
+ok 9 - ★ 長期資料只有幾天時不會亂報（樣本不足就不下結論）
+  ---
+  duration_ms: 1005.612583
+  type: 'test'
+  ...
+# Subtest: test/insights-integration.test.js
+not ok 1 - test/insights-integration.test.js
+  ---
+  duration_ms: 3514.727041
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/insights-integration.test.js:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: ~
+  signal: 'SIGSEGV'
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 9
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3519.766833

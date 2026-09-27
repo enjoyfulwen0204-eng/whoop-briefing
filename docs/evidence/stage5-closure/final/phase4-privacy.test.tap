@@ -1,0 +1,94 @@
+TAP version 13
+# {"ts":"2026-09-27T04:18:47.589Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:47.591Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:48.366Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:48.368Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:48.625Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:48.626Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:49.379Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:49.380Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Purge T0 survives failed T1; complete transitive content transaction and cache acknowledgment are both mandatory
+ok 1 - Purge T0 survives failed T1; complete transitive content transaction and cache acknowledgment are both mandatory
+  ---
+  duration_ms: 1039.644708
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:18:49.607Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:49.608Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:50.367Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:50.367Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Concurrent purges count independently, expire bounded cache leases, preserve other tenants and no LIVE creation
+ok 2 - Concurrent purges count independently, expire bounded cache leases, preserve other tenants and no LIVE creation
+  ---
+  duration_ms: 982.964625
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:18:50.506Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:50.507Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:51.268Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:51.268Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:51.270Z","level":"info","event":"telegram_update_skipped_replay","update_id":401,"state":"completed"}
+# Subtest: Legacy receipt and physiological range redaction preserve action barriers and requested/completed progress
+ok 3 - Legacy receipt and physiological range redaction preserve action barriers and requested/completed progress
+  ---
+  duration_ms: 898.258458
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:18:51.315Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:51.315Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:52.069Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:52.070Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Redacted replay never reaches identity/router/Q&A/LLM/mutation/typing/sender even after processed receipt pruning
+ok 4 - Redacted replay never reaches identity/router/Q&A/LLM/mutation/typing/sender even after processed receipt pruning
+  ---
+  duration_ms: 808.664333
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:18:52.216Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:52.217Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:52.979Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:52.980Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Receipt action owner is a server argument, pending purge blocks new action and stale reply start is fenced
+ok 5 - Receipt action owner is a server argument, pending purge blocks new action and stale reply start is fenced
+  ---
+  duration_ms: 902.023125
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:18:53.124Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:53.125Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:53.887Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:53.887Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:53.956Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: An external reply computation cannot survive purge by transaction retry, and T2 waits for its durable lease
+ok 6 - An external reply computation cannot survive purge by transaction retry, and T2 waits for its durable lease
+  ---
+  duration_ms: 907.602084
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:18:54.027Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:18:54.028Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:18:54.796Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:54.797Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:18:54.801Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-27T04:18:54.801Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: Privacy cleanup survives lifecycle change but its purpose-specific authority cannot read health or mutate preferences
+ok 7 - Privacy cleanup survives lifecycle change but its purpose-specific authority cannot read health or mutate preferences
+  ---
+  duration_ms: 903.131041
+  type: 'test'
+  ...
+# Subtest: Owned reply receipt cannot replay or start after disable/reactivate ABA, and late acceptance after purge preserves ambiguity
+ok 8 - Owned reply receipt cannot replay or start after disable/reactivate ABA, and late acceptance after purge preserves ambiguity
+  ---
+  duration_ms: 915.6325
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7493.418583

@@ -1,0 +1,74 @@
+TAP version 13
+# {"ts":"2026-09-27T04:19:07.735Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:07.737Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:08.506Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:08.507Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:08.509Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T04:19:08.530Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T04:19:08.656Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:08.657Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:09.409Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:09.410Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:09.410Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T04:19:09.419Z","level":"info","event":"lock_acquired"}
+# Subtest: Journal inbound authority requires the actual private tenant binding, owned durable processing lease and lane, never caller JSON or public LIVE
+ok 1 - Journal inbound authority requires the actual private tenant binding, owned durable processing lease and lane, never caller JSON or public LIVE
+  ---
+  duration_ms: 925.806917
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:19:09.648Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:09.649Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:10.405Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:10.405Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:10.406Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T04:19:10.413Z","level":"info","event":"lock_acquired"}
+# Subtest: An origin-receipt failure rolls back all of T1 but not T0; a restarted adapter resumes the admitted purge without parsing or the original action
+ok 2 - An origin-receipt failure rolls back all of T1 but not T0; a restarted adapter resumes the admitted purge without parsing or the original action
+  ---
+  duration_ms: 992.532125
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:19:10.567Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:10.568Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:11.325Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:11.326Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:11.327Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T04:19:11.334Z","level":"info","event":"lock_acquired"}
+# Subtest: Correction T1 commits new fact plus fixed receipt atomically; T2 and stale-cache acknowledgment are required before reply authority
+ok 3 - Correction T1 commits new fact plus fixed receipt atomically; T2 and stale-cache acknowledgment are required before reply authority
+  ---
+  duration_ms: 919.031833
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T04:19:11.492Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:19:11.493Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:19:12.249Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:12.250Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:19:12.250Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T04:19:12.257Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T04:19:12.336Z","level":"error","event":"telegram_processing_retry_required","update_id":9301,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T04:19:12.337Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T04:19:12.402Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T04:19:12.427Z","level":"info","event":"lock_released"}
+# Subtest: Restaging an inbound correction revalidates the exact current source-update authority after auth drift
+ok 4 - Restaging an inbound correction revalidates the exact current source-update authority after auth drift
+  ---
+  duration_ms: 924.8965
+  type: 'test'
+  ...
+# Subtest: Existing update processing uses the opt-in control adapter before the ordinary action transaction and sends nothing, including after T0 crash/restart
+ok 5 - Existing update processing uses the opt-in control adapter before the ordinary action transaction and sends nothing, including after T0 crash/restart
+  ---
+  duration_ms: 991.169916
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4887.721792

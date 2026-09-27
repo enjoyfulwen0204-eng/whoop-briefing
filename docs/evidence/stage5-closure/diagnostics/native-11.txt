@@ -1,0 +1,2 @@
+{"file":"test/phase4-stage5-readers.test.js","code":1,"signal":null,"classification":"NATIVE_SIGSEGV","tests":15,"passed":14,"failed":1,"assertionFailures":["test/phase4-stage5-readers.test.js"],"durationMs":21190,"log":"/private/tmp/stage5-consolidated-closure/native-11/phase4-stage5-readers.test.js.log"}
+{"file":"test/phase4-v27.test.js","code":0,"signal":null,"classification":"PASS","tests":31,"passed":31,"failed":0,"assertionFailures":[],"durationMs":65839,"log":"/private/tmp/stage5-consolidated-closure/native-11/phase4-v27.test.js.log"}

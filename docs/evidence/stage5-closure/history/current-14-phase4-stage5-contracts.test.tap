@@ -1,0 +1,186 @@
+TAP version 13
+# {"ts":"2026-09-26T12:37:01.133Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:01.139Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:01.912Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:01.914Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:04.595Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:04.596Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:05.348Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:05.349Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H: every admitted metric absence state is durable and distinct after restart
+    # Subtest: POSITIVE
+    ok 1 - POSITIVE
+      ---
+      duration_ms: 3476.317875
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:37:05.520Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:05.521Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:06.270Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:06.271Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: WARMING_UP
+    ok 2 - WARMING_UP
+      ---
+      duration_ms: 926.064
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:37:06.942Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:06.942Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:07.698Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:07.699Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: NO_CHANGE
+    ok 3 - NO_CHANGE
+      ---
+      duration_ms: 1421.160083
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:37:08.370Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:08.370Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:09.126Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:09.127Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: INSUFFICIENT_QUALITY
+    ok 4 - INSUFFICIENT_QUALITY
+      ---
+      duration_ms: 1427.514667
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:37:09.310Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:09.310Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:10.069Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:10.070Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: INSUFFICIENT_EVIDENCE
+    not ok 5 - INSUFFICIENT_EVIDENCE
+      ---
+      duration_ms: 938.786625
+      type: 'test'
+      location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-contracts.test.js:19:62'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+        
+        + 'NO_CHANGE'
+        - 'INSUFFICIENT_EVIDENCE'
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'INSUFFICIENT_EVIDENCE'
+      actual: 'NO_CHANGE'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-contracts.test.js:24:74)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-contracts.test.js:19:54)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    1..5
+not ok 1 - H: every admitted metric absence state is durable and distinct after restart
+  ---
+  duration_ms: 8191.512084
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-contracts.test.js:16:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# {"ts":"2026-09-26T12:37:15.736Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:15.737Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:16.497Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:16.498Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: D/E: metric, as-of, profile, family and canonical set permutations have explicit identity behavior
+not ok 2 - D/E: metric, as-of, profile, family and canonical set permutations have explicit identity behavior
+  ---
+  duration_ms: 6426.86475
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-contracts.test.js:32:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /REQUEST_INVALID/. Input:
+    
+    'Phase4InvariantError: PHASE4_OPERATION_RESULT_UNAVAILABLE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    discover (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4LegacyDiscovery.js:92:23)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:386:19
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.analyzeMetric (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async call (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ClosureFixture.js:20:14)
+    async waitForActual (node:assert:644:5)
+    async Function.rejects (node:assert:767:25)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-contracts.test.js:47:3)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-contracts.test.js:47:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-26T12:37:16.948Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:16.949Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:17.738Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:17.739Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: E: a future Journal transaction absent at semantic as-of cannot split operation identity
+ok 3 - E: a future Journal transaction absent at semantic as-of cannot split operation identity
+  ---
+  duration_ms: 1212.141292
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:37:17.835Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:17.836Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:17.836Z","level":"info","event":"user_created","user_id":"legacy","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:17.836Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-26T12:37:18.552Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:18.553Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:19.325Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:19.326Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H/C: never computed, missing receipt, corrupt and redacted are distinct reader outcomes
+not ok 4 - H/C: never computed, missing receipt, corrupt and redacted are distinct reader outcomes
+  ---
+  duration_ms: 885.818125
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-contracts.test.js:68:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_CONSTRAINT_TRIGGER: phase4_redacted_plaintext'
+  code: 'SQLITE_CONSTRAINT_TRIGGER'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Client.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:81:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:26:62)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-contracts.test.js:80:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-26T12:37:21.478Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:37:21.479Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:37:22.250Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:37:22.251Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: ownership: every legacy insight mutator rejects authoritative and redacted rows, including v20 compatibility
+ok 5 - ownership: every legacy insight mutator rejects authoritative and redacted rows, including v20 compatibility
+  ---
+  duration_ms: 3644.191833
+  type: 'test'
+  ...
+# Subtest: L: source generation change between preparation and commit rolls back the whole result
+ok 6 - L: source generation change between preparation and commit rolls back the whole result
+  ---
+  duration_ms: 1729.622458
+  type: 'test'
+  ...
+1..6
+# tests 11
+# suites 0
+# pass 7
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 22288.524667

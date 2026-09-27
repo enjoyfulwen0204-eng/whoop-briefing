@@ -1,0 +1,119 @@
+TAP version 13
+# {"ts":"2026-09-26T11:56:12.665Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:56:12.667Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:56:13.453Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:56:13.454Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:56:18.845Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:56:18.846Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:56:19.621Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:56:19.622Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 pre/post RC2-H-001: complete R1 semantics and artifact survive later explanation/context changes
+not ok 1 - RC4 pre/post RC2-H-001: complete R1 semantics and artifact survive later explanation/context changes
+  ---
+  duration_ms: 6183.2245
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4-blockers.test.js:8:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  code: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    requireChronology (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Time.js:25:5)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:328:16
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.revise (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4-blockers.test.js:12:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# {"ts":"2026-09-26T11:56:24.618Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:56:24.619Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:56:25.410Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:56:25.411Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 pre/post RC2-H-002: forged A membership cannot borrow legitimate B revision
+not ok 2 - RC4 pre/post RC2-H-002: forged A membership cannot borrow legitimate B revision
+  ---
+  duration_ms: 5774.373833
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4-blockers.test.js:21:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /PHASE4_DURABLE_REPLAY_BINDING_INVALID/. Input:
+    
+    'Phase4InvariantError: PHASE4_OPERATION_RECEIPT_INTEGRITY'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_OPERATION_RECEIPT_INTEGRITY'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    invalid (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:13:19)
+    read (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:239:127)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.analyzeMetric (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async waitForActual (node:assert:644:5)
+    async Function.rejects (node:assert:767:25)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4-blockers.test.js:27:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4-blockers.test.js:27:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-26T11:56:27.736Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:56:27.737Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:56:28.516Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:56:28.516Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 pre/post RC2-M-001: deterministic duplicate still requires semantic time
+not ok 3 - RC4 pre/post RC2-M-001: deterministic duplicate still requires semantic time
+  ---
+  duration_ms: 3117.934667
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4-blockers.test.js:30:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  code: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    requireChronology (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Time.js:25:5)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:328:16
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async Object.revise (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:29:16)
+    async call (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ClosureFixture.js:20:14)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc4-blockers.test.js:34:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-26T11:56:31.075Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T11:56:31.076Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T11:56:31.854Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T11:56:31.855Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 pre/post RC2-M-002 / S5-M-003: source permutations preserve full evidence identity
+ok 4 - RC4 pre/post RC2-M-002 / S5-M-003: source permutations preserve full evidence identity
+  ---
+  duration_ms: 3338.969666
+  type: 'test'
+  ...
+# Subtest: RC4 pre/post RC3-H-001: every committed revision has durable full history
+ok 5 - RC4 pre/post RC3-H-001: every committed revision has durable full history
+  ---
+  duration_ms: 5798.364292
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 2
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 24361.865417

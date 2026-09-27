@@ -1,0 +1,185 @@
+TAP version 13
+# Subtest: I: every root and correction field has an explicit validity contract
+    # Subtest: tenant
+    ok 1 - tenant
+      ---
+      duration_ms: 0.64325
+      type: 'test'
+      ...
+    # Subtest: rootRevision
+    ok 2 - rootRevision
+      ---
+      duration_ms: 0.103791
+      type: 'test'
+      ...
+    # Subtest: unsafeRevision
+    ok 3 - unsafeRevision
+      ---
+      duration_ms: 0.057541
+      type: 'test'
+      ...
+    # Subtest: fractionalRevision
+    ok 4 - fractionalRevision
+      ---
+      duration_ms: 0.050833
+      type: 'test'
+      ...
+    # Subtest: nanRevision
+    ok 5 - nanRevision
+      ---
+      duration_ms: 0.045792
+      type: 'test'
+      ...
+    # Subtest: generation
+    ok 6 - generation
+      ---
+      duration_ms: 0.055458
+      type: 'test'
+      ...
+    # Subtest: origin
+    ok 7 - origin
+      ---
+      duration_ms: 0.189208
+      type: 'test'
+      ...
+    # Subtest: rootPredecessor
+    ok 8 - rootPredecessor
+      ---
+      duration_ms: 0.213375
+      type: 'test'
+      ...
+    # Subtest: unknownType
+    ok 9 - unknownType
+      ---
+      duration_ms: 0.298167
+      type: 'test'
+      ...
+    # Subtest: unknownNormalizer
+    ok 10 - unknownNormalizer
+      ---
+      duration_ms: 0.210875
+      type: 'test'
+      ...
+    # Subtest: factorDomain
+    ok 11 - factorDomain
+      ---
+      duration_ms: 0.111209
+      type: 'test'
+      ...
+    # Subtest: custom
+    ok 12 - custom
+      ---
+      duration_ms: 0.104333
+      type: 'test'
+      ...
+    # Subtest: duplicateFactor
+    ok 13 - duplicateFactor
+      ---
+      duration_ms: 0.093542
+      type: 'test'
+      ...
+    # Subtest: emptyFactor
+    ok 14 - emptyFactor
+      ---
+      duration_ms: 0.09075
+      type: 'test'
+      ...
+    # Subtest: factorVersion
+    ok 15 - factorVersion
+      ---
+      duration_ms: 0.093
+      type: 'test'
+      ...
+    # Subtest: timezone
+    ok 16 - timezone
+      ---
+      duration_ms: 0.36225
+      type: 'test'
+      ...
+    # Subtest: emptyWindow
+    ok 17 - emptyWindow
+      ---
+      duration_ms: 0.087125
+      type: 'test'
+      ...
+    # Subtest: futureWindow
+    ok 18 - futureWindow
+      ---
+      duration_ms: 0.087625
+      type: 'test'
+      ...
+    # Subtest: wrongHealthDate
+    ok 19 - wrongHealthDate
+      ---
+      duration_ms: 0.167792
+      type: 'test'
+      ...
+    # Subtest: invalidDate
+    ok 20 - invalidDate
+      ---
+      duration_ms: 0.08925
+      type: 'test'
+      ...
+    # Subtest: backwardsUpdate
+    ok 21 - backwardsUpdate
+      ---
+      duration_ms: 0.039292
+      type: 'test'
+      ...
+    # Subtest: offsetless
+    ok 22 - offsetless
+      ---
+      duration_ms: 0.037375
+      type: 'test'
+      ...
+    # Subtest: precision
+    ok 23 - precision
+      ---
+      duration_ms: 0.037625
+      type: 'test'
+      ...
+    # Subtest: nanConfidence
+    ok 24 - nanConfidence
+      ---
+      duration_ms: 0.120541
+      type: 'test'
+      ...
+    # Subtest: unlinked
+    ok 25 - unlinked
+      ---
+      duration_ms: 0.075792
+      type: 'test'
+      ...
+    # Subtest: deleted
+    ok 26 - deleted
+      ---
+      duration_ms: 0.037
+      type: 'test'
+      ...
+    # Subtest: redacted
+    ok 27 - redacted
+      ---
+      duration_ms: 0.042333
+      type: 'test'
+      ...
+    1..27
+ok 1 - I: every root and correction field has an explicit validity contract
+  ---
+  duration_ms: 20.359416
+  type: 'test'
+  ...
+# Subtest: I: complete linear traversal detects branches, cycles, missing parents and cap+1
+ok 2 - I: complete linear traversal detects branches, cycles, missing parents and cap+1
+  ---
+  duration_ms: 189.964833
+  type: 'test'
+  ...
+1..2
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 292.851084

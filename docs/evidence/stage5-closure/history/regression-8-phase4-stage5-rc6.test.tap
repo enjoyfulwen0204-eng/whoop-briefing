@@ -1,0 +1,355 @@
+TAP version 13
+# {"ts":"2026-09-26T12:08:23.417Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:23.419Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:24.190Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:24.192Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:28.821Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:28.821Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:29.603Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:29.603Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 original A→R1 remains immutable through legitimate R2/R3/R4 reuse and restarted exact retries
+not ok 1 - RC6 original A→R1 remains immutable through legitimate R2/R3/R4 reuse and restarted exact retries
+  ---
+  duration_ms: 5407.735917
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:28:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        auth_generation: 1,
+    +   authority_hmac: '8922c6add33ce41ed3bf9860e97eb55cd580367a0511654b01c3edcbd84f32ce',
+    -   authority_hmac: 'f80fe6a39255297df71c01556adbb2b2ebc556fcb44fcac1fe6df56fbd3fc93e',
+        authority_version: 'evidence-result-authority-v1',
+    +   content_digest_salt: '59a307216240222149ba3735442c00262d10979b6937ca491dd69d322d09b774',
+    -   content_digest_salt: '2ee6ea145fb14507f8b977c107269536abbd263855dc76922b765c2714198c9d',
+        content_state: 'PRESENT',
+        created_at: '2026-09-25T12:00:00.000Z',
+    +   evidence_item_id: '0379612e-e547-4285-9976-f477cb6191b0',
+    -   evidence_item_id: 'a8c8b8a4-1e2a-438d-91fd-05dd00a6119c',
+        execution_mode: 'SHADOW',
+        health_content_redacted_at: null,
+        health_content_redaction_reason: null,
+        input_generation: 0,
+    +   input_manifest_hash: 'ea2c431b1d8ef6ed61b16329db33f1b186664e820f4ef50117dea5a0eb520ef6',
+    +   item_hash: '7a96240fcba064316d593983b4d3438343e1fd4809aa26896526492f7adcc58f',
+    -   input_manifest_hash: '351aa8f357e4581f4d37add99b72c406307226e6e743563c0dff6e4afde2a063',
+    -   item_hash: '514f969e100aa16c200ad204becd9c3188e471e8df2c89348a5d7a64be57874d',
+        lifecycle_generation: 1,
+    +   original_result_json: '{"calculation":{"absoluteDelta":null,"classification":"NO_MEANINGFUL_CHANGE","closePass":false,"components":{"magnitude":0,"novelty":1,"persistence":0.5,"quality":0.7000000000000001,"recency":1},"confidence":0.7000000000000001,"direction":null,"magnitudePass":false,"meaningfulness":0.505,"metricKey":"hrv","novelty":true,"openPass":false,"persistent":false,"qualified":false,"qualityStatus":"WARMING_UP","relativeDelta":null,"robustZ":null,"semanticHash":"phase4-intelligence-v1:hrv:null:0:UNFAVORABLE","semanticImpact":"UNFAVORABLE","severeSingle":false,"severity":0,"targetEpisodeState":null},"origin":null,"version":"stage5-null-metric-result-v2"}',
+    +   privacy_artifact_id: 'a768e13d3c3a814276c0742bfb10077f924c130b3171c672fbf8b23b31bd888b',
+    -   original_result_json: '{"episode_event_id":"94b3e98d-63c3-4926-a961-2a92373cb376","episode_id":"d0a8f109-5494-42f6-b02f-51573077d49b","prior_semantic_hash":null,"revision":1}',
+    -   privacy_artifact_id: 'a56d87f4359f053f7017795a8fc133e77ff28d5bfac10487deba40082252b7bb',
+        purge_generation: 0,
+    +   required_roots_json: '{"model":"FLATTENED_CALCULATION_INPUTS","root_count":1,"roots":[{"as_of":null,"content_hash":"536b10c345b75bf763c8c86736ca14e51affb66ca9d281aa5af3c73f7fe144cd","id":"history-a2e6184e0d658de2179caac5ed825cdb55b8d144007c14ba0ba81f4cd40e9b0c","mode":"SHARED","type":"recovery","version":"[\\"2026-09-25T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"}],"serialized_bytes":300,"version":"stage5-required-roots-v3"}',
+    -   required_roots_json: '{"model":"FLATTENED_CALCULATION_INPUTS","root_count":31,"roots":[{"as_of":null,"content_hash":"01389684229c67c93d2a40ae6aecc916bc17142571a8289d4a324ad64a91eff1","id":"sleep-05","mode":"SHARED","type":"recovery","version":"[\\"2026-09-20T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"0bd3a5a8d7611ac66ebe391855e878052faef78790e2d67f6051322e6a72ba6d","id":"sleep-21","mode":"SHARED","type":"recovery","version":"[\\"2026-09-04T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"0db2c1d860d584cc60dbad33154b25728d76975cbb00c08a69099c5a56e92c4d","id":"sleep-14","mode":"SHARED","type":"recovery","version":"[\\"2026-09-11T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"18f36c350f7c4f5a0b2eb772ff47311f27fa5f56a99eae053fae5731b678220a","id":"sleep-06","mode":"SHARED","type":"recovery","version":"[\\"2026-09-19T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"19e2f34156b06bbc64ea8027f3091938c0ea04d3f5d7cee118eabbbbad42270f","id":"sleep-02","mode":"SHARED","type":"recovery","version":"[\\"2026-09-23T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"30a2ca62ee515d1d41c1530213d8eb5b076b5a91d527eb3311c05e3ba9d4ca32","id":"sleep-28","mode":"SHARED","type":"recovery","version":"[\\"2026-08-28T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"445af64d5dacd492842e0166dfdccef273ada1338e998e756d53c23f7e486b10","id":"sleep-23","mode":"SHARED","type":"recovery","version":"[\\"2026-09-02T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"46631873883fea0d09d82d67ad2779b7c3aee409d1cf5a9891780d46f4a6be5e","id":"sleep-27","mode":"SHARED","type":"recovery","version":"[\\"2026-08-29T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"47bd5bbe19e2e664a4a96b37e6d22d3acd29b58b0c42b7f8fdedd1dcdd67dbc5","id":"sleep-24","mode":"SHARED","type":"recovery","version":"[\\"2026-09-01T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"53a250cce64a1b6dcfc26d84fa4c3bb93b3d920cc423a7164703188746ab5a8d","id":"sleep-20","mode":"SHARED","type":"recovery","version":"[\\"2026-09-05T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"54ed0a1710a2d92fe388538a49f03105b6a1e5371e190d64b49574e1fdccc310","id":"sleep-13","mode":"SHARED","type":"recovery","version":"[\\"2026-09-12T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"57c4f1cdde346e733f2191f97ea8aa1f9c499a91c0fe6a558e8045af69ebf511","id":"sleep-18","mode":"SHARED","type":"recovery","version":"[\\"2026-09-07T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"5dba6892b49563a3e96e8aad39fc12762e7858f12bef5fdc1427748d5e3d9a61","id":"sleep-12","mode":"SHARED","type":"recovery","version":"[\\"2026-09-13T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"6d9a71502a2d76cd536cc53a5679b70e7d70c3bb4cd2e28e88d725154c5bf233","id":"sleep-10","mode":"SHARED","type":"recovery","version":"[\\"2026-09-15T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"6e1c18b0be3f0a9bf8056a3c2c45fd9e567c381b8d6a75a19903b9808e92825e","id":"sleep-26","mode":"SHARED","type":"recovery","version":"[\\"2026-08-30T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"819c72c92c78e1a3013505634842b8ef94c74c3b5f6946b8a6628e37be155a92","id":"sleep-03","mode":"SHARED","type":"recovery","version":"[\\"2026-09-22T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"9b3c05742b2249efd024cc3ab8bb98b9306dbfb6469f551e26362f216548ff1e","id":"sleep-30","mode":"SHARED","type":"recovery","version":"[\\"2026-08-26T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"9cfa1a34e148de4f496ce56b0e0c39c8960d384ef784a74f26e8590f60c9ec05","id":"sleep-29","mode":"SHARED","type":"recovery","version":"[\\"2026-08-27T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"a1141af2075bc0072f748bb686a807fc242e723d33d1a0a57be0da3f70568e7b","id":"sleep-19","mode":"SHARED","type":"recovery","version":"[\\"2026-09-06T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"a1e0d75cfeb389b93b394537130c548807bb783aade1720b70ce37e8f59a1082","id":"sleep-08","mode":"SHARED","type":"recovery","version":"[\\"2026-09-17T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"a2890bc63dccc2769174c0e4c4fd473f7d9090ba1f47e31ff47cf8bda4f22bd4","id":"sleep-07","mode":"SHARED","type":"recovery","version":"[\\"2026-09-18T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"a9b47d2dfc6a83285c5fb9b6daa93f9ce42910e1fc5014317e4c036f0ee7c7de","id":"sleep-17","mode":"SHARED","type":"recovery","version":"[\\"2026-09-08T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"aa43e9f9a8269d2836eb6e75722eb046117db1e8f90c57d22321f2efd6b0b6bb","id":"sleep-11","mode":"SHARED","type":"recovery","version":"[\\"2026-09-14T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"adbf999e195fd952c78de249b1c2a8e95c44017bfc0ba1e11d2770bc2dfda268","id":"sleep-22","mode":"SHARED","type":"recovery","version":"[\\"2026-09-03T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"b679ad9ff4d476ce0fe33c1befc2047862d8e22fc9d8b722bf2bb7d931cff41b","id":"sleep-00","mode":"SHARED","type":"recovery","version":"[\\"2026-09-25T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"b7d89c85e60a6012c3eb67b879b8fdc1731a68147c11281ba6e898ebfd23d274","id":"sleep-15","mode":"SHARED","type":"recovery","version":"[\\"2026-09-10T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"c64ab4647a6fc81843e6dba234f76aca1777dfcee3f73e2f27b1f799448afe07","id":"sleep-25","mode":"SHARED","type":"recovery","version":"[\\"2026-08-31T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"d4a5bfeaffcb4b794034b37899c01c13bf851fd3e3a332f71c32a350b3e5c485","id":"sleep-16","mode":"SHARED","type":"recovery","version":"[\\"2026-09-09T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"d921409587bf0f2290b23bb68c2a0e6b4909716e93021906c34e065eb9b6c9d6","id":"sleep-04","mode":"SHARED","type":"recovery","version":"[\\"2026-09-21T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"da2328e8a6e863f1b1c8c7809794275909fc70703fa8484a89c37b43f978edc1","id":"sleep-01","mode":"SHARED","type":"recovery","version":"[\\"2026-09-24T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"f6dcffed66b758013edda2fec1001a08d1a0a780b1dc92cba137b4cc7475a6ac","id":"sleep-09","mode":"SHARED","type":"recovery","version":"[\\"2026-09-16T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"}],"serialized_bytes":7286,"version":"stage5-required-roots-v3"}',
+        result_scope: 'METRIC',
+    +   run_id: 'e81c78cd-e227-4fb7-8335-ab7619764405',
+    -   run_id: 'cacbe087-bfbc-4e2c-983b-9f3ac3744697',
+        source_linkage_state: 'COMPLETE',
+        source_subject_deleted_at: null,
+        user_id: 'a'
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    user_id: 'a'
+    execution_mode: 'SHADOW'
+    content_state: 'PRESENT'
+    health_content_redacted_at: ~
+    health_content_redaction_reason: ~
+    source_subject_deleted_at: ~
+    purge_generation: 0
+    source_linkage_state: 'COMPLETE'
+    content_digest_salt: '2ee6ea145fb14507f8b977c107269536abbd263855dc76922b765c2714198c9d'
+    privacy_artifact_id: 'a56d87f4359f053f7017795a8fc133e77ff28d5bfac10487deba40082252b7bb'
+    evidence_item_id: 'a8c8b8a4-1e2a-438d-91fd-05dd00a6119c'
+    run_id: 'cacbe087-bfbc-4e2c-983b-9f3ac3744697'
+    result_scope: 'METRIC'
+    authority_version: 'evidence-result-authority-v1'
+    original_result_json: '{"episode_event_id":"94b3e98d-63c3-4926-a961-2a92373cb376","episode_id":"d0a8f109-5494-42f6-b02f-51573077d49b","prior_semantic_hash":null,"revision":1}'
+    required_roots_json: '{"model":"FLATTENED_CALCULATION_INPUTS","root_count":31,"roots":[{"as_of":null,"content_hash":"01389684229c67c93d2a40ae6aecc916bc17142571a8289d4a324ad64a91eff1","id":"sleep-05","mode":"SHARED","type":"recovery","version":"[\\"2026-09-20T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"0bd3a5a8d7611ac66ebe391855e878052faef78790e2d67f6051322e6a72ba6d","id":"sleep-21","mode":"SHARED","type":"recovery","version":"[\\"2026-09-04T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"0db2c1d860d584cc60dbad33154b25728d76975cbb00c08a69099c5a56e92c4d","id":"sleep-14","mode":"SHARED","type":"recovery","version":"[\\"2026-09-11T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"18f36c350f7c4f5a0b2eb772ff47311f27fa5f56a99eae053fae5731b678220a","id":"sleep-06","mode":"SHARED","type":"recovery","version":"[\\"2026-09-19T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"19e2f34156b06bbc64ea8027f3091938c0ea04d3f5d7cee118eabbbbad42270f","id":"sleep-02","mode":"SHARED","type":"recovery","version":"[\\"2026-09-23T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"30a2ca62ee515d1d41c1530213d8eb5b076b5a91d527eb3311c05e3ba9d4ca32","id":"sleep-28","mode":"SHARED","type":"recovery","version":"[\\"2026-08-28T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"445af64d5dacd492842e0166dfdccef273ada1338e998e756d53c23f7e486b10","id":"sleep-23","mode":"SHARED","type":"recovery","version":"[\\"2026-09-02T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"46631873883fea0d09d82d67ad2779b7c3aee409d1cf5a9891780d46f4a6be5e","id":"sleep-27","mode":"SHARED","type":"recovery","version":"[\\"2026-08-29T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"47bd5bbe19e2e664a4a96b37e6d22d3acd29b58b0c42b7f8fdedd1dcdd67dbc5","id":"sleep-24","mode":"SHARED","type":"recovery","version":"[\\"2026-09-01T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"53a250cce64a1b6dcfc26d84fa4c3bb93b3d920cc423a7164703188746ab5a8d","id":"sleep-20","mode":"SHARED","type":"recovery","version":"[\\"2026-09-05T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"54ed0a1710a2d92fe388538a49f03105b6a1e5371e190d64b49574e1fdccc310","id":"sleep-13","mode":"SHARED","type":"recovery","version":"[\\"2026-09-12T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"57c4f1cdde346e733f2191f97ea8aa1f9c499a91c0fe6a558e8045af69ebf511","id":"sleep-18","mode":"SHARED","type":"recovery","version":"[\\"2026-09-07T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"5dba6892b49563a3e96e8aad39fc12762e7858f12bef5fdc1427748d5e3d9a61","id":"sleep-12","mode":"SHARED","type":"recovery","version":"[\\"2026-09-13T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"6d9a71502a2d76cd536cc53a5679b70e7d70c3bb4cd2e28e88d725154c5bf233","id":"sleep-10","mode":"SHARED","type":"recovery","version":"[\\"2026-09-15T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"6e1c18b0be3f0a9bf8056a3c2c45fd9e567c381b8d6a75a19903b9808e92825e","id":"sleep-26","mode":"SHARED","type":"recovery","version":"[\\"2026-08-30T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"819c72c92c78e1a3013505634842b8ef94c74c3b5f6946b8a6628e37be155a92","id":"sleep-03","mode":"SHARED","type":"recovery","version":"[\\"2026-09-22T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"9b3c05742b2249efd024cc3ab8bb98b9306dbfb6469f551e26362f216548ff1e","id":"sleep-30","mode":"SHARED","type":"recovery","version":"[\\"2026-08-26T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"9cfa1a34e148de4f496ce56b0e0c39c8960d384ef784a74f26e8590f60c9ec05","id":"sleep-29","mode":"SHARED","type":"recovery","version":"[\\"2026-08-27T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"a1141af2075bc0072f748bb686a807fc242e723d33d1a0a57be0da3f70568e7b","id":"sleep-19","mode":"SHARED","type":"recovery","version":"[\\"2026-09-06T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"a1e0d75cfeb389b93b394537130c548807bb783aade1720b70ce37e8f59a1082","id":"sleep-08","mode":"SHARED","type":"recovery","version":"[\\"2026-09-17T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"a2890bc63dccc2769174c0e4c4fd473f7d9090ba1f47e31ff47cf8bda4f22bd4","id":"sleep-07","mode":"SHARED","type":"recovery","version":"[\\"2026-09-18T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"a9b47d2dfc6a83285c5fb9b6daa93f9ce42910e1fc5014317e4c036f0ee7c7de","id":"sleep-17","mode":"SHARED","type":"recovery","version":"[\\"2026-09-08T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"aa43e9f9a8269d2836eb6e75722eb046117db1e8f90c57d22321f2efd6b0b6bb","id":"sleep-11","mode":"SHARED","type":"recovery","version":"[\\"2026-09-14T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"adbf999e195fd952c78de249b1c2a8e95c44017bfc0ba1e11d2770bc2dfda268","id":"sleep-22","mode":"SHARED","type":"recovery","version":"[\\"2026-09-03T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"b679ad9ff4d476ce0fe33c1befc2047862d8e22fc9d8b722bf2bb7d931cff41b","id":"sleep-00","mode":"SHARED","type":"recovery","version":"[\\"2026-09-25T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"b7d89c85e60a6012c3eb67b879b8fdc1731a68147c11281ba6e898ebfd23d274","id":"sleep-15","mode":"SHARED","type":"recovery","version":"[\\"2026-09-10T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"c64ab4647a6fc81843e6dba234f76aca1777dfcee3f73e2f27b1f799448afe07","id":"sleep-25","mode":"SHARED","type":"recovery","version":"[\\"2026-08-31T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"d4a5bfeaffcb4b794034b37899c01c13bf851fd3e3a332f71c32a350b3e5c485","id":"sleep-16","mode":"SHARED","type":"recovery","version":"[\\"2026-09-09T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"d921409587bf0f2290b23bb68c2a0e6b4909716e93021906c34e065eb9b6c9d6","id":"sleep-04","mode":"SHARED","type":"recovery","version":"[\\"2026-09-21T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"da2328e8a6e863f1b1c8c7809794275909fc70703fa8484a89c37b43f978edc1","id":"sleep-01","mode":"SHARED","type":"recovery","version":"[\\"2026-09-24T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"},{"as_of":null,"content_hash":"f6dcffed66b758013edda2fec1001a08d1a0a780b1dc92cba137b4cc7475a6ac","id":"sleep-09","mode":"SHARED","type":"recovery","version":"[\\"2026-09-16T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"}],"serialized_bytes":7286,"version":"stage5-required-roots-v3"}'
+    input_manifest_hash: '351aa8f357e4581f4d37add99b72c406307226e6e743563c0dff6e4afde2a063'
+    item_hash: '514f969e100aa16c200ad204becd9c3188e471e8df2c89348a5d7a64be57874d'
+    authority_hmac: 'f80fe6a39255297df71c01556adbb2b2ebc556fcb44fcac1fe6df56fbd3fc93e'
+    input_generation: 0
+    lifecycle_generation: 1
+    auth_generation: 1
+    created_at: '2026-09-25T12:00:00.000Z'
+  actual:
+    user_id: 'a'
+    execution_mode: 'SHADOW'
+    content_state: 'PRESENT'
+    health_content_redacted_at: ~
+    health_content_redaction_reason: ~
+    source_subject_deleted_at: ~
+    purge_generation: 0
+    source_linkage_state: 'COMPLETE'
+    content_digest_salt: '59a307216240222149ba3735442c00262d10979b6937ca491dd69d322d09b774'
+    privacy_artifact_id: 'a768e13d3c3a814276c0742bfb10077f924c130b3171c672fbf8b23b31bd888b'
+    evidence_item_id: '0379612e-e547-4285-9976-f477cb6191b0'
+    run_id: 'e81c78cd-e227-4fb7-8335-ab7619764405'
+    result_scope: 'METRIC'
+    authority_version: 'evidence-result-authority-v1'
+    original_result_json: '{"calculation":{"absoluteDelta":null,"classification":"NO_MEANINGFUL_CHANGE","closePass":false,"components":{"magnitude":0,"novelty":1,"persistence":0.5,"quality":0.7000000000000001,"recency":1},"confidence":0.7000000000000001,"direction":null,"magnitudePass":false,"meaningfulness":0.505,"metricKey":"hrv","novelty":true,"openPass":false,"persistent":false,"qualified":false,"qualityStatus":"WARMING_UP","relativeDelta":null,"robustZ":null,"semanticHash":"phase4-intelligence-v1:hrv:null:0:UNFAVORABLE","semanticImpact":"UNFAVORABLE","severeSingle":false,"severity":0,"targetEpisodeState":null},"origin":null,"version":"stage5-null-metric-result-v2"}'
+    required_roots_json: '{"model":"FLATTENED_CALCULATION_INPUTS","root_count":1,"roots":[{"as_of":null,"content_hash":"536b10c345b75bf763c8c86736ca14e51affb66ca9d281aa5af3c73f7fe144cd","id":"history-a2e6184e0d658de2179caac5ed825cdb55b8d144007c14ba0ba81f4cd40e9b0c","mode":"SHARED","type":"recovery","version":"[\\"2026-09-25T12:00:00.000Z\\",\\"2026-09-25T12:00:00.000Z\\",null,\\"SCORED\\"]"}],"serialized_bytes":300,"version":"stage5-required-roots-v3"}'
+    input_manifest_hash: 'ea2c431b1d8ef6ed61b16329db33f1b186664e820f4ef50117dea5a0eb520ef6'
+    item_hash: '7a96240fcba064316d593983b4d3438343e1fd4809aa26896526492f7adcc58f'
+    authority_hmac: '8922c6add33ce41ed3bf9860e97eb55cd580367a0511654b01c3edcbd84f32ce'
+    input_generation: 0
+    lifecycle_generation: 1
+    auth_generation: 1
+    created_at: '2026-09-25T12:00:00.000Z'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:38:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# {"ts":"2026-09-26T12:08:35.257Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:35.258Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:36.032Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:36.033Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 historical calculation context cannot be reselected by another item’s forged membership
+ok 2 - RC6 historical calculation context cannot be reselected by another item’s forged membership
+  ---
+  duration_ms: 6438.32575
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:08:38.203Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:38.204Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:38.972Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:38.973Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 SQL NULL keys, REPLACE, upsert and origin/root/integrity rewrites reject without changing authority
+ok 3 - RC6 SQL NULL keys, REPLACE, upsert and origin/root/integrity rewrites reject without changing authority
+  ---
+  duration_ms: 2945.316667
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:08:42.306Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:42.306Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:43.078Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:43.078Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 independent origin/envelope/HMAC/salt/version corruptions and scoped transplants fail closed after guard bypass
+ok 4 - RC6 independent origin/envelope/HMAC/salt/version corruptions and scoped transplants fail closed after guard bypass
+  ---
+  duration_ms: 4102.380917
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:08:45.352Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:45.352Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:46.137Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:46.138Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 every recorded required root is scoped/versioned; root+edges, cross-user substitute and version substitute cannot authorize
+    # Subtest: delete-and-edges
+    ok 1 - delete-and-edges
+      ---
+      duration_ms: 3046.330084
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:08:48.433Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:48.433Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:49.216Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:49.217Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: cross-user
+    ok 2 - cross-user
+      ---
+      duration_ms: 3080.873542
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:08:51.533Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:51.533Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:52.307Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:52.307Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: version
+    ok 3 - version
+      ---
+      duration_ms: 3099.428208
+      type: 'test'
+      ...
+    1..3
+ok 5 - RC6 every recorded required root is scoped/versioned; root+edges, cross-user substitute and version substitute cannot authorize
+  ---
+  duration_ms: 9227.500459
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:08:54.739Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:54.740Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:55.525Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:55.525Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 graph contract: auxiliary root index loss is tolerated; required snapshot/event binding loss rejects
+not ok 6 - RC6 graph contract: auxiliary root index loss is tolerated; required snapshot/event binding loss rejects
+  ---
+  duration_ms: 3204.463292
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:113:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /BINDING_INVALID|OPERATION_RECEIPT_INTEGRITY/. Input:
+    
+    'Phase4InvariantError: PHASE4_OPERATION_RESULT_UNAVAILABLE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:20:37)
+    unavailable (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:14:23)
+    read (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:275:31)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:321:9
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:62:16)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:150:9
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:74:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:72:24)
+    async call (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ClosureFixture.js:20:14)
+    async waitForActual (node:assert:644:5)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-rc6.test.js:119:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-26T12:08:57.908Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:08:57.909Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:08:58.688Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:08:58.688Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 authority without snapshot and snapshot without authority both fail with no fallback
+    # Subtest: snapshot
+    ok 1 - snapshot
+      ---
+      duration_ms: 3170.645
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:09:01.031Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:09:01.032Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:09:01.827Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:09:01.828Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: authority
+    ok 2 - authority
+      ---
+      duration_ms: 3122.402416
+      type: 'test'
+      ...
+    1..2
+ok 7 - RC6 authority without snapshot and snapshot without authority both fail with no fallback
+  ---
+  duration_ms: 6293.547125
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:09:08.672Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:09:08.673Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:09:09.470Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:09:09.471Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 evidence/run/membership/event/materialization/snapshot/authority/link failures roll back the full first result
+ok 8 - RC6 evidence/run/membership/event/materialization/snapshot/authority/link failures roll back the full first result
+  ---
+  duration_ms: 7641.40775
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:09:10.195Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:09:10.195Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:09:10.998Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:09:10.998Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 family-wide multiplicity roots include other hypotheses; deleting those roots and edges rejects the focused result
+ok 9 - RC6 family-wide multiplicity roots include other hypotheses; deleting those roots and edges rejects the focused result
+  ---
+  duration_ms: 1522.10775
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:09:18.348Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:09:18.349Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:09:19.156Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:09:19.156Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 association prior support is a transitive required dependency and Journal purge redacts all authorities without resurrection
+ok 10 - RC6 association prior support is a transitive required dependency and Journal purge redacts all authorities without resurrection
+  ---
+  duration_ms: 8153.906875
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:09:19.402Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:09:19.403Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:09:20.221Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:09:20.222Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 normalized insight expiry agrees before/exact/after for Z, both offsets and fractionless times
+ok 11 - RC6 normalized insight expiry agrees before/exact/after for Z, both offsets and fractionless times
+  ---
+  duration_ms: 1052.662791
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:09:22.148Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:09:22.149Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:09:22.976Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:09:22.976Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 Body Energy inputs retain complete transitive root authority after root and graph deletion
+ok 12 - RC6 Body Energy inputs retain complete transitive root authority after root and graph deletion
+  ---
+  duration_ms: 2746.334666
+  type: 'test'
+  ...
+# {"ts":"2026-09-26T12:09:25.391Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:09:25.392Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:09:26.222Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:09:26.223Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6 authority honors current lifecycle/auth/input/purge fences and rejects cross-mode transplantation
+    # Subtest: lifecycle
+    ok 1 - lifecycle
+      ---
+      duration_ms: 3242.622167
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:09:28.634Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:09:28.635Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:09:29.457Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:09:29.457Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: auth
+    ok 2 - auth
+      ---
+      duration_ms: 3242.953666
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:09:31.847Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:09:31.848Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:09:32.688Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:09:32.688Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: input
+    ok 3 - input
+      ---
+      duration_ms: 3212.7385
+      type: 'test'
+      ...
+# {"ts":"2026-09-26T12:09:35.091Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-26T12:09:35.092Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-26T12:09:35.925Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-26T12:09:35.926Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: purge
+    ok 4 - purge
+      ---
+      duration_ms: 3244.207583
+      type: 'test'
+      ...
+    1..4
+ok 13 - RC6 authority honors current lifecycle/auth/input/purge fences and rejects cross-mode transplantation
+  ---
+  duration_ms: 16210.445125
+  type: 'test'
+  ...
+# Subtest: RC6 association replication intervals compare instants and canonicalize equivalent offsets
+ok 14 - RC6 association replication intervals compare instants and canonicalize equivalent offsets
+  ---
+  duration_ms: 0.486625
+  type: 'test'
+  ...
+1..14
+# tests 23
+# suites 0
+# pass 21
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 75125.032125

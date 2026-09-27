@@ -1,0 +1,140 @@
+TAP version 13
+# {"ts":"2026-09-27T04:16:47.723Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:16:47.726Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:16:48.675Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:48.676Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T04:16:48.684Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T04:16:48.688Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:48.689Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T04:16:48.694Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T04:16:48.700Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:48.705Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:48.709Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:48.714Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:48.784Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:16:48.785Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:16:49.725Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:49.726Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T04:16:49.731Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T04:16:49.736Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:49.736Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T04:16:49.742Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T04:16:49.747Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:49.751Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:49.756Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:49.760Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:49.820Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:16:49.821Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:16:50.756Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:50.756Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T04:16:50.762Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T04:16:50.767Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:50.767Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T04:16:50.772Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T04:16:50.777Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:50.782Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:50.786Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:50.791Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:50.812Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:50.816Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:50.821Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:50.825Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:50.830Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:50.834Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:50.914Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:16:50.915Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:16:51.866Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:51.867Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T04:16:51.873Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T04:16:51.877Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:51.877Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T04:16:51.883Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T04:16:51.928Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:16:51.929Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:16:52.874Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:52.874Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T04:16:52.883Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T04:16:52.888Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:52.888Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T04:16:52.893Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T04:16:52.929Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T04:16:52.931Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T04:16:53.868Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:53.868Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T04:16:53.874Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T04:16:53.879Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T04:16:53.879Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T04:16:53.886Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T04:16:53.891Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:53.895Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:53.900Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T04:16:53.904Z","level":"info","event":"prediction_saved"}
+# Subtest: ★★ requireUserId 拒絕物件（就是這個洞讓 bug 靜默通過）
+ok 1 - ★★ requireUserId 拒絕物件（就是這個洞讓 bug 靜默通過）
+  ---
+  duration_ms: 0.929875
+  type: 'test'
+  ...
+# Subtest: requireUserId 仍然接受字串與數字（沒有變嚴到影響既有用法）
+ok 2 - requireUserId 仍然接受字串與數字（沒有變嚴到影響既有用法）
+  ---
+  duration_ms: 0.130875
+  type: 'test'
+  ...
+# Subtest: requireUserId 仍然拒絕 null / undefined / 空字串
+ok 3 - requireUserId 仍然拒絕 null / undefined / 空字串
+  ---
+  duration_ms: 0.07125
+  type: 'test'
+  ...
+# Subtest: ★ 絕不會有 "[object Object]" 這種 user id 被送進查詢
+ok 4 - ★ 絕不會有 "[object Object]" 這種 user id 被送進查詢
+  ---
+  duration_ms: 0.140625
+  type: 'test'
+  ...
+# Subtest: ★★★ Alice 的預測記分卡真的會出現在 Alice 的 /evidence
+ok 5 - ★★★ Alice 的預測記分卡真的會出現在 Alice 的 /evidence
+  ---
+  duration_ms: 1061.78175
+  type: 'test'
+  ...
+# Subtest: ★★★ Bob 看不到 Alice 的預測記分卡
+ok 6 - ★★★ Bob 看不到 Alice 的預測記分卡
+  ---
+  duration_ms: 1039.368416
+  type: 'test'
+  ...
+# Subtest: ★★ 兩個人各自的記分卡不會互相污染
+ok 7 - ★★ 兩個人各自的記分卡不會互相污染
+  ---
+  duration_ms: 1090.557375
+  type: 'test'
+  ...
+# Subtest: ★ 沒有任何預測時，evidence 誠實地不給記分卡（不是報錯，也不是編一張）
+ok 8 - ★ 沒有任何預測時，evidence 誠實地不給記分卡（不是報錯，也不是編一張）
+  ---
+  duration_ms: 1015.797458
+  type: 'test'
+  ...
+# Subtest: getEvidence 缺 userId 一律拋錯
+ok 9 - getEvidence 缺 userId 一律拋錯
+  ---
+  duration_ms: 1003.071125
+  type: 'test'
+  ...
+# Subtest: ★ scorecard 直接被餵物件時會拋錯，不再靜默回空
+ok 10 - ★ scorecard 直接被餵物件時會拋錯，不再靜默回空
+  ---
+  duration_ms: 1026.611625
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6695.908625

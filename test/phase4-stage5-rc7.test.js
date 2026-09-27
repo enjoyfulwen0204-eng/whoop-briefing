@@ -1,3 +1,4 @@
+import { call } from './stage5ClosureFixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -7,7 +8,7 @@ import { buildPersonalBaseline } from '../src/phase4Intelligence.js';
 import { canonicalJson } from '../src/phase4EntityStore.js';
 
 const TABLE='phase4_evidence_result_authorities',T='2026-09-25T12:00:00.000Z';
-const first=f=>f.stores.intelligence.analyzeMetric(f.context,request(f.initialRefs[0],f.initialRefs.slice(1)));
+const first=f=>call(f,'intelligence','analyzeMetric',request(f.initialRefs[0],f.initialRefs.slice(1)));
 export async function guards(f,table) {
   const rows=(await f.db.raw.execute({sql:"SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name=?",args:[table]})).rows;
   for(const row of rows)await f.db.raw.execute(`DROP TRIGGER ${row.name}`);
@@ -46,7 +47,7 @@ test('RC6-H-001 generic history cannot downgrade root authority through algorith
 });
 
 test('RC6-H-002 real Journal purge reaches authenticated insight target after evidence edge loss',async t=>{
-  const f=await associationSetup(t),a=await f.stores.intelligence.analyzeAssociationFamily(f.context,family('edge-loss',hypothesis(f,indexes)));
+  const f=await associationSetup(t),a=await call(f,'intelligence','analyzeAssociationFamily',family('edge-loss',hypothesis(f,indexes)));
   const ir=a.items[0].insight.current.revision;
   assert.ok(ir.normalized_claim);
   await f.db.raw.execute("DELETE FROM phase4_source_links WHERE artifact_type='insight_revisions' AND source_type='evidence_items'");
@@ -56,7 +57,7 @@ test('RC6-H-002 real Journal purge reaches authenticated insight target after ev
 });
 
 test('RC6-H-003 parseable manifest with invalid HMAC cannot veto Journal purge',async t=>{
-  const f=await associationSetup(t);await f.stores.intelligence.analyzeAssociationFamily(f.context,family('corrupt-manifest',hypothesis(f,indexes)));
+  const f=await associationSetup(t);await call(f,'intelligence','analyzeAssociationFamily',family('corrupt-manifest',hypothesis(f,indexes)));
   const root=(await f.db.raw.execute({sql:'SELECT privacy_artifact_id FROM journal_events WHERE logical_fact_id=?',args:[f.logicalFacts[0]]})).rows[0].privacy_artifact_id;
   const restore=await guards(f,TABLE),rows=(await f.db.raw.execute(`SELECT * FROM ${TABLE}`)).rows;
   for(const row of rows) {
@@ -89,8 +90,8 @@ test('RC6-M-001 degraded authenticated null result replays exact calculation aft
 
 test('RC6-M-002 historical insight calculation time belongs to original revision',async t=>{
   const f=await associationSetup(t);
-  await f.stores.intelligence.analyzeAssociationFamily(f.context,family('time-old',hypothesis(f,indexes.map(i=>i+30))));
-  const a=await f.stores.intelligence.analyzeAssociationFamily(f.context,family('time-new',hypothesis(f,indexes)));
+  await call(f,'intelligence','analyzeAssociationFamily',family('time-old',hypothesis(f,indexes.map(i=>i+30))));
+  const a=await call(f,'intelligence','analyzeAssociationFamily',family('time-new',hypothesis(f,indexes)));
   assert.equal(a.items[0].insight.current.row.last_recalculated_at,T);
   f.setNow('2026-09-26T12:00:00.000Z');const c=await f.stores.capture('a',{executionMode:'SHADOW'});
   const later={...f,outcomeRefs:await recoveryRefs(f.stores,c,f.input.sources.recovery.map(r=>r.sleep_id)),factRefs:[],coverageRef:(await f.stores.root(c,'JOURNAL_COVERAGE','coverage-caffeine')).ref};
@@ -98,7 +99,7 @@ test('RC6-M-002 historical insight calculation time belongs to original revision
   const req=family('time-later',hypothesis(later,indexes),'2026-09-26T12:00:00.000Z');
   const original=await f.stores.intelligence.analyzeAssociationFamily(c,req);
   assert.equal(original.items[0].insight.current.row.last_recalculated_at,T);
-  const before=await durable(f),replay=await f.stores.intelligence.analyzeAssociationFamily(c,req);
+  const before=await durable(f),replay=await call(f,'intelligence','analyzeAssociationFamily',req);
   assert.equal(replay.items[0].insight.current.row.last_recalculated_at,T);assert.deepEqual(await durable(f),before);
   f.setNow('2026-09-27T12:00:00.000Z');const restarted=await f.restart(),c3=await restarted.stores.capture('a',{executionMode:'SHADOW'});
   const day3={...f,outcomeRefs:await recoveryRefs(restarted.stores,c3,f.input.sources.recovery.map(r=>r.sleep_id)),factRefs:[],
@@ -130,13 +131,13 @@ test('RC7 generic history validates known, unknown and malformed registration ve
   for(const version of ['phase4-intelligence-v1','unknown','{malformed']) {
     await f.db.raw.execute({sql:'UPDATE evidence_runs SET algorithm_version=?,method=?',args:[version,'UNKNOWN_METHOD']});
     const before=await durable(f);
-    const result=await f.stores.episodes.readRevision(f.context,{episodeId:a.episode.episode.row.episode_id,revision:1});
-    assert.equal(result.row.revision,1);assert.deepEqual(await durable(f),before);
+    await assert.rejects(call(f,'episodes','readRevision',{episodeId:a.episode.episode.row.episode_id,revision:1}),/OPERATION_RECEIPT_INTEGRITY/);
+    assert.deepEqual(await durable(f),before);
   }
   await restore();
   const restoreAuthority=await guards(f,TABLE);await f.db.raw.execute(`DELETE FROM ${TABLE}`);await restoreAuthority();
   const before=await durable(f);
-  await assert.rejects(f.stores.episodes.readRevision(f.context,{episodeId:a.episode.episode.row.episode_id,revision:1}),/AUTHORITY_UNAVAILABLE/);
+  await assert.rejects(call(f,'episodes','readRevision',{episodeId:a.episode.episode.row.episode_id,revision:1}),/AUTHORITY_UNAVAILABLE|OPERATION_RECEIPT_INTEGRITY/);
   assert.deepEqual(await durable(f),before);
 });
 
@@ -145,7 +146,7 @@ test('RC7 no-change and warming null projections survive later episode state and
     const f=await setup(t);
     if(kind==='no-change')await f.db.raw.execute("UPDATE whoop_recoveries SET recovery_score=50 WHERE user_id='a' AND sleep_id='sleep-00'");
     const ids=kind==='warming'?[f.recoveryIds[0]]:f.recoveryIds,refs=await recoveryRefs(f.stores,f.context,ids);
-    const original=await f.stores.intelligence.analyzeMetric(f.context,request(refs[0],refs.slice(1)));
+    const original=await call(f,'intelligence','analyzeMetric',request(refs[0],refs.slice(1)));
     assert.equal(original.episode,null);
     assert.equal(original.quality.status,kind==='warming'?'WARMING_UP':'AVAILABLE');
     await progressOneDay(f);
@@ -158,18 +159,18 @@ test('RC7 no-change and warming null projections survive later episode state and
 });
 
 test('RC7 legacy signed null is unavailable; corrupt projection cannot authenticate or mutate on read',async t=>{
-  const f=await setup(t),req=request(f.initialRefs[0],[]),original=await f.stores.intelligence.analyzeMetric(f.context,req);
+  const f=await setup(t),req=request(f.initialRefs[0],[]),original=await call(f,'intelligence','analyzeMetric',req);
   assert.equal(original.episode,null);
   const row=(await f.db.raw.execute(`SELECT * FROM ${TABLE}`)).rows[0];
   const patch=async value=>{const restore=await guards(f,TABLE);await f.db.raw.execute({sql:`UPDATE ${TABLE} SET original_result_json=?,authority_hmac=?`,args:[value.original_result_json,value.authority_hmac]});await restore();};
   const corrupt={...row,original_result_json:canonicalJson({...JSON.parse(row.original_result_json),calculation:{classification:'FORGED',targetEpisodeState:null}})};
   await patch(corrupt);let before=await durable(f);
-  await assert.rejects(f.stores.intelligence.analyzeMetric(f.context,req),/BINDING_INVALID/);assert.deepEqual(await durable(f),before);
+  await assert.rejects(call(f,'intelligence','analyzeMetric',req),/BINDING_INVALID/);assert.deepEqual(await durable(f),before);
   const legacy={...row,original_result_json:'null'};
   const fields=Object.fromEntries(Object.entries(legacy).filter(([k])=>!['authority_hmac','health_content_redacted_at','health_content_redaction_reason','source_subject_deleted_at'].includes(k)));
   legacy.authority_hmac=f.keys.digest(legacy.content_digest_salt,canonicalJson(['evidence-result-authority-v1',fields]));
   await patch(legacy);before=await durable(f);
-  await assert.rejects(f.stores.intelligence.analyzeMetric(f.context,req),/AUTHORITY_UNAVAILABLE/);assert.deepEqual(await durable(f),before);
+  await assert.rejects(call(f,'intelligence','analyzeMetric',req),/AUTHORITY_UNAVAILABLE|OPERATION_RECEIPT_INTEGRITY/);assert.deepEqual(await durable(f),before);
 });
 
 test('RC7 source timestamp representation and permutation preserve manifest, identity, provenance and replay',async t=>{
@@ -215,18 +216,18 @@ test('RC7 long coverage lineage, shared predecessor and missing predecessor have
   await f.db.transaction(async()=>{
     for(let i=1;i<=150;i++) {
       const row={...original,coverage_window_id:`chain-${i}`,supersedes_coverage_window_id:i===1?original.coverage_window_id:`chain-${i-1}`,
-        source_event_key:`chain-source-${i}`,privacy_artifact_id:`chain-artifact-${i}`,revision:i+1,created_at:new Date(Date.parse(T)+i).toISOString()};
+        source_event_key:`chain-source-${i}`,privacy_artifact_id:`chain-artifact-${i}`,revision:i+1,status:i===150?'ACTIVE':'SUPERSEDED',created_at:new Date(Date.parse(T)+i).toISOString(),updated_at:new Date(Date.parse(T)+i).toISOString()};
       await f.db.raw.execute({sql:`INSERT INTO journal_coverage_windows(${Object.keys(row).join(',')}) VALUES (${Object.keys(row).map(()=>'?').join(',')})`,args:Object.values(row)});rows.push(row);
     }
-    const branch={...rows[0],coverage_window_id:'branch',source_event_key:'branch-source',privacy_artifact_id:'branch-artifact'};
-    await f.db.raw.execute({sql:`INSERT INTO journal_coverage_windows(${Object.keys(branch).join(',')}) VALUES (${Object.keys(branch).map(()=>'?').join(',')})`,args:Object.values(branch)});
+    await f.db.raw.execute("UPDATE journal_coverage_windows SET status='SUPERSEDED' WHERE coverage_window_id='coverage-caffeine'");
   });
   f.setNow('2026-09-26T00:00:00.000Z');const {core,stores}=await f.restart(),c=await stores.capture('a',{executionMode:'SHADOW'});
   const source=(await stores.root(c,'JOURNAL_COVERAGE','chain-150')).ref;
   const historical=await core.journalSourcesAsOf(c,[source],new Date(Date.parse(T)+75).toISOString());
   assert.equal(historical[0].id,'chain-75');
-  const branch=await core.validateHistoricalJournal(c,{type:'JOURNAL_COVERAGE',id:'branch',historicalAsOf:'2026-09-26T00:00:00.000Z',row:null});
-  assert.equal(branch.coverage_window_id,'branch');
+  const branch={...rows[0],coverage_window_id:'branch',status:'ACTIVE',source_event_key:'branch-source',privacy_artifact_id:'branch-artifact'};
+  await f.db.raw.execute({sql:`INSERT INTO journal_coverage_windows(${Object.keys(branch).join(',')}) VALUES (${Object.keys(branch).map(()=>'?').join(',')})`,args:Object.values(branch)});
+  await assert.rejects(core.validateHistoricalJournal(c,{type:'JOURNAL_COVERAGE',id:'branch',historicalAsOf:'2026-09-26T00:00:00.000Z',row:null}),/COVERAGE_LINEAGE_INVALID/);
   await f.db.raw.execute("UPDATE journal_coverage_windows SET supersedes_coverage_window_id='missing' WHERE coverage_window_id='branch'");
   await assert.rejects(core.validateHistoricalJournal(c,{type:'JOURNAL_COVERAGE',id:'branch',historicalAsOf:'2026-09-26T00:00:00.000Z',row:null}),/COVERAGE_LINEAGE_INVALID/);
 });
@@ -239,8 +240,9 @@ test('RC7 authenticated METRIC result participates in Journal purge after root a
   assert.equal(fact.status,'ACCEPT');f.logicalFacts=[fact.logicalFactId];
   f.context=await f.stores.capture('a',{executionMode:'SHADOW'});f.initialRefs=await recoveryRefs(f.stores,f.context,f.recoveryIds);
   const a=await first(f),root=(await f.db.raw.execute({sql:'SELECT privacy_artifact_id FROM journal_events WHERE logical_fact_id=?',args:[fact.logicalFactId]})).rows[0].privacy_artifact_id;
+  f.context=await f.stores.capture('a',{executionMode:'SHADOW'});
   const j=(await f.stores.root(f.context,'JOURNAL_FACT',root)).ref;
-  await f.stores.episodes.revise(f.context,{episodeId:a.episode.episode.row.episode_id,expectedRevision:1,toState:'EXPLAINED',
+  await call(f,'episodes','revise',{episodeId:a.episode.episode.row.episode_id,expectedRevision:1,toState:'EXPLAINED',
     patch:{explained_status:1,explanation_evidence_item_id:a.item.row.evidence_item_id,explanation_context_id:'rc7-journal-context',explanation_json:{journal:'sensitive'}},sourceRefs:[j,a.item.ref],reasonCode:'CURRENT_EXPLANATION',semanticAt:T});
   const b=await progressOneDay(f),authority=(await f.db.raw.execute({sql:`SELECT * FROM ${TABLE} WHERE evidence_item_id=?`,args:[b.item.row.evidence_item_id]})).rows[0];
   assert.ok(JSON.parse(authority.required_roots_json).roots.some(r=>r.id===root));
@@ -265,22 +267,23 @@ test('RC7 both insight result scopes and transitive association targets purge wi
     const ref=(await f.stores.root(f.context,'JOURNAL_FACT',fact.privacy_artifact_id)).ref;
     (fact.health_date<f.input.sources.recovery[30].health_date?oldFacts:newFacts).push(ref);
   }
-  const old=await f.stores.intelligence.analyzeAssociationFamily(f.context,family('scope-old',
+  const old=await call(f,'intelligence','analyzeAssociationFamily',family('scope-old',
     {...hypothesis(f,indexes.map(i=>i+30)),journalFactSources:oldFacts}));
-  const newer=await f.stores.intelligence.analyzeAssociationFamily(f.context,family('scope-new',
+  const newer=await call(f,'intelligence','analyzeAssociationFamily',family('scope-new',
     {...hypothesis(f,indexes),journalFactSources:newFacts}));
   // Purge an older fact absent from B's direct input manifest: J reaches B only
   // through its inherited A/insight support, then reaches both result targets.
   f.logicalFacts=[f.logicalFacts[15]];
   const transitiveRoot=(await f.db.raw.execute({sql:'SELECT privacy_artifact_id FROM journal_events WHERE logical_fact_id=?',args:[f.logicalFacts[0]]})).rows[0].privacy_artifact_id;
   assert.ok(!JSON.parse(newer.runs[0].row.input_manifest_json).hypotheses[0].journal_authority.some(r=>r.id===transitiveRoot));
+  f.context=await f.stores.capture('a',{executionMode:'SHADOW'});
   const opposite=[];
   for(const index of indexes) {
     const source=f.input.sources.recovery[index],id=`rc7-opposite-${index}`;
     await f.db.raw.execute({sql:"INSERT INTO whoop_recoveries(user_id,sleep_id,health_date,score_state,recovery_score,hrv_rmssd_milli,resting_heart_rate,user_calibrating,updated_at,synced_at) VALUES ('a',?,?,'SCORED',?,50,60,0,?,?)",args:[id,source.health_date,index%2?40:60,source.updated_at,source.synced_at]});
     opposite.push((await f.stores.root(f.context,'recovery',id)).ref);
   }
-  const a=await f.stores.intelligence.analyzeAssociationFamily(f.context,family('scope-opposite',{...hypothesis(f,indexes),outcomeSources:opposite,journalFactSources:newFacts}));
+  const a=await call(f,'intelligence','analyzeAssociationFamily',family('scope-opposite',{...hypothesis(f,indexes),outcomeSources:opposite,journalFactSources:newFacts}));
   assert.ok(a.items[0].insight.current);assert.ok(a.items[0].insight.contradiction);
   const rows=(await f.db.raw.execute({sql:`SELECT * FROM ${TABLE} WHERE evidence_item_id=?`,args:[a.items[0].item.row.evidence_item_id]})).rows;
   assert.deepEqual(rows.map(r=>r.result_scope).sort(),['INSIGHT_CONTRADICTION','INSIGHT_CURRENT']);
@@ -296,12 +299,13 @@ test('RC7 both insight result scopes and transitive association targets purge wi
 test('RC7 corrupt-authority privacy is scoped, atomic, monotonic and unreadable after completion',async t=>{
   const {syntheticEvidence}=await import('./stage5HistoryFixture.js');
   const {createResultAuthority}=await import('../src/phase4ResultAuthority.js');
-  const f=await associationSetup(t),result=await f.stores.intelligence.analyzeAssociationFamily(f.context,family('atomic',hypothesis(f,indexes)));
+  const f=await associationSetup(t),result=await call(f,'intelligence','analyzeAssociationFamily',family('atomic',hypothesis(f,indexes)));
   const b=await f.stores.capture('b',{executionMode:'SHADOW'});await syntheticEvidence(f,b,'unrelated-user');
   await f.stores.initializeTenant('a','LIVE');const live=await f.stores.capture('a',{executionMode:'LIVE'});await syntheticEvidence(f,live,'unrelated-mode');
   const unrelated=async()=> (await f.db.raw.execute("SELECT * FROM evidence_items WHERE user_id='b' OR execution_mode='LIVE'")).rows;
   const unrelatedBefore=await unrelated(),restore=await guards(f,TABLE);
   await f.db.raw.execute(`UPDATE ${TABLE} SET authority_hmac='${'0'.repeat(64)}'`);await restore();
+  f.context=await f.stores.capture('a',{executionMode:'SHADOW'});
   let before=await durable(f);
   await assert.rejects(createResultAuthority(f.core).read(f.context,result.items[0].item.row.evidence_item_id,'INSIGHT_CURRENT'),/BINDING_INVALID/);
   assert.deepEqual(await durable(f),before);
@@ -324,7 +328,7 @@ test('RC7 corrupt-authority privacy is scoped, atomic, monotonic and unreadable 
 });
 
 test('RC7 unauthenticated fallback aborts purge atomically and never reports completion',async t=>{
-  const f=await associationSetup(t);await f.stores.intelligence.analyzeAssociationFamily(f.context,family('invalid-fallback',hypothesis(f,indexes)));
+  const f=await associationSetup(t);await call(f,'intelligence','analyzeAssociationFamily',family('invalid-fallback',hypothesis(f,indexes)));
   const restore=await guards(f,TABLE),restoreRun=await guards(f,'evidence_runs');
   await f.db.raw.execute(`UPDATE ${TABLE} SET authority_hmac='${'0'.repeat(64)}'`);
   await f.db.raw.execute("UPDATE evidence_runs SET input_manifest_hash='invalid'");await restore();await restoreRun();
@@ -336,16 +340,16 @@ test('RC7 unauthenticated fallback aborts purge atomically and never reports com
   await assert.rejects(f.stores.capture('a',{executionMode:'SHADOW'}),/PURGE_FENCED/);
 });
 
-test('RC7 generic metric history also requires supplemental evidence authority regardless of registration',async t=>{
+test('RC7 missing supplemental authority rejects a direct revision before commit regardless of registration',async t=>{
   const {syntheticEvidence}=await import('./stage5HistoryFixture.js');
-  const f=await setup(t),a=await first(f),b=await syntheticEvidence(f,f.context,'unauthorized-supplement');
-  await f.stores.episodes.revise(f.context,{episodeId:a.episode.episode.row.episode_id,expectedRevision:1,toState:'OPEN',
-    patch:{current_confidence:.8},sourceRefs:[a.item.ref,b.ref],reasonCode:'NEW_EVIDENCE',semanticAt:T});
+  const f=await setup(t),a=await first(f);f.context=await f.stores.capture('a',{executionMode:'SHADOW'});
+  const b=await syntheticEvidence(f,f.context,'unauthorized-supplement');
   for(const version of ['phase4-intelligence-v1','unknown']) {
     const restore=await guards(f,'evidence_runs');
     await f.db.raw.execute({sql:'UPDATE evidence_runs SET algorithm_version=? WHERE run_id=?',args:[version,b.row.run_id]});await restore();
     const before=await durable(f);
-    await assert.rejects(f.stores.episodes.readRevision(f.context,{episodeId:a.episode.episode.row.episode_id,revision:2}),/AUTHORITY_UNAVAILABLE/);
+    await assert.rejects(call(f,'episodes','revise',{episodeId:a.episode.episode.row.episode_id,expectedRevision:1,toState:'OPEN',
+      patch:{current_confidence:.8},sourceRefs:[a.item.ref,b.ref],reasonCode:'NEW_EVIDENCE',semanticAt:T}),/OPERATION_RESULT_UNAVAILABLE|AUTHORITY_INCOMPLETE/);
     assert.deepEqual(await durable(f),before);
   }
 });

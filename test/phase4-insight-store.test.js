@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { syntheticPhase4Fixture } from './phase4Fixture.js';
+import { createPhase4InsightStore } from '../src/phase4InsightStore.js';
+import { createPhase4EntityStore } from '../src/phase4EntityStore.js';
+import { syntheticPhase4Fixture as baseFixture } from './phase4Fixture.js';
+
+// Component tests exercise the lifecycle validator with deliberately synthetic
+// evidence. The public receipt boundary is covered by the closure A/C/J gates.
+async function syntheticPhase4Fixture(t,options={now:()=>new Date('2026-09-25T12:00:00.000Z')}) {
+  const f=await baseFixture(t,options);
+  return {...f,stores:{...f.stores,insights:createPhase4InsightStore(f.core,createPhase4EntityStore(f.core))}};
+}
 
 async function fixture(t) {
   const f=await syntheticPhase4Fixture(t),c=await f.stores.capture('a',{executionMode:'SHADOW'});

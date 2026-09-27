@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { syntheticPhase4Fixture } from './phase4Fixture.js';
 import { bodyInput, seedBodyInput } from './bodyEnergyFixture.js';
 import { addDays } from '../src/time.js';
+import { healthDateFor } from '../src/journal.js';
 
 const nowMs = Date.parse('2026-09-25T12:00:00.000Z');
 
@@ -14,7 +15,9 @@ async function insertCoverage(f, { startDate, endDate, id = 'coverage-caffeine' 
     created_at,updated_at,content_state,source_linkage_state,privacy_artifact_id,content_digest_salt,purge_generation)
     VALUES ('a',?,?,?,?,?,'Asia/Taipei','journal-factors-v1','["caffeine"]',?,'synthetic-confirmation',
     'journal-candidate-v1','journal-normalizer-v1',?,?,?,'ACTIVE',1,1,?,?,'PRESENT','COMPLETE',?,?,?)`,
-  args: [id, `${startDate}T00:00:00.000Z`, `${addDays(endDate, 1)}T00:00:00.000Z`, startDate, endDate,
+  args: [id, `${startDate}T00:00:00.000Z`, `${addDays(endDate, 1)}T00:00:00.000Z`,
+    healthDateFor(new Date(`${startDate}T00:00:00.000Z`),'Asia/Taipei'),
+    healthDateFor(new Date(Date.parse(`${addDays(endDate,1)}T00:00:00.000Z`)-1),'Asia/Taipei'),
     `coverage-source-${id}`, state.lifecycle_generation, state.auth_generation, state.input_generation, at, at,
     privacyId, f.keys.newSalt(), state.purge_generation] });
   return id;

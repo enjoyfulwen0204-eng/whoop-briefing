@@ -78,6 +78,7 @@ export const historyCounts = async db => ({...await durableCounts(db),
 // Real registered no-artifact evidence for historical fixtures that require
 // v26 authority. It never fabricates or backfills authority for synthetic rows.
 export async function authoritativeEvidence(f,context,identity='registered-history') {
+  context=await f.stores.capture(context.userId,{executionMode:context.executionMode});
   const source=(await f.db.raw.execute({sql:'SELECT * FROM whoop_recoveries WHERE user_id=? AND sleep_id=?',
     args:[context.userId,f.recoveryIds[0]]})).rows[0];
   const copy={...source,sleep_id:`history-${f.keys.lookup(['history-fixture-source-v1',identity])}`};

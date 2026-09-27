@@ -1,4 +1,7 @@
-/** Synthetic policy selection and provider outcome only; no actual worker or IO. */
+import { createPhase4EpisodeStore } from '../src/phase4EpisodeStore.js';
+import { createPhase4EntityStore } from '../src/phase4EntityStore.js';
+/** Synthetic policy selection and provider outcome only; no actual worker or IO.
+ * Foundation scaffolding is deliberately below the SHADOW Stage 5 facade. */
 export async function journalQuestion(f,{mode='SHADOW',coverage=false,key='question',outcome='AMBIGUOUS'}={}) {
   const {db,stores,core}=f;
   if(mode==='LIVE') {
@@ -13,7 +16,7 @@ export async function journalQuestion(f,{mode='SHADOW',coverage=false,key='quest
     evidence_contract_version:'fixture',promotion_confound_version:'fixture',exposure_classification_version:'fixture',factor_set_version:'fixture',started_at:core.timestamp()},[source.ref]);
   await stores.evidence.complete(context,run.row.run_id,{});
   const item=await stores.evidence.addItem(context,{run_id:run.row.run_id,item_key:key,exposure_classification_version:'fixture',factor_set_version:'fixture'});
-  const episode=await stores.episodes.open(context,{identity:{algorithmMajor:'fixture',direction:'DOWN',domain:'sleep',metric:'synthetic',subject:'synthetic',windowFamily:key},
+  const episode=await createPhase4EpisodeStore(core,createPhase4EntityStore(core)).open(context,{identity:{algorithmMajor:'fixture',direction:'DOWN',domain:'sleep',metric:'synthetic',subject:'synthetic',windowFamily:key},
     data:{episode_type:'SYNTHETIC',severity:1,expires_at:'2026-09-26T00:00:00.000Z'},evidenceItemId:item.row.evidence_item_id,
     semanticAt:core.timestamp()});
   const question={episode_id:episode.row.episode_id,episode_revision:1,factor_question_kind:coverage?'COVERAGE:alcohol,caffeine':'caffeine',

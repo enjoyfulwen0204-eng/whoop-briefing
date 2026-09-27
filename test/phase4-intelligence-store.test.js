@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { call } from './stage5ClosureFixture.js';
 import assert from 'node:assert/strict';
 import { syntheticPhase4Fixture } from './phase4Fixture.js';
 import { bodyInput, seedBodyInput } from './bodyEnergyFixture.js';
@@ -42,7 +43,7 @@ async function qualifyingAtGap(f,gapMs,id,{degraded=false}={}) {
 }
 
 test('Metric analysis persists completed traceable evidence before one OPEN episode and semantic event', async t => {
-  const f = await setup(t), result = await f.stores.intelligence.analyzeMetric(f.context, request(f.currentSource, f.baselineSources));
+  const f = await setup(t), result = await call(f,'intelligence','analyzeMetric', request(f.currentSource, f.baselineSources));
   assert.equal(result.baseline.sampleCount, 30);
   assert.equal(result.baseline.median, 50);
   assert.equal(result.quality.status, 'AVAILABLE');
@@ -72,7 +73,7 @@ test('Episode merge continuity is inclusive through exactly 36 hours and splits 
   for(const [label,gapMs,merged] of [['under',36*60*60*1000-1000,true],['exact',36*60*60*1000,true],
     ['over',36*60*60*1000+1,false],['118-hours',118*60*60*1000,false]]) {
     await t.test(label,async t=>{
-      const f=await setup(t),first=await f.stores.intelligence.analyzeMetric(f.context,request(f.currentSource,f.baselineSources));
+      const f=await setup(t),first=await call(f,'intelligence','analyzeMetric',request(f.currentSource,f.baselineSources));
       const second=await qualifyingAtGap(f,gapMs,`gap-${label}`);
       assert.equal(second.episode.episode.row.episode_id===first.episode.episode.row.episode_id,merged);
       const episodes=(await f.db.raw.execute('SELECT state FROM observation_episodes ORDER BY created_at')).rows;
@@ -86,7 +87,7 @@ test('Episode merge continuity is inclusive through exactly 36 hours and splits 
 });
 
 test('A DEGRADED current observation persists diagnostics but cannot join or advance an active episode',async t=>{
-  const f=await setup(t),opened=await f.stores.intelligence.analyzeMetric(f.context,request(f.currentSource,f.baselineSources));
+  const f=await setup(t),opened=await call(f,'intelligence','analyzeMetric',request(f.currentSource,f.baselineSources));
   const result=await qualifyingAtGap(f,24*60*60*1000,'degraded-current',{degraded:true});
   assert.equal(result.quality.status,'DEGRADED');assert.equal(result.calculation.classification,'INSUFFICIENT_QUALITY');
   assert.equal(result.episode,null);assert.equal(result.item.row.quality,'DEGRADED');
@@ -113,18 +114,18 @@ test('Fixed semantic as-of yields identical evidence and episode lifecycle field
 });
 
 test('Episode expiry evaluates explicit semantic time, not a later processing clock',async t=>{
-  const f=await setup(t),opened=await f.stores.intelligence.analyzeMetric(f.context,request(f.currentSource,f.baselineSources));
+  const f=await setup(t),opened=await call(f,'intelligence','analyzeMetric',request(f.currentSource,f.baselineSources));
   f.setNow('2026-12-31T12:00:00.000Z');const context=await f.stores.capture('a',{executionMode:'SHADOW'}),id=opened.episode.episode.row.episode_id;
   await assert.rejects(f.stores.intelligence.expireEpisode(context,{episodeId:id,asOfUtc:new Date(start).toISOString()}),/NOT_EXPIRED/);
   const after=new Date(Date.parse(opened.episode.episode.row.expires_at)+1).toISOString();
-  const expired=await f.stores.intelligence.expireEpisode(context,{episodeId:id,asOfUtc:after});
+  const expired=await call(f,'intelligence','expireEpisode',{episodeId:id,asOfUtc:after});
   assert.equal(expired.row.state,'EXPIRED');
 });
 
 test('Exact replay converges on the same evidence, episode, observation and semantic identities', async t => {
   const f = await setup(t), input = request(f.currentSource, f.baselineSources);
-  const first = await f.stores.intelligence.analyzeMetric(f.context, input);
-  const second = await f.stores.intelligence.analyzeMetric(f.context, input);
+  const first = await call(f,'intelligence','analyzeMetric', input);
+  const second = await call(f,'intelligence','analyzeMetric', input);
   assert.equal(second.run.row.run_id, first.run.row.run_id);
   assert.equal(second.item.row.evidence_item_id, first.item.row.evidence_item_id);
   assert.equal(second.episode.episode.row.episode_id, first.episode.episode.row.episode_id);
@@ -138,8 +139,8 @@ test('Exact replay converges on the same evidence, episode, observation and sema
 
 test('Concurrent exact replay has one durable winner for every logical artifact', async t => {
   const f = await setup(t), input = request(f.currentSource, f.baselineSources);
-  const results = await Promise.all([f.stores.intelligence.analyzeMetric(f.context, input),
-    f.stores.intelligence.analyzeMetric(f.context, input)]);
+  const results = await Promise.all([call(f,'intelligence','analyzeMetric', input),
+    call(f,'intelligence','analyzeMetric', input)]);
   assert.equal(results[0].run.row.run_id, results[1].run.row.run_id);
   assert.equal(results[0].item.row.evidence_item_id, results[1].item.row.evidence_item_id);
   assert.equal(results[0].episode.episode.row.episode_id, results[1].episode.episode.row.episode_id);
@@ -149,7 +150,7 @@ test('Concurrent exact replay has one durable winner for every logical artifact'
 });
 
 test('A new qualifying observation extends the same family instead of opening a duplicate episode', async t => {
-  const f = await setup(t), first = await f.stores.intelligence.analyzeMetric(f.context, request(f.currentSource, f.baselineSources));
+  const f = await setup(t), first = await call(f,'intelligence','analyzeMetric', request(f.currentSource, f.baselineSources));
   const nextAt = '2026-09-26T10:00:00.000Z'; f.setNow('2026-09-26T12:00:00.000Z');
   await f.db.raw.execute({ sql: `INSERT INTO whoop_recoveries(user_id,sleep_id,health_date,score_state,recovery_score,
     hrv_rmssd_milli,resting_heart_rate,user_calibrating,updated_at,synced_at) VALUES ('a','next-low','2026-09-26','SCORED',10,50,60,0,?,?)`,
@@ -167,7 +168,7 @@ test('A new qualifying observation extends the same family instead of opening a 
 });
 
 test('Close-threshold evidence stabilizes and only a 24-hour hold resolves an episode', async t => {
-  const f = await setup(t), opened = await f.stores.intelligence.analyzeMetric(f.context, request(f.currentSource, f.baselineSources));
+  const f = await setup(t), opened = await call(f,'intelligence','analyzeMetric', request(f.currentSource, f.baselineSources));
   const normalAt = '2026-09-26T10:00:00.000Z'; f.setNow('2026-09-26T12:00:00.000Z');
   await f.db.raw.execute({ sql: `INSERT INTO whoop_recoveries(user_id,sleep_id,health_date,score_state,recovery_score,
     hrv_rmssd_milli,resting_heart_rate,user_calibrating,updated_at,synced_at) VALUES ('a','normal','2026-09-26','SCORED',50,50,60,0,?,?)`,
@@ -193,7 +194,7 @@ test('Close-threshold evidence stabilizes and only a 24-hour hold resolves an ep
 });
 
 test('A qualified opposite direction atomically resolves the old episode and opens one linked reversal', async t => {
-  const f = await setup(t), opened = await f.stores.intelligence.analyzeMetric(f.context, request(f.currentSource, f.baselineSources));
+  const f = await setup(t), opened = await call(f,'intelligence','analyzeMetric', request(f.currentSource, f.baselineSources));
   f.setNow('2026-09-26T12:00:00.000Z');
   await f.db.raw.execute({ sql: `INSERT INTO whoop_recoveries(user_id,sleep_id,health_date,score_state,recovery_score,
     hrv_rmssd_milli,resting_heart_rate,user_calibrating,updated_at,synced_at) VALUES ('a','opposite-high','2026-09-26','SCORED',90,50,60,0,?,?)`,
@@ -213,7 +214,7 @@ test('A qualified opposite direction atomically resolves the old episode and ope
 });
 
 test('A qualified recurrence within seven days opens a linked episode without mutating resolved history', async t => {
-  const f = await setup(t), opened = await f.stores.intelligence.analyzeMetric(f.context, request(f.currentSource, f.baselineSources));
+  const f = await setup(t), opened = await call(f,'intelligence','analyzeMetric', request(f.currentSource, f.baselineSources));
   const originalId = opened.episode.episode.row.episode_id;
   f.setNow('2026-09-26T12:00:00.000Z');
   await f.db.raw.execute({ sql: `INSERT INTO whoop_recoveries(user_id,sleep_id,health_date,score_state,recovery_score,
@@ -244,9 +245,9 @@ test('A qualified recurrence within seven days opens a linked episode without mu
 });
 
 test('Episode expiry is explicit, auditable, and cannot happen before its registered boundary', async t => {
-  const f = await setup(t), opened = await f.stores.intelligence.analyzeMetric(f.context, request(f.currentSource, f.baselineSources)),
+  const f = await setup(t), opened = await call(f,'intelligence','analyzeMetric', request(f.currentSource, f.baselineSources)),
     id = opened.episode.episode.row.episode_id;
-  await assert.rejects(f.stores.intelligence.expireEpisode(f.context, { episodeId: id,asOfUtc:new Date(start).toISOString() }), /NOT_EXPIRED/);
+  await assert.rejects(call(f,'intelligence','expireEpisode', { episodeId: id,asOfUtc:new Date(start).toISOString() }), /NOT_EXPIRED/);
   f.setNow(new Date(Date.parse(opened.episode.episode.row.expires_at) + 1).toISOString());
   const fresh = await f.stores.capture('a', { executionMode: 'SHADOW' });
   const expired = await f.stores.intelligence.expireEpisode(fresh, { episodeId: id,
@@ -261,6 +262,9 @@ test('Canonical values are derived from branded source snapshots; cross-user and
   const f = await setup(t), other = await f.stores.capture('b', { executionMode: 'SHADOW' });
   await assert.rejects(f.stores.intelligence.analyzeMetric(other, request(f.currentSource, f.baselineSources)), /INVALID_SOURCE_REFERENCE/);
   await assert.rejects(f.stores.intelligence.analyzeMetric(f.context, request({ ...f.currentSource }, f.baselineSources)), /INVALID_SOURCE_REFERENCE/);
+  f.context=await f.stores.capture('a',{executionMode:'SHADOW'});
+  const renewed=await recoveryRefs(f.stores,f.context,f.recoveryIds);
+  f.currentSource=renewed[0];f.baselineSources=renewed.slice(1);
   await assert.rejects(f.stores.intelligence.analyzeMetric(f.context, { ...request(f.currentSource, f.baselineSources), userId: 'b' }), /ANALYSIS_REQUEST_INVALID/);
   assert.equal((await f.db.raw.execute("SELECT count(*) n FROM evidence_runs WHERE user_id='b'")).rows[0].n, 0);
   assert.equal((await f.db.raw.execute("SELECT count(*) n FROM observation_episodes WHERE user_id='b'")).rows[0].n, 0);
@@ -306,9 +310,13 @@ test('Lifecycle, auth, input and purge generation changes fence stale analysis b
 test('Invalid, future, unsupported, unscored and mismatched canonical inputs cannot become evidence', async t => {
   const f = await setup(t);
   await assert.rejects(f.stores.intelligence.analyzeMetric(f.context, { ...request(f.currentSource, f.baselineSources), metricKey: 'raw_hr' }), /METRIC_UNREGISTERED/);
-  await assert.rejects(f.stores.intelligence.analyzeMetric(f.context, request(f.currentSource, f.baselineSources, '2026-09-26T00:00:00.000Z')), /ANALYSIS_REQUEST_INVALID/);
+  await assert.rejects(call(f,'intelligence','analyzeMetric',request(f.currentSource,f.baselineSources,'2026-09-26T00:00:00.000Z')),/SEMANTIC_CHRONOLOGY_INVALID/);
+  f.context=await f.stores.capture('a',{executionMode:'SHADOW'});
+  const renewed=await recoveryRefs(f.stores,f.context,f.recoveryIds);f.currentSource=renewed[0];f.baselineSources=renewed.slice(1);
   const sleep = (await f.stores.root(f.context, 'sleep', 'sleep-00')).ref;
   await assert.rejects(f.stores.intelligence.analyzeMetric(f.context, request(sleep, f.baselineSources)), /METRIC_SOURCE_MISMATCH/);
+  f.context=await f.stores.capture('a',{executionMode:'SHADOW'});
+  const finalRefs=await recoveryRefs(f.stores,f.context,f.recoveryIds);f.currentSource=finalRefs[0];f.baselineSources=finalRefs.slice(1);
   await f.db.raw.execute("UPDATE whoop_recoveries SET score_state='PENDING_SCORE' WHERE user_id='a' AND sleep_id='sleep-00'");
   await assert.rejects(f.stores.intelligence.analyzeMetric(f.context, request(f.currentSource, f.baselineSources)), /PARENT_STALE|METRIC_SOURCE_INVALID/);
   assert.equal((await f.db.raw.execute('SELECT count(*) n FROM evidence_runs')).rows[0].n, 0);

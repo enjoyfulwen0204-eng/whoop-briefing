@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from './localDb.js';
+import { createOwnedDb as createDb } from './stage5OwnedDb.js';
 import { reanalyzeAfterAnswer } from '../src/proactiveReanalysis.js';
 import { INSIGHT_STATUS } from '../src/healthMemory.js';
 import { PROACTIVE_OUTCOME } from '../src/schema.js';
@@ -151,7 +151,7 @@ test('★★★ PA13: 對照組不足時（1-2 個曝露日）絕不建立 insig
     insights = await db.getActiveInsights(user.id, {});
     assert.equal(insights.length, 1, '重跑同一個分析不該產生重複的 insight');
   } finally {
-    db.close();
+    await db.close();
     cleanup();
   }
 });

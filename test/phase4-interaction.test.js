@@ -4,6 +4,8 @@ import { syntheticPhase4Fixture } from './phase4Fixture.js';
 import { semanticReservationKey } from '../src/phase4MessageStore.js';
 import { QUESTION_WINDOW_MS } from '../src/phase4SlotStore.js';
 import { V23_HEALTH_FIELDS } from '../src/phase4V23Schema.js';
+import { createPhase4EpisodeStore } from '../src/phase4EpisodeStore.js';
+import { createPhase4EntityStore } from '../src/phase4EntityStore.js';
 
 async function prepared(f,key='one',executionMode='SHADOW') {
   const {stores,core}=f,context=await stores.capture('a',{executionMode});
@@ -12,7 +14,9 @@ async function prepared(f,key='one',executionMode='SHADOW') {
     evidence_contract_version:'fixture',promotion_confound_version:'fixture',exposure_classification_version:'fixture',factor_set_version:'fixture',started_at:core.timestamp()},[source.ref]);
   await stores.evidence.complete(context,run.row.run_id,{});
   const item=await stores.evidence.addItem(context,{run_id:run.row.run_id,item_key:key,exposure_classification_version:'fixture',factor_set_version:'fixture'});
-  const episode=await stores.episodes.open(context,{identity:{algorithmMajor:'fixture',direction:'DOWN',domain:'sleep',metric:'synthetic',subject:'synthetic',windowFamily:key},
+  // Component scaffolding for frozen Foundation interaction rules; this is
+  // deliberately not a registered, replayable Stage 5 calculation.
+  const episode=await createPhase4EpisodeStore(core,createPhase4EntityStore(core)).open(context,{identity:{algorithmMajor:'fixture',direction:'DOWN',domain:'sleep',metric:'synthetic',subject:'synthetic',windowFamily:key},
     data:{episode_type:'SYNTHETIC',severity:1,expires_at:'2026-09-26T00:00:00.000Z'},evidenceItemId:item.row.evidence_item_id,
     semanticAt:core.timestamp()});
   const question={episode_id:episode.row.episode_id,episode_revision:1,factor_question_kind:'synthetic',
@@ -65,6 +69,7 @@ test('LIVE pending projection requires the current exact accepted slot, is idemp
 
 test('Episode refresh keeps logical identity while requiring a complete fresh projection and retaining historical purge dependencies',async t=>{
   const f=await syntheticPhase4Fixture(t),old=await prepared(f,'refresh');
+  const episodes=createPhase4EpisodeStore(f.core,createPhase4EntityStore(f.core));
   await f.stores.queue.sourceChanged(await f.stores.captureControl('a'));
   const context=await f.stores.capture('a',{executionMode:'SHADOW'}),source=await f.stores.root(context,'USER','a');
   const run=await f.stores.evidence.start(context,{deterministic_run_key:'refresh-run',method:'SYNTHETIC',algorithm_version:'fixture',registry_version:'fixture',
@@ -75,9 +80,9 @@ test('Episode refresh keeps logical identity while requiring a complete fresh pr
   const projection=Object.fromEntries(V23_HEALTH_FIELDS.observation_episodes.filter(k=>k!=='max_semantic_severity_ordinal').map(k=>[k,null]));
   Object.assign(projection,{episode_type:'SYNTHETIC',domain:'sleep',subject_key:'synthetic',direction:'DOWN',severity:2});
   const request={episodeId:old.episode.row.episode_id,expectedRevision:1,identity,projection,evidenceItemId:item.row.evidence_item_id,semanticAt:f.core.timestamp()};
-  await assert.rejects(f.stores.episodes.read(context,request.episodeId),/PARENT_STALE/);
-  await assert.rejects(f.stores.episodes.refresh(context,{...request,projection:{severity:2}}),/COMPLETE_CURRENT_PROJECTION/);
-  const fresh=await f.stores.episodes.refresh(context,request);
+  await assert.rejects(episodes.read(context,request.episodeId),/PARENT_STALE/);
+  await assert.rejects(episodes.refresh(context,{...request,projection:{severity:2}}),/COMPLETE_CURRENT_PROJECTION/);
+  const fresh=await episodes.refresh(context,request);
   assert.equal(fresh.row.episode_id,request.episodeId);assert.equal(fresh.row.input_generation,1);assert.equal(fresh.row.revision,2);
   assert.equal((await f.db.raw.execute("SELECT count(*) n FROM phase4_source_links WHERE artifact_type='observation_episodes' AND unlinked_at IS NULL")).rows[0].n,2);
 });

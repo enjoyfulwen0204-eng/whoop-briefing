@@ -1,3 +1,4 @@
+import { call } from './stage5ClosureFixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { syntheticPhase4Fixture } from './phase4Fixture.js';
@@ -58,7 +59,7 @@ async function durableCounts(db) {
 
 test('RC2 exact historical replay remains stable after forward episode progression', async t => {
   const f = await setup(t);
-  const first = await f.stores.intelligence.analyzeMetric(f.context,
+  const first = await call(f,'intelligence','analyzeMetric',
     request(f.initialRefs[0], f.initialRefs.slice(1)));
   const progressed = await progressOneDay(f);
   assert.equal(progressed.episode.episode.row.episode_id, first.episode.episode.row.episode_id);
@@ -79,7 +80,7 @@ test('RC2 exact historical replay remains stable after forward episode progressi
 });
 
 test('RC2 repeated historical replay converges without semantic or provenance writes', async t => {
-  const f=await setup(t),first=await f.stores.intelligence.analyzeMetric(f.context,
+  const f=await setup(t),first=await call(f,'intelligence','analyzeMetric',
     request(f.initialRefs[0],f.initialRefs.slice(1)));
   await progressOneDay(f);
   const before=await durableCounts(f.db),results=[];
@@ -96,7 +97,7 @@ test('RC2 repeated historical replay converges without semantic or provenance wr
 });
 
 test('RC2 historical replay stays stable after two forward revisions',async t=>{
-  const f=await setup(t),first=await f.stores.intelligence.analyzeMetric(f.context,
+  const f=await setup(t),first=await call(f,'intelligence','analyzeMetric',
     request(f.initialRefs[0],f.initialRefs.slice(1)));
   await progressOneDay(f);
   const third=await analyzeInserted(f,{id:'third-low',healthDate:'2026-09-27',observedAt:'2026-09-27T10:00:00.000Z',
@@ -110,7 +111,7 @@ test('RC2 historical replay stays stable after two forward revisions',async t=>{
 });
 
 test('RC2 durable reload resolves replay without process-local cache authority',async t=>{
-  const f=await setup(t),first=await f.stores.intelligence.analyzeMetric(f.context,
+  const f=await setup(t),first=await call(f,'intelligence','analyzeMetric',
     request(f.initialRefs[0],f.initialRefs.slice(1)));
   await progressOneDay(f);
   const restarted=await f.restart(),replay=await replayInitial(f,'a',f.recoveryIds,restarted.stores);
@@ -121,7 +122,7 @@ test('RC2 durable reload resolves replay without process-local cache authority',
 });
 
 test('RC2 exact replay is independent of later processing wall clocks',async t=>{
-  const f=await setup(t),first=await f.stores.intelligence.analyzeMetric(f.context,
+  const f=await setup(t),first=await call(f,'intelligence','analyzeMetric',
     request(f.initialRefs[0],f.initialRefs.slice(1)));
   await progressOneDay(f);
   const snapshots=[];
@@ -137,33 +138,34 @@ test('RC2 exact replay is independent of later processing wall clocks',async t=>
 });
 
 test('RC2 lower episode and insight stores require explicit semantic time',async t=>{
-  const f=await setup(t),analyzed=await f.stores.intelligence.analyzeMetric(f.context,
+  const f=await setup(t),analyzed=await call(f,'intelligence','analyzeMetric',
     request(f.initialRefs[0],f.initialRefs.slice(1))),item=analyzed.item;
-  await assert.rejects(f.stores.episodes.open(f.context,{identity:{algorithmMajor:'fixture',direction:'LOWER',domain:'recovery',
+  await assert.rejects(call(f,'episodes','open',{identity:{algorithmMajor:'fixture',direction:'LOWER',domain:'recovery',
     metric:'synthetic',subject:'synthetic',windowFamily:'NO_CLOCK'},data:{episode_type:'SYNTHETIC',severity:1},
     evidenceItemId:item.row.evidence_item_id}),/SEMANTIC_TIME_REQUIRED/);
-  await assert.rejects(f.stores.episodes.revise(f.context,{episodeId:analyzed.episode.episode.row.episode_id,expectedRevision:1,
+  await assert.rejects(call(f,'episodes','revise',{episodeId:analyzed.episode.episode.row.episode_id,expectedRevision:1,
     toState:'UPDATING',patch:{last_observed_at:'2026-09-25T12:00:00.000Z'},sourceRefs:[item.ref],reasonCode:'NEW_EVIDENCE'}),
   /SEMANTIC_TIME_REQUIRED/);
   const candidate={identity:{subject:'synthetic-clock',outcome:'recovery',direction:'lower',exposureCategory:'synthetic',
     algorithmFamily:'synthetic',evidenceContractMajor:'1'},claim:'Synthetic clock candidate.',creationKey:'clock-candidate',
     evidenceContractVersion:'phase4-evidence-v1',
     supportingEvidenceIds:[item.row.evidence_item_id],expiresAt:'2026-10-01T12:00:00.000Z'};
-  await assert.rejects(f.stores.insights.create(f.context,candidate),/SEMANTIC_TIME_REQUIRED/);
-  const created=await f.stores.insights.create(f.context,{...candidate,semanticAt:new Date(T).toISOString()});
-  await assert.rejects(f.stores.insights.read(f.context,created.row.id),/SEMANTIC_TIME_REQUIRED/);
-  await assert.rejects(f.stores.insights.transition(f.context,{insightId:created.row.id,expectedRevision:1,status:'RETIRED',
+  await assert.rejects(call(f,'insights','create',candidate),/SEMANTIC_TIME_REQUIRED/);
+  const created=await call(f,'insights','create',{...candidate,semanticAt:new Date(T).toISOString()});
+  await assert.rejects(call(f,'insights','read',created.row.id),/SEMANTIC_TIME_REQUIRED/);
+  await assert.rejects(call(f,'insights','transition',{insightId:created.row.id,expectedRevision:1,status:'RETIRED',
     disposition:'USER_DISMISSED',claim:candidate.claim,supportingEvidenceIds:candidate.supportingEvidenceIds,
     reason:'USER_DISMISSED'}),/SEMANTIC_TIME_REQUIRED/);
 });
 
 test('RC2 lifecycle ABA rejects stale replay context while a fresh same-generation context succeeds',async t=>{
-  const f=await setup(t),first=await f.stores.intelligence.analyzeMetric(f.context,
+  const f=await setup(t),first=await call(f,'intelligence','analyzeMetric',
     request(f.initialRefs[0],f.initialRefs.slice(1)));
   await progressOneDay(f);
-  const validContext=await f.stores.capture('a',{executionMode:'SHADOW'}),validRefs=await recoveryRefs(f.stores,validContext,f.recoveryIds);
+  let validContext=await f.stores.capture('a',{executionMode:'SHADOW'}),validRefs=await recoveryRefs(f.stores,validContext,f.recoveryIds);
   const replay=await f.stores.intelligence.analyzeMetric(validContext,request(validRefs[0],validRefs.slice(1)));
   assert.equal(replay.run.row.run_id,first.run.row.run_id);
+  validContext=await f.stores.capture('a',{executionMode:'SHADOW'});validRefs=await recoveryRefs(f.stores,validContext,f.recoveryIds);
   await f.db.transitionUserLifecycle({userId:'a',targetStatus:'DISABLED'});
   await f.db.transitionUserLifecycle({userId:'a',targetStatus:'ACTIVE'});
   await assert.rejects(f.stores.intelligence.analyzeMetric(validContext,request(validRefs[0],validRefs.slice(1))),/LIFECYCLE_FENCED/);
@@ -179,7 +181,7 @@ test('RC2 equivalent users cannot resolve each other durable replay state',async
   for(let index=0;index<bInput.sources.recovery.length;index+=1)
     bInput.sources.recovery[index].recovery_score=index===0?15:[40,45,50,55,60][(index-1)%5];
   await f.db.transaction(()=>seedBodyInput(f.db,bInput));
-  const aFirst=await f.stores.intelligence.analyzeMetric(f.context,request(f.initialRefs[0],f.initialRefs.slice(1))),
+  const aFirst=await call(f,'intelligence','analyzeMetric',request(f.initialRefs[0],f.initialRefs.slice(1))),
     bIds=bInput.sources.recovery.map(row=>row.sleep_id),bContext=await f.stores.capture('b',{executionMode:'SHADOW'}),
     bRefs=await recoveryRefs(f.stores,bContext,bIds),bFirst=await f.stores.intelligence.analyzeMetric(bContext,request(bRefs[0],bRefs.slice(1)));
   await progressOneDay(f);
@@ -194,7 +196,7 @@ test('RC2 equivalent users cannot resolve each other durable replay state',async
 });
 
 test('RC2 SHADOW replay cannot resolve or mutate LIVE state',async t=>{
-  const f=await setup(t);await f.stores.intelligence.analyzeMetric(f.context,request(f.initialRefs[0],f.initialRefs.slice(1)));
+  const f=await setup(t);await call(f,'intelligence','analyzeMetric',request(f.initialRefs[0],f.initialRefs.slice(1)));
   await progressOneDay(f);await f.stores.initializeTenant('a','LIVE');
   const live=await f.stores.capture('a',{executionMode:'LIVE'});
   await assert.rejects(f.stores.intelligence.analyzeMetric(live,request(f.initialRefs[0],f.initialRefs.slice(1))),/SHADOW_ONLY/);
@@ -204,7 +206,7 @@ test('RC2 SHADOW replay cannot resolve or mutate LIVE state',async t=>{
 });
 
 test('RC2 unseen older observation remains deterministic fail-closed and cannot move the episode backward',async t=>{
-  const f=await setup(t);await f.stores.intelligence.analyzeMetric(f.context,request(f.initialRefs[0],f.initialRefs.slice(1)));
+  const f=await setup(t);await call(f,'intelligence','analyzeMetric',request(f.initialRefs[0],f.initialRefs.slice(1)));
   const progressed=await progressOneDay(f),before=await durableCounts(f.db),activeBefore=progressed.episode.episode.row;
   const attempt=()=>analyzeInserted(f,{id:'unseen-old',healthDate:'2026-09-25',observedAt:'2026-09-25T11:00:00.000Z',
     asOfUtc:'2026-09-26T12:00:00.000Z',baselineIds:f.recoveryIds.slice(1)});

@@ -1,12 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { syntheticPhase4Fixture } from './phase4Fixture.js';
+import { syntheticPhase4Fixture as foundationFixture } from './phase4Fixture.js';
+import { createBodyEnergyStore } from '../src/bodyEnergyStore.js';
+import { createPhase4EntityStore } from '../src/phase4EntityStore.js';
+import { createPhase4QueueStore } from '../src/phase4QueueStore.js';
 import { bodyInput,seedBodyInput } from './bodyEnergyFixture.js';
 import { createPhase4Redactor } from '../src/phase4Redaction.js';
 import { createPhase4Foundation } from '../src/phase4Foundation.js';
 
 const at=Date.parse('2026-09-19T00:00:00.000Z'),date='2026-09-19';
 const request={asOfEpochMs:at,targetHealthDate:date};
+// Stage 2 component invariants (including synthetic LIVE and retained Date
+// range). Public SHADOW v27 read/receipt gates are tested in the closure suite.
+async function syntheticPhase4Fixture(t,options) {
+  const f=await foundationFixture(t,options);
+  return {...f,stores:{...f.stores,bodyEnergy:createBodyEnergyStore(f.core,createPhase4EntityStore(f.core),createPhase4QueueStore(f.core))}};
+}
 async function setup(t,options={}) {
   const fixture=await syntheticPhase4Fixture(t,options);
   await fixture.db.transaction(()=>seedBodyInput(fixture.db));
@@ -27,8 +36,8 @@ test('Body exact result replay converges with stable salt/hash, rejects arbitrar
   await db.raw.execute("UPDATE whoop_sleeps SET sleep_performance_percentage=75 WHERE user_id='a' AND id='sleep-00'");
   const competing=await body.prepare(context,request);
   await assert.rejects(body.persist(context,competing),/IDENTITY_CONTENT_CONFLICT/);
-  assert.equal((await body.audit(context,results[0].row.result_id)).row.value,70);
-  assert.equal((await body.readExact(context,{healthDate:date,asOfEpochMs:at})).row.result_id,results[0].row.result_id);
+  await assert.rejects(body.audit(context,results[0].row.result_id),/REQUIRED_ROOT_VERSION_MISMATCH/);
+  await assert.rejects(body.readExact(context,{healthDate:date,asOfEpochMs:at}),/REQUIRED_ROOT_VERSION_MISMATCH/);
 });
 
 test('Body separate checkpoint converges on the exact closing instant; same-bucket arbitrary instants remain distinct',async t=>{

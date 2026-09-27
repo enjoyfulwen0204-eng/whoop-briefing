@@ -1,11 +1,12 @@
 import test from 'node:test';
+import { call } from './stage5ClosureFixture.js';
 import assert from 'node:assert/strict';
 import { addDays } from '../src/time.js';
 import { setup, hypothesis, family, insertCoverage } from './stage5AssociationFixture.js';
 const nowMs = Date.parse('2026-09-25T12:00:00.000Z');
 
 test('Tri-state Journal association persists exact classified counts, multiplicity and non-causal provenance', async t => {
-  const f = await setup(t), result = await f.stores.intelligence.analyzeAssociationFamily(f.context,
+  const f = await setup(t), result = await call(f,'intelligence','analyzeAssociationFamily',
     family('caffeine-recovery-old', hypothesis(f, Array.from({ length: 30 }, (_, index) => index + 30))));
   const output = result.items[0];
   assert.equal(result.runs.length, 1);
@@ -36,7 +37,7 @@ test('Full comparison universe retains both 30-day groups with only 16 outcomes 
   const input={factor:'caffeine',outcomeMetric:'recovery_score',lagDays:1,
     comparisonHealthDates:indexes.map(index=>f.input.sources.recovery[index].health_date),
     outcomeSources:withOutcome.map(index=>f.outcomeRefs[index]),journalFactSources:f.factRefs,coverageSources:[f.coverageRef]};
-  const result=await f.stores.intelligence.analyzeAssociationFamily(f.context,family('missing-outcome-mutation',input)),analysis=result.items[0].analysis;
+  const result=await call(f,'intelligence','analyzeAssociationFamily',family('missing-outcome-mutation',input)),analysis=result.items[0].analysis;
   assert.equal(analysis.comparisonDayCount,60);assert.equal(analysis.classifiedExposedDays,30);
   assert.equal(analysis.classifiedConfirmedUnexposedDays,30);
   assert.equal(analysis.exposedOutcomePresentCount,16);assert.equal(analysis.exposedOutcomeMissingCount,14);
@@ -56,7 +57,7 @@ test('UNKNOWN-heavy valid-outcome windows remain UNKNOWN and fail the promotion 
   const f=await setup(t,{days:30,createFacts:false}),input={factor:'stress',outcomeMetric:'recovery_score',lagDays:1,
     comparisonHealthDates:f.input.sources.recovery.map(row=>row.health_date),outcomeSources:f.outcomeRefs,
     journalFactSources:[],coverageSources:[]};
-  const result=await f.stores.intelligence.analyzeAssociationFamily(f.context,family('unknown-heavy-mutation',input)),analysis=result.items[0].analysis;
+  const result=await call(f,'intelligence','analyzeAssociationFamily',family('unknown-heavy-mutation',input)),analysis=result.items[0].analysis;
   assert.equal(analysis.unknownCount,30);assert.equal(analysis.unknownFraction,1);assert.equal(analysis.insightSupporting,false);
   assert.ok(analysis.reasonCodes.includes('UNKNOWN_FRACTION_EXCEEDED'));
   assert.equal(result.runs[0].row.unknown_eligible_days,30);
@@ -64,12 +65,12 @@ test('UNKNOWN-heavy valid-outcome windows remain UNKNOWN and fail the promotion 
 
 test('Shuffled hypotheses and source arrays converge on identical association hashes and identities',async t=>{
   const f=await setup(t),indexes=Array.from({length:30},(_,index)=>index),caffeine=hypothesis(f,indexes),stress={...hypothesis(f,indexes),factor:'stress'};
-  const first=await f.stores.intelligence.analyzeAssociationFamily(f.context,{asOfUtc:new Date(nowMs).toISOString(),
+  const first=await call(f,'intelligence','analyzeAssociationFamily',{asOfUtc:new Date(nowMs).toISOString(),
     multipleTestingFamily:'canonical-order-mutation',hypotheses:[stress,caffeine]});
   const shuffled=value=>({...value,outcomeSources:[...value.outcomeSources].reverse(),
     journalFactSources:[...value.journalFactSources].reverse(),coverageSources:[...value.coverageSources].reverse(),
     comparisonHealthDates:[...value.comparisonHealthDates].reverse()});
-  const second=await f.stores.intelligence.analyzeAssociationFamily(f.context,{asOfUtc:new Date(nowMs).toISOString(),
+  const second=await call(f,'intelligence','analyzeAssociationFamily',{asOfUtc:new Date(nowMs).toISOString(),
     multipleTestingFamily:'canonical-order-mutation',hypotheses:[shuffled(caffeine),shuffled(stress)]});
   assert.deepEqual(second.runs.map(run=>[run.row.subject_key,run.row.deterministic_run_key,run.row.input_manifest_hash]),
     first.runs.map(run=>[run.row.subject_key,run.row.deterministic_run_key,run.row.input_manifest_hash]));
@@ -111,7 +112,7 @@ test('Future-created Journal facts and coverage stay UNKNOWN at T and replay ide
     futureFact:(await f.stores.root(context,'JOURNAL_FACT',fact.privacy_artifact_id)).ref,
     futureCoverage:(await f.stores.root(context,'JOURNAL_COVERAGE',coverage.coverage_window_id)).ref});
   f.setNow('2026-09-25T14:00:00.000Z');const context=await f.stores.capture('a',{executionMode:'SHADOW'}),refs=await references(context);
-  const analyze=(activeContext,activeRefs,name,journalFactSources,coverageSources)=>f.stores.intelligence.analyzeAssociationFamily(activeContext,
+  const analyze=(activeContext,activeRefs,name,journalFactSources,coverageSources)=>call(f,'intelligence','analyzeAssociationFamily',
     family(name,{factor:'caffeine',outcomeMetric:'recovery_score',lagDays:1,comparisonHealthDates:[date],
       outcomeSources:[activeRefs.outcome],journalFactSources,coverageSources},new Date(nowMs).toISOString()));
   const factResult=await analyze(context,refs,'future-fact-as-of',[refs.futureFact],[]),
@@ -128,13 +129,13 @@ test('Future-created Journal facts and coverage stay UNKNOWN at T and replay ide
 });
 
 test('Insight expiry uses explicit semantic time even when processing happens much later',async t=>{
-  const f=await setup(t),result=await f.stores.intelligence.analyzeAssociationFamily(f.context,
+  const f=await setup(t),result=await call(f,'intelligence','analyzeAssociationFamily',
     family('semantic-expiry-mutation',hypothesis(f,Array.from({length:30},(_,index)=>index))));
   const current=result.items[0].insight.current;f.setNow('2027-01-31T12:00:00.000Z');
   const context=await f.stores.capture('a',{executionMode:'SHADOW'});
-  await assert.rejects(f.stores.intelligence.expireInsight(context,{insightId:current.row.id,
+  await assert.rejects(call(f,'intelligence','expireInsight',{insightId:current.row.id,
     asOfUtc:new Date(nowMs).toISOString()}),/NOT_EXPIRED/);
-  const expired=await f.stores.intelligence.expireInsight(context,{insightId:current.row.id,
+  const expired=await call(f,'intelligence','expireInsight',{insightId:current.row.id,
     asOfUtc:new Date(Date.parse(current.row.expires_at)+1).toISOString()});
   assert.equal(expired.row.status,'RETIRED');assert.equal(expired.row.retired_at,new Date(Date.parse(current.row.expires_at)+1).toISOString());
 });
@@ -142,10 +143,10 @@ test('Insight expiry uses explicit semantic time even when processing happens mu
 test('A second non-overlapping supporting run promotes EMERGING to SUPPORTED, never HYPOTHESIS directly', async t => {
   const f = await setup(t), oldIndexes = Array.from({ length: 30 }, (_, index) => index + 30),
     recentIndexes = Array.from({ length: 30 }, (_, index) => index),oldRequest=family('caffeine-recovery-old',hypothesis(f,oldIndexes));
-  const first = await f.stores.intelligence.analyzeAssociationFamily(f.context,oldRequest);
+  const first = await call(f,'intelligence','analyzeAssociationFamily',oldRequest);
   assert.equal(first.items[0].insight.current.row.status, 'EMERGING');
   assert.equal(first.items[0].insight.current.row.current_revision, 2);
-  const second = await f.stores.intelligence.analyzeAssociationFamily(f.context,
+  const second = await call(f,'intelligence','analyzeAssociationFamily',
     family('caffeine-recovery-recent', hypothesis(f, recentIndexes)));
   assert.equal(second.items[0].insight.current.row.status, 'SUPPORTED');
   assert.equal(second.items[0].insight.current.row.current_revision, 3);
@@ -155,7 +156,7 @@ test('A second non-overlapping supporting run promotes EMERGING to SUPPORTED, ne
   assert.equal((await f.db.raw.execute('SELECT count(*) n FROM health_insights')).rows[0].n, 1);
   const before=(await f.db.raw.execute(`SELECT (SELECT count(*) FROM evidence_runs) runs,
     (SELECT count(*) FROM evidence_items) items,(SELECT count(*) FROM insight_revisions) revisions`)).rows[0];
-  const replay=await f.stores.intelligence.analyzeAssociationFamily(f.context,oldRequest);
+  const replay=await call(f,'intelligence','analyzeAssociationFamily',oldRequest);
   assert.equal(replay.items[0].replayed,true);
   assert.equal(replay.items[0].insight.current.row.status,'EMERGING');
   assert.equal(replay.items[0].insight.current.row.current_revision,2);
@@ -166,10 +167,10 @@ test('A second non-overlapping supporting run promotes EMERGING to SUPPORTED, ne
 
 test('Association replay is byte-stable and does not append evidence or insight revisions', async t => {
   const f = await setup(t), input = family('caffeine-recovery-replay', hypothesis(f, Array.from({ length: 30 }, (_, index) => index)));
-  const first = await f.stores.intelligence.analyzeAssociationFamily(f.context, input);
+  const first = await call(f,'intelligence','analyzeAssociationFamily', input);
   const before = (await f.db.raw.execute(`SELECT (SELECT count(*) FROM evidence_runs) runs,(SELECT count(*) FROM evidence_items) items,
     (SELECT count(*) FROM health_insights) insights,(SELECT count(*) FROM insight_revisions) revisions`)).rows[0];
-  const second = await f.stores.intelligence.analyzeAssociationFamily(f.context, input);
+  const second = await call(f,'intelligence','analyzeAssociationFamily', input);
   assert.equal(second.runs[0].row.run_id, first.runs[0].row.run_id);
   assert.equal(second.items[0].item.row.evidence_item_id, first.items[0].item.row.evidence_item_id);
   assert.deepEqual((await f.db.raw.execute(`SELECT (SELECT count(*) FROM evidence_runs) runs,(SELECT count(*) FROM evidence_items) items,
@@ -180,7 +181,7 @@ test('Insufficient samples and UNKNOWN absence persist evidence but cannot creat
   const f = await setup(t, { days: 10, createFacts: false });
   const request = family('unknown-is-not-unexposed', { factor: 'stress', outcomeMetric: 'recovery_score', lagDays: 1,
     comparisonHealthDates:f.input.sources.recovery.map(row=>row.health_date),outcomeSources: f.outcomeRefs, journalFactSources: [], coverageSources: [] });
-  const result = await f.stores.intelligence.analyzeAssociationFamily(f.context, request);
+  const result = await call(f,'intelligence','analyzeAssociationFamily', request);
   assert.equal(result.items[0].analysis.unknownCount, 10);
   assert.equal(result.items[0].analysis.confirmedUnexposedCount, 0);
   assert.equal(result.items[0].analysis.candidate, false);
@@ -191,8 +192,8 @@ test('Insufficient samples and UNKNOWN absence persist evidence but cannot creat
 
 test('Repeated opposite evidence weakens a supported insight and records contradiction without causal refutation', async t => {
   const f = await setup(t), oldIndexes = Array.from({ length: 30 }, (_, index) => index + 30), recentIndexes = Array.from({ length: 30 }, (_, index) => index);
-  await f.stores.intelligence.analyzeAssociationFamily(f.context, family('support-old', hypothesis(f, oldIndexes)));
-  const supported = await f.stores.intelligence.analyzeAssociationFamily(f.context, family('support-recent', hypothesis(f, recentIndexes)));
+  await call(f,'intelligence','analyzeAssociationFamily', family('support-old', hypothesis(f, oldIndexes)));
+  const supported = await call(f,'intelligence','analyzeAssociationFamily', family('support-recent', hypothesis(f, recentIndexes)));
   const supportedId = supported.items[0].insight.current.row.id;
   for (let index = 0; index < 30; index += 1) {
     const source = f.input.sources.recovery[index], id = `opposite-${index}`;
@@ -201,19 +202,20 @@ test('Repeated opposite evidence weakens a supported insight and records contrad
     args: [id, source.health_date, index % 2 === 0 ? 60 : 40, source.updated_at, source.synced_at] });
   }
   const oppositeRefs = [];
+  f.context=await f.stores.capture('a',{executionMode:'SHADOW'});
   for (let index = 0; index < 30; index += 1) oppositeRefs.push((await f.stores.root(f.context, 'recovery', `opposite-${index}`)).ref);
   const oppositeRequest=family('opposite-recent',{
     factor: 'caffeine', outcomeMetric: 'recovery_score', lagDays: 1,
     comparisonHealthDates:f.input.sources.recovery.slice(0,30).map(row=>row.health_date),outcomeSources: oppositeRefs,
     journalFactSources: f.factRefs, coverageSources: [f.coverageRef] }),
-    opposite=await f.stores.intelligence.analyzeAssociationFamily(f.context,oppositeRequest);
+    opposite=await call(f,'intelligence','analyzeAssociationFamily',oppositeRequest);
   assert.equal(opposite.items[0].analysis.direction, 'HIGHER');
   assert.equal(opposite.items[0].insight.contradiction.row.id, supportedId);
   assert.equal(opposite.items[0].insight.contradiction.row.status, 'WEAKENED');
   assert.equal(opposite.items[0].insight.contradiction.revision.transition_reason, 'CONTRADICTORY_EVIDENCE');
   assert.equal(opposite.items[0].insight.current.row.status, 'EMERGING');
   const before=(await f.db.raw.execute('SELECT count(*) n FROM insight_revisions')).rows[0].n,
-    replay=await f.stores.intelligence.analyzeAssociationFamily(f.context,oppositeRequest);
+    replay=await call(f,'intelligence','analyzeAssociationFamily',oppositeRequest);
   assert.equal(replay.items[0].replayed,true);
   assert.equal(replay.items[0].insight.contradiction.row.status,'WEAKENED');
   assert.equal(replay.items[0].insight.current.row.status,'EMERGING');
@@ -221,22 +223,23 @@ test('Repeated opposite evidence weakens a supported insight and records contrad
 });
 
 test('Insight expiry is an explicit retained revision and expired memory is not current', async t => {
-  const f = await setup(t), result = await f.stores.intelligence.analyzeAssociationFamily(f.context,
+  const f = await setup(t), result = await call(f,'intelligence','analyzeAssociationFamily',
     family('expiry', hypothesis(f, Array.from({ length: 30 }, (_, index) => index))));
   const id = result.items[0].insight.current.row.id, expiresAt = result.items[0].insight.current.row.expires_at;
-  await assert.rejects(f.stores.intelligence.expireInsight(f.context, { insightId: id,asOfUtc:new Date(nowMs).toISOString() }), /NOT_EXPIRED/);
+  await assert.rejects(call(f,'intelligence','expireInsight', { insightId: id,asOfUtc:new Date(nowMs).toISOString() }), /NOT_EXPIRED/);
   f.setNow(new Date(Date.parse(expiresAt) + 1).toISOString());
   const fresh = await f.stores.capture('a', { executionMode: 'SHADOW' });
   const expired = await f.stores.intelligence.expireInsight(fresh, { insightId: id,asOfUtc:new Date(Date.parse(expiresAt)+1).toISOString() });
   assert.equal(expired.row.status, 'RETIRED');
   assert.equal(expired.row.lifecycle_disposition, 'EXPIRED');
   assert.equal(expired.revision.transition_reason, 'EXPIRED');
-  await assert.rejects(f.stores.insights.read(fresh, id,{asOfUtc:new Date(Date.parse(expiresAt)+1).toISOString()}), /NOT_CURRENT/);
+  const readContext=await f.stores.capture('a',{executionMode:'SHADOW'});
+  await assert.rejects(f.stores.insights.read(readContext, id,{asOfUtc:new Date(Date.parse(expiresAt)+1).toISOString()}), /NOT_CURRENT/);
   assert.equal((await f.db.raw.execute({ sql: 'SELECT count(*) n FROM insight_revisions WHERE insight_id=?', args: [id] })).rows[0].n, 3);
 });
 
 test('A candidate that ages out before repetition is retired as REJECTED, not promoted or silently deleted', async t => {
-  const f = await setup(t), result = await f.stores.intelligence.analyzeAssociationFamily(f.context,
+  const f = await setup(t), result = await call(f,'intelligence','analyzeAssociationFamily',
     family('candidate-expiry', hypothesis(f, Array.from({ length: 20 }, (_, index) => index))));
   const current = result.items[0].insight.current;
   assert.equal(result.items[0].analysis.candidate, true);
@@ -252,7 +255,7 @@ test('A candidate that ages out before repetition is retired as REJECTED, not pr
 });
 
 test('Deleting a linked Journal fact redacts transitive evidence and insight content and prevents source replay resurrection', async t => {
-  const f = await setup(t), result = await f.stores.intelligence.analyzeAssociationFamily(f.context,
+  const f = await setup(t), result = await call(f,'intelligence','analyzeAssociationFamily',
     family('purge-lineage', hypothesis(f, Array.from({ length: 30 }, (_, index) => index))));
   const insightId = result.items[0].insight.current.row.id;
   const target = (await f.db.raw.execute({ sql: "SELECT logical_fact_id,privacy_artifact_id FROM journal_events WHERE user_id='a' AND fact_status='ACTIVE' ORDER BY health_date LIMIT 1" })).rows[0];

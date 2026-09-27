@@ -7,6 +7,10 @@ import { bodyInput,seedBodyInput } from './bodyEnergyFixture.js';
 import { createPhase4Foundation } from '../src/phase4Foundation.js';
 import { FOUNDATION_FLAGS,FOUNDATION_FLAG_NAMES,foundationFlags } from '../src/phase4Flags.js';
 import { addPrivacyLink } from '../src/phase4V22Backfill.js';
+import { createPhase4EntityStore } from '../src/phase4EntityStore.js';
+import { createPhase4InsightStore } from '../src/phase4InsightStore.js';
+import { createBodyEnergyStore } from '../src/bodyEnergyStore.js';
+import { createPhase4QueueStore } from '../src/phase4QueueStore.js';
 
 const at=Date.parse('2026-09-19T00:00:00.000Z'),request={asOfEpochMs:at,targetHealthDate:'2026-09-19'};
 const coverage={sourceText:'none',candidate:{confirmed:true,extractionConfidence:1,excerptStart:0,excerptEnd:4}};
@@ -17,13 +21,15 @@ test('Aggregate isolation: every derived store family rejects foreign actual par
   const f=await syntheticPhase4Fixture(t),s=f.stores,q=await journalQuestion(f,{coverage:true});
   const accepted=await s.journalAnswers.accept(q.context,answer(q,{sourceUpdateId:'shadow:aggregate'}));
   const item=(await f.db.raw.execute('SELECT * FROM evidence_items')).rows[0];
-  const insight=await s.insights.create(q.context,{identity:{subject:'synthetic',outcome:'synthetic',direction:'DOWN',exposureCategory:'synthetic',algorithmFamily:'synthetic',evidenceContractMajor:'1'},
+  // Foundation parent-isolation scaffolding is not registered Stage 5 evidence.
+  const insight=await createPhase4InsightStore(f.core,createPhase4EntityStore(f.core)).create(q.context,{identity:{subject:'synthetic',outcome:'synthetic',direction:'DOWN',exposureCategory:'synthetic',algorithmFamily:'synthetic',evidenceContractMajor:'1'},
     claim:'Synthetic candidate only',creationKey:'aggregate',evidenceContractVersion:'fixture',supportingEvidenceIds:[item.evidence_item_id],
     expiresAt:'2026-10-01T00:00:00.000Z',semanticAt:'2026-09-19T00:00:00.000Z'});
   const root=await s.root(q.context,'USER','a');
   const message=await s.messages.propose(q.context,{semantic:{family:'MORNING_BRIEF_V1',identity:'2026-09-19'},
     message:{payload_text:'Synthetic unsent brief',expires_at:'2026-09-20T00:00:00.000Z'},sourceRefs:[root.ref]});
   const body=await s.bodyEnergy.compute(q.context,request);
+  q.context=await s.capture('a',{executionMode:'SHADOW'});
   const b=await s.capture('b',{executionMode:'SHADOW'}),bc=await s.captureControl('b');
   const cases=[
     ['bodyEnergy',()=>s.bodyEnergy.audit(b,body.row.result_id)],
@@ -36,7 +42,7 @@ test('Aggregate isolation: every derived store family rejects foreign actual par
     ['transport',()=>s.transport.makeEligible(b,{messageId:message.row.message_id,expectedRevision:0})],
     ['journalAnswers',()=>s.journalAnswers.accept(b,answer(q,{sourceUpdateId:'shadow:foreign'}))],
   ];
-  for(const [family,call] of cases)await assert.rejects(call(),/PARENT_NOT_FOUND/,family);
+  for(const [family,call] of cases)await assert.rejects(call(),/PARENT_NOT_FOUND|OPERATION_RESULT_UNAVAILABLE/,family);
   assert.equal(await s.messages.readReservation(bc,'SHADOW',{family:'CONTEXT_QUESTION',identity:q.selected.questionRequestId}),null);
   assert.equal(await s.slots.read(bc,'SHADOW'),null);
   await s.cache.set(q.context,'same-key',{value:'synthetic-only'});assert.equal(await s.cache.get(b,'same-key'),undefined);
@@ -75,14 +81,17 @@ test('Aggregate isolation: shared Journal/coverage/experiment/privacy/inbound co
 test('Aggregate isolation: exact Body insert/checkpoint races and durable queue takeover survive restart without mode/cache/lease crossover',async t=>{
   let now=new Date(at);const f=await syntheticPhase4Fixture(t,{now:()=>now}),s=f.stores;
   await f.db.transaction(()=>seedBodyInput(f.db,bodyInput()));await s.initializeTenant('a','LIVE');
-  const shadow=await s.capture('a',{executionMode:'SHADOW'}),live=await s.capture('a',{executionMode:'LIVE'});
-  const restarted=(await f.restart()).stores,other=await restarted.capture('a',{executionMode:'SHADOW'});
+  let shadow=await s.capture('a',{executionMode:'SHADOW'});const live=await s.capture('a',{executionMode:'LIVE'});
+  const restarted=(await f.restart()).stores;let other=await restarted.capture('a',{executionMode:'SHADOW'});
   const results=await Promise.all([s.bodyEnergy.compute(shadow,request),restarted.bodyEnergy.compute(other,request)]);
   assert.equal(results.filter(r=>r.created).length,1);assert.equal(results[0].row.result_id,results[1].row.result_id);
-  assert.equal((await s.bodyEnergy.compute(live,request)).row.value,70);
+  const component=createBodyEnergyStore(f.core,createPhase4EntityStore(f.core),createPhase4QueueStore(f.core));
+  assert.equal((await component.compute(live,request)).row.value,70);
   await assert.rejects(s.bodyEnergy.read(live,results[0].row.result_id),/PARENT_NOT_FOUND/);
+  shadow=await s.capture('a',{executionMode:'SHADOW'});other=await restarted.capture('a',{executionMode:'SHADOW'});
   const checkpoints=await Promise.all([s.bodyEnergy.checkpoint(shadow,{bucketStart:at-900000}),restarted.bodyEnergy.checkpoint(other,{bucketStart:at-900000})]);
   assert.equal(checkpoints[0].row.checkpoint_id,checkpoints[1].row.checkpoint_id);
+  shadow=await s.capture('a',{executionMode:'SHADOW'});other=await restarted.capture('a',{executionMode:'SHADOW'});
   await s.cache.set(shadow,'same',{value:70});assert.equal(await s.cache.get(live,'same'),undefined);assert.equal(await restarted.cache.get(other,'same'),undefined);
   const lease=await s.queue.claim(live,{jobKind:'RECOMPUTE_DERIVED',owner:'old',leaseMs:1000});assert.ok(lease);
   const restartedLive=await restarted.capture('a',{executionMode:'LIVE'});

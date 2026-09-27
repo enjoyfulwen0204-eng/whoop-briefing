@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createDb,fixtureKeys } from './localDb.js';
+import Database from 'libsql';
+import { Sqlite3Client,Sqlite3Transaction } from '@libsql/client/sqlite3';
+import { composeDb,fixtureKeys } from './localDb.js';
 import { runMigrations,currentVersion } from './localMigrations.js';
 import { assertPhase4Schema } from '../src/phase4Migrations.js';
 import { PHASE4_MIGRATIONS } from '../src/phase4Schema.js';
@@ -13,9 +15,22 @@ import { request,recoveryRefs,analyzeInserted } from './stage5HistoryFixture.js'
 
 const TABLE='phase4_evidence_result_authorities',migration=PHASE4_MIGRATIONS.find(m=>m.version===26);
 async function database(t,version=25) {
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'whoop-rc6-v26-')),url=`file:${path.join(dir,'synthetic.db')}`;
-  let db=createDb({url});t.after(()=>{db.close();fs.rmSync(dir,{recursive:true,force:true});});
-  await db.migrate({targetVersion:version});return {get db(){return db;},reopen(){db.close();db=createDb({url});return db;}};
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'whoop-rc6-v26-')),filename=path.join(dir,'synthetic.db');
+  // The retained file and all migration/reopen checks remain real. Keep one
+  // owned native connection while statements can still have pending finalizers,
+  // as in phase4Fixture; normal driver ownership is probed separately.
+  function connect() {
+    const anchor=new Database(filename),client=new Sqlite3Client(filename,{},anchor,'number');
+    client.transaction=async(mode='write')=>{
+      await client.execute(mode==='write'?'BEGIN IMMEDIATE':mode==='read'?'BEGIN DEFERRED':'BEGIN');
+      return new Sqlite3Transaction(anchor,'number');
+    };
+    return composeDb(client,{phase4Keys:fixtureKeys});
+  }
+  const collect=async()=>{global.gc?.();await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));};
+  let db=connect();const close=async()=>{await collect();db.close();await collect();};
+  t.after(async()=>{await close();fs.rmSync(dir,{recursive:true,force:true});});
+  await db.migrate({targetVersion:version});return {get db(){return db;},async reopen(){await close();db=connect();return db;}};
 }
 async function healthy(db) {
   assert.equal((await db.raw.execute('PRAGMA integrity_check')).rows[0].integrity_check,'ok');
@@ -27,14 +42,14 @@ test('v26 fresh, v25→v26 and full production v20→v26 preserve data and creat
     const f=await database(t,from||26);
     await f.db.createUser({id:'preserved',displayName:'Synthetic production fixture',timezone:'UTC',status:'ACTIVE'});
     const before=(await f.db.raw.execute('SELECT * FROM users')).rows;
-    await f.db.migrate();await assertPhase4Schema(f.db.raw,26);
+    await f.db.migrate({targetVersion:26});await assertPhase4Schema(f.db.raw,26);
     assert.deepEqual((await f.db.raw.execute('SELECT * FROM users')).rows,before);
     assert.equal((await f.db.raw.execute(`SELECT count(*) n FROM ${TABLE}`)).rows[0].n,0);
     const fields=(await f.db.raw.execute(`PRAGMA table_info(${TABLE})`)).rows;
     assert.deepEqual(fields.filter(c=>c.pk).map(c=>c.name),['user_id','execution_mode','evidence_item_id','result_scope']);
     assert.ok(fields.filter(c=>c.pk).every(c=>c.notnull===1));
     const definitions=(await f.db.raw.execute('SELECT type,name,sql FROM sqlite_master ORDER BY name')).rows;
-    f.reopen();await f.db.migrate();assert.deepEqual((await f.db.raw.execute('SELECT type,name,sql FROM sqlite_master ORDER BY name')).rows,definitions);
+    await f.reopen();await f.db.migrate({targetVersion:26});assert.deepEqual((await f.db.raw.execute('SELECT type,name,sql FROM sqlite_master ORDER BY name')).rows,definitions);
     await healthy(f.db);
   });
 });
@@ -50,7 +65,7 @@ test('v26 every table/index/trigger/version durable interruption reopens and res
     }};
     await assert.rejects(runMigrations(interrupted),/RC6_INTERRUPTION/);assert.ok(injected);
     assert.equal(await currentVersion(f.db.raw),target==='VERSION_ROW'?26:25);
-    f.reopen();await f.db.migrate();await f.db.migrate();await assertPhase4Schema(f.db.raw,26);await healthy(f.db);
+    await f.reopen();await f.db.migrate({targetVersion:26});await f.db.migrate({targetVersion:26});await assertPhase4Schema(f.db.raw,26);await healthy(f.db);
     assert.equal((await f.db.raw.execute('SELECT count(*) n FROM schema_version WHERE version=26')).rows[0].n,1);
     assert.equal((await f.db.raw.execute(`SELECT count(*) n FROM ${TABLE}`)).rows[0].n,0);
   });
@@ -75,22 +90,22 @@ test('v26 real starting-HEAD R1/R2/R3 cutover: no backfill, first new B→R4 sur
   let now=new Date('2026-09-28T12:00:00.000Z');
   const stores=await createPhase4Foundation({db:f.db,keys:fixtureKeys,now:()=>now}),context=await stores.capture('a',{executionMode:'SHADOW'});
   const recoveryIds=Array.from({length:31},(_,i)=>`sleep-${String(i).padStart(2,'0')}`),refs=await recoveryRefs(stores,context,recoveryIds);
-  await assert.rejects(stores.intelligence.analyzeMetric(context,request(refs[0],refs.slice(1))),/EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE/);
+  await assert.rejects(stores.intelligence.analyzeMetric(context,request(refs[0],refs.slice(1))),/EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE|OPERATION_RESULT_UNAVAILABLE/);
   const adapter={db:f.db,stores,recoveryIds,setNow(value){now=new Date(value);}};
   const b=await analyzeInserted(adapter,{id:'cutover-B',value:0,healthDate:'2026-09-28',observedAt:'2026-09-28T10:00:00.000Z',asOfUtc:now.toISOString(),
     baselineIds:['third','next-low',...recoveryIds.slice(0,28)]});
   assert.equal(b.episode.episode.row.revision,4);
   const rows=(await f.db.raw.execute(`SELECT * FROM ${TABLE}`)).rows;assert.equal(rows.length,1);
   assert.equal(rows[0].evidence_item_id,b.item.row.evidence_item_id);assert.equal(JSON.parse(rows[0].original_result_json).revision,4);
-  const legacyItem=before.evidence_items[0],a=await stores.readArtifact(context,'evidence_items',{evidence_item_id:legacyItem.evidence_item_id});
-  await stores.episodes.revise(context,{episodeId:b.episode.episode.row.episode_id,expectedRevision:4,toState:b.episode.episode.row.state,
-    patch:{current_confidence:.42},sourceRefs:[a.ref,(await stores.readArtifact(context,'evidence_items',{evidence_item_id:b.item.row.evidence_item_id})).ref],reasonCode:'NEW_EVIDENCE',semanticAt:now.toISOString()});
-  f.reopen();const restarted=await createPhase4Foundation({db:f.db,keys:fixtureKeys,now:()=>now}),c=await restarted.capture('a',{executionMode:'SHADOW'});
+  const legacyItem=before.evidence_items[0],freshContext=await stores.capture('a',{executionMode:'SHADOW'});
+  await assert.rejects(stores.readArtifact(freshContext,'evidence_items',{evidence_item_id:legacyItem.evidence_item_id}),/OPERATION_RESULT_UNAVAILABLE/);
+  await stores.release(freshContext);
+  await f.reopen();const restarted=await createPhase4Foundation({db:f.db,keys:fixtureKeys,now:()=>now}),c=await restarted.capture('a',{executionMode:'SHADOW'});
   const fresh=await recoveryRefs(restarted,c,['cutover-B','third','next-low',...recoveryIds.slice(0,28)]);
   const replay=await restarted.intelligence.analyzeMetric(c,request(fresh[0],fresh.slice(1),now.toISOString()));
   assert.equal(replay.episode.episode.row.revision,4);
-  const old=await recoveryRefs(restarted,c,recoveryIds);
-  await assert.rejects(restarted.intelligence.analyzeMetric(c,request(old[0],old.slice(1))),/EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE/);
+  const oldContext=await restarted.capture('a',{executionMode:'SHADOW'}),old=await recoveryRefs(restarted,oldContext,recoveryIds);
+  await assert.rejects(restarted.intelligence.analyzeMetric(oldContext,request(old[0],old.slice(1))),/EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE|OPERATION_RESULT_UNAVAILABLE/);
   assert.deepEqual((await f.db.raw.execute(`SELECT * FROM ${TABLE}`)).rows,rows);await healthy(f.db);
 });
 

@@ -12,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { runDaily } from '../src/daily.js';
-import { createDb } from './localDb.js';
+import { createOwnedDb as createDb } from './stage5OwnedDb.js';
 import { createSync } from '../src/sync.js';
 import { staticDataSource } from '../src/dataSource.js';
 import { buildInsightsSafe } from '../src/insights.js';
@@ -201,7 +201,7 @@ test('★ 有長期資料且今天明顯偏離 → 簡報出現「今天最值�
     assert.match(text, /早安，Kelvin/);
     assert.match(text, /HRV/);
     assert.equal(localDate(now, TZ) >= res.healthDate, true);
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('資料很平穩時不會硬報「值得注意」（不製造雜訊）', async () => {
@@ -247,7 +247,7 @@ test('資料很平穩時不會硬報「值得注意」（不製造雜訊）', as
     // 平穩資料下最多只該有很弱的項目；至少不可以塞滿
     const changeLines = text.split('\n').filter((l) => l.startsWith('· ') && /z=/.test(l));
     assert.ok(changeLines.length <= 2, `最多 2 行，實際 ${changeLines.length}`);
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('★ 長期資料只有幾天時不會亂報（樣本不足就不下結論）', async () => {
@@ -276,5 +276,5 @@ test('★ 長期資料只有幾天時不會亂報（樣本不足就不下結論�
     });
     assert.ok(insights, '有資料就該回東西');
     assert.deepEqual(insights.whatChanged, [], '★ 只有 3 天不可以下任何統計結論');
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });

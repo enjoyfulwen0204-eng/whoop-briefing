@@ -7,7 +7,9 @@ import { createDb, fixtureKeys } from './localDb.js';
 import { runMigrations, currentVersion } from './localMigrations.js';
 import { assertPhase4Schema } from '../src/phase4Migrations.js';
 import { PHASE4_MIGRATIONS } from '../src/phase4Schema.js';
-import { createPhase4Foundation } from '../src/phase4Foundation.js';
+import { buildPhase4Core } from '../src/phase4Core.js';
+import { createPhase4EpisodeStore } from '../src/phase4EpisodeStore.js';
+import { createPhase4EntityStore } from '../src/phase4EntityStore.js';
 import { addPrivacyLink } from '../src/phase4V22Backfill.js';
 import { R_COLUMNS } from '../src/phase4V22Schema.js';
 
@@ -60,7 +62,7 @@ test('v25 interruption at every durable DDL/index/trigger/replacement/version bo
   });
 });
 
-test('v24 existing episode migrates without backfill; only a legitimate post-v25 revision becomes replayable',async t=>{
+test('v25 snapshot component: v24 existing episode migrates without backfill; only a legitimate post-v25 revision becomes replayable',async t=>{
   const f=await database(t),db=f.db;
   await db.createUser({id:'a',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'},{now:new Date(T)});
   const versions={algorithm_version:'fixture',registry_version:'fixture',evidence_contract_version:'fixture',
@@ -87,7 +89,13 @@ test('v24 existing episode migrates without backfill; only a legitimate post-v25
   const old=(await db.raw.execute('SELECT * FROM observation_episodes')).rows;
   await db.migrate();assert.deepEqual((await db.raw.execute('SELECT * FROM observation_episodes')).rows,old);
   assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_episode_revisions')).rows[0].n,0);
-  const stores=await createPhase4Foundation({db,keys:fixtureKeys,now:()=>new Date(T)});
+  // Keep the frozen v25 component contract separate from the v27 public
+  // operation boundary, whose legacy-unavailable cutover is tested in v27.
+  const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,
+    afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys:fixtureKeys,now:()=>new Date(T),
+    authorizeMode:mode=>assert.equal(mode,'SHADOW')});
+  const stores={initializeTenant:core.initializeTenant,capture:core.capture,readArtifact:core.artifact,
+    episodes:createPhase4EpisodeStore(core,createPhase4EntityStore(core))};
   await stores.initializeTenant('a','SHADOW');const c=await stores.capture('a',{executionMode:'SHADOW'});
   await assert.rejects(stores.episodes.readRevision(c,{episodeId:'legacy-episode',revision:1}),/EPISODE_HISTORY_UNAVAILABLE/);
   const item=await stores.readArtifact(c,'evidence_items',{evidence_item_id:'legacy-item'});

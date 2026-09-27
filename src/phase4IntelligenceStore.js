@@ -464,9 +464,13 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       .map(key=>normalized(identity[key]))]);
   }
   async function currentInsight(context,identity,asOfUtc,{replaceExpired=false}={}) {
-    const row=(await client.execute({sql:`SELECT * FROM health_insights WHERE user_id=? AND execution_mode=? AND insight_key=?
+    let row=(await client.execute({sql:`SELECT * FROM health_insights WHERE user_id=? AND execution_mode=? AND insight_key=?
       AND status<>'RETIRED' AND legacy_classification='PHASE4'`,args:[context.userId,context.executionMode,insightKey(context,identity)]})).rows[0];
     if(!row)return null;
+    // Eligibility must describe the same authenticated projection we return,
+    // rather than timestamps from a mutable materialization followed by a
+    // different sealed row. New writes still authenticate their predecessor.
+    const current=await insights.read(context,row.id,{history:true});row=current.row;
     const at=Date.parse(requireSemanticTime(asOfUtc));
     // A new past request cannot borrow a future incarnation/revision. Exact
     // historical requests have already returned through the receipt boundary.
@@ -475,12 +479,12 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       if(replaceExpired)fail('PHASE4_INSIGHT_AS_OF_UNAVAILABLE');
       return null;
     }
-    if(row.lifecycle_disposition)fail('PHASE4_INSIGHT_NOT_CURRENT');
+    if(row.status==='RETIRED'||row.lifecycle_disposition)fail('PHASE4_INSIGHT_NOT_CURRENT');
     if(Date.parse(requireSemanticTime(row.expires_at))<=at) {
       if(replaceExpired)await expireInsight(context,{insightId:row.id,asOfUtc});
       return null;
     }
-    return insights.read(context,row.id,{asOfUtc});
+    return current;
   }
   function revisionEvidenceIds(row,field) {
     let ids;try {ids=JSON.parse(row[field]??'[]');}catch {fail('PHASE4_INSIGHT_POINTER_INVALID');}

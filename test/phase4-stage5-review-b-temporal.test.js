@@ -39,6 +39,17 @@ test('M001: future-created incarnation is unavailable to a new past request; exa
   assert.deepEqual(semantic(await call(f,'intelligence','analyzeAssociationFamily',req)),semantic(result));assert.equal(await leases(f),0);
 });
 
+test('M001: current selection checks authenticated times even if mutable timestamps are changed',async t=>{
+  const f=await association(t,{days:30}),h=hypothesis(f,Array.from({length:30},(_,i)=>i)),future='2026-09-25T12:00:01.000Z';
+  f.setNow(future);const req=family('sealed-future',h,future),result=await call(f,'intelligence','analyzeAssociationFamily',req);
+  await guards(f,'health_insights',()=>f.db.raw.execute({sql:'UPDATE health_insights SET first_detected_at=?,last_recalculated_at=?',args:[T,T]}));
+  const before=await durable(f);
+  await assert.rejects(call(f,'intelligence','analyzeAssociationFamily',family('forged-current',h,T)),/INSIGHT_AS_OF_UNAVAILABLE/);
+  await assert.rejects(f.stores.withContext('a',{executionMode:'SHADOW'},c=>f.stores.insights.read(c,result.items[0].insight.current.row.id,{asOfUtc:T})),/INSIGHT_NOT_CURRENT/);
+  assert.deepEqual(await durable(f),before);
+  assert.deepEqual(semantic(await call(f,'intelligence','analyzeAssociationFamily',req)),semantic(result));assert.equal(await leases(f),0);
+});
+
 for(const reversal of [false,true])test(`M002: ${reversal?'reversal':'reopen'} predecessor lower bound, equality, bad time and exact replay`,async t=>{
   const f=await setup(t),evidence=await call(f,'intelligence','analyzeMetric',request(f.initialRefs[0],[]));
   const identity={algorithmMajor:'phase4-intelligence-v1',direction:'LOWER',domain:'recovery',metric:'recovery_score',subject:'recovery_score',windowFamily:'CHRONOLOGY'};

@@ -8,7 +8,7 @@ import { createPhase4EpisodeStore } from './phase4EpisodeStore.js';
 import { createPhase4MessageStore } from './phase4MessageStore.js';
 import { createPhase4SlotStore } from './phase4SlotStore.js';
 import { createPhase4ExperimentStore } from './phase4ExperimentStore.js';
-import { createPhase4InsightStore } from './phase4InsightStore.js';
+import { createPhase4InsightStore, requireCurrentInsightAt } from './phase4InsightStore.js';
 import { createPhase4TransportStore } from './phase4TransportStore.js';
 import { createBodyEnergyStore } from './bodyEnergyStore.js';
 import { createPhase4JournalStore } from './phase4JournalStore.js';
@@ -55,7 +55,9 @@ export function composePhase4Stores(core) {
     })};
   const insights={...insightStore,read:(context,id,options)=>core.run(context,async()=>{
     const current=await insightStore.read(context,id,options);
-    return receipts.forArtifact(context,'health_insights',{id},{expectedRevision:current.row.current_revision});
+    const sealed=await receipts.forArtifact(context,'health_insights',{id},{expectedRevision:current.row.current_revision});
+    if(!options?.history)requireCurrentInsightAt(sealed.row,options?.asOfUtc);
+    return sealed;
   }),create:recorded('INSIGHT_CREATE',insightStore.create),transition:recorded('INSIGHT_TRANSITION',insightStore.transition)};
   const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights,{producedEvidence:receipts.producedEvidence});
   const messages=createPhase4MessageStore(core,entities),slots=createPhase4SlotStore(core,entities,messages);

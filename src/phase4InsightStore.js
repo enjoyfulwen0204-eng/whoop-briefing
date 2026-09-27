@@ -11,6 +11,14 @@ const IDENTITY=['subject','outcome','direction','exposureCategory','algorithmFam
 const REASONS=['CANDIDATE_EVIDENCE','REPEATED_EVIDENCE','REPLICATED_SUPPORT','CONTRADICTORY_EVIDENCE',...INSIGHT_DISPOSITIONS];
 const normalized=value=>typeof value==='string'?value.normalize('NFC').trim().replace(/\s+/g,' ').toLowerCase():'';
 
+export function requireCurrentInsightAt(row,asOfUtc) {
+  const at=Date.parse(requireSemanticTime(asOfUtc));
+  if(row.status==='RETIRED'||row.lifecycle_disposition
+    ||Date.parse(requireSemanticTime(row.first_detected_at))>at
+    ||Date.parse(requireSemanticTime(row.last_recalculated_at??row.first_detected_at))>at
+    ||Date.parse(requireSemanticTime(row.expires_at))<=at)fail('PHASE4_INSIGHT_NOT_CURRENT');
+}
+
 /** Persistence/lifecycle validation only. No statistical method, policy worker,
  * model or delivery path is executed here. Promotion consumes durable evidence
  * and its recorded guardrail inputs, never a caller's "promote" boolean. */
@@ -72,11 +80,8 @@ export function createPhase4InsightStore(core,entities) {
   async function read(context,insightId,{history=false,asOfUtc=null}={}) {
     return core.run(context,async()=>{
       const artifact=await core.artifact(context,'health_insights',{id:insightId});
-      const r=artifact.row,semanticAt=history?null:requireSemanticTime(asOfUtc);
-      if(!history&&(r.status==='RETIRED'||r.lifecycle_disposition
-        ||Date.parse(requireSemanticTime(r.first_detected_at))>Date.parse(semanticAt)
-        ||Date.parse(requireSemanticTime(r.last_recalculated_at??r.first_detected_at))>Date.parse(semanticAt)
-        ||Date.parse(requireSemanticTime(r.expires_at))<=Date.parse(semanticAt)))fail('PHASE4_INSIGHT_NOT_CURRENT');
+      const r=artifact.row;
+      if(!history)requireCurrentInsightAt(r,asOfUtc);
       const revision=await core.artifact(context,'insight_revisions',{insight_id:insightId,revision:r.current_revision});
       if(revision.row.status!==r.status||revision.row.lifecycle_disposition!==r.lifecycle_disposition)fail('PHASE4_INSIGHT_POINTER_INVALID');
       return {...artifact,revision:revision.row};

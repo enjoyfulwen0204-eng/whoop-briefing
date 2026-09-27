@@ -1,0 +1,78 @@
+TAP version 13
+# {"ts":"2026-09-27T14:00:31.170Z","level":"warn","event":"repo_freshness_unparsable"}
+# {"ts":"2026-09-27T14:00:31.171Z","level":"warn","event":"repo_stale_notified"}
+# {"ts":"2026-09-27T14:00:31.172Z","level":"warn","event":"repo_stale_notified"}
+# {"ts":"2026-09-27T14:00:31.172Z","level":"info","event":"repo_stale_suppressed"}
+# {"ts":"2026-09-27T14:00:31.172Z","level":"info","event":"repo_stale_suppressed"}
+# {"ts":"2026-09-27T14:00:31.172Z","level":"warn","event":"repo_stale_notified"}
+# {"ts":"2026-09-27T14:00:31.173Z","level":"error","event":"repo_stale_notify_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:00:31.174Z","level":"error","event":"repo_stale_notify_failed","error":"OPERATION_FAILED"}
+# Subtest: daysSince：算得出天數，壞掉的字串回 null
+ok 1 - daysSince：算得出天數，壞掉的字串回 null
+  ---
+  duration_ms: 2.162792
+  type: 'test'
+  ...
+# Subtest: 沒有 commit 資訊（本機 / Render）→ 完全跳過，不查 DB 也不發訊息
+ok 2 - 沒有 commit 資訊（本機 / Render）→ 完全跳過，不查 DB 也不發訊息
+  ---
+  duration_ms: 0.707375
+  type: 'test'
+  ...
+# Subtest: 時間字串壞掉 → 跳過，不拋錯
+ok 3 - 時間字串壞掉 → 跳過，不拋錯
+  ---
+  duration_ms: 0.811334
+  type: 'test'
+  ...
+# Subtest: 還沒到 55 天 → 不提醒
+ok 4 - 還沒到 55 天 → 不提醒
+  ---
+  duration_ms: 0.306083
+  type: 'test'
+  ...
+# Subtest: 滿 55 天 → 發提醒，內容講清楚天數與剩餘時間
+ok 5 - 滿 55 天 → 發提醒，內容講清楚天數與剩餘時間
+  ---
+  duration_ms: 0.775375
+  type: 'test'
+  ...
+# Subtest: 同一天內重複執行 → 只提醒一次（冷卻 24 小時）
+ok 6 - 同一天內重複執行 → 只提醒一次（冷卻 24 小時）
+  ---
+  duration_ms: 0.455792
+  type: 'test'
+  ...
+# Subtest: 已經超過 60 天 → 文案改成「請去確認排程還在不在」
+ok 7 - 已經超過 60 天 → 文案改成「請去確認排程還在不在」
+  ---
+  duration_ms: 0.370333
+  type: 'test'
+  ...
+# Subtest: Telegram 掛掉 → 回 failed 但不拋錯（不能影響簡報）
+ok 8 - Telegram 掛掉 → 回 failed 但不拋錯（不能影響簡報）
+  ---
+  duration_ms: 0.458375
+  type: 'test'
+  ...
+# Subtest: DB 掛掉 → 回 failed 但不拋錯
+ok 9 - DB 掛掉 → 回 failed 但不拋錯
+  ---
+  duration_ms: 0.8505
+  type: 'test'
+  ...
+# Subtest: buildStaleMessage 是純函式，邊界天數不會算出負數
+ok 10 - buildStaleMessage 是純函式，邊界天數不會算出負數
+  ---
+  duration_ms: 0.736584
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 124.289708

@@ -1,0 +1,152 @@
+TAP version 13
+# {"ts":"2026-09-27T14:34:32.820Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:34:32.823Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:34:34.455Z","level":"info","event":"whoop_webhook_received","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:34.456Z","level":"info","event":"whoop_webhook_duplicate","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:34.457Z","level":"info","event":"whoop_webhook_duplicate","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:34.457Z","level":"info","event":"whoop_webhook_duplicate","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:34.457Z","level":"info","event":"whoop_webhook_duplicate","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:34.522Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:34:34.523Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:34:36.524Z","level":"info","event":"whoop_webhook_received","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:36.525Z","level":"info","event":"whoop_webhook_received","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:36.526Z","level":"info","event":"whoop_webhook_received","event_id":3,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:36.603Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:34:36.605Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:34:38.525Z","level":"info","event":"whoop_webhook_received","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:38.526Z","level":"info","event":"whoop_webhook_received","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:38.583Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:34:38.585Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:34:40.436Z","level":"warn","event":"whoop_webhook_unauthorized"}
+# {"ts":"2026-09-27T14:34:40.436Z","level":"warn","event":"whoop_webhook_unauthorized"}
+# {"ts":"2026-09-27T14:34:40.437Z","level":"error","event":"whoop_webhook_record_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:34:40.528Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:34:40.532Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:34:42.301Z","level":"info","event":"whoop_webhook_received","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:42.302Z","level":"warn","event":"whoop_webhook_unauthorized"}
+# {"ts":"2026-09-27T14:34:42.366Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:34:42.367Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:34:44.096Z","level":"warn","event":"whoop_webhook_body_rejected"}
+# Subtest: ★★★ 官方公式：timestamp + rawBody，HMAC-SHA256，base64
+ok 1 - ★★★ 官方公式：timestamp + rawBody，HMAC-SHA256，base64
+  ---
+  duration_ms: 1.534958
+  type: 'test'
+  ...
+# Subtest: ★★★ 簽的是**原始位元組**：重新序列化過的 JSON 一定對不上
+ok 2 - ★★★ 簽的是**原始位元組**：重新序列化過的 JSON 一定對不上
+  ---
+  duration_ms: 0.36025
+  type: 'test'
+  ...
+# Subtest: ★★★ 缺認證 / 壞認證一律 fail closed
+ok 3 - ★★★ 缺認證 / 壞認證一律 fail closed
+  ---
+  duration_ms: 0.420042
+  type: 'test'
+  ...
+# Subtest: ★★★ 沒有 client secret → 無法驗證 → 拒絕（絕不 fail open）
+ok 4 - ★★★ 沒有 client secret → 無法驗證 → 拒絕（絕不 fail open）
+  ---
+  duration_ms: 0.152333
+  type: 'test'
+  ...
+# Subtest: ★★★ 時間戳新鮮度：太舊與太新都要擋（重放窗口是雙向的）
+ok 5 - ★★★ 時間戳新鮮度：太舊與太新都要擋（重放窗口是雙向的）
+  ---
+  duration_ms: 0.420166
+  type: 'test'
+  ...
+# Subtest: ★★★ Telegram 的 secret token 絕不可能通過 WHOOP 驗證（兩條路完全分離）
+ok 6 - ★★★ Telegram 的 secret token 絕不可能通過 WHOOP 驗證（兩條路完全分離）
+  ---
+  duration_ms: 0.094666
+  type: 'test'
+  ...
+# Subtest: ★★★ 六種官方事件都認得，而且對到正確的資源類型
+ok 7 - ★★★ 六種官方事件都認得，而且對到正確的資源類型
+  ---
+  duration_ms: 0.358417
+  type: 'test'
+  ...
+# Subtest: ★★★ 壞掉的 body / 缺欄位 / 不支援的事件都各自分類
+ok 8 - ★★★ 壞掉的 body / 缺欄位 / 不支援的事件都各自分類
+  ---
+  duration_ms: 0.196125
+  type: 'test'
+  ...
+# Subtest: ★★★ 會失真的 id 一律拒絕（指到別筆資料比拒絕危險得多）
+ok 9 - ★★★ 會失真的 id 一律拒絕（指到別筆資料比拒絕危險得多）
+  ---
+  duration_ms: 0.470292
+  type: 'test'
+  ...
+# Subtest: ★★★ 合法事件 → 耐久寫下；同一則重送 → 去重（不是錯誤）
+ok 10 - ★★★ 合法事件 → 耐久寫下；同一則重送 → 去重（不是錯誤）
+  ---
+  duration_ms: 1707.467334
+  type: 'test'
+  ...
+# Subtest: ★★★ 去重身分是複合鍵：同 trace 不同資源／類型是**不同**事件
+ok 11 - ★★★ 去重身分是複合鍵：同 trace 不同資源／類型是**不同**事件
+  ---
+  duration_ms: 2067.570708
+  type: 'test'
+  ...
+# Subtest: ★★★ 去重是 per-WHOOP-user 的：兩個人的相同 id/trace 不會互相吃掉
+ok 12 - ★★★ 去重是 per-WHOOP-user 的：兩個人的相同 id/trace 不會互相吃掉
+  ---
+  duration_ms: 1999.871959
+  type: 'test'
+  ...
+# Subtest: ★★★ 認證失敗時，帳本一個字都不會被寫
+ok 13 - ★★★ 認證失敗時，帳本一個字都不會被寫
+  ---
+  duration_ms: 1909.715625
+  type: 'test'
+  ...
+# Subtest: ★★★ DB 寫不進去 → 不可以 ack（回 503 讓 WHOOP 重送）
+ok 14 - ★★★ DB 寫不進去 → 不可以 ack（回 503 讓 WHOOP 重送）
+  ---
+  duration_ms: 0.528708
+  type: 'test'
+  ...
+# Subtest: ★★★ HTTP 狀態碼對應：結構性問題不要求重送，暫時性問題要求重送
+ok 15 - ★★★ HTTP 狀態碼對應：結構性問題不要求重送，暫時性問題要求重送
+  ---
+  duration_ms: 0.080959
+  type: 'test'
+  ...
+# Subtest: ★★★ 啟用閘門：預設關閉，而且缺 client secret 時不可以啟用
+ok 16 - ★★★ 啟用閘門：預設關閉，而且缺 client secret 時不可以啟用
+  ---
+  duration_ms: 0.262334
+  type: 'test'
+  ...
+# Subtest: ★★★ 關閉時路由完全不存在（404，不是 401 —— 不對外宣告這裡有東西）
+ok 17 - ★★★ 關閉時路由完全不存在（404，不是 401 —— 不對外宣告這裡有東西）
+  ---
+  duration_ms: 0.59
+  type: 'test'
+  ...
+# Subtest: ★★★ 啟用時：合法請求 200、偽造簽章 401、Telegram 路由完全不受影響
+ok 18 - ★★★ 啟用時：合法請求 200、偽造簽章 401、Telegram 路由完全不受影響
+  ---
+  duration_ms: 1864.135541
+  type: 'test'
+  ...
+# Subtest: ★★★ 路由層雜項：非 POST、帶 query、body 過大
+ok 19 - ★★★ 路由層雜項：非 POST、帶 query、body 過大
+  ---
+  duration_ms: 1795.461583
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12025.337125

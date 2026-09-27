@@ -1,0 +1,67 @@
+TAP version 13
+# {"ts":"2026-09-27T13:50:34.204Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:34.207Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:35.767Z","level":"info","event":"user_created","user_id":"d95bf619-5c60-4529-a7bc-6c46c2b96eb2","status":"ACTIVE"}
+# Subtest: ★★★ M-10: 新→舊的 rows（實際的輸出順序）→ 錨點是最新那天
+ok 1 - ★★★ M-10: 新→舊的 rows（實際的輸出順序）→ 錨點是最新那天
+  ---
+  duration_ms: 2.600917
+  type: 'test'
+  ...
+# Subtest: ★★★ M-10: 舊→新的 rows 也得到同一個錨點（完全不依賴順序）
+ok 2 - ★★★ M-10: 舊→新的 rows 也得到同一個錨點（完全不依賴順序）
+  ---
+  duration_ms: 0.847375
+  type: 'test'
+  ...
+# Subtest: ★★★ M-10: 亂序的 rows 也得到同一個錨點
+ok 3 - ★★★ M-10: 亂序的 rows 也得到同一個錨點
+  ---
+  duration_ms: 0.850958
+  type: 'test'
+  ...
+# Subtest: ★★★ M-10: 三種順序算出來的盤點結果完全一樣
+ok 4 - ★★★ M-10: 三種順序算出來的盤點結果完全一樣
+  ---
+  duration_ms: 2.892416
+  type: 'test'
+  ...
+# Subtest: ★★ M-10: 明確傳 endDate 時仍然以它為準（cron 那條路不變）
+ok 5 - ★★ M-10: 明確傳 endDate 時仍然以它為準（cron 那條路不變）
+  ---
+  duration_ms: 1.722417
+  type: 'test'
+  ...
+# Subtest: ★★ M-10: 沒有任何資料時錨點是 null，狀態是 NO_DATA
+ok 6 - ★★ M-10: 沒有任何資料時錨點是 null，狀態是 NO_DATA
+  ---
+  duration_ms: 0.150833
+  type: 'test'
+  ...
+# Subtest: ★★ M-10: health_date 壞掉／缺漏的列會被略過，不會變成錨點
+ok 7 - ★★ M-10: health_date 壞掉／缺漏的列會被略過，不會變成錨點
+  ---
+  duration_ms: 0.527459
+  type: 'test'
+  ...
+# Subtest: ★★★ M-10 端到端: /healthspan 盤點的是最近的窗口，不是四個月前的
+ok 8 - ★★★ M-10 端到端: /healthspan 盤點的是最近的窗口，不是四個月前的
+  ---
+  duration_ms: 1628.0735
+  type: 'test'
+  ...
+# Subtest: 前置：buildObservations 的輸出確實是新→舊
+ok 9 - 前置：buildObservations 的輸出確實是新→舊
+  ---
+  duration_ms: 20.75525
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1931.844542

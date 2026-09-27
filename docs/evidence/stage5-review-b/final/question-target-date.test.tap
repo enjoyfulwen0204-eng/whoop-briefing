@@ -1,0 +1,259 @@
+TAP version 13
+# {"ts":"2026-09-27T14:17:22.017Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:22.021Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:23.740Z","level":"info","event":"user_created","user_id":"1b5d4a87-f6a5-4dd0-ae36-cb8241dc111d","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:23.745Z","level":"info","event":"proactive_event_claimed","user_id":"1b5d4a87-f6a5-4dd0-ae36-cb8241dc111d"}
+# {"ts":"2026-09-27T14:17:23.754Z","level":"info","event":"pending_question_opened","user_id":"1b5d4a87-f6a5-4dd0-ae36-cb8241dc111d"}
+# {"ts":"2026-09-27T14:17:23.773Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:17:23.776Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:23.776Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:17:23.776Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:23.777Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:17:23.777Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:23.810Z","level":"info","event":"journal_event_added","user_id":"1b5d4a87-f6a5-4dd0-ae36-cb8241dc111d"}
+# {"ts":"2026-09-27T14:17:23.815Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"1b5d4a87-f6a5-4dd0-ae36-cb8241dc111d"}
+# {"ts":"2026-09-27T14:17:23.825Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:17:23.896Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:23.898Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:26.246Z","level":"info","event":"user_created","user_id":"058cd645-5459-445d-bbca-88355b03f2df","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:26.249Z","level":"info","event":"proactive_event_claimed","user_id":"058cd645-5459-445d-bbca-88355b03f2df"}
+# {"ts":"2026-09-27T14:17:26.260Z","level":"info","event":"pending_question_opened","user_id":"058cd645-5459-445d-bbca-88355b03f2df"}
+# {"ts":"2026-09-27T14:17:26.279Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:17:26.281Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:26.281Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:17:26.281Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:26.281Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:17:26.281Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:26.294Z","level":"info","event":"journal_event_added","user_id":"058cd645-5459-445d-bbca-88355b03f2df"}
+# {"ts":"2026-09-27T14:17:26.298Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"058cd645-5459-445d-bbca-88355b03f2df"}
+# {"ts":"2026-09-27T14:17:26.309Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:17:26.383Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:26.385Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:28.183Z","level":"info","event":"user_created","user_id":"e3e403e9-6718-464a-ab99-f0a1986e94d9","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:28.186Z","level":"info","event":"proactive_event_claimed","user_id":"e3e403e9-6718-464a-ab99-f0a1986e94d9"}
+# {"ts":"2026-09-27T14:17:28.202Z","level":"info","event":"pending_question_opened","user_id":"e3e403e9-6718-464a-ab99-f0a1986e94d9"}
+# {"ts":"2026-09-27T14:17:28.232Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:17:28.235Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:28.235Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:17:28.235Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:28.235Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:17:28.235Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:28.259Z","level":"info","event":"journal_event_added","user_id":"e3e403e9-6718-464a-ab99-f0a1986e94d9"}
+# {"ts":"2026-09-27T14:17:28.267Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"e3e403e9-6718-464a-ab99-f0a1986e94d9"}
+# {"ts":"2026-09-27T14:17:28.287Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:17:28.439Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:28.443Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:30.996Z","level":"info","event":"user_created","user_id":"b08a85ce-4199-47bd-a70b-8144c5bf2fc3","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:30.999Z","level":"info","event":"proactive_event_claimed","user_id":"b08a85ce-4199-47bd-a70b-8144c5bf2fc3"}
+# {"ts":"2026-09-27T14:17:31.018Z","level":"info","event":"pending_question_opened","user_id":"b08a85ce-4199-47bd-a70b-8144c5bf2fc3"}
+# {"ts":"2026-09-27T14:17:31.054Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:17:31.056Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:31.056Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:17:31.056Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:31.056Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:17:31.056Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:31.076Z","level":"info","event":"journal_event_added","user_id":"b08a85ce-4199-47bd-a70b-8144c5bf2fc3"}
+# {"ts":"2026-09-27T14:17:31.088Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"b08a85ce-4199-47bd-a70b-8144c5bf2fc3"}
+# {"ts":"2026-09-27T14:17:31.119Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:17:31.244Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:31.247Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:33.037Z","level":"info","event":"user_created","user_id":"f7f3e6ae-c165-4ee3-9d71-91492728813f","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:33.040Z","level":"info","event":"proactive_event_claimed","user_id":"f7f3e6ae-c165-4ee3-9d71-91492728813f"}
+# {"ts":"2026-09-27T14:17:33.050Z","level":"info","event":"pending_question_opened","user_id":"f7f3e6ae-c165-4ee3-9d71-91492728813f"}
+# {"ts":"2026-09-27T14:17:33.069Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:17:33.071Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:33.071Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:17:33.071Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:33.071Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:17:33.071Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:33.082Z","level":"info","event":"journal_event_added","user_id":"f7f3e6ae-c165-4ee3-9d71-91492728813f"}
+# {"ts":"2026-09-27T14:17:33.086Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"f7f3e6ae-c165-4ee3-9d71-91492728813f"}
+# {"ts":"2026-09-27T14:17:33.095Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:17:33.179Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:33.183Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:35.424Z","level":"info","event":"user_created","user_id":"7e712276-444a-4ff6-bd7c-458bfe98ba60","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:35.429Z","level":"info","event":"proactive_event_claimed","user_id":"7e712276-444a-4ff6-bd7c-458bfe98ba60"}
+# {"ts":"2026-09-27T14:17:35.438Z","level":"info","event":"pending_question_opened","user_id":"7e712276-444a-4ff6-bd7c-458bfe98ba60"}
+# {"ts":"2026-09-27T14:17:35.456Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:17:35.457Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:35.457Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:17:35.457Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:35.457Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:17:35.457Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:35.468Z","level":"info","event":"journal_event_added","user_id":"7e712276-444a-4ff6-bd7c-458bfe98ba60"}
+# {"ts":"2026-09-27T14:17:35.473Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"7e712276-444a-4ff6-bd7c-458bfe98ba60"}
+# {"ts":"2026-09-27T14:17:35.482Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:17:35.549Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:35.551Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:37.412Z","level":"info","event":"user_created","user_id":"2959e548-141a-4d90-ab96-1955086fd706","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:37.415Z","level":"info","event":"pending_question_opened","user_id":"2959e548-141a-4d90-ab96-1955086fd706"}
+# {"ts":"2026-09-27T14:17:37.430Z","level":"warn","event":"proactive_answer_date_unresolvable","user_id":"2959e548-141a-4d90-ab96-1955086fd706"}
+# {"ts":"2026-09-27T14:17:37.503Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:37.504Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:39.292Z","level":"info","event":"user_created","user_id":"2b3978a1-f5f1-4001-b856-67635d7f1bb7","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:39.295Z","level":"info","event":"pending_question_opened","user_id":"2b3978a1-f5f1-4001-b856-67635d7f1bb7"}
+# {"ts":"2026-09-27T14:17:39.322Z","level":"info","event":"journal_event_added","user_id":"2b3978a1-f5f1-4001-b856-67635d7f1bb7"}
+# {"ts":"2026-09-27T14:17:39.403Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:39.406Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:41.361Z","level":"info","event":"user_created","user_id":"7d038d6e-c8c0-4cc5-ab3b-fec4851766dc","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:41.365Z","level":"info","event":"pending_question_opened","user_id":"7d038d6e-c8c0-4cc5-ab3b-fec4851766dc"}
+# {"ts":"2026-09-27T14:17:41.366Z","level":"info","event":"follow_up_opened","user_id":"7d038d6e-c8c0-4cc5-ab3b-fec4851766dc"}
+# {"ts":"2026-09-27T14:17:41.400Z","level":"info","event":"journal_event_added","user_id":"7d038d6e-c8c0-4cc5-ab3b-fec4851766dc"}
+# {"ts":"2026-09-27T14:17:41.500Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:41.502Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:43.491Z","level":"info","event":"user_created","user_id":"1f1b26ef-fc71-47da-9d19-16453fd1088e","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:43.495Z","level":"info","event":"proactive_event_claimed","user_id":"1f1b26ef-fc71-47da-9d19-16453fd1088e"}
+# {"ts":"2026-09-27T14:17:43.506Z","level":"info","event":"pending_question_opened","user_id":"1f1b26ef-fc71-47da-9d19-16453fd1088e"}
+# {"ts":"2026-09-27T14:17:43.526Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:17:43.529Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:43.529Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:17:43.529Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:43.529Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:17:43.529Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:43.541Z","level":"info","event":"journal_event_added","user_id":"1f1b26ef-fc71-47da-9d19-16453fd1088e"}
+# {"ts":"2026-09-27T14:17:43.547Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"1f1b26ef-fc71-47da-9d19-16453fd1088e"}
+# {"ts":"2026-09-27T14:17:43.558Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:17:43.633Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:43.635Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:45.605Z","level":"info","event":"user_created","user_id":"aa2bf4fb-4198-47ae-ac5a-e9aa8e050a3f","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:45.606Z","level":"info","event":"user_created","user_id":"5af2fe6f-1fc3-40f1-972a-a344e7eb251d","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:45.608Z","level":"info","event":"pending_question_opened","user_id":"aa2bf4fb-4198-47ae-ac5a-e9aa8e050a3f"}
+# {"ts":"2026-09-27T14:17:45.631Z","level":"info","event":"journal_event_added","user_id":"aa2bf4fb-4198-47ae-ac5a-e9aa8e050a3f"}
+# {"ts":"2026-09-27T14:17:45.646Z","level":"info","event":"pending_question_opened","user_id":"5af2fe6f-1fc3-40f1-972a-a344e7eb251d"}
+# {"ts":"2026-09-27T14:17:45.668Z","level":"info","event":"journal_event_added","user_id":"5af2fe6f-1fc3-40f1-972a-a344e7eb251d"}
+# {"ts":"2026-09-27T14:17:45.741Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:45.744Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:47.752Z","level":"info","event":"user_created","user_id":"d671fae4-8bb2-4132-8925-0046e3a419de","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:47.755Z","level":"info","event":"proactive_event_claimed","user_id":"d671fae4-8bb2-4132-8925-0046e3a419de"}
+# {"ts":"2026-09-27T14:17:47.764Z","level":"info","event":"pending_question_opened","user_id":"d671fae4-8bb2-4132-8925-0046e3a419de"}
+# {"ts":"2026-09-27T14:17:47.783Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:17:47.784Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:47.784Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:17:47.784Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:47.784Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:17:47.784Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:47.792Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T14:17:47.792Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T14:17:47.792Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:47.795Z","level":"info","event":"pending_question_opened","user_id":"d671fae4-8bb2-4132-8925-0046e3a419de"}
+# {"ts":"2026-09-27T14:17:47.802Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:17:47.817Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:17:47.821Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:47.821Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:17:47.821Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:17:47.821Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:17:47.821Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:47.838Z","level":"info","event":"journal_event_added","user_id":"d671fae4-8bb2-4132-8925-0046e3a419de"}
+# {"ts":"2026-09-27T14:17:47.842Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"d671fae4-8bb2-4132-8925-0046e3a419de"}
+# {"ts":"2026-09-27T14:17:47.851Z","level":"info","event":"lock_released"}
+# Subtest: ★★★ R2-M-02: selectQuestion 回報這一題在問哪一天
+ok 1 - ★★★ R2-M-02: selectQuestion 回報這一題在問哪一天
+  ---
+  duration_ms: 4.231625
+  type: 'test'
+  ...
+# Subtest: ★★★ R2-M-02: 每一個候選類別都有明文的目標日偏移
+ok 2 - ★★★ R2-M-02: 每一個候選類別都有明文的目標日偏移
+  ---
+  duration_ms: 0.583667
+  type: 'test'
+  ...
+# Subtest: ★★ R2-M-02: 問「昨天」的類別偏移 -1，問「最近」的偏移 0
+ok 3 - ★★ R2-M-02: 問「昨天」的類別偏移 -1，問「最近」的偏移 0
+  ---
+  duration_ms: 0.19325
+  type: 'test'
+  ...
+# Subtest: ★★ R2-M-02: 訊號沒有 health_date 時目標日是 null（不亂猜）
+ok 4 - ★★ R2-M-02: 訊號沒有 health_date 時目標日是 null（不亂猜）
+  ---
+  duration_ms: 0.348417
+  type: 'test'
+  ...
+# Subtest: ★★★ R2-M-02: 短答「喝了兩杯」記在 2026-02-05，不是訊號日
+ok 5 - ★★★ R2-M-02: 短答「喝了兩杯」記在 2026-02-05，不是訊號日
+  ---
+  duration_ms: 1928.799792
+  type: 'test'
+  ...
+# Subtest: ★★★ R2-M-02: 「最近…」類別（偏移 0）記在訊號日
+ok 6 - ★★★ R2-M-02: 「最近…」類別（偏移 0）記在訊號日
+  ---
+  duration_ms: 2481.656125
+  type: 'test'
+  ...
+# Subtest: ★★★ R2-M-02: 使用者明確說「今天」→ 以使用者為準
+ok 7 - ★★★ R2-M-02: 使用者明確說「今天」→ 以使用者為準
+  ---
+  duration_ms: 1979.083458
+  type: 'test'
+  ...
+# Subtest: ★★★ R2-M-02: 使用者明確說「昨天」→ 以使用者為準
+ok 8 - ★★★ R2-M-02: 使用者明確說「昨天」→ 以使用者為準
+  ---
+  duration_ms: 2831.621125
+  type: 'test'
+  ...
+# Subtest: ★★★ R2-M-02: 使用者明確說「前天」→ 以使用者為準
+ok 9 - ★★★ R2-M-02: 使用者明確說「前天」→ 以使用者為準
+  ---
+  duration_ms: 1974.687375
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-M-02: 舊追問沒有 target date，但 category 在 → 確定性推導
+ok 10 - ★★★ R3-M-02: 舊追問沒有 target date，但 category 在 → 確定性推導
+  ---
+  duration_ms: 2386.492459
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-M-02: 推導不出來時**問清楚**，絕不默默寫一個猜的日期
+ok 11 - ★★★ R3-M-02: 推導不出來時**問清楚**，絕不默默寫一個猜的日期
+  ---
+  duration_ms: 1954.243542
+  type: 'test'
+  ...
+# Subtest: ★★ R3-M-02: 推導不出來但使用者**自己說了**日期 → 照使用者的寫
+ok 12 - ★★ R3-M-02: 推導不出來但使用者**自己說了**日期 → 照使用者的寫
+  ---
+  duration_ms: 1893.558041
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-M-02: questionTargetDateOf —— 明確欄位 > 確定性推導 > null
+ok 13 - ★★★ R3-M-02: questionTargetDateOf —— 明確欄位 > 確定性推導 > null
+  ---
+  duration_ms: 0.240666
+  type: 'test'
+  ...
+# Subtest: ★★★ R2-M-02: 反應式追問（問「昨天」）也記下正確的目標日
+ok 14 - ★★★ R2-M-02: 反應式追問（問「昨天」）也記下正確的目標日
+  ---
+  duration_ms: 2108.262291
+  type: 'test'
+  ...
+# Subtest: ★★★ R2-M-02: 跨午夜回答（台北 23:50 問、00:10 答）仍然記在被問的那一天
+ok 15 - ★★★ R2-M-02: 跨午夜回答（台北 23:50 問、00:10 答）仍然記在被問的那一天
+  ---
+  duration_ms: 2119.469333
+  type: 'test'
+  ...
+# Subtest: ★★★ R2-M-02: 不同時區的使用者，目標日都以問題為準
+ok 16 - ★★★ R2-M-02: 不同時區的使用者，目標日都以問題為準
+  ---
+  duration_ms: 2116.131583
+  type: 'test'
+  ...
+# Subtest: ★★★ R2-M-02: 澄清追問（Q2）沿用同一個目標日
+ok 17 - ★★★ R2-M-02: 澄清追問（Q2）沿用同一個目標日
+  ---
+  duration_ms: 2177.149583
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 27627.446583

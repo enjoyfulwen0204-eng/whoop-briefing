@@ -1,0 +1,148 @@
+TAP version 13
+# {"ts":"2026-09-27T13:59:35.957Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:35.962Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:59:37.833Z","level":"info","event":"user_created","user_id":"r5-user","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:37.835Z","level":"info","event":"telegram_linked","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:37.863Z","level":"info","event":"due_check","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:37.871Z","level":"info","event":"user_lifecycle_transition","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:37.878Z","level":"info","event":"user_lifecycle_transition","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:37.890Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T13:59:37.891Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:37.893Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:37.893Z","level":"warn","event":"account_lifecycle_rejected","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:37.962Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:37.964Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:59:39.858Z","level":"info","event":"user_created","user_id":"r5-user","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:39.858Z","level":"info","event":"telegram_linked","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:39.860Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T13:59:39.861Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:39.862Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:39.866Z","level":"info","event":"due_check","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:39.875Z","level":"info","event":"user_lifecycle_transition","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:39.884Z","level":"warn","event":"account_lifecycle_rejected","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:39.958Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:39.960Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:59:42.021Z","level":"info","event":"user_created","user_id":"r5-user","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:42.021Z","level":"info","event":"telegram_linked","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:42.023Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T13:59:42.024Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:42.025Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:42.027Z","level":"info","event":"due_check","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:42.110Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:42.111Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:59:44.814Z","level":"info","event":"user_created","user_id":"r5-user","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:44.816Z","level":"info","event":"telegram_linked","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:44.819Z","level":"info","event":"tokens_saved","user_id":"r5-user","attempt":1}
+# {"ts":"2026-09-27T13:59:44.821Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T13:59:44.822Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:44.823Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:44.825Z","level":"info","event":"user_lifecycle_transition","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:44.836Z","level":"info","event":"user_lifecycle_transition","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:44.845Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:59:44.859Z","level":"info","event":"guardian_healthy"}
+# {"ts":"2026-09-27T13:59:44.860Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:59:44.942Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:44.944Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:59:46.914Z","level":"info","event":"user_created","user_id":"r5-user","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:46.916Z","level":"info","event":"telegram_linked","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:46.917Z","level":"info","event":"tokens_saved","user_id":"r5-user","attempt":1}
+# {"ts":"2026-09-27T13:59:46.918Z","level":"info","event":"user_lifecycle_transition","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:46.928Z","level":"info","event":"user_lifecycle_transition","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:46.940Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T13:59:46.941Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:46.943Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:46.943Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:59:46.956Z","level":"warn","event":"guardian_findings","count":1}
+# {"ts":"2026-09-27T13:59:46.957Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:59:47.037Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:47.040Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:59:49.270Z","level":"info","event":"user_created","user_id":"r5-user","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:49.271Z","level":"info","event":"telegram_linked","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:49.272Z","level":"info","event":"tokens_saved","user_id":"r5-user","attempt":1}
+# {"ts":"2026-09-27T13:59:49.274Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T13:59:49.275Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:49.277Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:49.278Z","level":"info","event":"user_lifecycle_transition","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:49.289Z","level":"info","event":"user_lifecycle_transition","user_id":"r5-user"}
+# {"ts":"2026-09-27T13:59:49.301Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T13:59:49.302Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:59:49.313Z","level":"info","event":"guardian_healthy"}
+# {"ts":"2026-09-27T13:59:49.314Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:59:49.408Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:49.411Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:59:51.591Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:51.592Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T13:59:51.593Z","level":"info","event":"user_created","user_id":"bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:51.594Z","level":"info","event":"telegram_linked","user_id":"bob"}
+# {"ts":"2026-09-27T13:59:51.595Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T13:59:51.595Z","level":"info","event":"tokens_saved","user_id":"bob","attempt":1}
+# {"ts":"2026-09-27T13:59:51.597Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T13:59:51.598Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:51.599Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:51.602Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T13:59:51.604Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:51.605Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T13:59:51.607Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:59:51.630Z","level":"warn","event":"guardian_findings","count":1}
+# {"ts":"2026-09-27T13:59:51.631Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:59:51.712Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:51.714Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:59:53.856Z","level":"info","event":"user_created","user_id":"r5-user","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:53.858Z","level":"info","event":"telegram_linked","user_id":"r5-user"}
+# Subtest: ERRPROV-R5-01: stale L1 runForUser success cannot clear three current L3 failures
+ok 1 - ERRPROV-R5-01: stale L1 runForUser success cannot clear three current L3 failures
+  ---
+  duration_ms: 2031.21725
+  type: 'test'
+  ...
+# Subtest: ERRPROV-R5-02: stale L1 success cannot clear evidence after direct disable
+ok 2 - ERRPROV-R5-02: stale L1 success cannot clear evidence after direct disable
+  ---
+  duration_ms: 1989.261292
+  type: 'test'
+  ...
+# Subtest: ERRPROV-R5-03: same-lifecycle runForUser success clears its own evidence
+ok 3 - ERRPROV-R5-03: same-lifecycle runForUser success clears its own evidence
+  ---
+  duration_ms: 2158.587375
+  type: 'test'
+  ...
+# Subtest: ERRPROV-R5-04: historical L1 authentication failures do not create an L3 Guardian warning
+ok 4 - ERRPROV-R5-04: historical L1 authentication failures do not create an L3 Guardian warning
+  ---
+  duration_ms: 2818.868875
+  type: 'test'
+  ...
+# Subtest: ERRPROV-R5-05: three current L3 failures authorize a valid L3 Guardian warning
+ok 5 - ERRPROV-R5-05: three current L3 failures authorize a valid L3 Guardian warning
+  ---
+  duration_ms: 2095.300083
+  type: 'test'
+  ...
+# Subtest: ERRPROV-R5-06: current L3 evidence starts at one and never aggregates three historical L1 failures
+ok 6 - ERRPROV-R5-06: current L3 evidence starts at one and never aggregates three historical L1 failures
+  ---
+  duration_ms: 2357.316042
+  type: 'test'
+  ...
+# Subtest: ERRPROV-R5-07: Alice lifecycle evidence cannot clear, aggregate with, or notify for Bob
+ok 7 - ERRPROV-R5-07: Alice lifecycle evidence cannot clear, aggregate with, or notify for Bob
+  ---
+  duration_ms: 2316.339333
+  type: 'test'
+  ...
+# Subtest: R5 contracts: user error claim/read/clear reject missing lifecycle provenance
+ok 8 - R5 contracts: user error claim/read/clear reject missing lifecycle provenance
+  ---
+  duration_ms: 2227.218375
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 19067.814292

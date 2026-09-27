@@ -1,0 +1,58 @@
+TAP version 13
+# {"ts":"2026-09-27T15:12:36.224Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:12:36.228Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:12:36.229Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:12:38.330Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:12:38.332Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:12:39.988Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# Subtest: M: fresh, v26 and full v20 migrations create no historical receipts
+    # Subtest: v20→v27
+    ok 1 - v20→v27
+      ---
+      duration_ms: 2110.216333
+      type: 'test'
+      ...
+# {"ts":"2026-09-27T15:12:40.753Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:12:40.756Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:12:42.681Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+    # Subtest: v26→v27
+    ok 2 - v26→v27
+      ---
+      duration_ms: 2421.112
+      type: 'test'
+      ...
+# {"ts":"2026-09-27T15:12:48.485Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:12:48.487Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: v27→v27
+    ok 3 - v27→v27
+      ---
+      duration_ms: 2606.731958
+      type: 'test'
+      ...
+    1..3
+ok 1 - M: fresh, v26 and full v20 migrations create no historical receipts
+  ---
+  duration_ms: 7139.165584
+  type: 'test'
+  ...
+# Subtest: test/phase4-v27.test.js
+not ok 1 - test/phase4-v27.test.js
+  ---
+  duration_ms: 20105.350875
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-v27.test.js:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: ~
+  signal: 'SIGSEGV'
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..2
+# tests 5
+# suites 0
+# pass 4
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 20114.526834

@@ -1,0 +1,164 @@
+TAP version 13
+# {"ts":"2026-09-27T13:59:54.814Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T13:59:54.815Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T13:59:54.815Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T13:59:54.817Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T13:59:54.817Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:59:54.817Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T13:59:54.817Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:59:54.817Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T13:59:54.817Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T13:59:54.820Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T13:59:54.820Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T13:59:54.820Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T13:59:54.820Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T13:59:54.820Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T13:59:54.820Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T13:59:54.826Z","level":"warn","event":"narrative_validation_failed"}
+# Subtest: AB: schema —— 合法輸入通過
+ok 1 - AB: schema —— 合法輸入通過
+  ---
+  duration_ms: 1.020125
+  type: 'test'
+  ...
+# Subtest: ★ AB: 拒絕未知欄位（模型自己加欄位＝在自由發揮）
+ok 2 - ★ AB: 拒絕未知欄位（模型自己加欄位＝在自由發揮）
+  ---
+  duration_ms: 0.27025
+  type: 'test'
+  ...
+# Subtest: ★ AB: 拒絕非法 enum
+ok 3 - ★ AB: 拒絕非法 enum
+  ---
+  duration_ms: 0.238417
+  type: 'test'
+  ...
+# Subtest: ★ AB: 拒絕超出範圍的數值
+ok 4 - ★ AB: 拒絕超出範圍的數值
+  ---
+  duration_ms: 0.123333
+  type: 'test'
+  ...
+# Subtest: AB: journal schema 擋掉負數量與超大數值
+ok 5 - AB: journal schema 擋掉負數量與超大數值
+  ---
+  duration_ms: 0.146792
+  type: 'test'
+  ...
+# Subtest: AB: 非物件一律拒絕
+ok 6 - AB: 非物件一律拒絕
+  ---
+  duration_ms: 0.086583
+  type: 'test'
+  ...
+# Subtest: ★ AB: 壞掉的 JSON 最多重試一次，第二次仍失敗就走 fallback
+ok 7 - ★ AB: 壞掉的 JSON 最多重試一次，第二次仍失敗就走 fallback
+  ---
+  duration_ms: 2.756333
+  type: 'test'
+  ...
+# Subtest: AB: 第一次壞、第二次好 → 用第二次的結果
+ok 8 - AB: 第一次壞、第二次好 → 用第二次的結果
+  ---
+  duration_ms: 0.23775
+  type: 'test'
+  ...
+# Subtest: AB: call 本身丟例外也算一次失敗，不會炸出來
+ok 9 - AB: call 本身丟例外也算一次失敗，不會炸出來
+  ---
+  duration_ms: 0.912292
+  type: 'test'
+  ...
+# Subtest: ★ AB: intent parser 端到端 —— 模型亂回，最後回 unknown 不是照著查
+ok 10 - ★ AB: intent parser 端到端 —— 模型亂回，最後回 unknown 不是照著查
+  ---
+  duration_ms: 1.7505
+  type: 'test'
+  ...
+# Subtest: ★ AB: journal parser 端到端 —— schema 不合法就不寫入
+ok 11 - ★ AB: journal parser 端到端 —— schema 不合法就不寫入
+  ---
+  duration_ms: 0.498333
+  type: 'test'
+  ...
+# Subtest: ★ AB: 正常回答不可以被誤判（%、ms、bpm、中文標點都要放行）
+ok 12 - ★ AB: 正常回答不可以被誤判（%、ms、bpm、中文標點都要放行）
+  ---
+  duration_ms: 2.192917
+  type: 'test'
+  ...
+# Subtest: ★ AB: 攔下 context 裡沒有的數字（幻覺）
+ok 13 - ★ AB: 攔下 context 裡沒有的數字（幻覺）
+  ---
+  duration_ms: 1.585083
+  type: 'test'
+  ...
+# Subtest: AB: 允許合理的四捨五入（55ms 講成 55、-2.10 講成 2.1）
+ok 14 - AB: 允許合理的四捨五入（55ms 講成 55、-2.10 講成 2.1）
+  ---
+  duration_ms: 0.141417
+  type: 'test'
+  ...
+# Subtest: ★ AB: 攔下編造的日期
+ok 15 - ★ AB: 攔下編造的日期
+  ---
+  duration_ms: 0.175208
+  type: 'test'
+  ...
+# Subtest: ★ AB: 攔下 context 沒有的指標（憑空冒出血氧）
+ok 16 - ★ AB: 攔下 context 沒有的指標（憑空冒出血氧）
+  ---
+  duration_ms: 0.185125
+  type: 'test'
+  ...
+# Subtest: ★ AB: 攔下強因果語言
+ok 17 - ★ AB: 攔下強因果語言
+  ---
+  duration_ms: 0.625334
+  type: 'test'
+  ...
+# Subtest: ★ AB: 「一定要早點睡」是祈使句，不可以被誤判成因果宣稱
+ok 18 - ★ AB: 「一定要早點睡」是祈使句，不可以被誤判成因果宣稱
+  ---
+  duration_ms: 0.065208
+  type: 'test'
+  ...
+# Subtest: ★ AB: 攔下醫學診斷措辭，但保留「不舒服就去看醫生」的提醒
+ok 19 - ★ AB: 攔下醫學診斷措辭，但保留「不舒服就去看醫生」的提醒
+  ---
+  duration_ms: 0.097458
+  type: 'test'
+  ...
+# Subtest: AB: allowedNumbersFrom 會收進四捨五入的變體
+ok 20 - AB: allowedNumbersFrom 會收進四捨五入的變體
+  ---
+  duration_ms: 0.061583
+  type: 'test'
+  ...
+# Subtest: ★ AB: guardNarrative 驗證失敗時原文絕不外流
+ok 21 - ★ AB: guardNarrative 驗證失敗時原文絕不外流
+  ---
+  duration_ms: 0.197666
+  type: 'test'
+  ...
+# Subtest: AB: guardNarrative 驗證通過就原文放行
+ok 22 - AB: guardNarrative 驗證通過就原文放行
+  ---
+  duration_ms: 0.111625
+  type: 'test'
+  ...
+# Subtest: AB: 空回答走 fallback
+ok 23 - AB: 空回答走 fallback
+  ---
+  duration_ms: 0.055916
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 160.920375

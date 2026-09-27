@@ -1,0 +1,341 @@
+TAP version 13
+# {"ts":"2026-09-27T11:56:06.430Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:06.433Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:07.936Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:08.048Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:08.050Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:09.588Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:09.674Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:09.676Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:11.216Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:11.220Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T11:56:11.220Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T11:56:11.259Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T11:56:11.259Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T11:56:11.299Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T11:56:11.300Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T11:56:11.383Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:11.385Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:12.908Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:12.919Z","level":"info","event":"journal_event_added","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:12.978Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:12.979Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:14.465Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:14.480Z","level":"info","event":"store_sleeps_upserted","user_id":"u-qa-test","count":71}
+# {"ts":"2026-09-27T11:56:14.484Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T11:56:14.487Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"sleep","changed":71,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:14.489Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T11:56:14.503Z","level":"info","event":"store_recoveries_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:14.505Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T11:56:14.507Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"recovery","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:14.509Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T11:56:14.522Z","level":"info","event":"store_cycles_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:14.524Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T11:56:14.530Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"cycle","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:14.532Z","level":"info","event":"sync_incremental_done","resource":"cycle"}
+# {"ts":"2026-09-27T11:56:14.539Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T11:56:14.539Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T11:56:14.599Z","level":"info","event":"pending_question_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:14.600Z","level":"info","event":"follow_up_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:14.651Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:14.653Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:16.156Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:16.168Z","level":"info","event":"store_sleeps_upserted","user_id":"u-qa-test","count":71}
+# {"ts":"2026-09-27T11:56:16.171Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T11:56:16.173Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"sleep","changed":71,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:16.176Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T11:56:16.188Z","level":"info","event":"store_recoveries_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:16.190Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T11:56:16.193Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"recovery","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:16.195Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T11:56:16.210Z","level":"info","event":"store_cycles_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:16.213Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T11:56:16.215Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"cycle","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:16.217Z","level":"info","event":"sync_incremental_done","resource":"cycle"}
+# {"ts":"2026-09-27T11:56:16.224Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T11:56:16.224Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T11:56:16.322Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:16.323Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:17.843Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:17.856Z","level":"info","event":"store_sleeps_upserted","user_id":"u-qa-test","count":71}
+# {"ts":"2026-09-27T11:56:17.858Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T11:56:17.861Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"sleep","changed":71,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:17.863Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T11:56:17.876Z","level":"info","event":"store_recoveries_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:17.878Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T11:56:17.881Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"recovery","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:17.883Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T11:56:17.895Z","level":"info","event":"store_cycles_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:17.898Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T11:56:17.900Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"cycle","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:17.903Z","level":"info","event":"sync_incremental_done","resource":"cycle"}
+# {"ts":"2026-09-27T11:56:17.909Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T11:56:17.909Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T11:56:18.004Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:18.006Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:19.573Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:19.586Z","level":"info","event":"store_sleeps_upserted","user_id":"u-qa-test","count":71}
+# {"ts":"2026-09-27T11:56:19.589Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T11:56:19.591Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"sleep","changed":71,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:19.593Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T11:56:19.606Z","level":"info","event":"store_recoveries_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:19.609Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T11:56:19.611Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"recovery","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:19.613Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T11:56:19.627Z","level":"info","event":"store_cycles_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:19.630Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T11:56:19.632Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"cycle","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:19.634Z","level":"info","event":"sync_incremental_done","resource":"cycle"}
+# {"ts":"2026-09-27T11:56:19.641Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T11:56:19.641Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T11:56:19.694Z","level":"info","event":"pending_question_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:19.695Z","level":"info","event":"follow_up_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:19.749Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:19.750Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:21.336Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:21.353Z","level":"info","event":"store_sleeps_upserted","user_id":"u-qa-test","count":71}
+# {"ts":"2026-09-27T11:56:21.356Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T11:56:21.358Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"sleep","changed":71,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:21.361Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T11:56:21.374Z","level":"info","event":"store_recoveries_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:21.376Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T11:56:21.378Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"recovery","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:21.380Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T11:56:21.393Z","level":"info","event":"store_cycles_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:21.395Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T11:56:21.398Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"cycle","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:21.400Z","level":"info","event":"sync_incremental_done","resource":"cycle"}
+# {"ts":"2026-09-27T11:56:21.407Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T11:56:21.407Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T11:56:21.462Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:21.463Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:23.048Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:23.059Z","level":"info","event":"journal_event_added","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:23.121Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:23.122Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:24.751Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:24.751Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T11:56:24.751Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T11:56:24.751Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T11:56:24.810Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:24.812Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:26.437Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:26.452Z","level":"info","event":"store_sleeps_upserted","user_id":"u-qa-test","count":71}
+# {"ts":"2026-09-27T11:56:26.455Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T11:56:26.457Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"sleep","changed":71,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:26.459Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T11:56:26.473Z","level":"info","event":"store_recoveries_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:26.475Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T11:56:26.477Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"recovery","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:26.480Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T11:56:26.492Z","level":"info","event":"store_cycles_upserted","user_id":"u-qa-test","count":60}
+# {"ts":"2026-09-27T11:56:26.495Z","level":"info","event":"analytics_invalidated","user_id":"u-qa-test","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T11:56:26.497Z","level":"info","event":"canonical_write_classified","user_id":"u-qa-test","resource":"cycle","changed":60,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T11:56:26.499Z","level":"info","event":"sync_incremental_done","resource":"cycle"}
+# {"ts":"2026-09-27T11:56:26.506Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T11:56:26.506Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T11:56:26.563Z","level":"info","event":"pending_question_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:26.564Z","level":"info","event":"follow_up_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:26.594Z","level":"info","event":"journal_event_added","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:26.705Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:26.707Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:28.343Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:28.347Z","level":"info","event":"pending_question_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:28.360Z","level":"info","event":"pending_question_expired","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:28.420Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:28.422Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:30.084Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:30.087Z","level":"info","event":"pending_question_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:30.096Z","level":"info","event":"pending_question_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:30.161Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:30.163Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:31.850Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:31.853Z","level":"info","event":"pending_question_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:31.935Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:31.937Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:33.577Z","level":"info","event":"user_created","user_id":"u-qa-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:33.580Z","level":"info","event":"pending_question_opened","user_id":"u-qa-test"}
+# {"ts":"2026-09-27T11:56:33.659Z","level":"error","event":"router_failed","error":"OPERATION_FAILED"}
+# Subtest: M: 確定性 intent —— 常見問法都不需要 LLM
+ok 1 - M: 確定性 intent —— 常見問法都不需要 LLM
+  ---
+  duration_ms: 2.755375
+  type: 'test'
+  ...
+# Subtest: ★ M: 確定性判定寧可漏判也不誤判（今天天氣如何 ≠ 健康查詢）
+ok 2 - ★ M: 確定性判定寧可漏判也不誤判（今天天氣如何 ≠ 健康查詢）
+  ---
+  duration_ms: 0.75525
+  type: 'test'
+  ...
+# Subtest: M: 時間窗與指標抽取
+ok 3 - M: 時間窗與指標抽取
+  ---
+  duration_ms: 0.170166
+  type: 'test'
+  ...
+# Subtest: ★ M: LLM 提案一定要過 validate，不合法一律丟掉
+ok 4 - ★ M: LLM 提案一定要過 validate，不合法一律丟掉
+  ---
+  duration_ms: 0.143
+  type: 'test'
+  ...
+# Subtest: M: parseCommand
+ok 5 - M: parseCommand
+  ---
+  duration_ms: 1.345334
+  type: 'test'
+  ...
+# Subtest: ★ 沒有任何 WHOOP 資料：/start 說明現況，不當成錯誤
+ok 6 - ★ 沒有任何 WHOOP 資料：/start 說明現況，不當成錯誤
+  ---
+  duration_ms: 1622.219625
+  type: 'test'
+  ...
+# Subtest: ★ 沒有任何 WHOOP 資料：/healthdata 顯示 0，不是 error
+ok 7 - ★ 沒有任何 WHOOP 資料：/healthdata 顯示 0，不是 error
+  ---
+  duration_ms: 1629.430375
+  type: 'test'
+  ...
+# Subtest: ★ 沒有任何 WHOOP 資料：問問題會誠實說沒資料，不編數字
+ok 8 - ★ 沒有任何 WHOOP 資料：問問題會誠實說沒資料，不編數字
+  ---
+  duration_ms: 1708.908833
+  type: 'test'
+  ...
+# Subtest: ★ 沒有任何 WHOOP 資料：/log 照樣可以成功保存
+ok 9 - ★ 沒有任何 WHOOP 資料：/log 照樣可以成功保存
+  ---
+  duration_ms: 1595.774584
+  type: 'test'
+  ...
+# Subtest: M: 有資料時 today_status 只發布確定性斷言
+ok 10 - M: 有資料時 today_status 只發布確定性斷言
+  ---
+  duration_ms: 1673.066292
+  type: 'test'
+  ...
+# Subtest: M: trend_query 會算出趨勢與樣本數
+ok 11 - M: trend_query 會算出趨勢與樣本數
+  ---
+  duration_ms: 1670.772958
+  type: 'test'
+  ...
+# Subtest: M: best_worst_day 由 Node 挑出最好與最差的那一天
+ok 12 - M: best_worst_day 由 Node 挑出最好與最差的那一天
+  ---
+  duration_ms: 1680.814833
+  type: 'test'
+  ...
+# Subtest: ★ M: LLM 掛掉時走 Node 排版的 fallback，資訊仍完整
+ok 13 - ★ M: LLM 掛掉時走 Node 排版的 fallback，資訊仍完整
+  ---
+  duration_ms: 1743.950417
+  type: 'test'
+  ...
+# Subtest: M: 不認得的問題會給提示，不會亂猜
+ok 14 - M: 不認得的問題會給提示，不會亂猜
+  ---
+  duration_ms: 1712.530708
+  type: 'test'
+  ...
+# Subtest: M: renderFallback 對每種 intent 都有輸出
+ok 15 - M: renderFallback 對每種 intent 都有輸出
+  ---
+  duration_ms: 0.13375
+  type: 'test'
+  ...
+# Subtest: M: buildAnswerContext 不含 raw DB row（不把整包資料丟給 LLM）
+ok 16 - M: buildAnswerContext 不含 raw DB row（不把整包資料丟給 LLM）
+  ---
+  duration_ms: 0.394292
+  type: 'test'
+  ...
+# Subtest: N: looksLikeJournal 區分「記錄」與「提問」
+ok 17 - N: looksLikeJournal 區分「記錄」與「提問」
+  ---
+  duration_ms: 0.228792
+  type: 'test'
+  ...
+# Subtest: ★ N: 自然語言 journal —— LLM 只提案，Node 驗證後才寫
+ok 18 - ★ N: 自然語言 journal —— LLM 只提案，Node 驗證後才寫
+  ---
+  duration_ms: 1657.411042
+  type: 'test'
+  ...
+# Subtest: ★ N: LLM 給不合法的 category → 拒絕寫入
+ok 19 - ★ N: LLM 給不合法的 category → 拒絕寫入
+  ---
+  duration_ms: 1686.834792
+  type: 'test'
+  ...
+# Subtest: N: LLM 信心太低 → 不採用
+ok 20 - N: LLM 信心太低 → 不採用
+  ---
+  duration_ms: 0.257125
+  type: 'test'
+  ...
+# Subtest: N: 沒有 LLM 時自然語言解析安全失敗
+ok 21 - N: 沒有 LLM 時自然語言解析安全失敗
+  ---
+  duration_ms: 0.096
+  type: 'test'
+  ...
+# Subtest: O: shouldFollowUp 的條件
+ok 22 - O: shouldFollowUp 的條件
+  ---
+  duration_ms: 0.110083
+  type: 'test'
+  ...
+# Subtest: O: isNegativeAnswer
+ok 23 - O: isNegativeAnswer
+  ---
+  duration_ms: 0.303833
+  type: 'test'
+  ...
+# Subtest: ★ O: 完整追問流程 —— 反問 → 回答 → 寫 journal → 續答 → 清狀態
+ok 24 - ★ O: 完整追問流程 —— 反問 → 回答 → 寫 journal → 續答 → 清狀態
+  ---
+  duration_ms: 1895.836667
+  type: 'test'
+  ...
+# Subtest: ★ O: pending 30 分鐘後過期，不會硬接後來不相干的話
+ok 25 - ★ O: pending 30 分鐘後過期，不會硬接後來不相干的話
+  ---
+  duration_ms: 1717.821209
+  type: 'test'
+  ...
+# Subtest: O: 同一個 chat 同時只會有一個 OPEN 追問
+ok 26 - O: 同一個 chat 同時只會有一個 OPEN 追問
+  ---
+  duration_ms: 1735.803834
+  type: 'test'
+  ...
+# Subtest: O: 回答「沒有」不會寫 journal，但會收掉 pending
+ok 27 - O: 回答「沒有」不會寫 journal，但會收掉 pending
+  ---
+  duration_ms: 1778.112417
+  type: 'test'
+  ...
+# Subtest: O: 有 pending 時輸入指令仍走指令，不會被當成回答
+ok 28 - O: 有 pending 時輸入指令仍走指令，不會被當成回答
+  ---
+  duration_ms: 1776.795917
+  type: 'test'
+  ...
+# Subtest: router 永遠不拋錯（handler 內部爆炸也要回一句人話）
+ok 29 - router 永遠不拋錯（handler 內部爆炸也要回一句人話）
+  ---
+  duration_ms: 0.738
+  type: 'test'
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 28928.606958

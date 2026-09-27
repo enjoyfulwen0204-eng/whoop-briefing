@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: static privacy policy is standalone and contains the required contact
+ok 1 - static privacy policy is standalone and contains the required contact
+  ---
+  duration_ms: 0.881583
+  type: 'test'
+  ...
+# Subtest: static privacy policy contains no credential material or external assets
+ok 2 - static privacy policy contains no credential material or external assets
+  ---
+  duration_ms: 0.231459
+  type: 'test'
+  ...
+# Subtest: Render serves the policy as a credential-free static site at /privacy
+ok 3 - Render serves the policy as a credential-free static site at /privacy
+  ---
+  duration_ms: 0.311417
+  type: 'test'
+  ...
+# Subtest: WHOOP production scopes are exactly the resources the application uses
+ok 4 - WHOOP production scopes are exactly the resources the application uses
+  ---
+  duration_ms: 1.140208
+  type: 'test'
+  ...
+# Subtest: WHOOP example redirect is executable configuration, not Markdown
+ok 5 - WHOOP example redirect is executable configuration, not Markdown
+  ---
+  duration_ms: 0.833125
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 99.482208

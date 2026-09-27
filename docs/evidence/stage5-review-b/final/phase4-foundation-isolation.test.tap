@@ -1,0 +1,73 @@
+TAP version 13
+# {"ts":"2026-09-27T11:13:23.580Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:23.585Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:25.157Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:25.160Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:25.654Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:25.656Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:27.460Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:27.461Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:27.464Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T11:13:27.464Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T11:13:27.765Z","level":"info","event":"lock_acquired"}
+# Subtest: Aggregate isolation: every derived store family rejects foreign actual parents and restart never imports transient authority
+ok 1 - Aggregate isolation: every derived store family rejects foreign actual parents and restart never imports transient authority
+  ---
+  duration_ms: 2088.354042
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:13:28.400Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:28.401Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:29.921Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:29.922Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Aggregate isolation: shared Journal/coverage/experiment/privacy/inbound controllers cannot cross tenant ownership
+ok 2 - Aggregate isolation: shared Journal/coverage/experiment/privacy/inbound controllers cannot cross tenant ownership
+  ---
+  duration_ms: 2744.690459
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:13:32.088Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:32.090Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:33.964Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:33.965Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Aggregate isolation: exact Body insert/checkpoint races and durable queue takeover survive restart without mode/cache/lease crossover
+ok 3 - Aggregate isolation: exact Body insert/checkpoint races and durable queue takeover survive restart without mode/cache/lease crossover
+  ---
+  duration_ms: 3674.290959
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:13:34.236Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:34.237Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:35.959Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:35.960Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Aggregate provenance: ANSWER_LINEAGE cannot bypass freshness for numeric or unrelated parents
+ok 4 - Aggregate provenance: ANSWER_LINEAGE cannot bypass freshness for numeric or unrelated parents
+  ---
+  duration_ms: 2153.75325
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:13:36.188Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:36.190Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:37.695Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:37.696Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Aggregate concurrency: independently rebuilt stores race to one semantic reservation and never revive its consumed identity
+ok 5 - Aggregate concurrency: independently rebuilt stores race to one semantic reservation and never revive its consumed identity
+  ---
+  duration_ms: 1960.285333
+  type: 'test'
+  ...
+# Subtest: Aggregate release boundary: all 13 flags are false, every enable request fails, and new foundation code has no production IO or entry-point wiring
+ok 6 - Aggregate release boundary: all 13 flags are false, every enable request fails, and new foundation code has no production IO or entry-point wiring
+  ---
+  duration_ms: 1737.434084
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14656.989833

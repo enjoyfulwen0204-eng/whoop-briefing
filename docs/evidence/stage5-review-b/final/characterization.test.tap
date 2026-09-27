@@ -1,0 +1,233 @@
+TAP version 13
+# {"ts":"2026-09-27T11:58:12.351Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:58:12.353Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:58:13.822Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:13.824Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:13.835Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T11:58:13.843Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:13.843Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T11:58:13.852Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T11:58:13.861Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:13.922Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:58:13.924Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:58:15.405Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:15.406Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:15.415Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T11:58:15.422Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:15.423Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T11:58:15.432Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T11:58:15.439Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:15.510Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:58:15.511Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:58:16.991Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:16.992Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:17.001Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T11:58:17.008Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:17.009Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T11:58:17.018Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T11:58:17.025Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:17.089Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:58:17.090Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:58:18.578Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:18.579Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:18.588Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T11:58:18.596Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:18.596Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T11:58:18.605Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T11:58:18.646Z","level":"info","event":"due_check","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:18.709Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:58:18.711Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:58:20.221Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:20.222Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:20.231Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T11:58:20.238Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:20.239Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T11:58:20.248Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T11:58:20.291Z","level":"info","event":"due_check","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:20.357Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:58:20.358Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:58:21.877Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:21.878Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:21.890Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T11:58:21.897Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:21.897Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T11:58:21.906Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T11:58:21.964Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:58:21.966Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:58:23.482Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:23.483Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:23.493Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T11:58:23.500Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:23.500Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T11:58:23.510Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# Subtest: [char-A1] decide(): 同一主題在冷卻窗內 → 該主題被遮蔽
+ok 1 - [char-A1] decide(): 同一主題在冷卻窗內 → 該主題被遮蔽
+  ---
+  duration_ms: 2.968833
+  type: 'test'
+  ...
+# Subtest: [char-A2] decide(): 冷卻不連坐 —— 另一個領域的新訊號仍可被評估
+ok 2 - [char-A2] decide(): 冷卻不連坐 —— 另一個領域的新訊號仍可被評估
+  ---
+  duration_ms: 0.317083
+  type: 'test'
+  ...
+# Subtest: [char-A3] decide(): 冷卻窗外的同一主題不再遮蔽
+ok 3 - [char-A3] decide(): 冷卻窗外的同一主題不再遮蔽
+  ---
+  duration_ms: 0.152834
+  type: 'test'
+  ...
+# Subtest: [char-A4] decide(): 只有 messaging 決策才進冷卻（LOG_ONLY 不算打擾過）
+ok 4 - [char-A4] decide(): 只有 messaging 決策才進冷卻（LOG_ONLY 不算打擾過）
+  ---
+  duration_ms: 0.12025
+  type: 'test'
+  ...
+# Subtest: [char-A5] decide(): 每日上限達到 → LOG_ONLY（且優先於其他判斷）
+ok 5 - [char-A5] decide(): 每日上限達到 → LOG_ONLY（且優先於其他判斷）
+  ---
+  duration_ms: 0.250917
+  type: 'test'
+  ...
+# Subtest: [char-A6] decide(): 新鮮但非持續、且無多重佐證 → 低於行動門檻
+ok 6 - [char-A6] decide(): 新鮮但非持續、且無多重佐證 → 低於行動門檻
+  ---
+  duration_ms: 0.0995
+  type: 'test'
+  ...
+# Subtest: [char-A7] decide(): 已知脈絡（當天已有 journal）→ LOG_ONLY
+ok 7 - [char-A7] decide(): 已知脈絡（當天已有 journal）→ LOG_ONLY
+  ---
+  duration_ms: 0.188
+  type: 'test'
+  ...
+# Subtest: [char-A8] decide(): 已有未答問題 → 嚴重且有佐證時降級成 NOTIFY 而不是再問一題
+ok 8 - [char-A8] decide(): 已有未答問題 → 嚴重且有佐證時降級成 NOTIFY 而不是再問一題
+  ---
+  duration_ms: 0.094709
+  type: 'test'
+  ...
+# Subtest: [char-A9] decide(): 多重生理領域佐證 → ASK_CONTEXT
+ok 9 - [char-A9] decide(): 多重生理領域佐證 → ASK_CONTEXT
+  ---
+  duration_ms: 0.514417
+  type: 'test'
+  ...
+# Subtest: [char-A10] decide(): 同一領域的多個訊號不算多重佐證（recovery 由 hrv/rhr 算出）
+ok 10 - [char-A10] decide(): 同一領域的多個訊號不算多重佐證（recovery 由 hrv/rhr 算出）
+  ---
+  duration_ms: 0.627042
+  type: 'test'
+  ...
+# Subtest: [char-A11] ★ decide() 完全不讀 outcome —— 事後補寫 outcome 不可能改變任何決策
+ok 11 - [char-A11] ★ decide() 完全不讀 outcome —— 事後補寫 outcome 不可能改變任何決策
+  ---
+  duration_ms: 0.453583
+  type: 'test'
+  ...
+# Subtest: [char-A12] ★ 每日上限只數 decision，與 outcome 無關
+ok 12 - [char-A12] ★ 每日上限只數 decision，與 outcome 無關
+  ---
+  duration_ms: 0.142
+  type: 'test'
+  ...
+# Subtest: [char-A13] ★ 新鮮度 / 持續性只看 createdAt，與 outcome 無關
+ok 13 - [char-A13] ★ 新鮮度 / 持續性只看 createdAt，與 outcome 無關
+  ---
+  duration_ms: 0.10425
+  type: 'test'
+  ...
+# Subtest: [char-B1] getRecentProactiveEvents 回傳 outcome/resolvedAt 欄位（預設 null）
+ok 14 - [char-B1] getRecentProactiveEvents 回傳 outcome/resolvedAt 欄位（預設 null）
+  ---
+  duration_ms: 1576.256542
+  type: 'test'
+  ...
+# Subtest: [char-B2] resolveProactiveEvent 只改 outcome/resolved_at，不動 decision/created_at/signals
+ok 15 - [char-B2] resolveProactiveEvent 只改 outcome/resolved_at，不動 decision/created_at/signals
+  ---
+  duration_ms: 1591.107625
+  type: 'test'
+  ...
+# Subtest: [char-B3] resolveProactiveEvent 不可跨使用者
+ok 16 - [char-B3] resolveProactiveEvent 不可跨使用者
+  ---
+  duration_ms: 1578.3985
+  type: 'test'
+  ...
+# Subtest: [char-C1] 有報告要發時：daily / sync / proactive 都會執行
+ok 17 - [char-C1] 有報告要發時：daily / sync / proactive 都會執行
+  ---
+  duration_ms: 1620.3915
+  type: 'test'
+  ...
+# Subtest: [char-C2] 報告都已送出時：目前會整個早退，sync 與 proactive 都不執行
+ok 18 - [char-C2] 報告都已送出時：目前會整個早退，sync 與 proactive 都不執行
+  ---
+  duration_ms: 1644.68075
+  type: 'test'
+  ...
+# Subtest: [char-D1] handlePredictions 樣本不足時不輸出任何預測數字
+ok 19 - [char-D1] handlePredictions 樣本不足時不輸出任何預測數字
+  ---
+  duration_ms: 1610.433334
+  type: 'test'
+  ...
+# Subtest: [char-D2] handlePredictions 即使可訓練也只說「可訓練」，不給數字
+ok 20 - [char-D2] handlePredictions 即使可訓練也只說「可訓練」，不給數字
+  ---
+  duration_ms: 1612.384708
+  type: 'test'
+  ...
+# Subtest: [char-E1] capabilityStatus=UNKNOWN 不會變成 UNAVAILABLE
+ok 21 - [char-E1] capabilityStatus=UNKNOWN 不會變成 UNAVAILABLE
+  ---
+  duration_ms: 0.378084
+  type: 'test'
+  ...
+# Subtest: [char-E2] 完全沒給 capabilityStatus 也不會變成 UNAVAILABLE
+ok 22 - [char-E2] 完全沒給 capabilityStatus 也不會變成 UNAVAILABLE
+  ---
+  duration_ms: 0.099583
+  type: 'test'
+  ...
+# Subtest: [char-E3] APP_ONLY / UNAVAILABLE / UNAUTHORIZED 才是 UNAVAILABLE
+ok 23 - [char-E3] APP_ONLY / UNAVAILABLE / UNAUTHORIZED 才是 UNAVAILABLE
+  ---
+  duration_ms: 0.105708
+  type: 'test'
+  ...
+# Subtest: [char-E4] SUPPORTED / PARTIAL 仍然走樣本數邏輯
+ok 24 - [char-E4] SUPPORTED / PARTIAL 仍然走樣本數邏輯
+  ---
+  duration_ms: 0.214792
+  type: 'test'
+  ...
+# Subtest: [char-F1] temporalSplit 永遠按日期切，測試集全部晚於訓練集
+ok 25 - [char-F1] temporalSplit 永遠按日期切，測試集全部晚於訓練集
+  ---
+  duration_ms: 0.314625
+  type: 'test'
+  ...
+# Subtest: [char-F2] assertNoLeakage 抓得到重疊
+ok 26 - [char-F2] assertNoLeakage 抓得到重疊
+  ---
+  duration_ms: 0.067208
+  type: 'test'
+  ...
+# Subtest: [char-F3] buildSupervised 只用 D 天特徵預測 D+1，且 null 特徵整列剔除
+ok 27 - [char-F3] buildSupervised 只用 D 天特徵預測 D+1，且 null 特徵整列剔除
+  ---
+  duration_ms: 0.0935
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11962.94275

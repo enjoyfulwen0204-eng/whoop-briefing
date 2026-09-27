@@ -1,0 +1,557 @@
+TAP version 13
+# {"ts":"2026-09-27T14:02:52.458Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.463Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.464Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.464Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.464Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.465Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.465Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.465Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.466Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.467Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.468Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.468Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.468Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.468Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.468Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.468Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.468Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.469Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.469Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.469Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.469Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.471Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.472Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.472Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.472Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.472Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.472Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.472Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.474Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.474Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.474Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.474Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.474Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.474Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.474Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.475Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.476Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.476Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.476Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.476Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.476Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.476Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.476Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.476Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.477Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.477Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.477Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.477Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.477Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.477Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.477Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.477Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.477Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.477Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:02:52.481Z","level":"error","event":"proactive_message_failed_guard"}
+# {"ts":"2026-09-27T14:02:52.482Z","level":"error","event":"proactive_message_failed_guard"}
+# {"ts":"2026-09-27T14:02:52.482Z","level":"error","event":"proactive_message_failed_guard"}
+# {"ts":"2026-09-27T14:02:52.482Z","level":"error","event":"proactive_message_failed_guard"}
+# {"ts":"2026-09-27T14:02:52.484Z","level":"error","event":"proactive_message_failed_guard"}
+# {"ts":"2026-09-27T14:02:52.484Z","level":"error","event":"proactive_message_failed_guard"}
+# {"ts":"2026-09-27T14:02:52.484Z","level":"error","event":"proactive_message_failed_guard"}
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「1  Recovery 55 → 99」
+ok 1 - ★★★ 敘述再稽核[daily]: 丟掉「1  Recovery 55 → 99」
+  ---
+  duration_ms: 8.39825
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「1  Recovery 55 → 99」
+ok 2 - ★★★ 敘述再稽核[weekly]: 丟掉「1  Recovery 55 → 99」
+  ---
+  duration_ms: 2.249459
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「1  Recovery 55 → 99」
+ok 3 - ★★★ 敘述再稽核[qa]: 丟掉「1  Recovery 55 → 99」
+  ---
+  duration_ms: 0.392958
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「2  Recovery 55 → 30」
+ok 4 - ★★★ 敘述再稽核[daily]: 丟掉「2  Recovery 55 → 30」
+  ---
+  duration_ms: 0.350917
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「2  Recovery 55 → 30」
+ok 5 - ★★★ 敘述再稽核[weekly]: 丟掉「2  Recovery 55 → 30」
+  ---
+  duration_ms: 0.351334
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「2  Recovery 55 → 30」
+ok 6 - ★★★ 敘述再稽核[qa]: 丟掉「2  Recovery 55 → 30」
+  ---
+  duration_ms: 0.170708
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「3  睡眠 99 挪給恢復」
+ok 7 - ★★★ 敘述再稽核[daily]: 丟掉「3  睡眠 99 挪給恢復」
+  ---
+  duration_ms: 0.269958
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「3  睡眠 99 挪給恢復」
+ok 8 - ★★★ 敘述再稽核[weekly]: 丟掉「3  睡眠 99 挪給恢復」
+  ---
+  duration_ms: 0.130541
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「3  睡眠 99 挪給恢復」
+ok 9 - ★★★ 敘述再稽核[qa]: 丟掉「3  睡眠 99 挪給恢復」
+  ---
+  duration_ms: 1.120084
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「5  HRV 無資料 → 30ms」
+ok 10 - ★★★ 敘述再稽核[daily]: 丟掉「5  HRV 無資料 → 30ms」
+  ---
+  duration_ms: 0.786667
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「5  HRV 無資料 → 30ms」
+ok 11 - ★★★ 敘述再稽核[weekly]: 丟掉「5  HRV 無資料 → 30ms」
+  ---
+  duration_ms: 0.269708
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「5  HRV 無資料 → 30ms」
+ok 12 - ★★★ 敘述再稽核[qa]: 丟掉「5  HRV 無資料 → 30ms」
+  ---
+  duration_ms: 0.115375
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「6  HRV 九九毫秒」
+ok 13 - ★★★ 敘述再稽核[daily]: 丟掉「6  HRV 九九毫秒」
+  ---
+  duration_ms: 0.245667
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「6  HRV 九九毫秒」
+ok 14 - ★★★ 敘述再稽核[weekly]: 丟掉「6  HRV 九九毫秒」
+  ---
+  duration_ms: 0.102
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「6  HRV 九九毫秒」
+ok 15 - ★★★ 敘述再稽核[qa]: 丟掉「6  HRV 九九毫秒」
+  ---
+  duration_ms: 0.092875
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「7  未支援的方向」
+ok 16 - ★★★ 敘述再稽核[daily]: 丟掉「7  未支援的方向」
+  ---
+  duration_ms: 0.106958
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「7  未支援的方向」
+ok 17 - ★★★ 敘述再稽核[weekly]: 丟掉「7  未支援的方向」
+  ---
+  duration_ms: 0.087292
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「7  未支援的方向」
+ok 18 - ★★★ 敘述再稽核[qa]: 丟掉「7  未支援的方向」
+  ---
+  duration_ms: 0.088583
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「9  中文數字」
+ok 19 - ★★★ 敘述再稽核[daily]: 丟掉「9  中文數字」
+  ---
+  duration_ms: 0.102167
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「9  中文數字」
+ok 20 - ★★★ 敘述再稽核[weekly]: 丟掉「9  中文數字」
+  ---
+  duration_ms: 0.18325
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「9  中文數字」
+ok 21 - ★★★ 敘述再稽核[qa]: 丟掉「9  中文數字」
+  ---
+  duration_ms: 0.097125
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「10 英文數字」
+ok 22 - ★★★ 敘述再稽核[daily]: 丟掉「10 英文數字」
+  ---
+  duration_ms: 2.381084
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「10 英文數字」
+ok 23 - ★★★ 敘述再稽核[weekly]: 丟掉「10 英文數字」
+  ---
+  duration_ms: 0.136041
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「10 英文數字」
+ok 24 - ★★★ 敘述再稽核[qa]: 丟掉「10 英文數字」
+  ---
+  duration_ms: 0.127541
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「11 指標同義詞」
+ok 25 - ★★★ 敘述再稽核[daily]: 丟掉「11 指標同義詞」
+  ---
+  duration_ms: 0.174542
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「11 指標同義詞」
+ok 26 - ★★★ 敘述再稽核[weekly]: 丟掉「11 指標同義詞」
+  ---
+  duration_ms: 0.120916
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「11 指標同義詞」
+ok 27 - ★★★ 敘述再稽核[qa]: 丟掉「11 指標同義詞」
+  ---
+  duration_ms: 0.100917
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「13 數字在前」
+ok 28 - ★★★ 敘述再稽核[daily]: 丟掉「13 數字在前」
+  ---
+  duration_ms: 0.098667
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「13 數字在前」
+ok 29 - ★★★ 敘述再稽核[weekly]: 丟掉「13 數字在前」
+  ---
+  duration_ms: 1.268709
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「13 數字在前」
+ok 30 - ★★★ 敘述再稽核[qa]: 丟掉「13 數字在前」
+  ---
+  duration_ms: 0.102334
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「16 WHOOP Age」
+ok 31 - ★★★ 敘述再稽核[daily]: 丟掉「16 WHOOP Age」
+  ---
+  duration_ms: 0.105042
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「16 WHOOP Age」
+ok 32 - ★★★ 敘述再稽核[weekly]: 丟掉「16 WHOOP Age」
+  ---
+  duration_ms: 0.143166
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「16 WHOOP Age」
+ok 33 - ★★★ 敘述再稽核[qa]: 丟掉「16 WHOOP Age」
+  ---
+  duration_ms: 0.185625
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「18 Healthspan」
+ok 34 - ★★★ 敘述再稽核[daily]: 丟掉「18 Healthspan」
+  ---
+  duration_ms: 0.122625
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「18 Healthspan」
+ok 35 - ★★★ 敘述再稽核[weekly]: 丟掉「18 Healthspan」
+  ---
+  duration_ms: 0.513292
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「18 Healthspan」
+ok 36 - ★★★ 敘述再稽核[qa]: 丟掉「18 Healthspan」
+  ---
+  duration_ms: 0.326584
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「20 aspirin」
+ok 37 - ★★★ 敘述再稽核[daily]: 丟掉「20 aspirin」
+  ---
+  duration_ms: 0.305375
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「20 aspirin」
+ok 38 - ★★★ 敘述再稽核[weekly]: 丟掉「20 aspirin」
+  ---
+  duration_ms: 0.114791
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「20 aspirin」
+ok 39 - ★★★ 敘述再稽核[qa]: 丟掉「20 aspirin」
+  ---
+  duration_ms: 0.094667
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「22 虛構藥名」
+ok 40 - ★★★ 敘述再稽核[daily]: 丟掉「22 虛構藥名」
+  ---
+  duration_ms: 0.13075
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「22 虛構藥名」
+ok 41 - ★★★ 敘述再稽核[weekly]: 丟掉「22 虛構藥名」
+  ---
+  duration_ms: 0.08775
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「22 虛構藥名」
+ok 42 - ★★★ 敘述再稽核[qa]: 丟掉「22 虛構藥名」
+  ---
+  duration_ms: 0.114625
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「24 治療祈使」
+ok 43 - ★★★ 敘述再稽核[daily]: 丟掉「24 治療祈使」
+  ---
+  duration_ms: 0.095292
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「24 治療祈使」
+ok 44 - ★★★ 敘述再稽核[weekly]: 丟掉「24 治療祈使」
+  ---
+  duration_ms: 0.087042
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「24 治療祈使」
+ok 45 - ★★★ 敘述再稽核[qa]: 丟掉「24 治療祈使」
+  ---
+  duration_ms: 0.080583
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「25 診斷語言」
+ok 46 - ★★★ 敘述再稽核[daily]: 丟掉「25 診斷語言」
+  ---
+  duration_ms: 0.084667
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「25 診斷語言」
+ok 47 - ★★★ 敘述再稽核[weekly]: 丟掉「25 診斷語言」
+  ---
+  duration_ms: 0.081792
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「25 診斷語言」
+ok 48 - ★★★ 敘述再稽核[qa]: 丟掉「25 診斷語言」
+  ---
+  duration_ms: 0.086667
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「26 監測指示」
+ok 49 - ★★★ 敘述再稽核[daily]: 丟掉「26 監測指示」
+  ---
+  duration_ms: 0.084166
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「26 監測指示」
+ok 50 - ★★★ 敘述再稽核[weekly]: 丟掉「26 監測指示」
+  ---
+  duration_ms: 0.0815
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「26 監測指示」
+ok 51 - ★★★ 敘述再稽核[qa]: 丟掉「26 監測指示」
+  ---
+  duration_ms: 0.080875
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[daily]: 丟掉「27 九成九」
+ok 52 - ★★★ 敘述再稽核[daily]: 丟掉「27 九成九」
+  ---
+  duration_ms: 0.091208
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[weekly]: 丟掉「27 九成九」
+ok 53 - ★★★ 敘述再稽核[weekly]: 丟掉「27 九成九」
+  ---
+  duration_ms: 0.08275
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[qa]: 丟掉「27 九成九」
+ok 54 - ★★★ 敘述再稽核[qa]: 丟掉「27 九成九」
+  ---
+  duration_ms: 0.081792
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[daily] false positive: 保留「鼓勵」
+ok 55 - ★★ 敘述再稽核[daily] false positive: 保留「鼓勵」
+  ---
+  duration_ms: 0.129167
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[weekly] false positive: 保留「鼓勵」
+ok 56 - ★★ 敘述再稽核[weekly] false positive: 保留「鼓勵」
+  ---
+  duration_ms: 0.072542
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[qa] false positive: 保留「鼓勵」
+ok 57 - ★★ 敘述再稽核[qa] false positive: 保留「鼓勵」
+  ---
+  duration_ms: 0.070958
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[daily] false positive: 保留「早睡」
+ok 58 - ★★ 敘述再稽核[daily] false positive: 保留「早睡」
+  ---
+  duration_ms: 0.117875
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[weekly] false positive: 保留「早睡」
+ok 59 - ★★ 敘述再稽核[weekly] false positive: 保留「早睡」
+  ---
+  duration_ms: 0.07525
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[qa] false positive: 保留「早睡」
+ok 60 - ★★ 敘述再稽核[qa] false positive: 保留「早睡」
+  ---
+  duration_ms: 0.069458
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[daily] false positive: 保留「減量」
+ok 61 - ★★ 敘述再稽核[daily] false positive: 保留「減量」
+  ---
+  duration_ms: 0.070167
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[weekly] false positive: 保留「減量」
+ok 62 - ★★ 敘述再稽核[weekly] false positive: 保留「減量」
+  ---
+  duration_ms: 0.068584
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[qa] false positive: 保留「減量」
+ok 63 - ★★ 敘述再稽核[qa] false positive: 保留「減量」
+  ---
+  duration_ms: 0.072875
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[daily] false positive: 保留「就醫提醒」
+ok 64 - ★★ 敘述再稽核[daily] false positive: 保留「就醫提醒」
+  ---
+  duration_ms: 0.077375
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[weekly] false positive: 保留「就醫提醒」
+ok 65 - ★★ 敘述再稽核[weekly] false positive: 保留「就醫提醒」
+  ---
+  duration_ms: 0.072333
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[qa] false positive: 保留「就醫提醒」
+ok 66 - ★★ 敘述再稽核[qa] false positive: 保留「就醫提醒」
+  ---
+  duration_ms: 0.071709
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[daily] false positive: 保留「資料不足」
+ok 67 - ★★ 敘述再稽核[daily] false positive: 保留「資料不足」
+  ---
+  duration_ms: 0.067208
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[weekly] false positive: 保留「資料不足」
+ok 68 - ★★ 敘述再稽核[weekly] false positive: 保留「資料不足」
+  ---
+  duration_ms: 0.068917
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[qa] false positive: 保留「資料不足」
+ok 69 - ★★ 敘述再稽核[qa] false positive: 保留「資料不足」
+  ---
+  duration_ms: 0.066167
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[daily] false positive: 保留「慣用語」
+ok 70 - ★★ 敘述再稽核[daily] false positive: 保留「慣用語」
+  ---
+  duration_ms: 0.08175
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[weekly] false positive: 保留「慣用語」
+ok 71 - ★★ 敘述再稽核[weekly] false positive: 保留「慣用語」
+  ---
+  duration_ms: 0.074292
+  type: 'test'
+  ...
+# Subtest: ★★ 敘述再稽核[qa] false positive: 保留「慣用語」
+ok 72 - ★★ 敘述再稽核[qa] false positive: 保留「慣用語」
+  ---
+  duration_ms: 0.071417
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[proactive]: 這條路徑沒有任何 LLM 呼叫（原始碼層級）
+ok 73 - ★★★ 敘述再稽核[proactive]: 這條路徑沒有任何 LLM 呼叫（原始碼層級）
+  ---
+  duration_ms: 1.6575
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[proactive]: 確定性樣板可以含指標與數字
+ok 74 - ★★★ 敘述再稽核[proactive]: 確定性樣板可以含指標與數字
+  ---
+  duration_ms: 0.403375
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「治療」
+ok 75 - ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「治療」
+  ---
+  duration_ms: 0.604125
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「虛構藥名」
+ok 76 - ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「虛構藥名」
+  ---
+  duration_ms: 0.249
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「診斷」
+ok 77 - ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「診斷」
+  ---
+  duration_ms: 0.156583
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「強因果」
+ok 78 - ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「強因果」
+  ---
+  duration_ms: 1.103208
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「即時宣稱」
+ok 79 - ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「即時宣稱」
+  ---
+  duration_ms: 0.169875
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「監測指示」
+ok 80 - ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「監測指示」
+  ---
+  duration_ms: 0.157583
+  type: 'test'
+  ...
+# Subtest: ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「專有分數」
+ok 81 - ★★★ 敘述再稽核[proactive] 深度防禦: 擋下「專有分數」
+  ---
+  duration_ms: 0.119375
+  type: 'test'
+  ...
+1..81
+# tests 81
+# suites 0
+# pass 81
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 248.754584

@@ -1,0 +1,140 @@
+TAP version 13
+# Subtest: access token 還有效（>5 分鐘）→ 直接重用，完全不打 token endpoint
+not ok 1 - access token 還有效（>5 分鐘）→ 直接重用，完全不打 token endpoint
+  ---
+  duration_ms: 14.143458
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/whoop.test.js:107:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: 剩不到 5 分鐘 → refresh，且「先寫回 DB」才去撈資料
+not ok 2 - 剩不到 5 分鐘 → refresh，且「先寫回 DB」才去撈資料
+  ---
+  duration_ms: 4.550708
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/whoop.test.js:126:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: DB 寫入一直失敗 → 中止，不會用新 token 去撈資料（避免 refresh_token 遺失）
+not ok 3 - DB 寫入一直失敗 → 中止，不會用新 token 去撈資料（避免 refresh_token 遺失）
+  ---
+  duration_ms: 0.62675
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/whoop.test.js:161:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: 平行請求時只 refresh 一次
+not ok 4 - 平行請求時只 refresh 一次
+  ---
+  duration_ms: 0.7225
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/whoop.test.js:177:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: collection 用 next_token 分頁，每頁 limit=25
+not ok 5 - collection 用 next_token 分頁，每頁 limit=25
+  ---
+  duration_ms: 1.290208
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/whoop.test.js:203:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: 429 會 backoff 後重試成功
+not ok 6 - 429 會 backoff 後重試成功
+  ---
+  duration_ms: 0.743834
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/whoop.test.js:233:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: 429 一直不停 → 拋錯（讓上層記錄並通知）
+not ok 7 - 429 一直不停 → 拋錯（讓上層記錄並通知）
+  ---
+  duration_ms: 0.575167
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/whoop.test.js:252:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    processTicksAndRejections (node:internal/process/task_queues:89:21)
+    runNextTicks (node:internal/process/task_queues:68:3)
+    process.processImmediate (node:internal/timers:452:9)
+  ...
+# Subtest: 401 → 強制 refresh 一次再重試；再 401 就明確要求重新授權
+not ok 8 - 401 → 強制 refresh 一次再重試；再 401 就明確要求重新授權
+  ---
+  duration_ms: 0.554208
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/whoop.test.js:268:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    processTicksAndRejections (node:internal/process/task_queues:89:21)
+    runNextTicks (node:internal/process/task_queues:68:3)
+    process.processImmediate (node:internal/timers:452:9)
+  ...
+# Subtest: Turso 沒有 token → 明確叫你先跑授權腳本
+ok 9 - Turso 沒有 token → 明確叫你先跑授權腳本
+  ---
+  duration_ms: 1.540958
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 1
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 273.281167

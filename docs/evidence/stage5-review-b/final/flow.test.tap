@@ -1,0 +1,129 @@
+TAP version 13
+# {"ts":"2026-09-27T12:20:25.493Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.503Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T12:20:25.505Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.508Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T12:20:25.509Z","level":"info","event":"daily_already_sent"}
+# {"ts":"2026-09-27T12:20:25.511Z","level":"info","event":"daily_not_ready"}
+# {"ts":"2026-09-27T12:20:25.512Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.514Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T12:20:25.514Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T12:20:25.516Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.518Z","level":"warn","event":"report_delivery_definite_failure","user_id":"u-flow-test","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T12:20:25.519Z","level":"error","event":"daily_telegram_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T12:20:25.519Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.521Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T12:20:25.522Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.524Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T12:20:25.526Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T12:20:25.526Z","level":"info","event":"weekly_already_sent"}
+# {"ts":"2026-09-27T12:20:25.528Z","level":"info","event":"daily_not_ready"}
+# {"ts":"2026-09-27T12:20:25.529Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T12:20:25.532Z","level":"info","event":"weekly_waiting"}
+# {"ts":"2026-09-27T12:20:25.534Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.535Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T12:20:25.537Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.539Z","level":"error","event":"daily_record_failed_after_send","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T12:20:25.539Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T12:20:25.540Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.540Z","level":"info","event":"daily_claim_denied"}
+# {"ts":"2026-09-27T12:20:25.541Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.543Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T12:20:25.543Z","level":"info","event":"daily_already_sent"}
+# {"ts":"2026-09-27T12:20:25.544Z","level":"info","event":"daily_not_ready"}
+# {"ts":"2026-09-27T12:20:25.544Z","level":"warn","event":"daily_discarded_window_expired"}
+# {"ts":"2026-09-27T12:20:25.546Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T12:20:25.547Z","level":"info","event":"daily_sent"}
+# Subtest: daily：正常情況會發送並寫入 SENT 紀錄
+ok 1 - daily：正常情況會發送並寫入 SENT 紀錄
+  ---
+  duration_ms: 33.770084
+  type: 'test'
+  ...
+# Subtest: daily：同一天第二次執行不會重複發（去重）
+ok 2 - daily：同一天第二次執行不會重複發（去重）
+  ---
+  duration_ms: 5.832166
+  type: 'test'
+  ...
+# Subtest: daily：起床未滿 30 分鐘 → 不發、不寫 SENT，下一輪還會再試
+ok 3 - daily：起床未滿 30 分鐘 → 不發、不寫 SENT，下一輪還會再試
+  ---
+  duration_ms: 1.591708
+  type: 'test'
+  ...
+# Subtest: daily：模型掛掉仍然發簡報，而且用確定性敘述（不是假的故障訊息）
+ok 4 - daily：模型掛掉仍然發簡報，而且用確定性敘述（不是假的故障訊息）
+  ---
+  duration_ms: 3.694583
+  type: 'test'
+  ...
+# Subtest: daily：Telegram 掛掉 → 記 FAILED、不遞迴呼叫 Telegram、明天/下一輪還能重試
+ok 5 - daily：Telegram 掛掉 → 記 FAILED、不遞迴呼叫 Telegram、明天/下一輪還能重試
+  ---
+  duration_ms: 5.94
+  type: 'test'
+  ...
+# Subtest: weekly：週一會發，且與 daily 各自獨立去重
+ok 6 - weekly：週一會發，且與 daily 各自獨立去重
+  ---
+  duration_ms: 5.292833
+  type: 'test'
+  ...
+# Subtest: weekly：daily 失敗也不影響 weekly 發送（互不阻擋）
+ok 7 - weekly：daily 失敗也不影響 weekly 發送（互不阻擋）
+  ---
+  duration_ms: 3.1625
+  type: 'test'
+  ...
+# Subtest: weekly：超過補發寬限（週四以後）不發
+ok 8 - weekly：超過補發寬限（週四以後）不發
+  ---
+  duration_ms: 0.720625
+  type: 'test'
+  ...
+# Subtest: weekly：清晨還沒起床時先等，過中午才補發
+ok 9 - weekly：清晨還沒起床時先等，過中午才補發
+  ---
+  duration_ms: 1.888209
+  type: 'test'
+  ...
+# Subtest: 教練文字長度受控（daily 假文字也不會撐爆訊息）
+ok 10 - 教練文字長度受控（daily 假文字也不會撐爆訊息）
+  ---
+  duration_ms: 3.372125
+  type: 'test'
+  ...
+# Subtest: daily：訊息已送出但紀錄寫不進 DB → 仍算 sent，而且**不會**重複發送
+ok 11 - daily：訊息已送出但紀錄寫不進 DB → 仍算 sent，而且**不會**重複發送
+  ---
+  duration_ms: 4.551875
+  type: 'test'
+  ...
+# Subtest: daily 跨午夜：去重 key 與紀錄用 health_date，不是執行當天
+ok 12 - daily 跨午夜：去重 key 與紀錄用 health_date，不是執行當天
+  ---
+  duration_ms: 3.068584
+  type: 'test'
+  ...
+# Subtest: daily：sleep.end 超過 48 小時 → 終局 MISSED（不會把舊資料重報）
+ok 13 - daily：sleep.end 超過 48 小時 → 終局 MISSED（不會把舊資料重報）
+  ---
+  duration_ms: 1.293292
+  type: 'test'
+  ...
+# Subtest: daily：24–48 小時之間會補發，並標示成補發
+ok 14 - daily：24–48 小時之間會補發，並標示成補發
+  ---
+  duration_ms: 2.446667
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 186.704792

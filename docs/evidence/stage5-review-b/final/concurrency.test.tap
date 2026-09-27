@@ -1,0 +1,265 @@
+TAP version 13
+# {"ts":"2026-09-27T15:10:16.431Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:16.434Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:18.066Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:18.067Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T15:10:18.073Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:18.074Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T15:10:18.074Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:18.075Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T15:10:18.075Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T15:10:18.180Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:18.182Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:20.332Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:20.333Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T15:10:20.339Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:20.340Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T15:10:20.340Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T15:10:20.402Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:20.404Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:22.913Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:22.915Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T15:10:22.915Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.916Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.917Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.918Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.918Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.918Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.918Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.918Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.918Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.918Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.918Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.918Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.919Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.919Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.919Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.919Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.919Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.919Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.919Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.919Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.919Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.919Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.920Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.920Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.920Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.920Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.920Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.920Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.920Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.921Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.921Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.921Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.921Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.921Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.921Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.921Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.921Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.922Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.923Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:22.924Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:23.012Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:23.014Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:24.703Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:24.704Z","level":"info","event":"tokens_saved","user_id":"u-conc-test","attempt":1}
+# {"ts":"2026-09-27T15:10:24.706Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T15:10:24.706Z","level":"info","event":"token_refresh_start","user_id":"u-conc-test"}
+# Subtest: A1: lock 同時只有一個持有者，釋放後才能再取得
+ok 1 - A1: lock 同時只有一個持有者，釋放後才能再取得
+  ---
+  duration_ms: 1715.399958
+  type: 'test'
+  ...
+# Subtest: A1: lock 過期後可以被接手（process crash 不會永久卡死）
+ok 2 - A1: lock 過期後可以被接手（process crash 不會永久卡死）
+  ---
+  duration_ms: 2263.150416
+  type: 'test'
+  ...
+# Subtest: A1: 100 個並行 acquire 只有 1 個成功
+ok 3 - A1: 100 個並行 acquire 只有 1 個成功
+  ---
+  duration_ms: 2584.454875
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:10:24.957Z","level":"info","event":"tokens_saved","user_id":"u-conc-test","attempt":1}
+# {"ts":"2026-09-27T15:10:24.957Z","level":"info","event":"token_refresh_done","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:24.958Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T15:10:24.963Z","level":"info","event":"token_reused","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:25.033Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:25.035Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:26.983Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:26.984Z","level":"info","event":"tokens_saved","user_id":"u-conc-test","attempt":1}
+# {"ts":"2026-09-27T15:10:26.986Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T15:10:26.987Z","level":"info","event":"lock_busy"}
+# {"ts":"2026-09-27T15:10:26.987Z","level":"warn","event":"token_refresh_lock_busy","user_id":"u-conc-test","attempts":30}
+# Subtest: A1: 兩個 process 同時要 refresh → 只會真的 refresh 一次，另一個沿用
+# {"ts":"2026-09-27T15:10:27.095Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:27.097Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:28.888Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:28.889Z","level":"info","event":"report_claimed","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:28.895Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:28.953Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:28.954Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:31.313Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:31.315Z","level":"info","event":"report_claimed","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.318Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.318Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.319Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.319Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.319Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.319Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.320Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.320Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.320Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.320Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.321Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.321Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.321Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.321Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.321Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.321Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.322Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.322Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.322Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:31.386Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:31.388Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:33.201Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:33.204Z","level":"info","event":"report_claimed","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:33.213Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:33.278Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:33.280Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:34.933Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:34.934Z","level":"info","event":"report_claimed","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:34.934Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:34.935Z","level":"info","event":"report_claimed","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:34.936Z","level":"warn","event":"report_delivery_authorization_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:34.998Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:34.999Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:36.942Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:36.943Z","level":"info","event":"report_claimed","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:36.944Z","level":"info","event":"report_claimed","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:36.946Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:37.007Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:37.015Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:39.017Z","level":"info","event":"user_created","user_id":"u-conc-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:39.018Z","level":"info","event":"report_claimed","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:39.020Z","level":"info","event":"report_claimed","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:39.020Z","level":"info","event":"report_claimed","user_id":"u-conc-test"}
+# {"ts":"2026-09-27T15:10:39.021Z","level":"info","event":"report_claim_denied","user_id":"u-conc-test"}
+ok 4 - A1: 兩個 process 同時要 refresh → 只會真的 refresh 一次，另一個沿用
+  ---
+  duration_ms: 2039.405416
+  type: 'test'
+  ...
+# Subtest: A1: peer 握著 lock 但一直沒寫出新 token → 等到逾時就中止，不自己 refresh
+ok 5 - A1: peer 握著 lock 但一直沒寫出新 token → 等到逾時就中止，不自己 refresh
+  ---
+  duration_ms: 2030.041417
+  type: 'test'
+  ...
+# Subtest: A2: 同一份報告只有一個 process 拿得到發送權
+ok 6 - A2: 同一份報告只有一個 process 拿得到發送權
+  ---
+  duration_ms: 1900.88075
+  type: 'test'
+  ...
+# Subtest: A2: 20 個並行 claim 只有 1 個成功
+ok 7 - A2: 20 個並行 claim 只有 1 個成功
+  ---
+  duration_ms: 2426.324667
+  type: 'test'
+  ...
+# Subtest: A2: 標記已送出後，claim 永遠不會再被授予（即使租約過期）
+ok 8 - A2: 標記已送出後，claim 永遠不會再被授予（即使租約過期）
+  ---
+  duration_ms: 1890.954916
+  type: 'test'
+  ...
+# Subtest: A2: 尚未送出的 claim 過期後可以被接手（process crash 不會永久卡住報告）
+ok 9 - A2: 尚未送出的 claim 過期後可以被接手（process crash 不會永久卡住報告）
+  ---
+  duration_ms: 1725.003875
+  type: 'test'
+  ...
+# Subtest: A2: releaseClaim 讓失敗的報告可以立刻重試，但已送出的不受影響
+ok 10 - A2: releaseClaim 讓失敗的報告可以立刻重試，但已送出的不受影響
+  ---
+  duration_ms: 2007.730666
+  type: 'test'
+  ...
+# Subtest: A2: daily 與 weekly、不同日期彼此獨立
+ok 11 - A2: daily 與 weekly、不同日期彼此獨立
+  ---
+  duration_ms: 2074.658708
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 23265.344833

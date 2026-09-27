@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: daily 呼叫：OpenAI 格式 + reasoning 關掉，且沒有 temperature/top_p/top_k
+not ok 1 - daily 呼叫：OpenAI 格式 + reasoning 關掉，且沒有 temperature/top_p/top_k
+  ---
+  duration_ms: 9.763917
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/coach.test.js:80:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: 模型不吃某個參數時（400）會自動退一階，不會整個失敗
+not ok 2 - 模型不吃某個參數時（400）會自動退一階，不會整個失敗
+  ---
+  duration_ms: 2.849625
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/coach.test.js:112:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: 429 會重試，重試成功就照樣回文字
+not ok 3 - 429 會重試，重試成功就照樣回文字
+  ---
+  duration_ms: 0.347916
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/coach.test.js:132:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: OpenRouter 一直掛 → 重試用完後回 null（上層走 fallback，不讓整份簡報消失）
+not ok 4 - OpenRouter 一直掛 → 重試用完後回 null（上層走 fallback，不讓整份簡報消失）
+  ---
+  duration_ms: 0.318334
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/coach.test.js:146:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: 200 但 body 裡包 error（上游 provider 掛了）也算失敗 → 回 null
+not ok 5 - 200 但 body 裡包 error（上游 provider 掛了）也算失敗 → 回 null
+  ---
+  duration_ms: 0.697125
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/coach.test.js:161:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: weekly 呼叫用較大的 max_tokens，system prompt 會加上週回顧指示
+not ok 6 - weekly 呼叫用較大的 max_tokens，system prompt 會加上週回顧指示
+  ---
+  duration_ms: 0.519333
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/coach.test.js:174:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 127.0.0.1'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+# Subtest: 教練輸入不含原始 API payload（只給算好的結論）
+ok 7 - 教練輸入不含原始 API payload（只給算好的結論）
+  ---
+  duration_ms: 24.420458
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 1
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 177.240708

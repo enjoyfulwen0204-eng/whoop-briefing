@@ -1,0 +1,308 @@
+TAP version 13
+# {"ts":"2026-09-27T11:56:35.415Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:35.419Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:36.935Z","level":"info","event":"user_created","user_id":"ad83f7a9-5aab-4586-9e59-e34c716e2055","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:36.936Z","level":"info","event":"telegram_linked","user_id":"ad83f7a9-5aab-4586-9e59-e34c716e2055"}
+# {"ts":"2026-09-27T11:56:37.041Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:37.043Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:38.578Z","level":"info","event":"user_created","user_id":"b7cfff16-4a16-4fe9-accd-351a8da6de36","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:38.578Z","level":"info","event":"telegram_linked","user_id":"b7cfff16-4a16-4fe9-accd-351a8da6de36"}
+# {"ts":"2026-09-27T11:56:38.653Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:38.655Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:40.201Z","level":"info","event":"user_created","user_id":"fe2dd871-64e6-4b03-b75c-8bfd726fc46c","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:40.202Z","level":"info","event":"telegram_linked","user_id":"fe2dd871-64e6-4b03-b75c-8bfd726fc46c"}
+# {"ts":"2026-09-27T11:56:40.294Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:40.295Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:41.849Z","level":"info","event":"user_created","user_id":"d3669f05-dd7f-4bb2-a301-b390e09058ce","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:41.850Z","level":"info","event":"telegram_linked","user_id":"d3669f05-dd7f-4bb2-a301-b390e09058ce"}
+# {"ts":"2026-09-27T11:56:41.876Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T11:56:41.877Z","level":"info","event":"report_claimed","user_id":"d3669f05-dd7f-4bb2-a301-b390e09058ce"}
+# {"ts":"2026-09-27T11:56:41.918Z","level":"info","event":"insights_built","user_id":"d3669f05-dd7f-4bb2-a301-b390e09058ce"}
+# {"ts":"2026-09-27T11:56:41.919Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T11:56:41.953Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T11:56:42.089Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:42.090Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:43.591Z","level":"info","event":"user_created","user_id":"2f57e447-4eec-4fd3-b0b6-d9d9f60e9e71","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:43.592Z","level":"info","event":"telegram_linked","user_id":"2f57e447-4eec-4fd3-b0b6-d9d9f60e9e71"}
+# {"ts":"2026-09-27T11:56:43.618Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T11:56:43.618Z","level":"info","event":"report_claimed","user_id":"2f57e447-4eec-4fd3-b0b6-d9d9f60e9e71"}
+# {"ts":"2026-09-27T11:56:43.659Z","level":"info","event":"insights_built","user_id":"2f57e447-4eec-4fd3-b0b6-d9d9f60e9e71"}
+# {"ts":"2026-09-27T11:56:43.659Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T11:56:43.678Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T11:56:43.697Z","level":"info","event":"daily_already_sent"}
+# {"ts":"2026-09-27T11:56:43.717Z","level":"info","event":"daily_already_sent"}
+# {"ts":"2026-09-27T11:56:43.770Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:43.771Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:45.288Z","level":"info","event":"user_created","user_id":"3b8cba22-47da-4292-a56b-a9972baf40cd","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:45.289Z","level":"info","event":"telegram_linked","user_id":"3b8cba22-47da-4292-a56b-a9972baf40cd"}
+# {"ts":"2026-09-27T11:56:45.299Z","level":"info","event":"daily_not_ready"}
+# {"ts":"2026-09-27T11:56:45.326Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T11:56:45.327Z","level":"info","event":"report_claimed","user_id":"3b8cba22-47da-4292-a56b-a9972baf40cd"}
+# {"ts":"2026-09-27T11:56:45.369Z","level":"info","event":"insights_built","user_id":"3b8cba22-47da-4292-a56b-a9972baf40cd"}
+# {"ts":"2026-09-27T11:56:45.369Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T11:56:45.386Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T11:56:45.437Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:45.438Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:46.966Z","level":"info","event":"user_created","user_id":"995b919c-4545-42b4-af4b-9e285c2aabe2","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:46.967Z","level":"info","event":"telegram_linked","user_id":"995b919c-4545-42b4-af4b-9e285c2aabe2"}
+# {"ts":"2026-09-27T11:56:47.029Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:47.031Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:48.614Z","level":"info","event":"user_created","user_id":"ee7b5e5b-2348-47f4-8fe3-a96db19fbbbd","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:48.615Z","level":"info","event":"telegram_linked","user_id":"ee7b5e5b-2348-47f4-8fe3-a96db19fbbbd"}
+# {"ts":"2026-09-27T11:56:48.686Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:48.688Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:50.278Z","level":"info","event":"user_created","user_id":"56ec9fc7-85ca-4fdc-8a5a-c9c74454a3fe","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:50.279Z","level":"info","event":"telegram_linked","user_id":"56ec9fc7-85ca-4fdc-8a5a-c9c74454a3fe"}
+# {"ts":"2026-09-27T11:56:50.346Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:50.348Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:51.945Z","level":"info","event":"user_created","user_id":"2056888a-4d34-45f3-a8c7-9ca0c7959c6e","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:51.946Z","level":"info","event":"telegram_linked","user_id":"2056888a-4d34-45f3-a8c7-9ca0c7959c6e"}
+# {"ts":"2026-09-27T11:56:52.013Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:52.014Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:53.644Z","level":"info","event":"user_created","user_id":"3ad6677c-473b-48b3-9987-588cbf701dc1","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:53.645Z","level":"info","event":"telegram_linked","user_id":"3ad6677c-473b-48b3-9987-588cbf701dc1"}
+# {"ts":"2026-09-27T11:56:53.708Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:53.710Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:55.337Z","level":"info","event":"user_created","user_id":"a5657617-76e9-4123-ad43-45aa6f487b56","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:55.338Z","level":"info","event":"telegram_linked","user_id":"a5657617-76e9-4123-ad43-45aa6f487b56"}
+# {"ts":"2026-09-27T11:56:55.403Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:55.405Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:57.037Z","level":"info","event":"user_created","user_id":"962b13eb-653d-40ee-b571-0f465669835d","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:57.038Z","level":"info","event":"telegram_linked","user_id":"962b13eb-653d-40ee-b571-0f465669835d"}
+# {"ts":"2026-09-27T11:56:57.056Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T11:56:57.056Z","level":"info","event":"report_claimed","user_id":"962b13eb-653d-40ee-b571-0f465669835d"}
+# {"ts":"2026-09-27T11:56:57.095Z","level":"info","event":"insights_built","user_id":"962b13eb-653d-40ee-b571-0f465669835d"}
+# {"ts":"2026-09-27T11:56:57.095Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T11:56:57.114Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T11:56:57.170Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:57.172Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:58.812Z","level":"info","event":"user_created","user_id":"ea81e58a-02e2-4768-8905-fbe73e17ab10","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:58.816Z","level":"info","event":"telegram_linked","user_id":"ea81e58a-02e2-4768-8905-fbe73e17ab10"}
+# {"ts":"2026-09-27T11:56:58.863Z","level":"info","event":"daily_not_ready"}
+# {"ts":"2026-09-27T11:56:58.863Z","level":"warn","event":"daily_discarded_window_expired"}
+# {"ts":"2026-09-27T11:56:58.882Z","level":"info","event":"daily_not_ready"}
+# {"ts":"2026-09-27T11:56:58.882Z","level":"warn","event":"daily_discarded_window_expired"}
+# {"ts":"2026-09-27T11:56:58.900Z","level":"info","event":"daily_not_ready"}
+# {"ts":"2026-09-27T11:56:58.900Z","level":"warn","event":"daily_discarded_window_expired"}
+# {"ts":"2026-09-27T11:56:58.961Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:58.962Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:00.706Z","level":"info","event":"user_created","user_id":"f7f3c1e6-1d02-466f-8c1b-b7fb10119853","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:00.707Z","level":"info","event":"telegram_linked","user_id":"f7f3c1e6-1d02-466f-8c1b-b7fb10119853"}
+# {"ts":"2026-09-27T11:57:00.725Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T11:57:00.725Z","level":"info","event":"report_claimed","user_id":"f7f3c1e6-1d02-466f-8c1b-b7fb10119853"}
+# {"ts":"2026-09-27T11:57:00.764Z","level":"info","event":"insights_built","user_id":"f7f3c1e6-1d02-466f-8c1b-b7fb10119853"}
+# {"ts":"2026-09-27T11:57:00.764Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T11:57:00.784Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T11:57:00.808Z","level":"info","event":"daily_already_sent"}
+# {"ts":"2026-09-27T11:57:00.863Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:00.865Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:02.533Z","level":"info","event":"user_created","user_id":"17f38579-623a-40cd-a24a-22cf4de1786e","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:02.534Z","level":"info","event":"telegram_linked","user_id":"17f38579-623a-40cd-a24a-22cf4de1786e"}
+# {"ts":"2026-09-27T11:57:02.600Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:02.602Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:04.226Z","level":"info","event":"user_created","user_id":"a89b03ff-d192-4128-bc87-b1877d7638ef","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:04.226Z","level":"info","event":"telegram_linked","user_id":"a89b03ff-d192-4128-bc87-b1877d7638ef"}
+# {"ts":"2026-09-27T11:57:04.265Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T11:57:04.266Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T11:57:04.266Z","level":"info","event":"report_claimed","user_id":"a89b03ff-d192-4128-bc87-b1877d7638ef"}
+# {"ts":"2026-09-27T11:57:04.273Z","level":"info","event":"report_claim_denied","user_id":"a89b03ff-d192-4128-bc87-b1877d7638ef"}
+# {"ts":"2026-09-27T11:57:04.273Z","level":"info","event":"daily_claim_denied"}
+# {"ts":"2026-09-27T11:57:04.313Z","level":"info","event":"insights_built","user_id":"a89b03ff-d192-4128-bc87-b1877d7638ef"}
+# {"ts":"2026-09-27T11:57:04.313Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T11:57:04.329Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T11:57:04.388Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:04.390Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:06.135Z","level":"info","event":"user_created","user_id":"99585424-ed72-4c24-8578-56d9993af49e","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:06.136Z","level":"info","event":"telegram_linked","user_id":"99585424-ed72-4c24-8578-56d9993af49e"}
+# {"ts":"2026-09-27T11:57:06.162Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T11:57:06.162Z","level":"info","event":"report_claimed","user_id":"99585424-ed72-4c24-8578-56d9993af49e"}
+# {"ts":"2026-09-27T11:57:06.204Z","level":"info","event":"insights_built","user_id":"99585424-ed72-4c24-8578-56d9993af49e"}
+# {"ts":"2026-09-27T11:57:06.204Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T11:57:06.213Z","level":"warn","event":"report_delivery_definite_failure","user_id":"99585424-ed72-4c24-8578-56d9993af49e","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:57:06.222Z","level":"error","event":"daily_telegram_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:57:06.241Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T11:57:06.242Z","level":"info","event":"report_claimed","user_id":"99585424-ed72-4c24-8578-56d9993af49e"}
+# {"ts":"2026-09-27T11:57:06.282Z","level":"info","event":"insights_built","user_id":"99585424-ed72-4c24-8578-56d9993af49e"}
+# {"ts":"2026-09-27T11:57:06.282Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T11:57:06.298Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T11:57:06.352Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:06.354Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:08.037Z","level":"info","event":"user_created","user_id":"7c82c294-a829-40fd-9af7-90428fb32004","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:08.038Z","level":"info","event":"telegram_linked","user_id":"7c82c294-a829-40fd-9af7-90428fb32004"}
+# {"ts":"2026-09-27T11:57:08.064Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T11:57:08.065Z","level":"info","event":"report_claimed","user_id":"7c82c294-a829-40fd-9af7-90428fb32004"}
+# {"ts":"2026-09-27T11:57:08.105Z","level":"info","event":"insights_built","user_id":"7c82c294-a829-40fd-9af7-90428fb32004"}
+# {"ts":"2026-09-27T11:57:08.105Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T11:57:08.113Z","level":"error","event":"daily_record_failed_after_send","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:57:08.115Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T11:57:08.175Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:08.177Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:09.882Z","level":"info","event":"user_created","user_id":"86d3ea0c-c254-43d7-9b0f-af3494f1437f","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:09.882Z","level":"info","event":"telegram_linked","user_id":"86d3ea0c-c254-43d7-9b0f-af3494f1437f"}
+# {"ts":"2026-09-27T11:57:09.993Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:09.995Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:11.730Z","level":"info","event":"user_created","user_id":"dd278fa0-f6f8-4962-a25a-61598075d599","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:11.731Z","level":"info","event":"telegram_linked","user_id":"dd278fa0-f6f8-4962-a25a-61598075d599"}
+# {"ts":"2026-09-27T11:57:11.823Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:11.825Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:13.567Z","level":"info","event":"user_created","user_id":"67db15e2-4458-4805-b702-cc6deaf430db","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:13.568Z","level":"info","event":"telegram_linked","user_id":"67db15e2-4458-4805-b702-cc6deaf430db"}
+# {"ts":"2026-09-27T11:57:13.646Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:13.652Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:15.382Z","level":"info","event":"user_created","user_id":"4ced198a-035a-4a53-adfd-b4cd9d2c233e","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:15.383Z","level":"info","event":"telegram_linked","user_id":"4ced198a-035a-4a53-adfd-b4cd9d2c233e"}
+# {"ts":"2026-09-27T11:57:15.481Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:15.483Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:17.230Z","level":"info","event":"user_created","user_id":"1f86d871-e15c-447a-9138-1864acaab98b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:17.234Z","level":"info","event":"telegram_linked","user_id":"1f86d871-e15c-447a-9138-1864acaab98b"}
+# {"ts":"2026-09-27T11:57:17.249Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T11:57:17.249Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T11:57:17.335Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:17.337Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:19.114Z","level":"info","event":"user_created","user_id":"8365d007-ee01-4e96-9b56-1096fa05f177","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:19.115Z","level":"info","event":"telegram_linked","user_id":"8365d007-ee01-4e96-9b56-1096fa05f177"}
+# {"ts":"2026-09-27T11:57:19.197Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:19.199Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:20.959Z","level":"info","event":"user_created","user_id":"c9750cb3-012e-4212-957b-6035dc6826fe","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:20.960Z","level":"info","event":"telegram_linked","user_id":"c9750cb3-012e-4212-957b-6035dc6826fe"}
+# Subtest: ★★★ 1: 起床前的排程執行 → already_sent（前一天），且標成 stale_observation
+ok 1 - ★★★ 1: 起床前的排程執行 → already_sent（前一天），且標成 stale_observation
+  ---
+  duration_ms: 1630.928792
+  type: 'test'
+  ...
+# Subtest: ★★★ 2: 完全沒有主睡眠 → not_ready(no_main_sleep)，retryable
+ok 2 - ★★★ 2: 完全沒有主睡眠 → not_ready(no_main_sleep)，retryable
+  ---
+  duration_ms: 1615.134916
+  type: 'test'
+  ...
+# Subtest: ★★★ 3: 當前 cycle 還開著 → 狀態是「在等這一晚的資料」，而且說得出口
+ok 3 - ★★★ 3: 當前 cycle 還開著 → 狀態是「在等這一晚的資料」，而且說得出口
+  ---
+  duration_ms: 1637.294125
+  type: 'test'
+  ...
+# Subtest: ★★★ 4: 昨晚的睡眠終於進來 → 同一條流程就會發出 2026-09-12
+ok 4 - ★★★ 4: 昨晚的睡眠終於進來 → 同一條流程就會發出 2026-09-12
+  ---
+  duration_ms: 1721.013625
+  type: 'test'
+  ...
+# Subtest: ★★★ 5-6: 連續缺好幾個排程時段之後才被叫起來 → 仍然只發一次、日期正確
+ok 5 - ★★★ 5-6: 連續缺好幾個排程時段之後才被叫起來 → 仍然只發一次、日期正確
+  ---
+  duration_ms: 1758.545
+  type: 'test'
+  ...
+# Subtest: ★★★ 7: not_ready 之後換一個新的 db 連線（重啟）→ 資料到了照樣發
+ok 6 - ★★★ 7: not_ready 之後換一個新的 db 連線（重啟）→ 資料到了照樣發
+  ---
+  duration_ms: 1667.473791
+  type: 'test'
+  ...
+# Subtest: ★★★ 8: 補發邊界 —— 48 小時（含）可補發，超過就是終局
+ok 7 - ★★★ 8: 補發邊界 —— 48 小時（含）可補發，超過就是終局
+  ---
+  duration_ms: 9964.180708
+  type: 'test'
+  ...
+# Subtest: ★★★ 9: 晚了但仍在時限內 → 照發（不是丟掉）
+ok 8 - ★★★ 9: 晚了但仍在時限內 → 照發（不是丟掉）
+  ---
+  duration_ms: 1764.622292
+  type: 'test'
+  ...
+# Subtest: ★★★ 10: 超過 48 小時 → 持久化 MISSED、顯著終局事件、只通知一次
+ok 9 - ★★★ 10: 超過 48 小時 → 持久化 MISSED、顯著終局事件、只通知一次
+  ---
+  duration_ms: 1792.968792
+  type: 'test'
+  ...
+# Subtest: ★★★ 10b: 補發窗內（24–48h）會送出，而且標示成補發
+ok 10 - ★★★ 10b: 補發窗內（24–48h）會送出，而且標示成補發
+  ---
+  duration_ms: 1902.922042
+  type: 'test'
+  ...
+# Subtest: ★★★ 11-13: 前一天已送 ≠ 今天已送；今天沒有假的 SENT 標記
+ok 11 - ★★★ 11-13: 前一天已送 ≠ 今天已送；今天沒有假的 SENT 標記
+  ---
+  duration_ms: 1735.1675
+  type: 'test'
+  ...
+# Subtest: ★★★ 14: 兩個併發的排程執行 → 只送一則
+ok 12 - ★★★ 14: 兩個併發的排程執行 → 只送一則
+  ---
+  duration_ms: 1784.4575
+  type: 'test'
+  ...
+# Subtest: ★★★ 15: Telegram 失敗 → 記 FAILED、釋放 claim、下一輪可以重試
+ok 13 - ★★★ 15: Telegram 失敗 → 記 FAILED、釋放 claim、下一輪可以重試
+  ---
+  duration_ms: 1968.871958
+  type: 'test'
+  ...
+# Subtest: ★★★ 16: 收據寫入失敗 → 已送出的事實仍然釘在 claim 上
+ok 14 - ★★★ 16: 收據寫入失敗 → 已送出的事實仍然釘在 claim 上
+  ---
+  duration_ms: 1823.14125
+  type: 'test'
+  ...
+# Subtest: ★★★ 17: heartbeat 過期 → 狀態直接說「排程沒在跑」，而且不承諾時間
+ok 15 - ★★★ 17: heartbeat 過期 → 狀態直接說「排程沒在跑」，而且不承諾時間
+  ---
+  duration_ms: 1804.5765
+  type: 'test'
+  ...
+# Subtest: ★★★ 18: heartbeat 新鮮時才能提下一輪，而且只能用條件句
+ok 16 - ★★★ 18: heartbeat 新鮮時才能提下一輪，而且只能用條件句
+  ---
+  duration_ms: 1838.919833
+  type: 'test'
+  ...
+# Subtest: ★★★ 18b: 看門狗的循環依賴 —— 狀態評估本身完全不依賴排程器執行
+ok 17 - ★★★ 18b: 看門狗的循環依賴 —— 狀態評估本身完全不依賴排程器執行
+  ---
+  duration_ms: 1827.033209
+  type: 'test'
+  ...
+# Subtest: ★★★ 19: 狀態評估是唯讀的 —— 不寫入任何表
+ok 18 - ★★★ 19: 狀態評估是唯讀的 —— 不寫入任何表
+  ---
+  duration_ms: 1830.732375
+  type: 'test'
+  ...
+# Subtest: ★★★ 20: 「今天的晨報呢？」四種問法都走 briefing_status，不撞既有意圖
+ok 19 - ★★★ 20: 「今天的晨報呢？」四種問法都走 briefing_status，不撞既有意圖
+  ---
+  duration_ms: 2.5475
+  type: 'test'
+  ...
+# Subtest: ★★★ 20b: 端到端 —— 事故當下問「今天的晨報呢？」得到誠實答案
+ok 20 - ★★★ 20b: 端到端 —— 事故當下問「今天的晨報呢？」得到誠實答案
+  ---
+  duration_ms: 1853.092833
+  type: 'test'
+  ...
+# Subtest: ★★★ 21: 同一個 UTC 瞬間，台北與胡志明市的「今天」可能不同
+ok 21 - ★★★ 21: 同一個 UTC 瞬間，台北與胡志明市的「今天」可能不同
+  ---
+  duration_ms: 3705.711417
+  type: 'test'
+  ...
+# Subtest: ★★★ 22: decide() 判定表
+ok 22 - ★★★ 22: decide() 判定表
+  ---
+  duration_ms: 0.26675
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 48078.89575

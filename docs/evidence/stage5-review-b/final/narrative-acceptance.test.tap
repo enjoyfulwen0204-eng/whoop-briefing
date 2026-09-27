@@ -1,0 +1,125 @@
+TAP version 13
+# {"ts":"2026-09-27T14:02:51.709Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:02:51.721Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:02:51.726Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:02:51.729Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:02:51.730Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:02:51.731Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:02:51.731Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.732Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.732Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.733Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.735Z","level":"warn","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:02:51.735Z","level":"warn","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:02:51.737Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.737Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.738Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.738Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.738Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.738Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.738Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.739Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.739Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.739Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.739Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.740Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.740Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.740Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.741Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:02:51.745Z","level":"warn","event":"narrative_freeform_generate_ignored"}
+# {"ts":"2026-09-27T14:02:51.745Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:02:51.746Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:02:51.747Z","level":"info","event":"narrative_deterministic"}
+# Subtest: ★★★ MODE 1（校正／1-of-30）：只講事實，絕不判斷是否偏離常態
+ok 1 - ★★★ MODE 1（校正／1-of-30）：只講事實，絕不判斷是否偏離常態
+  ---
+  duration_ms: 12.080916
+  type: 'test'
+  ...
+# Subtest: ★★★ MODE 2（5-of-30）：逐指標成熟度，不宣稱整體基準就緒
+ok 2 - ★★★ MODE 2（5-of-30）：逐指標成熟度，不宣稱整體基準就緒
+  ---
+  duration_ms: 4.714042
+  type: 'test'
+  ...
+# Subtest: ★★★ MODE 3（30/30）：有基準才比較，趨勢只在程式算出來時才提
+ok 3 - ★★★ MODE 3（30/30）：有基準才比較，趨勢只在程式算出來時才提
+  ---
+  duration_ms: 2.711375
+  type: 'test'
+  ...
+# Subtest: ★★★ 完全沒資料時也給得出一段話（不是錯誤訊息）
+ok 4 - ★★★ 完全沒資料時也給得出一段話（不是錯誤訊息）
+  ---
+  duration_ms: 0.983125
+  type: 'test'
+  ...
+# Subtest: ★★★ 失敗分類可分辨，而且使用者永遠拿得到敘述
+ok 5 - ★★★ 失敗分類可分辨，而且使用者永遠拿得到敘述
+  ---
+  duration_ms: 4.35175
+  type: 'test'
+  ...
+# Subtest: ★★★ 供應商丟例外 → 逾時與不可用要分得開
+ok 6 - ★★★ 供應商丟例外 → 逾時與不可用要分得開
+  ---
+  duration_ms: 1.503917
+  type: 'test'
+  ...
+# Subtest: ★★★ 已移除那句假的「AI 教練分析今天暫時無法生成」
+ok 7 - ★★★ 已移除那句假的「AI 教練分析今天暫時無法生成」
+  ---
+  duration_ms: 1.223875
+  type: 'test'
+  ...
+# Subtest: ★★★ 每一種對抗性散文都到不了使用者眼前（模型沒有自由文字通道）
+ok 8 - ★★★ 每一種對抗性散文都到不了使用者眼前（模型沒有自由文字通道）
+  ---
+  duration_ms: 3.996167
+  type: 'test'
+  ...
+# Subtest: ★★★ 把散文藏在合法計畫旁邊也沒有用（只有 order 會被讀）
+ok 9 - ★★★ 把散文藏在合法計畫旁邊也沒有用（只有 order 會被讀）
+  ---
+  duration_ms: 1.789708
+  type: 'test'
+  ...
+# Subtest: ★★★ 模型只能挑順序：輸出的每一個字都來自應用程式的句子清單
+ok 10 - ★★★ 模型只能挑順序：輸出的每一個字都來自應用程式的句子清單
+  ---
+  duration_ms: 1.57275
+  type: 'test'
+  ...
+# Subtest: ★★★ 舊的自由散文介面（generate）不會被偷偷沿用
+ok 11 - ★★★ 舊的自由散文介面（generate）不會被偷偷沿用
+  ---
+  duration_ms: 0.679667
+  type: 'test'
+  ...
+# Subtest: ★★★ 未知不可以變成 0：無資料顯示「無資料」，真零顯示 0
+ok 12 - ★★★ 未知不可以變成 0：無資料顯示「無資料」，真零顯示 0
+  ---
+  duration_ms: 0.713
+  type: 'test'
+  ...
+# Subtest: ★★★ 週報用「上週」而不是「今天」（同一段文字不可以兩邊共用）
+ok 13 - ★★★ 週報用「上週」而不是「今天」（同一段文字不可以兩邊共用）
+  ---
+  duration_ms: 0.547458
+  type: 'test'
+  ...
+# Subtest: ★★★ 確定性敘述不會把缺漏的指標當成 0
+ok 14 - ★★★ 確定性敘述不會把缺漏的指標當成 0
+  ---
+  duration_ms: 0.306875
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 228.926167

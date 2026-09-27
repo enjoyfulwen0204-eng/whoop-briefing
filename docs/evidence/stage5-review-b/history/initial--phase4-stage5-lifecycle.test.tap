@@ -1,0 +1,29 @@
+TAP version 13
+# {"ts":"2026-09-27T10:12:30.401Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:12:30.403Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:12:32.504Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:12:32.509Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:12:48.051Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:12:48.053Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:12:49.760Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:12:49.761Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A: metric reversal retains the complete original wrapper across restart and further progress
+ok 1 - A: metric reversal retains the complete original wrapper across restart and further progress
+  ---
+  duration_ms: 17655.418292
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T10:12:52.755Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:12:52.756Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:12:54.205Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:12:54.206Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A/J: direct episode results, semantic retry and every terminal path have exact receipts
+ok 2 - A/J: direct episode results, semantic retry and every terminal path have exact receipts
+  ---
+  duration_ms: 4709.097042
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T10:12:56.153Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:12:56.154Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:12:57.680Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:12:57.681Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}

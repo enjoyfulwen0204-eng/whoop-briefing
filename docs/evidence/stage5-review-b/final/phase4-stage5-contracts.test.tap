@@ -1,0 +1,141 @@
+TAP version 13
+# {"ts":"2026-09-27T11:19:06.460Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:06.464Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:07.773Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:07.775Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:10.947Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:10.948Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:12.319Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:12.320Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H: every admitted metric absence state is durable and distinct after restart
+    # Subtest: POSITIVE
+    ok 1 - POSITIVE
+      ---
+      duration_ms: 4495.930459
+      type: 'test'
+      ...
+# {"ts":"2026-09-27T11:19:12.599Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:12.600Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:13.909Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:13.910Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: WARMING_UP
+    ok 2 - WARMING_UP
+      ---
+      duration_ms: 1652.0655
+      type: 'test'
+      ...
+# {"ts":"2026-09-27T11:19:14.911Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:14.912Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:16.212Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:16.213Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: NO_CHANGE
+    ok 3 - NO_CHANGE
+      ---
+      duration_ms: 2311.849458
+      type: 'test'
+      ...
+# {"ts":"2026-09-27T11:19:17.212Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:17.213Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:18.529Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:18.530Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: NO_DATA
+    ok 4 - NO_DATA
+      ---
+      duration_ms: 2300.734959
+      type: 'test'
+      ...
+# {"ts":"2026-09-27T11:19:19.580Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:19.581Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:20.946Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:20.947Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: INSUFFICIENT_QUALITY
+    ok 5 - INSUFFICIENT_QUALITY
+      ---
+      duration_ms: 2366.991792
+      type: 'test'
+      ...
+# {"ts":"2026-09-27T11:19:21.400Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:21.401Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:22.725Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:22.726Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: INSUFFICIENT_EVIDENCE
+    ok 6 - INSUFFICIENT_EVIDENCE
+      ---
+      duration_ms: 1819.963541
+      type: 'test'
+      ...
+    1..6
+ok 1 - H: every admitted metric absence state is durable and distinct after restart
+  ---
+  duration_ms: 14949.932208
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:19:29.712Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:29.713Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:31.100Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:31.101Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: D/E: metric, as-of, profile, family and canonical set permutations have explicit identity behavior
+ok 2 - D/E: metric, as-of, profile, family and canonical set permutations have explicit identity behavior
+  ---
+  duration_ms: 8310.328625
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:19:31.773Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:31.774Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:33.168Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:33.169Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: E: a future Journal transaction absent at semantic as-of cannot split operation identity
+ok 3 - E: a future Journal transaction absent at semantic as-of cannot split operation identity
+  ---
+  duration_ms: 2061.355125
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:19:36.390Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:36.391Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:37.788Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:37.789Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: D: association factor, outcome, lag, family, generation and algorithm scope independently bind results
+ok 4 - D: association factor, outcome, lag, family, generation and algorithm scope independently bind results
+  ---
+  duration_ms: 4617.683417
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:19:37.952Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:37.954Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:37.954Z","level":"info","event":"user_created","user_id":"legacy","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:37.954Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T11:19:39.376Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:39.377Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:40.815Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:40.815Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H/C: never computed, missing receipt, corrupt and redacted are distinct reader outcomes
+ok 5 - H/C: never computed, missing receipt, corrupt and redacted are distinct reader outcomes
+  ---
+  duration_ms: 1560.215584
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:19:44.396Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:19:44.398Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:19:45.809Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:19:45.810Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: ownership: every legacy insight mutator rejects authoritative and redacted rows, including v20 compatibility
+ok 6 - ownership: every legacy insight mutator rejects authoritative and redacted rows, including v20 compatibility
+  ---
+  duration_ms: 6445.435625
+  type: 'test'
+  ...
+# Subtest: L: source generation change between preparation and commit rolls back the whole result
+ok 7 - L: source generation change between preparation and commit rolls back the whole result
+  ---
+  duration_ms: 2617.256792
+  type: 'test'
+  ...
+1..7
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 40821.266917

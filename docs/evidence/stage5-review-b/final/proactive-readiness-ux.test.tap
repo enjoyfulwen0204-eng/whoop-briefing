@@ -1,0 +1,54 @@
+TAP version 13
+# {"ts":"2026-09-27T14:14:31.006Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:31.009Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:32.763Z","level":"info","event":"user_created","user_id":"u-solo","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:32.765Z","level":"info","event":"telegram_linked","user_id":"u-solo"}
+# {"ts":"2026-09-27T14:14:32.778Z","level":"info","event":"capabilities_saved","user_id":"u-solo","count":15}
+# {"ts":"2026-09-27T14:14:32.856Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:32.857Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:34.781Z","level":"info","event":"user_created","user_id":"u-solo","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:34.782Z","level":"info","event":"telegram_linked","user_id":"u-solo"}
+# {"ts":"2026-09-27T14:14:34.793Z","level":"info","event":"capabilities_saved","user_id":"u-solo","count":15}
+# {"ts":"2026-09-27T14:14:34.878Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:34.879Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:36.507Z","level":"info","event":"user_created","user_id":"u-solo","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:36.507Z","level":"info","event":"telegram_linked","user_id":"u-solo"}
+# {"ts":"2026-09-27T14:14:36.517Z","level":"info","event":"capabilities_saved","user_id":"u-solo","count":15}
+# {"ts":"2026-09-27T14:14:36.627Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:36.628Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:38.514Z","level":"info","event":"user_created","user_id":"u-solo","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:38.514Z","level":"info","event":"telegram_linked","user_id":"u-solo"}
+# {"ts":"2026-09-27T14:14:38.525Z","level":"info","event":"capabilities_saved","user_id":"u-solo","count":15}
+# Subtest: handlePredictions: 樣本不足時顯示 readiness 算出來的確切數字
+ok 1 - handlePredictions: 樣本不足時顯示 readiness 算出來的確切數字
+  ---
+  duration_ms: 1850.52275
+  type: 'test'
+  ...
+# Subtest: ★ handlePredictions: 修好 userId 沒解構出來的 bug——有已評估的記分卡時要顯示準確度
+ok 2 - ★ handlePredictions: 修好 userId 沒解構出來的 bug——有已評估的記分卡時要顯示準確度
+  ---
+  duration_ms: 2032.969833
+  type: 'test'
+  ...
+# Subtest: renderProactiveStatusLines: 沒有資料時顯示「尚未開始累積資料」
+ok 3 - renderProactiveStatusLines: 沒有資料時顯示「尚未開始累積資料」
+  ---
+  duration_ms: 1739.972333
+  type: 'test'
+  ...
+# Subtest: renderProactiveStatusLines: 資料足夠時顯示「已啟用」
+ok 4 - renderProactiveStatusLines: 資料足夠時顯示「已啟用」
+  ---
+  duration_ms: 1984.046417
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8095.394875

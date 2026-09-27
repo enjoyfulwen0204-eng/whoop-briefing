@@ -1,0 +1,60 @@
+TAP version 13
+# {"ts":"2026-09-27T11:25:31.183Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:25:31.186Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:25:32.466Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:25:32.467Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:25:40.112Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:25:40.113Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:25:41.365Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:25:41.365Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 pre/post RC2-H-001: complete R1 semantics and artifact survive later explanation/context changes
+ok 1 - RC4 pre/post RC2-H-001: complete R1 semantics and artifact survive later explanation/context changes
+  ---
+  duration_ms: 8937.358083
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:25:47.218Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:25:47.219Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:25:48.484Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:25:48.485Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 pre/post RC2-H-002: forged A membership cannot borrow legitimate B revision
+ok 2 - RC4 pre/post RC2-H-002: forged A membership cannot borrow legitimate B revision
+  ---
+  duration_ms: 7107.046292
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:25:52.143Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:25:52.144Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:25:53.411Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:25:53.411Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 pre/post RC2-M-001: deterministic duplicate still requires semantic time
+ok 3 - RC4 pre/post RC2-M-001: deterministic duplicate still requires semantic time
+  ---
+  duration_ms: 4924.681583
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:25:56.405Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:25:56.407Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:25:57.706Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:25:57.707Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 pre/post RC2-M-002 / S5-M-003: source permutations preserve full evidence identity
+ok 4 - RC4 pre/post RC2-M-002 / S5-M-003: source permutations preserve full evidence identity
+  ---
+  duration_ms: 4262.55025
+  type: 'test'
+  ...
+# Subtest: RC4 pre/post RC3-H-001: every committed revision has durable full history
+ok 5 - RC4 pre/post RC3-H-001: every committed revision has durable full history
+  ---
+  duration_ms: 7183.559875
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 32641.10125

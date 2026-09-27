@@ -1,0 +1,1310 @@
+TAP version 13
+# {"ts":"2026-09-27T13:56:06.360Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:06.364Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:08.344Z","level":"info","event":"user_created","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:08.345Z","level":"info","event":"telegram_linked","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea"}
+# {"ts":"2026-09-27T13:56:08.346Z","level":"info","event":"onboarding_user_created","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea"}
+# {"ts":"2026-09-27T13:56:08.347Z","level":"info","event":"onboarding_state","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea"}
+# {"ts":"2026-09-27T13:56:08.368Z","level":"info","event":"onboarding_state","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea"}
+# {"ts":"2026-09-27T13:56:08.371Z","level":"info","event":"oauth_state_created","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea"}
+# {"ts":"2026-09-27T13:56:08.371Z","level":"info","event":"oauth_authorize_prepared","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea"}
+# {"ts":"2026-09-27T13:56:08.373Z","level":"info","event":"oauth_state_consumed","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea"}
+# {"ts":"2026-09-27T13:56:08.375Z","level":"info","event":"tokens_saved","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea","attempt":1}
+# {"ts":"2026-09-27T13:56:08.375Z","level":"info","event":"oauth_authorize_completed","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea"}
+# {"ts":"2026-09-27T13:56:08.376Z","level":"info","event":"onboarding_state","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea"}
+# {"ts":"2026-09-27T13:56:08.383Z","level":"info","event":"oauth_callback_ok","user_id":"cd48145c-0c80-4af8-bcf3-052799a487ea"}
+# {"ts":"2026-09-27T13:56:08.450Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:08.452Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:11.440Z","level":"info","event":"user_created","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:11.441Z","level":"info","event":"telegram_linked","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.443Z","level":"info","event":"onboarding_user_created","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.444Z","level":"info","event":"onboarding_state","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.448Z","level":"info","event":"onboarding_state","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.451Z","level":"info","event":"oauth_state_created","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.451Z","level":"info","event":"oauth_authorize_prepared","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.452Z","level":"info","event":"oauth_state_consumed","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.454Z","level":"info","event":"tokens_saved","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d","attempt":1}
+# {"ts":"2026-09-27T13:56:11.454Z","level":"info","event":"oauth_authorize_completed","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.456Z","level":"info","event":"onboarding_state","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.467Z","level":"info","event":"oauth_callback_ok","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.469Z","level":"info","event":"onboarding_state","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d","state":"READY"}
+# {"ts":"2026-09-27T13:56:11.470Z","level":"info","event":"tokens_saved","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d","attempt":1}
+# {"ts":"2026-09-27T13:56:11.481Z","level":"info","event":"due_check","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.492Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:56:11.493Z","level":"info","event":"token_refresh_start","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.495Z","level":"info","event":"user_lifecycle_transition","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.506Z","level":"warn","event":"tokens_save_lifecycle_rejected","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.506Z","level":"warn","event":"token_refresh_fenced","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d"}
+# {"ts":"2026-09-27T13:56:11.508Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:56:11.510Z","level":"error","event":"user_whoop_auth_failed","user_id":"e977b6f7-32ab-42a0-98be-3074c6a7c91d","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:56:11.598Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:11.601Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:14.118Z","level":"info","event":"user_created","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:14.119Z","level":"info","event":"telegram_linked","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.120Z","level":"info","event":"onboarding_user_created","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.121Z","level":"info","event":"onboarding_state","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.124Z","level":"info","event":"onboarding_state","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.127Z","level":"info","event":"oauth_state_created","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.127Z","level":"info","event":"oauth_authorize_prepared","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.128Z","level":"info","event":"oauth_state_consumed","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.130Z","level":"info","event":"tokens_saved","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216","attempt":1}
+# {"ts":"2026-09-27T13:56:14.130Z","level":"info","event":"oauth_authorize_completed","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.131Z","level":"info","event":"onboarding_state","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.138Z","level":"info","event":"oauth_callback_ok","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.140Z","level":"info","event":"onboarding_state","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216","state":"READY"}
+# {"ts":"2026-09-27T13:56:14.141Z","level":"info","event":"tokens_saved","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216","attempt":1}
+# {"ts":"2026-09-27T13:56:14.145Z","level":"info","event":"due_check","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.152Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:56:14.152Z","level":"info","event":"token_refresh_start","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.154Z","level":"info","event":"user_lifecycle_transition","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.163Z","level":"info","event":"user_lifecycle_transition","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.171Z","level":"warn","event":"tokens_save_lifecycle_rejected","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.171Z","level":"warn","event":"token_refresh_fenced","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216"}
+# {"ts":"2026-09-27T13:56:14.172Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:56:14.172Z","level":"error","event":"user_whoop_auth_failed","user_id":"550051a8-4a0d-4c2d-8f96-5e2993768216","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:56:14.237Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:14.239Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:16.247Z","level":"info","event":"user_created","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:16.248Z","level":"info","event":"telegram_linked","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.250Z","level":"info","event":"onboarding_user_created","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.251Z","level":"info","event":"onboarding_state","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.255Z","level":"info","event":"onboarding_state","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.258Z","level":"info","event":"oauth_state_created","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.259Z","level":"info","event":"oauth_authorize_prepared","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.260Z","level":"info","event":"oauth_state_consumed","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.262Z","level":"info","event":"tokens_saved","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0","attempt":1}
+# {"ts":"2026-09-27T13:56:16.262Z","level":"info","event":"oauth_authorize_completed","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.264Z","level":"info","event":"onboarding_state","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.276Z","level":"info","event":"oauth_callback_ok","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.278Z","level":"info","event":"onboarding_state","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0","state":"READY"}
+# {"ts":"2026-09-27T13:56:16.280Z","level":"info","event":"tokens_saved","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0","attempt":1}
+# {"ts":"2026-09-27T13:56:16.284Z","level":"info","event":"due_check","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.296Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:56:16.297Z","level":"info","event":"token_refresh_start","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.298Z","level":"info","event":"user_lifecycle_transition","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.310Z","level":"warn","event":"tokens_save_lifecycle_rejected","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.311Z","level":"warn","event":"token_refresh_fenced","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0"}
+# {"ts":"2026-09-27T13:56:16.312Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:56:16.312Z","level":"error","event":"user_whoop_auth_failed","user_id":"b0f923e4-020c-44ae-b2d1-6fef438c7ef0","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:56:16.411Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:16.414Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:18.250Z","level":"info","event":"user_created","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:18.251Z","level":"info","event":"telegram_linked","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.252Z","level":"info","event":"onboarding_user_created","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.253Z","level":"info","event":"onboarding_state","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.255Z","level":"info","event":"onboarding_state","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.257Z","level":"info","event":"oauth_state_created","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.257Z","level":"info","event":"oauth_authorize_prepared","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.258Z","level":"info","event":"oauth_state_consumed","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.260Z","level":"info","event":"tokens_saved","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77","attempt":1}
+# {"ts":"2026-09-27T13:56:18.260Z","level":"info","event":"oauth_authorize_completed","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.261Z","level":"info","event":"onboarding_state","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.268Z","level":"info","event":"oauth_callback_ok","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.269Z","level":"info","event":"onboarding_state","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77","state":"READY"}
+# {"ts":"2026-09-27T13:56:18.270Z","level":"info","event":"tokens_saved","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77","attempt":1}
+# {"ts":"2026-09-27T13:56:18.273Z","level":"info","event":"due_check","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.280Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:56:18.281Z","level":"info","event":"token_refresh_start","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.282Z","level":"info","event":"user_lifecycle_transition","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.289Z","level":"info","event":"user_lifecycle_transition","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.297Z","level":"warn","event":"tokens_save_lifecycle_rejected","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.297Z","level":"warn","event":"token_refresh_fenced","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77"}
+# {"ts":"2026-09-27T13:56:18.298Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:56:18.298Z","level":"error","event":"user_whoop_auth_failed","user_id":"63b11df7-396a-4d10-a47d-15010f3e9b77","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:56:18.365Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:18.367Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:20.287Z","level":"info","event":"user_created","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:20.288Z","level":"info","event":"telegram_linked","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc"}
+# {"ts":"2026-09-27T13:56:20.289Z","level":"info","event":"onboarding_user_created","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc"}
+# {"ts":"2026-09-27T13:56:20.290Z","level":"info","event":"onboarding_state","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc"}
+# {"ts":"2026-09-27T13:56:20.292Z","level":"info","event":"onboarding_state","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc"}
+# {"ts":"2026-09-27T13:56:20.294Z","level":"info","event":"oauth_state_created","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc"}
+# {"ts":"2026-09-27T13:56:20.295Z","level":"info","event":"oauth_authorize_prepared","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc"}
+# {"ts":"2026-09-27T13:56:20.295Z","level":"info","event":"oauth_state_consumed","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc"}
+# {"ts":"2026-09-27T13:56:20.297Z","level":"info","event":"tokens_saved","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc","attempt":1}
+# {"ts":"2026-09-27T13:56:20.297Z","level":"info","event":"oauth_authorize_completed","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc"}
+# {"ts":"2026-09-27T13:56:20.297Z","level":"info","event":"onboarding_state","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc"}
+# {"ts":"2026-09-27T13:56:20.305Z","level":"info","event":"oauth_callback_ok","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc"}
+# {"ts":"2026-09-27T13:56:20.306Z","level":"info","event":"tokens_saved","user_id":"ddaa009d-a6af-4c68-a41e-a5075a07b5cc","attempt":1}
+# {"ts":"2026-09-27T13:56:20.839Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:20.841Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:23.148Z","level":"info","event":"user_created","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:23.149Z","level":"info","event":"telegram_linked","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6"}
+# {"ts":"2026-09-27T13:56:23.151Z","level":"info","event":"onboarding_user_created","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6"}
+# {"ts":"2026-09-27T13:56:23.152Z","level":"info","event":"onboarding_state","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6"}
+# {"ts":"2026-09-27T13:56:23.155Z","level":"info","event":"onboarding_state","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6"}
+# {"ts":"2026-09-27T13:56:23.158Z","level":"info","event":"oauth_state_created","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6"}
+# {"ts":"2026-09-27T13:56:23.158Z","level":"info","event":"oauth_authorize_prepared","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6"}
+# {"ts":"2026-09-27T13:56:23.159Z","level":"info","event":"oauth_state_consumed","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6"}
+# {"ts":"2026-09-27T13:56:23.161Z","level":"info","event":"tokens_saved","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6","attempt":1}
+# {"ts":"2026-09-27T13:56:23.161Z","level":"info","event":"oauth_authorize_completed","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6"}
+# {"ts":"2026-09-27T13:56:23.162Z","level":"info","event":"onboarding_state","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6"}
+# {"ts":"2026-09-27T13:56:23.172Z","level":"info","event":"oauth_callback_ok","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6"}
+# {"ts":"2026-09-27T13:56:23.174Z","level":"info","event":"tokens_saved","user_id":"4a723994-cd30-4bfa-840b-d485c53d7ab6","attempt":1}
+# {"ts":"2026-09-27T13:56:23.705Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:23.707Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:25.379Z","level":"info","event":"user_created","user_id":"3b171891-36b3-484e-81f9-512edc927144","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:25.380Z","level":"info","event":"telegram_linked","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.381Z","level":"info","event":"onboarding_user_created","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.382Z","level":"info","event":"onboarding_state","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.384Z","level":"info","event":"onboarding_state","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.386Z","level":"info","event":"oauth_state_created","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.386Z","level":"info","event":"oauth_authorize_prepared","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.387Z","level":"info","event":"oauth_state_consumed","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.389Z","level":"info","event":"tokens_saved","user_id":"3b171891-36b3-484e-81f9-512edc927144","attempt":1}
+# {"ts":"2026-09-27T13:56:25.389Z","level":"info","event":"user_lifecycle_transition","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.397Z","level":"info","event":"user_lifecycle_transition","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.404Z","level":"info","event":"oauth_authorize_completed","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.404Z","level":"warn","event":"account_lifecycle_rejected","user_id":"3b171891-36b3-484e-81f9-512edc927144"}
+# {"ts":"2026-09-27T13:56:25.466Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:25.468Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:27.376Z","level":"info","event":"user_created","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:27.376Z","level":"info","event":"telegram_linked","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.377Z","level":"info","event":"onboarding_user_created","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.378Z","level":"info","event":"onboarding_state","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.381Z","level":"info","event":"onboarding_state","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.383Z","level":"info","event":"oauth_state_created","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.383Z","level":"info","event":"oauth_authorize_prepared","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.384Z","level":"info","event":"oauth_state_consumed","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.386Z","level":"info","event":"tokens_saved","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb","attempt":1}
+# {"ts":"2026-09-27T13:56:27.386Z","level":"info","event":"user_lifecycle_transition","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.394Z","level":"info","event":"user_lifecycle_transition","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.400Z","level":"info","event":"oauth_authorize_completed","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.400Z","level":"warn","event":"account_lifecycle_rejected","user_id":"8109f0d6-9e88-4825-8d23-a2e25cd3d9fb"}
+# {"ts":"2026-09-27T13:56:27.458Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:27.460Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:29.213Z","level":"info","event":"user_created","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:29.214Z","level":"info","event":"telegram_linked","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5"}
+# {"ts":"2026-09-27T13:56:29.216Z","level":"info","event":"onboarding_user_created","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5"}
+# {"ts":"2026-09-27T13:56:29.217Z","level":"info","event":"onboarding_state","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5"}
+# {"ts":"2026-09-27T13:56:29.220Z","level":"info","event":"onboarding_state","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5"}
+# {"ts":"2026-09-27T13:56:29.225Z","level":"info","event":"oauth_state_created","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5"}
+# {"ts":"2026-09-27T13:56:29.225Z","level":"info","event":"oauth_authorize_prepared","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5"}
+# {"ts":"2026-09-27T13:56:29.227Z","level":"info","event":"oauth_state_consumed","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5"}
+# {"ts":"2026-09-27T13:56:29.229Z","level":"info","event":"tokens_saved","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5","attempt":1}
+# {"ts":"2026-09-27T13:56:29.229Z","level":"info","event":"oauth_authorize_completed","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5"}
+# {"ts":"2026-09-27T13:56:29.230Z","level":"info","event":"onboarding_state","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5"}
+# {"ts":"2026-09-27T13:56:29.241Z","level":"info","event":"oauth_callback_ok","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5"}
+# {"ts":"2026-09-27T13:56:29.242Z","level":"info","event":"onboarding_state","user_id":"1a0075fe-a105-4e89-b5af-ad397bd2ffd5","state":"READY"}
+# {"ts":"2026-09-27T13:56:29.348Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:29.351Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:31.406Z","level":"info","event":"user_created","user_id":"fecaa96a-d8a1-444a-be31-c6f5064a585c","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:31.497Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:31.506Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:33.411Z","level":"info","event":"user_created","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:33.412Z","level":"info","event":"telegram_linked","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.414Z","level":"info","event":"onboarding_user_created","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.415Z","level":"info","event":"onboarding_state","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.420Z","level":"info","event":"onboarding_state","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.424Z","level":"info","event":"oauth_state_created","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.424Z","level":"info","event":"oauth_authorize_prepared","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.427Z","level":"info","event":"oauth_state_consumed","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.430Z","level":"info","event":"tokens_saved","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9","attempt":1}
+# {"ts":"2026-09-27T13:56:33.430Z","level":"info","event":"oauth_authorize_completed","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.432Z","level":"info","event":"onboarding_state","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.448Z","level":"info","event":"oauth_callback_ok","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.450Z","level":"info","event":"user_lifecycle_transition","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.468Z","level":"info","event":"user_lifecycle_transition","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.486Z","level":"info","event":"telegram_reply_suppressed_lifecycle","user_id":"5bba4d23-f92f-4653-8514-8e4835aab5a9"}
+# {"ts":"2026-09-27T13:56:33.600Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:33.603Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:35.451Z","level":"info","event":"user_created","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:35.452Z","level":"info","event":"telegram_linked","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.453Z","level":"info","event":"onboarding_user_created","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.454Z","level":"info","event":"onboarding_state","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.456Z","level":"info","event":"onboarding_state","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.459Z","level":"info","event":"oauth_state_created","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.459Z","level":"info","event":"oauth_authorize_prepared","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.460Z","level":"info","event":"oauth_state_consumed","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.462Z","level":"info","event":"tokens_saved","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d","attempt":1}
+# {"ts":"2026-09-27T13:56:35.462Z","level":"info","event":"oauth_authorize_completed","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.463Z","level":"info","event":"onboarding_state","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.470Z","level":"info","event":"oauth_callback_ok","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.471Z","level":"info","event":"user_lifecycle_transition","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.479Z","level":"info","event":"user_lifecycle_transition","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.486Z","level":"info","event":"telegram_reply_suppressed_lifecycle","user_id":"0ca387c3-544b-49e5-8ebe-16e2ec8c191d"}
+# {"ts":"2026-09-27T13:56:35.551Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:35.554Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:37.457Z","level":"info","event":"user_created","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:37.458Z","level":"info","event":"telegram_linked","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.460Z","level":"info","event":"onboarding_user_created","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.460Z","level":"info","event":"onboarding_state","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.463Z","level":"info","event":"onboarding_state","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.465Z","level":"info","event":"oauth_state_created","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.465Z","level":"info","event":"oauth_authorize_prepared","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.466Z","level":"info","event":"oauth_state_consumed","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.467Z","level":"info","event":"tokens_saved","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5","attempt":1}
+# {"ts":"2026-09-27T13:56:37.467Z","level":"info","event":"oauth_authorize_completed","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.468Z","level":"info","event":"onboarding_state","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.476Z","level":"info","event":"oauth_callback_ok","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.477Z","level":"info","event":"user_lifecycle_transition","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.485Z","level":"info","event":"user_lifecycle_transition","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.493Z","level":"info","event":"report_claim_denied","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.494Z","level":"info","event":"report_claimed","user_id":"5ed3bdd2-4235-4f3f-b7e2-3ce321bb11f5"}
+# {"ts":"2026-09-27T13:56:37.562Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:37.564Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:39.297Z","level":"info","event":"user_created","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:39.297Z","level":"info","event":"telegram_linked","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.298Z","level":"info","event":"onboarding_user_created","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.299Z","level":"info","event":"onboarding_state","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.302Z","level":"info","event":"onboarding_state","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.304Z","level":"info","event":"oauth_state_created","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.304Z","level":"info","event":"oauth_authorize_prepared","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.305Z","level":"info","event":"oauth_state_consumed","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.306Z","level":"info","event":"tokens_saved","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514","attempt":1}
+# {"ts":"2026-09-27T13:56:39.306Z","level":"info","event":"oauth_authorize_completed","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.307Z","level":"info","event":"onboarding_state","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.315Z","level":"info","event":"oauth_callback_ok","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.319Z","level":"info","event":"report_claimed","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.326Z","level":"info","event":"user_lifecycle_transition","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.334Z","level":"info","event":"user_lifecycle_transition","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.346Z","level":"info","event":"report_claimed","user_id":"1fe22671-2876-4e7e-85e4-a94c6f6aa514"}
+# {"ts":"2026-09-27T13:56:39.497Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:39.501Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:41.929Z","level":"info","event":"user_created","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:41.930Z","level":"info","event":"telegram_linked","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.931Z","level":"info","event":"onboarding_user_created","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.932Z","level":"info","event":"onboarding_state","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.935Z","level":"info","event":"onboarding_state","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.937Z","level":"info","event":"oauth_state_created","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.937Z","level":"info","event":"oauth_authorize_prepared","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.938Z","level":"info","event":"oauth_state_consumed","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.939Z","level":"info","event":"tokens_saved","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec","attempt":1}
+# {"ts":"2026-09-27T13:56:41.939Z","level":"info","event":"oauth_authorize_completed","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.940Z","level":"info","event":"onboarding_state","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.949Z","level":"info","event":"oauth_callback_ok","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.950Z","level":"info","event":"report_claimed","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:41.951Z","level":"warn","event":"report_delivery_authorization_denied","user_id":"4a25bc68-b133-4cc7-9960-dfaf60f9efec"}
+# {"ts":"2026-09-27T13:56:42.013Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:42.014Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:44.306Z","level":"info","event":"user_created","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:44.307Z","level":"info","event":"telegram_linked","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.309Z","level":"info","event":"onboarding_user_created","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.310Z","level":"info","event":"onboarding_state","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.313Z","level":"info","event":"onboarding_state","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.315Z","level":"info","event":"oauth_state_created","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.315Z","level":"info","event":"oauth_authorize_prepared","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.316Z","level":"info","event":"oauth_state_consumed","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.318Z","level":"info","event":"tokens_saved","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0","attempt":1}
+# {"ts":"2026-09-27T13:56:44.318Z","level":"info","event":"oauth_authorize_completed","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.319Z","level":"info","event":"onboarding_state","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.332Z","level":"info","event":"oauth_callback_ok","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.337Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T13:56:44.338Z","level":"info","event":"report_claimed","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.407Z","level":"info","event":"user_lifecycle_transition","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.416Z","level":"info","event":"user_lifecycle_transition","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.425Z","level":"warn","event":"report_claim_release_noop","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.425Z","level":"info","event":"report_delivery_suppressed_inactive","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.425Z","level":"info","event":"daily_delivery_suppressed_lifecycle"}
+# {"ts":"2026-09-27T13:56:44.438Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T13:56:44.440Z","level":"info","event":"report_claimed","user_id":"695ed62e-8967-4a6c-b647-c105301f5aa0"}
+# {"ts":"2026-09-27T13:56:44.504Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T13:56:44.581Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:44.584Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:46.997Z","level":"info","event":"user_created","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:46.998Z","level":"info","event":"telegram_linked","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:46.999Z","level":"info","event":"onboarding_user_created","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.000Z","level":"info","event":"onboarding_state","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.003Z","level":"info","event":"onboarding_state","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.008Z","level":"info","event":"oauth_state_created","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.008Z","level":"info","event":"oauth_authorize_prepared","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.010Z","level":"info","event":"oauth_state_consumed","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.011Z","level":"info","event":"tokens_saved","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610","attempt":1}
+# {"ts":"2026-09-27T13:56:47.011Z","level":"info","event":"oauth_authorize_completed","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.012Z","level":"info","event":"onboarding_state","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.022Z","level":"info","event":"oauth_callback_ok","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.025Z","level":"info","event":"report_claimed","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.031Z","level":"info","event":"user_lifecycle_transition","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.040Z","level":"info","event":"user_lifecycle_transition","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.048Z","level":"warn","event":"report_claim_release_noop","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.049Z","level":"info","event":"report_delivery_suppressed_inactive","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.049Z","level":"info","event":"weekly_delivery_suppressed_lifecycle"}
+# {"ts":"2026-09-27T13:56:47.050Z","level":"info","event":"report_claimed","user_id":"21027e9b-18e5-437f-8fb4-93fbd3760610"}
+# {"ts":"2026-09-27T13:56:47.058Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T13:56:47.130Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:47.132Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:49.519Z","level":"info","event":"user_created","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:49.520Z","level":"info","event":"telegram_linked","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.522Z","level":"info","event":"onboarding_user_created","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.522Z","level":"info","event":"onboarding_state","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.525Z","level":"info","event":"onboarding_state","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.528Z","level":"info","event":"oauth_state_created","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.528Z","level":"info","event":"oauth_authorize_prepared","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.529Z","level":"info","event":"oauth_state_consumed","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.530Z","level":"info","event":"tokens_saved","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1","attempt":1}
+# {"ts":"2026-09-27T13:56:49.530Z","level":"info","event":"oauth_authorize_completed","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.531Z","level":"info","event":"onboarding_state","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.539Z","level":"info","event":"oauth_callback_ok","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.550Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:56:49.562Z","level":"info","event":"user_lifecycle_transition","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.569Z","level":"info","event":"user_lifecycle_transition","user_id":"681b7fe8-f66e-4469-8688-08039fa214f1"}
+# {"ts":"2026-09-27T13:56:49.578Z","level":"info","event":"guardian_cooldown_released"}
+# {"ts":"2026-09-27T13:56:49.578Z","level":"warn","event":"guardian_findings","count":1}
+# {"ts":"2026-09-27T13:56:49.578Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:56:49.579Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:56:49.591Z","level":"warn","event":"guardian_findings","count":1}
+# {"ts":"2026-09-27T13:56:49.591Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:56:49.665Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:49.667Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:51.979Z","level":"info","event":"user_created","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:51.980Z","level":"info","event":"telegram_linked","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c"}
+# {"ts":"2026-09-27T13:56:51.981Z","level":"info","event":"onboarding_user_created","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c"}
+# {"ts":"2026-09-27T13:56:51.982Z","level":"info","event":"onboarding_state","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c"}
+# {"ts":"2026-09-27T13:56:51.984Z","level":"info","event":"onboarding_state","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c"}
+# {"ts":"2026-09-27T13:56:51.987Z","level":"info","event":"oauth_state_created","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c"}
+# {"ts":"2026-09-27T13:56:51.987Z","level":"info","event":"oauth_authorize_prepared","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c"}
+# {"ts":"2026-09-27T13:56:51.988Z","level":"info","event":"oauth_state_consumed","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c"}
+# {"ts":"2026-09-27T13:56:51.989Z","level":"info","event":"tokens_saved","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c","attempt":1}
+# {"ts":"2026-09-27T13:56:51.989Z","level":"info","event":"oauth_authorize_completed","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c"}
+# {"ts":"2026-09-27T13:56:51.990Z","level":"info","event":"onboarding_state","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c"}
+# {"ts":"2026-09-27T13:56:51.998Z","level":"info","event":"oauth_callback_ok","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c"}
+# {"ts":"2026-09-27T13:56:52.002Z","level":"info","event":"analytics_invalidated","user_id":"85e0950f-512a-4e72-bcf6-7e3bcca7203c","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T13:56:52.145Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:52.147Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:54.178Z","level":"info","event":"user_created","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:54.179Z","level":"info","event":"telegram_linked","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.180Z","level":"info","event":"onboarding_user_created","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.181Z","level":"info","event":"onboarding_state","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.184Z","level":"info","event":"onboarding_state","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.187Z","level":"info","event":"oauth_state_created","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.187Z","level":"info","event":"oauth_authorize_prepared","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.188Z","level":"info","event":"oauth_state_consumed","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.190Z","level":"info","event":"tokens_saved","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c","attempt":1}
+# {"ts":"2026-09-27T13:56:54.190Z","level":"info","event":"oauth_authorize_completed","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.191Z","level":"info","event":"onboarding_state","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.200Z","level":"info","event":"oauth_callback_ok","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.205Z","level":"info","event":"analytics_invalidated","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T13:56:54.233Z","level":"info","event":"user_lifecycle_transition","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.243Z","level":"info","event":"user_lifecycle_transition","user_id":"b1e6069c-393b-43f3-ad24-8da0f6ebd62c"}
+# {"ts":"2026-09-27T13:56:54.406Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:54.410Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:56.539Z","level":"info","event":"user_created","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:56.540Z","level":"info","event":"telegram_linked","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:56.541Z","level":"info","event":"onboarding_user_created","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:56.542Z","level":"info","event":"onboarding_state","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:56.544Z","level":"info","event":"onboarding_state","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:56.546Z","level":"info","event":"oauth_state_created","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:56.546Z","level":"info","event":"oauth_authorize_prepared","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:56.547Z","level":"info","event":"oauth_state_consumed","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:56.548Z","level":"info","event":"tokens_saved","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f","attempt":1}
+# {"ts":"2026-09-27T13:56:56.548Z","level":"info","event":"oauth_authorize_completed","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:56.549Z","level":"info","event":"onboarding_state","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:56.556Z","level":"info","event":"oauth_callback_ok","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:56.785Z","level":"info","event":"user_lifecycle_transition","user_id":"a63a2b27-42e7-4bcd-850e-866662c9344f"}
+# {"ts":"2026-09-27T13:56:57.230Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:57.232Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:56:59.130Z","level":"info","event":"user_created","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:56:59.131Z","level":"info","event":"telegram_linked","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.134Z","level":"info","event":"onboarding_user_created","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.135Z","level":"info","event":"onboarding_state","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.138Z","level":"info","event":"onboarding_state","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.142Z","level":"info","event":"oauth_state_created","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.142Z","level":"info","event":"oauth_authorize_prepared","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.144Z","level":"info","event":"oauth_state_consumed","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.146Z","level":"info","event":"tokens_saved","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42","attempt":1}
+# {"ts":"2026-09-27T13:56:59.146Z","level":"info","event":"oauth_authorize_completed","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.147Z","level":"info","event":"onboarding_state","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.159Z","level":"info","event":"oauth_callback_ok","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.164Z","level":"info","event":"canonical_write_classified","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42","resource":"sleep","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:56:59.168Z","level":"info","event":"user_lifecycle_transition","user_id":"ec37a503-bb08-461e-ae80-fae3b038df42"}
+# {"ts":"2026-09-27T13:56:59.169Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T13:56:59.181Z","level":"info","event":"sync_account_inactive","resource":"sleep"}
+# {"ts":"2026-09-27T13:56:59.182Z","level":"info","event":"sync_all_done"}
+# {"ts":"2026-09-27T13:56:59.278Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:56:59.281Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:01.447Z","level":"info","event":"user_created","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:01.448Z","level":"info","event":"telegram_linked","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.449Z","level":"info","event":"onboarding_user_created","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.450Z","level":"info","event":"onboarding_state","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.452Z","level":"info","event":"onboarding_state","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.455Z","level":"info","event":"oauth_state_created","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.455Z","level":"info","event":"oauth_authorize_prepared","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.456Z","level":"info","event":"oauth_state_consumed","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.457Z","level":"info","event":"tokens_saved","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539","attempt":1}
+# {"ts":"2026-09-27T13:57:01.457Z","level":"info","event":"oauth_authorize_completed","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.458Z","level":"info","event":"onboarding_state","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.466Z","level":"info","event":"oauth_callback_ok","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.468Z","level":"info","event":"canonical_write_classified","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539","resource":"sleep","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:01.471Z","level":"info","event":"user_lifecycle_transition","user_id":"7a61f03c-9c66-4e6a-a28a-f3ba589c7539"}
+# {"ts":"2026-09-27T13:57:01.471Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T13:57:01.479Z","level":"info","event":"sync_account_inactive","resource":"sleep"}
+# {"ts":"2026-09-27T13:57:01.479Z","level":"info","event":"sync_all_done"}
+# {"ts":"2026-09-27T13:57:01.553Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:01.555Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:03.736Z","level":"info","event":"user_created","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:03.737Z","level":"info","event":"telegram_linked","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.738Z","level":"info","event":"onboarding_user_created","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.739Z","level":"info","event":"onboarding_state","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.742Z","level":"info","event":"onboarding_state","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.747Z","level":"info","event":"oauth_state_created","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.747Z","level":"info","event":"oauth_authorize_prepared","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.748Z","level":"info","event":"oauth_state_consumed","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.750Z","level":"info","event":"tokens_saved","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f","attempt":1}
+# {"ts":"2026-09-27T13:57:03.750Z","level":"info","event":"oauth_authorize_completed","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.752Z","level":"info","event":"onboarding_state","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.764Z","level":"info","event":"oauth_callback_ok","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.766Z","level":"info","event":"user_lifecycle_transition","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.779Z","level":"warn","event":"account_lifecycle_rejected","user_id":"625ad0c5-1027-45fb-b859-ecdc1a1ea75f"}
+# {"ts":"2026-09-27T13:57:03.926Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:03.931Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:05.997Z","level":"info","event":"user_created","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:05.998Z","level":"info","event":"telegram_linked","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf"}
+# {"ts":"2026-09-27T13:57:05.999Z","level":"info","event":"onboarding_user_created","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf"}
+# {"ts":"2026-09-27T13:57:06.000Z","level":"info","event":"onboarding_state","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf"}
+# {"ts":"2026-09-27T13:57:06.002Z","level":"info","event":"onboarding_state","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf"}
+# {"ts":"2026-09-27T13:57:06.004Z","level":"info","event":"oauth_state_created","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf"}
+# {"ts":"2026-09-27T13:57:06.004Z","level":"info","event":"oauth_authorize_prepared","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf"}
+# {"ts":"2026-09-27T13:57:06.005Z","level":"info","event":"oauth_state_consumed","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf"}
+# {"ts":"2026-09-27T13:57:06.007Z","level":"info","event":"tokens_saved","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf","attempt":1}
+# {"ts":"2026-09-27T13:57:06.007Z","level":"info","event":"oauth_authorize_completed","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf"}
+# {"ts":"2026-09-27T13:57:06.008Z","level":"info","event":"onboarding_state","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf"}
+# {"ts":"2026-09-27T13:57:06.015Z","level":"info","event":"oauth_callback_ok","user_id":"feec91dc-cc59-41e6-b564-dc65b5f0eadf"}
+# {"ts":"2026-09-27T13:57:06.050Z","level":"info","event":"schema_data_migrated","version":18,"rows":1}
+# {"ts":"2026-09-27T13:57:06.050Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T13:57:06.051Z","level":"info","event":"schema_migrated","from":17,"to":20}
+# {"ts":"2026-09-27T13:57:08.026Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:08.030Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:10.755Z","level":"info","event":"user_created","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:10.757Z","level":"info","event":"telegram_linked","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1"}
+# {"ts":"2026-09-27T13:57:10.759Z","level":"info","event":"onboarding_user_created","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1"}
+# {"ts":"2026-09-27T13:57:10.762Z","level":"info","event":"onboarding_state","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1"}
+# {"ts":"2026-09-27T13:57:10.767Z","level":"info","event":"onboarding_state","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1"}
+# {"ts":"2026-09-27T13:57:10.771Z","level":"info","event":"oauth_state_created","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1"}
+# {"ts":"2026-09-27T13:57:10.772Z","level":"info","event":"oauth_authorize_prepared","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1"}
+# {"ts":"2026-09-27T13:57:10.773Z","level":"info","event":"oauth_state_consumed","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1"}
+# {"ts":"2026-09-27T13:57:10.776Z","level":"info","event":"tokens_saved","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1","attempt":1}
+# {"ts":"2026-09-27T13:57:10.776Z","level":"info","event":"oauth_authorize_completed","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1"}
+# {"ts":"2026-09-27T13:57:10.778Z","level":"info","event":"onboarding_state","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1"}
+# {"ts":"2026-09-27T13:57:10.790Z","level":"info","event":"oauth_callback_ok","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1"}
+# {"ts":"2026-09-27T13:57:10.823Z","level":"info","event":"capabilities_saved","user_id":"1827c40d-8ec9-4bbd-8f77-bd392e427bf1","count":1}
+# {"ts":"2026-09-27T13:57:10.875Z","level":"info","event":"schema_data_migrated","version":18,"rows":0}
+# {"ts":"2026-09-27T13:57:10.876Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T13:57:10.877Z","level":"info","event":"schema_migrated","from":17,"to":20}
+# {"ts":"2026-09-27T13:57:12.962Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:12.964Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:15.263Z","level":"info","event":"user_created","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:15.264Z","level":"info","event":"telegram_linked","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.265Z","level":"info","event":"onboarding_user_created","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.266Z","level":"info","event":"onboarding_state","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.270Z","level":"info","event":"onboarding_state","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.273Z","level":"info","event":"oauth_state_created","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.273Z","level":"info","event":"oauth_authorize_prepared","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.274Z","level":"info","event":"oauth_state_consumed","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.276Z","level":"info","event":"tokens_saved","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134","attempt":1}
+# {"ts":"2026-09-27T13:57:15.276Z","level":"info","event":"oauth_authorize_completed","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.278Z","level":"info","event":"onboarding_state","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.289Z","level":"info","event":"oauth_callback_ok","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.290Z","level":"info","event":"user_created","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:15.291Z","level":"info","event":"telegram_linked","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.293Z","level":"info","event":"onboarding_user_created","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.294Z","level":"info","event":"onboarding_state","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.297Z","level":"info","event":"onboarding_state","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.300Z","level":"info","event":"oauth_state_created","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.301Z","level":"info","event":"oauth_authorize_prepared","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.302Z","level":"info","event":"oauth_state_consumed","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.304Z","level":"info","event":"tokens_saved","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9","attempt":1}
+# {"ts":"2026-09-27T13:57:15.304Z","level":"info","event":"oauth_authorize_completed","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.305Z","level":"info","event":"onboarding_state","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.315Z","level":"info","event":"oauth_callback_ok","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.317Z","level":"info","event":"report_claimed","user_id":"dc73a880-c87e-46dd-965c-70a9738233f9"}
+# {"ts":"2026-09-27T13:57:15.318Z","level":"info","event":"user_lifecycle_transition","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.327Z","level":"info","event":"user_lifecycle_transition","user_id":"37350fa6-385e-4bd9-b628-d8cd5059c134"}
+# {"ts":"2026-09-27T13:57:15.420Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:15.423Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:17.870Z","level":"info","event":"user_created","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:17.871Z","level":"info","event":"telegram_linked","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec"}
+# {"ts":"2026-09-27T13:57:17.872Z","level":"info","event":"onboarding_user_created","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec"}
+# {"ts":"2026-09-27T13:57:17.873Z","level":"info","event":"onboarding_state","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec"}
+# {"ts":"2026-09-27T13:57:17.877Z","level":"info","event":"onboarding_state","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec"}
+# {"ts":"2026-09-27T13:57:17.880Z","level":"info","event":"oauth_state_created","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec"}
+# {"ts":"2026-09-27T13:57:17.881Z","level":"info","event":"oauth_authorize_prepared","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec"}
+# {"ts":"2026-09-27T13:57:17.882Z","level":"info","event":"oauth_state_consumed","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec"}
+# {"ts":"2026-09-27T13:57:17.883Z","level":"info","event":"tokens_saved","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec","attempt":1}
+# {"ts":"2026-09-27T13:57:17.883Z","level":"info","event":"oauth_authorize_completed","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec"}
+# {"ts":"2026-09-27T13:57:17.884Z","level":"info","event":"onboarding_state","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec"}
+# {"ts":"2026-09-27T13:57:17.895Z","level":"info","event":"oauth_callback_ok","user_id":"a6bffb02-7d26-4979-95cf-7f6bdcb13bec"}
+# {"ts":"2026-09-27T13:57:18.005Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:18.008Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:20.603Z","level":"info","event":"user_created","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:20.604Z","level":"info","event":"telegram_linked","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f"}
+# {"ts":"2026-09-27T13:57:20.606Z","level":"info","event":"onboarding_user_created","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f"}
+# {"ts":"2026-09-27T13:57:20.607Z","level":"info","event":"onboarding_state","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f"}
+# {"ts":"2026-09-27T13:57:20.611Z","level":"info","event":"onboarding_state","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f"}
+# {"ts":"2026-09-27T13:57:20.616Z","level":"info","event":"oauth_state_created","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f"}
+# {"ts":"2026-09-27T13:57:20.616Z","level":"info","event":"oauth_authorize_prepared","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f"}
+# {"ts":"2026-09-27T13:57:20.618Z","level":"info","event":"oauth_state_consumed","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f"}
+# {"ts":"2026-09-27T13:57:20.620Z","level":"info","event":"tokens_saved","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f","attempt":1}
+# {"ts":"2026-09-27T13:57:20.620Z","level":"info","event":"oauth_authorize_completed","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f"}
+# {"ts":"2026-09-27T13:57:20.621Z","level":"info","event":"onboarding_state","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f"}
+# {"ts":"2026-09-27T13:57:20.632Z","level":"info","event":"oauth_callback_ok","user_id":"28e0d075-5fb9-4ad8-9fa9-e030b95d9c4f"}
+# {"ts":"2026-09-27T13:57:20.749Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:20.752Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:23.021Z","level":"info","event":"user_created","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:23.022Z","level":"info","event":"telegram_linked","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06"}
+# {"ts":"2026-09-27T13:57:23.023Z","level":"info","event":"onboarding_user_created","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06"}
+# {"ts":"2026-09-27T13:57:23.024Z","level":"info","event":"onboarding_state","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06"}
+# {"ts":"2026-09-27T13:57:23.027Z","level":"info","event":"onboarding_state","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06"}
+# {"ts":"2026-09-27T13:57:23.029Z","level":"info","event":"oauth_state_created","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06"}
+# {"ts":"2026-09-27T13:57:23.029Z","level":"info","event":"oauth_authorize_prepared","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06"}
+# {"ts":"2026-09-27T13:57:23.030Z","level":"info","event":"oauth_state_consumed","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06"}
+# {"ts":"2026-09-27T13:57:23.032Z","level":"info","event":"tokens_saved","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06","attempt":1}
+# {"ts":"2026-09-27T13:57:23.032Z","level":"info","event":"oauth_authorize_completed","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06"}
+# {"ts":"2026-09-27T13:57:23.033Z","level":"info","event":"onboarding_state","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06"}
+# {"ts":"2026-09-27T13:57:23.040Z","level":"info","event":"oauth_callback_ok","user_id":"bd0231aa-57a1-48ca-af60-83d1c6f47c06"}
+# {"ts":"2026-09-27T13:57:23.142Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:23.145Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:25.589Z","level":"info","event":"user_created","user_id":"12001d27-456c-4db1-ad70-ed96dab06378","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:25.590Z","level":"info","event":"telegram_linked","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.592Z","level":"info","event":"onboarding_user_created","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.594Z","level":"info","event":"onboarding_state","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.598Z","level":"info","event":"onboarding_state","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.603Z","level":"info","event":"oauth_state_created","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.603Z","level":"info","event":"oauth_authorize_prepared","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.604Z","level":"info","event":"oauth_state_consumed","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.606Z","level":"info","event":"tokens_saved","user_id":"12001d27-456c-4db1-ad70-ed96dab06378","attempt":1}
+# {"ts":"2026-09-27T13:57:25.606Z","level":"info","event":"oauth_authorize_completed","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.608Z","level":"info","event":"onboarding_state","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.619Z","level":"info","event":"oauth_callback_ok","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.770Z","level":"warn","event":"analytics_lifecycle_rejected","user_id":"12001d27-456c-4db1-ad70-ed96dab06378"}
+# {"ts":"2026-09-27T13:57:25.899Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:25.903Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:28.149Z","level":"info","event":"user_created","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:28.149Z","level":"info","event":"telegram_linked","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.150Z","level":"info","event":"onboarding_user_created","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.151Z","level":"info","event":"onboarding_state","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.153Z","level":"info","event":"onboarding_state","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.157Z","level":"info","event":"oauth_state_created","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.157Z","level":"info","event":"oauth_authorize_prepared","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.157Z","level":"info","event":"oauth_state_consumed","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.159Z","level":"info","event":"tokens_saved","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036","attempt":1}
+# {"ts":"2026-09-27T13:57:28.159Z","level":"info","event":"oauth_authorize_completed","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.160Z","level":"info","event":"onboarding_state","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.167Z","level":"info","event":"oauth_callback_ok","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.168Z","level":"info","event":"tokens_saved","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036","attempt":1}
+# {"ts":"2026-09-27T13:57:28.170Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:57:28.170Z","level":"info","event":"token_refresh_start","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.171Z","level":"info","event":"tokens_saved","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036","attempt":1}
+# {"ts":"2026-09-27T13:57:28.171Z","level":"info","event":"token_refresh_done","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.172Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:57:28.173Z","level":"info","event":"tokens_saved","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036","attempt":1}
+# {"ts":"2026-09-27T13:57:28.174Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:57:28.174Z","level":"info","event":"token_refresh_start","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.175Z","level":"info","event":"tokens_saved","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036","attempt":1}
+# {"ts":"2026-09-27T13:57:28.176Z","level":"warn","event":"tokens_save_stale_generation","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.176Z","level":"warn","event":"token_refresh_fenced","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.177Z","level":"info","event":"token_adopted_after_fence","user_id":"18ee8d20-4b06-4f3f-8b7d-abb4c6833036"}
+# {"ts":"2026-09-27T13:57:28.177Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:57:28.240Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:28.242Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:30.666Z","level":"info","event":"user_created","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:30.667Z","level":"info","event":"telegram_linked","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.668Z","level":"info","event":"onboarding_user_created","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.669Z","level":"info","event":"onboarding_state","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.672Z","level":"info","event":"onboarding_state","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.675Z","level":"info","event":"oauth_state_created","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.675Z","level":"info","event":"oauth_authorize_prepared","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.676Z","level":"info","event":"oauth_state_consumed","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.679Z","level":"info","event":"tokens_saved","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527","attempt":1}
+# {"ts":"2026-09-27T13:57:30.679Z","level":"info","event":"oauth_authorize_completed","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.680Z","level":"info","event":"onboarding_state","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.689Z","level":"info","event":"oauth_callback_ok","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.694Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:57:30.718Z","level":"info","event":"user_lifecycle_transition","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.726Z","level":"info","event":"user_lifecycle_transition","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.734Z","level":"info","event":"telegram_reply_suppressed_lifecycle","user_id":"785f0df0-a3cc-47b6-a1f9-2756e0d7f527"}
+# {"ts":"2026-09-27T13:57:30.744Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:57:30.746Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:57:30.779Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:57:30.849Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:30.855Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:33.320Z","level":"info","event":"user_created","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:33.320Z","level":"info","event":"telegram_linked","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.321Z","level":"info","event":"onboarding_user_created","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.322Z","level":"info","event":"onboarding_state","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.325Z","level":"info","event":"onboarding_state","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.327Z","level":"info","event":"oauth_state_created","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.327Z","level":"info","event":"oauth_authorize_prepared","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.328Z","level":"info","event":"oauth_state_consumed","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.330Z","level":"info","event":"tokens_saved","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b","attempt":1}
+# {"ts":"2026-09-27T13:57:33.330Z","level":"info","event":"oauth_authorize_completed","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.331Z","level":"info","event":"onboarding_state","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.338Z","level":"info","event":"oauth_callback_ok","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.339Z","level":"info","event":"report_claimed","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.340Z","level":"info","event":"report_claimed","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.340Z","level":"warn","event":"report_delivery_authorization_denied","user_id":"f7215c1c-466f-41aa-8068-92e54ae5b64b"}
+# {"ts":"2026-09-27T13:57:33.406Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:33.408Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:35.389Z","level":"info","event":"user_created","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:35.390Z","level":"info","event":"telegram_linked","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.391Z","level":"info","event":"onboarding_user_created","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.392Z","level":"info","event":"onboarding_state","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.395Z","level":"info","event":"onboarding_state","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.397Z","level":"info","event":"oauth_state_created","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.397Z","level":"info","event":"oauth_authorize_prepared","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.399Z","level":"info","event":"oauth_state_consumed","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.400Z","level":"info","event":"tokens_saved","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998","attempt":1}
+# {"ts":"2026-09-27T13:57:35.400Z","level":"info","event":"oauth_authorize_completed","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.402Z","level":"info","event":"user_lifecycle_transition","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.409Z","level":"info","event":"user_lifecycle_transition","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.417Z","level":"warn","event":"account_lifecycle_rejected","user_id":"361c394c-8576-40f0-a3ab-43ae0fda9998"}
+# {"ts":"2026-09-27T13:57:35.497Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:35.500Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:37.642Z","level":"info","event":"user_created","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:37.643Z","level":"info","event":"telegram_linked","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.644Z","level":"info","event":"onboarding_user_created","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.646Z","level":"info","event":"onboarding_state","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.648Z","level":"info","event":"onboarding_state","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.650Z","level":"info","event":"oauth_state_created","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.650Z","level":"info","event":"oauth_authorize_prepared","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.651Z","level":"info","event":"oauth_state_consumed","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.653Z","level":"info","event":"tokens_saved","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6","attempt":1}
+# {"ts":"2026-09-27T13:57:37.653Z","level":"info","event":"oauth_authorize_completed","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.654Z","level":"info","event":"onboarding_state","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.662Z","level":"info","event":"user_lifecycle_transition","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.669Z","level":"info","event":"user_lifecycle_transition","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.676Z","level":"warn","event":"account_lifecycle_rejected","user_id":"25d44f98-73c3-4543-8ab0-6a088e72a4c6"}
+# {"ts":"2026-09-27T13:57:37.755Z","level":"info","event":"schema_column_added","table":"proactive_agent_state","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:37.758Z","level":"info","event":"schema_column_added","table":"proactive_events","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:37.764Z","level":"info","event":"schema_column_added","table":"error_notifications","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:37.773Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:37.775Z","level":"info","event":"schema_column_added","table":"users","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:37.777Z","level":"info","event":"schema_column_added","table":"oauth_states","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:37.779Z","level":"info","event":"schema_column_added","table":"whoop_capabilities","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:37.781Z","level":"info","event":"schema_column_added","table":"report_claims","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:37.783Z","level":"info","event":"schema_data_migrated","version":14,"rows":1}
+# {"ts":"2026-09-27T13:57:37.784Z","level":"info","event":"schema_data_migrated","version":15,"rows":0}
+# {"ts":"2026-09-27T13:57:37.784Z","level":"info","event":"schema_data_migrated","version":16,"rows":0}
+# {"ts":"2026-09-27T13:57:37.785Z","level":"info","event":"schema_data_migrated","version":18,"rows":1}
+# {"ts":"2026-09-27T13:57:37.785Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T13:57:37.786Z","level":"info","event":"schema_migrated","from":9,"to":20}
+# {"ts":"2026-09-27T13:57:39.907Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:57:39.909Z","level":"info","event":"onboarding_state","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:39.910Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:39.911Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:39.914Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"sleep","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:39.917Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T13:57:39.932Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:39.932Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:39.933Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"sleep","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:39.935Z","level":"info","event":"sync_backfill_chunk","resource":"sleep"}
+# {"ts":"2026-09-27T13:57:39.944Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:39.945Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:39.946Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"sleep","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:39.949Z","level":"info","event":"sync_backfill_chunk","resource":"sleep"}
+# {"ts":"2026-09-27T13:57:39.958Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:39.959Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:39.962Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"sleep","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:39.965Z","level":"info","event":"sync_backfill_chunk","resource":"sleep"}
+# {"ts":"2026-09-27T13:57:39.973Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:39.974Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:39.981Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"recovery","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:39.984Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T13:57:40.007Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.008Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.009Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"recovery","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.014Z","level":"info","event":"sync_backfill_chunk","resource":"recovery"}
+# {"ts":"2026-09-27T13:57:40.021Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.022Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.027Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"recovery","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.032Z","level":"info","event":"sync_backfill_chunk","resource":"recovery"}
+# {"ts":"2026-09-27T13:57:40.045Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.047Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.049Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"recovery","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.056Z","level":"info","event":"sync_backfill_chunk","resource":"recovery"}
+# {"ts":"2026-09-27T13:57:40.070Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.070Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.072Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"cycle","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.078Z","level":"info","event":"sync_incremental_done","resource":"cycle"}
+# {"ts":"2026-09-27T13:57:40.110Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.111Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.113Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"cycle","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.119Z","level":"info","event":"sync_backfill_chunk","resource":"cycle"}
+# {"ts":"2026-09-27T13:57:40.134Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.134Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.136Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"cycle","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.141Z","level":"info","event":"sync_backfill_chunk","resource":"cycle"}
+# {"ts":"2026-09-27T13:57:40.160Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.161Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.164Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"cycle","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.170Z","level":"info","event":"sync_backfill_chunk","resource":"cycle"}
+# {"ts":"2026-09-27T13:57:40.187Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.187Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.190Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"workout","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.203Z","level":"info","event":"sync_incremental_done","resource":"workout"}
+# {"ts":"2026-09-27T13:57:40.237Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.237Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.239Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"workout","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.244Z","level":"info","event":"sync_backfill_chunk","resource":"workout"}
+# {"ts":"2026-09-27T13:57:40.258Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.258Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.263Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"workout","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.268Z","level":"info","event":"sync_backfill_chunk","resource":"workout"}
+# {"ts":"2026-09-27T13:57:40.285Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.285Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.289Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"workout","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:40.295Z","level":"info","event":"sync_backfill_chunk","resource":"workout"}
+# {"ts":"2026-09-27T13:57:40.310Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.314Z","level":"info","event":"store_body_measurement_upserted","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.332Z","level":"info","event":"analytics_invalidated","user_id":"legacy-v9","generation":1}
+# {"ts":"2026-09-27T13:57:40.343Z","level":"info","event":"sync_point_in_time_done"}
+# {"ts":"2026-09-27T13:57:40.343Z","level":"info","event":"sync_all_done"}
+# {"ts":"2026-09-27T13:57:40.355Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.356Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.356Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.356Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.357Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.357Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.357Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.357Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:40.358Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.422Z","level":"info","event":"capabilities_saved","user_id":"legacy-v9","count":50}
+# {"ts":"2026-09-27T13:57:40.423Z","level":"info","event":"probe_done"}
+# {"ts":"2026-09-27T13:57:40.450Z","level":"info","event":"onboarding_state","user_id":"legacy-v9","state":"READY"}
+# {"ts":"2026-09-27T13:57:40.450Z","level":"info","event":"onboarding_ready","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:40.451Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:57:40.577Z","level":"info","event":"schema_column_added","table":"proactive_agent_state","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:40.580Z","level":"info","event":"schema_column_added","table":"proactive_events","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:40.584Z","level":"info","event":"schema_column_added","table":"error_notifications","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:40.599Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:40.601Z","level":"info","event":"schema_column_added","table":"users","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:40.603Z","level":"info","event":"schema_column_added","table":"oauth_states","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:40.606Z","level":"info","event":"schema_column_added","table":"whoop_capabilities","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:40.608Z","level":"info","event":"schema_column_added","table":"report_claims","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:40.611Z","level":"info","event":"schema_data_migrated","version":14,"rows":1}
+# {"ts":"2026-09-27T13:57:40.613Z","level":"info","event":"schema_data_migrated","version":15,"rows":0}
+# {"ts":"2026-09-27T13:57:40.613Z","level":"info","event":"schema_data_migrated","version":16,"rows":0}
+# {"ts":"2026-09-27T13:57:40.615Z","level":"info","event":"schema_data_migrated","version":18,"rows":1}
+# {"ts":"2026-09-27T13:57:40.615Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T13:57:40.616Z","level":"info","event":"schema_migrated","from":9,"to":20}
+# {"ts":"2026-09-27T13:57:43.456Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T13:57:43.458Z","level":"info","event":"onboarding_state","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.459Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.459Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.460Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"sleep","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.463Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T13:57:43.477Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.477Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.479Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"sleep","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.481Z","level":"info","event":"sync_backfill_chunk","resource":"sleep"}
+# {"ts":"2026-09-27T13:57:43.489Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.489Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.490Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"sleep","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.492Z","level":"info","event":"sync_backfill_chunk","resource":"sleep"}
+# {"ts":"2026-09-27T13:57:43.500Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.500Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.501Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"sleep","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.503Z","level":"info","event":"sync_backfill_chunk","resource":"sleep"}
+# {"ts":"2026-09-27T13:57:43.510Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.517Z","level":"warn","event":"sync_scope_missing","resource":"recovery"}
+# {"ts":"2026-09-27T13:57:43.524Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.524Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.525Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"cycle","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.529Z","level":"info","event":"sync_incremental_done","resource":"cycle"}
+# {"ts":"2026-09-27T13:57:43.544Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.545Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.546Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"cycle","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.548Z","level":"info","event":"sync_backfill_chunk","resource":"cycle"}
+# {"ts":"2026-09-27T13:57:43.558Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.558Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.559Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"cycle","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.562Z","level":"info","event":"sync_backfill_chunk","resource":"cycle"}
+# {"ts":"2026-09-27T13:57:43.569Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.569Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.570Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"cycle","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.572Z","level":"info","event":"sync_backfill_chunk","resource":"cycle"}
+# {"ts":"2026-09-27T13:57:43.580Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.580Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.581Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"workout","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.584Z","level":"info","event":"sync_incremental_done","resource":"workout"}
+# {"ts":"2026-09-27T13:57:43.599Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.599Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.600Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"workout","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.602Z","level":"info","event":"sync_backfill_chunk","resource":"workout"}
+# {"ts":"2026-09-27T13:57:43.609Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.609Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.610Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"workout","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.613Z","level":"info","event":"sync_backfill_chunk","resource":"workout"}
+# {"ts":"2026-09-27T13:57:43.621Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.621Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.622Z","level":"info","event":"canonical_write_classified","user_id":"legacy-v9","resource":"workout","changed":0,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:57:43.624Z","level":"info","event":"sync_backfill_chunk","resource":"workout"}
+# {"ts":"2026-09-27T13:57:43.634Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.636Z","level":"info","event":"store_body_measurement_upserted","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.638Z","level":"info","event":"analytics_invalidated","user_id":"legacy-v9","generation":1}
+# {"ts":"2026-09-27T13:57:43.644Z","level":"info","event":"sync_point_in_time_done"}
+# {"ts":"2026-09-27T13:57:43.644Z","level":"info","event":"sync_all_done"}
+# {"ts":"2026-09-27T13:57:43.651Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.651Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.651Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.652Z","level":"warn","event":"probe_scope_missing","resource":"recovery"}
+# {"ts":"2026-09-27T13:57:43.652Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.652Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.652Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.653Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T13:57:43.653Z","level":"info","event":"token_reused","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.690Z","level":"info","event":"capabilities_saved","user_id":"legacy-v9","count":50}
+# {"ts":"2026-09-27T13:57:43.691Z","level":"info","event":"probe_done"}
+# {"ts":"2026-09-27T13:57:43.707Z","level":"info","event":"onboarding_state","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.708Z","level":"warn","event":"onboarding_scope_incomplete","user_id":"legacy-v9"}
+# {"ts":"2026-09-27T13:57:43.708Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T13:57:43.786Z","level":"info","event":"schema_column_added","table":"proactive_agent_state","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:43.788Z","level":"info","event":"schema_column_added","table":"proactive_events","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:43.789Z","level":"info","event":"schema_column_added","table":"error_notifications","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:43.799Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:43.800Z","level":"info","event":"schema_column_added","table":"users","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:43.802Z","level":"info","event":"schema_column_added","table":"oauth_states","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:43.804Z","level":"info","event":"schema_column_added","table":"whoop_capabilities","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:43.806Z","level":"info","event":"schema_column_added","table":"report_claims","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T13:57:43.808Z","level":"info","event":"schema_data_migrated","version":14,"rows":1}
+# {"ts":"2026-09-27T13:57:43.809Z","level":"info","event":"schema_data_migrated","version":15,"rows":0}
+# {"ts":"2026-09-27T13:57:43.809Z","level":"info","event":"schema_data_migrated","version":16,"rows":0}
+# {"ts":"2026-09-27T13:57:43.809Z","level":"info","event":"schema_data_migrated","version":18,"rows":0}
+# {"ts":"2026-09-27T13:57:43.810Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T13:57:43.811Z","level":"info","event":"schema_migrated","from":9,"to":20}
+# {"ts":"2026-09-27T13:57:46.488Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:46.491Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:48.654Z","level":"info","event":"user_created","user_id":"dea63349-5f94-4eb5-8dd9-592689e14d66","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:48.721Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:48.723Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:50.946Z","level":"info","event":"user_created","user_id":"3a791b21-a23d-4715-97bc-69ecc9c9598e","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:51.033Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:51.036Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:53.527Z","level":"info","event":"user_created","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:53.528Z","level":"info","event":"telegram_linked","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56"}
+# {"ts":"2026-09-27T13:57:53.530Z","level":"info","event":"onboarding_user_created","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56"}
+# {"ts":"2026-09-27T13:57:53.531Z","level":"info","event":"onboarding_state","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56"}
+# {"ts":"2026-09-27T13:57:53.535Z","level":"info","event":"onboarding_state","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56"}
+# {"ts":"2026-09-27T13:57:53.539Z","level":"info","event":"oauth_state_created","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56"}
+# {"ts":"2026-09-27T13:57:53.540Z","level":"info","event":"oauth_authorize_prepared","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56"}
+# {"ts":"2026-09-27T13:57:53.541Z","level":"info","event":"oauth_state_consumed","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56"}
+# {"ts":"2026-09-27T13:57:53.543Z","level":"info","event":"tokens_saved","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56","attempt":1}
+# {"ts":"2026-09-27T13:57:53.543Z","level":"info","event":"oauth_authorize_completed","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56"}
+# {"ts":"2026-09-27T13:57:53.546Z","level":"info","event":"onboarding_state","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56"}
+# {"ts":"2026-09-27T13:57:53.556Z","level":"info","event":"oauth_callback_ok","user_id":"013efc61-a506-4f57-9ce6-f9e6fa45fd56"}
+# {"ts":"2026-09-27T13:57:53.676Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:53.682Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:57:56.587Z","level":"info","event":"user_created","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:57:56.588Z","level":"info","event":"telegram_linked","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956"}
+# {"ts":"2026-09-27T13:57:56.589Z","level":"info","event":"onboarding_user_created","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956"}
+# {"ts":"2026-09-27T13:57:56.590Z","level":"info","event":"onboarding_state","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956"}
+# {"ts":"2026-09-27T13:57:56.593Z","level":"info","event":"onboarding_state","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956"}
+# {"ts":"2026-09-27T13:57:56.596Z","level":"info","event":"oauth_state_created","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956"}
+# {"ts":"2026-09-27T13:57:56.597Z","level":"info","event":"oauth_authorize_prepared","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956"}
+# {"ts":"2026-09-27T13:57:56.598Z","level":"info","event":"oauth_state_consumed","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956"}
+# {"ts":"2026-09-27T13:57:56.600Z","level":"info","event":"tokens_saved","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956","attempt":1}
+# {"ts":"2026-09-27T13:57:56.600Z","level":"info","event":"oauth_authorize_completed","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956"}
+# {"ts":"2026-09-27T13:57:56.602Z","level":"info","event":"onboarding_state","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956"}
+# {"ts":"2026-09-27T13:57:56.613Z","level":"info","event":"oauth_callback_ok","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956"}
+# {"ts":"2026-09-27T13:57:56.638Z","level":"info","event":"capabilities_saved","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956","count":1}
+# {"ts":"2026-09-27T13:57:56.649Z","level":"info","event":"onboarding_state","user_id":"494c63fb-36fa-4363-b7e8-4cc553ba9956","state":"READY"}
+# {"ts":"2026-09-27T13:57:56.701Z","level":"info","event":"schema_data_migrated","version":18,"rows":1}
+# {"ts":"2026-09-27T13:57:56.702Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T13:57:56.702Z","level":"info","event":"schema_migrated","from":17,"to":20}
+# {"ts":"2026-09-27T13:57:58.337Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:57:58.340Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:58:01.055Z","level":"info","event":"user_created","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:58:01.056Z","level":"info","event":"telegram_linked","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35"}
+# {"ts":"2026-09-27T13:58:01.057Z","level":"info","event":"onboarding_user_created","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35"}
+# {"ts":"2026-09-27T13:58:01.058Z","level":"info","event":"onboarding_state","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35"}
+# {"ts":"2026-09-27T13:58:01.061Z","level":"info","event":"onboarding_state","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35"}
+# {"ts":"2026-09-27T13:58:01.063Z","level":"info","event":"oauth_state_created","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35"}
+# {"ts":"2026-09-27T13:58:01.064Z","level":"info","event":"oauth_authorize_prepared","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35"}
+# {"ts":"2026-09-27T13:58:01.065Z","level":"info","event":"oauth_state_consumed","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35"}
+# {"ts":"2026-09-27T13:58:01.066Z","level":"info","event":"tokens_saved","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35","attempt":1}
+# {"ts":"2026-09-27T13:58:01.066Z","level":"info","event":"oauth_authorize_completed","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35"}
+# {"ts":"2026-09-27T13:58:01.067Z","level":"info","event":"onboarding_state","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35"}
+# {"ts":"2026-09-27T13:58:01.076Z","level":"info","event":"oauth_callback_ok","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35"}
+# {"ts":"2026-09-27T13:58:01.098Z","level":"info","event":"capabilities_saved","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35","count":1}
+# {"ts":"2026-09-27T13:58:01.106Z","level":"info","event":"onboarding_state","user_id":"0f65ae7f-3f76-4e6f-b4c4-cf0ddbe0aa35","state":"READY"}
+# {"ts":"2026-09-27T13:58:01.144Z","level":"info","event":"schema_data_migrated","version":18,"rows":1}
+# {"ts":"2026-09-27T13:58:01.145Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T13:58:01.146Z","level":"info","event":"schema_migrated","from":17,"to":20}
+# {"ts":"2026-09-27T13:58:02.787Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:58:02.790Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:58:05.257Z","level":"info","event":"user_created","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:58:05.258Z","level":"info","event":"telegram_linked","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d"}
+# {"ts":"2026-09-27T13:58:05.259Z","level":"info","event":"onboarding_user_created","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d"}
+# {"ts":"2026-09-27T13:58:05.260Z","level":"info","event":"onboarding_state","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d"}
+# {"ts":"2026-09-27T13:58:05.263Z","level":"info","event":"onboarding_state","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d"}
+# {"ts":"2026-09-27T13:58:05.265Z","level":"info","event":"oauth_state_created","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d"}
+# {"ts":"2026-09-27T13:58:05.265Z","level":"info","event":"oauth_authorize_prepared","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d"}
+# {"ts":"2026-09-27T13:58:05.266Z","level":"info","event":"oauth_state_consumed","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d"}
+# {"ts":"2026-09-27T13:58:05.268Z","level":"info","event":"tokens_saved","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d","attempt":1}
+# {"ts":"2026-09-27T13:58:05.268Z","level":"info","event":"oauth_authorize_completed","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d"}
+# {"ts":"2026-09-27T13:58:05.269Z","level":"info","event":"onboarding_state","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d"}
+# {"ts":"2026-09-27T13:58:05.278Z","level":"info","event":"oauth_callback_ok","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d"}
+# {"ts":"2026-09-27T13:58:05.300Z","level":"info","event":"capabilities_saved","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d","count":1}
+# {"ts":"2026-09-27T13:58:05.308Z","level":"info","event":"onboarding_state","user_id":"74c0b857-77d2-48b4-9b95-7adcd726596d","state":"READY"}
+# {"ts":"2026-09-27T13:58:05.341Z","level":"info","event":"schema_data_migrated","version":18,"rows":1}
+# {"ts":"2026-09-27T13:58:05.341Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T13:58:05.342Z","level":"info","event":"schema_migrated","from":17,"to":20}
+# {"ts":"2026-09-27T13:58:06.994Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:58:06.999Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:58:09.493Z","level":"info","event":"user_created","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:58:09.494Z","level":"info","event":"telegram_linked","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb"}
+# {"ts":"2026-09-27T13:58:09.496Z","level":"info","event":"onboarding_user_created","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb"}
+# {"ts":"2026-09-27T13:58:09.497Z","level":"info","event":"onboarding_state","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb"}
+# {"ts":"2026-09-27T13:58:09.501Z","level":"info","event":"onboarding_state","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb"}
+# {"ts":"2026-09-27T13:58:09.505Z","level":"info","event":"oauth_state_created","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb"}
+# {"ts":"2026-09-27T13:58:09.505Z","level":"info","event":"oauth_authorize_prepared","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb"}
+# {"ts":"2026-09-27T13:58:09.507Z","level":"info","event":"oauth_state_consumed","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb"}
+# {"ts":"2026-09-27T13:58:09.509Z","level":"info","event":"tokens_saved","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb","attempt":1}
+# {"ts":"2026-09-27T13:58:09.509Z","level":"info","event":"oauth_authorize_completed","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb"}
+# {"ts":"2026-09-27T13:58:09.511Z","level":"info","event":"onboarding_state","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb"}
+# {"ts":"2026-09-27T13:58:09.522Z","level":"info","event":"oauth_callback_ok","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb"}
+# {"ts":"2026-09-27T13:58:09.549Z","level":"info","event":"capabilities_saved","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb","count":1}
+# {"ts":"2026-09-27T13:58:09.558Z","level":"info","event":"onboarding_state","user_id":"7aa013f4-013c-49b8-a1e7-421e83f6a4bb","state":"READY"}
+# {"ts":"2026-09-27T13:58:09.598Z","level":"info","event":"schema_data_migrated","version":18,"rows":1}
+# {"ts":"2026-09-27T13:58:09.598Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T13:58:09.599Z","level":"info","event":"schema_migrated","from":17,"to":20}
+# {"ts":"2026-09-27T13:58:11.748Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:58:11.751Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:58:15.076Z","level":"info","event":"user_created","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:58:15.077Z","level":"info","event":"telegram_linked","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c"}
+# {"ts":"2026-09-27T13:58:15.079Z","level":"info","event":"onboarding_user_created","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c"}
+# {"ts":"2026-09-27T13:58:15.081Z","level":"info","event":"onboarding_state","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c"}
+# {"ts":"2026-09-27T13:58:15.085Z","level":"info","event":"onboarding_state","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c"}
+# {"ts":"2026-09-27T13:58:15.088Z","level":"info","event":"oauth_state_created","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c"}
+# {"ts":"2026-09-27T13:58:15.089Z","level":"info","event":"oauth_authorize_prepared","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c"}
+# {"ts":"2026-09-27T13:58:15.090Z","level":"info","event":"oauth_state_consumed","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c"}
+# {"ts":"2026-09-27T13:58:15.093Z","level":"info","event":"tokens_saved","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c","attempt":1}
+# {"ts":"2026-09-27T13:58:15.093Z","level":"info","event":"oauth_authorize_completed","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c"}
+# {"ts":"2026-09-27T13:58:15.094Z","level":"info","event":"onboarding_state","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c"}
+# {"ts":"2026-09-27T13:58:15.105Z","level":"info","event":"oauth_callback_ok","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c"}
+# {"ts":"2026-09-27T13:58:15.132Z","level":"info","event":"capabilities_saved","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c","count":1}
+# {"ts":"2026-09-27T13:58:15.141Z","level":"info","event":"onboarding_state","user_id":"216610fb-431e-45ad-a4e0-b672e5f0562c","state":"READY"}
+# {"ts":"2026-09-27T13:58:15.180Z","level":"info","event":"schema_data_migrated","version":18,"rows":1}
+# {"ts":"2026-09-27T13:58:15.181Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T13:58:15.182Z","level":"info","event":"schema_migrated","from":17,"to":20}
+# {"ts":"2026-09-27T13:58:16.797Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:58:16.799Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:58:19.086Z","level":"info","event":"user_created","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:58:19.087Z","level":"info","event":"telegram_linked","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794"}
+# {"ts":"2026-09-27T13:58:19.088Z","level":"info","event":"onboarding_user_created","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794"}
+# {"ts":"2026-09-27T13:58:19.089Z","level":"info","event":"onboarding_state","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794"}
+# {"ts":"2026-09-27T13:58:19.091Z","level":"info","event":"onboarding_state","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794"}
+# {"ts":"2026-09-27T13:58:19.093Z","level":"info","event":"oauth_state_created","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794"}
+# {"ts":"2026-09-27T13:58:19.093Z","level":"info","event":"oauth_authorize_prepared","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794"}
+# {"ts":"2026-09-27T13:58:19.095Z","level":"info","event":"oauth_state_consumed","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794"}
+# {"ts":"2026-09-27T13:58:19.097Z","level":"info","event":"tokens_saved","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794","attempt":1}
+# {"ts":"2026-09-27T13:58:19.097Z","level":"info","event":"oauth_authorize_completed","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794"}
+# {"ts":"2026-09-27T13:58:19.098Z","level":"info","event":"onboarding_state","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794"}
+# {"ts":"2026-09-27T13:58:19.105Z","level":"info","event":"oauth_callback_ok","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794"}
+# {"ts":"2026-09-27T13:58:19.106Z","level":"info","event":"onboarding_state","user_id":"b6e7120c-0052-438e-81c8-6b0ea6fad794","state":"READY"}
+# {"ts":"2026-09-27T13:58:19.148Z","level":"info","event":"schema_data_migrated","version":19,"rows":1}
+# {"ts":"2026-09-27T13:58:19.149Z","level":"info","event":"schema_migrated","from":18,"to":20}
+# {"ts":"2026-09-27T13:58:21.072Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:58:21.075Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:58:23.405Z","level":"info","event":"user_created","user_id":"a3b8d5b0-473f-458a-8cea-cac9270da72a","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:58:23.406Z","level":"info","event":"user_created","user_id":"c9241ff7-27ed-48d5-9292-eb446f92500a","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:58:23.406Z","level":"info","event":"telegram_linked","user_id":"c9241ff7-27ed-48d5-9292-eb446f92500a"}
+# {"ts":"2026-09-27T13:58:23.411Z","level":"info","event":"onboarding_lost_claim"}
+# Subtest: R3-00 ★★★ 一般執行期 client 少了啟用脈絡 → 拋錯（不再安靜地不設防）
+ok 1 - R3-00 ★★★ 一般執行期 client 少了啟用脈絡 → 拋錯（不再安靜地不設防）
+  ---
+  duration_ms: 2135.016708
+  type: 'test'
+  ...
+# Subtest: R3-01/PAUSED ★★★ runForUser 的例行 refresh：refresh 期間被停用 → 輪替憑證不落地
+ok 2 - R3-01/PAUSED ★★★ runForUser 的例行 refresh：refresh 期間被停用 → 輪替憑證不落地
+  ---
+  duration_ms: 3125.978125
+  type: 'test'
+  ...
+# Subtest: R3-02/PAUSED ★★★ runForUser 的例行 refresh：refresh 期間 ABA → 仍然不落地
+ok 3 - R3-02/PAUSED ★★★ runForUser 的例行 refresh：refresh 期間 ABA → 仍然不落地
+  ---
+  duration_ms: 2661.50025
+  type: 'test'
+  ...
+# Subtest: R3-01/DISABLED ★★★ runForUser 的例行 refresh：refresh 期間被停用 → 輪替憑證不落地
+ok 4 - R3-01/DISABLED ★★★ runForUser 的例行 refresh：refresh 期間被停用 → 輪替憑證不落地
+  ---
+  duration_ms: 2139.663334
+  type: 'test'
+  ...
+# Subtest: R3-02/DISABLED ★★★ runForUser 的例行 refresh：refresh 期間 ABA → 仍然不落地
+ok 5 - R3-02/DISABLED ★★★ runForUser 的例行 refresh：refresh 期間 ABA → 仍然不落地
+  ---
+  duration_ms: 1985.464125
+  type: 'test'
+  ...
+# Subtest: R3-03/04 sync CLI propagates lifecycle through refresh
+ok 6 - R3-03/04 sync CLI propagates lifecycle through refresh
+  ---
+  duration_ms: 2461.225417
+  type: 'test'
+  ...
+# Subtest: R3-03/04 probe-fields CLI propagates lifecycle through refresh
+ok 7 - R3-03/04 probe-fields CLI propagates lifecycle through refresh
+  ---
+  duration_ms: 2882.437709
+  type: 'test'
+  ...
+# Subtest: R3-05/PAUSED ★★★ token 寫入成功後 ABA → callback 續作被擋（不轉狀態、不歸零、不通知、不 bootstrap）
+ok 8 - R3-05/PAUSED ★★★ token 寫入成功後 ABA → callback 續作被擋（不轉狀態、不歸零、不通知、不 bootstrap）
+  ---
+  duration_ms: 1761.984875
+  type: 'test'
+  ...
+# Subtest: R3-05/DISABLED ★★★ token 寫入成功後 ABA → callback 續作被擋（不轉狀態、不歸零、不通知、不 bootstrap）
+ok 9 - R3-05/DISABLED ★★★ token 寫入成功後 ABA → callback 續作被擋（不轉狀態、不歸零、不通知、不 bootstrap）
+  ---
+  duration_ms: 1996.274791
+  type: 'test'
+  ...
+# Subtest: R3-06 orphanCleanupOnly rejects a meaningful READY bound tokenized account
+ok 10 - R3-06 orphanCleanupOnly rejects a meaningful READY bound tokenized account
+  ---
+  duration_ms: 1846.187
+  type: 'test'
+  ...
+# Subtest: R3-07 真正的認領輸家孤兒列 → 快速路徑成功，世代仍然推進
+ok 11 - R3-07 真正的認領輸家孤兒列 → 快速路徑成功，世代仍然推進
+  ---
+  duration_ms: 2160.974542
+  type: 'test'
+  ...
+# Subtest: R3-08/PAUSED ★★★ Q&A 最終送出：送出前一刻 ABA → 不送、不留送達收據
+ok 12 - R3-08/PAUSED ★★★ Q&A 最終送出：送出前一刻 ABA → 不送、不留送達收據
+  ---
+  duration_ms: 2080.426792
+  type: 'test'
+  ...
+# Subtest: R3-08/DISABLED ★★★ Q&A 最終送出：送出前一刻 ABA → 不送、不留送達收據
+ok 13 - R3-08/DISABLED ★★★ Q&A 最終送出：送出前一刻 ABA → 不送、不留送達收據
+  ---
+  duration_ms: 1997.22175
+  type: 'test'
+  ...
+# Subtest: R3-09 ★★★ 舊世代的 worker 在 ABA 之後不可以建立新的報告認領
+ok 14 - R3-09 ★★★ 舊世代的 worker 在 ABA 之後不可以建立新的報告認領
+  ---
+  duration_ms: 2007.80025
+  type: 'test'
+  ...
+# Subtest: R3-10 ★★★ 舊世代卡在 DELIVERY_STARTED → ABA → 沒有真的送出 → 新世代可以認領並送出
+ok 15 - R3-10 ★★★ 舊世代卡在 DELIVERY_STARTED → ABA → 沒有真的送出 → 新世代可以認領並送出
+  ---
+  duration_ms: 1857.18125
+  type: 'test'
+  ...
+# Subtest: R3-10b 舊世代拿著舊認領要跨進 DELIVERY_STARTED → 被 authorizeReportDelivery 擋下
+ok 16 - R3-10b 舊世代拿著舊認領要跨進 DELIVERY_STARTED → 被 authorizeReportDelivery 擋下
+  ---
+  duration_ms: 2599.337166
+  type: 'test'
+  ...
+# Subtest: R3-11/12 daily orchestration suppresses stale delivery and fresh lifecycle delivers
+ok 17 - R3-11/12 daily orchestration suppresses stale delivery and fresh lifecycle delivers
+  ---
+  duration_ms: 2552.621833
+  type: 'test'
+  ...
+# Subtest: R3-11/12 weekly orchestration suppresses stale delivery and fresh lifecycle delivers
+ok 18 - R3-11/12 weekly orchestration suppresses stale delivery and fresh lifecycle delivers
+  ---
+  duration_ms: 2554.248458
+  type: 'test'
+  ...
+# Subtest: R3-14 ★★★ Guardian：舊世代的 finding 被擋 → 冷卻歸還 → 新世代的警告仍然可以送
+ok 19 - R3-14 ★★★ Guardian：舊世代的 finding 被擋 → 冷卻歸還 → 新世代的警告仍然可以送
+  ---
+  duration_ms: 2533.501916
+  type: 'test'
+  ...
+# Subtest: R3-15 ★★★ 分析 API 少了啟用脈絡 → 拋錯（claim / output / settle）
+ok 20 - R3-15 ★★★ 分析 API 少了啟用脈絡 → 拋錯（claim / output / settle）
+  ---
+  duration_ms: 2446.323708
+  type: 'test'
+  ...
+# Subtest: R3-16 ★★★ 分析：L1 認領 → ABA → 舊的 saveAnalyticsDailyState 被拒；結案也被拒
+ok 21 - R3-16 ★★★ 分析：L1 認領 → ABA → 舊的 saveAnalyticsDailyState 被拒；結案也被拒
+  ---
+  duration_ms: 2232.85
+  type: 'test'
+  ...
+# Subtest: R3-17 reconcile CLI completes active/admin runs and rejects inactive default
+ok 22 - R3-17 reconcile CLI completes active/admin runs and rejects inactive default
+  ---
+  duration_ms: 2888.07975
+  type: 'test'
+  ...
+# Subtest: R3-18/PAUSED ★★★ sync：sleep 階段在 L1 完成、換啟用期 → recovery 階段**不開始**
+ok 23 - R3-18/PAUSED ★★★ sync：sleep 階段在 L1 完成、換啟用期 → recovery 階段**不開始**
+  ---
+  duration_ms: 2022.139625
+  type: 'test'
+  ...
+# Subtest: R3-18/DISABLED ★★★ sync：sleep 階段在 L1 完成、換啟用期 → recovery 階段**不開始**
+ok 24 - R3-18/DISABLED ★★★ sync：sleep 階段在 L1 完成、換啟用期 → recovery 階段**不開始**
+  ---
+  duration_ms: 2297.461625
+  type: 'test'
+  ...
+# Subtest: R3-19 ★★★ 盤點：階段依序、每個階段前重新驗證 —— 停用後不再發任何新請求
+ok 25 - R3-19 ★★★ 盤點：階段依序、每個階段前重新驗證 —— 停用後不再發任何新請求
+  ---
+  duration_ms: 2303.195292
+  type: 'test'
+  ...
+# Subtest: R3-20 ★★★ 遷移：只有 sleep 判定、缺 recovery 的 READY → 降級
+ok 26 - R3-20 ★★★ 遷移：只有 sleep 判定、缺 recovery 的 READY → 降級
+  ---
+  duration_ms: 4134.054167
+  type: 'test'
+  ...
+# Subtest: MIG-R3-02 ★ 遷移：sleep + recovery 都有目前世代判定 → 保持 READY（完整不變量成立）
+ok 27 - MIG-R3-02 ★ 遷移：sleep + recovery 都有目前世代判定 → 保持 READY（完整不變量成立）
+  ---
+  duration_ms: 4967.822334
+  type: 'test'
+  ...
+# Subtest: MIG-R3-05 / 多使用者：Alice 的轉移不影響 Bob 的認領、冷卻、分析、送出
+ok 28 - MIG-R3-05 / 多使用者：Alice 的轉移不影響 Bob 的認領、冷卻、分析、送出
+  ---
+  duration_ms: 2452.996
+  type: 'test'
+  ...
+# Subtest: R3-15 range/release/ownership APIs reject lifecycle undefined
+ok 29 - R3-15 range/release/ownership APIs reject lifecycle undefined
+  ---
+  duration_ms: 2586.791625
+  type: 'test'
+  ...
+# Subtest: R3-15 range/release/ownership APIs reject lifecycle null
+ok 30 - R3-15 range/release/ownership APIs reject lifecycle null
+  ---
+  duration_ms: 2738.753667
+  type: 'test'
+  ...
+# Subtest: R3-15 range/release/ownership APIs reject lifecycle 0
+ok 31 - R3-15 range/release/ownership APIs reject lifecycle 0
+  ---
+  duration_ms: 2401.742208
+  type: 'test'
+  ...
+# Subtest: R3-16 stale lifecycle cannot mutate range, settle failure, release or prove ownership even with intact owner/lease
+ok 32 - R3-16 stale lifecycle cannot mutate range, settle failure, release or prove ownership even with intact owner/lease
+  ---
+  duration_ms: 2717.441875
+  type: 'test'
+  ...
+# Subtest: R3 refresh same lifecycle preserves auth generation; reauthorization wins refresh CAS
+ok 33 - R3 refresh same lifecycle preserves auth generation; reauthorization wins refresh CAS
+  ---
+  duration_ms: 2393.952125
+  type: 'test'
+  ...
+# Subtest: R3-08 processor ABA after earlier authorization and delivery claim leaves no delivered receipt
+ok 34 - R3-08 processor ABA after earlier authorization and delivery claim leaves no delivered receipt
+  ---
+  duration_ms: 2601.322125
+  type: 'test'
+  ...
+# Subtest: R3-10 stale DELIVERY_STARTED is reclaimed even without transition cleanup
+ok 35 - R3-10 stale DELIVERY_STARTED is reclaimed even without transition cleanup
+  ---
+  duration_ms: 2562.704083
+  type: 'test'
+  ...
+# Subtest: R3-05 OAuth rechecks before_transaction before continuation or hook
+ok 36 - R3-05 OAuth rechecks before_transaction before continuation or hook
+  ---
+  duration_ms: 2081.800208
+  type: 'test'
+  ...
+# Subtest: R3-05 OAuth rechecks after_transaction before continuation or hook
+ok 37 - R3-05 OAuth rechecks after_transaction before continuation or hook
+  ---
+  duration_ms: 2252.296041
+  type: 'test'
+  ...
+# Subtest: MIG-R3-03/04/05 actual frozen v9 schema -> revalidation: valid
+ok 38 - MIG-R3-03/04/05 actual frozen v9 schema -> revalidation: valid
+  ---
+  duration_ms: 2775.61375
+  type: 'test'
+  ...
+# Subtest: MIG-R3-03/04/05 actual frozen v9 schema -> revalidation: recovery_denied
+ok 39 - MIG-R3-03/04/05 actual frozen v9 schema -> revalidation: recovery_denied
+  ---
+  duration_ms: 3256.855417
+  type: 'test'
+  ...
+# Subtest: MIG-R3-03/04/05 actual frozen v9 schema -> revalidation: inactive
+ok 40 - MIG-R3-03/04/05 actual frozen v9 schema -> revalidation: inactive
+  ---
+  duration_ms: 2703.122875
+  type: 'test'
+  ...
+# Subtest: R3-06 orphan cleanup rejects journal-only ownership
+ok 41 - R3-06 orphan cleanup rejects journal-only ownership
+  ---
+  duration_ms: 2243.255125
+  type: 'test'
+  ...
+# Subtest: R3-06 orphan cleanup rejects canonical-only ownership
+ok 42 - R3-06 orphan cleanup rejects canonical-only ownership
+  ---
+  duration_ms: 2293.045167
+  type: 'test'
+  ...
+# Subtest: R3 analytics heavy output requires lifecycle and matching output user
+ok 43 - R3 analytics heavy output requires lifecycle and matching output user
+  ---
+  duration_ms: 2618.745584
+  type: 'test'
+  ...
+# Subtest: MIG-R3-02 full resource evidence still demotes when timezone is missing
+ok 44 - MIG-R3-02 full resource evidence still demotes when timezone is missing
+  ---
+  duration_ms: 4681.442042
+  type: 'test'
+  ...
+# Subtest: MIG-R3-02 full resource evidence still demotes when binding is missing
+ok 45 - MIG-R3-02 full resource evidence still demotes when binding is missing
+  ---
+  duration_ms: 4465.854125
+  type: 'test'
+  ...
+# Subtest: MIG-R3-02 full resource evidence still demotes when token_identity is missing
+ok 46 - MIG-R3-02 full resource evidence still demotes when token_identity is missing
+  ---
+  duration_ms: 4173.227708
+  type: 'test'
+  ...
+# Subtest: MIG-R3-02 full resource evidence still demotes when sync is missing
+ok 47 - MIG-R3-02 full resource evidence still demotes when sync is missing
+  ---
+  duration_ms: 4768.977666
+  type: 'test'
+  ...
+# Subtest: MIG-R3-02 full resource evidence still demotes when capability is missing
+ok 48 - MIG-R3-02 full resource evidence still demotes when capability is missing
+  ---
+  duration_ms: 5070.682208
+  type: 'test'
+  ...
+# Subtest: R3 migration repairs false READY on an already-v18 database exactly once
+ok 49 - R3 migration repairs false READY on an already-v18 database exactly once
+  ---
+  duration_ms: 4268.782417
+  type: 'test'
+  ...
+# Subtest: R3-07 real Telegram claim loser is cleaned without changing winner
+ok 50 - R3-07 real Telegram claim loser is cleaned without changing winner
+  ---
+  duration_ms: 2414.364125
+  type: 'test'
+  ...
+1..50
+# tests 50
+# suites 0
+# pass 50
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 144020.938084

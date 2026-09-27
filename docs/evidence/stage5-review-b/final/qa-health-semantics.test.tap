@@ -1,0 +1,164 @@
+TAP version 13
+# {"ts":"2026-09-27T14:16:59.944Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:16:59.950Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:02.303Z","level":"info","event":"user_created","user_id":"8a78eb94-178d-47e6-a17d-0d5544ab3aea","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:02.305Z","level":"info","event":"telegram_linked","user_id":"8a78eb94-178d-47e6-a17d-0d5544ab3aea"}
+# {"ts":"2026-09-27T14:17:02.316Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:17:02.317Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:17:02.552Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:02.557Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:05.167Z","level":"info","event":"user_created","user_id":"7c8b3c40-7a2d-47ba-a38c-d3829d3556b3","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:05.168Z","level":"info","event":"telegram_linked","user_id":"7c8b3c40-7a2d-47ba-a38c-d3829d3556b3"}
+# {"ts":"2026-09-27T14:17:05.173Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:17:05.173Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:17:05.287Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:05.289Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:07.582Z","level":"info","event":"user_created","user_id":"633781bb-e0ed-4b69-a8b2-375f06e2f032","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:07.584Z","level":"info","event":"telegram_linked","user_id":"633781bb-e0ed-4b69-a8b2-375f06e2f032"}
+# {"ts":"2026-09-27T14:17:07.588Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:17:07.589Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:17:07.716Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:07.718Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:09.845Z","level":"info","event":"user_created","user_id":"041ea567-d9bc-44df-aba4-940b983a44a5","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:09.846Z","level":"info","event":"telegram_linked","user_id":"041ea567-d9bc-44df-aba4-940b983a44a5"}
+# {"ts":"2026-09-27T14:17:09.951Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:09.952Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:12.010Z","level":"info","event":"user_created","user_id":"6fd35c81-7e1a-4188-b9b4-0b4f958fc4a4","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:12.011Z","level":"info","event":"telegram_linked","user_id":"6fd35c81-7e1a-4188-b9b4-0b4f958fc4a4"}
+# {"ts":"2026-09-27T14:17:12.111Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:12.113Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:14.187Z","level":"info","event":"user_created","user_id":"f5aab350-e143-43db-9ab1-398b1e1a652e","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:14.188Z","level":"info","event":"telegram_linked","user_id":"f5aab350-e143-43db-9ab1-398b1e1a652e"}
+# {"ts":"2026-09-27T14:17:14.193Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:17:14.193Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:17:14.318Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:14.319Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:16.225Z","level":"info","event":"user_created","user_id":"76385181-1215-4e4d-97fe-5df16723d5c0","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:16.226Z","level":"info","event":"telegram_linked","user_id":"76385181-1215-4e4d-97fe-5df16723d5c0"}
+# {"ts":"2026-09-27T14:17:16.228Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:17:16.228Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:17:16.330Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:16.332Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:18.344Z","level":"info","event":"user_created","user_id":"3b66c894-cb63-47d8-aef4-e6b567e6436b","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:18.345Z","level":"info","event":"telegram_linked","user_id":"3b66c894-cb63-47d8-aef4-e6b567e6436b"}
+# {"ts":"2026-09-27T14:17:18.350Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T14:17:18.350Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T14:17:18.350Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:17:18.350Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:17:18.350Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:17:18.425Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:18.427Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:20.689Z","level":"info","event":"user_created","user_id":"8dfa3ddd-d6b3-4e9f-ad01-5b7934636a7e","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:20.690Z","level":"info","event":"telegram_linked","user_id":"8dfa3ddd-d6b3-4e9f-ad01-5b7934636a7e"}
+# {"ts":"2026-09-27T14:17:20.694Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:17:20.694Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:17:20.743Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# {"ts":"2026-09-27T14:17:20.743Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# {"ts":"2026-09-27T14:17:20.744Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# {"ts":"2026-09-27T14:17:20.744Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# {"ts":"2026-09-27T14:17:20.744Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# {"ts":"2026-09-27T14:17:20.744Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# {"ts":"2026-09-27T14:17:20.744Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# {"ts":"2026-09-27T14:17:20.744Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# {"ts":"2026-09-27T14:17:20.744Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# {"ts":"2026-09-27T14:17:20.744Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# {"ts":"2026-09-27T14:17:20.745Z","level":"warn","event":"assertion_unmapped_metric_key"}
+# Subtest: ★★★ Case 1: 校正期中仍然答得出今天的 HRV
+ok 1 - ★★★ Case 1: 校正期中仍然答得出今天的 HRV
+  ---
+  duration_ms: 2618.801458
+  type: 'test'
+  ...
+# Subtest: ★★★ Case 2: 校正期中仍然答得出今天的靜息心率
+ok 2 - ★★★ Case 2: 校正期中仍然答得出今天的靜息心率
+  ---
+  duration_ms: 2816.089916
+  type: 'test'
+  ...
+# Subtest: ★★★ Case 4: 今天狀態含全部事實，且沒有「拿不到」
+ok 3 - ★★★ Case 4: 今天狀態含全部事實，且沒有「拿不到」
+  ---
+  duration_ms: 2421.791291
+  type: 'test'
+  ...
+# Subtest: ★★★ 分析安全：校正期的值不可以進統計序列
+ok 4 - ★★★ 分析安全：校正期的值不可以進統計序列
+  ---
+  duration_ms: 2234.791792
+  type: 'test'
+  ...
+# Subtest: ★★ 非校正期：值同時進事實與統計
+ok 5 - ★★ 非校正期：值同時進事實與統計
+  ---
+  duration_ms: 2165.328208
+  type: 'test'
+  ...
+# Subtest: ★★★ Case 3: 「我的心跳怎麼那麼快」不可以被當成靜息心率回答
+ok 6 - ★★★ Case 3: 「我的心跳怎麼那麼快」不可以被當成靜息心率回答
+  ---
+  duration_ms: 2186.625042
+  type: 'test'
+  ...
+# Subtest: ★★★ 即時心率意圖：現在/很快類的問法不會落到 rhr
+ok 7 - ★★★ 即時心率意圖：現在/很快類的問法不會落到 rhr
+  ---
+  duration_ms: 1.266417
+  type: 'test'
+  ...
+# Subtest: ★★★ 靜息心率的問法仍然正確落到 rhr
+ok 8 - ★★★ 靜息心率的問法仍然正確落到 rhr
+  ---
+  duration_ms: 1.102084
+  type: 'test'
+  ...
+# Subtest: ★★ current_hr 是合法的結構化意圖（LLM 不必被迫挑 rhr）
+ok 9 - ★★ current_hr 是合法的結構化意圖（LLM 不必被迫挑 rhr）
+  ---
+  duration_ms: 0.55
+  type: 'test'
+  ...
+# Subtest: ★★★ 沒有任何該指標紀錄 → 不可以宣稱是同步問題
+ok 10 - ★★★ 沒有任何該指標紀錄 → 不可以宣稱是同步問題
+  ---
+  duration_ms: 2027.375834
+  type: 'test'
+  ...
+# Subtest: ★★ 不認得的指標 → 說不認得，而不是說要等同步
+ok 11 - ★★ 不認得的指標 → 說不認得，而不是說要等同步
+  ---
+  duration_ms: 2088.383292
+  type: 'test'
+  ...
+# Subtest: ★★★ Case 4: previous_day_strain 顯示成「昨日 Strain」
+ok 12 - ★★★ Case 4: previous_day_strain 顯示成「昨日 Strain」
+  ---
+  duration_ms: 2392.230292
+  type: 'test'
+  ...
+# Subtest: ★★★ Case 5: 沒有核可標籤的內部 key 一律不發布（fail closed）
+ok 13 - ★★★ Case 5: 沒有核可標籤的內部 key 一律不發布（fail closed）
+  ---
+  duration_ms: 1.333292
+  type: 'test'
+  ...
+# Subtest: ★★★ 未對應的 key 也不可以出現在「目前拿不到」清單裡
+ok 14 - ★★★ 未對應的 key 也不可以出現在「目前拿不到」清單裡
+  ---
+  duration_ms: 1.7715
+  type: 'test'
+  ...
+# Subtest: ★★ 核可的指標仍然正常顯示
+ok 15 - ★★ 核可的指標仍然正常顯示
+  ---
+  duration_ms: 0.142709
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 22065.307875

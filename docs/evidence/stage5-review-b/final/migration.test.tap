@@ -1,0 +1,63 @@
+TAP version 13
+# {"ts":"2026-09-27T14:00:52.635Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:00:52.639Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:00:54.933Z","level":"warn","event":"schema_table_rebuilt","table":"report_runs","rows":0}
+# {"ts":"2026-09-27T14:00:54.934Z","level":"warn","event":"schema_table_rebuilt","table":"error_notifications","rows":0}
+# {"ts":"2026-09-27T14:00:55.014Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:00:55.017Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:00:57.560Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:00:57.562Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:00:59.734Z","level":"info","event":"user_created","user_id":"u1","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:00:59.764Z","level":"info","event":"store_sleeps_upserted","user_id":"u1","count":1}
+# {"ts":"2026-09-27T14:00:59.769Z","level":"info","event":"analytics_invalidated","user_id":"u1","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:00:59.773Z","level":"info","event":"canonical_write_classified","user_id":"u1","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:00:59.783Z","level":"info","event":"store_sleeps_upserted","user_id":"u1","count":1}
+# {"ts":"2026-09-27T14:00:59.783Z","level":"info","event":"canonical_write_classified","user_id":"u1","resource":"sleep","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:00:59.906Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:00:59.908Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:01:01.957Z","level":"info","event":"user_created","user_id":"u-real","status":"ACTIVE"}
+# Subtest: CASE A：全新空 DB → 建出 multi-user schema，且第二次 migrate 是 idempotent
+ok 1 - CASE A：全新空 DB → 建出 multi-user schema，且第二次 migrate 是 idempotent
+  ---
+  duration_ms: 2372.372584
+  type: 'test'
+  ...
+# Subtest: CASE B：完全複製舊 production 形狀（4 表 0 列）→ 安全升級到 multi-user
+ok 2 - CASE B：完全複製舊 production 形狀（4 表 0 列）→ 安全升級到 multi-user
+  ---
+  duration_ms: 2554.809125
+  type: 'test'
+  ...
+# Subtest: 安全閘門：舊形狀表若有非預期資料 → 拒絕重建，不靜默 DROP
+ok 3 - 安全閘門：舊形狀表若有非預期資料 → 拒絕重建，不靜默 DROP
+  ---
+  duration_ms: 9.650416
+  type: 'test'
+  ...
+# Subtest: 安全閘門：allowRebuild=false 時連空表也不重建
+ok 4 - 安全閘門：allowRebuild=false 時連空表也不重建
+  ---
+  duration_ms: 6.629875
+  type: 'test'
+  ...
+# Subtest: 約束：唯一所有權 key 重複時會失敗（實測，不靠假設）
+ok 5 - 約束：唯一所有權 key 重複時會失敗（實測，不靠假設）
+  ---
+  duration_ms: 2338.103625
+  type: 'test'
+  ...
+# Subtest: 約束：libSQL 預設不強制 FK —— 明確記錄實際行為，並靠應用層守住
+ok 6 - 約束：libSQL 預設不強制 FK —— 明確記錄實際行為，並靠應用層守住
+  ---
+  duration_ms: 2134.033083
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9978.667541

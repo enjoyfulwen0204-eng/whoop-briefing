@@ -1,0 +1,38 @@
+TAP version 13
+# {"ts":"2026-09-27T10:59:57.530Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:59:57.535Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:00:00.368Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# Subtest: M003/N: equivalent normal-driver processes contend, replay one receipt and release every completed lease
+not ok 1 - M003/N: equivalent normal-driver processes contend, replay one receipt and release every completed lease
+  ---
+  duration_ms: 3903.339375
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:32:1'
+  failureType: 'testCodeFailure'
+  error: `{"code":1,"signal":null,"output":"file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392\\n        return new LibsqlError(e.message, e.code, e.rawCode, e);\\n               ^\\n\\nLibsqlError: SQLITE_BUSY: database is locked\\n    at mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)\\n    at executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)\\n    at Sqlite3Client.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:81:16)\\n    ... 4 lines matching cause stack trace ...\\n    at async buildPhase4Core (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:41:3)\\n    at async createPhase4Foundation (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Foundation.js:9:14)\\n    at async file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ReviewBProcess.js:13:60 {\\n  code: 'SQLITE_BUSY',\\n  rawCode: 5,\\n  [cause]: SqliteError: database is locked\\n      at convertError (/Users/kelvin/Desktop/whoop-briefing/node_modules/libsql/index.js:59:12)\\n      at Object.next (/Users/kelvin/Desktop/whoop-briefing/node_modules/libsql/index.js:385:17)\\n      at Statement.all (/Users/kelvin/Desktop/whoop-briefing/node_modules/libsql/index.js:403:18)\\n      at executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:281:34)\\n      at Sqlite3Client.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:81:16)\\n      at Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:42:62)\\n      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\\n      at async verifyPhase4Schema (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Migrations.js:148:10)\\n      at async assertPhase4Schema (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Migrations.js:170:3)\\n      at async buildPhase4Core (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:41:3) {\\n    code: 'SQLITE_BUSY',\\n    rawCode: 5\\n  }\\n}\\n\\nNode.js v22.23.2\\n"}`
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    check (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:26:89)
+    ChildProcess.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:21:160)
+    ChildProcess.emit (node:events:519:28)
+    maybeClose (node:internal/child_process:1101:16)
+    Socket.<anonymous> (node:internal/child_process:456:11)
+    Socket.emit (node:events:519:28)
+    Pipe.<anonymous> (node:net:347:12)
+    Pipe.callbackTrampoline (node:internal/async_hooks:130:17)
+  ...
+# Subtest: T001: timeout runner kills its test worker and grandchild, reports TIMEOUT
+ok 2 - T001: timeout runner kills its test worker and grandchild, reports TIMEOUT
+  ---
+  duration_ms: 1600.354542
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5875.653625

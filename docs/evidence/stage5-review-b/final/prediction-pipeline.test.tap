@@ -1,0 +1,403 @@
+TAP version 13
+# {"ts":"2026-09-27T15:19:58.187Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:19:58.191Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:00.321Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:00.322Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:00.336Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:00.343Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:00.344Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:00.356Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:00.367Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:00.376Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:01.124Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★★★ 出貨的預設政策：三個絕對門檻全部是 null（尚未設定）
+ok 1 - ★★★ 出貨的預設政策：三個絕對門檻全部是 null（尚未設定）
+  ---
+  duration_ms: 1.802708
+  type: 'test'
+  ...
+# Subtest: ★★★ null 門檻一律不合格（絕不可以解讀成「沒有限制」）
+ok 2 - ★★★ null 門檻一律不合格（絕不可以解讀成「沒有限制」）
+  ---
+  duration_ms: 0.625833
+  type: 'test'
+  ...
+# Subtest: ★★ 門檻設定好之後，閘門真的會開（證明不是永久寫死）
+ok 3 - ★★ 門檻設定好之後，閘門真的會開（證明不是永久寫死）
+  ---
+  duration_ms: 1.921292
+  type: 'test'
+  ...
+# Subtest: ★★★ 贏不過樸素基準線 → 不合格（即使門檻都設定好了）
+ok 4 - ★★★ 贏不過樸素基準線 → 不合格（即使門檻都設定好了）
+  ---
+  duration_ms: 0.19475
+  type: 'test'
+  ...
+# Subtest: ★★ 個別門檻沒過就不合格
+ok 5 - ★★ 個別門檻沒過就不合格
+  ---
+  duration_ms: 0.513542
+  type: 'test'
+  ...
+# Subtest: ★★★ 量測不出來的指標不可以被當成通過（Number(null) === 0 的陷阱）
+ok 6 - ★★★ 量測不出來的指標不可以被當成通過（Number(null) === 0 的陷阱）
+  ---
+  duration_ms: 0.230042
+  type: 'test'
+  ...
+# Subtest: ★★ NaN / undefined 量測值同樣不合格
+ok 7 - ★★ NaN / undefined 量測值同樣不合格
+  ---
+  duration_ms: 0.3915
+  type: 'test'
+  ...
+# Subtest: ★ 測試集太小 → TRAINABLE，不是不合格（還沒評估，不是評估後被否決）
+ok 8 - ★ 測試集太小 → TRAINABLE，不是不合格（還沒評估，不是評估後被否決）
+  ---
+  duration_ms: 0.15975
+  type: 'test'
+  ...
+# Subtest: ★★★ publishableValue：不合格一律回 null
+ok 9 - ★★★ publishableValue：不合格一律回 null
+  ---
+  duration_ms: 0.974583
+  type: 'test'
+  ...
+# Subtest: naiveBaseline 用的是訓練集平均（資訊與模型對等）
+ok 10 - naiveBaseline 用的是訓練集平均（資訊與模型對等）
+  ---
+  duration_ms: 1.124667
+  type: 'test'
+  ...
+# Subtest: naiveBaseline 對空訓練集回 ok:false，不硬算
+ok 11 - naiveBaseline 對空訓練集回 ok:false，不硬算
+  ---
+  duration_ms: 0.369833
+  type: 'test'
+  ...
+# Subtest: evaluateBaseline 算出基準線在測試集上的 MAE
+ok 12 - evaluateBaseline 算出基準線在測試集上的 MAE
+  ---
+  duration_ms: 0.210416
+  type: 'test'
+  ...
+# Subtest: ★★★ trainEvaluateAndCompare 全程無洩漏，且每次都真的斷言一次
+ok 13 - ★★★ trainEvaluateAndCompare 全程無洩漏，且每次都真的斷言一次
+  ---
+  duration_ms: 10.761
+  type: 'test'
+  ...
+# Subtest: ★★★ 時序切分之後不可以二次配對（目標會被多推一天）
+ok 14 - ★★★ 時序切分之後不可以二次配對（目標會被多推一天）
+  ---
+  duration_ms: 10.793459
+  type: 'test'
+  ...
+# Subtest: ★★ 預測區間算不出來時回 null，絕不回 NaN
+ok 15 - ★★ 預測區間算不出來時回 null，絕不回 NaN
+  ---
+  duration_ms: 4.251083
+  type: 'test'
+  ...
+# Subtest: ★★ 模型與基準線都在同一個測試集上被評估
+ok 16 - ★★ 模型與基準線都在同一個測試集上被評估
+  ---
+  duration_ms: 3.603792
+  type: 'test'
+  ...
+# Subtest: ★★★ 特徵與結果無關的資料 → 模型贏不過歷史平均
+ok 17 - ★★★ 特徵與結果無關的資料 → 模型贏不過歷史平均
+  ---
+  duration_ms: 4.173417
+  type: 'test'
+  ...
+# Subtest: 0 筆 → NO_DATA
+ok 18 - 0 筆 → NO_DATA
+  ---
+  duration_ms: 0.394291
+  type: 'test'
+  ...
+# Subtest: ★★ 需要的配對數是從 MIN_TRAIN_ROWS 與 testRatio 推導出來的，不是另外發明的
+ok 19 - ★★ 需要的配對數是從 MIN_TRAIN_ROWS 與 testRatio 推導出來的，不是另外發明的
+  ---
+  duration_ms: 0.200042
+  type: 'test'
+  ...
+# Subtest: ★ 差一組配對 → INSUFFICIENT_DATA（邊界）
+ok 20 - ★ 差一組配對 → INSUFFICIENT_DATA（邊界）
+  ---
+  duration_ms: 0.592917
+  type: 'test'
+  ...
+# Subtest: ★ 剛好到門檻 → 跨過（邊界）
+ok 21 - ★ 剛好到門檻 → 跨過（邊界）
+  ---
+  duration_ms: 4.449375
+  type: 'test'
+  ...
+# Subtest: ★★ 有足夠資料時預設成熟度是 EVALUATED_UNQUALIFIED（不是 QUALIFIED）
+ok 22 - ★★ 有足夠資料時預設成熟度是 EVALUATED_UNQUALIFIED（不是 QUALIFIED）
+  ---
+  duration_ms: 5.126958
+  type: 'test'
+  ...
+# Subtest: ★★ capability 證實拿不到 → UNSUPPORTED，優先於一切
+ok 23 - ★★ capability 證實拿不到 → UNSUPPORTED，優先於一切
+  ---
+  duration_ms: 5.921334
+  type: 'test'
+  ...
+# Subtest: ★★ 訓練期滑出基準窗 → STALE，而且蓋過 QUALIFIED
+ok 24 - ★★ 訓練期滑出基準窗 → STALE，而且蓋過 QUALIFIED
+  ---
+  duration_ms: 4.94875
+  type: 'test'
+  ...
+# Subtest: isStale 的邊界
+ok 25 - isStale 的邊界
+  ---
+  duration_ms: 0.996916
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:01.524Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:01.526Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:03.844Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:03.847Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:03.873Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:03.890Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:03.892Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:03.913Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:04.026Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★★★ 完整迴圈：訓練 → 存模型 → 存候選預測 → 但不發布數字
+ok 26 - ★★★ 完整迴圈：訓練 → 存模型 → 存候選預測 → 但不發布數字
+  ---
+  duration_ms: 3409.202958
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:04.252Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:04.255Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:06.115Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:06.116Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:06.125Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:06.133Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:06.134Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:06.143Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:06.144Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★★ 資料不足時：不存模型、不存預測、成熟度誠實
+ok 27 - ★★ 資料不足時：不存模型、不存預測、成熟度誠實
+  ---
+  duration_ms: 2676.34625
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:06.255Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:06.256Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:07.938Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:07.939Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:07.950Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:07.958Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:07.959Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:07.975Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:07.985Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:07.994Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:08.508Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:08.516Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:08.524Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:09.348Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:09.357Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:09.366Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:09.929Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★★ 零資料：乾淨的 NO_DATA，不寫任何東西
+ok 28 - ★★ 零資料：乾淨的 NO_DATA，不寫任何東西
+  ---
+  duration_ms: 2065.788416
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:10.448Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:10.449Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:12.353Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:12.354Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:12.368Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:12.376Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:12.377Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:12.386Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:12.395Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:12.405Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:13.138Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:13.155Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:13.170Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:13.931Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★★ 迴圈冪等：連跑三次只會有一列模型
+ok 29 - ★★ 迴圈冪等：連跑三次只會有一列模型
+  ---
+  duration_ms: 4191.507541
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:14.400Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:14.402Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:16.241Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:16.242Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:16.258Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:16.266Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:16.267Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:16.276Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:16.286Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:16.840Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★★★ 存 → 回填實際值 → 記分卡真的算得出來
+ok 30 - ★★★ 存 → 回填實際值 → 記分卡真的算得出來
+  ---
+  duration_ms: 3943.603208
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:17.132Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:17.134Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:19.353Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:19.354Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:19.366Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:19.374Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:19.374Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:19.386Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:19.389Z","level":"warn","event":"prediction_model_save_failed","user_id":"u-alice","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:20:19.389Z","level":"warn","event":"prediction_persist_failed","user_id":"u-alice","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:20:19.389Z","level":"warn","event":"prediction_backfill_failed","user_id":"u-alice","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:20:19.390Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★ 錨點當天特徵不完整 → 不產生候選預測（絕不用 0 補）
+ok 31 - ★ 錨點當天特徵不完整 → 不產生候選預測（絕不用 0 補）
+  ---
+  duration_ms: 2718.628125
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:19.561Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:19.566Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:21.637Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:21.638Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:21.650Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:21.659Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:21.660Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:21.671Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# Subtest: ★★ 迴圈永遠不拋錯：store 壞掉也只是回報失敗
+ok 32 - ★★ 迴圈永遠不拋錯：store 壞掉也只是回報失敗
+  ---
+  duration_ms: 2413.714958
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:21.814Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:21.817Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:24.249Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:24.254Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:24.268Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:24.278Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:24.279Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:24.292Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:24.305Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:24.317Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:25.009Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:25.019Z","level":"info","event":"prediction_model_saved","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:25.030Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:25.675Z","level":"info","event":"prediction_cycle_done","user_id":"u-bob"}
+# Subtest: runPredictionCycle 缺 userId 一律拋錯
+ok 33 - runPredictionCycle 缺 userId 一律拋錯
+  ---
+  duration_ms: 2270.498041
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:26.140Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:26.142Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:28.065Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:28.066Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:28.077Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:28.086Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:28.087Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:28.098Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:28.109Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:28.119Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:28.813Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:28.824Z","level":"info","event":"prediction_model_saved","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:28.834Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:29.457Z","level":"info","event":"prediction_cycle_done","user_id":"u-bob"}
+# Subtest: ★★★ Alice 與 Bob 的模型與預測完全隔離
+ok 34 - ★★★ Alice 與 Bob 的模型與預測完全隔離
+  ---
+  duration_ms: 4330.044459
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:29.862Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:29.864Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:32.690Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:32.691Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:32.706Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:32.715Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:32.716Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:32.732Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:32.746Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:32.757Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:33.712Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★★ 兩人同一天、同一版模型、同一段訓練區間也必須共存
+ok 35 - ★★ 兩人同一天、同一版模型、同一段訓練區間也必須共存
+  ---
+  duration_ms: 3724.421083
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:34.092Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:34.096Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:37.089Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:37.090Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:37.106Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:37.115Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:37.117Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:37.129Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:37.142Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:37.153Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:37.829Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★★★ /predictions 在任何情況下都不輸出預測數字
+ok 36 - ★★★ /predictions 在任何情況下都不輸出預測數字
+  ---
+  duration_ms: 4210.305209
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:38.120Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:38.122Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:40.233Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:40.234Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:40.246Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:40.254Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:40.255Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:40.265Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# Subtest: ★ /predictions 會誠實顯示模型與基準線的對照
+ok 37 - ★ /predictions 會誠實顯示模型與基準線的對照
+  ---
+  duration_ms: 4052.468084
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:20:40.410Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:20:40.413Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:20:42.583Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:42.583Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:42.594Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:20:42.601Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:20:42.602Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:20:42.612Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:20:42.621Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:20:42.631Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:20:43.153Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★ /predictions 在資料不足時完全不提模型
+ok 38 - ★ /predictions 在資料不足時完全不提模型
+  ---
+  duration_ms: 2284.979125
+  type: 'test'
+  ...
+# Subtest: ★ Bob 的 /predictions 看不到 Alice 的模型
+ok 39 - ★ Bob 的 /predictions 看不到 Alice 的模型
+  ---
+  duration_ms: 3012.286917
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 46023.361709

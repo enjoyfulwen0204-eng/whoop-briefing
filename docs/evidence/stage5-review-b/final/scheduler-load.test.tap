@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: ★★★ 輕量 poll 每次觸發只打兩個 WHOOP endpoint
+ok 1 - ★★★ 輕量 poll 每次觸發只打兩個 WHOOP endpoint
+  ---
+  duration_ms: 2.125625
+  type: 'test'
+  ...
+# Subtest: ★★★ 同一輪內重複 poll 會共用結果（不會倍增呼叫）
+ok 2 - ★★★ 同一輪內重複 poll 會共用結果（不會倍增呼叫）
+  ---
+  duration_ms: 0.328875
+  type: 'test'
+  ...
+# Subtest: ★★★ 完整歷史抓取只在真的要發報告時才做，而且是另一組呼叫
+ok 3 - ★★★ 完整歷史抓取只在真的要發報告時才做，而且是另一組呼叫
+  ---
+  duration_ms: 0.236291
+  type: 'test'
+  ...
+# Subtest: ★★ 回填未完成時刻意繞過節流（這是設計，不是退化）
+ok 4 - ★★ 回填未完成時刻意繞過節流（這是設計，不是退化）
+  ---
+  duration_ms: 0.306292
+  type: 'test'
+  ...
+# Subtest: ★★★ 完整五資源同步受每小時節流保護（不會每 10 分鐘跑一次）
+ok 5 - ★★★ 完整五資源同步受每小時節流保護（不會每 10 分鐘跑一次）
+  ---
+  duration_ms: 4.091625
+  type: 'test'
+  ...
+# Subtest: ★★★ 一天的下游成本上限（依實際計數推算，不是寫死的數字）
+ok 6 - ★★★ 一天的下游成本上限（依實際計數推算，不是寫死的數字）
+  ---
+  duration_ms: 0.269416
+  type: 'test'
+  ...
+# Subtest: ★★ poll 的回看天數維持在設定值（放大回看＝放大分頁成本）
+ok 7 - ★★ poll 的回看天數維持在設定值（放大回看＝放大分頁成本）
+  ---
+  duration_ms: 4.615375
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 140.879958

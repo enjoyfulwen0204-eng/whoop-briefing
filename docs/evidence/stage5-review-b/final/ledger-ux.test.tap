@@ -1,0 +1,337 @@
+TAP version 13
+# {"ts":"2026-09-27T13:53:59.709Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:53:59.713Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:04.365Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:04.372Z","level":"info","event":"coach_ok","input_tokens":1000,"output_tokens":500}
+# {"ts":"2026-09-27T13:54:04.375Z","level":"info","event":"ai_usage_recorded","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:04.528Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:04.531Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:07.245Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:07.245Z","level":"info","event":"coach_ok"}
+# {"ts":"2026-09-27T13:54:07.247Z","level":"info","event":"ai_usage_recorded","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:07.359Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:07.362Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:09.548Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:09.551Z","level":"info","event":"ai_usage_recorded","user_id":"u-ledger-test","status":"FAILED"}
+# {"ts":"2026-09-27T13:54:09.551Z","level":"error","event":"coach_ask_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:54:09.554Z","level":"info","event":"coach_ok","input_tokens":1000,"output_tokens":500}
+# {"ts":"2026-09-27T13:54:09.554Z","level":"warn","event":"ai_usage_record_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:54:09.556Z","level":"info","event":"coach_ok","input_tokens":1000,"output_tokens":500}
+# {"ts":"2026-09-27T13:54:09.626Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:09.628Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:12.215Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:12.215Z","level":"warn","event":"coach_model_fallback","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:54:12.216Z","level":"info","event":"coach_ok","input_tokens":1000,"output_tokens":500}
+# {"ts":"2026-09-27T13:54:12.217Z","level":"info","event":"ai_usage_recorded","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:12.281Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:12.283Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:14.571Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:14.572Z","level":"info","event":"coach_ok","input_tokens":1000,"output_tokens":500}
+# {"ts":"2026-09-27T13:54:14.574Z","level":"info","event":"ai_usage_recorded","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:14.576Z","level":"info","event":"coach_ok","input_tokens":1000,"output_tokens":500}
+# {"ts":"2026-09-27T13:54:14.577Z","level":"info","event":"ai_usage_recorded","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:14.654Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:14.656Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:16.928Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:16.930Z","level":"info","event":"coach_ok","input_tokens":1000,"output_tokens":500}
+# {"ts":"2026-09-27T13:54:16.931Z","level":"info","event":"ai_usage_recorded","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:17.023Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:17.025Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:18.898Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:18.980Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:18.982Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:21.185Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:21.190Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T13:54:21.283Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:21.286Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:23.405Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:23.572Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:23.573Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:25.528Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:25.693Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:25.695Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:27.894Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:27.969Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:27.971Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:30.179Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:30.194Z","level":"info","event":"journal_event_added","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:30.212Z","level":"info","event":"journal_event_added","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:30.291Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:30.293Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:32.299Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:32.372Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:32.373Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:34.431Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:34.433Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T13:54:34.450Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T13:54:34.451Z","level":"info","event":"insight_revised","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:34.547Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:34.549Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:36.794Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:36.921Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:36.923Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:39.196Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:39.277Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:39.279Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:41.555Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:41.624Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:41.626Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:43.671Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:43.882Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:43.885Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:46.226Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:46.241Z","level":"info","event":"pending_question_opened","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:46.271Z","level":"info","event":"pending_question_opened","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:46.297Z","level":"info","event":"pending_question_opened","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:46.323Z","level":"info","event":"pending_question_opened","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:46.369Z","level":"info","event":"pending_question_opened","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:46.656Z","level":"info","event":"experiment_started"}
+# {"ts":"2026-09-27T13:54:46.656Z","level":"info","event":"experiment_created_via_telegram"}
+# {"ts":"2026-09-27T13:54:46.872Z","level":"info","event":"experiment_completed"}
+# {"ts":"2026-09-27T13:54:46.977Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:46.979Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:49.701Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:49.715Z","level":"info","event":"pending_question_opened","user_id":"u-ledger-test"}
+# {"ts":"2026-09-27T13:54:49.995Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:49.997Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:52.172Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:54:52.250Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:54:52.252Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:54:54.637Z","level":"info","event":"user_created","user_id":"u-ledger-test","status":"ACTIVE"}
+# Subtest: AE: computeCost 手算驗證
+ok 1 - AE: computeCost 手算驗證
+  ---
+  duration_ms: 1.180083
+  type: 'test'
+  ...
+# Subtest: ★ AE: 未知模型 → cost = null（絕不猜）
+ok 2 - ★ AE: 未知模型 → cost = null（絕不猜）
+  ---
+  duration_ms: 0.239375
+  type: 'test'
+  ...
+# Subtest: ★ AE: 沒有 token 數 → cost = null（絕不估）
+ok 3 - ★ AE: 沒有 token 數 → cost = null（絕不估）
+  ---
+  duration_ms: 0.104208
+  type: 'test'
+  ...
+# Subtest: AE: extractTokens 吃兩種欄位命名，缺就是 null
+ok 4 - AE: extractTokens 吃兩種欄位命名，缺就是 null
+  ---
+  duration_ms: 1.268042
+  type: 'test'
+  ...
+# Subtest: AE: 價格表可以用環境變數覆蓋（價格會變，不必改程式）
+ok 5 - AE: 價格表可以用環境變數覆蓋（價格會變，不必改程式）
+  ---
+  duration_ms: 0.157625
+  type: 'test'
+  ...
+# Subtest: ★ AE: 真實 token 與成本會被寫進 ai_usage
+ok 6 - ★ AE: 真實 token 與成本會被寫進 ai_usage
+  ---
+  duration_ms: 4736.455917
+  type: 'test'
+  ...
+# Subtest: ★ AE: provider 沒回 usage → token 與 cost 都記 null，不猜
+ok 7 - ★ AE: provider 沒回 usage → token 與 cost 都記 null，不猜
+  ---
+  duration_ms: 2870.2545
+  type: 'test'
+  ...
+# Subtest: AE: 呼叫失敗也會記一筆 FAILED
+ok 8 - AE: 呼叫失敗也會記一筆 FAILED
+  ---
+  duration_ms: 2304.9735
+  type: 'test'
+  ...
+# Subtest: ★ AE: 帳本寫入失敗不影響回覆（主功能優先）
+ok 9 - ★ AE: 帳本寫入失敗不影響回覆（主功能優先）
+  ---
+  duration_ms: 1.6055
+  type: 'test'
+  ...
+# Subtest: AE: 沒有給 db 時完全不記帳，也不會壞
+ok 10 - AE: 沒有給 db 時完全不記帳，也不會壞
+  ---
+  duration_ms: 1.295542
+  type: 'test'
+  ...
+# Subtest: ★ AF: 沒有新環境變數時行為與現在完全相同（向後相容）
+ok 11 - ★ AF: 沒有新環境變數時行為與現在完全相同（向後相容）
+  ---
+  duration_ms: 0.3805
+  type: 'test'
+  ...
+# Subtest: AF: 任務專屬 > MODEL_DEFAULT > 既有 OPENROUTER_MODEL
+ok 12 - AF: 任務專屬 > MODEL_DEFAULT > 既有 OPENROUTER_MODEL
+  ---
+  duration_ms: 0.151625
+  type: 'test'
+  ...
+# Subtest: AF: isModelUnavailableError 只認「模型用不了」
+ok 13 - AF: isModelUnavailableError 只認「模型用不了」
+  ---
+  duration_ms: 0.307375
+  type: 'test'
+  ...
+# Subtest: ★ AF: 指定模型不可用 → 退回預設模型，且只退一次
+ok 14 - ★ AF: 指定模型不可用 → 退回預設模型，且只退一次
+  ---
+  duration_ms: 2660.65825
+  type: 'test'
+  ...
+# Subtest: ★ AG: 每個用途都有自己的 prompt 版本，並寫進帳本
+ok 15 - ★ AG: 每個用途都有自己的 prompt 版本，並寫進帳本
+  ---
+  duration_ms: 2361.382833
+  type: 'test'
+  ...
+# Subtest: AG: daily / weekly 也帶版本（prompt 內容未變）
+ok 16 - AG: daily / weekly 也帶版本（prompt 內容未變）
+  ---
+  duration_ms: 2353.693208
+  type: 'test'
+  ...
+# Subtest: ★ AC: 每張 card 的 causal 永遠是 false
+ok 17 - ★ AC: 每張 card 的 causal 永遠是 false
+  ---
+  duration_ms: 0.4285
+  type: 'test'
+  ...
+# Subtest: AC: correlation → card
+ok 18 - AC: correlation → card
+  ---
+  duration_ms: 1.649834
+  type: 'test'
+  ...
+# Subtest: AC: regression → card（含不可用的情況）
+ok 19 - AC: regression → card（含不可用的情況）
+  ---
+  duration_ms: 3.213334
+  type: 'test'
+  ...
+# Subtest: AC: prediction scorecard → card（沒有預測時也要有卡）
+ok 20 - AC: prediction scorecard → card（沒有預測時也要有卡）
+  ---
+  duration_ms: 0.235042
+  type: 'test'
+  ...
+# Subtest: AC: experiment → card
+ok 21 - AC: experiment → card
+  ---
+  duration_ms: 0.837291
+  type: 'test'
+  ...
+# Subtest: AC: trend / deviation → card
+ok 22 - AC: trend / deviation → card
+  ---
+  duration_ms: 0.287458
+  type: 'test'
+  ...
+# Subtest: ★ AC: 沒有任何證據時明講，不編
+ok 23 - ★ AC: 沒有任何證據時明講，不編
+  ---
+  duration_ms: 1973.797334
+  type: 'test'
+  ...
+# Subtest: AC: 有 insight 時 getEvidence 會回出來
+ok 24 - AC: 有 insight 時 getEvidence 會回出來
+  ---
+  duration_ms: 2295.049958
+  type: 'test'
+  ...
+# Subtest: ★ AD: /help 不會把沒資料的分析講成已經可用
+ok 25 - ★ AD: /help 不會把沒資料的分析講成已經可用
+  ---
+  duration_ms: 2300.87475
+  type: 'test'
+  ...
+# Subtest: ★ AD: /status 沒有 WHOOP 也正常
+ok 26 - ★ AD: /status 沒有 WHOOP 也正常
+  ---
+  duration_ms: 2118.381875
+  type: 'test'
+  ...
+# Subtest: AD: /journal 空的時候給明確訊息
+ok 27 - AD: /journal 空的時候給明確訊息
+  ---
+  duration_ms: 2276.403167
+  type: 'test'
+  ...
+# Subtest: AD: /journal 有資料時依日期分組，支援天數參數
+ok 28 - AD: /journal 有資料時依日期分組，支援天數參數
+  ---
+  duration_ms: 2323.085166
+  type: 'test'
+  ...
+# Subtest: ★ AD: /insights 空的時候不假裝有規律
+ok 29 - ★ AD: /insights 空的時候不假裝有規律
+  ---
+  duration_ms: 2080.814708
+  type: 'test'
+  ...
+# Subtest: AD: /insights 不顯示 RETIRED，history 可看版本鏈
+ok 30 - AD: /insights 不顯示 RETIRED，history 可看版本鏈
+  ---
+  duration_ms: 2181.107833
+  type: 'test'
+  ...
+# Subtest: ★ AD: /predictions 資料不足時絕不給預測數字
+ok 31 - ★ AD: /predictions 資料不足時絕不給預測數字
+  ---
+  duration_ms: 2357.732041
+  type: 'test'
+  ...
+# Subtest: ★ AD: /cost 空的時候顯示沒有紀錄
+ok 32 - ★ AD: /cost 空的時候顯示沒有紀錄
+  ---
+  duration_ms: 2359.064666
+  type: 'test'
+  ...
+# Subtest: AD: /cost 有紀錄時分組顯示，未知成本明講 cost unavailable
+ok 33 - AD: /cost 有紀錄時分組顯示，未知成本明講 cost unavailable
+  ---
+  duration_ms: 2351.247792
+  type: 'test'
+  ...
+# Subtest: AD: /evidence 與自然語言「證據呢？」都能觸發
+ok 34 - AD: /evidence 與自然語言「證據呢？」都能觸發
+  ---
+  duration_ms: 2234.406
+  type: 'test'
+  ...
+# Subtest: ★ AD: /experiment 完整流程 —— create 五步 → list → status → stop
+ok 35 - ★ AD: /experiment 完整流程 —— create 五步 → list → status → stop
+  ---
+  duration_ms: 3104.947625
+  type: 'test'
+  ...
+# Subtest: AD: /experiment create 中途可以取消
+ok 36 - AD: /experiment create 中途可以取消
+  ---
+  duration_ms: 3027.398959
+  type: 'test'
+  ...
+# Subtest: AD: /experiment 沒有子指令時顯示用法
+ok 37 - AD: /experiment 沒有子指令時顯示用法
+  ---
+  duration_ms: 2248.98475
+  type: 'test'
+  ...
+# Subtest: AD: /experiment status 沒有實驗時不會爆
+ok 38 - AD: /experiment status 沒有實驗時不會爆
+  ---
+  duration_ms: 2927.970917
+  type: 'test'
+  ...
+1..38
+# tests 38
+# suites 0
+# pass 38
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 58273.724208

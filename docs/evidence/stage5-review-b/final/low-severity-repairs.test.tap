@@ -1,0 +1,129 @@
+TAP version 13
+# {"ts":"2026-09-27T13:59:55.256Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:55.260Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:59:56.986Z","level":"info","event":"user_created","user_id":"292c1802-7962-4e99-9445-6689b62bfb08","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:56.991Z","level":"info","event":"pending_question_opened","user_id":"292c1802-7962-4e99-9445-6689b62bfb08"}
+# {"ts":"2026-09-27T13:59:56.999Z","level":"warn","event":"pending_question_context_unparsable","user_id":"292c1802-7962-4e99-9445-6689b62bfb08"}
+# {"ts":"2026-09-27T13:59:57.060Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:57.061Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:59:58.973Z","level":"info","event":"user_created","user_id":"e1efef6a-7f1c-47e2-86b5-156b2461cf26","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:59:58.976Z","level":"info","event":"pending_question_opened","user_id":"e1efef6a-7f1c-47e2-86b5-156b2461cf26"}
+# {"ts":"2026-09-27T13:59:58.985Z","level":"warn","event":"pending_question_context_unparsable","user_id":"e1efef6a-7f1c-47e2-86b5-156b2461cf26"}
+# {"ts":"2026-09-27T13:59:59.064Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:59:59.067Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:00:00.835Z","level":"info","event":"user_created","user_id":"61aafe27-9b45-478d-a4fb-bd2e896aaab1","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:00:00.838Z","level":"info","event":"pending_question_opened","user_id":"61aafe27-9b45-478d-a4fb-bd2e896aaab1"}
+# {"ts":"2026-09-27T14:00:00.846Z","level":"warn","event":"pending_question_context_unparsable","user_id":"61aafe27-9b45-478d-a4fb-bd2e896aaab1"}
+# {"ts":"2026-09-27T14:00:00.877Z","level":"info","event":"journal_event_added","user_id":"61aafe27-9b45-478d-a4fb-bd2e896aaab1"}
+# {"ts":"2026-09-27T14:00:00.979Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T14:00:00.979Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T14:00:00.979Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:00:00.979Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:00:00.980Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:00:01.040Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:00:01.041Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:00:03.455Z","level":"info","event":"user_created","user_id":"2991a9c3-df26-430e-8a66-3a0231abcd62","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:00:03.458Z","level":"info","event":"pending_question_opened","user_id":"2991a9c3-df26-430e-8a66-3a0231abcd62"}
+# {"ts":"2026-09-27T14:00:03.525Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:00:03.526Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:00:05.243Z","level":"info","event":"user_created","user_id":"65088b9f-0fdc-4553-b24e-1562885bdf89","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:00:05.245Z","level":"info","event":"pending_question_opened","user_id":"65088b9f-0fdc-4553-b24e-1562885bdf89"}
+# Subtest: ★★★ L-01: 壞掉的 context 不會讓 getOpenPendingQuestion 拋錯
+ok 1 - ★★★ L-01: 壞掉的 context 不會讓 getOpenPendingQuestion 拋錯
+  ---
+  duration_ms: 1854.07875
+  type: 'test'
+  ...
+# Subtest: ★★★ L-01: 壞掉的 context 會被就地收掉（自我修復，不留地雷）
+ok 2 - ★★★ L-01: 壞掉的 context 會被就地收掉（自我修復，不留地雷）
+  ---
+  duration_ms: 1990.372541
+  type: 'test'
+  ...
+# Subtest: ★★★ L-01: 壞掉的 context 之後，bot 對每一種訊息都還能正常回應
+ok 3 - ★★★ L-01: 壞掉的 context 之後，bot 對每一種訊息都還能正常回應
+  ---
+  duration_ms: 1987.308416
+  type: 'test'
+  ...
+# Subtest: ★★ L-01: 正常的 context 完全不受影響
+ok 4 - ★★ L-01: 正常的 context 完全不受影響
+  ---
+  duration_ms: 2486.623083
+  type: 'test'
+  ...
+# Subtest: ★★ L-01: 完全沒有 context（NULL）仍然是合法的追問
+ok 5 - ★★ L-01: 完全沒有 context（NULL）仍然是合法的追問
+  ---
+  duration_ms: 1787.424083
+  type: 'test'
+  ...
+# Subtest: ★★★ L-02: 40 列全空 → assessDailyState 不是 READY
+ok 6 - ★★★ L-02: 40 列全空 → assessDailyState 不是 READY
+  ---
+  duration_ms: 0.710625
+  type: 'test'
+  ...
+# Subtest: ★★★ L-02: 40 列全空 → assessBaseline 是 NO_DATA
+ok 7 - ★★★ L-02: 40 列全空 → assessBaseline 是 NO_DATA
+  ---
+  duration_ms: 0.613041
+  type: 'test'
+  ...
+# Subtest: ★★★ L-02: 空列與有值的列混在一起時，只數有值的
+ok 8 - ★★★ L-02: 空列與有值的列混在一起時，只數有值的
+  ---
+  duration_ms: 0.402375
+  type: 'test'
+  ...
+# Subtest: ★★ L-02 false positive: 有值的列照常 READY（沒有把功能鎖死）
+ok 9 - ★★ L-02 false positive: 有值的列照常 READY（沒有把功能鎖死）
+  ---
+  duration_ms: 0.866459
+  type: 'test'
+  ...
+# Subtest: ★★ L-02: 只要有**任何一個**指標有值就算可用
+ok 10 - ★★ L-02: 只要有**任何一個**指標有值就算可用
+  ---
+  duration_ms: 0.852625
+  type: 'test'
+  ...
+# Subtest: ★★ L-02: 非數值的髒資料不算可用
+ok 11 - ★★ L-02: 非數值的髒資料不算可用
+  ---
+  duration_ms: 0.6225
+  type: 'test'
+  ...
+# Subtest: ★★ L-02: 「今天那一列根本不存在」與「存在但沒評分」理由不同
+ok 12 - ★★ L-02: 「今天那一列根本不存在」與「存在但沒評分」理由不同
+  ---
+  duration_ms: 0.661958
+  type: 'test'
+  ...
+# Subtest: ★★★ L-03: per-user 腳本不再使用 bootstrap 時區
+ok 13 - ★★★ L-03: per-user 腳本不再使用 bootstrap 時區
+  ---
+  duration_ms: 1.230209
+  type: 'test'
+  ...
+# Subtest: ★★★ L-03: 兩個時區在同一個 UTC 瞬間確實是不同的「今天」
+ok 14 - ★★★ L-03: 兩個時區在同一個 UTC 瞬間確實是不同的「今天」
+  ---
+  duration_ms: 0.387625
+  type: 'test'
+  ...
+# Subtest: ★★ L-03: preflight 只在「還沒有使用者」的那一行用 bootstrap 時區
+ok 15 - ★★ L-03: preflight 只在「還沒有使用者」的那一行用 bootstrap 時區
+  ---
+  duration_ms: 0.638875
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10789.562583

@@ -1,0 +1,133 @@
+TAP version 13
+# {"ts":"2026-09-27T14:30:57.752Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:30:57.761Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:30:59.717Z","level":"info","event":"user_created","user_id":"c3cae989-e098-45ea-b556-f81e005217cb","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:59.719Z","level":"info","event":"telegram_linked","user_id":"c3cae989-e098-45ea-b556-f81e005217cb"}
+# {"ts":"2026-09-27T14:30:59.723Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:30:59.725Z","level":"info","event":"telegram_startup_feedback_started"}
+# {"ts":"2026-09-27T14:30:59.760Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:30:59.762Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:30:59.787Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:30:59.855Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:30:59.858Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:01.750Z","level":"info","event":"user_created","user_id":"f01c7e6a-439f-4c4e-af08-f49f753d12d9","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:01.751Z","level":"info","event":"telegram_linked","user_id":"f01c7e6a-439f-4c4e-af08-f49f753d12d9"}
+# {"ts":"2026-09-27T14:31:01.809Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:01.811Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:03.609Z","level":"info","event":"user_created","user_id":"f4baa9cd-f40d-4bbe-bb6b-0b9064422ba2","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:03.610Z","level":"info","event":"telegram_linked","user_id":"f4baa9cd-f40d-4bbe-bb6b-0b9064422ba2"}
+# {"ts":"2026-09-27T14:31:03.612Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:03.613Z","level":"info","event":"telegram_startup_feedback_started"}
+# {"ts":"2026-09-27T14:31:03.678Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:03.683Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:03.691Z","level":"info","event":"telegram_startup_feedback_started"}
+# {"ts":"2026-09-27T14:31:03.723Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:03.789Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:03.791Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:05.472Z","level":"info","event":"user_created","user_id":"d615a209-9e14-4e1c-98e5-45b54abc2284","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:05.473Z","level":"info","event":"telegram_linked","user_id":"d615a209-9e14-4e1c-98e5-45b54abc2284"}
+# {"ts":"2026-09-27T14:31:05.475Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:05.477Z","level":"warn","event":"telegram_typing_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:05.508Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:05.576Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:05.577Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:07.193Z","level":"info","event":"user_created","user_id":"df3bfab5-e605-45fd-bd64-ff830b98f0c4","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:07.194Z","level":"info","event":"telegram_linked","user_id":"df3bfab5-e605-45fd-bd64-ff830b98f0c4"}
+# {"ts":"2026-09-27T14:31:07.195Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:07.222Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:07.224Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:07.225Z","level":"info","event":"telegram_startup_feedback_started"}
+# {"ts":"2026-09-27T14:31:07.253Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:07.326Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:07.328Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:09.128Z","level":"info","event":"user_created","user_id":"2257e285-bd28-4814-a29e-3a646f01a130","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:09.129Z","level":"info","event":"telegram_linked","user_id":"2257e285-bd28-4814-a29e-3a646f01a130"}
+# {"ts":"2026-09-27T14:31:09.131Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:09.132Z","level":"info","event":"telegram_startup_feedback_started"}
+# {"ts":"2026-09-27T14:31:09.154Z","level":"error","event":"telegram_processing_retry_required","update_id":50,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:09.162Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:09.226Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:09.227Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:11.077Z","level":"info","event":"user_created","user_id":"af52afc1-2f89-47c9-ad32-1def4bca1b60","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:11.078Z","level":"info","event":"telegram_linked","user_id":"af52afc1-2f89-47c9-ad32-1def4bca1b60"}
+# {"ts":"2026-09-27T14:31:11.080Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:11.081Z","level":"info","event":"telegram_startup_feedback_started"}
+# {"ts":"2026-09-27T14:31:11.105Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:11.106Z","level":"info","event":"telegram_update_skipped_replay","update_id":60,"state":"completed"}
+# {"ts":"2026-09-27T14:31:11.168Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:11.170Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:12.879Z","level":"info","event":"user_created","user_id":"a67ca8b1-f911-4e92-becb-ccf6b0139b32","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:12.880Z","level":"info","event":"telegram_linked","user_id":"a67ca8b1-f911-4e92-becb-ccf6b0139b32"}
+# {"ts":"2026-09-27T14:31:12.882Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:12.883Z","level":"info","event":"telegram_startup_feedback_started"}
+# Subtest: fresh process marks only the first natural-language update as startup and still replies
+ok 1 - fresh process marks only the first natural-language update as startup and still replies
+  ---
+  duration_ms: 2114.035458
+  type: 'test'
+  ...
+# Subtest: a newly constructed process state is startup-eligible again
+ok 2 - a newly constructed process state is startup-eligible again
+  ---
+  duration_ms: 3933.451167
+  type: 'test'
+  ...
+# Subtest: typing failure is non-fatal and final durable reply still succeeds
+ok 3 - typing failure is non-fatal and final durable reply still succeeds
+  ---
+  duration_ms: 1784.780208
+  type: 'test'
+  ...
+# Subtest: commands do not receive typing or consume first natural-language startup eligibility
+ok 4 - commands do not receive typing or consume first natural-language startup eligibility
+  ---
+  duration_ms: 1744.295292
+  type: 'test'
+  ...
+# Subtest: processing error always clears the typing timer
+ok 5 - processing error always clears the typing timer
+  ---
+  duration_ms: 1909.141083
+  type: 'test'
+  ...
+# Subtest: duplicate replay does not emit typing or duplicate the final reply
+ok 6 - duplicate replay does not emit typing or duplicate the final reply
+  ---
+  duration_ms: 1943.53025
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:13.438Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:13.497Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:13.499Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:15.460Z","level":"info","event":"user_created","user_id":"59a70ca9-4b9a-430e-a907-4cb72afd0a98","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:15.461Z","level":"info","event":"telegram_linked","user_id":"59a70ca9-4b9a-430e-a907-4cb72afd0a98"}
+# {"ts":"2026-09-27T14:31:15.465Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:15.466Z","level":"info","event":"telegram_startup_feedback_started"}
+# Subtest: slow processing refreshes typing and cleanup waits for the active refresh
+ok 7 - slow processing refreshes typing and cleanup waits for the active refresh
+  ---
+  duration_ms: 2333.676042
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:15.562Z","level":"info","event":"lock_released"}
+# Subtest: typing path cannot let N+1 overtake N in the same conversation
+ok 8 - typing path cannot let N+1 overtake N in the same conversation
+  ---
+  duration_ms: 2122.466708
+  type: 'test'
+  ...
+# Subtest: Telegram API sends an ephemeral typing action with a short timeout path
+ok 9 - Telegram API sends an ephemeral typing action with a short timeout path
+  ---
+  duration_ms: 1.398542
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18217.860292

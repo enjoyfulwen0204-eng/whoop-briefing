@@ -1,0 +1,14 @@
+TAP version 13
+# {"ts":"2026-09-27T12:02:55.781Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:55.784Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:57.326Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:57.327Z","level":"info","event":"user_created","user_id":"u-test-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:57.509Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:57.511Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:59.006Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:59.007Z","level":"info","event":"user_created","user_id":"u-test-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:59.008Z","level":"info","event":"tokens_saved","user_id":"u-test","attempt":1}
+# {"ts":"2026-09-27T12:02:59.009Z","level":"info","event":"tokens_saved","user_id":"u-test","attempt":1}
+# {"ts":"2026-09-27T12:02:59.061Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:59.063Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:20:15.813Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}

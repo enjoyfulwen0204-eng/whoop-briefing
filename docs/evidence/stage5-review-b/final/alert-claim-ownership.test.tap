@@ -1,0 +1,141 @@
+TAP version 13
+# {"ts":"2026-09-27T11:52:13.175Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:13.180Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:14.834Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:14.836Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:16.757Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:16.759Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:18.508Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:18.509Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:20.144Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:20.146Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:21.768Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T11:52:21.769Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T11:52:21.822Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:21.824Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:23.348Z","level":"info","event":"error_notify_claim_released"}
+# {"ts":"2026-09-27T11:52:23.348Z","level":"error","event":"error_notify_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:52:23.349Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T11:52:23.401Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:23.402Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:24.977Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T11:52:24.979Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T11:52:24.979Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T11:52:24.979Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T11:52:25.033Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:25.035Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:26.598Z","level":"info","event":"error_notify_claim_released"}
+# {"ts":"2026-09-27T11:52:26.599Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T11:52:26.598Z","level":"error","event":"error_notify_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:52:26.600Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T11:52:26.659Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:26.661Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:28.264Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T11:52:28.401Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T11:52:28.458Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:28.461Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:30.041Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:30.042Z","level":"info","event":"error_notify_claim_released"}
+# {"ts":"2026-09-27T11:52:30.042Z","level":"error","event":"error_notify_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:52:30.043Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:30.044Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T11:52:30.045Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:30.045Z","level":"info","event":"error_notify_suppressed"}
+# {"ts":"2026-09-27T11:52:30.096Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:30.098Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:31.689Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:31.690Z","level":"info","event":"telegram_sent","message_id":1}
+# {"ts":"2026-09-27T11:52:31.691Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:31.692Z","level":"warn","event":"scheduler_recovery_notify_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:52:31.693Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:31.694Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:31.695Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:31.696Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:31.697Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:31.698Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:31.756Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:52:31.758Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:52:33.341Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:33.343Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:52:33.344Z","level":"info","event":"scheduler_watchdog_state"}
+# Subtest: ★★★ 認領回傳擁有權憑證；同一個窗只有一個呼叫拿得到
+ok 1 - ★★★ 認領回傳擁有權憑證；同一個窗只有一個呼叫拿得到
+  ---
+  duration_ms: 1670.862417
+  type: 'test'
+  ...
+# Subtest: ★★★ 帶憑證釋放 → 只刪自己那一列，下一次可以馬上重新認領
+ok 2 - ★★★ 帶憑證釋放 → 只刪自己那一列，下一次可以馬上重新認領
+  ---
+  duration_ms: 1923.654375
+  type: 'test'
+  ...
+# Subtest: ★★★ 舊的釋放**不可以**刪掉新的成功認領（比較後刪除）
+ok 3 - ★★★ 舊的釋放**不可以**刪掉新的成功認領（比較後刪除）
+  ---
+  duration_ms: 1745.7145
+  type: 'test'
+  ...
+# Subtest: ★★★ 沒有憑證的釋放是 no-op（不會清掉別人的冷卻）
+ok 4 - ★★★ 沒有憑證的釋放是 no-op（不會清掉別人的冷卻）
+  ---
+  duration_ms: 1635.291542
+  type: 'test'
+  ...
+# Subtest: ★★★ 送出成功 → 冷卻持久化（下一輪被擋）
+ok 5 - ★★★ 送出成功 → 冷卻持久化（下一輪被擋）
+  ---
+  duration_ms: 1683.2045
+  type: 'test'
+  ...
+# Subtest: ★★★ 送出失敗 → 認領被釋放，下一輪可以馬上重試
+ok 6 - ★★★ 送出失敗 → 認領被釋放，下一輪可以馬上重試
+  ---
+  duration_ms: 1579.438833
+  type: 'test'
+  ...
+# Subtest: ★★★ 四個併發認領仍然只有一個送出（原子性沒有被破壞）
+ok 7 - ★★★ 四個併發認領仍然只有一個送出（原子性沒有被破壞）
+  ---
+  duration_ms: 1630.689083
+  type: 'test'
+  ...
+# Subtest: ★★★ 併發中一個送失敗、一個送成功 → 成功的冷卻不可以被刪掉
+ok 8 - ★★★ 併發中一個送失敗、一個送成功 → 成功的冷卻不可以被刪掉
+  ---
+  duration_ms: 1620.4205
+  type: 'test'
+  ...
+# Subtest: ★★★ 重啟不會讓成功的冷卻消失
+ok 9 - ★★★ 重啟不會讓成功的冷卻消失
+  ---
+  duration_ms: 1802.237417
+  type: 'test'
+  ...
+# Subtest: ★★★ 排程離線：警報送失敗 → 下一輪備援就能重試（不必等 24 小時）
+ok 10 - ★★★ 排程離線：警報送失敗 → 下一輪備援就能重試（不必等 24 小時）
+  ---
+  duration_ms: 1643.566958
+  type: 'test'
+  ...
+# Subtest: ★★★ 故障→恢復：恢復通知最多一則，而且送失敗不會變成每 10 分鐘一則
+ok 11 - ★★★ 故障→恢復：恢復通知最多一則，而且送失敗不會變成每 10 分鐘一則
+  ---
+  duration_ms: 1652.40225
+  type: 'test'
+  ...
+# Subtest: ★★★ 沒宣告過故障就沒有恢復通知
+ok 12 - ★★★ 沒宣告過故障就沒有恢復通知
+  ---
+  duration_ms: 1645.834166
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21218.417084

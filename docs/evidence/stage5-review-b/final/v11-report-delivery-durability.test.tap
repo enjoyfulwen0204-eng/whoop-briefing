@@ -1,0 +1,131 @@
+TAP version 13
+# {"ts":"2026-09-27T14:32:54.109Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:54.118Z","level":"error","event":"report_delivery_ambiguous","user_id":"u-delivery","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:54.118Z","level":"error","event":"daily_delivery_ambiguous","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:54.119Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:54.119Z","level":"error","event":"daily_claim_denied_ambiguous"}
+# {"ts":"2026-09-27T14:32:54.120Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:54.120Z","level":"error","event":"daily_claim_denied_ambiguous"}
+# {"ts":"2026-09-27T14:32:54.121Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:54.121Z","level":"error","event":"daily_claim_denied_ambiguous"}
+# {"ts":"2026-09-27T14:32:54.122Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:54.122Z","level":"error","event":"daily_claim_denied_ambiguous"}
+# {"ts":"2026-09-27T14:32:54.122Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:54.122Z","level":"error","event":"daily_claim_denied_ambiguous"}
+# {"ts":"2026-09-27T14:32:54.129Z","level":"error","event":"report_delivery_ambiguous","user_id":"u-delivery","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:54.129Z","level":"error","event":"weekly_delivery_ambiguous","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:54.130Z","level":"error","event":"weekly_claim_denied_ambiguous"}
+# {"ts":"2026-09-27T14:32:54.131Z","level":"error","event":"weekly_claim_denied_ambiguous"}
+# {"ts":"2026-09-27T14:32:54.132Z","level":"error","event":"weekly_claim_denied_ambiguous"}
+# {"ts":"2026-09-27T14:32:54.132Z","level":"error","event":"weekly_claim_denied_ambiguous"}
+# {"ts":"2026-09-27T14:32:54.133Z","level":"error","event":"weekly_claim_denied_ambiguous"}
+# {"ts":"2026-09-27T14:32:54.134Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:54.136Z","level":"warn","event":"report_delivery_definite_failure","user_id":"u-delivery","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:54.136Z","level":"error","event":"daily_telegram_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:54.137Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:54.138Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:32:54.203Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:54.205Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:56.310Z","level":"info","event":"user_created","user_id":"u-delivery","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:56.312Z","level":"info","event":"report_claimed","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:32:56.313Z","level":"warn","event":"report_claim_denied_ambiguous","user_id":"u-delivery","state":"DELIVERY_STARTED"}
+# {"ts":"2026-09-27T14:32:56.317Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:56.319Z","level":"warn","event":"report_claim_renew_lost","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:32:56.319Z","level":"warn","event":"report_delivery_fenced","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:32:56.319Z","level":"warn","event":"daily_delivery_fenced"}
+# {"ts":"2026-09-27T14:32:56.372Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:56.374Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:58.247Z","level":"info","event":"user_created","user_id":"u-delivery","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:58.248Z","level":"info","event":"report_claimed","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:32:58.251Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:58.252Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:32:58.252Z","level":"info","event":"daily_claim_denied"}
+# {"ts":"2026-09-27T14:32:58.253Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:32:58.309Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:58.311Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:33:00.151Z","level":"info","event":"user_created","user_id":"u-delivery","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:33:00.152Z","level":"info","event":"report_claimed","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:33:00.153Z","level":"info","event":"report_claimed","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:33:00.155Z","level":"info","event":"report_claimed","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:33:00.156Z","level":"warn","event":"report_claim_denied_ambiguous","user_id":"u-delivery","state":"DELIVERY_STARTED"}
+# {"ts":"2026-09-27T14:33:00.158Z","level":"info","event":"report_claimed","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:33:00.161Z","level":"info","event":"report_claim_denied","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:33:00.162Z","level":"info","event":"report_claim_denied","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:33:00.163Z","level":"info","event":"report_claim_denied","user_id":"u-delivery"}
+# {"ts":"2026-09-27T14:33:00.255Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:33:00.261Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:33:01.914Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:33:01.915Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:33:01.915Z","level":"info","event":"report_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:33:01.917Z","level":"error","event":"report_delivery_ambiguous","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:33:01.917Z","level":"info","event":"report_claimed","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:33:01.919Z","level":"warn","event":"report_claim_denied_ambiguous","user_id":"u-alice","state":"AMBIGUOUS"}
+# Subtest: ★★★ H-01/1: daily — Telegram 收下但回應不明 → 排程重跑，外部只收到一次
+ok 1 - ★★★ H-01/1: daily — Telegram 收下但回應不明 → 排程重跑，外部只收到一次
+  ---
+  duration_ms: 38.1795
+  type: 'test'
+  ...
+# Subtest: ★★★ H-01/2: weekly — 同樣的模糊送出，外部只收到一次
+ok 2 - ★★★ H-01/2: weekly — 同樣的模糊送出，外部只收到一次
+  ---
+  duration_ms: 9.007667
+  type: 'test'
+  ...
+# Subtest: ★★★ H-01/3: 明確失敗（Telegram 親口拒收）仍然可以安全重送
+ok 3 - ★★★ H-01/3: 明確失敗（Telegram 親口拒收）仍然可以安全重送
+  ---
+  duration_ms: 5.245167
+  type: 'test'
+  ...
+# Subtest: ★★★ H-01/4: 授權發生在打網路之前（死在送出中也不會重送）
+ok 4 - ★★★ H-01/4: 授權發生在打網路之前（死在送出中也不會重送）
+  ---
+  duration_ms: 2175.956541
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02/1: A 過期 → B 接手並送出 → A 恢復執行 → 外部只收到一次
+ok 5 - ★★★ H-02/1: A 過期 → B 接手並送出 → A 恢復執行 → 外部只收到一次
+  ---
+  duration_ms: 0.949958
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02/2: 端到端 —— A 在生成期間失去所有權，runDaily 必須 fail closed
+ok 6 - ★★★ H-02/2: 端到端 —— A 在生成期間失去所有權，runDaily 必須 fail closed
+  ---
+  duration_ms: 3.205666
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02/3: 續租讓正常的長工作不會失去所有權
+ok 7 - ★★★ H-02/3: 續租讓正常的長工作不會失去所有權
+  ---
+  duration_ms: 1930.6505
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02/4: 兩個排程器同時跑（Cloudflare + GitHub）→ 只有一個送出
+ok 8 - ★★★ H-02/4: 兩個排程器同時跑（Cloudflare + GitHub）→ 只有一個送出
+  ---
+  duration_ms: 3.408375
+  type: 'test'
+  ...
+# Subtest: ★★★ 重啟復原：每一種持久狀態下重跑都不會產生第二次外部送出
+ok 9 - ★★★ 重啟復原：每一種持久狀態下重跑都不會產生第二次外部送出
+  ---
+  duration_ms: 1910.670042
+  type: 'test'
+  ...
+# Subtest: ★★★ 多使用者：Alice 的模糊送出完全不影響 Bob 的同一天報告
+ok 10 - ★★★ 多使用者：Alice 的模糊送出完全不影響 Bob 的同一天報告
+  ---
+  duration_ms: 1755.678208
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8325.815417

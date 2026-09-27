@@ -1,0 +1,172 @@
+TAP version 13
+# Subtest: stats: mean / median / min / max 手算驗證
+ok 1 - stats: mean / median / min / max 手算驗證
+  ---
+  duration_ms: 0.930167
+  type: 'test'
+  ...
+# Subtest: stats: 標準差用 n-1（樣本標準差）
+ok 2 - stats: 標準差用 n-1（樣本標準差）
+  ---
+  duration_ms: 0.338083
+  type: 'test'
+  ...
+# Subtest: stats: percentile 用 midrank，相同值不會跳到極端
+ok 3 - stats: percentile 用 midrank，相同值不會跳到極端
+  ---
+  duration_ms: 0.124708
+  type: 'test'
+  ...
+# Subtest: stats: quantile 線性內插
+ok 4 - stats: quantile 線性內插
+  ---
+  duration_ms: 0.720625
+  type: 'test'
+  ...
+# Subtest: ★ stats: window 是日曆天數，n 是有效樣本數 —— 兩者不可混用
+ok 5 - ★ stats: window 是日曆天數，n 是有效樣本數 —— 兩者不可混用
+  ---
+  duration_ms: 1.104541
+  type: 'test'
+  ...
+# Subtest: stats: 樣本不足時 sufficient=false（上層據此不下結論）
+ok 6 - stats: 樣本不足時 sufficient=false（上層據此不下結論）
+  ---
+  duration_ms: 0.258625
+  type: 'test'
+  ...
+# Subtest: stats: excludeEndDate 排除今天（今天不可以把自己的基準拉走）
+ok 7 - stats: excludeEndDate 排除今天（今天不可以把自己的基準拉走）
+  ---
+  duration_ms: 0.13375
+  type: 'test'
+  ...
+# Subtest: stats: summarise 產出 7/14/30/90 四個窗口，各自帶 n
+ok 8 - stats: summarise 產出 7/14/30/90 四個窗口，各自帶 n
+  ---
+  duration_ms: 0.491291
+  type: 'test'
+  ...
+# Subtest: z-score: 手算驗證
+ok 9 - z-score: 手算驗證
+  ---
+  duration_ms: 0.530916
+  type: 'test'
+  ...
+# Subtest: ★ z-score: 變異為 0 時回 null，不可以爆成無限大
+ok 10 - ★ z-score: 變異為 0 時回 null，不可以爆成無限大
+  ---
+  duration_ms: 0.528916
+  type: 'test'
+  ...
+# Subtest: z-score: 分級門檻（1 / 1.5 / 2）
+ok 11 - z-score: 分級門檻（1 / 1.5 / 2）
+  ---
+  duration_ms: 0.194417
+  type: 'test'
+  ...
+# Subtest: ★ 偏離方向要 metric-aware：HRV 偏高不是問題，RHR 偏高才是
+ok 12 - ★ 偏離方向要 metric-aware：HRV 偏高不是問題，RHR 偏高才是
+  ---
+  duration_ms: 0.093417
+  type: 'test'
+  ...
+# Subtest: 偏離評估：完整輸出與各種資料不足情境
+ok 13 - 偏離評估：完整輸出與各種資料不足情境
+  ---
+  duration_ms: 0.177708
+  type: 'test'
+  ...
+# Subtest: 迴歸: 完美直線的斜率與 R² 手算驗證
+ok 14 - 迴歸: 完美直線的斜率與 R² 手算驗證
+  ---
+  duration_ms: 0.180709
+  type: 'test'
+  ...
+# Subtest: ★ 迴歸: 缺日不會被當成等距（用真實日期算 x）
+ok 15 - ★ 迴歸: 缺日不會被當成等距（用真實日期算 x）
+  ---
+  duration_ms: 0.069625
+  type: 'test'
+  ...
+# Subtest: 迴歸: 點太少或同一天回 null
+ok 16 - 迴歸: 點太少或同一天回 null
+  ---
+  duration_ms: 0.061333
+  type: 'test'
+  ...
+# Subtest: ★ 趨勢方向 metric-aware：HRV 上升=改善，RHR 上升=惡化
+ok 17 - ★ 趨勢方向 metric-aware：HRV 上升=改善，RHR 上升=惡化
+  ---
+  duration_ms: 0.134875
+  type: 'test'
+  ...
+# Subtest: 趨勢: 幾乎沒動 → STABLE（不可以每天都報方向）
+ok 18 - 趨勢: 幾乎沒動 → STABLE（不可以每天都報方向）
+  ---
+  duration_ms: 0.077667
+  type: 'test'
+  ...
+# Subtest: 趨勢: trendsFor 產出 7/30/90，樣本不足標 insufficient_data
+ok 19 - 趨勢: trendsFor 產出 7/30/90，樣本不足標 insufficient_data
+  ---
+  duration_ms: 0.517541
+  type: 'test'
+  ...
+# Subtest: ★ baseline shift: 真的位移才報，正常波動不報
+ok 20 - ★ baseline shift: 真的位移才報，正常波動不報
+  ---
+  duration_ms: 0.314833
+  type: 'test'
+  ...
+# Subtest: baseline shift: 樣本不足時明講，不硬算
+ok 21 - baseline shift: 樣本不足時明講，不硬算
+  ---
+  duration_ms: 0.067542
+  type: 'test'
+  ...
+# Subtest: What Changed: 單一指標的完整變化描述
+ok 22 - What Changed: 單一指標的完整變化描述
+  ---
+  duration_ms: 0.368083
+  type: 'test'
+  ...
+# Subtest: ★ What Changed: 排序完全確定性，且不由 LLM 決定
+ok 23 - ★ What Changed: 排序完全確定性，且不由 LLM 決定
+  ---
+  duration_ms: 2.132708
+  type: 'test'
+  ...
+# Subtest: What Changed: 最多 3 項，且 importance 由高到低
+ok 24 - What Changed: 最多 3 項，且 importance 由高到低
+  ---
+  duration_ms: 0.720833
+  type: 'test'
+  ...
+# Subtest: ★ What Changed: 樣本不足時 importance 打折（資料品質納入排序）
+ok 25 - ★ What Changed: 樣本不足時 importance 打折（資料品質納入排序）
+  ---
+  duration_ms: 0.355958
+  type: 'test'
+  ...
+# Subtest: What Changed: 今天沒有值的指標直接略過，不會爆
+ok 26 - What Changed: 今天沒有值的指標直接略過，不會爆
+  ---
+  duration_ms: 0.107
+  type: 'test'
+  ...
+# Subtest: windowSlice: 邊界日期包含正確
+ok 27 - windowSlice: 邊界日期包含正確
+  ---
+  duration_ms: 0.083375
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 109.419792

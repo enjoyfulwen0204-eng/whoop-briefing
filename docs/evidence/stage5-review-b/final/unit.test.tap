@@ -1,0 +1,310 @@
+TAP version 13
+# Subtest: 嚴重度：一般 higher-is-better 黃 -8% / 紅 -18%
+ok 1 - 嚴重度：一般 higher-is-better 黃 -8% / 紅 -18%
+  ---
+  duration_ms: 1.590375
+  type: 'test'
+  ...
+# Subtest: 嚴重度：HRV 用 -7% / -15%
+ok 2 - 嚴重度：HRV 用 -7% / -15%
+  ---
+  duration_ms: 0.334416
+  type: 'test'
+  ...
+# Subtest: 嚴重度：RHR / 呼吸率是 lower-is-better
+ok 3 - 嚴重度：RHR / 呼吸率是 lower-is-better
+  ---
+  duration_ms: 0.1415
+  type: 'test'
+  ...
+# Subtest: 睡眠債加成用絕對分鐘差，baseline=0 也不會爆
+ok 4 - 睡眠債加成用絕對分鐘差，baseline=0 也不會爆
+  ---
+  duration_ms: 0.26925
+  type: 'test'
+  ...
+# Subtest: SpO2 / 皮膚溫度 / Strain 不給紅黃燈
+ok 5 - SpO2 / 皮膚溫度 / Strain 不給紅黃燈
+  ---
+  duration_ms: 0.131
+  type: 'test'
+  ...
+# Subtest: baseline mean <= 0 或缺值時不給燈
+ok 6 - baseline mean <= 0 或缺值時不給燈
+  ---
+  duration_ms: 0.1105
+  type: 'test'
+  ...
+# Subtest: 冷啟動分階：<7 / 7-29 / >=30
+ok 7 - 冷啟動分階：<7 / 7-29 / >=30
+  ---
+  duration_ms: 0.30675
+  type: 'test'
+  ...
+# Subtest: 時間工具：local date / 星期 / 週區間
+ok 8 - 時間工具：local date / 星期 / 週區間
+  ---
+  duration_ms: 36.183583
+  type: 'test'
+  ...
+# Subtest: 起床觸發：主睡眠 SCORED + recovery 用 sleep_id 對上 + 已過 30 分鐘
+ok 9 - 起床觸發：主睡眠 SCORED + recovery 用 sleep_id 對上 + 已過 30 分鐘
+  ---
+  duration_ms: 3.590208
+  type: 'test'
+  ...
+# Subtest: 起床觸發：未滿 30 分鐘不發（直接比 UTC）
+ok 10 - 起床觸發：未滿 30 分鐘不發（直接比 UTC）
+  ---
+  duration_ms: 1.351875
+  type: 'test'
+  ...
+# Subtest: 起床觸發：剛好 30 分鐘就發
+ok 11 - 起床觸發：剛好 30 分鐘就發
+  ---
+  duration_ms: 0.874667
+  type: 'test'
+  ...
+# Subtest: 起床觸發：sleep 未評分 / recovery 缺失 / recovery 未評分都不發
+ok 12 - 起床觸發：sleep 未評分 / recovery 缺失 / recovery 未評分都不發
+  ---
+  duration_ms: 1.388666
+  type: 'test'
+  ...
+# Subtest: 起床觸發：不會挑到小睡
+ok 13 - 起床觸發：不會挑到小睡
+  ---
+  duration_ms: 0.576166
+  type: 'test'
+  ...
+# Subtest: baseline：排除今天、排除小睡、排除 user_calibrating、取最近 30 筆
+ok 14 - baseline：排除今天、排除小睡、排除 user_calibrating、取最近 30 筆
+  ---
+  duration_ms: 5.280166
+  type: 'test'
+  ...
+# Subtest: baseline：睡眠總時長 = light + 深睡 + REM（不含 awake / no-data）
+ok 15 - baseline：睡眠總時長 = light + 深睡 + REM（不含 awake / no-data）
+  ---
+  duration_ms: 0.260625
+  type: 'test'
+  ...
+# Subtest: 昨日 Strain 用「上一個已完成」cycle，不用今天那個開放中的
+ok 16 - 昨日 Strain 用「上一個已完成」cycle，不用今天那個開放中的
+  ---
+  duration_ms: 2.068333
+  type: 'test'
+  ...
+# Subtest: 趨勢預警：連續 3 天走低 + 兩個生理訊號同時異常 → strong
+ok 17 - 趨勢預警：連續 3 天走低 + 兩個生理訊號同時異常 → strong
+  ---
+  duration_ms: 3.57825
+  type: 'test'
+  ...
+# Subtest: 趨勢預警：資料正常時不亂報
+ok 18 - 趨勢預警：資料正常時不亂報
+  ---
+  duration_ms: 3.860917
+  type: 'test'
+  ...
+# Subtest: 趨勢預警：單調下降但還在基準內 → 不報（避免每天亂叫）
+ok 19 - 趨勢預警：單調下降但還在基準內 → 不報（避免每天亂叫）
+  ---
+  duration_ms: 3.02575
+  type: 'test'
+  ...
+# Subtest: 趨勢預警：真的走低（70→65→46）要報 worsening
+ok 20 - 趨勢預警：真的走低（70→65→46）要報 worsening
+  ---
+  duration_ms: 2.615166
+  type: 'test'
+  ...
+# Subtest: 趨勢預警：冷啟動階段（<30 筆）不啟用
+ok 21 - 趨勢預警：冷啟動階段（<30 筆）不啟用
+  ---
+  duration_ms: 0.750083
+  type: 'test'
+  ...
+# Subtest: 冷啟動 <7 筆：不給任何紅黃燈，並標「個人基準建立中」
+ok 22 - 冷啟動 <7 筆：不給任何紅黃燈，並標「個人基準建立中」
+  ---
+  duration_ms: 1.11375
+  type: 'test'
+  ...
+# Subtest: 7–29 筆：顯示「基準建立中 n/30」且會給燈
+ok 23 - 7–29 筆：顯示「基準建立中 n/30」且會給燈
+  ---
+  duration_ms: 0.930667
+  type: 'test'
+  ...
+# Subtest: 多項偏離時燈號正確（紅/黃由 Node 算好）
+ok 24 - 多項偏離時燈號正確（紅/黃由 Node 算好）
+  ---
+  duration_ms: 3.041125
+  type: 'test'
+  ...
+# Subtest: WHOOP 沒回傳的選配欄位（SpO2 / 皮膚溫度）整行不顯示，核心欄位缺才標無資料
+ok 25 - WHOOP 沒回傳的選配欄位（SpO2 / 皮膚溫度）整行不顯示，核心欄位缺才標無資料
+  ---
+  duration_ms: 2.442833
+  type: 'test'
+  ...
+# Subtest: Telegram：plain text、不超過 4096 字元
+ok 26 - Telegram：plain text、不超過 4096 字元
+  ---
+  duration_ms: 2.5525
+  type: 'test'
+  ...
+# Subtest: 沒有敘述時：照樣發數據簡報，而且不宣稱任何故障
+ok 27 - 沒有敘述時：照樣發數據簡報，而且不宣稱任何故障
+  ---
+  duration_ms: 2.629291
+  type: 'test'
+  ...
+# Subtest: 每週統計：區間、平均、最好與最差的一天、與前週比較
+ok 28 - 每週統計：區間、平均、最好與最差的一天、與前週比較
+  ---
+  duration_ms: 2.401583
+  type: 'test'
+  ...
+# Subtest: log 會遮蔽 token / key，不會外洩
+ok 29 - log 會遮蔽 token / key，不會外洩
+  ---
+  duration_ms: 0.504792
+  type: 'test'
+  ...
+# Subtest: 429 backoff：讀 Retry-After / X-RateLimit-Reset
+ok 30 - 429 backoff：讀 Retry-After / X-RateLimit-Reset
+  ---
+  duration_ms: 0.233292
+  type: 'test'
+  ...
+# Subtest: evaluateAll：核心指標一定在結果裡（缺資料就標 available=false）
+ok 31 - evaluateAll：核心指標一定在結果裡（缺資料就標 available=false）
+  ---
+  duration_ms: 2.4205
+  type: 'test'
+  ...
+# Subtest: 校正期：今天的恢復數值照顯示但不給燈（不是「無資料」）
+ok 32 - 校正期：今天的恢復數值照顯示但不給燈（不是「無資料」）
+  ---
+  duration_ms: 2.812667
+  type: 'test'
+  ...
+# Subtest: 校正期：baseline 仍然排除校正期的數字（修 A 沒有放寬這件事）
+ok 33 - 校正期：baseline 仍然排除校正期的數字（修 A 沒有放寬這件事）
+  ---
+  duration_ms: 1.842166
+  type: 'test'
+  ...
+# Subtest: 趨勢預警：中間缺資料 → streak 中斷，不算趨勢
+ok 34 - 趨勢預警：中間缺資料 → streak 中斷，不算趨勢
+  ---
+  duration_ms: 2.653792
+  type: 'test'
+  ...
+# Subtest: 趨勢預警：真的連續 3 天 → 文案寫「連續 3 天」
+ok 35 - 趨勢預警：真的連續 3 天 → 文案寫「連續 3 天」
+  ---
+  duration_ms: 2.881417
+  type: 'test'
+  ...
+# Subtest: 趨勢預警：只缺一天也立即中斷（不跳過缺日湊 3 筆）
+ok 36 - 趨勢預警：只缺一天也立即中斷（不跳過缺日湊 3 筆）
+  ---
+  duration_ms: 2.389625
+  type: 'test'
+  ...
+# Subtest: health_date：跨午夜也能補發（睡眠結束日 ≠ 執行當天）
+ok 37 - health_date：跨午夜也能補發（睡眠結束日 ≠ 執行當天）
+  ---
+  duration_ms: 2.860583
+  type: 'test'
+  ...
+# Subtest: health_date：25 小時仍在補發窗內（標示成 late）
+ok 38 - health_date：25 小時仍在補發窗內（標示成 late）
+  ---
+  duration_ms: 1.871458
+  type: 'test'
+  ...
+# Subtest: health_date：超過 48 小時才終局不補發
+ok 39 - health_date：超過 48 小時才終局不補發
+  ---
+  duration_ms: 1.5115
+  type: 'test'
+  ...
+# Subtest: health_date：剛好 24 小時內還發（邊界）
+ok 40 - health_date：剛好 24 小時內還發（邊界）
+  ---
+  duration_ms: 1.492916
+  type: 'test'
+  ...
+# Subtest: 同一 health_date 多筆主睡眠：只留 sleep.end 最晚那筆，不會湊出假趨勢
+ok 41 - 同一 health_date 多筆主睡眠：只留 sleep.end 最晚那筆，不會湊出假趨勢
+  ---
+  duration_ms: 4.696875
+  type: 'test'
+  ...
+# Subtest: 趨勢預警：中間某天 recovery 在校正期 → streak 中斷
+ok 42 - 趨勢預警：中間某天 recovery 在校正期 → streak 中斷
+  ---
+  duration_ms: 2.635208
+  type: 'test'
+  ...
+# Subtest: isValidHealthDay：睡眠未評分 / 無 recovery / recovery 未評分 / 校正期都不算有效
+ok 43 - isValidHealthDay：睡眠未評分 / 無 recovery / recovery 未評分 / 校正期都不算有效
+  ---
+  duration_ms: 0.396416
+  type: 'test'
+  ...
+# Subtest: 昨日 Strain：sleep.end 前後各有 cycle 時，只選「之前」那個
+ok 44 - 昨日 Strain：sleep.end 前後各有 cycle 時，只選「之前」那個
+  ---
+  duration_ms: 2.569625
+  type: 'test'
+  ...
+# Subtest: 昨日 Strain：sleep.end 之前找不到已完成 cycle → null，不退回用睡眠之後的
+ok 45 - 昨日 Strain：sleep.end 之前找不到已完成 cycle → null，不退回用睡眠之後的
+  ---
+  duration_ms: 1.7385
+  type: 'test'
+  ...
+# Subtest: 昨日 Strain：太舊的 cycle（超過 48 小時）視為過期 → null
+ok 46 - 昨日 Strain：太舊的 cycle（超過 48 小時）視為過期 → null
+  ---
+  duration_ms: 1.686833
+  type: 'test'
+  ...
+# Subtest: 昨日 Strain baseline：不混入今天、也不混入睡眠之後的 cycle
+ok 47 - 昨日 Strain baseline：不混入今天、也不混入睡眠之後的 cycle
+  ---
+  duration_ms: 3.47275
+  type: 'test'
+  ...
+# Subtest: loadDotEnvIfPresent：沒有 .env 安靜跳過；其他錯誤明確拋出
+ok 48 - loadDotEnvIfPresent：沒有 .env 安靜跳過；其他錯誤明確拋出
+  ---
+  duration_ms: 5.583208
+  type: 'test'
+  ...
+# Subtest: 週回顧：分段睡的那天只算一天（不會出現「7 天的週回顧有效 8 天」）
+ok 49 - 週回顧：分段睡的那天只算一天（不會出現「7 天的週回顧有效 8 天」）
+  ---
+  duration_ms: 2.885542
+  type: 'test'
+  ...
+# Subtest: 週回顧：同一 health_date 取 sleep.end 最晚那筆的值（不是先出現的那筆）
+ok 50 - 週回顧：同一 health_date 取 sleep.end 最晚那筆的值（不是先出現的那筆）
+  ---
+  duration_ms: 1.524625
+  type: 'test'
+  ...
+1..50
+# tests 50
+# suites 0
+# pass 50
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 386.600625

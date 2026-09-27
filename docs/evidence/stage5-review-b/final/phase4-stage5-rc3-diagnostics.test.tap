@@ -1,0 +1,20 @@
+TAP version 13
+# {"ts":"2026-09-27T11:25:23.722Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:25:23.725Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:25:25.113Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:25:25.115Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC3-H-001 diagnostic: overwritten revision payload remains durable solely in full history
+ok 1 - RC3-H-001 diagnostic: overwritten revision payload remains durable solely in full history
+  ---
+  duration_ms: 7177.348375
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7397.412208

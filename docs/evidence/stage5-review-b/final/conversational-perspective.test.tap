@@ -1,0 +1,448 @@
+TAP version 13
+# {"ts":"2026-09-27T12:01:22.956Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:22.959Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:24.452Z","level":"info","event":"user_created","user_id":"27e7ab4b-0d80-4f7d-9880-2c1a1a32497f","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:24.454Z","level":"info","event":"telegram_linked","user_id":"27e7ab4b-0d80-4f7d-9880-2c1a1a32497f"}
+# {"ts":"2026-09-27T12:01:24.460Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:24.460Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:24.461Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:24.523Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:24.525Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:26.011Z","level":"info","event":"user_created","user_id":"510f9da6-ed3b-4f46-a226-f6edc7066ce4","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:26.012Z","level":"info","event":"telegram_linked","user_id":"510f9da6-ed3b-4f46-a226-f6edc7066ce4"}
+# {"ts":"2026-09-27T12:01:26.016Z","level":"info","event":"journal_mutation_denied"}
+# {"ts":"2026-09-27T12:01:26.016Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:26.016Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:26.017Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:26.076Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:26.077Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:27.573Z","level":"info","event":"user_created","user_id":"8838aea8-4c3f-47c2-9cab-9a06c11f9bff","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:27.573Z","level":"info","event":"telegram_linked","user_id":"8838aea8-4c3f-47c2-9cab-9a06c11f9bff"}
+# {"ts":"2026-09-27T12:01:27.576Z","level":"info","event":"journal_mutation_denied"}
+# {"ts":"2026-09-27T12:01:27.576Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:27.576Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:27.576Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:27.633Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:27.634Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:29.131Z","level":"info","event":"user_created","user_id":"9c6a9a2d-a30c-424f-8e3e-eef1e7ed0a40","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:29.131Z","level":"info","event":"telegram_linked","user_id":"9c6a9a2d-a30c-424f-8e3e-eef1e7ed0a40"}
+# {"ts":"2026-09-27T12:01:29.135Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T12:01:29.135Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T12:01:29.135Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T12:01:29.135Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:29.135Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:29.135Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:29.193Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:29.195Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:30.706Z","level":"info","event":"user_created","user_id":"124c80e3-4b86-4f20-8938-6456b93bbc31","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:30.707Z","level":"info","event":"telegram_linked","user_id":"124c80e3-4b86-4f20-8938-6456b93bbc31"}
+# {"ts":"2026-09-27T12:01:30.710Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:30.710Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:30.710Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:30.771Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:30.773Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:32.371Z","level":"info","event":"user_created","user_id":"fe06c588-6630-48bb-893b-03c30811f603","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:32.372Z","level":"info","event":"telegram_linked","user_id":"fe06c588-6630-48bb-893b-03c30811f603"}
+# {"ts":"2026-09-27T12:01:32.375Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T12:01:32.375Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T12:01:32.375Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T12:01:32.375Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:32.375Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:32.375Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:32.441Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:32.443Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:34.006Z","level":"info","event":"user_created","user_id":"429c34fd-e7fc-40d7-88b2-e3ee4b984253","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:34.007Z","level":"info","event":"telegram_linked","user_id":"429c34fd-e7fc-40d7-88b2-e3ee4b984253"}
+# {"ts":"2026-09-27T12:01:34.009Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:34.009Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:34.009Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:34.075Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:34.077Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:35.680Z","level":"info","event":"user_created","user_id":"83d363d4-9899-46c0-97ba-d6dba3c2b212","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:35.681Z","level":"info","event":"telegram_linked","user_id":"83d363d4-9899-46c0-97ba-d6dba3c2b212"}
+# {"ts":"2026-09-27T12:01:35.683Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:35.683Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:35.683Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:35.743Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:35.745Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:37.356Z","level":"info","event":"user_created","user_id":"60645af7-4d2d-45e6-861b-3b384f8bed08","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:37.357Z","level":"info","event":"telegram_linked","user_id":"60645af7-4d2d-45e6-861b-3b384f8bed08"}
+# {"ts":"2026-09-27T12:01:37.360Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:37.360Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:37.360Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:37.423Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:37.425Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:39.208Z","level":"info","event":"user_created","user_id":"6fd98249-8ae2-47b1-814f-5543303c49f3","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:39.209Z","level":"info","event":"telegram_linked","user_id":"6fd98249-8ae2-47b1-814f-5543303c49f3"}
+# {"ts":"2026-09-27T12:01:39.212Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:39.212Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:39.212Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:39.281Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:39.283Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:40.922Z","level":"info","event":"user_created","user_id":"96627931-5c2a-4070-9286-177cefaa8c5a","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:40.922Z","level":"info","event":"telegram_linked","user_id":"96627931-5c2a-4070-9286-177cefaa8c5a"}
+# {"ts":"2026-09-27T12:01:40.925Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:40.925Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:40.926Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:40.988Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:40.989Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:42.717Z","level":"info","event":"user_created","user_id":"fc6c1dd7-2487-4a98-b033-75f24bbf6655","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:42.718Z","level":"info","event":"telegram_linked","user_id":"fc6c1dd7-2487-4a98-b033-75f24bbf6655"}
+# {"ts":"2026-09-27T12:01:42.721Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:42.721Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:42.721Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:42.784Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:42.786Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:44.471Z","level":"info","event":"user_created","user_id":"2967ea28-817d-41b8-8a4b-831ea00c6dda","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:44.472Z","level":"info","event":"telegram_linked","user_id":"2967ea28-817d-41b8-8a4b-831ea00c6dda"}
+# {"ts":"2026-09-27T12:01:44.475Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T12:01:44.475Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T12:01:44.475Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T12:01:44.475Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:44.475Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:44.475Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:44.538Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:44.539Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:46.177Z","level":"info","event":"user_created","user_id":"fbc7d984-54c1-4413-97fc-74a64e9e6781","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:46.177Z","level":"info","event":"telegram_linked","user_id":"fbc7d984-54c1-4413-97fc-74a64e9e6781"}
+# {"ts":"2026-09-27T12:01:46.181Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:46.181Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:46.181Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:46.246Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:46.248Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:47.899Z","level":"info","event":"user_created","user_id":"d4beeb81-dcc5-4aa3-9d34-0f5ef68a926b","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:47.900Z","level":"info","event":"telegram_linked","user_id":"d4beeb81-dcc5-4aa3-9d34-0f5ef68a926b"}
+# {"ts":"2026-09-27T12:01:47.903Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:47.903Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:47.903Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:47.958Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:47.960Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:49.652Z","level":"info","event":"user_created","user_id":"4fbf72d8-6f68-4ce7-9666-d6c14df99f74","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:49.653Z","level":"info","event":"telegram_linked","user_id":"4fbf72d8-6f68-4ce7-9666-d6c14df99f74"}
+# {"ts":"2026-09-27T12:01:49.685Z","level":"info","event":"journal_event_added","user_id":"4fbf72d8-6f68-4ce7-9666-d6c14df99f74"}
+# {"ts":"2026-09-27T12:01:49.686Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:49.686Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:49.802Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:49.804Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:51.465Z","level":"info","event":"user_created","user_id":"12299678-2990-42f4-84c8-7581fe8f4985","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:51.466Z","level":"info","event":"telegram_linked","user_id":"12299678-2990-42f4-84c8-7581fe8f4985"}
+# {"ts":"2026-09-27T12:01:51.469Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T12:01:51.469Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T12:01:51.469Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T12:01:51.469Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:51.469Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:51.469Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:51.524Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:51.525Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:53.196Z","level":"info","event":"user_created","user_id":"eacf6589-7b4d-40e5-835c-17822441c3ab","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:53.197Z","level":"info","event":"telegram_linked","user_id":"eacf6589-7b4d-40e5-835c-17822441c3ab"}
+# {"ts":"2026-09-27T12:01:53.200Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T12:01:53.200Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T12:01:53.200Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T12:01:53.200Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:53.200Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:53.200Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:53.255Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:53.257Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:54.923Z","level":"info","event":"user_created","user_id":"debd6d03-ae22-462c-9b63-0d7673527ec2","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:54.924Z","level":"info","event":"telegram_linked","user_id":"debd6d03-ae22-462c-9b63-0d7673527ec2"}
+# {"ts":"2026-09-27T12:01:54.927Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:54.927Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:54.927Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:54.985Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:54.986Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:56.676Z","level":"info","event":"user_created","user_id":"f846d88b-5712-40d1-ad5d-8559e866f6dc","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:56.677Z","level":"info","event":"telegram_linked","user_id":"f846d88b-5712-40d1-ad5d-8559e866f6dc"}
+# {"ts":"2026-09-27T12:01:56.680Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:56.680Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:56.680Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:56.740Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:56.742Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:01:58.433Z","level":"info","event":"user_created","user_id":"b3518c5c-d752-443a-883b-c2ab4d8138a6","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:01:58.434Z","level":"info","event":"telegram_linked","user_id":"b3518c5c-d752-443a-883b-c2ab4d8138a6"}
+# {"ts":"2026-09-27T12:01:58.438Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:01:58.438Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:01:58.438Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:01:58.500Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:01:58.502Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:00.245Z","level":"info","event":"user_created","user_id":"d4c69356-22f7-407d-a2d7-6453e911593d","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:00.246Z","level":"info","event":"telegram_linked","user_id":"d4c69356-22f7-407d-a2d7-6453e911593d"}
+# {"ts":"2026-09-27T12:02:00.249Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:00.249Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:00.249Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:02:00.305Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:00.308Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:02.015Z","level":"info","event":"user_created","user_id":"e3e4d337-8d76-4919-b86e-269662f2f731","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:02.016Z","level":"info","event":"telegram_linked","user_id":"e3e4d337-8d76-4919-b86e-269662f2f731"}
+# {"ts":"2026-09-27T12:02:02.018Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:02.018Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:02.018Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:02:02.076Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:02.078Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:03.792Z","level":"info","event":"user_created","user_id":"f890a413-9b92-4e39-ac2b-15774cbb3593","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:03.793Z","level":"info","event":"telegram_linked","user_id":"f890a413-9b92-4e39-ac2b-15774cbb3593"}
+# {"ts":"2026-09-27T12:02:03.796Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:03.796Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:03.796Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:02:03.856Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:03.858Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:05.770Z","level":"info","event":"user_created","user_id":"f330fdf5-9ff8-428b-8ded-7a996c056477","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:05.770Z","level":"info","event":"telegram_linked","user_id":"f330fdf5-9ff8-428b-8ded-7a996c056477"}
+# {"ts":"2026-09-27T12:02:05.774Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T12:02:05.774Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T12:02:05.774Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T12:02:05.774Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:05.774Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:05.831Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:05.833Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:07.586Z","level":"info","event":"user_created","user_id":"f41ae0f6-d2a9-4434-a357-7696e565b307","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:07.587Z","level":"info","event":"telegram_linked","user_id":"f41ae0f6-d2a9-4434-a357-7696e565b307"}
+# {"ts":"2026-09-27T12:02:07.590Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:07.590Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:07.590Z","level":"info","event":"health_education_answered"}
+# {"ts":"2026-09-27T12:02:07.656Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:07.658Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:09.521Z","level":"info","event":"user_created","user_id":"6d5725db-faf1-4953-8b7b-1d13442888c2","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:09.521Z","level":"info","event":"telegram_linked","user_id":"6d5725db-faf1-4953-8b7b-1d13442888c2"}
+# {"ts":"2026-09-27T12:02:09.525Z","level":"info","event":"time_precision_downgraded"}
+# {"ts":"2026-09-27T12:02:09.533Z","level":"info","event":"journal_event_added","user_id":"6d5725db-faf1-4953-8b7b-1d13442888c2"}
+# {"ts":"2026-09-27T12:02:09.534Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:09.534Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:09.676Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:09.678Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:11.478Z","level":"info","event":"user_created","user_id":"9f2db3f4-1836-4942-aea7-ff77e73dd981","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:11.478Z","level":"info","event":"telegram_linked","user_id":"9f2db3f4-1836-4942-aea7-ff77e73dd981"}
+# {"ts":"2026-09-27T12:02:11.489Z","level":"info","event":"journal_event_added","user_id":"9f2db3f4-1836-4942-aea7-ff77e73dd981"}
+# {"ts":"2026-09-27T12:02:11.490Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:11.490Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:11.596Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:11.599Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:13.403Z","level":"info","event":"user_created","user_id":"bc30a513-204a-4e20-a9b1-c818bf7dcaa0","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:13.404Z","level":"info","event":"telegram_linked","user_id":"bc30a513-204a-4e20-a9b1-c818bf7dcaa0"}
+# {"ts":"2026-09-27T12:02:13.407Z","level":"info","event":"time_precision_downgraded"}
+# {"ts":"2026-09-27T12:02:13.415Z","level":"info","event":"journal_event_added","user_id":"bc30a513-204a-4e20-a9b1-c818bf7dcaa0"}
+# {"ts":"2026-09-27T12:02:13.429Z","level":"info","event":"time_precision_downgraded"}
+# {"ts":"2026-09-27T12:02:13.436Z","level":"info","event":"journal_event_added","user_id":"bc30a513-204a-4e20-a9b1-c818bf7dcaa0"}
+# {"ts":"2026-09-27T12:02:13.450Z","level":"info","event":"time_precision_downgraded"}
+# {"ts":"2026-09-27T12:02:13.457Z","level":"info","event":"journal_event_added","user_id":"bc30a513-204a-4e20-a9b1-c818bf7dcaa0"}
+# {"ts":"2026-09-27T12:02:13.524Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:13.526Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:15.387Z","level":"info","event":"user_created","user_id":"00a35e31-0d04-4e18-b789-743be2e45035","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:15.388Z","level":"info","event":"telegram_linked","user_id":"00a35e31-0d04-4e18-b789-743be2e45035"}
+# {"ts":"2026-09-27T12:02:15.399Z","level":"info","event":"journal_event_added","user_id":"00a35e31-0d04-4e18-b789-743be2e45035"}
+# {"ts":"2026-09-27T12:02:15.400Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:15.400Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:15.504Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:15.506Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:17.369Z","level":"info","event":"user_created","user_id":"701957a2-03f3-44fc-8103-c7a066e657c6","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:17.370Z","level":"info","event":"telegram_linked","user_id":"701957a2-03f3-44fc-8103-c7a066e657c6"}
+# {"ts":"2026-09-27T12:02:17.381Z","level":"info","event":"journal_event_added","user_id":"701957a2-03f3-44fc-8103-c7a066e657c6"}
+# {"ts":"2026-09-27T12:02:17.382Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:17.382Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:17.487Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:17.489Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:19.293Z","level":"info","event":"user_created","user_id":"806c82cc-8ea3-40b2-88cc-2a1ba23c8c0f","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:19.294Z","level":"info","event":"telegram_linked","user_id":"806c82cc-8ea3-40b2-88cc-2a1ba23c8c0f"}
+# {"ts":"2026-09-27T12:02:19.298Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:19.298Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:19.345Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:19.345Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:19.390Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:19.390Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:19.497Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:19.503Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:21.316Z","level":"info","event":"user_created","user_id":"42e9f912-3972-47dc-b0d5-5ebde66d6761","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:21.317Z","level":"info","event":"telegram_linked","user_id":"42e9f912-3972-47dc-b0d5-5ebde66d6761"}
+# {"ts":"2026-09-27T12:02:21.319Z","level":"warn","event":"urgent_symptom_intercepted","user_id":"42e9f912-3972-47dc-b0d5-5ebde66d6761"}
+# {"ts":"2026-09-27T12:02:21.380Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:21.382Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:23.204Z","level":"info","event":"user_created","user_id":"ca6b0f2d-9f73-4291-8866-1ed63d37c523","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:23.205Z","level":"info","event":"telegram_linked","user_id":"ca6b0f2d-9f73-4291-8866-1ed63d37c523"}
+# {"ts":"2026-09-27T12:02:23.206Z","level":"warn","event":"urgent_symptom_intercepted","user_id":"ca6b0f2d-9f73-4291-8866-1ed63d37c523"}
+# {"ts":"2026-09-27T12:02:23.271Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:23.273Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:25.140Z","level":"info","event":"user_created","user_id":"902c67ed-086a-4dbf-9017-8e1ca7ac0c9a","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:25.141Z","level":"info","event":"telegram_linked","user_id":"902c67ed-086a-4dbf-9017-8e1ca7ac0c9a"}
+# {"ts":"2026-09-27T12:02:25.143Z","level":"warn","event":"urgent_symptom_intercepted","user_id":"902c67ed-086a-4dbf-9017-8e1ca7ac0c9a"}
+# {"ts":"2026-09-27T12:02:25.205Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:25.207Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:27.064Z","level":"info","event":"user_created","user_id":"5c3a7cd3-ff4c-4356-953e-c6e7c46afd16","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:27.065Z","level":"info","event":"telegram_linked","user_id":"5c3a7cd3-ff4c-4356-953e-c6e7c46afd16"}
+# {"ts":"2026-09-27T12:02:27.089Z","level":"info","event":"time_precision_downgraded"}
+# {"ts":"2026-09-27T12:02:27.098Z","level":"info","event":"journal_event_added","user_id":"5c3a7cd3-ff4c-4356-953e-c6e7c46afd16"}
+# {"ts":"2026-09-27T12:02:27.175Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:27.177Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:29.051Z","level":"info","event":"user_created","user_id":"5b5cc7e4-3fbb-4dae-9676-b983a62afbee","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:29.052Z","level":"info","event":"telegram_linked","user_id":"5b5cc7e4-3fbb-4dae-9676-b983a62afbee"}
+# {"ts":"2026-09-27T12:02:29.056Z","level":"info","event":"pending_question_opened","user_id":"5b5cc7e4-3fbb-4dae-9676-b983a62afbee"}
+# {"ts":"2026-09-27T12:02:29.071Z","level":"info","event":"follow_up_superseded_by_new_topic","user_id":"5b5cc7e4-3fbb-4dae-9676-b983a62afbee"}
+# {"ts":"2026-09-27T12:02:29.079Z","level":"info","event":"journal_event_added","user_id":"5b5cc7e4-3fbb-4dae-9676-b983a62afbee"}
+# {"ts":"2026-09-27T12:02:29.080Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:29.080Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:29.201Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:02:29.203Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:02:31.072Z","level":"info","event":"user_created","user_id":"3c3b3714-9166-4dd6-954e-6e65067a2588","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:02:31.073Z","level":"info","event":"telegram_linked","user_id":"3c3b3714-9166-4dd6-954e-6e65067a2588"}
+# {"ts":"2026-09-27T12:02:31.081Z","level":"info","event":"pending_question_opened","user_id":"3c3b3714-9166-4dd6-954e-6e65067a2588"}
+# {"ts":"2026-09-27T12:02:31.089Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T12:02:31.089Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T12:02:31.089Z","level":"info","event":"health_education_answered"}
+# Subtest: ★★★ 視角：12 個必測句型都解析正確，個人資料授權跟著視角走
+ok 1 - ★★★ 視角：12 個必測句型都解析正確，個人資料授權跟著視角走
+  ---
+  duration_ms: 1.752084
+  type: 'test'
+  ...
+# Subtest: ★★★ 視角：個人資料需要「正面確立」，不是「沒被否定」
+ok 2 - ★★★ 視角：個人資料需要「正面確立」，不是「沒被否定」
+  ---
+  duration_ms: 0.210708
+  type: 'test'
+  ...
+# Subtest: ★★★ 視角：解析器可以下修，不可以上修
+ok 3 - ★★★ 視角：解析器可以下修，不可以上修
+  ---
+  duration_ms: 0.10275
+  type: 'test'
+  ...
+# Subtest: ★★★ 邊界：第三人稱／一般問題絕不輸出個人量測值或個人化判斷
+ok 4 - ★★★ 邊界：第三人稱／一般問題絕不輸出個人量測值或個人化判斷
+  ---
+  duration_ms: 23292.84525
+  type: 'test'
+  ...
+# Subtest: ★★★ 邊界：非自己的問題完全不讀個人健康資料表
+ok 5 - ★★★ 邊界：非自己的問題完全不讀個人健康資料表
+  ---
+  duration_ms: 1716.254416
+  type: 'test'
+  ...
+# Subtest: ★★★ 邊界：自己的問題仍然可以（也應該）使用個人資料
+ok 6 - ★★★ 邊界：自己的問題仍然可以（也應該）使用個人資料
+  ---
+  duration_ms: 1837.086958
+  type: 'test'
+  ...
+# Subtest: ★★★ 衛教：8 個一般問題都有實質答案，主題／面向判定正確
+ok 7 - ★★★ 衛教：8 個一般問題都有實質答案，主題／面向判定正確
+  ---
+  duration_ms: 0.5045
+  type: 'test'
+  ...
+# Subtest: ★★★ 衛教：端到端真的答到主題，而且不回指令清單
+ok 8 - ★★★ 衛教：端到端真的答到主題，而且不回指令清單
+  ---
+  duration_ms: 14055.638416
+  type: 'test'
+  ...
+# Subtest: ★★★ 衛教：認不出主題時誠實說沒把握，仍然不回指令清單
+ok 9 - ★★★ 衛教：認不出主題時誠實說沒把握，仍然不回指令清單
+  ---
+  duration_ms: 1978.07125
+  type: 'test'
+  ...
+# Subtest: ★★★ 第三人稱：不診斷、不用本人資料、但給得出升級指引
+ok 10 - ★★★ 第三人稱：不診斷、不用本人資料、但給得出升級指引
+  ---
+  duration_ms: 1822.910333
+  type: 'test'
+  ...
+# Subtest: ★★★ 第三人稱：描述嚴重症狀時升級指引要更強
+ok 11 - ★★★ 第三人稱：描述嚴重症狀時升級指引要更強
+  ---
+  duration_ms: 0.392416
+  type: 'test'
+  ...
+# Subtest: ★★★ 時間：原文支撐的上限
+ok 12 - ★★★ 時間：原文支撐的上限
+  ---
+  duration_ms: 0.56025
+  type: 'test'
+  ...
+# Subtest: ★★★ 時間：LLM 只能下修，不能上修（對抗性解析結果）
+ok 13 - ★★★ 時間：LLM 只能下修，不能上修（對抗性解析結果）
+  ---
+  duration_ms: 0.160833
+  type: 'test'
+  ...
+# Subtest: ★★★ 時間：被下修之後就不再宣稱先後關係（端到端）
+ok 14 - ★★★ 時間：被下修之後就不再宣稱先後關係（端到端）
+  ---
+  duration_ms: 2016.187667
+  type: 'test'
+  ...
+# Subtest: ★★★ 時間：「剛剛」才可以談先後
+ok 15 - ★★★ 時間：「剛剛」才可以談先後
+  ---
+  duration_ms: 1919.968458
+  type: 'test'
+  ...
+# Subtest: ★★★ 時間：時序關係缺任何一邊都是 unknown
+ok 16 - ★★★ 時間：時序關係缺任何一邊都是 unknown
+  ---
+  duration_ms: 0.207959
+  type: 'test'
+  ...
+# Subtest: ★★ 時間：台北時區的健康日切點（凌晨 4 點）
+ok 17 - ★★ 時間：台北時區的健康日切點（凌晨 4 點）
+  ---
+  duration_ms: 1929.8645
+  type: 'test'
+  ...
+# Subtest: ★★★ 語氣：個人化回答維持對話長度
+ok 18 - ★★★ 語氣：個人化回答維持對話長度
+  ---
+  duration_ms: 1981.116333
+  type: 'test'
+  ...
+# Subtest: ★★★ 語氣：不確定性只講一次
+ok 19 - ★★★ 語氣：不確定性只講一次
+  ---
+  duration_ms: 1981.687083
+  type: 'test'
+  ...
+# Subtest: ★★★ 碰撞：衛教語彙不可以偷走個人查詢、同步、記錄與緊急
+ok 20 - ★★★ 碰撞：衛教語彙不可以偷走個人查詢、同步、記錄與緊急
+  ---
+  duration_ms: 1.153917
+  type: 'test'
+  ...
+# Subtest: ★★★ 碰撞：個人查詢端到端仍然拿得到自己的數據
+ok 21 - ★★★ 碰撞：個人查詢端到端仍然拿得到自己的數據
+  ---
+  duration_ms: 2009.430333
+  type: 'test'
+  ...
+# Subtest: ★★★ 安全：緊急優先於視角與衛教兩條新路徑
+ok 22 - ★★★ 安全：緊急優先於視角與衛教兩條新路徑
+  ---
+  duration_ms: 5707.637125
+  type: 'test'
+  ...
+# Subtest: ★★★ 自我查詢：讀自己的紀錄回答，不寫入、不回指令清單
+ok 23 - ★★★ 自我查詢：讀自己的紀錄回答，不寫入、不回指令清單
+  ---
+  duration_ms: 1967.186625
+  type: 'test'
+  ...
+# Subtest: ★★★ 回歸：視角／衛教改動之後，過期追問仍然會被收掉
+ok 24 - ★★★ 回歸：視角／衛教改動之後，過期追問仍然會被收掉
+  ---
+  duration_ms: 2027.425833
+  type: 'test'
+  ...
+# Subtest: ★★★ 回歸：一般衛教問題不會誤收掉正在等待的追問
+ok 25 - ★★★ 回歸：一般衛教問題不會誤收掉正在等待的追問
+  ---
+  duration_ms: 1955.996208
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 71517.492542

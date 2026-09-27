@@ -1,0 +1,16 @@
+TAP version 13
+# {"ts":"2026-09-27T11:04:57.452Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:04:57.454Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:04:59.118Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:04:59.121Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# START analyzeAssociationFamily oldest
+# END analyzeAssociationFamily oldest
+# START analyzeAssociationFamily middle
+# SQL 100000 SELECT privacy_artifact_id FROM journal_events
+#         WHERE user_id=? AND logical_fact_id=? AND julianday(created_at)<=julianday(?) ORDER BY revision DESC,created_at DESC LIMIT 1 34477616
+# END analyzeAssociationFamily middle
+# START analyzeAssociationFamily same-window-resample
+# SQL 200000 SELECT privacy_artifact_id FROM journal_events
+#         WHERE user_id=? AND logical_fact_id=? AND julianday(created_at)<=julianday(?) ORDER BY revision DESC,created_at DESC LIMIT 1 97250696
+# END analyzeAssociationFamily same-window-resample
+# START analyzeAssociationFamily newest

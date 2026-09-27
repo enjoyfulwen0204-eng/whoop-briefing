@@ -1,0 +1,112 @@
+TAP version 13
+# {"ts":"2026-09-27T11:24:00.085Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:24:00.088Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:24:01.371Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:24:01.373Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:24:07.509Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:24:07.510Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:24:08.810Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:24:08.811Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC2 exact historical replay remains stable after forward episode progression
+ok 1 - RC2 exact historical replay remains stable after forward episode progression
+  ---
+  duration_ms: 7432.146375
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:24:15.177Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:24:15.178Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:24:16.486Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:24:16.487Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC2 repeated historical replay converges without semantic or provenance writes
+ok 2 - RC2 repeated historical replay converges without semantic or provenance writes
+  ---
+  duration_ms: 7669.071917
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:24:26.556Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:24:26.557Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:24:27.869Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:24:27.870Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC2 historical replay stays stable after two forward revisions
+ok 3 - RC2 historical replay stays stable after two forward revisions
+  ---
+  duration_ms: 11379.279917
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:24:33.774Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:24:33.775Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:24:35.083Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:24:35.084Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC2 durable reload resolves replay without process-local cache authority
+ok 4 - RC2 durable reload resolves replay without process-local cache authority
+  ---
+  duration_ms: 7218.3635
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:24:41.231Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:24:41.232Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:24:42.728Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:24:42.728Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC2 exact replay is independent of later processing wall clocks
+ok 5 - RC2 exact replay is independent of later processing wall clocks
+  ---
+  duration_ms: 7457.63025
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:24:46.225Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:24:46.226Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:24:47.558Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:24:47.558Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:24:53.046Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-27T11:24:53.046Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: RC2 lower episode and insight stores require explicit semantic time
+ok 6 - RC2 lower episode and insight stores require explicit semantic time
+  ---
+  duration_ms: 4993.681375
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:24:53.733Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:24:53.734Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:24:55.126Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:24:55.126Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC2 lifecycle ABA rejects stale replay context while a fresh same-generation context succeeds
+ok 7 - RC2 lifecycle ABA rejects stale replay context while a fresh same-generation context succeeds
+  ---
+  duration_ms: 7507.274625
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:25:07.693Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:25:07.694Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:25:09.102Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:25:09.103Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC2 equivalent users cannot resolve each other durable replay state
+ok 8 - RC2 equivalent users cannot resolve each other durable replay state
+  ---
+  duration_ms: 13956.030708
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:25:15.223Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:25:15.224Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:25:16.677Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:25:16.678Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC2 SHADOW replay cannot resolve or mutate LIVE state
+ok 9 - RC2 SHADOW replay cannot resolve or mutate LIVE state
+  ---
+  duration_ms: 7533.196625
+  type: 'test'
+  ...
+# Subtest: RC2 unseen older observation remains deterministic fail-closed and cannot move the episode backward
+ok 10 - RC2 unseen older observation remains deterministic fail-closed and cannot move the episode backward
+  ---
+  duration_ms: 8197.993333
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 83576.389167

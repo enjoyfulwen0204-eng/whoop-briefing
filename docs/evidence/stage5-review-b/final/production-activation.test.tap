@@ -1,0 +1,358 @@
+TAP version 13
+# {"ts":"2026-09-27T14:15:26.987Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:26.996Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:29.362Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:29.363Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:29.370Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:29.372Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T14:15:29.529Z","level":"info","event":"store_sleeps_upserted","user_id":"alice","count":1}
+# {"ts":"2026-09-27T14:15:29.532Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:15:29.535Z","level":"info","event":"canonical_write_classified","user_id":"alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:15:29.543Z","level":"info","event":"whoop_webhook_processed","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:15:29.544Z","level":"info","event":"scheduled_webhook_drain_finished"}
+# {"ts":"2026-09-27T14:15:29.544Z","level":"warn","event":"run_no_active_users"}
+# {"ts":"2026-09-27T14:15:29.546Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T14:15:29.614Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:29.615Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:31.830Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:31.831Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:31.832Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:31.833Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T14:15:31.981Z","level":"info","event":"store_sleeps_upserted","user_id":"alice","count":1}
+# {"ts":"2026-09-27T14:15:31.983Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:15:31.985Z","level":"info","event":"canonical_write_classified","user_id":"alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:15:31.993Z","level":"info","event":"whoop_webhook_processed","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:15:31.994Z","level":"info","event":"scheduled_webhook_drain_finished"}
+# {"ts":"2026-09-27T14:15:31.994Z","level":"warn","event":"run_no_active_users"}
+# {"ts":"2026-09-27T14:15:31.996Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T14:15:32.063Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:32.065Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:33.923Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:33.924Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:33.925Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:33.926Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T14:15:34.080Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T14:15:34.233Z","level":"info","event":"scheduled_webhook_drain_finished"}
+# {"ts":"2026-09-27T14:15:34.233Z","level":"warn","event":"run_no_active_users"}
+# {"ts":"2026-09-27T14:15:34.236Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T14:15:34.251Z","level":"info","event":"store_sleeps_upserted","user_id":"alice","count":1}
+# {"ts":"2026-09-27T14:15:34.256Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:15:34.259Z","level":"info","event":"canonical_write_classified","user_id":"alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:15:34.269Z","level":"info","event":"whoop_webhook_processed","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:15:34.269Z","level":"info","event":"scheduled_webhook_drain_finished"}
+# {"ts":"2026-09-27T14:15:34.269Z","level":"warn","event":"run_no_active_users"}
+# {"ts":"2026-09-27T14:15:34.272Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T14:15:34.344Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:34.346Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:36.534Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:36.535Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:36.536Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:36.539Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T14:15:36.706Z","level":"info","event":"whoop_resource_deleted","user_id":"alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:15:36.727Z","level":"info","event":"whoop_resource_deleted","user_id":"alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:15:36.736Z","level":"info","event":"scheduled_webhook_drain_finished"}
+# {"ts":"2026-09-27T14:15:36.736Z","level":"warn","event":"run_no_active_users"}
+# {"ts":"2026-09-27T14:15:36.738Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T14:15:36.820Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:36.822Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:38.915Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:38.916Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:38.917Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:38.918Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T14:15:39.067Z","level":"warn","event":"whoop_webhook_fetch_failed","event_id":1,"attempt":1}
+# {"ts":"2026-09-27T14:15:39.069Z","level":"info","event":"scheduled_webhook_drain_finished"}
+# {"ts":"2026-09-27T14:15:39.071Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T14:15:39.073Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:15:39.082Z","level":"info","event":"guardian_healthy"}
+# {"ts":"2026-09-27T14:15:39.083Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:15:39.083Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T14:15:39.148Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:39.149Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:41.017Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:41.018Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:41.018Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:41.021Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T14:15:41.172Z","level":"warn","event":"whoop_webhook_fetch_failed","event_id":1,"attempt":1}
+# {"ts":"2026-09-27T14:15:41.176Z","level":"info","event":"store_sleeps_upserted","user_id":"alice","count":1}
+# {"ts":"2026-09-27T14:15:41.179Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:15:41.181Z","level":"info","event":"canonical_write_classified","user_id":"alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:15:41.190Z","level":"info","event":"whoop_webhook_processed","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:15:41.190Z","level":"info","event":"scheduled_webhook_drain_finished"}
+# {"ts":"2026-09-27T14:15:41.190Z","level":"warn","event":"run_no_active_users"}
+# {"ts":"2026-09-27T14:15:41.192Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T14:15:41.255Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:41.257Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:43.345Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:43.345Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:43.346Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:43.348Z","level":"info","event":"store_sleeps_upserted","user_id":"alice","count":1}
+# {"ts":"2026-09-27T14:15:43.351Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:15:43.355Z","level":"info","event":"canonical_write_classified","user_id":"alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:15:43.364Z","level":"info","event":"user_lifecycle_transition","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:43.373Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T14:15:43.573Z","level":"info","event":"whoop_webhook_inactive_user_delete","event_id":1}
+# {"ts":"2026-09-27T14:15:43.575Z","level":"info","event":"whoop_resource_deleted","user_id":"alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:15:43.576Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:15:43.592Z","level":"info","event":"scheduled_webhook_drain_finished"}
+# {"ts":"2026-09-27T14:15:43.593Z","level":"warn","event":"run_no_active_users"}
+# {"ts":"2026-09-27T14:15:43.595Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T14:15:43.673Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:43.675Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:45.653Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:45.654Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:45.655Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:45.656Z","level":"info","event":"user_created","user_id":"bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:45.657Z","level":"info","event":"telegram_linked","user_id":"bob"}
+# {"ts":"2026-09-27T14:15:45.658Z","level":"info","event":"tokens_saved","user_id":"bob","attempt":1}
+# {"ts":"2026-09-27T14:15:45.660Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T14:15:45.867Z","level":"info","event":"store_sleeps_upserted","user_id":"alice","count":1}
+# {"ts":"2026-09-27T14:15:45.870Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:15:45.874Z","level":"info","event":"canonical_write_classified","user_id":"alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:15:45.884Z","level":"info","event":"whoop_webhook_processed","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:15:45.884Z","level":"info","event":"scheduled_webhook_drain_finished"}
+# {"ts":"2026-09-27T14:15:45.885Z","level":"warn","event":"run_no_active_users"}
+# {"ts":"2026-09-27T14:15:45.886Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T14:15:45.972Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:45.975Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:48.028Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:48.029Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:48.029Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:48.145Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:48.152Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"sleep","blocked":0}
+# {"ts":"2026-09-27T14:15:48.156Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"recovery","blocked":0}
+# {"ts":"2026-09-27T14:15:48.160Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"cycle","blocked":0}
+# {"ts":"2026-09-27T14:15:48.164Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"workout","blocked":0}
+# {"ts":"2026-09-27T14:15:48.169Z","level":"info","event":"store_body_measurement_upserted","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:48.172Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1}
+# {"ts":"2026-09-27T14:15:48.183Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:48.266Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:48.268Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:50.212Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:50.213Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:50.214Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:50.335Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:50.402Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:50.405Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:52.426Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:52.427Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:52.428Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:52.539Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:52.544Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"sleep","blocked":0}
+# {"ts":"2026-09-27T14:15:52.548Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"recovery","blocked":0}
+# {"ts":"2026-09-27T14:15:52.552Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"cycle","blocked":0}
+# {"ts":"2026-09-27T14:15:52.557Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"workout","blocked":0}
+# {"ts":"2026-09-27T14:15:52.561Z","level":"info","event":"store_body_measurement_upserted","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:52.564Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1}
+# {"ts":"2026-09-27T14:15:52.576Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:52.722Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:52.816Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:52.819Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:55.157Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:55.158Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:55.159Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:55.255Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:55.260Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"sleep","blocked":0}
+# {"ts":"2026-09-27T14:15:55.264Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"recovery","blocked":0}
+# {"ts":"2026-09-27T14:15:55.268Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"cycle","blocked":0}
+# {"ts":"2026-09-27T14:15:55.272Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"workout","blocked":0}
+# {"ts":"2026-09-27T14:15:55.275Z","level":"info","event":"store_body_measurement_upserted","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:55.280Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1}
+# {"ts":"2026-09-27T14:15:55.290Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:55.387Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:55.392Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"sleep","blocked":0}
+# {"ts":"2026-09-27T14:15:55.396Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"recovery","blocked":0}
+# {"ts":"2026-09-27T14:15:55.399Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"cycle","blocked":0}
+# {"ts":"2026-09-27T14:15:55.402Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"workout","blocked":0}
+# {"ts":"2026-09-27T14:15:55.406Z","level":"info","event":"store_body_measurement_upserted","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:55.408Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":2}
+# {"ts":"2026-09-27T14:15:55.418Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:55.492Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:55.494Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:15:57.392Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:15:57.393Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:57.394Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:15:57.492Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:57.528Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:57.529Z","level":"info","event":"reconcile_claim_busy","user_id":"alice","resource":"sleep"}
+# {"ts":"2026-09-27T14:15:57.530Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:57.537Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"sleep","blocked":0}
+# {"ts":"2026-09-27T14:15:57.538Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# {"ts":"2026-09-27T14:15:57.612Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:15:57.614Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:16:00.383Z","level":"info","event":"user_created","user_id":"paused","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:16:00.384Z","level":"info","event":"telegram_linked","user_id":"paused"}
+# {"ts":"2026-09-27T14:16:00.386Z","level":"info","event":"tokens_saved","user_id":"paused","attempt":1}
+# {"ts":"2026-09-27T14:16:00.387Z","level":"info","event":"user_created","user_id":"disabled","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:16:00.388Z","level":"info","event":"telegram_linked","user_id":"disabled"}
+# {"ts":"2026-09-27T14:16:00.390Z","level":"info","event":"tokens_saved","user_id":"disabled","attempt":1}
+# {"ts":"2026-09-27T14:16:00.391Z","level":"info","event":"user_lifecycle_transition","user_id":"paused"}
+# {"ts":"2026-09-27T14:16:00.401Z","level":"info","event":"user_lifecycle_transition","user_id":"disabled"}
+# {"ts":"2026-09-27T14:16:00.412Z","level":"warn","event":"user_skipped_no_telegram","user_id":"paused"}
+# {"ts":"2026-09-27T14:16:00.412Z","level":"warn","event":"user_skipped_no_telegram","user_id":"disabled"}
+# {"ts":"2026-09-27T14:16:00.514Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:16:00.517Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:16:02.923Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:16:02.924Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:02.925Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:16:03.025Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:03.029Z","level":"info","event":"user_lifecycle_transition","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:03.036Z","level":"warn","event":"account_lifecycle_rejected","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:03.036Z","level":"warn","event":"reconcile_lifecycle_fenced","user_id":"alice","resource":"sleep"}
+# {"ts":"2026-09-27T14:16:03.043Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:03.043Z","level":"warn","event":"account_lifecycle_rejected","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:03.105Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:16:03.108Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:16:04.921Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:16:04.921Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:04.922Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:16:05.029Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:05.034Z","level":"error","event":"reconcile_failed","user_id":"alice","resource":"sleep"}
+# {"ts":"2026-09-27T14:16:05.035Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:05.187Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:05.192Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"sleep","blocked":0}
+# {"ts":"2026-09-27T14:16:05.192Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:05.299Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:16:05.301Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:16:07.196Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:16:07.197Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:07.198Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:16:07.347Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:07.358Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"sleep","blocked":0}
+# {"ts":"2026-09-27T14:16:07.359Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:07.445Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:16:07.448Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:16:09.519Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:16:09.520Z","level":"info","event":"telegram_linked","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:09.520Z","level":"info","event":"tokens_saved","user_id":"alice","attempt":1}
+# {"ts":"2026-09-27T14:16:09.585Z","level":"info","event":"user_created","user_id":"bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:16:09.586Z","level":"info","event":"telegram_linked","user_id":"bob"}
+# {"ts":"2026-09-27T14:16:09.586Z","level":"info","event":"tokens_saved","user_id":"bob","attempt":1}
+# {"ts":"2026-09-27T14:16:09.619Z","level":"info","event":"due_check","user_id":"alice"}
+# {"ts":"2026-09-27T14:16:09.626Z","level":"info","event":"store_sleeps_upserted","user_id":"alice","count":1}
+# {"ts":"2026-09-27T14:16:09.628Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:16:09.631Z","level":"info","event":"canonical_write_classified","user_id":"alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:16:09.638Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"sleep","blocked":0}
+# {"ts":"2026-09-27T14:16:09.639Z","level":"info","event":"fast_reconciliation_finished","user_id":"alice"}
+# Subtest: P1-LIVE-01 canonical scheduler claims and processes a pending webhook event
+ok 1 - P1-LIVE-01 canonical scheduler claims and processes a pending webhook event
+  ---
+  duration_ms: 2637.195
+  type: 'test'
+  ...
+# Subtest: P1-LIVE-02 pending event drains even when no briefing is due
+ok 2 - P1-LIVE-02 pending event drains even when no briefing is due
+  ---
+  duration_ms: 2448.3135
+  type: 'test'
+  ...
+# Subtest: P1-LIVE-03 overlapping Cloudflare/GitHub runs process one event once
+ok 3 - P1-LIVE-03 overlapping Cloudflare/GitHub runs process one event once
+  ---
+  duration_ms: 2276.847375
+  type: 'test'
+  ...
+# Subtest: P1-LIVE-04 drain is batch-bounded and preserves remainder
+ok 4 - P1-LIVE-04 drain is batch-bounded and preserves remainder
+  ---
+  duration_ms: 2465.126
+  type: 'test'
+  ...
+# Subtest: P1-LIVE-05 retryable event failure does not stop normal scheduler work
+ok 5 - P1-LIVE-05 retryable event failure does not stop normal scheduler work
+  ---
+  duration_ms: 2345.191666
+  type: 'test'
+  ...
+# Subtest: P1-LIVE-06 poison event does not starve a later valid event
+ok 6 - P1-LIVE-06 poison event does not starve a later valid event
+  ---
+  duration_ms: 2108.652292
+  type: 'test'
+  ...
+# Subtest: P1-LIVE-07 inactive-user DELETE semantics remain active
+ok 7 - P1-LIVE-07 inactive-user DELETE semantics remain active
+  ---
+  duration_ms: 2403.769875
+  type: 'test'
+  ...
+# Subtest: P1-LIVE-08 Alice webhook event cannot affect Bob
+ok 8 - P1-LIVE-08 Alice webhook event cannot affect Bob
+  ---
+  duration_ms: 2292.058709
+  type: 'test'
+  ...
+# Subtest: P2-LIVE-01 ACTIVE+READY scheduled user automatically runs due FAST reconciliation after sync
+ok 9 - P2-LIVE-01 ACTIVE+READY scheduled user automatically runs due FAST reconciliation after sync
+  ---
+  duration_ms: 2303.728083
+  type: 'test'
+  ...
+# Subtest: P2-LIVE-02 not-due FAST reconciliation performs no provider work
+ok 10 - P2-LIVE-02 not-due FAST reconciliation performs no provider work
+  ---
+  duration_ms: 2142.764584
+  type: 'test'
+  ...
+# Subtest: P2-LIVE-03 second scheduler run before 24-hour cadence does not reconcile twice
+ok 11 - P2-LIVE-03 second scheduler run before 24-hour cadence does not reconcile twice
+  ---
+  duration_ms: 2387.328333
+  type: 'test'
+  ...
+# Subtest: P2-LIVE-04 FAST reconciliation runs again after the 24-hour cadence
+ok 12 - P2-LIVE-04 FAST reconciliation runs again after the 24-hour cadence
+  ---
+  duration_ms: 2703.690958
+  type: 'test'
+  ...
+# Subtest: P2-LIVE-05 overlapping schedulers use durable ownership and do not duplicate resource work
+ok 13 - P2-LIVE-05 overlapping schedulers use durable ownership and do not duplicate resource work
+  ---
+  duration_ms: 2118.661833
+  type: 'test'
+  ...
+# Subtest: P2-LIVE-06 PAUSED and DISABLED users do not run automatic reconciliation
+ok 14 - P2-LIVE-06 PAUSED and DISABLED users do not run automatic reconciliation
+  ---
+  duration_ms: 2867.204041
+  type: 'test'
+  ...
+# Subtest: P2-LIVE-07 lifecycle change during FAST reconciliation rejects stale canonical write
+ok 15 - P2-LIVE-07 lifecycle change during FAST reconciliation rejects stale canonical write
+  ---
+  duration_ms: 2630.452875
+  type: 'test'
+  ...
+# Subtest: P2-LIVE-08 retryable reconciliation failure leaves scheduler healthy and later retryable
+ok 16 - P2-LIVE-08 retryable reconciliation failure leaves scheduler healthy and later retryable
+  ---
+  duration_ms: 2157.068417
+  type: 'test'
+  ...
+# Subtest: P2-LIVE-09 automatic path never invokes DEEP reconciliation
+ok 17 - P2-LIVE-09 automatic path never invokes DEEP reconciliation
+  ---
+  duration_ms: 2166.808042
+  type: 'test'
+  ...
+# Subtest: P2-LIVE-10 Alice automatic reconciliation cannot write Bob data or state
+ok 18 - P2-LIVE-10 Alice automatic reconciliation cannot write Bob data or state
+  ---
+  duration_ms: 2320.188042
+  type: 'test'
+  ...
+# Subtest: P3-LIVE-01 canonical scheduler keeps asynchronous analytics dormant
+ok 19 - P3-LIVE-01 canonical scheduler keeps asynchronous analytics dormant
+  ---
+  duration_ms: 1.006375
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 44787.305291

@@ -1,0 +1,128 @@
+TAP version 13
+# {"ts":"2026-09-27T15:05:55.489Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:55.493Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:05:57.281Z","level":"info","event":"user_created","user_id":"ddc6ff1b-c87d-4995-b353-e0ad037291c4","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:57.283Z","level":"info","event":"tokens_saved","user_id":"ddc6ff1b-c87d-4995-b353-e0ad037291c4","attempt":1}
+# {"ts":"2026-09-27T15:05:57.289Z","level":"info","event":"proactive_event_claimed","user_id":"ddc6ff1b-c87d-4995-b353-e0ad037291c4"}
+# {"ts":"2026-09-27T15:05:57.465Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:57.468Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:05:59.200Z","level":"info","event":"user_created","user_id":"7a61f831-66de-48d0-82cd-ba38c55c782a","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:59.200Z","level":"info","event":"tokens_saved","user_id":"7a61f831-66de-48d0-82cd-ba38c55c782a","attempt":1}
+# {"ts":"2026-09-27T15:05:59.203Z","level":"info","event":"proactive_event_claimed","user_id":"7a61f831-66de-48d0-82cd-ba38c55c782a"}
+# {"ts":"2026-09-27T15:05:59.272Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:59.273Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:06:00.975Z","level":"info","event":"user_created","user_id":"c2d28016-6a81-4e29-b6b5-5d8b6b9198a2","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:06:00.976Z","level":"info","event":"tokens_saved","user_id":"c2d28016-6a81-4e29-b6b5-5d8b6b9198a2","attempt":1}
+# {"ts":"2026-09-27T15:06:00.978Z","level":"info","event":"proactive_event_claimed","user_id":"c2d28016-6a81-4e29-b6b5-5d8b6b9198a2"}
+# {"ts":"2026-09-27T15:06:01.002Z","level":"info","event":"proactive_questions_reaped","user_id":"c2d28016-6a81-4e29-b6b5-5d8b6b9198a2"}
+# {"ts":"2026-09-27T15:06:01.063Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:06:01.065Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:06:02.855Z","level":"info","event":"user_created","user_id":"e2f76f48-5129-4093-9897-9b43e24b1182","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:06:02.855Z","level":"info","event":"tokens_saved","user_id":"e2f76f48-5129-4093-9897-9b43e24b1182","attempt":1}
+# {"ts":"2026-09-27T15:06:02.858Z","level":"info","event":"proactive_event_claimed","user_id":"e2f76f48-5129-4093-9897-9b43e24b1182"}
+# {"ts":"2026-09-27T15:06:02.866Z","level":"info","event":"pending_question_opened","user_id":"e2f76f48-5129-4093-9897-9b43e24b1182"}
+# {"ts":"2026-09-27T15:06:02.938Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:06:02.940Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:06:04.854Z","level":"info","event":"user_created","user_id":"92aa45ab-bf8c-4ae6-9a04-f64f80db38f8","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:06:04.855Z","level":"info","event":"tokens_saved","user_id":"92aa45ab-bf8c-4ae6-9a04-f64f80db38f8","attempt":1}
+# {"ts":"2026-09-27T15:06:04.857Z","level":"info","event":"proactive_event_claimed","user_id":"92aa45ab-bf8c-4ae6-9a04-f64f80db38f8"}
+# {"ts":"2026-09-27T15:06:04.930Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:06:04.931Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:06:07.114Z","level":"info","event":"user_created","user_id":"df2f74d7-0db3-4a3a-bd0c-28f85fe2c6b0","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:06:07.115Z","level":"info","event":"tokens_saved","user_id":"df2f74d7-0db3-4a3a-bd0c-28f85fe2c6b0","attempt":1}
+# {"ts":"2026-09-27T15:06:07.238Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:06:07.241Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:06:09.152Z","level":"info","event":"user_created","user_id":"b913bd2f-15c1-4384-a604-8399a5dcdb2f","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:06:09.153Z","level":"info","event":"tokens_saved","user_id":"b913bd2f-15c1-4384-a604-8399a5dcdb2f","attempt":1}
+# {"ts":"2026-09-27T15:06:09.227Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:06:09.230Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:06:10.843Z","level":"info","event":"user_created","user_id":"ead490d5-6086-4fb1-8985-652b8442bd8d","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:06:10.844Z","level":"info","event":"tokens_saved","user_id":"ead490d5-6086-4fb1-8985-652b8442bd8d","attempt":1}
+# {"ts":"2026-09-27T15:06:10.928Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:06:10.929Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:06:12.927Z","level":"info","event":"user_created","user_id":"32e2075a-391a-4233-a714-b215e962753b","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:06:12.929Z","level":"info","event":"tokens_saved","user_id":"32e2075a-391a-4233-a714-b215e962753b","attempt":1}
+# {"ts":"2026-09-27T15:06:13.070Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:06:13.075Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:06:16.329Z","level":"info","event":"user_created","user_id":"9af14a8b-ed47-4b77-990e-76b61566d261","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:06:16.330Z","level":"info","event":"tokens_saved","user_id":"9af14a8b-ed47-4b77-990e-76b61566d261","attempt":1}
+# {"ts":"2026-09-27T15:06:16.331Z","level":"info","event":"user_created","user_id":"f360a9a1-391a-4af1-a4f6-9cb396cf64bb","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:06:16.397Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:06:16.399Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:06:19.079Z","level":"info","event":"user_created","user_id":"0124d2af-a04a-4a7e-af2d-82ae2b2c661b","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:06:19.080Z","level":"info","event":"tokens_saved","user_id":"0124d2af-a04a-4a7e-af2d-82ae2b2c661b","attempt":1}
+# Subtest: ★★★ M-07: 已送出的 NOTIFY 事件不會被 Guardian 當成卡住
+ok 1 - ★★★ M-07: 已送出的 NOTIFY 事件不會被 Guardian 當成卡住
+  ---
+  duration_ms: 1908.417
+  type: 'test'
+  ...
+# Subtest: ★★★ M-07: NOTIFY 在送出的那一刻就有終局（DELIVERED）
+ok 2 - ★★★ M-07: NOTIFY 在送出的那一刻就有終局（DELIVERED）
+  ---
+  duration_ms: 1884.502334
+  type: 'test'
+  ...
+# Subtest: ★★★ M-07: 收割器不會把 NOTIFY 誤寫成 NO_RESPONSE（沒問過就沒有「沒回應」）
+ok 3 - ★★★ M-07: 收割器不會把 NOTIFY 誤寫成 NO_RESPONSE（沒問過就沒有「沒回應」）
+  ---
+  duration_ms: 1796.421666
+  type: 'test'
+  ...
+# Subtest: ★★ M-07: 真的卡住的 ASK_CONTEXT 事件仍然報得出來（沒有把偵測關掉）
+ok 4 - ★★ M-07: 真的卡住的 ASK_CONTEXT 事件仍然報得出來（沒有把偵測關掉）
+  ---
+  duration_ms: 1873.398417
+  type: 'test'
+  ...
+# Subtest: ★★ M-07: markProactiveEventSent 冪等，不覆寫已有的結論
+ok 5 - ★★ M-07: markProactiveEventSent 冪等，不覆寫已有的結論
+  ---
+  duration_ms: 1991.630542
+  type: 'test'
+  ...
+# Subtest: ★★★ M-08: 授權失敗之後同步已經恢復 → 不再報「需要重新授權」
+ok 6 - ★★★ M-08: 授權失敗之後同步已經恢復 → 不再報「需要重新授權」
+  ---
+  duration_ms: 2274.278417
+  type: 'test'
+  ...
+# Subtest: ★★★ M-08: 還沒恢復（失敗比最後一次成功同步新）→ 照樣要報
+ok 7 - ★★★ M-08: 還沒恢復（失敗比最後一次成功同步新）→ 照樣要報
+  ---
+  duration_ms: 2023.988791
+  type: 'test'
+  ...
+# Subtest: ★★★ M-08: 拿到 token 時清掉失敗紀錄（clearUserErrorNotify）
+ok 8 - ★★★ M-08: 拿到 token 時清掉失敗紀錄（clearUserErrorNotify）
+  ---
+  duration_ms: 1759.187208
+  type: 'test'
+  ...
+# Subtest: ★★ M-08: 沒有紀錄可清時是乾淨的 no-op
+ok 9 - ★★ M-08: 沒有紀錄可清時是乾淨的 no-op
+  ---
+  duration_ms: 2073.978792
+  type: 'test'
+  ...
+# Subtest: ★★★ M-08: 清除只影響這個使用者、這個錯誤類型
+ok 10 - ★★★ M-08: 清除只影響這個使用者、這個錯誤類型
+  ---
+  duration_ms: 3403.455625
+  type: 'test'
+  ...
+# Subtest: ★★ M-08: 從來沒有成功同步過時，恢復判斷不會誤放行
+ok 11 - ★★ M-08: 從來沒有成功同步過時，恢復判斷不會誤放行
+  ---
+  duration_ms: 2760.452917
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 25042.653875

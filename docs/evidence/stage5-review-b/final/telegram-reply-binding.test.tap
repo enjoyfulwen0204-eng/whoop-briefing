@@ -1,0 +1,99 @@
+TAP version 13
+# {"ts":"2026-09-27T14:30:39.230Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:30:39.235Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:30:41.463Z","level":"info","event":"user_created","user_id":"02acd31a-9100-41fe-853b-2e2e38b8c2c5","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:41.466Z","level":"info","event":"telegram_linked","user_id":"02acd31a-9100-41fe-853b-2e2e38b8c2c5"}
+# {"ts":"2026-09-27T14:30:41.572Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:30:41.575Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:30:43.674Z","level":"info","event":"user_created","user_id":"a6ac7987-de90-4a3e-8759-22481f04a203","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:43.675Z","level":"info","event":"telegram_linked","user_id":"a6ac7987-de90-4a3e-8759-22481f04a203"}
+# {"ts":"2026-09-27T14:30:43.734Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:30:43.736Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:30:45.928Z","level":"info","event":"user_created","user_id":"7ad0b3a5-2a8c-48df-b6db-4b40a54f9e19","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:45.929Z","level":"info","event":"telegram_linked","user_id":"7ad0b3a5-2a8c-48df-b6db-4b40a54f9e19"}
+# {"ts":"2026-09-27T14:30:45.930Z","level":"info","event":"user_created","user_id":"603d1dba-1476-4be5-96ee-b3b71e14f656","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:45.932Z","level":"info","event":"telegram_linked","user_id":"603d1dba-1476-4be5-96ee-b3b71e14f656"}
+# {"ts":"2026-09-27T14:30:45.932Z","level":"warn","event":"telegram_reply_suppressed_binding_changed"}
+# {"ts":"2026-09-27T14:30:45.998Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:30:45.999Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:30:47.809Z","level":"info","event":"user_created","user_id":"ef8371da-305f-4147-b2ef-21fe5f8ea545","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:47.811Z","level":"info","event":"telegram_linked","user_id":"ef8371da-305f-4147-b2ef-21fe5f8ea545"}
+# {"ts":"2026-09-27T14:30:47.812Z","level":"info","event":"user_created","user_id":"35503d4e-2487-40c4-b95f-4bbbd5cf82cf","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:47.814Z","level":"info","event":"telegram_linked","user_id":"35503d4e-2487-40c4-b95f-4bbbd5cf82cf"}
+# {"ts":"2026-09-27T14:30:47.922Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:30:47.925Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:30:50.555Z","level":"info","event":"user_created","user_id":"42a376d1-4ba6-4f9c-8990-92b063d8c92f","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:50.556Z","level":"info","event":"telegram_linked","user_id":"42a376d1-4ba6-4f9c-8990-92b063d8c92f"}
+# {"ts":"2026-09-27T14:30:50.558Z","level":"warn","event":"telegram_reply_suppressed_binding_changed"}
+# {"ts":"2026-09-27T14:30:50.632Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:30:50.634Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:30:52.565Z","level":"info","event":"user_created","user_id":"538d1c45-1899-4335-8f14-46168ffc6e18","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:52.566Z","level":"info","event":"telegram_linked","user_id":"538d1c45-1899-4335-8f14-46168ffc6e18"}
+# {"ts":"2026-09-27T14:30:52.568Z","level":"info","event":"user_lifecycle_transition","user_id":"538d1c45-1899-4335-8f14-46168ffc6e18"}
+# {"ts":"2026-09-27T14:30:52.576Z","level":"warn","event":"telegram_reply_suppressed_binding_changed"}
+# {"ts":"2026-09-27T14:30:52.656Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:30:52.658Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:30:54.718Z","level":"info","event":"user_created","user_id":"c3532631-a8a0-46e0-b6c3-bac5865e6057","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:54.719Z","level":"info","event":"telegram_linked","user_id":"c3532631-a8a0-46e0-b6c3-bac5865e6057"}
+# {"ts":"2026-09-27T14:30:54.720Z","level":"warn","event":"telegram_reply_suppressed_binding_changed"}
+# {"ts":"2026-09-27T14:30:54.797Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:30:54.799Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:30:56.715Z","level":"info","event":"user_created","user_id":"4544f925-d891-4e40-9702-f5ec676b0f2a","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:30:56.716Z","level":"info","event":"telegram_linked","user_id":"4544f925-d891-4e40-9702-f5ec676b0f2a"}
+# Subtest: ★★★ HRD-R03 A: 正確綁定的使用者，回覆必須送出去
+ok 1 - ★★★ HRD-R03 A: 正確綁定的使用者，回覆必須送出去
+  ---
+  duration_ms: 2348.181875
+  type: 'test'
+  ...
+# Subtest: ★★★ HRD-R03 D: 守衛比較的是 { user, link } 裡的 user.id
+ok 2 - ★★★ HRD-R03 D: 守衛比較的是 { user, link } 裡的 user.id
+  ---
+  duration_ms: 2206.745875
+  type: 'test'
+  ...
+# Subtest: ★★★ HRD-R03 B: chat 已經換綁給別人 → 不可以把前一個人的回覆送過去
+ok 3 - ★★★ HRD-R03 B: chat 已經換綁給別人 → 不可以把前一個人的回覆送過去
+  ---
+  duration_ms: 2255.94825
+  type: 'test'
+  ...
+# Subtest: ★★★ HRD-R03 B2: 新的擁有者自己的回覆仍然送得出去
+ok 4 - ★★★ HRD-R03 B2: 新的擁有者自己的回覆仍然送得出去
+  ---
+  duration_ms: 1883.164375
+  type: 'test'
+  ...
+# Subtest: ★★★ HRD-R03 C: 綁定已被撤銷 → fail closed，不送
+ok 5 - ★★★ HRD-R03 C: 綁定已被撤銷 → fail closed，不送
+  ---
+  duration_ms: 2742.750042
+  type: 'test'
+  ...
+# Subtest: ★★★ HRD-R03 C2: 使用者被停用 → fail closed，不送
+ok 6 - ★★★ HRD-R03 C2: 使用者被停用 → fail closed，不送
+  ---
+  duration_ms: 2017.833292
+  type: 'test'
+  ...
+# Subtest: ★★★ HRD-R03 C3: 完全不存在的 chat → fail closed，不送
+ok 7 - ★★★ HRD-R03 C3: 完全不存在的 chat → fail closed，不送
+  ---
+  duration_ms: 2144.628083
+  type: 'test'
+  ...
+# Subtest: ★★ HRD-R03: userId 為 null（/link 回覆）時守衛跳過，訊息照送
+ok 8 - ★★ HRD-R03: userId 為 null（/link 回覆）時守衛跳過，訊息照送
+  ---
+  duration_ms: 1995.384792
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18526.594833

@@ -1,0 +1,119 @@
+TAP version 13
+# {"ts":"2026-09-27T11:17:00.768Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:17:00.771Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:17:02.148Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:02.150Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:02.277Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:17:02.279Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:17:03.564Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:03.565Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Journal create is source-controller-only, validated, idempotent and atomically invalidates without touching another tenant
+ok 1 - Journal create is source-controller-only, validated, idempotent and atomically invalidates without touching another tenant
+  ---
+  duration_ms: 1517.268666
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:17:03.682Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:17:03.683Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:17:04.970Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:04.971Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Journal create and correction require complete-source polarity before any fact, purge or generation mutation
+ok 2 - Journal create and correction require complete-source polarity before any fact, purge or generation mutation
+  ---
+  duration_ms: 1405.496666
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:17:05.381Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:17:05.382Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:17:06.864Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:06.864Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Journal correction redacts prior revision, preserves its immutable identity, and delete removes all revisions with a permanent no-resurrection tombstone
+ok 3 - Journal correction redacts prior revision, preserves its immutable identity, and delete removes all revisions with a permanent no-resurrection tombstone
+  ---
+  duration_ms: 1698.954208
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:17:07.286Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:17:07.287Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:17:08.609Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:08.610Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Late wake alignment is an explicit new purged revision and never deletes independent WHOOP canonical records
+ok 4 - Late wake alignment is an explicit new purged revision and never deletes independent WHOOP canonical records
+  ---
+  duration_ms: 1904.015916
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:17:08.995Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:17:08.996Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:17:10.305Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:10.306Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Expired correction staging is physically destroyed outside failed T1; only a freshly validated same-subject assertion can resume the original fence
+ok 5 - Expired correction staging is physically destroyed outside failed T1; only a freshly validated same-subject assertion can resume the original fence
+  ---
+  duration_ms: 1710.510333
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:17:10.565Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:17:10.566Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:17:11.863Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:11.863Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:12.005Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-27T11:17:12.005Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: A valid unexpired correction staging cannot be replaced by arbitrary content or cross-tenant authority
+ok 6 - A valid unexpired correction staging cannot be replaced by arbitrary content or cross-tenant authority
+  ---
+  duration_ms: 1568.293167
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:17:12.142Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:17:12.143Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:17:13.452Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:13.453Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Authenticated restaging replaces stale unexpired authority atomically and converges once after lifecycle, auth or timezone drift
+    # Subtest: lifecycle
+    ok 1 - lifecycle
+      ---
+      duration_ms: 1577.253792
+      type: 'test'
+      ...
+# {"ts":"2026-09-27T11:17:13.733Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:17:13.734Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:17:15.040Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:15.041Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: authorization
+    ok 2 - authorization
+      ---
+      duration_ms: 1589.427125
+      type: 'test'
+      ...
+# {"ts":"2026-09-27T11:17:15.317Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:17:15.318Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:17:16.656Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:17:16.657Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: timezone
+    ok 3 - timezone
+      ---
+      duration_ms: 1585.037709
+      type: 'test'
+      ...
+    1..3
+ok 7 - Authenticated restaging replaces stale unexpired authority atomically and converges once after lifecycle, auth or timezone drift
+  ---
+  duration_ms: 4753.398542
+  type: 'test'
+  ...
+# Subtest: A later deletion may finish before the earlier correction cache acknowledgment without invalidating T2 proof or leaving old revision edges
+ok 8 - A later deletion may finish before the earlier correction cache acknowledgment without invalidating T2 proof or leaving old revision edges
+  ---
+  duration_ms: 1752.605042
+  type: 'test'
+  ...
+1..8
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16528.623666

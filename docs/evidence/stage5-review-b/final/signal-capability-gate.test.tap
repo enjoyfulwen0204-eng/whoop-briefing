@@ -1,0 +1,130 @@
+TAP version 13
+# Subtest: 前置：沒有 capability 限制時，這組資料確實會產生兩種訊號
+ok 1 - 前置：沒有 capability 限制時，這組資料確實會產生兩種訊號
+  ---
+  duration_ms: 2.281375
+  type: 'test'
+  ...
+# Subtest: ★★★ M-04: capability=APP_ONLY_UNAVAILABLE_TO_API → BASELINE_SHIFT 不可以產生
+ok 2 - ★★★ M-04: capability=APP_ONLY_UNAVAILABLE_TO_API → BASELINE_SHIFT 不可以產生
+  ---
+  duration_ms: 0.25775
+  type: 'test'
+  ...
+# Subtest: ★★★ M-04: capability=APP_ONLY_UNAVAILABLE_TO_API → DEVIATION 不可以產生
+ok 3 - ★★★ M-04: capability=APP_ONLY_UNAVAILABLE_TO_API → DEVIATION 不可以產生
+  ---
+  duration_ms: 0.105917
+  type: 'test'
+  ...
+# Subtest: ★★★ M-04: capability=APP_ONLY_UNAVAILABLE_TO_API → detectSignals 對所有監看指標都回空
+ok 4 - ★★★ M-04: capability=APP_ONLY_UNAVAILABLE_TO_API → detectSignals 對所有監看指標都回空
+  ---
+  duration_ms: 1.294666
+  type: 'test'
+  ...
+# Subtest: ★★★ M-04: capability=UNAVAILABLE → BASELINE_SHIFT 不可以產生
+ok 5 - ★★★ M-04: capability=UNAVAILABLE → BASELINE_SHIFT 不可以產生
+  ---
+  duration_ms: 0.2185
+  type: 'test'
+  ...
+# Subtest: ★★★ M-04: capability=UNAVAILABLE → DEVIATION 不可以產生
+ok 6 - ★★★ M-04: capability=UNAVAILABLE → DEVIATION 不可以產生
+  ---
+  duration_ms: 0.07825
+  type: 'test'
+  ...
+# Subtest: ★★★ M-04: capability=UNAVAILABLE → detectSignals 對所有監看指標都回空
+ok 7 - ★★★ M-04: capability=UNAVAILABLE → detectSignals 對所有監看指標都回空
+  ---
+  duration_ms: 0.274041
+  type: 'test'
+  ...
+# Subtest: ★★★ M-04: capability=UNAUTHORIZED → BASELINE_SHIFT 不可以產生
+ok 8 - ★★★ M-04: capability=UNAUTHORIZED → BASELINE_SHIFT 不可以產生
+  ---
+  duration_ms: 0.077459
+  type: 'test'
+  ...
+# Subtest: ★★★ M-04: capability=UNAUTHORIZED → DEVIATION 不可以產生
+ok 9 - ★★★ M-04: capability=UNAUTHORIZED → DEVIATION 不可以產生
+  ---
+  duration_ms: 0.48275
+  type: 'test'
+  ...
+# Subtest: ★★★ M-04: capability=UNAUTHORIZED → detectSignals 對所有監看指標都回空
+ok 10 - ★★★ M-04: capability=UNAUTHORIZED → detectSignals 對所有監看指標都回空
+  ---
+  duration_ms: 0.640833
+  type: 'test'
+  ...
+# Subtest: ★★★ M-04: SIGNAL_TYPE 裡每一種型別都被實際驗證過（新增型別會讓這題掛掉）
+ok 11 - ★★★ M-04: SIGNAL_TYPE 裡每一種型別都被實際驗證過（新增型別會讓這題掛掉）
+  ---
+  duration_ms: 2.354666
+  type: 'test'
+  ...
+# Subtest: ★★ M-04 false positive: capability=null 不算拒絕，訊號照常產生
+ok 12 - ★★ M-04 false positive: capability=null 不算拒絕，訊號照常產生
+  ---
+  duration_ms: 0.21625
+  type: 'test'
+  ...
+# Subtest: ★★ M-04 false positive: capability=undefined 不算拒絕，訊號照常產生
+ok 13 - ★★ M-04 false positive: capability=undefined 不算拒絕，訊號照常產生
+  ---
+  duration_ms: 0.141625
+  type: 'test'
+  ...
+# Subtest: ★★ M-04 false positive: capability=UNKNOWN 不算拒絕，訊號照常產生
+ok 14 - ★★ M-04 false positive: capability=UNKNOWN 不算拒絕，訊號照常產生
+  ---
+  duration_ms: 0.135417
+  type: 'test'
+  ...
+# Subtest: ★★ M-04 false positive: capability=SUPPORTED 不算拒絕，訊號照常產生
+ok 15 - ★★ M-04 false positive: capability=SUPPORTED 不算拒絕，訊號照常產生
+  ---
+  duration_ms: 0.134417
+  type: 'test'
+  ...
+# Subtest: ★★ M-04 false positive: capability=PARTIAL 不算拒絕，訊號照常產生
+ok 16 - ★★ M-04 false positive: capability=PARTIAL 不算拒絕，訊號照常產生
+  ---
+  duration_ms: 0.129917
+  type: 'test'
+  ...
+# Subtest: ★★ M-04: assessChangeDetection(APP_ONLY_UNAVAILABLE_TO_API) 回 UNAVAILABLE，理由與 deviation 一致
+ok 17 - ★★ M-04: assessChangeDetection(APP_ONLY_UNAVAILABLE_TO_API) 回 UNAVAILABLE，理由與 deviation 一致
+  ---
+  duration_ms: 0.08475
+  type: 'test'
+  ...
+# Subtest: ★★ M-04: assessChangeDetection(UNAVAILABLE) 回 UNAVAILABLE，理由與 deviation 一致
+ok 18 - ★★ M-04: assessChangeDetection(UNAVAILABLE) 回 UNAVAILABLE，理由與 deviation 一致
+  ---
+  duration_ms: 0.048084
+  type: 'test'
+  ...
+# Subtest: ★★ M-04: assessChangeDetection(UNAUTHORIZED) 回 UNAVAILABLE，理由與 deviation 一致
+ok 19 - ★★ M-04: assessChangeDetection(UNAUTHORIZED) 回 UNAVAILABLE，理由與 deviation 一致
+  ---
+  duration_ms: 0.044667
+  type: 'test'
+  ...
+# Subtest: ★★ M-04: 樣本充足但 capability 拿不到 → UNAVAILABLE，不是 READY
+ok 20 - ★★ M-04: 樣本充足但 capability 拿不到 → UNAVAILABLE，不是 READY
+  ---
+  duration_ms: 0.090958
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 139.477834

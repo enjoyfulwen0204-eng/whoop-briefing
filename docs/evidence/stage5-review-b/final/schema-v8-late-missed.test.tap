@@ -1,0 +1,89 @@
+TAP version 13
+# {"ts":"2026-09-27T14:25:26.923Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:25:26.927Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:25:28.700Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:25:28.703Z","level":"info","event":"schema_data_migrated","version":14,"rows":1}
+# {"ts":"2026-09-27T14:25:28.704Z","level":"info","event":"schema_data_migrated","version":15,"rows":0}
+# {"ts":"2026-09-27T14:25:28.704Z","level":"info","event":"schema_data_migrated","version":16,"rows":0}
+# {"ts":"2026-09-27T14:25:28.704Z","level":"info","event":"schema_data_migrated","version":18,"rows":0}
+# {"ts":"2026-09-27T14:25:28.704Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T14:25:28.705Z","level":"info","event":"schema_migrated","from":7,"to":20}
+# {"ts":"2026-09-27T14:25:30.505Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:25:30.507Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:25:32.640Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:25:32.642Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:25:34.582Z","level":"info","event":"user_created","user_id":"1eb9900b-4ee5-44ac-bfa9-773e019fd103","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:25:34.740Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:25:34.743Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:25:36.532Z","level":"info","event":"user_created","user_id":"8beb3736-022e-42e4-81d9-97a8929017b0","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:25:36.622Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:25:36.626Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: ★★★ SCHEMA_VERSION 是 16，且新表走純新增路徑
+ok 1 - ★★★ SCHEMA_VERSION 是 16，且新表走純新增路徑
+  ---
+  duration_ms: 1.148625
+  type: 'test'
+  ...
+# Subtest: ★★★ 全新資料庫一次遷移到最新版
+ok 2 - ★★★ 全新資料庫一次遷移到最新版
+  ---
+  duration_ms: 1794.626292
+  type: 'test'
+  ...
+# Subtest: ★★★ 既有的 v7 資料庫升到最新版，而且原有資料原封不動
+ok 3 - ★★★ 既有的 v7 資料庫升到最新版，而且原有資料原封不動
+  ---
+  duration_ms: 1804.609958
+  type: 'test'
+  ...
+# Subtest: ★★★ 遷移可以重跑（冪等），資料不變
+ok 4 - ★★★ 遷移可以重跑（冪等），資料不變
+  ---
+  duration_ms: 2136.2215
+  type: 'test'
+  ...
+# Subtest: ★★★ 每個 (user, report_type) 只有一列，upsert 覆寫（表不會成長）
+ok 5 - ★★★ 每個 (user, report_type) 只有一列，upsert 覆寫（表不會成長）
+  ---
+  duration_ms: 2093.395
+  type: 'test'
+  ...
+# Subtest: ★★★ 併發寫入收斂成一列（Cloudflare 與 GitHub 同時跑）
+ok 6 - ★★★ 併發寫入收斂成一列（Cloudflare 與 GitHub 同時跑）
+  ---
+  duration_ms: 1894.9265
+  type: 'test'
+  ...
+# Subtest: ★★★ 狀態表不存原始 payload、報告全文、祕密或 chat id
+ok 7 - ★★★ 狀態表不存原始 payload、報告全文、祕密或 chat id
+  ---
+  duration_ms: 1819.226334
+  type: 'test'
+  ...
+# Subtest: ★★★ deliveryWindow 的邊界語意（48 小時包含）
+ok 8 - ★★★ deliveryWindow 的邊界語意（48 小時包含）
+  ---
+  duration_ms: 0.433708
+  type: 'test'
+  ...
+# Subtest: ★★★ 邊界不受時區影響（同一個 UTC 瞬間，兩個時區結果一致）
+ok 9 - ★★★ 邊界不受時區影響（同一個 UTC 瞬間，兩個時區結果一致）
+  ---
+  duration_ms: 0.525417
+  type: 'test'
+  ...
+# Subtest: ★★★ 結果詞彙涵蓋所有必要狀態，且終局標記正確
+ok 10 - ★★★ 結果詞彙涵蓋所有必要狀態，且終局標記正確
+  ---
+  duration_ms: 0.652541
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12335.373417

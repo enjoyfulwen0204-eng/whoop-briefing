@@ -1,0 +1,253 @@
+TAP version 13
+# {"ts":"2026-09-27T13:50:36.211Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:36.213Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:37.710Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:37.711Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:37.723Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T13:50:37.730Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:37.731Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:37.742Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T13:50:37.768Z","level":"info","event":"healthspan_metrics_saved","user_id":"u-alice","count":18}
+# {"ts":"2026-09-27T13:50:37.777Z","level":"info","event":"healthspan_snapshot_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:37.842Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:37.843Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:39.814Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:39.815Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:39.827Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T13:50:39.836Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:39.837Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:39.855Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T13:50:39.886Z","level":"info","event":"healthspan_metrics_saved","user_id":"u-alice","count":18}
+# {"ts":"2026-09-27T13:50:39.897Z","level":"info","event":"healthspan_snapshot_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:39.922Z","level":"info","event":"healthspan_metrics_saved","user_id":"u-alice","count":18}
+# {"ts":"2026-09-27T13:50:39.931Z","level":"info","event":"healthspan_snapshot_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:39.956Z","level":"info","event":"healthspan_metrics_saved","user_id":"u-alice","count":18}
+# {"ts":"2026-09-27T13:50:39.968Z","level":"info","event":"healthspan_snapshot_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:40.067Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:40.068Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:41.753Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:41.754Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:41.765Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T13:50:41.773Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:41.774Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:41.784Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T13:50:41.861Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:41.865Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:43.392Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:43.392Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:43.401Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T13:50:43.408Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:43.409Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:43.417Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T13:50:43.426Z","level":"warn","event":"healthspan_snapshot_failed","user_id":"u-alice","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:50:43.499Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:43.502Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:45.466Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:45.467Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:45.478Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T13:50:45.486Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:45.487Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:45.498Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T13:50:45.608Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:45.610Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:49.216Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:49.217Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:49.230Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T13:50:49.237Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:49.237Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:49.246Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T13:50:49.319Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:49.321Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:50.891Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:50.892Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:50.901Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T13:50:50.908Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:50.909Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:50.918Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T13:50:50.943Z","level":"info","event":"healthspan_metrics_saved","user_id":"u-alice","count":18}
+# {"ts":"2026-09-27T13:50:50.956Z","level":"info","event":"healthspan_snapshot_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:50.979Z","level":"info","event":"healthspan_metrics_saved","user_id":"u-bob","count":18}
+# {"ts":"2026-09-27T13:50:50.987Z","level":"info","event":"healthspan_snapshot_saved","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:51.062Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:51.064Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:52.735Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:52.735Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:52.745Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T13:50:52.752Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:52.753Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:52.762Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T13:50:52.828Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:52.830Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:54.469Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:54.469Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:54.482Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T13:50:54.488Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:54.489Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:54.499Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T13:50:54.567Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:54.568Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:56.179Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:56.180Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T13:50:56.192Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T13:50:56.199Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:56.200Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T13:50:56.209Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# Subtest: ★★★ 出貨政策：所有權重都是 null，總開關是關的
+ok 1 - ★★★ 出貨政策：所有權重都是 null，總開關是關的
+  ---
+  duration_ms: 0.993208
+  type: 'test'
+  ...
+# Subtest: ★★★ 資料再充足，score 與 scoreKind 仍然是 null
+ok 2 - ★★★ 資料再充足，score 與 scoreKind 仍然是 null
+  ---
+  duration_ms: 5.439375
+  type: 'test'
+  ...
+# Subtest: ★★★ 只填一部分權重也不算有政策（不可以「填一個就開始給分」）
+ok 3 - ★★★ 只填一部分權重也不算有政策（不可以「填一個就開始給分」）
+  ---
+  duration_ms: 0.144833
+  type: 'test'
+  ...
+# Subtest: ★★★ 就算權重全填、開關也開，maturity 不對仍然不給分數
+ok 4 - ★★★ 就算權重全填、開關也開，maturity 不對仍然不給分數
+  ---
+  duration_ms: 0.14475
+  type: 'test'
+  ...
+# Subtest: ★★★ 對外文字絕不出現 WHOOP Age 或官方 Healthspan 評分
+ok 5 - ★★★ 對外文字絕不出現 WHOOP Age 或官方 Healthspan 評分
+  ---
+  duration_ms: 3.344125
+  type: 'test'
+  ...
+# Subtest: ★★★ 輸出裡沒有任何綜合分數或推估年齡的**數值**
+ok 6 - ★★★ 輸出裡沒有任何綜合分數或推估年齡的**數值**
+  ---
+  duration_ms: 1.593
+  type: 'test'
+  ...
+# Subtest: ★ 明確聲明與 WHOOP App 的評分無關
+ok 7 - ★ 明確聲明與 WHOOP App 的評分無關
+  ---
+  duration_ms: 0.976
+  type: 'test'
+  ...
+# Subtest: ★★ 原始碼裡沒有任何 WHOOP Age 的實作意圖
+ok 8 - ★★ 原始碼裡沒有任何 WHOOP Age 的實作意圖
+  ---
+  duration_ms: 0.694917
+  type: 'test'
+  ...
+# Subtest: ★★★ 成熟度由 readiness 決定，不是日曆天數
+ok 9 - ★★★ 成熟度由 readiness 決定，不是日曆天數
+  ---
+  duration_ms: 0.580333
+  type: 'test'
+  ...
+# Subtest: ★★★ 有 180 天日曆歷史但資料稀疏 → 不會因為「天數夠」就解鎖
+ok 10 - ★★★ 有 180 天日曆歷史但資料稀疏 → 不會因為「天數夠」就解鎖
+  ---
+  duration_ms: 1.126042
+  type: 'test'
+  ...
+# Subtest: ★ 歷史長度標籤純粹是描述性的
+ok 11 - ★ 歷史長度標籤純粹是描述性的
+  ---
+  duration_ms: 0.178625
+  type: 'test'
+  ...
+# Subtest: 零資料 → NO_DATA，而且不會當掉
+ok 12 - 零資料 → NO_DATA，而且不會當掉
+  ---
+  duration_ms: 0.232625
+  type: 'test'
+  ...
+# Subtest: ★★ probe 說拿不到 → contributor 標成 UNAVAILABLE，且不算進覆蓋率分子
+ok 13 - ★★ probe 說拿不到 → contributor 標成 UNAVAILABLE，且不算進覆蓋率分子
+  ---
+  duration_ms: 1.647792
+  type: 'test'
+  ...
+# Subtest: ★★ UNKNOWN 不會讓 contributor 變成 UNAVAILABLE
+ok 14 - ★★ UNKNOWN 不會讓 contributor 變成 UNAVAILABLE
+  ---
+  duration_ms: 0.88025
+  type: 'test'
+  ...
+# Subtest: ★★ APP_ONLY 的三個不算進覆蓋率分母（否則永遠上不去）
+ok 15 - ★★ APP_ONLY 的三個不算進覆蓋率分母（否則永遠上不去）
+  ---
+  duration_ms: 0.852791
+  type: 'test'
+  ...
+# Subtest: ★★★ 快照真的被寫進去，而且 score / score_kind 都是 NULL
+ok 16 - ★★★ 快照真的被寫進去，而且 score / score_kind 都是 NULL
+  ---
+  duration_ms: 1640.036917
+  type: 'test'
+  ...
+# Subtest: ★★ 快照是冪等的：同一天同一版本重跑只會有一列
+ok 17 - ★★ 快照是冪等的：同一天同一版本重跑只會有一列
+  ---
+  duration_ms: 2188.137042
+  type: 'test'
+  ...
+# Subtest: ★ 完全沒資料時不寫任何快照（不留一列全 null 的垃圾）
+ok 18 - ★ 完全沒資料時不寫任何快照（不留一列全 null 的垃圾）
+  ---
+  duration_ms: 1822.163583
+  type: 'test'
+  ...
+# Subtest: ★★ 寫入失敗不會拋錯（附加能力不可以拖垮任何東西）
+ok 19 - ★★ 寫入失敗不會拋錯（附加能力不可以拖垮任何東西）
+  ---
+  duration_ms: 1624.974875
+  type: 'test'
+  ...
+# Subtest: runHealthspanSnapshot 缺 userId 一律拋錯
+ok 20 - runHealthspanSnapshot 缺 userId 一律拋錯
+  ---
+  duration_ms: 2075.434917
+  type: 'test'
+  ...
+# Subtest: ★ 損壞的 contributors JSON 讀回來不會讓查詢炸掉
+ok 21 - ★ 損壞的 contributors JSON 讀回來不會讓查詢炸掉
+  ---
+  duration_ms: 2241.1325
+  type: 'test'
+  ...
+# Subtest: ★★★ Alice 與 Bob 的 healthspan 完全隔離（同日期、同版本）
+ok 22 - ★★★ Alice 與 Bob 的 healthspan 完全隔離（同日期、同版本）
+  ---
+  duration_ms: 1738.358375
+  type: 'test'
+  ...
+# Subtest: ★★ /healthspan 在零資料時給誠實的回覆
+ok 23 - ★★ /healthspan 在零資料時給誠實的回覆
+  ---
+  duration_ms: 1770.343958
+  type: 'test'
+  ...
+# Subtest: ★★★ /healthspan 在資料充足時仍然不給分數
+ok 24 - ★★★ /healthspan 在資料充足時仍然不給分數
+  ---
+  duration_ms: 1737.719
+  type: 'test'
+  ...
+# Subtest: ★ /healthspan 會列出每一項指標拿不拿得到
+ok 25 - ★ /healthspan 會列出每一項指標拿不拿得到
+  ---
+  duration_ms: 1710.195792
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 19573.049792

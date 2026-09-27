@@ -1,0 +1,62 @@
+TAP version 13
+# {"ts":"2026-09-27T10:56:09.139Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:56:09.145Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:56:11.032Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# Subtest: M003/N: equivalent normal-driver processes contend, replay one receipt and release every completed lease
+not ok 1 - M003/N: equivalent normal-driver processes contend, replay one receipt and release every completed lease
+  ---
+  duration_ms: 2717.140375
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:32:1'
+  failureType: 'testCodeFailure'
+  error: '{"kind":"error","code":"SQLITE_BUSY","message":"SQLITE_BUSY: database is locked"}'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    check (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:26:89)
+    ChildProcess.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:19:79)
+    ChildProcess.emit (node:events:519:28)
+    emit (node:internal/child_process:949:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+  ...
+# Subtest: T001: timeout runner kills its test worker and grandchild, reports TIMEOUT
+not ok 2 - T001: timeout runner kills its test worker and grandchild, reports TIMEOUT
+  ---
+  duration_ms: 187.111666
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:49:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"file":"test/hang.test.js","code":0,"signal":null,"classification":"PASS","tests":0,"passed":0,"failed":0,"cancelled":0,"skipped":0,"assertionFailures":[],"durationMs":108,"log":"/var/folders/vc/9q1z_jg57wsggjs8fb_c3c4h0000gn/T/stage5-review-b-timeout-cVaB5r/results/hang.test.js.log"}
+    
+    + actual - expected
+    
+      {
+    +   code: 0,
+    -   code: 1,
+        signal: null
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    code: 1
+    signal: ~
+  actual:
+    code: 0
+    signal: ~
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:59:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3427.112166

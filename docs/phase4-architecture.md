@@ -2868,6 +2868,8 @@ The consolidated closure supersedes the partial RC6/RC7 return projections. V25 
 
 See [the complete closure contract](phase4-stage5-closure.md) for the projection inventory, replay surface, read/error contracts, bounds, privacy oracle and frozen A–N verification matrix. The v27 migration is additive and SHADOW-only. Stage 6 has not started; v28/v29 remain future specifications.
 
+The fixed Review B repair delta retains v27 and addresses legacy purge closure, typed admission of supporting evidence, semantic-time insight selection and episode chronology, process contention and context ownership, and lossless own-key JSON identity. Its implementation must return to the same fixed Review B session; it is not an independent-review pass or production release. The original consolidated report/evidence remains a historical checkpoint.
+
 ### V28 and v29 future additive locked-scope extensions (not implemented)
 
 V21–v24 are completed Foundation versions and must not be reopened, renumbered, or silently extended. The locked requirements added on 2026-09-25 require reviewed forward migrations before implementation. Version ownership is dependency ordered and indivisible:

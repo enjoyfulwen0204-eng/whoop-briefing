@@ -1,0 +1,176 @@
+TAP version 13
+# {"ts":"2026-09-27T14:24:47.980Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:47.987Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:47.995Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.001Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.004Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:24:48.009Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.012Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.013Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.015Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.017Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.018Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.020Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.022Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.022Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.025Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.026Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.027Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.029Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.031Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.033Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.035Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.035Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.039Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.041Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:24:48.043Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.045Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.045Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.050Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.050Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:24:48.054Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.055Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.056Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.061Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.061Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:24:48.063Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.065Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.065Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.069Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.069Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:24:48.071Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.073Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.073Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.078Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.079Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:24:48.081Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.083Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.083Z","level":"info","event":"daily_sent"}
+# {"ts":"2026-09-27T14:24:48.087Z","level":"warn","event":"narrative_plan_rejected"}
+# {"ts":"2026-09-27T14:24:48.088Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:24:48.094Z","level":"info","event":"daily_wake_detected"}
+# {"ts":"2026-09-27T14:24:48.096Z","level":"info","event":"narrative_deterministic"}
+# {"ts":"2026-09-27T14:24:48.096Z","level":"info","event":"daily_sent"}
+# Subtest: ★★★ H-05 daily: 看起來完全安全的語氣潤飾也不會被發布
+ok 1 - ★★★ H-05 daily: 看起來完全安全的語氣潤飾也不會被發布
+  ---
+  duration_ms: 53.758666
+  type: 'test'
+  ...
+# Subtest: ★★★ H-05 weekly: 看起來完全安全的語氣潤飾也不會被發布
+ok 2 - ★★★ H-05 weekly: 看起來完全安全的語氣潤飾也不會被發布
+  ---
+  duration_ms: 7.737584
+  type: 'test'
+  ...
+# Subtest: ★★★ H-05 daily: 稽核重現的那一句（無數字、無指標名的因果生理宣稱）
+ok 3 - ★★★ H-05 daily: 稽核重現的那一句（無數字、無指標名的因果生理宣稱）
+  ---
+  duration_ms: 8.390292
+  type: 'test'
+  ...
+# Subtest: ★★★ H-05 daily: 發明出來的生理概念也一樣進不來
+ok 4 - ★★★ H-05 daily: 發明出來的生理概念也一樣進不來
+  ---
+  duration_ms: 13.971917
+  type: 'test'
+  ...
+# Subtest: ★★★ H-05 daily: 合法計畫會被採用，但輸出仍然全部是應用程式的句子
+ok 5 - ★★★ H-05 daily: 合法計畫會被採用，但輸出仍然全部是應用程式的句子
+  ---
+  duration_ms: 3.925834
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 daily: 教練文字引述數字 → 丟掉；報告的數字完全不受影響
+ok 6 - ★★★ R3-H-02 daily: 教練文字引述數字 → 丟掉；報告的數字完全不受影響
+  ---
+  duration_ms: 4.302958
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 weekly: 教練文字引述數字 → 丟掉；週回顧的數字不受影響
+ok 7 - ★★★ R3-H-02 weekly: 教練文字引述數字 → 丟掉；週回顧的數字不受影響
+  ---
+  duration_ms: 5.51675
+  type: 'test'
+  ...
+# Subtest: ★ P0-B daily: 捏造的數字（HRV 999ms）被擋下，不會進 Telegram
+ok 8 - ★ P0-B daily: 捏造的數字（HRV 999ms）被擋下，不會進 Telegram
+  ---
+  duration_ms: 4.541041
+  type: 'test'
+  ...
+# Subtest: ★ P0-B weekly: 捏造的數字被擋下
+ok 9 - ★ P0-B weekly: 捏造的數字被擋下
+  ---
+  duration_ms: 5.044667
+  type: 'test'
+  ...
+# Subtest: ★ P0-C daily: 診斷措辭被擋下
+ok 10 - ★ P0-C daily: 診斷措辭被擋下
+  ---
+  duration_ms: 6.369625
+  type: 'test'
+  ...
+# Subtest: ★ P0-C weekly: 診斷措辭被擋下
+ok 11 - ★ P0-C weekly: 診斷措辭被擋下
+  ---
+  duration_ms: 3.736208
+  type: 'test'
+  ...
+# Subtest: ★ P0-D daily: 強因果語言被擋下
+ok 12 - ★ P0-D daily: 強因果語言被擋下
+  ---
+  duration_ms: 4.331916
+  type: 'test'
+  ...
+# Subtest: ★ P0-D weekly: 強因果語言被擋下
+ok 13 - ★ P0-D weekly: 強因果語言被擋下
+  ---
+  duration_ms: 3.583041
+  type: 'test'
+  ...
+# Subtest: ★ P0-E daily: 宣稱即時心率被擋下
+ok 14 - ★ P0-E daily: 宣稱即時心率被擋下
+  ---
+  duration_ms: 3.86575
+  type: 'test'
+  ...
+# Subtest: ★ P0-E weekly: 宣稱即時監測被擋下
+ok 15 - ★ P0-E weekly: 宣稱即時監測被擋下
+  ---
+  duration_ms: 5.653459
+  type: 'test'
+  ...
+# Subtest: ★ P0-F daily: 守門擋下敘述後，確定性簡報仍完整送出並寫入 SENT
+ok 16 - ★ P0-F daily: 守門擋下敘述後，確定性簡報仍完整送出並寫入 SENT
+  ---
+  duration_ms: 4.367708
+  type: 'test'
+  ...
+# Subtest: ★ P0-F weekly: 守門擋下敘述後，週回顧仍完整送出並寫入 SENT
+ok 17 - ★ P0-F weekly: 守門擋下敘述後，週回顧仍完整送出並寫入 SENT
+  ---
+  duration_ms: 5.054125
+  type: 'test'
+  ...
+# Subtest: P0: LLM 本來就掛掉（回 null）時行為與修復前相同
+ok 18 - P0: LLM 本來就掛掉（回 null）時行為與修復前相同
+  ---
+  duration_ms: 7.818875
+  type: 'test'
+  ...
+# Subtest: P0: 守門用的 context 只含確定性資料（不含任何 LLM 產物）
+ok 19 - P0: 守門用的 context 只含確定性資料（不含任何 LLM 產物）
+  ---
+  duration_ms: 5.96825
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 364.544291

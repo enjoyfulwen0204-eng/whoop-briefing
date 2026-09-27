@@ -1,0 +1,330 @@
+TAP version 13
+# {"ts":"2026-09-27T11:58:24.340Z","level":"info","event":"briefing_trigger_received","request_id":"46a7d6a9-8b85-4df8-a5a3-f5f52c31a4e3"}
+# Subtest: HMAC canonicalization matches Worker Web Crypto signing
+ok 1 - HMAC canonicalization matches Worker Web Crypto signing
+  ---
+  duration_ms: 8.2275
+  type: 'test'
+  ...
+# Subtest: authentication binds signature to timestamp, id, method, path, and body
+ok 2 - authentication binds signature to timestamp, id, method, path, and body
+  ---
+  duration_ms: 1.715041
+  type: 'test'
+  ...
+# Subtest: authentication rejects stale, future, and malformed timestamps
+ok 3 - authentication rejects stale, future, and malformed timestamps
+  ---
+  duration_ms: 0.341084
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:58:24.347Z","level":"info","event":"briefing_trigger_finished","request_id":"46a7d6a9-8b85-4df8-a5a3-f5f52c31a4e3","duration_ms":7}
+# {"ts":"2026-09-27T11:58:24.348Z","level":"info","event":"briefing_trigger_received","request_id":"bd96c0f0-d481-44dc-8cc5-7176fa63ef9b"}
+# {"ts":"2026-09-27T11:58:24.348Z","level":"info","event":"briefing_trigger_received","request_id":"c7b1eb82-719c-4850-b4ae-12b8dc41668a"}
+# Subtest: endpoint returns aggregate-only result and suppresses duplicate request ID in memory
+ok 4 - endpoint returns aggregate-only result and suppresses duplicate request ID in memory
+  ---
+  duration_ms: 8.061666
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:58:24.348Z","level":"info","event":"briefing_trigger_finished","request_id":"bd96c0f0-d481-44dc-8cc5-7176fa63ef9b","duration_ms":0}
+# {"ts":"2026-09-27T11:58:24.348Z","level":"info","event":"briefing_trigger_finished","request_id":"c7b1eb82-719c-4850-b4ae-12b8dc41668a","duration_ms":0}
+# {"ts":"2026-09-27T11:58:24.348Z","level":"warn","event":"briefing_trigger_rejected"}
+# {"ts":"2026-09-27T11:58:24.349Z","level":"info","event":"briefing_trigger_received","request_id":"f4dba4e1-fe46-4965-94d2-b78871affffc"}
+# {"ts":"2026-09-27T11:58:24.349Z","level":"info","event":"briefing_trigger_finished","request_id":"f4dba4e1-fe46-4965-94d2-b78871affffc","duration_ms":0}
+# Subtest: different request IDs coalesce onto one active canonical process run
+ok 5 - different request IDs coalesce onto one active canonical process run
+  ---
+  duration_ms: 0.912084
+  type: 'test'
+  ...
+# Subtest: endpoint rejects media type, malformed/large body, auth failure, and reports partial failure
+ok 6 - endpoint rejects media type, malformed/large body, auth failure, and reports partial failure
+  ---
+  duration_ms: 0.535458
+  type: 'test'
+  ...
+# Subtest: scheduler-only env is fail-closed without taking down inbound configuration
+ok 7 - scheduler-only env is fail-closed without taking down inbound configuration
+  ---
+  duration_ms: 0.245792
+  type: 'test'
+  ...
+# {"event":"briefing_trigger_ok","attempt":3,"status":200}
+# {"ts":"2026-09-27T11:58:24.353Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.353Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.353Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.353Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.353Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.353Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.353Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.353Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.353Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.353Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.354Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.355Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.356Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.357Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.357Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.357Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.357Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.357Z","level":"warn","event":"scheduler_watchdog_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.358Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.359Z","level":"info","event":"scheduler_watchdog_state"}
+# Subtest: Worker re-signs each retry while preserving logical request ID
+ok 8 - Worker re-signs each retry while preserving logical request ID
+  ---
+  duration_ms: 3.008166
+  type: 'test'
+  ...
+# Subtest: scheduler role policy covers observed GitHub gaps without healthy-primary alerts
+ok 9 - scheduler role policy covers observed GitHub gaps without healthy-primary alerts
+  ---
+  duration_ms: 4.888125
+  type: 'test'
+  ...
+# Subtest: primary outage alerts obey cooldown, delivery failure, and concurrent atomic claims
+ok 10 - primary outage alerts obey cooldown, delivery failure, and concurrent atomic claims
+  ---
+  duration_ms: 1.777583
+  type: 'test'
+  ...
+# Subtest: briefing status is vendor/topology-free in every product state
+ok 11 - briefing status is vendor/topology-free in every product state
+  ---
+  duration_ms: 0.875
+  type: 'test'
+  ...
+# Subtest: redirects are terminal, never followed, and placeholder/query URLs fail closed
+ok 12 - redirects are terminal, never followed, and placeholder/query URLs fail closed
+  ---
+  duration_ms: 4.319166
+  type: 'test'
+  ...
+# Subtest: redirect rejection is terminal and never retried three times
+ok 13 - redirect rejection is terminal and never retried three times
+  ---
+  duration_ms: 0.806584
+  type: 'test'
+  ...
+# Subtest: worker failure categories are distinguishable and leak nothing
+ok 14 - worker failure categories are distinguishable and leak nothing
+  ---
+  duration_ms: 2.062542
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:58:24.370Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T11:58:24.370Z","level":"warn","event":"onboarding_resume_list_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:58:24.370Z","level":"warn","event":"run_no_active_users"}
+# {"ts":"2026-09-27T11:58:24.370Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T11:58:24.370Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T11:58:24.370Z","level":"warn","event":"onboarding_resume_list_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:58:24.370Z","level":"warn","event":"run_no_active_users"}
+# {"ts":"2026-09-27T11:58:24.370Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T11:58:24.370Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T11:58:24.371Z","level":"warn","event":"onboarding_resume_list_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:58:24.371Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.371Z","level":"info","event":"guardian_healthy"}
+# {"ts":"2026-09-27T11:58:24.371Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T11:58:24.371Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T11:58:24.371Z","level":"warn","event":"onboarding_resume_list_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:58:24.371Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.371Z","level":"info","event":"guardian_healthy"}
+# {"ts":"2026-09-27T11:58:24.371Z","level":"info","event":"run_done"}
+# {"ts":"2026-09-27T11:58:24.371Z","level":"info","event":"run_start"}
+# {"ts":"2026-09-27T11:58:24.372Z","level":"warn","event":"onboarding_resume_list_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:58:24.372Z","level":"info","event":"scheduler_watchdog_state"}
+# {"ts":"2026-09-27T11:58:24.372Z","level":"info","event":"guardian_healthy"}
+# {"ts":"2026-09-27T11:58:24.372Z","level":"info","event":"run_done"}
+# Subtest: real AbortController path aborts each hanging attempt and clears every timer
+ok 15 - real AbortController path aborts each hanging attempt and clears every timer
+  ---
+  duration_ms: 1.039625
+  type: 'test'
+  ...
+# Subtest: CLI and Render endpoint reference the same exported canonical runner
+ok 16 - CLI and Render endpoint reference the same exported canonical runner
+  ---
+  duration_ms: 0.667041
+  type: 'test'
+  ...
+# Subtest: zero-user execution is successful liveness, records heartbeat, and sends no alerts
+ok 17 - zero-user execution is successful liveness, records heartbeat, and sends no alerts
+  ---
+  duration_ms: 0.994834
+  type: 'test'
+  ...
+# Subtest: provider liveness is separate from per-user outcomes
+ok 18 - provider liveness is separate from per-user outcomes
+  ---
+  duration_ms: 1.681209
+  type: 'test'
+  ...
+# Subtest: redirect mode is one the Workers runtime actually implements
+ok 19 - redirect mode is one the Workers runtime actually implements
+  ---
+  duration_ms: 0.396167
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 299.852125

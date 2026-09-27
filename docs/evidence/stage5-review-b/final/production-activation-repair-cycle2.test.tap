@@ -1,0 +1,103 @@
+TAP version 13
+# {"ts":"2026-09-27T15:09:59.249Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:09:59.255Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:01.419Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:01.444Z","level":"info","event":"store_sleeps_upserted","user_id":"alice","count":1}
+# {"ts":"2026-09-27T15:10:01.447Z","level":"info","event":"analytics_invalidated","user_id":"alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T15:10:01.450Z","level":"info","event":"canonical_write_classified","user_id":"alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T15:10:01.462Z","level":"warn","event":"reconcile_diagnostics_failed","user_id":"alice","resource":"sleep","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:10:01.462Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"sleep","blocked":0}
+# {"ts":"2026-09-27T15:10:01.531Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:01.533Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:03.199Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:03.201Z","level":"info","event":"whoop_resource_deleted","user_id":"alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T15:10:03.216Z","level":"warn","event":"reconcile_diagnostics_failed","user_id":"alice","resource":"sleep","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:10:03.216Z","level":"info","event":"reconcile_done","user_id":"alice","resource":"sleep","blocked":0}
+# {"ts":"2026-09-27T15:10:03.322Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:03.326Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:05.671Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:05.673Z","level":"info","event":"whoop_resource_deleted","user_id":"alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T15:10:05.777Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:05.779Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:07.765Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:07.766Z","level":"info","event":"whoop_resource_deleted","user_id":"alice","resource_type":"recovery"}
+# {"ts":"2026-09-27T15:10:07.847Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:07.849Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:10.343Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:10.344Z","level":"info","event":"whoop_resource_deleted","user_id":"alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T15:10:10.426Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:10.428Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:12.592Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:12.593Z","level":"info","event":"whoop_resource_deleted","user_id":"alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T15:10:12.609Z","level":"info","event":"user_lifecycle_transition","user_id":"alice"}
+# {"ts":"2026-09-27T15:10:12.621Z","level":"info","event":"user_lifecycle_transition","user_id":"alice"}
+# {"ts":"2026-09-27T15:10:12.754Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:10:12.758Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:10:14.904Z","level":"info","event":"user_created","user_id":"alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:14.905Z","level":"info","event":"user_created","user_id":"bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:10:14.906Z","level":"info","event":"whoop_resource_deleted","user_id":"bob","resource_type":"sleep"}
+# Subtest: REC-RC2-01 owner transfer prevents the old worker from inserting MISSING_REMOTE
+ok 1 - REC-RC2-01 owner transfer prevents the old worker from inserting MISSING_REMOTE
+  ---
+  duration_ms: 2288.692166
+  type: 'test'
+  ...
+# Subtest: REC-RC2-02 owner transfer prevents stale tombstone verdict and checked-at writes
+ok 2 - REC-RC2-02 owner transfer prevents stale tombstone verdict and checked-at writes
+  ---
+  duration_ms: 1753.826292
+  type: 'test'
+  ...
+# Subtest: REC-RC2-03 matching owner with an expired lease cannot write diagnostics
+ok 3 - REC-RC2-03 matching owner with an expired lease cannot write diagnostics
+  ---
+  duration_ms: 2466.297125
+  type: 'test'
+  ...
+# Subtest: REC-RC2-04 a sleep lease cannot authorize recovery diagnostics
+ok 4 - REC-RC2-04 a sleep lease cannot authorize recovery diagnostics
+  ---
+  duration_ms: 2088.403709
+  type: 'test'
+  ...
+# Subtest: REC-RC2-05 current owner, live lease, resource, and lifecycle can write and settle
+ok 5 - REC-RC2-05 current owner, live lease, resource, and lifecycle can write and settle
+  ---
+  duration_ms: 2583.19975
+  type: 'test'
+  ...
+# Subtest: REC-RC2-06 current owner cannot write with a stale lifecycle generation
+ok 6 - REC-RC2-06 current owner cannot write with a stale lifecycle generation
+  ---
+  duration_ms: 2274.827667
+  type: 'test'
+  ...
+# Subtest: REC-RC2-07 Alice owner cannot mutate Bob diagnostic state
+ok 7 - REC-RC2-07 Alice owner cannot mutate Bob diagnostic state
+  ---
+  duration_ms: 2282.540958
+  type: 'test'
+  ...
+# Subtest: DOC-RC2-01 README and deployment guides distinguish liveness from scheduler readiness
+ok 8 - DOC-RC2-01 README and deployment guides distinguish liveness from scheduler readiness
+  ---
+  duration_ms: 2.293375
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:10:15.363Z","level":"info","event":"briefing_trigger_received","request_id":"rc2-readiness-id-0001"}
+# {"ts":"2026-09-27T15:10:15.363Z","level":"info","event":"briefing_trigger_finished","request_id":"rc2-readiness-id-0001","duration_ms":0}
+# Subtest: CFG-RC2-01 complete config is ready; missing WHOOP_CLIENT_ID is live but unavailable
+ok 9 - CFG-RC2-01 complete config is ready; missing WHOOP_CLIENT_ID is live but unavailable
+  ---
+  duration_ms: 445.178208
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16514.54425

@@ -1,0 +1,106 @@
+TAP version 13
+# {"ts":"2026-09-27T15:05:22.960Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:22.964Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:05:24.920Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:24.922Z","level":"info","event":"user_created","user_id":"u-test-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:25.148Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:25.150Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:05:27.119Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:27.120Z","level":"info","event":"user_created","user_id":"u-test-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:27.122Z","level":"info","event":"tokens_saved","user_id":"u-test","attempt":1}
+# {"ts":"2026-09-27T15:05:27.123Z","level":"info","event":"tokens_saved","user_id":"u-test","attempt":1}
+# {"ts":"2026-09-27T15:05:27.185Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:27.187Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:05:28.853Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:28.854Z","level":"info","event":"user_created","user_id":"u-test-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:28.958Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:28.960Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:05:30.598Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:30.598Z","level":"info","event":"user_created","user_id":"u-test-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:30.689Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:30.691Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:05:32.892Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:32.894Z","level":"info","event":"user_created","user_id":"u-test-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:32.997Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:33.000Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:05:34.765Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:34.765Z","level":"info","event":"user_created","user_id":"u-test-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:34.766Z","level":"warn","event":"tokens_save_failed","user_id":"u-test","attempt":1,"error":"OPERATION_FAILED"}
+# Subtest: migrate 建出所有資料表與去重索引，且可重複執行
+ok 1 - migrate 建出所有資料表與去重索引，且可重複執行
+  ---
+  duration_ms: 2204.539125
+  type: 'test'
+  ...
+# Subtest: token：每個使用者一列，refresh 後是覆寫而不是一直長
+ok 2 - token：每個使用者一列，refresh 後是覆寫而不是一直長
+  ---
+  duration_ms: 2050.009125
+  type: 'test'
+  ...
+# Subtest: 去重：同一天同一種報告只能有一筆 SENT（資料庫層級保險）
+ok 3 - 去重：同一天同一種報告只能有一筆 SENT（資料庫層級保險）
+  ---
+  duration_ms: 1769.845625
+  type: 'test'
+  ...
+# Subtest: 去重：daily 與 weekly 互不干擾
+ok 4 - 去重：daily 與 weekly 互不干擾
+  ---
+  duration_ms: 1726.057875
+  type: 'test'
+  ...
+# Subtest: 錯誤通知冷卻：2 小時內同一類型只通知一次
+ok 5 - 錯誤通知冷卻：2 小時內同一類型只通知一次
+  ---
+  duration_ms: 2280.352125
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:05:35.268Z","level":"warn","event":"tokens_save_failed","user_id":"u-test","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:05:36.272Z","level":"info","event":"tokens_saved","user_id":"u-test","attempt":3}
+# {"ts":"2026-09-27T15:05:36.273Z","level":"warn","event":"tokens_save_failed","user_id":"u-test","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:05:36.774Z","level":"warn","event":"tokens_save_failed","user_id":"u-test","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:05:36.841Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:36.842Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:05:38.795Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:38.795Z","level":"info","event":"user_created","user_id":"u-test-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:38.797Z","level":"warn","event":"record_run_retry","user_id":"u-test","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:05:38.855Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:05:38.857Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:05:41.299Z","level":"info","event":"user_created","user_id":"u-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:41.299Z","level":"info","event":"user_created","user_id":"u-test-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:05:41.301Z","level":"warn","event":"record_run_retry","user_id":"u-test","status":"FAILED","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:05:41.302Z","level":"error","event":"record_run_failed","user_id":"u-test","status":"FAILED","error":"OPERATION_FAILED"}
+# Subtest: token 寫入失敗會 retry，連續失敗才拋錯
+ok 6 - token 寫入失敗會 retry，連續失敗才拋錯
+  ---
+  duration_ms: 3874.824792
+  type: 'test'
+  ...
+# Subtest: isDuplicateSentError 只認 UNIQUE，其他 constraint 違反要浮出來
+ok 7 - isDuplicateSentError 只認 UNIQUE，其他 constraint 違反要浮出來
+  ---
+  duration_ms: 0.33075
+  type: 'test'
+  ...
+# Subtest: 紀錄寫入失敗（非 unique）→ 重試用完後拋錯，不被靜默吞掉
+ok 8 - 紀錄寫入失敗（非 unique）→ 重試用完後拋錯，不被靜默吞掉
+  ---
+  duration_ms: 2021.909625
+  type: 'test'
+  ...
+# Subtest: throwOnError: false → 只寫 log 回 false（記錄失敗原因時用，不蓋掉真正的錯誤）
+ok 9 - throwOnError: false → 只寫 log 回 false（記錄失敗原因時用，不蓋掉真正的錯誤）
+  ---
+  duration_ms: 2504.032042
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18894.645041

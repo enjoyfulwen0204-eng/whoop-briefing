@@ -1,0 +1,307 @@
+TAP version 13
+# {"ts":"2026-09-27T14:35:41.591Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:41.602Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:43.503Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:43.505Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:43.530Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:43.535Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:43.538Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:44.286Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:44.289Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:44.292Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:44.301Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:44.389Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:44.391Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:45.985Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:45.986Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:45.988Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:45.990Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"recovery"}
+# {"ts":"2026-09-27T14:35:45.993Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# Subtest: ★★★ RC2/sleep: 真實兩連線競態（sync 先讀墓碑、DELETE 在中間）→ 不可能復活
+ok 1 - ★★★ RC2/sleep: 真實兩連線競態（sync 先讀墓碑、DELETE 在中間）→ 不可能復活
+  ---
+  duration_ms: 2875.484875
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:35:44.309Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:46.685Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:46.687Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:35:46.690Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:46.806Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"recovery"}
+# {"ts":"2026-09-27T14:35:46.891Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:46.893Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:48.556Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:48.557Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:48.559Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:48.561Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"workout"}
+# {"ts":"2026-09-27T14:35:48.564Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# Subtest: ★★★ RC2/recovery: 真實兩連線競態（sync 先讀墓碑、DELETE 在中間）→ 不可能復活
+ok 2 - ★★★ RC2/recovery: 真實兩連線競態（sync 先讀墓碑、DELETE 在中間）→ 不可能復活
+  ---
+  duration_ms: 2499.488541
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:35:46.811Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"recovery"}
+# {"ts":"2026-09-27T14:35:49.301Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:49.306Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"workout"}
+# {"ts":"2026-09-27T14:35:49.309Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:49.401Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"workout"}
+# {"ts":"2026-09-27T14:35:49.504Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:49.506Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:51.565Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:51.566Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:51.569Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:51.571Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:51.574Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:51.587Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:51.589Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:51.602Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"sleep","count":1}
+# {"ts":"2026-09-27T14:35:51.602Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:35:51.612Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"sleep","count":1}
+# {"ts":"2026-09-27T14:35:51.612Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:35:51.626Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"sleep","count":1}
+# {"ts":"2026-09-27T14:35:51.626Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:35:51.818Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:51.823Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:54.467Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:54.468Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:54.470Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:54.472Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:54.475Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:54.485Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:54.489Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:54.564Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:54.566Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:57.062Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:57.063Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:57.065Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:57.068Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"recovery"}
+# {"ts":"2026-09-27T14:35:57.072Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:57.084Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"recovery"}
+# {"ts":"2026-09-27T14:35:57.089Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:35:57.102Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"recovery","count":1}
+# {"ts":"2026-09-27T14:35:57.102Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:35:57.111Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"recovery","count":1}
+# {"ts":"2026-09-27T14:35:57.112Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:35:57.120Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"recovery","count":1}
+# {"ts":"2026-09-27T14:35:57.120Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:35:57.191Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:57.193Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:58.984Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:58.985Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:58.987Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:58.989Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"recovery"}
+# {"ts":"2026-09-27T14:35:58.992Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:59.003Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"recovery"}
+# {"ts":"2026-09-27T14:35:59.005Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:35:59.089Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:59.091Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:01.185Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:01.186Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:36:01.188Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:36:01.190Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"workout"}
+# {"ts":"2026-09-27T14:36:01.194Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:36:01.205Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"workout"}
+# {"ts":"2026-09-27T14:36:01.207Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"workout"}
+# {"ts":"2026-09-27T14:36:01.219Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"workout","count":1}
+# {"ts":"2026-09-27T14:36:01.219Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:36:01.227Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"workout","count":1}
+# {"ts":"2026-09-27T14:36:01.227Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:36:01.235Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"workout","count":1}
+# {"ts":"2026-09-27T14:36:01.236Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:36:01.313Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:36:01.316Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:03.429Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:03.430Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:36:03.432Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:36:03.434Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"workout"}
+# {"ts":"2026-09-27T14:36:03.437Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:36:03.447Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"workout"}
+# {"ts":"2026-09-27T14:36:03.450Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"workout"}
+# {"ts":"2026-09-27T14:36:03.529Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:36:03.531Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:05.889Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:05.890Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:36:05.893Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:36:05.896Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:36:05.902Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:36:05.914Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:36:05.918Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:36:05.923Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:36:05.937Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:36:05.947Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:36:05.947Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:36:05.959Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:36:06.073Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:36:06.076Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:08.635Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:08.636Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:36:08.642Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:36:08.646Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:36:08.651Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:36:08.778Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:36:08.781Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:10.768Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:10.769Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:36:10.776Z","level":"warn","event":"whoop_webhook_fenced_before_persist","event_id":1}
+# {"ts":"2026-09-27T14:36:10.908Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:36:10.913Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:13.099Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:13.100Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:36:13.105Z","level":"warn","event":"whoop_webhook_fenced_before_persist","event_id":1}
+# {"ts":"2026-09-27T14:36:13.199Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:36:13.202Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:15.305Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:15.306Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:36:15.310Z","level":"warn","event":"whoop_webhook_fenced_before_persist","event_id":1}
+# {"ts":"2026-09-27T14:36:15.391Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:36:15.393Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:17.581Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:17.582Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:36:17.586Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:36:17.588Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:36:17.591Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:36:17.661Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:36:17.663Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:19.695Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:19.696Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:36:19.696Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:19.697Z","level":"info","event":"tokens_saved","user_id":"u-bob","attempt":1}
+# {"ts":"2026-09-27T14:36:19.698Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:36:19.700Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:36:19.703Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:36:19.711Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:36:19.713Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:36:19.715Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:36:19.725Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:36:19.727Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:36:19.738Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:36:19.740Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:36:19.742Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:36:19.815Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:36:19.817Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:21.964Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:21.966Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:36:21.969Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:36:21.973Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:36:21.978Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:36:21.996Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:36:21.999Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:36:22.016Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:36:22.034Z","level":"info","event":"whoop_webhook_blocked_by_tombstone","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:36:22.122Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:36:22.124Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:36:24.300Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:36:24.301Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# Subtest: ★★★ RC2/workout: 真實兩連線競態（sync 先讀墓碑、DELETE 在中間）→ 不可能復活
+ok 3 - ★★★ RC2/workout: 真實兩連線競態（sync 先讀墓碑、DELETE 在中間）→ 不可能復活
+  ---
+  duration_ms: 2598.291167
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/sleep: DELETE 先 commit → 之後的排程同步被擋（所有版本）
+ok 4 - ★★★ RC2/sleep: DELETE 先 commit → 之後的排程同步被擋（所有版本）
+  ---
+  duration_ms: 2208.703959
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/sleep: 排程同步先 commit → DELETE 之後刪掉它
+ok 5 - ★★★ RC2/sleep: 排程同步先 commit → DELETE 之後刪掉它
+  ---
+  duration_ms: 2864.504666
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/recovery: DELETE 先 commit → 之後的排程同步被擋（所有版本）
+ok 6 - ★★★ RC2/recovery: DELETE 先 commit → 之後的排程同步被擋（所有版本）
+  ---
+  duration_ms: 2626.938542
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/recovery: 排程同步先 commit → DELETE 之後刪掉它
+ok 7 - ★★★ RC2/recovery: 排程同步先 commit → DELETE 之後刪掉它
+  ---
+  duration_ms: 1889.518
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/workout: DELETE 先 commit → 之後的排程同步被擋（所有版本）
+ok 8 - ★★★ RC2/workout: DELETE 先 commit → 之後的排程同步被擋（所有版本）
+  ---
+  duration_ms: 2225.619667
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/workout: 排程同步先 commit → DELETE 之後刪掉它
+ok 9 - ★★★ RC2/workout: 排程同步先 commit → DELETE 之後刪掉它
+  ---
+  duration_ms: 2217.837167
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/9,19-22: 沒有墓碑時正常 upsert；M-03 新贏／舊擋／等冪等／缺版本不覆蓋
+ok 10 - ★★★ RC2/9,19-22: 沒有墓碑時正常 upsert；M-03 新贏／舊擋／等冪等／缺版本不覆蓋
+  ---
+  duration_ms: 2505.962833
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/10: webhook UPDATE 已在 mutateForWhoopEvent 裡 → store 沿用交易，不巢狀、不炸
+ok 11 - ★★★ RC2/10: webhook UPDATE 已在 mutateForWhoopEvent 裡 → store 沿用交易，不巢狀、不炸
+  ---
+  duration_ms: 2695.87025
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/11-13: webhook sleep UPDATE 的所有權圍欄仍然有效（A 過期、B 接手）
+ok 12 - ★★★ RC2/11-13: webhook sleep UPDATE 的所有權圍欄仍然有效（A 過期、B 接手）
+  ---
+  duration_ms: 2122.7565
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/11-13: webhook recovery UPDATE 的所有權圍欄仍然有效（A 過期、B 接手）
+ok 13 - ★★★ RC2/11-13: webhook recovery UPDATE 的所有權圍欄仍然有效（A 過期、B 接手）
+  ---
+  duration_ms: 2324.749625
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/11-13: webhook workout UPDATE 的所有權圍欄仍然有效（A 過期、B 接手）
+ok 14 - ★★★ RC2/11-13: webhook workout UPDATE 的所有權圍欄仍然有效（A 過期、B 接手）
+  ---
+  duration_ms: 2206.885167
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/16: 所有權在交易中途被換掉 → after-check 把 store 的寫入一起 rollback
+ok 15 - ★★★ RC2/16: 所有權在交易中途被換掉 → after-check 把 store 的寫入一起 rollback
+  ---
+  duration_ms: 2278.6445
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/17-18: 同 id 跨使用者隔離；Alice 的墓碑不擋 Bob（交易內也一樣）
+ok 16 - ★★★ RC2/17-18: 同 id 跨使用者隔離；Alice 的墓碑不擋 Bob（交易內也一樣）
+  ---
+  duration_ms: 2151.337917
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/23-24: DELETE 後崩潰重播安全；墓碑擋下的 webhook UPDATE 終局不重試
+ok 17 - ★★★ RC2/23-24: DELETE 後崩潰重播安全；墓碑擋下的 webhook UPDATE 終局不重試
+  ---
+  duration_ms: 2297.27325
+  type: 'test'
+  ...
+# Subtest: ★★★ RC2/27: 墓碑表不存在（pre-v10）→ 受保護的寫入 fail closed，不可以靜默寫入
+ok 18 - ★★★ RC2/27: 墓碑表不存在（pre-v10）→ 受保護的寫入 fail closed，不可以靜默寫入
+  ---
+  duration_ms: 2263.094166
+  type: 'test'
+  ...
+# Subtest: ★★★ createHealthStore 沒有交易執行器就拒絕建構（保護不可能被靜默略過）
+ok 19 - ★★★ createHealthStore 沒有交易執行器就拒絕建構（保護不可能被靜默略過）
+  ---
+  duration_ms: 0.212416
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:35:49.408Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"workout"}
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 44641.542916

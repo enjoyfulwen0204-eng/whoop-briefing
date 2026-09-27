@@ -1,0 +1,104 @@
+TAP version 13
+# {"ts":"2026-09-27T11:13:44.323Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:44.325Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:45.640Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:45.642Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:45.906Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:45.908Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:47.328Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:47.329Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Aggregate: SQLite numeric aliases cannot create a different whole-experiment deletion identity
+ok 1 - Aggregate: SQLite numeric aliases cannot create a different whole-experiment deletion identity
+  ---
+  duration_ms: 1592.602208
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:13:47.713Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:47.714Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:49.070Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:49.071Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Aggregate: whole experiment deletion permanently fences every field write across restart, without deleting independent experiments
+ok 2 - Aggregate: whole experiment deletion permanently fences every field write across restart, without deleting independent experiments
+  ---
+  duration_ms: 1806.580917
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:13:49.904Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:49.905Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:51.398Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:51.399Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:51.408Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-27T11:13:51.409Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: Aggregate: whole and field experiment admissions serialize in both directions, then converge after a failed T1 restart
+ok 3 - Aggregate: whole and field experiment admissions serialize in both directions, then converge after a failed T1 restart
+  ---
+  duration_ms: 2190.186667
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:13:51.499Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:51.501Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:53.100Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:53.101Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:53.325Z","level":"info","event":"whoop_resource_deleted","user_id":"a","resource_type":"sleep"}
+# {"ts":"2026-09-27T11:13:53.470Z","level":"info","event":"whoop_resource_deleted","user_id":"a","resource_type":"sleep"}
+# {"ts":"2026-09-27T11:13:53.476Z","level":"info","event":"analytics_invalidated","user_id":"a","generation":1,"resource":"sleep"}
+# Subtest: Aggregate: stale experiment assertion is rejected before durable T0 admission
+ok 4 - Aggregate: stale experiment assertion is rejected before durable T0 admission
+  ---
+  duration_ms: 1591.839917
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:13:53.599Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:53.600Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:54.958Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:54.959Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:55.129Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-27T11:13:55.129Z","level":"info","event":"whoop_resource_deleted","user_id":"a","resource_type":"sleep"}
+# {"ts":"2026-09-27T11:13:55.130Z","level":"info","event":"analytics_invalidated","user_id":"a","generation":1,"resource":"sleep"}
+# Subtest: Aggregate: canonical deletion between T1/T2 (active) cannot reset purge scope or strand cleanup
+ok 5 - Aggregate: canonical deletion between T1/T2 (active) cannot reset purge scope or strand cleanup
+  ---
+  duration_ms: 2096.81275
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:13:55.354Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:55.355Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:56.683Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:56.684Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:56.685Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T11:13:56.685Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T11:13:57.065Z","level":"info","event":"lock_acquired"}
+# Subtest: Aggregate: canonical deletion between T1/T2 (disabled) cannot reset purge scope or strand cleanup
+ok 6 - Aggregate: canonical deletion between T1/T2 (disabled) cannot reset purge scope or strand cleanup
+  ---
+  duration_ms: 1762.681625
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:13:57.164Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:13:57.165Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:13:58.551Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:58.552Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:13:58.553Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T11:13:58.553Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T11:13:58.938Z","level":"info","event":"lock_acquired"}
+# Subtest: Aggregate: purge erases a AMBIGUOUS question without releasing its occupied answer window
+ok 7 - Aggregate: purge erases a AMBIGUOUS question without releasing its occupied answer window
+  ---
+  duration_ms: 1809.449958
+  type: 'test'
+  ...
+# Subtest: Aggregate: purge erases a DELIVERED question without releasing its occupied answer window
+ok 8 - Aggregate: purge erases a DELIVERED question without releasing its occupied answer window
+  ---
+  duration_ms: 1878.437125
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14963.874584

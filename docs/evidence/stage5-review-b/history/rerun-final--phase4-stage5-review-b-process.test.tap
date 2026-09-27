@@ -1,0 +1,35 @@
+TAP version 13
+# {"ts":"2026-09-27T14:54:20.260Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:54:20.263Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:54:21.393Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# Subtest: M003/N: equivalent normal-driver processes contend, replay one receipt and release every completed lease
+not ok 1 - M003/N: equivalent normal-driver processes contend, replay one receipt and release every completed lease
+  ---
+  duration_ms: 16542.526833
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:32:1'
+  failureType: 'testCodeFailure'
+  error: '{"kind":"error","code":"SQLITE_BUSY","message":"SQLITE_BUSY: database is locked","stack":"LibsqlError: SQLITE_BUSY: database is locked\\n    at mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)\\n    at executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)\\n    at Sqlite3Client.transaction (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:130:9)\\n    at client.transaction (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ReviewBProcess.js:12:20)\\n    at retryContention.afterBusy (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:95:43)\\n    at retryContention (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:9:23)\\n    at async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:95:12)\\n    at async file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ReviewBProcess.js:22:36"}'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    check (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:26:89)
+    ChildProcess.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-process.test.js:19:79)
+    ChildProcess.emit (node:events:519:28)
+    emit (node:internal/child_process:949:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+  ...
+# Subtest: T001: timeout runner kills its test worker and grandchild, reports TIMEOUT
+ok 2 - T001: timeout runner kills its test worker and grandchild, reports TIMEOUT
+  ---
+  duration_ms: 1573.195209
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18296.912167

@@ -1,0 +1,144 @@
+TAP version 13
+# {"ts":"2026-09-27T11:26:03.880Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:26:03.883Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:26:05.155Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:26:05.157Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:26:13.297Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:26:13.298Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:26:14.616Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:26:14.617Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 full-field R1/R2/R3 survives overwrite, restart and R4 without current-row semantic fallback
+ok 1 - RC4 full-field R1/R2/R3 survives overwrite, restart and R4 without current-row semantic fallback
+  ---
+  duration_ms: 9422.878375
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:26:24.809Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:26:24.810Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:26:26.091Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:26:26.092Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 valid A→R1 and B→R2 replays keep all semantic state after T+2
+ok 2 - RC4 valid A→R1 and B→R2 replays keep all semantic state after T+2
+  ---
+  duration_ms: 11515.752875
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:26:36.491Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:26:36.492Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:26:37.785Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:26:37.786Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 snapshot integrity, structure, event and graph corruption all fail closed without repair
+ok 3 - RC4 snapshot integrity, structure, event and graph corruption all fail closed without repair
+  ---
+  duration_ms: 11682.557584
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:26:40.450Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:26:40.451Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:26:41.767Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:26:41.768Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 immutable SQL envelopes, snapshot content and committed episode semantics reject mutation
+ok 4 - RC4 immutable SQL envelopes, snapshot content and committed episode semantics reject mutation
+  ---
+  duration_ms: 3958.42675
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:26:47.110Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:26:47.111Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:26:48.393Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:26:48.394Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 failures after event, materialization, snapshot and links roll back all revision components
+ok 5 - RC4 failures after event, materialization, snapshot and links roll back all revision components
+  ---
+  duration_ms: 6661.2125
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:26:51.955Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:26:51.956Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:26:53.267Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:26:53.267Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 concurrent CAS has one winner and duplicate revision operation is read-only
+ok 6 - RC4 concurrent CAS has one winner and duplicate revision operation is read-only
+  ---
+  duration_ms: 4844.834917
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:26:57.186Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:26:57.187Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:26:58.555Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:26:58.556Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 semantic-time validation precedes open/no-op/refresh/reverse/semantic shortcuts
+ok 7 - RC4 semantic-time validation precedes open/no-op/refresh/reverse/semantic shortcuts
+  ---
+  duration_ms: 5229.410417
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:27:01.944Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:27:01.946Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:27:03.348Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:27:03.348Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:27:05.758Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-27T11:27:05.758Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: RC4 generation refresh snapshots complete new state and fences old generation without rewriting history
+ok 8 - RC4 generation refresh snapshots complete new state and fences old generation without rewriting history
+  ---
+  duration_ms: 4758.719583
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:27:06.070Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:27:06.072Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:27:07.569Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:27:07.569Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 snapshot readers isolate users/modes and current lifecycle/auth/purge/input authority
+ok 9 - RC4 snapshot readers isolate users/modes and current lifecycle/auth/purge/input authority
+  ---
+  duration_ms: 4125.303208
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:27:12.641Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:27:12.642Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:27:14.037Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:27:14.038Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:27:20.845Z","level":"info","event":"whoop_resource_deleted","user_id":"a","resource_type":"recovery"}
+# {"ts":"2026-09-27T11:27:20.849Z","level":"info","event":"analytics_invalidated","user_id":"a","generation":1,"resource":"recovery"}
+# Subtest: RC4 Journal purge redacts R1/R2 payloads and hashes, fences replay, and cannot rehydrate
+ok 10 - RC4 Journal purge redacts R1/R2 payloads and hashes, fences replay, and cannot rehydrate
+  ---
+  duration_ms: 6571.242917
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:27:21.567Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:27:21.569Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:27:23.008Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:27:23.009Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 deleted health root invalidates historical snapshot through the existing provenance graph
+ok 11 - RC4 deleted health root invalidates historical snapshot through the existing provenance graph
+  ---
+  duration_ms: 8926.616209
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:27:23.386Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:27:23.388Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:27:24.827Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:27:24.827Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC4 every lifecycle revision path has exactly one full snapshot including reverse, expiry and invalidation
+ok 12 - RC4 every lifecycle revision path has exactly one full snapshot including reverse, expiry and invalidation
+  ---
+  duration_ms: 1818.831959
+  type: 'test'
+  ...
+# Subtest: RC4 sealed semantic events replay without mutation and cannot alter a committed snapshot
+ok 13 - RC4 sealed semantic events replay without mutation and cannot alter a committed snapshot
+  ---
+  duration_ms: 5093.40675
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 84834.873833

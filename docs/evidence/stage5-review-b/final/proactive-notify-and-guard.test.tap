@@ -1,0 +1,281 @@
+TAP version 13
+# {"ts":"2026-09-27T14:14:26.139Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:26.142Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:28.580Z","level":"info","event":"user_created","user_id":"u-solo","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:28.582Z","level":"info","event":"telegram_linked","user_id":"u-solo"}
+# {"ts":"2026-09-27T14:14:28.596Z","level":"info","event":"capabilities_saved","user_id":"u-solo","count":15}
+# {"ts":"2026-09-27T14:14:28.625Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.629Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.632Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.641Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.643Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.646Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.654Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.656Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":3,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.659Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.666Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.668Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":4,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.671Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.678Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.680Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":5,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.683Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.690Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.692Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":6,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.695Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.702Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.704Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":7,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.706Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.714Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.715Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":8,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.718Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.726Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.728Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":9,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.731Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.739Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.741Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":10,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.743Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.750Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.752Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":11,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.756Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.763Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.765Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":12,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.768Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.775Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.779Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":13,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.782Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.790Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.792Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":14,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.794Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.802Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.804Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":15,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.806Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.814Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.816Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":16,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.818Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.825Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.827Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":17,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.830Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.837Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.839Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":18,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.842Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.849Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.851Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":19,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.854Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.862Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.863Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":20,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.866Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.873Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.875Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":21,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.878Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.887Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.889Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":22,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.891Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.899Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.900Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":23,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.903Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.911Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.913Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":24,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.916Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.923Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.925Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":25,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.928Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.935Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.938Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":26,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.941Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.948Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.951Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":27,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.954Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.961Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.963Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":28,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.965Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.973Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.975Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":29,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:28.980Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:28.989Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:28.991Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":30,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:28.994Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.002Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.004Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":31,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.007Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.015Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.017Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":32,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.020Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.028Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.030Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":33,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.032Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.041Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.043Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":34,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.045Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.053Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.055Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":35,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.058Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.066Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.072Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":36,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.085Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.094Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.096Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":37,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.099Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.108Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.115Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":38,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.120Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.130Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.134Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":39,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.140Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.150Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.155Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":40,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.161Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.184Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.189Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":41,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.195Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.213Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.217Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":42,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.227Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.251Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.255Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":43,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.259Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.278Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.283Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":44,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.292Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.315Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.320Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":45,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.327Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.345Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.355Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":46,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.365Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.383Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.388Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":47,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.395Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.414Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.419Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":48,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.425Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.446Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.451Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":49,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.458Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.476Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.480Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":50,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.487Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.506Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.512Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":51,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.516Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.531Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.536Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":52,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.541Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.555Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.558Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":53,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.563Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.578Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.581Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":54,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.587Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.598Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.600Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":55,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.605Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.617Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.621Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":56,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.624Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.636Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.639Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":57,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.642Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.654Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.657Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":58,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.660Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.670Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.673Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":59,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.677Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.687Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.689Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":60,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.692Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.701Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.704Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":61,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.707Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.725Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.727Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":62,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.731Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.741Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.743Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":63,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.748Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.758Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.761Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":64,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.764Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.774Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.776Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":65,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.779Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.790Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.792Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":66,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.795Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.805Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.807Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":67,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.811Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.822Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.824Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":68,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.827Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.837Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.839Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":69,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.842Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.852Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.855Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":70,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.858Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.867Z","level":"info","event":"store_sleeps_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.870Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":71,"resource":"sleep"}
+# {"ts":"2026-09-27T14:14:29.873Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:29.882Z","level":"info","event":"store_recoveries_upserted","user_id":"u-solo","count":1}
+# {"ts":"2026-09-27T14:14:29.884Z","level":"info","event":"analytics_invalidated","user_id":"u-solo","generation":72,"resource":"recovery"}
+# {"ts":"2026-09-27T14:14:29.887Z","level":"info","event":"canonical_write_classified","user_id":"u-solo","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:14:30.132Z","level":"info","event":"proactive_event_claimed","user_id":"u-solo"}
+# {"ts":"2026-09-27T14:14:30.149Z","level":"info","event":"pending_question_opened","user_id":"u-solo"}
+# {"ts":"2026-09-27T14:14:30.154Z","level":"info","event":"proactive_decision","user_id":"u-solo"}
+# {"ts":"2026-09-27T14:14:30.160Z","level":"error","event":"proactive_message_failed_guard"}
+# {"ts":"2026-09-27T14:14:30.161Z","level":"error","event":"proactive_message_failed_guard"}
+# {"ts":"2026-09-27T14:14:30.161Z","level":"error","event":"proactive_message_failed_guard"}
+# {"ts":"2026-09-27T14:14:30.161Z","level":"error","event":"proactive_message_failed_guard"}
+# {"ts":"2026-09-27T14:14:30.162Z","level":"error","event":"proactive_message_failed_guard"}
+# Subtest: ★★ PA15: decide() —— 已經有 OPEN 問題時，嚴重+持續的訊號改成 NOTIFY 而不是再開一題
+ok 1 - ★★ PA15: decide() —— 已經有 OPEN 問題時，嚴重+持續的訊號改成 NOTIFY 而不是再開一題
+  ---
+  duration_ms: 3.194625
+  type: 'test'
+  ...
+# Subtest: ★★★ PA8/PA15: 完整管線裡，NOTIFY 訊息確實不是問句、確實包含保守安全語言
+ok 2 - ★★★ PA8/PA15: 完整管線裡，NOTIFY 訊息確實不是問句、確實包含保守安全語言
+  ---
+  duration_ms: 4091.654875
+  type: 'test'
+  ...
+# Subtest: PA15: buildNotifyMessage 的樣板只含保守用語，不宣稱急症、不做診斷
+ok 3 - PA15: buildNotifyMessage 的樣板只含保守用語，不宣稱急症、不做診斷
+  ---
+  duration_ms: 0.614125
+  type: 'test'
+  ...
+# Subtest: ★★ PA16: guardProactiveMessage 擋下因果/診斷語言，換成保守 fallback
+ok 4 - ★★ PA16: guardProactiveMessage 擋下因果/診斷語言，換成保守 fallback
+  ---
+  duration_ms: 4.137833
+  type: 'test'
+  ...
+# Subtest: PA16: guardProactiveMessage 放行正常的保守用語
+ok 5 - PA16: guardProactiveMessage 放行正常的保守用語
+  ---
+  duration_ms: 0.584834
+  type: 'test'
+  ...
+# Subtest: ★★★ PA16 / R3-H-02: 帶統計量的樣板訊息照常放行，類別性違規仍然擋下
+ok 6 - ★★★ PA16 / R3-H-02: 帶統計量的樣板訊息照常放行，類別性違規仍然擋下
+  ---
+  duration_ms: 0.380958
+  type: 'test'
+  ...
+# Subtest: ★ PA17-18: deriveColdStartStage 完整對應 readiness 狀態，不看日期
+ok 7 - ★ PA17-18: deriveColdStartStage 完整對應 readiness 狀態，不看日期
+  ---
+  duration_ms: 0.403917
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4839.10625

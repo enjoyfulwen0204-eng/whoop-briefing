@@ -1,0 +1,245 @@
+TAP version 13
+# {"ts":"2026-09-27T14:02:52.140Z","level":"warn","event":"narrative_validation_failed"}
+# Subtest: ★★★ H-02: 把別的指標的數字安到這個指標上 → 擋下
+ok 1 - ★★★ H-02: 把別的指標的數字安到這個指標上 → 擋下
+  ---
+  duration_ms: 5.227792
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 拿基準樣本數（n=30）當成 HRV 的值 → 擋下
+ok 2 - ★★★ H-02: 拿基準樣本數（n=30）當成 HRV 的值 → 擋下
+  ---
+  duration_ms: 2.923708
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 完全捏造的靜息心率 → 擋下
+ok 3 - ★★★ H-02: 完全捏造的靜息心率 → 擋下
+  ---
+  duration_ms: 0.3795
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 指標在事實裡沒有任何數值 → 不可以給它數值（fail-closed）
+ok 4 - ★★★ H-02: 指標在事實裡沒有任何數值 → 不可以給它數值（fail-closed）
+  ---
+  duration_ms: 0.225875
+  type: 'test'
+  ...
+# Subtest: ★★ H-02: metricBindingsFrom 逐指標綁定，不會把數字混在一起
+ok 5 - ★★ H-02: metricBindingsFrom 逐指標綁定，不會把數字混在一起
+  ---
+  duration_ms: 0.148167
+  type: 'test'
+  ...
+# Subtest: ★★ H-02: 長指標名優先（睡眠表現 不會被 睡眠 吃掉）
+ok 6 - ★★ H-02: 長指標名優先（睡眠表現 不會被 睡眠 吃掉）
+  ---
+  duration_ms: 0.114791
+  type: 'test'
+  ...
+# Subtest: ★★ H-02: 連接詞集合不會跨過另一個指標名
+ok 7 - ★★ H-02: 連接詞集合不會跨過另一個指標名
+  ---
+  duration_ms: 1.730459
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: buildTrustedFacts 不含使用者的問題
+ok 8 - ★★★ H-02: buildTrustedFacts 不含使用者的問題
+  ---
+  duration_ms: 0.480916
+  type: 'test'
+  ...
+# Subtest: ★★ H-02: prompt 仍然含問題（模型看得到，只是不算證據）
+ok 9 - ★★ H-02: prompt 仍然含問題（模型看得到，只是不算證據）
+  ---
+  duration_ms: 0.79575
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 使用者塞在問題裡的數字不能授權健康宣稱
+ok 10 - ★★★ H-02: 使用者塞在問題裡的數字不能授權健康宣稱
+  ---
+  duration_ms: 1.006625
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02 端到端：composeAnswer 用可信事實驗證，注入的數字絕不外流
+ok 11 - ★★★ H-02 端到端：composeAnswer 用可信事實驗證，注入的數字絕不外流
+  ---
+  duration_ms: 1.721875
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 端到端：LLM 引述數字時被丟掉，但確定性斷言完整送出
+ok 12 - ★★★ R3-H-02 端到端：LLM 引述數字時被丟掉，但確定性斷言完整送出
+  ---
+  duration_ms: 0.595458
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02 端到端：即使看似安全的 LLM 說明也不發布
+ok 13 - ★★ R3-H-02 端到端：即使看似安全的 LLM 說明也不發布
+  ---
+  duration_ms: 0.202875
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 專有/衍生分數宣稱被擋下（WHOOP Age）
+ok 14 - ★★★ H-02: 專有/衍生分數宣稱被擋下（WHOOP Age）
+  ---
+  duration_ms: 0.210166
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 專有/衍生分數宣稱被擋下（WHOOP Healthspan）
+ok 15 - ★★★ H-02: 專有/衍生分數宣稱被擋下（WHOOP Healthspan）
+  ---
+  duration_ms: 0.119292
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 專有/衍生分數宣稱被擋下（生理年齡）
+ok 16 - ★★★ H-02: 專有/衍生分數宣稱被擋下（生理年齡）
+  ---
+  duration_ms: 0.105916
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 專有/衍生分數宣稱被擋下（推估年齡）
+ok 17 - ★★★ H-02: 專有/衍生分數宣稱被擋下（推估年齡）
+  ---
+  duration_ms: 0.10425
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 專有/衍生分數宣稱被擋下（Healthspan Score）
+ok 18 - ★★★ H-02: 專有/衍生分數宣稱被擋下（Healthspan Score）
+  ---
+  duration_ms: 0.103291
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 專有/衍生分數宣稱被擋下（Estimated Physiological Age）
+ok 19 - ★★★ H-02: 專有/衍生分數宣稱被擋下（Estimated Physiological Age）
+  ---
+  duration_ms: 1.44875
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 專有/衍生分數宣稱被擋下（Pace Estimate）
+ok 20 - ★★★ H-02: 專有/衍生分數宣稱被擋下（Pace Estimate）
+  ---
+  duration_ms: 0.134291
+  type: 'test'
+  ...
+# Subtest: ★★ H-02: 誠實說「這個系統算不出年齡」不會被誤判
+ok 21 - ★★ H-02: 誠實說「這個系統算不出年齡」不會被誤判
+  ---
+  duration_ms: 0.140708
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 治療/用藥指示被擋下（中文劑量）
+ok 22 - ★★★ H-02: 治療/用藥指示被擋下（中文劑量）
+  ---
+  duration_ms: 0.161
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 治療/用藥指示被擋下（吃藥）
+ok 23 - ★★★ H-02: 治療/用藥指示被擋下（吃藥）
+  ---
+  duration_ms: 0.105042
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 治療/用藥指示被擋下（英文用藥）
+ok 24 - ★★★ H-02: 治療/用藥指示被擋下（英文用藥）
+  ---
+  duration_ms: 0.153875
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 治療/用藥指示被擋下（medication advice）
+ok 25 - ★★★ H-02: 治療/用藥指示被擋下（medication advice）
+  ---
+  duration_ms: 0.111833
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 治療/用藥指示被擋下（處置指示）
+ok 26 - ★★★ H-02: 治療/用藥指示被擋下（處置指示）
+  ---
+  duration_ms: 0.102166
+  type: 'test'
+  ...
+# Subtest: ★★ H-02 false positive: 生活作息建議必須通過（早點睡）
+ok 27 - ★★ H-02 false positive: 生活作息建議必須通過（早點睡）
+  ---
+  duration_ms: 0.130791
+  type: 'test'
+  ...
+# Subtest: ★★ H-02 false positive: 生活作息建議必須通過（多喝水）
+ok 28 - ★★ H-02 false positive: 生活作息建議必須通過（多喝水）
+  ---
+  duration_ms: 0.094958
+  type: 'test'
+  ...
+# Subtest: ★★ H-02 false positive: 生活作息建議必須通過（減量訓練）
+ok 29 - ★★ H-02 false positive: 生活作息建議必須通過（減量訓練）
+  ---
+  duration_ms: 0.093208
+  type: 'test'
+  ...
+# Subtest: ★★ H-02 false positive: 生活作息建議必須通過（不舒服看醫生）
+ok 30 - ★★ H-02 false positive: 生活作息建議必須通過（不舒服看醫生）
+  ---
+  duration_ms: 0.091583
+  type: 'test'
+  ...
+# Subtest: ★★ H-02 false positive: 真實 daily 敘述必須通過（引用多個指標）
+ok 31 - ★★ H-02 false positive: 真實 daily 敘述必須通過（引用多個指標）
+  ---
+  duration_ms: 0.183542
+  type: 'test'
+  ...
+# Subtest: ★★ H-02 false positive: 真實 daily 敘述必須通過（百分比與小數）
+ok 32 - ★★ H-02 false positive: 真實 daily 敘述必須通過（百分比與小數）
+  ---
+  duration_ms: 0.16375
+  type: 'test'
+  ...
+# Subtest: ★★ H-02 false positive: 真實 daily 敘述必須通過（Strain 與 REM）
+ok 33 - ★★ H-02 false positive: 真實 daily 敘述必須通過（Strain 與 REM）
+  ---
+  duration_ms: 0.134416
+  type: 'test'
+  ...
+# Subtest: ★★ H-02 false positive: 真實 daily 敘述必須通過（睡眠子指標）
+ok 34 - ★★ H-02 false positive: 真實 daily 敘述必須通過（睡眠子指標）
+  ---
+  duration_ms: 0.132542
+  type: 'test'
+  ...
+# Subtest: ★★ H-02 false positive: 真實 daily 敘述必須通過（完全不含數字）
+ok 35 - ★★ H-02 false positive: 真實 daily 敘述必須通過（完全不含數字）
+  ---
+  duration_ms: 0.231959
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 真實 daily context 下的跨指標挪用也擋得住（恢復挪用睡眠表現的 90）
+ok 36 - ★★★ H-02: 真實 daily context 下的跨指標挪用也擋得住（恢復挪用睡眠表現的 90）
+  ---
+  duration_ms: 0.177291
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 真實 daily context 下的跨指標挪用也擋得住（HRV 挪用恢復的 73）
+ok 37 - ★★★ H-02: 真實 daily context 下的跨指標挪用也擋得住（HRV 挪用恢復的 73）
+  ---
+  duration_ms: 0.128166
+  type: 'test'
+  ...
+# Subtest: ★★★ H-02: 真實 daily context 下的跨指標挪用也擋得住（靜息心率挪用血氧的 96）
+ok 38 - ★★★ H-02: 真實 daily context 下的跨指標挪用也擋得住（靜息心率挪用血氧的 96）
+  ---
+  duration_ms: 0.740584
+  type: 'test'
+  ...
+# Subtest: ★★ H-02: guardNarrative 攔下時原文一個字都不外流
+ok 39 - ★★ H-02: guardNarrative 攔下時原文一個字都不外流
+  ---
+  duration_ms: 1.1365
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 273.196625

@@ -1,0 +1,563 @@
+TAP version 13
+# {"ts":"2026-09-27T14:31:16.863Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:16.867Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:19.064Z","level":"info","event":"user_created","user_id":"817306a6-e560-4f50-a1b6-445184e614d3","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:19.065Z","level":"info","event":"user_created","user_id":"c0794470-2e72-40b2-ac1c-0057c5270161","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:19.067Z","level":"info","event":"telegram_linked","user_id":"817306a6-e560-4f50-a1b6-445184e614d3"}
+# {"ts":"2026-09-27T14:31:19.068Z","level":"info","event":"telegram_linked","user_id":"c0794470-2e72-40b2-ac1c-0057c5270161"}
+# {"ts":"2026-09-27T14:31:19.222Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:19.226Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:21.388Z","level":"info","event":"user_created","user_id":"91526cf6-f903-48a3-8445-5cd85fe8f714","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:21.390Z","level":"info","event":"user_created","user_id":"0b6c118b-5b72-4b54-b336-92111a71d9bf","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:21.391Z","level":"info","event":"telegram_linked","user_id":"91526cf6-f903-48a3-8445-5cd85fe8f714"}
+# {"ts":"2026-09-27T14:31:21.392Z","level":"info","event":"telegram_linked","user_id":"0b6c118b-5b72-4b54-b336-92111a71d9bf"}
+# Subtest: ★★ webhook: GET /health 回最小狀態，不碰 DB、不吐內部資訊
+ok 1 - ★★ webhook: GET /health 回最小狀態，不碰 DB、不吐內部資訊
+  ---
+  duration_ms: 2290.350458
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:21.510Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:21.527Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:31:21.527Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:31:21.574Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:21.647Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:21.648Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:23.867Z","level":"info","event":"user_created","user_id":"1be44101-2ab7-4995-860e-566f00ddef83","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:23.868Z","level":"info","event":"user_created","user_id":"f509d194-99c2-4d46-9d74-c2a6ee8ad0d0","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:23.869Z","level":"info","event":"telegram_linked","user_id":"1be44101-2ab7-4995-860e-566f00ddef83"}
+# {"ts":"2026-09-27T14:31:23.870Z","level":"info","event":"telegram_linked","user_id":"f509d194-99c2-4d46-9d74-c2a6ee8ad0d0"}
+# {"ts":"2026-09-27T14:31:23.870Z","level":"warn","event":"telegram_webhook_unauthorized"}
+# {"ts":"2026-09-27T14:31:23.968Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:23.977Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:26.175Z","level":"info","event":"user_created","user_id":"b0aa5e03-0942-402c-8eec-885a11ec06a7","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:26.176Z","level":"info","event":"user_created","user_id":"c8017ddd-1e60-4dca-ab78-949b0a415670","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:26.177Z","level":"info","event":"telegram_linked","user_id":"b0aa5e03-0942-402c-8eec-885a11ec06a7"}
+# {"ts":"2026-09-27T14:31:26.178Z","level":"info","event":"telegram_linked","user_id":"c8017ddd-1e60-4dca-ab78-949b0a415670"}
+# {"ts":"2026-09-27T14:31:26.178Z","level":"warn","event":"telegram_webhook_unauthorized"}
+# {"ts":"2026-09-27T14:31:26.247Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:26.249Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:28.386Z","level":"info","event":"user_created","user_id":"c1ab2fe8-d8c5-4760-96cb-c8be052ebfe5","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:28.387Z","level":"info","event":"user_created","user_id":"52ef6e8f-0235-4269-9648-658c20de0b0b","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:28.388Z","level":"info","event":"telegram_linked","user_id":"c1ab2fe8-d8c5-4760-96cb-c8be052ebfe5"}
+# {"ts":"2026-09-27T14:31:28.389Z","level":"info","event":"telegram_linked","user_id":"52ef6e8f-0235-4269-9648-658c20de0b0b"}
+# Subtest: ★★★ webhook: 正確的 secret → 處理
+ok 2 - ★★★ webhook: 正確的 secret → 處理
+  ---
+  duration_ms: 2500.15675
+  type: 'test'
+  ...
+# Subtest: ★★★ webhook: 缺少 secret → 401，而且**完全不處理**
+ok 3 - ★★★ webhook: 缺少 secret → 401，而且**完全不處理**
+  ---
+  duration_ms: 2308.258375
+  type: 'test'
+  ...
+# Subtest: ★★★ webhook: 錯誤的 secret → 401，而且完全不處理
+ok 4 - ★★★ webhook: 錯誤的 secret → 401，而且完全不處理
+  ---
+  duration_ms: 2295.82425
+  type: 'test'
+  ...
+# Subtest: ★★★ webhook: secret 比較是定長的，而且長度不同直接拒絕
+ok 5 - ★★★ webhook: secret 比較是定長的，而且長度不同直接拒絕
+  ---
+  duration_ms: 0.316042
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:28.536Z","level":"warn","event":"telegram_webhook_bad_json"}
+# {"ts":"2026-09-27T14:31:28.597Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:28.599Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:30.475Z","level":"info","event":"user_created","user_id":"aced5d47-7289-4261-9fd4-669eb7d6e400","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:30.476Z","level":"info","event":"user_created","user_id":"46f22ecd-9575-465d-9c33-da1ca8d9988d","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:30.477Z","level":"info","event":"telegram_linked","user_id":"aced5d47-7289-4261-9fd4-669eb7d6e400"}
+# {"ts":"2026-09-27T14:31:30.478Z","level":"info","event":"telegram_linked","user_id":"46f22ecd-9575-465d-9c33-da1ca8d9988d"}
+# Subtest: ★★★ webhook: 壞掉的 JSON → 400，不處理
+ok 6 - ★★★ webhook: 壞掉的 JSON → 400，不處理
+  ---
+  duration_ms: 2357.52
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:30.519Z","level":"warn","event":"telegram_webhook_body_rejected"}
+# {"ts":"2026-09-27T14:31:30.591Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:30.593Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:32.597Z","level":"info","event":"user_created","user_id":"714f0337-a135-4dd3-adfd-2fac515ca69d","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:32.598Z","level":"info","event":"user_created","user_id":"caa2e954-2b22-42b9-b2b7-8511fdd0718e","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:32.598Z","level":"info","event":"telegram_linked","user_id":"714f0337-a135-4dd3-adfd-2fac515ca69d"}
+# {"ts":"2026-09-27T14:31:32.599Z","level":"info","event":"telegram_linked","user_id":"caa2e954-2b22-42b9-b2b7-8511fdd0718e"}
+# Subtest: ★★★ webhook: 過大的請求 → 413，而且不繼續累積內容
+ok 7 - ★★★ webhook: 過大的請求 → 413，而且不繼續累積內容
+  ---
+  duration_ms: 1983.253333
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:32.648Z","level":"warn","event":"telegram_webhook_unprocessable"}
+# {"ts":"2026-09-27T14:31:32.648Z","level":"warn","event":"telegram_webhook_unprocessable"}
+# {"ts":"2026-09-27T14:31:32.648Z","level":"warn","event":"telegram_webhook_unprocessable"}
+# {"ts":"2026-09-27T14:31:32.648Z","level":"warn","event":"telegram_webhook_unprocessable"}
+# {"ts":"2026-09-27T14:31:32.714Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:32.716Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:34.537Z","level":"info","event":"user_created","user_id":"260181a4-f46a-4d38-a1cf-d5ce03b437fe","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:34.538Z","level":"info","event":"user_created","user_id":"8f77e0b7-9aa3-4fe0-91a4-2687ba7141f5","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:34.539Z","level":"info","event":"telegram_linked","user_id":"260181a4-f46a-4d38-a1cf-d5ce03b437fe"}
+# {"ts":"2026-09-27T14:31:34.540Z","level":"info","event":"telegram_linked","user_id":"8f77e0b7-9aa3-4fe0-91a4-2687ba7141f5"}
+# Subtest: ★★ webhook: 不是 Update 結構 → 200（重送也不會變好），但不處理
+ok 8 - ★★ webhook: 不是 Update 結構 → 200（重送也不會變好），但不處理
+  ---
+  duration_ms: 2128.705083
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:34.619Z","level":"info","event":"telegram_update_ignored","update_id":300}
+# {"ts":"2026-09-27T14:31:34.697Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:34.699Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:36.647Z","level":"info","event":"user_created","user_id":"fca60d3e-47db-4624-9824-b557691784b2","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:36.647Z","level":"info","event":"user_created","user_id":"8de8d0a8-6d91-4bc9-8334-2acddbe762fa","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:36.648Z","level":"info","event":"telegram_linked","user_id":"fca60d3e-47db-4624-9824-b557691784b2"}
+# {"ts":"2026-09-27T14:31:36.649Z","level":"info","event":"telegram_linked","user_id":"8de8d0a8-6d91-4bc9-8334-2acddbe762fa"}
+# {"ts":"2026-09-27T14:31:36.717Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:36.719Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:38.488Z","level":"info","event":"user_created","user_id":"87929ba1-57e3-462f-a58f-3f460c2c617b","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:38.489Z","level":"info","event":"user_created","user_id":"fe730fea-3012-447e-8996-3a5cda600582","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:38.490Z","level":"info","event":"telegram_linked","user_id":"87929ba1-57e3-462f-a58f-3f460c2c617b"}
+# {"ts":"2026-09-27T14:31:38.491Z","level":"info","event":"telegram_linked","user_id":"fe730fea-3012-447e-8996-3a5cda600582"}
+# Subtest: ★★ webhook: 不支援的 update 型別（沒有 message）→ ack、不回覆
+ok 9 - ★★ webhook: 不支援的 update 型別（沒有 message）→ ack、不回覆
+  ---
+  duration_ms: 1979.90825
+  type: 'test'
+  ...
+# Subtest: ★★ webhook: 路徑與方法
+ok 10 - ★★ webhook: 路徑與方法
+  ---
+  duration_ms: 2021.117417
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:38.584Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:38.596Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:31:38.596Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:31:38.620Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:38.684Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:38.685Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:40.666Z","level":"info","event":"user_created","user_id":"31ecdac4-0856-4f12-a300-107640122c11","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:40.667Z","level":"info","event":"user_created","user_id":"e8c73cd9-1a9b-48a7-8348-3e3f8e8de0a9","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:40.668Z","level":"info","event":"telegram_linked","user_id":"31ecdac4-0856-4f12-a300-107640122c11"}
+# {"ts":"2026-09-27T14:31:40.668Z","level":"info","event":"telegram_linked","user_id":"e8c73cd9-1a9b-48a7-8348-3e3f8e8de0a9"}
+# Subtest: ★★★ webhook: 已綁定的使用者 → Q&A 路徑、有回覆
+ok 11 - ★★★ webhook: 已綁定的使用者 → Q&A 路徑、有回覆
+  ---
+  duration_ms: 1969.853
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:40.718Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:40.733Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:40.792Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:40.794Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:42.673Z","level":"info","event":"user_created","user_id":"6bc8a81b-cf5d-4b47-a207-58e17cb41966","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:42.674Z","level":"info","event":"user_created","user_id":"2c0f7fa2-6789-428d-8253-771202226695","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:42.675Z","level":"info","event":"telegram_linked","user_id":"6bc8a81b-cf5d-4b47-a207-58e17cb41966"}
+# {"ts":"2026-09-27T14:31:42.675Z","level":"info","event":"telegram_linked","user_id":"2c0f7fa2-6789-428d-8253-771202226695"}
+# Subtest: ★★★ webhook: 未綁定的 chat → 完全不回覆、不寫任何東西
+ok 12 - ★★★ webhook: 未綁定的 chat → 完全不回覆、不寫任何東西
+  ---
+  duration_ms: 2113.268584
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:42.729Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:42.740Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:42.804Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:42.806Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:44.740Z","level":"info","event":"user_created","user_id":"0f1274ab-710c-494d-85a2-939ea26a0654","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:44.741Z","level":"info","event":"user_created","user_id":"86a76947-f5b2-4020-8b0e-615d30c76842","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:44.742Z","level":"info","event":"telegram_linked","user_id":"0f1274ab-710c-494d-85a2-939ea26a0654"}
+# {"ts":"2026-09-27T14:31:44.743Z","level":"info","event":"telegram_linked","user_id":"86a76947-f5b2-4020-8b0e-615d30c76842"}
+# {"ts":"2026-09-27T14:31:44.744Z","level":"info","event":"user_lifecycle_transition","user_id":"0f1274ab-710c-494d-85a2-939ea26a0654"}
+# Subtest: ★★★ webhook: 綁定被撤銷 → fail closed，不回覆
+ok 13 - ★★★ webhook: 綁定被撤銷 → fail closed，不回覆
+  ---
+  duration_ms: 2006.227875
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:44.810Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:44.826Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:44.900Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:44.902Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:47.145Z","level":"info","event":"user_created","user_id":"d31ea309-324f-405d-90d9-715d73c674b6","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:47.146Z","level":"info","event":"user_created","user_id":"d0a95a13-5828-4b0b-8456-561568db608a","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:47.147Z","level":"info","event":"telegram_linked","user_id":"d31ea309-324f-405d-90d9-715d73c674b6"}
+# {"ts":"2026-09-27T14:31:47.148Z","level":"info","event":"telegram_linked","user_id":"d0a95a13-5828-4b0b-8456-561568db608a"}
+# Subtest: ★★★ webhook: 使用者被停用 → fail closed，不回覆
+ok 14 - ★★★ webhook: 使用者被停用 → fail closed，不回覆
+  ---
+  duration_ms: 2086.011875
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:47.201Z","level":"warn","event":"telegram_message_rejected","update_id":100,"reason":"non_private_chat"}
+# {"ts":"2026-09-27T14:31:47.271Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:47.272Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:49.113Z","level":"info","event":"user_created","user_id":"6e3be5da-58db-465d-acd1-a4932a4036e8","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:49.114Z","level":"info","event":"user_created","user_id":"80365b4a-1e2d-4dbb-96bc-82459071405a","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:49.115Z","level":"info","event":"telegram_linked","user_id":"6e3be5da-58db-465d-acd1-a4932a4036e8"}
+# {"ts":"2026-09-27T14:31:49.116Z","level":"info","event":"telegram_linked","user_id":"80365b4a-1e2d-4dbb-96bc-82459071405a"}
+# Subtest: ★★★ webhook: 群組訊息一律拒絕（H-01）
+ok 15 - ★★★ webhook: 群組訊息一律拒絕（H-01）
+  ---
+  duration_ms: 2386.1495
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:49.162Z","level":"warn","event":"telegram_message_rejected","update_id":100,"reason":"sender_chat_mismatch"}
+# {"ts":"2026-09-27T14:31:49.244Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:49.246Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:51.632Z","level":"info","event":"user_created","user_id":"3829fad6-fbf9-4f9c-831e-ca4b49d6d93b","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:51.633Z","level":"info","event":"user_created","user_id":"73d8a05c-b306-437f-af53-040c9927f033","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:51.634Z","level":"info","event":"telegram_linked","user_id":"3829fad6-fbf9-4f9c-831e-ca4b49d6d93b"}
+# {"ts":"2026-09-27T14:31:51.634Z","level":"info","event":"telegram_linked","user_id":"73d8a05c-b306-437f-af53-040c9927f033"}
+# Subtest: ★★★ webhook: 寄件者與 chat 不符一律拒絕（H-01）
+ok 16 - ★★★ webhook: 寄件者與 chat 不符一律拒絕（H-01）
+  ---
+  duration_ms: 1958.32275
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:51.684Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:51.702Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:51.702Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:31:51.702Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:51.702Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:31:51.702Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:31:51.703Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:51.703Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:31:51.703Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:51.703Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:31:51.703Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:31:51.703Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:31:51.703Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:31:51.715Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:51.715Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:31:51.715Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:51.715Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:31:51.715Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:31:51.717Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T14:31:51.717Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T14:31:51.717Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:31:51.717Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:31:51.717Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:31:51.730Z","level":"info","event":"journal_event_added","user_id":"3829fad6-fbf9-4f9c-831e-ca4b49d6d93b"}
+# {"ts":"2026-09-27T14:31:51.750Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:51.757Z","level":"info","event":"telegram_update_skipped_replay","update_id":100,"state":"completed"}
+# {"ts":"2026-09-27T14:31:51.826Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:51.828Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:54.039Z","level":"info","event":"user_created","user_id":"be1da88e-83dc-4b20-a07e-21d3d0dad940","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:54.041Z","level":"info","event":"user_created","user_id":"c7b65e21-1976-4518-8d3e-0dbcbbd3c46b","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:54.042Z","level":"info","event":"telegram_linked","user_id":"be1da88e-83dc-4b20-a07e-21d3d0dad940"}
+# {"ts":"2026-09-27T14:31:54.043Z","level":"info","event":"telegram_linked","user_id":"c7b65e21-1976-4518-8d3e-0dbcbbd3c46b"}
+# Subtest: ★★★ webhook: 同一個 update_id 送兩次 → 只處理一次、只回覆一次
+ok 17 - ★★★ webhook: 同一個 update_id 送兩次 → 只處理一次、只回覆一次
+  ---
+  duration_ms: 2588.069334
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:54.101Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:54.115Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:54.115Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:31:54.115Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:54.115Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:31:54.115Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:31:54.115Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:54.115Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:31:54.116Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:54.116Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:31:54.116Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:31:54.116Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:31:54.116Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:31:54.127Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:54.127Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:31:54.127Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:31:54.127Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:31:54.127Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:31:54.127Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T14:31:54.128Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T14:31:54.128Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:31:54.128Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:31:54.128Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:31:54.145Z","level":"info","event":"journal_event_added","user_id":"be1da88e-83dc-4b20-a07e-21d3d0dad940"}
+# {"ts":"2026-09-27T14:31:54.177Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:54.178Z","level":"info","event":"telegram_update_skipped_replay","update_id":100,"state":"completed"}
+# {"ts":"2026-09-27T14:31:54.270Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:54.272Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:56.564Z","level":"info","event":"user_created","user_id":"44f6b14c-746c-493c-bbe3-a5a1ebcaa9e5","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:56.565Z","level":"info","event":"user_created","user_id":"52b3f846-0c25-4923-b8b8-7e4c8aef0afe","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:56.566Z","level":"info","event":"telegram_linked","user_id":"44f6b14c-746c-493c-bbe3-a5a1ebcaa9e5"}
+# {"ts":"2026-09-27T14:31:56.567Z","level":"info","event":"telegram_linked","user_id":"52b3f846-0c25-4923-b8b8-7e4c8aef0afe"}
+# Subtest: ★★★ webhook: 同一實例併發同一個 update_id → 合流成一次，只回覆一次
+ok 18 - ★★★ webhook: 同一實例併發同一個 update_id → 合流成一次，只回覆一次
+  ---
+  duration_ms: 2421.579458
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:56.628Z","level":"info","event":"telegram_update_not_acknowledged","update_id":100,"state":"in_progress"}
+# {"ts":"2026-09-27T14:31:56.629Z","level":"warn","event":"telegram_webhook_retry_requested","update_id":100,"reason":"in_progress"}
+# {"ts":"2026-09-27T14:31:56.726Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:56.730Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:31:58.961Z","level":"info","event":"user_created","user_id":"20d329d9-0844-4a7c-86be-778f335425e0","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:58.962Z","level":"info","event":"user_created","user_id":"2bbcdee1-6aff-4886-99bf-60a2d024c81d","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:31:58.963Z","level":"info","event":"telegram_linked","user_id":"20d329d9-0844-4a7c-86be-778f335425e0"}
+# {"ts":"2026-09-27T14:31:58.964Z","level":"info","event":"telegram_linked","user_id":"2bbcdee1-6aff-4886-99bf-60a2d024c81d"}
+# Subtest: ★★★ webhook: 跨實例併發同一個 update_id → 只有一個能處理，另一個要重送
+ok 19 - ★★★ webhook: 跨實例併發同一個 update_id → 只有一個能處理，另一個要重送
+  ---
+  duration_ms: 2448.557666
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:31:59.020Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:31:59.035Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:31:59.035Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:31:59.056Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:31:59.061Z","level":"info","event":"telegram_update_skipped_replay","update_id":100,"state":"completed"}
+# {"ts":"2026-09-27T14:31:59.116Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:31:59.118Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:00.974Z","level":"info","event":"user_created","user_id":"2c28df48-f3c1-4aea-a8dc-993ba77e90c5","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:00.974Z","level":"info","event":"user_created","user_id":"ff066dfc-8e63-4baf-afbc-da119f5c32f7","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:00.976Z","level":"info","event":"telegram_linked","user_id":"2c28df48-f3c1-4aea-a8dc-993ba77e90c5"}
+# {"ts":"2026-09-27T14:32:00.977Z","level":"info","event":"telegram_linked","user_id":"ff066dfc-8e63-4baf-afbc-da119f5c32f7"}
+# Subtest: ★★★ webhook: 已完成的重播不會重跑動作，也不會重新呼叫 AI
+ok 20 - ★★★ webhook: 已完成的重播不會重跑動作，也不會重新呼叫 AI
+  ---
+  duration_ms: 2431.333542
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:32:01.016Z","level":"info","event":"telegram_update_not_acknowledged","update_id":100,"state":"in_progress"}
+# {"ts":"2026-09-27T14:32:01.016Z","level":"warn","event":"telegram_webhook_retry_requested","update_id":100,"reason":"in_progress"}
+# {"ts":"2026-09-27T14:32:01.073Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:01.075Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:02.920Z","level":"info","event":"user_created","user_id":"436dccb8-cffc-4ec0-97a2-11098e0b270b","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:02.921Z","level":"info","event":"telegram_linked","user_id":"436dccb8-cffc-4ec0-97a2-11098e0b270b"}
+# Subtest: ★★★ webhook: 內部暫時性失敗 → 503（讓 Telegram 重送），不是假裝成功
+ok 21 - ★★★ webhook: 內部暫時性失敗 → 503（讓 Telegram 重送），不是假裝成功
+  ---
+  duration_ms: 1955.310208
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:32:02.960Z","level":"warn","event":"telegram_update_claim_failed","update_id":100,"attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:02.961Z","level":"warn","event":"telegram_update_claim_failed","update_id":100,"attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:02.961Z","level":"warn","event":"telegram_update_claim_failed","update_id":100,"attempt":3,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:02.961Z","level":"error","event":"telegram_update_claim_unavailable","update_id":100,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:02.961Z","level":"info","event":"telegram_update_not_acknowledged","update_id":100,"state":"unavailable"}
+# {"ts":"2026-09-27T14:32:02.961Z","level":"warn","event":"telegram_webhook_retry_requested","update_id":100,"reason":"unavailable"}
+# {"ts":"2026-09-27T14:32:03.019Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:03.021Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:05.155Z","level":"info","event":"user_created","user_id":"ddeec2fb-4cfd-4200-a0c2-bb9b833fa7d1","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:05.156Z","level":"info","event":"user_created","user_id":"ed71c022-8ebf-4ef1-b860-7c445bdb4d8e","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:05.157Z","level":"info","event":"telegram_linked","user_id":"ddeec2fb-4cfd-4200-a0c2-bb9b833fa7d1"}
+# {"ts":"2026-09-27T14:32:05.157Z","level":"info","event":"telegram_linked","user_id":"ed71c022-8ebf-4ef1-b860-7c445bdb4d8e"}
+# Subtest: ★★★ webhook: 認領機制壞掉 → 503，完全沒有副作用
+ok 22 - ★★★ webhook: 認領機制壞掉 → 503，完全沒有副作用
+  ---
+  duration_ms: 1944.627917
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:32:05.204Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:32:05.215Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:32:05.215Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:32:05.230Z","level":"warn","event":"telegram_delivery_failed_retryable","update_id":100,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:05.238Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:32:05.238Z","level":"warn","event":"telegram_webhook_retry_requested","update_id":100}
+# {"ts":"2026-09-27T14:32:05.358Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:05.361Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:07.363Z","level":"info","event":"user_created","user_id":"f4973818-cd1c-4a34-8a7f-94436fe20251","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:07.364Z","level":"info","event":"user_created","user_id":"5d286c1c-baff-4aad-9664-00f7d7041c97","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:07.365Z","level":"info","event":"telegram_linked","user_id":"f4973818-cd1c-4a34-8a7f-94436fe20251"}
+# {"ts":"2026-09-27T14:32:07.365Z","level":"info","event":"telegram_linked","user_id":"5d286c1c-baff-4aad-9664-00f7d7041c97"}
+# Subtest: ★★★ webhook: Telegram 送出失敗 → 503，而且不標記完成（可以重送）
+ok 23 - ★★★ webhook: Telegram 送出失敗 → 503，而且不標記完成（可以重送）
+  ---
+  duration_ms: 2277.425625
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:32:07.406Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:32:07.419Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:32:07.419Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:32:07.439Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:32:07.495Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:07.497Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:09.263Z","level":"info","event":"user_created","user_id":"572dea80-3e0e-439d-92aa-6ce59d08384e","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:09.264Z","level":"info","event":"user_created","user_id":"eec389e5-2427-4ce9-942e-42f3b1696ac6","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:09.264Z","level":"info","event":"telegram_linked","user_id":"572dea80-3e0e-439d-92aa-6ce59d08384e"}
+# {"ts":"2026-09-27T14:32:09.265Z","level":"info","event":"telegram_linked","user_id":"eec389e5-2427-4ce9-942e-42f3b1696ac6"}
+# Subtest: ★★★ webhook: OpenRouter 掛掉仍然要回一句人話，不可以讓請求失敗
+ok 24 - ★★★ webhook: OpenRouter 掛掉仍然要回一句人話，不可以讓請求失敗
+  ---
+  duration_ms: 2200.264917
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:32:09.313Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:32:09.322Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.322Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:32:09.322Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.322Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:32:09.322Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:09.323Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.323Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:32:09.323Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.323Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:32:09.323Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:09.323Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:32:09.323Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:32:09.330Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.330Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:32:09.330Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.330Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:32:09.330Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:09.331Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T14:32:09.331Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T14:32:09.331Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:09.331Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:32:09.331Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:32:09.340Z","level":"info","event":"journal_event_added","user_id":"572dea80-3e0e-439d-92aa-6ce59d08384e"}
+# {"ts":"2026-09-27T14:32:09.357Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:32:09.361Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:32:09.370Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.370Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:32:09.370Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.370Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:32:09.370Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:09.370Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.370Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:32:09.370Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.371Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:32:09.371Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:09.371Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:32:09.371Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:32:09.378Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.378Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:32:09.378Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:09.378Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:32:09.378Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:09.378Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T14:32:09.378Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T14:32:09.378Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:09.378Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:32:09.378Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:32:09.387Z","level":"info","event":"journal_event_added","user_id":"eec389e5-2427-4ce9-942e-42f3b1696ac6"}
+# {"ts":"2026-09-27T14:32:09.404Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:32:09.473Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:09.475Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:11.222Z","level":"info","event":"user_created","user_id":"fd25253d-ebdc-47ec-9b24-628d7e9b1785","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:11.223Z","level":"info","event":"user_created","user_id":"a512ae02-eb81-4657-9823-d344f9f89151","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:11.224Z","level":"info","event":"telegram_linked","user_id":"fd25253d-ebdc-47ec-9b24-628d7e9b1785"}
+# {"ts":"2026-09-27T14:32:11.224Z","level":"info","event":"telegram_linked","user_id":"a512ae02-eb81-4657-9823-d344f9f89151"}
+# {"ts":"2026-09-27T14:32:11.225Z","level":"info","event":"user_created","user_id":"8d7c7b91-db68-4a93-b74f-f12d3f589cf8","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:11.227Z","level":"info","event":"telegram_linked","user_id":"8d7c7b91-db68-4a93-b74f-f12d3f589cf8"}
+# {"ts":"2026-09-27T14:32:11.227Z","level":"warn","event":"telegram_reply_suppressed_binding_changed"}
+# {"ts":"2026-09-27T14:32:11.291Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:11.293Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:13.251Z","level":"info","event":"user_created","user_id":"3b160844-8b94-4c9f-ac46-44360702d55c","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:13.252Z","level":"info","event":"user_created","user_id":"952f2745-8e2a-4349-8035-7498f5ba2329","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:13.252Z","level":"info","event":"telegram_linked","user_id":"3b160844-8b94-4c9f-ac46-44360702d55c"}
+# {"ts":"2026-09-27T14:32:13.253Z","level":"info","event":"telegram_linked","user_id":"952f2745-8e2a-4349-8035-7498f5ba2329"}
+# {"ts":"2026-09-27T14:32:13.314Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:13.316Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:15.349Z","level":"info","event":"user_created","user_id":"f97ad69f-822b-401b-ac3c-f6355e9767cc","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:15.350Z","level":"info","event":"user_created","user_id":"e40f90b8-4db5-4b77-bc48-c31dcf21c6db","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:15.351Z","level":"info","event":"telegram_linked","user_id":"f97ad69f-822b-401b-ac3c-f6355e9767cc"}
+# {"ts":"2026-09-27T14:32:15.352Z","level":"info","event":"telegram_linked","user_id":"e40f90b8-4db5-4b77-bc48-c31dcf21c6db"}
+# Subtest: ★★★ webhook: 兩個使用者互不干擾，回覆各自回到自己的 chat
+ok 25 - ★★★ webhook: 兩個使用者互不干擾，回覆各自回到自己的 chat
+  ---
+  duration_ms: 1972.037416
+  type: 'test'
+  ...
+# Subtest: ★★★ webhook: HRD-R03 —— chat 換綁之後，前一個人的回覆不可以送出去
+ok 26 - ★★★ webhook: HRD-R03 —— chat 換綁之後，前一個人的回覆不可以送出去
+  ---
+  duration_ms: 1815.757541
+  type: 'test'
+  ...
+# Subtest: ★★★ webhook: resolveUserByChatId 的契約仍然是 { user, link }
+ok 27 - ★★★ webhook: resolveUserByChatId 的契約仍然是 { user, link }
+  ---
+  duration_ms: 2026.790209
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:32:15.528Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:32:15.541Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:32:15.542Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:32:15.551Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:15.551Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T14:32:15.551Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:15.551Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T14:32:15.551Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:15.551Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T14:32:15.551Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T14:32:15.551Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T14:32:15.551Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:32:15.551Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:32:15.563Z","level":"info","event":"journal_event_added","user_id":"f97ad69f-822b-401b-ac3c-f6355e9767cc"}
+# {"ts":"2026-09-27T14:32:15.583Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:32:15.588Z","level":"info","event":"telegram_update_skipped_replay","update_id":100,"state":"completed"}
+# {"ts":"2026-09-27T14:32:15.660Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:15.662Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:18.231Z","level":"info","event":"user_created","user_id":"0af85e2e-c097-4219-9700-03473710c73c","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:18.232Z","level":"info","event":"user_created","user_id":"8da1316b-b818-4b74-bfa8-f1f29824b3cc","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:18.233Z","level":"info","event":"telegram_linked","user_id":"0af85e2e-c097-4219-9700-03473710c73c"}
+# {"ts":"2026-09-27T14:32:18.234Z","level":"info","event":"telegram_linked","user_id":"8da1316b-b818-4b74-bfa8-f1f29824b3cc"}
+# Subtest: ★★★ webhook: 正確性不依賴記憶體 —— 換一個全新的 processor 仍然去重
+ok 28 - ★★★ webhook: 正確性不依賴記憶體 —— 換一個全新的 processor 仍然去重
+  ---
+  duration_ms: 2336.056167
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:32:18.277Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:32:18.287Z","level":"info","event":"intent_resolved"}
+# {"ts":"2026-09-27T14:32:18.287Z","level":"info","event":"answer_plan"}
+# {"ts":"2026-09-27T14:32:18.306Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:32:18.364Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:18.366Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:20.802Z","level":"info","event":"user_created","user_id":"cab961ae-488c-4958-8ec9-f3126e8b8d77","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:20.803Z","level":"info","event":"user_created","user_id":"cdd3fa9a-531f-4a2e-a6e4-d5256ef39f99","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:20.804Z","level":"info","event":"telegram_linked","user_id":"cab961ae-488c-4958-8ec9-f3126e8b8d77"}
+# {"ts":"2026-09-27T14:32:20.804Z","level":"info","event":"telegram_linked","user_id":"cdd3fa9a-531f-4a2e-a6e4-d5256ef39f99"}
+# Subtest: ★★★ webhook: 處理路徑絕不呼叫 getUpdates
+ok 29 - ★★★ webhook: 處理路徑絕不呼叫 getUpdates
+  ---
+  duration_ms: 2715.724
+  type: 'test'
+  ...
+# Subtest: ★★ webhook: looksLikeUpdate 只認結構合法的 Update
+ok 30 - ★★ webhook: looksLikeUpdate 只認結構合法的 Update
+  ---
+  duration_ms: 0.299583
+  type: 'test'
+  ...
+# Subtest: ★★★ webhook: 真的起一個 server，/health 與 webhook 都通
+not ok 31 - ★★★ webhook: 真的起一個 server，/health 與 webhook 都通
+  ---
+  duration_ms: 2512.544917
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/telegram-webhook.test.js:553:1'
+  failureType: 'uncaughtException'
+  error: 'listen EPERM: operation not permitted 0.0.0.0'
+  code: 'EPERM'
+  stack: |-
+    Server.setupListenHandle [as _listen2] (node:net:1919:21)
+    listenInCluster (node:net:1998:12)
+    node:net:2207:7
+    process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 30
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 64512.580792

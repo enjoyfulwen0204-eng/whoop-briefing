@@ -1,0 +1,165 @@
+TAP version 13
+# {"ts":"2026-09-27T11:55:47.721Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:47.724Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:49.230Z","level":"info","event":"user_created","user_id":"u-poll-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:49.231Z","level":"info","event":"telegram_updates_received","count":2}
+# {"ts":"2026-09-27T11:55:49.233Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:49.258Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:49.260Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:49.287Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:49.341Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:49.343Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:50.842Z","level":"info","event":"user_created","user_id":"u-poll-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:50.843Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:50.865Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:50.866Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:50.888Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:50.940Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:50.942Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:52.437Z","level":"info","event":"user_created","user_id":"u-poll-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:52.437Z","level":"info","event":"telegram_updates_received","count":1}
+# {"ts":"2026-09-27T11:55:52.439Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:52.461Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:52.461Z","level":"info","event":"telegram_updates_received","count":1}
+# {"ts":"2026-09-27T11:55:52.462Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:52.484Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:52.535Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:52.536Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:54.045Z","level":"info","event":"user_created","user_id":"u-poll-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:54.045Z","level":"info","event":"telegram_update_skipped_duplicate","update_id":498}
+# {"ts":"2026-09-27T11:55:54.045Z","level":"info","event":"telegram_update_skipped_duplicate","update_id":499}
+# {"ts":"2026-09-27T11:55:54.047Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:54.069Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:54.122Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:54.123Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:55.614Z","level":"info","event":"user_created","user_id":"u-poll-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:55.614Z","level":"info","event":"telegram_updates_received","count":2}
+# {"ts":"2026-09-27T11:55:55.616Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:55.624Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:55.626Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:55.647Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:55.698Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:55.700Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:57.188Z","level":"info","event":"user_created","user_id":"u-poll-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:57.188Z","level":"info","event":"telegram_updates_received","count":4}
+# {"ts":"2026-09-27T11:55:57.190Z","level":"info","event":"telegram_update_ignored","update_id":1}
+# {"ts":"2026-09-27T11:55:57.200Z","level":"info","event":"telegram_update_ignored","update_id":2}
+# {"ts":"2026-09-27T11:55:57.209Z","level":"info","event":"telegram_update_ignored","update_id":3}
+# {"ts":"2026-09-27T11:55:57.217Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:57.239Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:57.290Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:57.291Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:58.881Z","level":"info","event":"user_created","user_id":"u-poll-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:58.883Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:58.905Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:58.907Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:58.921Z","level":"error","event":"telegram_processing_retry_required","update_id":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:58.927Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:58.927Z","level":"error","event":"telegram_batch_paused","update_id":2,"reason":"processing_failed"}
+# {"ts":"2026-09-27T11:55:58.979Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:58.981Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:00.485Z","level":"info","event":"user_created","user_id":"u-poll-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:00.486Z","level":"warn","event":"telegram_rate_limited","retry_after_ms":7000}
+# {"ts":"2026-09-27T11:56:00.487Z","level":"warn","event":"telegram_rate_limited","retry_after_ms":999999999}
+# {"ts":"2026-09-27T11:56:00.538Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:00.540Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:02.019Z","level":"info","event":"user_created","user_id":"u-poll-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:56:02.019Z","level":"info","event":"telegram_poller_start"}
+# {"ts":"2026-09-27T11:56:02.020Z","level":"warn","event":"telegram_poll_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:56:02.020Z","level":"warn","event":"telegram_poll_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:56:02.020Z","level":"info","event":"telegram_updates_received","count":1}
+# {"ts":"2026-09-27T11:56:02.021Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:56:02.043Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:56:02.043Z","level":"info","event":"telegram_updates_received","count":1}
+# {"ts":"2026-09-27T11:56:02.044Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:56:02.065Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:56:02.066Z","level":"info","event":"telegram_poller_stopped"}
+# {"ts":"2026-09-27T11:56:02.116Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:02.118Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:03.595Z","level":"info","event":"telegram_poller_start"}
+# {"ts":"2026-09-27T11:56:03.595Z","level":"info","event":"telegram_poller_stopping"}
+# {"ts":"2026-09-27T11:56:03.595Z","level":"info","event":"telegram_poller_stopped"}
+# {"ts":"2026-09-27T11:56:03.648Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:56:03.650Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:56:05.276Z","level":"info","event":"user_created","user_id":"u-poll-test","status":"ACTIVE"}
+# Subtest: L: 收到訊息會被處理，offset 推進到 update_id + 1
+ok 1 - L: 收到訊息會被處理，offset 推進到 update_id + 1
+  ---
+  duration_ms: 1628.944458
+  type: 'test'
+  ...
+# Subtest: ★ L: 每處理完一則就存 offset（中途死掉最多只重做一則）
+ok 2 - ★ L: 每處理完一則就存 offset（中途死掉最多只重做一則）
+  ---
+  duration_ms: 1600.061416
+  type: 'test'
+  ...
+# Subtest: ★ L: 重啟後從 DB 的 offset 續傳，不會重頭處理
+ok 3 - ★ L: 重啟後從 DB 的 offset 續傳，不會重頭處理
+  ---
+  duration_ms: 1595.578292
+  type: 'test'
+  ...
+# Subtest: ★ L: Telegram 重送舊 update 時本地會擋掉（重複防線）
+ok 4 - ★ L: Telegram 重送舊 update 時本地會擋掉（重複防線）
+  ---
+  duration_ms: 1584.891584
+  type: 'test'
+  ...
+# Subtest: ★ L: 未綁定的 chat 完全不回應（連錯誤訊息都不給）
+ok 5 - ★ L: 未綁定的 chat 完全不回應（連錯誤訊息都不給）
+  ---
+  duration_ms: 1578.409791
+  type: 'test'
+  ...
+# Subtest: L: 非文字訊息與非 message update 被安全略過
+ok 6 - L: 非文字訊息與非 message update 被安全略過
+  ---
+  duration_ms: 1591.335417
+  type: 'test'
+  ...
+# Subtest: ★ L: 單一訊息處理失敗保留 offset 等待重試
+ok 7 - ★ L: 單一訊息處理失敗保留 offset 等待重試
+  ---
+  duration_ms: 1687.718084
+  type: 'test'
+  ...
+# Subtest: L: 網路錯誤會退避重試，不會讓迴圈死掉
+ok 8 - L: 網路錯誤會退避重試，不會讓迴圈死掉
+  ---
+  duration_ms: 1558.6765
+  type: 'test'
+  ...
+# Subtest: ★ L: 429 會照 retry_after 等待，而不是用預設退避
+ok 9 - ★ L: 429 會照 retry_after 等待，而不是用預設退避
+  ---
+  duration_ms: 0.679541
+  type: 'test'
+  ...
+# Subtest: L: 主迴圈遇錯會重試並在 maxIterations 後結束
+ok 10 - L: 主迴圈遇錯會重試並在 maxIterations 後結束
+  ---
+  duration_ms: 1579.271083
+  type: 'test'
+  ...
+# Subtest: L: stop() 會讓迴圈收工（graceful shutdown）
+ok 11 - L: stop() 會讓迴圈收工（graceful shutdown）
+  ---
+  duration_ms: 1529.583583
+  type: 'test'
+  ...
+# Subtest: L: classify 正確分類各種 update（身分解析為 async）
+ok 12 - L: classify 正確分類各種 update（身分解析為 async）
+  ---
+  duration_ms: 1681.032709
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18619.714792

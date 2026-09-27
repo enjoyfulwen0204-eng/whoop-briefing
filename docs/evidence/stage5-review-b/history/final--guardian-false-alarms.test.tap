@@ -1,0 +1,9 @@
+TAP version 13
+# {"ts":"2026-09-27T12:20:26.113Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:20:26.116Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T12:20:27.708Z","level":"info","event":"user_created","user_id":"e01352f4-1b96-4f3b-9050-97f1abe85510","status":"ACTIVE"}
+# {"ts":"2026-09-27T12:20:27.709Z","level":"info","event":"tokens_saved","user_id":"e01352f4-1b96-4f3b-9050-97f1abe85510","attempt":1}
+# {"ts":"2026-09-27T12:20:27.713Z","level":"info","event":"proactive_event_claimed","user_id":"e01352f4-1b96-4f3b-9050-97f1abe85510"}
+# {"ts":"2026-09-27T12:20:27.785Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T12:20:27.787Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:28:09.074Z","level":"info","event":"user_created","user_id":"e95cc579-47a8-4b3d-a98d-e556837cbbcb","status":"ACTIVE"}

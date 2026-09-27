@@ -1,0 +1,474 @@
+[
+  {
+    "report": "node-2026-09-27-192026.ips",
+    "captureTime": "2026-09-27 19:20:25.3093 +0700",
+    "exception": {
+      "codes": "0x0000000000000001, 0x000000016884a3d1",
+      "rawCodes": [
+        1,
+        6048490449
+      ],
+      "type": "EXC_BAD_ACCESS",
+      "signal": "SIGSEGV",
+      "subtype": "KERN_INVALID_ADDRESS at 0x000000016884a3d1"
+    },
+    "termination": null,
+    "faultFrames": [
+      {
+        "imageOffset": 4618472,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 2513860,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 2740588,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 506516,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 380320,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 470324,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "symbol": "void napi_env__::CallIntoModule<void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallbackIntoModule<true, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)::'lambda'(napi_env__*, v8::Local<v8::Value>)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)",
+        "symbolLocation": 64,
+        "imageOffset": 863876,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node_napi_env__::CallFinalizer(void (*)(napi_env__*, void*, void*), void*, void*)",
+        "symbolLocation": 88,
+        "imageOffset": 843712,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "v8impl::Reference::Finalize()",
+        "symbolLocation": 92,
+        "imageOffset": 720876,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::CallbackQueue<void, node::Environment*>::CallbackImpl<node_napi_env__::EnqueueFinalizer(v8impl::RefTracker*)::$_0>::Call(node::Environment*)",
+        "symbolLocation": 100,
+        "imageOffset": 864492,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)::$_0::operator()(node::CallbackQueue<void, node::Environment*>*) const",
+        "symbolLocation": 100,
+        "imageOffset": 645076,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)",
+        "symbolLocation": 400,
+        "imageOffset": 641908,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::Environment::CheckImmediate(uv_check_s*)",
+        "symbolLocation": 300,
+        "imageOffset": 639264,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "uv__run_check",
+        "symbolLocation": 136,
+        "imageOffset": 13628976,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "uv_run",
+        "symbolLocation": 1256,
+        "imageOffset": 13600336,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::SpinEventLoopInternal(node::Environment*)",
+        "symbolLocation": 248,
+        "imageOffset": 62356,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      }
+    ]
+  },
+  {
+    "report": "node-2026-09-27-220031.ips",
+    "captureTime": "2026-09-27 22:00:30.9983 +0800",
+    "exception": {
+      "codes": "0x0000000000000001, 0x000000013843c8e1",
+      "rawCodes": [
+        1,
+        5238933729
+      ],
+      "type": "EXC_BAD_ACCESS",
+      "signal": "SIGSEGV",
+      "subtype": "KERN_INVALID_ADDRESS at 0x000000013843c8e1"
+    },
+    "termination": null,
+    "faultFrames": [
+      {
+        "imageOffset": 4618472,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 2513860,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 2740588,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 506516,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 380320,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 470324,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "symbol": "void napi_env__::CallIntoModule<void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallbackIntoModule<true, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)::'lambda'(napi_env__*, v8::Local<v8::Value>)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)",
+        "symbolLocation": 64,
+        "imageOffset": 863876,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node_napi_env__::CallFinalizer(void (*)(napi_env__*, void*, void*), void*, void*)",
+        "symbolLocation": 88,
+        "imageOffset": 843712,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "v8impl::Reference::Finalize()",
+        "symbolLocation": 92,
+        "imageOffset": 720876,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::CallbackQueue<void, node::Environment*>::CallbackImpl<node_napi_env__::EnqueueFinalizer(v8impl::RefTracker*)::$_0>::Call(node::Environment*)",
+        "symbolLocation": 100,
+        "imageOffset": 864492,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)::$_0::operator()(node::CallbackQueue<void, node::Environment*>*) const",
+        "symbolLocation": 100,
+        "imageOffset": 645076,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)",
+        "symbolLocation": 400,
+        "imageOffset": 641908,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::Environment::CheckImmediate(uv_check_s*)",
+        "symbolLocation": 300,
+        "imageOffset": 639264,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "uv__run_check",
+        "symbolLocation": 136,
+        "imageOffset": 13628976,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "uv_run",
+        "symbolLocation": 1256,
+        "imageOffset": 13600336,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::SpinEventLoopInternal(node::Environment*)",
+        "symbolLocation": 248,
+        "imageOffset": 62356,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      }
+    ]
+  },
+  {
+    "report": "node-2026-09-27-231256.ips",
+    "captureTime": "2026-09-27 23:12:56.0441 +0800",
+    "exception": {
+      "codes": "0x0000000000000001, 0x000000017b65fbb1",
+      "rawCodes": [
+        1,
+        6365248433
+      ],
+      "type": "EXC_BAD_ACCESS",
+      "signal": "SIGSEGV",
+      "subtype": "KERN_INVALID_ADDRESS at 0x000000017b65fbb1"
+    },
+    "faultingThread": 0,
+    "queue": "com.apple.main-thread",
+    "faultFrames": [
+      {
+        "imageOffset": 4618472,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 2513860,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 2740588,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 506516,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 383100,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "symbol": "v8impl::(anonymous namespace)::FunctionCallbackWrapper::Invoke(v8::FunctionCallbackInfo<v8::Value> const&)",
+        "symbolLocation": 72,
+        "imageOffset": 767640,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "Builtins_CallApiCallbackGeneric",
+        "symbolLocation": 184,
+        "imageOffset": 13758360,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "Builtins_InterpreterEntryTrampoline",
+        "symbolLocation": 272,
+        "imageOffset": 13750000,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "Builtins_InterpreterEntryTrampoline",
+        "symbolLocation": 272,
+        "imageOffset": 13750000,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "Builtins_InterpreterEntryTrampoline",
+        "symbolLocation": 272,
+        "imageOffset": 13750000,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "Builtins_InterpreterEntryTrampoline",
+        "symbolLocation": 272,
+        "imageOffset": 13750000,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "Builtins_AsyncFunctionAwaitResolveClosure",
+        "symbolLocation": 80,
+        "imageOffset": 13997072,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "Builtins_PromiseFulfillReactionJob",
+        "symbolLocation": 56,
+        "imageOffset": 14831480,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "Builtins_RunMicrotasks",
+        "symbolLocation": 564,
+        "imageOffset": 13932276,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "Builtins_JSRunMicrotasksEntry",
+        "symbolLocation": 148,
+        "imageOffset": 13740788,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "v8::internal::(anonymous namespace)::Invoke(v8::internal::Isolate*, v8::internal::(anonymous namespace)::InvokeParams const&)",
+        "symbolLocation": 1588,
+        "imageOffset": 4532260,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      }
+    ]
+  },
+  {
+    "report": "node-2026-09-27-231957.ips",
+    "captureTime": "2026-09-27 23:19:57.2286 +0800",
+    "exception": {
+      "codes": "0x0000000000000001, 0x00000005e5560701",
+      "rawCodes": [
+        1,
+        25322456833
+      ],
+      "type": "EXC_BAD_ACCESS",
+      "signal": "SIGSEGV",
+      "subtype": "KERN_INVALID_ADDRESS at 0x00000005e5560701"
+    },
+    "faultingThread": 0,
+    "queue": "com.apple.main-thread",
+    "faultFrames": [
+      {
+        "imageOffset": 4618472,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 2513860,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 2740588,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 506516,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 380320,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "imageOffset": 470324,
+        "image": "index.node",
+        "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+      },
+      {
+        "symbol": "void napi_env__::CallIntoModule<void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallbackIntoModule<true, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)::'lambda'(napi_env__*, v8::Local<v8::Value>)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)",
+        "symbolLocation": 64,
+        "imageOffset": 863876,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node_napi_env__::CallFinalizer(void (*)(napi_env__*, void*, void*), void*, void*)",
+        "symbolLocation": 88,
+        "imageOffset": 843712,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "v8impl::Reference::Finalize()",
+        "symbolLocation": 92,
+        "imageOffset": 720876,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::CallbackQueue<void, node::Environment*>::CallbackImpl<node_napi_env__::EnqueueFinalizer(v8impl::RefTracker*)::$_0>::Call(node::Environment*)",
+        "symbolLocation": 100,
+        "imageOffset": 864492,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)::$_0::operator()(node::CallbackQueue<void, node::Environment*>*) const",
+        "symbolLocation": 100,
+        "imageOffset": 645076,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::Environment::RunAndClearNativeImmediates(bool)",
+        "symbolLocation": 400,
+        "imageOffset": 641908,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::Environment::CheckImmediate(uv_check_s*)",
+        "symbolLocation": 300,
+        "imageOffset": 639264,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "uv__run_check",
+        "symbolLocation": 136,
+        "imageOffset": 13628976,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "uv_run",
+        "symbolLocation": 1256,
+        "imageOffset": 13600336,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      },
+      {
+        "symbol": "node::SpinEventLoopInternal(node::Environment*)",
+        "symbolLocation": 248,
+        "imageOffset": 62356,
+        "image": "node",
+        "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1"
+      }
+    ]
+  }
+]

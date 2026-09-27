@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: Journal deterministic normalization accepts only closed typed vocabulary and does not infer missing units or negative polarity
+ok 1 - Journal deterministic normalization accepts only closed typed vocabulary and does not infer missing units or negative polarity
+  ---
+  duration_ms: 49.530084
+  type: 'test'
+  ...
+# Subtest: Journal factor and polarity authority is clause-bound, uncertainty-safe, bilingual and coverage-exact
+ok 2 - Journal factor and polarity authority is clause-bound, uncertainty-safe, bilingual and coverage-exact
+  ---
+  duration_ms: 39.894791
+  type: 'test'
+  ...
+# Subtest: Complete-source authority cannot be manufactured by generic or polarity-trimmed excerpts
+ok 3 - Complete-source authority cannot be manufactured by generic or polarity-trimmed excerpts
+  ---
+  duration_ms: 11.5705
+  type: 'test'
+  ...
+# Subtest: Closed positive grammar preserves registered declarations, verbs and independent facts without ordinary-verb alcohol collisions
+ok 4 - Closed positive grammar preserves registered declarations, verbs and independent facts without ordinary-verb alcohol collisions
+  ---
+  duration_ms: 54.782416
+  type: 'test'
+  ...
+# Subtest: Journal authority-shaped candidate fields and injected messages remain untrusted data, never roles or capabilities
+ok 5 - Journal authority-shaped candidate fields and injected messages remain untrusted data, never roles or capabilities
+  ---
+  duration_ms: 0.947584
+  type: 'test'
+  ...
+# Subtest: Journal excerpts count Unicode code points; time ambiguity, malformed days and numeric provenance require clarification/rejection
+ok 6 - Journal excerpts count Unicode code points; time ambiguity, malformed days and numeric provenance require clarification/rejection
+  ---
+  duration_ms: 2.328
+  type: 'test'
+  ...
+# Subtest: Wake alignment uses a current earlier boundary, preserves recorded timezone and leaves 04:00 fallback explicitly provisional
+ok 7 - Wake alignment uses a current earlier boundary, preserves recorded timezone and leaves 04:00 fallback explicitly provisional
+  ---
+  duration_ms: 0.724417
+  type: 'test'
+  ...
+# Subtest: Tri-state classification requires actual factor/window proof; absence/unrelated/point negatives stay UNKNOWN
+ok 8 - Tri-state classification requires actual factor/window proof; absence/unrelated/point negatives stay UNKNOWN
+  ---
+  duration_ms: 0.715917
+  type: 'test'
+  ...
+# Subtest: Coverage is explicit, exact-window/factor-set limited and versioned; 0.50 UNKNOWN is only one non-promoting gate
+ok 9 - Coverage is explicit, exact-window/factor-set limited and versioned; 0.50 UNKNOWN is only one non-promoting gate
+  ---
+  duration_ms: 1.043709
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 282.197167

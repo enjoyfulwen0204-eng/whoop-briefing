@@ -1,0 +1,114 @@
+TAP version 13
+# {"ts":"2026-09-27T14:33:02.604Z","level":"info","event":"telegram_sent","message_id":42}
+# {"ts":"2026-09-27T14:33:02.703Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:33:02.708Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:33:05.075Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:33:05.077Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:33:07.055Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:33:07.056Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:33:08.729Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:33:08.730Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:33:10.330Z","level":"warn","event":"telegram_delivery_start_no_conversation","update_id":400}
+# {"ts":"2026-09-27T14:33:10.389Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:33:10.390Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:33:12.280Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:33:12.282Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: ★★★ H-04/1: HTTP 200 之後 body 讀取失敗 → AMBIGUOUS（絕不自動重送）
+ok 1 - ★★★ H-04/1: HTTP 200 之後 body 讀取失敗 → AMBIGUOUS（絕不自動重送）
+  ---
+  duration_ms: 2.379417
+  type: 'test'
+  ...
+# Subtest: ★★★ H-04/2: 截斷的成功回應 → AMBIGUOUS（不宣稱送達，也不重送）
+ok 2 - ★★★ H-04/2: 截斷的成功回應 → AMBIGUOUS（不宣稱送達，也不重送）
+  ---
+  duration_ms: 0.465042
+  type: 'test'
+  ...
+# Subtest: ★★★ H-04/3: ok:true 但沒有 message_id → AMBIGUOUS（成功的形狀不完整）
+ok 3 - ★★★ H-04/3: ok:true 但沒有 message_id → AMBIGUOUS（成功的形狀不完整）
+  ---
+  duration_ms: 0.256292
+  type: 'test'
+  ...
+# Subtest: ★★★ H-04/4: Telegram 親口拒收 → DEFINITE_FAILURE（可以安全重送）
+ok 4 - ★★★ H-04/4: Telegram 親口拒收 → DEFINITE_FAILURE（可以安全重送）
+  ---
+  duration_ms: 0.395333
+  type: 'test'
+  ...
+# Subtest: ★★★ H-04/5: 非 2xx 的 body 讀不到 → 仍然是 DEFINITE_FAILURE（狀態碼就夠了）
+ok 5 - ★★★ H-04/5: 非 2xx 的 body 讀不到 → 仍然是 DEFINITE_FAILURE（狀態碼就夠了）
+  ---
+  duration_ms: 0.452667
+  type: 'test'
+  ...
+# Subtest: ★★★ H-04/6: 連線階段 —— 只有「確定沒連上」才算確定失敗
+ok 6 - ★★★ H-04/6: 連線階段 —— 只有「確定沒連上」才算確定失敗
+  ---
+  duration_ms: 1.050667
+  type: 'test'
+  ...
+# Subtest: ★★★ H-04/7: 正常成功仍然正常（修正不可以把好路徑弄壞）
+ok 7 - ★★★ H-04/7: 正常成功仍然正常（修正不可以把好路徑弄壞）
+  ---
+  duration_ms: 2.300291
+  type: 'test'
+  ...
+# Subtest: ★★★ H-04/8: 預設是 fail closed —— 來歷不明的錯誤不可以被當成確定失敗
+ok 8 - ★★★ H-04/8: 預設是 fail closed —— 來歷不明的錯誤不可以被當成確定失敗
+  ---
+  duration_ms: 0.176958
+  type: 'test'
+  ...
+# Subtest: ★★★ H-04/9: bot 那條路（bot/api.js）分類必須完全一致
+ok 9 - ★★★ H-04/9: bot 那條路（bot/api.js）分類必須完全一致
+  ---
+  duration_ms: 2.091209
+  type: 'test'
+  ...
+# Subtest: ★★★ H-03/1: N 被放棄 → N+1 送出 → N 恢復執行 → N 不可以開始送出
+ok 10 - ★★★ H-03/1: N 被放棄 → N+1 送出 → N 恢復執行 → N 不可以開始送出
+  ---
+  duration_ms: 2395.466791
+  type: 'test'
+  ...
+# Subtest: ★★★ H-03/2: 租約過期（還沒被終結）也不可以送出
+ok 11 - ★★★ H-03/2: 租約過期（還沒被終結）也不可以送出
+  ---
+  duration_ms: 1995.620959
+  type: 'test'
+  ...
+# Subtest: ★★★ H-03/3: 對話裡還有更早、未終局的訊息 → 沒有排序權，不可以送出
+ok 12 - ★★★ H-03/3: 對話裡還有更早、未終局的訊息 → 沒有排序權，不可以送出
+  ---
+  duration_ms: 1676.024834
+  type: 'test'
+  ...
+# Subtest: ★★★ H-03/4: 換了 owner / 換了對話鍵都不可以送出
+ok 13 - ★★★ H-03/4: 換了 owner / 換了對話鍵都不可以送出
+  ---
+  duration_ms: 1655.009209
+  type: 'test'
+  ...
+# Subtest: ★★★ H-03/5: 已經開始送出的收據不可以被再啟動一次（重播保護仍在）
+ok 14 - ★★★ H-03/5: 已經開始送出的收據不可以被再啟動一次（重播保護仍在）
+  ---
+  duration_ms: 1887.956541
+  type: 'test'
+  ...
+# Subtest: ★★★ H-03/6: 不同對話之間互不影響（多使用者隔離）
+ok 15 - ★★★ H-03/6: 不同對話之間互不影響（多使用者隔離）
+  ---
+  duration_ms: 2264.785666
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12594.939791

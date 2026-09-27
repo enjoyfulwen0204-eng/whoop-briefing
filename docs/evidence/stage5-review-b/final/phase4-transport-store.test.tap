@@ -1,0 +1,59 @@
+TAP version 13
+# {"ts":"2026-09-27T11:33:48.050Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:33:48.053Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:33:49.368Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:33:49.370Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:33:49.373Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T11:33:49.373Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T11:33:49.509Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:33:49.510Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:33:50.806Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:33:50.807Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:33:50.808Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T11:33:50.808Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-27T11:33:50.841Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: LIVE storage claim/start requires an issued exact lease, bound destination and current computation; SHADOW cannot create attempts
+ok 1 - LIVE storage claim/start requires an issued exact lease, bound destination and current computation; SHADOW cannot create attempts
+  ---
+  duration_ms: 1467.005125
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:33:50.917Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:33:50.918Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:33:52.181Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:33:52.182Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:33:52.183Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T11:33:52.183Z","level":"info","event":"telegram_linked","user_id":"a"}
+# Subtest: Late acceptance records only transport truth after disable; ambiguity remains permanently consumed and non-retryable
+ok 2 - Late acceptance records only transport truth after disable; ambiguity remains permanently consumed and non-retryable
+  ---
+  duration_ms: 1408.248375
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T11:33:52.475Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:33:52.476Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:33:53.751Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:33:53.752Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:33:53.753Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-27T11:33:53.753Z","level":"info","event":"telegram_linked","user_id":"a"}
+# Subtest: A started synthetic transport settles after transitive purge without reading payload or permitting a definite retry
+ok 3 - A started synthetic transport settles after transitive purge without reading payload or permitting a definite retry
+  ---
+  duration_ms: 1557.993666
+  type: 'test'
+  ...
+# Subtest: Lease recovery never retries a started attempt, while only registered definite failures can back off the frozen non-question payload
+ok 4 - Lease recovery never retries a started attempt, while only registered definite failures can back off the frozen non-question payload
+  ---
+  duration_ms: 1413.82175
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6059.759542

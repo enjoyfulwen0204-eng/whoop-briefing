@@ -1,0 +1,794 @@
+TAP version 13
+# {"ts":"2026-09-27T14:02:05.580Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:05.583Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:07.367Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:07.369Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:07.383Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:07.391Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:07.392Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:07.403Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:07.435Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:07.439Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:07.443Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:07.452Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:07.454Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:07.457Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:07.466Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:07.468Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:07.471Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:07.480Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:07.482Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:07.485Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:07.493Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:07.495Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:07.510Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:07.513Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:07.515Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:07.523Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:07.525Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:07.527Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:07.535Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:07.537Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:07.540Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:07.548Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:07.550Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:07.552Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:07.559Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:07.561Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:07.632Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:07.633Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:09.680Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:09.680Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:09.692Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:09.699Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:09.700Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:09.711Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:09.719Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:09.721Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:09.724Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:09.731Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:09.733Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:09.736Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:09.744Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:09.746Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:09.748Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:09.756Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:09.758Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:09.760Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:09.768Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:09.769Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:09.779Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:09.782Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:09.784Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:09.791Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:09.793Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:09.796Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:09.802Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:09.804Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:09.807Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:09.814Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:09.816Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:09.818Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:09.825Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:09.827Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:09.952Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:09.957Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:11.576Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:11.577Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:11.586Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:11.593Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:11.594Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:11.603Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:11.610Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:11.613Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:11.615Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.623Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:11.625Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:11.627Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.634Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:11.636Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:11.639Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.647Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:11.650Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:11.652Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.660Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:11.662Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:11.672Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:11.674Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:11.676Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.683Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:11.685Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:11.688Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.697Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:11.699Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:11.702Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.709Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:11.711Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:11.713Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.720Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:11.722Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:11.738Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:11.739Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.746Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:11.746Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.753Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:11.753Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.760Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:11.760Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.767Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:11.768Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":6}
+# {"ts":"2026-09-27T14:02:11.792Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:11.792Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.799Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:11.799Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.806Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:11.806Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.814Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:11.814Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:02:11.821Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:11.824Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":6}
+# {"ts":"2026-09-27T14:02:11.921Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:11.923Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:13.707Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:13.708Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:13.726Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:13.737Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:13.738Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:13.752Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:13.762Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:13.765Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:13.768Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:13.778Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:13.780Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:13.783Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:13.793Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:13.795Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:13.798Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:13.807Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:13.809Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:13.812Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:13.820Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:13.823Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:13.834Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:13.836Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:13.839Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:13.847Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:13.849Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:13.852Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:13.860Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:13.862Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:13.865Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:13.873Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:13.875Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:13.878Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:13.886Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:13.888Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:14.085Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:14.087Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:16.369Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:16.370Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:16.370Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:16.372Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:16.375Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:16.379Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:16.387Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:16.400Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:16.403Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:16.408Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:16.423Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:16.426Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:16.429Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:16.439Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:16.447Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:16.450Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:16.459Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:16.461Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:16.492Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:16.733Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:16.736Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:18.633Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:18.634Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:18.644Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:18.651Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:18.652Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:18.661Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:18.669Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:18.671Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:18.673Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:18.681Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:18.682Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:18.685Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:18.692Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:18.694Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:18.696Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:18.703Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:18.705Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:18.708Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:18.716Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:18.718Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:18.728Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:18.730Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:18.733Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:18.740Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:18.742Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:18.744Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:18.751Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:18.753Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:18.756Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:18.763Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:18.765Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:18.768Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:18.777Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:18.779Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:18.889Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:18.891Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:20.718Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:20.719Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:20.729Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:20.736Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:20.737Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:20.746Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:20.753Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:20.757Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:20.760Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:20.767Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:20.769Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:20.771Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:20.778Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:20.780Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:20.783Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:20.790Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:20.792Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:20.794Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:20.801Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:20.803Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:20.814Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:20.816Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:20.818Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:20.826Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:20.828Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:20.831Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:20.840Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:20.842Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:20.845Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:20.855Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:20.857Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:20.860Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:20.867Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:20.869Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:20.882Z","level":"info","event":"journal_event_added","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:20.894Z","level":"info","event":"journal_event_added","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:21.001Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:21.003Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:23.117Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:23.118Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:23.132Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:23.139Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:23.140Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:23.149Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:23.157Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:23.159Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:23.164Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:23.173Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:23.175Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:23.177Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:23.185Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:23.187Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:23.194Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:23.206Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:23.208Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:23.211Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:23.218Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:23.220Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:23.232Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:23.236Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:23.238Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:23.246Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:23.248Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:23.250Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:23.258Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:23.260Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:23.263Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:23.270Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:23.272Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:23.275Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:23.283Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:23.285Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:23.298Z","level":"info","event":"journal_event_added","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:23.400Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:23.403Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:25.368Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:25.369Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:25.379Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:25.386Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:25.387Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:25.396Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:25.406Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:25.408Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:25.410Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:25.418Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:25.420Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:25.422Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:25.429Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:25.431Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:25.433Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:25.441Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:25.443Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:25.446Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:25.453Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:25.455Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:25.493Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:25.496Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:25.498Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:25.506Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:25.508Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:25.511Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:25.519Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:25.522Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:25.525Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:25.533Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:25.535Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:25.538Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:25.546Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:25.548Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:25.561Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:25.759Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:25.764Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:27.851Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:27.852Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:27.864Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:27.873Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:27.874Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:27.884Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:27.893Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:27.895Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:27.899Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:27.908Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:27.911Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:27.914Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:27.922Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:27.925Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:27.928Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:27.936Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:27.939Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:27.942Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:27.950Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:27.952Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:27.963Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:27.966Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:27.969Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:27.978Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:27.981Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:27.984Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:27.992Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:27.995Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:27.998Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:28.008Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:28.013Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:28.017Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:28.027Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:28.029Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:28.044Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:28.056Z","level":"info","event":"pending_question_opened","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:28.069Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:28.204Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:28.209Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:30.008Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:30.009Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:30.019Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:30.027Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:30.028Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:30.040Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:30.047Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:30.050Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:30.052Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:30.060Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:30.062Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:30.064Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:30.071Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:30.074Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:30.076Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:30.084Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:30.086Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:30.088Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:30.095Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:30.097Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:30.107Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:30.109Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:30.111Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:30.119Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:30.120Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:30.123Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:30.130Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:30.132Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:30.134Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:30.142Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:30.144Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:30.146Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:30.153Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:30.155Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:30.261Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:30.263Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:31.997Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:31.997Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:32.008Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:32.015Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:32.015Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:32.025Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:32.033Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:32.035Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:32.037Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:32.045Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:32.046Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:32.049Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:32.056Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:32.058Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:32.061Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:32.068Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:32.070Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:32.073Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:32.081Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:32.083Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:32.093Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:32.096Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:32.099Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:32.108Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:32.110Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:32.112Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:32.120Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:32.124Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:32.127Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:32.135Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:32.137Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:32.140Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:32.148Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:32.150Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:32.162Z","level":"info","event":"report_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:32.163Z","level":"info","event":"report_claimed","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:32.163Z","level":"info","event":"report_claim_denied","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:32.164Z","level":"warn","event":"report_delivery_authorization_denied","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:32.228Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:32.230Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:34.061Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:34.062Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:34.074Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:34.083Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:34.084Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:34.096Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:34.105Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:34.108Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:34.111Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:34.119Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:34.121Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:34.124Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:34.131Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:34.133Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:34.136Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:34.143Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:34.145Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:34.148Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:34.155Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:34.157Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:34.167Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:34.169Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:34.171Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:34.179Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:34.181Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:34.184Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:34.191Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:34.193Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:34.195Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:34.203Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:34.205Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:34.207Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:34.215Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:34.216Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:34.303Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:34.305Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:36.295Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:36.296Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:36.305Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:36.313Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:36.314Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:36.324Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:36.332Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:36.335Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:36.337Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:36.345Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:36.347Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:36.350Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:36.358Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:36.360Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:36.362Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:36.370Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:36.372Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:36.375Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:36.382Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:36.384Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:36.394Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:36.401Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:36.403Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:36.411Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:36.413Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:36.415Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:36.423Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:36.425Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:36.427Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:36.435Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:36.437Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:36.439Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:36.447Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:36.448Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:36.541Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:36.543Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:38.591Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:38.597Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:38.618Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:38.628Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:38.629Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:38.640Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:38.649Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:38.651Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:38.654Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:38.663Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:38.666Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:38.669Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:38.678Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:38.680Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:38.683Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:38.692Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:38.694Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:38.697Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:38.705Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:38.707Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:38.718Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:38.720Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:38.723Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:38.732Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:38.734Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:38.737Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:38.746Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:38.748Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:38.751Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:38.760Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:38.762Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:38.765Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:38.773Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:38.775Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:38.788Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T14:02:38.800Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T14:02:38.926Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:38.928Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:40.979Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:40.980Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:40.993Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:41.001Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:41.002Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:41.015Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:41.024Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:41.027Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:41.030Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:41.039Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:41.042Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:41.045Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:41.054Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:41.056Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:41.059Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:41.067Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:41.069Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:41.072Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:41.081Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:41.083Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:41.095Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:41.097Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:41.100Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:41.108Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:41.111Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:41.113Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:41.122Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:41.125Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:41.128Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:41.136Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:41.138Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:41.141Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:41.149Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:41.151Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:41.477Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:41.479Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:43.467Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:43.468Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:43.481Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:43.491Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:43.493Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:43.508Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:43.519Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:43.522Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:43.525Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:43.535Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:43.538Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:43.542Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:43.553Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:43.556Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:43.559Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:43.569Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:43.572Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:43.576Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:43.585Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:43.587Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:43.601Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:43.604Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:43.607Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:43.617Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:43.620Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:43.623Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:43.633Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:43.635Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:43.638Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:43.648Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:43.651Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:43.654Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:43.663Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:43.665Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:43.678Z","level":"info","event":"healthspan_metrics_saved","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:43.703Z","level":"info","event":"healthspan_metrics_saved","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:43.915Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:43.919Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:02:46.869Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:46.870Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:46.882Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:02:46.892Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:02:46.893Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:46.905Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:02:46.915Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:46.917Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:46.920Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:46.929Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:46.931Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:46.934Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:46.943Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:46.945Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:46.948Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:46.957Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:02:46.959Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:46.962Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:46.970Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:02:46.973Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:02:46.987Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:46.995Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:02:46.998Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:47.007Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:47.010Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:02:47.013Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:47.021Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:47.024Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:02:47.027Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:47.036Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:02:47.039Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:02:47.043Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:02:47.051Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:02:47.054Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:02:47.141Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:02:47.143Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: 相同的 WHOOP external id 在兩個使用者之間可以共存
+ok 1 - 相同的 WHOOP external id 在兩個使用者之間可以共存
+  ---
+  duration_ms: 2060.313459
+  type: 'test'
+  ...
+# Subtest: 健康資料雙向隔離：sleeps / recoveries / cycles / workouts / body
+ok 2 - 健康資料雙向隔離：sleeps / recoveries / cycles / workouts / body
+  ---
+  duration_ms: 2318.24475
+  type: 'test'
+  ...
+# Subtest: 改動 Bob 的資料完全不影響 Alice 讀到的東西（analytics 輸入隔離）
+ok 3 - 改動 Bob 的資料完全不影響 Alice 讀到的東西（analytics 輸入隔離）
+  ---
+  duration_ms: 1973.130084
+  type: 'test'
+  ...
+# Subtest: 同一個 UTC 時間戳依各自時區落在不同的 health_date
+ok 4 - 同一個 UTC 時間戳依各自時區落在不同的 health_date
+  ---
+  duration_ms: 2042.042084
+  type: 'test'
+  ...
+# Subtest: coverage / capability：Alice 有資料不會讓 Bob 變成 READY
+ok 5 - coverage / capability：Alice 有資料不會讓 Bob 變成 READY
+  ---
+  duration_ms: 2603.486
+  type: 'test'
+  ...
+# Subtest: sync state 隔離
+ok 6 - sync state 隔離
+  ---
+  duration_ms: 2310.741
+  type: 'test'
+  ...
+# Subtest: journal 隔離：同一 health_date、不同事件，各自看不到對方
+ok 7 - journal 隔離：同一 health_date、不同事件，各自看不到對方
+  ---
+  duration_ms: 2108.872791
+  type: 'test'
+  ...
+# Subtest: journal 越權刪除：帶別人的 event id 一律刪不到
+ok 8 - journal 越權刪除：帶別人的 event id 一律刪不到
+  ---
+  duration_ms: 2377.023459
+  type: 'test'
+  ...
+# Subtest: pending question 隔離：Bob 的回覆不可解掉 Alice 的追問
+ok 9 - pending question 隔離：Bob 的回覆不可解掉 Alice 的追問
+  ---
+  duration_ms: 2302.357708
+  type: 'test'
+  ...
+# Subtest: pending question：一個使用者同時只有一個 OPEN，且不影響另一人
+ok 10 - pending question：一個使用者同時只有一個 OPEN，且不影響另一人
+  ---
+  duration_ms: 2482.0965
+  type: 'test'
+  ...
+# Subtest: 報告去重：同一個 local_date 兩人各自獨立發送
+ok 11 - 報告去重：同一個 local_date 兩人各自獨立發送
+  ---
+  duration_ms: 2102.175416
+  type: 'test'
+  ...
+# Subtest: report claim：Alice 的 claim 不會阻塞 Bob
+ok 12 - report claim：Alice 的 claim 不會阻塞 Bob
+  ---
+  duration_ms: 1970.498834
+  type: 'test'
+  ...
+# Subtest: 錯誤通知冷卻：Alice 的 WHOOP 錯誤不壓抑 Bob 的同類通知
+ok 13 - 錯誤通知冷卻：Alice 的 WHOOP 錯誤不壓抑 Bob 的同類通知
+  ---
+  duration_ms: 2062.509042
+  type: 'test'
+  ...
+# Subtest: prediction 隔離：相同 target/model 兩人各存一筆
+ok 14 - prediction 隔離：相同 target/model 兩人各存一筆
+  ---
+  duration_ms: 2252.685083
+  type: 'test'
+  ...
+# Subtest: insight 隔離：get / getActive / history 只回自己的
+ok 15 - insight 隔離：get / getActive / history 只回自己的
+  ---
+  duration_ms: 2375.956167
+  type: 'test'
+  ...
+# Subtest: experiment 隔離：相同名稱兩人各自存在
+ok 16 - experiment 隔離：相同名稱兩人各自存在
+  ---
+  duration_ms: 2555.391416
+  type: 'test'
+  ...
+# Subtest: healthspan 隔離：相同 snapshot 日期/版本兩人各存一筆
+ok 17 - healthspan 隔離：相同 snapshot 日期/版本兩人各存一筆
+  ---
+  duration_ms: 2368.566375
+  type: 'test'
+  ...
+# Subtest: ai_usage 隔離：Alice 的成本不受 Bob 影響（雙向）
+ok 18 - ai_usage 隔離：Alice 的成本不受 Bob 影響（雙向）
+  ---
+  duration_ms: 3288.166833
+  type: 'test'
+  ...
+# Subtest: 缺 userId 的 store 呼叫全部拋 MissingUserIdError（不會靜默查全部）
+ok 19 - 缺 userId 的 store 呼叫全部拋 MissingUserIdError（不會靜默查全部）
+  ---
+  duration_ms: 2184.390209
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 46170.635458

@@ -1,0 +1,349 @@
+TAP version 13
+# {"ts":"2026-09-27T14:17:49.642Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:49.647Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:51.501Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:51.502Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:17:51.517Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:17:51.526Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:51.527Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:17:51.538Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:17:51.600Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:51.604Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:51.607Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:51.616Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:51.619Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:17:51.622Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:51.631Z","level":"info","event":"store_cycles_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:51.633Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:17:51.636Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:51.645Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:51.647Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:17:51.650Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:51.658Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:17:51.660Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5}
+# {"ts":"2026-09-27T14:17:51.672Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:17:51.675Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:51.678Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:51.686Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:17:51.690Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:17:51.693Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:51.702Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:17:51.705Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:17:51.709Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:51.718Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:17:51.721Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:17:51.724Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:51.732Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:17:51.734Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:17:51.883Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:51.885Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:54.083Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:54.083Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:17:54.094Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:17:54.101Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:54.102Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:17:54.112Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:17:54.123Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.128Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.130Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.139Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.140Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.143Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.153Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.156Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.158Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.167Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.170Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.172Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.184Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.186Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":5,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.189Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.198Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.200Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":6,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.203Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.213Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.216Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":7,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.218Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.228Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.230Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":8,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.233Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.241Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.244Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":9,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.247Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.256Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.258Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":10,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.261Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.270Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.273Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":11,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.276Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.286Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.288Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":12,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.291Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.302Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.305Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":13,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.308Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.318Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.320Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":14,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.324Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.335Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.339Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":15,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.344Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.356Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.359Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":16,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.364Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.377Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.381Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":17,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.387Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.401Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.408Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":18,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.413Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.426Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.432Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":19,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.437Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.451Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.455Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":20,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.459Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.474Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.479Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":21,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.484Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.497Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.501Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":22,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.506Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.519Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.522Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":23,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.527Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.539Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.543Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":24,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.547Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.558Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.561Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":25,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.565Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.576Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.580Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":26,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.585Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.598Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.601Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":27,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.605Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.616Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.619Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":28,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.623Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.635Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.638Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":29,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.641Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.653Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:17:54.656Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":30,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.659Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.670Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:17:54.673Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:17:54.676Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.686Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:17:54.689Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:17:54.692Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.702Z","level":"info","event":"store_cycles_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:17:54.704Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":3,"resource":"cycle"}
+# {"ts":"2026-09-27T14:17:54.707Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.718Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:17:54.720Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:17:54.723Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:17:54.733Z","level":"info","event":"store_body_measurement_upserted","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:17:54.741Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":5}
+# {"ts":"2026-09-27T14:17:54.891Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:17:54.894Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:17:56.859Z","level":"info","event":"user_created","user_id":"u-solo","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:17:56.860Z","level":"info","event":"telegram_linked","user_id":"u-solo"}
+# {"ts":"2026-09-27T14:17:56.871Z","level":"info","event":"capabilities_saved","user_id":"u-solo","count":15}
+# Subtest: ★ readiness: 17 個能力都在 CAPABILITY 清單裡
+ok 1 - ★ readiness: 17 個能力都在 CAPABILITY 清單裡
+  ---
+  duration_ms: 2.088792
+  type: 'test'
+  ...
+# Subtest: readiness 結果一律有 6 個必填欄位，status 只能是允許的 6 種值之一
+ok 2 - readiness 結果一律有 6 個必填欄位，status 只能是允許的 6 種值之一
+  ---
+  duration_ms: 3.889666
+  type: 'test'
+  ...
+# Subtest: DAILY_STATE: 完全沒資料 → NO_DATA
+ok 3 - DAILY_STATE: 完全沒資料 → NO_DATA
+  ---
+  duration_ms: 0.187958
+  type: 'test'
+  ...
+# Subtest: ★ DAILY_STATE: 有歷史但今天還沒同步 → DEGRADED（不是 NO_DATA，也不是 WARMING_UP）
+ok 4 - ★ DAILY_STATE: 有歷史但今天還沒同步 → DEGRADED（不是 NO_DATA，也不是 WARMING_UP）
+  ---
+  duration_ms: 0.268834
+  type: 'test'
+  ...
+# Subtest: DAILY_STATE: 今天有資料 → READY
+ok 5 - DAILY_STATE: 今天有資料 → READY
+  ---
+  duration_ms: 0.343292
+  type: 'test'
+  ...
+# Subtest: ★ BASELINE: 邊界值直接對應既有的 MIN_FOR_LIGHTS(7) / TARGET_SAMPLES(30)，不是另外發明的數字
+ok 6 - ★ BASELINE: 邊界值直接對應既有的 MIN_FOR_LIGHTS(7) / TARGET_SAMPLES(30)，不是另外發明的數字
+  ---
+  duration_ms: 0.423292
+  type: 'test'
+  ...
+# Subtest: BASELINE: 只算 LOOKBACK_DAYS 窗口內的列，太舊的資料不會墊高 usable_samples
+ok 7 - BASELINE: 只算 LOOKBACK_DAYS 窗口內的列，太舊的資料不會墊高 usable_samples
+  ---
+  duration_ms: 0.298292
+  type: 'test'
+  ...
+# Subtest: DEVIATION/ZSCORE 是同一套機制：n < ANALYTICS.MIN_SAMPLES → WARMING_UP，達標 → READY
+ok 8 - DEVIATION/ZSCORE 是同一套機制：n < ANALYTICS.MIN_SAMPLES → WARMING_UP，達標 → READY
+  ---
+  duration_ms: 0.832542
+  type: 'test'
+  ...
+# Subtest: DEVIATION: capability probe 說這個帳號沒有這個欄位 → UNAVAILABLE，不管樣本數多少
+ok 9 - DEVIATION: capability probe 說這個帳號沒有這個欄位 → UNAVAILABLE，不管樣本數多少
+  ---
+  duration_ms: 0.652834
+  type: 'test'
+  ...
+# Subtest: DEVIATION: APP_ONLY 欄位 → UNAVAILABLE，且原因要說明是 API 沒有這欄位
+ok 10 - DEVIATION: APP_ONLY 欄位 → UNAVAILABLE，且原因要說明是 API 沒有這欄位
+  ---
+  duration_ms: 0.635541
+  type: 'test'
+  ...
+# Subtest: ★★ PA1 review: capabilityStatus = UNKNOWN（探測過但樣本不足，無法判斷）絕不能變成 UNAVAILABLE
+ok 11 - ★★ PA1 review: capabilityStatus = UNKNOWN（探測過但樣本不足，無法判斷）絕不能變成 UNAVAILABLE
+  ---
+  duration_ms: 0.330167
+  type: 'test'
+  ...
+# Subtest: ★★ PA1 review: 完全沒有 WHOOP 授權／從沒 probe 過（capabilityStatus 根本沒給）絕不能變成 UNAVAILABLE
+ok 12 - ★★ PA1 review: 完全沒有 WHOOP 授權／從沒 probe 過（capabilityStatus 根本沒給）絕不能變成 UNAVAILABLE
+  ---
+  duration_ms: 0.10675
+  type: 'test'
+  ...
+# Subtest: ★★ PA1 review: capabilityStatus = SUPPORTED／PARTIAL（已知可用）但樣本不足 → WARMING_UP，不是 UNAVAILABLE
+ok 13 - ★★ PA1 review: capabilityStatus = SUPPORTED／PARTIAL（已知可用）但樣本不足 → WARMING_UP，不是 UNAVAILABLE
+  ---
+  duration_ms: 0.183416
+  type: 'test'
+  ...
+# Subtest: TREND_SHORT 用最短窗口、TREND_LONG 用最長窗口，門檻是 TREND_ENGINE.MIN_SAMPLES
+ok 14 - TREND_SHORT 用最短窗口、TREND_LONG 用最長窗口，門檻是 TREND_ENGINE.MIN_SAMPLES
+  ---
+  duration_ms: 1.129167
+  type: 'test'
+  ...
+# Subtest: WHAT_CHANGED: 今天沒同步 → DEGRADED；今天有資料但沒有任何指標基準足夠 → WARMING_UP；有 → READY
+ok 15 - WHAT_CHANGED: 今天沒同步 → DEGRADED；今天有資料但沒有任何指標基準足夠 → WARMING_UP；有 → READY
+  ---
+  duration_ms: 1.4165
+  type: 'test'
+  ...
+# Subtest: SIMILAR_DAYS: 候選池不足 SIMILAR_DAYS_MIN_POOL → WARMING_UP，足夠 → READY
+ok 16 - SIMILAR_DAYS: 候選池不足 SIMILAR_DAYS_MIN_POOL → WARMING_UP，足夠 → READY
+  ---
+  duration_ms: 1.84625
+  type: 'test'
+  ...
+# Subtest: ★ CORRELATION: n<10(INSUFFICIENT) → WARMING_UP／NO_DATA，10–19(LOW) → LIMITED，20+ → READY
+ok 17 - ★ CORRELATION: n<10(INSUFFICIENT) → WARMING_UP／NO_DATA，10–19(LOW) → LIMITED，20+ → READY
+  ---
+  duration_ms: 2.62925
+  type: 'test'
+  ...
+# Subtest: JOURNAL_ASSOCIATION: n 夠但全部都是「有事件的日子」（沒有對照組）→ LIMITED，不是 READY
+ok 18 - JOURNAL_ASSOCIATION: n 夠但全部都是「有事件的日子」（沒有對照組）→ LIMITED，不是 READY
+  ---
+  duration_ms: 0.828709
+  type: 'test'
+  ...
+# Subtest: JOURNAL_ASSOCIATION: 有對照組且 n 夠多 → READY
+ok 19 - JOURNAL_ASSOCIATION: 有對照組且 n 夠多 → READY
+  ---
+  duration_ms: 0.571667
+  type: 'test'
+  ...
+# Subtest: ★ REGRESSION: required_samples 隨特徵數變動，跟 analyzeRecoveryDrivers 的公式一致
+ok 20 - ★ REGRESSION: required_samples 隨特徵數變動，跟 analyzeRecoveryDrivers 的公式一致
+  ---
+  duration_ms: 1.5195
+  type: 'test'
+  ...
+# Subtest: REGRESSION: 沒有給任何特徵 → UNAVAILABLE（設定錯誤，不是資料不足）
+ok 21 - REGRESSION: 沒有給任何特徵 → UNAVAILABLE（設定錯誤，不是資料不足）
+  ---
+  duration_ms: 0.089083
+  type: 'test'
+  ...
+# Subtest: PREDICTION: 樣本數用 buildSupervised 之後的配對數，不是原始列數
+ok 22 - PREDICTION: 樣本數用 buildSupervised 之後的配對數，不是原始列數
+  ---
+  duration_ms: 0.51425
+  type: 'test'
+  ...
+# Subtest: PREDICTION: 足夠的每日配對 → READY
+ok 23 - PREDICTION: 足夠的每日配對 → READY
+  ---
+  duration_ms: 4.496083
+  type: 'test'
+  ...
+# Subtest: CHANGE_DETECTION: 前後兩段都要達到 MIN_SHIFT_SAMPLES
+ok 24 - CHANGE_DETECTION: 前後兩段都要達到 MIN_SHIFT_SAMPLES
+  ---
+  duration_ms: 0.578833
+  type: 'test'
+  ...
+# Subtest: EXPERIMENT_ANALYSIS: DRAFT 狀態一律 NO_DATA；baseline/intervention 天數都要達 MIN_PERIOD_DAYS
+ok 25 - EXPERIMENT_ANALYSIS: DRAFT 狀態一律 NO_DATA；baseline/intervention 天數都要達 MIN_PERIOD_DAYS
+  ---
+  duration_ms: 0.293292
+  type: 'test'
+  ...
+# Subtest: INSIGHT_DISCOVERY: 借用 BASELINE 的及格線，資料撐不起紅黃燈時也不該開口
+ok 26 - INSIGHT_DISCOVERY: 借用 BASELINE 的及格線，資料撐不起紅黃燈時也不該開口
+  ---
+  duration_ms: 0.170416
+  type: 'test'
+  ...
+# Subtest: HEALTHSPAN_FOUNDATION: 一半以上 contributor 可用才算 READY
+ok 27 - HEALTHSPAN_FOUNDATION: 一半以上 contributor 可用才算 READY
+  ---
+  duration_ms: 0.18425
+  type: 'test'
+  ...
+# Subtest: PROACTIVE_MONITORING: 核心指標全部 READY 才算整體 READY，部分 READY 是 LIMITED
+ok 28 - PROACTIVE_MONITORING: 核心指標全部 READY 才算整體 READY，部分 READY 是 LIMITED
+  ---
+  duration_ms: 0.356917
+  type: 'test'
+  ...
+# Subtest: ★★ Alice/Bob 隔離：Alice 資料量遠大於 Bob，但兩人的 readiness 各自獨立計算，互不影響
+ok 29 - ★★ Alice/Bob 隔離：Alice 資料量遠大於 Bob，但兩人的 readiness 各自獨立計算，互不影響
+  ---
+  duration_ms: 2272.366875
+  type: 'test'
+  ...
+# Subtest: ★★ Alice/Bob 隔離：Alice 用真的多天資料衝到 READY，Bob 仍然只有 1 天 —— Bob 絕不會被 Alice 的樣本數解鎖
+ok 30 - ★★ Alice/Bob 隔離：Alice 用真的多天資料衝到 READY，Bob 仍然只有 1 天 —— Bob 絕不會被 Alice 的樣本數解鎖
+  ---
+  duration_ms: 3012.171916
+  type: 'test'
+  ...
+# Subtest: ★★★ PA1 review: readiness 呼叫兩次（含 REGRESSION／PREDICTION／CHANGE_DETECTION）完全不會寫入 DB
+ok 31 - ★★★ PA1 review: readiness 呼叫兩次（含 REGRESSION／PREDICTION／CHANGE_DETECTION）完全不會寫入 DB
+  ---
+  duration_ms: 2074.631667
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8109.541708

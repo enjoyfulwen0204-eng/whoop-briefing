@@ -1,0 +1,99 @@
+TAP version 13
+# {"ts":"2026-09-27T14:32:43.317Z","level":"info","event":"schema_column_backfilled","table":"report_claims","column":"delivery_state"}
+# {"ts":"2026-09-27T14:32:43.317Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_state"}
+# {"ts":"2026-09-27T14:32:43.319Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_started_at"}
+# {"ts":"2026-09-27T14:32:43.321Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_attempts"}
+# {"ts":"2026-09-27T14:32:43.322Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_detail"}
+# {"ts":"2026-09-27T14:32:43.326Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:43.328Z","level":"info","event":"schema_column_added","table":"report_claims","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T14:32:43.330Z","level":"info","event":"schema_data_migrated","version":14,"rows":2}
+# {"ts":"2026-09-27T14:32:43.331Z","level":"info","event":"schema_data_migrated","version":15,"rows":0}
+# {"ts":"2026-09-27T14:32:43.332Z","level":"info","event":"schema_data_migrated","version":16,"rows":0}
+# {"ts":"2026-09-27T14:32:43.332Z","level":"info","event":"schema_data_migrated","version":18,"rows":0}
+# {"ts":"2026-09-27T14:32:43.332Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T14:32:43.333Z","level":"info","event":"schema_migrated","from":8,"to":20}
+# {"ts":"2026-09-27T14:32:45.068Z","level":"info","event":"schema_column_backfilled","table":"report_claims","column":"delivery_state"}
+# {"ts":"2026-09-27T14:32:45.068Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_state"}
+# {"ts":"2026-09-27T14:32:45.069Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_started_at"}
+# {"ts":"2026-09-27T14:32:45.070Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_attempts"}
+# {"ts":"2026-09-27T14:32:45.072Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_detail"}
+# {"ts":"2026-09-27T14:32:45.074Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:45.076Z","level":"info","event":"schema_column_added","table":"report_claims","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T14:32:45.078Z","level":"info","event":"schema_data_migrated","version":14,"rows":2}
+# {"ts":"2026-09-27T14:32:45.079Z","level":"info","event":"schema_data_migrated","version":15,"rows":0}
+# {"ts":"2026-09-27T14:32:45.079Z","level":"info","event":"schema_data_migrated","version":16,"rows":0}
+# {"ts":"2026-09-27T14:32:45.079Z","level":"info","event":"schema_data_migrated","version":18,"rows":0}
+# {"ts":"2026-09-27T14:32:45.079Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T14:32:45.080Z","level":"info","event":"schema_migrated","from":8,"to":20}
+# {"ts":"2026-09-27T14:32:46.645Z","level":"info","event":"schema_column_backfilled","table":"report_claims","column":"delivery_state"}
+# {"ts":"2026-09-27T14:32:46.645Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_state"}
+# {"ts":"2026-09-27T14:32:46.647Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_started_at"}
+# {"ts":"2026-09-27T14:32:46.648Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_attempts"}
+# {"ts":"2026-09-27T14:32:46.649Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_detail"}
+# {"ts":"2026-09-27T14:32:46.652Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:46.654Z","level":"info","event":"schema_column_added","table":"report_claims","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T14:32:46.656Z","level":"info","event":"schema_data_migrated","version":14,"rows":2}
+# {"ts":"2026-09-27T14:32:46.657Z","level":"info","event":"schema_data_migrated","version":15,"rows":0}
+# {"ts":"2026-09-27T14:32:46.657Z","level":"info","event":"schema_data_migrated","version":16,"rows":0}
+# {"ts":"2026-09-27T14:32:46.658Z","level":"info","event":"schema_data_migrated","version":18,"rows":0}
+# {"ts":"2026-09-27T14:32:46.658Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T14:32:46.659Z","level":"info","event":"schema_migrated","from":8,"to":20}
+# {"ts":"2026-09-27T14:32:48.769Z","level":"info","event":"report_claim_denied","user_id":"u-1"}
+# {"ts":"2026-09-27T14:32:48.770Z","level":"warn","event":"report_claim_denied_ambiguous","user_id":"u-1","state":"AMBIGUOUS"}
+# {"ts":"2026-09-27T14:32:48.770Z","level":"info","event":"report_claimed","user_id":"u-1"}
+# {"ts":"2026-09-27T14:32:48.834Z","level":"info","event":"schema_column_backfilled","table":"report_claims","column":"delivery_state"}
+# {"ts":"2026-09-27T14:32:48.834Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_state"}
+# {"ts":"2026-09-27T14:32:48.835Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_started_at"}
+# {"ts":"2026-09-27T14:32:48.837Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_attempts"}
+# {"ts":"2026-09-27T14:32:48.838Z","level":"info","event":"schema_column_added","table":"report_claims","column":"delivery_detail"}
+# {"ts":"2026-09-27T14:32:48.841Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:48.843Z","level":"info","event":"schema_column_added","table":"report_claims","column":"lifecycle_generation"}
+# {"ts":"2026-09-27T14:32:48.844Z","level":"info","event":"schema_data_migrated","version":14,"rows":2}
+# {"ts":"2026-09-27T14:32:48.845Z","level":"info","event":"schema_data_migrated","version":15,"rows":0}
+# {"ts":"2026-09-27T14:32:48.845Z","level":"info","event":"schema_data_migrated","version":16,"rows":0}
+# {"ts":"2026-09-27T14:32:48.845Z","level":"info","event":"schema_data_migrated","version":18,"rows":0}
+# {"ts":"2026-09-27T14:32:48.846Z","level":"info","event":"schema_data_migrated","version":19,"rows":0}
+# {"ts":"2026-09-27T14:32:48.846Z","level":"info","event":"schema_migrated","from":8,"to":20}
+# {"ts":"2026-09-27T14:32:51.279Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:51.281Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:53.370Z","level":"info","event":"user_created","user_id":"u-f","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:53.371Z","level":"info","event":"report_claimed","user_id":"u-f"}
+# Subtest: ★★★ v8 → v9：純新增欄位，既有資料一列不動
+ok 1 - ★★★ v8 → v9：純新增欄位，既有資料一列不動
+  ---
+  duration_ms: 1768.072625
+  type: 'test'
+  ...
+# Subtest: ★★★ v8 → v9 回填：證明得了的 → DELIVERED；不明的 → AMBIGUOUS（fail closed）
+ok 2 - ★★★ v8 → v9 回填：證明得了的 → DELIVERED；不明的 → AMBIGUOUS（fail closed）
+  ---
+  duration_ms: 1554.903375
+  type: 'test'
+  ...
+# Subtest: ★★★ v8 → v9 之後：歷史列的行為正確（已送的不重送、不明的也不重送）
+ok 3 - ★★★ v8 → v9 之後：歷史列的行為正確（已送的不重送、不明的也不重送）
+  ---
+  duration_ms: 2203.39825
+  type: 'test'
+  ...
+# Subtest: ★★★ 遷移冪等：重跑三次，欄位與資料都不變
+ok 4 - ★★★ 遷移冪等：重跑三次，欄位與資料都不變
+  ---
+  duration_ms: 2439.300209
+  type: 'test'
+  ...
+# Subtest: ★★★ 全新資料庫：report_claims 一開始就是新形狀，預設 CLAIMED
+ok 5 - ★★★ 全新資料庫：report_claims 一開始就是新形狀，預設 CLAIMED
+  ---
+  duration_ms: 2161.996583
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10800.760959

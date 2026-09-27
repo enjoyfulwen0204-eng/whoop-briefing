@@ -1,0 +1,143 @@
+TAP version 13
+# {"ts":"2026-09-27T11:58:08.711Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:58:08.713Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:58:10.198Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:10.199Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:10.200Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:10.200Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T11:58:10.204Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T11:58:10.272Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:58:10.273Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:58:11.877Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:11.878Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T11:58:11.879Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:58:11.879Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# Subtest: ★★★ 對應表裡的每一個 capability key 都真的存在於 METRICS 或已知的 probe key
+ok 1 - ★★★ 對應表裡的每一個 capability key 都真的存在於 METRICS 或已知的 probe key
+  ---
+  duration_ms: 1.00775
+  type: 'test'
+  ...
+# Subtest: ★★★ 名字不一樣的那幾個對應正確（就是這幾個會安靜出錯）
+ok 2 - ★★★ 名字不一樣的那幾個對應正確（就是這幾個會安靜出錯）
+  ---
+  duration_ms: 0.117667
+  type: 'test'
+  ...
+# Subtest: ★★ 主動代理監看的每一個指標都有明確的 capability 對應
+ok 3 - ★★ 主動代理監看的每一個指標都有明確的 capability 對應
+  ---
+  duration_ms: 0.092375
+  type: 'test'
+  ...
+# Subtest: ★★ 每一個 healthspan contributor 都在對應表裡（null 也要明確寫出來）
+ok 4 - ★★ 每一個 healthspan contributor 都在對應表裡（null 也要明確寫出來）
+  ---
+  duration_ms: 0.220917
+  type: 'test'
+  ...
+# Subtest: 沒有對應的欄位回 null（=無法判斷），不是 UNAVAILABLE
+ok 5 - 沒有對應的欄位回 null（=無法判斷），不是 UNAVAILABLE
+  ---
+  duration_ms: 0.106708
+  type: 'test'
+  ...
+# Subtest: ★★ 用對的 key 查得到，用錯的 key 查不到（證明對應真的有作用）
+ok 6 - ★★ 用對的 key 查得到，用錯的 key 查不到（證明對應真的有作用）
+  ---
+  duration_ms: 0.085541
+  type: 'test'
+  ...
+# Subtest: capabilityByMetricFor 只放查得到的（缺席 = 交給樣本數邏輯）
+ok 7 - capabilityByMetricFor 只放查得到的（缺席 = 交給樣本數邏輯）
+  ---
+  duration_ms: 1.215667
+  type: 'test'
+  ...
+# Subtest: ★★★ isKnownUnavailable：只有那三種才算已證實拿不到
+ok 8 - ★★★ isKnownUnavailable：只有那三種才算已證實拿不到
+  ---
+  duration_ms: 0.102125
+  type: 'test'
+  ...
+# Subtest: ★★★ 完全沒 probe 過（空的 capability 表）不會讓任何指標變成不支援
+ok 9 - ★★★ 完全沒 probe 過（空的 capability 表）不會讓任何指標變成不支援
+  ---
+  duration_ms: 0.533958
+  type: 'test'
+  ...
+# Subtest: ★★★ UNKNOWN 傳到 detectSignals 也不會被當成不支援
+ok 10 - ★★★ UNKNOWN 傳到 detectSignals 也不會被當成不支援
+  ---
+  duration_ms: 3.483542
+  type: 'test'
+  ...
+# Subtest: ★★ 已證實不支援的指標不會產生訊號
+ok 11 - ★★ 已證實不支援的指標不會產生訊號
+  ---
+  duration_ms: 1.358833
+  type: 'test'
+  ...
+# Subtest: ★★★ healthspan：probe 說 UNAVAILABLE → contributor 標成 UNAVAILABLE
+ok 12 - ★★★ healthspan：probe 說 UNAVAILABLE → contributor 標成 UNAVAILABLE
+  ---
+  duration_ms: 10.45825
+  type: 'test'
+  ...
+# Subtest: ★★★ healthspan：contributor 命名對應真的生效（修好之前永遠查不到）
+ok 13 - ★★★ healthspan：contributor 命名對應真的生效（修好之前永遠查不到）
+  ---
+  duration_ms: 0.495083
+  type: 'test'
+  ...
+# Subtest: ★★★ healthspan：UNKNOWN 不會讓 contributor 變成 UNAVAILABLE
+ok 14 - ★★★ healthspan：UNKNOWN 不會讓 contributor 變成 UNAVAILABLE
+  ---
+  duration_ms: 0.484333
+  type: 'test'
+  ...
+# Subtest: ★★ healthspan：UNAUTHORIZED 也算已證實拿不到
+ok 15 - ★★ healthspan：UNAUTHORIZED 也算已證實拿不到
+  ---
+  duration_ms: 0.421667
+  type: 'test'
+  ...
+# Subtest: ★★ healthspan：APP_ONLY 的三個永遠是 APP_ONLY 且 value 為 null
+ok 16 - ★★ healthspan：APP_ONLY 的三個永遠是 APP_ONLY 且 value 為 null
+  ---
+  duration_ms: 0.42225
+  type: 'test'
+  ...
+# Subtest: ★★★ Alice 的 capability 完全不影響 Bob
+ok 17 - ★★★ Alice 的 capability 完全不影響 Bob
+  ---
+  duration_ms: 1568.907917
+  type: 'test'
+  ...
+# Subtest: ★★ getCapabilities 缺 userId 一律拋錯
+ok 18 - ★★ getCapabilities 缺 userId 一律拋錯
+  ---
+  duration_ms: 1660.490458
+  type: 'test'
+  ...
+# Subtest: ★★★ 整個 capability 路徑沒有任何 membership / tier 判斷
+ok 19 - ★★★ 整個 capability 路徑沒有任何 membership / tier 判斷
+  ---
+  duration_ms: 1.017916
+  type: 'test'
+  ...
+# Subtest: ★ 註解剝除本身是對的（否則上一個測試會變成空砲）
+ok 20 - ★ 註解剝除本身是對的（否則上一個測試會變成空砲）
+  ---
+  duration_ms: 0.122792
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3606.1265

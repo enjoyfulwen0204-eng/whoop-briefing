@@ -1,0 +1,219 @@
+TAP version 13
+# {"ts":"2026-09-27T13:50:57.778Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:57.785Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:50:59.529Z","level":"info","event":"user_created","user_id":"u-jq-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:50:59.535Z","level":"info","event":"journal_event_added","user_id":"u-jq-test"}
+# {"ts":"2026-09-27T13:50:59.630Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:50:59.632Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:51:01.298Z","level":"info","event":"user_created","user_id":"u-jq-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:51:01.375Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:51:01.377Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:51:02.850Z","level":"info","event":"user_created","user_id":"u-jq-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:51:02.860Z","level":"info","event":"store_sleeps_upserted","user_id":"u-jq-test","count":35}
+# {"ts":"2026-09-27T13:51:02.863Z","level":"info","event":"analytics_invalidated","user_id":"u-jq-test","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T13:51:02.866Z","level":"info","event":"canonical_write_classified","user_id":"u-jq-test","resource":"sleep","changed":35,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:51:02.868Z","level":"info","event":"sync_incremental_done","resource":"sleep"}
+# {"ts":"2026-09-27T13:51:02.878Z","level":"info","event":"store_recoveries_upserted","user_id":"u-jq-test","count":30}
+# {"ts":"2026-09-27T13:51:02.880Z","level":"info","event":"analytics_invalidated","user_id":"u-jq-test","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T13:51:02.882Z","level":"info","event":"canonical_write_classified","user_id":"u-jq-test","resource":"recovery","changed":30,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T13:51:02.884Z","level":"info","event":"sync_incremental_done","resource":"recovery"}
+# {"ts":"2026-09-27T13:51:02.918Z","level":"warn","event":"data_quality_part_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:51:02.918Z","level":"warn","event":"data_quality_part_failed","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T13:51:02.970Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:51:02.971Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:51:04.467Z","level":"info","event":"user_created","user_id":"u-jq-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:51:04.478Z","level":"info","event":"healthspan_metrics_saved","user_id":"u-jq-test","count":18}
+# {"ts":"2026-09-27T13:51:04.552Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:51:04.553Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:51:06.131Z","level":"info","event":"user_created","user_id":"u-jq-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:51:06.134Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T13:51:06.150Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T13:51:06.151Z","level":"info","event":"insight_revised","user_id":"u-jq-test"}
+# {"ts":"2026-09-27T13:51:06.228Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:51:06.230Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:51:07.751Z","level":"info","event":"user_created","user_id":"u-jq-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:51:07.754Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T13:51:07.769Z","level":"info","event":"insight_reconfirmed","user_id":"u-jq-test"}
+# {"ts":"2026-09-27T13:51:07.784Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T13:51:07.785Z","level":"info","event":"insight_revised","user_id":"u-jq-test"}
+# {"ts":"2026-09-27T13:51:07.841Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:51:07.843Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:51:09.339Z","level":"info","event":"user_created","user_id":"u-jq-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:51:09.341Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T13:51:09.350Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T13:51:09.442Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:51:09.444Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:51:11.044Z","level":"info","event":"user_created","user_id":"u-jq-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:51:11.237Z","level":"info","event":"experiment_started"}
+# {"ts":"2026-09-27T13:51:11.295Z","level":"info","event":"experiment_completed"}
+# {"ts":"2026-09-27T13:51:11.363Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:51:11.365Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:51:12.986Z","level":"info","event":"user_created","user_id":"u-jq-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T13:51:13.191Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T13:51:13.193Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T13:53:56.524Z","level":"info","event":"user_created","user_id":"u-jq-test","status":"ACTIVE"}
+# Subtest: N: /log 各種寫法都解析得出來
+ok 1 - N: /log 各種寫法都解析得出來
+  ---
+  duration_ms: 29.661875
+  type: 'test'
+  ...
+# Subtest: N: 中文與相對日期
+ok 2 - N: 中文與相對日期
+  ---
+  duration_ms: 0.432375
+  type: 'test'
+  ...
+# Subtest: N: 不認得的類別會被拒絕並給提示
+ok 3 - N: 不認得的類別會被拒絕並給提示
+  ---
+  duration_ms: 0.203584
+  type: 'test'
+  ...
+# Subtest: ★ N: health_date 用凌晨 4 點當界線（半夜喝的酒算前一天）
+ok 4 - ★ N: health_date 用凌晨 4 點當界線（半夜喝的酒算前一天）
+  ---
+  duration_ms: 0.129416
+  type: 'test'
+  ...
+# Subtest: ★ N: validateEvent 擋掉所有不合法的提案
+ok 5 - ★ N: validateEvent 擋掉所有不合法的提案
+  ---
+  duration_ms: 0.270083
+  type: 'test'
+  ...
+# Subtest: N: parseAmount
+ok 6 - N: parseAmount
+  ---
+  duration_ms: 1.168875
+  type: 'test'
+  ...
+# Subtest: N: 寫進 DB 並讀回來
+ok 7 - N: 寫進 DB 並讀回來
+  ---
+  duration_ms: 1852.283208
+  type: 'test'
+  ...
+# Subtest: N: 所有宣告的 category 都能被解析
+ok 8 - N: 所有宣告的 category 都能被解析
+  ---
+  duration_ms: 0.623041
+  type: 'test'
+  ...
+# Subtest: ★ P: 完全沒有資料時回完整報告，不是 error
+ok 9 - ★ P: 完全沒有資料時回完整報告，不是 error
+  ---
+  duration_ms: 1765.119583
+  type: 'test'
+  ...
+# Subtest: P: 有資料時報告涵蓋率與缺漏天數
+ok 10 - P: 有資料時報告涵蓋率與缺漏天數
+  ---
+  duration_ms: 1592.589458
+  type: 'test'
+  ...
+# Subtest: P: 某個查詢失敗不會讓整份報告失敗
+ok 11 - P: 某個查詢失敗不會讓整份報告失敗
+  ---
+  duration_ms: 0.508584
+  type: 'test'
+  ...
+# Subtest: ★ R: 沒有資料時所有 contributor 都是 UNKNOWN 或 APP_ONLY，值一律 null
+ok 12 - ★ R: 沒有資料時所有 contributor 都是 UNKNOWN 或 APP_ONLY，值一律 null
+  ---
+  duration_ms: 0.274584
+  type: 'test'
+  ...
+# Subtest: ★ R: 官方 API 拿不到的 contributor 永遠標 APP_ONLY，永遠沒有值
+ok 13 - ★ R: 官方 API 拿不到的 contributor 永遠標 APP_ONLY，永遠沒有值
+  ---
+  duration_ms: 0.246083
+  type: 'test'
+  ...
+# Subtest: R: 有足夠資料的 contributor 才會有值（樣本太少一律 null）
+ok 14 - R: 有足夠資料的 contributor 才會有值（樣本太少一律 null）
+  ---
+  duration_ms: 1.103042
+  type: 'test'
+  ...
+# Subtest: ★ R: snapshot 只建底座，score 一定是 null（不算生理年齡）
+ok 15 - ★ R: snapshot 只建底座，score 一定是 null（不算生理年齡）
+  ---
+  duration_ms: 1580.369375
+  type: 'test'
+  ...
+# Subtest: Y: 證據強度決定狀態
+ok 16 - Y: 證據強度決定狀態
+  ---
+  duration_ms: 0.172292
+  type: 'test'
+  ...
+# Subtest: Y: 非法狀態轉移會被拒絕
+ok 17 - Y: 非法狀態轉移會被拒絕
+  ---
+  duration_ms: 0.079
+  type: 'test'
+  ...
+# Subtest: ★ Y: belief revision —— 舊版本保留、版本鏈可回溯
+ok 18 - ★ Y: belief revision —— 舊版本保留、版本鏈可回溯
+  ---
+  duration_ms: 1672.212542
+  type: 'test'
+  ...
+# Subtest: Y: 證據變弱 → WEAKENED；狀態沒變則不開新版本
+ok 19 - Y: 證據變弱 → WEAKENED；狀態沒變則不開新版本
+  ---
+  duration_ms: 1612.50025
+  type: 'test'
+  ...
+# Subtest: Y: retire 之後不能再修改；HYPOTHESIS 不算「相信」
+ok 20 - Y: retire 之後不能再修改；HYPOTHESIS 不算「相信」
+  ---
+  duration_ms: 1604.128667
+  type: 'test'
+  ...
+# Subtest: Z: 實驗生命週期 DRAFT → RUNNING → COMPLETED
+ok 21 - Z: 實驗生命週期 DRAFT → RUNNING → COMPLETED
+  ---
+  duration_ms: 1919.810958
+  type: 'test'
+  ...
+# Subtest: Z: 缺必要欄位會被拒絕
+ok 22 - Z: 缺必要欄位會被拒絕
+  ---
+  duration_ms: 1816.37775
+  type: 'test'
+  ...
+# Subtest: ★ Z: 分析輸出 baseline vs intervention，且明確標示非因果
+ok 23 - ★ Z: 分析輸出 baseline vs intervention，且明確標示非因果
+  ---
+  duration_ms: 0.783709
+  type: 'test'
+  ...
+# Subtest: ★ Z: 期間樣本不足時不下結論
+ok 24 - ★ Z: 期間樣本不足時不下結論
+  ---
+  duration_ms: 0.129917
+  type: 'test'
+  ...
+# Subtest: Z: 缺日期時明講，不硬算
+ok 25 - Z: 缺日期時明講，不硬算
+  ---
+  duration_ms: 0.091292
+  type: 'test'
+  ...
+# Subtest: Z: runtime adapter rejects unproven create/result writes with zero mutation
+ok 26 - Z: runtime adapter rejects unproven create/result writes with zero mutation
+  ---
+  duration_ms: 163627.734625
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 181763.212125

@@ -1,0 +1,97 @@
+TAP version 13
+# {"ts":"2026-09-27T15:12:25.492Z","level":"info","event":"token_reused","user_id":"u-whoop-test"}
+# {"ts":"2026-09-27T15:12:25.524Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T15:12:25.529Z","level":"warn","event":"token_refresh_lock_unavailable"}
+# {"ts":"2026-09-27T15:12:25.530Z","level":"info","event":"token_refresh_start","user_id":"u-whoop-test"}
+# Subtest: access token 還有效（>5 分鐘）→ 直接重用，完全不打 token endpoint
+ok 1 - access token 還有效（>5 分鐘）→ 直接重用，完全不打 token endpoint
+  ---
+  duration_ms: 48.262834
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:12:25.543Z","level":"info","event":"token_refresh_done","user_id":"u-whoop-test"}
+# {"ts":"2026-09-27T15:12:25.548Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T15:12:25.551Z","level":"warn","event":"token_refresh_lock_unavailable"}
+# {"ts":"2026-09-27T15:12:25.551Z","level":"info","event":"token_refresh_start","user_id":"u-whoop-test"}
+# Subtest: 剩不到 5 分鐘 → refresh，且「先寫回 DB」才去撈資料
+ok 2 - 剩不到 5 分鐘 → refresh，且「先寫回 DB」才去撈資料
+  ---
+  duration_ms: 24.390042
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:12:25.560Z","level":"warn","event":"token_refresh_lock_unavailable"}
+# {"ts":"2026-09-27T15:12:25.560Z","level":"info","event":"token_refresh_start","user_id":"u-whoop-test"}
+# Subtest: DB 寫入一直失敗 → 中止，不會用新 token 去撈資料（避免 refresh_token 遺失）
+ok 3 - DB 寫入一直失敗 → 中止，不會用新 token 去撈資料（避免 refresh_token 遺失）
+  ---
+  duration_ms: 8.614667
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:12:25.565Z","level":"info","event":"token_refresh_done","user_id":"u-whoop-test"}
+# {"ts":"2026-09-27T15:12:25.569Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T15:12:25.570Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T15:12:25.572Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T15:12:25.573Z","level":"info","event":"token_reused","user_id":"u-whoop-test"}
+# Subtest: 平行請求時只 refresh 一次
+ok 4 - 平行請求時只 refresh 一次
+  ---
+  duration_ms: 13.332666
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:12:25.582Z","level":"info","event":"token_reused","user_id":"u-whoop-test"}
+# {"ts":"2026-09-27T15:12:25.585Z","level":"info","event":"token_reused","user_id":"u-whoop-test"}
+# {"ts":"2026-09-27T15:12:25.588Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T15:12:25.589Z","level":"info","event":"token_reused","user_id":"u-whoop-test"}
+# Subtest: collection 用 next_token 分頁，每頁 limit=25
+ok 5 - collection 用 next_token 分頁，每頁 limit=25
+  ---
+  duration_ms: 16.468333
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:12:25.593Z","level":"warn","event":"whoop_rate_limited","attempt":1}
+# {"ts":"2026-09-27T15:12:25.597Z","level":"warn","event":"whoop_rate_limited","attempt":2}
+# {"ts":"2026-09-27T15:12:25.601Z","level":"info","event":"whoop_collected"}
+# {"ts":"2026-09-27T15:12:25.602Z","level":"info","event":"token_reused","user_id":"u-whoop-test"}
+# Subtest: 429 會 backoff 後重試成功
+ok 6 - 429 會 backoff 後重試成功
+  ---
+  duration_ms: 12.603584
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:12:25.605Z","level":"warn","event":"whoop_rate_limited","attempt":1}
+# {"ts":"2026-09-27T15:12:25.608Z","level":"warn","event":"whoop_rate_limited","attempt":2}
+# {"ts":"2026-09-27T15:12:25.612Z","level":"warn","event":"whoop_rate_limited","attempt":3}
+# {"ts":"2026-09-27T15:12:25.615Z","level":"warn","event":"whoop_rate_limited","attempt":4}
+# {"ts":"2026-09-27T15:12:25.616Z","level":"info","event":"token_reused","user_id":"u-whoop-test"}
+# Subtest: 429 一直不停 → 拋錯（讓上層記錄並通知）
+ok 7 - 429 一直不停 → 拋錯（讓上層記錄並通知）
+  ---
+  duration_ms: 13.824666
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T15:12:25.619Z","level":"warn","event":"whoop_401_refreshing"}
+# {"ts":"2026-09-27T15:12:25.619Z","level":"warn","event":"token_refresh_lock_unavailable"}
+# {"ts":"2026-09-27T15:12:25.619Z","level":"info","event":"token_refresh_start","user_id":"u-whoop-test"}
+# {"ts":"2026-09-27T15:12:25.621Z","level":"info","event":"token_refresh_done","user_id":"u-whoop-test"}
+# {"ts":"2026-09-27T15:12:25.621Z","level":"info","event":"token_reused","user_id":"u-whoop-test"}
+# Subtest: 401 → 強制 refresh 一次再重試；再 401 就明確要求重新授權
+ok 8 - 401 → 強制 refresh 一次再重試；再 401 就明確要求重新授權
+  ---
+  duration_ms: 8.696916
+  type: 'test'
+  ...
+# Subtest: Turso 沒有 token → 明確叫你先跑授權腳本
+ok 9 - Turso 沒有 token → 明確叫你先跑授權腳本
+  ---
+  duration_ms: 1.10825
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 446.896042

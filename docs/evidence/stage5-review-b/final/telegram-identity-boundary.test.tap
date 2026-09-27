@@ -1,0 +1,149 @@
+TAP version 13
+# {"ts":"2026-09-27T14:29:17.541Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:17.548Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:19.431Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:19.432Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:19.439Z","level":"warn","event":"telegram_message_rejected","update_id":1,"reason":"non_private_chat"}
+# {"ts":"2026-09-27T14:29:19.519Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:19.521Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:22.295Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:22.296Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:22.301Z","level":"warn","event":"telegram_message_rejected","update_id":1,"reason":"non_private_chat"}
+# {"ts":"2026-09-27T14:29:22.394Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:22.397Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:24.151Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:24.151Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:24.154Z","level":"warn","event":"telegram_message_rejected","update_id":1,"reason":"non_private_chat"}
+# {"ts":"2026-09-27T14:29:24.223Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:24.224Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:26.106Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:26.107Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:26.108Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:26.110Z","level":"warn","event":"telegram_message_rejected","update_id":1,"reason":"sender_chat_mismatch"}
+# {"ts":"2026-09-27T14:29:26.186Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:26.188Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:28.082Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:28.083Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:28.084Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:28.086Z","level":"warn","event":"telegram_message_rejected","update_id":1,"reason":"bot_sender"}
+# {"ts":"2026-09-27T14:29:28.155Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:28.157Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:30.392Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:30.393Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:30.394Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:30.466Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:30.468Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:32.597Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:32.599Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:32.600Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:32.603Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:29:32.633Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:29:32.699Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:32.701Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:34.507Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:34.508Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:34.509Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:34.510Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:29:34.513Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:29:34.543Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:29:34.545Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:29:34.574Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:29:34.577Z","level":"warn","event":"telegram_message_rejected","update_id":3,"reason":"non_private_chat"}
+# {"ts":"2026-09-27T14:29:34.589Z","level":"warn","event":"telegram_message_rejected","update_id":4,"reason":"non_private_chat"}
+# {"ts":"2026-09-27T14:29:34.600Z","level":"warn","event":"telegram_message_rejected","update_id":5,"reason":"sender_chat_mismatch"}
+# {"ts":"2026-09-27T14:29:34.677Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:34.679Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:36.362Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:36.363Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:36.365Z","level":"info","event":"link_code_created","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:36.365Z","level":"warn","event":"link_attempt_rejected_non_private"}
+# {"ts":"2026-09-27T14:29:36.473Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:36.475Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:38.240Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:38.241Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:38.242Z","level":"info","event":"link_code_created","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:38.242Z","level":"warn","event":"link_attempt_rejected_non_private"}
+# {"ts":"2026-09-27T14:29:38.244Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:38.244Z","level":"info","event":"link_code_redeemed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:38.245Z","level":"info","event":"link_succeeded","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:38.308Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:29:38.309Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:29:40.185Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:40.186Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:29:40.187Z","level":"info","event":"link_code_created","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:29:40.189Z","level":"warn","event":"telegram_message_rejected","update_id":1,"reason":"non_private_chat"}
+# Subtest: ★★★ H-01: 群組成員絕不會被解析成綁定者（即使群組曾被綁定）
+ok 1 - ★★★ H-01: 群組成員絕不會被解析成綁定者（即使群組曾被綁定）
+  ---
+  duration_ms: 2035.408125
+  type: 'test'
+  ...
+# Subtest: ★★★ H-01: 連綁定者本人在群組裡發言也不被授權（私訊限定）
+ok 2 - ★★★ H-01: 連綁定者本人在群組裡發言也不被授權（私訊限定）
+  ---
+  duration_ms: 2861.471667
+  type: 'test'
+  ...
+# Subtest: ★★★ H-01: 群組訊息完全不回覆（不洩漏 bot 綁了誰）
+ok 3 - ★★★ H-01: 群組訊息完全不回覆（不洩漏 bot 綁了誰）
+  ---
+  duration_ms: 1849.922916
+  type: 'test'
+  ...
+# Subtest: ★★★ H-01: from.id 與 chat.id 不符 → 拒絕（偽造寄件者）
+ok 4 - ★★★ H-01: from.id 與 chat.id 不符 → 拒絕（偽造寄件者）
+  ---
+  duration_ms: 1957.050125
+  type: 'test'
+  ...
+# Subtest: ★★ H-01: bot 送出的訊息一律拒絕
+ok 5 - ★★ H-01: bot 送出的訊息一律拒絕
+  ---
+  duration_ms: 1974.337084
+  type: 'test'
+  ...
+# Subtest: ★★ H-01: 缺 from / 缺 chat.type 一律拒絕（fail-closed）
+ok 6 - ★★ H-01: 缺 from / 缺 chat.type 一律拒絕（fail-closed）
+  ---
+  duration_ms: 2299.409667
+  type: 'test'
+  ...
+# Subtest: ★★ H-01: 合法的私訊仍然正常運作（沒有把功能鎖死）
+ok 7 - ★★ H-01: 合法的私訊仍然正常運作（沒有把功能鎖死）
+  ---
+  duration_ms: 2240.387542
+  type: 'test'
+  ...
+# Subtest: ★★★ H-01 多使用者再稽核：兩個私訊 + 一個群組，零跨使用者存取
+ok 8 - ★★★ H-01 多使用者再稽核：兩個私訊 + 一個群組，零跨使用者存取
+  ---
+  duration_ms: 1974.950791
+  type: 'test'
+  ...
+# Subtest: ★★★ H-01: handleLinkAttempt 預設 fail-closed（沒傳旗標就拒絕綁定）
+ok 9 - ★★★ H-01: handleLinkAttempt 預設 fail-closed（沒傳旗標就拒絕綁定）
+  ---
+  duration_ms: 1756.739625
+  type: 'test'
+  ...
+# Subtest: ★★★ H-01: 明確標為非私訊時拒絕綁定，且碼沒有被消耗
+ok 10 - ★★★ H-01: 明確標為非私訊時拒絕綁定，且碼沒有被消耗
+  ---
+  duration_ms: 1878.150417
+  type: 'test'
+  ...
+# Subtest: ★★ H-01: 端到端——群組 /link 走完整 poller 之後仍然沒有任何綁定
+ok 11 - ★★ H-01: 端到端——群組 /link 走完整 poller 之後仍然沒有任何綁定
+  ---
+  duration_ms: 1952.098
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 24028.427625

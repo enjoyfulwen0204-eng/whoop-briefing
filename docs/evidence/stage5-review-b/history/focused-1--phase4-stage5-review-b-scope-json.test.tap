@@ -1,0 +1,103 @@
+TAP version 13
+# {"ts":"2026-09-27T10:54:16.693Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:54:16.697Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:54:18.278Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:54:18.283Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:54:18.377Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:54:18.379Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:54:19.705Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:54:19.706Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext top-success retains capability through validation and releases at completion
+ok 1 - M004: withContext top-success retains capability through validation and releases at completion
+  ---
+  duration_ms: 1698.480166
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T10:54:19.775Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:54:19.776Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:54:21.235Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:54:21.236Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext top-error retains capability through validation and releases at completion
+ok 2 - M004: withContext top-error retains capability through validation and releases at completion
+  ---
+  duration_ms: 1400.096084
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T10:54:21.308Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:54:21.309Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:54:22.770Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:54:22.771Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext nested-success retains capability through validation and releases at completion
+ok 3 - M004: withContext nested-success retains capability through validation and releases at completion
+  ---
+  duration_ms: 1533.158167
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T10:54:22.843Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:54:22.844Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:54:24.145Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:54:24.146Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext nested-error retains capability through validation and releases at completion
+ok 4 - M004: withContext nested-error retains capability through validation and releases at completion
+  ---
+  duration_ms: 1534.25475
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T10:54:24.214Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:54:24.215Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:54:25.862Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:54:25.863Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext outer-rollback retains capability through validation and releases at completion
+ok 5 - M004: withContext outer-rollback retains capability through validation and releases at completion
+  ---
+  duration_ms: 1372.207
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T10:54:25.937Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:54:25.938Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:54:27.244Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:54:27.245Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext after-check-error retains capability through validation and releases at completion
+ok 6 - M004: withContext after-check-error retains capability through validation and releases at completion
+  ---
+  duration_ms: 1721.019209
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T10:54:27.424Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T10:54:27.425Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T10:54:28.870Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T10:54:28.871Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: an owned operation inside withContext leaves capability usable until scope exit
+ok 7 - M004: an owned operation inside withContext leaves capability usable until scope exit
+  ---
+  duration_ms: 1487.824458
+  type: 'test'
+  ...
+# Subtest: M005: all accepted special own JSON keys survive identity, content and reordered exact replay
+not ok 8 - M005: all accepted special own JSON keys survive identity, content and reordered exact replay
+  ---
+  duration_ms: 1832.657125
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-scope-json.test.js:37:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_ERROR: no such column: rowid'
+  code: 'SQLITE_ERROR'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Client.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:81:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:41:62)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-review-b-scope-json.test.js:50:20)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12895.886875

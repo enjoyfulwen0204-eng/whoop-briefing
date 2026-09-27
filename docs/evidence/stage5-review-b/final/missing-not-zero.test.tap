@@ -1,0 +1,100 @@
+TAP version 13
+# Subtest: ★★★ 睡眠總時長：三段齊全才給總和
+ok 1 - ★★★ 睡眠總時長：三段齊全才給總和
+  ---
+  duration_ms: 1.043666
+  type: 'test'
+  ...
+# Subtest: ★★★ 睡眠總時長：缺任何一段就不可用（不是部分和）
+ok 2 - ★★★ 睡眠總時長：缺任何一段就不可用（不是部分和）
+  ---
+  duration_ms: 0.329541
+  type: 'test'
+  ...
+# Subtest: ★★★ 睡眠總時長：真零仍然是 0
+ok 3 - ★★★ 睡眠總時長：真零仍然是 0
+  ---
+  duration_ms: 0.096208
+  type: 'test'
+  ...
+# Subtest: ★★★ 彙總層：缺一段 → sleep_total 不可用，但各分期各自保留
+ok 4 - ★★★ 彙總層：缺一段 → sleep_total 不可用，但各分期各自保留
+  ---
+  duration_ms: 24.374958
+  type: 'test'
+  ...
+# Subtest: ★★★ 完全沒有運動紀錄：計數 0，總和不可用（兩者可分辨）
+ok 5 - ★★★ 完全沒有運動紀錄：計數 0，總和不可用（兩者可分辨）
+  ---
+  duration_ms: 0.429417
+  type: 'test'
+  ...
+# Subtest: ★★★ 完整的運動紀錄：總和正確
+ok 6 - ★★★ 完整的運動紀錄：總和正確
+  ---
+  duration_ms: 0.37425
+  type: 'test'
+  ...
+# Subtest: ★★★ 已評分但缺 strain → 總和不可用（不可以靜靜壓低）
+ok 7 - ★★★ 已評分但缺 strain → 總和不可用（不可以靜靜壓低）
+  ---
+  duration_ms: 0.348166
+  type: 'test'
+  ...
+# Subtest: ★★★ 多筆運動、其中一筆缺必要值 → 該項總和不可用
+ok 8 - ★★★ 多筆運動、其中一筆缺必要值 → 該項總和不可用
+  ---
+  duration_ms: 0.234417
+  type: 'test'
+  ...
+# Subtest: ★★★ 缺任一心率區間 → 該區間合計不可用
+ok 9 - ★★★ 缺任一心率區間 → 該區間合計不可用
+  ---
+  duration_ms: 0.827875
+  type: 'test'
+  ...
+# Subtest: ★★★ 運動起訖時間壞掉 → 時長不可用（不是 0 分鐘）
+ok 10 - ★★★ 運動起訖時間壞掉 → 時長不可用（不是 0 分鐘）
+  ---
+  duration_ms: 0.759917
+  type: 'test'
+  ...
+# Subtest: ★★★ 未評分的運動不影響已評分的總和
+ok 11 - ★★★ 未評分的運動不影響已評分的總和
+  ---
+  duration_ms: 0.82125
+  type: 'test'
+  ...
+# Subtest: ★★★ 窗內沒有小睡：計數 0、總時長 0（真零）
+ok 12 - ★★★ 窗內沒有小睡：計數 0、總時長 0（真零）
+  ---
+  duration_ms: 0.248833
+  type: 'test'
+  ...
+# Subtest: ★★★ 小睡缺時長 → 總時長不可用（不是 0 分鐘的睡眠）
+ok 13 - ★★★ 小睡缺時長 → 總時長不可用（不是 0 分鐘的睡眠）
+  ---
+  duration_ms: 0.228917
+  type: 'test'
+  ...
+# Subtest: ★★★ 多筆小睡齊全 → 正常合計；其中一筆缺 → 不可用
+ok 14 - ★★★ 多筆小睡齊全 → 正常合計；其中一筆缺 → 不可用
+  ---
+  duration_ms: 0.222083
+  type: 'test'
+  ...
+# Subtest: ★★★ 簡報絕不會把不可用的總和印成 0
+ok 15 - ★★★ 簡報絕不會把不可用的總和印成 0
+  ---
+  duration_ms: 0.619791
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 140.534917

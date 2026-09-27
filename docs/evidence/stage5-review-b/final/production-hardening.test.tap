@@ -1,0 +1,54 @@
+TAP version 13
+# {"ts":"2026-09-27T14:16:56.745Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:16:56.757Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: ★★★ 部署：Render blueprint 不可以宣告第三個排程器
+ok 1 - ★★★ 部署：Render blueprint 不可以宣告第三個排程器
+  ---
+  duration_ms: 2.355917
+  type: 'test'
+  ...
+# Subtest: ★★★ RC3/RC4/RC5 README whole-file scheduler and eligibility contract
+ok 2 - ★★★ RC3/RC4/RC5 README whole-file scheduler and eligibility contract
+  ---
+  duration_ms: 10.140375
+  type: 'test'
+  ...
+# Subtest: ★★★ 部署：Cloudflare 是 10 分鐘主排程，GitHub 是錯開的每小時備援
+ok 3 - ★★★ 部署：Cloudflare 是 10 分鐘主排程，GitHub 是錯開的每小時備援
+  ---
+  duration_ms: 2.597709
+  type: 'test'
+  ...
+# Subtest: ★★ 部署：workflow 不可以把 secret 印出來
+ok 4 - ★★ 部署：workflow 不可以把 secret 印出來
+  ---
+  duration_ms: 0.614125
+  type: 'test'
+  ...
+# Subtest: ★★★ 觀測：health-status 會讀 cron 心跳並判斷是否過期
+ok 5 - ★★★ 觀測：health-status 會讀 cron 心跳並判斷是否過期
+  ---
+  duration_ms: 0.938583
+  type: 'test'
+  ...
+# Subtest: ★★★ 觀測：心跳的三種狀態都判斷正確
+ok 6 - ★★★ 觀測：心跳的三種狀態都判斷正確
+  ---
+  duration_ms: 2313.854167
+  type: 'test'
+  ...
+# Subtest: ★★ 觀測：心跳門檻明顯大於排程週期（不會因為偶爾延遲就誤報）
+ok 7 - ★★ 觀測：心跳門檻明顯大於排程週期（不會因為偶爾延遲就誤報）
+  ---
+  duration_ms: 0.296041
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2870.307916

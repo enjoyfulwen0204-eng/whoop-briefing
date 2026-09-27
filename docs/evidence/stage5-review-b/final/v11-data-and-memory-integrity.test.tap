@@ -1,0 +1,240 @@
+TAP version 13
+# {"ts":"2026-09-27T14:32:22.014Z","level":"warn","event":"daily_metrics_partial_failure","user_id":"u","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:32:22.116Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:22.122Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:23.930Z","level":"info","event":"user_created","user_id":"u-m1","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:23.935Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T14:32:23.945Z","level":"info","event":"insight_revision_skipped","user_id":"u-m1"}
+# {"ts":"2026-09-27T14:32:23.962Z","level":"info","event":"insight_revision_skipped","user_id":"u-m1"}
+# {"ts":"2026-09-27T14:32:23.988Z","level":"info","event":"insight_created"}
+# {"ts":"2026-09-27T14:32:23.989Z","level":"info","event":"insight_revised","user_id":"u-m1"}
+# {"ts":"2026-09-27T14:32:24.081Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:24.082Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:26.065Z","level":"info","event":"user_created","user_id":"u-m2","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:26.066Z","level":"info","event":"tokens_saved","user_id":"u-m2","attempt":1}
+# {"ts":"2026-09-27T14:32:26.068Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:32:26.069Z","level":"info","event":"token_refresh_start","user_id":"u-m2"}
+# {"ts":"2026-09-27T14:32:26.070Z","level":"info","event":"tokens_saved","user_id":"u-m2","attempt":1}
+# {"ts":"2026-09-27T14:32:26.071Z","level":"warn","event":"token_refresh_fenced","user_id":"u-m2"}
+# {"ts":"2026-09-27T14:32:26.071Z","level":"info","event":"token_adopted_after_fence","user_id":"u-m2"}
+# {"ts":"2026-09-27T14:32:26.071Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:32:26.137Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:26.139Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:27.887Z","level":"info","event":"user_created","user_id":"u-m2b","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:27.888Z","level":"info","event":"tokens_saved","user_id":"u-m2b","attempt":1}
+# {"ts":"2026-09-27T14:32:27.889Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T14:32:27.889Z","level":"info","event":"token_refresh_start","user_id":"u-m2b"}
+# Subtest: ★★★ H-06/1: 查詢成功而且真的沒有運動 → workout_count = 0（真零）
+ok 1 - ★★★ H-06/1: 查詢成功而且真的沒有運動 → workout_count = 0（真零）
+  ---
+  duration_ms: 32.011583
+  type: 'test'
+  ...
+# Subtest: ★★★ H-06/2: 查詢失敗 → workout_count = null（不可以變成 0）
+ok 2 - ★★★ H-06/2: 查詢失敗 → workout_count = null（不可以變成 0）
+  ---
+  duration_ms: 0.540375
+  type: 'test'
+  ...
+# Subtest: ★★★ H-06/3: 旗標也不可以說謊 —— recovery/cycle 讀不到時是 null 不是 false
+ok 3 - ★★★ H-06/3: 旗標也不可以說謊 —— recovery/cycle 讀不到時是 null 不是 false
+  ---
+  duration_ms: 0.581
+  type: 'test'
+  ...
+# Subtest: ★★★ H-06/4: 端到端 —— getWorkouts 拋錯時整條管線都拿到 null
+ok 4 - ★★★ H-06/4: 端到端 —— getWorkouts 拋錯時整條管線都拿到 null
+  ---
+  duration_ms: 2.213375
+  type: 'test'
+  ...
+# Subtest: ★★★ M-01/1: SUPPORTED 遇到崩塌的有效證據 → 合法降級到 WEAKENED
+ok 5 - ★★★ M-01/1: SUPPORTED 遇到崩塌的有效證據 → 合法降級到 WEAKENED
+  ---
+  duration_ms: 0.489625
+  type: 'test'
+  ...
+# Subtest: ★★★ M-01/2: 連續兩次崩塌 → RETIRED（但一次不會）
+ok 6 - ★★★ M-01/2: 連續兩次崩塌 → RETIRED（但一次不會）
+  ---
+  duration_ms: 0.142708
+  type: 'test'
+  ...
+# Subtest: ★★★ M-01/3: 證據方向翻轉 = 被否定（不是變弱）
+ok 7 - ★★★ M-01/3: 證據方向翻轉 = 被否定（不是變弱）
+  ---
+  duration_ms: 0.319084
+  type: 'test'
+  ...
+# Subtest: ★★★ M-01/4: 恢復支持時可以升回來，但 HYPOTHESIS 不可以跳級
+ok 8 - ★★★ M-01/4: 恢復支持時可以升回來，但 HYPOTHESIS 不可以跳級
+  ---
+  duration_ms: 0.134334
+  type: 'test'
+  ...
+# Subtest: ★★★ M-01/5: 資料暫時拿不到 ≠ 證據不再支持（端到端）
+ok 9 - ★★★ M-01/5: 資料暫時拿不到 ≠ 證據不再支持（端到端）
+  ---
+  duration_ms: 1989.575375
+  type: 'test'
+  ...
+# Subtest: ★★★ M-02/1: refresh 請求有明確逾時（不可以無上限地掛著）
+ok 10 - ★★★ M-02/1: refresh 請求有明確逾時（不可以無上限地掛著）
+  ---
+  duration_ms: 1.225042
+  type: 'test'
+  ...
+# Subtest: ★★★ M-02/2: 逾時不會洩漏任何 token 內容
+ok 11 - ★★★ M-02/2: 逾時不會洩漏任何 token 內容
+  ---
+  duration_ms: 0.84225
+  type: 'test'
+  ...
+# Subtest: ★★★ M-02/3: A 租約過期 → B 寫入新 token → A 回來時被圍欄擋下
+ok 12 - ★★★ M-02/3: A 租約過期 → B 寫入新 token → A 回來時被圍欄擋下
+  ---
+  duration_ms: 2062.560834
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:32:27.895Z","level":"info","event":"tokens_saved","user_id":"u-m2b","attempt":1}
+# {"ts":"2026-09-27T14:32:27.896Z","level":"warn","event":"tokens_save_stale_version","user_id":"u-m2b"}
+# {"ts":"2026-09-27T14:32:27.896Z","level":"warn","event":"token_refresh_fenced","user_id":"u-m2b"}
+# {"ts":"2026-09-27T14:32:27.897Z","level":"info","event":"token_adopted_after_fence","user_id":"u-m2b"}
+# {"ts":"2026-09-27T14:32:27.897Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T14:32:27.963Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:27.964Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:30.122Z","level":"info","event":"user_created","user_id":"u-cas","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:30.124Z","level":"info","event":"tokens_saved","user_id":"u-cas","attempt":1}
+# Subtest: ★★★ M-02/3b: 租約看起來還在，但 DB 已經前進 → CAS 仍然擋下舊寫入
+ok 13 - ★★★ M-02/3b: 租約看起來還在，但 DB 已經前進 → CAS 仍然擋下舊寫入
+  ---
+  duration_ms: 1825.700834
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T14:32:30.406Z","level":"info","event":"tokens_saved","user_id":"u-cas","attempt":1}
+# {"ts":"2026-09-27T14:32:30.406Z","level":"warn","event":"tokens_save_stale_version","user_id":"u-cas"}
+# {"ts":"2026-09-27T14:32:30.408Z","level":"info","event":"user_created","user_id":"u-cas-2","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:30.408Z","level":"info","event":"tokens_saved","user_id":"u-cas-2","attempt":1}
+# {"ts":"2026-09-27T14:32:30.471Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:30.472Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:32.606Z","level":"info","event":"user_created","user_id":"u-m3","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:32.609Z","level":"info","event":"store_sleeps_upserted","user_id":"u-m3","count":1}
+# {"ts":"2026-09-27T14:32:32.613Z","level":"info","event":"analytics_invalidated","user_id":"u-m3","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:32:32.616Z","level":"info","event":"canonical_write_classified","user_id":"u-m3","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:32.624Z","level":"info","event":"canonical_write_classified","user_id":"u-m3","resource":"sleep","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:32:32.696Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:32.700Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:34.775Z","level":"info","event":"user_created","user_id":"u-m3b","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:34.777Z","level":"info","event":"store_sleeps_upserted","user_id":"u-m3b","count":1}
+# {"ts":"2026-09-27T14:32:34.779Z","level":"info","event":"analytics_invalidated","user_id":"u-m3b","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:32:34.782Z","level":"info","event":"canonical_write_classified","user_id":"u-m3b","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:34.790Z","level":"info","event":"store_sleeps_upserted","user_id":"u-m3b","count":1}
+# {"ts":"2026-09-27T14:32:34.793Z","level":"info","event":"analytics_invalidated","user_id":"u-m3b","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:32:34.796Z","level":"info","event":"canonical_write_classified","user_id":"u-m3b","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:34.804Z","level":"info","event":"store_sleeps_upserted","user_id":"u-m3b","count":1}
+# {"ts":"2026-09-27T14:32:34.804Z","level":"info","event":"canonical_write_classified","user_id":"u-m3b","resource":"sleep","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:32:34.866Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:34.868Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:36.575Z","level":"info","event":"user_created","user_id":"u-m3c","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:36.577Z","level":"info","event":"store_sleeps_upserted","user_id":"u-m3c","count":1}
+# {"ts":"2026-09-27T14:32:36.581Z","level":"info","event":"analytics_invalidated","user_id":"u-m3c","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:32:36.585Z","level":"info","event":"canonical_write_classified","user_id":"u-m3c","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:36.596Z","level":"info","event":"canonical_write_classified","user_id":"u-m3c","resource":"sleep","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:32:36.606Z","level":"info","event":"user_created","user_id":"u-m3d","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:36.608Z","level":"info","event":"store_sleeps_upserted","user_id":"u-m3d","count":1}
+# {"ts":"2026-09-27T14:32:36.611Z","level":"info","event":"analytics_invalidated","user_id":"u-m3d","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:32:36.617Z","level":"info","event":"canonical_write_classified","user_id":"u-m3d","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:36.628Z","level":"info","event":"store_sleeps_upserted","user_id":"u-m3d","count":1}
+# {"ts":"2026-09-27T14:32:36.628Z","level":"info","event":"canonical_write_classified","user_id":"u-m3d","resource":"sleep","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:32:36.724Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:36.727Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:38.410Z","level":"info","event":"user_created","user_id":"u-relink","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:38.412Z","level":"info","event":"store_sleeps_upserted","user_id":"u-relink","count":1}
+# {"ts":"2026-09-27T14:32:38.414Z","level":"info","event":"analytics_invalidated","user_id":"u-relink","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:32:38.417Z","level":"info","event":"canonical_write_classified","user_id":"u-relink","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:38.426Z","level":"info","event":"store_recoveries_upserted","user_id":"u-relink","count":1}
+# {"ts":"2026-09-27T14:32:38.429Z","level":"info","event":"analytics_invalidated","user_id":"u-relink","generation":2,"resource":"recovery"}
+# {"ts":"2026-09-27T14:32:38.431Z","level":"info","event":"canonical_write_classified","user_id":"u-relink","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:38.440Z","level":"info","event":"store_sleeps_upserted","user_id":"u-relink","count":1}
+# {"ts":"2026-09-27T14:32:38.442Z","level":"info","event":"analytics_invalidated","user_id":"u-relink","generation":3,"resource":"sleep"}
+# {"ts":"2026-09-27T14:32:38.445Z","level":"info","event":"canonical_write_classified","user_id":"u-relink","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:38.453Z","level":"info","event":"store_recoveries_upserted","user_id":"u-relink","count":0}
+# {"ts":"2026-09-27T14:32:38.456Z","level":"info","event":"analytics_invalidated","user_id":"u-relink","generation":4,"resource":"recovery"}
+# {"ts":"2026-09-27T14:32:38.459Z","level":"info","event":"canonical_write_classified","user_id":"u-relink","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:38.535Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:38.537Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:40.271Z","level":"info","event":"user_created","user_id":"u-a","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:40.272Z","level":"info","event":"user_created","user_id":"u-b","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:40.273Z","level":"info","event":"store_sleeps_upserted","user_id":"u-a","count":1}
+# {"ts":"2026-09-27T14:32:40.275Z","level":"info","event":"analytics_invalidated","user_id":"u-a","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:32:40.278Z","level":"info","event":"canonical_write_classified","user_id":"u-a","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:40.286Z","level":"info","event":"store_sleeps_upserted","user_id":"u-b","count":1}
+# {"ts":"2026-09-27T14:32:40.288Z","level":"info","event":"analytics_invalidated","user_id":"u-b","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:32:40.290Z","level":"info","event":"canonical_write_classified","user_id":"u-b","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:40.368Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:32:40.369Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:32:42.293Z","level":"info","event":"user_created","user_id":"u-m3e","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:32:42.295Z","level":"info","event":"store_recoveries_upserted","user_id":"u-m3e","count":1}
+# {"ts":"2026-09-27T14:32:42.297Z","level":"info","event":"analytics_invalidated","user_id":"u-m3e","generation":1,"resource":"recovery"}
+# {"ts":"2026-09-27T14:32:42.299Z","level":"info","event":"canonical_write_classified","user_id":"u-m3e","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:42.306Z","level":"info","event":"store_recoveries_upserted","user_id":"u-m3e","count":0}
+# {"ts":"2026-09-27T14:32:42.307Z","level":"info","event":"canonical_write_classified","user_id":"u-m3e","resource":"recovery","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:32:42.314Z","level":"info","event":"store_cycles_upserted","user_id":"u-m3e","count":1}
+# {"ts":"2026-09-27T14:32:42.316Z","level":"info","event":"analytics_invalidated","user_id":"u-m3e","generation":2,"resource":"cycle"}
+# {"ts":"2026-09-27T14:32:42.318Z","level":"info","event":"canonical_write_classified","user_id":"u-m3e","resource":"cycle","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:42.325Z","level":"info","event":"canonical_write_classified","user_id":"u-m3e","resource":"cycle","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:32:42.333Z","level":"info","event":"store_workouts_upserted","user_id":"u-m3e","count":1}
+# {"ts":"2026-09-27T14:32:42.335Z","level":"info","event":"analytics_invalidated","user_id":"u-m3e","generation":3,"resource":"workout"}
+# {"ts":"2026-09-27T14:32:42.338Z","level":"info","event":"canonical_write_classified","user_id":"u-m3e","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:32:42.346Z","level":"info","event":"canonical_write_classified","user_id":"u-m3e","resource":"workout","changed":0,"unchanged":0,"blocked":1}
+# Subtest: ★★★ M-02/4: compare-and-swap 本身 —— 版本對不上就拒絕寫入
+ok 14 - ★★★ M-02/4: compare-and-swap 本身 —— 版本對不上就拒絕寫入
+  ---
+  duration_ms: 2511.572166
+  type: 'test'
+  ...
+# Subtest: ★★★ M-03/1: 較舊的版本不可以覆蓋較新的（本地回應順序不代表來源順序）
+ok 15 - ★★★ M-03/1: 較舊的版本不可以覆蓋較新的（本地回應順序不代表來源順序）
+  ---
+  duration_ms: 2222.10675
+  type: 'test'
+  ...
+# Subtest: ★★★ M-03/2: 較新的版本要更新；相同版本重放要冪等
+ok 16 - ★★★ M-03/2: 較新的版本要更新；相同版本重放要冪等
+  ---
+  duration_ms: 2179.326583
+  type: 'test'
+  ...
+# Subtest: ★★★ M-03/3: 來源版本不明時，不可以覆蓋一個**已知**版本
+ok 17 - ★★★ M-03/3: 來源版本不明時，不可以覆蓋一個**已知**版本
+  ---
+  duration_ms: 1827.355209
+  type: 'test'
+  ...
+# Subtest: ★★★ M-03/3b: 新鮮度守衛不可以連帶關掉 recovery 的 health_date 重連
+ok 18 - ★★★ M-03/3b: 新鮮度守衛不可以連帶關掉 recovery 的 health_date 重連
+  ---
+  duration_ms: 1828.039333
+  type: 'test'
+  ...
+# Subtest: ★★★ M-03/4: 新鮮度守衛是 per-user 的（Alice 的版本不影響 Bob）
+ok 19 - ★★★ M-03/4: 新鮮度守衛是 per-user 的（Alice 的版本不影響 Bob）
+  ---
+  duration_ms: 1831.006958
+  type: 'test'
+  ...
+# Subtest: ★★★ M-03/5: recovery / cycle / workout 也套用同一條規則
+ok 20 - ★★★ M-03/5: recovery / cycle / workout 也套用同一條規則
+  ---
+  duration_ms: 2054.976083
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21056.833084

@@ -1,0 +1,845 @@
+TAP version 13
+# {"ts":"2026-09-27T14:12:24.957Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:24.962Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:26.956Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:26.957Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:26.972Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:26.980Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:26.981Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:26.993Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:27.003Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:27.013Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:27.091Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:27.093Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:29.099Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:29.100Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:29.112Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:29.122Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:29.123Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:29.136Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:29.147Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:29.160Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:29.212Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:29.306Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:29.308Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:31.097Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:31.098Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:31.109Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:31.117Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:31.118Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:31.128Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:31.138Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:31.150Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:31.269Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:31.271Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:33.327Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:33.328Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:33.341Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:33.350Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:33.351Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:33.362Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:33.371Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:33.381Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:33.415Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:33.516Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:33.518Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:35.286Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:35.287Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:35.298Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:35.307Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:35.307Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:35.318Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:35.408Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:35.409Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:37.323Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:37.324Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:37.335Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:37.342Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:37.343Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:37.358Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:37.369Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:37.378Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:37.496Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:37.498Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:39.376Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:39.377Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:39.391Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:39.400Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:39.401Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:39.413Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:39.422Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:39.432Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:39.466Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:39.551Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:39.555Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:41.618Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:41.619Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:41.629Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:41.637Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:41.638Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:41.646Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:41.656Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:41.664Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:41.673Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:41.682Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:41.724Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:41.809Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:41.811Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:43.678Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:43.679Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:43.689Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:43.696Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:43.697Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:43.706Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:43.715Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:43.724Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:43.753Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:43.825Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:43.826Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:45.635Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:45.636Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:45.648Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:45.656Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:45.656Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:45.666Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:45.674Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:45.683Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:45.766Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:45.768Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:47.744Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:47.745Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:47.757Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:47.765Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:47.766Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:47.775Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:47.784Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:47.793Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:47.880Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:47.883Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:49.859Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:49.860Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:49.870Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:49.877Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:49.877Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:49.889Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:49.897Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:49.906Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:49.954Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:50.021Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:50.023Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:51.772Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:51.773Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:51.785Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:51.792Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:51.793Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:51.803Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:51.811Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:51.819Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:51.855Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:51.921Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:51.923Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:53.742Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:53.743Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:53.753Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:53.762Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:53.763Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:53.774Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:53.783Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:53.791Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:53.828Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:53.898Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:53.900Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:56.419Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:56.420Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:56.432Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:56.440Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:56.441Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:56.451Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:56.460Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:56.468Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:56.477Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:56.486Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:56.529Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:56.596Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:56.598Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:12:59.373Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:59.374Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:59.393Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:12:59.404Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:12:59.405Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:12:59.420Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:12:59.435Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:59.446Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:59.494Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:12:59.572Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:12:59.574Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:01.496Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:01.497Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:01.519Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:01.532Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:01.534Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:01.553Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:01.569Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:01.696Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:01.699Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:03.624Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:03.625Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:03.638Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:03.645Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:03.646Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:03.659Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:03.669Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:03.679Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:03.689Z","level":"info","event":"proactive_event_claimed","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:03.699Z","level":"info","event":"pending_question_opened","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:03.734Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:03.866Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:03.870Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:06.038Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:06.039Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:06.049Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:06.057Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:06.059Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:06.070Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:06.078Z","level":"info","event":"proactive_event_claimed","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:06.087Z","level":"info","event":"pending_question_opened","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:06.169Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:06.171Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:08.022Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:08.023Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:08.036Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:08.047Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:08.048Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:08.060Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:08.140Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:08.142Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:09.981Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:09.982Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:09.992Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:10.000Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:10.000Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:10.010Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:10.021Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:10.032Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:10.048Z","level":"warn","event":"proactive_reap_item_failed","user_id":"u-alice","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:13:10.054Z","level":"warn","event":"proactive_reap_orphan_failed","user_id":"u-alice","event_id":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:13:10.054Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:10.114Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:10.118Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:12.061Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:12.061Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:12.073Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:12.081Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:12.082Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:12.093Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:12.104Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:12.127Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:12.197Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:12.199Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:14.189Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:14.189Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:14.201Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:14.208Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:14.208Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:14.220Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:14.228Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:14.237Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:14.326Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:14.329Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:16.276Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:16.277Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:16.290Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:16.298Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:16.299Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:16.310Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:16.320Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:16.329Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:16.340Z","level":"info","event":"pending_question_expired","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:16.372Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:16.456Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:16.458Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:18.631Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:18.632Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:18.644Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:18.652Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:18.653Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:18.663Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:18.672Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:18.681Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:18.689Z","level":"info","event":"pending_question_expired","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:18.712Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:18.818Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:18.820Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:20.852Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:20.853Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:20.869Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:20.877Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:20.878Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:20.891Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:20.901Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:20.911Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:20.961Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:21.097Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:21.102Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:23.772Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:23.774Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:23.794Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:23.807Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:23.808Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:23.824Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:23.838Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:23.852Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:23.897Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:24.009Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:24.011Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:26.897Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:26.898Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:26.911Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:26.920Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:26.921Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:26.933Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:26.944Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:26.954Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:26.964Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:26.974Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:27.018Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:27.100Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:27.102Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:29.958Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:29.960Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:29.977Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:29.987Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:29.988Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:30.003Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:30.015Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:30.026Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:30.038Z","level":"info","event":"pending_question_expired","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:30.068Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:30.167Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:30.170Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:32.791Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:32.792Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:32.810Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:32.821Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:32.822Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:32.838Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:32.850Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:32.861Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:32.874Z","level":"info","event":"pending_question_expired","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:32.925Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:32.934Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:33.049Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:33.053Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:35.320Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:35.321Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:35.332Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:35.340Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:35.341Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:35.352Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:35.360Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:35.369Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:35.378Z","level":"info","event":"proactive_event_claimed","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:35.387Z","level":"info","event":"pending_question_opened","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:35.395Z","level":"info","event":"pending_question_expired","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:35.403Z","level":"info","event":"pending_question_expired","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:35.426Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:35.462Z","level":"info","event":"proactive_questions_reaped","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:35.534Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:35.538Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:37.833Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:37.834Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:37.847Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:37.854Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:37.856Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:37.867Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:37.876Z","level":"info","event":"proactive_event_claimed","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:37.885Z","level":"info","event":"pending_question_opened","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:37.892Z","level":"info","event":"pending_question_expired","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:37.959Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:37.961Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:40.275Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:40.275Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:40.289Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:40.296Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:40.297Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:40.308Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:40.317Z","level":"info","event":"proactive_event_claimed","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:40.326Z","level":"info","event":"pending_question_opened","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:40.407Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:40.409Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:42.396Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:42.397Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:42.410Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:42.418Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:42.419Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:42.433Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:42.443Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:42.454Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:42.481Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:42.522Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:42.608Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:42.611Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:45.129Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:45.130Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:45.144Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:45.154Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:45.155Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:45.170Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:45.181Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:45.193Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:45.225Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:45.235Z","level":"info","event":"pending_question_expired","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:45.273Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:45.367Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:45.370Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:47.785Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:47.786Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:47.801Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:47.810Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:47.811Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:47.825Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:47.836Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:47.847Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:47.876Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:47.886Z","level":"info","event":"pending_question_expired","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:47.913Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:48.003Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:48.006Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:50.458Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:50.459Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:50.473Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:50.481Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:50.482Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:50.496Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:50.506Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:50.516Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:50.543Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:50.577Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:50.663Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:50.665Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:53.020Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:53.021Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:53.033Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:53.040Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:53.041Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:53.052Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:53.060Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:53.069Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:53.093Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:53.101Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:53.131Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:53.208Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:53.210Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:55.972Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:55.973Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:55.993Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:56.005Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:56.007Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:56.031Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:56.046Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:56.064Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:56.118Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:56.177Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:56.360Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:56.365Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:13:59.524Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:59.525Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:59.548Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:13:59.562Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:13:59.564Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:59.589Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:13:59.607Z","level":"info","event":"proactive_event_claimed","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:59.626Z","level":"info","event":"pending_question_opened","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:13:59.649Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:59.707Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:13:59.815Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:13:59.819Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:02.139Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:02.139Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:02.152Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:14:02.159Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:02.160Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:02.174Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:14:02.183Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:02.192Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:02.216Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:02.225Z","level":"info","event":"proactive_event_claimed","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:02.234Z","level":"info","event":"pending_question_opened","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:02.264Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:02.349Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:02.353Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:05.457Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:05.458Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:05.477Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:14:05.487Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:05.490Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:05.509Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:14:05.523Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:05.539Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:05.553Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:05.613Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:05.734Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:05.738Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:08.366Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:08.367Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:08.382Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:14:08.391Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:08.392Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:08.405Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:14:08.415Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:08.426Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:08.435Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:08.444Z","level":"info","event":"proactive_event_claimed","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:08.453Z","level":"info","event":"pending_question_opened","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:08.489Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:08.585Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:08.589Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:11.427Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:11.428Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:11.444Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:14:11.456Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:11.458Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:11.473Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:14:11.485Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:11.498Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:11.532Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:11.576Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:11.746Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:11.750Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:14.166Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:14.168Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:14.185Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:14:14.195Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:14.196Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:14.215Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:14:14.231Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:14.246Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:14.285Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:14.362Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:14.453Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:14.456Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:17.060Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:17.061Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:17.075Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:14:17.083Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:17.084Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:17.098Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:14:17.109Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:17.119Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:17.144Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:17.153Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:17.186Z","level":"info","event":"proactive_questions_reaped","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:17.289Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:14:17.292Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:14:19.995Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:19.996Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:20.010Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T14:14:20.017Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:14:20.018Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T14:14:20.030Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T14:14:20.040Z","level":"info","event":"proactive_event_claimed","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:20.050Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# {"ts":"2026-09-27T14:14:20.075Z","level":"info","event":"pending_question_opened","user_id":"u-alice"}
+# Subtest: ★ 主動問題的 TTL 是獨立常數，與反應式 Q&A 的 TTL 分開
+ok 1 - ★ 主動問題的 TTL 是獨立常數，與反應式 Q&A 的 TTL 分開
+  ---
+  duration_ms: 1.96
+  type: 'test'
+  ...
+# Subtest: 主動問題用 QUESTION_TTL_MS 設定到期時間
+ok 2 - 主動問題用 QUESTION_TTL_MS 設定到期時間
+  ---
+  duration_ms: 2176.64825
+  type: 'test'
+  ...
+# Subtest: ★★ 未回答的主動問題過期後 → EXPIRED + 事件 NO_RESPONSE + resolved_at
+ok 3 - ★★ 未回答的主動問題過期後 → EXPIRED + 事件 NO_RESPONSE + resolved_at
+  ---
+  duration_ms: 2200.56525
+  type: 'test'
+  ...
+# Subtest: 尚未過期的問題完全不被碰
+ok 4 - 尚未過期的問題完全不被碰
+  ---
+  duration_ms: 1955.3135
+  type: 'test'
+  ...
+# Subtest: ★ 收割器是冪等的：重跑不會重複寫，也不會改變任何東西
+ok 5 - ★ 收割器是冪等的：重跑不會重複寫，也不會改變任何東西
+  ---
+  duration_ms: 2266.134667
+  type: 'test'
+  ...
+# Subtest: 沒有任何過期問題時是乾淨的 no-op
+ok 6 - 沒有任何過期問題時是乾淨的 no-op
+  ---
+  duration_ms: 1890.835292
+  type: 'test'
+  ...
+# Subtest: ★★ 已回答的問題絕不會被收割成 NO_RESPONSE
+ok 7 - ★★ 已回答的問題絕不會被收割成 NO_RESPONSE
+  ---
+  duration_ms: 2094.245083
+  type: 'test'
+  ...
+# Subtest: ★★ 回答了但事件還沒收尾（reanalysis 掛掉）→ 收斂成 ABANDONED，絕不是 NO_RESPONSE
+ok 8 - ★★ 回答了但事件還沒收尾（reanalysis 掛掉）→ 收斂成 ABANDONED，絕不是 NO_RESPONSE
+  ---
+  duration_ms: 2049.225833
+  type: 'test'
+  ...
+# Subtest: ★★ SUPERSEDED 的問題不會變成 NO_RESPONSE
+ok 9 - ★★ SUPERSEDED 的問題不會變成 NO_RESPONSE
+  ---
+  duration_ms: 2261.448958
+  type: 'test'
+  ...
+# Subtest: ★★ 遲到的回答不能覆寫已經寫下的 NO_RESPONSE
+ok 10 - ★★ 遲到的回答不能覆寫已經寫下的 NO_RESPONSE
+  ---
+  duration_ms: 2024.712417
+  type: 'test'
+  ...
+# Subtest: ★★ resolveProactiveEventIfUnresolved 絕不覆寫既有結果
+ok 11 - ★★ resolveProactiveEventIfUnresolved 絕不覆寫既有結果
+  ---
+  duration_ms: 1937.818792
+  type: 'test'
+  ...
+# Subtest: ★★★ 收割器與回答同時發生 → 終局狀態恰好一個贏家
+ok 12 - ★★★ 收割器與回答同時發生 → 終局狀態恰好一個贏家
+  ---
+  duration_ms: 2117.487917
+  type: 'test'
+  ...
+# Subtest: ★★ 兩個收割器同時跑 → 只寫一次 NO_RESPONSE
+ok 13 - ★★ 兩個收割器同時跑 → 只寫一次 NO_RESPONSE
+  ---
+  duration_ms: 2139.223667
+  type: 'test'
+  ...
+# Subtest: 重啟安全：狀態全在 DB，換一個 db 連線收割結果一樣
+ok 14 - 重啟安全：狀態全在 DB，換一個 db 連線收割結果一樣
+  ---
+  duration_ms: 1900.081292
+  type: 'test'
+  ...
+# Subtest: ★★★ NO_RESPONSE 不改變冷卻：收割前後 decide() 的結果完全一樣
+ok 15 - ★★★ NO_RESPONSE 不改變冷卻：收割前後 decide() 的結果完全一樣
+  ---
+  duration_ms: 1974.571625
+  type: 'test'
+  ...
+# Subtest: ★★★ NO_RESPONSE 不改變每日上限的計數
+ok 16 - ★★★ NO_RESPONSE 不改變每日上限的計數
+  ---
+  duration_ms: 2699.894875
+  type: 'test'
+  ...
+# Subtest: ★★ 收割只改 outcome/resolved_at，decision/created_at/signals 原封不動
+ok 17 - ★★ 收割只改 outcome/resolved_at，decision/created_at/signals 原封不動
+  ---
+  duration_ms: 2966.648625
+  type: 'test'
+  ...
+# Subtest: ★ 反應式追問（沒有 proactive intent）不會被收割器碰到
+ok 18 - ★ 反應式追問（沒有 proactive intent）不會被收割器碰到
+  ---
+  duration_ms: 2099.695167
+  type: 'test'
+  ...
+# Subtest: ★★★ Alice 的收割完全不影響 Bob
+ok 19 - ★★★ Alice 的收割完全不影響 Bob
+  ---
+  duration_ms: 2156.853041
+  type: 'test'
+  ...
+# Subtest: ★ 收割器不能跨使用者收走別人的問題
+ok 20 - ★ 收割器不能跨使用者收走別人的問題
+  ---
+  duration_ms: 2347.998333
+  type: 'test'
+  ...
+# Subtest: 缺 userId 一律拋 MissingUserIdError
+ok 21 - 缺 userId 一律拋 MissingUserIdError
+  ---
+  duration_ms: 1954.015542
+  type: 'test'
+  ...
+# Subtest: ★ 事件查詢失敗不會讓收割器拋錯（維護工作絕不影響主流程）
+ok 22 - ★ 事件查詢失敗不會讓收割器拋錯（維護工作絕不影響主流程）
+  ---
+  duration_ms: 1992.84975
+  type: 'test'
+  ...
+# Subtest: 不支援新 store 函式的 db（舊 fake）→ 安全跳過
+ok 23 - 不支援新 store 函式的 db（舊 fake）→ 安全跳過
+  ---
+  duration_ms: 0.245542
+  type: 'test'
+  ...
+# Subtest: ★ 問題沒有連到任何事件時，仍然會被收成 EXPIRED（不卡在 OPEN）
+ok 24 - ★ 問題沒有連到任何事件時，仍然會被收成 EXPIRED（不卡在 OPEN）
+  ---
+  duration_ms: 2078.611083
+  type: 'test'
+  ...
+# Subtest: ★ 惰性過期不會蓋掉剛剛被寫入的回答
+ok 25 - ★ 惰性過期不會蓋掉剛剛被寫入的回答
+  ---
+  duration_ms: 2126.167125
+  type: 'test'
+  ...
+# Subtest: ★★★ F-01: 惰性過期先發生 → 之後的收割仍然補上 NO_RESPONSE
+ok 26 - ★★★ F-01: 惰性過期先發生 → 之後的收割仍然補上 NO_RESPONSE
+  ---
+  duration_ms: 2119.833959
+  type: 'test'
+  ...
+# Subtest: ★★★ F-01: 修好之後不會被重複拜訪（收斂到零工作量）
+ok 27 - ★★★ F-01: 修好之後不會被重複拜訪（收斂到零工作量）
+  ---
+  duration_ms: 2373.976958
+  type: 'test'
+  ...
+# Subtest: ★★★ F-01: 崩潰留下的半完成狀態（EXPIRED + outcome NULL）可以跨連線修復
+ok 28 - ★★★ F-01: 崩潰留下的半完成狀態（EXPIRED + outcome NULL）可以跨連線修復
+  ---
+  duration_ms: 2218.621167
+  type: 'test'
+  ...
+# Subtest: ★★★ F-01: ANSWERED 即使事件未收尾，也絕不會被補成 NO_RESPONSE
+ok 29 - ★★★ F-01: ANSWERED 即使事件未收尾，也絕不會被補成 NO_RESPONSE
+  ---
+  duration_ms: 2935.422292
+  type: 'test'
+  ...
+# Subtest: ★★★ F-01: SUPERSEDED 即使事件未收尾，也絕不會被補成 NO_RESPONSE
+ok 30 - ★★★ F-01: SUPERSEDED 即使事件未收尾，也絕不會被補成 NO_RESPONSE
+  ---
+  duration_ms: 3117.050834
+  type: 'test'
+  ...
+# Subtest: ★★★ F-01: 惰性過期之後，遲到的回答仍然無法覆寫 NO_RESPONSE
+ok 31 - ★★★ F-01: 惰性過期之後，遲到的回答仍然無法覆寫 NO_RESPONSE
+  ---
+  duration_ms: 3063.192125
+  type: 'test'
+  ...
+# Subtest: ★★★ F-01: 兩個收割器同時修復同一個半完成狀態 → 只寫一次
+ok 32 - ★★★ F-01: 兩個收割器同時修復同一個半完成狀態 → 只寫一次
+  ---
+  duration_ms: 2854.735042
+  type: 'test'
+  ...
+# Subtest: ★★★ F-01: Alice 與 Bob 同時處於半完成狀態 → 各自修復，互不影響
+ok 33 - ★★★ F-01: Alice 與 Bob 同時處於半完成狀態 → 各自修復，互不影響
+  ---
+  duration_ms: 2525.574334
+  type: 'test'
+  ...
+# Subtest: ★★★ F-05: 惰性過期的 UPDATE 自己就帶 user_id（不倚賴上游 SELECT）
+ok 34 - ★★★ F-05: 惰性過期的 UPDATE 自己就帶 user_id（不倚賴上游 SELECT）
+  ---
+  duration_ms: 2423.037125
+  type: 'test'
+  ...
+# Subtest: ★★ F-05: 直接對 store 施加跨使用者的過期嘗試也無效
+ok 35 - ★★ F-05: 直接對 store 施加跨使用者的過期嘗試也無效
+  ---
+  duration_ms: 2447.438958
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (1): 澄清追問過期 → 事件收斂到 NO_RESPONSE
+ok 36 - ★★★ RF-01 (1): 澄清追問過期 → 事件收斂到 NO_RESPONSE
+  ---
+  duration_ms: 2190.603958
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (2): 澄清追問先被惰性過期 → 之後的收割仍然修得回來
+ok 37 - ★★★ RF-01 (2): 澄清追問先被惰性過期 → 之後的收割仍然修得回來
+  ---
+  duration_ms: 2750.933291
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (3): 澄清追問的半完成狀態可以跨 process 修復
+ok 38 - ★★★ RF-01 (3): 澄清追問的半完成狀態可以跨 process 修復
+  ---
+  duration_ms: 2639.792833
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (4): 澄清追問被回答 → 事件絕不可以變成 NO_RESPONSE
+ok 39 - ★★★ RF-01 (4): 澄清追問被回答 → 事件絕不可以變成 NO_RESPONSE
+  ---
+  duration_ms: 2663.325166
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (5): 澄清追問被取代（SUPERSEDED）→ 事件不變成 NO_RESPONSE
+ok 40 - ★★★ RF-01 (5): 澄清追問被取代（SUPERSEDED）→ 事件不變成 NO_RESPONSE
+  ---
+  duration_ms: 2552.744333
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (6): 澄清追問已產生 NO_RESPONSE 後，遲到的回答蓋不掉
+ok 41 - ★★★ RF-01 (6): 澄清追問已產生 NO_RESPONSE 後，遲到的回答蓋不掉
+  ---
+  duration_ms: 3066.873625
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (7): Alice 的 context 偽造成 Bob 的事件 id → Bob 的事件毫髮無傷
+ok 42 - ★★★ RF-01 (7): Alice 的 context 偽造成 Bob 的事件 id → Bob 的事件毫髮無傷
+  ---
+  duration_ms: 3514.100416
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (8): context_json 壞掉 → 不當掉、不寫入、fail closed
+ok 43 - ★★★ RF-01 (8): context_json 壞掉 → 不當掉、不寫入、fail closed
+  ---
+  duration_ms: 2559.274
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (8b): 壞掉的 context 不會讓同一批的其他問題也收不了
+ok 44 - ★★★ RF-01 (8b): 壞掉的 context 不會讓同一批的其他問題也收不了
+  ---
+  duration_ms: 3345.987125
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (9): context 沒有 proactive_event_id → 不亂解析任何事件
+ok 45 - ★★★ RF-01 (9): context 沒有 proactive_event_id → 不亂解析任何事件
+  ---
+  duration_ms: 2880.65425
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (10): 重複收割 → 第一次解析一次，之後零工作量
+ok 46 - ★★★ RF-01 (10): 重複收割 → 第一次解析一次，之後零工作量
+  ---
+  duration_ms: 3143.51175
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01 (11): 兩個收割器同時處理澄清追問 → 只寫一次
+ok 47 - ★★★ RF-01 (11): 兩個收割器同時處理澄清追問 → 只寫一次
+  ---
+  duration_ms: 2721.412792
+  type: 'test'
+  ...
+# Subtest: ★★★ RF-01: 多個未結案事件 → 只收尾真正連結的那一個
+ok 48 - ★★★ RF-01: 多個未結案事件 → 只收尾真正連結的那一個
+  ---
+  duration_ms: 2834.799541
+  type: 'test'
+  ...
+# Subtest: ★★ RF-01: 選取與解析用同一個事件身分（store 直接回傳目標）
+ok 49 - ★★ RF-01: 選取與解析用同一個事件身分（store 直接回傳目標）
+  ---
+  duration_ms: 2876.631584
+  type: 'test'
+  ...
+1..49
+# tests 49
+# suites 0
+# pass 49
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 121333.6165

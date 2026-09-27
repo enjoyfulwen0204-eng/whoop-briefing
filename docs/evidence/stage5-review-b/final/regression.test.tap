@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: R5：前週睡眠債為 0、上週有 40 分鐘 → 不可回 flat
+ok 1 - R5：前週睡眠債為 0、上週有 40 分鐘 → 不可回 flat
+  ---
+  duration_ms: 1.194209
+  type: 'test'
+  ...
+# Subtest: R5：前週為 0、上週也是 0 → 這才是真的 flat
+ok 2 - R5：前週為 0、上週也是 0 → 這才是真的 flat
+  ---
+  duration_ms: 0.298458
+  type: 'test'
+  ...
+# Subtest: R5：前週為 0、上週下降（負 delta）→ down
+ok 3 - R5：前週為 0、上週下降（負 delta）→ down
+  ---
+  duration_ms: 0.1475
+  type: 'test'
+  ...
+# Subtest: R5：任一週缺資料仍然是 unknown（既有行為不可改變）
+ok 4 - R5：任一週缺資料仍然是 unknown（既有行為不可改變）
+  ---
+  duration_ms: 0.13
+  type: 'test'
+  ...
+# Subtest: R5：正常情況（前週 > 0）行為完全不變
+ok 5 - R5：正常情況（前週 > 0）行為完全不變
+  ---
+  duration_ms: 0.19175
+  type: 'test'
+  ...
+# Subtest: R6：clamp 剛好切在 emoji 中間時不可產生半個字元
+ok 6 - R6：clamp 剛好切在 emoji 中間時不可產生半個字元
+  ---
+  duration_ms: 0.453
+  type: 'test'
+  ...
+# Subtest: R6：各種長度都不會切壞（掃過 pair 邊界的兩種對齊）
+ok 7 - R6：各種長度都不會切壞（掃過 pair 邊界的兩種對齊）
+  ---
+  duration_ms: 0.72575
+  type: 'test'
+  ...
+# Subtest: R6：safeSlice 不會切斷 surrogate pair，也不會留下懸空的 ZWJ
+ok 8 - R6：safeSlice 不會切斷 surrogate pair，也不會留下懸空的 ZWJ
+  ---
+  duration_ms: 0.122916
+  type: 'test'
+  ...
+# Subtest: R6：沒超過上限時 clamp 原封不動回傳（既有行為不可改變）
+ok 9 - R6：沒超過上限時 clamp 原封不動回傳（既有行為不可改變）
+  ---
+  duration_ms: 0.635708
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 142.666

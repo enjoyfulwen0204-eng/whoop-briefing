@@ -1,0 +1,415 @@
+TAP version 13
+# {"ts":"2026-09-27T15:07:14.882Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:14.888Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:16.965Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:16.968Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:16.993Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:17.010Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:17.012Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:17.039Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:17.059Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:17.077Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:17.852Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:17.957Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:17.959Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:19.667Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:19.668Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:19.678Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:19.685Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:19.686Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:19.697Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:19.768Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:19.844Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:19.846Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:22.048Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:22.049Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:22.059Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:22.067Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:22.067Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:22.079Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:22.080Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:22.146Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:22.148Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:23.876Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:23.877Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:23.887Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:23.894Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:23.895Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:23.904Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:23.915Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:23.923Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:24.734Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:24.746Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:24.757Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:25.489Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:25.497Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:25.506Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:26.110Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:26.214Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:26.217Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:28.085Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:28.086Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:28.097Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:28.106Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:28.107Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:28.119Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:28.130Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:28.140Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:28.819Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:28.835Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:28.852Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:30.077Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:30.268Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:30.272Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:33.966Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:33.968Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:33.986Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:33.999Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:34.001Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:34.024Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:34.047Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:34.971Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:35.102Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:35.104Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:37.281Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:37.283Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:37.300Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:37.312Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:37.314Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:37.330Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:37.349Z","level":"warn","event":"prediction_model_save_failed","user_id":"u-alice","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:07:37.349Z","level":"warn","event":"prediction_persist_failed","user_id":"u-alice","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:07:37.349Z","level":"warn","event":"prediction_backfill_failed","user_id":"u-alice","error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T15:07:37.349Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:37.471Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:37.474Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:40.196Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:40.197Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:40.220Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:40.231Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:40.233Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:40.249Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:40.365Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:40.368Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:42.844Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:42.845Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:42.858Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:42.867Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:42.868Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:42.878Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:42.890Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:42.903Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:43.805Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:43.817Z","level":"info","event":"prediction_model_saved","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:43.832Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:44.724Z","level":"info","event":"prediction_cycle_done","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:44.882Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:44.885Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:47.420Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:47.422Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:47.456Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:47.475Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:47.476Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:47.560Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:47.584Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:47.602Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:48.212Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:48.224Z","level":"info","event":"prediction_model_saved","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:48.233Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:49.085Z","level":"info","event":"prediction_cycle_done","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:49.352Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:49.359Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:51.626Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:51.626Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:51.641Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:51.658Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:51.659Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:51.672Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:51.684Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:51.695Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:52.266Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:52.360Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:52.362Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:54.171Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:54.172Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:54.188Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:54.200Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:54.201Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:54.216Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:54.234Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:54.262Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:07:55.281Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:55.397Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:55.399Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:57.602Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:57.603Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:57.616Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:57.624Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:57.625Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:57.636Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:57.706Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T15:07:57.708Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T15:07:59.680Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:59.684Z","level":"info","event":"telegram_linked","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:59.694Z","level":"info","event":"capabilities_saved","user_id":"u-alice","count":15}
+# {"ts":"2026-09-27T15:07:59.701Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T15:07:59.702Z","level":"info","event":"telegram_linked","user_id":"u-bob"}
+# {"ts":"2026-09-27T15:07:59.713Z","level":"info","event":"capabilities_saved","user_id":"u-bob","count":15}
+# {"ts":"2026-09-27T15:07:59.723Z","level":"info","event":"prediction_model_saved","user_id":"u-alice"}
+# {"ts":"2026-09-27T15:07:59.732Z","level":"info","event":"prediction_saved"}
+# {"ts":"2026-09-27T15:08:00.282Z","level":"info","event":"prediction_cycle_done","user_id":"u-alice"}
+# Subtest: ★★★ 出貨的預設政策：三個絕對門檻全部是 null（尚未設定）
+ok 1 - ★★★ 出貨的預設政策：三個絕對門檻全部是 null（尚未設定）
+  ---
+  duration_ms: 1.232583
+  type: 'test'
+  ...
+# Subtest: ★★★ null 門檻一律不合格（絕不可以解讀成「沒有限制」）
+ok 2 - ★★★ null 門檻一律不合格（絕不可以解讀成「沒有限制」）
+  ---
+  duration_ms: 0.503166
+  type: 'test'
+  ...
+# Subtest: ★★ 門檻設定好之後，閘門真的會開（證明不是永久寫死）
+ok 3 - ★★ 門檻設定好之後，閘門真的會開（證明不是永久寫死）
+  ---
+  duration_ms: 1.555042
+  type: 'test'
+  ...
+# Subtest: ★★★ 贏不過樸素基準線 → 不合格（即使門檻都設定好了）
+ok 4 - ★★★ 贏不過樸素基準線 → 不合格（即使門檻都設定好了）
+  ---
+  duration_ms: 0.157292
+  type: 'test'
+  ...
+# Subtest: ★★ 個別門檻沒過就不合格
+ok 5 - ★★ 個別門檻沒過就不合格
+  ---
+  duration_ms: 0.409666
+  type: 'test'
+  ...
+# Subtest: ★★★ 量測不出來的指標不可以被當成通過（Number(null) === 0 的陷阱）
+ok 6 - ★★★ 量測不出來的指標不可以被當成通過（Number(null) === 0 的陷阱）
+  ---
+  duration_ms: 0.186083
+  type: 'test'
+  ...
+# Subtest: ★★ NaN / undefined 量測值同樣不合格
+ok 7 - ★★ NaN / undefined 量測值同樣不合格
+  ---
+  duration_ms: 0.321041
+  type: 'test'
+  ...
+# Subtest: ★ 測試集太小 → TRAINABLE，不是不合格（還沒評估，不是評估後被否決）
+ok 8 - ★ 測試集太小 → TRAINABLE，不是不合格（還沒評估，不是評估後被否決）
+  ---
+  duration_ms: 0.26575
+  type: 'test'
+  ...
+# Subtest: ★★★ publishableValue：不合格一律回 null
+ok 9 - ★★★ publishableValue：不合格一律回 null
+  ---
+  duration_ms: 1.140792
+  type: 'test'
+  ...
+# Subtest: naiveBaseline 用的是訓練集平均（資訊與模型對等）
+ok 10 - naiveBaseline 用的是訓練集平均（資訊與模型對等）
+  ---
+  duration_ms: 1.01325
+  type: 'test'
+  ...
+# Subtest: naiveBaseline 對空訓練集回 ok:false，不硬算
+ok 11 - naiveBaseline 對空訓練集回 ok:false，不硬算
+  ---
+  duration_ms: 0.297292
+  type: 'test'
+  ...
+# Subtest: evaluateBaseline 算出基準線在測試集上的 MAE
+ok 12 - evaluateBaseline 算出基準線在測試集上的 MAE
+  ---
+  duration_ms: 0.192667
+  type: 'test'
+  ...
+# Subtest: ★★★ trainEvaluateAndCompare 全程無洩漏，且每次都真的斷言一次
+ok 13 - ★★★ trainEvaluateAndCompare 全程無洩漏，且每次都真的斷言一次
+  ---
+  duration_ms: 13.608625
+  type: 'test'
+  ...
+# Subtest: ★★★ 時序切分之後不可以二次配對（目標會被多推一天）
+ok 14 - ★★★ 時序切分之後不可以二次配對（目標會被多推一天）
+  ---
+  duration_ms: 8.856792
+  type: 'test'
+  ...
+# Subtest: ★★ 預測區間算不出來時回 null，絕不回 NaN
+ok 15 - ★★ 預測區間算不出來時回 null，絕不回 NaN
+  ---
+  duration_ms: 3.932042
+  type: 'test'
+  ...
+# Subtest: ★★ 模型與基準線都在同一個測試集上被評估
+ok 16 - ★★ 模型與基準線都在同一個測試集上被評估
+  ---
+  duration_ms: 2.565083
+  type: 'test'
+  ...
+# Subtest: ★★★ 特徵與結果無關的資料 → 模型贏不過歷史平均
+ok 17 - ★★★ 特徵與結果無關的資料 → 模型贏不過歷史平均
+  ---
+  duration_ms: 4.301542
+  type: 'test'
+  ...
+# Subtest: 0 筆 → NO_DATA
+ok 18 - 0 筆 → NO_DATA
+  ---
+  duration_ms: 0.288875
+  type: 'test'
+  ...
+# Subtest: ★★ 需要的配對數是從 MIN_TRAIN_ROWS 與 testRatio 推導出來的，不是另外發明的
+ok 19 - ★★ 需要的配對數是從 MIN_TRAIN_ROWS 與 testRatio 推導出來的，不是另外發明的
+  ---
+  duration_ms: 0.118708
+  type: 'test'
+  ...
+# Subtest: ★ 差一組配對 → INSUFFICIENT_DATA（邊界）
+ok 20 - ★ 差一組配對 → INSUFFICIENT_DATA（邊界）
+  ---
+  duration_ms: 0.433041
+  type: 'test'
+  ...
+# Subtest: ★ 剛好到門檻 → 跨過（邊界）
+ok 21 - ★ 剛好到門檻 → 跨過（邊界）
+  ---
+  duration_ms: 2.172792
+  type: 'test'
+  ...
+# Subtest: ★★ 有足夠資料時預設成熟度是 EVALUATED_UNQUALIFIED（不是 QUALIFIED）
+ok 22 - ★★ 有足夠資料時預設成熟度是 EVALUATED_UNQUALIFIED（不是 QUALIFIED）
+  ---
+  duration_ms: 3.983041
+  type: 'test'
+  ...
+# Subtest: ★★ capability 證實拿不到 → UNSUPPORTED，優先於一切
+ok 23 - ★★ capability 證實拿不到 → UNSUPPORTED，優先於一切
+  ---
+  duration_ms: 4.547584
+  type: 'test'
+  ...
+# Subtest: ★★ 訓練期滑出基準窗 → STALE，而且蓋過 QUALIFIED
+ok 24 - ★★ 訓練期滑出基準窗 → STALE，而且蓋過 QUALIFIED
+  ---
+  duration_ms: 4.918709
+  type: 'test'
+  ...
+# Subtest: isStale 的邊界
+ok 25 - isStale 的邊界
+  ---
+  duration_ms: 0.286833
+  type: 'test'
+  ...
+# Subtest: ★★★ 完整迴圈：訓練 → 存模型 → 存候選預測 → 但不發布數字
+ok 26 - ★★★ 完整迴圈：訓練 → 存模型 → 存候選預測 → 但不發布數字
+  ---
+  duration_ms: 3170.803959
+  type: 'test'
+  ...
+# Subtest: ★★ 資料不足時：不存模型、不存預測、成熟度誠實
+ok 27 - ★★ 資料不足時：不存模型、不存預測、成熟度誠實
+  ---
+  duration_ms: 1901.677875
+  type: 'test'
+  ...
+# Subtest: ★★ 零資料：乾淨的 NO_DATA，不寫任何東西
+ok 28 - ★★ 零資料：乾淨的 NO_DATA，不寫任何東西
+  ---
+  duration_ms: 2304.84675
+  type: 'test'
+  ...
+# Subtest: ★★ 迴圈冪等：連跑三次只會有一列模型
+ok 29 - ★★ 迴圈冪等：連跑三次只會有一列模型
+  ---
+  duration_ms: 4047.789
+  type: 'test'
+  ...
+# Subtest: ★★★ 存 → 回填實際值 → 記分卡真的算得出來
+ok 30 - ★★★ 存 → 回填實際值 → 記分卡真的算得出來
+  ---
+  duration_ms: 3968.833042
+  type: 'test'
+  ...
+# Subtest: ★ 錨點當天特徵不完整 → 不產生候選預測（絕不用 0 補）
+ok 31 - ★ 錨點當天特徵不完整 → 不產生候選預測（絕不用 0 補）
+  ---
+  duration_ms: 4888.32975
+  type: 'test'
+  ...
+# Subtest: ★★ 迴圈永遠不拋錯：store 壞掉也只是回報失敗
+ok 32 - ★★ 迴圈永遠不拋錯：store 壞掉也只是回報失敗
+  ---
+  duration_ms: 2364.930667
+  type: 'test'
+  ...
+# Subtest: runPredictionCycle 缺 userId 一律拋錯
+ok 33 - runPredictionCycle 缺 userId 一律拋錯
+  ---
+  duration_ms: 2901.368083
+  type: 'test'
+  ...
+# Subtest: ★★★ Alice 與 Bob 的模型與預測完全隔離
+ok 34 - ★★★ Alice 與 Bob 的模型與預測完全隔離
+  ---
+  duration_ms: 4515.695333
+  type: 'test'
+  ...
+# Subtest: ★★ 兩人同一天、同一版模型、同一段訓練區間也必須共存
+ok 35 - ★★ 兩人同一天、同一版模型、同一段訓練區間也必須共存
+  ---
+  duration_ms: 4327.100833
+  type: 'test'
+  ...
+# Subtest: ★★★ /predictions 在任何情況下都不輸出預測數字
+ok 36 - ★★★ /predictions 在任何情況下都不輸出預測數字
+  ---
+  duration_ms: 3187.833417
+  type: 'test'
+  ...
+# Subtest: ★ /predictions 會誠實顯示模型與基準線的對照
+ok 37 - ★ /predictions 會誠實顯示模型與基準線的對照
+  ---
+  duration_ms: 3011.746375
+  type: 'test'
+  ...
+# Subtest: ★ /predictions 在資料不足時完全不提模型
+ok 38 - ★ /predictions 在資料不足時完全不提模型
+  ---
+  duration_ms: 2344.83725
+  type: 'test'
+  ...
+# Subtest: ★ Bob 的 /predictions 看不到 Alice 的模型
+ok 39 - ★ Bob 的 /predictions 看不到 Alice 的模型
+  ---
+  duration_ms: 2652.011458
+  type: 'test'
+  ...
+# Subtest: test/prediction-pipeline.test.js
+not ok 1 - test/prediction-pipeline.test.js
+  ---
+  duration_ms: 50523.163833
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/prediction-pipeline.test.js:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: ~
+  signal: 'SIGSEGV'
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..40
+# tests 40
+# suites 0
+# pass 39
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 50532.109916

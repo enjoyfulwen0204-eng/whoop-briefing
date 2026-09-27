@@ -1,0 +1,194 @@
+TAP version 13
+# {"ts":"2026-09-27T11:55:13.569Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:13.573Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:15.081Z","level":"info","event":"user_created","user_id":"b7096628-721a-451f-a3be-2c7e422366c5","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:15.085Z","level":"info","event":"proactive_event_claimed","user_id":"b7096628-721a-451f-a3be-2c7e422366c5"}
+# {"ts":"2026-09-27T11:55:15.094Z","level":"info","event":"pending_question_opened","user_id":"b7096628-721a-451f-a3be-2c7e422366c5"}
+# {"ts":"2026-09-27T11:55:15.111Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:15.118Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:15.118Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T11:55:15.118Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:15.118Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T11:55:15.118Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T11:55:15.149Z","level":"info","event":"journal_event_added","user_id":"b7096628-721a-451f-a3be-2c7e422366c5"}
+# {"ts":"2026-09-27T11:55:15.154Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"b7096628-721a-451f-a3be-2c7e422366c5"}
+# {"ts":"2026-09-27T11:55:15.162Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:15.218Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:15.220Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:16.728Z","level":"info","event":"user_created","user_id":"d7956e3d-3689-47e4-90b6-73b17b916ca3","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:16.730Z","level":"info","event":"proactive_event_claimed","user_id":"d7956e3d-3689-47e4-90b6-73b17b916ca3"}
+# {"ts":"2026-09-27T11:55:16.739Z","level":"info","event":"pending_question_opened","user_id":"d7956e3d-3689-47e4-90b6-73b17b916ca3"}
+# {"ts":"2026-09-27T11:55:16.753Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:16.754Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:16.754Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T11:55:16.754Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:16.754Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T11:55:16.754Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T11:55:16.764Z","level":"info","event":"journal_event_added","user_id":"d7956e3d-3689-47e4-90b6-73b17b916ca3"}
+# {"ts":"2026-09-27T11:55:16.767Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"d7956e3d-3689-47e4-90b6-73b17b916ca3"}
+# {"ts":"2026-09-27T11:55:16.775Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:16.829Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:16.831Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:18.356Z","level":"info","event":"user_created","user_id":"b756eb54-12fb-43b5-9fe8-09f056f9dafc","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:18.358Z","level":"info","event":"proactive_event_claimed","user_id":"b756eb54-12fb-43b5-9fe8-09f056f9dafc"}
+# {"ts":"2026-09-27T11:55:18.367Z","level":"info","event":"pending_question_opened","user_id":"b756eb54-12fb-43b5-9fe8-09f056f9dafc"}
+# {"ts":"2026-09-27T11:55:18.381Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:18.382Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:18.382Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T11:55:18.383Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:18.383Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T11:55:18.383Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T11:55:18.392Z","level":"info","event":"journal_event_added","user_id":"b756eb54-12fb-43b5-9fe8-09f056f9dafc"}
+# {"ts":"2026-09-27T11:55:18.395Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"b756eb54-12fb-43b5-9fe8-09f056f9dafc"}
+# {"ts":"2026-09-27T11:55:18.403Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:18.462Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:18.464Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:20.002Z","level":"info","event":"user_created","user_id":"be25de4b-43c6-497a-8faf-5417b6f97597","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:20.004Z","level":"info","event":"proactive_event_claimed","user_id":"be25de4b-43c6-497a-8faf-5417b6f97597"}
+# {"ts":"2026-09-27T11:55:20.012Z","level":"info","event":"pending_question_opened","user_id":"be25de4b-43c6-497a-8faf-5417b6f97597"}
+# {"ts":"2026-09-27T11:55:20.026Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:20.028Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:20.028Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T11:55:20.028Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:20.028Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T11:55:20.028Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T11:55:20.037Z","level":"info","event":"journal_event_added","user_id":"be25de4b-43c6-497a-8faf-5417b6f97597"}
+# {"ts":"2026-09-27T11:55:20.040Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"be25de4b-43c6-497a-8faf-5417b6f97597"}
+# {"ts":"2026-09-27T11:55:20.048Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:20.103Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:20.104Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:21.641Z","level":"info","event":"user_created","user_id":"0be3720f-de56-4581-a210-eb07dd5e2f3b","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:21.643Z","level":"info","event":"proactive_event_claimed","user_id":"0be3720f-de56-4581-a210-eb07dd5e2f3b"}
+# {"ts":"2026-09-27T11:55:21.652Z","level":"info","event":"pending_question_opened","user_id":"0be3720f-de56-4581-a210-eb07dd5e2f3b"}
+# {"ts":"2026-09-27T11:55:21.666Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-27T11:55:21.667Z","level":"warn","event":"llm_structured_call_failed","attempt":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:21.667Z","level":"warn","event":"llm_structured_unparsable","attempt":1}
+# {"ts":"2026-09-27T11:55:21.667Z","level":"warn","event":"llm_structured_call_failed","attempt":2,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T11:55:21.667Z","level":"warn","event":"llm_structured_unparsable","attempt":2}
+# {"ts":"2026-09-27T11:55:21.667Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T11:55:21.677Z","level":"info","event":"journal_event_added","user_id":"0be3720f-de56-4581-a210-eb07dd5e2f3b"}
+# {"ts":"2026-09-27T11:55:21.680Z","level":"info","event":"proactive_reanalysis_insufficient","user_id":"0be3720f-de56-4581-a210-eb07dd5e2f3b"}
+# {"ts":"2026-09-27T11:55:21.688Z","level":"info","event":"lock_released"}
+# {"ts":"2026-09-27T11:55:21.691Z","level":"warn","event":"llm_structured_invalid","attempt":1}
+# {"ts":"2026-09-27T11:55:21.691Z","level":"warn","event":"llm_structured_invalid","attempt":2}
+# {"ts":"2026-09-27T11:55:21.691Z","level":"warn","event":"llm_structured_fallback"}
+# {"ts":"2026-09-27T11:55:21.745Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:21.746Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:23.295Z","level":"info","event":"user_created","user_id":"59e902a6-d425-4260-be44-efb84c1a61ca","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:23.297Z","level":"info","event":"pending_question_opened","user_id":"59e902a6-d425-4260-be44-efb84c1a61ca"}
+# {"ts":"2026-09-27T11:55:23.320Z","level":"info","event":"journal_event_added","user_id":"59e902a6-d425-4260-be44-efb84c1a61ca"}
+# {"ts":"2026-09-27T11:55:23.411Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:55:23.413Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:55:24.960Z","level":"info","event":"user_created","user_id":"0f7544cb-4db2-4ef5-bac5-e22407a79b3c","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:55:24.970Z","level":"info","event":"journal_event_added","user_id":"0f7544cb-4db2-4ef5-bac5-e22407a79b3c"}
+# Subtest: ★★★ M-06: 對「昨天…嗎？」的短答記在昨天，不是今天
+ok 1 - ★★★ M-06: 對「昨天…嗎？」的短答記在昨天，不是今天
+  ---
+  duration_ms: 1657.58425
+  type: 'test'
+  ...
+# Subtest: ★★★ M-06: 回覆文字顯示的也是問題那一天（不會對使用者說錯日期）
+ok 2 - ★★★ M-06: 回覆文字顯示的也是問題那一天（不會對使用者說錯日期）
+  ---
+  duration_ms: 1611.265958
+  type: 'test'
+  ...
+# Subtest: ★★★ M-06: event_at 也跟著平移，與 health_date 一致
+ok 3 - ★★★ M-06: event_at 也跟著平移，與 health_date 一致
+  ---
+  duration_ms: 1628.0155
+  type: 'test'
+  ...
+# Subtest: ★★★ M-06: 使用者說「前天」時不覆蓋（day_offset = -2 相對於今天）
+ok 4 - ★★★ M-06: 使用者說「前天」時不覆蓋（day_offset = -2 相對於今天）
+  ---
+  duration_ms: 1644.999042
+  type: 'test'
+  ...
+# Subtest: ★★ M-06: 使用者說「今天」（day_offset = 0）也尊重
+ok 5 - ★★ M-06: 使用者說「今天」（day_offset = 0）也尊重
+  ---
+  duration_ms: 1640.508209
+  type: 'test'
+  ...
+# Subtest: ★★★ M-06: 模型沒給 day_offset → statedDayOffset 是 null，不是 0
+ok 6 - ★★★ M-06: 模型沒給 day_offset → statedDayOffset 是 null，不是 0
+  ---
+  duration_ms: 0.36475
+  type: 'test'
+  ...
+# Subtest: ★★ M-06 / R3-M-02: 只有 date_explicit=true 才算「使用者說了日期」
+ok 7 - ★★ M-06 / R3-M-02: 只有 date_explicit=true 才算「使用者說了日期」
+  ---
+  duration_ms: 1.033083
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-M-02: date_explicit=false（或缺席）一律當成「沒說」
+ok 8 - ★★★ R3-M-02: date_explicit=false（或缺席）一律當成「沒說」
+  ---
+  duration_ms: 0.387083
+  type: 'test'
+  ...
+# Subtest: ★★ M-06: anchorToQuestionDay 只在「沒說日期」時才動手
+ok 9 - ★★ M-06: anchorToQuestionDay 只在「沒說日期」時才動手
+  ---
+  duration_ms: 0.560292
+  type: 'test'
+  ...
+# Subtest: ★★ M-06: 沒有可用的錨點（null）→ 原封不動
+ok 10 - ★★ M-06: 沒有可用的錨點（null）→ 原封不動
+  ---
+  duration_ms: 0.50975
+  type: 'test'
+  ...
+# Subtest: ★★ M-06: 沒有可用的錨點（undefined）→ 原封不動
+ok 11 - ★★ M-06: 沒有可用的錨點（undefined）→ 原封不動
+  ---
+  duration_ms: 0.146666
+  type: 'test'
+  ...
+# Subtest: ★★ M-06: 沒有可用的錨點（空字串）→ 原封不動
+ok 12 - ★★ M-06: 沒有可用的錨點（空字串）→ 原封不動
+  ---
+  duration_ms: 0.044416
+  type: 'test'
+  ...
+# Subtest: ★★ M-06: 沒有可用的錨點（格式不對）→ 原封不動
+ok 13 - ★★ M-06: 沒有可用的錨點（格式不對）→ 原封不動
+  ---
+  duration_ms: 0.036208
+  type: 'test'
+  ...
+# Subtest: ★★ M-06: 錨點就是原本那一天 → 完全不動（冪等）
+ok 14 - ★★ M-06: 錨點就是原本那一天 → 完全不動（冪等）
+  ---
+  duration_ms: 0.8265
+  type: 'test'
+  ...
+# Subtest: ★★ M-06: 錨點在更早的日子也算得對（差好幾天）
+ok 15 - ★★ M-06: 錨點在更早的日子也算得對（差好幾天）
+  ---
+  duration_ms: 0.086292
+  type: 'test'
+  ...
+# Subtest: ★★ M-06: 反應式追問的答案也記在它問的那一天
+ok 16 - ★★ M-06: 反應式追問的答案也記在它問的那一天
+  ---
+  duration_ms: 1666.138375
+  type: 'test'
+  ...
+# Subtest: ★★ M-06 false positive: 沒有追問時，一般的 journal 訊息仍然記在今天
+ok 17 - ★★ M-06 false positive: 沒有追問時，一般的 journal 訊息仍然記在今天
+  ---
+  duration_ms: 1617.479375
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12178.113458

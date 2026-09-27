@@ -1,0 +1,104 @@
+TAP version 13
+# {"ts":"2026-09-27T11:57:23.572Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:23.574Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:25.130Z","level":"info","event":"user_created","user_id":"u-cap-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:25.132Z","level":"warn","event":"probe_scope_missing","resource":"workout"}
+# {"ts":"2026-09-27T11:57:25.166Z","level":"info","event":"capabilities_saved","user_id":"u-cap-test","count":50}
+# {"ts":"2026-09-27T11:57:25.167Z","level":"info","event":"probe_done"}
+# {"ts":"2026-09-27T11:57:25.183Z","level":"warn","event":"probe_scope_missing","resource":"workout"}
+# {"ts":"2026-09-27T11:57:25.201Z","level":"info","event":"capabilities_saved","user_id":"u-cap-test","count":50}
+# {"ts":"2026-09-27T11:57:25.202Z","level":"info","event":"probe_done"}
+# {"ts":"2026-09-27T11:57:25.262Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:57:25.264Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:57:26.749Z","level":"info","event":"user_created","user_id":"u-cap-test","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:57:26.750Z","level":"warn","event":"probe_scope_missing","resource":"workout"}
+# {"ts":"2026-09-27T11:57:26.750Z","level":"warn","event":"probe_scope_missing"}
+# {"ts":"2026-09-27T11:57:26.779Z","level":"info","event":"capabilities_saved","user_id":"u-cap-test","count":50}
+# {"ts":"2026-09-27T11:57:26.780Z","level":"info","event":"probe_done"}
+# Subtest: classify: 四種基本狀態
+ok 1 - classify: 四種基本狀態
+  ---
+  duration_ms: 0.848375
+  type: 'test'
+  ...
+# Subtest: 帳號有 SpO2 / 皮膚溫度 → SUPPORTED
+ok 2 - 帳號有 SpO2 / 皮膚溫度 → SUPPORTED
+  ---
+  duration_ms: 22.059292
+  type: 'test'
+  ...
+# Subtest: ★ 帳號沒有 SpO2 / 皮膚溫度 → UNAVAILABLE（不是靠 membership 判斷）
+ok 3 - ★ 帳號沒有 SpO2 / 皮膚溫度 → UNAVAILABLE（不是靠 membership 判斷）
+  ---
+  duration_ms: 1.06775
+  type: 'test'
+  ...
+# Subtest: 間歇提供的欄位 → PARTIAL
+ok 4 - 間歇提供的欄位 → PARTIAL
+  ---
+  duration_ms: 1.497958
+  type: 'test'
+  ...
+# Subtest: 之前被浪費的欄位現在都會被偵測到
+ok 5 - 之前被浪費的欄位現在都會被偵測到
+  ---
+  duration_ms: 0.79675
+  type: 'test'
+  ...
+# Subtest: 缺 scope → UNAUTHORIZED，而且訊息會叫人重新授權
+ok 6 - 缺 scope → UNAUTHORIZED，而且訊息會叫人重新授權
+  ---
+  duration_ms: 0.724667
+  type: 'test'
+  ...
+# Subtest: ★ API 根本沒有的東西標成 APP_ONLY，絕不假裝拿得到
+ok 7 - ★ API 根本沒有的東西標成 APP_ONLY，絕不假裝拿得到
+  ---
+  duration_ms: 0.757458
+  type: 'test'
+  ...
+# Subtest: workout 有資料 → SUPPORTED，含 zone durations
+ok 8 - workout 有資料 → SUPPORTED，含 zone durations
+  ---
+  duration_ms: 0.696292
+  type: 'test'
+  ...
+# Subtest: 完全沒有 workout 樣本 → UNKNOWN（不可以說「沒有」）
+ok 9 - 完全沒有 workout 樣本 → UNKNOWN（不可以說「沒有」）
+  ---
+  duration_ms: 0.971333
+  type: 'test'
+  ...
+# Subtest: body measurement 拿得到 → 三個欄位都 SUPPORTED
+ok 10 - body measurement 拿得到 → 三個欄位都 SUPPORTED
+  ---
+  duration_ms: 1.125541
+  type: 'test'
+  ...
+# Subtest: getCapability / isUsable：沒 probe 過一律 UNKNOWN，不猜
+ok 11 - getCapability / isUsable：沒 probe 過一律 UNKNOWN，不猜
+  ---
+  duration_ms: 0.233625
+  type: 'test'
+  ...
+# Subtest: probe 結果寫進 Turso，可以再讀回來
+ok 12 - probe 結果寫進 Turso，可以再讀回來
+  ---
+  duration_ms: 1701.400125
+  type: 'test'
+  ...
+# Subtest: probe 不會因為缺 scope 而整個失敗
+ok 13 - probe 不會因為缺 scope 而整個失敗
+  ---
+  duration_ms: 1569.094708
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3630.955042

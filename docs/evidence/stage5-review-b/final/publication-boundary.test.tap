@@ -1,0 +1,366 @@
+TAP version 13
+# {"ts":"2026-09-27T14:16:59.201Z","level":"warn","event":"explanation_discarded"}
+# {"ts":"2026-09-27T14:16:59.203Z","level":"warn","event":"explanation_discarded"}
+# Subtest: ★★★ R3-H-02: 事實是型別化的（fact_id / role / provenance / publishable）
+ok 1 - ★★★ R3-H-02: 事實是型別化的（fact_id / role / provenance / publishable）
+  ---
+  duration_ms: 1.415875
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: fact() 對不可發布的東西一律拒絕
+ok 2 - ★★★ R3-H-02: fact() 對不可發布的東西一律拒絕
+  ---
+  duration_ms: 0.439708
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: 渲染器只從可發布的事實產生句子
+ok 3 - ★★★ R3-H-02: 渲染器只從可發布的事實產生句子
+  ---
+  duration_ms: 1.527709
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: 不可發布的事實渲染成 null（沒有事實就沒有句子）
+ok 4 - ★★★ R3-H-02: 不可發布的事實渲染成 null（沒有事實就沒有句子）
+  ---
+  duration_ms: 0.169458
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: 空事實集渲染出空的斷言（而不是編一個）
+ok 5 - ★★★ R3-H-02: 空事實集渲染出空的斷言（而不是編一個）
+  ---
+  duration_ms: 0.253875
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02: 每一種 role 都有固定樣板
+ok 6 - ★★ R3-H-02: 每一種 role 都有固定樣板
+  ---
+  duration_ms: 0.214416
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: 組裝順序固定 —— 確定性斷言永遠在前且永遠存在
+ok 7 - ★★★ R3-H-02: 組裝順序固定 —— 確定性斷言永遠在前且永遠存在
+  ---
+  duration_ms: 0.124333
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 1  Recovery 55 → 99
+ok 8 - ★★★ R3-H-02 說明必擋: 1  Recovery 55 → 99
+  ---
+  duration_ms: 5.292333
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 2  Recovery 55 → 30
+ok 9 - ★★★ R3-H-02 說明必擋: 2  Recovery 55 → 30
+  ---
+  duration_ms: 2.577583
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 3  睡眠 99 挪給恢復
+ok 10 - ★★★ R3-H-02 說明必擋: 3  睡眠 99 挪給恢復
+  ---
+  duration_ms: 1.179042
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 4  歷史天數 30 挪給恢復
+ok 11 - ★★★ R3-H-02 說明必擋: 4  歷史天數 30 挪給恢復
+  ---
+  duration_ms: 0.314375
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 5  HRV 無資料 → 30ms
+ok 12 - ★★★ R3-H-02 說明必擋: 5  HRV 無資料 → 30ms
+  ---
+  duration_ms: 0.253916
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 6  HRV 九九毫秒
+ok 13 - ★★★ R3-H-02 說明必擋: 6  HRV 九九毫秒
+  ---
+  duration_ms: 0.269334
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 7  未支援的方向
+ok 14 - ★★★ R3-H-02 說明必擋: 7  未支援的方向
+  ---
+  duration_ms: 0.090208
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 8  句子切分
+ok 15 - ★★★ R3-H-02 說明必擋: 8  句子切分
+  ---
+  duration_ms: 0.091083
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 9  中文數字
+ok 16 - ★★★ R3-H-02 說明必擋: 9  中文數字
+  ---
+  duration_ms: 0.808708
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 10 英文數字
+ok 17 - ★★★ R3-H-02 說明必擋: 10 英文數字
+  ---
+  duration_ms: 2.5025
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 11 指標同義詞
+ok 18 - ★★★ R3-H-02 說明必擋: 11 指標同義詞
+  ---
+  duration_ms: 0.094708
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 12 標點變化
+ok 19 - ★★★ R3-H-02 說明必擋: 12 標點變化
+  ---
+  duration_ms: 0.077959
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 13 數字在前
+ok 20 - ★★★ R3-H-02 說明必擋: 13 數字在前
+  ---
+  duration_ms: 0.133
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 14 指標/數值互換
+ok 21 - ★★★ R3-H-02 說明必擋: 14 指標/數值互換
+  ---
+  duration_ms: 0.075875
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 15 問題數字污染
+ok 22 - ★★★ R3-H-02 說明必擋: 15 問題數字污染
+  ---
+  duration_ms: 0.072375
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 16 捏造 WHOOP Age
+ok 23 - ★★★ R3-H-02 說明必擋: 16 捏造 WHOOP Age
+  ---
+  duration_ms: 0.081875
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 17 捏造生理年齡
+ok 24 - ★★★ R3-H-02 說明必擋: 17 捏造生理年齡
+  ---
+  duration_ms: 0.07125
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 18 捏造 Healthspan
+ok 25 - ★★★ R3-H-02 說明必擋: 18 捏造 Healthspan
+  ---
+  duration_ms: 0.074292
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 19 任意專有分數
+ok 26 - ★★★ R3-H-02 說明必擋: 19 任意專有分數
+  ---
+  duration_ms: 0.068917
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 20 aspirin
+ok 27 - ★★★ R3-H-02 說明必擋: 20 aspirin
+  ---
+  duration_ms: 0.1005
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 21 melatonin
+ok 28 - ★★★ R3-H-02 說明必擋: 21 melatonin
+  ---
+  duration_ms: 0.065416
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 22 虛構藥名 Zorblax
+ok 29 - ★★★ R3-H-02 說明必擋: 22 虛構藥名 Zorblax
+  ---
+  duration_ms: 0.093417
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 23 劑量指示
+ok 30 - ★★★ R3-H-02 說明必擋: 23 劑量指示
+  ---
+  duration_ms: 0.066083
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 24 治療祈使
+ok 31 - ★★★ R3-H-02 說明必擋: 24 治療祈使
+  ---
+  duration_ms: 0.069875
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 25 診斷語言
+ok 32 - ★★★ R3-H-02 說明必擋: 25 診斷語言
+  ---
+  duration_ms: 0.067375
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 26 未支援的監測指示
+ok 33 - ★★★ R3-H-02 說明必擋: 26 未支援的監測指示
+  ---
+  duration_ms: 0.226167
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 說明必擋: 27 九成九
+ok 34 - ★★★ R3-H-02 說明必擋: 27 九成九
+  ---
+  duration_ms: 0.085583
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: 每一種永不可發布的分數說法都被擋（不需要數字）
+ok 35 - ★★★ R3-H-02: 每一種永不可發布的分數說法都被擋（不需要數字）
+  ---
+  duration_ms: 0.729333
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: 任何指標名出現在說明裡都會被丟掉（方向型斷言也一起關掉）
+ok 36 - ★★★ R3-H-02: 任何指標名出現在說明裡都會被丟掉（方向型斷言也一起關掉）
+  ---
+  duration_ms: 0.589125
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: 任何數字出現在說明裡都會被丟掉
+ok 37 - ★★★ R3-H-02: 任何數字出現在說明裡都會被丟掉
+  ---
+  duration_ms: 0.282958
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02 說明 false positive: 鼓勵
+ok 38 - ★★ R3-H-02 說明 false positive: 鼓勵
+  ---
+  duration_ms: 0.098708
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02 說明 false positive: 早睡
+ok 39 - ★★ R3-H-02 說明 false positive: 早睡
+  ---
+  duration_ms: 0.074667
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02 說明 false positive: 減量
+ok 40 - ★★ R3-H-02 說明 false positive: 減量
+  ---
+  duration_ms: 0.07275
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02 說明 false positive: 就醫提醒
+ok 41 - ★★ R3-H-02 說明 false positive: 就醫提醒
+  ---
+  duration_ms: 0.074584
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02 說明 false positive: 資料不足
+ok 42 - ★★ R3-H-02 說明 false positive: 資料不足
+  ---
+  duration_ms: 0.06975
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02 說明 false positive: 中文慣用語
+ok 43 - ★★ R3-H-02 說明 false positive: 中文慣用語
+  ---
+  duration_ms: 0.072625
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02 說明 false positive: 吃東西
+ok 44 - ★★ R3-H-02 說明 false positive: 吃東西
+  ---
+  duration_ms: 0.082333
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02 說明 false positive: 動詞恢復
+ok 45 - ★★ R3-H-02 說明 false positive: 動詞恢復
+  ---
+  duration_ms: 0.071125
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02 說明 false positive: 純鼓勵
+ok 46 - ★★ R3-H-02 說明 false positive: 純鼓勵
+  ---
+  duration_ms: 0.082208
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: 丟掉說明時原文一個字都不外流，斷言完全不受影響
+ok 47 - ★★★ R3-H-02: 丟掉說明時原文一個字都不外流，斷言完全不受影響
+  ---
+  duration_ms: 2.057834
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02: 空的 / 缺席的說明是合法的（沒有說明就只有斷言）
+ok 48 - ★★ R3-H-02: 空的 / 缺席的說明是合法的（沒有說明就只有斷言）
+  ---
+  duration_ms: 0.172333
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: 確定性樣板可以含指標與數字（那正是渲染器該做的）
+ok 49 - ★★★ R3-H-02: 確定性樣板可以含指標與數字（那正是渲染器該做的）
+  ---
+  duration_ms: 0.338875
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 樣板深度防禦: 擋下「治療」
+ok 50 - ★★★ R3-H-02 樣板深度防禦: 擋下「治療」
+  ---
+  duration_ms: 0.216
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 樣板深度防禦: 擋下「虛構藥名」
+ok 51 - ★★★ R3-H-02 樣板深度防禦: 擋下「虛構藥名」
+  ---
+  duration_ms: 0.372958
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 樣板深度防禦: 擋下「診斷」
+ok 52 - ★★★ R3-H-02 樣板深度防禦: 擋下「診斷」
+  ---
+  duration_ms: 0.097958
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 樣板深度防禦: 擋下「強因果」
+ok 53 - ★★★ R3-H-02 樣板深度防禦: 擋下「強因果」
+  ---
+  duration_ms: 0.080583
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 樣板深度防禦: 擋下「即時宣稱」
+ok 54 - ★★★ R3-H-02 樣板深度防禦: 擋下「即時宣稱」
+  ---
+  duration_ms: 0.071542
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 樣板深度防禦: 擋下「監測指示」
+ok 55 - ★★★ R3-H-02 樣板深度防禦: 擋下「監測指示」
+  ---
+  duration_ms: 0.070666
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02 樣板深度防禦: 擋下「專有分數」
+ok 56 - ★★★ R3-H-02 樣板深度防禦: 擋下「專有分數」
+  ---
+  duration_ms: 0.0725
+  type: 'test'
+  ...
+# Subtest: ★★★ R3-H-02: 把英文指標名拆開來寫也擋得住（正規化，不是加同義詞）
+ok 57 - ★★★ R3-H-02: 把英文指標名拆開來寫也擋得住（正規化，不是加同義詞）
+  ---
+  duration_ms: 0.251375
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02: 拉丁字母的正規化不可以誤殺一般鼓勵語
+ok 58 - ★★ R3-H-02: 拉丁字母的正規化不可以誤殺一般鼓勵語
+  ---
+  duration_ms: 0.148583
+  type: 'test'
+  ...
+# Subtest: ★★ R3-H-02: 積極正規化抓得到所有數字寫法，但不動慣用語
+ok 59 - ★★ R3-H-02: 積極正規化抓得到所有數字寫法，但不動慣用語
+  ---
+  duration_ms: 0.188791
+  type: 'test'
+  ...
+1..59
+# tests 59
+# suites 0
+# pass 59
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 172.050875

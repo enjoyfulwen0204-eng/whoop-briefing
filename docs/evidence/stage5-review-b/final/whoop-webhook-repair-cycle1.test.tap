@@ -1,0 +1,338 @@
+TAP version 13
+# {"ts":"2026-09-27T14:34:56.341Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:34:56.344Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:34:58.394Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:34:58.396Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:34:58.427Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:34:58.433Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:34:58.437Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:34:58.452Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:58.454Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:34:58.472Z","level":"info","event":"whoop_webhook_blocked_by_tombstone","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:34:58.559Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:34:58.561Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:00.682Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:00.683Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:00.685Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:00.687Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:00.690Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:00.701Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:00.703Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:00.719Z","level":"info","event":"whoop_webhook_blocked_by_tombstone","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:00.792Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:00.794Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:02.985Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:02.986Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:02.990Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:02.992Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:02.994Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:03.003Z","level":"info","event":"whoop_webhook_processed","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:03.007Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:03.009Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:03.077Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:03.079Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:04.977Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:04.979Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:04.981Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:04.983Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:04.985Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:04.996Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:04.999Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:05.015Z","level":"info","event":"whoop_webhook_blocked_by_tombstone","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:05.094Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:05.097Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:07.201Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:07.202Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:07.204Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:07.206Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:07.209Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:07.219Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:07.221Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:07.234Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"sleep","count":1}
+# {"ts":"2026-09-27T14:35:07.234Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:35:07.241Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"sleep","count":1}
+# {"ts":"2026-09-27T14:35:07.241Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:35:07.249Z","level":"warn","event":"whoop_tombstone_blocked_write","user_id":"u-alice","resource_type":"sleep","count":1}
+# {"ts":"2026-09-27T14:35:07.249Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:35:07.314Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:07.317Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:09.152Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:09.153Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:09.154Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:09.157Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:09.159Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:09.169Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:09.173Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:09.185Z","level":"info","event":"whoop_webhook_blocked_by_tombstone","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:09.194Z","level":"info","event":"whoop_webhook_blocked_by_tombstone","event_id":3,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:09.204Z","level":"info","event":"whoop_webhook_blocked_by_tombstone","event_id":4,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:09.213Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:09.223Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:09.233Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:09.302Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:09.303Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:11.483Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:11.484Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:11.550Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:11.552Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:13.713Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:13.714Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:13.719Z","level":"warn","event":"whoop_webhook_fenced_before_persist","event_id":1}
+# {"ts":"2026-09-27T14:35:13.728Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:13.736Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:13.738Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:13.746Z","level":"info","event":"whoop_webhook_processed","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:13.820Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:13.821Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:15.857Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:15.858Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:15.861Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:15.865Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:15.868Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:15.879Z","level":"warn","event":"whoop_webhook_fenced_delete","event_id":1}
+# {"ts":"2026-09-27T14:35:15.887Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:15.889Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:15.976Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:15.979Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:18.181Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:18.182Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:18.185Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:18.187Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:18.190Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:18.201Z","level":"error","event":"whoop_webhook_delete_failed","event_id":1,"error":"OPERATION_FAILED"}
+# {"ts":"2026-09-27T14:35:18.274Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:18.279Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:20.447Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:20.449Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:20.454Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:20.459Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:20.463Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:20.478Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:20.482Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:20.504Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:20.658Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:20.661Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:23.152Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:23.154Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:23.156Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:23.161Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:23.166Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:23.180Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:23.183Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:23.195Z","level":"info","event":"whoop_webhook_blocked_by_tombstone","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:23.270Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:23.272Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:25.902Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:25.903Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:25.904Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:25.907Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:25.909Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:25.923Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:25.927Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:25.930Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:25.939Z","level":"info","event":"whoop_webhook_processed","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:25.940Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:25.942Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:26.039Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:26.042Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:28.064Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:28.065Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:28.070Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:28.073Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:28.075Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:28.085Z","level":"info","event":"whoop_webhook_processed","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:28.088Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:28.090Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:28.165Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:28.168Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:30.289Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:30.290Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:30.291Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:30.291Z","level":"info","event":"tokens_saved","user_id":"u-bob","attempt":1}
+# {"ts":"2026-09-27T14:35:30.293Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:30.295Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:30.298Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:30.307Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:35:30.310Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:30.313Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:30.325Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:30.327Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:30.343Z","level":"info","event":"store_sleeps_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:35:30.346Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:30.349Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:30.358Z","level":"info","event":"whoop_webhook_processed","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:30.427Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:30.432Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:32.461Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:32.462Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:32.469Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:32.472Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:32.475Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:32.484Z","level":"info","event":"whoop_webhook_processed","event_id":1,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:32.488Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:32.490Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:32.493Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:32.502Z","level":"info","event":"whoop_webhook_processed","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:32.506Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":0,"blocked":1}
+# {"ts":"2026-09-27T14:35:32.513Z","level":"info","event":"whoop_webhook_processed","event_id":3,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:32.518Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:32.518Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":0,"unchanged":1,"blocked":0}
+# {"ts":"2026-09-27T14:35:32.526Z","level":"info","event":"whoop_webhook_processed","event_id":4,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:32.597Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:32.600Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:34.775Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:34.776Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:34.777Z","level":"info","event":"user_created","user_id":"u-bob","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:34.778Z","level":"info","event":"tokens_saved","user_id":"u-bob","attempt":1}
+# {"ts":"2026-09-27T14:35:34.782Z","level":"info","event":"store_recoveries_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:34.786Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"recovery"}
+# {"ts":"2026-09-27T14:35:34.790Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:34.803Z","level":"info","event":"store_workouts_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:34.806Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"workout"}
+# {"ts":"2026-09-27T14:35:34.813Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:34.826Z","level":"info","event":"store_recoveries_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:35:34.829Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":1,"resource":"recovery"}
+# {"ts":"2026-09-27T14:35:34.833Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"recovery","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:34.844Z","level":"info","event":"store_workouts_upserted","user_id":"u-bob","count":1}
+# {"ts":"2026-09-27T14:35:34.850Z","level":"info","event":"analytics_invalidated","user_id":"u-bob","generation":2,"resource":"workout"}
+# {"ts":"2026-09-27T14:35:34.854Z","level":"info","event":"canonical_write_classified","user_id":"u-bob","resource":"workout","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:34.868Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"recovery"}
+# {"ts":"2026-09-27T14:35:34.872Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":3,"resource":"recovery"}
+# {"ts":"2026-09-27T14:35:34.891Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"workout"}
+# {"ts":"2026-09-27T14:35:34.893Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":4,"resource":"workout"}
+# {"ts":"2026-09-27T14:35:35.005Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:35.008Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:37.215Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:37.216Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:37.217Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:37.219Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:37.222Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:37.231Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:37.233Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:37.248Z","level":"info","event":"whoop_webhook_blocked_by_tombstone","event_id":2,"resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:37.317Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T14:35:37.319Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T14:35:39.288Z","level":"info","event":"user_created","user_id":"u-alice","status":"ACTIVE"}
+# {"ts":"2026-09-27T14:35:39.289Z","level":"info","event":"tokens_saved","user_id":"u-alice","attempt":1}
+# {"ts":"2026-09-27T14:35:39.291Z","level":"info","event":"store_sleeps_upserted","user_id":"u-alice","count":1}
+# {"ts":"2026-09-27T14:35:39.294Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":1,"resource":"sleep"}
+# {"ts":"2026-09-27T14:35:39.297Z","level":"info","event":"canonical_write_classified","user_id":"u-alice","resource":"sleep","changed":1,"unchanged":0,"blocked":0}
+# {"ts":"2026-09-27T14:35:39.309Z","level":"info","event":"whoop_resource_deleted","user_id":"u-alice","resource_type":"sleep"}
+# {"ts":"2026-09-27T14:35:39.312Z","level":"info","event":"analytics_invalidated","user_id":"u-alice","generation":2,"resource":"sleep"}
+# Subtest: ★★★ R01/1 延遲抵達的刪除前 UPDATE（updated_at 較新）不可以復活
+ok 1 - ★★★ R01/1 延遲抵達的刪除前 UPDATE（updated_at 較新）不可以復活
+  ---
+  duration_ms: 2216.985083
+  type: 'test'
+  ...
+# Subtest: ★★★ R01/2 刪除後的「真正重建」在 Phase 1 仍然墓碑（需要未來的對帳）
+ok 2 - ★★★ R01/2 刪除後的「真正重建」在 Phase 1 仍然墓碑（需要未來的對帳）
+  ---
+  duration_ms: 2243.88725
+  type: 'test'
+  ...
+# Subtest: ★★★ R01/3 反向投遞（UPDATE 先到、DELETE 延遲）最終仍然保守刪除
+ok 3 - ★★★ R01/3 反向投遞（UPDATE 先到、DELETE 延遲）最終仍然保守刪除
+  ---
+  duration_ms: 2292.248042
+  type: 'test'
+  ...
+# Subtest: ★★★ R01/4-7 較新 updated_at / 較大本地 id / 較晚 received_at / 較晚簽章時間戳都不能退位
+ok 4 - ★★★ R01/4-7 較新 updated_at / 較大本地 id / 較晚 received_at / 較晚簽章時間戳都不能退位
+  ---
+  duration_ms: 2004.2525
+  type: 'test'
+  ...
+# Subtest: ★★★ R01/7 排程同步在墓碑之後看到資源 → 不退位、不復活
+ok 5 - ★★★ R01/7 排程同步在墓碑之後看到資源 → 不退位、不復活
+  ---
+  duration_ms: 2232.208333
+  type: 'test'
+  ...
+# Subtest: ★★★ R01/8-9 墓碑後重複 UPDATE 冪等地被擋；重複 DELETE 冪等
+ok 6 - ★★★ R01/8-9 墓碑後重複 UPDATE 冪等地被擋；重複 DELETE 冪等
+  ---
+  duration_ms: 1985.109583
+  type: 'test'
+  ...
+# Subtest: ★★★ R01 沒有任何程式路徑會把墓碑寫成 SUPERSEDED
+ok 7 - ★★★ R01 沒有任何程式路徑會把墓碑寫成 SUPERSEDED
+  ---
+  duration_ms: 2243.263833
+  type: 'test'
+  ...
+# Subtest: ★★★ R02/10,13 UPDATE：A 早期檢查通過 → 租約過期 → B 認領 → A 的變更被交易圍欄擋下
+ok 8 - ★★★ R02/10,13 UPDATE：A 早期檢查通過 → 租約過期 → B 認領 → A 的變更被交易圍欄擋下
+  ---
+  duration_ms: 2262.306958
+  type: 'test'
+  ...
+# Subtest: ★★★ R02/11,12,14 DELETE：過期的 A 不能立墓碑、不能刪 canonical；B 可以
+ok 9 - ★★★ R02/11,12,14 DELETE：過期的 A 不能立墓碑、不能刪 canonical；B 可以
+  ---
+  duration_ms: 2153.273125
+  type: 'test'
+  ...
+# Subtest: ★★★ R02/15,16 墓碑 + 實體刪除原子：中間注入失敗 → 兩者都 rollback
+ok 10 - ★★★ R02/15,16 墓碑 + 實體刪除原子：中間注入失敗 → 兩者都 rollback
+  ---
+  duration_ms: 2308.415667
+  type: 'test'
+  ...
+# Subtest: ★★★ R02/17 原子刪除 commit 之後、結案之前崩潰 → 重播收斂、無重複破壞
+ok 11 - ★★★ R02/17 原子刪除 commit 之後、結案之前崩潰 → 重播收斂、無重複破壞
+  ---
+  duration_ms: 2311.01475
+  type: 'test'
+  ...
+# Subtest: ★★★ R02/18 UPDATE 與 DELETE 併發：最終是保守的刪除狀態（兩種交錯）
+ok 12 - ★★★ R02/18 UPDATE 與 DELETE 併發：最終是保守的刪除狀態（兩種交錯）
+  ---
+  duration_ms: 5434.906
+  type: 'test'
+  ...
+# Subtest: ★★★ R02/19,20 目前有效的擁有者仍然可以正常 UPDATE / DELETE
+ok 13 - ★★★ R02/19,20 目前有效的擁有者仍然可以正常 UPDATE / DELETE
+  ---
+  duration_ms: 2146.720375
+  type: 'test'
+  ...
+# Subtest: ★★★ R02/21,22 同一個資源 id 跨兩個使用者：Alice 的刪除／更新絕不碰 Bob
+ok 14 - ★★★ R02/21,22 同一個資源 id 跨兩個使用者：Alice 的刪除／更新絕不碰 Bob
+  ---
+  duration_ms: 2255.651459
+  type: 'test'
+  ...
+# Subtest: ★★★ R02/23 交易內的寫入仍然遵守 V1.1 新鮮度：新贏、舊擋、相同冪等
+ok 15 - ★★★ R02/23 交易內的寫入仍然遵守 V1.1 新鮮度：新贏、舊擋、相同冪等
+  ---
+  duration_ms: 2168.689209
+  type: 'test'
+  ...
+# Subtest: ★★★ R02/24 recovery / workout 的原子刪除也 user/resource 正確
+ok 16 - ★★★ R02/24 recovery / workout 的原子刪除也 user/resource 正確
+  ---
+  duration_ms: 2384.422166
+  type: 'test'
+  ...
+# Subtest: ★★★ R02/25 被墓碑擋下的 UPDATE 是終局，不會無限重試
+ok 17 - ★★★ R02/25 被墓碑擋下的 UPDATE 是終局，不會無限重試
+  ---
+  duration_ms: 2343.943792
+  type: 'test'
+  ...
+# Subtest: ★★★ R02 normal delete path 永遠不會留下「ACTIVE 墓碑 + canonical 列」
+ok 18 - ★★★ R02 normal delete path 永遠不會留下「ACTIVE 墓碑 + canonical 列」
+  ---
+  duration_ms: 2070.45725
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 44954.111625

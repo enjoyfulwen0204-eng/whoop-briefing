@@ -1,0 +1,202 @@
+TAP version 13
+# Subtest: ★ U: 就寢時間跨午夜要用連續的軸（23:50 與 00:10 只差 20 分）
+ok 1 - ★ U: 就寢時間跨午夜要用連續的軸（23:50 與 00:10 只差 20 分）
+  ---
+  duration_ms: 3.038833
+  type: 'test'
+  ...
+# Subtest: U: 找出最相似的日子（目標日自己一定被排除）
+ok 2 - U: 找出最相似的日子（目標日自己一定被排除）
+  ---
+  duration_ms: 1.613916
+  type: 'test'
+  ...
+# Subtest: ★ U: 缺欄位不會讓整天被排除，只要共用特徵夠多
+ok 3 - ★ U: 缺欄位不會讓整天被排除，只要共用特徵夠多
+  ---
+  duration_ms: 1.528292
+  type: 'test'
+  ...
+# Subtest: U: 共用特徵太少 → 該天被跳過（不硬算）
+ok 4 - U: 共用特徵太少 → 該天被跳過（不硬算）
+  ---
+  duration_ms: 0.287125
+  type: 'test'
+  ...
+# Subtest: ★ U: 沒有歷史時回 []，不拋錯
+ok 5 - ★ U: 沒有歷史時回 []，不拋錯
+  ---
+  duration_ms: 1.070417
+  type: 'test'
+  ...
+# Subtest: U: 結果是確定性的（跑兩次完全一樣）
+ok 6 - U: 結果是確定性的（跑兩次完全一樣）
+  ---
+  duration_ms: 0.423917
+  type: 'test'
+  ...
+# Subtest: U: 沒有變異的特徵不會被拿來算距離（避免除以 0）
+ok 7 - U: 沒有變異的特徵不會被拿來算距離（避免除以 0）
+  ---
+  duration_ms: 0.324875
+  type: 'test'
+  ...
+# Subtest: ★ V: Pearson 手算驗證（完美正相關 / 完美負相關）
+ok 8 - ★ V: Pearson 手算驗證（完美正相關 / 完美負相關）
+  ---
+  duration_ms: 0.235541
+  type: 'test'
+  ...
+# Subtest: ★ V: 沒有變異時回 null，不是 0
+ok 9 - ★ V: 沒有變異時回 null，不是 0
+  ---
+  duration_ms: 1.047083
+  type: 'test'
+  ...
+# Subtest: V: rankOf 正確處理並列
+ok 10 - V: rankOf 正確處理並列
+  ---
+  duration_ms: 1.870209
+  type: 'test'
+  ...
+# Subtest: ★ V: Spearman 對單調但非線性的關係比 Pearson 敏感
+ok 11 - ★ V: Spearman 對單調但非線性的關係比 Pearson 敏感
+  ---
+  duration_ms: 0.373292
+  type: 'test'
+  ...
+# Subtest: V: 資料充分度分級（這不是統計顯著性）
+ok 12 - V: 資料充分度分級（這不是統計顯著性）
+  ---
+  duration_ms: 4.982791
+  type: 'test'
+  ...
+# Subtest: V: p-value 對強相關會很小、對無相關會很大
+ok 13 - V: p-value 對強相關會很小、對無相關會很大
+  ---
+  duration_ms: 0.454625
+  type: 'test'
+  ...
+# Subtest: ★ V: lag 對齊 —— 前一天的 x 對到隔天的 y
+ok 14 - ★ V: lag 對齊 —— 前一天的 x 對到隔天的 y
+  ---
+  duration_ms: 0.357916
+  type: 'test'
+  ...
+# Subtest: ★ V: 所有輸出都標明是關聯不是因果
+ok 15 - ★ V: 所有輸出都標明是關聯不是因果
+  ---
+  duration_ms: 0.327875
+  type: 'test'
+  ...
+# Subtest: V: 樣本太少時不會硬算相關
+ok 16 - V: 樣本太少時不會硬算相關
+  ---
+  duration_ms: 0.090167
+  type: 'test'
+  ...
+# Subtest: ★ V: journal 關聯 —— 沒喝酒的日子也要是對照組（x=0）
+ok 17 - ★ V: journal 關聯 —— 沒喝酒的日子也要是對照組（x=0）
+  ---
+  duration_ms: 0.399584
+  type: 'test'
+  ...
+# Subtest: ★ V: 每天都喝或都沒喝 → usable=false（沒有對照組）
+ok 18 - ★ V: 每天都喝或都沒喝 → usable=false（沒有對照組）
+  ---
+  duration_ms: 0.164542
+  type: 'test'
+  ...
+# Subtest: W: 解線性方程組
+ok 19 - W: 解線性方程組
+  ---
+  duration_ms: 0.152167
+  type: 'test'
+  ...
+# Subtest: ★ W: OLS 能完美還原已知係數 y = 3 + 2*x1 - 1*x2
+ok 20 - ★ W: OLS 能完美還原已知係數 y = 3 + 2*x1 - 1*x2
+  ---
+  duration_ms: 0.365583
+  type: 'test'
+  ...
+# Subtest: ★ W: 共線性會被偵測出來（VIF）
+ok 21 - ★ W: 共線性會被偵測出來（VIF）
+  ---
+  duration_ms: 0.318417
+  type: 'test'
+  ...
+# Subtest: ★ W: 樣本不足時拒絕擬合，不硬解
+ok 22 - ★ W: 樣本不足時拒絕擬合，不硬解
+  ---
+  duration_ms: 0.357208
+  type: 'test'
+  ...
+# Subtest: W: 缺資料的列整列剔除，並回報剔掉幾列
+ok 23 - W: 缺資料的列整列剔除，並回報剔掉幾列
+  ---
+  duration_ms: 0.55425
+  type: 'test'
+  ...
+# Subtest: W: 沒有變異的特徵會被剔除並警告
+ok 24 - W: 沒有變異的特徵會被剔除並警告
+  ---
+  duration_ms: 0.730375
+  type: 'test'
+  ...
+# Subtest: ★ W: 標準化係數讓不同單位的特徵可以比較
+ok 25 - ★ W: 標準化係數讓不同單位的特徵可以比較
+  ---
+  duration_ms: 1.278459
+  type: 'test'
+  ...
+# Subtest: W: predictFrom 用擬合結果預測
+ok 26 - W: predictFrom 用擬合結果預測
+  ---
+  duration_ms: 0.5245
+  type: 'test'
+  ...
+# Subtest: ★ X: temporalSplit 一定按時間切，測試集永遠在訓練集之後
+ok 27 - ★ X: temporalSplit 一定按時間切，測試集永遠在訓練集之後
+  ---
+  duration_ms: 0.483041
+  type: 'test'
+  ...
+# Subtest: ★ X: 打亂順序的切分會被 assertNoLeakage 抓到
+ok 28 - ★ X: 打亂順序的切分會被 assertNoLeakage 抓到
+  ---
+  duration_ms: 0.297208
+  type: 'test'
+  ...
+# Subtest: ★ X: buildSupervised 用第 D 天的特徵預測第 D+1 天（特徵必須早於結果）
+ok 29 - ★ X: buildSupervised 用第 D 天的特徵預測第 D+1 天（特徵必須早於結果）
+  ---
+  duration_ms: 0.403583
+  type: 'test'
+  ...
+# Subtest: ★ X: 資料不足時 status=INSUFFICIENT_DATA，絕不硬給預測值
+ok 30 - ★ X: 資料不足時 status=INSUFFICIENT_DATA，絕不硬給預測值
+  ---
+  duration_ms: 0.914209
+  type: 'test'
+  ...
+# Subtest: X: 資料足夠時可以訓練、預測、評估
+ok 31 - X: 資料足夠時可以訓練、預測、評估
+  ---
+  duration_ms: 4.257667
+  type: 'test'
+  ...
+# Subtest: X: 評估在沒有測試樣本時安全回報
+ok 32 - X: 評估在沒有測試樣本時安全回報
+  ---
+  duration_ms: 0.087083
+  type: 'test'
+  ...
+1..32
+# tests 32
+# suites 0
+# pass 32
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 149.574584

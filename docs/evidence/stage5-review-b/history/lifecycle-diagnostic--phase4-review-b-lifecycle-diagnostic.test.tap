@@ -1,0 +1,12 @@
+TAP version 13
+# {"ts":"2026-09-27T11:02:52.263Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T11:02:52.267Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T11:02:54.973Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T11:02:54.977Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# START analyzeAssociationFamily oldest
+# END analyzeAssociationFamily oldest
+# START analyzeAssociationFamily middle
+# END analyzeAssociationFamily middle
+# START analyzeAssociationFamily same-window-resample
+# END analyzeAssociationFamily same-window-resample
+# START analyzeAssociationFamily newest

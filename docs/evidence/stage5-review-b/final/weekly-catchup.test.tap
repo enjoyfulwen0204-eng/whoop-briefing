@@ -1,0 +1,71 @@
+TAP version 13
+# {"ts":"2026-09-27T14:33:15.042Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:33:15.048Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:33:15.051Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:33:15.055Z","level":"info","event":"weekly_sent"}
+# {"ts":"2026-09-27T14:33:15.055Z","level":"info","event":"weekly_already_sent"}
+# {"ts":"2026-09-27T14:33:15.056Z","level":"info","event":"weekly_already_sent"}
+# {"ts":"2026-09-27T14:33:15.058Z","level":"info","event":"weekly_waiting"}
+# Subtest: A3: 設定存在且合理
+ok 1 - A3: 設定存在且合理
+  ---
+  duration_ms: 0.86925
+  type: 'test'
+  ...
+# Subtest: A3: 週一～週三的 weekKey 完全相同（補發不會指到別週）
+ok 2 - A3: 週一～週三的 weekKey 完全相同（補發不會指到別週）
+  ---
+  duration_ms: 20.968625
+  type: 'test'
+  ...
+# Subtest: A3: 週一正常發送
+ok 3 - A3: 週一正常發送
+  ---
+  duration_ms: 9.764166
+  type: 'test'
+  ...
+# Subtest: A3: 週二補發（週一整天故障的情況）
+ok 4 - A3: 週二補發（週一整天故障的情況）
+  ---
+  duration_ms: 4.926708
+  type: 'test'
+  ...
+# Subtest: A3: 週三補發
+ok 5 - A3: 週三補發
+  ---
+  duration_ms: 2.180625
+  type: 'test'
+  ...
+# Subtest: A3: 週四已超過寬限 → 不再補發
+ok 6 - A3: 週四已超過寬限 → 不再補發
+  ---
+  duration_ms: 0.805291
+  type: 'test'
+  ...
+# Subtest: A3: 週日（上一週還沒結束）也不發
+ok 7 - A3: 週日（上一週還沒結束）也不發
+  ---
+  duration_ms: 0.939791
+  type: 'test'
+  ...
+# Subtest: A3: 一週只發一次 —— 週一發過了，週二/週三不會重複
+ok 8 - A3: 一週只發一次 —— 週一發過了，週二/週三不會重複
+  ---
+  duration_ms: 3.594625
+  type: 'test'
+  ...
+# Subtest: A3: 週二補發也遵守「清晨先等」的規則（不會半夜吵人）
+ok 9 - A3: 週二補發也遵守「清晨先等」的規則（不會半夜吵人）
+  ---
+  duration_ms: 2.022708
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 157.68625

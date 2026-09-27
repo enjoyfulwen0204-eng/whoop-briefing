@@ -1,0 +1,30 @@
+TAP version 13
+# {"ts":"2026-09-27T18:24:58.042Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T18:24:58.045Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T18:24:59.359Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T18:24:59.360Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T18:25:03.028Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T18:25:03.029Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T18:25:04.300Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T18:25:04.301Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: G: COMPLETE independently detects a sensitive parent omitted from the target ledger
+ok 1 - G: COMPLETE independently detects a sensitive parent omitted from the target ledger
+  ---
+  duration_ms: 4995.101166
+  type: 'test'
+  ...
+# Subtest: G: a corrupt standalone receipt never narrows closure or permits COMPLETE
+ok 2 - G: a corrupt standalone receipt never narrows closure or permits COMPLETE
+  ---
+  duration_ms: 4716.393
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9937.168834

@@ -1,0 +1,17 @@
+[
+  {
+    "purpose": "Syntax check temporary evidence/report generation scripts",
+    "command": "python3 -m py_compile /private/tmp/stage5-m007/assemble.py /private/tmp/stage5-m007/write-report.py",
+    "exitCode": 1,
+    "classification": "ENVIRONMENT_EPERM",
+    "error": "PermissionError: [Errno 1] Operation not permitted: '/Users/kelvin/Library/Caches/com.apple.python/private'",
+    "applicationTestProcess": false
+  },
+  {
+    "purpose": "Repeat syntax check with bytecode cache in permitted temporary directory",
+    "command": "PYTHONPYCACHEPREFIX=/private/tmp/stage5-m007/pycache python3 -m py_compile /private/tmp/stage5-m007/assemble.py /private/tmp/stage5-m007/write-report.py",
+    "exitCode": 0,
+    "classification": "PASS",
+    "applicationTestProcess": false
+  }
+]

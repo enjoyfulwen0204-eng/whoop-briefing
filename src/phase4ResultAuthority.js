@@ -18,8 +18,10 @@ const projection=row=>Object.fromEntries(Object.entries(row).filter(([k])=>!oper
 const legacyHealthVersion=row=>canonicalJson([row.updated_at??null,row.synced_at??null,row.as_of_utc??null,row.score_state??null]);
 const healthVersion=healthSourceVersion;
 const NORMALIZED_ROOT_VERSION='stage5-required-roots-v2';
+const BOUNDED_ROOT_VERSION='stage5-required-roots-v3';
+export const REQUIRED_ROOT_BUDGET=Object.freeze({count:10000,bytes:1048576});
 const NULL_PROJECTION_VERSION='stage5-null-metric-result-v2';
-const rootProjection=(row,type,version)=>version===NORMALIZED_ROOT_VERSION&&['sleep','recovery','cycle','workout','body_energy_results'].includes(type)
+const rootProjection=(row,type,version)=>[NORMALIZED_ROOT_VERSION,BOUNDED_ROOT_VERSION].includes(version)&&['sleep','recovery','cycle','workout','body_energy_results'].includes(type)
   ?Object.fromEntries(Object.entries(projection(row)).map(([k,v])=>[k,k.endsWith('_at')||k==='as_of_utc'?canonicalSourceTime(v):v])):projection(row);
 
 /** Only registered calculation inputs define completeness. source_links are
@@ -55,13 +57,13 @@ export function createResultAuthority(core) {
       if(typeof type!=='string'||typeof id!=='string'||!id)incomplete();
       descriptors.push({type,id,mode:type==='body_energy_results'?context.executionMode:'SHARED',version,as_of:asOf});
     };
-    if(input?.manifest_version==='phase4-metric-evidence-input-v1') {
+    if(['phase4-metric-evidence-input-v1','phase4-metric-evidence-input-v2'].includes(input?.manifest_version)) {
       if(!Array.isArray(input.quality?.provenance)||!input.quality.provenance.length)incomplete();
       for(const ref of input.quality.provenance) {
         if(!Array.isArray(ref)||ref.length!==3)incomplete();
         add(...ref);
       }
-    } else if(input?.manifest_version==='phase4-association-family-input-v1') {
+    } else if(['phase4-association-family-input-v1','phase4-association-family-input-v2'].includes(input?.manifest_version)) {
       if(!Array.isArray(input.hypotheses)||!input.hypotheses.length)incomplete();
       for(const hypothesis of input.hypotheses) {
         if(!Array.isArray(hypothesis.days)||!Array.isArray(hypothesis.journal_authority))incomplete();
@@ -69,13 +71,14 @@ export function createResultAuthority(core) {
         for(const ref of hypothesis.journal_authority)add(ref.type,ref.id,ref.revision,ref.asOfUtc);
       }
     } else incomplete();
-    const metric=input.manifest_version==='phase4-metric-evidence-input-v1';
-    const inputHash=keys.lookup([metric?'phase4-evidence-input-v1':'phase4-association-input-v1',
+    const metric=input.manifest_version.startsWith('phase4-metric-'),version=input.manifest_version.endsWith('-v2')?'v2':'v1';
+    const inputHash=keys.lookup([metric?`phase4-evidence-input-${version}`:`phase4-association-input-${version}`,
       context.userId,context.executionMode,run.input_generation,canonicalJson(input)]);
-    const runKey=keys.lookup(['phase4-evidence-run-v1',context.userId,context.executionMode,
+    const runKey=keys.lookup([`phase4-evidence-run-${version}`,context.userId,context.executionMode,
       metric?'PERSONAL_BASELINE_DEVIATION':'JOURNAL_ASSOCIATION',
       ...(metric?[input.metric_key]:[input.multiple_testing_family,input.focus_key]),input.as_of_utc,run.input_generation,inputHash]);
     if(run.input_manifest_hash!==inputHash||run.deterministic_run_key!==runKey)invalid();
+    if(!descriptors.length&&!metric&&version==='v2')add('USER',context.userId);
     return ordered(descriptors);
   }
   async function captureRoots(context,refs,salt) {
@@ -88,10 +91,13 @@ export function createResultAuthority(core) {
           fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
         if(!descriptor.expected)continue;
       }
-      seen.add(identity);if(seen.size>10000)incomplete();
+      seen.add(identity);if(seen.size>REQUIRED_ROOT_BUDGET.count)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
       const {row}=await resolve(context,descriptor);
-      if(descriptor.expected)for(const [field,value] of Object.entries(descriptor.expected))
-        if((row[field]??null)!==value)fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
+      if(descriptor.expected)for(const [field,value] of Object.entries(descriptor.expected)) {
+        const temporal=field.endsWith('_at')||field==='as_of_utc';
+        if((temporal?canonicalSourceTime(row[field]??null):row[field]??null)
+          !==(temporal?canonicalSourceTime(value):value))fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
+      }
       if(descriptor.version!==null) {
         const version=descriptor.as_of!==null?row.revision:healthVersion(row);
         if(version!==canonicalSourceVersion(descriptor.version))fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
@@ -99,7 +105,7 @@ export function createResultAuthority(core) {
       const {expected,...stable}=descriptor;
       entries.set(identity,{...stable,version:descriptor.as_of!==null?row.revision
         :['sleep','recovery','cycle','workout','body_energy_results'].includes(descriptor.type)?healthVersion(row):null,
-      content_hash:hash(salt,'required-root-content-v1',rootProjection(row,descriptor.type,NORMALIZED_ROOT_VERSION))});
+      content_hash:hash(salt,'required-root-content-v1',rootProjection(row,descriptor.type,BOUNDED_ROOT_VERSION))});
       if(descriptor.type==='evidence_items') {
         const run=await core.artifact(context,'evidence_runs',{run_id:row.run_id});
         pending.push(...await descriptorsForRun(context,run.row));
@@ -123,12 +129,16 @@ export function createResultAuthority(core) {
       } else if(!['sleep','recovery','cycle','workout','JOURNAL_FACT','JOURNAL_COVERAGE','USER'].includes(descriptor.type))incomplete();
     }
     if(!entries.size)incomplete();
-    return {version:NORMALIZED_ROOT_VERSION,model:'FLATTENED_CALCULATION_INPUTS',roots:ordered([...entries.values()])};
+    const roots=ordered([...entries.values()]),bytes=Buffer.byteLength(canonicalJson(roots));
+    if(roots.length>REQUIRED_ROOT_BUDGET.count||bytes>REQUIRED_ROOT_BUDGET.bytes)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
+    return {version:BOUNDED_ROOT_VERSION,model:'FLATTENED_CALCULATION_INPUTS',roots,root_count:roots.length,serialized_bytes:bytes};
   }
   function validateManifest(manifest,mode) {
-    if(!manifest||![RESULT_ROOT_VERSION,NORMALIZED_ROOT_VERSION].includes(manifest.version)||manifest.model!=='FLATTENED_CALCULATION_INPUTS'
+    if(!manifest||![RESULT_ROOT_VERSION,NORMALIZED_ROOT_VERSION,BOUNDED_ROOT_VERSION].includes(manifest.version)||manifest.model!=='FLATTENED_CALCULATION_INPUTS'
       ||!Array.isArray(manifest.roots)||!manifest.roots.length||manifest.roots.length>10000
       ||!same(manifest.roots,ordered(manifest.roots)))invalid();
+    if(manifest.version===BOUNDED_ROOT_VERSION&&(manifest.root_count!==manifest.roots.length
+      ||manifest.serialized_bytes!==Buffer.byteLength(canonicalJson(manifest.roots))||manifest.serialized_bytes>REQUIRED_ROOT_BUDGET.bytes))invalid();
     for(const entry of manifest.roots) {
       if(!same(Object.keys(entry).sort(),['as_of','content_hash','id','mode','type','version'])
         ||typeof entry.id!=='string'||!entry.id||typeof entry.content_hash!=='string'
@@ -140,9 +150,22 @@ export function createResultAuthority(core) {
     validateManifest(manifest,context.executionMode);
     for(const entry of manifest.roots) {
       const source=await resolve(context,entry);
-      if(entry.version!==null&&(entry.as_of!==null?source.row.revision:(manifest.version===NORMALIZED_ROOT_VERSION?healthVersion:legacyHealthVersion)(source.row))!==entry.version)
+      const legacy=manifest.version===RESULT_ROOT_VERSION;
+      if(entry.version!==null&&(entry.as_of!==null?source.row.revision:healthVersion(source.row))
+        !==(entry.as_of!==null?entry.version:canonicalSourceVersion(entry.version)))
         fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
-      if(hash(row.content_digest_salt,'required-root-content-v1',rootProjection(source.row,entry.type,manifest.version))!==entry.content_hash)
+      // v1 signed the original adapter tuple spelling. Its authenticated tuple
+      // can restore only those owned timestamp fields for the old hash check.
+      // The semantic equality check above forbids substituting another instant.
+      let historical=source.row;
+      if(legacy&&typeof entry.version==='string') {
+        const tuple=parse(entry.version);
+        if(!Array.isArray(tuple)||tuple.length!==4)invalid();
+        historical={...source.row};
+        for(const [index,field] of ['updated_at','synced_at','as_of_utc'].entries())
+          if(Object.hasOwn(historical,field))historical[field]=tuple[index];
+      }
+      if(hash(row.content_digest_salt,'required-root-content-v1',rootProjection(historical,entry.type,manifest.version))!==entry.content_hash)
         fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
     }
   }
@@ -199,6 +222,14 @@ export function createResultAuthority(core) {
     const scopes=(await client.execute({sql:`SELECT result_scope FROM ${TABLE} WHERE user_id=? AND execution_mode=? AND evidence_item_id=?`,
       args:[context.userId,context.executionMode,itemId]})).rows;
     if(required&&!scopes.length)fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');
+    if(required) {
+      const row=(await client.execute({sql:`SELECT r.input_manifest_json FROM evidence_items i JOIN evidence_runs r
+        ON r.user_id=i.user_id AND r.execution_mode=i.execution_mode AND r.run_id=i.run_id
+        WHERE i.user_id=? AND i.execution_mode=? AND i.evidence_item_id=?`,args:[context.userId,context.executionMode,itemId]})).rows[0];
+      const input=parse(row?.input_manifest_json),expected=input?.manifest_version?.startsWith('phase4-metric-')
+        ?['METRIC']:input?.manifest_version?.startsWith('phase4-association-')?['INSIGHT_CONTRADICTION','INSIGHT_CURRENT']:null;
+      if(!expected||!same(scopes.map(row=>row.result_scope).sort(),expected))fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');
+    }
     for(const {result_scope:scope} of scopes)await read(context,itemId,scope);
   }
   async function read(context,evidenceItemId,scope) {
@@ -325,7 +356,7 @@ export function createResultAuthority(core) {
       const column=table==='health_insights'?'id':'insight_id';
       for(const value of (await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND execution_mode=? AND ${column}=?`,args:[...scope,id]})).rows) {
         add(table,value);
-        if(!verified&&table==='insight_revisions') {
+        if(table==='insight_revisions') {
           let refs;try {refs=[...JSON.parse(value.supporting_evidence_ids_json??'[]'),...JSON.parse(value.contradicting_evidence_ids_json??'[]')];}
           catch {fail('PHASE4_PURGE_AUTHORITY_INVALID');}
           for(const evidenceId of refs)await addEvidenceRoot(evidenceId);
@@ -335,7 +366,7 @@ export function createResultAuthority(core) {
     for(const id of episodeIds)for(const table of ['observation_episodes','phase4_episode_revisions','episode_events','episode_evidence','episode_observations','episode_semantic_events'])
       for(const value of (await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND execution_mode=? AND episode_id=?`,args:[...scope,id]})).rows) {
         add(table,value);
-        if(!verified&&table==='phase4_episode_revisions'&&value.content_state==='PRESENT') {
+        if(table==='phase4_episode_revisions'&&value.content_state==='PRESENT') {
           // An invalid v26 payload cannot hide dependencies already sealed by
           // v25. Authenticate those bytes independently; never reconstruct them.
           let snapshot,refs;
@@ -379,5 +410,6 @@ export function createResultAuthority(core) {
     for(const id of ids)refs.push((await core.artifact(context,'evidence_items',{evidence_item_id:id})).ref);
     return refs;
   }
-  return Object.freeze({read,persist,metricOrigin,episodeDependencies,validateExisting,privacyDependencies});
+  return Object.freeze({read,persist,metricOrigin,episodeDependencies,validateExisting,privacyDependencies,
+    captureRoots,validateRoots,descriptorsForRun,authenticate});
 }

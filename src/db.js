@@ -76,7 +76,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   const phase4Queue=createPhase4QueueStore({client,processing,transaction:processing.transaction,keys:phase4Keys,timestamp:()=>new Date().toISOString()});
   let foundationStore;
   async function privacyFoundation() {
-    if(!foundationStore)foundationStore=createPhase4Foundation({db:{raw:client,transaction:processing.transaction,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit},keys:phase4Keys});
+    if(!foundationStore)foundationStore=createPhase4Foundation({db:{raw:client,transaction:processing.transaction,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit,afterProcessingCompletion:processing.afterCompletion},keys:phase4Keys});
     try {return await foundationStore;} catch(error) {foundationStore=null;throw error;}
   }
   const health = compatibility.wrap(createHealthStore(compatibility.client, { transaction: processing.transaction }));
@@ -1691,6 +1691,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     abandonStaleConversationUpdates,
     outsideProcessingTransaction: processing.outside,
     afterProcessingCommit: processing.afterCommit,
+    afterProcessingCompletion: processing.afterCompletion,
     processingTransactionActive: processing.active,
     migrate,
     // per-user token

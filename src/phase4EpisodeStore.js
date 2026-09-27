@@ -1,3 +1,4 @@
+import { requireChronology } from './phase4Time.js';
 import { fail, requireInteger } from './phase4Core.js';
 import { EPISODE_ACTIVE, V23_HEALTH_FIELDS } from './phase4V23Schema.js';
 import { createEpisodeHistory, requireSemanticTime } from './phase4EpisodeHistory.js';
@@ -9,12 +10,12 @@ const NEXT={OPEN:['UPDATING','ESCALATED','EXPLAINED','STABILIZING'],UPDATING:['E
 const PATCH_FIELDS=new Set(['severity','current_confidence','explained_status','explanation_evidence_item_id','explanation_context_id',
   'last_observed_at','latest_evidence_item_id','semantic_summary_hash','explanation_json','current_context_json','current_novelty',
   'max_semantic_severity_ordinal']);
-export function createPhase4EpisodeStore(core,entities) {
-  const {client,keys,timestamp}=core,history=createEpisodeHistory(core);
+export function createPhase4EpisodeStore(core,entities,historyOptions={}) {
+  const {client,keys,timestamp}=core,history=createEpisodeHistory(core,historyOptions);
   const current=(context,id)=>core.artifact(context,'observation_episodes',{episode_id:id});
   async function open(context,{identity,data,evidenceItemId,reopensEpisodeId=null,reversesEpisodeId=null,semanticAt=null,semanticEvent=null}) {
     return core.run(context,async()=>{
-      const at=requireSemanticTime(semanticAt);
+      const at=requireChronology(requireSemanticTime(semanticAt),null,core.now());
       if(!identity || Object.keys(identity).sort().join(',')!=='algorithmMajor,direction,domain,metric,subject,windowFamily'
         || Object.values(identity).some(v=>typeof v!=='string'||!v||v.length>128))fail('PHASE4_EPISODE_IDENTITY_REQUIRED');
       const family=keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,identity.algorithmMajor,identity.subject,identity.windowFamily]);
@@ -74,6 +75,9 @@ export function createPhase4EpisodeStore(core,entities) {
         await history.read(context,{episodeId,revision:expectedRevision+1,semanticAt});
         return {...await core.artifact(context,'episode_events',{episode_event_id:prior.episode_event_id}),created:false};
       }
+      const predecessor=(await client.execute({sql:'SELECT semantic_at FROM phase4_episode_revisions WHERE user_id=? AND execution_mode=? AND episode_id=? AND revision=?',
+        args:[context.userId,context.executionMode,episodeId,row.revision]})).rows[0];
+      requireChronology(semanticAt,predecessor?.semantic_at??row.opened_at,core.now());
       if(!EPISODE_ACTIVE.includes(row.state))fail('PHASE4_EPISODE_TERMINAL');
       if(row.revision!==expectedRevision)fail('PHASE4_EPISODE_CAS_LOST');
       const operationalAt=timestamp(),at=semanticAt,same=row.state===toState;
@@ -133,6 +137,10 @@ export function createPhase4EpisodeStore(core,entities) {
       if(!row||row.content_state!=='PRESENT'||row.source_linkage_state!=='COMPLETE'||row.health_content_redacted_at)fail('CONTENT_REDACTED');
       if(!EPISODE_ACTIVE.includes(row.state)||row.invalidated_at||row.input_generation>=context.inputGeneration)fail('PHASE4_EPISODE_REFRESH_INVALID');
       if(row.revision!==expectedRevision)fail('PHASE4_EPISODE_CAS_LOST');
+      const predecessor=(await client.execute({sql:'SELECT semantic_at FROM phase4_episode_revisions WHERE user_id=? AND execution_mode=? AND episode_id=? AND revision=?',
+        args:[context.userId,context.executionMode,episodeId,expectedRevision]})).rows[0];
+      if(!predecessor)fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
+      requireChronology(semanticAt,predecessor.semantic_at,core.now());
       if(!identity||Object.keys(identity).sort().join(',')!=='algorithmMajor,direction,domain,metric,subject,windowFamily')fail('PHASE4_EPISODE_IDENTITY_REQUIRED');
       const family=keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,identity.algorithmMajor,identity.subject,identity.windowFamily]);
       if(family!==row.episode_family_key||keys.lookup(['episode-fingerprint-v1',family,identity.direction])!==row.fingerprint)fail('PHASE4_EPISODE_IDENTITY_REQUIRED');
@@ -169,7 +177,7 @@ export function createPhase4EpisodeStore(core,entities) {
       fail('PHASE4_SEMANTIC_EVENT_INVALID');
     return core.run(context,async()=>{
       const episode=await current(context,episodeId);
-      if(episode.row.revision!==expectedRevision)fail('PHASE4_EPISODE_CAS_LOST');
+      if(withinRevision&&episode.row.revision!==expectedRevision)fail('PHASE4_EPISODE_CAS_LOST');
       const event=await core.artifact(context,'episode_events',{episode_event_id:episodeEventId});
       if(event.row.episode_id!==episodeId||event.row.resulting_revision!==expectedRevision)fail('PHASE4_EVENT_PARENT_MISMATCH');
       const prior=(await client.execute({sql:`SELECT * FROM episode_semantic_events WHERE user_id=? AND execution_mode=?

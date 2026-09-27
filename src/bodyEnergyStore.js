@@ -3,6 +3,7 @@ import { selectBodyEnergyInputs, exactBodyInstant, validHealthDate } from './bod
 import { calculateBodyEnergy } from './bodyEnergy.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { fail, readableRow } from './phase4Core.js';
+import { canonicalSourceTime } from './phase4SourceVersion.js';
 
 const columns={
   sleep:'id,health_date,start_at,end_at,nap,score_state,sleep_performance_percentage,updated_at,synced_at',
@@ -62,13 +63,31 @@ export function createBodyEnergyStore(core,entities,queue) {
       fail('PHASE4_PARENT_STALE');
     return reproduceHistorical(row);
   }
-  async function reproduceAudit(row) {
+  async function reproduceAudit(row,context) {
     if(!readableRow(row))fail('CONTENT_REDACTED');
     const linked=(await client.execute({sql:`SELECT 1 FROM phase4_source_links WHERE user_id=? AND artifact_execution_mode=?
       AND artifact_type='body_energy_results' AND artifact_id=? AND unlinked_at IS NULL LIMIT 1`,
       args:[row.user_id,row.execution_mode,row.privacy_artifact_id]})).rows.length;
     if(!linked)fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
-    return reproduceHistorical(row);
+    const result=reproduceHistorical(row),manifest=result.manifest,required=[];
+    const add=(type,value)=>{if(value)required.push({type,id:String(value[type==='recovery'?'sleep_id':'id']),expected:value});};
+    add('sleep',manifest.main_sleep);add('recovery',manifest.recovery);
+    for(const value of [...manifest.baseline.hrv,...manifest.baseline.rhr]){add('sleep',value.sleep);add('recovery',value.recovery);}
+    for(const value of manifest.load.rows)add(manifest.load.kind==='CYCLE'?'cycle':'workout',value);
+    for(const value of manifest.naps)add('sleep',value.source);
+    for(const value of manifest.exclusions)if(value.id!==null)required.push({type:value.resource==='baseline'?'sleep':value.resource,id:value.id});
+    const seen=new Set();
+    for(const source of required) {
+      const identity=canonicalJson(source);if(seen.has(identity))continue;seen.add(identity);
+      if(seen.size>10000)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
+      const current=await core.root(context,source.type,source.id);
+      if(source.expected&&row.input_generation===context.inputGeneration)for(const [field,value] of Object.entries(source.expected)) {
+        const time=field.endsWith('_at')||field==='as_of_utc';
+        if((time?canonicalSourceTime(current.row[field]??null):current.row[field]??null)
+          !==(time?canonicalSourceTime(value):value))fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
+      }
+    }
+    return result;
   }
   async function prepare(context,options) {
     const req=request(options);
@@ -152,7 +171,7 @@ export function createBodyEnergyStore(core,entities,queue) {
     return core.run(context,async()=>{
       const row=(await client.execute({sql:`SELECT * FROM body_energy_results WHERE user_id=? AND execution_mode=? AND result_id=?`,
         args:[context.userId,context.executionMode,resultId]})).rows[0];
-      if(!row)fail('PHASE4_PARENT_NOT_FOUND');return reproduceAudit(row);
+      if(!row)fail('PHASE4_PARENT_NOT_FOUND');return reproduceAudit(row,context);
     });
   }
   async function readExact(context,{healthDate,asOfEpochMs,algorithmVersion=C.algorithm,inputGeneration=context.inputGeneration}) {
@@ -160,7 +179,7 @@ export function createBodyEnergyStore(core,entities,queue) {
     if(!validHealthDate(healthDate)||!Number.isSafeInteger(inputGeneration)||inputGeneration<0||inputGeneration>context.inputGeneration)fail('BODY_ENERGY_INVALID_IDENTITY');
     return core.run(context,async()=>{
       const row=await find(context,lookup(context,healthDate,asOfEpochMs,algorithmVersion,inputGeneration));
-      if(!row)fail('NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS');return reproduceAudit(row);
+      if(!row)fail('NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS');return reproduceAudit(row,context);
     });
   }
   async function checkpoint(context,{bucketStart,algorithmVersion=C.algorithm}) {
@@ -207,5 +226,21 @@ export function createBodyEnergyStore(core,entities,queue) {
     });
   }
   return Object.freeze({prepare,persist,compute,audit,readExact,checkpoint,auditCheckpoint,
+    privacyDependencies:(userId,row)=>{
+      if(row.user_id!==userId)fail('PHASE4_PURGE_AUTHORITY_INVALID');
+      const {manifest}=reproduceHistorical(row),refs=[];
+      const add=(type,value)=>{if(value)refs.push({type,id:String(value[type==='recovery'?'sleep_id':'id']),mode:'SHARED'});};
+      add('sleep',manifest.main_sleep);add('recovery',manifest.recovery);
+      for(const entry of [...manifest.baseline.hrv,...manifest.baseline.rhr]){add('sleep',entry.sleep);add('recovery',entry.recovery);}
+      for(const value of manifest.load.rows)add(manifest.load.kind==='CYCLE'?'cycle':'workout',value);
+      for(const value of manifest.naps)add('sleep',value.source);
+      for(const value of manifest.exclusions)if(value.id!==null)refs.push({type:value.resource==='baseline'?'sleep':value.resource,id:value.id,mode:'SHARED'});
+      refs.push({type:'USER',id:userId,mode:'SHARED'});return refs;
+    },
+    describeTicket:(context,ticket)=>{
+      const captured=tickets.get(ticket);if(!captured||captured.context!==context)fail('BODY_ENERGY_CAPTURE_REQUIRED');
+      const payload=core.contextRegistry.get(context,captured.cacheKey);if(!payload)fail('BODY_ENERGY_CAPTURE_EVICTED');
+      return {...payload.req};
+    },
     read:(context,resultId)=>core.artifact(context,'body_energy_results',{result_id:resultId})});
 }

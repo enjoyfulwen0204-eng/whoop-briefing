@@ -1,3 +1,5 @@
+import { createLegacyDiscovery } from './phase4LegacyDiscovery.js';
+import { createOperationReceipts } from './phase4OperationReceipts.js';
 import { fail, requireInteger } from './phase4Core.js';
 import { createPhase4QueueStore } from './phase4QueueStore.js';
 import { createPhase4EntityStore } from './phase4EntityStore.js';
@@ -15,22 +17,61 @@ import { createPhase4CoverageStore } from './phase4CoverageStore.js';
 import { createPhase4JournalAnswers } from './phase4JournalAnswers.js';
 import { createPhase4IntelligenceStore } from './phase4IntelligenceStore.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
+import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
 import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
 export function composePhase4Stores(core) {
   const {client,transaction,timestamp}=core;
+  const receipts=createOperationReceipts(core),discover=createLegacyDiscovery(core);
+  const owned=fn=>async(context,request)=>{
+    try{return await fn(context,request);}
+    finally {
+      const cleanup=()=>transaction(()=>core.contextRegistry.release(context));
+      if(core.processing.active()) {
+        if(!core.processing.afterCompletion)fail('PHASE4_STRUCTURED_SCOPE_REQUIRED');
+        core.processing.afterCompletion(cleanup);
+      } else await cleanup();
+    }
+  };
+  const recorded=(kind,fn)=>(context,request)=>receipts.execute(context,kind,request,semanticRequest=>fn(context,semanticRequest),{discover});
+  const operation=(kind,fn)=>owned(recorded(kind,fn));
   const queue=createPhase4QueueStore(core);
   const entities=createPhase4EntityStore(core),privacy=createPhase4PrivacyStore(core,queue);
-  const episodes=createPhase4EpisodeStore(core,entities);
-  const insights=createPhase4InsightStore(core,entities);
+  const episodeStore=createPhase4EpisodeStore(core,entities,{operationAuthority:async(context,episodeId,revision)=>{
+    const authority=await receipts.forArtifact(context,'observation_episodes',{}, {episodeId,revision,verifyOnly:true});
+    return authority.operationKind.startsWith('EPISODE_');
+  }}),insightStore=createPhase4InsightStore(core,entities);
+  const episodes={...episodeStore,...Object.fromEntries(['open','revise','reverse','refresh']
+    .map(name=>[name,recorded(`EPISODE_${name.toUpperCase()}`,episodeStore[name])])),
+    semantic:(context,request)=>core.run(context,async()=>{
+      const result=await episodeStore.semantic(context,request);
+      return receipts.forArtifact(context,'episode_semantic_events',{episode_semantic_event_id:result.row.episode_semantic_event_id});
+    })};
+  const insights={...insightStore,read:(context,id,options)=>core.run(context,async()=>{
+    const current=await insightStore.read(context,id,options);
+    return receipts.forArtifact(context,'health_insights',{id},{expectedRevision:current.row.current_revision});
+  }),create:recorded('INSIGHT_CREATE',insightStore.create),transition:recorded('INSIGHT_TRANSITION',insightStore.transition)};
   const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights);
   const messages=createPhase4MessageStore(core,entities),slots=createPhase4SlotStore(core,entities,messages);
   const experiments=createPhase4ExperimentStore(core,privacy,queue);
   const journal=createPhase4JournalStore(core,privacy,queue),journalInbound=createPhase4JournalInbound(core,privacy,journal);
   const coverage=createPhase4CoverageStore(core,privacy);
   const journalAnswers=createPhase4JournalAnswers(core,journal,coverage,slots,journalInbound,queue);
+  const body=createBodyEnergyStore(core,entities,queue);
+  async function newBody(context,request,perform,{checkpoint=false}={}) {
+    const table=checkpoint?'body_energy_checkpoints':'body_energy_results';
+    const existing=(await client.execute({sql:`SELECT 1 FROM ${table} WHERE user_id=? AND execution_mode=? AND input_generation=?
+      AND ${checkpoint?'checkpoint_bucket_start':'as_of_epoch_ms'}=? AND algorithm_version=?
+      ${!checkpoint&&request.targetHealthDate!==null?'AND health_date=?':''} LIMIT 1`,args:[context.userId,context.executionMode,
+        context.inputGeneration,checkpoint?request.bucketStart:request.asOfEpochMs,request.algorithmVersion,
+        ...(!checkpoint&&request.targetHealthDate!==null?[request.targetHealthDate]:[])]})).rows.length;
+    if(existing)fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
+    return perform();
+  }
+  const bodyCompute=operation('BODY_ENERGY_COMPUTE',(context,request)=>newBody(context,request,()=>body.compute(context,request)));
+  const bodyCheckpoint=operation('BODY_ENERGY_CHECKPOINT',(context,request)=>newBody(context,request,()=>body.checkpoint(context,request),{checkpoint:true}));
   async function initializeTenant(userId,mode) {
     return transaction(async()=>{
       const result=await core.initializeTenant(userId,mode);
@@ -42,14 +83,32 @@ export function composePhase4Stores(core) {
     });
   }
   async function readArtifact(context,table,key) {
+    if(table==='health_insights') {
+      const current=await core.artifact(context,table,key);
+      return receipts.forArtifact(context,table,key,{expectedRevision:current.row.current_revision});
+    }
+    if(['evidence_runs','evidence_items','health_insights','insight_revisions','episode_events','episode_semantic_events',
+      'episode_evidence','episode_observations'].includes(table))return receipts.forArtifact(context,table,key);
+    if(table==='observation_episodes') {
+      const current=await core.artifact(context,table,key);
+      await receipts.forArtifact(context,table,key,{episodeId:current.row.episode_id,revision:current.row.revision,verifyOnly:true});
+      return episodes.readRevision(context,{episodeId:current.row.episode_id,revision:current.row.revision});
+    }
+    if(['body_energy_results','body_energy_checkpoints'].includes(table))return receipts.forArtifact(context,table,key);
+    if(table===OPERATION_RECEIPT_TABLE)return core.run(context,async()=>{
+      const artifact=await core.artifact(context,table,key);await receipts.read(context,artifact.row);return artifact;
+    });
     if(table===RESULT_AUTHORITY_TABLE)return core.run(context,async()=>{
       const artifact=await core.artifact(context,table,key);
       await createResultAuthority(core).read(context,artifact.row.evidence_item_id,artifact.row.result_scope);
+      await receipts.forArtifact(context,table,key,{verifyOnly:true});
       return artifact;
     });
     if(table!=='phase4_episode_revisions')return core.artifact(context,table,key);
     return core.run(context,async()=>{
       const artifact=await core.artifact(context,table,key);
+      await receipts.forArtifact(context,'observation_episodes',{},
+        {episodeId:artifact.row.episode_id,revision:artifact.row.revision,verifyOnly:true});
       await episodes.readRevision(context,{episodeId:artifact.row.episode_id,revision:artifact.row.revision});
       return artifact;
     });
@@ -78,7 +137,10 @@ export function composePhase4Stores(core) {
       await core.assertControl(control);return preferences(control);
     });
   }
-  return Object.freeze({initializeTenant,capture:core.capture,captureControl:core.captureControl,capturePrivacyControl:core.capturePrivacyControl,
+  return Object.freeze({initializeTenant,withContext:async(userId,options,work)=>{
+      const context=await core.capture(userId,options);
+      try{return await work(context);}finally{await transaction(()=>core.contextRegistry.release(context));}
+    },capture:core.capture,captureControl:core.captureControl,capturePrivacyControl:core.capturePrivacyControl,
     assertCurrent:context=>core.assertContext(context),root:core.root,readArtifact,
     release:context=>transaction(()=>core.contextRegistry.release(context)),
     cache:Object.freeze({
@@ -86,14 +148,40 @@ export function composePhase4Stores(core) {
       set:(context,key,value)=>core.run(context,()=>{core.contextRegistry.set(context,key,value);}),
     }),
     privacy:Object.freeze({admit:privacy.admit,redact:privacy.redact,complete:privacy.complete,status:privacy.status}),
-    episodes:Object.freeze(episodes),
-    intelligence,
-    insights:Object.freeze(insights),
+    episodes:Object.freeze({...episodes,read:(context,id)=>readArtifact(context,'observation_episodes',{episode_id:id}),
+      readRevision:(context,request)=>core.run(context,async()=>{
+        await receipts.forArtifact(context,'observation_episodes',{},
+          {episodeId:request.episodeId,revision:request.revision,verifyOnly:true});
+        return episodes.readRevision(context,request);
+      }),...Object.fromEntries(['open','revise','reverse','refresh','semantic']
+      .map(name=>[name,owned(episodes[name])]))}),
+    intelligence:Object.freeze(Object.fromEntries(Object.entries(intelligence).map(([name,fn])=>[name,operation(name,fn)]))),
+    insights:Object.freeze({...insights,read:(context,id,options)=>core.run(context,async()=>{
+      const current=await insights.read(context,id,options);
+      const sealed=await receipts.forArtifact(context,'health_insights',{id},{expectedRevision:current.row.current_revision});
+      if(sealed.row.current_revision!==current.row.current_revision)fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
+      return sealed;
+    }),create:owned(insights.create),transition:owned(insights.transition)}),
     messages:Object.freeze({propose:messages.propose,readReservation:messages.readReservation,simulate:messages.simulate}),
     slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle','answer','resolveValidated'].includes(name)))),
     transport:Object.freeze(createPhase4TransportStore(core,entities,{start:slots.transportStart,settle:slots.transportSettle})),
     experiments:Object.freeze(experiments),
-    bodyEnergy:createBodyEnergyStore(core,entities,queue),
+    bodyEnergy:Object.freeze({prepare:body.prepare,compute:bodyCompute,checkpoint:bodyCheckpoint,
+      persist:(context,ticket)=>operation('BODY_ENERGY_COMPUTE',(context,request)=>newBody(context,request,()=>body.persist(context,ticket)))(context,body.describeTicket(context,ticket)),
+      read:(context,id)=>readArtifact(context,'body_energy_results',{result_id:id}),
+      audit:(context,id)=>core.run(context,async()=>{
+        const result=await body.audit(context,id);
+        await receipts.forArtifact(context,'body_energy_results',{result_id:id},{verifyOnly:true,retainedBody:true});return result;
+      }),
+      readExact:(context,request)=>core.run(context,async()=>{
+        const result=await body.readExact(context,request);
+        await receipts.forArtifact(context,'body_energy_results',{result_id:result.row.result_id},{verifyOnly:true,retainedBody:true});return result;
+      }),
+      auditCheckpoint:(context,id)=>core.run(context,async()=>{
+        const result=await body.auditCheckpoint(context,id);
+        await receipts.forArtifact(context,'body_energy_checkpoints',{checkpoint_id:id},{verifyOnly:true,retainedBody:true});return result;
+      }),
+    }),
     journal:Object.freeze(Object.fromEntries(Object.entries(journal).filter(([name])=>!['prepareAnswer','forAnswer'].includes(name)))),
     journalInbound:Object.freeze({capture:journalInbound.capture,process:journalInbound.process,route:journalInbound.route}),
     journalCoverage:Object.freeze({read:coverage.read,correct:coverage.correct,remove:coverage.remove}),journalAnswers:Object.freeze(journalAnswers),

@@ -12,6 +12,13 @@ const nowIso = (d = new Date()) => d.toISOString();
 const rowsOf = (rs) => rs.rows.map((r) => ({ ...r }));
 
 export function createAnalysisStore(client) {
+  async function legacyInsightScope() {
+    // Production may still be at v20. Inspect the installed shape on each
+    // operation so a store created before migration also observes new fences.
+    const names=new Set((await client.execute('PRAGMA table_info(health_insights)')).rows.map(row=>row.name));
+    return (names.has('legacy_classification')?" AND legacy_classification IS NOT 'PHASE4'":'')
+      +(names.has('content_state')?" AND content_state IS NOT 'REDACTED'":'');
+  }
   // -------------------------------------------------------------------------
   // Healthspan
   // -------------------------------------------------------------------------
@@ -309,7 +316,7 @@ export function createAnalysisStore(client) {
     // 否則會出現兩列 supersedes_id 相同、而且都是 active 的分叉狀態。
     const retire = await client.execute({
       sql: `UPDATE health_insights SET status = 'RETIRED', retired_at = ?
-             WHERE user_id = ? AND id = ? AND status != 'RETIRED'`,
+             WHERE user_id = ? AND id = ?${await legacyInsightScope()} AND status != 'RETIRED'`,
       args: [nowIso(now), uid, oldId],
     });
     if (Number(retire.rowsAffected ?? 0) === 0) {
@@ -352,7 +359,7 @@ export function createAnalysisStore(client) {
                    effect_size = COALESCE(?, effect_size),
                    confidence = COALESCE(?, confidence),
                    last_confirmed_at = ?, last_recalculated_at = ?
-             WHERE user_id = ? AND id = ? AND status != 'RETIRED'`,
+             WHERE user_id = ? AND id = ?${await legacyInsightScope()} AND status != 'RETIRED'`,
       args: [
         next.statement ?? null,
         next.evidence ? JSON.stringify(next.evidence) : null,
@@ -369,7 +376,7 @@ export function createAnalysisStore(client) {
       sql: `UPDATE health_insights
                SET status = ?, last_recalculated_at = ?,
                    retired_at = CASE WHEN ? = 'RETIRED' THEN ? ELSE retired_at END
-             WHERE user_id = ? AND id = ?`,
+             WHERE user_id = ? AND id = ?${await legacyInsightScope()}`,
       args: [status, nowIso(now), status, nowIso(now), uid, id],
     });
     return Number(rs.rowsAffected ?? 0) > 0;
@@ -378,7 +385,7 @@ export function createAnalysisStore(client) {
   async function getInsight(userId, id) {
     const uid = requireUserId(userId, 'getInsight');
     const rs = await client.execute({
-      sql: 'SELECT * FROM health_insights WHERE user_id = ? AND id = ?',
+      sql: `SELECT * FROM health_insights WHERE user_id = ? AND id = ?${await legacyInsightScope()}`,
       args: [uid, id],
     });
     return rs.rows[0] ? { ...rs.rows[0] } : null;
@@ -389,13 +396,13 @@ export function createAnalysisStore(client) {
     const rs = subject
       ? await client.execute({
         sql: `SELECT * FROM health_insights
-               WHERE user_id = ? AND status NOT IN ('RETIRED') AND subject = ?
+               WHERE user_id = ?${await legacyInsightScope()} AND status NOT IN ('RETIRED') AND subject = ?
                ORDER BY id DESC`,
         args: [uid, subject],
       })
       : await client.execute(
         {
-          sql: `SELECT * FROM health_insights WHERE user_id = ? AND status NOT IN ('RETIRED')
+          sql: `SELECT * FROM health_insights WHERE user_id = ?${await legacyInsightScope()} AND status NOT IN ('RETIRED')
                  ORDER BY id DESC`,
           args: [uid],
         },

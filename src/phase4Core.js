@@ -8,6 +8,7 @@ import { requirePhase4Keys } from './phase4Keys.js';
 import { requireUserId } from './userContext.js';
 import { addPrivacyLink } from './phase4V22Backfill.js';
 import { V23_TABLES } from './phase4V23Schema.js';
+import { V27_TABLES } from './phase4V27Schema.js';
 import { V26_TABLES } from './phase4V26Schema.js';
 import { V25_TABLES } from './phase4V25Schema.js';
 import { V24_TABLES } from './phase4V24Schema.js';
@@ -23,7 +24,7 @@ export const requireInteger = (value, minimum=0) => {
 };
 export const readableRow = row => Boolean(row && row.content_state==='PRESENT'
   && row.source_linkage_state==='COMPLETE' && row.health_content_redacted_at===null);
-export const DERIVED_TABLES = Object.freeze(['context_questions','structured_answer_events',...V23_TABLES,'health_insights',...V24_TABLES,...V25_TABLES,...V26_TABLES]);
+export const DERIVED_TABLES = Object.freeze(['context_questions','structured_answer_events',...V23_TABLES,'health_insights',...V24_TABLES,...V25_TABLES,...V26_TABLES,...V27_TABLES]);
 const ROOTS = Object.freeze({
   sleep:['whoop_sleeps','id'],recovery:['whoop_recoveries','sleep_id'],cycle:['whoop_cycles','id'],workout:['whoop_workouts','id'],
   JOURNAL_FACT:['journal_events','privacy_artifact_id'],JOURNAL_COVERAGE:['journal_coverage_windows','coverage_window_id'],
@@ -194,7 +195,10 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
       } else {
         if(!readableRow(row))fail('CONTENT_REDACTED');
         if(type==='JOURNAL_FACT' && row.fact_status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');
-        if(type==='JOURNAL_COVERAGE' && row.status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');
+        if(type==='JOURNAL_COVERAGE') {
+          if(row.status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');
+          await coverageLineage(client,context.userId,id);
+        }
         if(type==='EXPERIMENT_DIRECT_ASSERTION' && (row.is_current!==1 || row.provenance_state!=='DIRECT'
           || row.source_kind!=='EXPERIMENT_DIRECT_ASSERTION'))fail('PHASE4_UNPROVEN_ASSERTION');
       }
@@ -359,5 +363,5 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
   }
   return Object.freeze({client,processing,transaction,keys,now,timestamp,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
     capturePrivacyControl,assertPrivacyControl,run,runControl,runMaintenance,contextRegistry,
-    tableInfo,root,artifact,link,envelope,validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});
+    tableInfo,root,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});
 }

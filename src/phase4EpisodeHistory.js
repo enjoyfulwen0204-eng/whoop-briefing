@@ -15,16 +15,10 @@ const eventProjection = row => Object.fromEntries(Object.entries(row).filter(([k
 const invalid=()=>fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 
-export function requireSemanticTime(value) {
-  if(value===null||value===undefined||value==='')fail('PHASE4_SEMANTIC_TIME_REQUIRED');
-  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
-    ||!Number.isFinite(Date.parse(value)))fail('PHASE4_SEMANTIC_TIME_INVALID');
-  const date=value.slice(0,10);
-  if(new Date(`${date}T00:00:00.000Z`).toISOString().slice(0,10)!==date)fail('PHASE4_SEMANTIC_TIME_INVALID');
-  return new Date(value).toISOString();
-}
+export { semanticTime as requireSemanticTime } from './phase4Time.js';
+import { semanticTime as requireSemanticTime } from './phase4Time.js';
 
-export function createEpisodeHistory(core) {
+export function createEpisodeHistory(core,{operationAuthority=null}={}) {
   const {client,keys}=core,table='phase4_episode_revisions',authorities=createResultAuthority(core);
   async function validateEpisode(row) {
     const fields=(await core.tableInfo('observation_episodes')).filter(c=>!excluded.has(c.name));
@@ -98,7 +92,14 @@ export function createEpisodeHistory(core) {
       // The sealed snapshot identifies the result's evidence; mutable registration
       // metadata never decides whether v26 is required. Later reuse may still
       // refer to its authentic original revision.
-      if(row.episode_type==='METRIC_DEVIATION')await authorities.metricOrigin(context,row.latest_evidence_item_id,{episodeId});
+      if(row.episode_type==='METRIC_DEVIATION') {
+        // A new direct lifecycle operation owns its origin through v27. Its
+        // evidence may legitimately have originated in another calculation.
+        // Without that authenticated operation, the frozen v25/v26 origin
+        // requirement remains unchanged, including explicit evidence reads.
+        const direct=operationAuthority?await operationAuthority(context,episodeId,revision):false;
+        if(!direct)await authorities.metricOrigin(context,row.latest_evidence_item_id,{episodeId});
+      }
       const event=await origin(context,episodeId,revision,found.episode_event_id);
       if(!same(eventProjection(event),snapshot.event)||event.to_state!==row.state||event.input_generation!==row.input_generation)invalid();
       const artifact=await core.artifact(context,table,{episode_id:episodeId,revision});

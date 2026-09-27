@@ -66,7 +66,7 @@ export function processingTransactions(base) {
     for (let attempt = 0; attempt < 12; attempt++) {
       const releaseRoot=await acquireRoot();
       let tx;
-      const state = { tx:null, cache, checks: after ? [after] : [], failure: null, deferred: null, committed: [] };
+      const state = { tx:null, cache, checks: after ? [after] : [], failure: null, deferred: null, committed: [], completed: [] };
       try {
         tx=await base.transaction('write');state.tx=tx;
         const result = await scope.run(state, async () => {
@@ -84,7 +84,10 @@ export function processingTransactions(base) {
       } catch (error) {
         try { await tx?.rollback(); } catch { /* closed/rolled back by storage */ }
         if (!state.deferred) throw error;
-      } finally { try {tx?.close();} finally {releaseRoot();} }
+      } finally {
+        try {tx?.close();} finally {releaseRoot();}
+        for(const cleanup of state.completed)await cleanup();
+      }
       const { key, call } = state.deferred;
       cache.set(key, await call());
     }
@@ -95,5 +98,10 @@ export function processingTransactions(base) {
     if (state) { state.committed.push(fn); return; }
     return fn();
   }
-  return { client, transaction, outside, afterCommit, active: () => Boolean(scope.getStore()) };
+  function afterCompletion(fn) {
+    const state=scope.getStore();
+    if(state){state.completed.push(fn);return;}
+    return fn();
+  }
+  return { client, transaction, outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
 }

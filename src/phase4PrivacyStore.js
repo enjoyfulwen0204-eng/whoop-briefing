@@ -1,10 +1,9 @@
-import { createResultAuthority } from './phase4ResultAuthority.js';
+import { stage5PrivacyIndex } from './phase4Stage5Privacy.js';
 import { fail } from './phase4Core.js';
 import { assertPhase4Schema } from './phase4Migrations.js';
 import { createPhase4Redactor } from './phase4Redaction.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { addPrivacyLink } from './phase4V22Backfill.js';
-import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 
 const nodeKey=n=>JSON.stringify([n.mode,n.type,n.id]);
 const toNode=row=>({mode:row.artifact_execution_mode,type:row.artifact_type,id:row.artifact_id});
@@ -151,24 +150,8 @@ export function createPhase4PrivacyStore(core,queue) {
   async function discover(userId,purge) {
     const seeds=await targetNodes(userId,purge.target_source_type,purge.target_source_id,{alreadyAdmitted:true});
     const links=[...(await client.execute({sql:`SELECT * FROM phase4_source_links WHERE user_id=?`,args:[userId]})).rows];
+    links.push(...await stage5PrivacyIndex(core,userId));
     const nodes=new Map(),frontier=[...seeds];
-    // The immutable closure is also a privacy index. Losing mutable naming
-    // edges must not strand the new authority's sensitive payload or result.
-    // These are traversal-only edges, never a repair/backfill of stored links.
-    const authorities=(await client.execute({sql:`SELECT * FROM ${RESULT_AUTHORITY_TABLE}
-      WHERE user_id=? AND content_state<>'REDACTED'`,args:[userId]})).rows;
-    const verifier=createResultAuthority(core);
-    for(const authority of authorities) {
-      const {roots,targets}=await verifier.privacyDependencies(userId,authority);
-      const authorityNode={mode:authority.execution_mode,type:RESULT_AUTHORITY_TABLE,id:authority.privacy_artifact_id};
-      const edge=(target,source)=>links.push({artifact_execution_mode:target.mode,artifact_type:target.type,artifact_id:target.id,
-        source_execution_mode:source.mode,source_type:source.type,source_id:source.id});
-      for(const root of [...roots,{mode:authority.execution_mode,type:'evidence_items',
-        id:targets.find(t=>t.type==='evidence_items').id}])edge(authorityNode,root);
-      // Factor the virtual graph through the authority instead of multiplying
-      // every root by every owned revision. Nothing is written to source_links.
-      for(const target of targets)if(nodeKey(target)!==nodeKey(authorityNode))edge(target,authorityNode);
-    }
     for(const link of links)if(link.source_type==='TENANT_LEGACY' && link.source_execution_mode==='SHARED' && link.source_id===userId)
       frontier.push(toNode(link));
     while(frontier.length) {
@@ -301,6 +284,7 @@ export function createPhase4PrivacyStore(core,queue) {
   async function verify(control,purgeId) {
     await ledger(control,purgeId);
     await redactor.verifyNoUnclassifiedPlaintext(control.userId);
+    await stage5PrivacyIndex(core,control.userId,{verifyRemaining:true});
     const targets=(await client.execute({sql:'SELECT * FROM health_purge_targets WHERE user_id=? AND purge_id=?',args:[control.userId,purgeId]})).rows;
     if(!targets.length || targets.some(r=>r.state==='PENDING'))fail('PHASE4_PURGE_INCOMPLETE');
     for(const target of targets) {

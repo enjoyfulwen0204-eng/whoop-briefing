@@ -1,0 +1,57 @@
+[
+  {
+    "file": "test/phase4-stage5-final-fixture.test.js",
+    "code": 0,
+    "signal": null,
+    "classification": "PASS",
+    "timeoutMs": 300000,
+    "tests": 12,
+    "passed": 12,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "assertionFailures": [],
+    "durationMs": 24371,
+    "log": "history/initial-fixture--phase4-stage5-final-fixture.test.tap",
+    "batch": "initial-fixture"
+  },
+  {
+    "file": "test/phase4-stage5-final-predecessor.test.js",
+    "code": 1,
+    "signal": null,
+    "classification": "ASSERTION_FAILURE",
+    "timeoutMs": 300000,
+    "tests": 13,
+    "passed": 10,
+    "failed": 3,
+    "cancelled": 0,
+    "skipped": 0,
+    "assertionFailures": [
+      "M006: direct missing/corrupt terminal receipt/revision and redacted predecessor fail closed",
+      "M006: association missing/corrupt terminal receipt/revision and redacted predecessor fail closed",
+      "M006: actual Journal purge redacts terminal history and blocks linked successor/replay"
+    ],
+    "durationMs": 131395,
+    "log": "history/initial-predecessor--phase4-stage5-final-predecessor.test.tap",
+    "batch": "initial-predecessor"
+  },
+  {
+    "file": "test/phase4-stage5-final-predecessor.test.js",
+    "code": 1,
+    "signal": null,
+    "classification": "ASSERTION_FAILURE",
+    "timeoutMs": 300000,
+    "tests": 13,
+    "passed": 11,
+    "failed": 2,
+    "cancelled": 0,
+    "skipped": 0,
+    "assertionFailures": [
+      "M006: direct missing/corrupt terminal receipt/revision and redacted predecessor fail closed",
+      "M006: association missing/corrupt terminal receipt/revision and redacted predecessor fail closed"
+    ],
+    "durationMs": 140774,
+    "log": "history/gate--phase4-stage5-final-predecessor.test.tap",
+    "batch": "gate"
+  }
+]

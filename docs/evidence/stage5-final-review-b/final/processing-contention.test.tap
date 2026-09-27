@@ -1,0 +1,36 @@
+TAP version 13
+# Subtest: M003: admission/commit contention does not repeat the application callback
+ok 1 - M003: admission/commit contention does not repeat the application callback
+  ---
+  duration_ms: 55.011208
+  type: 'test'
+  ...
+# (node:60442) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: M003: non-contention error runs once and rolls back; no arbitrary callback retry
+ok 2 - M003: non-contention error runs once and rolls back; no arbitrary callback retry
+  ---
+  duration_ms: 0.605666
+  type: 'test'
+  ...
+# Subtest: M003: contention budget is finite even when the lock never clears
+ok 3 - M003: contention budget is finite even when the lock never clears
+  ---
+  duration_ms: 1.363875
+  type: 'test'
+  ...
+# Subtest: M003: read-only startup contention refreshes the idle local connection
+ok 4 - M003: read-only startup contention refreshes the idle local connection
+  ---
+  duration_ms: 25.758333
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 170.367417

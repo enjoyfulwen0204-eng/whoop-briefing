@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: T002: isolated RC6 metric-null fixture 1/12
+ok 1 - T002: isolated RC6 metric-null fixture 1/12
+  ---
+  duration_ms: 2211.534875
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59727,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 2/12
+ok 2 - T002: isolated RC6 metric-null fixture 2/12
+  ---
+  duration_ms: 2230.191083
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59740,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 3/12
+ok 3 - T002: isolated RC6 metric-null fixture 3/12
+  ---
+  duration_ms: 2070.0555
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59753,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 4/12
+ok 4 - T002: isolated RC6 metric-null fixture 4/12
+  ---
+  duration_ms: 2249.9895
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59765,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 5/12
+ok 5 - T002: isolated RC6 metric-null fixture 5/12
+  ---
+  duration_ms: 2095.176833
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59776,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 6/12
+ok 6 - T002: isolated RC6 metric-null fixture 6/12
+  ---
+  duration_ms: 1965.793958
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59788,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 7/12
+ok 7 - T002: isolated RC6 metric-null fixture 7/12
+  ---
+  duration_ms: 1927.965084
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59799,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 8/12
+ok 8 - T002: isolated RC6 metric-null fixture 8/12
+  ---
+  duration_ms: 1939.903667
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59810,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 9/12
+ok 9 - T002: isolated RC6 metric-null fixture 9/12
+  ---
+  duration_ms: 2043.629208
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59821,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 10/12
+ok 10 - T002: isolated RC6 metric-null fixture 10/12
+  ---
+  duration_ms: 2048.442542
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59833,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 11/12
+ok 11 - T002: isolated RC6 metric-null fixture 11/12
+  ---
+  duration_ms: 2275.130083
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59845,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+# Subtest: T002: isolated RC6 metric-null fixture 12/12
+ok 12 - T002: isolated RC6 metric-null fixture 12/12
+  ---
+  duration_ms: 1775.607417
+  type: 'test'
+  ...
+# {"version":"8e377dc","shape":"metric-null","pid":59858,"status":0,"signal":null,"error":null,"orphan":false,"assertions":"COMPLETED","ownership":{"connections":0,"closeCalls":1,"cleanup":"CLOSED"}}
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 24951.246958

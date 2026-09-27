@@ -1,0 +1,26 @@
+TAP version 13
+# {"ts":"2026-09-27T17:00:56.736Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T17:00:56.740Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T17:00:58.418Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T17:00:58.420Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: F: discovery fetches scoped cap+1 and never calculates or writes on overflow
+ok 1 - F: discovery fetches scoped cap+1 and never calculates or writes on overflow
+  ---
+  duration_ms: 1923.854792
+  type: 'test'
+  ...
+# Subtest: K: root bounds reject complete overflows and deduplicate repeated dependencies
+ok 2 - K: root bounds reject complete overflows and deduplicate repeated dependencies
+  ---
+  duration_ms: 214.915875
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2404.371459

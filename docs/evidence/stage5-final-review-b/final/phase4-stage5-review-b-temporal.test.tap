@@ -1,0 +1,80 @@
+TAP version 13
+# {"ts":"2026-09-27T16:54:49.641Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:54:49.649Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:54:51.019Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:54:51.021Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:55:05.781Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:55:05.783Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:55:07.510Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:55:07.511Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M001: association selects current incarnation at expiry -1ms
+ok 1 - M001: association selects current incarnation at expiry -1ms
+  ---
+  duration_ms: 16147.44675
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:55:21.098Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:55:21.099Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:55:22.421Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:55:22.423Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M001: association selects current incarnation at expiry 0ms
+ok 2 - M001: association selects current incarnation at expiry 0ms
+  ---
+  duration_ms: 15322.039625
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:55:37.641Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:55:37.642Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:55:39.064Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:55:39.064Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M001: association selects current incarnation at expiry 1ms
+ok 3 - M001: association selects current incarnation at expiry 1ms
+  ---
+  duration_ms: 16540.995791
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:55:44.028Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:55:44.030Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:55:45.700Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:55:45.701Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M001: future-created incarnation is unavailable to a new past request; exact historical replay survives
+ok 4 - M001: future-created incarnation is unavailable to a new past request; exact historical replay survives
+  ---
+  duration_ms: 6386.122834
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:55:51.160Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:55:51.161Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:55:52.511Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:55:52.511Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M001: current selection checks authenticated times even if mutable timestamps are changed
+ok 5 - M001: current selection checks authenticated times even if mutable timestamps are changed
+  ---
+  duration_ms: 7131.299791
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:55:53.635Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:55:53.636Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:55:55.085Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:55:55.086Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M002: reopen predecessor lower bound, equality, bad time and exact replay
+ok 6 - M002: reopen predecessor lower bound, equality, bad time and exact replay
+  ---
+  duration_ms: 2478.276666
+  type: 'test'
+  ...
+# Subtest: M002: reversal predecessor lower bound, equality, bad time and exact replay
+ok 7 - M002: reversal predecessor lower bound, equality, bad time and exact replay
+  ---
+  duration_ms: 2646.303084
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 66922.033125

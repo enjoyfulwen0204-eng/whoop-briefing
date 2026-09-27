@@ -1,0 +1,25 @@
+TAP version 13
+# {"ts":"2026-09-27T17:02:04.969Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T17:02:04.973Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T17:02:07.207Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# Subtest: M003/N: equivalent normal-driver processes contend, replay one receipt and release every completed lease
+ok 1 - M003/N: equivalent normal-driver processes contend, replay one receipt and release every completed lease
+  ---
+  duration_ms: 7091.619708
+  type: 'test'
+  ...
+# Subtest: T001: timeout runner kills its test worker and grandchild, reports TIMEOUT
+ok 2 - T001: timeout runner kills its test worker and grandchild, reports TIMEOUT
+  ---
+  duration_ms: 1584.175542
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8919.688334

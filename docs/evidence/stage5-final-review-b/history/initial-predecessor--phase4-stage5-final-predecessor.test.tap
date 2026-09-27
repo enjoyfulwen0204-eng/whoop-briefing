@@ -1,0 +1,186 @@
+TAP version 13
+# {"ts":"2026-09-27T16:45:50.341Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:45:50.344Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:45:52.168Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:45:52.171Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:45:58.860Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:45:58.862Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:46:00.730Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:46:00.731Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct before sealed boundary
+ok 1 - M006: direct before sealed boundary
+  ---
+  duration_ms: 8520.304041
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:46:08.325Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:46:08.327Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:46:09.952Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:46:09.953Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct equal sealed boundary
+ok 2 - M006: direct equal sealed boundary
+  ---
+  duration_ms: 9454.891
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:46:18.080Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:46:18.082Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:46:20.204Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:46:20.204Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct after sealed boundary
+ok 3 - M006: direct after sealed boundary
+  ---
+  duration_ms: 9766.980334
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:46:28.472Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:46:28.473Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:46:30.019Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:46:30.020Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct mutable later than sealed
+ok 4 - M006: direct mutable later than sealed
+  ---
+  duration_ms: 10393.187083
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:46:35.768Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:46:35.769Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:46:37.301Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:46:37.302Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct missing/corrupt terminal receipt/revision and redacted predecessor fail closed
+not ok 5 - M006: direct missing/corrupt terminal receipt/revision and redacted predecessor fail closed
+  ---
+  duration_ms: 7294.045292
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-final-predecessor.test.js:49:3'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_CONSTRAINT_CHECK: CHECK constraint failed: receipt_hmac IS NULL OR length(receipt_hmac)=64'
+  code: 'SQLITE_CONSTRAINT_CHECK'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Client.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:81:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:49:105)
+    async guards (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ReviewBFixture.js:5:14)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-final-predecessor.test.js:57:9)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-27T16:46:45.025Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:46:45.026Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:46:46.365Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:46:46.365Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct historical exact replay survives terminal chronology and mutable timestamp drift
+ok 6 - M006: direct historical exact replay survives terminal chronology and mutable timestamp drift
+  ---
+  duration_ms: 9262.89125
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:46:53.418Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:46:53.420Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:46:55.293Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:46:55.294Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association before sealed boundary
+ok 7 - M006: association before sealed boundary
+  ---
+  duration_ms: 8385.391792
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:47:05.145Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:47:05.147Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:47:06.673Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:47:06.674Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association equal sealed boundary
+ok 8 - M006: association equal sealed boundary
+  ---
+  duration_ms: 11727.36375
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:47:16.906Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:47:16.907Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:47:18.998Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:47:19.000Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association after sealed boundary
+ok 9 - M006: association after sealed boundary
+  ---
+  duration_ms: 11762.162708
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:47:29.893Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:47:29.895Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:47:31.695Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:47:31.695Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association mutable later than sealed
+ok 10 - M006: association mutable later than sealed
+  ---
+  duration_ms: 12989.857334
+  type: 'test'
+  ...
+# {"ts":"2026-09-27T16:47:38.127Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:47:38.129Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:47:39.844Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:47:39.845Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association missing/corrupt terminal receipt/revision and redacted predecessor fail closed
+not ok 11 - M006: association missing/corrupt terminal receipt/revision and redacted predecessor fail closed
+  ---
+  duration_ms: 8231.14775
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-final-predecessor.test.js:49:3'
+  failureType: 'testCodeFailure'
+  error: 'SQLITE_CONSTRAINT_CHECK: CHECK constraint failed: receipt_hmac IS NULL OR length(receipt_hmac)=64'
+  code: 'SQLITE_CONSTRAINT_CHECK'
+  name: 'LibsqlError'
+  stack: |-
+    mapSqliteError (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:392:16)
+    executeStmt (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:297:15)
+    Sqlite3Client.execute (file:///Users/kelvin/Desktop/whoop-briefing/node_modules/@libsql/client/lib-esm/sqlite3.js:81:16)
+    Proxy.value (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:49:105)
+    async guards (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ReviewBFixture.js:5:14)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-final-predecessor.test.js:57:9)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-27T16:47:53.099Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-27T16:47:53.101Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-27T16:47:55.435Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-27T16:47:55.436Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association historical exact replay survives terminal chronology and mutable timestamp drift
+ok 12 - M006: association historical exact replay survives terminal chronology and mutable timestamp drift
+  ---
+  duration_ms: 14944.401875
+  type: 'test'
+  ...
+# Subtest: M006: actual Journal purge redacts terminal history and blocks linked successor/replay
+not ok 13 - M006: actual Journal purge redacts terminal history and blocks linked successor/replay
+  ---
+  duration_ms: 8295.822958
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-final-predecessor.test.js:84:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '[HEALTH_CONTENT_REDACTED]'
+    - null
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: '[HEALTH_CONTENT_REDACTED]'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-final-predecessor.test.js:91:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 10
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 131322.049542

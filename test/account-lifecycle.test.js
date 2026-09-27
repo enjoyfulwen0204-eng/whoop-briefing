@@ -181,10 +181,10 @@ test('LIFE-GEN-02 ★★★ updateUser 不可以改 status（沒有繞過世代�
   } finally { e.done(); }
 });
 
-test('LIFE-GEN-03 遷移：既有使用者一律從世代 1 開始，schema 為 v17', async () => {
+test('LIFE-GEN-03 遷移：既有使用者一律從世代 1 開始，schema 為 v27', async () => {
   const e = await env();
   try {
-    assert.equal(SCHEMA_VERSION, 26);
+    assert.equal(SCHEMA_VERSION, 27);
     const user = await authorize(e.db, A_CHAT);
     assert.equal(await lifeOf(e.db, user.id), 1);
     // 重跑遷移是冪等的，而且不動世代

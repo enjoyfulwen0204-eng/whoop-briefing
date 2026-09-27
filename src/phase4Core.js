@@ -298,9 +298,16 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     if(!links.length)fail('PHASE4_INCOMPLETE_PROVENANCE');
     for(const link of links) {
       if(link.source_execution_mode==='SHARED') {
+        // One read-only traversal can reach the same root through many evidence
+        // revisions. Verify each root/as-of pair once within this traversal;
+        // never cache across calls, writes, contexts, or transactions.
+        const shared=JSON.stringify(['SHARED',link.source_type,link.source_id,
+          link.relationship.startsWith('DEPENDS_ON_AS_OF:')?link.relationship:null]);
+        if(verified.has(shared))continue;
         if(link.relationship.startsWith('DEPENDS_ON_AS_OF:'))await validateHistoricalJournal(context,{type:link.source_type,
           id:link.source_id,mode:'SHARED',historicalAsOf:link.relationship.slice('DEPENDS_ON_AS_OF:'.length),row:null});
         else await root(context,link.source_type,link.source_id);
+        verified.add(shared);
       }
       else {
         if(link.source_execution_mode!==context.executionMode || !DERIVED_TABLES.includes(link.source_type))fail('PHASE4_MIXED_MODE_PARENT');

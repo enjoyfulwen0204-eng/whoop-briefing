@@ -1,5 +1,21 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
+// Retry admission and COMMIT, never an application callback. Admission reads
+// the winner's receipt under a fresh lock; a busy COMMIT keeps its existing
+// transaction. Cleanup transactions use the same finite contention bound.
+async function retryContention(call,{afterBusy}={}) {
+  const deadline=Date.now()+15000;
+  for(let attempt=0;;attempt++) {
+    try {return await call();}
+    catch(error) {
+      const busy=[error,error.cause].some(value=>value&&/^(SQLITE_BUSY|SQLITE_LOCKED)(_|$)/.test(value.code??''));
+      if(!busy||attempt>=64||Date.now()>=deadline)throw error;
+      if(afterBusy)await afterBusy();
+      await new Promise(resolve=>setTimeout(resolve,Math.min(25*2**Math.min(attempt,4),250,deadline-Date.now())));
+    }
+  }
+}
+
 /** All stores share this executor, so a processing transaction includes every
  * database side effect, even writes hidden behind a store/helper function. */
 export function processingTransactions(base) {
@@ -10,6 +26,7 @@ export function processingTransactions(base) {
   // provider work. Nested calls continue to share the active transaction.
   let rootTail=Promise.resolve();
   const executorOverrides=new Map();
+  const refreshIdleConnection=base.protocol==='file'&&typeof base.reconnect==='function'?()=>base.reconnect():undefined;
   async function acquireRoot() {
     const prior=rootTail;let release;
     rootTail=new Promise(resolve=>{release=resolve;});await prior;return release;
@@ -23,7 +40,14 @@ export function processingTransactions(base) {
         const state = scope.getStore();
         if (state?.failure) throw state.failure;
         const release=state?null:await acquireRoot();
-        try { return await (state ? state.tx[key](...args) : method(...args)); }
+        try {
+          if(state)return await state.tx[key](...args);
+          const sql=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
+          // Foundation/schema reads can overlap another process's writer even
+          // before a request lease exists. Retry only these read-only statements.
+          const readOnly=/^\s*(SELECT\b|PRAGMA\s+(table_info|database_list|index_list|index_info|foreign_key_list|integrity_check|foreign_key_check)\b)/i.test(sql);
+          return await (readOnly?retryContention(()=>method(...args),{afterBusy:refreshIdleConnection}):method(...args));
+        }
         catch (error) { if (state) state.failure = error; throw error; }
         finally {release?.();}
         };
@@ -68,14 +92,19 @@ export function processingTransactions(base) {
       let tx;
       const state = { tx:null, cache, checks: after ? [after] : [], failure: null, deferred: null, committed: [], completed: [] };
       try {
-        tx=await base.transaction('write');state.tx=tx;
+        tx=await retryContention(()=>base.transaction('write'),{
+          // A failed local BEGIN can retain an unfinished native statement.
+          // No transaction/callback exists yet, so discard that idle connection
+          // before re-admission; never reconnect an active transaction.
+          afterBusy:refreshIdleConnection,
+        });state.tx=tx;
         const result = await scope.run(state, async () => {
           if (before) await before(client);
           const result = await fn();
           if (state.failure) throw state.failure;
           for (const check of state.checks) await check(client);
           if (state.failure) throw state.failure;
-          await tx.commit();
+          await retryContention(()=>tx.commit());
           return result;
         });
         tx.close();tx=null;releaseRoot();

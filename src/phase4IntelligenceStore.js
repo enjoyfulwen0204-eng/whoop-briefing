@@ -19,7 +19,7 @@ const validHealthDate = value => typeof value==='string' && /^\d{4}-\d{2}-\d{2}$
 const sourceTimestamp = row => row.as_of_utc ?? row.end_at ?? row.updated_at ?? row.created_at ?? row.synced_at ?? null;
 const ingestedTimestamp = row => row.synced_at ?? row.created_at ?? row.as_of_utc ?? null;
 
-export function createPhase4IntelligenceStore(core, entities, episodes, insights) {
+export function createPhase4IntelligenceStore(core, entities, episodes, insights,{producedEvidence=()=>{}}={}) {
   const {client,keys}=core,authorities=createResultAuthority(core);
   function sourceValue(metricKey, source, context, asOfUtc) {
     const contract=phase4Metric(metricKey),row=source.row;
@@ -157,6 +157,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     const item=await entities.append(context,'evidence_items',{...itemData,run_id:run.row.run_id},sourceSet.refs);
     const storedConfidence=durableConfidence(item);
     if(canonicalJson(storedConfidence)!==canonicalJson(plan.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
+    if(!runRow&&item.created)producedEvidence(context,{run,item});
     return {run,item,inputHash,confidence:storedConfidence};
   }
   async function linkMembership(context,episode,item,sourceSet,calculation,confidence) {
@@ -462,10 +463,24 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     return keys.lookup(['insight-key-v1',context.userId,...['subject','outcome','direction','exposureCategory','algorithmFamily','evidenceContractMajor']
       .map(key=>normalized(identity[key]))]);
   }
-  async function currentInsight(context,identity) {
+  async function currentInsight(context,identity,asOfUtc,{replaceExpired=false}={}) {
     const row=(await client.execute({sql:`SELECT * FROM health_insights WHERE user_id=? AND execution_mode=? AND insight_key=?
       AND status<>'RETIRED' AND legacy_classification='PHASE4'`,args:[context.userId,context.executionMode,insightKey(context,identity)]})).rows[0];
-    return row?insights.read(context,row.id,{history:true}):null;
+    if(!row)return null;
+    const at=Date.parse(requireSemanticTime(asOfUtc));
+    // A new past request cannot borrow a future incarnation/revision. Exact
+    // historical requests have already returned through the receipt boundary.
+    if(Date.parse(requireSemanticTime(row.first_detected_at))>at
+      ||Date.parse(requireSemanticTime(row.last_recalculated_at??row.first_detected_at))>at) {
+      if(replaceExpired)fail('PHASE4_INSIGHT_AS_OF_UNAVAILABLE');
+      return null;
+    }
+    if(row.lifecycle_disposition)fail('PHASE4_INSIGHT_NOT_CURRENT');
+    if(Date.parse(requireSemanticTime(row.expires_at))<=at) {
+      if(replaceExpired)await expireInsight(context,{insightId:row.id,asOfUtc});
+      return null;
+    }
+    return insights.read(context,row.id,{asOfUtc});
   }
   function revisionEvidenceIds(row,field) {
     let ids;try {ids=JSON.parse(row[field]??'[]');}catch {fail('PHASE4_INSIGHT_POINTER_INVALID');}
@@ -499,7 +514,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     : `${hypothesis.factor} may be associated with ${direction.toLowerCase()} ${hypothesis.outcomeMetric}; we are still checking.`;
   async function reviseContradiction(context,hypothesis,analysis,item,asOfUtc) {
     if(!analysis.repeated||durableConfidence(item).score<.5)return null;
-    const opposite=analysis.direction==='HIGHER'?'LOWER':'HIGHER',existing=await currentInsight(context,insightIdentity(hypothesis,opposite));
+    const opposite=analysis.direction==='HIGHER'?'LOWER':'HIGHER',existing=await currentInsight(context,insightIdentity(hypothesis,opposite),asOfUtc);
     if(!existing)return null;
     const base={insightId:existing.row.id,expectedRevision:existing.row.current_revision,claim:existing.row.statement,
       contradictingEvidenceIds:[item.row.evidence_item_id]};
@@ -512,11 +527,14 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     const confidence=durableConfidence(item),promotionReady=confidence.score>=.5;
     const identity=insightIdentity(hypothesis,analysis.direction),claim=associationClaim(hypothesis,analysis.direction,'HYPOTHESIS');
     const contradiction=await reviseContradiction(context,hypothesis,analysis,item,asOfUtc);
-    let current=await currentInsight(context,identity);
+    let current=await currentInsight(context,identity,asOfUtc,{replaceExpired:true});
     if(!current) {
-      const predecessor=(await client.execute({sql:`SELECT id,retired_at FROM health_insights WHERE user_id=? AND execution_mode=?
+      const predecessors=(await client.execute({sql:`SELECT id,first_detected_at,retired_at FROM health_insights WHERE user_id=? AND execution_mode=?
         AND insight_key=? AND status='RETIRED' AND legacy_classification='PHASE4' ORDER BY id DESC LIMIT 1`,
-        args:[context.userId,context.executionMode,insightKey(context,identity)]})).rows[0];
+        args:[context.userId,context.executionMode,insightKey(context,identity)]})).rows;
+      const predecessor=predecessors[0];
+      if(predecessor&&(Date.parse(requireSemanticTime(predecessor.first_detected_at))>Date.parse(asOfUtc)
+        ||Date.parse(requireSemanticTime(predecessor.retired_at))>Date.parse(asOfUtc)))fail('PHASE4_INSIGHT_AS_OF_UNAVAILABLE');
       current=await insights.create(context,{identity,claim,evidenceContractVersion:INTELLIGENCE_VERSIONS.evidenceContract,
         supportingEvidenceIds:[item.row.evidence_item_id],creationKey:keys.lookup(['insight-incarnation-v1',insightKey(context,identity),
           predecessor?.id??null,item.row.evidence_item_id]),supersedesId:predecessor?.id??null,
@@ -622,6 +640,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
             outcome_missing_fraction_unexposed:analysis.missingOutcomeFractionUnexposed,soft_confound_fraction:analysis.confidence.components.softConfoundFraction}},familyRefs);
         if(durableReplay&&item.created)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
         if(canonicalJson(durableConfidence(item))!==canonicalJson(analysis.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
+        if(!durableReplay&&item.created)producedEvidence(context,{run,item});
         const insight=durableReplay?await replayAssociationInsight(context,hypothesis,analysis,item,request.asOfUtc)
           :await updateInsight(context,hypothesis,analysis,item,request.asOfUtc);
         if(!durableReplay) {

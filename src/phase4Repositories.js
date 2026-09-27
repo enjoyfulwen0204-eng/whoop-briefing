@@ -25,14 +25,18 @@ import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 export function composePhase4Stores(core) {
   const {client,transaction,timestamp}=core;
   const receipts=createOperationReceipts(core),discover=createLegacyDiscovery(core);
+  const contextScopes=new WeakSet();
+  async function finishContext(context) {
+    const cleanup=()=>transaction(()=>core.contextRegistry.release(context));
+    if(core.processing.active()) {
+      if(!core.processing.afterCompletion)fail('PHASE4_STRUCTURED_SCOPE_REQUIRED');
+      core.processing.afterCompletion(cleanup);
+    } else await cleanup();
+  }
   const owned=fn=>async(context,request)=>{
     try{return await fn(context,request);}
     finally {
-      const cleanup=()=>transaction(()=>core.contextRegistry.release(context));
-      if(core.processing.active()) {
-        if(!core.processing.afterCompletion)fail('PHASE4_STRUCTURED_SCOPE_REQUIRED');
-        core.processing.afterCompletion(cleanup);
-      } else await cleanup();
+      if(!contextScopes.has(context))await finishContext(context);
     }
   };
   const recorded=(kind,fn)=>(context,request)=>receipts.execute(context,kind,request,semanticRequest=>fn(context,semanticRequest),{discover});
@@ -53,7 +57,7 @@ export function composePhase4Stores(core) {
     const current=await insightStore.read(context,id,options);
     return receipts.forArtifact(context,'health_insights',{id},{expectedRevision:current.row.current_revision});
   }),create:recorded('INSIGHT_CREATE',insightStore.create),transition:recorded('INSIGHT_TRANSITION',insightStore.transition)};
-  const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights);
+  const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights,{producedEvidence:receipts.producedEvidence});
   const messages=createPhase4MessageStore(core,entities),slots=createPhase4SlotStore(core,entities,messages);
   const experiments=createPhase4ExperimentStore(core,privacy,queue);
   const journal=createPhase4JournalStore(core,privacy,queue),journalInbound=createPhase4JournalInbound(core,privacy,journal);
@@ -139,7 +143,8 @@ export function composePhase4Stores(core) {
   }
   return Object.freeze({initializeTenant,withContext:async(userId,options,work)=>{
       const context=await core.capture(userId,options);
-      try{return await work(context);}finally{await transaction(()=>core.contextRegistry.release(context));}
+      contextScopes.add(context);
+      try{return await work(context);}finally{contextScopes.delete(context);await finishContext(context);}
     },capture:core.capture,captureControl:core.captureControl,capturePrivacyControl:core.capturePrivacyControl,
     assertCurrent:context=>core.assertContext(context),root:core.root,readArtifact,
     release:context=>transaction(()=>core.contextRegistry.release(context)),

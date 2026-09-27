@@ -73,7 +73,10 @@ export function createPhase4InsightStore(core,entities) {
     return core.run(context,async()=>{
       const artifact=await core.artifact(context,'health_insights',{id:insightId});
       const r=artifact.row,semanticAt=history?null:requireSemanticTime(asOfUtc);
-      if(!history&&(r.status==='RETIRED'||r.lifecycle_disposition||Date.parse(r.expires_at)<=Date.parse(semanticAt)))fail('PHASE4_INSIGHT_NOT_CURRENT');
+      if(!history&&(r.status==='RETIRED'||r.lifecycle_disposition
+        ||Date.parse(requireSemanticTime(r.first_detected_at))>Date.parse(semanticAt)
+        ||Date.parse(requireSemanticTime(r.last_recalculated_at??r.first_detected_at))>Date.parse(semanticAt)
+        ||Date.parse(requireSemanticTime(r.expires_at))<=Date.parse(semanticAt)))fail('PHASE4_INSIGHT_NOT_CURRENT');
       const revision=await core.artifact(context,'insight_revisions',{insight_id:insightId,revision:r.current_revision});
       if(revision.row.status!==r.status||revision.row.lifecycle_disposition!==r.lifecycle_disposition)fail('PHASE4_INSIGHT_POINTER_INVALID');
       return {...artifact,revision:revision.row};

@@ -20,22 +20,24 @@ export function createPhase4EpisodeStore(core,entities,historyOptions={}) {
         || Object.values(identity).some(v=>typeof v!=='string'||!v||v.length>128))fail('PHASE4_EPISODE_IDENTITY_REQUIRED');
       const family=keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,identity.algorithmMajor,identity.subject,identity.windowFamily]);
       const fingerprint=keys.lookup(['episode-fingerprint-v1',family,identity.direction]);
+      if(reopensEpisodeId) {
+        const prior=(await current(context,reopensEpisodeId)).row;
+        if(prior.state!=='RESOLVED'||prior.fingerprint!==fingerprint||!prior.resolved_at
+          || Date.parse(at)-Date.parse(prior.resolved_at)>7*86400000)fail('PHASE4_INVALID_REOPEN');
+        requireChronology(at,requireSemanticTime(prior.resolved_at),core.now());
+      }
+      if(reversesEpisodeId) {
+        const prior=(await current(context,reversesEpisodeId)).row;
+        if(prior.state!=='RESOLVED'||prior.resolution_reason!=='DIRECTION_REVERSAL'||prior.episode_family_key!==family
+          || prior.direction===identity.direction)fail('PHASE4_INVALID_REVERSAL');
+        requireChronology(at,requireSemanticTime(prior.resolved_at),core.now());
+      }
       const active=(await client.execute({sql:`SELECT episode_id,fingerprint FROM observation_episodes
         WHERE user_id=? AND execution_mode=? AND episode_family_key=? AND state IN ('OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING')`,
         args:[context.userId,context.executionMode,family]})).rows[0];
       if(active) {
         if(active.fingerprint!==fingerprint)fail('PHASE4_DIRECTION_REVERSAL_TRANSACTION_REQUIRED');
         return {...await current(context,active.episode_id),created:false};
-      }
-      if(reopensEpisodeId) {
-        const prior=(await current(context,reopensEpisodeId)).row;
-        if(prior.state!=='RESOLVED'||prior.fingerprint!==fingerprint||!prior.resolved_at
-          || Date.parse(at)-Date.parse(prior.resolved_at)>7*86400000)fail('PHASE4_INVALID_REOPEN');
-      }
-      if(reversesEpisodeId) {
-        const prior=(await current(context,reversesEpisodeId)).row;
-        if(prior.state!=='RESOLVED'||prior.resolution_reason!=='DIRECTION_REVERSAL'||prior.episode_family_key!==family
-          || prior.direction===identity.direction)fail('PHASE4_INVALID_REVERSAL');
       }
       if(!data || data.state || data.revision || data.fingerprint || data.episode_family_key || data.last_question_id
         || data.last_delivered_notification_id || data.last_ambiguous_attempt_id || data.last_semantic_event_id)fail('PHASE4_EPISODE_OPEN_FIELDS');

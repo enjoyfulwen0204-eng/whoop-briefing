@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { fail, readableRow, DERIVED_TABLES } from './phase4Core.js';
 import { BODY_ENERGY } from './bodyEnergyRegistry.js';
 import { INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
@@ -33,6 +34,7 @@ const ordered=values=>[...new Map(values.map(value=>[canonicalJson(value),value]
 export function createOperationReceipts(core) {
   if(instances.has(core))return instances.get(core);
   const {client,keys}=core,authorities=createResultAuthority(core);
+  const producerScope=new AsyncLocalStorage();
   const identity=(context,kind,key)=>keys.lookup(['privacy-artifact-v1',TABLE,context.userId,context.executionMode,[kind,key]]);
   const seal=row=>keys.digest(row.content_digest_salt,canonicalJson([VERSION,Object.fromEntries(Object.entries(row)
     .filter(([key])=>!['receipt_hmac','health_content_redacted_at','health_content_redaction_reason','source_subject_deleted_at'].includes(key)))]));
@@ -88,8 +90,8 @@ export function createOperationReceipts(core) {
         }
         return values;
       }
-      const result={};for(const [name,entry] of Object.entries(value))result[name]=await visit(entry,name);
-      return result;
+      const entries=[];for(const [name,entry] of Object.entries(value))entries.push([name,await visit(entry,name)]);
+      return Object.fromEntries(entries);
     }
     const normalized=await visit(request);
     // Current and baseline cannot be separately branded aliases of one source.
@@ -137,8 +139,8 @@ export function createOperationReceipts(core) {
         await visit(core.reference(context,table,value.row.privacy_artifact_id,context.executionMode,value.row));
       }
       const episodeRow=value.episode_id&&value.state&&Number.isSafeInteger(value.revision);
-      const result={};for(const [key,entry] of Object.entries(value))result[key]=episodeRow&&episodeDelivery.has(key)?null:await visit(entry);
-      return result;
+      const entries=[];for(const [key,entry] of Object.entries(value))entries.push([key,episodeRow&&episodeDelivery.has(key)?null:await visit(entry)]);
+      return Object.fromEntries(entries);
     }
     const tree=await visit(result),episodes=new Map(),insights=new Map();
     for(const target of related) {
@@ -302,9 +304,9 @@ export function createOperationReceipts(core) {
         return core.reference(context,ref.type,ref.id,ref.mode,ref.row);
       }
       if(Array.isArray(value)){const list=[];for(const entry of value)list.push(await restore(entry));return list;}
-      const operational=operationResult(value),result={};
-      for(const [key,entry] of Object.entries(value))result[key]=operational&&key==='created'?false:operational&&key==='replayed'?true:await restore(entry);
-      return result;
+      const operational=operationResult(value),entries=[];
+      for(const [key,entry] of Object.entries(value))entries.push([key,operational&&key==='created'?false:operational&&key==='replayed'?true:await restore(entry)]);
+      return Object.fromEntries(entries);
     }
     return restore(decoded.result_json);
   }
@@ -371,10 +373,62 @@ export function createOperationReceipts(core) {
       const prior=decoded.related_results_json.find(target=>target.type===table&&target.row.id===id&&target.row.current_revision===expectedRevision);
       if(prior) {
         if(!same(semantic(prior.row),semantic(row)))invalid();
+        // A producer may still be assembling the parent v26 origin. Validate
+        // its complete sealed dependency chain at the same commit boundary.
+        if(producerScope.getStore()?.context===context)
+          await core.transaction(async()=>{}, {after:()=>read(context,receipt)});
+        else await read(context,receipt);
         return;
       }
     }
     unavailable();
+  }
+  // This callback is wired only to the internal deterministic producers. A
+  // request cannot mint a ticket, and an existing/replayed row never gets one.
+  function producedEvidence(context,{run,item}) {
+    const scope=producerScope.getStore();
+    if(!scope||scope.context!==context||!core.processing.active()||!item.created)invalid();
+    scope.evidence.set(item.row.evidence_item_id,{item:canonicalJson(item.row),run:canonicalJson(run.row),checked:false});
+  }
+  async function admitInputs(context,request,refs) {
+    const ids=new Set(),derived=[];
+    function collect(value) {
+      if(!value||typeof value!=='object'||core.isReference(value))return;
+      for(const [key,entry] of Object.entries(value)) {
+        if(['evidenceItemId','latest_evidence_item_id','explanation_evidence_item_id'].includes(key)&&entry!==null)ids.add(entry);
+        else if(['supportingEvidenceIds','contradictingEvidenceIds'].includes(key)&&Array.isArray(entry))entry.forEach(id=>ids.add(id));
+        else collect(entry);
+      }
+    }
+    collect(request);
+    for(const source of core.validateReferences(context,refs)) {
+      if(source.type==='evidence_items')ids.add(source.row.evidence_item_id);
+      else if(source.mode!=='SHARED')derived.push(source);
+    }
+    for(const id of ids) {
+      const ticket=producerScope.getStore()?.context===context?producerScope.getStore().evidence.get(id):null;
+      if(!ticket) {await forArtifact(context,'evidence_items',{evidence_item_id:id});continue;}
+      const intact=async()=>{
+        const item=await core.artifact(context,'evidence_items',{evidence_item_id:id});
+        const run=await core.artifact(context,'evidence_runs',{run_id:item.row.run_id});
+        if(canonicalJson(item.row)!==ticket.item||canonicalJson(run.row)!==ticket.run)invalid();
+      };
+      await intact();
+      if(!ticket.checked) {
+        ticket.checked=true;
+        await core.transaction(async()=>{}, {after:async()=>{
+          await intact();await forArtifact(context,'evidence_items',{evidence_item_id:id});
+        }});
+      }
+    }
+    for(const source of derived) {
+      const columns=(await client.execute(`PRAGMA table_info(${source.type})`)).rows;
+      const key=Object.fromEntries(columns.filter(column=>column.pk&&!['user_id','execution_mode'].includes(column.name))
+        .map(column=>[column.name,source.row[column.name]]));
+      const options=source.type==='health_insights'?{expectedRevision:source.row.current_revision}
+        :source.type==='observation_episodes'?{episodeId:source.row.episode_id,revision:source.row.revision,verifyOnly:true}:{};
+      await forArtifact(context,source.type,key,options);
+    }
   }
   async function execute(context,kind,request,perform,{discover=null}={}) {
     return core.run(context,async()=>{
@@ -388,6 +442,7 @@ export function createOperationReceipts(core) {
         args:[context.userId,context.executionMode,kind,key]})).rows[0];
       if(prior)return read(context,prior);
       if(discover)await discover(context,kind,normalized);
+      await admitInputs(context,semanticRequest,refs);
       if(kind==='INSIGHT_CREATE') {
         const id=keys.lookup(['insight-creation-v1',context.userId,context.executionMode,request.creationKey]);
         if((await client.execute({sql:'SELECT 1 FROM health_insights WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',
@@ -396,7 +451,9 @@ export function createOperationReceipts(core) {
       if(kind==='INSIGHT_TRANSITION')await predecessor(context,'health_insights',request.insightId,request.expectedRevision);
       if(['EPISODE_REVISE','EPISODE_REFRESH'].includes(kind))await predecessor(context,'observation_episodes',request.episodeId,request.expectedRevision);
       if(kind==='EPISODE_REVERSE')await predecessor(context,'observation_episodes',request.prior.episodeId,request.prior.expectedRevision);
-      const result=await perform(semanticRequest),encoded=await encode(context,result,semanticRequest);
+      const result=['analyzeMetric','analyzeAssociationFamily'].includes(kind)
+        ?await producerScope.run({context,evidence:new Map()},()=>perform(semanticRequest)):await perform(semanticRequest);
+      const encoded=await encode(context,result,semanticRequest);
       const envelope=core.envelope(context,TABLE,[kind,key]);
       const dependencies=await dependencyRefs(context,[...refs,...encoded.refs],semanticRequest);
       await encoded.includeDependencies(dependencies);
@@ -417,5 +474,5 @@ export function createOperationReceipts(core) {
       return result;
     });
   }
-  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact});instances.set(core,api);return api;
+  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,producedEvidence});instances.set(core,api);return api;
 }

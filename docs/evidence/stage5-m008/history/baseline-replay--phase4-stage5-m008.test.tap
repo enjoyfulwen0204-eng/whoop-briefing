@@ -1,0 +1,38 @@
+TAP version 13
+# {"ts":"2026-09-28T03:12:40.299Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:12:40.302Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:12:41.613Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:12:41.615Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M008: exact Review B wrong-family reuse authenticates then rejects with zero writes
+not ok 1 - M008: exact Review B wrong-family reuse authenticates then rejects with zero writes
+  ---
+  duration_ms: 13351.706667
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-m008.test.js:42:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - 'PHASE4_INSIGHT_IDENTITY_MISMATCH'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'PHASE4_INSIGHT_IDENTITY_MISMATCH'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-m008.test.js:54:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# {"kind":"review-b-m008","requestedKey":"3801772ae311fd97d3455d0917eafd145b8782263b032a2d84c5491a47782e7e","selectedAuthenticatedKey":"296c355ebdd77d92f2d4139d3226eb8f95c907047a45a56000b72381e1c15a03","selectedSubject":"journal:other-factor","error":null,"returnedSubject":"journal:other-factor","wrongResultExactReplay":true,"before":{"evidence_runs":1,"evidence_items":1,"health_insights":2,"insight_revisions":5,"phase4_evidence_result_authorities":2,"phase4_operation_receipts":6,"resource_locks":0},"after":{"evidence_runs":2,"evidence_items":2,"health_insights":2,"insight_revisions":5,"phase4_evidence_result_authorities":4,"phase4_operation_receipts":7,"resource_locks":0}}
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13603.719709

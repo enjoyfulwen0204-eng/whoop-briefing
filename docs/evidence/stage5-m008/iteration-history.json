@@ -1,0 +1,38 @@
+[
+  {
+    "file": "test/phase4-stage5-m008.test.js",
+    "code": 1,
+    "signal": null,
+    "classification": "ASSERTION_FAILURE",
+    "timeoutMs": 300000,
+    "tests": 1,
+    "passed": 0,
+    "failed": 1,
+    "cancelled": 0,
+    "skipped": 0,
+    "assertionFailures": [
+      "M008: exact Review B wrong-family reuse authenticates then rejects with zero writes"
+    ],
+    "durationMs": 13824,
+    "log": "history/baseline--phase4-stage5-m008.test.tap",
+    "batch": "baseline"
+  },
+  {
+    "file": "test/phase4-stage5-m008.test.js",
+    "code": 1,
+    "signal": null,
+    "classification": "ASSERTION_FAILURE",
+    "timeoutMs": 300000,
+    "tests": 1,
+    "passed": 0,
+    "failed": 1,
+    "cancelled": 0,
+    "skipped": 0,
+    "assertionFailures": [
+      "M008: exact Review B wrong-family reuse authenticates then rejects with zero writes"
+    ],
+    "durationMs": 13672,
+    "log": "history/baseline-replay--phase4-stage5-m008.test.tap",
+    "batch": "baseline-replay"
+  }
+]

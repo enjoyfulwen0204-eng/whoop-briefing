@@ -1,0 +1,182 @@
+TAP version 13
+# {"ts":"2026-09-28T03:18:27.957Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:18:27.961Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:18:29.416Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:18:29.418Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:18:36.421Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:18:36.422Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:18:37.821Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:18:37.823Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: direct exact Review B key miss rejects before sealed retirement with zero writes
+ok 1 - M007: direct exact Review B key miss rejects before sealed retirement with zero writes
+  ---
+  duration_ms: 8476.053334
+  type: 'test'
+  ...
+# {"kind":"direct","before":{"evidence_runs":1,"evidence_items":1,"health_insights":1,"insight_revisions":3,"phase4_evidence_result_authorities":2,"phase4_operation_receipts":4,"resource_locks":0},"after":{"evidence_runs":1,"evidence_items":1,"health_insights":1,"insight_revisions":3,"phase4_evidence_result_authorities":2,"phase4_operation_receipts":4,"resource_locks":0}}
+# {"ts":"2026-09-28T03:18:50.711Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:18:50.712Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:18:52.170Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:18:52.171Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: direct discovers hidden predecessor, links valid successor and preserves exact history/retry
+ok 2 - M007: direct discovers hidden predecessor, links valid successor and preserves exact history/retry
+  ---
+  duration_ms: 14290.693958
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:18:52.537Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:18:52.538Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:18:54.087Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:18:54.088Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: direct proves genuine absence before admitting an unlinked first incarnation
+ok 3 - M007: direct proves genuine absence before admitting an unlinked first incarnation
+  ---
+  duration_ms: 1825.899875
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:18:54.476Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:18:54.478Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:18:55.906Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:18:55.907Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: direct concurrent identical absence admissions converge to one incarnation
+ok 4 - M007: direct concurrent identical absence admissions converge to one incarnation
+  ---
+  duration_ms: 1936.197125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:19:05.453Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:19:05.454Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:19:06.867Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:19:06.868Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: direct multiple genuine pre-repair terminal candidates are ambiguous
+ok 5 - M007: direct multiple genuine pre-repair terminal candidates are ambiguous
+  ---
+  duration_ms: 10979.196375
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:19:13.440Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:19:13.441Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:19:14.877Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:19:14.878Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: direct corrupt/incomplete/redacted hidden history cannot prove absence
+ok 6 - M007: direct corrupt/incomplete/redacted hidden history cannot prove absence
+  ---
+  duration_ms: 7986.869292
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:19:22.079Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:19:22.080Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:19:23.597Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:19:23.598Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: association exact Review B key miss rejects before sealed retirement with zero writes
+ok 7 - M007: association exact Review B key miss rejects before sealed retirement with zero writes
+  ---
+  duration_ms: 8636.719666
+  type: 'test'
+  ...
+# {"kind":"association","before":{"evidence_runs":1,"evidence_items":1,"health_insights":1,"insight_revisions":3,"phase4_evidence_result_authorities":2,"phase4_operation_receipts":4,"resource_locks":0},"after":{"evidence_runs":1,"evidence_items":1,"health_insights":1,"insight_revisions":3,"phase4_evidence_result_authorities":2,"phase4_operation_receipts":4,"resource_locks":0}}
+# {"ts":"2026-09-28T03:19:44.911Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:19:44.912Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:19:46.477Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:19:46.478Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: association discovers hidden predecessor, links valid successor and preserves exact history/retry
+ok 8 - M007: association discovers hidden predecessor, links valid successor and preserves exact history/retry
+  ---
+  duration_ms: 22822.529208
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:19:50.671Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:19:50.672Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:19:52.195Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:19:52.196Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: association proves genuine absence before admitting an unlinked first incarnation
+ok 9 - M007: association proves genuine absence before admitting an unlinked first incarnation
+  ---
+  duration_ms: 5768.787333
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:19:56.664Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:19:56.666Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:19:58.190Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:19:58.191Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: association concurrent identical absence admissions converge to one incarnation
+ok 10 - M007: association concurrent identical absence admissions converge to one incarnation
+  ---
+  duration_ms: 5992.23725
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:20:07.925Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:20:07.927Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:20:09.767Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:20:09.768Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: association multiple genuine pre-repair terminal candidates are ambiguous
+ok 11 - M007: association multiple genuine pre-repair terminal candidates are ambiguous
+  ---
+  duration_ms: 11258.005583
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:20:18.578Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:20:18.580Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:20:20.222Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:20:20.223Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: association corrupt/incomplete/redacted hidden history cannot prove absence
+ok 12 - M007: association corrupt/incomplete/redacted hidden history cannot prove absence
+  ---
+  duration_ms: 10654.001541
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:20:29.856Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:20:29.857Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:20:31.466Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:20:31.467Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: discovery is user/mode scoped and excludes authenticated unrelated logical identities
+ok 13 - M007: discovery is user/mode scoped and excludes authenticated unrelated logical identities
+  ---
+  duration_ms: 11277.821167
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:20:38.003Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:20:38.005Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:20:39.671Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:20:39.672Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: hidden predecessor generation mismatch and unauthenticated inventory fail closed
+ok 14 - M007: hidden predecessor generation mismatch and unauthenticated inventory fail closed
+  ---
+  duration_ms: 8146.790666
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:20:40.256Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:20:40.258Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:20:42.483Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:20:42.484Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: scoped cap+1 inventories and byte overflow reject before any writes
+ok 15 - M007: scoped cap+1 inventories and byte overflow reject before any writes
+  ---
+  duration_ms: 2251.528833
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T03:20:48.858Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T03:20:48.859Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T03:20:50.428Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T03:20:50.429Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M007: a retained revision prevents absence after parent/v27 history loss
+ok 16 - M007: a retained revision prevents absence after parent/v27 history loss
+  ---
+  duration_ms: 8604.094834
+  type: 'test'
+  ...
+# Subtest: M007: a retained v26 origin prevents absence after parent/v27 history loss
+ok 17 - M007: a retained v26 origin prevents absence after parent/v27 history loss
+  ---
+  duration_ms: 7648.550125
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 148844.557416

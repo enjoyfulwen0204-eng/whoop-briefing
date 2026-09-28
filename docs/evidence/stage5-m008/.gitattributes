@@ -1,0 +1,2 @@
+# Preserve exact captured TAP diagnostics.
+*.tap -whitespace

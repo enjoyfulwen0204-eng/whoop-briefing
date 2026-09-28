@@ -3,6 +3,7 @@ import { createResultAuthority } from './phase4ResultAuthority.js';
 import { requireSemanticTime } from './phase4EpisodeHistory.js';
 import { fail, readableRow } from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
+import { insightIdentityKey } from './phase4InsightStore.js';
 import { addDays, localDate } from './time.js';
 import { phase4Metric, INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
 import { assessDataQuality, benjaminiHochberg, buildPersonalBaseline, evaluateJournalAssociation,
@@ -459,19 +460,19 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     try {validateEvidenceConfidence(confidence);}catch {fail('PHASE4_EVIDENCE_CONFIDENCE_INVALID');}
     return confidence;
   }
-  function insightKey(context,identity) {
-    const normalized=value=>value.normalize('NFC').trim().replace(/\s+/g,' ').toLowerCase();
-    return keys.lookup(['insight-key-v1',context.userId,...['subject','outcome','direction','exposureCategory','algorithmFamily','evidenceContractMajor']
-      .map(key=>normalized(identity[key]))]);
-  }
+  const insightKey=(context,identity)=>insightIdentityKey(keys,context,identity);
   async function currentInsight(context,identity,asOfUtc,{replaceExpired=false}={}) {
+    const requestedKey=insightKey(context,identity);
     let row=(await client.execute({sql:`SELECT * FROM health_insights WHERE user_id=? AND execution_mode=? AND insight_key=?
-      AND status<>'RETIRED' AND legacy_classification='PHASE4'`,args:[context.userId,context.executionMode,insightKey(context,identity)]})).rows[0];
+      AND status<>'RETIRED' AND legacy_classification='PHASE4'`,args:[context.userId,context.executionMode,requestedKey]})).rows[0];
     if(!row)return null;
     // Eligibility must describe the same authenticated projection we return,
     // rather than timestamps from a mutable materialization followed by a
     // different sealed row. New writes still authenticate their predecessor.
     const current=await insights.read(context,row.id,{history:true});row=current.row;
+    // The lookup key only locates a candidate. Its sealed identity must match
+    // before current/opposite reuse, temporal exclusion, or expiry mutation.
+    if(row.insight_key!==requestedKey)fail('PHASE4_INSIGHT_IDENTITY_MISMATCH');
     const at=Date.parse(requireSemanticTime(asOfUtc));
     // A new past request cannot borrow a future incarnation/revision. Exact
     // historical requests have already returned through the receipt boundary.

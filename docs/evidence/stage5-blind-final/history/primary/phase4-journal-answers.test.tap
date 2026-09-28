@@ -1,0 +1,149 @@
+TAP version 13
+# {"ts":"2026-09-28T06:58:49.591Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:58:49.594Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:58:50.908Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:58:50.910Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:58:51.151Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:58:51.152Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:58:52.421Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:58:52.422Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: SHADOW validated answers stay synthetic; invalid, cross-tenant and mismatched answers cannot resolve an occupied request
+ok 1 - SHADOW validated answers stay synthetic; invalid, cross-tenant and mismatched answers cannot resolve an occupied request
+  ---
+  duration_ms: 1567.982333
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:58:52.610Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:58:52.611Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:58:53.898Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:58:53.898Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Ambiguous multi-factor negation cannot resolve a factor slot or create any durable answer state
+ok 2 - Ambiguous multi-factor negation cannot resolve a factor slot or create any durable answer state
+  ---
+  duration_ms: 1460.96125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:58:54.077Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:58:54.078Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:58:55.364Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:58:55.365Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Uncertainty cannot resolve an exact coverage slot or create facts, coverage, receipts or generation changes
+ok 3 - Uncertainty cannot resolve an exact coverage slot or create facts, coverage, receipts or generation changes
+  ---
+  duration_ms: 1465.980708
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:58:55.550Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:58:55.552Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:58:56.857Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:58:56.858Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Full-source ambiguity cannot be hidden by a retained excerpt and leaves answer state untouched
+ok 4 - Full-source ambiguity cannot be hidden by a retained excerpt and leaves answer state untouched
+  ---
+  duration_ms: 1473.342916
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:58:57.157Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:58:57.158Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:58:58.444Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:58:58.444Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:58:58.446Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-28T06:58:58.446Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-28T06:58:58.639Z","level":"info","event":"lock_acquired"}
+# Subtest: SHADOW factor answers reject generic and positive-authority excerpt attacks with no durable or slot mutation
+ok 5 - SHADOW factor answers reject generic and positive-authority excerpt attacks with no durable or slot mutation
+  ---
+  duration_ms: 1605.674416
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:58:58.809Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:58:58.810Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:59:00.117Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:59:00.118Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: LIVE factor answers reject complete-source polarity attacks before receipts, facts, classification or any durable state changes
+ok 6 - LIVE factor answers reject complete-source polarity attacks before receipts, facts, classification or any durable state changes
+  ---
+  duration_ms: 1652.450291
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:59:00.310Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:00.311Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:59:01.627Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:59:01.627Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Closed positive authority still accepts a bounded independent fact through the answer path
+ok 7 - Closed positive authority still accepts a bounded independent fact through the answer path
+  ---
+  duration_ms: 1500.533625
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:59:01.840Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:01.841Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:59:03.163Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:59:03.164Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:59:03.166Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-28T06:59:03.166Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-28T06:59:03.354Z","level":"info","event":"lock_acquired"}
+# Subtest: An exact complete-source generic negative remains valid for one server-owned factor and window
+ok 8 - An exact complete-source generic negative remains valid for one server-owned factor and window
+  ---
+  duration_ms: 1527.522833
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:59:03.502Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:03.503Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:59:04.828Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:59:04.828Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:59:04.829Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-28T06:59:04.829Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-28T06:59:05.022Z","level":"info","event":"lock_acquired"}
+# Subtest: LIVE accepted fact, source generation, answer receipt and matching slot resolve commit atomically without send capability
+ok 9 - LIVE accepted fact, source generation, answer receipt and matching slot resolve commit atomically without send capability
+  ---
+  duration_ms: 1663.545834
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:59:05.332Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:05.333Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:59:06.653Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:59:06.653Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:59:06.654Z","level":"info","event":"telegram_linked","user_id":"a"}
+# {"ts":"2026-09-28T06:59:06.654Z","level":"info","event":"tokens_saved","user_id":"a","attempt":1}
+# {"ts":"2026-09-28T06:59:06.844Z","level":"info","event":"lock_acquired"}
+# {"ts":"2026-09-28T06:59:06.872Z","level":"info","event":"lock_busy"}
+# Subtest: Coverage confirmation, window correction and deletion recompute exact tri-state classification and redact prior answer/receipt without expanding factors
+not ok 10 - Coverage confirmation, window correction and deletion recompute exact tri-state classification and redact prior answer/receipt without expanding factors
+  ---
+  duration_ms: 1829.271292
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-journal-answers.test.js:140:1'
+  failureType: 'testCodeFailure'
+  error: 'CONTENT_REDACTED'
+  code: 'CONTENT_REDACTED'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:21:37)
+    validateCoverageNode (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4CoverageLineage.js:23:30)
+    coverageLineage (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4CoverageLineage.js:60:3)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:201:11
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:86:16)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4JournalStore.js:103:50
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:103:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:101:24)
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-journal-answers.test.js:154:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+  ...
+# Subtest: Semantically changed answer correction creates exactly one fresh revision; equivalent wording reuses it and deletion creates no answer event or slot transition
+ok 11 - Semantically changed answer correction creates exactly one fresh revision; equivalent wording reuses it and deletion creates no answer event or slot transition
+  ---
+  duration_ms: 1996.593875
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 10
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17968.459958

@@ -1,0 +1,45 @@
+TAP version 13
+# {"ts":"2026-09-28T07:02:20.532Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:02:20.535Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:02:21.926Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:02:21.928Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M02: literal path labels preserve JSON order while genuine nested source sets replay permutations
+not ok 1 - BF-M02: literal path labels preserve JSON order while genuine nested source sets replay permutations
+  ---
+  duration_ms: 1964.7735
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-blind-paths.test.js:8:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    prior/sourceRefs
+    + actual - expected
+    
+      [
+    +   1,
+        2,
+    -   1
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 2
+    1: 1
+  actual:
+    0: 1
+    1: 2
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-blind-paths.test.js:21:89)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2189.237916

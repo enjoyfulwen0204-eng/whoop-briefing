@@ -1,0 +1,168 @@
+TAP version 13
+# {"ts":"2026-09-28T06:12:19.233Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:12:19.237Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:12:21.967Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:21.989Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:29.611Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:12:29.613Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:12:30.912Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:30.912Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct before sealed boundary
+ok 1 - M006: direct before sealed boundary
+  ---
+  duration_ms: 10386.346125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:12:38.192Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:12:38.193Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:12:39.868Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:39.869Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct equal sealed boundary
+ok 2 - M006: direct equal sealed boundary
+  ---
+  duration_ms: 8581.081875
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:12:47.101Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:12:47.102Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:12:48.407Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:48.408Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct after sealed boundary
+ok 3 - M006: direct after sealed boundary
+  ---
+  duration_ms: 9044.6795
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:12:55.615Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:12:55.616Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:12:56.914Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:56.915Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct mutable later than sealed
+ok 4 - M006: direct mutable later than sealed
+  ---
+  duration_ms: 8513.821084
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:13:03.613Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:13:03.614Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:13:04.906Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:13:04.907Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct missing/corrupt terminal receipt/revision and redacted predecessor fail closed
+ok 5 - M006: direct missing/corrupt terminal receipt/revision and redacted predecessor fail closed
+  ---
+  duration_ms: 7998.074292
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:13:13.123Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:13:13.124Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:13:14.482Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:13:14.483Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: direct historical exact replay survives terminal chronology and mutable timestamp drift
+ok 6 - M006: direct historical exact replay survives terminal chronology and mutable timestamp drift
+  ---
+  duration_ms: 9510.058125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:13:20.613Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:13:20.614Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:13:22.037Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:13:22.038Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association before sealed boundary
+not ok 7 - M006: association before sealed boundary
+  ---
+  duration_ms: 7485.337834
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-final-predecessor.test.js:40:5'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /SEMANTIC_CHRONOLOGY_INVALID/. Input:
+    
+    'Phase4InvariantError: PHASE4_INSIGHT_AS_OF_UNAVAILABLE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'PHASE4_INSIGHT_AS_OF_UNAVAILABLE'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:21:37)
+    currentInsight (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:476:25)
+    async updateInsight (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:532:17)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:642:12
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:86:16)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:619:10
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:103:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:101:24)
+    async Object.analyzeAssociationFamily (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:37:16)
+    async call (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ClosureFixture.js:20:14)
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-final-predecessor.test.js:44:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-28T06:13:33.446Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:13:33.448Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:13:34.845Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:13:34.846Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association equal sealed boundary
+ok 8 - M006: association equal sealed boundary
+  ---
+  duration_ms: 12835.465208
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:13:46.396Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:13:46.398Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:13:47.812Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:13:47.813Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association after sealed boundary
+ok 9 - M006: association after sealed boundary
+  ---
+  duration_ms: 12949.94
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:13:59.320Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:13:59.322Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:14:00.764Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:14:00.765Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association mutable later than sealed
+ok 10 - M006: association mutable later than sealed
+  ---
+  duration_ms: 12923.9415
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:14:09.022Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:14:09.023Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:14:10.506Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:14:10.507Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association missing/corrupt terminal receipt/revision and redacted predecessor fail closed
+ok 11 - M006: association missing/corrupt terminal receipt/revision and redacted predecessor fail closed
+  ---
+  duration_ms: 9702.184541
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:14:23.196Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:14:23.198Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:14:24.656Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:14:24.657Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M006: association historical exact replay survives terminal chronology and mutable timestamp drift
+ok 12 - M006: association historical exact replay survives terminal chronology and mutable timestamp drift
+  ---
+  duration_ms: 14173.136292
+  type: 'test'
+  ...
+# Subtest: M006: actual Journal purge redacts terminal history and blocks linked successor/replay
+ok 13 - M006: actual Journal purge redacts terminal history and blocks linked successor/replay
+  ---
+  duration_ms: 7573.958333
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 12
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 131938.504459

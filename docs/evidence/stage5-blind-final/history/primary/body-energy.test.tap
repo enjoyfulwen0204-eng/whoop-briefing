@@ -1,0 +1,88 @@
+TAP version 13
+# Subtest: Body confidence thresholds tolerate only the adjacent lower float and never round stored confidence
+ok 1 - Body confidence thresholds tolerate only the adjacent lower float and never round stored confidence
+  ---
+  duration_ms: 41.387667
+  type: 'test'
+  ...
+# Subtest: Body Energy normative scale, rounding, robust median/MAD/IQR and registered versions
+ok 2 - Body Energy normative scale, rounding, robust median/MAD/IQR and registered versions
+  ---
+  duration_ms: 15.622917
+  type: 'test'
+  ...
+# Subtest: Required-domain missingness, invalidity, calibration and quality precedence never manufacture a value
+ok 3 - Required-domain missingness, invalidity, calibration and quality precedence never manufacture a value
+  ---
+  duration_ms: 151.835208
+  type: 'test'
+  ...
+# Subtest: Sleep Performance is selected before validity; recovery must exactly match and contextual metrics have zero effect
+ok 4 - Sleep Performance is selected before validity; recovery must exactly match and contextual metrics have zero effect
+  ---
+  duration_ms: 60.4105
+  type: 'test'
+  ...
+# Subtest: Main-sleep ordering, date alignment, source-version fences, tenant/auth/access and tombstones are exact
+ok 5 - Main-sleep ordering, date alignment, source-version fences, tenant/auth/access and tombstones are exact
+  ---
+  duration_ms: 52.328208
+  type: 'test'
+  ...
+# Subtest: Earlier-only baselines select one daily main, latest 30/45 days and per-component valid values without current-day leakage
+ok 6 - Earlier-only baselines select one daily main, latest 30/45 days and per-component valid values without current-day leakage
+  ---
+  duration_ms: 50.91275
+  type: 'test'
+  ...
+# Subtest: Required sync and selected-load freshness boundaries are independent of physiological age
+ok 7 - Required sync and selected-load freshness boundaries are independent of physiological age
+  ---
+  duration_ms: 50.976208
+  type: 'test'
+  ...
+# Subtest: Current incomplete cycle selection and workout fallback are mutually exclusive, bounded and never prorated
+ok 8 - Current incomplete cycle selection and workout fallback are mutually exclusive, bounded and never prorated
+  ---
+  duration_ms: 62.214125
+  type: 'test'
+  ...
+# Subtest: Qualified scored nap IDs count once with exact duration/wait bounds and no initial-charge overshoot
+ok 9 - Qualified scored nap IDs count once with exact duration/wait bounds and no initial-charge overshoot
+  ---
+  duration_ms: 38.296708
+  type: 'test'
+  ...
+# Subtest: Deterministic output and seeded bounds/time/strain monotonicity retain IEEE precision
+ok 10 - Deterministic output and seeded bounds/time/strain monotonicity retain IEEE precision
+  ---
+  duration_ms: 7699.504292
+  type: 'test'
+  ...
+# Subtest: DST elapsed depletion uses UTC and exact millisecond / expanded-year identities reject rounding
+ok 11 - DST elapsed depletion uses UTC and exact millisecond / expanded-year identities reject rounding
+  ---
+  duration_ms: 30.180291
+  type: 'test'
+  ...
+# Subtest: Domain inputs act once, both standardized components are required, and attainable endpoints are 0 and 100
+ok 12 - Domain inputs act once, both standardized components are required, and attainable endpoints are 0 and 100
+  ---
+  duration_ms: 45.914334
+  type: 'test'
+  ...
+# Subtest: Future inputs cannot change an earlier pure result and conflicting duplicate nap identities fail deterministically
+ok 13 - Future inputs cannot change an earlier pure result and conflicting duplicate nap identities fail deterministically
+  ---
+  duration_ms: 22.753209
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8460.820958

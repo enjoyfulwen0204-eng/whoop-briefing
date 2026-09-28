@@ -1,0 +1,21 @@
+TAP version 13
+# {"ts":"2026-09-28T06:29:49.021Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:29:49.024Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:29:50.335Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:29:50.337Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-H01: marker-only outer receipt with lost links is physically scrubbed before COMPLETE
+ok 1 - BF-H01: marker-only outer receipt with lost links is physically scrubbed before COMPLETE
+  ---
+  duration_ms: 5342.494333
+  type: 'test'
+  ...
+# {"finding":"BF-H01","scrubbedFields":["semantic_at","request_json","result_json","related_results_json","required_roots_json","schema_contract_json","receipt_hmac"],"completeOnlyAfterScrub":true,"restoredPayloadRejected":true}
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5578.502708

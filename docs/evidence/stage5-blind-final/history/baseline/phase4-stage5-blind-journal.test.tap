@@ -1,0 +1,125 @@
+TAP version 13
+# {"ts":"2026-09-28T06:18:48.282Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:18:48.286Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:18:49.595Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:49.597Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:49.740Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:18:49.741Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:18:51.063Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:51.064Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M01: public Journal classifier and typed coverage both reject self-cycle without writes
+not ok 1 - BF-M01: public Journal classifier and typed coverage both reject self-cycle without writes
+  ---
+  duration_ms: 1464.859292
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-journal.test.js:13:4'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-journal.test.js:26:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# {"ts":"2026-09-28T06:18:51.169Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:18:51.171Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:18:52.449Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:52.450Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M01: public Journal classifier and typed coverage both reject missing-root without writes
+not ok 2 - BF-M01: public Journal classifier and typed coverage both reject missing-root without writes
+  ---
+  duration_ms: 1431.377792
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-journal.test.js:13:4'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-journal.test.js:26:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-28T06:18:52.554Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:18:52.555Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:18:53.817Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:53.817Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M01: public Journal classifier and typed coverage both reject root-revision without writes
+not ok 3 - BF-M01: public Journal classifier and typed coverage both reject root-revision without writes
+  ---
+  duration_ms: 1385.293583
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-journal.test.js:13:4'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-journal.test.js:26:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-28T06:18:53.921Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:18:53.922Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:18:55.204Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:55.204Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M01: public Journal classifier and typed coverage both reject domain without writes
+not ok 4 - BF-M01: public Journal classifier and typed coverage both reject domain without writes
+  ---
+  duration_ms: 1366.140708
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-journal.test.js:13:4'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-journal.test.js:26:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-28T06:18:55.309Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:18:55.310Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:18:56.604Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:56.604Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M01: public Journal classifier and typed coverage both reject foreign-user-parent without writes
+not ok 5 - BF-M01: public Journal classifier and typed coverage both reject foreign-user-parent without writes
+  ---
+  duration_ms: 1387.530458
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-journal.test.js:13:4'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-journal.test.js:26:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: BF-M01: valid typed coverage still authorizes confirmed unexposed classification
+ok 6 - BF-M01: valid typed coverage still authorizes confirmed unexposed classification
+  ---
+  duration_ms: 1375.093042
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 1
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8654.409167

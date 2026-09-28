@@ -1,0 +1,80 @@
+TAP version 13
+# {"ts":"2026-09-28T06:42:21.836Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:21.840Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:23.154Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:23.156Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:23.367Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:23.368Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:24.668Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:24.669Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H002: direct child rejects missing-v26 parent with zero durable writes
+ok 1 - H002: direct child rejects missing-v26 parent with zero durable writes
+  ---
+  duration_ms: 1540.788833
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:42:24.901Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:24.903Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:26.221Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:26.222Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H002: direct child rejects run-count parent with zero durable writes
+ok 2 - H002: direct child rejects run-count parent with zero durable writes
+  ---
+  duration_ms: 1532.736208
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:42:26.417Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:26.418Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:27.760Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:27.761Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H002: direct child rejects run-timezone parent with zero durable writes
+ok 3 - H002: direct child rejects run-timezone parent with zero durable writes
+  ---
+  duration_ms: 1517.594125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:42:27.922Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:27.924Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:29.237Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:29.238Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H002: direct child rejects missing-root parent with zero durable writes
+ok 4 - H002: direct child rejects missing-root parent with zero durable writes
+  ---
+  duration_ms: 1504.694792
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:42:29.407Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:29.408Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:30.737Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:30.737Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H002: direct child rejects missing-v27 parent with zero durable writes
+ok 5 - H002: direct child rejects missing-v27 parent with zero durable writes
+  ---
+  duration_ms: 1484.052542
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:42:34.949Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:34.950Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:36.335Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:36.335Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H002: same-transaction producer, create, promotion and exact retry retain one logical result
+ok 6 - H002: same-transaction producer, create, promotion and exact retry retain one logical result
+  ---
+  duration_ms: 5542.297959
+  type: 'test'
+  ...
+# Subtest: H002: failure to seal producer authority rolls back admitted children
+ok 7 - H002: failure to seal producer authority rolls back admitted children
+  ---
+  duration_ms: 3718.854708
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17100.676166

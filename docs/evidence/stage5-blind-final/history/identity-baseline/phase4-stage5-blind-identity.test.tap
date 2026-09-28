@@ -1,0 +1,31 @@
+TAP version 13
+# {"ts":"2026-09-28T07:10:27.149Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:10:27.152Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:10:28.427Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:10:28.428Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03/M007: normalize identity once; preserve genuine Unicode logical keys across cutover and succession
+not ok 1 - BF-M03/M007: normalize identity once; preserve genuine Unicode logical keys across cutover and succession
+  ---
+  duration_ms: 1911.179291
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-blind-identity.test.js:8:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-blind-identity.test.js:15:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2154.926416

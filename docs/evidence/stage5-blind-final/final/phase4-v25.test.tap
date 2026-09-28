@@ -1,0 +1,209 @@
+TAP version 13
+# {"ts":"2026-09-28T07:43:08.270Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:08.284Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:09.997Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:09.998Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:11.549Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:11.550Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:13.247Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:13.248Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:15.063Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:15.065Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:16.865Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:16.867Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:18.670Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:18.672Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:20.510Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:20.512Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:22.334Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:22.336Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:24.157Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:24.158Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:25.962Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:25.964Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:27.757Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:27.759Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:29.562Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:29.564Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:31.416Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:31.417Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:33.248Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:33.249Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:35.108Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:35.109Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:36.906Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:36.907Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:38.720Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:38.722Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:40.534Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:40.536Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:42.345Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:42.347Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:44.192Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:44.193Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:46.013Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:46.015Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:43:47.157Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:43:48.088Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:43:48.089Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: v25 fresh install and v20→v25 expose exact complete schema, constraints and no invented rows
+    # Subtest: v0→v25
+    ok 1 - v0→v25
+      ---
+      duration_ms: 1736.959917
+      type: 'test'
+      ...
+    # Subtest: v20→v25
+    ok 2 - v20→v25
+      ---
+      duration_ms: 1549.963834
+      type: 'test'
+      ...
+    # Subtest: v24→v25
+    ok 3 - v24→v25
+      ---
+      duration_ms: 1697.74075
+      type: 'test'
+      ...
+    1..3
+ok 1 - v25 fresh install and v20→v25 expose exact complete schema, constraints and no invented rows
+  ---
+  duration_ms: 4985.816333
+  type: 'test'
+  ...
+# Subtest: v25 interruption at every durable DDL/index/trigger/replacement/version boundary resumes idempotently
+    # Subtest: boundary 1
+    ok 1 - boundary 1
+      ---
+      duration_ms: 1817.435958
+      type: 'test'
+      ...
+    # Subtest: boundary 2
+    ok 2 - boundary 2
+      ---
+      duration_ms: 1802.2235
+      type: 'test'
+      ...
+    # Subtest: boundary 3
+    ok 3 - boundary 3
+      ---
+      duration_ms: 1806.05275
+      type: 'test'
+      ...
+    # Subtest: boundary 4
+    ok 4 - boundary 4
+      ---
+      duration_ms: 1836.762
+      type: 'test'
+      ...
+    # Subtest: boundary 5
+    ok 5 - boundary 5
+      ---
+      duration_ms: 1827.670041
+      type: 'test'
+      ...
+    # Subtest: boundary 6
+    ok 6 - boundary 6
+      ---
+      duration_ms: 1818.625167
+      type: 'test'
+      ...
+    # Subtest: boundary 7
+    ok 7 - boundary 7
+      ---
+      duration_ms: 1809.5425
+      type: 'test'
+      ...
+    # Subtest: boundary 8
+    ok 8 - boundary 8
+      ---
+      duration_ms: 1793.929833
+      type: 'test'
+      ...
+    # Subtest: boundary 9
+    ok 9 - boundary 9
+      ---
+      duration_ms: 1803.531
+      type: 'test'
+      ...
+    # Subtest: boundary 10
+    ok 10 - boundary 10
+      ---
+      duration_ms: 1852.693917
+      type: 'test'
+      ...
+    # Subtest: boundary 11
+    ok 11 - boundary 11
+      ---
+      duration_ms: 1826.374792
+      type: 'test'
+      ...
+    # Subtest: boundary 12
+    ok 12 - boundary 12
+      ---
+      duration_ms: 1866.455917
+      type: 'test'
+      ...
+    # Subtest: boundary 13
+    ok 13 - boundary 13
+      ---
+      duration_ms: 1797.802291
+      type: 'test'
+      ...
+    # Subtest: boundary 14
+    ok 14 - boundary 14
+      ---
+      duration_ms: 1814.021542
+      type: 'test'
+      ...
+    # Subtest: boundary 15
+    ok 15 - boundary 15
+      ---
+      duration_ms: 1814.797917
+      type: 'test'
+      ...
+    # Subtest: boundary 16
+    ok 16 - boundary 16
+      ---
+      duration_ms: 1810.274959
+      type: 'test'
+      ...
+    # Subtest: boundary 17
+    ok 17 - boundary 17
+      ---
+      duration_ms: 1846.158708
+      type: 'test'
+      ...
+    # Subtest: boundary 18
+    ok 18 - boundary 18
+      ---
+      duration_ms: 1821.0365
+      type: 'test'
+      ...
+    1..18
+ok 2 - v25 interruption at every durable DDL/index/trigger/replacement/version boundary resumes idempotently
+  ---
+  duration_ms: 32768.005959
+  type: 'test'
+  ...
+# Subtest: v25 snapshot component: v24 existing episode migrates without backfill; only a legitimate post-v25 revision becomes replayable
+ok 3 - v25 snapshot component: v24 existing episode migrates without backfill; only a legitimate post-v25 revision becomes replayable
+  ---
+  duration_ms: 2073.788333
+  type: 'test'
+  ...
+# Subtest: v25 recorded-schema drift fails without repair or version advancement
+ok 4 - v25 recorded-schema drift fails without repair or version advancement
+  ---
+  duration_ms: 1454.508458
+  type: 'test'
+  ...
+1..4
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 43733.097833

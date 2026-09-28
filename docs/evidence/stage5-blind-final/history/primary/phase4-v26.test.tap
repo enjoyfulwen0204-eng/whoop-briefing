@@ -1,0 +1,187 @@
+TAP version 13
+# {"ts":"2026-09-28T06:59:31.240Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:31.243Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:59:32.716Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:59:33.253Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:33.254Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:59:33.255Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# Subtest: v26 fresh, v25→v26 and full production v20→v26 preserve data and create zero authority rows
+    # Subtest: v0→v26
+    ok 1 - v0→v26
+      ---
+      duration_ms: 2025.295375
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:35.074Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:35.076Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:59:36.340Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+    # Subtest: v20→v26
+    ok 2 - v20→v26
+      ---
+      duration_ms: 1822.208209
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:37.035Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:37.036Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: v25→v26
+    ok 3 - v25→v26
+      ---
+      duration_ms: 1954.316
+      type: 'test'
+      ...
+    1..3
+ok 1 - v26 fresh, v25→v26 and full production v20→v26 preserve data and create zero authority rows
+  ---
+  duration_ms: 5802.959833
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:59:39.112Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:39.113Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: v26 every table/index/trigger/version durable interruption reopens and resumes with exact definitions
+    # Subtest: boundary 1
+    ok 1 - boundary 1
+      ---
+      duration_ms: 2079.904166
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:41.195Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:41.196Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 2
+    ok 2 - boundary 2
+      ---
+      duration_ms: 2085.163166
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:43.252Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:43.253Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 3
+    ok 3 - boundary 3
+      ---
+      duration_ms: 2056.489625
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:45.305Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:45.306Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 4
+    ok 4 - boundary 4
+      ---
+      duration_ms: 2052.479333
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:47.362Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:47.363Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 5
+    ok 5 - boundary 5
+      ---
+      duration_ms: 2056.402875
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:49.480Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:49.481Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 6
+    ok 6 - boundary 6
+      ---
+      duration_ms: 2117.88375
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:51.541Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:51.542Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 7
+    ok 7 - boundary 7
+      ---
+      duration_ms: 2064.0805
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:53.598Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:53.600Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 8
+    ok 8 - boundary 8
+      ---
+      duration_ms: 2055.550875
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:55.612Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:55.614Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 9
+    ok 9 - boundary 9
+      ---
+      duration_ms: 2014.869125
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:57.700Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:57.702Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 10
+    ok 10 - boundary 10
+      ---
+      duration_ms: 2086.249375
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:59:59.759Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:59.760Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 11
+    ok 11 - boundary 11
+      ---
+      duration_ms: 2048.428458
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:00:01.806Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:00:01.808Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 12
+    ok 12 - boundary 12
+      ---
+      duration_ms: 2057.973541
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:00:03.828Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:00:03.829Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 13
+    ok 13 - boundary 13
+      ---
+      duration_ms: 2020.682709
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:00:05.898Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:00:05.900Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 14
+    ok 14 - boundary 14
+      ---
+      duration_ms: 2071.369833
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:00:07.943Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:00:07.944Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 15
+    ok 15 - boundary 15
+      ---
+      duration_ms: 2043.867667
+      type: 'test'
+      ...
+    1..15
+ok 2 - v26 every table/index/trigger/version durable interruption reopens and resumes with exact definitions
+  ---
+  duration_ms: 30914.07375
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:00:15.062Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:00:15.063Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: v26 real starting-HEAD R1/R2/R3 cutover: no backfill, first new B→R4 survives restart, reused legacy A remains unavailable
+ok 3 - v26 real starting-HEAD R1/R2/R3 cutover: no backfill, first new B→R4 survives restart, reused legacy A remains unavailable
+  ---
+  duration_ms: 7118.275125
+  type: 'test'
+  ...
+# Subtest: v26 drift is rejected and all phase4 defaults remain off
+ok 4 - v26 drift is rejected and all phase4 defaults remain off
+  ---
+  duration_ms: 1666.307875
+  type: 'test'
+  ...
+1..4
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 45732.592417

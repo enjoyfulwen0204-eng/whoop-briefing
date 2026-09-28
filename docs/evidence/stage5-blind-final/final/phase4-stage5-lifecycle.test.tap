@@ -1,0 +1,50 @@
+TAP version 13
+# {"ts":"2026-09-28T07:32:55.453Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:32:55.456Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:32:56.731Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:32:56.733Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:33:03.508Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:33:03.509Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:33:04.744Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:33:04.745Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A: metric reversal retains the complete original wrapper across restart and further progress
+ok 1 - A: metric reversal retains the complete original wrapper across restart and further progress
+  ---
+  duration_ms: 8063.745875
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:33:06.694Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:33:06.695Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:33:07.970Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:33:07.971Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A/J: direct episode results, semantic retry and every terminal path have exact receipts
+ok 2 - A/J: direct episode results, semantic retry and every terminal path have exact receipts
+  ---
+  duration_ms: 3186.316375
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:33:09.530Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:33:09.531Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:33:10.815Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:33:10.816Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A/C: Body retained audit requires its full receipt and every physical root
+ok 3 - A/C: Body retained audit requires its full receipt and every physical root
+  ---
+  duration_ms: 2835.708583
+  type: 'test'
+  ...
+# Subtest: A/J: independent reconfirmation, weakened recovery and direct lifecycle retries retain full insight projections
+ok 4 - A/J: independent reconfirmation, weakened recovery and direct lifecycle retries retain full insight projections
+  ---
+  duration_ms: 338474.178333
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 352780.119292

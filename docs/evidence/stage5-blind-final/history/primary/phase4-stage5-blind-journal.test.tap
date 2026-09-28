@@ -1,0 +1,70 @@
+TAP version 13
+# {"ts":"2026-09-28T06:30:33.528Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:30:33.532Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:30:34.839Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:30:34.841Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:30:34.996Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:30:34.998Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:30:36.322Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:30:36.323Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M01: public Journal classifier and typed coverage both reject self-cycle without writes
+ok 1 - BF-M01: public Journal classifier and typed coverage both reject self-cycle without writes
+  ---
+  duration_ms: 1476.183083
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:30:36.445Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:30:36.446Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:30:37.748Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:30:37.749Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M01: public Journal classifier and typed coverage both reject missing-root without writes
+ok 2 - BF-M01: public Journal classifier and typed coverage both reject missing-root without writes
+  ---
+  duration_ms: 1449.089958
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:30:37.869Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:30:37.870Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:30:39.165Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:30:39.166Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M01: public Journal classifier and typed coverage both reject root-revision without writes
+ok 3 - BF-M01: public Journal classifier and typed coverage both reject root-revision without writes
+  ---
+  duration_ms: 1425.346209
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:30:39.283Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:30:39.284Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:30:40.588Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:30:40.589Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M01: public Journal classifier and typed coverage both reject domain without writes
+ok 4 - BF-M01: public Journal classifier and typed coverage both reject domain without writes
+  ---
+  duration_ms: 1413.072042
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:30:40.710Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:30:40.711Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:30:42.018Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:30:42.019Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M01: public Journal classifier and typed coverage both reject foreign-user-parent without writes
+ok 5 - BF-M01: public Journal classifier and typed coverage both reject foreign-user-parent without writes
+  ---
+  duration_ms: 1427.348375
+  type: 'test'
+  ...
+# Subtest: BF-M01: valid typed coverage still authorizes confirmed unexposed classification
+ok 6 - BF-M01: valid typed coverage still authorizes confirmed unexposed classification
+  ---
+  duration_ms: 1387.962875
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8831.478083

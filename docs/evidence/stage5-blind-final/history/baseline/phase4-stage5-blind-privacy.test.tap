@@ -1,0 +1,38 @@
+TAP version 13
+# {"ts":"2026-09-28T06:18:21.902Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:18:21.905Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:18:23.214Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:23.215Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-H01: marker-only outer receipt with lost links is physically scrubbed before COMPLETE
+not ok 1 - BF-H01: marker-only outer receipt with lost links is physically scrubbed before COMPLETE
+  ---
+  duration_ms: 4973.248333
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-privacy.test.js:8:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'PRESENT'
+    - 'REDACTED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'REDACTED'
+  actual: 'PRESENT'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-privacy.test.js:19:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5201.232917

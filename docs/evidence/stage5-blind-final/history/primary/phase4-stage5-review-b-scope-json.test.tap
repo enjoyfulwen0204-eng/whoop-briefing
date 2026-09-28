@@ -1,0 +1,90 @@
+TAP version 13
+# {"ts":"2026-09-28T06:47:44.898Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:47:44.901Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:47:46.221Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:47:46.223Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:47:46.307Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:47:46.309Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:47:47.599Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:47:47.600Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext top-success retains capability through validation and releases at completion
+ok 1 - M004: withContext top-success retains capability through validation and releases at completion
+  ---
+  duration_ms: 1418.225792
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:47:47.672Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:47:47.673Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:47:48.965Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:47:48.966Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext top-error retains capability through validation and releases at completion
+ok 2 - M004: withContext top-error retains capability through validation and releases at completion
+  ---
+  duration_ms: 1366.138833
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:47:49.037Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:47:49.038Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:47:50.336Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:47:50.337Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext nested-success retains capability through validation and releases at completion
+ok 3 - M004: withContext nested-success retains capability through validation and releases at completion
+  ---
+  duration_ms: 1364.111
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:47:50.407Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:47:50.408Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:47:51.727Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:47:51.728Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext nested-error retains capability through validation and releases at completion
+ok 4 - M004: withContext nested-error retains capability through validation and releases at completion
+  ---
+  duration_ms: 1369.725291
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:47:51.797Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:47:51.798Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:47:53.060Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:47:53.060Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext outer-rollback retains capability through validation and releases at completion
+ok 5 - M004: withContext outer-rollback retains capability through validation and releases at completion
+  ---
+  duration_ms: 1390.759458
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:47:53.129Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:47:53.130Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:47:54.400Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:47:54.400Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: withContext after-check-error retains capability through validation and releases at completion
+ok 6 - M004: withContext after-check-error retains capability through validation and releases at completion
+  ---
+  duration_ms: 1331.306042
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:47:54.560Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:47:54.561Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:47:55.858Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:47:55.858Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: M004: an owned operation inside withContext leaves capability usable until scope exit
+ok 7 - M004: an owned operation inside withContext leaves capability usable until scope exit
+  ---
+  duration_ms: 1431.124292
+  type: 'test'
+  ...
+# Subtest: M005: all accepted special own JSON keys survive identity, content and reordered exact replay
+ok 8 - M005: all accepted special own JSON keys survive identity, content and reordered exact replay
+  ---
+  duration_ms: 3457.545375
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13354.512959

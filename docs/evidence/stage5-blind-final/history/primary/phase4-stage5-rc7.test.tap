@@ -1,0 +1,218 @@
+TAP version 13
+# {"ts":"2026-09-28T06:48:05.127Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:48:05.130Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:48:06.456Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:48:06.457Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:48:09.424Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:48:09.425Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:48:10.731Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:48:10.732Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6-H-001 generic history cannot downgrade root authority through algorithm metadata
+ok 1 - RC6-H-001 generic history cannot downgrade root authority through algorithm metadata
+  ---
+  duration_ms: 4305.977667
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:48:15.462Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:48:15.463Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:48:16.766Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:48:16.767Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6-H-002 real Journal purge reaches authenticated insight target after evidence edge loss
+ok 2 - RC6-H-002 real Journal purge reaches authenticated insight target after evidence edge loss
+  ---
+  duration_ms: 6037.926459
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:48:21.341Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:48:21.342Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:48:22.651Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:48:22.652Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6-H-003 parseable manifest with invalid HMAC cannot veto Journal purge
+ok 3 - RC6-H-003 parseable manifest with invalid HMAC cannot veto Journal purge
+  ---
+  duration_ms: 5879.5145
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:48:26.760Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:48:26.761Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:48:28.145Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:48:28.146Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6-M-001 degraded authenticated null result replays exact calculation after restart
+ok 4 - RC6-M-001 degraded authenticated null result replays exact calculation after restart
+  ---
+  duration_ms: 5419.029708
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:48:52.568Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:48:52.569Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:48:53.852Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:48:53.853Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC6-M-002 historical insight calculation time belongs to original revision
+ok 5 - RC6-M-002 historical insight calculation time belongs to original revision
+  ---
+  duration_ms: 24195.130917
+  type: 'test'
+  ...
+# Subtest: RC6-M-003 equivalent source version instants preserve baseline selection
+ok 6 - RC6-M-003 equivalent source version instants preserve baseline selection
+  ---
+  duration_ms: 1.006166
+  type: 'test'
+  ...
+# Subtest: RC6-M-004 coverage self-cycle returns explicit integrity error promptly
+ok 7 - RC6-M-004 coverage self-cycle returns explicit integrity error promptly
+  ---
+  duration_ms: 1608.03925
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:48:56.867Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:48:56.868Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:48:58.200Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:48:58.201Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC7 generic history validates known, unknown and malformed registration versions without writes
+ok 8 - RC7 generic history validates known, unknown and malformed registration versions without writes
+  ---
+  duration_ms: 4301.133792
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:49:01.919Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:49:01.920Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:49:03.323Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:49:03.324Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC7 no-change and warming null projections survive later episode state and a different clock
+    # Subtest: no-change
+    ok 1 - no-change
+      ---
+      duration_ms: 5051.086041
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:49:06.393Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:49:06.394Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:49:07.795Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:49:07.795Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: warming
+    ok 2 - warming
+      ---
+      duration_ms: 4474.337458
+      type: 'test'
+      ...
+    1..2
+ok 9 - RC7 no-change and warming null projections survive later episode state and a different clock
+  ---
+  duration_ms: 9526.301791
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:49:07.989Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:49:07.990Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:49:09.394Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:49:09.394Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC7 legacy signed null is unavailable; corrupt projection cannot authenticate or mutate on read
+ok 10 - RC7 legacy signed null is unavailable; corrupt projection cannot authenticate or mutate on read
+  ---
+  duration_ms: 1594.385042
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:49:19.179Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:49:19.180Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:49:20.628Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:49:20.629Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC7 source timestamp representation and permutation preserve manifest, identity, provenance and replay
+ok 11 - RC7 source timestamp representation and permutation preserve manifest, identity, provenance and replay
+  ---
+  duration_ms: 7902.588791
+  type: 'test'
+  ...
+# Subtest: RC7 real source-version changes and opaque versions are not over-normalized
+ok 12 - RC7 real source-version changes and opaque versions are not over-normalized
+  ---
+  duration_ms: 0.909542
+  type: 'test'
+  ...
+# Subtest: RC7 coverage two-node and three-node cycles reject explicitly after restart
+ok 13 - RC7 coverage two-node and three-node cycles reject explicitly after restart
+  ---
+  duration_ms: 3286.024458
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:49:21.215Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:49:21.217Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:49:22.665Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:49:22.666Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC7 long coverage lineage, shared predecessor and missing predecessor have deterministic semantics
+ok 14 - RC7 long coverage lineage, shared predecessor and missing predecessor have deterministic semantics
+  ---
+  duration_ms: 2035.438792
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:49:30.418Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:49:30.420Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:49:31.875Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:49:31.876Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC7 authenticated METRIC result participates in Journal purge after root and episode edge loss
+    # Subtest: edge-loss
+    ok 1 - edge-loss
+      ---
+      duration_ms: 9203.165417
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T06:49:39.634Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:49:39.636Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:49:41.093Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:49:41.094Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: corrupt-transitive-authority
+    ok 2 - corrupt-transitive-authority
+      ---
+      duration_ms: 9214.623834
+      type: 'test'
+      ...
+    1..2
+ok 15 - RC7 authenticated METRIC result participates in Journal purge after root and episode edge loss
+  ---
+  duration_ms: 18418.742083
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:50:07.106Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:50:07.108Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:50:08.605Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:50:08.605Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC7 both insight result scopes and transitive association targets purge without mutable revision edges
+ok 16 - RC7 both insight result scopes and transitive association targets purge without mutable revision edges
+  ---
+  duration_ms: 27472.638292
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:50:13.883Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:50:13.884Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:50:15.371Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:50:15.372Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC7 corrupt-authority privacy is scoped, atomic, monotonic and unreadable after completion
+ok 17 - RC7 corrupt-authority privacy is scoped, atomic, monotonic and unreadable after completion
+  ---
+  duration_ms: 6776.619167
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:50:20.255Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:50:20.257Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:50:21.792Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:50:21.793Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: RC7 unauthenticated fallback aborts purge atomically and never reports completion
+ok 18 - RC7 unauthenticated fallback aborts purge atomically and never reports completion
+  ---
+  duration_ms: 6372.196708
+  type: 'test'
+  ...
+# Subtest: RC7 missing supplemental authority rejects a direct revision before commit regardless of registration
+ok 19 - RC7 missing supplemental authority rejects a direct revision before commit regardless of registration
+  ---
+  duration_ms: 4914.74675
+  type: 'test'
+  ...
+1..19
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 140288.867167

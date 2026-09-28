@@ -1,0 +1,267 @@
+TAP version 13
+# {"ts":"2026-09-28T07:05:45.749Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:05:45.753Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:05:45.754Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:05:47.674Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:05:47.676Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:05:49.034Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+# Subtest: M: fresh, v26 and full v20 migrations create no historical receipts
+    # Subtest: v20→v27
+    ok 1 - v20→v27
+      ---
+      duration_ms: 1941.756125
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:05:49.683Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:05:49.685Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:05:51.336Z","level":"info","event":"user_created","user_id":"preserved","status":"ACTIVE"}
+    # Subtest: v26→v27
+    ok 2 - v26→v27
+      ---
+      duration_ms: 2008.88475
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:05:55.622Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:05:55.623Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: v27→v27
+    ok 3 - v27→v27
+      ---
+      duration_ms: 2167.041458
+      type: 'test'
+      ...
+    1..3
+ok 1 - M: fresh, v26 and full v20 migrations create no historical receipts
+  ---
+  duration_ms: 6118.705125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:06:00.873Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:00.875Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: E/M: a genuine RC6 raw-time observation is reused without inserting a canonical alias
+ok 2 - E/M: a genuine RC6 raw-time observation is reused without inserting a canonical alias
+  ---
+  duration_ms: 9020.509584
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:06:03.154Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:03.156Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: M: every v27 durable migration interruption resumes exactly
+    # Subtest: boundary 1
+    ok 1 - boundary 1
+      ---
+      duration_ms: 2261.276
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:05.471Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:05.472Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 2
+    ok 2 - boundary 2
+      ---
+      duration_ms: 2330.213875
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:07.791Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:07.793Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 3
+    ok 3 - boundary 3
+      ---
+      duration_ms: 2323.236041
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:10.095Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:10.097Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 4
+    ok 4 - boundary 4
+      ---
+      duration_ms: 2305.306375
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:12.484Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:12.485Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 5
+    ok 5 - boundary 5
+      ---
+      duration_ms: 2388.242083
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:14.763Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:14.765Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 6
+    ok 6 - boundary 6
+      ---
+      duration_ms: 2278.503417
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:17.024Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:17.026Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 7
+    ok 7 - boundary 7
+      ---
+      duration_ms: 2263.867
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:19.229Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:19.231Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 8
+    ok 8 - boundary 8
+      ---
+      duration_ms: 2205.032417
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:21.433Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:21.435Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 9
+    ok 9 - boundary 9
+      ---
+      duration_ms: 2201.365875
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:23.807Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:23.808Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 10
+    ok 10 - boundary 10
+      ---
+      duration_ms: 2376.688541
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:25.973Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:25.974Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 11
+    ok 11 - boundary 11
+      ---
+      duration_ms: 2165.847166
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:28.170Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:28.171Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 12
+    ok 12 - boundary 12
+      ---
+      duration_ms: 2197.172708
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:30.363Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:30.364Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 13
+    ok 13 - boundary 13
+      ---
+      duration_ms: 2192.103458
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:32.530Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:32.531Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 14
+    ok 14 - boundary 14
+      ---
+      duration_ms: 2166.975208
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:06:34.705Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:34.707Z","level":"info","event":"schema_migrated","from":0,"to":20}
+    # Subtest: boundary 15
+    ok 15 - boundary 15
+      ---
+      duration_ms: 2173.895
+      type: 'test'
+      ...
+    1..15
+ok 3 - M: every v27 durable migration interruption resumes exactly
+  ---
+  duration_ms: 33832.962333
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:06:40.263Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:40.264Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: M: exact schema drift fails closed
+ok 4 - M: exact schema drift fails closed
+  ---
+  duration_ms: 1796.470042
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:06:46.282Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:46.283Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: F/M: real pre25 metric cutover
+ok 5 - F/M: real pre25 metric cutover
+  ---
+  duration_ms: 6095.515208
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:06:51.792Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:51.793Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: F/M: real v25 metric cutover
+ok 6 - F/M: real v25 metric cutover
+  ---
+  duration_ms: 5973.009417
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:06:58.190Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:06:58.191Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: F/M: real v25 association cutover
+ok 7 - F/M: real v25 association cutover
+  ---
+  duration_ms: 5814.0475
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:07:02.113Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:07:02.115Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: F/M: real rc6 metric cutover
+ok 8 - F/M: real rc6 metric cutover
+  ---
+  duration_ms: 6164.540917
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:07:07.716Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:07:07.717Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: F/M: real rc6 metric-null cutover
+ok 9 - F/M: real rc6 metric-null cutover
+  ---
+  duration_ms: 3696.639041
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:07:12.213Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:07:12.215Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: F/M: real rc6 association cutover
+ok 10 - F/M: real rc6 association cutover
+  ---
+  duration_ms: 6018.093125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:07:18.050Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:07:18.051Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: F/M: real rc6 association-null cutover
+ok 11 - F/M: real rc6 association-null cutover
+  ---
+  duration_ms: 4292.801125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:07:22.217Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:07:22.219Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: F/M: real rc7 association cutover
+ok 12 - F/M: real rc7 association cutover
+  ---
+  duration_ms: 5968.443583
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:07:29.822Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:07:29.824Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: F/M: real rc6 metric-null ambiguous aliases cutover
+ok 13 - F/M: real rc6 metric-null ambiguous aliases cutover
+  ---
+  duration_ms: 4060.679084
+  type: 'test'
+  ...
+# Subtest: F/M: real rc6 association ambiguous aliases cutover
+ok 14 - F/M: real rc6 association ambiguous aliases cutover
+  ---
+  duration_ms: 7906.007583
+  type: 'test'
+  ...
+1..14
+# tests 32
+# suites 0
+# pass 32
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 107031.486792

@@ -1,0 +1,127 @@
+TAP version 13
+# {"ts":"2026-09-28T07:26:56.120Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:26:56.124Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:26:57.412Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:26:57.414Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:27:03.650Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:27:03.651Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:27:04.894Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:27:04.895Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A: complete metric return survives restart and later revisions
+ok 1 - A: complete metric return survives restart and later revisions
+  ---
+  duration_ms: 7539.765666
+  type: 'test'
+  ...
+# Subtest: E: explicit offset and lossless millisecond instant contract
+ok 2 - E: explicit offset and lossless millisecond instant contract
+  ---
+  duration_ms: 0.499958
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:27:09.988Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:27:09.989Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:27:11.267Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:27:11.267Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: D/E: window family changes identity; branded aliases fail without writes
+ok 3 - D/E: window family changes identity; branded aliases fail without writes
+  ---
+  duration_ms: 6337.174708
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:27:13.860Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:27:13.861Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:27:15.121Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:27:15.122Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: B/C: column growth and missing roots cannot use generic fallback
+ok 4 - B/C: column growth and missing roots cannot use generic fallback
+  ---
+  duration_ms: 3871.889291
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:27:27.128Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:27:27.130Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:27:28.416Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:27:28.417Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A/J: complete insight historical return, direct retry and chronology
+ok 5 - A/J: complete insight historical return, direct retry and chronology
+  ---
+  duration_ms: 13268.72925
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:27:28.695Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:27:28.696Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:27:29.979Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:27:29.980Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: H: empty association universe is a durable typed result
+ok 6 - H: empty association universe is a durable typed result
+  ---
+  duration_ms: 1566.432583
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:27:33.769Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:27:33.770Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:27:35.079Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:27:35.080Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: G: standalone explanation closure survives loss of every naming link
+ok 7 - G: standalone explanation closure survives loss of every naming link
+  ---
+  duration_ms: 5074.324166
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:27:35.252Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:27:35.253Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:27:36.567Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:27:36.568Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: I: malformed coverage root is rejected before analysis writes
+ok 8 - I: malformed coverage root is rejected before analysis writes
+  ---
+  duration_ms: 1482.148875
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:27:43.213Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:27:43.215Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:27:44.579Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:27:44.579Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: C: every metric reader rejects receipt corruption, missing authority and missing required root
+ok 9 - C: every metric reader rejects receipt corruption, missing authority and missing required root
+  ---
+  duration_ms: 7959.29725
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:28:28.633Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:28:28.635Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:28:29.998Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:28:29.998Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: K: required-root count and serialized bytes match an independent input oracle
+ok 10 - K: required-root count and serialized bytes match an independent input oracle
+  ---
+  duration_ms: 45419.335166
+  type: 'test'
+  ...
+# 360-day authority: 542 distinct roots, 128663 canonical bytes
+# {"ts":"2026-09-28T07:28:32.838Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:28:32.840Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:28:34.210Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:28:34.211Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: L/N: concurrent equivalent operations converge and release completed leases
+ok 11 - L/N: concurrent equivalent operations converge and release completed leases
+  ---
+  duration_ms: 4206.342542
+  type: 'test'
+  ...
+# Subtest: L: receipt insertion failure rolls back every Stage 5 write and releases the lease
+ok 12 - L: receipt insertion failure rolls back every Stage 5 write and releases the lease
+  ---
+  duration_ms: 2488.22725
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 99472.251333

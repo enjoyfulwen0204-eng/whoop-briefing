@@ -1,0 +1,26 @@
+TAP version 13
+# {"ts":"2026-09-28T06:47:35.271Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:47:35.274Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:47:42.069Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:47:42.071Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# Subtest: H001: real pre25 standalone Journal explanation is purged without naming links or fabricated authority
+ok 1 - H001: real pre25 standalone Journal explanation is purged without naming links or fabricated authority
+  ---
+  duration_ms: 6720.02075
+  type: 'test'
+  ...
+# Subtest: H001: real v25 standalone Journal explanation is purged without naming links or fabricated authority
+ok 2 - H001: real v25 standalone Journal explanation is purged without naming links or fabricated authority
+  ---
+  duration_ms: 6804.97975
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13749.000375

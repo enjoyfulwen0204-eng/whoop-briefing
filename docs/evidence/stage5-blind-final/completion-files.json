@@ -1,0 +1,11 @@
+[
+  "test/phase4-stage5-blind-paths.test.js",
+  "test/phase4-stage5-blind-canonical.test.js",
+  "test/phase4-stage5-blind-journal.test.js",
+  "test/phase4-journal-answers.test.js",
+  "test/phase4-stage5-contracts.test.js",
+  "test/phase4-stage5-review-b-scope-json.test.js",
+  "test/phase4-stage5-operation-surface.test.js",
+  "test/phase4-v27.test.js",
+  "test/phase4-stage5-closure.test.js"
+]

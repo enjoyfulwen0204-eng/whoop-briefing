@@ -1,0 +1,117 @@
+[
+  {
+    "file": "src/bodyEnergyStore.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4CanonicalOrder.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4Core.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4EpisodeStore.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4InsightStore.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4Intelligence.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4IntelligenceStore.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4JournalStore.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4OperationReceipts.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4PrivacyStore.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4Redaction.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4Repositories.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4RequestContract.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4ResultAuthority.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "src/phase4Stage5Privacy.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "test/phase4-journal-answers.test.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "test/phase4-stage5-blind-canonical.test.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "test/phase4-stage5-blind-identity.test.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "test/phase4-stage5-blind-journal.test.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "test/phase4-stage5-blind-lifecycle.test.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "test/phase4-stage5-blind-paths.test.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "test/phase4-stage5-blind-privacy.test.js",
+    "code": 0,
+    "output": ""
+  },
+  {
+    "file": "test/stage5BlindFixture.js",
+    "code": 0,
+    "output": ""
+  }
+]

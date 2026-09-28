@@ -1,0 +1,20 @@
+TAP version 13
+# {"ts":"2026-09-28T06:59:16.054Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:59:16.057Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:59:17.389Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:59:17.390Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Journal deletion traverses every legacy plaintext family with exact sentinels/removal, tenant isolation and unrelated Journal preservation
+ok 1 - Journal deletion traverses every legacy plaintext family with exact sentinels/removal, tenant isolation and unrelated Journal preservation
+  ---
+  duration_ms: 1743.428709
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1963.248125

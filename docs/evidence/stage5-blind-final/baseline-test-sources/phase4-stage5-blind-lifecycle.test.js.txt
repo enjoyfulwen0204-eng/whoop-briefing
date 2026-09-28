@@ -1,0 +1,42 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { fixture,identity,snapshot } from './stage5M007Fixture.js';
+import { call,read } from './stage5ClosureFixture.js';
+import { guards,semantic,leases,T } from './stage5ReviewBFixture.js';
+import { family,hypothesis } from './stage5AssociationFixture.js';
+
+test('BF-H02: sealed terminal revision defeats rolled-back pointer/status on every current boundary',async t=>{
+  const {f,old,original,initialRequest,evidenceId,successor}=await fixture(t);
+  const terminal=(await f.db.raw.execute({sql:'SELECT * FROM health_insights WHERE id=?',args:[old.row.id]})).rows[0];
+  assert.equal(old.row.current_revision,2);assert.equal(terminal.current_revision,3);assert.equal(terminal.status,'RETIRED');
+  await guards(f,'health_insights',()=>f.db.raw.execute({sql:'UPDATE health_insights SET current_revision=?,status=?,lifecycle_disposition=NULL,retired_at=NULL WHERE id=?',args:[2,old.row.status,old.row.id]}));
+  const before=await snapshot(f);
+  for(const attempt of [()=>read(f,'health_insights',{id:old.row.id}),
+    ()=>f.stores.withContext('a',{executionMode:'SHADOW'},c=>f.stores.insights.read(c,old.row.id,{asOfUtc:T})),
+    ()=>successor('association','2026-09-25T12:00:04.000Z','blind-rollback'),
+    ()=>call(f,'insights','transition',{insightId:old.row.id,expectedRevision:2,status:'RETIRED',disposition:'EXPIRED',
+      claim:old.row.statement,supportingEvidenceIds:[evidenceId],reason:'EXPIRED',semanticAt:'2026-09-25T12:00:04.000Z'})]) {
+    await assert.rejects(attempt(),/RECEIPT_INTEGRITY/);assert.deepEqual(await snapshot(f),before);
+  }
+  // Genuine historical replay is still historical, not a current-state claim.
+  assert.deepEqual(semantic(await call(f,'intelligence','analyzeAssociationFamily',initialRequest)),semantic(original));
+  assert.deepEqual(await snapshot(f),before);assert.equal(await leases(f),0);
+});
+
+test('BF-H03: hidden opposite is discovered; mutable key drift cannot seal contradiction=null',async t=>{
+  const {f,direct,evidenceId}=await fixture(t);
+  let opposite=await call(f,'insights','create',{...direct(T,'blind-opposite'),identity:{...identity,direction:'HIGHER'}});
+  opposite=await call(f,'insights','transition',{insightId:opposite.row.id,expectedRevision:1,status:'EMERGING',claim:opposite.row.statement,
+    supportingEvidenceIds:[evidenceId],reason:'REPEATED_EVIDENCE',semanticAt:T});
+  await guards(f,'health_insights',()=>f.db.raw.execute({sql:'UPDATE health_insights SET insight_key=? WHERE id=?',args:['f'.repeat(64),opposite.row.id]}));
+  const selected=await read(f,'health_insights',{id:opposite.row.id});assert.equal(selected.row.insight_key,opposite.row.insight_key);
+  const req=family('blind-hidden-opposite',hypothesis(f,Array.from({length:30},(_,i)=>i)),'2026-09-25T12:00:04.000Z'),before=await snapshot(f);
+  await assert.rejects(call(f,'intelligence','analyzeAssociationFamily',req),/RECEIPT_INTEGRITY/);
+  assert.deepEqual(await snapshot(f),before);assert.equal(await leases(f),0);
+  // Restoring genuine materialization permits contradiction on this same
+  // request; the discovered authenticated opposite is not an absence result.
+  await guards(f,'health_insights',()=>f.db.raw.execute({sql:'UPDATE health_insights SET insight_key=? WHERE id=?',args:[opposite.row.insight_key,opposite.row.id]}));
+  const result=await call(f,'intelligence','analyzeAssociationFamily',req);
+  assert.equal(result.items[0].insight.contradiction.row.id,opposite.row.id);
+  assert.equal(result.items[0].insight.contradiction.row.status,'WEAKENED');
+});

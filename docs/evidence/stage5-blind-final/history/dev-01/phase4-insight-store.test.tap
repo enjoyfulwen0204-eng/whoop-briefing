@@ -1,0 +1,50 @@
+TAP version 13
+# {"ts":"2026-09-28T06:12:12.846Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:12:12.854Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:12:14.226Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:14.228Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:14.387Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:12:14.388Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:12:15.677Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:15.678Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Insight parent stub, first revision and current pointer commit atomically; legacy and foreign parents cannot become current
+ok 1 - Insight parent stub, first revision and current pointer commit atomically; legacy and foreign parents cannot become current
+  ---
+  duration_ms: 1558.110833
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:12:15.865Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:12:15.866Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:12:17.171Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:17.172Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Insight transitions require legal edges and durable replication; dismissal is atomic terminal disposition and CAS has one winner
+ok 2 - Insight transitions require legal edges and durable replication; dismissal is atomic terminal disposition and CAS has one winner
+  ---
+  duration_ms: 1479.156333
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:12:17.334Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:12:17.335Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:12:18.634Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:12:18.634Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A logical insight refresh uses new-generation evidence without promoting the old revision or dropping purge lineage
+ok 3 - A logical insight refresh uses new-generation evidence without promoting the old revision or dropping purge lineage
+  ---
+  duration_ms: 1468.908042
+  type: 'test'
+  ...
+# Subtest: Insight promotion fails closed on missing or low durable confidence and accepts a compatible persisted score
+ok 4 - Insight promotion fails closed on missing or low durable confidence and accepts a compatible persisted score
+  ---
+  duration_ms: 1577.667958
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6365.522792

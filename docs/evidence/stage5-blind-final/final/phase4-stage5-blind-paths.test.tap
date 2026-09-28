@@ -1,0 +1,20 @@
+TAP version 13
+# {"ts":"2026-09-28T07:12:33.586Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:12:33.588Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:12:34.843Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:12:34.845Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M02: literal path labels preserve JSON order while genuine nested source sets replay permutations
+ok 1 - BF-M02: literal path labels preserve JSON order while genuine nested source sets replay permutations
+  ---
+  duration_ms: 1897.008375
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2108.162875

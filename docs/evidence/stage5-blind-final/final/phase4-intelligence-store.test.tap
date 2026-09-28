@@ -1,0 +1,264 @@
+TAP version 13
+# {"ts":"2026-09-28T07:39:16.918Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:16.920Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:18.220Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:18.222Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:20.912Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:20.913Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:22.178Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:22.179Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Metric analysis persists completed traceable evidence before one OPEN episode and semantic event
+ok 1 - Metric analysis persists completed traceable evidence before one OPEN episode and semantic event
+  ---
+  duration_ms: 4003.123167
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:27.891Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:27.892Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:29.182Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:29.183Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Episode merge continuity is inclusive through exactly 36 hours and splits beyond it
+    # Subtest: under
+    ok 1 - under
+      ---
+      duration_ms: 6978.95575
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:39:34.774Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:34.775Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:36.067Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:36.068Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: exact
+    ok 2 - exact
+      ---
+      duration_ms: 6882.773833
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:39:42.304Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:42.305Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:43.609Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:43.610Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: over
+    ok 3 - over
+      ---
+      duration_ms: 7530.754459
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:39:49.870Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:49.871Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:51.182Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:51.183Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: 118-hours
+    ok 4 - 118-hours
+      ---
+      duration_ms: 7564.276334
+      type: 'test'
+      ...
+    1..4
+ok 2 - Episode merge continuity is inclusive through exactly 36 hours and splits beyond it
+  ---
+  duration_ms: 28958.031542
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:54.666Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:54.667Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:55.955Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:55.956Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:55.997Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:55.998Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:57.319Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:57.320Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:57.364Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:57.368Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:58.748Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:58.748Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A DEGRADED current observation persists diagnostics but cannot join or advance an active episode
+ok 3 - A DEGRADED current observation persists diagnostics but cannot join or advance an active episode
+  ---
+  duration_ms: 4796.392666
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:40:07.152Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:40:07.153Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:40:08.534Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:40:08.534Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Fixed semantic as-of yields identical evidence and episode lifecycle fields under different wall clocks
+ok 4 - Fixed semantic as-of yields identical evidence and episode lifecycle fields under different wall clocks
+  ---
+  duration_ms: 12484.257666
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:40:12.703Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:40:12.705Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:40:14.104Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:40:14.105Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Episode expiry evaluates explicit semantic time, not a later processing clock
+ok 5 - Episode expiry evaluates explicit semantic time, not a later processing clock
+  ---
+  duration_ms: 5549.964875
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:40:17.090Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:40:17.091Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:40:18.523Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:40:18.523Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Exact replay converges on the same evidence, episode, observation and semantic identities
+ok 6 - Exact replay converges on the same evidence, episode, observation and semantic identities
+  ---
+  duration_ms: 4386.8125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:40:21.541Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:40:21.542Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:40:22.983Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:40:22.984Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Concurrent exact replay has one durable winner for every logical artifact
+ok 7 - Concurrent exact replay has one durable winner for every logical artifact
+  ---
+  duration_ms: 4450.858042
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:40:29.195Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:40:29.196Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:40:30.645Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:40:30.646Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A new qualifying observation extends the same family instead of opening a duplicate episode
+ok 8 - A new qualifying observation extends the same family instead of opening a duplicate episode
+  ---
+  duration_ms: 7653.710917
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:40:41.278Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:40:41.279Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:40:42.734Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:40:42.735Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Close-threshold evidence stabilizes and only a 24-hour hold resolves an episode
+ok 9 - Close-threshold evidence stabilizes and only a 24-hour hold resolves an episode
+  ---
+  duration_ms: 12081.939
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:40:49.725Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:40:49.727Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:40:51.185Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:40:51.185Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A qualified opposite direction atomically resolves the old episode and opens one linked reversal
+ok 10 - A qualified opposite direction atomically resolves the old episode and opens one linked reversal
+  ---
+  duration_ms: 8447.819334
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:41:07.792Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:41:07.793Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:41:09.261Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:41:09.262Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A qualified recurrence within seven days opens a linked episode without mutating resolved history
+ok 11 - A qualified recurrence within seven days opens a linked episode without mutating resolved history
+  ---
+  duration_ms: 18066.475167
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:41:13.662Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:41:13.664Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:41:15.130Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:41:15.131Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Episode expiry is explicit, auditable, and cannot happen before its registered boundary
+ok 12 - Episode expiry is explicit, auditable, and cannot happen before its registered boundary
+  ---
+  duration_ms: 5870.399458
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:41:15.269Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:41:15.270Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:41:16.750Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:41:16.750Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Canonical values are derived from branded source snapshots; cross-user and forged references fail closed
+ok 13 - Canonical values are derived from branded source snapshots; cross-user and forged references fail closed
+  ---
+  duration_ms: 1606.191292
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:41:17.027Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:41:17.028Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:41:18.508Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:41:18.508Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:41:18.541Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-28T07:41:18.541Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: Public and internal Stage 5 authority is SHADOW-only even though persistence identities remain mode-qualified
+ok 14 - Public and internal Stage 5 authority is SHADOW-only even though persistence identities remain mode-qualified
+  ---
+  duration_ms: 1757.749459
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:41:18.613Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:41:18.614Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:41:20.112Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:41:20.113Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Lifecycle, auth, input and purge generation changes fence stale analysis before commit
+    # Subtest: lifecycle ABA
+    ok 1 - lifecycle ABA
+      ---
+      duration_ms: 1585.134208
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:41:20.217Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:41:20.218Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:41:21.690Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:41:21.691Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: auth generation
+    ok 2 - auth generation
+      ---
+      duration_ms: 1603.421
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:41:21.794Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:41:21.795Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:41:23.305Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:41:23.306Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: input generation
+    ok 3 - input generation
+      ---
+      duration_ms: 1576.396625
+      type: 'test'
+      ...
+# {"ts":"2026-09-28T07:41:23.409Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:41:23.411Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:41:24.925Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:41:24.926Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+    # Subtest: purge generation
+    ok 4 - purge generation
+      ---
+      duration_ms: 1615.3535
+      type: 'test'
+      ...
+    1..4
+ok 15 - Lifecycle, auth, input and purge generation changes fence stale analysis before commit
+  ---
+  duration_ms: 6382.523625
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:41:25.162Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:41:25.164Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:41:26.720Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:41:26.720Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Invalid, future, unsupported, unscored and mismatched canonical inputs cannot become evidence
+ok 16 - Invalid, future, unsupported, unscored and mismatched canonical inputs cannot become evidence
+  ---
+  duration_ms: 1751.492
+  type: 'test'
+  ...
+# Subtest: A canonical revision ingested after the requested as-of cannot leak into historical evidence
+ok 17 - A canonical revision ingested after the requested as-of cannot leak into historical evidence
+  ---
+  duration_ms: 1720.656167
+  type: 'test'
+  ...
+1..17
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 130200.588708

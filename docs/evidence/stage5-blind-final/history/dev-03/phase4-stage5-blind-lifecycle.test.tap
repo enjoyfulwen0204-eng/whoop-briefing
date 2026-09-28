@@ -1,0 +1,46 @@
+TAP version 13
+# {"ts":"2026-09-28T06:16:24.077Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:16:24.080Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:16:25.411Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:16:25.413Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:16:32.296Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:16:32.297Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:16:33.597Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:16:33.598Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-H02: sealed terminal revision defeats rolled-back pointer/status on every current boundary
+ok 1 - BF-H02: sealed terminal revision defeats rolled-back pointer/status on every current boundary
+  ---
+  duration_ms: 8227.315541
+  type: 'test'
+  ...
+# Subtest: BF-H03: hidden opposite is discovered; mutable key drift cannot seal contradiction=null
+not ok 2 - BF-H03: hidden opposite is discovered; mutable key drift cannot seal contradiction=null
+  ---
+  duration_ms: 12505.539791
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-blind-lifecycle.test.js:26:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  code: 'PHASE4_SEMANTIC_CHRONOLOGY_INVALID'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:21:37)
+    requireChronology (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Time.js:27:5)
+    validateTerminal (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:397:5)
+    discoverInsightPredecessor (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:517:20)
+    async updateInsight (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:535:27)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4IntelligenceStore.js:643:12
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:86:16)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:601:10
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:103:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:101:24)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 20959.418458

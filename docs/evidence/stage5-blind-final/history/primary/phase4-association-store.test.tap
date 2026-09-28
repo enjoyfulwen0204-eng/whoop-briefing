@@ -1,0 +1,160 @@
+TAP version 13
+# {"ts":"2026-09-28T06:42:45.255Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:45.258Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:46.581Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:46.583Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:51.137Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:51.139Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:52.413Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:52.413Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Tri-state Journal association persists exact classified counts, multiplicity and non-causal provenance
+ok 1 - Tri-state Journal association persists exact classified counts, multiplicity and non-causal provenance
+  ---
+  duration_ms: 5891.872459
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:42:53.927Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:53.928Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:55.210Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:55.211Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Full comparison universe retains both 30-day groups with only 16 outcomes each and blocks >40% missingness
+ok 2 - Full comparison universe retains both 30-day groups with only 16 outcomes each and blocks >40% missingness
+  ---
+  duration_ms: 2791.103542
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:42:56.010Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:42:56.011Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:42:57.349Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:42:57.350Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: UNKNOWN-heavy valid-outcome windows remain UNKNOWN and fail the promotion confound
+ok 3 - UNKNOWN-heavy valid-outcome windows remain UNKNOWN and fail the promotion confound
+  ---
+  duration_ms: 2081.98175
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:43:04.657Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:43:04.658Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:43:05.973Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:43:05.974Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Shuffled hypotheses and source arrays converge on identical association hashes and identities
+ok 4 - Shuffled hypotheses and source arrays converge on identical association hashes and identities
+  ---
+  duration_ms: 8646.797209
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:43:06.156Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:43:06.157Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:43:07.476Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:43:07.477Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A correction created after T cannot replace the readable revision authoritative at T
+ok 5 - A correction created after T cannot replace the readable revision authoritative at T
+  ---
+  duration_ms: 1497.968791
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:43:07.732Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:43:07.733Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:43:09.057Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:43:09.058Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Future-created Journal facts and coverage stay UNKNOWN at T and replay identically later
+ok 6 - Future-created Journal facts and coverage stay UNKNOWN at T and replay identically later
+  ---
+  duration_ms: 1576.468334
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:43:17.240Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:43:17.242Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:43:18.633Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:43:18.634Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Insight expiry uses explicit semantic time even when processing happens much later
+ok 7 - Insight expiry uses explicit semantic time even when processing happens much later
+  ---
+  duration_ms: 9507.258708
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:43:31.877Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:43:31.878Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:43:33.276Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:43:33.277Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A second non-overlapping supporting run promotes EMERGING to SUPPORTED, never HYPOTHESIS directly
+ok 8 - A second non-overlapping supporting run promotes EMERGING to SUPPORTED, never HYPOTHESIS directly
+  ---
+  duration_ms: 14635.657
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:43:38.234Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:43:38.235Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:43:39.639Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:43:39.640Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Association replay is byte-stable and does not append evidence or insight revisions
+ok 9 - Association replay is byte-stable and does not append evidence or insight revisions
+  ---
+  duration_ms: 6357.227208
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:43:40.003Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:43:40.004Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:43:41.432Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:43:41.433Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Insufficient samples and UNKNOWN absence persist evidence but cannot create an insight
+ok 10 - Insufficient samples and UNKNOWN absence persist evidence but cannot create an insight
+  ---
+  duration_ms: 1768.167708
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:44:12.927Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:44:12.929Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:44:14.372Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:44:14.373Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Repeated opposite evidence weakens a supported insight and records contradiction without causal refutation
+ok 11 - Repeated opposite evidence weakens a supported insight and records contradiction without causal refutation
+  ---
+  duration_ms: 32925.039916
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:44:22.869Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:44:22.870Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:44:24.355Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:44:24.356Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Insight expiry is an explicit retained revision and expired memory is not current
+ok 12 - Insight expiry is an explicit retained revision and expired memory is not current
+  ---
+  duration_ms: 9942.074708
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:44:29.247Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:44:29.248Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:44:30.710Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:44:30.710Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: A candidate that ages out before repetition is retired as REJECTED, not promoted or silently deleted
+ok 13 - A candidate that ages out before repetition is retired as REJECTED, not promoted or silently deleted
+  ---
+  duration_ms: 6377.383417
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:44:35.583Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:44:35.584Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:44:37.049Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:44:37.049Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Deleting a linked Journal fact redacts transitive evidence and insight content and prevents source replay resurrection
+ok 14 - Deleting a linked Journal fact redacts transitive evidence and insight content and prevents source replay resurrection
+  ---
+  duration_ms: 6336.18925
+  type: 'test'
+  ...
+# Subtest: Association inputs remain tenant-bound and LIVE authority cannot execute Stage 5
+ok 15 - Association inputs remain tenant-bound and LIVE authority cannot execute Stage 5
+  ---
+  duration_ms: 1757.8595
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 112331.334625

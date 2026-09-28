@@ -1,0 +1,241 @@
+TAP version 13
+# {"ts":"2026-09-28T06:18:56.978Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:18:56.981Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:18:58.296Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:58.297Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:58.591Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:18:58.606Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:18:59.917Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:18:59.918Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M02: domain-like names inside arbitrary JSON preserve array order and distinct receipt identity
+not ok 1 - BF-M02: domain-like names inside arbitrary JSON preserve array order and distinct receipt identity
+  ---
+  duration_ms: 1615.778209
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:11:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        baselineSources: [
+    +     1,
+          2,
+    -     1
+        ],
+        comparisonHealthDates: [
+    +     1,
+          2,
+    -     1
+        ],
+        coverageSources: [
+    +     1,
+          2,
+    -     1
+        ],
+        hypotheses: [
+    +     1,
+          2,
+    -     1
+        ],
+        journalFactSources: [
+    +     1,
+          2,
+    -     1
+        ],
+        outcomeSources: [
+    +     1,
+          2,
+    -     1
+        ],
+        sourceRefs: [
+    +     1,
+          2,
+    -     1
+        ]
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    hypotheses:
+      0: 2
+      1: 1
+    baselineSources:
+      0: 2
+      1: 1
+    sourceRefs:
+      0: 2
+      1: 1
+    outcomeSources:
+      0: 2
+      1: 1
+    journalFactSources:
+      0: 2
+      1: 1
+    coverageSources:
+      0: 2
+      1: 1
+    comparisonHealthDates:
+      0: 2
+      1: 1
+  actual:
+    baselineSources:
+      0: 1
+      1: 2
+    comparisonHealthDates:
+      0: 1
+      1: 2
+    coverageSources:
+      0: 1
+      1: 2
+    hypotheses:
+      0: 1
+      1: 2
+    journalFactSources:
+      0: 1
+      1: 2
+    outcomeSources:
+      0: 1
+      1: 2
+    sourceRefs:
+      0: 1
+      1: 2
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:16:58)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# {"ts":"2026-09-28T06:19:00.534Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:19:00.535Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:19:01.842Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:19:01.843Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03: optional accepted Body Energy asOfUtc is one canonical request in both retry directions
+not ok 2 - BF-M03: optional accepted Body Energy asOfUtc is one canonical request in both retry directions
+  ---
+  duration_ms: 1949.508208
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:30:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  code: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4Core.js:20:37)
+    newBody (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4Repositories.js:77:17)
+    async file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4OperationReceipts.js:581:93
+    async file:///private/tmp/stage5-blind-baseline-czcqzrse/src/processingTransaction.js:103:26
+    async transaction (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/processingTransaction.js:101:24)
+    async Object.compute (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4Repositories.js:37:16)
+    async call (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/stage5ClosureFixture.js:20:14)
+    async TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:35:18)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-28T06:19:02.170Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:19:02.171Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:19:03.453Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:19:03.454Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03: insight identity case/whitespace aliases replay the same original receipt
+not ok 3 - BF-M03: insight identity case/whitespace aliases replay the same original receipt
+  ---
+  duration_ms: 1635.523333
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:40:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  code: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4Core.js:20:37)
+    unavailable (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4OperationReceipts.js:17:23)
+    file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4OperationReceipts.js:569:73
+    async file:///private/tmp/stage5-blind-baseline-czcqzrse/src/processingTransaction.js:103:26
+    async transaction (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/processingTransaction.js:101:24)
+    async Object.create (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4Repositories.js:37:16)
+    async call (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/stage5ClosureFixture.js:20:14)
+    async TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:44:29)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-28T06:19:03.553Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:19:03.554Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:19:04.843Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:19:04.844Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-L01: Unicode-distinct source IDs have total order and permutation-independent request/replay
+not ok 4 - BF-L01: Unicode-distinct source IDs have total order and permutation-independent request/replay
+  ---
+  duration_ms: 1382.272
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:48:1'
+  failureType: 'testCodeFailure'
+  error: 'Expected "actual" to be strictly unequal to: 0'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 0
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:51:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# {"ts":"2026-09-28T06:19:05.611Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:19:05.612Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:19:06.947Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:19:06.948Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03: genuine pre-repair body alias history replays without replacement authority
+not ok 5 - BF-M03: genuine pre-repair body alias history replays without replacement authority
+  ---
+  duration_ms: 2058.203083
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:66:38'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  code: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4Core.js:20:37)
+    newBody (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4Repositories.js:77:17)
+    async file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4OperationReceipts.js:581:93
+    async file:///private/tmp/stage5-blind-baseline-czcqzrse/src/processingTransaction.js:103:26
+    async transaction (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/processingTransaction.js:101:24)
+    async Object.compute (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4Repositories.js:37:16)
+    async call (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/stage5ClosureFixture.js:20:14)
+    async TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:73:29)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: BF-M03: genuine pre-repair insight alias history replays without replacement authority
+not ok 6 - BF-M03: genuine pre-repair insight alias history replays without replacement authority
+  ---
+  duration_ms: 1808.634292
+  type: 'test'
+  location: '/private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:66:38'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  code: 'PHASE4_OPERATION_RESULT_UNAVAILABLE'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4Core.js:20:37)
+    unavailable (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4OperationReceipts.js:17:23)
+    file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4OperationReceipts.js:569:73
+    async file:///private/tmp/stage5-blind-baseline-czcqzrse/src/processingTransaction.js:103:26
+    async transaction (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/processingTransaction.js:101:24)
+    async Object.create (file:///private/tmp/stage5-blind-baseline-czcqzrse/src/phase4Repositories.js:37:16)
+    async call (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/stage5ClosureFixture.js:20:14)
+    async TestContext.<anonymous> (file:///private/tmp/stage5-blind-baseline-czcqzrse/test/phase4-stage5-blind-canonical.test.js:73:29)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 0
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10674.662333

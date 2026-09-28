@@ -1,0 +1,122 @@
+TAP version 13
+# {"ts":"2026-09-28T07:38:56.685Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:38:56.688Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:38:57.984Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:38:57.986Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:38:58.405Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:38:58.406Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:38:59.781Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:38:59.782Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Body exact result replay converges with stable salt/hash, rejects arbitrary captures and same-identity content conflicts
+ok 1 - Body exact result replay converges with stable salt/hash, rejects arbitrary captures and same-identity content conflicts
+  ---
+  duration_ms: 1728.560542
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:00.778Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:00.780Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:02.041Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:02.042Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Body separate checkpoint converges on the exact closing instant; same-bucket arbitrary instants remain distinct
+ok 2 - Body separate checkpoint converges on the exact closing instant; same-bucket arbitrary instants remain distinct
+  ---
+  duration_ms: 2374.223417
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:02.766Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:02.767Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:04.011Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:04.012Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:04.343Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# {"ts":"2026-09-28T07:39:04.343Z","level":"info","event":"user_lifecycle_transition","user_id":"a"}
+# Subtest: Corrected inputs create new generation/as-of, leave retained historical manifests intact and never fabricate overwritten history
+ok 3 - Corrected inputs create new generation/as-of, leave retained historical manifests intact and never fabricate overwritten history
+  ---
+  duration_ms: 1988.303541
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:04.983Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:04.984Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:06.262Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:06.263Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Historical Body audit survives current generation changes without becoming a current parent
+ok 4 - Historical Body audit survives current generation changes without becoming a current parent
+  ---
+  duration_ms: 2216.32925
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:06.503Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:06.504Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:07.777Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:07.777Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Historical Body reproduction fails with one deterministic invariant error after manifest, hash or result tampering
+ok 5 - Historical Body reproduction fails with one deterministic invariant error after manifest, hash or result tampering
+  ---
+  duration_ms: 1519.99025
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:08.010Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:08.011Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:09.292Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:09.293Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Persisted Body confidence keeps the full IEEE-754 value while threshold classification uses the bounded comparator
+ok 6 - Persisted Body confidence keeps the full IEEE-754 value while threshold classification uses the bounded comparator
+  ---
+  duration_ms: 1506.510708
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:09.889Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:09.890Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:11.326Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:11.326Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Body facade is tenant/mode/lifecycle/purge fenced and the public factory cannot issue LIVE
+ok 7 - Body facade is tenant/mode/lifecycle/purge fenced and the public factory cannot issue LIVE
+  ---
+  duration_ms: 1878.656958
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:11.414Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:11.415Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:12.837Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:12.838Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Body null results persist explicit unanchored days and all retained exact JS Date instants are representable
+ok 8 - Body null results persist explicit unanchored days and all retained exact JS Date instants are representable
+  ---
+  duration_ms: 1524.671667
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:13.180Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:13.181Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:14.530Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:14.531Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: Health-date discrepancies enqueue dormant same-mode repair and stale timezone/capture authority is rejected
+ok 9 - Health-date discrepancies enqueue dormant same-mode repair and stale timezone/capture authority is rejected
+  ---
+  duration_ms: 1766.076083
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:39:14.612Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:39:14.613Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:39:15.959Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:39:15.960Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: An uncaptured old source whose corrected end moved into the future is not reconstructed from an older substitute
+ok 10 - An uncaptured old source whose corrected end moved into the future is not reconstructed from an older substitute
+  ---
+  duration_ms: 1431.424125
+  type: 'test'
+  ...
+# Subtest: The actual redactor removes Body and checkpoint health content while stable opaque lookup barriers prevent rehydration
+ok 11 - The actual redactor removes Body and checkpoint health content while stable opaque lookup barriers prevent rehydration
+  ---
+  duration_ms: 1806.750417
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 19980.036208

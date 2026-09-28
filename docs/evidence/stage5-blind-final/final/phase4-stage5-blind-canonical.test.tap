@@ -1,0 +1,70 @@
+TAP version 13
+# {"ts":"2026-09-28T07:13:27.112Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:13:27.114Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:13:28.392Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:13:28.394Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:13:28.903Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:13:28.905Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:13:30.153Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:13:30.154Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M02: domain-like names inside arbitrary JSON preserve array order and distinct receipt identity
+ok 1 - BF-M02: domain-like names inside arbitrary JSON preserve array order and distinct receipt identity
+  ---
+  duration_ms: 1799.656334
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:13:31.791Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:13:31.792Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:13:33.049Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:13:33.050Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03: optional accepted Body Energy asOfUtc is one canonical request in both retry directions
+ok 2 - BF-M03: optional accepted Body Energy asOfUtc is one canonical request in both retry directions
+  ---
+  duration_ms: 2888.553458
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:13:33.377Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:13:33.378Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:13:34.639Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:13:34.640Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03: insight identity case/whitespace aliases replay the same original receipt
+ok 3 - BF-M03: insight identity case/whitespace aliases replay the same original receipt
+  ---
+  duration_ms: 1585.314125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:13:34.875Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:13:34.876Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:13:36.143Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:13:36.144Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-L01: Unicode-distinct source IDs have total order and permutation-independent request/replay
+ok 4 - BF-L01: Unicode-distinct source IDs have total order and permutation-independent request/replay
+  ---
+  duration_ms: 1496.439125
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T07:13:36.979Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T07:13:36.980Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T07:13:38.260Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T07:13:38.261Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03: genuine pre-repair body alias history replays without replacement authority
+ok 5 - BF-M03: genuine pre-repair body alias history replays without replacement authority
+  ---
+  duration_ms: 2106.042125
+  type: 'test'
+  ...
+# Subtest: BF-M03: genuine pre-repair insight alias history replays without replacement authority
+ok 6 - BF-M03: genuine pre-repair insight alias history replays without replacement authority
+  ---
+  duration_ms: 1734.98775
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11827.139958

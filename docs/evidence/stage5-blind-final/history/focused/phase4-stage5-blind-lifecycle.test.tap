@@ -1,0 +1,30 @@
+TAP version 13
+# {"ts":"2026-09-28T06:20:05.938Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:20:05.940Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:20:07.252Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:20:07.253Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:20:14.287Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:20:14.289Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:20:15.592Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:20:15.593Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-H02: sealed terminal revision defeats rolled-back pointer/status on every current boundary
+ok 1 - BF-H02: sealed terminal revision defeats rolled-back pointer/status on every current boundary
+  ---
+  duration_ms: 8358.415959
+  type: 'test'
+  ...
+# Subtest: BF-H03: hidden opposite is discovered; mutable key drift cannot seal contradiction=null
+ok 2 - BF-H03: hidden opposite is discovered; mutable key drift cannot seal contradiction=null
+  ---
+  duration_ms: 20605.306917
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 29192.126333

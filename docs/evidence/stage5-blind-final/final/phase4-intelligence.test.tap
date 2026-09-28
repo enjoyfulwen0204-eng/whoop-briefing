@@ -1,0 +1,142 @@
+TAP version 13
+# Subtest: Stage 5 metric and evidence registries are closed, processed-record-only product contracts
+ok 1 - Stage 5 metric and evidence registries are closed, processed-record-only product contracts
+  ---
+  duration_ms: 2.111708
+  type: 'test'
+  ...
+# Subtest: Robust baseline uses exact median, MAD, and linear IQR fallback
+ok 2 - Robust baseline uses exact median, MAD, and linear IQR fallback
+  ---
+  duration_ms: 2.966959
+  type: 'test'
+  ...
+# Subtest: Baseline is earlier-only, as-of-correct, unique by health day, 45-day bounded, and capped at 30 valid days
+ok 3 - Baseline is earlier-only, as-of-correct, unique by health day, 45-day bounded, and capped at 30 valid days
+  ---
+  duration_ms: 1.391041
+  type: 'test'
+  ...
+# Subtest: Data quality precedence is fail-closed and missing never becomes neutral evidence
+ok 4 - Data quality precedence is fail-closed and missing never becomes neutral evidence
+  ---
+  duration_ms: 1.838542
+  type: 'test'
+  ...
+# Subtest: Meaningful change requires magnitude plus persistence, with a registered severe single-observation exception
+ok 5 - Meaningful change requires magnitude plus persistence, with a registered severe single-observation exception
+  ---
+  duration_ms: 1.572917
+  type: 'test'
+  ...
+# Subtest: Persistence uses elapsed 30-minute/36-hour boundaries and novelty is semantic, not calendar based
+ok 6 - Persistence uses elapsed 30-minute/36-hour boundaries and novelty is semantic, not calendar based
+  ---
+  duration_ms: 1.018458
+  type: 'test'
+  ...
+# Subtest: Hysteresis holds between open and close, stabilizes below close, and resolves only after 24 elapsed hours
+ok 7 - Hysteresis holds between open and close, stabilizes below close, and resolves only after 24 elapsed hours
+  ---
+  duration_ms: 1.154459
+  type: 'test'
+  ...
+# Subtest: Robust-z thresholds are stable at 2.49/2.50/2.51 and 1.49/1.50/1.51 in both directions
+ok 8 - Robust-z thresholds are stable at 2.49/2.50/2.51 and 1.49/1.50/1.51 in both directions
+  ---
+  duration_ms: 0.500041
+  type: 'test'
+  ...
+# Subtest: Metric polarity is explicit and opposite qualified direction requests reversal
+ok 9 - Metric polarity is explicit and opposite qualified direction requests reversal
+  ---
+  duration_ms: 2.45025
+  type: 'test'
+  ...
+# Subtest: Evidence confidence implements exact weights and hard/missing-uncertainty caps
+ok 10 - Evidence confidence implements exact weights and hard/missing-uncertainty caps
+  ---
+  duration_ms: 0.68075
+  type: 'test'
+  ...
+# Subtest: Benjamini-Hochberg adjustment is deterministic and retains the complete family
+ok 11 - Benjamini-Hochberg adjustment is deterministic and retains the complete family
+  ---
+  duration_ms: 0.374042
+  type: 'test'
+  ...
+# Subtest: Journal association uses only EXPOSED and CONFIRMED_UNEXPOSED, never UNKNOWN as absence
+ok 12 - Journal association uses only EXPOSED and CONFIRMED_UNEXPOSED, never UNKNOWN as absence
+  ---
+  duration_ms: 1.384083
+  type: 'test'
+  ...
+# Subtest: UNKNOWN promotion confound has exact 0.50 pass and 0.51 block boundaries
+ok 13 - UNKNOWN promotion confound has exact 0.50 pass and 0.51 block boundaries
+  ---
+  duration_ms: 1.951292
+  type: 'test'
+  ...
+# Subtest: Journal association fails closed on sample, effect, missingness, replication, multiplicity, recency and confounds
+ok 14 - Journal association fails closed on sample, effect, missingness, replication, multiplicity, recency and confounds
+  ---
+  duration_ms: 0.605958
+  type: 'test'
+  ...
+# Subtest: Journal association rejects duplicate health days and invalid exposure states
+ok 15 - Journal association rejects duplicate health days and invalid exposure states
+  ---
+  duration_ms: 0.19775
+  type: 'test'
+  ...
+# Subtest: Journal missingness distinguishes absent from present-but-invalid outcomes while gating on both
+ok 16 - Journal missingness distinguishes absent from present-but-invalid outcomes while gating on both
+  ---
+  duration_ms: 0.170084
+  type: 'test'
+  ...
+# Subtest: Exactly 40% group missingness remains eligible while UNKNOWN never becomes unexposed
+ok 17 - Exactly 40% group missingness remains eligible while UNKNOWN never becomes unexposed
+  ---
+  duration_ms: 0.257875
+  type: 'test'
+  ...
+# Subtest: Monotonic trend has an explicit bounded window, real elapsed-day slope and serial-correlation caveat
+ok 18 - Monotonic trend has an explicit bounded window, real elapsed-day slope and serial-correlation caveat
+  ---
+  duration_ms: 0.422125
+  type: 'test'
+  ...
+# Subtest: Registered correlation reports Pearson and Spearman without causal language or UNKNOWN substitution
+ok 19 - Registered correlation reports Pearson and Spearman without causal language or UNKNOWN substitution
+  ---
+  duration_ms: 0.664666
+  type: 'test'
+  ...
+# Subtest: Registered similar-day adapter is bounded and deterministic
+ok 20 - Registered similar-day adapter is bounded and deterministic
+  ---
+  duration_ms: 1.213583
+  type: 'test'
+  ...
+# Subtest: Body Energy evidence consumes the existing deterministic result without recalculating its formula
+ok 21 - Body Energy evidence consumes the existing deterministic result without recalculating its formula
+  ---
+  duration_ms: 0.182625
+  type: 'test'
+  ...
+# Subtest: RC4 baseline exclusions and duplicate-day decisions are canonical across permutations without erasing source changes
+ok 22 - RC4 baseline exclusions and duplicate-day decisions are canonical across permutations without erasing source changes
+  ---
+  duration_ms: 3.983167
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 145.192708

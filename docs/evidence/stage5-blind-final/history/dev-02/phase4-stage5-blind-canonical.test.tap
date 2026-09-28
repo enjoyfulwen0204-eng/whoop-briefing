@@ -1,0 +1,82 @@
+TAP version 13
+# {"ts":"2026-09-28T06:15:30.872Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:15:30.875Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:15:32.191Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:15:32.193Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:15:32.379Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:15:32.380Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:15:33.673Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:15:33.673Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M02: domain-like names inside arbitrary JSON preserve array order and distinct receipt identity
+not ok 1 - BF-M02: domain-like names inside arbitrary JSON preserve array order and distinct receipt identity
+  ---
+  duration_ms: 1514.790625
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-blind-canonical.test.js:11:1'
+  failureType: 'testCodeFailure'
+  error: 'PHASE4_PARENT_NOT_FOUND'
+  code: 'PHASE4_PARENT_NOT_FOUND'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:21:37)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:279:15
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:86:16)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:316:42
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:86:16)
+    async admitInputs (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:553:20)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:603:7
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:103:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:101:24)
+    async Object.open (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:37:16)
+  ...
+# {"ts":"2026-09-28T06:15:34.469Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:15:34.470Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:15:35.780Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:15:35.781Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03: optional accepted Body Energy asOfUtc is one canonical request in both retry directions
+not ok 2 - BF-M03: optional accepted Body Energy asOfUtc is one canonical request in both retry directions
+  ---
+  duration_ms: 2089.357458
+  type: 'test'
+  location: '/Users/kelvin/Desktop/whoop-briefing/test/phase4-stage5-blind-canonical.test.js:30:1'
+  failureType: 'testCodeFailure'
+  error: 'NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS'
+  code: 'NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS'
+  name: 'Phase4InvariantError'
+  stack: |-
+    fail (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Core.js:21:37)
+    file:///Users/kelvin/Desktop/whoop-briefing/src/bodyEnergyStore.js:112:36
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:86:16)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/bodyEnergyStore.js:172:30
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:86:16)
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/phase4OperationReceipts.js:619:93
+    async file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:103:26
+    async transaction (file:///Users/kelvin/Desktop/whoop-briefing/src/processingTransaction.js:101:24)
+    async Object.compute (file:///Users/kelvin/Desktop/whoop-briefing/src/phase4Repositories.js:37:16)
+    async call (file:///Users/kelvin/Desktop/whoop-briefing/test/stage5ClosureFixture.js:20:14)
+  ...
+# {"ts":"2026-09-28T06:15:36.127Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:15:36.128Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:15:37.428Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:15:37.428Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03: insight identity case/whitespace aliases replay the same original receipt
+ok 3 - BF-M03: insight identity case/whitespace aliases replay the same original receipt
+  ---
+  duration_ms: 1660.003666
+  type: 'test'
+  ...
+# Subtest: BF-L01: Unicode-distinct source IDs have total order and permutation-independent request/replay
+ok 4 - BF-L01: Unicode-distinct source IDs have total order and permutation-independent request/replay
+  ---
+  duration_ms: 1577.004625
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 2
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7063.512084

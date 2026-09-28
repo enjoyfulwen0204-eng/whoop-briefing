@@ -1,0 +1,50 @@
+TAP version 13
+# {"ts":"2026-09-28T06:16:54.018Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:16:54.021Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:16:55.303Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:16:55.305Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:16:55.823Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:16:55.825Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:16:57.152Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:16:57.153Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M02: domain-like names inside arbitrary JSON preserve array order and distinct receipt identity
+ok 1 - BF-M02: domain-like names inside arbitrary JSON preserve array order and distinct receipt identity
+  ---
+  duration_ms: 1812.604666
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:16:58.568Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:16:58.569Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:16:59.861Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:16:59.862Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03: optional accepted Body Energy asOfUtc is one canonical request in both retry directions
+ok 2 - BF-M03: optional accepted Body Energy asOfUtc is one canonical request in both retry directions
+  ---
+  duration_ms: 2744.893084
+  type: 'test'
+  ...
+# {"ts":"2026-09-28T06:17:00.206Z","level":"info","event":"schema_column_added","table":"user_whoop_tokens","column":"auth_generation"}
+# {"ts":"2026-09-28T06:17:00.207Z","level":"info","event":"schema_migrated","from":0,"to":20}
+# {"ts":"2026-09-28T06:17:01.512Z","level":"info","event":"user_created","user_id":"a","status":"ACTIVE"}
+# {"ts":"2026-09-28T06:17:01.513Z","level":"info","event":"user_created","user_id":"b","status":"ACTIVE"}
+# Subtest: BF-M03: insight identity case/whitespace aliases replay the same original receipt
+ok 3 - BF-M03: insight identity case/whitespace aliases replay the same original receipt
+  ---
+  duration_ms: 1638.046584
+  type: 'test'
+  ...
+# Subtest: BF-L01: Unicode-distinct source IDs have total order and permutation-independent request/replay
+ok 4 - BF-L01: Unicode-distinct source IDs have total order and permutation-independent request/replay
+  ---
+  duration_ms: 1548.902667
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7961.978417

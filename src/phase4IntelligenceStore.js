@@ -21,11 +21,20 @@ const validHealthDate = value => typeof value==='string' && /^\d{4}-\d{2}-\d{2}$
 const sourceTimestamp = row => row.as_of_utc ?? row.end_at ?? row.updated_at ?? row.created_at ?? row.synced_at ?? null;
 const ingestedTimestamp = row => row.synced_at ?? row.created_at ?? row.as_of_utc ?? null;
 
-export function createPhase4IntelligenceStore(core, entities, episodes, insights,{producedEvidence=()=>{},
-  discoverInsightPredecessor=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE'),
-  resolveInsightLifecycle=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE')}={}) {
-  const {client,keys}=core,authorities=createResultAuthority(core);
-  function sourceValue(metricKey, source, context, asOfUtc) {
+export function canonicalEpisodeData(context,{current,calculation,asOfUtc,confidence}) {
+  const contract=phase4Metric(calculation.metricKey);
+  return {episode_type:'METRIC_DEVIATION',severity:calculation.severity,current_confidence:Math.min(calculation.confidence,confidence.score),
+    current_novelty:Number(calculation.novelty),explained_status:0,first_observed_at:current.observedAt,
+    last_observed_at:current.observedAt,last_material_change_at:current.observedAt,
+    expires_at:new Date(Date.parse(current.observedAt)+contract.episodeExpiryMs).toISOString(),
+    health_window_start:current.observedAt,health_window_end:asOfUtc,timezone:context.timezone,
+    semantic_summary_hash:calculation.semanticHash,max_semantic_severity_ordinal:calculation.severity};
+}
+export const canonicalAssociationClaim=(hypothesis,direction,status)=>status==='SUPPORTED'
+  ? `${hypothesis.factor} has been repeatedly associated in your data with ${direction.toLowerCase()} ${hypothesis.outcomeMetric}.`
+  : `${hypothesis.factor} may be associated with ${direction.toLowerCase()} ${hypothesis.outcomeMetric}; we are still checking.`;
+
+export function canonicalMetricSourceValue(metricKey, source, context, asOfUtc) {
     const contract=phase4Metric(metricKey),row=source.row;
     if(!row||source.type!==contract.sourceType)fail('PHASE4_METRIC_SOURCE_MISMATCH');
     if(source.type==='sleep'&&(row.score_state!=='SCORED'||row.nap!==0))fail('PHASE4_METRIC_SOURCE_INVALID');
@@ -41,8 +50,9 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     const healthDate=row.health_date??localDate(new Date(observedAt),context.timezone);
     const versionKnown=!['sleep','recovery','cycle'].includes(source.type)||row.updated_at!==null&&row.updated_at!==undefined;
     return {sourceType:source.type,sourceId:source.id,sourceVersion:healthSourceVersion(row),healthDate,observedAt,ingestedAt,value,versionKnown};
-  }
-  function associationOutcomeValue(metricKey,source,context,asOfUtc) {
+}
+
+export function canonicalAssociationOutcomeValue(metricKey,source,context,asOfUtc) {
     const contract=phase4Metric(metricKey),row=source.row;
     if(!row||source.type!==contract.sourceType)fail('PHASE4_METRIC_SOURCE_MISMATCH');
     const raw=row[contract.field],value=typeof raw==='number'&&Number.isFinite(raw)?raw/(contract.divisor??1):raw,
@@ -61,6 +71,11 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         &&validMetricValue(metricKey,value)?value:null,outcomeStatus:scored&&versionKnown&&validMetricValue(metricKey,value)
         ?'PRESENT':'INVALID',versionKnown};
   }
+
+export function createPhase4IntelligenceStore(core, entities, episodes, insights,{producedEvidence=()=>{},
+  discoverInsightPredecessor=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE'),
+  resolveInsightLifecycle=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE')}={}) {
+  const {client,keys}=core,authorities=createResultAuthority(core),sourceValue=canonicalMetricSourceValue,associationOutcomeValue=canonicalAssociationOutcomeValue;
   async function sources(context,metricKey,currentSource,baselineSources,asOfUtc) {
     if(!Array.isArray(baselineSources)||baselineSources.length>64)fail('PHASE4_BASELINE_INPUT_BOUNDED');
     const refs=[currentSource,...baselineSources];
@@ -102,9 +117,13 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         samples:baseline.samples,exclusions:baseline.exclusions,median:baseline.median,mad:baseline.mad,q1:baseline.q1,q3:baseline.q3,
         scale:baseline.scale,scale_method:baseline.scaleMethod},quality,calculation};
   }
-  function metricEvidencePlan(context,{metricKey,sourceSet,baseline,quality,calculation,asOfUtc,windowFamily}) {
+  function metricEvidencePlan(context,{metricKey,sourceSet,baseline,quality,calculation,asOfUtc,windowFamily,refresh=false}) {
     const input={...manifest(metricKey,sourceSet.current,baseline,quality,calculation,asOfUtc,windowFamily),
+      ...(refresh?{refresh_preparation:true,prior_qualifying:sourceSet.baseline.map(source=>({observedAt:source.observedAt,
+        robustZ:baseline.scale?(source.value-baseline.median)/baseline.scale:null,
+        direction:baseline.scale?source.value>=baseline.median?'HIGHER':'LOWER':null}))}:{}),
       request_scope:{timezone:context.timezone,algorithm:context.algorithmSetVersion,versions:INTELLIGENCE_VERSIONS,
+        ...(refresh?{source:context.sourceGeneration}:{}),
         input:context.inputGeneration,lifecycle:context.lifecycleGeneration,auth:context.authGeneration,purge:context.purgeGeneration}},json=canonicalJson(input);
     const inputHash=keys.lookup(['phase4-evidence-input-v2',context.userId,context.executionMode,context.inputGeneration,json]);
     const runKey=keys.lookup(['phase4-evidence-run-v2',context.userId,context.executionMode,'PERSONAL_BASELINE_DEVIATION',
@@ -193,13 +212,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       semanticContentHash:calculation.semanticHash};
   }
   function episodeData(context,sourceSet,calculation,asOfUtc,confidence) {
-    const contract=phase4Metric(calculation.metricKey);
-    return {episode_type:'METRIC_DEVIATION',severity:calculation.severity,current_confidence:Math.min(calculation.confidence,confidence.score),
-      current_novelty:Number(calculation.novelty),explained_status:0,first_observed_at:sourceSet.current.observedAt,
-      last_observed_at:sourceSet.current.observedAt,last_material_change_at:sourceSet.current.observedAt,
-      expires_at:new Date(Date.parse(sourceSet.current.observedAt)+contract.episodeExpiryMs).toISOString(),
-      health_window_start:sourceSet.current.observedAt,health_window_end:asOfUtc,timezone:context.timezone,
-      semantic_summary_hash:calculation.semanticHash,max_semantic_severity_ordinal:calculation.severity};
+    return canonicalEpisodeData(context,{current:sourceSet.current,calculation,asOfUtc,confidence});
   }
   function replayClassification(event,episodeRow,observationCalculation) {
     if(event.resulting_revision===1)return episodeRow.reverses_episode_id?'DIRECTION_REVERSAL':observationCalculation.classification;
@@ -317,7 +330,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   async function analyzeMetric(context,request) {
     return core.run(context,async()=>{
       if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
-      if(!exactKeys(request,['metricKey','currentSource','baselineSources','asOfUtc','windowFamily'])||!validInstant(request.asOfUtc)
+      if(!exactKeys(request,['metricKey','currentSource','baselineSources','asOfUtc','windowFamily',...(request.refresh===true?['refresh']:[])])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime()||typeof request.windowFamily!=='string'||!request.windowFamily)
         fail('PHASE4_METRIC_ANALYSIS_REQUEST_INVALID');
       request={...request,asOfUtc:requireSemanticTime(request.asOfUtc)};
@@ -339,7 +352,18 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         direction:baseline.scale?source.value>=baseline.median?'HIGHER':'LOWER':null}));
       const observationCalculation=evaluateMeaningfulChange({metricKey:request.metricKey,current:sourceSet.current,baseline,quality,priorQualifying});
       const plan=metricEvidencePlan(context,{metricKey:request.metricKey,sourceSet,baseline,quality,
-        calculation:observationCalculation,asOfUtc:request.asOfUtc,windowFamily:request.windowFamily});
+        calculation:observationCalculation,asOfUtc:request.asOfUtc,windowFamily:request.windowFamily,refresh:request.refresh===true});
+      // A complete, independent calculation. It deliberately has no episode
+      // dependency and cannot make a historical episode current. The explicit
+      // request and manifest dimension separate it from ordinary analysis.
+      if(request.refresh===true) {
+        const evidence=await durableEvidence(context,{metricKey:request.metricKey,sourceSet,baseline,quality,
+          calculation:observationCalculation,asOfUtc:request.asOfUtc,plan});
+        await authorities.persist(context,{item:evidence.item,run:evidence.run,scope:'METRIC',origin:null,
+          calculation:observationCalculation,sourceRefs:sourceSet.refs});
+        return Object.freeze({resultState:'REFRESH_PREPARED',baseline,quality,calculation:observationCalculation,
+          run:evidence.run,item:evidence.item,episode:null});
+      }
       const replay=await exactMetricReplay(context,{metricKey:request.metricKey,sourceSet,baseline,quality,priorQualifying,
         observationCalculation,asOfUtc:request.asOfUtc,plan});
       if(replay)return Object.freeze({baseline,quality,calculation:replay.calculation,run:replay.run,item:replay.item,
@@ -511,9 +535,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
     return results;
   }
-  const associationClaim=(hypothesis,direction,status)=>status==='SUPPORTED'
-    ? `${hypothesis.factor} has been repeatedly associated in your data with ${direction.toLowerCase()} ${hypothesis.outcomeMetric}.`
-    : `${hypothesis.factor} may be associated with ${direction.toLowerCase()} ${hypothesis.outcomeMetric}; we are still checking.`;
+  const associationClaim=canonicalAssociationClaim;
   async function reviseContradiction(context,hypothesis,analysis,item,asOfUtc) {
     if(!analysis.repeated||durableConfidence(item).score<.5)return null;
     const opposite=analysis.direction==='HIGHER'?'LOWER':'HIGHER',existing=await currentInsight(context,insightIdentity(hypothesis,opposite),asOfUtc);
@@ -559,7 +581,8 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   async function analyzeAssociationFamily(context,request) {
     return core.run(context,async()=>{
       if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
-      if(!exactKeys(request,['asOfUtc','multipleTestingFamily','hypotheses'])||!validInstant(request.asOfUtc)
+      const evidenceOnly=request?.lifecycleMode==='EVIDENCE_ONLY';
+      if(!exactKeys(request,['asOfUtc','multipleTestingFamily','hypotheses',...(evidenceOnly?['lifecycleMode']:[])])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime()||typeof request.multipleTestingFamily!=='string'
         ||!request.multipleTestingFamily||request.multipleTestingFamily.length>128||!Array.isArray(request.hypotheses)
         ||!request.hypotheses.length||request.hypotheses.length>16)fail('PHASE4_ASSOCIATION_FAMILY_INVALID');
@@ -573,7 +596,9 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         outcomeMetric:value.hypothesis.outcomeMetric,days:value.days,replicationWindows:value.replicationWindows,
         adjustedSignificance:adjusted[index].adjusted,asOfUtc:request.asOfUtc})}));
       const familyManifest={manifest_version:'phase4-association-family-input-v2',identity_profile:'stage5-association-request-v2',multiple_testing_family:request.multipleTestingFamily,
+        ...(evidenceOnly?{lifecycle_mode:'EVIDENCE_ONLY'}:{}),
         as_of_utc:request.asOfUtc,request_scope:{timezone:context.timezone,algorithm:context.algorithmSetVersion,versions:INTELLIGENCE_VERSIONS,
+          ...(evidenceOnly?{source:context.sourceGeneration}:{}),
           input:context.inputGeneration,lifecycle:context.lifecycleGeneration,auth:context.authGeneration,purge:context.purgeGeneration},hypotheses:finalized.map(value=>({factor:value.hypothesis.factor,outcome_metric:value.hypothesis.outcomeMetric,
           lag_days:value.hypothesis.lagDays,comparison_health_dates:value.hypothesis.comparisonHealthDates,
           journal_authority:value.journalAuthority,days:value.days,raw_significance:value.rawSignificance,
@@ -638,7 +663,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         if(durableReplay&&item.created)fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
         if(canonicalJson(durableConfidence(item))!==canonicalJson(analysis.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
         if(!durableReplay&&item.created)producedEvidence(context,{run,item});
-        const insight=durableReplay?await replayAssociationInsight(context,hypothesis,analysis,item,request.asOfUtc)
+        const insight=evidenceOnly?null:durableReplay?await replayAssociationInsight(context,hypothesis,analysis,item,request.asOfUtc)
           :await updateInsight(context,hypothesis,analysis,item,request.asOfUtc);
         if(!durableReplay) {
           const dependencies=[],ids=new Set();
@@ -656,7 +681,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         }
         outputs.push(Object.freeze({analysis,item,insight,replayed:durableReplay}));
       }
-      return Object.freeze({resultState:outputs.some(value=>value.insight)?'POSITIVE':finalized.every(value=>!value.outcomes.length)?'EMPTY_ASSOCIATION_UNIVERSE':'NO_INSIGHT',
+      return Object.freeze({resultState:evidenceOnly?'EVIDENCE_ONLY':outputs.some(value=>value.insight)?'POSITIVE':finalized.every(value=>!value.outcomes.length)?'EMPTY_ASSOCIATION_UNIVERSE':'NO_INSIGHT',
         runs:Object.freeze(runs),items:Object.freeze(outputs)});
     });
   }

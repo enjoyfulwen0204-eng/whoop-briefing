@@ -69,6 +69,16 @@ export async function stage5PrivacyIndex(core,userId,{verifyRemaining=false}={})
   }
   for(const node of values(OPERATION_RECEIPT_TABLE))if(readableRow(node.row)) {
     const decoded=receipts.authenticate({userId,executionMode:node.mode},node.row);
+    const historicalBinding=node.row.operation_kind==='INSIGHT_TRANSITION'?decoded.result_json.refreshPredecessor
+      :node.row.operation_kind==='EPISODE_REFRESH'?decoded.result_json.metricRefreshAuthority?.predecessor
+      :node.row.operation_kind==='EPISODE_OPEN'?decoded.result_json.terminalRecurrenceAuthority?.predecessor:null;
+    if(historicalBinding) {
+      const binding=historicalBinding;
+      const prior=values(OPERATION_RECEIPT_TABLE).find(value=>value.mode===node.mode
+        &&value.row.operation_kind===binding.operationKind&&value.row.operation_key===binding.receiptKey);
+      if(!prior||readableRow(prior.row)&&prior.row.receipt_hmac!==binding.receiptHmac)invalid();
+      edge(node,prior);
+    }
     for(const root of decoded.required_roots_json.roots)edge(node,root);
     for(const target of decoded.related_results_json) {
       if(target.projection_role==='DEPENDENCY')continue;

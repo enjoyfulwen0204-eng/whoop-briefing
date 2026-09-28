@@ -6,9 +6,10 @@ export function createPhase4QueueStore(core) {
   const requireKind=kind=>{if(!JOB_KINDS.includes(kind))fail('PHASE4_JOB_KIND_REQUIRED');return kind;};
   const reason=code=>{if(!SCOPE_REASON_CODES.includes(code))fail('PHASE4_SCOPE_REASON_REQUIRED');return JSON.stringify([code]);};
   const id=(table,userId,mode,kind)=>keys.lookup(['privacy-artifact-v1',table,userId,mode,kind?[userId,mode,kind]:[userId,mode]]);
+  const cycleSchema=async()=>(await client.execute('PRAGMA table_info(phase4_jobs)')).rows.some(row=>row.name==='unresolved_since');
   async function markFull(userId,mode,generation,purgeGeneration,reasonCode) {
     if(!core.processing.active())fail('PHASE4_TRANSACTION_REQUIRED');
-    const at=timestamp(),reasons=reason(reasonCode);
+    const at=timestamp(),reasons=reason(reasonCode),cycles=await cycleSchema();
     const pending=(await client.execute({sql:'SELECT pending_purge_count FROM phase4_user_state WHERE user_id=?',args:[userId]})).rows[0]?.pending_purge_count>0;
     for(const [table,kind] of [['phase4_invalidations',null],...JOB_KINDS.map(k=>['phase4_jobs',k])]) {
       const artifactId=id(table,userId,mode,kind);
@@ -16,17 +17,22 @@ export function createPhase4QueueStore(core) {
         args:[userId,artifactId]})).rows[0]?.content_state==='REDACTED';
       await client.execute({sql:`INSERT INTO ${table}
         (user_id,execution_mode,${kind?'job_kind,':''}requested_generation,scope_kind,reason_codes_json,updated_at,
-          content_state,source_linkage_state,privacy_artifact_id,purge_generation)
-        VALUES (?,?${kind?',?':''},?,'FULL_TENANT_RECOMPUTE',?,?,'PRESENT','COMPLETE',?,?)
+          content_state,source_linkage_state,privacy_artifact_id,purge_generation${kind&&cycles?',unresolved_since':''})
+        VALUES (?,?${kind?',?':''},?,'FULL_TENANT_RECOMPUTE',?,?,'PRESENT','COMPLETE',?,?${kind&&cycles?',?':''})
         ON CONFLICT(user_id,execution_mode${kind?',job_kind':''}) DO UPDATE SET
           requested_generation=MAX(requested_generation,excluded.requested_generation),scope_kind='FULL_TENANT_RECOMPUTE',
           affected_from=NULL,affected_to=NULL,subject_key=NULL,full_scan_cursor=NULL,scope_revision=scope_revision+1,
-          reason_codes_json=excluded.reason_codes_json,updated_at=excluded.updated_at,
+          reason_codes_json=${cycles?`(SELECT json_group_array(value) FROM
+            (SELECT value FROM json_each(${table}.reason_codes_json) UNION SELECT value FROM json_each(excluded.reason_codes_json) ORDER BY value))`:'excluded.reason_codes_json'},updated_at=excluded.updated_at,
           purge_generation=excluded.purge_generation,${keepRedacted?'':`content_state='PRESENT',source_linkage_state='COMPLETE',
           health_content_redacted_at=NULL,health_content_redaction_reason=NULL,source_subject_deleted_at=NULL,
           health_scope_redacted_at=NULL,health_scope_redaction_reason=NULL,`}content_digest_salt=NULL
-          ${kind?",state='PENDING',attempt=0,next_attempt_at=NULL,lease_owner=NULL,lease_expires_at=NULL,claimed_generation=NULL,claimed_lifecycle_generation=NULL,claimed_auth_generation=NULL,claimed_scope_revision=NULL,claimed_purge_generation=NULL,last_error_code=NULL":''}`,
-      args:[userId,mode,...(kind?[kind]:[]),generation,keepRedacted?'["HEALTH_SCOPE_REDACTED"]':reasons,at,artifactId,purgeGeneration]});
+          ${kind?(cycles?`,unresolved_since=CASE WHEN scope_kind='NONE' AND completed_generation>=requested_generation
+            THEN excluded.unresolved_since ELSE unresolved_since END,
+            state=CASE WHEN attempt>=5 THEN 'REPAIR_REQUIRED' WHEN attempt>0 THEN 'RETRY_WAIT' ELSE 'PENDING' END,
+            lease_owner=NULL,lease_expires_at=NULL`
+            :",state='PENDING',attempt=0,next_attempt_at=NULL,lease_owner=NULL,lease_expires_at=NULL,claimed_generation=NULL,claimed_lifecycle_generation=NULL,claimed_auth_generation=NULL,claimed_scope_revision=NULL,claimed_purge_generation=NULL,last_error_code=NULL") :''}`,
+      args:[userId,mode,...(kind?[kind]:[]),generation,keepRedacted?'["HEALTH_SCOPE_REDACTED"]':reasons,at,artifactId,purgeGeneration,...(kind&&cycles?[at]:[])]});
       // Queue scope is the ADR's explicit mutable-content reset exception.
       // This is new non-health FULL scope, never a restored old interval.
       // Canonical cleanup may advance generations between T1 and T2. Preserve
@@ -105,6 +111,7 @@ export function createPhase4QueueStore(core) {
       // particular, null dates or equal generations cannot satisfy this proof.
       if(row?.scope_kind==='FULL_TENANT_RECOMPUTE')fail('PHASE4_FULL_PASS_NOT_AUTHORIZED');
       const result=await client.execute({sql:`UPDATE phase4_jobs SET completed_generation=requested_generation,state='COMPLETED',
+        ${await cycleSchema()?'unresolved_since=NULL,':''}
         scope_kind='NONE',affected_from=NULL,affected_to=NULL,subject_key=NULL,full_scan_cursor=NULL,lease_owner=NULL,lease_expires_at=NULL,
         claimed_generation=NULL,claimed_lifecycle_generation=NULL,claimed_auth_generation=NULL,claimed_scope_revision=NULL,
         claimed_purge_generation=NULL,updated_at=? WHERE user_id=? AND execution_mode=? AND job_kind=? AND lease_owner=? AND lease_expires_at=?

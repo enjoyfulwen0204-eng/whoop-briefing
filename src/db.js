@@ -45,6 +45,7 @@ import { createLegacyHealthAdapter } from './legacyHealthAdapter.js';
 import { createPhase4QueueStore } from './phase4QueueStore.js';
 import { createPhase4Foundation } from './phase4Foundation.js';
 import { legacyExperimentAdapter } from './legacyExperimentAdapter.js';
+import { createPhase4Invalidation } from './phase4Invalidation.js';
 
 // SCHEMA 定義集中在 schema.js（唯一 DDL 來源）。這裡 re-export 維持既有 import 路徑。
 export { SCHEMA } from './schema.js';
@@ -74,6 +75,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   const compatibility=createLegacyHealthAdapter({client:transactionClient,processing,privacy,keys:phase4Keys});
   const client=compatibility.client;
   const phase4Queue=createPhase4QueueStore({client,processing,transaction:processing.transaction,keys:phase4Keys,timestamp:()=>new Date().toISOString()});
+  const phase4Invalidation=createPhase4Invalidation({client:transactionClient,transaction:processing.transaction,queue:phase4Queue});
   let foundationStore;
   async function privacyFoundation() {
     if(!foundationStore)foundationStore=createPhase4Foundation({db:{raw:client,transaction:processing.transaction,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit,afterProcessingCompletion:processing.afterCompletion},keys:phase4Keys});
@@ -1696,7 +1698,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     migrate,
     // per-user token
     getTokens,
-    saveTokens,
+    ...phase4Invalidation.wrap({saveTokens}),
     getHistoricalWhoopUserIds,
     whoopHistoryTables,
     findUserByWhoopUserId,
@@ -1733,10 +1735,10 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     holdsLock,
     releaseLock,
     userLockName,
-    ...createIdentityStore(client, { transaction: processing.transaction }),
+    ...phase4Invalidation.wrap(createIdentityStore(client, { transaction: processing.transaction })),
     // 墓碑判定與 canonical 寫入必須同一交易（P1-R02-RC2）：把「需要時才開交易」
     // 的執行器交給儲存層。已在 mutateForWhoopEvent 交易裡時會直接沿用，不巢狀。
-    ...health,
+    ...phase4Invalidation.wrap(health),
     // V1.2 Phase 1：WHOOP webhook 事件帳本 + 刪除墓碑。
     ...webhook,
     // V1.2 Phase 2：對帳狀態 / 執行帳本 / 差異 / 墓碑診斷。
@@ -1762,7 +1764,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
       'getProactiveEventByPendingQuestion','getRecentProactiveEvents']),
     ...createGuardianStore(client),
     // V1.2 Phase 3.5：自助上線的生命週期（沒有列 = 舊使用者 = READY）。
-    ...createOnboardingStore(client, { transaction: processing.transaction }),
+    ...phase4Invalidation.wrap(createOnboardingStore(client, { transaction: processing.transaction })),
     // V1.2 Phase 3：分析工作狀態（失效 / 認領 / 結案 / 物化 / 帳本）。
     ...analytics,
     ...compatibility.wrap({recentRuns,recordBriefingEvaluation,getBriefingEvaluation}),

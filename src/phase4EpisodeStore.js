@@ -14,7 +14,8 @@ const PATCH_FIELDS=new Set(['severity','current_confidence','explained_status','
 export function createPhase4EpisodeStore(core,entities,historyOptions={}) {
   const {client,keys,timestamp}=core,history=createEpisodeHistory(core,historyOptions);
   const current=(context,id)=>core.artifact(context,'observation_episodes',{episode_id:id});
-  async function open(context,{identity,data,evidenceItemId,reopensEpisodeId=null,reversesEpisodeId=null,semanticAt=null,semanticEvent=null}) {
+  async function open(context,request) {
+    const {identity,data,evidenceItemId,reopensEpisodeId=null,reversesEpisodeId=null,semanticAt=null,semanticEvent=null}=request;
     return core.run(context,async()=>{
       const at=requireChronology(requireSemanticTime(semanticAt),null,core.now());
       if(!identity || Object.keys(identity).sort().join(',')!=='algorithmMajor,direction,domain,metric,subject,windowFamily'
@@ -22,7 +23,9 @@ export function createPhase4EpisodeStore(core,entities,historyOptions={}) {
       const family=keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,identity.algorithmMajor,identity.subject,identity.windowFamily]);
       const fingerprint=keys.lookup(['episode-fingerprint-v1',family,identity.direction]);
       if(reopensEpisodeId) {
-        const prior=(await current(context,reopensEpisodeId)).row;
+        const recurrence=request.recurrence===true?await historyOptions.episodeRecurrencePlan?.(context,request):null;
+        if(request.recurrence===true&&!recurrence)fail('PHASE4_EPISODE_RECURRENCE_AUTHORITY_REQUIRED');
+        const prior=recurrence?recurrence.prior.row:(await current(context,reopensEpisodeId)).row;
         if(prior.state!=='RESOLVED'||prior.fingerprint!==fingerprint||!prior.resolved_at
           || Date.parse(at)-Date.parse(prior.resolved_at)>7*86400000)fail('PHASE4_INVALID_REOPEN');
         requireChronology(at,requireSemanticTime(prior.resolved_at),core.now());
@@ -130,7 +133,11 @@ export function createPhase4EpisodeStore(core,entities,historyOptions={}) {
       return open(context,{...opposite,reversesEpisodeId:prior.episodeId,semanticAt});
     });
   }
-  async function refresh(context,{episodeId,expectedRevision,identity,projection,evidenceItemId,semanticAt=null}) {
+  async function refresh(context,request) {
+    let {episodeId,expectedRevision,identity,projection,evidenceItemId,semanticAt=null}=request;
+    const metricPlan=historyOptions.metricRefreshPlan?.(context,request);
+    if(request.metricRefresh===true&&!metricPlan)fail('PHASE4_METRIC_REFRESH_AUTHORITY_REQUIRED');
+    if(metricPlan)projection=metricPlan.projection;
     semanticAt=requireSemanticTime(semanticAt);
     requireInteger(expectedRevision,1);
     return core.run(context,async()=>{
@@ -155,6 +162,11 @@ export function createPhase4EpisodeStore(core,entities,historyOptions={}) {
       const changes={...projection,latest_evidence_item_id:evidenceItemId,input_generation:context.inputGeneration,
         lifecycle_generation:context.lifecycleGeneration,auth_generation:context.authGeneration,purge_generation:context.purgeGeneration,
         revision:expectedRevision+1,updated_at:timestamp()};
+      if(metricPlan)Object.assign(changes,{state:metricPlan.state,expires_at:metricPlan.expiresAt,
+        semantic_summary_hash:metricPlan.calculation.semanticHash,
+        max_semantic_severity_ordinal:Math.max(metricPlan.prior.row.max_semantic_severity_ordinal??0,metricPlan.calculation.severity),
+        resolved_at:['RESOLVED','EXPIRED'].includes(metricPlan.state)?semanticAt:null,
+        resolution_reason:['RESOLVED','EXPIRED'].includes(metricPlan.state)?metricPlan.reason:null});
       for(const k of ['explanation_json','current_context_json'])if(changes[k]!==null)changes[k]=canonicalJson(changes[k]);
       const refs=await entities.validateParents(context,'observation_episodes',changes);
       const names=Object.keys(changes);
@@ -165,7 +177,8 @@ export function createPhase4EpisodeStore(core,entities,historyOptions={}) {
       await core.link(context,'observation_episodes',row.privacy_artifact_id,[item.ref,...refs]);
       const event=await entities.append(context,'episode_events',{episode_id:episodeId,
         deterministic_event_key:keys.lookup(['episode-refresh-v1',context.userId,context.executionMode,episodeId,evidenceItemId]),
-        event_kind:'SAME_STATE_REVISION',from_state:row.state,to_state:row.state,reason:'NEW_EVIDENCE',expected_revision:expectedRevision,
+        event_kind:metricPlan&&metricPlan.state!==row.state?'STATE_TRANSITION':'SAME_STATE_REVISION',
+        from_state:row.state,to_state:metricPlan?.state??row.state,reason:metricPlan?.reason??'NEW_EVIDENCE',expected_revision:expectedRevision,
         resulting_revision:expectedRevision+1,actor_type:'DETERMINISTIC_ENGINE',evidence_references_json:[['evidence_items',evidenceItemId]]},[item.ref]);
       const final=await current(context,episodeId);
       await history.persist(context,final.row,event.row.episode_event_id,semanticAt);

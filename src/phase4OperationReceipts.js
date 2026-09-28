@@ -13,6 +13,9 @@ import { addPrivacyLink } from './phase4V22Backfill.js';
 import { insightIdentityKey } from './phase4InsightStore.js';
 import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 import { OPERATION_RECEIPT_TABLE as TABLE, OPERATION_RECEIPT_VERSION as VERSION } from './phase4V27Schema.js';
+import { createInsightRefreshAuthority } from './phase4InsightRefresh.js';
+import { createMetricRefreshAuthority } from './phase4MetricRefresh.js';
+import { createEpisodeRecurrenceAuthority } from './phase4EpisodeRecurrence.js';
 
 const instances=new WeakMap();
 const invalid=()=>fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');
@@ -39,6 +42,12 @@ export function createOperationReceipts(core) {
   if(instances.has(core))return instances.get(core);
   const {client,keys}=core,authorities=createResultAuthority(core);
   const producerScope=new AsyncLocalStorage();
+  const refreshAuthority=createInsightRefreshAuthority(core,{authenticate,authorities,
+    validateEvidence:(context,id)=>forArtifact(context,'evidence_items',{evidence_item_id:id})});
+  const metricRefresh=createMetricRefreshAuthority(core,{authenticate,authorities,
+    validateEvidence:(context,id)=>forArtifact(context,'evidence_items',{evidence_item_id:id}),
+    retainedReceipt:refreshAuthority.retainedReceipt});
+  const recurrence=createEpisodeRecurrenceAuthority(core,{authenticate,metricRefresh});
   const identity=(context,kind,key)=>keys.lookup(['privacy-artifact-v1',TABLE,context.userId,context.executionMode,[kind,key]]);
   const seal=row=>keys.digest(row.content_digest_salt,canonicalJson([VERSION,Object.fromEntries(Object.entries(row)
     .filter(([key])=>!['receipt_hmac','health_content_redacted_at','health_content_redaction_reason','source_subject_deleted_at'].includes(key)))]));
@@ -51,9 +60,19 @@ export function createOperationReceipts(core) {
   const keyForEnvelope=envelope=>keys.lookup(['stage5-operation-key-v1',canonicalJson(envelope)]);
 
   async function prepare(context,request,kind=null) {
-    if(kind==='analyzeMetric'&&(!request||Object.keys(request).sort().join(',')!=='asOfUtc,baselineSources,currentSource,metricKey,windowFamily'))
+    if(kind==='EPISODE_OPEN'&&Object.hasOwn(request??{},'recurrence')&&(request.recurrence!==true
+      ||!Number.isSafeInteger(request.predecessorRevision)||request.predecessorRevision<1
+      ||typeof request.reopensEpisodeId!=='string'||!request.reopensEpisodeId||request.reversesEpisodeId!=null
+      ||Object.keys(request).filter(key=>key!=='reversesEpisodeId').sort().join(',')!==
+        'data,evidenceItemId,identity,predecessorRevision,recurrence,reopensEpisodeId,semanticAt,semanticEvent'))
+      fail('PHASE4_EPISODE_RECURRENCE_REQUEST_INVALID');
+    if(kind==='EPISODE_REFRESH'&&request?.metricRefresh===true&&Object.keys(request).sort().join(',')!==
+      'episodeId,evidenceItemId,expectedRevision,identity,metricRefresh,semanticAt')fail('PHASE4_METRIC_REFRESH_REQUEST_INVALID');
+    if(kind==='analyzeMetric'&&(!request||Object.keys(request).sort().join(',')!==
+      (request.refresh===true?'asOfUtc,baselineSources,currentSource,metricKey,refresh,windowFamily':'asOfUtc,baselineSources,currentSource,metricKey,windowFamily')))
       fail('PHASE4_METRIC_ANALYSIS_REQUEST_INVALID');
-    if(kind==='analyzeAssociationFamily'&&(!request||Object.keys(request).sort().join(',')!=='asOfUtc,hypotheses,multipleTestingFamily'))
+    if(kind==='analyzeAssociationFamily'&&(!request||!['asOfUtc,hypotheses,multipleTestingFamily',
+      ...(request.lifecycleMode==='EVIDENCE_ONLY'?['asOfUtc,hypotheses,lifecycleMode,multipleTestingFamily']:[])].includes(Object.keys(request).sort().join(','))))
       fail('PHASE4_ASSOCIATION_FAMILY_INVALID');
     const defaults={
       EPISODE_OPEN:{reopensEpisodeId:null,reversesEpisodeId:null,semanticEvent:null},
@@ -237,6 +256,14 @@ export function createOperationReceipts(core) {
   }
   async function read(context,row,{retainedBody=false}={}) {
     const decoded=authenticate(context,row);
+    if(row.operation_kind==='INSIGHT_TRANSITION'&&decoded.result_json.refreshPredecessor)
+      await refreshAuthority.retained(context,decoded.result_json.refreshPredecessor);
+    if(row.operation_kind==='EPISODE_REFRESH'&&decoded.result_json.metricRefreshAuthority)
+      await metricRefresh.retained(context,decoded.result_json.metricRefreshAuthority.predecessor);
+    if(row.operation_kind==='EPISODE_OPEN'&&decoded.result_json.terminalRecurrenceAuthority) {
+      await metricRefresh.retained(context,decoded.result_json.terminalRecurrenceAuthority.predecessor);
+      await recurrence.validate(context,decoded.request_json.request,decoded.result_json.row.episode_id);
+    }
     if(retainedBody&&!row.operation_kind.startsWith('BODY_ENERGY_'))invalid();
     if(!retainedBody&&decoded.request_json.scope.timezone!==context.timezone)fail('PHASE4_TIMEZONE_FENCED');
     if(!retainedBody&&decoded.request_json.scope.algorithm_set_version!==context.algorithmSetVersion)fail('PHASE4_INPUT_FENCED');
@@ -608,15 +635,36 @@ export function createOperationReceipts(core) {
         semanticRequest.supersedesId=await discoverInsightPredecessor(context,
           insightIdentityKey(keys,context,semanticRequest.identity),at,semanticRequest.supersedesId);
       }
-      if(kind==='INSIGHT_TRANSITION')await predecessor(context,'health_insights',request.insightId,request.expectedRevision);
-      if(kind==='EPISODE_OPEN')for(const id of [request.reopensEpisodeId,request.reversesEpisodeId].filter(Boolean)) {
+      let refreshPredecessor=null;
+      if(kind==='INSIGHT_TRANSITION') {
+        if(request.refresh===true) {
+          refreshPredecessor=await refreshAuthority.predecessor(context,semanticRequest);
+          await refreshAuthority.fresh(context,semanticRequest,refreshPredecessor);
+        } else await predecessor(context,'health_insights',request.insightId,request.expectedRevision);
+      }
+      const recurrencePlan=kind==='EPISODE_OPEN'&&request.recurrence===true?await recurrence.prepare(context,semanticRequest):null;
+      if(kind==='EPISODE_OPEN'&&!recurrencePlan)for(const id of [request.reopensEpisodeId,request.reversesEpisodeId].filter(Boolean)) {
         const prior=await core.artifact(context,'observation_episodes',{episode_id:id});
         await predecessor(context,'observation_episodes',id,prior.row.revision);
       }
-      if(['EPISODE_REVISE','EPISODE_REFRESH'].includes(kind))await predecessor(context,'observation_episodes',request.episodeId,request.expectedRevision);
+      const metricPlan=kind==='EPISODE_REFRESH'&&request.metricRefresh===true?await metricRefresh.prepare(context,semanticRequest):null;
+      if(['EPISODE_REVISE','EPISODE_REFRESH'].includes(kind)&&!metricPlan)await predecessor(context,'observation_episodes',request.episodeId,request.expectedRevision);
       if(kind==='EPISODE_REVERSE')await predecessor(context,'observation_episodes',request.prior.episodeId,request.prior.expectedRevision);
-      const result=['analyzeMetric','analyzeAssociationFamily'].includes(kind)
+      let result=['analyzeMetric','analyzeAssociationFamily'].includes(kind)
         ?await producerScope.run({context,evidence:new Map()},()=>perform(semanticRequest)):await perform(semanticRequest);
+      if(core.jobAuthority())result={...result,jobAuthority:core.jobAuthority()};
+      if(recurrencePlan)result={...result,terminalRecurrenceAuthority:{predecessor:recurrencePlan.prior.binding,
+        sourceGeneration:context.sourceGeneration,inputGeneration:context.inputGeneration,
+        lifecycleGeneration:context.lifecycleGeneration,authGeneration:context.authGeneration,purgeGeneration:context.purgeGeneration,
+        algorithmSetVersion:context.algorithmSetVersion,semanticAt:at}};
+      if(refreshPredecessor)result={...result,refreshPredecessor,
+        refreshAuthority:{sourceGeneration:context.sourceGeneration,inputGeneration:context.inputGeneration,
+          lifecycleGeneration:context.lifecycleGeneration,authGeneration:context.authGeneration,purgeGeneration:context.purgeGeneration,
+          algorithmSetVersion:context.algorithmSetVersion,semanticAt:at}};
+      if(metricPlan)result={...result,metricRefreshAuthority:{predecessor:metricPlan.prior.binding,
+        sourceGeneration:context.sourceGeneration,inputGeneration:context.inputGeneration,calculation:metricPlan.calculation,
+        lifecycleGeneration:context.lifecycleGeneration,authGeneration:context.authGeneration,purgeGeneration:context.purgeGeneration,
+        algorithmSetVersion:context.algorithmSetVersion,semanticAt:at}};
       const encoded=await encode(context,result,semanticRequest);
       const envelope=core.envelope(context,TABLE,[kind,key]);
       const dependencies=await dependencyRefs(context,[...refs,...encoded.refs],semanticRequest,kind);
@@ -635,8 +683,37 @@ export function createOperationReceipts(core) {
       for(const root of roots.roots)await addPrivacyLink(client,{userId:context.userId,mode:context.executionMode,table:TABLE,
         artifactId:row.privacy_artifact_id,sourceMode:root.mode,sourceType:root.type,sourceId:root.id,
         relationship:root.as_of?`DEPENDS_ON_AS_OF:${root.as_of}`:'DEPENDS_ON',at:core.timestamp()});
+      if(refreshPredecessor)await core.transaction(async()=>{}, {beforeCommit:async()=>{
+        await refreshAuthority.retained(context,refreshPredecessor);
+        await refreshAuthority.fresh(context,semanticRequest,refreshPredecessor);
+        const state=await refreshAuthority.inventory(context),history=state.histories.get(refreshPredecessor.insightId);
+        const prior=history?.get(refreshPredecessor.revision);
+        if(!prior||prior.receipt.operation_key!==refreshPredecessor.receiptKey
+          ||prior.receipt.receipt_hmac!==refreshPredecessor.receiptHmac
+          ||Math.max(...history.keys())!==refreshPredecessor.revision+1)invalid();
+        const current=state.tables.health_insights.find(value=>value.id===refreshPredecessor.insightId);
+        if(current?.current_revision!==refreshPredecessor.revision+1||current.input_generation!==context.inputGeneration)invalid();
+      }});
+      if(metricPlan)await core.transaction(async()=>{}, {beforeCommit:async()=>{
+        await metricRefresh.retained(context,metricPlan.prior.binding);
+        await metricRefresh.fresh(context,semanticRequest);
+        const current=(await client.execute({sql:`SELECT revision,input_generation FROM observation_episodes
+          WHERE user_id=? AND execution_mode=? AND episode_id=?`,args:[context.userId,context.executionMode,request.episodeId]})).rows[0];
+        const latest=(await client.execute({sql:`SELECT MAX(revision) revision FROM phase4_episode_revisions
+          WHERE user_id=? AND execution_mode=? AND episode_id=?`,args:[context.userId,context.executionMode,request.episodeId]})).rows[0];
+        if(current?.revision!==request.expectedRevision+1||current.input_generation!==context.inputGeneration
+          ||latest.revision!==current.revision)invalid();
+      }});
+      if(recurrencePlan)await core.transaction(async()=>{}, {beforeCommit:async()=>{
+        const latest=await recurrence.validate(context,semanticRequest,result.row.episode_id);
+        if(!same(latest.prior.binding,recurrencePlan.prior.binding))invalid();
+      }});
+      if(refreshPredecessor||metricPlan||recurrencePlan||kind==='analyzeMetric'&&request.refresh===true)
+        await core.transaction(async()=>{}, {commitFence:()=>core.assertContext(context)});
       return result;
     });
   }
-  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,resolveInsightLifecycle});instances.set(core,api);return api;
+  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,
+    resolveInsightLifecycle,metricRefreshPlan:metricRefresh.plan,episodeRecurrencePlan:recurrence.consume,
+    episodeRecurrenceInventory:recurrence.inventory});instances.set(core,api);return api;
 }

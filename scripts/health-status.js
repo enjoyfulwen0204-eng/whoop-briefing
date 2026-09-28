@@ -13,6 +13,8 @@ import { STATUS } from '../src/capabilities.js';
 import { localDate, addDays, daysBetween } from '../src/time.js';
 import { GLOBAL_SCOPE } from '../src/schema.js';
 import { HEARTBEAT_COMPONENT, GUARDIAN_POLICY } from '../src/guardianPolicy.js';
+import { readSchedulerHealth } from '../src/schedulerWatchdog.js';
+import { phase4Backlog } from '../src/phase4Diagnostics.js';
 
 loadDotEnvIfPresent();
 const env = loadEnv({ require: ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'] });
@@ -23,7 +25,7 @@ console.log(`使用者：${user.displayName}（${user.id}）｜時區 ${user.tim
 const pad = (s, n) => String(s ?? '-').padEnd(n, ' ');
 
 try {
-  await db.migrate();
+  // Diagnostics never run a migration or admit a worker.
   // ★ L-03：時區必須是**這個使用者的**。
   //
   // `env.timezone` 只是 bootstrap 預設（config.js 已經寫明「真正的時區在
@@ -70,6 +72,9 @@ try {
   //
   // 所以這裡把心跳年齡印出來：這是一個唯讀、隨時可以跑的存活檢查。
   console.log('\n══════════ 排程器 ══════════');
+  console.log('  Window-aware health:',JSON.stringify(await readSchedulerHealth({db})));
+  if((await db.raw.execute("SELECT 1 FROM pragma_table_info('phase4_jobs') WHERE name='unresolved_since'")).rows.length)
+    console.log('  Phase 4 SHADOW backlog:',JSON.stringify(await phase4Backlog(db)));
   const beat = await db.getHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON);
   if (!beat?.lastOkAt) {
     console.log('  ❌ 還沒有任何 cron 心跳 —— 排程從來沒有完整跑完過一輪');

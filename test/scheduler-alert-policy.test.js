@@ -144,7 +144,7 @@ test('★★★ 恢復：宣告過才送恢復通知，而且只送一次', asyn
     assert.equal(outageAlerts(h.sends), 1, '★ 故障期一則');
 
     // 主排程回來了：由它自己跑完時判定恢復
-    for (const hour of [4, 4.2, 4.4]) {
+    for (const hour of [3.2, 3.4, 3.6]) {
       const now = clock.set(hour);
       await h.beat(HEARTBEAT_COMPONENT.CLOUDFLARE, hour);
       await checkPeerScheduler({ db: h.db, source: 'cloudflare', systemTelegram: h.telegram, now });
@@ -184,21 +184,21 @@ test('★★★ 恢復之後的第二場獨立故障可以再通知一次', asyn
     await checkPeerScheduler({ db: h.db, source: 'cloudflare', systemTelegram: h.telegram, now });
     assert.equal(recoveryNotes(h.sends), 1);
     // 第二場（在 24 小時冷卻內，但旗標已清 → 可以再響）
-    now = clock.set(4);
-    await h.beat(HEARTBEAT_COMPONENT.GITHUB, 4);
+    now = clock.set(3);
+    await h.beat(HEARTBEAT_COMPONENT.GITHUB, 3);
     await checkPeerScheduler({ db: h.db, source: 'github', systemTelegram: h.telegram, now });
     assert.equal(outageAlerts(h.sends), 2, '★ 新的一場故障要能再通知');
   } finally { clock.restore(); h.cleanup(); }
 });
 
-test('★★★ 備援自己延遲：使用者完全不會被吵', async () => {
+test('★★★ 晨間主排程健康時，備援延遲不通知', async () => {
   const h = await harness();
   const clock = virtualClock();
   try {
-    // GitHub 最後一次成功在 30 小時前（早就超過它的 12 小時 alertable）
+    // GitHub 最後一次成功在 30 小時前（晨間只是備援）
     await h.beat(HEARTBEAT_COMPONENT.GITHUB, -30);
-    // Cloudflare 每 10 分鐘健康地跑 144 次
-    for (let i = 0; i < 144; i += 1) {
+    // Cloudflare 晨間四小時每 10 分鐘健康地跑 24 次
+    for (let i = 0; i < 24; i += 1) {
       const hour = i / 6;
       const now = clock.set(hour);
       await h.beat(HEARTBEAT_COMPONENT.CLOUDFLARE, hour);

@@ -12,9 +12,9 @@ async function recoveryRefs(stores, context, ids) {
   return refs;
 }
 
-async function setup(t) {
+async function setup(t,{targetVersion}={}) {
   let now = new Date(T);
-  const fixture = await syntheticPhase4Fixture(t, { now: () => now });
+  const fixture = await syntheticPhase4Fixture(t, { now: () => now,...(targetVersion===undefined?{}:{targetVersion}) });
   const input = bodyInput({ asOf: T, days: 30 });
   for (let index = 0; index < input.sources.recovery.length; index += 1) {
     input.sources.recovery[index].recovery_score = index === 0 ? 15 : [40, 45, 50, 55, 60][(index - 1) % 5];

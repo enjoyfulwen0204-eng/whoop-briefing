@@ -184,50 +184,34 @@ test('Worker re-signs each retry while preserving logical request ID', async () 
   assert.equal(authAttempts, 1);
 });
 
-test('scheduler role policy covers observed GitHub gaps without healthy-primary alerts', async () => {
-  const at = new Date(NOW);
-  for (const minutes of [120, 131, 137, 157, 226, 272, 273, 240, 420]) {
-    const state = providerState({ lastOkAt: new Date(NOW - minutes * 60_000).toISOString() }, 'github', at);
-    assert.notEqual(state.state, 'stale', `${minutes} minutes must not be severe`);
+test('scheduler role policy follows the Taipei window and the three-hour GitHub expectation', async () => {
+  const outside=new Date('2026-09-25T12:00:00.000Z');
+  for(const minutes of [120,131,137,157,180])assert.equal(providerState({lastOkAt:new Date(outside.getTime()-minutes*60000).toISOString()},'github',outside).state,'healthy');
+  for(const minutes of [181,226,272,273,420])assert.equal(providerState({lastOkAt:new Date(outside.getTime()-minutes*60000).toISOString()},'github',outside).state,'stale');
+  for(const value of ['malformed',new Date(outside.getTime()+1).toISOString()])assert.equal(providerState({lastOkAt:value},'github',outside).state,'stale');
+  const at=new Date('2026-09-25T01:00:00.000Z');let alerts=0;
+  const systemTelegram={notifyError:async()=>{alerts++;return true;}};
+  const heartbeats=new Map([[HEARTBEAT_COMPONENT.GITHUB,{lastOkAt:new Date(at.getTime()-13*3600000).toISOString()}]]);
+  const db={getHeartbeat:async(_scope,component)=>heartbeats.get(component)??null};
+  for(let minute=0;minute<180;minute+=10) {
+    const now=new Date(at.getTime()+minute*60000);heartbeats.set(HEARTBEAT_COMPONENT.CLOUDFLARE,{lastOkAt:now.toISOString()});
+    await checkPeerScheduler({db,source:'cloudflare',systemTelegram,now});
   }
-  assert.equal(providerState({ lastOkAt: new Date(NOW - 13 * 3600_000).toISOString() }, 'github', at).state, 'stale');
-  assert.equal(providerState({ lastOkAt: 'malformed' }, 'github', at).state, 'unknown');
-  assert.equal(providerState({ lastOkAt: new Date(NOW + 1).toISOString() }, 'github', at).state, 'unknown');
-
-  let alerts = 0;
-  const systemTelegram = { notifyError: async () => { alerts += 1; return true; } };
-  const heartbeats = new Map([
-    [HEARTBEAT_COMPONENT.CLOUDFLARE, { lastOkAt: new Date(NOW - 5 * 60_000).toISOString() }],
-    [HEARTBEAT_COMPONENT.GITHUB, { lastOkAt: new Date(NOW - 13 * 3600_000).toISOString() }],
-  ]);
-  const db = { getHeartbeat: async (_scope, component) => heartbeats.get(component) ?? null };
-  for (let minute = 0; minute < 24 * 60; minute += 10) {
-    heartbeats.set(HEARTBEAT_COMPONENT.CLOUDFLARE,
-      { lastOkAt: new Date(NOW + minute * 60_000).toISOString() });
-    await checkPeerScheduler({ db, source: 'cloudflare', systemTelegram, now: new Date(NOW + minute * 60_000) });
-  }
-  assert.equal(alerts, 0, 'healthy-primary operation must emit zero product-channel backup alerts/24h');
-
-  heartbeats.set(HEARTBEAT_COMPONENT.CLOUDFLARE,
-    { lastOkAt: new Date(NOW - 60 * 60_000).toISOString() });
-  heartbeats.set(HEARTBEAT_COMPONENT.GITHUB,
-    { lastOkAt: new Date(NOW - 10 * 60_000).toISOString() });
-  const degraded = await checkPeerScheduler({ db, source: 'github', systemTelegram, now: at });
-  assert.equal(degraded.overall, 'degraded');
-  assert.equal(degraded.alerted, true);
-  assert.equal(alerts, 1);
-
-  heartbeats.clear();
-  const firstDeploy = await checkPeerScheduler({ db, source: 'cloudflare', systemTelegram, now: at });
-  assert.equal(firstDeploy.overall, 'uninitialized');
-  db.getHeartbeat = async () => { throw new Error('db timeout'); };
-  assert.equal((await checkPeerScheduler({ db, source: 'github', systemTelegram, now: at })).overall, 'unknown');
+  assert.equal(alerts,0,'healthy morning primary does not complain about the backup');
+  heartbeats.set(HEARTBEAT_COMPONENT.CLOUDFLARE,{lastOkAt:new Date(at.getTime()-3600000).toISOString()});
+  heartbeats.set(HEARTBEAT_COMPONENT.GITHUB,{lastOkAt:at.toISOString()});
+  const degraded=await checkPeerScheduler({db,source:'github',systemTelegram,now:at});
+  assert.equal(degraded.overall,'degraded');assert.equal(degraded.alerted,true);assert.equal(alerts,1);
+  heartbeats.clear();assert.equal((await checkPeerScheduler({db,source:'cloudflare',systemTelegram,now:at})).overall,'outage');
+  db.getHeartbeat=async()=>{throw Error('db timeout');};
+  assert.equal((await checkPeerScheduler({db,source:'github',systemTelegram,now:at})).overall,'unknown');
 });
 
 test('primary outage alerts obey cooldown, delivery failure, and concurrent atomic claims', async () => {
+  const outageNow=Date.parse('2026-09-25T01:00:00.000Z');
   const heartbeats = new Map([
-    [HEARTBEAT_COMPONENT.CLOUDFLARE, { lastOkAt: new Date(NOW - 2 * 3600_000).toISOString() }],
-    [HEARTBEAT_COMPONENT.GITHUB, { lastOkAt: new Date(NOW).toISOString() }],
+    [HEARTBEAT_COMPONENT.CLOUDFLARE, { lastOkAt: new Date(outageNow - 2 * 3600_000).toISOString() }],
+    [HEARTBEAT_COMPONENT.GITHUB, { lastOkAt: new Date(outageNow).toISOString() }],
   ]);
   const db = { getHeartbeat: async (_scope, component) => heartbeats.get(component) };
   let currentHour = 0;
@@ -239,18 +223,18 @@ test('primary outage alerts obey cooldown, delivery failure, and concurrent atom
     sends += 1;
     return sends !== 1; // first delivery failure is surfaced as alerted=false
   } };
-  const first = await checkPeerScheduler({ db, source: 'github', systemTelegram, now: new Date(NOW) });
+  const first = await checkPeerScheduler({ db, source: 'github', systemTelegram, now: new Date(outageNow) });
   assert.equal(first.alerted, false);
   for (currentHour = 1; currentHour < 24; currentHour += 1) {
     heartbeats.set(HEARTBEAT_COMPONENT.GITHUB,
-      { lastOkAt: new Date(NOW + currentHour * 3600_000).toISOString() });
+      { lastOkAt: new Date(outageNow + currentHour * 3600_000).toISOString() });
     await checkPeerScheduler({
-      db, source: 'github', systemTelegram, now: new Date(NOW + currentHour * 3600_000),
+      db, source: 'github', systemTelegram, now: new Date(outageNow + currentHour * 3600_000),
     });
   }
-  assert.equal(sends, 12, 'hourly fallback with a 2h cooldown produces exactly 12 attempts/24h');
+  assert.equal(sends, 2, 'a mock 2h cooldown is evaluated only during the remaining morning window');
 
-  currentHour = 30;
+  currentHour = 49;
   lastClaim = -Infinity;
   sends = 0;
   let claimed = false;
@@ -262,8 +246,8 @@ test('primary outage alerts obey cooldown, delivery failure, and concurrent atom
     return true;
   } };
   const pair = await Promise.all([
-    checkPeerScheduler({ db, source: 'github', systemTelegram: atomicTelegram, now: new Date(NOW + 30 * 3600_000) }),
-    checkPeerScheduler({ db, source: 'github', systemTelegram: atomicTelegram, now: new Date(NOW + 30 * 3600_000) }),
+    checkPeerScheduler({ db, source: 'github', systemTelegram: atomicTelegram, now: new Date(outageNow + 49 * 3600_000) }),
+    checkPeerScheduler({ db, source: 'github', systemTelegram: atomicTelegram, now: new Date(outageNow + 49 * 3600_000) }),
   ]);
   assert.equal(sends, 1);
   assert.deepEqual(pair.map((r) => r.alerted).sort(), [false, true]);

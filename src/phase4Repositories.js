@@ -43,7 +43,8 @@ export function composePhase4Stores(core) {
   const operation=(kind,fn)=>owned(recorded(kind,fn));
   const queue=createPhase4QueueStore(core);
   const entities=createPhase4EntityStore(core),privacy=createPhase4PrivacyStore(core,queue);
-  const episodeStore=createPhase4EpisodeStore(core,entities,{operationAuthority:async(context,episodeId,revision)=>{
+  const episodeStore=createPhase4EpisodeStore(core,entities,{metricRefreshPlan:receipts.metricRefreshPlan,
+    episodeRecurrencePlan:receipts.episodeRecurrencePlan,operationAuthority:async(context,episodeId,revision)=>{
     const authority=await receipts.forArtifact(context,'observation_episodes',{}, {episodeId,revision,verifyOnly:true});
     return authority.operationKind.startsWith('EPISODE_');
   }}),insightStore=createPhase4InsightStore(core,entities,{terminalPredecessor:receipts.terminalInsightPredecessor});
@@ -132,7 +133,9 @@ export function composePhase4Stores(core) {
     if(!patch || !Object.keys(patch).length || Object.keys(patch).some(k=>!allowed.includes(k)))fail('PHASE4_INVALID_PREFERENCE_PATCH');
     return transaction(async()=>{
       await core.assertControl(control);
-      await preferences(control);
+      const current=await preferences(control);
+      if(current.preference_version!==expectedVersion)fail('PHASE4_PREFERENCE_CAS_LOST');
+      if(core.schemaVersion===28&&Object.entries(patch).every(([key,value])=>current[key]===value))return current;
       const entries=Object.entries(patch);
       const result=await client.execute({sql:`UPDATE user_notification_preferences SET ${entries.map(([k])=>`${k}=?`).join(',')},
         preference_version=preference_version+1,updated_at=? WHERE user_id=? AND preference_version=?`,

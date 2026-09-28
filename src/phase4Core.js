@@ -4,6 +4,7 @@ import { coverageLineage } from './phase4CoverageLineage.js';
  * directly. The public Foundation factory supplies SHADOW-only authority;
  * isolated tests supply a distinct factory that owns its in-memory database. */
 import { randomUUID } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { assertPhase4Schema } from './phase4Migrations.js';
 import { requirePhase4Keys } from './phase4Keys.js';
 import { requireUserId } from './userContext.js';
@@ -36,10 +37,15 @@ const ROOTS = Object.freeze({
  * A JSON object, a context from another connection, or a changed mode is not a
  * capability. Authority is supplied only by the owning server/fixture factory. */
 export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthority,now=()=>new Date()}) {
+  const jobScope=new AsyncLocalStorage();
   requirePhase4Keys(keys);
   if(typeof modeAuthority!=='function' || typeof processing?.transaction!=='function')fail('PHASE4_SERVER_FACTORY_REQUIRED');
   const {client,transaction}=processing;
-  await assertPhase4Schema(client);
+  // The frozen Stage 5 composition remains usable on v27. A Stage 6 worker
+  // must separately require v28; unsupported versions still fail closed.
+  const schemaVersion=Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
+  if(![27,28].includes(schemaVersion))fail('phase4_schema_version_mismatch');
+  await assertPhase4Schema(client,schemaVersion);
   const databases=(await client.execute('PRAGMA database_list')).rows;
   const isolatedMemory=client.protocol==='file'&&databases.length===1&&databases[0].name==='main'&&databases[0].file==='';
   function authorizeMode(mode,connection) {
@@ -107,7 +113,8 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     if(state.auth_generation!==context.authGeneration || (context.providerRequired && state.auth_generation<1))fail('PHASE4_AUTH_FENCED');
     const current=(await client.execute({sql:'SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode=?',args:[context.userId,context.executionMode]})).rows[0];
     if(!current || (!ignoreInput && (current.input_generation!==context.inputGeneration
-      || current.source_generation_seen!==state.source_generation || current.algorithm_set_version!==context.algorithmSetVersion)))fail('PHASE4_INPUT_FENCED');
+      || current.source_generation_seen!==state.source_generation||state.source_generation!==context.sourceGeneration
+      || current.algorithm_set_version!==context.algorithmSetVersion)))fail('PHASE4_INPUT_FENCED');
     return {state,computation:current};
     } catch(error) {contextRegistry.clear(context);throw error;}
   }
@@ -139,7 +146,9 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     return userState(control.userId);
   }
   async function run(context,fn,options={}) {
-    return transaction(()=>fn(context),{before:()=>assertContext(context,options),after:()=>assertContext(context,options)});
+    const job=jobScope.getStore();
+    const check=async()=>{await assertContext(context,options);if(job)await job.check(context);};
+    return transaction(()=>fn(context),{before:check,after:check,...(job?{commitFence:check}:{})});
   }
   async function runControl(control,mode,fn) {
     if(!['SHADOW','LIVE'].includes(mode))fail('PHASE4_EXECUTION_MODE_REQUIRED');
@@ -369,7 +378,8 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
       privacy_artifact_id:keys.lookup(['privacy-artifact-v1',table,context.userId,context.executionMode,identity]),
       content_digest_salt:salt,purge_generation:context.purgeGeneration};
   }
-  return Object.freeze({client,processing,transaction,keys,now,timestamp,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
+  return Object.freeze({client,processing,transaction,keys,now,timestamp,schemaVersion,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
+    withJobFence:(binding,check,fn)=>jobScope.run({binding,check},fn),jobAuthority:()=>jobScope.getStore()?.binding??null,
     capturePrivacyControl,assertPrivacyControl,run,runControl,runMaintenance,contextRegistry,
     tableInfo,root,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});
 }

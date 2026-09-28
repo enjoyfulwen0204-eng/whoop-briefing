@@ -47,6 +47,8 @@ import { mapWithConcurrency } from './concurrency.js';
 import { addDays, completedWeeks, localDate, localTime, localWeekday } from './time.js';
 import { log, describeError } from './logger.js';
 import { checkPeerScheduler } from './schedulerWatchdog.js';
+import { requireTriggerSource } from './schedulerPolicy.js';
+import { runPhase4Stage6 } from './shadowDrainScheduler.js';
 import { lifecycleOutputDb, SCHEDULED_OUTPUT_WRITERS } from './lifecycleOutput.js';
 import { withDeliveryAuthorization, isAccountInactiveError } from './accountLifecycle.js';
 import { resumeOnboardingBootstraps as resumeOnboarding } from './onboardingBootstrap.js';
@@ -544,7 +546,8 @@ export async function runForUser({
   return out;
 }
 
-export async function runBriefing({ now = new Date(), deps = {}, triggerSource = 'github' } = {}) {
+export async function runBriefing({ now = new Date(), deps = {}, triggerSource = 'manual' } = {}) {
+  requireTriggerSource(triggerSource);
   const { guardian = runGuardian } = deps;
   if (!deps.env) loadDotEnvIfPresent();
   const env = deps.env ?? loadEnv();
@@ -571,7 +574,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
 
   const summary = {
     users: 0, ok: 0, failed: 0, skipped: 0, perUser: [], errors: [], guardian: null,
-    schedulerWatchdog: null, outcome: null, runState: null, webhookDrain: null,
+    schedulerWatchdog: null, outcome: null, runState: null, webhookDrain: null, phase4Stage6: null,
     fastReconciliation: {
       dueUsers: 0, attempted: 0, completed: 0, partial: 0,
       failed: 0, fenced: 0, deferred: 0, discrepancies: 0,
@@ -725,12 +728,23 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     //
     // 只有「全部使用者都失敗」才代表這個供應商實際上什麼也做不到，那時才
     // 不算存活。部分失敗仍然是活著的排程器，由 guardian 去處理個別使用者。
+    try {
+      summary.phase4Stage6=await runPhase4Stage6({db,worker:deps.phase4Stage6,triggerSource,now});
+    } catch(err) {
+      summary.phase4Stage6={outcome:'FAILED',triggerSource};
+      summary.errors.push({stage:'phase4_stage6',error:describeError(err)});
+    }
     const attempted = users.length;
     const failed = summary.failed;
     summary.outcome = attempted === 0 ? 'nothing_due'
       : failed === 0 ? 'completed'
         : failed === attempted ? 'all_users_failed' : 'partial_failure';
     summary.runState = summary.outcome === 'all_users_failed' ? 'unhealthy' : 'alive';
+    if(summary.phase4Stage6.outcome==='FAILED') {
+      summary.runState='unhealthy';
+      summary.outcome='phase4_stage6_failed';
+      if(!summary.errors.some(error=>error.stage==='phase4_stage6'))summary.errors.push({stage:'phase4_stage6',error:'All claimed Phase 4 work failed'});
+    }
 
     // ---- 運維心跳（V1.1 Phase 9）----
     // 「這一輪 cron 真的跑完了」是系統裡唯一沒有任何地方記錄的事實，
@@ -740,7 +754,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
       const component = triggerSource === 'cloudflare'
         ? HEARTBEAT_COMPONENT.CLOUDFLARE : HEARTBEAT_COMPONENT.GITHUB;
       // heartbeat = 這個供應商還活著。全員失敗時才不寫（那時它確實沒產出）。
-      if (summary.runState === 'alive') {
+      if (summary.runState === 'alive' && ['cloudflare','github'].includes(triggerSource)) {
         const detail = `outcome=${summary.outcome};users=${attempted};failed=${failed}`;
         await db.recordHeartbeat(GLOBAL_SCOPE, component, { detail, now });
         await db.recordHeartbeat(GLOBAL_SCOPE, HEARTBEAT_COMPONENT.CRON, {
@@ -803,7 +817,7 @@ export const main = runBriefing;
 
 // 直接執行時才跑（被 import 時不跑）
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main()
+  main({triggerSource:process.env.GITHUB_ACTIONS==='true'&&process.env.GITHUB_EVENT_NAME==='schedule'?'github':'manual'})
     .then((s) => process.exit(s.errors.length || s.failed ? 1 : 0))
     .catch((err) => {
       log.error('fatal', { error: describeError(err) });

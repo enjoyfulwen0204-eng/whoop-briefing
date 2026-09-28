@@ -22,6 +22,7 @@ const NORMALIZED_ROOT_VERSION='stage5-required-roots-v2';
 const BOUNDED_ROOT_VERSION='stage5-required-roots-v3';
 export const REQUIRED_ROOT_BUDGET=Object.freeze({count:10000,bytes:1048576});
 const NULL_PROJECTION_VERSION='stage5-null-metric-result-v2';
+const PREPARATION_VERSION='stage6-metric-refresh-preparation-v1';
 const rootProjection=(row,type,version)=>[NORMALIZED_ROOT_VERSION,BOUNDED_ROOT_VERSION].includes(version)&&['sleep','recovery','cycle','workout','body_energy_results'].includes(type)
   ?Object.fromEntries(Object.entries(projection(row)).map(([k,v])=>[k,k.endsWith('_at')||k==='as_of_utc'?canonicalSourceTime(v):v])):projection(row);
 
@@ -197,9 +198,10 @@ export function createResultAuthority(core) {
     if(canonicalJson(payload)!==row.original_result_json||canonicalJson(manifest)!==row.required_roots_json)invalid();
     validateManifest(manifest,row.execution_mode);
     if(payload?.version!==undefined) {
-      if(row.result_scope!=='METRIC'||payload.version!==NULL_PROJECTION_VERSION||payload.origin!==null
+      const preparation=payload.version===PREPARATION_VERSION&&parse(run.input_manifest_json).refresh_preparation===true;
+      if(row.result_scope!=='METRIC'||(!preparation&&payload.version!==NULL_PROJECTION_VERSION)||payload.origin!==null
         ||!same(Object.keys(payload).sort(),['calculation','origin','version'])||!payload.calculation
-        ||payload.calculation.targetEpisodeState!==null||typeof payload.calculation.classification!=='string')invalid();
+        ||(!preparation&&payload.calculation.targetEpisodeState!==null)||typeof payload.calculation.classification!=='string')invalid();
       return {origin:null,calculation:payload.calculation,manifest};
     }
     if(payload!==null) {
@@ -269,7 +271,8 @@ export function createResultAuthority(core) {
     const roots=await captureRoots(context,sourceRefs,envelope.content_digest_salt);
     const record={...envelope,evidence_item_id:item.row.evidence_item_id,run_id:run.row.run_id,result_scope:scope,authority_version:VERSION,
       original_result_json:canonicalJson(scope==='METRIC'&&origin===null
-        ?{version:NULL_PROJECTION_VERSION,origin:null,calculation}:origin),required_roots_json:canonicalJson(roots),
+        ?{version:parse(run.row.input_manifest_json).refresh_preparation===true?PREPARATION_VERSION:NULL_PROJECTION_VERSION,
+          origin:null,calculation}:origin),required_roots_json:canonicalJson(roots),
       input_manifest_hash:hash(envelope.content_digest_salt,'result-input-v1',run.row.input_manifest_json),
       item_hash:hash(envelope.content_digest_salt,'result-item-v1',projection(item.row)),
       input_generation:context.inputGeneration,lifecycle_generation:context.lifecycleGeneration,auth_generation:context.authGeneration,

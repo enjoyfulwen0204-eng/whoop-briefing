@@ -77,12 +77,14 @@ export function processingTransactions(base) {
     throw error;
   }
 
-  async function transaction(fn, { before, after } = {}) {
+  async function transaction(fn, { before, after, beforeCommit,commitFence } = {}) {
     const parent = scope.getStore();
     if (parent) {
       try {
         if (before) await before(client);
         if (after) parent.checks.push(after);
+        if (beforeCommit) parent.finalChecks.push(beforeCommit);
+        if (commitFence) parent.commitFences.add(commitFence);
         return await fn();
       } catch (error) { parent.failure = error; throw error; }
     }
@@ -90,7 +92,8 @@ export function processingTransactions(base) {
     for (let attempt = 0; attempt < 12; attempt++) {
       const releaseRoot=await acquireRoot();
       let tx;
-      const state = { tx:null, cache, checks: after ? [after] : [], failure: null, deferred: null, committed: [], completed: [] };
+      const state = { tx:null, cache, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
+        failure: null, deferred: null, committed: [], completed: [] };
       try {
         tx=await retryContention(()=>base.transaction('write'),{
           // A failed local BEGIN can retain an unfinished native statement.
@@ -104,7 +107,14 @@ export function processingTransactions(base) {
           if (state.failure) throw state.failure;
           for (const check of state.checks) await check(client);
           if (state.failure) throw state.failure;
-          await retryContention(()=>tx.commit());
+          await retryContention(async()=>{
+            // Recheck ownership after all deferred result validation and before
+            // each COMMIT attempt, including time spent waiting on contention.
+            for(const check of state.finalChecks)await check(client);
+            for(const check of state.commitFences)await check(client);
+            if(state.failure)throw state.failure;
+            await tx.commit();
+          });
           return result;
         });
         tx.close();tx=null;releaseRoot();

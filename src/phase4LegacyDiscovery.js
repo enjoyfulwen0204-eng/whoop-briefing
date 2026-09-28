@@ -44,7 +44,8 @@ export function createLegacyDiscovery(core) {
       if(kind==='analyzeMetric'&&manifest.manifest_version.startsWith('phase4-metric-evidence-input-')) {
         const refs=manifest.quality?.provenance;
         if(!Array.isArray(refs))unavailable();
-        equivalent=manifest.metric_key===request.metricKey&&canonicalInstant(manifest.as_of_utc)===request.asOfUtc
+        equivalent=(manifest.refresh_preparation===true)===(request.refresh===true)
+          &&manifest.metric_key===request.metricKey&&canonicalInstant(manifest.as_of_utc)===request.asOfUtc
           &&same(ordered(refs.map(([type,id,version])=>[type,id,canonicalSourceVersion(version)])),
             ordered([request.currentSource,...request.baselineSources].map(ref=>[ref.source_type,ref.source_id,ref.source_version])))
           &&manifest.current?.sourceId===request.currentSource.source_id
@@ -52,7 +53,8 @@ export function createLegacyDiscovery(core) {
       } else if(kind==='analyzeAssociationFamily'&&manifest.manifest_version.startsWith('phase4-association-family-input-')) {
         const stored=manifest.hypotheses;
         if(!Array.isArray(stored))unavailable();
-        equivalent=manifest.multiple_testing_family===request.multipleTestingFamily&&canonicalInstant(manifest.as_of_utc)===request.asOfUtc
+        equivalent=(manifest.lifecycle_mode??null)===(request.lifecycleMode??null)
+          &&manifest.multiple_testing_family===request.multipleTestingFamily&&canonicalInstant(manifest.as_of_utc)===request.asOfUtc
           &&same(ordered(stored.map(h=>[h.factor,h.outcome_metric,h.lag_days,h.comparison_health_dates])),
             ordered(request.hypotheses.map(h=>[h.factor,h.outcomeMetric,h.lagDays,h.comparisonHealthDates])))
           &&stored.every(h=>{

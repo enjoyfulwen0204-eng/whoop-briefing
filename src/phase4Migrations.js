@@ -20,17 +20,41 @@ export class Phase4SchemaError extends Error {
 const normalizeSql = (sql) => String(sql).replace(/\bIF NOT EXISTS\s+/gi, '')
   .replace(/\s+/g, ' ').trim().replace(/;$/, '');
 
+// ALTER TABLE inserts columns before table constraints, preserving the rest
+// of sqlite_master's original SQL. Find that boundary without mistaking a
+// column CHECK (or a quoted comma) for a table constraint.
+function withAddedColumns(ddl, columns) {
+  if (!columns.length) return ddl;
+  let depth=0, quote=null, boundary=-1;
+  for(let i=ddl.indexOf('(');i<ddl.length;i++) {
+    const ch=ddl[i];
+    if(quote) {if(ch===quote){if(ddl[i+1]===quote)i++;else quote=null;}continue;}
+    if(ch==="'"||ch==='"'||ch==='`'){quote=ch;continue;}
+    if(ch==='(')depth++;
+    if(ch===')'&&--depth===0){boundary=i;break;}
+    if(ch===','&&depth===1&&/^\s*(?:CHECK\s*\(|PRIMARY\s+KEY\b|UNIQUE\s*\(|FOREIGN\s+KEY\b|CONSTRAINT\b)/i.test(ddl.slice(i+1))) {
+      boundary=i;break;
+    }
+  }
+  if(boundary<0)throw new Phase4SchemaError('phase4_invalid_migration_definition');
+  return `${ddl.slice(0,boundary)}, ${columns.map(column=>`${column.column} ${column.definition}`).join(', ')}${ddl.slice(boundary)}`;
+}
+
 /** A name alone is not a postcondition: verify complete definitions, including
  * every column, CHECK, PK, partial-index predicate and trigger. A conflicting
  * partial table is never silently rebuilt, even if empty. */
-export async function verifyPhase4Definition(client, ddl) {
+export async function verifyPhase4Definition(client, ddl, additions=[]) {
   const [, kind, name] = ddl.match(/^CREATE (TABLE|(?:UNIQUE )?INDEX|TRIGGER) IF NOT EXISTS (\w+)/i) ?? [];
   if (!name) throw new Phase4SchemaError('phase4_invalid_migration_definition');
   const rs = await client.execute({
     sql: 'SELECT type, sql FROM sqlite_master WHERE name = ?', args: [name],
   });
+  // SQLite appends additive columns to the original CREATE TABLE text. Keep
+  // comparing the complete frozen definition plus only declared additions.
+  const columns=kind==='TABLE'?additions.filter(column=>column.table===name):[];
+  const expected=withAddedColumns(ddl,columns);
   if (rs.rows.length !== 1 || rs.rows[0].type !== kind.toLowerCase().replace('unique ', '')
-      || normalizeSql(rs.rows[0].sql) !== normalizeSql(ddl)) {
+      || normalizeSql(rs.rows[0].sql) !== normalizeSql(expected)) {
     throw new Phase4SchemaError('phase4_schema_postcondition_failed', name);
   }
 }
@@ -132,8 +156,12 @@ export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSI
   const migrations = PHASE4_MIGRATIONS.filter(m => m.version <= version);
   const replacements = migrations.flatMap(m=>m.replacements ?? []);
   const nextReplacements = options.resuming ? PHASE4_MIGRATIONS.find(m=>m.version === version + 1)?.replacements ?? [] : [];
+  const additions=migrations.flatMap(m=>m.columns??[]);
+  if(options.resuming)for(const column of PHASE4_MIGRATIONS.find(m=>m.version===version+1)?.columns??[]) {
+    if((await client.execute(`PRAGMA table_info(${column.table})`)).rows.some(row=>row.name===column.column))additions.push(column);
+  }
   for (const migration of migrations) {
-    for (const ddl of migration.ddl) await verifyPhase4Definition(client, ddl);
+    for (const ddl of migration.ddl) await verifyPhase4Definition(client, ddl,additions);
     for (const column of migration.columns ?? []) await verifyColumn(client, column);
     for (const ddl of [...(migration.indexes ?? []), ...(migration.triggers ?? [])]) {
       const name = ddl.match(/^CREATE (?:UNIQUE )?(?:INDEX|TRIGGER) IF NOT EXISTS (\w+)/)?.[1];

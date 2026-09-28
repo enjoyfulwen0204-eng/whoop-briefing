@@ -1,0 +1,82 @@
+# Phase 4 Stage 6 SHADOW operations
+
+Stage 6 consumes synchronized durable inputs and calls the canonical Stage 5 calculations and public v27 operations. It does not fetch providers, deliver health messages, run the Phase 3 reanalysis engine, or authorize LIVE. Deployment and scheduler activation remain separate approval gates.
+
+## Composition and invocation
+
+`createPhase4Stage6` requires an explicit DB, keys, `executionMode: 'SHADOW'`, and a server-issued `authorizeStage6ShadowWorker({executionMode: 'SHADOW'})` capability. A JSON object or an environment variable cannot substitute for the capability. The production Foundation still rejects all runtime enable flags. The default `runBriefing` composition never constructs or injects a Stage 6 worker.
+
+An authorized future server composition injects the worker as `deps.phase4Stage6`. The runner independently calls `runPhase4Stage6` even when no user has a report, sync, or reconciliation due. Event callers may use that same function with `triggerSource: 'event'` and an optional tenant. Operator calls use `manual`. Neither writes scheduler heartbeats or clears outage flags. The CLI labels an actual GitHub scheduled Actions run `github`; a local run or workflow dispatch is `manual`. The authenticated Cloudflare endpoint retains its explicit `cloudflare` identity.
+
+`rolloutAlgorithm({userId})` is available only on the admitted SHADOW worker. It installs the registered `phase4-stage5-canonical-v1` bundle label, which resolves to the frozen Stage 5 algorithms. It advances only that existing SHADOW computation and is idempotent. Unsupported labels fail. A future calculation change needs a reviewed registry implementation, not a new environment value.
+
+## Drain and retained scope
+
+The database selector takes at most one eligible job per tenant, ordered by last service/update time and stable identities. Both existing job kinds use one drain: `RECOMPUTE_DERIVED` and `REPAIR_CURRENTNESS`. No separate provider-specific health engine exists.
+
+A deterministic binary keyset scan uses JSON pairs of source type and opaque row identity. It includes currently accessible, non-tombstoned WHOOP sleep/recovery/cycle/workout rows; readable active Journal facts and coverage; current direct experiment assertions; and the tenant USER root. It never reconstructs deleted dates. WHOOP rows denied by current authorization/capability state are outside eligible scope. Shared Telegram ingress records and body-measurement snapshots are not registered Stage 5 intelligence inputs.
+
+The USER unit computes canonical Body Energy. The latest eligible source of each registered metric is the current metric target; prior retained rows are baseline inputs, selected by the existing baseline selector. Each older scanned row is explicitly classified as retained non-target input. Unscored rows are typed no-result inputs. Journal, coverage, workout and direct-assertion units validate their retained roots; calculations consume applicable inputs through their canonical source contracts. Available current-generation Body Energy baseline results are authenticated before use; absence of such results remains canonical baseline warmup.
+
+Existing active and recently resolved metric window families are recovered from authenticated operation requests and lifecycle snapshots and preserved. The worker does not choose a different family to evade stale-state checks. For association evidence, it submits all retained standard factors together for each registered outcome, with lag one day, in two independent 30-day windows. Stage 5 owns missingness, multiplicity, effects, confidence, promotion and lifecycle guards. Candidate absence is a valid no-insight result. Unsupported or incomplete authority is a failure, never a fabricated empty result.
+
+## Three episode paths
+
+An active prior-generation episode uses explicit metric preparation (`analyzeMetric` with `refresh: true`) followed by public `EPISODE_REFRESH` with `metricRefresh: true`. Preparation seals a complete independent fresh observation through v26/v27. The refresh authenticates historical lifecycle authority and recomputes the current projection with the existing canonical evaluator. Ordinary stale readers remain fenced until the new current revision exists.
+
+A resolved historical episode remains terminal. Within the frozen seven-day recurrence window, public `EPISODE_OPEN` with `recurrence: true`, `predecessorRevision` and `reopensEpisodeId` creates a new incarnation. It requires matching current authenticated metric preparation, canonical projection and semantic event. Authenticated snapshot/receipt inventories establish the latest resolved parent and absence of a conflicting successor. They also detect missing materialized rows or removed snapshots that retained receipts still describe. The terminal boundary comes from the authenticated transition; exact equality remains allowed by the frozen chronology policy.
+
+The recurrence result binds predecessor receipt/revision authority and current source/input/lifecycle/auth/purge/algorithm authority. It preserves the predecessor row, durably records `reopens_episode_id`, replays across restart and exposes identical linkage through typed and generic readers. Exact and equivalent concurrent requests converge; conflicting successors fail closed. Authority is checked again before lifecycle write and receipt commit, with worker ownership/lease fences when present. Privacy closure follows the historical receipt dependency. This explicit terminal-parent path does not authorize a stale active parent or make historical references current.
+
+With no predecessor, the existing normal new-episode contract remains. The worker uses the same canonical calculations and public lifecycle surface for all three paths.
+
+Input discovery is bounded: 512 baseline candidates, 400 combined Journal fact/coverage rows per association window, 400 outcome candidates, 16 factors, 64 active/recently resolved episode candidates, and authority inventories of 1,000 rows / 64 MiB. A bound violation stays unresolved and enters retry/repair; it is not truncated into successful completion.
+
+## Ownership, completion and recovery
+
+Claims bind tenant/mode, owner UUID, exact lease expiry, requested generation, source/input generation, scope revision, lifecycle/auth/purge generations, and algorithm set. Derived work and its cursor checkpoint commit atomically. Every canonical nested write verifies context and job ownership before/after execution; final commit fences run after deferred authority validation and before each COMMIT attempt. Result receipts also record the job authority that produced them.
+
+A FULL pass settles only after the canonical enumerator returns no next retained identity and the same claim/scope/generation remains valid. Its proof is an internal capability; no caller-supplied object authorizes completion. The durable cursor is the committed prefix proof. A replacement process obtains a new claim, validates the saved generation/scope/fences, and either resumes that prefix or starts a newer full scope. Both jobs must finish before aggregate computation completion and the tenant completion heartbeat advance. Ordinary Foundation APIs cannot settle FULL scope.
+
+Process death leaves the current uncommitted unit rolled back and the previous checkpoint intact. An expired owner cannot write or settle. No process-local cache is necessary for recovery. `test/phase4-stage6-cold-start.test.js` kills a child after a committed checkpoint, reopens the file, takes over the expired claim and verifies one logical result.
+
+Failure delays are exactly 1 minute, 5 minutes, 15 minutes, 1 hour, then 6 hours from failure five onward. Attempts count failures, not ordinary claims or budget yields. Failure five enters `REPAIR_REQUIRED`; it remains eligible after the six-hour backoff. Other tenants continue. New generations preserve attempts, typed error, backoff and cycle age, while resetting the stale cursor/owner. This implementation conservatively does not declare old errors obsolete. Only successful full completion resets poison history.
+
+For repair, inspect typed error, current generation and retained authority. Fix the canonical source/authorization issue through its supported mutation route and allow the scheduled bounded retry. Do not clear poison counters, forge receipts, alter cursors or infer deleted history to force completion. A genuine missing canonical authority contract goes back to the Architecture Owner.
+
+## Budgets and scheduler policy
+
+All scheduling windows use Asia/Taipei; tenant health calculations continue using each tenant's timezone.
+
+| Trigger | Eligibility | Wall budget | Stop margin | Jobs | Items | Items/tenant | Lease |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cloudflare | 08:00 inclusive–12:00 exclusive | 45s | 15s | 8 | 48 | 6 | 60s |
+| GitHub | Outside window; inside only stale CF fallback | 90s | 15s | 16 | 128 | 8 | 120s |
+| Event | Opportunistic, optionally tenant-scoped | 25s | 15s | 2 | 8 | 4 | 40s |
+| Manual | Explicit operator invocation | 45s | 15s | 8 | 48 | 6 | 60s |
+
+The deadline is checked throughout owned canonical work and before settlement. Reaching it rolls back the current unit and yields without recording a calculation failure. These are derived-work budgets, not a guarantee about preceding sync/report/provider latency in the shared runner. The existing Cloudflare transport timeout is 120 seconds; future activation must measure total runner and cold-start latency on its actual database/runtime. No remote-load or production latency claim is made from local synthetic tests.
+
+Future Cloudflare cron: `*/10 0-3 * * *`. Keep it inert until activation approval. GitHub stays hourly and executes directly on GitHub infrastructure. Deployment files and live schedulers were not changed. Database ownership is the final overlap protection.
+
+Only successful real scheduler invocations update `briefing_cloudflare` or `briefing_github`, plus aggregate `cron`. An all-job Stage 6 failure makes the shared run unhealthy and suppresses successful liveness even if no report was due. A partial tenant failure remains visible in the Stage 6 summary while unrelated work proceeds.
+
+Cloudflare silence is expected outside its window. Startup grace includes 08:20; after that, more than 30 minutes without success is stale. GitHub is stale outside the window after more than three hours. The aggregate Guardian retains its three-hour cron expectation. Alerts use the existing durable notification claims with a 24-hour cooldown. Recovery requires a recorded outage and a successful expected scheduler heartbeat; quiet intervals and event/manual calls cannot heal it. Existing notify-before-send claim semantics can consume a cooldown even when notification delivery fails; recovery clears its flag before attempting delivery.
+
+An internal watchdog can evaluate only when something runs. It cannot detect total scheduler silence while every scheduler is stopped. External monitoring is a later activation/runbook decision.
+
+## Backlog authority and diagnostics
+
+Schema v28 adds only nullable `phase4_jobs.unresolved_since`, its partial age index and cycle-preservation trigger. It adds no health/result/receipt table or version. v29 and v30 remain reserved.
+
+A newly active work cycle records its first real timestamp. Coalescing, newer generations, claims, retries, poison handling and restart retain it. Completion clears it; subsequent work starts a new cycle. Migration never backfills an unresolved legacy NULL using `updated_at`, creation time or source links. Such rows are `UNKNOWN_LEGACY` until genuinely completed. Unknown age is degraded, not zero or healthy.
+
+`worker.diagnostics()` and the read-only `phase4Backlog` function expose pending tenants/jobs, earliest known cycle, authoritative/unknown age classification, retry/repair/lease counts, latest successful completion and generation lag. Known age over two hours is degraded; over six hours or repair state is actionable. Unknown legacy rows remain visible alongside the oldest known age. These aggregates contain no health values or source text.
+
+`health-status` prints these aggregates when v28 is present and reads window-aware scheduler health. It no longer migrates the database as a side effect. It was not executed against any real database during implementation. Ordinary per-job retries do not trigger notification spam.
+
+## Cost and activation checklist
+
+Render may sleep. A morning Cloudflare request may wake it; GitHub's hourly direct runner does not depend on Render being awake. Durable cursor/lease state handles cold starts. There is no keepalive, Render cron, permanent background worker or ping loop.
+
+Before any future activation, obtain the separate release authorization, inspect v28 migration/legacy age state, verify explicitly injected SHADOW composition and key authority, confirm Taipei cron/window policy and hourly GitHub identity, measure total invocation latency, and decide whether external total-silence monitoring is required. Stage 7 is not part of this change.

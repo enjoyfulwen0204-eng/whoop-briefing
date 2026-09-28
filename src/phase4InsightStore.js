@@ -11,11 +11,16 @@ const IDENTITY=['subject','outcome','direction','exposureCategory','algorithmFam
 const REASONS=['CANDIDATE_EVIDENCE','REPEATED_EVIDENCE','REPLICATED_SUPPORT','CONTRADICTORY_EVIDENCE',...INSIGHT_DISPOSITIONS];
 const normalized=value=>typeof value==='string'?value.normalize('NFC').trim().replace(/\s+/g,' ').toLowerCase():'';
 
-export function insightIdentityKey(keys,context,identity) {
+export function normalizeInsightIdentity(identity) {
   if(!identity||Object.keys(identity).sort().join(',')!==[...IDENTITY].sort().join(','))fail('PHASE4_INSIGHT_IDENTITY_REQUIRED');
   const values=IDENTITY.map(k=>normalized(identity[k]));
   if(values.some(v=>!v||v.length>256))fail('PHASE4_INSIGHT_IDENTITY_REQUIRED');
-  return keys.lookup(['insight-key-v1',context.userId,...values]);
+  return Object.fromEntries(IDENTITY.map((key,index)=>[key,values[index]]));
+}
+
+export function insightIdentityKey(keys,context,identity) {
+  const canonical=normalizeInsightIdentity(identity);
+  return keys.lookup(['insight-key-v1',context.userId,...IDENTITY.map(key=>canonical[key])]);
 }
 
 export function requireCurrentInsightAt(row,asOfUtc) {

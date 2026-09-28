@@ -303,7 +303,8 @@ export function createPhase4PrivacyStore(core,queue) {
   }
   async function complete(control,purgeId) {
     return transaction(async()=>{
-      const purge=await ledger(control,purgeId);if(purge.state==='COMPLETE')return {...purge};
+      const purge=await ledger(control,purgeId);
+      if(purge.state==='COMPLETE') {await verify(control,purgeId);return {...purge};}
       if(purge.state==='ADMITTED')fail('PHASE4_PURGE_CONTENT_PENDING');
       await verify(control,purgeId);
       const state=await core.userState(control.userId);

@@ -96,8 +96,11 @@ export function createPhase4JournalStore(core,privacy,queue) {
     return core.run(context,async()=>{
       const facts=(await client.execute({sql:`SELECT * FROM journal_events WHERE user_id=? AND fact_status='ACTIVE' AND content_state='PRESENT'
         AND source_linkage_state='COMPLETE' AND health_content_redacted_at IS NULL`,args:[context.userId]})).rows;
-      const coverage=(await client.execute({sql:`SELECT * FROM journal_coverage_windows WHERE user_id=? AND status='ACTIVE' AND content_state='PRESENT'
-        AND source_linkage_state='COMPLETE' AND health_content_redacted_at IS NULL`,args:[context.userId]})).rows;
+      const candidates=(await client.execute({sql:`SELECT coverage_window_id FROM journal_coverage_windows
+        WHERE user_id=? AND status='ACTIVE' LIMIT 1001`,args:[context.userId]})).rows;
+      if(candidates.length>1000)fail('PHASE4_JOURNAL_LINEAGE_BOUNDS_UNAVAILABLE');
+      const coverage=[];
+      for(const row of candidates)coverage.push((await core.root(context,'JOURNAL_COVERAGE',row.coverage_window_id)).row);
       return classifyJournalExposure({...window,facts,coverage});
     });
   }

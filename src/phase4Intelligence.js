@@ -1,3 +1,4 @@
+import { compareExact } from './phase4CanonicalOrder.js';
 import { canonicalObservation, canonicalSourceVersion, canonicalSourceTime } from './phase4SourceVersion.js';
 import { phase4Metric, isPhase4Metric, INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
 import { pearson, spearman, pValue } from './analytics/correlation.js';
@@ -41,13 +42,13 @@ export function validMetricValue(metricKey, value) {
 // Shared by sampling and provenance before any manifest/identity construction.
 // Stable semantic source identity, never caller or database row order.
 export const compareBaselineSources = (a,b) =>
-  String(b?.healthDate ?? '').localeCompare(String(a?.healthDate ?? ''))
+  compareExact(String(b?.healthDate ?? ''),String(a?.healthDate ?? ''))
   || (Date.parse(b?.observedAt)-Date.parse(a?.observedAt) || 0)
-  || String(canonicalSourceVersion(b?.sourceVersion) ?? '').localeCompare(String(canonicalSourceVersion(a?.sourceVersion) ?? ''))
-  || String(a?.sourceId ?? '').localeCompare(String(b?.sourceId ?? ''))
-  || String(a?.sourceType ?? '').localeCompare(String(b?.sourceType ?? ''))
-  || String(canonicalSourceTime(a?.ingestedAt) ?? '').localeCompare(String(canonicalSourceTime(b?.ingestedAt) ?? ''))
-  || String(a?.value ?? '').localeCompare(String(b?.value ?? ''));
+  || compareExact(String(canonicalSourceVersion(b?.sourceVersion) ?? ''),String(canonicalSourceVersion(a?.sourceVersion) ?? ''))
+  || compareExact(String(a?.sourceId ?? ''),String(b?.sourceId ?? ''))
+  || compareExact(String(a?.sourceType ?? ''),String(b?.sourceType ?? ''))
+  || compareExact(String(canonicalSourceTime(a?.ingestedAt) ?? ''),String(canonicalSourceTime(b?.ingestedAt) ?? ''))
+  || compareExact(String(a?.value ?? ''),String(b?.value ?? ''));
 
 function normalizeObservations(metricKey, observations, targetHealthDate, asOfUtc) {
   const contract = phase4Metric(metricKey), asOf = Date.parse(asOfUtc), target = dayNumber(targetHealthDate);
@@ -263,7 +264,7 @@ export function benjaminiHochberg(hypotheses) {
   if (!Array.isArray(hypotheses) || !hypotheses.length || hypotheses.length > 1000
     || hypotheses.some(item => !item || typeof item.key !== 'string' || !finite(item.pValue) || item.pValue < 0 || item.pValue > 1))
     throw new Error('PHASE4_MULTIPLICITY_FAMILY_INVALID');
-  const ordered = hypotheses.map((item, index) => ({ ...item, index })).sort((a, b) => a.pValue - b.pValue || a.key.localeCompare(b.key));
+  const ordered = hypotheses.map((item, index) => ({ ...item, index })).sort((a, b) => a.pValue - b.pValue || compareExact(a.key,b.key));
   let next = 1;
   for (let index = ordered.length - 1; index >= 0; index -= 1) {
     const adjusted = Math.min(next, ordered[index].pValue * ordered.length / (index + 1));
@@ -375,7 +376,7 @@ export function evaluateMonotonicTrend({ metricKey, observations, windowDays, as
   const threshold = Date.parse(asOfUtc) - windowDays * DAY_MS, seen = new Set();
   const points = observations.filter(item => validInstant(item.observedAt) && Date.parse(item.observedAt) <= Date.parse(asOfUtc)
     && Date.parse(item.observedAt) >= threshold && validMetricValue(metricKey, item.value))
-    .sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt) || String(a.sourceId).localeCompare(String(b.sourceId)))
+    .sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt) || compareExact(String(a.sourceId),String(b.sourceId)))
     .filter(item => { if (seen.has(item.healthDate)) return false; seen.add(item.healthDate); return true; });
   if (points.length < 2) return Object.freeze({ metricKey, windowDays, sampleCount: points.length, sufficient: false,
     slopePerDay: null, direction: null, rSquared: null, caveat: 'SERIAL_CORRELATION_NOT_MODELED' });

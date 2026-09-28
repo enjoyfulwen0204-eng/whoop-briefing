@@ -137,7 +137,7 @@ test('LIVE accepted fact, source generation, answer receipt and matching slot re
   assert.equal((await f.db.raw.execute('SELECT count(*) n FROM outbound_messages')).rows[0].n,1);
 });
 
-test('Coverage confirmation, window correction and deletion recompute exact tri-state classification and redact prior answer/receipt without expanding factors',async t=>{
+test('Coverage confirmation and deletion classify; correction with redacted ancestry fails typed authority without expanding factors',async t=>{
   const f=await syntheticPhase4Fixture(t),p=await journalQuestion(f,{mode:'LIVE',coverage:true}),proof=await inboundAnswer(f,p.control);
   const accepted=await f.stores.journalAnswers.accept(p.context,request(p,{...coverageAnswer,sourceUpdateId:'9101',inboundAuthority:proof}));
   assert.equal(accepted.status,'ACCEPT');assert.ok(accepted.coverageWindowId);await f.stores.release(p.context);
@@ -151,9 +151,15 @@ test('Coverage confirmation, window correction and deletion recompute exact tri-
   await assert.rejects(f.stores.journalCoverage.correct(p.control,{...change,factors:['sauna']}),/EXPANSION_FORBIDDEN/);
   const correction=await f.stores.journalCoverage.correct(p.control,change);await f.stores.privacy.complete(p.control,correction.purgeId);
   context=await f.stores.capture('a',{executionMode:'SHADOW'});
-  assert.equal((await f.stores.journal.classify(context,window)).state,'UNKNOWN');
-  assert.equal((await f.stores.journal.classify(context,{...window,windowStart:start})).state,'CONFIRMED_UNEXPOSED');
-  assert.equal((await f.stores.journal.classify(context,{...window,factor:'alcohol',windowStart:start})).state,'UNKNOWN');await f.stores.release(context);
+  // BF-M01: correction scrubbed the predecessor's factor/window authority.
+  // The typed reader cannot authenticate that lineage; a classifier must not
+  // bypass it and turn the remaining mutable row into confirmed exposure.
+  const active=(await f.db.raw.execute("SELECT coverage_window_id FROM journal_coverage_windows WHERE user_id='a' AND status='ACTIVE'")).rows[0];
+  const before=await durableState(f);
+  await assert.rejects(f.stores.journalCoverage.read(context,active.coverage_window_id),{code:'CONTENT_REDACTED'});
+  for(const candidate of [window,{...window,windowStart:start},{...window,factor:'alcohol',windowStart:start}])
+    await assert.rejects(f.stores.journal.classify(context,candidate),{code:'CONTENT_REDACTED'});
+  assert.deepEqual(await durableState(f),before);await f.stores.release(context);
   const rows=(await f.db.raw.execute('SELECT * FROM journal_coverage_windows ORDER BY revision')).rows;
   assert.equal(rows[0].content_state,'REDACTED');assert.equal(rows[1].revision,2);assert.equal(rows[1].supersedes_coverage_window_id,rows[0].coverage_window_id);
   assert.equal((await f.db.raw.execute('SELECT content_state FROM structured_answer_events ORDER BY answer_revision')).rows[0].content_state,'REDACTED');

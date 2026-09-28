@@ -37,6 +37,13 @@ const FIELDS=Object.freeze({
   experiment_field_groups:{},
   ...Object.fromEntries(Object.entries({...V23_HEALTH_FIELDS,...V24_HEALTH_FIELDS,...V25_HEALTH_FIELDS,...V26_HEALTH_FIELDS,...V27_HEALTH_FIELDS}).map(([t,f])=>[t,nulls(f)])),
 });
+// Erasure is a physical postcondition, independent of typed readability.
+export function physicallyScrubbed(table,row) {
+  return Boolean(row && FIELDS[table] && row.content_state==='REDACTED'
+    && row.source_linkage_state==='DISCONNECTED' && row.health_content_redacted_at
+    && row.content_digest_salt===null
+    && Object.entries(FIELDS[table]).every(([field,value])=>row[field]===value));
+}
 export const PRIVACY_TABLES=Object.freeze([...new Set([...V22_LEGACY_R_TABLES,...V22_NEW_R_TABLES,...Object.keys(FIELDS)])]);
 
 export function createPhase4Redactor(core) {
@@ -95,7 +102,7 @@ export function createPhase4Redactor(core) {
       // correction audit rows; the dedicated non-health tombstone survives.
       await client.execute({sql:`DELETE FROM journal_events WHERE ${where}`,args});return 'REMOVED';
     }
-    if(row.content_state==='REDACTED')return 'REDACTED';
+    if(physicallyScrubbed(node.type,row))return 'REDACTED';
     if(DISPOSABLE.has(node.type)) {
       await client.execute({sql:`DELETE FROM ${node.type} WHERE ${where}`,args});return 'REMOVED';
     }

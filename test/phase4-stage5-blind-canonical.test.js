@@ -1,0 +1,78 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { setup,request } from './stage5HistoryFixture.js';
+import { fixture,snapshot } from './stage5M007Fixture.js';
+import { call } from './stage5ClosureFixture.js';
+import { semantic,leases,T } from './stage5ReviewBFixture.js';
+import { compareBaselineSources } from '../src/phase4Intelligence.js';
+
+const names=['hypotheses','baselineSources','sourceRefs','outcomeSources','journalFactSources','coverageSources',
+  'comparisonHealthDates'];
+test('BF-M02: domain-like names inside arbitrary JSON preserve array order and distinct receipt identity',async t=>{
+  const f=await setup(t),evidence=await call(f,'intelligence','analyzeMetric',request(f.initialRefs[0],[]));
+  const identity={algorithmMajor:'phase4-intelligence-v1',direction:'LOWER',domain:'recovery',metric:'recovery_score',subject:'recovery_score',windowFamily:'BLIND-ORDER'};
+  const payload=Object.fromEntries(names.map(key=>[key,[2,1]]));
+  const req={identity,data:{explanation_json:payload},evidenceItemId:evidence.item.row.evidence_item_id,semanticAt:T};
+  const first=await call(f,'episodes','open',req);assert.deepEqual(JSON.parse(first.row.explanation_json),payload);
+  const before=await snapshot(f);assert.deepEqual(semantic(await call(f,'episodes','open',req)),semantic(first));
+  assert.deepEqual(await snapshot(f),before);
+  const changed={...req,data:{explanation_json:{...payload,hypotheses:[1,2],supportingEvidenceIds:[2,1],contradictingEvidenceIds:[2,1],asOfUtc:'user-authored text'}}};await call(f,'episodes','open',changed);
+  const receipts=(await f.db.raw.execute("SELECT * FROM phase4_operation_receipts WHERE operation_kind='EPISODE_OPEN'")).rows;
+  assert.equal(receipts.length,2);assert.notEqual(receipts[0].operation_key,receipts[1].operation_key);
+  assert.deepEqual(receipts.map(r=>JSON.parse(r.request_json).request.data.explanation_json.hypotheses).sort(),[[1,2],[2,1]].sort());
+  // A lifecycle revision actually persists the alternate order.
+  await call(f,'episodes','revise',{episodeId:first.row.episode_id,expectedRevision:1,toState:'UPDATING',
+    patch:{explanation_json:changed.data.explanation_json},sourceRefs:[evidence.item.ref],reasonCode:'NEW_EVIDENCE',semanticAt:T});
+  const current=await f.stores.withContext('a',{executionMode:'SHADOW'},c=>f.stores.episodes.read(c,first.row.episode_id));
+  assert.deepEqual(JSON.parse(current.row.explanation_json),changed.data.explanation_json);assert.equal(await leases(f),0);
+});
+
+test('BF-M03: optional accepted Body Energy asOfUtc is one canonical request in both retry directions',async t=>{
+  const f=await setup(t);
+  for(const [index,withIso] of [true,false].entries()) {
+    const ms=Date.parse(T)+index*60000;f.setNow(ms);const req={asOfEpochMs:ms},alias={...req,asOfUtc:new Date(ms).toISOString()};
+    const first=await call(f,'bodyEnergy','compute',withIso?alias:req),before=await snapshot(f);
+    const replay=await call(f,'bodyEnergy','compute',withIso?req:alias);
+    assert.deepEqual(semantic(replay),semantic(first));assert.deepEqual(await snapshot(f),before);
+    const offset=new Date(ms+8*3600000).toISOString().replace('Z','+08:00');
+    assert.deepEqual(semantic(await call(f,'bodyEnergy','compute',{...req,asOfUtc:offset})),semantic(first));
+    assert.deepEqual(await snapshot(f),before);
+  }assert.equal(await leases(f),0);
+});
+
+test('BF-M03: insight identity case/whitespace aliases replay the same original receipt',async t=>{
+  const {f,direct}=await fixture(t,{retired:false}),req=direct(T,'blind-alias');
+  const alias={...req,identity:Object.fromEntries(Object.entries(req.identity).map(([k,v])=>[k,`  ${v.toUpperCase()}  `]))};
+  const first=await call(f,'insights','create',alias),before=await snapshot(f);
+  assert.deepEqual(semantic(await call(f,'insights','create',req)),semantic(first));assert.deepEqual(await snapshot(f),before);
+  assert.equal(await leases(f),0);
+});
+
+test('BF-L01: Unicode-distinct source IDs have total order and permutation-independent request/replay',async t=>{
+  const f=await setup(t),ids=['e\u0301','\u00e9'];
+  const base={healthDate:'2026-09-24',observedAt:T,sourceVersion:'v1',sourceType:'recovery',ingestedAt:T,value:50};
+  assert.notEqual(compareBaselineSources({...base,sourceId:ids[0]},{...base,sourceId:ids[1]}),0);
+  const source=(await f.db.raw.execute({sql:'SELECT * FROM whoop_recoveries WHERE user_id=? AND sleep_id=?',args:['a',f.recoveryIds[1]]})).rows[0];
+  const refs=[];
+  for(const id of ids) {
+    const row={...source,sleep_id:id};await f.db.raw.execute({sql:`INSERT INTO whoop_recoveries(${Object.keys(row).join(',')}) VALUES (${Object.keys(row).map(()=>'?').join(',')})`,args:Object.values(row)});
+    refs.push((await f.stores.root(f.context,'recovery',id)).ref);
+  }
+  const req={...request(f.initialRefs[0],refs),windowFamily:'BLIND-UNICODE'};
+  const first=await call(f,'intelligence','analyzeMetric',req),before=await snapshot(f);
+  const replay=await call(f,'intelligence','analyzeMetric',{...req,baselineSources:[...refs].reverse()});
+  assert.deepEqual(semantic(replay),semantic(first));assert.deepEqual(await snapshot(f),before);
+  const sealed=JSON.parse(before.phase4_operation_receipts.find(row=>row.operation_kind==='analyzeMetric').request_json).request;
+  assert.deepEqual(sealed.baselineSources.map(ref=>ref.source_id),[...ids].sort());assert.equal(await leases(f),0);
+});
+
+for(const kind of ['body','insight'])test(`BF-M03: genuine pre-repair ${kind} alias history replays without replacement authority`,async t=>{
+  const {preBlindStores}=await import('./stage5BlindFixture.js');
+  const built=kind==='body'?{f:await setup(t)}:await fixture(t,{retired:false}),f=built.f;
+  const old={...f,stores:await preBlindStores(t,f)},req=kind==='body'?{asOfEpochMs:Date.parse(T)}:built.direct(T,'blind-legacy-alias');
+  const alias=kind==='body'?{...req,asOfUtc:T}:{...req,identity:Object.fromEntries(Object.entries(req.identity).map(([k,v])=>[k,` ${v.toUpperCase()} `]))};
+  const group=kind==='body'?'bodyEnergy':'insights',method=kind==='body'?'compute':'create';
+  const first=await call(old,group,method,alias),before=await snapshot(f);
+  assert.deepEqual(semantic(await call(f,group,method,req)),semantic(first));assert.deepEqual(await snapshot(f),before);
+  assert.equal(await leases(f),0);
+});

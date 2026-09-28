@@ -1,3 +1,4 @@
+import { compareExact } from './phase4CanonicalOrder.js';
 import { requireChronology } from './phase4Time.js';
 import { fail, requireInteger } from './phase4Core.js';
 import { EPISODE_ACTIVE, V23_HEALTH_FIELDS } from './phase4V23Schema.js';
@@ -67,7 +68,7 @@ export function createPhase4EpisodeStore(core,entities,historyOptions={}) {
       if(resolutionHoldMs<86400000)fail('PHASE4_REGISTERED_RESOLUTION_HOLD_REQUIRED');
       const sources=await core.revalidateSources(context,sourceRefs);
       if(!sources.length)fail('PHASE4_NEW_EVIDENCE_REQUIRED');
-      const changeKey=keys.digest(row.content_digest_salt,canonicalJson(sources.map(s=>[s.type,s.id,s.mode,s.row]).sort((a,b)=>canonicalJson(a).localeCompare(canonicalJson(b)))));
+      const changeKey=keys.digest(row.content_digest_salt,canonicalJson(sources.map(s=>[s.type,s.id,s.mode,s.row]).sort((a,b)=>compareExact(canonicalJson(a),canonicalJson(b)))));
       const eventKey=keys.lookup(['episode-change-v25',context.userId,context.executionMode,episodeId,expectedRevision,changeKey,
         canonicalJson({toState,patch,reasonCode,semanticAt,semanticEvent,closeThresholdPassed,resolutionHoldMs,continuityGapPassed})]);
       const prior=(await client.execute({sql:`SELECT episode_event_id,to_state,reason FROM episode_events WHERE user_id=? AND execution_mode=? AND deterministic_event_key=?`,
@@ -109,7 +110,7 @@ export function createPhase4EpisodeStore(core,entities,historyOptions={}) {
         event_kind:same?'SAME_STATE_REVISION':'STATE_TRANSITION',from_state:row.state,to_state:toState,reason:reasonCode,
         expected_revision:expectedRevision,resulting_revision:expectedRevision+1,actor_type:'DETERMINISTIC_ENGINE',
         evidence_references_json:sources.map(s=>[s.type,s.type==='evidence_items'?s.row.evidence_item_id:s.id])
-          .sort((a,b)=>canonicalJson(a).localeCompare(canonicalJson(b)))},sourceRefs);
+          .sort((a,b)=>compareExact(canonicalJson(a),canonicalJson(b)))},sourceRefs);
       await core.link(context,'observation_episodes',row.privacy_artifact_id,[...sourceRefs,...parentRefs]);
       const result=await client.execute({sql:`UPDATE observation_episodes SET ${entries.map(([k])=>`${k}=?`).join(',')}
         WHERE user_id=? AND execution_mode=? AND episode_id=? AND revision=?`,args:[...entries.map(([,v])=>v),context.userId,context.executionMode,episodeId,expectedRevision]});

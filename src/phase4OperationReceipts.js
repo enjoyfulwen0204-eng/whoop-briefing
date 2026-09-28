@@ -1,3 +1,5 @@
+import { compareExact } from './phase4CanonicalOrder.js';
+import { isRequestSet, isRequestTime, isJournalRequestSet, normalizeRequestAliases, requestEvidenceIds } from './phase4RequestContract.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { fail, readableRow, DERIVED_TABLES } from './phase4Core.js';
 import { BODY_ENERGY } from './bodyEnergyRegistry.js';
@@ -17,17 +19,16 @@ const invalid=()=>fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');
 const unavailable=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 const parse=value=>{try{return JSON.parse(value);}catch{invalid();}};
-const unordered=new Set(['baselineSources','sourceRefs','outcomeSources','journalFactSources','coverageSources',
-  'hypotheses','comparisonHealthDates','supportingEvidenceIds','contradictingEvidenceIds']);
-const times=new Set(['asOfUtc','semanticAt','expiresAt','opened_at','resolved_at','expires_at','last_observed_at',
-  'first_observed_at','last_material_change_at','stabilization_started_at','window_start_utc','window_end_utc']);
+const INSIGHT_NORMALIZATION='domain-insight-identity-once-v1';
+// Literal property names cannot impersonate a nested field or array wildcard.
+const requestPath=(path,name)=>(path?`${path}/`:'')+name.replaceAll('~','~0').replaceAll('/','~1').replaceAll('*','~2');
 const episodeDelivery=new Set(['last_question_id','last_delivered_notification_id','last_ambiguous_attempt_id']);
 const operationResult=value=>Boolean(value.row?.privacy_artifact_id||value.run?.row?.run_id
   ||value.episode?.row?.episode_id||value.result?.row?.result_id||value.eventId
   ||value.item?.row?.evidence_item_id&&value.analysis||Array.isArray(value.items)&&Array.isArray(value.runs));
 const fences=context=>[context.inputGeneration,context.lifecycleGeneration,context.authGeneration,context.purgeGeneration];
 const ordered=values=>[...new Map(values.map(value=>[canonicalJson(value),value])).values()]
-  .sort((a,b)=>canonicalJson(a).localeCompare(canonicalJson(b)));
+  .sort((a,b)=>compareExact(canonicalJson(a),canonicalJson(b)));
 export const INSIGHT_DISCOVERY_BUDGET=Object.freeze({insights:1000,revisions:1000,receipts:1000,authorities:1000,bytes:64*1024*1024});
 
 /** This boundary owns the complete public return tree. New row columns are
@@ -45,6 +46,7 @@ export function createOperationReceipts(core) {
     scope:{user_id:context.userId,execution_mode:context.executionMode,timezone:context.timezone,
       algorithm_set_version:context.algorithmSetVersion,generations:fences(context)},
     profiles:{time:'explicit-offset-lossless-milliseconds-v1',intelligence:INTELLIGENCE_VERSIONS,
+      ...(kind==='INSIGHT_CREATE'?{insight_identity:INSIGHT_NORMALIZATION}:{}),
       ...(kind.startsWith('BODY_ENERGY_')?{body_energy:BODY_ENERGY}:{})}});
   const keyForEnvelope=envelope=>keys.lookup(['stage5-operation-key-v1',canonicalJson(envelope)]);
 
@@ -62,8 +64,11 @@ export function createOperationReceipts(core) {
       BODY_ENERGY_CHECKPOINT:{algorithmVersion:BODY_ENERGY.algorithm},
     };
     request={...defaults[kind],...request};
+    const domainIdentity=kind==='INSIGHT_CREATE'?{...request.identity}:null;
+    if(domainIdentity)request={...request,identity:domainIdentity};
+    request=normalizeRequestAliases(kind,request);
     const refs=[],referenceIdentities=new WeakMap(),asOf=request?.asOfUtc??request?.semanticAt;
-    async function visit(value,key='') {
+    async function visit(value,path='') {
       if(core.isReference(value)) {
         const supplied=value;
         let source=core.validateReferences(context,[value])[0];
@@ -82,41 +87,46 @@ export function createOperationReceipts(core) {
             ?{created_at:canonicalInstant(source.row.created_at)}:{})};
         referenceIdentities.set(supplied,identity);referenceIdentities.set(value,identity);return identity;
       }
-      if(value===null||typeof value!=='object')return times.has(key)&&value!==null&&value!==undefined?canonicalInstant(value):value;
+      if(value===null||typeof value!=='object')return isRequestTime(kind,path)&&value!==null&&value!==undefined?canonicalInstant(value):value;
       if(Array.isArray(value)) {
-        let values=[];for(const entry of value)values.push(await visit(entry));
-        if(['journalFactSources','coverageSources'].includes(key))values=values.filter(entry=>!entry?.absent_as_of);
-        if(unordered.has(key)) {
+        let values=[];for(const entry of value)values.push(await visit(entry,`${path}/*`));
+        if(isJournalRequestSet(kind,path))values=values.filter(entry=>!entry?.absent_as_of);
+        if(isRequestSet(kind,path)) {
           const unique=ordered(values);
           if(unique.length!==values.length)fail('PHASE4_SEMANTIC_SOURCE_DUPLICATE');
           return unique;
         }
         return values;
       }
-      const entries=[];for(const [name,entry] of Object.entries(value))entries.push([name,await visit(entry,name)]);
+      const entries=[];for(const [name,entry] of Object.entries(value))entries.push([name,await visit(entry,requestPath(path,name))]);
       return Object.fromEntries(entries);
     }
     const normalized=await visit(request);
     // Current and baseline cannot be separately branded aliases of one source.
     if(normalized.currentSource&&normalized.baselineSources?.some(value=>same(value,normalized.currentSource)))
       fail('PHASE4_SEMANTIC_SOURCE_DUPLICATE');
-    function argumentsFor(value,key='') {
+    function argumentsFor(value,path='') {
       if(core.isReference(value))return {argument:value,identity:referenceIdentities.get(value)??{source_type:value.type,source_id:value.id}};
       if(value===null||typeof value!=='object') {
-        const result=times.has(key)&&value!==null&&value!==undefined?canonicalInstant(value):value;
+        const result=isRequestTime(kind,path)&&value!==null&&value!==undefined?canonicalInstant(value):value;
         return {argument:result,identity:result};
       }
       if(Array.isArray(value)) {
-        let entries=value.map(entry=>argumentsFor(entry));
-        if(['journalFactSources','coverageSources'].includes(key))entries=entries.filter(entry=>!entry.identity?.absent_as_of);
-        if(unordered.has(key))entries.sort((a,b)=>canonicalJson(a.identity).localeCompare(canonicalJson(b.identity)));
+        let entries=value.map(entry=>argumentsFor(entry,`${path}/*`));
+        if(isJournalRequestSet(kind,path))entries=entries.filter(entry=>!entry.identity?.absent_as_of);
+        if(isRequestSet(kind,path))entries.sort((a,b)=>compareExact(canonicalJson(a.identity),canonicalJson(b.identity)));
         return {argument:entries.map(entry=>entry.argument),identity:entries.map(entry=>entry.identity)};
       }
-      const entries=Object.entries(value).map(([key,entry])=>[key,argumentsFor(entry,key)]);
+      const entries=Object.entries(value).map(([key,entry])=>[key,argumentsFor(entry,requestPath(path,key))]);
       return {argument:Object.fromEntries(entries.map(([key,entry])=>[key,entry.argument])),
         identity:Object.fromEntries(entries.map(([key,entry])=>[key,entry.identity]))};
     }
-    return {normalized,refs,semanticRequest:argumentsFor(request).argument};
+    const semanticRequest=argumentsFor(request).argument;
+    // The domain and receipt each apply the same identity normalizer once to
+    // captured input. NFC followed by lowercase is not always idempotent;
+    // feeding its output through the domain again would change legacy keys.
+    if(domainIdentity)semanticRequest.identity=domainIdentity;
+    return {normalized,refs,semanticRequest};
   }
   async function encode(context,result,request) {
     const contracts={},related=[],refs=[];let projectionRole='RESULT';
@@ -187,17 +197,8 @@ export function createOperationReceipts(core) {
     }};
     return encoded;
   }
-  async function dependencyRefs(context,refs,request) {
-    const selected=[],evidenceIds=new Set();
-    const addRequest=value=>{
-      if(!value||typeof value!=='object'||core.isReference(value))return;
-      for(const [key,entry] of Object.entries(value)) {
-        if(key==='evidenceItemId'&&typeof entry==='string')evidenceIds.add(entry);
-        else if(['supportingEvidenceIds','contradictingEvidenceIds'].includes(key)&&Array.isArray(entry))for(const id of entry)evidenceIds.add(id);
-        else addRequest(entry);
-      }
-    };
-    addRequest(request);
+  async function dependencyRefs(context,refs,request,kind) {
+    const selected=[],evidenceIds=new Set(requestEvidenceIds(kind,request));
     for(const [index,source] of core.validateReferences(context,refs).entries()) {
       if(source.mode==='SHARED'||['evidence_items','body_energy_results'].includes(source.type))selected.push(refs[index]);
       if(source.type==='observation_episodes') {
@@ -313,7 +314,7 @@ export function createOperationReceipts(core) {
     }
     return restore(decoded.result_json);
   }
-  async function forArtifact(context,table,key,{episodeId=null,revision=null,expectedRevision=null,verifyOnly=false,retainedBody=false}={}) {
+  async function forArtifact(context,table,key,{episodeId=null,revision=null,expectedRevision=null,verifyOnly=false,retainedBody=false,deferValidation=false}={}) {
     return core.run(context,async()=>{
       if(episodeId===null&&!retainedBody)await core.artifact(context,table,key);
       const rows=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=? ${retainedBody?"AND operation_kind LIKE 'BODY_ENERGY_%'":'AND input_generation=?'}
@@ -341,7 +342,9 @@ export function createOperationReceipts(core) {
           if(target)candidate={row:target.row,ref:{$operation_reference:{...target}}};
         }
         if(!candidate)continue;
-        await read(context,row,{retainedBody});
+        if(deferValidation&&producerScope.getStore()?.context===context)
+          await core.transaction(async()=>{}, {after:()=>read(context,row,{retainedBody})});
+        else await read(context,row,{retainedBody});
         if(verifyOnly)return Object.freeze({operationKind:row.operation_kind});
         // Restore only the sealed artifact, never current semantic columns.
         const ref=candidate.ref.$operation_reference;
@@ -355,6 +358,7 @@ export function createOperationReceipts(core) {
     const row=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND execution_mode=? AND ${column}=?`,
       args:[context.userId,context.executionMode,id]})).rows[0];
     if(!row)fail('PHASE4_PARENT_NOT_FOUND');if(!readableRow(row))fail('CONTENT_REDACTED');
+    if(!episode)await resolveInsightLifecycle(context,{insightId:id});
     if((episode?row.revision:row.current_revision)!==expectedRevision)return; // The operation's CAS supplies the public error.
     if(episode) {
       const snapshot=(await client.execute({sql:`SELECT * FROM phase4_episode_revisions WHERE user_id=? AND execution_mode=?
@@ -390,9 +394,11 @@ export function createOperationReceipts(core) {
   // The typed receipt reader authenticates the complete sealed projection,
   // immutable revision and dependency/privacy chain before exposing its time.
   async function terminalInsightPredecessor(context,id,insightKey,at) {
-    const current=await core.artifact(context,'health_insights',{id});
-    const sealed=await forArtifact(context,'health_insights',{id},{expectedRevision:current.row.current_revision});
-    const row=sealed.row,revision=sealed.revision;
+    const sealed=await resolveInsightLifecycle(context,{insightId:id});
+    validateTerminal(sealed.row,sealed.revision,insightKey,at);
+  }
+  function validateTerminal(row,revision,insightKey,at) {
+    const id=row.id;
     if(row.status!=='RETIRED'||!row.lifecycle_disposition||row.insight_key!==insightKey
       ||row.legacy_classification!=='PHASE4'||!revision||revision.insight_id!==id
       ||revision.revision!==row.current_revision||revision.status!==row.status
@@ -405,102 +411,122 @@ export function createOperationReceipts(core) {
   // Absence is established by a complete bounded inventory, never by a
   // materialized logical-key/status/generation selector. Signed projections
   // identify incarnations; signed linkage distinguishes ancestors from tips.
-  async function discoverInsightPredecessor(context,insightKey,at,suppliedId=null) {
-    const scope=[context.userId,context.executionMode];
-    const parents=(await client.execute({sql:`SELECT id FROM health_insights WHERE user_id=? AND execution_mode=?
+  async function resolveInsightLifecycle(context,{insightKey=null,insightId=null,matchLookup=false}={}) {
+    return core.run(context,async()=>{
+      const scope=[context.userId,context.executionMode];
+      const parents=(await client.execute({sql:`SELECT id FROM health_insights WHERE user_id=? AND execution_mode=?
       ORDER BY id LIMIT ?`,args:[...scope,INSIGHT_DISCOVERY_BUDGET.insights+1]})).rows;
-    const receipts=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
+      const receipts=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
       ORDER BY operation_kind,operation_key LIMIT ?`,args:[...scope,INSIGHT_DISCOVERY_BUDGET.receipts+1]})).rows;
-    const revisionInventory=(await client.execute({sql:`SELECT insight_id,revision FROM insight_revisions WHERE user_id=? AND execution_mode=?
+      const revisionInventory=(await client.execute({sql:`SELECT insight_id,revision FROM insight_revisions WHERE user_id=? AND execution_mode=?
       ORDER BY insight_id,revision LIMIT ?`,args:[...scope,INSIGHT_DISCOVERY_BUDGET.revisions+1]})).rows;
-    const origins=(await client.execute({sql:`SELECT * FROM ${RESULT_AUTHORITY_TABLE} WHERE user_id=? AND execution_mode=?
+      const origins=(await client.execute({sql:`SELECT * FROM ${RESULT_AUTHORITY_TABLE} WHERE user_id=? AND execution_mode=?
       ORDER BY evidence_item_id,result_scope LIMIT ?`,args:[...scope,INSIGHT_DISCOVERY_BUDGET.authorities+1]})).rows;
-    if(parents.length>INSIGHT_DISCOVERY_BUDGET.insights||receipts.length>INSIGHT_DISCOVERY_BUDGET.receipts
-      ||revisionInventory.length>INSIGHT_DISCOVERY_BUDGET.revisions||origins.length>INSIGHT_DISCOVERY_BUDGET.authorities)
-      fail('PHASE4_INSIGHT_DISCOVERY_BOUNDS_UNAVAILABLE');
-    const histories=new Map(),revisionAuthorities=new Map();let bytes=0;
-    for(const receipt of receipts) {
-      bytes+=['request_json','result_json','related_results_json','required_roots_json','schema_contract_json']
-        .reduce((sum,key)=>sum+Buffer.byteLength(receipt[key]??''),0);
-      if(bytes>INSIGHT_DISCOVERY_BUDGET.bytes)fail('PHASE4_INSIGHT_DISCOVERY_BOUNDS_UNAVAILABLE');
-      const decoded=authenticate(context,receipt);
-      for(const target of decoded.related_results_json)if(target.type==='insight_revisions') {
-        const key=canonicalJson([target.row.insight_id,target.row.revision]),prior=revisionAuthorities.get(key);
-        if(prior&&!same(prior,target.row))invalid();
-        revisionAuthorities.set(key,target.row);
+      if(parents.length>INSIGHT_DISCOVERY_BUDGET.insights||receipts.length>INSIGHT_DISCOVERY_BUDGET.receipts
+        ||revisionInventory.length>INSIGHT_DISCOVERY_BUDGET.revisions||origins.length>INSIGHT_DISCOVERY_BUDGET.authorities)
+        fail('PHASE4_INSIGHT_DISCOVERY_BOUNDS_UNAVAILABLE');
+      const histories=new Map(),revisionAuthorities=new Map();let bytes=0;
+      for(const receipt of receipts) {
+        bytes+=['request_json','result_json','related_results_json','required_roots_json','schema_contract_json']
+          .reduce((sum,key)=>sum+Buffer.byteLength(receipt[key]??''),0);
+        if(bytes>INSIGHT_DISCOVERY_BUDGET.bytes)fail('PHASE4_INSIGHT_DISCOVERY_BOUNDS_UNAVAILABLE');
+        const decoded=authenticate(context,receipt);
+        for(const target of decoded.related_results_json)if(target.type==='insight_revisions') {
+          const key=canonicalJson([target.row.insight_id,target.row.revision]),prior=revisionAuthorities.get(key);
+          if(prior&&!same(prior,target.row))invalid();
+          revisionAuthorities.set(key,target.row);
+        }
+        for(const target of decoded.related_results_json)if(target.type==='health_insights') {
+          const row=target.row;
+          if(!Number.isSafeInteger(row?.id)||!Number.isSafeInteger(row.current_revision)||row.current_revision<1
+            ||typeof row.insight_key!=='string'||!same(target.key,{id:row.id})||target.id!==row.privacy_artifact_id)invalid();
+          let history=histories.get(row.id);
+          if(!history){history=new Map();histories.set(row.id,history);}
+          if(histories.size>INSIGHT_DISCOVERY_BUDGET.insights)fail('PHASE4_INSIGHT_DISCOVERY_BOUNDS_UNAVAILABLE');
+          const prior=history.get(row.current_revision);
+          if(prior&&!same(prior.row,row))invalid();
+          history.set(row.current_revision,{row,receipt});
+        }
       }
-      for(const target of decoded.related_results_json)if(target.type==='health_insights') {
-        const row=target.row;
-        if(!Number.isSafeInteger(row?.id)||!Number.isSafeInteger(row.current_revision)||row.current_revision<1
-          ||typeof row.insight_key!=='string'||!same(target.key,{id:row.id})||target.id!==row.privacy_artifact_id)invalid();
-        let history=histories.get(row.id);
-        if(!history){history=new Map();histories.set(row.id,history);}
-        if(histories.size>INSIGHT_DISCOVERY_BUDGET.insights)fail('PHASE4_INSIGHT_DISCOVERY_BOUNDS_UNAVAILABLE');
-        const prior=history.get(row.current_revision);
-        if(prior&&!same(prior.row,row))invalid();
-        history.set(row.current_revision,{row,receipt});
+      // A retained parent without signed identity could belong to the requested
+      // family. Missing/legacy/redacted history cannot certify its absence.
+      for(const parent of parents)if(!histories.has(parent.id))unavailable();
+      for(const revision of revisionInventory)if(!histories.has(revision.insight_id)
+        ||!revisionAuthorities.has(canonicalJson([revision.insight_id,revision.revision])))unavailable();
+      // A v26 origin can survive missing parent/v27 records. Authenticate it
+      // before deciding whether it names an insight; a missing projection is
+      // unavailable, never a new incarnation with an invented absence proof.
+      for(const origin of origins) {
+        bytes+=Buffer.byteLength(origin.original_result_json??'')+Buffer.byteLength(origin.required_roots_json??'');
+        if(bytes>INSIGHT_DISCOVERY_BUDGET.bytes)fail('PHASE4_INSIGHT_DISCOVERY_BOUNDS_UNAVAILABLE');
+        const item=(await client.execute({sql:'SELECT * FROM evidence_items WHERE user_id=? AND execution_mode=? AND evidence_item_id=?',
+          args:[...scope,origin.evidence_item_id]})).rows[0];
+        const run=(await client.execute({sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND run_id=?',
+          args:[...scope,origin.run_id]})).rows[0];
+        const verified=authorities.authenticate(context,origin,item,run).origin;
+        if(origin.result_scope!=='METRIC'&&verified!==null) {
+          const revision=revisionAuthorities.get(canonicalJson([verified.insight_id,verified.revision]));
+          if(!histories.has(verified.insight_id)||!revision)unavailable();
+          if(canonicalJson(revision)!==verified.revision_json)invalid();
+        }
       }
-    }
-    // A retained parent without signed identity could belong to the requested
-    // family. Missing/legacy/redacted history cannot certify its absence.
-    for(const parent of parents)if(!histories.has(parent.id))unavailable();
-    for(const revision of revisionInventory)if(!histories.has(revision.insight_id)
-      ||!revisionAuthorities.has(canonicalJson([revision.insight_id,revision.revision])))unavailable();
-    // A v26 origin can survive missing parent/v27 records. Authenticate it
-    // before deciding whether it names an insight; a missing projection is
-    // unavailable, never a new incarnation with an invented absence proof.
-    for(const origin of origins) {
-      bytes+=Buffer.byteLength(origin.original_result_json??'')+Buffer.byteLength(origin.required_roots_json??'');
-      if(bytes>INSIGHT_DISCOVERY_BUDGET.bytes)fail('PHASE4_INSIGHT_DISCOVERY_BOUNDS_UNAVAILABLE');
-      const item=(await client.execute({sql:'SELECT * FROM evidence_items WHERE user_id=? AND execution_mode=? AND evidence_item_id=?',
-        args:[...scope,origin.evidence_item_id]})).rows[0];
-      const run=(await client.execute({sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND run_id=?',
-        args:[...scope,origin.run_id]})).rows[0];
-      const verified=authorities.authenticate(context,origin,item,run).origin;
-      if(origin.result_scope!=='METRIC'&&verified!==null) {
-        const revision=revisionAuthorities.get(canonicalJson([verified.insight_id,verified.revision]));
-        if(!histories.has(verified.insight_id)||!revision)unavailable();
-        if(canonicalJson(revision)!==verified.revision_json)invalid();
+      if(insightId!==null) {
+        if(!histories.has(insightId))unavailable();
+        insightKey=[...histories.get(insightId).values()][0].row.insight_key;
       }
-    }
-    const candidates=new Map();
-    for(const [id,history] of histories) {
-      const revisions=[...history.keys()].sort((a,b)=>a-b),latest=history.get(revisions.at(-1)),identity=latest.row;
-      for(const {row} of history.values())if(row.insight_key!==identity.insight_key
-        ||row.supersedes_id!==identity.supersedes_id||row.first_detected_at!==identity.first_detected_at)invalid();
-      if(identity.insight_key!==insightKey)continue;
-      // Every revision must have retained authority. The materialized pointer
-      // cannot hide a later authenticated transition or a missing revision.
-      if(revisions.length!==identity.current_revision||revisions.some((revision,index)=>revision!==index+1))unavailable();
-      const current=await core.artifact(context,'health_insights',{id});
-      if(current.row.current_revision!==identity.current_revision)invalid();
-      const retained=(await client.execute({sql:`SELECT * FROM insight_revisions WHERE user_id=? AND execution_mode=?
-        AND insight_id=? ORDER BY revision LIMIT ?`,args:[...scope,id,INSIGHT_DISCOVERY_BUDGET.receipts+1]})).rows;
-      if(retained.length!==revisions.length)unavailable();
-      for(const revision of retained) {
-        if(!readableRow(revision))fail('CONTENT_REDACTED');
-        if(!same(revisionAuthorities.get(canonicalJson([id,revision.revision])),revision))invalid();
+      // A wrong-family materialized hint remains an identity error (M008), but
+      // only after its own latest authority/privacy chain has been validated.
+      if(matchLookup) {
+        const hints=(await client.execute({sql:`SELECT id FROM health_insights WHERE user_id=? AND execution_mode=? AND insight_key=?
+          AND status<>'RETIRED' AND legacy_classification='PHASE4' LIMIT ?`,args:[...scope,insightKey,INSIGHT_DISCOVERY_BUDGET.insights+1]})).rows;
+        for(const hint of hints) {
+          const selected=await resolveInsightLifecycle(context,{insightId:hint.id});
+          if(selected.row.insight_key!==insightKey)fail('PHASE4_INSIGHT_IDENTITY_MISMATCH');
+        }
       }
-      await read(context,latest.receipt);
-      candidates.set(id,identity);
-    }
-    const consumed=new Set();
-    for(const row of candidates.values())if(row.supersedes_id!==null) {
-      const parent=candidates.get(row.supersedes_id);
-      if(!parent||consumed.has(parent.id))fail('PHASE4_INSIGHT_PREDECESSOR_AMBIGUOUS');
-      consumed.add(parent.id);
-      await terminalInsightPredecessor(context,parent.id,insightKey,row.first_detected_at);
-      const visited=new Set([row.id]);let ancestor=parent;
-      while(ancestor) {
-        if(visited.has(ancestor.id))invalid();visited.add(ancestor.id);
-        ancestor=candidates.get(ancestor.supersedes_id);
+      const candidates=new Map(),sealedCandidates=new Map();
+      for(const [id,history] of histories) {
+        const revisions=[...history.keys()].sort((a,b)=>a-b),latest=history.get(revisions.at(-1)),identity=latest.row;
+        for(const {row} of history.values())if(row.insight_key!==identity.insight_key
+          ||row.supersedes_id!==identity.supersedes_id||row.first_detected_at!==identity.first_detected_at)invalid();
+        if(identity.insight_key!==insightKey)continue;
+        // Every revision must have retained authority. The materialized pointer
+        // cannot hide a later authenticated transition or a missing revision.
+        if(revisions.length!==identity.current_revision||revisions.some((revision,index)=>revision!==index+1))unavailable();
+        const current=await core.artifact(context,'health_insights',{id});
+        if(['current_revision','status','lifecycle_disposition'].some(field=>current.row[field]!==identity[field]))invalid();
+        const retained=(await client.execute({sql:`SELECT * FROM insight_revisions WHERE user_id=? AND execution_mode=?
+          AND insight_id=? ORDER BY revision LIMIT ?`,args:[...scope,id,INSIGHT_DISCOVERY_BUDGET.receipts+1]})).rows;
+        if(retained.length!==revisions.length)unavailable();
+        for(const revision of retained) {
+          if(!readableRow(revision))fail('CONTENT_REDACTED');
+          if(!same(revisionAuthorities.get(canonicalJson([id,revision.revision])),revision))invalid();
+        }
+        const sealed=await forArtifact(context,'health_insights',{id},{expectedRevision:identity.current_revision,deferValidation:true});
+        if(!same(sealed.row,identity))invalid();
+        candidates.set(id,identity);sealedCandidates.set(id,sealed);
       }
-    }
-    const tips=[...candidates.values()].filter(row=>!consumed.has(row.id));
-    if(tips.length>1)fail('PHASE4_INSIGHT_PREDECESSOR_AMBIGUOUS');
-    const predecessor=tips[0]??null;
+      const consumed=new Set();
+      for(const row of candidates.values())if(row.supersedes_id!==null) {
+        const parent=candidates.get(row.supersedes_id);
+        if(!parent||consumed.has(parent.id))fail('PHASE4_INSIGHT_PREDECESSOR_AMBIGUOUS');
+        consumed.add(parent.id);
+        validateTerminal(parent,sealedCandidates.get(parent.id).revision,insightKey,row.first_detected_at);
+        const visited=new Set([row.id]);let ancestor=parent;
+        while(ancestor) {
+          if(visited.has(ancestor.id))invalid();visited.add(ancestor.id);
+          ancestor=candidates.get(ancestor.supersedes_id);
+        }
+      }
+      const tips=[...candidates.values()].filter(row=>!consumed.has(row.id));
+      if(tips.length>1)fail('PHASE4_INSIGHT_PREDECESSOR_AMBIGUOUS');
+      return sealedCandidates.get(insightId??tips[0]?.id)??null;
+    });
+  }
+  async function discoverInsightPredecessor(context,insightKey,at,suppliedId=null) {
+    const sealed=await resolveInsightLifecycle(context,{insightKey}),predecessor=sealed?.row;
     if(suppliedId!==null&&suppliedId!==predecessor?.id)fail('PHASE4_INSIGHT_INCARNATION_INVALID');
-    if(predecessor)await terminalInsightPredecessor(context,predecessor.id,insightKey,at);
+    if(predecessor)validateTerminal(predecessor,sealed.revision,insightKey,at);
     return predecessor?.id??null;
   }
   // This callback is wired only to the internal deterministic producers. A
@@ -510,17 +536,8 @@ export function createOperationReceipts(core) {
     if(!scope||scope.context!==context||!core.processing.active()||!item.created)invalid();
     scope.evidence.set(item.row.evidence_item_id,{item:canonicalJson(item.row),run:canonicalJson(run.row),checked:false});
   }
-  async function admitInputs(context,request,refs) {
-    const ids=new Set(),derived=[];
-    function collect(value) {
-      if(!value||typeof value!=='object'||core.isReference(value))return;
-      for(const [key,entry] of Object.entries(value)) {
-        if(['evidenceItemId','latest_evidence_item_id','explanation_evidence_item_id'].includes(key)&&entry!==null)ids.add(entry);
-        else if(['supportingEvidenceIds','contradictingEvidenceIds'].includes(key)&&Array.isArray(entry))entry.forEach(id=>ids.add(id));
-        else collect(entry);
-      }
-    }
-    collect(request);
+  async function admitInputs(context,request,refs,kind) {
+    const ids=new Set(requestEvidenceIds(kind,request)),derived=[];
     for(const source of core.validateReferences(context,refs)) {
       if(source.type==='evidence_items')ids.add(source.row.evidence_item_id);
       else if(source.mode!=='SHARED')derived.push(source);
@@ -547,7 +564,10 @@ export function createOperationReceipts(core) {
         .map(column=>[column.name,source.row[column.name]]));
       const options=source.type==='health_insights'?{expectedRevision:source.row.current_revision}
         :source.type==='observation_episodes'?{episodeId:source.row.episode_id,revision:source.row.revision,verifyOnly:true}:{};
-      await forArtifact(context,source.type,key,options);
+      if(source.type==='health_insights') {
+        const sealed=await resolveInsightLifecycle(context,{insightId:source.row.id});
+        if(!same(sealed.row,source.row))invalid();
+      } else await forArtifact(context,source.type,key,options);
     }
   }
   async function execute(context,kind,request,perform,{discover=null}={}) {
@@ -561,8 +581,26 @@ export function createOperationReceipts(core) {
       const prior=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=? AND operation_kind=? AND operation_key=?`,
         args:[context.userId,context.executionMode,kind,key]})).rows[0];
       if(prior)return read(context,prior);
+      const historical=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
+        AND operation_kind=? AND input_generation=? ORDER BY operation_key LIMIT 1001`,
+        args:[context.userId,context.executionMode,kind,context.inputGeneration]})).rows;
+      if(historical.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+      const equivalents=[];let historicalBytes=0;
+      for(const receipt of historical) {
+        historicalBytes+=Buffer.byteLength(receipt.request_json??'');
+        if(historicalBytes>64*1024*1024)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+        const decoded=authenticate(context,receipt),old=decoded.request_json;
+        const identityProfile=old.profiles?.insight_identity;
+        if(kind==='INSIGHT_CREATE'&&identityProfile!==undefined&&identityProfile!==INSIGHT_NORMALIZATION)unavailable();
+        const canonical=kind==='INSIGHT_CREATE'&&identityProfile===INSIGHT_NORMALIZATION
+          ?old.request:(await prepare(context,old.request,kind)).normalized;
+        const profiles={...old.profiles,...(kind==='INSIGHT_CREATE'?{insight_identity:INSIGHT_NORMALIZATION}:{})};
+        if(same({...old,profiles,request:canonical},requestAuthority))equivalents.push(receipt);
+      }
+      if(equivalents.length>1)unavailable();
+      if(equivalents.length)return read(context,equivalents[0]);
       if(discover)await discover(context,kind,normalized);
-      await admitInputs(context,semanticRequest,refs);
+      await admitInputs(context,semanticRequest,refs,kind);
       if(kind==='INSIGHT_CREATE') {
         const id=keys.lookup(['insight-creation-v1',context.userId,context.executionMode,request.creationKey]);
         if((await client.execute({sql:'SELECT 1 FROM health_insights WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',
@@ -581,7 +619,7 @@ export function createOperationReceipts(core) {
         ?await producerScope.run({context,evidence:new Map()},()=>perform(semanticRequest)):await perform(semanticRequest);
       const encoded=await encode(context,result,semanticRequest);
       const envelope=core.envelope(context,TABLE,[kind,key]);
-      const dependencies=await dependencyRefs(context,[...refs,...encoded.refs],semanticRequest);
+      const dependencies=await dependencyRefs(context,[...refs,...encoded.refs],semanticRequest,kind);
       await encoded.includeDependencies(dependencies);
       const roots=await authorities.captureRoots(context,dependencies,envelope.content_digest_salt);
       const row={...envelope,operation_kind:kind,operation_key:key,receipt_version:VERSION,semantic_at:at,
@@ -600,5 +638,5 @@ export function createOperationReceipts(core) {
       return result;
     });
   }
-  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor});instances.set(core,api);return api;
+  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,resolveInsightLifecycle});instances.set(core,api);return api;
 }

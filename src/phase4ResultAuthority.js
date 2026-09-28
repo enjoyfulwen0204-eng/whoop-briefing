@@ -1,3 +1,4 @@
+import { compareExact } from './phase4CanonicalOrder.js';
 import { healthSourceVersion, canonicalSourceVersion, canonicalSourceTime } from './phase4SourceVersion.js';
 import { fail, readableRow } from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
@@ -10,7 +11,7 @@ const incomplete=()=>fail('PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE');
 const parse=value=>{try{return JSON.parse(value);}catch{invalid();}};
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 const ordered=values=>[...new Map(values.map(v=>[canonicalJson(v),v])).values()]
-  .sort((a,b)=>canonicalJson(a).localeCompare(canonicalJson(b)));
+  .sort((a,b)=>compareExact(canonicalJson(a),canonicalJson(b)));
 const operational=new Set(['created_at','updated_at','completed_at','content_state','source_linkage_state',
   'health_content_redacted_at','health_content_redaction_reason','source_subject_deleted_at','purge_generation',
   'content_digest_salt','invalidated_at','fact_status','status','superseded_at','invalidation_reason','raw_json']);
@@ -134,9 +135,11 @@ export function createResultAuthority(core) {
     return {version:BOUNDED_ROOT_VERSION,model:'FLATTENED_CALCULATION_INPUTS',roots,root_count:roots.length,serialized_bytes:bytes};
   }
   function validateManifest(manifest,mode) {
+    // Historical signed manifests retain their original array order. HMACs
+    // authenticate those exact bytes; uniqueness is independent of locale.
     if(!manifest||![RESULT_ROOT_VERSION,NORMALIZED_ROOT_VERSION,BOUNDED_ROOT_VERSION].includes(manifest.version)||manifest.model!=='FLATTENED_CALCULATION_INPUTS'
       ||!Array.isArray(manifest.roots)||!manifest.roots.length||manifest.roots.length>10000
-      ||!same(manifest.roots,ordered(manifest.roots)))invalid();
+      ||new Set(manifest.roots.map(canonicalJson)).size!==manifest.roots.length)invalid();
     if(manifest.version===BOUNDED_ROOT_VERSION&&(manifest.root_count!==manifest.roots.length
       ||manifest.serialized_bytes!==Buffer.byteLength(canonicalJson(manifest.roots))||manifest.serialized_bytes>REQUIRED_ROOT_BUDGET.bytes))invalid();
     for(const entry of manifest.roots) {

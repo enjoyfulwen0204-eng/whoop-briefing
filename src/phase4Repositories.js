@@ -54,13 +54,12 @@ export function composePhase4Stores(core) {
       return receipts.forArtifact(context,'episode_semantic_events',{episode_semantic_event_id:result.row.episode_semantic_event_id});
     })};
   const insights={...insightStore,read:(context,id,options)=>core.run(context,async()=>{
-    const current=await insightStore.read(context,id,options);
-    const sealed=await receipts.forArtifact(context,'health_insights',{id},{expectedRevision:current.row.current_revision});
+    const sealed=await receipts.resolveInsightLifecycle(context,{insightId:id});
     if(!options?.history)requireCurrentInsightAt(sealed.row,options?.asOfUtc);
     return sealed;
   }),create:recorded('INSIGHT_CREATE',insightStore.create),transition:recorded('INSIGHT_TRANSITION',insightStore.transition)};
   const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights,{producedEvidence:receipts.producedEvidence,
-    discoverInsightPredecessor:receipts.discoverInsightPredecessor});
+    discoverInsightPredecessor:receipts.discoverInsightPredecessor,resolveInsightLifecycle:receipts.resolveInsightLifecycle});
   const messages=createPhase4MessageStore(core,entities),slots=createPhase4SlotStore(core,entities,messages);
   const experiments=createPhase4ExperimentStore(core,privacy,queue);
   const journal=createPhase4JournalStore(core,privacy,queue),journalInbound=createPhase4JournalInbound(core,privacy,journal);
@@ -91,8 +90,7 @@ export function composePhase4Stores(core) {
   }
   async function readArtifact(context,table,key) {
     if(table==='health_insights') {
-      const current=await core.artifact(context,table,key);
-      return receipts.forArtifact(context,table,key,{expectedRevision:current.row.current_revision});
+      return receipts.resolveInsightLifecycle(context,{insightId:key.id});
     }
     if(['evidence_runs','evidence_items','health_insights','insight_revisions','episode_events','episode_semantic_events',
       'episode_evidence','episode_observations'].includes(table))return receipts.forArtifact(context,table,key);
@@ -164,12 +162,7 @@ export function composePhase4Stores(core) {
       }),...Object.fromEntries(['open','revise','reverse','refresh','semantic']
       .map(name=>[name,owned(episodes[name])]))}),
     intelligence:Object.freeze(Object.fromEntries(Object.entries(intelligence).map(([name,fn])=>[name,operation(name,fn)]))),
-    insights:Object.freeze({...insights,read:(context,id,options)=>core.run(context,async()=>{
-      const current=await insights.read(context,id,options);
-      const sealed=await receipts.forArtifact(context,'health_insights',{id},{expectedRevision:current.row.current_revision});
-      if(sealed.row.current_revision!==current.row.current_revision)fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
-      return sealed;
-    }),create:owned(insights.create),transition:owned(insights.transition)}),
+    insights:Object.freeze({...insights,create:owned(insights.create),transition:owned(insights.transition)}),
     messages:Object.freeze({propose:messages.propose,readReservation:messages.readReservation,simulate:messages.simulate}),
     slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle','answer','resolveValidated'].includes(name)))),
     transport:Object.freeze(createPhase4TransportStore(core,entities,{start:slots.transportStart,settle:slots.transportSettle})),

@@ -12,20 +12,25 @@ const columns={
 };
 const tables={sleep:'whoop_sleeps',recovery:'whoop_recoveries',cycle:'whoop_cycles',workout:'whoop_workouts'};
 
+export function normalizeBodyEnergyRequest(options) {
+  if(!options||Object.keys(options).some(k=>!['asOfEpochMs','asOfUtc','targetHealthDate','algorithmVersion','supersedesResultId'].includes(k)))
+    fail('BODY_ENERGY_INVALID_REQUEST');
+  exactBodyInstant(options.asOfEpochMs,options.asOfUtc);
+  bodyEnergyVersion(options.algorithmVersion);
+  if(options.targetHealthDate!=null&&!validHealthDate(options.targetHealthDate))fail('BODY_ENERGY_INVALID_HEALTH_DATE');
+  return {asOfEpochMs:options.asOfEpochMs,algorithmVersion:options.algorithmVersion??C.algorithm,targetHealthDate:options.targetHealthDate??null,
+    supersedesResultId:options.supersedesResultId??null};
+}
+
 /** Callable persistence only. A branded context and captured ticket are the
  * authority; there is no caller-supplied manifest, tenant override or LIVE
  * switch. Historical audit intentionally never returns a current-source ref. */
 export function createBodyEnergyStore(core,entities,queue) {
   const {client,keys}=core,tickets=new WeakMap();
   function request(options) {
-    if(!options||Object.keys(options).some(k=>!['asOfEpochMs','asOfUtc','targetHealthDate','algorithmVersion','supersedesResultId'].includes(k)))
-      fail('BODY_ENERGY_INVALID_REQUEST');
-    exactBodyInstant(options.asOfEpochMs,options.asOfUtc);
-    if(options.asOfEpochMs>core.now().getTime())fail('BODY_ENERGY_FUTURE_REQUEST');
-    bodyEnergyVersion(options.algorithmVersion);
-    if(options.targetHealthDate!=null&&!validHealthDate(options.targetHealthDate))fail('BODY_ENERGY_INVALID_HEALTH_DATE');
-    return {...options,algorithmVersion:options.algorithmVersion??C.algorithm,targetHealthDate:options.targetHealthDate??null,
-      supersedesResultId:options.supersedesResultId??null};
+    const canonical=normalizeBodyEnergyRequest(options);
+    if(canonical.asOfEpochMs>core.now().getTime())fail('BODY_ENERGY_FUTURE_REQUEST');
+    return canonical;
   }
   const lookup=(context,date,ms,algorithm,generation=context.inputGeneration)=>keys.lookup([
     'body-energy-result-v1',context.userId,date,ms,algorithm,generation,context.executionMode]);

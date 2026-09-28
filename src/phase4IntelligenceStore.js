@@ -1,3 +1,4 @@
+import { compareExact } from './phase4CanonicalOrder.js';
 import { healthSourceVersion, canonicalSourceTime, canonicalSourceVersion } from './phase4SourceVersion.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
 import { requireSemanticTime } from './phase4EpisodeHistory.js';
@@ -21,7 +22,8 @@ const sourceTimestamp = row => row.as_of_utc ?? row.end_at ?? row.updated_at ?? 
 const ingestedTimestamp = row => row.synced_at ?? row.created_at ?? row.as_of_utc ?? null;
 
 export function createPhase4IntelligenceStore(core, entities, episodes, insights,{producedEvidence=()=>{},
-  discoverInsightPredecessor=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE')}={}) {
+  discoverInsightPredecessor=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE'),
+  resolveInsightLifecycle=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE')}={}) {
   const {client,keys}=core,authorities=createResultAuthority(core);
   function sourceValue(metricKey, source, context, asOfUtc) {
     const contract=phase4Metric(metricKey),row=source.row;
@@ -381,7 +383,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   function associationWindows(days,direction) {
     const classified=days.filter(day=>day.exposureState!=='UNKNOWN'&&Number.isFinite(day.outcome))
-      .sort((a,b)=>a.healthDate.localeCompare(b.healthDate));
+      .sort((a,b)=>compareExact(a.healthDate,b.healthDate));
     if(classified.length<20)return [];
     const midpoint=Math.floor(classified.length/2),parts=[classified.slice(0,midpoint),classified.slice(midpoint)],windows=[];
     for(const part of parts) {
@@ -409,15 +411,15 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     const outcomeResolved=await core.revalidateSources(context,hypothesis.outcomeSources);
     const outcomeEntries=outcomeResolved.map((source,index)=>({source,
       value:associationOutcomeValue(hypothesis.outcomeMetric,source,context,asOfUtc),ref:hypothesis.outcomeSources[index]}))
-      .sort((a,b)=>a.value.healthDate.localeCompare(b.value.healthDate)||a.value.sourceId.localeCompare(b.value.sourceId)
-        ||a.value.sourceVersion.localeCompare(b.value.sourceVersion));
+      .sort((a,b)=>compareExact(a.value.healthDate,b.value.healthDate)||compareExact(a.value.sourceId,b.value.sourceId)
+        ||compareExact(a.value.sourceVersion,b.value.sourceVersion));
     if(new Set(outcomeEntries.map(entry=>entry.value.healthDate)).size!==outcomeEntries.length
       ||outcomeEntries.some(entry=>!comparisonHealthDates.includes(entry.value.healthDate)))fail('PHASE4_ASSOCIATION_OUTCOME_DAYS_INVALID');
     const journal=await core.journalSourcesAsOf(context,[...hypothesis.journalFactSources,...hypothesis.coverageSources],asOfUtc);
-    const facts=journal.filter(source=>source.type==='JOURNAL_FACT').sort((a,b)=>a.row.logical_fact_id.localeCompare(b.row.logical_fact_id)
-      ||a.row.revision-b.row.revision||a.id.localeCompare(b.id));
-    const coverage=journal.filter(source=>source.type==='JOURNAL_COVERAGE').sort((a,b)=>a.row.health_date_start.localeCompare(b.row.health_date_start)
-      ||a.row.health_date_end.localeCompare(b.row.health_date_end)||a.row.revision-b.row.revision||a.id.localeCompare(b.id));
+    const facts=journal.filter(source=>source.type==='JOURNAL_FACT').sort((a,b)=>compareExact(a.row.logical_fact_id,b.row.logical_fact_id)
+      ||a.row.revision-b.row.revision||compareExact(a.id,b.id));
+    const coverage=journal.filter(source=>source.type==='JOURNAL_COVERAGE').sort((a,b)=>compareExact(a.row.health_date_start,b.row.health_date_start)
+      ||compareExact(a.row.health_date_end,b.row.health_date_end)||a.row.revision-b.row.revision||compareExact(a.id,b.id));
     if(facts.some(source=>source.type!=='JOURNAL_FACT')||coverage.some(source=>source.type!=='JOURNAL_COVERAGE'))
       fail('PHASE4_ASSOCIATION_SOURCE_MISMATCH');
     const journalIds=journal.map(source=>`${source.type}:${source.id}`);
@@ -438,7 +440,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         exposureSources:[...exposedFacts,...negativeFacts].map(source=>[source.type,source.id,source.row.revision])
           .concat(coverage.filter(source=>parseFactorKeys(source.row).includes(hypothesis.factor)
             &&source.row.health_date_start<=factorDate&&source.row.health_date_end>=factorDate)
-            .map(source=>[source.type,source.id,source.row.revision])).sort((a,b)=>canonicalJson(a).localeCompare(canonicalJson(b)))};
+            .map(source=>[source.type,source.id,source.row.revision])).sort((a,b)=>compareExact(canonicalJson(a),canonicalJson(b)))};
     });
     const first=evaluateJournalAssociation({factor:hypothesis.factor,outcomeMetric:hypothesis.outcomeMetric,days,asOfUtc});
     const classified=days.filter(day=>day.exposureState!=='UNKNOWN'&&Number.isFinite(day.outcome)),xs=classified.map(day=>day.exposureState==='EXPOSED'?1:0),
@@ -463,25 +465,19 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   const insightKey=(context,identity)=>insightIdentityKey(keys,context,identity);
   async function currentInsight(context,identity,asOfUtc,{replaceExpired=false}={}) {
     const requestedKey=insightKey(context,identity);
-    let row=(await client.execute({sql:`SELECT * FROM health_insights WHERE user_id=? AND execution_mode=? AND insight_key=?
-      AND status<>'RETIRED' AND legacy_classification='PHASE4'`,args:[context.userId,context.executionMode,requestedKey]})).rows[0];
-    if(!row)return null;
-    // Eligibility must describe the same authenticated projection we return,
-    // rather than timestamps from a mutable materialization followed by a
-    // different sealed row. New writes still authenticate their predecessor.
-    const current=await insights.read(context,row.id,{history:true});row=current.row;
-    // The lookup key only locates a candidate. Its sealed identity must match
-    // before current/opposite reuse, temporal exclusion, or expiry mutation.
-    if(row.insight_key!==requestedKey)fail('PHASE4_INSIGHT_IDENTITY_MISMATCH');
+    const current=await resolveInsightLifecycle(context,{insightKey:requestedKey,matchLookup:true});
+    if(!current)return null;
+    const row=current.row;
+    if(row.status==='RETIRED'&&replaceExpired)return null; // Successor admission enforces sealed terminal chronology.
     const at=Date.parse(requireSemanticTime(asOfUtc));
     // A new past request cannot borrow a future incarnation/revision. Exact
     // historical requests have already returned through the receipt boundary.
     if(Date.parse(requireSemanticTime(row.first_detected_at))>at
       ||Date.parse(requireSemanticTime(row.last_recalculated_at??row.first_detected_at))>at) {
-      if(replaceExpired)fail('PHASE4_INSIGHT_AS_OF_UNAVAILABLE');
-      return null;
+      fail('PHASE4_INSIGHT_AS_OF_UNAVAILABLE');
     }
-    if(row.status==='RETIRED'||row.lifecycle_disposition)fail('PHASE4_INSIGHT_NOT_CURRENT');
+    if(row.status==='RETIRED')return null;
+    if(row.lifecycle_disposition)fail('PHASE4_INSIGHT_NOT_CURRENT');
     if(Date.parse(requireSemanticTime(row.expires_at))<=at) {
       if(replaceExpired)await expireInsight(context,{insightId:row.id,asOfUtc});
       return null;
@@ -568,7 +564,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         ||!request.multipleTestingFamily||request.multipleTestingFamily.length>128||!Array.isArray(request.hypotheses)
         ||!request.hypotheses.length||request.hypotheses.length>16)fail('PHASE4_ASSOCIATION_FAMILY_INVALID');
       request={...request,asOfUtc:requireSemanticTime(request.asOfUtc)};
-      const orderedHypotheses=[...request.hypotheses].sort((a,b)=>hypothesisKey(a).localeCompare(hypothesisKey(b)));
+      const orderedHypotheses=[...request.hypotheses].sort((a,b)=>compareExact(hypothesisKey(a),hypothesisKey(b)));
       if(new Set(orderedHypotheses.map(hypothesisKey)).size!==orderedHypotheses.length)fail('PHASE4_ASSOCIATION_HYPOTHESIS_DUPLICATE');
       const prepared=[];for(const hypothesis of orderedHypotheses)prepared.push(await associationHypothesis(context,hypothesis,request.asOfUtc));
       const adjusted=benjaminiHochberg(prepared.map(value=>({key:hypothesisKey(value.hypothesis),

@@ -1,3 +1,4 @@
+import { compareExact } from './phase4CanonicalOrder.js';
 import { coverageLineage } from './phase4CoverageLineage.js';
 /** Internal persistence kernel. No application entry point imports this module
  * directly. The public Foundation factory supplies SHADOW-only authority;
@@ -227,7 +228,7 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
       const authoritative=lineage.rows.filter(candidate=>descendantIds.has(candidate.coverage_window_id)
         &&Date.parse(candidate.created_at)<=Date.parse(source.historicalAsOf))
         .sort((a,b)=>b.revision-a.revision||Date.parse(b.created_at)-Date.parse(a.created_at)
-          ||a.coverage_window_id.localeCompare(b.coverage_window_id))[0];
+          ||compareExact(a.coverage_window_id,b.coverage_window_id))[0];
       if(!authoritative||authoritative.coverage_window_id!==source.id)fail('PHASE4_HISTORICAL_SOURCE_INVALID');
     }
     if(source.row&&JSON.stringify(row)!==JSON.stringify(source.row))fail('PHASE4_PARENT_STALE');

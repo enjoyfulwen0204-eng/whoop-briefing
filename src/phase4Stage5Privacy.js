@@ -4,6 +4,7 @@ import { createOperationReceipts } from './phase4OperationReceipts.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
 import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
+import { physicallyScrubbed } from './phase4Redaction.js';
 import { createBodyEnergyStore } from './bodyEnergyStore.js';
 
 const invalid=()=>fail('PHASE4_PURGE_AUTHORITY_INVALID');
@@ -20,13 +21,23 @@ export async function stage5PrivacyIndex(core,userId,{verifyRemaining=false}={})
   for(const table of tables) {
     const rows=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? LIMIT 10001`,args:[userId]})).rows;
     if(rows.length>10000)fail('PHASE4_PURGE_SCOPE_BOUNDS_UNAVAILABLE');
-    for(const row of rows)if(row.privacy_artifact_id)nodes.set(identity({mode:row.execution_mode,type:table,id:row.privacy_artifact_id}),
+    for(const row of rows) {
+      if(!row.privacy_artifact_id)fail('PHASE4_PURGE_CLOSURE_UNPROVEN');
+      nodes.set(identity({mode:row.execution_mode,type:table,id:row.privacy_artifact_id}),
       {mode:row.execution_mode,type:table,id:row.privacy_artifact_id,row});
+    }
   }
   const edge=(target,source)=>edges.push({artifact_execution_mode:target.mode,artifact_type:target.type,artifact_id:target.id,
     source_execution_mode:source.mode,source_type:source.type,source_id:source.id});
   const values=type=>[...nodes.values()].filter(node=>node.type===type);
   const legacy=node=>edge(node,{mode:'SHARED',type:'TENANT_LEGACY',id:userId});
+  // Marker-only, disconnected, or otherwise unreadable payload cannot prove
+  // its own dependencies. Conservatively include it in the tenant purge;
+  // completion must reject it even when links and target records are lost.
+  for(const node of nodes.values())if(!readableRow(node.row)&&!physicallyScrubbed(node.type,node.row)) {
+    if(verifyRemaining)fail('PHASE4_PURGE_SENSITIVE_REMAINS');
+    legacy(node);
+  }
   function evidence(mode,id) {
     const node=values('evidence_items').find(node=>node.mode===mode&&(node.row.evidence_item_id===id||node.id===id));
     if(!node)invalid();return node;

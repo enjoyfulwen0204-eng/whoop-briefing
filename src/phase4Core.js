@@ -44,7 +44,7 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
   // The frozen Stage 5 composition remains usable on v27. A Stage 6 worker
   // must separately require v28; unsupported versions still fail closed.
   const schemaVersion=Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
-  if(![27,28].includes(schemaVersion))fail('phase4_schema_version_mismatch');
+  if(![27,28,29].includes(schemaVersion))fail('phase4_schema_version_mismatch');
   await assertPhase4Schema(client,schemaVersion);
   const databases=(await client.execute('PRAGMA database_list')).rows;
   const isolatedMemory=client.protocol==='file'&&databases.length===1&&databases[0].name==='main'&&databases[0].file==='';

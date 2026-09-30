@@ -41,7 +41,7 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
   const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,
     afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,now,
     authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
-  if(core.schemaVersion!==28)fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
+  if(![28,29].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
   const stores=composePhase4Stores(core),queue=createReanalysisQueue(core),inputs=createReanalysisInputs(core,stores),client=core.client;
 
   async function metricFamilies(context,req,history) {

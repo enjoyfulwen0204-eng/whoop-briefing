@@ -17,6 +17,7 @@ import { createInsightRefreshAuthority } from './phase4InsightRefresh.js';
 import { createMetricRefreshAuthority } from './phase4MetricRefresh.js';
 import { createEpisodeRecurrenceAuthority } from './phase4EpisodeRecurrence.js';
 import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
+import { createReceiptRouting } from './phase4ReceiptRouting.js';
 
 const instances=new WeakMap();
 const invalid=()=>fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');
@@ -42,6 +43,7 @@ export const INSIGHT_DISCOVERY_BUDGET=Object.freeze({insights:1000,revisions:100
 export function createOperationReceipts(core) {
   if(instances.has(core))return instances.get(core);
   const {client,keys}=core,authorities=createResultAuthority(core);
+  const routing=core.schemaVersion>=29?createReceiptRouting(client,keys):null;
   const producerScope=new AsyncLocalStorage();
   const refreshAuthority=createInsightRefreshAuthority(core,{authenticate,authorities,
     validateEvidence:(context,id)=>forArtifact(context,'evidence_items',{evidence_item_id:id})});
@@ -344,8 +346,14 @@ export function createOperationReceipts(core) {
   }
   async function forArtifact(context,table,key,{episodeId=null,revision=null,expectedRevision=null,verifyOnly=false,retainedBody=false,deferValidation=false}={}) {
     return core.run(context,async()=>{
-      if(episodeId===null&&!retainedBody)await core.artifact(context,table,key);
-      const rows=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=? ${retainedBody?"AND operation_kind LIKE 'BODY_ENERGY_%'":'AND input_generation=?'}
+      const target=episodeId===null&&!retainedBody?await core.artifact(context,table,key):null;
+      const routed=routing&&!retainedBody?await routing.inventory(context,episodeId===null?'ARTIFACT':'EPISODE_ID',
+        episodeId??target.row.privacy_artifact_id):null;
+      // A direct artifact read may be independently proved by a retained
+      // producer receipt and exact sealed projection. Family-wide absence and
+      // predecessor scans below still reject any applicable unknown history.
+      if(routed?.unknown&&!routed.receipts.length)fail('PHASE4_RECEIPT_ROUTE_LEGACY_UNKNOWN');
+      const rows=routed?.receipts??(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=? ${retainedBody?"AND operation_kind LIKE 'BODY_ENERGY_%'":'AND input_generation=?'}
         ORDER BY created_at DESC,operation_key LIMIT 1001`,args:[context.userId,context.executionMode,...(retainedBody?[]:[context.inputGeneration])]})).rows;
       if(rows.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
       for(const row of rows) {
@@ -397,7 +405,8 @@ export function createOperationReceipts(core) {
         ||!same(value.episode,episodeSemanticProjection(row)))invalid();
       return;
     }
-    const receipts=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
+    const receipts=routing?(await createTargetAuthorityClosure(core,authenticate).inventory(context,
+      {kind:'INSIGHT',insightId:id}))[TABLE]:(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
       AND content_state='PRESENT' ORDER BY operation_key LIMIT 1001`,args:[context.userId,context.executionMode]})).rows;
     if(receipts.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
     const operational=new Set(['created_at','updated_at','content_digest_salt','content_state','source_linkage_state',
@@ -442,7 +451,7 @@ export function createOperationReceipts(core) {
   async function resolveInsightLifecycle(context,{insightKey=null,insightId=null,matchLookup=false}={}) {
     return core.run(context,async()=>{
       const scope=[context.userId,context.executionMode];
-      const scoped=core.schemaVersion===28?await createTargetAuthorityClosure(core,authenticate).inventory(context,
+      const scoped=core.schemaVersion>=28?await createTargetAuthorityClosure(core,authenticate).inventory(context,
         {kind:'INSIGHT',insightKey,insightId}):null;
       const parents=scoped?.health_insights??(await client.execute({sql:`SELECT id FROM health_insights WHERE user_id=? AND execution_mode=?
       ORDER BY id LIMIT ?`,args:[...scope,INSIGHT_DISCOVERY_BUDGET.insights+1]})).rows;
@@ -611,7 +620,19 @@ export function createOperationReceipts(core) {
       const prior=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=? AND operation_kind=? AND operation_key=?`,
         args:[context.userId,context.executionMode,kind,key]})).rows[0];
       if(prior)return read(context,prior);
-      const historical=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
+      let historical;
+      const desired=routing?await routing.subjects({user_id:context.userId,execution_mode:context.executionMode,operation_kind:kind},
+        {request:requestAuthority,related:[]}):[];
+      if(desired.length) {
+        const matches=new Map();
+        for(const [subjectKind,subjectToken] of desired) {
+          const routed=await routing.inventory(context,subjectKind,subjectToken,true);
+          if(routed.unknown)fail('PHASE4_RECEIPT_ROUTE_LEGACY_UNKNOWN');
+          for(const row of routed.receipts)if(row.operation_kind===kind&&row.input_generation===context.inputGeneration)
+            matches.set(row.operation_key,row);
+        }
+        historical=[...matches.values()];
+      } else historical=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
         AND operation_kind=? AND input_generation=? ORDER BY operation_key LIMIT 1001`,
         args:[context.userId,context.executionMode,kind,context.inputGeneration]})).rows;
       if(historical.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
@@ -681,6 +702,7 @@ export function createOperationReceipts(core) {
       for(const field of ['request_json','result_json','related_results_json','required_roots_json','schema_contract_json'])
         if(Buffer.byteLength(row[field])>4194304)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
       row.receipt_hmac=seal(row);
+      if(routing)await routing.register(row,{request:requestAuthority,related:encoded.related});
       const fields=Object.keys(row);
       await client.execute({sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(field=>row[field])});
       for(const root of roots.roots)await addPrivacyLink(client,{userId:context.userId,mode:context.executionMode,table:TABLE,

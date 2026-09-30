@@ -24,7 +24,10 @@ export function createMetricRefreshAuthority(core,{authenticate,authorities,vali
     const snapshots=(await client.execute({sql:`SELECT * FROM phase4_episode_revisions WHERE user_id=? AND execution_mode=?
       AND episode_id=? ORDER BY revision LIMIT 1001`,args})).rows;
     if(!snapshots.length||snapshots.length>1000)fail('PHASE4_EPISODE_HISTORY_UNAVAILABLE');
-    const receipts=(await closure.inventory(context,{kind:'EPISODE',episodeId,metricKey:identity?.metric})).phase4_operation_receipts;
+    const routeFamily=identity?keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,
+      identity.algorithmMajor,identity.subject,identity.windowFamily]):null;
+    const receipts=(await closure.inventory(context,{kind:'EPISODE',episodeId,metricKey:identity?.metric,
+      episodeFamilyKey:routeFamily})).phase4_operation_receipts;
     if(receipts.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
     let bytes=0;
     const signed=[];

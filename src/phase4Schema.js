@@ -3,6 +3,7 @@ import { buildV22 } from './phase4V22Schema.js';
 import { buildV23 } from './phase4V23Schema.js';
 import { buildV27 } from './phase4V27Schema.js';
 import { buildV28 } from './phase4V28Schema.js';
+import { buildV29 } from './phase4V29Schema.js';
 import { buildV26 } from './phase4V26Schema.js';
 import { buildV25 } from './phase4V25Schema.js';
 import { buildV24 } from './phase4V24Schema.js';
@@ -67,4 +68,5 @@ export const PHASE4_MIGRATIONS = Object.freeze([
   buildV26(MODE_COLUMN, modeImmutableTrigger),
   buildV27(MODE_COLUMN, modeImmutableTrigger),
   buildV28(),
+  buildV29(MODE_COLUMN, modeImmutableTrigger),
 ]);

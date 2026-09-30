@@ -61,7 +61,10 @@ export function createEpisodeRecurrenceAuthority(core,{authenticate,metricRefres
   }
   async function validate(context,request,successorId=null) {
     const id=request.reopensEpisodeId;
-    const {latest,histories}=await inventory(context,{episodeId:id,metricKey:request.identity.metric}),entry=latest.get(id);
+    const family=keys.lookup(['episode-family-v1',context.userId,request.identity.domain,request.identity.metric,
+      request.identity.algorithmMajor,request.identity.subject,request.identity.windowFamily]);
+    const {latest,histories}=await inventory(context,{episodeId:id,metricKey:request.identity.metric,
+      episodeFamilyKey:family}),entry=latest.get(id);
     if(!entry)fail('PHASE4_EPISODE_HISTORY_UNAVAILABLE');
     if(entry.row.revision!==request.predecessorRevision)fail('PHASE4_EPISODE_CAS_LOST');
     const prior=await metricRefresh.historical(context,{episodeId:id,expectedRevision:request.predecessorRevision,identity:request.identity},

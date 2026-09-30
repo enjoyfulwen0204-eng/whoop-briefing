@@ -6,6 +6,9 @@ import { V27_TABLES } from './phase4V27Schema.js';
 import { V26_TABLES } from './phase4V26Schema.js';
 import { V25_TABLES } from './phase4V25Schema.js';
 import { V24_TABLES } from './phase4V24Schema.js';
+import { V29_TABLES } from './phase4V29Schema.js';
+import { createReceiptRouting, verifyV27RouteSource } from './phase4ReceiptRouting.js';
+import { physicallyScrubbed } from './phase4Redaction.js';
 
 // This is an exact binary/schema contract, not a minimum supported version.
 export const EXPECTED_SCHEMA_VERSION = SCHEMA_VERSION;
@@ -152,6 +155,35 @@ async function backfillV23(client) {
   }
 }
 
+async function backfillV29(client,keys) {
+  requirePhase4Keys(keys);
+  const routing=createReceiptRouting(client,keys);
+  const receipts=(await client.execute(`SELECT * FROM phase4_operation_receipts
+    ORDER BY user_id,execution_mode,operation_kind,operation_key`)).rows;
+  for(const receipt of receipts) {
+    if(receipt.content_state==='PRESENT')await routing.register(receipt,{
+      ...verifyV27RouteSource(keys,receipt),
+      // The frozen v27 payload uses request_json/related_results_json names;
+      // routing accepts the independently authenticated decoded pair above.
+    });
+    else {
+      if(!physicallyScrubbed('phase4_operation_receipts',receipt))
+        throw new Phase4SchemaError('phase4_route_legacy_redaction_invalid');
+      await routing.register(receipt,null,{legacyUnknown:true});
+    }
+  }
+  await requireZero(client,`SELECT 1 FROM phase4_operation_receipts r LEFT JOIN phase4_receipt_routes x
+    ON x.user_id=r.user_id AND x.execution_mode=r.execution_mode AND x.operation_kind=r.operation_kind
+      AND x.operation_key=r.operation_key WHERE x.operation_key IS NULL LIMIT 1`,'v29_receipt_route_coverage');
+  await requireZero(client,`SELECT 1 FROM phase4_receipt_routes x LEFT JOIN phase4_operation_receipts r
+    ON x.user_id=r.user_id AND x.execution_mode=r.execution_mode AND x.operation_kind=r.operation_kind
+      AND x.operation_key=r.operation_key WHERE r.operation_key IS NULL LIMIT 1`,'v29_route_receipt_coverage');
+  if((await client.execute('PRAGMA integrity_check')).rows[0]?.integrity_check!=='ok')
+    throw new Phase4SchemaError('phase4_route_integrity_check_failed');
+  if((await client.execute('PRAGMA foreign_key_check')).rows.length)
+    throw new Phase4SchemaError('phase4_route_foreign_key_check_failed');
+}
+
 export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSION, options = {}) {
   const migrations = PHASE4_MIGRATIONS.filter(m => m.version <= version);
   const replacements = migrations.flatMap(m=>m.replacements ?? []);
@@ -183,10 +215,24 @@ export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSI
     WHERE legacy_classification IS NOT 'LEGACY_UNVERIFIED' OR insight_key IS NOT NULL OR current_revision IS NOT NULL
       OR evidence_contract_version IS NOT NULL OR lifecycle_disposition IS NOT NULL OR lifecycle_generation IS NOT NULL
       OR auth_generation IS NOT NULL OR input_generation IS NOT NULL LIMIT 1`, 'v23_legacy_insights');
-  for (const table of [...(version >= 23 ? V23_TABLES : []), ...(version >= 24 ? V24_TABLES : []), ...(version >= 25 ? V25_TABLES : []), ...(version >= 26 ? V26_TABLES : []), ...(version >= 27 ? V27_TABLES : [])]) {
+  for (const table of [...(version >= 23 ? V23_TABLES : []), ...(version >= 24 ? V24_TABLES : []), ...(version >= 25 ? V25_TABLES : []), ...(version >= 26 ? V26_TABLES : []), ...(version >= 27 ? V27_TABLES : []), ...(version >= 29 ? V29_TABLES : [])]) {
     await requireZero(client, `SELECT 1 FROM ${table} p LEFT JOIN users u ON u.id=p.user_id WHERE u.id IS NULL LIMIT 1`, `${table}_tenant`);
     if (options.backfillVersion === 24 && V24_TABLES.includes(table)) await requireZero(client,
       `SELECT 1 FROM ${table} WHERE execution_mode <> 'SHADOW' LIMIT 1`, `${table}_no_migration_live`);
+  }
+  if(version>=29) {
+    await requireZero(client,`SELECT 1 FROM phase4_operation_receipts r LEFT JOIN phase4_receipt_routes x
+      ON x.user_id=r.user_id AND x.execution_mode=r.execution_mode AND x.operation_kind=r.operation_kind
+      AND x.operation_key=r.operation_key WHERE x.operation_key IS NULL LIMIT 1`,'v29_receipt_route_coverage');
+    await requireZero(client,`SELECT 1 FROM phase4_receipt_routes x LEFT JOIN phase4_operation_receipts r
+      ON x.user_id=r.user_id AND x.execution_mode=r.execution_mode AND x.operation_kind=r.operation_kind
+      AND x.operation_key=r.operation_key WHERE r.operation_key IS NULL LIMIT 1`,'v29_route_receipt_coverage');
+    await requireZero(client,`SELECT 1 FROM phase4_receipt_route_entries e LEFT JOIN phase4_receipt_routes r
+      ON r.user_id=e.user_id AND r.execution_mode=e.execution_mode AND r.operation_kind=e.operation_kind
+      AND r.operation_key=e.operation_key WHERE r.operation_key IS NULL LIMIT 1`,'v29_orphan_route_entry');
+    await requireZero(client,`SELECT 1 FROM phase4_receipt_route_entries e LEFT JOIN phase4_receipt_route_manifests m
+      ON m.user_id=e.user_id AND m.execution_mode=e.execution_mode AND m.subject_kind=e.subject_kind
+      AND m.subject_token=e.subject_token WHERE m.subject_token IS NULL LIMIT 1`,'v29_orphan_route_manifest');
   }
 }
 
@@ -226,6 +272,7 @@ export async function applyPhase4Migrations(client, from, target, options = {}) 
       await verifyPhase4Definition(client,ddl);
       await client.execute(`DROP ${kind} IF EXISTS ${oldName}`);
     }
+    if (migration.version === 29) await backfillV29(client,options.privacyKeys);
     await verifyPhase4Schema(client, migration.version, { backfill: migration.version === 21, backfillVersion: migration.version });
     if (migration.version === 22) await client.execute(`UPDATE phase4_migration_checkpoints SET postcondition_state='COMPLETE'
       WHERE target_version=22 AND step_key='privacy_backfill'`);

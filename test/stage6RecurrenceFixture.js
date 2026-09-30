@@ -13,8 +13,8 @@ export async function journal(f,key,at) {
       excerptStart:0,excerptEnd:sourceText.length}});
   assert.equal(result.status,'ACCEPT');
 }
-export async function fixture(t,{windowFamily='DAILY_RECOVERY',asOfUtc=NEXT,active=false,mutate=true}={}) {
-  const f=await setup(t,{targetVersion:28});
+export async function fixture(t,{windowFamily='DAILY_RECOVERY',asOfUtc=NEXT,active=false,mutate=true,targetVersion=28}={}) {
+  const f=await setup(t,{targetVersion});
   for(let i=0;i<15;i++)await journal(f,`initial-${i}`,'2026-09-25T11:00:00.000Z');
   const req=(current,baseline,at)=>({...request(current,baseline,at),windowFamily});
   const opened=await call(f,'intelligence','analyzeMetric',req(f.initialRefs[0],f.initialRefs.slice(1),'2026-09-25T12:00:00.000Z'));

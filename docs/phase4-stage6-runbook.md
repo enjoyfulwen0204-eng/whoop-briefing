@@ -14,11 +14,17 @@ An authorized future server composition injects the worker as `deps.phase4Stage6
 
 The database selector takes at most one eligible job per tenant, ordered by last service/update time and stable identities. Both existing job kinds use one drain: `RECOMPUTE_DERIVED` and `REPAIR_CURRENTNESS`. No separate provider-specific health engine exists.
 
+Both job kinds also acquire one durable `resource_locks` pass lease keyed by tenant and execution mode before heavy work. The owner must retain this pass lease and its job-row lease through each derived write and final settlement. A held tenant pass is excluded before the selector's limit, so another tenant can use the available budget. Normal completion or yield releases the pass lease; a killed owner's lock expires for takeover. The worker checks both owners again at the transaction commit boundary.
+
 A deterministic binary keyset scan uses JSON pairs of source type and opaque row identity. It includes currently accessible, non-tombstoned WHOOP sleep/recovery/cycle/workout rows; readable active Journal facts and coverage; current direct experiment assertions; and the tenant USER root. It never reconstructs deleted dates. WHOOP rows denied by current authorization/capability state are outside eligible scope. Shared Telegram ingress records and body-measurement snapshots are not registered Stage 5 intelligence inputs.
 
 The USER unit computes canonical Body Energy. The latest eligible source of each registered metric is the current metric target; prior retained rows are baseline inputs, selected by the existing baseline selector. Each older scanned row is explicitly classified as retained non-target input. Unscored rows are typed no-result inputs. Journal, coverage, workout and direct-assertion units validate their retained roots; calculations consume applicable inputs through their canonical source contracts. Available current-generation Body Energy baseline results are authenticated before use; absence of such results remains canonical baseline warmup.
 
 Existing active and recently resolved metric window families are recovered from authenticated operation requests and lifecycle snapshots and preserved. The worker does not choose a different family to evade stale-state checks. For association evidence, it submits all retained standard factors together for each registered outcome, with lag one day, in two independent 30-day windows. Stage 5 owns missingness, multiplicity, effects, confidence, promotion and lifecycle guards. Candidate absence is a valid no-insight result. Unsupported or incomplete authority is a failure, never a fabricated empty result.
+
+Stage 6 discovery selects the metric/episode/insight family's signed projections and their required receipt, evidence and predecessor roots. A completed purge's physically scrubbed receipt remains an audit record; it cannot poison an unrelated retained WHOOP family. A required redacted root or predecessor still fails closed. Mutable source links do not define this authority boundary.
+
+When a prior insight is already expired at the new semantic instant, fresh supporting evidence first records its canonical terminal disposition and then creates a linked new incarnation with the registered evidence expiry policy. It never refreshes the expired row into a current but already expired revision. If the fresh association is not a candidate, the source has a valid no-insight result and the pass may complete. Ordinary insight readers keep their expiry fence.
 
 ## Three episode paths
 

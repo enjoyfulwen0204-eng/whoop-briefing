@@ -132,9 +132,10 @@ export function createPhase4Redactor(core) {
         health_scope_redacted_at:at,health_scope_redaction_reason:reason,full_scan_cursor:null});
       if(node.type==='analytics_work_state')Object.assign(patch,{status:'PENDING',last_error_class:null,next_attempt_at:null});
       if(node.type.startsWith('phase4_'))patch.reason_codes_json='["HEALTH_SCOPE_REDACTED"]';
-      if(node.type==='phase4_jobs')Object.assign(patch,{state:'PENDING',lease_owner:null,lease_expires_at:null,
+      if(node.type==='phase4_jobs')Object.assign(patch,{state:Object.hasOwn(row,'unresolved_since')
+        ?row.attempt>=5?'REPAIR_REQUIRED':row.attempt>0?'RETRY_WAIT':'PENDING':'PENDING',lease_owner:null,lease_expires_at:null,
         claimed_generation:null,claimed_lifecycle_generation:null,claimed_auth_generation:null,claimed_scope_revision:null,
-        claimed_purge_generation:null,last_error_code:null,next_attempt_at:null});
+        claimed_purge_generation:null,...(Object.hasOwn(row,'unresolved_since')?{}:{last_error_code:null,next_attempt_at:null})});
     }
     if(node.type==='experiment_field_groups') {
       if(!Object.hasOwn(EXPERIMENT_SENTINELS,row.field_name))fail('PHASE4_EXPERIMENT_FIELD_REQUIRED');

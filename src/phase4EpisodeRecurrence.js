@@ -3,6 +3,7 @@ import { canonicalJson } from './phase4EntityStore.js';
 import { episodeSemanticProjection } from './phase4EpisodeHistory.js';
 import { canonicalEpisodeData } from './phase4IntelligenceStore.js';
 import { requireChronology } from './phase4Time.js';
+import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
 
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 const invalid=()=>fail('PHASE4_EPISODE_RECURRENCE_AUTHORITY_INVALID');
@@ -14,13 +15,9 @@ const parse=value=>{try{return JSON.parse(value);}catch{invalid();}};
  * that the terminal parent has no different successor. */
 export function createEpisodeRecurrenceAuthority(core,{authenticate,metricRefresh}) {
   const {client,keys}=core,plans=new WeakMap();
-  async function inventory(context) {
-    const tables={};
-    for(const table of ['phase4_operation_receipts','phase4_episode_revisions','observation_episodes']) {
-      tables[table]=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND execution_mode=? LIMIT 1001`,
-        args:[context.userId,context.executionMode]})).rows;
-      if(tables[table].length>1000)fail('PHASE4_EPISODE_HISTORY_UNAVAILABLE');
-    }
+  const closure=createTargetAuthorityClosure(core,authenticate);
+  async function inventory(context,target={}) {
+    const tables=await closure.inventory(context,{kind:'EPISODE',...target});
     const histories=new Map();let bytes=0;
     for(const receipt of tables.phase4_operation_receipts) {
       bytes+=['request_json','result_json','related_results_json','required_roots_json','schema_contract_json']
@@ -63,7 +60,8 @@ export function createEpisodeRecurrenceAuthority(core,{authenticate,metricRefres
     return {latest,histories};
   }
   async function validate(context,request,successorId=null) {
-    const {latest,histories}=await inventory(context),id=request.reopensEpisodeId,entry=latest.get(id);
+    const id=request.reopensEpisodeId;
+    const {latest,histories}=await inventory(context,{episodeId:id,metricKey:request.identity.metric}),entry=latest.get(id);
     if(!entry)fail('PHASE4_EPISODE_HISTORY_UNAVAILABLE');
     if(entry.row.revision!==request.predecessorRevision)fail('PHASE4_EPISODE_CAS_LOST');
     const prior=await metricRefresh.historical(context,{episodeId:id,expectedRevision:request.predecessorRevision,identity:request.identity},

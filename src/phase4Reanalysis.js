@@ -53,8 +53,7 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
     if(active.length>64)fail('PHASE4_EPISODE_HISTORY_UNAVAILABLE');
     if(!active.length)return [req.windowFamily];
     const unresolved=new Set(active.map(row=>row.episode_family_key)),families=new Set(),receipts=createOperationReceipts(core);
-    const rows=(await client.execute({sql:`SELECT * FROM phase4_operation_receipts WHERE user_id=? AND execution_mode='SHADOW'
-      AND operation_kind IN ('analyzeMetric','EPISODE_OPEN','EPISODE_REFRESH') ORDER BY operation_key LIMIT 1001`,args:[context.userId]})).rows;
+    const rows=[...new Set([...history.histories.values()].flatMap(entries=>[...entries.values()].map(entry=>entry.receipt)))];
     if(rows.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
     let bytes=0;
     for(const row of rows) {
@@ -71,7 +70,7 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
     return [...families].sort();
   }
   async function metrics(context,req) {
-    const history=await createOperationReceipts(core).episodeRecurrenceInventory(context);
+    const history=await createOperationReceipts(core).episodeRecurrenceInventory(context,{metricKey:req.metricKey});
     for(const windowFamily of await metricFamilies(context,req,history))await metric(context,{...req,windowFamily},history);
   }
 
@@ -121,7 +120,7 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
   const insightIdentity=(factor,outcome,direction)=>({subject:`journal:${factor}`,outcome,direction,
     exposureCategory:factor,algorithmFamily:'journal-association',evidenceContractMajor:'1'});
   async function activeInsight(context,identity) {
-    const rows=(await client.execute({sql:`SELECT id,current_revision,status,input_generation FROM health_insights
+    const rows=(await client.execute({sql:`SELECT id,current_revision,status,input_generation,expires_at FROM health_insights
       WHERE user_id=? AND execution_mode='SHADOW' AND insight_key=? AND status<>'RETIRED' LIMIT 2`,
       args:[context.userId,insightIdentityKey(keys,context,identity)]})).rows;
     if(rows.length>1)fail('PHASE4_INSIGHT_PREDECESSOR_AMBIGUOUS');return rows[0]??null;
@@ -146,7 +145,15 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
       group.items.push(output);
     }
     for(const {identity,hypothesis,items} of candidates.values()) {
-      const existing=await activeInsight(context,identity);
+      let existing=await activeInsight(context,identity);
+      if(existing&&Date.parse(existing.expires_at)<=Date.parse(asOfUtc)) {
+        const disposition=existing.status==='HYPOTHESIS'?'REJECTED':'EXPIRED';
+        await stores.insights.transition(context,{insightId:existing.id,expectedRevision:existing.current_revision,
+          ...(existing.input_generation<context.inputGeneration?{identity,refresh:true}:{}),status:'RETIRED',disposition,
+          claim:canonicalAssociationClaim(hypothesis,identity.direction,'HYPOTHESIS'),
+          supportingEvidenceIds:[items[0].item.row.evidence_item_id],reason:disposition,semanticAt:asOfUtc});
+        existing=null;
+      }
       if(existing?.input_generation===context.inputGeneration) {
         await stores.insights.read(context,existing.id,{asOfUtc});continue;
       }
@@ -154,7 +161,7 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
       if(ready.length) {
         const opposite={...identity,direction:identity.direction==='LOWER'?'HIGHER':'LOWER'};
         const contradicted=await activeInsight(context,opposite);
-        if(contradicted) {
+        if(contradicted&&Date.parse(contradicted.expires_at)>Date.parse(asOfUtc)) {
           const terminal=['WEAKENED','HYPOTHESIS'].includes(contradicted.status);
           await stores.insights.transition(context,{insightId:contradicted.id,expectedRevision:contradicted.current_revision,
             ...(contradicted.input_generation<context.inputGeneration?{identity:opposite,refresh:true}:{}),
@@ -252,7 +259,7 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
               if(!['PHASE4_LEASE_CAS_LOST','PHASE4_INPUT_FENCED','PHASE4_AUTH_FENCED','PHASE4_LIFECYCLE_FENCED',
                 'PHASE4_PURGE_FENCED','PHASE4_TIMEZONE_FENCED'].includes(fenceError?.code))throw fenceError;
             }
-          }
+          } finally {await queue.abandon(lease);}
         });
       } catch(error) {
         if(!out.failures.some(failure=>failure.userId===candidate.userId&&failure.jobKind===candidate.jobKind)) {

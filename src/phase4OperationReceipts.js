@@ -16,6 +16,7 @@ import { OPERATION_RECEIPT_TABLE as TABLE, OPERATION_RECEIPT_VERSION as VERSION 
 import { createInsightRefreshAuthority } from './phase4InsightRefresh.js';
 import { createMetricRefreshAuthority } from './phase4MetricRefresh.js';
 import { createEpisodeRecurrenceAuthority } from './phase4EpisodeRecurrence.js';
+import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
 
 const instances=new WeakMap();
 const invalid=()=>fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');
@@ -441,13 +442,15 @@ export function createOperationReceipts(core) {
   async function resolveInsightLifecycle(context,{insightKey=null,insightId=null,matchLookup=false}={}) {
     return core.run(context,async()=>{
       const scope=[context.userId,context.executionMode];
-      const parents=(await client.execute({sql:`SELECT id FROM health_insights WHERE user_id=? AND execution_mode=?
+      const scoped=core.schemaVersion===28?await createTargetAuthorityClosure(core,authenticate).inventory(context,
+        {kind:'INSIGHT',insightKey,insightId}):null;
+      const parents=scoped?.health_insights??(await client.execute({sql:`SELECT id FROM health_insights WHERE user_id=? AND execution_mode=?
       ORDER BY id LIMIT ?`,args:[...scope,INSIGHT_DISCOVERY_BUDGET.insights+1]})).rows;
-      const receipts=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
+      const receipts=scoped?.[TABLE]??(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
       ORDER BY operation_kind,operation_key LIMIT ?`,args:[...scope,INSIGHT_DISCOVERY_BUDGET.receipts+1]})).rows;
-      const revisionInventory=(await client.execute({sql:`SELECT insight_id,revision FROM insight_revisions WHERE user_id=? AND execution_mode=?
+      const revisionInventory=scoped?.insight_revisions??(await client.execute({sql:`SELECT insight_id,revision FROM insight_revisions WHERE user_id=? AND execution_mode=?
       ORDER BY insight_id,revision LIMIT ?`,args:[...scope,INSIGHT_DISCOVERY_BUDGET.revisions+1]})).rows;
-      const origins=(await client.execute({sql:`SELECT * FROM ${RESULT_AUTHORITY_TABLE} WHERE user_id=? AND execution_mode=?
+      const origins=scoped?.[RESULT_AUTHORITY_TABLE]??(await client.execute({sql:`SELECT * FROM ${RESULT_AUTHORITY_TABLE} WHERE user_id=? AND execution_mode=?
       ORDER BY evidence_item_id,result_scope LIMIT ?`,args:[...scope,INSIGHT_DISCOVERY_BUDGET.authorities+1]})).rows;
       if(parents.length>INSIGHT_DISCOVERY_BUDGET.insights||receipts.length>INSIGHT_DISCOVERY_BUDGET.receipts
         ||revisionInventory.length>INSIGHT_DISCOVERY_BUDGET.revisions||origins.length>INSIGHT_DISCOVERY_BUDGET.authorities)
@@ -686,7 +689,7 @@ export function createOperationReceipts(core) {
       if(refreshPredecessor)await core.transaction(async()=>{}, {beforeCommit:async()=>{
         await refreshAuthority.retained(context,refreshPredecessor);
         await refreshAuthority.fresh(context,semanticRequest,refreshPredecessor);
-        const state=await refreshAuthority.inventory(context),history=state.histories.get(refreshPredecessor.insightId);
+        const state=await refreshAuthority.inventory(context,{insightId:refreshPredecessor.insightId}),history=state.histories.get(refreshPredecessor.insightId);
         const prior=history?.get(refreshPredecessor.revision);
         if(!prior||prior.receipt.operation_key!==refreshPredecessor.receiptKey
           ||prior.receipt.receipt_hmac!==refreshPredecessor.receiptHmac

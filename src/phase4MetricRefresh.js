@@ -5,6 +5,7 @@ import { EPISODE_ACTIVE, V23_HEALTH_FIELDS } from './phase4V23Schema.js';
 import { INTELLIGENCE_VERSIONS, phase4Metric } from './phase4IntelligenceRegistry.js';
 import { evaluateMeaningfulChange } from './phase4Intelligence.js';
 import { requireChronology } from './phase4Time.js';
+import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
 
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 const invalid=()=>fail('PHASE4_METRIC_REFRESH_AUTHORITY_INVALID');
@@ -17,13 +18,13 @@ const eventProjection=row=>Object.fromEntries(Object.entries(row).filter(([key])
  * plan only to the public EPISODE_REFRESH implementation. */
 export function createMetricRefreshAuthority(core,{authenticate,authorities,validateEvidence,retainedReceipt}) {
   const {client,keys}=core,plans=new WeakMap();
+  const closure=createTargetAuthorityClosure(core,authenticate);
   async function historical(context,{episodeId,expectedRevision,identity},{terminal=false,successorId=null}={}) {
     const args=[context.userId,context.executionMode,episodeId];
     const snapshots=(await client.execute({sql:`SELECT * FROM phase4_episode_revisions WHERE user_id=? AND execution_mode=?
       AND episode_id=? ORDER BY revision LIMIT 1001`,args})).rows;
     if(!snapshots.length||snapshots.length>1000)fail('PHASE4_EPISODE_HISTORY_UNAVAILABLE');
-    const receipts=(await client.execute({sql:`SELECT * FROM phase4_operation_receipts WHERE user_id=? AND execution_mode=?
-      ORDER BY operation_key LIMIT 1001`,args:args.slice(0,2)})).rows;
+    const receipts=(await closure.inventory(context,{kind:'EPISODE',episodeId,metricKey:identity?.metric})).phase4_operation_receipts;
     if(receipts.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
     let bytes=0;
     const signed=[];

@@ -4,6 +4,7 @@ import { JOB_KINDS, OPERATION_ERROR_CODES } from './phase4V24Schema.js';
 
 export const STAGE6_RETRY_MS=Object.freeze([60000,300000,900000,3600000,21600000]);
 const active="(scope_kind<>'NONE' OR completed_generation<requested_generation)";
+export const tenantPassLockName=(userId,mode)=>`phase4-stage6-pass:${JSON.stringify([userId,mode])}`;
 
 /** Internal worker queue. Only the drain holds leases and end-of-scope proofs;
  * the public Foundation queue still cannot settle a FULL pass. */
@@ -20,8 +21,10 @@ export function createReanalysisQueue(core) {
       WHERE j.execution_mode='SHADOW' AND u.status='ACTIVE' AND p.pending_purge_count=0
         AND (j.scope_kind<>'NONE' OR j.completed_generation<j.requested_generation)
         AND (j.next_attempt_at IS NULL OR j.next_attempt_at<=?) AND (j.lease_owner IS NULL OR j.lease_expires_at<=?)
+        AND NOT EXISTS(SELECT 1 FROM resource_locks l
+          WHERE l.name='phase4-stage6-pass:'||json_array(j.user_id,j.execution_mode) AND l.expires_at>?)
         ${userId===null?'':'AND j.user_id=?'}) WHERE position=1 ORDER BY updated_at,user_id,job_kind LIMIT ?`,
-      args:[timestamp(),timestamp(),...(userId===null?[]:[userId]),limit]})).rows;
+      args:[timestamp(),timestamp(),timestamp(),...(userId===null?[]:[userId]),limit]})).rows;
     return rows.map(row=>({userId:row.user_id,jobKind:row.job_kind}));
   }
   async function claim(context,kind,{leaseMs=60000}={}) {
@@ -37,22 +40,39 @@ export function createReanalysisQueue(core) {
         &&row.claimed_auth_generation===context.authGeneration&&row.claimed_purge_generation===context.purgeGeneration
         &&row.claimed_scope_revision===row.scope_revision;
       const binding=Object.freeze({userId:context.userId,executionMode:'SHADOW',jobKind:kind,owner:randomUUID(),
+        tenantPass:tenantPassLockName(context.userId,context.executionMode),
         expiresAt:new Date(Date.parse(at)+leaseMs).toISOString(),requestedGeneration:context.inputGeneration,scopeRevision:row.scope_revision,
         sourceGeneration:context.sourceGeneration,lifecycleGeneration:context.lifecycleGeneration,authGeneration:context.authGeneration,
         purgeGeneration:context.purgeGeneration,algorithmSetVersion:context.algorithmSetVersion});
+      const locked=await client.execute({sql:`INSERT INTO resource_locks(name,owner,acquired_at,expires_at) VALUES (?,?,?,?)
+        ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,acquired_at=excluded.acquired_at,expires_at=excluded.expires_at
+        WHERE resource_locks.expires_at<=excluded.acquired_at`,args:[binding.tenantPass,binding.owner,at,binding.expiresAt]});
+      if(locked.rowsAffected!==1)return null;
       const changed=await client.execute({sql:`UPDATE phase4_jobs SET state='RUNNING',lease_owner=?,lease_expires_at=?,
         claimed_generation=?,claimed_lifecycle_generation=?,claimed_auth_generation=?,claimed_scope_revision=?,claimed_purge_generation=?,
         full_scan_cursor=?,updated_at=? WHERE user_id=? AND execution_mode='SHADOW' AND job_kind=?
         AND requested_generation=? AND scope_revision=? AND (lease_owner IS NULL OR lease_expires_at<=?)`,
         args:[binding.owner,binding.expiresAt,context.inputGeneration,context.lifecycleGeneration,context.authGeneration,row.scope_revision,
           context.purgeGeneration,resume?row.full_scan_cursor:null,at,context.userId,kind,context.inputGeneration,row.scope_revision,at]});
-      if(changed.rowsAffected!==1)return null;
+      if(changed.rowsAffected!==1)fail('PHASE4_LEASE_CAS_LOST');
       const lease=Object.freeze({binding,cursor:resume?row.full_scan_cursor:null,asOfUtc:current.computation.updated_at});
       leases.set(lease,{context,cursor:lease.cursor});return lease;
     });
   }
+  async function checkTenant(lease) {
+    const b=lease.binding;
+    if(!(await client.execute({sql:'SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?',
+      args:[b.tenantPass,b.owner,b.expiresAt,timestamp()]})).rows.length)fail('PHASE4_LEASE_CAS_LOST');
+  }
+  const releaseTenant=lease=>client.execute({sql:'DELETE FROM resource_locks WHERE name=? AND owner=?',
+    args:[lease.binding.tenantPass,lease.binding.owner]});
+  async function abandon(lease) {
+    if(!leases.has(lease))return;
+    await releaseTenant(lease);leases.delete(lease);
+  }
   async function check(context,lease) {
     if(leases.get(lease)?.context!==context)fail('PHASE4_SERVER_LEASE_REQUIRED');
+    await checkTenant(lease);
     const row=await read(context,lease.binding.jobKind),b=lease.binding;
     if(!row||row.state!=='RUNNING'||row.lease_owner!==b.owner||row.lease_expires_at!==b.expiresAt||row.lease_expires_at<=timestamp()
       ||row.requested_generation!==b.requestedGeneration||row.claimed_generation!==b.requestedGeneration
@@ -86,6 +106,7 @@ export function createReanalysisQueue(core) {
     const settled=async()=>{
       assertBudget();
       if(b.expiresAt<=timestamp())fail('PHASE4_LEASE_CAS_LOST');
+      await checkTenant(lease);
       await core.assertContext(context);const row=await read(context,b.jobKind);
       if(!row||row.scope_revision!==b.scopeRevision||row.requested_generation!==b.requestedGeneration
         ||row.completed_generation!==b.requestedGeneration||row.scope_kind!=='NONE'||row.lease_owner!==null)
@@ -112,19 +133,26 @@ export function createReanalysisQueue(core) {
           last_ok_at=excluded.last_ok_at,last_detail=NULL,updated_at=excluded.updated_at`,args:[`user:${context.userId}`,at,at]});
       }
     },{before:()=>core.assertContext(context),after:settled,commitFence:settled});
+    await releaseTenant(lease);
     proofs.delete(proof);leases.delete(lease);
   }
   async function release(context,lease,{errorCode=null}={}) {
     if(errorCode!==null&&!OPERATION_ERROR_CODES.includes(errorCode))fail('PHASE4_OPERATION_ERROR_REQUIRED');
-    return core.run(context,async()=>{
+    const result=await core.run(context,async()=>{
       const row=await check(context,lease),attempt=row.attempt+(errorCode?1:0),at=timestamp();
       const next=errorCode?new Date(Date.parse(at)+STAGE6_RETRY_MS[Math.min(attempt,5)-1]).toISOString():row.next_attempt_at;
       await client.execute({sql:`UPDATE phase4_jobs SET state=?,attempt=?,next_attempt_at=?,last_error_code=?,
         lease_owner=NULL,lease_expires_at=NULL,updated_at=? WHERE user_id=? AND execution_mode='SHADOW' AND job_kind=?`,
         args:[attempt>=5?'REPAIR_REQUIRED':attempt?'RETRY_WAIT':'PENDING',attempt,next,errorCode??row.last_error_code,at,context.userId,lease.binding.jobKind]});
       core.processing.afterCommit(()=>leases.delete(lease));
+      await transaction(async()=>{}, {commitFence:async()=>{
+        await checkTenant(lease);const settled=await read(context,lease.binding.jobKind);
+        if(settled.lease_owner!==null||settled.scope_revision!==lease.binding.scopeRevision
+          ||settled.requested_generation!==lease.binding.requestedGeneration)fail('PHASE4_LEASE_CAS_LOST');
+      }});
       return {attempt,nextAttemptAt:next,state:attempt>=5?'REPAIR_REQUIRED':attempt?'RETRY_WAIT':'PENDING'};
     });
+    await releaseTenant(lease);return result;
   }
-  return Object.freeze({select,claim,check,owned,checkpoint,end,complete,release});
+  return Object.freeze({select,claim,check,owned,checkpoint,end,complete,release,abandon});
 }

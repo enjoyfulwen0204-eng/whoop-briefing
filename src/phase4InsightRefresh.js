@@ -4,6 +4,7 @@ import { normalizeInsightIdentity } from './phase4InsightStore.js';
 import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
 import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 import { INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
+import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
 
 const same = (a, b) => canonicalJson(a) === canonicalJson(b);
 const parse = value => { try { return JSON.parse(value); } catch { fail('PHASE4_OPERATION_RECEIPT_INTEGRITY'); } };
@@ -18,12 +19,9 @@ const semantic = row => Object.fromEntries(Object.entries(row).filter(([key]) =>
  * INSIGHT_TRANSITION refresh branch inside the existing receipt transaction. */
 export function createInsightRefreshAuthority(core, { authenticate, authorities, validateEvidence }) {
   const { client, keys } = core;
-  async function inventory(context) {
-    const scope = [context.userId, context.executionMode], tables = {};
-    for (const table of ['health_insights', 'insight_revisions', OPERATION_RECEIPT_TABLE, RESULT_AUTHORITY_TABLE]) {
-      tables[table] = (await client.execute({ sql: `SELECT * FROM ${table} WHERE user_id=? AND execution_mode=? LIMIT 1001`, args: scope })).rows;
-      if (tables[table].length > 1000) fail('PHASE4_INSIGHT_DISCOVERY_BOUNDS_UNAVAILABLE');
-    }
+  const closure=createTargetAuthorityClosure(core,authenticate);
+  async function inventory(context,target={}) {
+    const scope = [context.userId, context.executionMode], tables = await closure.inventory(context,{kind:'INSIGHT',...target});
     const histories = new Map(), revisions = new Map(), identities = new Map();
     let bytes = 0;
     for (const receipt of tables[OPERATION_RECEIPT_TABLE]) {
@@ -78,7 +76,7 @@ export function createInsightRefreshAuthority(core, { authenticate, authorities,
     return { tables, histories, revisions, identities };
   }
   async function predecessor(context, request) {
-    const identity = normalizeInsightIdentity(request.identity), state = await inventory(context);
+    const identity = normalizeInsightIdentity(request.identity), state = await inventory(context,{insightId:request.insightId});
     const history = state.histories.get(request.insightId);
     if (!history) unavailable();
     const numbers = [...history.keys()].sort((a, b) => a - b), latest = history.get(numbers.at(-1));
@@ -99,6 +97,11 @@ export function createInsightRefreshAuthority(core, { authenticate, authorities,
     if (!readableRow(current)) fail('CONTENT_REDACTED');
     if (!same(semantic(current), semantic(latest.row))) invalid();
     if (latest.row.status === 'RETIRED' || latest.row.lifecycle_disposition) fail('PHASE4_INSIGHT_TERMINAL_REFRESH');
+    if(Date.parse(latest.row.expires_at)<=Date.parse(request.semanticAt)) {
+      const disposition=latest.row.status==='HYPOTHESIS'?'REJECTED':'EXPIRED';
+      if(request.status!=='RETIRED'||request.disposition!==disposition||request.reason!==disposition)
+        fail('PHASE4_INSIGHT_TERMINAL_REFRESH');
+    }
     if (latest.row.input_generation >= context.inputGeneration || current.invalidated_at) fail('PHASE4_INSIGHT_REFRESH_INVALID');
     await retainedReceipt(context,latest.receipt,latest.decoded);
     return { insightId: request.insightId, revision: request.expectedRevision, inputGeneration: latest.row.input_generation,

@@ -7,6 +7,7 @@ import { staticDataSource } from '../src/dataSource.js';
 import { fakeCoach } from './fakes.js';
 import { makeDataset } from './fixtures.js';
 import { authorizePublicBetaRuntime, createPublicBetaPresentation, publicBetaPolicy } from '../src/publicBeta.js';
+import { deliverPublicBetaSummary } from '../src/publicBetaSummaryDelivery.js';
 
 const users = [
   { id: 'nameless', chatId: '1003', recovery: 45, energy: 93 },
@@ -16,24 +17,8 @@ const users = [
 const now = new Date('2026-09-20T00:00:00.000Z');
 const db = createDb({ url: process.argv[2] });
 const payloads = [];
-const readRefs = [];
+const summaryPayloads = [];
 try {
-  const stores = {
-    withContext: async (id, options, work) => {
-      if (options.executionMode !== 'SHADOW') throw new Error('MODE_MISMATCH');
-      return work({ userId: id });
-    },
-    bodyEnergy: { readLatestCurrent: async context => {
-      const resultId = `synthetic-${context.userId}-body-result`;
-      readRefs.push({ userId: context.userId, resultId });
-      return { row: { user_id: context.userId, execution_mode: 'SHADOW',
-        health_date: '2026-09-20', result_id: resultId },
-      calculation: { value: users.find(user => user.id === context.userId).energy } };
-    } },
-  };
-  const betaPresentation = createPublicBetaPresentation({ stores,
-    policy: publicBetaPolicy({ mode: 'all' }),
-    runtimeCapability: authorizePublicBetaRuntime({ executionMode: 'SHADOW' }) });
   const datasets = Object.fromEntries(users.map(user => [user.id,
     makeDataset({ now, overrides: { 0: { recovery_score: user.recovery } }, withNaps: false })]));
   const deps = {
@@ -46,7 +31,6 @@ try {
     makeCoach: () => fakeCoach(), makeSync: () => ({ syncAll: async () => ({}) }),
     daily: runDaily, weekly: async () => null, proactive: async () => null,
     reap: async () => null, predictionCycle: async () => null, healthspan: async () => null,
-    betaPresentation,
   };
   const env = { telegramBotToken: 'synthetic', dryRun: false, whoopClientId: 'synthetic',
     whoopClientSecret: 'synthetic', openrouterApiKey: 'synthetic', openrouterModel: 'synthetic' };
@@ -55,7 +39,36 @@ try {
     if (result.daily?.status !== 'sent')
       throw new Error(`PAYLOAD_FAILED:${user.id}:${result.daily?.status ?? result.skipped}`);
   }
-  process.stdout.write(`PUBLIC_BETA_CHILD_PAYLOADS=${JSON.stringify({ payloads, readRefs })}\n`);
+  const stores = {
+    withContext: async (id, options, work) => {
+      if (options.executionMode !== 'SHADOW') throw Error('MODE_MISMATCH');
+      return work({ userId: id });
+    },
+    assertCurrent: async () => true,
+    betaSummary: { readCurrent: async context => ({ userId: context.userId, executionMode: 'SHADOW',
+      episodes: [{ metricKey: 'recovery_score', direction: 'LOWER', resultId: `${context.userId}-EPISODE` }],
+      insights: [{ status: 'SUPPORTED', claim: `${context.userId} journal association`,
+        resultId: `${context.userId}-INSIGHT` }] }) },
+  };
+  const presentation = createPublicBetaPresentation({ stores, db,
+    policy: publicBetaPolicy({ mode: 'all' }),
+    runtimeCapability: authorizePublicBetaRuntime({ executionMode: 'SHADOW' }) });
+  const oldPeriod = await deliverPublicBetaSummary({ db, env,
+    user: await db.getUser('alice'), presentation,
+    now: new Date('2026-09-19T00:00:00.000Z'),
+    makeTelegram: ({ chatId }) => ({ async send(text) {
+      summaryPayloads.push({ chatId: String(chatId), text }); return { messageId: summaryPayloads.length };
+    } }) });
+  if (oldPeriod.status !== 'already_sent' || summaryPayloads.length !== 0)
+    throw Error(`BETA_RESTART_DEDUPE_FAILED:${oldPeriod.status}`);
+  for (const user of users) {
+    const result = await deliverPublicBetaSummary({ db, env, user: await db.getUser(user.id),
+      presentation, now, makeTelegram: ({ chatId }) => ({ async send(text) {
+        summaryPayloads.push({ chatId: String(chatId), text }); return { messageId: summaryPayloads.length };
+      } }) });
+    if (result.status !== 'delivered') throw Error(`BETA_SUMMARY_FAILED:${user.id}:${result.status}`);
+  }
+  process.stdout.write(`PUBLIC_BETA_CHILD_PAYLOADS=${JSON.stringify({ payloads, summaryPayloads })}\n`);
 } finally {
   db.close();
 }

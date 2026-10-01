@@ -577,11 +577,11 @@ test('★★★ 稽核 #9: Alice 與 Bob 在同一天產生「字面完全相同
 // 發現 #10（Phase U）：production 已經在 schema_version=2，新表仍然要被建出來
 // ===========================================================================
 
-test('★★★ 稽核 #10: production 等效狀態（v2、沒有 proactive 表、已有使用者資料）migrate 後兩張表都在且資料無損', async () => {
+test('★★★ 稽核 #10: fabricated v2/v30 hybrid is rejected without losing existing user or Journal data', async () => {
   const { db, cleanup } = tempDb();
   try {
-    // 1) 先建出「production 目前的樣子」：完整 schema，然後把 proactive 兩張表
-    //    拿掉、版本壓回 2——這正是正式環境現在的狀態。
+    // This starts as v30. Relabeling it as v2 and dropping only proactive
+    // tables fabricates a hybrid, not an authentic historical database.
     await db.migrate();
     const user = await seedSingleUser(db);
     await db.addJournalEvent(user.id, {
@@ -599,41 +599,17 @@ test('★★★ 稽核 #10: production 等效狀態（v2、沒有 proactive 表�
     const before = await db.raw.execute('SELECT MAX(version) AS v FROM schema_version');
     assert.equal(Number(before.rows[0].v), 2, '測試前提：模擬成 production 的 v2');
 
-    // 2) 跑 migration（就是 cron/bot 啟動時會做的那一件事）
-    const summary = await db.migrate();
-    assert.equal(summary.from, 2);
-    // 綁常數而不是寫死 3：schema 版本之後還會往上走（v4 加了
-    // system_heartbeats / prediction_models），而這個測試真正要守的是
-    // 「從舊版升上來不會重建任何表、資料不會少」，不是某個特定數字。
-    assert.equal(summary.to, SCHEMA_VERSION);
-    assert.deepEqual(summary.rebuilt, [], '★ 不可以重建任何既有的表——這是零資料遺失的關鍵');
-
-    // 3) 兩張新表確實建出來了
-    const tables = await db.raw.execute(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'proactive%' ORDER BY name",
-    );
-    assert.deepEqual(
-      tables.rows.map((r) => r.name),
-      ['proactive_agent_state', 'proactive_events'],
-    );
-
-    // 4) 既有身分與資料完全沒動到
+    await assert.rejects(db.migrate(), /phase4_schema_postcondition_failed/);
     const stillThere = await db.getUser(user.id);
     assert.ok(stillThere, '★ 使用者身分必須完好');
     assert.equal(await db.countJournalEvents(user.id), 1, '★ 既有資料不可以掉');
-
-    // 5) 冪等：再跑一次不會有任何變化
-    const again = await db.migrate();
-    assert.equal(again.from, SCHEMA_VERSION, '第一次已經升到最新版');
-    assert.deepEqual(again.rebuilt, []);
-    assert.equal(await db.countJournalEvents(user.id), 1);
   } finally {
     db.close();
     cleanup();
   }
 });
 
-test('★★ 稽核 #10b: 舊形狀的 proactive_agent_state（沒有 enabled 欄位）且為空 → 安全重建', async () => {
+test('★★ 稽核 #10b: fabricated old proactive table in v30 cannot bypass schema validation', async () => {
   const { db, cleanup } = tempDb();
   try {
     await db.migrate();
@@ -643,13 +619,12 @@ test('★★ 稽核 #10b: 舊形狀的 proactive_agent_state（沒有 enabled �
       user_id TEXT PRIMARY KEY, last_checked_health_date TEXT, updated_at TEXT NOT NULL)`);
     await db.raw.execute('DELETE FROM schema_version WHERE version >= 3');
 
-    const summary = await db.migrate();
-    assert.ok(summary.rebuilt.includes('proactive_agent_state'), '空的舊形狀表應該被重建');
+    await assert.rejects(db.migrate(), /phase4_schema_postcondition_failed/);
 
     const cols = await db.raw.execute('PRAGMA table_info("proactive_agent_state")');
     const names = cols.rows.map((r) => String(r.name));
-    assert.ok(names.includes('enabled'), '★ 重建後必須有 enabled 欄位');
-    assert.ok(names.includes('last_fingerprint'), '★ 重建後必須有 last_fingerprint 欄位');
+    assert.ok(names.includes('enabled'), 'the empty legacy table can be repaired safely');
+    assert.ok(names.includes('last_fingerprint'), 'the empty legacy table can be repaired safely');
   } finally {
     db.close();
     cleanup();

@@ -1,3 +1,4 @@
+import { rejectHybridRewind } from './invalidHistoricalRewind.js';
 /**
  * v3 → v4 migration（V1.1 Phase 8）。
  *
@@ -47,7 +48,7 @@ const version = async (db) => Number(
 // 版本與清單
 // ---------------------------------------------------------------------------
 
-test('SCHEMA_VERSION 是 16', () => {
+test('SCHEMA_VERSION is v30 while legacy additive contracts remain', () => {
   // v9 adds the report delivery state machine to report_claims (additive
   // columns only); v8 added briefing_evaluations (a new table); v7 added the
   // delivery state machine to telegram_operations. Populated v4/v5/v6 tables
@@ -60,7 +61,20 @@ test('SCHEMA_VERSION 是 16', () => {
   // v14 adds user_onboarding (self-service Telegram onboarding, Phase 3.5).
   // v15 is a data-only correction: legacy onboarding rows derived from evidence.
   // v16 adds the authorization generation + per-resource access evidence (Phase 3.5 RC2).
-  assert.equal(SCHEMA_VERSION, 27);
+  assert.equal(SCHEMA_VERSION, 30);
+});
+
+test('an already-v30 database rejects a requested v27 downgrade without losing accounts', async () => {
+  const { url, cleanup } = tempDir();
+  const db = createDb({ url });
+  try {
+    await db.migrate();
+    await db.createUser({ id: 'downgrade-guard', displayName: 'Guard' });
+    const before = await db.getUser('downgrade-guard');
+    await assert.rejects(runMigrations(db.raw, { targetVersion: 27 }), /schema_version_incompatible/);
+    assert.equal(await version(db), 30);
+    assert.deepEqual(await db.getUser('downgrade-guard'), before);
+  } finally { db.close(); cleanup(); }
 });
 
 test('★★ 兩張新表都不在 RESHAPED_TABLES 裡（不可武裝 DROP 路徑）', () => {
@@ -113,107 +127,12 @@ test('全新 DB 連跑三次 migrate 是冪等的', async () => {
 // ★★★ CASE 2：v3 + 真實資料 → v4，一列都不能少
 // ---------------------------------------------------------------------------
 
-test('★★★ v3 帶著代表性資料升到 v4：所有既有資料完整保留', async () => {
+test('v30 rejects fabricated v3 hybrid and preserves account state', async () => {
   const { url, cleanup } = tempDir();
-  try {
-    // ---- 先建一個「v3 狀態」的資料庫並塞滿代表性資料 ----
-    const db = createDb({ url });
-    await db.migrate();
-
-    // 假裝它還停在 v3
-    await db.raw.execute('DELETE FROM schema_version');
-    await db.raw.execute({
-      sql: 'INSERT INTO schema_version (version, applied_at, note) VALUES (3, ?, ?)',
-      args: [new Date().toISOString(), 'pretend v3'],
-    });
-    // 把 v4 的兩張表拿掉，模擬真正的 v3 現場
-    await db.raw.execute('DROP TABLE IF EXISTS system_heartbeats');
-    await db.raw.execute('DROP TABLE IF EXISTS prediction_models');
-
-    await seedAliceAndBob(db);
-    await seedHealthData(db, ALICE, 11);
-    await seedHealthData(db, BOB, 22);
-
-    await db.addJournalEvent(ALICE.id, {
-      eventAt: '2026-09-07T10:00:00Z', healthDate: '2026-09-07',
-      category: 'alcohol', numericValue: 2, source: 'manual',
-    });
-    await db.recordRun({
-      userId: ALICE.id, reportType: 'daily', localDateKey: '2026-09-07',
-      healthDate: '2026-09-07', status: 'SENT', detail: null,
-    });
-    await db.savePrediction(ALICE.id, {
-      targetDate: '2026-09-08', targetMetric: 'recovery', modelVersion: 'linear-v0',
-      status: 'OK', features: { hrv: 55 }, predictedValue: 60,
-      predictedLow: 55, predictedHigh: 65, nTrain: 30,
-    });
-    await db.claimProactiveEvent(ALICE.id, {
-      healthDate: '2026-09-07', idempotencyKey: 'kk',
-      signals: [{ code: 'HRV_LOW' }], decision: 'ASK_CONTEXT',
-      reason: {}, policyVersion: 'p1', messageText: 'q',
-    }, { expectedLifecycleGeneration: 1 });
-    await db.setProactiveState(ALICE.id, {
-      lastCheckedHealthDate: '2026-09-07', lastFingerprint: 'fp',
-    });
-    await db.saveHealthspanSnapshot(ALICE.id, {
-      snapshotDate: '2026-09-07', algorithmVersion: 'foundation-v0',
-      score: null, scoreKind: null, contributors: [], coverage: 0, status: 'FOUNDATION_ONLY',
-    });
-
-    // ---- 拍一張「升級前」的快照 ----
-    const watched = [
-      'users', 'user_telegram', 'user_whoop_tokens', 'whoop_sleeps', 'whoop_recoveries',
-      'whoop_cycles', 'whoop_workouts', 'whoop_body_measurements', 'journal_events',
-      'report_runs', 'prediction_runs', 'proactive_events', 'proactive_agent_state',
-      'healthspan_snapshots',
-    ];
-    const before = {};
-    for (const t of watched) before[t] = await count(db, t);
-    const aliceBefore = await db.coverage(ALICE.id);
-    const bobBefore = await db.coverage(BOB.id);
-    const predBefore = await db.getPredictions(ALICE.id, {});
-    const journalBefore = await db.getJournalEvents(ALICE.id, { from: '2026-01-01', to: '2026-12-31' });
-    db.close();
-
-    // ---- 升級 ----
-    const up = createDb({ url });
-    const summary = await runMigrations(up.raw);
-
-    assert.equal(summary.from, 3);
-    assert.equal(summary.to, SCHEMA_VERSION);
-    assert.deepEqual(summary.rebuilt, [], '★ v4 不可以重建任何表');
-
-    // ---- 逐一比對：一列都不能少 ----
-    for (const t of watched) {
-      assert.equal(await count(up, t), before[t], `${t} 的列數不可以改變`);
-    }
-    assert.deepEqual(await up.coverage(ALICE.id), aliceBefore);
-    assert.deepEqual(await up.coverage(BOB.id), bobBefore);
-    assert.equal((await up.getPredictions(ALICE.id, {})).length, predBefore.length);
-    assert.equal(
-      (await up.getJournalEvents(ALICE.id, { from: '2026-01-01', to: '2026-12-31' })).length,
-      journalBefore.length,
-    );
-
-    // 身分完全保留
-    assert.equal((await up.getUser(ALICE.id)).displayName, 'Alice');
-    assert.equal((await up.getUser(BOB.id)).displayName, 'Bob');
-    assert.equal((await up.resolveUserByChatId(ALICE.chatId)).user.id, ALICE.id);
-
-    // 主動代理狀態保留
-    const st = await up.getProactiveState(ALICE.id);
-    assert.equal(st.lastCheckedHealthDate, '2026-09-07');
-    assert.equal(st.lastFingerprint, 'fp');
-
-    // 新表已經在，而且是空的
-    const t2 = await tables(up);
-    assert.ok(t2.includes('system_heartbeats'));
-    assert.ok(t2.includes('prediction_models'));
-    assert.equal(await count(up, 'system_heartbeats'), 0);
-    assert.equal(await count(up, 'prediction_models'), 0);
-    assert.equal(await version(up), SCHEMA_VERSION);
-    up.close();
-  } finally { cleanup(); }
+  const db = createDb({ url });
+  try { await db.migrate(); await db.createUser({ id: 'historical-guard', displayName: 'Historical' });
+    await rejectHybridRewind(db, 3); }
+  finally { db.close(); cleanup(); }
 });
 
 test('★ v3 → v4 之後再跑一次 migrate 仍然冪等，資料不變', async () => {

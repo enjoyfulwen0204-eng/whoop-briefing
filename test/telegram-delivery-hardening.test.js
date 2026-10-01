@@ -565,7 +565,7 @@ test('★★★ C5b: 依序處理多個使用者 → 每個人都成功，互不
 // 遷移安全（v6 → v7，純加欄位）
 // ===========================================================================
 
-test('★★★ TG-R05 遷移: 舊收據只有「證明得了」的才算送達', async () => {
+test('★★★ TG-R05: fabricated v6/v30 hybrid is rejected while old receipt evidence remains conservative', async () => {
   // v7 之前的順序是「提交收據 → 送出 → 標記 COMPLETED」，所以：
   //   收據在 + 那一則 COMPLETED  ⇒ 當時送出去**成功了**（可以證明）
   //   收據在 + 那一則沒 COMPLETED ⇒ 崩潰在中間，送了沒有**證明不了**
@@ -596,8 +596,7 @@ test('★★★ TG-R05 遷移: 舊收據只有「證明得了」的才算送達'
     });
     await db.raw.execute('DELETE FROM schema_version');
 
-    const summary = await db.migrate();
-    assert.deepEqual(summary.rebuilt, [], '★ 不可以重建（會清掉歷史收據）');
+    await assert.rejects(db.migrate(), /phase4_schema_postcondition_failed/);
 
     assert.equal((await db.getTelegramOperation(11)).deliveryState,
       TELEGRAM_DELIVERY_STATE.DELIVERED,

@@ -19,6 +19,7 @@ import { createPhase4IntelligenceStore } from './phase4IntelligenceStore.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
 import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
 import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
+import { PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
 
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
@@ -145,6 +146,56 @@ export function composePhase4Stores(core) {
       await core.assertControl(control);return preferences(control);
     });
   }
+  /** Public beta inventory. Candidate IDs are discovered here, inside the
+   * typed repository; every returned item then passes its canonical public
+   * reader and the current context/receipt/provenance fences. */
+  async function readBetaSummary(context,{asOfUtc}) {
+    if(typeof asOfUtc!=='string'||!Number.isFinite(Date.parse(asOfUtc)))fail('PHASE4_BETA_TIME_REQUIRED');
+    return core.run(context,async()=>{
+      const {computation}=await core.assertContext(context);
+      if(context.executionMode!=='SHADOW'||computation.last_completed_generation!==context.inputGeneration)
+        return {userId:context.userId,executionMode:context.executionMode,episodes:[],insights:[]};
+      const scope=[context.userId,context.executionMode,context.inputGeneration,asOfUtc];
+      const episodeIds=(await client.execute({sql:`SELECT episode_id FROM observation_episodes
+        WHERE user_id=? AND execution_mode=? AND input_generation=?
+          AND state IN ('OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING')
+          AND julianday(expires_at)>julianday(?) ORDER BY last_material_change_at DESC,episode_id LIMIT 10`,args:scope})).rows;
+      const insightIds=(await client.execute({sql:`SELECT id FROM health_insights
+        WHERE user_id=? AND execution_mode=? AND input_generation=?
+          AND status IN ('EMERGING','SUPPORTED') AND julianday(expires_at)>julianday(?)
+          AND legacy_classification='PHASE4' ORDER BY last_recalculated_at DESC,id LIMIT 10`,args:scope})).rows;
+      const selected={userId:context.userId,executionMode:context.executionMode,episodes:[],insights:[]};
+      for(const {episode_id:id} of episodeIds)try {
+        const {row}=await readArtifact(context,'observation_episodes',{episode_id:id});
+        if(row.state==='EXPIRED'||Date.parse(row.expires_at)<=Date.parse(asOfUtc)||row.subject_key==='body_energy'
+          ||!Object.hasOwn(PHASE4_METRICS,row.subject_key)||row.input_generation!==context.inputGeneration)continue;
+        selected.episodes.push({metricKey:row.subject_key,direction:row.direction,severity:row.severity,
+          resultId:row.episode_id});
+      } catch { /* One invalid item never authorizes a fallback. */ }
+      for(const {id} of insightIds)try {
+        const sealed=await insights.read(context,id,{asOfUtc});
+        if(!['EMERGING','SUPPORTED'].includes(sealed.row.status))continue;
+        const ids=JSON.parse(sealed.revision.supporting_evidence_ids_json??'null');
+        if(!Array.isArray(ids)||!ids.length||ids.length>20)continue;
+        const outcomes=[];
+        for(const evidenceId of ids) {
+          const item=await readArtifact(context,'evidence_items',{evidence_item_id:evidenceId});
+          const provenance=JSON.parse(item.row.provenance_json??'null');
+          if(provenance?.method!=='EXPOSED_VS_CONFIRMED_UNEXPOSED'
+            ||!Object.hasOwn(PHASE4_METRICS,provenance.outcome_metric)
+            ||provenance.outcome_metric==='body_energy'||item.row.causal_status!=='ASSOCIATION_ONLY')
+            fail('PHASE4_BETA_INSIGHT_NOT_APPROVED');
+          outcomes.push(provenance.outcome_metric);
+        }
+        if(new Set(outcomes).size!==1)continue;
+        const claim=sealed.revision.normalized_claim;
+        if(typeof claim!=='string'||!claim.trim()||claim.length>300)continue;
+        selected.insights.push({status:sealed.row.status,claim:claim.trim(),resultId:sealed.row.id});
+      } catch { /* Corrupt or unapproved association stays hidden. */ }
+      await core.assertContext(context);
+      return selected;
+    });
+  }
   return Object.freeze({initializeTenant,withContext:async(userId,options,work)=>{
       const context=await core.capture(userId,options);
       contextScopes.add(context);
@@ -195,6 +246,7 @@ export function composePhase4Stores(core) {
     journal:Object.freeze(Object.fromEntries(Object.entries(journal).filter(([name])=>!['prepareAnswer','forAnswer'].includes(name)))),
     journalInbound:Object.freeze({capture:journalInbound.capture,process:journalInbound.process,route:journalInbound.route}),
     journalCoverage:Object.freeze({read:coverage.read,correct:coverage.correct,remove:coverage.remove}),journalAnswers:Object.freeze(journalAnswers),
+    betaSummary:Object.freeze({readCurrent:readBetaSummary}),
     decisions:Object.freeze({append:(context,data,refs)=>entities.append(context,'phase4_proactive_decisions',data,refs)}),
     evidence:Object.freeze({
       start:(context,data,refs)=>entities.append(context,'evidence_runs',{...data,state:'STARTED'},refs),

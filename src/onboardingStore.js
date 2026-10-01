@@ -36,14 +36,6 @@ import { log } from './logger.js';
 const iso = (v) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
 const STATES = new Set(Object.values(ONBOARDING_STATE));
 
-/** 內部訊號：用來把整個判定交易回滾掉（不會外流給呼叫端）。 */
-class StaleGenerationError extends Error {
-  constructor() {
-    super('stale_authorization');
-    this.name = 'StaleGenerationError';
-  }
-}
-
 /** 這個上線狀態可以被排程器當成正式使用者嗎。**沒有狀態不算 READY。** */
 export const isOnboardingReady = (o) => o?.state === ONBOARDING_STATE.READY;
 
@@ -256,44 +248,42 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
     }
     if (!rows.length) return { ok: true, written: 0 };
 
+    if (new Set(rows.map(row => row[1])).size !== rows.length) {
+      throw new Error('duplicate_resource_access');
+    }
     return inTransaction(async () => {
-      let written = 0;
-      for (const args of rows) {
-        const rs = await client.execute({
-          // INSERT … SELECT … WHERE：條件與寫入在**同一句**裡求值。
-          // （SQLite 也要求 INSERT…SELECT 形式的 upsert 必須有 WHERE 才能
-          //  無歧義地解析 ON CONFLICT —— 圍欄與語法需求剛好重合。）
-          sql: `INSERT INTO whoop_resource_access
-                  (user_id, resource, status, auth_generation, lifecycle_generation, checked_at)
-                SELECT ?, ?, ?, ?, ?, ?
-                 WHERE (SELECT k.auth_generation FROM user_whoop_tokens k
-                         WHERE k.user_id = ?) = ?
-                   AND ${lifecycleActiveSql('?')}
-                ON CONFLICT(user_id, resource) DO UPDATE SET
-                  status = excluded.status,
-                  auth_generation = excluded.auth_generation,
-                  lifecycle_generation = excluded.lifecycle_generation,
-                  checked_at = excluded.checked_at
-                 WHERE excluded.auth_generation >= whoop_resource_access.auth_generation
-                   AND excluded.lifecycle_generation >= whoop_resource_access.lifecycle_generation`,
-          args: [...args, uid, generation, uid,
-            Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null],
-        });
-        if (Number(rs.rowsAffected ?? 0) === 0) {
-          // 世代已經不是我們那一個了。整批作廢 —— 交易回滾，什麼都沒寫。
-          log.warn('resource_access_stale_generation', {
-            user_id: uid, expected_generation: generation,
-          });
-          throw new StaleGenerationError();
-        }
-        written += 1;
-      }
-      return { ok: true, written };
-    }).catch((err) => {
-      if (err instanceof StaleGenerationError) {
-        return { ok: false, written: 0, reason: 'stale_authorization' };
-      }
-      throw err;
+      // A single statement is the batch boundary. Returning a typed denial
+      // never poisons a caller's surrounding processing transaction, and a
+      // generation change cannot leave a partially written verdict batch.
+      const incoming = rows.map(() => '(?,?,?,?,?,?)').join(',');
+      const rs = await client.execute({
+        sql: `WITH incoming(user_id,resource,status,auth_generation,lifecycle_generation,checked_at)
+                AS (VALUES ${incoming})
+              INSERT INTO whoop_resource_access
+                (user_id,resource,status,auth_generation,lifecycle_generation,checked_at)
+              SELECT i.user_id,i.resource,i.status,i.auth_generation,i.lifecycle_generation,i.checked_at
+                FROM incoming i
+               WHERE (SELECT k.auth_generation FROM user_whoop_tokens k WHERE k.user_id=?)=?
+                 AND ${lifecycleActiveSql('?')}
+                 AND NOT EXISTS (SELECT 1 FROM incoming x JOIN whoop_resource_access old
+                   ON old.user_id=x.user_id AND old.resource=x.resource
+                   WHERE old.auth_generation>x.auth_generation
+                      OR old.lifecycle_generation>x.lifecycle_generation)
+              ON CONFLICT(user_id,resource) DO UPDATE SET
+                status=excluded.status,auth_generation=excluded.auth_generation,
+                lifecycle_generation=excluded.lifecycle_generation,checked_at=excluded.checked_at`,
+        args: [...rows.flat(), uid, generation, uid,
+          Number.isInteger(expectedLifecycleGeneration) ? expectedLifecycleGeneration : null],
+      });
+      if (Number(rs.rowsAffected ?? 0) === rows.length) return { ok: true, written: rows.length };
+      const authority = (await client.execute({ sql: `SELECT u.status,u.lifecycle_generation,
+          (SELECT auth_generation FROM user_whoop_tokens WHERE user_id=u.id) auth_generation
+          FROM users u WHERE u.id=?`, args: [uid] })).rows[0];
+      const inactive = !authority || authority.status !== USER_STATUS.ACTIVE
+        || (Number.isInteger(expectedLifecycleGeneration)
+          && authority.lifecycle_generation !== expectedLifecycleGeneration);
+      log.warn('resource_access_stale_generation', { user_id: uid, expected_generation: generation });
+      return { ok: false, written: 0, reason: inactive ? 'account_inactive' : 'stale_authorization' };
     });
   }
 
@@ -617,8 +607,9 @@ export function createOnboardingStore(client, { transaction = null } = {}) {
       });
       return { ok: false, attempts, reason: 'stale_authorization' };
     }
+    if (!states.includes(row.state)) return { ok: false, attempts, reason: `state:${row.state}` };
     if (attempts < maxAttempts) return { ok: false, attempts, reason: 'below_threshold' };
-    return { ok: false, attempts, reason: `state:${row.state}` };
+    return { ok: false, attempts, reason: 'threshold_not_applied' };
   }
 
   /**

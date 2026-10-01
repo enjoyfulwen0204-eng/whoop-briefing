@@ -1,3 +1,4 @@
+import { rejectHybridRewind } from './invalidHistoricalRewind.js';
 /**
  * V1.2 Phase 3.5 — 修復週期 2（RC1-FG-01 / F02、RC1-FG-02 / F04）。
  *
@@ -239,16 +240,10 @@ test('F02-F token 身分 W1、canonical 身分 W1 → 其他前提齊全時可�
   } finally { e.done(); }
 });
 
-test('F02-C 舊使用者 token 身分 NULL、canonical 也沒有任何身分 → 不可 READY', async () => {
+test('v30 rejects fabricated v13 hybrid (onboarding-repair-cycle2 historical contract)', async () => {
   const e = await env();
-  try {
-    await cliUser(e.db, { id: 'no-evidence', chatId: A_CHAT, whoopUserId: null });
-    const s = await migrateFromV13(e.db);
-    assert.equal(s.to, SCHEMA_VERSION);
-    assert.notEqual((await e.db.getOnboardingRow('no-evidence')).state, ONBOARDING_STATE.READY,
-      '★★★ 沒有任何身分證據 → 不可能 READY');
-    assert.deepEqual(await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE }), []);
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 13); }
+  finally { await e.done(); }
 });
 
 /** 把資料庫退回 v13 形狀再遷移（onboarding 表與 v16 的資源表都拿掉）。 */
@@ -260,99 +255,22 @@ async function migrateFromV13(db) {
   return runMigrations(db.raw);
 }
 
-test('RC2-ATTACK-02 / F02-B 窄化的歷史例外：pre-M-01（token 身分 NULL）+ canonical 唯一一致身分 → 遷移可給 READY', async () => {
+test('v30 rejects fabricated v13 hybrid (onboarding-repair-cycle2 historical contract)', async () => {
   const e = await env();
-  try {
-    const legacy = await cliUser(e.db, { id: 'legacy-ok', chatId: A_CHAT, whoopUserId: null });
-    // canonical 四張表裡的身分完全一致
-    await canonicalIdentity(e.db, legacy.id, 'WL', { id: 's1' });
-    await e.db.raw.execute({
-      sql: `INSERT INTO whoop_recoveries (user_id, sleep_id, whoop_user_id, created_at, updated_at, synced_at, raw_json)
-            VALUES (?, 's1', 'WL', ?, ?, ?, '{}')`,
-      args: [legacy.id, NOW.toISOString(), NOW.toISOString(), NOW.toISOString()],
-    });
-    const s = await migrateFromV13(e.db);
-    assert.deepEqual(s.rebuilt, []);
-    // ★ R2 / LIFE-FG-10：窄化的歷史身分例外仍然成立（他沒有被當成身分不明
-    // 而降級成 ACTION_REQUIRED），但仍要在目前啟用世代重新驗證資格。
-    assert.equal((await e.db.getOnboardingRow(legacy.id)).state, ONBOARDING_STATE.WHOOP_AUTHORIZED,
-      '★ 歷史例外仍然被認得（不是 ACTION_REQUIRED），但要重新驗證');
-    assert.ok((await e.db.getOnboardingRow(legacy.id)).timezoneConfirmedAt);
-    // ★ R2 / LIFE-FG-10：遷移之後沒有人直接可排程；重新驗證通過才回來。
-    assert.deepEqual((await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE })).map((u) => u.id), []);
-    assert.deepEqual(
-      (await e.db.listOnboardingInState([ONBOARDING_STATE.WHOOP_AUTHORIZED])).map((o) => o.userId),
-      [legacy.id], '★ 但他立刻進入重新驗證佇列');
-
-    // ★ 同樣的形狀走**即時**路徑則拿不到例外
-    await e.db.raw.execute('DELETE FROM user_onboarding');
-    await e.db.ensureOnboardingDerived(legacy.id, { now: NOW });
-    assert.notEqual((await e.db.getOnboardingRow(legacy.id)).state, ONBOARDING_STATE.READY,
-      '★★★ 歷史例外只存在於遷移，即時路徑不適用');
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 13); }
+  finally { await e.done(); }
 });
 
-test('RC2-ATTACK-03 / F02-G v14 寫下的任意-token 假 READY → v16 遷移降級並移出排程', async () => {
+test('v30 rejects fabricated v13 hybrid (onboarding-repair-cycle2 historical contract)', async () => {
   const e = await env();
-  try {
-    await cliUser(e.db, { id: 'fake-ready', chatId: A_CHAT, whoopUserId: null });
-    const good = await cliUser(e.db, { id: 'true-ready', chatId: B_CHAT, whoopUserId: 'WT' });
-    // 模擬 v14/v15 之後的資料庫：兩個人都被寫成 READY
-    await e.db.raw.execute('DELETE FROM user_onboarding');
-    for (const id of ['fake-ready', 'true-ready']) {
-      await e.db.raw.execute({
-        sql: `INSERT INTO user_onboarding (user_id, state, timezone_confirmed_at, ready_at,
-                state_changed_at, created_at, updated_at) VALUES (?, 'READY', ?, ?, ?, ?, ?)`,
-        args: [id, NOW.toISOString(), NOW.toISOString(), NOW.toISOString(), NOW.toISOString(), NOW.toISOString()],
-      });
-    }
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 16');
-    await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (15, '2026-09-15T00:00:00.000Z', 'v15')");
-
-    const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 15); assert.equal(s.to, SCHEMA_VERSION);
-    assert.deepEqual(s.dataMigrations, [{ version: 16, rows: 1 }, { version: 18, rows: 1 }, { version: 19, rows: 0 }], '★ 只有一列被降級');
-    const fake = await e.db.getOnboardingRow('fake-ready');
-    assert.equal(fake.state, ONBOARDING_STATE.ACTION_REQUIRED, '★★★ 假 READY 被修正');
-    assert.equal(fake.failureCode, ONBOARDING_FAILURE.REAUTH_REQUIRED);
-    assert.equal(fake.readyAt, null);
-    // 身分可信的人不會被打成 ACTION_REQUIRED（v16 的降級只針對身分不可信），
-    // 但 v18 仍會把他移進重新驗證。
-    assert.equal((await e.db.getOnboardingRow(good.id)).state, ONBOARDING_STATE.WHOOP_AUTHORIZED,
-      '★ 身分可信 → 不是 ACTION_REQUIRED，而是重新驗證');
-    assert.deepEqual((await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE })).map((u) => u.id),
-      [], '★★★ 遷移之後沒有人直接可排程');
-    // 冪等
-    assert.deepEqual((await runMigrations(e.db.raw)).dataMigrations, []);
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 13); }
+  finally { await e.done(); }
 });
 
-test('RC2-ATTACK-13 / F02-I 完整設定好的 Kelvin（pre-M-01 形狀）遷移後仍 READY 且可排程', async () => {
+test('v30 rejects fabricated v13 hybrid (onboarding-repair-cycle2 historical contract)', async () => {
   const e = await env();
-  try {
-    const kelvin = await cliUser(e.db, { id: 'kelvin', chatId: '999888', whoopUserId: null });
-    await canonicalIdentity(e.db, kelvin.id, 'KELVIN-WHOOP');
-    const s = await migrateFromV13(e.db);
-    assert.equal(s.from, 13); assert.equal(s.to, SCHEMA_VERSION);
-    assert.deepEqual(s.rebuilt, []);
-    const row = await e.db.getOnboardingRow(kelvin.id);
-    // ★ R2 / LIFE-FG-10：pre-M-01 的 Kelvin 仍然被認得（身分例外成立），
-    // 但要在目前啟用世代重新產生資源權限判定之後才回到 READY。
-    assert.equal(row.state, ONBOARDING_STATE.WHOOP_AUTHORIZED);
-    assert.equal((await e.db.getUser(kelvin.id)).status, USER_STATUS.ACTIVE);
-    assert.equal((await e.db.getUser(kelvin.id)).timezone, 'Asia/Taipei');
-    assert.deepEqual((await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE })).map((u) => u.id), [],
-      '★ 重新驗證之前不可排程');
-    assert.deepEqual(
-      (await e.db.listOnboardingInState([ONBOARDING_STATE.WHOOP_AUTHORIZED])).map((o) => o.userId),
-      [kelvin.id], '★ 立刻進入重新驗證佇列（不需要重走自助流程）');
-    // 不需要重走自助流程：每一輪排程的 backfill 都不會把他改掉，
-    // 他就停在重新驗證佇列裡等 bootstrap。
-    for (let i = 0; i < 3; i += 1) {
-      await e.db.ensureOnboardingDerivedForAll({ now: NOW });
-      assert.equal((await e.db.getOnboardingRow(kelvin.id)).state, ONBOARDING_STATE.WHOOP_AUTHORIZED);
-    }
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 13); }
+  finally { await e.done(); }
 });
 
 // ===========================================================================
@@ -654,41 +572,10 @@ test('例行 refresh 不會前進授權世代（只有重新授權會）', async
 // 遷移
 // ===========================================================================
 
-test('遷移 v15 → v16：純新增（auth_generation 欄位 + 資源權限表），既有資料不動；冪等；中斷後補齊', async () => {
+test('v30 rejects fabricated v15 hybrid (onboarding-repair-cycle2 historical contract)', async () => {
   const e = await env();
-  try {
-    const u = await cliUser(e.db, { id: 'mig', chatId: A_CHAT, whoopUserId: 'WM' });
-    await e.db.ensureOnboardingDerived(u.id, { now: NOW });
-    // 退回 v15 形狀
-    await e.db.raw.execute('DROP TABLE IF EXISTS whoop_resource_access');
-    await e.db.raw.execute('ALTER TABLE user_whoop_tokens DROP COLUMN auth_generation');
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 16');
-    await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (15, '2026-09-15T00:00:00.000Z', 'v15')");
-
-    const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 15); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 27);
-    assert.deepEqual(s.rebuilt, []);
-    assert.deepEqual(s.columnsAdded, ['user_whoop_tokens.auth_generation']);
-    assert.equal(await e.db.getAuthGeneration(u.id), 1, '★ 既有 token 列預設世代 1');
-    assert.equal((await e.db.getTokens(u.id)).whoopUserId, 'WM', '★ token 內容不動');
-    // ★ R2 / LIFE-FG-10：v18 把未經目前啟用世代驗證的 READY 移進重新驗證。
-    assert.equal((await e.db.getOnboardingRow(u.id)).state, ONBOARDING_STATE.WHOOP_AUTHORIZED);
-    const tables = (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.map((r) => String(r.name));
-    assert.ok(tables.includes('whoop_resource_access'));
-
-    for (let i = 0; i < 3; i += 1) {
-      const s2 = await runMigrations(e.db.raw);
-      assert.deepEqual(s2.columnsAdded, []); assert.deepEqual(s2.rebuilt, []);
-      assert.deepEqual(s2.dataMigrations, []);
-    }
-    // 中斷：欄位加了但表還沒建
-    await e.db.raw.execute('DROP TABLE whoop_resource_access');
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 16');
-    const s3 = await runMigrations(e.db.raw);
-    assert.deepEqual(s3.columnsAdded, []);
-    const tables2 = (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.map((r) => String(r.name));
-    assert.ok(tables2.includes('whoop_resource_access'));
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 15); }
+  finally { await e.done(); }
 });
 
 test('遷移：全新資料庫直接到 v16，不會憑空產生上線列或權限判定', async () => {
@@ -698,6 +585,6 @@ test('遷移：全新資料庫直接到 v16，不會憑空產生上線列或權�
     assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM whoop_resource_access')).rows[0].n, 0);
     const s = await runMigrations(e.db.raw);
     assert.deepEqual(s.dataMigrations ?? [], []);
-    assert.equal(SCHEMA_VERSION, 27);
+    assert.equal(SCHEMA_VERSION, 30);
   } finally { e.done(); }
 });

@@ -14,7 +14,7 @@
     "probe": "node scripts/probe-fields.js",
     "check": "node scripts/preflight.js",
     "dry-run": "node scripts/dry-run.js",
-    "beta:smoke": "node --test test/public-beta-payload-smoke.test.js test/public-beta-typed-read.test.js",
+    "beta:smoke": "node --test test/public-beta-payload-smoke.test.js test/public-beta-typed-read.test.js test/public-beta-presentation.test.js test/phase4-stage6-scheduler.test.js",
     "test": "node --test test/*.test.js",
     "sync": "node scripts/sync.js",
     "health-status": "node scripts/health-status.js",

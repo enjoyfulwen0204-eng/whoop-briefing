@@ -381,6 +381,23 @@ test('FG-08 未達上限的一般性故障 → RETRY，不通知、不 ACTION_RE
   } finally { e.done(); }
 });
 
+test('terminal concurrent bootstrap state is SKIPPED and cannot become an infinite RETRY', async () => {
+  const e = await env();
+  try {
+    const user = await authorize(e.db, A_CHAT);
+    const notes = [];
+    const boot = await runOnboardingBootstrap({ db: e.db, userId: user.id, env: {},
+      now: () => NOW, deps: failingDeps({ db: e.db, notes, onBeforeFailure: async () => {
+        await e.db.raw.execute({ sql: "UPDATE user_onboarding SET state='READY' WHERE user_id=?",
+          args: [user.id] });
+      } }) });
+    assert.equal(boot.result, BOOTSTRAP_RESULT.SKIPPED);
+    assert.equal(boot.reason, 'state:READY');
+    assert.deepEqual(notes, []);
+    assert.equal((await e.db.getOnboarding(user.id)).state, ONBOARDING_STATE.READY);
+  } finally { e.done(); }
+});
+
 test('FG-09 一次成功的重新授權之後，斷路器從頭開始（額度真的可用）', async () => {
   const e = await env();
   try {

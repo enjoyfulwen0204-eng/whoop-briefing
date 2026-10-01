@@ -1,3 +1,4 @@
+import { rejectHybridRewind } from './invalidHistoricalRewind.js';
 /**
  * V1.2 Phase 3 — 攝取 / 分析解耦。
  *
@@ -709,39 +710,10 @@ test('認領：同 (user, class) 只有一個持有者；不同 class 可並行�
   } finally { e.done(); }
 });
 
-test('遷移 v11 → v15：純新增（四張表 + v13 三欄 + v14 上線表），零重建、既有資料一列不動；冪等；全新 DB；中斷後補齊', async () => {
+test('v30 rejects fabricated v11 hybrid (analytics-decoupling historical contract)', async () => {
   const e = await env();
-  try {
-    await e.db.upsertSleeps(ALICE.id, [sleepRecord({ id: sid(1) })], { timezone: TZ });
-    await webhookDelete(e.db, ALICE, 'sleep', sid(1));
-    const NEW = ['analytics_invalidation', 'analytics_work_state', 'analytics_daily_state', 'analytics_runs'];
-    const tables = async () => (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")).rows.map((r) => String(r.name));
-    // 退回 v11 形狀
-    for (const t of [...NEW, 'user_onboarding']) await e.db.raw.execute(`DROP TABLE IF EXISTS ${t}`);
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 12');
-    await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (11, '2026-09-10T00:00:00.000Z', 'v11')");
-    for (const t of NEW) assert.ok(!(await tables()).includes(t));
-    const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 11); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 27);
-    assert.deepEqual(s.rebuilt, []); assert.deepEqual(s.columnsAdded, [], '從 v11 起跳：新表由 CREATE TABLE 直接建齊（含 v13 欄位）');
-    for (const t of NEW) assert.ok((await tables()).includes(t));
-    assert.equal((await e.db.getTombstone(ALICE.id, 'sleep', sid(1))).state, TOMBSTONE_STATE.ACTIVE, '墓碑原封不動');
-    assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM whoop_reconciliation_state')).rows[0].n, 0);
-    for (let i = 0; i < 3; i += 1) { const s2 = await runMigrations(e.db.raw); assert.deepEqual(s2.rebuilt, []); assert.deepEqual(s2.columnsAdded, []); }
-    // 中斷：只建了第一張表
-    for (const t of NEW) await e.db.raw.execute(`DROP TABLE ${t}`);
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 12');
-    await e.db.raw.execute(ANALYTICS_WORK_SCHEMA[0]);
-    const s3 = await runMigrations(e.db.raw);
-    assert.deepEqual(s3.rebuilt, []);
-    for (const t of NEW) assert.ok((await tables()).includes(t));
-    // 升級後失效機制可用
-    await e.db.upsertSleeps(ALICE.id, [sleepRecord({ id: sid(2), daysAgo: 3, updatedAt: at(3) })], { timezone: TZ });
-    assert.equal(await gen(e.db), 1);
-    const reshaped = RESHAPED_TABLES.map((r) => r.table);
-    for (const t of NEW) assert.ok(!reshaped.includes(t));
-    assert.ok(ANALYTICS_WORK_SCHEMA.every((x) => /IF NOT EXISTS/.test(x)));
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 11); }
+  finally { await e.done(); }
 });
 
 test('回歸守衛：正式排程器沒有接線 Phase 3 工作者；webhook 入站路由沒有分析', () => {

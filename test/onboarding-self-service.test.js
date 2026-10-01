@@ -1,3 +1,4 @@
+import { rejectHybridRewind } from './invalidHistoricalRewind.js';
 /**
  * V1.2 Phase 3.5 — 自助 Telegram 上線。
  *
@@ -635,96 +636,16 @@ test('ONB-ATTACK-19 / 20 排程器只看 READY：上線中的人不會被排程�
   } finally { e.done(); }
 });
 
-test('ONB-ATTACK-24 舊使用者（Kelvin）遷移：資料全留、進入重新驗證，不會假 READY', async () => {
+test('v30 rejects fabricated v13 hybrid (onboarding-self-service historical contract)', async () => {
   const e = await env();
-  try {
-    // 真的 v13 形狀：沒有 user_onboarding 表
-    const kelvin = await e.db.createUser({ displayName: 'Kelvin', timezone: 'Asia/Taipei', now: NOW });
-    await e.db.linkTelegram({ chatId: '999888', userId: kelvin.id, now: NOW });
-    await e.db.saveTokens(kelvin.id, {
-      accessToken: 'at', refreshToken: 'rt', expiresAt: new Date(NOW.getTime() + HOUR),
-      scope: 'offline', whoopUserId: 'KELVIN1',
-    });
-    // 「完整設定好」的形狀：同步狀態與 capability 盤點都存在
-    await e.db.saveSyncState(kelvin.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
-    await e.db.saveCapabilities(kelvin.id, [
-      { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
-    ], { expectedLifecycleGeneration: (await e.db.getUser(kelvin.id)).lifecycleGeneration, now: NOW });
-    await e.db.raw.execute('DROP TABLE user_onboarding');
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 14');
-    await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (13, '2026-09-14T00:00:00.000Z', 'v13')");
-
-    const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 13); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 27);
-    assert.deepEqual(summary.rebuilt, []);
-    assert.deepEqual(summary.columnsAdded, []);
-    // v14 依證據建列（Kelvin 證據齊全 → READY）；v15 的修正沒有東西要改
-    // ★ R2 / LIFE-FG-10：v18 把「遷移寫下的 READY」降級成可續跑的
-    // WHOOP_AUTHORIZED —— 因為執行期的 READY 述詞現在要求「目前啟用世代的
-    // 資源權限判定」，而 v13 時代的資料一列都沒有。遷移**不捏造**那些判定。
-    assert.deepEqual(summary.dataMigrations,
-      [{ version: 14, rows: 1 }, { version: 15, rows: 0 }, { version: 16, rows: 0 },
-        { version: 18, rows: 1 }, { version: 19, rows: 0 }]);
-
-    const row = await e.db.getOnboardingRow(kelvin.id);
-    assert.equal(row.state, ONBOARDING_STATE.WHOOP_AUTHORIZED,
-      '★★★ 遷移不可以留下一個執行期述詞會拒絕的 READY');
-    assert.equal((await e.db.getUser(kelvin.id)).status, USER_STATUS.ACTIVE);
-    assert.equal((await e.db.getUser(kelvin.id)).timezone, 'Asia/Taipei');
-    assert.equal((await e.db.getTokens(kelvin.id)).whoopUserId, 'KELVIN1');
-    assert.equal((await e.db.getUser(kelvin.id)).lifecycleGeneration, 1, '★ 世代從 1 開始');
-    assert.deepEqual(
-      (await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE })).map((u) => u.id),
-      [], '★★★ 還沒重新驗證之前不可以被排程（不會發出無根據的報告）',
-    );
-    // ★ 但他**沒有被丟掉**：綁定、token、時區、歷史資料都在，而且
-    // bootstrap 會立刻接手，在目前的啟用世代產生真實證據後自動回到 READY。
-    assert.deepEqual(
-      (await e.db.listOnboardingInState([ONBOARDING_STATE.WHOOP_AUTHORIZED])).map((o) => o.userId),
-      [kelvin.id], '★★★ 立刻進入重新驗證佇列，不需要人工重新連接',
-    );
-    const boot = await runOnboardingBootstrap({
-      db: e.db, userId: kelvin.id, env: {}, now: () => NOW, deps: fakeBootstrapDeps({ db: e.db }),
-    });
-    assert.equal(boot.result, BOOTSTRAP_RESULT.READY, '★★★ 重新驗證之後自動回到 READY');
-    assert.deepEqual(
-      (await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE })).map((u) => u.id),
-      [kelvin.id], '★★★ 收斂完成：Kelvin 又可以被排程了');
-
-    assert.ok(row.timezoneConfirmedAt, '★ 完整設定好的既有使用者視為時區已確認');
-    // 冪等：重跑三次不再動任何東西
-    for (let i = 0; i < 3; i += 1) {
-      const s2 = await runMigrations(e.db.raw);
-      assert.deepEqual(s2.rebuilt, []); assert.deepEqual(s2.columnsAdded, []);
-      assert.deepEqual(s2.dataMigrations, [], '★ 版本已經到了 → 資料遷移不再跑');
-    }
-    assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM user_onboarding')).rows[0].n, 1);
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 13); }
+  finally { await e.done(); }
 });
 
-test('遷移 v13 → v15：中斷後重跑補齊；全新資料庫不會憑空產生上線列', async () => {
+test('v30 rejects fabricated v13 hybrid (onboarding-self-service historical contract)', async () => {
   const e = await env();
-  try {
-    // 全新 DB（from = 0）：沒有使用者 → 資料遷移不做任何事
-    assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM user_onboarding')).rows[0].n, 0);
-    const fresh = await runMigrations(e.db.raw);
-    assert.deepEqual(fresh.dataMigrations ?? [], []);
-
-    // 中斷：表建好了但版本沒寫進去
-    const u = await e.db.createUser({ displayName: 'legacy', timezone: 'Asia/Taipei', now: NOW });
-    await e.db.raw.execute('DELETE FROM user_onboarding');
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 14');
-    await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (13, '2026-09-14T00:00:00.000Z', 'v13')");
-    const s = await runMigrations(e.db.raw);
-    // 這個使用者從來就不是 READY（只有帳號），所以 v18 沒有東西要降級。
-    assert.deepEqual(s.dataMigrations, [{ version: 14, rows: 1 }, { version: 15, rows: 0 }, { version: 16, rows: 0 },
-      { version: 18, rows: 0 }, { version: 19, rows: 0 }]);
-    // 這個使用者只有帳號，沒有綁定 / token → truthful 的狀態是 STARTED，不是 READY
-    assert.equal((await e.db.getOnboardingRow(u.id)).state, ONBOARDING_STATE.STARTED);
-    assert.equal((await e.db.getOnboardingRow(u.id)).timezoneConfirmedAt, null);
-    assert.deepEqual(await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE }), [],
-      '★ 不完整的既有使用者不會被排程');
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 13); }
+  finally { await e.done(); }
 });
 
 // ===========================================================================

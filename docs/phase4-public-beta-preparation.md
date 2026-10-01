@@ -1,37 +1,57 @@
 # Phase 4 Stage 1–6 Public Beta preparation
 
-This preparation adds a separate presentation authority for one Stage 1–6 surface: a Body Energy section in the existing daily Telegram briefing. The section is optional. It comes from `bodyEnergy.readLatestCurrent` through the public SHADOW repository, which checks tenant, execution mode, current input generation, completed generation, retained source authority, and the v27 operation receipt. A missing, stale, invalidated, redacted, ambiguous, corrupt, privacy-fenced, or unavailable result is omitted. Rendering never starts computation or reads Phase 4 tables directly. The existing legacy daily briefing continues.
+This is repository preparation, not activation. The checked-in beta runtime and presentation gates remain OFF. Schema remains v30; v31 and v32 are reserved for later stages.
 
-The Stage 6 worker remains SHADOW-only. `src/publicBetaEntry.js` is a separate explicit server composition: it requires an issued in-process Public Beta runtime capability, the existing Stage 6 SHADOW worker capability, an explicit database, and the two Phase 4 keys. `npm start` and the normal `runBriefing` composition do not issue either capability. The webhook chooses this composition only when `PHASE4_BETA_SHADOW_RUNTIME=on`. This switch does not make a user eligible for presentation; `PHASE4_PUBLIC_BETA_MODE` separately controls that. The existing Foundation flags remain off, including `PHASE4_MORNING_BRIEF`, `PHASE4_QA_CONTEXT`, and `PHASE4_REANALYSIS_WORKER`. None is a substitute for these capabilities.
+## Release surface
+
+| Stage 1–6 intelligence | Public Beta classification | User-visible behavior |
+| --- | --- | --- |
+| Recovery and other approved derived metric deviations | PRESENTED | Current, active episodes are summarized as a metric relative to the user's personal baseline. |
+| Episode state and severity | SHADOW-ONLY BY DESIGN | The summary gives concise context; operational state and severity are not exposed as independent UI. |
+| Supported or emerging Journal associations/correlations with approved outcome metrics | PRESENTED | Current, receipt-checked insight claims appear as associations, with no causal claim. |
+| Raw WHOOP facts, Journal entries, evidence runs/items, provenance, receipts, revisions, queue jobs and diagnostics | SHADOW-ONLY BY DESIGN | These support typed authority and audits; no raw record is a public message. |
+| Proactive proposals, notification slots, preferences, work tips and family directory | SHADOW-ONLY BY DESIGN | Stage 6 produces/maintains them without adding an interaction surface. |
+| Body Energy results, checkpoints, scores and Body Energy-derived associations | NOT YET AUTHORIZED FOR PUBLICATION | Calibration/publication approval is unsatisfied; no runtime cohort setting can display them. Computation and durable SHADOW state remain. |
+| Stage 7 Quick Actions, buttons, callbacks, trusted registry and Journal provenance | NOT YET AUTHORIZED FOR PUBLICATION | No Stage 7 interaction in this release. |
+| Stage 8 Owner/Family View | NOT YET AUTHORIZED FOR PUBLICATION | No v32 interaction in this release. |
+
+This gives beta users real, current Core intelligence to observe and report: personal recovery deviations and supported/emerging Journal associations. It does not claim a separate UI for every internal object. Existing daily and weekly legacy reports remain available.
+
+## Authority, ordering and delivery
+
+The optional **Phase 4 Beta Summary** is read-only Telegram text. For each scheduled user, source sync and durable input processing precede the bounded Stage 6 SHADOW drain. Each user's semantic as-of time is captured immediately before that post-drain read. The repository's `betaSummary.readCurrent` calls the canonical typed episode and insight readers, checks receipts/provenance, current generation, completion, expiry/as-of, tenant and SHADOW mode, and omits any invalid item. The presenter receives only a small whitelisted projection. The typed Body Energy reader stays available to internal SHADOW code; the presentation object has no Body Energy publication helper.
+
+The summary reads the target user's canonical display name at render time. A blank name yields a neutral heading. The active chat binding is resolved for the same user and lifecycle generation. Immediately before send, the held Phase 4 context and typed item set are rechecked at the actual current time, followed by the account delivery authorization fence. An expired, stale or privacy-fenced item cannot pass to transport. The pre-sync daily/weekly order is unchanged.
+
+A summary is sent at most once per user and local date. The existing durable `report_claims` authority uses report type `phase4_beta_summary`; it fences overlap, retry, ambiguity and restart. A definite pre-send failure can be retried. No new schema or delivery table is needed. If no current approved item exists, no summary is sent. The beta cohort is OFF by default.
 
 ## Configuration for a later activation review
 
 | Setting | Preparation/default | Proposed initial cohort | Expansion | Rollback |
 | --- | --- | --- | --- | --- |
-| `PHASE4_BETA_SHADOW_RUNTIME` | `off` (absent means off) | `on` only in the approved explicit runtime composition | `on` | `off` |
-| `PHASE4_PUBLIC_BETA_MODE` | `off` (absent means off) | `allowlist` | `allowlist`, then `all` | `off` first |
-| `PHASE4_PUBLIC_BETA_USER_IDS` | absent/empty | comma-separated canonical internal `users.id` values | update IDs, then empty for `all` | empty |
-| `PHASE4_LOOKUP_KEY` | absent before migration; required for explicit beta runtime | existing Phase 4 lookup key | same key | retain for v30 legacy/Phase 4 authority; never rotate as rollback |
-| `PHASE4_AUDIT_KEY` | absent before migration; required for explicit beta runtime | existing Phase 4 audit key | same key | retain for v30 legacy/Phase 4 authority; never rotate as rollback |
-| 13 Foundation `PHASE4_*` flags | all off | all off | all off | all off |
+| `PHASE4_BETA_SHADOW_RUNTIME` | `off` | `on` in explicit beta composition | `on` | `off` |
+| `PHASE4_PUBLIC_BETA_MODE` | `off` | `allowlist` | `all` after review | `off` first |
+| `PHASE4_PUBLIC_BETA_USER_IDS` | empty | canonical internal `users.id` list | update list | empty |
+| `PHASE4_LOOKUP_KEY`, `PHASE4_AUDIT_KEY` | existing Phase 4 authority | retain same keys | retain | retain, never rotate as rollback |
+| 13 Foundation `PHASE4_*` flags | off | off | off | off |
 
-The two key settings are hex-encoded, distinct, and at least 32 bytes each. They must match the authority already used by schema migrations and stored artifacts. A missing/malformed key or invalid gate mode fails closed. Secret values must never appear in logs, review reports, or this document. Existing WHOOP, Turso, OpenRouter, Telegram, and `BRIEFING_TRIGGER_SECRET` configuration remains required by the current service; no value changes are proposed here.
+The lookup and audit keys are distinct hex-encoded secrets of at least 32 bytes and must match existing stored authority. Missing/malformed keys or an invalid gate fail closed. Secret values must never enter logs or review reports. `npm start` and the ordinary runner do not issue a beta runtime capability. The explicit `src/publicBetaEntry.js` composition is SHADOW-only. The webhook selects it only with `PHASE4_BETA_SHADOW_RUNTIME=on`; the separate cohort mode controls presentation. No deployment definitions are activated by this preparation.
 
-The admission switch is intentionally **not active** in the checked-in deployment definitions. At activation review, select the exact reviewed commit for Render and GitHub, configure the two key secrets and the three beta settings in each runtime, and change the GitHub scheduled command from `npm start` to `node src/publicBetaEntry.js`. The authenticated Render briefing endpoint can then select the explicit beta composition. Do not treat a repository branch or a working tree as deployment identity. Confirm the live environment and key authority before any change; repository files alone do not establish current live values.
+## Mandatory deployment precheck before activation
 
-Cloudflare's later target cron is `*/10 0-3 * * *` (08:00 inclusive to 12:00 exclusive Asia/Taipei). The checked-in cron remains `*/10 * * * *` during preparation. GitHub stays hourly (`17 * * * *`) and runs directly as background/out-of-window fallback, or in-window fallback when Cloudflare is stale. Event and manual calls retain their own attribution. Change the live Cloudflare cron only after review. Preserve a record of the prior live scheduler configuration for rollback.
+1. Inspect the actual Render deployed commit, service command, env settings and scheduler endpoint configuration.
+2. Inspect the actual GitHub scheduled workflow state, active branch/commit, command and beta environment configuration.
+3. Inspect the actual Cloudflare deployed Worker commit/configuration and live cron, including the authenticated trigger path.
+4. Verify production beta gate values, cohort IDs, Phase 4 key authority and the current scheduler overlap behavior in each runtime. Repository files do not prove live state.
+5. Record the prior live values before any activation. Do not infer them from this branch.
 
-## Rollback after activation
+Cloudflare's later target cron is `*/10 0-3 * * *` (08:00 to before 12:00 Asia/Taipei); checked-in cadence remains unchanged in preparation. GitHub remains hourly and follows the Stage 6 fallback policy. Activation review must decide and verify any live scheduler change.
 
-1. Set `PHASE4_PUBLIC_BETA_MODE=off` on every active beta runtime and restart those runtimes. No new Phase 4 section is eligible. Leave the legacy briefing enabled.
-2. Set `PHASE4_BETA_SHADOW_RUNTIME=off` on Render and GitHub. Restore GitHub's scheduled command to `npm start` so legacy reports continue. Remove the beta-only environment settings from the workflow if added.
-3. Restore the prior Cloudflare cron if activation changed it and legacy production requires that cadence. Verify the authenticated scheduler endpoint and hourly GitHub fallback still run.
-4. Preserve v28/v29/v30 state, all operation receipts, Phase 4 keys, and user data. No database rollback, deletion, migration downgrade, mode promotion, or Stage 5/6 authority change is part of rollback.
+## Rollback after any later activation
 
-This is a restart/configuration rollback; an external provider call already started cannot be recalled. Delivery remains subject to the existing report claim and account lifecycle fences. Production values and scheduling must be checked at activation rather than inferred from this repository.
+1. Set `PHASE4_PUBLIC_BETA_MODE=off` on all active beta runtimes. This stops the new post-drain summary without altering legacy reports.
+2. Set `PHASE4_BETA_SHADOW_RUNTIME=off`. Restore the prior GitHub command and Render beta composition if activation changed them.
+3. Restore the prior Cloudflare cron/configuration if changed; verify the authenticated endpoint and hourly fallback.
+4. Preserve all v28/v29/v30 data, operation receipts, keys and user data. No DB rollback, deletion, migration downgrade, or LIVE mode promotion.
 
-## Identity and surface audit
-
-Daily and weekly headers use the target internal user's canonical `users.display_name`, fetched through `db.getUser(userId)` at message generation time. A blank or missing usable name produces a neutral header. The coach's legacy prompt and the unused Q&A prompt no longer prescribe Kelvin. The Telegram link confirmation already uses the canonical linked user. Scheduler output binds each user to that user's active chat before rendering. Proactive, guardian, Body Energy, insight, and episode modules contain no hard-coded recipient name; Stage 1–6 Phase 4 insights and episodes currently have no approved user-facing publisher in this preparation. Historical test fixtures and the product name “Kelvin Health OS” remain as non-greeting metadata.
-
-`npm run beta:smoke` uses only synthetic users and data. It emits the actual daily payload captured immediately before fake transport for Alice, Bob, and a no-name user, including recipient, canonical user ID, and synthetic result ID. The accompanying typed-reader test exercises real v30 SHADOW stores and receipts. No real Telegram destination is contacted.
+`npm run beta:smoke` uses synthetic users and a fake Telegram transport. It verifies final daily and Beta Summary payloads for Alice, Bob and an unnamed user, reversed order and a fresh process, with no real send. The historical broad-suite updates distinguish an authentic old schema fixture from an impossible v30 schema rewind: old version constants move to v30; hybrid rewinds must be rejected without weakening v30 postconditions; old downgrade fixtures expect incompatibility; missing scheduler heartbeat is stale under the Stage 6 policy.

@@ -930,7 +930,7 @@ async function downgradeToV10(db) {
   await db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (10, '2026-09-01T00:00:00.000Z', 'v10')");
 }
 
-test('J1 v10 → v11：純新增（三張表 + 三欄），零重建，既有墓碑與生理資料一列不動', async () => {
+test('J1 fabricated v10/v30 hybrid is rejected while canonical tombstones and sleeps survive', async () => {
   const e = await env();
   try {
     await e.db.upsertSleeps(ALICE.id, [sleepRecord({ id: sid(1) }), sleepRecord({ id: sid(2) })], { timezone: TZ });
@@ -940,10 +940,7 @@ test('J1 v10 → v11：純新增（三張表 + 三欄），零重建，既有墓
     for (const t of NEW_TABLES) assert.ok(!before.includes(t));
     for (const c of TOMB_COLS) assert.ok(!(await colNames(e.db.raw, 'whoop_resource_tombstones')).includes(c));
 
-    const summary = await runMigrations(e.db.raw);
-    assert.equal(summary.from, 10); assert.equal(summary.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 27);
-    assert.deepEqual(summary.rebuilt, [], '★★★ 絕不重建');
-    assert.deepEqual(summary.columnsAdded, TOMB_COLS.map((c) => `whoop_resource_tombstones.${c}`));
+    await assert.rejects(runMigrations(e.db.raw), /phase4_schema_postcondition_failed/);
     // v12 的四張表在同一次遷移裡一起建起來（純新增）
     const after = await tableNames(e.db.raw);
     for (const t of NEW_TABLES) assert.ok(after.includes(t));
@@ -960,7 +957,7 @@ test('J1 v10 → v11：純新增（三張表 + 三欄），零重建，既有墓
   } finally { e.done(); }
 });
 
-test('J2 遷移冪等：重跑三次零變更；全新資料庫一次到位；中斷後重跑補齊', async () => {
+test('J2 current migration is idempotent and rejects a fabricated interrupted v10/v30 hybrid', async () => {
   const e = await env();
   try {
     const snap = await tableNames(e.db.raw);
@@ -977,8 +974,7 @@ test('J2 遷移冪等：重跑三次零變更；全新資料庫一次到位；�
     // 中斷：只建了第一張表
     await downgradeToV10(e.db);
     await e.db.raw.execute(RECONCILIATION_SCHEMA[0]);
-    const s = await runMigrations(e.db.raw);
-    assert.deepEqual(s.rebuilt, []);
+    await assert.rejects(runMigrations(e.db.raw), /phase4_schema_postcondition_failed/);
     const after = await tableNames(e.db.raw);
     for (const t of NEW_TABLES) assert.ok(after.includes(t));
   } finally { e.done(); }

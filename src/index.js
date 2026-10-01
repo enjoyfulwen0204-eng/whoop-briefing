@@ -50,6 +50,7 @@ import { checkPeerScheduler } from './schedulerWatchdog.js';
 import { requireTriggerSource } from './schedulerPolicy.js';
 import { runPhase4Stage6 } from './shadowDrainScheduler.js';
 import { publicBetaKeysIfPresent } from './publicBetaConfig.js';
+import { deliverPublicBetaSummary } from './publicBetaSummaryDelivery.js';
 import { lifecycleOutputDb, SCHEDULED_OUTPUT_WRITERS } from './lifecycleOutput.js';
 import { withDeliveryAuthorization, isAccountInactiveError } from './accountLifecycle.js';
 import { resumeOnboardingBootstraps as resumeOnboarding } from './onboardingBootstrap.js';
@@ -345,7 +346,6 @@ export async function runForUser({
   });
   const ctx = {
     db, userId: uid, source, coach, telegram, timezone: tz, now,
-    betaPresentation: deps.betaPresentation ?? null,
     // ★ R2：這一輪的帳號啟用世代，往下帶進報告認領與遞送授權。
     expectedLifecycleGeneration,
   };
@@ -736,6 +736,21 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     } catch(err) {
       summary.phase4Stage6={outcome:'FAILED',triggerSource};
       summary.errors.push({stage:'phase4_stage6',error:describeError(err)});
+    }
+    // Beta only: the legacy daily/weekly order above is unchanged. Every beta
+    // read and send happens after sync and after the bounded SHADOW drain.
+    if (deps.betaPresentation && !['DISABLED','FAILED','POLICY_DEFERRED'].includes(summary.phase4Stage6.outcome)) {
+      summary.betaSummaries = [];
+      for (const user of users) try {
+        const betaNow = deps.betaNow?.() ?? new Date();
+        summary.betaSummaries.push({ userId: user.id, ...await (deps.deliverBetaSummary ?? deliverPublicBetaSummary)({
+          db, env, user, presentation: deps.betaPresentation, now: betaNow,
+          makeTelegram: deps.makeTelegram ?? createTelegram,
+        }) });
+      } catch (error) {
+        summary.errors.push({ stage: 'beta_summary', userId: user.id, error: describeError(error) });
+        summary.betaSummaries.push({ userId: user.id, status: 'failed' });
+      }
     }
     const attempted = users.length;
     const failed = summary.failed;

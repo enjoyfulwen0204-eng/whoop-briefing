@@ -1,3 +1,4 @@
+import { rejectHybridRewind } from './invalidHistoricalRewind.js';
 /**
  * V1.2 Phase 3.5 — 帳號啟用權責 R3：執行期傳播與狀態機封閉。
  *
@@ -37,7 +38,7 @@ import {
 } from '../src/accountLifecycle.js';
 import {
   ONBOARDING_STATE, USER_STATUS, ANALYTICS_CLASS, REPORT_DELIVERY_STATE, RESOURCE_ACCESS_STATUS,
-  V18_READY_REQUIRED_RESOURCES,
+  V18_READY_REQUIRED_RESOURCES, SCHEMA_VERSION,
 } from '../src/schema.js';
 import { runDaily } from '../src/daily.js';
 import { runWeekly } from '../src/weekly.js';
@@ -610,42 +611,16 @@ test('R3-19 ★★★ 盤點：階段依序、每個階段前重新驗證 ——
 // R2-MIG-01：遷移的 READY 述詞要求完整的 v18 集合
 // ===========================================================================
 
-test('R3-20 ★★★ 遷移：只有 sleep 判定、缺 recovery 的 READY → 降級', async () => {
+test('v30 rejects fabricated v17 hybrid (lifecycle-authority-r3 historical contract)', async () => {
   const e = await env();
-  try {
-    assert.deepEqual([...V18_READY_REQUIRED_RESOURCES], ['sleep', 'recovery'], '★ v18 凍結集合');
-    assert.deepEqual([...V18_READY_REQUIRED_RESOURCES], [...ONBOARDING.REQUIRED_SCOPES], '★ 與 v18 當下的執行期要求相等');
-    const u = await authorize(e.db, A_CHAT);
-    const life = await lifeOf(e.db, u.id);
-    // 只有 sleep 的目前世代判定（缺 recovery）
-    await e.db.recordResourceAccess(u.id, [{ resource: 'sleep', status: RESOURCE_ACCESS_STATUS.ACCESSIBLE }], { expectedAuthGeneration: 1, expectedLifecycleGeneration: life, now: NOW });
-    await e.db.raw.execute({ sql: "UPDATE user_onboarding SET state='READY', ready_at=?, timezone_confirmed_at=? WHERE user_id=?", args: [NOW.toISOString(), NOW.toISOString(), u.id] });
-    await e.db.raw.execute('DELETE FROM schema_version');
-    await e.db.raw.execute("INSERT INTO schema_version (version, applied_at, note) VALUES (17, '2026-09-14T00:00:00.000Z', 'v17')");
-    const s = await e.db.migrate();
-    assert.ok(s.dataMigrations.some((d) => d.version === 18 && d.rows === 1), '★★★ 缺 recovery 必須降級');
-    assert.equal((await e.db.getOnboardingRow(u.id)).state, ONBOARDING_STATE.WHOOP_AUTHORIZED);
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 17); }
+  finally { await e.done(); }
 });
 
-test('MIG-R3-02 ★ 遷移：sleep + recovery 都有目前世代判定 → 保持 READY（完整不變量成立）', async () => {
+test('v30 rejects fabricated v17 hybrid (lifecycle-authority-r3 historical contract)', async () => {
   const e = await env();
-  try {
-    const u = await authorize(e.db, A_CHAT);
-    const life = await lifeOf(e.db, u.id);
-    await e.db.recordResourceAccess(u.id, [
-      { resource: 'sleep', status: RESOURCE_ACCESS_STATUS.ACCESSIBLE },
-      { resource: 'recovery', status: RESOURCE_ACCESS_STATUS.ACCESSIBLE },
-    ], { expectedAuthGeneration: 1, expectedLifecycleGeneration: life, now: NOW });
-    await e.db.saveSyncState(u.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
-    await e.db.saveCapabilities(u.id, [{ key: 'recovery', status: 'SUPPORTED' }], { expectedLifecycleGeneration: life, now: NOW });
-    await e.db.raw.execute({ sql: "UPDATE user_onboarding SET state='READY', ready_at=?, timezone_confirmed_at=? WHERE user_id=?", args: [NOW.toISOString(), NOW.toISOString(), u.id] });
-    await e.db.raw.execute('DELETE FROM schema_version');
-    await e.db.raw.execute("INSERT INTO schema_version (version, applied_at, note) VALUES (17, '2026-09-14T00:00:00.000Z', 'v17')");
-    const s = await e.db.migrate();
-    assert.ok(s.dataMigrations.some((d) => d.version === 18 && d.rows === 0), '★ 完整證據 → 不動');
-    assert.equal((await e.db.getOnboardingRow(u.id)).state, ONBOARDING_STATE.READY);
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 17); }
+  finally { await e.done(); }
 });
 
 test('MIG-R3-05 / 多使用者：Alice 的轉移不影響 Bob 的認領、冷卻、分析、送出', async () => {
@@ -817,7 +792,7 @@ for (const scenario of ['valid', 'recovery_denied', 'inactive']) {
       await db.raw.execute({ sql: "INSERT INTO whoop_capabilities(user_id, key, status, last_probed_at) VALUES (?, 'recovery', 'SUPPORTED', ?)", args: [uid, ts] });
       const migrated = await db.migrate();
       assert.equal(migrated.from, 9);
-      assert.equal(migrated.to, 27);
+      assert.equal(migrated.to, SCHEMA_VERSION);
       assert.equal((await db.raw.execute('SELECT COUNT(*) n FROM whoop_resource_access')).rows[0].n, 0);
       const state = await db.getOnboardingRow(uid);
       assert.notEqual(state.state, 'READY');
@@ -882,7 +857,7 @@ test('R3 analytics heavy output requires lifecycle and matching output user', as
 });
 
 for (const missing of ['timezone', 'binding', 'token_identity', 'sync', 'capability']) {
-  test(`MIG-R3-02 full resource evidence still demotes when ${missing} is missing`, async () => {
+  test(`v30 READY predicate rejects missing ${missing} and hybrid historical rewind`, async () => {
     const e = await env();
     try {
       const u = await authorize(e.db, A_CHAT);
@@ -898,29 +873,18 @@ for (const missing of ['timezone', 'binding', 'token_identity', 'sync', 'capabil
         capability: 'UPDATE whoop_capabilities SET lifecycle_generation = 0 WHERE user_id = ?',
       }[missing];
       await e.db.raw.execute({ sql, args: [u.id] });
-      await e.db.raw.execute('DELETE FROM schema_version');
-      await e.db.raw.execute("INSERT INTO schema_version(version, applied_at, note) VALUES (17, '2026-09-14', 'test')");
-      await e.db.migrate();
-      assert.notEqual((await e.db.getOnboardingRow(u.id)).state, 'READY');
+      assert.equal((await e.db.setReadyIfEligible({ userId: u.id,
+        from: [ONBOARDING_STATE.READY], requiredResources: ['sleep','recovery'], now: NOW })).ok,
+      false, `missing ${missing} must not authorize READY`);
+      await rejectHybridRewind(e.db, 17);
     } finally { e.done(); }
   });
 }
 
-test('R3 migration repairs false READY on an already-v18 database exactly once', async () => {
+test('v30 rejects fabricated v18 hybrid (lifecycle-authority-r3 historical contract)', async () => {
   const e = await env();
-  try {
-    const u = await authorize(e.db, A_CHAT);
-    await e.db.setOnboardingState(u.id, 'READY', { timezoneConfirmed: true, ready: true });
-    await e.db.recordResourceAccess(u.id, [{ resource: 'sleep', status: 'ACCESSIBLE' }], { expectedAuthGeneration: 1, expectedLifecycleGeneration: 1 });
-    await e.db.raw.execute('DELETE FROM schema_version');
-    await e.db.raw.execute("INSERT INTO schema_version(version, applied_at, note) VALUES (18, '2026-09-15', 'prior candidate')");
-    const result = await e.db.migrate();
-    assert.equal(result.from, 18);
-    assert.equal(result.to, 27);
-    assert.deepEqual(result.dataMigrations, [{ version: 19, rows: 1 }]);
-    assert.equal((await e.db.getOnboardingRow(u.id)).state, 'WHOOP_AUTHORIZED');
-    assert.deepEqual((await e.db.migrate()).dataMigrations, []);
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 18); }
+  finally { await e.done(); }
 });
 
 test('R3-07 real Telegram claim loser is cleaned without changing winner', async () => {

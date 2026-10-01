@@ -569,7 +569,7 @@ test('★★★ 18b: 看門狗的循環依賴 —— 狀態評估本身完全不
       db, userId: user.id, timezone: TZ, now: new Date('2026-09-12T03:55:00.000Z'),
     });
     assert.equal(evidence.scheduler_last_ok_at, null);
-    assert.equal(evidence.scheduler_stale, null, '★ 沒有證據時不可以假裝知道');
+    assert.equal(evidence.scheduler_stale, true, 'Stage 6 policy treats a missing expected heartbeat as stale');
     const reply = renderBriefingStatus({ status, evidence });
     assert.ok(reply.length > 10, '★ 仍然要給得出答案');
     // 條件句（「後續排程成功檢查之後」）是核可的措辭 —— 它沒有承諾時間。

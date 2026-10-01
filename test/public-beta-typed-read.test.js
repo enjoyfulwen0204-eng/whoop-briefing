@@ -2,83 +2,90 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { syntheticPhase4Fixture } from './phase4Fixture.js';
 import { bodyInput, seedBodyInput } from './bodyEnergyFixture.js';
+import { setup, request } from './stage5HistoryFixture.js';
+import { setup as associationSetup, hypothesis, family } from './stage5AssociationFixture.js';
+import { call } from './stage5ClosureFixture.js';
+import { createPhase4Stage6, authorizeStage6ShadowWorker } from '../src/phase4Reanalysis.js';
 import { createPublicBetaPresentation, publicBetaPolicy } from '../src/publicBeta.js';
 import { authorizePublicBetaRuntime, createPublicBetaRuntime } from '../src/publicBeta.js';
 import { runPhase4Stage6 } from '../src/shadowDrainScheduler.js';
 
-const AT = Date.parse('2026-09-19T00:00:00.000Z');
-const date = '2026-09-19';
-const args = id => ({ userId: id, healthDate: date, now: new Date(AT) });
+const AT = Date.parse('2026-09-25T12:00:00.000Z');
+const at = new Date(AT);
+const capability = authorizePublicBetaRuntime({ executionMode: 'SHADOW' });
+const present = f => createPublicBetaPresentation({ stores: f.stores, db: f.db,
+  policy: publicBetaPolicy({ mode: 'all' }), runtimeCapability: capability });
 
-test('beta section reads completed current SHADOW Body Energy through receipt-checked public reader', async t => {
-  const f = await syntheticPhase4Fixture(t, { targetVersion: 30 });
-  const runtimeCapability = authorizePublicBetaRuntime({ executionMode: 'SHADOW' });
-  await f.db.transaction(() => seedBodyInput(f.db));
-  const b = bodyInput();
-  b.userId = 'b';
-  for (const rows of Object.values(b.sources)) for (const row of rows) row.user_id = 'b';
-  for (const rows of [b.access, b.sync, b.capabilities]) for (const row of rows) row.user_id = 'b';
-  b.sources.sleep[0].sleep_performance_percentage = 75;
-  await f.db.transaction(() => seedBodyInput(f.db, b));
-
-  const resultIds = {};
-  for (const id of ['a', 'b']) {
-    const result = await f.stores.withContext(id, { executionMode: 'SHADOW' },
-      context => f.stores.bodyEnergy.compute(context, { asOfEpochMs: AT, targetHealthDate: date }));
-    resultIds[id] = result.row.result_id;
-    const typed = await f.stores.withContext(id, { executionMode: 'SHADOW' },
-      context => f.stores.bodyEnergy.readLatestCurrent(context, { healthDate: date, asOfEpochMs: AT }));
-    assert.equal(typed.row.result_id, resultIds[id]);
-  }
-  assert.notEqual(resultIds.a, resultIds.b);
-  console.log(JSON.stringify({ syntheticTypedResults: true, executionMode: 'SHADOW', resultIds }));
-
-  const all = createPublicBetaPresentation({ stores: f.stores, policy: publicBetaPolicy({ mode: 'all' }), runtimeCapability });
-  const alice = await all.bodyEnergySection(args('a'));
-  const bob = await all.bodyEnergySection(args('b'));
-  assert.match(alice, /^⚡ 身體能量 \d+\/100$/);
-  assert.match(bob, /^⚡ 身體能量 \d+\/100$/);
-  assert.notEqual(alice, bob);
-
-  const off = createPublicBetaPresentation({ stores: f.stores, policy: publicBetaPolicy(), runtimeCapability });
-  const allow = createPublicBetaPresentation({ stores: f.stores,
-    policy: publicBetaPolicy({ mode: 'allowlist', userIds: ['a'] }), runtimeCapability });
-  assert.equal(await off.bodyEnergySection(args('a')), null);
-  assert.equal(await allow.bodyEnergySection(args('b')), null);
-  assert.equal(await allow.bodyEnergySection(args('a')), alice);
-
-  await f.db.raw.execute("DELETE FROM whoop_sleeps WHERE user_id='a' AND id='sleep-00'");
-  assert.equal(await all.bodyEnergySection(args('a')), null, 'missing provenance is withheld');
-  assert.equal(await all.bodyEnergySection(args('b')), bob, 'other tenant remains readable');
-  await f.db.raw.execute("UPDATE body_energy_results SET invalidated_at='2026-09-20T00:00:00Z' WHERE user_id='b'");
-  assert.equal(await all.bodyEnergySection(args('b')), null, 'invalidated result is withheld');
+test('v30 Body Energy remains a receipt-checked SHADOW result with no publication helper', async t => {
+  const f = await syntheticPhase4Fixture(t, { targetVersion: 30, now: () => at });
+  await f.db.transaction(() => seedBodyInput(f.db, bodyInput({ asOf: AT, days: 30 })));
+  const result = await f.stores.withContext('a', { executionMode: 'SHADOW' },
+    context => f.stores.bodyEnergy.compute(context, { asOfEpochMs: AT, targetHealthDate: '2026-09-25' }));
+  const typed = await f.stores.withContext('a', { executionMode: 'SHADOW' },
+    context => f.stores.bodyEnergy.readLatestCurrent(context,
+      { healthDate: '2026-09-25', asOfEpochMs: AT }));
+  assert.equal(typed.row.result_id, result.row.result_id);
+  assert.equal(present(f).bodyEnergySection, undefined);
+  assert.equal(await present(f).summary({ userId: 'a', now: at }), null);
 });
 
-test('default runner has no worker; explicit SHADOW beta capability admits the approved worker', async t => {
+test('v30 Beta Summary reads a current episode through the canonical typed and receipt authority after drain', async t => {
+  const f = await setup(t, { targetVersion: 30 });
+  const initial = await call(f, 'intelligence', 'analyzeMetric',
+    { ...request(f.initialRefs[0], f.initialRefs.slice(1), at.toISOString()),
+      windowFamily: 'BETA_TYPED_EPISODE' });
+  assert.ok(initial.episode);
+  const control = await f.stores.captureControl('a');
+  await f.stores.queue.sourceChanged(control);
+  const worker = await createPhase4Stage6({ db: f.db, keys: f.keys, executionMode: 'SHADOW',
+    workerCapability: authorizeStage6ShadowWorker({ executionMode: 'SHADOW' }), now: () => at });
+  for (let i = 0; i < 12 && (await worker.diagnostics()).pendingJobs; i++) {
+    const drained = await worker.drain({ budget: { maxItemsPerTenant: 32, maxItems: 64 } });
+    assert.equal(drained.failedJobs, 0, JSON.stringify(drained));
+  }
+  assert.equal((await worker.diagnostics()).pendingJobs, 0);
+  const summary = await f.stores.withContext('a', { executionMode: 'SHADOW' },
+    context => f.stores.betaSummary.readCurrent(context, { asOfUtc: at.toISOString() }));
+  assert.ok(summary.episodes.some(item => item.resultId === initial.episode.episode.row.episode_id));
+  assert.ok(summary.episodes.every(item => item.metricKey !== 'body_energy'));
+  const text = await present(f).summary({ userId: 'a', now: at });
+  assert.match(text, /Phase 4 Beta 摘要/);
+  assert.match(text, /恢復分數/);
+  assert.doesNotMatch(text, /身體能量|Body Energy|EPISODE|RECEIPT/);
+  assert.deepEqual((await f.stores.withContext('b', { executionMode: 'SHADOW' },
+    context => f.stores.betaSummary.readCurrent(context, { asOfUtc: at.toISOString() }))).episodes, []);
+  await f.stores.queue.sourceChanged(await f.stores.captureControl('a'));
+  assert.equal(await present(f).summary({ userId: 'a', now: at }), null,
+    'pending generation cannot present a previous completed result');
+});
+
+test('v30 Beta Summary admits current Journal association claims through typed insight evidence', async t => {
+  const f = await associationSetup(t, { days: 30, targetVersion: 30 });
+  const analyzed = await call(f, 'intelligence', 'analyzeAssociationFamily',
+    family('beta-association', hypothesis(f, Array.from({ length: 30 }, (_, i) => i))));
+  assert.ok(analyzed.items[0].insight);
+  await f.stores.queue.sourceChanged(await f.stores.captureControl('a'));
+  const worker = await createPhase4Stage6({ db: f.db, keys: f.keys, executionMode: 'SHADOW',
+    workerCapability: authorizeStage6ShadowWorker({ executionMode: 'SHADOW' }), now: () => at });
+  for (let i = 0; i < 16 && (await worker.diagnostics()).pendingJobs; i++) {
+    const drained = await worker.drain({ budget: { maxItemsPerTenant: 32, maxItems: 64,
+      maxWallMs: 90000, leaseMs: 120000 } });
+    assert.equal(drained.failedJobs, 0, JSON.stringify(drained));
+  }
+  assert.equal((await worker.diagnostics()).pendingJobs, 0);
+  const typed = await f.stores.withContext('a', { executionMode: 'SHADOW' },
+    context => f.stores.betaSummary.readCurrent(context, { asOfUtc: at.toISOString() }));
+  assert.ok(typed.insights.length > 0, JSON.stringify(typed));
+  const text = await present(f).summary({ userId: 'a', now: at });
+  assert.match(text, /Phase 4 Beta 摘要/);
+  assert.doesNotMatch(text, /Body Energy|身體能量|INSIGHT|RECEIPT/);
+});
+
+test('default runner has no worker; explicit SHADOW beta capability admits approved worker with cohort OFF', async t => {
   const f = await syntheticPhase4Fixture(t, { targetVersion: 30 });
   assert.equal((await runPhase4Stage6({ db: f.db })).outcome, 'DISABLED');
-  const capability = authorizePublicBetaRuntime({ executionMode: 'SHADOW' });
   const runtime = await createPublicBetaRuntime({ db: f.db, keys: f.keys,
     executionMode: 'SHADOW', runtimeCapability: capability });
   assert.equal(typeof runtime.phase4Stage6.drain, 'function');
-  assert.equal(await runtime.betaPresentation.bodyEnergySection(args('a')), null,
-    'worker authority does not grant presentation while cohort gate is OFF');
-});
-
-test('pending generation and corrupt signed receipt cannot reach beta output', async t => {
-  const f = await syntheticPhase4Fixture(t, { targetVersion: 30 });
-  const runtimeCapability = authorizePublicBetaRuntime({ executionMode: 'SHADOW' });
-  await f.db.transaction(() => seedBodyInput(f.db));
-  await f.stores.withContext('a', { executionMode: 'SHADOW' }, context =>
-    f.stores.bodyEnergy.compute(context, { asOfEpochMs: AT, targetHealthDate: date }));
-  const presentation = createPublicBetaPresentation({ stores: f.stores,
-    policy: publicBetaPolicy({ mode: 'allowlist', userIds: ['a'] }), runtimeCapability });
-  assert.ok(await presentation.bodyEnergySection(args('a')));
-  const guards = (await f.db.raw.execute("SELECT name,sql FROM sqlite_master WHERE type='trigger' AND tbl_name='phase4_operation_receipts'")).rows;
-  for (const guard of guards) await f.db.raw.execute(`DROP TRIGGER ${guard.name}`);
-  await f.db.raw.execute("UPDATE phase4_operation_receipts SET receipt_hmac='" + '0'.repeat(64) + "' WHERE user_id='a'");
-  for (const guard of guards) await f.db.raw.execute(guard.sql);
-  assert.equal(await presentation.bodyEnergySection(args('a')), null, 'corrupt v27 authority is withheld');
-  await f.stores.queue.sourceChanged(await f.stores.captureControl('a'), { reasonCode: 'SOURCE_CHANGED' });
-  assert.equal(await presentation.bodyEnergySection(args('a')), null, 'pending generation is withheld');
+  assert.equal(await runtime.betaPresentation.summary({ userId: 'a', now: at }), null);
 });

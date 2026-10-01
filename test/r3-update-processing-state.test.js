@@ -406,7 +406,7 @@ test('★★★ R3-M-05: 裁剪只刪終局的列，不可以刪掉還在處理�
 // ★★★ 遷移：有資料的正式資料庫
 // ===========================================================================
 
-test('★★★ R3-M-05 遷移: 舊形狀 + 有資料 → 加欄位，一列都不少', async () => {
+test('★★★ R3-M-05: fabricated v4/v30 hybrid is rejected without deleting processed updates', async () => {
   const { db, cleanup } = tempDb();
   try {
     await db.migrate();
@@ -422,18 +422,10 @@ test('★★★ R3-M-05 遷移: 舊形狀 + 有資料 → 加欄位，一列都�
     }
     await db.raw.execute('DELETE FROM schema_version');
 
-    const summary = await db.migrate();
-
-    assert.deepEqual(summary.rebuilt, [], '★ 不可以重建（重建會清光已處理的紀錄）');
+    await assert.rejects(db.migrate(), /phase4_schema_postcondition_failed/);
     const rows = (await db.raw.execute('SELECT * FROM telegram_processed_updates ORDER BY update_id')).rows;
     assert.equal(rows.length, 3, '★ 一列都不可以少');
-    for (const r of rows) {
-      assert.equal(String(r.status), TELEGRAM_UPDATE_STATUS.COMPLETED,
-        '★ 既有的列本來就代表「已經處理完」，必須回填成 COMPLETED');
-    }
-    // 而且它們必須真的還能擋掉重播。
-    assert.equal((await db.claimTelegramUpdate(12, { owner: 'w1', now: NOW })).state, 'completed');
-    assert.equal(summary.to, SCHEMA_VERSION);
+    assert.deepEqual(rows.map(row => Number(row.update_id)), [11,12,13]);
   } finally {
     db.close();
     cleanup();

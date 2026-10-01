@@ -77,3 +77,17 @@ test('Stage 6 all-job catastrophe stays visible and cannot write a successful sc
   assert.equal(result.runState,'unhealthy');assert.equal(result.outcome,'phase4_stage6_failed');assert.equal(result.errors.length,1);
   assert.deepEqual(f.beats,[]);
 });
+
+test('beta reads and delivery run only after per-user sync and Stage 6 drain', async () => {
+  const f=runner();const order=[];
+  f.db.listActiveUsers=async()=>[{id:'a',timezone:'Asia/Taipei'}];
+  f.worker.drain=async()=>{order.push('drain');return {outcome:'DRAINED',failedJobs:0};};
+  const result=await runBriefing({now:at('09:00:00'),triggerSource:'manual',deps:{
+    db:f.db,env:f.env,phase4Stage6:f.worker,betaPresentation:{},
+    betaNow:()=>{order.push('as_of');return at('09:00:00');},
+    runUser:async()=>{order.push('sync');return {daily:null,weekly:null,skipped:null,errors:[]};},
+    deliverBetaSummary:async()=>{order.push('typed_read');order.push('send');return {status:'delivered'};},
+  }});
+  assert.deepEqual(order,['sync','drain','as_of','typed_read','send']);
+  assert.equal(result.betaSummaries[0].status,'delivered');
+});

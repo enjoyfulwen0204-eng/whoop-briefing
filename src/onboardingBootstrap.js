@@ -529,7 +529,12 @@ async function failOrRetry({
     // 這一輪的故障屬於一次已經不存在的授權。不宣告失敗、不通知、不累積。
     return staleAuthorization(uid, 'fail_or_retry');
   }
-  // 還沒到上限（或狀態已經被別人動過）：留在 SYNCING，下一輪排程再接手。
+  // A terminal/concurrently settled state is not transient work for the
+  // scheduler. Only a still-owned attempt below its limit may be retried.
+  if (outcome.reason !== 'below_threshold') {
+    return { userId: uid, result: BOOTSTRAP_RESULT.SKIPPED,
+      reason: outcome.reason ?? 'bootstrap_not_owned' };
+  }
   return {
     userId: uid, result: BOOTSTRAP_RESULT.RETRY, attempts: outcome.attempts, detail,
   };

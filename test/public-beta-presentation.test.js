@@ -5,53 +5,52 @@ import { publicBetaPolicy, authorizePublicBetaRuntime, createPublicBetaRuntime,
 import { publicBetaConfiguration, publicBetaKeys, publicBetaKeysIfPresent } from '../src/publicBetaConfig.js';
 import { runPublicBetaBriefing } from '../src/publicBetaEntry.js';
 
-const NOW = new Date('2026-09-19T00:00:00.000Z');
-const request = id => ({ userId: id, healthDate: '2026-09-19', now: NOW });
-
-test('OFF, allowlist and ALL bind canonical internal user IDs', async () => {
+const now = new Date('2026-09-19T00:00:00.000Z');
+const request = userId => ({ userId, now });
+const users = { a: { id: 'a', displayName: 'Alice' }, b: { id: 'b', displayName: 'Bob' },
+  c: { id: 'c', displayName: '' } };
+const current = id => ({ userId: id, executionMode: 'SHADOW',
+  episodes: [{ metricKey: 'recovery_score', direction: id === 'b' ? 'HIGHER' : 'LOWER' }],
+  insights: [{ status: 'SUPPORTED', claim: `${id} journal association may accompany recovery` }] });
+function fixture(read = context => current(context.userId)) {
   const reads = [];
-  const stores = {
-    withContext: async (id, options, work) => { reads.push([id, options.executionMode]); return work({ userId: id }); },
-    bodyEnergy: { readLatestCurrent: async context => ({
-      row: { user_id: context.userId, execution_mode: 'SHADOW', health_date: '2026-09-19' },
-      calculation: { value: context.userId === 'a' ? 70 : 80 },
-    }) },
-  };
+  const stores = { withContext: async (id, mode, work) => {
+    reads.push([id, mode.executionMode]); return work({ userId: id }); },
+  assertCurrent: async () => true, betaSummary: { readCurrent: read } };
+  const db = { getUser: async id => users[id] ?? null };
   const runtimeCapability = authorizePublicBetaRuntime({ executionMode: 'SHADOW' });
-  const section = policy => createPublicBetaPresentation({ stores, policy, runtimeCapability });
-  assert.equal(await section(publicBetaPolicy()).bodyEnergySection(request('a')), null);
-  assert.equal(reads.length, 0);
-  const allow = section(publicBetaPolicy({ mode: 'allowlist', userIds: ['a'] }));
-  assert.equal(await allow.bodyEnergySection(request('b')), null);
-  assert.equal(await allow.bodyEnergySection(request('a')), '⚡ 身體能量 70/100');
-  assert.deepEqual(reads, [['a', 'SHADOW']]);
-  assert.equal(await section(publicBetaPolicy({ mode: 'all' })).bodyEnergySection(request('b')),
-    '⚡ 身體能量 80/100');
-  assert.deepEqual(reads.at(-1), ['b', 'SHADOW']);
+  return { reads, presentation: policy => createPublicBetaPresentation({ stores, db, policy, runtimeCapability }) };
+}
+
+test('OFF, allowlist and ALL use canonical internal IDs; names never cross users', async () => {
+  const f = fixture();
+  assert.equal(await f.presentation(publicBetaPolicy()).summary(request('a')), null);
+  assert.equal(f.reads.length, 0);
+  const allow = f.presentation(publicBetaPolicy({ mode: 'allowlist', userIds: ['a'] }));
+  assert.equal(await allow.summary(request('b')), null);
+  assert.match(await allow.summary(request('a')), /Beta 摘要（Alice）[\s\S]*a journal association/);
+  assert.deepEqual(f.reads, [['a', 'SHADOW']]);
+  const all = f.presentation(publicBetaPolicy({ mode: 'all' }));
+  assert.match(await all.summary(request('b')), /Beta 摘要（Bob）[\s\S]*b journal association/);
+  assert.match(await all.summary(request('c')), /^🧪 Phase 4 Beta 摘要\n/);
+  assert.doesNotMatch(await all.summary(request('c')), /Alice|Bob|Kelvin|身體能量/);
 });
 
-test('typed reader failure, stale/redacted/corrupt/ambiguous/no result and cross-user return all omit', async () => {
+test('unavailable, stale, corrupt, ambiguous, redacted, mismatched and Body Energy content stay hidden', async () => {
   const policy = publicBetaPolicy({ mode: 'all' });
-  const runtimeCapability = authorizePublicBetaRuntime({ executionMode: 'SHADOW' });
   for (const state of ['STALE','REDACTED','CORRUPT','AMBIGUOUS','UNAVAILABLE']) {
-    const presentation = createPublicBetaPresentation({ policy, runtimeCapability, stores: {
-      withContext: async (_id, _mode, work) => work({ userId: 'a' }),
-      bodyEnergy: { readLatestCurrent: async () => { throw new Error(state); } },
-    } });
-    assert.equal(await presentation.bodyEnergySection(request('a')), null, state);
+    const f = fixture(async () => { throw new Error(state); });
+    assert.equal(await f.presentation(policy).summary(request('a')), null, state);
   }
-  for (const result of [null, { row: { user_id: 'b', execution_mode: 'SHADOW', health_date: '2026-09-19' },
-    calculation: { value: 99 } }, { row: { user_id: 'a', execution_mode: 'LIVE', health_date: '2026-09-19' },
-    calculation: { value: 99 } }]) {
-    const presentation = createPublicBetaPresentation({ policy, runtimeCapability, stores: {
-      withContext: async (_id, _mode, work) => work({ userId: 'a' }),
-      bodyEnergy: { readLatestCurrent: async () => result },
-    } });
-    assert.equal(await presentation.bodyEnergySection(request('a')), null);
+  for (const result of [null, { ...current('b') }, { ...current('a'), executionMode: 'LIVE' },
+    { userId: 'a', executionMode: 'SHADOW', episodes: [{ metricKey: 'body_energy', direction: 'HIGHER' }],
+      insights: [{ status: 'SUPPORTED', claim: 'body_energy improved' }] }]) {
+    const f = fixture(async () => result);
+    assert.equal(await f.presentation(policy).summary(request('a')), null);
   }
 });
 
-test('runtime and presentation gates are separate; incomplete keys and LIVE fail closed', async () => {
+test('runtime and cohort gates remain separate; incomplete keys and LIVE fail closed', async () => {
   assert.equal(publicBetaConfiguration({}).runtime, 'off');
   assert.equal(publicBetaConfiguration({}).mode, 'off');
   assert.throws(() => publicBetaConfiguration({ PHASE4_PUBLIC_BETA_MODE: 'all' }), /RUNTIME_REQUIRED/);

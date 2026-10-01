@@ -1,3 +1,4 @@
+import { rejectHybridRewind } from './invalidHistoricalRewind.js';
 /**
  * V1.2 Phase 3 — 修復週期 1（P3-AUDIT-F01 / F02 / F03）。
  *
@@ -638,46 +639,8 @@ test('F03 store 規則：advanceAnalyticsRange 的 CAS（owner / 租約 / range_
 // 遷移 v12 → v13
 // ===========================================================================
 
-test('遷移 v12 → v13：三個 nullable 欄位純新增；既有 canonical / 墓碑 / 對帳 / 分析狀態一列不動；冪等；中斷後補齊', async () => {
+test('v30 rejects fabricated v12 hybrid (analytics-repair-cycle1 historical contract)', async () => {
   const e = await env();
-  try {
-    await seedHistory(e.db, ALICE, 2);
-    await light(e.db);
-    const beforeState = await work(e.db, ALICE, LIGHT);
-    const COLS = ['range_generation', 'range_from', 'range_to'];
-    const cols = async () => (await e.db.raw.execute('PRAGMA table_info(analytics_work_state)')).rows.map((r) => String(r.name));
-    // 退回真的 v12 形狀
-    for (const event of ['insert','update']) await e.db.raw.execute(`DROP TRIGGER p4_analytics_work_state_scope_${event}`);
-    for (const c of COLS) await e.db.raw.execute(`ALTER TABLE analytics_work_state DROP COLUMN ${c}`);
-    await e.db.raw.execute('DROP TABLE IF EXISTS user_onboarding');   // v14 的表也要退掉
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 13');
-    await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (12, '2026-09-12T00:00:00.000Z', 'v12')");
-    for (const c of COLS) assert.ok(!(await cols()).includes(c));
-    const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 12); assert.equal(s.to, SCHEMA_VERSION); assert.equal(SCHEMA_VERSION, 27);
-    assert.deepEqual(s.rebuilt, []);
-    assert.deepEqual(s.columnsAdded, COLS.map((c) => `analytics_work_state.${c}`));
-    const tables = (await e.db.raw.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.map((r) => String(r.name));
-    assert.ok(tables.includes('user_onboarding'), 'v14 的表在同一次遷移裡一起建起來');
-    const afterState = await work(e.db, ALICE, LIGHT);
-    assert.equal(afterState.doneGeneration, beforeState.doneGeneration); assert.equal(afterState.lastSuccessAt, beforeState.lastSuccessAt);
-    assert.equal(afterState.rangeFrom, null);
-    assert.equal(await rowCount(e.db, 'whoop_sleeps', ALICE.id), 2);
-    for (let i = 0; i < 3; i += 1) { const s2 = await runMigrations(e.db.raw); assert.deepEqual(s2.columnsAdded, []); assert.deepEqual(s2.rebuilt, []); }
-    // 中斷：只加了一個欄位
-    for (const event of ['insert','update']) await e.db.raw.execute(`DROP TRIGGER p4_analytics_work_state_scope_${event}`);
-    for (const c of COLS) await e.db.raw.execute(`ALTER TABLE analytics_work_state DROP COLUMN ${c}`);
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 13');
-    await e.db.raw.execute('ALTER TABLE analytics_work_state ADD COLUMN range_generation INTEGER');
-    const s3 = await runMigrations(e.db.raw);
-    assert.deepEqual(s3.columnsAdded, ['analytics_work_state.range_from', 'analytics_work_state.range_to']);
-    // v13 的三個分片欄位 + v18 的 claimed_lifecycle（帳號啟用世代）。
-    // 全部都是 nullable、無回填的純新增。
-    const v13 = ADDITIVE_COLUMNS.filter((c) => c.table === 'analytics_work_state');
-    assert.equal(v13.length, 4); assert.ok(v13.every((c) => !/NOT NULL/.test(c.ddl) && !c.backfill));
-    // 升級後分片可用
-    await seedHistory(e.db, ALICE, 60, { startDaysAgo: 3 });
-    const r = await light(e.db);
-    assert.equal(r.result, ANALYTICS_RESULT.PARTIAL);
-  } finally { await e.done(); }
+  try { await rejectHybridRewind(e.db, 12); }
+  finally { await e.done(); }
 });

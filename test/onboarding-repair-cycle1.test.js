@@ -1,3 +1,4 @@
+import { rejectHybridRewind } from './invalidHistoricalRewind.js';
 /**
  * V1.2 Phase 3.5 — 修復週期 1（F01 … F05）。
  *
@@ -251,117 +252,16 @@ const fullyConfigured = async (db, { id, chatId, whoopUserId, status = USER_STAT
   return u;
 };
 
-test('RC1-ATTACK-03 / RC1-ATTACK-04 / RC1-ATTACK-14 遷移矩陣：每一種既有使用者都得到**真實**的狀態', async () => {
+test('v30 rejects fabricated v13 hybrid (onboarding-repair-cycle1 historical contract)', async () => {
   const e = await env();
-  try {
-    const summary = await migrateLegacy(e.db, async (db) => {
-      // A：完整設定好（Kelvin 形狀）
-      await fullyConfigured(db, { id: 'legacy-a', chatId: '900001', whoopUserId: 'WA' });
-      // B：ACTIVE + 時區，但沒有 Telegram 綁定
-      await db.createUser({ id: 'legacy-b', displayName: 'b', timezone: 'Asia/Taipei', now: NOW });
-      // C：ACTIVE + Telegram，但沒有 WHOOP token / 身分
-      const c = await db.createUser({ id: 'legacy-c', displayName: 'c', timezone: 'Asia/Taipei', now: NOW });
-      await db.linkTelegram({ chatId: '900003', userId: c.id, now: NOW });
-      // D：DISABLED（其餘完整）
-      await fullyConfigured(db, { id: 'legacy-d', chatId: '900004', whoopUserId: 'WD', status: USER_STATUS.DISABLED });
-      // E：綁好 WHOOP，但沒有 capability 證據
-      const ee = await db.createUser({ id: 'legacy-e', displayName: 'e', timezone: 'Asia/Taipei', now: NOW });
-      await db.linkTelegram({ chatId: '900005', userId: ee.id, now: NOW });
-      await db.saveTokens(ee.id, {
-        accessToken: 'at', refreshToken: 'rt', expiresAt: new Date(NOW.getTime() + HOUR),
-        scope: 'offline', whoopUserId: 'WE',
-      });
-      await db.saveSyncState(ee.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
-      // F：token 已過期但 refresh 仍然可用（正常情況，不該被判定不可用）
-      const f = await fullyConfigured(db, { id: 'legacy-f', chatId: '900006', whoopUserId: 'WF' });
-      await db.saveTokens(f.id, {
-        accessToken: 'at-old', refreshToken: 'rt-good', expiresAt: new Date(NOW.getTime() - HOUR),
-        scope: 'offline', whoopUserId: 'WF',
-      });
-    });
-
-    assert.equal(summary.from, 13);
-    assert.equal(summary.to, SCHEMA_VERSION);
-    assert.deepEqual(summary.rebuilt, []);
-    assert.deepEqual(summary.dataMigrations, [{ version: 14, rows: 6 }, { version: 15, rows: 0 }, { version: 16, rows: 0 },
-      { version: 18, rows: 2 }, { version: 19, rows: 0 }]);
-
-    const state = async (id) => (await e.db.getOnboardingRow(id)).state;
-    // ★ R2 / LIFE-FG-10：證據**齊全到 v13 的標準**的人（A、F）曾經被寫成
-    // READY，但執行期的 READY 述詞現在還要求「目前啟用世代的資源權限判定」，
-    // 而 v13 時代沒有那張表。v18 因此把他們降級到可續跑的 WHOOP_AUTHORIZED
-    // —— 資料全留、立刻進入重新驗證、bootstrap 跑完就自動回到 READY。
-    assert.equal(await state('legacy-a'), ONBOARDING_STATE.WHOOP_AUTHORIZED,
-      'A 完整 → 進入重新驗證（不是未經證實的 READY）');
-    assert.equal(await state('legacy-b'), ONBOARDING_STATE.STARTED, 'B 沒有綁定 → 自助流程還沒開始');
-    assert.equal(await state('legacy-c'), ONBOARDING_STATE.TIMEZONE_PENDING, 'C 沒有 WHOOP → 從第一步重走');
-    assert.equal(await state('legacy-d'), ONBOARDING_STATE.ACTION_REQUIRED, 'D 停用 → 要管理者處理');
-    assert.equal((await e.db.getOnboardingRow('legacy-d')).failureCode, ONBOARDING_FAILURE.ACCOUNT_INACTIVE);
-    assert.equal(await state('legacy-e'), ONBOARDING_STATE.SYNCING, 'E 缺 capability → 可續作');
-    assert.equal(await state('legacy-f'), ONBOARDING_STATE.WHOOP_AUTHORIZED,
-      'F token 過期但可 refresh → 同樣進入重新驗證');
-
-    // ★★★ 遷移之後**沒有人**被直接排程：所有 READY 都必須由執行期的
-    // setReadyIfEligible 在真實證據下重新給出（LIFE-FG-10 的鎖定不變量）。
-    const sched = await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE });
-    assert.deepEqual(sched.map((u) => u.id).sort(), [],
-      '★★★ 遷移不可以產生執行期述詞不會同意的可排程 READY');
-    // 但完整的人立刻進入重新驗證佇列（不需要人工介入）。
-    assert.deepEqual(
-      (await e.db.listOnboardingInState([ONBOARDING_STATE.WHOOP_AUTHORIZED])).map((o) => o.userId).sort(),
-      ['legacy-a', 'legacy-f'], '★★★ 完整的既有使用者自動排進重新驗證');
-
-    // 時區確認證據只給「有驗證過的 WHOOP 身分」的人
-    assert.ok((await e.db.getOnboardingRow('legacy-a')).timezoneConfirmedAt);
-    assert.equal((await e.db.getOnboardingRow('legacy-b')).timezoneConfirmedAt, null);
-    assert.equal((await e.db.getOnboardingRow('legacy-c')).timezoneConfirmedAt, null);
-
-    // 冪等
-    for (let i = 0; i < 3; i += 1) {
-      const s2 = await runMigrations(e.db.raw);
-      assert.deepEqual(s2.dataMigrations, []);
-    }
-    assert.equal(await state('legacy-a'), ONBOARDING_STATE.WHOOP_AUTHORIZED,
-      '★ 冪等：重跑遷移不會再動已經降級的列');
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 13); }
+  finally { await e.done(); }
 });
 
-test('F02 v15 修正：v14 第一版盲目寫下的 READY 會被改回真實狀態（只動證據不足的列）', async () => {
+test('v30 rejects fabricated v14 hybrid (onboarding-repair-cycle1 historical contract)', async () => {
   const e = await env();
-  try {
-    await fullyConfigured(e.db, { id: 'good', chatId: '900001', whoopUserId: 'WG' });
-    await e.db.createUser({ id: 'bare', displayName: 'bare', timezone: 'Asia/Taipei', now: NOW });
-    // 模擬「已經被 v14 第一版遷移過」的資料庫：兩個人都被寫成 READY
-    await e.db.raw.execute('DELETE FROM user_onboarding');
-    for (const id of ['good', 'bare']) {
-      await e.db.raw.execute({
-        sql: `INSERT INTO user_onboarding (user_id, state, timezone_confirmed_at, ready_at,
-                state_changed_at, created_at, updated_at) VALUES (?, 'READY', ?, ?, ?, ?, ?)`,
-        args: [id, NOW.toISOString(), NOW.toISOString(), NOW.toISOString(), NOW.toISOString(), NOW.toISOString()],
-      });
-    }
-    await e.db.raw.execute('DELETE FROM schema_version WHERE version >= 15');
-    await e.db.raw.execute("INSERT OR IGNORE INTO schema_version (version, applied_at, note) VALUES (14, '2026-09-15T00:00:00.000Z', 'v14')");
-
-    const s = await runMigrations(e.db.raw);
-    assert.equal(s.from, 14); assert.equal(s.to, SCHEMA_VERSION);
-    assert.deepEqual(s.dataMigrations, [{ version: 15, rows: 1 }, { version: 16, rows: 0 }, { version: 18, rows: 1 }, { version: 19, rows: 0 }], '★ 只有一列需要修正');
-    // ★ R2 / LIFE-FG-10：證據齊全的人也要在目前啟用世代重新驗證
-    // （v13/v14 時代沒有資源權限判定這張表）。資料全留，立刻進入重新驗證。
-    assert.equal((await e.db.getOnboardingRow('good')).state, ONBOARDING_STATE.WHOOP_AUTHORIZED,
-      '★ 證據齊全的人進入重新驗證，而不是未經證實的 READY');
-    assert.equal((await e.db.getOnboardingRow('bare')).state, ONBOARDING_STATE.STARTED, '★★★ 假的 READY 被改正');
-    assert.equal((await e.db.getOnboardingRow('bare')).readyAt, null);
-    assert.equal((await e.db.getOnboardingRow('bare')).timezoneConfirmedAt, null);
-    // ★ R2 / LIFE-FG-10：遷移之後沒有人直接可排程；'good' 進入重新驗證。
-    const sched = await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE });
-    assert.deepEqual(sched.map((u) => u.id), []);
-    assert.deepEqual(
-      (await e.db.listOnboardingInState([ONBOARDING_STATE.WHOOP_AUTHORIZED])).map((o) => o.userId),
-      ['good'], '★ 證據齊全的人立刻進入重新驗證');
-    // 冪等
-    assert.deepEqual((await runMigrations(e.db.raw)).dataMigrations, []);
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 14); }
+  finally { await e.done(); }
 });
 
 test('RC1-ATTACK-15 遷移之後才被建立的 ACTIVE 使用者：沒有上線列 → 不可被排程、不可繞過狀態機', async () => {

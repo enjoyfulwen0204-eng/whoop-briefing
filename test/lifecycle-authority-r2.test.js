@@ -1,3 +1,4 @@
+import { rejectHybridRewind } from './invalidHistoricalRewind.js';
 /**
  * V1.2 Phase 3.5 — 帳號啟用權責的**端到端**化（R2，schema v18）。
  *
@@ -662,64 +663,10 @@ test('AN-LIFE-04/05 新世代認領得到；分析世代 / 租約 / 活時鐘圍
 // §50 MIG-LIFE：遷移的 READY 安全（LIFE-FG-10）
 // ===========================================================================
 
-test('MIG-LIFE-02/03/04 ★★★ 遷移的 READY 一定是執行期述詞也會同意的 READY', async () => {
+test('v30 rejects fabricated v17 hybrid (lifecycle-authority-r2 historical contract)', async () => {
   const e = await env();
-  try {
-    // 一個「v13 時代完整設定好」的使用者：綁定 + 身分 + 同步 + capability，
-    // 但**沒有**資源權限判定（那張表在 v16 才出現）。
-    const u = await e.db.createUser({ displayName: 'Legacy', timezone: 'Asia/Taipei', now: NOW });
-    await e.db.linkTelegram({ chatId: '777001', userId: u.id, now: NOW });
-    await e.db.saveTokens(u.id, {
-      accessToken: 'at', refreshToken: 'rt', expiresAt: new Date(NOW.getTime() + HOUR),
-      scope: 'offline', whoopUserId: 'W-LEG',
-    });
-    await e.db.saveSyncState(u.id, 'sleep', { lastSuccessAt: NOW.toISOString() }, { now: NOW });
-    await e.db.saveCapabilities(u.id, [
-      { key: 'recovery', status: 'SUPPORTED', sampleCount: 5, nonNullCount: 5 },
-    ], { expectedLifecycleGeneration: 1, now: NOW });
-    await e.db.ensureOnboarding(u.id, { state: ONBOARDING_STATE.READY, now: NOW });
-    await e.db.raw.execute({
-      sql: "UPDATE user_onboarding SET state='READY', ready_at=?, timezone_confirmed_at=? WHERE user_id=?",
-      args: [NOW.toISOString(), NOW.toISOString(), u.id],
-    });
-    // 這正是稽核指出的危險狀態：DB 說 READY，執行期述詞卻會拒絕。
-    assert.equal((await e.db.setReadyIfEligible({
-      userId: u.id, from: [ONBOARDING_STATE.READY],
-      requiredResources: ['sleep', 'recovery'], now: NOW,
-    })).ok, false, '★ 執行期述詞會拒絕這個使用者');
-
-    // 重跑 v18 的資料遷移（把版本退回 17：from=0 代表全新 DB，
-    // 那種情況本來就不需要資料遷移）
-    await e.db.raw.execute('DELETE FROM schema_version');
-    await e.db.raw.execute(
-      "INSERT INTO schema_version (version, applied_at, note) VALUES (17, '2026-09-14T00:00:00.000Z', 'v17')",
-    );
-    const s = await e.db.migrate();
-    assert.ok(s.dataMigrations.some((d) => d.version === 18 && d.rows === 1));
-
-    const row = await e.db.getOnboardingRow(u.id);
-    assert.equal(row.state, ONBOARDING_STATE.WHOOP_AUTHORIZED,
-      '★★★ 遷移之後不可以留下執行期述詞不會同意的 READY');
-    assert.equal(row.readyAt, null);
-    assert.deepEqual(
-      (await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE })).map((x) => x.id), [],
-      '★★★ 不會被排程（不會發出無根據的報告）',
-    );
-    // MIG-LIFE-03：資料全留，而且立刻進入重新驗證
-    assert.equal((await e.db.getTokens(u.id)).whoopUserId, 'W-LEG');
-    assert.ok(await e.db.getTelegramLink('777001'));
-    assert.deepEqual(
-      (await e.db.listOnboardingInState([ONBOARDING_STATE.WHOOP_AUTHORIZED])).map((o) => o.userId),
-      [u.id], '★★★ 自動排進重新驗證，不需要人工重新連接',
-    );
-    // 冪等：再退回 17 重跑，這次沒有東西要降級了
-    await e.db.raw.execute('DELETE FROM schema_version');
-    await e.db.raw.execute(
-      "INSERT INTO schema_version (version, applied_at, note) VALUES (17, '2026-09-14T00:00:00.000Z', 'v17')",
-    );
-    const s2 = await e.db.migrate();
-    assert.ok(s2.dataMigrations.some((d) => d.version === 18 && d.rows === 0), 'MIG-LIFE-07 冪等');
-  } finally { e.done(); }
+  try { await rejectHybridRewind(e.db, 17); }
+  finally { await e.done(); }
 });
 
 test('MIG-LIFE-05/06 非 ACTIVE 維持不動；沒有世代出處的舊 OAuth state fail closed', async () => {
@@ -748,7 +695,7 @@ test('MIG-LIFE-05/06 非 ACTIVE 維持不動；沒有世代出處的舊 OAuth st
 });
 
 test('MIG-LIFE-01 schema 版本推進到 18，而且新欄位都是可為 NULL 的純新增', async () => {
-  assert.equal(SCHEMA_VERSION, 27);
+  assert.equal(SCHEMA_VERSION, 30);
   const { ADDITIVE_COLUMNS } = await import('../src/schema.js');
   const added = ADDITIVE_COLUMNS.filter((c) => /lifecycle/.test(c.column));
   assert.ok(added.length >= 4);

@@ -48,6 +48,7 @@ async function withUser(fn) {
   try {
     await db.migrate();
     const user = await db.createUser({ displayName: 'K', timezone: 'Asia/Taipei' });
+    await db.setLocale(user.id, 'zh-TW');
     await db.linkTelegram({ chatId: CHAT, userId: user.id });
     await fn(db, user);
   } finally {
@@ -247,6 +248,7 @@ test('★★ R2-M-05: 重啟（換 db 連線）之後認領紀錄仍然有效', 
     const db1 = createDb({ url });
     await db1.migrate();
     const user = await db1.createUser({ displayName: 'K', timezone: 'Asia/Taipei' });
+    await db1.setLocale(user.id, 'zh-TW');
     await db1.linkTelegram({ chatId: CHAT, userId: user.id });
     await makePoller(db1, db1).processBatch([update(100)], 0);
     await db1.setUpdateOffset(0);

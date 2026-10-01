@@ -51,6 +51,7 @@ async function seed({ days = 1 } = {}) {
   const { db, cleanup } = tempDb();
   await db.migrate();
   const u = await db.createUser({ displayName: 'Kelvin', timezone: TZ });
+  await db.setLocale(u.id, 'zh-TW');
   await db.linkTelegram({ chatId: '5001', userId: u.id });
   for (let i = 0; i < days; i += 1) {
     const date = new Date(Date.parse(`${HD}T00:00:00Z`) - i * 86_400_000);
@@ -400,6 +401,7 @@ test('★★ 時間：台北時區的健康日切點（凌晨 4 點）', async (
   try {
     await db.migrate();
     const u = await db.createUser({ displayName: 'K', timezone: TZ });
+    await db.setLocale(u.id, 'zh-TW');
     await db.linkTelegram({ chatId: '5001', userId: u.id });
     // UTC 2026-09-11 15:30 = 台北 2026-09-11 23:30（仍是 11 號）
     const before = new Date('2026-09-11T15:30:00Z');

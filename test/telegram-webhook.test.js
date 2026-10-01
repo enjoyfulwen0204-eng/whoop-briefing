@@ -58,6 +58,8 @@ async function withWebhook(fn, { coachReply = '好的', coachThrows = false, sen
     await db.migrate();
     const alice = await db.createUser({ displayName: 'Alice', timezone: 'Asia/Taipei' });
     const bob = await db.createUser({ displayName: 'Bob', timezone: 'Asia/Taipei' });
+    await db.setLocale(alice.id, 'zh-TW');
+    await db.setLocale(bob.id, 'zh-TW');
     await db.linkTelegram({ chatId: '5001', userId: alice.id });
     await db.linkTelegram({ chatId: '5002', userId: bob.id });
 
@@ -403,6 +405,7 @@ test('★★★ webhook: 認領機制壞掉 → 503，完全沒有副作用', as
   try {
     await db.migrate();
     const u = await db.createUser({ displayName: 'A', timezone: 'Asia/Taipei' });
+    await db.setLocale(u.id, 'zh-TW');
     await db.linkTelegram({ chatId: '5001', userId: u.id });
     const sent = [];
     const broken = { ...db, claimTelegramUpdate: async () => { throw new Error('claim table gone'); } };

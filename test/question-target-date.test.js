@@ -54,6 +54,7 @@ async function withUser(fn) {
   try {
     await db.migrate();
     const user = await db.createUser({ displayName: 'K', timezone: TZ });
+    await db.setLocale(user.id, 'zh-TW');
     await fn(db, user);
   } finally {
     db.close();
@@ -306,6 +307,7 @@ test('★★★ R2-M-02: 跨午夜回答（台北 23:50 問、00:10 答）仍然
 test('★★★ R2-M-02: 不同時區的使用者，目標日都以問題為準', async () => {
   await withUser(async (db, alice) => {
     const bob = await db.createUser({ displayName: 'Bob', timezone: 'America/New_York' });
+    await db.setLocale(bob.id, 'zh-TW');
     // 同一個 UTC 瞬間對兩人是不同的當地日期——目標日必須完全不受影響
     const askAt = new Date('2026-02-06T01:00:00Z');
     const replyAt = new Date('2026-02-06T01:10:00Z');

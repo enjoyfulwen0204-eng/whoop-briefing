@@ -27,6 +27,7 @@ import {
   HEALTHSPAN_POLICY_VERSION, hasQualifiedScoringPolicy, historyTierLabel, publishableScore,
 } from './healthspanPolicy.js';
 import { log, describeError } from './logger.js';
+import { t, formatNumber } from './localization.js';
 
 /**
  * readiness 狀態 → 成熟度。**純函式。**
@@ -214,7 +215,8 @@ const AVAILABILITY_MARK = {
  *
  * ★ 絕不出現 WHOOP Age / WHOOP Healthspan，絕不輸出任何合成分數或年齡。
  */
-export function renderPersonalHealthspan(result) {
+export function renderPersonalHealthspan(result, locale = 'zh-TW') {
+  if (locale !== 'zh-TW') return renderLocalizedHealthspan(result, locale);
   const lines = ['🧬 Personal Healthspan', ''];
 
   lines.push(`狀態：${MATURITY_LABEL[result.maturity] ?? result.maturity}`);
@@ -247,5 +249,35 @@ export function renderPersonalHealthspan(result) {
   }
   lines.push('');
   lines.push('註：這是本系統自己的長期生理盤點，與 WHOOP App 內的任何評分無關。');
+  return lines.join('\n');
+}
+
+function renderLocalizedHealthspan(result, locale) {
+  const line = (key, vars = {}) => t(locale, `healthspan.${key}`, vars);
+  const maturity = Object.values(HEALTHSPAN_MATURITY).includes(result.maturity)
+    ? result.maturity : 'UNKNOWN';
+  const lines = [line('title'), '', line('status', { status: line(`maturity.${maturity}`) })];
+  if (result.scopedCount) lines.push(line('coverage', {
+    usable: formatNumber(locale, result.usableCount),
+    scoped: formatNumber(locale, result.scopedCount),
+  }));
+  if (result.historyTier) {
+    const days = result.historyDays >= 180 ? 180 : result.historyDays >= 90 ? 90
+      : result.historyDays >= 60 ? 60 : 30;
+    lines.push(line('history', { tier: line(`tier.${days}`) }));
+  }
+  lines.push(line('version', { version: result.algorithmVersion }), '');
+  if (result.maturity === HEALTHSPAN_MATURITY.NO_DATA) return [...lines, line('empty')].join('\n');
+  lines.push(line('metrics'));
+  const known = new Set(['sleep_duration','sleep_consistency','resting_heart_rate','hrv','recovery',
+    'respiratory_rate','strain','workout_volume','hr_zone_1_3','hr_zone_4_5',
+    'strength_activity','weight','max_heart_rate','spo2','skin_temp','steps','vo2_max','lean_body_mass']);
+  for (const c of result.contributors ?? []) lines.push(line('metric', {
+    mark: AVAILABILITY_MARK[c.availability] ?? '?',
+    metric: line(`metric.${known.has(c.metricKey) ? c.metricKey : 'unknown'}`),
+    count: formatNumber(locale, c.sampleCount ?? 0),
+  }));
+  if (!result.scoringPolicyActive) lines.push('', line('noScore'));
+  lines.push('', line('note'));
   return lines.join('\n');
 }

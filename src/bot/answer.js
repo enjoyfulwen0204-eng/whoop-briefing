@@ -7,6 +7,7 @@ import { renderAssertions, assemblePublication } from '../assertionRenderer.js';
 import { mechanismNoun } from './healthEducation.js';
 import { SYNC_VERDICT } from '../syncTruth.js';
 import { renderBriefingStatus } from '../briefingStatus.js';
+import { t, formatLocalDate, formatNumber, localizedDisplay } from '../localization.js';
 
 export const ANSWER_SYSTEM_PROMPT = `你是使用者的私人健康教練，語氣溫暖、專業、口語，用繁體中文。
 
@@ -170,17 +171,19 @@ export function buildAnswerContext(question, result) {
 }
 
 /** LLM 不可用時的純 Node 版本 —— 資訊完整，只是比較乾。 */
-export function renderFallback(result) {
+export function renderFallback(result, locale = 'zh-TW') {
   if (!result || result.available === false) {
-    return '目前還沒有足夠的 WHOOP 資料可以回答這個問題。';
+    return locale === 'zh-TW' ? '目前還沒有足夠的 WHOOP 資料可以回答這個問題。'
+      : t(locale, 'qa.empty');
   }
+  if (locale !== 'zh-TW') return renderLocalizedFallback(result, locale);
   const lines = [];
   switch (result.intent) {
-    case 'cause_query': return renderCauseAnswer(result);
-    case 'sync_status': return renderSyncAnswer(result);
+    case 'cause_query': return renderCauseAnswer(result, locale);
+    case 'sync_status': return renderSyncAnswer(result, locale);
     case 'briefing_status':
-      return renderBriefingStatus({ status: result.briefing_status, evidence: result.evidence });
-    case 'readiness_query': return renderReadinessAnswer(result);
+      return renderBriefingStatus({ status: result.briefing_status, evidence: result.evidence, locale });
+    case 'readiness_query': return renderReadinessAnswer(result, locale);
     case 'today_status':
       lines.push(`📊 ${result.health_date} 的狀態`);
       for (const m of Object.values(result.metrics)) {
@@ -236,14 +239,16 @@ export function renderFallback(result) {
 
 
 /** 幾小時前（人話）。時間不可信就回 null，不要編。 */
-function agoText(iso, nowIso) {
+function agoText(iso, nowIso, locale = 'zh-TW') {
   if (!iso || !nowIso) return null;
   const ms = Date.parse(nowIso) - Date.parse(iso);
   if (!Number.isFinite(ms) || ms < 0) return null;
   const mins = Math.round(ms / 60_000);
-  if (mins < 60) return `${mins} 分鐘前`;
+  if (mins < 60) return t(locale, 'answer.agoMinutes', { value: formatNumber(locale, mins) });
   const hrs = ms / 3_600_000;
-  return hrs < 48 ? `${hrs.toFixed(1)} 小時前` : `${Math.round(hrs / 24)} 天前`;
+  return hrs < 48
+    ? t(locale, 'answer.agoHours', { value: formatNumber(locale, hrs, 1) })
+    : t(locale, 'answer.agoDays', { value: formatNumber(locale, Math.round(hrs / 24)) });
 }
 
 /**
@@ -269,7 +274,8 @@ function agoText(iso, nowIso) {
  * ⚠️ 一律不提資源的內部鍵、endpoint、capability probe、backfill。
  * 使用者要知道的是「資料完不完整、新不新」，不是我們的資料管線長什麼樣。
  */
-export function renderSyncAnswer(result) {
+export function renderSyncAnswer(result, locale = 'zh-TW') {
+  if (locale !== 'zh-TW') return renderLocalizedSyncAnswer(result, locale);
   const ago = agoText(result.last_success_at, result.now);
   const when = ago ? `是 ${ago}` : '有紀錄但時間不明';
   const latest = result.latest_health_date
@@ -360,7 +366,8 @@ function notReadyPhrase(result) {
  * 所以這一版把結論放到**第一句**，不確定性只講一次，緊急警語不再自動附加
  * （明確的緊急症狀由 triage 那一層處理，它排在路由最前面）。
  */
-export function renderCauseAnswer(result) {
+export function renderCauseAnswer(result, locale = 'zh-TW') {
+  if (locale !== 'zh-TW') return renderLocalizedCauseAnswer(result, locale);
   const out = [];
   const facts = result.facts ?? [];
   const contributors = result.contributors ?? [];
@@ -426,7 +433,8 @@ export function renderCauseAnswer(result) {
  * ⚠️ 不把 MIN_SAMPLES 講成「累積五天就能找出原因」。那個門檻只是**某一個
  * 指標做基本比較**的最低合格樣本數，不是成熟個人化、更不是因果保證。
  */
-export function renderReadinessAnswer(result) {
+export function renderReadinessAnswer(result, locale = 'zh-TW') {
+  if (locale !== 'zh-TW') return renderLocalizedReadinessAnswer(result, locale);
   const out = [];
   const missing = notReadyPhrase(result);
   const need = result.min_samples_needed ?? null;
@@ -461,22 +469,206 @@ export function renderReadinessAnswer(result) {
   return out.join('\n');
 }
 
+const PUBLIC_METRICS = new Set([
+  'sleep_total', 'sleep_performance', 'recovery', 'hrv', 'rhr',
+  'previous_day_strain', 'deep_sleep', 'rem_sleep', 'respiratory_rate',
+  'sleep_debt', 'spo2', 'skin_temp', 'current_hr',
+]);
+const PUBLIC_FACTORS = new Set([
+  'alcohol', 'caffeine', 'stress', 'lateMeal', 'lateSleep', 'sickness',
+  'travel', 'exercise', 'sauna', 'supplement', 'medication', 'flight',
+  'location', 'massage', 'food', 'custom',
+]);
+const factorAlias = { late_meal:'lateMeal', late_sleep:'lateSleep', exercise_note:'exercise' };
+const metricText = (locale, key) => t(locale,
+  PUBLIC_METRICS.has(key) ? `answer.metric.${key}` : 'answer.metricUnknown');
+const factorText = (locale, key) => {
+  const normalized = factorAlias[key] ?? key;
+  return t(locale, `factor.${PUBLIC_FACTORS.has(normalized) ? normalized : 'custom'}`);
+};
+const numberOrDash = (locale, value, digits = 0) => Number.isFinite(Number(value))
+  ? formatNumber(locale, Number(value), digits) : '—';
+const displayOrNa = (locale, value) => value == null ? t(locale, 'answer.na') : localizedDisplay(locale, value);
+
+function renderLocalizedFallback(result, locale) {
+  const lines = [];
+  switch (result.intent) {
+    case 'cause_query': return renderLocalizedCauseAnswer(result, locale);
+    case 'sync_status': return renderLocalizedSyncAnswer(result, locale);
+    case 'briefing_status':
+      return renderBriefingStatus({ status: result.briefing_status, evidence: result.evidence, locale });
+    case 'readiness_query': return renderLocalizedReadinessAnswer(result, locale);
+    case 'today_status':
+      lines.push(t(locale, 'answer.todayTitle', { date: formatLocalDate(result.health_date, locale) }));
+      for (const [key, m] of Object.entries(result.metrics ?? {})) {
+        const metric = metricText(locale, key);
+        if (m.value == null) { lines.push(t(locale, 'answer.metricMissing', { metric })); continue; }
+        const baseline = m.baseline_display
+          ? t(locale, 'answer.baseline', { value: localizedDisplay(locale, m.baseline_display) }) : '';
+        const z = m.z_score == null ? '' : ` z=${numberOrDash(locale, m.z_score, 1)}`;
+        lines.push(t(locale, 'answer.metricValue', { metric, value: `${localizedDisplay(locale, m.display)}${baseline}${z}` }));
+      }
+      break;
+    case 'trend_query': {
+      const w = result.window ?? {};
+      lines.push(t(locale, 'answer.trendTitle', { metric: metricText(locale, result.metric) }));
+      lines.push(t(locale, 'answer.current', { value: displayOrNa(locale, result.current_display) }));
+      if (result.analysis_limited === 'calibrating') lines.push(t(locale, 'answer.calibrating'));
+      else if (result.analysis_limited === 'insufficient_history') lines.push(t(locale, 'answer.insufficientHistory'));
+      else {
+        lines.push(t(locale, 'answer.windowMean', {
+          days: numberOrDash(locale, w.window_days), mean: displayOrNa(locale, w.mean_display),
+          count: numberOrDash(locale, w.n),
+        }));
+        for (const [window, trend] of Object.entries(result.trends ?? {})) {
+          const direction = ['IMPROVING','STABLE','DECLINING','INSUFFICIENT_DATA'].includes(trend.direction)
+            ? trend.direction : 'INSUFFICIENT_DATA';
+          lines.push(t(locale, 'answer.trendLine', {
+            days: window.replace(/d$/, ''), direction: t(locale, `answer.trend.${direction}`),
+          }));
+        }
+      }
+      break;
+    }
+    case 'best_worst_day':
+      lines.push(t(locale, 'answer.bestTitle', {
+        metric: metricText(locale, result.metric), days: numberOrDash(locale, result.window_days),
+        count: numberOrDash(locale, result.n),
+      }));
+      lines.push(t(locale, 'answer.best', {
+        date: formatLocalDate(result.best.health_date, locale), value: localizedDisplay(locale, result.best.display),
+      }));
+      if (result.worst) lines.push(t(locale, 'answer.worst', {
+        date: formatLocalDate(result.worst.health_date, locale), value: localizedDisplay(locale, result.worst.display),
+      }));
+      break;
+    case 'what_changed':
+      if (!result.items?.length) return t(locale, 'answer.noChanges');
+      lines.push(t(locale, 'answer.changesTitle'));
+      for (const item of result.items) lines.push(t(locale, 'answer.changeLine', {
+        metric: metricText(locale, item.metric), value: localizedDisplay(locale, item.current_display),
+      }));
+      break;
+    case 'sleep_quality':
+      lines.push(t(locale, 'answer.sleepTitle', { days: numberOrDash(locale, result.window_days) }));
+      for (const [key, m] of Object.entries(result.metrics ?? {})) {
+        if (!m.available) continue;
+        lines.push(t(locale, 'answer.sleepLine', {
+          metric: metricText(locale, key), current: displayOrNa(locale, m.current_display),
+          mean: displayOrNa(locale, m.mean_display), count: numberOrDash(locale, m.n),
+        }));
+      }
+      break;
+    default: return t(locale, 'answer.unable');
+  }
+  return lines.join('\n');
+}
+
+function renderLocalizedSyncAnswer(result, locale) {
+  const ago = agoText(result.last_success_at, result.now, locale);
+  const parentheticAgo = ago ? ` (${ago})` : '';
+  const latest = result.latest_health_date
+    ? t(locale, 'answer.latestDate', { date: formatLocalDate(result.latest_health_date, locale) }) : null;
+  if (result.no_new_data) return [
+    t(locale, 'answer.sync.noNewData', { ago: parentheticAgo }),
+    t(locale, 'answer.sync.scoreWait'), latest,
+  ].filter(Boolean).join('\n');
+  let parts;
+  switch (result.verdict) {
+    case SYNC_VERDICT.LATEST_SUCCESS_COMPLETE:
+      parts = [t(locale, 'answer.sync.complete', {
+        ago: ago ?? t(locale, 'answer.timeUnknown'),
+      }), latest];
+      break;
+    case SYNC_VERDICT.LATEST_SUCCESS_PARTIAL:
+      parts = [t(locale, 'answer.sync.partial', { ago: parentheticAgo }), latest];
+      break;
+    case SYNC_VERDICT.HISTORICAL_SUCCESS_LATEST_FAILED:
+      parts = [t(locale, 'answer.sync.historicalFailure', { ago: parentheticAgo }),
+        t(locale, 'answer.sync.retryAuth'), latest];
+      break;
+    case SYNC_VERDICT.STALE_SUCCESS:
+      parts = [t(locale, 'answer.sync.stale', { ago: parentheticAgo }),
+        t(locale, 'answer.sync.staleAdvice'), latest];
+      break;
+    case SYNC_VERDICT.LATEST_FAILED: parts = [t(locale, 'answer.sync.failed')]; break;
+    case SYNC_VERDICT.NEVER_SYNCED: parts = [t(locale, 'answer.sync.never')]; break;
+    default:
+      parts = [t(locale, 'answer.sync.incomplete'),
+        result.latest_health_date ? t(locale, 'answer.latestDateCaveat', {
+          date: formatLocalDate(result.latest_health_date, locale),
+        }) : null];
+  }
+  return parts.filter(Boolean).join('\n');
+}
+
+function renderLocalizedCauseAnswer(result, locale) {
+  const facts = result.facts ?? [];
+  const contributors = result.contributors ?? [];
+  const comparable = facts.filter(f => f.comparable);
+  const named = contributors.length > 0;
+  const out = [named ? t(locale, 'answer.causeWithFactor', {
+    factor: contributors.map(c => factorText(locale, c.category)).join(', '),
+  }) : t(locale, 'answer.causeUnknown')];
+  const noteworthy = comparable.filter(f => f.noteworthy).slice(0, 2);
+  const highlight = noteworthy.length ? noteworthy
+    : facts.filter(f => ['sleep_total','recovery'].includes(f.key)).slice(0, 2);
+  const parts = [];
+  if (highlight.length) parts.push(t(locale, 'answer.causeToday', {
+    observations: highlight.map(f => t(locale, 'answer.causeObservation', {
+      metric: metricText(locale, f.key), value: localizedDisplay(locale, f.display),
+      baseline: f.comparable && f.baseline_display
+        ? t(locale, f.noteworthy ? 'answer.causeBaselineNoteworthy' : 'answer.causeBaselineSimilar',
+          { value: localizedDisplay(locale, f.baseline_display) }) : '',
+    })).join(', '),
+  }));
+  const missing = (result.not_ready_metrics ?? []).filter(k => PUBLIC_METRICS.has(k))
+    .map(k => metricText(locale, k)).join(', ');
+  if (!comparable.length) parts.push(t(locale,
+    missing ? 'answer.causeNoBaselineNamed' : 'answer.causeNoBaseline', { metrics: missing }));
+  else if (missing) parts.push(t(locale, 'answer.causeSomeBaseline', { metrics: missing }));
+  if (named && contributors.some(c => c.temporal === 'after'))
+    parts.push(t(locale, 'answer.causeTiming'));
+  if (parts.length) out.push(parts.join(' '));
+  out.push(t(locale, named ? 'answer.causeAdviceWithFactor' : 'answer.causeAdvice'));
+  return out.join('\n\n');
+}
+
+function renderLocalizedReadinessAnswer(result, locale) {
+  if (result.all_ready) return [
+    t(locale, 'answer.readinessNo'), t(locale, 'answer.readinessOther'),
+  ].join('\n\n');
+  const missing = (result.not_ready_metrics ?? []).filter(k => PUBLIC_METRICS.has(k))
+    .map(k => metricText(locale, k)).join(', ');
+  const out = [t(locale, 'answer.readinessYes')];
+  out.push(t(locale, result.has_today_facts
+    ? missing ? 'answer.readinessTodayNamed' : 'answer.readinessToday'
+    : 'answer.readinessNoFacts', { metrics: missing }));
+  if (result.calibrating) out.push(t(locale, 'answer.readinessCalibrating'));
+  if (Number.isFinite(result.min_samples_needed)) out.push(t(locale, 'answer.readinessNeed', {
+    count: formatNumber(locale, result.min_samples_needed),
+  }));
+  out.push(t(locale, 'answer.readinessCaveat'));
+  return out.join('\n\n');
+}
+
 /** structured result → 最終要送出去的文字。 */
 /** Render the computed result without invoking or appending provider prose.
  * Trend templates preserve computed windows/sample counts in addition to values. */
-export async function composeAnswer({ question, result, coach, purpose = AI_PURPOSE.QA }) {
-  if (!result || result.available === false) return renderFallback(result);
+export async function composeAnswer({ question, result, coach, purpose = AI_PURPOSE.QA, locale = 'zh-TW' }) {
+  if (!result || result.available === false) return renderFallback(result, locale);
 
   // 1) 確定性斷言 —— 這一段永遠存在，而且與 LLM 無關
   const factSet = factsFromQaResult(result);
-  const { lines, unavailable } = renderAssertions(factSet);
-  const header = result.health_date ? `📊 ${result.health_date} 的狀態` : null;
+  const { lines, unavailable } = renderAssertions(factSet, locale);
+  const header = result.health_date ? t(locale, 'qa.header',
+    { date: formatLocalDate(result.health_date, locale) }) : null;
 
   // 事實集算不出任何東西時，退回既有的確定性排版（它涵蓋 trend/best-worst
   // 等 factsFromQaResult 不建模的 intent）。
   const deterministic = lines.length && result.intent !== 'trend_query'
-    ? assemblePublication({ header, assertionLines: lines, unavailable })
-    : renderFallback(result);
+    ? assemblePublication({ header, assertionLines: lines, unavailable, locale })
+    : renderFallback(result, locale);
 
   // Provider prose has no publication authority, including optional explanations.
   return deterministic;

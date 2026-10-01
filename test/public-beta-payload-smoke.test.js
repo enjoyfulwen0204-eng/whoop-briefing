@@ -31,6 +31,7 @@ test('actual pre-transport daily payload binds user, chat, name and WHOOP across
   await db.migrate();
   for (const user of users) {
     await db.createUser({ id: user.id, displayName: user.displayName || 'Temporary', timezone: 'Asia/Taipei' });
+    await db.setLocale(user.id, 'zh-TW');
     if (!user.displayName) await db.raw.execute("UPDATE users SET display_name='' WHERE id='nameless'");
     await db.linkTelegram({ userId: user.id, chatId: user.chatId });
   }
@@ -93,7 +94,7 @@ test('actual pre-transport daily payload binds user, chat, name and WHOOP across
     betaSummary: { readCurrent: async context => ({ userId: context.userId, executionMode: 'SHADOW',
       episodes: [{ metricKey: 'recovery_score', direction: context.userId === 'bob' ? 'HIGHER' : 'LOWER',
         resultId: `${context.userId}-EPISODE` }],
-      insights: [{ status: 'SUPPORTED', claim: `${context.userId} journal association`,
+      insights: [{ status: 'SUPPORTED', claim: `${({alice:'alcohol',bob:'caffeine',nameless:'stress'})[context.userId]} has been repeatedly associated in your data with lower recovery_score.`,
         resultId: `${context.userId}-INSIGHT`, receipt: `${context.userId}-RECEIPT` }] }) },
   };
   const capability = authorizePublicBetaRuntime({ executionMode: 'SHADOW' });
@@ -114,11 +115,11 @@ test('actual pre-transport daily payload binds user, chat, name and WHOOP across
     const payload = summaryPayloads.find(item => item.chatId === user.chatId);
     assert.ok(payload);
     assert.match(payload.text, user.displayName ? new RegExp(`Beta 摘要（${user.displayName}）`) : /Beta 摘要\n/);
-    assert.match(payload.text, new RegExp(`${user.id} journal association`));
+    assert.match(payload.text, new RegExp(({alice:'飲酒',bob:'咖啡因',nameless:'壓力'})[user.id]));
     assert.match(payload.text, user.id === 'bob' ? /恢復分數高於/ : /恢復分數低於/);
     assert.doesNotMatch(payload.text, /Kelvin|Body Energy|身體能量|EPISODE|INSIGHT|RECEIPT/);
     for (const other of users.filter(item => item.id !== user.id)) {
-      assert.doesNotMatch(payload.text, new RegExp(`${other.id} journal association`));
+      assert.doesNotMatch(payload.text, new RegExp(({alice:'飲酒',bob:'咖啡因',nameless:'壓力'})[other.id]));
       if (other.displayName) assert.doesNotMatch(payload.text, new RegExp(other.displayName));
     }
   }
@@ -141,7 +142,7 @@ test('actual pre-transport daily payload binds user, chat, name and WHOOP across
   for (const user of users) {
     const summary = child.summaryPayloads.find(item => item.chatId === user.chatId)?.text;
     assert.ok(summary);
-    assert.match(summary, new RegExp(`${user.id} journal association`));
+    assert.match(summary, new RegExp(({alice:'飲酒',bob:'咖啡因',nameless:'壓力'})[user.id]));
     assert.doesNotMatch(summary, /Kelvin|Body Energy|身體能量|EPISODE|INSIGHT|RECEIPT/);
   }
   for (const user of users) {

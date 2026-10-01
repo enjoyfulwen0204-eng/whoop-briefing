@@ -59,6 +59,7 @@ async function withEnv(fn, { resolveDelay = null, handleDelay = null } = {}) {
   try {
     await db.migrate();
     const alice = await db.createUser({ displayName: 'Alice', timezone: 'Asia/Taipei' });
+    await db.setLocale(alice.id, 'zh-TW');
     await db.linkTelegram({ chatId: '5001', userId: alice.id });
     const exec = [];
     const sent = [];

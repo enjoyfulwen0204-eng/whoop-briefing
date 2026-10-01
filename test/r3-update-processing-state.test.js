@@ -61,6 +61,7 @@ async function withUser(fn) {
   try {
     await db.migrate();
     const user = await db.createUser({ displayName: 'K', timezone: 'Asia/Taipei' });
+    await db.setLocale(user.id, 'zh-TW');
     await db.linkTelegram({ chatId: CHAT, userId: user.id });
     await fn(db, user);
   } finally {
@@ -296,6 +297,7 @@ test('★★★ R3-M-05: 重啟（新的 db 連線、新的 workerId）自我修
     await db.migrate();
     const user = await db.createUser({ displayName: 'K', timezone: 'Asia/Taipei' });
     await db.linkTelegram({ chatId: CHAT, userId: user.id });
+    await db.setLocale(user.id, 'zh-TW');
     // 舊 worker 認領後就死了。
     await db.claimTelegramUpdate(100, {
       owner: 'old-process', leaseMs: 1_000, now: new Date(NOW.getTime() - 7200_000),

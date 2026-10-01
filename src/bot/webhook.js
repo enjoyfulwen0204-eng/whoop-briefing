@@ -57,7 +57,9 @@ import { runPublicBetaBriefing } from '../publicBetaEntry.js';
 import { publicBetaConfiguration, publicBetaKeysIfPresent } from '../publicBetaConfig.js';
 import { createWhoopWebhookIngest, statusForIngest } from '../whoopWebhookIngest.js';
 import { createWhoopOAuthCallback, OAUTH_CALLBACK_PATH, renderScreen } from '../whoopOAuthCallback.js';
-import { handleUnlinkedMessage, handleOnboardingMessage, MESSAGES as ONBOARDING_MESSAGES } from '../onboarding.js';
+import { handleUnlinkedMessage, handleOnboardingMessage, handleLocaleOnlyMessage,
+  MESSAGES as ONBOARDING_MESSAGES } from '../onboarding.js';
+import { LANGUAGE_SELECTOR } from '../localization.js';
 import { runOnboardingBootstrap } from '../onboardingBootstrap.js';
 import { exchangeCode, fetchWhoopUserId } from '../whoop.js';
 
@@ -107,11 +109,11 @@ export function readBody(req, { limit = TELEGRAM_BOT.WEBHOOK_MAX_BODY_BYTES } = 
 }
 
 /** bootstrap 的通知種類 → 使用者看得到的文字。 */
-export function onboardingNotice(kind) {
-  if (kind === 'ready') return ONBOARDING_MESSAGES.ready();
-  if (kind === 'bootstrap_failed') return ONBOARDING_MESSAGES.actionRequired('BOOTSTRAP_FAILED');
-  if (kind === 'scope_incomplete') return ONBOARDING_MESSAGES.actionRequired('WHOOP_SCOPE_INCOMPLETE');
-  return ONBOARDING_MESSAGES.statusSyncing();
+export function onboardingNotice(kind, locale = 'zh-TW') {
+  if (kind === 'ready') return ONBOARDING_MESSAGES.ready(locale);
+  if (kind === 'bootstrap_failed') return ONBOARDING_MESSAGES.actionRequired('BOOTSTRAP_FAILED', locale);
+  if (kind === 'scope_incomplete') return ONBOARDING_MESSAGES.actionRequired('WHOOP_SCOPE_INCOMPLETE', locale);
+  return ONBOARDING_MESSAGES.statusSyncing(locale);
 }
 
 /** 這個物件像不像一則 Telegram Update（只檢查到不會讓下游爆掉為止）。 */
@@ -262,7 +264,7 @@ export function createWebhookHandler({
     if (path === oauthCallbackPath) {
       if (!oauthCallback) return send(res, 404, { ok: false });
       if (req.method !== 'GET' && req.method !== 'HEAD') {
-        const page = renderScreen('not_found');
+        const page = renderScreen('not_found', null);
         return sendHtml(res, 405, page.html);
       }
       const q = new URLSearchParams(url.includes('?') ? url.slice(url.indexOf('?') + 1) : '');
@@ -271,7 +273,7 @@ export function createWebhookHandler({
         result = await oauthCallback({ query: q });
       } catch (err) {
         log.error('oauth_callback_unhandled', { error: describeError(err) });
-        const page = renderScreen('error');
+        const page = renderScreen('error', null);
         return sendHtml(res, page.status, page.html);
       }
       return sendHtml(res, result.status, result.html);
@@ -451,6 +453,9 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       if (onboardingConfigured) {
         const reply = await handleOnboardingMessage({ db, user, text, ...onboardingArgs });
         if (reply !== null) return reply;
+      } else {
+        const localeReply = await handleLocaleOnlyMessage({ db, user, text });
+        if (localeReply !== null) return localeReply;
       }
       return router.handle({ text, chatId, user });
     },
@@ -512,16 +517,21 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     verifyIdentity: ({ accessToken }) => fetchWhoopUserId({ accessToken }),
     onAuthorized: async (userId, { expectedLifecycleGeneration }) => {
       await db.assertAccountActive(userId, expectedLifecycleGeneration);
-      await notifyUser(userId, ONBOARDING_MESSAGES.authorizedSyncing(), { expectedLifecycleGeneration })
+      const locale = await db.getLocale(userId);
+      await notifyUser(userId, locale ? ONBOARDING_MESSAGES.authorizedSyncing(locale) : LANGUAGE_SELECTOR,
+        { expectedLifecycleGeneration })
         .catch((err) => log.warn('onboarding_notify_failed', { error: describeError(err) }));
       await db.assertAccountActive(userId, expectedLifecycleGeneration);
       // 不 await：回呼要在瀏覽器面前很快結束。
       runOnboardingBootstrap({
         db, userId, env, expectedLifecycleGeneration,
         deps: {
-          notify: (uid, kind) => notifyUser(uid, onboardingNotice(kind), {
+          notify: async (uid, kind) => {
+            const locale = await db.getLocale(uid);
+            return notifyUser(uid, locale ? onboardingNotice(kind, locale) : LANGUAGE_SELECTOR, {
             expectedLifecycleGeneration,
-          }),
+            });
+          },
         },
       }).catch((err) => log.error('onboarding_bootstrap_detached_failed', {
         user_id: userId, error: describeError(err),

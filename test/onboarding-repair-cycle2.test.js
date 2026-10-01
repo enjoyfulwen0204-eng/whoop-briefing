@@ -130,6 +130,7 @@ async function canonicalIdentity(db, userId, whoopUserId, { table = 'whoop_sleep
 async function authorize(db, chatId, { timezone = 'Asia/Taipei', whoopUserId = 'W1' } = {}) {
   await onb(db, chatId, '/start');
   const user = await userFor(db, chatId);
+  await linked(db, user, '繁體中文');
   const reply = await linked(db, user, timezone);
   const cb = createWhoopOAuthCallback({ db, ...fakeWhoopBackend({ whoopUserId }), now: () => NOW });
   const res = await cb({ query: new URLSearchParams({ code: 'good', state: stateFromUrl(urlIn(reply)) }) });
@@ -585,6 +586,6 @@ test('遷移：全新資料庫直接到 v16，不會憑空產生上線列或權�
     assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM whoop_resource_access')).rows[0].n, 0);
     const s = await runMigrations(e.db.raw);
     assert.deepEqual(s.dataMigrations ?? [], []);
-    assert.equal(SCHEMA_VERSION, 30);
+    assert.equal(SCHEMA_VERSION, 31);
   } finally { e.done(); }
 });

@@ -49,6 +49,7 @@ async function dbWithData({ days = 60, overrides = undefined } = {}) {
   const db = createDb({ url });
   await db.migrate();
   await db.createUser({id: USER.id, displayName: 'Synthetic QA', timezone: TZ});
+  await db.setLocale(USER.id, 'zh-TW');
   if (days > 0) {
     const ds = makeDataset({ days, now: NOW, overrides });
     const whoop = {
@@ -466,5 +467,5 @@ test('router 永遠不拋錯（handler 內部爆炸也要回一句人話）', as
   };
   const router = createRouter({ db: broken, coachFor: () => null, now: () => NOW });
   const reply = await router.handle({ text: '我今天狀態怎樣？', chatId: CHAT, user: USER });
-  assert.match(reply, /出了點問題/);
+  assert.match(reply, /稍後再試/);
 });

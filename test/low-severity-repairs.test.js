@@ -28,6 +28,7 @@ async function withUser(fn) {
   try {
     await db.migrate();
     const user = await db.createUser({ displayName: 'K', timezone: 'Asia/Taipei' });
+    await db.setLocale(user.id, 'zh-TW');
     await fn(db, user);
   } finally {
     db.close();

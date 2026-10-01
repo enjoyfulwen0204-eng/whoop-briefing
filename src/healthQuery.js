@@ -48,6 +48,13 @@ export const METRIC_ALIASES = {
   sleep_debt: 'sleep_debt', 睡眠債: 'sleep_debt',
   spo2: 'spo2', 血氧: 'spo2',
   skin_temp: 'skin_temp', 皮膚溫度: 'skin_temp',
+  'resting heart rate': 'rhr', 'nhịp tim lúc nghỉ': 'rhr',
+  'phục hồi': 'recovery', 'hồi phục': 'recovery',
+  'giấc ngủ': 'sleep_total', 'ngủ sâu': 'deep_sleep', 'deep sleep': 'deep_sleep',
+  'rem sleep': 'rem_sleep', 'giấc ngủ rem': 'rem_sleep',
+  'sleep efficiency': 'sleep_efficiency', 'hiệu quả giấc ngủ': 'sleep_efficiency',
+  'sleep consistency': 'sleep_consistency', 'tính đều đặn của giấc ngủ': 'sleep_consistency',
+  'nhịp thở': 'respiratory_rate', 'sleep duration': 'sleep_total',
 };
 
 export function resolveMetric(name) {

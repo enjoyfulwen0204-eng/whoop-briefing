@@ -24,6 +24,7 @@ import { INFORMATION_GAIN_POLICY } from './proactivePolicy.js';
 import { CATEGORIES as JOURNAL_CATEGORIES } from './journal.js';
 import { DEVIATION } from './analytics/anomaly.js';
 import { addDays } from './time.js';
+import { t } from './localization.js';
 
 /**
  * 候選類別來自集中的政策設定（不是寫死在引擎裡）。
@@ -95,7 +96,7 @@ export function scoreCandidate({
  *   null（所有候選都被排除，呼叫端要降級成 NOTIFY）
  */
 export function selectQuestion({
-  signal, journalEvents = [], metricSeries = [], excludeCategories = new Set(),
+  signal, journalEvents = [], metricSeries = [], excludeCategories = new Set(), locale = 'zh-TW',
 }) {
   const candidates = QUESTION_CANDIDATES
     .filter((c) => !excludeCategories.has(c))
@@ -113,7 +114,7 @@ export function selectQuestion({
   return {
     category: top.category,
     score: top.score,
-    question: buildQuestionText({ category: top.category, signal }),
+    question: buildQuestionText({ category: top.category, signal, locale }),
     /**
      * ★ R2-M-02：這一題**在問哪一天的行為**。
      *
@@ -141,14 +142,15 @@ export function questionTargetDate({ category, signal }) {
 }
 
 /** 訊號 + 類別 → 一句話的問題。純樣板，不是 LLM 生成。 */
-export function buildQuestionText({ category, signal }) {
-  const metricLabel = METRIC_LABEL[signal.metric] ?? signal.metric;
-  const dirWord = DIRECTION_WORD[signal.direction] ?? '有變化';
-  const levelWord = LEVEL_WORD[signal.level] ?? '';
-  const prompt = CATEGORY_PROMPT[category] ?? '昨天有發生什麼特別的事嗎？';
-
-  return `你的${metricLabel}今天比平常${dirWord}${levelWord ? `了${levelWord}` : ''}。${prompt}\n`
-    + '（直接回我就好，例如「喝了三杯」或「沒有」。我會記下來，之後就能對照著看。）';
+export function buildQuestionText({ category, signal, locale = 'zh-TW' }) {
+  const metric = locale === 'zh-TW' ? (METRIC_LABEL[signal.metric] ?? signal.metric)
+    : t(locale, `metric.${signal.metric}`);
+  const direction = t(locale, `proactive.direction.${signal.direction ?? 'flat'}`);
+  const level = signal.level === DEVIATION.STRONG
+    ? t(locale, 'proactive.questionLevel.strong')
+    : signal.level === DEVIATION.NOTABLE ? t(locale, 'proactive.questionLevel.notable') : '';
+  const prompt = t(locale, `proactive.prompt.${category in CATEGORY_PROMPT ? category : 'other'}`);
+  return t(locale, 'proactive.question', { metric, direction, level, prompt });
 }
 
 /**

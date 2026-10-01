@@ -48,6 +48,8 @@ async function withDb(fn) {
   try {
     await db.migrate();
     await seedAliceAndBob(db);
+    await db.setLocale(ALICE.id, 'zh-TW');
+    await db.setLocale(BOB.id, 'zh-TW');
     await fn(db);
   } finally {
     db.close();

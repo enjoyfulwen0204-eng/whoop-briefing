@@ -101,6 +101,7 @@ const fakeWhoopBackend = ({ whoopUserId = 'W1', scope = 'offline read:sleep read
 async function authorize(db, chatId, { timezone = 'Asia/Taipei', whoopUserId = 'W1', at = NOW } = {}) {
   await onb(db, chatId, '/start', { now: at });
   const user = await userFor(db, chatId);
+  await linked(db, user, '繁體中文');
   const reply = await linked(db, user, timezone, { now: at });
   const cb = createWhoopOAuthCallback({ db, ...fakeWhoopBackend({ whoopUserId }), now: () => at });
   const res = await cb({ query: new URLSearchParams({ code: 'good', state: stateFromUrl(urlIn(reply)) }) });

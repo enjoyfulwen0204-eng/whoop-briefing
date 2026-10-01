@@ -22,7 +22,7 @@ import { createTelegramApi } from './api.js';
 import { createPoller } from './polling.js';
 import { createRouter } from './router.js';
 import { handleLinkAttempt } from './link.js';
-import { handleUnlinkedMessage, handleOnboardingMessage } from '../onboarding.js';
+import { handleUnlinkedMessage, handleOnboardingMessage, handleLocaleOnlyMessage } from '../onboarding.js';
 import { log, describeError } from '../logger.js';
 
 /**
@@ -130,6 +130,9 @@ export async function main({ maxIterations = Infinity } = {}) {
       if (onboardingConfigured) {
         const onboardingReply = await handleOnboardingMessage({ db, user, text, ...onboardingArgs });
         if (onboardingReply !== null) return onboardingReply;
+      } else {
+        const localeReply = await handleLocaleOnlyMessage({ db, user, text });
+        if (localeReply !== null) return localeReply;
       }
       return router.handle({ text, chatId, user });
     },

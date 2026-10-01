@@ -12,6 +12,7 @@ import { SEND_OUTCOME, classifySendOutcome, DEFINITE_NETWORK_CODES } from './sen
 import { clamp } from './format.js';
 import { log, describeError } from './logger.js';
 import { ACCOUNT_INACTIVE, isSuppressedDelivery } from './accountLifecycle.js';
+import { t, formatNumber } from './localization.js';
 
 export class TelegramError extends Error {
   /**
@@ -41,7 +42,7 @@ export function isDefiniteSendFailure(err) {
  */
 export function createTelegram({
   botToken, chatId, dryRun = false, fetchImpl = fetch, db = null,
-  errorScope = GLOBAL_SCOPE,
+  errorScope = GLOBAL_SCOPE, locale = 'zh-TW',
 }) {
   async function send(text, { authorize, userId = null } = {}) {
     // 共用同一個 clamp（format.js），不再各自實作一份
@@ -192,7 +193,12 @@ export function createTelegram({
           return false;
         }
       }
-      const result = await send(`🚨 WHOOP 簡報系統異常\n類型：${errorType}\n${message}\n\n（同類型錯誤 ${hours} 小時內只通知一次）`, { authorize, userId });
+      const body = errorScope === GLOBAL_SCOPE
+        ? `🚨 WHOOP 簡報系統異常\n類型：${errorType}\n${message}\n\n（同類型錯誤 ${hours} 小時內只通知一次）`
+        : t(locale, 'telegram.errorNotice', {
+          message, hours: formatNumber(locale, hours),
+        });
+      const result = await send(body, { authorize, userId });
       if (isSuppressedDelivery(result)) {
         if (claim?.granted && claim.claimedAt && db?.releaseErrorNotify) {
           await db.releaseErrorNotify(errorScope, errorType, claim.claimedAt, { expectedLifecycleGeneration });

@@ -60,10 +60,20 @@ const privateMessage = (chatId, text, { firstName = 'Amy' } = {}) => ({
   from: { id: Number(chatId), is_bot: false, first_name: firstName },
 });
 
-const onb = (db, chatId, text, opts = {}) => handleUnlinkedMessage({
-  db, text, chatId, message: privateMessage(chatId, text), isPrivateChat: true,
-  clientId: CLIENT_ID, redirectUri: REDIRECT, now: NOW, ...opts,
-});
+const onb = async (db, chatId, text, opts = {}) => {
+  const reply = await handleUnlinkedMessage({
+    db, text, chatId, message: privateMessage(chatId, text), isPrivateChat: true,
+    clientId: CLIENT_ID, redirectUri: REDIRECT, now: NOW, ...opts,
+  });
+  // Historical onboarding assertions begin after choosing Traditional Chinese.
+  // The new language-first flow has its own focused tests.
+  if (text === '/start' && reply?.includes('Choose language')) {
+    const user = (await db.resolveUserByChatId(chatId))?.user;
+    if (user) return handleOnboardingMessage({ db, user, text: '繁體中文',
+      clientId: CLIENT_ID, redirectUri: REDIRECT, now: NOW });
+  }
+  return reply;
+};
 const linked = (db, user, text, opts = {}) => handleOnboardingMessage({
   db, user, text, clientId: CLIENT_ID, redirectUri: REDIRECT, now: NOW, ...opts,
 });

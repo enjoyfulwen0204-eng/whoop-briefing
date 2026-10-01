@@ -49,6 +49,7 @@ import {
   HEARTBEAT_COMPONENT,
 } from './guardianPolicy.js';
 import { log, describeError } from './logger.js';
+import { t, formatNumber } from './localization.js';
 
 const ageMs = (iso, now) => {
   const t = Date.parse(iso ?? '');
@@ -190,7 +191,22 @@ export function evaluate({ cronHeartbeat = null, users = [], now = new Date() } 
  * 環境變數、token、journal 內容或使用者訊息。摘要與 detail 都是
  * Guardian 自己算出來的數字與時間戳。
  */
-export function renderFinding(f) {
+export function renderFinding(f, locale = 'zh-TW') {
+  if (f.scope !== GLOBAL_SCOPE) {
+    const details = f.detail ?? {};
+    const summary = {
+      [GUARDIAN_SIGNAL.WHOOP_SYNC_STALE]: () => t(locale, 'guardian.sync', { hours: formatNumber(locale, details.age_hours) }),
+      [GUARDIAN_SIGNAL.PROACTIVE_EVENT_STUCK]: () => t(locale, 'guardian.stuck', { count: formatNumber(locale, details.count) }),
+      [GUARDIAN_SIGNAL.WHOOP_AUTH_REPEATED_FAILURE]: () => t(locale, 'guardian.auth', { count: formatNumber(locale, details.hits) }),
+    }[f.signal];
+    const hintKey = {
+      [GUARDIAN_SIGNAL.WHOOP_SYNC_STALE]: 'guardian.hintSync',
+      [GUARDIAN_SIGNAL.PROACTIVE_EVENT_STUCK]: 'guardian.hintStuck',
+      [GUARDIAN_SIGNAL.WHOOP_AUTH_REPEATED_FAILURE]: 'guardian.hintAuth',
+    }[f.signal];
+    if (!summary || !hintKey) throw new Error('LOCALIZATION_GUARDIAN_SIGNAL_UNSUPPORTED');
+    return [t(locale, 'guardian.title'), '', summary(), '', t(locale, hintKey), '', t(locale, 'guardian.cooldown')].join('\n');
+  }
   const lines = [
     '🛡 系統健康檢查',
     '',
@@ -419,16 +435,16 @@ export async function runGuardian({
  */
 async function deliver({ db, makeTelegram, systemTelegram, finding: f }) {
   try {
-    const text = renderFinding(f);
-
     if (f.scope === GLOBAL_SCOPE) {
       if (!systemTelegram) return false;
-      await systemTelegram.send(text);
+      await systemTelegram.send(renderFinding(f));
       return true;
     }
 
     const uid = f.scope.startsWith('user:') ? f.scope.slice('user:'.length) : null;
     if (!uid || typeof makeTelegram !== 'function') return false;
+    const locale = await db.getLocale(uid);
+    if (!locale) return false;
 
     // ★ v17：送出時的帳號授權。finding 是在這一輪的事實蒐集階段算出來的，
     // 帳號可能在那之後被停用 —— getActiveChatIdForUser 現在會擋下來。
@@ -440,7 +456,7 @@ async function deliver({ db, makeTelegram, systemTelegram, finding: f }) {
     if (!chatId) return false; // 沒綁 Telegram（或帳號已停用）就沒有地方可以講
 
     const tg = makeTelegram({ chatId, errorScope: f.scope });
-    await tg.send(text);
+    await tg.send(renderFinding(f, locale));
     return true;
   } catch (err) {
     log.error('guardian_notify_failed', { signal: f.signal, error: describeError(err) });

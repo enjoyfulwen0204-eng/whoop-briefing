@@ -19,6 +19,7 @@ import { READINESS_HEURISTICS } from '../config.js';
 import { addDays, localDate } from '../time.js';
 import { seriesOf } from '../dailyMetrics.js';
 import { log } from '../logger.js';
+import { t, formatLocalDate, formatNumber } from '../localization.js';
 
 /**
  * /help —— **動態**列出目前真的能用的功能。
@@ -26,40 +27,31 @@ import { log } from '../logger.js';
  * 刻意不把「還沒有資料的分析」講得像已經有結論。
  * 沒有 WHOOP 資料時，健康問答那一區會明講「目前還不能用」。
  */
-export function buildHelp({ report, insightCount = 0, predictionReady = false }) {
+export function buildHelp({ report, insightCount = 0, predictionReady = false, locale = 'zh-TW' }) {
   const hasData = report?.has_any_health_data;
-  const lines = ['🤖 我可以做這些事', ''];
+  const line = key => t(locale, `bot.help.${key}`);
+  const lines = [line('title'), ''];
 
-  lines.push('【現在就能用】');
-  lines.push('/log — 記錄事件，例如 /log alcohol 3 drinks');
-  lines.push('       也可以直接講「昨天喝了三杯酒」「今天飛胡志明」');
-  lines.push('/journal — 看最近的記錄（/journal 7、/journal 30）');
-  lines.push('/healthdata — 資料同步與涵蓋狀況');
-  lines.push('/status — 系統整體狀態');
-  lines.push('/cost — AI 使用成本');
-  lines.push('/experiment — 建立與追蹤自我實驗');
-  lines.push('/help — 這則說明');
+  for (const key of ['now','log','logNatural','journal','healthdata','status','cost','experiment','help'])
+    lines.push(line(key));
   lines.push('');
 
   if (hasData) {
-    lines.push('【健康問答】直接用中文問我：');
-    lines.push('· 我今天狀態怎樣？');
-    lines.push('· 最近 HRV 如何？');
-    lines.push('· 最近睡眠有沒有變差？');
-    lines.push('· 最近 30 天最好是哪一天？');
-    lines.push('· 今天最值得注意的是什麼？');
+    for (const key of ['questions','q1','q2','q3','q4','q5']) lines.push(line(key));
     lines.push('');
   } else {
-    lines.push('【還不能用（等 WHOOP 資料）】');
-    lines.push('· 健康問答 —— 目前沒有任何生理資料可以分析');
+    lines.push(line('noData'), line('noQa'));
     lines.push('');
   }
 
-  lines.push('【長期分析】');
-  lines.push(`/insights — 長期規律${insightCount > 0 ? `（目前 ${insightCount} 項）` : '（目前尚未形成）'}`);
-  lines.push(`/predictions — 恢復預測${predictionReady ? '' : '（資料量還不足）'}`);
-  lines.push('/healthspan — 長期生理盤點（目前只盤點資料，不給分數）');
-  lines.push('/evidence — 目前結論背後的證據與樣本數');
+  lines.push(line('longTerm'));
+  lines.push(t(locale, 'bot.help.insights', { suffix: insightCount > 0
+    ? t(locale, 'bot.help.insightsCount', { count: formatNumber(locale, insightCount) })
+    : line('insightsEmpty') }));
+  lines.push(t(locale, 'bot.help.predictions', {
+    suffix: predictionReady ? '' : line('predictionsUnready'),
+  }));
+  lines.push(line('healthspan'), line('evidence'));
 
   return lines.join('\n');
 }
@@ -67,21 +59,21 @@ export function buildHelp({ report, insightCount = 0, predictionReady = false })
 /** 保留舊常數給既有測試與呼叫端（靜態版本）。 */
 export const HELP_TEXT = buildHelp({ report: { has_any_health_data: false } });
 
-export function startText(report) {
-  const lines = ['👋 WHOOP 健康助理已啟動。', ''];
+export function startText(report, locale = 'zh-TW') {
+  const line = key => t(locale, `bot.start.${key}`);
+  const lines = [line('title'), ''];
   if (!report.has_any_health_data) {
-    lines.push('目前還沒有同步到任何健康資料。');
-    lines.push('等手錶開始產生資料、並完成 WHOOP 授權之後，我會自動開始分析 —— 你不需要再做任何設定。');
+    lines.push(line('noData'), line('wait'));
     lines.push('');
-    lines.push('在那之前你已經可以用的功能：');
-    lines.push('· /log 記錄喝酒、咖啡、生病、旅行等事件（會完整保存，之後可以拿來對照）');
-    lines.push('· /healthdata 看目前的資料狀態');
-    lines.push('· /help 看完整說明');
+    for (const key of ['available','log','healthdata','help']) lines.push(line(key));
   } else {
-    lines.push(`目前有 ${report.sleep_count} 天睡眠資料`
-      + `（${report.history_start} ～ ${report.history_end}）。`);
+    lines.push(t(locale, 'bot.start.data', {
+      days: formatNumber(locale, report.sleep_count),
+      from: formatLocalDate(report.history_start, locale),
+      to: formatLocalDate(report.history_end, locale),
+    }));
     lines.push('');
-    lines.push('直接問我問題就好，例如「我今天狀態怎樣？」。/help 看更多。');
+    lines.push(line('ask'));
   }
   return lines.join('\n');
 }
@@ -90,13 +82,15 @@ export function startText(report) {
  * /log 處理。
  * 先試確定性解析；失敗且有 coach 時，再讓 LLM 提案（仍要過 validate）。
  */
-export async function handleLog({ db, userId, argsText, rawText, timezone, now, coach, parseNatural }) {
+export async function handleLog({ db, userId, argsText, rawText, timezone, now, coach, parseNatural, locale = 'zh-TW' }) {
   const parsed = parseLogCommand(`/log ${argsText}`, { now, timezone });
 
   if (parsed.ok) {
     const saved = await saveEvent(db, userId, parsed.event, { now, timezone });
-    if (!saved.ok) return `⚠️ 這筆記錄有問題：${saved.errors.join(', ')}`;
-    return `✅ 已記錄：${describeEvent(saved.event)}`;
+    if (!saved.ok) return locale === 'zh-TW'
+      ? `⚠️ 這筆記錄有問題：${saved.errors.join(', ')}`
+      : t(locale, 'bot.log.invalid');
+    return t(locale, 'router.saved', { event: describeEvent(saved.event, locale) });
   }
 
   // 確定性解析失敗 → 試自然語言
@@ -104,13 +98,16 @@ export async function handleLog({ db, userId, argsText, rawText, timezone, now, 
     const nat = await parseNatural({ text: argsText, now, timezone, coach });
     if (nat.ok) {
       const saved = await saveEvent(db, userId, nat.event, { now, timezone });
-      if (saved.ok) return `✅ 已記錄：${describeEvent(saved.event)}`;
+      if (saved.ok) return t(locale, 'router.saved', { event: describeEvent(saved.event, locale) });
     }
   }
 
   // 欄位名刻意不叫 token —— logger 的遮蔽清單把 'token' 當機密，
   // 用那個名字會讓這行 debug 資訊被 [REDACTED] 掉，等於白記。
   log.info('log_command_unparsed', { error: parsed.error, unknown_word: parsed.token });
+  if (locale !== 'zh-TW') return t(locale, 'bot.log.unparsed', {
+    input: argsText || '—', categories: CATEGORIES.join(', '),
+  });
   return [
     `⚠️ 看不懂「${argsText || '(空白)'}」。`,
     '',
@@ -126,17 +123,20 @@ export async function handleLog({ db, userId, argsText, rawText, timezone, now, 
 }
 
 /** /healthdata */
-export async function handleHealthData({ db, userId, timezone, now }) {
+export async function handleHealthData({ db, userId, timezone, now, locale = 'zh-TW' }) {
   const report = await buildDataQualityReport({ db, userId, timezone, now });
-  return renderDataQuality(report);
+  return renderDataQuality(report, locale);
 }
 
 
 // ---------------------------------------------------------------------------
 // /status
 // ---------------------------------------------------------------------------
-export async function handleStatus({ db, userId, timezone, now, rows = [] }) {
+export async function handleStatus({ db, userId, timezone, now, rows = [], locale = 'zh-TW' }) {
   const report = await buildDataQualityReport({ db, userId, timezone, now });
+  if (locale !== 'zh-TW') return renderLocalizedStatus({
+    db, userId, timezone, now, rows, report, locale,
+  });
   const lines = ['🩺 系統狀態', ''];
 
   lines.push('Bot：✅ 運作中');
@@ -181,8 +181,48 @@ export async function handleStatus({ db, userId, timezone, now, rows = [] }) {
   return lines.join('\n');
 }
 
+async function renderLocalizedStatus({ db, userId, timezone, now, rows, report, locale }) {
+  const line = (key, vars = {}) => t(locale, `bot.status.${key}`, vars);
+  const lines = [line('title'), '', line('bot'), line('timezone', { timezone }), ''];
+  const dataStatus = report.has_any_health_data
+    ? line('dataPresent', {
+      days: formatNumber(locale, report.sleep_count),
+      from: formatLocalDate(report.history_start, locale),
+      to: formatLocalDate(report.history_end, locale),
+    }) : line('notStarted');
+  lines.push(line('data', { status: dataStatus }));
+  lines.push(line('authorization', {
+    status: line(report.token_present ? 'authorized' : 'unauthorized')
+      + (report.missing_scopes.length
+        ? line('missingScopes', { scopes: report.missing_scopes.join(', ') }) : ''),
+  }));
+  const backfillCount = Object.keys(report.backfill_status).length;
+  lines.push(line('backfill', {
+    status: line(backfillCount === 0 ? 'notStarted'
+      : report.backfill_complete ? 'complete' : 'inProgress'),
+  }));
+  lines.push(line('lastSync', {
+    value: report.last_sync ? new Intl.DateTimeFormat(locale, {
+      dateStyle: 'medium', timeStyle: 'short', timeZone: timezone,
+    }).format(new Date(report.last_sync)) : line('neverSynced'),
+  }));
+  lines.push(line('probe', { status: line(report.capabilities.probed ? 'probed' : 'notProbed') }), '');
+  const prediction = assessPrediction({ rows });
+  lines.push(prediction.status === READINESS_STATUS.READY
+    ? line('predictionReady') : line('predictionUnready', {
+      usable: formatNumber(locale, prediction.usable_samples),
+      required: formatNumber(locale, prediction.required_samples),
+    }));
+  const insightCount = (await db.getActiveInsights(userId, {}).catch(() => [])).length;
+  lines.push(insightCount ? line('insights', { count: formatNumber(locale, insightCount) })
+    : line('noInsights'));
+  lines.push('', line('journal', { count: formatNumber(locale, report.journal_count) }), '');
+  lines.push(await renderProactiveStatusLines({ db, userId, timezone, rows, now, locale }));
+  return lines.join('\n');
+}
+
 /** /status 裡「Proactive Agent」那幾行。獨立成函式方便測試。 */
-export async function renderProactiveStatusLines({ db, userId, timezone, rows = [], now }) {
+export async function renderProactiveStatusLines({ db, userId, timezone, rows = [], now, locale = 'zh-TW' }) {
   const anchorDate = rows.length
     ? [...rows].sort((a, b) => (a.health_date < b.health_date ? -1 : 1)).at(-1).health_date
     : localDate(now, timezone);
@@ -197,6 +237,30 @@ export async function renderProactiveStatusLines({ db, userId, timezone, rows = 
       .some((i) => i.status !== INSIGHT_STATUS.HYPOTHESIS);
   } catch { /* 忽略 */ }
   const stage = deriveColdStartStage({ proactiveMonitoringStatus: monitoring.status, hasMatureInsight });
+  if (locale !== 'zh-TW') {
+    const lines = [
+      t(locale, 'bot.status.proactiveTitle'),
+      t(locale, 'bot.status.proactiveState', { state: t(locale, `bot.status.stage.${stage}`) }),
+    ];
+    const openQuestion = await db.getOpenPendingQuestion(userId, { now }).catch(() => null);
+    const factor = openQuestion?.context?.category;
+    const normalized = ({ late_meal:'lateMeal', late_sleep:'lateSleep', exercise_note:'exercise' })[factor] ?? factor;
+    const allowed = new Set(['alcohol','caffeine','stress','lateMeal','lateSleep','sickness',
+      'travel','exercise','sauna','supplement','medication','flight','location','massage','food','custom']);
+    lines.push(openQuestion ? t(locale, 'bot.status.pendingYes', {
+      factor: t(locale, `factor.${allowed.has(normalized) ? normalized : 'custom'}`),
+    }) : t(locale, 'bot.status.pendingNo'));
+    const recent = await db.getRecentProactiveEvents(userId, {
+      sinceIso: addDays(anchorDate, -7),
+    }).catch(() => []);
+    const last = recent[0];
+    lines.push(last ? t(locale, 'bot.status.lastAction', {
+      date: formatLocalDate(last.createdAt?.slice(0, 10), locale),
+      action: t(locale, `bot.status.action.${['IGNORE','LOG_ONLY','ASK_CONTEXT','NOTIFY','FOLLOW_UP'].includes(last.decision)
+        ? last.decision : 'UNKNOWN'}`),
+    }) : t(locale, 'bot.status.noAction'));
+    return lines.join('\n');
+  }
 
   const STAGE_LABEL = {
     [COLD_START_STAGE.STAGE_0]: '尚未開始累積資料',
@@ -230,7 +294,7 @@ export async function renderProactiveStatusLines({ db, userId, timezone, rows = 
 // ---------------------------------------------------------------------------
 // /journal [days]
 // ---------------------------------------------------------------------------
-export async function handleJournal({ db, userId, argsText, timezone, now }) {
+export async function handleJournal({ db, userId, argsText, timezone, now, locale = 'zh-TW' }) {
   const n = Number(String(argsText ?? '').trim());
   const days = Number.isFinite(n) && n >= 1 && n <= 365 ? Math.floor(n) : 14;
 
@@ -239,20 +303,27 @@ export async function handleJournal({ db, userId, argsText, timezone, now }) {
   const events = await db.getJournalEvents(userId, { from, to, limit: 100 });
 
   if (!events.length) {
-    return `目前沒有 Journal 紀錄。\n\n（最近 ${days} 天內）用 /log 開始記錄，例如 /log alcohol 3 drinks`;
+    return t(locale, 'bot.journal.empty', { days: formatNumber(locale, days) });
   }
 
-  const lines = [`📓 最近 ${days} 天的記錄（${events.length} 筆）`, ''];
+  const lines = [t(locale, 'bot.journal.title', {
+    days: formatNumber(locale, days), count: formatNumber(locale, events.length),
+  }), ''];
   const byDate = {};
   for (const e of events) {
     (byDate[e.health_date] ??= []).push(e);
   }
   for (const date of Object.keys(byDate).sort().reverse()) {
-    lines.push(date);
+    lines.push(locale === 'zh-TW' ? date : formatLocalDate(date, locale));
     for (const e of byDate[date]) {
       const amount = e.numeric_value === null || e.numeric_value === undefined
-        ? '' : ` ${e.numeric_value}${e.unit ? ` ${e.unit}` : ''}`;
-      lines.push(`  · ${e.category}${e.subtype ? `/${e.subtype}` : ''}${amount}`);
+        ? '' : ` ${formatNumber(locale, e.numeric_value, 2)}${e.unit ? ` ${e.unit}` : ''}`;
+      const factor = ({ late_meal:'lateMeal', late_sleep:'lateSleep', exercise_note:'exercise' })[e.category]
+        ?? e.category;
+      const category = locale === 'zh-TW' ? e.category : t(locale, `factor.${factor}`);
+      lines.push(t(locale, 'bot.journal.entry', {
+        category, subtype: e.subtype ? `/${e.subtype}` : '', amount,
+      }));
     }
   }
   return lines.join('\n');
@@ -261,7 +332,7 @@ export async function handleJournal({ db, userId, argsText, timezone, now }) {
 // ---------------------------------------------------------------------------
 // /insights [history]
 // ---------------------------------------------------------------------------
-export async function handleInsights({ db, userId, argsText }) {
+export async function handleInsights({ db, userId, argsText, locale = 'zh-TW' }) {
   const wantHistory = /^history$/i.test(String(argsText ?? '').trim());
 
   let all = [];
@@ -273,6 +344,50 @@ export async function handleInsights({ db, userId, argsText }) {
   const visible = all.filter((i) => [
     INSIGHT_STATUS.SUPPORTED, INSIGHT_STATUS.EMERGING, INSIGHT_STATUS.HYPOTHESIS,
   ].includes(i.status));
+
+  if (locale !== 'zh-TW') {
+    const lines = [t(locale, 'bot.insights.title'), ''];
+    if (!visible.length) return `${lines.join('\n')}${t(locale, 'bot.insights.empty')}`;
+    for (const i of visible) {
+      const match = /^([a-z_]+)_vs_([a-z_]+)$/.exec(String(i.subject ?? ''));
+      const factor = match && ({ late_meal:'lateMeal', late_sleep:'lateSleep', exercise_note:'exercise' })[match[1]]
+        || match?.[1];
+      const metric = match?.[2];
+      const factorKey = factor && `factor.${factor}`;
+      const metricKey = metric && `metric.${metric}`;
+      if (!factorKey || !metricKey || !Object.hasOwn({
+        alcohol:1,caffeine:1,stress:1,lateMeal:1,lateSleep:1,sickness:1,travel:1,
+        exercise:1,sauna:1,supplement:1,medication:1,flight:1,location:1,massage:1,food:1,custom:1,
+      }, factor) || !Object.hasOwn({ hrv:1,rhr:1,recovery:1,respiratory_rate:1 }, metric)) {
+        lines.push(t(locale, 'bot.insights.unavailable'));
+        continue;
+      }
+      const direction = !Number.isFinite(i.effect_size)
+        ? 'Unknown' : i.effect_size > 0 ? 'Positive' : 'Negative';
+      const statement = t(locale, 'bot.insights.line', {
+        factor: t(locale, factorKey), metric: t(locale, metricKey),
+        direction: t(locale, `bot.insights.direction${direction}`),
+        effect: Number.isFinite(i.effect_size) ? formatNumber(locale, i.effect_size, 2) : '—',
+        count: Number.isFinite(i.sample_count) ? formatNumber(locale, i.sample_count) : '—',
+        status: t(locale, `bot.insights.status.${i.status}`),
+      });
+      lines.push(statement, t(locale, 'bot.insights.meta', {
+        count: Number.isFinite(i.sample_count) ? formatNumber(locale, i.sample_count) : '—',
+        version: i.version,
+      }));
+      if (wantHistory && Number(i.supersedes_id)) {
+        const chain = await db.getInsightHistory(userId, Number(i.id)).catch(() => []);
+        for (const old of chain.slice(1)) lines.push(t(locale, 'bot.insights.history', {
+          version: old.version, status: t(locale, `bot.insights.status.${old.status}`),
+          statement: t(locale, 'bot.insights.unavailable'),
+        }));
+      }
+      lines.push('');
+    }
+    lines.push(t(locale, 'bot.insights.note'));
+    if (!wantHistory) lines.push(t(locale, 'bot.insights.historyHint'));
+    return lines.join('\n');
+  }
 
   if (!visible.length) {
     return [
@@ -327,7 +442,8 @@ const MATURITY_LABEL = {
   [PREDICTION_MATURITY.STALE]: '模型已過期，需要重新訓練',
   [PREDICTION_MATURITY.UNSUPPORTED]: '這個帳號拿不到所需的欄位',
 };
-export async function handlePredictions({ db, userId, rows = [] }) {
+export async function handlePredictions({ db, userId, rows = [], locale = 'zh-TW' }) {
+  if (locale !== 'zh-TW') return renderLocalizedPredictions({ db, userId, rows, locale });
   const lines = ['🔮 恢復預測', ''];
 
   // 用 readiness engine 判斷，不在這裡重複 MIN_TRAIN_ROWS 的門檻邏輯——
@@ -400,6 +516,48 @@ export async function handlePredictions({ db, userId, rows = [] }) {
   return lines.join('\n');
 }
 
+async function renderLocalizedPredictions({ db, userId, rows, locale }) {
+  const line = (key, vars = {}) => t(locale, `bot.prediction.${key}`, vars);
+  const readiness = assessPrediction({ rows });
+  const status = Object.values(READINESS_STATUS).includes(readiness.status)
+    ? readiness.status : READINESS_STATUS.UNAVAILABLE;
+  const lines = [line('title'), ''];
+  if (status !== READINESS_STATUS.READY) {
+    lines.push(line('state', { state: line(`state.${status}`) }), '',
+      line('usable', { count: formatNumber(locale, readiness.usable_samples) }),
+      line('required', { count: formatNumber(locale, readiness.required_samples) }), '',
+      line(status === READINESS_STATUS.DEGRADED ? 'degraded' : 'insufficient'),
+      line('caveat'));
+  } else {
+    lines.push(line('dataReady'), line('usable', {
+      count: formatNumber(locale, readiness.usable_samples),
+    }), '');
+    const model = await db.getLatestPredictionModel(userId, { targetMetric:'recovery' })
+      .catch(() => null);
+    if (!model) lines.push(line('modelUntrained'));
+    else {
+      const maturity = Object.values(PREDICTION_MATURITY).includes(model.maturity)
+        ? model.maturity : 'MODEL_UNAVAILABLE';
+      lines.push(line('modelState', { state: line(`maturity.${maturity}`) }));
+      if (model.nTest) lines.push(line('testSamples', { count: formatNumber(locale, model.nTest) }));
+      if (model.mae != null) lines.push(`  MAE ${formatNumber(locale, model.mae, 2)}`);
+      if (model.baselineMae != null) lines.push(line('baseline', {
+        verdict: line(model.beatsBaseline === true ? 'baselineBetter' : 'baselineWorse'),
+        value: formatNumber(locale, model.baselineMae, 2),
+      }));
+      lines.push('', line(model.qualified ? 'qualified' : 'unqualified'));
+    }
+  }
+  const sc = await scorecard(db, userId, {}).catch(() => null);
+  if (sc?.available) {
+    lines.push('', line('scorecard'), line('evaluated', { count: formatNumber(locale, sc.n) }),
+      `  MAE ${formatNumber(locale, sc.mae, 2)}`,
+      `  RMSE ${formatNumber(locale, sc.rmse, 2)}`,
+      line('coverage', { value: formatNumber(locale, sc.interval_coverage * 100, 0) }));
+  }
+  return lines.join('\n');
+}
+
 // ---------------------------------------------------------------------------
 // /healthspan
 // ---------------------------------------------------------------------------
@@ -410,28 +568,28 @@ export async function handlePredictions({ db, userId, rows = [] }) {
  * 完全確定性、沒有 LLM。目前**不會**輸出任何綜合分數或推估年齡——
  * 見 healthspanPolicy.js 的說明。
  */
-export async function handleHealthspan({ db, userId, rows = [] }) {
+export async function handleHealthspan({ db, userId, rows = [], locale = 'zh-TW' }) {
   let capabilities = {};
   try {
     capabilities = await db.getCapabilities(userId);
   } catch { /* 沒 probe 過就是空的，不影響盤點 */ }
 
   const result = buildPersonalHealthspan(rows, { capabilities });
-  return renderPersonalHealthspan(result);
+  return renderPersonalHealthspan(result, locale);
 }
 
 // ---------------------------------------------------------------------------
 // /cost
 // ---------------------------------------------------------------------------
-export async function handleCost({ db, userId, timezone, now }) {
+export async function handleCost({ db, userId, timezone, now, locale = 'zh-TW' }) {
   const summary = await costSummary({ db, userId, timezone, now });
-  return renderCost(summary);
+  return renderCost(summary, locale);
 }
 
 // ---------------------------------------------------------------------------
 // /evidence
 // ---------------------------------------------------------------------------
-export async function handleEvidence({ db, userId, now }) {
+export async function handleEvidence({ db, userId, now, locale = 'zh-TW' }) {
   const result = await getEvidence({ db, userId, now });
-  return renderEvidence(result);
+  return renderEvidence(result, locale);
 }

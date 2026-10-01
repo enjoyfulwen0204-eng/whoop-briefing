@@ -54,6 +54,7 @@ async function withSetup(fn, { questionTtlMs = 72 * 3600_000, sent = SENT } = {}
   try {
     await db.migrate();
     const user = await db.createUser({ displayName: 'K', timezone: 'Asia/Taipei' });
+    await db.setLocale(user.id, 'zh-TW');
     const { id: eventId } = await db.claimProactiveEvent(user.id, {
       healthDate: '2026-09-08', idempotencyKey: 'k1',
       signals: [{ metric: 'hrv', direction: 'low' }],

@@ -12,12 +12,13 @@
  */
 
 import { log } from '../logger.js';
+import { LANGUAGE_SELECTOR, t } from '../localization.js';
 
 export const LINK_COMMAND = /^\/link(?:@\w+)?(?:\s+(\S+))?\s*$/i;
 
 /** 中性回覆：所有失敗原因共用同一句，避免變成碼的探測工具。 */
-const NEUTRAL_FAIL = '這組綁定碼無法使用。請向管理者索取一組新的。';
-const USAGE = '用法：/link <綁定碼>';
+const UNKNOWN_USAGE = ['zh-TW', 'en', 'vi'].map(locale => t(locale, 'link.usage')).join('\n');
+const UNKNOWN_FAIL = ['zh-TW', 'en', 'vi'].map(locale => t(locale, 'link.fail')).join('\n');
 
 /**
  * @param {object} o
@@ -46,25 +47,31 @@ export async function handleLinkAttempt({
   }
 
   const code = m[1];
-  if (!code) return USAGE;
+  if (!code) return UNKNOWN_USAGE;
 
   // 這個 chat 已經綁在別人身上？不透露細節，只拒絕。
   const existing = await db.getTelegramLink(chatId);
   if (existing && existing.status === 'ACTIVE') {
     log.warn('link_attempt_on_linked_chat', { chat_id: String(chatId) });
-    return '這個聊天室已經綁定過了。如果要換綁，請先讓管理者解除舊的綁定。';
+    const existingLocale = typeof db.getLocale === 'function'
+      ? await db.getLocale(existing.userId) : db.raw ? null : 'zh-TW';
+    return existingLocale ? t(existingLocale, 'link.already') : LANGUAGE_SELECTOR;
   }
 
   const res = await db.redeemLinkCode(code, { chatId, now });
   if (!res.ok) {
     // reason 只進 log，不進回覆
     log.warn('link_failed', { chat_id: String(chatId), reason: res.reason });
-    return NEUTRAL_FAIL;
+    return UNKNOWN_FAIL;
   }
 
   const user = await db.getUser(res.userId);
   log.info('link_succeeded', { user_id: res.userId });
+  const locale = typeof db.getLocale === 'function'
+    ? await db.getLocale(res.userId) : db.raw ? null : 'zh-TW';
+  if (!locale) return LANGUAGE_SELECTOR;
   const name = typeof user?.displayName === 'string' ? user.displayName.trim() : '';
-  return `✅ 綁定完成${name ? `，${name}` : ''}。`
-    + '\n\n接下來需要授權 WHOOP 才能開始收到簡報，請聯絡管理者完成授權。';
+  return t(locale, 'link.success', {
+    nameSuffix: name ? t(locale, 'link.nameSuffix', { name }) : '',
+  });
 }

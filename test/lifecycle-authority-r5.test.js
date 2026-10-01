@@ -28,6 +28,7 @@ async function setup(t, { id = 'r5-user', chatId = '51001' } = {}) {
   await db.migrate();
   const user = await db.createUser({ id, displayName: id, timezone: 'Asia/Taipei' });
   await db.linkTelegram({ chatId, userId: user.id });
+  await db.setLocale(user.id, 'zh-TW');
   return { db, user: await db.getUser(user.id), chatId };
 }
 
@@ -225,6 +226,7 @@ test('ERRPROV-R5-06: current L3 evidence starts at one and never aggregates thre
 test('ERRPROV-R5-07: Alice lifecycle evidence cannot clear, aggregate with, or notify for Bob', async (t) => {
   const { db, user: alice } = await setup(t, { id: 'alice', chatId: '51001' });
   const bob = await db.createUser({ id: 'bob', displayName: 'Bob', timezone: 'Asia/Taipei' });
+  await db.setLocale(bob.id, 'zh-TW');
   await db.linkTelegram({ chatId: '51002', userId: bob.id });
   await saveToken(db, alice.id);
   await saveToken(db, bob.id);

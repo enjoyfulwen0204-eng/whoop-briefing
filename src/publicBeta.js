@@ -3,6 +3,7 @@ import { requirePhase4Keys } from './phase4Keys.js';
 import { createPhase4Foundation } from './phase4Foundation.js';
 import { authorizeStage6ShadowWorker, createPhase4Stage6 } from './phase4Reanalysis.js';
 import { displayNameFor } from './displayName.js';
+import { t } from './localization.js';
 
 const runtimeCapabilities = new WeakSet();
 
@@ -28,9 +29,26 @@ export function authorizePublicBetaRuntime({ executionMode } = {}) {
   return capability;
 }
 
-const metricLabels = Object.freeze({ recovery_score: '恢復分數', hrv: 'HRV', rhr: '靜息心率',
-  sleep_performance: '睡眠表現', sleep_duration_minutes: '睡眠時間', sleep_efficiency: '睡眠效率',
-  respiratory_rate: '呼吸率', cycle_strain: '活動負荷' });
+const approvedMetrics = new Set(['recovery_score','hrv','rhr','sleep_performance',
+  'sleep_duration_minutes','sleep_efficiency','respiratory_rate','cycle_strain']);
+const factorKeys = Object.freeze({ alcohol:'alcohol',caffeine:'caffeine',stress:'stress',
+  late_meal:'lateMeal',late_sleep:'lateSleep',sickness:'sickness',travel:'travel',
+  exercise_note:'exercise',sauna:'sauna',supplement:'supplement',medication:'medication',
+  flight:'flight',location:'location',massage:'massage',food:'food',custom:'custom' });
+function localizedAssociation(locale, insight) {
+  const claim = insight.claim.trim();
+  const supported = /^(.*?) has been repeatedly associated in your data with (higher|lower) ([a-z_]+)\.$/.exec(claim);
+  const emerging = /^(.*?) may be associated with (higher|lower) ([a-z_]+); we are still checking\.$/.exec(claim);
+  const match = supported ?? emerging;
+  if (!match || (supported && insight.status !== 'SUPPORTED')
+    || (emerging && insight.status !== 'EMERGING')
+    || !factorKeys[match[1]] || !approvedMetrics.has(match[3])) return null;
+  return t(locale, supported ? 'beta.associationSupported' : 'beta.associationEmerging', {
+    factor: t(locale, `factor.${factorKeys[match[1]]}`),
+    direction: t(locale, `beta.direction${match[2] === 'higher' ? 'Higher' : 'Lower'}`),
+    metric: t(locale, `metric.${match[3]}`),
+  });
+}
 
 export function createPublicBetaPresentation({ stores, policy, db, runtimeCapability }) {
   if (!runtimeCapabilities.has(runtimeCapability)) throw new Error('PUBLIC_BETA_RUNTIME_CAPABILITY_REQUIRED');
@@ -46,25 +64,30 @@ export function createPublicBetaPresentation({ stores, policy, db, runtimeCapabi
       if (!(now instanceof Date) || !Number.isFinite(now.getTime()) || typeof work !== 'function') return null;
       let deliveryStarted = false;
       try {
+        const locale = await db.getLocale(id);
+        if (!locale) return null;
         return await stores.withContext(id, { executionMode: 'SHADOW' }, async context => {
         const items = await stores.betaSummary.readCurrent(context, { asOfUtc: now.toISOString() });
         if (!items || items.userId !== id || items.executionMode !== 'SHADOW'
           || !Array.isArray(items.episodes) || !Array.isArray(items.insights)) return null;
         const lines = [];
         for (const episode of items.episodes.slice(0, 3)) {
-          const label = metricLabels[episode.metricKey];
-          const direction = { HIGHER: '高於', LOWER: '低於' }[episode.direction];
-          if (label && direction) lines.push(`• ${label}${direction}個人基準，近期仍在觀察。`);
+          if (approvedMetrics.has(episode.metricKey) && ['HIGHER','LOWER'].includes(episode.direction))
+            lines.push(t(locale, `beta.episode${episode.direction === 'HIGHER' ? 'Higher' : 'Lower'}`,
+              { metric: t(locale, `metric.${episode.metricKey}`) }));
         }
         for (const insight of items.insights.slice(0, 2)) {
           if (!['EMERGING', 'SUPPORTED'].includes(insight.status)
             || typeof insight.claim !== 'string' || !insight.claim.trim()
             || insight.claim.length > 300 || /body[_ ]energy/i.test(insight.claim)) continue;
-          lines.push(`• ${insight.claim.trim()}`);
+          const rendered = localizedAssociation(locale, insight);
+          if (rendered) lines.push(`• ${rendered}`);
         }
         if (!lines.length) return null;
         const name = await displayNameFor(db, id);
-        const text = [`🧪 Phase 4 Beta 摘要${name ? `（${name}）` : ''}`, ...lines].join('\n');
+        const text = [t(locale, 'beta.title', {
+          nameSuffix: name ? t(locale, 'beta.nameSuffix', { name }) : '',
+        }), ...lines].join('\n');
         await stores.assertCurrent(context);
         deliveryStarted = true;
         return work(text, async () => {

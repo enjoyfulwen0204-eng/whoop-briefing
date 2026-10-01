@@ -17,6 +17,7 @@
  */
 
 import { REPORT_CLAIM, WEEKLY } from './config.js';
+import { t } from './localization.js';
 import { requireUserId } from './userContext.js';
 import { buildObservations, detectWake, weeklyStats, weekOverWeek } from './analyze.js';
 import { renderWeekly } from './format.js';
@@ -59,7 +60,7 @@ function weeklyBriefingShape(weekly) {
  * @param {string} timezone **該使用者的**時區。
  */
 export async function runWeekly({
-  db, userId, source, coach, telegram, timezone, now = new Date(),
+  db, userId, source, coach, telegram, timezone, locale = 'zh-TW', now = new Date(),
   // ★ R3：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）是**必填**的。
   // 報告是使用者健康路徑：認領、遞送授權、送出都要帶著它。少傳就大聲失敗；
   // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
@@ -170,6 +171,7 @@ export async function runWeekly({
   // 不存在的「本週趨勢」。
   const narrative = await buildNarrative({
     briefing: weeklyBriefingShape(weekly),
+    locale,
     plan: typeof coach?.narrativePlan === 'function'
       ? (fragments) => coach.narrativePlan(fragments, { period: 'weekly' })
       : null,
@@ -177,7 +179,7 @@ export async function runWeekly({
   });
   const coachText = narrative.text;
 
-  const text = renderWeekly(weekly, coachText, { displayName: await displayNameFor(db, uid) });
+  const text = renderWeekly(weekly, coachText, { displayName: await displayNameFor(db, uid), locale });
 
   // ★ 送出邊界與 daily 共用同一支 deliverReport（見 reportDelivery.js）。
   //   兩條路各自抄一份正是稽核點名的問題：只要有兩份，行為就會分岔。
@@ -248,9 +250,7 @@ export async function runWeekly({
     log.error('weekly_record_failed_after_send', { week_key: weekKey, error: describeError(err) });
     await telegram.notifyError(
       'weekly_record',
-      '週回顧已經發出去了，但發送紀錄寫不進 Turso。'
-      + '不會重複發送（發送權已經是終局狀態），但歷史紀錄會少一筆。'
-      + describeError(err),
+      t(locale, 'error.weeklyRecord'),
     );
   }
 

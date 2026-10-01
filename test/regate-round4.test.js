@@ -50,6 +50,7 @@ async function seed() {
   const { db, cleanup } = tempDb();
   await db.migrate();
   const u = await db.createUser({ displayName: 'Kelvin', timezone: TZ });
+  await db.setLocale(u.id, 'zh-TW');
   await db.linkTelegram({ chatId: '5001', userId: u.id });
   const end = new Date(Date.parse(`${HD}T00:00:00Z`) + 16 * 60_000).toISOString();
   const start = new Date(Date.parse(`${HD}T00:00:00Z`) - 7 * 3600_000).toISOString();

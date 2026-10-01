@@ -52,6 +52,7 @@ async function setup({ link = true } = {}) {
   const db = createDb({ url: `file:${path.join(dir, 't.db')}` });
   await db.migrate();
   const user = await db.createUser({ displayName: 'K', timezone: 'Asia/Taipei' });
+  await db.setLocale(user.id, 'zh-TW');
   if (link) await db.linkTelegram({ chatId: '9001', userId: user.id });
   await db.saveTokens(user.id, {
     accessToken: 'a', refreshToken: 'r',

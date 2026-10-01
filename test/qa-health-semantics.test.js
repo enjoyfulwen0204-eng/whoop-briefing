@@ -41,6 +41,7 @@ async function seedProductionLike({ calibrating = true } = {}) {
   const { db, cleanup } = tempDb();
   await db.migrate();
   const u = await db.createUser({ displayName: 'Kelvin', timezone: TZ });
+  await db.setLocale(u.id, 'zh-TW');
   await db.linkTelegram({ chatId: '5001', userId: u.id });
   const light = 13_000_000; const sws = 7_000_000; const rem = 6_160_000;   // 合計 7h16m
   await db.raw.execute({

@@ -56,6 +56,7 @@
 
 import { validateDeterministicMessage } from './publishGuard.js';
 import { log } from './logger.js';
+import { t, localizedDisplay } from './localization.js';
 
 /** 一份計畫最多幾段。夠用而且擋掉「把同一句重複一百次」這種輸出。 */
 export const MAX_FRAGMENTS = 8;
@@ -68,9 +69,9 @@ export const MAX_FRAGMENTS = 8;
  *
  * @returns {{fragments: {id:string, text:string, required:boolean}[], defaultOrder: string[]}}
  */
-export function buildFragmentCatalogue(briefing, { period = 'daily' } = {}) {
-  const when = period === 'weekly' ? '上週' : '今天';
-  const laterWhen = when === '上週' ? '這週' : '今天';
+export function buildFragmentCatalogue(briefing, { period = 'daily', locale = 'zh-TW' } = {}) {
+  const when = t(locale, period === 'weekly' ? 'narrative.lastWeek' : 'narrative.today');
+  const laterWhen = t(locale, period === 'weekly' ? 'narrative.thisWeek' : 'narrative.today');
   const stage = briefing?.stage;
   const metrics = (briefing?.metrics ?? []).filter((m) => m.available);
   const byKey = Object.fromEntries(metrics.map((m) => [m.key, m]));
@@ -90,20 +91,26 @@ export function buildFragmentCatalogue(briefing, { period = 'daily' } = {}) {
 
   const recovery = byKey.recovery_score ?? byKey.recovery;
   const sleep = byKey.sleep_total;
-  const facts = [recovery && `恢復 ${recovery.display}`, sleep && `睡眠 ${sleep.display}`]
-    .filter(Boolean).join('、');
+  const facts = [recovery && t(locale, 'narrative.recoveryFact', { value: localizedDisplay(locale, recovery.display) }),
+    sleep && t(locale, 'narrative.sleepFact', { value: localizedDisplay(locale, sleep.display) })]
+    .filter(Boolean).join(locale === 'zh-TW' ? '、' : ', ');
+  const names = list => list.map(m => m.key ? t(locale, `metric.${m.key}`)
+    : locale === 'zh-TW' && typeof m.label === 'string' ? m.label
+      : (() => { throw new Error('LOCALIZATION_METRIC_KEY_REQUIRED'); })())
+    .join(locale === 'zh-TW' ? '、' : ', ');
 
   // --- 冷啟動：完全不同的一組句子（不可以跟成熟期混用）---------------------
   if (stage === 'cold') {
-    add('f_cold_facts', facts ? `${when}${facts}。` : `${when}的數字我已經收到了。`,
+    add('f_cold_facts', facts ? t(locale, 'narrative.facts', { when, facts })
+      : t(locale, 'narrative.noFacts', { when }),
       { required: true });
     add('f_cold_baseline',
-      '個人基準還在建立，所以這幾個數字目前只當作紀錄，還不能用來判斷是否偏離你的常態。',
+      t(locale, 'narrative.coldBaseline'),
       { required: true });
     if (calibrating) {
-      add('f_cold_calibrating', 'WHOOP 的恢復數據也還在校正期，這段期間的數值不適合當基準。');
+      add('f_cold_calibrating', t(locale, 'narrative.calibrating'));
     }
-    add('f_cold_advice', '先照平常的節奏作息，資料累積起來之後我能給的判斷會具體很多。');
+    add('f_cold_advice', t(locale, 'narrative.coldAdvice'));
     return { fragments, defaultOrder: order };
   }
 
@@ -112,31 +119,32 @@ export function buildFragmentCatalogue(briefing, { period = 'daily' } = {}) {
   const withBaseline = metrics.filter((m) => m.baselineDisplay && m.severity);
   const missingBaseline = metrics.filter((m) => !m.baselineDisplay);
 
-  add('f_facts', facts ? `${when}${facts}。` : `${when}的指標已經整理好了。`,
+  add('f_facts', facts ? t(locale, 'narrative.facts', { when, facts })
+    : t(locale, 'narrative.metricsReady', { when }),
     { required: true });
 
   if (flagged.length) {
     add('f_flagged',
-      `其中 ${flagged.map((m) => m.label).join('、')} 和你的個人基準有明顯差距，值得留意。`,
+      t(locale, 'narrative.flagged', { metrics: names(flagged) }),
       { required: true });
   } else if (withBaseline.length) {
-    add('f_normal', `對照你的個人基準，${when}沒有特別需要注意的偏離。`, { required: true });
+    add('f_normal', t(locale, 'narrative.normal', { when }), { required: true });
   }
 
   if (missingBaseline.length && withBaseline.length) {
     add('f_missing_baseline',
-      `另外，${missingBaseline.map((m) => m.label).join('、')} 的基準還在累積，那幾項${when}先不下判斷。`);
+      t(locale, 'narrative.missingBaseline', { metrics: names(missingBaseline), when }));
   }
 
   if (briefing?.trends?.alerts?.length) {
     add('f_trends',
-      `另外 ${briefing.trends.alerts.map((a) => a.label).join('、')} 出現連續變化，可以多觀察幾天。`);
+      t(locale, 'narrative.trends', { metrics: names(briefing.trends.alerts) }));
   }
 
   add('f_advice',
     flagged.length
-      ? `${laterWhen}適合把強度放輕一點，讓身體有時間補回來。`
-      : '維持目前的節奏就好。',
+      ? t(locale, 'narrative.ease', { when: laterWhen })
+      : t(locale, 'narrative.maintain'),
     { required: true });
 
   return { fragments, defaultOrder: order };

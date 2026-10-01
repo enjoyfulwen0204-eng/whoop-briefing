@@ -18,6 +18,8 @@ const present = f => createPublicBetaPresentation({ stores: f.stores, db: f.db,
 
 test('v30 Body Energy remains a receipt-checked SHADOW result with no publication helper', async t => {
   const f = await syntheticPhase4Fixture(t, { targetVersion: 30, now: () => at });
+  await f.db.migrate();
+  await f.db.setLocale('a', 'zh-TW');
   await f.db.transaction(() => seedBodyInput(f.db, bodyInput({ asOf: AT, days: 30 })));
   const result = await f.stores.withContext('a', { executionMode: 'SHADOW' },
     context => f.stores.bodyEnergy.compute(context, { asOfEpochMs: AT, targetHealthDate: '2026-09-25' }));
@@ -31,6 +33,8 @@ test('v30 Body Energy remains a receipt-checked SHADOW result with no publicatio
 
 test('v30 Beta Summary reads a current episode through the canonical typed and receipt authority after drain', async t => {
   const f = await setup(t, { targetVersion: 30 });
+  await f.db.migrate();
+  await f.db.setLocale('a', 'zh-TW');
   const initial = await call(f, 'intelligence', 'analyzeMetric',
     { ...request(f.initialRefs[0], f.initialRefs.slice(1), at.toISOString()),
       windowFamily: 'BETA_TYPED_EPISODE' });
@@ -61,6 +65,8 @@ test('v30 Beta Summary reads a current episode through the canonical typed and r
 
 test('v30 Beta Summary admits current Journal association claims through typed insight evidence', async t => {
   const f = await associationSetup(t, { days: 30, targetVersion: 30 });
+  await f.db.migrate();
+  await f.db.setLocale('a', 'zh-TW');
   const analyzed = await call(f, 'intelligence', 'analyzeAssociationFamily',
     family('beta-association', hypothesis(f, Array.from({ length: 30 }, (_, i) => i))));
   assert.ok(analyzed.items[0].insight);

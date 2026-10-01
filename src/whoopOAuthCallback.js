@@ -27,6 +27,7 @@ import { ONBOARDING_STATE, ONBOARDING_FAILURE } from './schema.js';
 import { completeAuthorization, OAuthFlowError } from './oauthFlow.js';
 import { log, describeError } from './logger.js';
 import { isAccountInactiveError } from './accountLifecycle.js';
+import { t } from './localization.js';
 
 export const OAUTH_CALLBACK_PATH = '/whoop/oauth/callback';
 
@@ -115,13 +116,23 @@ export function escapeHtml(v) {
     .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
-export function renderScreen(key) {
-  const s = SCREENS[key] ?? SCREENS.error;
+export function renderScreen(key, locale = 'zh-TW') {
+  const screenKey = Object.hasOwn(SCREENS, key) ? key : 'error';
+  const s = SCREENS[screenKey];
+  const copy = locale === null ? {
+    title: 'WHOOP / 授權 / Cấp quyền',
+    heading: 'Return to Telegram / 請回到 Telegram / Vui lòng quay lại Telegram',
+    body: 'Use /connect for a new link. / 輸入 /connect 取得新連結。 / Dùng /connect để lấy liên kết mới.',
+  } : {
+    title: t(locale, `oauth.${screenKey}.title`),
+    heading: t(locale, `oauth.${screenKey}.heading`),
+    body: t(locale, `oauth.${screenKey}.body`),
+  };
   const html = `<!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8">
+<html lang="${locale === 'zh-TW' ? 'zh-Hant' : locale ?? 'und'}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>${escapeHtml(s.title)}</title>
+<title>${escapeHtml(copy.title)}</title>
 <style>
  body{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;margin:0;padding:2.5rem 1.25rem;
       background:#fafafa;color:#1a1a1a;line-height:1.7}
@@ -130,7 +141,7 @@ export function renderScreen(key) {
  h1{font-size:1.25rem;margin:0 0 1rem}
  p{margin:0;color:#444}
 </style></head>
-<body><main><h1>${escapeHtml(s.heading)}</h1><p>${escapeHtml(s.body)}</p></main></body></html>`;
+<body><main><h1>${escapeHtml(copy.heading)}</h1><p>${escapeHtml(copy.body)}</p></main></body></html>`;
   return { status: s.status, html };
 }
 
@@ -152,6 +163,12 @@ export function createWhoopOAuthCallback({
     const rawState = params.get('state') ?? '';
     const code = params.get('code') ?? '';
     const providerError = params.get('error') ?? '';
+    const localeFor = async userId => userId && typeof db.getLocale === 'function'
+      ? db.getLocale(userId) : null;
+    const ownerForState = async () => {
+      if (!rawState || typeof db.peekOAuthState !== 'function') return null;
+      return (await db.peekOAuthState(rawState, { now: new Date(now()) }).catch(() => null))?.userId ?? null;
+    };
 
     // ---- 使用者在 WHOOP 那邊按了拒絕（或 WHOOP 回報錯誤）----------------
     // `error` / `error_description` 是外部可控字串：只用來**選畫面**，
@@ -161,12 +178,12 @@ export function createWhoopOAuthCallback({
         db, rawState, failure: ONBOARDING_FAILURE.OAUTH_DENIED, now,
       });
       log.warn('oauth_callback_provider_error', { has_state: Boolean(rawState), user_id: userId });
-      return { ...renderScreen('denied'), outcome: 'provider_error', userId };
+      return { ...renderScreen('denied', await localeFor(userId)), outcome: 'provider_error', userId };
     }
 
     if (!rawState) {
       log.warn('oauth_callback_no_state', {});
-      return { ...renderScreen('state_invalid'), outcome: 'no_state', userId: null };
+      return { ...renderScreen('state_invalid', null), outcome: 'no_state', userId: null };
     }
 
     let result;
@@ -199,7 +216,8 @@ export function createWhoopOAuthCallback({
       }
       log.warn('oauth_callback_failed', { code: code2 ?? 'unknown', user_id: userId });
       return {
-        ...renderScreen(FAILURE_SCREEN[failure] ?? 'error'),
+        ...renderScreen(FAILURE_SCREEN[failure] ?? 'error',
+          await localeFor(userId ?? await ownerForState())),
         outcome: 'failed', failure, userId,
       };
     }
@@ -218,8 +236,8 @@ export function createWhoopOAuthCallback({
     // token 列留著（它在當時是合法的，而且新的啟用期本來就會重新驗證
     // 資格），但不推進任何上線狀態、不歸零、不通知、不啟動 bootstrap。
     const stateLifecycle = result.lifecycleGeneration;
-    const inactiveResult = () => ({
-      ...renderScreen('error'), outcome: 'account_inactive',
+    const inactiveResult = async () => ({
+      ...renderScreen('error', await localeFor(userId)), outcome: 'account_inactive',
       failure: ONBOARDING_FAILURE.ACCOUNT_INACTIVE, userId,
     });
     if (!Number.isInteger(stateLifecycle)) return inactiveResult();
@@ -285,7 +303,7 @@ export function createWhoopOAuthCallback({
       throw err;
     }
     log.info('oauth_callback_ok', { user_id: userId });
-    return { ...renderScreen('ok'), outcome: 'ok', userId };
+    return { ...renderScreen('ok', await localeFor(userId)), outcome: 'ok', userId };
   };
 }
 

@@ -41,6 +41,7 @@
  */
 
 import { PERSPECTIVE } from './perspective.js';
+import { t } from '../localization.js';
 
 /**
  * 主題 → 各面向的一般機轉說明。
@@ -161,25 +162,23 @@ const SEVERE_IN_REPORT = /(叫不醒|失去意識|意識不清|昏迷|沒有反�
  * @returns {?{text:string, topic:?string, aspect:string, perspective:string}}
  *   認不出主題而且也看不出是健康問題時回 null（呼叫端維持原本的行為）。
  */
-export function educationAnswer({ text, perspective = PERSPECTIVE.GENERAL } = {}) {
+export function educationAnswer({ text, perspective = PERSPECTIVE.GENERAL, locale = 'zh-TW' } = {}) {
   const topic = detectTopic(text);
   const aspect = detectAspect(text);
   const entry = topic ? TOPICS[topic] : null;
-  const body = entry?.[aspect] ?? entry?.tired ?? null;
+  const body = entry ? t(locale, `education.${topic}.${aspect}`) : null;
   if (!body) return null;
 
   const out = [body];
 
   if (perspective === PERSPECTIVE.THIRD_PARTY) {
     // 只回答使用者真的提供的資訊。不診斷那個人，也不假裝看得到他的數據。
-    out.push('不過只憑這句話沒辦法判斷他的狀況或原因，我這邊也看不到他的量測資料。');
+    out.push(t(locale, 'education.thirdParty'));
     out.push(SEVERE_IN_REPORT.test(String(text ?? ''))
-      ? '你描述的狀況已經超過一般的疲倦 —— 如果他現在有呼吸困難、胸痛、意識不清、'
-        + '持續嘔吐或叫不醒，請立刻尋求緊急醫療協助，不要等他自己好。'
-      : '如果只是輕微疲倦，先休息、補充水分並觀察就好；'
-        + '但若出現呼吸困難、胸痛、意識不清、持續嘔吐或叫不醒，應該立刻尋求緊急協助。');
+      ? t(locale, 'education.thirdPartySevere')
+      : t(locale, 'education.thirdPartyMild'));
   } else {
-    out.push('每個人的差異很大，所以這只是一般情況，不見得會發生在每個人身上。');
+    out.push(t(locale, 'education.general'));
   }
 
   return { text: out.join('\n\n'), topic, aspect, perspective };

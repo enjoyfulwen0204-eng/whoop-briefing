@@ -32,6 +32,7 @@
 
 import { resolvePerspective, PERSPECTIVE } from './perspective.js';
 import { looksLikeQuestion } from './conversation.js';
+import { t } from '../localization.js';
 
 // ===========================================================================
 // 關卡 A —— 結構化契約
@@ -358,8 +359,6 @@ export function authorizeJournalMutation({ text, raw, category, subjectEstablish
  * 表示法。把它記成一筆飲酒顯然是反的；靜靜忽略又會讓使用者以為記到了。
  * 所以誠實說出這個限制。
  */
-export function negatedLogCommandReply() {
-  return '我這邊只能記下發生過的事，沒有辦法記「沒有發生」這種紀錄。\n\n'
-    + '所以這次我什麼都沒有記。沒有紀錄本身就代表我沒收到那件事 —— '
-    + '真的發生了再跟我說一聲就好。';
+export function negatedLogCommandReply(locale = 'zh-TW') {
+  return t(locale, 'journal.negated');
 }

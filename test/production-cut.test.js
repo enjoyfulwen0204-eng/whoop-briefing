@@ -24,7 +24,10 @@ async function setup(fn) {
   const db = createDb({ url });
   try {
     await db.migrate();
-    for (const id of ['alice', 'bob']) await db.createUser({ id, displayName: id, timezone: 'UTC' });
+    for (const id of ['alice', 'bob']) {
+      await db.createUser({ id, displayName: id, timezone: 'UTC' });
+      await db.setLocale(id, 'zh-TW');
+    }
     await fn(db, url);
   } finally { db.close(); fs.rmSync(dir, { recursive: true, force: true }); }
 }

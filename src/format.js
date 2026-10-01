@@ -7,6 +7,7 @@ import { BASELINE, TELEGRAM_MAX_CHARS, TREND } from './config.js';
 import { INSIGHT_LABELS } from './insights.js';
 import { prettyDate } from './time.js';
 import { safeDisplayName } from './displayName.js';
+import { t, formatLocalDate, formatNumber, localizedDisplay } from './localization.js';
 
 const LIGHT = { green: '🟢', yellow: '🟡', red: '🔴⚠️' };
 
@@ -65,19 +66,24 @@ export function lightOf(severity) {
   return severity ? LIGHT[severity] : '';
 }
 
-function stageSuffix(stage, sampleCount) {
-  if (stage === 'cold') return '（個人基準建立中）';
-  if (stage === 'provisional') return `（基準建立中 ${sampleCount}/${BASELINE.TARGET_SAMPLES}）`;
+function stageSuffix(stage, sampleCount, locale) {
+  if (stage === 'cold') return t(locale, 'daily.stageCold');
+  if (stage === 'provisional') return t(locale, 'daily.stageProvisional',
+    { count: sampleCount, target: BASELINE.TARGET_SAMPLES });
   return '';
 }
 
+const metricName = (locale, key) => t(locale, `metric.${key}`);
+
 /** 一行指標：`❤️ HRV 42ms（基準 55ms）🟡` */
-function metricLine(m, stage) {
-  if (!m.available) return `${m.emoji} ${m.label} 無資料`;
+function metricLine(m, stage, locale) {
+  const values = { emoji: m.emoji, metric: metricName(locale, m.key), value: localizedDisplay(locale, m.display) };
+  if (!m.available) return t(locale, 'daily.metricMissing', values);
   // 冷啟動（<7 筆）：只顯示數據，不顯示還不可信的基準、也不給燈
-  if (stage === 'cold') return `${m.emoji} ${m.label} ${m.display}`;
-  const base = m.baselineDisplay ? `（基準 ${m.baselineDisplay}）` : '（基準建立中）';
-  return `${m.emoji} ${m.label} ${m.display}${base}${lightOf(m.severity)}`;
+  if (stage === 'cold') return t(locale, 'daily.metricCold', values);
+  const baseline = m.baselineDisplay ? t(locale, 'daily.baseline', { value: localizedDisplay(locale, m.baselineDisplay) })
+    : t(locale, 'daily.baselinePending');
+  return t(locale, 'daily.metricReady', { ...values, baseline, light: lightOf(m.severity) });
 }
 
 /**
@@ -85,7 +91,7 @@ function metricLine(m, stage) {
  * @param {object} briefing analyze 算好的結果
  * @param {string|null} coachText AI 教練的文字；null = 模型掛了走 fallback
  */
-export function renderDaily(briefing, coachText, { displayName = '' } = {}) {
+export function renderDaily(briefing, coachText, { displayName = '', locale = 'zh-TW' } = {}) {
   const { stage, sampleCount, metrics, trends } = briefing;
   // 顯示日期一律是 health_date（主睡眠結束那天），不是執行當下的日期
   const reportDate = briefing.healthDate ?? briefing.localDate;
@@ -94,20 +100,21 @@ export function renderDaily(briefing, coachText, { displayName = '' } = {}) {
 
   const lines = [];
   const name = safeDisplayName(displayName);
-  lines.push(name ? `🌅 早安，${name}` : '🌅 早安');
+  lines.push(name ? t(locale, 'daily.greetingNamed', { name }) : t(locale, 'daily.greetingNeutral'));
 
   if (recovery?.available) {
-    lines.push(`恢復 ${recovery.display}${lightOf(recovery.severity)}${stageSuffix(stage, sampleCount)}`);
+    lines.push(t(locale, 'daily.recoveryValue', { value: localizedDisplay(locale, recovery.display),
+      light: lightOf(recovery.severity), stage: stageSuffix(stage, sampleCount, locale) }));
   } else {
-    lines.push(`恢復 無資料${stageSuffix(stage, sampleCount)}`);
+    lines.push(t(locale, 'daily.recoveryMissing', { stage: stageSuffix(stage, sampleCount, locale) }));
   }
 
   lines.push('');
-  lines.push(stage === 'cold' ? '📊 今日指標' : '📊 指標 vs 你的基準');
+  lines.push(t(locale, stage === 'cold' ? 'daily.headerCold' : 'daily.headerWarm'));
 
   // WHOOP 校正期：數值照顯示，但不給燈（跟 cold stage 同樣的原則），要說清楚為什麼
   if (metrics.some((m) => m.calibrating && m.available)) {
-    lines.push('ℹ️ WHOOP 恢復數據還在校正中，恢復類指標今天只顯示數值、不做好壞判斷');
+    lines.push(t(locale, 'daily.calibrating'));
   }
 
   const order = [
@@ -122,10 +129,10 @@ export function renderDaily(briefing, coachText, { displayName = '' } = {}) {
     if (!m) continue;
     // optional 指標：這個帳號沒回傳就整行不顯示
     if (m.tier === 'optional' && !m.available) continue;
-    lines.push(metricLine(m, stage));
+    lines.push(metricLine(m, stage, locale));
   }
 
-  const trendLines = renderTrendLines(trends);
+  const trendLines = renderTrendLines(trends, locale);
   if (trendLines.length) {
     lines.push('');
     lines.push(...trendLines);
@@ -133,7 +140,7 @@ export function renderDaily(briefing, coachText, { displayName = '' } = {}) {
 
   // 「今天最值得注意」—— 由 Node 算好排序的 top 2~3 項（見 analytics/whatChanged.js）。
   // briefing.whatChanged 不存在時整段不出現，簡報與以前一模一樣。
-  const changeLines = renderWhatChanged(briefing.whatChanged);
+  const changeLines = renderWhatChanged(briefing.whatChanged, locale);
   if (changeLines.length) {
     lines.push('');
     lines.push(...changeLines);
@@ -145,16 +152,16 @@ export function renderDaily(briefing, coachText, { displayName = '' } = {}) {
   if (dailyNarrative) lines.push(dailyNarrative);
 
   lines.push('');
-  lines.push(footer(stage, sampleCount, reportDate));
+  lines.push(footer(stage, sampleCount, reportDate, locale));
 
   return clamp(lines.join('\n'));
 }
 
 const MAX_TREND_LINES = 3;
 
-function renderTrendLines(trends) {
+function renderTrendLines(trends, locale) {
   if (!trends?.enabled || !trends.alerts?.length) return [];
-  const head = trends.level === 'strong' ? '📉 趨勢提醒（多項生理訊號同時偏離）' : '📉 趨勢提醒';
+  const head = t(locale, trends.level === 'strong' ? 'daily.trendHeadStrong' : 'daily.trendHead');
   const lines = [head];
   // 紅的排前面，最多列 3 項，避免訊息變成長篇報表
   const sorted = [...trends.alerts].sort(
@@ -162,13 +169,15 @@ function renderTrendLines(trends) {
   );
   for (const a of sorted.slice(0, MAX_TREND_LINES)) {
     const kind = a.types.includes('worsening') && a.types.includes('sustained_low')
-      ? '連續偏離且逐日變差'
+      ? t(locale, 'daily.trendBoth')
       // streakFor 保證這 3 天是逐日相鄰的健康日，所以「連續 N 天」是準確的說法
-      : (a.types.includes('worsening') ? '逐日變差' : `連續 ${TREND.WINDOW} 天偏離基準`);
-    lines.push(`· ${a.label} ${kind}：${a.series.map((p) => p.display).join(' → ')}`);
+      : (a.types.includes('worsening') ? t(locale, 'daily.trendWorsening')
+        : t(locale, 'daily.trendSustained', { days: TREND.WINDOW }));
+    lines.push(t(locale, 'daily.trendLine', { metric: metricName(locale, a.key),
+      kind, series: a.series.map((p) => localizedDisplay(locale, p.display)).join(' → ') }));
   }
   if (sorted.length > MAX_TREND_LINES) {
-    lines.push(`· 另有 ${sorted.length - MAX_TREND_LINES} 項指標也在偏離`);
+    lines.push(t(locale, 'daily.trendMore', { count: sorted.length - MAX_TREND_LINES }));
   }
   return lines;
 }
@@ -180,59 +189,62 @@ const MAX_CHANGE_LINES = 2;
  * 「今天最值得注意」。排序與挑選都已經由 Node 做完，這裡只負責排版。
  * 刻意用「偏離平常」而不是「異常」—— 這是拿自己的歷史當基準的統計描述。
  */
-function renderWhatChanged(whatChanged) {
+function renderWhatChanged(whatChanged, locale) {
   if (!Array.isArray(whatChanged) || !whatChanged.length) return [];
-  const lines = ['🔎 今天最值得注意'];
+  const lines = [t(locale, 'daily.changeHead')];
   for (const c of whatChanged.slice(0, MAX_CHANGE_LINES)) {
     const meta = INSIGHT_LABELS[c.metric];
     if (!meta || c.current === null || c.current === undefined) continue;
-    const parts = [`${meta.emoji} ${meta.label} ${meta.fmt(c.current)}`];
+    const values = { emoji: meta.emoji, metric: metricName(locale, c.metric), value: localizedDisplay(locale, meta.fmt(c.current)),
+      zscore: c.z_score !== null ? `, z=${formatNumber(locale, c.z_score, 1)}` : '' };
     if (c.vs_30d_pct !== null) {
-      parts.push(`比 30 天平均${c.vs_30d_pct >= 0 ? '高' : '低'} ${Math.abs(c.vs_30d_pct).toFixed(0)}%`);
+      values.comparison = t(locale, c.vs_30d_pct >= 0 ? 'daily.changeAbove' : 'daily.changeBelow',
+        { percent: formatNumber(locale, Math.abs(c.vs_30d_pct)) });
     }
-    if (c.z_score !== null) parts.push(`z=${c.z_score.toFixed(1)}`);
-    lines.push(`· ${parts.join('，')}`);
+    lines.push(t(locale, c.vs_30d_pct !== null ? 'daily.changeLine' : 'daily.changeLineSimple', values));
   }
   return lines.length > 1 ? lines : [];
 }
 
-function footer(stage, sampleCount, reportDate) {
-  const n = stage === 'full'
-    ? `基準 ${BASELINE.TARGET_SAMPLES}/${BASELINE.TARGET_SAMPLES} 筆`
-    : `基準 ${sampleCount}/${BASELINE.TARGET_SAMPLES} 筆`;
-  return `${prettyDate(reportDate)} · ${n}`;
+function footer(stage, sampleCount, reportDate, locale) {
+  return t(locale, 'daily.footer', { date: formatLocalDate(reportDate, locale),
+    count: stage === 'full' ? BASELINE.TARGET_SAMPLES : sampleCount,
+    target: BASELINE.TARGET_SAMPLES });
 }
 
 /** 組每週回顧。 */
-export function renderWeekly(weekly, coachText, { displayName = '' } = {}) {
+export function renderWeekly(weekly, coachText, { displayName = '', locale = 'zh-TW' } = {}) {
   const { last, prev, wow } = weekly;
   const lines = [];
   const name = safeDisplayName(displayName);
-  lines.push(name ? `📅 上週回顧（${name}）` : '📅 上週回顧');
-  lines.push(`${fmtRange(last.startDate, last.endDate)} · 有效 ${last.days} 天`);
+  lines.push(name ? t(locale, 'weekly.titleNamed', { name }) : t(locale, 'weekly.titleNeutral'));
+  lines.push(t(locale, 'weekly.range', { start: formatLocalDate(last.startDate, locale),
+    end: formatLocalDate(last.endDate, locale), days: last.days }));
   lines.push('');
 
   const rows = [
-    ['💪 恢復平均', 'recovery_score'],
-    ['📈 睡眠表現', 'sleep_performance'],
-    ['🌙 睡眠時長', 'sleep_total'],
-    ['⏳ 睡眠債加成', 'sleep_debt'],
-    ['❤️ HRV', 'hrv'],
-    ['💓 靜息心率', 'rhr'],
+    ['💪', 'recovery_score'],
+    ['📈', 'sleep_performance'],
+    ['🌙', 'sleep_total'],
+    ['⏳', 'sleep_debt'],
+    ['❤️', 'hrv'],
+    ['💓', 'rhr'],
   ];
-  for (const [label, key] of rows) {
+  for (const [, key] of rows) {
     const a = last.averages[key];
+    const metric = t(locale, `weekly.label.${key}`);
     if (!a || a.mean === null) {
-      lines.push(`${label} 無資料`);
+      lines.push(t(locale, 'weekly.metricMissing', { metric }));
       continue;
     }
-    lines.push(`${label} ${a.display}${wowSuffix(wow[key], key)}`);
+    lines.push(t(locale, 'weekly.metricValue', { metric, value: localizedDisplay(locale, a.display),
+      comparison: wowSuffix(wow[key], key, locale) }));
   }
 
   lines.push('');
-  if (last.best) lines.push(`🏆 最好的一天 ${prettyDate(last.best.date)} 恢復 ${last.best.display}`);
-  if (last.worst) lines.push(`🥀 最差的一天 ${prettyDate(last.worst.date)} 恢復 ${last.worst.display}`);
-  if (prev.days === 0) lines.push('（前一週沒有足夠資料，這次先不比較）');
+  if (last.best) lines.push(t(locale, 'weekly.best', { date: formatLocalDate(last.best.date, locale), value: localizedDisplay(locale, last.best.display) }));
+  if (last.worst) lines.push(t(locale, 'weekly.worst', { date: formatLocalDate(last.worst.date, locale), value: localizedDisplay(locale, last.worst.display) }));
+  if (prev.days === 0) lines.push(t(locale, 'weekly.noPrevious'));
 
   lines.push('—');
   const weeklyNarrative = capCoachText(coachText, COACH_MAX_CHARS.weekly) ?? FALLBACK_NOTE;
@@ -240,23 +252,25 @@ export function renderWeekly(weekly, coachText, { displayName = '' } = {}) {
   return clamp(lines.join('\n'));
 }
 
-function wowSuffix(w, key) {
-  if (!w || w.delta === null) return '（前週無資料可比）';
+function wowSuffix(w, key, locale) {
+  if (!w || w.delta === null) return t(locale, 'weekly.noComparison');
   // 前週平均為 0 → 算不出百分比。以前會走到下面用 Math.abs(null) 印出「比前週 0%」，
   // 明明有變化卻顯示 0，比不顯示還糟。
   if (w.pct === null && key !== 'sleep_debt' && key !== 'sleep_total') {
-    if (w.direction === 'flat') return '（與前週差不多）';
-    return `（${w.direction === 'up' ? '↑ 高於' : '↓ 低於'}前週，前週基準為 0 無法算百分比）`;
+    if (w.direction === 'flat') return t(locale, 'weekly.flat');
+    return t(locale, w.direction === 'up' ? 'weekly.aboveZero' : 'weekly.belowZero');
   }
   // 時間類指標用分鐘講，比百分比直觀（睡眠債基準小，百分比會失真）
   if (key === 'sleep_debt' || key === 'sleep_total') {
     const min = Math.round(w.delta / 60000);
-    if (Math.abs(min) < 10) return '（與前週差不多）';
-    return `（比前週${min > 0 ? '多' : '少'} ${Math.abs(min)} 分）`;
+    if (Math.abs(min) < 10) return t(locale, 'weekly.flat');
+    return t(locale, min > 0 ? 'weekly.moreMinutes' : 'weekly.fewerMinutes',
+      { minutes: formatNumber(locale, Math.abs(min)) });
   }
-  if (w.direction === 'flat') return '（與前週差不多）';
+  if (w.direction === 'flat') return t(locale, 'weekly.flat');
   const arrow = w.direction === 'up' ? '↑' : '↓';
-  return `（${arrow} 比前週 ${Math.abs(w.pct).toFixed(0)}%）`;
+  return t(locale, 'weekly.percentChange', { arrow,
+    percent: formatNumber(locale, Math.abs(w.pct)) });
 }
 
 function fmtRange(a, b) {

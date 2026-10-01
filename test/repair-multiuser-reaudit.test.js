@@ -43,6 +43,8 @@ async function withPair(fn) {
     await db.migrate();
     const alice = await db.createUser({ displayName: A.name, timezone: 'Asia/Taipei' });
     const bob = await db.createUser({ displayName: B.name, timezone: 'America/New_York' });
+    await db.setLocale(alice.id, 'zh-TW');
+    await db.setLocale(bob.id, 'zh-TW');
     await db.linkTelegram({ chatId: A.chat, userId: alice.id });
     await db.linkTelegram({ chatId: B.chat, userId: bob.id });
     await fn(db, alice, bob);

@@ -47,6 +47,7 @@ async function withSetup(fn) {
   try {
     await db.migrate();
     const user = await db.createUser({ displayName: 'K' });
+    await db.setLocale(user.id, 'zh-TW');
     const uid = user.id;
     const { id: eventId } = await db.claimProactiveEvent(uid, {
       healthDate: '2026-09-08', idempotencyKey: 'k1',

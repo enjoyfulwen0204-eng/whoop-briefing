@@ -91,7 +91,7 @@ export function fingerprintOf(anchorRow, metrics = MONITORED_METRICS) {
  *   `runForUser({ deps })` 的可注入慣例，開發/測試絕不打真的 Telegram）。
  */
 export async function checkAndAct({
-  db, userId, timezone, telegram, chatId, expectedLifecycleGeneration, now = new Date(),
+  db, userId, timezone, locale = 'zh-TW', telegram, chatId, expectedLifecycleGeneration, now = new Date(),
 }) {
   const uid = requireUserId(userId, 'checkAndAct');
   db = lifecycleOutputDb(db, { userId: uid, expectedLifecycleGeneration, writers: [
@@ -340,7 +340,7 @@ export async function checkAndAct({
     ]);
     const selection = journalHistoryReadable
       ? selectQuestion({
-        signal: topSignal, journalEvents: journalHistory, metricSeries: fullMetricSeries, excludeCategories,
+        signal: topSignal, journalEvents: journalHistory, metricSeries: fullMetricSeries, excludeCategories, locale,
       })
       : null;
     if (!journalHistoryReadable) {
@@ -359,13 +359,13 @@ export async function checkAndAct({
   }
 
   if (decision.decision === PROACTIVE_DECISION.NOTIFY) {
-    messageText = buildNotifyMessage(decision.evaluatedSignal ?? signals[0]);
+    messageText = buildNotifyMessage(decision.evaluatedSignal ?? signals[0], locale);
   }
 
   if (messageText) {
     // R2-H-02：訊息背後的確定性事實 = 這次真的評估到的那個訊號。
     // 沒有訊號 → 空事實集 → 任何數字都歸屬不到 → fail closed。
-    messageText = guardProactiveMessage(messageText, { label: decision.decision }).text;
+    messageText = guardProactiveMessage(messageText, { label: decision.decision, locale }).text;
   }
 
   // 指紋進 key：被修正過的那一天可以產生新事件，一模一樣的資料不行。

@@ -92,6 +92,7 @@ async function seed({
   const { db, cleanup } = tempDb();
   await db.migrate();
   const u = await db.createUser({ displayName: 'incident', timezone: TZ });
+  await db.setLocale(u.id, 'zh-TW');
   await db.linkTelegram({ chatId: '5001', userId: u.id });
 
   for (const [i, s] of nights.entries()) {
@@ -424,7 +425,8 @@ test('★★★ 10b: 補發窗內（24–48h）會送出，而且標示成補發
     assert.equal(r.healthDate, LAST_NIGHT.hd, '★ 去重鍵仍然是原本的 health_date');
     assert.equal(tg.sent.length, 1, '★ 恰好一則');
     assert.match(tg.sent[0], /補發/, '★ 必須看得出是補發');
-    assert.ok(tg.sent[0].includes(LAST_NIGHT.hd), '★ 要顯示是哪一天的報告');
+    const [, month, day] = LAST_NIGHT.hd.split('-');
+    assert.ok(tg.sent[0].includes(`${Number(month)}/${Number(day)}`), '★ 要顯示是哪一天的報告');
     const evalRow = await db.getBriefingEvaluation(user.id, 'daily');
     assert.equal(evalRow.outcome, 'SENT_LATE');
 

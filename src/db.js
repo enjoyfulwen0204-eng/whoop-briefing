@@ -25,6 +25,7 @@ const TELEGRAM_UPDATE_STATUS_ABANDONED = TELEGRAM_UPDATE_STATUS.ABANDONED;
 import { runMigrations } from './migrations.js';
 import { requireUserId } from './userContext.js';
 import { createIdentityStore } from './identityStore.js';
+import { createLocaleStore } from './localeStore.js';
 import { createHealthStore } from './store.js';
 import { createWhoopWebhookStore } from './whoopWebhookStore.js';
 import { createReconciliationStore } from './reconciliationStore.js';
@@ -1736,6 +1737,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     releaseLock,
     userLockName,
     ...phase4Invalidation.wrap(createIdentityStore(client, { transaction: processing.transaction })),
+    ...createLocaleStore(client),
     // 墓碑判定與 canonical 寫入必須同一交易（P1-R02-RC2）：把「需要時才開交易」
     // 的執行器交給儲存層。已在 mutateForWhoopEvent 交易裡時會直接沿用，不巢狀。
     ...phase4Invalidation.wrap(health),

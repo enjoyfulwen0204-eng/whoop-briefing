@@ -11,13 +11,13 @@ const users = { a: { id: 'a', displayName: 'Alice' }, b: { id: 'b', displayName:
   c: { id: 'c', displayName: '' } };
 const current = id => ({ userId: id, executionMode: 'SHADOW',
   episodes: [{ metricKey: 'recovery_score', direction: id === 'b' ? 'HIGHER' : 'LOWER' }],
-  insights: [{ status: 'SUPPORTED', claim: `${id} journal association may accompany recovery` }] });
-function fixture(read = context => current(context.userId)) {
+  insights: [{ status: 'SUPPORTED', claim: `${id === 'b' ? 'caffeine' : 'alcohol'} has been repeatedly associated in your data with lower recovery_score.` }] });
+function fixture(read = context => current(context.userId), locales = { a:'zh-TW', b:'zh-TW', c:'zh-TW' }) {
   const reads = [];
   const stores = { withContext: async (id, mode, work) => {
     reads.push([id, mode.executionMode]); return work({ userId: id }); },
   assertCurrent: async () => true, betaSummary: { readCurrent: read } };
-  const db = { getUser: async id => users[id] ?? null };
+  const db = { getUser: async id => users[id] ?? null, getLocale: async id => locales[id] ?? null };
   const runtimeCapability = authorizePublicBetaRuntime({ executionMode: 'SHADOW' });
   return { reads, presentation: policy => createPublicBetaPresentation({ stores, db, policy, runtimeCapability }) };
 }
@@ -28,12 +28,24 @@ test('OFF, allowlist and ALL use canonical internal IDs; names never cross users
   assert.equal(f.reads.length, 0);
   const allow = f.presentation(publicBetaPolicy({ mode: 'allowlist', userIds: ['a'] }));
   assert.equal(await allow.summary(request('b')), null);
-  assert.match(await allow.summary(request('a')), /Beta 摘要（Alice）[\s\S]*a journal association/);
+  assert.match(await allow.summary(request('a')), /Beta 摘要（Alice）[\s\S]*飲酒/);
   assert.deepEqual(f.reads, [['a', 'SHADOW']]);
   const all = f.presentation(publicBetaPolicy({ mode: 'all' }));
-  assert.match(await all.summary(request('b')), /Beta 摘要（Bob）[\s\S]*b journal association/);
+  assert.match(await all.summary(request('b')), /Beta 摘要（Bob）[\s\S]*咖啡因/);
   assert.match(await all.summary(request('c')), /^🧪 Phase 4 Beta 摘要\n/);
   assert.doesNotMatch(await all.summary(request('c')), /Alice|Bob|Kelvin|身體能量/);
+});
+
+test('locale choice never grants Beta eligibility; eligible UNSET users receive no summary', async () => {
+  const f = fixture(undefined, { a:'zh-TW', b:'en', c:null });
+  const allow = f.presentation(publicBetaPolicy({ mode:'allowlist', userIds:['a','c'] }));
+  assert.equal(await allow.summary(request('b')), null);
+  assert.equal(await allow.summary(request('c')), null);
+  assert.match(await allow.summary(request('a')), /Beta 摘要/);
+  const all = f.presentation(publicBetaPolicy({ mode:'all' }));
+  assert.match(await all.summary(request('b')), /Beta Summary/);
+  assert.equal(await all.summary(request('c')), null);
+  assert.equal(await f.presentation(publicBetaPolicy({ mode:'off' })).summary(request('a')), null);
 });
 
 test('unavailable, stale, corrupt, ambiguous, redacted, mismatched and Body Energy content stay hidden', async () => {

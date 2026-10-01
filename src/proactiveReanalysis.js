@@ -34,6 +34,7 @@ import { buildFollowUpMessage, guardProactiveMessage } from './proactiveMessages
 import { PROACTIVE_OUTCOME } from './schema.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
+import { t, formatNumber } from './localization.js';
 
 const METRIC_LABEL = { hrv: 'HRV', rhr: '靜息心率', recovery: '恢復分數', respiratory_rate: '呼吸率' };
 const CATEGORY_LABEL = {
@@ -63,7 +64,7 @@ function describeAssociation(category, metric, assoc) {
  *   沒帶就只看信念強度——不對方向做任何假設。
  */
 export async function reanalyzeAfterAnswer({
-  db, userId, timezone, category, metric, healthDate, signal = null, now = new Date(),
+  db, userId, timezone, locale = 'zh-TW', category, metric, healthDate, signal = null, now = new Date(),
 }) {
   const uid = requireUserId(userId, 'reanalyzeAfterAnswer');
 
@@ -215,13 +216,33 @@ export async function reanalyzeAfterAnswer({
   const followUpDecision = decideFollowUp({ insightChanged: changed, outcome });
 
   let followUpMessage = null;
-  if (followUpDecision.decision === 'FOLLOW_UP') {
-    const raw = buildFollowUpMessage({ statement, fromStatus: fromStatus ?? 'NEW', toStatus });
+  if (followUpDecision.decision === 'FOLLOW_UP' && locale) {
+    const factor = ({ late_meal:'lateMeal', late_sleep:'lateSleep', exercise_note:'exercise' })[category]
+      ?? category;
+    const knownFactor = ['alcohol','caffeine','stress','lateMeal','lateSleep','sickness','travel',
+      'exercise','sauna','supplement','medication','flight','location','massage','food','custom'].includes(factor);
+    const knownMetric = ['hrv','rhr','recovery','respiratory_rate'].includes(metric);
+    const quality = ['INSUFFICIENT','LOW_CONFIDENCE','MODERATE','BETTER_SUPPORTED']
+      .includes(assoc.data_quality) ? assoc.data_quality : 'INSUFFICIENT';
+    const presented = locale === 'zh-TW' ? statement : knownFactor && knownMetric
+      ? t(locale, 'proactive.associationStatement', {
+        factor:t(locale, `factor.${factor}`), metric:t(locale, `metric.${metric}`),
+        direction:t(locale, `proactive.association${assoc.pearson > 0 ? 'Positive' : 'Negative'}`),
+        r:formatNumber(locale, assoc.pearson, 2), count:formatNumber(locale, assoc.n),
+        quality:t(locale, `proactive.quality.${quality}`),
+      }) : null;
+    if (presented) {
+    const raw = buildFollowUpMessage({ statement:presented,
+      fromStatus:locale === 'zh-TW' ? (fromStatus ?? 'NEW')
+        : t(locale, `proactive.status.${fromStatus ?? 'NEW'}`),
+      toStatus:locale === 'zh-TW' ? toStatus : t(locale, `proactive.status.${toStatus}`),
+    }, locale);
     // 這則訊息會帶 r 值與樣本數，所以一定要把確定性的分析結果當成
     // evidenceContext 交給守門，否則 fail-closed 的數字檢查會（正確地）擋下它。
     followUpMessage = guardProactiveMessage(raw, {
-      label: 'follow_up',
+      label: 'follow_up', locale,
     }).text;
+    }
   }
 
   log.info('proactive_reanalysis_done', {

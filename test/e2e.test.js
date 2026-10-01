@@ -123,6 +123,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     const seed = createDb({ url: dbUrl });
     await seed.migrate();
     await seed.createUser({ id: U, displayName: 'E2E', timezone: TZ, status: 'ACTIVE' });
+    await seed.setLocale(U, 'zh-TW');
     await seed.linkTelegram({ chatId: '999', userId: U });
     await seed.saveTokens(U, {
       accessToken: 'seed-access',
@@ -292,6 +293,7 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
     const seed = createDb({ url: dbUrl });
     await seed.migrate();
     await seed.createUser({ id: U, displayName: 'E2E', timezone: TZ, status: 'ACTIVE' });
+    await seed.setLocale(U, 'zh-TW');
     await seed.linkTelegram({ chatId: '999', userId: U });
     await seed.saveTokens(U, {
       accessToken: 'about-to-expire',

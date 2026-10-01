@@ -6,7 +6,7 @@ import { SCHEMA_VERSION } from '../src/schema.js';
  * existing account authority untouched. Authentic v9/v19 fixtures are tested
  * separately. */
 export async function rejectHybridRewind(db, claimedVersion) {
-  assert.equal(SCHEMA_VERSION, 30);
+  assert.equal(SCHEMA_VERSION, 31);
   const before = (await db.raw.execute('SELECT id,status,lifecycle_generation FROM users ORDER BY id')).rows;
   await db.raw.execute('DROP TABLE phase4_jobs');
   await db.raw.execute('CREATE TABLE phase4_jobs (fabricated_old_shape TEXT)');

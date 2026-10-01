@@ -13,6 +13,7 @@ import { AI_PURPOSE, PRICING_VERSION, loadPricing } from './config.js';
 import { requireUserId } from './userContext.js';
 import { localDate } from './time.js';
 import { log } from './logger.js';
+import { t, formatLocalDate, formatNumber } from './localization.js';
 
 /**
  * 算一次呼叫的成本。
@@ -190,7 +191,8 @@ export async function costSummary({ db, userId, timezone, now = new Date() }) {
 const fmt = (v) => `$${v.toFixed(v < 0.01 ? 4 : 3)}`;
 
 /** /cost 的 Telegram 文字。 */
-export function renderCost(summary) {
+export function renderCost(summary, locale = 'zh-TW') {
+  if (locale !== 'zh-TW') return renderLocalizedCost(summary, locale);
   const lines = ['💰 AI 使用成本', ''];
 
   if (!summary.available) {
@@ -225,5 +227,37 @@ export function renderCost(summary) {
 
   lines.push('');
   lines.push('註：成本依內建價格表估算，供參考用；價格表可能與實際帳單有落差。');
+  return lines.join('\n');
+}
+
+function renderLocalizedCost(summary, locale) {
+  const line = (key, vars = {}) => t(locale, `cost.${key}`, vars);
+  const lines = [line('title'), ''];
+  if (!summary.available) return [...lines, line('empty')].join('\n');
+  const section = (title, s) => {
+    lines.push(title);
+    if (!s.calls) { lines.push(line('noCalls')); return; }
+    for (const name of Object.keys(s.groups).sort()) {
+      const group = s.groups[name];
+      lines.push(line('group', {
+        name,
+        value: group.unknown_cost_calls === group.calls
+          ? line('unavailable') : fmt(group.cost),
+      }));
+    }
+    lines.push(line('total', {
+      value: s.total_cost_usd == null ? line('unavailable') : fmt(s.total_cost_usd),
+    }));
+    lines.push(line('calls', {
+      count: formatNumber(locale, s.calls), failed: formatNumber(locale, s.failed_calls),
+    }));
+    if (s.calls_with_unknown_cost) lines.push(line('unknownCalls', {
+      count: formatNumber(locale, s.calls_with_unknown_cost),
+    }));
+  };
+  section(line('today', { date: formatLocalDate(summary.today, locale) }), summary.todaySummary);
+  lines.push('');
+  section(line('month', { month: summary.month }), summary.monthSummary);
+  lines.push('', line('note'));
   return lines.join('\n');
 }

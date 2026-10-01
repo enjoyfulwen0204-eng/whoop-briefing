@@ -21,6 +21,7 @@
 import { localDate, localHour, addDays } from './time.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
+import { t, formatLocalDate, formatNumber } from './localization.js';
 
 /** 凌晨幾點之前算前一天。 */
 export const DAY_BOUNDARY_HOUR = 4;
@@ -263,17 +264,24 @@ export const CATEGORY_LABEL = {
 };
 
 /** 類別的中文標籤。沒有對應就回中性說法，**永遠不回原始鍵**。 */
-export function labelForCategory(category) {
+export function labelForCategory(category, locale = 'zh-TW') {
+  if (locale !== 'zh-TW') {
+    const key = ({ late_meal:'lateMeal', late_sleep:'lateSleep', exercise_note:'exercise' })[category]
+      ?? category;
+    return t(locale, `factor.${Object.hasOwn(CATEGORY_LABEL, category) ? key : 'custom'}`);
+  }
   return CATEGORY_LABEL[String(category ?? '')] ?? '一則紀錄';
 }
 
-export function describeEvent(e) {
-  const bits = [labelForCategory(e.category)];
+export function describeEvent(e, locale = 'zh-TW') {
+  const bits = [labelForCategory(e.category, locale)];
   if (e.subtype) bits.push(e.subtype);
   if (e.numericValue !== null && e.numericValue !== undefined) {
-    bits.push(`${e.numericValue}${e.unit ? ` ${e.unit}` : ''}`);
+    bits.push(`${formatNumber(locale, e.numericValue)}${e.unit ? ` ${e.unit}` : ''}`);
   }
-  return `${bits.join(' · ')}（${e.healthDate}）`;
+  return t(locale, 'journal.eventDescription', {
+    details: bits.join(' · '), date: locale === 'zh-TW' ? e.healthDate : formatLocalDate(e.healthDate, locale),
+  });
 }
 
 /** 驗證通過才寫 DB。回傳 { ok, id, event } 或 { ok:false, errors }。 */

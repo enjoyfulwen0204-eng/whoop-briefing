@@ -60,22 +60,24 @@ export function createIdentityStore(client, { transaction = null } = {}) {
   async function createUser({
     id = randomUUID(),
     displayName,
+    allowEmptyDisplayName = false,
     timezone = 'Asia/Taipei',
     status = USER_STATUS.ACTIVE,
     now = new Date(),
   }) {
-    if (!displayName || !String(displayName).trim()) throw new Error('createUser 需要 displayName');
+    if ((!displayName || !String(displayName).trim()) && !allowEmptyDisplayName)
+      throw new Error('createUser 需要 displayName');
     if (!Object.values(USER_STATUS).includes(status)) throw new Error(`不合法的 status：${status}`);
     const ts = iso(now);
     await client.execute({
       sql: `INSERT INTO users
               (id, display_name, timezone, status, lifecycle_generation, created_at, updated_at)
             VALUES (?, ?, ?, ?, 1, ?, ?)`,
-      args: [id, String(displayName).trim(), timezone, status, ts, ts],
+      args: [id, String(displayName ?? '').trim(), timezone, status, ts, ts],
     });
     log.info('user_created', { user_id: id, timezone, status });
     return {
-      id, displayName: String(displayName).trim(), timezone, status,
+      id, displayName: String(displayName ?? '').trim(), timezone, status,
       lifecycleGeneration: 1, createdAt: ts, updatedAt: ts,
     };
   }

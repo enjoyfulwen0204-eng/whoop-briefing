@@ -58,6 +58,8 @@ async function withUsers(fn) {
     await db.migrate();
     await db.createUser({ id: 'u-alice', displayName: 'Alice' });
     await db.createUser({ id: 'u-bob', displayName: 'Bob' });
+    await db.setLocale('u-alice', 'zh-TW');
+    await db.setLocale('u-bob', 'zh-TW');
     await fn(db);
   } finally {
     db.close();

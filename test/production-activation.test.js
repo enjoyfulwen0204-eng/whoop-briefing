@@ -56,6 +56,7 @@ async function addUser(db, {
   id = 'alice', whoopUserId = `whoop-${id}`, chatId = null,
 } = {}) {
   await db.createUser({ id, displayName: id, timezone: TZ });
+  await db.setLocale(id, 'zh-TW');
   const privateChatId = chatId ?? String(nextChatId++);
   await db.linkTelegram({ userId: id, chatId: privateChatId });
   await db.saveTokens(id, {

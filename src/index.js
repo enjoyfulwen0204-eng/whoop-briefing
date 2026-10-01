@@ -32,6 +32,7 @@ import { createDataSource } from './dataSource.js';
 import { createCoach } from './coach.js';
 import { createTelegram } from './telegram.js';
 import { runDaily } from './daily.js';
+import { LANGUAGE_SELECTOR, t } from './localization.js';
 import { runWeekly } from './weekly.js';
 import { checkRepoFreshness } from './maintenance.js';
 import { createSync, isSyncDue } from './sync.js';
@@ -242,6 +243,31 @@ export async function runForUser({
     return out;
   }
 
+  // The target user's durable choice is the only presentation authority.
+  // A legacy account stays UNSET until its owner chooses a language.
+  if (typeof db.getLocale !== 'function' && db.raw) throw new Error('LOCALIZATION_STORE_UNAVAILABLE');
+  const locale = typeof db.getLocale === 'function' ? await db.getLocale(uid) : 'zh-TW';
+  if (!locale) {
+    if (await db.claimLocalePrompt(uid, { now })) {
+      const selectorTelegram = withDeliveryAuthorization(makeTelegram({
+        botToken: env.telegramBotToken, chatId, dryRun: env.dryRun, db,
+        errorScope: userScope(uid),
+      }), async () => Boolean(await db.getActiveChatIdForUser(uid,
+        { expectedLifecycleGeneration }).catch(() => null)),
+      { userId: uid, expectedLifecycleGeneration });
+      try {
+        if (!await db.getLocale(uid)) {
+          const sent = await selectorTelegram.send(LANGUAGE_SELECTOR);
+          if (sent?.suppressed) await db.releaseLocalePrompt(uid);
+        }
+      } catch (err) {
+        await db.releaseLocalePrompt(uid);
+        log.warn('locale_prompt_send_failed', { user_id: uid, error: describeError(err) });
+      }
+    }
+    out.skipped = 'locale_unset';
+  }
+
   // 每個使用者一個 telegram client：chat 綁死，錯誤通知也 scope 到這個人。
   //
   // ★ v17：再包一層**送出時**的帳號授權（§27）。日報／週報／主動訊息全部
@@ -253,6 +279,7 @@ export async function runForUser({
       dryRun: env.dryRun,
       db,
       errorScope: userScope(uid),
+      locale: locale ?? 'zh-TW',
     }),
     async () => Boolean(
       await db.getActiveChatIdForUser(uid, { expectedLifecycleGeneration }).catch(() => null),
@@ -301,8 +328,8 @@ export async function runForUser({
 
   // 報告不用發、資料也還在節流窗內 → 乾淨的 no-op。
   // 刻意在拿 WHOOP token **之前** 就返回：這一輪完全不碰 WHOOP。
-  if (!due.anythingDue && !syncDue && !reconciliationPlan.due) {
-    out.skipped = 'nothing_due';
+  if ((!locale || !due.anythingDue) && !syncDue && !reconciliationPlan.due) {
+    if (locale) out.skipped = 'nothing_due';
     return out;
   }
 
@@ -335,7 +362,7 @@ export async function runForUser({
     // 這個人的授權壞了 → 只影響他自己，通知他自己
     out.errors.push({ stage: 'whoop_auth', error: describeError(err) });
     log.error('user_whoop_auth_failed', { user_id: uid, error: describeError(err) });
-    await telegram.notifyError('whoop_auth', describeError(err));
+    if (locale) await telegram.notifyError('whoop_auth', t(locale, 'error.authorization'));
     return out;
   }
 
@@ -345,7 +372,7 @@ export async function runForUser({
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId: uid,
   });
   const ctx = {
-    db, userId: uid, source, coach, telegram, timezone: tz, now,
+    db, userId: uid, source, coach, telegram, timezone: tz, locale, now,
     // ★ R2：這一輪的帳號啟用世代，往下帶進報告認領與遞送授權。
     expectedLifecycleGeneration,
   };
@@ -354,7 +381,7 @@ export async function runForUser({
 
   // ---- daily ----
   // 報告的條件維持原樣（health_date 去重 + report_claims），完全沒有放寬。
-  if (!due.dailySettled) {
+  if (locale && !due.dailySettled) {
     try {
       out.daily = await daily(ctx);
     } catch (err) {
@@ -363,14 +390,14 @@ export async function runForUser({
       log.error('daily_failed', {
         user_id: uid, error: describeError(err), stack: err?.stack?.split('\n').slice(0, 4),
       });
-      await telegram.notifyError('daily_report', describeError(err));
+      if (locale) await telegram.notifyError('daily_report', t(locale, 'error.daily'));
     }
   }
 
   if (await stopHealth(out.daily)) return out;
 
   // ---- weekly（不因為 daily 的結果而跳過）----
-  if (due.weeklyDue) {
+  if (locale && due.weeklyDue) {
     try {
       out.weekly = await weekly(ctx);
     } catch (err) {
@@ -379,7 +406,7 @@ export async function runForUser({
       log.error('weekly_failed', {
         user_id: uid, error: describeError(err), stack: err?.stack?.split('\n').slice(0, 4),
       });
-      await telegram.notifyError('weekly_report', describeError(err));
+      if (locale) await telegram.notifyError('weekly_report', t(locale, 'error.weekly'));
     }
   }
 
@@ -448,8 +475,8 @@ export async function runForUser({
   // （checkAndAct 內部自己比對游標）。一個使用者的訊號偵測失敗絕不影響
   // 他的日報/週報已經送出的結果，也不影響其他使用者。
   try {
-    out.proactive = await proactive({
-      db, userId: uid, timezone: tz, telegram, chatId, expectedLifecycleGeneration, now,
+    if (locale) out.proactive = await proactive({
+      db, userId: uid, timezone: tz, locale, telegram, chatId, expectedLifecycleGeneration, now,
     });
   } catch (err) {
     if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }

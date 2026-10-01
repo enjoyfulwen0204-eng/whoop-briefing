@@ -65,8 +65,8 @@ export const NARRATIVE_FAILURE = Object.freeze({
  * 已核可的事實 —— 只是順序由我們決定。絕不宣稱「AI 暫時無法生成」，
  * 因為那句話在多數情況下是假的，而且對使用者毫無意義。
  */
-export function deterministicNarrative(briefing, { period = 'daily' } = {}) {
-  const catalogue = buildFragmentCatalogue(briefing, { period });
+export function deterministicNarrative(briefing, { period = 'daily', locale = 'zh-TW' } = {}) {
+  const catalogue = buildFragmentCatalogue(briefing, { period, locale });
   return renderFragments(catalogue, catalogue.defaultOrder);
 }
 
@@ -83,9 +83,9 @@ export function deterministicNarrative(briefing, { period = 'daily' } = {}) {
  *   我們不會偷偷去用它（那等於架構沒改），只會記一筆並走確定性敘述。
  */
 export async function buildNarrative({
-  briefing, plan = null, period = 'daily', generate = undefined,
+  briefing, plan = null, period = 'daily', locale = 'zh-TW', generate = undefined,
 }) {
-  const catalogue = buildFragmentCatalogue(briefing, { period });
+  const catalogue = buildFragmentCatalogue(briefing, { period, locale });
   const base = renderFragments(catalogue, catalogue.defaultOrder);
 
   /** 發布前的最後檢查。連確定性那一段都要過 —— 擋的是我們自己改壞樣板。 */

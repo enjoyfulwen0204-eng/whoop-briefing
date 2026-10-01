@@ -11,7 +11,7 @@ export const tenantPassLockName=(userId,mode)=>`phase4-stage6-pass:${JSON.string
 /** Internal worker queue. Only the drain holds leases and end-of-scope proofs;
  * the public Foundation queue still cannot settle a FULL pass. */
 export function createReanalysisQueue(core) {
-  if(![28,29,30].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
+  if(![28,29,30,31].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
   const {client,transaction,timestamp}=core,leases=new WeakMap(),proofs=new WeakMap();
   const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,core.keys):null;
   const read=(context,kind)=>client.execute({sql:'SELECT * FROM phase4_jobs WHERE user_id=? AND execution_mode=? AND job_kind=?',

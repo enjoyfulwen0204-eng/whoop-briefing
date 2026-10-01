@@ -85,7 +85,7 @@ An internal watchdog can evaluate only when something runs. It cannot detect tot
 
 ## Backlog authority and diagnostics
 
-Schema v28 adds only nullable `phase4_jobs.unresolved_since`, its partial age index and cycle-preservation trigger. It adds no health/result/receipt table or version. Schema v29 adds only the Stage 6 receipt-routing records, entries and manifests described above; the v25–v27 health/result/receipt formats are unchanged. Schema v30 adds the Stage 6 family directory and work tips described above. V31 is reserved for Stage 7 and v32 for Stage 8.
+Schema v28 adds only nullable `phase4_jobs.unresolved_since`, its partial age index and cycle-preservation trigger. It adds no health/result/receipt table or version. Schema v29 adds only the Stage 6 receipt-routing records, entries and manifests described above; the v25–v27 health/result/receipt formats are unchanged. Schema v30 adds the Stage 6 family directory and work tips described above. The later [Localization Gate](phase4-localization-gate.md) uses v31 for per-user locale storage; v32 is reserved for Stage 7 and v33 for Stage 8.
 
 A newly active work cycle records its first real timestamp. Coalescing, newer generations, claims, retries, poison handling and restart retain it. Completion clears it; subsequent work starts a new cycle. Migration never backfills an unresolved legacy NULL using `updated_at`, creation time or source links. Such rows are `UNKNOWN_LEGACY` until genuinely completed. Unknown age is degraded, not zero or healthy.
 

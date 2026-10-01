@@ -95,6 +95,7 @@ const fakeWhoopBackend = ({ whoopUserId = 'W1' } = {}) => ({
 async function authorize(db, chatId, { whoopUserId = 'W1', timezone = 'Asia/Taipei' } = {}) {
   await onb(db, chatId, '/start');
   const user = await userFor(db, chatId);
+  await linked(db, user, '繁體中文');
   const reply = await linked(db, user, timezone);
   const cb = createWhoopOAuthCallback({ db, ...fakeWhoopBackend({ whoopUserId }), now: () => NOW });
   assert.equal((await cb({
@@ -184,7 +185,7 @@ test('LIFE-GEN-02 ★★★ updateUser 不可以改 status（沒有繞過世代�
 test('LIFE-GEN-03 遷移：既有使用者一律從世代 1 開始，schema 為 v27', async () => {
   const e = await env();
   try {
-    assert.equal(SCHEMA_VERSION, 30);
+    assert.equal(SCHEMA_VERSION, 31);
     const user = await authorize(e.db, A_CHAT);
     assert.equal(await lifeOf(e.db, user.id), 1);
     // 重跑遷移是冪等的，而且不動世代
@@ -384,6 +385,7 @@ for (const status of INACTIVE) {
     try {
       await onb(e.db, A_CHAT, '/start');
       const user = await userFor(e.db, A_CHAT);
+      await linked(e.db, user, '繁體中文');
       const reply = await linked(e.db, user, 'Asia/Taipei');
       const state = stateFromUrl(urlIn(reply));
       await e.db.transitionUserLifecycle({ userId: user.id, targetStatus: status });
@@ -692,6 +694,7 @@ for (const via of INACTIVE) {
     try {
       await onb(e.db, A_CHAT, '/start');
       const user = await userFor(e.db, A_CHAT);
+      await linked(e.db, user, '繁體中文');
       const reply = await linked(e.db, user, 'Asia/Taipei');
       const state = stateFromUrl(urlIn(reply));
 

@@ -123,6 +123,7 @@ function fakeBootstrapDeps({
 async function authorize(db, chatId, { timezone = 'Asia/Taipei', whoopUserId = '900001' } = {}) {
   await onb(db, chatId, '/start');
   const user = await userFor(db, chatId);
+  await linked(db, user, '繁體中文');
   const reply = await linked(db, user, timezone);
   const cb = createWhoopOAuthCallback({ db, ...fakeWhoopBackend({ whoopUserId }), now: () => NOW });
   const res = await cb({ query: new URLSearchParams({ code: 'good', state: stateFromUrl(urlIn(reply)) }) });
@@ -188,6 +189,7 @@ test('F01-C/D/E 確認 Asia/Taipei 通過；不合法的輸入不寫入也不確
     await onb(e.db, A_CHAT, '/start');
     const user = await userFor(e.db, A_CHAT);
     // D：不合法
+    await linked(e.db, user, '繁體中文');
     await linked(e.db, user, '+08:00');
     assert.equal((await e.db.getOnboardingRow(user.id)).timezoneConfirmedAt, null);
     assert.equal((await e.db.getUser(user.id)).timezone, 'UTC');
@@ -277,7 +279,8 @@ test('RC1-ATTACK-15 遷移之後才被建立的 ACTIVE 使用者：沒有上線�
     assert.equal(await stateOf(e.db, u.id), ONBOARDING_STATE.TIMEZONE_PENDING);
     // /start 會補一列，同樣是推導出來的
     const reply = await onb(e.db, A_CHAT, '/start');
-    assert.match(reply, /時區/);
+    assert.match(reply, /Choose language/);
+    assert.match(await linked(e.db, u, '繁體中文'), /時區/);
     assert.equal((await e.db.getOnboardingRow(u.id)).state, ONBOARDING_STATE.TIMEZONE_PENDING);
     assert.deepEqual(await e.db.listSchedulableUsers({ activeStatus: USER_STATUS.ACTIVE }), []);
   } finally { e.done(); }
@@ -326,6 +329,7 @@ test('RC1-ATTACK-05 / F03-A,B,C 連發到上限 → 立刻被拒；等舊連結�
   try {
     await onb(e.db, A_CHAT, '/start');
     const user = await userFor(e.db, A_CHAT);
+    await linked(e.db, user, '繁體中文');
     await linked(e.db, user, 'Asia/Taipei');   // 第 1 條
     let t = NOW.getTime();
     let issued = 1;
@@ -351,6 +355,7 @@ test('F03-D/E 授權成功會消耗掉一條；失敗燒掉的 state 也不再�
   try {
     await onb(e.db, A_CHAT, '/start');
     const user = await userFor(e.db, A_CHAT);
+    await linked(e.db, user, '繁體中文');
     const first = await linked(e.db, user, 'Asia/Taipei');
     let t = NOW.getTime();
     // 用掉配額
@@ -385,6 +390,7 @@ test('RC1-ATTACK-06 / F03-F 真併發：另一條執行緒同時狂發 /connect�
   try {
     await onb(e.db, A_CHAT, '/start');
     const user = await userFor(e.db, A_CHAT);
+    await linked(e.db, user, '繁體中文');
     await linked(e.db, user, 'Asia/Taipei');   // 1 條
     const limit = ONBOARDING.MAX_OUTSTANDING_AUTH_LINKS;
 
@@ -553,7 +559,7 @@ test('RC1-ATTACK-09 / F05-B 所有健康 scope 都缺 → ACTION_REQUIRED，不�
     // 使用者看得到可行動的訊息
     const msg = await linked(e.db, await e.db.getUser(user.id), '/start',
       { now: new Date(NOW.getTime() + ONBOARDING.AUTH_LINK_COOLDOWN_MS + 1) });
-    assert.match(msg, /權限不完整/);
+    assert.match(msg, /權限不足/);
     assert.match(msg, /https:\/\//, '★ 同時給一條新的授權連結');
   } finally { e.done(); }
 });

@@ -21,6 +21,7 @@ import { validateDeterministicMessage } from './publishGuard.js';
 import { READINESS_STATUS } from './readiness.js';
 import { DEVIATION } from './analytics/anomaly.js';
 import { log } from './logger.js';
+import { t } from './localization.js';
 
 export const COLD_START_STAGE = {
   STAGE_0: 'STAGE_0',
@@ -58,17 +59,21 @@ const LEVEL_WORD = { [DEVIATION.STRONG]: '，而且幅度不小', [DEVIATION.NOT
  * NOTIFY 決策的訊息樣板（沒有問句，因為 NOTIFY 就是「不問，只告知」）。
  * 純樣板，不經過 LLM。
  */
-export function buildNotifyMessage(signal) {
-  const metricLabel = METRIC_LABEL[signal.metric] ?? signal.metric;
-  const dir = DIRECTION_WORD[signal.direction] ?? '有變化';
-  const lvl = LEVEL_WORD[signal.level] ?? '';
-  return `留意一下：你的${metricLabel}最近持續${dir}${lvl}，不是單一天的雜訊。\n\n${SAFETY_LINE}`;
+export function buildNotifyMessage(signal, locale = 'zh-TW') {
+  const metricKey = `metric.${signal.metric}`;
+  const metric = locale === 'zh-TW' ? (METRIC_LABEL[signal.metric] ?? signal.metric)
+    : t(locale, metricKey);
+  const direction = t(locale, `proactive.direction.${signal.direction ?? 'flat'}`);
+  const level = signal.level === DEVIATION.STRONG
+    ? t(locale, 'proactive.level.strong') : t(locale, 'proactive.level.notable');
+  return t(locale, 'proactive.notify', {
+    metric, direction, level, safety: t(locale, 'proactive.safety'),
+  });
 }
 
 /** insight 狀態變化 → follow-up 訊息（PA14）。只有真的變化才會被呼叫。 */
-export function buildFollowUpMessage({ statement, fromStatus, toStatus }) {
-  return `補充一下之前提到的觀察：${statement}\n`
-    + `（信心程度從 ${fromStatus} 更新為 ${toStatus}，會持續追蹤。）`;
+export function buildFollowUpMessage({ statement, fromStatus, toStatus }, locale = 'zh-TW') {
+  return t(locale, 'proactive.followUp', { statement, fromStatus, toStatus });
 }
 
 /**
@@ -87,12 +92,12 @@ export function buildFollowUpMessage({ statement, fromStatus, toStatus }) {
  *
  * 這是防止樣板被改壞的第二道防線，不是防幻覺的主防線。
  */
-export function guardProactiveMessage(text, { label = 'proactive' } = {}) {
+export function guardProactiveMessage(text, { label = 'proactive', locale = 'zh-TW' } = {}) {
   const check = validateDeterministicMessage(text);
   if (check.ok) return { text, violations: [] };
   log.error('proactive_message_failed_guard', { label, violations: check.violations.slice(0, 6) });
   return {
-    text: '你的生理數據最近有些變化，值得留意。',
+    text: t(locale, 'proactive.guardFallback'),
     violations: check.violations,
   };
 }

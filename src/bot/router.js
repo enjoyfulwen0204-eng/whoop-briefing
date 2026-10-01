@@ -40,17 +40,11 @@ import {
   handleCost, handleEvidence, handleHealthspan,
 } from './commands.js';
 import * as experimentFlow from './experimentFlow.js';
+import { LANGUAGE_SELECTOR, t as translate } from '../localization.js';
 import {
   shouldFollowUp, openFollowUp, isNegativeAnswer, looksLikeQuestion,
-  mentionsLoggableEvent, isExplicitLogCommand, isSelfRecallQuestion, FOLLOW_UP_CATEGORIES,
+  mentionsLoggableEvent, isExplicitLogCommand, isSelfRecallQuestion, followUpQuestion,
 } from './conversation.js';
-
-const NO_DATA_REPLY = [
-  '目前還沒有足夠的 WHOOP 資料可以回答這個問題。',
-  '',
-  '等手錶開始同步之後我就能分析了。在那之前你還是可以用 /log 記錄事件，',
-  '那些紀錄會完整保存下來，之後就能拿來對照。',
-].join('\n');
 
 export const JOURNAL_SYSTEM_PROMPT = `你要把使用者用自然語言講的一件事，轉成一個 JSON 物件。
 只輸出 JSON，不要任何其他文字、不要 markdown 圍欄。
@@ -372,42 +366,39 @@ export function looksLikeJournal(text) {
  * 同步。沒有證據顯示同步有問題，就不可以把責任推給同步 —— 那會讓人白等，
  * 也會掩蓋真正的原因。
  */
-export function unavailableReply(result) {
+export function unavailableReply(result, locale = 'zh-TW') {
   // Publication boundary: never echo an internal/model-provided metric key.
-  const publicLabels = {
-    hrv: 'HRV', rhr: '靜息心率', recovery: '恢復', sleep_total: '睡眠',
-    deep_sleep: '深睡', rem_sleep: 'REM', previous_day_strain: '昨日 Strain',
-    respiratory_rate: '呼吸率', sleep_debt: '睡眠債', spo2: '血氧',
-    skin_temp: '皮膚溫度', current_hr: '即時心率',
-  };
-  const label = publicLabels[result?.metric] ?? '這個指標';
+  const allowedMetrics = new Set([
+    'hrv','rhr','recovery','sleep_total','deep_sleep','rem_sleep',
+    'previous_day_strain','respiratory_rate','sleep_debt','spo2',
+    'skin_temp','current_hr','sleep_performance',
+  ]);
+  const label = translate(locale, allowedMetrics.has(result?.metric)
+    ? `answer.metric.${result.metric}` : 'answer.metricUnknown');
   switch (result?.reason) {
     case 'unknown_metric':
-      return '我還不認得這個指標。可以問 HRV、靜息心率、恢復、睡眠、Strain 等。';
+      return translate(locale, 'router.unknownMetric');
     case 'unsupported_capability': {
       // 即時心率：明講拿不到，並且把真正答得出來的東西（今天的靜息心率）
       // 清楚標示出來 —— 但絕不讓人以為那就是他現在的心跳。
       if (result?.capability === 'current_heart_rate') {
-        const lines = [
-          '我看不到你「現在」的心跳 —— WHOOP 的開發者 API 沒有即時心率，',
-          '我這邊只有睡眠期間量到的靜息心率、以及已完成週期的平均／最高心率。',
-        ];
+        const lines = [translate(locale, 'router.liveHeartRate')];
         if (result.rhr_today_display) {
-          lines.push('', `今天的靜息心率是 ${result.rhr_today_display}（這是睡眠時的值，不是你當下的心跳）。`);
+          lines.push('', translate(locale, 'router.restingHeartRate', { value: result.rhr_today_display }));
         }
-        lines.push('', '如果你手邊的錶或 App 正顯示一個數字，跟我說多少，我可以幫你對照看看。');
+        lines.push('', translate(locale, 'router.liveHeartRateAdvice'));
         return lines.join('\n');
       }
-      return `${label}不在這個系統拿得到的資料範圍內，所以我沒辦法回答這一題。`;
+      return translate(locale, 'router.unsupported', { metric: label });
     }
     case 'no_metric_records':
-      return `我這邊還沒有${label}的任何一筆紀錄。`;
+      return translate(locale, 'router.noMetricRecords', { metric: label });
     case 'insufficient_history':
-      return `${label}目前的樣本還太少，還不夠下結論。再累積幾天就可以了。`;
+      return translate(locale, 'router.insufficientHistory', { metric: label });
     case 'calibrating':
-      return `${label}今天的數值有，但還在 WHOOP 的校正期，暫時不做趨勢判斷。`;
+      return translate(locale, 'router.calibrating', { metric: label });
     default:
-      return NO_DATA_REPLY;
+      return translate(locale, 'router.noData');
   }
 }
 
@@ -421,6 +412,9 @@ export function createRouter({
   async function handle({ text, chatId, user }) {
     const t = new Date(now());
     const userId = requireUserId(user?.id, 'router.handle');
+    if (typeof db.getLocale !== 'function' && db.raw) throw new Error('LOCALIZATION_STORE_UNAVAILABLE');
+    const locale = typeof db.getLocale === 'function' ? await db.getLocale(userId) : 'zh-TW';
+    if (!locale) return LANGUAGE_SELECTOR;
     const timezone = user.timezone;
     const provider = coachFor(userId);
     const coach = provider && db.outsideProcessingTransaction ? new Proxy(provider, {
@@ -434,12 +428,12 @@ export function createRouter({
     }) : provider;
     try {
       return await route({
-        text: String(text ?? '').trim(), chatId, t, userId, timezone, coach,
+        text: String(text ?? '').trim(), chatId, t, userId, timezone, coach, locale,
       });
     } catch (err) {
       if (db.processingTransactionActive?.()) throw err;
       log.error('router_failed', { error: describeError(err) });
-      return '抱歉，我這邊出了點問題，稍後再試一次。';
+      return translate(locale, 'error.temporary');
     }
   }
 
@@ -459,7 +453,7 @@ export function createRouter({
    * 而此時完全沒有任何東西擋得住收割器同時settle 這個事件。
    * 沒有所有權就不可以變更狀態 —— 這是這一輪的核心不變量。
    */
-  async function acquireProcessingOwnership({ pending, userId, t }) {
+  async function acquireProcessingOwnership({ pending, userId, t, locale = 'zh-TW' }) {
     const eventId = pending?.context?.proactive_event_id ?? null;
     if (!eventId) {
       return { ok: true, name: null, owner: null };
@@ -476,12 +470,12 @@ export function createRouter({
       });
       return {
         ok: false,
-        reply: '我這邊暫時處理不了，稍後再說一次好嗎？（你的訊息沒有被記錄）',
+        reply: translate(locale, 'router.ownershipUnavailable'),
       };
     }
     if (!owner) {
       log.warn('proactive_answer_lease_busy', { user_id: userId, event_id: eventId });
-      return { ok: false, reply: '我還在處理你上一句回覆，稍等一下再說一次好嗎？' };
+      return { ok: false, reply: translate(locale, 'router.ownershipBusy') };
     }
     return { ok: true, name, owner, eventId };
   }
@@ -515,7 +509,7 @@ export function createRouter({
     }
   }
 
-  async function route({ text, chatId, t, userId, timezone, coach }) {
+  async function route({ text, chatId, t, userId, timezone, coach, locale = 'zh-TW' }) {
     // ---- 0. 緊急症狀（確定性，排在所有東西之前）----
     //
     // 這一關在追問消化、journal 寫入、Q&A、LLM fallback **全部之前**。
@@ -526,14 +520,14 @@ export function createRouter({
     // **不寫入任何東西**。
     if (assessUrgency(text).urgent) {
       log.warn('urgent_symptom_intercepted', { user_id: userId });
-      return urgentReply();
+      return urgentReply(locale);
     }
 
     // ---- 0b. 在問症狀是什麼（不是在描述自己現在的狀況）----
     // 不觸發急診指引，也不掉到指令清單。
     if (isSymptomEducationQuestion(text)) {
       log.info('symptom_education_question', { user_id: userId });
-      return symptomEducationReply();
+      return symptomEducationReply(locale);
     }
 
     // ---- 1. 有沒有等著被回答的追問 ----
@@ -559,7 +553,7 @@ export function createRouter({
       // 多步驟實驗建立流程有自己的狀態機
       if (pending.context?.flow === experimentFlow.FLOW) {
         const reply = await experimentFlow.handleStep({
-          db, userId, pending, text, now: t, timezone,
+          db, userId, pending, text, now: t, timezone, locale,
         });
         if (reply !== null) return reply;
       }
@@ -587,7 +581,7 @@ export function createRouter({
       //
       // 把租約移到認領**之前**，那個窗口就不存在了：追問一旦變成 ANSWERED，
       // 租約必定已經在我們手上，收割器的 requireNoLease 會跳過它。
-      const ownership = await acquireProcessingOwnership({ pending, userId, t });
+      const ownership = await acquireProcessingOwnership({ pending, userId, t, locale });
       if (!ownership.ok) {
         return ownership.reply;
       }
@@ -595,7 +589,7 @@ export function createRouter({
         const processAnswer = async () => {
           const claimed = await db.resolvePendingQuestion(userId, pending.id, text, { now: new Date(now()) });
           if (!claimed) return null;
-          return handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach, ownership });
+          return handlePendingAnswer({ pending, text, chatId, t, userId, timezone, coach, locale, ownership });
         };
         const reply = ownership.eventId
           ? await db.withAnswerOwnership(userId, ownership, now, processAnswer)
@@ -608,7 +602,7 @@ export function createRouter({
 
     // ---- 2. 指令 ----
     const cmd = parseCommand(text);
-    if (cmd) return handleCommand({ cmd, text, chatId, t, userId, timezone, coach });
+    if (cmd) return handleCommand({ cmd, text, chatId, t, userId, timezone, coach, locale });
 
     // ---- 3. 複合訊息：既報告了一件事，又在問問題 ----
     //
@@ -653,7 +647,9 @@ export function createRouter({
         if (nat.ok) {
           const saved = await saveEvent(db, userId, nat.event, { now: t, timezone });
           if (saved.ok) {
-            savedLine = `我先幫你記下${labelForCategory(saved.event.category)}。`;
+            savedLine = translate(locale, 'router.compoundSaved', {
+              factor: labelForCategory(saved.event.category, locale),
+            });
             justLogged = { category: saved.event.category, timePrecision: nat.timePrecision };
           }
         }
@@ -662,7 +658,7 @@ export function createRouter({
         log.warn('compound_journal_failed', { error: describeError(err) });
       }
       const answer = await handleQuestion({
-        text, chatId, t, userId, timezone, coach, justLogged, signals,
+        text, chatId, t, userId, timezone, coach, locale, justLogged, signals,
       });
       return savedLine ? `${savedLine}\n\n${answer}` : answer;
     }
@@ -677,7 +673,7 @@ export function createRouter({
         const preVeto = rawTextVeto({ text, category: categoryHintOf(text), subjectEstablished: true });
         if (preVeto.vetoed && preVeto.reason === 'negated') {
           log.info('journal_mutation_denied', { gate: 'explicit_command_negated', cues: preVeto.cues });
-          return negatedLogCommandReply();
+          return negatedLogCommandReply(locale);
         }
       }
       const nat = await parseNaturalJournal({
@@ -687,13 +683,15 @@ export function createRouter({
       });
       if (nat.ok) {
         const saved = await saveEvent(db, userId, nat.event, { now: t, timezone });
-        if (saved.ok) return `✅ 已記錄：${describeEvent(saved.event)}`;
+        if (saved.ok) return translate(locale, 'router.saved', {
+          event: describeEvent(saved.event, locale),
+        });
       }
       // 解析不出來就往下走，當成一般問題
     }
 
     // ---- 5. 一般問答 ----
-    return handleQuestion({ text, chatId, t, userId, timezone, coach });
+    return handleQuestion({ text, chatId, t, userId, timezone, coach, locale });
   }
 
   /** 只有需要 daily_metrics 的指令才去載入（沒資料時是空陣列，不是錯誤）。 */
@@ -710,11 +708,11 @@ export function createRouter({
     }
   }
 
-  async function handleCommand({ cmd, text, chatId, t, userId, timezone, coach }) {
+  async function handleCommand({ cmd, text, chatId, t, userId, timezone, coach, locale = 'zh-TW' }) {
     switch (cmd.command) {
       case 'start': {
         const report = await buildDataQualityReport({ db, userId, timezone, now: t });
-        return startText(report);
+        return startText(report, locale);
       }
 
       case 'help': {
@@ -730,77 +728,71 @@ export function createRouter({
           const { assessPrediction, READINESS_STATUS } = await import('../readiness.js');
           predictionReady = assessPrediction({ rows }).status === READINESS_STATUS.READY;
         } catch { /* 忽略 */ }
-        return buildHelp({ report, insightCount, predictionReady });
+        return buildHelp({ report, insightCount, predictionReady, locale });
       }
 
       case 'healthdata':
       case 'health':
-        return handleHealthData({ db, userId, timezone, now: t });
+        return handleHealthData({ db, userId, timezone, now: t, locale });
 
       case 'status':
-        return handleStatus({ db, userId, timezone, now: t, rows: await loadRows(t, userId, timezone) });
+        return handleStatus({ db, userId, timezone, now: t,
+          rows: await loadRows(t, userId, timezone), locale });
 
       case 'journal':
-        return handleJournal({ db, userId, argsText: cmd.argsText, timezone, now: t });
+        return handleJournal({ db, userId, argsText: cmd.argsText, timezone, now: t, locale });
 
       case 'insights':
-        return handleInsights({ db, userId, argsText: cmd.argsText });
+        return handleInsights({ db, userId, argsText: cmd.argsText, locale });
 
       case 'predictions':
       case 'prediction':
-        return handlePredictions({ db, userId, rows: await loadRows(t, userId, timezone) });
+        return handlePredictions({ db, userId, rows: await loadRows(t, userId, timezone), locale });
 
       case 'healthspan':
-        return handleHealthspan({ db, userId, rows: await loadRows(t, userId, timezone) });
+        return handleHealthspan({ db, userId, rows: await loadRows(t, userId, timezone), locale });
 
       case 'cost':
-        return handleCost({ db, userId, timezone, now: t });
+        return handleCost({ db, userId, timezone, now: t, locale });
 
       case 'evidence':
-        return handleEvidence({ db, userId, now: t });
+        return handleEvidence({ db, userId, now: t, locale });
 
       case 'experiment':
       case 'experiments':
-        return handleExperiment({ cmd, chatId, t, userId, timezone });
+        return handleExperiment({ cmd, chatId, t, userId, timezone, locale });
 
       case 'log':
         return handleLog({
           db, userId, argsText: cmd.argsText, rawText: text, timezone, now: t, coach,
-          parseNatural: parseNaturalJournal,
+          parseNatural: parseNaturalJournal, locale,
         });
 
       default:
-        return `不認得指令 /${cmd.command}。輸入 /help 看可用指令。`;
+        return translate(locale, 'router.unknownCommand', { command: cmd.command });
     }
   }
 
   /** /experiment create|list|status|stop */
-  async function handleExperiment({ cmd, chatId, t, userId, timezone }) {
+  async function handleExperiment({ cmd, chatId, t, userId, timezone, locale = 'zh-TW' }) {
     const [sub, arg] = cmd.args;
     const action = String(sub ?? '').toLowerCase();
 
     switch (action) {
       case 'create':
       case 'new':
-        return experimentFlow.beginCreate({ db, userId, chatId, now: t });
+        return experimentFlow.beginCreate({ db, userId, chatId, now: t, locale });
       case 'list':
-        return experimentFlow.renderList(db, userId);
+        return experimentFlow.renderList(db, userId, locale);
       case 'status':
         return experimentFlow.renderStatus({
-          db, userId, rows: await loadRows(t, userId, timezone), id: arg, timezone, now: t,
+          db, userId, rows: await loadRows(t, userId, timezone), id: arg, timezone, now: t, locale,
         });
       case 'stop':
       case 'complete':
-        return experimentFlow.stopExperiment({ db, userId, id: arg, timezone, now: t });
+        return experimentFlow.stopExperiment({ db, userId, id: arg, timezone, now: t, locale });
       default:
-        return [
-          '🧪 實驗指令：',
-          '',
-          '/experiment create — 建立一個新實驗（我會一步步問你）',
-          '/experiment list — 列出所有實驗',
-          '/experiment status [id] — 看前後對照結果',
-          '/experiment stop [id] — 結束進行中的實驗',
-        ].join('\n');
+        return translate(locale, 'router.experimentHelp');
     }
   }
 
@@ -842,19 +834,19 @@ export function createRouter({
   }
 
   async function handleQuestion({
-    text, chatId, t, userId, timezone, coach, justLogged = null, signals = null,
+    text, chatId, t, userId, timezone, coach, locale = 'zh-TW', justLogged = null, signals = null,
   }) {
     // 「證據呢？」「你憑什麼？」「樣本多少？」→ 直接回 evidence 摘要。
     // ★ 必須在 intent 判定之前 —— 這類問句不會被任何 intent 認出來，
     // 放在後面會先被 unknown 分支攔截而永遠走不到。
     if (/(證據|憑什麼|可信嗎|樣本(數|多少)|怎麼知道|evidence)/i.test(text)) {
-      return handleEvidence({ db, userId, now: t });
+      return handleEvidence({ db, userId, now: t, locale });
     }
 
     // 「我是不是喝酒了？」—— 問的是我們這邊有沒有紀錄。這題有確定性的答案，
     // 不需要 intent 分類，也絕不該掉到指令清單或衛教說明。
     if (isSelfRecallQuestion(text)) {
-      return journalRecall({ text, t, userId, timezone });
+      return journalRecall({ text, t, userId, timezone, locale });
     }
 
     const intent = await resolveIntent(text, { coach });
@@ -870,7 +862,7 @@ export function createRouter({
     // ★ 不是在問使用者自己 → 走衛教，個人資料完全不碰。
     // 放在 intent 分派之前，所以 cause_query 的個人化算式根本不會被執行。
     if (!plan.usePersonalData) {
-      const edu = educationAnswer({ text, perspective: plan.perspective });
+      const edu = educationAnswer({ text, perspective: plan.perspective, locale });
       if (edu) {
         log.info('health_education_answered', {
           topic: edu.topic, aspect: edu.aspect, perspective: edu.perspective,
@@ -880,26 +872,15 @@ export function createRouter({
       // 認不出主題：誠實說沒把握，不要拿使用者的數據去回答別人的問題，
       // 也不要丟指令清單。
       if (plan.perspective === PERSPECTIVE.THIRD_PARTY) {
-        return '這題我沒辦法幫你判斷 —— 我看不到他的資料，也不該用你的數據去回答關於他的問題。\n\n'
-          + '如果他的狀況讓你不放心，尤其是有呼吸困難、胸痛、意識不清或叫不醒的情況，'
-          + '請直接尋求醫療協助。';
+        return translate(locale, 'router.thirdPartyUnknown');
       }
       if (detectTopic(text) || plan.perspective === PERSPECTIVE.GENERAL) {
-        return '這個問題我沒有足夠把握給你一般性的說明，我不想憑印象回答健康問題。\n\n'
-          + '如果你想問的是自己的數據，可以直接問「我今天狀態怎樣」或「最近 HRV 如何」。';
+        return translate(locale, 'router.generalUnknown');
       }
     }
 
     if (intent.intent === 'unknown') {
-      return [
-        '我不太確定你想問什麼。可以試試：',
-        '· 我今天狀態怎樣？',
-        '· 最近 HRV 如何？',
-        '· 最近睡眠有沒有變差？',
-        '· 最近 30 天最好是哪一天？',
-        '',
-        '或輸入 /help 看完整說明。',
-      ].join('\n');
+      return translate(locale, 'router.unknownQuestion');
     }
 
     if (intent.intent === 'data_status') {
@@ -913,6 +894,7 @@ export function createRouter({
         result: await createHealthQuery({ db, userId, timezone, now: t, lookbackDays })
           .readinessExplanation(),
         coach,
+        locale,
       });
     }
 
@@ -920,10 +902,10 @@ export function createRouter({
     const result = await runIntent(q, justLogged ? { ...intent, justLogged } : intent);
 
     if (!result || result.available === false) {
-      return unavailableReply(result);
+      return unavailableReply(result, locale);
     }
 
-    const answer = await composeAnswer({ question: text, result, coach });
+    const answer = await composeAnswer({ question: text, result, coach, locale });
 
     // ---- 需要的話發出追問（Phase O）----
     try {
@@ -932,9 +914,8 @@ export function createRouter({
           from: result.health_date, to: result.health_date,
         });
         if (shouldFollowUp({ result, journalCountForDay: events.length })) {
-          await openFollowUp({ db, userId, chatId, originalMessage: text, result, now: t });
-          const { FOLLOW_UP_QUESTION } = await import('./conversation.js');
-          return `${answer}\n\n———\n${FOLLOW_UP_QUESTION}`;
+          await openFollowUp({ db, userId, chatId, originalMessage: text, result, now: t, locale });
+          return `${answer}\n\n———\n${followUpQuestion(locale)}`;
         }
       }
     } catch (err) {
@@ -951,7 +932,7 @@ export function createRouter({
    * 只講我們確實有的東西：沒有紀錄就說沒有紀錄，**不是**說「你沒有喝酒」——
    * 系統看不到使用者沒告訴它的事。
    */
-  async function journalRecall({ text, t, userId, timezone }) {
+  async function journalRecall({ text, t, userId, timezone, locale = 'zh-TW' }) {
     const today = localDate(t, timezone);
     let events = [];
     try {
@@ -965,16 +946,14 @@ export function createRouter({
     const topic = detectTopic(text);
     const matched = topic ? events.filter((e) => e.category === topic) : events;
     if (matched.length) {
-      const names = [...new Set(matched.map((e) => labelForCategory(e.category)))].join('、');
-      return `你今天有告訴我：${names}。`;
+      const names = [...new Set(matched.map((e) => labelForCategory(e.category, locale)))].join('、');
+      return translate(locale, 'router.recallMatched', { factors: names });
     }
     if (events.length) {
-      const names = [...new Set(events.map((e) => labelForCategory(e.category)))].join('、');
-      return `我這邊今天沒有那筆紀錄，只有${names}。\n\n`
-        + '我只看得到你告訴我的事，所以沒有紀錄不代表沒發生。';
+      const names = [...new Set(events.map((e) => labelForCategory(e.category, locale)))].join('、');
+      return translate(locale, 'router.recallOther', { factors: names });
     }
-    return '我這邊今天還沒有你的任何紀錄。\n\n'
-      + '我只看得到你告訴我的事，所以沒有紀錄不代表沒發生 —— 想記的話跟我說一聲就好。';
+    return translate(locale, 'router.recallEmpty');
   }
 
   async function runIntent(q, intent) {
@@ -1011,17 +990,17 @@ export function createRouter({
    * 條件，不是流程中段的一步（見 route() 的 M-02 說明）。
    */
   async function handlePendingAnswer({
-    pending, text, chatId, t, userId, timezone, coach, ownership = null,
+    pending, text, chatId, t, userId, timezone, coach, locale = 'zh-TW', ownership = null,
   }) {
     if (pending.intent === PROACTIVE_QUESTION_INTENT) {
       return handleProactiveAnswer({
-        pending, text, chatId, t, userId, timezone, coach, ownership,
+        pending, text, chatId, t, userId, timezone, coach, locale, ownership,
       });
     }
 
     // 明確說「沒有」→ 不寫 journal（pending 已在 route() 認領時收掉）
     if (isNegativeAnswer(text)) {
-      return '好，那我先記著這幾天的數字，繼續幫你留意。';
+      return translate(locale, 'router.pendingNo');
     }
 
     const nat = await parseNaturalJournal({
@@ -1035,7 +1014,7 @@ export function createRouter({
       // M-06：這題問的是哪一天，答案就記在哪一天（使用者自己講日期時除外）
       const targetDate = questionTargetDateOf(pending);
       if (nat.statedDayOffset === null && targetDate === null) {
-        return '我想確認一下：這是哪一天的事？（今天、昨天，還是前天？）';
+        return translate(locale, 'router.whichDay');
       }
       const event = anchorToQuestionDay(nat.event, {
         anchorHealthDate: targetDate,
@@ -1044,10 +1023,12 @@ export function createRouter({
       });
       if (!await stillOwns(ownership)) {
         log.warn('pending_answer_ownership_lost', { user_id: userId, pending_question_id: pending.id });
-        return '我這邊處理到一半被中斷了，這則先沒有記錄；需要的話再跟我說一次。';
+        return translate(locale, 'router.ownershipLost');
       }
       const saved = await saveEvent(db, userId, event, { now: t, timezone });
-      if (saved.ok) savedLine = `✅ 已記錄：${describeEvent(saved.event)}`;
+      if (saved.ok) savedLine = translate(locale, 'router.saved', {
+        event: describeEvent(saved.event, locale),
+      });
     }
 
     // 沒有 WHOOP 資料時也要能運作：至少確認 journal 寫進去了
@@ -1055,8 +1036,8 @@ export function createRouter({
     const summary = await q.summary();
     if (!summary.history_days) {
       return savedLine
-        ? `${savedLine}\n\n目前還沒有 WHOOP 資料，等同步之後我就能把這些對照著看。`
-        : '我先記下來了。目前還沒有 WHOOP 資料，等同步之後就能分析。';
+        ? translate(locale, 'router.savedNoData', { saved: savedLine })
+        : translate(locale, 'router.notedNoData');
     }
 
     // 重新取得 context 並回答原本的問題
@@ -1064,7 +1045,7 @@ export function createRouter({
     const answer = await composeAnswer({
       question: pending.originalMessage ?? '我今天狀態怎樣？',
       result,
-      coach,
+      coach, locale,
     });
     return savedLine ? `${savedLine}\n\n${answer}` : answer;
   }
@@ -1075,12 +1056,12 @@ export function createRouter({
    * 要不要 follow-up。允許「還是解釋不了」當作合法結果。
    */
   async function handleProactiveAnswer({
-    pending, text, chatId, t, userId, timezone, coach, ownership = null,
+    pending, text, chatId, t, userId, timezone, coach, locale = 'zh-TW', ownership = null,
   }) {
     // ★ R3-M-03：所有權在 route() 裡、**翻轉追問狀態之前**就已經取得。
     // 這裡不再自己拿租約 —— 那個順序正是 R2 留下的競態窗口。
     return processProactiveAnswer({
-      pending, text, chatId, t, userId, timezone, coach, ownership,
+      pending, text, chatId, t, userId, timezone, coach, locale, ownership,
       metric: pending.context?.signal?.metric ?? null,
       healthDate: pending.context?.health_date ?? null,
       proactiveEventId: pending.context?.proactive_event_id ?? null,
@@ -1089,7 +1070,7 @@ export function createRouter({
 
   /** handleProactiveAnswer 的實作（所有權在 route() 取得與釋放）。 */
   async function processProactiveAnswer({
-    pending, text, chatId, t, userId, timezone, coach, ownership,
+    pending, text, chatId, t, userId, timezone, coach, locale = 'zh-TW', ownership,
     metric, healthDate, proactiveEventId,
   }) {
 
@@ -1117,7 +1098,7 @@ export function createRouter({
 
     if (isNegativeAnswer(text)) {
       await closeOut(PROACTIVE_OUTCOME.NO_EXPLANATION_OFFERED);
-      return '好，我先記著這件事，會繼續留意後續的數字。';
+      return translate(locale, 'router.proactiveNo');
     }
 
     const nat = await parseNaturalJournal({
@@ -1129,8 +1110,7 @@ export function createRouter({
     if (!nat.ok) {
       // 只允許一次澄清追問——不能無止盡盤問使用者。
       if (!pending.context?.clarified) {
-        const clarifyQuestion = '不好意思我沒有聽懂——可以更明確地說「有」還是「沒有」嗎？'
-          + '（例如「喝了兩杯」或「沒有」）';
+        const clarifyQuestion = translate(locale, 'router.proactiveClarify');
         await db.openPendingQuestion(userId, {
           chatId,
           originalMessage: pending.originalMessage,
@@ -1142,7 +1122,7 @@ export function createRouter({
         return clarifyQuestion;
       }
       await closeOut(PROACTIVE_OUTCOME.NO_EXPLANATION_OFFERED);
-      return '好，我先記著，會繼續留意。';
+      return translate(locale, 'router.proactiveNoAfterClarify');
     }
 
     // ★ R3-M-02：使用者沒說日期、而且我們也推導不出這題在問哪一天
@@ -1153,7 +1133,7 @@ export function createRouter({
       log.warn('proactive_answer_date_unresolvable', {
         user_id: userId, pending_question_id: pending.id,
       });
-      return '我想確認一下：這是哪一天的事？（今天、昨天，還是前天？）';
+      return translate(locale, 'router.whichDay');
     }
 
     // 主動問題問的是 targetDate 那一天的行為，短答必須記在那一天
@@ -1169,17 +1149,19 @@ export function createRouter({
       log.warn('proactive_answer_ownership_lost', {
         user_id: userId, event_id: proactiveEventId,
       });
-      return '我這邊處理到一半被中斷了，這則先沒有記錄；需要的話再跟我說一次。';
+      return translate(locale, 'router.ownershipLost');
     }
     const saved = await saveEvent(db, userId, { ...anchored, source: 'proactive_agent' }, { now: t, timezone });
-    const savedLine = saved.ok ? `✅ 已記錄：${describeEvent(saved.event)}` : null;
+    const savedLine = saved.ok ? translate(locale, 'router.saved', {
+      event: describeEvent(saved.event, locale),
+    }) : null;
 
     let followUpLine = '';
     let outcome = PROACTIVE_OUTCOME.NO_EXPLANATION_OFFERED;
     if (saved.ok && metric && healthDate) {
       try {
         const result = await reanalyzeAfterAnswer({
-          db, userId, timezone, category: saved.event.category, metric, healthDate,
+          db, userId, timezone, locale, category: saved.event.category, metric, healthDate,
           // 把觸發這次追問的訊號帶進去，重新分析才是「針對這個異常」，
           // 而不是只看全域的 journal 關聯有沒有變。
           signal: pending.context?.signal ?? null,
@@ -1187,7 +1169,7 @@ export function createRouter({
         });
         outcome = result.outcome;
         if (result.outcome === PROACTIVE_OUTCOME.STILL_UNEXPLAINED) {
-          followUpLine = '\n\n目前累積的資料還不足以確認這是不是解釋，我會繼續追蹤。';
+          followUpLine = `\n\n${translate(locale, 'router.proactiveStillUnexplained')}`;
         } else if (result.followUpMessage) {
           followUpLine = `\n\n${result.followUpMessage}`;
         }
@@ -1197,7 +1179,7 @@ export function createRouter({
     }
 
     await closeOut(outcome, { journalEventId: saved.ok ? saved.id : null });
-    return savedLine ? `${savedLine}${followUpLine}` : `我先記下來了。${followUpLine}`;
+    return savedLine ? `${savedLine}${followUpLine}` : `${translate(locale, 'router.noted')}${followUpLine}`;
   }
 
   return { handle, route, handleQuestion, handlePendingAnswer, runIntent };

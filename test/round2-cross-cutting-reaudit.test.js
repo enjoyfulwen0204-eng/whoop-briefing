@@ -66,6 +66,8 @@ async function withPair(fn) {
     await db.migrate();
     const alice = await db.createUser({ displayName: 'Alice', timezone: 'Asia/Taipei' });
     const bob = await db.createUser({ displayName: 'Bob', timezone: 'America/New_York' });
+    await db.setLocale(alice.id, 'zh-TW');
+    await db.setLocale(bob.id, 'zh-TW');
     await db.linkTelegram({ chatId: '1001', userId: alice.id });
     await db.linkTelegram({ chatId: '1002', userId: bob.id });
     await db.saveTokens(alice.id, {
@@ -479,6 +481,7 @@ test('★★★ 再稽核 14: 全新帳號不會誤報故障、不會亂發訊�
   try {
     await db.migrate();
     const user = await db.createUser({ displayName: 'New', timezone: 'Asia/Taipei' });
+    await db.setLocale(user.id, 'zh-TW');
     await db.linkTelegram({ chatId: '1001', userId: user.id });
 
     // 還沒授權 WHOOP → Guardian 不該報任何東西

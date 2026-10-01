@@ -47,7 +47,7 @@ try {
     assertCurrent: async () => true,
     betaSummary: { readCurrent: async context => ({ userId: context.userId, executionMode: 'SHADOW',
       episodes: [{ metricKey: 'recovery_score', direction: 'LOWER', resultId: `${context.userId}-EPISODE` }],
-      insights: [{ status: 'SUPPORTED', claim: `${context.userId} journal association`,
+      insights: [{ status: 'SUPPORTED', claim: `${({alice:'alcohol',bob:'caffeine',nameless:'stress'})[context.userId]} has been repeatedly associated in your data with lower recovery_score.`,
         resultId: `${context.userId}-INSIGHT` }] }) },
   };
   const presentation = createPublicBetaPresentation({ stores, db,

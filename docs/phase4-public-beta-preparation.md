@@ -1,6 +1,6 @@
 # Phase 4 Stage 1–6 Public Beta preparation
 
-This is repository preparation, not activation. The checked-in beta runtime and presentation gates remain OFF. Schema remains v30; v31 and v32 are reserved for later stages.
+This is repository preparation, not activation. The checked-in beta runtime and presentation gates remain OFF. The later [Localization Gate](phase4-localization-gate.md) adds schema v31 for per-user language choices; v32 and v33 are reserved for Stages 7 and 8.
 
 ## Release surface
 
@@ -13,7 +13,7 @@ This is repository preparation, not activation. The checked-in beta runtime and 
 | Proactive proposals, notification slots, preferences, work tips and family directory | SHADOW-ONLY BY DESIGN | Stage 6 produces/maintains them without adding an interaction surface. |
 | Body Energy results, checkpoints, scores and Body Energy-derived associations | NOT YET AUTHORIZED FOR PUBLICATION | Calibration/publication approval is unsatisfied; no runtime cohort setting can display them. Computation and durable SHADOW state remain. |
 | Stage 7 Quick Actions, buttons, callbacks, trusted registry and Journal provenance | NOT YET AUTHORIZED FOR PUBLICATION | No Stage 7 interaction in this release. |
-| Stage 8 Owner/Family View | NOT YET AUTHORIZED FOR PUBLICATION | No v32 interaction in this release. |
+| Stage 8 Owner/Family View | NOT YET AUTHORIZED FOR PUBLICATION | No v33 interaction in this release. |
 
 This gives beta users real, current Core intelligence to observe and report: personal recovery deviations and supported/emerging Journal associations. It does not claim a separate UI for every internal object. Existing daily and weekly legacy reports remain available.
 
@@ -52,6 +52,6 @@ Cloudflare's later target cron is `*/10 0-3 * * *` (08:00 to before 12:00 Asia/T
 1. Set `PHASE4_PUBLIC_BETA_MODE=off` on all active beta runtimes. This stops the new post-drain summary without altering legacy reports.
 2. Set `PHASE4_BETA_SHADOW_RUNTIME=off`. Restore the prior GitHub command and Render beta composition if activation changed them.
 3. Restore the prior Cloudflare cron/configuration if changed; verify the authenticated endpoint and hourly fallback.
-4. Preserve all v28/v29/v30 data, operation receipts, keys and user data. No DB rollback, deletion, migration downgrade, or LIVE mode promotion.
+4. Preserve all v28/v29/v30/v31 data, operation receipts, keys and user data. No DB rollback, deletion, migration downgrade, or LIVE mode promotion.
 
 `npm run beta:smoke` uses synthetic users and a fake Telegram transport. It verifies final daily and Beta Summary payloads for Alice, Bob and an unnamed user, reversed order and a fresh process, with no real send. The historical broad-suite updates distinguish an authentic old schema fixture from an impossible v30 schema rewind: old version constants move to v30; hybrid rewinds must be rejected without weakening v30 postconditions; old downgrade fixtures expect incompatibility; missing scheduler heartbeat is stale under the Stage 6 policy.

@@ -161,17 +161,11 @@ export function isSymptomEducationQuestion(text) {
   return EDUCATIONAL.test(t) || /是什麼意思|代表什麼/.test(t);
 }
 
+import { t } from '../localization.js';
+
 /** 症狀類問題的安全回覆：說明界線，不列成因。 */
-export function symptomEducationReply() {
-  return [
-    '這類症狀的成因我沒辦法幫你判斷 —— 胸痛、呼吸困難、意識改變這些都需要真人評估，'
-    + '我如果給你一份「常見原因」清單，反而可能讓你把真正要緊的可能排除掉。',
-    '',
-    '如果你現在正在經歷這些症狀，請直接尋求醫療協助。'
-    + '如果只是想了解，建議問醫師或護理人員 —— 他們可以結合你的病史一起看。',
-    '',
-    '我這邊能幫的是你自己的 WHOOP 數據，例如「我今天狀態怎樣」或「最近 HRV 如何」。',
-  ].join('\n');
+export function symptomEducationReply(locale = 'zh-TW') {
+  return t(locale, 'triage.education');
 }
 
 /**
@@ -181,14 +175,6 @@ export function symptomEducationReply() {
  * 刻意**不**列任何數據 —— 那會暗示「數字看起來還好」可以拿來排除危險，
  * 而這個系統沒有能力做那種判斷。
  */
-export function urgentReply() {
-  return [
-    '你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。',
-    '',
-    '如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，'
-    + '或請身邊的人陪你就醫。',
-    '',
-    '我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，'
-    + '所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。',
-  ].join('\n');
+export function urgentReply(locale = 'zh-TW') {
+  return t(locale, 'triage.urgent');
 }

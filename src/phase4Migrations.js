@@ -304,6 +304,14 @@ export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSI
     }
   }
   if (version >= 21) await verifyV21(client, options);
+  if (version >= 31) {
+    await requireZero(client, `SELECT 1 FROM user_locales p LEFT JOIN users u ON u.id=p.user_id
+      WHERE u.id IS NULL LIMIT 1`, 'v31_locale_tenant');
+    await requireZero(client, `SELECT 1 FROM user_locale_prompts p LEFT JOIN users u ON u.id=p.user_id
+      WHERE u.id IS NULL LIMIT 1`, 'v31_prompt_tenant');
+    await requireZero(client, `SELECT 1 FROM user_locales WHERE locale NOT IN ('zh-TW','en','vi') LIMIT 1`,
+      'v31_locale_value');
+  }
   if (version >= 22) await verifyV22Data(client, { backfill: options.backfillVersion === 22 });
   if (version >= 23 && options.backfillVersion === 23) await requireZero(client, `SELECT 1 FROM health_insights
     WHERE legacy_classification IS NOT 'LEGACY_UNVERIFIED' OR insight_key IS NOT NULL OR current_revision IS NOT NULL

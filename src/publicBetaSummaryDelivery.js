@@ -12,7 +12,9 @@ export async function deliverPublicBetaSummary({ db, env, user, presentation, no
   makeTelegram = createTelegram } = {}) {
   const userId = requireUserId(user?.id, 'deliverPublicBetaSummary');
   if (!presentation?.eligible(userId)) return { status: 'not_eligible' };
-  return presentation.withCurrentSummary({ userId, now }, async (text, verifyCurrent) => {
+  if (typeof db?.getLocale === 'function' && !await db.getLocale(userId))
+    return { status: 'locale_unset' };
+  const result = await presentation.withCurrentSummary({ userId, now }, async (text, verifyCurrent) => {
     const current = await db.getUser(userId);
     if (!current || current.status !== 'ACTIVE') return { status: 'inactive' };
     const life = current.lifecycleGeneration;
@@ -44,5 +46,6 @@ export async function deliverPublicBetaSummary({ db, env, user, presentation, no
         telegramMessageId: delivery.messageId }, { throwOnError: false });
     }
     return { status: delivery.result, localDate: claimKey.localDateKey };
-  }) ?? { status: 'no_current_summary' };
+  });
+  return result ?? { status: 'no_current_summary' };
 }

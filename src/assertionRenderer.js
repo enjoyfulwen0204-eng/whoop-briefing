@@ -31,6 +31,7 @@
 
 import { FACT_ROLE } from './publishableFacts.js';
 import { log } from './logger.js';
+import { t, localizedDisplay } from './localization.js';
 
 /**
  * metric → 對外顯示名稱。與 METRIC_VOCABULARY 的第一個別名一致。
@@ -69,11 +70,16 @@ const DISPLAY_LABEL = {
  * 絕不回傳 metric key 本身：那是內部識別碼（snake_case、DB 欄位名、分析用
  * 的鍵），使用者看到只會困惑，而且等於洩漏內部結構。
  */
-export function displayLabelFor(f) {
+export function displayLabelFor(f, locale = 'zh-TW') {
   // 明確覆寫優先（保留「昨日 Strain」這種時間語義）
-  if (typeof f?.displayLabel === 'string' && f.displayLabel.trim()) return f.displayLabel;
+  if (typeof f?.displayLabel === 'string' && f.displayLabel.trim()) {
+    if (locale === 'zh-TW') return f.displayLabel;
+    if (f.displayLabel === '昨日 Strain') return t(locale, 'metric.previous_day_strain');
+    return null;
+  }
   const label = DISPLAY_LABEL[f?.metric];
-  if (typeof label === 'string' && label.trim()) return label;
+  if (typeof label === 'string' && label.trim()) return locale === 'zh-TW'
+    ? label : t(locale, `qa.metric.${f.metric}`);
   log.warn('assertion_unmapped_metric_key', { metric: f?.metric ?? null });
   return null;
 }
@@ -91,26 +97,26 @@ function valueText(f) {
  * 樣板依 role 決定，所以「這句話在講什麼」由型別決定，不由文字決定。
  * 回 null 代表這筆事實不可發布（或沒有可顯示的值），那就**不會有這句話**。
  */
-export function renderAssertion(f) {
+export function renderAssertion(f, locale = 'zh-TW') {
   if (!f || !f.publishable) return null;
   // 沒有核可標籤 → 整筆不發布。寧可少一句話，也不要把內部欄位名印出去。
-  const label = displayLabelFor(f);
+  const label = displayLabelFor(f, locale);
   if (label === null) return null;
-  const text = valueText(f);
+  const text = localizedDisplay(locale, valueText(f));
   if (text === null) return null;
 
   switch (f.role) {
     case FACT_ROLE.BASELINE:
-      return { factId: f.factId, text: `${label}基準 ${text}` };
+      return { factId: f.factId, text: t(locale, 'qa.baseline', { metric: label, value: text }) };
     case FACT_ROLE.CHANGE:
-      return { factId: f.factId, text: `${label}變化 ${text}` };
+      return { factId: f.factId, text: t(locale, 'qa.change', { metric: label, value: text }) };
     case FACT_ROLE.TREND:
-      return { factId: f.factId, text: `${label}趨勢 ${text}` };
+      return { factId: f.factId, text: t(locale, 'qa.trend', { metric: label, value: text }) };
     case FACT_ROLE.SUPPORTING_STATISTIC:
-      return { factId: f.factId, text: `${label} ${text}` };
+      return { factId: f.factId, text: t(locale, 'qa.value', { metric: label, value: text }) };
     case FACT_ROLE.CURRENT_VALUE:
     default:
-      return { factId: f.factId, text: `${label} ${text}` };
+      return { factId: f.factId, text: t(locale, 'qa.value', { metric: label, value: text }) };
   }
 }
 
@@ -122,12 +128,12 @@ export function renderAssertion(f) {
  *   factIds      每一句的來源（provenance；稽核用）
  *   unavailable  這次拿不到資料的指標名稱（誠實告知，不是捏造）
  */
-export function renderAssertions(factSet) {
+export function renderAssertions(factSet, locale = 'zh-TW') {
   const lines = [];
   const factIds = [];
   const unavailable = [];
   for (const f of factSet?.facts ?? []) {
-    const rendered = renderAssertion(f);
+    const rendered = renderAssertion(f, locale);
     if (rendered) {
       lines.push(rendered.text);
       factIds.push(rendered.factId);
@@ -136,7 +142,7 @@ export function renderAssertions(factSet) {
     // 不可發布 = 這次沒有資料。誠實列出來，不要假裝它不存在 ——
     // 但一樣只用核可的標籤，沒有就整筆略過。
     if (f && f.value === null) {
-      const label = displayLabelFor(f);
+      const label = displayLabelFor(f, locale);
       if (label !== null) unavailable.push(label);
     }
   }
@@ -158,13 +164,14 @@ export function renderAssertions(factSet) {
  */
 export function assemblePublication({
   header = null, assertionLines = [], explanation = null,
-  unavailable = [], emptyText = '目前還沒有足夠的資料可以回答這個問題。',
+  unavailable = [], emptyText = null, locale = 'zh-TW',
 } = {}) {
   const parts = [];
   if (header) parts.push(header);
   if (assertionLines.length) parts.push(assertionLines.join('\n'));
-  if (unavailable.length) parts.push(`目前拿不到：${unavailable.join('、')}`);
-  if (!assertionLines.length && !unavailable.length) parts.push(emptyText);
+  if (unavailable.length) parts.push(t(locale, 'qa.unavailable',
+    { metrics: unavailable.join(t(locale, 'qa.join')) }));
+  if (!assertionLines.length && !unavailable.length) parts.push(emptyText ?? t(locale, 'qa.empty'));
   if (explanation) parts.push(explanation);
   return parts.join('\n\n');
 }

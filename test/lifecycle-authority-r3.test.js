@@ -94,9 +94,12 @@ const onb = (db, chatId, text, opts = {}) => handleUnlinkedMessage({
   db, text, chatId, message: privateMessage(chatId, text), isPrivateChat: true,
   clientId: CLIENT_ID, redirectUri: REDIRECT, now: NOW, ...opts,
 });
-const linked = (db, user, text, opts = {}) => handleOnboardingMessage({
-  db, user, text, clientId: CLIENT_ID, redirectUri: REDIRECT, now: NOW, ...opts,
-});
+const linked = async (db, user, text, opts = {}) => {
+  if (text !== '繁體中文' && !await db.getLocale(user.id)) await db.setLocale(user.id, 'zh-TW');
+  return handleOnboardingMessage({
+    db, user, text, clientId: CLIENT_ID, redirectUri: REDIRECT, now: NOW, ...opts,
+  });
+};
 const userFor = async (db, chatId) => (await db.resolveUserByChatId(String(chatId)))?.user ?? null;
 const urlIn = (r) => /https:\/\/\S+/.exec(r)?.[0] ?? null;
 const stateFromUrl = (u) => new URL(u).searchParams.get('state');
@@ -116,6 +119,7 @@ const backend = ({ whoopUserId = 'W1' } = {}) => ({
 async function authorize(db, chatId, { whoopUserId = 'W1' } = {}) {
   await onb(db, chatId, '/start');
   const user = await userFor(db, chatId);
+  await linked(db, user, '繁體中文');
   const reply = await linked(db, user, 'Asia/Taipei');
   const cb = createWhoopOAuthCallback({ db, ...backend({ whoopUserId }), now: () => NOW });
   assert.equal((await cb({ query: new URLSearchParams({ code: 'good', state: stateFromUrl(urlIn(reply)) }) })).outcome, 'ok');

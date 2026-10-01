@@ -12,6 +12,7 @@ import { STATUS } from './capabilities.js';
 import { requireUserId } from './userContext.js';
 import { daysBetween, localDate } from './time.js';
 import { log } from './logger.js';
+import { t, formatLocalDate, formatNumber } from './localization.js';
 
 /** 每個查詢都獨立包起來，一個失敗不影響其他。 */
 async function safe(label, fn, fallback) {
@@ -136,7 +137,8 @@ function deriveState({ tokens, hasAnyHealthData, allComplete, probed }) {
 }
 
 /** 報告 → Telegram 純文字（/healthdata 用）。 */
-export function renderDataQuality(r) {
+export function renderDataQuality(r, locale = 'zh-TW') {
+  if (locale !== 'zh-TW') return renderLocalizedDataQuality(r, locale);
   const lines = ['📊 WHOOP 資料狀態', ''];
 
   if (r.state === 'NO_AUTH') {
@@ -187,5 +189,59 @@ export function renderDataQuality(r) {
     lines.push('（重跑 npm run authorize 即可，不影響現有簡報）');
   }
 
+  return lines.join('\n');
+}
+
+function renderLocalizedDataQuality(r, locale) {
+  const line = (key, vars = {}) => t(locale, `quality.${key}`, vars);
+  const n = value => formatNumber(locale, value ?? 0);
+  const lines = [line('title'), ''];
+  if (r.state === 'NO_AUTH') lines.push(line('noAuth'), '');
+  if (!r.has_any_health_data) {
+    lines.push(line('notStarted'),
+      line('sleep', { count: n(0) }),
+      line('recovery', { count: n(0), scored: n(0) }),
+      line('workouts', { count: n(0) }),
+      line('naps', { count: n(0) }));
+  } else {
+    lines.push(line('history', {
+      from: formatLocalDate(r.history_start, locale),
+      to: formatLocalDate(r.history_end, locale),
+    }));
+    lines.push(line('coverage', {
+      days: n(r.coverage_days), missing: n(r.missing_days),
+      ratio: r.coverage_ratio == null ? '—' : n(Math.round(r.coverage_ratio * 100)),
+    }));
+    lines.push(line('sleep', { count: n(r.sleep_count) }),
+      line('recovery', { count: n(r.recovery_count), scored: n(r.valid_recoveries) }),
+      line('cycles', { count: n(r.cycle_count) }),
+      line('workouts', { count: n(r.workout_count) }),
+      line('naps', { count: n(r.nap_count) }),
+      line('unscored', { count: n(r.unscored_records) }));
+    if (r.days_behind > 1) lines.push(line('stale', { days: n(r.days_behind) }));
+  }
+  lines.push('', line('journal', { count: n(r.journal_count) }), '');
+  lines.push(r.capabilities.probed ? line('probeDone', {
+    date: r.capabilities.lastProbedAt
+      ? formatLocalDate(r.capabilities.lastProbedAt.slice(0, 10), locale) : '—',
+  }) : line('probePending'));
+  if (r.capabilities.probed) {
+    const c = r.capabilities.counts;
+    lines.push(line('capabilities', {
+      supported: n(c.SUPPORTED), partial: n(c.PARTIAL),
+      unavailable: n(c.UNAVAILABLE), unknown: n(c.UNKNOWN),
+    }));
+  }
+  const backfill = Object.entries(r.backfill_status);
+  lines.push('', line('backfill', { status: line(backfill.length === 0
+    ? 'backfillPending' : r.backfill_complete ? 'backfillComplete' : 'backfillRunning') }));
+  const known = new Set(['sleep','recovery','cycle','workout','profile','body_measurement']);
+  for (const [resource, state] of backfill) lines.push(line('resource', {
+    resource: line(`resourceName.${known.has(resource) ? resource : 'other'}`),
+    status: state.complete ? '✅' : '⏳',
+  }));
+  if (r.missing_scopes.length) lines.push('', line('scopeMissing', {
+    scopes: r.missing_scopes.join(', '),
+  }), line('scopeAdvice'));
   return lines.join('\n');
 }

@@ -41,6 +41,7 @@ async function seed({ days = 1, calibrating = true, sleepOnlyDays = 0 } = {}) {
   const { db, cleanup } = tempDb();
   await db.migrate();
   const u = await db.createUser({ displayName: 'Kelvin', timezone: TZ });
+  await db.setLocale(u.id, 'zh-TW');
   await db.linkTelegram({ chatId: '5001', userId: u.id });
   const total = Math.max(days, sleepOnlyDays);
   for (let i = 0; i < total; i += 1) {

@@ -55,6 +55,13 @@ export const PROBED_CAPABILITY_KEYS = [
   'disturbance_count',
 ];
 
+async function seedSelectedLocaleIfAvailable(db, userId) {
+  const table = (await db.raw.execute({
+    sql: "SELECT 1 FROM sqlite_master WHERE type='table' AND name='user_locales'",
+  })).rows[0];
+  if (table) await db.setLocale(userId, 'zh-TW');
+}
+
 export async function seedProbedCapabilities(db, userId, {
   keys = PROBED_CAPABILITY_KEYS, status = 'SUPPORTED', now = new Date(),
 } = {}) {
@@ -70,6 +77,7 @@ export async function seedAliceAndBob(db, { probed = true } = {}) {
       id: u.id, displayName: u.displayName, timezone: u.timezone, status: 'ACTIVE',
     });
     await db.linkTelegram({ chatId: u.chatId, userId: u.id });
+    await seedSelectedLocaleIfAvailable(db, u.id);
     // 預設是**運作中**的帳號（已經跑過 npm run probe）——見
     // seedProbedCapabilities 的說明。
     if (probed) await seedProbedCapabilities(db, u.id);
@@ -84,6 +92,7 @@ export async function seedSingleUser(db, {
 } = {}) {
   await db.createUser({ id, displayName, timezone, status: 'ACTIVE' });
   await db.linkTelegram({ chatId, userId: id });
+  await seedSelectedLocaleIfAvailable(db, id);
   // 預設是一個**運作中**的帳號（已經跑過 npm run probe）。
   // 要測「從來沒 probe 過」的行為就傳 probed: false。
   if (probed) await seedProbedCapabilities(db, id);

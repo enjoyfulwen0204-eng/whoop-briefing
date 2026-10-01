@@ -31,6 +31,7 @@ import { GLOBAL_SCOPE } from './schema.js';
 import { HEARTBEAT_COMPONENT } from './guardianPolicy.js';
 import { readSchedulerHealth } from './schedulerWatchdog.js';
 import { log, describeError } from './logger.js';
+import { t, formatNumber } from './localization.js';
 
 /** 結構化判定。使用者看到的句子由 renderBriefingStatus 決定。 */
 export const BRIEFING_STATUS = Object.freeze({
@@ -273,7 +274,8 @@ function ago(ms) {
  * 排程器本身的可靠性是外部事實，程式碼保證不了 —— 事故當天任何
  * 「等一下就會來」的說法都會是謊話。
  */
-export function renderBriefingStatus({ status, evidence }) {
+export function renderBriefingStatus({ status, evidence, locale = 'zh-TW' }) {
+  if (locale !== 'zh-TW') return renderLocalizedBriefingStatus({ status, evidence, locale });
   const e = evidence ?? {};
   const sourceLine = e.scheduler_state === 'healthy'
     ? '負責檢查晨報的排程最近有正常運作。'
@@ -375,5 +377,52 @@ export function renderBriefingStatus({ status, evidence }) {
         '我現在沒辦法確定今天簡報的狀態 —— 手邊的紀錄不足以下判斷。',
         schedulerLine,
       ].filter(Boolean).join('\n\n');
+  }
+}
+
+function renderLocalizedBriefingStatus({ status, evidence, locale }) {
+  const e = evidence ?? {};
+  const tr = (key, values) => t(locale, `briefingStatus.${key}`, values);
+  const ago = ms => {
+    if (!Number.isFinite(ms) || ms < 0) return tr('agoUnknown');
+    const minutes = Math.round(ms / 60_000);
+    if (minutes < 60) return tr('agoMinutes', { value: formatNumber(locale, minutes) });
+    const hours = ms / 3_600_000;
+    if (hours >= 24) return tr('agoDays', { value: formatNumber(locale, Math.round(hours / 24)) });
+    return tr('agoHours', { value: formatNumber(locale, Math.round(hours)) });
+  };
+  const source = ({ healthy:'sourceHealthy', degraded:'sourceDegraded', outage:'sourceOutage' })
+    [e.scheduler_state];
+  const sourceLine = source ? tr(source) : null;
+  const schedulerLine = e.scheduler_stale === true
+    ? tr('schedulerStale', { ago:ago(e.scheduler_age_ms) }) : null;
+  const nextCheck = e.scheduler_stale === false ? tr('nextCheck') : null;
+  const join = (...parts) => parts.filter(Boolean).join('\n\n');
+  switch (status) {
+    case BRIEFING_STATUS.DELIVERED: return tr('delivered');
+    case BRIEFING_STATUS.WAITING_FOR_SLEEP_DATA:
+      return join(tr(e.cycle_open === true ? 'waitingSleepOpen' : 'waitingSleep'),
+        schedulerLine, nextCheck, sourceLine);
+    case BRIEFING_STATUS.WAITING_FOR_SCORING:
+      return join(tr('waitingScoring'), schedulerLine ?? nextCheck, schedulerLine ? null : sourceLine);
+    case BRIEFING_STATUS.TOO_SOON_AFTER_WAKE:
+      return join(tr('tooSoon', { ago:Number.isFinite(e.observation_age_ms)
+        ? ago(e.observation_age_ms) : tr('soon'),
+      minutes:formatNumber(locale, WAKE.MIN_MINUTES_AFTER_SLEEP_END) }),
+      schedulerLine ?? nextCheck, schedulerLine ? null : sourceLine);
+    case BRIEFING_STATUS.READY_NOT_YET_PROCESSED:
+      return join(tr('ready'), sourceLine);
+    case BRIEFING_STATUS.SCHEDULER_STALE:
+      return join(tr('staleMain', { ago:ago(e.scheduler_age_ms) }), tr('staleExplain'));
+    case BRIEFING_STATUS.SENT_LATE: return tr('sentLate');
+    case BRIEFING_STATUS.MISSED: return join(tr('missed'), tr('missedExplain'));
+    case BRIEFING_STATUS.FAILED_RETRYABLE:
+      return join(tr('failed'), schedulerLine ?? tr('failedRetry'));
+    case BRIEFING_STATUS.CLAIM_BUSY: return tr('busy');
+    case BRIEFING_STATUS.WAITING_FOR_RECOVERY:
+      return join(tr('waitingRecovery'), schedulerLine ?? nextCheck);
+    case BRIEFING_STATUS.WINDOW_EXPIRED:
+      return join(tr('windowExpired'), tr('windowExplain'));
+    default: return join(tr('unknown'), schedulerLine);
   }
 }

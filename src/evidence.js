@@ -20,6 +20,7 @@
 import { CONFIDENCE, dataQualityOf } from './analytics/correlation.js';
 import { log } from './logger.js';
 import { requireUserId } from './userContext.js';
+import { t, formatLocalDate, formatNumber } from './localization.js';
 
 export const EVIDENCE_METHODS = {
   PEARSON: 'pearson_correlation',
@@ -347,7 +348,8 @@ export async function getEvidence({ db, userId, subject = null, now = new Date()
 }
 
 /** evidence cards → Telegram 文字。 */
-export function renderEvidence(result) {
+export function renderEvidence(result, locale = 'zh-TW') {
+  if (locale !== 'zh-TW') return renderLocalizedEvidence(result, locale);
   if (!result?.available) {
     return [
       '🔍 目前的證據',
@@ -372,5 +374,51 @@ export function renderEvidence(result) {
   }
   lines.push('註：以上全部是個人層級的觀察到的關聯（within-person observed association），');
   lines.push('不是因果關係，也不是醫學結論。');
+  return lines.join('\n');
+}
+
+function renderLocalizedEvidence(result, locale) {
+  const line = (key, vars = {}) => t(locale, `evidence.${key}`, vars);
+  const lines = [line('title'), ''];
+  if (!result?.available) return [...lines, line('empty')].join('\n');
+  const metricKeys = new Set(['hrv','rhr','recovery','sleep_total','sleep_performance',
+    'previous_day_strain','deep_sleep','rem_sleep','respiratory_rate','sleep_debt',
+    'spo2','skin_temp','current_hr']);
+  const methods = {
+    [EVIDENCE_METHODS.PEARSON]:'correlation',
+    [EVIDENCE_METHODS.SPEARMAN]:'correlation',
+    [EVIDENCE_METHODS.JOURNAL_ASSOCIATION]:'association',
+    [EVIDENCE_METHODS.REGRESSION]:'regression',
+    [EVIDENCE_METHODS.PREDICTION]:'prediction',
+    [EVIDENCE_METHODS.EXPERIMENT]:'experiment',
+    [EVIDENCE_METHODS.TREND]:'trend',
+    [EVIDENCE_METHODS.DEVIATION]:'deviation',
+    [EVIDENCE_METHODS.BASELINE_SHIFT]:'trend',
+  };
+  const levels = new Set(Object.values(CONFIDENCE));
+  for (const c of result.cards) {
+    const key = String(c.metric ?? '');
+    const metric = metricKeys.has(key) ? t(locale, `answer.metric.${key}`)
+      : line('metricUnknown');
+    lines.push(line('metric', { metric }));
+    lines.push(line('method', { method: line(`method.${methods[c.method] ?? 'other'}`) }));
+    lines.push(line('samples', {
+      count: c.sample_count == null ? line('unknown') : formatNumber(locale, c.sample_count),
+    }));
+    if (c.effect != null) lines.push(line('effect', {
+      value: formatNumber(locale, c.effect, 3),
+    }));
+    lines.push(line('confidence', {
+      level: c.confidence && levels.has(c.confidence)
+        ? line(`level.${c.confidence}`) : line('unknown'),
+    }));
+    if (c.date_range) lines.push(line('range', {
+      from: formatLocalDate(c.date_range.from, locale),
+      to: formatLocalDate(c.date_range.to, locale),
+    }));
+    if (c.warnings?.length) lines.push(line('warning'));
+    lines.push('');
+  }
+  lines.push(line('note'));
   return lines.join('\n');
 }

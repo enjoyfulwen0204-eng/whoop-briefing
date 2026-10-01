@@ -41,6 +41,7 @@ async function freshDb() {
   const db = createDb({ url });
   await db.migrate();
   await db.createUser(USER);
+  await db.setLocale(USER.id, 'zh-TW');
   return { db, cleanup };
 }
 
@@ -615,7 +616,7 @@ test('★ AD: /experiment 完整流程 —— create 五步 → list → status 
     const done = await r.handle({ text: '21', chatId: CHAT, user: USER });
     assert.match(done, /實驗已建立並開始/);
     assert.match(done, /睡前不喝咖啡/);
-    assert.match(done, /deep_sleep/);
+    assert.match(done, /觀察指標：深睡/);
     assert.match(done, /不能證明因果/, '★ 一定要標明非因果');
 
     // pending 已清空
@@ -623,7 +624,7 @@ test('★ AD: /experiment 完整流程 —— create 五步 → list → status 
 
     const list = await r.handle({ text: '/experiment list', chatId: CHAT, user: USER });
     assert.match(list, /睡前不喝咖啡/);
-    assert.match(list, /RUNNING/);
+    assert.match(list, /進行中/);
 
     const status = await r.handle({ text: '/experiment status', chatId: CHAT, user: USER });
     assert.match(status, /睡前不喝咖啡/);

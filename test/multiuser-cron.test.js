@@ -27,7 +27,13 @@ function tempDb() {
 }
 async function withAliceBob(fn) {
   const { db, cleanup } = tempDb();
-  try { await db.migrate(); await seedAliceAndBob(db); await fn(db); }
+  try {
+    await db.migrate();
+    await seedAliceAndBob(db);
+    await db.setLocale(ALICE.id, 'zh-TW');
+    await db.setLocale(BOB.id, 'zh-TW');
+    await fn(db);
+  }
   finally { db.close(); cleanup(); }
 }
 
@@ -238,6 +244,7 @@ test('併發上限被遵守，而且不影響失敗隔離', async () => {
 test('/link：正確的碼可以綁定；之後該 chat 就能被解析成該使用者', async () => {
   await withAliceBob(async (db) => {
     await db.createUser({ id: 'u-friend', displayName: 'Friend', timezone: 'Asia/Tokyo' });
+    await db.setLocale('u-friend', 'zh-TW');
     const { code } = await db.createLinkCode('u-friend', { ttlMs: 60_000 });
 
     assert.equal(await db.resolveUserByChatId('5001'), null);
@@ -296,6 +303,7 @@ test('/link：未綁定的 chat 傳其他訊息 → 完全不回（不洩漏 bot
 test('/link：並發用同一組碼，只有一個 chat 綁成功', async () => {
   await withAliceBob(async (db) => {
     await db.createUser({ id: 'u-f4', displayName: 'F4' });
+    await db.setLocale('u-f4', 'zh-TW');
     const { code } = await db.createLinkCode('u-f4', { ttlMs: 60_000 });
     const replies = await Promise.all([
       handleLinkAttempt({ db, text: `/link ${code}`, chatId: '8001', isPrivateChat: true }),

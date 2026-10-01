@@ -16,6 +16,7 @@
 import { TELEGRAM_BOT } from '../config.js';
 import { addDays } from '../time.js';
 import { log } from '../logger.js';
+import { t } from '../localization.js';
 
 /** 追問哪些 journal 類別可能解釋恢復變差。 */
 export const FOLLOW_UP_CATEGORIES = ['alcohol', 'sickness', 'travel', 'late_sleep', 'stress'];
@@ -23,10 +24,11 @@ export const FOLLOW_UP_CATEGORIES = ['alcohol', 'sickness', 'travel', 'late_slee
 export const FOLLOW_UP_QUESTION =
   '昨天有喝酒、旅行、生病、壓力特別大，或睡得特別晚嗎？\n'
   + '（直接回我就好，例如「喝了三杯酒」或「沒有」。我會記下來，之後就能幫你把這些對照著看。）';
+export const followUpQuestion = (locale = 'zh-TW') => t(locale, 'conversation.followUp');
 
 /** 使用者是不是在說「沒有」。 */
 export function isNegativeAnswer(text) {
-  return /^(沒有|沒|無|none|no|nope|不用|都沒有|沒事)\s*[。.!！]?$/i.test(String(text ?? '').trim());
+  return /^(沒有|沒|無|none|no|nope|不用|都沒有|沒事|không|khong|không có)\s*[。.!！]?$/i.test(String(text ?? '').trim());
 }
 
 /**
@@ -116,11 +118,11 @@ export function shouldFollowUp({ result, journalCountForDay }) {
 }
 
 /** 開一個追問。 */
-export async function openFollowUp({ db, userId, chatId, originalMessage, result, now = new Date() }) {
+export async function openFollowUp({ db, userId, chatId, originalMessage, result, now = new Date(), locale = 'zh-TW' }) {
   const id = await db.openPendingQuestion(userId, {
     chatId,
     originalMessage,
-    question: FOLLOW_UP_QUESTION,
+    question: followUpQuestion(locale),
     intent: result.intent,
     contextJson: {
       health_date: result.health_date,

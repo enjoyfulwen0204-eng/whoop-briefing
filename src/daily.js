@@ -9,6 +9,7 @@
 import { BASELINE, REPORT_CLAIM, WAKE } from './config.js';
 import { LATE_POLICY } from './briefingState.js';
 import { requireUserId } from './userContext.js';
+import { t, formatLocalDate } from './localization.js';
 import { localDate } from './time.js';
 import { BRIEFING_OUTCOME, isRetryableOutcome } from './briefingState.js';
 import {
@@ -29,7 +30,7 @@ import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelive
  * @param {object} telegram 已經綁定到該使用者 chat 的 telegram client。
  */
 export async function runDaily({
-  db, userId, source, coach, telegram, timezone, now = new Date(),
+  db, userId, source, coach, telegram, timezone, locale = 'zh-TW', now = new Date(),
   // ★ R3：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）是**必填**的。
   // 報告是使用者健康路徑：認領、遞送授權、送出都要帶著它。少傳就大聲失敗；
   // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
@@ -145,8 +146,7 @@ export async function runDaily({
         if (missedHealthDate) {
           await telegram.notifyError(
             `daily_missed_${missedHealthDate}`,
-            `${missedHealthDate} 的晨報沒有在可補發的時間內送出，所以我不會再補那一份了。`
-            + '後續的簡報不受影響。',
+            t(locale, 'error.dailyMissed', { date: formatLocalDate(missedHealthDate, locale) }),
             { cooldownHours: 24 * 30 },
           ).catch(() => false);
         }
@@ -265,6 +265,7 @@ export async function runDaily({
     // 使用者一樣拿得到一段完整可讀的話。見 narrativePlan.js。
     const narrative = await buildNarrative({
       briefing,
+      locale,
       plan: typeof coach?.narrativePlan === 'function'
         ? (fragments) => coach.narrativePlan(fragments, { period: 'daily' })
         : null,
@@ -273,13 +274,11 @@ export async function runDaily({
     narrativeSource = narrative.source;
     narrativeFailure = narrative.failureCategory;
 
-    text = renderDaily(briefing, coachText, { displayName: await displayNameFor(db, uid) });
+    text = renderDaily(briefing, coachText, { displayName: await displayNameFor(db, uid), locale });
     // ★ 補發必須看得出來是補發。標示用的是**這份報告的 health_date**，
     // 不是執行當下的日期 —— 使用者要知道這是哪一天的報告。
     if (wake.late) {
-      text = `📮 補發：${healthDate} 的晨報\n`
-        + '（這份資料比平常晚才備齊或晚一步被處理，所以現在才送。）\n\n'
-        + text;
+      text = t(locale, 'daily.late', { date: formatLocalDate(healthDate, locale) }) + text;
     }
   } catch (err) {
     await releaseClaim();
@@ -386,9 +385,7 @@ export async function runDaily({
     });
     await telegram.notifyError(
       'daily_record',
-      '今天的簡報已經發出去了，但發送紀錄寫不進 Turso。'
-      + '不會重複發送（發送權已經是終局狀態），但歷史紀錄會少一筆。'
-      + describeError(err),
+      t(locale, 'error.dailyRecord'),
     );
   }
 

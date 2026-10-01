@@ -13,6 +13,7 @@ import {
 import { resolveMetric } from '../healthQuery.js';
 import { addDays, localDate } from '../time.js';
 import { log } from '../logger.js';
+import { t, formatLocalDate, formatNumber } from '../localization.js';
 
 export const FLOW = 'experiment_create';
 
@@ -29,31 +30,42 @@ export const STEPS = [
 ];
 
 const SKIP = /^(跳過|skip|無|沒有|-)$/i;
+const metricKeys = new Set(['hrv','rhr','recovery','sleep_total','sleep_performance',
+  'previous_day_strain','deep_sleep','rem_sleep','respiratory_rate','sleep_debt',
+  'spo2','skin_temp','current_hr']);
+const questionFor = (step, locale) => t(locale, `experiment.step.${step.key}`);
+const metricFor = (key, locale) => t(locale, metricKeys.has(key)
+  ? `answer.metric.${key}` : 'answer.metricUnknown');
+const statusFor = (status, locale) => t(locale, `experiment.status.${Object.values(EXPERIMENT_STATUS).includes(status)
+  ? status : 'UNKNOWN'}`);
+const dateFor = (date, locale) => date && locale !== 'zh-TW' ? formatLocalDate(date, locale) : date;
 
 /** 開始建立流程。 */
-export async function beginCreate({ db, userId, chatId, now }) {
+export async function beginCreate({ db, userId, chatId, now, locale = 'zh-TW' }) {
   await db.openPendingQuestion(userId, {
     chatId,
     originalMessage: '/experiment create',
-    question: STEPS[0].question,
+    question: questionFor(STEPS[0], locale),
     intent: FLOW,
     contextJson: { flow: FLOW, step: 0, data: {} },
     ttlMs: TELEGRAM_BOT.PENDING_TTL_MS,
   }, { now });
-  return `🧪 來建立一個實驗。\n\n（1/${STEPS.length}）${STEPS[0].question}\n\n隨時輸入「取消」可以中止。`;
+  return t(locale, 'experiment.begin', {
+    step: 1, total: STEPS.length, question: questionFor(STEPS[0], locale),
+  });
 }
 
 /**
  * 收到使用者對某一步的回答。
  * @returns {?string} 回覆文字；不是這個 flow 就回 null
  */
-export async function handleStep({ db, userId, pending, text, now, timezone }) {
+export async function handleStep({ db, userId, pending, text, now, timezone, locale = 'zh-TW' }) {
   const ctx = pending.context;
   if (ctx?.flow !== FLOW) return null;
 
-  if (/^(取消|cancel|算了)$/i.test(text.trim())) {
+  if (/^(取消|cancel|算了|hủy|huy)$/i.test(text.trim())) {
     await db.cancelPendingQuestion(userId, pending.id);
-    return '好，這個實驗先不建立了。';
+    return t(locale, 'experiment.cancel');
   }
 
   const stepIndex = Number(ctx.step ?? 0);
@@ -66,16 +78,21 @@ export async function handleStep({ db, userId, pending, text, now, timezone }) {
     const metric = resolveMetric(answer);
     if (!metric) {
       // 不推進步驟，重新問一次
-      return `我不認得「${answer}」這個指標。\n可以用：恢復、HRV、靜息心率、睡眠、深睡、REM、睡眠效率、睡眠一致性、Strain。\n\n（${stepIndex + 1}/${STEPS.length}）${step.question}`;
+      return t(locale, 'experiment.metricInvalid', {
+        input: answer, step: stepIndex + 1, total: STEPS.length,
+        question: questionFor(step, locale),
+      });
     }
     data[step.key] = metric;
   } else if (step.key === 'duration_days') {
     const n = Number(answer.replace(/[^\d]/g, ''));
     if (!Number.isFinite(n) || n < 3 || n > 180) {
-      return `請給一個 3 到 180 之間的天數。\n\n（${stepIndex + 1}/${STEPS.length}）${step.question}`;
+      return t(locale, 'experiment.durationInvalid', {
+        step: stepIndex + 1, total: STEPS.length, question: questionFor(step, locale),
+      });
     }
     data[step.key] = n;
-  } else if (SKIP.test(answer)) {
+  } else if (SKIP.test(answer) || /^(bỏ qua|bo qua)$/i.test(answer)) {
     data[step.key] = null;
   } else {
     data[step.key] = answer.slice(0, 200);
@@ -94,12 +111,15 @@ export async function handleStep({ db, userId, pending, text, now, timezone }) {
     await db.openPendingQuestion(userId, {
       chatId: pending.chatId,
       originalMessage: '/experiment create',
-      question: STEPS[nextIndex].question,
+      question: questionFor(STEPS[nextIndex], locale),
       intent: FLOW,
       contextJson: { flow: FLOW, step: nextIndex, data },
       ttlMs: TELEGRAM_BOT.PENDING_TTL_MS,
     }, { now });
-    return `（${nextIndex + 1}/${STEPS.length}）${STEPS[nextIndex].question}`;
+    return t(locale, 'experiment.next', {
+      step: nextIndex + 1, total: STEPS.length,
+      question: questionFor(STEPS[nextIndex], locale),
+    });
   }
 
   // --- 全部問完 → 建立並啟動 ---
@@ -112,7 +132,7 @@ export async function handleStep({ db, userId, pending, text, now, timezone }) {
 
   const today = localDate(now, timezone);
   const created = await createExperiment(db, userId, {
-    name: data.name || '未命名實驗',
+    name: data.name || t(locale, 'experiment.unnamed'),
     hypothesis: data.hypothesis,
     intervention: data.intervention,
     targetMetrics: [data.target_metric],
@@ -120,7 +140,7 @@ export async function handleStep({ db, userId, pending, text, now, timezone }) {
   }, { now, provenance:{kind:'DIRECT',writerKind:'EXPERIMENT_FLOW',sourceUpdateKey:`experiment-flow:${pending.id}`,
     fields:['name','hypothesis','intervention','target_metrics','protocol_json']} });
 
-  if (!created.ok) return `建立失敗：${created.error}`;
+  if (!created.ok) return t(locale, 'experiment.createFailed');
 
   // baseline 取實驗開始前同樣長度的一段
   const baselineEnd = addDays(today, -1);
@@ -137,53 +157,69 @@ export async function handleStep({ db, userId, pending, text, now, timezone }) {
   log.info('experiment_created_via_telegram', { id: created.id, name: data.name });
 
   return [
-    `✅ 實驗已建立並開始（#${created.id}）`,
+    t(locale, 'experiment.created', { id: created.id }),
     '',
-    `名稱：${data.name}`,
-    data.hypothesis ? `假設：${data.hypothesis}` : null,
-    data.intervention ? `做法：${data.intervention}` : null,
-    `觀察指標：${data.target_metric}`,
-    `期間：${today} ～ ${addDays(today, data.duration_days - 1)}（${data.duration_days} 天）`,
-    `對照期：${baselineStart} ～ ${baselineEnd}`,
+    t(locale, 'experiment.name', { name: data.name || t(locale, 'experiment.unnamed') }),
+    data.hypothesis ? t(locale, 'experiment.hypothesis', { value: data.hypothesis }) : null,
+    data.intervention ? t(locale, 'experiment.intervention', { value: data.intervention }) : null,
+    t(locale, 'experiment.target', { metric: metricFor(data.target_metric, locale) }),
+    t(locale, 'experiment.period', {
+      from: dateFor(today, locale), to: dateFor(addDays(today, data.duration_days - 1), locale),
+      days: formatNumber(locale, data.duration_days),
+    }),
+    t(locale, 'experiment.baselinePeriod', {
+      from: dateFor(baselineStart, locale), to: dateFor(baselineEnd, locale),
+    }),
     '',
-    '結束後用 /experiment stop 收尾，我會做前後對照。',
-    '（提醒：這是 n=1 的個人前後比較，只能看出關聯，不能證明因果。）',
+    t(locale, 'experiment.finishHint'),
+    t(locale, 'experiment.caveat'),
   ].filter(Boolean).join('\n');
 }
 
 /** /experiment list */
-export async function renderList(db, userId) {
+export async function renderList(db, userId, locale = 'zh-TW') {
   const all = await db.listExperiments(userId, {});
-  if (!all.length) {
-    return '目前沒有任何實驗。用 /experiment create 建立一個。';
-  }
-  const lines = ['🧪 實驗清單', ''];
+  if (!all.length) return t(locale, 'experiment.none');
+  const lines = [t(locale, 'experiment.listTitle'), ''];
   for (const e of all) {
     const parsedMetrics = JSON.parse(e.target_metrics ?? '[]');
-    const metrics = Array.isArray(parsedMetrics)?parsedMetrics.join('、'):'';
-    lines.push(`#${e.id} ${e.name}  [${e.status}]`);
-    lines.push(`   指標：${metrics || '未指定'}`);
-    if (e.start_date) lines.push(`   期間：${e.start_date} ～ ${e.end_date ?? '進行中'}`);
+    const metrics = Array.isArray(parsedMetrics)
+      ? parsedMetrics.map(m => metricFor(m, locale)).join(', ') : '';
+    lines.push(t(locale, 'experiment.listEntry', {
+      id: e.id, name: e.name, status: statusFor(e.status, locale),
+    }));
+    lines.push(t(locale, 'experiment.listMetric', {
+      metrics: metrics || t(locale, 'experiment.notSpecified'),
+    }));
+    if (e.start_date) lines.push(t(locale, 'experiment.listPeriod', {
+      from: dateFor(e.start_date, locale),
+      to: e.end_date ? dateFor(e.end_date, locale) : t(locale, 'experiment.inProgress'),
+    }));
     lines.push('');
   }
   return lines.join('\n');
 }
 
 /** /experiment status [id] */
-export async function renderStatus({ db, userId, rows, id, timezone, now }) {
+export async function renderStatus({ db, userId, rows, id, timezone, now, locale = 'zh-TW' }) {
   const list = await db.listExperiments(userId, {});
   const exp = id
     ? list.find((e) => Number(e.id) === Number(id))
     : list.find((e) => e.status === EXPERIMENT_STATUS.RUNNING) ?? list[0];
 
-  if (!exp) return '目前沒有任何實驗。用 /experiment create 建立一個。';
+  if (!exp) return t(locale, 'experiment.none');
 
   const lines = [
-    `🧪 #${exp.id} ${exp.name}`,
-    `狀態：${exp.status}`,
-    exp.hypothesis ? `假設：${exp.hypothesis}` : null,
-    exp.start_date ? `期間：${exp.start_date} ～ ${exp.end_date ?? '進行中'}` : null,
-    exp.baseline_start ? `對照期：${exp.baseline_start} ～ ${exp.baseline_end}` : null,
+    t(locale, 'experiment.statusTitle', { id: exp.id, name: exp.name }),
+    t(locale, 'experiment.status', { status: statusFor(exp.status, locale) }),
+    exp.hypothesis ? t(locale, 'experiment.hypothesis', { value: exp.hypothesis }) : null,
+    exp.start_date ? t(locale, 'experiment.listPeriod', {
+      from: dateFor(exp.start_date, locale),
+      to: exp.end_date ? dateFor(exp.end_date, locale) : t(locale, 'experiment.inProgress'),
+    }) : null,
+    exp.baseline_start ? t(locale, 'experiment.baselinePeriod', {
+      from: dateFor(exp.baseline_start, locale), to: dateFor(exp.baseline_end, locale),
+    }) : null,
     '',
   ].filter(Boolean);
 
@@ -192,43 +228,56 @@ export async function renderStatus({ db, userId, rows, id, timezone, now }) {
   const result = analyseExperimentData({ rows, experiment: exp,
     asOfDate:exp.status===EXPERIMENT_STATUS.RUNNING?localDate(now,timezone):null });
   if (!result.ok) {
-    lines.push('目前還無法分析（缺少期間日期）。');
+    lines.push(t(locale, 'experiment.notAnalyzable'));
     return lines.join('\n');
   }
 
   let anySufficient = false;
   for (const m of Object.values(result.metrics)) {
     if (!m.sufficient) {
-      lines.push(`${m.metric}：資料還不夠`
-        + `（對照期 ${m.baseline_n} 天 / 實驗期 ${m.intervention_n} 天，`
-        + `各需至少 ${m.required_per_period} 天）`);
+      lines.push(t(locale, 'experiment.insufficient', {
+        metric: metricFor(m.metric, locale),
+        baseline: formatNumber(locale, m.baseline_n),
+        intervention: formatNumber(locale, m.intervention_n),
+        required: formatNumber(locale, m.required_per_period),
+      }));
       continue;
     }
     anySufficient = true;
-    lines.push(`${m.metric}：`);
-    lines.push(`  對照期平均 ${m.baseline_mean.toFixed(2)}（n=${m.baseline_n}）`);
-    lines.push(`  實驗期平均 ${m.intervention_mean.toFixed(2)}（n=${m.intervention_n}）`);
-    lines.push(`  差異 ${m.mean_difference >= 0 ? '+' : ''}${m.mean_difference.toFixed(2)}`
-      + `${m.effect_size !== null ? `，effect size ${m.effect_size.toFixed(2)}` : ''}`);
+    lines.push(t(locale, 'experiment.metricHeading', { metric: metricFor(m.metric, locale) }));
+    lines.push(t(locale, 'experiment.baselineMean', {
+      value: formatNumber(locale, m.baseline_mean, 2), count: formatNumber(locale, m.baseline_n),
+    }));
+    lines.push(t(locale, 'experiment.interventionMean', {
+      value: formatNumber(locale, m.intervention_mean, 2), count: formatNumber(locale, m.intervention_n),
+    }));
+    lines.push(t(locale, 'experiment.difference', {
+      value: `${m.mean_difference >= 0 ? '+' : ''}${formatNumber(locale, m.mean_difference, 2)}`,
+      effect: m.effect_size != null ? t(locale, 'experiment.effect', {
+        value: formatNumber(locale, m.effect_size, 2),
+      }) : '',
+    }));
   }
 
   if (anySufficient) {
     lines.push('');
-    lines.push('註：這是 within-person observed association（個人層級的前後關聯），');
-    lines.push('不是因果證明。時間本身的變化（季節、生活作息）無法排除。');
+    lines.push(t(locale, 'experiment.associationNote'));
   }
   return lines.join('\n');
 }
 
 /** /experiment stop [id] */
-export async function stopExperiment({ db, userId, id, timezone, now }) {
+export async function stopExperiment({ db, userId, id, timezone, now, locale = 'zh-TW' }) {
   const list = await db.listExperiments(userId, { status: EXPERIMENT_STATUS.RUNNING });
   const exp = id ? list.find((e) => Number(e.id) === Number(id)) : list[0];
-  if (!exp) return '目前沒有進行中的實驗。';
+  if (!exp) return t(locale, 'experiment.noRunning');
 
   const today = localDate(now, timezone);
   const r = await completeExperiment(db, userId, Number(exp.id), { endDate: today, now,
     provenance:{kind:'DIRECT',writerKind:'EXPERIMENT_FLOW',sourceUpdateKey:`experiment-stop:${exp.id}:${today}`,fields:['end_date']} });
-  if (!r.ok) return `無法結束：${r.error}`;
-  return `✅ 實驗 #${exp.id}「${exp.name}」已結束（${exp.start_date} ～ ${today}）。\n用 /experiment status ${exp.id} 看前後對照結果。`;
+  if (!r.ok) return t(locale, 'experiment.stopFailed');
+  return t(locale, 'experiment.stopped', {
+    id: exp.id, name: exp.name,
+    from: dateFor(exp.start_date, locale), to: dateFor(today, locale),
+  });
 }

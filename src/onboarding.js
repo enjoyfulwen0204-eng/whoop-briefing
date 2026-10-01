@@ -36,6 +36,7 @@ import { ONBOARDING } from './config.js';
 import { ONBOARDING_STATE, ONBOARDING_FAILURE, USER_STATUS } from './schema.js';
 import { prepareAuthorization, OAuthFlowError } from './oauthFlow.js';
 import { log } from './logger.js';
+import { LANGUAGE_SELECTOR, normalizeLocale, t } from './localization.js';
 
 /** `/start`（可帶 Telegram deep-link payload，忽略內容）。 */
 export const START_COMMAND = /^\/start(?:@\w+)?(?:\s+\S+)?\s*$/i;
@@ -74,13 +75,13 @@ export function normalizeTimezone(input) {
   }
 }
 
-/** 使用者看得到的顯示名稱：Telegram 的名字，沒有就用中性字串。 */
+/** Keep a genuinely absent Telegram name blank for neutral localized greetings. */
 export function displayNameFrom(message) {
   const from = message?.from ?? {};
   const name = [from.first_name, from.last_name].filter(Boolean).join(' ').trim();
   if (name) return name.slice(0, 60);
   if (from.username) return String(from.username).slice(0, 60);
-  return 'Telegram 使用者';
+  return '';
 }
 
 // ---------------------------------------------------------------------------
@@ -89,114 +90,37 @@ export function displayNameFrom(message) {
 
 const tzLines = () => ONBOARDING.TIMEZONE_SUGGESTIONS.map((t) => `· ${t}`).join('\n');
 
-export const MESSAGES = {
-  welcome: () => [
-    '👋 歡迎使用 WHOOP 健康助理。',
-    '',
-    '這個助理會讀你自己的 WHOOP 資料，只在這個私訊裡回覆你。',
-    '設定只有兩步：先告訴我你的時區，再授權 WHOOP。',
-    '',
-    '**第 1 步：你的時區是？**',
-    '直接輸入，例如：',
-    tzLines(),
-    '',
-    '其他地區也可以 —— 輸入任何標準 IANA 時區名稱（例如 Europe/Berlin）。',
-  ].join('\n'),
-
-  timezoneInvalid: () => [
-    '這個時區我不認得。',
-    '',
-    '請輸入標準的 IANA 時區名稱，例如：',
-    tzLines(),
-    '',
-    '（格式是「地區/城市」，不是 +08:00 這種時差。）',
-  ].join('\n'),
-
-  timezoneSet: (tz, authUrl) => [
-    `✅ 時區設定為 ${tz}。`,
-    '',
-    '**第 2 步：連接你的 WHOOP 帳號**',
-    '',
-    '點下面的連結，用**你自己的** WHOOP 帳號登入並授權：',
-    authUrl,
-    '',
-    `連結 ${Math.round(ONBOARDING.OAUTH_STATE_TTL_MS / 60_000)} 分鐘內有效。過期的話輸入 /connect 取得新的。`,
-  ].join('\n'),
-
-  connectLink: (authUrl) => [
-    '**連接你的 WHOOP 帳號**',
-    '',
-    '點下面的連結，用你自己的 WHOOP 帳號登入並授權：',
-    authUrl,
-    '',
-    `連結 ${Math.round(ONBOARDING.OAUTH_STATE_TTL_MS / 60_000)} 分鐘內有效。`,
-  ].join('\n'),
-
-  connectCooldown: () => '剛剛才產生過一條授權連結，請先用那一條。若確定要換新的，稍等一下再輸入 /connect。',
-  connectTooMany: () => '授權連結產生太多次了。請先完成其中一條的授權；若都失敗了，稍後再試或聯絡管理者。',
-
-  authorizedSyncing: () => [
-    '✅ WHOOP 連接完成。',
-    '',
-    '正在把你的資料同步進來（第一次會抓比較久的歷史，會在背景繼續）。',
-    '完成之後我會再通知你。',
-  ].join('\n'),
-
-  ready: () => [
-    '🎉 你的 Health OS 準備好了。',
-    '',
-    '現在可以直接問我問題，例如「我今天狀態怎樣？」。',
-    '',
-    '· /status 今天的狀態',
-    '· /healthdata 目前的資料涵蓋範圍',
-    '· /log 記錄喝酒、咖啡、生病、旅行等事件',
-    '· /help 完整說明',
-    '',
-    '每天早上起床後我會自動送出當日簡報。',
-  ].join('\n'),
-
-  statusTimezonePending: () => [
-    '設定還沒完成。',
-    '',
-    '**第 1 步：你的時區是？** 直接輸入，例如：',
-    tzLines(),
-  ].join('\n'),
-
-  statusAuthPending: (tz) => [
-    '設定還沒完成。',
-    '',
-    `時區：${tz} ✅`,
-    '',
-    '**第 2 步：連接 WHOOP** —— 輸入 /connect 取得授權連結。',
-  ].join('\n'),
-
-  statusSyncing: () => [
-    '⏳ 你的 WHOOP 已經連接，資料還在同步中。',
-    '',
-    '完成之後我會通知你。第一次同步會抓一段歷史，需要一點時間。',
-  ].join('\n'),
-
-  actionRequired: (code) => {
-    const head = '⚠️ 設定卡住了。';
-    const body = {
-      [ONBOARDING_FAILURE.OAUTH_DENIED]: '你在 WHOOP 的授權頁面取消了授權。',
-      [ONBOARDING_FAILURE.OAUTH_STATE_INVALID]: '授權連結已經過期或被用過了。',
-      [ONBOARDING_FAILURE.TOKEN_EXCHANGE_FAILED]: 'WHOOP 沒有完成授權交換。',
-      [ONBOARDING_FAILURE.IDENTITY_UNVERIFIED]: '無法向 WHOOP 確認這是哪個帳號，為了避免把別人的資料算到你身上，已經中止。',
-      [ONBOARDING_FAILURE.WHOOP_ACCOUNT_ALREADY_LINKED]: '這個 WHOOP 帳號已經連到另一個使用者了。請用你自己的 WHOOP 帳號。',
-      [ONBOARDING_FAILURE.WHOOP_ACCOUNT_MISMATCH]: '這個帳號先前連的是另一個 WHOOP 帳號。換帳號會讓既有資料被錯誤歸屬，所以擋下來了。',
-      [ONBOARDING_FAILURE.BOOTSTRAP_FAILED]: '初次同步一直失敗。',
-      [ONBOARDING_FAILURE.REAUTH_REQUIRED]: 'WHOOP 授權失效了，需要重新連接。',
-      [ONBOARDING_FAILURE.WHOOP_SCOPE_INCOMPLETE]:
-        'WHOOP 的權限不完整 —— 這個助理至少需要「睡眠」與「恢復」的讀取權限才能運作。'
-        + '請重新連接，並在 WHOOP 的授權頁面把要求的健康權限**全部勾選**。',
-      [ONBOARDING_FAILURE.ACCOUNT_INACTIVE]: '這個帳號目前是停用狀態，需要管理者處理。',
-    }[code] ?? '授權沒有完成。';
-    return [head, '', body, '', '輸入 /connect 重新取得一條新的授權連結。'].join('\n');
-  },
-
+const FAILURE_KEYS = Object.freeze({
+  [ONBOARDING_FAILURE.OAUTH_DENIED]: 'reasonOAuthDenied',
+  [ONBOARDING_FAILURE.OAUTH_STATE_INVALID]: 'reasonOAuthStateInvalid',
+  [ONBOARDING_FAILURE.TOKEN_EXCHANGE_FAILED]: 'reasonTokenExchangeFailed',
+  [ONBOARDING_FAILURE.IDENTITY_UNVERIFIED]: 'reasonIdentityUnverified',
+  [ONBOARDING_FAILURE.WHOOP_ACCOUNT_ALREADY_LINKED]: 'reasonAlreadyLinked',
+  [ONBOARDING_FAILURE.WHOOP_ACCOUNT_MISMATCH]: 'reasonMismatch',
+  [ONBOARDING_FAILURE.BOOTSTRAP_FAILED]: 'reasonBootstrapFailed',
+  [ONBOARDING_FAILURE.REAUTH_REQUIRED]: 'reasonReauthRequired',
+  [ONBOARDING_FAILURE.WHOOP_SCOPE_INCOMPLETE]: 'reasonScopeIncomplete',
+  [ONBOARDING_FAILURE.ACCOUNT_INACTIVE]: 'reasonInactive',
+});
+export const MESSAGES = Object.freeze({
+  welcome: (locale = 'zh-TW') => t(locale, 'onboarding.welcome'),
+  timezoneInvalid: (locale = 'zh-TW') => t(locale, 'onboarding.timezoneInvalid'),
+  timezoneSet: (timezone, url, locale = 'zh-TW') => t(locale, 'onboarding.timezoneSet',
+    { timezone, url, minutes: Math.round(ONBOARDING.OAUTH_STATE_TTL_MS / 60_000) }),
+  connectLink: (url, locale = 'zh-TW') => t(locale, 'onboarding.connectLink',
+    { url, minutes: Math.round(ONBOARDING.OAUTH_STATE_TTL_MS / 60_000) }),
+  connectCooldown: (locale = 'zh-TW') => t(locale, 'onboarding.connectCooldown'),
+  connectTooMany: (locale = 'zh-TW') => t(locale, 'onboarding.connectTooMany'),
+  authorizedSyncing: (locale = 'zh-TW') => t(locale, 'onboarding.authorizedSyncing'),
+  ready: (locale = 'zh-TW') => t(locale, 'onboarding.ready'),
+  statusTimezonePending: (locale = 'zh-TW') => t(locale, 'onboarding.timezonePending'),
+  statusAuthPending: (timezone, locale = 'zh-TW') => t(locale, 'onboarding.authPending', { timezone }),
+  statusSyncing: (locale = 'zh-TW') => t(locale, 'onboarding.syncing'),
+  actionRequired: (code, locale = 'zh-TW') => t(locale, 'onboarding.actionRequired', {
+    reason: t(locale, `onboarding.${FAILURE_KEYS[code] ?? 'reasonDefault'}`),
+  }),
   notPrivate: () => null,
-};
+});
 
 // ---------------------------------------------------------------------------
 // 自助身分建立
@@ -252,6 +176,7 @@ export async function resolveOrCreateUser({ db, chatId, message, now = new Date(
 
   const user = await db.createUser({
     displayName: displayNameFrom(message),
+    allowEmptyDisplayName: true,
     // 時區在下一步才確認。先放一個標記值，READY 之前不會有任何日期敏感的
     // 功能對這個人生效（排程器只看 READY）。
     timezone: 'UTC',
@@ -363,16 +288,18 @@ export async function handleUnlinkedMessage({
   const raw = String(text ?? '').trim();
   if (!START_COMMAND.test(raw)) {
     // 不是 /start：給指引而不是沉默，但**不做任何事**。
-    return '你還沒有連接帳號。輸入 /start 開始設定（只需要兩步）。';
+    return '🌐 Choose language / 選擇語言 / Chọn ngôn ngữ\nUse /start · 輸入 /start · Nhập /start';
   }
 
   const resolved = await resolveOrCreateUser({ db, chatId, message, now });
   if (!resolved.user) {
-    return '這個聊天室目前無法自動設定，請聯絡管理者。';
+    return 'Setup unavailable; contact an administrator / 無法設定，請聯絡管理者 / Không thể thiết lập; hãy liên hệ quản trị viên';
   }
+  if (!(await db.getLocale(resolved.user.id))) return LANGUAGE_SELECTOR;
   return continueOnboarding({
     db, user: resolved.user, onboarding: resolved.onboarding,
     clientId, redirectUri, now, justCreated: resolved.created,
+    locale: await db.getLocale(resolved.user.id),
   });
 }
 
@@ -386,13 +313,34 @@ export async function handleOnboardingMessage({
 }) {
   const onboarding = await db.getOnboarding(user.id);
   const raw = String(text ?? '').trim();
+  let locale = await db.getLocale(user.id);
+  if (!locale) {
+    const chosen = normalizeLocale(raw);
+    if (!chosen) return LANGUAGE_SELECTOR;
+    await db.setLocale(user.id, chosen, { now });
+    locale = chosen;
+    if (onboarding.state === ONBOARDING_STATE.READY) return MESSAGES.ready(locale);
+    return continueOnboarding({ db, user, onboarding, clientId, redirectUri, now, locale });
+  }
+  // Before onboarding is complete, a later explicit selection supersedes the
+  // earlier one. The most recent canonical choice governs the next reply.
+  const changed = normalizeLocale(raw);
+  if (changed) {
+    if (changed === locale) return statusMessage({ user, onboarding, locale });
+    if (changed !== locale && onboarding.state !== ONBOARDING_STATE.READY) {
+      await db.setLocale(user.id, changed, { now });
+      locale = changed;
+    }
+    return onboarding.state === ONBOARDING_STATE.READY ? MESSAGES.ready(locale)
+      : continueOnboarding({ db, user, onboarding, clientId, redirectUri, now, locale });
+  }
 
   // READY 的人只有 /connect 會被這一層處理（重新連接），其餘交給 router。
   if (onboarding.state === ONBOARDING_STATE.READY) {
     if (CONNECT_COMMAND.test(raw)) {
       const link = await issueAuthLink({ db, userId: user.id, clientId, redirectUri, now });
-      if (!link.ok) return reasonMessage(link.reason);
-      return MESSAGES.connectLink(link.authUrl);
+      if (!link.ok) return reasonMessage(link.reason, locale);
+      return MESSAGES.connectLink(link.authUrl, locale);
     }
     return null;
   }
@@ -404,10 +352,10 @@ export async function handleOnboardingMessage({
   const tzCandidate = tzCmd ? (tzCmd[1] ?? '') : (waitingForTimezone && !raw.startsWith('/') ? raw : null);
 
   if (tzCandidate !== null && tzCandidate !== undefined) {
-    if (!String(tzCandidate).trim()) return MESSAGES.statusTimezonePending();
+    if (!String(tzCandidate).trim()) return MESSAGES.statusTimezonePending(locale);
     const tz = normalizeTimezone(tzCandidate);
     // 不合法 → 不寫時區、**也不記確認**（F01-D）
-    if (!tz) return MESSAGES.timezoneInvalid();
+    if (!tz) return MESSAGES.timezoneInvalid(locale);
     await db.updateUser(user.id, { timezone: tz }, { now });
     // ★ F01：確認是一件**明確記錄下來的事**（timezone_confirmed_at），
     // 不是從 timezone 這個字串長什麼樣推論出來的。所以選 UTC 的人
@@ -416,79 +364,88 @@ export async function handleOnboardingMessage({
       timezoneConfirmed: true, failureCode: null, failureDetail: null, now,
     });
     const link = await issueAuthLink({ db, userId: user.id, clientId, redirectUri, now });
-    if (!link.ok) return `✅ 時區設定為 ${tz}。\n\n${reasonMessage(link.reason)}`;
-    return MESSAGES.timezoneSet(tz, link.authUrl);
+    if (!link.ok) return `${MESSAGES.statusAuthPending(tz, locale)}\n\n${reasonMessage(link.reason, locale)}`;
+    return MESSAGES.timezoneSet(tz, link.authUrl, locale);
   }
 
   if (CONNECT_COMMAND.test(raw)) {
-    if (waitingForTimezone) return MESSAGES.statusTimezonePending();
+    if (waitingForTimezone) return MESSAGES.statusTimezonePending(locale);
     const link = await issueAuthLink({ db, userId: user.id, clientId, redirectUri, now });
-    if (!link.ok) return reasonMessage(link.reason);
+    if (!link.ok) return reasonMessage(link.reason, locale);
     // 重新連接：狀態回到「等授權」，把上一次的失敗訊息清掉。
     await db.setOnboardingState(user.id, ONBOARDING_STATE.WHOOP_AUTH_PENDING, {
       from: [ONBOARDING_STATE.WHOOP_AUTH_PENDING, ONBOARDING_STATE.ACTION_REQUIRED],
       failureCode: null, failureDetail: null, now,
     });
-    return MESSAGES.connectLink(link.authUrl);
+    return MESSAGES.connectLink(link.authUrl, locale);
   }
 
   if (START_COMMAND.test(raw)) {
-    return continueOnboarding({ db, user, onboarding, clientId, redirectUri, now });
+    return continueOnboarding({ db, user, onboarding, clientId, redirectUri, now, locale });
   }
 
   // 上線期間的任何其他訊息（含健康問題）：只回目前狀態與下一步。
   // **不**執行健康處理 —— 這個人的資料還沒有同步進來，任何回答都會是假的。
-  return statusMessage({ user, onboarding });
+  return statusMessage({ user, onboarding, locale });
+}
+
+/** Existing bound accounts can choose a language even when self-service OAuth is disabled. */
+export async function handleLocaleOnlyMessage({ db, user, text, now = new Date() }) {
+  if (await db.getLocale(user.id)) return null;
+  const chosen = normalizeLocale(text);
+  if (!chosen) return LANGUAGE_SELECTOR;
+  await db.setLocale(user.id, chosen, { now });
+  return t(chosen, 'onboarding.languageSaved');
 }
 
 /** 依目前狀態決定「下一步要跟使用者說什麼」，必要時順手產生授權連結。 */
 async function continueOnboarding({
-  db, user, onboarding, clientId, redirectUri, now, justCreated = false,
+  db, user, onboarding, clientId, redirectUri, now, justCreated = false, locale = 'zh-TW',
 }) {
   const state = onboarding?.state ?? ONBOARDING_STATE.STARTED;
   if (state === ONBOARDING_STATE.STARTED) {
     await db.setOnboardingState(user.id, ONBOARDING_STATE.TIMEZONE_PENDING, {
       from: [ONBOARDING_STATE.STARTED], now,
     });
-    return MESSAGES.welcome();
+    return MESSAGES.welcome(locale);
   }
   if (state === ONBOARDING_STATE.TIMEZONE_PENDING) {
-    return justCreated ? MESSAGES.welcome() : MESSAGES.statusTimezonePending();
+    return justCreated ? MESSAGES.welcome(locale) : MESSAGES.statusTimezonePending(locale);
   }
   if (state === ONBOARDING_STATE.WHOOP_AUTH_PENDING || state === ONBOARDING_STATE.ACTION_REQUIRED) {
     const link = await issueAuthLink({ db, userId: user.id, clientId, redirectUri, now });
     if (!link.ok) {
       return state === ONBOARDING_STATE.ACTION_REQUIRED
-        ? `${MESSAGES.actionRequired(onboarding.failureCode)}\n\n${reasonMessage(link.reason)}`
-        : `${MESSAGES.statusAuthPending(user.timezone)}\n\n${reasonMessage(link.reason)}`;
+        ? `${MESSAGES.actionRequired(onboarding.failureCode, locale)}\n\n${reasonMessage(link.reason, locale)}`
+        : `${MESSAGES.statusAuthPending(user.timezone, locale)}\n\n${reasonMessage(link.reason, locale)}`;
     }
     return state === ONBOARDING_STATE.ACTION_REQUIRED
-      ? `${MESSAGES.actionRequired(onboarding.failureCode)}\n\n${MESSAGES.connectLink(link.authUrl)}`
-      : MESSAGES.timezoneSet(user.timezone, link.authUrl);
+      ? `${MESSAGES.actionRequired(onboarding.failureCode, locale)}\n\n${MESSAGES.connectLink(link.authUrl, locale)}`
+      : MESSAGES.timezoneSet(user.timezone, link.authUrl, locale);
   }
-  return statusMessage({ user, onboarding });
+  return statusMessage({ user, onboarding, locale });
 }
 
 /** 純粹的狀態報告（不產生 state、不改任何東西）。 */
-export function statusMessage({ user, onboarding }) {
+export function statusMessage({ user, onboarding, locale = 'zh-TW' }) {
   switch (onboarding?.state) {
     case ONBOARDING_STATE.STARTED:
     case ONBOARDING_STATE.TIMEZONE_PENDING:
-      return MESSAGES.statusTimezonePending();
+      return MESSAGES.statusTimezonePending(locale);
     case ONBOARDING_STATE.WHOOP_AUTH_PENDING:
-      return MESSAGES.statusAuthPending(user?.timezone ?? '未設定');
+      return MESSAGES.statusAuthPending(user?.timezone ?? 'UTC', locale);
     case ONBOARDING_STATE.WHOOP_AUTHORIZED:
     case ONBOARDING_STATE.SYNCING:
-      return MESSAGES.statusSyncing();
+      return MESSAGES.statusSyncing(locale);
     case ONBOARDING_STATE.ACTION_REQUIRED:
-      return MESSAGES.actionRequired(onboarding.failureCode);
+      return MESSAGES.actionRequired(onboarding.failureCode, locale);
     default:
-      return MESSAGES.ready();
+      return MESSAGES.ready(locale);
   }
 }
 
-function reasonMessage(reason) {
-  if (reason === 'cooldown') return MESSAGES.connectCooldown();
-  if (reason === 'too_many') return MESSAGES.connectTooMany();
-  return '目前無法產生授權連結，請稍後再試一次（/connect）。';
+function reasonMessage(reason, locale) {
+  if (reason === 'cooldown') return MESSAGES.connectCooldown(locale);
+  if (reason === 'too_many') return MESSAGES.connectTooMany(locale);
+  return t(locale, 'onboarding.connectFailure');
 }

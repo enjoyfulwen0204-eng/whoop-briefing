@@ -67,6 +67,8 @@ async function withEnv(fn, opts = {}) {
     await db.migrate();
     const alice = await db.createUser({ displayName: 'Alice', timezone: 'Asia/Taipei' });
     const bob = await db.createUser({ displayName: 'Bob', timezone: 'Asia/Taipei' });
+    await db.setLocale(alice.id, 'zh-TW');
+    await db.setLocale(bob.id, 'zh-TW');
     await db.linkTelegram({ chatId: '5001', userId: alice.id });
     await db.linkTelegram({ chatId: '5002', userId: bob.id });
 

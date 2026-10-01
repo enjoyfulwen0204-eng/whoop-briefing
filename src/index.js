@@ -49,6 +49,7 @@ import { log, describeError } from './logger.js';
 import { checkPeerScheduler } from './schedulerWatchdog.js';
 import { requireTriggerSource } from './schedulerPolicy.js';
 import { runPhase4Stage6 } from './shadowDrainScheduler.js';
+import { publicBetaKeysIfPresent } from './publicBetaConfig.js';
 import { lifecycleOutputDb, SCHEDULED_OUTPUT_WRITERS } from './lifecycleOutput.js';
 import { withDeliveryAuthorization, isAccountInactiveError } from './accountLifecycle.js';
 import { resumeOnboardingBootstraps as resumeOnboarding } from './onboardingBootstrap.js';
@@ -344,6 +345,7 @@ export async function runForUser({
   });
   const ctx = {
     db, userId: uid, source, coach, telegram, timezone: tz, now,
+    betaPresentation: deps.betaPresentation ?? null,
     // ★ R2：這一輪的帳號啟用世代，往下帶進報告認領與遞送授權。
     expectedLifecycleGeneration,
   };
@@ -560,7 +562,8 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     max_user_concurrency: env.maxUserConcurrency,
   });
 
-  const db = deps.db ?? createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+  const db = deps.db ?? createDb({ url: env.tursoUrl, authToken: env.tursoToken,
+    phase4Keys: publicBetaKeysIfPresent(process.env) });
 
   // 系統層 telegram：只用於「基礎設施故障」通知（Turso 掛了、找不到任何使用者）。
   // chat 用 bootstrap 的 TELEGRAM_CHAT_ID —— 這是唯一還會用到那個 env 的地方。

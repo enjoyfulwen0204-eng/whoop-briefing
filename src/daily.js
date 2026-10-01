@@ -6,7 +6,7 @@
  *  - 只有真的準備發報告了，才抓 45 天歷史算 baseline。
  */
 
-import { BASELINE, REPORT_CLAIM, WAKE } from './config.js';
+import { BASELINE, REPORT_CLAIM, TELEGRAM_MAX_CHARS, WAKE } from './config.js';
 import { LATE_POLICY } from './briefingState.js';
 import { requireUserId } from './userContext.js';
 import { localDate } from './time.js';
@@ -16,6 +16,7 @@ import {
   computeBaselines, evaluateAll, detectTrends, yesterdayCycleFor,
 } from './analyze.js';
 import { renderDaily } from './format.js';
+import { displayNameFor } from './displayName.js';
 import { buildNarrative } from './narrative.js';
 import { buildInsightsSafe } from './insights.js';
 import { requireLifecycle } from './accountLifecycle.js';
@@ -29,6 +30,7 @@ import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelive
  */
 export async function runDaily({
   db, userId, source, coach, telegram, timezone, now = new Date(),
+  betaPresentation = null,
   // ★ R3：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）是**必填**的。
   // 報告是使用者健康路徑：認領、遞送授權、送出都要帶著它。少傳就大聲失敗；
   // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
@@ -272,13 +274,17 @@ export async function runDaily({
     narrativeSource = narrative.source;
     narrativeFailure = narrative.failureCategory;
 
-    text = renderDaily(briefing, coachText);
+    text = renderDaily(briefing, coachText, { displayName: await displayNameFor(db, uid) });
     // ★ 補發必須看得出來是補發。標示用的是**這份報告的 health_date**，
     // 不是執行當下的日期 —— 使用者要知道這是哪一天的報告。
     if (wake.late) {
       text = `📮 補發：${healthDate} 的晨報\n`
         + '（這份資料比平常晚才備齊或晚一步被處理，所以現在才送。）\n\n'
         + text;
+    }
+    if (betaPresentation) {
+      const section = await betaPresentation.bodyEnergySection({ userId: uid, healthDate, now });
+      if (section && text.length + section.length + 2 <= TELEGRAM_MAX_CHARS) text += `\n\n${section}`;
     }
   } catch (err) {
     await releaseClaim();

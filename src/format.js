@@ -6,6 +6,7 @@
 import { BASELINE, TELEGRAM_MAX_CHARS, TREND } from './config.js';
 import { INSIGHT_LABELS } from './insights.js';
 import { prettyDate } from './time.js';
+import { safeDisplayName } from './displayName.js';
 
 const LIGHT = { green: '🟢', yellow: '🟡', red: '🔴⚠️' };
 
@@ -84,7 +85,7 @@ function metricLine(m, stage) {
  * @param {object} briefing analyze 算好的結果
  * @param {string|null} coachText AI 教練的文字；null = 模型掛了走 fallback
  */
-export function renderDaily(briefing, coachText) {
+export function renderDaily(briefing, coachText, { displayName = '' } = {}) {
   const { stage, sampleCount, metrics, trends } = briefing;
   // 顯示日期一律是 health_date（主睡眠結束那天），不是執行當下的日期
   const reportDate = briefing.healthDate ?? briefing.localDate;
@@ -92,7 +93,8 @@ export function renderDaily(briefing, coachText) {
   const recovery = byKey.recovery_score;
 
   const lines = [];
-  lines.push('🌅 早安，Kelvin');
+  const name = safeDisplayName(displayName);
+  lines.push(name ? `🌅 早安，${name}` : '🌅 早安');
 
   if (recovery?.available) {
     lines.push(`恢復 ${recovery.display}${lightOf(recovery.severity)}${stageSuffix(stage, sampleCount)}`);
@@ -202,10 +204,11 @@ function footer(stage, sampleCount, reportDate) {
 }
 
 /** 組每週回顧。 */
-export function renderWeekly(weekly, coachText) {
+export function renderWeekly(weekly, coachText, { displayName = '' } = {}) {
   const { last, prev, wow } = weekly;
   const lines = [];
-  lines.push('📅 上週回顧（Kelvin）');
+  const name = safeDisplayName(displayName);
+  lines.push(name ? `📅 上週回顧（${name}）` : '📅 上週回顧');
   lines.push(`${fmtRange(last.startDate, last.endDate)} · 有效 ${last.days} 天`);
   lines.push('');
 

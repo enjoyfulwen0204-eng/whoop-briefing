@@ -53,7 +53,7 @@ test('★ 沒有健康資料表時，簡報與以前完全一樣（向後相容�
   const text = ctx.telegram.sent[0];
   assert.ok(!text.includes('今天最值得注意'), '沒有資料就不該有這一段');
   // 既有內容一項都不能少
-  assert.match(text, /早安，Kelvin/);
+  assert.match(text, /🌅 早安\n/);
   assert.match(text, /HRV/);
   assert.match(text, /恢復/);
   assert.match(text, /基準/);
@@ -173,6 +173,7 @@ test('★ 有長期資料且今天明顯偏離 → 簡報出現「今天最值�
     const fake = fakeDb();
     const hybrid = {
       ...fake,
+      getUser: db.getUser,
       getSleeps: db.getSleeps,
       getRecoveries: db.getRecoveries,
       getCycles: db.getCycles,
@@ -198,7 +199,7 @@ test('★ 有長期資料且今天明顯偏離 → 簡報出現「今天最值�
     assert.ok(text.length <= 4096, '仍然不可超過 Telegram 上限');
 
     // 數據區照舊完整
-    assert.match(text, /早安，Kelvin/);
+    assert.match(text, /早安，Synthetic insight/);
     assert.match(text, /HRV/);
     assert.equal(localDate(now, TZ) >= res.healthDate, true);
   } finally { await db.close(); cleanup(); }

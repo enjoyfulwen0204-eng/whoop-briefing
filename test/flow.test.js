@@ -42,7 +42,7 @@ test('daily：正常情況會發送並寫入 SENT 紀錄', async () => {
   const res = await runDaily({ expectedLifecycleGeneration: LIFECYCLE_UNFENCED, ...ctx });
   assert.equal(res.status, 'sent');
   assert.equal(ctx.telegram.sent.length, 1);
-  assert.match(ctx.telegram.sent[0], /早安，Kelvin/);
+  assert.match(ctx.telegram.sent[0], /🌅 早安\n/);
 
   const run = ctx.db.runs.at(-1);
   assert.equal(run.reportType, 'daily');
@@ -202,7 +202,7 @@ test('daily：訊息已送出但紀錄寫不進 DB → 仍算 sent，而且**不
 
   // 第一則是簡報本身，第二則是「紀錄寫不進去」的警告
   assert.equal(ctx.telegram.sent.length, 2);
-  assert.match(ctx.telegram.sent[0], /早安，Kelvin/);
+  assert.match(ctx.telegram.sent[0], /🌅 早安\n/);
   assert.match(ctx.telegram.sent[1], /\[ERROR:daily_record\]/);
   // ★ v9：report_runs 不再是防重發的最後防線 —— claim 的 delivery_state
   // 已經是 DELIVERED（終局）。所以這裡**不可以**再宣稱「可能會重複發一次」，

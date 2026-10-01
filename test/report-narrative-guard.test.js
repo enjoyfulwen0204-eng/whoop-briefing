@@ -104,7 +104,7 @@ function assertDeterministicReportIntact(sent, res, kind) {
   assert.equal(res.status, 'sent', `${kind} 報告必須照常送出`);
   assert.ok(sent.length > 0, `${kind} 必須有訊息內容`);
   if (kind === 'daily') {
-    assert.match(sent, /早安，Kelvin/, 'daily 標頭要在');
+    assert.match(sent, /🌅 早安\n/, 'daily 標頭要在');
     assert.match(sent, /HRV/, 'daily 數據段要在');
     assert.match(sent, /恢復/, 'daily 恢復要在');
     assert.match(sent, /基準/, 'daily 基準資訊要在');
@@ -305,7 +305,7 @@ test('★ P0-F daily: 守門擋下敘述後，確定性簡報仍完整送出並�
   assert.equal(ctx.telegram.sent.length, 1, '訊息只送一則');
 
   // 完整的確定性內容都還在
-  assert.match(sent, /早安，Kelvin/);
+  assert.match(sent, /🌅 早安\n/);
   assert.match(sent, /HRV \d+ms/, '真實的 HRV 數值仍然照常顯示');
   assert.match(sent, /💓 靜息心率/);
   assert.match(sent, /🌙 睡眠/);

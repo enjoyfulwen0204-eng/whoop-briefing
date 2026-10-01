@@ -181,6 +181,12 @@ export function composePhase4Stores(core) {
         const result=await body.readExact(context,request);
         await receipts.forArtifact(context,'body_energy_results',{result_id:result.row.result_id},{verifyOnly:true,retainedBody:true});return result;
       }),
+      readLatestCurrent:(context,request)=>core.run(context,async()=>{
+        const result=await body.readLatestCurrent(context,request);
+        if(!result)return null;
+        await receipts.forArtifact(context,'body_energy_results',{result_id:result.row.result_id},{verifyOnly:true,retainedBody:true});
+        return result;
+      }),
       auditCheckpoint:(context,id)=>core.run(context,async()=>{
         const result=await body.auditCheckpoint(context,id);
         await receipts.forArtifact(context,'body_energy_checkpoints',{checkpoint_id:id},{verifyOnly:true,retainedBody:true});return result;

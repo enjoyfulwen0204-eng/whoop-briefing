@@ -41,7 +41,7 @@ const coachFor = (fail = false) => {
     });
   }
   return fakeCoach({
-    dailyText: '（離線假文字）早安 Kelvin，今天身體給的訊號我看到了，先照上面的重點調整一下節奏 💛',
+    dailyText: '（離線假文字）早安，今天身體給的訊號我看到了，先照上面的重點調整一下節奏 💛',
     weeklyText: '（離線假文字）上週整體算穩，我們下週把入睡時間再往前拉一點點就好 💪',
   });
 };

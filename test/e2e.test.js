@@ -148,7 +148,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
 
     const tg = calls.filter((c) => c.host === 'telegram');
     assert.equal(tg.length, 1);
-    assert.match(tg[0].text, /早安，Kelvin/);
+    assert.match(tg[0].text, /早安，E2E/);
     assert.match(tg[0].text, /HRV/);
     assert.doesNotMatch(tg[0].text, /早安 Kelvin，今天狀態看起來不錯/);
     assert.equal(tg[0].parse_mode, undefined, 'Telegram 要用 plain text，不設 parse_mode');

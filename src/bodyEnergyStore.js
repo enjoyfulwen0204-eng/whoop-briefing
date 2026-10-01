@@ -187,6 +187,24 @@ export function createBodyEnergyStore(core,entities,queue) {
       if(!row)fail('NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS');return reproduceAudit(row,context);
     });
   }
+  /** Select a current, completed SHADOW result; then use the same typed audit
+   * as readExact. No renderer receives a raw database row or an old generation. */
+  async function readLatestCurrent(context,{healthDate,asOfEpochMs}) {
+    if(!validHealthDate(healthDate))fail('BODY_ENERGY_INVALID_IDENTITY');
+    exactBodyInstant(asOfEpochMs);
+    return core.run(context,async()=>{
+      const {computation}=await core.assertContext(context);
+      if(computation.last_completed_generation!==context.inputGeneration)return null;
+      const rows=(await client.execute({sql:`SELECT * FROM body_energy_results WHERE user_id=? AND execution_mode=?
+        AND health_date=? AND input_generation=? AND algorithm_version=? AND as_of_epoch_ms<=?
+        AND invalidated_at IS NULL ORDER BY as_of_epoch_ms DESC LIMIT 2`,
+        args:[context.userId,context.executionMode,healthDate,context.inputGeneration,C.algorithm,asOfEpochMs]})).rows;
+      if(!rows.length)return null;
+      if(rows.length>1&&rows[0].as_of_epoch_ms===rows[1].as_of_epoch_ms)fail('BODY_ENERGY_RESULT_AMBIGUOUS');
+      reproduceCurrent(context,rows[0]);
+      return reproduceAudit(rows[0],context);
+    });
+  }
   async function checkpoint(context,{bucketStart,algorithmVersion=C.algorithm}) {
     bodyEnergyVersion(algorithmVersion);
     if(!Number.isSafeInteger(bucketStart)||bucketStart%C.checkpointMs!==0)fail('PHASE4_INVALID_CHECKPOINT');
@@ -230,7 +248,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       return {row:{...row},result};
     });
   }
-  return Object.freeze({prepare,persist,compute,audit,readExact,checkpoint,auditCheckpoint,
+  return Object.freeze({prepare,persist,compute,audit,readExact,readLatestCurrent,checkpoint,auditCheckpoint,
     privacyDependencies:(userId,row)=>{
       if(row.user_id!==userId)fail('PHASE4_PURGE_AUTHORITY_INVALID');
       const {manifest}=reproduceHistorical(row),refs=[];

@@ -20,6 +20,7 @@ import { REPORT_CLAIM, WEEKLY } from './config.js';
 import { requireUserId } from './userContext.js';
 import { buildObservations, detectWake, weeklyStats, weekOverWeek } from './analyze.js';
 import { renderWeekly } from './format.js';
+import { displayNameFor } from './displayName.js';
 import { completedWeeks, localDate, localHour, localWeekday } from './time.js';
 import { requireLifecycle } from './accountLifecycle.js';
 import { log, describeError } from './logger.js';
@@ -176,7 +177,7 @@ export async function runWeekly({
   });
   const coachText = narrative.text;
 
-  const text = renderWeekly(weekly, coachText);
+  const text = renderWeekly(weekly, coachText, { displayName: await displayNameFor(db, uid) });
 
   // ★ 送出邊界與 daily 共用同一支 deliverReport（見 reportDelivery.js）。
   //   兩條路各自抄一份正是稽核點名的問題：只要有兩份，行為就會分岔。

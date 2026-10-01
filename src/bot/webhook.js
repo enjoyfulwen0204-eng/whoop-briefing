@@ -53,6 +53,8 @@ import { log, describeError } from '../logger.js';
 import { BRIEFING_TRIGGER } from '../briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../briefingEndpoint.js';
 import { runBriefing } from '../index.js';
+import { runPublicBetaBriefing } from '../publicBetaEntry.js';
+import { publicBetaConfiguration, publicBetaKeysIfPresent } from '../publicBetaConfig.js';
 import { createWhoopWebhookIngest, statusForIngest } from '../whoopWebhookIngest.js';
 import { createWhoopOAuthCallback, OAUTH_CALLBACK_PATH, renderScreen } from '../whoopOAuthCallback.js';
 import { handleUnlinkedMessage, handleOnboardingMessage, MESSAGES as ONBOARDING_MESSAGES } from '../onboarding.js';
@@ -415,8 +417,11 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   });
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
   const briefingTriggerSecret = process.env.BRIEFING_TRIGGER_SECRET;
+  const betaConfig = publicBetaConfiguration(process.env);
+  const betaKeys = publicBetaKeysIfPresent(process.env);
+  if (betaConfig.runtime === 'on' && !betaKeys) throw new Error('PUBLIC_BETA_KEYS_REQUIRED');
 
-  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken, phase4Keys: betaKeys });
   await db.migrate();
 
   const coachFor = (userId) => createCoach({
@@ -483,7 +488,8 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     log.warn('briefing_scheduler_disabled', { reason: scheduler.state });
   }
   const briefingEndpoint = schedulerConfigured
-    ? createBriefingEndpoint({ secret: briefingTriggerSecret, runBriefing }) : null;
+    ? createBriefingEndpoint({ secret: briefingTriggerSecret,
+      runBriefing: betaConfig.runtime === 'on' ? runPublicBetaBriefing : runBriefing }) : null;
 
   // ---- OAuth 回呼（V1.2 Phase 3.5）---------------------------------------
   //

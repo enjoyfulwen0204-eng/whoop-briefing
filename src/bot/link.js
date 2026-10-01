@@ -64,6 +64,7 @@ export async function handleLinkAttempt({
 
   const user = await db.getUser(res.userId);
   log.info('link_succeeded', { user_id: res.userId });
-  return `✅ 綁定完成，${user?.displayName ?? ''}。`
+  const name = typeof user?.displayName === 'string' ? user.displayName.trim() : '';
+  return `✅ 綁定完成${name ? `，${name}` : ''}。`
     + '\n\n接下來需要授權 WHOOP 才能開始收到簡報，請聯絡管理者完成授權。';
 }

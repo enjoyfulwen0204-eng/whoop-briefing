@@ -17,7 +17,8 @@ const capabilities=new WeakSet();
 // calculation bundle requires a code-reviewed registry change, not a flag.
 export const STAGE6_ALGORITHM_SET='phase4-stage5-canonical-v1';
 /** Server composition only. A JSON request or an environment flag cannot
- * manufacture this capability. Production factories never call this issuer. */
+ * manufacture this capability. The default production factories never call
+ * this issuer; the explicit Public Beta composition may do so for SHADOW. */
 export function authorizeStage6ShadowWorker({executionMode}={}) {
   if(executionMode!=='SHADOW')fail('PHASE4_STAGE6_SHADOW_REQUIRED');
   const capability=Object.freeze({});capabilities.add(capability);return capability;

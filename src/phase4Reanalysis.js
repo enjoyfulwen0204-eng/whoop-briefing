@@ -35,6 +35,7 @@ const errorCodes=new Map([
   ['PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN','SOURCE_UNAVAILABLE'],
   ['PHASE4_FAMILY_DIRECTORY_DESCRIPTOR_UNAVAILABLE','SOURCE_UNAVAILABLE'],
   ['PHASE4_FAMILY_DIRECTORY_AUTHORITY_INVALID','INVARIANT_VIOLATION'],
+  ['PHASE4_ASSOCIATION_DEPENDENCY_SCOPE_INVALID','INVARIANT_VIOLATION'],
 ]);
 export const stage6ErrorCode=error=>errorCodes.get(error?.code)??'CALCULATION_FAILED';
 
@@ -98,12 +99,13 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
           familyToken:entry.family_token}))];
     let firstFailure=directory.unknownEntries.length?Object.assign(new Error('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN'),
       {code:'PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN'}):null;
+    const units=[];
     for(const candidate of candidates)try {
       assertBudget();
-      await queue.owned(context,lease,async()=>{
+      const outcome=await queue.owned(context,lease,async()=>{
         const current=await familyDirectory.inventory(context,req.metricKey),
           entry=current.entries.find(row=>row.family_key===candidate.familyKey);
-        if(entry&&!(await familyDirectory.work(context,entry)).due)return;
+        if(entry&&!(await familyDirectory.work(context,entry)).due)return 'ALREADY_COMPLETE';
         const precise=await createOperationReceipts(core).episodeRecurrenceInventory(context,
           {metricKey:req.metricKey,episodeFamilyKey:candidate.familyKey});
         const windowFamily=candidate.windowFamily??familyDirectory.resolveIdentity(context,entry,precise).windowFamily;
@@ -112,18 +114,21 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
             ['OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING'].includes(row.state)
             ||row.state==='RESOLVED'&&snapshot.semantic_at<=req.asOfUtc
               &&Date.parse(req.asOfUtc)-Date.parse(snapshot.semantic_at)<=7*86400000);
-          if(!relevant){await familyDirectory.complete(context,entry);return;}
+          if(!relevant){await familyDirectory.complete(context,entry);return 'VALID_NO_LIFECYCLE_WORK';}
         }
-        await metric(context,{...req,windowFamily},precise);
+        const result=await metric(context,{...req,windowFamily},precise);
         const settled=await familyDirectory.inventory(context,req.metricKey),
           owned=settled.entries.find(row=>row.family_key===candidate.familyKey);
         if(owned)await familyDirectory.complete(context,owned);
+        return result;
       },{assertBudget});
+      units.push({kind:'EPISODE_FAMILY',familyKey:candidate.familyKey,status:'COMPLETE',outcome});
     } catch(error) {
       if(error?.code==='PHASE4_DRAIN_DEADLINE_REACHED')throw error;
+      units.push({kind:'EPISODE_FAMILY',familyKey:candidate.familyKey,status:'UNRESOLVED',code:error?.code??'UNKNOWN'});
       firstFailure??=error;
     }
-    return firstFailure;
+    return {kind:'METRIC_FAMILIES',status:firstFailure?'UNRESOLVED':'COMPLETE',failure:firstFailure,units};
   }
 
   async function metric(context,req,history) {
@@ -180,7 +185,19 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
   async function associations(context,metricKey,asOfUtc) {
     const requests=[];for(let window=0;window<2;window++) {
       const request=await inputs.associations(context,metricKey,asOfUtc,window);
-      if(request)requests.push(request);
+      if(request) {
+        // The frozen association request's authenticated roots are WHOOP
+        // outcomes and Journal facts/coverage. Episode-family state is not a
+        // prerequisite. Public insight refresh still authenticates its own
+        // historical evidence and predecessor closure below.
+        const expected=phase4Metric(metricKey).sourceType;
+        for(const hypothesis of request.hypotheses)for(const [refs,kind] of [
+          [hypothesis.outcomeSources,expected],[hypothesis.journalFactSources,'JOURNAL_FACT'],
+          [hypothesis.coverageSources,'JOURNAL_COVERAGE']])
+          if(core.validateReferences(context,refs).some(source=>source.type!==kind))
+            fail('PHASE4_ASSOCIATION_DEPENDENCY_SCOPE_INVALID');
+        requests.push(request);
+      }
     }
     if(!requests.length)return 'VALID_NO_JOURNAL_INPUTS';
     const results=[];for(const request of requests)results.push(await stores.intelligence.analyzeAssociationFamily(context,
@@ -279,23 +296,44 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
       if(['AVAILABLE','LIMITED'].includes(body.row.quality_state)) {
         const current=await core.run(context,()=>stores.readArtifact(context,'body_energy_results',{result_id:body.row.result_id}));
         const request=await core.run(context,()=>inputs.metric(context,'body_energy',current,asOfUtc));
-        return metricsV30(context,request,lease,assertBudget);
+        return await metricsV30(context,request,lease,assertBudget);
       }
-      return null;
+      return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
     }
     const registeredMetrics=Object.entries(PHASE4_METRICS).filter(([,definition])=>definition.sourceType===source.source_type);
-    if(!registeredMetrics.length||!inputs.eligible(source.source_type,root.row))return null;
+    if(!registeredMetrics.length||!inputs.eligible(source.source_type,root.row))
+      return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
     const latest=await core.run(context,()=>inputs.latest(context,source.source_type)),
       idKey=source.source_type==='recovery'?'sleep_id':'id';
-    if(!latest||String(latest[idKey])!==source.source_id)return null;
-    let firstFailure=null;
+    if(!latest||String(latest[idKey])!==source.source_id)
+      return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
+    let firstFailure=null;const units=[];
     for(const [metricKey] of registeredMetrics) {
-      const request=await core.run(context,()=>inputs.metric(context,metricKey,root,asOfUtc));
-      const failure=await metricsV30(context,request,lease,assertBudget);
-      firstFailure??=failure;
-      if(!failure)await queue.owned(context,lease,()=>associations(context,metricKey,asOfUtc),{assertBudget});
+      try {
+        const request=await core.run(context,()=>inputs.metric(context,metricKey,root,asOfUtc));
+        units.push({kind:'METRIC_SOURCE',metricKey,status:'COMPLETE'});
+        const episodeWork=await metricsV30(context,request,lease,assertBudget);
+        units.push(episodeWork);
+        firstFailure??=episodeWork.failure;
+      } catch(error) {
+        if(error?.code==='PHASE4_DRAIN_DEADLINE_REACHED')throw error;
+        units.push({kind:'METRIC_SOURCE',metricKey,status:'UNRESOLVED',code:error?.code??'UNKNOWN'});
+        firstFailure??=error;
+      }
+      // The association request and public insight operation prove their own
+      // source/evidence/predecessor closure. A failed sibling episode family
+      // remains unresolved but cannot veto an independent insight unit.
+      try {
+        const outcome=await queue.owned(context,lease,()=>associations(context,metricKey,asOfUtc),{assertBudget});
+        units.push({kind:'ASSOCIATION_INSIGHT',metricKey,status:'COMPLETE',outcome});
+      }
+      catch(error) {
+        if(error?.code==='PHASE4_DRAIN_DEADLINE_REACHED')throw error;
+        units.push({kind:'ASSOCIATION_INSIGHT',metricKey,status:'UNRESOLVED',code:error?.code??'UNKNOWN'});
+        firstFailure??=error;
+      }
     }
-    return firstFailure;
+    return {kind:'SOURCE',status:firstFailure?'UNRESOLVED':'COMPLETE',failure:firstFailure,units};
   }
   async function drain({triggerSource='manual',userId=null,budget:overrides={}}={}) {
     requireTriggerSource(triggerSource);const budget=stage6Budget(triggerSource,overrides),started=monotonicNow();
@@ -320,8 +358,8 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
               }
               const source=page[0];
               if(familyDirectory) {
-                const failure=await processSourceV30(context,source,lease.asOfUtc,lease,assertBudget);
-                if(failure)throw failure;
+                const outcome=await processSourceV30(context,source,lease.asOfUtc,lease,assertBudget);
+                if(outcome.failure)throw outcome.failure;
                 await queue.owned(context,lease,()=>queue.checkpoint(context,lease,source.cursor),{assertBudget});
               } else await queue.owned(context,lease,async()=>{
                 await processSource(context,source,lease.asOfUtc);

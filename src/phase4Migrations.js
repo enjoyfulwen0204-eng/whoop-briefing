@@ -190,6 +190,8 @@ async function backfillV29(client,keys) {
 async function backfillV30(client,keys) {
   requirePhase4Keys(keys);
   const routing=createReceiptRouting(client,keys),directory=createFamilyDirectory(client,keys),metrics=Object.keys(PHASE4_METRICS);
+  const nonEpisodeOperations=new Set(['INSIGHT_CREATE','INSIGHT_TRANSITION','expireInsight','analyzeAssociationFamily',
+    'BODY_ENERGY_COMPUTE','BODY_ENERGY_CHECKPOINT']);
   // Migration may scan historical rows once. Runtime family discovery must
   // rely on the signed directory/route manifest fence instead.
   await requireZero(client,`SELECT 1 FROM phase4_operation_receipts r LEFT JOIN phase4_receipt_routes x
@@ -227,7 +229,19 @@ async function backfillV30(client,keys) {
         routing.verifyEntry(bound);
       }
       if(route.route_state==='LEGACY_ROUTE_UNKNOWN'){
-        for(const metricKey of metrics)unknownMetrics.add(metricKey);
+        // The v27 privacy artifact identity survives redaction and binds the
+        // operation kind/key independently of the later v29 route HMAC. A
+        // signed v29 route alone must not bless a pre-migration altered kind.
+        const receipt=(await client.execute({sql:`SELECT privacy_artifact_id FROM phase4_operation_receipts
+          WHERE user_id=? AND execution_mode=? AND operation_kind=? AND operation_key=?`,
+          args:[context.userId,context.executionMode,route.operation_kind,route.operation_key]})).rows[0];
+        const bound=receipt?.privacy_artifact_id===keys.lookup(['privacy-artifact-v1','phase4_operation_receipts',
+          context.userId,context.executionMode,[route.operation_kind,route.operation_key]]);
+        // Only known producer contracts that cannot create an episode family
+        // can narrow the episode directory. Other or unbound kinds remain
+        // unknown; their insight uncertainty remains in v29 routing.
+        if(!bound||!nonEpisodeOperations.has(route.operation_kind))
+          for(const metricKey of metrics)unknownMetrics.add(metricKey);
         continue;
       }
       if(!route.operation_kind.startsWith('EPISODE_'))continue;

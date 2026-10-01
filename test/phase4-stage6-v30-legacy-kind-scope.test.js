@@ -6,6 +6,7 @@ import { guards } from './stage5ReviewBFixture.js';
 import { createFamilyDirectory } from '../src/phase4FamilyDirectory.js';
 import { createReceiptRouting } from '../src/phase4ReceiptRouting.js';
 import { createOperationReceipts } from '../src/phase4OperationReceipts.js';
+import { createPhase4Stage6,authorizeStage6ShadowWorker } from '../src/phase4Reanalysis.js';
 import { canonicalJson } from '../src/phase4EntityStore.js';
 import { OPERATION_RECEIPT_VERSION } from '../src/phase4V27Schema.js';
 
@@ -175,4 +176,34 @@ test('v29 route kind HMAC corruption cannot narrow a redacted legacy unknown',as
     args:['0'.repeat(64)]}));
   const context=await f.stores.capture('a',{executionMode:'SHADOW'});
   await assert.rejects(precise(f,context),/PHASE4_RECEIPT_ROUTE_AUTHORITY_INVALID/);
+});
+
+test('v30 worker can process DAILY lifecycle beside an insight-only legacy unknown',async t=>{
+  const f=await associationSetup(t,{days:30,targetVersion:27});
+  await makeInsight(f);await redactReceipt(f,'INSIGHT_CREATE');
+  const {directory,context}=await migrate(f);
+  assert.equal((await directory.inventory(context,'recovery_score')).entries.length,0);
+  assert.equal((await precise(f,context)).unknown,0);
+  Object.assign(f,await f.restart());f.context=null;
+  // Keep the retained worker scope to recovery and its Journal inputs. An
+  // opaque historical insight may also affect other insight metrics, which
+  // would correctly leave those earlier source units unresolved.
+  for(const table of ['whoop_cycles','whoop_sleeps','whoop_workouts'])
+    await f.db.raw.execute(`DELETE FROM ${table} WHERE user_id='a'`);
+  await f.db.raw.execute("UPDATE whoop_recoveries SET recovery_score=15 WHERE user_id='a' AND sleep_id='sleep-00'");
+  await f.stores.queue.sourceChanged(await f.stores.captureControl('a'));
+  const worker=await createPhase4Stage6({db:f.db,keys:f.keys,executionMode:'SHADOW',
+    workerCapability:authorizeStage6ShadowWorker({executionMode:'SHADOW'}),now:()=>new Date(T)});
+  const result=await worker.drain({budget:{maxItemsPerTenant:32,maxItems:64,maxWallMs:90000,leaseMs:120000}});
+  const rows=(await f.db.raw.execute({sql:`SELECT * FROM observation_episodes
+    WHERE user_id='a' AND execution_mode='SHADOW' AND episode_family_key=?`,args:[dailyKey(f)]})).rows;
+  assert.ok(rows.some(row=>row.input_generation===16),JSON.stringify(result));
+  const registered=await f.stores.withContext('a',{executionMode:'SHADOW'},c=>
+    createFamilyDirectory(f.db.raw,f.keys).inventory(c,'recovery_score'));
+  assert.equal(registered.entries.length,1);
+  assert.equal((await f.stores.withContext('a',{executionMode:'SHADOW'},c=>
+    createFamilyDirectory(f.db.raw,f.keys).work(c,registered.entries[0]))).due,false);
+  assert.ok(result.failedJobs>0);
+  assert.equal(result.failures[0].code,'SOURCE_UNAVAILABLE');
+  assert.ok((await worker.diagnostics()).pendingJobs>0);
 });

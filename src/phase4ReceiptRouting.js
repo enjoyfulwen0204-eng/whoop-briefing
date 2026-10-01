@@ -10,6 +10,10 @@ const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 const hex=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
 const compare=(a,b)=>a<b?-1:a>b?1:0;
 const parse=value=>{try{const decoded=JSON.parse(value);if(canonicalJson(decoded)!==value)invalid();return decoded;}catch{invalid();}};
+const nonEpisodeOperations=new Set(['INSIGHT_CREATE','INSIGHT_TRANSITION','expireInsight',
+  'analyzeAssociationFamily','BODY_ENERGY_COMPUTE','BODY_ENERGY_CHECKPOINT']);
+const episodeTargets=new Set(['EPISODE','EPISODE_FAMILY','EPISODE_ID']);
+const insightTargets=new Set(['INSIGHT','INSIGHT_ID','ASSOCIATION']);
 
 /** This verifier uses the frozen v27 seal; migration never infers a family from
  * materialized names or from a receipt whose HMAC has already been erased. */
@@ -109,6 +113,23 @@ export function createReceiptRouting(client,keys) {
         ||!['EPISODE','EPISODE_FAMILY','INSIGHT','ASSOCIATION','ARTIFACT','EPISODE_ID','INSIGHT_ID'].includes(value[0])||!hex(value[1]))
       ||!same(values,[...values].sort((a,b)=>compare(canonicalJson(a),canonicalJson(b)))))invalid();
     return values;
+  };
+  // A signed v29 kind alone cannot classify a pre-v29 redacted receipt: its
+  // independent v27 keyed artifact identity must still bind that kind/key.
+  // Unknown or unbound producers may affect either domain. A family-unresolved
+  // episode operation may affect every precise episode family.
+  const legacyUnknownMayAffect=(route,receipt,targetKind)=>{
+    verifyReceipt(route);
+    if(route.route_state!=='LEGACY_ROUTE_UNKNOWN')invalid();
+    const bound=receipt?.operation_kind===route.operation_kind
+      &&receipt?.operation_key===route.operation_key
+      &&receipt?.privacy_artifact_id===keys.lookup(['privacy-artifact-v1','phase4_operation_receipts',
+        route.user_id,route.execution_mode,[route.operation_kind,route.operation_key]]);
+    if(!bound)return true;
+    if(episodeTargets.has(targetKind))return !nonEpisodeOperations.has(route.operation_kind);
+    if(insightTargets.has(targetKind))return !route.operation_kind.startsWith('EPISODE_')
+      &&route.operation_kind!=='expireEpisode';
+    return true;
   };
   const verifyEntry=row=>{if(row.route_version!==ROUTE_VERSION||row.binding_hmac!==mac(['ENTRY',...entryValues(row)]))invalid();};
   const verifyManifest=row=>{if(row.route_version!==ROUTE_VERSION||row.manifest_hmac!==mac(['MANIFEST',...manifestValues(row)]))invalid();};
@@ -216,7 +237,7 @@ export function createReceiptRouting(client,keys) {
     // unrelated receipt. It proves that no v27 row was left without a route.
     const routes=(await client.execute({sql:`SELECT * FROM ${ROUTE_RECEIPTS} WHERE user_id=? AND execution_mode=?
       ORDER BY operation_kind,operation_key`,args:[userId,mode]})).rows;
-    const actual=(await client.execute({sql:`SELECT operation_kind,operation_key FROM phase4_operation_receipts
+    const actual=(await client.execute({sql:`SELECT operation_kind,operation_key,privacy_artifact_id FROM phase4_operation_receipts
       WHERE user_id=? AND execution_mode=? ORDER BY operation_kind,operation_key`,args:[userId,mode]})).rows;
     if(routes.length!==actual.length)invalid();
     let unknown=0;const expected=[];
@@ -224,7 +245,10 @@ export function createReceiptRouting(client,keys) {
       const route=routes[i],receipt=actual[i];
       if(route.operation_kind!==receipt.operation_kind||route.operation_key!==receipt.operation_key)invalid();
       const subjects=verifyReceipt(route);
-      if(route.route_state==='LEGACY_ROUTE_UNKNOWN'){unknown++;continue;}
+      if(route.route_state==='LEGACY_ROUTE_UNKNOWN'){
+        if(legacyUnknownMayAffect(route,receipt,kind))unknown++;
+        continue;
+      }
       if(subjects.some(([k,t])=>k===kind&&t===subjectToken))expected.push(route);
     }
     const scope=[userId,mode,kind,subjectToken];
@@ -254,5 +278,6 @@ export function createReceiptRouting(client,keys) {
     }
     return {receipts,unknown,manifest:{entryCount:manifest.entry_count,chainDigest:manifest.chain_digest}};
   }
-  return {token,subjects,register,inventory,tip,verifyReceipt,verifyEntry,verifyManifest};
+  return {token,subjects,register,inventory,tip,verifyReceipt,verifyEntry,verifyManifest,
+    legacyUnknownMayAffect};
 }

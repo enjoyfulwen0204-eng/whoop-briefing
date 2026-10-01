@@ -623,9 +623,14 @@ export function createOperationReceipts(core) {
       let historical;
       const desired=routing?await routing.subjects({user_id:context.userId,execution_mode:context.executionMode,operation_kind:kind},
         {request:requestAuthority,related:[]}):[];
-      if(desired.length) {
+      // A precise episode family is already present in the frozen request.
+      // Metric-wide routing is reserved for explicit cross-family discovery;
+      // it must not widen an operation's historical alias/predecessor proof.
+      const subjects=desired.some(([subjectKind])=>subjectKind==='EPISODE_FAMILY')
+        ?desired.filter(([subjectKind])=>subjectKind==='EPISODE_FAMILY'):desired;
+      if(subjects.length) {
         const matches=new Map();
-        for(const [subjectKind,subjectToken] of desired) {
+        for(const [subjectKind,subjectToken] of subjects) {
           const routed=await routing.inventory(context,subjectKind,subjectToken,true);
           if(routed.unknown)fail('PHASE4_RECEIPT_ROUTE_LEGACY_UNKNOWN');
           for(const row of routed.receipts)if(row.operation_kind===kind&&row.input_generation===context.inputGeneration)
@@ -665,6 +670,12 @@ export function createOperationReceipts(core) {
           refreshPredecessor=await refreshAuthority.predecessor(context,semanticRequest);
           await refreshAuthority.fresh(context,semanticRequest,refreshPredecessor);
         } else await predecessor(context,'health_insights',request.insightId,request.expectedRevision);
+      }
+      if(kind==='EPISODE_OPEN'&&request.recurrence!==true&&routing) {
+        const identity=semanticRequest.identity;
+        const family=keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,
+          identity.algorithmMajor,identity.subject,identity.windowFamily]);
+        await recurrence.inventory(context,{metricKey:identity.metric,episodeFamilyKey:family});
       }
       const recurrencePlan=kind==='EPISODE_OPEN'&&request.recurrence===true?await recurrence.prepare(context,semanticRequest):null;
       if(kind==='EPISODE_OPEN'&&!recurrencePlan)for(const id of [request.reopensEpisodeId,request.reversesEpisodeId].filter(Boolean)) {

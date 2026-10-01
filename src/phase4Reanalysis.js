@@ -70,8 +70,16 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
     return [...families].sort();
   }
   async function metrics(context,req) {
-    const history=await createOperationReceipts(core).episodeRecurrenceInventory(context,{metricKey:req.metricKey});
-    for(const windowFamily of await metricFamilies(context,req,history))await metric(context,{...req,windowFamily},history);
+    const receipts=createOperationReceipts(core);
+    // This inventory is explicitly cross-family: the worker must discover
+    // retained custom windows before deciding which ones to recompute.
+    const history=await receipts.episodeRecurrenceInventory(context,{metricKey:req.metricKey});
+    for(const windowFamily of await metricFamilies(context,req,history)) {
+      const precise=core.schemaVersion>=29?await receipts.episodeRecurrenceInventory(context,{metricKey:req.metricKey,
+        episodeFamilyKey:keys.lookup(['episode-family-v1',context.userId,phase4Metric(req.metricKey).domain,
+          req.metricKey,INTELLIGENCE_VERSIONS.algorithm,req.metricKey,windowFamily])}):history;
+      await metric(context,{...req,windowFamily},precise);
+    }
   }
 
   async function metric(context,req,history) {

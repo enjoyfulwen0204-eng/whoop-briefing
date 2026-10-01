@@ -10,6 +10,7 @@ import { stage6Budget,requireTriggerSource } from './phase4DrainPolicy.js';
 import { phase4Backlog } from './phase4Diagnostics.js';
 import { createPhase4QueueStore } from './phase4QueueStore.js';
 import { createOperationReceipts } from './phase4OperationReceipts.js';
+import { createFamilyDirectory } from './phase4FamilyDirectory.js';
 
 const capabilities=new WeakSet();
 // Both names resolve to the frozen Stage 5 registry. Adding a future
@@ -30,6 +31,10 @@ const errorCodes=new Map([
   ['PHASE4_REQUIRED_ROOT_VERSION_MISMATCH','SOURCE_UNAVAILABLE'],
   ['PHASE4_OPERATION_RECEIPT_INTEGRITY','INVARIANT_VIOLATION'],['PHASE4_METRIC_REFRESH_AUTHORITY_INVALID','INVARIANT_VIOLATION'],
   ['PHASE4_EPISODE_RECURRENCE_AUTHORITY_INVALID','INVARIANT_VIOLATION'],['PHASE4_EPISODE_PREDECESSOR_AMBIGUOUS','INVARIANT_VIOLATION'],
+  ['PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE','SOURCE_UNAVAILABLE'],
+  ['PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN','SOURCE_UNAVAILABLE'],
+  ['PHASE4_FAMILY_DIRECTORY_DESCRIPTOR_UNAVAILABLE','SOURCE_UNAVAILABLE'],
+  ['PHASE4_FAMILY_DIRECTORY_AUTHORITY_INVALID','INVARIANT_VIOLATION'],
 ]);
 export const stage6ErrorCode=error=>errorCodes.get(error?.code)??'CALCULATION_FAILED';
 
@@ -41,8 +46,9 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
   const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,
     afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,now,
     authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
-  if(![28,29].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
+  if(![28,29,30].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
   const stores=composePhase4Stores(core),queue=createReanalysisQueue(core),inputs=createReanalysisInputs(core,stores),client=core.client;
+  const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,keys):null;
 
   async function metricFamilies(context,req,history) {
     const contract=phase4Metric(req.metricKey);
@@ -80,6 +86,44 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
           req.metricKey,INTELLIGENCE_VERSIONS.algorithm,req.metricKey,windowFamily])}):history;
       await metric(context,{...req,windowFamily},precise);
     }
+  }
+
+  async function metricsV30(context,req,lease,assertBudget) {
+    const directory=await queue.owned(context,lease,()=>familyDirectory.inventory(context,req.metricKey),{assertBudget});
+    const defaultKey=keys.lookup(['episode-family-v1',context.userId,phase4Metric(req.metricKey).domain,
+      req.metricKey,INTELLIGENCE_VERSIONS.algorithm,req.metricKey,req.windowFamily]);
+    const candidates=[{familyKey:defaultKey,windowFamily:req.windowFamily},
+      ...directory.entries.filter(entry=>entry.family_key!==defaultKey)
+        .sort((a,b)=>a.family_token.localeCompare(b.family_token)).map(entry=>({familyKey:entry.family_key,
+          familyToken:entry.family_token}))];
+    let firstFailure=directory.unknownEntries.length?Object.assign(new Error('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN'),
+      {code:'PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN'}):null;
+    for(const candidate of candidates)try {
+      assertBudget();
+      await queue.owned(context,lease,async()=>{
+        const current=await familyDirectory.inventory(context,req.metricKey),
+          entry=current.entries.find(row=>row.family_key===candidate.familyKey);
+        if(entry&&!(await familyDirectory.work(context,entry)).due)return;
+        const precise=await createOperationReceipts(core).episodeRecurrenceInventory(context,
+          {metricKey:req.metricKey,episodeFamilyKey:candidate.familyKey});
+        const windowFamily=candidate.windowFamily??familyDirectory.resolveIdentity(context,entry,precise).windowFamily;
+        if(entry&&candidate.familyKey!==defaultKey) {
+          const relevant=[...precise.latest.values()].some(({row,snapshot})=>
+            ['OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING'].includes(row.state)
+            ||row.state==='RESOLVED'&&snapshot.semantic_at<=req.asOfUtc
+              &&Date.parse(req.asOfUtc)-Date.parse(snapshot.semantic_at)<=7*86400000);
+          if(!relevant){await familyDirectory.complete(context,entry);return;}
+        }
+        await metric(context,{...req,windowFamily},precise);
+        const settled=await familyDirectory.inventory(context,req.metricKey),
+          owned=settled.entries.find(row=>row.family_key===candidate.familyKey);
+        if(owned)await familyDirectory.complete(context,owned);
+      },{assertBudget});
+    } catch(error) {
+      if(error?.code==='PHASE4_DRAIN_DEADLINE_REACHED')throw error;
+      firstFailure??=error;
+    }
+    return firstFailure;
   }
 
   async function metric(context,req,history) {
@@ -227,6 +271,32 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
     }
     return 'PROCESSED';
   }
+  async function processSourceV30(context,source,asOfUtc,lease,assertBudget) {
+    const root=await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
+    if(source.source_type==='USER') {
+      const body=await queue.owned(context,lease,()=>stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}),
+        {assertBudget});
+      if(['AVAILABLE','LIMITED'].includes(body.row.quality_state)) {
+        const current=await core.run(context,()=>stores.readArtifact(context,'body_energy_results',{result_id:body.row.result_id}));
+        const request=await core.run(context,()=>inputs.metric(context,'body_energy',current,asOfUtc));
+        return metricsV30(context,request,lease,assertBudget);
+      }
+      return null;
+    }
+    const registeredMetrics=Object.entries(PHASE4_METRICS).filter(([,definition])=>definition.sourceType===source.source_type);
+    if(!registeredMetrics.length||!inputs.eligible(source.source_type,root.row))return null;
+    const latest=await core.run(context,()=>inputs.latest(context,source.source_type)),
+      idKey=source.source_type==='recovery'?'sleep_id':'id';
+    if(!latest||String(latest[idKey])!==source.source_id)return null;
+    let firstFailure=null;
+    for(const [metricKey] of registeredMetrics) {
+      const request=await core.run(context,()=>inputs.metric(context,metricKey,root,asOfUtc));
+      const failure=await metricsV30(context,request,lease,assertBudget);
+      firstFailure??=failure;
+      if(!failure)await queue.owned(context,lease,()=>associations(context,metricKey,asOfUtc),{assertBudget});
+    }
+    return firstFailure;
+  }
   async function drain({triggerSource='manual',userId=null,budget:overrides={}}={}) {
     requireTriggerSource(triggerSource);const budget=stage6Budget(triggerSource,overrides),started=monotonicNow();
     const deadline=started+budget.maxWallMs-budget.safetyMarginMs;
@@ -249,7 +319,11 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
                 await queue.complete(context,lease,proof,{assertBudget});out.completedJobs++;return;
               }
               const source=page[0];
-              await queue.owned(context,lease,async()=>{
+              if(familyDirectory) {
+                const failure=await processSourceV30(context,source,lease.asOfUtc,lease,assertBudget);
+                if(failure)throw failure;
+                await queue.owned(context,lease,()=>queue.checkpoint(context,lease,source.cursor),{assertBudget});
+              } else await queue.owned(context,lease,async()=>{
                 await processSource(context,source,lease.asOfUtc);
                 await queue.checkpoint(context,lease,source.cursor);
               },{assertBudget});

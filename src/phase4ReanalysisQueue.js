@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { fail } from './phase4Core.js';
 import { JOB_KINDS, OPERATION_ERROR_CODES } from './phase4V24Schema.js';
+import { createFamilyDirectory } from './phase4FamilyDirectory.js';
+import { PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
 
 export const STAGE6_RETRY_MS=Object.freeze([60000,300000,900000,3600000,21600000]);
 const active="(scope_kind<>'NONE' OR completed_generation<requested_generation)";
@@ -9,8 +11,9 @@ export const tenantPassLockName=(userId,mode)=>`phase4-stage6-pass:${JSON.string
 /** Internal worker queue. Only the drain holds leases and end-of-scope proofs;
  * the public Foundation queue still cannot settle a FULL pass. */
 export function createReanalysisQueue(core) {
-  if(![28,29].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
+  if(![28,29,30].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
   const {client,transaction,timestamp}=core,leases=new WeakMap(),proofs=new WeakMap();
+  const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,core.keys):null;
   const read=(context,kind)=>client.execute({sql:'SELECT * FROM phase4_jobs WHERE user_id=? AND execution_mode=? AND job_kind=?',
     args:[context.userId,context.executionMode,kind]}).then(result=>result.rows[0]);
   async function select({limit=8,userId=null}={}) {
@@ -116,6 +119,8 @@ export function createReanalysisQueue(core) {
       assertBudget();
       const row=await check(context,lease);
       if(row.full_scan_cursor!==pass.cursor)fail('PHASE4_FULL_PASS_INCOMPLETE');
+      if(familyDirectory)for(const metricKey of Object.keys(PHASE4_METRICS))
+        if(!(await familyDirectory.allComplete(context,metricKey)))fail('PHASE4_FULL_PASS_INCOMPLETE');
       await client.execute({sql:`UPDATE phase4_jobs SET completed_generation=requested_generation,scope_kind='NONE',state='COMPLETED',
         affected_from=NULL,affected_to=NULL,subject_key=NULL,full_scan_cursor=NULL,unresolved_since=NULL,attempt=0,next_attempt_at=NULL,
         last_error_code=NULL,lease_owner=NULL,lease_expires_at=NULL,updated_at=?

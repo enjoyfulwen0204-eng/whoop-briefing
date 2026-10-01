@@ -11,7 +11,7 @@ import { composePhase4Stores } from '../src/phase4Repositories.js';
 export async function syntheticPhase4Fixture(t,options={}) {
   if(Object.keys(options).some(k=>!['now','targetVersion'].includes(k)))fail('SYNTHETIC_FIXTURE_EXTERNAL_INPUT_FORBIDDEN');
   const {now=()=>new Date('2026-09-19T00:00:00.000Z'),targetVersion=27}=options;
-  if(![27,28,29].includes(targetVersion))fail('SYNTHETIC_FIXTURE_VERSION_INVALID');
+  if(![27,28,29,30].includes(targetVersion))fail('SYNTHETIC_FIXTURE_VERSION_INVALID');
   // This synthetic authority owns one native in-memory connection. Use the
   // installed driver's SQL executor and transaction implementation on that
   // connection. Application processing serializes root transactions. The

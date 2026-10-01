@@ -176,10 +176,42 @@ export function createReceiptRouting(client,keys) {
         (user_id,execution_mode,subject_kind,subject_token,route_version,entry_count,chain_digest,manifest_hmac)
         VALUES (?,?,?,?,?,?,?,?)`,args:[...scope,ROUTE_VERSION,manifest.entry_count,manifest.chain_digest,manifest.manifest_hmac]});
     }
+    return values;
   }
-  async function inventory(context,kind,identity,alreadyToken=false) {
+  async function tip(context,kind,identity) {
+    const scope=[context.userId,context.executionMode,kind,token(context.userId,context.executionMode,kind,identity)];
+    const row=(await client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
+      AND subject_kind=? AND subject_token=?`,args:scope})).rows[0];
+    const count=(await client.execute({sql:`SELECT COUNT(*) count FROM ${ROUTE_ENTRIES} WHERE user_id=?
+      AND execution_mode=? AND subject_kind=? AND subject_token=?`,args:scope})).rows[0].count;
+    if(!row){if(count)invalid();return null;}
+    verifyManifest(row);
+    if(count!==row.entry_count)invalid();
+    return {entryCount:row.entry_count,chainDigest:row.chain_digest};
+  }
+  async function inventory(context,kind,identity,alreadyToken=false,{metadataOnly=false}={}) {
     const userId=context.userId,mode=context.executionMode,
       subjectToken=alreadyToken?identity:token(userId,mode,kind,identity);
+    if(metadataOnly) {
+      // A work-tip comparison needs the authenticated precise-family tip,
+      // not a scan of unrelated route records. A due family enters the full
+      // precise inventory below before any lifecycle action.
+      const scope=[userId,mode,kind,subjectToken];
+      const manifest=(await client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
+        AND subject_kind=? AND subject_token=?`,args:scope})).rows[0];
+      const entries=(await client.execute({sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
+        AND subject_kind=? AND subject_token=? ORDER BY sequence`,args:scope})).rows;
+      if(!manifest){if(entries.length)invalid();return {receipts:[],unknown:0,manifest:null};}
+      verifyManifest(manifest);
+      if(entries.length!==manifest.entry_count)invalid();
+      let digest=ZERO;
+      for(let i=0;i<entries.length;i++) {
+        verifyEntry(entries[i]);if(entries[i].sequence!==i+1)invalid();
+        digest=chain(digest,entries[i]);
+      }
+      if(digest!==manifest.chain_digest)invalid();
+      return {receipts:[],unknown:0,manifest:{entryCount:manifest.entry_count,chainDigest:manifest.chain_digest}};
+    }
     // The global small routing layer is authenticated without opening any
     // unrelated receipt. It proves that no v27 row was left without a route.
     const routes=(await client.execute({sql:`SELECT * FROM ${ROUTE_RECEIPTS} WHERE user_id=? AND execution_mode=?
@@ -200,7 +232,7 @@ export function createReceiptRouting(client,keys) {
       AND subject_kind=? AND subject_token=?`,args:scope})).rows[0];
     const entries=(await client.execute({sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
       AND subject_kind=? AND subject_token=? ORDER BY sequence`,args:scope})).rows;
-    if(!manifest){if(expected.length||entries.length)invalid();return {receipts:[],unknown};}
+    if(!manifest){if(expected.length||entries.length)invalid();return {receipts:[],unknown,manifest:null};}
     verifyManifest(manifest);
     if(entries.length!==manifest.entry_count||expected.length!==entries.length)invalid();
     let digest=ZERO;
@@ -212,6 +244,7 @@ export function createReceiptRouting(client,keys) {
       digest=chain(digest,entry);
     }
     if(expectedKeys.size||digest!==manifest.chain_digest)invalid();
+    if(metadataOnly)return {receipts:[],unknown,manifest:{entryCount:manifest.entry_count,chainDigest:manifest.chain_digest}};
     if(entries.length>1000)bounds();
     const receipts=[];
     for(const entry of entries) {
@@ -219,7 +252,7 @@ export function createReceiptRouting(client,keys) {
         AND operation_kind=? AND operation_key=?`,args:[userId,mode,entry.operation_kind,entry.operation_key]})).rows[0];
       if(!receipt)invalid();receipts.push(receipt);
     }
-    return {receipts,unknown};
+    return {receipts,unknown,manifest:{entryCount:manifest.entry_count,chainDigest:manifest.chain_digest}};
   }
-  return {token,subjects,register,inventory,verifyReceipt,verifyEntry,verifyManifest};
+  return {token,subjects,register,inventory,tip,verifyReceipt,verifyEntry,verifyManifest};
 }

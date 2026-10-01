@@ -3,7 +3,7 @@ import { isRequestSet, isRequestTime, isJournalRequestSet, normalizeRequestAlias
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { fail, readableRow, DERIVED_TABLES } from './phase4Core.js';
 import { BODY_ENERGY } from './bodyEnergyRegistry.js';
-import { INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
+import { INTELLIGENCE_VERSIONS,PHASE4_METRICS,phase4Metric } from './phase4IntelligenceRegistry.js';
 import { episodeSemanticProjection } from './phase4EpisodeHistory.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { canonicalInstant, semanticTime, requireChronology } from './phase4Time.js';
@@ -18,6 +18,7 @@ import { createMetricRefreshAuthority } from './phase4MetricRefresh.js';
 import { createEpisodeRecurrenceAuthority } from './phase4EpisodeRecurrence.js';
 import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
 import { createReceiptRouting } from './phase4ReceiptRouting.js';
+import { createFamilyDirectory } from './phase4FamilyDirectory.js';
 
 const instances=new WeakMap();
 const invalid=()=>fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');
@@ -44,6 +45,7 @@ export function createOperationReceipts(core) {
   if(instances.has(core))return instances.get(core);
   const {client,keys}=core,authorities=createResultAuthority(core);
   const routing=core.schemaVersion>=29?createReceiptRouting(client,keys):null;
+  const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,keys):null;
   const producerScope=new AsyncLocalStorage();
   const refreshAuthority=createInsightRefreshAuthority(core,{authenticate,authorities,
     validateEvidence:(context,id)=>forArtifact(context,'evidence_items',{evidence_item_id:id})});
@@ -713,9 +715,25 @@ export function createOperationReceipts(core) {
       for(const field of ['request_json','result_json','related_results_json','required_roots_json','schema_contract_json'])
         if(Buffer.byteLength(row[field])>4194304)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
       row.receipt_hmac=seal(row);
-      if(routing)await routing.register(row,{request:requestAuthority,related:encoded.related});
+      const routedSubjects=routing?await routing.register(row,{request:requestAuthority,related:encoded.related}):[];
       const fields=Object.keys(row);
       await client.execute({sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(field=>row[field])});
+      if(familyDirectory)for(const metricKey of Object.keys(PHASE4_METRICS)) {
+        const token=routing.token(context.userId,context.executionMode,'EPISODE',
+          [metricKey,phase4Metric(metricKey).domain]);
+        if(routedSubjects.some(([kind,subject])=>kind==='EPISODE'&&subject===token))
+          await familyDirectory.touchSource(context,metricKey);
+      }
+      if(familyDirectory&&kind.startsWith('EPISODE_')&&semanticRequest.identity) {
+        const {metric,domain,algorithmMajor,subject,windowFamily}=semanticRequest.identity;
+        const registration=await familyDirectory.register(context,{metric,domain,algorithmMajor,subject,windowFamily});
+        // An external public operation can introduce a family after a worker
+        // has already checkpointed its source. Reopen the source scope in the
+        // same transaction; a worker-created family belongs to its own pass.
+        if(registration.newlyRegistered&&!core.jobAuthority())
+          await (await import('./phase4QueueStore.js')).createPhase4QueueStore(core).markFull(
+            context.userId,context.executionMode,context.inputGeneration,context.purgeGeneration,'SOURCE_CHANGED');
+      }
       for(const root of roots.roots)await addPrivacyLink(client,{userId:context.userId,mode:context.executionMode,table:TABLE,
         artifactId:row.privacy_artifact_id,sourceMode:root.mode,sourceType:root.type,sourceId:root.id,
         relationship:root.as_of?`DEPENDS_ON_AS_OF:${root.as_of}`:'DEPENDS_ON',at:core.timestamp()});

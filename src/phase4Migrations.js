@@ -7,7 +7,10 @@ import { V26_TABLES } from './phase4V26Schema.js';
 import { V25_TABLES } from './phase4V25Schema.js';
 import { V24_TABLES } from './phase4V24Schema.js';
 import { V29_TABLES } from './phase4V29Schema.js';
+import { V30_TABLES } from './phase4V30Schema.js';
 import { createReceiptRouting, verifyV27RouteSource } from './phase4ReceiptRouting.js';
+import { createFamilyDirectory } from './phase4FamilyDirectory.js';
+import { PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
 import { physicallyScrubbed } from './phase4Redaction.js';
 
 // This is an exact binary/schema contract, not a minimum supported version.
@@ -184,6 +187,87 @@ async function backfillV29(client,keys) {
     throw new Phase4SchemaError('phase4_route_foreign_key_check_failed');
 }
 
+async function backfillV30(client,keys) {
+  requirePhase4Keys(keys);
+  const routing=createReceiptRouting(client,keys),directory=createFamilyDirectory(client,keys),metrics=Object.keys(PHASE4_METRICS);
+  // Migration may scan historical rows once. Runtime family discovery must
+  // rely on the signed directory/route manifest fence instead.
+  await requireZero(client,`SELECT 1 FROM phase4_operation_receipts r LEFT JOIN phase4_receipt_routes x
+    ON x.user_id=r.user_id AND x.execution_mode=r.execution_mode AND x.operation_kind=r.operation_kind
+      AND x.operation_key=r.operation_key WHERE x.operation_key IS NULL LIMIT 1`,'v30_receipt_route_coverage');
+  await requireZero(client,`SELECT 1 FROM phase4_receipt_routes x LEFT JOIN phase4_operation_receipts r
+    ON x.user_id=r.user_id AND x.execution_mode=r.execution_mode AND x.operation_kind=r.operation_kind
+      AND x.operation_key=r.operation_key WHERE r.operation_key IS NULL LIMIT 1`,'v30_route_receipt_coverage');
+  const scopes=(await client.execute(`SELECT c.user_id,c.execution_mode,c.input_generation,c.algorithm_set_version,
+    s.source_generation,s.purge_generation
+    FROM phase4_computation_state c JOIN phase4_user_state s ON s.user_id=c.user_id
+    WHERE c.execution_mode='SHADOW' ORDER BY c.user_id`)).rows;
+  for(const scope of scopes) {
+    const context={userId:scope.user_id,executionMode:scope.execution_mode,inputGeneration:scope.input_generation,
+      sourceGeneration:scope.source_generation,purgeGeneration:scope.purge_generation,
+      algorithmSetVersion:scope.algorithm_set_version,authGeneration:0,lifecycleGeneration:0};
+    const sourceByMetricToken=new Map();
+    for(const metricKey of metrics) {
+      const identity=directory.source(context,metricKey);
+      sourceByMetricToken.set(routing.token(context.userId,context.executionMode,'EPISODE',
+        [metricKey,identity.identity.domain]),metricKey);
+      await directory.ensureManifest(context,identity.token,'COMPLETE',metricKey);
+    }
+    const candidates=new Map(),unknownMetrics=new Set(),routes=(await client.execute({sql:`SELECT * FROM phase4_receipt_routes
+      WHERE user_id=? AND execution_mode=? ORDER BY operation_kind,operation_key`,
+      args:[context.userId,context.executionMode]})).rows;
+    for(const route of routes) {
+      const subjects=routing.verifyReceipt(route);
+      for(const [kind,token] of subjects)if(kind==='EPISODE_FAMILY') {
+        const bound=(await client.execute({sql:`SELECT * FROM phase4_receipt_route_entries WHERE user_id=?
+          AND execution_mode=? AND subject_kind='EPISODE_FAMILY' AND subject_token=?
+          AND operation_kind=? AND operation_key=?`,args:[context.userId,context.executionMode,
+          token,route.operation_kind,route.operation_key]})).rows[0];
+        if(!bound)throw new Phase4SchemaError('v30_family_route_binding_missing');
+        routing.verifyEntry(bound);
+      }
+      if(route.route_state==='LEGACY_ROUTE_UNKNOWN'){
+        for(const metricKey of metrics)unknownMetrics.add(metricKey);
+        continue;
+      }
+      if(!route.operation_kind.startsWith('EPISODE_'))continue;
+      const familyTokens=subjects.filter(([kind])=>kind==='EPISODE_FAMILY').map(([,token])=>token);
+      const metricKeys=subjects.filter(([kind])=>kind==='EPISODE')
+        .map(([,token])=>sourceByMetricToken.get(token)).filter(Boolean);
+      if(!metricKeys.length)continue;
+      if(!familyTokens.length){for(const metricKey of metricKeys)unknownMetrics.add(metricKey);continue;}
+      const receipt=(await client.execute({sql:`SELECT * FROM phase4_operation_receipts
+        WHERE user_id=? AND execution_mode=? AND operation_kind=? AND operation_key=?`,
+        args:[context.userId,context.executionMode,route.operation_kind,route.operation_key]})).rows[0];
+      if(!receipt)throw new Phase4SchemaError('v30_route_receipt_missing');
+      let identity=null;
+      if(receipt.content_state==='PRESENT')try {
+        const decoded=verifyV27RouteSource(keys,receipt);
+        identity=decoded.request.request.identity??null;
+      } catch { /* Typed uncertainty: a corrupt payload cannot name a family. */ }
+      for(const metricKey of metricKeys)for(const token of familyTokens) {
+        const key=`${metricKey}:${token}`,prior=candidates.get(key);
+        const matched=identity?.metric===metricKey&&directory.family(context,identity).token===token;
+        if(!prior||matched&&!prior.identity)candidates.set(key,{metricKey,token,identity:matched?{
+          metric:identity.metric,domain:identity.domain,algorithmMajor:identity.algorithmMajor,
+          subject:identity.subject,windowFamily:identity.windowFamily}:null});
+      }
+    }
+    for(const {metricKey,token,identity} of candidates.values()) {
+      await directory.register(context,identity??{metric:metricKey},{legacyToken:identity?null:token,repairInterrupted:true});
+      if(!identity)unknownMetrics.add(metricKey);
+    }
+    for(const metricKey of unknownMetrics)await directory.markUnknown(context,metricKey);
+    for(const metricKey of metrics)await directory.touchSource(context,metricKey);
+    for(const metricKey of metrics)try {await directory.inventory(context,metricKey);}
+    catch(error){if(error?.code!=='PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN')throw error;}
+  }
+  if((await client.execute('PRAGMA integrity_check')).rows[0]?.integrity_check!=='ok')
+    throw new Phase4SchemaError('v30_integrity_check_failed');
+  if((await client.execute('PRAGMA foreign_key_check')).rows.length)
+    throw new Phase4SchemaError('v30_foreign_key_check_failed');
+}
+
 export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSION, options = {}) {
   const migrations = PHASE4_MIGRATIONS.filter(m => m.version <= version);
   const replacements = migrations.flatMap(m=>m.replacements ?? []);
@@ -215,7 +299,7 @@ export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSI
     WHERE legacy_classification IS NOT 'LEGACY_UNVERIFIED' OR insight_key IS NOT NULL OR current_revision IS NOT NULL
       OR evidence_contract_version IS NOT NULL OR lifecycle_disposition IS NOT NULL OR lifecycle_generation IS NOT NULL
       OR auth_generation IS NOT NULL OR input_generation IS NOT NULL LIMIT 1`, 'v23_legacy_insights');
-  for (const table of [...(version >= 23 ? V23_TABLES : []), ...(version >= 24 ? V24_TABLES : []), ...(version >= 25 ? V25_TABLES : []), ...(version >= 26 ? V26_TABLES : []), ...(version >= 27 ? V27_TABLES : []), ...(version >= 29 ? V29_TABLES : [])]) {
+  for (const table of [...(version >= 23 ? V23_TABLES : []), ...(version >= 24 ? V24_TABLES : []), ...(version >= 25 ? V25_TABLES : []), ...(version >= 26 ? V26_TABLES : []), ...(version >= 27 ? V27_TABLES : []), ...(version >= 29 ? V29_TABLES : []), ...(version >= 30 ? V30_TABLES : [])]) {
     await requireZero(client, `SELECT 1 FROM ${table} p LEFT JOIN users u ON u.id=p.user_id WHERE u.id IS NULL LIMIT 1`, `${table}_tenant`);
     if (options.backfillVersion === 24 && V24_TABLES.includes(table)) await requireZero(client,
       `SELECT 1 FROM ${table} WHERE execution_mode <> 'SHADOW' LIMIT 1`, `${table}_no_migration_live`);
@@ -273,6 +357,7 @@ export async function applyPhase4Migrations(client, from, target, options = {}) 
       await client.execute(`DROP ${kind} IF EXISTS ${oldName}`);
     }
     if (migration.version === 29) await backfillV29(client,options.privacyKeys);
+    if (migration.version === 30) await backfillV30(client,options.privacyKeys);
     await verifyPhase4Schema(client, migration.version, { backfill: migration.version === 21, backfillVersion: migration.version });
     if (migration.version === 22) await client.execute(`UPDATE phase4_migration_checkpoints SET postcondition_state='COMPLETE'
       WHERE target_version=22 AND step_key='privacy_backfill'`);

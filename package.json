@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node src/index.js",
     "migrate": "node scripts/migrate.js",
+    "migrate:phase4": "node scripts/phase4-migrate.js",
     "authorize": "node scripts/authorize.js",
     "probe": "node scripts/probe-fields.js",
     "check": "node scripts/preflight.js",

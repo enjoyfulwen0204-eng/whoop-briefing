@@ -54,7 +54,7 @@ import { BRIEFING_TRIGGER } from '../briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../briefingEndpoint.js';
 import { runBriefing } from '../index.js';
 import { runPublicBetaBriefing } from '../publicBetaEntry.js';
-import { publicBetaConfiguration, publicBetaKeysIfPresent } from '../publicBetaConfig.js';
+import { publicBetaConfiguration, phase4AuthorityKeys } from '../publicBetaConfig.js';
 import { createWhoopWebhookIngest, statusForIngest } from '../whoopWebhookIngest.js';
 import { createWhoopOAuthCallback, OAUTH_CALLBACK_PATH, renderScreen } from '../whoopOAuthCallback.js';
 import { handleUnlinkedMessage, handleOnboardingMessage, handleLocaleOnlyMessage,
@@ -420,10 +420,9 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
   const briefingTriggerSecret = process.env.BRIEFING_TRIGGER_SECRET;
   const betaConfig = publicBetaConfiguration(process.env);
-  const betaKeys = publicBetaKeysIfPresent(process.env);
-  if (betaConfig.runtime === 'on' && !betaKeys) throw new Error('PUBLIC_BETA_KEYS_REQUIRED');
+  const authorityKeys = phase4AuthorityKeys(process.env);
 
-  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken, phase4Keys: betaKeys });
+  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken, phase4Keys: authorityKeys });
   await db.migrate();
 
   const coachFor = (userId) => createCoach({

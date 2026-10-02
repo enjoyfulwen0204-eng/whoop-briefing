@@ -13,6 +13,7 @@
 import { loadDotEnvIfPresent, loadEnv, WHOOP_SYNC } from '../src/config.js';
 import { pickUser, lifecycleContextFor } from './pickUser.js';
 import { createDb } from '../src/db.js';
+import { phase4AuthorityKeys } from '../src/publicBetaConfig.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { createSync } from '../src/sync.js';
 
@@ -22,7 +23,8 @@ const env = loadEnv({
 });
 
 const untilDone = process.argv.includes('--until-done');
-const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
+  phase4Keys: phase4AuthorityKeys(process.env) });
 const user = await pickUser(db);
 // ★ R2 / LIFE-FG-03：這一輪的啟用脈絡，往下傳給所有健康寫入。
 const lifecycle = lifecycleContextFor(user);

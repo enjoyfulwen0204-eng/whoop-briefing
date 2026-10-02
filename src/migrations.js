@@ -27,6 +27,8 @@ import {
 } from './schema.js';
 import { log } from './logger.js';
 import { applyPhase4Migrations, Phase4SchemaError } from './phase4Migrations.js';
+import { hasPhase4KeyContinuityAuthority } from './phase4KeyContinuity.js';
+import { requirePhase4Keys } from './phase4Keys.js';
 
 export class UnsafeMigrationError extends Error {
   constructor(message, details) {
@@ -93,6 +95,11 @@ export async function runMigrations(client, { allowRebuild = true, targetVersion
   const from = await currentVersion(client);
   if (!Number.isInteger(targetVersion) || targetVersion < LEGACY_SCHEMA_VERSION || targetVersion > SCHEMA_VERSION
       || from > targetVersion) throw new Phase4SchemaError('schema_version_incompatible');
+  // Only a pre-v21 database with no key authority may bootstrap through v21
+  // without secrets. Check this before any schema or data write, including a
+  // current-schema no-op and a partially applied v21 with checkpoint rows.
+  if (from >= 21 || targetVersion > 21 || await hasPhase4KeyContinuityAuthority(client))
+    requirePhase4Keys(privacyKeys);
   const summary = { from, to: targetVersion, rebuilt: [], created: 0, skipped: from === targetVersion };
 
   if (from < targetVersion) {

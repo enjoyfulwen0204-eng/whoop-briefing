@@ -34,6 +34,10 @@ export function createPhase4Keys({ lookupKey, auditKey }) {
   return keys;
 }
 export function requirePhase4Keys(keys) {
-  if (!keys || !issued.has(keys)) throw new Error('phase4_migration_keys_required');
+  if (!keys || !issued.has(keys)) {
+    const error = new Error('PHASE4_PRIVACY_KEYS_REQUIRED');
+    error.code = 'PHASE4_PRIVACY_KEYS_REQUIRED';
+    throw error;
+  }
   return keys;
 }

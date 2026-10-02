@@ -50,7 +50,7 @@ import { log, describeError } from './logger.js';
 import { checkPeerScheduler } from './schedulerWatchdog.js';
 import { requireTriggerSource } from './schedulerPolicy.js';
 import { runPhase4Stage6 } from './shadowDrainScheduler.js';
-import { publicBetaKeysIfPresent } from './publicBetaConfig.js';
+import { phase4AuthorityKeys } from './publicBetaConfig.js';
 import { deliverPublicBetaSummary } from './publicBetaSummaryDelivery.js';
 import { lifecycleOutputDb, SCHEDULED_OUTPUT_WRITERS } from './lifecycleOutput.js';
 import { withDeliveryAuthorization, isAccountInactiveError } from './accountLifecycle.js';
@@ -590,7 +590,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
   });
 
   const db = deps.db ?? createDb({ url: env.tursoUrl, authToken: env.tursoToken,
-    phase4Keys: publicBetaKeysIfPresent(process.env) });
+    phase4Keys: phase4AuthorityKeys(process.env) });
 
   // 系統層 telegram：只用於「基礎設施故障」通知（Turso 掛了、找不到任何使用者）。
   // chat 用 bootstrap 的 TELEGRAM_CHAT_ID —— 這是唯一還會用到那個 env 的地方。

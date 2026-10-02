@@ -16,6 +16,7 @@
 import { loadDotEnvIfPresent, loadEnv } from '../src/config.js';
 import { pickUser, lifecycleContextFor } from './pickUser.js';
 import { createDb } from '../src/db.js';
+import { phase4AuthorityKeys } from '../src/publicBetaConfig.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { probeCapabilities, STATUS } from '../src/capabilities.js';
 
@@ -25,7 +26,8 @@ const env = loadEnv({
 });
 
 const DAYS = Number(process.env.PROBE_DAYS || 14);
-const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
+  phase4Keys: phase4AuthorityKeys(process.env) });
 
 const MARK = {
   [STATUS.SUPPORTED]: '✅',

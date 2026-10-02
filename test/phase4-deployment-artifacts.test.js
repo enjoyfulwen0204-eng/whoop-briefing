@@ -15,6 +15,13 @@ test('deployment gates retain a reviewed backup, writer drain and staged activat
     'PRAGMA integrity_check', 'PRAGMA foreign_key_check', 'schema',
     'one zh-TW, one en, one vi', 'If only two qualify, presentation remains OFF',
     'Restoring the pre-migration snapshot may discard writes',
+    'FINAL_REVIEWED_RC_SHA', 'Manually deploy', 'maintenance mode **ON**',
+    'public ingress **closed**', 'Render deploy ID', 'deployed commit SHA',
+    'deployed SHA **exactly equal** `FINAL_REVIEWED_RC_SHA`',
+    'deploy status to be successful/live', 'do not reopen ingress',
+    'DB connectivity reports v31', 'Beta SHADOW runtime is OFF',
+    'Public Beta presentation is OFF', 'no LIVE execution exists',
+    'Keep auto-deploy **Off throughout the later push, RC/tag publication, backup, migration, manual RC deployment',
   ]) assert.ok(guide.includes(required), required);
   assert.equal(MAX_ATTEMPTS, 3);
   assert.equal(TIMEOUT_MS, 120_000);

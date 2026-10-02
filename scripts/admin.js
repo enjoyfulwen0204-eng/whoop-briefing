@@ -33,6 +33,7 @@
 
 import { loadDotEnvIfPresent, loadEnv } from '../src/config.js';
 import { createDb } from '../src/db.js';
+import { phase4AuthorityKeys } from '../src/publicBetaConfig.js';
 import { USER_STATUS } from '../src/schema.js';
 
 // ---------------------------------------------------------------------------
@@ -280,7 +281,8 @@ export async function runAdmin({ db, argv, out = console.log }) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   loadDotEnvIfPresent();
   const env = loadEnv({ require: ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'] });
-  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
+    phase4Keys: phase4AuthorityKeys(process.env) });
   let code = 1;
   try {
     await db.migrate();

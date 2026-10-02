@@ -10,6 +10,7 @@
 import { loadDotEnvIfPresent, loadEnv } from '../src/config.js';
 import { pickUser, lifecycleContextFor } from './pickUser.js';
 import { createDb } from '../src/db.js';
+import { phase4AuthorityKeys } from '../src/publicBetaConfig.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { createCoach } from '../src/coach.js';
 import { createTelegram } from '../src/telegram.js';
@@ -37,7 +38,8 @@ try {
 // 它描述的是執行環境，不是任何使用者的時區（L-03）。
 console.log(`現在時間：UTC ${new Date().toISOString()} ／ bootstrap 時區 ${env.timezone} ${localDate(new Date(), env.timezone)} ${localTime(new Date(), env.timezone)}\n`);
 
-const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
+  phase4Keys: phase4AuthorityKeys(process.env) });
 await db.migrate();
 let user;
 try { user = await pickUser(db); } catch (err) {

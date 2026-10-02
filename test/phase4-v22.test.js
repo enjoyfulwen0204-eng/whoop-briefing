@@ -61,7 +61,7 @@ test('v22: complete R expansion, M defaults, keys and intermediate version histo
   await runMigrations(db,options);
   assert.equal(await currentVersion(db),22);
   const missing = await base(t);
-  await assert.rejects(runMigrations(missing,{targetVersion:22}),/phase4_migration_keys_required/);
+  await assert.rejects(runMigrations(missing,{targetVersion:22}),/PHASE4_PRIVACY_KEYS_REQUIRED/);
   assert.equal(await currentVersion(missing),21);
 });
 

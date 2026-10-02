@@ -9,10 +9,12 @@
 
 import { loadDotEnvIfPresent, loadEnv } from '../src/config.js';
 import { createDb } from '../src/db.js';
+import { phase4AuthorityKeys } from '../src/publicBetaConfig.js';
 
 loadDotEnvIfPresent();
 const env = loadEnv({ require: ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'] });
-const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
+  phase4Keys: phase4AuthorityKeys(process.env) });
 
 try {
   await db.migrate();

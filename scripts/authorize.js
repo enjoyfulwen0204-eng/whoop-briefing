@@ -34,6 +34,7 @@ import { URL } from 'node:url';
 import { WHOOP, loadDotEnvIfPresent, loadEnv } from '../src/config.js';
 import { exchangeCode, fetchWhoopUserId } from '../src/whoop.js';
 import { createDb } from '../src/db.js';
+import { phase4AuthorityKeys } from '../src/publicBetaConfig.js';
 import {
   OAuthFlowError, assertAuthorizable, completeAuthorization, prepareAuthorization,
 } from '../src/oauthFlow.js';
@@ -65,7 +66,8 @@ if (!targetUserId) {
   process.exit(1);
 }
 
-const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
+  phase4Keys: phase4AuthorityKeys(process.env) });
 
 /** 換 token 的實作。注入給 completeAuthorization，測試時可換成 mock。 */
 const exchange = ({ code }) => exchangeCode({

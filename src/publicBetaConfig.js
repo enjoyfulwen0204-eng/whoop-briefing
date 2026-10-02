@@ -13,15 +13,18 @@ export function publicBetaConfiguration(env = {}) {
   return Object.freeze({ runtime, policy, mode });
 }
 
-export function publicBetaKeys(env = {}) {
+/** Durable Phase 4 authority is required independently of Beta activation. */
+export function phase4AuthorityKeys(env = {}) {
   const decode = name => {
     const value = env[name];
     if (typeof value !== 'string' || !/^[a-f\d]{64,}$/i.test(value) || value.length % 2)
-      throw new Error('PUBLIC_BETA_KEYS_REQUIRED');
+      throw new Error('PHASE4_PRIVACY_KEYS_REQUIRED');
     return Buffer.from(value, 'hex');
   };
   return createPhase4Keys({ lookupKey: decode('PHASE4_LOOKUP_KEY'), auditKey: decode('PHASE4_AUDIT_KEY') });
 }
+
+export const publicBetaKeys = phase4AuthorityKeys;
 
 export function publicBetaKeysIfPresent(env = {}) {
   if (!env.PHASE4_LOOKUP_KEY && !env.PHASE4_AUDIT_KEY) return undefined;

@@ -5,6 +5,7 @@ import { currentVersion, runMigrations } from '../src/migrations.js';
 import { assertPhase4Schema, verifyPhase4Schema } from '../src/phase4Migrations.js';
 import { V21_SCHEMA } from '../src/phase4Schema.js';
 import { LEGACY_SCHEMA_VERSION, PHASE4_MIGRATIONS } from '../src/schema.js';
+import { fixtureKeys } from './localDb.js';
 
 const now = '2026-09-19T00:00:00.000Z';
 async function fixture(t, populated = true) {
@@ -43,7 +44,7 @@ test('v21: frozen v20 boundary, complete schema and sequential version history',
     && p.morning_brief_mode === 'AFTER_WAKE' && p.after_wake_delay_minutes === 30 && p.fallback_local_time === '10:00'));
   await db.execute("UPDATE user_notification_preferences SET notifications_paused = 1, preference_version = 4 WHERE user_id = 'tenant-a'");
   const snapshot = await rows(db, 'user_notification_preferences');
-  assert.equal((await runMigrations(db, { targetVersion: 21 })).skipped, true);
+  assert.equal((await runMigrations(db, { targetVersion: 21, privacyKeys: fixtureKeys })).skipped, true);
   assert.deepEqual(await rows(db, 'user_notification_preferences'), snapshot);
   assert.deepEqual(await versions(db), [20, 21]);
 });
@@ -131,7 +132,7 @@ test('v21: missing or drifted applied objects are refused, not silently repaired
   await runMigrations(db, { targetVersion: 21 });
   await db.execute('DROP TRIGGER phase4_computation_state_mode_immutable');
   await assert.rejects(assertPhase4Schema(db, 21), /phase4_schema_postcondition_failed/);
-  await assert.rejects(runMigrations(db, { targetVersion: 21 }), /phase4_schema_postcondition_failed/);
+  await assert.rejects(runMigrations(db, { targetVersion: 21, privacyKeys: fixtureKeys }), /phase4_schema_postcondition_failed/);
 });
 
 test('v21: exact startup refuses behind, ahead and absent versions', async t => {

@@ -14,6 +14,12 @@ async function hasTable(client, name) {
   return (await client.execute({ sql: "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", args: [name] })).rows.length === 1;
 }
 
+export async function hasPhase4KeyContinuityAuthority(client) {
+  if (!await hasTable(client, 'phase4_migration_checkpoints')) return false;
+  return (await client.execute(`SELECT 1 FROM phase4_migration_checkpoints
+    WHERE step_key IN ('lookup_key_check','audit_key_check') LIMIT 1`)).rows.length > 0;
+}
+
 async function assertCheckpointStructure(client) {
   const expected = V21_SCHEMA.find(sql => /^CREATE TABLE IF NOT EXISTS phase4_migration_checkpoints\b/.test(sql));
   const actual = (await client.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='phase4_migration_checkpoints'")).rows[0]?.sql;

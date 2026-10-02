@@ -17,6 +17,7 @@
 
 import { loadDotEnvIfPresent, loadEnv } from '../config.js';
 import { createDb } from '../db.js';
+import { phase4AuthorityKeys } from '../publicBetaConfig.js';
 import { createCoach } from '../coach.js';
 import { createTelegramApi } from './api.js';
 import { createPoller } from './polling.js';
@@ -90,7 +91,8 @@ export async function main({ maxIterations = Infinity } = {}) {
   loadDotEnvIfPresent();
   const env = loadEnv();
 
-  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
+    phase4Keys: phase4AuthorityKeys(process.env) });
   await db.migrate();
 
   // coach 要 per-user 建立，ai_usage 才會記在正確的人身上

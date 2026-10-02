@@ -25,6 +25,14 @@ const base = (overrides = {}) => ({
   path: BRIEFING_TRIGGER.PATH, body: '{}', ...overrides,
 });
 
+test('reviewed Worker trigger is the Stage 6 window and keeps the authenticated Render endpoint', () => {
+  const config = readFileSync(new URL('../cloudflare/briefing-scheduler/wrangler.toml', import.meta.url), 'utf8');
+  assert.match(config, /crons = \["\*\/10 0-3 \* \* \*"\]/);
+  assert.doesNotMatch(config, /crons = \["\*\/10 \* \* \* \*"\]/);
+  assert.match(config, /BRIEFING_ENDPOINT_URL = "https:\/\/whoop-telegram-webhook\.onrender\.com\/internal\/briefing\/run"/);
+  assert.doesNotMatch(config, /^BRIEFING_TRIGGER_SECRET\s*=/m);
+});
+
 test('HMAC canonicalization matches Worker Web Crypto signing', async () => {
   const args = base({ requestId: 'request_1234567890' });
   assert.equal(await signRequest(args, SECRET), signTriggerRequest(args, SECRET));

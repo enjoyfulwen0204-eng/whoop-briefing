@@ -50,7 +50,7 @@ Cloudflare's later target cron is `*/10 0-3 * * *` (08:00 to before 12:00 Asia/T
 ## Rollback after any later activation
 
 1. Set `PHASE4_PUBLIC_BETA_MODE=off` on all active beta runtimes. This stops the new post-drain summary without altering legacy reports.
-2. Set `PHASE4_BETA_SHADOW_RUNTIME=off`. Restore the prior GitHub command and Render beta composition if activation changed them.
+2. Set `PHASE4_BETA_SHADOW_RUNTIME=off`. Keep GitHub and Render pinned to the reviewed v31-compatible release tree. Never restore the old `main` binary or `npm start` scheduled workflow against v31.
 3. Restore the prior Cloudflare cron/configuration if changed; verify the authenticated endpoint and hourly fallback.
 4. Preserve all v28/v29/v30/v31 data, operation receipts, keys and user data. No DB rollback, deletion, migration downgrade, or LIVE mode promotion.
 

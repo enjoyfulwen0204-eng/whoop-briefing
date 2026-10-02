@@ -1,6 +1,7 @@
 import { PHASE4_MIGRATIONS, SCHEMA_VERSION } from './schema.js';
 import { backfillV22, verifyV22Data } from './phase4V22Backfill.js';
 import { requirePhase4Keys } from './phase4Keys.js';
+import { establishPhase4KeyContinuity } from './phase4KeyContinuity.js';
 import { V23_TABLES } from './phase4V23Schema.js';
 import { V27_TABLES } from './phase4V27Schema.js';
 import { V26_TABLES } from './phase4V26Schema.js';
@@ -350,9 +351,11 @@ export async function assertPhase4Schema(client, expected = EXPECTED_SCHEMA_VERS
 export async function applyPhase4Migrations(client, from, target, options = {}) {
   const applied = [];
   if (from < 22 && target >= 22) requirePhase4Keys(options.privacyKeys);
+  if (from >= 21 && options.privacyKeys) await establishPhase4KeyContinuity(client, options.privacyKeys, from);
   // Applied versions are immutable. Do not repair drift with IF NOT EXISTS.
   if (from >= 21) await verifyPhase4Schema(client, from, { resuming: from < target });
   for (const migration of PHASE4_MIGRATIONS.filter(m => m.version > from && m.version <= target)) {
+    if (migration.version === 22) await establishPhase4KeyContinuity(client, options.privacyKeys, 21);
     for (const ddl of migration.ddl) {
       await client.execute(ddl);
       await verifyPhase4Definition(client, ddl);

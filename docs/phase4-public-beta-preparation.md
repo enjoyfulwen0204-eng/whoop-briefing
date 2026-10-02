@@ -30,7 +30,7 @@ A summary is sent at most once per user and local date. The existing durable `re
 | Setting | Preparation/default | Proposed initial cohort | Expansion | Rollback |
 | --- | --- | --- | --- | --- |
 | `PHASE4_BETA_SHADOW_RUNTIME` | `off` | `on` in explicit beta composition | `on` | `off` |
-| `PHASE4_PUBLIC_BETA_MODE` | `off` | `allowlist` | `all` after review | `off` first |
+| `PHASE4_PUBLIC_BETA_MODE` | `off` | `allowlist` only after three READY controlled users | No `all` rollout authorized | `off` first |
 | `PHASE4_PUBLIC_BETA_USER_IDS` | empty | canonical internal `users.id` list | update list | empty |
 | `PHASE4_LOOKUP_KEY`, `PHASE4_AUDIT_KEY` | existing Phase 4 authority | retain same keys | retain | retain, never rotate as rollback |
 | 13 Foundation `PHASE4_*` flags | off | off | off | off |
@@ -45,7 +45,7 @@ The lookup and audit keys are distinct hex-encoded secrets of at least 32 bytes 
 4. Verify production beta gate values, cohort IDs, Phase 4 key authority and the current scheduler overlap behavior in each runtime. Repository files do not prove live state.
 5. Record the prior live values before any activation. Do not infer them from this branch.
 
-Cloudflare's later target cron is `*/10 0-3 * * *` (08:00 to before 12:00 Asia/Taipei); checked-in cadence remains unchanged in preparation. GitHub remains hourly and follows the Stage 6 fallback policy. Activation review must decide and verify any live scheduler change.
+The checked-in Cloudflare Worker target is already `*/10 0-3 * * *` UTC (08:00 to before 12:00 Asia/Taipei). The live provider trigger has not been changed by this repository preparation and must be read back during deployment. GitHub remains hourly and follows the Stage 6 fallback policy. Use the [deployment control](phase4-deployment-control.md) quiet-window and staged activation gates for any live scheduler change.
 
 ## Rollback after any later activation
 

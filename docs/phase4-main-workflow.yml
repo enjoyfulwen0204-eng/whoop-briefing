@@ -1,0 +1,56 @@
+# Deployment artifact only. Do not install on main until the reviewed release SHA
+# replaces REVIEWED_RELEASE_SHA and the workflow is disabled/read back.
+name: WHOOP 早晨簡報
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: whoop-briefing
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: REVIEWED_RELEASE_SHA
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Run reviewed v31-compatible stage
+        shell: bash
+        env:
+          WHOOP_CLIENT_ID: ${{ secrets.WHOOP_CLIENT_ID }}
+          WHOOP_CLIENT_SECRET: ${{ secrets.WHOOP_CLIENT_SECRET }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: anthropic/claude-sonnet-5
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          PHASE4_LOOKUP_KEY: ${{ secrets.PHASE4_LOOKUP_KEY }}
+          PHASE4_AUDIT_KEY: ${{ secrets.PHASE4_AUDIT_KEY }}
+          PHASE4_BETA_SHADOW_RUNTIME: ${{ vars.PHASE4_BETA_SHADOW_RUNTIME }}
+          PHASE4_PUBLIC_BETA_MODE: ${{ vars.PHASE4_PUBLIC_BETA_MODE }}
+          PHASE4_PUBLIC_BETA_USER_IDS: ${{ vars.PHASE4_PUBLIC_BETA_USER_IDS }}
+          TIMEZONE: Asia/Taipei
+        run: |
+          case "$PHASE4_BETA_SHADOW_RUNTIME:$PHASE4_PUBLIC_BETA_MODE" in
+            off:off) npm start ;;
+            on:off) node src/publicBetaEntry.js ;;
+            on:allowlist)
+              IFS=',' read -r -a cohort <<< "$PHASE4_PUBLIC_BETA_USER_IDS"
+              if [ "${#cohort[@]}" -ne 3 ]; then
+                echo "Three reviewed cohort IDs are required" >&2; exit 1
+              fi
+              node src/publicBetaEntry.js ;;
+            *) echo "Invalid staged Beta configuration" >&2; exit 1 ;;
+          esac

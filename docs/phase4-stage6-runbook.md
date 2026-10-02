@@ -75,7 +75,7 @@ All scheduling windows use Asia/Taipei; tenant health calculations continue usin
 
 The deadline is checked throughout owned canonical work and before settlement. Reaching it rolls back the current unit and yields without recording a calculation failure. These are derived-work budgets, not a guarantee about preceding sync/report/provider latency in the shared runner. The existing Cloudflare transport timeout is 120 seconds; future activation must measure total runner and cold-start latency on its actual database/runtime. No remote-load or production latency claim is made from local synthetic tests.
 
-Future Cloudflare cron: `*/10 0-3 * * *`. Keep it inert until activation approval. GitHub stays hourly and executes directly on GitHub infrastructure. Deployment files and live schedulers were not changed. Database ownership is the final overlap protection.
+The checked-in Cloudflare target is `*/10 0-3 * * *` UTC; the actual live trigger remains unchanged until a separately authorized deployment and must be read back. GitHub stays hourly and executes directly on GitHub infrastructure. The [deployment control](phase4-deployment-control.md) governs the quiet window and staged activation. Database ownership is the final overlap protection.
 
 Only successful real scheduler invocations update `briefing_cloudflare` or `briefing_github`, plus aggregate `cron`. An all-job Stage 6 failure makes the shared run unhealthy and suppresses successful liveness even if no report was due. A partial tenant failure remains visible in the Stage 6 summary while unrelated work proceeds.
 

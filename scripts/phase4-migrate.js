@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { currentVersion, inspectReshape, runMigrations } from '../src/migrations.js';
 import { assertPhase4Schema } from '../src/phase4Migrations.js';
 import { createPhase4Keys } from '../src/phase4Keys.js';
+import { establishPhase4KeyContinuity } from '../src/phase4KeyContinuity.js';
 
 const PRESERVED = ['users', 'user_telegram', 'user_whoop_tokens', 'whoop_sleeps',
   'whoop_recoveries', 'whoop_cycles', 'whoop_workouts', 'journal_events', 'report_runs'];
@@ -17,9 +18,15 @@ function keyFromEnv(env, name) {
   return Buffer.from(value, 'hex');
 }
 function targetIdentity(url) {
-  const target = new URL(url);
+  let target;
+  try { target = new URL(url); } catch { fail('MIGRATION_TARGET_INVALID'); }
   if (target.protocol === 'file:') return target.href;
-  if (target.protocol !== 'libsql:' && target.protocol !== 'https:') fail('MIGRATION_TARGET_INVALID');
+  if (target.protocol !== 'libsql:' || target.hostname !== PRODUCTION_HOST
+      || target.username || target.password || target.port
+      || (target.pathname !== '' && target.pathname !== '/')
+      || target.search || target.hash
+      || (url !== `libsql://${PRODUCTION_HOST}` && url !== `libsql://${PRODUCTION_HOST}/`))
+    fail('MIGRATION_TARGET_INVALID');
   return target.hostname;
 }
 async function count(client, table) {
@@ -42,12 +49,19 @@ function assertHealthy(check) {
 export async function controlledMigration(client, { apply, keys }) {
   const from = await currentVersion(client);
   if (from < 20 || from > 31) fail('MIGRATION_VERSION_OUT_OF_RANGE');
-  const shape = await inspectReshape(client);
-  if (shape.blocked.length || shape.rebuild.length) fail('MIGRATION_RESHAPE_BLOCKED');
   const beforeHealth = await health(client);
   assertHealthy(beforeHealth);
+  // v21 introduces the frozen checkpoint table and has no key-derived writes.
+  // Preflight on v20 intentionally performs this one-time bootstrap; it must
+  // therefore run only after the verified backup and writer quiet-window gate.
+  if (from === 20) await runMigrations(client, { allowRebuild: false, targetVersion: 21 });
+  await establishPhase4KeyContinuity(client, keys, Math.max(from, 21));
+  const shape = await inspectReshape(client);
+  if (shape.blocked.length || shape.rebuild.length) fail('MIGRATION_RESHAPE_BLOCKED');
   const before = await snapshot(client);
-  if (!apply) return { mode: 'preflight', from, target: 31, health: beforeHealth, preservedCounts: before };
+  if (from === 31) await assertPhase4Schema(client, 31);
+  if (!apply) return { mode: 'preflight', from, target: 31, checkpointBootstrapVersion: from === 20 ? 21 : null,
+    health: beforeHealth, preservedCounts: before };
   const result = await runMigrations(client, { allowRebuild: false, targetVersion: 31, privacyKeys: keys });
   await assertPhase4Schema(client, 31);
   const afterHealth = await health(client);
@@ -63,7 +77,7 @@ export async function controlledMigration(client, { apply, keys }) {
   if (live !== 0) fail('MIGRATION_CREATED_LIVE_STATE');
   const bodyEnergyRows = await count(client, 'body_energy_results');
   if (from === 20 && bodyEnergyRows !== 0) fail('MIGRATION_BODY_ENERGY_CREATED');
-  return { mode: 'apply', from, target: 31, versionsApplied: result.versionsApplied,
+  return { mode: 'apply', from, target: 31, versionsApplied: [...(from === 20 ? [21] : []), ...result.versionsApplied],
     health: afterHealth, preservedCounts: after, localeRows, computationRows: liveRows,
     liveRows: live, bodyEnergyRows };
 }
@@ -115,7 +129,12 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
-    console.error(error?.code && /^MIGRATION_/.test(error.code) ? error.code : 'MIGRATION_FAILED');
+    const continuityCodes = new Set(['PHASE4_AUDIT_KEY_CONTINUITY_UNPROVEN',
+      'PHASE4_LOOKUP_KEY_CONTINUITY_UNPROVEN', 'PHASE4_AUDIT_KEY_MISMATCH',
+      'PHASE4_LOOKUP_KEY_MISMATCH', 'PHASE4_KEY_CHECKPOINT_STORAGE_REQUIRED',
+      'PHASE4_KEY_CHECKPOINT_STORAGE_INVALID']);
+    console.error(error?.code && (/^MIGRATION_/.test(error.code) || continuityCodes.has(error.code))
+      ? error.code : 'MIGRATION_FAILED');
     process.exitCode = 1;
   });
 }

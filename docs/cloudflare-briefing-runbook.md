@@ -1,14 +1,18 @@
 # Cloudflare briefing scheduler runbook (V1.2)
 
 This runbook is intentionally inert. Commands below are for a reviewed production change window.
+For the Phase 4 v31 transition, [deployment control](phase4-deployment-control.md) is authoritative.
+Its checked-in Worker target is `*/10 0-3 * * *` UTC. The live provider trigger is
+unverified here and remains unchanged until a separately authorized deployment.
 
 ## V1.2 scheduler facts
 
 | Item | Value |
 |---|---|
-| Repository schema | **20** |
+| Historical V1.2 schema | **20**; Phase 4 repository target is **31** |
 | Canonical timezone | **Asia/Taipei** (Kelvin's stored `users.timezone`) |
-| Primary scheduler | Cloudflare Worker Cron, **every 10 minutes** |
+| Historical V1.2 primary scheduler | Cloudflare Worker Cron, **every 10 minutes all day** |
+| Phase 4 repository target | Cloudflare Worker Cron, `*/10 0-3 * * *` UTC |
 | Fallback scheduler | GitHub Actions, **hourly at minute 17** |
 | Wake readiness | main sleep SCORED + matching recovery SCORED + ≥ 30 min since sleep end |
 | Normal delivery | `age ≤ 24 h` |
@@ -18,7 +22,7 @@ This runbook is intentionally inert. Commands below are for a reviewed productio
 
 ## Architecture
 
-Cloudflare Cron (`*/10 * * * *`, UTC) signs a small POST to
+The historical V1.2 Cloudflare Cron (`*/10 * * * *`, UTC) signs a small POST to
 `https://<render-host>/internal/briefing/run`. The Render webhook service awaits the existing
 canonical briefing runner. GitHub Actions runs that same runner directly at `17 * * * *` as an
 independent hourly backup. Overlap is safe because `report_claims` enforces at most one accepted
@@ -72,7 +76,7 @@ value. HTTP 200 alone means only that the web process is live; scheduler readine
 |---|---|
 | `BRIEFING_ENDPOINT_URL` | `[vars]` in `wrangler.toml`, replaced from the placeholder |
 | `BRIEFING_TRIGGER_SECRET` | `wrangler secret put` — never in `wrangler.toml`, never in git |
-| Cron trigger | `*/10 * * * *` |
+| Historical V1.2 Cron trigger | `*/10 * * * *`; Phase 4 checked-in target is `*/10 0-3 * * *` |
 
 ## Provision and validate
 
@@ -91,13 +95,17 @@ value. HTTP 200 alone means only that the web process is live; scheduler readine
    `BRIEFING_TRIGGER_SECRET` to the existing Render webhook service. Preserve its existing
    Telegram bot token, Turso, and OpenRouter settings.
 6. Deploy the reviewed Render SHA first, verify `/health`, then deploy with `wrangler deploy`.
-7. Confirm the Cron Trigger is `*/10 * * * *`; do not use cron time as a health date.
+7. For Phase 4, follow the staged transition and read back only `*/10 0-3 * * *` after propagation; do not use cron time as a health date.
 8. Confirm GitHub's workflow remains enabled at `17 * * * *`; it requires its existing seven
    repository secrets and no trigger secret.
 9. Observe a natural invocation: authenticated request, aggregate completion, per-source heartbeat,
    and no duplicate report. Do not manually generate a briefing as a smoke test.
 
 ## Rotation and rollback
+
+These are historical V1.2 controls. After Phase 4 v31 migration, use the
+[v31-compatible rollback contract](phase4-deployment-control.md#rollback-and-disaster-recovery);
+the old v20 binary cannot run against v31.
 
 - Rotation: update Render and Worker secret during one controlled window. Brief authentication
   failures are safe and non-retryable; never log either value.
@@ -114,7 +122,8 @@ third-party monitor is required; this repository cannot truthfully detect total 
 
 ## Free-plan operating envelope
 
-At a ten-minute cadence this Worker uses 144 invocations/day and at most three outbound subrequests
+The historical all-day cadence uses 144 invocations/day. The checked-in Phase 4
+morning-window target uses 24 invocations/day. Each invocation makes at most three outbound subrequests
 per invocation. The Worker performs only UUID generation, SHA-256/HMAC, one small fetch, bounded
 response draining, and short retry waits. Each request timeout is two minutes and three attempts fit
 inside Cloudflare's 15-minute Cron wall-time limit. Network wait does not consume CPU time, but the

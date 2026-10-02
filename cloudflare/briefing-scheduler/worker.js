@@ -1,6 +1,8 @@
 const PATH = '/internal/briefing/run';
-const MAX_ATTEMPTS = 3;
-const TIMEOUT_MS = 120_000;
+export const MAX_ATTEMPTS = 3;
+export const TIMEOUT_MS = 120_000;
+export const MAX_CONFIGURED_WINDOW_MS = MAX_ATTEMPTS * TIMEOUT_MS
+  + Array.from({ length: MAX_ATTEMPTS - 1 }, (_, i) => (i + 1) * 500).reduce((a, b) => a + b, 0);
 
 function hex(bytes) {
   return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');

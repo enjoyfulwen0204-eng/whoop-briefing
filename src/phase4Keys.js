@@ -7,8 +7,16 @@ export function createPhase4Keys({ lookupKey, auditKey }) {
   const lookup = Buffer.from(lookupKey ?? []), audit = Buffer.from(auditKey ?? []);
   if (lookup.length < 32 || audit.length < 32 || lookup.equals(audit)) throw new Error('phase4_distinct_keys_required');
   const hmac = (key, value) => createHmac('sha256', key).update(JSON.stringify(value)).digest('hex');
+  const verifyHex = (stored, expected) => typeof stored === 'string' && /^[a-f0-9]{64}$/.test(stored)
+    && timingSafeEqual(Buffer.from(stored, 'hex'), Buffer.from(expected, 'hex'));
+  const lookupCheck = hmac(lookup, ['phase4-lookup-key-check-v1']);
+  const auditCheck = hmac(audit, ['phase4-audit-key-check-v1']);
   const keys = Object.freeze({
     lookup: tuple => hmac(lookup, tuple),
+    lookupCheckpoint: () => lookupCheck,
+    auditCheckpoint: () => auditCheck,
+    verifyLookupCheckpoint: stored => verifyHex(stored, lookupCheck),
+    verifyAuditCheckpoint: stored => verifyHex(stored, auditCheck),
     newSalt: () => randomBytes(32).toString('hex'),
     digest: (salt, value) => {
       if (typeof salt !== 'string' || !/^[a-f0-9]{64}$/.test(salt)) throw new Error('phase4_hash_context_required');

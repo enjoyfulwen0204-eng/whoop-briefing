@@ -53,7 +53,9 @@ export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthori
     return modeAuthority(mode,connection);
   }
   const keyCheck=(await client.execute("SELECT last_cursor FROM phase4_migration_checkpoints WHERE target_version=22 AND step_key='lookup_key_check'")).rows[0];
-  if(keyCheck?.last_cursor!==keys.lookup(['phase4-lookup-key-check-v1']))fail('PHASE4_LOOKUP_KEY_MISMATCH');
+  if(!keys.verifyLookupCheckpoint(keyCheck?.last_cursor))fail('PHASE4_LOOKUP_KEY_MISMATCH');
+  const auditCheck=(await client.execute("SELECT last_cursor FROM phase4_migration_checkpoints WHERE target_version=22 AND step_key='audit_key_check'")).rows[0];
+  if(!keys.verifyAuditCheckpoint(auditCheck?.last_cursor))fail('PHASE4_AUDIT_KEY_MISMATCH');
   const contexts=new WeakSet(),controls=new WeakSet(),privacyControls=new WeakSet(),sources=new WeakMap(),columns=new Map();
   const timestamp=()=>{const value=now();if(!(value instanceof Date) || !Number.isFinite(value.getTime()))fail('PHASE4_INVALID_CLOCK');return value.toISOString();};
   const contextRegistry=createPhase4ContextRegistry({client,keys,now,timestamp,newId:()=>randomUUID()});

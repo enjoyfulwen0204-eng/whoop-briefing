@@ -113,7 +113,7 @@ export async function backfillV22(client, { privacyKeys, experimentAttestations 
   await client.execute({sql:`INSERT INTO phase4_migration_checkpoints
     (target_version,step_key,last_cursor,postcondition_state,updated_at)
     VALUES (22,'lookup_key_check',?,'COMPLETE',?) ON CONFLICT DO NOTHING`,args:[keyCheck,new Date().toISOString()]});
-  if ((await client.execute("SELECT last_cursor FROM phase4_migration_checkpoints WHERE target_version=22 AND step_key='lookup_key_check'")).rows[0].last_cursor !== keyCheck) {
+  if (!keys.verifyLookupCheckpoint((await client.execute("SELECT last_cursor FROM phase4_migration_checkpoints WHERE target_version=22 AND step_key='lookup_key_check'")).rows[0]?.last_cursor)) {
     throw new Error('phase4_lookup_key_mismatch');
   }
   await client.execute({ sql: `INSERT INTO phase4_migration_checkpoints(target_version,step_key,postcondition_state,updated_at)

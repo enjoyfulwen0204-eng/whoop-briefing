@@ -127,7 +127,7 @@ test('★★★ 對外文字絕不出現 WHOOP Age 或官方 Healthspan 評分',
     const text = renderPersonalHealthspan(buildPersonalHealthspan(rowsFor(n)));
     assert.ok(!/WHOOP Age/i.test(text), `n=${n}：不可以出現 WHOOP Age`);
     assert.ok(!/WHOOP\s*Healthspan/i.test(text), `n=${n}：不可以出現 WHOOP Healthspan`);
-    assert.match(text, /Personal Healthspan/);
+    assert.match(text, /長期生理盤點/);
   }
 });
 
@@ -362,7 +362,7 @@ test('★★★ Alice 與 Bob 的 healthspan 完全隔離（同日期、同版�
 test('★★ /healthspan 在零資料時給誠實的回覆', async () => {
   await withDb(async (db) => {
     const text = await handleHealthspan({ db, userId: ALICE.id, rows: [] });
-    assert.match(text, /Personal Healthspan/);
+    assert.match(text, /長期生理盤點/);
     assert.match(text, /尚未開始累積/);
     assert.ok(!/WHOOP Age/i.test(text));
   });
@@ -382,7 +382,7 @@ test('★ /healthspan 會列出每一項指標拿不拿得到', async () => {
   await withDb(async (db) => {
     const text = await handleHealthspan({ db, userId: ALICE.id, rows: rowsFor(90) });
     assert.match(text, /目前盤點到的指標/);
-    assert.match(text, /hrv/);
-    assert.match(text, /steps/);   // APP_ONLY 的也要誠實列出來
+    assert.match(text, /HRV/);
+    assert.match(text, /步數/);   // APP_ONLY 的也要誠實列出來
   });
 });

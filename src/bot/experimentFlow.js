@@ -19,14 +19,8 @@ export const FLOW = 'experiment_create';
 
 /** 依序要問的五個問題。 */
 export const STEPS = [
-  { key: 'name', question: '這個實驗要叫什麼名字？（例如「睡前不喝咖啡」）' },
-  { key: 'hypothesis', question: '你的假設是什麼？（例如「深睡會變多」；沒有就回「跳過」）' },
-  { key: 'intervention', question: '具體要做什麼？（例如「14:00 後不攝取咖啡因」）' },
-  {
-    key: 'target_metric',
-    question: '要觀察哪個指標？（例如 深睡、恢復、HRV、睡眠效率）',
-  },
-  { key: 'duration_days', question: '打算做幾天？（建議 14 天以上，直接回數字）' },
+  { key: 'name' }, { key: 'hypothesis' }, { key: 'intervention' },
+  { key: 'target_metric' }, { key: 'duration_days' },
 ];
 
 const SKIP = /^(跳過|skip|無|沒有|-)$/i;
@@ -38,7 +32,7 @@ const metricFor = (key, locale) => t(locale, metricKeys.has(key)
   ? `answer.metric.${key}` : 'answer.metricUnknown');
 const statusFor = (status, locale) => t(locale, `experiment.status.${Object.values(EXPERIMENT_STATUS).includes(status)
   ? status : 'UNKNOWN'}`);
-const dateFor = (date, locale) => date && locale !== 'zh-TW' ? formatLocalDate(date, locale) : date;
+const dateFor = (date, locale) => date ? formatLocalDate(date, locale) : date;
 
 /** 開始建立流程。 */
 export async function beginCreate({ db, userId, chatId, now, locale = 'zh-TW' }) {

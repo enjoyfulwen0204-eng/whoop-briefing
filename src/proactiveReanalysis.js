@@ -224,7 +224,7 @@ export async function reanalyzeAfterAnswer({
     const knownMetric = ['hrv','rhr','recovery','respiratory_rate'].includes(metric);
     const quality = ['INSUFFICIENT','LOW_CONFIDENCE','MODERATE','BETTER_SUPPORTED']
       .includes(assoc.data_quality) ? assoc.data_quality : 'INSUFFICIENT';
-    const presented = locale === 'zh-TW' ? statement : knownFactor && knownMetric
+    const presented = knownFactor && knownMetric
       ? t(locale, 'proactive.associationStatement', {
         factor:t(locale, `factor.${factor}`), metric:t(locale, `metric.${metric}`),
         direction:t(locale, `proactive.association${assoc.pearson > 0 ? 'Positive' : 'Negative'}`),
@@ -232,10 +232,10 @@ export async function reanalyzeAfterAnswer({
         quality:t(locale, `proactive.quality.${quality}`),
       }) : null;
     if (presented) {
+    const publicStatuses = new Set(['NEW','HYPOTHESIS','EMERGING','SUPPORTED','WEAKENED','RETIRED']);
     const raw = buildFollowUpMessage({ statement:presented,
-      fromStatus:locale === 'zh-TW' ? (fromStatus ?? 'NEW')
-        : t(locale, `proactive.status.${fromStatus ?? 'NEW'}`),
-      toStatus:locale === 'zh-TW' ? toStatus : t(locale, `proactive.status.${toStatus}`),
+      fromStatus:t(locale, `proactive.status.${publicStatuses.has(fromStatus) ? fromStatus : 'NEW'}`),
+      toStatus:t(locale, `proactive.status.${publicStatuses.has(toStatus) ? toStatus : 'NEW'}`),
     }, locale);
     // 這則訊息會帶 r 值與樣本數，所以一定要把確定性的分析結果當成
     // evidenceContext 交給守門，否則 fail-closed 的數字檢查會（正確地）擋下它。

@@ -36,7 +36,7 @@ import { ONBOARDING } from './config.js';
 import { ONBOARDING_STATE, ONBOARDING_FAILURE, USER_STATUS } from './schema.js';
 import { prepareAuthorization, OAuthFlowError } from './oauthFlow.js';
 import { log } from './logger.js';
-import { LANGUAGE_SELECTOR, normalizeLocale, t } from './localization.js';
+import { LANGUAGE_SELECTOR, UNSET_START_HINT, UNSET_UNAVAILABLE, normalizeLocale, t } from './localization.js';
 
 /** `/start`（可帶 Telegram deep-link payload，忽略內容）。 */
 export const START_COMMAND = /^\/start(?:@\w+)?(?:\s+\S+)?\s*$/i;
@@ -288,12 +288,12 @@ export async function handleUnlinkedMessage({
   const raw = String(text ?? '').trim();
   if (!START_COMMAND.test(raw)) {
     // 不是 /start：給指引而不是沉默，但**不做任何事**。
-    return '🌐 Choose language / 選擇語言 / Chọn ngôn ngữ\nUse /start · 輸入 /start · Nhập /start';
+    return UNSET_START_HINT;
   }
 
   const resolved = await resolveOrCreateUser({ db, chatId, message, now });
   if (!resolved.user) {
-    return 'Setup unavailable; contact an administrator / 無法設定，請聯絡管理者 / Không thể thiết lập; hãy liên hệ quản trị viên';
+    return UNSET_UNAVAILABLE;
   }
   if (!(await db.getLocale(resolved.user.id))) return LANGUAGE_SELECTOR;
   return continueOnboarding({

@@ -62,7 +62,7 @@ function briefingFor(mode) {
   // 30/30：完整成熟
   return {
     stage: 'full', sampleCount: 30, healthDate: '2026-09-12',
-    trends: { level: 'normal', alerts: [{ label: 'HRV', types: ['worsening'], series: [{ display: '40ms' }, { display: '36ms' }, { display: '33ms' }] }] },
+    trends: { level: 'normal', alerts: [{ key: 'hrv', label: 'HRV', types: ['worsening'], series: [{ display: '40ms' }, { display: '36ms' }, { display: '33ms' }] }] },
     metrics: [
       metric('recovery_score', '恢復', '28%', { baselineDisplay: '62%', severity: 'red', pct: -54.8 }),
       metric('sleep_total', '睡眠', '7h12m', { baselineDisplay: '7h05m', severity: 'normal', pct: 1.6 }),

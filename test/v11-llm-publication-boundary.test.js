@@ -37,7 +37,7 @@ const BRIEFING = {
   stage: 'full',
   sampleCount: 30,
   healthDate: '2026-09-12',
-  trends: { alerts: [{ label: 'HRV' }] },
+  trends: { alerts: [{ key: 'hrv', label: 'HRV' }] },
   metrics: [
     { key: 'recovery_score', label: '恢復', display: '28%', available: true, baselineDisplay: '62%', severity: 'red', calibrating: false },
     { key: 'sleep_total', label: '睡眠', display: '7h12m', available: true, baselineDisplay: '7h05m', severity: 'normal', calibrating: false },

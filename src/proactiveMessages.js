@@ -49,20 +49,15 @@ export function stageAllowsMessaging(stage) {
   return stage === COLD_START_STAGE.STAGE_3 || stage === COLD_START_STAGE.STAGE_4;
 }
 
-const SAFETY_LINE = '如果你覺得不舒服，建議考慮休息、就醫或諮詢醫療專業人員——我沒有能力做任何醫療判斷。';
-
-const METRIC_LABEL = { hrv: 'HRV', rhr: '靜息心率', recovery: '恢復分數', respiratory_rate: '呼吸率' };
-const DIRECTION_WORD = { low: '偏低', high: '偏高', flat: '有變化' };
-const LEVEL_WORD = { [DEVIATION.STRONG]: '，而且幅度不小', [DEVIATION.NOTABLE]: '' };
+const PUBLIC_METRICS = new Set(['hrv','rhr','recovery','respiratory_rate']);
 
 /**
  * NOTIFY 決策的訊息樣板（沒有問句，因為 NOTIFY 就是「不問，只告知」）。
  * 純樣板，不經過 LLM。
  */
 export function buildNotifyMessage(signal, locale = 'zh-TW') {
-  const metricKey = `metric.${signal.metric}`;
-  const metric = locale === 'zh-TW' ? (METRIC_LABEL[signal.metric] ?? signal.metric)
-    : t(locale, metricKey);
+  const metric = t(locale, PUBLIC_METRICS.has(signal.metric)
+    ? `metric.${signal.metric}` : 'answer.metricUnknown');
   const direction = t(locale, `proactive.direction.${signal.direction ?? 'flat'}`);
   const level = signal.level === DEVIATION.STRONG
     ? t(locale, 'proactive.level.strong') : t(locale, 'proactive.level.notable');

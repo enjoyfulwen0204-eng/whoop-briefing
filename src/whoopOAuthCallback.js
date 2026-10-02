@@ -49,51 +49,11 @@ const FAILURE_BY_CODE = {
 };
 
 /** 畫面代碼 → 標題與內文。**全部是常數**，沒有任何外部字串。 */
-const SCREENS = {
-  ok: {
-    status: 200,
-    title: '連接完成',
-    heading: '✅ WHOOP 已連接',
-    body: '你可以關掉這個分頁，回到 Telegram。資料同步完成之後，助理會通知你。',
-  },
-  denied: {
-    status: 400,
-    title: '授權未完成',
-    heading: '授權未完成',
-    body: '你在 WHOOP 的頁面取消了授權，或授權沒有完成。回到 Telegram 輸入 /connect 可以重新取得一條連結。',
-  },
-  state_invalid: {
-    status: 400,
-    title: '連結已失效',
-    heading: '這條連結已經失效',
-    body: '授權連結是一次性的，而且有時效。回到 Telegram 輸入 /connect 取得一條新的。',
-  },
-  identity: {
-    status: 400,
-    title: '無法確認帳號',
-    heading: '無法確認這是哪個 WHOOP 帳號',
-    body: '為了避免把別人的資料算到你身上，這次授權已經中止，沒有儲存任何東西。回到 Telegram 輸入 /connect 再試一次。',
-  },
-  already_linked: {
-    status: 409,
-    title: '帳號已被連接',
-    heading: '這個 WHOOP 帳號已經連到另一個使用者',
-    body: '請改用你自己的 WHOOP 帳號。回到 Telegram 輸入 /connect 再試一次。',
-  },
-  mismatch: {
-    status: 409,
-    title: '帳號不一致',
-    heading: '這個帳號先前連的是另一個 WHOOP 帳號',
-    body: '換帳號會讓既有的健康資料被錯誤歸屬，因此擋下來了。需要換人請聯絡管理者。',
-  },
-  error: {
-    status: 500,
-    title: '暫時無法完成',
-    heading: '暫時無法完成授權',
-    body: '這是系統端的暫時問題。回到 Telegram 輸入 /connect 稍後再試一次。',
-  },
-  not_found: { status: 404, title: '找不到', heading: '找不到這個頁面', body: '' },
-};
+const SCREENS = Object.freeze({
+  ok: { status: 200 }, denied: { status: 400 }, state_invalid: { status: 400 },
+  identity: { status: 400 }, already_linked: { status: 409 }, mismatch: { status: 409 },
+  error: { status: 500 }, not_found: { status: 404 },
+});
 
 const FAILURE_SCREEN = {
   [ONBOARDING_FAILURE.OAUTH_DENIED]: 'denied',
@@ -119,11 +79,9 @@ export function escapeHtml(v) {
 export function renderScreen(key, locale = 'zh-TW') {
   const screenKey = Object.hasOwn(SCREENS, key) ? key : 'error';
   const s = SCREENS[screenKey];
-  const copy = locale === null ? {
-    title: 'WHOOP / 授權 / Cấp quyền',
-    heading: 'Return to Telegram / 請回到 Telegram / Vui lòng quay lại Telegram',
-    body: 'Use /connect for a new link. / 輸入 /connect 取得新連結。 / Dùng /connect để lấy liên kết mới.',
-  } : {
+  const copy = locale === null ? Object.fromEntries(['title','heading','body'].map(field => [
+    field, ['en','zh-TW','vi'].map(language => t(language, `oauth.unset.${field}`)).join(' / '),
+  ])) : {
     title: t(locale, `oauth.${screenKey}.title`),
     heading: t(locale, `oauth.${screenKey}.heading`),
     body: t(locale, `oauth.${screenKey}.body`),

@@ -307,7 +307,7 @@ export function fromInsight(row, { recalculatedAt = null } = {}) {
  * 真的保存下來的長期結論。沒有任何證據時**明講**，不編。
  */
 /** @param {string} userId **必填**。只回這個使用者的 evidence。 */
-export async function getEvidence({ db, userId, subject = null, now = new Date() }) {
+export async function getEvidence({ db, userId, subject = null, now = new Date(), locale = 'zh-TW' }) {
   const uid = requireUserId(userId, 'getEvidence');
   const cards = [];
 
@@ -343,38 +343,13 @@ export async function getEvidence({ db, userId, subject = null, now = new Date()
     cards: cards.filter(Boolean),
     note: cards.length
       ? null
-      : '目前還沒有累積足夠的資料形成任何有證據支持的結論。',
+      : t(locale, 'evidence.noSupportedConclusion'),
   };
 }
 
 /** evidence cards → Telegram 文字。 */
 export function renderEvidence(result, locale = 'zh-TW') {
-  if (locale !== 'zh-TW') return renderLocalizedEvidence(result, locale);
-  if (!result?.available) {
-    return [
-      '🔍 目前的證據',
-      '',
-      '目前還沒有足夠的資料形成任何結論，所以也沒有證據可以給你。',
-      '等 WHOOP 開始同步、累積一段時間之後，我才會開始建立長期規律。',
-    ].join('\n');
-  }
-
-  const lines = ['🔍 目前的證據', ''];
-  for (const c of result.cards) {
-    lines.push(`· ${c.metric}`);
-    lines.push(`  方法：${c.method}`);
-    lines.push(`  樣本數：${c.sample_count ?? '不明'}`);
-    if (c.effect !== null && c.effect !== undefined) {
-      lines.push(`  效果量：${Number(c.effect).toFixed(3)}${c.effect_unit ? ` (${c.effect_unit})` : ''}`);
-    }
-    lines.push(`  資料充分度：${c.confidence ?? '不明'}`);
-    if (c.date_range) lines.push(`  區間：${c.date_range.from} ～ ${c.date_range.to}`);
-    if (c.warnings.length) lines.push(`  ⚠️ ${c.warnings.join('、')}`);
-    lines.push('');
-  }
-  lines.push('註：以上全部是個人層級的觀察到的關聯（within-person observed association），');
-  lines.push('不是因果關係，也不是醫學結論。');
-  return lines.join('\n');
+  return renderLocalizedEvidence(result, locale);
 }
 
 function renderLocalizedEvidence(result, locale) {

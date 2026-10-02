@@ -138,58 +138,12 @@ function deriveState({ tokens, hasAnyHealthData, allComplete, probed }) {
 
 /** 報告 → Telegram 純文字（/healthdata 用）。 */
 export function renderDataQuality(r, locale = 'zh-TW') {
-  if (locale !== 'zh-TW') return renderLocalizedDataQuality(r, locale);
-  const lines = ['📊 WHOOP 資料狀態', ''];
+  return renderLocalizedDataQuality(r, locale);
+}
 
-  if (r.state === 'NO_AUTH') {
-    lines.push('尚未完成 WHOOP 授權。');
-    lines.push('（在本機跑一次 npm run authorize 就會開始。）', '');
-  }
-
-  if (!r.has_any_health_data) {
-    lines.push('歷史資料：尚未開始');
-    lines.push('睡眠：0 筆');
-    lines.push('恢復：0 筆');
-    lines.push('運動：0 筆');
-    lines.push('小睡：0 筆');
-  } else {
-    lines.push(`歷史區間：${r.history_start} ～ ${r.history_end}`);
-    lines.push(`涵蓋天數：${r.coverage_days} 天（缺 ${r.missing_days} 天${
-      r.coverage_ratio !== null ? `，涵蓋率 ${(r.coverage_ratio * 100).toFixed(0)}%` : ''}）`);
-    lines.push(`睡眠：${r.sleep_count} 筆`);
-    lines.push(`恢復：${r.recovery_count} 筆（已評分 ${r.valid_recoveries}）`);
-    lines.push(`週期：${r.cycle_count} 筆`);
-    lines.push(`運動：${r.workout_count} 筆`);
-    lines.push(`小睡：${r.nap_count} 筆`);
-    lines.push(`未評分：${r.unscored_records} 筆`);
-    if (r.days_behind !== null && r.days_behind > 1) {
-      lines.push(`⚠️ 最新資料已落後 ${r.days_behind} 天`);
-    }
-  }
-
-  lines.push('', `Journal 紀錄：${r.journal_count} 筆`);
-
-  lines.push('', `Capability probe：${r.capabilities.probed
-    ? `已執行（${r.capabilities.lastProbedAt?.slice(0, 10) ?? ''}）`
-    : '尚未執行'}`);
-  if (r.capabilities.probed) {
-    const c = r.capabilities.counts;
-    lines.push(`  可用 ${c.SUPPORTED ?? 0}／部分 ${c.PARTIAL ?? 0}／`
-      + `不可用 ${c.UNAVAILABLE ?? 0}／未知 ${c.UNKNOWN ?? 0}`);
-  }
-
-  const bf = Object.entries(r.backfill_status);
-  lines.push('', `Backfill：${bf.length === 0 ? '尚未開始' : (r.backfill_complete ? '已完成' : '進行中')}`);
-  for (const [res, s] of bf) {
-    lines.push(`  ${res}: ${s.complete ? '✅' : '⏳'}${s.lastError ? ` (${s.lastError})` : ''}`);
-  }
-
-  if (r.missing_scopes.length) {
-    lines.push('', `⚠️ token 缺少 scope：${r.missing_scopes.join(', ')}`);
-    lines.push('（重跑 npm run authorize 即可，不影響現有簡報）');
-  }
-
-  return lines.join('\n');
+export function renderMissingScopes(locale, scopes) {
+  const names = { 'read:workout':'workout', 'read:body_measurement':'bodyMeasurement' };
+  return scopes.map(scope => t(locale, `quality.scopeName.${names[scope] ?? 'other'}`)).join(', ');
 }
 
 function renderLocalizedDataQuality(r, locale) {
@@ -241,7 +195,7 @@ function renderLocalizedDataQuality(r, locale) {
     status: state.complete ? '✅' : '⏳',
   }));
   if (r.missing_scopes.length) lines.push('', line('scopeMissing', {
-    scopes: r.missing_scopes.join(', '),
+    scopes: renderMissingScopes(locale, r.missing_scopes),
   }), line('scopeAdvice'));
   return lines.join('\n');
 }

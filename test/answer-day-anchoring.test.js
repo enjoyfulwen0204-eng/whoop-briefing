@@ -38,6 +38,7 @@ import {
 } from '../src/bot/router.js';
 import { PROACTIVE_QUESTION_INTENT } from '../src/schema.js';
 import { ANTI_SPAM_POLICY } from '../src/proactivePolicy.js';
+import { formatLocalDate } from '../src/localization.js';
 
 const TZ = 'Asia/Taipei';
 const SIGNAL_DAY = '2026-09-08';
@@ -121,8 +122,9 @@ test('★★★ M-06: 回覆文字顯示的也是問題那一天（不會對使�
     const reply = await router.handle({
       text: '有，喝了兩杯', chatId: '1', user: { id: user.id, timezone: TZ },
     });
-    assert.match(String(reply), new RegExp(SIGNAL_DAY));
-    assert.ok(!String(reply).includes('2026-09-09'), '★ 不可以顯示回話當天的日期');
+    assert.ok(String(reply).includes(formatLocalDate(SIGNAL_DAY, 'zh-TW')));
+    assert.ok(!String(reply).includes(formatLocalDate('2026-09-09', 'zh-TW')),
+      '★ 不可以顯示回話當天的日期');
   });
 });
 

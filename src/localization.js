@@ -1,4 +1,5 @@
 /** Application-owned Telegram copy. Missing translations fail closed. */
+import { mergeCatalogs } from './catalogMerge.js';
 import { BRIEFING_CATALOG } from './briefingCatalog.js';
 import { OAUTH_CATALOG } from './oauthCatalog.js';
 import { PROACTIVE_CATALOG } from './proactiveCatalog.js';
@@ -16,6 +17,8 @@ import { DATA_QUALITY_CATALOG } from './dataQualityCatalog.js';
 import { AUXILIARY_CATALOG } from './auxiliaryCatalog.js';
 import { EXPERIMENT_CATALOG } from './bot/experimentCatalog.js';
 import { LINK_CATALOG } from './bot/linkCatalog.js';
+import { VALIDATION_CATALOG } from './validationCatalog.js';
+import { ADMIN_CATALOG } from './adminCatalog.js';
 export const LOCALES = Object.freeze(['zh-TW', 'en', 'vi']);
 
 export function normalizeLocale(value) {
@@ -24,27 +27,12 @@ export function normalizeLocale(value) {
     english: 'en', en: 'en', 'tiếng việt': 'vi', vietnamese: 'vi', vi: 'vi' })[raw] ?? null;
 }
 
-export const LANGUAGE_SELECTOR = '🌐 Choose language / 選擇語言 / Chọn ngôn ngữ\n\n繁體中文 · English · Tiếng Việt';
-
-export const CATALOG = Object.freeze({
+const CORE_CATALOG = Object.freeze({
   'zh-TW': Object.freeze({
-    ...BRIEFING_CATALOG['zh-TW'],
-    ...OAUTH_CATALOG['zh-TW'],
-    ...PROACTIVE_CATALOG['zh-TW'],
-    ...GUARDIAN_CATALOG['zh-TW'],
-    ...ASSERTION_CATALOG['zh-TW'],
-    ...COMMAND_CATALOG['zh-TW'],
-    ...BRIEFING_STATUS_CATALOG['zh-TW'],
-    ...ANSWER_CATALOG['zh-TW'],
-    ...ANSWER_EXTRA_CATALOG['zh-TW'],
-    ...TRIAGE_CATALOG['zh-TW'],
-    ...EDUCATION_CATALOG['zh-TW'],
-    ...ROUTER_CATALOG['zh-TW'],
-    ...COMMAND_EXTRA_CATALOG['zh-TW'],
-    ...DATA_QUALITY_CATALOG['zh-TW'],
-    ...AUXILIARY_CATALOG['zh-TW'],
-    ...EXPERIMENT_CATALOG['zh-TW'],
-    ...LINK_CATALOG['zh-TW'],
+    'punctuation.list':'、',
+    'onboarding.selectorTitle':'選擇語言', 'onboarding.languageName':'繁體中文',
+    'onboarding.preStart':'輸入 /start',
+    'onboarding.preUnavailable':'無法設定，請聯絡管理者',
     'onboarding.welcome': '👋 歡迎使用 WHOOP 健康助理。\n\n這個助理會讀你自己的 WHOOP 資料，只在這個私訊裡回覆你。\n設定只有兩步：先告訴我你的時區，再授權 WHOOP。\n\n第 1 步：你的時區是？直接輸入標準 IANA 時區，例如 Asia/Taipei 或 Europe/Berlin。',
     'onboarding.timezoneInvalid': '這個時區我不認得。請輸入標準 IANA 時區名稱，例如 Asia/Taipei；不要輸入 +08:00 這種時差。',
     'onboarding.timezonePending': '設定還沒完成。第 1 步：請輸入你的 IANA 時區，例如 Asia/Taipei。',
@@ -78,7 +66,7 @@ export const CATALOG = Object.freeze({
     'beta.episodeLower': '• {metric}低於個人基準，近期仍在觀察。',
     'metric.recovery_score': '恢復分數', 'metric.hrv': 'HRV', 'metric.rhr': '靜息心率',
     'metric.sleep_performance': '睡眠表現', 'metric.sleep_duration_minutes': '睡眠時間',
-    'metric.sleep_efficiency': '睡眠效率', 'metric.respiratory_rate': '呼吸率',
+    'metric.sleep_efficiency': '睡眠效率',
     'metric.cycle_strain': '活動負荷',
     'beta.associationSupported': '{factor}與{metric}{direction}在你的資料中多次呈現關聯。',
     'beta.associationEmerging': '{factor}可能與{metric}{direction}有關，仍在確認中。',
@@ -96,27 +84,15 @@ export const CATALOG = Object.freeze({
     'error.dailyRecord': '今天的簡報已送出，但發送紀錄暫時無法儲存。簡報不會重複發送。',
     'error.weeklyRecord': '本週回顧已送出，但發送紀錄暫時無法儲存。回顧不會重複發送。',
     'unit.count':'次',
+    'journal.categoryUnknown':'一則紀錄',
     'journal.eventDescription':'{details}（{date}）',
     'telegram.errorNotice':'🚨 WHOOP 簡報暫時有問題\n{message}\n\n（同類通知 {hours} 小時內最多一次）',
   }),
   en: Object.freeze({
-    ...BRIEFING_CATALOG.en,
-    ...OAUTH_CATALOG.en,
-    ...PROACTIVE_CATALOG.en,
-    ...GUARDIAN_CATALOG.en,
-    ...ASSERTION_CATALOG.en,
-    ...COMMAND_CATALOG.en,
-    ...BRIEFING_STATUS_CATALOG.en,
-    ...ANSWER_CATALOG.en,
-    ...ANSWER_EXTRA_CATALOG.en,
-    ...TRIAGE_CATALOG.en,
-    ...EDUCATION_CATALOG.en,
-    ...ROUTER_CATALOG.en,
-    ...COMMAND_EXTRA_CATALOG.en,
-    ...DATA_QUALITY_CATALOG.en,
-    ...AUXILIARY_CATALOG.en,
-    ...EXPERIMENT_CATALOG.en,
-    ...LINK_CATALOG.en,
+    'punctuation.list':', ',
+    'onboarding.selectorTitle':'Choose language', 'onboarding.languageName':'English',
+    'onboarding.preStart':'Use /start',
+    'onboarding.preUnavailable':'Setup unavailable; contact an administrator',
     'onboarding.welcome': '👋 Welcome to your WHOOP health assistant.\n\nIt reads only your WHOOP data and replies here in this private chat. Setup has two steps: confirm your timezone, then authorize WHOOP.\n\nStep 1: Enter your IANA timezone, such as America/New_York or Europe/Berlin.',
     'onboarding.timezoneInvalid': 'I could not recognize that timezone. Enter an IANA timezone such as America/New_York, rather than an offset like +08:00.',
     'onboarding.timezonePending': 'Setup is incomplete. Step 1: Enter your IANA timezone, such as America/New_York.',
@@ -150,7 +126,7 @@ export const CATALOG = Object.freeze({
     'beta.episodeLower': '• {metric} is below your personal baseline and remains under observation.',
     'metric.recovery_score': 'Recovery score', 'metric.hrv': 'HRV', 'metric.rhr': 'Resting heart rate',
     'metric.sleep_performance': 'Sleep performance', 'metric.sleep_duration_minutes': 'Sleep duration',
-    'metric.sleep_efficiency': 'Sleep efficiency', 'metric.respiratory_rate': 'Respiratory rate',
+    'metric.sleep_efficiency': 'Sleep efficiency',
     'metric.cycle_strain': 'Strain',
     'beta.associationSupported': '{factor} has repeatedly been associated with {direction} {metric} in your data.',
     'beta.associationEmerging': '{factor} may be associated with {direction} {metric}; the pattern is still being checked.',
@@ -168,27 +144,15 @@ export const CATALOG = Object.freeze({
     'error.dailyRecord': 'Today’s briefing was sent, but its delivery record could not be saved. The briefing will not be sent again.',
     'error.weeklyRecord': 'This week’s review was sent, but its delivery record could not be saved. The review will not be sent again.',
     'unit.count':'times',
+    'journal.categoryUnknown':'an entry',
     'journal.eventDescription':'{details} ({date})',
     'telegram.errorNotice':'🚨 There is a temporary WHOOP briefing issue\n{message}\n\n(This type of notice is sent at most once every {hours} hours.)',
   }),
   vi: Object.freeze({
-    ...BRIEFING_CATALOG.vi,
-    ...OAUTH_CATALOG.vi,
-    ...PROACTIVE_CATALOG.vi,
-    ...GUARDIAN_CATALOG.vi,
-    ...ASSERTION_CATALOG.vi,
-    ...COMMAND_CATALOG.vi,
-    ...BRIEFING_STATUS_CATALOG.vi,
-    ...ANSWER_CATALOG.vi,
-    ...ANSWER_EXTRA_CATALOG.vi,
-    ...TRIAGE_CATALOG.vi,
-    ...EDUCATION_CATALOG.vi,
-    ...ROUTER_CATALOG.vi,
-    ...COMMAND_EXTRA_CATALOG.vi,
-    ...DATA_QUALITY_CATALOG.vi,
-    ...AUXILIARY_CATALOG.vi,
-    ...EXPERIMENT_CATALOG.vi,
-    ...LINK_CATALOG.vi,
+    'punctuation.list':', ',
+    'onboarding.selectorTitle':'Chọn ngôn ngữ', 'onboarding.languageName':'Tiếng Việt',
+    'onboarding.preStart':'Nhập /start',
+    'onboarding.preUnavailable':'Không thể thiết lập; hãy liên hệ quản trị viên',
     'onboarding.welcome': '👋 Chào mừng bạn đến với trợ lý sức khỏe WHOOP.\n\nTrợ lý chỉ đọc dữ liệu WHOOP của bạn và trả lời trong cuộc trò chuyện riêng này. Việc thiết lập gồm hai bước: xác nhận múi giờ rồi cấp quyền WHOOP.\n\nBước 1: Nhập múi giờ IANA của bạn, ví dụ Asia/Ho_Chi_Minh hoặc Europe/Berlin.',
     'onboarding.timezoneInvalid': 'Tôi không nhận ra múi giờ đó. Hãy nhập múi giờ IANA như Asia/Ho_Chi_Minh, thay vì độ lệch như +07:00.',
     'onboarding.timezonePending': 'Bạn chưa thiết lập xong. Bước 1: Nhập múi giờ IANA của bạn, ví dụ Asia/Ho_Chi_Minh.',
@@ -222,7 +186,7 @@ export const CATALOG = Object.freeze({
     'beta.episodeLower': '• {metric} thấp hơn mức nền cá nhân và vẫn đang được theo dõi.',
     'metric.recovery_score': 'Điểm phục hồi', 'metric.hrv': 'HRV', 'metric.rhr': 'Nhịp tim nghỉ',
     'metric.sleep_performance': 'Hiệu quả giấc ngủ', 'metric.sleep_duration_minutes': 'Thời lượng ngủ',
-    'metric.sleep_efficiency': 'Hiệu suất giấc ngủ', 'metric.respiratory_rate': 'Nhịp thở',
+    'metric.sleep_efficiency': 'Hiệu suất giấc ngủ',
     'metric.cycle_strain': 'Mức gắng sức',
     'beta.associationSupported': 'Dữ liệu của bạn nhiều lần cho thấy {factor} có liên quan đến {metric} {direction}.',
     'beta.associationEmerging': '{factor} có thể liên quan đến {metric} {direction}; mối liên hệ này vẫn đang được kiểm tra.',
@@ -240,12 +204,39 @@ export const CATALOG = Object.freeze({
     'error.dailyRecord': 'Bản tóm tắt hôm nay đã được gửi, nhưng chưa thể lưu lịch sử gửi. Bản này sẽ không được gửi lại.',
     'error.weeklyRecord': 'Bản tổng kết tuần này đã được gửi, nhưng chưa thể lưu lịch sử gửi. Bản này sẽ không được gửi lại.',
     'unit.count':'lần',
+    'journal.categoryUnknown':'một ghi chép',
     'journal.eventDescription':'{details} ({date})',
     'telegram.errorNotice':'🚨 Bản tin WHOOP đang gặp sự cố tạm thời\n{message}\n\n(Thông báo cùng loại được gửi tối đa một lần mỗi {hours} giờ.)',
   }),
 });
 
+export const CATALOG = mergeCatalogs([
+  ['briefing', BRIEFING_CATALOG],
+  ['oauth', OAUTH_CATALOG],
+  ['proactive', PROACTIVE_CATALOG],
+  ['guardian', GUARDIAN_CATALOG],
+  ['assertion', ASSERTION_CATALOG],
+  ['command', COMMAND_CATALOG],
+  ['briefing_status', BRIEFING_STATUS_CATALOG],
+  ['answer', ANSWER_CATALOG],
+  ['answer_extra', ANSWER_EXTRA_CATALOG],
+  ['triage', TRIAGE_CATALOG],
+  ['education', EDUCATION_CATALOG],
+  ['router', ROUTER_CATALOG],
+  ['command_extra', COMMAND_EXTRA_CATALOG],
+  ['data_quality', DATA_QUALITY_CATALOG],
+  ['auxiliary', AUXILIARY_CATALOG],
+  ['experiment', EXPERIMENT_CATALOG],
+  ['link', LINK_CATALOG],
+  ['validation', VALIDATION_CATALOG],
+  ['admin', ADMIN_CATALOG],
+  ['core', CORE_CATALOG],
+]);
+
 export function validateCatalogs(catalog = CATALOG) {
+  const actualLocales = Object.keys(catalog).sort();
+  if (JSON.stringify(actualLocales) !== JSON.stringify([...LOCALES].sort()))
+    throw new Error('LOCALIZATION_LOCALE_UNSUPPORTED_OR_MISSING');
   const expected = Object.keys(catalog['zh-TW']).sort();
   for (const locale of LOCALES) {
     if (JSON.stringify(Object.keys(catalog[locale] ?? {}).sort()) !== JSON.stringify(expected))
@@ -271,6 +262,11 @@ export function t(locale, key, values = {}) {
     return String(values[name]).replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 1024);
   });
 }
+
+/** Before locale selection, show all supported languages from the same catalog. */
+export const LANGUAGE_SELECTOR = `🌐 ${['en','zh-TW','vi'].map(locale => t(locale, 'onboarding.selectorTitle')).join(' / ')}\n\n${['zh-TW','en','vi'].map(locale => t(locale, 'onboarding.languageName')).join(' · ')}`;
+export const UNSET_START_HINT = `🌐 ${['en','zh-TW','vi'].map(locale => t(locale, 'onboarding.selectorTitle')).join(' / ')}\n${['en','zh-TW','vi'].map(locale => t(locale, 'onboarding.preStart')).join(' · ')}`;
+export const UNSET_UNAVAILABLE = ['en','zh-TW','vi'].map(locale => t(locale, 'onboarding.preUnavailable')).join(' / ');
 
 /** Format a canonical calendar date without interpreting it as a local instant. */
 export function formatLocalDate(dateKey, locale) {

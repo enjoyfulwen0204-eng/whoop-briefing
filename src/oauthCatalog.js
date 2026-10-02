@@ -1,5 +1,7 @@
 export const OAUTH_CATALOG = Object.freeze({
   'zh-TW': Object.freeze({
+    'oauth.unset.title':'授權', 'oauth.unset.heading':'請回到 Telegram',
+    'oauth.unset.body':'輸入 /connect 取得新連結。',
     'oauth.ok.title':'連接完成','oauth.ok.heading':'✅ WHOOP 已連接',
     'oauth.ok.body':'你可以關掉這個分頁，回到 Telegram。資料同步完成之後，助理會通知你。',
     'oauth.denied.title':'授權未完成','oauth.denied.heading':'授權未完成',
@@ -17,6 +19,8 @@ export const OAUTH_CATALOG = Object.freeze({
     'oauth.not_found.title':'找不到','oauth.not_found.heading':'找不到這個頁面','oauth.not_found.body':'',
   }),
   en: Object.freeze({
+    'oauth.unset.title':'Authorization', 'oauth.unset.heading':'Return to Telegram',
+    'oauth.unset.body':'Use /connect for a new link.',
     'oauth.ok.title':'Connected','oauth.ok.heading':'✅ WHOOP connected',
     'oauth.ok.body':'You can close this tab and return to Telegram. Your assistant will notify you when the data sync finishes.',
     'oauth.denied.title':'Authorization incomplete','oauth.denied.heading':'Authorization incomplete',
@@ -34,6 +38,8 @@ export const OAUTH_CATALOG = Object.freeze({
     'oauth.not_found.title':'Not found','oauth.not_found.heading':'Page not found','oauth.not_found.body':'',
   }),
   vi: Object.freeze({
+    'oauth.unset.title':'Cấp quyền', 'oauth.unset.heading':'Vui lòng quay lại Telegram',
+    'oauth.unset.body':'Dùng /connect để lấy liên kết mới.',
     'oauth.ok.title':'Đã kết nối','oauth.ok.heading':'✅ WHOOP đã kết nối',
     'oauth.ok.body':'Bạn có thể đóng trang này và quay lại Telegram. Trợ lý sẽ báo khi dữ liệu đồng bộ xong.',
     'oauth.denied.title':'Chưa cấp quyền xong','oauth.denied.heading':'Chưa cấp quyền xong',

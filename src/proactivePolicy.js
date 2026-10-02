@@ -202,14 +202,8 @@ export const INFORMATION_GAIN_POLICY = {
    * 它們都是 Journal 早就支援、而且跟恢復高度相關的既有類別。
    */
   CANDIDATES: {
-    alcohol: '昨天有喝酒嗎？',
-    sickness: '最近有沒有不舒服、感冒的感覺？',
-    travel: '昨天有搭飛機或跨時區旅行嗎？',
-    late_sleep: '昨晚是不是特別晚睡？',
-    stress: '最近是不是壓力特別大？',
-    caffeine: '昨天下午或晚上有喝咖啡、茶之類的嗎？',
-    late_meal: '昨天有吃宵夜或很晚才吃晚餐嗎？',
-    exercise_note: '昨天的運動是不是比平常吃力？',
+    alcohol: true, sickness: true, travel: true, late_sleep: true,
+    stress: true, caffeine: true, late_meal: true, exercise_note: true,
   },
 
   /**

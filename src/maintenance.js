@@ -12,6 +12,7 @@
 
 import { REPO_FRESHNESS } from './config.js';
 import { log, describeError } from './logger.js';
+import { t } from './localization.js';
 
 /** ISO 時間字串 → 距今幾天（小數）。無法解析回 null。 */
 export function daysSince(iso, now = new Date()) {
@@ -21,20 +22,19 @@ export function daysSince(iso, now = new Date()) {
 }
 
 export function buildStaleMessage(days, {
-  disableAfter = REPO_FRESHNESS.DISABLE_AFTER_DAYS,
+  disableAfter = REPO_FRESHNESS.DISABLE_AFTER_DAYS, locale = 'zh-TW',
 } = {}) {
   const left = Math.ceil(disableAfter - days);
   const lines = [
-    '🛠 WHOOP 簡報系統維護提醒',
+    t(locale, 'admin.repoTitle'),
     '',
-    `這個 repo 已經 ${Math.floor(days)} 天沒有新的 commit。`,
-    `GitHub 會在滿 ${disableAfter} 天無活動時自動停用排程 —— 屆時每日簡報會安靜地停掉，`
-      + '而且不會有任何錯誤通知（因為根本不會有 run 被觸發）。',
+    t(locale, 'admin.repoAge', { days: Math.floor(days) }),
+    t(locale, 'admin.repoWarning', { days: disableAfter }),
     '',
   ];
   lines.push(left > 0
-    ? `還剩約 ${left} 天。推任何一個 commit 就會重置計時。`
-    : '已經超過 60 天了，請去 GitHub 的 Actions 分頁確認排程是否還啟用中。');
+    ? t(locale, 'admin.repoRemaining', { days: left })
+    : t(locale, 'admin.repoExpired', { days: disableAfter }));
   return lines.join('\n');
 }
 

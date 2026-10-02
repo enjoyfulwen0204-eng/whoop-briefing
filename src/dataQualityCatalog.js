@@ -21,6 +21,8 @@ export const DATA_QUALITY_CATALOG = Object.freeze({
     'quality.resourceName.profile':'個人資料','quality.resourceName.body_measurement':'身體測量',
     'quality.resourceName.other':'其他資料',
     'quality.scopeMissing':'⚠️ WHOOP 權限不足：{scopes}',
+    'quality.scopeName.workout':'運動資料', 'quality.scopeName.bodyMeasurement':'身體測量資料',
+    'quality.scopeName.other':'其他資料',
     'quality.scopeAdvice':'請輸入 /connect 重新授權。現有簡報不受影響。',
   },
   en: {
@@ -45,6 +47,8 @@ export const DATA_QUALITY_CATALOG = Object.freeze({
     'quality.resourceName.profile':'Profile','quality.resourceName.body_measurement':'Body measurements',
     'quality.resourceName.other':'Other data',
     'quality.scopeMissing':'⚠️ Missing WHOOP permissions: {scopes}',
+    'quality.scopeName.workout':'workout data', 'quality.scopeName.bodyMeasurement':'body measurements',
+    'quality.scopeName.other':'other data',
     'quality.scopeAdvice':'Use /connect to authorize again. Existing briefings are unaffected.',
   },
   vi: {
@@ -69,6 +73,8 @@ export const DATA_QUALITY_CATALOG = Object.freeze({
     'quality.resourceName.profile':'Hồ sơ','quality.resourceName.body_measurement':'Số đo cơ thể',
     'quality.resourceName.other':'Dữ liệu khác',
     'quality.scopeMissing':'⚠️ Thiếu quyền WHOOP: {scopes}',
+    'quality.scopeName.workout':'dữ liệu tập luyện', 'quality.scopeName.bodyMeasurement':'số đo cơ thể',
+    'quality.scopeName.other':'dữ liệu khác',
     'quality.scopeAdvice':'Dùng /connect để cấp quyền lại. Các bản tin hiện có không bị ảnh hưởng.',
   },
 });

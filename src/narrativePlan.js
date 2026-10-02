@@ -93,11 +93,11 @@ export function buildFragmentCatalogue(briefing, { period = 'daily', locale = 'z
   const sleep = byKey.sleep_total;
   const facts = [recovery && t(locale, 'narrative.recoveryFact', { value: localizedDisplay(locale, recovery.display) }),
     sleep && t(locale, 'narrative.sleepFact', { value: localizedDisplay(locale, sleep.display) })]
-    .filter(Boolean).join(locale === 'zh-TW' ? '、' : ', ');
-  const names = list => list.map(m => m.key ? t(locale, `metric.${m.key}`)
-    : locale === 'zh-TW' && typeof m.label === 'string' ? m.label
-      : (() => { throw new Error('LOCALIZATION_METRIC_KEY_REQUIRED'); })())
-    .join(locale === 'zh-TW' ? '、' : ', ');
+    .filter(Boolean).join(t(locale, 'punctuation.list'));
+  const names = list => list.map(m => m.key ? t(locale,
+    `${['recovery','sleep_debt','previous_day_strain'].includes(m.key) ? 'briefing.metric' : 'metric'}.${m.key}`)
+    : (() => { throw new Error('LOCALIZATION_METRIC_KEY_REQUIRED'); })())
+    .join(t(locale, 'punctuation.list'));
 
   // --- 冷啟動：完全不同的一組句子（不可以跟成熟期混用）---------------------
   if (stage === 'cold') {

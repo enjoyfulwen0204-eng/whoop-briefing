@@ -152,7 +152,7 @@ test('★ 沒有任何 WHOOP 資料：/healthdata 顯示 0，不是 error', asyn
     assert.match(reply, /睡眠：0 筆/);
     assert.match(reply, /恢復：0 筆/);
     assert.match(reply, /運動：0 筆/);
-    assert.match(reply, /Capability probe：尚未執行/);
+    assert.match(reply, /資料可用性檢查：尚未執行/);
     assert.ok(!/error|錯誤|失敗/i.test(reply), '★ 沒資料不可以講成錯誤');
   } finally { db.close(); cleanup(); }
 });
@@ -224,8 +224,8 @@ test('M: best_worst_day 由 Node 挑出最好與最差的那一天', async () =>
     const coach = fakeCoach();
     const ctx = await routerFor(db, coach).handle({ text: '最近 30 天最好是哪一天？', chatId: CHAT, user: USER });
     assert.equal(coach.calls.ask.length, 0);
-    assert.match(ctx, /最好：\d{4}-\d{2}-\d{2}/, '★ 日期由程式挑，不是 LLM 挑');
-    assert.match(ctx, /最差：\d{4}-\d{2}-\d{2}/);
+    assert.match(ctx, /最好：\d{1,2}\/\d{1,2}（[一二三四五六日]）/, '★ 日期由程式挑，不是 LLM 挑');
+    assert.match(ctx, /最差：\d{1,2}\/\d{1,2}（[一二三四五六日]）/);
   } finally { db.close(); cleanup(); }
 });
 

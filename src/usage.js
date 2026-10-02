@@ -192,42 +192,7 @@ const fmt = (v) => `$${v.toFixed(v < 0.01 ? 4 : 3)}`;
 
 /** /cost 的 Telegram 文字。 */
 export function renderCost(summary, locale = 'zh-TW') {
-  if (locale !== 'zh-TW') return renderLocalizedCost(summary, locale);
-  const lines = ['💰 AI 使用成本', ''];
-
-  if (!summary.available) {
-    lines.push('目前沒有可用的用量紀錄。');
-    return lines.join('\n');
-  }
-
-  const section = (title, s) => {
-    lines.push(title);
-    if (s.calls === 0) {
-      lines.push('  （沒有呼叫紀錄）');
-      return;
-    }
-    const names = Object.keys(s.groups).sort();
-    for (const name of names) {
-      const g = s.groups[name];
-      const costPart = g.unknown_cost_calls === g.calls
-        ? 'cost unavailable'
-        : `${fmt(g.cost)}${g.unknown_cost_calls ? `（另有 ${g.unknown_cost_calls} 次無 token 資料）` : ''}`;
-      lines.push(`  ${name}: ${costPart}`);
-    }
-    lines.push(`  Total: ${s.total_cost_usd === null ? 'cost unavailable' : fmt(s.total_cost_usd)}`);
-    lines.push(`  （${s.calls} 次呼叫${s.failed_calls ? `，${s.failed_calls} 次失敗` : ''}）`);
-    if (s.calls_with_unknown_cost > 0) {
-      lines.push(`  ⚠️ ${s.calls_with_unknown_cost} 次沒有 token 用量資料，成本未估算`);
-    }
-  };
-
-  section(`今天（${summary.today}）`, summary.todaySummary);
-  lines.push('');
-  section(`本月（${summary.month}）`, summary.monthSummary);
-
-  lines.push('');
-  lines.push('註：成本依內建價格表估算，供參考用；價格表可能與實際帳單有落差。');
-  return lines.join('\n');
+  return renderLocalizedCost(summary, locale);
 }
 
 function renderLocalizedCost(summary, locale) {
@@ -239,8 +204,10 @@ function renderLocalizedCost(summary, locale) {
     if (!s.calls) { lines.push(line('noCalls')); return; }
     for (const name of Object.keys(s.groups).sort()) {
       const group = s.groups[name];
+      const groupKey = ({ Daily:'Daily', Weekly:'Weekly', 'Q&A':'QA', Parsing:'Parsing', Other:'Other' })[name]
+        ?? 'Other';
       lines.push(line('group', {
-        name,
+        name: line(`groupName.${groupKey}`),
         value: group.unknown_cost_calls === group.calls
           ? line('unavailable') : fmt(group.cost),
       }));

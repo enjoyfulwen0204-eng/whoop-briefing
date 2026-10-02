@@ -4,7 +4,6 @@
 import { AI_PURPOSE } from '../config.js';
 import { factsFromQaResult } from '../publishableFacts.js';
 import { renderAssertions, assemblePublication } from '../assertionRenderer.js';
-import { mechanismNoun } from './healthEducation.js';
 import { SYNC_VERDICT } from '../syncTruth.js';
 import { renderBriefingStatus } from '../briefingStatus.js';
 import { t, formatLocalDate, formatNumber, localizedDisplay } from '../localization.js';
@@ -172,69 +171,8 @@ export function buildAnswerContext(question, result) {
 
 /** LLM 不可用時的純 Node 版本 —— 資訊完整，只是比較乾。 */
 export function renderFallback(result, locale = 'zh-TW') {
-  if (!result || result.available === false) {
-    return locale === 'zh-TW' ? '目前還沒有足夠的 WHOOP 資料可以回答這個問題。'
-      : t(locale, 'qa.empty');
-  }
-  if (locale !== 'zh-TW') return renderLocalizedFallback(result, locale);
-  const lines = [];
-  switch (result.intent) {
-    case 'cause_query': return renderCauseAnswer(result, locale);
-    case 'sync_status': return renderSyncAnswer(result, locale);
-    case 'briefing_status':
-      return renderBriefingStatus({ status: result.briefing_status, evidence: result.evidence, locale });
-    case 'readiness_query': return renderReadinessAnswer(result, locale);
-    case 'today_status':
-      lines.push(`📊 ${result.health_date} 的狀態`);
-      for (const m of Object.values(result.metrics)) {
-        if (m.value === null || m.value === undefined) { lines.push(`${m.label}：無資料`); continue; }
-        lines.push(`${m.label} ${m.display}`
-          + (m.baseline_display ? `（基準 ${m.baseline_display}）` : '')
-          + (m.z_score !== null ? ` z=${m.z_score.toFixed(1)}` : ''));
-      }
-      break;
-    case 'trend_query': {
-      const w = result.window;
-      lines.push(`📈 ${result.label}`);
-      lines.push(`目前 ${result.current_display ?? '無資料'}`);
-      // 當下的值給得出來、統計給不出來時，講清楚是**哪一種**給不出來 ——
-      // 不要讓人以為是資料還沒同步進來。
-      if (result.analysis_limited === 'calibrating') {
-        lines.push('（還在 WHOOP 校正期，暫時不做趨勢判斷）');
-      } else if (result.analysis_limited === 'insufficient_history') {
-        lines.push('（樣本還太少，還不夠下結論）');
-      } else {
-        lines.push(`${w.window_days} 天平均 ${w.mean_display ?? 'n/a'}（n=${w.n}）`);
-        for (const [k, t] of Object.entries(result.trends)) {
-          lines.push(`${k} 趨勢：${t.sufficient ? t.direction : '資料不足'}`);
-        }
-      }
-      break;
-    }
-    case 'best_worst_day':
-      lines.push(`🏆 ${result.label}（最近 ${result.window_days} 天，n=${result.n}）`);
-      lines.push(`最好：${result.best.health_date} ${result.best.display}`);
-      if (result.worst) lines.push(`最差：${result.worst.health_date} ${result.worst.display}`);
-      break;
-    case 'what_changed':
-      if (!result.items.length) return '今天沒有特別值得注意的變化。';
-      lines.push('🔎 今天最值得注意');
-      for (const c of result.items) {
-        lines.push(`· ${c.label} ${c.current_display}`
-          + (c.z_score !== null ? `（z=${c.z_score.toFixed(1)}）` : ''));
-      }
-      break;
-    case 'sleep_quality':
-      lines.push(`🌙 睡眠（最近 ${result.window_days} 天）`);
-      for (const m of Object.values(result.metrics)) {
-        if (!m.available) continue;
-        lines.push(`${m.label}：目前 ${m.current_display ?? 'n/a'}，平均 ${m.mean_display ?? 'n/a'}（n=${m.n}）`);
-      }
-      break;
-    default:
-      return '目前無法回答這個問題。';
-  }
-  return lines.join('\n');
+  if (!result || result.available === false) return t(locale, 'qa.empty');
+  return renderLocalizedFallback(result, locale);
 }
 
 
@@ -275,76 +213,7 @@ function agoText(iso, nowIso, locale = 'zh-TW') {
  * 使用者要知道的是「資料完不完整、新不新」，不是我們的資料管線長什麼樣。
  */
 export function renderSyncAnswer(result, locale = 'zh-TW') {
-  if (locale !== 'zh-TW') return renderLocalizedSyncAnswer(result, locale);
-  const ago = agoText(result.last_success_at, result.now);
-  const when = ago ? `是 ${ago}` : '有紀錄但時間不明';
-  const latest = result.latest_health_date
-    ? `目前最新的健康資料是 ${result.latest_health_date}。` : null;
-
-  // 同步成功、但 WHOOP 還沒產生今天的分數 —— 這不是故障，必須分開講，
-  // 否則使用者會去修一個沒有壞的東西。
-  if (result.no_new_data) {
-    return [
-      `有，最近一次完整同步成功${ago ? `（${ago}）` : ''}，不過還沒有今天的新資料。`,
-      'WHOOP 通常要等當天的睡眠評分出來之後才會有新的數字。',
-      latest,
-    ].filter(Boolean).join('\n');
-  }
-
-  switch (result.verdict) {
-    case SYNC_VERDICT.LATEST_SUCCESS_COMPLETE:
-      return [`有，最近一次完整同步成功，時間${when}。`, latest].filter(Boolean).join('\n');
-
-    case SYNC_VERDICT.LATEST_SUCCESS_PARTIAL:
-      return [
-        `有部分資料同步成功${ago ? `（最近一次是 ${ago}）` : ''}，`
-        + '但不是每一項都確認拿到了，所以我沒辦法說這次是完整的。',
-        latest,
-      ].filter(Boolean).join('\n');
-
-    case SYNC_VERDICT.HISTORICAL_SUCCESS_LATEST_FAILED:
-      return [
-        `之前成功過${ago ? `（最近一次成功是 ${ago}）` : ''}，但最近一次有部分沒有成功。`,
-        '通常下一次排程會自己補上；如果一直這樣，可能要重新授權一次 WHOOP。',
-        latest,
-      ].filter(Boolean).join('\n');
-
-    case SYNC_VERDICT.STALE_SUCCESS:
-      return [
-        `有成功過，但已經有一段時間沒有更新了${ago ? `（最近一次成功是 ${ago}）` : ''}。`,
-        '如果你的 WHOOP 有在配戴而且有連上網，通常下一次排程就會補上。',
-        latest,
-      ].filter(Boolean).join('\n');
-
-    case SYNC_VERDICT.LATEST_FAILED:
-      return '目前看起來同步是失敗的，我這邊還沒有成功取得資料的紀錄。'
-        + '如果持續這樣，可能要重新授權一次 WHOOP。';
-
-    case SYNC_VERDICT.NEVER_SYNCED:
-      return '我這邊還沒有任何同步紀錄，看起來同步從來沒有跑成功過。';
-
-    case SYNC_VERDICT.INCOMPLETE_EVIDENCE:
-    default:
-      return [
-        '目前只能確認部分狀態 —— 我手邊的同步紀錄不完整，沒辦法確定最近一次的結果。',
-        result.latest_health_date
-          ? `目前最新的健康資料是 ${result.latest_health_date}，但那不保證最近一次同步成功。`
-          : null,
-      ].filter(Boolean).join('\n');
-  }
-}
-
-/** 指標 → 對話裡的稱呼。只用核可的標籤，絕不印內部鍵。 */
-const METRIC_WORD = {
-  sleep_total: '睡眠', sleep_performance: '睡眠表現', recovery: '恢復',
-  hrv: 'HRV', rhr: '靜息心率', previous_day_strain: '昨日 Strain',
-};
-const metricWord = (k) => METRIC_WORD[k] ?? null;
-
-/** 沒有基準的那幾個指標，用人話列出來。 */
-function notReadyPhrase(result) {
-  const names = (result.not_ready_metrics ?? []).map(metricWord).filter(Boolean);
-  return names.length ? names.join('、') : null;
+  return renderLocalizedSyncAnswer(result, locale);
 }
 
 /**
@@ -367,61 +236,7 @@ function notReadyPhrase(result) {
  * （明確的緊急症狀由 triage 那一層處理，它排在路由最前面）。
  */
 export function renderCauseAnswer(result, locale = 'zh-TW') {
-  if (locale !== 'zh-TW') return renderLocalizedCauseAnswer(result, locale);
-  const out = [];
-  const facts = result.facts ?? [];
-  const contributors = result.contributors ?? [];
-  const comparable = facts.filter((f) => f.comparable);
-  const names = contributors.map((c) => c.label).filter(Boolean);
-
-  // ---- 1. 先回答問題本身 ----
-  if (names.length) {
-    // 用自然的說法（「酒精」而不是「飲酒」），避免跟記錄確認那句重複。
-    const noun = contributors.map((c) => mechanismNoun(c.category) ?? c.label)
-      .filter(Boolean).join('、');
-    out.push(`${noun}確實可能讓人短時間覺得疲倦，不過目前還不能確定這就是主因。`);
-  } else {
-    out.push('你會覺得累是一個事實，值得看一下 —— 不過我還沒辦法指出原因。');
-  }
-
-  // ---- 2. 只講最相關的一兩項觀察 ----
-  const highlight = (comparable.filter((f) => f.noteworthy).slice(0, 2).length
-    ? comparable.filter((f) => f.noteworthy).slice(0, 2)
-    : facts.filter((f) => ['sleep_total', 'recovery'].includes(f.key)).slice(0, 2));
-  const parts = [];
-  if (highlight.length) {
-    parts.push(`今天${highlight
-      .map((f) => `${f.label} ${f.display}`
-        + (f.comparable && f.baseline_display
-          ? `（平常約 ${f.baseline_display}${f.noteworthy ? '，這次偏離比較明顯' : '，差不多'}）`
-          : ''))
-      .join('、')}。`);
-  }
-
-  // ---- 3. 限制只講一次 ----
-  const missing = notReadyPhrase(result);
-  if (!comparable.length) {
-    parts.push(missing
-      ? `不過${missing}的個人基準還在累積，我沒辦法判斷這些數字是不是偏離你的常態。`
-      : '不過你的個人基準還在累積，我沒辦法判斷這些數字是不是偏離你的常態。');
-  } else if (missing) {
-    parts.push(`${missing}的基準還在累積，那幾項我暫時不下判斷。`);
-  }
-
-  // ---- 4. 時序：只有在確定的時候才講 ----
-  if (names.length) {
-    if (contributors.some((c) => c.temporal === 'after')) {
-      parts.push('而且今天的恢復與 HRV 是在這件事之前量到的，沒辦法用來看它的影響。');
-    }
-    // 時間不確定就**不講**先後 —— 不需要為此多寫一句解釋。
-  }
-  if (parts.length) out.push(parts.join(''));
-
-  // ---- 5. 一句可以實際做的事 ----
-  out.push(names.length
-    ? '先休息、補充水分並觀察。'
-    : '先照平常的節奏休息，有變化再跟我說。');
-  return out.join('\n\n');
+  return renderLocalizedCauseAnswer(result, locale);
 }
 
 /**
@@ -434,39 +249,7 @@ export function renderCauseAnswer(result, locale = 'zh-TW') {
  * 指標做基本比較**的最低合格樣本數，不是成熟個人化、更不是因果保證。
  */
 export function renderReadinessAnswer(result, locale = 'zh-TW') {
-  if (locale !== 'zh-TW') return renderLocalizedReadinessAnswer(result, locale);
-  const out = [];
-  const missing = notReadyPhrase(result);
-  const need = result.min_samples_needed ?? null;
-
-  if (!result.all_ready) {
-    out.push('對，主要是這個。');
-    out.push('');
-    if (result.has_today_facts) {
-      out.push(missing
-        ? `今天的數字我看得到，但${missing}還沒有足夠的合格歷史可以建立你的個人基準，`
-          + '所以我還不能可靠判斷它們是否偏離你平常的狀態。'
-        : '今天的數字我看得到，但合格的歷史還不夠建立你的個人基準。');
-    } else {
-      out.push('我目前累積到的合格資料還太少，還建立不出你的個人基準。');
-    }
-    if (result.calibrating) {
-      out.push('WHOOP 本身也還在校正期，這段期間的數值不適合當基準。');
-    }
-    if (Number.isFinite(need)) {
-      out.push('');
-      out.push(`做最基本的比較，每個指標大約需要 ${need} 筆先前的合格紀錄；`
-        + '不同的判斷（趨勢、預測、關聯）需要的更多。');
-    }
-    out.push('');
-    out.push('再累積一段時間會好很多。不過就算歷史足夠，我能給的也是關聯，不是單一原因的證明。');
-  } else {
-    out.push('不完全是。');
-    out.push('');
-    out.push('相關指標的基準我都已經建立得起來了。判斷不出來比較可能是因為：'
-      + '這件事的答案本來就不在 WHOOP 量得到的範圍裡，或是目前的數字確實沒有明顯偏離。');
-  }
-  return out.join('\n');
+  return renderLocalizedReadinessAnswer(result, locale);
 }
 
 const PUBLIC_METRICS = new Set([

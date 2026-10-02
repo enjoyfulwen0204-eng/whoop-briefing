@@ -40,29 +40,12 @@ import { t, localizedDisplay } from './localization.js';
  * displayLabelFor()。以前這裡是 `DISPLAY_LABEL[k] ?? k`，於是任何漏掉對應的
  * 內部欄位名會被原樣印給使用者看（實測出現過「previous_day_strain 2.6」）。
  */
-const DISPLAY_LABEL = {
-  recovery: '恢復',
-  hrv: 'HRV',
-  rhr: '靜息心率',
-  respiratory_rate: '呼吸率',
-  sleep_total: '睡眠',
-  slow_wave: '深睡',
-  rem: 'REM',
-  sleep_performance: '睡眠表現',
-  sleep_debt: '睡眠債',
-  sleep_consistency: '睡眠一致性',
-  sleep_efficiency: '睡眠效率',
-  disturbance_count: '擾動次數',
-  strain: 'Strain',
-  spo2: '血氧',
-  skin_temp: '皮膚溫度',
-  weight: '體重',
-  steps: '步數',
-  vo2_max: '最大攝氧量',
-  max_heart_rate: '最大心率',
-  lean_body_mass: '去脂體重',
-  calories: '熱量',
-};
+const PUBLISHABLE_METRICS = new Set([
+  'recovery', 'hrv', 'rhr', 'respiratory_rate', 'sleep_total', 'slow_wave', 'rem',
+  'sleep_performance', 'sleep_debt', 'sleep_consistency', 'sleep_efficiency',
+  'disturbance_count', 'strain', 'spo2', 'skin_temp', 'weight', 'steps',
+  'vo2_max', 'max_heart_rate', 'lean_body_mass', 'calories',
+]);
 
 /**
  * 取得可以印給使用者看的標籤。**沒有核可的標籤就回 null（fail closed）。**
@@ -73,13 +56,10 @@ const DISPLAY_LABEL = {
 export function displayLabelFor(f, locale = 'zh-TW') {
   // 明確覆寫優先（保留「昨日 Strain」這種時間語義）
   if (typeof f?.displayLabel === 'string' && f.displayLabel.trim()) {
-    if (locale === 'zh-TW') return f.displayLabel;
-    if (f.displayLabel === '昨日 Strain') return t(locale, 'metric.previous_day_strain');
+    if (f.displayLabel === '昨日 Strain') return t(locale, 'briefing.metric.previous_day_strain');
     return null;
   }
-  const label = DISPLAY_LABEL[f?.metric];
-  if (typeof label === 'string' && label.trim()) return locale === 'zh-TW'
-    ? label : t(locale, `qa.metric.${f.metric}`);
+  if (PUBLISHABLE_METRICS.has(f?.metric)) return t(locale, `qa.metric.${f.metric}`);
   log.warn('assertion_unmapped_metric_key', { metric: f?.metric ?? null });
   return null;
 }

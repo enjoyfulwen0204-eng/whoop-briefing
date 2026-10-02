@@ -73,7 +73,8 @@ function stageSuffix(stage, sampleCount, locale) {
   return '';
 }
 
-const metricName = (locale, key) => t(locale, `metric.${key}`);
+const metricName = (locale, key) => t(locale,
+  `${['recovery','sleep_debt','previous_day_strain'].includes(key) ? 'briefing.metric' : 'metric'}.${key}`);
 
 /** 一行指標：`❤️ HRV 42ms（基準 55ms）🟡` */
 function metricLine(m, stage, locale) {

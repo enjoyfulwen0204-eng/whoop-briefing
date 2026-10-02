@@ -486,8 +486,9 @@ test('AD: /journal 有資料時依日期分組，支援天數參數', async () =
 
     const reply = await r.handle({ text: '/journal 7', chatId: CHAT, user: USER });
     assert.match(reply, /最近 7 天的記錄（2 筆）/);
-    assert.match(reply, /alcohol/);
-    assert.match(reply, /caffeine/);
+    assert.match(reply, /飲酒/);
+    assert.match(reply, /咖啡因/);
+    assert.doesNotMatch(reply, /\balcohol\b|\bcaffeine\b/);
     assert.match(reply, /3 drinks/);
   } finally { db.close(); cleanup(); }
 });
@@ -505,7 +506,7 @@ test('AD: /insights 不顯示 RETIRED，history 可看版本鏈', async () => {
   const { db, cleanup } = await freshDb();
   try {
     const { id } = await recordInsight(db, USER.id, {
-      insightType: 'association', subject: 's', statement: '第一版說法',
+      insightType: 'association', subject: 'alcohol_vs_hrv', statement: '第一版說法',
       sampleCount: 15, effectSize: 0.6,
     }, { now: NOW });
     const { reviseInsight } = await import('../src/healthMemory.js');
@@ -514,11 +515,14 @@ test('AD: /insights 不顯示 RETIRED，history 可看版本鏈', async () => {
     }, { now: NOW });
 
     const reply = await routerFor(db).handle({ text: '/insights', chatId: CHAT, user: USER });
-    assert.match(reply, /第二版說法/);
+    assert.match(reply, /飲酒/);
+    assert.match(reply, /HRV/);
+    assert.doesNotMatch(reply, /第二版說法/);
     assert.ok(!reply.includes('第一版說法'), '★ RETIRED 的不顯示');
 
     const hist = await routerFor(db).handle({ text: '/insights history', chatId: CHAT, user: USER });
-    assert.match(hist, /第一版說法/, 'history 要看得到舊版本');
+    assert.match(hist, /v1（已被較新的版本取代）/, 'history 要看得到舊版本');
+    assert.doesNotMatch(hist, /第一版說法/, '舊自由文字不能直接跨語言呈現');
   } finally { db.close(); cleanup(); }
 });
 
@@ -529,7 +533,8 @@ test('★ AD: /predictions 資料不足時絕不給預測數字', async () => {
     // 0 筆資料的 readiness 狀態是 NO_DATA。Phase 10 之後這裡印的是**實際**
     // 的 readiness 狀態，不再一律寫 INSUFFICIENT_DATA（那對 DEGRADED 之類
     // 的情況會誤導使用者以為只要再等幾天就好）。
-    assert.match(reply, /狀態：NO_DATA/);
+    assert.match(reply, /狀態：尚無資料/);
+    assert.doesNotMatch(reply, /NO_DATA/);
     assert.match(reply, /目前可用樣本：0 筆/);
     assert.match(reply, /最低需求：30 筆/);
     assert.ok(!/預測.*\d+%/.test(reply), '★ 不可以出現任何預測值');
@@ -568,9 +573,9 @@ test('AD: /cost 有紀錄時分組顯示，未知成本明講 cost unavailable',
     assert.equal(summary.todaySummary.calls_with_unknown_cost, 1);
 
     const text = renderCost(summary);
-    assert.match(text, /Q&A/);
-    assert.match(text, /Parsing: cost unavailable/, '★ 沒 token 就顯示 cost unavailable');
-    assert.match(text, /Total: \$/);
+    assert.match(text, /問答/);
+    assert.match(text, /解析: 成本無法估算/, '★ 沒 token 就顯示成本無法估算');
+    assert.match(text, /合計：\$/);
     assert.match(text, /1 次沒有 token 用量資料/);
   } finally { db.close(); cleanup(); }
 });

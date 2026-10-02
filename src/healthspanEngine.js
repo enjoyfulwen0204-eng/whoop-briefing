@@ -193,15 +193,6 @@ export async function runHealthspanSnapshot({
   }
 }
 
-/** 成熟度的對外說法。刻意都不承諾「之後會有分數」。 */
-const MATURITY_LABEL = {
-  [HEALTHSPAN_MATURITY.NO_DATA]: '尚未開始累積',
-  [HEALTHSPAN_MATURITY.WARMING_UP]: '校準中',
-  [HEALTHSPAN_MATURITY.LIMITED]: '資料有限',
-  [HEALTHSPAN_MATURITY.STRUCTURALLY_READY]: '資料充足',
-  [HEALTHSPAN_MATURITY.QUALIFIED]: '已啟用',
-};
-
 const AVAILABILITY_MARK = {
   [AVAILABILITY.AVAILABLE]: '✅',
   [AVAILABILITY.PARTIAL]: '⚠️',
@@ -216,40 +207,7 @@ const AVAILABILITY_MARK = {
  * ★ 絕不出現 WHOOP Age / WHOOP Healthspan，絕不輸出任何合成分數或年齡。
  */
 export function renderPersonalHealthspan(result, locale = 'zh-TW') {
-  if (locale !== 'zh-TW') return renderLocalizedHealthspan(result, locale);
-  const lines = ['🧬 Personal Healthspan', ''];
-
-  lines.push(`狀態：${MATURITY_LABEL[result.maturity] ?? result.maturity}`);
-  if (result.scopedCount) {
-    lines.push(`資料覆蓋：${result.usableCount}/${result.scopedCount} 項指標`);
-  }
-  if (result.historyTier) lines.push(`累積歷史：約${result.historyTier}`);
-  lines.push(`演算法版本：${result.algorithmVersion}`);
-  lines.push('');
-
-  if (result.maturity === HEALTHSPAN_MATURITY.NO_DATA) {
-    lines.push('還沒有可以盤點的資料。等 WHOOP 開始同步之後就會自動開始。');
-    return lines.join('\n');
-  }
-
-  // 逐項列出「拿不拿得到」——這才是這個功能現在真正能給的東西
-  lines.push('目前盤點到的指標：');
-  for (const c of result.contributors) {
-    const mark = AVAILABILITY_MARK[c.availability] ?? '?';
-    const n = c.sampleCount ? `（${c.sampleCount} 筆）` : '';
-    lines.push(`  ${mark} ${c.metricKey}${n}`);
-  }
-  lines.push('');
-
-  if (!result.scoringPolicyActive) {
-    // ★ 這是整個功能現階段最重要的一句話
-    lines.push('目前**不會**給你一個綜合分數或推估年齡。');
-    lines.push('資料底座已經在累積，但還沒有一套經過驗證的計分方式——');
-    lines.push('在那之前給出一個數字，只會讓你以為它有意義。');
-  }
-  lines.push('');
-  lines.push('註：這是本系統自己的長期生理盤點，與 WHOOP App 內的任何評分無關。');
-  return lines.join('\n');
+  return renderLocalizedHealthspan(result, locale);
 }
 
 function renderLocalizedHealthspan(result, locale) {
@@ -266,7 +224,9 @@ function renderLocalizedHealthspan(result, locale) {
       : result.historyDays >= 60 ? 60 : 30;
     lines.push(line('history', { tier: line(`tier.${days}`) }));
   }
-  lines.push(line('version', { version: result.algorithmVersion }), '');
+  lines.push(line('version', {
+    version: line(result.algorithmVersion === HEALTHSPAN_ALGORITHM_VERSION ? 'method.v0' : 'method.unknown'),
+  }), '');
   if (result.maturity === HEALTHSPAN_MATURITY.NO_DATA) return [...lines, line('empty')].join('\n');
   lines.push(line('metrics'));
   const known = new Set(['sleep_duration','sleep_consistency','resting_heart_rate','hrv','recovery',

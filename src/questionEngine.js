@@ -47,12 +47,8 @@ const QUALITY_SCORE = {
 
 const SEVERITY_SCORE = { [DEVIATION.STRONG]: 1, [DEVIATION.NOTABLE]: 0.6, [DEVIATION.MILD]: 0.3 };
 
-const METRIC_LABEL = {
-  hrv: 'HRV', rhr: '靜息心率', recovery: '恢復分數', respiratory_rate: '呼吸率',
-  sleep_performance: '睡眠表現', sleep_debt: '睡眠債', previous_day_strain: '前一天的 Strain',
-};
-const DIRECTION_WORD = { low: '偏低', high: '偏高', flat: '有變化' };
-const LEVEL_WORD = { [DEVIATION.STRONG]: '不少', [DEVIATION.NOTABLE]: '一些' };
+const PUBLIC_METRICS = new Set(['hrv','rhr','recovery','respiratory_rate','sleep_performance',
+  'sleep_debt','previous_day_strain']);
 
 const CATEGORY_PROMPT = INFORMATION_GAIN_POLICY.CANDIDATES;
 
@@ -143,8 +139,8 @@ export function questionTargetDate({ category, signal }) {
 
 /** 訊號 + 類別 → 一句話的問題。純樣板，不是 LLM 生成。 */
 export function buildQuestionText({ category, signal, locale = 'zh-TW' }) {
-  const metric = locale === 'zh-TW' ? (METRIC_LABEL[signal.metric] ?? signal.metric)
-    : t(locale, `metric.${signal.metric}`);
+  const metric = t(locale, PUBLIC_METRICS.has(signal.metric)
+    ? `metric.${signal.metric}` : 'answer.metricUnknown');
   const direction = t(locale, `proactive.direction.${signal.direction ?? 'flat'}`);
   const level = signal.level === DEVIATION.STRONG
     ? t(locale, 'proactive.questionLevel.strong')

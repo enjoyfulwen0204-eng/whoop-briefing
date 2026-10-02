@@ -207,24 +207,11 @@ export function renderFinding(f, locale = 'zh-TW') {
     if (!summary || !hintKey) throw new Error('LOCALIZATION_GUARDIAN_SIGNAL_UNSUPPORTED');
     return [t(locale, 'guardian.title'), '', summary(), '', t(locale, hintKey), '', t(locale, 'guardian.cooldown')].join('\n');
   }
-  const lines = [
-    '🛡 系統健康檢查',
-    '',
-    f.summary,
-  ];
-  const hint = {
-    [GUARDIAN_SIGNAL.CRON_HEARTBEAT_STALE]:
-      '請確認排程（GitHub Actions / Render cron）是否還在啟用中。',
-    [GUARDIAN_SIGNAL.WHOOP_SYNC_STALE]:
-      '可能是 WHOOP 授權失效或連線問題。可以先用 /status 看看目前狀態。',
-    [GUARDIAN_SIGNAL.PROACTIVE_EVENT_STUCK]:
-      '主動訊息的收尾流程可能沒有執行。資料本身不受影響。',
-    [GUARDIAN_SIGNAL.WHOOP_AUTH_REPEATED_FAILURE]:
-      '需要在電腦上重新執行一次 WHOOP 授權（npm run authorize）。',
-  }[f.signal];
-  if (hint) lines.push('', hint);
-  lines.push('', '（同一項目在冷卻時間內只會通知一次）');
-  return lines.join('\n');
+  if (f.signal !== GUARDIAN_SIGNAL.CRON_HEARTBEAT_STALE)
+    throw new Error('LOCALIZATION_GUARDIAN_GLOBAL_SIGNAL_UNSUPPORTED');
+  return [t(locale, 'guardian.title'), '',
+    t(locale, 'guardian.cron', { hours: formatNumber(locale, f.detail?.age_hours) }), '',
+    t(locale, 'guardian.hintCron'), '', t(locale, 'guardian.cooldown')].join('\n');
 }
 
 // ===========================================================================

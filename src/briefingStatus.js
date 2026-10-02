@@ -252,21 +252,6 @@ export function decide(e, wake = null) {
   return BRIEFING_STATUS.UNKNOWN;
 }
 
-/** 毫秒 → 人話（只給大概，不假裝精確）。 */
-function ago(ms) {
-  if (!Number.isFinite(ms) || ms < 0) return null;
-  const m = Math.round(ms / 60_000);
-  if (m < 60) return `${m} 分鐘前`;
-  const h = ms / 3600_000;
-  if (h >= 24) return `${Math.round(h / 24)} 天前`;
-  // 「1.0 小時前」讀起來像機器輸出。整數就講整數，有餘數才講「多」。
-  const whole = Math.floor(h);
-  const rest = h - whole;
-  if (rest < 0.15) return `${whole} 小時前`;
-  if (rest > 0.85) return `${whole + 1} 小時前`;
-  return `${whole} 個多小時前`;
-}
-
 /**
  * 判定 → 一句誠實的話。
  *
@@ -275,109 +260,7 @@ function ago(ms) {
  * 「等一下就會來」的說法都會是謊話。
  */
 export function renderBriefingStatus({ status, evidence, locale = 'zh-TW' }) {
-  if (locale !== 'zh-TW') return renderLocalizedBriefingStatus({ status, evidence, locale });
-  const e = evidence ?? {};
-  const sourceLine = e.scheduler_state === 'healthy'
-    ? '負責檢查晨報的排程最近有正常運作。'
-    : e.scheduler_state === 'degraded'
-      ? '排程最近仍有執行，但檢查頻率可能比平常慢。'
-      : e.scheduler_state === 'outage'
-        ? '負責檢查晨報的排程最近沒有正常執行。'
-        : null;
-  const schedulerLine = e.scheduler_stale === true
-    ? `另外，負責定時檢查的排程最近一次跑完是${ago(e.scheduler_age_ms) ?? '有一段時間了'}，`
-      + '所以我現在沒辦法保證下一次檢查什麼時候會發生。'
-    : null;
-  // ⚠️ 心跳只證明**上一輪**跑完了，證明不了下一輪會發生。事故當天正是
-  // 「下一輪沒有來」。所以一律用條件句，不給承諾。
-  const nextCheck = e.scheduler_stale === false
-    ? '後續排程成功檢查、而且資料準備好之後就會處理。' : null;
-
-  switch (status) {
-    case BRIEFING_STATUS.DELIVERED:
-      return '今天的簡報我已經發出來了，往上滑應該看得到。';
-
-    case BRIEFING_STATUS.WAITING_FOR_SLEEP_DATA:
-      return [
-        e.cycle_open === true
-          ? '還在等這一晚的睡眠資料。WHOOP 要等這一段睡眠結束並結算之後才會給我數字。'
-          : '還在等最新的睡眠資料進來 —— 我這邊目前沒有可以報告的新睡眠。',
-        schedulerLine,
-        // ★ 只有在**有證據**排程最近跑過時才敢說「下一次檢查」。
-        // 沒有 heartbeat（null）跟 heartbeat 過期（true）一樣不可以承諾 ——
-        // 事故當天任何「等一下就會來」的說法都會是謊話。
-        nextCheck,
-        sourceLine,
-      ].filter(Boolean).join('\n\n');
-
-    case BRIEFING_STATUS.WAITING_FOR_SCORING:
-      return [
-        '睡眠已經記錄到了，但 WHOOP 還沒給出完整的評分（恢復分數通常會晚一點）。'
-        + '沒有評分我不會硬算，那樣的數字不可靠。',
-        schedulerLine ?? nextCheck,
-        schedulerLine ? null : sourceLine,
-      ].filter(Boolean).join('\n\n');
-
-    case BRIEFING_STATUS.TOO_SOON_AFTER_WAKE:
-      return [
-        `你剛起來不久（大約 ${ago(e.observation_age_ms) ?? '不到半小時'}），`
-        + `我會等超過 ${WAKE.MIN_MINUTES_AFTER_SLEEP_END} 分鐘再發，讓數字穩定下來。`,
-        schedulerLine ?? nextCheck,
-        schedulerLine ? null : sourceLine,
-      ].filter(Boolean).join('\n\n');
-
-    case BRIEFING_STATUS.READY_NOT_YET_PROCESSED:
-      return ['資料已經齊了，簡報還沒送出 —— 等後續排程成功檢查之後就會發出來。', sourceLine]
-        .filter(Boolean).join('\n\n');
-
-    case BRIEFING_STATUS.SCHEDULER_STALE:
-      // 這個分支本身就是在講排程離線，不需要 sourceLine 再重複一次。
-      return [
-        '我這邊的資料看起來可以做簡報了，但負責定時檢查的排程最近沒有跑'
-        + `（上一次跑完是${ago(e.scheduler_age_ms) ?? '有一段時間了'}）。`,
-        '所以問題不在你的資料，是沒有人去把它發出來。我沒辦法自己叫醒那個排程，'
-        + '也不想給你一個我保證不了的時間。',
-      ].join('\n\n');
-
-    case BRIEFING_STATUS.SENT_LATE:
-      return '今天的簡報已經發出來了 —— 它比平常晚一點，因為資料比較晚才備齊。';
-
-    case BRIEFING_STATUS.MISSED:
-      return [
-        '那一份已經超過我會補發的時間，所以不會再送了。',
-        '不是資料不見了 —— 是超過期限之後，一份太舊的報告對你已經沒有參考價值。'
-        + '下一次睡眠的簡報不受影響。',
-      ].join('\n\n');
-
-    case BRIEFING_STATUS.FAILED_RETRYABLE:
-      return [
-        '簡報已經做好了，但送出的時候失敗了。',
-        schedulerLine ?? '後續排程成功檢查之後會再試一次。',
-      ].filter(Boolean).join('\n\n');
-
-    case BRIEFING_STATUS.CLAIM_BUSY:
-      return '簡報正在處理中，稍等一下就會送出來。';
-
-    case BRIEFING_STATUS.WAITING_FOR_RECOVERY:
-      return [
-        '睡眠已經記錄到了，但對應的恢復資料還沒進來 —— 少了它我不會硬算。',
-        schedulerLine ?? nextCheck,
-      ].filter(Boolean).join('\n\n');
-
-    case BRIEFING_STATUS.WINDOW_EXPIRED:
-      return [
-        '那一份已經過了我會補發的時限，所以現行設定不會再把它發出來。',
-        '不是資料不見了 —— 是超過時限之後我就不再當成「今天的簡報」。'
-        + '下一次睡眠的簡報不受影響。',
-      ].join('\n\n');
-
-    case BRIEFING_STATUS.UNKNOWN:
-    default:
-      return [
-        '我現在沒辦法確定今天簡報的狀態 —— 手邊的紀錄不足以下判斷。',
-        schedulerLine,
-      ].filter(Boolean).join('\n\n');
-  }
+  return renderLocalizedBriefingStatus({ status, evidence, locale });
 }
 
 function renderLocalizedBriefingStatus({ status, evidence, locale }) {

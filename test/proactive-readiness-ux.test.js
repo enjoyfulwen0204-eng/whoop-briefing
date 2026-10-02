@@ -40,9 +40,9 @@ test('handlePredictions: 樣本不足時顯示 readiness 算出來的確切數�
     const user = await seedSingleUser(db);
     const rows = makeRows('2026-01-01', 5, () => ({ recovery: 50, sleep_total: 25_000_000 }));
     const text = await handlePredictions({ db, userId: user.id, rows });
-    // 只有 5 天資料 → readiness 是 NO_DATA（配對數為 0）。Phase 10 之後
-    // 這裡印的是**實際**的 readiness 狀態，不再一律寫 INSUFFICIENT_DATA。
-    assert.match(text, /狀態：(NO_DATA|INSUFFICIENT_DATA|WARMING_UP)/);
+    // 只有 5 天資料 → 配對數為 0；對外只顯示本地化狀態。
+    assert.match(text, /狀態：尚無資料/);
+    assert.doesNotMatch(text, /NO_DATA|INSUFFICIENT_DATA|WARMING_UP/);
     assert.match(text, new RegExp(`最低需求：${MIN_TRAIN_ROWS} 筆`));
     assert.match(text, /目前可用樣本：\d+ 筆/);
   } finally {

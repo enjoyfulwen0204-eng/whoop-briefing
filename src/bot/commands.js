@@ -5,8 +5,8 @@
  * 只有 /log 的自然語言變體會用到 LLM，而那也只做「語言 → 結構化提案」。
  */
 
-import { buildDataQualityReport, renderDataQuality } from '../dataQuality.js';
-import { parseLogCommand, saveEvent, describeEvent, CATEGORIES } from '../journal.js';
+import { buildDataQualityReport, renderDataQuality, renderMissingScopes } from '../dataQuality.js';
+import { parseLogCommand, saveEvent, describeEvent, labelForCategory, CATEGORIES } from '../journal.js';
 import { costSummary, renderCost } from '../usage.js';
 import { getEvidence, renderEvidence } from '../evidence.js';
 import { scorecard } from '../prediction.js';
@@ -20,6 +20,7 @@ import { addDays, localDate } from '../time.js';
 import { seriesOf } from '../dailyMetrics.js';
 import { log } from '../logger.js';
 import { t, formatLocalDate, formatNumber } from '../localization.js';
+import { renderValidationFailure } from '../validationMessages.js';
 
 /**
  * /help —— **動態**列出目前真的能用的功能。
@@ -87,9 +88,7 @@ export async function handleLog({ db, userId, argsText, rawText, timezone, now, 
 
   if (parsed.ok) {
     const saved = await saveEvent(db, userId, parsed.event, { now, timezone });
-    if (!saved.ok) return locale === 'zh-TW'
-      ? `⚠️ 這筆記錄有問題：${saved.errors.join(', ')}`
-      : t(locale, 'bot.log.invalid');
+    if (!saved.ok) return renderValidationFailure(locale, saved.errors);
     return t(locale, 'router.saved', { event: describeEvent(saved.event, locale) });
   }
 
@@ -99,27 +98,17 @@ export async function handleLog({ db, userId, argsText, rawText, timezone, now, 
     if (nat.ok) {
       const saved = await saveEvent(db, userId, nat.event, { now, timezone });
       if (saved.ok) return t(locale, 'router.saved', { event: describeEvent(saved.event, locale) });
+      return renderValidationFailure(locale, saved.errors);
     }
   }
 
   // 欄位名刻意不叫 token —— logger 的遮蔽清單把 'token' 當機密，
   // 用那個名字會讓這行 debug 資訊被 [REDACTED] 掉，等於白記。
   log.info('log_command_unparsed', { error: parsed.error, unknown_word: parsed.token });
-  if (locale !== 'zh-TW') return t(locale, 'bot.log.unparsed', {
+  if (parsed.error === 'unknown_category') return renderValidationFailure(locale, parsed.error);
+  return t(locale, 'bot.log.unparsed', {
     input: argsText || '—', categories: CATEGORIES.join(', '),
   });
-  return [
-    `⚠️ 看不懂「${argsText || '(空白)'}」。`,
-    '',
-    '用法例如：',
-    '/log alcohol 3 drinks',
-    '/log caffeine 2 coffee',
-    '/log flight TPE SGN',
-    '/log sick',
-    '/log magnesium 300mg',
-    '',
-    `可用類別：${CATEGORIES.join(', ')}`,
-  ].join('\n');
 }
 
 /** /healthdata */
@@ -134,51 +123,7 @@ export async function handleHealthData({ db, userId, timezone, now, locale = 'zh
 // ---------------------------------------------------------------------------
 export async function handleStatus({ db, userId, timezone, now, rows = [], locale = 'zh-TW' }) {
   const report = await buildDataQualityReport({ db, userId, timezone, now });
-  if (locale !== 'zh-TW') return renderLocalizedStatus({
-    db, userId, timezone, now, rows, report, locale,
-  });
-  const lines = ['🩺 系統狀態', ''];
-
-  lines.push('Bot：✅ 運作中');
-  lines.push(`時區：${timezone}`);
-  lines.push('');
-
-  lines.push('WHOOP 資料：'
-    + (report.has_any_health_data
-      ? `✅ ${report.sleep_count} 天（${report.history_start} ～ ${report.history_end}）`
-      : '尚未開始'));
-  lines.push(`授權：${report.token_present ? '✅ 已授權' : '尚未授權'}`
-    + (report.missing_scopes.length ? `（缺 ${report.missing_scopes.join(', ')}）` : ''));
-
-  const bf = Object.entries(report.backfill_status);
-  lines.push(`Backfill：${bf.length === 0 ? '尚未開始' : (report.backfill_complete ? '✅ 完成' : '進行中')}`);
-  lines.push(`最後同步：${report.last_sync ?? '尚未同步'}`);
-  lines.push(`Capability probe：${report.capabilities.probed ? '✅ 已執行' : '尚未執行'}`);
-  lines.push('');
-
-  // 預測就緒度——直接問 readiness engine，不在這裡重複算一次門檻
-  const predictionReadiness = assessPrediction({ rows });
-  lines.push(`預測就緒：${predictionReadiness.status === READINESS_STATUS.READY
-    ? '✅ 可訓練'
-    : `尚未（${predictionReadiness.usable_samples}/${predictionReadiness.required_samples} 筆可用樣本）`}`);
-
-  // insight 就緒度
-  let insightCount = 0;
-  try {
-    insightCount = (await db.getActiveInsights(userId, {})).length;
-  } catch { /* 忽略 */ }
-  lines.push(`長期規律：${insightCount > 0 ? `${insightCount} 項` : '尚未形成'}`);
-
-  lines.push('');
-  lines.push(`Journal：${report.journal_count} 筆`);
-
-  // ---- Proactive Agent（PA22）----
-  // 刻意精簡：開關狀態、資料成熟度、有沒有正在等回答的問題、最近一次動作。
-  // 不展開成一堆新指令，維持 /status 是「一頁摘要」。
-  lines.push('');
-  lines.push(await renderProactiveStatusLines({ db, userId, timezone, rows, now }));
-
-  return lines.join('\n');
+  return renderLocalizedStatus({ db, userId, timezone, now, rows, report, locale });
 }
 
 async function renderLocalizedStatus({ db, userId, timezone, now, rows, report, locale }) {
@@ -194,7 +139,7 @@ async function renderLocalizedStatus({ db, userId, timezone, now, rows, report, 
   lines.push(line('authorization', {
     status: line(report.token_present ? 'authorized' : 'unauthorized')
       + (report.missing_scopes.length
-        ? line('missingScopes', { scopes: report.missing_scopes.join(', ') }) : ''),
+        ? line('missingScopes', { scopes: renderMissingScopes(locale, report.missing_scopes) }) : ''),
   }));
   const backfillCount = Object.keys(report.backfill_status).length;
   lines.push(line('backfill', {
@@ -237,7 +182,7 @@ export async function renderProactiveStatusLines({ db, userId, timezone, rows = 
       .some((i) => i.status !== INSIGHT_STATUS.HYPOTHESIS);
   } catch { /* 忽略 */ }
   const stage = deriveColdStartStage({ proactiveMonitoringStatus: monitoring.status, hasMatureInsight });
-  if (locale !== 'zh-TW') {
+
     const lines = [
       t(locale, 'bot.status.proactiveTitle'),
       t(locale, 'bot.status.proactiveState', { state: t(locale, `bot.status.stage.${stage}`) }),
@@ -260,35 +205,6 @@ export async function renderProactiveStatusLines({ db, userId, timezone, rows = 
         ? last.decision : 'UNKNOWN'}`),
     }) : t(locale, 'bot.status.noAction'));
     return lines.join('\n');
-  }
-
-  const STAGE_LABEL = {
-    [COLD_START_STAGE.STAGE_0]: '尚未開始累積資料',
-    [COLD_START_STAGE.STAGE_1]: '累積中，還不足以主動分析',
-    [COLD_START_STAGE.STAGE_2]: '資料有限，主動分析尚未啟用',
-    [COLD_START_STAGE.STAGE_3]: '✅ 已啟用',
-    [COLD_START_STAGE.STAGE_4]: '✅ 已啟用（已有長期規律）',
-  };
-
-  const lines = ['🔔 Proactive Agent', `狀態：${STAGE_LABEL[stage] ?? stage}`];
-
-  let openQuestion = null;
-  try {
-    openQuestion = await db.getOpenPendingQuestion(userId, { now });
-  } catch { /* 忽略 */ }
-  lines.push(`待回答問題：${openQuestion ? '有（' + (openQuestion.context?.category ?? '未分類') + '）' : '無'}`);
-
-  try {
-    const recent = await db.getRecentProactiveEvents(userId, {
-      sinceIso: addDays(anchorDate, -7),
-    });
-    const last = recent[0];
-    lines.push(`最近一次動作：${last ? `${last.createdAt?.slice(0, 10)} ${last.decision}` : '尚無'}`);
-  } catch {
-    lines.push('最近一次動作：尚無');
-  }
-
-  return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -314,13 +230,11 @@ export async function handleJournal({ db, userId, argsText, timezone, now, local
     (byDate[e.health_date] ??= []).push(e);
   }
   for (const date of Object.keys(byDate).sort().reverse()) {
-    lines.push(locale === 'zh-TW' ? date : formatLocalDate(date, locale));
+    lines.push(formatLocalDate(date, locale));
     for (const e of byDate[date]) {
       const amount = e.numeric_value === null || e.numeric_value === undefined
         ? '' : ` ${formatNumber(locale, e.numeric_value, 2)}${e.unit ? ` ${e.unit}` : ''}`;
-      const factor = ({ late_meal:'lateMeal', late_sleep:'lateSleep', exercise_note:'exercise' })[e.category]
-        ?? e.category;
-      const category = locale === 'zh-TW' ? e.category : t(locale, `factor.${factor}`);
+      const category = labelForCategory(e.category, locale);
       lines.push(t(locale, 'bot.journal.entry', {
         category, subtype: e.subtype ? `/${e.subtype}` : '', amount,
       }));
@@ -345,7 +259,7 @@ export async function handleInsights({ db, userId, argsText, locale = 'zh-TW' })
     INSIGHT_STATUS.SUPPORTED, INSIGHT_STATUS.EMERGING, INSIGHT_STATUS.HYPOTHESIS,
   ].includes(i.status));
 
-  if (locale !== 'zh-TW') {
+
     const lines = [t(locale, 'bot.insights.title'), ''];
     if (!visible.length) return `${lines.join('\n')}${t(locale, 'bot.insights.empty')}`;
     for (const i of visible) {
@@ -387,39 +301,6 @@ export async function handleInsights({ db, userId, argsText, locale = 'zh-TW' })
     lines.push(t(locale, 'bot.insights.note'));
     if (!wantHistory) lines.push(t(locale, 'bot.insights.historyHint'));
     return lines.join('\n');
-  }
-
-  if (!visible.length) {
-    return [
-      '🧠 長期規律',
-      '',
-      '目前資料還不足以形成長期規律。',
-      '',
-      '要看出「什麼會影響你的恢復」，需要累積一段時間的 WHOOP 資料，',
-      '再加上 /log 記錄的生活事件當對照。',
-    ].join('\n');
-  }
-
-  const lines = ['🧠 長期規律', ''];
-  for (const i of visible) {
-    lines.push(`[${i.status}] ${i.statement}`);
-    lines.push(`   樣本 ${i.sample_count ?? '不明'}`
-      + (i.effect_size !== null && i.effect_size !== undefined
-        ? `，effect size ${Number(i.effect_size).toFixed(2)}` : '')
-      + `，v${i.version}`);
-    if (wantHistory && Number(i.supersedes_id)) {
-      try {
-        const chain = await db.getInsightHistory(userId, Number(i.id));
-        for (const old of chain.slice(1)) {
-          lines.push(`   ↳ v${old.version}（${old.status}）${old.statement}`);
-        }
-      } catch { /* 忽略 */ }
-    }
-    lines.push('');
-  }
-  lines.push('註：全部都是個人層級的觀察到的關聯，不是因果關係。');
-  if (!wantHistory) lines.push('用 /insights history 可以看修正過程。');
-  return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -432,88 +313,8 @@ export async function handleInsights({ db, userId, argsText, locale = 'zh-TW' })
  * 刻意都用「還沒被證明」而不是「不好」——我們知道的是「沒有證據支持」，
  * 不是「有證據反對」。這兩件事不一樣。
  */
-const MATURITY_LABEL = {
-  [PREDICTION_MATURITY.NO_DATA]: '尚無資料',
-  [PREDICTION_MATURITY.INSUFFICIENT_DATA]: '資料累積中',
-  [PREDICTION_MATURITY.MODEL_UNAVAILABLE]: '目前的資料結構算不出模型',
-  [PREDICTION_MATURITY.TRAINABLE]: '已訓練，但還沒有足夠的測試資料可以評估',
-  [PREDICTION_MATURITY.EVALUATED_UNQUALIFIED]: '已評估，但還沒達到可發布的標準',
-  [PREDICTION_MATURITY.QUALIFIED]: '✅ 已通過品質門檻',
-  [PREDICTION_MATURITY.STALE]: '模型已過期，需要重新訓練',
-  [PREDICTION_MATURITY.UNSUPPORTED]: '這個帳號拿不到所需的欄位',
-};
 export async function handlePredictions({ db, userId, rows = [], locale = 'zh-TW' }) {
-  if (locale !== 'zh-TW') return renderLocalizedPredictions({ db, userId, rows, locale });
-  const lines = ['🔮 恢復預測', ''];
-
-  // 用 readiness engine 判斷，不在這裡重複 MIN_TRAIN_ROWS 的門檻邏輯——
-  // prediction.js 的 train() 本身用的是「D 天特徵 → D+1 天結果」配對數，
-  // 不是原始列數，assessPrediction() 已經正確算過這件事。
-  const readiness = assessPrediction({ rows });
-
-  if (readiness.status !== READINESS_STATUS.READY) {
-    // ⚠️ 以前這裡對**所有**非 READY 狀態都印 INSUFFICIENT_DATA，包含
-    // DEGRADED（樣本夠了但結構上算不出來）。那會誤導：使用者以為只要
-    // 再等幾天就好，其實是特徵共線之類的問題。現在誠實印出實際狀態。
-    lines.push(`狀態：${readiness.status}`);
-    lines.push('');
-    lines.push(`目前可用樣本：${readiness.usable_samples} 筆`);
-    lines.push(`最低需求：${readiness.required_samples} 筆`);
-    lines.push('');
-    if (readiness.status === READINESS_STATUS.DEGRADED) {
-      lines.push('樣本數雖然夠了，但目前的資料結構算不出可用的模型，');
-      lines.push('所以我不會給你任何預測數字。');
-    } else {
-      lines.push('資料量還不足以訓練預測模型，所以我不會給你任何預測數字。');
-    }
-    lines.push('（一個沒有足夠資料支撐的預測，比沒有預測更糟。）');
-  } else {
-    // ★ 資料夠訓練 ≠ 模型可信。這是兩個完全不同的問題，現在分開講。
-    lines.push('資料就緒：✅ 可訓練');
-    lines.push(`可用樣本：${readiness.usable_samples} 筆`);
-    lines.push('');
-
-    let model = null;
-    try {
-      model = await db.getLatestPredictionModel(userId, { targetMetric: 'recovery' });
-    } catch { /* 沒有模型層資料就當作還沒訓練過 */ }
-
-    if (!model) {
-      lines.push('模型狀態：尚未訓練（下一次排程執行時會訓練）');
-    } else {
-      lines.push(`模型狀態：${MATURITY_LABEL[model.maturity] ?? model.maturity}`);
-      if (model.nTest) lines.push(`  測試樣本 ${model.nTest} 筆（時序切分，不含未來資料）`);
-      if (model.mae !== null) lines.push(`  MAE ${model.mae.toFixed(2)}`);
-      if (model.baselineMae !== null) {
-        const verdict = model.beatsBaseline === true ? '✅ 優於' : '❌ 沒有優於';
-        lines.push(`  對照「只用歷史平均猜」：${verdict}（基準 MAE ${model.baselineMae.toFixed(2)}）`);
-      }
-
-      lines.push('');
-      if (model.qualified) {
-        lines.push('這個模型已通過品質門檻。');
-      } else {
-        // ★ 這是整個功能的核心訊息：算得出來 ≠ 可以給你看
-        lines.push('目前**不會**給你預測數字。');
-        lines.push('模型還沒有被證明夠準——在證明之前，給出一個數字只會誤導你。');
-      }
-    }
-  }
-
-  // 已經有記分卡就一併顯示
-  try {
-    const sc = await scorecard(db, userId, {});
-    if (sc.available) {
-      lines.push('');
-      lines.push('過往預測準確度：');
-      lines.push(`  已評估 ${sc.n} 次`);
-      lines.push(`  MAE ${sc.mae.toFixed(2)}`);
-      lines.push(`  RMSE ${sc.rmse.toFixed(2)}`);
-      lines.push(`  區間涵蓋率 ${(sc.interval_coverage * 100).toFixed(0)}%`);
-    }
-  } catch { /* 忽略 */ }
-
-  return lines.join('\n');
+  return renderLocalizedPredictions({ db, userId, rows, locale });
 }
 
 async function renderLocalizedPredictions({ db, userId, rows, locale }) {
@@ -590,6 +391,6 @@ export async function handleCost({ db, userId, timezone, now, locale = 'zh-TW' }
 // /evidence
 // ---------------------------------------------------------------------------
 export async function handleEvidence({ db, userId, now, locale = 'zh-TW' }) {
-  const result = await getEvidence({ db, userId, now });
+  const result = await getEvidence({ db, userId, now, locale });
   return renderEvidence(result, locale);
 }

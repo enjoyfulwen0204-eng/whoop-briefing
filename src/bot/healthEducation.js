@@ -43,74 +43,7 @@
 import { PERSPECTIVE } from './perspective.js';
 import { t } from '../localization.js';
 
-/**
- * 主題 → 各面向的一般機轉說明。
- *
- * `noun` 是這個主題在句子裡的自然說法（避免「飲酒飲酒」這種重複）。
- * 每一段都是**一般性**敘述，不是對任何人的判斷。
- */
-const TOPICS = {
-  alcohol: {
-    noun: '酒精',
-    tired: '酒精可能讓人短時間覺得疲倦。有些人會覺得比較快睡著，但後半夜的睡眠'
-      + '可能被打斷，也可能因為水分流失而讓隔天精神變差。',
-    sleep: '酒精可能影響睡眠。常見的描述是入睡變快，但後半夜比較容易醒來、'
-      + '深睡與 REM 可能減少，整體感受到的睡眠品質因此下降。',
-    hrv: '飲酒之後 HRV 偏低、靜息心率偏高是常見的觀察。一般認為與自律神經活動的'
-      + '變化有關，但影響程度因人、因量而異。',
-    recovery: '飲酒之後恢復分數偏低是常見的觀察。不過恢復分數會受到多種因素影響，'
-      + '單靠這一項無法判定原因。',
-  },
-  late_sleep: {
-    noun: '睡得晚',
-    tired: '熬夜之後沒精神很常見。睡眠時間被壓縮可能累積睡眠不足，'
-      + '作息往後移也可能讓白天的清醒程度下降。',
-    sleep: '晚睡可能讓可用的睡眠時間變短，睡眠階段的分佈也可能改變。',
-    hrv: '睡眠不足之後 HRV 偏低是常見的觀察，常被當成身體還在恢復的間接訊號之一。',
-    recovery: '睡得太少之後恢復分數偏低是常見的觀察。恢復分數會受到多種因素影響，'
-      + '不會只反映其中一項。',
-  },
-  short_sleep: {
-    noun: '睡眠不足',
-    tired: '睡得太少之後覺得累很常見，專注與精神都可能受影響。',
-    sleep: '睡眠時間不足時，各個睡眠階段的比例可能改變，不同人的樣子不太一樣。',
-    hrv: '睡眠不足之後 HRV 偏低是常見的觀察。',
-    recovery: '睡太少之後恢復分數偏低是常見的觀察，但實際影響多少因人而異。',
-  },
-  exercise: {
-    noun: '運動',
-    tired: '運動完覺得累很常見。可能與肌肉疲勞、能量消耗、水分與電解質流失，'
-      + '或這次強度比平常高有關。一般休息與補充之後會慢慢緩解。',
-    sleep: '規律運動常被認為對睡眠有幫助，但太接近睡前的高強度運動，'
-      + '有些人反而會比較難入睡。',
-    hrv: '強度較高的訓練後 HRV 可能暫時偏低，多數情況下休息之後會回升，'
-      + '不過每個人的恢復速度差很多。',
-    recovery: '高強度訓練的隔天恢復分數偏低是常見的觀察，通常與身體還在修復有關。',
-  },
-  stress: {
-    noun: '壓力',
-    tired: '壓力可能讓人覺得疲倦。長時間的緊繃可能影響睡眠品質，'
-      + '也可能讓身體處在比較耗能的狀態。',
-    sleep: '壓力常見的影響是比較難入睡、睡得比較淺，或半夜醒來。',
-    hrv: '壓力可能讓 HRV 改變，常見的方向是偏低。HRV 常被當成自律神經活動的'
-      + '間接指標之一，但單一數字無法代表壓力大小。',
-    recovery: '壓力大的時候恢復分數偏低並不少見。',
-  },
-  caffeine: {
-    noun: '咖啡因',
-    tired: '咖啡因作用退去之後覺得疲倦很常見；它也可能因為影響了睡眠而讓隔天更累。',
-    sleep: '咖啡因在體內代謝需要時間，下午之後攝取有些人會覺得入睡變慢、睡得比較淺。',
-    hrv: '咖啡因可能讓心率上升、HRV 偏低，不過個別差異很大。',
-    recovery: '咖啡因若影響了睡眠，恢復分數也可能跟著受影響。',
-  },
-  sickness: {
-    noun: '生病',
-    tired: '生病或感染期間覺得疲倦很常見，一般認為與免疫反應有關。',
-    sleep: '生病時睡眠常常變得比較破碎。',
-    hrv: '生病期間 HRV 偏低、靜息心率偏高是常見的觀察。',
-    recovery: '生病時恢復分數偏低很常見。',
-  },
-};
+const TOPICS = new Set(['alcohol','late_sleep','short_sleep','exercise','stress','caffeine','sickness']);
 
 const TOPIC_PATTERNS = [
   ['alcohol', /(喝酒|飲酒|酒精|喝了酒|喝完酒|酒後)/],
@@ -143,11 +76,6 @@ export function detectAspect(text) {
   return 'tired';
 }
 
-/** 這個主題在句子裡的自然說法（給個人化回答共用，避免標籤重複）。 */
-export function mechanismNoun(topic) {
-  return TOPICS[topic]?.noun ?? null;
-}
-
 /**
  * 這句話有沒有描述**需要升級處理**的嚴重症狀？
  *
@@ -165,7 +93,7 @@ const SEVERE_IN_REPORT = /(叫不醒|失去意識|意識不清|昏迷|沒有反�
 export function educationAnswer({ text, perspective = PERSPECTIVE.GENERAL, locale = 'zh-TW' } = {}) {
   const topic = detectTopic(text);
   const aspect = detectAspect(text);
-  const entry = topic ? TOPICS[topic] : null;
+  const entry = topic && TOPICS.has(topic);
   const body = entry ? t(locale, `education.${topic}.${aspect}`) : null;
   if (!body) return null;
 

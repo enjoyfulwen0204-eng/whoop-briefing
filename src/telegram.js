@@ -194,7 +194,7 @@ export function createTelegram({
         }
       }
       const body = errorScope === GLOBAL_SCOPE
-        ? `🚨 WHOOP 簡報系統異常\n類型：${errorType}\n${message}\n\n（同類型錯誤 ${hours} 小時內只通知一次）`
+        ? t('zh-TW', 'admin.globalError', { type: errorType, message, hours })
         : t(locale, 'telegram.errorNotice', {
           message, hours: formatNumber(locale, hours),
         });

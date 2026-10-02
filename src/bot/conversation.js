@@ -21,9 +21,6 @@ import { t } from '../localization.js';
 /** 追問哪些 journal 類別可能解釋恢復變差。 */
 export const FOLLOW_UP_CATEGORIES = ['alcohol', 'sickness', 'travel', 'late_sleep', 'stress'];
 
-export const FOLLOW_UP_QUESTION =
-  '昨天有喝酒、旅行、生病、壓力特別大，或睡得特別晚嗎？\n'
-  + '（直接回我就好，例如「喝了三杯酒」或「沒有」。我會記下來，之後就能幫你把這些對照著看。）';
 export const followUpQuestion = (locale = 'zh-TW') => t(locale, 'conversation.followUp');
 
 /** 使用者是不是在說「沒有」。 */

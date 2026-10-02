@@ -538,7 +538,8 @@ test('★ /predictions 會誠實顯示模型與基準線的對照', async () => 
 test('★ /predictions 在資料不足時完全不提模型', async () => {
   await withDb(async (db) => {
     const text = await handlePredictions({ db, userId: ALICE.id, rows: [] });
-    assert.match(text, /NO_DATA|INSUFFICIENT/);
+    assert.match(text, /狀態：尚無資料/);
+    assert.doesNotMatch(text, /NO_DATA|INSUFFICIENT/);
     assert.ok(!/MAE/.test(text));
   });
 });

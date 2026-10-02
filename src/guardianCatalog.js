@@ -9,6 +9,8 @@ export const GUARDIAN_CATALOG = Object.freeze({
     'guardian.hintStuck':'主動訊息的收尾流程可能沒有執行。資料本身不受影響。',
     'guardian.hintAuth':'請使用 /connect 重新連接 WHOOP。',
     'guardian.cooldown':'（同一項目在冷卻時間內只會通知一次）',
+    'guardian.cron':'排程已經 {hours} 小時沒有成功執行',
+    'guardian.hintCron':'請確認排程是否仍在啟用中。',
   },
   en: {
     'guardian.title':'🛡 Service health check',
@@ -19,6 +21,8 @@ export const GUARDIAN_CATALOG = Object.freeze({
     'guardian.hintStuck':'The follow-up process may not have completed. Your data is unaffected.',
     'guardian.hintAuth':'Use /connect to reconnect WHOOP.',
     'guardian.cooldown':'(You will be notified only once per issue during the cooldown period.)',
+    'guardian.cron':'The briefing scheduler has not run successfully for {hours} hours.',
+    'guardian.hintCron':'Check whether the scheduler is still enabled.',
   },
   vi: {
     'guardian.title':'🛡 Kiểm tra trạng thái hệ thống',
@@ -29,5 +33,7 @@ export const GUARDIAN_CATALOG = Object.freeze({
     'guardian.hintStuck':'Quy trình theo dõi có thể chưa hoàn tất. Dữ liệu của bạn không bị ảnh hưởng.',
     'guardian.hintAuth':'Dùng /connect để kết nối lại WHOOP.',
     'guardian.cooldown':'(Mỗi vấn đề chỉ được báo một lần trong thời gian tạm ngừng thông báo.)',
+    'guardian.cron':'Lịch gửi bản tin chưa chạy thành công trong {hours} giờ.',
+    'guardian.hintCron':'Hãy kiểm tra xem lịch chạy còn được bật hay không.',
   },
 });

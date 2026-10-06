@@ -191,18 +191,59 @@ export async function backfillV22(client, { privacyKeys, experimentAttestations 
   }, { unclassified: false });
 }
 
+export function v22LinkageQuery(table, owner) {
+  const expectedOwner = table === 'system_heartbeats' ? 'substr(p.scope,6)'
+    : table === 'telegram_operations' ? 'p.owner_user_id' : 'p.user_id';
+  if (!V22_LEGACY_R_TABLES.includes(table) || owner !== expectedOwner)
+    throw new Error('phase4_v22_invalid_linkage_query');
+  // Only the metric table has the measured high-cardinality linkage probe.
+  // Retain the reviewed query for every other table, including special owners.
+  if (table !== 'healthspan_metrics') return `SELECT 1 FROM ${table} p WHERE content_state='PRESENT' AND (source_linkage_state <> 'COMPLETE'
+      OR health_content_redacted_at IS NOT NULL OR NOT EXISTS (
+      SELECT 1 FROM phase4_source_links l WHERE l.user_id=${owner} AND l.artifact_id=p.privacy_artifact_id AND l.artifact_type='${table}'
+        AND l.unlinked_at IS NULL)) LIMIT 1`;
+  // Materialize active (owner, artifact) pairs once, then anti-join. DISTINCT
+  // preserves EXISTS semantics when an artifact has several source links.
+  return `WITH linked AS MATERIALIZED (
+      SELECT DISTINCT user_id, artifact_id FROM phase4_source_links
+      WHERE artifact_type='${table}' AND unlinked_at IS NULL
+    ) SELECT 1 FROM ${table} p LEFT JOIN linked l
+      ON l.user_id=${owner} AND l.artifact_id=p.privacy_artifact_id
+      WHERE p.content_state='PRESENT' AND (p.source_linkage_state <> 'COMPLETE'
+        OR p.health_content_redacted_at IS NOT NULL OR l.artifact_id IS NULL) LIMIT 1`;
+}
+
 export async function verifyV22Data(client, { backfill = false } = {}) {
-  const reject = async (sql, label) => { if ((await client.execute(sql)).rows.length) throw new Error(`phase4_v22_postcondition:${label}`); };
+  const reject = async (sql, label) => {
+    let rows;
+    try { ({ rows } = await client.execute(sql)); }
+    catch (error) {
+      // Retain only fixed migration context. The provider error's message and
+      // payload can contain connection details and must never reach the CLI.
+      error.migrationVersion = 22;
+      error.migrationPhase = 'verification';
+      error.migrationOperation = label;
+      error.code = 'MIGRATION_VERIFICATION_QUERY_FAILED';
+      throw error;
+    }
+    if (rows.length) {
+      const error = new Error(`phase4_v22_postcondition:${label}`);
+      error.code = 'MIGRATION_POSTCONDITION_FAILED';
+      error.migrationVersion = 22;
+      error.migrationPhase = 'verification';
+      error.migrationOperation = label;
+      throw error;
+    }
+  };
   if (!backfill) return;
   for (const table of V22_LEGACY_R_TABLES) {
     await reject(`SELECT 1 FROM ${table} WHERE privacy_artifact_id IS NULL LIMIT 1`, `${table}_identity`);
     await reject(`SELECT 1 FROM ${table} WHERE content_state='REDACTED' AND
       (health_content_redacted_at IS NULL OR health_content_redaction_reason IS NULL OR content_digest_salt IS NOT NULL) LIMIT 1`, `${table}_redaction`);
     const owner = table === 'system_heartbeats' ? 'substr(p.scope,6)' : table === 'telegram_operations' ? 'p.owner_user_id' : 'p.user_id';
-    await reject(`SELECT 1 FROM ${table} p WHERE content_state='PRESENT' AND (source_linkage_state <> 'COMPLETE'
-      OR health_content_redacted_at IS NOT NULL OR NOT EXISTS (
-      SELECT 1 FROM phase4_source_links l WHERE l.user_id=${owner} AND l.artifact_id=p.privacy_artifact_id AND l.artifact_type='${table}'
-        AND l.unlinked_at IS NULL)) LIMIT 1`, `${table}_linkage`);
+    // For metrics, the source-link primary key causes a tenant link scan per
+    // row; the set-based query replaces only that measured hotspot.
+    await reject(v22LinkageQuery(table, owner), `${table}_linkage`);
     if (DIAGNOSTICS[table]) await reject(`SELECT 1 FROM ${table} WHERE content_state='REDACTED'
       AND ${DIAGNOSTICS[table]} IS NOT NULL LIMIT 1`, `${table}_diagnostic_redaction`);
   }

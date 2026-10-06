@@ -6,10 +6,54 @@ import { currentVersion, inspectReshape, runMigrations } from '../src/migrations
 import { assertPhase4Schema } from '../src/phase4Migrations.js';
 import { createPhase4Keys } from '../src/phase4Keys.js';
 import { establishPhase4KeyContinuity } from '../src/phase4KeyContinuity.js';
+import { EXPERIMENT_FIELDS, V22_LEGACY_R_TABLES } from '../src/phase4V22Schema.js';
 
 const PRESERVED = ['users', 'user_telegram', 'user_whoop_tokens', 'whoop_sleeps',
   'whoop_recoveries', 'whoop_cycles', 'whoop_workouts', 'journal_events', 'report_runs'];
 const PRODUCTION_HOST = 'whoop-briefing-enjoyfulwen0204-eng.aws-ap-northeast-1.turso.io';
+const CONTINUITY_CODES = new Set(['PHASE4_AUDIT_KEY_CONTINUITY_UNPROVEN',
+  'PHASE4_LOOKUP_KEY_CONTINUITY_UNPROVEN', 'PHASE4_AUDIT_KEY_MISMATCH',
+  'PHASE4_LOOKUP_KEY_MISMATCH', 'PHASE4_KEY_CHECKPOINT_STORAGE_REQUIRED',
+  'PHASE4_KEY_CHECKPOINT_STORAGE_INVALID']);
+const MIGRATION_CODES = new Set(['MIGRATION_KEYS_REQUIRED', 'MIGRATION_TARGET_INVALID',
+  'MIGRATION_DATABASE_UNHEALTHY', 'MIGRATION_VERSION_OUT_OF_RANGE',
+  'MIGRATION_RESHAPE_BLOCKED', 'MIGRATION_DATA_COUNT_CHANGED',
+  'MIGRATION_EXISTING_LOCALE_NOT_UNSET', 'MIGRATION_CREATED_LIVE_STATE',
+  'MIGRATION_BODY_ENERGY_CREATED', 'MIGRATION_ARGUMENT_INVALID',
+  'MIGRATION_ARGUMENT_REQUIRED', 'MIGRATION_NODE22_REQUIRED',
+  'MIGRATION_TARGET_MISMATCH', 'MIGRATION_PRODUCTION_HOST_UNAPPROVED',
+  'MIGRATION_DB_AUTH_REQUIRED', 'MIGRATION_PRODUCTION_CONFIRMATION_REQUIRED',
+  'MIGRATION_COMMIT_REQUIRED', 'MIGRATION_RELEASE_TREE_MISMATCH',
+  'MIGRATION_VERIFICATION_QUERY_FAILED', 'MIGRATION_POSTCONDITION_FAILED']);
+const PROVIDER_CAUSE_CODES = new Set(['UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'EAI_AGAIN',
+  'ENOTFOUND', 'SQLITE_BUSY', 'SQLITE_LOCKED', 'SQLITE_IOERR']);
+const VERIFICATION_OPERATIONS = new Set([
+  ...V22_LEGACY_R_TABLES.flatMap(table => [`${table}_identity`, `${table}_redaction`,
+    `${table}_linkage`, `${table}_diagnostic_redaction`]),
+  'receipt_quarantine', 'journal_backfill', 'ten_experiment_leaves', 'experiment_provenance',
+  ...Object.keys(EXPERIMENT_FIELDS).map(field => `experiment_${field}_redaction`),
+]);
+
+/** Serialize only known diagnostic identifiers; never serialize Error.message/cause. */
+export function safeMigrationError(error) {
+  const code = typeof error?.code === 'string' &&
+    (MIGRATION_CODES.has(error.code) || CONTINUITY_CODES.has(error.code))
+    ? error.code : 'MIGRATION_FAILED';
+  const report = { code };
+  if (error?.migrationVersion === 22 && error?.migrationPhase === 'verification'
+      && VERIFICATION_OPERATIONS.has(error?.migrationOperation)) {
+    report.version = 'v22';
+    report.phase = 'verification';
+    report.operation = error.migrationOperation;
+  }
+  if (['Error', 'TypeError', 'RangeError', 'SyntaxError', 'ReferenceError'].includes(error?.name))
+    report.errorClass = error.name;
+  const causeCode = error?.cause?.code;
+  if (PROVIDER_CAUSE_CODES.has(causeCode))
+    report.causeCode = causeCode;
+  return report;
+}
 
 function fail(code) { const error = new Error(code); error.code = code; throw error; }
 function keyFromEnv(env, name) {
@@ -129,12 +173,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
-    const continuityCodes = new Set(['PHASE4_AUDIT_KEY_CONTINUITY_UNPROVEN',
-      'PHASE4_LOOKUP_KEY_CONTINUITY_UNPROVEN', 'PHASE4_AUDIT_KEY_MISMATCH',
-      'PHASE4_LOOKUP_KEY_MISMATCH', 'PHASE4_KEY_CHECKPOINT_STORAGE_REQUIRED',
-      'PHASE4_KEY_CHECKPOINT_STORAGE_INVALID']);
-    console.error(error?.code && (/^MIGRATION_/.test(error.code) || continuityCodes.has(error.code))
-      ? error.code : 'MIGRATION_FAILED');
+    console.error(JSON.stringify(safeMigrationError(error)));
     process.exitCode = 1;
   });
 }

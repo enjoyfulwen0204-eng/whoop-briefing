@@ -11,6 +11,7 @@ import { phase4Backlog } from './phase4Diagnostics.js';
 import { createPhase4QueueStore } from './phase4QueueStore.js';
 import { createOperationReceipts } from './phase4OperationReceipts.js';
 import { createFamilyDirectory } from './phase4FamilyDirectory.js';
+import { log } from './logger.js';
 
 const capabilities=new WeakSet();
 // Both names resolve to the frozen Stage 5 registry. Adding a future
@@ -42,13 +43,13 @@ const errorCodes=new Map([
 ]);
 export const stage6ErrorCode=error=>errorCodes.get(error?.code)??'CALCULATION_FAILED';
 
-export async function createPhase4Stage6({db,keys,executionMode,workerCapability,now=()=>new Date(),
+export async function createPhase4Stage6({db,keys,admission,executionMode,workerCapability,now=()=>new Date(),
   monotonicNow=()=>performance.now(),configuration={}}={}) {
   if(executionMode!=='SHADOW')fail('PHASE4_STAGE6_SHADOW_REQUIRED');
   if(!capabilities.has(workerCapability))fail('PHASE4_STAGE6_CAPABILITY_REQUIRED');
   foundationFlags(configuration);
   const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,
-    afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,now,
+    afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
     authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
   if(![28,29,30,31].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
   const stores=composePhase4Stores(core),queue=createReanalysisQueue(core),inputs=createReanalysisInputs(core,stores),client=core.client;
@@ -338,12 +339,19 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
     }
     return {kind:'SOURCE',status:firstFailure?'UNRESOLVED':'COMPLETE',failure:firstFailure,units};
   }
-  async function drain({triggerSource='manual',userId=null,budget:overrides={}}={}) {
+  async function drain({triggerSource='manual',userId=null,budget:overrides={},onProgress=async()=>{}}={}) {
     requireTriggerSource(triggerSource);const budget=stage6Budget(triggerSource,overrides),started=monotonicNow();
     const deadline=started+budget.maxWallMs-budget.safetyMarginMs;
     const assertBudget=()=>{if(monotonicNow()>=deadline)fail('PHASE4_DRAIN_DEADLINE_REACHED');};
-    const out={triggerSource,attemptedJobs:0,claimedJobs:0,processedItems:0,completedJobs:0,failedJobs:0,failures:[],stoppedForBudget:false};
+    const out={triggerSource,attemptedJobs:0,claimedJobs:0,itemsAttempted:0,processedItems:0,completedJobs:0,failedJobs:0,failures:[],stoppedForBudget:false};
+    log.info('stage6_discovery_start',{source:triggerSource});
+    await onProgress({event:'discovery_start'});
     const selected=await queue.select({limit:budget.maxJobs,userId});
+    out.jobsConsidered=selected.length;
+    log.info('stage6_discovery_complete',{source:triggerSource,jobs_considered:selected.length,duration_ms:monotonicNow()-started});
+    await onProgress({event:'discovery_complete',jobsConsidered:selected.length});
+    log.info('stage6_drain_start',{source:triggerSource,jobs_considered:selected.length});
+    await onProgress({event:'drain_start',jobsConsidered:selected.length});
     for(const candidate of selected) {
       if(monotonicNow()>=deadline||out.processedItems>=budget.maxItems){out.stoppedForBudget=true;break;}
       out.attemptedJobs++;
@@ -359,7 +367,7 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
                 const proof=await queue.end(context,lease,(last,limit)=>inputs.enumerate(context,last,limit),{assertBudget});
                 await queue.complete(context,lease,proof,{assertBudget});out.completedJobs++;return;
               }
-              const source=page[0];
+              const source=page[0];out.itemsAttempted++;
               if(familyDirectory) {
                 const outcome=await processSourceV30(context,source,lease.asOfUtc,lease,assertBudget);
                 if(outcome.failure)throw outcome.failure;
@@ -390,9 +398,21 @@ export async function createPhase4Stage6({db,keys,executionMode,workerCapability
         }
       }
     }
-    out.outcome=out.failedJobs&&out.failedJobs===out.attemptedJobs?'FAILED'
-      :out.failedJobs?'PARTIAL':out.claimedJobs?'DRAINED':'NOTHING_DUE';
-    out.elapsedMs=monotonicNow()-started;return Object.freeze(out);
+    const remaining=(await client.execute({sql:`SELECT COUNT(*) n FROM phase4_jobs j JOIN users u ON u.id=j.user_id
+      JOIN phase4_user_state p ON p.user_id=j.user_id WHERE j.execution_mode='SHADOW' AND u.status='ACTIVE'
+      AND p.pending_purge_count=0 AND (j.scope_kind<>'NONE' OR j.completed_generation<j.requested_generation)
+      ${userId?'AND j.user_id=?':''}`,args:userId?[userId]:[]})).rows[0].n;
+    out.remainingJobs=Number(remaining);
+    out.outcome=out.failedJobs&&out.processedItems===0?'FAILED':out.remainingJobs===0&&!out.failedJobs?(out.claimedJobs?'COMPLETE':'NO_WORK')
+      :out.processedItems||out.completedJobs?'PARTIAL':out.stoppedForBudget?'BUDGET_EXHAUSTED':'NO_ELIGIBLE_WORK';
+    out.completion=out.remainingJobs===0&&!out.failedJobs?'COMPLETE':'PARTIAL';
+    out.stopReason=out.failedJobs?'FAILURE':out.stoppedForBudget?'WALL_OR_ITEM_LIMIT':out.remainingJobs===0?'QUEUE_COMPLETE'
+      :out.processedItems>=budget.maxItems?'ITEM_LIMIT':selected.length?'TENANT_LIMIT':'NO_ELIGIBLE_WORK';
+    out.elapsedMs=monotonicNow()-started;
+    log.info('stage6_worker_complete',{source:triggerSource,outcome:out.outcome,duration_ms:out.elapsedMs,
+      jobs_considered:out.jobsConsidered,items_attempted:out.itemsAttempted,items_processed:out.processedItems,
+      jobs_completed:out.completedJobs,remaining_jobs:out.remainingJobs});
+    return Object.freeze(out);
   }
   async function rolloutAlgorithm({userId,algorithmSetVersion=STAGE6_ALGORITHM_SET}={}) {
     if(algorithmSetVersion!==STAGE6_ALGORITHM_SET)fail('PHASE4_ALGORITHM_UNSUPPORTED');

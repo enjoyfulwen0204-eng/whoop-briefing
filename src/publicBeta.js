@@ -112,16 +112,19 @@ export function createPublicBetaPresentation({ stores, policy, db, runtimeCapabi
   return Object.freeze(presentation);
 }
 
-export async function createPublicBetaRuntime({ db, keys, executionMode, runtimeCapability,
+export async function createPublicBetaRuntime({ db, keys, admission, executionMode, runtimeCapability,
   presentationPolicy = publicBetaPolicy() } = {}) {
   if (executionMode !== 'SHADOW' || !runtimeCapabilities.has(runtimeCapability))
     throw new Error('PUBLIC_BETA_RUNTIME_CAPABILITY_REQUIRED');
   if (!db?.raw || typeof db.transaction !== 'function') throw new Error('PUBLIC_BETA_DATABASE_REQUIRED');
   requirePhase4Keys(keys);
+  if (!admission && typeof db.admitRuntime === 'function'
+    && Number((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v) === 31)
+    admission = await db.admitRuntime();
   const stage6Capability = authorizeStage6ShadowWorker({ executionMode: 'SHADOW' });
   const [worker, stores] = await Promise.all([
-    createPhase4Stage6({ db, keys, executionMode: 'SHADOW', workerCapability: stage6Capability }),
-    createPhase4Foundation({ db, keys }),
+    createPhase4Stage6({ db, keys, admission, executionMode: 'SHADOW', workerCapability: stage6Capability }),
+    createPhase4Foundation({ db, keys, admission }),
   ]);
   return Object.freeze({ phase4Stage6: worker,
     betaPresentation: createPublicBetaPresentation({ stores, policy: presentationPolicy, db, runtimeCapability }) });

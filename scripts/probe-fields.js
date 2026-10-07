@@ -19,7 +19,10 @@ import { createDb } from '../src/db.js';
 import { phase4AuthorityKeys } from '../src/publicBetaConfig.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { probeCapabilities, STATUS } from '../src/capabilities.js';
+import { createExecutionBudget } from '../src/executionBudget.js';
+import { withSyncOwnership } from '../src/syncOwnership.js';
 
+if(Number(process.versions.node.split('.')[0])<22)throw new Error('NODE_22_REQUIRED');
 loadDotEnvIfPresent();
 const env = loadEnv({
   require: ['WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET', 'TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'],
@@ -28,6 +31,7 @@ const env = loadEnv({
 const DAYS = Number(process.env.PROBE_DAYS || 14);
 const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
   phase4Keys: phase4AuthorityKeys(process.env) });
+const budget = createExecutionBudget();
 
 const MARK = {
   [STATUS.SUPPORTED]: '✅',
@@ -39,22 +43,23 @@ const MARK = {
 };
 
 try {
-  await db.migrate();
-  const user = await pickUser(db);
+  await budget.run(()=>db.admitRuntime({source:'manual'}));
+  const user = await budget.run(()=>pickUser(db));
   // ★ R2 / §15：盤點在哪一段啟用期觀測，就只能被記成哪一段啟用期的證據。
   const lifecycle = lifecycleContextFor(user);
   const whoop = createWhoopClient({
     db, userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
     expectedLifecycleGeneration: lifecycle,
+    requestSignal:budget.signal,requestDeadlineAt:budget.deadlineAt,
   });
 
   console.log(`使用者：${user.id}（${user.displayName}，${user.timezone}）`);
 
-  const { entries, scopeErrors, persisted } = await probeCapabilities({
+  const { entries, scopeErrors, persisted } = await withSyncOwnership({db,userId:user.id,budget},()=>probeCapabilities({
     expectedLifecycleGeneration: lifecycle,
     // ★ L-03 同一條：用這個使用者自己的時區，不是 bootstrap 預設
     db, whoop, userId: user.id, timezone: user.timezone, days: DAYS,
-  });
+  }));
 
   const group = (s) => entries.filter((e) => e.status === s);
   const line = (e) => {
@@ -99,5 +104,6 @@ try {
   console.error(`❌ 失敗：${err.message}`);
   process.exitCode = 1;
 } finally {
+  budget.close();
   db.close();
 }

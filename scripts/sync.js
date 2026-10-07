@@ -16,7 +16,10 @@ import { createDb } from '../src/db.js';
 import { phase4AuthorityKeys } from '../src/publicBetaConfig.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { createSync } from '../src/sync.js';
+import { createExecutionBudget } from '../src/executionBudget.js';
+import { log, describeError } from '../src/logger.js';
 
+if(Number(process.versions.node.split('.')[0])<22)throw new Error('NODE_22_REQUIRED');
 loadDotEnvIfPresent();
 const env = loadEnv({
   require: ['WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET', 'TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'],
@@ -25,26 +28,29 @@ const env = loadEnv({
 const untilDone = process.argv.includes('--until-done');
 const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
   phase4Keys: phase4AuthorityKeys(process.env) });
-const user = await pickUser(db);
-// ★ R2 / LIFE-FG-03：這一輪的啟用脈絡，往下傳給所有健康寫入。
-const lifecycle = lifecycleContextFor(user);
+const budget = createExecutionBudget();
 
 try {
-  await db.migrate();
+  await budget.run(()=>db.admitRuntime({source:'manual'}));
+  const user = await budget.run(()=>pickUser(db));
+  // ★ R2 / LIFE-FG-03：這一輪的啟用脈絡，往下傳給所有健康寫入。
+  const lifecycle = lifecycleContextFor(user);
   const whoop = createWhoopClient({
     db,
     userId: user.id, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
     expectedLifecycleGeneration: lifecycle,
+    requestSignal: budget.signal, requestDeadlineAt: budget.deadlineAt,
   });
 
   let round = 0;
   for (;;) {
+    budget.assert();
     round += 1;
     // ★ L-03 同一條：health_date 的歸屬由時區決定，一定要用**這個使用者的**。
     // 用 bootstrap 時區同步別人的資料，會把睡眠記到錯的健康日上。
     const sync = createSync({
       expectedLifecycleGeneration: lifecycle,
-      db, whoop, userId: user.id, timezone: user.timezone, now: new Date(),
+      db, whoop, userId: user.id, timezone: user.timezone, now: new Date(), budget,
     });
     const results = await sync.syncAll({ force: true });
 
@@ -52,13 +58,14 @@ try {
     for (const r of results) {
       const back = r.backfill;
       const extra = back
-        ? ` backfill: ${back.chunks ?? 0} chunks, ${back.complete ? '完成' : `到 ${String(back.cursor).slice(0, 10)}`}`
+        ? ` backfill: ${back.chunks ?? 0} chunks, ${back.complete ? '完成' : '尚未完成'}`
         : '';
       console.log(`  ${String(r.resource).padEnd(18)} ${r.status ?? 'ok'}${extra}`);
     }
 
-    if (!untilDone) break;
-    const states = await db.getAllSyncState(user.id);
+    process.exitCode = results.complete ? 0 : 1;
+    if (!untilDone || ['TIMEOUT','CANCELLED','AUTH_FAILED','REQUIRED_RESOURCE_FAILED'].includes(results.outcome)) break;
+    const states = await budget.run(()=>db.getAllSyncState(user.id));
     const pending = states.filter((s) => Number(s.backfill_complete) !== 1);
     if (!pending.length) {
       console.log('\n✅ 全部 backfill 完成。');
@@ -72,8 +79,9 @@ try {
 
   console.log('\n提示：跑 `npm run health-status` 看完整涵蓋範圍。\n');
 } catch (err) {
-  console.error(`❌ 同步失敗：${err.message}`);
+  log.error('manual_sync_failed',{error:describeError(err)});
   process.exitCode = 1;
 } finally {
+  budget.close();
   db.close();
 }

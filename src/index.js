@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { summarizeSync, syncAuthorizesDrain, aggregateSyncOutcome } from './syncResult.js';
+import { withSyncOwnership } from './syncOwnership.js';
+import { requireRuntimeConnection } from './runtimeAdmission.js';
 // 進入點：Cloudflare 主排程與 GitHub 備援共用這支 canonical runner。
 //
 // Cloudflare（UTC）： */10 * * * *；GitHub 備援：17 * * * *
@@ -49,9 +52,7 @@ import { addDays, completedWeeks, localDate, localTime, localWeekday } from './t
 import { log, describeError } from './logger.js';
 import { checkPeerScheduler } from './schedulerWatchdog.js';
 import { requireTriggerSource } from './schedulerPolicy.js';
-import { runPhase4Stage6 } from './shadowDrainScheduler.js';
 import { phase4AuthorityKeys } from './publicBetaConfig.js';
-import { deliverPublicBetaSummary } from './publicBetaSummaryDelivery.js';
 import { lifecycleOutputDb, SCHEDULED_OUTPUT_WRITERS } from './lifecycleOutput.js';
 import { withDeliveryAuthorization, isAccountInactiveError } from './accountLifecycle.js';
 import { resumeOnboardingBootstraps as resumeOnboarding } from './onboardingBootstrap.js';
@@ -133,7 +134,13 @@ export function summarizeFastReconciliation(plan, results = []) {
  * `deps` 讓測試可以注入替身（預設就是真的實作），這樣「報告有沒有送到正確的
  * chat」「一個人失敗會不會影響另一個人」都可以真的驗，而不是只讀程式碼。
  */
-export async function runForUser({
+export async function runForUser(options) {
+  if (!options.deps?.executionBudget) return runForUserOwned(options);
+  return withSyncOwnership({db:options.db,userId:options.user.id,budget:options.deps.executionBudget},
+    () => runForUserOwned(options));
+}
+
+async function runForUserOwned({
   db, env, user, now, deps = {}, productionMaintenance = false,
 }) {
   const {
@@ -169,6 +176,7 @@ export async function runForUser({
     : ['ACCOUNT_INACTIVE', 'STALE_ACCOUNT_LIFECYCLE', 'account_inactive',
       'stale_lifecycle', 'suppressed_stale_lifecycle'].includes(value?.code ?? value?.status ?? value?.suppressed);
   const stopHealth = async (result) => {
+    deps.executionBudget?.assert();
     if (lifecycleRejected(result)) { out.skipped = 'account_inactive'; return true; }
     try { await db.assertAccountActive(uid, expectedLifecycleGeneration); }
     catch (err) {
@@ -330,6 +338,7 @@ export async function runForUser({
   // 刻意在拿 WHOOP token **之前** 就返回：這一輪完全不碰 WHOOP。
   if ((!locale || !due.anythingDue) && !syncDue && !reconciliationPlan.due) {
     if (locale) out.skipped = 'nothing_due';
+    out.sync = {outcome:'NO_NEW_DATA_SUCCESS',complete:true,resources:[],processed:0};
     return out;
   }
 
@@ -341,6 +350,7 @@ export async function runForUser({
     clientSecret: env.whoopClientSecret,
     // ★ R3 / R2-FG-01：例行 refresh 也屬於這一輪的帳號啟用期。
     expectedLifecycleGeneration,
+    requestSignal: deps.executionBudget?.signal, requestDeadlineAt: deps.executionBudget?.deadlineAt,
   });
   try {
     // 先把 token 準備好（序列化 refresh，避免後面平行請求同時 refresh）
@@ -359,10 +369,13 @@ export async function runForUser({
       }
     }
   } catch (err) {
-    // 這個人的授權壞了 → 只影響他自己，通知他自己
+    // Transport/deadline failures do not prove that authorization is broken.
     out.errors.push({ stage: 'whoop_auth', error: describeError(err) });
+    let code=err?.code;try{deps.executionBudget?.assert();}catch(error){code=error.code;}
+    const outcome=code==='SYNC_CANCELLED'?'CANCELLED':['SYNC_TIMEOUT','WHOOP_MAINTENANCE_DEADLINE'].includes(code)?'TIMEOUT':'AUTH_FAILED';
+    out.sync = { outcome, complete: false, resources: [] };
     log.error('user_whoop_auth_failed', { user_id: uid, error: describeError(err) });
-    if (locale) await telegram.notifyError('whoop_auth', t(locale, 'error.authorization'));
+    if (locale&&outcome==='AUTH_FAILED') await telegram.notifyError('whoop_auth', t(locale, 'error.authorization'));
     return out;
   }
 
@@ -575,7 +588,8 @@ export async function runForUser({
   return out;
 }
 
-export async function runBriefing({ now = new Date(), deps = {}, triggerSource = 'manual' } = {}) {
+export async function runBriefing({ now = new Date(), deps = {}, triggerSource = 'manual', executionPhase='SYNC' } = {}) {
+  if(executionPhase!=='SYNC')throw new Error('EXECUTION_PHASE_INVALID');
   requireTriggerSource(triggerSource);
   const { guardian = runGuardian } = deps;
   if (!deps.env) loadDotEnvIfPresent();
@@ -612,7 +626,10 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
   };
 
   try {
-    await db.migrate();
+    if (deps.runtimeAdmission) requireRuntimeConnection(db.raw,deps.runtimeAdmission,db.transaction);
+    else if (typeof db.admitRuntime === 'function') requireRuntimeConnection(db.raw,await db.admitRuntime({source:triggerSource}),db.transaction);
+    else if (db.raw) throw new Error('PHASE4_RUNTIME_ADMISSION_REQUIRED');
+    // In-memory injected runners have no database schema or migration path.
 
     // ---- V1.2 production activation：scheduler-owned webhook drain -------
     // Cloudflare 主排程與 GitHub 備援都走 runBriefing，所以共享這一份實作。
@@ -683,13 +700,21 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     // 那個程序可能在半路被回收。排程器每一輪都把還卡著的人往前推一格，
     // 所以「授權完成但沒人接著做」不可能發生。有上限、永遠不拋錯。
     try {
-      const resumed = await resumeOnboarding({ db, env, now: () => now });
+      const resumed = await (deps.resumeOnboarding ?? resumeOnboarding)({ db, env, now: () => now,
+        deps: {...deps.onboarding, onSyncResults: results => {
+          summary.syncResults ??= []; summary.syncResults.push(summarizeSync(results));
+        }},
+      });
       if (resumed.length) {
         summary.onboardingResumed = resumed.map((r) => ({ userId: r.userId, result: r.result }));
+        if(resumed.some(r=>!['READY','SKIPPED','ACCOUNT_INACTIVE'].includes(r.result))) {
+          summary.syncResults ??= [];summary.syncResults.push({outcome:'PARTIAL',complete:false});
+        }
         log.info('onboarding_resumed', { count: resumed.length });
       }
     } catch (err) {
       log.error('onboarding_resume_unexpected', { error: describeError(err) });
+      summary.syncResults ??= [];summary.syncResults.push({outcome:'PARTIAL',complete:false});
     }
 
     // ★ 排程只看**上線走完**的使用者（Phase 3.5）。
@@ -709,15 +734,22 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     const results = await mapWithConcurrency(
       users,
       env.maxUserConcurrency,
-      (user) => runUser({
-        db, env, user, now, deps, productionMaintenance: true,
-      }),
+      (user) => {
+        deps.executionBudget?.assert();
+        return runUser({db, env, user, now, deps, productionMaintenance: true});
+      },
     );
 
     for (const [i, r] of results.entries()) {
       const uid = users[i].id;
       if (r.ok) {
         const v = r.value;
+        const sync = v.sync?.outcome ? v.sync : summarizeSync(v.sync);
+        // Nothing due/locale-unset can be a legitimate sync no-op only when the
+        // per-user path explicitly proved throttling; unknown results fail closed.
+        const syncOk = syncAuthorizesDrain(sync);
+        summary.syncResults ??= []; summary.syncResults.push(sync);
+
         const reconciliation = v.reconciliation ?? null;
         summary.perUser.push({
           userId: uid,
@@ -737,7 +769,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
           }
         }
         if (v.skipped) summary.skipped += 1;
-        if (v.errors.length) summary.failed += 1;
+        if (v.errors.length || !syncOk) summary.failed += 1;
         else summary.ok += 1;
       } else {
         summary.failed += 1;
@@ -746,6 +778,9 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
         log.error('user_run_fatal', { user_id: uid, error: describeError(r.error) });
       }
     }
+    summary.syncOutcome = aggregateSyncOutcome(summary.syncResults, {failed: summary.failed});
+    summary.syncComplete = summary.failed === 0 && summary.errors.length === 0
+      && syncAuthorizesDrain({outcome:summary.syncOutcome});
     // ---- 供應商存活 vs 每個使用者的結果，是兩件事 ----
     //
     // 之前只要有任何一個使用者失敗就整輪不寫 heartbeat。一個使用者 token 過期，
@@ -758,39 +793,15 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     //
     // 只有「全部使用者都失敗」才代表這個供應商實際上什麼也做不到，那時才
     // 不算存活。部分失敗仍然是活著的排程器，由 guardian 去處理個別使用者。
-    try {
-      summary.phase4Stage6=await runPhase4Stage6({db,worker:deps.phase4Stage6,triggerSource,now});
-    } catch(err) {
-      summary.phase4Stage6={outcome:'FAILED',triggerSource};
-      summary.errors.push({stage:'phase4_stage6',error:describeError(err)});
-    }
-    // Beta only: the legacy daily/weekly order above is unchanged. Every beta
-    // read and send happens after sync and after the bounded SHADOW drain.
-    if (deps.betaPresentation && !['DISABLED','FAILED','POLICY_DEFERRED'].includes(summary.phase4Stage6.outcome)) {
-      summary.betaSummaries = [];
-      for (const user of users) try {
-        const betaNow = deps.betaNow?.() ?? new Date();
-        summary.betaSummaries.push({ userId: user.id, ...await (deps.deliverBetaSummary ?? deliverPublicBetaSummary)({
-          db, env, user, presentation: deps.betaPresentation, now: betaNow,
-          makeTelegram: deps.makeTelegram ?? createTelegram,
-        }) });
-      } catch (error) {
-        summary.errors.push({ stage: 'beta_summary', userId: user.id, error: describeError(error) });
-        summary.betaSummaries.push({ userId: user.id, status: 'failed' });
-      }
-    }
+    // SYNC preserves ordinary reports. Stage 6 and Beta presentation are owned
+    // exclusively by the authenticated STAGE6_DRAIN phase.
+    summary.phase4Stage6={outcome:'NOT_ENTERED',triggerSource};
     const attempted = users.length;
     const failed = summary.failed;
     summary.outcome = attempted === 0 ? 'nothing_due'
       : failed === 0 ? 'completed'
         : failed === attempted ? 'all_users_failed' : 'partial_failure';
     summary.runState = summary.outcome === 'all_users_failed' ? 'unhealthy' : 'alive';
-    if(summary.phase4Stage6.outcome==='FAILED') {
-      summary.runState='unhealthy';
-      summary.outcome='phase4_stage6_failed';
-      if(!summary.errors.some(error=>error.stage==='phase4_stage6'))summary.errors.push({stage:'phase4_stage6',error:'All claimed Phase 4 work failed'});
-    }
-
     // ---- 運維心跳（V1.1 Phase 9）----
     // 「這一輪 cron 真的跑完了」是系統裡唯一沒有任何地方記錄的事實，
     // 而 cron 死掉時是**安靜地**死（沒有 run 就沒有錯誤通知）。
@@ -847,7 +858,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     await systemTelegram.notifyError('bootstrap', describeError(err));
   } finally {
     try {
-      db.close();
+      if (!deps.keepConnectionOpen) await db.close();
     } catch { /* 關連線失敗不影響結果 */ }
   }
 
@@ -862,8 +873,8 @@ export const main = runBriefing;
 
 // 直接執行時才跑（被 import 時不跑）
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main({triggerSource:process.env.GITHUB_ACTIONS==='true'&&process.env.GITHUB_EVENT_NAME==='schedule'?'github':'manual'})
-    .then((s) => process.exit(s.errors.length || s.failed ? 1 : 0))
+  process.env.PHASE4_EXECUTION_PHASE ??= 'SYNC';
+  import('../scripts/phase4-run.js')
     .catch((err) => {
       log.error('fatal', { error: describeError(err) });
       process.exit(1);

@@ -20,6 +20,9 @@ async function retryContention(call,{afterBusy}={}) {
  * database side effect, even writes hidden behind a store/helper function. */
 export function processingTransactions(base) {
   const scope = new AsyncLocalStorage();
+  const fenceScope = new AsyncLocalStorage(), checking = new AsyncLocalStorage();
+  const fences = () => checking.getStore() ? [] : (fenceScope.getStore() ?? []);
+  const checkFences = client => checking.run(true, async () => { for (const check of fenceScope.getStore() ?? []) await check(client); });
   // Several legacy callers intentionally read in Promise.all. Privacy-fenced
   // reads now use this same transactional boundary; serialize root write
   // transactions on a connection, without holding the queue across outside()
@@ -38,6 +41,13 @@ export function processingTransactions(base) {
         const method = target[key].bind(target);
         return async (...args) => {
         const state = scope.getStore();
+        const guarded = fences().length > 0;
+        if (guarded) {
+          await checkFences();
+          const sql = key === 'execute' ? (typeof args[0] === 'string' ? args[0] : args[0]?.sql) : '';
+          if (!state && !/^\s*SELECT\b/i.test(sql))
+            return transaction(() => client[key](...args));
+        }
         if (state?.failure) throw state.failure;
         const release=state?null:await acquireRoot();
         try {
@@ -79,6 +89,7 @@ export function processingTransactions(base) {
 
   async function transaction(fn, { before, after, beforeCommit,commitFence } = {}) {
     const parent = scope.getStore();
+    if (fences().length) await checkFences();
     if (parent) {
       try {
         if (before) await before(client);
@@ -102,6 +113,7 @@ export function processingTransactions(base) {
           afterBusy:refreshIdleConnection,
         });state.tx=tx;
         const result = await scope.run(state, async () => {
+          if (fences().length) await checkFences(client);
           if (before) await before(client);
           const result = await fn();
           if (state.failure) throw state.failure;
@@ -110,6 +122,7 @@ export function processingTransactions(base) {
           await retryContention(async()=>{
             // Recheck ownership after all deferred result validation and before
             // each COMMIT attempt, including time spent waiting on contention.
+            if (fences().length) await checkFences(client);
             for(const check of state.finalChecks)await check(client);
             for(const check of state.commitFences)await check(client);
             if(state.failure)throw state.failure;
@@ -142,5 +155,5 @@ export function processingTransactions(base) {
     if(state){state.completed.push(fn);return;}
     return fn();
   }
-  return { client, transaction, outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
+  return { client, transaction, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
 }

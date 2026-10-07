@@ -17,6 +17,7 @@
 
 import { loadDotEnvIfPresent, loadEnv } from '../config.js';
 import { createDb } from '../db.js';
+import { createExecutionBudget } from '../executionBudget.js';
 import { phase4AuthorityKeys } from '../publicBetaConfig.js';
 import { createCoach } from '../coach.js';
 import { createTelegramApi } from './api.js';
@@ -93,7 +94,11 @@ export async function main({ maxIterations = Infinity } = {}) {
 
   const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
     phase4Keys: phase4AuthorityKeys(process.env) });
-  await db.migrate();
+  if(Number(process.versions.node.split('.')[0])<22){db.close();throw new Error('NODE_22_REQUIRED');}
+  const admissionBudget=createExecutionBudget({budgetMs:30_000});
+  try { await admissionBudget.run(()=>db.admitRuntime({source:'event'})); }
+  catch(error){db.close();throw error;}
+  finally{admissionBudget.close();}
 
   // coach 要 per-user 建立，ai_usage 才會記在正確的人身上
   const coachFor = (userId) => createCoach({

@@ -3,9 +3,12 @@ main = "worker.js"
 compatibility_date = "2026-09-01"
 
 [triggers]
-crons = ["*/10 0-3 * * *"]
+crons = [] # Enable morning cron only after coordinated RC3 validation.
 
 [vars]
+# Reviewed values must match the admitted server configuration before activation.
+BRIEFING_EXECUTION_MODE = "OFF"
+BRIEFING_CONFIG_PROOF = "REVIEWED_CONFIG_PROOF"
 BRIEFING_ENDPOINT_URL = "https://whoop-telegram-webhook.onrender.com/internal/briefing/run"
 
 [observability]

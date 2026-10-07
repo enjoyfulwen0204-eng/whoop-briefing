@@ -100,9 +100,9 @@ async function readActiveTombstones(client, userId, resourceType) {
   // 但那等於：在還沒遷移到 v10 的資料庫上，墓碑保護會**靜默地不存在**，
   // 而寫入照常發生 —— 那是 fail open。
   //
-  // 每一個進入點（cron / webhook / 腳本）都會先跑 db.migrate()，所以
+  // 每一個 runtime 進入點都必須先通過 read-only v31 admission，所以
   // 正常情況下這張表一定在。真的不在就代表有東西繞過了遷移，
-  // 那時候拒絕寫入才是對的。
+  // 那時候拒絕寫入才是對的。遷移只屬於 explicit operator 路徑。
   const rs = await client.execute({
     sql: `SELECT resource_id, last_known_updated_at
             FROM whoop_resource_tombstones

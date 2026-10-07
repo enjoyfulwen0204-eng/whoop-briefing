@@ -19,6 +19,8 @@ import { LOCKS, WHOOP } from './config.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
 import { requireLifecycle } from './accountLifecycle.js';
+import { abortableResponse, boundedBody, currentExecutionBudget } from './executionBudget.js';
+import { currentSyncOwnership } from './syncOwnership.js';
 
 export class WhoopAuthError extends Error {
   constructor(message) {
@@ -155,21 +157,20 @@ async function postToken(body, tokenUrl = WHOOP.TOKEN_URL, {
   fetchImpl = fetch, timeoutMs = WHOOP.TOKEN_REQUEST_TIMEOUT_MS, signal = null,
 } = {}) {
   let res;
+  const tokenSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs);
   try {
-    res = await fetchImpl(tokenUrl, {
+    res = await abortableResponse(fetchImpl(tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(body),
-      signal: signal
-        ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
-        : AbortSignal.timeout(timeoutMs),
-    });
+      signal: tokenSignal,
+    }), tokenSignal);
   } catch (err) {
-    if (signal?.aborted) throw new WhoopMaintenanceDeadlineError();
+    if (tokenSignal.aborted) throw new WhoopMaintenanceDeadlineError();
     // 逾時 / 連線失敗。絕不在訊息裡帶任何 token 內容。
     throw new WhoopAuthError(`WHOOP token endpoint 連線失敗：${err?.name ?? ''} ${err?.message ?? ''}`.trim());
   }
-  const text = await res.text();
+  const text = await boundedBody(res, {signal:tokenSignal,maxBytes:64*1024});
   if (!res.ok) {
     throw new WhoopAuthError(`WHOOP token endpoint ${res.status}: ${text.slice(0, 300)}`);
   }
@@ -280,10 +281,19 @@ export function createWhoopClient({
   let cached = constrained ? authorization : null;
   let refreshing = null;   // mutex：同一 run 內平行請求時只會 refresh 一次
 
-  const deadline = requestDeadlineAt === null || requestDeadlineAt === undefined
+  let deadline = requestDeadlineAt === null || requestDeadlineAt === undefined
     ? null : Number(requestDeadlineAt);
   const remainingBudgetMs = () => deadline === null ? Infinity : deadline - Number(nowMs());
+  let boundRuntimeBudget;
   const ensureRequestBudget = () => {
+    const ownership=currentSyncOwnership();
+    if(ownership&&Date.now()>=ownership.expiresAt)throw Object.assign(new Error('SYNC_OWNER_FENCED'),{code:'SYNC_OWNER_FENCED'});
+    const runtimeBudget=ownership?.budget ?? currentExecutionBudget();
+    if (runtimeBudget) {
+      runtimeBudget.assert();
+      if(boundRuntimeBudget!==runtimeBudget){requestSignal=requestSignal?AbortSignal.any([requestSignal,runtimeBudget.signal]):runtimeBudget.signal;boundRuntimeBudget=runtimeBudget;}
+      deadline=Math.min(deadline??Infinity,runtimeBudget.deadlineAt);
+    }
     if (requestSignal?.aborted || remainingBudgetMs() <= 0) {
       throw new WhoopMaintenanceDeadlineError();
     }
@@ -343,6 +353,7 @@ export function createWhoopClient({
   /** 取得可用的 access token（>5 分鐘效期就重用）。 */
   async function getAccessToken({ force = false } = {}) {
     ensureRequestBudget();
+    await currentSyncOwnership()?.assertCurrent();
     if (lifecycleFence !== null) await db.assertAccountActive(uid, lifecycleFence);
     const t = await loadTokens();
     const msLeft = t.expiresAt.getTime() - Date.now();
@@ -557,10 +568,12 @@ export function createWhoopClient({
       let res;
       try {
         ensureRequestBudget();
-        res = await fetchImpl(url.toString(), {
+        await currentSyncOwnership()?.assertCurrent();
+        ensureRequestBudget();
+        res = await abortableResponse(fetchImpl(url.toString(), {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           ...(requestSignal ? { signal: requestSignal } : {}),
-        });
+        }), requestSignal);
       } catch (err) {
         if (requestSignal?.aborted || remainingBudgetMs() <= 0) {
           throw new WhoopMaintenanceDeadlineError();
@@ -573,7 +586,9 @@ export function createWhoopClient({
         continue;
       }
 
+      ensureRequestBudget();
       if (res.status === 401) {
+        try { void res.body?.cancel().catch(() => {}); } catch {}
         if (retriedAfterAuth) throw new WhoopAuthError('WHOOP 回 401，refresh 後仍失敗（refresh_token 可能已失效，需重新授權）');
         log.warn('whoop_401_refreshing', { path });
         await getAccessToken({ force: true });
@@ -581,6 +596,7 @@ export function createWhoopClient({
       }
 
       if (res.status === 429 || res.status >= 500) {
+        try { void res.body?.cancel().catch(() => {}); } catch {}
         const wait = retryAfterMs(res) ?? backoffFor(attempt);
         log.warn('whoop_rate_limited', { path, status: res.status, attempt, wait_ms: wait });
         if (attempt === WHOOP.MAX_RETRIES) {
@@ -591,11 +607,14 @@ export function createWhoopClient({
       }
 
       if (!res.ok) {
-        const body = await res.text().catch(() => '');
+        const body = await boundedBody(res,{signal:requestSignal,maxBytes:64*1024});
+        ensureRequestBudget();
         throw new WhoopApiError(`WHOOP ${res.status} ${path}: ${body.slice(0, 200)}`, res.status);
       }
 
-      return res.json();
+      const body = await boundedBody(res,{signal:requestSignal});
+      ensureRequestBudget();
+      return JSON.parse(body);
     }
     throw new WhoopApiError(`WHOOP ${path} 重試耗盡`, 0);
   }
@@ -620,8 +639,9 @@ export function createWhoopClient({
       pages += 1;
       if (pages >= maxPages && nextToken) {
         log.warn('whoop_pagination_capped', { path, pages, fetched: out.length });
-        break;
+        const error = new WhoopApiError('WHOOP pagination incomplete',0); error.code='WHOOP_PAGINATION_INCOMPLETE'; throw error;
       }
+      ensureRequestBudget();
     } while (nextToken);
     log.info('whoop_collected', { path, pages, records: out.length });
     return out;

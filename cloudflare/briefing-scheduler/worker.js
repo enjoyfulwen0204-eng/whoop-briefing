@@ -1,159 +1,89 @@
-const PATH = '/internal/briefing/run';
-export const MAX_ATTEMPTS = 3;
-export const TIMEOUT_MS = 120_000;
-export const MAX_CONFIGURED_WINDOW_MS = MAX_ATTEMPTS * TIMEOUT_MS
-  + Array.from({ length: MAX_ATTEMPTS - 1 }, (_, i) => (i + 1) * 500).reduce((a, b) => a + b, 0);
-
-function hex(bytes) {
-  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+const PATH='/internal/briefing/run';
+export const MAX_ATTEMPTS=2;
+export const TIMEOUT_MS=180_000;
+export const DRAIN_TIMEOUT_MS=100_000;
+export const MAX_RESPONSE_BYTES=16*1024;
+export const MAX_CONFIGURED_WINDOW_MS=MAX_ATTEMPTS*(TIMEOUT_MS+DRAIN_TIMEOUT_MS)+1000;
+export const REDIRECT_MODE='manual';
+export const ALLOWED_REDIRECT_MODES=Object.freeze(['follow','manual']);
+export const isRedirect=status=>status>=300&&status<400;
+export const retryableStatus=status=>[429,502,503,504].includes(status);
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+const hex=bytes=>[...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('');
+const sha256=async text=>hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)));
+export async function canonicalMessage({timestamp,requestId,method,path,body}) {return [timestamp,requestId,method.toUpperCase(),path,await sha256(body)].join('\n');}
+export async function signRequest(args,secret) {
+ const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+ return `v1=${hex(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(await canonicalMessage(args))))}`;
 }
-
-async function sha256(text) {
-  return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+function error(category,nonRetryable=false) {const e=new Error(category);e.category=category;e.nonRetryable=nonRetryable;return e;}
+async function raceAbort(work,signal) {
+ if(signal.aborted){void Promise.resolve(work).catch(()=>{});throw error('timeout');}let onAbort;
+ const aborted=new Promise((_,reject)=>{onAbort=()=>reject(error('timeout'));signal.addEventListener('abort',onAbort,{once:true});});
+ try{const result=await Promise.race([work,aborted]);if(signal.aborted)throw error('timeout');return result;}
+ finally{signal.removeEventListener('abort',onAbort);}
 }
-
-export async function canonicalMessage({ timestamp, requestId, method, path, body }) {
-  return [timestamp, requestId, method.toUpperCase(), path, await sha256(body)].join('\n');
+export async function readResponseBody(response,{controller,maxBytes=MAX_RESPONSE_BYTES}={}) {
+ if(!response.body?.getReader)throw error('invalid_response',true);
+ const reader=response.body.getReader(),chunks=[];let size=0,done=false;
+ try{
+  while(true){const part=await raceAbort(reader.read(),controller.signal);if(part.done){done=true;break;}
+   size+=part.value.byteLength;if(size>maxBytes){controller.abort();throw error('body_too_large',true);}chunks.push(part.value);}
+  const bytes=new Uint8Array(size);let offset=0;for(const part of chunks){bytes.set(part,offset);offset+=part.byteLength;}
+  if(controller.signal.aborted)throw error('timeout');return new TextDecoder().decode(bytes);
+ }finally{
+  if(!done){controller.abort();try{void reader.cancel().catch(()=>{});}catch{}}
+  try{reader.releaseLock();}catch{}
+ }
 }
-
-export async function signRequest(args, secret) {
-  const key = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
-  );
-  return `v1=${hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(await canonicalMessage(args))))}`;
-}
-
-/**
- * fetch 的 redirect 模式。
- *
- * ⚠️ **絕對不可以是 'error'。** Cloudflare Workers 的 runtime 沒有實作它，
- * 會直接丟 TypeError：
- *
- *   Invalid redirect value, must be one of "follow" or "manual"
- *   ("error" won't be implemented since it does not make sense at the edge…)
- *
- * 而且它是在**送出請求之前**就丟，所以每一次排程執行都會在還沒有
- * 產生任何 subrequest 的情況下死掉 —— 看起來就像「排程完全沒有跑」。
- * Node/undici 接受 'error'，所以本機測試跟 dry-run 都看不出來。
- *
- * 'manual' 同樣不會跟隨重新導向（這才是安全性要求：簽名過的請求絕不能
- * 被轉送到別的主機），只是把 3xx 當成一個正常回應交給我們自己判斷。
- */
-export const REDIRECT_MODE = 'manual';
-
-/** Workers runtime 允許的 redirect 值。'error' 不在其中。 */
-export const ALLOWED_REDIRECT_MODES = Object.freeze(['follow', 'manual']);
-
-export function isRedirect(status) {
-  return status >= 300 && status < 400;
-}
-
-export function retryableStatus(status) {
-  return status === 429 || status === 502 || status === 503 || status === 504;
-}
-
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** 設定錯誤：永遠不該重試，而且要在日誌裡跟傳輸錯誤分得開。 */
-function configError(message) {
-  const err = new Error(message);
-  err.nonRetryable = true;
-  err.category = 'configuration';
-  return err;
-}
-
-export async function invoke(env, {
-  fetchImpl = fetch, now = () => Date.now(), sleep = delay,
-  timeoutMs = TIMEOUT_MS, setTimer = setTimeout, clearTimer = clearTimeout,
-} = {}) {
-  const endpoint = new URL(env.BRIEFING_ENDPOINT_URL);
-  if (endpoint.protocol !== 'https:' || endpoint.pathname !== PATH || endpoint.search || endpoint.hash) {
-    throw configError('BRIEFING_ENDPOINT_URL must be the exact HTTPS scheduler endpoint');
-  }
-  if (/replace|placeholder/i.test(endpoint.hostname)) {
-    throw configError('BRIEFING_ENDPOINT_URL placeholder must be replaced');
-  }
-  if (!env.BRIEFING_TRIGGER_SECRET || new TextEncoder().encode(env.BRIEFING_TRIGGER_SECRET).length < 32) {
-    throw configError('BRIEFING_TRIGGER_SECRET must be at least 32 bytes');
-  }
-
-  // Reuse metadata for transport retries: the Render process can suppress a duplicate request
-  // in memory, while durable report_claims remains the correctness boundary after restart.
-  const body = '{}';
-  const requestId = crypto.randomUUID();
-
-  let lastError;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    const timestamp = String(now());
-    const args = { timestamp, requestId, method: 'POST', path: PATH, body };
-    const signature = await signRequest(args, env.BRIEFING_TRIGGER_SECRET);
-    const controller = new AbortController();
-    const timer = setTimer(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetchImpl(endpoint.toString(), {
-        method: 'POST', body, signal: controller.signal, redirect: REDIRECT_MODE,
-        headers: {
-          'content-type': 'application/json',
-          'x-briefing-timestamp': timestamp,
-          'x-briefing-request-id': requestId,
-          'x-briefing-signature': signature,
-        },
-      });
-      // Drain only a bounded prefix, but never include server text in Worker errors/logs.
-      (await response.text()).slice(0, 256);
-      if (response.ok) {
-        console.log(JSON.stringify({ event: 'briefing_trigger_ok', attempt, status: response.status }));
-        return { ok: true, status: response.status, attempt };
-      }
-      lastError = new Error(`endpoint status ${response.status}`);
-      lastError.category = response.status === 401 || response.status === 403
-        ? 'authentication' : `http_${Math.floor(response.status / 100)}xx`;
-      // ★ 重新導向在 redirect:'manual' 下是一個**正常回傳的 3xx 回應**，不是例外。
-      // 它永遠是永久狀況：端點設定被改到別的地方了，重試三次只是白打三次。
-      if (isRedirect(response.status)) {
-        lastError.category = 'redirect';
-        lastError.nonRetryable = true;
-      }
-      if (!retryableStatus(response.status)) lastError.nonRetryable = true;
-      if (lastError.nonRetryable || attempt === MAX_ATTEMPTS) throw lastError;
-    } catch (err) {
-      lastError = err;
-      // 有些 runtime（例如 Node/undici 在 redirect:'error' 下）是用丟的方式
-      // 表達重新導向。這裡保留分類，讓兩種 runtime 的結果一致。
-      if (err?.name === 'TypeError' && /redirect/i.test(String(err?.message ?? ''))) {
-        err.nonRetryable = true;
-        err.category = 'redirect';
-      }
-      if (!err.category) {
-        err.category = err?.name === 'AbortError' ? 'timeout' : 'transport';
-      }
-      if (err?.nonRetryable || attempt === MAX_ATTEMPTS) throw err;
-    } finally {
-      clearTimer(timer);
+export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay,timeoutMs=TIMEOUT_MS,
+ drainTimeoutMs=DRAIN_TIMEOUT_MS,setTimer=setTimeout,clearTimer=clearTimeout,signal}={}) {
+ const endpoint=new URL(env.BRIEFING_ENDPOINT_URL);
+ if(endpoint.protocol!=='https:'||endpoint.pathname!==PATH||endpoint.search||endpoint.hash||/replace|placeholder/i.test(endpoint.hostname))throw error('configuration',true);
+ if(!env.BRIEFING_TRIGGER_SECRET||new TextEncoder().encode(env.BRIEFING_TRIGGER_SECRET).length<32
+   ||!['OFF','SHADOW'].includes(env.BRIEFING_EXECUTION_MODE)||!/^[a-f0-9]{64}$/.test(env.BRIEFING_CONFIG_PROOF))throw error('configuration',true);
+ const root=crypto.randomUUID();
+ async function phase(phaseName,handoff) {
+  const requestId=`${root}_${phaseName.toLowerCase()}`;
+  const body=JSON.stringify({requestId,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
+   ...(handoff?{syncRequestId:handoff.requestId,handoff:handoff.token}:{})});
+  let last;
+  for(let attempt=1;attempt<=MAX_ATTEMPTS;attempt++) {
+   if(signal?.aborted)throw error('cancelled',true);
+   const timestamp=String(now()),signature=await signRequest({timestamp,requestId,method:'POST',path:PATH,body},env.BRIEFING_TRIGGER_SECRET);
+   const controller=new AbortController(),onAbort=()=>controller.abort();signal?.addEventListener('abort',onAbort,{once:true});
+   const timer=setTimer(()=>controller.abort(),phaseName==='SYNC'?timeoutMs:drainTimeoutMs);
+   try{
+    const pendingResponse=Promise.resolve(fetchImpl(endpoint.toString(),{method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
+     headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}}))
+      .then(value=>{if(controller.signal.aborted){try{void value.body?.cancel().catch(()=>{});}catch{}}return value;});
+    const response=await raceAbort(pendingResponse,controller.signal);
+    const text=await readResponseBody(response,{controller});let payload;try{payload=JSON.parse(text);}catch{payload=null;}
+    if(isRedirect(response.status))throw error('redirect',true);
+    if([401,403].includes(response.status))throw error('authentication',true);
+    if(response.status===200&&!payload)throw error('invalid_response',true);
+    if(response.status===200&&payload?.ok===true&&payload.phase===phaseName&&payload.source==='cloudflare'
+      &&(phaseName!=='SYNC'||payload.syncComplete===true)) {
+      console.log(JSON.stringify({event:'briefing_phase_ok',phase:phaseName,attempt,status:response.status}));
+      return {requestId,payload,status:response.status,attempt};
     }
-    await sleep(attempt * 500);
+    if(response.status===207||payload?.syncComplete===false)throw error('sync_incomplete',true);
+    last=error(isRedirect(response.status)?'redirect':response.status===401||response.status===403?'authentication':`http_${Math.floor(response.status/100)}xx`,
+      !retryableStatus(response.status)&&!(response.status===409&&payload?.error==='REQUEST_PENDING'));
+    throw last;
+   }catch(e){if(signal?.aborted)throw error('cancelled',true);last=e;if(e?.name==='TypeError'&&/redirect/i.test(e.message))last=error('redirect',true);if(!last.category)last=error(controller.signal.aborted?'timeout':'transport');if(last.nonRetryable||attempt===MAX_ATTEMPTS)throw last;}
+   finally{controller.abort();clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
+   await sleep(attempt*500);
   }
-  throw lastError;
+  throw last;
+ }
+ const sync=await phase('SYNC');
+ if(sync.payload.drainAuthorized!==true)return {ok:true,status:sync.status,attempt:sync.attempt,phase:'SYNC',drain:'DISABLED'};
+ if(env.BRIEFING_EXECUTION_MODE!=='SHADOW'||!/^[a-f0-9]{64}$/.test(sync.payload.handoff))throw error('invalid_handoff',true);
+ const drain=await phase('STAGE6_DRAIN',{requestId:sync.requestId,token:sync.payload.handoff});
+ return {ok:true,status:drain.status,attempt:drain.attempt,phase:'STAGE6_DRAIN',outcome:drain.payload.result?.outcome};
 }
-
 export default {
-  scheduled(_event, env, ctx) {
-    const task = invoke(env).catch((err) => {
-      // 只記類別與型別，永遠不記 secret / signature / body / endpoint 憑證 /
-      // 個人或健康資料，也不記伺服器回傳的文字。
-      console.error(JSON.stringify({
-        event: 'briefing_trigger_failed',
-        category: String(err?.category ?? 'unknown'),
-        error: String(err?.name ?? 'Error'),
-        retryable: !err?.nonRetryable,
-      }));
-      throw err;
-    });
-    ctx.waitUntil(task);
-  },
-  async fetch() {
-    return new Response(JSON.stringify({ ok: true, service: 'briefing-scheduler' }), {
-      status: 200, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
-    });
-  },
+ scheduled(_event,env,ctx){ctx.waitUntil(invoke(env).catch(e=>{console.error(JSON.stringify({event:'briefing_trigger_failed',category:e.category??'unknown',retryable:!e.nonRetryable}));throw e;}));},
+ async fetch(){return new Response(JSON.stringify({ok:true,service:'briefing-scheduler'}),{status:200,headers:{'content-type':'application/json','cache-control':'no-store'}});},
 };

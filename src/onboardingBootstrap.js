@@ -111,7 +111,8 @@ export const BOOTSTRAP_RESULT = Object.freeze({
  */
 export function syncUsable(results = [], { required = ONBOARDING.REQUIRED_SCOPES } = {}) {
   if (!Array.isArray(results) || !results.length) return false;
-  return !results.some((r) => r?.status === 'failed' && required.includes(String(r?.resource)));
+  return !results.some(r=>['timeout','cancelled','auth_failed'].includes(r?.status)||r?.failureOutcome==='AUTH_FAILED'
+    ||r?.status==='failed'&&required.includes(String(r?.resource)));
 }
 
 /**
@@ -240,6 +241,7 @@ export async function runOnboardingBootstrap({
         expectedAuthGeneration, expectedLifecycleGeneration,
       });
     }
+    await deps.onSyncResults?.(results);
     // 世代已經換掉 → 這些觀測不屬於任何一個我們可以宣告的授權。
     // 必須擋在 syncUsable 之前：stale 不是 'failed'，syncUsable 會放它過去。
     if (results.some((r) => r?.status === 'stale_authorization')) {

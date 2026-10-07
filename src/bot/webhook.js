@@ -43,6 +43,7 @@ import { randomUUID } from 'node:crypto';
 
 import { loadDotEnvIfPresent, loadEnv, TELEGRAM_BOT, WHOOP_WEBHOOK } from '../config.js';
 import { createDb } from '../db.js';
+import { createExecutionBudget } from '../executionBudget.js';
 import { createCoach } from '../coach.js';
 import { createTelegramApi } from './api.js';
 import { createRouter } from './router.js';
@@ -52,8 +53,7 @@ import { createUpdateProcessor, UPDATE_OUTCOME, isAcknowledgeable } from './upda
 import { log, describeError } from '../logger.js';
 import { BRIEFING_TRIGGER } from '../briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../briefingEndpoint.js';
-import { runBriefing } from '../index.js';
-import { runPublicBetaBriefing } from '../publicBetaEntry.js';
+import { runExecutionPhase } from '../phase4Execution.js';
 import { publicBetaConfiguration, phase4AuthorityKeys } from '../publicBetaConfig.js';
 import { createWhoopWebhookIngest, statusForIngest } from '../whoopWebhookIngest.js';
 import { createWhoopOAuthCallback, OAUTH_CALLBACK_PATH, renderScreen } from '../whoopOAuthCallback.js';
@@ -423,7 +423,11 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const authorityKeys = phase4AuthorityKeys(process.env);
 
   const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken, phase4Keys: authorityKeys });
-  await db.migrate();
+  if(Number(process.versions.node.split('.')[0])<22){db.close();throw new Error('NODE_22_REQUIRED');}
+  const admissionBudget=createExecutionBudget({budgetMs:30_000});
+  try { await admissionBudget.run(()=>db.admitRuntime({source:'event'})); }
+  catch(error){db.close();throw error;}
+  finally{admissionBudget.close();}
 
   const coachFor = (userId) => createCoach({
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId,
@@ -493,7 +497,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   }
   const briefingEndpoint = schedulerConfigured
     ? createBriefingEndpoint({ secret: briefingTriggerSecret,
-      runBriefing: betaConfig.runtime === 'on' ? runPublicBetaBriefing : runBriefing }) : null;
+      runPhase: runExecutionPhase }) : null;
 
   // ---- OAuth 回呼（V1.2 Phase 3.5）---------------------------------------
   //

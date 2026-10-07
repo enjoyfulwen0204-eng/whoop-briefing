@@ -24,13 +24,17 @@ export class Phase4SchemaError extends Error {
   }
 }
 
-const normalizeSql = (sql) => String(sql).replace(/\bIF NOT EXISTS\s+/gi, '')
-  .replace(/\s+/g, ' ').trim().replace(/;$/, '');
+// Normalize syntax only. Rewriting a quoted enum/predicate would accept a
+// behaviorally different index or trigger under the canonical object's name.
+export const normalizeSql = sql => String(sql)
+  .split(/('(?:''|[^'])*'|"(?:""|[^"])*"|`(?:``|[^`])*`)/g)
+  .map((part,index)=>index%2?part:part.replace(/\bIF NOT EXISTS\s+/gi,'').replace(/\s+/g,' '))
+  .join('').trim().replace(/;$/,'');
 
 // ALTER TABLE inserts columns before table constraints, preserving the rest
 // of sqlite_master's original SQL. Find that boundary without mistaking a
 // column CHECK (or a quoted comma) for a table constraint.
-function withAddedColumns(ddl, columns) {
+export function withAddedColumns(ddl, columns) {
   if (!columns.length) return ddl;
   let depth=0, quote=null, boundary=-1;
   for(let i=ddl.indexOf('(');i<ddl.length;i++) {
@@ -103,6 +107,11 @@ async function verifyV21(client, { backfill = false } = {}) {
  * reset. All writes are independently idempotent; the cursor is audit/progress,
  * not permission to skip missing rows after a partial write. */
 async function backfillV21(client) {
+  // Explicit migration path records even an empty tenant pass. Runtime admission
+  // never manufactures authority for an already-versioned database.
+  await client.execute({sql:`INSERT INTO phase4_migration_checkpoints
+    (target_version,step_key,postcondition_state,updated_at) VALUES (21,'tenant_metadata','PENDING',?)
+    ON CONFLICT(target_version,step_key) DO NOTHING`,args:[new Date().toISOString()]});
   let cursor = '';
   for (;;) {
     const { rows } = await client.execute({

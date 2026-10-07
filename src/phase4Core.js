@@ -15,6 +15,7 @@ import { V26_TABLES } from './phase4V26Schema.js';
 import { V25_TABLES } from './phase4V25Schema.js';
 import { V24_TABLES } from './phase4V24Schema.js';
 import { createPhase4ContextRegistry } from './phase4Cache.js';
+import { requireRuntimeAdmission, admitRuntime } from './runtimeAdmission.js';
 
 export class Phase4InvariantError extends Error {
   constructor(code) { super(code); this.name='Phase4InvariantError'; this.code=code; }
@@ -36,26 +37,31 @@ const ROOTS = Object.freeze({
 /** Server-owned context and source references are branded within this instance.
  * A JSON object, a context from another connection, or a changed mode is not a
  * capability. Authority is supplied only by the owning server/fixture factory. */
-export async function buildPhase4Core({processing,keys,authorizeMode:modeAuthority,now=()=>new Date()}) {
+export async function buildPhase4Core({processing,keys,admission,authorizeMode:modeAuthority,now=()=>new Date()}) {
   const jobScope=new AsyncLocalStorage();
   requirePhase4Keys(keys);
   if(typeof modeAuthority!=='function' || typeof processing?.transaction!=='function')fail('PHASE4_SERVER_FACTORY_REQUIRED');
   const {client,transaction}=processing;
   // The frozen Stage 5 composition remains usable on v27. A Stage 6 worker
   // must separately require v28; unsupported versions still fail closed.
-  const schemaVersion=Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
+  const schemaVersion=admission ? requireRuntimeAdmission(client,admission,keys,transaction)
+    :Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
   if(![27,28,29,30,31].includes(schemaVersion))fail('phase4_schema_version_mismatch');
-  await assertPhase4Schema(client,schemaVersion);
+  if (!admission && schemaVersion === 31) admission=await admitRuntime(client,keys);
+  if (!admission) await assertPhase4Schema(client,schemaVersion);
   const databases=(await client.execute('PRAGMA database_list')).rows;
   const isolatedMemory=client.protocol==='file'&&databases.length===1&&databases[0].name==='main'&&databases[0].file==='';
   function authorizeMode(mode,connection) {
+    if(admission)requireRuntimeAdmission(client,admission,keys,transaction);
     if(mode==='LIVE'&&!isolatedMemory)fail('PHASE4_LIVE_FIXTURE_MEMORY_REQUIRED');
     return modeAuthority(mode,connection);
   }
+  if (!admission) {
   const keyCheck=(await client.execute("SELECT last_cursor FROM phase4_migration_checkpoints WHERE target_version=22 AND step_key='lookup_key_check'")).rows[0];
   if(!keys.verifyLookupCheckpoint(keyCheck?.last_cursor))fail('PHASE4_LOOKUP_KEY_MISMATCH');
   const auditCheck=(await client.execute("SELECT last_cursor FROM phase4_migration_checkpoints WHERE target_version=22 AND step_key='audit_key_check'")).rows[0];
   if(!keys.verifyAuditCheckpoint(auditCheck?.last_cursor))fail('PHASE4_AUDIT_KEY_MISMATCH');
+  }
   const contexts=new WeakSet(),controls=new WeakSet(),privacyControls=new WeakSet(),sources=new WeakMap(),columns=new Map();
   const timestamp=()=>{const value=now();if(!(value instanceof Date) || !Number.isFinite(value.getTime()))fail('PHASE4_INVALID_CLOCK');return value.toISOString();};
   const contextRegistry=createPhase4ContextRegistry({client,keys,now,timestamp,newId:()=>randomUUID()});

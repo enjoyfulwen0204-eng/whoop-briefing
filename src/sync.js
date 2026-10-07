@@ -19,6 +19,9 @@ import { isScopeError, isStaleAuthorizationError } from './whoop.js';
 import { isAccountInactiveError, requireLifecycle } from './accountLifecycle.js';
 import { requireUserId } from './userContext.js';
 import { log, describeError } from './logger.js';
+import { typedSyncResult } from './syncResult.js';
+import { currentExecutionBudget } from './executionBudget.js';
+import { withSyncOwnership, currentSyncOwnership } from './syncOwnership.js';
 
 const DAY_MS = 86_400_000;
 
@@ -79,7 +82,7 @@ export async function isSyncDue({
  * @param {string} o.timezone 該使用者的時區（不是全域 TIMEZONE）
  */
 export function createSync({
-  db, whoop, userId, timezone, expectedLifecycleGeneration, now = new Date(),
+  db, whoop, userId, timezone, expectedLifecycleGeneration, budget = currentSyncOwnership()?.budget ?? currentExecutionBudget(), now = new Date(),
 }) {
   const uid = requireUserId(userId, 'createSync');
   // ★ R2 §34：正式的健康同步**必須**帶啟用脈絡。
@@ -106,6 +109,7 @@ export function createSync({
       // 只有**帶著啟用脈絡**的呼叫端才受圍欄約束（與這次修正其他地方一致）。
       // 正式路徑（排程器 runForUser、上線 bootstrap）都會帶；沒有帶的是
       // 腳本／測試夾具那種「沒有帳號脈絡」的情境，行為維持不變。
+      budget?.assert();
       if (lifecycleFenced) await db.assertAccountActive(uid, lifecycleFence);
       const written = await persist(resource, payload);
       if (cursorPatch) await db.saveSyncState(uid, resource, cursorPatch, { now });
@@ -141,10 +145,12 @@ export function createSync({
     // ★ R3 / R2-STAGE-01：每一次**獨立發出**的 provider 抓取之前重新驗證。
     // 一個窗內的分頁序列是一個有界階段，不逐頁檢查；但 incremental 與
     // backfill 的每一個 chunk 都是新的請求，各自驗一次。
+    budget?.assert();
     if (lifecycleFenced) await db.assertAccountActive(uid, lifecycleFence);
     const payload = POINT_IN_TIME.has(resource)
       ? await fetchers[resource]()
       : await fetchers[resource](fromIso, toIso);
+    budget?.assert();
     return { payload, fetched: Array.isArray(payload) ? payload.length : (payload ? 1 : 0) };
   }
 
@@ -217,6 +223,7 @@ export function createSync({
     const complete = cursor.getTime() <= target.getTime();
     if (complete) {
       await db.transaction(async () => {
+        budget?.assert();
         if (lifecycleFenced) await db.assertAccountActive(uid, lifecycleFence);
         await db.saveSyncState(uid, resource, { backfillComplete: true }, { now });
       });
@@ -255,10 +262,11 @@ export function createSync({
    *
    * @param {boolean} force 忽略 MIN_INTERVAL_MS 節流（手動 / 腳本用）
    */
-  async function syncAll({ force = false, resources = WHOOP_SYNC.RESOURCES } = {}) {
+  async function syncAllOwned({ force = false, resources = WHOOP_SYNC.RESOURCES } = {}) {
     const results = [];
     for (const resource of resources) {
       try {
+        budget?.assert();
         // ★ R3 / R2-STAGE-01：階段邊界在 fetchWindow 裡（每一次獨立的 provider
         // 抓取之前）。落地圍欄仍然是最後一道。
         if (!force) {
@@ -271,6 +279,10 @@ export function createSync({
         }
         results.push({ status: 'ok', ...(await syncResource(resource)) });
       } catch (err) {
+        if (['SYNC_TIMEOUT','SYNC_CANCELLED','WHOOP_MAINTENANCE_DEADLINE'].includes(err?.code) || budget?.signal.aborted) {
+          let code=err?.code;try{budget?.assert();}catch(e){code=e.code;}
+          results.push({resource,status:code==='SYNC_CANCELLED'?'cancelled':'timeout'}); break;
+        }
         // ★ F04：授權世代已經換了 —— 這一輪是以一個**過期的授權**開始的。
         //
         // 必須排在 scope 判定之前，而且必須**停止**後面的資源：繼續跑只會
@@ -302,7 +314,7 @@ export function createSync({
         } else {
           log.error('sync_failed', { resource, error: detail });
         }
-        results.push({ resource, status: scope ? 'scope_missing' : 'failed', error: detail });
+        results.push({ resource, status: scope ? 'scope_missing' : 'failed', ...(err?.name?.startsWith('WhoopAuth')?{failureOutcome:'AUTH_FAILED'}:{}), error: detail });
       }
     }
     log.info('sync_all_done', {
@@ -311,7 +323,14 @@ export function createSync({
       failed: results.filter((r) => r.status === 'failed').length,
       scope_missing: results.filter((r) => r.status === 'scope_missing').length,
     });
-    return results;
+    return typedSyncResult(results,{expectedResources:resources});
+  }
+  async function syncAll(options) {
+    // Explicit unfenced fixtures retain their synthetic contract. All real
+    // lifecycle-bound calls share the canonical durable scope, including bootstrap.
+    if (!lifecycleFenced) return syncAllOwned(options);
+    try { return await withSyncOwnership({db,userId:uid,budget}, async context => { budget=context.budget; return syncAllOwned(options); }); }
+    catch(error) { return typedSyncResult([{resource:'sleep',status:error?.code==='SYNC_CANCELLED'?'cancelled':error?.code==='SYNC_TIMEOUT'?'timeout':'failed'}]); }
   }
 
   return { syncAll, syncResource, incremental, backfill };

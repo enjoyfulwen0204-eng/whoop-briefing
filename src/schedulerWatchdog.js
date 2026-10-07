@@ -3,6 +3,7 @@ import { HEARTBEAT_COMPONENT } from './guardianPolicy.js';
 import { schedulerProviderState,requireTriggerSource } from './schedulerPolicy.js';
 import { log,describeError } from './logger.js';
 import { t } from './localization.js';
+import { readPhaseProgress } from './phase4ExecutionStore.js';
 
 export const SCHEDULER_POLICY=Object.freeze({
   cloudflare:Object.freeze({role:'morning_primary',component:HEARTBEAT_COMPONENT.CLOUDFLARE,
@@ -24,7 +25,11 @@ export async function readSchedulerHealth({db,now=new Date()}) {
     db.getHeartbeat(GLOBAL_SCOPE,HEARTBEAT_COMPONENT.GITHUB),
   ]);
   const cloudflare=providerState(cf,'cloudflare',now),github=providerState(gh,'github',now);
-  return {cloudflare,github,overall:aggregateSchedulerState(cloudflare,github)};
+  const phases={};
+  if(db.raw)for(const source of ['cloudflare','github']) {
+    phases[source]={sync:await readPhaseProgress(db,'SYNC',source),stage6:await readPhaseProgress(db,'STAGE6_DRAIN',source)};
+  }
+  return {cloudflare,github,overall:aggregateSchedulerState(cloudflare,github),phases};
 }
 /** Evaluation requires a running invocation. Total scheduler silence needs
  * external monitoring; this function does not create a background watcher. */

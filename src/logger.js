@@ -43,15 +43,19 @@ export function redact(value, depth = 0) {
 // Operational logs are not a health store. Keep a positive field allowlist:
 // secret filtering alone cannot make arbitrary subjects, names, prompts,
 // physiological dates or provider error text safe to retain.
-const OPAQUE_FIELDS=new Set(['user_id','update_id','event_id','run_id','job_id','message_id','request_id','attempt_id','owner_id']);
+const OPAQUE_FIELDS=new Set(['update_id','event_id','run_id','job_id','message_id','request_id','attempt_id','owner_id']);
 const COUNT_FIELDS=new Set(['attempt','attempts','count','changed','unchanged','blocked','rows','duration_ms','elapsed_ms',
   'generation','lifecycle_generation','auth_generation','input_generation','purge_generation','version','from','to',
-  'status_code','http_status','retry_after_ms','bytes','tokens','input_tokens','output_tokens']);
-const ENUM_FIELDS=new Set(['status','state','result','reason','code','error_code','quality','level','class','resource','resource_type','mode']);
+  'status_code','http_status','retry_after_ms','bytes','tokens','input_tokens','output_tokens',
+  'query_count','jobs_considered','items_attempted','items_processed','jobs_completed','jobs_failed','remaining_jobs','users','ok','failed','skipped']);
+const ENUM_FIELDS=new Set(['status','state','result','reason','code','error_code','quality','level','class','resource','resource_type','mode','source','provider','outcome','phase','stop_reason']);
 const SAFE_ENUMS=new Set(['ACTIVE','INACTIVE','PENDING','RUNNING','COMPLETED','FAILED','RETRY','READY','BLOCKED','UNAVAILABLE',
   'SHADOW','LIVE','DELIVERED','AMBIGUOUS','DELIVERY_STARTED','NOT_REQUIRED','ACTION_READY','REDACTED','PRESENT','COMPLETE',
   'SOURCE_CHANGED','SOURCE_DELETED','SOURCE_CORRECTED','CONTENT_REDACTED','AUTH_CHANGED','LIFECYCLE_CHANGED',
   'claimed','completed','abandoned','in_progress','unavailable','identity_conflict','sleep','recovery','cycle','workout',
+  'manual','github','cloudflare','event','SYNC','STAGE6_DRAIN','PARTIAL','NO_ELIGIBLE_WORK','BUDGET_EXHAUSTED','NO_WORK',
+  'COMPLETE_SUCCESS','NO_NEW_DATA_SUCCESS','INTENTIONALLY_INAPPLICABLE','REQUIRED_RESOURCE_FAILED','AUTH_FAILED','TIMEOUT','CANCELLED',
+  'QUEUE_COMPLETE','ITEM_LIMIT','TENANT_LIMIT','WALL_LIMIT','WALL_OR_ITEM_LIMIT','FAILURE','DISABLED','POLICY_DEFERRED','NOT_ENTERED',
   'processing_failed','ownership_lost','non_private_chat','bot_sender','sender_chat_mismatch','LIGHT','HEAVY']);
 export function operationalLogFields(fields={}) {
   const result={};

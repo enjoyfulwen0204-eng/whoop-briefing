@@ -47,6 +47,7 @@ import { createPhase4QueueStore } from './phase4QueueStore.js';
 import { createPhase4Foundation } from './phase4Foundation.js';
 import { legacyExperimentAdapter } from './legacyExperimentAdapter.js';
 import { createPhase4Invalidation } from './phase4Invalidation.js';
+import { admitRuntime, bindConnectionLifetime, requireRuntimeAdmission } from './runtimeAdmission.js';
 
 // SCHEMA 定義集中在 schema.js（唯一 DDL 來源）。這裡 re-export 維持既有 import 路徑。
 export { SCHEMA } from './schema.js';
@@ -71,6 +72,17 @@ export function createDb({ url, authToken, phase4Keys }) {
 export function composeDb(baseClient, { phase4Keys } = {}) {
   const processing = processingTransactions(baseClient);
   const transactionClient=processing.client;
+  bindConnectionLifetime(baseClient, transactionClient, processing.transaction);
+  let runtimeAdmission, pendingAdmission;
+  async function runtimeContext(options) {
+    if (runtimeAdmission) {
+      try { requireRuntimeAdmission(transactionClient, runtimeAdmission, phase4Keys, processing.transaction); return runtimeAdmission; }
+      catch { runtimeAdmission = null; foundationStore = null; } // Reopened connections rebuild both admission and dependent stores.
+    }
+    if (!pendingAdmission) pendingAdmission = admitRuntime(transactionClient, phase4Keys, options)
+      .then(capability => runtimeAdmission = capability).finally(() => { pendingAdmission = null; });
+    return pendingAdmission;
+  }
   const privacy=legacyPrivacyFence(transactionClient,phase4Keys);
   const replyContexts=new WeakMap();
   const compatibility=createLegacyHealthAdapter({client:transactionClient,processing,privacy,keys:phase4Keys});
@@ -79,7 +91,8 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   const phase4Invalidation=createPhase4Invalidation({client:transactionClient,transaction:processing.transaction,queue:phase4Queue});
   let foundationStore;
   async function privacyFoundation() {
-    if(!foundationStore)foundationStore=createPhase4Foundation({db:{raw:client,transaction:processing.transaction,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit,afterProcessingCompletion:processing.afterCompletion},keys:phase4Keys});
+    if(!foundationStore)foundationStore=(async()=>createPhase4Foundation({db:{raw:transactionClient,transaction:processing.transaction,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit,afterProcessingCompletion:processing.afterCompletion},keys:phase4Keys,
+      admission:Number((await transactionClient.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)===31?await runtimeContext():undefined}))();
     try {return await foundationStore;} catch(error) {foundationStore=null;throw error;}
   }
   const health = compatibility.wrap(createHealthStore(compatibility.client, { transaction: processing.transaction }));
@@ -1675,7 +1688,10 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
 
   return {
     raw: transactionClient,
+    admitRuntime: runtimeContext,
+    requireRuntimeAdmission: capability => requireRuntimeAdmission(transactionClient, capability, phase4Keys, processing.transaction),
     transaction: processing.transaction,
+    withRuntimeFence: processing.withFence,
     assertAccountActive,
     withAnswerOwnership,
     processTelegramOperation,

@@ -11,13 +11,21 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { main } from '../src/index.js';
-import { createDb } from './localDb.js';
+import { createOwnedDb } from './stage5OwnedDb.js';
 import { addDays, localDate } from '../src/time.js';
 import { WHOOP_SYNC } from '../src/config.js';
 import { makeDataset } from './fixtures.js';
 
 const TZ = 'Asia/Taipei';
 const U = 'u-e2e-test';
+
+function connectionFactory() {
+  const connections = [];
+  return {
+    createDb(options) { const db = createOwnedDb(options); connections.push(db); return db; },
+    async closeAll() { for (const db of connections) if (!db.raw.closed) await db.close(); },
+  };
+}
 
 function installMockFetch({ dataset, calls }) {
   const original = globalThis.fetch;
@@ -99,6 +107,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
   const cwd = process.cwd();
   const savedEnv = { ...process.env };
   const calls = [];
+  const { createDb, closeAll } = connectionFactory();
   const restoreFetch = installMockFetch({ dataset, calls });
 
   try {
@@ -121,7 +130,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     // Multi-user：先建一個內部使用者並綁定 Telegram，再塞一組還有效的 token
     // （模擬已經跑過 authorize + /link）
     const seed = createDb({ url: dbUrl });
-    await seed.migrate();
+    await seed.migrate({ targetVersion: 31 });
     await seed.createUser({ id: U, displayName: 'E2E', timezone: TZ, status: 'ACTIVE' });
     await seed.setLocale(U, 'zh-TW');
     await seed.linkTelegram({ chatId: '999', userId: U });
@@ -137,12 +146,13 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
       // 是權威，token 上宣稱另一個帳號會（正確地）被判定為身分衝突。
       whoopUserId: '12345',
     });
-    seed.close();
+    await seed.close();
 
     // ---- 第一次執行 ----
     const first = await main({ now, deps: { db: createDb({ url: dbUrl }) } });
     assert.equal(first.errors.length, 0, JSON.stringify(first.errors));
-    assert.equal(first.failed, 0, JSON.stringify(first.perUser));
+    assert.equal(first.failed, 1, JSON.stringify(first.perUser));
+    assert.equal(first.syncOutcome, 'PARTIAL', 'bounded incomplete backfill cannot authorize drain; ordinary report remains available');
     const firstUser = first.perUser.find((p) => p.userId === U);
     assert.equal(firstUser.daily, 'sent');
     assert.equal(firstUser.weekly, 'not_run', '不是週一，weekly 不該跑');
@@ -177,7 +187,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     assert.equal(runs[0].status, 'SENT');
     assert.equal(String(runs[0].user_id), U, '紀錄必須明確歸屬這個使用者');
     assert.equal(Number(runs[0].telegram_message_id), 4242);
-    check.close();
+    await check.close();
 
     // ---- 第二次執行：同一個 health_date 已 SENT → 不會重複發 ----
     // 這次還是會輪詢 WHOOP：快速返回的條件是「今天與昨天兩個 health_date 都已 SENT」，
@@ -207,7 +217,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
       healthDate: yesterdayKey,
       status: 'SENT',
     });
-    seed2.close();
+    await seed2.close();
 
     // ⚠️ V1.1 Phase 7：報告排程與資料新鮮度已經解耦。
     //
@@ -242,7 +252,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
         lastSuccessAt: now.toISOString(),
       }, { now });
     }
-    seed3.close();
+    await seed3.close();
 
     const before4 = calls.length;
     const fourth = await main({ now, deps: { db: createDb({ url: dbUrl }) } });
@@ -256,12 +266,14 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
       `完全沒事做時不該有任何外部呼叫，實際：${JSON.stringify(calls.slice(before4))}`,
     );
   } finally {
+    await closeAll();
     restoreFetch();
     process.chdir(cwd);
     for (const k of Object.keys(process.env)) {
       if (!(k in savedEnv)) delete process.env[k];
     }
     Object.assign(process.env, savedEnv);
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -274,6 +286,7 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
   const cwd = process.cwd();
   const savedEnv = { ...process.env };
   const calls = [];
+  const { createDb, closeAll } = connectionFactory();
   const restoreFetch = installMockFetch({ dataset, calls });
 
   try {
@@ -291,7 +304,7 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
     });
 
     const seed = createDb({ url: dbUrl });
-    await seed.migrate();
+    await seed.migrate({ targetVersion: 31 });
     await seed.createUser({ id: U, displayName: 'E2E', timezone: TZ, status: 'ACTIVE' });
     await seed.setLocale(U, 'zh-TW');
     await seed.linkTelegram({ chatId: '999', userId: U });
@@ -302,11 +315,12 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
       scope: 'offline read:recovery read:sleep read:cycles',
       whoopUserId: '12345',   // 與 fixtures 資料集一致（見上一個測試的說明）
     });
-    seed.close();
+    await seed.close();
 
     const res = await main({ now, deps: { db: createDb({ url: dbUrl }) } });
     assert.equal(res.errors.length, 0, JSON.stringify(res.errors));
-    assert.equal(res.failed, 0, JSON.stringify(res.perUser));
+    assert.equal(res.failed, 1, JSON.stringify(res.perUser));
+    assert.equal(res.syncOutcome, 'PARTIAL');
     const resUser = res.perUser.find((p) => p.userId === U);
     assert.equal(resUser.daily, 'sent');
 
@@ -321,13 +335,15 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
     const t = await check.getTokens(U);
     assert.equal(t.accessToken, 'e2e-access');
     assert.equal(t.refreshToken, 'e2e-refresh');
-    check.close();
+    await check.close();
   } finally {
+    await closeAll();
     restoreFetch();
     process.chdir(cwd);
     for (const k of Object.keys(process.env)) {
       if (!(k in savedEnv)) delete process.env[k];
     }
     Object.assign(process.env, savedEnv);
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });

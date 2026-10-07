@@ -1,6 +1,6 @@
 // Imported only by local CLI regression subprocesses. No network fallback.
 import fs from 'node:fs';
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 
 if (!process.env.TURSO_DATABASE_URL?.startsWith('file:')) throw new Error('local_test_db_required');
 globalThis.fetch = async (input) => {

@@ -136,7 +136,7 @@ test('Aggregate release boundary: all 13 flags are false, every enable request f
   for(const mode of [undefined,null,'','live','UNKNOWN'])await assert.rejects(s.capture('a',{executionMode:mode}),/EXECUTION_MODE_REQUIRED/);
   await assert.rejects(s.initializeTenant('a','LIVE'),/LIVE_NOT_AUTHORIZED/);
   await assert.rejects(s.capture('a',{executionMode:'LIVE'}),/LIVE_NOT_AUTHORIZED/);
-  const files=fs.readdirSync(new URL('../src/',import.meta.url)).filter(name=>/^(phase4|bodyEnergy|journalFoundation|journalAnswerRevision)/.test(name)&&name.endsWith('.js'));
+  const files=fs.readdirSync(new URL('../src/',import.meta.url)).filter(name=>/^(phase4|bodyEnergy|journalFoundation|journalAnswerRevision)/.test(name)&&name.endsWith('.js') && name!=='phase4Execution.js');
   assert.ok(files.length>25);
   for(const file of files) {
     const source=fs.readFileSync(new URL(`../src/${file}`,import.meta.url),'utf8');

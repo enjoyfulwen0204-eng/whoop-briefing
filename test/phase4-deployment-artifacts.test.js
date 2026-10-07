@@ -23,9 +23,9 @@ test('deployment gates retain a reviewed backup, writer drain and staged activat
     'Public Beta presentation is OFF', 'no LIVE execution exists',
     'Keep auto-deploy **Off throughout the later push, RC/tag publication, backup, migration, manual RC deployment',
   ]) assert.ok(guide.includes(required), required);
-  assert.equal(MAX_ATTEMPTS, 3);
-  assert.equal(TIMEOUT_MS, 120_000);
-  assert.equal(MAX_CONFIGURED_WINDOW_MS, 361_500);
+  assert.equal(MAX_ATTEMPTS, 2);
+  assert.equal(TIMEOUT_MS, 180_000);
+  assert.equal(MAX_CONFIGURED_WINDOW_MS, 561_000);
   assert.equal(15 * 60_000 + Math.max(MAX_CONFIGURED_WINDOW_MS, 15 * 60_000) + 60_000,
     31 * 60_000);
 });
@@ -33,14 +33,19 @@ test('deployment gates retain a reviewed backup, writer drain and staged activat
 test('default-branch transition artifact pins source and supports all three gated stages', () => {
   const artifact = read('docs/phase4-main-workflow.yml');
   assert.match(artifact, /ref: REVIEWED_RELEASE_SHA/);
-  assert.match(artifact, /off:off\) npm start/);
-  assert.match(artifact, /on:off\) node src\/publicBetaEntry\.js/);
-  assert.match(artifact, /on:allowlist\)[\s\S]*cohort\[@\][\s\S]*node src\/publicBetaEntry\.js/);
+  assert.equal((artifact.match(/ref: REVIEWED_RELEASE_SHA/g) ?? []).length, 2);
+  assert.equal((artifact.match(/timeout-minutes: 10/g) ?? []).length, 2);
+  assert.match(artifact, /needs: sync/);
+  assert.match(artifact, /needs.sync.result == 'success'/);
+  assert.match(artifact, /sync_complete == 'true'/);
+  assert.match(artifact, /PHASE4_EXECUTION_PHASE: SYNC/);
+  assert.match(artifact, /PHASE4_EXECUTION_PHASE: STAGE6_DRAIN/);
+  assert.match(artifact, /node scripts\/phase4-run\.js/g);
   assert.doesNotMatch(artifact, /on:all\)|ref: main|ref: v1\.2-phase4/);
   assert.match(artifact, /PHASE4_PUBLIC_BETA_MODE: \$\{\{ vars\.PHASE4_PUBLIC_BETA_MODE \}\}/);
   assert.match(artifact, /cron: "17 \* \* \* \*"/);
   const shell = artifact.split('        run: |\n')[1].split('\n').map(line => line.replace(/^          /, '')).join('\n');
   assert.equal(spawnSync('bash', ['-n'], { input: shell, encoding: 'utf8' }).status, 0);
-  assert.match(read('cloudflare/briefing-scheduler/wrangler.toml'), /crons = \["\*\/10 0-3 \* \* \*"\]/);
+  assert.match(read('cloudflare/briefing-scheduler/wrangler.toml'), /crons = \[\]/);
   assert.match(read('docs/phase4-public-beta-preparation.md'), /checked-in Cloudflare Worker target is already/);
 });

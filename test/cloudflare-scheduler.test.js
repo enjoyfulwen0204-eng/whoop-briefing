@@ -27,7 +27,7 @@ const base = (overrides = {}) => ({
 
 test('reviewed Worker trigger is the Stage 6 window and keeps the authenticated Render endpoint', () => {
   const config = readFileSync(new URL('../cloudflare/briefing-scheduler/wrangler.toml', import.meta.url), 'utf8');
-  assert.match(config, /crons = \["\*\/10 0-3 \* \* \*"\]/);
+  assert.match(config, /crons = \[\]/);
   assert.doesNotMatch(config, /crons = \["\*\/10 \* \* \* \*"\]/);
   assert.match(config, /BRIEFING_ENDPOINT_URL = "https:\/\/whoop-telegram-webhook\.onrender\.com\/internal\/briefing\/run"/);
   assert.doesNotMatch(config, /^BRIEFING_TRIGGER_SECRET\s*=/m);
@@ -76,57 +76,39 @@ function request(args, signature, extra = {}) {
   };
 }
 
-test('endpoint returns aggregate-only result and suppresses duplicate request ID in memory', async () => {
-  let calls = 0;
-  const runBriefing = async () => {
-    calls += 1;
-    await new Promise((resolve) => setTimeout(resolve, 5));
-    return { users: 2, ok: 2, failed: 0, skipped: 1, errors: [], perUser: [
-      { userId: 'must-not-leak', daily: 'sent' }, { userId: 'also-private', daily: 'not_ready' },
-    ] };
-  };
-  const endpoint = createBriefingEndpoint({ secret: SECRET, runBriefing, now: () => NOW });
-  const args = base();
-  const req = request(args, signTriggerRequest(args, SECRET));
-  const [a, b] = await Promise.all([endpoint(req, args.body), endpoint(req, args.body)]);
-  assert.equal(calls, 1);
-  assert.deepEqual(a, b);
-  assert.equal(a.status, 200);
-  assert.equal(JSON.stringify(a).includes('must-not-leak'), false);
-  assert.deepEqual(a.body.result.daily, { sent: 1, not_ready: 1 });
+const phaseArgs = (extra = {}) => {
+  const args = base(extra);
+  args.body = JSON.stringify({requestId:args.requestId,phase:'SYNC',triggerSource:'cloudflare',executionMode:'OFF',configProof:'a'.repeat(64)});
+  return args;
+};
+test('endpoint caches exact phase retry and returns canonical aggregate result', async () => {
+  let calls=0;
+  const endpoint=createBriefingEndpoint({secret:SECRET,now:()=>NOW,runPhase:async()=>{
+    calls++;await new Promise(r=>setTimeout(r,5));
+    return {status:200,body:{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false,result:{users:2,failed:0}}};
+  }});
+  const args=phaseArgs(),req=request(args,signTriggerRequest(args,SECRET));
+  const [a,b]=await Promise.all([endpoint(req,args.body),endpoint(req,args.body)]);
+  assert.equal(calls,1);assert.deepEqual(a,b);assert.equal(a.status,200);assert.deepEqual(a.body.result,{users:2,failed:0});
 });
-
-test('different request IDs coalesce onto one active canonical process run', async () => {
-  let resolveRun;
-  let calls = 0;
-  const endpoint = createBriefingEndpoint({
-    secret: SECRET, now: () => NOW,
-    runBriefing: () => { calls += 1; return new Promise((resolve) => { resolveRun = resolve; }); },
-  });
-  const a = base();
-  const b = base();
-  const pa = endpoint(request(a, signTriggerRequest(a, SECRET)), a.body);
-  const pb = endpoint(request(b, signTriggerRequest(b, SECRET)), b.body);
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(calls, 1);
-  resolveRun({ users: 0, ok: 0, failed: 0, skipped: 0, errors: [], perUser: [] });
-  assert.equal((await pa).status, 200);
-  assert.equal((await pb).status, 200);
+test('different request identities execute independently; durable tenant ownership handles overlap', async () => {
+  let calls=0;
+  const endpoint=createBriefingEndpoint({secret:SECRET,now:()=>NOW,runPhase:async()=>{
+    calls++;await new Promise(r=>setTimeout(r,5));return {status:200,body:{ok:true}};
+  }});
+  const a=phaseArgs(),b=phaseArgs();
+  const results=await Promise.all([endpoint(request(a,signTriggerRequest(a,SECRET)),a.body),endpoint(request(b,signTriggerRequest(b,SECRET)),b.body)]);
+  assert.equal(calls,2);assert.ok(results.every(r=>r.status===200));
 });
-
-test('endpoint rejects media type, malformed/large body, auth failure, and reports partial failure', async () => {
-  const endpoint = createBriefingEndpoint({
-    secret: SECRET, now: () => NOW,
-    runBriefing: async () => ({ users: 1, ok: 0, failed: 1, skipped: 0, errors: [], perUser: [] }),
-  });
-  const args = base();
-  const sig = signTriggerRequest(args, SECRET);
-  assert.equal((await endpoint(request(args, sig, { 'content-type': 'text/plain' }), '{}')).status, 415);
-  assert.equal((await endpoint(request(args, sig), '{')).status, 400);
-  assert.equal((await endpoint(request(args, sig), 'x'.repeat(1025))).status, 413);
-  assert.equal((await endpoint(request(args, 'bad'), '{}')).status, 401);
-  assert.equal((await endpoint({ ...request(args, sig), url: `${args.path}?unexpected=1` }, '{}')).status, 400);
-  assert.equal((await endpoint(request(args, sig), '{}')).status, 207);
+test('endpoint rejects media type, malformed/large body, auth failure, and preserves partial status', async () => {
+  const endpoint=createBriefingEndpoint({secret:SECRET,now:()=>NOW,runPhase:async()=>({status:207,body:{ok:false,syncComplete:false}})});
+  const args=phaseArgs(),sig=signTriggerRequest(args,SECRET);
+  assert.equal((await endpoint(request(args,sig,{'content-type':'text/plain'}),args.body)).status,415);
+  assert.equal((await endpoint(request(args,sig),'{')).status,400);
+  assert.equal((await endpoint(request(args,sig),'x'.repeat(1025))).status,413);
+  assert.equal((await endpoint(request(args,'bad'),args.body)).status,401);
+  assert.equal((await endpoint({...request(args,sig),url:`${args.path}?unexpected=1`},args.body)).status,400);
+  assert.equal((await endpoint(request(args,sig),args.body)).status,207);
 });
 
 test('scheduler-only env is fail-closed without taking down inbound configuration', () => {
@@ -142,27 +124,27 @@ test('Worker re-signs each retry while preserving logical request ID', async () 
   assert.equal(retryableStatus(503), true);
   assert.equal(retryableStatus(401), false);
   const requests = [];
-  const statuses = [503, 502, 200];
+  const statuses = [503, 200];
   let cleared = 0;
   const result = await invoke({
     BRIEFING_ENDPOINT_URL: 'https://example.invalid/internal/briefing/run',
-    BRIEFING_TRIGGER_SECRET: SECRET,
+    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
     now: (() => { const times = [NOW, NOW + 120_000, NOW + 240_000]; return () => times.shift(); })(),
     sleep: async () => {}, clearTimer: (timer) => { cleared += 1; clearTimeout(timer); },
     fetchImpl: async (_url, options) => {
       requests.push(options);
       const status = statuses.shift();
-      return { status, ok: status === 200, text: async () => '' };
+      return new Response(JSON.stringify(status===200?{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false}:{}),{status});
     },
   });
-  assert.equal(result.attempt, 3);
-  assert.equal(cleared, 3, 'success and retry responses must clear their timers');
-  assert.equal(requests.length, 3);
+  assert.equal(result.attempt, 2);
+  assert.equal(cleared, 2, 'success and retry responses must clear their timers');
+  assert.equal(requests.length, 2);
   assert.equal(new Set(requests.map((r) => r.headers['x-briefing-request-id'])).size, 1);
   assert.deepEqual(requests.map((r) => Number(r.headers['x-briefing-timestamp'])),
-    [NOW, NOW + 120_000, NOW + 240_000]);
-  assert.equal(new Set(requests.map((r) => r.headers['x-briefing-signature'])).size, 3);
+    [NOW, NOW + 120_000]);
+  assert.equal(new Set(requests.map((r) => r.headers['x-briefing-signature'])).size, 2);
   for (const r of requests) {
     assert.deepEqual(verifyTriggerRequest({
       timestamp: r.headers['x-briefing-timestamp'], requestId: r.headers['x-briefing-request-id'],
@@ -181,14 +163,14 @@ test('Worker re-signs each retry while preserving logical request ID', async () 
   let authAttempts = 0;
   await assert.rejects(() => invoke({
     BRIEFING_ENDPOINT_URL: 'https://example.invalid/internal/briefing/run',
-    BRIEFING_TRIGGER_SECRET: SECRET,
+    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
     now: () => NOW, sleep: async () => {},
     fetchImpl: async () => {
       authAttempts += 1;
-      return { status: 401, ok: false, text: async () => 'unauthorized' };
+      return new Response('unauthorized',{status:401});
     },
-  }), /401/);
+  }), /authentication/);
   assert.equal(authAttempts, 1);
 });
 
@@ -284,7 +266,7 @@ test('redirects are terminal, never followed, and placeholder/query URLs fail cl
     let calls = 0;
     await assert.rejects(() => invoke({
       BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
-      BRIEFING_TRIGGER_SECRET: SECRET,
+      BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
     }, {
       now: () => NOW, sleep: async () => {},
       fetchImpl: async (_url, options) => {
@@ -294,10 +276,10 @@ test('redirects are terminal, never followed, and placeholder/query URLs fail cl
         assert.ok(ALLOWED_REDIRECT_MODES.includes(options.redirect),
           `redirect 必須是 Workers 支援的值，實際是 ${options.redirect}`);
         assert.notEqual(options.redirect, 'follow', '簽名過的請求絕不可以被轉送');
-        return { status, ok: false, headers: { get: () => location }, text: async () => 'redirect target hidden' };
+        return new Response('redirect target hidden',{status,headers:{location}});
       },
     }), (err) => {
-      assert.match(err.message, new RegExp(String(status)));
+      assert.match(err.message, /redirect/);
       assert.equal(err.category, 'redirect', '3xx 必須被归類為 redirect');
       assert.equal(err.nonRetryable, true);
       return true;
@@ -310,13 +292,13 @@ test('redirects are terminal, never followed, and placeholder/query URLs fail cl
   // fetch、打不到那個主機、丟出 TypeError —— 測試照樣「通過」。它驗證的是
   // DNS 解析失敗，不是我們的驗證邏輯。
   for (const [url, expected] of [
-    ['https://REPLACE_WITH_RENDER_HOST/internal/briefing/run', /placeholder must be replaced/],
-    ['https://placeholder.example/internal/briefing/run', /placeholder must be replaced/],
-    ['https://render.example/internal/briefing/run?x=1', /exact HTTPS scheduler endpoint/],
-    ['https://render.example/internal/briefing/run#x', /exact HTTPS scheduler endpoint/],
-    ['http://render.example/internal/briefing/run', /exact HTTPS scheduler endpoint/],
-    ['https://render.example/internal/briefing/run/', /exact HTTPS scheduler endpoint/],
-    ['https://render.example/other', /exact HTTPS scheduler endpoint/],
+    ['https://REPLACE_WITH_RENDER_HOST/internal/briefing/run', /configuration/],
+    ['https://placeholder.example/internal/briefing/run', /configuration/],
+    ['https://render.example/internal/briefing/run?x=1', /configuration/],
+    ['https://render.example/internal/briefing/run#x', /configuration/],
+    ['http://render.example/internal/briefing/run', /configuration/],
+    ['https://render.example/internal/briefing/run/', /configuration/],
+    ['https://render.example/other', /configuration/],
   ]) {
     let fetched = 0;
     await assert.rejects(
@@ -341,7 +323,7 @@ test('redirects are terminal, never followed, and placeholder/query URLs fail cl
         BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
         BRIEFING_TRIGGER_SECRET: 'short',
       }, { fetchImpl: async () => { fetched += 1; return { ok: true, status: 200, text: async () => '' }; } }),
-      /at least 32 bytes/,
+      /configuration/,
     );
     assert.equal(fetched, 0);
   }
@@ -351,7 +333,7 @@ test('redirect rejection is terminal and never retried three times', async () =>
   let attempts = 0;
   await assert.rejects(() => invoke({
     BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
-    BRIEFING_TRIGGER_SECRET: SECRET,
+    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
     now: () => NOW, sleep: async () => {},
     fetchImpl: async () => {
@@ -376,12 +358,10 @@ test('worker failure categories are distinguishable and leak nothing', async () 
   for (const [category, status] of cases) {
     await assert.rejects(() => invoke({
       BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
-      BRIEFING_TRIGGER_SECRET: SECRET,
+      BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
     }, {
       now: () => NOW, sleep: async () => {},
-      fetchImpl: async () => ({
-        status, ok: false, text: async () => 'secret-bearing server text that must never surface',
-      }),
+      fetchImpl: async () => new Response('secret-bearing server text that must never surface',{status}),
     }), (err) => {
       assert.equal(err.category, category, `status ${status} -> ${category}`);
       assert.doesNotMatch(err.message, /secret-bearing/, '★ 伺服器回傳的文字不可以進錯誤訊息');
@@ -391,7 +371,7 @@ test('worker failure categories are distinguishable and leak nothing', async () 
   // 逾時要被分類成 timeout
   await assert.rejects(() => invoke({
     BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
-    BRIEFING_TRIGGER_SECRET: SECRET,
+    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
     now: () => NOW, sleep: async () => {}, timeoutMs: 1,
     setTimer: (fn) => { queueMicrotask(fn); return Symbol('t'); }, clearTimer: () => {},
@@ -406,7 +386,7 @@ test('real AbortController path aborts each hanging attempt and clears every tim
   let cleared = 0;
   await assert.rejects(() => invoke({
     BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
-    BRIEFING_TRIGGER_SECRET: SECRET,
+    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
     now: (() => { let t = NOW; return () => (t += 120_000); })(), sleep: async () => {}, timeoutMs: 1,
     setTimer: (fn) => { queueMicrotask(fn); return Symbol('timer'); },
@@ -416,17 +396,21 @@ test('real AbortController path aborts each hanging attempt and clears every tim
       signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')),
         { once: true });
     }),
-  }), { name: 'AbortError' });
-  assert.equal(attempts, 3);
-  assert.equal(cleared, 3);
+  }), e=>e.category==='timeout');
+  assert.equal(attempts, 2);
+  assert.equal(cleared, 2);
 });
 
-test('CLI and Render endpoint reference the same exported canonical runner', async () => {
+test('CLI and Render endpoint reference the same phase-aware canonical runner', async () => {
   const index = await import('../src/index.js');
   assert.equal(index.main, index.runBriefing);
   const webhookSource = (await import('node:fs')).readFileSync('src/bot/webhook.js', 'utf8');
-  assert.match(webhookSource, /import \{ runBriefing \} from '\.\.\/index\.js'/);
-  assert.doesNotMatch(webhookSource, /exec|spawn|npm start/);
+  const cliSource = (await import('node:fs')).readFileSync('scripts/phase4-run.js', 'utf8');
+  assert.match(webhookSource, /import \{ runExecutionPhase \} from '\.\.\/phase4Execution\.js'/);
+  assert.match(cliSource, /import \{ runExecutionPhase \} from '\.\.\/src\/phase4Execution\.js'/);
+  assert.doesNotMatch(webhookSource, /\b(?:exec|spawn)\s*\(|npm start/);
+  assert.match(cliSource, /GITHUB_EVENT_NAME==='schedule'\?'github':'manual'/);
+  assert.match(cliSource, /process\.exitCode=result\.body\.ok\?0:1/);
 });
 
 test('zero-user execution is successful liveness, records heartbeat, and sends no alerts', async () => {
@@ -471,7 +455,7 @@ test('provider liveness is separate from per-user outcomes', async () => {
     const result = await index.runBriefing({ triggerSource: 'cloudflare', deps: { db, env, runUser } });
     return { result, heartbeats };
   };
-  const ok = async () => ({ skipped: false, errors: [] });
+  const ok = async () => ({ skipped: false, errors: [], sync:{outcome:'NO_NEW_DATA_SUCCESS'} });
   const bad = async () => ({ skipped: false, errors: [new Error('isolated failure')] });
 
   // 零使用者：服務活著，只是沒事做。

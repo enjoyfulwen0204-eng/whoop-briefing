@@ -1,5 +1,11 @@
 # Phase 4 deployment control — reviewed future procedure
 
+For the reconstructed Vietnam RC3 code release, use the
+[Vietnam Stage 2 coordinated rollout](phase4-vietnam-stage2-rc3-rollout.md).
+The initial v31 migration procedure and RC2 transport facts below are retained
+as historical controls. They do not describe current provider state or the new
+split-phase protocol. RC3 code rollback retains v31, keys and user data.
+
 This is a deployment plan, not activation. Record the final reviewed release SHA, deployed IDs, timestamps, and evidence during a separately authorized deployment. Keep Public Beta presentation and SHADOW runtime OFF until their later stages. The repository target schema is **v31**. Do not rotate either Phase 4 key.
 
 ## Gate 0 — Render inspection before any push

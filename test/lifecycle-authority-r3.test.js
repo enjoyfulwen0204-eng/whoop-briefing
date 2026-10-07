@@ -79,6 +79,8 @@ function runCli(e, script, args, transitionUser = '') {
       PATH: process.env.PATH, TURSO_DATABASE_URL: e.url, TURSO_AUTH_TOKEN: 'test',
       WHOOP_CLIENT_ID: 'test', WHOOP_CLIENT_SECRET: 'test',
       TELEGRAM_BOT_TOKEN: 'test', TELEGRAM_CHAT_ID: '1',
+      PHASE4_LOOKUP_KEY: Buffer.alloc(32,71).toString('hex'),
+      PHASE4_AUDIT_KEY: Buffer.alloc(32,83).toString('hex'),
       R3_REQUEST_LOG: requestLog, R3_TRANSITION_USER: transitionUser,
     },
   });

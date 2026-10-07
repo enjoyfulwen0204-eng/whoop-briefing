@@ -1,0 +1,34 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createOwnedDb} from './stage5OwnedDb.js';
+import {fixtureKeys} from './localDb.js';
+import {runExecutionPhase,ADMISSION_BUDGET_MS,SYNC_SOURCE_BUDGETS,DRAIN_SOURCE_BUDGETS,PHASE_SETTLEMENT_MS} from '../src/phase4Execution.js';
+import {configurationProof} from '../src/phase4ExecutionStore.js';
+test('isolated empty-cohort SYNC/drain composition stays inside configured budgets with injected metadata latency',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'p4-vietnam-performance-')),db=createOwnedDb({url:`file:${join(dir,'isolated.db')}`});
+ t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion:31});
+ const execute=db.raw.execute,statements=[];let queries=0;
+ db.raw.execute=async statement=>{queries++;statements.push(typeof statement==='string'?statement:statement.sql);await new Promise(resolve=>setTimeout(resolve,10));return execute(statement);};
+ db.migrate=async()=>{throw new Error('HISTORICAL_RUNTIME_MIGRATION_FORBIDDEN');};
+ const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'},config={runtime:'on',mode:'off'};
+ const request=(phase,extra={})=>({requestId:randomUUID(),phase,triggerSource:'cloudflare',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,config,environment),...extra});
+ const env={timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:1,telegramBotToken:'synthetic',telegramChatId:'synthetic'};
+ const deps={guardian:async()=>null,drainWebhook:async()=>({})};
+ const now=new Date('2026-10-07T01:00:00Z');
+ const syncRequest=request('SYNC'),start=performance.now(),sync=await runExecutionPhase({db,keys:fixtureKeys,env,environment,request:syncRequest,deps,now});
+ const syncMs=performance.now()-start,syncQueries=queries;
+ assert.equal(sync.body.syncComplete,true);assert.equal(sync.body.result.outcome,'INTENTIONALLY_INAPPLICABLE');
+ const drainStart=performance.now(),drain=await runExecutionPhase({db,keys:fixtureKeys,env,environment,request:request('STAGE6_DRAIN',{syncRequestId:syncRequest.requestId,handoff:sync.body.handoff}),deps,now});
+ const drainMs=performance.now()-drainStart;
+ assert.equal(drain.body.result.outcome,'NO_WORK');assert.equal(drain.body.result.completion,'COMPLETE');
+ assert.ok(syncMs<ADMISSION_BUDGET_MS+SYNC_SOURCE_BUDGETS.cloudflare+PHASE_SETTLEMENT_MS);
+ assert.ok(drainMs<ADMISSION_BUDGET_MS+DRAIN_SOURCE_BUDGETS.cloudflare+PHASE_SETTLEMENT_MS);
+ assert.ok(statements.every(sql=>!/^\s*(CREATE|ALTER|DROP)\b/i.test(sql)),'actual sync, drain and nested factory paths replay no migration DDL');
+ assert.equal(statements.filter(sql=>sql.includes('FROM sqlite_master')).length,1,'one admission for this reused live connection');
+ console.log(JSON.stringify({measurement:'phase_injected_10ms_empty_cohort',syncMs,drainMs,syncQueries,drainQueries:queries-syncQueries,
+   admissionBudgetMs:ADMISSION_BUDGET_MS,syncBudgetMs:SYNC_SOURCE_BUDGETS.cloudflare,drainBudgetMs:DRAIN_SOURCE_BUDGETS.cloudflare,settlementMs:PHASE_SETTLEMENT_MS}));
+});

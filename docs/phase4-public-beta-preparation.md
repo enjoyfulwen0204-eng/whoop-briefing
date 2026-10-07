@@ -1,5 +1,10 @@
 # Phase 4 Stage 1–6 Public Beta preparation
 
+For the Vietnam RC3 repair and future phase-aware deployment, use the
+[coordinated rollout artifact](phase4-vietnam-stage2-rc3-rollout.md).
+Cloudflare triggers remain empty in the new checked-in configuration; restoring
+the proposed morning cron requires a later reviewed production action.
+
 This is repository preparation, not activation. The checked-in beta runtime and presentation gates remain OFF. The later [Localization Gate](phase4-localization-gate.md) adds schema v31 for per-user language choices; v32 and v33 are reserved for Stages 7 and 8.
 
 ## Release surface

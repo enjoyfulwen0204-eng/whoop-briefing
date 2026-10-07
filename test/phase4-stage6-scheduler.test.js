@@ -19,7 +19,7 @@ test('Stage 6 Taipei boundaries and startup grace use the same scheduling and mo
   assert.equal(FUTURE_CLOUDFLARE_CRON,'*/10 0-3 * * *');
 });
 
-test('Stage 6 CF >30m and outside-window GitHub >3h staleness; healthy CF suppresses duplicate GH heavy work',async()=>{
+test('Stage 6 CF >30m and outside-window GitHub >3h staleness; sync-only CF heartbeat does not suppress GH Stage 6',async()=>{
   const now=at('09:00:00');
   for(const [minutes,state] of [[30,'healthy'],[30.001,'stale']])
     assert.equal(schedulerProviderState({lastOkAt:new Date(now.getTime()-minutes*60000).toISOString()},'cloudflare',now).state,state);
@@ -27,12 +27,12 @@ test('Stage 6 CF >30m and outside-window GitHub >3h staleness; healthy CF suppre
   for(const [hours,state] of [[3,'healthy'],[3.001,'stale']])
     assert.equal(schedulerProviderState({lastOkAt:new Date(outside.getTime()-hours*3600000).toISOString()},'github',outside).state,state);
   let calls=0;const worker={drain:async request=>{calls++;return {outcome:'DRAINED',...request};}},db={getHeartbeat:async()=>({lastOkAt:now.toISOString()})};
-  assert.equal((await runPhase4Stage6({db,worker,triggerSource:'github',now})).outcome,'POLICY_DEFERRED');
+  assert.equal((await runPhase4Stage6({db,worker,triggerSource:'github',now})).role,'fallback');
   db.getHeartbeat=async()=>null;
   assert.equal((await runPhase4Stage6({db,worker,triggerSource:'github',now})).role,'fallback');
   assert.equal((await runPhase4Stage6({db,worker,triggerSource:'github',now:outside})).role,'background');
   for(const triggerSource of ['manual','event'])assert.equal((await runPhase4Stage6({db,worker,triggerSource,now,userId:'a'})).userId,'a');
-  assert.equal(calls,4);assert.equal((await runPhase4Stage6({db,now})).outcome,'DISABLED');
+  assert.equal(calls,5);assert.equal((await runPhase4Stage6({db,now})).outcome,'DISABLED');
 });
 
 test('Stage 6 watchdog is quiet outside CF window; event/manual never alert or recover; recorded outage recovers once',async()=>{
@@ -66,28 +66,28 @@ function runner(outcome='DRAINED') {
   const worker={drain:async options=>{calls.push(options);return {outcome,claimedJobs:1,failedJobs:outcome==='FAILED'?1:0};}};
   return {db,env,worker,beats,calls};
 }
-for(const triggerSource of ['manual','event','github','cloudflare'])test(`Stage 6 runner: ${triggerSource} drains independently with nothing due and attributes heartbeats exactly`,async()=>{
+for(const triggerSource of ['manual','event','github','cloudflare'])test(`Stage 6 runner: ${triggerSource} SYNC leaves Stage 6 unentered and attributes liveness exactly`,async()=>{
   const f=runner();const result=await runBriefing({now:at('09:00:00'),triggerSource,deps:{db:f.db,env:f.env,phase4Stage6:f.worker}});
-  assert.equal(f.calls.length,1);assert.equal(result.phase4Stage6.outcome,'DRAINED');assert.equal(result.outcome,'nothing_due');
+  assert.equal(f.calls.length,0);assert.equal(result.phase4Stage6.outcome,'NOT_ENTERED');assert.equal(result.outcome,'nothing_due');
   assert.deepEqual(f.beats.map(beat=>beat.component),['github','cloudflare'].includes(triggerSource)?[triggerSource==='github'?C.GITHUB:C.CLOUDFLARE,C.CRON]:[]);
 });
 
-test('Stage 6 all-job catastrophe stays visible and cannot write a successful scheduler heartbeat',async()=>{
+test('injected Stage 6 failure is never entered or mislabeled by SYNC',async()=>{
   const f=runner('FAILED');const result=await runBriefing({now:at('09:00:00'),triggerSource:'github',deps:{db:f.db,env:f.env,phase4Stage6:f.worker}});
-  assert.equal(result.runState,'unhealthy');assert.equal(result.outcome,'phase4_stage6_failed');assert.equal(result.errors.length,1);
-  assert.deepEqual(f.beats,[]);
+  assert.equal(result.runState,'alive');assert.equal(result.outcome,'nothing_due');assert.equal(result.errors.length,0);
+  assert.equal(f.calls.length,0);assert.equal(f.beats.length,2);
 });
 
-test('beta reads and delivery run only after per-user sync and Stage 6 drain', async () => {
+test('SYNC never enters beta reads, ordinary sync remains reachable', async () => {
   const f=runner();const order=[];
   f.db.listActiveUsers=async()=>[{id:'a',timezone:'Asia/Taipei'}];
   f.worker.drain=async()=>{order.push('drain');return {outcome:'DRAINED',failedJobs:0};};
   const result=await runBriefing({now:at('09:00:00'),triggerSource:'manual',deps:{
     db:f.db,env:f.env,phase4Stage6:f.worker,betaPresentation:{},
     betaNow:()=>{order.push('as_of');return at('09:00:00');},
-    runUser:async()=>{order.push('sync');return {daily:null,weekly:null,skipped:null,errors:[]};},
+    runUser:async()=>{order.push('sync');return {daily:null,weekly:null,skipped:null,errors:[],sync:{outcome:'NO_NEW_DATA_SUCCESS'}};},
     deliverBetaSummary:async()=>{order.push('typed_read');order.push('send');return {status:'delivered'};},
   }});
-  assert.deepEqual(order,['sync','drain','as_of','typed_read','send']);
-  assert.equal(result.betaSummaries[0].status,'delivered');
+  assert.deepEqual(order,['sync']);
+  assert.equal(result.betaSummaries,undefined);assert.equal(result.syncComplete,true);
 });

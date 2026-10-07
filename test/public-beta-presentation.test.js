@@ -70,7 +70,9 @@ test('runtime and cohort gates remain separate; incomplete keys and LIVE fail cl
   assert.throws(() => publicBetaPolicy({ mode: 'allowlist' }), /CONFIG_INVALID/);
   assert.throws(() => publicBetaKeys({}), /KEYS_REQUIRED/);
   await assert.rejects(runPublicBetaBriefing({ environment: {} }), /RUNTIME_OFF/);
-  await assert.rejects(runPublicBetaBriefing({ environment: { PHASE4_BETA_SHADOW_RUNTIME: 'on' } }), /KEYS_REQUIRED/);
+  await assert.rejects(runPublicBetaBriefing({ environment: { PHASE4_BETA_SHADOW_RUNTIME: 'on' } }), /EXECUTION_PHASE_INVALID/);
+  await assert.rejects(runPublicBetaBriefing({ environment: { PHASE4_BETA_SHADOW_RUNTIME: 'on' },
+    request:{requestId:'synthetic-request-0001',phase:'SYNC',triggerSource:'manual',executionMode:'SHADOW',configProof:'a'.repeat(64)} }), /KEYS_REQUIRED/);
   assert.equal(publicBetaKeysIfPresent({}), undefined);
   assert.equal(publicBetaKeysIfPresent({ PHASE4_LOOKUP_KEY: '', PHASE4_AUDIT_KEY: '' }), undefined);
   assert.throws(() => publicBetaKeysIfPresent({ PHASE4_LOOKUP_KEY: 'a'.repeat(64) }), /KEYS_REQUIRED/);

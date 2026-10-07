@@ -29,7 +29,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from './localDb.js';
+import { createOwnedDb as createDb } from './stage5OwnedDb.js';
 import { handleUnlinkedMessage, handleOnboardingMessage } from '../src/onboarding.js';
 import { createWhoopOAuthCallback } from '../src/whoopOAuthCallback.js';
 import { runOnboardingBootstrap, BOOTSTRAP_RESULT } from '../src/onboardingBootstrap.js';
@@ -60,8 +60,8 @@ function tempDir() {
 async function env() {
   const t = tempDir();
   const db = createDb({ url: t.url });
-  await db.migrate();
-  return { db, done: () => { try { db.close(); } catch { /* ignore */ } t.cleanup(); } };
+  await db.migrate({targetVersion:31});
+  return { db, done: async () => { try { await db.close(); } finally { t.cleanup(); } } };
 }
 
 const privateMessage = (chatId, text) => ({
@@ -214,7 +214,7 @@ test('F04-RACE-01 ★★★ Final Gate：世代 1 的觀測 + 中途重新授權
     assert.equal(access2.sleep.status, RESOURCE_ACCESS_STATUS.UNAUTHORIZED);
     assert.equal(access2.recovery.status, RESOURCE_ACCESS_STATUS.ACCESSIBLE);
     assert.equal(await stateOf(e.db, user.id), ONBOARDING_STATE.ACTION_REQUIRED);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-RACE-02 重新授權落在 sync 與 probe 之間 → 同樣一列判定都不寫', async () => {
@@ -236,7 +236,7 @@ test('F04-RACE-02 重新授權落在 sync 與 probe 之間 → 同樣一列判�
     assert.equal(boot.result, BOOTSTRAP_RESULT.STALE_AUTHORIZATION);
     assert.deepEqual(await accessOf(e.db, user.id), {});
     assert.notEqual(await stateOf(e.db, user.id), ONBOARDING_STATE.READY);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-RACE-03 判定已合法寫入、READY 之前才重新授權 → READY 被擋且不算失敗', async () => {
@@ -263,7 +263,7 @@ test('F04-RACE-03 判定已合法寫入、READY 之前才重新授權 → READY 
     });
     assert.equal(ready.ok, false, '★★★ 舊世代的判定不能讓 READY 通過');
     assert.notEqual(await stateOf(e.db, user.id), ONBOARDING_STATE.READY);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-RACE-04 沒有競態的正常路徑：判定屬於目前世代 → READY', async () => {
@@ -279,7 +279,7 @@ test('F04-RACE-04 沒有競態的正常路徑：判定屬於目前世代 → REA
     const access = await accessOf(e.db, user.id);
     assert.equal(access.sleep.authGeneration, 1);
     assert.equal(access.sleep.status, RESOURCE_ACCESS_STATUS.ACCESSIBLE);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 // ===========================================================================
@@ -385,7 +385,7 @@ test('F04-MIX-01 ★★★ 被釘住的 client 絕不採用另一個世代的 to
       gen2Token.accessToken, gen2Token.refreshToken]) {
       assert.ok(!text.includes(secret), '★ 錯誤不得含 token');
     }
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-MIX-02 sleep 在世代 N 抓到、之後重新授權 → recovery 不會用 N+1 憑證（整輪 stale）', async () => {
@@ -417,7 +417,7 @@ test('F04-MIX-02 sleep 在世代 N 抓到、之後重新授權 → recovery 不�
     assert.ok(isStaleAuthorizationError(err), '★★★ 混世代必須失敗，不得繼續');
     assert.ok(!backend.seen.some((s) => s.bearer === gen2.accessToken),
       '★★★ 禁止 sleep 用 N、recovery 用 N+1');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-MIX-03 未綁定的 client（index.js / reconcile.js 的路徑）行為完全不變', async () => {
@@ -438,7 +438,7 @@ test('F04-MIX-03 未綁定的 client（index.js / reconcile.js 的路徑）行�
     await reauthorize(e.db, A_CHAT);
     await whoop.recoveries(new Date(NOW.getTime() - HOUR), NOW);
     assert.ok(backend.seen.length >= 2, '★ 未綁定的 client 不受世代影響');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-MIX-04 STALE_AUTHORIZATION 不得被當成缺 scope', async () => {
@@ -490,7 +490,7 @@ test('F04-REFRESH-01 ★ 例行 refresh 不動世代，被釘住的 client 照�
       resource, status: RESOURCE_ACCESS_STATUS.ACCESSIBLE,
     })), { expectedAuthGeneration: 1, now: NOW });
     assert.equal(rec.ok, true, '★ refresh 過後世代 1 的判定仍然寫得進去');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-REFRESH-02 完整 bootstrap 中途發生例行 refresh → 仍然 READY（關鍵回歸）', async () => {
@@ -532,7 +532,7 @@ test('F04-REFRESH-02 完整 bootstrap 中途發生例行 refresh → 仍然 READ
     const access = await accessOf(e.db, user.id);
     assert.equal(access.sleep.authGeneration, 1);
     assert.equal(access.sleep.status, RESOURCE_ACCESS_STATUS.ACCESSIBLE);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-REFRESH-03 ★★★ 舊世代的 refresh 結果不得覆蓋新的 OAuth 授權', async () => {
@@ -557,7 +557,7 @@ test('F04-REFRESH-03 ★★★ 舊世代的 refresh 結果不得覆蓋新的 OAu
     const after = await e.db.getTokens(user.id);
     assert.equal(after.accessToken, gen2.accessToken, '★★★ 新授權的 token 原封不動');
     assert.equal(after.authGeneration, 2, '★ 世代也沒被動到');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-REFRESH-04 同世代的正常 refresh CAS 照樣通過', async () => {
@@ -573,7 +573,7 @@ test('F04-REFRESH-04 同世代的正常 refresh CAS 照樣通過', async () => {
     const after = await e.db.getTokens(user.id);
     assert.equal(after.accessToken, 'fresh');
     assert.equal(after.authGeneration, 1, '★ 世代不變');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 // ===========================================================================
@@ -596,7 +596,7 @@ test('F04-FENCE-01 世代過期 → 一列都不寫、回報 stale（不得假�
     assert.equal(r.written, 0);
     assert.equal(r.reason, 'stale_authorization');
     assert.deepEqual(await accessOf(e.db, user.id), {}, '★★★ 一列都沒寫');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-FENCE-02 整批原子：世代在批次中途改變 → 全部不寫（不得半套）', async () => {
@@ -621,7 +621,7 @@ test('F04-FENCE-02 整批原子：世代在批次中途改變 → 全部不寫�
     assert.equal(Object.keys(access).length, 1, '★★★ 只剩原本那一列，沒有半套的批次');
     assert.equal(access.sleep.status, RESOURCE_ACCESS_STATUS.ACCESSIBLE, '★ 原本的判定沒被污染');
     assert.equal(access.sleep.authGeneration, 1);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-FENCE-03 延遲的舊世代寫入不得倒退已經存在的新世代判定', async () => {
@@ -644,7 +644,7 @@ test('F04-FENCE-03 延遲的舊世代寫入不得倒退已經存在的新世代�
     const access = await accessOf(e.db, user.id);
     assert.equal(access.sleep.authGeneration, 2, '★★★ 新世代的判定沒有被倒退');
     assert.equal(access.sleep.status, RESOURCE_ACCESS_STATUS.ACCESSIBLE);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-FENCE-04 判定必須帶合法世代；空批次是合法的 no-op', async () => {
@@ -662,7 +662,7 @@ test('F04-FENCE-04 判定必須帶合法世代；空批次是合法的 no-op', a
     const empty = await e.db.recordResourceAccess(user.id, [], { expectedAuthGeneration: 1, now: NOW });
     assert.equal(empty.ok, true);
     assert.equal(empty.written, 0);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 // ===========================================================================
@@ -693,7 +693,7 @@ test('F04-ACTION-01 ★★★ 舊世代算出「缺睡眠」→ 不得把已經�
     assert.notEqual(onboarding.failureCode, ONBOARDING_FAILURE.WHOOP_SCOPE_INCOMPLETE);
     assert.deepEqual(notes, [], '★★★ 不得對使用者發出錯誤的「權限不足」提示');
     assert.deepEqual(await accessOf(e.db, user.id), {}, '★ 也沒寫下任何舊世代的判定');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-ACTION-02 真的缺權限（沒有競態）仍然照常 ACTION_REQUIRED', async () => {
@@ -712,7 +712,7 @@ test('F04-ACTION-02 真的缺權限（沒有競態）仍然照常 ACTION_REQUIRE
     const access = await accessOf(e.db, user.id);
     assert.equal(access.sleep.status, RESOURCE_ACCESS_STATUS.UNAUTHORIZED);
     assert.equal(access.sleep.authGeneration, 1);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 // ===========================================================================
@@ -751,7 +751,7 @@ test('F04-BUDGET-01 ★★★ 重新授權的競態不得永久吃掉重試額�
     });
     assert.equal(final.result, BOOTSTRAP_RESULT.READY, '★★★ 競態結束之後仍然上得了線');
     assert.equal(await stateOf(e.db, user.id), ONBOARDING_STATE.READY);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-BUDGET-02 ★ 沒有新授權的真實連續失敗，斷路器照樣生效（不得被解除）', async () => {
@@ -776,7 +776,7 @@ test('F04-BUDGET-02 ★ 沒有新授權的真實連續失敗，斷路器照樣�
       '★★★ 真實的連續失敗仍然要走到 ACTION_REQUIRED');
     assert.equal(await stateOf(e.db, user.id), ONBOARDING_STATE.ACTION_REQUIRED);
     assert.ok(notes.includes('bootstrap_failed'));
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-BUDGET-03 新授權讓 bootstrap_attempts 歸零（即使當時卡在 SYNCING）', async () => {
@@ -791,7 +791,7 @@ test('F04-BUDGET-03 新授權讓 bootstrap_attempts 歸零（即使當時卡在 
     await reauthorize(e.db, A_CHAT);
     assert.equal((await e.db.getOnboarding(user.id)).bootstrapAttempts, 0,
       '★★★ 新授權 = 全新的嘗試預算（狀態是 SYNCING 時也必須成立）');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 // ===========================================================================
@@ -817,7 +817,7 @@ test('F04-CONCURRENT-01 同一世代的兩個 bootstrap：不得產生錯誤的 
       assert.equal(row.authGeneration, 1, '★★★ 所有判定都屬於同一個世代');
     }
     assert.equal(await stateOf(e.db, user.id), ONBOARDING_STATE.READY);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-MULTIREAUTH-01 世代 1 跑、期間連續兩次重新授權 → 只有世代 3 的結論算數', async () => {
@@ -853,7 +853,7 @@ test('F04-MULTIREAUTH-01 世代 1 跑、期間連續兩次重新授權 → 只�
     assert.equal(fresh.result, BOOTSTRAP_RESULT.READY);
     const access = await accessOf(e.db, user.id);
     assert.equal(access.sleep.authGeneration, 3, '★★★ 只有世代 3 的結論存在');
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 test('F04-MULTIUSER-01 ★★★ Alice 重新授權不得影響 Bob 的 bootstrap 或判定', async () => {
@@ -893,7 +893,7 @@ test('F04-MULTIUSER-01 ★★★ Alice 重新授權不得影響 Bob 的 bootstra
     assert.equal(await genOf(e.db, alice.id), 2);
     assert.deepEqual(await accessOf(e.db, alice.id), {});
     assert.notEqual(await stateOf(e.db, alice.id), ONBOARDING_STATE.READY);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });
 
 // ===========================================================================
@@ -915,5 +915,5 @@ test('F04-SNAPSHOT-01 getTokens 用**同一次**列讀取同時給出憑證與�
     assert.equal(t2.authGeneration, 2);
     assert.equal(await e.db.getAuthGeneration(user.id), 2, '★ 與既有的讀取器一致');
     assert.equal(await e.db.getTokens('nobody'), null);
-  } finally { e.done(); }
+  } finally { await e.done(); }
 });

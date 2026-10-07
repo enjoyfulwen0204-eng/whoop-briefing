@@ -137,7 +137,7 @@ test('Worker re-signs each retry while preserving logical request ID', async () 
     fetchImpl: async (_url, options) => {
       requests.push(options);
       const status = statuses.shift();
-      return new Response(JSON.stringify(status===200?{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false}:{}),{status});
+      return new Response(JSON.stringify(status===200?{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false,result:{settlementState:'FINALIZED_SUCCESS'}}:{}),{status});
     },
   });
   assert.equal(result.attempt, 2);

@@ -18,11 +18,12 @@ export function createExecutionBudget({ budgetMs = SYNC_BUDGET_MS, signal, nowMs
     if (combined.aborted || nowMs() >= deadlineAt)
       throw new ExecutionBudgetError(signal?.aborted && signal.reason?.code!=='SYNC_TIMEOUT' ? 'SYNC_CANCELLED' : 'SYNC_TIMEOUT');
   };
-  return Object.freeze({ signal: combined, startedAt, deadlineAt, assert,
+  const api={ signal: combined, startedAt, deadlineAt, assert,
     remainingMs: () => Math.max(0, deadlineAt - nowMs()),
-    run: async fn => { assert(); const result = await abortable(Promise.resolve().then(()=>{assert();return fn();}), combined); assert(); return result; },
+    run: async fn => executionScope.run(api,async()=>{ assert(); const result = await abortable(Promise.resolve().then(()=>{assert();return fn();}), combined); assert(); return result; }),
     close: () => clearTimeout(timer),
-  });
+  };
+  return Object.freeze(api);
 }
 export async function abortable(work, signal) {
   if (!signal) return work;

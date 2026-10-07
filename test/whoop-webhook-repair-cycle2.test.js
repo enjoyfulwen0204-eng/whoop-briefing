@@ -17,7 +17,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 
-import { createDb } from './localDb.js';
+import { fixtureKeys } from './localDb.js';
+import { createClient } from '@libsql/client';
+import { composeDb } from '../src/db.js';
 import { createHealthStore } from '../src/store.js';
 import { TOMBSTONE_STATE, WHOOP_EVENT_STATE } from '../src/schema.js';
 import { WhoopApiError } from '../src/whoop.js';
@@ -30,6 +32,14 @@ const BOB = { id: 'u-bob', whoop: '2002' };
 const SID = 'aaaaaaaa-0000-4000-8000-000000000001';
 const WID = 'wwwwwwww-0000-4000-8000-000000000001';
 const WORKER = new URL('./whoop-delete-worker.js', import.meta.url);
+
+// This historical race fixture deliberately intercepts the native transaction
+// boundary. Production phase runtimes keep that receiver private; exercise the
+// supported external-client compatibility seam without exposing a private one.
+function createDb({url}) {
+  assert.ok(url.startsWith('file:'));
+  return composeDb(createClient({url}),{phase4Keys:fixtureKeys});
+}
 
 function tempUrl() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whoop-rc2-'));

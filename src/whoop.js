@@ -586,7 +586,12 @@ export function createWhoopClient({
         continue;
       }
 
-      ensureRequestBudget();
+      try{ensureRequestBudget();}catch(error){
+        // A deadline may expire after headers resolve but before the reader is
+        // acquired. Always release that body even if the timer has not fired.
+        try{void res.body?.cancel().catch(()=>{});}catch{}
+        throw error;
+      }
       if (res.status === 401) {
         try { void res.body?.cancel().catch(() => {}); } catch {}
         if (retriedAfterAuth) throw new WhoopAuthError('WHOOP 回 401，refresh 後仍失敗（refresh_token 可能已失效，需重新授權）');

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Controlled v20→v31 migration. No dotenv loading: the operator supplies one explicit target. */
+/** Controlled historical v20→v31 or narrow v31→v32 migration. No dotenv loading. */
 import { createClient } from '@libsql/client';
 import { execFileSync } from 'node:child_process';
 import { currentVersion, inspectReshape, runMigrations } from '../src/migrations.js';
@@ -90,9 +90,10 @@ function assertHealthy(check) {
 }
 
 /** Exported so tests can exercise the same control path on isolated file databases. */
-export async function controlledMigration(client, { apply, keys }) {
+export async function controlledMigration(client, { apply, keys, targetVersion=31 }) {
   const from = await currentVersion(client);
-  if (from < 20 || from > 31) fail('MIGRATION_VERSION_OUT_OF_RANGE');
+  if(targetVersion!==31&&targetVersion!==32)fail('MIGRATION_VERSION_OUT_OF_RANGE');
+  if (from < (targetVersion===32?31:20) || from > targetVersion) fail('MIGRATION_VERSION_OUT_OF_RANGE');
   const beforeHealth = await health(client);
   assertHealthy(beforeHealth);
   // v21 introduces the frozen checkpoint table and has no key-derived writes.
@@ -103,11 +104,11 @@ export async function controlledMigration(client, { apply, keys }) {
   const shape = await inspectReshape(client);
   if (shape.blocked.length || shape.rebuild.length) fail('MIGRATION_RESHAPE_BLOCKED');
   const before = await snapshot(client);
-  if (from === 31) await assertPhase4Schema(client, 31);
-  if (!apply) return { mode: 'preflight', from, target: 31, checkpointBootstrapVersion: from === 20 ? 21 : null,
+  if (from === targetVersion) await assertPhase4Schema(client, targetVersion);
+  if (!apply) return { mode: 'preflight', from, target: targetVersion, checkpointBootstrapVersion: from === 20 ? 21 : null,
     health: beforeHealth, preservedCounts: before };
-  const result = await runMigrations(client, { allowRebuild: false, targetVersion: 31, privacyKeys: keys });
-  await assertPhase4Schema(client, 31);
+  const result = await runMigrations(client, { allowRebuild: false, targetVersion, privacyKeys: keys });
+  await assertPhase4Schema(client, targetVersion);
   const afterHealth = await health(client);
   assertHealthy(afterHealth);
   const after = await snapshot(client);
@@ -121,7 +122,7 @@ export async function controlledMigration(client, { apply, keys }) {
   if (live !== 0) fail('MIGRATION_CREATED_LIVE_STATE');
   const bodyEnergyRows = await count(client, 'body_energy_results');
   if (from === 20 && bodyEnergyRows !== 0) fail('MIGRATION_BODY_ENERGY_CREATED');
-  return { mode: 'apply', from, target: 31, versionsApplied: [...(from === 20 ? [21] : []), ...result.versionsApplied],
+  return { mode: 'apply', from, target: targetVersion, versionsApplied: [...(from === 20 ? [21] : []), ...result.versionsApplied],
     health: afterHealth, preservedCounts: after, localeRows, computationRows: liveRows,
     liveRows: live, bodyEnergyRows };
 }
@@ -134,7 +135,7 @@ function options(argv) {
       if (opt.mode) fail('MIGRATION_ARGUMENT_INVALID');
       opt.mode = arg.slice(2);
     }
-    else if (['--expected-target', '--expected-commit', '--confirm-production'].includes(arg)) opt[arg.slice(2)] = argv[++i];
+    else if (['--expected-target', '--expected-commit', '--confirm-production','--target-version'].includes(arg)) opt[arg.slice(2)] = argv[++i];
     else fail('MIGRATION_ARGUMENT_INVALID');
   }
   if (!opt.mode || !opt['expected-target']) fail('MIGRATION_ARGUMENT_REQUIRED');
@@ -144,6 +145,8 @@ function options(argv) {
 export async function main(argv = process.argv.slice(2), env = process.env) {
   if (Number(process.versions.node.split('.')[0]) !== 22) fail('MIGRATION_NODE22_REQUIRED');
   const opt = options(argv);
+  const targetVersion = Number(opt['target-version'] ?? 31);
+  if (![31, 32].includes(targetVersion)) fail('MIGRATION_VERSION_OUT_OF_RANGE');
   const url = env.TURSO_DATABASE_URL;
   if (!url) fail('MIGRATION_TARGET_MISMATCH');
   const production = !url.startsWith('file:');
@@ -165,7 +168,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   });
   const db = createClient({ url, authToken: env.TURSO_AUTH_TOKEN });
   try {
-    const result = await controlledMigration(db, { apply: opt.mode === 'apply', keys });
+    const result = await controlledMigration(db, { apply: opt.mode === 'apply', keys, targetVersion });
     console.log(JSON.stringify({ databaseTarget: opt['expected-target'], ...result }));
     return result;
   } finally { db.close(); }

@@ -8,11 +8,11 @@ import {createPhase4Keys} from '../src/phase4Keys.js';
 import {admitRuntime,requireRuntimeAdmission,canonicalRuntimeContract} from '../src/runtimeAdmission.js';
 
 async function fixture(t) { const db=createDb({url:':memory:'});t.after(()=>db.close());await db.migrate();return db; }
-test('complete canonical v31 admission is five read-only bounded queries and same live connection reuse',async t=>{
+test('complete canonical v32 admission is five read-only bounded queries and same live connection reuse',async t=>{
  const db=await fixture(t),queries=[],execute=db.raw.execute;
  db.raw.execute=async s=>{queries.push(typeof s==='string'?s:s.sql);return execute(s);};
  const started=performance.now(),cap=await db.admitRuntime();
- assert.equal(db.requireRuntimeAdmission(cap),31);assert.equal(await db.admitRuntime(),cap);
+ assert.equal(db.requireRuntimeAdmission(cap),32);assert.equal(await db.admitRuntime(),cap);
  assert.equal(queries.length,5);assert.ok(queries.every(q=>/^SELECT|^PRAGMA (foreign_keys|ignore_check_constraints)/.test(q)));
  assert.ok(canonicalRuntimeContract().objects.has('p4_outbox_transition'));assert.ok(canonicalRuntimeContract().objects.has('uniq_report_sent'));
  console.log(JSON.stringify({measurement:'admission_local',queries:queries.length,elapsedMs:performance.now()-started}));
@@ -34,8 +34,8 @@ const controls=[
  ['incomplete checkpoint',"UPDATE phase4_migration_checkpoints SET postcondition_state='PENDING' WHERE step_key='privacy_backfill'"],
  ['missing checkpoint',"DELETE FROM phase4_migration_checkpoints WHERE step_key='audit_key_check'"],
  ['corrupt checkpoint',"UPDATE phase4_migration_checkpoints SET last_cursor='corrupt' WHERE step_key='lookup_key_check'"],
- ['old schema',"DELETE FROM schema_version WHERE version=31"],
- ['future schema',"INSERT INTO schema_version VALUES(32,'2026-10-07','synthetic')"],
+ ['old schema',"DELETE FROM schema_version WHERE version=32"],
+ ['future schema',"INSERT INTO schema_version VALUES(33,'2026-10-07','synthetic')"],
 ];
 for(const [name,...sql] of controls)test(`admission rejects ${name}`,async t=>{const db=await fixture(t);for(const s of sql)await db.raw.execute(s);await assert.rejects(()=>admitRuntime(db.raw,fixtureKeys));});
 test('admission rejects missing/wrong independent keys, and 150ms injected latency remains bounded',async t=>{
@@ -55,11 +55,12 @@ test('connection close/reconnect paths and a replaced connection invalidate capa
  t.after(async()=>{db.close();await rm(dir,{recursive:true,force:true});});await db.migrate();
  await db.createUser({id:'synthetic',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
  const cap=await db.admitRuntime();assert.deepEqual(await db.listExperiments('synthetic'),[]);
- await db.raw.reconnect();assert.throws(()=>db.requireRuntimeAdmission(cap),/ADMISSION_REQUIRED/);
- const next=await db.admitRuntime();assert.notEqual(next,cap);assert.equal(db.requireRuntimeAdmission(next),31);
- assert.deepEqual(await db.listExperiments('synthetic'),[],'new admission rebuilds cached stores after reconnect');
- db.close();assert.throws(()=>db.requireRuntimeAdmission(next),/ADMISSION_REQUIRED/);
+ assert.throws(()=>db.raw.reconnect(),/RUNTIME_REPLACEMENT_REQUIRED/);assert.throws(()=>db.requireRuntimeAdmission(cap),/ADMISSION_REQUIRED/);
  await assert.rejects(()=>db.admitRuntime(),/CONNECTION_REQUIRED/);
+ const nextDb=createDb({url:`file:${join(dir,'isolated.db')}`});t.after(()=>nextDb.close());
+ const next=await nextDb.admitRuntime();assert.notEqual(next,cap);assert.equal(nextDb.requireRuntimeAdmission(next),32);
+ assert.deepEqual(await nextDb.listExperiments('synthetic'),[],'replacement runtime re-admits and builds new stores');
+ db.close();assert.throws(()=>db.requireRuntimeAdmission(next),/ADMISSION_REQUIRED/);
 });
 test('concurrent nested factory admission shares one read-only contract, and swapped transaction connection fails',async t=>{
  const db=await fixture(t),queries=[],execute=db.raw.execute;

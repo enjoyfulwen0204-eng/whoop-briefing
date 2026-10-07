@@ -1,0 +1,82 @@
+[
+  {
+    "repetition": 1,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 17501,
+    "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-1.tap"
+  },
+  {
+    "repetition": 2,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 16233,
+    "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-2.tap"
+  },
+  {
+    "repetition": 3,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 15318,
+    "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-3.tap"
+  },
+  {
+    "repetition": 4,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 15790,
+    "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-4.tap"
+  },
+  {
+    "repetition": 5,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 15806,
+    "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-5.tap"
+  },
+  {
+    "repetition": 6,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 15675,
+    "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-6.tap"
+  },
+  {
+    "repetition": 7,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 16134,
+    "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-7.tap"
+  },
+  {
+    "repetition": 8,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 15277,
+    "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-8.tap"
+  },
+  {
+    "repetition": 9,
+    "code": 1,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 19624,
+    "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-9.tap"
+  },
+  {
+    "repetition": 10,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 15303,
+    "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-10.tap"
+  }
+]

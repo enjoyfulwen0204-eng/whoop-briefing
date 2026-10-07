@@ -56,10 +56,10 @@ test('pending and completed durable request IDs reject conflicting authenticated
 });
 test('overall deadline returns TIMEOUT, leaves no success handoff, and fences late post-fetch writes',async t=>{
  const db=await fixture(t);await db.createUser({id:'synthetic',displayName:'Initial',timezone:'Asia/Taipei',status:'ACTIVE'});
- let late;const request=makeRequest();
- const response=await run(db,request,{runBriefing:async()=>{await new Promise(r=>setTimeout(r,100));try{await db.raw.execute("UPDATE users SET display_name='Late' WHERE id='synthetic'");late='wrote';}catch(e){late=e.code;}return success();}},{budgetMs:30});
+ let late,entered=false,settled;const attempted=new Promise(resolve=>settled=resolve),request=makeRequest(),started=Date.now();
+ const response=await run(db,request,{runBriefing:async()=>{entered=true;await new Promise(r=>setTimeout(r,Math.max(0,started+840-Date.now())));try{await db.raw.execute("UPDATE users SET display_name='Late' WHERE id='synthetic'");late='wrote';}catch(e){late=e.code;}finally{settled();}return success();}},{budgetMs:5000,overallBudgetMs:800});
  assert.equal(response.status,504);assert.equal(response.body.syncComplete,false);assert.equal(response.body.handoff,undefined);
- await new Promise(r=>setTimeout(r,120));assert.equal(late,'SYNC_TIMEOUT');assert.equal((await db.getUser('synthetic')).displayName,'Initial');
+ assert.equal(entered,true,'the original overall deadline must expire during work, not before its start');await attempted;assert.equal(late,'SYNC_TIMEOUT');assert.equal((await db.getUser('synthetic')).displayName,'Initial');
  const progress=await readPhaseProgress(db,'SYNC','manual');assert.equal(progress.state,'TIMEOUT');
 });
 test('cancellation is typed and malformed phases fail before admission',async t=>{

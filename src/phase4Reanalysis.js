@@ -51,7 +51,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,
     afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
     authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
-  if(![28,29,30,31].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
+  if(![28,29,30,31,32].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
   const stores=composePhase4Stores(core),queue=createReanalysisQueue(core),inputs=createReanalysisInputs(core,stores),client=core.client;
   const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,keys):null;
 

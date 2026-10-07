@@ -39,7 +39,7 @@ try {
     process.send({kind:'locked'});await command('continue');return perform();
   }):await perform();
   if(reconnects)assert.throws(()=>db.requireRuntimeAdmission(admission));
-  const fresh=await db.admitRuntime();assert.equal(db.requireRuntimeAdmission(fresh),31);if(reconnects)assert.notEqual(fresh,admission);
+  const fresh=await db.admitRuntime();assert.equal(db.requireRuntimeAdmission(fresh),32);if(reconnects)assert.notEqual(fresh,admission);
   process.send({kind:'retry-proof',reconnects,admissionReads,ddlAfterReady,oldCapabilityRejected:Boolean(reconnects)});
   process.send({kind:'result',runId:result.run.row.run_id,itemId:result.item.row.evidence_item_id,resultState:result.resultState,
     episodeId:result.episode.episode.row.episode_id,revision:result.episode.episode.row.revision});

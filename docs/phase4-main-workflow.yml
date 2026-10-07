@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
+      sync_finalized: ${{ steps.phase.outputs.sync_finalized }}
       sync_complete: ${{ steps.phase.outputs.sync_complete }}
       drain_authorized: ${{ steps.phase.outputs.drain_authorized }}
       sync_request_id: ${{ steps.phase.outputs.sync_request_id }}
@@ -71,7 +72,7 @@ jobs:
           esac
   stage6_drain:
     needs: sync
-    if: ${{ needs.sync.result == 'success' && needs.sync.outputs.sync_complete == 'true' && needs.sync.outputs.drain_authorized == 'true' }}
+    if: ${{ needs.sync.result == 'success' && needs.sync.outputs.sync_complete == 'true' && needs.sync.outputs.sync_finalized == 'true' && needs.sync.outputs.drain_authorized == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

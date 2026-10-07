@@ -9,7 +9,7 @@ import {spawnSync} from 'node:child_process';
 import {createOwnedDb} from './stage5OwnedDb.js';
 const entry=fileURLToPath(new URL('../scripts/phase4-run.js',import.meta.url));
 async function fixture(t){const dir=await mkdtemp(join(tmpdir(),'p4-github-cli-')),url=`file:${join(dir,'isolated.db')}`;
- const db=createOwnedDb({url});t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion:31});
+ const db=createOwnedDb({url});t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion:32});
  return {db,dir,url};}
 function child(f,phase,event,extra={}){
  // Explicit environment and empty temporary cwd prevent local .env/provider access.

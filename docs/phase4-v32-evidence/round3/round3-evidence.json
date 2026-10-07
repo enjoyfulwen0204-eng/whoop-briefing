@@ -1,0 +1,474 @@
+{
+  "status": "PHASE4_VIETNAM_STAGE2_FINAL_BLOCKERS_REPAIR_BLOCKED",
+  "architectureBlocker": "PHASE4_SETTLEMENT_SCHEMA_BLOCKER",
+  "identity": {
+    "head": "6eabd67ef3c99604db975014b3f65e13053f0fee",
+    "tree": "c9d88cf5245665912198a52b92f9a3efae9127bd",
+    "branch": "v1.2-phase4",
+    "upstreamSha": "c364ea7a7586bcaafb3fccd66bc18a461643732c",
+    "recoverySha": "6eabd67ef3c99604db975014b3f65e13053f0fee",
+    "workingTree": "CLEAN",
+    "node": "v22.23.2",
+    "npm": "10.9.8"
+  },
+  "schema": 31,
+  "findings": {
+    "asyncCommitAuthority": "OPEN",
+    "preImportCapability": "OPEN",
+    "stage5Contention": "OPEN"
+  },
+  "round3AllAttemptTotals": {
+    "tests": 59,
+    "pass": 23,
+    "fail": 36,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "attempts": [
+    {
+      "file": "tmp/vietnam-round3-reproductions/admission-performance.tap",
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/async-commit-expanded.tap",
+      "tests": 10,
+      "pass": 0,
+      "fail": 10,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": [
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: SYNC:cancel",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: SYNC:deadline",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: SYNC:lease",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: STAGE6_DRAIN:NO_WORK",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: STAGE6_DRAIN:PARTIAL",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: STAGE6_DRAIN:COMPLETE",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: SYNC:ambiguous",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: SYNC:cancel-after-server-commit",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: SYNC:deadline-after-server-commit",
+        "R3 phase response stays aborted but identical retry must not discover cached success"
+      ]
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/async-commit-initial.tap",
+      "tests": 8,
+      "pass": 0,
+      "fail": 8,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": [
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: SYNC:cancel",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: SYNC:deadline",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: SYNC:lease",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: STAGE6_DRAIN:NO_WORK",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: STAGE6_DRAIN:PARTIAL",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: STAGE6_DRAIN:COMPLETE",
+        "R3 actual HTTP/libsql COMMIT must not persist unauthorized success: SYNC:ambiguous",
+        "R3 phase response stays aborted but identical retry must not discover cached success"
+      ]
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/contention-locations-corrected-fixture.tap",
+      "tests": 2,
+      "pass": 0,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": [
+        "R3 actual normal driver: genuine SQLITE_BUSY at COMMIT retains its uncommitted transaction",
+        "R3 fresh admission under transient native contention must retain all assertions and retry within original budget"
+      ]
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/contention-locations-final-probe.tap",
+      "tests": 2,
+      "pass": 1,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": [
+        "R3 fresh admission under transient native contention must retain all assertions and retry within original budget"
+      ]
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/contention-locations.tap",
+      "tests": 2,
+      "pass": 0,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": [
+        "R3 actual normal driver: genuine SQLITE_BUSY at COMMIT retains its uncommitted transaction",
+        "R3 fresh admission under transient native contention must retain all assertions and retry within original budget"
+      ]
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/preimport-capability-corrected-fixture.tap",
+      "tests": 6,
+      "pass": 0,
+      "fail": 6,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": [
+        "R3 pre-import original native methods must permanently revoke: file:reconnect",
+        "R3 pre-import original native methods must permanently revoke: file:closed-flag",
+        "R3 pre-import original native methods must permanently revoke: file:missing-trigger",
+        "R3 pre-import original native methods must permanently revoke: file:nonunique-index",
+        "R3 pre-import original native methods must permanently revoke: http:reconnect",
+        "R3 pre-import original native methods must permanently revoke: http:missing-trigger"
+      ]
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/preimport-capability-initial.tap",
+      "tests": 6,
+      "pass": 0,
+      "fail": 6,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": [
+        "R3 pre-import original native methods must permanently revoke: file:reconnect",
+        "R3 pre-import original native methods must permanently revoke: file:closed-flag",
+        "R3 pre-import original native methods must permanently revoke: file:missing-trigger",
+        "R3 pre-import original native methods must permanently revoke: file:nonunique-index",
+        "R3 pre-import original native methods must permanently revoke: http:reconnect",
+        "R3 pre-import original native methods must permanently revoke: http:missing-trigger"
+      ]
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-candidate-1.tap",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-candidate-10.tap",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-candidate-2.tap",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-candidate-3.tap",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-candidate-4.tap",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-candidate-5.tap",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-candidate-6.tap",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-candidate-7.tap",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-candidate-8.tap",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-candidate-9.tap",
+      "tests": 2,
+      "pass": 1,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": [
+        "M003/N: equivalent normal-driver processes contend, replay one receipt and release every completed lease"
+      ]
+    },
+    {
+      "file": "tmp/vietnam-round3-reproductions/stage5-rc2-control.tap",
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "failedCases": []
+    }
+  ],
+  "stage5Repetitions": [
+    {
+      "repetition": 1,
+      "code": 0,
+      "signal": null,
+      "timedOut": false,
+      "durationMs": 17501,
+      "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-1.tap"
+    },
+    {
+      "repetition": 2,
+      "code": 0,
+      "signal": null,
+      "timedOut": false,
+      "durationMs": 16233,
+      "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-2.tap"
+    },
+    {
+      "repetition": 3,
+      "code": 0,
+      "signal": null,
+      "timedOut": false,
+      "durationMs": 15318,
+      "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-3.tap"
+    },
+    {
+      "repetition": 4,
+      "code": 0,
+      "signal": null,
+      "timedOut": false,
+      "durationMs": 15790,
+      "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-4.tap"
+    },
+    {
+      "repetition": 5,
+      "code": 0,
+      "signal": null,
+      "timedOut": false,
+      "durationMs": 15806,
+      "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-5.tap"
+    },
+    {
+      "repetition": 6,
+      "code": 0,
+      "signal": null,
+      "timedOut": false,
+      "durationMs": 15675,
+      "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-6.tap"
+    },
+    {
+      "repetition": 7,
+      "code": 0,
+      "signal": null,
+      "timedOut": false,
+      "durationMs": 16134,
+      "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-7.tap"
+    },
+    {
+      "repetition": 8,
+      "code": 0,
+      "signal": null,
+      "timedOut": false,
+      "durationMs": 15277,
+      "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-8.tap"
+    },
+    {
+      "repetition": 9,
+      "code": 1,
+      "signal": null,
+      "timedOut": false,
+      "durationMs": 19624,
+      "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-9.tap"
+    },
+    {
+      "repetition": 10,
+      "code": 0,
+      "signal": null,
+      "timedOut": false,
+      "durationMs": 15303,
+      "log": "/Users/kelvin/Desktop/whoop-briefing/tmp/vietnam-round3-reproductions/stage5-candidate-10.tap"
+    }
+  ],
+  "history": {
+    "independentRound2Review": {
+      "tests": 1144,
+      "pass": 1142,
+      "fail": 2,
+      "rawLogsSupplied": false,
+      "failures": [
+        "fixture key omission (tooling)",
+        "Stage5 contention (application)"
+      ]
+    },
+    "preservedPriorRepositoryLedgers": [
+      "docs/phase4-vietnam-stage2-tests.json",
+      "docs/phase4-vietnam-stage2-round2-tests.json"
+    ],
+    "round3ToolingFailures": [
+      "initial index attack referenced nonexistent reports table",
+      "initial commit probe omitted v31 heartbeat columns",
+      "first corrected commit probe rolled back an already completed transaction"
+    ],
+    "staticToolingAttempts": [
+      "system Python PyYAML unavailable",
+      "bundled Python PyYAML unavailable",
+      "bundled Node yaml unavailable; Ruby Psych YAML parse passed"
+    ],
+    "nonTestToolingErrors": [
+      "RC2 archive has no .git; identity verified by byte comparison of all 1095 RC2 archived files instead",
+      "one duplicate completed-session poll returned Unknown process id; no test was running or interrupted"
+    ]
+  },
+  "freshRound3EPERM": 0,
+  "freshRound3SIGSEGV": 0,
+  "freshRound3HarnessTimeout": 0,
+  "staticChecks": {
+    "jsSyntaxFiles": 242,
+    "jsSyntaxFailed": 0,
+    "yamlSyntax": [
+      ".github/workflows/briefing.yml",
+      "docs/phase4-main-workflow.yml"
+    ],
+    "multilineShellBlocksPassed": 3,
+    "gitDiffCheck": "PASS",
+    "allWorkflowShellBlocksPassed": 9
+  },
+  "broadRegression": "NOT_RUN_AFTER_ARCHITECTURE_STOP",
+  "productionMeasurement": "NOT_MEASURED",
+  "productionMutation": "NONE",
+  "applicationChanges": [],
+  "localCommits": [],
+  "evidenceLocation": "ignored tmp/vietnam-round3-reproductions; not committed or pushed",
+  "pushStatus": "NOT_PUSHED",
+  "tagStatus": "NOT_CREATED",
+  "settingsV1": "DEFERRED_POST_LAUNCH",
+  "reviewReadiness": "NOT_READY_FOR_VIETNAM_STAGE2_ROUND2_REVIEW",
+  "nextAction": "RETURN_TO_ARCHITECTURE_OWNER_WITH_EXACT_BLOCKER",
+  "admissionMeasurements": [
+    {
+      "probe": "unchanged_candidate_admission",
+      "tenants": 0,
+      "historyRows": 0,
+      "latencyMs": 0,
+      "queries": 5,
+      "elapsedMs": 23.768125000000055
+    },
+    {
+      "probe": "unchanged_candidate_admission",
+      "tenants": 0,
+      "historyRows": 0,
+      "latencyMs": 20,
+      "queries": 5,
+      "elapsedMs": 184.69870800000035
+    },
+    {
+      "probe": "unchanged_candidate_admission",
+      "tenants": 0,
+      "historyRows": 0,
+      "latencyMs": 50,
+      "queries": 5,
+      "elapsedMs": 278.93258400000013
+    },
+    {
+      "probe": "unchanged_candidate_admission",
+      "tenants": 0,
+      "historyRows": 0,
+      "latencyMs": 150,
+      "queries": 5,
+      "elapsedMs": 779.6839169999998
+    },
+    {
+      "probe": "unchanged_candidate_admission",
+      "tenants": 1000,
+      "historyRows": 50000,
+      "latencyMs": 0,
+      "queries": 5,
+      "elapsedMs": 19.244916999999987
+    },
+    {
+      "probe": "unchanged_candidate_admission",
+      "tenants": 1000,
+      "historyRows": 50000,
+      "latencyMs": 20,
+      "queries": 5,
+      "elapsedMs": 128.32737499999985
+    },
+    {
+      "probe": "unchanged_candidate_admission",
+      "tenants": 1000,
+      "historyRows": 50000,
+      "latencyMs": 50,
+      "queries": 5,
+      "elapsedMs": 277.7122500000005
+    },
+    {
+      "probe": "unchanged_candidate_admission",
+      "tenants": 1000,
+      "historyRows": 50000,
+      "latencyMs": 150,
+      "queries": 5,
+      "elapsedMs": 779.4667080000008
+    }
+  ],
+  "round3FinalRelevantTotals": {
+    "tests": 41,
+    "pass": 23,
+    "fail": 18,
+    "cancelled": 0,
+    "skipped": 0,
+    "scope": "expanded async COMMIT, corrected pre-import, final contention probe, admission performance, ten Stage5 repetitions, RC2 control"
+  },
+  "rc2ControlArchiveVerification": {
+    "filesChecked": 1095,
+    "different": []
+  },
+  "architectureReason": "The required durable final success must depend on the original process-local cancellation/deadline authority remaining valid until async COMMIT acknowledgement. The installed Hrana COMMIT interface and existing v31 lock/heartbeat contracts provide no server-enforced primitive binding that acknowledgement to the original cancellation authority. A post-COMMIT check cannot retract persisted success; moving success to another async persistence operation repeats the race. No safe implementation was proven under the mandated contract. Architecture review is required; no schema change is self-authorized.",
+  "preservedReviewPassesNotRerun": [
+    "fresh structural admission negative controls",
+    "malformed GitHub source",
+    "manual/scheduled source attribution",
+    "release handoff",
+    "Cloudflare signing cancellation/body limits",
+    "cross-process sync fencing",
+    "morning brief continuity",
+    "480-pass backlog/process death",
+    "presentation/localization",
+    "Body Energy hidden",
+    "no LIVE",
+    "v22 key continuity"
+  ]
+}

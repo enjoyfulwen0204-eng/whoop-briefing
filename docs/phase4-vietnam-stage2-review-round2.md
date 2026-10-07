@@ -1,3 +1,9 @@
+> Historical report for rejected candidate 6eabd67. Subsequent Round 3 review
+> found asynchronous-COMMIT authority and pre-import lifetime failures, plus
+> intermittent readmission contention. Its CLOSED claims are superseded by the
+> [Architecture Owner v32 ruling](phase4-v32-settlement-authority.md). Original
+> test/failure ledgers remain retained; this is not the current release approval.
+
 # Vietnam Stage 2 independent review repair — Round 2
 
 This is the focused local repair of the six findings against reviewed/rejected

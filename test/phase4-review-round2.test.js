@@ -3,35 +3,38 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,rm,cp,symlink,readFile} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {execFileSync,spawnSync} from 'node:child_process';import {fileURLToPath} from 'node:url';import {randomUUID} from 'node:crypto';
 import {createClient} from '@libsql/client';import {composeDb} from '../src/db.js';import {fixtureKeys} from './localDb.js';
+import {createDb as privateDb} from '../src/db.js';import {hranaTransport} from './hranaTransport.js';
 import {createOwnedDb} from './stage5OwnedDb.js';import {runExecutionPhase} from '../src/phase4Execution.js';
 import {configurationProof,readPhaseProgress} from '../src/phase4ExecutionStore.js';
+import {currentExecutionBudget} from '../src/executionBudget.js';
 import {invoke} from '../cloudflare/briefing-scheduler/worker.js';
 const root=fileURLToPath(new URL('..',import.meta.url)),sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'};
 const env={timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:1,telegramBotToken:'SYNTHETIC',telegramChatId:'SYNTHETIC'};
 const request=(phase='SYNC',extra={})=>({releaseSha:runningReleaseSha(),requestId:randomUUID(),phase,triggerSource:'manual',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,{runtime:'on',mode:'off'},environment),...extra});
 const success=()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS',users:0,failed:0});
-async function fixture(t){const dir=await mkdtemp(join(tmpdir(),'p4-round2-')),url=`file:${join(dir,'isolated.db')}`,db=createOwnedDb({url});
- t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion:31});return {db,dir,url};}
+async function fixture(t){const dir=await mkdtemp(join(tmpdir(),'p4-round2-')),url=`file:${join(dir,'isolated.db')}`,seed=createOwnedDb({url});
+ await seed.migrate({targetVersion:32});await seed.close();const transport=hranaTransport(url),db=privateDb({url:'https://isolated.invalid',fetch:transport.fetch,phase4Keys:fixtureKeys});
+ t.after(async()=>{db.close();transport.close();await rm(dir,{recursive:true,force:true});});return {db,dir,url};}
 const run=(db,value,extra={})=>runExecutionPhase({db,request:value,environment,env,keys:fixtureKeys,deps:{runBriefing:success},...extra});
 for(const boundary of ['request','heartbeat'])test(`R2-H1: cancellation before successful ${boundary} settlement cannot authorize drain`,async t=>{
  const {db}=await fixture(t),controller=new AbortController(),execute=db.raw.execute;let injected=false;
- db.raw.execute=async statement=>{const args=statement?.args??[];if(!injected&&typeof args[3]==='string'&&args[3].includes('NO_NEW_DATA_SUCCESS')&&
-  (boundary==='request'?args[1]?.startsWith('phase4_request:'):args[1]?.endsWith(':complete'))){injected=true;controller.abort();}return execute(statement);};
+ db.raw.execute=async statement=>{const args=statement?.args??[];if(!injected&&JSON.stringify(args).includes('NO_NEW_DATA_SUCCESS')&&
+  (boundary==='request'?String(statement?.sql).includes("SET state='WORK_COMMITTED'"):args[1]?.endsWith(':complete'))){injected=true;controller.abort();}return execute(statement);};
  const response=await run(db,request(),{signal:controller.signal});assert.equal(injected,true);assert.notEqual(response.body.syncComplete,true);
- assert.equal(response.body.handoff,undefined);const progress=await readPhaseProgress(db,'SYNC','manual');assert.notEqual(progress.complete?.outcome,'NO_NEW_DATA_SUCCESS');
+ assert.equal(response.body.handoff,undefined);const progress=await readPhaseProgress(db,'SYNC','manual');if(boundary==='request')assert.notEqual(progress.complete?.outcome,'NO_NEW_DATA_SUCCESS');else assert.equal(progress.settlementState,'FINALIZED_SUCCESS');
 });
 test('R2-H1: original deadline expiry during settlement cannot mint handoff',async t=>{
  const {db}=await fixture(t),execute=db.raw.execute;let injected=false;
- db.raw.execute=async statement=>{const args=statement?.args??[];if(!injected&&args[1]?.startsWith('phase4_request:')&&args[3]?.includes('NO_NEW_DATA_SUCCESS')){
- injected=true;await new Promise(r=>setTimeout(r,100));}return execute(statement);};
- const response=await run(db,request(),{budgetMs:60});assert.equal(injected,true);assert.notEqual(response.body.syncComplete,true);assert.equal(response.body.handoff,undefined);
+ db.raw.execute=async statement=>{const args=statement?.args??[];if(!injected&&String(statement?.sql).includes("SET state='WORK_COMMITTED'")&&JSON.stringify(args).includes('NO_NEW_DATA_SUCCESS')){
+ injected=true;const signal=currentExecutionBudget().signal;if(!signal.aborted)await new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true}));}return execute(statement);};
+ const response=await run(db,request(),{budgetMs:5000,overallBudgetMs:2000});assert.equal(injected,true);assert.notEqual(response.body.syncComplete,true);assert.equal(response.body.handoff,undefined);
 });
 test('R2-H2: retained underlying close/reconnect cannot resurrect admission or bypass changed schema',async t=>{
  const {dir,url}=await fixture(t),base=createClient({url}),close=base.close.bind(base),reconnect=base.reconnect.bind(base),db=composeDb(base,{phase4Keys:fixtureKeys});
- t.after(()=>db.close());const cap=await db.admitRuntime();assert.equal(db.requireRuntimeAdmission(cap),31);
+ t.after(()=>db.close());const cap=await db.admitRuntime();assert.equal(db.requireRuntimeAdmission(cap),32);
  close();assert.throws(()=>db.requireRuntimeAdmission(cap));base.closed=false;assert.throws(()=>db.requireRuntimeAdmission(cap),'mutable closed flag cannot revive');
- await reconnect();assert.throws(()=>db.requireRuntimeAdmission(cap));const next=await db.admitRuntime();assert.notEqual(next,cap);assert.equal(db.requireRuntimeAdmission(next),31);
+ await reconnect();assert.throws(()=>db.requireRuntimeAdmission(cap));await assert.rejects(()=>db.admitRuntime());const replacement=composeDb(createClient({url}),{phase4Keys:fixtureKeys});t.after(()=>replacement.close());const next=await replacement.admitRuntime();assert.notEqual(next,cap);assert.equal(replacement.requireRuntimeAdmission(next),32);
  close();const other=createClient({url});await other.execute('DROP TRIGGER p4_outbox_transition');other.close();await reconnect();
  assert.throws(()=>db.requireRuntimeAdmission(next));await assert.rejects(()=>db.admitRuntime());
 });

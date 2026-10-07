@@ -11,7 +11,8 @@ import {createOwnedDb as createDb} from './stage5OwnedDb.js';
 import {createPhase4Foundation} from '../src/phase4Foundation.js';
 import {createPhase4Stage6,authorizeStage6ShadowWorker} from '../src/phase4Reanalysis.js';
 import {runExecutionPhase} from '../src/phase4Execution.js';
-import {configurationProof,readPhaseProgress} from '../src/phase4ExecutionStore.js';
+import {configurationProof,readPhaseProgress,readExecution,finalizePhaseWork} from '../src/phase4ExecutionStore.js';
+import {createExecutionBudget} from '../src/executionBudget.js';
 const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'};
 const now=new Date('2026-10-07T12:00:00Z'),env={dryRun:true};
 const makeRequest=(phase='SYNC',extra={})=>({releaseSha:runningReleaseSha(),requestId:randomUUID(),phase,triggerSource:'github',executionMode:'SHADOW',
@@ -20,7 +21,7 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 test('three tenants / six jobs / 480 passes: bounded PARTIAL, real SIGKILL, restart resumes, repeated drains complete without duplicate receipts or delivery',async t=>{
  const dir=await mkdtemp(join(tmpdir(),'p4-backlog-')),url=`file:${join(dir,'isolated.db')}`;let db=createDb({url});
- t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion:31});
+ t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion:32});
  let admission=await db.admitRuntime();const stores=await createPhase4Foundation({db,keys:fixtureKeys,admission});
  for(const [id,count] of [['T1',23],['T2',115],['T3',99]]){
   await db.createUser({id,displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});await stores.initializeTenant(id,'SHADOW');
@@ -48,9 +49,9 @@ test('three tenants / six jobs / 480 passes: bounded PARTIAL, real SIGKILL, rest
  child.on('message',m=>{if(m.event==='committed_checkpoint'){clearTimeout(timer);resolve(m);}else if(m.event==='error'){clearTimeout(timer);reject(new Error(JSON.stringify(m)));}});});
  const exit=new Promise(resolve=>child.on('exit',(code,signal)=>resolve({code,signal})));await checkpoint;
  child.kill('SIGKILL');assert.equal((await exit).signal,'SIGKILL');passes++;
- assert.equal((await readPhaseProgress(db,'STAGE6_DRAIN','github')).state,'IN_PROGRESS','old invocation completion cannot stand for a killed newer invocation');
- const requestState=(await db.raw.execute({sql:'SELECT last_detail FROM system_heartbeats WHERE component=?',args:[`phase4_request:${crashRequest.requestId}`]})).rows[0];
- assert.equal(JSON.parse(requestState.last_detail).outcome,'PENDING','crash must not settle completion');
+ assert.equal((await readPhaseProgress(db,'STAGE6_DRAIN','github')).state,'DURABLE_PROGRESS_UNFINALIZED','old invocation completion cannot stand for a killed newer invocation');
+ const requestState=await readExecution(db,crashRequest.requestId);assert.equal(requestState.state,'ESTABLISHED','crash must not finalize');
+ assert.ok((await readPhaseProgress(db,'STAGE6_DRAIN','github')).workReceipts>0,'committed item and receipt survive SIGKILL');
  const committed=(await db.raw.execute("SELECT full_scan_cursor FROM phase4_jobs WHERE state='RUNNING'")).rows;
  assert.equal(committed.length,1);assert.ok(committed[0].full_scan_cursor);
  await db.close();db=createDb({url});admission=await db.admitRuntime();runtime={phase4Stage6:await worker()};
@@ -61,7 +62,15 @@ test('three tenants / six jobs / 480 passes: bounded PARTIAL, real SIGKILL, rest
  const blocked=await runtime.phase4Stage6.drain({triggerSource:'github',userId:heldUser});
  assert.equal(blocked.processedItems,0);assert.equal(blocked.completedJobs,0,'a restart cannot bypass the dead owner before lease expiry');
  await sleep(3100);
- let completed=0,iterations=1,someCompleted=false,last;
+ // Only the isolated fixture advances the dead execution's long phase lease.
+ // The real tenant lease above has already expired by wall time.
+ const deadExecutionCutoff=Date.now()-1;await db.raw.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',
+  args:[deadExecutionCutoff,deadExecutionCutoff,crashRequest.requestId]});
+ const resumed=await run(crashRequest);assert.equal(resumed.body.ok,true);passes+=resumed.body.result.itemsProcessed;
+ assert.equal((await readExecution(db,crashRequest.requestId)).generation,requestState.generation+1);
+ const freshAuthority=createExecutionBudget();try{await assert.rejects(()=>finalizePhaseWork(db,crashRequest,
+  {executionId:crashRequest.requestId,owner:requestState.owner,generation:requestState.generation,identity:requestState.identity_digest},fixtureKeys,freshAuthority),/OWNER_FENCED/);}finally{freshAuthority.close();}
+ let completed=resumed.body.result.jobsCompleted,iterations=1,someCompleted=resumed.body.result.jobsCompleted>0,last;
  for(;iterations<45;iterations++){
   last=await run(drainRequest());assert.equal(last.status,200,JSON.stringify(last));
   const result=last.body.result;assert.ok(result.itemsProcessed<=24);assert.ok(result.itemsAttempted<=24);

@@ -26,7 +26,8 @@ The localized Stage 1–6 Beta Summary retains only approved current recovery/de
 | --- | --- |
 | v30 | Stage 6 |
 | v31 | Localization |
-| v32 | Future Stage 7 |
-| v33 | Future Stage 8 |
+| v32 | Execution Settlement Authority |
+| v33 | Future Stage 7 |
+| v34 | Future Stage 8 |
 
 The Stage 5 and Stage 6 freeze tags remain unchanged. Earlier documents reserving v31/v32 for Stage 7/8 describe the historical pre-localization allocation.

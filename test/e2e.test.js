@@ -130,7 +130,7 @@ test('端到端：main() 完整跑一次會發出簡報，第二次不重複發'
     // Multi-user：先建一個內部使用者並綁定 Telegram，再塞一組還有效的 token
     // （模擬已經跑過 authorize + /link）
     const seed = createDb({ url: dbUrl });
-    await seed.migrate({ targetVersion: 31 });
+    await seed.migrate({ targetVersion: 32 });
     await seed.createUser({ id: U, displayName: 'E2E', timezone: TZ, status: 'ACTIVE' });
     await seed.setLocale(U, 'zh-TW');
     await seed.linkTelegram({ chatId: '999', userId: U });
@@ -304,7 +304,7 @@ test('端到端：token 快過期時會先 refresh 再撈資料，新 token 寫�
     });
 
     const seed = createDb({ url: dbUrl });
-    await seed.migrate({ targetVersion: 31 });
+    await seed.migrate({ targetVersion: 32 });
     await seed.createUser({ id: U, displayName: 'E2E', timezone: TZ, status: 'ACTIVE' });
     await seed.setLocale(U, 'zh-TW');
     await seed.linkTelegram({ chatId: '999', userId: U });

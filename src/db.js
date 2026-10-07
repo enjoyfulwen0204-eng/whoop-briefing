@@ -13,6 +13,9 @@
  */
 
 import { createClient } from '@libsql/client';
+import Database from 'libsql';
+import {Sqlite3Client,Sqlite3Transaction} from '@libsql/client/sqlite3';
+import {fileURLToPath} from 'node:url';
 import { randomUUID } from 'node:crypto';
 import {
   GLOBAL_SCOPE, userScope, TELEGRAM_DELIVERY_STATE, TELEGRAM_UPDATE_STATUS,
@@ -47,7 +50,7 @@ import { createPhase4QueueStore } from './phase4QueueStore.js';
 import { createPhase4Foundation } from './phase4Foundation.js';
 import { legacyExperimentAdapter } from './legacyExperimentAdapter.js';
 import { createPhase4Invalidation } from './phase4Invalidation.js';
-import { admitRuntime, bindConnectionLifetime, requireRuntimeAdmission, renewRuntimeAfterContention } from './runtimeAdmission.js';
+import { admitRuntime, bindConnectionLifetime, requireRuntimeAdmission, renewRuntimeAfterContention,endRuntimeLifetime,replaceObservedRuntimeLifetime,runtimeWasAdmitted } from './runtimeAdmission.js';
 
 // SCHEMA 定義集中在 schema.js（唯一 DDL 來源）。這裡 re-export 維持既有 import 路徑。
 export { SCHEMA } from './schema.js';
@@ -63,18 +66,34 @@ export function isDuplicateSentError(err) {
   return /UNIQUE constraint failed/i.test(String(err?.message ?? ''));
 }
 
-export function createDb({ url, authToken, phase4Keys }) {
-  return composeDb(createClient({ url, authToken }), { phase4Keys });
+const privateClients=new WeakSet();
+export function createDb({ url, authToken, phase4Keys,fetch }) {
+  const client=createClient({url,authToken,fetch});privateClients.add(client);
+  return composeDb(client,{phase4Keys});
+}
+/** Owned file fixture/runtime seam: the constructor owns the native receiver;
+ * unlike composeDb it never accepts a caller's reconnectable client. */
+export function createOwnedFileDb({url,phase4Keys}){
+ if(!url?.startsWith('file:'))throw Error('OWNED_FILE_DATABASE_REQUIRED');
+ const path=fileURLToPath(url),anchor=new Database(path),client=new Sqlite3Client(path,{},anchor,'number');
+ client.transaction=async(mode='write')=>{
+  await client.execute(mode==='write'?'BEGIN IMMEDIATE':mode==='read'?'BEGIN DEFERRED':'BEGIN');
+  return new Sqlite3Transaction(anchor,'number');
+ };
+ privateClients.add(client);return composeDb(client,{phase4Keys});
 }
 
 /** Internal composition seam: tests can own a named, shared-cache in-memory
  * connection without changing the application's URL/credential factory. */
 export function composeDb(baseClient, { phase4Keys } = {}) {
-  const processing = processingTransactions(baseClient);
+  const processing = processingTransactions(baseClient,{privateRuntime:privateClients.has(baseClient)});
   const transactionClient=processing.client;
   bindConnectionLifetime(baseClient, transactionClient, processing.transaction);
+  const privateRuntime=privateClients.has(baseClient);
+  processing.setLifetimeEnding(()=>endRuntimeLifetime(transactionClient));
   let runtimeAdmission, pendingAdmission;
   async function runtimeContext(options) {
+    if(options?.fresh)runtimeAdmission=null;
     if (runtimeAdmission) {
       try { requireRuntimeAdmission(transactionClient, runtimeAdmission, phase4Keys, processing.transaction); return runtimeAdmission; }
       catch { runtimeAdmission = null; foundationStore = null; } // Reopened connections rebuild both admission and dependent stores.
@@ -83,7 +102,10 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
       .then(capability => runtimeAdmission = capability).finally(() => { pendingAdmission = null; });
     return pendingAdmission;
   }
-  processing.setReconnectAdmission(async()=>{runtimeAdmission=await renewRuntimeAfterContention(transactionClient,phase4Keys,processing.transaction);foundationStore=null;});
+  processing.setReconnectAdmission(async()=>{replaceObservedRuntimeLifetime(transactionClient);runtimeAdmission=await renewRuntimeAfterContention(transactionClient,phase4Keys,processing.transaction);foundationStore=null;});
+  if(!privateRuntime)processing.setRootAdmission(async()=>{
+    if(runtimeWasAdmitted(transactionClient))runtimeAdmission=await renewRuntimeAfterContention(transactionClient,phase4Keys,processing.transaction);
+  });
   const privacy=legacyPrivacyFence(transactionClient,phase4Keys);
   const replyContexts=new WeakMap();
   const compatibility=createLegacyHealthAdapter({client:transactionClient,processing,privacy,keys:phase4Keys});
@@ -93,7 +115,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   let foundationStore;
   async function privacyFoundation() {
     if(!foundationStore)foundationStore=(async()=>createPhase4Foundation({db:{raw:transactionClient,transaction:processing.transaction,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit,afterProcessingCompletion:processing.afterCompletion},keys:phase4Keys,
-      admission:Number((await transactionClient.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)===31?await runtimeContext():undefined}))();
+      admission:Number((await transactionClient.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)===32?await runtimeContext():undefined}))();
     try {return await foundationStore;} catch(error) {foundationStore=null;throw error;}
   }
   const health = compatibility.wrap(createHealthStore(compatibility.client, { transaction: processing.transaction }));
@@ -1690,6 +1712,8 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   return {
     raw: transactionClient,
     admitRuntime: runtimeContext,
+    freshRuntimeAdmission: options=>admitRuntime(transactionClient,phase4Keys,options).then(cap=>runtimeAdmission=cap),
+    privateRuntime,
     requireRuntimeAdmission: capability => requireRuntimeAdmission(transactionClient, capability, phase4Keys, processing.transaction),
     transaction: processing.transaction,
     withRuntimeFence: processing.withFence,
@@ -1813,7 +1837,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
         }
       },
     }),
-    close: () => client.close(),
+    close: () => {endRuntimeLifetime(transactionClient);client.close();},
   };
 }
 

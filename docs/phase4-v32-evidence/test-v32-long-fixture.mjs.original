@@ -1,0 +1,10 @@
+/** One evidence-backed exception for the dense 90-day historical fixture.
+ * Production phase/job budgets and the ordinary test harness stay unchanged. */
+import {spawn} from 'node:child_process';import {mkdir,open,writeFile} from 'node:fs/promises';
+const file='test/phase4-stage5-lifecycle.test.js',directory='tmp/v32-lifecycle-isolated',timeoutMs=1200000;
+await mkdir(directory,{recursive:true});const handle=await open(`${directory}/phase4-stage5-lifecycle.test.js.log`,'w'),started=Date.now();
+const child=spawn(process.execPath,['--expose-gc','--test','--test-concurrency=1',file],{detached:true,stdio:['ignore',handle.fd,handle.fd]});
+let timedOut=false;const timer=setTimeout(()=>{timedOut=true;try{process.kill(-child.pid,'SIGKILL');}catch{}},timeoutMs);
+const outcome=await new Promise(resolve=>child.on('close',(code,signal)=>resolve({file,code,signal,timedOut,timeoutMs,durationMs:Date.now()-started,log:`${directory}/phase4-stage5-lifecycle.test.js.log`})));
+clearTimeout(timer);await handle.close();await writeFile(`${directory}/outcome.json`,JSON.stringify(outcome,null,2)+'\n');
+console.log(JSON.stringify(outcome));process.exitCode=outcome.code===0&&!timedOut?0:1;

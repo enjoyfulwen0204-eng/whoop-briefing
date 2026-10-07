@@ -1,0 +1,13 @@
+import {readFileSync} from 'node:fs';import {spawn} from 'node:child_process';
+const expected=[0,1,2].map(i=>readFileSync(`tmp/v32-shard-${i}.list`,'utf8').trim().split('\n').length);
+for(;;){
+ let complete=true;
+ for(let i=0;i<3;i++){try{if(JSON.parse(readFileSync(`tmp/v32-broad-${i}/results.json`,'utf8')).length<expected[i])complete=false;}catch{complete=false;}}
+ if(complete)break;await new Promise(resolve=>setTimeout(resolve,10000));
+}
+const files=new Set();for(let i=0;i<3;i++)for(const row of JSON.parse(readFileSync(`tmp/v32-broad-${i}/results.json`,'utf8')))
+ if(row.classification!=='PASS')files.add(row.file);
+files.add('test/phase4-stage6-v29-review-b.test.js');
+console.log(JSON.stringify({event:'serial_recheck_start',files:[...files]}));
+const child=spawn(process.execPath,['scripts/test-stage5-closure.mjs',...[...files].sort()],{stdio:'inherit',env:{...process.env,STAGE5_TEST_OUTPUT:'tmp/v32-serial-recheck',STAGE5_TEST_TIMEOUT_MS:'600000'}});
+child.on('error',()=>{process.exitCode=1;});child.on('close',(code,signal)=>{process.exitCode=signal?1:code??1;});

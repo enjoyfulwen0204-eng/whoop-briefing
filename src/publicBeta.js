@@ -119,7 +119,7 @@ export async function createPublicBetaRuntime({ db, keys, admission, executionMo
   if (!db?.raw || typeof db.transaction !== 'function') throw new Error('PUBLIC_BETA_DATABASE_REQUIRED');
   requirePhase4Keys(keys);
   if (!admission && typeof db.admitRuntime === 'function'
-    && Number((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v) === 31)
+    && Number((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v) === 32)
     admission = await db.admitRuntime();
   const stage6Capability = authorizeStage6ShadowWorker({ executionMode: 'SHADOW' });
   const [worker, stores] = await Promise.all([

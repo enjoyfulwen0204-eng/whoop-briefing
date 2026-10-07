@@ -4,7 +4,7 @@ import {verifyTriggerRequest,BRIEFING_TRIGGER} from '../src/briefingTriggerAuth.
 const secret='synthetic-secret-with-at-least-32-bytes',env={BRIEFING_ENDPOINT_URL:'https://synthetic.invalid/internal/briefing/run',BRIEFING_TRIGGER_SECRET:secret,
  BRIEFING_EXECUTION_MODE:'OFF',BRIEFING_RELEASE_SHA:'b'.repeat(40),BRIEFING_CONFIG_PROOF:'a'.repeat(64)};
 const response=(body,status=200)=>new Response(JSON.stringify(body),{status});
-const ok=(phase='SYNC',extra={})=>({ok:true,phase,source:'cloudflare',syncComplete:true,drainAuthorized:false,...extra});
+const ok=(phase='SYNC',extra={})=>({ok:true,phase,source:'cloudflare',syncComplete:true,drainAuthorized:false,...extra,result:{...extra.result,settlementState:'FINALIZED_SUCCESS'}});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 for(const boundary of ['headers','body'])test(`Worker overall transport timeout covers stalled ${boundary}, abort and bounded retries`,async()=>{
  let calls=0,aborts=0,cancels=0;
@@ -34,6 +34,22 @@ test('failed sync and HTTP 207 never authorize drain, including misleading HTTP 
  for(const status of [200,207,424]){const phases=[];await assert.rejects(()=>invoke({...env,BRIEFING_EXECUTION_MODE:'SHADOW'},{sleep:async()=>{},fetchImpl:async(_u,{body})=>{
   phases.push(JSON.parse(body).phase);return response({ok:false,phase:'SYNC',syncComplete:false,drainAuthorized:true},status);
  }}));assert.deepEqual(phases,['SYNC']);}
+});
+test('v32 Worker blocks unfinalized success and retries indeterminate SYNC without ever entering drain',async()=>{
+ for(const state of ['WORK_COMMITTED','ESTABLISHED',undefined]){
+  let drains=0;await assert.rejects(()=>invoke({...env,BRIEFING_EXECUTION_MODE:'SHADOW'},{sleep:async()=>{},fetchImpl:async(_u,{body})=>{
+   if(JSON.parse(body).phase==='STAGE6_DRAIN')drains++;
+   return response({...ok(),drainAuthorized:true,result:{settlementState:state}});
+  }}));assert.equal(drains,0);
+ }
+ let attempts=0;await assert.rejects(()=>invoke({...env,BRIEFING_EXECUTION_MODE:'SHADOW'},{sleep:async()=>{},fetchImpl:async(_u,{body})=>{
+  attempts++;assert.equal(JSON.parse(body).phase,'SYNC');return response({ok:false,phase:'SYNC',syncComplete:false,drainAuthorized:false,result:{outcome:'COMMIT_INDETERMINATE'}},503);
+ }}));assert.equal(attempts,2);
+});
+test('Worker default whole invocation ceiling also bounds retry backoff',async()=>{
+ let clock=0,calls=0;await assert.rejects(()=>invoke(env,{now:()=>clock,signImpl:async()=> 'synthetic-signature',
+  sleep:async()=>{clock=MAX_CONFIGURED_WINDOW_MS+1;},fetchImpl:async()=>{calls++;return response({ok:false},503);}}),error=>error.category==='timeout');
+ assert.equal(calls,1);
 });
 test('authenticated retries bind exact phase/body; legitimate sync then drain uses distinct identities and a 561s maximum',async()=>{
  const requests=[];let fail=true;

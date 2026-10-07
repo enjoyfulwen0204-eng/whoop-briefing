@@ -48,7 +48,7 @@ const version = async (db) => Number(
 // 版本與清單
 // ---------------------------------------------------------------------------
 
-test('SCHEMA_VERSION is v30 while legacy additive contracts remain', () => {
+test('SCHEMA_VERSION is v32 while legacy additive contracts remain', () => {
   // v9 adds the report delivery state machine to report_claims (additive
   // columns only); v8 added briefing_evaluations (a new table); v7 added the
   // delivery state machine to telegram_operations. Populated v4/v5/v6 tables
@@ -61,7 +61,7 @@ test('SCHEMA_VERSION is v30 while legacy additive contracts remain', () => {
   // v14 adds user_onboarding (self-service Telegram onboarding, Phase 3.5).
   // v15 is a data-only correction: legacy onboarding rows derived from evidence.
   // v16 adds the authorization generation + per-resource access evidence (Phase 3.5 RC2).
-  assert.equal(SCHEMA_VERSION, 31);
+  assert.equal(SCHEMA_VERSION, 32);
 });
 
 test('an already-v30 database rejects a requested v27 downgrade without losing accounts', async () => {
@@ -72,7 +72,7 @@ test('an already-v30 database rejects a requested v27 downgrade without losing a
     await db.createUser({ id: 'downgrade-guard', displayName: 'Guard' });
     const before = await db.getUser('downgrade-guard');
     await assert.rejects(runMigrations(db.raw, { targetVersion: 27 }), /schema_version_incompatible/);
-    assert.equal(await version(db), 31);
+    assert.equal(await version(db), 32);
     assert.deepEqual(await db.getUser('downgrade-guard'), before);
   } finally { db.close(); cleanup(); }
 });

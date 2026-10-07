@@ -18,7 +18,7 @@ test('v30 to v31 preserves legacy users as UNSET and persists isolated canonical
   for (const id of ['alice','bob','linh','legacy'])
     await db.createUser({ id, displayName: id });
   assert.equal(await currentVersion(db.raw), 30);
-  await db.migrate();
+  await db.migrate({targetVersion:31});
   assert.equal(await assertPhase4Schema(db.raw, 31), 31);
   for (const id of ['alice','bob','linh','legacy']) assert.equal(await db.getLocale(id), null);
   await db.setLocale('alice','zh-TW');
@@ -34,7 +34,7 @@ test('v30 to v31 preserves legacy users as UNSET and persists isolated canonical
   db.close();
   db = createDb({ url });
   t.after(() => db.close());
-  await db.migrate();
+  await db.migrate({targetVersion:31});
   assert.deepEqual(await Promise.all(['alice','bob','linh','legacy'].map(id => db.getLocale(id))),
     ['zh-TW','en','vi',null]);
   await db.setLocale('legacy','en');
@@ -61,8 +61,8 @@ test('v31 resumes an interrupted DDL, reruns safely, and rejects a drifted local
   await db.createUser({ id: 'legacy', displayName: 'Legacy' });
   await db.raw.execute(buildV31().ddl[0]);
   assert.equal(await currentVersion(db.raw), 30);
-  await db.migrate();
-  await db.migrate();
+  await db.migrate({targetVersion:31});
+  await db.migrate({targetVersion:31});
   assert.equal(await assertPhase4Schema(db.raw, 31), 31);
   assert.equal(await db.getLocale('legacy'), null);
   await db.raw.execute('ALTER TABLE user_locales ADD COLUMN invented TEXT');

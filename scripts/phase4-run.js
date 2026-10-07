@@ -15,9 +15,14 @@ try {
  const request={releaseSha,requestId:`${base}_${phase.toLowerCase()}`,phase,triggerSource,executionMode:config.runtime==='on'?'SHADOW':'OFF',
    configProof:configurationProof(keys,config,process.env,releaseSha),
    ...(phase==='STAGE6_DRAIN'?{syncRequestId:process.env.PHASE4_SYNC_REQUEST_ID,handoff:process.env.PHASE4_SYNC_HANDOFF}:{})};
- const result=await runExecutionPhase({request});
+ if(process.env.PHASE4_RECONCILE_REQUEST_ID)request.requestId=process.env.PHASE4_RECONCILE_REQUEST_ID;
+ let result=await runExecutionPhase({request});
+ if(result.body.result?.outcome==='COMMIT_INDETERMINATE'){
+  await new Promise(resolve=>setTimeout(resolve,500));
+  result=await runExecutionPhase({request}); // new private runtime, same immutable identity
+ }
  if(phase==='SYNC'&&process.env.GITHUB_OUTPUT)await appendFile(process.env.GITHUB_OUTPUT,
-   `sync_complete=${result.body.syncComplete===true}\ndrain_authorized=${result.body.drainAuthorized===true}\nsync_request_id=${request.requestId}\nsync_handoff=${result.body.handoff??''}\n`);
+   `sync_finalized=${result.body.result?.settlementState==='FINALIZED_SUCCESS'}\nsync_complete=${result.body.syncComplete===true}\ndrain_authorized=${result.body.drainAuthorized===true}\nsync_request_id=${request.requestId}\nsync_handoff=${result.body.handoff??''}\n`);
  const r=result.body.result;
  console.log(JSON.stringify({event:'phase4_cli_complete',ok:result.body.ok,phase,releaseSha,source:triggerSource,
    outcome:r.outcome,syncComplete:result.body.syncComplete,drainAuthorized:result.body.drainAuthorized,

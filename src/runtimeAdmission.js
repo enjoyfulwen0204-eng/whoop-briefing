@@ -1,41 +1,37 @@
-/** Read-only v31 contract compiled from the same frozen DDL used by migrations.
+/** Read-only v32 contract compiled from the same frozen DDL used by migrations.
  * No tenant/history query, migration, checkpoint initialization or schema repair. */
 import { SCHEMA, ADDITIVE_COLUMNS, PHASE4_MIGRATIONS, SCHEMA_VERSION } from './schema.js';
 import { normalizeSql, withAddedColumns, Phase4SchemaError } from './phase4Migrations.js';
 import { requirePhase4Keys } from './phase4Keys.js';
 import { log } from './logger.js';
+import {withRuntimeMetadata} from './runtimeMetadataContext.js';
+import {currentExecutionBudget} from './executionBudget.js';
+import {currentDurableExecution} from './phase4ExecutionContext.js';
 
 const connections = new WeakMap(), capabilities = new WeakMap();
 const fail = (code, object) => { throw new Phase4SchemaError(code, object); };
 
-// Observe supported driver methods before composeDb callers can retain bound
-// underlying methods. Revocation belongs to a private, non-revivable lifetime.
-import { Sqlite3Client } from '@libsql/client/sqlite3';
-import { HttpClient } from '@libsql/client/http';
-import { WsClient } from '@libsql/client/ws';
-function lifetimeMethod(original, method) {
-  return function(...args) {
-    const state=connections.get(this);
-    if(state){state.lifetime.revoked=true;state.closed=true;if(method==='close')state.renewals.clear();}
-    const complete=value=>{if(state&&method==='reconnect'){state.lifetime={revoked:false};state.closed=false;}return value;};
-    const result=original.apply(this,args);
-    return result?.then?result.then(complete):complete(result);
-  };
-}
-for(const Driver of [Sqlite3Client,HttpClient,WsClient])for(const method of ['close','reconnect']) {
-  const original=Driver.prototype[method];
-  if(typeof original==='function')Object.defineProperty(Driver.prototype,method,{value:lifetimeMethod(original,method),writable:false,configurable:false});
-}
+// Capability identity is useful inside a private runtime. Caller-owned raw
+// clients have no observable native lifetime primitive: their privileged SQL
+// boundaries must always perform a new complete metadata admission.
 export function bindConnectionLifetime(base, executor, transaction) {
   let state=connections.get(base);
-  if(!state){
-    state={lifetime:{revoked:false},closed:Boolean(base.closed),renewals:new Set()};connections.set(base,state);
-    for(const method of ['close','reconnect'])if(typeof base[method]==='function')
-      Object.defineProperty(base,method,{value:lifetimeMethod(base[method],method),writable:true,configurable:true});
-  }
-  connections.set(executor,state);
-  if(transaction){if(state.transaction&&state.transaction!==transaction){state.lifetime.revoked=true;state.lifetime={revoked:false};}state.transaction=transaction;}
+  if(!state){state={lifetime:{revoked:false},closed:false,ended:false,renewals:new Set()};connections.set(base,state);}
+  connections.set(executor,state);state.transaction=transaction;
+  state.retryMetadata=async()=>{
+    if(state.ended)fail('PHASE4_RUNTIME_CONNECTION_REQUIRED');
+    if(currentDurableExecution())fail('RUNTIME_REPLACEMENT_REQUIRED');
+    if(base.protocol==='file') {await base.reconnect();replaceObservedRuntimeLifetime(executor);}
+  };
 }
+export function replaceObservedRuntimeLifetime(client){
+ const state=connections.get(client);if(state?.ended)fail('PHASE4_RUNTIME_CONNECTION_REQUIRED');
+ if(state){state.lifetime.revoked=true;state.lifetime={revoked:false};state.closed=false;}
+}
+export function endRuntimeLifetime(client) {
+ const state=connections.get(client);if(state){state.ended=true;state.closed=true;state.lifetime.revoked=true;state.renewals.clear();}
+}
+export const runtimeWasAdmitted=client=>Boolean(connections.get(client)?.admitted);
 // Only already-authorized server factories can follow the kernel's explicit
 // read-only re-admission after idle contention reconnect. Old capabilities are
 // still permanently rejected by requireRuntimeAdmission.
@@ -147,8 +143,18 @@ export async function admitRuntime(client, keys, { source = 'manual' } = {}) {
   const started = performance.now();
   log.info('runtime_admission_start', { source });
   try {
-    const capability = await admitChecked(client, keys);
-    log.info('runtime_admission_complete', { source, outcome: 'COMPLETE', duration_ms: performance.now()-started, query_count: 5 });
+    const stats={queries:0};const budget=currentExecutionBudget(),deadline=Math.min(budget?.deadlineAt??Infinity,Date.now()+15000);
+    let capability;
+    for(let attempt=0;;attempt++){
+      budget?.assert();
+      try{capability=await withRuntimeMetadata(()=>admitChecked(client,keys,stats));break;}
+      catch(error){
+        if(!/^(SQLITE_BUSY|SQLITE_LOCKED)(_|$)/.test(error?.code??'')||attempt>=64||Date.now()>=deadline)throw error;
+        await connections.get(client)?.retryMetadata?.();
+        budget?.assert();await new Promise(resolve=>setTimeout(resolve,Math.max(0,Math.min(25*2**Math.min(attempt,4)+Math.floor(Math.random()*10),250,deadline-Date.now()))));
+      }
+    }
+    log.info('runtime_admission_complete', { source, outcome: 'COMPLETE', duration_ms: performance.now()-started, query_count:stats.queries });
     return capability;
   } catch (error) {
     log.info('runtime_admission_complete', { source, outcome: 'FAILED', duration_ms: performance.now()-started });
@@ -156,13 +162,21 @@ export async function admitRuntime(client, keys, { source = 'manual' } = {}) {
   }
 }
 
-async function admitChecked(client, keys) {
+async function admitChecked(client, keys,stats) {
+  const read=async sql=>{
+    currentExecutionBudget()?.assert();stats.queries++;
+    const result=await client.execute(sql);currentExecutionBudget()?.assert();return result;
+  };
   requirePhase4Keys(keys);
   const state = connections.get(client);
   if (!state || state.closed || client.closed) fail('PHASE4_RUNTIME_CONNECTION_REQUIRED');
   const lifetime = state.lifetime;
-  const metadata = await client.execute("SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger')");
+  const metadata = await read("SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger')");
   const actual = new Map(metadata.rows.map(r => [r.name, r]));
+  const versions=(await read('SELECT version,note FROM schema_version')).rows;
+  const version=Math.max(0,...versions.map(r=>Number(r.version)));
+  if(version<SCHEMA_VERSION)fail('PHASE4_CONTROLLED_MIGRATION_REQUIRED',`${version}/${SCHEMA_VERSION}`);
+  if (version !== SCHEMA_VERSION) fail('phase4_schema_version_mismatch', `${version}/${SCHEMA_VERSION}`);
   for (const expected of contract.objects.values()) {
     const got = actual.get(expected.name);
     if (!got || got.type !== expected.type || (expected.type === 'table'
@@ -170,23 +184,22 @@ async function admitChecked(client, keys) {
       fail('phase4_schema_postcondition_failed', expected.name);
   }
   for (const name of contract.retired) if (actual.has(name)) fail('phase4_retired_index_present', name);
-  const versions=(await client.execute('SELECT version,note FROM schema_version')).rows;
-  const version=Math.max(0,...versions.map(r=>Number(r.version)));
-  if (version !== SCHEMA_VERSION) fail('phase4_schema_version_mismatch', `${version}/${SCHEMA_VERSION}`);
   for(const migration of PHASE4_MIGRATIONS)if(!versions.some(r=>Number(r.version)===migration.version&&r.note===`phase4 v${migration.version} postconditions verified`))fail('PHASE4_VERSION_AUTHORITY_INCOMPLETE',String(migration.version));
-  const rows = (await client.execute(`SELECT target_version,step_key,last_cursor,postcondition_state
-    FROM phase4_migration_checkpoints WHERE target_version IN (21,22,23)`)).rows;
-  for (const [v, step] of [[21,'tenant_metadata'],[22,'privacy_backfill'],[22,'lookup_key_check'],[22,'audit_key_check'],[23,'legacy_insights']]) {
+  const rows = (await read(`SELECT target_version,step_key,last_cursor,postcondition_state
+    FROM phase4_migration_checkpoints WHERE target_version IN (21,22,23,32)`)).rows;
+  for (const [v, step] of [[21,'tenant_metadata'],[22,'privacy_backfill'],[22,'lookup_key_check'],[22,'audit_key_check'],[23,'legacy_insights'],[32,'execution_authority']]) {
     const row = rows.find(r => r.target_version === v && r.step_key === step);
     if (row?.postcondition_state !== 'COMPLETE') fail('PHASE4_AUTHORITY_CHECKPOINT_INCOMPLETE', step);
+    if(step==='execution_authority'&&row.last_cursor!=='phase4-execution-v1')fail('PHASE4_AUTHORITY_CHECKPOINT_INCOMPLETE',step);
     if (step === 'lookup_key_check' && !keys.verifyLookupCheckpoint(row.last_cursor)) fail('PHASE4_LOOKUP_KEY_MISMATCH');
     if (step === 'audit_key_check' && !keys.verifyAuditCheckpoint(row.last_cursor)) fail('PHASE4_AUDIT_KEY_MISMATCH');
   }
-  const foreignKeys = (await client.execute('PRAGMA foreign_keys')).rows[0];
+  const foreignKeys = (await read('PRAGMA foreign_keys')).rows[0];
   if (Number(foreignKeys?.foreign_keys) !== 1) fail('PHASE4_FOREIGN_KEYS_DISABLED');
-  const checkConstraints = (await client.execute('PRAGMA ignore_check_constraints')).rows[0];
+  const checkConstraints = (await read('PRAGMA ignore_check_constraints')).rows[0];
   if (Number(checkConstraints?.ignore_check_constraints) !== 0) fail('PHASE4_CHECK_CONSTRAINTS_DISABLED');
   if (lifetime.revoked || lifetime !== state.lifetime || state.closed) fail('PHASE4_RUNTIME_CONNECTION_CHANGED');
+  currentExecutionBudget()?.assert();
   state.admitted=true;
   const capability = Object.freeze({}); capabilities.set(capability, { client, lifetime, keys });
   return capability;

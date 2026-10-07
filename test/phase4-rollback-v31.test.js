@@ -9,12 +9,12 @@ import { fixtureKeys } from './localDb.js';
 import { main } from '../src/bot/webhook.js';
 import { publicBetaConfiguration } from '../src/publicBetaConfig.js';
 
-test('v31-compatible webhook starts with beta gates OFF and serves legacy health ingress', async t => {
+test('v32-compatible rollback webhook starts with beta gates OFF and serves legacy health ingress', async t => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'phase4-rollback-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const url = `file:${path.join(dir, 'fixture.db')}`;
   const fixture = createClient({ url });
-  await runMigrations(fixture, { targetVersion: 31, privacyKeys: fixtureKeys });
+  await runMigrations(fixture, { targetVersion: 32, privacyKeys: fixtureKeys });
   fixture.close();
   const vars = {
     TURSO_DATABASE_URL: url, TURSO_AUTH_TOKEN: 'fixture-only',
@@ -22,7 +22,7 @@ test('v31-compatible webhook starts with beta gates OFF and serves legacy health
     TELEGRAM_CHAT_ID: 'fixture-only', OPENROUTER_API_KEY: 'fixture-only',
     WHOOP_CLIENT_ID: '', WHOOP_CLIENT_SECRET: '', WHOOP_REDIRECT_URI: '',
     BRIEFING_TRIGGER_SECRET: '', WHOOP_WEBHOOK_ENABLED: 'false',
-    PHASE4_BETA_SHADOW_RUNTIME: 'off', PHASE4_PUBLIC_BETA_MODE: 'off',
+    PHASE4_EXECUTION_PROFILE:'RC2_V32_ROLLBACK',PHASE4_BETA_SHADOW_RUNTIME: 'off', PHASE4_PUBLIC_BETA_MODE: 'off',
     PHASE4_PUBLIC_BETA_USER_IDS: '', PHASE4_LOOKUP_KEY: Buffer.alloc(32, 71).toString('hex'),
     PHASE4_AUDIT_KEY: Buffer.alloc(32, 83).toString('hex'),
   };

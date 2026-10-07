@@ -5,7 +5,7 @@ import {runningReleaseSha,cliTriggerSource} from '../src/phase4Release.js';impor
 const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'};
 test('R2 release: missing/malformed/tampered SHA rejects before admission; actual checkout pin is independently enforced',async t=>{
  const dir=await mkdtemp(join(tmpdir(),'p4-release-')),db=createOwnedDb({url:`file:${join(dir,'db.sqlite')}`});
- t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion:31});let admissions=0;
+ t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion:32});let admissions=0;
  const admit=db.admitRuntime;db.admitRuntime=async(...a)=>{admissions++;return admit(...a);};
  const sha=runningReleaseSha(),value={requestId:randomUUID(),releaseSha:sha,phase:'SYNC',triggerSource:'manual',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,{runtime:'on',mode:'off'},environment)};
  for(const releaseSha of [undefined,'',sha.toUpperCase(),'malformed','a'.repeat(40)])await assert.rejects(()=>runExecutionPhase({db,request:{...value,releaseSha},environment,env:{},keys:fixtureKeys}),/RELEASE_IDENTITY_INVALID|RELEASE_CHECKOUT_MISMATCH/);

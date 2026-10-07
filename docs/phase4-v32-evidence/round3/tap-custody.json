@@ -1,0 +1,116 @@
+[
+  {
+    "original": "admission-performance.tap",
+    "archive": "admission-performance.tap.gz",
+    "originalSha256": "2ecd6788072fd5b6738e56bbf87cdf1772cb15243f7d4a9b2b6406800287c7db",
+    "bytes": 3867
+  },
+  {
+    "original": "async-commit-expanded.tap",
+    "archive": "async-commit-expanded.tap.gz",
+    "originalSha256": "952923a79842ef34d3cedcd1a4d791bb1f898d56fe0cad6781cb1e5da536a55d",
+    "bytes": 16890
+  },
+  {
+    "original": "async-commit-initial.tap",
+    "archive": "async-commit-initial.tap.gz",
+    "originalSha256": "0d7dac09fca831e84704697181e7e0b5bd98508390f536f172d0095a40ce3da0",
+    "bytes": 13769
+  },
+  {
+    "original": "contention-locations-corrected-fixture.tap",
+    "archive": "contention-locations-corrected-fixture.tap.gz",
+    "originalSha256": "a1bc09f6273fba54cd92e555e1637b64a2501e8b977f3b7c86ed79caf3f9a5e6",
+    "bytes": 6288
+  },
+  {
+    "original": "contention-locations-final-probe.tap",
+    "archive": "contention-locations-final-probe.tap.gz",
+    "originalSha256": "6cc0c9ec857827acb15ab427efb5cee82f465761ababad24ed0beb04eae456a4",
+    "bytes": 5480
+  },
+  {
+    "original": "contention-locations.tap",
+    "archive": "contention-locations.tap.gz",
+    "originalSha256": "cb84059f4b84e814df52bc99127f5bc74cb0553f0fbd7b4e693238ff0080ed84",
+    "bytes": 6238
+  },
+  {
+    "original": "preimport-capability-corrected-fixture.tap",
+    "archive": "preimport-capability-corrected-fixture.tap.gz",
+    "originalSha256": "297cdc36ee56d615228a202b87b3362db0e276ecbea023ae00e30447ad5905db",
+    "bytes": 10836
+  },
+  {
+    "original": "preimport-capability-initial.tap",
+    "archive": "preimport-capability-initial.tap.gz",
+    "originalSha256": "564b7ad930202c094aed67870cfdd008425576ff374dbec462820043cff79889",
+    "bytes": 10692
+  },
+  {
+    "original": "stage5-candidate-1.tap",
+    "archive": "stage5-candidate-1.tap.gz",
+    "originalSha256": "e960bf210d7bac3e2483c78108ddfc6d3a03f0cf68559c7f5a0a42c28d97b57d",
+    "bytes": 1227
+  },
+  {
+    "original": "stage5-candidate-10.tap",
+    "archive": "stage5-candidate-10.tap.gz",
+    "originalSha256": "899f45e9ceeb0b0586ca4441d6f3bd97f759d9e698668a267b1bac26dad9361e",
+    "bytes": 1226
+  },
+  {
+    "original": "stage5-candidate-2.tap",
+    "archive": "stage5-candidate-2.tap.gz",
+    "originalSha256": "b1d9b2bc2089dd8b9b186f203466b60aa018f3048070f6a496f596174ea24967",
+    "bytes": 1225
+  },
+  {
+    "original": "stage5-candidate-3.tap",
+    "archive": "stage5-candidate-3.tap.gz",
+    "originalSha256": "bf90332d225c113509f7322392bcab48452929cd243ef66f49e8e18ff49f38e0",
+    "bytes": 1225
+  },
+  {
+    "original": "stage5-candidate-4.tap",
+    "archive": "stage5-candidate-4.tap.gz",
+    "originalSha256": "3c7c2500c1a033463894d6302d3f920f51626603df314cb5a4ad993f0359c239",
+    "bytes": 1225
+  },
+  {
+    "original": "stage5-candidate-5.tap",
+    "archive": "stage5-candidate-5.tap.gz",
+    "originalSha256": "fcb3c3153c4f22c791d185a40753975b52766d18c47a28f6df87cf9e767c2ffe",
+    "bytes": 1226
+  },
+  {
+    "original": "stage5-candidate-6.tap",
+    "archive": "stage5-candidate-6.tap.gz",
+    "originalSha256": "00a6aee8e050f7f8e2cd9504a97d90bd45965a144f3376f1aa08e8cde9111031",
+    "bytes": 1226
+  },
+  {
+    "original": "stage5-candidate-7.tap",
+    "archive": "stage5-candidate-7.tap.gz",
+    "originalSha256": "67c6de735db6ff16ad234685ba294e0a0cd1fdfdcb82575376f6d7bc3ddd35e2",
+    "bytes": 1222
+  },
+  {
+    "original": "stage5-candidate-8.tap",
+    "archive": "stage5-candidate-8.tap.gz",
+    "originalSha256": "84e197bd773e83286d1ca61a73efe82969d102ddb92076b51c744fb8159af65d",
+    "bytes": 1226
+  },
+  {
+    "original": "stage5-candidate-9.tap",
+    "archive": "stage5-candidate-9.tap.gz",
+    "originalSha256": "6b26cb5f254e23e4be209b678a055cb55f4f27fd1fcfcc524b396b59fc6b836f",
+    "bytes": 2996
+  },
+  {
+    "original": "stage5-rc2-control.tap",
+    "archive": "stage5-rc2-control.tap.gz",
+    "originalSha256": "05ab35a087be6ee0bac74298bdab308742b7a3c97c66861f97b128c643e05543",
+    "bytes": 960
+  }
+]

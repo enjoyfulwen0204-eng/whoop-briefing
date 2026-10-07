@@ -5,7 +5,7 @@ For the Vietnam RC3 repair and future phase-aware deployment, use the
 Cloudflare triggers remain empty in the new checked-in configuration; restoring
 the proposed morning cron requires a later reviewed production action.
 
-This is repository preparation, not activation. The checked-in beta runtime and presentation gates remain OFF. The later [Localization Gate](phase4-localization-gate.md) adds schema v31 for per-user language choices; v32 and v33 are reserved for Stages 7 and 8.
+This is repository preparation, not activation. The checked-in beta runtime and presentation gates remain OFF. The later [Localization Gate](phase4-localization-gate.md) adds schema v31 for per-user language choices; v33 and v34 are reserved for Stages 7 and 8.
 
 ## Release surface
 
@@ -18,7 +18,7 @@ This is repository preparation, not activation. The checked-in beta runtime and 
 | Proactive proposals, notification slots, preferences, work tips and family directory | SHADOW-ONLY BY DESIGN | Stage 6 produces/maintains them without adding an interaction surface. |
 | Body Energy results, checkpoints, scores and Body Energy-derived associations | NOT YET AUTHORIZED FOR PUBLICATION | Calibration/publication approval is unsatisfied; no runtime cohort setting can display them. Computation and durable SHADOW state remain. |
 | Stage 7 Quick Actions, buttons, callbacks, trusted registry and Journal provenance | NOT YET AUTHORIZED FOR PUBLICATION | No Stage 7 interaction in this release. |
-| Stage 8 Owner/Family View | NOT YET AUTHORIZED FOR PUBLICATION | No v33 interaction in this release. |
+| Stage 8 Owner/Family View | NOT YET AUTHORIZED FOR PUBLICATION | No v34 interaction in this release. |
 
 This gives beta users real, current Core intelligence to observe and report: personal recovery deviations and supported/emerging Journal associations. It does not claim a separate UI for every internal object. Existing daily and weekly legacy reports remain available.
 

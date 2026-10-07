@@ -46,8 +46,8 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   // must separately require v28; unsupported versions still fail closed.
   const schemaVersion=admission ? requireRuntimeAdmission(client,admission,keys,transaction)
     :Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
-  if(![27,28,29,30,31].includes(schemaVersion))fail('phase4_schema_version_mismatch');
-  if (!admission && schemaVersion === 31) admission=await admitRuntime(client,keys);
+  if(![27,28,29,30,31,32].includes(schemaVersion))fail('phase4_schema_version_mismatch');
+  if (!admission && schemaVersion === 32) admission=await admitRuntime(client,keys);
   if (!admission) await assertPhase4Schema(client,schemaVersion);
   if(admission)followRuntimeRenewal(client,admission,keys,transaction,next=>{admission=next;});
   const databases=(await client.execute('PRAGMA database_list')).rows;

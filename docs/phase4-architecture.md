@@ -1,8 +1,10 @@
+**Architecture Owner settlement ruling (2026-10-08).** [v32 Execution Settlement Authority](phase4-v32-settlement-authority.md) supersedes retroactive cancellation of a submitted asynchronous COMMIT. v31 remains Localization; v32 owns only execution receipts/finalization; v33 is Stage 7 and v34 is Stage 8. Production remains RC2/v31 OFF/OFF with automation paused. Settings v1 remains the first post-launch schema-neutral UX patch. No Stage 7/8 implementation or activation is authorized.
+
 # WHOOP Personal Health OS Phase 4 Architecture Decision Record
 
-**Localization allocation amendment (2026-10-02).** The later [Localization Gate](phase4-localization-gate.md) owns v31 for canonical per-user locales and one-time legacy selection prompts. A missing locale remains UNSET. Stage 7 moves to v32 and Stage 8 to v33. The older v31/v32 reservations below are historical. This amendment does not activate Public Beta, Body Energy, Stage 7 or Stage 8.
+**Localization allocation amendment (2026-10-02).** The later [Localization Gate](phase4-localization-gate.md) owns v31 for canonical per-user locales and one-time legacy selection prompts. A missing locale remains UNSET. Stage 7 moves to v33 and Stage 8 to v34 under the 2026-10-08 settlement ruling. The older v31/v32 reservations below are historical. This amendment does not activate Public Beta, Body Energy, Stage 7 or Stage 8.
 
-**Stage 6 routing amendment (2026-10-01).** The subsequent architecture rulings supersede this record's historical schema reservations: v28 owns Stage 6 unresolved-work-cycle timing; v29 owns Stage 6 authenticated receipt routing and family closure; v30 owns Stage 6 authenticated family directory and per-family work authority; v31 is reserved for Stage 7 and v32 for Stage 8. The v29 route is additive to the frozen v25–v27 semantics. It binds every receipt to opaque keyed subject tokens with independently authenticated route records and per-subject count/chain manifests that survive receipt redaction. A pre-v29 redacted receipt with unprovable family remains `LEGACY_ROUTE_UNKNOWN`, never a fabricated absence proof. The v30 family directory scopes historical uncertainty by the signed v29 operation kind plus its surviving keyed v27 artifact identity: an authenticated insight-only unknown does not make episode-family enumeration unknown. The [Stage 6 runbook](phase4-stage6-runbook.md) records the implementation and privacy/repair behavior. This amendment authorizes neither production activation nor Stage 7 work. Older allocation and stage-status text below is historical wherever it conflicts with this paragraph.
+**Stage 6 routing amendment (2026-10-01).** The subsequent architecture rulings supersede this record's historical schema reservations: v28 owns Stage 6 unresolved-work-cycle timing; v29 owns Stage 6 authenticated receipt routing and family closure; v30 owns Stage 6 authenticated family directory and per-family work authority; its former v31 Stage 7 / v32 Stage 8 reservations are superseded by Localization v31, Execution Settlement Authority v32, Stage 7 v33 and Stage 8 v34. The v29 route is additive to the frozen v25–v27 semantics. It binds every receipt to opaque keyed subject tokens with independently authenticated route records and per-subject count/chain manifests that survive receipt redaction. A pre-v29 redacted receipt with unprovable family remains `LEGACY_ROUTE_UNKNOWN`, never a fabricated absence proof. The v30 family directory scopes historical uncertainty by the signed v29 operation kind plus its surviving keyed v27 artifact identity: an authenticated insight-only unknown does not make episode-family enumeration unknown. The [Stage 6 runbook](phase4-stage6-runbook.md) records the implementation and privacy/repair behavior. This amendment authorizes neither production activation nor Stage 7 work. Older allocation and stage-status text below is historical wherever it conflicts with this paragraph.
 
 Status: Foundation Stages 1–4 aggregate review passed; Stage 5 v25/v26/v27 frozen; Stage 6 v28/v29/v30 implemented SHADOW-only and under independent review; Stages 7–8 not started
 
@@ -23,7 +25,7 @@ Amendment precedence and audit classification:
 | Categorical family/administrator prohibition | SUPERSEDED | Replaced only for Kelvin's explicit selected-user Owner Monitoring capability; ordinary and unrestricted access remains prohibited |
 | All-day Cloudflare primary / GitHub emergency-only assumptions | SUPERSEDED | Replaced by Section 10's Asia/Taipei morning Cloudflare window and normal GitHub hourly background role |
 | Stage 5 revision history v25, evidence authority v26 and complete operation receipts v27 | CURRENT; IMPLEMENTED SHADOW-ONLY; PENDING INDEPENDENT REVIEW | Authenticated full returns, request identities, required roots and snapshots; legacy authority is never synthesized |
-| Quick Actions, display-name isolation, Owner Monitoring, mixed watchdog | CURRENT REQUIREMENT; NOT IMPLEMENTED | Later-stage product requirements remain; **HISTORICAL / SUPERSEDED — not current schema allocation:** the former v28 Stage 7 / v29 Stage 8 assignment. Current allocation is v30 Stage 6, v31 Stage 7, v32 Stage 8. |
+| Quick Actions, display-name isolation, Owner Monitoring, mixed watchdog | CURRENT REQUIREMENT; NOT IMPLEMENTED | Later-stage product requirements remain; **HISTORICAL / SUPERSEDED — not current schema allocation:** the former v28 Stage 7 / v29 Stage 8 assignment. Current allocation is v30 Stage 6, v31 Localization, v32 Execution Settlement Authority, v33 Stage 7, v34 Stage 8. |
 | Raw real-time physiology positioning | CURRENT | Explicitly rejected; event-driven plus longitudinal positioning controls |
 | Production activation or delivery | CURRENT PROHIBITION | This documentation amendment grants none |
 | Materially contradictory current statement | CONTRADICTORY | None may remain; the 2026-09-25 amendment controls if historical wording is read out of context |
@@ -2150,7 +2152,7 @@ Revocation prevents new owner authorization envelopes immediately. It does not f
 
 ### Migration posture
 
-The original V1.2 production baseline schema is version 20 in [src/schema.js](../src/schema.js). The isolated Phase 4 branch implements additive v21–v24 Foundation migrations; v25 adds Stage 5 durable episode history and v26 adds Stage 5 durable result authority, and v27 adds complete Stage 5 operation/result receipts. **HISTORICAL / SUPERSEDED — not current schema allocation:** the former Quick Actions v28 / Owner Monitoring v29 assignment. Current reservations are v31 Stage 7 and v32 Stage 8. No Phase 4 migration may rebuild, drop, rename, or reinterpret a populated v20 table.
+The original V1.2 production baseline schema is version 20 in [src/schema.js](../src/schema.js). The isolated Phase 4 branch implements additive v21–v24 Foundation migrations; v25 adds Stage 5 durable episode history and v26 adds Stage 5 durable result authority, and v27 adds complete Stage 5 operation/result receipts. **HISTORICAL / SUPERSEDED — not current schema allocation:** the former Quick Actions v28 / Owner Monitoring v29 assignment. Current reservations are v33 Stage 7 and v34 Stage 8. No Phase 4 migration may rebuild, drop, rename, or reinterpret a populated v20 table.
 
 [src/migrations.js](../src/migrations.js) does not wrap the entire migration sequence in one global transaction. A process can therefore stop after DDL or backfill work but before the schema-version row is written. Every Phase 4 migration step must be safe to rerun after any prior statement succeeded.
 
@@ -2864,7 +2866,7 @@ Generic metric history selects mandatory v26 authority from the authenticated v2
 
 Existing flexible v26 JSON holds explicit `stage5-null-metric-result-v2` calculation projections and `stage5-insight-result-v2` historical semantic timestamp projections. Old bindings lacking exact projections remain unavailable for exact projection replay; no backfill or DDL change occurs. New `stage5-required-roots-v2` commitments normalize the existing health timestamp tuple; v1 commitments retain their old verification contract. Coverage traversal has explicit visited-node cycle detection, an existing-privacy-model 100,000-node corruption ceiling and an invariant error instead of truncation or unbounded recursion.
 
-See [RC7 verification](phase4-stage5-rc7-verification.md) for exact compatibility, privacy, test and trust-chain contracts. **HISTORICAL / SUPERSEDED — not current schema allocation:** the consolidated closure then assigned v28 Stage 7 and v29 Stage 8; the current allocation assigns v28–v30 Stage 6, v31 Stage 7 and v32 Stage 8.
+See [RC7 verification](phase4-stage5-rc7-verification.md) for exact compatibility, privacy, test and trust-chain contracts. **HISTORICAL / SUPERSEDED — not current schema allocation:** the consolidated closure then assigned v28 Stage 7 and v29 Stage 8; the current allocation assigns v28–v30 Stage 6, v31 Localization, v32 Execution Settlement Authority, v33 Stage 7 and v34 Stage 8.
 
 ### Stage 5 consolidated closure (schema v27)
 
@@ -2876,7 +2878,7 @@ The fixed Review B repair delta retains v27 and addresses legacy purge closure, 
 
 ### Historical v28/v29 locked-scope reservations — superseded
 
-**HISTORICAL / SUPERSEDED — not current schema allocation.** Every v28 Stage 7 and v29 Stage 8 allocation in this subsection records the 2026-09-25 plan, not implementation instructions. Current ownership is v28/v29/v30 Stage 6; v31 Stage 7; v32 Stage 8. The later-stage product and privacy requirements remain subject to their own authorization.
+**HISTORICAL / SUPERSEDED — not current schema allocation.** Every v28 Stage 7 and v29 Stage 8 allocation in this subsection records the 2026-09-25 plan, not implementation instructions. Current ownership is v28/v29/v30 Stage 6; v31 Localization; v32 Execution Settlement Authority; v33 Stage 7; v34 Stage 8. The later-stage product and privacy requirements remain subject to their own authorization.
 
 V21–v24 are completed Foundation versions and must not be reopened, renumbered, or silently extended. The locked requirements added on 2026-09-25 require reviewed forward migrations before implementation. Version ownership is dependency ordered and indivisible:
 
@@ -3281,7 +3283,7 @@ The following **13 currently implemented Foundation flags** are parsed and fail 
 
 Dependencies among the 13 implemented flags are enforced in current code. For example, outbound delivery requires schema writes, reanalysis, episodes, evidence, non-shadow decisions, authoritative PHASE4 tenant mode, passed conjunctive release-gate record, and explicit operation authorization. An invalid implemented-flag combination fails closed and emits configuration diagnostics. Pre-gate builds may write shadow proposals but have no configured provider adapter.
 
-The three future names are specification reservations, not evidence of mechanical runtime enforcement. **HISTORICAL / SUPERSEDED — not current schema allocation:** the reference to their v28/v29 stages below belonged to the old plan. Until their currently reserved v31/v32 stages implement both the controls and dependency checks, the associated entry points, stores, callbacks, owner capability, and delivery routes must be absent/unreachable. Absence means unavailable, never implicitly enabled.
+The three future names are specification reservations, not evidence of mechanical runtime enforcement. **HISTORICAL / SUPERSEDED — not current schema allocation:** the reference to their v28/v29 stages below belonged to the old plan. Until their currently reserved v33/v34 stages implement both the controls and dependency checks, the associated entry points, stores, callbacks, owner capability, and delivery routes must be absent/unreachable. Absence means unavailable, never implicitly enabled.
 
 Flags do not classify stored rows. Restart under a different flag set cannot publish SHADOW data: every reader/claim revalidates durable execution_mode and the entire same-mode ancestry. Enabling a future LIVE factory requires fresh authorized LIVE computation, not a SHADOW-to-LIVE UPDATE. During Foundation, **all 13 implemented flags remain off**, and the three future controls and their runtime paths remain unimplemented; internal tests invoke isolated stores/calculators with synthetic context, no scheduler or dispatcher registration.
 
@@ -3655,8 +3657,8 @@ flowchart TD
     F8 --> FG[One aggregate independent Foundation review]
     FG --> S5[Intelligence Stage 5 v25 history v26 evidence and v27 operation receipts]
     S5 --> S6[Stage 6 invalidation and reanalysis]
-    S6 --> S7[Historical Stage 7 v28 allocation SUPERSEDED by v31]
-    S7 --> S8[Historical Stage 8 v29 allocation SUPERSEDED by v32]
+    S6 --> S7[Historical Stage 7 v28 allocation SUPERSEDED by v33]
+    S7 --> S8[Historical Stage 8 v29 allocation SUPERSEDED by v34]
     S8 --> S9[Stage 9 shadow evaluation and freeze package]
 ~~~
 
@@ -3695,7 +3697,7 @@ The table below is the historical plan realized by the Foundation commits now on
 | 7 | Journal revisions, tri-state context, answer lineage, correction/deletion T0/T1/T2 and logging allowlists, using existing v24 invalidations/slot/outbox fences | Full matrix/group/range purge, accepted-answer replay, no deleted content/cross-tenant access, zero Phase 3 calls; no proactive question delivery |
 | 8 | Aggregate migration/privacy/tenant/mode/concurrency/crash-restart verification and Foundation review evidence | End-to-end synthetic v20→v24 rehearsal, every interruption point, all RC2 fixtures and prior regressions, flags off, no sends; submit **one** Foundation macro-stage for independent review |
 
-Commits 1–4 test persistence contracts but cannot run Foundation runtime behavior; commit 5 refuses admission if any v24 postcondition is absent. Later Intelligence and Delivery packs implement behavior against the complete installed schema, never finish a partially marked version. **HISTORICAL / SUPERSEDED — not current schema allocation or stage status:** the original locked-scope plan assigned v28 Stage 7 and v29 Stage 8, and described v28/v29 and Stages 6–8 as unimplemented. Subsequent rulings assigned v28–v30 to Stage 6, implemented SHADOW-only; v31 and v32 are reserved for Stages 7 and 8.
+Commits 1–4 test persistence contracts but cannot run Foundation runtime behavior; commit 5 refuses admission if any v24 postcondition is absent. Later Intelligence and Delivery packs implement behavior against the complete installed schema, never finish a partially marked version. **HISTORICAL / SUPERSEDED — not current schema allocation or stage status:** the original locked-scope plan assigned v28 Stage 7 and v29 Stage 8, and described v28/v29 and Stages 6–8 as unimplemented. Subsequent rulings assigned v28–v30 to Stage 6, implemented SHADOW-only; v33 and v34 are reserved for Stages 7 and 8.
 
 ### Stage 2: additive storage and tenant-scoped stores
 
@@ -3895,7 +3897,7 @@ Commits 1–4 test persistence contracts but cannot run Foundation runtime behav
 
 ### Stage 8: Morning Brief and Q&A
 
-**HISTORICAL / SUPERSEDED — not current schema allocation:** the v29 Stage 8 migration references in this stage plan are the original planning record. Stage 8 is reserved for v32; this section does not authorize implementation.
+**HISTORICAL / SUPERSEDED — not current schema allocation:** the v29 Stage 8 migration references in this stage plan are the original planning record. Stage 8 is reserved for v34; this section does not authorize implementation.
 
 **Status:** NOT STARTED.
 
@@ -3991,4 +3993,4 @@ Before any post-gate production activation, product, privacy, and statistical re
 
 ### Final architecture verdict
 
-**HISTORICAL / SUPERSEDED — not current stage status or schema allocation:** this original ADR exit statement placed Quick Actions Journal provenance in v28, Owner Monitoring persistence in v29, and Stage 6 reanalysis in future work. Stage 6 now owns v28–v30 and is implemented SHADOW-only under independent review; v31 and v32 are reserved for Stages 7 and 8. No production operation is authorized. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.
+**HISTORICAL / SUPERSEDED — not current stage status or schema allocation:** this original ADR exit statement placed Quick Actions Journal provenance in v28, Owner Monitoring persistence in v29, and Stage 6 reanalysis in future work. Stage 6 now owns v28–v30 and is implemented SHADOW-only under independent review; v33 and v34 are reserved for Stages 7 and 8. No production operation is authorized. Phase 3 analytics workers remain dormant unless a separate future decision explicitly activates them.

@@ -5,6 +5,7 @@ import {randomUUID} from 'node:crypto';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {createDb as privateDb} from '../src/db.js';import {createOwnedDb} from './stage5OwnedDb.js';import {hranaTransport} from './hranaTransport.js';
 import {createDb,fixtureKeys} from './localDb.js';
 import {runExecutionPhase} from '../src/phase4Execution.js';
 import {configurationProof} from '../src/phase4ExecutionStore.js';
@@ -20,8 +21,9 @@ const now=new Date('2026-10-07T00:00:00Z');
 const env={timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:1,telegramBotToken:'synthetic',telegramChatId:'synthetic',
  whoopClientId:'synthetic',whoopClientSecret:'synthetic',openrouterApiKey:'synthetic',openrouterModel:'synthetic'};
 for(const runtime of ['off','on'])test(`scheduled SYNC morning brief survives runtime ${runtime}/presentation OFF; retry/date dedupe; drain emits no ordinary brief`,async t=>{
- const dir=await mkdtemp(join(tmpdir(),'p4-morning-')),db=createDb({url:`file:${join(dir,'isolated.db')}`});
- t.after(async()=>{db.close();await rm(dir,{recursive:true,force:true});});await db.migrate();
+ const dir=await mkdtemp(join(tmpdir(),'p4-morning-')),url=`file:${join(dir,'isolated.db')}`,seed=createOwnedDb({url});
+ await seed.migrate({targetVersion:32});await seed.close();const transport=hranaTransport(url),db=privateDb({url:'https://isolated.invalid',fetch:transport.fetch,phase4Keys:fixtureKeys});
+ t.after(async()=>{db.close();transport.close();await rm(dir,{recursive:true,force:true});});
  await db.createUser({id:'legacy',displayName:'Lan',timezone:'Asia/Taipei',status:'ACTIVE'});
  await db.setLocale('legacy','vi');await db.linkTelegram({userId:'legacy',chatId:'1001'});
  await db.saveTokens('legacy',{accessToken:'synthetic',refreshToken:'synthetic',expiresAt:new Date(Date.now()+3600000),whoopUserId:'12345'});
@@ -44,6 +46,9 @@ for(const runtime of ['off','on'])test(`scheduled SYNC morning brief survives ru
  assert.deepEqual(await run(first),result);assert.equal(payloads.length,1);assert.equal(syncCalls,1);
  const second=await run(request());assert.equal(second.body.syncComplete,true);assert.equal(payloads.length,1,'a new SYNC retry cannot duplicate user/date report');
  assert.equal((await db.raw.execute("SELECT count(*) n FROM report_runs WHERE user_id='legacy' AND report_type='daily' AND status='SENT'")).rows[0].n,1);
+ const uncertain=request();transport.arm({onlyWorkResult:true,loseAcknowledgement:true});const ambiguous=await run(uncertain);
+ assert.equal(ambiguous.body.result.outcome,'COMMIT_INDETERMINATE');assert.equal(ambiguous.body.drainAuthorized,false);assert.equal(payloads.length,1);
+ const syncsBeforeReconcile=syncCalls,reconciled=await run(uncertain);assert.equal(reconciled.body.syncComplete,true);assert.equal(syncCalls,syncsBeforeReconcile);assert.equal(payloads.length,1,'indeterminate sync reconciliation cannot duplicate morning delivery');
  if(runtime==='on'){
   deps.runtime={phase4Stage6:{drain:async()=>{drains++;return {outcome:'NO_WORK',completion:'COMPLETE',jobsConsidered:0,itemsAttempted:0,processedItems:0,completedJobs:0,remainingJobs:0,stopReason:'QUEUE_COMPLETE'};}}};
   const beforeSync=syncCalls,drain=await run(request('STAGE6_DRAIN',{syncRequestId:first.requestId,handoff:result.body.handoff}));

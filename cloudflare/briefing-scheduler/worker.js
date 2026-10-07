@@ -39,6 +39,7 @@ export async function readResponseBody(response,{controller,maxBytes=MAX_RESPONS
 }
 export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay,timeoutMs=TIMEOUT_MS,
  drainTimeoutMs=DRAIN_TIMEOUT_MS,setTimer=setTimeout,clearTimer=clearTimeout,signal,signImpl=signRequest,deadlineAt=Infinity}={}) {
+ deadlineAt=Math.min(deadlineAt,now()+MAX_CONFIGURED_WINDOW_MS);
  const endpoint=new URL(env.BRIEFING_ENDPOINT_URL);
  if(endpoint.protocol!=='https:'||endpoint.pathname!==PATH||endpoint.search||endpoint.hash||/replace|placeholder/i.test(endpoint.hostname))throw error('configuration',true);
  if(!env.BRIEFING_TRIGGER_SECRET||new TextEncoder().encode(env.BRIEFING_TRIGGER_SECRET).length<32
@@ -75,11 +76,11 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
     if([401,403].includes(response.status))throw error('authentication',true);
     if(response.status===200&&!payload)throw error('invalid_response',true);
     if(response.status===200&&payload?.ok===true&&payload.phase===phaseName&&payload.source==='cloudflare'
-      &&(phaseName!=='SYNC'||payload.syncComplete===true)) {
+      &&payload.result?.settlementState==='FINALIZED_SUCCESS'&&(phaseName!=='SYNC'||payload.syncComplete===true)) {
       console.log(JSON.stringify({event:'briefing_phase_ok',phase:phaseName,attempt,status:response.status}));
       return {requestId,payload,status:response.status,attempt};
     }
-    if(response.status===207||payload?.syncComplete===false)throw error('sync_incomplete',true);
+    if(response.status===207||(payload?.syncComplete===false&&payload?.result?.outcome!=='COMMIT_INDETERMINATE'))throw error('sync_incomplete',true);
     last=error(isRedirect(response.status)?'redirect':response.status===401||response.status===403?'authentication':`http_${Math.floor(response.status/100)}xx`,
       !retryableStatus(response.status)&&!(response.status===409&&payload?.error==='REQUEST_PENDING'));
     throw last;

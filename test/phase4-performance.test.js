@@ -6,12 +6,15 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createOwnedDb} from './stage5OwnedDb.js';
+import {createDb} from '../src/db.js';
+import {hranaTransport} from './hranaTransport.js';
 import {fixtureKeys} from './localDb.js';
 import {runExecutionPhase,ADMISSION_BUDGET_MS,SYNC_SOURCE_BUDGETS,DRAIN_SOURCE_BUDGETS,PHASE_SETTLEMENT_MS} from '../src/phase4Execution.js';
 import {configurationProof} from '../src/phase4ExecutionStore.js';
 test('isolated empty-cohort SYNC/drain composition stays inside configured budgets with injected metadata latency',async t=>{
- const dir=await mkdtemp(join(tmpdir(),'p4-vietnam-performance-')),db=createOwnedDb({url:`file:${join(dir,'isolated.db')}`});
- t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});await db.migrate({targetVersion:31});
+ const dir=await mkdtemp(join(tmpdir(),'p4-vietnam-performance-')),seed=createOwnedDb({url:`file:${join(dir,'isolated.db')}`});
+ await seed.migrate({targetVersion:32});await seed.close();const transport=hranaTransport(`file:${join(dir,'isolated.db')}`),db=createDb({url:'https://isolated.invalid',fetch:transport.fetch,phase4Keys:fixtureKeys});
+ t.after(async()=>{await db.close();transport.close();await rm(dir,{recursive:true,force:true});});
  const execute=db.raw.execute,statements=[];let queries=0;
  db.raw.execute=async statement=>{queries++;statements.push(typeof statement==='string'?statement:statement.sql);await new Promise(resolve=>setTimeout(resolve,10));return execute(statement);};
  db.migrate=async()=>{throw new Error('HISTORICAL_RUNTIME_MIGRATION_FORBIDDEN');};
@@ -29,7 +32,7 @@ test('isolated empty-cohort SYNC/drain composition stays inside configured budge
  assert.ok(syncMs<ADMISSION_BUDGET_MS+SYNC_SOURCE_BUDGETS.cloudflare+PHASE_SETTLEMENT_MS);
  assert.ok(drainMs<ADMISSION_BUDGET_MS+DRAIN_SOURCE_BUDGETS.cloudflare+PHASE_SETTLEMENT_MS);
  assert.ok(statements.every(sql=>!/^\s*(CREATE|ALTER|DROP)\b/i.test(sql)),'actual sync, drain and nested factory paths replay no migration DDL');
- assert.equal(statements.filter(sql=>sql.includes('FROM sqlite_master')).length,1,'one admission for this reused live connection');
+ assert.equal(statements.filter(sql=>sql.includes('FROM sqlite_master')).length,2,'one fresh admission per phase; nested factories do not readmit');
  console.log(JSON.stringify({measurement:'phase_injected_10ms_empty_cohort',syncMs,drainMs,syncQueries,drainQueries:queries-syncQueries,
    admissionBudgetMs:ADMISSION_BUDGET_MS,syncBudgetMs:SYNC_SOURCE_BUDGETS.cloudflare,drainBudgetMs:DRAIN_SOURCE_BUDGETS.cloudflare,settlementMs:PHASE_SETTLEMENT_MS}));
 });

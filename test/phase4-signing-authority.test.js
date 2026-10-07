@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {invoke,MAX_RESPONSE_BYTES} from '../cloudflare/briefing-scheduler/worker.js';
 const env={BRIEFING_ENDPOINT_URL:'https://synthetic.invalid/internal/briefing/run',BRIEFING_TRIGGER_SECRET:'synthetic-secret-with-at-least-32-bytes',
  BRIEFING_EXECUTION_MODE:'OFF',BRIEFING_CONFIG_PROOF:'a'.repeat(64),BRIEFING_RELEASE_SHA:'b'.repeat(40)};
-const payload={ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false};const pause=ms=>new Promise(r=>setTimeout(r,ms));
+const payload={ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,drainAuthorized:false,result:{settlementState:'FINALIZED_SUCCESS'}};const pause=ms=>new Promise(r=>setTimeout(r,ms));
 for(const at of ['before','during','after'])test(`R2 signing: cancellation ${at} signing never starts fetch`,async()=>{
  const controller=new AbortController();let signs=0,fetches=0;if(at==='before')controller.abort();
  await assert.rejects(()=>invoke(env,{signal:controller.signal,signImpl:async()=>{signs++;if(at==='during')await pause(15);controller.abort();return 'unused';},

@@ -322,6 +322,10 @@ export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSI
     await requireZero(client, `SELECT 1 FROM user_locales WHERE locale NOT IN ('zh-TW','en','vi') LIMIT 1`,
       'v31_locale_value');
   }
+  if(version>=32&&options.backfillVersion!==32){
+    const checkpoint=(await client.execute("SELECT last_cursor,postcondition_state FROM phase4_migration_checkpoints WHERE target_version=32 AND step_key='execution_authority'")).rows[0];
+    if(checkpoint?.postcondition_state!=='COMPLETE'||checkpoint.last_cursor!=='phase4-execution-v1')throw new Phase4SchemaError('PHASE4_AUTHORITY_CHECKPOINT_INCOMPLETE','execution_authority');
+  }
   if (version >= 22) await verifyV22Data(client, { backfill: options.backfillVersion === 22 });
   if (version >= 23 && options.backfillVersion === 23) await requireZero(client, `SELECT 1 FROM health_insights
     WHERE legacy_classification IS NOT 'LEGACY_UNVERIFIED' OR insight_key IS NOT NULL OR current_revision IS NOT NULL
@@ -395,6 +399,9 @@ export async function applyPhase4Migrations(client, from, target, options = {}) 
       WHERE target_version=22 AND step_key='privacy_backfill'`);
     if (migration.version === 23) await client.execute(`UPDATE phase4_migration_checkpoints SET postcondition_state='COMPLETE'
       WHERE target_version=23 AND step_key='legacy_insights'`);
+    if(migration.version===32)await client.execute({sql:`INSERT INTO phase4_migration_checkpoints
+      (target_version,step_key,last_cursor,postcondition_state,updated_at) VALUES(32,'execution_authority','phase4-execution-v1','COMPLETE',?)
+      ON CONFLICT(target_version,step_key) DO UPDATE SET last_cursor=excluded.last_cursor,postcondition_state=excluded.postcondition_state,updated_at=excluded.updated_at`,args:[new Date().toISOString()]});
     await client.execute({
       sql: `INSERT INTO schema_version (version, applied_at, note) VALUES (?, ?, ?)
         ON CONFLICT(version) DO NOTHING`,

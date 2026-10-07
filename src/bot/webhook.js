@@ -53,6 +53,7 @@ import { createUpdateProcessor, UPDATE_OUTCOME, isAcknowledgeable } from './upda
 import { log, describeError } from '../logger.js';
 import { BRIEFING_TRIGGER } from '../briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../briefingEndpoint.js';
+import {executionProfile} from '../phase4Rollback.js';
 import { runExecutionPhase } from '../phase4Execution.js';
 import { publicBetaConfiguration, phase4AuthorityKeys } from '../publicBetaConfig.js';
 import { createWhoopWebhookIngest, statusForIngest } from '../whoopWebhookIngest.js';
@@ -411,6 +412,7 @@ export function createWebhookServer(opts) {
  */
 export async function main({ port = process.env.PORT, listen = true } = {}) {
   loadDotEnvIfPresent();
+  executionProfile(process.env);
   const env = loadEnv({
     require: [
       'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET',

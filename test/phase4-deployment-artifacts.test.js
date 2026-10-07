@@ -35,6 +35,9 @@ test('default-branch transition artifact pins source and supports all three gate
   assert.match(artifact, /ref: REVIEWED_RELEASE_SHA/);
   assert.equal((artifact.match(/ref: REVIEWED_RELEASE_SHA/g) ?? []).length, 2);
   assert.equal((artifact.match(/timeout-minutes: 10/g) ?? []).length, 2);
+  assert.equal((artifact.match(/PHASE4_RELEASE_SHA: REVIEWED_RELEASE_SHA/g)??[]).length,4);
+  assert.equal((artifact.match(/actual_sha=\$\(git rev-parse --verify 'HEAD\^\{commit\}'\)/g)??[]).length,2);
+  assert.equal((artifact.match(/test "\$actual_sha" = "\$PHASE4_RELEASE_SHA"/g)??[]).length,2);
   assert.match(artifact, /needs: sync/);
   assert.match(artifact, /needs.sync.result == 'success'/);
   assert.match(artifact, /sync_complete == 'true'/);

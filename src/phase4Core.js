@@ -15,7 +15,7 @@ import { V26_TABLES } from './phase4V26Schema.js';
 import { V25_TABLES } from './phase4V25Schema.js';
 import { V24_TABLES } from './phase4V24Schema.js';
 import { createPhase4ContextRegistry } from './phase4Cache.js';
-import { requireRuntimeAdmission, admitRuntime } from './runtimeAdmission.js';
+import { requireRuntimeAdmission, admitRuntime, followRuntimeRenewal } from './runtimeAdmission.js';
 
 export class Phase4InvariantError extends Error {
   constructor(code) { super(code); this.name='Phase4InvariantError'; this.code=code; }
@@ -49,6 +49,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   if(![27,28,29,30,31].includes(schemaVersion))fail('phase4_schema_version_mismatch');
   if (!admission && schemaVersion === 31) admission=await admitRuntime(client,keys);
   if (!admission) await assertPhase4Schema(client,schemaVersion);
+  if(admission)followRuntimeRenewal(client,admission,keys,transaction,next=>{admission=next;});
   const databases=(await client.execute('PRAGMA database_list')).rows;
   const isolatedMemory=client.protocol==='file'&&databases.length===1&&databases[0].name==='main'&&databases[0].file==='';
   function authorizeMode(mode,connection) {

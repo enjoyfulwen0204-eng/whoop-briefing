@@ -42,6 +42,9 @@ test('M003/N: equivalent normal-driver processes contend, replay one receipt and
   await Promise.all([holder.wait('ready'),contender.wait('ready')]);
   holder.child.send('go');await holder.wait('locked');contender.child.send('go');
   await contender.wait('busy');holder.child.send('continue');
+  const proofs=await Promise.all([holder.wait('retry-proof'),contender.wait('retry-proof')]);
+  assert.ok(proofs[1].reconnects>0);assert.ok(proofs[1].admissionReads>0);assert.equal(proofs[1].oldCapabilityRejected,true);
+  for(const proof of proofs)assert.equal(proof.ddlAfterReady,0,'contention recovery must not replay migration DDL');
   const results=await Promise.all([holder.wait('result'),contender.wait('result')]);assert.deepEqual(results[0],results[1]);
   for(const outcome of await Promise.all([holder.closed,contender.closed]))assert.deepEqual({code:outcome.code,signal:outcome.signal},{code:0,signal:null},outcome.output);
   const expected={evidence_runs:1,evidence_items:1,observation_episodes:1,phase4_episode_revisions:1,episode_events:1,insight_revisions:0,resource_locks:0};

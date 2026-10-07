@@ -1,3 +1,4 @@
+import { runningReleaseSha } from '../src/phase4Release.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -15,7 +16,7 @@ test('isolated empty-cohort SYNC/drain composition stays inside configured budge
  db.raw.execute=async statement=>{queries++;statements.push(typeof statement==='string'?statement:statement.sql);await new Promise(resolve=>setTimeout(resolve,10));return execute(statement);};
  db.migrate=async()=>{throw new Error('HISTORICAL_RUNTIME_MIGRATION_FORBIDDEN');};
  const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'},config={runtime:'on',mode:'off'};
- const request=(phase,extra={})=>({requestId:randomUUID(),phase,triggerSource:'cloudflare',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,config,environment),...extra});
+ const request=(phase,extra={})=>({releaseSha:runningReleaseSha(),requestId:randomUUID(),phase,triggerSource:'cloudflare',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,config,environment),...extra});
  const env={timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:1,telegramBotToken:'synthetic',telegramChatId:'synthetic'};
  const deps={guardian:async()=>null,drainWebhook:async()=>({})};
  const now=new Date('2026-10-07T01:00:00Z');

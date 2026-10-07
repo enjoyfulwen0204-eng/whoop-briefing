@@ -1,3 +1,4 @@
+import { runningReleaseSha } from '../src/phase4Release.js';
 import test from 'node:test';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
 import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {createDb,fixtureKeys} from './localDb.js';import {runExecutionPhase} from '../src/phase4Execution.js';
@@ -7,7 +8,7 @@ import {createBriefingEndpoint} from '../src/briefingEndpoint.js';import {signTr
 const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'};
 const env={timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:1,telegramBotToken:'SYNTHETIC',telegramChatId:'SYNTHETIC'};
 async function fixture(t){const dir=await mkdtemp(join(tmpdir(),'p4-split-')),db=createDb({url:`file:${join(dir,'isolated.db')}`});t.after(async()=>{db.close();await rm(dir,{recursive:true,force:true});});await db.migrate();return db;}
-const makeRequest=(phase='SYNC',source='manual',extra={})=>({requestId:randomUUID(),phase,triggerSource:source,executionMode:'SHADOW',
+const makeRequest=(phase='SYNC',source='manual',extra={})=>({releaseSha:runningReleaseSha(),requestId:randomUUID(),phase,triggerSource:source,executionMode:'SHADOW',
  configProof:configurationProof(fixtureKeys,{runtime:'on',mode:'off'},environment),...extra});
 const run=(db,request,deps={},extra={})=>runExecutionPhase({db,request,env,keys:fixtureKeys,environment,deps,...extra});
 const success=()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS',users:0,failed:0});
@@ -101,12 +102,12 @@ test('durable phase health distinguishes never entered, discovery only, bounded 
  const db=await fixture(t);const {recordPhaseEvent}=await import('../src/phase4ExecutionStore.js');
  assert.equal((await readPhaseProgress(db,'STAGE6_DRAIN','manual')).state,'NOT_ENTERED');
  const identity='b'.repeat(64);
- await recordPhaseEvent(db,{phase:'STAGE6_DRAIN',source:'manual',event:'start',outcome:'PENDING',identity,healthValue:999,userId:'private-name'});
+ await recordPhaseEvent(db,{phase:'STAGE6_DRAIN',releaseSha:runningReleaseSha(),source:'manual',event:'start',outcome:'PENDING',identity,healthValue:999,userId:'private-name'});
  assert.equal((await readPhaseProgress(db,'STAGE6_DRAIN','manual')).state,'STARTED');
- await recordPhaseEvent(db,{phase:'STAGE6_DRAIN',source:'manual',event:'discovery_complete',outcome:'PENDING',identity,jobsConsidered:0});
+ await recordPhaseEvent(db,{phase:'STAGE6_DRAIN',releaseSha:runningReleaseSha(),source:'manual',event:'discovery_complete',outcome:'PENDING',identity,jobsConsidered:0});
  assert.equal((await readPhaseProgress(db,'STAGE6_DRAIN','manual')).state,'DISCOVERY_ONLY');
  const rows=(await db.raw.execute("SELECT last_detail FROM system_heartbeats WHERE component LIKE 'phase4_stage6_drain:%'")).rows;
  assert.ok(rows.every(r=>!r.last_detail.includes('private-name')&&!r.last_detail.includes('healthValue')));
- await assert.rejects(()=>recordPhaseEvent(db,{phase:'STAGE6_DRAIN',source:'manual',event:'complete',outcome:'my health is private'}),/OUTCOME_INVALID/);
- await assert.rejects(()=>recordPhaseEvent(db,{phase:'STAGE6_DRAIN',source:'manual',event:'complete',outcome:'PARTIAL',itemsProcessed:0.5}),/COUNT_INVALID/);
+ await assert.rejects(()=>recordPhaseEvent(db,{phase:'STAGE6_DRAIN',releaseSha:runningReleaseSha(),source:'manual',event:'complete',outcome:'my health is private'}),/OUTCOME_INVALID/);
+ await assert.rejects(()=>recordPhaseEvent(db,{phase:'STAGE6_DRAIN',releaseSha:runningReleaseSha(),source:'manual',event:'complete',outcome:'PARTIAL',itemsProcessed:0.5}),/COUNT_INVALID/);
 });

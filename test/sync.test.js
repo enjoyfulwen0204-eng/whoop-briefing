@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createDb } from './localDb.js';
+import { createOwnedDb as createDb } from './stage5OwnedDb.js';
 import { createSync } from '../src/sync.js';
 import { WhoopApiError } from '../src/whoop.js';
 import { WHOOP_SYNC } from '../src/config.js';
@@ -175,7 +175,7 @@ const U = 'u-sync-test';
 async function setup({ data = makeApiData(), whoopOpts = {}, now = NOW } = {}) {
   const { url, cleanup } = tempDb();
   const db = createDb({ url });
-  await db.migrate();
+  await db.migrate({targetVersion:31});
   await db.createUser({ id: U, displayName: 'SyncTest', timezone: TZ });
   const whoop = fakeWhoop(data, whoopOpts);
   const sync = createSync({ db, whoop, userId: U, timezone: TZ, expectedLifecycleGeneration: LIFECYCLE_UNFENCED, now });
@@ -208,7 +208,7 @@ test('sync: 增量同步寫入資料，欄位對得上官方 schema', async () =
     assert.equal(Number(row.total_sleep_milli), 7 * 3_600_000);
     assert.ok(row.raw_json && JSON.parse(row.raw_json).id === 'sleep-0', 'raw_json 要保存');
     assert.ok(row.health_date && /^\d{4}-\d{2}-\d{2}$/.test(row.health_date));
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: workout 欄位完全依官方 v2 schema（含 zone_durations）', async () => {
@@ -226,7 +226,7 @@ test('sync: workout 欄位完全依官方 v2 schema（含 zone_durations）', as
     assert.equal(Number(w.zone_four_milli), 600_000);
     assert.equal(Number(w.zone_five_milli), 120_000);
     assert.ok(w.raw_json);
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: body measurement 是單一物件（不分頁），並保存歷史版本', async () => {
@@ -239,7 +239,7 @@ test('sync: body measurement 是單一物件（不分頁），並保存歷史版
     assert.equal(Number(bm.max_heart_rate), 190);
     const state = await db.getSyncState(U, 'body_measurement');
     assert.equal(state.backfillComplete, true, 'point-in-time 沒有 backfill 概念');
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: upsert 冪等 —— 同步兩次不會產生重複列', async () => {
@@ -250,7 +250,7 @@ test('sync: upsert 冪等 —— 同步兩次不會產生重複列', async () =>
     await sync.incremental('sleep');
     assert.equal(await count(db, 'whoop_sleeps'), first, '重跑不可以長出新列');
     assert.ok(first > 0);
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: 重新評分（PENDING_SCORE → SCORED）會覆蓋舊列', async () => {
@@ -275,7 +275,7 @@ test('sync: 重新評分（PENDING_SCORE → SCORED）會覆蓋舊列', async ()
     assert.equal(row.score_state, 'SCORED', '★ 重新評分必須覆蓋');
     assert.equal(Number(row.total_sleep_milli), 7 * 3_600_000);
     assert.equal(await count(db, 'whoop_sleeps'), 3, '仍然只有 3 列');
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: recovery 的 health_date 由對應的 sleep 補上（順序顛倒也能自癒）', async () => {
@@ -293,7 +293,7 @@ test('sync: recovery 的 health_date 由對應的 sleep 補上（順序顛倒也
     assert.ok(row.health_date, '★ sleep 進來之後必須自動補上 health_date');
     const s = (await db.raw.execute("SELECT * FROM whoop_sleeps WHERE id='sleep-0'")).rows[0];
     assert.equal(row.health_date, s.health_date, '必須與 sleep 完全一致');
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: backfill 分 chunk 推進，每個 chunk 都存檔（可 resume）', async () => {
@@ -315,7 +315,7 @@ test('sync: backfill 分 chunk 推進，每個 chunk 都存檔（可 resume）',
     const s2 = await db.getSyncState(U, 'sleep');
     assert.ok(Date.parse(s2.backfillCursor) < cursor1, '★ 必須從斷點繼續往回');
     assert.equal(r2.chunks, WHOOP_SYNC.MAX_CHUNKS_PER_RUN);
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: backfill 跑完整段歷史後標記 complete，之後不再重跑', async () => {
@@ -341,7 +341,7 @@ test('sync: backfill 跑完整段歷史後標記 complete，之後不再重跑',
 
     const again = await sync.backfill('sleep');
     assert.equal(again.status, 'already_complete', '跑完就不再重跑');
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: backfill 中途失敗 → cursor 停在最後一個成功的 chunk，可續傳', async () => {
@@ -349,7 +349,7 @@ test('sync: backfill 中途失敗 → cursor 停在最後一個成功的 chunk�
   const { url, cleanup } = tempDb();
   const db = createDb({ url });
   try {
-    await db.migrate();
+    await db.migrate({targetVersion:31});
     await db.createUser({ id: U, displayName: 'SyncTest', timezone: TZ });
     let failAfter = 2;
     const whoop = {
@@ -374,7 +374,7 @@ test('sync: backfill 中途失敗 → cursor 停在最後一個成功的 chunk�
       '正好停在第 2 個 chunk（第 3 個失敗）',
     );
     assert.equal(state.backfillComplete, false);
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: 增量同步的時間窗有刻意重疊（WHOOP 會事後改資料）', async () => {
@@ -385,7 +385,7 @@ test('sync: 增量同步的時間窗有刻意重疊（WHOOP 會事後改資料�
     const spanDays = (Date.parse(call.t) - Date.parse(call.f)) / DAY;
     assert.equal(spanDays, WHOOP_SYNC.INCREMENTAL_OVERLAP_DAYS);
     assert.ok(spanDays >= 3, '重疊至少要 3 天');
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: scope 不足（403）不算故障、不拋錯，且明確標記', async () => {
@@ -403,7 +403,7 @@ test('sync: scope 不足（403）不算故障、不拋錯，且明確標記', as
     // 其他 resource 完全不受影響
     assert.equal(results.find((r) => r.resource === 'sleep').status, 'ok');
     assert.ok(await count(db, 'whoop_sleeps') > 0);
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: 任何 resource 失敗都不會讓 syncAll 拋錯（簡報優先）', async () => {
@@ -416,7 +416,7 @@ test('sync: 任何 resource 失敗都不會讓 syncAll 拋錯（簡報優先）'
     assert.equal(results.find((r) => r.resource === 'sleep').status, 'ok');
     const state = await db.getSyncState(U, 'cycle');
     assert.equal(state.lastError, 'OPERATION_FAILED');
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: 節流 —— 剛同步過就不重複打 API，但 backfill 未完成時仍會繼續', async () => {
@@ -440,7 +440,7 @@ test('sync: 節流 —— 剛同步過就不重複打 API，但 backfill 未完�
     const results = await sync.syncAll({ force: false });
     assert.equal(whoop.calls.length, before, '★ 節流時完全不打 API');
     assert.ok(results.every((r) => r.status === 'throttled'));
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });
 
 test('sync: coverage() 回報實際涵蓋範圍', async () => {
@@ -453,5 +453,5 @@ test('sync: coverage() 回報實際涵蓋範圍', async () => {
     assert.ok(cov.first_date && cov.last_date);
     assert.ok(cov.first_date <= cov.last_date);
     assert.equal(Number(cov.unscored_sleeps), 0);
-  } finally { db.close(); cleanup(); }
+  } finally { await db.close(); cleanup(); }
 });

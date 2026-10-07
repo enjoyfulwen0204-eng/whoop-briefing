@@ -3,14 +3,14 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 // Retry admission and COMMIT, never an application callback. Admission reads
 // the winner's receipt under a fresh lock; a busy COMMIT keeps its existing
 // transaction. Cleanup transactions use the same finite contention bound.
-async function retryContention(call,{afterBusy}={}) {
-  const deadline=Date.now()+15000;
+async function retryContention(call,{afterBusy,deadlineAt=Date.now()+15000}={}) {
+  const deadline=deadlineAt;
   for(let attempt=0;;attempt++) {
     try {return await call();}
     catch(error) {
       const busy=[error,error.cause].some(value=>value&&/^(SQLITE_BUSY|SQLITE_LOCKED)(_|$)/.test(value.code??''));
       if(!busy||attempt>=64||Date.now()>=deadline)throw error;
-      if(afterBusy)await afterBusy();
+      if(afterBusy)await afterBusy(deadline);
       await new Promise(resolve=>setTimeout(resolve,Math.min(25*2**Math.min(attempt,4),250,deadline-Date.now())));
     }
   }
@@ -29,7 +29,13 @@ export function processingTransactions(base) {
   // provider work. Nested calls continue to share the active transaction.
   let rootTail=Promise.resolve();
   const executorOverrides=new Map();
-  const refreshIdleConnection=base.protocol==='file'&&typeof base.reconnect==='function'?()=>base.reconnect():undefined;
+  let reconnectAdmission;
+  const refreshIdleConnection=base.protocol==='file'&&typeof base.reconnect==='function'?async deadlineAt=>retryContention(async()=>{
+    await base.reconnect();
+    // The root queue is held and no transaction exists. Re-admission is a
+    // private read-only path on this idle connection, never a callback replay.
+    if(reconnectAdmission)await checking.run(true,()=>scope.run({idleAdmission:true},reconnectAdmission));
+  },{deadlineAt}):undefined;
   async function acquireRoot() {
     const prior=rootTail;let release;
     rootTail=new Promise(resolve=>{release=resolve;});await prior;return release;
@@ -41,6 +47,11 @@ export function processingTransactions(base) {
         const method = target[key].bind(target);
         return async (...args) => {
         const state = scope.getStore();
+        if(state?.idleAdmission){
+          const sql=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
+          if(!/^\s*(SELECT\b|PRAGMA\s+(foreign_keys|ignore_check_constraints)\b)/i.test(sql))throw Error('RUNTIME_READMISSION_READ_ONLY');
+          return method(...args);
+        }
         const guarded = fences().length > 0;
         if (guarded) {
           await checkFences();
@@ -87,7 +98,7 @@ export function processingTransactions(base) {
     throw error;
   }
 
-  async function transaction(fn, { before, after, beforeCommit,commitFence } = {}) {
+  async function transaction(fn, { before, after, beforeCommit,commitFence,commitAuthority } = {}) {
     const parent = scope.getStore();
     if (fences().length) await checkFences();
     if (parent) {
@@ -96,6 +107,7 @@ export function processingTransactions(base) {
         if (after) parent.checks.push(after);
         if (beforeCommit) parent.finalChecks.push(beforeCommit);
         if (commitFence) parent.commitFences.add(commitFence);
+        if (commitAuthority) parent.commitAuthorities.add(commitAuthority);
         return await fn();
       } catch (error) { parent.failure = error; throw error; }
     }
@@ -104,7 +116,7 @@ export function processingTransactions(base) {
       const releaseRoot=await acquireRoot();
       let tx;
       const state = { tx:null, cache, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
-        failure: null, deferred: null, committed: [], completed: [] };
+        commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),failure: null, deferred: null, committed: [], completed: [] };
       try {
         tx=await retryContention(()=>base.transaction('write'),{
           // A failed local BEGIN can retain an unfinished native statement.
@@ -126,6 +138,7 @@ export function processingTransactions(base) {
             for(const check of state.finalChecks)await check(client);
             for(const check of state.commitFences)await check(client);
             if(state.failure)throw state.failure;
+            for(const assert of state.commitAuthorities)assert();
             await tx.commit();
           });
           return result;
@@ -155,5 +168,5 @@ export function processingTransactions(base) {
     if(state){state.completed.push(fn);return;}
     return fn();
   }
-  return { client, transaction, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
+  return { client, transaction, setReconnectAdmission:fn=>{reconnectAdmission=fn;}, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
 }

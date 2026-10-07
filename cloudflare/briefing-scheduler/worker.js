@@ -23,42 +23,54 @@ async function raceAbort(work,signal) {
  try{const result=await Promise.race([work,aborted]);if(signal.aborted)throw error('timeout');return result;}
  finally{signal.removeEventListener('abort',onAbort);}
 }
-export async function readResponseBody(response,{controller,maxBytes=MAX_RESPONSE_BYTES}={}) {
+export async function readResponseBody(response,{controller,maxBytes=MAX_RESPONSE_BYTES,deadlineAt=Infinity,now=Date.now}={}) {
  if(!response.body?.getReader)throw error('invalid_response',true);
  const reader=response.body.getReader(),chunks=[];let size=0,done=false;
+ const assertTime=()=>{if(now()>=deadlineAt||controller.signal.aborted)throw error('timeout');};
  try{
-  while(true){const part=await raceAbort(reader.read(),controller.signal);if(part.done){done=true;break;}
+  while(true){assertTime();const part=await raceAbort(reader.read(),controller.signal);assertTime();if(part.done){done=true;break;}
    size+=part.value.byteLength;if(size>maxBytes){controller.abort();throw error('body_too_large',true);}chunks.push(part.value);}
   const bytes=new Uint8Array(size);let offset=0;for(const part of chunks){bytes.set(part,offset);offset+=part.byteLength;}
-  if(controller.signal.aborted)throw error('timeout');return new TextDecoder().decode(bytes);
+  assertTime();return new TextDecoder().decode(bytes);
  }finally{
   if(!done){controller.abort();try{void reader.cancel().catch(()=>{});}catch{}}
   try{reader.releaseLock();}catch{}
  }
 }
 export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay,timeoutMs=TIMEOUT_MS,
- drainTimeoutMs=DRAIN_TIMEOUT_MS,setTimer=setTimeout,clearTimer=clearTimeout,signal}={}) {
+ drainTimeoutMs=DRAIN_TIMEOUT_MS,setTimer=setTimeout,clearTimer=clearTimeout,signal,signImpl=signRequest,deadlineAt=Infinity}={}) {
  const endpoint=new URL(env.BRIEFING_ENDPOINT_URL);
  if(endpoint.protocol!=='https:'||endpoint.pathname!==PATH||endpoint.search||endpoint.hash||/replace|placeholder/i.test(endpoint.hostname))throw error('configuration',true);
  if(!env.BRIEFING_TRIGGER_SECRET||new TextEncoder().encode(env.BRIEFING_TRIGGER_SECRET).length<32
-   ||!['OFF','SHADOW'].includes(env.BRIEFING_EXECUTION_MODE)||!/^[a-f0-9]{64}$/.test(env.BRIEFING_CONFIG_PROOF))throw error('configuration',true);
+   ||!['OFF','SHADOW'].includes(env.BRIEFING_EXECUTION_MODE)||!/^[a-f0-9]{40}$/.test(env.BRIEFING_RELEASE_SHA??'')||!/^[a-f0-9]{64}$/.test(env.BRIEFING_CONFIG_PROOF))throw error('configuration',true);
+ deadlineAt=Math.min(deadlineAt,now()+MAX_CONFIGURED_WINDOW_MS);
+ const assertCaller=()=>{if(signal?.aborted)throw error('cancelled',true);if(now()>=deadlineAt)throw error('timeout',true);};
+ assertCaller();
  const root=crypto.randomUUID();
  async function phase(phaseName,handoff) {
   const requestId=`${root}_${phaseName.toLowerCase()}`;
-  const body=JSON.stringify({requestId,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
+  const body=JSON.stringify({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
    ...(handoff?{syncRequestId:handoff.requestId,handoff:handoff.token}:{})});
   let last;
   for(let attempt=1;attempt<=MAX_ATTEMPTS;attempt++) {
-   if(signal?.aborted)throw error('cancelled',true);
-   const timestamp=String(now()),signature=await signRequest({timestamp,requestId,method:'POST',path:PATH,body},env.BRIEFING_TRIGGER_SECRET);
+   assertCaller();
+   const timestamp=String(now());
    const controller=new AbortController(),onAbort=()=>controller.abort();signal?.addEventListener('abort',onAbort,{once:true});
-   const timer=setTimer(()=>controller.abort(),phaseName==='SYNC'?timeoutMs:drainTimeoutMs);
+   if(signal?.aborted)controller.abort();
+   const attemptDeadline=Math.min(deadlineAt,now()+(phaseName==='SYNC'?timeoutMs:drainTimeoutMs));
+   const assertAttempt=()=>{assertCaller();if(controller.signal.aborted||now()>=attemptDeadline)throw error('timeout');};
+   const timer=setTimer(()=>controller.abort(),attemptDeadline-now());
+   let response;
    try{
+    assertCaller();
+    const signature=await raceAbort(signImpl({timestamp,requestId,method:'POST',path:PATH,body},env.BRIEFING_TRIGGER_SECRET),controller.signal);
+    assertAttempt();
     const pendingResponse=Promise.resolve(fetchImpl(endpoint.toString(),{method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
      headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}}))
       .then(value=>{if(controller.signal.aborted){try{void value.body?.cancel().catch(()=>{});}catch{}}return value;});
-    const response=await raceAbort(pendingResponse,controller.signal);
-    const text=await readResponseBody(response,{controller});let payload;try{payload=JSON.parse(text);}catch{payload=null;}
+    response=await raceAbort(pendingResponse,controller.signal);
+    assertAttempt();
+    const text=await readResponseBody(response,{controller,deadlineAt:attemptDeadline,now});assertAttempt();let payload;try{payload=JSON.parse(text);}catch{payload=null;}
     if(isRedirect(response.status))throw error('redirect',true);
     if([401,403].includes(response.status))throw error('authentication',true);
     if(response.status===200&&!payload)throw error('invalid_response',true);
@@ -71,8 +83,8 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
     last=error(isRedirect(response.status)?'redirect':response.status===401||response.status===403?'authentication':`http_${Math.floor(response.status/100)}xx`,
       !retryableStatus(response.status)&&!(response.status===409&&payload?.error==='REQUEST_PENDING'));
     throw last;
-   }catch(e){if(signal?.aborted)throw error('cancelled',true);last=e;if(e?.name==='TypeError'&&/redirect/i.test(e.message))last=error('redirect',true);if(!last.category)last=error(controller.signal.aborted?'timeout':'transport');if(last.nonRetryable||attempt===MAX_ATTEMPTS)throw last;}
-   finally{controller.abort();clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
+   }catch(e){if(now()>=deadlineAt)throw error('timeout',true);if(signal?.aborted)throw error('cancelled',true);last=e;if(e?.name==='TypeError'&&/redirect/i.test(e.message))last=error('redirect',true);if(!last.category)last=error(controller.signal.aborted?'timeout':'transport');if(last.nonRetryable||attempt===MAX_ATTEMPTS)throw last;}
+   finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
    await sleep(attempt*500);
   }
   throw last;

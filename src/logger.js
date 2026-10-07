@@ -62,6 +62,7 @@ export function operationalLogFields(fields={}) {
   for(const [key,value] of Object.entries(fields)) {
     if(OPAQUE_FIELDS.has(key) && (typeof value==='number' && Number.isSafeInteger(value)
       || typeof value==='string' && /^[A-Za-z0-9:._@#-]{1,256}$/.test(value)))result[key]=redact(value);
+    else if(key==='release_sha'&&typeof value==='string'&&/^[a-f0-9]{40}$/.test(value))result[key]=value;
     else if(COUNT_FIELDS.has(key) && typeof value==='number' && Number.isFinite(value))result[key]=value;
     else if(ENUM_FIELDS.has(key) && SAFE_ENUMS.has(value))result[key]=value;
     else if(['table','column'].includes(key) && typeof value==='string' && /^[a-z_]{1,64}$/.test(value))result[key]=value;

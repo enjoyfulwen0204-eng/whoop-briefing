@@ -1,3 +1,4 @@
+import { runningReleaseSha } from '../src/phase4Release.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
@@ -17,7 +18,7 @@ function child(f,phase,event,extra={}){
   TURSO_DATABASE_URL:f.url,TURSO_AUTH_TOKEN:'synthetic',DRY_RUN:'1',TIMEZONE:'Asia/Taipei',
   PHASE4_LOOKUP_KEY:Buffer.alloc(32,71).toString('hex'),PHASE4_AUDIT_KEY:Buffer.alloc(32,83).toString('hex'),
   PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off',PHASE4_EXECUTION_PHASE:phase,
-  GITHUB_ACTIONS:'true',GITHUB_EVENT_NAME:event,GITHUB_RUN_ID:'123456789012345',GITHUB_RUN_ATTEMPT:'1',
+  PHASE4_RELEASE_SHA:runningReleaseSha(),GITHUB_ACTIONS:'true',GITHUB_EVENT_NAME:event,GITHUB_RUN_ID:'123456789012345',GITHUB_RUN_ATTEMPT:'1',
   GITHUB_OUTPUT:join(f.dir,'job-output'),...extra};
  const args=[...(extra.PRELOAD?['--import',extra.PRELOAD]:[]),entry];delete env.PRELOAD;
  const result=spawnSync(process.execPath,args,{cwd:f.dir,env,encoding:'utf8',timeout:30_000});

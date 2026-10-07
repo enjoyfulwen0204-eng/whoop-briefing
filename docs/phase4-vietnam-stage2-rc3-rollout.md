@@ -10,59 +10,70 @@ Taiwan candidate is not an authority. The reconstruction baseline is RC2
 ## Coordinated release order
 
 1. Keep production automation paused. Read back Render auto-deploy OFF, the
-   manually disabled GitHub workflow with zero queued/in-progress jobs, and zero
-   Cloudflare cron triggers. Preserve original lookup/audit keys and user data.
-2. After independent review approves an exact commit, publish that approved
-   commit and proposed tag `v1.2-phase4-public-beta-rc3`. Never retarget RC1/RC2.
-3. Deploy the phase-aware RC3 Render server with Beta OFF/OFF. The runtime admits
-   v31 read-only; deployment does not implicitly run a migration.
-4. Verify the exact approved SHA, live health and v31 connectivity before changing
-   scheduler clients. Verify ingress and maintenance against the reviewed plan.
-5. While GitHub remains disabled, install `docs/phase4-main-workflow.yml` with BOTH
-   checkout refs replaced by the SAME approved immutable RC3 SHA. Retain Node 22,
-   npm ci, concurrency and separate 10-minute job guards. Read back both refs,
-   disabled status and zero queued/in-progress jobs.
-6. Only after the compatible server is live, update the phase-aware Worker. Keep
-   `crons = []`. Set the reviewed execution mode and configuration proof for the
-   exact server configuration; retain the existing independent HMAC trigger secret.
-   The checked-in configuration proof is deliberately a non-runnable placeholder.
-7. Read back the exact active Worker version, endpoint, phase/config values, zero
-   triggers and both GitHub pins. A new Worker cannot call an old RC2 server.
-8. Perform separately approved, controlled OFF/OFF validation. SYNC preserves
-   eligible ordinary morning briefs. OFF/OFF does not authorize SHADOW drain.
-9. Perform separately approved SHADOW ON/presentation OFF validation. A COMPLETE,
-   NO_NEW_DATA or intentionally inapplicable SYNC issues the durable handoff;
-   STAGE6_DRAIN makes bounded progress without repeating WHOOP or ordinary reports.
-   PARTIAL/failed/cancelled/timed-out SYNC cannot authorize drain. Beta sends none.
-10. Only after those gates pass, separately approve and restore the morning cron
-    `*/10 0-3 * * *` (08:00–11:50 Taipei). Read back triggers and phase outcomes.
-11. Review three locale choices and the three-person allowlist, then run separately
-    approved zh-TW/en/vi pre-transport/current-state/recipient smoke checks before
-    presentation activation. Missing names stay neutral; no Kelvin fallback.
+   manually disabled GitHub workflow with zero queued/in-progress jobs and zero
+   Cloudflare cron triggers. Preserve the original keys and user data.
+2. After the SAME independent review accepts all six Round 2 fixes, publish the
+   APPROVED final commit/tag `v1.2-phase4-public-beta-rc3`. Never retarget RC1/RC2.
+3. Deploy that exact phase-aware server OFF/OFF. Keep `.git` checkout identity
+   available: runtime independently reads `HEAD^{commit}` and rejects unverifiable
+   identity; an environment string cannot substitute for actual HEAD.
+4. Verify the exact live server SHA and health/v31 connectivity.
+5. While GitHub is disabled, install the split workflow artifact with BOTH refs,
+   both identity-verification pins and both `PHASE4_RELEASE_SHA` values equal to
+   the SAME approved exact SHA. Each job verifies actual checkout HEAD before
+   installation; the runtime verifies it again. Retain Node 22, npm ci, concurrency
+   and separate ten-minute guards.
+6. Read back both pins and checkout checks, disabled status and zero active jobs.
+7. Deploy the compatible phase-aware Worker only after the server is compatible.
+   Keep `crons=[]`; bind `BRIEFING_RELEASE_SHA`, mode and release-bound config
+   proof to that exact server SHA. Retain the independent HMAC secret.
+8. Read back the exact Worker version/config, compatible server identity and
+   GitHub pins. Different commits cannot share handoffs even with identical trees.
+9. Perform separately approved controlled OFF/OFF validation; eligible ordinary
+   morning briefs remain reachable and SHADOW drain is disabled.
+10. Perform separately approved SHADOW ON/presentation OFF validation. Only a
+    complete typed SYNC settled under its original authority can authorize drain.
+11. Prove separate Stage 6 discovery, bounded progress and truthful settled
+    heartbeat. PARTIAL/failed/cancelled/timed-out sync cannot authorize drain.
+12. Only after those gates pass, separately approve restoring the reviewed morning
+    cron `*/10 0-3 * * *` (08:00–11:50 Taipei). Read back actual triggers/outcomes.
+13. Locale choices, three-person allowlist and zh-TW/en/vi smoke remain later gates.
+    Missing names remain neutral; no Kelvin fallback.
 
 ## Runtime and transport bounds
 
-| Source | Admission/claim | Overall SYNC | Drain wall / work stop | Overall drain | Outcome settlement |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Cloudflare | 30 s | 120 s | 45 / 30 s | 45 s | 15 s |
-| GitHub scheduled | 30 s | 180 s | 90 / 75 s | 90 s | 15 s |
-| workflow_dispatch / manual | 30 s | 180 s | 45 / 30 s | 45 s | 15 s |
-| event | 30 s | 120 s | 25 / 10 s | 25 s | 15 s |
+| Source | Admission/claim sub-budget | Work sub-budget SYNC / drain | Settlement sub-budget | Authoritative whole phase SYNC / drain |
+| --- | ---: | ---: | ---: | ---: |
+| Cloudflare | 30 s | 120 / 45 s | 15 s | 165 / 90 s |
+| GitHub scheduled | 30 s | 180 / 90 s | 15 s | 225 / 135 s |
+| workflow_dispatch / manual | 30 s | 180 / 45 s | 15 s | 225 / 90 s |
+| event | 30 s | 120 / 25 s | 15 s | 165 / 70 s |
 
-Stage 6 retains the approved per-source job/item/tenant/lease policy in
-`src/phase4DrainPolicy.js`. Each GitHub job retains `timeout-minutes: 10`; full
-backlog completion is never a dependency. GitHub drain requires job success AND
-explicit `sync_complete=true` AND `drain_authorized=true`, then verifies the stored
-handoff again against source, mode, configuration proof and the distinct request.
+One authoritative phase clock starts at invocation entry and includes identity
+verification, admission, work and successful settlement. Sub-clocks are constrained
+by it. The original work clock and original AbortSignal also remain valid through
+success settlement, heartbeat/HMAC generation, outermost COMMIT and response
+serialization. Settlement's 15 seconds is a cap, never a fresh success authority.
+A cleanup clock can record only failure/aborted evidence, with owner CAS and within
+remaining overall time. It cannot create a handoff or successful completion.
 
-The Worker has two attempts per phase, a 180 s SYNC transport budget and a 100 s
-STAGE6_DRAIN transport budget, including headers, streamed response and cleanup.
-Responses are capped at 16 KiB before materialization. Server maxima are 165 s for
-Cloudflare SYNC and 90 s for drain, leaving 15 s and 10 s transport margin.
-Worst-case sequential transport/backoff is `2*(180+100)+0.5+0.5 = 561 s`, leaving
-39 s in a 10-minute cadence. No provider maximum wall limit is used as the fence.
-An HTTP client timeout does not mean Render or WHOOP terminated: the server's own
-budget, connection-bound admission and durable owner/commit fences are separate.
+Stage 6's approved worker wall/work-stop budgets remain 45/30 s Cloudflare/manual,
+90/75 s GitHub and 25/10 s event. Job/item/tenant/lease limits remain unchanged.
+Full backlog completion is never an invocation dependency. GitHub drain requires
+job success and explicit `sync_complete=true`/`drain_authorized=true`, then checks
+stored source, mode, cohort/config proof, exact release and distinct request.
+
+Worker attempt timeout: 180 s SYNC, 100 s drain, now including async WebCrypto
+signing, connection/headers, streamed body and cleanup. Each attempt and the whole
+invocation also check absolute time; cancellation during uninterruptible signing
+is gated before fetch. Two attempts per phase plus two 500 ms backoffs total at
+most **561 s**. The Worker whole invocation cap is 561 s, inside the future
+600 s cadence with 39 s margin; no provider maximum wall limit is used as authority.
+Cloudflare server maxima 165/90 s leave 15/10 s transport margins. Each GitHub job
+has a separate 600 s guard including checkout/install/CLI; it is not the server
+work clock. Response cap stays 16 KiB. No timeouts were increased to hide a defect.
+Client timeout never proves Render/WHOOP termination; server authority and durable
+ownership/commit fences remain separate. Production timing is NOT_MEASURED.
 
 ## v31 operational storage contract
 
@@ -78,9 +89,9 @@ no tenant or health history. Only the explicit operator migration path can repai
 schema or establish missing migration authority.
 
 An admission capability is privately branded and bound to the exact executor,
-transaction kernel, original keys and live connection epoch. Copied/serialized
+transaction kernel, original keys and private, non-revivable connection lifetime. Copied/serialized
 objects, different connections, closed clients and reconnects fail. A reopened
-connection must be admitted again. Runners verify the private issuer record;
+connection must be admitted again. Retained underlying/prototype close methods and public closed-flag mutation cannot revive an old capability. Idle contention reconnect performs a complete fresh read-only admission and replaces server factory capabilities; it never revives the old object or replays migrations. Runners verify the private issuer record;
 caller-created facade methods cannot authorize a forged capability.
 
 No table or schema version is added. `resource_locks` supplies atomic claims,
@@ -93,7 +104,7 @@ accepts tenant IDs, cohort IDs, names, health values, provider payloads or narra
 These records are operational metadata; they do not infer tenant/source linkage.
 
 A handoff is an HMAC over the complete admitted SYNC request identity, source,
-mode, configuration proof and settlement time, and expires after 15 minutes.
+mode, release-bound configuration proof, exact actual checkout release SHA and settlement time, and expires after 15 minutes.
 Same authenticated ID/body retries return their original result. A conflicting
 phase/body is rejected even while pending; a cached SYNC cannot stand for drain.
 Request IDs remain reserved rather than pruned into a conflicting reusable ID.
@@ -109,7 +120,7 @@ a lease bounded by remaining server budget plus 15 seconds (at most 195 seconds)
 Every durable write and each transaction COMMIT rechecks budget and owner. A
 takeover replaces the owner; a stale owner cannot overwrite newer state or release
 the successor's lease. No transaction spans WHOOP HTTP waits. Request leases and
-outcome settlement also use owner-checked atomic transactions. Uncancelable remote
+outcome settlement also use owner-checked atomic transactions under the original authority, including nested outermost COMMIT. Uncancelable remote
 operations can finish after abort, but their late continuations retain their old
 budget and ownership fences. Client timeout never proves provider termination.
 

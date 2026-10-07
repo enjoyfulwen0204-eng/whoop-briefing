@@ -8,28 +8,49 @@ import { log } from './logger.js';
 const connections = new WeakMap(), capabilities = new WeakMap();
 const fail = (code, object) => { throw new Phase4SchemaError(code, object); };
 
-// Registers the executor alias, while lifetime belongs to the actual client.
-// close() on either alias reaches the same wrapped method. Reconnect invalidates
-// the epoch even if the driver reuses its JavaScript client object.
+// Observe supported driver methods before composeDb callers can retain bound
+// underlying methods. Revocation belongs to a private, non-revivable lifetime.
+import { Sqlite3Client } from '@libsql/client/sqlite3';
+import { HttpClient } from '@libsql/client/http';
+import { WsClient } from '@libsql/client/ws';
+function lifetimeMethod(original, method) {
+  return function(...args) {
+    const state=connections.get(this);
+    if(state){state.lifetime.revoked=true;state.closed=true;if(method==='close')state.renewals.clear();}
+    const complete=value=>{if(state&&method==='reconnect'){state.lifetime={revoked:false};state.closed=false;}return value;};
+    const result=original.apply(this,args);
+    return result?.then?result.then(complete):complete(result);
+  };
+}
+for(const Driver of [Sqlite3Client,HttpClient,WsClient])for(const method of ['close','reconnect']) {
+  const original=Driver.prototype[method];
+  if(typeof original==='function')Object.defineProperty(Driver.prototype,method,{value:lifetimeMethod(original,method),writable:false,configurable:false});
+}
 export function bindConnectionLifetime(base, executor, transaction) {
-  let state = connections.get(base);
-  if (!state) {
-    state = { epoch: 0, closed: Boolean(base.closed) };
-    connections.set(base, state);
-    for (const method of ['close', 'reconnect']) if (typeof base[method] === 'function') {
-      const original = base[method].bind(base);
-      base[method] = (...args) => {
-        state.epoch++;
-        state.closed = method === 'close';
-        return original(...args);
-      };
-    }
+  let state=connections.get(base);
+  if(!state){
+    state={lifetime:{revoked:false},closed:Boolean(base.closed),renewals:new Set()};connections.set(base,state);
+    for(const method of ['close','reconnect'])if(typeof base[method]==='function')
+      Object.defineProperty(base,method,{value:lifetimeMethod(base[method],method),writable:true,configurable:true});
   }
-  connections.set(executor, state);
-  if (transaction) {
-    if (state.transaction && state.transaction !== transaction) state.epoch++;
-    state.transaction = transaction;
-  }
+  connections.set(executor,state);
+  if(transaction){if(state.transaction&&state.transaction!==transaction){state.lifetime.revoked=true;state.lifetime={revoked:false};}state.transaction=transaction;}
+}
+// Only already-authorized server factories can follow the kernel's explicit
+// read-only re-admission after idle contention reconnect. Old capabilities are
+// still permanently rejected by requireRuntimeAdmission.
+export function followRuntimeRenewal(client,capability,keys,transaction,replace) {
+  requireRuntimeAdmission(client,capability,keys,transaction);
+  const listeners=connections.get(client).renewals,listener={keys,transaction,replace};
+  listeners.add(listener);return ()=>listeners.delete(listener);
+}
+export async function renewRuntimeAfterContention(client,keys,transaction) {
+  if(!connections.get(client)?.admitted)return undefined; // Historical v27-30 factories retain their explicit assertion contract.
+  const next=await admitRuntime(client,keys);
+  requireRuntimeAdmission(client,next,keys,transaction);
+  for(const listener of connections.get(client).renewals)
+    if(listener.keys===keys&&listener.transaction===transaction)listener.replace(next);
+  return next;
 }
 
 // Separate top-level table elements; quoted strings and nested CHECK/FK clauses
@@ -110,8 +131,9 @@ function tableMatches(actual, expected) {
 
 export function requireRuntimeAdmission(client, capability, keys, transaction) {
   const issued = capabilities.get(capability), state = connections.get(client);
+  if(state&&client.closed){state.lifetime.revoked=true;state.closed=true;}
   if (!issued || issued.client !== client || !state || state.closed || client.closed
-      || issued.epoch !== state.epoch || issued.keys !== keys || (transaction && state.transaction !== transaction))
+      || issued.lifetime.revoked || issued.lifetime !== state.lifetime || issued.keys !== keys || (transaction && state.transaction !== transaction))
     fail('PHASE4_RUNTIME_ADMISSION_REQUIRED');
   return SCHEMA_VERSION;
 }
@@ -138,7 +160,7 @@ async function admitChecked(client, keys) {
   requirePhase4Keys(keys);
   const state = connections.get(client);
   if (!state || state.closed || client.closed) fail('PHASE4_RUNTIME_CONNECTION_REQUIRED');
-  const epoch = state.epoch;
+  const lifetime = state.lifetime;
   const metadata = await client.execute("SELECT type,name,sql FROM sqlite_master WHERE type IN ('table','index','trigger')");
   const actual = new Map(metadata.rows.map(r => [r.name, r]));
   for (const expected of contract.objects.values()) {
@@ -164,7 +186,8 @@ async function admitChecked(client, keys) {
   if (Number(foreignKeys?.foreign_keys) !== 1) fail('PHASE4_FOREIGN_KEYS_DISABLED');
   const checkConstraints = (await client.execute('PRAGMA ignore_check_constraints')).rows[0];
   if (Number(checkConstraints?.ignore_check_constraints) !== 0) fail('PHASE4_CHECK_CONSTRAINTS_DISABLED');
-  if (epoch !== state.epoch || state.closed) fail('PHASE4_RUNTIME_CONNECTION_CHANGED');
-  const capability = Object.freeze({}); capabilities.set(capability, { client, epoch, keys });
+  if (lifetime.revoked || lifetime !== state.lifetime || state.closed) fail('PHASE4_RUNTIME_CONNECTION_CHANGED');
+  state.admitted=true;
+  const capability = Object.freeze({}); capabilities.set(capability, { client, lifetime, keys });
   return capability;
 }

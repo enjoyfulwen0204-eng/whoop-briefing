@@ -5,6 +5,7 @@
 import { randomUUID } from 'node:crypto';
 import { BRIEFING_TRIGGER, bodySha256 } from './briefingTriggerAuth.js';
 import { requireTriggerSource } from './phase4DrainPolicy.js';
+import { requireReleaseSha, runningReleaseSha } from './phase4Release.js';
 import { syncAuthorizesDrain } from './syncResult.js';
 export const PHASES=Object.freeze(['SYNC','STAGE6_DRAIN']);
 export const HANDOFF_TTL_MS=15*60_000;
@@ -15,21 +16,21 @@ const HASH=/^[a-f0-9]{64}$/;
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 export function requirePhase(phase) {if(!PHASES.includes(phase))fail('EXECUTION_PHASE_INVALID');return phase;}
 export function validatePhaseRequest(request) {
- requirePhase(request?.phase);requireTriggerSource(request.triggerSource);
+ requirePhase(request?.phase);requireTriggerSource(request.triggerSource);requireReleaseSha(request.releaseSha);
  if(!BRIEFING_TRIGGER.REQUEST_ID_RE.test(request.requestId)||!['OFF','SHADOW'].includes(request.executionMode)
    ||!HASH.test(request.configProof))fail('EXECUTION_REQUEST_INVALID');
- const allowed=['phase','triggerSource','requestId','executionMode','configProof','syncRequestId','handoff'];
+ const allowed=['phase','releaseSha','triggerSource','requestId','executionMode','configProof','syncRequestId','handoff'];
  if(Object.keys(request).some(k=>!allowed.includes(k)))fail('EXECUTION_REQUEST_INVALID');
  if(request.phase==='SYNC'&&(request.syncRequestId!==undefined||request.handoff!==undefined))fail('EXECUTION_REQUEST_INVALID');
  if(request.phase==='STAGE6_DRAIN'&&(!BRIEFING_TRIGGER.REQUEST_ID_RE.test(request.syncRequestId)||!HASH.test(request.handoff)
    ||request.requestId===request.syncRequestId))fail('SYNC_HANDOFF_REQUIRED');
  return request;
 }
-export const configurationProof=(keys,config,environment)=>keys.lookup(['phase4-configuration-v1',config.runtime,config.mode,
+export const configurationProof=(keys,config,environment,releaseSha=runningReleaseSha(environment))=>keys.lookup(['phase4-configuration-v2',requireReleaseSha(releaseSha),config.runtime,config.mode,
  (environment.PHASE4_PUBLIC_BETA_USER_IDS??'').split(',').filter(Boolean).map(x=>x.trim()).sort()]);
 export const requestIdentity=body=>bodySha256(body);
 function safeRecord(record) {
- const out={version:1,phase:requirePhase(record.phase),source:requireTriggerSource(record.source),outcome:record.outcome};
+ const out={version:2,releaseSha:requireReleaseSha(record.releaseSha),phase:requirePhase(record.phase),source:requireTriggerSource(record.source),outcome:record.outcome};
  if(!OUTCOMES.has(out.outcome))fail('EXECUTION_OUTCOME_INVALID');
  for(const key of COUNTS)if(record[key]!==undefined&&record[key]!==null) {
    if(!Number.isFinite(record[key])||record[key]<0||(key!=='durationMs'&&!Number.isSafeInteger(record[key])))fail('EXECUTION_COUNT_INVALID');out[key]=record[key];
@@ -77,40 +78,51 @@ export async function claimPhaseRequest(db,request,body,{leaseMs=225_000}={}) {
  return db.transaction(async()=>{
    let previous=await read(db,component(request.requestId));
    if(previous&&(previous.identity!==identity||previous.phase!==request.phase||previous.source!==request.triggerSource
-     ||previous.configProof!==request.configProof||previous.executionMode!==request.executionMode))fail('REQUEST_ID_CONFLICT');
+     ||previous.releaseSha!==request.releaseSha||previous.configProof!==request.configProof||previous.executionMode!==request.executionMode))fail('REQUEST_ID_CONFLICT');
    if(previous&&previous.outcome!=='PENDING')return {cached:previous};
    const changed=await db.raw.execute({sql:`INSERT INTO resource_locks(name,owner,acquired_at,expires_at) VALUES(?,?,?,?)
     ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,acquired_at=excluded.acquired_at,expires_at=excluded.expires_at
     WHERE resource_locks.expires_at<=excluded.acquired_at`,args:[name,owner,new Date(at).toISOString(),expiresAt]});
    if(changed.rowsAffected!==1)fail('REQUEST_PENDING');
-   await write(db,component(request.requestId),{phase:request.phase,source:request.triggerSource,outcome:'PENDING',identity,
+   await write(db,component(request.requestId),{phase:request.phase,releaseSha:request.releaseSha,source:request.triggerSource,outcome:'PENDING',identity,
      configProof:request.configProof,executionMode:request.executionMode},{startedAt:at});
    return {name,owner,expiresAt,identity,startedAt:at};
  });
 }
-export async function settlePhaseRequest(db,request,claim,result,keys) {
+export async function settlePhaseRequest(db,request,claim,result,keys,authority) {
  if(claim.cached)fail('EXECUTION_CLAIM_REQUIRED');
+ if(typeof authority?.assert!=='function')fail('EXECUTION_AUTHORITY_REQUIRED');
+ let ownedUntil;
+ const assertOwnerTime=()=>{authority.assert();if(!Number.isFinite(ownedUntil)||Date.now()>=ownedUntil)fail('REQUEST_OWNER_FENCED');};
+ authority.assert();
  return db.transaction(async()=>{
-   const owned=(await db.raw.execute({sql:'SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at>?',
-     args:[claim.name,claim.owner,new Date().toISOString()]})).rows.length;
-   if(!owned)fail('REQUEST_OWNER_FENCED');
-   const finishedAt=Date.now(),record={phase:request.phase,source:request.triggerSource,identity:claim.identity,
+   const lease=(await db.raw.execute({sql:'SELECT expires_at FROM resource_locks WHERE name=? AND owner=? AND expires_at>?',
+     args:[claim.name,claim.owner,new Date().toISOString()]})).rows[0];
+   ownedUntil=Date.parse(lease?.expires_at);assertOwnerTime();
+   authority.assert();
+   const finishedAt=Date.now(),record={phase:request.phase,releaseSha:request.releaseSha,source:request.triggerSource,identity:claim.identity,
      configProof:request.configProof,executionMode:request.executionMode,finishedAt,...result};
-   if(request.phase==='SYNC'&&syncAuthorizesDrain(record))record.handoff=keys.lookup(['phase4-sync-handoff-v1',request.requestId,
+   if(request.phase==='SYNC'&&syncAuthorizesDrain(record))record.handoff=keys.lookup(['phase4-sync-handoff-v2',request.releaseSha,request.requestId,
      claim.identity,request.executionMode,request.triggerSource,request.configProof,finishedAt]);
+   authority.assert();
    await write(db,component(request.requestId),record,{startedAt:claim.startedAt,finishedAt});
+   authority.assert();
    const latest=await read(db,`phase4_${request.phase.toLowerCase()}:${request.triggerSource}:start`);
+   authority.assert();
    if(latest?.identity===claim.identity)await recordPhaseEvent(db,{...record,event:'complete'});
-   await db.raw.execute({sql:'DELETE FROM resource_locks WHERE name=? AND owner=?',args:[claim.name,claim.owner]});
+   assertOwnerTime();
+   const released=await db.raw.execute({sql:'DELETE FROM resource_locks WHERE name=? AND owner=? AND expires_at>?',args:[claim.name,claim.owner,new Date().toISOString()]});
+   if(released.rowsAffected!==1)fail('REQUEST_OWNER_FENCED');
+   assertOwnerTime();
    return safeRecord(record);
- });
+ },{commitAuthority:assertOwnerTime});
 }
 export async function requireSyncHandoff(db,request,keys) {
  const prior=await read(db,component(request.syncRequestId));
- if(!prior||prior.phase!=='SYNC'||!syncAuthorizesDrain(prior)||prior.source!==request.triggerSource
+ if(!prior||prior.phase!=='SYNC'||!syncAuthorizesDrain(prior)||prior.releaseSha!==request.releaseSha||prior.releaseSha!==runningReleaseSha()||prior.source!==request.triggerSource
    ||prior.executionMode!==request.executionMode||prior.configProof!==request.configProof||prior.handoff!==request.handoff
    ||Date.now()-prior.finishedAt>HANDOFF_TTL_MS||prior.finishedAt>Date.now()
-   ||keys.lookup(['phase4-sync-handoff-v1',request.syncRequestId,prior.identity,prior.executionMode,prior.source,prior.configProof,prior.finishedAt])!==request.handoff)
+   ||keys.lookup(['phase4-sync-handoff-v2',prior.releaseSha,request.syncRequestId,prior.identity,prior.executionMode,prior.source,prior.configProof,prior.finishedAt])!==request.handoff)
    fail('SYNC_HANDOFF_REJECTED');
  return prior;
 }

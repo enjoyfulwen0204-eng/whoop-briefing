@@ -2,13 +2,13 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {invoke,MAX_ATTEMPTS,MAX_RESPONSE_BYTES,MAX_CONFIGURED_WINDOW_MS} from '../cloudflare/briefing-scheduler/worker.js';
 import {verifyTriggerRequest,BRIEFING_TRIGGER} from '../src/briefingTriggerAuth.js';
 const secret='synthetic-secret-with-at-least-32-bytes',env={BRIEFING_ENDPOINT_URL:'https://synthetic.invalid/internal/briefing/run',BRIEFING_TRIGGER_SECRET:secret,
- BRIEFING_EXECUTION_MODE:'OFF',BRIEFING_CONFIG_PROOF:'a'.repeat(64)};
+ BRIEFING_EXECUTION_MODE:'OFF',BRIEFING_RELEASE_SHA:'b'.repeat(40),BRIEFING_CONFIG_PROOF:'a'.repeat(64)};
 const response=(body,status=200)=>new Response(JSON.stringify(body),{status});
 const ok=(phase='SYNC',extra={})=>({ok:true,phase,source:'cloudflare',syncComplete:true,drainAuthorized:false,...extra});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 for(const boundary of ['headers','body'])test(`Worker overall transport timeout covers stalled ${boundary}, abort and bounded retries`,async()=>{
  let calls=0,aborts=0,cancels=0;
- await assert.rejects(()=>invoke(env,{timeoutMs:20,sleep:async()=>{},fetchImpl:async(_url,{signal})=>{calls++;signal.addEventListener('abort',()=>aborts++);
+ await assert.rejects(()=>invoke(env,{timeoutMs:20,signImpl:async()=> 'synthetic-signed-transport-seam',sleep:async()=>{},fetchImpl:async(_url,{signal})=>{calls++;signal.addEventListener('abort',()=>aborts++);
   return boundary==='headers'?new Promise(()=>{}):new Response(new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('{'));},cancel(){cancels++;}}));
  }}),e=>e.category==='timeout');assert.equal(calls,MAX_ATTEMPTS);assert.equal(aborts,MAX_ATTEMPTS);if(boundary==='body')assert.equal(cancels,MAX_ATTEMPTS);
 });
@@ -21,7 +21,7 @@ test('oversized endless body is cancelled before materializing arbitrary text',a
 test('completion before deadline succeeds and late success cannot turn timeout into success or authorize drain',async()=>{
  const success=await invoke(env,{timeoutMs:100,fetchImpl:async()=>{await delay(30);return response(ok());}});assert.equal(success.ok,true);
  let calls=0,drains=0;
- await assert.rejects(()=>invoke({...env,BRIEFING_EXECUTION_MODE:'SHADOW'},{timeoutMs:20,sleep:async()=>{},fetchImpl:async(_url,{body})=>{
+ await assert.rejects(()=>invoke({...env,BRIEFING_EXECUTION_MODE:'SHADOW'},{timeoutMs:20,signImpl:async()=> 'synthetic-signed-transport-seam',sleep:async()=>{},fetchImpl:async(_url,{body})=>{
   calls++;if(JSON.parse(body).phase==='STAGE6_DRAIN')drains++;await delay(50);return response(ok('SYNC',{drainAuthorized:true,handoff:'b'.repeat(64)}));
  }}),e=>e.category==='timeout');await delay(60);assert.equal(calls,2);assert.equal(drains,0);
 });

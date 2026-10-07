@@ -55,7 +55,7 @@ test('connection close/reconnect paths and a replaced connection invalidate capa
  t.after(async()=>{db.close();await rm(dir,{recursive:true,force:true});});await db.migrate();
  await db.createUser({id:'synthetic',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
  const cap=await db.admitRuntime();assert.deepEqual(await db.listExperiments('synthetic'),[]);
- db.raw.reconnect();assert.throws(()=>db.requireRuntimeAdmission(cap),/ADMISSION_REQUIRED/);
+ await db.raw.reconnect();assert.throws(()=>db.requireRuntimeAdmission(cap),/ADMISSION_REQUIRED/);
  const next=await db.admitRuntime();assert.notEqual(next,cap);assert.equal(db.requireRuntimeAdmission(next),31);
  assert.deepEqual(await db.listExperiments('synthetic'),[],'new admission rebuilds cached stores after reconnect');
  db.close();assert.throws(()=>db.requireRuntimeAdmission(next),/ADMISSION_REQUIRED/);

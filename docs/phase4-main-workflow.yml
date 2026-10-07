@@ -29,6 +29,13 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+      - name: Verify reviewed checkout identity
+        shell: bash
+        env:
+          PHASE4_RELEASE_SHA: REVIEWED_RELEASE_SHA
+        run: |
+          actual_sha=$(git rev-parse --verify 'HEAD^{commit}')
+          test "$actual_sha" = "$PHASE4_RELEASE_SHA"
       - run: npm ci
       - name: SYNC reviewed release
         id: phase
@@ -47,6 +54,7 @@ jobs:
           PHASE4_BETA_SHADOW_RUNTIME: ${{ vars.PHASE4_BETA_SHADOW_RUNTIME }}
           PHASE4_PUBLIC_BETA_MODE: ${{ vars.PHASE4_PUBLIC_BETA_MODE }}
           PHASE4_PUBLIC_BETA_USER_IDS: ${{ vars.PHASE4_PUBLIC_BETA_USER_IDS }}
+          PHASE4_RELEASE_SHA: REVIEWED_RELEASE_SHA
           PHASE4_EXECUTION_PHASE: SYNC
           TIMEZONE: Asia/Taipei
         run: |
@@ -75,6 +83,13 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+      - name: Verify reviewed checkout identity
+        shell: bash
+        env:
+          PHASE4_RELEASE_SHA: REVIEWED_RELEASE_SHA
+        run: |
+          actual_sha=$(git rev-parse --verify 'HEAD^{commit}')
+          test "$actual_sha" = "$PHASE4_RELEASE_SHA"
       - run: npm ci
       - name: STAGE6_DRAIN authorized handoff
         shell: bash
@@ -92,6 +107,7 @@ jobs:
           PHASE4_BETA_SHADOW_RUNTIME: ${{ vars.PHASE4_BETA_SHADOW_RUNTIME }}
           PHASE4_PUBLIC_BETA_MODE: ${{ vars.PHASE4_PUBLIC_BETA_MODE }}
           PHASE4_PUBLIC_BETA_USER_IDS: ${{ vars.PHASE4_PUBLIC_BETA_USER_IDS }}
+          PHASE4_RELEASE_SHA: REVIEWED_RELEASE_SHA
           PHASE4_EXECUTION_PHASE: STAGE6_DRAIN
           PHASE4_SYNC_REQUEST_ID: ${{ needs.sync.outputs.sync_request_id }}
           PHASE4_SYNC_HANDOFF: ${{ needs.sync.outputs.sync_handoff }}

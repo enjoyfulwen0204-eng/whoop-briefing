@@ -1,3 +1,4 @@
+import { runningReleaseSha } from '../src/phase4Release.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -78,7 +79,7 @@ function request(args, signature, extra = {}) {
 
 const phaseArgs = (extra = {}) => {
   const args = base(extra);
-  args.body = JSON.stringify({requestId:args.requestId,phase:'SYNC',triggerSource:'cloudflare',executionMode:'OFF',configProof:'a'.repeat(64)});
+  args.body = JSON.stringify({releaseSha:runningReleaseSha(),requestId:args.requestId,phase:'SYNC',triggerSource:'cloudflare',executionMode:'OFF',configProof:'a'.repeat(64)});
   return args;
 };
 test('endpoint caches exact phase retry and returns canonical aggregate result', async () => {
@@ -126,12 +127,13 @@ test('Worker re-signs each retry while preserving logical request ID', async () 
   const requests = [];
   const statuses = [503, 200];
   let cleared = 0;
+  let retryClock = NOW;
   const result = await invoke({
     BRIEFING_ENDPOINT_URL: 'https://example.invalid/internal/briefing/run',
-    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
+    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_RELEASE_SHA: 'b'.repeat(40), BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
-    now: (() => { const times = [NOW, NOW + 120_000, NOW + 240_000]; return () => times.shift(); })(),
-    sleep: async () => {}, clearTimer: (timer) => { cleared += 1; clearTimeout(timer); },
+    now: () => retryClock,
+    sleep: async () => { retryClock += 120_000; }, clearTimer: (timer) => { cleared += 1; clearTimeout(timer); },
     fetchImpl: async (_url, options) => {
       requests.push(options);
       const status = statuses.shift();
@@ -163,7 +165,7 @@ test('Worker re-signs each retry while preserving logical request ID', async () 
   let authAttempts = 0;
   await assert.rejects(() => invoke({
     BRIEFING_ENDPOINT_URL: 'https://example.invalid/internal/briefing/run',
-    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
+    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_RELEASE_SHA: 'b'.repeat(40), BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
     now: () => NOW, sleep: async () => {},
     fetchImpl: async () => {
@@ -266,7 +268,7 @@ test('redirects are terminal, never followed, and placeholder/query URLs fail cl
     let calls = 0;
     await assert.rejects(() => invoke({
       BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
-      BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
+      BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_RELEASE_SHA: 'b'.repeat(40), BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
     }, {
       now: () => NOW, sleep: async () => {},
       fetchImpl: async (_url, options) => {
@@ -333,7 +335,7 @@ test('redirect rejection is terminal and never retried three times', async () =>
   let attempts = 0;
   await assert.rejects(() => invoke({
     BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
-    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
+    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_RELEASE_SHA: 'b'.repeat(40), BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
     now: () => NOW, sleep: async () => {},
     fetchImpl: async () => {
@@ -358,7 +360,7 @@ test('worker failure categories are distinguishable and leak nothing', async () 
   for (const [category, status] of cases) {
     await assert.rejects(() => invoke({
       BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
-      BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
+      BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_RELEASE_SHA: 'b'.repeat(40), BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
     }, {
       now: () => NOW, sleep: async () => {},
       fetchImpl: async () => new Response('secret-bearing server text that must never surface',{status}),
@@ -371,7 +373,7 @@ test('worker failure categories are distinguishable and leak nothing', async () 
   // 逾時要被分類成 timeout
   await assert.rejects(() => invoke({
     BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
-    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
+    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_RELEASE_SHA: 'b'.repeat(40), BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
     now: () => NOW, sleep: async () => {}, timeoutMs: 1,
     setTimer: (fn) => { queueMicrotask(fn); return Symbol('t'); }, clearTimer: () => {},
@@ -384,15 +386,17 @@ test('worker failure categories are distinguishable and leak nothing', async () 
 test('real AbortController path aborts each hanging attempt and clears every timer', async () => {
   let attempts = 0;
   let cleared = 0;
+  let fireDeadline;
   await assert.rejects(() => invoke({
     BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
-    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
+    BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_RELEASE_SHA: 'b'.repeat(40), BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
-    now: (() => { let t = NOW; return () => (t += 120_000); })(), sleep: async () => {}, timeoutMs: 1,
-    setTimer: (fn) => { queueMicrotask(fn); return Symbol('timer'); },
+    now: () => NOW, sleep: async () => {}, timeoutMs: 1,
+    setTimer: (fn) => { fireDeadline=fn; return Symbol('timer'); },
     clearTimer: () => { cleared += 1; },
     fetchImpl: async (_url, { signal }) => new Promise((_resolve, reject) => {
       attempts += 1;
+      queueMicrotask(fireDeadline);
       signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')),
         { once: true });
     }),
@@ -409,7 +413,10 @@ test('CLI and Render endpoint reference the same phase-aware canonical runner', 
   assert.match(webhookSource, /import \{ runExecutionPhase \} from '\.\.\/phase4Execution\.js'/);
   assert.match(cliSource, /import \{ runExecutionPhase \} from '\.\.\/src\/phase4Execution\.js'/);
   assert.doesNotMatch(webhookSource, /\b(?:exec|spawn)\s*\(|npm start/);
-  assert.match(cliSource, /GITHUB_EVENT_NAME==='schedule'\?'github':'manual'/);
+  assert.match(cliSource, /cliTriggerSource\(process\.env\)/);
+  const sourcePolicy=(await import('node:fs')).readFileSync('src/phase4Release.js','utf8');
+  assert.match(sourcePolicy,/GITHUB_SOURCE_UNSUPPORTED/);
+  assert.match(sourcePolicy,/GITHUB_EVENT_NAME==='workflow_dispatch'/);
   assert.match(cliSource, /process\.exitCode=result\.body\.ok\?0:1/);
 });
 

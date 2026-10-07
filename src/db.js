@@ -47,7 +47,7 @@ import { createPhase4QueueStore } from './phase4QueueStore.js';
 import { createPhase4Foundation } from './phase4Foundation.js';
 import { legacyExperimentAdapter } from './legacyExperimentAdapter.js';
 import { createPhase4Invalidation } from './phase4Invalidation.js';
-import { admitRuntime, bindConnectionLifetime, requireRuntimeAdmission } from './runtimeAdmission.js';
+import { admitRuntime, bindConnectionLifetime, requireRuntimeAdmission, renewRuntimeAfterContention } from './runtimeAdmission.js';
 
 // SCHEMA 定義集中在 schema.js（唯一 DDL 來源）。這裡 re-export 維持既有 import 路徑。
 export { SCHEMA } from './schema.js';
@@ -83,6 +83,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
       .then(capability => runtimeAdmission = capability).finally(() => { pendingAdmission = null; });
     return pendingAdmission;
   }
+  processing.setReconnectAdmission(async()=>{runtimeAdmission=await renewRuntimeAfterContention(transactionClient,phase4Keys,processing.transaction);foundationStore=null;});
   const privacy=legacyPrivacyFence(transactionClient,phase4Keys);
   const replyContexts=new WeakMap();
   const compatibility=createLegacyHealthAdapter({client:transactionClient,processing,privacy,keys:phase4Keys});

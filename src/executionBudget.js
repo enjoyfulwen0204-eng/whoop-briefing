@@ -2,21 +2,21 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 const executionScope=new AsyncLocalStorage();
 export const currentExecutionBudget=()=>executionScope.getStore();
 export const withExecutionBudget=(budget,fn)=>executionScope.run(budget,fn);
-/** Overall server deadline. All late continuations retain this aborted signal;
+/** Bounded execution clock (work, admission or authoritative whole phase). All late continuations retain this aborted signal;
  * callers must also fence durable writes at transaction commit. */
 export class ExecutionBudgetError extends Error {
   constructor(code = 'SYNC_TIMEOUT') { super(code); this.name = 'ExecutionBudgetError'; this.code = code; }
 }
 export const SYNC_BUDGET_MS = 180_000;
 export const SETTLEMENT_MARGIN_MS = 15_000;
-export function createExecutionBudget({ budgetMs = SYNC_BUDGET_MS, signal, nowMs = Date.now } = {}) {
-  if (!Number.isSafeInteger(budgetMs) || budgetMs < 1 || budgetMs > SYNC_BUDGET_MS) throw new Error('SYNC_BUDGET_INVALID');
-  const startedAt = nowMs(), deadlineAt = startedAt + budgetMs, controller = new AbortController();
+export function createExecutionBudget({ budgetMs = SYNC_BUDGET_MS, signal, nowMs = Date.now, startedAtMs = nowMs() } = {}) {
+  if (!Number.isSafeInteger(budgetMs) || budgetMs < 1 || budgetMs > 225_000) throw new Error('SYNC_BUDGET_INVALID');
+  const startedAt = startedAtMs, deadlineAt = startedAt + budgetMs, controller = new AbortController();
   const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
-  const timer = setTimeout(() => controller.abort(new ExecutionBudgetError()), budgetMs);
+  const timer = setTimeout(() => controller.abort(new ExecutionBudgetError()), Math.max(0,deadlineAt-nowMs()));
   const assert = () => {
     if (combined.aborted || nowMs() >= deadlineAt)
-      throw new ExecutionBudgetError(signal?.aborted ? 'SYNC_CANCELLED' : 'SYNC_TIMEOUT');
+      throw new ExecutionBudgetError(signal?.aborted && signal.reason?.code!=='SYNC_TIMEOUT' ? 'SYNC_CANCELLED' : 'SYNC_TIMEOUT');
   };
   return Object.freeze({ signal: combined, startedAt, deadlineAt, assert,
     remainingMs: () => Math.max(0, deadlineAt - nowMs()),

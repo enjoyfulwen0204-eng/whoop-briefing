@@ -136,7 +136,7 @@ test('Aggregate release boundary: all 13 flags are false, every enable request f
   for(const mode of [undefined,null,'','live','UNKNOWN'])await assert.rejects(s.capture('a',{executionMode:mode}),/EXECUTION_MODE_REQUIRED/);
   await assert.rejects(s.initializeTenant('a','LIVE'),/LIVE_NOT_AUTHORIZED/);
   await assert.rejects(s.capture('a',{executionMode:'LIVE'}),/LIVE_NOT_AUTHORIZED/);
-  const files=fs.readdirSync(new URL('../src/',import.meta.url)).filter(name=>/^(phase4|bodyEnergy|journalFoundation|journalAnswerRevision)/.test(name)&&name.endsWith('.js') && name!=='phase4Execution.js');
+  const files=fs.readdirSync(new URL('../src/',import.meta.url)).filter(name=>/^(phase4|bodyEnergy|journalFoundation|journalAnswerRevision)/.test(name)&&name.endsWith('.js') && !['phase4Execution.js','phase4Release.js'].includes(name));
   assert.ok(files.length>25);
   for(const file of files) {
     const source=fs.readFileSync(new URL(`../src/${file}`,import.meta.url),'utf8');
@@ -144,6 +144,15 @@ test('Aggregate release boundary: all 13 flags are false, every enable request f
     assert.doesNotMatch(source,/from\s+['"][^'"]*(?:telegram|whoopApi|openrouter|scheduler|analyticsWorker|test\/)[^'"]*['"]/i,file);
     assert.doesNotMatch(source,/process\.env|\.env['"]|https?:\/\//,file);
   }
+  // Release identity is an entry-level read-only Git adapter, like the phase
+  // composition entry. Keep its permitted I/O closed instead of treating it as
+  // a tenant foundation store or permitting arbitrary production transport.
+  const release=fs.readFileSync(new URL('../src/phase4Release.js',import.meta.url),'utf8');
+  assert.equal((release.match(/execFileSync\s*\(/g)??[]).length,1);
+  assert.match(release,/execFileSync\('git',\['rev-parse','--verify','HEAD\^\{commit\}'\]/);
+  assert.match(release,/timeout:2000/);
+  assert.doesNotMatch(release,/\b(?:fetch|spawn|fork|exec|setInterval)\s*\(|https?:\/\/|shell\s*:/);
+  assert.doesNotMatch(release,/SECRET|TOKEN|PASSWORD|TURSO|TELEGRAM|OPENROUTER/);
   for(const file of ['index.js','bot/index.js','bot/webhook.js','schedulerWatchdog.js']) {
     const source=fs.readFileSync(new URL(`../src/${file}`,import.meta.url),'utf8');
     assert.doesNotMatch(source,/phase4JournalControl\s*:|journalInbound|bodyEnergy|phase4Transport|phase4Foundation/,file);

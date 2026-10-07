@@ -61,8 +61,8 @@ export function createBriefingEndpoint({
         log.info('briefing_trigger_finished',{source:'cloudflare',phase:parsed.phase,duration_ms:Date.now()-started});
         return response;
       } catch(error) {
-        const code=['REQUEST_ID_CONFLICT','REQUEST_PENDING','SYNC_HANDOFF_REJECTED','EXECUTION_CONFIG_CHANGED'].includes(error?.code)?error.code:'PHASE_EXECUTION_FAILED';
-        return {status:['REQUEST_ID_CONFLICT','REQUEST_PENDING'].includes(code)?409:code==='SYNC_HANDOFF_REJECTED'?403:503,
+        const code=['REQUEST_ID_CONFLICT','REQUEST_PENDING','SYNC_HANDOFF_REJECTED','EXECUTION_CONFIG_CHANGED','RELEASE_CHECKOUT_MISMATCH'].includes(error?.code)?error.code:'PHASE_EXECUTION_FAILED';
+        return {status:['REQUEST_ID_CONFLICT','REQUEST_PENDING'].includes(code)?409:['SYNC_HANDOFF_REJECTED','RELEASE_CHECKOUT_MISMATCH'].includes(code)?403:503,
           body:{ok:false,error:code}};
       }
     })();

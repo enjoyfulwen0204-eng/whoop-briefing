@@ -1,3 +1,4 @@
+import { runningReleaseSha } from '../src/phase4Release.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fork} from 'node:child_process';
@@ -13,7 +14,7 @@ import {runExecutionPhase} from '../src/phase4Execution.js';
 import {configurationProof,readPhaseProgress} from '../src/phase4ExecutionStore.js';
 const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'};
 const now=new Date('2026-10-07T12:00:00Z'),env={dryRun:true};
-const makeRequest=(phase='SYNC',extra={})=>({requestId:randomUUID(),phase,triggerSource:'github',executionMode:'SHADOW',
+const makeRequest=(phase='SYNC',extra={})=>({releaseSha:runningReleaseSha(),requestId:randomUUID(),phase,triggerSource:'github',executionMode:'SHADOW',
  configProof:configurationProof(fixtureKeys,{runtime:'on',mode:'off'},environment),...extra});
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 

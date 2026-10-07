@@ -1,3 +1,4 @@
+import { runningReleaseSha } from '../src/phase4Release.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -26,7 +27,7 @@ for(const runtime of ['off','on'])test(`scheduled SYNC morning brief survives ru
  await db.saveTokens('legacy',{accessToken:'synthetic',refreshToken:'synthetic',expiresAt:new Date(Date.now()+3600000),whoopUserId:'12345'});
  await db.saveSyncState('legacy','sleep',{backfillComplete:true});await db.saveCapabilities('legacy',[{key:'sleep',status:'SUPPORTED'}],{expectedLifecycleGeneration:1});
  const environment={PHASE4_BETA_SHADOW_RUNTIME:runtime,PHASE4_PUBLIC_BETA_MODE:'off'},config=publicBetaConfiguration(environment);
- const request=(phase='SYNC',extra={})=>({requestId:randomUUID(),phase,triggerSource:'cloudflare',executionMode:runtime==='on'?'SHADOW':'OFF',configProof:configurationProof(fixtureKeys,config,environment),...extra});
+ const request=(phase='SYNC',extra={})=>({releaseSha:runningReleaseSha(),requestId:randomUUID(),phase,triggerSource:'cloudflare',executionMode:runtime==='on'?'SHADOW':'OFF',configProof:configurationProof(fixtureKeys,config,environment),...extra});
  const payloads=[],dataset=makeDataset({now,withNaps:false});let syncCalls=0,drains=0,authorizationNotices=0;
  const deps={
   makeTelegram:({chatId})=>({send:async text=>{payloads.push({chatId,text});return {messageId:payloads.length};},notifyError:async()=>{authorizationNotices++;return true;},sendTyping:async()=>true}),

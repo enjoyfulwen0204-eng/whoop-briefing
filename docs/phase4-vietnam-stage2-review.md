@@ -1,5 +1,7 @@
 # Vietnam Stage 2 full repair review handoff
 
+> Historical report for reviewed candidate `1577b1b`, subsequently rejected with six findings. Original evidence and claimed statuses are retained below. The Round 2 handoff supersedes this report: [review repair](phase4-vietnam-stage2-review-round2.md).
+
 `PHASE4_VIETNAM_STAGE2_FULL_REPAIR_COMPLETE`
 
 Implementation, workflow artifacts and synthetic regression evidence are ready for

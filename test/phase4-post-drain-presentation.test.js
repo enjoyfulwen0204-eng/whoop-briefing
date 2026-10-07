@@ -1,3 +1,4 @@
+import { runningReleaseSha } from '../src/phase4Release.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {createDb,fixtureKeys} from './localDb.js';import {runExecutionPhase} from '../src/phase4Execution.js';
@@ -17,7 +18,7 @@ test('authorized post-drain path presents typed current state in zh-TW/en/vi, na
   betaSummary:{readCurrent:async c=>{order.push('typed_read');return items(c.userId);}}},policy:publicBetaPolicy({mode:'allowlist',userIds:locales.map(u=>u[0])}),runtimeCapability:authorizePublicBetaRuntime({executionMode:'SHADOW'})});
  const runtime={betaPresentation:presentation,phase4Stage6:{drain:async()=>{order.push('drain');return {outcome:'PARTIAL',completion:'PARTIAL',jobsConsidered:3,itemsAttempted:4,processedItems:4,completedJobs:2,remainingJobs:4,stopReason:'TENANT_LIMIT'};}}};
  const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'allowlist',PHASE4_PUBLIC_BETA_USER_IDS:locales.map(u=>u[0]).join(',')};
- const request=(phase='SYNC',extra={})=>({requestId:randomUUID(),phase,triggerSource:'manual',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,{runtime:'on',mode:environment.PHASE4_PUBLIC_BETA_MODE},environment),...extra});
+ const request=(phase='SYNC',extra={})=>({releaseSha:runningReleaseSha(),requestId:randomUUID(),phase,triggerSource:'manual',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,{runtime:'on',mode:environment.PHASE4_PUBLIC_BETA_MODE},environment),...extra});
  const deps={runtime,runBriefing:async()=>{order.push('sync');return {syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS'};},makeTelegram:({chatId})=>({send:async text=>{order.push('send');payloads.push({chatId,text});return {messageId:payloads.length};}})};
  const run=r=>runExecutionPhase({request:r,db,keys:fixtureKeys,environment,env:{dryRun:true},deps});
  const syncRequest=request(),sync=await run(syncRequest);assert.deepEqual(order,['sync']);assert.equal(payloads.length,0);

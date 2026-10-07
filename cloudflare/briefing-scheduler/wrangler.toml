@@ -8,6 +8,8 @@ crons = [] # Enable morning cron only after coordinated RC3 validation.
 [vars]
 # Reviewed values must match the admitted server configuration before activation.
 BRIEFING_EXECUTION_MODE = "OFF"
+# Exact approved compatible server commit; non-runnable until review.
+BRIEFING_RELEASE_SHA = "REVIEWED_RELEASE_SHA"
 BRIEFING_CONFIG_PROOF = "REVIEWED_CONFIG_PROOF"
 BRIEFING_ENDPOINT_URL = "https://whoop-telegram-webhook.onrender.com/internal/briefing/run"
 

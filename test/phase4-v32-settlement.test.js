@@ -45,7 +45,7 @@ test('v32 real HTTP lease expiry during submitted work COMMIT cannot finalize; f
  const {db,transport}=await fixture(t),value=request();let work=0;
  const deps={runBriefing:async()=>{
   work++;const expires=Date.now()+500;
-  await db.raw.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',args:[expires,expires,value.requestId]});
+  await db.transaction(async()=>{await db.raw.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',args:[expires,expires,value.requestId]});},{workStep:'lease-expiry-fixture'});
   transport.arm({onlyWorkResult:true,before:()=>pause(650)});return success();
  }};
  const first=await run(db,value,{deps});assert.equal(first.body.ok,false);assert.equal(first.body.drainAuthorized,false);assert.equal(first.body.handoff,undefined);

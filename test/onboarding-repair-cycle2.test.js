@@ -579,13 +579,13 @@ test('v30 rejects fabricated v15 hybrid (onboarding-repair-cycle2 historical con
   finally { await e.done(); }
 });
 
-test('遷移：全新資料庫直接到 v16，不會憑空產生上線列或權限判定', async () => {
+test('遷移：全新資料庫直接到 v32，不會憑空產生上線列或權限判定', async () => {
   const e = await env();
   try {
     assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM user_onboarding')).rows[0].n, 0);
     assert.equal((await e.db.raw.execute('SELECT COUNT(*) n FROM whoop_resource_access')).rows[0].n, 0);
     const s = await runMigrations(e.db.raw);
     assert.deepEqual(s.dataMigrations ?? [], []);
-    assert.equal(SCHEMA_VERSION, 31);
+    assert.equal(SCHEMA_VERSION, 32);
   } finally { e.done(); }
 });

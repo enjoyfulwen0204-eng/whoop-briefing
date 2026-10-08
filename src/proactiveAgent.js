@@ -1,3 +1,4 @@
+import {workStepOptions} from './phase4WorkStep.js';
 /**
  * Proactive Agent 主流程（PA3／PA8／PA9）。
  *
@@ -445,7 +446,7 @@ export async function checkAndAct({
       }
       await db.markProactiveEventSent(uid, claim.id, { pendingQuestionId }, { now });
       await db.setProactiveState(uid, { lastCheckedHealthDate: anchorDate, lastFingerprint: fingerprint }, owned);
-    }, { before: check, after: check });
+    }, {...workStepOptions('proactive.delivery-settle',[uid,claim.id,anchorDate],{discardResult:true}), before: check, after: check });
   }
 
   // 事件已經 claim 成功（不管有沒有真的送出訊息），這個 health_date 就算

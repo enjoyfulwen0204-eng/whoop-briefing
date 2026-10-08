@@ -4,6 +4,8 @@ import { JOB_KINDS, OPERATION_ERROR_CODES } from './phase4V24Schema.js';
 import { createFamilyDirectory } from './phase4FamilyDirectory.js';
 import { PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
 import {bindProducingExecution} from './phase4ExecutionContext.js';
+import {workStepOptions} from './phase4WorkStep.js';
+import {executeCoordination} from './phase4Coordination.js';
 
 export const STAGE6_RETRY_MS=Object.freeze([60000,300000,900000,3600000,21600000]);
 const active="(scope_kind<>'NONE' OR completed_generation<requested_generation)";
@@ -62,15 +64,14 @@ export function createReanalysisQueue(core) {
       if(core.schemaVersion>=32)await bindProducingExecution(client,context);
       const lease=Object.freeze({binding,cursor:resume?row.full_scan_cursor:null,asOfUtc:current.computation.updated_at});
       leases.set(lease,{context,cursor:lease.cursor});return lease;
-    });
+    },workStepOptions('stage6.claim',[context.userId,context.executionMode,kind,context.inputGeneration],{discardResult:true}));
   }
   async function checkTenant(lease) {
     const b=lease.binding;
     if(!(await client.execute({sql:'SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?',
       args:[b.tenantPass,b.owner,b.expiresAt,timestamp()]})).rows.length)fail('PHASE4_LEASE_CAS_LOST');
   }
-  const releaseTenant=lease=>client.execute({sql:'DELETE FROM resource_locks WHERE name=? AND owner=?',
-    args:[lease.binding.tenantPass,lease.binding.owner]});
+  const releaseTenant=lease=>executeCoordination(client,'release',[lease.binding.tenantPass,lease.binding.owner]);
   async function abandon(lease) {
     if(!leases.has(lease))return;
     await releaseTenant(lease);leases.delete(lease);
@@ -86,9 +87,10 @@ export function createReanalysisQueue(core) {
       ||row.claimed_auth_generation!==b.authGeneration)fail('PHASE4_LEASE_CAS_LOST');
     return row;
   }
-  const owned=(context,lease,fn,{assertBudget=()=>{}}={})=>core.withJobFence(lease.binding,async activeContext=>{
+  const owned=(context,lease,fn,{assertBudget=()=>{},workKind,workFacts}={})=>core.withJobFence(lease.binding,async activeContext=>{
     assertBudget();if(activeContext!==context)fail('PHASE4_LEASE_SCOPE_MISMATCH');await check(context,lease);
-  },()=>core.run(context,fn));
+  },()=>core.run(context,fn,workKind?workStepOptions(workKind,[context.userId,context.executionMode,lease.binding.jobKind,
+    lease.binding.requestedGeneration,lease.binding.scopeRevision,workFacts],{discardResult:true}):{readOnly:true}));
   async function checkpoint(context,lease,cursor) {
     if(!core.processing.active()||!core.jobAuthority())fail('PHASE4_TRANSACTION_REQUIRED');
     await check(context,lease);
@@ -104,7 +106,7 @@ export function createReanalysisQueue(core) {
       if(core.schemaVersion>=32)await bindProducingExecution(client,context);
       if((await enumerate(row.full_scan_cursor,1)).length)fail('PHASE4_FULL_PASS_INCOMPLETE');
       const proof=Object.freeze({});proofs.set(proof,{lease,cursor:row.full_scan_cursor});return proof;
-    },options);
+    },{...options,workKind:'stage6.end',workFacts:[leases.get(lease)?.cursor]});
   }
   async function complete(context,lease,proof,{assertBudget=()=>{}}={}) {
     const pass=proofs.get(proof);
@@ -141,7 +143,7 @@ export function createReanalysisQueue(core) {
           VALUES (?,'phase4_stage6_shadow',?,NULL,?) ON CONFLICT(scope,component) DO UPDATE SET
           last_ok_at=excluded.last_ok_at,last_detail=NULL,updated_at=excluded.updated_at`,args:[`user:${context.userId}`,at,at]});
       }
-    },{before:()=>core.assertContext(context),after:settled,commitFence:settled});
+    },{...workStepOptions('stage6.complete',[context.userId,b.jobKind,b.requestedGeneration,b.scopeRevision,pass.cursor],{discardResult:true}),before:()=>core.assertContext(context),after:settled,commitFence:settled});
     await releaseTenant(lease);
     proofs.delete(proof);leases.delete(lease);
   }
@@ -160,7 +162,8 @@ export function createReanalysisQueue(core) {
           ||settled.requested_generation!==lease.binding.requestedGeneration)fail('PHASE4_LEASE_CAS_LOST');
       }});
       return {attempt,nextAttemptAt:next,state:attempt>=5?'REPAIR_REQUIRED':attempt?'RETRY_WAIT':'PENDING'};
-    });
+    },workStepOptions('stage6.release',[context.userId,lease.binding.jobKind,lease.binding.requestedGeneration,
+      lease.binding.scopeRevision,leases.get(lease)?.cursor,errorCode],{discardResult:true}));
     await releaseTenant(lease);return result;
   }
   return Object.freeze({select,claim,check,owned,checkpoint,end,complete,release,abandon});

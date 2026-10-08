@@ -8,6 +8,7 @@ import { BRIEFING_TRIGGER, bodySha256 } from './briefingTriggerAuth.js';
 import { requireTriggerSource } from './phase4DrainPolicy.js';
 import { requireReleaseSha, runningReleaseSha } from './phase4Release.js';
 import { syncAuthorizesDrain } from './syncResult.js';
+import {workStepOptions} from './phase4WorkStep.js';
 export const PHASES=Object.freeze(['SYNC','STAGE6_DRAIN']);
 export const HANDOFF_TTL_MS=15*60_000;
 const OUTCOMES=new Set(['PENDING','COMPLETE','PARTIAL','FAILED','TIMEOUT','CANCELLED','NO_WORK','NO_ELIGIBLE_WORK',
@@ -54,9 +55,9 @@ async function read(db,name) {
 }
 async function write(db,name,record,{startedAt=Date.now(),finishedAt=Date.now()}={}) {
  const data=safeRecord(record);
- await db.raw.execute({sql:`INSERT INTO system_heartbeats(scope,component,last_ok_at,last_detail,updated_at) VALUES (?,?,?,?,?)
+ await db.transaction(async()=>{await db.raw.execute({sql:`INSERT INTO system_heartbeats(scope,component,last_ok_at,last_detail,updated_at) VALUES (?,?,?,?,?)
   ON CONFLICT(scope,component) DO UPDATE SET last_ok_at=excluded.last_ok_at,last_detail=excluded.last_detail,updated_at=excluded.updated_at`,
-  args:['global',name,new Date(startedAt).toISOString(),JSON.stringify(data),new Date(finishedAt).toISOString()]});
+  args:['global',name,new Date(startedAt).toISOString(),JSON.stringify(data),new Date(finishedAt).toISOString()]});},workStepOptions('phase.observation',[name],{}));
 }
 export async function recordPhaseEvent(db,{phase,source,event,...record}) {
  if(!['start','discovery_start','discovery_complete','drain_start','complete'].includes(event))fail('EXECUTION_EVENT_INVALID');
@@ -73,7 +74,7 @@ export async function readPhaseProgress(db,phase,source) {
   const receipts=Number((await db.raw.execute({sql:'SELECT count(*) n FROM phase4_execution_work_receipts WHERE execution_id=?',args:[execution.execution_id]})).rows[0].n);
   const expired=!finalized(execution)&&execution.deadline_at<=Date.now();
   const state=finalized(execution)?result.outcome:execution.state==='WORK_COMMITTED'?'WORK_COMMITTED_UNFINALIZED':execution.state==='ABORTED'?execution.abort_outcome??'FAILED':
-    execution.observed_outcome==='COMMIT_INDETERMINATE'?'COMMIT_INDETERMINATE':receipts?'DURABLE_PROGRESS_UNFINALIZED':expired?'TIMEOUT':'IN_PROGRESS';
+    execution.observed_outcome==='COMMIT_INDETERMINATE'?'COMMIT_INDETERMINATE':execution.abort_outcome??(receipts?'DURABLE_PROGRESS_UNFINALIZED':expired?'TIMEOUT':'IN_PROGRESS');
   return {state,expired,settlementState:execution.state,complete:finalized(execution)?{...result,updatedAt:execution.finalized_at}:null,
     durableWork:result,workReceipts:receipts,execution,starts:{identity:execution.identity_digest,updatedAt:execution.created_at}};
  }
@@ -219,7 +220,7 @@ export async function settlePhaseRequest(db,request,claim,result,keys,authority)
 export async function abortPhaseExecution(db,claim,outcome='FAILED'){
  // Cleanup releases only this generation. It cannot erase committed work or
  // change a finalized row. Never pretend an uncertain COMMIT was rolled back.
- await db.raw.execute({sql:`UPDATE phase4_executions SET lease_until=${databaseNowMs}-1,deadline_at=${databaseNowMs}-1,updated_at=${databaseNowMs},
+ await db.raw.execute({sql:`UPDATE phase4_executions SET lease_until=MIN(lease_until,${databaseNowMs}-1),deadline_at=MIN(deadline_at,${databaseNowMs}-1),updated_at=${databaseNowMs},
   state=CASE WHEN state='ESTABLISHED' AND NOT EXISTS(SELECT 1 FROM phase4_execution_work_receipts WHERE execution_id=phase4_executions.execution_id) THEN 'ABORTED' ELSE state END,abort_outcome=?
   WHERE execution_id=? AND owner=? AND generation=? AND state IN ('ESTABLISHED','WORK_COMMITTED')`,
   args:[outcome,claim.executionId,claim.owner,claim.generation]});
@@ -239,7 +240,7 @@ export async function requireSyncHandoff(db,request,keys){
   ||row.release_sha!==runningReleaseSha()||row.trigger_source!==request.triggerSource||row.execution_mode!==request.executionMode
   ||row.config_proof!==request.configProof||(!reconcileCommitted&&Date.now()-row.finalized_at>HANDOFF_TTL_MS)||row.finalized_at>Date.now())fail('SYNC_HANDOFF_REJECTED');
  const prior=completionRecord(row,keys);if(!syncAuthorizesDrain(prior)||prior.handoff!==request.handoff)fail('SYNC_HANDOFF_REJECTED');
- if(reconcileCommitted&&child.state==='ESTABLISHED'&&Date.now()-row.finalized_at>HANDOFF_TTL_MS)
+ if(reconcileCommitted&&child.state==='ESTABLISHED')
   return {...prior,reconciliationResult:{outcome:'PARTIAL',completion:'PARTIAL',stopReason:'RECONCILIATION_ONLY',workReceipts:reconciled.receipts.length,
    jobsConsidered:0,itemsAttempted:0,itemsProcessed:0,jobsCompleted:0}};
  return prior;

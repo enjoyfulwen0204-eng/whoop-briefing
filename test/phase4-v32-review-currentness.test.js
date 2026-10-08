@@ -10,7 +10,7 @@ async function drainClaim(db){const sync=request(),sc=await claim(db,sync);await
 async function bind(f,execution,userId='a'){
  return withDurableExecution({claim:execution.c,keys:fixtureKeys,pending:new Set(),authority},()=>f.stores.withContext(userId,{executionMode:'SHADOW'},ctx=>f.db.transaction(async()=>{
   await bindProducingExecution(f.db.raw,ctx);await f.db.raw.execute({sql:"UPDATE phase4_computation_state SET last_completed_generation=input_generation WHERE user_id=? AND execution_mode='SHADOW'",args:[userId]});
- })));
+ },{workStep:'fixture-producer:'+userId})));
 }
 const typed=f=>f.stores.withContext('a',{executionMode:'SHADOW'},ctx=>f.stores.betaSummary.readCurrent(ctx,{asOfUtc:new Date(T).toISOString()}));
 test('producer unfinalized + unrelated NO_WORK stays withheld; reconciliation unlocks zh-TW/en/vi only for its user',async t=>{

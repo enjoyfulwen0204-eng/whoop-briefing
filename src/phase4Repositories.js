@@ -1,3 +1,4 @@
+import {workStepOptions} from './phase4WorkStep.js';
 import { createLegacyDiscovery } from './phase4LegacyDiscovery.js';
 import { createOperationReceipts } from './phase4OperationReceipts.js';
 import { fail, requireInteger } from './phase4Core.js';
@@ -28,7 +29,7 @@ export function composePhase4Stores(core) {
   const receipts=createOperationReceipts(core),discover=createLegacyDiscovery(core);
   const contextScopes=new WeakSet();
   async function finishContext(context) {
-    const cleanup=()=>transaction(()=>core.contextRegistry.release(context));
+    const cleanup=()=>transaction(()=>core.contextRegistry.release(context),{readOnly:true});
     if(core.processing.active()) {
       if(!core.processing.afterCompletion)fail('PHASE4_STRUCTURED_SCOPE_REQUIRED');
       core.processing.afterCompletion(cleanup);
@@ -88,7 +89,7 @@ export function composePhase4Stores(core) {
         await queue.markFull(userId,mode,1,state.purge_generation,'ALGORITHM_CHANGED');
       }
       return result;
-    });
+    },workStepOptions('tenant.initialize',[userId,mode],{discardResult:true}));
   }
   async function readArtifact(context,table,key) {
     if(table==='health_insights') {
@@ -216,7 +217,7 @@ export function composePhase4Stores(core) {
       try{return await work(context);}finally{contextScopes.delete(context);await finishContext(context);}
     },capture:core.capture,captureControl:core.captureControl,capturePrivacyControl:core.capturePrivacyControl,
     assertCurrent:context=>core.assertContext(context),root:core.root,readArtifact,
-    release:context=>transaction(()=>core.contextRegistry.release(context)),
+    release:context=>transaction(()=>core.contextRegistry.release(context),{readOnly:true}),
     cache:Object.freeze({
       get:(context,key)=>core.run(context,()=>structuredClone(core.contextRegistry.get(context,key))),
       set:(context,key,value)=>core.run(context,()=>{core.contextRegistry.set(context,key,value);}),

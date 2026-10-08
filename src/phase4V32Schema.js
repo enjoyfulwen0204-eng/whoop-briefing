@@ -91,7 +91,12 @@ export function buildV32(){return Object.freeze({version:32,ddl:[
    OR (NEW.owner IS NOT OLD.owner AND NEW.generation<>OLD.generation+1)
    OR (NEW.generation=OLD.generation+1 AND (NEW.owner IS OLD.owner OR NEW.state NOT IN ('ESTABLISHED','WORK_COMMITTED')))
    OR (NEW.generation=OLD.generation+1 AND OLD.state='ESTABLISHED' AND OLD.lease_until>${databaseNowMs})
+   OR ((NEW.lease_until>OLD.lease_until OR NEW.deadline_at>OLD.deadline_at) AND NEW.generation<>OLD.generation+1)
    OR (NEW.state='ABORTED' AND EXISTS(SELECT 1 FROM phase4_execution_work_receipts WHERE execution_id=OLD.execution_id))
+   OR (OLD.state='ESTABLISHED' AND NEW.state='WORK_COMMITTED' AND
+    (OLD.lease_until<=${databaseNowMs} OR OLD.deadline_at<=${databaseNowMs}
+     OR NEW.owner IS NOT OLD.owner OR NEW.generation<>OLD.generation
+     OR NEW.lease_until<>OLD.lease_until OR NEW.deadline_at<>OLD.deadline_at))
    OR (OLD.result_digest IS NOT NULL AND (NEW.result_digest IS NOT OLD.result_digest OR NEW.result_json IS NOT OLD.result_json OR NEW.work_committed_at IS NOT OLD.work_committed_at))
   BEGIN SELECT RAISE(ABORT,'p4_execution_transition'); END`,
  `CREATE TRIGGER IF NOT EXISTS p4_execution_result_authority BEFORE UPDATE ON phase4_executions

@@ -48,7 +48,7 @@ test('H04: unfinalized producing work cannot be published by typed Beta reader',
  const f=await setup(t,{targetVersion:30});await f.db.migrate({targetVersion:32});
  const result=await call(f,'intelligence','analyzeMetric',{...metricRequest(f.initialRefs[0],f.initialRefs.slice(1),new Date(T).toISOString()),windowFamily:'REVIEW_PRODUCER'});assert.ok(result.episode);
  const r=request(),c=await claim(f.db,r);const context={claim:c,keys:fixtureKeys,pending:new Set(),authority:authority()};
- await withDurableExecution(context,()=>f.db.transaction(()=>f.db.raw.execute("UPDATE phase4_computation_state SET last_completed_generation=input_generation WHERE user_id='a' AND execution_mode='SHADOW'")));
+ await withDurableExecution(context,()=>f.db.transaction(async()=>{await f.db.raw.execute("UPDATE phase4_computation_state SET last_completed_generation=input_generation WHERE user_id='a' AND execution_mode='SHADOW'");},{workStep:'fixture-currentness-generation'}));
  await commitPhaseWork(f.db,r,c,{outcome:'NO_NEW_DATA_SUCCESS'},authority());
  const typed=await f.stores.withContext('a',{executionMode:'SHADOW'},ctx=>f.stores.betaSummary.readCurrent(ctx,{asOfUtc:new Date(T).toISOString()}));
  assert.equal(typed.episodes.length,0);

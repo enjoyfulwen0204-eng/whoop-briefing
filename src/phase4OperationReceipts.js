@@ -19,6 +19,8 @@ import { createEpisodeRecurrenceAuthority } from './phase4EpisodeRecurrence.js';
 import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
 import { createReceiptRouting } from './phase4ReceiptRouting.js';
 import { createFamilyDirectory } from './phase4FamilyDirectory.js';
+import {currentDurableExecution} from './phase4ExecutionContext.js';
+import {workStepOptions} from './phase4WorkStep.js';
 
 const instances=new WeakMap();
 const invalid=()=>fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');
@@ -612,6 +614,14 @@ export function createOperationReceipts(core) {
     }
   }
   async function execute(context,kind,request,perform,{discover=null}={}) {
+    const execution=currentDurableExecution(),step={};
+    if(execution&&execution.receipts!==false){
+      const identity=async()=>{const {normalized}=await prepare(context,request,kind);return keyForEnvelope(requestEnvelope(context,kind,normalized));};
+      step.workStepFrom=async()=>workStepOptions('domain.operation',[context.userId,context.executionMode,context.inputGeneration,kind,await identity()]).workStep;
+      step.discardResult=true;
+      step.replay=async()=>{const key=await identity(),row=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=? AND operation_kind=? AND operation_key=?`,args:[context.userId,context.executionMode,kind,key]})).rows[0];
+        if(!row)fail('EXECUTION_DOMAIN_RECEIPT_MISSING');return read(context,row);};
+    }
     return core.run(context,async()=>{
       if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
       const {normalized,refs,semanticRequest}=await prepare(context,request,kind);
@@ -765,7 +775,7 @@ export function createOperationReceipts(core) {
       if(refreshPredecessor||metricPlan||recurrencePlan||kind==='analyzeMetric'&&request.refresh===true)
         await core.transaction(async()=>{}, {commitFence:()=>core.assertContext(context)});
       return result;
-    });
+    },step);
   }
   const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,
     resolveInsightLifecycle,metricRefreshPlan:metricRefresh.plan,episodeRecurrencePlan:recurrence.consume,

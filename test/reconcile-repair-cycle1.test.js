@@ -779,7 +779,7 @@ test('R05 真的 v10 DB → 閘拒絕，在 WHOOP 憑證 / 網路之前；不會
     assert.equal(t.version, 10);
     const a = runScript(['run', '--user=u1'], { url: t.url, cwd: t.dir, extraEnv: { WHOOP_CLIENT_ID: 'fake', WHOOP_CLIENT_SECRET: 'fake' } });
     assert.equal(a.code, 1);
-    assert.ok(a.out.includes(`schema 版本 10 ≠ 程式碼 ${SCHEMA_VERSION}`), a.out);
+    assert.ok(a.out.includes('CONTROLLED_MIGRATION_REQUIRED'), a.out);
     assert.ok(!/找不到使用者|缺少環境變數/.test(a.out), '在使用者 / 憑證之前就停');
     const db = createDb({ url: t.url });
     assert.equal(await currentVersion(db.raw), 10, '★ 沒有被自動 migrate');
@@ -793,7 +793,8 @@ test('R05 沒有 schema / schema_version 壞掉 → 拒絕', async () => {
     try {
       const a = runScript(['run', '--user=u1'], { url: t.url, cwd: t.dir, extraEnv: { WHOOP_CLIENT_ID: 'fake', WHOOP_CLIENT_SECRET: 'fake' } });
       assert.equal(a.code, 1, kind);
-      assert.ok(/schema 版本 0 ≠|無法讀取 schema_version/.test(a.out), `${kind}: ${a.out}`);
+      assert.ok((kind === 'missing' ? /CONTROLLED_MIGRATION_REQUIRED/ : /無法讀取 schema_version.*拒絕執行/).test(a.out), `${kind}: ${a.out}`);
+      assert.ok(!/找不到使用者|缺少環境變數/.test(a.out), 'schema gate precedes user/credential loading');
     } finally { t.cleanup(); }
   }
 });

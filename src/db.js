@@ -1,3 +1,5 @@
+import {bindExecutionApi} from './phase4WorkStep.js';
+import {executeCoordination} from './phase4Coordination.js';
 /**
  * Turso (libSQL) 持久化層。
  *
@@ -1343,16 +1345,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   async function acquireLock(name, { ttlMs, owner = randomUUID(), now = new Date() } = {}) {
     const nowIso = now.toISOString();
     const expiresIso = new Date(now.getTime() + ttlMs).toISOString();
-    const rs = await client.execute({
-      sql: `INSERT INTO resource_locks (name, owner, acquired_at, expires_at)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(name) DO UPDATE SET
-              owner       = excluded.owner,
-              acquired_at = excluded.acquired_at,
-              expires_at  = excluded.expires_at
-            WHERE resource_locks.expires_at <= excluded.acquired_at`,
-      args: [name, owner, nowIso, expiresIso],
-    });
+    const rs = await executeCoordination(client,'claim',[name,owner,nowIso,expiresIso]);
     const got = Number(rs.rowsAffected ?? 0) > 0;
     log.info(got ? 'lock_acquired' : 'lock_busy', { lock: name, ttl_ms: ttlMs });
     return got ? owner : null;
@@ -1376,10 +1369,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
 
   /** 只有持有者能釋放（避免釋放掉別人接手的 lock）。 */
   async function releaseLock(name, owner) {
-    const rs = await client.execute({
-      sql: 'DELETE FROM resource_locks WHERE name = ? AND owner = ?',
-      args: [name, owner],
-    });
+    const rs = await executeCoordination(client,'release',[name,owner]);
     const released = Number(rs.rowsAffected ?? 0) > 0;
     log.info('lock_released', { lock: name, released });
     return released;
@@ -1709,7 +1699,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     return true;
   }
 
-  return {
+  return bindExecutionApi({
     raw: transactionClient,
     admitRuntime: runtimeContext,
     freshRuntimeAdmission: options=>admitRuntime(transactionClient,phase4Keys,options).then(cap=>runtimeAdmission=cap),
@@ -1838,7 +1828,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
       },
     }),
     close: () => {endRuntimeLifetime(transactionClient);client.close();},
-  };
+  },processing.transaction);
 }
 
 function sleep(ms) {

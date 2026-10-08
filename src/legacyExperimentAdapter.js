@@ -1,3 +1,4 @@
+import {workStepOptions} from './phase4WorkStep.js';
 import { fail } from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
 
@@ -15,7 +16,8 @@ export function legacyExperimentAdapter({client,keys,foundation,transaction,priv
       fail('PHASE4_EXPERIMENT_PROVENANCE_REQUIRED');
   }
   async function owner(userId) {
-    await transaction(()=>privacy.capture(userId));
+    await transaction(()=>privacy.initialize(userId),workStepOptions('tenant.privacy-initialize',[userId]));
+    await transaction(()=>privacy.capture(userId),{readOnly:true});
     const stores=await foundation();return {stores,control:await stores.captureControl(userId)};
   }
   async function proofsFor(stores,control,fields,provenance) {
@@ -55,7 +57,7 @@ export function legacyExperimentAdapter({client,keys,foundation,transaction,priv
     return transaction(async()=>{
       const rows=(await client.execute({sql:'SELECT id FROM experiments WHERE user_id=? AND (? IS NULL OR status=?) ORDER BY id DESC',args:[control.userId,status,status]})).rows;
       const values=[];for(const row of rows)values.push(await getExperiment(control.userId,row.id));return values;
-    });
+    },{readOnly:true});
   }
   return {createExperiment,updateExperiment,getExperiment,listExperiments};
 }

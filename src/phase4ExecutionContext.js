@@ -9,6 +9,7 @@ export const currentDurableExecution=()=>scope.getStore();
 export function requireSettledOperation(error){
  const context=scope.getStore();
  if(error?.code==='COMMIT_INDETERMINATE'||context?.indeterminate||context?.pending?.size)throw new CommitIndeterminateError();
+ if(context?.workRejected)throw context.workRejected;
 }
 const fail=code=>{throw Object.assign(Error(code),{code});};
 export async function assertExecutionWorkOwner(client){
@@ -46,9 +47,7 @@ export async function appendExecutionReceipt(client,{step,result,explicit=false}
  const context=scope.getStore();if(!context||context.receipts===false)return;
  await assertExecutionWorkOwner(client);const {claim}=context;
  const key=workStepKey(context,step),prior=await readWorkStep(client,step);
- // Domain writes retain their own deterministic receipts. Identical domain
- // transactions share one proof; generic named steps are checked before work.
- if(prior)return;
+ if(prior)fail('EXECUTION_WORK_STEP_ALREADY_COMMITTED');
  await client.execute({sql:'INSERT INTO phase4_execution_work_receipts(execution_id,receipt_key,scope_key,request_digest,step_key,generation,committed_at,result_json) VALUES(?,?,?,?,?,?,?,?)',
   args:[claim.executionId,key,claim.scopeKey,claim.identity,key,claim.generation,Date.now(),explicit?receiptResult(result):null]});
  context.authority.assert();

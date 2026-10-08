@@ -14,6 +14,15 @@ export function legacyPrivacyFence(client,keys) {
     installed=(await client.execute('PRAGMA table_info(telegram_operations)')).rows.some(c=>c.name==='content_state');
     return installed;
   }
+  async function initialize(userId) {
+    if(!await available())return;
+    const uid=requireUserId(userId,'privacyFence'),at=new Date().toISOString();
+    if(!(await client.execute({sql:'SELECT 1 FROM phase4_user_state WHERE user_id=?',args:[uid]})).rows.length)
+      await client.execute({sql:`INSERT INTO phase4_user_state(user_id,created_at,updated_at) VALUES (?,?,?) ON CONFLICT DO NOTHING`,args:[uid,at,at]});
+    if(!(await client.execute({sql:"SELECT 1 FROM phase4_computation_state WHERE user_id=? AND execution_mode='SHADOW'",args:[uid]})).rows.length)
+      await client.execute({sql:`INSERT INTO phase4_computation_state(user_id,execution_mode,source_generation_seen,algorithm_set_version,created_at,updated_at)
+        SELECT user_id,'SHADOW',source_generation,'phase4-foundation-v1',?,? FROM phase4_user_state WHERE user_id=? ON CONFLICT DO NOTHING`,args:[at,at,uid]});
+  }
   async function capture(userId) {
     if(!await available())return null;
     const uid=requireUserId(userId,'privacyFence');
@@ -21,14 +30,9 @@ export function legacyPrivacyFence(client,keys) {
       COALESCE(t.auth_generation,0) auth_generation FROM users u LEFT JOIN user_whoop_tokens t ON t.user_id=u.id WHERE u.id=?`,args:[uid]})).rows[0];
     if(!user)fail('PHASE4_TENANT_NOT_FOUND');
     if(user.status!=='ACTIVE')throw new AccountInactiveError(uid);
-    // Existing server APIs support users created after migration. Metadata is
-    // initialized lazily, with no LIVE row or reset of an existing counter.
-    const at=new Date().toISOString();
-    await client.execute({sql:`INSERT INTO phase4_user_state(user_id,created_at,updated_at) VALUES (?,?,?) ON CONFLICT DO NOTHING`,args:[uid,at,at]});
+    await initialize(uid);
     const state=(await client.execute({sql:'SELECT purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id=?',args:[uid]})).rows[0];
     if(!state || state.pending_purge_count!==0)fail('PHASE4_PURGE_FENCED');
-    await client.execute({sql:`INSERT INTO phase4_computation_state(user_id,execution_mode,source_generation_seen,algorithm_set_version,created_at,updated_at)
-      SELECT user_id,'SHADOW',source_generation,'phase4-foundation-v1',?,? FROM phase4_user_state WHERE user_id=? ON CONFLICT DO NOTHING`,args:[at,at,uid]});
     return Object.freeze({userId:uid,purgeGeneration:state.purge_generation,lifecycleGeneration:user.lifecycle_generation,authGeneration:user.auth_generation});
   }
   async function assert(fence) {
@@ -40,6 +44,6 @@ export function legacyPrivacyFence(client,keys) {
     if(row.status!=='ACTIVE'||row.lifecycle_generation!==fence.lifecycleGeneration)throw new AccountInactiveError(fence.userId);
     if(row.auth_generation!==fence.authGeneration)fail('PHASE4_AUTH_FENCED');
   }
-  return {available,capture,assert,track:async fence=>{if(fence)await registry.register(fence);},
+  return {available,initialize,capture,assert,track:async fence=>{if(fence)await registry.register(fence);},
     release:async fence=>{if(fence)await registry.release(fence);},checkLease:async fence=>{if(fence)await registry.assertLease(fence);}};
 }

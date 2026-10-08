@@ -37,8 +37,8 @@ Each mutating root work transaction appends an opaque receipt in the same SQL
 transaction through the execution context. There is no health payload, raw key,
 token, secret or user-facing text in this receipt. Failure before COMMIT rolls
 back both effect and receipt. A named generic step checks its deterministic receipt before the business
-callback; a lost acknowledgement cannot replay its effect. Domain retry resumes
-reviewed deterministic business identities and cursors under fresh authority. Existing deterministic Stage 5 receipts, Stage 6 cursors/work
+callback; a lost acknowledgement cannot replay its effect. Domain retry retains its reviewed deterministic identities and cursors, with an
+explicit v32 step receipt for each mutating unit. Existing deterministic Stage 5 receipts, Stage 6 cursors/work
 tips and ordinary report claims/delivery states remain the business dedupe.
 
 The phase result commit records only sanitized counts/outcome, a digest and
@@ -213,9 +213,11 @@ a step key fail before DML. A generic callback must return a safe aggregate or
 void; health payloads and user-facing text are rejected and rolled back.
 
 Reviewed domain stores retain their canonical object/operation receipts and
-Stage 6 cursor/family authority. Their root receipt is a deterministic execution
-progress ordinal, not their business dedupe. It does not authorize success or
-justify blindly replaying a non-idempotent callback.
+Stage 6 cursor/family authority. Every mutating root also has an explicit logical
+step identity. Table names, callback names, SQL text and ordinal position do not
+provide that authority. Selected work items are identified read-only before
+mutation. Complex replay results are reconstructed from the existing domain
+receipt under a read-only guard; v32 never stores health payloads.
 
 `reconcileExecution` is the shared read-only classifier. It validates immutable
 request identity, result digest and receipt request/scope/generation, then returns
@@ -317,3 +319,37 @@ and deterministic handoff HMAC still must match. Missing receipts/uncommitted
 work does not qualify, nor does ABORTED. All new business work keeps the original
 handoff age limit. Original request body identity must match; reconciliation of
 an older release uses its approved matching binary and configuration.
+
+## Final delta: expiry submission and mandatory logical units
+
+The legal ESTABLISHED→WORK_COMMITTED transition additionally requires both OLD
+lease/deadline strictly greater than databaseNowMs at SQL statement execution,
+unchanged owner/generation and unchanged authority clocks. Same-generation clock
+extension is forbidden, including a separate restamp before work. Fresh authority
+requires legal owner/generation takeover. Cancellation/expiry after valid COMMIT
+submission remains non-retroactive; delayed/lost ACK is durably reconciled. Cleanup
+only decreases clocks with MIN and cannot re-authorize work.
+
+Under a v32 work context, a generic unkeyed transaction fails before its callback.
+Explicit read-only roots cannot mutate, including through a CTE or PRAGMA setter.
+Named steps check receipts before business callbacks; rejected work is sticky for
+the phase, so a swallowed error cannot authorize SYNC. Root business operations
+use semantic kind and immutable tenant/work-item/window/cursor facts. Every
+accepted business mutation commits its deterministic receipt atomically. There
+is no recognized-table exception or root-ordinal fallback.
+
+Existing v31 ownership/context leases use four fixed parameter-only coordination
+commands. This separate infrastructure API accepts no caller SQL, table or
+business callback. It cannot exempt a generic known-table mutation. API delivery/
+notification acquisition replay is not a fresh send grant. Domain dedupe remains
+in place beside v32 receipts. The complete caller inventory is
+[phase4-v32-final-callers.json](phase4-v32-final-callers.json).
+
+SYNC window identities exclude retry wall-clock changes. Committed effect and
+aggregate fetch-count receipts are atomic; retry reads both before fetching,
+never silently ignores a new fetch after replay. Backfill identities retain the
+canonical chunk cursor. A receipt-only Stage 6 retry finalizes already-durable
+progress as metadata-only PARTIAL/RECONCILIATION_ONLY and begins no new business
+work; later bounded invocations resume existing durable cursors. Cancellation
+remains visible beside receipt counts. Manifest discovery that initializes durable
+family metadata is a named mutating unit, not a read-only exception.

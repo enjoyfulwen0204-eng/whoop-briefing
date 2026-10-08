@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {fixture,request,claim,authority,fixtureKeys,environment} from './v32ReviewFixture.js';
+import {readExecution} from '../src/phase4ExecutionStore.js';
+import {databaseNowMs,withDurableExecution} from '../src/phase4ExecutionContext.js';
+import {bodySha256} from '../src/briefingTriggerAuth.js';
+import {runExecutionPhase} from '../src/phase4Execution.js';
+const context=c=>({claim:c,keys:fixtureKeys,pending:new Set(),authority});
+const expire=(db,r)=>db.raw.execute({sql:`UPDATE phase4_executions SET lease_until=${databaseNowMs}-1,deadline_at=${databaseNowMs}-1 WHERE execution_id=?`,args:[r.requestId]});
+const rawWork=(db,r,c)=>{
+ const result={version:2,releaseSha:r.releaseSha,phase:r.phase,source:r.triggerSource,outcome:'NO_NEW_DATA_SUCCESS',identity:c.identity,configProof:r.configProof,executionMode:r.executionMode};
+ const json=JSON.stringify(result);
+ return db.raw.execute({sql:`UPDATE phase4_executions SET state='WORK_COMMITTED',result_json=?,result_digest=?,work_committed_at=${databaseNowMs},updated_at=${databaseNowMs} WHERE execution_id=? AND owner=? AND generation=? AND state='ESTABLISHED'`,args:[json,bodySha256(json),r.requestId,c.owner,c.generation]});
+};
+test('NEW-H01: direct SQL work transition after DB lease/deadline expiry rejects and cannot supply an adopted SYNC success',async t=>{
+ const {db}=await fixture(t),r=request(),c=await claim(db,r);await expire(db,r);
+ await assert.rejects(()=>rawWork(db,r,c));
+ assert.equal((await readExecution(db,r.requestId)).state,'ESTABLISHED');let callbacks=0;
+ const response=await runExecutionPhase({db,request:r,environment,keys:fixtureKeys,env:{dryRun:true},deps:{runBriefing:async()=>{callbacks++;return {syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS'};}}});
+ assert.equal(callbacks,1,'a fresh authorized execution must perform legitimate work, not adopt rejected SQL');
+ assert.equal(response.body.syncComplete,true);assert.equal((await readExecution(db,r.requestId)).generation,c.generation+1);
+});
+test('M01: generic UNKEYED mutation of a recognized Phase 4 table rejects before business effect or receipt',async t=>{
+ const {db}=await fixture(t);await db.createUser({id:'generic',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
+ await db.raw.execute("INSERT INTO user_notification_preferences(user_id,preference_version,created_at,updated_at) VALUES('generic',1,'2026-10-08','2026-10-08')");
+ const r=request(),c=await claim(db,r);let callbacks=0;
+ await assert.rejects(()=>withDurableExecution(context(c),()=>db.transaction(async()=>{await db.raw.execute("UPDATE user_notification_preferences SET preference_version=preference_version+1 WHERE user_id='generic'");callbacks++;})),/WORK_STEP_REQUIRED/);
+ assert.equal(callbacks,0);assert.equal((await db.raw.execute("SELECT preference_version v FROM user_notification_preferences WHERE user_id='generic'")).rows[0].v,1);
+ assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_execution_work_receipts')).rows[0].n,0);
+ assert.equal((await readExecution(db,r.requestId)).state,'ESTABLISHED');
+});

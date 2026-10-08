@@ -3,14 +3,32 @@ import { currentExecutionBudget,ExecutionBudgetError } from './executionBudget.j
 import {appendExecutionReceipt,currentDurableExecution,CommitIndeterminateError,requireSettledOperation,readWorkStep} from './phase4ExecutionContext.js';
 import {inRuntimeMetadata} from './runtimeMetadataContext.js';
 import {reconcileExecution} from './phase4ExecutionStore.js';
-import {SCHEMA,PHASE4_MIGRATIONS} from './schema.js';
-let domainTables;
-function governedWork(sql){
- // Existing stores retain their reviewed business identities/receipts. Generic
- // state/custom tables have no such contract and require an explicit step key.
- domainTables??=new Set([...SCHEMA,...PHASE4_MIGRATIONS.flatMap(m=>m.ddl??[])].map(ddl=>ddl.match(/^CREATE TABLE(?: IF NOT EXISTS)?\s+(\w+)/i)?.[1]).filter(Boolean));
- const table=sql.match(/^\s*(?:INSERT\s+(?:OR\s+\w+\s+)?INTO|UPDATE|DELETE\s+FROM)\s+(\w+)/i)?.[1];
- return table&&table!=='telegram_state'&&domainTables.has(table);
+import {inExecutionCoordination} from './phase4Coordination.js';
+function missingStep(){const execution=currentDurableExecution(),error=Object.assign(Error('EXECUTION_WORK_STEP_REQUIRED'),{code:'EXECUTION_WORK_STEP_REQUIRED'});
+ if(execution&&!execution.workRejected)execution.workRejected=error;throw error;}
+// This only separates supported read statements from mutations; it never
+// supplies a work identity. SQLite CTEs cannot contain DML; their final verb
+// must be SELECT. Quoted text/comments and nested expressions are not verbs.
+export function readOnlyStatement(statement){
+ const sql=typeof statement==='string'?statement:Array.isArray(statement)?statement[0]:statement?.sql??'';
+ const tokens=[];let depth=0,ended=false;
+ for(let i=0;i<sql.length;){const c=sql[i];
+  if(/\s/.test(c)){i++;continue;}
+  if(sql.startsWith('--',i)){const end=sql.indexOf('\n',i+2);i=end<0?sql.length:end+1;continue;}
+  if(sql.startsWith('/*',i)){const end=sql.indexOf('*/',i+2);if(end<0)return false;i=end+2;continue;}
+  if(ended)return false;
+  if(c==='\''||c==='"'||c==='`'||c==='['){const end=c==='['?']':c;i++;let closed=false;
+   while(i<sql.length){if(sql[i++]===end){if(sql[i]===end){i++;continue;}closed=true;break;}}if(!closed)return false;continue;}
+  if(c==='('){depth++;i++;continue;}if(c===')'){if(--depth<0)return false;i++;continue;}
+  if(c===';'&&depth===0){ended=true;i++;continue;}
+  const word=sql.slice(i).match(/^[a-z_][a-z0-9_]*/i);if(word){if(depth===0)tokens.push(word[0].toUpperCase());i+=word[0].length;continue;}i++;
+ }
+ if(depth!==0)return false;
+ if(tokens[0]==='SELECT')return true;
+ if(tokens[0]==='WITH')return tokens.slice(1).find(token=>['SELECT','UPDATE','INSERT','DELETE','REPLACE'].includes(token))==='SELECT';
+ if(tokens[0]!=='PRAGMA'||sql.includes('='))return false;
+ if(['FOREIGN_KEYS','IGNORE_CHECK_CONSTRAINTS'].includes(tokens[1]))return /^\s*PRAGMA\s+(foreign_keys|ignore_check_constraints)\s*;?\s*$/i.test(sql);
+ return ['TABLE_INFO','TABLE_XINFO','DATABASE_LIST','INDEX_LIST','INDEX_INFO','INDEX_XINFO','FOREIGN_KEY_LIST','INTEGRITY_CHECK','FOREIGN_KEY_CHECK'].includes(tokens[1]);
 }
 
 // Retry admission and COMMIT, never an application callback. Admission reads
@@ -81,7 +99,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         if (guarded) {
           await checkFences();
           const sql = key === 'execute' ? (typeof args[0] === 'string' ? args[0] : args[0]?.sql) : '';
-          if (!state && !/^\s*SELECT\b/i.test(sql))
+          if (!state && !readOnlyStatement(args[0]))
             return transaction(() => client[key](...args));
         }
         if (state?.failure) throw state.failure;
@@ -91,16 +109,15 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             const statements=key==='batch'?args[0]:[args[0]];
             const mutations=statements.filter(statement=>{
               const sql=typeof statement==='string'?statement:Array.isArray(statement)?statement[0]:statement?.sql??'';
-              return !/^\s*(SELECT|PRAGMA)\b/i.test(sql)&&!/^\s*(?:INSERT\s+(?:OR\s+\w+\s+)?INTO|UPDATE|DELETE\s+FROM)\s+(?:system_heartbeats|phase4_executions|phase4_execution_work_receipts|phase4_execution_producers)\b/i.test(sql);
+              return !readOnlyStatement(statement)&&!inRuntimeMetadata(sql);
             });
-            if(mutations.length){requireSettledOperation();state.workWrites=true;
+            if(mutations.length){requireSettledOperation();
               const context=currentDurableExecution();if(context&&context.receipts!==false){
-                if(state.workStep===undefined&&mutations.some(mutation=>!governedWork(typeof mutation==='string'?mutation:Array.isArray(mutation)?mutation[0]:mutation.sql)))throw Object.assign(Error('EXECUTION_WORK_STEP_REQUIRED'),{code:'EXECUTION_WORK_STEP_REQUIRED'});
-                // Domain root receipts are progress proofs only. Logical domain
-                // dedupe lives in the existing object/operation receipts; this
-                // ordinal is reproducible and contains no time or random nonce.
-                state.mutations.push('domain-work');
-              }}
+                const coordination=mutations.every(inExecutionCoordination);
+                if(state.replaying||state.readOnly&&!coordination)missingStep();
+                if(state.workStep===undefined&&!coordination&&!state.receiptWrite)missingStep();
+              }
+              if(!mutations.every(inExecutionCoordination)&&!state.receiptWrite)state.workWrites=true;}
             return await state.tx[key](...args);}
           const sql=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
           if(rootAdmission&&!metadata)await checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));
@@ -139,11 +156,11 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     throw error;
   }
 
-  async function transaction(fn, { before, after, beforeCommit,commitFence,commitAuthority,workStep } = {}) {
+  async function transaction(fn, { before, after, beforeCommit,commitFence,commitAuthority,workStep,workStepFrom,readOnly=false,discardResult=false,replay } = {}) {
     const parent = scope.getStore();
     if (fences().length) await checkFences();
     if (parent) {
-      if(workStep!==undefined)throw Error('EXECUTION_WORK_STEP_MUST_BE_ROOT');
+      if(workStep!==undefined&&parent.workStep===undefined&&currentDurableExecution()&&currentDurableExecution().receipts!==false)missingStep();
       try {
         if (before) await before(client);
         if (after) parent.checks.push(after);
@@ -155,12 +172,15 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     }
     const cache = new Map();
     requireSettledOperation();
-    if(workStep!==undefined&&(typeof workStep!=='string'||!workStep||workStep.length>512))throw Error('EXECUTION_WORK_STEP_INVALID');
+    const execution=currentDurableExecution();
+    if(execution&&execution.receipts!==false&&workStep===undefined&&!workStepFrom&&!readOnly&&!inExecutionCoordination())missingStep();
+    if(workStepFrom!==undefined&&typeof workStepFrom!=='function')missingStep();
+    if(workStep!==undefined&&(typeof workStep!=='string'||!workStep||workStep.length>512))missingStep();
     for (let attempt = 0; attempt < 12; attempt++) {
       const releaseRoot=await acquireRoot();
       let tx,commitSubmitted=false;
       const state = { tx:null, cache, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
-        commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),workStep,mutations:[],failure: null, deferred: null, committed: [], completed: [] };
+        commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),workStep,readOnly,replaying:false,receiptWrite:false,failure: null, deferred: null, committed: [], completed: [] };
       try {
         if(rootAdmission)await checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));
         tx=await retryContention(async()=>{
@@ -180,13 +200,26 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         const result = await scope.run(state, async () => {
           if (fences().length) await checkFences(client);
           if (before) await before(client);
-          if(workStep!==undefined){const receipt=await readWorkStep(client,['named',workStep]);if(receipt){await tx.rollback();return receipt.result_json===null?null:JSON.parse(receipt.result_json);}}
+          if(workStepFrom&&execution&&execution.receipts!==false){
+            state.readOnly=true;const prepared=await workStepFrom(client);state.readOnly=readOnly;
+            if(prepared===null){await tx.rollback();return null;}
+            if(typeof prepared!=='string'||!prepared||prepared.length>512)missingStep();
+            state.workStep=prepared;
+          }
+          if(state.workStep!==undefined){const receipt=await readWorkStep(client,['named',state.workStep]);if(receipt){
+            state.replaying=true;
+            const result=replay?await replay():receipt.result_json===null?null:JSON.parse(receipt.result_json);
+            for(const check of state.checks)await check(client);currentExecutionBudget()?.assert();
+            await tx.rollback();return result;
+          }}
           const result = await fn();
           if (state.failure) throw state.failure;
           for (const check of state.checks) await check(client);
           if (state.failure) throw state.failure;
-          if(state.workWrites){const context=currentDurableExecution();
-            await appendExecutionReceipt(client,{step:workStep===undefined?['domain-root',context?(context.workOrdinal=(context.workOrdinal??0)+1):0]:['named',workStep],result,explicit:workStep!==undefined});}
+          if(state.workWrites){state.receiptWrite=true;
+            const scalar=result===null||typeof result==='boolean'||typeof result==='number'&&Number.isFinite(result)||typeof result==='string'&&/^[a-f0-9]{64}$/.test(result);
+            try{await appendExecutionReceipt(client,{step:['named',state.workStep],result:discardResult&&!scalar?undefined:result,explicit:true});}
+            finally{state.receiptWrite=false;}}
           await retryContention(async()=>{
             // Recheck ownership after all deferred result validation and before
             // each COMMIT attempt, including time spent waiting on contention.

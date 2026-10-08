@@ -1,3 +1,5 @@
+import {workStepOptions} from './phase4WorkStep.js';
+import {currentDurableExecution,readWorkStep,appendExecutionReceipt} from './phase4ExecutionContext.js';
 /**
  * WHOOP → Turso 長期同步。
  *
@@ -104,7 +106,18 @@ export function createSync({
    */
   const lifecycleFenced = lifecycleFence !== null;
 
-  async function commitWindow(resource, payload, cursorPatch) {
+  const windowFacts=(resource,patch)=>[uid,resource,lifecycleFence,patch?.backfillCursor?['BACKFILL',patch.backfillCursor]:[POINT_IN_TIME.has(resource)?'POINT_IN_TIME':'INCREMENTAL']];
+  async function committedWindow(resource,patch){
+    if(!currentDurableExecution())return null;
+    return db.transaction(async()=>{
+      const effect=await readWorkStep(db.raw,['named',workStepOptions('whoop.window',windowFacts(resource,patch)).workStep]);
+      if(!effect)return null;
+      const counts=await readWorkStep(db.raw,['named',workStepOptions('whoop.window-count',windowFacts(resource,patch)).workStep]);
+      if(!counts)throw Object.assign(Error('EXECUTION_RECEIPT_CORRUPT'),{code:'EXECUTION_RECEIPT_CORRUPT'});
+      return {written:JSON.parse(effect.result_json),fetched:JSON.parse(counts.result_json)};
+    },{readOnly:true});
+  }
+  async function commitWindow(resource, payload, cursorPatch, fetched) {
     return db.transaction(async () => {
       // 只有**帶著啟用脈絡**的呼叫端才受圍欄約束（與這次修正其他地方一致）。
       // 正式路徑（排程器 runForUser、上線 bootstrap）都會帶；沒有帶的是
@@ -113,8 +126,9 @@ export function createSync({
       if (lifecycleFenced) await db.assertAccountActive(uid, lifecycleFence);
       const written = await persist(resource, payload);
       if (cursorPatch) await db.saveSyncState(uid, resource, cursorPatch, { now });
+      if(currentDurableExecution())await appendExecutionReceipt(db.raw,{step:['named',workStepOptions('whoop.window-count',windowFacts(resource,cursorPatch)).workStep],result:fetched,explicit:true});
       return written;
-    });
+    },workStepOptions('whoop.window',windowFacts(resource,cursorPatch)));
   }
   /**
    * 一個 resource 的抓取器。全部沿用 whoop client 既有的
@@ -156,8 +170,9 @@ export function createSync({
 
   /** 抓一個時間窗並**與游標一起**落地。 */
   async function syncWindow(resource, fromIso, toIso, cursorPatch = null) {
+    const committed=await committedWindow(resource,cursorPatch);if(committed)return committed;
     const { payload, fetched } = await fetchWindow(resource, fromIso, toIso);
-    const written = await commitWindow(resource, payload, cursorPatch);
+    const written = await commitWindow(resource, payload, cursorPatch, fetched);
     return { fetched, written };
   }
 
@@ -226,7 +241,7 @@ export function createSync({
         budget?.assert();
         if (lifecycleFenced) await db.assertAccountActive(uid, lifecycleFence);
         await db.saveSyncState(uid, resource, { backfillComplete: true }, { now });
-      });
+      },workStepOptions('whoop.backfill-complete',[uid,resource,target.toISOString(),lifecycleFence]));
       log.info('sync_backfill_complete', { resource, earliest: cursor.toISOString() });
     }
     return {

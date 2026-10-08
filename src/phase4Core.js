@@ -1,3 +1,4 @@
+import {workStepOptions} from './phase4WorkStep.js';
 import { compareExact } from './phase4CanonicalOrder.js';
 import { coverageLineage } from './phase4CoverageLineage.js';
 /** Internal persistence kernel. No application entry point imports this module
@@ -89,7 +90,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
         VALUES (?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`,args:[uid,mode,mode==='LIVE'?1:0,current.source_generation,'phase4-foundation-v1',at,at]});
       const stored=(await client.execute({sql:'SELECT input_generation FROM phase4_computation_state WHERE user_id=? AND execution_mode=?',args:[uid,mode]})).rows[0];
       return {created:inserted.rowsAffected===1,mode,inputGeneration:stored.input_generation};
-    });
+    },workStepOptions('tenant.initialize',[uid,mode],{discardResult:true}));
   }
   async function capture(userId,{executionMode,providerRequired=false}={}) {
     // Missing mode is an error despite the SQL default. Never infer LIVE from a
@@ -107,7 +108,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
         sourceGeneration:state.source_generation,timezone:state.timezone,providerRequired:Boolean(providerRequired),
         algorithmSetVersion:computation.algorithm_set_version});
       contexts.add(context);await contextRegistry.register(context);await assertContext(context);return context;
-    });
+    },{readOnly:true});
   }
   async function assertContext(context,{allowPurge=false,allowInactive=false,ignoreInput=false}={}) {
     if(!contexts.has(context))fail('PHASE4_SERVER_CONTEXT_REQUIRED');
@@ -157,7 +158,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   async function run(context,fn,options={}) {
     const job=jobScope.getStore();
     const check=async()=>{await assertContext(context,options);if(job)await job.check(context);};
-    return transaction(()=>fn(context),{before:check,after:check,...(job?{commitFence:check}:{})});
+    return transaction(()=>fn(context),{readOnly:options.workStep===undefined&&options.workStepFrom===undefined,...options,before:check,after:check,...(job?{commitFence:check}:{})});
   }
   async function runControl(control,mode,fn) {
     if(!['SHADOW','LIVE'].includes(mode))fail('PHASE4_EXECUTION_MODE_REQUIRED');

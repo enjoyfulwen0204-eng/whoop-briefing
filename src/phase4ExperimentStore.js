@@ -147,10 +147,10 @@ export function createPhase4ExperimentStore(core,privacy,queue) {
           }
         }
         if(!valid) {result[field]=EXPERIMENT_SENTINELS[field];redactedFields.push(field);}
-      }} finally {if(context)core.processing.afterCommit(()=>transaction(()=>core.contextRegistry.release(context)));}
+      }} finally {if(context)core.processing.afterCommit(()=>transaction(()=>core.contextRegistry.release(context),{readOnly:true}));}
       if(requiredFields.some(f=>!Object.hasOwn(EXPERIMENT_FIELDS,f)||redactedFields.includes(f)))fail('PHASE4_EXPERIMENT_REQUIRED_FIELD_REDACTED');
       await core.assertControl(control);return {row:result,fields:leaves.map(r=>({...r})),redactedFields};
-    });
+    },{readOnly:true});
   }
   async function writeNewFields(control,{experimentId,fields={},proofs={},sourceKey,status}) {
     if(!sourceKey || Object.keys(fields).some(f=>!Object.hasOwn(EXPERIMENT_FIELDS,f))

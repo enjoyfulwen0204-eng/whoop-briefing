@@ -1,3 +1,4 @@
+import {workStepOptions} from './phase4WorkStep.js';
 import { isLifecycleFenced, LifecycleContextError } from './accountLifecycle.js';
 
 export const SCHEDULED_OUTPUT_WRITERS = Object.freeze([
@@ -17,7 +18,7 @@ export function lifecycleOutputDb(db, { userId, expectedLifecycleGeneration, wri
     view[name] = (...args) => {
       const uid = name === 'recordPredictionActual' ? args[0]?.userId : args[0];
       if (uid !== userId) throw new Error('lifecycle_output_user_mismatch');
-      return db.transaction(() => db[name](...args), { before: check, after: check });
+      return db.transaction(() => db[name](...args), {...workStepOptions('scheduled-output',[userId,expectedLifecycleGeneration,name,args],{discardResult:true}), before: check, after: check });
     };
   }
   return view;

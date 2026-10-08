@@ -1,3 +1,4 @@
+import {executeCoordination} from './phase4Coordination.js';
 /** Existing v31 resource_locks is the durable atomic ownership authority.
  * A random owner is also the generation: takeover always replaces it. No DB
  * transaction is held while waiting on WHOOP. */
@@ -19,9 +20,7 @@ export async function withSyncOwnership({ db, userId, budget, leaseMs }, work) {
   if (!Number.isSafeInteger(ttl) || ttl < 1 || ttl > 195_000) throw new SyncOwnershipError('SYNC_LEASE_INVALID');
   const owner = randomUUID(), name = `phase4:sync:${uid}`, at = new Date().toISOString(), expiresAt = new Date(Date.now()+ttl).toISOString();
   budget.assert();
-  const claim = await db.raw.execute({ sql: `INSERT INTO resource_locks(name,owner,acquired_at,expires_at) VALUES (?,?,?,?)
-    ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,acquired_at=excluded.acquired_at,expires_at=excluded.expires_at
-    WHERE resource_locks.expires_at<=excluded.acquired_at`, args: [name,owner,at,expiresAt] });
+  const claim = await executeCoordination(db.raw,'claim',[name,owner,at,expiresAt])
   if (claim.rowsAffected !== 1) { if (ownBudget) budget.close(); throw new SyncOwnershipError('SYNC_SCOPE_BUSY'); }
   const check = async client => {
     budget.assert();
@@ -34,7 +33,7 @@ export async function withSyncOwnership({ db, userId, budget, leaseMs }, work) {
   finally {
     // Late work retains the aborted/deadline guard; releasing only this owner's
     // row can never release a successor. Failure cleanup may rely on TTL.
-    try { await db.raw.execute({sql:'DELETE FROM resource_locks WHERE name=? AND owner=?',args:[name,owner]}); } catch {}
+    try { await executeCoordination(db.raw,'release',[name,owner]); } catch {}
     if (ownBudget) budget.close();
   }
 }

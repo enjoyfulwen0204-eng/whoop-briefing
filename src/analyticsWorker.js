@@ -176,7 +176,7 @@ export function fencedAnalyticsDb(db, {
       if (outputUserId !== userId) throw new Error('analytics_output_user_mismatch');
       try {
         return await db.mutateForAnalytics(
-          { userId, cls, owner, generation, expectedLifecycleGeneration, now },
+          { userId, cls, owner, generation, expectedLifecycleGeneration, now, workIdentity:['heavy-output',name,args] },
           () => db[name](...args),
         );
       } catch (err) {

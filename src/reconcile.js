@@ -461,7 +461,7 @@ export function createReconciler({
         counters.pages = 1;
         counters.fetched = 1;
         counters.written = await db.mutateForReconciliation(
-          { userId: uid, resource: key, owner, now },
+          { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to] },
           async () => {
             // ★ R2 §16：canonical 變更要在**同一個交易裡**證明啟用脈絡。
             // 租約所有權只證明「沒有別的對帳在跑」，不證明這個帳號還該被處理。
@@ -500,7 +500,7 @@ export function createReconciler({
       // blocked = 抓到但沒寫進去的（新鮮度或墓碑擋下）。
       counters.written = fetched.records.length
         ? await db.mutateForReconciliation(
-          { userId: uid, resource: key, owner, now },
+          { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to] },
           async () => {
             await assertLifecycle();
             return persist(resource, fetched.records);

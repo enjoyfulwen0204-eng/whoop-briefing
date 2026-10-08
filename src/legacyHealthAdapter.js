@@ -1,3 +1,4 @@
+import {workStepOptions} from './phase4WorkStep.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { requireUserId } from './userContext.js';
 import { requirePhase4Keys } from './phase4Keys.js';
@@ -87,6 +88,7 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
       // lifecycle authority is still an error, including for inactive users.
       if(name==='saveCapabilities' && !isLifecycleFenced(args[2]?.expectedLifecycleGeneration))
         throw new LifecycleContextError('saveCapabilities');
+      await processing.transaction(()=>privacy.initialize(uid),workStepOptions('tenant.privacy-initialize',[uid]));
       return processing.transaction(async()=>{
         let fence;
         try {fence=await privacy.capture(uid);} catch(error) {
@@ -118,7 +120,7 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
         }
         const result=await calls.run(call,()=>fn(...args));
         await privacy.assert(fence);return result;
-      });
+      },{readOnly:true});
     }]));
   }
   return {client:scopedClient,wrap};

@@ -95,7 +95,8 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   }
 
   async function metricsV30(context,req,lease,assertBudget) {
-    const directory=await queue.owned(context,lease,()=>familyDirectory.inventory(context,req.metricKey),{assertBudget});
+    const directory=await queue.owned(context,lease,()=>familyDirectory.inventory(context,req.metricKey),
+      {assertBudget,workKind:'stage6.family-inventory',workFacts:[req.metricKey,req.asOfUtc]});
     const defaultKey=keys.lookup(['episode-family-v1',context.userId,phase4Metric(req.metricKey).domain,
       req.metricKey,INTELLIGENCE_VERSIONS.algorithm,req.metricKey,req.windowFamily]);
     const candidates=[{familyKey:defaultKey,windowFamily:req.windowFamily},
@@ -126,7 +127,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
           owned=settled.entries.find(row=>row.family_key===candidate.familyKey);
         if(owned)await familyDirectory.complete(context,owned);
         return result;
-      },{assertBudget});
+      },{assertBudget,workKind:'stage6.family',workFacts:[req.metricKey,req.asOfUtc,candidate.familyKey]});
       units.push({kind:'EPISODE_FAMILY',familyKey:candidate.familyKey,status:'COMPLETE',outcome});
     } catch(error) {
         requireSettledOperation(error);
@@ -298,7 +299,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     const root=await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
     if(source.source_type==='USER') {
       const body=await queue.owned(context,lease,()=>stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}),
-        {assertBudget});
+        {assertBudget,workKind:'stage6.body-source',workFacts:[source.source_type,source.source_id,source.cursor,asOfUtc]});
       if(['AVAILABLE','LIMITED'].includes(body.row.quality_state)) {
         const current=await core.run(context,()=>stores.readArtifact(context,'body_energy_results',{result_id:body.row.result_id}));
         const request=await core.run(context,()=>inputs.metric(context,'body_energy',current,asOfUtc));
@@ -331,7 +332,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       // source/evidence/predecessor closure. A failed sibling episode family
       // remains unresolved but cannot veto an independent insight unit.
       try {
-        const outcome=await queue.owned(context,lease,()=>associations(context,metricKey,asOfUtc),{assertBudget});
+        const outcome=await queue.owned(context,lease,()=>associations(context,metricKey,asOfUtc),{assertBudget,workKind:'stage6.associations',workFacts:[source.source_type,source.source_id,source.cursor,metricKey,asOfUtc]});
         units.push({kind:'ASSOCIATION_INSIGHT',metricKey,status:'COMPLETE',outcome});
       }
       catch(error) {
@@ -375,11 +376,11 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
               if(familyDirectory) {
                 const outcome=await processSourceV30(context,source,lease.asOfUtc,lease,assertBudget);
                 if(outcome.failure)throw outcome.failure;
-                await queue.owned(context,lease,()=>queue.checkpoint(context,lease,source.cursor),{assertBudget});
+                await queue.owned(context,lease,()=>queue.checkpoint(context,lease,source.cursor),{assertBudget,workKind:'stage6.checkpoint',workFacts:[source.cursor]});
               } else await queue.owned(context,lease,async()=>{
                 await processSource(context,source,lease.asOfUtc);
                 await queue.checkpoint(context,lease,source.cursor);
-              },{assertBudget});
+              },{assertBudget,workKind:'stage6.source',workFacts:[source.source_type,source.source_id,source.cursor,lease.asOfUtc]});
               cursor=source.cursor;handled++;out.processedItems++;
             }
             await queue.release(context,lease);

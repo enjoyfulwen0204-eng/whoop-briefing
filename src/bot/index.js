@@ -174,7 +174,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   main()
     .then(() => process.exit(0))
     .catch((err) => {
-      log.error('bot_fatal', { error: describeError(err) });
+      log.error('bot_fatal', { error: describeError(err),error_code:err.code });
       process.exit(1);
     });
 }

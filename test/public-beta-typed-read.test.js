@@ -9,6 +9,7 @@ import { createPhase4Stage6, authorizeStage6ShadowWorker } from '../src/phase4Re
 import { createPublicBetaPresentation, publicBetaPolicy } from '../src/publicBeta.js';
 import { authorizePublicBetaRuntime, createPublicBetaRuntime } from '../src/publicBeta.js';
 import { runPhase4Stage6 } from '../src/shadowDrainScheduler.js';
+import {finalizedFixtureDrain} from './finalizedStage6Fixture.js';
 
 const AT = Date.parse('2026-09-25T12:00:00.000Z');
 const at = new Date(AT);
@@ -44,7 +45,7 @@ test('v30 Beta Summary reads a current episode through the canonical typed and r
   const worker = await createPhase4Stage6({ db: f.db, keys: f.keys, executionMode: 'SHADOW',
     workerCapability: authorizeStage6ShadowWorker({ executionMode: 'SHADOW' }), now: () => at });
   for (let i = 0; i < 12 && (await worker.diagnostics()).pendingJobs; i++) {
-    const drained = await worker.drain({ budget: { maxItemsPerTenant: 32, maxItems: 64 } });
+    const drained = await finalizedFixtureDrain(f.db,worker,{ budget: { maxItemsPerTenant: 32, maxItems: 64 } });
     assert.equal(drained.failedJobs, 0, JSON.stringify(drained));
   }
   assert.equal((await worker.diagnostics()).pendingJobs, 0);
@@ -74,7 +75,7 @@ test('v30 Beta Summary admits current Journal association claims through typed i
   const worker = await createPhase4Stage6({ db: f.db, keys: f.keys, executionMode: 'SHADOW',
     workerCapability: authorizeStage6ShadowWorker({ executionMode: 'SHADOW' }), now: () => at });
   for (let i = 0; i < 16 && (await worker.diagnostics()).pendingJobs; i++) {
-    const drained = await worker.drain({ budget: { maxItemsPerTenant: 32, maxItems: 64,
+    const drained = await finalizedFixtureDrain(f.db,worker,{ budget: { maxItemsPerTenant: 32, maxItems: 64,
       maxWallMs: 90000, leaseMs: 120000 } });
     assert.equal(drained.failedJobs, 0, JSON.stringify(drained));
   }

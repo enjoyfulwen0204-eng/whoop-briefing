@@ -3,6 +3,7 @@ import { fail } from './phase4Core.js';
 import { JOB_KINDS, OPERATION_ERROR_CODES } from './phase4V24Schema.js';
 import { createFamilyDirectory } from './phase4FamilyDirectory.js';
 import { PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
+import {bindProducingExecution} from './phase4ExecutionContext.js';
 
 export const STAGE6_RETRY_MS=Object.freeze([60000,300000,900000,3600000,21600000]);
 const active="(scope_kind<>'NONE' OR completed_generation<requested_generation)";
@@ -58,6 +59,7 @@ export function createReanalysisQueue(core) {
         args:[binding.owner,binding.expiresAt,context.inputGeneration,context.lifecycleGeneration,context.authGeneration,row.scope_revision,
           context.purgeGeneration,resume?row.full_scan_cursor:null,at,context.userId,kind,context.inputGeneration,row.scope_revision,at]});
       if(changed.rowsAffected!==1)fail('PHASE4_LEASE_CAS_LOST');
+      if(core.schemaVersion>=32)await bindProducingExecution(client,context);
       const lease=Object.freeze({binding,cursor:resume?row.full_scan_cursor:null,asOfUtc:current.computation.updated_at});
       leases.set(lease,{context,cursor:lease.cursor});return lease;
     });
@@ -90,6 +92,7 @@ export function createReanalysisQueue(core) {
   async function checkpoint(context,lease,cursor) {
     if(!core.processing.active()||!core.jobAuthority())fail('PHASE4_TRANSACTION_REQUIRED');
     await check(context,lease);
+    if(core.schemaVersion>=32)await bindProducingExecution(client,context);
     if(typeof cursor!=='string'||!cursor||cursor.length>4096)fail('PHASE4_SCAN_CURSOR_INVALID');
     await client.execute({sql:'UPDATE phase4_jobs SET full_scan_cursor=?,updated_at=? WHERE user_id=? AND execution_mode=? AND job_kind=?',
       args:[cursor,timestamp(),context.userId,context.executionMode,lease.binding.jobKind]});
@@ -98,6 +101,7 @@ export function createReanalysisQueue(core) {
   async function end(context,lease,enumerate,options={}) {
     return owned(context,lease,async()=>{
       const row=await check(context,lease);
+      if(core.schemaVersion>=32)await bindProducingExecution(client,context);
       if((await enumerate(row.full_scan_cursor,1)).length)fail('PHASE4_FULL_PASS_INCOMPLETE');
       const proof=Object.freeze({});proofs.set(proof,{lease,cursor:row.full_scan_cursor});return proof;
     },options);
@@ -133,7 +137,7 @@ export function createReanalysisQueue(core) {
         await client.execute({sql:`UPDATE phase4_invalidations SET scope_kind='NONE',full_scan_cursor=NULL,affected_from=NULL,affected_to=NULL,subject_key=NULL
           WHERE user_id=? AND execution_mode='SHADOW' AND requested_generation=?`,args:[context.userId,b.requestedGeneration]});
         const at=timestamp();
-        await client.execute({sql:`INSERT INTO system_heartbeats(scope,component,last_ok_at,last_detail,updated_at)
+        if(core.schemaVersion<32)await client.execute({sql:`INSERT INTO system_heartbeats(scope,component,last_ok_at,last_detail,updated_at)
           VALUES (?,'phase4_stage6_shadow',?,NULL,?) ON CONFLICT(scope,component) DO UPDATE SET
           last_ok_at=excluded.last_ok_at,last_detail=NULL,updated_at=excluded.updated_at`,args:[`user:${context.userId}`,at,at]});
       }

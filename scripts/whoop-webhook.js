@@ -21,12 +21,14 @@ import { createDb } from '../src/db.js';
 import { createWhoopClient } from '../src/whoop.js';
 import { drainWhoopWebhookEvents } from '../src/whoopWebhookProcessor.js';
 import { log, describeError } from '../src/logger.js';
+import {requireRuntimeSchema} from '../src/runtimeSchemaGuard.js';
+import {publicBetaKeysIfPresent} from '../src/publicBetaConfig.js';
 
 const command = process.argv[2] ?? 'status';
 
 loadDotEnvIfPresent();
 const env = loadEnv({ require: ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'] });
-const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,phase4Keys:publicBetaKeysIfPresent(process.env) });
 
 async function status() {
   const stats = await db.whoopEventStats();
@@ -82,6 +84,7 @@ async function drain() {
 }
 
 try {
+  await requireRuntimeSchema(db.raw,{legacyReadOnly:command==='status'&&process.argv.includes('--legacy-read-only')});
   if (command === 'status') await status();
   else if (command === 'drain') await drain();
   else {

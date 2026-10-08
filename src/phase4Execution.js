@@ -10,7 +10,7 @@ import { syncAuthorizesDrain } from './syncResult.js';
 import { validatePhaseRequest,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution } from './phase4ExecutionStore.js';
 import { log } from './logger.js';
 import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Release.js';
-import {withDurableExecution} from './phase4ExecutionContext.js';
+import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
 import {executionProfile} from './phase4Rollback.js';
 import { requireRuntimeAdmission, followRuntimeRenewal } from './runtimeAdmission.js';
 export const ADMISSION_BUDGET_MS=30_000;
@@ -63,15 +63,15 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    if(claim.cached){overall.assert();admissionBudget.assert();
      try{await admissionBudget.run(()=>projectPhaseCompletion(db,request,claim.cached));}catch{}
      overall.assert();admissionBudget.assert();return phaseResponse({...claim.cached,settlementState:claim.row.state});}
-   if(request.phase==='STAGE6_DRAIN')await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys)));
+   const continuation=request.phase==='STAGE6_DRAIN'?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys))):null;
    admissionBudget.close();
    budget=createExecutionBudget({budgetMs:limit,signal:overall.signal});
    const fence=async()=>{checkAdmission();overall.assert();budget.assert();};
-   if(!claim.workCommitted)await db.withRuntimeFence(fence,()=>budget.run(()=>recordPhaseEvent(db,{phase:request.phase,releaseSha,source:request.triggerSource,event:'start',outcome:'PENDING',identity:claim.identity})));
+   if(!claim.workCommitted)await db.withRuntimeFence(fence,()=>budget.run(()=>recordPhaseEvent(db,{phase:request.phase,releaseSha,source:request.triggerSource,event:'start',outcome:'PENDING',identity:claim.identity,executionSeq:claim.executionSeq})));
    const executionContext={claim,keys,pending:new Set(),indeterminate:false,authority:{assert:()=>{checkAdmission();overall.assert();budget.assert();}}};
    let result,presentationRuntime;
    try {
-     result=claim.workCommitted?claim.result:await withDurableExecution(executionContext,()=>withExecutionBudget(budget,()=>db.withRuntimeFence(fence,()=>budget.run(async()=>{
+     result=continuation?.reconciliationResult??(claim.workCommitted?claim.result:await withDurableExecution(executionContext,()=>withExecutionBudget(budget,()=>db.withRuntimeFence(fence,()=>budget.run(async()=>{
        if(request.phase==='SYNC') {
          log.info('sync_start',{source:request.triggerSource,release_sha:releaseSha,phase:'SYNC'});
          const summary=await (deps.runBriefing??runBriefing)({now,triggerSource:request.triggerSource,deps:{...deps,db,env,
@@ -90,7 +90,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
        return {outcome:drained.outcome,jobsConsidered:drained.jobsConsidered,itemsAttempted:drained.itemsAttempted,
          itemsProcessed:drained.processedItems,jobsCompleted:drained.completedJobs,jobsFailed:drained.failedJobs,remainingJobs:drained.remainingJobs,completion:drained.completion,stopReason:drained.stopReason,
          durationMs:performance.now()-started};
-     }))));
+     })))));
    } catch(error) {
      let budgetCode;try{budget.assert();}catch(e){budgetCode=e.code;}
      result={outcome:executionContext.pending.size||executionContext.indeterminate||error?.code==='COMMIT_INDETERMINATE'?'COMMIT_INDETERMINATE':budgetCode==='SYNC_CANCELLED'||error?.code==='SYNC_CANCELLED'?'CANCELLED':budgetCode==='SYNC_TIMEOUT'||error?.code==='SYNC_TIMEOUT'?'TIMEOUT':'FAILED',
@@ -109,6 +109,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    let record;
    try {
      originalAuthority.assert();
+     withDurableExecution(executionContext,()=>requireSettledOperation());
      if(result.outcome==='COMMIT_INDETERMINATE')throw Object.assign(Error('COMMIT_INDETERMINATE'),{code:'COMMIT_INDETERMINATE'});
      const settlement=createExecutionBudget({budgetMs:Math.min(PHASE_SETTLEMENT_MS,overall.remainingMs()),signal:budget.signal});
      try{record=await withDurableExecution({...executionContext,receipts:false},()=>withExecutionBudget(settlement,()=>settlement.run(()=>settlePhaseRequest(db,request,claim,result,keys,originalAuthority))));
@@ -136,7 +137,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
        }
    log.info(request.phase==='SYNC'?'sync_complete':'stage6_drain_complete',{source:request.triggerSource,release_sha:releaseSha,phase:request.phase,
      outcome:record.outcome,duration_ms:record.durationMs,jobs_considered:record.jobsConsidered,items_attempted:record.itemsAttempted,
-     jobs_completed:record.jobsCompleted,jobs_failed:record.jobsFailed,items_processed:record.itemsProcessed,remaining_jobs:record.remainingJobs,stop_reason:record.stopReason});
+     jobs_completed:record.jobsCompleted,jobs_failed:record.jobsFailed,items_processed:record.itemsProcessed,work_receipts:record.workReceipts,remaining_jobs:record.remainingJobs,stop_reason:record.stopReason});
    log.info('phase4_run_complete',{source:request.triggerSource,release_sha:releaseSha,phase:request.phase,outcome:record.outcome,duration_ms:performance.now()-started});
    if(!['TIMEOUT','CANCELLED','FAILED','COMMIT_INDETERMINATE'].includes(record.outcome))originalAuthority.assert();
    const response=phaseResponse(record);

@@ -285,7 +285,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     phase4Keys: phase4AuthorityKeys(process.env) });
   let code = 1;
   try {
-    await db.migrate();
+    await db.admitRuntime({source:'manual',fresh:true});
     code = await runAdmin({ db, argv: process.argv.slice(2) });
   } catch (err) {
     console.error(`❌ ${err?.message ?? err}`);

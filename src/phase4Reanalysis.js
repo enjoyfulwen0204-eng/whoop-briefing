@@ -12,6 +12,7 @@ import { createPhase4QueueStore } from './phase4QueueStore.js';
 import { createOperationReceipts } from './phase4OperationReceipts.js';
 import { createFamilyDirectory } from './phase4FamilyDirectory.js';
 import { log } from './logger.js';
+import {requireSettledOperation} from './phase4ExecutionContext.js';
 
 const capabilities=new WeakSet();
 // Both names resolve to the frozen Stage 5 registry. Adding a future
@@ -128,6 +129,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       },{assertBudget});
       units.push({kind:'EPISODE_FAMILY',familyKey:candidate.familyKey,status:'COMPLETE',outcome});
     } catch(error) {
+        requireSettledOperation(error);
       if(error?.code==='PHASE4_DRAIN_DEADLINE_REACHED')throw error;
       units.push({kind:'EPISODE_FAMILY',familyKey:candidate.familyKey,status:'UNRESOLVED',code:error?.code??'UNKNOWN'});
       firstFailure??=error;
@@ -320,6 +322,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
         units.push(episodeWork);
         firstFailure??=episodeWork.failure;
       } catch(error) {
+        requireSettledOperation(error);
         if(error?.code==='PHASE4_DRAIN_DEADLINE_REACHED')throw error;
         units.push({kind:'METRIC_SOURCE',metricKey,status:'UNRESOLVED',code:error?.code??'UNKNOWN'});
         firstFailure??=error;
@@ -332,6 +335,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
         units.push({kind:'ASSOCIATION_INSIGHT',metricKey,status:'COMPLETE',outcome});
       }
       catch(error) {
+        requireSettledOperation(error);
         if(error?.code==='PHASE4_DRAIN_DEADLINE_REACHED')throw error;
         units.push({kind:'ASSOCIATION_INSIGHT',metricKey,status:'UNRESOLVED',code:error?.code??'UNKNOWN'});
         firstFailure??=error;
@@ -380,11 +384,13 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
             }
             await queue.release(context,lease);
           } catch(error) {
+        requireSettledOperation(error);
             const deadlineReached=error?.code==='PHASE4_DRAIN_DEADLINE_REACHED';
             if(deadlineReached)out.stoppedForBudget=true;
             else {out.failedJobs++;out.failures.push({userId:candidate.userId,jobKind:candidate.jobKind,code:stage6ErrorCode(error)});}
             try {await queue.release(context,lease,{errorCode:deadlineReached?null:stage6ErrorCode(error)});}
             catch(fenceError) {
+              requireSettledOperation(fenceError);
               // Supersession/takeover owns the durable row. Never overwrite it
               // just to record an old owner's failure or clear its lease.
               if(!['PHASE4_LEASE_CAS_LOST','PHASE4_INPUT_FENCED','PHASE4_AUTH_FENCED','PHASE4_LIFECYCLE_FENCED',
@@ -393,6 +399,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
           } finally {await queue.abandon(lease);}
         });
       } catch(error) {
+        requireSettledOperation(error);
         if(!out.failures.some(failure=>failure.userId===candidate.userId&&failure.jobKind===candidate.jobKind)) {
           out.failedJobs++;out.failures.push({userId:candidate.userId,jobKind:candidate.jobKind,code:stage6ErrorCode(error)});
         }

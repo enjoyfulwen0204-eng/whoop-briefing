@@ -40,7 +40,7 @@ console.log(`現在時間：UTC ${new Date().toISOString()} ／ bootstrap 時區
 
 const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
   phase4Keys: phase4AuthorityKeys(process.env) });
-await db.migrate();
+await db.admitRuntime({source:'manual',fresh:true});
 let user;
 try { user = await pickUser(db); } catch (err) {
   bad('內部使用者', err.message);
@@ -51,7 +51,6 @@ try { user = await pickUser(db); } catch (err) {
 // ---- 1. Turso ----
 let tokens = null;
 try {
-  await db.migrate();
   tokens = await db.getTokens(user.id);
   ok('Turso', tokens
     ? `連線正常，已有 WHOOP token（到期 ${tokens.expiresAt.toISOString()}）`

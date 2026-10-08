@@ -16,9 +16,13 @@ export function hranaTransport(url) {
  const statement=async(stream,stmt)=>{
   const sql=stmt.sql??stream.sql.get(stmt.sql_id),args=stmt.named_args?.length?
    Object.fromEntries(stmt.named_args.map(x=>[x.name,decode(x.value)])):(stmt.args??[]).map(decode);
+  if(/^\s*BEGIN\b/i.test(sql)){stream.workResult=false;stream.matched=false;}
   if(sql.includes("SET state='WORK_COMMITTED'"))stream.workResult=true;
+  if(armed?.matchSql?.test(sql))stream.matched=true;
   if(/^\s*COMMIT\s*$/i.test(sql)){
-   commits++;if(armed&&(!armed.onlyWorkResult||stream.workResult)){const attack=armed;armed=null;
+   commits++;if(armed&&(!armed.onlyWorkResult||stream.workResult)&&(!armed.matchSql||stream.matched)){
+    if(armed.skipMatches){armed.skipMatches--;return stream.client.execute({sql,args}).then(result=>{stream.inTransaction=false;return result;});}
+    const attack=armed;armed=null;
     evidence.push({event:'commit_pending',at:Date.now(),commit:commits});await attack.before?.();
     const result=await stream.client.execute({sql,args});stream.inTransaction=false;
     evidence.push({event:'commit_durable',at:Date.now(),commit:commits});await attack.after?.();

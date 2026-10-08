@@ -79,7 +79,7 @@ try {
 
   console.log('\n提示：跑 `npm run health-status` 看完整涵蓋範圍。\n');
 } catch (err) {
-  log.error('manual_sync_failed',{error:describeError(err)});
+  log.error('manual_sync_failed',{error:describeError(err),error_code:err.code});
   process.exitCode = 1;
 } finally {
   budget.close();

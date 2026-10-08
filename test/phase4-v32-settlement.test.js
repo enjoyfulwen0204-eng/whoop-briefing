@@ -4,6 +4,7 @@ import {createDb as applicationDb} from '../src/db.js';import {fixtureKeys} from
 import {hranaTransport} from './hranaTransport.js';import {runExecutionPhase} from '../src/phase4Execution.js';
 import {configurationProof,readExecution,claimPhaseRequest,readPhaseProgress,requireSyncHandoff,commitPhaseWork,finalizePhaseWork} from '../src/phase4ExecutionStore.js';
 import {runningReleaseSha} from '../src/phase4Release.js';import {createExecutionBudget} from '../src/executionBudget.js';
+import {withDurableExecution} from '../src/phase4ExecutionContext.js';
 const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'},env={timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:1};
 const request=(extra={})=>({requestId:randomUUID(),releaseSha:runningReleaseSha(),phase:'SYNC',triggerSource:'manual',executionMode:'SHADOW',
  configProof:configurationProof(fixtureKeys,{runtime:'on',mode:'off'},environment),...extra});
@@ -69,12 +70,14 @@ test('v32 cancellation before submission and stale generation cannot finalize; d
  const controller=new AbortController(),authority=createExecutionBudget({signal:controller.signal});controller.abort();
  await assert.rejects(()=>commitPhaseWork(db,value,claim,{outcome:'NO_NEW_DATA_SUCCESS'},authority));authority.close();
  assert.equal((await readExecution(db,value.requestId)).state,'ESTABLISHED');
- await db.raw.execute({sql:'UPDATE phase4_executions SET owner=?,generation=generation+1 WHERE execution_id=?',args:['successor',value.requestId]});
+ // Takeover itself must be legal: expire the first lease before changing owner.
+ await db.raw.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',args:[Date.now()-1,Date.now()-1,value.requestId]});
+ await claimPhaseRequest(db,value,JSON.stringify(value),{keys:fixtureKeys});
  const valid=createExecutionBudget();try{await assert.rejects(()=>commitPhaseWork(db,value,claim,{outcome:'NO_NEW_DATA_SUCCESS'},valid),/OWNER_FENCED/);}finally{valid.close();}
 });
 test('v32 cannot insert fabricated finalized authority or mutate an immutable finalized generation',async t=>{
  const {db}=await fixture(t),value=request();await run(db,value);
- const row=await readExecution(db,value.requestId),columns=Object.keys(row);
+ const row=await readExecution(db,value.requestId),columns=Object.keys(row).filter(column=>column!=='execution_seq');
  const args=columns.map(column=>column==='execution_id'?randomUUID():row[column]);
  await assert.rejects(()=>db.raw.execute({sql:`INSERT INTO phase4_executions(${columns.join(',')}) VALUES(${columns.map(()=>'?').join(',')})`,args}),/initial_authority/);
  await assert.rejects(()=>db.raw.execute({sql:'UPDATE phase4_executions SET generation=generation+1,owner=? WHERE execution_id=?',args:['forged-successor',value.requestId]}),/execution_finalize_authority/);
@@ -82,8 +85,8 @@ test('v32 cannot insert fabricated finalized authority or mutate an immutable fi
 });
 test('v32 each actual work transaction carries a receipt, with failed work rolling back receipt and effect',async t=>{
  const {db}=await fixture(t),value=request();const response=await run(db,value,{deps:{runBriefing:async()=>{
-  await db.transaction(()=>db.raw.execute("INSERT INTO telegram_state(key,value,updated_at) VALUES('isolated_work','1','2026-10-08')"));
-  await assert.rejects(()=>db.transaction(async()=>{await db.raw.execute("INSERT INTO telegram_state(key,value,updated_at) VALUES('isolated_rollback','1','2026-10-08')");throw Error('DEFINITE_WORK_FAILURE');}));
+  await db.transaction(async()=>{await db.raw.execute("INSERT INTO telegram_state(key,value,updated_at) VALUES('isolated_work','1','2026-10-08')");},{workStep:'isolated-work'});
+  await assert.rejects(()=>db.transaction(async()=>{await db.raw.execute("INSERT INTO telegram_state(key,value,updated_at) VALUES('isolated_rollback','1','2026-10-08')");throw Error('DEFINITE_WORK_FAILURE');},{workStep:'isolated-rollback'}));
   return success();}}});assert.equal(response.body.ok,true);
  assert.equal((await db.raw.execute("SELECT count(*) n FROM telegram_state WHERE key='isolated_rollback'")).rows[0].n,0);
  assert.equal((await db.raw.execute({sql:'SELECT count(*) n FROM phase4_execution_work_receipts WHERE execution_id=?',args:[value.requestId]})).rows[0].n,1);
@@ -117,4 +120,29 @@ test('v32 reconciling an older execution cannot hide a newer unfinalized invocat
   const progress=await readPhaseProgress(db,'SYNC','manual');assert.equal(progress.execution.execution_id,newer.requestId);
   assert.equal(progress.state,'IN_PROGRESS');assert.equal(progress.complete,null);
  }finally{authority.close();}
+});
+test('committed drain result can reconcile after handoff age limit; expired proof never admits new drain work',async t=>{
+ const {db}=await fixture(t),sync=request(),s=await run(db,sync),r=request({phase:'STAGE6_DRAIN',syncRequestId:sync.requestId,handoff:s.body.handoff});
+ const c=await claimPhaseRequest(db,r,JSON.stringify(r),{keys:fixtureKeys});await commitPhaseWork(db,r,c,{outcome:'NO_WORK'}, {assert(){}});
+ const clock=Date.now,advance=clock()+20*60_000;let drains=0;
+ const deps={runtime:{phase4Stage6:{drain:async()=>{drains++;throw Error('MUST_NOT_REPEAT_COMMITTED_WORK');}}}};
+ try{Date.now=()=>advance;
+  const reconciled=await run(db,r,{deps});assert.equal(reconciled.body.ok,true);assert.equal(reconciled.body.result.settlementState,'FINALIZED_SUCCESS');assert.equal(drains,0);
+  await assert.rejects(()=>run(db,{...r,requestId:randomUUID()},{deps}),/SYNC_HANDOFF_REJECTED/);assert.equal(drains,0);
+ }finally{Date.now=clock;}
+});
+test('receipt-backed partial drain reconciles after expired parent as metadata-only PARTIAL, never begins new work',async t=>{
+ const {db}=await fixture(t),sync=request(),s=await run(db,sync),r=request({phase:'STAGE6_DRAIN',syncRequestId:sync.requestId,handoff:s.body.handoff});
+ const c=await claimPhaseRequest(db,r,JSON.stringify(r),{keys:fixtureKeys});
+ await withDurableExecution({claim:c,keys:fixtureKeys,pending:new Set(),authority:{assert(){}}},()=>db.transaction(async()=>{
+  await db.raw.execute("INSERT INTO telegram_state(key,value,updated_at) VALUES('partial_committed','1','2026-10-08')");return 1;
+ },{workStep:'partial-progress'}));
+ const clock=Date.now,past=clock()-1;await db.raw.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',args:[past,past,r.requestId]});
+ const advance=clock()+20*60_000;let drains=0;
+ try{Date.now=()=>advance;
+  const response=await run(db,r,{deps:{runtime:{phase4Stage6:{drain:async()=>{drains++;throw Error('NEW_WORK_FORBIDDEN');}}}}});
+  assert.equal(response.body.ok,true);assert.equal(response.body.result.outcome,'PARTIAL');assert.equal(response.body.result.completion,'PARTIAL');
+  assert.equal(response.body.result.stopReason,'RECONCILIATION_ONLY');assert.equal(response.body.result.workReceipts,1);assert.equal(response.body.result.itemsProcessed,0);assert.equal(drains,0);
+  assert.equal((await readExecution(db,r.requestId)).state,'FINALIZED_SUCCESS');
+ }finally{Date.now=clock;}
 });

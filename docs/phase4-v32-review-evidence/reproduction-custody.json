@@ -1,0 +1,9 @@
+{
+  "candidate": "0a8597b555b37a3945c7451d3bd7cca590809547",
+  "cases": 9,
+  "passed": 0,
+  "failed": 9,
+  "tapSha256": "2d89d047ef34a1356197a35ee9c6fabcbf32cfe7c57e162ea353db997d70c7b6",
+  "sourceSha256": "f4b3e0e64e8b9b811ae5e11e2b953336de7648ac776e2eda940f26c9eb6a7d74",
+  "compressed": "deterministic gzip, decompressed bytes unchanged"
+}

@@ -20,7 +20,9 @@ scope, phase, exact checkout SHA, OFF/SHADOW mode, source, config proof and pare
 sync. Owner generation, lease/deadline and conditional updates fence takeover.
 
 ESTABLISHED → WORK_COMMITTED → FINALIZED_SUCCESS / FINALIZED_FAILURE.
-ESTABLISHED → ABORTED permits a new generation to resume. A committed result cannot
+ESTABLISHED → ABORTED is terminal. A retry must use a new request/execution ID.
+An ESTABLISHED row with a committed work receipt cannot be aborted; cleanup
+retains that unfinalized row for explicit reconciliation/takeover. A committed result cannot
 be changed on takeover. Finalized records are immutable. ABORTED and the optional
 indeterminate observation do not manufacture rollback of already committed work.
 Unknown historical v31 heartbeat records remain LEGACY_UNKNOWN; migration does
@@ -34,8 +36,9 @@ a shortcut around the conditional work/finalization transitions.
 Each mutating root work transaction appends an opaque receipt in the same SQL
 transaction through the execution context. There is no health payload, raw key,
 token, secret or user-facing text in this receipt. Failure before COMMIT rolls
-back both effect and receipt. An ambiguous acknowledgement never replays the
-business callback. Existing deterministic Stage 5 receipts, Stage 6 cursors/work
+back both effect and receipt. A named generic step checks its deterministic receipt before the business
+callback; a lost acknowledgement cannot replay its effect. Domain retry resumes
+reviewed deterministic business identities and cursors under fresh authority. Existing deterministic Stage 5 receipts, Stage 6 cursors/work
 tips and ordinary report claims/delivery states remain the business dedupe.
 
 The phase result commit records only sanitized counts/outcome, a digest and
@@ -74,7 +77,7 @@ completion authority; watchdog phase diagnostics read the v32 state explicitly.
 Diagnostics also mark an expired unfinalized execution when no cleanup write was
 possible. TIMEOUT describes lost phase authority, not proof of database rollback;
 receipt/result evidence remains separately visible and reconcilable.
-The newest immutable execution identity is selected by creation time. A later
+The newest immutable execution identity is selected by execution_seq. A later
 reconciliation update of an older execution cannot hide a newer pending run.
 
 ## Runtime and contention
@@ -164,3 +167,153 @@ It admits no Shadow drain or presentation. Stop incompatible clients first;
 never deploy raw RC2 against v32, downgrade schema or restore pre-v31 data for
 ordinary code rollback. The exact rollback binary must be pinned/read back during
 the separately authorized rollout review.
+
+
+## Unpublished v32 review repair
+
+This repaired v32 replaces the rejected, unpublished 0a8597b candidate in place.
+The execution-authority checkpoint is `phase4-execution-v2`. No v33 allocation
+or historical execution backfill is needed. Production has not been migrated.
+
+### Complete transition matrix
+
+Rows are old states, columns are requested states. `Y` is legal subject to CAS,
+identity, ownership, lease/deadline and result constraints. `N` always rejects,
+including a terminal self-update. Projections belong outside authority rows.
+
+| From / to | ESTABLISHED | WORK_COMMITTED | FINALIZED_SUCCESS | FINALIZED_FAILURE | ABORTED |
+|---|---|---|---|---|---|
+| ESTABLISHED | Y | Y | N | N | Y, only without receipts |
+| WORK_COMMITTED | N | Y | Y | Y | N |
+| FINALIZED_SUCCESS | N | N | N | N | N |
+| FINALIZED_FAILURE | N | N | N | N | N |
+| ABORTED | N | N | N | N | N |
+
+Active owner takeover increments generation exactly once; ESTABLISHED takeover
+requires expired lease. Committed result bytes/digest stay immutable. Finalized
+or aborted identity, generation and owner can never be revived. `BEFORE INSERT`
+rejects duplicate ID/ordinal before SQLite REPLACE can delete its victim, even
+with recursive triggers OFF. DELETE, replacement, duplicate IGNORE and UPSERT
+are not execution-authority mutation APIs. Existing rows use conditional UPDATE.
+Receipt UPDATE/DELETE/REPLACE is also rejected. There is no ordinary purge/reset
+path for execution authority.
+
+### Deterministic steps and canonical reconciliation
+
+`transaction(fn, {workStep})` accepts a stable server-chosen logical operation
+identity. Its receipt key binds immutable request digest, canonical scope and
+step kind/business identity; release/phase/mode/source/config are bound by that
+request digest. Owner, retry generation, wall time, process ID and random nonce
+are excluded. Each receipt records immutable request/scope/generation proof and
+only an optional finite scalar count/boolean/opaque hash result. The business
+mutation and receipt commit atomically. On a fresh authorized retry, receipt
+lookup precedes the callback and returns the stored safe result without replay.
+Different steps have different keys. Generic state/custom table mutations without
+a step key fail before DML. A generic callback must return a safe aggregate or
+void; health payloads and user-facing text are rejected and rolled back.
+
+Reviewed domain stores retain their canonical object/operation receipts and
+Stage 6 cursor/family authority. Their root receipt is a deterministic execution
+progress ordinal, not their business dedupe. It does not authorize success or
+justify blindly replaying a non-idempotent callback.
+
+`reconcileExecution` is the shared read-only classifier. It validates immutable
+request identity, result digest and receipt request/scope/generation, then returns
+NOT_COMMITTED, WORK_COMMITTED_UNFINALIZED, FINALIZED_SUCCESS, FINALIZED_FAILURE or
+ABORTED. Corruption and authority mismatch throw typed errors. An ESTABLISHED row
+with any committed work receipt is WORK_COMMITTED_UNFINALIZED for reconciliation;
+absence of receipts does not bypass an active owner or its transaction lock.
+COMMIT acknowledgement loss sets the execution context's indeterminate state.
+The transaction kernel reads durable state before exposing that ambiguity.
+Domain error handlers must propagate it before calculation/retry mapping; the
+phase runner checks the context even if a callback swallowed the exception.
+Only a later fresh authorized reconciliation/finalization can produce success.
+
+### Producing executions and currentness
+
+`phase4_execution_producers` binds each contributing execution to user, SHADOW
+mode and input generation, with its immutable execution ordinal, producing owner
+generation and keyed tenant proof. Stage 6 claim/checkpoint/completion records the
+binding inside durable work transactions. Bindings are additive across producing
+executions; they do not erase an earlier contributor. Currentness requires the
+completed input generation **and every producing execution FINALIZED_SUCCESS**,
+correct ordinal/generation/phase and tenant proof. Missing, failed, unfinalized or
+cross-user authority withholds presentation. Later unrelated NO_WORK cannot add
+a producer and cannot launder an earlier unfinalized result. Partial durable work
+is retained, and reconciliation can make it eligible once properly finalized.
+A retained reader also checks durable schema version, so an old facade cannot
+keep the pre-v32 publication rule after controlled migration.
+
+Completion evidence comes from finalized execution rows. v32 no longer writes
+the tenant success heartbeat inside ambiguous Stage 6 work COMMIT. Heartbeats are
+best-effort projections after finalization and cannot authorize publication or
+drain. Durable diagnostics use execution_seq; projection order also uses ordinal.
+
+### Immutable monotonic ordering
+
+`execution_seq` is an INTEGER PRIMARY KEY AUTOINCREMENT with a safe-integer
+constraint; execution_id is immutable UNIQUE. SQLite allocates it atomically in
+the short establishment transaction. No lock spans WHOOP/provider work. Each
+committed establishment is strictly newer globally and therefore within each
+canonical scope. Explicit ordinal regression and later mutation reject. Death
+before establishment COMMIT creates no durable execution; a subsequent allocation
+remains above all committed ordinals. Finalization timestamps never change order.
+Phase/source progress uses the ordinal index, and projections carry identity plus
+ordinal. Tenant generation bindings retain all contributors rather than selecting
+an older completed row over a newer pending producer.
+
+### Controlled migration only
+
+Only `scripts/phase4-migrate.js` applies v31→v32, with explicit operator flags,
+Node 22, original keys, target/production/commit guards and postconditions.
+`scripts/migrate.js` is an argument-preserving alias for that tool. Read/admin,
+preflight, OAuth, webhook, bot and scheduled/briefing runtimes never migrate.
+Older schema fails with CONTROLLED_MIGRATION_REQUIRED; future schema rejects.
+Diagnostics may explicitly opt into `--legacy-read-only`; that path cannot
+upgrade. The migration caller/entrypoint inventory accompanies review evidence.
+
+### Review boundaries and preserved products
+
+Node 22, private phase runtimes, metadata-only admission, bounded same-transaction
+COMMIT BUSY retries, cross-process resource_locks ownership, signed release-bound
+handoff, Worker limits and GitHub ten-minute guards remain. HTTP transaction
+setup now acknowledges lazy Hrana BEGIN before the business callback so BEGIN
+contention can retry safely. No callback replay is used to retry COMMIT BUSY.
+Ordinary morning briefing/report dedupe remains separate from Beta presentation.
+Body Energy is NOT_AUTHORIZED_NOT_PRESENTED; no LIVE or future-stage activation.
+Settings v1 remains the first post-launch UX patch, schema-neutral unless reviewed
+otherwise, with /settings, language/name controls and /language /name shortcuts.
+
+
+### Complete immutable request matching
+
+Execution rows retain canonical_request_json, a sorted serialization of the
+validated flat request fields. This contains only phase/source/mode, opaque IDs,
+release SHA and authenticated hashes; raw request bytes are not persisted.
+The raw authenticated body digest remains identity_digest, so signed retry and
+conflict behavior is unchanged. Canonical JSON rejects unknown/duplicate keys
+and non-string fields at SQL insertion; its fields must match the immutable
+columns. It cannot be updated. Helpers compare the complete canonical request,
+including handoff and legacy body digest, before result persistence. This closes
+wrong-request poisoning that a subset of column comparisons could miss.
+
+### Expired parent and committed-only reconciliation
+
+A new drain still requires the fresh age-bounded successful SYNC handoff. An
+existing WORK_COMMITTED drain may instead finalize its immutable result after
+the handoff ages out: no business callback runs. An ESTABLISHED drain with
+canonical committed receipts and an expired parent may reconcile **only** that
+already durable progress under fresh authenticated, owner/generation/deadline
+and matching release/config/source authority. It records PARTIAL with
+RECONCILIATION_ONLY, historical workReceipts and zero newly processed items;
+it never discovers, calculates, drains or presents new work. It is not full
+backlog completion and cannot invent a complete result from an uncertain ACK.
+A later fresh-handoff invocation resumes remaining work through existing cursors
+and receipts. This explicitly finalizes the producing execution rather than
+letting an unrelated NO_WORK launder its unfinalized data.
+
+Parent FINALIZED_SUCCESS, complete typed SYNC, exact release/source/mode/config
+and deterministic handoff HMAC still must match. Missing receipts/uncommitted
+work does not qualify, nor does ABORTED. All new business work keeps the original
+handoff age limit. Original request body identity must match; reconciliation of
+an older release uses its approved matching binary and configuration.

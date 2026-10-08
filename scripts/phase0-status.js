@@ -39,6 +39,8 @@ import { loadDotEnvIfPresent, loadEnv, WAKE, WHOOP_SYNC } from '../src/config.js
 import { detectWake } from '../src/analyze.js';
 import { createDb } from '../src/db.js';
 import { GLOBAL_SCOPE } from '../src/schema.js';
+import {requireRuntimeSchema} from '../src/runtimeSchemaGuard.js';
+import {publicBetaKeysIfPresent} from '../src/publicBetaConfig.js';
 import { HEARTBEAT_COMPONENT, GUARDIAN_POLICY } from '../src/guardianPolicy.js';
 
 const MIN = 60_000;
@@ -443,9 +445,10 @@ export function renderPhase0(d) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   loadDotEnvIfPresent();
   const env = loadEnv({ require: ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'] });
-  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+  const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,phase4Keys:publicBetaKeysIfPresent(process.env) });
   try {
     // ⚠️ 刻意**沒有** db.migrate()：觀測工具不該有能力改變 schema。
+    await requireRuntimeSchema(db.raw,{legacyReadOnly:process.argv.includes('--legacy-read-only')});
     console.log(renderPhase0(await collectPhase0(db)));
   } catch (err) {
     console.error(`❌ 失敗：${err.message}`);

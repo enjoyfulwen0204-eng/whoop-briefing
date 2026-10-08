@@ -1,3 +1,7 @@
+> Historical implementation report for rejected unpublished candidate 0a8597b.
+> The independent v32 review found H01–H05, M01–M03 and L01. Its original test
+> results remain evidence; acceptance claims are superseded by the review repair.
+
 # Vietnam v32 settlement authority — implementation review
 
 Implementation evidence, not release approval or production authorization.

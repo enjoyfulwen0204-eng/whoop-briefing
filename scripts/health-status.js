@@ -15,10 +15,13 @@ import { GLOBAL_SCOPE } from '../src/schema.js';
 import { HEARTBEAT_COMPONENT, GUARDIAN_POLICY } from '../src/guardianPolicy.js';
 import { readSchedulerHealth } from '../src/schedulerWatchdog.js';
 import { phase4Backlog } from '../src/phase4Diagnostics.js';
+import {requireRuntimeSchema} from '../src/runtimeSchemaGuard.js';
+import {publicBetaKeysIfPresent} from '../src/publicBetaConfig.js';
 
 loadDotEnvIfPresent();
 const env = loadEnv({ require: ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'] });
-const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,phase4Keys:publicBetaKeysIfPresent(process.env) });
+await requireRuntimeSchema(db.raw,{legacyReadOnly:process.argv.includes('--legacy-read-only')});
 const user = await pickUser(db);
 console.log(`使用者：${user.displayName}（${user.id}）｜時區 ${user.timezone}\n`);
 

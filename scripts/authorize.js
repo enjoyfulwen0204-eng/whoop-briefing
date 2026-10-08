@@ -202,7 +202,7 @@ function openBrowser(url) {
 }
 
 try {
-  await db.migrate();
+  await db.admitRuntime({source:'manual',fresh:true});
   // 先驗使用者：不存在 / 不是 ACTIVE 就立刻停，不要白跑一趟 OAuth
   await assertAuthorizable(db, targetUserId);
   if (manualCode) await manual();

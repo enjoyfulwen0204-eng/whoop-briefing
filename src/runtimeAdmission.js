@@ -190,7 +190,7 @@ async function admitChecked(client, keys,stats) {
   for (const [v, step] of [[21,'tenant_metadata'],[22,'privacy_backfill'],[22,'lookup_key_check'],[22,'audit_key_check'],[23,'legacy_insights'],[32,'execution_authority']]) {
     const row = rows.find(r => r.target_version === v && r.step_key === step);
     if (row?.postcondition_state !== 'COMPLETE') fail('PHASE4_AUTHORITY_CHECKPOINT_INCOMPLETE', step);
-    if(step==='execution_authority'&&row.last_cursor!=='phase4-execution-v1')fail('PHASE4_AUTHORITY_CHECKPOINT_INCOMPLETE',step);
+    if(step==='execution_authority'&&row.last_cursor!=='phase4-execution-v2')fail('PHASE4_AUTHORITY_CHECKPOINT_INCOMPLETE',step);
     if (step === 'lookup_key_check' && !keys.verifyLookupCheckpoint(row.last_cursor)) fail('PHASE4_LOOKUP_KEY_MISMATCH');
     if (step === 'audit_key_check' && !keys.verifyAuditCheckpoint(row.last_cursor)) fail('PHASE4_AUDIT_KEY_MISMATCH');
   }

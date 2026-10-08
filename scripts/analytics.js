@@ -22,6 +22,7 @@ import { createDb } from '../src/db.js';
 import { processPendingAnalytics, processAnalyticsForUser } from '../src/analyticsWorker.js';
 import { SCHEMA_VERSION, ANALYTICS_CLASS } from '../src/schema.js';
 import { currentVersion } from '../src/migrations.js';
+import {publicBetaKeysIfPresent} from '../src/publicBetaConfig.js';
 import { describeError } from '../src/logger.js';
 
 const argv = process.argv.slice(2);
@@ -44,7 +45,7 @@ if (writes && !isLocalDb && process.env.ANALYTICS_ALLOW_REMOTE !== '1') {
   process.exit(2);
 }
 
-const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken });
+const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,phase4Keys:publicBetaKeysIfPresent(process.env) });
 const fmt = (v) => (v ? String(v).replace('T', ' ').slice(0, 19) : '—');
 
 async function ensureSchema() {
@@ -53,7 +54,7 @@ async function ensureSchema() {
     throw new Error(`無法讀取 schema_version（${describeError(err)}）；拒絕執行`);
   }
   if (!Number.isInteger(v) || v !== SCHEMA_VERSION) {
-    throw new Error(`schema 版本 ${v} ≠ 程式碼 ${SCHEMA_VERSION}；請先有意識地執行 npm run migrate`);
+    const code=v<SCHEMA_VERSION?'CONTROLLED_MIGRATION_REQUIRED':'UNSUPPORTED_FUTURE_SCHEMA';throw Object.assign(Error(code),{code});
   }
 }
 

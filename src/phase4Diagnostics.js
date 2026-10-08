@@ -10,7 +10,15 @@ export async function phase4Backlog(db,{now=new Date()}={}) {
     FROM phase4_jobs WHERE execution_mode='SHADOW' AND ${unresolvedWork('')}`,args:[at]})).rows[0];
   const lag=(await db.raw.execute(`SELECT MAX(input_generation-last_completed_generation) generation_lag
     FROM phase4_computation_state WHERE execution_mode='SHADOW'`)).rows[0]?.generation_lag??0;
-  const last=(await db.raw.execute("SELECT MAX(last_ok_at) completed_at FROM system_heartbeats WHERE component='phase4_stage6_shadow'")).rows[0]?.completed_at??null;
+  const version=Number((await db.raw.execute('SELECT MAX(version) AS v FROM schema_version')).rows[0].v);
+  const finalized=version>=32?(await db.raw.execute(`SELECT MAX(e.finalized_at) completed_at FROM phase4_execution_producers p
+    JOIN phase4_executions e ON e.execution_id=p.producing_execution_id
+    JOIN phase4_computation_state c ON c.user_id=p.user_id AND c.execution_mode=p.execution_mode AND c.input_generation=p.input_generation
+    WHERE e.state='FINALIZED_SUCCESS' AND c.last_completed_generation=c.input_generation
+     AND NOT EXISTS(SELECT 1 FROM phase4_execution_producers sibling JOIN phase4_executions s ON s.execution_id=sibling.producing_execution_id
+      WHERE sibling.user_id=p.user_id AND sibling.execution_mode=p.execution_mode AND sibling.input_generation=p.input_generation AND s.state<>'FINALIZED_SUCCESS')`)).rows[0]?.completed_at:null;
+  const last=version>=32?(finalized===null?null:new Date(finalized).toISOString()):
+    (await db.raw.execute("SELECT MAX(last_ok_at) completed_at FROM system_heartbeats WHERE component='phase4_stage6_shadow'")).rows[0]?.completed_at??null;
   const age=row.oldest_known_since===null?null:Math.max(0,now.getTime()-Date.parse(row.oldest_known_since));
   const unknown=Number(row.unknown_legacy_jobs??0),pending=Number(row.pending_jobs);
   return Object.freeze({pendingTenants:Number(row.pending_tenants),pendingJobs:pending,

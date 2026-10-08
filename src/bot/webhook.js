@@ -572,7 +572,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((err) => {
-    log.error('telegram_webhook_fatal', { error: describeError(err) });
+    log.error('telegram_webhook_fatal', { error: describeError(err),error_code:err.code });
     process.exit(1);
   });
 }

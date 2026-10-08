@@ -1,0 +1,1586 @@
+{
+  "schema": 32,
+  "productionAccess": "NONE",
+  "migrationCalls": [
+    {
+      "file": "src/phase4Migrations.js",
+      "line": 364,
+      "call": "export async function applyPhase4Migrations(client, from, target, options = {}) {",
+      "kind": "DEFINITION"
+    },
+    {
+      "file": "src/db.js",
+      "line": 647,
+      "call": "return runMigrations(client, { privacyKeys: phase4Keys, ...opts });",
+      "kind": "LIBRARY_ONLY"
+    },
+    {
+      "file": "src/migrations.js",
+      "line": 92,
+      "call": "export async function runMigrations(client, { allowRebuild = true, targetVersion = SCHEMA_VERSION,",
+      "kind": "DEFINITION"
+    },
+    {
+      "file": "src/migrations.js",
+      "line": 109,
+      "call": "summary.versionsApplied=await applyPhase4Migrations(client,from,targetVersion,{privacyKeys,experimentAttestations});",
+      "kind": "LIBRARY_ONLY"
+    },
+    {
+      "file": "src/migrations.js",
+      "line": 203,
+      "call": "summary.versionsApplied = await applyPhase4Migrations(client, Math.max(from, LEGACY_SCHEMA_VERSION), targetVersion,",
+      "kind": "LIBRARY_ONLY"
+    },
+    {
+      "file": "scripts/phase4-migrate.js",
+      "line": 102,
+      "call": "if (from === 20) await runMigrations(client, { allowRebuild: false, targetVersion: 21 });",
+      "kind": "CONTROLLED_MIGRATION"
+    },
+    {
+      "file": "scripts/phase4-migrate.js",
+      "line": 110,
+      "call": "const result = await runMigrations(client, { allowRebuild: false, targetVersion, privacyKeys: keys });",
+      "kind": "CONTROLLED_MIGRATION"
+    }
+  ],
+  "entrypoints": [
+    {
+      "file": "scripts/authorize.js",
+      "kind": "RUNTIME",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/probe-fields.js",
+      "kind": "RUNTIME",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/pickUser.js",
+      "kind": "LIBRARY_ONLY",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/sync.js",
+      "kind": "RUNTIME",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/whoop-webhook.js",
+      "kind": "READ_ONLY or RUNTIME by explicit command",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/phase4-run.js",
+      "kind": "RUNTIME",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/health-status.js",
+      "kind": "READ_ONLY; explicit legacy-read-only optional",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/analytics.js",
+      "kind": "READ_ONLY or RUNTIME by explicit command",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/phase0-status.js",
+      "kind": "READ_ONLY; explicit legacy-read-only optional",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/preflight.js",
+      "kind": "RUNTIME",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/migrate.js",
+      "kind": "CONTROLLED_MIGRATION",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/reconcile.js",
+      "kind": "READ_ONLY or RUNTIME by explicit command",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/admin.js",
+      "kind": "READ_ONLY or RUNTIME by explicit command",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/telegram-webhook.js",
+      "kind": "PROVIDER_ADMIN; no database/schema access",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/dry-run.js",
+      "kind": "OFFLINE_FIXTURE",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/phase4-migrate.js",
+      "kind": "CONTROLLED_MIGRATION",
+      "autoMigration": false
+    },
+    {
+      "file": "src/index.js",
+      "kind": "RUNTIME",
+      "autoMigration": false
+    },
+    {
+      "file": "src/bot/index.js",
+      "kind": "RUNTIME",
+      "autoMigration": false
+    },
+    {
+      "file": "src/bot/webhook.js",
+      "kind": "RUNTIME",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/test-stage5-closure.mjs",
+      "kind": "OFFLINE_TEST_HARNESS; child migrations only in isolated test fixtures",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/test-v32-evidence.mjs",
+      "kind": "OFFLINE_TEST_HARNESS; child migrations only in isolated test fixtures",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/test-v32-review-evidence.mjs",
+      "kind": "OFFLINE_TEST_HARNESS; child migrations only in isolated test fixtures",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/test-v32-review-shards.mjs",
+      "kind": "OFFLINE_TEST_HARNESS; child migrations only in isolated test fixtures",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/test-v32-shard.mjs",
+      "kind": "OFFLINE_TEST_HARNESS; child migrations only in isolated test fixtures",
+      "autoMigration": false
+    },
+    {
+      "file": "scripts/test-v32-stage5-stability.mjs",
+      "kind": "OFFLINE_TEST_HARNESS; child migrations only in isolated test fixtures",
+      "autoMigration": false
+    },
+    {
+      "file": "cloudflare/briefing-scheduler/worker.js",
+      "kind": "RUNTIME_TRANSPORT; no database/schema access",
+      "autoMigration": false
+    },
+    {
+      "file": "src/publicBetaEntry.js",
+      "kind": "RUNTIME; callable entry uses fresh admission, no auto migration",
+      "autoMigration": false
+    }
+  ],
+  "npmCommands": {
+    "start": "node src/index.js",
+    "migrate": "node scripts/migrate.js",
+    "migrate:phase4": "node scripts/phase4-migrate.js",
+    "authorize": "node scripts/authorize.js",
+    "probe": "node scripts/probe-fields.js",
+    "check": "node scripts/preflight.js",
+    "dry-run": "node scripts/dry-run.js",
+    "beta:smoke": "node --test test/public-beta-payload-smoke.test.js test/public-beta-typed-read.test.js test/public-beta-presentation.test.js test/phase4-stage6-scheduler.test.js",
+    "test": "node --test test/*.test.js",
+    "sync": "node scripts/sync.js",
+    "health-status": "node scripts/health-status.js",
+    "phase0": "node scripts/phase0-status.js",
+    "admin": "node scripts/admin.js",
+    "bot": "node src/bot/index.js",
+    "bot:webhook": "node src/bot/webhook.js",
+    "telegram:webhook:status": "node scripts/telegram-webhook.js status",
+    "telegram:webhook:set": "node scripts/telegram-webhook.js set",
+    "telegram:webhook:delete": "node scripts/telegram-webhook.js delete",
+    "whoop:webhook:status": "node scripts/whoop-webhook.js status",
+    "whoop:webhook:drain": "node scripts/whoop-webhook.js drain",
+    "reconcile:status": "node scripts/reconcile.js status",
+    "reconcile:run": "node scripts/reconcile.js run",
+    "analytics:status": "node scripts/analytics.js status",
+    "analytics:light": "node scripts/analytics.js light",
+    "analytics:heavy": "node scripts/analytics.js heavy"
+  },
+  "aliases": [
+    {
+      "file": "scripts/migrate.js",
+      "target": "scripts/phase4-migrate.js:main",
+      "guards": "all controlled operator guards retained; no dotenv loading"
+    }
+  ],
+  "testOnlyCallers": [
+    {
+      "file": "test/evidence-user-scope.test.js",
+      "lines": [
+        33
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/whoop-webhook-processing.test.js",
+      "lines": [
+        35
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v24.test.js",
+      "lines": [
+        17,
+        20,
+        43,
+        174,
+        179,
+        180
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/scheduler-alert-policy.test.js",
+      "lines": [
+        57,
+        272
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/proactive-agent.test.js",
+      "lines": [
+        114,
+        145,
+        172,
+        210,
+        250,
+        293,
+        355,
+        394,
+        417,
+        455,
+        514
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/onboarding-self-service.test.js",
+      "lines": [
+        52
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/question-target-date.test.js",
+      "lines": [
+        55
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/localization-scheduler-legacy.test.js",
+      "lines": [
+        16
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/reconcile-repair-cycle1.test.js",
+      "lines": [
+        48,
+        738
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/telegram-startup-feedback.test.js",
+      "lines": [
+        26
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/v32ReviewFixture.js",
+      "lines": [
+        16
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/proactive-event-convergence.test.js",
+      "lines": [
+        56
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/characterization.test.js",
+      "lines": [
+        49
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-capability-lifetime.test.js",
+      "lines": [
+        8,
+        25,
+        41
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/whoop-webhook-migration.test.js",
+      "lines": [
+        87,
+        119,
+        123,
+        145,
+        159,
+        184
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/whoop-identity-immutability.test.js",
+      "lines": [
+        51,
+        443,
+        455
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/analytics-decoupling.test.js",
+      "lines": [
+        52
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/invalidHistoricalRewind.js",
+      "lines": [
+        16
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/v11-telegram-send-safety.test.js",
+      "lines": [
+        224,
+        262,
+        277,
+        297,
+        323,
+        339
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/migration-v4.test.js",
+      "lines": [
+        71,
+        74,
+        103,
+        116,
+        118,
+        119,
+        133,
+        142,
+        147,
+        148,
+        160,
+        179,
+        202,
+        231
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4Fixture.js",
+      "lines": [
+        34
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/telegram-claim-fail-closed.test.js",
+      "lines": [
+        49,
+        249,
+        258
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-release-identity.test.js",
+      "lines": [
+        8
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/migration.test.js",
+      "lines": [
+        132,
+        139,
+        172,
+        192,
+        216,
+        231,
+        243,
+        272
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-stage6-v30-legacy-kind-scope.test.js",
+      "lines": [
+        60,
+        63,
+        64
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/low-severity-repairs.test.js",
+      "lines": [
+        29
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/multiuser-cron.test.js",
+      "lines": [
+        31
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/telegram-replay-idempotency.test.js",
+      "lines": [
+        53,
+        238,
+        249,
+        267,
+        270,
+        271
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/admin-cli.test.js",
+      "lines": [
+        33
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-github-cli.test.js",
+      "lines": [
+        12
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/r3-processing-ownership.test.js",
+      "lines": [
+        66,
+        286
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v32-settlement.test.js",
+      "lines": [
+        13
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/proactive-notify-and-guard.test.js",
+      "lines": [
+        112
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/readiness.test.js",
+      "lines": [
+        553,
+        602,
+        672
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-stage5-contracts.test.js",
+      "lines": [
+        104,
+        109
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-performance.test.js",
+      "lines": [
+        16
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/whoop-webhook-repair-cycle1.test.js",
+      "lines": [
+        36
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-review-round2.test.js",
+      "lines": [
+        17
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v25.test.js",
+      "lines": [
+        21,
+        31,
+        40,
+        56,
+        58,
+        90,
+        107,
+        113
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-stage6-v29-window-family.test.js",
+      "lines": [
+        145
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-sync-ownership.test.js",
+      "lines": [
+        6
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v32-process.test.js",
+      "lines": [
+        7
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/public-beta-typed-read.test.js",
+      "lines": [
+        22,
+        37,
+        69
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/r3-update-processing-state.test.js",
+      "lines": [
+        62,
+        297,
+        414,
+        427,
+        440,
+        444,
+        445
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/conversational-health-hardening.test.js",
+      "lines": [
+        42
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-stage6-cold-start.test.js",
+      "lines": [
+        17
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-stage5-review-b-privacy.test.js",
+      "lines": [
+        17
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/v11-report-delivery-durability.test.js",
+      "lines": [
+        168,
+        279,
+        328,
+        370
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v32-rollback.test.js",
+      "lines": [
+        10,
+        14
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-split-execution.test.js",
+      "lines": [
+        10
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/dailyMetrics.test.js",
+      "lines": [
+        39
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/localization-mixed-payload.test.js",
+      "lines": [
+        36
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/pending-claim-atomicity.test.js",
+      "lines": [
+        48
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v32-migration.test.js",
+      "lines": [
+        7,
+        10,
+        36,
+        37,
+        51,
+        60
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v27.test.js",
+      "lines": [
+        21,
+        33,
+        42,
+        64,
+        66,
+        74,
+        83
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/maintenance-independence.test.js",
+      "lines": [
+        53
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/lifecycle-authority-r4.test.js",
+      "lines": [
+        30,
+        296,
+        302
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/whoop-webhook-repair-cycle2.test.js",
+      "lines": [
+        50
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/alert-claim-ownership.test.js",
+      "lines": [
+        46,
+        218
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/rc2ReviewReproduction.js",
+      "lines": [
+        19
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/guardian-false-alarms.test.js",
+      "lines": [
+        51
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/lifecycle-authority-r5.test.js",
+      "lines": [
+        28
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v26.test.js",
+      "lines": [
+        33,
+        45,
+        52,
+        66,
+        68,
+        88,
+        114
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/repair-multiuser-reaudit.test.js",
+      "lines": [
+        43
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/whoop-identity-verification.test.js",
+      "lines": [
+        40
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/proactive-no-response.test.js",
+      "lines": [
+        42,
+        351,
+        618,
+        859
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/reconcile.test.js",
+      "lines": [
+        48,
+        943,
+        965,
+        977
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/conversational-perspective.test.js",
+      "lines": [
+        52,
+        402
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-stage6-v29-routing.test.js",
+      "lines": [
+        145,
+        162,
+        184,
+        203,
+        205,
+        225,
+        227
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/multiuser-isolation.test.js",
+      "lines": [
+        31,
+        136,
+        422
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/proactive-insight-lifecycle.test.js",
+      "lines": [
+        100
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/capabilities.test.js",
+      "lines": [
+        184,
+        219
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/onboarding-f04-attribution.test.js",
+      "lines": [
+        63
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-runtime-admission.test.js",
+      "lines": [
+        10,
+        55
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/analytics-repair-cycle2.test.js",
+      "lines": [
+        47
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/capability-fail-closed.test.js",
+      "lines": [
+        183,
+        315,
+        336
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-key-required-migration.test.js",
+      "lines": [
+        17,
+        18,
+        19,
+        20,
+        23,
+        25,
+        26,
+        27,
+        29,
+        38,
+        39,
+        42,
+        52,
+        53,
+        55,
+        62,
+        64,
+        67
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-controlled-migration.test.js",
+      "lines": [
+        17,
+        78,
+        103,
+        128,
+        130,
+        153,
+        156,
+        173
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/conversational-health-qa.test.js",
+      "lines": [
+        49
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/schema-v8-late-missed.test.js",
+      "lines": [
+        65,
+        98,
+        118,
+        127,
+        145,
+        173,
+        189
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/production-hardening.test.js",
+      "lines": [
+        244
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v32-runtime.test.js",
+      "lines": [
+        16
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/onboarding-repair-cycle2.test.js",
+      "lines": [
+        47,
+        256,
+        587
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v32-review-currentness.test.js",
+      "lines": [
+        17,
+        33,
+        46
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/proactive-audit.test.js",
+      "lines": [
+        114,
+        160,
+        203,
+        250,
+        316,
+        373,
+        398,
+        426,
+        461,
+        496,
+        538,
+        585,
+        602,
+        615,
+        622,
+        647,
+        682,
+        792,
+        849,
+        885,
+        925
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/production-activation.test.js",
+      "lines": [
+        47
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/telegram-webhook.test.js",
+      "lines": [
+        58,
+        406
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/whoop-webhook-auth-route.test.js",
+      "lines": [
+        192,
+        213,
+        228,
+        240,
+        328,
+        371
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-stage6-v30-directory.test.js",
+      "lines": [
+        102,
+        103,
+        123,
+        147,
+        149
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-settlement-authority.test.js",
+      "lines": [
+        14
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v23.test.js",
+      "lines": [
+        14,
+        17,
+        36,
+        47,
+        140,
+        145,
+        147,
+        156
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/e2e.test.js",
+      "lines": [
+        133,
+        307
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/proactive-gate-fail-closed.test.js",
+      "lines": [
+        96
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/qa-health-semantics.test.js",
+      "lines": [
+        42,
+        232
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/multiuser-identity.test.js",
+      "lines": [
+        36,
+        343
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/regate-round4.test.js",
+      "lines": [
+        51
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/proactive-readiness-ux.test.js",
+      "lines": [
+        39,
+        57,
+        95,
+        111
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/journal-quality.test.js",
+      "lines": [
+        49
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-rollback-v31.test.js",
+      "lines": [
+        17
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v22.test.js",
+      "lines": [
+        19,
+        55,
+        61,
+        64,
+        69,
+        80,
+        93,
+        100,
+        107,
+        119,
+        128,
+        161,
+        177,
+        191,
+        193
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/telegram-reply-binding.test.js",
+      "lines": [
+        46
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/localization-storage.test.js",
+      "lines": [
+        17,
+        21,
+        37,
+        60,
+        64,
+        65
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/telegram-delivery-boundary.test.js",
+      "lines": [
+        66
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/production-activation-repair-cycle2.test.js",
+      "lines": [
+        41
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-foundation-migration.test.js",
+      "lines": [
+        16,
+        43,
+        46,
+        61,
+        67,
+        68,
+        74,
+        78
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/ledger-ux.test.js",
+      "lines": [
+        42
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/bot-qa.test.js",
+      "lines": [
+        50
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/telegram-identity-boundary.test.js",
+      "lines": [
+        58
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/healthspan-anchor.test.js",
+      "lines": [
+        124
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/concurrency.test.js",
+      "lines": [
+        45,
+        70,
+        98,
+        144,
+        183,
+        224,
+        243,
+        259,
+        297,
+        333,
+        356
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v32-performance.test.js",
+      "lines": [
+        9,
+        24
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/capability-wiring.test.js",
+      "lines": [
+        42
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-morning-continuity.test.js",
+      "lines": [
+        25
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/stage5OwnedDb.js",
+      "lines": [
+        10
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/lifecycle-authority-r3.test.js",
+      "lines": [
+        66,
+        799
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/briefing-reliability.test.js",
+      "lines": [
+        93
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/onboarding-repair-cycle1.test.js",
+      "lines": [
+        52,
+        242
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/guardian.test.js",
+      "lines": [
+        37,
+        110,
+        474
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-production-backlog.test.js",
+      "lines": [
+        24
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/proactive-processing-lease.test.js",
+      "lines": [
+        55,
+        265
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/v11-migration-v8-to-v9.test.js",
+      "lines": [
+        110,
+        131,
+        159,
+        194,
+        200,
+        221
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase0-status.test.js",
+      "lines": [
+        37
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/insights-integration.test.js",
+      "lines": [
+        154,
+        212,
+        258
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/prediction-pipeline.test.js",
+      "lines": [
+        42
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/analytics-repair-cycle1.test.js",
+      "lines": [
+        51
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/association-measurability.test.js",
+      "lines": [
+        114
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v32-contention.test.js",
+      "lines": [
+        8,
+        28
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/telegram-conversation-ordering.test.js",
+      "lines": [
+        59,
+        241
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-stage6-v28.test.js",
+      "lines": [
+        18,
+        29,
+        53,
+        54
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/round2-cross-cutting-reaudit.test.js",
+      "lines": [
+        66,
+        432,
+        464,
+        482
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/sync-report-decoupling.test.js",
+      "lines": [
+        34
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-stage5-review-b-process.test.js",
+      "lines": [
+        34
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/public-beta-payload-smoke.test.js",
+      "lines": [
+        31
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/answer-day-anchoring.test.js",
+      "lines": [
+        52
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/account-lifecycle.test.js",
+      "lines": [
+        59,
+        192
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/production-cut.test.js",
+      "lines": [
+        26,
+        155
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-key-continuity.test.js",
+      "lines": [
+        14,
+        20
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/production-activation-repair-cycle1.test.js",
+      "lines": [
+        67
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/onboarding-f04-generic-failure.test.js",
+      "lines": [
+        60
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/localization-onboarding.test.js",
+      "lines": [
+        19,
+        49,
+        67,
+        79,
+        90
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/bot-polling.test.js",
+      "lines": [
+        83,
+        139,
+        217,
+        276,
+        305
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/db.test.js",
+      "lines": [
+        27,
+        36
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/lifecycle-authority-r2.test.js",
+      "lines": [
+        56,
+        693
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/telegram-delivery-hardening.test.js",
+      "lines": [
+        67,
+        522,
+        576,
+        601,
+        653,
+        654
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v32-review-findings.test.js",
+      "lines": [
+        24,
+        48
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v21.test.js",
+      "lines": [
+        14,
+        34,
+        47,
+        54,
+        66,
+        80,
+        96,
+        108,
+        110,
+        120,
+        126,
+        132,
+        135,
+        141,
+        144,
+        151
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-v22-resume-repair.test.js",
+      "lines": [
+        22,
+        34
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/telegram-ordering-recovery.test.js",
+      "lines": [
+        60
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/phase4-post-drain-presentation.test.js",
+      "lines": [
+        10
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/v11-data-and-memory-integrity.test.js",
+      "lines": [
+        199,
+        285,
+        332,
+        367,
+        433,
+        453,
+        476,
+        504,
+        543,
+        561
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/healthspan-progressive.test.js",
+      "lines": [
+        41
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    },
+    {
+      "file": "test/sync.test.js",
+      "lines": [
+        178,
+        352
+      ],
+      "kind": "ISOLATED_TEST_FIXTURE"
+    }
+  ]
+}

@@ -14,7 +14,8 @@ missed morning brief is explained by deliberately paused schedulers.
 
 ## Separately authorized future order
 
-1. Read back exact RC2/OFF/OFF and verify all automation paused.
+1. Fresh read back exact RC2/OFF/OFF; verify Render auto-deploy OFF **before publishing**,
+   and verify GitHub/Cloudflare automation paused.
 2. Verify recovery readiness and a current v31 backup; the retained pre-v31 backup
    alone is not the v31→v32 migration backup. Preserve original key custody.
 3. Publish only the approved final RC3 commit/tag after independent review.
@@ -24,7 +25,7 @@ missed morning brief is explained by deliberately paused schedulers.
 6. Read back exact v32, full authority/postconditions, integrity OK, FK zero,
    preserved data/keys, no LIVE and no Stage 7/8 structures.
 7. Deploy the exact reviewed RC3 server with Beta OFF/OFF.
-8. Verify actual server SHA and health. Runtime must not auto-migrate.
+8. Verify actual server SHA and health. Runtime and read/admin/health entrypoints must not auto-migrate.
 9. Install the disabled split workflow artifact. Both checkout/environment pins
    equal RC3; actual HEAD verification and FINALIZED_SUCCESS dependency remain.
 10. Deploy the compatible phase-aware Worker only now; cron remains OFF. Read back
@@ -32,7 +33,8 @@ missed morning brief is explained by deliberately paused schedulers.
 11. Controlled OFF/OFF validation: ordinary morning path, finalized sync, no drain.
 12. Controlled Stage 2 SHADOW ON / presentation OFF, without Telegram Beta sends.
 13. Prove finalized typed sync, signed handoff, bounded Stage 6 progress, durable
-    receipts, truthful unfinalized/finalized health and restart/reconciliation.
+    receipts, truthful ordinal-ordered unfinalized/finalized health, producing-execution
+    currentness, deterministic generic receipts and restart/reconciliation.
 14. Only later restore the reviewed morning cron.
 15. Locale selection, allowlist isolation and zh-TW/en/vi smoke follow review.
 

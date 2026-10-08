@@ -33,7 +33,10 @@ for(const attack of ['cancel','expire'])test(`R2 authority: ${attack} during han
 });
 test('R2 authority: request generation lost after durable work cannot settle or release successor',async t=>{
  const db=await fixture(t),value=request();const r=await run(db,value,{deps:{runBriefing:async()=>{
- const other=createClient({url:db.isolatedFixtureUrl});try{await other.execute({sql:'UPDATE phase4_executions SET owner=?,generation=generation+1 WHERE execution_id=?',args:['successor',value.requestId]});}finally{other.close();}return success();}}});
+ const other=createClient({url:db.isolatedFixtureUrl});try{
+  await other.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',args:[Date.now()-1,Date.now()-1,value.requestId]});
+  await other.execute({sql:'UPDATE phase4_executions SET owner=?,generation=generation+1,lease_until=?,deadline_at=? WHERE execution_id=?',args:['successor',Date.now()+30000,Date.now()+30000,value.requestId]});
+ }finally{other.close();}return success();}}});
  denied(r);assert.equal((await db.raw.execute({sql:'SELECT owner FROM phase4_executions WHERE execution_id=?',args:[value.requestId]})).rows[0].owner,'successor');
  assert.equal((await readPhaseProgress(db,'SYNC','manual')).complete,null);
 });

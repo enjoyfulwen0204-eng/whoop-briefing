@@ -1,0 +1,84 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {execFileSync} from 'node:child_process';
+import {createDb as applicationDb} from '../src/db.js';
+import {createOwnedDb} from './stage5OwnedDb.js';
+import {fixtureKeys} from './localDb.js';
+import {hranaTransport} from './hranaTransport.js';
+import {runningReleaseSha} from '../src/phase4Release.js';
+import {configurationProof,claimPhaseRequest,readExecution,commitPhaseWork,finalizePhaseWork,abortPhaseExecution,readPhaseProgress} from '../src/phase4ExecutionStore.js';
+import {createExecutionBudget} from '../src/executionBudget.js';
+import {withDurableExecution} from '../src/phase4ExecutionContext.js';
+import {runExecutionPhase} from '../src/phase4Execution.js';
+import {operationalLogFields} from '../src/logger.js';
+import {setup,request as metricRequest,T} from './stage5HistoryFixture.js';
+import {call} from './stage5ClosureFixture.js';
+const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'};
+const request=(extra={})=>({requestId:randomUUID(),releaseSha:runningReleaseSha(),phase:'SYNC',triggerSource:'manual',executionMode:'SHADOW',
+ configProof:configurationProof(fixtureKeys,{runtime:'on',mode:'off'},environment),...extra});
+async function fixture(t,version=32){const dir=await mkdtemp(join(tmpdir(),'v32-review-')),url=`file:${join(dir,'db.sqlite')}`,seed=createOwnedDb({url});
+ await seed.migrate({targetVersion:version});await seed.close();const transport=hranaTransport(url);
+ const db=applicationDb({url:'https://isolated.invalid',fetch:transport.fetch,phase4Keys:fixtureKeys});
+ t.after(async()=>{db.close();transport.close();await rm(dir,{recursive:true,force:true});});return {db,transport,url,dir};}
+const authority=()=>({assert(){}});
+const claim=(db,r)=>claimPhaseRequest(db,r,JSON.stringify(r),{keys:fixtureKeys});
+test('H01: ABORTED is terminal, including work-result helper',async t=>{
+ const {db}=await fixture(t),r=request(),c=await claim(db,r);await abortPhaseExecution(db,c,'FAILED');
+ await assert.rejects(()=>db.raw.execute({sql:"UPDATE phase4_executions SET state='WORK_COMMITTED',result_json='{}',result_digest=?,work_committed_at=? WHERE execution_id=?",args:['a'.repeat(64),Date.now(),r.requestId]}));
+ assert.equal((await readExecution(db,r.requestId)).state,'ABORTED');
+});
+test('H02: INSERT OR REPLACE cannot reset finalized execution authority',async t=>{
+ const {db}=await fixture(t),r=request(),c=await claim(db,r);await commitPhaseWork(db,r,c,{outcome:'NO_NEW_DATA_SUCCESS'},authority());await finalizePhaseWork(db,r,c,fixtureKeys,authority());
+ const row=await readExecution(db,r.requestId),copy={...row,state:'ESTABLISHED',generation:1,owner:'replacement',result_json:null,result_digest:null,work_committed_at:null,finalized_at:null};
+ const cols=Object.keys(copy);await assert.rejects(()=>db.raw.execute({sql:`INSERT OR REPLACE INTO phase4_executions(${cols.join(',')}) VALUES(${cols.map(()=>'?')})`,args:cols.map(k=>copy[k])}));
+ assert.deepEqual(await readExecution(db,r.requestId),row);
+});
+test('H03: swallowed business COMMIT ACK loss cannot authorize sync/drain',async t=>{
+ const {db,transport}=await fixture(t),r=request();const response=await runExecutionPhase({db,request:r,environment,keys:fixtureKeys,env:{dryRun:true},deps:{runBriefing:async()=>{
+  transport.arm({loseAcknowledgement:true});try{await db.transaction(()=>db.raw.execute("INSERT INTO telegram_state(key,value,updated_at) VALUES('lost_ack','1','2026-10-08')"));}catch{}
+  return {syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS'};
+ }}});
+ assert.equal(response.body.result.outcome,'COMMIT_INDETERMINATE');assert.equal(response.body.syncComplete,false);assert.equal(response.body.drainAuthorized,false);assert.equal(response.body.handoff,undefined);
+});
+test('H04: unfinalized producing work cannot be published by typed Beta reader',async t=>{
+ const f=await setup(t,{targetVersion:30});await f.db.migrate({targetVersion:32});
+ const result=await call(f,'intelligence','analyzeMetric',{...metricRequest(f.initialRefs[0],f.initialRefs.slice(1),new Date(T).toISOString()),windowFamily:'REVIEW_PRODUCER'});assert.ok(result.episode);
+ const r=request(),c=await claim(f.db,r);const context={claim:c,keys:fixtureKeys,pending:new Set(),authority:authority()};
+ await withDurableExecution(context,()=>f.db.transaction(()=>f.db.raw.execute("UPDATE phase4_computation_state SET last_completed_generation=input_generation WHERE user_id='a' AND execution_mode='SHADOW'")));
+ await commitPhaseWork(f.db,r,c,{outcome:'NO_NEW_DATA_SUCCESS'},authority());
+ const typed=await f.stores.withContext('a',{executionMode:'SHADOW'},ctx=>f.stores.betaSummary.readCurrent(ctx,{asOfUtc:new Date(T).toISOString()}));
+ assert.equal(typed.episodes.length,0);
+});
+test('H05: admin read command on v31 requires controlled migration and leaves version intact',async t=>{
+ const {db,url,dir}=await fixture(t,31);const env={PATH:process.env.PATH,HOME:dir,TURSO_DATABASE_URL:url,TURSO_AUTH_TOKEN:'fixture',PHASE4_LOOKUP_KEY:Buffer.alloc(32,71).toString('hex'),PHASE4_AUDIT_KEY:Buffer.alloc(32,83).toString('hex')};
+ let output='';try{output=execFileSync(process.execPath,[join(process.cwd(),'scripts/admin.js'),'user:list'],{cwd:dir,env,encoding:'utf8',timeout:20000,stdio:'pipe'});}catch(e){output=String(e.stdout)+String(e.stderr);}
+ assert.equal((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0].v,31,output);
+ assert.match(output,/CONTROLLED_MIGRATION_REQUIRED/);
+});
+test('M01: generic committed business step is exactly once after lost ACK and fresh takeover',async t=>{
+ const {db,transport}=await fixture(t),r=request();let c=await claim(db,r),calls=0;
+ const operation=()=>withDurableExecution({claim:c,keys:fixtureKeys,pending:new Set(),authority:authority()},()=>db.transaction(async()=>{calls++;await db.raw.execute("INSERT INTO telegram_state(key,value,updated_at) VALUES('generic_counter','1','2026-10-08') ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+1");return 1;},{workStep:'generic-counter'}));
+ transport.arm({loseAcknowledgement:true});await assert.rejects(operation);
+ await db.raw.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',args:[Date.now()-1,Date.now()-1,r.requestId]});
+ c=await claim(db,r);await operation();
+ assert.equal(Number((await db.raw.execute("SELECT value FROM telegram_state WHERE key='generic_counter'")).rows[0].value),1);assert.equal(calls,1);
+});
+test('M02: wrong-release work-result helper fails before any durable write',async t=>{
+ const {db}=await fixture(t),r=request(),c=await claim(db,r),before=await readExecution(db,r.requestId);
+ await assert.rejects(()=>commitPhaseWork(db,{...r,releaseSha:'a'.repeat(40)},c,{outcome:'NO_NEW_DATA_SUCCESS'},authority()));
+ assert.deepEqual(await readExecution(db,r.requestId),before);
+ await commitPhaseWork(db,r,c,{outcome:'NO_NEW_DATA_SUCCESS'},authority());assert.equal((await finalizePhaseWork(db,r,c,fixtureKeys,authority())).settlementState,'FINALIZED_SUCCESS');
+});
+test('M03: tied creation timestamps and late old finalization cannot hide newer pending execution',async t=>{
+ const {db}=await fixture(t),old=request(),next=request(),clock=Date.now,at=clock();let c;
+ try{Date.now=()=>at;c=await claim(db,old);await commitPhaseWork(db,old,c,{outcome:'NO_NEW_DATA_SUCCESS'},authority());await claim(db,next);}finally{Date.now=clock;}
+ await new Promise(resolve=>setTimeout(resolve,10));await finalizePhaseWork(db,old,c,fixtureKeys,authority());
+ assert.equal((await readPhaseProgress(db,'SYNC','manual')).execution.execution_id,next.requestId);
+});
+test('L01: operational logger retains indeterminate outcome without payload',()=>{
+ assert.deepEqual(operationalLogFields({outcome:'COMMIT_INDETERMINATE',health_payload:'private',token:'secret'}),{outcome:'COMMIT_INDETERMINATE'});
+});

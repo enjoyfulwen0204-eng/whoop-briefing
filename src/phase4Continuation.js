@@ -30,12 +30,15 @@ export async function discoverPhaseContinuation({query,db:providedDb,keys:provid
   const assert=()=>{budget.assert();requireRuntimeAdmission(db.raw,admission,keys,db.transaction);};
   assert();
   return db.withRuntimeFence(assert,async()=>{
-   const rows=(await db.raw.execute({sql:`SELECT e.* FROM phase4_executions e WHERE e.phase='SYNC'
-    AND e.release_sha=? AND e.execution_mode=? AND e.trigger_source='cloudflare' AND e.config_proof=?
-    AND (e.state='WORK_COMMITTED' OR (e.created_at>${databaseNowMs}-? AND
+   const rows=(await db.raw.execute({sql:`SELECT e.* FROM phase4_executions e WHERE
+    e.release_sha=? AND e.execution_mode=? AND e.trigger_source='cloudflare' AND e.config_proof=?
+    AND ((e.phase='STAGE6_DRAIN' AND (e.state='WORK_COMMITTED' OR (e.state='ESTABLISHED' AND
+      (EXISTS(SELECT 1 FROM phase4_execution_work_receipts r WHERE r.execution_id=e.execution_id) OR
+       EXISTS(SELECT 1 FROM phase4_executions p WHERE p.execution_id=e.sync_execution_id AND p.state='FINALIZED_SUCCESS' AND p.created_at>${databaseNowMs}-?)))))
+     OR (e.phase='SYNC' AND (e.state='WORK_COMMITTED' OR (e.created_at>${databaseNowMs}-? AND
       (e.state='ESTABLISHED' OR (e.state='FINALIZED_SUCCESS' AND e.execution_mode='SHADOW' AND NOT EXISTS
-       (SELECT 1 FROM phase4_executions d WHERE d.sync_execution_id=e.execution_id AND d.state IN ('FINALIZED_SUCCESS','FINALIZED_FAILURE','ABORTED'))))))
-    ORDER BY CASE WHEN e.state='WORK_COMMITTED' THEN 0 ELSE 1 END,e.execution_seq LIMIT 1`,args:[releaseSha,mode,query.configProof,EXECUTION_WORK_MAX_AGE_MS]})).rows;
+       (SELECT 1 FROM phase4_executions d WHERE d.sync_execution_id=e.execution_id AND d.state IN ('FINALIZED_SUCCESS','FINALIZED_FAILURE','ABORTED'))))))))
+    ORDER BY CASE WHEN e.phase='STAGE6_DRAIN' THEN 0 WHEN e.state='WORK_COMMITTED' THEN 1 ELSE 2 END,e.execution_seq LIMIT 1`,args:[releaseSha,mode,query.configProof,EXECUTION_WORK_MAX_AGE_MS,EXECUTION_WORK_MAX_AGE_MS]})).rows;
    if(!rows.length){assert();return {status:200,body:{ok:true,state:'NONE',requestBody:null}};}
    const row=rows[0];let request;try{request=validatePhaseRequest(JSON.parse(row.canonical_request_json));}catch{fail('EXECUTION_RECORD_CORRUPT');}
    const body=canonicalPhaseRequest(request);

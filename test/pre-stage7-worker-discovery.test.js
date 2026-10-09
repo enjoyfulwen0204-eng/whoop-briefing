@@ -62,3 +62,11 @@ test('live-owner wait is bounded by the original Worker deadline and cancellatio
  const pending=invoke(env,{signal:controller.signal,fetchImpl:async()=>{requests++;return new Promise(()=>{});}});
  controller.abort();await assert.rejects(()=>pending);assert.ok(requests<=1);
 });
+test('recovered DRAIN uses exact saved bytes and never enters ordinary SYNC',async()=>{
+ const child=canonical({...JSON.parse(saved),phase:'STAGE6_DRAIN',requestId:'saved-drain-before-worker-death',syncRequestId:JSON.parse(saved).requestId,handoff:'c'.repeat(64)}),phases=[];
+ const result=await invoke(env,{fetchImpl:async(url,init)=>{
+  if(new URL(url).pathname.endsWith('/continuation'))return response({ok:true,state:'INCOMPLETE_RESUMABLE',requestBody:child,workReceipts:1});
+  const r=JSON.parse(init.body);phases.push(r.phase);assert.equal(init.body,child);return response(finalized(r));
+ }});
+ assert.equal(result.ok,true);assert.deepEqual(phases,['STAGE6_DRAIN']);
+});

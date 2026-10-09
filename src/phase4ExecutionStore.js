@@ -179,9 +179,12 @@ export async function claimPhaseRequest(db,request,body,{leaseMs=225_000,deadlin
    // the existing identity's fenced continuation until its bounded context is
    // stale. WORK_COMMITTED remains immutable metadata reconciliation, which
    // may overlap a newer invocation under the approved v32 contract.
-   const pending=(await db.raw.execute({sql:`SELECT execution_id FROM phase4_executions WHERE scope_key=?
-     AND state='ESTABLISHED' AND created_at>${databaseNowMs}-? LIMIT 1`,
-     args:[scopeKey,EXECUTION_WORK_MAX_AGE_MS]})).rows[0];
+   const pending=(await db.raw.execute({sql:`SELECT e.execution_id FROM phase4_executions e WHERE e.scope_key=?
+     AND e.state='ESTABLISHED' AND e.created_at>${databaseNowMs}-?
+     AND NOT (e.phase='STAGE6_DRAIN' AND e.deadline_at<=${databaseNowMs}
+       AND NOT EXISTS(SELECT 1 FROM phase4_execution_work_receipts r WHERE r.execution_id=e.execution_id)
+       AND EXISTS(SELECT 1 FROM phase4_executions p WHERE p.execution_id=e.sync_execution_id AND p.state='FINALIZED_SUCCESS' AND p.created_at<=${databaseNowMs}-?)) LIMIT 1`,
+     args:[scopeKey,EXECUTION_WORK_MAX_AGE_MS,EXECUTION_WORK_MAX_AGE_MS]})).rows[0];
    if(pending)fail('REQUEST_SCOPE_PENDING');
    await db.raw.execute({sql:`INSERT INTO phase4_executions(execution_id,identity_digest,scope_key,canonical_request_json,phase,release_sha,execution_mode,trigger_source,
    config_proof,sync_execution_id,owner,generation,lease_until,deadline_at,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,'ESTABLISHED',?,?)`,

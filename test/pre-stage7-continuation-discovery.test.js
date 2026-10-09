@@ -5,6 +5,7 @@ import {canonicalPhaseRequest,configurationProof,claimPhaseRequest,readExecution
 import {runningReleaseSha} from '../src/phase4Release.js';import {runExecutionPhase} from '../src/phase4Execution.js';
 import {createBriefingEndpoint} from '../src/briefingEndpoint.js';import {signTriggerRequest} from '../src/briefingTriggerAuth.js';
 import {readOnlyStatement} from '../src/processingTransaction.js';
+import {withDurableExecution} from '../src/phase4ExecutionContext.js';import {createExecutionBudget} from '../src/executionBudget.js';
 const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'};
 const query=()=>({releaseSha:runningReleaseSha(),triggerSource:'cloudflare',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,{runtime:'on',mode:'off'},environment)});
 const request=q=>({...q,requestId:randomUUID(),phase:'SYNC'});
@@ -72,4 +73,22 @@ test('discovery endpoint authenticates its own path, validates narrow inputs and
  assert.equal((await send(query(),'/internal/briefing/run')).status,401);assert.equal(calls,0);assert.equal(queries,0);
  assert.equal((await send({...query(),userId:'alice'})).status,400);assert.equal(calls,0);assert.equal(queries,0);
  const accepted=await send(query());assert.equal(accepted.status,200);assert.equal(accepted.body.state,'NONE');assert.equal(calls,1);assert.ok(queries>0);
+});
+test('receipt-backed DRAIN is discovered directly and reconciles expired-parent PARTIAL without any new business work',async t=>{
+ const {db}=await deliveryFixture(t),q=query(),parent=request(q);
+ const sync=await runExecutionPhase({request:parent,body:canonicalPhaseRequest(parent),db,keys:fixtureKeys,environment,env:{dryRun:true},deps:{runBriefing:async()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS'})}});
+ const child={...q,phase:'STAGE6_DRAIN',requestId:randomUUID(),syncRequestId:parent.requestId,handoff:sync.body.handoff},body=canonicalPhaseRequest(child);
+ const claim=await claimPhaseRequest(db,child,body),authority=createExecutionBudget({budgetMs:5000});
+ try{await withDurableExecution({claim,keys:fixtureKeys,pending:new Set(),authority},()=>db.transaction(async()=>{
+  await db.raw.execute("INSERT INTO telegram_state(key,value,updated_at) VALUES('drain_progress','1','2026-10-09')");return 1;
+ },{workStep:'drain-durable-progress'}));}finally{authority.close();}
+ await db.raw.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',args:[Date.now()-1,Date.now()-1,child.requestId]});
+ const found=await discover(db,q);assert.equal(found.body.requestBody,body);assert.equal(found.body.workReceipts,1);
+ const original=Date.now;let work=0;
+ try{Date.now=()=>original()+20*60000;
+  const result=await runExecutionPhase({request:child,body,db,keys:fixtureKeys,environment,env:{dryRun:true},deps:{runBriefing:async()=>{work++;throw Error('MORNING_BRIEF_FORBIDDEN');},runtime:{phase4Stage6:{drain:async()=>{work++;throw Error('NEW_DRAIN_WORK_FORBIDDEN');}}}}});
+  assert.equal(result.status,200);assert.equal(result.body.result.outcome,'PARTIAL');assert.equal(result.body.result.stopReason,'RECONCILIATION_ONLY');
+ }finally{Date.now=original;}
+ assert.equal(work,0);assert.equal((await db.raw.execute("SELECT value FROM telegram_state WHERE key='drain_progress'")).rows[0].value,'1');
+ assert.equal((await discover(db,q)).body.state,'NONE');
 });

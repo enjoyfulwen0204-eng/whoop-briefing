@@ -76,17 +76,19 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
     if(!['IN_PROGRESS','INCOMPLETE_RESUMABLE','COMMIT_UNCERTAIN','WORK_COMMITTED_UNFINALIZED','FINALIZED_SUCCESS'].includes(payload.state)
      ||typeof payload.requestBody!=='string'||new TextEncoder().encode(payload.requestBody).length>1024)throw error('invalid_discovery',true);
     let request;try{request=JSON.parse(payload.requestBody);}catch{throw error('invalid_discovery',true);}
-    if(Object.keys(request).sort().join(',')!=='configProof,executionMode,phase,releaseSha,requestId,triggerSource'||request.phase!=='SYNC'
+    const required=request.phase==='STAGE6_DRAIN'?'configProof,executionMode,handoff,phase,releaseSha,requestId,syncRequestId,triggerSource':'configProof,executionMode,phase,releaseSha,requestId,triggerSource';
+    if(Object.keys(request).sort().join(',')!==required||!['SYNC','STAGE6_DRAIN'].includes(request.phase)
      ||request.triggerSource!=='cloudflare'||request.releaseSha!==env.BRIEFING_RELEASE_SHA||request.executionMode!==env.BRIEFING_EXECUTION_MODE
      ||request.configProof!==env.BRIEFING_CONFIG_PROOF||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{15,127}$/.test(request.requestId)||canonical(request)!==payload.requestBody)throw error('invalid_discovery',true);
-    recovered={requestId:request.requestId,body:payload.requestBody};
+    if(request.phase==='STAGE6_DRAIN'&&(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{15,127}$/.test(request.syncRequestId)||!/^[a-f0-9]{64}$/.test(request.handoff)||request.requestId===request.syncRequestId))throw error('invalid_discovery',true);
+    recovered={requestId:request.requestId,body:payload.requestBody,phase:request.phase};
    }
   }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
  }
  async function phase(phaseName,handoff) {
-  const requestId=phaseName==='SYNC'&&recovered?recovered.requestId:continuation&&handoff?await sha256(`stage6-drain-v1:${handoff.requestId}`):`${root}_${phaseName.toLowerCase()}`;
+  const requestId=recovered?.phase===phaseName?recovered.requestId:continuation&&handoff?await sha256(`stage6-drain-v1:${handoff.requestId}`):`${root}_${phaseName.toLowerCase()}`;
   const serialize=continuation?canonical:JSON.stringify;
-  const body=phaseName==='SYNC'&&recovered?recovered.body:serialize({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
+  const body=recovered?.phase===phaseName?recovered.body:serialize({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
    ...(handoff?{syncRequestId:handoff.requestId,handoff:handoff.token}:{})});
   let last, retryWait=0;
   const maxAttempts=continuation?MAX_CONTINUATION_SEGMENTS:MAX_ATTEMPTS;
@@ -138,6 +140,9 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
    await sleep(wait);assertCaller();
   }
   throw last;
+ }
+ if(recovered?.phase==='STAGE6_DRAIN'){
+  const drain=await phase('STAGE6_DRAIN');return {ok:true,status:drain.status,attempt:drain.attempt,phase:'STAGE6_DRAIN',outcome:drain.payload.result?.outcome};
  }
  const sync=await phase('SYNC');
  if(sync.payload.drainAuthorized!==true)return {ok:true,status:sync.status,attempt:sync.attempt,phase:'SYNC',drain:'DISABLED'};

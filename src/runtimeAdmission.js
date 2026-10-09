@@ -198,8 +198,10 @@ async function admitChecked(client, keys,stats) {
   }
   const foreignKeys = (await read('PRAGMA foreign_keys')).rows[0];
   if (Number(foreignKeys?.foreign_keys) !== 1) fail('PHASE4_FOREIGN_KEYS_DISABLED');
-  const checkConstraints = (await read('PRAGMA ignore_check_constraints')).rows[0];
-  if (Number(checkConstraints?.ignore_check_constraints) !== 0) fail('PHASE4_CHECK_CONSTRAINTS_DISABLED');
+  // Turso's SQL gateway rejects this PRAGMA spelling. Its read-only table
+  // function exposes the same connection setting without changing enforcement.
+  const checkConstraints = (await read('SELECT ignore_check_constraints FROM pragma_ignore_check_constraints')).rows;
+  if (checkConstraints.length !== 1 || checkConstraints[0]?.ignore_check_constraints !== 0) fail('PHASE4_CHECK_CONSTRAINTS_DISABLED');
   if (lifetime.revoked || lifetime !== state.lifetime || state.closed) fail('PHASE4_RUNTIME_CONNECTION_CHANGED');
   currentExecutionBudget()?.assert();
   state.admitted=true;

@@ -322,12 +322,12 @@ export async function handleOnboardingMessage({
     if (onboarding.state === ONBOARDING_STATE.READY) return MESSAGES.ready(locale);
     return continueOnboarding({ db, user, onboarding, clientId, redirectUri, now, locale });
   }
-  // Before onboarding is complete, a later explicit selection supersedes the
-  // earlier one. The most recent canonical choice governs the next reply.
+  // A canonical authenticated language selection remains effective for READY
+  // users. It changes only locale, never onboarding or WHOOP authorization.
   const changed = normalizeLocale(raw);
   if (changed) {
     if (changed === locale) return statusMessage({ user, onboarding, locale });
-    if (changed !== locale && onboarding.state !== ONBOARDING_STATE.READY) {
+    if (changed !== locale) {
       await db.setLocale(user.id, changed, { now });
       locale = changed;
     }
@@ -391,9 +391,9 @@ export async function handleOnboardingMessage({
 
 /** Existing bound accounts can choose a language even when self-service OAuth is disabled. */
 export async function handleLocaleOnlyMessage({ db, user, text, now = new Date() }) {
-  if (await db.getLocale(user.id)) return null;
+  const saved=await db.getLocale(user.id);
   const chosen = normalizeLocale(text);
-  if (!chosen) return LANGUAGE_SELECTOR;
+  if (!chosen) return saved?null:LANGUAGE_SELECTOR;
   await db.setLocale(user.id, chosen, { now });
   return t(chosen, 'onboarding.languageSaved');
 }

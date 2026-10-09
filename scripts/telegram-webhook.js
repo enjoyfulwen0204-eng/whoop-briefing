@@ -87,7 +87,7 @@ try {
     await call('setWebhook', {
       url,
       secret_token: secret,
-      allowed_updates: ['message'],
+      allowed_updates: ['message','callback_query'],
       // ★ 入站刻意序列化。
       //
       // 應用層的耐久順序控制，是從「這一則已經被耐久地認領」那一刻才開始

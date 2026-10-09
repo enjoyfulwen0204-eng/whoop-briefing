@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createSettings} from './settings.js';
 /**
  * Telegram 入站 webhook（正式環境的傳輸方式）。
  *
@@ -436,6 +437,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   });
   const api = createTelegramApi({ botToken: env.telegramBotToken });
   const router = createRouter({ db, coachFor });
+  const settings = createSettings({db});
 
   // ---- 自助上線（V1.2 Phase 3.5）----------------------------------------
   //
@@ -452,7 +454,9 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const processor = createUpdateProcessor({
     db,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
-    handleMessage: async ({ text, chatId, user }) => {
+    handleMessage: async ({ text, chatId, user, callback }) => {
+      const settingReply=await settings({text,chatId,user,callback});
+      if(settingReply!==null)return settingReply;
       // 上線還沒走完的人：只給狀態與下一步，**不執行任何健康處理**
       // （他的資料還沒進來，任何答案都會是假的）。
       if (onboardingConfigured) {
@@ -472,6 +476,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
     sendReply: createSendReply({ db, api }),
+    answerCallback: id=>api.answerCallbackQuery(id),
     // Ephemeral only. The final answer still uses the existing durable delivery
     // receipt/fencing path in updateProcessor.
     sendTyping: ({ chatId }) => api.sendChatAction(chatId, 'typing'),

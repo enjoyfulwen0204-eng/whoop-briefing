@@ -1,3 +1,4 @@
+import {isSettingsCallback} from './settings.js';
 /**
  * 處理**一則** Telegram Update —— 與傳輸方式無關。
  *
@@ -93,8 +94,14 @@ export function isAcknowledgeable(outcome) {
  *
  * 刻意不看訊息文字、不看 username —— 那些都是對方可以隨意控制的。
  */
+function settingsMessage(update) {
+ const callback=update?.callback_query;
+ if(!callback)return update?.message;
+ if(!isSettingsCallback(callback.data)||!callback.message)return null;
+ return {...callback.message,from:callback.from,text:callback.data};
+}
 export function conversationKeyOf(update) {
-  const msg = update?.message;
+  const msg = settingsMessage(update);
   if (!msg) return null;
   if (typeof msg.text !== 'string' || !msg.text.trim()) return null;
   const chat = msg.chat ?? {};
@@ -128,6 +135,8 @@ export function createUpdateProcessor({
   phase4JournalControl = null,
   /** 送出回覆。帶 HRD-R03 的綁定守衛，回 {sent, messageId}。 */
   sendReply = null,
+  answerCallback = null,
+  callbackAckTimeoutMs = 3_000,
   /**
    * 這個 process 的身分。**只用於日誌**。
    * 所有權一律用每次執行各自產生的 attemptId —— 這兩件事必須分開：
@@ -229,7 +238,7 @@ export function createUpdateProcessor({
    * 被拒絕的訊息**完全不回覆**：對方永遠學不到這個 bot 綁了誰。
    */
   async function classify(update) {
-    const msg = update?.message;
+    const msg = settingsMessage(update);
     if (!msg) return { kind: 'not_a_message' };
     const chat = msg.chat ?? {};
     const chatId = String(chat.id ?? '');
@@ -246,7 +255,7 @@ export function createUpdateProcessor({
 
     const resolved = await resolveUser(chatId);
     if (!resolved) return { kind: 'unlinked', chatId, text, message: msg };
-    return { kind: 'ok', chatId, text, message: msg, user: resolved.user ?? resolved };
+    return { kind: 'ok', chatId, text, message: msg, callback:update?.callback_query??null, user: resolved.user ?? resolved };
   }
 
   /**
@@ -600,7 +609,7 @@ export function createUpdateProcessor({
           }
         }
         const reply = await handleMessage({
-          text: c.text, chatId: c.chatId, message: c.message, user: c.user,
+          text: c.text, chatId: c.chatId, message: c.message, user: c.user, callback:c.callback,
         });
         return {
           chatId: c.chatId, reply, userId: c.user.id,
@@ -695,5 +704,14 @@ export function createUpdateProcessor({
     }
   }
 
-  return { processUpdate, classify };
+  return { processUpdate:async update=>{
+    const id=update?.callback_query?.id;
+    if(typeof id==='string'&&id.length<=128&&answerCallback){
+      let timer;
+      try{await Promise.race([Promise.resolve().then(()=>answerCallback(id)),new Promise(resolve=>{timer=setTimeout(resolve,Math.min(3000,Math.max(1,callbackAckTimeoutMs)));})]);}
+      catch{/* callback acknowledgment is ephemeral and never repeats an action */}
+      finally{clearTimeout(timer);}
+    }
+    return processUpdate(update);
+  }, classify };
 }

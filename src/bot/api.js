@@ -138,7 +138,7 @@ export function createTelegramApi({
         offset: offset || undefined,
         timeout: timeoutS,
         limit,
-        allowed_updates: ['message'],
+        allowed_updates: ['message','callback_query'],
       }, { timeoutMs: timeoutS * 1000 + 15_000 }),
 
     /**
@@ -151,11 +151,15 @@ export function createTelegramApi({
      * 那種情況下訊息可能已經投遞了，但我們**證明不了** —— 所以既不宣稱
      * 送達，也不重送，一律走模糊。
      */
-    sendMessage: async (chatId, text) => {
+    answerCallbackQuery: callbackQueryId => call('answerCallbackQuery',{callback_query_id:callbackQueryId},{timeoutMs:3_000}),
+    sendMessage: async (chatId, reply) => {
+      const text=typeof reply==='string'?reply:reply?.text;
+      if(typeof text!=='string'||!text)throw new TelegramApiError('TELEGRAM_REPLY_INVALID',{sendOutcome:SEND_OUTCOME.DEFINITE_FAILURE,sendStage:'preflight'});
       const result = await call('sendMessage', {
         chat_id: chatId,
         text,
         disable_web_page_preview: true,
+        ...(typeof reply==='object'&&reply.replyMarkup?{reply_markup:reply.replyMarkup}:{}),
       }, { timeoutMs: 30_000 });
       const messageId = Number(result?.message_id);
       if (!Number.isFinite(messageId)) {

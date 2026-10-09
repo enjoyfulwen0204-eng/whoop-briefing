@@ -88,10 +88,10 @@ test('★★★ 註冊: 任何動作都不可以呼叫 getUpdates', async () => 
   }
 });
 
-test('★★ 註冊: 只訂閱 message，而且帶上 secret', async () => {
+test('★★ 註冊: 訂閱 message 與 Settings callback_query，而且帶上 secret', async () => {
   const calls = await captureRequests('set');
   const body = calls.find((c) => c.method === 'setWebhook').body;
-  assert.deepEqual(body.allowed_updates, ['message']);
+  assert.deepEqual(body.allowed_updates, ['message', 'callback_query']);
   assert.ok(typeof body.secret_token === 'string' && body.secret_token.length > 0,
     '★ 一定要帶 secret —— 端點是公開可達的');
 });

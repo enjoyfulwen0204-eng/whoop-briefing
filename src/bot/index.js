@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createSettings} from './settings.js';
 /**
  * Telegram bot worker（常駐 process）。
  *
@@ -118,6 +119,7 @@ export async function main({ maxIterations = Infinity } = {}) {
   });
 
   const router = createRouter({ db, coachFor });
+  const settings = createSettings({db});
 
   // 自助上線需要 WHOOP client id + 回呼網址才能產生授權連結（見 webhook.js）。
   const onboardingConfigured = Boolean(
@@ -132,7 +134,9 @@ export async function main({ maxIterations = Infinity } = {}) {
     api,
     // 身分解析：chat → ACTIVE 綁定 → ACTIVE 使用者。解析不到回 null。
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
-    handleMessage: async ({ text, chatId, user }) => {
+    handleMessage: async ({ text, chatId, user, callback }) => {
+      const settingReply=await settings({text,chatId,user,callback});
+      if(settingReply!==null)return settingReply;
       // 上線還沒走完的人：只給狀態與下一步（與 webhook 那條路同一份邏輯）。
       if (onboardingConfigured) {
         const onboardingReply = await handleOnboardingMessage({ db, user, text, ...onboardingArgs });
@@ -146,6 +150,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
     sendReply: createSendReply({ db, api }),
+    answerCallback: id=>api.answerCallbackQuery(id),
     // 未綁定的 chat：先看管理者的 /link <碼>，再走自助上線（Phase 3.5）。
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {
       const legacy = await handleLinkAttempt({ db, text, chatId, isPrivateChat });

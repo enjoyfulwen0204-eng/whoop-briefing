@@ -42,9 +42,17 @@ export function bindExecutionApi(api,transaction){
       return row?workStepOptions('whoop.event-claim',[row.id,row.attempt_count+1]).workStep:null;
     }});
    }
-   const facts=callbackApis.has(name)?callbackFacts(name,args):args;
+   // Lease grants belong to their actual owner. Business mutation receipts
+   // intentionally omit transient owners; reusing that identity for a grant
+   // would return an old `true` without acquiring the successor's lease.
+   const ownerBound=new Set(['claimReconciliation','claimAnalyticsWork','openReconciliationRun']);
+   const facts=ownerBound.has(name)?[args,String(args[0]?.owner??'')]:callbackApis.has(name)?callbackFacts(name,args):args;
    const grants=new Set(['claimReport','claimLocalePrompt','claimErrorNotify','claimErrorNotifyOwned','claimGlobalErrorNotify','claimUserErrorNotify','authorizeReportDelivery']);
    return transaction(()=>operation.apply(api,args),workStepOptions(`api:${name}`,facts,{discardResult:true,
+     ...(name==='claimReconciliation'?{replay:async()=>{
+       await api.assertAccountActive(args[0].userId,args[0].lifecycleGeneration);
+       return api.holdsReconciliation({...args[0],now:new Date()});
+     }}:{}),
      ...(grants.has(name)?{replay:()=>name==='claimReport'?{claimed:false}:false}:{})}));
   };
  }

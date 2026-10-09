@@ -53,6 +53,25 @@ export function resourceSyncDue(state, {
   return !throttled;
 }
 
+// Use the existing tenant/privacy-fenced store read once per observation.
+// Reopening that same protected transaction for each of five resources can
+// consume the phase deadline before any provider work starts over HTTP.
+async function syncStateSnapshot(db, userId) {
+  if (typeof db.getAllSyncState !== 'function') return null;
+  const rows = await db.getAllSyncState(userId);
+  if (!Array.isArray(rows)) throw new Error('SYNC_STATE_SNAPSHOT_INVALID');
+  const states = new Map();
+  for (const row of rows) {
+    if (row.user_id !== userId || typeof row.resource !== 'string' || states.has(row.resource))
+      throw new Error('SYNC_STATE_SNAPSHOT_INVALID');
+    states.set(row.resource, {
+      backfillComplete: Number(row.backfill_complete) === 1,
+      lastSuccessAt: row.last_success_at ?? null,
+    });
+  }
+  return states;
+}
+
 /**
  * 這個使用者現在有沒有**任何**一個 resource 需要同步。
  *
@@ -66,10 +85,13 @@ export async function isSyncDue({
   db, userId, now = new Date(), resources = WHOOP_SYNC.RESOURCES,
 }) {
   const uid = requireUserId(userId, 'isSyncDue');
+  let states;
+  try { states = await syncStateSnapshot(db, uid); }
+  catch { return true; } // An unavailable/invalid read never proves throttling.
   for (const resource of resources) {
     let state = null;
     try {
-      state = await db.getSyncState(uid, resource);
+      state = states ? states.get(resource) : await db.getSyncState(uid, resource);
     } catch {
       return true;
     }
@@ -279,6 +301,13 @@ export function createSync({
    */
   async function syncAllOwned({ force = false, resources = WHOOP_SYNC.RESOURCES } = {}) {
     const results = [];
+    // Ownership/lifecycle fences remain in force. This snapshot observes only
+    // last-success/backfill state; every due fetch and commit still rechecks
+    // current authority. A failed snapshot falls back to the existing reads.
+    let states;
+    if (!force) {
+      try { states = await syncStateSnapshot(db, uid); } catch { /* per-resource fail-closed path */ }
+    }
     for (const resource of resources) {
       try {
         budget?.assert();
@@ -286,7 +315,7 @@ export function createSync({
         // 抓取之前）。落地圍欄仍然是最後一道。
         if (!force) {
           // 節流的唯一定義在 resourceSyncDue()，cron 的預先判斷用的是同一份
-          const state = await db.getSyncState(uid, resource);
+          const state = states ? states.get(resource) : await db.getSyncState(uid, resource);
           if (!resourceSyncDue(state, { now })) {
             results.push({ resource, status: 'throttled' });
             continue;

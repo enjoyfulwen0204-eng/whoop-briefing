@@ -38,6 +38,18 @@ const files={
  'render-off.env.example':`PHASE4_RELEASE_SHA=${core}\nPHASE4_EXECUTION_PROFILE=PHASE4\nPHASE4_BETA_SHADOW_RUNTIME=off\nPHASE4_PUBLIC_BETA_MODE=off\nPHASE4_PUBLIC_BETA_USER_IDS=\n`,
  'rollback-off.env.example':`PHASE4_RELEASE_SHA=${core}\nPHASE4_EXECUTION_PROFILE=RC2_V32_ROLLBACK\nPHASE4_BETA_SHADOW_RUNTIME=off\nPHASE4_PUBLIC_BETA_MODE=off\nPHASE4_PUBLIC_BETA_USER_IDS=\n`,
 };
+const workerProfile=(mode,discovery,proof)=>show('cloudflare/briefing-scheduler/wrangler.toml')
+ .replaceAll('REVIEWED_RELEASE_SHA',core).replace('BRIEFING_EXECUTION_MODE = "OFF"',`BRIEFING_EXECUTION_MODE = "${mode}"`)
+ .replace('BRIEFING_CONTINUATION_DISCOVERY = "off"',`BRIEFING_CONTINUATION_DISCOVERY = "${discovery}"`)
+ .replace('REVIEWED_CONFIG_PROOF',proof)
+ .replace('crons = [] # Enable morning cron only after coordinated RC3 validation.','crons = ["*/10 0-3 * * *"] # Proposed retained live window; deployment requires approval.');
+const discovery=executionBudget==='SAFE_BOUNDED_ASYNC_RECONCILIATION_CANDIDATE'?'on':'off';
+files['cloudflare-shadow-wrangler.toml']=workerProfile('SHADOW',discovery,'REVIEWED_CONFIG_PROOF_SHADOW_PRESENTATION_OFF');
+files['cloudflare-allowlist-wrangler.toml']=workerProfile('SHADOW',discovery,'REVIEWED_CONFIG_PROOF_THREE_USER_ALLOWLIST');
+files['cloudflare-rollback-wrangler.toml']=workerProfile('OFF','off','REVIEWED_CONFIG_PROOF_RC2_V32_ROLLBACK');
+files['render-shadow.env.example']=`PHASE4_RELEASE_SHA=${core}\nPHASE4_EXECUTION_PROFILE=PHASE4\nPHASE4_BETA_SHADOW_RUNTIME=on\nPHASE4_PUBLIC_BETA_MODE=off\nPHASE4_PUBLIC_BETA_USER_IDS=\n`;
+files['render-allowlist.env.example']=`# G6 only. Replace all three placeholders after verified human locale choice.\nPHASE4_RELEASE_SHA=${core}\nPHASE4_EXECUTION_PROFILE=PHASE4\nPHASE4_BETA_SHADOW_RUNTIME=on\nPHASE4_PUBLIC_BETA_MODE=allowlist\nPHASE4_PUBLIC_BETA_USER_IDS=REVIEWED_ZH_TW_CANONICAL_USER,REVIEWED_EN_CANONICAL_USER,REVIEWED_VI_CANONICAL_USER\n`;
+if(settings)files['settings-release.env.example']=`# After G7 and separate Settings review. Preserve reviewed Beta flags/allowlist.\nPHASE4_RELEASE_SHA=${settings}\nPHASE4_EXECUTION_PROFILE=PHASE4\n# Derive a new exact release/config proof with original keys; no secret changes.\n`;
 if(!files['github-reviewed-workflow.yml'].includes('environment: whoop-production-'+core)||!files['cloudflare-wrangler.toml'].includes('REVIEWED_CONFIG_PROOF'))throw Error('ARTIFACT_AUTHORITY_INVALID');
 for(const [name,content] of Object.entries(files))await writeFile(path.join(output,name),content);
 const manifest={version:2,preparedAt:new Date().toISOString(),node:process.version,core:{commit:core,tree:coreTree},settings:settings?{commit:settings,tree:settingsTree}:null,

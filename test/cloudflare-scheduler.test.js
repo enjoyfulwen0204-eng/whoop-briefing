@@ -126,14 +126,16 @@ test('Worker re-signs each retry while preserving logical request ID', async () 
   assert.equal(retryableStatus(401), false);
   const requests = [];
   const statuses = [503, 200];
-  let cleared = 0;
+  const startedTimers=[],clearedTimers=[];
   let retryClock = NOW;
   const result = await invoke({
     BRIEFING_ENDPOINT_URL: 'https://example.invalid/internal/briefing/run',
     BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_RELEASE_SHA: 'b'.repeat(40), BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
     now: () => retryClock,
-    sleep: async () => { retryClock += 120_000; }, clearTimer: (timer) => { cleared += 1; clearTimeout(timer); },
+    sleep: async () => { retryClock += 120_000; },
+    setTimer:(fn,ms)=>{const timer=setTimeout(fn,ms);startedTimers.push(timer);return timer;},
+    clearTimer:timer=>{clearedTimers.push(timer);clearTimeout(timer);},
     fetchImpl: async (_url, options) => {
       requests.push(options);
       const status = statuses.shift();
@@ -141,7 +143,8 @@ test('Worker re-signs each retry while preserving logical request ID', async () 
     },
   });
   assert.equal(result.attempt, 2);
-  assert.equal(cleared, 2, 'success and retry responses must clear their timers');
+  assert.equal(startedTimers.length,3,'two attempts and abortable backoff each have a deadline');
+  assert.deepEqual(clearedTimers,startedTimers,'every actual timer must be cleared exactly once');
   assert.equal(requests.length, 2);
   assert.equal(new Set(requests.map((r) => r.headers['x-briefing-request-id'])).size, 1);
   assert.deepEqual(requests.map((r) => Number(r.headers['x-briefing-timestamp'])),
@@ -385,15 +388,15 @@ test('worker failure categories are distinguishable and leak nothing', async () 
 
 test('real AbortController path aborts each hanging attempt and clears every timer', async () => {
   let attempts = 0;
-  let cleared = 0;
+  const startedTimers=[],clearedTimers=[];
   let fireDeadline;
   await assert.rejects(() => invoke({
     BRIEFING_ENDPOINT_URL: 'https://render.example/internal/briefing/run',
     BRIEFING_TRIGGER_SECRET: SECRET, BRIEFING_EXECUTION_MODE: 'OFF', BRIEFING_RELEASE_SHA: 'b'.repeat(40), BRIEFING_CONFIG_PROOF: 'a'.repeat(64),
   }, {
     now: () => NOW, sleep: async () => {}, timeoutMs: 1,
-    setTimer: (fn) => { fireDeadline=fn; return Symbol('timer'); },
-    clearTimer: () => { cleared += 1; },
+    setTimer:fn=>{fireDeadline=fn;const timer=Symbol('timer');startedTimers.push(timer);return timer;},
+    clearTimer:timer=>{clearedTimers.push(timer);},
     fetchImpl: async (_url, { signal }) => new Promise((_resolve, reject) => {
       attempts += 1;
       queueMicrotask(fireDeadline);
@@ -402,7 +405,8 @@ test('real AbortController path aborts each hanging attempt and clears every tim
     }),
   }), e=>e.category==='timeout');
   assert.equal(attempts, 2);
-  assert.equal(cleared, 2);
+  assert.equal(startedTimers.length,3);
+  assert.deepEqual(clearedTimers,startedTimers);
 });
 
 test('CLI and Render endpoint reference the same phase-aware canonical runner', async () => {

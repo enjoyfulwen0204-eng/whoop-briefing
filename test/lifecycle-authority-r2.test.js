@@ -699,7 +699,7 @@ test('MIG-LIFE-05/06 非 ACTIVE 維持不動；沒有世代出處的舊 OAuth st
 });
 
 test('MIG-LIFE-01 schema 版本推進到 18，而且新欄位都是可為 NULL 的純新增', async () => {
-  assert.equal(SCHEMA_VERSION, 31);
+  assert.equal(SCHEMA_VERSION, 32);
   const { ADDITIVE_COLUMNS } = await import('../src/schema.js');
   const added = ADDITIVE_COLUMNS.filter((c) => /lifecycle/.test(c.column));
   assert.ok(added.length >= 4);

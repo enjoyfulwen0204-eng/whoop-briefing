@@ -1,3 +1,6 @@
+import {runningReleaseSha} from '../src/phase4Release.js';
+import {typedSyncResult} from '../src/syncResult.js';
+import {WHOOP_SYNC} from '../src/config.js';
 /**
  * Production Activation RC1: lifecycle-owned reconciliation state, bounded webhook
  * maintenance, and shared-service deployment readiness.
@@ -335,7 +338,7 @@ test('DRAIN-RC1-03 long Retry-After is not slept and normal scheduler work conti
     }), { sleepImpl: async (ms) => { waits.push(ms); } }),
     runUser: async () => {
       userRuns += 1;
-      return { daily: null, weekly: null, skipped: null, errors: [], reconciliation: null };
+      return { daily: null, weekly: null, skipped: null, errors: [], sync:{outcome:'NO_NEW_DATA_SUCCESS',complete:true,resources:WHOOP_SYNC.RESOURCES.map(resource=>({resource,status:'throttled'}))}, reconciliation: null };
     },
   });
   assert.equal(summary.webhookDrain.retryable, 1);
@@ -360,7 +363,7 @@ test('DRAIN-RC1-04 a stalled provider fetch is aborted, retried durably, and the
     webhookWhoopFor: deadlineWhoopFor(db, stalledFetch(gate)),
     runUser: async () => {
       userRuns += 1;
-      return { daily: null, weekly: null, skipped: null, errors: [], reconciliation: null };
+      return { daily: null, weekly: null, skipped: null, errors: [], sync:{outcome:'NO_NEW_DATA_SUCCESS',complete:true,resources:WHOOP_SYNC.RESOURCES.map(resource=>({resource,status:'throttled'}))}, reconciliation: null };
     },
   });
   await gate.entered;
@@ -388,7 +391,7 @@ test('DRAIN-RC1-05 elapsed budget stops before count cap and preserves backlog',
 });
 
 function signedRequest(secret, requestId) {
-  const body = '{}';
+  const body = JSON.stringify({requestId,releaseSha:runningReleaseSha(),phase:'SYNC',triggerSource:'cloudflare',executionMode:'OFF',configProof:'a'.repeat(64)});
   const timestamp = String(NOW.getTime());
   const common = {
     timestamp, requestId, method: 'POST', path: BRIEFING_TRIGGER.PATH, body,
@@ -438,17 +441,18 @@ test('DRAIN-RC1-06 a later signed trigger starts a new run after deadline exhaus
   const secret = 'x'.repeat(32);
   const endpoint = createBriefingEndpoint({
     secret, now: () => NOW.getTime(),
-    runBriefing: async () => {
+    runPhase: async () => {
       runs += 1;
       if (runs === 1) {
-        return schedulerRun(db, {
+        const summary=await schedulerRun(db, {
           drainWebhook: (args) => drainWhoopWebhookEvents({
             ...args, setTimer: timer.setTimer, clearTimer: timer.clearTimer,
           }),
           webhookWhoopFor: deadlineWhoopFor(db, stalledFetch(gate)),
         });
+        assert.equal(summary.webhookDrain.budgetExhausted,true);
       }
-      return { users: 0, ok: 0, failed: 0, skipped: 0, errors: [], perUser: [] };
+      return {status:200,body:{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,result:{settlementState:'FINALIZED_SUCCESS'}}};
     },
   });
   const first = signedRequest(secret, 'rc1-request-id-000001');
@@ -503,7 +507,7 @@ test('DRAIN-RC1-08 Alice stalled event cannot prevent Bob scheduler work in the 
     webhookWhoopFor: deadlineWhoopFor(db, stalledFetch(gate)),
     runUser: async ({ user }) => {
       usersRun.push(user.id);
-      return { daily: 'sent', weekly: null, skipped: null, errors: [], reconciliation: null };
+      return { daily: 'sent', weekly: null, skipped: null, errors: [], sync:{outcome:'NO_NEW_DATA_SUCCESS',complete:true,resources:WHOOP_SYNC.RESOURCES.map(resource=>({resource,status:'throttled'}))}, reconciliation: null };
     },
   });
   await gate.entered;
@@ -517,7 +521,7 @@ test('DRAIN-RC1-08 Alice stalled event cannot prevent Bob scheduler work in the 
 test('ACT-M01 documented minimum shared-service env enables health and authenticated scheduler route', async () => {
   const expected = [
     'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'TELEGRAM_CHAT_ID',
-    'TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'OPENROUTER_API_KEY',
+    'TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'PHASE4_LOOKUP_KEY', 'PHASE4_AUDIT_KEY', 'OPENROUTER_API_KEY',
     'WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET', 'WHOOP_REDIRECT_URI',
     'BRIEFING_TRIGGER_SECRET',
   ];
@@ -538,7 +542,7 @@ test('ACT-M01 documented minimum shared-service env enables health and authentic
   assert.deepEqual(config, { enabled: true, state: 'enabled' });
   const briefingEndpoint = createBriefingEndpoint({
     secret, now: () => NOW.getTime(),
-    runBriefing: async () => ({ users: 0, ok: 0, failed: 0, skipped: 0, errors: [], perUser: [] }),
+    runPhase: async () => ({status:200,body:{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,result:{settlementState:'FINALIZED_SUCCESS'}}}),
   });
   const handler = createWebhookHandler({
     processUpdate: async () => ({ outcome: 'completed' }),

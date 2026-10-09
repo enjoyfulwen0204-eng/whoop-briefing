@@ -1,3 +1,4 @@
+import {runningReleaseSha} from '../src/phase4Release.js';
 /**
  * Production Activation RC2: diagnostic owner/lease fencing and release-readiness docs.
  *
@@ -287,9 +288,9 @@ async function invokeHandler(handle, { method, url, headers = {}, body = null })
 }
 
 function signedRequest(secret) {
-  const body = '{}';
-  const timestamp = String(NOW.getTime());
   const requestId = 'rc2-readiness-id-0001';
+  const body = JSON.stringify({requestId,releaseSha:runningReleaseSha(),phase:'SYNC',triggerSource:'cloudflare',executionMode:'OFF',configProof:'a'.repeat(64)});
+  const timestamp = String(NOW.getTime());
   const common = { timestamp, requestId, method: 'POST', path: BRIEFING_TRIGGER.PATH, body };
   return {
     body,
@@ -313,7 +314,7 @@ test('DOC-RC2-01 README and deployment guides distinguish liveness from schedule
   assert.match(readme, /503 scheduler_unavailable/);
   assert.match(telegram, /HTTP 200[^\n]+不證明 canonical/);
   assert.match(telegram, /scheduler` 是 `"enabled"`/);
-  assert.match(cloudflare, /Cloudflare Worker Cron, \*\*every 10 minutes\*\*/);
+  assert.match(cloudflare, /Cloudflare Worker Cron, \*\*every 10 minutes all day\*\*/);
   assert.match(cloudflare, /GitHub Actions, \*\*hourly at minute 17\*\*/);
   assert.match(cloudflare, /HTTP 200 alone means only that the web process is live/);
   assert.match(render, /主排程是 Cloudflare Worker Cron/);
@@ -323,7 +324,7 @@ test('DOC-RC2-01 README and deployment guides distinguish liveness from schedule
 test('CFG-RC2-01 complete config is ready; missing WHOOP_CLIENT_ID is live but unavailable', async () => {
   const expectedEnv = [
     'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'TELEGRAM_CHAT_ID',
-    'TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'OPENROUTER_API_KEY',
+    'TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'PHASE4_LOOKUP_KEY', 'PHASE4_AUDIT_KEY', 'OPENROUTER_API_KEY',
     'WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET', 'WHOOP_REDIRECT_URI',
     'BRIEFING_TRIGGER_SECRET',
   ];
@@ -343,7 +344,7 @@ test('CFG-RC2-01 complete config is ready; missing WHOOP_CLIENT_ID is live but u
   assert.deepEqual(ready, { enabled: true, state: 'enabled' });
   const endpoint = createBriefingEndpoint({
     secret, now: () => NOW.getTime(),
-    runBriefing: async () => ({ users: 0, ok: 0, failed: 0, skipped: 0, errors: [], perUser: [] }),
+    runPhase: async () => ({status:200,body:{ok:true,phase:'SYNC',source:'cloudflare',syncComplete:true,result:{settlementState:'FINALIZED_SUCCESS'}}}),
   });
   const readyHandler = createWebhookHandler({
     processUpdate: async () => ({ outcome: 'completed' }), secret: 'telegram-test',

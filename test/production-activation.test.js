@@ -1,3 +1,4 @@
+import {typedSyncResult} from '../src/syncResult.js';
 /**
  * V1.2 production activation: canonical webhook drain + automatic FAST reconciliation.
  * Real local libSQL and real production paths; WHOOP is faked only at the network boundary.
@@ -212,7 +213,7 @@ test('P1-LIVE-05 retryable event failure does not stop normal scheduler work', a
       }),
       runUser: async () => {
         userRuns += 1;
-        return { daily: null, weekly: null, skipped: null, errors: [], reconciliation: null };
+        return { daily: null, weekly: null, skipped: null, errors: [], reconciliation: null, syncStatus: 'NO_NEW_DATA_SUCCESS', sync: typedSyncResult(WHOOP_SYNC.RESOURCES.map(resource => ({resource, status: 'throttled'}))) };
       },
     },
   });

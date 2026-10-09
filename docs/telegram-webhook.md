@@ -171,6 +171,8 @@ Telegram ingress 會讓 HTTP server 活著，排程路由仍會停用。
 | `TELEGRAM_CHAT_ID` | SECRET | canonical runner 的系統層通知 |
 | `TURSO_DATABASE_URL` | SECRET | 所有耐久狀態 |
 | `TURSO_AUTH_TOKEN` | SECRET | 所有耐久狀態 |
+| `PHASE4_LOOKUP_KEY` | SECRET | v32 authority；保留原始 bytes |
+| `PHASE4_AUDIT_KEY` | SECRET | v32 audit；保留原始 bytes |
 | `OPENROUTER_API_KEY` | SECRET | Q&A 與報告敘述 |
 | `WHOOP_CLIENT_ID` | SECRET | scheduler WHOOP client 與 OAuth |
 | `WHOOP_CLIENT_SECRET` | SECRET | scheduler WHOOP client 與 OAuth |

@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createDb } from './localDb.js';
+import { createDb, fixtureKeys } from './localDb.js';
+import {createDb as applicationDb} from '../src/db.js';
+import {hranaTransport} from './hranaTransport.js';
 import { createRouter } from '../src/bot/router.js';
 import { createPoller } from '../src/bot/polling.js';
 import { composeAnswer } from '../src/bot/answer.js';
@@ -160,29 +162,16 @@ test('v6 additive migration preserves populated replay rows and operation receip
   } finally { restarted.close(); }
 }));
 
-test('ambiguous operation commit response replays receipt without duplicate actions', () => setup(async db => {
-  await db.claimTelegramUpdate(500, { owner: 'first', now: AT });
-  await db.markTelegramUpdateProcessing(500, { owner: 'first', now: AT });
-  const original = db.raw.transaction;
-  let inject = true;
-  db.raw.transaction = async (...args) => {
-    const tx = await original(...args), commit = tx.commit.bind(tx);
-    tx.commit = async () => {
-      const hasAction=(await tx.execute('SELECT 1 FROM telegram_operations WHERE update_id=500')).rows.length>0;
-      await commit();
-      if (inject && hasAction) { inject = false; throw new Error('commit succeeded, response lost'); }
-    };
-    return tx;
-  };
-  await assert.rejects(db.processTelegramOperation(500, { owner: 'first', ownerUserId: 'alice', now: () => AT }, async () => {
-    await journal(db); return { userId: 'alice', reply: 'saved' };
-  }));
-  db.raw.transaction = original;
-  const later = new Date(+AT + 3600000);
-  await db.claimTelegramUpdate(500, { owner: 'second', now: later });
-  await db.markTelegramUpdateProcessing(500, { owner: 'second', now: later });
-  const result = await db.processTelegramOperation(500, { owner: 'second', ownerUserId: 'alice', now: () => later }, async () => { throw new Error('duplicate action'); });
-  assert.equal(result.userId, 'alice'); assert.equal((await journals(db)).length, 1);
+test('ambiguous operation commit response replays receipt without duplicate actions', () => setup(async (_seed, url) => {
+  const transport=hranaTransport(url),db=applicationDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch:transport.fetch});
+  try{
+   await db.admitRuntime();await db.claimTelegramUpdate(500,{owner:'first',now:AT});await db.markTelegramUpdateProcessing(500,{owner:'first',now:AT});
+   transport.arm({matchSql:/INSERT INTO telegram_operations/,loseAcknowledgement:true});
+   await assert.rejects(db.processTelegramOperation(500,{owner:'first',ownerUserId:'alice',now:()=>AT},async()=>{await journal(db);return {userId:'alice',reply:'saved'};}),/COMMIT_INDETERMINATE/);
+   const later=new Date(+AT+3600000);await db.claimTelegramUpdate(500,{owner:'second',now:later});await db.markTelegramUpdateProcessing(500,{owner:'second',now:later});
+   const result=await db.processTelegramOperation(500,{owner:'second',ownerUserId:'alice',now:()=>later},async()=>{throw Error('duplicate action');});
+   assert.equal(result.userId,'alice');assert.equal((await journals(db)).length,1);
+  }finally{db.close();transport.close();}
 }));
 
 test('same update under another resolved user cannot rerun or redirect committed action', () => setup(async db => {

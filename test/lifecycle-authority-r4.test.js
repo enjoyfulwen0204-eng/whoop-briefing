@@ -271,7 +271,7 @@ test('PROBE-R4 CLI: --allow-inactive prints diagnostic result and creates no evi
   await transition(db, user.id, false);
   const result = spawnSync(process.execPath, ['--import', path.join(ROOT, 'test/r4-cli-network.fixture.mjs'), path.join(ROOT, 'scripts/probe-fields.js'), '--user', user.id, '--allow-inactive'], {
     cwd: dir, encoding: 'utf8', timeout: 15000,
-    env: { PATH: process.env.PATH, TURSO_DATABASE_URL: url, TURSO_AUTH_TOKEN: 'test', WHOOP_CLIENT_ID: 'test', WHOOP_CLIENT_SECRET: 'test', R4_USER: user.id },
+    env: { PATH: process.env.PATH, TURSO_DATABASE_URL: url, TURSO_AUTH_TOKEN: 'test', WHOOP_CLIENT_ID: 'test', WHOOP_CLIENT_SECRET: 'test', R4_USER: user.id, PHASE4_LOOKUP_KEY:Buffer.alloc(32,71).toString('hex'),PHASE4_AUDIT_KEY:Buffer.alloc(32,83).toString('hex') },
   });
   assert.ifError(result.error); assert.equal(result.status, 0, result.stderr + result.stdout);
   assert.match(result.stdout, /管理診斷完成/);
@@ -294,7 +294,7 @@ test('MIG-R4: real v19 schema upgrades to v20 without adopting historical owners
   await db.raw.execute("INSERT INTO proactive_agent_state(user_id, last_checked_health_date, last_fingerprint, enabled, updated_at) VALUES ('old', '2026-09-16', 'fp', 0, '2026-09-16')");
   await db.raw.execute("INSERT INTO proactive_events(user_id, health_date, idempotency_key, decision, policy_version, created_at) VALUES ('old', '2026-09-16', 'key', 'ASK_CONTEXT', 'test', '2026-09-16')");
   const migration = await db.migrate(); assert.equal(migration.from, 19); assert.equal(migration.to, SCHEMA_VERSION);
-  assert.equal(SCHEMA_VERSION, 31);
+  assert.equal(SCHEMA_VERSION, 32);
   assert.deepEqual(migration.columnsAdded.sort(), ['error_notifications.lifecycle_generation', 'proactive_agent_state.lifecycle_generation', 'proactive_events.lifecycle_generation']);
   assert.equal((await db.getProactiveState('old')).lifecycleGeneration, null);
   assert.equal((await db.getProactiveState('old')).enabled, false);

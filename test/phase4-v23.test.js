@@ -6,11 +6,12 @@ import { assertPhase4Schema } from '../src/phase4Migrations.js';
 import { V23_TABLES, V23_HEALTH_FIELDS } from '../src/phase4V23Schema.js';
 import { R_COLUMNS } from '../src/phase4V22Schema.js';
 import { fixtureKeys } from './localDb.js';
+import {migrationInterruptionShard} from './migrationInterruptionShard.js';
 
 const ts='2026-09-19T00:00:00.000Z', epoch=Date.parse(ts);
 const opts={targetVersion:23,privacyKeys:fixtureKeys};
 async function base(t,version=23) {
-  const db=createClient({url:':memory:'});t.after(()=>db.close());
+  const db=createClient({url:':memory:'});t?.after(()=>db.close());
   await runMigrations(db,{...opts,targetVersion:22});
   for (const id of ['a','b']) await db.execute({sql:`INSERT INTO users(id,display_name,status,created_at,updated_at)
     VALUES (?,'Synthetic','ACTIVE',?,?)`,args:[id,ts,ts]});
@@ -132,14 +133,15 @@ test('v23: same-mode parents reject orphan/mixed tenant/mixed mode evidence and 
 });
 
 test('v23: every migration statement, including index replacements, resumes without early version advancement',async t=>{
-  const fixture=async()=>{const db=await base(t,22);await db.execute(`INSERT INTO health_insights
+  const fixture=async(owner=t)=>{const db=await base(owner,22);await db.execute(`INSERT INTO health_insights
     (user_id,insight_type,subject,statement,status,first_detected_at) VALUES ('a','synthetic','synthetic','synthetic old statement','SUPPORTED','${ts}')`);return db;};
   const ref=await fixture();const writes=[];let armed=false;
   const trace={execute:async s=>{const sql=typeof s==='string'?s:s.sql;if(sql.startsWith('CREATE TABLE IF NOT EXISTS body_energy_results'))armed=true;
     const result=await ref.execute(s);if(armed && /^(CREATE|ALTER|INSERT|UPDATE|DROP)/.test(sql.trim()))writes.push(sql);return result;}};
   await runMigrations(trace,opts);assert.ok(writes.length>100);
-  for(let stop=1;stop<=writes.length;stop++) {
-    const db=await fixture();let seen=0,active=false;
+  const shard=migrationInterruptionShard(23,writes.length);
+  for(const stop of shard.stops) {
+    const db=await fixture(null);let seen=0,active=false;
     const crash={execute:async s=>{const sql=typeof s==='string'?s:s.sql;if(sql.startsWith('CREATE TABLE IF NOT EXISTS body_energy_results'))active=true;
       const result=await db.execute(s);if(active && /^(CREATE|ALTER|INSERT|UPDATE|DROP)/.test(sql.trim()) && ++seen===stop)throw new Error('synthetic_interruption');return result;}};
     await assert.rejects(runMigrations(crash,opts),/synthetic_interruption/);
@@ -149,6 +151,7 @@ test('v23: every migration statement, including index replacements, resumes with
     assert.equal((await db.execute("SELECT postcondition_state FROM phase4_migration_checkpoints WHERE target_version=23")).rows[0].postcondition_state,'COMPLETE');
     db.close();
   }
+  shard.complete();
 });
 
 test('v23: applied drift fails closed rather than silently forward-fixing a recorded version',async t=>{

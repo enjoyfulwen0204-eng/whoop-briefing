@@ -5,6 +5,7 @@ import { createClient } from '@libsql/client';
 import { runMigrations, currentVersion } from '../src/migrations.js';
 import { assertPhase4Schema } from '../src/phase4Migrations.js';
 import { fixtureKeys } from './localDb.js';
+import {migrationInterruptionShard} from './migrationInterruptionShard.js';
 import { V22_LEGACY_R_TABLES, V22_NEW_R_TABLES, R_COLUMNS, EXPERIMENT_FIELDS } from '../src/phase4V22Schema.js';
 import { EXPERIMENT_SENTINELS, REDACTED_RECEIPT } from '../src/phase4V22Backfill.js';
 
@@ -176,7 +177,8 @@ test('v22: every DDL, additive column, backfill, index and trigger interruption 
   }};
   await runMigrations(trace,options);
   assert.ok(writes.length>300);
-  for(let stop=1;stop<=writes.length;stop++) {
+  const shard=migrationInterruptionShard(22,writes.length);
+  for(const stop of shard.stops) {
     // This loop owns each fixture. Do not retain hundreds of already-closed
     // native clients in the enclosing test's after hooks until process exit.
     const db=await base(null,true);let seen=0,active=false;
@@ -195,4 +197,5 @@ test('v22: every DDL, additive column, backfill, index and trigger interruption 
       assert.equal((await db.execute('SELECT result_json FROM telegram_operations WHERE update_id=2')).rows[0].result_json,REDACTED_RECEIPT);
     } finally {await closeFixture(db);}
   }
+  shard.complete();
 });

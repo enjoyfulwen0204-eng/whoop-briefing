@@ -30,7 +30,7 @@ test('R2 admission performance: five queries at local/20/50/150ms, independent o
  INSERT INTO whoop_cycles(user_id,id,synced_at) SELECT 'tenant-1','cycle-'||x,'2026-10-07' FROM n`);}
  for(const latencyMs of [0,20,50,150]){let queries=[];db.raw.execute=async q=>{queries.push(typeof q==='string'?q:q.sql);if(latencyMs)await new Promise(r=>setTimeout(r,latencyMs));return execute(q);};
  const started=performance.now();await admitRuntime(db.raw,fixtureKeys);const elapsedMs=performance.now()-started;
- assert.equal(queries.length,5);assert.ok(queries.every(q=>/^SELECT type,name,sql FROM sqlite_master|^SELECT version,note FROM schema_version|^SELECT target_version|^PRAGMA foreign_keys|^SELECT ignore_check_constraints FROM pragma_ignore_check_constraints$/.test(q)));
+ assert.equal(queries.length,5);assert.ok(queries.every(q=>/^SELECT type,name,sql FROM sqlite_master|^SELECT version,note FROM schema_version|^SELECT target_version|^PRAGMA foreign_keys|^SELECT ignore_check_constraints FROM pragma_ignore_check_constraints\(\)$/.test(q)));
  assert.ok(elapsedMs<10000);console.log(JSON.stringify({measurement:'round2_admission',latencyMs,populated,tenants:populated?100:0,historyRows:populated?10000:0,queries:queries.length,elapsedMs}));}
  db.raw.execute=execute;
  }

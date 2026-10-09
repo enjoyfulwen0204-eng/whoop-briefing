@@ -5,7 +5,7 @@ import {admitRuntime} from '../src/runtimeAdmission.js';
 import {inRuntimeMetadata,withRuntimeMetadata} from '../src/runtimeMetadataContext.js';
 import {createDb as createFixtureDb} from './localDb.js';
 
-const constraintRead='SELECT ignore_check_constraints FROM pragma_ignore_check_constraints';
+const constraintRead='SELECT ignore_check_constraints FROM pragma_ignore_check_constraints()';
 
 test('HTTP admission retains five actual reads when the provider rejects direct CHECK PRAGMA',async t=>{
  const {db}=await deliveryFixture(t),execute=db.raw.execute,queries=[];

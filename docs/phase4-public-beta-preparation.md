@@ -1,5 +1,7 @@
 # Phase 4 Stage 1–6 Public Beta preparation
 
+> Current pre-Stage7 v32 procedure: [release handoff](pre-stage7/release-handoff.md). The v20/v31 migration and older deployment facts below are historical. Do not execute them against current production v32. This session made no provider changes.
+
 For the Vietnam RC3 repair and future phase-aware deployment, use the
 [coordinated rollout artifact](phase4-vietnam-stage2-rc3-rollout.md).
 Cloudflare triggers remain empty in the new checked-in configuration; restoring

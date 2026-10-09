@@ -4,14 +4,16 @@ import {createHash} from 'node:crypto';import {createWriteStream} from 'node:fs'
 // Isolated files, bounded process trees, immutable per-attempt evidence. Never
 // loads dotenv or creates an application database. Run socket tests separately.
 const output=process.env.PRE_STAGE7_OUTPUT,concurrency=Number(process.env.PRE_STAGE7_CONCURRENCY??3),timeoutMs=180000;
+const nativeMode=process.env.PRE_STAGE7_NATIVE_MODE??'explicit-gc';
+if(!['explicit-gc','standard'].includes(nativeMode))throw Error('HARNESS_NATIVE_MODE_INVALID');
 if(!output||!/^tmp\/[a-zA-Z0-9/_-]+$/.test(output)||!Number.isInteger(concurrency)||concurrency<1||concurrency>4)throw Error('HARNESS_CONFIG_INVALID');
 await mkdir(output,{recursive:true});if((await readdir(output)).length)throw Error('FRESH_EVIDENCE_DIRECTORY_REQUIRED');
 const files=process.argv.slice(2);if(!files.length||new Set(files).size!==files.length||files.some(f=>!/^test\/[\w-]+\.test\.js$/.test(f)))throw Error('EXPLICIT_UNIQUE_TEST_FILES_REQUIRED');
 const hash=x=>createHash('sha256').update(x).digest('hex');
-const identity={node:process.version,head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),tree:execFileSync('git',['rev-parse','HEAD^{tree}'],{encoding:'utf8'}).trim(),diffSha256:hash(execFileSync('git',['diff','HEAD'])),files,concurrency,timeoutMs};await writeFile(path.join(output,'inventory.json'),JSON.stringify(identity,null,2));
+const identity={node:process.version,head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),tree:execFileSync('git',['rev-parse','HEAD^{tree}'],{encoding:'utf8'}).trim(),diffSha256:hash(execFileSync('git',['diff','HEAD'])),files,concurrency,timeoutMs,nativeMode};await writeFile(path.join(output,'inventory.json'),JSON.stringify(identity,null,2));
 let index=0;const results=[];
 async function worker(){while(index<files.length){const file=files[index++],log=path.join(output,path.basename(file)+'.tap'),chunks=[],stream=createWriteStream(log),started=Date.now();
- const command=[process.execPath,'--expose-gc','--test','--test-concurrency=1',file],env={...process.env};delete env.NODE_TEST_CONTEXT;
+ const command=[process.execPath,...(nativeMode==='explicit-gc'?['--expose-gc']:[]),'--test','--test-concurrency=1',file],env={...process.env};delete env.NODE_TEST_CONTEXT;
  const child=spawn(command[0],command.slice(1),{env,detached:true,stdio:['ignore','pipe','pipe']});let timedOut=false;
  const capture=x=>{chunks.push(x);stream.write(x);};child.stdout.on('data',capture);child.stderr.on('data',capture);
  const timer=setTimeout(()=>{timedOut=true;try{process.kill(-child.pid,'SIGKILL');}catch(e){if(e.code!=='ESRCH')throw e;}},timeoutMs);

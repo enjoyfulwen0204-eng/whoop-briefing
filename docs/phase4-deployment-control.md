@@ -1,5 +1,7 @@
 # Phase 4 deployment control — reviewed future procedure
 
+> Current pre-Stage7 v32 procedure: [release handoff](pre-stage7/release-handoff.md). The v20/v31 migration and older deployment facts below are historical. Do not execute them against current production v32. This session made no provider changes.
+
 For the reconstructed Vietnam RC3 code release, use the
 [Vietnam Stage 2 coordinated rollout](phase4-vietnam-stage2-rc3-rollout.md).
 The initial v31 migration procedure and RC2 transport facts below are retained

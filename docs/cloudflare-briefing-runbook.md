@@ -1,5 +1,7 @@
 # Cloudflare briefing scheduler runbook (V1.2)
 
+> Current pre-Stage7 v32 procedure: [release handoff](pre-stage7/release-handoff.md). The v20/v31 migration and older deployment facts below are historical. Do not execute them against current production v32. This session made no provider changes.
+
 This runbook is intentionally inert. Commands below are for a reviewed production change window.
 For the Phase 4 v31 transition, [deployment control](phase4-deployment-control.md) is authoritative.
 Its checked-in Worker target is `*/10 0-3 * * *` UTC. The live provider trigger is

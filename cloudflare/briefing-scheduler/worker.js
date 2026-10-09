@@ -78,7 +78,7 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
     let request;try{request=JSON.parse(payload.requestBody);}catch{throw error('invalid_discovery',true);}
     const required=request.phase==='STAGE6_DRAIN'?'configProof,executionMode,handoff,phase,releaseSha,requestId,syncRequestId,triggerSource':'configProof,executionMode,phase,releaseSha,requestId,triggerSource';
     if(Object.keys(request).sort().join(',')!==required||!['SYNC','STAGE6_DRAIN'].includes(request.phase)
-     ||request.triggerSource!=='cloudflare'||request.releaseSha!==env.BRIEFING_RELEASE_SHA||request.executionMode!==env.BRIEFING_EXECUTION_MODE
+     ||!/^p4c1_[a-zA-Z0-9_-]{10,122}$/.test(request.requestId??'')||request.triggerSource!=='cloudflare'||request.releaseSha!==env.BRIEFING_RELEASE_SHA||request.executionMode!==env.BRIEFING_EXECUTION_MODE
      ||request.configProof!==env.BRIEFING_CONFIG_PROOF||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{15,127}$/.test(request.requestId)||canonical(request)!==payload.requestBody)throw error('invalid_discovery',true);
     if(request.phase==='STAGE6_DRAIN'&&(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{15,127}$/.test(request.syncRequestId)||!/^[a-f0-9]{64}$/.test(request.handoff)||request.requestId===request.syncRequestId))throw error('invalid_discovery',true);
     recovered={requestId:request.requestId,body:payload.requestBody,phase:request.phase};
@@ -86,7 +86,7 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
   }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
  }
  async function phase(phaseName,handoff) {
-  const requestId=recovered?.phase===phaseName?recovered.requestId:continuation&&handoff?await sha256(`stage6-drain-v1:${handoff.requestId}`):`${root}_${phaseName.toLowerCase()}`;
+  const requestId=recovered?.phase===phaseName?recovered.requestId:continuation&&handoff?`p4c1_${await sha256(`stage6-drain-v1:${handoff.requestId}`)}`:`${continuation?'p4c1_':''}${root}_${phaseName.toLowerCase()}`;
   const serialize=continuation?canonical:JSON.stringify;
   const body=recovered?.phase===phaseName?recovered.body:serialize({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
    ...(handoff?{syncRequestId:handoff.requestId,handoff:handoff.token}:{})});
@@ -137,7 +137,13 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
    finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
    const wait=Math.max(attempt*500,retryWait);retryWait=0;
    if(now()+wait>=deadlineAt)throw last;
-   await sleep(wait);assertCaller();
+   // Cancellation and the original whole deadline also bound backoff. A
+   // custom sleep may ignore abort; discard its late completion safely.
+   const waiting=new AbortController(),cancelWait=()=>waiting.abort();signal?.addEventListener('abort',cancelWait,{once:true});
+   if(signal?.aborted)waiting.abort();const waitTimer=setTimer(()=>waiting.abort(),Math.max(0,deadlineAt-now()));
+   try{await raceAbort(sleep(wait),waiting.signal);assertCaller();}
+   catch(errorValue){if(signal?.aborted)throw error('cancelled',true);if(now()>=deadlineAt)throw error('timeout',true);throw errorValue;}
+   finally{clearTimer(waitTimer);signal?.removeEventListener('abort',cancelWait);}
   }
   throw last;
  }

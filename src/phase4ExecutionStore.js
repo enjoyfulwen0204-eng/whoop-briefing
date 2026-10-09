@@ -18,6 +18,8 @@ const COUNTS=['executionSeq','workReceipts','durationMs','jobsConsidered','items
 const HASH=/^[a-f0-9]{64}$/;
 const observedCommits=new WeakSet();
 export const observedPhaseWorkCommit=claim=>claim.workCommitted===true||observedCommits.has(claim);
+// Coordination protocol version occupies the existing opaque ID; it grants no authority.
+export const isContinuationRequest=request=>request?.triggerSource==='cloudflare'&&/^p4c1_[a-zA-Z0-9_-]{10,122}$/.test(request?.requestId??'');
 export const canonicalPhaseRequest=request=>JSON.stringify(Object.fromEntries(Object.keys(request).sort().map(key=>[key,request[key]])));
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 const pendingOwner=row=>{const error=Object.assign(Error('REQUEST_PENDING'),{code:'REQUEST_PENDING',retryAfterMs:Math.max(0,Math.min(225000,Math.ceil(row.deadline_at-Date.now())))});throw error;};
@@ -27,6 +29,7 @@ export function validatePhaseRequest(request) {
  if(typeof request.requestId!=='string'||!BRIEFING_TRIGGER.REQUEST_ID_RE.test(request.requestId)||!['OFF','SHADOW'].includes(request.executionMode)
    ||!HASH.test(request.configProof))fail('EXECUTION_REQUEST_INVALID');
  const allowed=['phase','releaseSha','triggerSource','requestId','executionMode','configProof','syncRequestId','handoff','legacyBodyDigest'];
+ if(isContinuationRequest(request)&&request.legacyBodyDigest!==undefined)fail('EXECUTION_REQUEST_INVALID');
  if(request.legacyBodyDigest!==undefined&&!HASH.test(request.legacyBodyDigest))fail('EXECUTION_REQUEST_INVALID');
  if(Object.keys(request).some(k=>!allowed.includes(k)))fail('EXECUTION_REQUEST_INVALID');
  if(request.phase==='SYNC'&&(request.syncRequestId!==undefined||request.handoff!==undefined))fail('EXECUTION_REQUEST_INVALID');
@@ -37,6 +40,7 @@ export function validatePhaseRequest(request) {
 export function validatePhaseBody(request,body){
  let parsed;try{parsed=validatePhaseRequest(JSON.parse(body));}catch{fail('EXECUTION_BODY_MISMATCH');}
  if(Object.keys(request).length!==Object.keys(parsed).length||Object.keys(request).some(key=>request[key]!==parsed[key]))fail('EXECUTION_BODY_MISMATCH');
+ if(isContinuationRequest(request)&&body!==canonicalPhaseRequest(request))fail('EXECUTION_BODY_MISMATCH');
  return parsed;
 }
 export const configurationProof=(keys,config,environment,releaseSha=runningReleaseSha(environment))=>keys.lookup(['phase4-configuration-v2',requireReleaseSha(releaseSha),config.runtime,config.mode,
@@ -134,7 +138,7 @@ function completionRecord(row,keys){
     row.execution_mode,row.config_proof,row.result_digest,row.finalized_at]);
  return record;
 }
-export async function claimPhaseRequest(db,request,body,{leaseMs=225_000,deadlineAt=Date.now()+leaseMs,keys,maxWorkAgeMs,reconciliationOnly=false}={}) {
+export async function claimPhaseRequest(db,request,body,{leaseMs=225_000,deadlineAt=Date.now()+leaseMs,keys,maxWorkAgeMs,reconciliationOnly=false,serializeScope=false}={}) {
  validatePhaseRequest(request);
  if(maxWorkAgeMs!==undefined&&(!Number.isSafeInteger(maxWorkAgeMs)||maxWorkAgeMs<1||maxWorkAgeMs>EXECUTION_WORK_MAX_AGE_MS))fail('EXECUTION_CONTEXT_AGE_INVALID');
  const parsed=validatePhaseBody(request,body);
@@ -179,12 +183,12 @@ export async function claimPhaseRequest(db,request,body,{leaseMs=225_000,deadlin
    // the existing identity's fenced continuation until its bounded context is
    // stale. WORK_COMMITTED remains immutable metadata reconciliation, which
    // may overlap a newer invocation under the approved v32 contract.
-   const pending=(await db.raw.execute({sql:`SELECT e.execution_id FROM phase4_executions e WHERE e.scope_key=?
+   const pending=serializeScope?(await db.raw.execute({sql:`SELECT e.execution_id FROM phase4_executions e WHERE e.scope_key=? AND e.trigger_source=?
      AND e.state='ESTABLISHED' AND e.created_at>${databaseNowMs}-?
      AND NOT (e.phase='STAGE6_DRAIN' AND e.deadline_at<=${databaseNowMs}
        AND NOT EXISTS(SELECT 1 FROM phase4_execution_work_receipts r WHERE r.execution_id=e.execution_id)
        AND EXISTS(SELECT 1 FROM phase4_executions p WHERE p.execution_id=e.sync_execution_id AND p.state='FINALIZED_SUCCESS' AND p.created_at<=${databaseNowMs}-?)) LIMIT 1`,
-     args:[scopeKey,EXECUTION_WORK_MAX_AGE_MS,EXECUTION_WORK_MAX_AGE_MS]})).rows[0];
+     args:[scopeKey,request.triggerSource,EXECUTION_WORK_MAX_AGE_MS,EXECUTION_WORK_MAX_AGE_MS]})).rows[0]:null;
    if(pending)fail('REQUEST_SCOPE_PENDING');
    await db.raw.execute({sql:`INSERT INTO phase4_executions(execution_id,identity_digest,scope_key,canonical_request_json,phase,release_sha,execution_mode,trigger_source,
    config_proof,sync_execution_id,owner,generation,lease_until,deadline_at,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,'ESTABLISHED',?,?)`,

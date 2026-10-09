@@ -6,6 +6,7 @@ import {createExecutionBudget,withExecutionBudget} from './executionBudget.js';
 import {requireRuntimeAdmission} from './runtimeAdmission.js';
 import {databaseNowMs} from './phase4ExecutionContext.js';
 import {configurationProof,canonicalPhaseRequest,reconcileExecution,requestIdentity,EXECUTION_WORK_MAX_AGE_MS,validatePhaseRequest} from './phase4ExecutionStore.js';
+import {isContinuationRequest} from './phase4ExecutionStore.js';
 export const CONTINUATION_PATH='/internal/briefing/continuation';
 const fail=code=>{throw Object.assign(Error(code),{code});};
 export function validateContinuationQuery(query){
@@ -42,7 +43,7 @@ export async function discoverPhaseContinuation({query,db:providedDb,keys:provid
    if(!rows.length){assert();return {status:200,body:{ok:true,state:'NONE',requestBody:null}};}
    const row=rows[0];let request;try{request=validatePhaseRequest(JSON.parse(row.canonical_request_json));}catch{fail('EXECUTION_RECORD_CORRUPT');}
    const body=canonicalPhaseRequest(request);
-   if(requestIdentity(body)!==row.identity_digest)fail('CONTINUATION_TRANSPORT_IDENTITY_UNAVAILABLE');
+   if(!isContinuationRequest(request)||requestIdentity(body)!==row.identity_digest)fail('CONTINUATION_TRANSPORT_IDENTITY_UNAVAILABLE');
    const reconciled=await reconcileExecution(db,request,row.identity_digest);assert();
    const observed=reconciled.row;
    if(!['ESTABLISHED','WORK_COMMITTED','FINALIZED_SUCCESS','FINALIZED_FAILURE','ABORTED'].includes(observed.state))fail('EXECUTION_RECORD_CORRUPT');

@@ -45,7 +45,7 @@ export function bindExecutionApi(api,transaction){
    // Lease grants belong to their actual owner. Business mutation receipts
    // intentionally omit transient owners; reusing that identity for a grant
    // would return an old `true` without acquiring the successor's lease.
-   const ownerBound=new Set(['claimReconciliation','claimAnalyticsWork','openReconciliationRun']);
+   const ownerBound=new Set(['claimReconciliation','claimAnalyticsWork','openReconciliationRun','settleReconciliation','settleAnalyticsWork','releaseAnalyticsWork']);
    const facts=ownerBound.has(name)?[args,String(args[0]?.owner??'')]:callbackApis.has(name)?callbackFacts(name,args):args;
    const grants=new Set(['claimReport','claimLocalePrompt','claimErrorNotify','claimErrorNotifyOwned','claimGlobalErrorNotify','claimUserErrorNotify','authorizeReportDelivery']);
    return transaction(()=>operation.apply(api,args),workStepOptions(`api:${name}`,facts,{discardResult:true,

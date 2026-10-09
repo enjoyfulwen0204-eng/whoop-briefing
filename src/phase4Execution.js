@@ -7,7 +7,7 @@ import { runPhase4Stage6 } from './shadowDrainScheduler.js';
 import { deliverPublicBetaSummary } from './publicBetaSummaryDelivery.js';
 import { createExecutionBudget, SYNC_BUDGET_MS, withExecutionBudget } from './executionBudget.js';
 import { syncAuthorizesDrain } from './syncResult.js';
-import { validatePhaseRequest,validatePhaseBody,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit,EXECUTION_WORK_MAX_AGE_MS,reconcileExecution,requestIdentity } from './phase4ExecutionStore.js';
+import {isContinuationRequest, validatePhaseRequest,validatePhaseBody,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit,EXECUTION_WORK_MAX_AGE_MS,reconcileExecution,requestIdentity } from './phase4ExecutionStore.js';
 import { log } from './logger.js';
 import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Release.js';
 import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
@@ -64,7 +64,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    const finalizedReplay=['FINALIZED_SUCCESS','FINALIZED_FAILURE'].includes(replay?.state);
    const continuation=request.phase==='STAGE6_DRAIN'&&!finalizedReplay?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys))):null;
    const reconciliationOnly=Boolean(continuation?.reconciliationResult);
-   const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly})));
+   const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly,serializeScope:isContinuationRequest(request)})));
    if(claim.cached){overall.assert();admissionBudget.assert();
      try{await admissionBudget.run(()=>projectPhaseCompletion(db,request,claim.cached));}catch{}
      overall.assert();admissionBudget.assert();return phaseResponse({...claim.cached,settlementState:claim.row.state});}

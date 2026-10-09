@@ -3,7 +3,7 @@ import {invoke,MAX_CONFIGURED_WINDOW_MS} from '../cloudflare/briefing-scheduler/
 import {verifyTriggerRequest} from '../src/briefingTriggerAuth.js';
 const env={BRIEFING_ENDPOINT_URL:'https://isolated.invalid/internal/briefing/run',BRIEFING_TRIGGER_SECRET:'synthetic-only-more-than-32-byte-secret',BRIEFING_RELEASE_SHA:'a'.repeat(40),BRIEFING_CONFIG_PROOF:'b'.repeat(64),BRIEFING_EXECUTION_MODE:'SHADOW',BRIEFING_CONTINUATION_DISCOVERY:'on'};
 const canonical=r=>JSON.stringify(Object.fromEntries(Object.keys(r).sort().map(k=>[k,r[k]])));
-const saved=canonical({releaseSha:env.BRIEFING_RELEASE_SHA,requestId:'saved-request-identity-before-worker-death',phase:'SYNC',triggerSource:'cloudflare',executionMode:'SHADOW',configProof:env.BRIEFING_CONFIG_PROOF});
+const saved=canonical({releaseSha:env.BRIEFING_RELEASE_SHA,requestId:'p4c1_saved-request-identity-before-worker-death',phase:'SYNC',triggerSource:'cloudflare',executionMode:'SHADOW',configProof:env.BRIEFING_CONFIG_PROOF});
 const response=(body,status=200)=>new Response(JSON.stringify(body),{status});
 const finalized=r=>({ok:true,phase:r.phase,source:'cloudflare',syncComplete:r.phase==='SYNC',drainAuthorized:r.phase==='SYNC',handoff:'c'.repeat(64),result:{settlementState:'FINALIZED_SUCCESS',outcome:'COMPLETE'}});
 test('new Worker invocation rediscovers exact saved bytes and uses a stable DRAIN identity',async()=>{
@@ -63,10 +63,20 @@ test('live-owner wait is bounded by the original Worker deadline and cancellatio
  controller.abort();await assert.rejects(()=>pending);assert.ok(requests<=1);
 });
 test('recovered DRAIN uses exact saved bytes and never enters ordinary SYNC',async()=>{
- const child=canonical({...JSON.parse(saved),phase:'STAGE6_DRAIN',requestId:'saved-drain-before-worker-death',syncRequestId:JSON.parse(saved).requestId,handoff:'c'.repeat(64)}),phases=[];
+ const child=canonical({...JSON.parse(saved),phase:'STAGE6_DRAIN',requestId:'p4c1_saved-drain-before-worker-death',syncRequestId:JSON.parse(saved).requestId,handoff:'c'.repeat(64)}),phases=[];
  const result=await invoke(env,{fetchImpl:async(url,init)=>{
   if(new URL(url).pathname.endsWith('/continuation'))return response({ok:true,state:'INCOMPLETE_RESUMABLE',requestBody:child,workReceipts:1});
   const r=JSON.parse(init.body);phases.push(r.phase);assert.equal(init.body,child);return response(finalized(r));
  }});
  assert.equal(result.ok,true);assert.deepEqual(phases,['STAGE6_DRAIN']);
+});
+test('cancellation during a retained-owner backoff ends immediately and emits no later POST',async()=>{
+ const controller=new AbortController();let entered,calls=0;
+ const sleeping=new Promise(resolve=>{entered=resolve;});
+ const pending=invoke(env,{signal:controller.signal,sleep:async()=>{entered();return new Promise(()=>{});},fetchImpl:async url=>{
+  calls++;return new URL(url).pathname.endsWith('/continuation')?response({ok:true,state:'NONE',requestBody:null}):response({ok:false,error:'REQUEST_PENDING',retryAfterMs:225000},409);
+ }});
+ await sleeping;controller.abort();
+ await assert.rejects(()=>Promise.race([pending,new Promise((_,reject)=>setTimeout(()=>reject(Error('CANCELLATION_DID_NOT_SETTLE')),200))]),e=>e.category==='cancelled');
+ assert.equal(calls,2);
 });

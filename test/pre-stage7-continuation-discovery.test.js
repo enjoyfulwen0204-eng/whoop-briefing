@@ -8,7 +8,7 @@ import {readOnlyStatement} from '../src/processingTransaction.js';
 import {withDurableExecution} from '../src/phase4ExecutionContext.js';import {createExecutionBudget} from '../src/executionBudget.js';
 const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'};
 const query=()=>({releaseSha:runningReleaseSha(),triggerSource:'cloudflare',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,{runtime:'on',mode:'off'},environment)});
-const request=q=>({...q,requestId:randomUUID(),phase:'SYNC'});
+const request=q=>({...q,requestId:`p4c1_${randomUUID()}`,phase:'SYNC'});
 const discover=(db,q=query())=>discoverPhaseContinuation({query:q,db,keys:fixtureKeys,environment});
 test('a fresh process/connection recovers exact canonical identity through read-only HTTP discovery',async t=>{
  const {db,url}=await deliveryFixture(t),q=query(),r=request(q),body=canonicalPhaseRequest(r);
@@ -30,9 +30,10 @@ test('release/config/source substitutions fail before selecting another identity
 });
 test('discovery cannot replace older noncanonical transport bytes with a new receipt identity',async t=>{
  const {db}=await deliveryFixture(t),q=query(),r=request(q);
- await claimPhaseRequest(db,r,JSON.stringify(r));const before=await readExecution(db,r.requestId);
+ const legacy={...r,requestId:randomUUID()};
+ await claimPhaseRequest(db,legacy,JSON.stringify(legacy));const before=await readExecution(db,legacy.requestId);
  await assert.rejects(()=>discover(db,q),/CONTINUATION_TRANSPORT_IDENTITY_UNAVAILABLE/);
- assert.deepEqual(await readExecution(db,r.requestId),before);
+ assert.deepEqual(await readExecution(db,legacy.requestId),before);
 });
 test('stale incomplete identities do not authorize work on a new calendar date',async t=>{
  const {db}=await deliveryFixture(t),q=query(),r=request(q),body=canonicalPhaseRequest(r);
@@ -46,19 +47,19 @@ test('death between finalized SYNC and DRAIN recovers the parent; settled DRAIN 
  const first=await run(r,body,{runBriefing:async()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS'})});assert.equal(first.status,200);
  assert.equal((await discover(db,q)).body.state,'FINALIZED_SUCCESS');assert.equal((await discover(db,q)).body.requestBody,body);
  const replay=await run(r,body,{runBriefing:async()=>{throw Error('FINALIZED_SYNC_REPLAYED');}});assert.deepEqual(replay,first);
- const child={...q,requestId:randomUUID(),phase:'STAGE6_DRAIN',syncRequestId:r.requestId,handoff:replay.body.handoff};
+ const child={...q,requestId:`p4c1_${randomUUID()}`,phase:'STAGE6_DRAIN',syncRequestId:r.requestId,handoff:replay.body.handoff};
  const drained=await run(child,canonicalPhaseRequest(child),{runtime:{phase4Stage6:{drain:async()=>({outcome:'NO_WORK',jobsConsidered:0,itemsAttempted:0,processedItems:0,completedJobs:0,remainingJobs:0,completion:'COMPLETE'})}}});
  assert.equal(drained.status,200);assert.equal((await discover(db,q)).body.state,'NONE');
 });
 test('two HTTP dispatchers elect one unfinished identity; expiry alone cannot start a conflicting request',async t=>{
  const {db,url}=await deliveryFixture(t),other=openHttpFixture(url);t.after(()=>other.close());
  const q=query(),a=request(q),b=request(q);
- const attempts=await Promise.allSettled([claimPhaseRequest(db,a,canonicalPhaseRequest(a)),claimPhaseRequest(other.db,b,canonicalPhaseRequest(b))]);
+ const attempts=await Promise.allSettled([claimPhaseRequest(db,a,canonicalPhaseRequest(a),{serializeScope:true}),claimPhaseRequest(other.db,b,canonicalPhaseRequest(b),{serializeScope:true})]);
  assert.equal(attempts.filter(r=>r.status==='fulfilled').length,1);assert.equal(attempts.find(r=>r.status==='rejected').reason.code,'REQUEST_SCOPE_PENDING');
  const winner=attempts[0].status==='fulfilled'?a:b,loser=winner===a?b:a;
  assert.equal((await discover(db,q)).body.requestBody,canonicalPhaseRequest(winner));
  await db.raw.execute({sql:'UPDATE phase4_executions SET deadline_at=?,lease_until=? WHERE execution_id=?',args:[Date.now()-1,Date.now()-1,winner.requestId]});
- await assert.rejects(()=>claimPhaseRequest(db,loser,canonicalPhaseRequest(loser)),/REQUEST_SCOPE_PENDING/);
+ await assert.rejects(()=>claimPhaseRequest(db,loser,canonicalPhaseRequest(loser),{serializeScope:true}),/REQUEST_SCOPE_PENDING/);
  const resumed=await claimPhaseRequest(db,winner,canonicalPhaseRequest(winner));assert.equal(resumed.generation,2);
  assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_executions')).rows[0].n,1);
 });
@@ -77,7 +78,7 @@ test('discovery endpoint authenticates its own path, validates narrow inputs and
 test('receipt-backed DRAIN is discovered directly and reconciles expired-parent PARTIAL without any new business work',async t=>{
  const {db}=await deliveryFixture(t),q=query(),parent=request(q);
  const sync=await runExecutionPhase({request:parent,body:canonicalPhaseRequest(parent),db,keys:fixtureKeys,environment,env:{dryRun:true},deps:{runBriefing:async()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS'})}});
- const child={...q,phase:'STAGE6_DRAIN',requestId:randomUUID(),syncRequestId:parent.requestId,handoff:sync.body.handoff},body=canonicalPhaseRequest(child);
+ const child={...q,phase:'STAGE6_DRAIN',requestId:`p4c1_${randomUUID()}`,syncRequestId:parent.requestId,handoff:sync.body.handoff},body=canonicalPhaseRequest(child);
  const claim=await claimPhaseRequest(db,child,body),authority=createExecutionBudget({budgetMs:5000});
  try{await withDurableExecution({claim,keys:fixtureKeys,pending:new Set(),authority},()=>db.transaction(async()=>{
   await db.raw.execute("INSERT INTO telegram_state(key,value,updated_at) VALUES('drain_progress','1','2026-10-09')");return 1;
@@ -91,4 +92,13 @@ test('receipt-backed DRAIN is discovered directly and reconciles expired-parent 
  }finally{Date.now=original;}
  assert.equal(work,0);assert.equal((await db.raw.execute("SELECT value FROM telegram_state WHERE key='drain_progress'")).rows[0].value,'1');
  assert.equal((await discover(db,q)).body.state,'NONE');
+});
+test('versioned coordination uses only v32 fields and rejects substituted transport bytes',async t=>{
+ const {db}=await deliveryFixture(t),r=request(query());
+ await assert.rejects(()=>claimPhaseRequest(db,{...r,continuationVersion:1},canonicalPhaseRequest({...r,continuationVersion:1})),/EXECUTION_REQUEST_INVALID/);
+ await assert.rejects(()=>claimPhaseRequest(db,{...r,legacyBodyDigest:'a'.repeat(64)},canonicalPhaseRequest({...r,legacyBodyDigest:'a'.repeat(64)})),/EXECUTION_REQUEST_INVALID/);
+ await assert.rejects(()=>claimPhaseRequest(db,r,JSON.stringify(r)),/EXECUTION_BODY_MISMATCH/);
+ assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_executions')).rows[0].n,0);
+ const claim=await claimPhaseRequest(db,r,canonicalPhaseRequest(r));assert.equal(claim.generation,1);
+ assert.equal((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0].v,32);
 });

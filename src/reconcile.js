@@ -1,4 +1,6 @@
 import {captureWhoopInput,assertWhoopInput} from './whoopInputFence.js';
+import {workStepOptions} from './phase4WorkStep.js';
+import {currentDurableExecution} from './phase4ExecutionContext.js';
 /**
  * 對帳 + 增量同步引擎（V1.2 Phase 2）。
  *
@@ -371,7 +373,8 @@ export function createReconciler({
    * sleep / workout 有單筆端點：404 → STILL_DELETED；200 → REMOTE_PRESENT_UNRESOLVED。
    * recovery 沒有：只能看這一輪的窗有沒有觀察到它。
    */
-  async function inspectTombstones(resource, reconciliationResource, spec, remoteById) {
+  async function inspectTombstones(resource, reconciliationResource, spec, remoteById,assertInput=async()=>{},commitVerdict=(_facts,fn)=>fn()) {
+    await assertInput();
     if (!spec.tombstoned) return { checked: 0, unresolved: 0 };
     const due = await db.tombstonesDueForCheck(uid, resource, {
       recheckMs: WHOOP_RECONCILE.TOMBSTONE_RECHECK_MS,
@@ -379,6 +382,7 @@ export function createReconciler({
     });
     let unresolved = 0;
     for (const t of due) {
+      await assertInput();
       let verdict = TOMBSTONE_RECONCILE_VERDICT.UNRESOLVED;
       let remoteUpdatedAt = null;
       if (remoteById.has(t.resourceId)) {
@@ -387,6 +391,7 @@ export function createReconciler({
       } else if (spec.singleGet) {
         try {
           const one = await whoop.apiGet(spec.singleGet(t.resourceId));
+          await assertInput();
           verdict = TOMBSTONE_RECONCILE_VERDICT.REMOTE_PRESENT_UNRESOLVED;
           remoteUpdatedAt = one?.updated_at ?? null;
         } catch (err) {
@@ -395,12 +400,13 @@ export function createReconciler({
           else throw err;   // 其他錯誤照樣往上（會被分類成這一輪的失敗）
         }
       }
-      const recorded = await db.recordTombstoneVerdict({
+      const verdictFacts={
         userId: uid, resourceType: resource, resourceId: t.resourceId,
         verdict, remoteUpdatedAt: remoteUpdatedAt ? new Date(remoteUpdatedAt).toISOString() : null,
         now: at(), lifecycleGeneration: lifecycleFence,
         owner, reconciliationResource,
-      });
+      };
+      const recorded = await commitVerdict(verdictFacts,()=>db.recordTombstoneVerdict(verdictFacts));
       if (!recorded) throw new Error('reconcile_ownership_lost');
       if (verdict === TOMBSTONE_RECONCILE_VERDICT.REMOTE_PRESENT_UNRESOLVED) {
         unresolved += 1;
@@ -452,30 +458,39 @@ export function createReconciler({
       userId: uid, resource: key, owner, mode, windowFrom: window.from, windowTo: window.to, now: at(),
     });
     const counters = { pages: 0, fetched: 0, written: 0, blocked: 0, missing: 0, tombstonesChecked: 0, tombstonesUnresolved: 0 };
+    let inputProof=null;
+    const guardedInput=(kind,facts,fn)=>{
+      if(!currentDurableExecution())return fn();
+      const check=()=>assertWhoopInput(inputOptions,inputProof);
+      return db.transaction(fn,{...workStepOptions(`reconciliation.${kind}`,[uid,key,scope,window.from,window.to,window.token??null,inputProof,facts]),
+        before:check,after:check,beforeCommit:check});
+    };
+    const settle=args=>guardedInput('settlement',[args,String(owner)],()=>db.settleReconciliation(args));
     const finish = async (result, extra = {}) => {
       await db.closeReconciliationRun(uid,runId, { result, ...counters, now: at(), ...extra });
       return { resource, scope, result, ...counters, window: { from: window.from, to: window.to, resumed: window.resumed } };
     };
 
     try {
-      const inputProof=await captureWhoopInput(inputOptions);
+      inputProof=await captureWhoopInput(inputOptions);
       // ---- body measurement：單一物件、沒有時間戳、沿用日期快照 ----------
       if (spec.pointInTime) {
         const bm = await whoop.bodyMeasurement();
+        await assertWhoopInput(inputOptions,inputProof);
         if (!bm || typeof bm !== 'object' || Array.isArray(bm)) throw new SyntaxError('whoop body measurement malformed');
         counters.pages = 1;
         counters.fetched = 1;
-        counters.written = await db.mutateForReconciliation(
+        counters.written = await guardedInput('point-effect',[],()=>db.mutateForReconciliation(
           { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to,inputProof] },
           async () => {
             await assertWhoopInput(inputOptions,inputProof);
             // ★ R2 §16：canonical 變更要在**同一個交易裡**證明啟用脈絡。
             // 租約所有權只證明「沒有別的對帳在跑」，不證明這個帳號還該被處理。
             await assertLifecycle();
-            return db.transaction(()=>db.upsertBodyMeasurement(uid,bm,{now:at()}),{beforeCommit:()=>assertWhoopInput(inputOptions,inputProof)});
+            return db.upsertBodyMeasurement(uid,bm,{now:at()});
           },
-        );
-        const settled = await db.settleReconciliation({
+        ));
+        const settled = await settle({
           userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS, windowTo: window.to, now: at(),
           lifecycleGeneration: lifecycleFence,
         });
@@ -493,6 +508,7 @@ export function createReconciler({
       }
 
       const fetched = await fetchWindow(spec, window, counters);
+      await assertWhoopInput(inputOptions,inputProof);
       counters.pages = fetched.pages;
       counters.fetched = fetched.records.length;
       const remoteById = new Map(fetched.records.map((r) => [String(spec.idOf(r)), r]));
@@ -505,20 +521,20 @@ export function createReconciler({
       // 寫入：既有儲存層（M-03 + 墓碑）+ 所有權圍欄交易。
       // blocked = 抓到但沒寫進去的（新鮮度或墓碑擋下）。
       counters.written = fetched.records.length
-        ? await db.mutateForReconciliation(
+        ? await guardedInput('collection-effect',[fetched.nextToken,fetched.complete],()=>db.mutateForReconciliation(
           { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to,window.token??null,fetched.nextToken,fetched.complete,inputProof] },
           async () => {
             await assertWhoopInput(inputOptions,inputProof);
             await assertLifecycle();
-            return db.transaction(()=>persist(resource,fetched.records),{beforeCommit:()=>assertWhoopInput(inputOptions,inputProof)});
+            return persist(resource,fetched.records);
           },
-        )
+        ))
         : 0;
       counters.blocked = Math.max(0, counters.fetched - counters.written);
 
       if (!fetched.complete) {
         // 頁數預算用完：存續傳，**水位不動**。
-        const settled = await db.settleReconciliation({
+        const settled = await settle({
           userId: uid, resource: key, owner, result: RECONCILE_RESULT.PARTIAL,
           continuation: { token: fetched.nextToken, from: window.from, to: window.to },
           latestRemoteUpdatedAt, now: at(), lifecycleGeneration: lifecycleFence,
@@ -536,13 +552,14 @@ export function createReconciler({
         if (window.resumed) {
           log.info('reconcile_absence_skipped_resumed_window', { user_id: uid, resource: key });
         } else {
-          counters.missing = await recordMissingRemote(
+          counters.missing = await guardedInput('absence-diagnostic',[fetched.nextToken,fetched.complete],()=>recordMissingRemote(
             resource, key, spec, window, new Set(remoteById.keys()),
-          );
+          ));
         }
         // 墓碑的單筆 GET 診斷只在快路徑做（深度路徑的預算留給歷史切片）。
         if (!isDeep) {
-          const tomb = await inspectTombstones(resource, key, spec, remoteById);
+          const tomb = await inspectTombstones(resource,key,spec,remoteById,()=>assertWhoopInput(inputOptions,inputProof),
+            (facts,fn)=>guardedInput('tombstone-diagnostic',facts,fn));
           counters.tombstonesChecked = tomb.checked;
           counters.tombstonesUnresolved = tomb.unresolved;
         }
@@ -552,7 +569,7 @@ export function createReconciler({
 
       // 結案：快路徑 → 水位前進到窗的 end（單調）；深度 → 游標 = 這一片的下緣；
       // 明確窗 → 什麼都不動。
-      const settled = await db.settleReconciliation({
+      const settled = await settle({
         userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS,
         windowTo: window.to, cursor: isDeep ? window.from : null, latestRemoteUpdatedAt, now: at(),
         watermarkMode: explicitWindow ? 'keep' : isDeep ? 'set' : 'advance',
@@ -575,11 +592,15 @@ export function createReconciler({
       // 可重試與不可重試都排退避：不可重試（scope / 4xx）多半要等人重新授權，
       // 但也不該每個排程 tick 都去撞一次 403 —— 退避上限把 API 用量綁死。
       const nextAttemptAt = new Date(at().getTime() + reconcileBackoffMs(failures));
-      const settled = await db.settleReconciliation({
+      let settled;
+      try{settled = await settle({
         userId: uid, resource: key, owner, result: RECONCILE_RESULT.FAILED,
         errorClass: cls.class, errorDetail: describeError(err), nextAttemptAt, now: at(),
         lifecycleGeneration: lifecycleFence,
-      });
+      });}catch(settlementError){
+        if(settlementError?.code!=='WHOOP_INPUT_FENCED')throw settlementError;
+        return finish(RECONCILE_RESULT.FENCED,{errorClass:ERROR_CLASS.FENCED});
+      }
       if (!settled) {
         log.warn('reconcile_settlement_fenced', { user_id: uid, resource: key });
         return finish(RECONCILE_RESULT.FENCED, { errorClass: ERROR_CLASS.FENCED });

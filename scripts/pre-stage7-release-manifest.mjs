@@ -28,9 +28,9 @@ if(!files['github-reviewed-workflow.yml'].includes('environment: whoop-productio
 for(const [name,content] of Object.entries(files))await writeFile(path.join(output,name),content);
 const manifest={version:1,preparedAt:new Date().toISOString(),node:process.version,core:{commit:core,tree:coreTree},settings:settings?{commit:settings,tree:settingsTree}:null,
  schema:32,migration:'NONE_REQUIRED',transport:'REMOTE_HTTP_HRANA',productionMutation:'NONE',publication:'NOT_AUTHORIZED',
- executionBudget:'SAFE_BOUNDED_ASYNC_RECONCILIATION_CANDIDATE',staleRuns:'STALE_GITHUB_RUNS_PROVIDER_ACTION_REQUIRED',
+ executionBudget:'EXECUTION_BUDGET_UNRESOLVED',staleRuns:'STALE_GITHUB_RUNS_PROVIDER_ACTION_REQUIRED',
  gates:Object.fromEntries(['G1_CORE_REVIEW','G2_STALE_RUN_CONTAINMENT','G3_CONTROLLED_DEPLOYMENT','G4_MORNING_BRIEF','G5_PRODUCTION_SHADOW','G6_THREE_LANGUAGE_SMOKE','G7_PUBLIC_BETA_STABILIZATION'].map(g=>[g,'PENDING_EXTERNAL_VERIFICATION'])),
  files:Object.fromEntries(Object.entries(files).map(([name,s])=>[name,{sha256:hash(s),bytes:Buffer.byteLength(s)}])),
- prerequisites:['Formal independent review','Approved durable continuation architecture','Verified obsolete-run external finality/denial','Private Render/service and deployed identity readback','Original keys and credential continuity','Operator-derived exact config proof; placeholder is intentionally non-runnable','Authorized remaining English user language choice','Separate authorization for every provider mutation or real send']};
+ prerequisites:['Formal independent review','Approved and implemented convergent bounded continuation with atomic currentness/privacy checkpoints','Verified obsolete-run external finality/denial','Private Render/service and deployed identity readback','Original keys and credential continuity','Operator-derived exact config proof; placeholder is intentionally non-runnable','Authorized remaining English user language choice','Separate authorization for every provider mutation or real send']};
 await writeFile(path.join(output,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 console.log(JSON.stringify({output,core:manifest.core,settings:manifest.settings,files:Object.keys(files),productionMutation:'NONE'}));

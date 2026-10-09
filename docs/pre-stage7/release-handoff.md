@@ -1,6 +1,6 @@
 # Pre-Stage7 controlled release handoff
 
-This is an unapproved local candidate and an executable review sequence. No push, tag, application deployment, database mutation, secret/key change, cron change, activation or real Telegram send occurred. Ordinary Morning Brief was not intentionally interrupted. Production remains subject to fresh provider readback; supplied Render maintenance OFF/auto-deploy OFF and reported release dfffbfb are not freshly verified private Render settings.
+This is an unapproved partial Core candidate and an executable review sequence. R1 remains EXECUTION_BUDGET_UNRESOLVED; resolve and independently review the convergent completion model before G1 can pass. No push, tag, application deployment, database mutation, secret/key change, cron change, activation or real Telegram send occurred. Ordinary Morning Brief was not intentionally interrupted. Production remains subject to fresh provider readback; supplied Render maintenance OFF/auto-deploy OFF and reported release dfffbfb are not freshly verified private Render settings.
 
 ## Separate candidates and milestones
 
@@ -8,8 +8,8 @@ Checkpoint A includes R1–R6 repair, v32 admission/receipts, ordinary Morning B
 
 | Milestone | Scope and evidence | Local disposition | Release risk |
 |---|---|---|---|
-| M1 | Explicit PRAGMA function; authority-bounded Coach; resumable identities/leases; corrected grouped-observation attacks | Local focused and negative proofs pass | Independent review required |
-| M2 | HTTP/Hrana restart, uncertain COMMIT, Morning Brief continuity, three-user timing | Bounded continuation candidate | Persistent dispatch is a precise architecture proposal, not deployed implementation |
+| M1 | Explicit PRAGMA function; authority-bounded Coach; resumable identities/leases; corrected grouped-observation attacks | Deadline/lease/admission safety proofs pass; R1 completion remains FAIL | Independent review required |
+| M2 | HTTP/Hrana restart, uncertain COMMIT, Morning Brief continuity, three-user timing | Execution budget unresolved | Persistent dispatch/checkpoints are a precise architecture proposal, not implemented completion |
 | M3 | Separate authenticated SYNC/DRAIN, six-job backlog, receipts/currentness, three languages | Isolated readiness proof | Production SHADOW/smoke remains pending |
 | M4 | Three Settings commands, localized icon buttons, canonical name/locale, secure callbacks | Separate implementation candidate | Only deploy after Public Beta gates |
 | M5 | Broad isolated files, restart/negative suites, 20 contention repetitions | Retain all failed runs/reruns | Native failures are separately classified; no blanket broad PASS |

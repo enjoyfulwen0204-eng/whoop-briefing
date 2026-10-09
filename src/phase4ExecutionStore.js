@@ -11,6 +11,7 @@ import { syncAuthorizesDrain } from './syncResult.js';
 import {workStepOptions} from './phase4WorkStep.js';
 export const PHASES=Object.freeze(['SYNC','STAGE6_DRAIN']);
 export const HANDOFF_TTL_MS=15*60_000;
+export const EXECUTION_WORK_MAX_AGE_MS=HANDOFF_TTL_MS;
 const OUTCOMES=new Set(['PENDING','COMPLETE','PARTIAL','FAILED','TIMEOUT','CANCELLED','NO_WORK','NO_ELIGIBLE_WORK',
  'COMPLETE_SUCCESS','NO_NEW_DATA_SUCCESS','INTENTIONALLY_INAPPLICABLE','REQUIRED_RESOURCE_FAILED','AUTH_FAILED','DISABLED','POLICY_DEFERRED','BUDGET_EXHAUSTED','COMMIT_INDETERMINATE']);
 const COUNTS=['executionSeq','workReceipts','durationMs','jobsConsidered','itemsAttempted','itemsProcessed','jobsCompleted','jobsFailed','remainingJobs','users','failed'];
@@ -31,6 +32,11 @@ export function validatePhaseRequest(request) {
  if(request.phase==='STAGE6_DRAIN'&&(!BRIEFING_TRIGGER.REQUEST_ID_RE.test(request.syncRequestId)||!HASH.test(request.handoff)
    ||request.requestId===request.syncRequestId))fail('SYNC_HANDOFF_REQUIRED');
  return request;
+}
+export function validatePhaseBody(request,body){
+ let parsed;try{parsed=validatePhaseRequest(JSON.parse(body));}catch{fail('EXECUTION_BODY_MISMATCH');}
+ if(Object.keys(request).length!==Object.keys(parsed).length||Object.keys(request).some(key=>request[key]!==parsed[key]))fail('EXECUTION_BODY_MISMATCH');
+ return parsed;
 }
 export const configurationProof=(keys,config,environment,releaseSha=runningReleaseSha(environment))=>keys.lookup(['phase4-configuration-v2',requireReleaseSha(releaseSha),config.runtime,config.mode,
  (environment.PHASE4_PUBLIC_BETA_USER_IDS??'').split(',').filter(Boolean).map(x=>x.trim()).sort()]);
@@ -74,8 +80,9 @@ export async function readPhaseProgress(db,phase,source) {
  if(execution){
   const result=decodeExecution(execution);
   const receipts=Number((await db.raw.execute({sql:'SELECT count(*) n FROM phase4_execution_work_receipts WHERE execution_id=?',args:[execution.execution_id]})).rows[0].n);
-  const expired=!finalized(execution)&&execution.deadline_at<=Date.now();
-  const state=execution.state==='ESTABLISHED'&&execution.abort_outcome!==null?'RESUMABLE_PENDING':finalized(execution)?result.outcome:execution.state==='WORK_COMMITTED'?'WORK_COMMITTED_UNFINALIZED':execution.state==='ABORTED'?execution.abort_outcome??'FAILED':
+  const stale=execution.state==='ESTABLISHED'&&Date.now()-execution.created_at>=EXECUTION_WORK_MAX_AGE_MS;
+  const expired=!finalized(execution)&&(stale||execution.deadline_at<=Date.now());
+  const state=stale?'STALE_REQUEST':execution.state==='ESTABLISHED'&&execution.abort_outcome!==null?'RESUMABLE_PENDING':finalized(execution)?result.outcome:execution.state==='WORK_COMMITTED'?'WORK_COMMITTED_UNFINALIZED':execution.state==='ABORTED'?execution.abort_outcome??'FAILED':
     execution.observed_outcome==='COMMIT_INDETERMINATE'?'COMMIT_INDETERMINATE':execution.abort_outcome??(receipts?'DURABLE_PROGRESS_UNFINALIZED':expired?'TIMEOUT':'IN_PROGRESS');
   return {state,expired,settlementState:execution.state,complete:finalized(execution)?{...result,updatedAt:execution.finalized_at}:null,
     durableWork:result,workReceipts:receipts,execution,starts:{identity:execution.identity_digest,updatedAt:execution.created_at}};
@@ -120,23 +127,36 @@ export async function reconcileExecution(db,request,identity=requestIdentity(JSO
 function completionRecord(row,keys){
  if(!finalized(row))fail('EXECUTION_NOT_FINALIZED');
  const record={...decodeExecution(row),executionSeq:row.execution_seq,settlementState:row.state,finalizedAt:row.finalized_at};
- if(row.state==='FINALIZED_SUCCESS'&&record.phase==='SYNC'&&syncAuthorizesDrain(record))
+ if(row.state==='FINALIZED_SUCCESS'&&record.phase==='SYNC'&&syncAuthorizesDrain(record)
+  &&row.finalized_at-row.created_at<EXECUTION_WORK_MAX_AGE_MS)
   record.handoff=keys.lookup(['phase4-sync-handoff-v3',row.execution_id,row.identity_digest,row.release_sha,row.trigger_source,
     row.execution_mode,row.config_proof,row.result_digest,row.finalized_at]);
  return record;
 }
-export async function claimPhaseRequest(db,request,body,{leaseMs=225_000,deadlineAt=Date.now()+leaseMs,keys}={}) {
+export async function claimPhaseRequest(db,request,body,{leaseMs=225_000,deadlineAt=Date.now()+leaseMs,keys,maxWorkAgeMs,reconciliationOnly=false}={}) {
  validatePhaseRequest(request);
- let parsed;try{parsed=validatePhaseRequest(JSON.parse(body));}catch{fail('EXECUTION_BODY_MISMATCH');}
- if(Object.keys(request).length!==Object.keys(parsed).length||Object.keys(request).some(key=>request[key]!==parsed[key]))fail('EXECUTION_BODY_MISMATCH');
+ if(maxWorkAgeMs!==undefined&&(!Number.isSafeInteger(maxWorkAgeMs)||maxWorkAgeMs<1||maxWorkAgeMs>EXECUTION_WORK_MAX_AGE_MS))fail('EXECUTION_CONTEXT_AGE_INVALID');
+ const parsed=validatePhaseBody(request,body);
  const identity=requestIdentity(body),owner=randomUUID(),at=Date.now(),leaseUntil=Math.max(deadlineAt,at+leaseMs);
  const scopeKey=bodySha256(JSON.stringify(['phase4-execution-scope-v1',request.phase,request.executionMode,request.configProof]));
  return db.transaction(async()=>{
   let previous=await readExecution(db,request.requestId);
+  let authorizedDeadlineAt=deadlineAt;
   if(previous){
    const reconciled=await reconcileExecution(db,request,identity);requestMatches(previous,request,identity);
    if(finalized(previous))return {cached:keys?completionRecord(previous,keys):decodeExecution(previous),row:previous};
    if(reconciled.state==='ABORTED')fail('EXECUTION_ABORTED_RETRY_REQUIRES_NEW_ID');
+   let metadataOnly=false;
+   if(reconciliationOnly){
+    if(request.phase!=='STAGE6_DRAIN'||previous.state!=='ESTABLISHED'||!reconciled.receipts.length||!keys)fail('EXECUTION_RECONCILIATION_AUTHORITY_INVALID');
+    metadataOnly=Boolean((await requireSyncHandoff(db,request,keys)).reconciliationResult);
+    if(!metadataOnly)fail('EXECUTION_RECONCILIATION_AUTHORITY_INVALID');
+   }
+   if(maxWorkAgeMs!==undefined&&previous.state!=='WORK_COMMITTED'&&!metadataOnly){
+    const observed=(await db.raw.execute({sql:`SELECT created_at,${databaseNowMs} observed_at FROM phase4_executions WHERE execution_id=?`,args:[request.requestId]})).rows[0];
+    if(!observed||observed.observed_at-observed.created_at>=maxWorkAgeMs)fail('EXECUTION_STALE_REQUEST');
+    authorizedDeadlineAt=Math.min(deadlineAt,observed.created_at+maxWorkAgeMs);
+   }
    if(previous.lease_until>at&&previous.state!=='WORK_COMMITTED') {
     // Same authenticated canonical request only. Database time, not caller
     // disconnect, proves the predecessor can no longer mutate. The serialized
@@ -150,15 +170,15 @@ export async function claimPhaseRequest(db,request,body,{leaseMs=225_000,deadlin
    }
    const changed=await db.raw.execute({sql:`UPDATE phase4_executions SET owner=?,generation=generation+1,lease_until=?,deadline_at=?,updated_at=?,
      abort_outcome=NULL,observed_outcome='IN_PROGRESS' WHERE execution_id=? AND generation=? AND state IN ('ESTABLISHED','WORK_COMMITTED') AND (lease_until<=${databaseNowMs} OR state='WORK_COMMITTED')`,
-     args:[owner,leaseUntil,deadlineAt,at,request.requestId,previous.generation]});
+     args:[owner,leaseUntil,authorizedDeadlineAt,at,request.requestId,previous.generation]});
    if(changed.rowsAffected!==1)fail('REQUEST_PENDING');
   }else await db.raw.execute({sql:`INSERT INTO phase4_executions(execution_id,identity_digest,scope_key,canonical_request_json,phase,release_sha,execution_mode,trigger_source,
    config_proof,sync_execution_id,owner,generation,lease_until,deadline_at,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,'ESTABLISHED',?,?)`,
    args:[request.requestId,identity,scopeKey,canonicalPhaseRequest(parsed),request.phase,request.releaseSha,request.executionMode,request.triggerSource,request.configProof,
-    request.syncRequestId??null,owner,leaseUntil,deadlineAt,at,at]});
+    request.syncRequestId??null,owner,leaseUntil,maxWorkAgeMs===undefined?deadlineAt:Math.min(deadlineAt,at+maxWorkAgeMs),at,at]});
   const row=await readExecution(db,request.requestId);
   return {executionId:request.requestId,name:`phase4:request:${request.requestId}`,owner,generation:row.generation,scopeKey,
-   executionSeq:row.execution_seq,request:Object.freeze(JSON.parse(row.canonical_request_json)),expiresAt:new Date(row.lease_until).toISOString(),identity,startedAt:row.created_at,workCommitted:row.state==='WORK_COMMITTED',result:decodeExecution(row)};
+   executionSeq:row.execution_seq,request:Object.freeze(JSON.parse(row.canonical_request_json)),expiresAt:new Date(row.lease_until).toISOString(),identity,startedAt:row.created_at,workDeadlineAt:row.deadline_at,workCommitted:row.state==='WORK_COMMITTED',result:decodeExecution(row)};
  });
 }
 const successOutcome=record=>record.phase==='SYNC'?syncAuthorizesDrain(record):
@@ -252,7 +272,7 @@ export async function requireSyncHandoff(db,request,keys){
  const reconcileCommitted=reconciled?.state==='WORK_COMMITTED_UNFINALIZED';
  if(!row||row.phase!=='SYNC'||row.state!=='FINALIZED_SUCCESS'||row.release_sha!==request.releaseSha
   ||row.release_sha!==runningReleaseSha()||row.trigger_source!==request.triggerSource||row.execution_mode!==request.executionMode
-  ||row.config_proof!==request.configProof||(!reconcileCommitted&&Date.now()-row.finalized_at>HANDOFF_TTL_MS)||row.finalized_at>Date.now())fail('SYNC_HANDOFF_REJECTED');
+  ||row.config_proof!==request.configProof||(!reconcileCommitted&&(Date.now()-row.finalized_at>HANDOFF_TTL_MS||Date.now()-row.created_at>=EXECUTION_WORK_MAX_AGE_MS))||row.finalized_at>Date.now())fail('SYNC_HANDOFF_REJECTED');
  const prior=completionRecord(row,keys);if(!syncAuthorizesDrain(prior)||prior.handoff!==request.handoff)fail('SYNC_HANDOFF_REJECTED');
  if(reconcileCommitted&&child.state==='ESTABLISHED')
   return {...prior,reconciliationResult:{outcome:'PARTIAL',completion:'PARTIAL',stopReason:'RECONCILIATION_ONLY',workReceipts:reconciled.receipts.length,

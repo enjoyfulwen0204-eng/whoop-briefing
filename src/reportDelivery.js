@@ -43,6 +43,7 @@
  *    也不自動再送一次。漏發一次可以補；重發一次收不回來。
  */
 
+import {currentDurableExecution} from './phase4ExecutionContext.js';
 import { SEND_OUTCOME, classifySendOutcome } from './sendOutcome.js';
 import { isSuppressedDelivery } from './accountLifecycle.js';
 import { requireUserId } from './userContext.js';
@@ -83,6 +84,7 @@ export const DELIVERY_RESULT = Object.freeze({
 export async function renewReportClaim({
   db, claimKey, claim, ttlMs, now = new Date(), stage = null,
 }) {
+  if(currentDurableExecution())now=new Date();
   if (!claim?.owner || typeof db.renewClaim !== 'function') return true;
   try {
     const ok = await db.renewClaim({ ...claimKey, owner: claim.owner, ttlMs, now });
@@ -119,6 +121,7 @@ const scopeOf = (claimKey) => ({
 export async function deliverReport({
   db, claimKey, claim, telegram, text, now = () => new Date(),
 }) {
+  if(currentDurableExecution())now=()=>new Date();
   requireUserId(claimKey?.userId, 'deliverReport');
   const scope = scopeOf(claimKey);
   const owner = claim?.owner ?? null;

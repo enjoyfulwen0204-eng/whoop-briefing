@@ -2,6 +2,7 @@
 import { summarizeSync, syncAuthorizesDrain, aggregateSyncOutcome } from './syncResult.js';
 import { withSyncOwnership } from './syncOwnership.js';
 import { requireRuntimeConnection } from './runtimeAdmission.js';
+import {currentDurableExecution} from './phase4ExecutionContext.js';
 // 進入點：Cloudflare 主排程與 GitHub 備援共用這支 canonical runner。
 //
 // Cloudflare（UTC）： */10 * * * *；GitHub 備援：17 * * * *
@@ -451,6 +452,7 @@ async function runForUserOwned({
       const reconciliationResults = await makeReconciler({
         db, whoop, userId: uid, timezone: tz, expectedLifecycleGeneration,
         now: deps.reconcileNow ?? (() => new Date()),
+        windowNow: currentDurableExecution()?now:null,
       }).reconcileAll({
         resources: reconciliationPlan.dueResources,
         includeDeep: false,

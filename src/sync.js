@@ -1,5 +1,6 @@
 import {workStepOptions} from './phase4WorkStep.js';
 import {currentDurableExecution,readWorkStep,appendExecutionReceipt} from './phase4ExecutionContext.js';
+import {captureWhoopInput,assertWhoopInput} from './whoopInputFence.js';
 /**
  * WHOOP → Turso 長期同步。
  *
@@ -128,29 +129,32 @@ export function createSync({
    */
   const lifecycleFenced = lifecycleFence !== null;
 
-  const windowFacts=(resource,patch)=>[uid,resource,lifecycleFence,patch?.backfillCursor?['BACKFILL',patch.backfillCursor]:[POINT_IN_TIME.has(resource)?'POINT_IN_TIME':'INCREMENTAL']];
-  async function committedWindow(resource,patch){
+  const inputOptions={db,userId:uid,expectedLifecycleGeneration:lifecycleFence,timezone};
+  const windowFacts=(resource,patch,inputProof)=>[uid,resource,lifecycleFence,inputProof,patch?.backfillCursor?['BACKFILL',patch.backfillCursor]:[POINT_IN_TIME.has(resource)?'POINT_IN_TIME':'INCREMENTAL']];
+  async function committedWindow(resource,patch,inputProof){
     if(!currentDurableExecution())return null;
     return db.transaction(async()=>{
-      const effect=await readWorkStep(db.raw,['named',workStepOptions('whoop.window',windowFacts(resource,patch)).workStep]);
+      await assertWhoopInput(inputOptions,inputProof);
+      const effect=await readWorkStep(db.raw,['named',workStepOptions('whoop.window',windowFacts(resource,patch,inputProof)).workStep]);
       if(!effect)return null;
-      const counts=await readWorkStep(db.raw,['named',workStepOptions('whoop.window-count',windowFacts(resource,patch)).workStep]);
+      const counts=await readWorkStep(db.raw,['named',workStepOptions('whoop.window-count',windowFacts(resource,patch,inputProof)).workStep]);
       if(!counts)throw Object.assign(Error('EXECUTION_RECEIPT_CORRUPT'),{code:'EXECUTION_RECEIPT_CORRUPT'});
       return {written:JSON.parse(effect.result_json),fetched:JSON.parse(counts.result_json)};
     },{readOnly:true});
   }
-  async function commitWindow(resource, payload, cursorPatch, fetched) {
+  async function commitWindow(resource, payload, cursorPatch, fetched,inputProof) {
     return db.transaction(async () => {
       // 只有**帶著啟用脈絡**的呼叫端才受圍欄約束（與這次修正其他地方一致）。
       // 正式路徑（排程器 runForUser、上線 bootstrap）都會帶；沒有帶的是
       // 腳本／測試夾具那種「沒有帳號脈絡」的情境，行為維持不變。
       budget?.assert();
+      await assertWhoopInput(inputOptions,inputProof);
       if (lifecycleFenced) await db.assertAccountActive(uid, lifecycleFence);
       const written = await persist(resource, payload);
       if (cursorPatch) await db.saveSyncState(uid, resource, cursorPatch, { now });
-      if(currentDurableExecution())await appendExecutionReceipt(db.raw,{step:['named',workStepOptions('whoop.window-count',windowFacts(resource,cursorPatch)).workStep],result:fetched,explicit:true});
+      if(currentDurableExecution())await appendExecutionReceipt(db.raw,{step:['named',workStepOptions('whoop.window-count',windowFacts(resource,cursorPatch,inputProof)).workStep],result:fetched,explicit:true});
       return written;
-    },workStepOptions('whoop.window',windowFacts(resource,cursorPatch)));
+    },{...workStepOptions('whoop.window',windowFacts(resource,cursorPatch,inputProof)),beforeCommit:()=>assertWhoopInput(inputOptions,inputProof)});
   }
   /**
    * 一個 resource 的抓取器。全部沿用 whoop client 既有的
@@ -192,9 +196,10 @@ export function createSync({
 
   /** 抓一個時間窗並**與游標一起**落地。 */
   async function syncWindow(resource, fromIso, toIso, cursorPatch = null) {
-    const committed=await committedWindow(resource,cursorPatch);if(committed)return committed;
+    const inputProof=await captureWhoopInput(inputOptions);
+    const committed=await committedWindow(resource,cursorPatch,inputProof);if(committed)return committed;
     const { payload, fetched } = await fetchWindow(resource, fromIso, toIso);
-    const written = await commitWindow(resource, payload, cursorPatch, fetched);
+    const written = await commitWindow(resource, payload, cursorPatch, fetched,inputProof);
     return { fetched, written };
   }
 
@@ -339,7 +344,7 @@ export function createSync({
           results.push({ resource, status: 'account_inactive' });
           break;
         }
-        if (isStaleAuthorizationError(err)) {
+        if (isStaleAuthorizationError(err)||err?.code==='WHOOP_INPUT_FENCED') {
           log.warn('sync_stale_authorization', { resource });
           results.push({ resource, status: 'stale_authorization' });
           break;

@@ -104,7 +104,7 @@ test('v32 real HTTP definite COMMIT constraint rejection rolls back effect and n
 });
 test('v32 failed heartbeat projection is reconstructed from immutable finalized truth without a new timestamp/handoff',async t=>{
  const {db}=await fixture(t),value=request(),execute=db.raw.execute;let fail=true,work=0;
- db.raw.execute=async statement=>{if(fail&&statement?.args?.[1]?.endsWith(':complete'))throw Error('ISOLATED_PROJECTION_FAILURE');return execute(statement);};
+ db.raw.execute=async statement=>{if(fail&&typeof statement?.args?.[1]==='string'&&statement.args[1].endsWith(':complete'))throw Error('ISOLATED_PROJECTION_FAILURE');return execute(statement);};
  const options={deps:{runBriefing:async()=>{work++;return success();}}};
  const first=await run(db,value,options);assert.equal(first.body.syncComplete,true);
  const row=await readExecution(db,value.requestId);assert.equal(row.state,'FINALIZED_SUCCESS');

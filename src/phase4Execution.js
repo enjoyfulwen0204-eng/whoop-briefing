@@ -7,7 +7,7 @@ import { runPhase4Stage6 } from './shadowDrainScheduler.js';
 import { deliverPublicBetaSummary } from './publicBetaSummaryDelivery.js';
 import { createExecutionBudget, SYNC_BUDGET_MS, withExecutionBudget } from './executionBudget.js';
 import { syncAuthorizesDrain } from './syncResult.js';
-import { validatePhaseRequest,validatePhaseBody,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit,EXECUTION_WORK_MAX_AGE_MS,reconcileExecution,requestIdentity } from './phase4ExecutionStore.js';
+import {isContinuationRequest, validatePhaseRequest,validatePhaseBody,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit,EXECUTION_WORK_MAX_AGE_MS,reconcileExecution,requestIdentity } from './phase4ExecutionStore.js';
 import { log } from './logger.js';
 import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Release.js';
 import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
@@ -64,13 +64,15 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    const finalizedReplay=['FINALIZED_SUCCESS','FINALIZED_FAILURE'].includes(replay?.state);
    const continuation=request.phase==='STAGE6_DRAIN'&&!finalizedReplay?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys))):null;
    const reconciliationOnly=Boolean(continuation?.reconciliationResult);
-   const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly})));
+   const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly,serializeScope:isContinuationRequest(request)})));
    if(claim.cached){overall.assert();admissionBudget.assert();
      try{await admissionBudget.run(()=>projectPhaseCompletion(db,request,claim.cached));}catch{}
      overall.assert();admissionBudget.assert();return phaseResponse({...claim.cached,settlementState:claim.row.state});}
    // Production continuations retain the original phase observation date.
    // Explicit now is an isolated-fixture clock and is never accepted from HTTP.
+   const explicitFixtureNow=now!==undefined;
    now ??= new Date(claim.startedAt);
+   const presentationClock=explicitFixtureNow?()=>new Date(now):()=>new Date();
    admissionBudget.close();
    overall.assert();
    const workLimit=claim.workCommitted||reconciliationOnly?limit:Math.max(0,Math.min(limit,claim.workDeadlineAt-Date.now()));
@@ -78,7 +80,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    budget=createExecutionBudget({budgetMs:workLimit,signal:overall.signal});
    const fence=async()=>{checkAdmission();overall.assert();budget.assert();};
    if(!claim.workCommitted)await db.withRuntimeFence(fence,()=>budget.run(()=>recordPhaseEvent(db,{phase:request.phase,releaseSha,source:request.triggerSource,event:'start',outcome:'PENDING',identity:claim.identity,executionSeq:claim.executionSeq})));
-   const executionContext={claim,keys,pending:new Set(),indeterminate:false,authority:{assert:()=>{checkAdmission();overall.assert();budget.assert();}}};
+   const executionContext={claim,keys,presentationClock,pending:new Set(),indeterminate:false,authority:{assert:()=>{checkAdmission();overall.assert();budget.assert();}}};
    let result,presentationRuntime;
    try {
      result=continuation?.reconciliationResult??(claim.workCommitted?claim.result:await withDurableExecution(executionContext,()=>withExecutionBudget(budget,()=>db.withRuntimeFence(fence,()=>budget.run(async()=>{

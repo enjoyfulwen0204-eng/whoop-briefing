@@ -54,6 +54,7 @@ import { createUpdateProcessor, UPDATE_OUTCOME, isAcknowledgeable } from './upda
 import { log, describeError } from '../logger.js';
 import { BRIEFING_TRIGGER } from '../briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../briefingEndpoint.js';
+import {CONTINUATION_PATH,discoverPhaseContinuation} from '../phase4Continuation.js';
 import {executionProfile} from '../phase4Rollback.js';
 import { runExecutionPhase } from '../phase4Execution.js';
 import { publicBetaConfiguration, phase4AuthorityKeys } from '../publicBetaConfig.js';
@@ -244,10 +245,10 @@ export function createWebhookHandler({
       });
     }
 
-    if (path === BRIEFING_TRIGGER.PATH && !briefingEndpoint) {
+    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH].includes(path) && !briefingEndpoint) {
       return send(res, 503, { ok: false, error: 'scheduler_unavailable' });
     }
-    if (path === BRIEFING_TRIGGER.PATH && briefingEndpoint) {
+    if ([BRIEFING_TRIGGER.PATH,CONTINUATION_PATH].includes(path) && briefingEndpoint) {
       if (url !== path) return send(res, 400, { ok: false, error: 'query_not_allowed' });
       if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
       const schedulerBody = await readBody(req, { limit: BRIEFING_TRIGGER.MAX_BODY_BYTES });
@@ -504,7 +505,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   }
   const briefingEndpoint = schedulerConfigured
     ? createBriefingEndpoint({ secret: briefingTriggerSecret,
-      runPhase: runExecutionPhase }) : null;
+      runPhase: runExecutionPhase,discoverContinuation:discoverPhaseContinuation }) : null;
 
   // ---- OAuth 回呼（V1.2 Phase 3.5）---------------------------------------
   //

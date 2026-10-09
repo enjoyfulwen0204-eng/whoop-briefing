@@ -1,3 +1,6 @@
+import {captureWhoopInput,assertWhoopInput} from './whoopInputFence.js';
+import {workStepOptions} from './phase4WorkStep.js';
+import {currentDurableExecution} from './phase4ExecutionContext.js';
 /**
  * 對帳 + 增量同步引擎（V1.2 Phase 2）。
  *
@@ -109,6 +112,7 @@ export const ERROR_CLASS = Object.freeze({
  * 「暫時性故障被當終局 → 永久漏資料」或「終局被當可重試 → 重試風暴」。
  */
 export function classifyReconcileError(err) {
+  if(err?.code==='WHOOP_INPUT_FENCED')return {class:ERROR_CLASS.FENCED,retryable:false};
   if (err?.message === 'reconcile_ownership_lost') return { class: ERROR_CLASS.FENCED, retryable: false };
   if (err instanceof WhoopAuthError) return { class: ERROR_CLASS.AUTH, retryable: true };
   if (err instanceof WhoopApiError) {
@@ -252,7 +256,7 @@ export function validateCollectionPage(page) {
  * @param {object} whoop createWhoopClient 的結果（token 租約 / CAS 圍欄都在裡面）
  */
 export function createReconciler({
-  db, whoop, userId, timezone, now = () => new Date(), ownerId = null,
+  db, whoop, userId, timezone, now = () => new Date(), windowNow = null, ownerId = null,
   maxPagesPerRun = WHOOP_RECONCILE.MAX_PAGES_PER_RUN,
   leaseMs = WHOOP_RECONCILE.LEASE_MS,
   deep = WHOOP_RECONCILE.DEEP,
@@ -272,6 +276,8 @@ export function createReconciler({
   };
   const owner = ownerId ?? `reconcile:${uid}:${process.pid}:${Math.random().toString(36).slice(2, 10)}`;
   const at = () => new Date(now());
+  const windowAt=()=>windowNow===null?at():new Date(typeof windowNow==='function'?windowNow():windowNow);
+  const inputOptions={db,userId:uid,expectedLifecycleGeneration:lifecycleFence,timezone};
 
   /**
    * 抓一個窗，**可續傳**，有頁數預算。
@@ -283,7 +289,7 @@ export function createReconciler({
    * @param {object} progress 每消化一頁合法回應就 +1 的計數（失敗時帳本才看得到抓到哪）
    * @returns {{records, pages, nextToken, complete}}
    */
-  async function fetchWindow(spec, { from, to, token }, progress = { pages: 0 }) {
+  async function fetchWindow(spec, { from, to, token }, progress = { pages: 0 },assertInput=async()=>{}) {
     const records = [];
     const seen = new Set();
     let nextToken = token ?? null;
@@ -293,6 +299,7 @@ export function createReconciler({
         start: from.toISOString(), end: to.toISOString(),
         limit: WHOOP.PAGE_LIMIT, nextToken: nextToken ?? undefined,
       });
+      await assertInput();
       const page = validateCollectionPage(raw);
       pages += 1;
       progress.pages = pages;
@@ -367,7 +374,8 @@ export function createReconciler({
    * sleep / workout 有單筆端點：404 → STILL_DELETED；200 → REMOTE_PRESENT_UNRESOLVED。
    * recovery 沒有：只能看這一輪的窗有沒有觀察到它。
    */
-  async function inspectTombstones(resource, reconciliationResource, spec, remoteById) {
+  async function inspectTombstones(resource, reconciliationResource, spec, remoteById,assertInput=async()=>{},commitVerdict=(_facts,fn)=>fn()) {
+    await assertInput();
     if (!spec.tombstoned) return { checked: 0, unresolved: 0 };
     const due = await db.tombstonesDueForCheck(uid, resource, {
       recheckMs: WHOOP_RECONCILE.TOMBSTONE_RECHECK_MS,
@@ -375,6 +383,7 @@ export function createReconciler({
     });
     let unresolved = 0;
     for (const t of due) {
+      await assertInput();
       let verdict = TOMBSTONE_RECONCILE_VERDICT.UNRESOLVED;
       let remoteUpdatedAt = null;
       if (remoteById.has(t.resourceId)) {
@@ -383,6 +392,7 @@ export function createReconciler({
       } else if (spec.singleGet) {
         try {
           const one = await whoop.apiGet(spec.singleGet(t.resourceId));
+          await assertInput();
           verdict = TOMBSTONE_RECONCILE_VERDICT.REMOTE_PRESENT_UNRESOLVED;
           remoteUpdatedAt = one?.updated_at ?? null;
         } catch (err) {
@@ -391,12 +401,13 @@ export function createReconciler({
           else throw err;   // 其他錯誤照樣往上（會被分類成這一輪的失敗）
         }
       }
-      const recorded = await db.recordTombstoneVerdict({
+      const verdictFacts={
         userId: uid, resourceType: resource, resourceId: t.resourceId,
         verdict, remoteUpdatedAt: remoteUpdatedAt ? new Date(remoteUpdatedAt).toISOString() : null,
         now: at(), lifecycleGeneration: lifecycleFence,
         owner, reconciliationResource,
-      });
+      };
+      const recorded = await commitVerdict(verdictFacts,()=>db.recordTombstoneVerdict(verdictFacts));
       if (!recorded) throw new Error('reconcile_ownership_lost');
       if (verdict === TOMBSTONE_RECONCILE_VERDICT.REMOTE_PRESENT_UNRESOLVED) {
         unresolved += 1;
@@ -437,39 +448,50 @@ export function createReconciler({
     if (explicitWindow) {
       window = { from: new Date(explicitWindow.from), to: new Date(explicitWindow.to), token: null, resumed: false, pending: false };
     } else if (spec.pointInTime) {
-      window = { from: null, to: at(), token: null, resumed: false, pending: false };
+      window = { from: null, to: windowAt(), token: null, resumed: false, pending: false };
     } else if (isDeep) {
-      window = nextDeepSlice(state, { now: at(), deep });
+      window = nextDeepSlice(state, { now: windowAt(), deep });
     } else {
-      window = nextWindow(resource, state, { now: at() });
+      window = nextWindow(resource, state, { now: windowAt() });
     }
     const mode = spec.pointInTime ? 'point_in_time' : explicitWindow ? 'explicit_window' : isDeep ? 'deep_slice' : 'incremental';
     const runId = await db.openReconciliationRun({
       userId: uid, resource: key, owner, mode, windowFrom: window.from, windowTo: window.to, now: at(),
     });
     const counters = { pages: 0, fetched: 0, written: 0, blocked: 0, missing: 0, tombstonesChecked: 0, tombstonesUnresolved: 0 };
+    let inputProof=null;
+    const guardedInput=(kind,facts,fn)=>{
+      if(!currentDurableExecution())return fn();
+      const check=()=>assertWhoopInput(inputOptions,inputProof);
+      return db.transaction(fn,{...workStepOptions(`reconciliation.${kind}`,[uid,key,scope,window.from,window.to,window.token??null,inputProof,facts]),
+        before:check,after:check,beforeCommit:check});
+    };
+    const settle=args=>guardedInput('settlement',[args,String(owner)],()=>db.settleReconciliation(args));
     const finish = async (result, extra = {}) => {
       await db.closeReconciliationRun(uid,runId, { result, ...counters, now: at(), ...extra });
       return { resource, scope, result, ...counters, window: { from: window.from, to: window.to, resumed: window.resumed } };
     };
 
     try {
+      inputProof=await captureWhoopInput(inputOptions);
       // ---- body measurement：單一物件、沒有時間戳、沿用日期快照 ----------
       if (spec.pointInTime) {
         const bm = await whoop.bodyMeasurement();
+        await assertWhoopInput(inputOptions,inputProof);
         if (!bm || typeof bm !== 'object' || Array.isArray(bm)) throw new SyntaxError('whoop body measurement malformed');
         counters.pages = 1;
         counters.fetched = 1;
-        counters.written = await db.mutateForReconciliation(
-          { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to] },
+        counters.written = await guardedInput('point-effect',[],()=>db.mutateForReconciliation(
+          { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to,inputProof] },
           async () => {
+            await assertWhoopInput(inputOptions,inputProof);
             // ★ R2 §16：canonical 變更要在**同一個交易裡**證明啟用脈絡。
             // 租約所有權只證明「沒有別的對帳在跑」，不證明這個帳號還該被處理。
             await assertLifecycle();
-            return db.upsertBodyMeasurement(uid, bm, { now: at() });
+            return db.upsertBodyMeasurement(uid,bm,{now:at()});
           },
-        );
-        const settled = await db.settleReconciliation({
+        ));
+        const settled = await settle({
           userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS, windowTo: window.to, now: at(),
           lifecycleGeneration: lifecycleFence,
         });
@@ -486,7 +508,7 @@ export function createReconciler({
         if (!opened) throw new Error('reconcile_ownership_lost');
       }
 
-      const fetched = await fetchWindow(spec, window, counters);
+      const fetched = await fetchWindow(spec,window,counters,()=>assertWhoopInput(inputOptions,inputProof));
       counters.pages = fetched.pages;
       counters.fetched = fetched.records.length;
       const remoteById = new Map(fetched.records.map((r) => [String(spec.idOf(r)), r]));
@@ -499,19 +521,20 @@ export function createReconciler({
       // 寫入：既有儲存層（M-03 + 墓碑）+ 所有權圍欄交易。
       // blocked = 抓到但沒寫進去的（新鮮度或墓碑擋下）。
       counters.written = fetched.records.length
-        ? await db.mutateForReconciliation(
-          { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to] },
+        ? await guardedInput('collection-effect',[fetched.nextToken,fetched.complete],()=>db.mutateForReconciliation(
+          { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to,window.token??null,fetched.nextToken,fetched.complete,inputProof] },
           async () => {
+            await assertWhoopInput(inputOptions,inputProof);
             await assertLifecycle();
-            return persist(resource, fetched.records);
+            return persist(resource,fetched.records);
           },
-        )
+        ))
         : 0;
       counters.blocked = Math.max(0, counters.fetched - counters.written);
 
       if (!fetched.complete) {
         // 頁數預算用完：存續傳，**水位不動**。
-        const settled = await db.settleReconciliation({
+        const settled = await settle({
           userId: uid, resource: key, owner, result: RECONCILE_RESULT.PARTIAL,
           continuation: { token: fetched.nextToken, from: window.from, to: window.to },
           latestRemoteUpdatedAt, now: at(), lifecycleGeneration: lifecycleFence,
@@ -529,13 +552,14 @@ export function createReconciler({
         if (window.resumed) {
           log.info('reconcile_absence_skipped_resumed_window', { user_id: uid, resource: key });
         } else {
-          counters.missing = await recordMissingRemote(
+          counters.missing = await guardedInput('absence-diagnostic',[fetched.nextToken,fetched.complete],()=>recordMissingRemote(
             resource, key, spec, window, new Set(remoteById.keys()),
-          );
+          ));
         }
         // 墓碑的單筆 GET 診斷只在快路徑做（深度路徑的預算留給歷史切片）。
         if (!isDeep) {
-          const tomb = await inspectTombstones(resource, key, spec, remoteById);
+          const tomb = await inspectTombstones(resource,key,spec,remoteById,()=>assertWhoopInput(inputOptions,inputProof),
+            (facts,fn)=>guardedInput('tombstone-diagnostic',facts,fn));
           counters.tombstonesChecked = tomb.checked;
           counters.tombstonesUnresolved = tomb.unresolved;
         }
@@ -545,7 +569,7 @@ export function createReconciler({
 
       // 結案：快路徑 → 水位前進到窗的 end（單調）；深度 → 游標 = 這一片的下緣；
       // 明確窗 → 什麼都不動。
-      const settled = await db.settleReconciliation({
+      const settled = await settle({
         userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS,
         windowTo: window.to, cursor: isDeep ? window.from : null, latestRemoteUpdatedAt, now: at(),
         watermarkMode: explicitWindow ? 'keep' : isDeep ? 'set' : 'advance',
@@ -568,11 +592,15 @@ export function createReconciler({
       // 可重試與不可重試都排退避：不可重試（scope / 4xx）多半要等人重新授權，
       // 但也不該每個排程 tick 都去撞一次 403 —— 退避上限把 API 用量綁死。
       const nextAttemptAt = new Date(at().getTime() + reconcileBackoffMs(failures));
-      const settled = await db.settleReconciliation({
+      let settled;
+      try{settled = await settle({
         userId: uid, resource: key, owner, result: RECONCILE_RESULT.FAILED,
         errorClass: cls.class, errorDetail: describeError(err), nextAttemptAt, now: at(),
         lifecycleGeneration: lifecycleFence,
-      });
+      });}catch(settlementError){
+        if(settlementError?.code!=='WHOOP_INPUT_FENCED')throw settlementError;
+        return finish(RECONCILE_RESULT.FENCED,{errorClass:ERROR_CLASS.FENCED});
+      }
       if (!settled) {
         log.warn('reconcile_settlement_fenced', { user_id: uid, resource: key });
         return finish(RECONCILE_RESULT.FENCED, { errorClass: ERROR_CLASS.FENCED });

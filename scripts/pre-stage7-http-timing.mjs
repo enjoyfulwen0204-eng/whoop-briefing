@@ -28,10 +28,14 @@ const {runDaily}=await imp('src/daily.js');
 const {runPredictionCycle}=await imp('src/predictionPipeline.js');
 const {runHealthspanSnapshot}=await imp('src/healthspanEngine.js');
 const {createReconciler}=await imp('src/reconcile.js');
+const {createBriefingEndpoint}=await imp('src/briefingEndpoint.js');
+const {discoverPhaseContinuation}=await imp('src/phase4Continuation.js');
+const {invoke}=await imp('cloudflare/briefing-scheduler/worker.js');
 const {WHOOP_SYNC}=await imp('src/config.js');
 const now=new Date('2026-10-09T00:00:00Z');
 const env={timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:3,telegramBotToken:'synthetic',telegramChatId:'synthetic',whoopClientId:'synthetic',whoopClientSecret:'synthetic',openrouterApiKey:'synthetic',openrouterModel:'synthetic',repoLastCommitAt:now.toISOString()};
-const environment={PHASE4_BETA_SHADOW_RUNTIME:'off',PHASE4_PUBLIC_BETA_MODE:'off'};
+const workerDriver=process.env.PRE_STAGE7_TIMING_DRIVER==='worker';
+const environment={PHASE4_BETA_SHADOW_RUNTIME:process.env.PRE_STAGE7_TIMING_SHADOW==='on'?'on':'off',PHASE4_PUBLIC_BETA_MODE:'off'};
 const results=[];
 const scope=new AsyncLocalStorage();
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -104,26 +108,43 @@ async function scenario({name,users=3,latency=10,cold=false,partial=false,tenant
    healthspan:o=>measure('Healthspan',()=>runHealthspanSnapshot(o)),
    guardian:async()=>null,
   };
-  const request={releaseSha:runningReleaseSha(),requestId:randomUUID(),phase:'SYNC',triggerSource:source,executionMode:'OFF',configProof:configurationProof(fixtureKeys,publicBetaConfiguration(environment),environment)};
+  let request={releaseSha:runningReleaseSha(),requestId:randomUUID(),phase:'SYNC',triggerSource:source,executionMode:environment.PHASE4_BETA_SHADOW_RUNTIME==='on'?'SHADOW':'OFF',configProof:configurationProof(fixtureKeys,publicBetaConfiguration(environment),environment)};
   const started=performance.now();let response,error;
-  try{response=await runExecutionPhase({request,db,keys:fixtureKeys,environment,env,deps,now});}catch(e){error={code:e.code,message:e.message};}
+  let workerResult,workerError,workerElapsedMs,workerResponses=[];
+  if(workerDriver){
+   if(source!=='cloudflare')throw Error('WORKER_SOURCE_INVALID');
+   const secret='synthetic-http-timing-worker-only-secret',pending=new Set();
+   const endpoint=createBriefingEndpoint({secret,environment,discoverContinuation:options=>discoverPhaseContinuation({...options,db,keys:fixtureKeys,environment}),runPhase:options=>{
+    const at=performance.now();if(options.request.phase==='SYNC')request=options.request;
+    const work=runExecutionPhase({...options,db,keys:fixtureKeys,environment,env,deps,now}).then(async result=>{
+     workerResponses.push({phase:options.request.phase,response:result,elapsedMs:performance.now()-at,generation:(await readExecution(db,options.request.requestId))?.generation,sends:payloads.length});return result;
+    });pending.add(work);work.finally(()=>pending.delete(work)).catch(()=>{});return work;
+   }});
+   try{workerResult=await invoke({BRIEFING_ENDPOINT_URL:'https://isolated.invalid/internal/briefing/run',BRIEFING_TRIGGER_SECRET:secret,BRIEFING_RELEASE_SHA:request.releaseSha,
+    BRIEFING_EXECUTION_MODE:request.executionMode,BRIEFING_CONFIG_PROOF:request.configProof,BRIEFING_CONTINUATION_DISCOVERY:'on'},{fetchImpl:async(url,init)=>{
+     const result=await endpoint({url:new URL(url).pathname,method:'POST',headers:init.headers},init.body);return new Response(JSON.stringify(result.body),{status:result.status});
+    }});}catch(e){workerError={code:e.code,category:e.category,message:e.message};}
+   workerElapsedMs=performance.now()-started;await Promise.allSettled([...pending]);
+   response=workerResponses.find(r=>r.phase==='SYNC')?.response;
+  }else try{response=await runExecutionPhase({request,db,keys:fixtureKeys,environment,env,deps,now});}catch(e){error={code:e.code,message:e.message};}
   const elapsedMs=performance.now()-started,workRequests=calls;
-  const segments=[{elapsedMs,status:response?.status,outcome:response?.body?.result?.outcome,continuationState:response?.body?.result?.continuationState,generation:(await readExecution(db,request.requestId))?.generation}];
+  const segments=workerDriver?workerResponses.map(r=>({phase:r.phase,elapsedMs:r.elapsedMs,status:r.response.status,outcome:r.response.body?.result?.outcome,continuationState:r.response.body?.result?.continuationState,generation:r.generation,sends:r.sends})):[{elapsedMs,status:response?.status,outcome:response?.body?.result?.outcome,continuationState:response?.body?.result?.continuationState,generation:(await readExecution(db,request.requestId))?.generation}];
   const resumeSegment=async()=>{const start=performance.now();const r=await runExecutionPhase({request,db,keys:fixtureKeys,environment,env,deps,now});segments.push({elapsedMs:performance.now()-start,status:r.status,outcome:r.body?.result?.outcome,continuationState:r.body?.result?.continuationState,generation:(await readExecution(db,request.requestId))?.generation});return r;};
   const delivered=async()=>(await db.raw.execute("SELECT user_id,local_date,delivery_state,delivery_attempts FROM report_claims WHERE report_type='daily' ORDER BY user_id")).rows.map(r=>({...r}));
   const claims=await delivered(),before=payloads.length;
-  let resumed,replayed,resumeError,additionalFinalizedReplaySends=0;
-  if(replay){try{
+  let resumed=workerDriver?workerResponses.filter(r=>r.phase==='SYNC').at(-1)?.response:undefined,replayed,resumeError,additionalFinalizedReplaySends=0;
+  if(replay&&!workerDriver){try{
     const start=performance.now();resumed=await resumeSegment();
     for(let segment=0;segment<5&&resumed.body?.result?.resumable===true;segment++){await wait(15_000);resumed=await resumeSegment();}
     add('resumption_or_replay',performance.now()-start);
     if(resumed.status===200){const deliveredBeforeReplay=payloads.length;replayed=await runExecutionPhase({request,db,keys:fixtureKeys,environment,env,deps,now});assert.deepEqual(replayed,resumed);additionalFinalizedReplaySends=payloads.length-deliveredBeforeReplay;assert.equal(additionalFinalizedReplaySends,0);}
    }catch(e){resumeError={code:e.code,message:e.message};}}
+  if(workerDriver&&resumed?.status===200){const deliveredBeforeReplay=payloads.length;replayed=await runExecutionPhase({request,db,keys:fixtureKeys,environment,env,deps,now});assert.deepEqual(replayed,resumed);additionalFinalizedReplaySends=payloads.length-deliveredBeforeReplay;assert.equal(additionalFinalizedReplaySends,0);}
   const finalClaims=await delivered(),duplicates=(await db.raw.execute("SELECT count(*) n FROM (SELECT user_id,report_type,local_date,count(*) n FROM report_claims GROUP BY user_id,report_type,local_date HAVING count(*)>1)")).rows[0].n;
   assert.equal(duplicates,0);assert.ok(finalClaims.every(c=>c.delivery_attempts<=1));
   for(const payload of payloads)assert.doesNotMatch(payload.text,/Body Energy|Kelvin|Beta Summary/);
   const progress=await readPhaseProgress(db,'SYNC',source);
-  const out={name,users,latency,cold,partial,tenantDelay,resourceDelay,source,elapsedMs,workRequests,segments,additionalFinalizedReplaySends,response,error,metrics,claims,finalClaims,sends:before,additionalReplaySends:payloads.length-before,resumed,replayMatched:!!replayed,resumeError,progress:{state:progress.state,settlementState:progress.settlementState,workReceipts:progress.workReceipts}};
+  const out={name,users,latency,cold,partial,tenantDelay,resourceDelay,source,elapsedMs,workRequests,segments,workerDriver,workerResult,workerError,workerElapsedMs,additionalFinalizedReplaySends,response,error,metrics,claims,finalClaims,sends:before,additionalReplaySends:payloads.length-before,resumed,replayMatched:!!replayed,resumeError,progress:{state:progress.state,settlementState:progress.settlementState,workReceipts:progress.workReceipts}};
   results.push(out);await writeFile(join(output,'timings.json'),JSON.stringify(results,null,2));console.log('REVIEW_TIMING '+JSON.stringify({name,elapsedMs,status:response?.status,resumed:resumed?.status,segments,additionalReplaySends:out.additionalReplaySends,additionalFinalizedReplaySends}));
  }finally{try{await seed.close();}catch{}db?.close();transport?.close();await rm(dir,{recursive:true,force:true});}
 }

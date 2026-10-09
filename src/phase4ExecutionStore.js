@@ -20,6 +20,7 @@ const observedCommits=new WeakSet();
 export const observedPhaseWorkCommit=claim=>claim.workCommitted===true||observedCommits.has(claim);
 export const canonicalPhaseRequest=request=>JSON.stringify(Object.fromEntries(Object.keys(request).sort().map(key=>[key,request[key]])));
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
+const pendingOwner=row=>{const error=Object.assign(Error('REQUEST_PENDING'),{code:'REQUEST_PENDING',retryAfterMs:Math.max(0,Math.min(225000,Math.ceil(row.deadline_at-Date.now())))});throw error;};
 export function requirePhase(phase) {if(!PHASES.includes(phase))fail('EXECUTION_PHASE_INVALID');return phase;}
 export function validatePhaseRequest(request) {
  requirePhase(request?.phase);requireTriggerSource(request.triggerSource);requireReleaseSha(request.releaseSha);
@@ -166,16 +167,27 @@ export async function claimPhaseRequest(db,request,body,{leaseMs=225_000,deadlin
       AND state='ESTABLISHED' AND deadline_at<=${databaseNowMs}`,
       args:[request.requestId,previous.owner,previous.generation]});
     previous=await readExecution(db,request.requestId);
-    if(previous.lease_until>Date.now())fail('REQUEST_PENDING');
+    if(previous.lease_until>Date.now())pendingOwner(previous);
    }
    const changed=await db.raw.execute({sql:`UPDATE phase4_executions SET owner=?,generation=generation+1,lease_until=?,deadline_at=?,updated_at=?,
      abort_outcome=NULL,observed_outcome='IN_PROGRESS' WHERE execution_id=? AND generation=? AND state IN ('ESTABLISHED','WORK_COMMITTED') AND (lease_until<=${databaseNowMs} OR state='WORK_COMMITTED')`,
      args:[owner,leaseUntil,authorizedDeadlineAt,at,request.requestId,previous.generation]});
    if(changed.rowsAffected!==1)fail('REQUEST_PENDING');
-  }else await db.raw.execute({sql:`INSERT INTO phase4_executions(execution_id,identity_digest,scope_key,canonical_request_json,phase,release_sha,execution_mode,trigger_source,
+  }else {
+   // A serialized scope election prevents two fresh dispatchers from creating
+   // unrelated identities for the same unfinished phase. Expiry permits only
+   // the existing identity's fenced continuation until its bounded context is
+   // stale. WORK_COMMITTED remains immutable metadata reconciliation, which
+   // may overlap a newer invocation under the approved v32 contract.
+   const pending=(await db.raw.execute({sql:`SELECT execution_id FROM phase4_executions WHERE scope_key=?
+     AND state='ESTABLISHED' AND created_at>${databaseNowMs}-? LIMIT 1`,
+     args:[scopeKey,EXECUTION_WORK_MAX_AGE_MS]})).rows[0];
+   if(pending)fail('REQUEST_SCOPE_PENDING');
+   await db.raw.execute({sql:`INSERT INTO phase4_executions(execution_id,identity_digest,scope_key,canonical_request_json,phase,release_sha,execution_mode,trigger_source,
    config_proof,sync_execution_id,owner,generation,lease_until,deadline_at,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,'ESTABLISHED',?,?)`,
    args:[request.requestId,identity,scopeKey,canonicalPhaseRequest(parsed),request.phase,request.releaseSha,request.executionMode,request.triggerSource,request.configProof,
     request.syncRequestId??null,owner,leaseUntil,maxWorkAgeMs===undefined?deadlineAt:Math.min(deadlineAt,at+maxWorkAgeMs),at,at]});
+  }
   const row=await readExecution(db,request.requestId);
   return {executionId:request.requestId,name:`phase4:request:${request.requestId}`,owner,generation:row.generation,scopeKey,
    executionSeq:row.execution_seq,request:Object.freeze(JSON.parse(row.canonical_request_json)),expiresAt:new Date(row.lease_until).toISOString(),identity,startedAt:row.created_at,workDeadlineAt:row.deadline_at,workCommitted:row.state==='WORK_COMMITTED',result:decodeExecution(row)};

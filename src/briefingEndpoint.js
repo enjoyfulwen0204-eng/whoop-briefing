@@ -4,9 +4,10 @@ import { validatePhaseRequest,configurationProof } from './phase4ExecutionStore.
 import {executionProfile} from './phase4Rollback.js';
 import {runningReleaseSha} from './phase4Release.js';
 import {publicBetaConfiguration,publicBetaKeys} from './publicBetaConfig.js';
+import {CONTINUATION_PATH,validateContinuationQuery} from './phase4Continuation.js';
 
 export function createBriefingEndpoint({
-  secret, runPhase, now = () => Date.now(), maxBodyBytes = BRIEFING_TRIGGER.MAX_BODY_BYTES,environment=process.env,
+  secret, runPhase, discoverContinuation, now = () => Date.now(), maxBodyBytes = BRIEFING_TRIGGER.MAX_BODY_BYTES,environment=process.env,
 }) {
   if (typeof secret !== 'string' || Buffer.byteLength(secret) < 32) {
     throw new Error('BRIEFING_TRIGGER_SECRET must be at least 32 bytes');
@@ -20,7 +21,7 @@ export function createBriefingEndpoint({
   return async function briefingEndpoint(req, body) {
     const rawUrl = String(req.url ?? '');
     const path = rawUrl.split('?')[0];
-    if (path !== BRIEFING_TRIGGER.PATH) return null;
+    if (![BRIEFING_TRIGGER.PATH,CONTINUATION_PATH].includes(path)) return null;
     if (rawUrl !== path) return { status: 400, body: { ok: false, error: 'query_not_allowed' } };
     if (req.method !== 'POST') return { status: 405, body: { ok: false, error: 'method_not_allowed' } };
     if (!String(req.headers?.['content-type'] ?? '').toLowerCase().startsWith('application/json')) {
@@ -45,6 +46,15 @@ export function createBriefingEndpoint({
     if (!auth.ok) {
       log.warn('briefing_trigger_rejected', { reason: auth.reason });
       return { status: 401, body: { ok: false, error: 'unauthorized' } };
+    }
+
+    if(path===CONTINUATION_PATH){
+      if(executionProfile(environment)==='RC2_V32_ROLLBACK'||typeof discoverContinuation!=='function')return {status:503,body:{ok:false,error:'continuation_unavailable'}};
+      try{validateContinuationQuery(parsed);}catch{return {status:400,body:{ok:false,error:'CONTINUATION_QUERY_INVALID'}};}
+      try{return await discoverContinuation({query:parsed});}catch(error){
+        const code=['RELEASE_CHECKOUT_MISMATCH','EXECUTION_CONFIG_CHANGED','CONTINUATION_TRANSPORT_IDENTITY_UNAVAILABLE'].includes(error?.code)?error.code:'CONTINUATION_DISCOVERY_FAILED';
+        return {status:code==='RELEASE_CHECKOUT_MISMATCH'?403:code==='CONTINUATION_DISCOVERY_FAILED'?503:409,body:{ok:false,error:code}};
+      }
     }
 
     const originalBody=body;
@@ -73,9 +83,9 @@ export function createBriefingEndpoint({
         return response;
       } catch(error) {
         recent.delete(requestId);
-        const code=['REQUEST_ID_CONFLICT','REQUEST_PENDING','SYNC_HANDOFF_REJECTED','EXECUTION_CONFIG_CHANGED','RELEASE_CHECKOUT_MISMATCH','EXECUTION_STALE_REQUEST'].includes(error?.code)?error.code:'PHASE_EXECUTION_FAILED';
-        return {status:code==='EXECUTION_STALE_REQUEST'?410:['REQUEST_ID_CONFLICT','REQUEST_PENDING'].includes(code)?409:['SYNC_HANDOFF_REJECTED','RELEASE_CHECKOUT_MISMATCH'].includes(code)?403:503,
-          body:{ok:false,error:code}};
+        const code=['REQUEST_ID_CONFLICT','REQUEST_PENDING','REQUEST_SCOPE_PENDING','SYNC_HANDOFF_REJECTED','EXECUTION_CONFIG_CHANGED','RELEASE_CHECKOUT_MISMATCH','EXECUTION_STALE_REQUEST'].includes(error?.code)?error.code:'PHASE_EXECUTION_FAILED';
+        return {status:code==='EXECUTION_STALE_REQUEST'?410:['REQUEST_ID_CONFLICT','REQUEST_PENDING','REQUEST_SCOPE_PENDING'].includes(code)?409:['SYNC_HANDOFF_REJECTED','RELEASE_CHECKOUT_MISMATCH'].includes(code)?403:503,
+          body:{ok:false,error:code,...(code==='REQUEST_PENDING'&&Number.isSafeInteger(error.retryAfterMs)&&error.retryAfterMs>=0&&error.retryAfterMs<=225000?{retryAfterMs:error.retryAfterMs}:{})}};
       }
     })();
     recent.set(requestId,{at,identity,promise});

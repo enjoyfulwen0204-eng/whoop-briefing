@@ -84,6 +84,7 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
       const call=calls.getStore();
       const canonical=call?.enabled?CANONICAL_BATCHES[call.name]:null;
       if(canonical&&statements.length&&statements.every(s=>new RegExp(`^\\s*INSERT\\s+INTO\\s+${canonical}\\s*\\(\\s*user_id\\s*,`,'i').test(sqlOf(s)))){
+        if(statements.length>100)fail('PHASE4_CANONICAL_BATCH_LIMIT');
         if(statements.some(s=>s.args?.[0]!==call.userId))fail('PHASE4_BATCH_TENANT_MISMATCH');
         // Canonical source tables have no derived-artifact R columns. Their
         // original ordered SQL already supplies version/tombstone semantics;

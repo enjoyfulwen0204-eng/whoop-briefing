@@ -1,4 +1,6 @@
 const PATH='/internal/briefing/run';
+const CONTINUATION_PATH='/internal/briefing/continuation';
+export const MAX_CONTINUATION_SEGMENTS=8;
 export const MAX_ATTEMPTS=2;
 export const TIMEOUT_MS=180_000;
 export const DRAIN_TIMEOUT_MS=100_000;
@@ -11,6 +13,7 @@ export const retryableStatus=status=>[429,502,503,504].includes(status);
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const hex=bytes=>[...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('');
 const sha256=async text=>hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)));
+const canonical=value=>JSON.stringify(Object.fromEntries(Object.keys(value).sort().map(key=>[key,value[key]])));
 export async function canonicalMessage({timestamp,requestId,method,path,body}) {return [timestamp,requestId,method.toUpperCase(),path,await sha256(body)].join('\n');}
 export async function signRequest(args,secret) {
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
@@ -48,12 +51,46 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
  const assertCaller=()=>{if(signal?.aborted)throw error('cancelled',true);if(now()>=deadlineAt)throw error('timeout',true);};
  assertCaller();
  const root=crypto.randomUUID();
+ const continuation=env.BRIEFING_CONTINUATION_DISCOVERY==='on';
+ if(![undefined,'on','off'].includes(env.BRIEFING_CONTINUATION_DISCOVERY))throw error('configuration',true);
+ let recovered=null;
+ if(continuation){
+  const requestId=crypto.randomUUID(),timestamp=String(now());
+  const body=canonical({releaseSha:env.BRIEFING_RELEASE_SHA,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF});
+  const controller=new AbortController(),onAbort=()=>controller.abort();signal?.addEventListener('abort',onAbort,{once:true});
+  const discoveryDeadline=Math.min(deadlineAt,now()+30000),timer=setTimer(()=>controller.abort(),discoveryDeadline-now());let response;
+  try{
+   assertCaller();if(signal?.aborted)controller.abort();
+   const signature=await raceAbort(signImpl({timestamp,requestId,method:'POST',path:CONTINUATION_PATH,body},env.BRIEFING_TRIGGER_SECRET),controller.signal);
+   const pendingDiscovery=Promise.resolve(fetchImpl(new URL(CONTINUATION_PATH,endpoint).toString(),{method:'POST',body,signal:controller.signal,redirect:REDIRECT_MODE,
+    headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signature}})).then(value=>{
+      if(controller.signal.aborted){try{void value.body?.cancel().catch(()=>{});}catch{}}return value;
+    });
+   response=await raceAbort(pendingDiscovery,controller.signal);
+   const text=await readResponseBody(response,{controller,deadlineAt:discoveryDeadline,now});assertCaller();
+   let payload;try{payload=JSON.parse(text);}catch{throw error('invalid_discovery',true);}
+   if(response.status!==200||payload?.ok!==true)throw error('continuation_discovery_failed',true);
+   if(['TERMINAL_FAILURE','STALE_REQUEST'].includes(payload.state))throw error(payload.state==='STALE_REQUEST'?'stale_request':'terminal_phase_failure',true);
+   if(payload.state==='NONE'){if(payload.requestBody!==null)throw error('invalid_discovery',true);}
+   else{
+    if(!['IN_PROGRESS','INCOMPLETE_RESUMABLE','COMMIT_UNCERTAIN','WORK_COMMITTED_UNFINALIZED','FINALIZED_SUCCESS'].includes(payload.state)
+     ||typeof payload.requestBody!=='string'||new TextEncoder().encode(payload.requestBody).length>1024)throw error('invalid_discovery',true);
+    let request;try{request=JSON.parse(payload.requestBody);}catch{throw error('invalid_discovery',true);}
+    if(Object.keys(request).sort().join(',')!=='configProof,executionMode,phase,releaseSha,requestId,triggerSource'||request.phase!=='SYNC'
+     ||request.triggerSource!=='cloudflare'||request.releaseSha!==env.BRIEFING_RELEASE_SHA||request.executionMode!==env.BRIEFING_EXECUTION_MODE
+     ||request.configProof!==env.BRIEFING_CONFIG_PROOF||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{15,127}$/.test(request.requestId)||canonical(request)!==payload.requestBody)throw error('invalid_discovery',true);
+    recovered={requestId:request.requestId,body:payload.requestBody};
+   }
+  }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
+ }
  async function phase(phaseName,handoff) {
-  const requestId=`${root}_${phaseName.toLowerCase()}`;
-  const body=JSON.stringify({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
+  const requestId=phaseName==='SYNC'&&recovered?recovered.requestId:continuation&&handoff?await sha256(`stage6-drain-v1:${handoff.requestId}`):`${root}_${phaseName.toLowerCase()}`;
+  const serialize=continuation?canonical:JSON.stringify;
+  const body=phaseName==='SYNC'&&recovered?recovered.body:serialize({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
    ...(handoff?{syncRequestId:handoff.requestId,handoff:handoff.token}:{})});
   let last, retryWait=0;
-  for(let attempt=1;attempt<=MAX_ATTEMPTS;attempt++) {
+  const maxAttempts=continuation?MAX_CONTINUATION_SEGMENTS:MAX_ATTEMPTS;
+  for(let attempt=1;attempt<=maxAttempts;attempt++) {
    assertCaller();
    const timestamp=String(now());
    const controller=new AbortController(),onAbort=()=>controller.abort();signal?.addEventListener('abort',onAbort,{once:true});
@@ -87,10 +124,14 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
       const pending=error('continuation_pending');pending.requestId=requestId;pending.resumable=true;throw pending;
     }
     if(response.status===207||(payload?.syncComplete===false&&payload?.result?.outcome!=='COMMIT_INDETERMINATE'))throw error('sync_incomplete',true);
+    if(continuation&&response.status===409&&payload?.error==='REQUEST_PENDING'&&payload.retryAfterMs!==undefined){
+      if(!Number.isSafeInteger(payload.retryAfterMs)||payload.retryAfterMs<0||payload.retryAfterMs>225000)throw error('invalid_response',true);
+      retryWait=payload.retryAfterMs;
+    }
     last=error(isRedirect(response.status)?'redirect':response.status===401||response.status===403?'authentication':`http_${Math.floor(response.status/100)}xx`,
-      !retryableStatus(response.status)&&!(response.status===409&&payload?.error==='REQUEST_PENDING'));
+      !retryableStatus(response.status)&&!(response.status===409&&['REQUEST_PENDING','REQUEST_SCOPE_PENDING'].includes(payload?.error)));
     throw last;
-   }catch(e){if(now()>=deadlineAt)throw error('timeout',true);if(signal?.aborted)throw error('cancelled',true);last=e;if(e?.name==='TypeError'&&/redirect/i.test(e.message))last=error('redirect',true);if(!last.category)last=error(controller.signal.aborted?'timeout':'transport');if(last.nonRetryable||attempt===MAX_ATTEMPTS)throw last;}
+   }catch(e){if(now()>=deadlineAt)throw error('timeout',true);if(signal?.aborted)throw error('cancelled',true);last=e;if(e?.name==='TypeError'&&/redirect/i.test(e.message))last=error('redirect',true);if(!last.category)last=error(controller.signal.aborted?'timeout':'transport');if(last.nonRetryable||attempt===maxAttempts)throw last;}
    finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
    const wait=Math.max(attempt*500,retryWait);retryWait=0;
    if(now()+wait>=deadlineAt)throw last;

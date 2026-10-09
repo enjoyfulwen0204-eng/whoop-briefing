@@ -12,6 +12,9 @@
  *  - 模型只把「程式算好的結果」講成人話，不做任何好壞判斷。
  */
 
+import { setTimeout as waitTimer } from 'node:timers/promises';
+import { currentExecutionBudget, abortable, abortableResponse, boundedBody } from './executionBudget.js';
+import { currentDurableExecution } from './phase4ExecutionContext.js';
 import { AI_PURPOSE, COACH, PROMPT_VERSIONS, resolveModel } from './config.js';
 import { recordUsage, extractTokens } from './usage.js';
 import { log, describeError } from './logger.js';
@@ -160,7 +163,7 @@ export class CoachApiError extends Error {
   }
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms, signal) => waitTimer(ms, undefined, {signal});
 
 function backoffMs(attempt) {
   return Math.min(2000 * 2 ** (attempt - 1), COACH.MAX_BACKOFF_MS);
@@ -200,6 +203,8 @@ export function createCoach({
   userId = undefined,
   env = process.env,       // model routing 讀這裡
   now = () => new Date(),
+  signal,
+  executionBudget,
 }) {
   /**
    * 參數階梯：先用最省的組合，若該模型 / provider 不吃某個參數（400）就退一階。
@@ -211,8 +216,28 @@ export function createCoach({
   ];
 
   /** 單次 POST。非 2xx 一律丟 CoachApiError（帶 status，外層才知道要退參數還是重試）。 */
+  function parentBudgets() {
+    return [...new Set([currentExecutionBudget(), executionBudget].filter(Boolean))];
+  }
+  function authority() {
+    for (const budget of parentBudgets()) budget.assert();
+    currentDurableExecution()?.authority.assert();
+    signal?.throwIfAborted();
+  }
+  function cancellationSignal() {
+    authority();
+    const signals = [...parentBudgets().map(budget => budget.signal), signal].filter(Boolean);
+    return signals.length ? AbortSignal.any(signals) : undefined;
+  }
+  function providerSignal() {
+    authority();
+    const timeout = Math.min(COACH.TIMEOUT_MS, ...parentBudgets().map(budget => budget.remainingMs()));
+    return AbortSignal.any([AbortSignal.timeout(Math.max(1, timeout)), ...[cancellationSignal()].filter(Boolean)]);
+  }
   async function post(body) {
-    const res = await fetchImpl(`${baseUrl}/chat/completions`, {
+    const requestSignal = providerSignal();
+    authority();
+    const res = await abortableResponse(fetchImpl(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${apiKey}`,
@@ -221,10 +246,11 @@ export function createCoach({
         'x-title': 'whoop-briefing',
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(COACH.TIMEOUT_MS),
-    });
-
-    const text = await res.text();
+      signal: requestSignal,
+    }), requestSignal);
+    authority();
+    const text = await boundedBody(res, {signal:requestSignal, maxBytes:1024*1024});
+    authority();
     let json = null;
     try {
       json = text ? JSON.parse(text) : null;
@@ -248,9 +274,11 @@ export function createCoach({
   async function send(body) {
     let lastErr;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      authority();
       try {
         return await post(body);
       } catch (err) {
+        authority();
         lastErr = err;
         const status = err instanceof CoachApiError ? err.status : null;
         const retryable = status !== null
@@ -259,7 +287,9 @@ export function createCoach({
         if (!retryable || attempt === maxRetries) throw err;
         const wait = backoffFor(attempt);
         log.warn('coach_retry', { attempt, status, wait_ms: wait, error: describeError(err) });
-        await sleep(wait);
+        const backoffSignal = cancellationSignal();
+        await sleep(wait, backoffSignal);
+        authority();
       }
     }
     throw lastErr;
@@ -292,6 +322,7 @@ export function createCoach({
         if (!text) throw new Error('OpenRouter 回傳空白內容');
         return { text, json };
       } catch (err) {
+        authority();
         lastErr = err;
         const status = err instanceof CoachApiError ? err.status : null;
         // 400 / 422 = 這個模型不吃某個參數 → 退一階再試
@@ -322,6 +353,7 @@ export function createCoach({
     let fallbackOccurred = false;
 
     const finish = async (json, status, detail) => {
+      authority();
       const tokens = extractTokens(json?.usage);
       await recordUsage(db, userId, {
         provider: 'openrouter',
@@ -343,8 +375,10 @@ export function createCoach({
         system, userMessage, maxTokens, useModel: requestedModel,
       });
       await finish(json, 'OK', null);
+      authority();
       return text;
     } catch (err) {
+      authority();
       // 模型本身用不了 → 退回建構時的預設模型再試一次（**只試一次**，不無限重試）
       if (isModelUnavailableError(err) && requestedModel !== model) {
         log.warn('coach_model_fallback', {
@@ -357,6 +391,7 @@ export function createCoach({
             system, userMessage, maxTokens, useModel: model,
           });
           await finish(json, 'OK', `fallback_from:${requestedModel}`);
+          authority();
           return text;
         } catch (err2) {
           await finish(null, 'FAILED', describeError(err2));

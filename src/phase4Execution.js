@@ -7,7 +7,7 @@ import { runPhase4Stage6 } from './shadowDrainScheduler.js';
 import { deliverPublicBetaSummary } from './publicBetaSummaryDelivery.js';
 import { createExecutionBudget, SYNC_BUDGET_MS, withExecutionBudget } from './executionBudget.js';
 import { syncAuthorizesDrain } from './syncResult.js';
-import { validatePhaseRequest,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution } from './phase4ExecutionStore.js';
+import { validatePhaseRequest,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit } from './phase4ExecutionStore.js';
 import { log } from './logger.js';
 import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Release.js';
 import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
@@ -125,8 +125,9 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
      let authorityError=error;try{originalAuthority.assert();}catch(expired){authorityError=expired;}
      const outcome=error?.code==='COMMIT_INDETERMINATE'||executionContext.pending.size||executionContext.indeterminate?'COMMIT_INDETERMINATE':
        authorityError?.code==='SYNC_CANCELLED'?'CANCELLED':authorityError?.code==='SYNC_TIMEOUT'?'TIMEOUT':'FAILED';
-     const resumable = executionContext.coordinationPending || ['TIMEOUT','CANCELLED','COMMIT_INDETERMINATE'].includes(outcome);
-     record={resumable, ...(resumable?{continuationState:outcome==='COMMIT_INDETERMINATE'?'COMMIT_UNCERTAIN':'INCOMPLETE_RESUMABLE',retryAfterMs:15_000}:{}),phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,...result,outcome,
+     const workCommitted = observedPhaseWorkCommit(claim);
+     const resumable = workCommitted || executionContext.coordinationPending || ['TIMEOUT','CANCELLED','COMMIT_INDETERMINATE'].includes(outcome);
+     record={resumable, ...(resumable?{continuationState:workCommitted?'WORK_COMMITTED_UNFINALIZED':outcome==='COMMIT_INDETERMINATE'?'COMMIT_UNCERTAIN':'INCOMPLETE_RESUMABLE',retryAfterMs:15_000}:{}),phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,...result,outcome,
        ...(request.phase==='STAGE6_DRAIN'?{completion:'PARTIAL',stopReason:'FAILURE'}:{})};
      // Best effort non-success cleanup, never finalizes uncertain work. A
      // submitted COMMIT is reconciled on the next fresh admitted invocation.
@@ -154,5 +155,5 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    if(error?.code==='COMMIT_INDETERMINATE')return phaseResponse({phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,outcome:'COMMIT_INDETERMINATE'});
    if(!['SYNC_TIMEOUT','SYNC_CANCELLED'].includes(error?.code))throw error;
    return phaseResponse({phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,outcome:error.code==='SYNC_TIMEOUT'?'TIMEOUT':'CANCELLED'});
- } finally {stopFollowing?.();overall.close();admissionBudget.close();budget?.close();if(!providedDb)db.close();}
+ } finally {budget?.cancel();stopFollowing?.();overall.close();admissionBudget.close();budget?.close();if(!providedDb)db.close();}
 }

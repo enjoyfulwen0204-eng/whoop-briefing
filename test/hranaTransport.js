@@ -23,7 +23,7 @@ export function hranaTransport(url) {
    commits++;if(armed&&(!armed.onlyWorkResult||stream.workResult)&&(!armed.matchSql||stream.matched)){
     if(armed.skipMatches){armed.skipMatches--;return stream.client.execute({sql,args}).then(result=>{stream.inTransaction=false;return result;});}
     const attack=armed;armed=null;
-    evidence.push({event:'commit_pending',at:Date.now(),commit:commits});await attack.before?.();
+    evidence.push({event:'commit_pending',at:Date.now(),commit:commits});await attack.before?.(stream.client);
     const result=await stream.client.execute({sql,args});stream.inTransaction=false;
     evidence.push({event:'commit_durable',at:Date.now(),commit:commits});await attack.after?.();
     if(attack.loseAcknowledgement)throw Error('SYNTHETIC_COMMIT_ACK_LOST');

@@ -44,11 +44,13 @@ for(const attack of ['cancel','deadline','lost-ack'])test(`v32 real HTTP finaliz
 test('v32 real HTTP lease expiry during submitted work COMMIT cannot finalize; fresh generation reconciles without replay',async t=>{
  const {db,transport}=await fixture(t),value=request();let work=0;
  const deps={runBriefing:async()=>{
-  work++;const expires=Date.now()+500;
-  await db.transaction(async()=>{await db.raw.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',args:[expires,expires,value.requestId]});},{workStep:'lease-expiry-fixture'});
-  transport.arm({onlyWorkResult:true,before:()=>pause(650)});return success();
+  work++;
+  // Expire only after the work-result COMMIT was submitted, avoiding a CPU
+  // race that could expire before the path under test actually started.
+  transport.arm({onlyWorkResult:true,before:async client=>{const expires=Date.now()-1;await client.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',args:[expires,expires,value.requestId]});}});return success();
  }};
  const first=await run(db,value,{deps});assert.equal(first.body.ok,false);assert.equal(first.body.drainAuthorized,false);assert.equal(first.body.handoff,undefined);
+ assert.equal(first.status,202);assert.equal(first.body.result.continuationState,'WORK_COMMITTED_UNFINALIZED');
  assert.equal((await readExecution(db,value.requestId)).state,'WORK_COMMITTED');
  assert.equal((await db.raw.execute("SELECT count(*) n FROM system_heartbeats WHERE component='phase4_sync:manual:complete'")).rows[0].n,0);
  const retry=await run(db,value,{deps});assert.equal(retry.body.syncComplete,true);assert.equal(work,1);

@@ -15,6 +15,8 @@ const OUTCOMES=new Set(['PENDING','COMPLETE','PARTIAL','FAILED','TIMEOUT','CANCE
  'COMPLETE_SUCCESS','NO_NEW_DATA_SUCCESS','INTENTIONALLY_INAPPLICABLE','REQUIRED_RESOURCE_FAILED','AUTH_FAILED','DISABLED','POLICY_DEFERRED','BUDGET_EXHAUSTED','COMMIT_INDETERMINATE']);
 const COUNTS=['executionSeq','workReceipts','durationMs','jobsConsidered','itemsAttempted','itemsProcessed','jobsCompleted','jobsFailed','remainingJobs','users','failed'];
 const HASH=/^[a-f0-9]{64}$/;
+const observedCommits=new WeakSet();
+export const observedPhaseWorkCommit=claim=>claim.workCommitted===true||observedCommits.has(claim);
 export const canonicalPhaseRequest=request=>JSON.stringify(Object.fromEntries(Object.keys(request).sort().map(key=>[key,request[key]])));
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 export function requirePhase(phase) {if(!PHASES.includes(phase))fail('EXECUTION_PHASE_INVALID');return phase;}
@@ -170,7 +172,7 @@ export async function commitPhaseWork(db,request,claim,result,authority){
  if(db.processingTransactionActive?.())fail('EXECUTION_SETTLEMENT_MUST_BE_ROOT');
  if(result.handoff!==undefined||result.settlementState!==undefined||result.finalizedAt!==undefined)fail('EXECUTION_RESULT_AUTHORITY_INVALID');
  authority.assert();
- return db.transaction(async()=>{
+ const committed=await db.transaction(async()=>{
   const row=await ownerCheck(db,claim);requestMatches(row,request,claim.identity);
   if(row.scope_key!==claim.scopeKey)fail('REQUEST_ID_CONFLICT');authority.assert();
   if(row.state==='WORK_COMMITTED')return decodeExecution(row);
@@ -182,6 +184,8 @@ export async function commitPhaseWork(db,request,claim,result,authority){
    args:[json,bodySha256(json),at,at,claim.executionId,claim.owner,claim.generation]});
   if(updated.rowsAffected!==1)fail('REQUEST_OWNER_FENCED');return record;
  },{commitAuthority:authority.assert});
+ observedCommits.add(claim);
+ return committed;
 }
 export async function finalizePhaseWork(db,request,claim,keys,authority){
  if(db.processingTransactionActive?.())fail('EXECUTION_SETTLEMENT_MUST_BE_ROOT');

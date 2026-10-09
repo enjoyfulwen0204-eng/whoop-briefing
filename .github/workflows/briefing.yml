@@ -1,5 +1,5 @@
 # Deployment artifact only. Do not install on main until the reviewed release SHA
-# replaces ed5d52fb6c555931ad281448ef590e6a46dde774 and the workflow is disabled/read back.
+# replaces 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0 and the workflow is disabled/read back.
 name: WHOOP 早晨簡報
 
 on:
@@ -12,20 +12,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  run:
+  sync:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      sync_finalized: ${{ steps.phase.outputs.sync_finalized }}
+      sync_complete: ${{ steps.phase.outputs.sync_complete }}
+      drain_authorized: ${{ steps.phase.outputs.drain_authorized }}
+      sync_request_id: ${{ steps.phase.outputs.sync_request_id }}
+      sync_handoff: ${{ steps.phase.outputs.sync_handoff }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: c364ea7a7586bcaafb3fccd66bc18a461643732c
+          ref: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
+      - name: Verify reviewed checkout identity
+        shell: bash
+        env:
+          PHASE4_RELEASE_SHA: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+        run: |
+          actual_sha=$(git rev-parse --verify 'HEAD^{commit}')
+          test "$actual_sha" = "$PHASE4_RELEASE_SHA"
       - run: npm ci
-      - name: Run reviewed v31-compatible stage
+      - name: SYNC reviewed release
+        id: phase
         shell: bash
         env:
           WHOOP_CLIENT_ID: ${{ secrets.WHOOP_CLIENT_ID }}
@@ -41,16 +55,62 @@ jobs:
           PHASE4_BETA_SHADOW_RUNTIME: ${{ vars.PHASE4_BETA_SHADOW_RUNTIME }}
           PHASE4_PUBLIC_BETA_MODE: ${{ vars.PHASE4_PUBLIC_BETA_MODE }}
           PHASE4_PUBLIC_BETA_USER_IDS: ${{ vars.PHASE4_PUBLIC_BETA_USER_IDS }}
+          PHASE4_RELEASE_SHA: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+          PHASE4_EXECUTION_PHASE: SYNC
           TIMEZONE: Asia/Taipei
         run: |
           case "$PHASE4_BETA_SHADOW_RUNTIME:$PHASE4_PUBLIC_BETA_MODE" in
-            off:off) npm start ;;
-            on:off) node src/publicBetaEntry.js ;;
+            off:off) node scripts/phase4-run.js ;;
+            on:off) node scripts/phase4-run.js ;;
             on:allowlist)
               IFS=',' read -r -a cohort <<< "$PHASE4_PUBLIC_BETA_USER_IDS"
               if [ "${#cohort[@]}" -ne 3 ]; then
                 echo "Three reviewed cohort IDs are required" >&2; exit 1
               fi
-              node src/publicBetaEntry.js ;;
+              node scripts/phase4-run.js ;;
             *) echo "Invalid staged Beta configuration" >&2; exit 1 ;;
           esac
+  stage6_drain:
+    needs: sync
+    if: ${{ needs.sync.result == 'success' && needs.sync.outputs.sync_complete == 'true' && needs.sync.outputs.sync_finalized == 'true' && needs.sync.outputs.drain_authorized == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Verify reviewed checkout identity
+        shell: bash
+        env:
+          PHASE4_RELEASE_SHA: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+        run: |
+          actual_sha=$(git rev-parse --verify 'HEAD^{commit}')
+          test "$actual_sha" = "$PHASE4_RELEASE_SHA"
+      - run: npm ci
+      - name: STAGE6_DRAIN authorized handoff
+        shell: bash
+        env:
+          WHOOP_CLIENT_ID: ${{ secrets.WHOOP_CLIENT_ID }}
+          WHOOP_CLIENT_SECRET: ${{ secrets.WHOOP_CLIENT_SECRET }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: anthropic/claude-sonnet-5
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          PHASE4_LOOKUP_KEY: ${{ secrets.PHASE4_LOOKUP_KEY }}
+          PHASE4_AUDIT_KEY: ${{ secrets.PHASE4_AUDIT_KEY }}
+          PHASE4_BETA_SHADOW_RUNTIME: ${{ vars.PHASE4_BETA_SHADOW_RUNTIME }}
+          PHASE4_PUBLIC_BETA_MODE: ${{ vars.PHASE4_PUBLIC_BETA_MODE }}
+          PHASE4_PUBLIC_BETA_USER_IDS: ${{ vars.PHASE4_PUBLIC_BETA_USER_IDS }}
+          PHASE4_RELEASE_SHA: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+          PHASE4_EXECUTION_PHASE: STAGE6_DRAIN
+          PHASE4_SYNC_REQUEST_ID: ${{ needs.sync.outputs.sync_request_id }}
+          PHASE4_SYNC_HANDOFF: ${{ needs.sync.outputs.sync_handoff }}
+          TIMEZONE: Asia/Taipei
+        run: node scripts/phase4-run.js

@@ -73,7 +73,7 @@ export async function readPhaseProgress(db,phase,source) {
   const result=decodeExecution(execution);
   const receipts=Number((await db.raw.execute({sql:'SELECT count(*) n FROM phase4_execution_work_receipts WHERE execution_id=?',args:[execution.execution_id]})).rows[0].n);
   const expired=!finalized(execution)&&execution.deadline_at<=Date.now();
-  const state=finalized(execution)?result.outcome:execution.state==='WORK_COMMITTED'?'WORK_COMMITTED_UNFINALIZED':execution.state==='ABORTED'?execution.abort_outcome??'FAILED':
+  const state=execution.state==='ESTABLISHED'&&execution.abort_outcome!==null?'RESUMABLE_PENDING':finalized(execution)?result.outcome:execution.state==='WORK_COMMITTED'?'WORK_COMMITTED_UNFINALIZED':execution.state==='ABORTED'?execution.abort_outcome??'FAILED':
     execution.observed_outcome==='COMMIT_INDETERMINATE'?'COMMIT_INDETERMINATE':execution.abort_outcome??(receipts?'DURABLE_PROGRESS_UNFINALIZED':expired?'TIMEOUT':'IN_PROGRESS');
   return {state,expired,settlementState:execution.state,complete:finalized(execution)?{...result,updatedAt:execution.finalized_at}:null,
     durableWork:result,workReceipts:receipts,execution,starts:{identity:execution.identity_digest,updatedAt:execution.created_at}};
@@ -130,12 +130,22 @@ export async function claimPhaseRequest(db,request,body,{leaseMs=225_000,deadlin
  const identity=requestIdentity(body),owner=randomUUID(),at=Date.now(),leaseUntil=Math.max(deadlineAt,at+leaseMs);
  const scopeKey=bodySha256(JSON.stringify(['phase4-execution-scope-v1',request.phase,request.executionMode,request.configProof]));
  return db.transaction(async()=>{
-  const previous=await readExecution(db,request.requestId);
+  let previous=await readExecution(db,request.requestId);
   if(previous){
    const reconciled=await reconcileExecution(db,request,identity);requestMatches(previous,request,identity);
    if(finalized(previous))return {cached:keys?completionRecord(previous,keys):decodeExecution(previous),row:previous};
    if(reconciled.state==='ABORTED')fail('EXECUTION_ABORTED_RETRY_REQUIRES_NEW_ID');
-   if(previous.lease_until>at&&previous.state!=='WORK_COMMITTED')fail('REQUEST_PENDING');
+   if(previous.lease_until>at&&previous.state!=='WORK_COMMITTED') {
+    // Same authenticated canonical request only. Database time, not caller
+    // disconnect, proves the predecessor can no longer mutate. The serialized
+    // transaction also observes any earlier uncertain COMMIT before takeover.
+    await db.raw.execute({sql:`UPDATE phase4_executions SET lease_until=MIN(lease_until,${databaseNowMs}-1),
+      deadline_at=MIN(deadline_at,${databaseNowMs}-1) WHERE execution_id=? AND owner=? AND generation=?
+      AND state='ESTABLISHED' AND deadline_at<=${databaseNowMs}`,
+      args:[request.requestId,previous.owner,previous.generation]});
+    previous=await readExecution(db,request.requestId);
+    if(previous.lease_until>Date.now())fail('REQUEST_PENDING');
+   }
    const changed=await db.raw.execute({sql:`UPDATE phase4_executions SET owner=?,generation=generation+1,lease_until=?,deadline_at=?,updated_at=?,
      abort_outcome=NULL,observed_outcome='IN_PROGRESS' WHERE execution_id=? AND generation=? AND state IN ('ESTABLISHED','WORK_COMMITTED') AND (lease_until<=${databaseNowMs} OR state='WORK_COMMITTED')`,
      args:[owner,leaseUntil,deadlineAt,at,request.requestId,previous.generation]});
@@ -217,13 +227,13 @@ export async function settlePhaseRequest(db,request,claim,result,keys,authority)
  authority.assert();try{await projectPhaseCompletion(db,request,record);}catch{/* authoritative row remains recoverable */}
  authority.assert();return record;
 }
-export async function abortPhaseExecution(db,claim,outcome='FAILED'){
+export async function abortPhaseExecution(db,claim,outcome='FAILED',{resumable=false}={}){
  // Cleanup releases only this generation. It cannot erase committed work or
  // change a finalized row. Never pretend an uncertain COMMIT was rolled back.
  await db.raw.execute({sql:`UPDATE phase4_executions SET lease_until=MIN(lease_until,${databaseNowMs}-1),deadline_at=MIN(deadline_at,${databaseNowMs}-1),updated_at=${databaseNowMs},
-  state=CASE WHEN state='ESTABLISHED' AND NOT EXISTS(SELECT 1 FROM phase4_execution_work_receipts WHERE execution_id=phase4_executions.execution_id) THEN 'ABORTED' ELSE state END,abort_outcome=?
+  state=CASE WHEN ?=0 AND state='ESTABLISHED' AND NOT EXISTS(SELECT 1 FROM phase4_execution_work_receipts WHERE execution_id=phase4_executions.execution_id) THEN 'ABORTED' ELSE state END,abort_outcome=?
   WHERE execution_id=? AND owner=? AND generation=? AND state IN ('ESTABLISHED','WORK_COMMITTED')`,
-  args:[outcome,claim.executionId,claim.owner,claim.generation]});
+  args:[resumable?1:0,outcome,claim.executionId,claim.owner,claim.generation]});
 }
 export async function noteIndeterminateExecution(db,claim){
  await db.raw.execute({sql:`UPDATE phase4_executions SET observed_outcome='COMMIT_INDETERMINATE',updated_at=${databaseNowMs}

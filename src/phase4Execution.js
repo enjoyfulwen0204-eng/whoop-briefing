@@ -21,13 +21,13 @@ export function phaseResponse(record) {
  const {startedAt,updatedAt,...publicRecord}=record;
  const complete=record.settlementState==='FINALIZED_SUCCESS'&&syncAuthorizesDrain(record);
  const ok=record.phase==='SYNC'?complete:record.settlementState==='FINALIZED_SUCCESS'&&['COMPLETE','PARTIAL','NO_WORK','NO_ELIGIBLE_WORK','BUDGET_EXHAUSTED','DISABLED','POLICY_DEFERRED'].includes(record.outcome);
- const status=ok?200:record.outcome==='COMMIT_INDETERMINATE'?503:record.outcome==='TIMEOUT'?504:record.outcome==='CANCELLED'?499:record.outcome==='PARTIAL'?207:424;
+ const status=record.outcome==='COMMIT_INDETERMINATE'?503:record.resumable===true?202:ok?200:record.outcome==='TIMEOUT'?504:record.outcome==='CANCELLED'?499:record.outcome==='PARTIAL'?207:424;
  return {status,body:{ok,phase:record.phase,source:record.source,result:publicRecord,
    ...(record.phase==='SYNC'?{syncComplete:complete,drainAuthorized:complete&&record.executionMode==='SHADOW',handoff:record.handoff}:{}),
    bodyEnergy:'NOT_AUTHORIZED_NOT_PRESENTED'}};
 }
 /** Both CLI jobs and signed HTTP phases share one admitted/fenced composition. */
-export async function runExecutionPhase({request,body=JSON.stringify(request),now=new Date(),environment=process.env,
+export async function runExecutionPhase({request,body=JSON.stringify(request),now,environment=process.env,
  db:providedDb,keys:providedKeys,env:providedEnv,deps={},budgetMs,overallBudgetMs,signal}={}) {
  const phaseStartedAt=Date.now(),started=performance.now();
  if(Number(process.versions.node.split('.')[0])<22)throw new Error('NODE_22_REQUIRED');
@@ -63,6 +63,9 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    if(claim.cached){overall.assert();admissionBudget.assert();
      try{await admissionBudget.run(()=>projectPhaseCompletion(db,request,claim.cached));}catch{}
      overall.assert();admissionBudget.assert();return phaseResponse({...claim.cached,settlementState:claim.row.state});}
+   // Production continuations retain the original phase observation date.
+   // Explicit now is an isolated-fixture clock and is never accepted from HTTP.
+   now ??= new Date(claim.startedAt);
    const continuation=request.phase==='STAGE6_DRAIN'?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys))):null;
    admissionBudget.close();
    budget=createExecutionBudget({budgetMs:limit,signal:overall.signal});
@@ -77,6 +80,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
          const summary=await (deps.runBriefing??runBriefing)({now,triggerSource:request.triggerSource,deps:{...deps,db,env,
            runtimeAdmission:admission,executionBudget:budget,keepConnectionOpen:true,phase4Stage6:undefined,betaPresentation:undefined}});
          budget.assert();
+         if(summary.coordinationPending || executionContext.coordinationPending)throw Object.assign(Error('SYNC_SCOPE_BUSY'),{code:'SYNC_SCOPE_BUSY'});
          const outcome=summary.syncComplete===true?summary.syncOutcome??'COMPLETE_SUCCESS':summary.syncOutcome??'PARTIAL';
          return {outcome,users:summary.users??0,failed:summary.failed??0,durationMs:performance.now()-started};
        }
@@ -109,6 +113,8 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    let record;
    try {
      originalAuthority.assert();
+     if(['TIMEOUT','CANCELLED'].includes(result.outcome))throw Object.assign(Error(result.outcome),{code:result.outcome==='TIMEOUT'?'SYNC_TIMEOUT':'SYNC_CANCELLED'});
+     if(executionContext.coordinationPending)throw Object.assign(Error('SYNC_SCOPE_BUSY'),{code:'SYNC_SCOPE_BUSY'});
      withDurableExecution(executionContext,()=>requireSettledOperation());
      if(result.outcome==='COMMIT_INDETERMINATE')throw Object.assign(Error('COMMIT_INDETERMINATE'),{code:'COMMIT_INDETERMINATE'});
      const settlement=createExecutionBudget({budgetMs:Math.min(PHASE_SETTLEMENT_MS,overall.remainingMs()),signal:budget.signal});
@@ -119,14 +125,15 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
      let authorityError=error;try{originalAuthority.assert();}catch(expired){authorityError=expired;}
      const outcome=error?.code==='COMMIT_INDETERMINATE'||executionContext.pending.size||executionContext.indeterminate?'COMMIT_INDETERMINATE':
        authorityError?.code==='SYNC_CANCELLED'?'CANCELLED':authorityError?.code==='SYNC_TIMEOUT'?'TIMEOUT':'FAILED';
-     record={phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,...result,outcome,
+     const resumable = executionContext.coordinationPending || ['TIMEOUT','CANCELLED','COMMIT_INDETERMINATE'].includes(outcome);
+     record={resumable, ...(resumable?{continuationState:outcome==='COMMIT_INDETERMINATE'?'COMMIT_UNCERTAIN':'INCOMPLETE_RESUMABLE',retryAfterMs:15_000}:{}),phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,...result,outcome,
        ...(request.phase==='STAGE6_DRAIN'?{completion:'PARTIAL',stopReason:'FAILURE'}:{})};
      // Best effort non-success cleanup, never finalizes uncertain work. A
      // submitted COMMIT is reconciled on the next fresh admitted invocation.
      const cleanupMs=Math.min(PHASE_SETTLEMENT_MS,overall.remainingMs());
      if(cleanupMs>0){
        const cleanup=createExecutionBudget({budgetMs:cleanupMs});
-       try{await cleanup.run(()=>outcome==='COMMIT_INDETERMINATE'?noteIndeterminateExecution(db,claim):abortPhaseExecution(db,claim,outcome));}
+       try{await cleanup.run(()=>outcome==='COMMIT_INDETERMINATE'?noteIndeterminateExecution(db,claim):abortPhaseExecution(db,claim,outcome,{resumable}));}
        catch{/* generation/receipt still reconciles without a projection */}finally{cleanup.close();}
      }
    }
@@ -139,9 +146,9 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
      outcome:record.outcome,duration_ms:record.durationMs,jobs_considered:record.jobsConsidered,items_attempted:record.itemsAttempted,
      jobs_completed:record.jobsCompleted,jobs_failed:record.jobsFailed,items_processed:record.itemsProcessed,work_receipts:record.workReceipts,remaining_jobs:record.remainingJobs,stop_reason:record.stopReason});
    log.info('phase4_run_complete',{source:request.triggerSource,release_sha:releaseSha,phase:request.phase,outcome:record.outcome,duration_ms:performance.now()-started});
-   if(!['TIMEOUT','CANCELLED','FAILED','COMMIT_INDETERMINATE'].includes(record.outcome))originalAuthority.assert();
+   if(!record.resumable&&!['TIMEOUT','CANCELLED','FAILED','COMMIT_INDETERMINATE'].includes(record.outcome))originalAuthority.assert();
    const response=phaseResponse(record);
-   if(!['TIMEOUT','CANCELLED','FAILED','COMMIT_INDETERMINATE'].includes(record.outcome)){originalAuthority.assert();JSON.stringify(response.body);originalAuthority.assert();}
+   if(!record.resumable&&!['TIMEOUT','CANCELLED','FAILED','COMMIT_INDETERMINATE'].includes(record.outcome)){originalAuthority.assert();JSON.stringify(response.body);originalAuthority.assert();}
    return response;
  } catch(error){
    if(error?.code==='COMMIT_INDETERMINATE')return phaseResponse({phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,outcome:'COMMIT_INDETERMINATE'});

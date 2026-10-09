@@ -773,6 +773,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
         else summary.ok += 1;
       } else {
         summary.failed += 1;
+        if (r.error?.code === 'SYNC_SCOPE_BUSY') summary.coordinationPending = true;
         summary.errors.push({ userId: uid, error: describeError(r.error) });
         summary.perUser.push({ userId: uid, fatal: describeError(r.error) });
         log.error('user_run_fatal', { user_id: uid, error: describeError(r.error) });

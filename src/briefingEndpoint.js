@@ -69,7 +69,7 @@ export function createBriefingEndpoint({
       try {
         const response=await runPhase({request:parsed,body});
         log.info('briefing_trigger_finished',{source:'cloudflare',phase:parsed.phase,duration_ms:Date.now()-started});
-        if(response.status===503||response.body?.result?.outcome==='COMMIT_INDETERMINATE')recent.delete(requestId);
+        if(response.body?.result?.resumable===true||response.status===503||response.body?.result?.outcome==='COMMIT_INDETERMINATE')recent.delete(requestId);
         return response;
       } catch(error) {
         recent.delete(requestId);

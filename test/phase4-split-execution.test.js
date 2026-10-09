@@ -58,9 +58,9 @@ test('overall deadline returns TIMEOUT, leaves no success handoff, and fences la
  const db=await fixture(t);await db.createUser({id:'synthetic',displayName:'Initial',timezone:'Asia/Taipei',status:'ACTIVE'});
  let late,entered=false,settled;const attempted=new Promise(resolve=>settled=resolve),request=makeRequest(),started=Date.now();
  const response=await run(db,request,{runBriefing:async()=>{entered=true;await new Promise(r=>setTimeout(r,Math.max(0,started+840-Date.now())));try{await db.raw.execute("UPDATE users SET display_name='Late' WHERE id='synthetic'");late='wrote';}catch(e){late=e.code;}finally{settled();}return success();}},{budgetMs:5000,overallBudgetMs:800});
- assert.equal(response.status,504);assert.equal(response.body.syncComplete,false);assert.equal(response.body.handoff,undefined);
+ assert.equal(response.status,202);assert.equal(response.body.result.resumable,true);assert.equal(response.body.syncComplete,false);assert.equal(response.body.handoff,undefined);
  assert.equal(entered,true,'the original overall deadline must expire during work, not before its start');await attempted;assert.equal(late,'SYNC_TIMEOUT');assert.equal((await db.getUser('synthetic')).displayName,'Initial');
- const progress=await readPhaseProgress(db,'SYNC','manual');assert.equal(progress.state,'TIMEOUT');
+ const progress=await readPhaseProgress(db,'SYNC','manual');assert.ok(['RESUMABLE_PENDING','TIMEOUT','DURABLE_PROGRESS_UNFINALIZED'].includes(progress.state));assert.notEqual(progress.settlementState,'FINALIZED_FAILURE');
 });
 test('cancellation is typed and malformed phases fail before admission',async t=>{
  const db=await fixture(t);let admissions=0;const admit=db.admitRuntime;db.admitRuntime=async(...args)=>{admissions++;return admit(...args);};

@@ -56,7 +56,7 @@ for(const runtime of ['off','on'])test(`scheduled SYNC morning brief survives ru
  }else{assert.equal(result.body.drainAuthorized,false);assert.equal(drains,0);}
  for(const [code,outcome,status] of [['WHOOP_MAINTENANCE_DEADLINE','TIMEOUT',504],['SYNC_CANCELLED','CANCELLED',499]]) {
   deps.makeWhoop=()=>({getAccessToken:async()=>{throw Object.assign(new Error('synthetic transport interruption'),{code});}});
-  const failed=await run(request());assert.equal(failed.status,status);assert.equal(failed.body.result.outcome,outcome);
+  const failed=await run(request());assert.equal(failed.status,202);assert.equal(failed.body.result.resumable,true);assert.equal(failed.body.result.outcome,outcome);
   assert.equal(failed.body.drainAuthorized,false);assert.equal(failed.body.handoff,undefined);
  }
  assert.equal(authorizationNotices,0,'a token transport deadline/cancellation must not emit an authorization-broken notice');

@@ -2,6 +2,7 @@ import {executeCoordination} from './phase4Coordination.js';
 /** Existing v31 resource_locks is the durable atomic ownership authority.
  * A random owner is also the generation: takeover always replaces it. No DB
  * transaction is held while waiting on WHOOP. */
+import { currentDurableExecution } from './phase4ExecutionContext.js';
 import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { requireUserId } from './userContext.js';
@@ -21,7 +22,13 @@ export async function withSyncOwnership({ db, userId, budget, leaseMs }, work) {
   const owner = randomUUID(), name = `phase4:sync:${uid}`, at = new Date().toISOString(), expiresAt = new Date(Date.now()+ttl).toISOString();
   budget.assert();
   const claim = await executeCoordination(db.raw,'claim',[name,owner,at,expiresAt])
-  if (claim.rowsAffected !== 1) { if (ownBudget) budget.close(); throw new SyncOwnershipError('SYNC_SCOPE_BUSY'); }
+  if (claim.rowsAffected !== 1) {
+    if (ownBudget) budget.close();
+    const error = new SyncOwnershipError('SYNC_SCOPE_BUSY');
+    const execution = currentDurableExecution();
+    if (execution) execution.coordinationPending = true;
+    throw error;
+  }
   const check = async client => {
     budget.assert();
     if (client && !(await client.execute({sql:'SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?',

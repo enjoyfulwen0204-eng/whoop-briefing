@@ -3,6 +3,8 @@ import { fail } from './phase4Core.js';
 import { randomUUID } from 'node:crypto';
 import { createPhase4ContextRegistry } from './phase4Cache.js';
 import { AccountInactiveError } from './accountLifecycle.js';
+const initializationMarkers=new WeakSet();
+export const privacyInitializationRequired=value=>initializationMarkers.has(value);
 
 /** Compatibility fence for pre-Phase-4 server APIs. This never grants LIVE
  * computation authority and never starts an analytics/delivery worker. */
@@ -26,7 +28,7 @@ export function legacyPrivacyFence(client,keys) {
       await client.execute({sql:`INSERT INTO phase4_computation_state(user_id,execution_mode,source_generation_seen,algorithm_set_version,created_at,updated_at)
         SELECT user_id,'SHADOW',source_generation,'phase4-foundation-v1',?,? FROM phase4_user_state WHERE user_id=? ON CONFLICT DO NOTHING`,args:[at,at,uid]});
   }
-  async function capture(userId) {
+  async function capture(userId,{initialize:allowInitialize=true}={}) {
     if(!await available())return null;
     const uid=requireUserId(userId,'privacyFence');
     const observe=async()=>(await client.execute({sql:`SELECT u.id,u.status,u.lifecycle_generation,
@@ -39,7 +41,10 @@ export function legacyPrivacyFence(client,keys) {
     let user=await observe();
     if(!user)fail('PHASE4_TENANT_NOT_FOUND');
     if(user.status!=='ACTIVE')throw new AccountInactiveError(uid);
-    if(!user.initialized_user_id||!user.initialized_computation_user_id){await initialize(uid);user=await observe();}
+    if(!user.initialized_user_id||!user.initialized_computation_user_id){
+      if(!allowInitialize){const marker=Object.freeze({});initializationMarkers.add(marker);return marker;}
+      await initialize(uid);user=await observe();
+    }
     if(!user?.initialized_user_id||!user.initialized_computation_user_id||user.pending_purge_count!==0)fail('PHASE4_PURGE_FENCED');
     if(user.status!=='ACTIVE')throw new AccountInactiveError(uid);
     return Object.freeze({userId:uid,purgeGeneration:user.purge_generation,lifecycleGeneration:user.lifecycle_generation,authGeneration:user.auth_generation});

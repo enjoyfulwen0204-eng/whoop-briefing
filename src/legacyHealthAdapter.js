@@ -6,6 +6,7 @@ import { addPrivacyLink } from './phase4V22Backfill.js';
 import { V22_LEGACY_R_TABLES } from './phase4V22Schema.js';
 import { fail } from './phase4Core.js';
 import { isAccountInactiveError, isLifecycleFenced, LifecycleContextError } from './accountLifecycle.js';
+import {privacyInitializationRequired} from './legacyPrivacyFence.js';
 
 const DIAGNOSTIC_FIELDS={whoop_sync_state:['last_error'],whoop_webhook_events:['last_error_detail'],
   whoop_reconciliation_state:['last_error_detail'],whoop_reconciliation_runs:['error_detail'],
@@ -14,6 +15,8 @@ const DIAGNOSTIC_FIELDS={whoop_sync_state:['last_error'],whoop_webhook_events:['
 const SCOPE=new Set(['analytics_invalidation','analytics_work_state']);
 const DIAGNOSTIC_CODES="'scope_missing','ACCOUNT_INACTIVE','AUTH_REQUIRED','OPERATION_FAILED','ECONNRESET','ECONNREFUSED','ETIMEDOUT','ENOTFOUND','SQLITE_BUSY','ABORT_ERR'";
 const sqlOf=statement=>typeof statement==='string'?statement:statement.sql;
+const CANONICAL_BATCHES=Object.freeze({upsertSleeps:'whoop_sleeps',upsertRecoveries:'whoop_recoveries',
+  upsertCycles:'whoop_cycles',upsertWorkouts:'whoop_workouts'});
 
 /** Scoped compatibility SQL facade. Read CTEs shadow only known health tables
  * within one statement, so joins/subqueries/aggregates share the same positive
@@ -79,17 +82,28 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
     if(property==='execute')return execute;
     if(property==='batch')return async statements=>{
       const call=calls.getStore();
-      // This existing store operation already encloses the entire metric set
-      // in one transaction. Preserve its redaction check and every original
-      // classification/link statement, submitting each set as one HTTP batch.
-      if(call?.enabled&&call.name==='saveHealthspanMetrics'&&statements.length
-        &&statements.every(s=>/^\s*INSERT\s+INTO\s+healthspan_metrics\b/i.test(sqlOf(s)))) {
-        const redacted=()=>client.execute({sql:"SELECT * FROM healthspan_metrics WHERE user_id=? AND content_state='REDACTED'",args:[call.userId]});
+      const canonical=call?.enabled?CANONICAL_BATCHES[call.name]:null;
+      if(canonical&&statements.length&&statements.every(s=>new RegExp(`^\\s*INSERT\\s+INTO\\s+${canonical}\\s*\\(\\s*user_id\\s*,`,'i').test(sqlOf(s)))){
+        if(statements.some(s=>s.args?.[0]!==call.userId))fail('PHASE4_BATCH_TENANT_MISMATCH');
+        // Canonical source tables have no derived-artifact R columns. Their
+        // original ordered SQL already supplies version/tombstone semantics;
+        // invalidation and fresh privacy/ownership checks share the enclosing
+        // transaction. Restore the store's bounded (<=100) HTTP batch.
+        return client.batch(statements);
+      }
+      // These fixed store batches already share one processing transaction.
+      // Submit the original ordered upserts together, then classify/link each
+      // new artifact in that same transaction. No health read or provider wait
+      // occurs between individual upserts; privacy checks still fence COMMIT.
+      const table=call?.enabled&&call.name==='saveHealthspanMetrics'?'healthspan_metrics':null;
+      if(table&&statements.length&&statements.every(s=>new RegExp(`^\\s*INSERT\\s+INTO\\s+${table}\\s*\\(\\s*user_id\\s*,`,'i').test(sqlOf(s)))) {
+        if(statements.some(s=>s.args?.[0]!==call.userId))fail('PHASE4_BATCH_TENANT_MISMATCH');
+        const redacted=()=>client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND content_state='REDACTED'`,args:[call.userId]});
         const before=(await redacted()).rows;
         const results=await client.batch(statements);
         if(before.length&&JSON.stringify(before)!==JSON.stringify((await redacted()).rows))fail('CONTENT_REDACTED');
         const metadata=[];
-        await classify('healthspan_metrics',call,{execute:async statement=>{metadata.push(statement);}});
+        await classify(table,call,{execute:async statement=>{metadata.push(statement);}});
         if(metadata.length)await client.batch(metadata);
         return results;
       }
@@ -105,10 +119,12 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
       // lifecycle authority is still an error, including for inactive users.
       if(name==='saveCapabilities' && !isLifecycleFenced(args[2]?.expectedLifecycleGeneration))
         throw new LifecycleContextError('saveCapabilities');
-      await processing.transaction(()=>privacy.initialize(uid),workStepOptions('tenant.privacy-initialize',[uid]));
-      return processing.transaction(async()=>{
+      // The fresh capture already observes both required state rows. Only a
+      // missing row needs a separate initializer transaction. Never cache the
+      // observation across calls, and never retry a business callback.
+      const invoke=()=>processing.transaction(async()=>{
         let fence;
-        try {fence=await privacy.capture(uid);} catch(error) {
+        try {fence=await privacy.capture(uid,{initialize:false});} catch(error) {
           if(!isAccountInactiveError(error))throw error;
           if(name==='saveCapabilities')return 0;
           if(name==='getCapabilities')return {};
@@ -117,6 +133,7 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
           if(/Analytics/.test(name))throw Object.assign(new Error('analytics_account_inactive'),{code:error.code});
           throw error;
         }
+        if(privacyInitializationRequired(fence))return fence;
         const call={enabled:true,name,userId:uid,fence};
         if(name==='claimProactiveEvent') {
           const barrier=keys.lookup(['legacy-proactive-barrier-v1',uid,args[1]?.idempotencyKey]);
@@ -138,6 +155,12 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
         const result=await calls.run(call,()=>fn(...args));
         await privacy.assert(fence);return result;
       },{readOnly:true});
+      const observed=await invoke();
+      if(privacyInitializationRequired(observed)){
+        await processing.transaction(()=>privacy.initialize(uid),workStepOptions('tenant.privacy-initialize',[uid]));
+        return invoke();
+      }
+      return observed;
     }]));
   }
   return {client:scopedClient,wrap};

@@ -1,3 +1,4 @@
+import {captureWhoopInput,assertWhoopInput} from './whoopInputFence.js';
 /**
  * 對帳 + 增量同步引擎（V1.2 Phase 2）。
  *
@@ -109,6 +110,7 @@ export const ERROR_CLASS = Object.freeze({
  * 「暫時性故障被當終局 → 永久漏資料」或「終局被當可重試 → 重試風暴」。
  */
 export function classifyReconcileError(err) {
+  if(err?.code==='WHOOP_INPUT_FENCED')return {class:ERROR_CLASS.FENCED,retryable:false};
   if (err?.message === 'reconcile_ownership_lost') return { class: ERROR_CLASS.FENCED, retryable: false };
   if (err instanceof WhoopAuthError) return { class: ERROR_CLASS.AUTH, retryable: true };
   if (err instanceof WhoopApiError) {
@@ -252,7 +254,7 @@ export function validateCollectionPage(page) {
  * @param {object} whoop createWhoopClient 的結果（token 租約 / CAS 圍欄都在裡面）
  */
 export function createReconciler({
-  db, whoop, userId, timezone, now = () => new Date(), ownerId = null,
+  db, whoop, userId, timezone, now = () => new Date(), windowNow = null, ownerId = null,
   maxPagesPerRun = WHOOP_RECONCILE.MAX_PAGES_PER_RUN,
   leaseMs = WHOOP_RECONCILE.LEASE_MS,
   deep = WHOOP_RECONCILE.DEEP,
@@ -272,6 +274,8 @@ export function createReconciler({
   };
   const owner = ownerId ?? `reconcile:${uid}:${process.pid}:${Math.random().toString(36).slice(2, 10)}`;
   const at = () => new Date(now());
+  const windowAt=()=>windowNow===null?at():new Date(typeof windowNow==='function'?windowNow():windowNow);
+  const inputOptions={db,userId:uid,expectedLifecycleGeneration:lifecycleFence,timezone};
 
   /**
    * 抓一個窗，**可續傳**，有頁數預算。
@@ -437,11 +441,11 @@ export function createReconciler({
     if (explicitWindow) {
       window = { from: new Date(explicitWindow.from), to: new Date(explicitWindow.to), token: null, resumed: false, pending: false };
     } else if (spec.pointInTime) {
-      window = { from: null, to: at(), token: null, resumed: false, pending: false };
+      window = { from: null, to: windowAt(), token: null, resumed: false, pending: false };
     } else if (isDeep) {
-      window = nextDeepSlice(state, { now: at(), deep });
+      window = nextDeepSlice(state, { now: windowAt(), deep });
     } else {
-      window = nextWindow(resource, state, { now: at() });
+      window = nextWindow(resource, state, { now: windowAt() });
     }
     const mode = spec.pointInTime ? 'point_in_time' : explicitWindow ? 'explicit_window' : isDeep ? 'deep_slice' : 'incremental';
     const runId = await db.openReconciliationRun({
@@ -454,6 +458,7 @@ export function createReconciler({
     };
 
     try {
+      const inputProof=await captureWhoopInput(inputOptions);
       // ---- body measurement：單一物件、沒有時間戳、沿用日期快照 ----------
       if (spec.pointInTime) {
         const bm = await whoop.bodyMeasurement();
@@ -461,12 +466,13 @@ export function createReconciler({
         counters.pages = 1;
         counters.fetched = 1;
         counters.written = await db.mutateForReconciliation(
-          { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to] },
+          { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to,inputProof] },
           async () => {
+            await assertWhoopInput(inputOptions,inputProof);
             // ★ R2 §16：canonical 變更要在**同一個交易裡**證明啟用脈絡。
             // 租約所有權只證明「沒有別的對帳在跑」，不證明這個帳號還該被處理。
             await assertLifecycle();
-            return db.upsertBodyMeasurement(uid, bm, { now: at() });
+            return db.transaction(()=>db.upsertBodyMeasurement(uid,bm,{now:at()}),{beforeCommit:()=>assertWhoopInput(inputOptions,inputProof)});
           },
         );
         const settled = await db.settleReconciliation({
@@ -500,10 +506,11 @@ export function createReconciler({
       // blocked = 抓到但沒寫進去的（新鮮度或墓碑擋下）。
       counters.written = fetched.records.length
         ? await db.mutateForReconciliation(
-          { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to] },
+          { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to,window.token??null,fetched.nextToken,fetched.complete,inputProof] },
           async () => {
+            await assertWhoopInput(inputOptions,inputProof);
             await assertLifecycle();
-            return persist(resource, fetched.records);
+            return db.transaction(()=>persist(resource,fetched.records),{beforeCommit:()=>assertWhoopInput(inputOptions,inputProof)});
           },
         )
         : 0;

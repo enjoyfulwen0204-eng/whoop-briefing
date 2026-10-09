@@ -12,7 +12,7 @@ const request=(phase='SYNC',extra={})=>({requestId:randomUUID(),releaseSha:runni
 const success=()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS',users:0,failed:0});
 async function fixture(t){const dir=await mkdtemp(join(tmpdir(),'p4-settlement-')),url=`file:${join(dir,'isolated.db')}`,seed=createOwnedDb({url});
  await seed.migrate({targetVersion:32});await seed.close();const transport=hranaTransport(url),db=privateDb({url:'https://isolated.invalid',fetch:transport.fetch,phase4Keys:fixtureKeys});
- t.after(async()=>{db.close();transport.close();await rm(dir,{recursive:true,force:true});});db.isolatedFixtureUrl=url;return db;}
+ t.after(async()=>{db.close();transport.close();await rm(dir,{recursive:true,force:true});});db.isolatedFixtureUrl=url;db.isolatedTransport=transport;return db;}
 const run=(db,value,extra={})=>runExecutionPhase({db,request:value,environment,env,keys:fixtureKeys,deps:{runBriefing:success},...extra});
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 const denied=response=>{assert.equal(response.body.ok,false);assert.notEqual(response.body.syncComplete,true);assert.notEqual(response.body.drainAuthorized,true);assert.equal(response.body.handoff,undefined);};
@@ -67,10 +67,13 @@ test('R2 authority: nested settlement retains original authority through the out
  assert.equal(stored.state,'ESTABLISHED');}finally{authority.close();}
 });
 test('R2 authority: helper lease expiry during settlement cannot commit heartbeat or handoff',async t=>{
- const db=await fixture(t),value=request(),claim=await claimPhaseRequest(db,value,JSON.stringify(value),{leaseMs:80}),execute=db.raw.execute;
+ const db=await fixture(t),value=request(),claim=await claimPhaseRequest(db,value,JSON.stringify(value));
  await recordPhaseEvent(db,{phase:'SYNC',releaseSha:value.releaseSha,source:'manual',event:'start',outcome:'PENDING',identity:claim.identity});
- let delayed=false;db.raw.execute=async stmt=>{if(!delayed&&String(stmt?.sql).includes("SET state='WORK_COMMITTED'")&&JSON.stringify(stmt?.args).includes('NO_NEW_DATA_SUCCESS')){
- delayed=true;await pause(120);}return execute(stmt);};const authority=createExecutionBudget({budgetMs:1000});
+ // Expire at the submitted COMMIT boundary, rather than allowing an 80ms
+ // setup lease to expire before the intended attack under CPU load.
+ let delayed=false;db.isolatedTransport.arm({onlyWorkResult:true,before:async client=>{
+  delayed=true;await client.execute({sql:'UPDATE phase4_executions SET lease_until=?,deadline_at=? WHERE execution_id=?',args:[Date.now()-1,Date.now()-1,value.requestId]});
+ }});const authority=createExecutionBudget({budgetMs:1000});
  try{await assert.rejects(()=>settlePhaseRequest(db,value,claim,{outcome:'NO_NEW_DATA_SUCCESS'},fixtureKeys,authority),/REQUEST_OWNER_FENCED/);
  assert.equal(delayed,true);assert.equal((await readPhaseProgress(db,'SYNC','manual')).complete,null);}finally{authority.close();}
 });

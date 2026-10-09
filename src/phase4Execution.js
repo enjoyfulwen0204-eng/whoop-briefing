@@ -7,7 +7,7 @@ import { runPhase4Stage6 } from './shadowDrainScheduler.js';
 import { deliverPublicBetaSummary } from './publicBetaSummaryDelivery.js';
 import { createExecutionBudget, SYNC_BUDGET_MS, withExecutionBudget } from './executionBudget.js';
 import { syncAuthorizesDrain } from './syncResult.js';
-import { validatePhaseRequest,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit } from './phase4ExecutionStore.js';
+import { validatePhaseRequest,validatePhaseBody,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit,EXECUTION_WORK_MAX_AGE_MS,reconcileExecution,requestIdentity } from './phase4ExecutionStore.js';
 import { log } from './logger.js';
 import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Release.js';
 import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
@@ -21,9 +21,9 @@ export function phaseResponse(record) {
  const {startedAt,updatedAt,...publicRecord}=record;
  const complete=record.settlementState==='FINALIZED_SUCCESS'&&syncAuthorizesDrain(record);
  const ok=record.phase==='SYNC'?complete:record.settlementState==='FINALIZED_SUCCESS'&&['COMPLETE','PARTIAL','NO_WORK','NO_ELIGIBLE_WORK','BUDGET_EXHAUSTED','DISABLED','POLICY_DEFERRED'].includes(record.outcome);
- const status=record.outcome==='COMMIT_INDETERMINATE'?503:record.resumable===true?202:ok?200:record.outcome==='TIMEOUT'?504:record.outcome==='CANCELLED'?499:record.outcome==='PARTIAL'?207:424;
+ const status=record.outcome==='COMMIT_INDETERMINATE'?503:record.continuationState==='STALE_REQUEST'?410:record.resumable===true?202:ok?200:record.outcome==='TIMEOUT'?504:record.outcome==='CANCELLED'?499:record.outcome==='PARTIAL'?207:424;
  return {status,body:{ok,phase:record.phase,source:record.source,result:publicRecord,
-   ...(record.phase==='SYNC'?{syncComplete:complete,drainAuthorized:complete&&record.executionMode==='SHADOW',handoff:record.handoff}:{}),
+   ...(record.phase==='SYNC'?{syncComplete:complete,drainAuthorized:complete&&record.executionMode==='SHADOW'&&typeof record.handoff==='string',handoff:record.handoff}:{}),
    bodyEnergy:'NOT_AUTHORIZED_NOT_PRESENTED'}};
 }
 /** Both CLI jobs and signed HTTP phases share one admitted/fenced composition. */
@@ -32,6 +32,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
  const phaseStartedAt=Date.now(),started=performance.now();
  if(Number(process.versions.node.split('.')[0])<22)throw new Error('NODE_22_REQUIRED');
  validatePhaseRequest(request);
+ validatePhaseBody(request,body);
  const profile=executionProfile(environment);
  if(request.legacyBodyDigest&&profile!=='RC2_V32_ROLLBACK')throw Object.assign(Error('EXECUTION_REQUEST_INVALID'),{code:'EXECUTION_REQUEST_INVALID'});
  if(isGitHubContext(environment)&&request.triggerSource!==cliTriggerSource(environment))throw Object.assign(new Error('GITHUB_SOURCE_UNSUPPORTED'),{code:'GITHUB_SOURCE_UNSUPPORTED'});
@@ -59,16 +60,22 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    checkAdmission();
    stopFollowing=followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
    const admissionFence=()=>{checkAdmission();overall.assert();admissionBudget.assert();};
-   const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt})));
+   const replay=request.phase==='STAGE6_DRAIN'?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>reconcileExecution(db,request,requestIdentity(body)))):null;
+   const finalizedReplay=['FINALIZED_SUCCESS','FINALIZED_FAILURE'].includes(replay?.state);
+   const continuation=request.phase==='STAGE6_DRAIN'&&!finalizedReplay?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys))):null;
+   const reconciliationOnly=Boolean(continuation?.reconciliationResult);
+   const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly})));
    if(claim.cached){overall.assert();admissionBudget.assert();
      try{await admissionBudget.run(()=>projectPhaseCompletion(db,request,claim.cached));}catch{}
      overall.assert();admissionBudget.assert();return phaseResponse({...claim.cached,settlementState:claim.row.state});}
    // Production continuations retain the original phase observation date.
    // Explicit now is an isolated-fixture clock and is never accepted from HTTP.
    now ??= new Date(claim.startedAt);
-   const continuation=request.phase==='STAGE6_DRAIN'?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys))):null;
    admissionBudget.close();
-   budget=createExecutionBudget({budgetMs:limit,signal:overall.signal});
+   overall.assert();
+   const workLimit=claim.workCommitted||reconciliationOnly?limit:Math.max(0,Math.min(limit,claim.workDeadlineAt-Date.now()));
+   if(workLimit<=0)throw Object.assign(Error('EXECUTION_STALE_REQUEST'),{code:'EXECUTION_STALE_REQUEST'});
+   budget=createExecutionBudget({budgetMs:workLimit,signal:overall.signal});
    const fence=async()=>{checkAdmission();overall.assert();budget.assert();};
    if(!claim.workCommitted)await db.withRuntimeFence(fence,()=>budget.run(()=>recordPhaseEvent(db,{phase:request.phase,releaseSha,source:request.triggerSource,event:'start',outcome:'PENDING',identity:claim.identity,executionSeq:claim.executionSeq})));
    const executionContext={claim,keys,pending:new Set(),indeterminate:false,authority:{assert:()=>{checkAdmission();overall.assert();budget.assert();}}};
@@ -126,15 +133,16 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
      const outcome=error?.code==='COMMIT_INDETERMINATE'||executionContext.pending.size||executionContext.indeterminate?'COMMIT_INDETERMINATE':
        authorityError?.code==='SYNC_CANCELLED'?'CANCELLED':authorityError?.code==='SYNC_TIMEOUT'?'TIMEOUT':'FAILED';
      const workCommitted = observedPhaseWorkCommit(claim);
-     const resumable = workCommitted || executionContext.coordinationPending || ['TIMEOUT','CANCELLED','COMMIT_INDETERMINATE'].includes(outcome);
-     record={resumable, ...(resumable?{continuationState:workCommitted?'WORK_COMMITTED_UNFINALIZED':outcome==='COMMIT_INDETERMINATE'?'COMMIT_UNCERTAIN':'INCOMPLETE_RESUMABLE',retryAfterMs:15_000}:{}),phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,...result,outcome,
+     const staleRequest=!workCommitted&&outcome!=='COMMIT_INDETERMINATE'&&Date.now()-claim.startedAt>=EXECUTION_WORK_MAX_AGE_MS;
+     const resumable = !staleRequest&&(workCommitted || executionContext.coordinationPending || ['TIMEOUT','CANCELLED','COMMIT_INDETERMINATE'].includes(outcome));
+     record={resumable, ...(staleRequest?{continuationState:'STALE_REQUEST'}:resumable?{continuationState:workCommitted?'WORK_COMMITTED_UNFINALIZED':outcome==='COMMIT_INDETERMINATE'?'COMMIT_UNCERTAIN':'INCOMPLETE_RESUMABLE',retryAfterMs:15_000}:{}),phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,...result,outcome,
        ...(request.phase==='STAGE6_DRAIN'?{completion:'PARTIAL',stopReason:'FAILURE'}:{})};
      // Best effort non-success cleanup, never finalizes uncertain work. A
      // submitted COMMIT is reconciled on the next fresh admitted invocation.
      const cleanupMs=Math.min(PHASE_SETTLEMENT_MS,overall.remainingMs());
      if(cleanupMs>0){
        const cleanup=createExecutionBudget({budgetMs:cleanupMs});
-       try{await cleanup.run(()=>outcome==='COMMIT_INDETERMINATE'?noteIndeterminateExecution(db,claim):abortPhaseExecution(db,claim,outcome,{resumable}));}
+       try{await cleanup.run(()=>outcome==='COMMIT_INDETERMINATE'?noteIndeterminateExecution(db,claim):abortPhaseExecution(db,claim,outcome,{resumable:resumable||staleRequest}));}
        catch{/* generation/receipt still reconciles without a projection */}finally{cleanup.close();}
      }
    }

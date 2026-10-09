@@ -6,6 +6,7 @@
  *  - 只有真的準備發報告了，才抓 45 天歷史算 baseline。
  */
 
+import {currentDurableExecution} from './phase4ExecutionContext.js';
 import { BASELINE, REPORT_CLAIM, WAKE } from './config.js';
 import { LATE_POLICY } from './briefingState.js';
 import { requireUserId } from './userContext.js';
@@ -41,7 +42,9 @@ export async function runDaily({
   // 1) 輕量 polling。刻意放在去重之前：health_date 是從最新那筆睡眠算出來的，
   //    沒抓資料就不知道要用哪個 key 去重。「完全沒事做」的快速返回在 index.js。
   const { sleeps: pollSleeps, recoveries: pollRecoveries } = await source.poll();
-  const wake = detectWake({
+  const liveNow=()=>new Date(currentDurableExecution()?.presentationClock?.()??now);
+  now=liveNow();
+  let wake = detectWake({
     observations: buildObservations({
       sleeps: pollSleeps, recoveries: pollRecoveries, timezone,
     }),
@@ -55,9 +58,9 @@ export async function runDaily({
   //
   // ⚠️ 這些只是 log。真正的耐久狀態需要一張新表（見 README / v8 提案）——
   // 沒有經過核可之前不會寫任何新的 production 狀態。
-  const evaluatedAt = new Date(now).toISOString();
-  const todayLocal = localDate(now, timezone);
-  const observationAgeMinutes = wake.record?.endUtc
+  let evaluatedAt = new Date(now).toISOString();
+  let todayLocal = localDate(now, timezone);
+  let observationAgeMinutes = wake.record?.endUtc
     ? Math.round((new Date(now).getTime() - Date.parse(wake.record.endUtc)) / 60_000)
     : null;
   /** 這個 reason 會不會因為「等一下再跑一次」而改變？ */
@@ -103,6 +106,48 @@ export async function runDaily({
     too_soon: BRIEFING_OUTCOME.TOO_SOON,
   };
 
+  const markMissed=async()=>{
+    const missedHealthDate = wake.healthDate ?? wake.record?.healthDate ?? null;
+    log.warn('daily_discarded_window_expired', {
+      ...base,
+      late_window_hours: LATE_POLICY.LATE_WINDOW_HOURS,
+      hours_since_wake: wake.hoursSinceWake ?? null,
+      terminal: true,
+    });
+    // 已經送出過的那一天不算漏發 —— 那只是一筆過期的舊觀測。
+    const alreadyDelivered = missedHealthDate
+      ? await db.isSent(uid, 'daily', missedHealthDate).catch(() => false)
+      : false;
+    // ★ 冪等靠**耐久狀態**，不靠通知冷卻。
+    // 排程每 10 分鐘跑一次，如果每一輪都重新宣告一次漏發，那就是把一個
+    // 修好的問題換成另一個騷擾來源。已經記成 MISSED 的同一天就直接收工。
+    let alreadyMissed = false;
+    if (missedHealthDate && typeof db.getBriefingEvaluation === 'function') {
+      try {
+        const prev = await db.getBriefingEvaluation(uid, 'daily');
+        alreadyMissed = prev?.outcome === BRIEFING_OUTCOME.MISSED
+          && prev?.targetHealthDate === missedHealthDate;
+      } catch { alreadyMissed = false; }
+    }
+    if (!alreadyDelivered && !alreadyMissed) {
+      await recordEvaluation(BRIEFING_OUTCOME.MISSED, {
+        reason: wake.reason,
+        detail: `age_hours=${wake.hoursSinceWake ?? '?'}`,
+      });
+      // 只通知一次：用 health_date 當訊號名稱，所以同一天不會重複，
+      // 不同天各自可以通知。冷卻取很長，避免任何重播。
+      if (missedHealthDate) {
+        await telegram.notifyError(
+          `daily_missed_${missedHealthDate}`,
+          t(locale, 'error.dailyMissed', { date: formatLocalDate(missedHealthDate, locale) }),
+          { cooldownHours: 24 * 30 },
+        ).catch(() => false);
+      }
+    }
+    return {
+      status: 'missed', reason: wake.reason, retryable: false, healthDate: missedHealthDate,
+    };
+  };
   if (!wake.ready) {
     log.info('daily_not_ready', {
       ...base,
@@ -113,48 +158,7 @@ export async function runDaily({
       retryable,
     });
     // ★ 超過補發時限是**終局**：再跑一百次也不會變。
-    if (wake.reason === 'sleep_too_old') {
-      const missedHealthDate = wake.healthDate ?? wake.record?.healthDate ?? null;
-      log.warn('daily_discarded_window_expired', {
-        ...base,
-        late_window_hours: LATE_POLICY.LATE_WINDOW_HOURS,
-        hours_since_wake: wake.hoursSinceWake ?? null,
-        terminal: true,
-      });
-      // 已經送出過的那一天不算漏發 —— 那只是一筆過期的舊觀測。
-      const alreadyDelivered = missedHealthDate
-        ? await db.isSent(uid, 'daily', missedHealthDate).catch(() => false)
-        : false;
-      // ★ 冪等靠**耐久狀態**，不靠通知冷卻。
-      // 排程每 10 分鐘跑一次，如果每一輪都重新宣告一次漏發，那就是把一個
-      // 修好的問題換成另一個騷擾來源。已經記成 MISSED 的同一天就直接收工。
-      let alreadyMissed = false;
-      if (missedHealthDate && typeof db.getBriefingEvaluation === 'function') {
-        try {
-          const prev = await db.getBriefingEvaluation(uid, 'daily');
-          alreadyMissed = prev?.outcome === BRIEFING_OUTCOME.MISSED
-            && prev?.targetHealthDate === missedHealthDate;
-        } catch { alreadyMissed = false; }
-      }
-      if (!alreadyDelivered && !alreadyMissed) {
-        await recordEvaluation(BRIEFING_OUTCOME.MISSED, {
-          reason: wake.reason,
-          detail: `age_hours=${wake.hoursSinceWake ?? '?'}`,
-        });
-        // 只通知一次：用 health_date 當訊號名稱，所以同一天不會重複，
-        // 不同天各自可以通知。冷卻取很長，避免任何重播。
-        if (missedHealthDate) {
-          await telegram.notifyError(
-            `daily_missed_${missedHealthDate}`,
-            t(locale, 'error.dailyMissed', { date: formatLocalDate(missedHealthDate, locale) }),
-            { cooldownHours: 24 * 30 },
-          ).catch(() => false);
-        }
-      }
-      return {
-        status: 'missed', reason: wake.reason, retryable: false, healthDate: missedHealthDate,
-      };
-    }
+    if(wake.reason==='sleep_too_old')return markMissed();
     await recordEvaluation(
       OUTCOME_FOR_REASON[wake.reason] ?? BRIEFING_OUTCOME.WAITING_FOR_SLEEP,
       { reason: wake.reason },
@@ -277,9 +281,7 @@ export async function runDaily({
     text = renderDaily(briefing, coachText, { displayName: await displayNameFor(db, uid), locale });
     // ★ 補發必須看得出來是補發。標示用的是**這份報告的 health_date**，
     // 不是執行當下的日期 —— 使用者要知道這是哪一天的報告。
-    if (wake.late) {
-      text = t(locale, 'daily.late', { date: formatLocalDate(healthDate, locale) }) + text;
-    }
+
   } catch (err) {
     await releaseClaim();
     throw err;
@@ -293,6 +295,21 @@ export async function runDaily({
   await renewReportClaim({
     db, claimKey, claim, ttlMs: REPORT_CLAIM.RENEW_MS, now, stage: 'pre_send',
   });
+
+  // Provider windows stay fixed; eligibility and late policy use the live
+  // presentation clock after generation and lease renewal.
+  now=liveNow();
+  wake=detectWake({observations:buildObservations({sleeps:pollSleeps,recoveries:pollRecoveries,timezone}),now,timezone});
+  evaluatedAt=now.toISOString();todayLocal=localDate(now,timezone);
+  observationAgeMinutes=wake.record?.endUtc?Math.round((now.getTime()-Date.parse(wake.record.endUtc))/60000):null;
+  Object.assign(base,{evaluated_at:evaluatedAt,local_date:todayLocal,observation_age_minutes:observationAgeMinutes});
+  if(!wake.ready){
+    await releaseClaim();
+    if(wake.reason==='sleep_too_old')return markMissed();
+    await recordEvaluation(OUTCOME_FOR_REASON[wake.reason]??BRIEFING_OUTCOME.WAITING_FOR_SLEEP,{reason:wake.reason});
+    return {status:'not_ready',reason:wake.reason,retryable:wake.reason!=='sleep_too_old'};
+  }
+  if(wake.late)text=t(locale,'daily.late',{date:formatLocalDate(healthDate,locale)})+text;
 
   const delivery = await deliverReport({
     db, claimKey, claim, telegram, text, now: () => now,

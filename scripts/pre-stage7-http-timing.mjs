@@ -39,7 +39,7 @@ const environment={PHASE4_BETA_SHADOW_RUNTIME:process.env.PRE_STAGE7_TIMING_SHAD
 const results=[];
 const scope=new AsyncLocalStorage();
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
-async function scenario({name,users=3,latency=10,cold=false,partial=false,tenantDelay=0,resourceDelay=0,source='cloudflare',replay=true}){
+async function scenario({name,users=3,latency=10,jitter=0,cold=false,partial=false,tenantDelay=0,resourceDelay=0,source='cloudflare',replay=true}){
  const dir=await mkdtemp('/private/tmp/rc4-timing-'),url=`file:${join(dir,'fixture.db')}`,seed=createOwnedDb({url});
  let db,transport;
  try{
@@ -71,7 +71,7 @@ async function scenario({name,users=3,latency=10,cold=false,partial=false,tenant
    calls++;const body=await request.clone().json();const sql=[];
    const visit=v=>{if(!v||typeof v!=='object')return;if(typeof v.sql==='string')sql.push(v.sql);for(const x of Object.values(v))if(x&&typeof x==='object')visit(x);};visit(body);
    const phase=scope.getStore()??'coordination';const start=performance.now();
-   if(latency)await wait(latency);
+   if(latency||jitter)await wait(latency+(jitter?(calls%5)*jitter:0));
    try{return await transport.fetch(request);}finally{const ms=performance.now()-start;add('http:'+phase,ms);
     if(sql.some(s=>/pending_purge_count|initialized_user_id|initialized_computation_user_id|EXISTS\(SELECT 1 FROM phase4_user_state/.test(s)))add('privacy_observations',ms);
     if(sql.some(s=>/WORK_COMMITTED|FINALIZED_SUCCESS|FINALIZED_FAILURE/.test(s)&&/UPDATE phase4_executions/.test(s)))add('settlement_sql',ms);
@@ -110,7 +110,7 @@ async function scenario({name,users=3,latency=10,cold=false,partial=false,tenant
   };
   let request={releaseSha:runningReleaseSha(),requestId:randomUUID(),phase:'SYNC',triggerSource:source,executionMode:environment.PHASE4_BETA_SHADOW_RUNTIME==='on'?'SHADOW':'OFF',configProof:configurationProof(fixtureKeys,publicBetaConfiguration(environment),environment)};
   const started=performance.now();let response,error;
-  let workerResult,workerError,workerElapsedMs,workerResponses=[];
+  let workerResult,workerError,workerElapsedMs,workerResponses=[],workerInvocations=[];
   if(workerDriver){
    if(source!=='cloudflare')throw Error('WORKER_SOURCE_INVALID');
    const secret='synthetic-http-timing-worker-only-secret',pending=new Set();
@@ -120,11 +120,22 @@ async function scenario({name,users=3,latency=10,cold=false,partial=false,tenant
      workerResponses.push({phase:options.request.phase,response:result,elapsedMs:performance.now()-at,generation:(await readExecution(db,options.request.requestId))?.generation,sends:payloads.length});return result;
     });pending.add(work);work.finally(()=>pending.delete(work)).catch(()=>{});return work;
    }});
-   try{workerResult=await invoke({BRIEFING_ENDPOINT_URL:'https://isolated.invalid/internal/briefing/run',BRIEFING_TRIGGER_SECRET:secret,BRIEFING_RELEASE_SHA:request.releaseSha,
-    BRIEFING_EXECUTION_MODE:request.executionMode,BRIEFING_CONFIG_PROOF:request.configProof,BRIEFING_CONTINUATION_DISCOVERY:'on'},{fetchImpl:async(url,init)=>{
-     const result=await endpoint({url:new URL(url).pathname,method:'POST',headers:init.headers},init.body);return new Response(JSON.stringify(result.body),{status:result.status});
-    }});}catch(e){workerError={code:e.code,category:e.category,message:e.message};}
-   workerElapsedMs=performance.now()-started;await Promise.allSettled([...pending]);
+   const workerEnv={BRIEFING_ENDPOINT_URL:'https://isolated.invalid/internal/briefing/run',BRIEFING_TRIGGER_SECRET:secret,BRIEFING_RELEASE_SHA:request.releaseSha,
+    BRIEFING_EXECUTION_MODE:request.executionMode,BRIEFING_CONFIG_PROOF:request.configProof,BRIEFING_CONTINUATION_DISCOVERY:'on'};
+   const fetchImpl=async(url,init)=>{
+    const result=await endpoint({url:new URL(url).pathname,method:'POST',headers:init.headers},init.body);return new Response(JSON.stringify(result.body),{status:result.status});
+   };
+   // A second authorized cron invocation rediscovers the original durable ID.
+   // Keep the original 561s caller window, 120s work budget and 900s context.
+   for(let invocation=0;invocation<2;invocation++){
+    if(invocation){let remaining=600000-(performance.now()-started);while(remaining>0){await wait(Math.min(remaining,30000));remaining=600000-(performance.now()-started);}}
+    const at=performance.now();workerResult=undefined;workerError=undefined;
+    try{workerResult=await invoke(workerEnv,{fetchImpl});}catch(e){workerError={code:e.code,category:e.category,message:e.message};}
+    workerInvocations.push({invocation:invocation+1,startedAfterMs:at-started,elapsedMs:performance.now()-at,result:workerResult,error:workerError});
+    await Promise.allSettled([...pending]);
+    if(workerResult?.ok||!['timeout','continuation_pending','http_5xx','transport'].includes(workerError?.category))break;
+   }
+   workerElapsedMs=performance.now()-started;
    response=workerResponses.find(r=>r.phase==='SYNC')?.response;
   }else try{response=await runExecutionPhase({request,db,keys:fixtureKeys,environment,env,deps,now});}catch(e){error={code:e.code,message:e.message};}
   const elapsedMs=performance.now()-started,workRequests=calls;
@@ -144,7 +155,7 @@ async function scenario({name,users=3,latency=10,cold=false,partial=false,tenant
   assert.equal(duplicates,0);assert.ok(finalClaims.every(c=>c.delivery_attempts<=1));
   for(const payload of payloads)assert.doesNotMatch(payload.text,/Body Energy|Kelvin|Beta Summary/);
   const progress=await readPhaseProgress(db,'SYNC',source);
-  const out={name,users,latency,cold,partial,tenantDelay,resourceDelay,source,elapsedMs,workRequests,segments,workerDriver,workerResult,workerError,workerElapsedMs,additionalFinalizedReplaySends,response,error,metrics,claims,finalClaims,sends:before,additionalReplaySends:payloads.length-before,resumed,replayMatched:!!replayed,resumeError,progress:{state:progress.state,settlementState:progress.settlementState,workReceipts:progress.workReceipts}};
+  const out={name,users,latency,jitter,cold,partial,tenantDelay,resourceDelay,source,elapsedMs,workRequests,segments,workerDriver,workerInvocations,workerResult,workerError,workerElapsedMs,additionalFinalizedReplaySends,response,error,metrics,claims,finalClaims,sends:before,additionalReplaySends:payloads.length-before,resumed,replayMatched:!!replayed,resumeError,progress:{state:progress.state,settlementState:progress.settlementState,workReceipts:progress.workReceipts}};
   results.push(out);await writeFile(join(output,'timings.json'),JSON.stringify(results,null,2));console.log('REVIEW_TIMING '+JSON.stringify({name,elapsedMs,status:response?.status,resumed:resumed?.status,segments,additionalReplaySends:out.additionalReplaySends,additionalFinalizedReplaySends}));
  }finally{try{await seed.close();}catch{}db?.close();transport?.close();await rm(dir,{recursive:true,force:true});}
 }
@@ -154,6 +165,8 @@ const cases=[
  {name:'C_3_COLD',cold:true},
  {name:'D_3_PARTIAL_OPTIONAL',partial:true},
  {name:'F_SLOW_HTTP',latency:112},
+ {name:'I_HTTP_JITTER',latency:112,jitter:8},
+ {name:'J_HTTP_HIGH_LATENCY',latency:160},
  {name:'G_ONE_TENANT_DELAYED',tenantDelay:500},
  {name:'H_ONE_RESOURCE_DELAYED',resourceDelay:3000},
 ];

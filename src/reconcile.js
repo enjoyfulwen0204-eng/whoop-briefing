@@ -289,7 +289,7 @@ export function createReconciler({
    * @param {object} progress 每消化一頁合法回應就 +1 的計數（失敗時帳本才看得到抓到哪）
    * @returns {{records, pages, nextToken, complete}}
    */
-  async function fetchWindow(spec, { from, to, token }, progress = { pages: 0 }) {
+  async function fetchWindow(spec, { from, to, token }, progress = { pages: 0 },assertInput=async()=>{}) {
     const records = [];
     const seen = new Set();
     let nextToken = token ?? null;
@@ -299,6 +299,7 @@ export function createReconciler({
         start: from.toISOString(), end: to.toISOString(),
         limit: WHOOP.PAGE_LIMIT, nextToken: nextToken ?? undefined,
       });
+      await assertInput();
       const page = validateCollectionPage(raw);
       pages += 1;
       progress.pages = pages;
@@ -507,8 +508,7 @@ export function createReconciler({
         if (!opened) throw new Error('reconcile_ownership_lost');
       }
 
-      const fetched = await fetchWindow(spec, window, counters);
-      await assertWhoopInput(inputOptions,inputProof);
+      const fetched = await fetchWindow(spec,window,counters,()=>assertWhoopInput(inputOptions,inputProof));
       counters.pages = fetched.pages;
       counters.fetched = fetched.records.length;
       const remoteById = new Map(fetched.records.map((r) => [String(spec.idOf(r)), r]));

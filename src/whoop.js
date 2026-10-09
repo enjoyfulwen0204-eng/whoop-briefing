@@ -21,6 +21,7 @@ import { log } from './logger.js';
 import { requireLifecycle } from './accountLifecycle.js';
 import { abortableResponse, boundedBody, currentExecutionBudget } from './executionBudget.js';
 import { currentSyncOwnership } from './syncOwnership.js';
+import {currentDurableExecution} from './phase4ExecutionContext.js';
 
 export class WhoopAuthError extends Error {
   constructor(message) {
@@ -262,9 +263,9 @@ export function createWhoopClient({
   // 綁定之後：任何一次從 DB 撿到的 token 只要世代不是 N，就**不採用**，
   // 直接拋 STALE_AUTHORIZATION。寧可這一輪整個放棄（新世代自己會跑一輪），
   // 也不要產生一組跨世代、無法歸屬的觀測。
-  const expectedGeneration = Number.isInteger(authorization?.authGeneration)
+  let expectedGeneration = Number.isInteger(authorization?.authGeneration)
     ? authorization.authGeneration : null;
-  const constrained = expectedGeneration !== null;
+  let constrained = expectedGeneration !== null;
   // ★ R3 / R2-FG-01：**每一個** client 都必須帶啟用脈絡，不只受授權約束的。
   //
   // R2 只在 `authorization` 出現時才要求它，於是所有「正常的」執行期
@@ -337,8 +338,21 @@ export function createWhoopClient({
     return t;
   }
 
+  function bindPhaseAuthorization(t) {
+    if(currentDurableExecution()&&!constrained){
+      if(!Number.isSafeInteger(t?.authGeneration)||t.authGeneration<1)throw new WhoopAuthGenerationError({expected:null,actual:t?.authGeneration??null});
+      expectedGeneration=t.authGeneration;constrained=true;
+    }
+    return assertGeneration(t);
+  }
+  async function assertProviderAuthorization(base=cached) {
+    if(!currentDurableExecution())return;
+    ensureRequestBudget();bindPhaseAuthorization(base);
+    const latest=assertGeneration(await db.getTokens(uid));ensureRequestBudget();
+    if(!latest||latest.whoopUserId!==base?.whoopUserId)throw new WhoopAuthGenerationError({expected:expectedGeneration,actual:latest?.authGeneration??null});
+  }
   async function loadTokens() {
-    if (cached) return cached;
+    if (cached) return bindPhaseAuthorization(cached);
     const t = assertGeneration(await db.getTokens(uid));
     if (!t) {
       throw new WhoopAuthError(
@@ -346,8 +360,8 @@ export function createWhoopClient({
         + '請先跑 `npm run authorize -- --user=<userId>` 完成授權。',
       );
     }
-    cached = t;
-    return t;
+    cached = bindPhaseAuthorization(t);
+    return cached;
   }
 
   /** 取得可用的 access token（>5 分鐘效期就重用）。 */
@@ -464,6 +478,7 @@ export function createWhoopClient({
       const baseUpdatedAt = base?.updatedAt ?? null;
 
       log.info('token_refresh_start', { user_id: uid, minutes_left: Math.round(msLeft / 60000), force });
+      await assertProviderAuthorization(base);
       const fresh = await refreshTokens({
         refreshToken: base.refreshToken,
         clientId,
@@ -569,12 +584,14 @@ export function createWhoopClient({
       try {
         ensureRequestBudget();
         await currentSyncOwnership()?.assertCurrent();
+        await assertProviderAuthorization();
         ensureRequestBudget();
         res = await abortableResponse(fetchImpl(url.toString(), {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           ...(requestSignal ? { signal: requestSignal } : {}),
         }), requestSignal);
       } catch (err) {
+        if(isStaleAuthorizationError(err))throw err;
         if (requestSignal?.aborted || remainingBudgetMs() <= 0) {
           throw new WhoopMaintenanceDeadlineError();
         }
@@ -618,6 +635,7 @@ export function createWhoopClient({
       }
 
       const body = await boundedBody(res,{signal:requestSignal});
+      await assertProviderAuthorization();
       ensureRequestBudget();
       return JSON.parse(body);
     }

@@ -1,5 +1,5 @@
 # Deployment artifact only. Do not install on main until the reviewed release SHA
-# replaces 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0 and the workflow is disabled/read back.
+# replaces ed1c1235d6cd955fef7fe4164be757d9710e381e and the workflow is disabled/read back.
 name: WHOOP 早晨簡報
 
 on:
@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+          ref: ed1c1235d6cd955fef7fe4164be757d9710e381e
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Verify reviewed checkout identity
         shell: bash
         env:
-          PHASE4_RELEASE_SHA: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+          PHASE4_RELEASE_SHA: ed1c1235d6cd955fef7fe4164be757d9710e381e
         run: |
           actual_sha=$(git rev-parse --verify 'HEAD^{commit}')
           test "$actual_sha" = "$PHASE4_RELEASE_SHA"
@@ -55,7 +55,7 @@ jobs:
           PHASE4_BETA_SHADOW_RUNTIME: ${{ vars.PHASE4_BETA_SHADOW_RUNTIME }}
           PHASE4_PUBLIC_BETA_MODE: ${{ vars.PHASE4_PUBLIC_BETA_MODE }}
           PHASE4_PUBLIC_BETA_USER_IDS: ${{ vars.PHASE4_PUBLIC_BETA_USER_IDS }}
-          PHASE4_RELEASE_SHA: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+          PHASE4_RELEASE_SHA: ed1c1235d6cd955fef7fe4164be757d9710e381e
           PHASE4_EXECUTION_PHASE: SYNC
           TIMEZONE: Asia/Taipei
         run: |
@@ -78,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+          ref: ed1c1235d6cd955fef7fe4164be757d9710e381e
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -87,7 +87,7 @@ jobs:
       - name: Verify reviewed checkout identity
         shell: bash
         env:
-          PHASE4_RELEASE_SHA: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+          PHASE4_RELEASE_SHA: ed1c1235d6cd955fef7fe4164be757d9710e381e
         run: |
           actual_sha=$(git rev-parse --verify 'HEAD^{commit}')
           test "$actual_sha" = "$PHASE4_RELEASE_SHA"
@@ -108,7 +108,7 @@ jobs:
           PHASE4_BETA_SHADOW_RUNTIME: ${{ vars.PHASE4_BETA_SHADOW_RUNTIME }}
           PHASE4_PUBLIC_BETA_MODE: ${{ vars.PHASE4_PUBLIC_BETA_MODE }}
           PHASE4_PUBLIC_BETA_USER_IDS: ${{ vars.PHASE4_PUBLIC_BETA_USER_IDS }}
-          PHASE4_RELEASE_SHA: 8fbc2d90ae2b3fe68ae29454a26d7603c98784f0
+          PHASE4_RELEASE_SHA: ed1c1235d6cd955fef7fe4164be757d9710e381e
           PHASE4_EXECUTION_PHASE: STAGE6_DRAIN
           PHASE4_SYNC_REQUEST_ID: ${{ needs.sync.outputs.sync_request_id }}
           PHASE4_SYNC_HANDOFF: ${{ needs.sync.outputs.sync_handoff }}

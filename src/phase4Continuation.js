@@ -33,6 +33,7 @@ export async function discoverPhaseContinuation({query,db:providedDb,keys:provid
   return db.withRuntimeFence(assert,async()=>{
    const rows=(await db.raw.execute({sql:`SELECT e.* FROM phase4_executions e WHERE
     e.release_sha=? AND e.execution_mode=? AND e.trigger_source='cloudflare' AND e.config_proof=?
+    AND substr(e.execution_id,1,5)='p4c1_'
     AND ((e.phase='STAGE6_DRAIN' AND (e.state='WORK_COMMITTED' OR (e.state='ESTABLISHED' AND
       (EXISTS(SELECT 1 FROM phase4_execution_work_receipts r WHERE r.execution_id=e.execution_id) OR
        EXISTS(SELECT 1 FROM phase4_executions p WHERE p.execution_id=e.sync_execution_id AND p.state='FINALIZED_SUCCESS' AND p.created_at>${databaseNowMs}-?)))))

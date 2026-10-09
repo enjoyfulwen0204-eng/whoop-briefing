@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
 import {deliveryFixture,fixtureKeys,openHttpFixture} from './deliveryDefaultFixture.js';
 import {discoverPhaseContinuation} from '../src/phase4Continuation.js';
-import {canonicalPhaseRequest,configurationProof,claimPhaseRequest,readExecution} from '../src/phase4ExecutionStore.js';
+import {canonicalPhaseRequest,configurationProof,claimPhaseRequest,readExecution,commitPhaseWork} from '../src/phase4ExecutionStore.js';
 import {runningReleaseSha} from '../src/phase4Release.js';import {runExecutionPhase} from '../src/phase4Execution.js';
 import {createBriefingEndpoint} from '../src/briefingEndpoint.js';import {signTriggerRequest} from '../src/briefingTriggerAuth.js';
 import {readOnlyStatement} from '../src/processingTransaction.js';
@@ -28,11 +28,12 @@ test('release/config/source substitutions fail before selecting another identity
  await assert.rejects(()=>discover(db,{...q,triggerSource:'github'}),/CONTINUATION_QUERY_INVALID/);
  await assert.rejects(()=>discover(db,{...q,userId:'bob'}),/CONTINUATION_QUERY_INVALID/);
 });
-test('discovery cannot replace older noncanonical transport bytes with a new receipt identity',async t=>{
+test('discovery leaves legacy noncanonical bytes untouched and scope election still fences their live authority',async t=>{
  const {db}=await deliveryFixture(t),q=query(),r=request(q);
  const legacy={...r,requestId:randomUUID()};
  await claimPhaseRequest(db,legacy,JSON.stringify(legacy));const before=await readExecution(db,legacy.requestId);
- await assert.rejects(()=>discover(db,q),/CONTINUATION_TRANSPORT_IDENTITY_UNAVAILABLE/);
+ assert.equal((await discover(db,q)).body.state,'NONE');
+ await assert.rejects(()=>claimPhaseRequest(db,r,canonicalPhaseRequest(r),{serializeScope:true}),/REQUEST_SCOPE_PENDING/);
  assert.deepEqual(await readExecution(db,legacy.requestId),before);
 });
 test('stale incomplete identities do not authorize work on a new calendar date',async t=>{
@@ -101,4 +102,23 @@ test('versioned coordination uses only v32 fields and rejects substituted transp
  assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_executions')).rows[0].n,0);
  const claim=await claimPhaseRequest(db,r,canonicalPhaseRequest(r));assert.equal(claim.generation,1);
  assert.equal((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0].v,32);
+});
+
+test('legacy committed or receipt-backed DRAIN cannot starve a versioned pending identity',async t=>{
+ const {db}=await deliveryFixture(t),q=query(),legacy={...q,phase:'SYNC',requestId:randomUUID()},body=JSON.stringify(legacy);
+ const old=await claimPhaseRequest(db,legacy,body),authority=createExecutionBudget({budgetMs:5000});t.after(()=>authority.close());
+ await commitPhaseWork(db,legacy,old,{outcome:'NO_NEW_DATA_SUCCESS'},authority);
+ const next=request(q);await claimPhaseRequest(db,next,canonicalPhaseRequest(next),{serializeScope:true});
+ assert.equal((await discover(db,q)).body.requestBody,canonicalPhaseRequest(next));
+ assert.equal((await readExecution(db,legacy.requestId)).identity_digest,old.identity);
+ const parent={...q,phase:'SYNC',requestId:randomUUID()};
+ const sync=await runExecutionPhase({request:parent,body:JSON.stringify(parent),db,keys:fixtureKeys,environment,env:{dryRun:true},deps:{runBriefing:async()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS'})}});
+ const child={...q,phase:'STAGE6_DRAIN',requestId:randomUUID(),syncRequestId:parent.requestId,handoff:sync.body.handoff},childBody=JSON.stringify(child);
+ const claim=await claimPhaseRequest(db,child,childBody);
+ await withDurableExecution({claim,keys:fixtureKeys,pending:new Set(),authority},()=>db.transaction(async()=>{
+  await db.raw.execute("INSERT INTO telegram_state(key,value,updated_at) VALUES('legacy_drain_progress','1','2026-10-09')");return 1;
+ },{workStep:'legacy-drain-durable-progress'}));
+ const before=await readExecution(db,child.requestId);
+ assert.equal((await discover(db,q)).body.requestBody,canonicalPhaseRequest(next));
+ assert.deepEqual(await readExecution(db,child.requestId),before);
 });

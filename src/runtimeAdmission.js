@@ -107,8 +107,10 @@ export function canonicalRuntimeContract() {
     const added = additions.filter(c => c.table === item.name && !names.has(c.column));
     item.ddl = withAddedColumns(withoutComments(item.ddl), added);
     // Legacy columns can have an approved historical ADD COLUMN default which
-    // differs from a fresh CREATE. Both complete definitions come from schema.js.
-    item.variants = additions.filter(c => c.table === item.name && names.has(c.column));
+    // differs from a fresh CREATE. Exact retained definitions are declared in
+    // schema.js; runtime enum membership never grants default compatibility.
+    item.variants = additions.filter(c => c.table === item.name && names.has(c.column))
+      .flatMap(c => [c, ...(c.historicalDefinitions ?? []).map(definition => ({...c, definition}))]);
   }
   return { objects, retired };
 }

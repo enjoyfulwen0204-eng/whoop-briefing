@@ -1024,6 +1024,10 @@ export const ADDITIVE_COLUMNS = [
     table: 'telegram_operations',
     column: 'delivery_state',
     ddl: `ALTER TABLE telegram_operations ADD COLUMN delivery_state TEXT NOT NULL DEFAULT '${TELEGRAM_DELIVERY_STATE.AMBIGUOUS}'`,
+    // Admission metadata only: d4beb11 added this exact v7 definition.
+    // de7c079 changed future ADDs, explicitly preserving the existing column.
+    // Migrations skip an existing column; never rewrite it to match a verifier.
+    historicalDefinitions: Object.freeze(["TEXT NOT NULL DEFAULT 'DELIVERED'"]),
     backfill: `UPDATE telegram_operations
                   SET delivery_state = '${TELEGRAM_DELIVERY_STATE.DELIVERED}'
                 WHERE update_id IN (

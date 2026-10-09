@@ -52,7 +52,7 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
   const requestId=`${root}_${phaseName.toLowerCase()}`;
   const body=JSON.stringify({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
    ...(handoff?{syncRequestId:handoff.requestId,handoff:handoff.token}:{})});
-  let last;
+  let last, retryWait=0;
   for(let attempt=1;attempt<=MAX_ATTEMPTS;attempt++) {
    assertCaller();
    const timestamp=String(now());
@@ -80,13 +80,21 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
       console.log(JSON.stringify({event:'briefing_phase_ok',phase:phaseName,attempt,status:response.status}));
       return {requestId,payload,status:response.status,attempt};
     }
+    if(response.status===202 && payload?.result?.resumable===true && payload.phase===phaseName && payload.source==='cloudflare' && payload.ok===false) {
+      const wait=payload.result.retryAfterMs;
+      if(!Number.isSafeInteger(wait)||wait<0||wait>15_000)throw error('invalid_response',true);
+      retryWait=wait;
+      const pending=error('continuation_pending');pending.requestId=requestId;pending.resumable=true;throw pending;
+    }
     if(response.status===207||(payload?.syncComplete===false&&payload?.result?.outcome!=='COMMIT_INDETERMINATE'))throw error('sync_incomplete',true);
     last=error(isRedirect(response.status)?'redirect':response.status===401||response.status===403?'authentication':`http_${Math.floor(response.status/100)}xx`,
       !retryableStatus(response.status)&&!(response.status===409&&payload?.error==='REQUEST_PENDING'));
     throw last;
    }catch(e){if(now()>=deadlineAt)throw error('timeout',true);if(signal?.aborted)throw error('cancelled',true);last=e;if(e?.name==='TypeError'&&/redirect/i.test(e.message))last=error('redirect',true);if(!last.category)last=error(controller.signal.aborted?'timeout':'transport');if(last.nonRetryable||attempt===MAX_ATTEMPTS)throw last;}
    finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
-   await sleep(attempt*500);
+   const wait=Math.max(attempt*500,retryWait);retryWait=0;
+   if(now()+wait>=deadlineAt)throw last;
+   await sleep(wait);assertCaller();
   }
   throw last;
  }

@@ -13,6 +13,8 @@ concurrency:
 
 jobs:
   sync:
+    # Release-specific protected environment; provider configuration is a gate.
+    environment: whoop-production-REVIEWED_RELEASE_SHA
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -73,6 +75,8 @@ jobs:
   stage6_drain:
     needs: sync
     if: ${{ needs.sync.result == 'success' && needs.sync.outputs.sync_complete == 'true' && needs.sync.outputs.sync_finalized == 'true' && needs.sync.outputs.drain_authorized == 'true' }}
+    # Release-specific protected environment; provider configuration is a gate.
+    environment: whoop-production-REVIEWED_RELEASE_SHA
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

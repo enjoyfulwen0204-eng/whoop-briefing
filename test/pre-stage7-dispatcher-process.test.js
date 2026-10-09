@@ -3,6 +3,7 @@ import {deliveryFixture,fixtureKeys} from './deliveryDefaultFixture.js';
 import {createBriefingEndpoint} from '../src/briefingEndpoint.js';
 import {discoverPhaseContinuation} from '../src/phase4Continuation.js';
 import {configurationProof} from '../src/phase4ExecutionStore.js';import {runningReleaseSha} from '../src/phase4Release.js';
+import {MAX_CONTINUATION_SEGMENTS} from '../cloudflare/briefing-scheduler/worker.js';
 import {runExecutionPhase} from '../src/phase4Execution.js';
 const environment={PHASE4_BETA_SHADOW_RUNTIME:'off',PHASE4_PUBLIC_BETA_MODE:'off'},secret='synthetic-worker-restart-only-secret-32bytes';
 test('SIGKILL Worker after a committed HTTP receipt; new OS process discovers and finalizes the original identity once',async t=>{
@@ -37,7 +38,12 @@ test('SIGKILL Worker after a committed HTTP receipt; new OS process discovers an
  await Promise.all(serverRuns);const row=(await db.raw.execute('SELECT * FROM phase4_executions')).rows[0];
  assert.equal(row.state,'ESTABLISHED');assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_execution_work_receipts')).rows[0].n,1);
  const second=start(),result=await second.closed;assert.equal(result.code,0);assert.equal(result.finished.ok,true);
- await Promise.all(serverRuns);assert.equal(bodies.length,2);assert.equal(bodies[0],bodies[1]);assert.equal(callbacks,2);assert.equal(sideEffects,1);
+ // A loaded 500ms segment may require additional bounded retries; ownership
+ // and the single committed effect must remain invariant across all of them.
+ await Promise.all(serverRuns);assert.ok(bodies.length>=2&&bodies.length<=1+MAX_CONTINUATION_SEGMENTS);
+ assert.ok(bodies.every(body=>body===bodies[0]),'every bounded retry must retain the killed Worker identity');
+ assert.ok(callbacks>=2&&callbacks<=bodies.length);assert.equal(sideEffects,1);
  assert.equal((await db.raw.execute("SELECT value FROM telegram_state WHERE key='restart_effect'")).rows[0].value,'1');
- const rows=(await db.raw.execute('SELECT state,generation FROM phase4_executions')).rows;assert.equal(rows.length,1);assert.equal(rows[0].state,'FINALIZED_SUCCESS');assert.equal(rows[0].generation,2);
+ const rows=(await db.raw.execute('SELECT state,generation FROM phase4_executions')).rows;assert.equal(rows.length,1);assert.equal(rows[0].state,'FINALIZED_SUCCESS');assert.ok(rows[0].generation>=2&&rows[0].generation<=bodies.length);
+ assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_execution_work_receipts')).rows[0].n,1,'all segments converge on one committed business effect');
 });

@@ -28,6 +28,7 @@ const {runDaily}=await imp('src/daily.js');
 const {runPredictionCycle}=await imp('src/predictionPipeline.js');
 const {runHealthspanSnapshot}=await imp('src/healthspanEngine.js');
 const {createReconciler}=await imp('src/reconcile.js');
+const {createWhoopClient}=await imp('src/whoop.js');
 const {createBriefingEndpoint}=await imp('src/briefingEndpoint.js');
 const {discoverPhaseContinuation}=await imp('src/phase4Continuation.js');
 const {invoke}=await imp('cloudflare/briefing-scheduler/worker.js');
@@ -49,7 +50,7 @@ async function scenario({name,users=3,latency=10,jitter=0,cold=false,partial=fal
   for(const [i,id] of ids.entries()){
    await seed.createUser({id,displayName:id,status:'ACTIVE',timezone:'Asia/Taipei'});
    await seed.setLocale(id,locales[i]);await seed.linkTelegram({userId:id,chatId:String(1001+i)});
-   await seed.saveTokens(id,{accessToken:'synthetic',refreshToken:'synthetic',expiresAt:new Date(Date.now()+3600000),whoopUserId:String(12345+i)});
+   await seed.saveTokens(id,{accessToken:`synthetic-${id}`,refreshToken:`synthetic-refresh-${id}`,expiresAt:new Date(Date.now()+3600000),whoopUserId:String(12345+i)});
    await seed.saveCapabilities(id,[{key:'sleep',status:'SUPPORTED'}],{expectedLifecycleGeneration:1});
    // READY sleep evidence remains present even when the other resource state is cold.
    await seed.saveSyncState(id,'sleep',{backfillComplete:!cold,lastSuccessAt:null},{now});
@@ -64,7 +65,7 @@ async function scenario({name,users=3,latency=10,jitter=0,cold=false,partial=fal
   }
   await seed.ensureOnboardingDerivedForAll({now});assert.equal((await seed.listSchedulableUsers({activeStatus:'ACTIVE'})).length,users);
   await seed.close();transport=hranaTransport(url);
-  let calls=0;const metrics={},payloads=[];
+  let calls=0,lateProviderRequests=0;const metrics={},payloads=[],providerRequests=[];
   const add=(key,ms)=>{const v=metrics[key]??={calls:0,totalMs:0,maxMs:0};v.calls++;v.totalMs+=ms;v.maxMs=Math.max(v.maxMs,ms);};
   const measure=async(key,fn)=>{const start=performance.now();try{return await scope.run(key,fn);}finally{add(key,performance.now()-start);}};
   db=createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch:async request=>{
@@ -83,21 +84,27 @@ async function scenario({name,users=3,latency=10,jitter=0,cold=false,partial=fal
    const original=db[fn];if(original)db[fn]=(...a)=>measure('telegram_delivery_preparation:'+fn,()=>original(...a));
   }
   const deps={
-   makeWhoop:({userId})=>{
-    const i=ids.indexOf(userId),own=rows=>rows.map(row=>({...row,user_id:12345+i}));
-    const get=(resource,rows)=>async(from,to)=>measure('resource:'+resource,async()=>{
+   makeWhoop:options=>{
+    const {userId}=options,i=ids.indexOf(userId),own=rows=>rows.map(row=>({...row,user_id:12345+i}));
+    const whoop=createWhoopClient({...options,fetchImpl:async(url,init)=>{
+     const u=new URL(url),resource=u.pathname.includes('measurement')?'body_measurement':u.pathname.includes('sleep')?'sleep':u.pathname.includes('recovery')?'recovery':u.pathname.includes('workout')?'workout':'cycle';
+     assert.equal(init.headers.Authorization,`Bearer synthetic-${userId}`);
+     if(init.signal?.aborted)lateProviderRequests++;
+     providerRequests.push({userId,resource,path:u.pathname,from:u.searchParams.get('start'),to:u.searchParams.get('end'),page:u.searchParams.get('nextToken')});
      if(userId==='alice'&&tenantDelay)await wait(tenantDelay);
      if(resource==='recovery'&&resourceDelay)await wait(resourceDelay);
-     if(partial&&resource==='workout')throw Object.assign(Error('scope_missing'),{status:403,code:'WHOOP_SCOPE_MISSING'});
-     if(resource==='body_measurement')return partial?null:{height_meter:1.7,weight_kilogram:70};
-     return own(rows).filter(r=>{const at=Date.parse(r.start??r.created_at);return (!from||at>=new Date(from).getTime())&&(!to||at<=new Date(to).getTime());});
-    });
-    return {getAccessToken:async()=>'synthetic',sleeps:get('sleep',dataset.sleeps),recoveries:get('recovery',dataset.recoveries),cycles:get('cycle',dataset.cycles),workouts:get('workout',[]),bodyMeasurement:get('body_measurement',[]),
-     apiGet:async(path,query={})=>{
-      const resource=path.includes('sleep')?'sleep':path.includes('recovery')?'recovery':path.includes('workout')?'workout':'cycle';
-      const rows=resource==='sleep'?dataset.sleeps:resource==='recovery'?dataset.recoveries:resource==='cycle'?dataset.cycles:[];
-      return {records:await get(resource,rows)(query.start,query.end),next_token:null};
-     }};
+     if(partial&&resource==='workout')return new Response('{}',{status:403});
+     if(resource==='body_measurement')return new Response(JSON.stringify(partial?null:{height_meter:1.7,weight_kilogram:70}));
+     const rows=resource==='sleep'?dataset.sleeps:resource==='recovery'?dataset.recoveries:resource==='cycle'?dataset.cycles:[];
+     const from=u.searchParams.get('start'),to=u.searchParams.get('end');
+     const filtered=own(rows).filter(r=>{const at=Date.parse(r.start??r.created_at);return (!from||at>=Date.parse(from))&&(!to||at<=Date.parse(to));});
+     const offset=Number(u.searchParams.get('nextToken')??0),limit=25;
+     return new Response(JSON.stringify({records:filtered.slice(offset,offset+limit),next_token:offset+limit<filtered.length?String(offset+limit):null}));
+    }});
+    for(const name of ['sleeps','recoveries','cycles','workouts','bodyMeasurement','apiGet']){
+     const fn=whoop[name];whoop[name]=(...a)=>measure('resource:'+name,()=>fn(...a));
+    }
+    return whoop;
    },
    makeCoach:()=>{const coach=fakeCoach(),plan=coach.narrativePlan;coach.narrativePlan=(...a)=>measure('briefing_narrative_plan',()=>plan(...a));return coach;},
    makeTelegram:({chatId})=>({send:async text=>measure('telegram_send',async()=>{payloads.push({chatId,text});return {messageId:payloads.length};}),sendTyping:async()=>true,notifyError:async()=>false}),
@@ -152,10 +159,10 @@ async function scenario({name,users=3,latency=10,jitter=0,cold=false,partial=fal
    }catch(e){resumeError={code:e.code,message:e.message};}}
   if(workerDriver&&resumed?.status===200){const deliveredBeforeReplay=payloads.length;replayed=await runExecutionPhase({request,db,keys:fixtureKeys,environment,env,deps,now});assert.deepEqual(replayed,resumed);additionalFinalizedReplaySends=payloads.length-deliveredBeforeReplay;assert.equal(additionalFinalizedReplaySends,0);}
   const finalClaims=await delivered(),duplicates=(await db.raw.execute("SELECT count(*) n FROM (SELECT user_id,report_type,local_date,count(*) n FROM report_claims GROUP BY user_id,report_type,local_date HAVING count(*)>1)")).rows[0].n;
-  assert.equal(duplicates,0);assert.ok(finalClaims.every(c=>c.delivery_attempts<=1));
+  assert.equal(lateProviderRequests,0);assert.equal(duplicates,0);assert.ok(finalClaims.every(c=>c.delivery_attempts<=1));
   for(const payload of payloads)assert.doesNotMatch(payload.text,/Body Energy|Kelvin|Beta Summary/);
   const progress=await readPhaseProgress(db,'SYNC',source);
-  const out={name,users,latency,jitter,cold,partial,tenantDelay,resourceDelay,source,elapsedMs,workRequests,segments,workerDriver,workerInvocations,workerResult,workerError,workerElapsedMs,additionalFinalizedReplaySends,response,error,metrics,claims,finalClaims,sends:before,additionalReplaySends:payloads.length-before,resumed,replayMatched:!!replayed,resumeError,progress:{state:progress.state,settlementState:progress.settlementState,workReceipts:progress.workReceipts}};
+  const out={providerClient:'REAL_CREATE_WHOOP_CLIENT_SYNTHETIC_FETCH',providerRequests,lateProviderRequests,name,users,latency,jitter,cold,partial,tenantDelay,resourceDelay,source,elapsedMs,workRequests,segments,workerDriver,workerInvocations,workerResult,workerError,workerElapsedMs,additionalFinalizedReplaySends,response,error,metrics,claims,finalClaims,sends:before,additionalReplaySends:payloads.length-before,resumed,replayMatched:!!replayed,resumeError,progress:{state:progress.state,settlementState:progress.settlementState,workReceipts:progress.workReceipts}};
   results.push(out);await writeFile(join(output,'timings.json'),JSON.stringify(results,null,2));console.log('REVIEW_TIMING '+JSON.stringify({name,elapsedMs,status:response?.status,resumed:resumed?.status,segments,additionalReplaySends:out.additionalReplaySends,additionalFinalizedReplaySends}));
  }finally{try{await seed.close();}catch{}db?.close();transport?.close();await rm(dir,{recursive:true,force:true});}
 }

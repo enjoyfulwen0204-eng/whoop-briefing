@@ -480,7 +480,7 @@ test('P3-ATTACK-08 輕量失敗（讀取不完整）→ canonical 不動、髒�
   const e = await env();
   try {
     await seedHistory(e.db, ALICE, 3);
-    const broken = { ...e.db, getWorkouts: async () => { throw new Error('workouts down'); } };
+    const broken = { ...e.db, getDailyMetricInputs: async (...a) => { const values=await e.db.getDailyMetricInputs(...a); values[3]={status: 'rejected',reason:new Error('workouts down')}; return values; } };
     const r = await processAnalyticsForUser({ db: broken, userId: ALICE.id, cls: LIGHT, owner: 'L', now: () => NOW });
     assert.equal(r.result, ANALYTICS_RESULT.FAILED);
     assert.equal(r.errorClass, ANALYTICS_ERROR_CLASS.INPUT_INCOMPLETE);

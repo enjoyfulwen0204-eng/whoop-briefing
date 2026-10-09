@@ -97,9 +97,9 @@ test('RC2 主案例：真實工作者路徑 —— 計算期間租約過期（�
     const slowDb = {
       ...e.db,
       // 真正的工作者路徑會呼叫它來載入這一片的資料；載入「很慢」，慢過租約。
-      getRecoveries: async (...args) => {
+      getDailyMetricInputs: async (...args) => {
         if (advancedAt === null) { t += SHORT_LEASE + 1; advancedAt = t; }
-        return e.db.getRecoveries(...args);
+        return e.db.getDailyMetricInputs(...args);
       },
     };
 
@@ -246,7 +246,7 @@ test('RC2 分片耦合：過期造成 0 列輸出時，範圍游標也完全不�
     let advanced = false;
     const slowDb = {
       ...e.db,
-      getRecoveries: async (...args) => { if (!advanced) { advanced = true; t += SHORT_LEASE + 1; } return e.db.getRecoveries(...args); },
+      getDailyMetricInputs: async (...args) => { if (!advanced) { advanced = true; t += SHORT_LEASE + 1; } return e.db.getDailyMetricInputs(...args); },
     };
     const r2 = await processAnalyticsForUser({
       db: slowDb, userId: ALICE.id, cls: LIGHT, owner: 'L2', now: () => new Date(t), leaseMs: SHORT_LEASE,
@@ -276,7 +276,7 @@ test('RC2 多使用者：A 的過期不影響 Bob 的輕量進度', async () => 
     await seedHistory(e.db, ALICE, 4); await seedHistory(e.db, BOB, 4);
     let t = NOW.getTime();
     let advanced = false;
-    const slowDb = { ...e.db, getRecoveries: async (...a) => { if (!advanced) { advanced = true; t += SHORT_LEASE + 1; } return e.db.getRecoveries(...a); } };
+    const slowDb = { ...e.db, getDailyMetricInputs: async (...a) => { if (!advanced) { advanced = true; t += SHORT_LEASE + 1; } return e.db.getDailyMetricInputs(...a); } };
     const ra = await processAnalyticsForUser({ db: slowDb, userId: ALICE.id, cls: LIGHT, owner: 'A', now: () => new Date(t), leaseMs: SHORT_LEASE });
     assert.equal(ra.result, ANALYTICS_RESULT.FENCED);
     const rb = await processAnalyticsForUser({ db: e.db, userId: BOB.id, cls: LIGHT, owner: 'B', now: () => new Date(t) });

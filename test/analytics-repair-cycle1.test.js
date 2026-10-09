@@ -497,7 +497,7 @@ test('F03-C 第二片失敗 → 第一片保留、剩餘範圍不動、退避後
     assert.equal(r1.result, ANALYTICS_RESULT.PARTIAL);
     const before = await work(e.db, ALICE, LIGHT);
     const rowsBefore = await rowCount(e.db, 'analytics_daily_state', ALICE.id);
-    const broken = { ...e.db, getWorkouts: async () => { throw new Error('down'); } };
+    const broken = { ...e.db, getDailyMetricInputs: async (...a) => { const values=await e.db.getDailyMetricInputs(...a); values[3]={status: 'rejected',reason:new Error('down')}; return values; } };
     const r2 = await processAnalyticsForUser({ db: broken, userId: ALICE.id, cls: LIGHT, owner: 'L', now: () => NOW });
     assert.equal(r2.result, ANALYTICS_RESULT.FAILED);
     const after = await work(e.db, ALICE, LIGHT);

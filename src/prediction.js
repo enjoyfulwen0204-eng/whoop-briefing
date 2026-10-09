@@ -429,12 +429,30 @@ export async function persistPrediction(db, userId, {
 export async function backfillActuals(db, userId, rows, {
   targetMetric = 'recovery', modelVersion = MODEL_VERSION, now = new Date(),
 } = {}) {
+  const uid = requireUserId(userId, 'backfillActuals');
+  let existingDates = null;
+  if (rows.length && typeof db.getPredictionActualDates === 'function') {
+    const dates = rows.map(row => row.health_date).filter(date => typeof date === 'string').sort();
+    if (dates.length === rows.length) {
+      try {
+        const observed = await db.getPredictionActualDates(uid, { targetMetric, modelVersion, from: dates[0], to: dates.at(-1) });
+        if (Array.isArray(observed) && observed.every(row => row?.user_id === uid
+          && typeof row.target_date === 'string' && row.target_date >= dates[0] && row.target_date <= dates.at(-1)))
+          existingDates = new Set(observed.map(row => row.target_date));
+      } catch (error) {
+        // Observation is an optimization only. Each original write still
+        // checks its lifecycle/privacy authority and records any real failure.
+        if (error?.code === 'COMMIT_INDETERMINATE') throw error;
+      }
+    }
+  }
   let updated = 0;
   for (const r of rows) {
     const actual = num(r[targetMetric]);
     if (actual === null) continue;
+    if (existingDates && !existingDates.has(r.health_date)) continue;
     const ok = await db.recordPredictionActual({
-      userId: requireUserId(userId, 'backfillActuals'),
+      userId: uid,
       targetDate: r.health_date, targetMetric, modelVersion, actualValue: actual,
     }, { now });
     if (ok) updated += 1;

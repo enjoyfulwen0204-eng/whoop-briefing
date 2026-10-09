@@ -26,7 +26,7 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
     if(!shapes.has(table))shapes.set(table,(await client.execute(`PRAGMA table_info(${table})`)).rows);
     return shapes.get(table);
   }
-  async function classify(table,call) {
+  async function classify(table,call,writer=client) {
     const info=await shape(table),uid=call.userId,at=new Date().toISOString();
     if(!info.some(c=>c.name==='content_state'))fail('PHASE4_COMPATIBILITY_SCHEMA_MISSING');
     const pk=info.filter(c=>c.pk).sort((a,b)=>a.pk-b.pk).map(c=>c.name);
@@ -39,9 +39,9 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
         exposure_state:Number(row.numeric_value)>0||Number(row.severity)>0?'EXPOSED':null});
       if(table==='health_insights')patch.legacy_classification='LEGACY_UNVERIFIED';
       const fields=Object.keys(patch);
-      await client.execute({sql:`UPDATE ${table} SET ${fields.map(k=>`${k}=?`).join(',')} WHERE user_id=?${pk.map(k=>` AND ${k}=?`).join('')}`,
+      await writer.execute({sql:`UPDATE ${table} SET ${fields.map(k=>`${k}=?`).join(',')} WHERE user_id=?${pk.map(k=>` AND ${k}=?`).join('')}`,
         args:[...fields.map(k=>patch[k]),uid,...pk.map(k=>row[k])]});
-      await addPrivacyLink(client,{userId:uid,table,artifactId:id,sourceType:table==='journal_events'?'JOURNAL_FACT':'TENANT_LEGACY',
+      await addPrivacyLink(writer,{userId:uid,table,artifactId:id,sourceType:table==='journal_events'?'JOURNAL_FACT':'TENANT_LEGACY',
         sourceId:table==='journal_events'?id:uid,at});
     }
     if(DIAGNOSTIC_FIELDS[table])await client.execute({sql:`UPDATE ${table} SET ${DIAGNOSTIC_FIELDS[table].map(k=>`${k}=CASE WHEN ${k} IN (${DIAGNOSTIC_CODES}) THEN ${k} ELSE NULL END`).join(',')} WHERE user_id=?`,args:[uid]});
@@ -77,7 +77,24 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
   }
   const scopedClient=new Proxy(client,{get(target,property) {
     if(property==='execute')return execute;
-    if(property==='batch')return async statements=>{const results=[];for(const s of statements)results.push(await execute(s));return results;};
+    if(property==='batch')return async statements=>{
+      const call=calls.getStore();
+      // This existing store operation already encloses the entire metric set
+      // in one transaction. Preserve its redaction check and every original
+      // classification/link statement, submitting each set as one HTTP batch.
+      if(call?.enabled&&call.name==='saveHealthspanMetrics'&&statements.length
+        &&statements.every(s=>/^\s*INSERT\s+INTO\s+healthspan_metrics\b/i.test(sqlOf(s)))) {
+        const redacted=()=>client.execute({sql:"SELECT * FROM healthspan_metrics WHERE user_id=? AND content_state='REDACTED'",args:[call.userId]});
+        const before=(await redacted()).rows;
+        const results=await client.batch(statements);
+        if(before.length&&JSON.stringify(before)!==JSON.stringify((await redacted()).rows))fail('CONTENT_REDACTED');
+        const metadata=[];
+        await classify('healthspan_metrics',call,{execute:async statement=>{metadata.push(statement);}});
+        if(metadata.length)await client.batch(metadata);
+        return results;
+      }
+      const results=[];for(const s of statements)results.push(await execute(s));return results;
+    };
     const value=Reflect.get(target,property);return typeof value==='function'?value.bind(target):value;
   }});
   function wrap(store,names=Object.keys(store)) {
@@ -100,7 +117,7 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
           if(/Analytics/.test(name))throw Object.assign(new Error('analytics_account_inactive'),{code:error.code});
           throw error;
         }
-        const call={enabled:true,userId:uid,fence};
+        const call={enabled:true,name,userId:uid,fence};
         if(name==='claimProactiveEvent') {
           const barrier=keys.lookup(['legacy-proactive-barrier-v1',uid,args[1]?.idempotencyKey]);
           const consumed=(await client.execute({sql:`SELECT lifecycle_generation FROM proactive_events

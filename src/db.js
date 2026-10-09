@@ -1788,7 +1788,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
       fail('PHASE4_JOURNAL_CONTROL_ROUTE_REQUIRED');
     },
     ...compatibility.wrap(createAnalysisStore(compatibility.client),['saveHealthspanMetrics','getLatestHealthspanMetrics',
-      'saveHealthspanSnapshot','getHealthspanSnapshots','savePrediction','recordPredictionActual','getPredictions','savePredictionModel',
+      'saveHealthspanSnapshot','getHealthspanSnapshots','savePrediction','recordPredictionActual','getPredictions','getPredictionActualDates','savePredictionModel',
       'getLatestPredictionModel','getPredictionModels','createInsight','supersedeInsight','reconfirmInsight','updateInsightStatus',
       'getInsight','getActiveInsights','getInsightHistory']),
     ...legacyExperimentAdapter({client,keys:phase4Keys,foundation:privacyFoundation,transaction:processing.transaction,privacy}),

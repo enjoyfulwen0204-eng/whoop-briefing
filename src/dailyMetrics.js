@@ -438,13 +438,34 @@ export async function loadDailyMetricsDetailed({
   // 因為 from 那天的「昨日 cycle」落在 from 的前一天。
   const padStart = new Date(Date.parse(startIso) - 2 * 86_400_000).toISOString();
 
-  const settled = await Promise.allSettled([
+  const individualReads = () => Promise.allSettled([
     db.getSleeps(uid, { from, to, includeNaps: true }),
     db.getRecoveries(uid, { from, to }),
     db.getCycles(uid, { fromIso: padStart, toIso: endIso }),
     db.getWorkouts(uid, { fromIso: padStart, toIso: endIso }),
     db.getLatestBodyMeasurement(uid),
   ]);
+  let settled;
+  if (typeof db.getDailyMetricInputs === 'function') {
+    try {
+      settled = await db.getDailyMetricInputs(uid, { from, to, fromIso: padStart, toIso: endIso });
+      if (!Array.isArray(settled) || settled.length !== 5
+        || settled.some((item, i) => !['fulfilled', 'rejected'].includes(item?.status)
+          || item.status === 'fulfilled' && (i < 4 ? !Array.isArray(item.value)
+            : item.value !== null && (typeof item.value !== 'object' || Array.isArray(item.value)))))
+        throw Object.assign(new Error('DAILY_METRIC_INPUTS_INVALID'), { code: 'DAILY_METRIC_INPUTS_INVALID' });
+    } catch (reason) {
+      // A statement failure aborts the shared transaction. Discard every batch
+      // value, then use the original individually protected observations so an
+      // optional-resource failure keeps its honest partial-availability result.
+      // Each fallback rechecks authority; uncertain COMMITs stay fail-closed.
+      settled = ['DAILY_METRIC_INPUTS_INVALID', 'COMMIT_INDETERMINATE'].includes(reason?.code)
+        ? Array.from({ length: 5 }, () => ({ status: 'rejected', reason }))
+        : await individualReads();
+    }
+  } else {
+    settled = await individualReads();
+  }
 
   const names = ['sleeps', 'recoveries', 'cycles', 'workouts', 'bodyMeasurement'];
 

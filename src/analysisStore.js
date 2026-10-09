@@ -276,6 +276,16 @@ export function createAnalysisStore(client) {
     return rowsOf(rs);
   }
 
+  async function getPredictionActualDates(userId, { targetMetric, modelVersion, from, to }) {
+    const uid = requireUserId(userId, 'getPredictionActualDates');
+    return rowsOf(await client.execute({
+      sql: `SELECT user_id, target_date FROM prediction_runs
+             WHERE user_id = ? AND target_metric = ? AND model_version = ?
+               AND target_date >= ? AND target_date <= ? ORDER BY target_date`,
+      args: [uid, targetMetric, modelVersion, from, to],
+    }));
+  }
+
   // -------------------------------------------------------------------------
   // Health insights（版本鏈：舊版本永遠不刪）
   // -------------------------------------------------------------------------
@@ -556,6 +566,7 @@ export function createAnalysisStore(client) {
     savePrediction,
     recordPredictionActual,
     getPredictions,
+    getPredictionActualDates,
     savePredictionModel,
     getLatestPredictionModel,
     getPredictionModels,

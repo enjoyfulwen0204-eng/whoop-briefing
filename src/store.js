@@ -589,6 +589,20 @@ export function createHealthStore(client, { transaction } = {}) {
     return rs.rows[0] ? { ...rs.rows[0] } : null;
   }
 
+  // The compatibility facade encloses this observation in one tenant/privacy
+  // fence. Each existing getter keeps its own SQL predicate and date window;
+  // individual query failures remain visible to the metrics availability map.
+  async function getDailyMetricInputs(userId, { from, to, fromIso, toIso } = {}) {
+    const uid = requireUserId(userId, 'getDailyMetricInputs');
+    return Promise.allSettled([
+      getSleeps(uid, { from, to, includeNaps: true }),
+      getRecoveries(uid, { from, to }),
+      getCycles(uid, { fromIso, toIso }),
+      getWorkouts(uid, { fromIso, toIso }),
+      getLatestBodyMeasurement(uid),
+    ]);
+  }
+
   /** 資料涵蓋範圍摘要（給 data quality / health-status 用）。 */
   async function coverage(userId) {
     const uid = requireUserId(userId, 'coverage');
@@ -775,6 +789,7 @@ export function createHealthStore(client, { transaction } = {}) {
     getLatestCycle,
     getWorkouts,
     getLatestBodyMeasurement,
+    getDailyMetricInputs,
     coverage,
     getSyncState,
     getAllSyncState,

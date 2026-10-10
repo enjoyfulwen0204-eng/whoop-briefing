@@ -18,6 +18,7 @@ export function createLocaleStore(client,{transaction}={}) {
     async setLocale(userId, locale, { now = new Date(),expectedProfileRevision } = {}) {
       const id = requireUserId(userId, 'setLocale');
       if (!LOCALES.includes(locale)) throw new Error('LOCALIZATION_UNSUPPORTED_LOCALE');
+      if(typeof transaction!=='function')throw Error('PROFILE_TRANSACTION_REQUIRED');
       return inTransaction(async()=>{
       const revision=await assertProfileRevision(client,id,expectedProfileRevision);
       const at = now.toISOString();

@@ -280,6 +280,7 @@ export function createIdentityStore(client, { transaction = null } = {}) {
       }
     }
     if (!sets.length) return getUser(uid);
+    if(typeof transaction!=='function')throw Error('PROFILE_TRANSACTION_REQUIRED');
     return inTransaction(async()=>{
       const revision=await assertProfileRevision(client,uid,expectedProfileRevision);
       const prior=await getUser(uid);

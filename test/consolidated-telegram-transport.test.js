@@ -38,3 +38,13 @@ for(const stage of ['before','headers','body','late'])test('F10 parent cancellat
  assert.equal(calls,stage==='before'?0:1);if(providerSignal)assert.equal(providerSignal.aborted,true);
  }finally{budget.close();}
 });
+
+for(const bot of [false,true])test('F10 cancellation during raw acknowledgment parse remains ambiguous '+bot,async()=>{
+ const controller=new AbortController(),parse=JSON.parse;let calls=0;
+ const fetchImpl=async()=>{calls++;return wire({ok:true,result:message(42)});};
+ JSON.parse=(...args)=>{const value=parse(...args);if(value?.ok===true&&value.result?.message_id===42)controller.abort();return value;};
+ try{await assert.rejects(()=>bot?createTelegramApi({botToken:'synthetic',signal:controller.signal,fetchImpl}).sendMessage('1001','synthetic'):
+  createTelegram({botToken:'synthetic',chatId:'1001',signal:controller.signal,fetchImpl}).send('synthetic'),e=>e.sendOutcome===SEND_OUTCOME.AMBIGUOUS);
+  assert.equal(calls,1);assert.equal(controller.signal.aborted,true);
+ }finally{JSON.parse=parse;}
+});

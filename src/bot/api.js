@@ -137,6 +137,7 @@ export function createTelegramApi({
       });
     }
 
+    try{authority.assert();}catch{throw new TelegramApiError('Telegram acknowledgment arrived after parent authority ended',{sendOutcome:SEND_OUTCOME.AMBIGUOUS,sendStage:'acknowledgment'});}
     return json?.result;
   }
 

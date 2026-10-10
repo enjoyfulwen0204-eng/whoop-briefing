@@ -1750,6 +1750,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     requireRuntimeAdmission: capability => requireRuntimeAdmission(transactionClient, capability, phase4Keys, processing.transaction),
     transaction: processing.transaction,
     withRuntimeFence: processing.withFence,
+    assertRuntimeFences: processing.assertFences,
     assertAccountActive,
     assertTelegramReplySnapshot,
     withAnswerOwnership,

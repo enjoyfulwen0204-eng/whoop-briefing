@@ -196,7 +196,7 @@ export function createSync({
 
   /** 抓一個時間窗並**與游標一起**落地。 */
   async function syncWindow(resource, fromIso, toIso, cursorPatch = null) {
-    const inputProof=await captureWhoopInput(inputOptions);
+    const inputProof=await captureWhoopInput({...inputOptions,initialize:true});
     const committed=await committedWindow(resource,cursorPatch,inputProof);if(committed)return committed;
     const { payload, fetched } = await fetchWindow(resource, fromIso, toIso);
     const written = await commitWindow(resource, payload, cursorPatch, fetched,inputProof);

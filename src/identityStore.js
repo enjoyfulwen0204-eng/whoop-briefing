@@ -69,11 +69,22 @@ export function createIdentityStore(client, { transaction = null } = {}) {
       throw new Error('createUser 需要 displayName');
     if (!Object.values(USER_STATUS).includes(status)) throw new Error(`不合法的 status：${status}`);
     const ts = iso(now);
+    const phaseStateAvailable=(await client.execute('PRAGMA table_info(phase4_executions)')).rows.length>0;
+    if(phaseStateAvailable&&typeof transaction!=='function')throw Error('INITIALIZATION_TRANSACTION_REQUIRED');
+    await inTransaction(async()=>{
     await client.execute({
       sql: `INSERT INTO users
               (id, display_name, timezone, status, lifecycle_generation, created_at, updated_at)
             VALUES (?, ?, ?, ?, 1, ?, ?)`,
       args: [id, String(displayName ?? '').trim(), timezone, status, ts, ts],
+    });
+      // A new canonical identity has no prior privacy epoch. Persist schema
+      // defaults atomically at creation; reads never infer a missing epoch.
+      if (phaseStateAvailable) {
+        await client.execute({sql:'INSERT INTO phase4_user_state(user_id,created_at,updated_at) VALUES(?,?,?)',args:[id,ts,ts]});
+        await client.execute({sql:`INSERT INTO phase4_computation_state(user_id,execution_mode,source_generation_seen,algorithm_set_version,created_at,updated_at)
+          SELECT user_id,'SHADOW',source_generation,'phase4-foundation-v1',?,? FROM phase4_user_state WHERE user_id=?`,args:[ts,ts,id]});
+      }
     });
     log.info('user_created', { user_id: id, timezone, status });
     return {

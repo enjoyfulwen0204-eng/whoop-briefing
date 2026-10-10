@@ -39,7 +39,7 @@ test('lost DB COMMIT acknowledgement reconciles callback receipt; no second prof
  assert.equal((await f.db.getUser('alice')).displayName,'Committed name');assert.equal(await f.db.getState(settingsKey('alice')),null);const sends=f.sent.length;await f.process(update);assert.equal(f.sent.length,sends);
 });
 test('Telegram structured Settings replies stay plain text; buttons and callback acknowledgments use native APIs',async()=>{
- const requests=[];const api=createTelegramApi({botToken:'synthetic',fetchImpl:async(url,init)=>{requests.push({url,body:JSON.parse(init.body)});return new Response(JSON.stringify({ok:true,result:{message_id:42}}));}});
+ const requests=[];const api=createTelegramApi({botToken:'synthetic',fetchImpl:async(url,init)=>{requests.push({url,body:JSON.parse(init.body)});return new Response(JSON.stringify({ok:true,result:url.endsWith('/answerCallbackQuery')?true:{message_id:42,date:1791586800,chat:{id:1001,type:'private'}}}));}});
  await api.sendMessage('1001',{text:'<name> & *literal*',replyMarkup:{inline_keyboard:[[{text:'✅ Save',callback_data:'synthetic'}]]}});await api.answerCallbackQuery('query-1');
  assert.equal(requests[0].body.text,'<name> & *literal*');assert.equal(requests[0].body.parse_mode,undefined);assert.equal(requests[0].body.reply_markup.inline_keyboard[0][0].text,'✅ Save');assert.equal(requests[1].body.callback_query_id,'query-1');
 });

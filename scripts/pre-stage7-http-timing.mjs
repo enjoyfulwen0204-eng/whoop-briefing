@@ -147,10 +147,10 @@ async function scenario({name,users=3,latency=10,jitter=0,cold=false,partial=fal
     const at=performance.now();workerResult=undefined;workerError=undefined;
     try{workerResult=await invoke(workerEnv,{fetchImpl});}catch(e){workerError={code:e.code,category:e.category,message:e.message};}
     workerInvocations.push({invocation:invocation+1,startedAfterMs:at-started,elapsedMs:performance.now()-at,result:workerResult,error:workerError});
-    await Promise.allSettled([...pending]);
     if(workerResult?.ok||!['timeout','continuation_pending','http_5xx','transport'].includes(workerError?.category))break;
    }
    workerElapsedMs=performance.now()-started;
+   await Promise.allSettled([...pending]);
    response=workerResponses.find(r=>r.phase==='SYNC')?.response;
   }else try{response=await runExecutionPhase({request,db,keys:fixtureKeys,environment,env,deps,now});}catch(e){error={code:e.code,message:e.message};}
   const elapsedMs=performance.now()-started,workRequests=calls;

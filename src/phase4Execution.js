@@ -107,6 +107,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
          durationMs:performance.now()-started};
      })))));
    } catch(error) {
+     if(error?.definiteCommitRejection&&/^(SQLITE_BUSY|SQLITE_LOCKED)(_|$)/.test(error.code??''))executionContext.coordinationPending=true;
      let budgetCode;try{budget.assert();}catch(e){budgetCode=e.code;}
      result={outcome:executionContext.pending.size||executionContext.indeterminate||error?.code==='COMMIT_INDETERMINATE'?'COMMIT_INDETERMINATE':budgetCode==='SYNC_CANCELLED'||error?.code==='SYNC_CANCELLED'?'CANCELLED':budgetCode==='SYNC_TIMEOUT'||error?.code==='SYNC_TIMEOUT'?'TIMEOUT':'FAILED',
        durationMs:performance.now()-started};
@@ -133,6 +134,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
        originalAuthority.assert();}
      finally{settlement.close();}
    } catch(error) {
+     if(error?.definiteCommitRejection&&/^(SQLITE_BUSY|SQLITE_LOCKED)(_|$)/.test(error.code??''))executionContext.coordinationPending=true;
      let authorityError=error;try{originalAuthority.assert();}catch(expired){authorityError=expired;}
      const outcome=error?.code==='COMMIT_INDETERMINATE'||executionContext.pending.size||executionContext.indeterminate?'COMMIT_INDETERMINATE':
        authorityError?.code==='SYNC_CANCELLED'?'CANCELLED':authorityError?.code==='SYNC_TIMEOUT'?'TIMEOUT':'FAILED';

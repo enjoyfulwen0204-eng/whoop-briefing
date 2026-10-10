@@ -74,19 +74,25 @@ export function isDuplicateSentError(err) {
 const privateClients=new WeakSet();
 export function createDb({ url, authToken, phase4Keys,fetch }) {
   const providerFetch=fetch??globalThis.fetch;
+  const pendingStreams=new Map();
+  const pendingFor=id=>Promise.allSettled([...(pendingStreams.get(id)??[])]);
   const boundedFetch=async(input,init)=>{
     const budget=currentExecutionBudget();
-    if(!budget)return providerFetch(input,init);
     const original=new Request(input,init),payload=await hranaPayload(original);
     // The installed driver closes a failed stream under its cancelled context.
     // Permit ONLY protocol close of that already issued baton, never SQL.
-    if(closeOnlyPayload(payload))return closeHranaStream(providerFetch,original,payload.baton);
+    if(closeOnlyPayload(payload))return closeHranaStream(providerFetch,original,payload.baton,pendingFor(payload.baton));
+    if(!budget)return providerFetch(original);
     budget.assert();
     const request=new Request(original,{signal:AbortSignal.any([budget.signal,...[input?.signal,init?.signal].filter(Boolean)])});
     const work=Promise.resolve().then(()=>{budget.assert();return providerFetch(request);});
+    if(payload?.baton){
+      const set=pendingStreams.get(payload.baton)??new Set();set.add(work);pendingStreams.set(payload.baton,set);
+      work.finally(()=>{set.delete(work);if(!set.size)pendingStreams.delete(payload.baton);}).catch(()=>{});
+    }
     work.then(response=>{if((budget.signal.aborted||request.signal.aborted)&&payload)void closeLateHranaResponse(providerFetch,original,response);},()=>{});
     try{return await abortableResponse(work,budget.signal);}
-    catch(error){if(payload?.baton)void closeHranaStream(providerFetch,original,payload.baton).catch(()=>{});throw error;}
+    catch(error){if(payload?.baton)void closeHranaStream(providerFetch,original,payload.baton,pendingFor(payload.baton)).catch(()=>{});throw error;}
   };
   const client=createClient({url,authToken,fetch:boundedFetch});privateClients.add(client);
   return composeDb(client,{phase4Keys});

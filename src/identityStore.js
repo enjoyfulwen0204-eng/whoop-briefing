@@ -1,3 +1,4 @@
+import {assertProfileRevision,advanceProfileRevision} from './profileRevision.js';
 /**
  * 身分層：內部使用者、Telegram 綁定、一次性綁定碼、OAuth state。
  *
@@ -264,7 +265,7 @@ export function createIdentityStore(client, { transaction = null } = {}) {
    * transitionUserLifecycle，否則會產生一個不推進世代的後門，
    * 而 ABA 防護就是靠世代成立的。
    */
-  async function updateUser(userId, patch = {}, { now = new Date() } = {}) {
+  async function updateUser(userId, patch = {}, { now = new Date(), expectedProfileRevision } = {}) {
     const uid = requireUserId(userId, 'updateUser');
     if (patch.status !== undefined) {
       throw new Error('updateUser 不可以改 status：請用 transitionUserLifecycle（它會推進 lifecycle_generation）');
@@ -279,10 +280,17 @@ export function createIdentityStore(client, { transaction = null } = {}) {
       }
     }
     if (!sets.length) return getUser(uid);
-    sets.push('updated_at = ?');
-    args.push(iso(now), uid);
-    await client.execute({ sql: `UPDATE users SET ${sets.join(', ')} WHERE id = ?`, args });
-    return getUser(uid);
+    return inTransaction(async()=>{
+      const revision=await assertProfileRevision(client,uid,expectedProfileRevision);
+      const prior=await getUser(uid);
+      if(!prior)throw Error('PROFILE_USER_NOT_FOUND');
+      sets.push('updated_at = ?');args.push(iso(now),uid);
+      await client.execute({sql:`UPDATE users SET ${sets.join(', ')} WHERE id = ?`,args});
+      const current=await getUser(uid);
+      if(current.displayName!==prior.displayName||current.timezone!==prior.timezone)
+        await advanceProfileRevision(client,uid,revision,now);
+      return current;
+    });
   }
 
   // ----- Telegram 綁定 ---------------------------------------------------

@@ -27,6 +27,7 @@ function session(raw,uid,chatId,life,at){
  let s;try{s=JSON.parse(raw);}catch{return null;}
  if(!s||s.version!==1||s.uid!==uid||s.chatId!==chatId||s.lifecycle!==life||!Number.isSafeInteger(s.expiresAt)||s.expiresAt<=at
   ||!Number.isSafeInteger(s.revision)||s.revision<0||s.revision>9999||!/^[-\w]{22}$/.test(s.nonce??'')
+  ||!Number.isSafeInteger(s.profileRevision)||s.profileRevision<0
   ||typeof s.expectedName!=='string'||(s.expectedLocale!==null&&!LOCALES.includes(s.expectedLocale))
   ||!['menu','language','language_confirm','name_edit','name_confirm'].includes(s.mode))return null;
  if(s.mode==='language_confirm'&&!LOCALES.includes(s.nextLocale))return null;
@@ -57,11 +58,12 @@ export function createSettings({db,now=()=>new Date(),nonce=()=>randomBytes(16).
   return db.transaction(async()=>{
    const uid=requireUserId(user?.id,'settings'),chat=String(chatId),resolved=await db.resolveUserByChatId(chat),current=resolved?.user??resolved;
    if(!current||current.id!==uid||current.status!=='ACTIVE'||!Number.isSafeInteger(current.lifecycleGeneration)||current.lifecycleGeneration<1||current.lifecycleGeneration!==user.lifecycleGeneration)return {text:copy.en.expired};
+   const profileRevision=await db.getProfileRevision(uid);
    const locale=await db.getLocale(uid),c=copy[locale??'en'],at=now().getTime(),key=settingsKey(uid),raw=await db.getState(key);
    let s=session(raw,uid,chat,current.lifecycleGeneration,at);
    const persist=()=>db.setState(key,JSON.stringify(s),{now:now()});
    if(command){
-    s={version:1,uid,chatId:chat,lifecycle:current.lifecycleGeneration,nonce:nonce(),revision:0,expiresAt:at+SETTINGS_TTL_MS,
+    s={version:1,profileRevision,uid,chatId:chat,lifecycle:current.lifecycleGeneration,nonce:nonce(),revision:0,expiresAt:at+SETTINGS_TTL_MS,
      mode:command[1].toLowerCase()==='name'?'name_edit':command[1].toLowerCase()==='language'||!locale?'language':'menu',expectedName:current.displayName??'',expectedLocale:locale};
     await persist();return render(s,locale);
    }
@@ -77,12 +79,12 @@ export function createSettings({db,now=()=>new Date(),nonce=()=>randomBytes(16).
     else if(action==='edit'&&s.mode==='name_confirm'){s.mode='name_edit';delete s.pendingName;}
     else if(action==='confirm'&&s.mode==='language_confirm'){
      if(!LOCALES.includes(s.nextLocale))return {text:c.expired};
-     if(locale!==s.expectedLocale)return {text:c.conflict};
-     await db.setLocale(uid,s.nextLocale,{now:now()});await db.setState(key,null);return {text:copy[s.nextLocale].saved};
+     if(profileRevision!==s.profileRevision||locale!==s.expectedLocale)return {text:c.conflict};
+     await db.setLocale(uid,s.nextLocale,{now:now(),expectedProfileRevision:s.profileRevision});await db.setState(key,null);return {text:copy[s.nextLocale].saved};
     }else if(action==='save'&&s.mode==='name_confirm'){
      const name=normalizeSettingsName(s.pendingName);
-     if((current.displayName??'')!==s.expectedName)return {text:c.conflict};
-     if(name!==current.displayName)await db.updateUser(uid,{displayName:name},{now:now()});
+     if(profileRevision!==s.profileRevision||(current.displayName??'')!==s.expectedName)return {text:c.conflict};
+     if(name!==current.displayName)await db.updateUser(uid,{displayName:name},{now:now(),expectedProfileRevision:s.profileRevision});
      await db.setState(key,null);return {text:c.saved};
     }else return {text:c.expired};
     s.revision++;await persist();return render(s,locale);

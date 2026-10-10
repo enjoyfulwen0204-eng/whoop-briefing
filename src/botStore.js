@@ -1,3 +1,4 @@
+import {PROFILE_REVISION_PREFIX} from './profileRevision.js';
 /**
  * Telegram bot / journal / 對話狀態的持久化。
  *
@@ -40,6 +41,7 @@ export function createBotStore(client) {
   }
 
   async function setState(key, value, { now = new Date() } = {}) {
+    if(typeof key==='string'&&key.startsWith(PROFILE_REVISION_PREFIX))throw Error('PROFILE_REVISION_RESERVED');
     await client.execute({
       sql: `INSERT INTO telegram_state (key, value, updated_at) VALUES (?,?,?)
             ON CONFLICT(key) DO UPDATE SET value = excluded.value,

@@ -1,3 +1,4 @@
+import {profileRevision} from './profileRevision.js';
 import {bindExecutionApi} from './phase4WorkStep.js';
 import {executeCoordination} from './phase4Coordination.js';
 /**
@@ -1768,7 +1769,8 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     releaseLock,
     userLockName,
     ...phase4Invalidation.wrap(createIdentityStore(client, { transaction: processing.transaction })),
-    ...createLocaleStore(client),
+    ...createLocaleStore(client,{transaction:processing.transaction}),
+    getProfileRevision:uid=>processing.transaction(()=>profileRevision(client,uid)),
     // 墓碑判定與 canonical 寫入必須同一交易（P1-R02-RC2）：把「需要時才開交易」
     // 的執行器交給儲存層。已在 mutateForWhoopEvent 交易裡時會直接沿用，不巢狀。
     ...phase4Invalidation.wrap(health),

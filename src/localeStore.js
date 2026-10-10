@@ -1,8 +1,10 @@
+import {assertProfileRevision,advanceProfileRevision} from './profileRevision.js';
 import { requireUserId } from './userContext.js';
 import { LOCALES } from './localization.js';
 
 /** One atomic statement per write. Missing row means UNSET, never zh-TW. */
-export function createLocaleStore(client) {
+export function createLocaleStore(client,{transaction}={}) {
+  const inTransaction=transaction??(fn=>fn());
   return Object.freeze({
     async getLocale(userId) {
       const id = requireUserId(userId, 'getLocale');
@@ -13,9 +15,11 @@ export function createLocaleStore(client) {
       if (!LOCALES.includes(row.locale)) throw new Error('LOCALIZATION_STORED_LOCALE_INVALID');
       return row.locale;
     },
-    async setLocale(userId, locale, { now = new Date() } = {}) {
+    async setLocale(userId, locale, { now = new Date(),expectedProfileRevision } = {}) {
       const id = requireUserId(userId, 'setLocale');
       if (!LOCALES.includes(locale)) throw new Error('LOCALIZATION_UNSUPPORTED_LOCALE');
+      return inTransaction(async()=>{
+      const revision=await assertProfileRevision(client,id,expectedProfileRevision);
       const at = now.toISOString();
       const result = await client.execute({
         sql: `INSERT INTO user_locales(user_id,locale,created_at,updated_at)
@@ -26,7 +30,9 @@ export function createLocaleStore(client) {
       });
       if (Number(result.rowsAffected ?? 0) === 0 && !(await this.getLocale(id)))
         throw new Error('LOCALIZATION_USER_NOT_FOUND');
+      if(result.rowsAffected===1)await advanceProfileRevision(client,id,revision,now);
       return locale;
+      });
     },
     async claimLocalePrompt(userId, { now = new Date() } = {}) {
       const id = requireUserId(userId, 'claimLocalePrompt');

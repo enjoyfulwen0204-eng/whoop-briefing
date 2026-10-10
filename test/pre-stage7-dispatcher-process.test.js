@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {fork} from 'node:child_process';
 import {deliveryFixture,fixtureKeys} from './deliveryDefaultFixture.js';
 import {createBriefingEndpoint} from '../src/briefingEndpoint.js';
-import {discoverPhaseContinuation} from '../src/phase4Continuation.js';
+import {discoverExecutionContinuation as discoverPhaseContinuation} from '../src/phase4Execution.js';
 import {configurationProof} from '../src/phase4ExecutionStore.js';import {runningReleaseSha} from '../src/phase4Release.js';
 import {MAX_CONTINUATION_SEGMENTS} from '../cloudflare/briefing-scheduler/worker.js';
 import {runExecutionPhase} from '../src/phase4Execution.js';

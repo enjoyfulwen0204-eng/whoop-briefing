@@ -1,11 +1,7 @@
-import {createDb} from './db.js';
-import {loadEnv} from './config.js';
-import {publicBetaKeys,publicBetaConfiguration} from './publicBetaConfig.js';
-import {runningReleaseSha} from './phase4Release.js';
 import {createExecutionBudget,withExecutionBudget} from './executionBudget.js';
 import {requireRuntimeAdmission} from './runtimeAdmission.js';
 import {databaseNowMs} from './phase4ExecutionContext.js';
-import {configurationProof,canonicalPhaseRequest,reconcileExecution,requestIdentity,EXECUTION_WORK_MAX_AGE_MS,validatePhaseRequest} from './phase4ExecutionStore.js';
+import {canonicalPhaseRequest,reconcileExecution,requestIdentity,EXECUTION_WORK_MAX_AGE_MS,validatePhaseRequest} from './phase4ExecutionStore.js';
 import {isContinuationRequest} from './phase4ExecutionStore.js';
 export const CONTINUATION_PATH='/internal/briefing/continuation';
 const fail=code=>{throw Object.assign(Error(code),{code});};
@@ -18,13 +14,11 @@ export function validateContinuationQuery(query){
  * identity must still enter the ordinary authenticated/admitted phase runner.
  * Only canonical transport bytes can be reconstructed from existing v32 rows;
  * never substitute a new body digest for an older request's committed receipts. */
-export async function discoverPhaseContinuation({query,db:providedDb,keys:providedKeys,environment=process.env,env:providedEnv,signal}={}){
+export async function discoverPhaseContinuation({query,db,keys,releaseSha,mode,configProof,signal}={}){
  validateContinuationQuery(query);
- const keys=providedKeys??publicBetaKeys(environment),config=publicBetaConfiguration(environment),releaseSha=runningReleaseSha(environment);
- const mode=config.runtime==='on'?'SHADOW':'OFF';
+ if(!db?.raw||typeof db.admitRuntime!=='function'||!keys||!releaseSha||!mode||!configProof)fail('CONTINUATION_DEPENDENCIES_REQUIRED');
  if(query.releaseSha!==releaseSha)fail('RELEASE_CHECKOUT_MISMATCH');
- if(query.executionMode!==mode||query.configProof!==configurationProof(keys,config,environment,releaseSha))fail('EXECUTION_CONFIG_CHANGED');
- const env=providedDb?null:providedEnv??loadEnv(),db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
+ if(query.executionMode!==mode||query.configProof!==configProof)fail('EXECUTION_CONFIG_CHANGED');
  const budget=createExecutionBudget({budgetMs:30000,signal});
  try{return await withExecutionBudget(budget,()=>budget.run(async()=>{
   const admission=await db.admitRuntime({source:'cloudflare',fresh:true});
@@ -38,8 +32,8 @@ export async function discoverPhaseContinuation({query,db:providedDb,keys:provid
       (EXISTS(SELECT 1 FROM phase4_execution_work_receipts r WHERE r.execution_id=e.execution_id) OR
        EXISTS(SELECT 1 FROM phase4_executions p WHERE p.execution_id=e.sync_execution_id AND p.state='FINALIZED_SUCCESS' AND p.created_at>${databaseNowMs}-?)))))
      OR (e.phase='SYNC' AND (e.state='WORK_COMMITTED' OR (e.created_at>${databaseNowMs}-? AND
-      (e.state='ESTABLISHED' OR (e.state='FINALIZED_SUCCESS' AND e.execution_mode='SHADOW' AND NOT EXISTS
-       (SELECT 1 FROM phase4_executions d WHERE d.sync_execution_id=e.execution_id AND d.state IN ('FINALIZED_SUCCESS','FINALIZED_FAILURE','ABORTED'))))))))
+      (e.state='ESTABLISHED' OR (e.state='FINALIZED_SUCCESS' AND e.execution_mode='SHADOW' AND e.execution_id NOT IN
+       (SELECT d.sync_execution_id FROM phase4_executions d WHERE d.phase='STAGE6_DRAIN' AND d.sync_execution_id IS NOT NULL AND d.state IN ('FINALIZED_SUCCESS','FINALIZED_FAILURE','ABORTED'))))))))
     ORDER BY CASE WHEN e.phase='STAGE6_DRAIN' THEN 0 WHEN e.state='WORK_COMMITTED' THEN 1 ELSE 2 END,e.execution_seq LIMIT 1`,args:[releaseSha,mode,query.configProof,EXECUTION_WORK_MAX_AGE_MS,EXECUTION_WORK_MAX_AGE_MS]})).rows;
    if(!rows.length){assert();return {status:200,body:{ok:true,state:'NONE',requestBody:null}};}
    const row=rows[0];let request;try{request=validatePhaseRequest(JSON.parse(row.canonical_request_json));}catch{fail('EXECUTION_RECORD_CORRUPT');}
@@ -54,5 +48,5 @@ export async function discoverPhaseContinuation({query,db:providedDb,keys:provid
    // No tenant, payload, receipt keys or authority owner is returned.
    return {status:200,body:{ok:true,state,requestBody:body,workReceipts:reconciled.receipts.length}};
   });
- }));}finally{budget.cancel();budget.close();if(!providedDb)db.close();}
+ }));}finally{budget.cancel();budget.close();}
 }

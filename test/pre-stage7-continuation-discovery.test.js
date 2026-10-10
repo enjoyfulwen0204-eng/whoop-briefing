@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
 import {deliveryFixture,fixtureKeys,openHttpFixture} from './deliveryDefaultFixture.js';
-import {discoverPhaseContinuation} from '../src/phase4Continuation.js';
+import {discoverExecutionContinuation as discoverPhaseContinuation} from '../src/phase4Execution.js';
 import {canonicalPhaseRequest,configurationProof,claimPhaseRequest,readExecution,commitPhaseWork} from '../src/phase4ExecutionStore.js';
 import {runningReleaseSha} from '../src/phase4Release.js';import {runExecutionPhase} from '../src/phase4Execution.js';
 import {createBriefingEndpoint} from '../src/briefingEndpoint.js';import {signTriggerRequest} from '../src/briefingTriggerAuth.js';

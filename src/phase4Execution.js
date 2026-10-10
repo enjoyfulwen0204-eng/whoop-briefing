@@ -1,3 +1,4 @@
+import {discoverPhaseContinuation} from './phase4Continuation.js';
 import { loadEnv } from './config.js';
 import { createDb } from './db.js';
 import { runBriefing } from './index.js';
@@ -166,4 +167,14 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    if(!['SYNC_TIMEOUT','SYNC_CANCELLED'].includes(error?.code))throw error;
    return phaseResponse({phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,outcome:error.code==='SYNC_TIMEOUT'?'TIMEOUT':'CANCELLED'});
  } finally {budget?.cancel();stopFollowing?.();overall.close();admissionBudget.close();budget?.close();if(!providedDb)db.close();}
+}
+
+/** Authenticated entry composition; the discovery store cannot construct capabilities. */
+export async function discoverExecutionContinuation({query,db:providedDb,keys:providedKeys,environment=process.env,env:providedEnv,signal}={}) {
+ const keys=providedKeys??publicBetaKeys(environment),config=publicBetaConfiguration(environment),releaseSha=runningReleaseSha(environment);
+ const env=providedDb?null:providedEnv??loadEnv();
+ const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
+ try {return await discoverPhaseContinuation({query,db,keys,releaseSha,mode:config.runtime==='on'?'SHADOW':'OFF',
+  configProof:configurationProof(keys,config,environment,releaseSha),signal});}
+ finally {if(!providedDb)db.close();}
 }

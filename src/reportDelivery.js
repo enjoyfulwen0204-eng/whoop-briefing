@@ -1,3 +1,4 @@
+import {validMessageId} from './telegramAcknowledgment.js';
 /**
  * 報告送出的**唯一**耐久邊界（H-01 + H-02）。
  *
@@ -59,6 +60,7 @@ import { log, describeError } from './logger.js';
  */
 export const DELIVERY_RESULT = Object.freeze({
   DELIVERED: 'delivered',
+  DRY_RUN: 'dry_run',
   FENCED: 'fenced',
   DEFINITE_FAILURE: 'definite_failure',
   AMBIGUOUS: 'ambiguous',
@@ -119,7 +121,7 @@ const scopeOf = (claimKey) => ({
  * @returns {Promise<{result:string, messageId:?number, error:?string, authorized:boolean}>}
  */
 export async function deliverReport({
-  db, claimKey, claim, telegram, text, now = () => new Date(),
+  db, claimKey, claim, telegram, text, now = () => new Date(),authorizeContent,
 }) {
   if(currentDurableExecution())now=()=>new Date();
   requireUserId(claimKey?.userId, 'deliverReport');
@@ -130,6 +132,10 @@ export async function deliverReport({
   // -------------------------------------------------------------------------
   // 1) 授權：不可逆副作用的唯一入口
   // -------------------------------------------------------------------------
+  if(authorizeContent)try{await authorizeContent();}catch{
+    if(owner&&typeof db.releaseClaim==='function')try{await db.releaseClaim({...claimKey,owner});}catch{}
+    return {result:DELIVERY_RESULT.FENCED,messageId:null,error:null,authorized:false};
+  }
   if (fenceable) {
     const authorized = await db.authorizeReportDelivery({
       ...claimKey, owner, now: new Date(now()),
@@ -152,7 +158,7 @@ export async function deliverReport({
   // -------------------------------------------------------------------------
   let sent;
   try {
-    sent = await telegram.send(text);
+    sent = await telegram.send(text,{authorize:authorizeContent});
   } catch (err) {
     const outcome = classifySendOutcome(err);
 
@@ -213,7 +219,15 @@ export async function deliverReport({
     };
   }
 
+  if (sent?.dryRun === true) {
+    if(fenceable)await releaseAfterDefiniteFailure({db,claimKey,owner,scope});
+    return {result:DELIVERY_RESULT.DRY_RUN,messageId:null,error:null,authorized:true};
+  }
   const messageId = sent?.messageId ?? null;
+  if (!validMessageId(messageId)) {
+    if (fenceable) await db.markClaimAmbiguous({...claimKey,owner,now:new Date(now())});
+    return {result:DELIVERY_RESULT.AMBIGUOUS,messageId:null,error:null,authorized:true};
+  }
   if (fenceable && typeof db.markClaimSent === 'function') {
     try {
       const marked = await db.markClaimSent({

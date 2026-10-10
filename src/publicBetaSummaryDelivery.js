@@ -29,8 +29,8 @@ export async function deliverPublicBetaSummary({ db, env, user, presentation, no
     const sender = withDeliveryAuthorization(makeTelegram({
       botToken: env.telegramBotToken, chatId, dryRun: env.dryRun, db,
       errorScope: `user:${userId}`,
-    }), async () => Boolean(await db.getActiveChatIdForUser(userId,
-      { expectedLifecycleGeneration: life }).catch(() => null)),
+    }), async () => String(await db.getActiveChatIdForUser(userId,
+      { expectedLifecycleGeneration: life }).catch(() => null))===String(chatId),
     { userId, expectedLifecycleGeneration: life });
     const guarded = { send: async body => {
       try { await verifyCurrent(); }

@@ -1,3 +1,6 @@
+import {validImmediateMessage,validApiSuccess} from './telegramAcknowledgment.js';
+import {transportAuthority} from './transportAuthority.js';
+import {abortableResponse,boundedBody} from './executionBudget.js';
 /**
  * Telegram 推送。
  *
@@ -42,9 +45,16 @@ export function isDefiniteSendFailure(err) {
  */
 export function createTelegram({
   botToken, chatId, dryRun = false, fetchImpl = fetch, db = null,
-  errorScope = GLOBAL_SCOPE, locale = 'zh-TW',
+  errorScope = GLOBAL_SCOPE, locale = 'zh-TW', signal, executionBudget,
 }) {
-  async function send(text, { authorize, userId = null } = {}) {
+  async function send(text, options = {}) {
+    const authority = transportAuthority({timeoutMs:TELEGRAM_SEND.REQUEST_TIMEOUT_MS,signal:options.signal??signal,executionBudget:options.executionBudget??executionBudget});
+    try { authority.assert(); return await sendBound(text,options,authority); }
+    catch(error) { if(error instanceof TelegramError)return Promise.reject(error);
+      throw new TelegramError('Telegram parent authority ended',{sendOutcome:SEND_OUTCOME.DEFINITE_FAILURE,sendStage:'pre_send'}); }
+    finally {authority.close();}
+  }
+  async function sendBound(text, { authorize, userId = null } = {}, authority) {
     // 共用同一個 clamp（format.js），不再各自實作一份
     const body = clamp(text);
     // 發送層的最後防線：clamp 若哪天壞了，寧可在這裡爆掉也不要送出超長訊息
@@ -61,6 +71,7 @@ export function createTelegram({
     if (authorize && !await authorize()) {
       return { messageId: null, suppressed: ACCOUNT_INACTIVE, userId };
     }
+    authority.assert();
     if (dryRun) {
       log.info('telegram_dry_run', { chars: body.length });
       process.stdout.write(`\n----- DRY RUN Telegram 訊息 -----\n${body}\n----- 結束（${body.length} 字元）-----\n\n`);
@@ -72,7 +83,8 @@ export function createTelegram({
     // （沒有分類的錯誤會被當成「確定失敗」而重送 → 使用者收到兩份晨報）。
     let res;
     try {
-      res = await fetchImpl(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      authority.assert();
+      res = await abortableResponse(fetchImpl(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -81,8 +93,9 @@ export function createTelegram({
           disable_web_page_preview: true,
         }),
         // 沒有逾時的請求會讓發送權的租約在等待中過期。
-        signal: AbortSignal.timeout(TELEGRAM_SEND.REQUEST_TIMEOUT_MS),
-      });
+        signal: authority.signal,
+      }),authority.signal);
+      authority.assert();
     } catch (err) {
       // 連線階段。只有「確定沒連上」才算確定失敗，其餘（逾時、連線被重置）
       // 都可能是請求已經送出去了。
@@ -100,7 +113,8 @@ export function createTelegram({
 
     let raw;
     try {
-      raw = await res.text();
+      raw = await boundedBody(res,{signal:authority.signal,maxBytes:1024*1024});
+      authority.assert();
     } catch (err) {
       if (definiteReject) {
         throw new TelegramError(`Telegram ${res.status}（回應內容讀取失敗）`, {
@@ -139,7 +153,7 @@ export function createTelegram({
     }
 
     // ok:false 是 Telegram 明確說「我沒收下」→ 可以安全重送。
-    if (!json.ok) {
+    if (json?.ok === false) {
       throw new TelegramError(`Telegram 回應 ok=false: ${JSON.stringify(json).slice(0, 300)}`, {
         status: res.status,
         sendOutcome: SEND_OUTCOME.DEFINITE_FAILURE,
@@ -149,8 +163,8 @@ export function createTelegram({
 
     // ok:true 一定會帶 message_id。沒帶就是一個形狀不完整的成功回應 ——
     // 既不能宣稱送達，也不能重送。
-    const messageId = Number(json.result?.message_id);
-    if (!Number.isFinite(messageId)) {
+    const messageId = json?.result?.message_id;
+    if (!validApiSuccess(json) || !validImmediateMessage(json.result,chatId)) {
       throw new TelegramError('Telegram 回報成功但沒有 message_id（無法證明送達）', {
         status: res.status,
         sendOutcome: SEND_OUTCOME.AMBIGUOUS,
@@ -214,7 +228,7 @@ export function createTelegram({
       // 告知系統掛了 —— 而那正是最需要通知的時候。
       //
       // 釋放時帶上自己的 claimedAt，所以碰不到別人**更新的**成功認領。
-      if (claim?.granted && claim.claimedAt && typeof db?.releaseErrorNotify === 'function') {
+      if (isDefiniteSendFailure(err) && claim?.granted && claim.claimedAt && typeof db?.releaseErrorNotify === 'function') {
         try {
           const released = await db.releaseErrorNotify(errorScope, errorType, claim.claimedAt, { expectedLifecycleGeneration });
           log.info('error_notify_claim_released', {

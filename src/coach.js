@@ -12,9 +12,12 @@
  *  - 模型只把「程式算好的結果」講成人話，不做任何好壞判斷。
  */
 
+import {createHash} from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { setTimeout as waitTimer } from 'node:timers/promises';
-import { currentExecutionBudget, abortable, abortableResponse, boundedBody } from './executionBudget.js';
-import { currentDurableExecution } from './phase4ExecutionContext.js';
+import { currentExecutionBudget, ExecutionBudgetError, withExecutionBudget, abortable, abortableResponse, boundedBody } from './executionBudget.js';
+import { assertExecutionWorkOwner, currentDurableExecution } from './phase4ExecutionContext.js';
+import { currentSyncOwnership } from './syncOwnership.js';
 import { AI_PURPOSE, COACH, PROMPT_VERSIONS, resolveModel } from './config.js';
 import { recordUsage, extractTokens } from './usage.js';
 import { log, describeError } from './logger.js';
@@ -219,24 +222,54 @@ export function createCoach({
   function parentBudgets() {
     return [...new Set([currentExecutionBudget(), executionBudget].filter(Boolean))];
   }
-  function authority() {
+  const calls = new AsyncLocalStorage(), snapshots = new AsyncLocalStorage();
+  const revoked = () => { throw Object.assign(new Error('COACH_AUTHORITY_REVOKED'), {code:'COACH_AUTHORITY_REVOKED'}); };
+  async function tenantProof(client = db?.raw) {
+    if (!client || userId === null || userId === undefined) return null;
+    const row = (await client.execute({sql:`SELECT u.id,u.status,u.lifecycle_generation,u.timezone,
+      COALESCE(t.auth_generation,0) auth_generation,t.whoop_user_id,
+      p.source_generation,p.purge_generation,p.pending_purge_count
+      FROM users u LEFT JOIN user_whoop_tokens t ON t.user_id=u.id
+      LEFT JOIN phase4_user_state p ON p.user_id=u.id WHERE u.id=?`,args:[userId]})).rows[0];
+    if (!row || row.id !== userId || row.status !== 'ACTIVE' || row.pending_purge_count !== 0
+      || !Number.isSafeInteger(row.lifecycle_generation) || row.lifecycle_generation < 1
+      || [row.auth_generation,row.source_generation,row.purge_generation].some(n=>!Number.isSafeInteger(n)||n<0)) revoked();
+    return JSON.stringify(row);
+  }
+  function assertParent() {
     for (const budget of parentBudgets()) budget.assert();
     currentDurableExecution()?.authority.assert();
     signal?.throwIfAborted();
   }
-  function cancellationSignal() {
-    authority();
-    const signals = [...parentBudgets().map(budget => budget.signal), signal].filter(Boolean);
+  async function authority(client) {
+    assertParent();
+    const call = calls.getStore();
+    if (call && (call.execution !== currentDurableExecution() || call.sync !== currentSyncOwnership())) revoked();
+    if (call && await tenantProof(client) !== call.proof) { call.cancel.abort(); revoked(); }
+    if (currentDurableExecution() && db?.raw) await assertExecutionWorkOwner(client ?? db.raw);
+    const owner = currentSyncOwnership();
+    if (owner) { if (owner.userId !== userId || owner.db !== db) revoked(); if (!client) await owner.assertCurrent(); }
+    assertParent();
+  }
+  async function cancellationSignal() {
+    await authority();
+    const signals = [...parentBudgets().map(budget => budget.signal), signal, calls.getStore()?.cancel.signal].filter(Boolean);
     return signals.length ? AbortSignal.any(signals) : undefined;
   }
-  function providerSignal() {
-    authority();
+  async function providerSignal() {
+    await authority();
     const timeout = Math.min(COACH.TIMEOUT_MS, ...parentBudgets().map(budget => budget.remainingMs()));
-    return AbortSignal.any([AbortSignal.timeout(Math.max(1, timeout)), ...[cancellationSignal()].filter(Boolean)]);
+    return AbortSignal.any([AbortSignal.timeout(Math.max(1, timeout)), ...[await cancellationSignal()].filter(Boolean)]);
   }
   async function post(body) {
-    const requestSignal = providerSignal();
-    authority();
+    const requestSignal = await providerSignal();
+    await authority();
+    const monitor=new AbortController();
+    const polling=(async()=>{
+      try {while(true){await sleep(1000,monitor.signal);await authority();}}
+      catch(error){if(!monitor.signal.aborted)calls.getStore()?.cancel.abort(error);}
+    })();
+    try {
     const res = await abortableResponse(fetchImpl(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -248,9 +281,9 @@ export function createCoach({
       body: JSON.stringify(body),
       signal: requestSignal,
     }), requestSignal);
-    authority();
+    await authority();
     const text = await boundedBody(res, {signal:requestSignal, maxBytes:1024*1024});
-    authority();
+    await authority();
     let json = null;
     try {
       json = text ? JSON.parse(text) : null;
@@ -268,17 +301,18 @@ export function createCoach({
       throw new CoachApiError(`OpenRouter error: ${msg}`, Number(json.error.code) || 502);
     }
     return json;
+    } finally {monitor.abort();await polling;}
   }
 
   /** 429 / 5xx / 連線錯誤時 exponential backoff 重試；timeout 不重試（避免拖太久）。 */
   async function send(body) {
     let lastErr;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      authority();
+      await authority();
       try {
         return await post(body);
       } catch (err) {
-        authority();
+        await authority();
         lastErr = err;
         const status = err instanceof CoachApiError ? err.status : null;
         const retryable = status !== null
@@ -287,9 +321,9 @@ export function createCoach({
         if (!retryable || attempt === maxRetries) throw err;
         const wait = backoffFor(attempt);
         log.warn('coach_retry', { attempt, status, wait_ms: wait, error: describeError(err) });
-        const backoffSignal = cancellationSignal();
+        const backoffSignal = await cancellationSignal();
         await sleep(wait, backoffSignal);
-        authority();
+        await authority();
       }
     }
     throw lastErr;
@@ -322,7 +356,7 @@ export function createCoach({
         if (!text) throw new Error('OpenRouter 回傳空白內容');
         return { text, json };
       } catch (err) {
-        authority();
+        await authority();
         lastErr = err;
         const status = err instanceof CoachApiError ? err.status : null;
         // 400 / 422 = 這個模型不吃某個參數 → 退一階再試
@@ -342,7 +376,7 @@ export function createCoach({
    * 記帳一定會發生（成功或失敗都記），而且 recordUsage 自己吞掉所有錯誤，
    * 所以帳本壞掉不會影響回覆。
    */
-  async function complete({
+  async function completeBound({
     system, userMessage, maxTokens,
     purpose = AI_PURPOSE.OTHER,
     promptVersion = PROMPT_VERSIONS.OTHER,
@@ -353,7 +387,7 @@ export function createCoach({
     let fallbackOccurred = false;
 
     const finish = async (json, status, detail) => {
-      authority();
+      await authority();
       const tokens = extractTokens(json?.usage);
       await recordUsage(db, userId, {
         provider: 'openrouter',
@@ -375,10 +409,10 @@ export function createCoach({
         system, userMessage, maxTokens, useModel: requestedModel,
       });
       await finish(json, 'OK', null);
-      authority();
+      await authority();
       return text;
     } catch (err) {
-      authority();
+      await authority();
       // 模型本身用不了 → 退回建構時的預設模型再試一次（**只試一次**，不無限重試）
       if (isModelUnavailableError(err) && requestedModel !== model) {
         log.warn('coach_model_fallback', {
@@ -391,7 +425,7 @@ export function createCoach({
             system, userMessage, maxTokens, useModel: model,
           });
           await finish(json, 'OK', `fallback_from:${requestedModel}`);
-          authority();
+          await authority();
           return text;
         } catch (err2) {
           await finish(null, 'FAILED', describeError(err2));
@@ -401,6 +435,29 @@ export function createCoach({
       await finish(null, 'FAILED', describeError(err));
       throw err;
     }
+  }
+
+  async function complete(options) {
+    const parents = parentBudgets(), cancel = new AbortController();
+    const parentSignal = [signal,...parents.map(b=>b.signal)].filter(Boolean);
+    const combined = AbortSignal.any([cancel.signal,...parentSignal]);
+    const remaining=Math.min(...parents.map(b=>b.remainingMs()));
+    const deadlineTimer=Number.isFinite(remaining)?setTimeout(()=>cancel.abort(new ExecutionBudgetError()),Math.max(0,remaining)):null;
+    const composite = Object.freeze({signal:combined,
+      deadlineAt:Math.min(...parents.map(b=>b.deadlineAt)),
+      remainingMs:()=>Math.min(...parents.map(b=>b.remainingMs())),
+      assert:()=>{for(const b of parents)b.assert();signal?.throwIfAborted();combined.throwIfAborted();if(parents.some(b=>b.remainingMs()<=0))throw new ExecutionBudgetError();},
+    });
+    try {
+      return await withExecutionBudget(composite,()=>abortable((async()=>{
+      composite.assert();
+      const origin=snapshots.getStore();
+      const proof = origin ? origin.proof : await tenantProof();
+      composite.assert();
+      return await abortable(calls.run({proof,cancel,execution:origin?origin.execution:currentDurableExecution(),sync:origin?origin.sync:currentSyncOwnership()},()=>withExecutionBudget(composite,()=>
+        db?.withRuntimeFence ? db.withRuntimeFence(client=>authority(client),()=>completeBound(options)) : completeBound(options))),combined);
+      })(),combined));
+    } finally { if(deadlineTimer)clearTimeout(deadlineTimer);cancel.abort(); }
   }
 
   /**
@@ -421,8 +478,25 @@ export function createCoach({
     }
   }
 
-  return {
+  const api = {
     model,
+    snapshotKey() {
+      const origin=snapshots.getStore();if(!origin)return null;
+      return createHash('sha256').update(JSON.stringify([origin.proof,origin.execution?.claim?.executionId,origin.execution?.claim?.owner,origin.execution?.claim?.generation,origin.sync?.expiresAt])).digest('hex');
+    },
+    async assertSnapshot(client) {
+      assertParent();const origin=snapshots.getStore();
+      if(!origin||origin.execution!==currentDurableExecution()||origin.sync!==currentSyncOwnership()||origin.proof!==await tenantProof(client))revoked();
+      if(currentDurableExecution()&&db?.raw)await assertExecutionWorkOwner(client??db.raw);
+      const owner=currentSyncOwnership();if(owner){if(owner.userId!==userId||owner.db!==db)revoked();if(!client)await owner.assertCurrent();}
+      assertParent();return true;
+    },
+    async bindSnapshot() {
+      assertParent();const proof=await tenantProof(),execution=currentDurableExecution(),sync=currentSyncOwnership();assertParent();
+      return new Proxy(api,{get(target,key){const value=target[key];
+        return typeof value==='function' ? (...args)=>snapshots.run({proof,execution,sync},()=>value.apply(target,args)) : value;
+      }});
+    },
 
     /**
      * 通用文字生成（Telegram Q&A 用）。失敗回 null，呼叫端必須有 fallback。
@@ -524,4 +598,5 @@ export function createCoach({
       }
     },
   };
+  return api;
 }

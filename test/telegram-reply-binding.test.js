@@ -47,7 +47,7 @@ async function withBot(fn) {
     const user = await db.createUser({ displayName: 'Kelvin', timezone: 'Asia/Taipei' });
     await db.linkTelegram({ chatId: CHAT, userId: user.id });
     const sent = [];
-    const api = { async sendMessage(chatId, text) { sent.push({ chatId, text }); return { ok: true }; } };
+    const api = { async sendMessage(chatId, text) { sent.push({ chatId, text }); return {message_id:sent.length,date:1791586800,chat:{id:Number(chatId),type:'private'}}; } };
     await fn({ db, user, sent, sendReply: createSendReply({ db, api }) });
   } finally {
     db.close();

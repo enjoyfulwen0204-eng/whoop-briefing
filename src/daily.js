@@ -37,6 +37,7 @@ export async function runDaily({
   // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
   expectedLifecycleGeneration,
 }) {
+  if (typeof coach?.bindSnapshot === 'function') coach = await coach.bindSnapshot();
   const uid = requireUserId(userId, 'runDaily');
   requireLifecycle(expectedLifecycleGeneration, 'runDaily');
   // 1) 輕量 polling。刻意放在去重之前：health_date 是從最新那筆睡眠算出來的，
@@ -278,6 +279,7 @@ export async function runDaily({
     narrativeSource = narrative.source;
     narrativeFailure = narrative.failureCategory;
 
+    await coach?.assertSnapshot?.();
     text = renderDaily(briefing, coachText, { displayName: await displayNameFor(db, uid), locale });
     // ★ 補發必須看得出來是補發。標示用的是**這份報告的 health_date**，
     // 不是執行當下的日期 —— 使用者要知道這是哪一天的報告。
@@ -313,7 +315,10 @@ export async function runDaily({
 
   const delivery = await deliverReport({
     db, claimKey, claim, telegram, text, now: () => now,
+    authorizeContent:typeof coach?.assertSnapshot==='function'?()=>coach.assertSnapshot():undefined,
   });
+
+  if (delivery.result === DELIVERY_RESULT.DRY_RUN) return {status:'dry_run',healthDate,localDate:healthDate};
 
   if (delivery.result === DELIVERY_RESULT.FENCED) {
     // 租約在生成期間過期，別人接手了（而且可能已經送出）。

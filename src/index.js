@@ -290,9 +290,7 @@ async function runForUserOwned({
       errorScope: userScope(uid),
       locale: locale ?? 'zh-TW',
     }),
-    async () => Boolean(
-      await db.getActiveChatIdForUser(uid, { expectedLifecycleGeneration }).catch(() => null),
-    ),
+    async () => String(await db.getActiveChatIdForUser(uid, { expectedLifecycleGeneration }).catch(() => null))===String(chatId),
     { userId: uid, expectedLifecycleGeneration },
   );
 

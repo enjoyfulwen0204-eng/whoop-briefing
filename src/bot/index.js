@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {validMessageId} from '../telegramAcknowledgment.js';
 /**
  * Telegram bot worker（常駐 process）。
  *
@@ -50,7 +51,7 @@ export function createSendReply({ db, api }) {
    *   狀態標成終局，而不是留下「還沒送」去誘發未來重送。
    *   真正的送出失敗會**拋錯**，由呼叫端分類成確定失敗或模糊。
    */
-  return async function sendReply({ chatId, reply, userId, expectedLifecycleGeneration = null }) {
+  return async function sendReply({ chatId, reply, userId, expectedLifecycleGeneration = null,updateId }) {
     if (userId) {
       const current = await db.resolveUserByChatId(chatId);
       if (current?.user?.id !== userId) {
@@ -78,11 +79,14 @@ export function createSendReply({ db, api }) {
         return { sent: false, messageId: null, reason: 'lifecycle_changed' };
       }
     }
+    if(userId&&updateId!==undefined&&(!db.assertTelegramReplySnapshot||!await db.assertTelegramReplySnapshot({userId,chatId,reply,updateId})))
+      return {sent:false,messageId:null,reason:'health_snapshot_changed'};
     const res = await api.sendMessage(chatId, reply);
-    const messageId = Number(res?.message_id ?? res?.result?.message_id);
+    const messageId = res?.message_id;
+    if(!validMessageId(messageId))throw Object.assign(Error('TELEGRAM_ACK_INVALID'),{sendOutcome:'ambiguous',sendStage:'success_shape'});
     return {
       sent: true,
-      messageId: Number.isFinite(messageId) ? messageId : null,
+      messageId,
       reason: null,
     };
   };

@@ -748,6 +748,8 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
         // Nothing due/locale-unset can be a legitimate sync no-op only when the
         // per-user path explicitly proved throttling; unknown results fail closed.
         const syncOk = syncAuthorizesDrain(sync);
+        if([v.daily?.status,v.weekly?.status].some(status=>['claim_busy','claim_lost'].includes(status)))
+          summary.coordinationPending=true;
         summary.syncResults ??= []; summary.syncResults.push(sync);
 
         const reconciliation = v.reconciliation ?? null;

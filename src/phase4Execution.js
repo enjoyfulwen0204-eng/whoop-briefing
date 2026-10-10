@@ -90,7 +90,8 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
          const summary=await (deps.runBriefing??runBriefing)({now,triggerSource:request.triggerSource,deps:{...deps,db,env,
            runtimeAdmission:admission,executionBudget:budget,keepConnectionOpen:true,phase4Stage6:undefined,betaPresentation:undefined}});
          budget.assert();
-         if(summary.coordinationPending || executionContext.coordinationPending)throw Object.assign(Error('SYNC_SCOPE_BUSY'),{code:'SYNC_SCOPE_BUSY'});
+         if(summary.coordinationPending)executionContext.coordinationPending=true;
+         if(executionContext.coordinationPending)throw Object.assign(Error('SYNC_SCOPE_BUSY'),{code:'SYNC_SCOPE_BUSY'});
          const outcome=summary.syncComplete===true?summary.syncOutcome??'COMPLETE_SUCCESS':summary.syncOutcome??'PARTIAL';
          return {outcome,users:summary.users??0,failed:summary.failed??0,durationMs:performance.now()-started};
        }

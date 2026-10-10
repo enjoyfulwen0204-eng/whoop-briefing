@@ -169,7 +169,7 @@ test('token 寫入失敗會 retry，連續失敗才拋錯', async () => {
     let attempts = 0;
     const realExecute = db.raw.execute.bind(db.raw);
     db.raw.execute = async (arg) => {
-      if (typeof arg === 'object' && arg.sql?.includes('user_whoop_tokens')) {
+      if (typeof arg === 'object' && /^INSERT INTO user_whoop_tokens/.test(arg.sql ?? '')) {
         attempts += 1;
         if (attempts < 3) throw new Error('模擬暫時性寫入失敗');
       }
@@ -183,7 +183,7 @@ test('token 寫入失敗會 retry，連續失敗才拋錯', async () => {
 
     attempts = 0;
     db.raw.execute = async (arg) => {
-      if (typeof arg === 'object' && arg.sql?.includes('user_whoop_tokens')) {
+      if (typeof arg === 'object' && /^INSERT INTO user_whoop_tokens/.test(arg.sql ?? '')) {
         attempts += 1;
         throw new Error('模擬永久寫入失敗');
       }

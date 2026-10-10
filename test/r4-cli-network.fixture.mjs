@@ -1,5 +1,5 @@
 // Local-only CLI network interception. Never falls back to a real provider.
-import { createDb } from '../src/db.js';
+import { createDb } from './localDb.js';
 if (!process.env.TURSO_DATABASE_URL?.startsWith('file:')) throw new Error('local_test_db_required');
 globalThis.fetch = async (input) => {
   const url = new URL(input);

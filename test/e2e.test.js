@@ -88,7 +88,7 @@ function installMockFetch({ dataset, calls }) {
     if (url.host === 'api.telegram.org') {
       const body = JSON.parse(init.body);
       calls.push({ host: 'telegram', text: body.text, parse_mode: body.parse_mode });
-      return json({ ok: true, result: { message_id: 4242 } });
+      return json({ ok: true, result: { message_id: 4242, date: 1791586800, chat: { id: Number(body.chat_id), type: 'private' } } });
     }
 
     throw new Error(`測試沒預期到的外部呼叫：${raw}`);

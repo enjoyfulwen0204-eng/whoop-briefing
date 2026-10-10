@@ -131,7 +131,7 @@ async function scenario({name,users=3,latency=10,jitter=0,cold=false,partial=fal
    const secret='synthetic-http-timing-worker-only-secret',pending=new Set();
    const endpoint=createBriefingEndpoint({secret,environment,discoverContinuation:options=>discoverPhaseContinuation({...options,db,keys:fixtureKeys,environment}),runPhase:options=>{
     const at=performance.now();if(options.request.phase==='SYNC')request=options.request;
-    const work=runExecutionPhase({...options,db,keys:fixtureKeys,environment,env,deps,now}).then(async result=>{
+    const work=runExecutionPhase({...options,db,keys:fixtureKeys,environment,env,deps,now}).catch(error=>{console.error('TIMING_PHASE_ERROR',error.code,error.message,error.stack);throw error;}).then(async result=>{
      workerResponses.push({phase:options.request.phase,response:result,elapsedMs:performance.now()-at,generation:(await readExecution(db,options.request.requestId))?.generation,sends:payloads.length});return result;
     });pending.add(work);work.finally(()=>pending.delete(work)).catch(()=>{});return work;
    }});

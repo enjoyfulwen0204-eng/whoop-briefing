@@ -47,13 +47,13 @@ async function harness() {
   const sends = [];
   let failSend = false;
   const telegram = createTelegram({
-    botToken: 'stub', chatId: 'stub', dryRun: false, db, errorScope: GLOBAL_SCOPE,
+    botToken: 'stub', chatId: '99001', dryRun: false, db, errorScope: GLOBAL_SCOPE,
     fetchImpl: async (_u, o) => {
-      if (failSend) throw new Error('telegram down');
+      if (failSend) throw Object.assign(new Error('telegram refused'),{code:'ECONNREFUSED'});
       sends.push(JSON.parse(o.body).text);
       return {
         ok: true, status: 200,
-        async text() { return JSON.stringify({ ok: true, result: { message_id: sends.length } }); },
+        async text() { return JSON.stringify({ ok: true, result: { message_id: sends.length, date: 1791586800, chat: { id: 99001, type:'private' } } }); },
       };
     },
   });
@@ -217,10 +217,10 @@ test('★★★ 重啟不會讓成功的冷卻消失', async () => {
     const db = createDb({ url });
     await db.migrate();
     const tg = createTelegram({
-      botToken: 'stub', chatId: 'stub', dryRun: false, db, errorScope: GLOBAL_SCOPE,
+      botToken: 'stub', chatId: '99001', dryRun: false, db, errorScope: GLOBAL_SCOPE,
       fetchImpl: async (_u, o) => {
         sends.push(JSON.parse(o.body).text);
-        return { ok: true, status: 200, async text() { return JSON.stringify({ ok: true, result: { message_id: 1 } }); } };
+        return { ok: true, status: 200, async text() { return JSON.stringify({ ok: true, result: { message_id: 1, date: 1791586800, chat: { id: 99001, type:'private' } } }); } };
       },
     });
     return { db, tg };

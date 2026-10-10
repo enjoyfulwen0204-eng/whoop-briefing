@@ -58,15 +58,15 @@ async function harness() {
   const sends = [];
   let failSend = false;
   const telegram = createTelegram({
-    botToken: 'stub', chatId: 'stub', dryRun: false, db, errorScope: GLOBAL_SCOPE,
+    botToken: 'stub', chatId: '99001', dryRun: false, db, errorScope: GLOBAL_SCOPE,
     fetchImpl: async (_url, opts) => {
-      if (failSend) throw new Error('telegram down');
+      if (failSend) throw Object.assign(new Error('telegram refused'),{code:'ECONNREFUSED'});
       sends.push(JSON.parse(opts.body).text);
       // ⚠️ send() 讀的是 res.text() 再自己 JSON.parse，不是 res.json()。
       // 回 '{}' 會讓它丟 TelegramError，於是 notifyError 明明送出去了卻回 false。
       return {
         ok: true, status: 200,
-        async text() { return JSON.stringify({ ok: true, result: { message_id: sends.length } }); },
+        async text() { return JSON.stringify({ ok: true, result: { message_id: sends.length, date: 1791586800, chat: { id: 99001, type:'private' } } }); },
       };
     },
   });
@@ -271,12 +271,12 @@ test('★★★ 重啟不會重置冷卻（狀態是耐久的）', async () => {
       const db = createDb({ url });
       await db.migrate();
       const tg = createTelegram({
-        botToken: 'stub', chatId: 'stub', dryRun: false, db, errorScope: GLOBAL_SCOPE,
+        botToken: 'stub', chatId: '99001', dryRun: false, db, errorScope: GLOBAL_SCOPE,
         fetchImpl: async (_u, o) => {
           sends.push(JSON.parse(o.body).text);
           return {
             ok: true, status: 200,
-            async text() { return JSON.stringify({ ok: true, result: { message_id: 1 } }); },
+            async text() { return JSON.stringify({ ok: true, result: { message_id: 1, date: 1791586800, chat: { id: 99001, type:'private' } } }); },
           };
         },
       });

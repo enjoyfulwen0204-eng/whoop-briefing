@@ -46,8 +46,8 @@ const count = async (db, table, uid) => Number((await db.raw.execute({
 })).rows[0].n);
 function transport(db, uid, life, sent, extraAuthorize = async () => {}) {
   return withDeliveryAuthorization(createTelegram({
-    db, errorScope: `user:${uid}`, botToken: 'test-only', chatId: uid,
-    fetchImpl: async () => { sent.push(uid); return new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } })); },
+    db, errorScope: `user:${uid}`, botToken: 'test-only', chatId: '99002',
+    fetchImpl: async () => { sent.push(uid); return new Response(JSON.stringify({ ok: true, result: { message_id: sent.length, date:1791586800, chat:{id:99002,type:'private'} } })); },
   }), async () => {
     await extraAuthorize();
     return db.assertAccountActive(uid, life).then(() => true, () => false);
@@ -90,8 +90,8 @@ test('ERR-R4-04/05 + isolation: same life and global operator alerts work; Alice
   assert.equal(await transport(db, alice.id, 1, sent).notifyError('health', 'test'), true);
   await transition(db, alice.id, false);
   assert.equal(await transport(db, bob.id, 1, sent).notifyError('health', 'test'), true);
-  const operator = createTelegram({ db, botToken: 'test', chatId: 'operator', fetchImpl: async () => {
-    sent.push('operator'); return new Response(JSON.stringify({ ok: true, result: { message_id: 3 } }));
+  const operator = createTelegram({ db, botToken: 'test', chatId: '99003', fetchImpl: async () => {
+    sent.push('operator'); return new Response(JSON.stringify({ ok: true, result: { message_id: 3, date:1791586800, chat:{id:99003,type:'private'} } }));
   } });
   assert.equal(await operator.notifyError('infra', 'test'), true);
   assert.deepEqual(sent, [alice.id, bob.id, 'operator']);

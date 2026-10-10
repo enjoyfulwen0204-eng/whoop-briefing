@@ -5,12 +5,23 @@ import {createDb,fixtureKeys} from './localDb.js';import {runExecutionPhase} fro
 import {configurationProof,claimPhaseRequest,readPhaseProgress} from '../src/phase4ExecutionStore.js';
 import {createSync} from '../src/sync.js';import {LIFECYCLE_UNFENCED} from '../src/accountLifecycle.js';
 import {createBriefingEndpoint} from '../src/briefingEndpoint.js';import {signTriggerRequest,BRIEFING_TRIGGER} from '../src/briefingTriggerAuth.js';
-const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off'};
+const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off',
+ PHASE4_BETA_PILOT_ID:'a'.repeat(64),PHASE4_BETA_PILOT_USER_ID:'pilot-fixture',PHASE4_BETA_PILOT_START_AT:new Date(Date.now()-1000).toISOString(),
+ PHASE4_BETA_PILOT_CONSENT_SHA256:'b'.repeat(64),PHASE4_BETA_PILOT_COST_BOUND_ID:'c'.repeat(64)};
+// Synthetic reservation only; never an assertion about production billing.
+const pilotReservation={id:'c'.repeat(64),evidenceSha256:'d'.repeat(64),perAttempt:{rowsRead:1,rowsWritten:1,storageBytes:1,bytesSynced:0,microUsd:1},
+ maximum:{rowsRead:48,rowsWritten:48,storageBytes:48,bytesSynced:0,microUsd:48}};
 const env={timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:1,telegramBotToken:'SYNTHETIC',telegramChatId:'SYNTHETIC'};
 async function fixture(t){const dir=await mkdtemp(join(tmpdir(),'p4-split-')),db=createDb({url:`file:${join(dir,'isolated.db')}`});t.after(async()=>{db.close();await rm(dir,{recursive:true,force:true});});await db.migrate();return db;}
 const makeRequest=(phase='SYNC',source='manual',extra={})=>({releaseSha:runningReleaseSha(),requestId:randomUUID(),phase,triggerSource:source,executionMode:'SHADOW',
  configProof:configurationProof(fixtureKeys,{runtime:'on',mode:'off'},environment),...extra});
-const run=(db,request,deps={},extra={})=>runExecutionPhase({db,request,env,keys:fixtureKeys,environment,deps,...extra});
+const run=async(db,request,deps={},extra={})=>{
+ if(deps.runtime&&!await db.getUser('pilot-fixture')){
+  await db.createUser({id:'pilot-fixture',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
+  await db.ensureOnboarding('pilot-fixture');await db.raw.execute("UPDATE user_onboarding SET state='READY' WHERE user_id='pilot-fixture'");
+ }
+ return runExecutionPhase({db,request,env,keys:fixtureKeys,environment,deps:{pilotReservation,...deps},...extra});
+};
 const success=()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS',users:0,failed:0});
 const fakeRuntime=(calls,outcome='PARTIAL')=>({phase4Stage6:{drain:async r=>{calls.push(r);await r.onProgress?.({event:'discovery_start'});
  await r.onProgress?.({event:'discovery_complete',jobsConsidered:3});await r.onProgress?.({event:'drain_start',jobsConsidered:3});

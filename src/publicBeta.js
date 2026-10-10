@@ -4,6 +4,7 @@ import { createPhase4Foundation } from './phase4Foundation.js';
 import { authorizeStage6ShadowWorker, createPhase4Stage6 } from './phase4Reanalysis.js';
 import { displayNameFor } from './displayName.js';
 import { t } from './localization.js';
+import {requireBetaPilotGrant} from './betaPilotPermit.js';
 
 const runtimeCapabilities = new WeakSet();
 
@@ -50,20 +51,24 @@ function localizedAssociation(locale, insight) {
   });
 }
 
-export function createPublicBetaPresentation({ stores, policy, db, runtimeCapability }) {
+export function createPublicBetaPresentation({ stores, policy, db, runtimeCapability,pilotGrant }) {
   if (!runtimeCapabilities.has(runtimeCapability)) throw new Error('PUBLIC_BETA_RUNTIME_CAPABILITY_REQUIRED');
   if (typeof stores?.withContext !== 'function' || typeof stores?.assertCurrent !== 'function'
     || typeof stores?.betaSummary?.readCurrent !== 'function'
     || typeof policy?.eligible !== 'function' || typeof db?.getUser !== 'function')
     throw new Error('PUBLIC_BETA_PRESENTATION_AUTHORITY_REQUIRED');
+  if(db.raw&&db.raw.protocol!=='file')requireBetaPilotGrant(pilotGrant,pilotGrant?.userId,db.raw);
   const presentation = {
-    eligible: userId => policy.eligible(requireUserId(userId, 'betaSummaryEligibility')),
+    eligible: userId => {const id=requireUserId(userId,'betaSummaryEligibility');
+      if(pilotGrant){try{requireBetaPilotGrant(pilotGrant,id,db.raw);}catch{return false;}}
+      return policy.eligible(id);},
     async withCurrentSummary({ userId, now = new Date() }, work) {
       const id = requireUserId(userId, 'betaSummary');
-      if (!policy.eligible(id)) return null;
+      if (!presentation.eligible(id)) return null;
       if (!(now instanceof Date) || !Number.isFinite(now.getTime()) || typeof work !== 'function') return null;
       let deliveryStarted = false;
       try {
+        if(pilotGrant)await pilotGrant.assert();
         const locale = await db.getLocale(id);
         if (!locale) return null;
         return await stores.withContext(id, { executionMode: 'SHADOW' }, async context => {
@@ -89,8 +94,10 @@ export function createPublicBetaPresentation({ stores, policy, db, runtimeCapabi
           nameSuffix: name ? t(locale, 'beta.nameSuffix', { name }) : '',
         }), ...lines].join('\n');
         await stores.assertCurrent(context);
+        if(pilotGrant)await pilotGrant.assert();
         deliveryStarted = true;
         return work(text, async () => {
+          if(pilotGrant)await pilotGrant.assert();
           await stores.assertCurrent(context);
           // Expiry is semantic, so a generation fence alone is insufficient
           // if delivery waits across an item expiry boundary.
@@ -113,19 +120,20 @@ export function createPublicBetaPresentation({ stores, policy, db, runtimeCapabi
 }
 
 export async function createPublicBetaRuntime({ db, keys, admission, executionMode, runtimeCapability,
-  presentationPolicy = publicBetaPolicy() } = {}) {
+  presentationPolicy = publicBetaPolicy(),pilotGrant } = {}) {
   if (executionMode !== 'SHADOW' || !runtimeCapabilities.has(runtimeCapability))
     throw new Error('PUBLIC_BETA_RUNTIME_CAPABILITY_REQUIRED');
   if (!db?.raw || typeof db.transaction !== 'function') throw new Error('PUBLIC_BETA_DATABASE_REQUIRED');
+  if(db.raw.protocol!=='file')requireBetaPilotGrant(pilotGrant,pilotGrant?.userId,db.raw);
   requirePhase4Keys(keys);
   if (!admission && typeof db.admitRuntime === 'function'
     && Number((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v) === 32)
     admission = await db.admitRuntime();
   const stage6Capability = authorizeStage6ShadowWorker({ executionMode: 'SHADOW' });
   const [worker, stores] = await Promise.all([
-    createPhase4Stage6({ db, keys, admission, executionMode: 'SHADOW', workerCapability: stage6Capability }),
+    createPhase4Stage6({ db, keys, admission, executionMode: 'SHADOW', workerCapability: stage6Capability,pilotGrant }),
     createPhase4Foundation({ db, keys, admission }),
   ]);
   return Object.freeze({ phase4Stage6: worker,
-    betaPresentation: createPublicBetaPresentation({ stores, policy: presentationPolicy, db, runtimeCapability }) });
+    betaPresentation: createPublicBetaPresentation({ stores, policy: presentationPolicy, db, runtimeCapability,pilotGrant }) });
 }

@@ -26,7 +26,7 @@ test('Stage 6 CF >30m and outside-window GitHub >3h staleness; sync-only CF hear
   const outside=at('12:00:00');
   for(const [hours,state] of [[3,'healthy'],[3.001,'stale']])
     assert.equal(schedulerProviderState({lastOkAt:new Date(outside.getTime()-hours*3600000).toISOString()},'github',outside).state,state);
-  let calls=0;const worker={drain:async request=>{calls++;return {outcome:'DRAINED',...request};}},db={getHeartbeat:async()=>({lastOkAt:now.toISOString()})};
+  let calls=0;const worker={drain:async request=>{calls++;return {outcome:'DRAINED',...request};}},db={raw:{protocol:'file'},getHeartbeat:async()=>({lastOkAt:now.toISOString()})};
   assert.equal((await runPhase4Stage6({db,worker,triggerSource:'github',now})).role,'fallback');
   db.getHeartbeat=async()=>null;
   assert.equal((await runPhase4Stage6({db,worker,triggerSource:'github',now})).role,'fallback');

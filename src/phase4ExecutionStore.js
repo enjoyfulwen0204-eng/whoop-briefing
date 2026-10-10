@@ -43,8 +43,14 @@ export function validatePhaseBody(request,body){
  if(isContinuationRequest(request)&&body!==canonicalPhaseRequest(request))fail('EXECUTION_BODY_MISMATCH');
  return parsed;
 }
-export const configurationProof=(keys,config,environment,releaseSha=runningReleaseSha(environment))=>keys.lookup(['phase4-configuration-v2',requireReleaseSha(releaseSha),config.runtime,config.mode,
- (environment.PHASE4_PUBLIC_BETA_USER_IDS??'').split(',').filter(Boolean).map(x=>x.trim()).sort()]);
+export const configurationProof=(keys,config,environment,releaseSha=runningReleaseSha(environment))=>{
+ const profile=['phase4-configuration-v2',requireReleaseSha(releaseSha),config.runtime,config.mode,
+  (environment.PHASE4_PUBLIC_BETA_USER_IDS??'').split(',').filter(Boolean).map(x=>x.trim()).sort()];
+ const pilot=['ID','USER_ID','START_AT','CONSENT_SHA256','COST_BOUND_ID'].map(name=>environment[`PHASE4_BETA_PILOT_${name}`]??'');
+ // Preserve OFF/legacy proof semantics; pilot changes fence existing work.
+ if(pilot.some(Boolean))profile.push(['beta-pilot-v1',...pilot]);
+ return keys.lookup(profile);
+};
 export const requestIdentity=body=>bodySha256(body);
 function safeRecord(record) {
  const out={version:2,releaseSha:requireReleaseSha(record.releaseSha),phase:requirePhase(record.phase),source:requireTriggerSource(record.source),outcome:record.outcome};

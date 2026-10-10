@@ -59,7 +59,13 @@ export function hranaTransport(url) {
      }response={type:'batch',result:{step_results,step_errors}};
     }else if(item.type==='store_sql'){stream.sql.set(item.sql_id,item.sql);response={type:'store_sql'};}
     else if(item.type==='close_sql'){stream.sql.delete(item.sql_id);response={type:'close_sql'};}
-    else if(item.type==='close'){stream.client.close();streams.delete(id);id=null;response={type:'close'};}
+    else if(item.type==='close'){
+     // A real Hrana stream close rolls back its open SQLite transaction. The
+     // native test driver's deferred finalizer cannot stand in for that server
+     // lifecycle; perform the protocol's rollback before closing the receiver.
+     if(stream.inTransaction){await stream.client.execute('ROLLBACK');stream.inTransaction=false;}
+     stream.client.close();streams.delete(id);id=null;response={type:'close'};
+    }
     else if(item.type==='get_autocommit')response={type:'get_autocommit',is_autocommit:!stream.inTransaction};
     else throw Error(`UNIMPLEMENTED_HRANA_REQUEST:${item.type}`);
     results.push({type:'ok',response});

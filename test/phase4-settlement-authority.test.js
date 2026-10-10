@@ -49,7 +49,7 @@ for(const outcome of ['NO_WORK','PARTIAL','COMPLETE'])test(`R2 authority: Stage 
  await onProgress({event:'drain_start'});return {outcome,jobsConsidered:1,itemsAttempted:outcome==='NO_WORK'?0:3,processedItems:outcome==='NO_WORK'?0:3,
  completedJobs:outcome==='COMPLETE'?1:0,remainingJobs:outcome==='PARTIAL'?1:0,completion:outcome==='PARTIAL'?'PARTIAL':'COMPLETE'};}};
  const r=await run(db,drain,{signal:controller.signal,deps:{runtime:{phase4Stage6:worker}}});assert.equal(injected,true);denied(r);
- const p=await readPhaseProgress(db,'STAGE6_DRAIN','manual');assert.equal(p.state,'RESUMABLE_PENDING');assert.equal(p.execution.abort_outcome,'CANCELLED');assert.notEqual(p.settlementState,'FINALIZED_SUCCESS');assert.equal(p.complete,null);
+ const p=await readPhaseProgress(db,'STAGE6_DRAIN','manual');console.log('SETTLEMENT_CANCELLATION_EVIDENCE',JSON.stringify({state:p.state,settlementState:p.settlementState,abort:p.execution.abort_outcome,receipts:p.workReceipts}));assert.equal(p.state,'RESUMABLE_PENDING');assert.ok(p.workReceipts>0,'committed progress receipts are retained across cancellation');assert.equal(p.execution.abort_outcome,'CANCELLED');assert.notEqual(p.settlementState,'FINALIZED_SUCCESS');assert.equal(p.complete,null);
 });
 test('R2 authority: valid same-release success settles normally and emits one successful heartbeat',async t=>{
  const db=await fixture(t),value=request(),r=await run(db,value);assert.equal(r.body.ok,true);assert.equal(r.body.result.releaseSha,runningReleaseSha());

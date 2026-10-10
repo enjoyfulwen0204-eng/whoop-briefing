@@ -1,3 +1,4 @@
+import {hranaPayload,closeOnlyPayload,closeHranaStream,closeLateHranaResponse} from './hranaCleanup.js';
 import {currentExecutionBudget,abortableResponse} from './executionBudget.js';
 import {validMessageId} from './telegramAcknowledgment.js';
 import {bindExecutionApi} from './phase4WorkStep.js';
@@ -73,12 +74,19 @@ export function isDuplicateSentError(err) {
 const privateClients=new WeakSet();
 export function createDb({ url, authToken, phase4Keys,fetch }) {
   const providerFetch=fetch??globalThis.fetch;
-  const boundedFetch=(input,init)=>{
+  const boundedFetch=async(input,init)=>{
     const budget=currentExecutionBudget();
     if(!budget)return providerFetch(input,init);
+    const original=new Request(input,init),payload=await hranaPayload(original);
+    // The installed driver closes a failed stream under its cancelled context.
+    // Permit ONLY protocol close of that already issued baton, never SQL.
+    if(closeOnlyPayload(payload))return closeHranaStream(providerFetch,original,payload.baton);
     budget.assert();
-    const request=new Request(input,{...init,signal:AbortSignal.any([budget.signal,...[input?.signal,init?.signal].filter(Boolean)])});
-    return abortableResponse(providerFetch(request),budget.signal);
+    const request=new Request(original,{signal:AbortSignal.any([budget.signal,...[input?.signal,init?.signal].filter(Boolean)])});
+    const work=Promise.resolve().then(()=>{budget.assert();return providerFetch(request);});
+    work.then(response=>{if((budget.signal.aborted||request.signal.aborted)&&payload)void closeLateHranaResponse(providerFetch,original,response);},()=>{});
+    try{return await abortableResponse(work,budget.signal);}
+    catch(error){if(payload?.baton)void closeHranaStream(providerFetch,original,payload.baton).catch(()=>{});throw error;}
   };
   const client=createClient({url,authToken,fetch:boundedFetch});privateClients.add(client);
   return composeDb(client,{phase4Keys});

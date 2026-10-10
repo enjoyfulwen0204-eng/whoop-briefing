@@ -146,7 +146,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
      if(cleanupMs>0){
        const cleanup=createExecutionBudget({budgetMs:cleanupMs});
        try{await cleanup.run(()=>outcome==='COMMIT_INDETERMINATE'?noteIndeterminateExecution(db,claim):abortPhaseExecution(db,claim,outcome,{resumable:resumable||staleRequest}));}
-       catch{/* generation/receipt still reconciles without a projection */}finally{cleanup.close();}
+       catch(error){log.warn('phase4_cleanup_pending',{phase:request.phase,code:error?.code??'CLEANUP_UNCONFIRMED'});}finally{cleanup.close();}
      }
    }
        if(request.phase==='STAGE6_DRAIN'&&record.settlementState==='FINALIZED_SUCCESS'&&config.mode!=='off'&&presentationRuntime?.betaPresentation) {

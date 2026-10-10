@@ -13,3 +13,18 @@ for(const mode of ['resume','exhausted','bad-delay','wrong-source'])test(`Worker
  else {await assert.rejects(run(),e=>mode==='exhausted'?e.resumable===true:e.nonRetryable===true);assert.equal(calls.length,mode==='exhausted'?MAX_ATTEMPTS:1);assert.ok(calls.every(x=>JSON.parse(x).phase==='SYNC'));}
  assert.ok(clock-Date.now()<MAX_CONFIGURED_WINDOW_MS);
 });
+
+for(const code of ['REQUEST_PENDING','REQUEST_SCOPE_PENDING'])test('Worker preserves bounded coordination pending across caller exhaustion: '+code,async()=>{
+ let clock=Date.now(),calls=0;const bodies=[];
+ await assert.rejects(()=>invoke({...env,BRIEFING_CONTINUATION_DISCOVERY:'on'},{now:()=>clock,sleep:async ms=>{clock+=ms;},fetchImpl:async(url,init)=>{
+  if(url.endsWith('/continuation'))return new Response(JSON.stringify({ok:true,state:'NONE',requestBody:null}));
+  calls++;bodies.push(init.body);return new Response(JSON.stringify({ok:false,error:code,retryAfterMs:225000}),{status:409});
+ }}),e=>e.category==='continuation_pending'&&e.resumable===true);
+ assert.equal(calls,3);assert.ok(bodies.every(b=>b===bodies[0]));assert.ok(clock-Date.now()<MAX_CONFIGURED_WINDOW_MS);
+});
+test('Worker does not convert a conflicting identity into coordination pending',async()=>{
+ let calls=0;await assert.rejects(()=>invoke({...env,BRIEFING_CONTINUATION_DISCOVERY:'on'},{fetchImpl:async(url)=>{
+  if(url.endsWith('/continuation'))return new Response(JSON.stringify({ok:true,state:'NONE',requestBody:null}));
+  calls++;return new Response(JSON.stringify({ok:false,error:'REQUEST_ID_CONFLICT'}),{status:409});
+ }}),e=>e.category==='http_4xx'&&e.nonRetryable===true);assert.equal(calls,1);
+});

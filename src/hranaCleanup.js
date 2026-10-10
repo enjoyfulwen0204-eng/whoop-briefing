@@ -1,4 +1,4 @@
-import {createExecutionBudget,SETTLEMENT_MARGIN_MS,boundedBody} from './executionBudget.js';
+import {createExecutionBudget,SETTLEMENT_MARGIN_MS,boundedBody,abortable} from './executionBudget.js';
 // Closing an existing Hrana baton releases transport resources; it grants no
 // SQL/COMMIT/business authority. Keep it bounded even after parent cancellation.
 export async function hranaPayload(request){
@@ -9,10 +9,13 @@ export async function hranaPayload(request){
 const baton=value=>typeof value==='string'&&value.length>0&&value.length<=4096;
 export function closeOnlyPayload(payload){return payload&&baton(payload.baton)&&Array.isArray(payload.requests)&&payload.requests.length>0
  &&payload.requests.every(r=>r&&Object.keys(r).length===1&&r.type==='close')&&Object.keys(payload).every(k=>['baton','requests'].includes(k));}
-export async function closeHranaStream(fetchImpl,request,id){
+export async function closeHranaStream(fetchImpl,request,id,pending){
  if(!baton(id))return;
  const cleanup=createExecutionBudget({budgetMs:SETTLEMENT_MARGIN_MS});
  try{return await cleanup.run(async()=>{
+  // Do not close underneath an already submitted command. Waiting grants no
+  // SQL authority; unresolved transport is left to provider expiry.
+  if(pending)await abortable(Promise.resolve(pending).catch(()=>{}),cleanup.signal);
   const response=await fetchImpl(new Request(request.url,{method:'POST',headers:request.headers,
    body:JSON.stringify({baton:id,requests:[{type:'close'}]}),signal:cleanup.signal}));
   const body=await boundedBody(response,{signal:cleanup.signal,maxBytes:1024*1024});

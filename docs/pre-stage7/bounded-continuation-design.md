@@ -66,3 +66,11 @@ Report claim, renewal, authorization and unstarted release receipts bind the act
 ## Fresh fence observations
 
 Coach can request one fresh assertion of every installed runtime fence. The helper accepts no callback or SQL and returns no data. It invokes the existing phase, tenant lease and Coach snapshot predicates under the existing internal recursion guard; later SQL remains independently fenced, and transaction COMMIT checks remain unchanged. No authority value is cached or extended. Original nested observations and every revocation/short-parent test remain retained.
+
+## Ordered cancellation cleanup and explicit COMMIT rejection
+
+Close-only cleanup waits for an already submitted command to settle, within the same existing 15-second cleanup budget. It cannot close a stream underneath an in-flight COMMIT or infer rollback from cancellation. If the transport cannot settle within that bound, cleanup stops and provider expiry/fresh reconciliation remain necessary. The original late-COMMIT/Stage6 failures and unchanged 18-case successful rerun are retained.
+
+An explicitly rejected closed HTTP COMMIT with SQLITE_BUSY/LOCKED is recoverable coordination, not a permanent execution failure. It cannot replay an uncertain callback or fabricate a receipt. A fresh same-identity fenced owner may retry work only after the definite rejected transaction, and immutable committed receipts still suppress repeat effects. The new deterministic rejection test verifies zero committed first effect, one final effect/receipt and zero finalized replay callbacks.
+
+The positive two-process HTTP authority fixture now explicitly uses an isolated WAL server. Its native DELETE-journal counterpart produced real COMMIT_REJECTED/SQLITE_BUSY during concurrent readers; those logs remain evidence. SQLite documents that WAL readers do not block writers, while only one writer is permitted ([SQLite WAL](https://www.sqlite.org/wal.html)). This is a declared fixture mode, not a production journal-mode mutation or an assertion that private provider configuration was inspected. The production client retains conservative rejection semantics in either case.

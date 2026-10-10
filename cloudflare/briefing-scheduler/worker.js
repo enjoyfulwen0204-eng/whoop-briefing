@@ -126,9 +126,11 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
       const pending=error('continuation_pending');pending.requestId=requestId;pending.resumable=true;throw pending;
     }
     if(response.status===207||(payload?.syncComplete===false&&payload?.result?.outcome!=='COMMIT_INDETERMINATE'))throw error('sync_incomplete',true);
-    if(continuation&&response.status===409&&payload?.error==='REQUEST_PENDING'&&payload.retryAfterMs!==undefined){
-      if(!Number.isSafeInteger(payload.retryAfterMs)||payload.retryAfterMs<0||payload.retryAfterMs>225000)throw error('invalid_response',true);
-      retryWait=payload.retryAfterMs;
+    if(continuation&&response.status===409&&['REQUEST_PENDING','REQUEST_SCOPE_PENDING'].includes(payload?.error)){
+      const delay=payload.retryAfterMs??15000;
+      if(!Number.isSafeInteger(delay)||delay<0||delay>225000)throw error('invalid_response',true);
+      retryWait=delay;
+      const pending=error('continuation_pending');pending.requestId=requestId;pending.resumable=true;throw pending;
     }
     last=error(isRedirect(response.status)?'redirect':response.status===401||response.status===403?'authentication':`http_${Math.floor(response.status/100)}xx`,
       !retryableStatus(response.status)&&!(response.status===409&&['REQUEST_PENDING','REQUEST_SCOPE_PENDING'].includes(payload?.error)));

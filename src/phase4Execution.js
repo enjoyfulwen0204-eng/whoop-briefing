@@ -14,7 +14,7 @@ import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Re
 import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
 import {executionProfile} from './phase4Rollback.js';
 import { requireRuntimeAdmission, followRuntimeRenewal } from './runtimeAdmission.js';
-import {betaPilotConfiguration,reviewedPilotReservation,createBetaPilotPermit} from './betaPilotPermit.js';
+import {betaPilotConfiguration,reviewedPilotReservation,createBetaPilotPermit,closingBetaPilotPermit} from './betaPilotPermit.js';
 export const ADMISSION_BUDGET_MS=30_000;
 export const SYNC_SOURCE_BUDGETS=Object.freeze({cloudflare:120_000,github:SYNC_BUDGET_MS,manual:SYNC_BUDGET_MS,event:120_000});
 export const DRAIN_SOURCE_BUDGETS=Object.freeze({cloudflare:45_000,github:90_000,manual:45_000,event:25_000});
@@ -73,7 +73,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
  const limit=budgetMs??sourceLimit,wholeLimit=ADMISSION_BUDGET_MS+limit+PHASE_SETTLEMENT_MS;
  if(limit>sourceLimit||(overallBudgetMs!==undefined&&overallBudgetMs>wholeLimit))throw new Error('PHASE_BUDGET_INVALID');
  const overall=createExecutionBudget({budgetMs:overallBudgetMs??wholeLimit,signal,startedAtMs:phaseStartedAt});
- const admissionBudget=createExecutionBudget({budgetMs:ADMISSION_BUDGET_MS,signal:overall.signal});let budget,stopFollowing;
+ const admissionBudget=createExecutionBudget({budgetMs:ADMISSION_BUDGET_MS,signal:overall.signal});let budget,stopFollowing,pilotGrant;
  try {
    let admission=await admissionBudget.run(()=>db.admitRuntime({source:request.triggerSource,fresh:true}));
    const checkAdmission=()=>requireRuntimeAdmission(db.raw,admission,keys,db.transaction);
@@ -98,8 +98,8 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    const workLimit=claim.workCommitted||reconciliationOnly?limit:Math.max(0,Math.min(limit,claim.workDeadlineAt-Date.now()));
    if(workLimit<=0)throw Object.assign(Error('EXECUTION_STALE_REQUEST'),{code:'EXECUTION_STALE_REQUEST'});
    budget=createExecutionBudget({budgetMs:workLimit,signal:overall.signal});
-   let pilotGrant,pilotDenied=false;
-   const fence=async client=>{checkAdmission();overall.assert();budget.assert();if(pilotGrant){
+   let pilotDenied=false;
+   const fence=async client=>{checkAdmission();if(closingBetaPilotPermit(db))return;overall.assert();budget.assert();if(pilotGrant){
     if(configurationProof(keys,publicBetaConfiguration(environment),environment,releaseSha)!==proof)throw Object.assign(Error('BETA_PILOT_DENIED'),{code:'BETA_PILOT_DENIED'});
     await pilotGrant.assert(client);
    }};
@@ -206,7 +206,8 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    if(error?.code==='COMMIT_INDETERMINATE')return phaseResponse({phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,outcome:'COMMIT_INDETERMINATE'});
    if(!['SYNC_TIMEOUT','SYNC_CANCELLED'].includes(error?.code))throw error;
    return phaseResponse({phase:request.phase,releaseSha,source:request.triggerSource,executionMode:mode,outcome:error.code==='SYNC_TIMEOUT'?'TIMEOUT':'CANCELLED'});
- } finally {budget?.cancel();stopFollowing?.();overall.close();admissionBudget.close();budget?.close();if(!providedDb)db.close();}
+ } finally {budget?.cancel();overall.close();admissionBudget.close();budget?.close();
+  try{await pilotGrant?.settleInvalidation();}finally{stopFollowing?.();if(!providedDb)db.close();}}
 }
 
 /** Authenticated entry composition; the discovery store cannot construct capabilities. */

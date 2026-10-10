@@ -206,3 +206,45 @@ test('missing qualification leaves DELIVERY_STARTED/AMBIGUOUS claims and real lo
  assert.equal((await runExecutionPhase({...options,request:drainRequest})).body.result.outcome,'DISABLED');
  assert.deepEqual(await snapshot(),before);
 });
+
+test('expiry observed by in-flight assertion is durably denied after connection replacement and database-clock rollback',async t=>{
+ const {db,url}=await fixture(t),env=environment(),config=betaPilotConfiguration(env),grant=await store(db,env).reserve();
+ const execute=db.raw.execute.bind(db.raw);
+ db.raw.execute=async statement=>{const result=await execute(statement);if(typeof statement?.sql==='string'&&statement.sql.startsWith('SELECT (CAST(strftime'))
+  result.rows[0].observed_at=config.endAt;return result;};
+ await assert.rejects(()=>grant.assert(),/BETA_PILOT_DENIED/);
+ assert.equal((await record(db)).closed,true);assert.equal((await record(db)).attempts,1);
+ db.raw.execute=execute;db.close();const restarted=createDb({url});t.after(()=>restarted.close());await restarted.admitRuntime();
+ await assert.rejects(()=>store(restarted,env).reserve(),/BETA_PILOT_DENIED/);
+});
+
+test('a work COMMIT fence observing expiry rolls back work then durably closes the permit outside that rollback',async t=>{
+ const {db,url}=await fixture(t),env=environment(),config=betaPilotConfiguration(env),grant=await store(db,env).reserve();
+ const execute=db.raw.execute.bind(db.raw);let expired=false;
+ db.raw.execute=async statement=>{const result=await execute(statement);if(expired&&typeof statement?.sql==='string'&&statement.sql.startsWith('SELECT (CAST(strftime'))
+  result.rows[0].observed_at=config.endAt;return result;};
+ await assert.rejects(()=>db.withRuntimeFence(client=>grant.assert(client),()=>db.transaction(async()=>{
+  await db.raw.execute("UPDATE users SET display_name='MUST_ROLL_BACK' WHERE id='pilot-user'");expired=true;
+ })),/BETA_PILOT_DENIED/);
+ assert.equal((await record(db)).closed,true);assert.equal((await record(db)).attempts,1);
+ assert.equal((await db.getUser('pilot-user')).displayName,'Synthetic');
+ db.raw.execute=execute;db.close();const restarted=createDb({url});t.after(()=>restarted.close());await restarted.admitRuntime();
+ await assert.rejects(()=>store(restarted,env).reserve(),/BETA_PILOT_DENIED/);
+});
+
+test('synchronous monotonic expiry queues closure and settlement awaits it before a release response can finish',async t=>{
+ const {db}=await fixture(t),ends=Date.now()+100,env=environment(ends-PILOT_DURATION_MS),grant=await store(db,env).reserve();
+ await new Promise(resolve=>setTimeout(resolve,Math.max(0,ends-Date.now()+10)));
+ assert.throws(()=>grant.assertTime(),/BETA_PILOT_DENIED/);await grant.settleInvalidation();
+ assert.equal((await record(db)).closed,true);assert.equal((await record(db)).attempts,1);
+});
+
+test('a backwards assertion after a later valid observation durably closes even when both timestamps follow reservation',async t=>{
+ const {db}=await fixture(t),env=environment(),grant=await store(db,env).reserve(),initial=await record(db);
+ const execute=db.raw.execute.bind(db.raw);let observed=initial.lastObservedAt+2000;
+ db.raw.execute=async statement=>{const result=await execute(statement);if(typeof statement?.sql==='string'&&statement.sql.startsWith('SELECT (CAST(strftime'))
+  result.rows[0].observed_at=observed;return result;};
+ await grant.assert();observed=initial.lastObservedAt+1000;
+ await assert.rejects(()=>grant.assert(),/BETA_PILOT_DENIED/);
+ assert.equal((await record(db)).closed,true);assert.equal((await record(db)).lastObservedAt,initial.lastObservedAt+2000);
+});

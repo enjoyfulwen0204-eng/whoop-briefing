@@ -51,3 +51,12 @@ test('F01 real tenant capability without a canonical actor fails before provider
  const coach=createCoach({apiKey:'synthetic',db,fetchImpl:async()=>{dispatches++;return new Response(JSON.stringify({choices:[{message:{content:'FORBIDDEN'}}]}));}});
  assert.equal(await coach.ask({system:'synthetic',user:'synthetic health'}),null);assert.equal(dispatches,0);
 });
+
+test('Fresh runtime fence assertion cannot exempt a later privileged mutation',async t=>{
+ const {db}=await deliveryFixture(t);let checks=0;
+ await db.withRuntimeFence(()=>{checks++;if(checks>1)throw Error('AUTHORITY_LOST');},async()=>{
+  await db.assertRuntimeFences();assert.equal(checks,1);
+  await assert.rejects(()=>db.raw.execute("INSERT INTO telegram_state VALUES('forbidden','private','2026-10-10')"),/AUTHORITY_LOST/);
+ });
+ assert.equal((await db.raw.execute("SELECT count(*) n FROM telegram_state WHERE key='forbidden'")).rows[0].n,0);
+});

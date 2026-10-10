@@ -246,6 +246,9 @@ export function createCoach({
     assertParent();
     const call = calls.getStore();
     if (call && (call.execution !== currentDurableExecution() || call.sync !== currentSyncOwnership())) revoked();
+    // Observe every installed fence once. The callback below receives a client
+    // and performs the same fresh tenant/owner proof without recursive reads.
+    if(!client&&call?.fenced){await db.assertRuntimeFences();assertParent();return;}
     if (call && await tenantProof(client) !== call.proof) { call.cancel.abort(); revoked(); }
     if (currentDurableExecution() && db?.raw) await assertExecutionWorkOwner(client ?? db.raw);
     const owner = currentSyncOwnership();
@@ -455,7 +458,7 @@ export function createCoach({
       const origin=snapshots.getStore();
       const proof = origin ? origin.proof : await tenantProof();
       composite.assert();
-      return await abortable(calls.run({proof,cancel,execution:origin?origin.execution:currentDurableExecution(),sync:origin?origin.sync:currentSyncOwnership()},()=>withExecutionBudget(composite,()=>
+      return await abortable(calls.run({proof,cancel,fenced:typeof db?.withRuntimeFence==='function'&&typeof db?.assertRuntimeFences==='function',execution:origin?origin.execution:currentDurableExecution(),sync:origin?origin.sync:currentSyncOwnership()},()=>withExecutionBudget(composite,()=>
         db?.withRuntimeFence ? db.withRuntimeFence(client=>authority(client),()=>completeBound(options)) : completeBound(options))),combined);
       })(),combined));
     } finally { if(deadlineTimer)clearTimeout(deadlineTimer);cancel.abort(); }

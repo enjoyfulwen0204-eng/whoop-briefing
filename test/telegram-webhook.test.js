@@ -76,7 +76,7 @@ async function withWebhook(fn, { coachReply = '好的', coachThrows = false, sen
           });
         }
         sent.push({ chatId, text });
-        return { ok: true };
+        return {message_id:42,date:1791586800,chat:{id:Number(chatId),type:'private'}};
       },
     };
     const coachFor = (userId) => ({
@@ -471,7 +471,7 @@ test('★★★ webhook: 兩個使用者互不干擾，回覆各自回到自己�
 test('★★★ webhook: HRD-R03 —— chat 換綁之後，前一個人的回覆不可以送出去', async () => {
   await withWebhook(async ({ db, alice, sent }) => {
     const other = await db.createUser({ displayName: 'X', timezone: 'Asia/Taipei' });
-    const api = { async sendMessage(chatId, text) { sent.push({ chatId, text }); } };
+    const api = { async sendMessage(chatId, text) { sent.push({ chatId, text });return {message_id:43,date:1791586800,chat:{id:Number(chatId),type:'private'}}; } };
     const sendReply = createSendReply({ db, api });
 
     // 產生回覆之後、送出之前，chat 被換綁

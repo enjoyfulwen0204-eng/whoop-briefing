@@ -62,3 +62,7 @@ The local Hrana server fixture explicitly rolls back an open transaction on stre
 ## Report coordination across continuation owners
 
 Report claim, renewal, authorization and unstarted release receipts bind the actual report owner plus execution owner/generation. A previous false/true grant cannot stand in for the successor's SQL CAS. An expired unstarted claim may be freshly reacquired; DELIVERY_STARTED/AMBIGUOUS never permits automatic resend. A live or lost unstarted report claim marks coordination pending and cannot permanently finalize the resumable execution. The original jitter counterexample, in which all three claims remained CLAIMED while SYNC finalized, is retained; it is a failed readiness trial.
+
+## Fresh fence observations
+
+Coach can request one fresh assertion of every installed runtime fence. The helper accepts no callback or SQL and returns no data. It invokes the existing phase, tenant lease and Coach snapshot predicates under the existing internal recursion guard; later SQL remains independently fenced, and transaction COMMIT checks remain unchanged. No authority value is cached or extended. Original nested observations and every revocation/short-parent test remain retained.

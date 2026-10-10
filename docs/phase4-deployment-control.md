@@ -1,3 +1,5 @@
+> Historical v31 migration procedure. Current production is v32 and Core C/Settings D require no migration. Use `docs/pre-stage7/release-handoff.md` for the current rollout; do not execute the historical migration steps for these candidates.
+
 # Phase 4 deployment control — reviewed future procedure
 
 > Current pre-Stage7 v32 procedure: [release handoff](pre-stage7/release-handoff.md). The v20/v31 migration and older deployment facts below are historical. Do not execute them against current production v32. This session made no provider changes.
@@ -72,9 +74,9 @@ Activation is staged through GitHub environment/config values, with readback at 
 | 0 | `off` | `off` | empty | Workflow disabled; installed reviewed source read back; zero queued/running jobs. |
 | 1 | `off` | `off` | empty | Enable reviewed v31-compatible legacy/bootstrap command; verify one healthy run and heartbeat. |
 | 2 | `on` | `off` | empty | Verify worker heartbeat, bounded backlog, no LIVE execution, and healthy legacy report path. |
-| 3 | `on` | `allowlist` | approved canonical IDs only | Only after **three** controlled READY users: one zh-TW, one en, one vi. |
+| 3 | `on` | `allowlist` | approved canonical IDs only | Only after authorized zh-TW and vi controlled READY smoke; en is EN_IMPLEMENTED_AND_TESTED_NO_LIVE_USER_YET and validated in isolated fixtures. |
 
-Each READY user must have ACTIVE lifecycle, an active Telegram binding, a valid WHOOP token, and READY onboarding state. Verify each with real production read-only evidence. If only two qualify, presentation remains OFF. Do not fabricate production users or messages. No `all` rollout is authorized. Final three-language live smoke happens only after the Stage 3 gate and separate activation authorization.
+Each READY user must have ACTIVE lifecycle, an active Telegram binding, a valid WHOOP token, and READY onboarding state. Verify each with real production read-only evidence. Production English smoke is DEFERRED UNTIL AUTHORIZED EN USER EXISTS; no third human is required. Do not fabricate production users or messages. No `all` rollout is authorized. Final three-language live smoke happens only after the Stage 3 gate and separate activation authorization.
 
 ## Gate 5 — Cloudflare post-migration activation
 

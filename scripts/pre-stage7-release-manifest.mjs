@@ -33,6 +33,7 @@ const show=p=>execFileSync('git',['show',core+':'+p],{encoding:'utf8'});
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const files={
  'github-reviewed-workflow.yml':show('docs/phase4-main-workflow.yml').replaceAll('REVIEWED_RELEASE_SHA',core),
+ 'github-isolated-runner-workflow.yml':show('docs/phase4-isolated-runner-workflow.yml').replaceAll('REVIEWED_RELEASE_SHA',core),
  'cloudflare-worker.js':show('cloudflare/briefing-scheduler/worker.js'),
  'cloudflare-wrangler.toml':show('cloudflare/briefing-scheduler/wrangler.toml').replaceAll('REVIEWED_RELEASE_SHA',core).replace('BRIEFING_CONTINUATION_DISCOVERY = "off"',executionBudget==='SAFE_BOUNDED_ASYNC_RECONCILIATION_CANDIDATE'?'BRIEFING_CONTINUATION_DISCOVERY = "on"':'BRIEFING_CONTINUATION_DISCOVERY = "off"').replace('crons = [] # Enable morning cron only after coordinated RC3 validation.','crons = ["*/10 0-3 * * *"] # Proposed retained live window; deployment requires approval.'),
  'render-off.env.example':`PHASE4_RELEASE_SHA=${core}\nPHASE4_EXECUTION_PROFILE=PHASE4\nPHASE4_BETA_SHADOW_RUNTIME=off\nPHASE4_PUBLIC_BETA_MODE=off\nPHASE4_PUBLIC_BETA_USER_IDS=\n`,
@@ -45,18 +46,25 @@ const workerProfile=(mode,discovery,proof)=>show('cloudflare/briefing-scheduler/
  .replace('crons = [] # Enable morning cron only after coordinated RC3 validation.','crons = ["*/10 0-3 * * *"] # Proposed retained live window; deployment requires approval.');
 const discovery=executionBudget==='SAFE_BOUNDED_ASYNC_RECONCILIATION_CANDIDATE'?'on':'off';
 files['cloudflare-shadow-wrangler.toml']=workerProfile('SHADOW',discovery,'REVIEWED_CONFIG_PROOF_SHADOW_PRESENTATION_OFF');
-files['cloudflare-allowlist-wrangler.toml']=workerProfile('SHADOW',discovery,'REVIEWED_CONFIG_PROOF_THREE_USER_ALLOWLIST');
+files['cloudflare-allowlist-wrangler.toml']=workerProfile('SHADOW',discovery,'REVIEWED_CONFIG_PROOF_AUTHORIZED_ALLOWLIST');
 files['cloudflare-rollback-wrangler.toml']=workerProfile('OFF','off','REVIEWED_CONFIG_PROOF_RC2_V32_ROLLBACK');
 files['render-shadow.env.example']=`PHASE4_RELEASE_SHA=${core}\nPHASE4_EXECUTION_PROFILE=PHASE4\nPHASE4_BETA_SHADOW_RUNTIME=on\nPHASE4_PUBLIC_BETA_MODE=off\nPHASE4_PUBLIC_BETA_USER_IDS=\n`;
-files['render-allowlist.env.example']=`# G6 only. Replace all three placeholders after verified human locale choice.\nPHASE4_RELEASE_SHA=${core}\nPHASE4_EXECUTION_PROFILE=PHASE4\nPHASE4_BETA_SHADOW_RUNTIME=on\nPHASE4_PUBLIC_BETA_MODE=allowlist\nPHASE4_PUBLIC_BETA_USER_IDS=REVIEWED_ZH_TW_CANONICAL_USER,REVIEWED_EN_CANONICAL_USER,REVIEWED_VI_CANONICAL_USER\n`;
-if(settings)files['settings-release.env.example']=`# After G7 and separate Settings review. Preserve reviewed Beta flags/allowlist.\nPHASE4_RELEASE_SHA=${settings}\nPHASE4_EXECUTION_PROFILE=PHASE4\n# Derive a new exact release/config proof with original keys; no secret changes.\n`;
+files['render-allowlist.env.example']=`# G6 only. Resolve the bounded authorized zh-TW/vi cohort; English is isolated-tested until an authorized en user exists.\nPHASE4_RELEASE_SHA=${core}\nPHASE4_EXECUTION_PROFILE=PHASE4\nPHASE4_BETA_SHADOW_RUNTIME=on\nPHASE4_PUBLIC_BETA_MODE=allowlist\nPHASE4_PUBLIC_BETA_USER_IDS=REVIEWED_ZH_TW_CANONICAL_USER,REVIEWED_VI_CANONICAL_USER\n`;
+if(settings){
+ files['settings-release.env.example']=`# After G7 and separate Settings review. Preserve reviewed Beta flags/allowlist.\nPHASE4_RELEASE_SHA=${settings}\nPHASE4_EXECUTION_PROFILE=PHASE4\n# Derive exact release/config proofs with original keys; no secret changes.\n`;
+ for(const name of ['render-off.env.example','render-shadow.env.example','render-allowlist.env.example','rollback-off.env.example','cloudflare-wrangler.toml','cloudflare-shadow-wrangler.toml','cloudflare-allowlist-wrangler.toml','cloudflare-rollback-wrangler.toml','github-reviewed-workflow.yml','github-isolated-runner-workflow.yml'])
+  files['settings-'+name]=files[name].replaceAll(core,settings);
+ files['settings-cloudflare-worker.js']=execFileSync('git',['show',settings+':cloudflare/briefing-scheduler/worker.js'],{encoding:'utf8'});
+ files['settings-safety.txt']='Deployment prerequisite: drain every old bot/webhook/profile writer before Settings is available. Operators must use reviewed canonical APIs. Rollback must invalidate outstanding Settings nonces, or keep Settings unavailable until every prior 15-minute session expires; never reset permanent profile revisions. No production mutation was performed.\n';
+}
 if(!files['github-reviewed-workflow.yml'].includes('environment: whoop-production-'+core)||!files['cloudflare-wrangler.toml'].includes('REVIEWED_CONFIG_PROOF'))throw Error('ARTIFACT_AUTHORITY_INVALID');
 for(const [name,content] of Object.entries(files))await writeFile(path.join(output,name),content);
 const manifest={version:2,preparedAt:new Date().toISOString(),node:process.version,core:{commit:core,tree:coreTree},settings:settings?{commit:settings,tree:settingsTree}:null,
+ locales:{'zh-TW':'AUTHORIZED_PRODUCTION_SMOKE_PENDING',vi:'AUTHORIZED_PRODUCTION_SMOKE_PENDING',en:'EN_IMPLEMENTED_AND_TESTED_NO_LIVE_USER_YET',productionEnglish:'DEFERRED_UNTIL_AUTHORIZED_EN_USER_EXISTS'},
  schema:32,migration:'NONE_REQUIRED',transport:'REMOTE_HTTP_HRANA',productionMutation:'NONE',publication:'NOT_AUTHORIZED',
- executionBudget,budgetEvidence,continuation:{protocol:'p4c1_',contextMaxAgeMs:900000,workerWindowMs:561000,productionActivation:'REQUIRES_ARCHITECTURE_REVIEW_AND_AUTHORIZATION'},staleRuns:'STALE_GITHUB_RUNS_PROVIDER_ACTION_REQUIRED',
- gates:Object.fromEntries(['G1_CORE_REVIEW','G2_STALE_RUN_CONTAINMENT','G3_CONTROLLED_DEPLOYMENT','G4_MORNING_BRIEF','G5_PRODUCTION_SHADOW','G6_THREE_LANGUAGE_SMOKE','G7_PUBLIC_BETA_STABILIZATION'].map(g=>[g,'PENDING_EXTERNAL_VERIFICATION'])),
+ executionBudget,budgetEvidence,continuation:{protocol:'p4c1_',contextMaxAgeMs:900000,workerWindowMs:561000,productionActivation:'REQUIRES_ARCHITECTURE_REVIEW_AND_AUTHORIZATION'},staleRuns:'R3_CONTAINMENT_DESIGN_READY_PROVIDER_ACTION_REQUIRED',capacity:'F06_CAPACITY_ARCHITECTURE_APPROVAL_REQUIRED',
+ gates:Object.fromEntries(['G1_CORE_REVIEW','G2_STALE_RUN_CONTAINMENT','G3_CONTROLLED_DEPLOYMENT','G4_MORNING_BRIEF','G5_PRODUCTION_SHADOW','G6_AUTHORIZED_LOCALE_SMOKE','G7_PUBLIC_BETA_STABILIZATION'].map(g=>[g,'PENDING_EXTERNAL_VERIFICATION'])),
  files:Object.fromEntries(Object.entries(files).map(([name,s])=>[name,{sha256:hash(s),bytes:Buffer.byteLength(s)}])),
- prerequisites:['Formal independent review','Independent architecture approval of bounded continuation and its frozen timing/currentness evidence; verified legacy residual reconciliation','Verified obsolete-run external finality/denial','Private Render/service and deployed identity readback','Original keys and credential continuity','Operator-derived exact config proof; placeholder is intentionally non-runnable','Authorized remaining English user language choice','Separate authorization for every provider mutation or real send']};
+ prerequisites:['Formal independent review','Independent architecture approval of bounded continuation and its frozen timing/currentness evidence; verified legacy residual reconciliation','Verified obsolete-run external finality/denial','Private Render/service and deployed identity readback','Original keys and credential continuity','Operator-derived exact config proof; placeholder is intentionally non-runnable','Separate authorization for every provider mutation or real send']};
 await writeFile(path.join(output,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 console.log(JSON.stringify({output,core:manifest.core,settings:manifest.settings,files:Object.keys(files),productionMutation:'NONE'}));

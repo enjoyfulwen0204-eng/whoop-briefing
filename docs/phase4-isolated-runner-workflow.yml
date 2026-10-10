@@ -1,3 +1,5 @@
+# External containment option: requires a dedicated runner and verified exclusive egress.
+# Old frozen ubuntu-latest jobs cannot be assigned this runner. Never install before review.
 # Deployment artifact only. Do not install on main until the reviewed release SHA
 # replaces REVIEWED_RELEASE_SHA and the workflow is disabled/read back.
 name: WHOOP 早晨簡報
@@ -15,7 +17,7 @@ jobs:
   sync:
     # Release-specific protected environment; provider configuration is a gate.
     environment: whoop-production-REVIEWED_RELEASE_SHA
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, whoop-production-isolated]
     timeout-minutes: 10
     outputs:
       sync_finalized: ${{ steps.phase.outputs.sync_finalized }}
@@ -77,7 +79,7 @@ jobs:
     if: ${{ needs.sync.result == 'success' && needs.sync.outputs.sync_complete == 'true' && needs.sync.outputs.sync_finalized == 'true' && needs.sync.outputs.drain_authorized == 'true' }}
     # Release-specific protected environment; provider configuration is a gate.
     environment: whoop-production-REVIEWED_RELEASE_SHA
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, whoop-production-isolated]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4

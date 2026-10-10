@@ -54,7 +54,8 @@ import { createUpdateProcessor, UPDATE_OUTCOME, isAcknowledgeable } from './upda
 import { log, describeError } from '../logger.js';
 import { BRIEFING_TRIGGER } from '../briefingTriggerAuth.js';
 import { createBriefingEndpoint } from '../briefingEndpoint.js';
-import {CONTINUATION_PATH,discoverPhaseContinuation} from '../phase4Continuation.js';
+import {CONTINUATION_PATH} from '../phase4Continuation.js';
+import {discoverExecutionContinuation} from '../phase4Execution.js';
 import {executionProfile} from '../phase4Rollback.js';
 import { runExecutionPhase } from '../phase4Execution.js';
 import { publicBetaConfiguration, phase4AuthorityKeys } from '../publicBetaConfig.js';
@@ -505,7 +506,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   }
   const briefingEndpoint = schedulerConfigured
     ? createBriefingEndpoint({ secret: briefingTriggerSecret,
-      runPhase: runExecutionPhase,discoverContinuation:discoverPhaseContinuation }) : null;
+      runPhase: runExecutionPhase,discoverContinuation:discoverExecutionContinuation }) : null;
 
   // ---- OAuth 回呼（V1.2 Phase 3.5）---------------------------------------
   //

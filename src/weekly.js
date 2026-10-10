@@ -66,6 +66,7 @@ export async function runWeekly({
   // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
   expectedLifecycleGeneration,
 }) {
+  if (typeof coach?.bindSnapshot === 'function') coach = await coach.bindSnapshot();
   const uid = requireUserId(userId, 'runWeekly');
   requireLifecycle(expectedLifecycleGeneration, 'runWeekly');
   const today = localDate(now, timezone);
@@ -179,6 +180,7 @@ export async function runWeekly({
   });
   const coachText = narrative.text;
 
+  await coach?.assertSnapshot?.();
   const text = renderWeekly(weekly, coachText, { displayName: await displayNameFor(db, uid), locale });
 
   // ★ 送出邊界與 daily 共用同一支 deliverReport（見 reportDelivery.js）。
@@ -189,7 +191,10 @@ export async function runWeekly({
 
   const delivery = await deliverReport({
     db, claimKey, claim, telegram, text, now: () => now,
+    authorizeContent:typeof coach?.assertSnapshot==='function'?()=>coach.assertSnapshot():undefined,
   });
+
+  if (delivery.result === DELIVERY_RESULT.DRY_RUN) return {status:'dry_run',weekKey};
 
   if (delivery.result === DELIVERY_RESULT.FENCED) {
     // 生成期間失去所有權 → 什麼都沒送，也不還 claim（那一列屬於接手者）。

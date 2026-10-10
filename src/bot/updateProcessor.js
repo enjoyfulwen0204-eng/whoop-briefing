@@ -1,4 +1,5 @@
 import {isSettingsCallback} from './settings.js';
+import {validMessageId} from '../telegramAcknowledgment.js';
 /**
  * 處理**一則** Telegram Update —— 與傳輸方式無關。
  *
@@ -406,7 +407,7 @@ export function createUpdateProcessor({
 
     let sendResult;
     try {
-      sendResult = await sendReply(result);
+      sendResult = await sendReply({...result,updateId});
     } catch (err) {
       const cls = classifySendOutcome(err);
       if (cls === 'definite_failure') {
@@ -434,6 +435,10 @@ export function createUpdateProcessor({
       return { outcome: 'suppressed' };
     }
 
+    if (!validMessageId(sendResult?.messageId)) {
+      await db.markDeliveryAmbiguous?.(updateId,{owner:attemptId,now:now()});
+      return {outcome:'ambiguous'};
+    }
     if (typeof db.markDelivered === 'function') {
       await db.markDelivered(updateId, {
         owner: attemptId, messageId: sendResult?.messageId ?? null, now: now(),

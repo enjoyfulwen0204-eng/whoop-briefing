@@ -54,7 +54,7 @@ context. Do not repeat it to repair the preserved delivery-state default.
     receipts, truthful ordinal-ordered unfinalized/finalized health, producing-execution
     currentness, deterministic generic receipts and restart/reconciliation.
 14. Only later restore the reviewed morning cron.
-15. Locale selection, allowlist isolation and zh-TW/en/vi smoke follow review.
+15. Authorized zh-TW/vi production smoke and isolated en rendering/persistence/privacy/recipient integration follow review. Production English smoke is deferred until an authorized en user exists.
 
 Cloudflare signing/body/header/size limits stay unchanged. Indeterminate SYNC
 never authorizes drain. GitHub jobs each retain timeout-minutes: 10 and Node 22

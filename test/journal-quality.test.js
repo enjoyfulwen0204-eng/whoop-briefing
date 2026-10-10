@@ -502,11 +502,13 @@ test('Z: 缺日期時明講，不硬算', () => {
 test('Z: runtime adapter rejects unproven create/result writes with zero mutation', async () => {
   const { db, cleanup } = await freshDb();
   try {
+    const stateBefore=(await db.raw.execute('SELECT * FROM phase4_user_state')).rows;
+    const computationBefore=(await db.raw.execute('SELECT * FROM phase4_computation_state')).rows;
     await assert.rejects(db.createExperiment(USER.id,{name:'unproven',targetMetrics:['recovery']}),/PROVENANCE_REQUIRED/);
     assert.equal((await db.raw.execute('SELECT count(*) n FROM experiments')).rows[0].n,0);
     assert.equal((await db.raw.execute('SELECT count(*) n FROM experiment_field_groups')).rows[0].n,0);
-    assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_user_state')).rows[0].n,0);
-    assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_computation_state')).rows[0].n,0);
+    assert.deepEqual((await db.raw.execute('SELECT * FROM phase4_user_state')).rows,stateBefore,'unproven attack cannot change admitted initialization');
+    assert.deepEqual((await db.raw.execute('SELECT * FROM phase4_computation_state')).rows,computationBefore,'unproven attack cannot change admitted initialization');
     const c = await createExperiment(db, USER.id, {
       name: 'x', targetMetrics: ['recovery'],
       baselineStart: '2026-08-01', baselineEnd: '2026-08-14',

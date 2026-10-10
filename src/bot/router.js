@@ -417,15 +417,18 @@ export function createRouter({
     if (!locale) return LANGUAGE_SELECTOR;
     const timezone = user.timezone;
     const provider = coachFor(userId);
-    const coach = provider && db.outsideProcessingTransaction ? new Proxy(provider, {
-      get(target, key) {
-        const value = target[key];
-        if (typeof value !== 'function') return value;
-        return (...args) => db.outsideProcessingTransaction(
-          JSON.stringify([userId, key, args]), () => value.apply(target, args),
-        );
+    const wrapProvider=target=>target&&db.outsideProcessingTransaction?new Proxy(target,{
+      get(target,key){
+        const value=target[key];if(typeof value!=='function')return value;
+        // Snapshot capture/checks stay in the admitted transaction; only actual
+        // model operations may leave it. Bind the deferred cache to the snapshot.
+        if(key==='bindSnapshot')return async(...args)=>wrapProvider(await value.apply(target,args));
+        if(['assertSnapshot','snapshotKey'].includes(key))return value.bind(target);
+        return async(...args)=>db.outsideProcessingTransaction(
+          JSON.stringify([userId,key,target.snapshotKey?.()??null,args]),()=>value.apply(target,args));
       },
-    }) : provider;
+    }):target;
+    const coach=wrapProvider(provider);
     try {
       return await route({
         text: String(text ?? '').trim(), chatId, t, userId, timezone, coach, locale,
@@ -836,6 +839,7 @@ export function createRouter({
   async function handleQuestion({
     text, chatId, t, userId, timezone, coach, locale = 'zh-TW', justLogged = null, signals = null,
   }) {
+    if (typeof coach?.bindSnapshot === 'function') coach = await coach.bindSnapshot();
     // 「證據呢？」「你憑什麼？」「樣本多少？」→ 直接回 evidence 摘要。
     // ★ 必須在 intent 判定之前 —— 這類問句不會被任何 intent 認出來，
     // 放在後面會先被 unknown 分支攔截而永遠走不到。
@@ -889,13 +893,14 @@ export function createRouter({
       //
       // 事故當時「因為數據不夠嗎」撞到這條，於是使用者收到一整塊給維運看的
       // 診斷輸出。那不是對話，是把人當成在操作資料庫主控台。
-      return composeAnswer({
+      const answer=await composeAnswer({
         question: text,
         result: await createHealthQuery({ db, userId, timezone, now: t, lookbackDays })
           .readinessExplanation(),
         coach,
         locale,
       });
+      await coach?.assertSnapshot?.();return answer;
     }
 
     const q = createHealthQuery({ db, userId, timezone, now: t, lookbackDays });
@@ -906,6 +911,7 @@ export function createRouter({
     }
 
     const answer = await composeAnswer({ question: text, result, coach, locale });
+    await coach?.assertSnapshot?.();
 
     // ---- 需要的話發出追問（Phase O）----
     try {

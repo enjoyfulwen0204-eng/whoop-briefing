@@ -1,3 +1,6 @@
+import {transportAuthority} from '../transportAuthority.js';
+import {abortableResponse,boundedBody} from '../executionBudget.js';
+import {validImmediateMessage,validApiSuccess} from '../telegramAcknowledgment.js';
 /**
  * Telegram Bot API client（long polling 用）。
  *
@@ -42,19 +45,28 @@ export { classifySendOutcome, SEND_OUTCOME } from '../sendOutcome.js';
 export function createTelegramApi({
   botToken,
   fetchImpl = fetch,
-  requestTimeoutMs = TELEGRAM_BOT.REQUEST_TIMEOUT_MS,
+  requestTimeoutMs = TELEGRAM_BOT.REQUEST_TIMEOUT_MS,signal,executionBudget,
 }) {
   const base = `https://api.telegram.org/bot${botToken}`;
 
-  async function call(method, body = {}, { timeoutMs = requestTimeoutMs } = {}) {
+  async function call(method,body={},options={}) {
+    const authority=transportAuthority({timeoutMs:options.timeoutMs??requestTimeoutMs,signal:options.signal??signal,executionBudget:options.executionBudget??executionBudget});
+    try {authority.assert();return await callBound(method,body,authority);}
+    catch(error) {if(error instanceof TelegramApiError)throw error;
+      throw new TelegramApiError('Telegram parent authority ended',{sendOutcome:SEND_OUTCOME.DEFINITE_FAILURE,sendStage:'pre_send'});}
+    finally {authority.close();}
+  }
+  async function callBound(method,body,authority) {
     let res;
     try {
-      res = await fetchImpl(`${base}/${method}`, {
+      authority.assert();
+      res = await abortableResponse(fetchImpl(`${base}/${method}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
+        signal: authority.signal,
+      }),authority.signal);
+      authority.assert();
     } catch (err) {
       // 網路層失敗（含 long poll 逾時）。這是常態，不是故障。
       throw new TelegramApiError(`Telegram 連線失敗：${err?.message ?? err}`, {
@@ -73,7 +85,8 @@ export function createTelegramApi({
 
     let raw;
     try {
-      raw = await res.text();
+      raw = await boundedBody(res,{signal:authority.signal,maxBytes:1024*1024});
+      authority.assert();
     } catch (err) {
       if (definiteReject) {
         // 狀態碼就足以證明它沒收下，body 是什麼不重要。
@@ -116,7 +129,7 @@ export function createTelegramApi({
 
     // 2xx 但 body 不是合法 JSON（截斷 / 中間設備插手）。
     // 它可能已經投遞了，我們只是看不懂回答 → 不可以重送。
-    if (parseFailed || (raw && json === null)) {
+    if (parseFailed || !validApiSuccess(json)) {
       throw new TelegramApiError('Telegram 回應不是合法 JSON（可能截斷）', {
         status: res.status,
         sendOutcome: SEND_OUTCOME.AMBIGUOUS,
@@ -161,8 +174,8 @@ export function createTelegramApi({
         disable_web_page_preview: true,
         ...(typeof reply==='object'&&reply.replyMarkup?{reply_markup:reply.replyMarkup}:{}),
       }, { timeoutMs: 30_000 });
-      const messageId = Number(result?.message_id);
-      if (!Number.isFinite(messageId)) {
+      const messageId = result?.message_id;
+      if (!validImmediateMessage(result,chatId)) {
         throw new TelegramApiError('Telegram 回報成功但沒有 message_id（無法證明送達）', {
           sendOutcome: SEND_OUTCOME.AMBIGUOUS,
           sendStage: 'success_shape',

@@ -1,4 +1,6 @@
 import {profileRevision} from './profileRevision.js';
+import {currentExecutionBudget,abortableResponse} from './executionBudget.js';
+import {validMessageId} from './telegramAcknowledgment.js';
 import {bindExecutionApi} from './phase4WorkStep.js';
 import {executeCoordination} from './phase4Coordination.js';
 /**
@@ -71,7 +73,15 @@ export function isDuplicateSentError(err) {
 
 const privateClients=new WeakSet();
 export function createDb({ url, authToken, phase4Keys,fetch }) {
-  const client=createClient({url,authToken,fetch});privateClients.add(client);
+  const providerFetch=fetch??globalThis.fetch;
+  const boundedFetch=(input,init)=>{
+    const budget=currentExecutionBudget();
+    if(!budget)return providerFetch(input,init);
+    budget.assert();
+    const request=new Request(input,{...init,signal:AbortSignal.any([budget.signal,...[input?.signal,init?.signal].filter(Boolean)])});
+    return abortableResponse(providerFetch(request),budget.signal);
+  };
+  const client=createClient({url,authToken,fetch:boundedFetch});privateClients.add(client);
   return composeDb(client,{phase4Keys});
 }
 /** Owned file fixture/runtime seam: the constructor owns the native receiver;
@@ -159,6 +169,21 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
    * 收據一併帶上送達狀態的起點：有回覆就是 ACTION_READY（可以安全地送），
    * 沒有回覆就是 NOT_REQUIRED（本來就不需要送）。
    */
+  async function assertTelegramReplySnapshot({userId,chatId,reply,updateId}={}) {
+    if(!Number.isSafeInteger(updateId)||updateId<0)return false;
+    const row=(await client.execute({sql:`SELECT op.result_json,op.privacy_artifact_id FROM telegram_operations op
+      JOIN users u ON u.id=op.owner_user_id JOIN phase4_user_state p ON p.user_id=u.id
+      LEFT JOIN user_whoop_tokens t ON t.user_id=u.id
+      WHERE op.update_id=? AND op.owner_user_id=? AND op.content_state='PRESENT' AND op.source_linkage_state='COMPLETE'
+      AND u.status='ACTIVE' AND p.pending_purge_count=0 AND p.purge_generation=op.purge_generation
+      AND EXISTS(SELECT 1 FROM phase4_source_links s WHERE s.user_id=u.id AND s.artifact_type='telegram_operations'
+        AND s.artifact_id=op.privacy_artifact_id AND s.unlinked_at IS NULL AND s.relationship='RECEIPT_SOURCE:'||p.source_generation)
+      AND EXISTS(SELECT 1 FROM phase4_source_links s WHERE s.user_id=u.id AND s.artifact_type='telegram_operations'
+        AND s.artifact_id=op.privacy_artifact_id AND s.unlinked_at IS NULL AND s.relationship='RECEIPT_FENCE:'||u.lifecycle_generation||':'||COALESCE(t.auth_generation,0)||':'||p.purge_generation)`,args:[updateId,userId]})).rows[0];
+    if(!row||row.privacy_artifact_id!==requirePhase4Keys(phase4Keys).lookup(['privacy-artifact-v1','telegram_operations',userId,'SHARED',[updateId]]))return false;
+    let stored;try{stored=JSON.parse(row.result_json);}catch{return false;}
+    return stored?.userId===userId&&String(stored.chatId)===String(chatId)&&JSON.stringify(stored.reply)===JSON.stringify(reply);
+  }
   async function processTelegramOperation(updateId, { owner, ownerUserId=null, nonHealthOperation=false, now = () => new Date() }, fn) {
     const id = Number(updateId);
     if (!Number.isSafeInteger(id) || id < 0) throw new Error('invalid_update_id');
@@ -224,6 +249,12 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
         if(ownerUserId)await addPrivacyLink(client,{userId:ownerUserId,table:'telegram_operations',artifactId:artifact,
           sourceType:'TENANT_LEGACY',sourceId:ownerUserId,at:new Date(now()).toISOString(),
           relationship:`RECEIPT_FENCE:${fence.lifecycleGeneration}:${fence.authGeneration}:${fence.purgeGeneration}`});
+      }
+      if(enabled&&ownerUserId&&result?.reply){
+        const source=(await client.execute({sql:'SELECT source_generation FROM phase4_user_state WHERE user_id=?',args:[ownerUserId]})).rows[0];
+        if(!Number.isSafeInteger(source?.source_generation)||source.source_generation<0)fail('PHASE4_RECEIPT_SNAPSHOT_REQUIRED');
+        await addPrivacyLink(client,{userId:ownerUserId,table:'telegram_operations',artifactId:requirePhase4Keys(phase4Keys).lookup(['privacy-artifact-v1','telegram_operations',ownerUserId,'SHARED',[id]]),
+          sourceType:'TENANT_LEGACY',sourceId:ownerUserId,at:new Date(now()).toISOString(),relationship:`RECEIPT_SOURCE:${source.source_generation}`});
       }
       return result;
     }, { before: check, after: check });
@@ -542,7 +573,9 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
           AND ps.pending_purge_count=0 AND ps.purge_generation=telegram_operations.purge_generation AND pu.status='ACTIVE'
           AND EXISTS (SELECT 1 FROM phase4_source_links sl WHERE sl.user_id=pu.id AND sl.artifact_type='telegram_operations'
             AND sl.artifact_id=telegram_operations.privacy_artifact_id AND sl.unlinked_at IS NULL
-            AND sl.relationship='RECEIPT_FENCE:'||pu.lifecycle_generation||':'||COALESCE((SELECT auth_generation FROM user_whoop_tokens ut WHERE ut.user_id=pu.id),0)||':'||ps.purge_generation)))`:'';
+            AND sl.relationship='RECEIPT_FENCE:'||pu.lifecycle_generation||':'||COALESCE((SELECT auth_generation FROM user_whoop_tokens ut WHERE ut.user_id=pu.id),0)||':'||ps.purge_generation)
+          AND EXISTS (SELECT 1 FROM phase4_source_links ss WHERE ss.user_id=pu.id AND ss.artifact_type='telegram_operations'
+            AND ss.artifact_id=telegram_operations.privacy_artifact_id AND ss.unlinked_at IS NULL AND ss.relationship='RECEIPT_SOURCE:'||ps.source_generation)))`:'';
     const rs = await client.execute({
       sql: `UPDATE telegram_operations
                SET delivery_state = ?, delivery_owner = ?, delivery_started_at = ?,
@@ -578,7 +611,8 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   async function markDelivered(updateId, { owner, messageId = null, now = new Date() } = {}) {
     const id = Number(updateId);
     if (!Number.isSafeInteger(id) || !owner) return false;
-    const mid = messageId === null || messageId === undefined ? null : Number(messageId);
+    if (!validMessageId(messageId)) return false;
+    const mid = messageId;
     const rs = await client.execute({
       sql: `UPDATE telegram_operations
                SET delivery_state = CASE WHEN delivery_state='AMBIGUOUS' THEN 'AMBIGUOUS' ELSE ? END,
@@ -1560,6 +1594,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     userId, reportType, localDateKey, owner, messageId = null, now = new Date(),
   }) {
     const uid = requireUserId(userId, 'markClaimSent');
+    if (!validMessageId(messageId)) return false;
     const rs = await client.execute({
       sql: `UPDATE report_claims
                SET telegram_sent_at = ?, telegram_message_id = ?, delivery_state = ?
@@ -1709,6 +1744,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     transaction: processing.transaction,
     withRuntimeFence: processing.withFence,
     assertAccountActive,
+    assertTelegramReplySnapshot,
     withAnswerOwnership,
     processTelegramOperation,
     mutateForWhoopEvent,

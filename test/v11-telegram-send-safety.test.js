@@ -57,7 +57,7 @@ function fetchThatFails(stage, { status = 200 } = {}) {
         if (stage === 'body_truncated') return '{"ok":true,"resul';
         if (stage === 'no_message_id') return '{"ok":true,"result":{}}';
         if (stage === 'ok_false') return '{"ok":false,"description":"chat not found"}';
-        return '{"ok":true,"result":{"message_id":42}}';
+        return '{"ok":true,"result":{"message_id":42,"date":1791586800,"chat":{"id":1,"type":"private"}}}';
       },
     };
   };

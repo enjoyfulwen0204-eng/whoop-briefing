@@ -34,7 +34,7 @@ Focused tests cover all localized labels, routing, language/name persistence, ca
 
 The comprehensive engineering report and hashed evidence index distinguish original failures, corrected reruns, native driver crashes and production prerequisites. No local suite grants production approval.
 
-After Public Beta gates and separate Settings review: deploy exact B identity, preserve original credentials/v32/OFF controls as reviewed, verify webhook and polling accept `message` plus `callback_query`, keep `max_connections=1` and pending updates, and perform separately authorized private-user command/button smoke in each locale. Never run `telegram:webhook:set` as part of local testing against real Telegram. Roll back Settings using the reviewed Core A binary/profile without schema downgrade; existing expiring session rows remain inert and ordinary commands/briefing continue.
+After Public Beta gates and separate Settings review: deploy exact D identity, preserve original credentials/v32/OFF controls as reviewed, verify webhook and polling accept `message` plus `callback_query`, keep `max_connections=1` and pending updates, and perform separately authorized authorized zh-TW/vi private-user command/button smoke; retain isolated English tests until an authorized en user exists. Never run `telegram:webhook:set` as part of local testing against real Telegram. Roll back Settings using the reviewed Core C binary/profile without schema downgrade; existing expiring session rows remain inert and ordinary commands/briefing continue.
 
 ## F07 successor concurrency contract
 

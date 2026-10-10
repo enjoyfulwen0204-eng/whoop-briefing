@@ -45,3 +45,9 @@ test('F01 inflight observation aborts provider and leaves a second tenant health
  const results=await Promise.all([alice.ask({system:'synthetic',user:'alice private'}),bob.ask({system:'synthetic',user:'bob private'})]);
  assert.deepEqual(results,[null,'healthy bob']);assert.equal(calls,1);assert.equal(providerSignal.aborted,true);
 });
+
+test('F01 real tenant capability without a canonical actor fails before provider dispatch',async t=>{
+ const {db}=await deliveryFixture(t);let dispatches=0;
+ const coach=createCoach({apiKey:'synthetic',db,fetchImpl:async()=>{dispatches++;return new Response(JSON.stringify({choices:[{message:{content:'FORBIDDEN'}}]}));}});
+ assert.equal(await coach.ask({system:'synthetic',user:'synthetic health'}),null);assert.equal(dispatches,0);
+});

@@ -281,11 +281,11 @@ test('report claim：Alice 的 claim 不會阻塞 Bob', async () => {
 
     // 標記已送出後永遠不再授權
     assert.equal(await db.markClaimSent({
-      userId: ALICE.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: a.owner,
+      userId: ALICE.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: a.owner, messageId: 81,
     }), true);
     // Bob 用 Alice 的 owner 標記不了
     assert.equal(await db.markClaimSent({
-      userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: a.owner,
+      userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: a.owner, messageId: 81,
     }), false);
 
     // Bob 自己那一份完全不受影響：仍然可以走完整條路。
@@ -293,7 +293,7 @@ test('report claim：Alice 的 claim 不會阻塞 Bob', async () => {
       userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: b.owner,
     }), true);
     assert.equal(await db.markClaimSent({
-      userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: b.owner,
+      userId: BOB.id, reportType: 'daily', localDateKey: SHARED.healthDate, owner: b.owner, messageId: 82,
     }), true);
   });
 });

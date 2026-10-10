@@ -225,7 +225,8 @@ export function createCoach({
   const calls = new AsyncLocalStorage(), snapshots = new AsyncLocalStorage();
   const revoked = () => { throw Object.assign(new Error('COACH_AUTHORITY_REVOKED'), {code:'COACH_AUTHORITY_REVOKED'}); };
   async function tenantProof(client = db?.raw) {
-    if (!client || userId === null || userId === undefined) return null;
+    if (!client || userId === null) return null;
+    if (typeof userId !== 'string' || !userId.trim()) revoked();
     const row = (await client.execute({sql:`SELECT u.id,u.status,u.lifecycle_generation,u.timezone,
       COALESCE(t.auth_generation,0) auth_generation,t.whoop_user_id,
       p.source_generation,p.purge_generation,p.pending_purge_count

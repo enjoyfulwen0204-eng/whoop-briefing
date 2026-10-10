@@ -53,10 +53,10 @@ function userErrorTelegram(db, userId, lifecycleGeneration, sent = []) {
     db,
     errorScope: userScope(userId),
     botToken: 'test-only',
-    chatId: userId,
+    chatId: '99002',
     fetchImpl: async () => {
       sent.push(userId);
-      return new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } }));
+      return new Response(JSON.stringify({ ok: true, result: { message_id: sent.length, date:1791586800, chat:{id:99002,type:'private'} } }));
     },
   });
   return withDeliveryAuthorization(

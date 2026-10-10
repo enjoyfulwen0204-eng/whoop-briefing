@@ -13,6 +13,7 @@ import { createOperationReceipts } from './phase4OperationReceipts.js';
 import { createFamilyDirectory } from './phase4FamilyDirectory.js';
 import { log } from './logger.js';
 import {requireSettledOperation} from './phase4ExecutionContext.js';
+import {requireBetaPilotGrant,requireCurrentBetaPilotAttempt} from './betaPilotPermit.js';
 
 const capabilities=new WeakSet();
 // Both names resolve to the frozen Stage 5 registry. Adding a future
@@ -44,10 +45,11 @@ const errorCodes=new Map([
 ]);
 export const stage6ErrorCode=error=>errorCodes.get(error?.code)??'CALCULATION_FAILED';
 
-export async function createPhase4Stage6({db,keys,admission,executionMode,workerCapability,now=()=>new Date(),
+export async function createPhase4Stage6({db,keys,admission,executionMode,workerCapability,pilotGrant,now=()=>new Date(),
   monotonicNow=()=>performance.now(),configuration={}}={}) {
   if(executionMode!=='SHADOW')fail('PHASE4_STAGE6_SHADOW_REQUIRED');
   if(!capabilities.has(workerCapability))fail('PHASE4_STAGE6_CAPABILITY_REQUIRED');
+  if(db?.raw?.protocol!=='file')requireBetaPilotGrant(pilotGrant,pilotGrant?.userId,db?.raw);
   foundationFlags(configuration);
   const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,
     afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
@@ -345,6 +347,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     return {kind:'SOURCE',status:firstFailure?'UNRESOLVED':'COMPLETE',failure:firstFailure,units};
   }
   async function drain({triggerSource='manual',userId=null,budget:overrides={},onProgress=async()=>{}}={}) {
+    if(db.raw.protocol!=='file'){requireBetaPilotGrant(pilotGrant,userId,db.raw);if(requireCurrentBetaPilotAttempt(userId,db.raw)!==pilotGrant)fail('BETA_PILOT_DENIED');}
     requireTriggerSource(triggerSource);const budget=stage6Budget(triggerSource,overrides),started=monotonicNow();
     const deadline=started+budget.maxWallMs-budget.safetyMarginMs;
     const assertBudget=()=>{if(monotonicNow()>=deadline)fail('PHASE4_DRAIN_DEADLINE_REACHED');};

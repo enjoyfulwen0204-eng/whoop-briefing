@@ -14,6 +14,7 @@ import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Re
 import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
 import {executionProfile} from './phase4Rollback.js';
 import { requireRuntimeAdmission, followRuntimeRenewal } from './runtimeAdmission.js';
+import {betaPilotConfiguration,reviewedPilotReservation,createBetaPilotPermit} from './betaPilotPermit.js';
 export const ADMISSION_BUDGET_MS=30_000;
 export const SYNC_SOURCE_BUDGETS=Object.freeze({cloudflare:120_000,github:SYNC_BUDGET_MS,manual:SYNC_BUDGET_MS,event:120_000});
 export const DRAIN_SOURCE_BUDGETS=Object.freeze({cloudflare:45_000,github:90_000,manual:45_000,event:25_000});
@@ -42,6 +43,24 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
  if(request.releaseSha!==releaseSha)throw Object.assign(new Error('RELEASE_CHECKOUT_MISMATCH'),{code:'RELEASE_CHECKOUT_MISMATCH'});
  const proof=configurationProof(keys,config,environment,releaseSha),mode=config.runtime==='on'?'SHADOW':'OFF';
  if(request.configProof!==proof||request.executionMode!==mode)throw Object.assign(new Error('EXECUTION_CONFIG_CHANGED'),{code:'EXECUTION_CONFIG_CHANGED'});
+ let pilotConfig,reservation;
+ try {
+  pilotConfig=betaPilotConfiguration(environment);
+  // Synthetic fixtures may inject a reservation to exercise enforcement.
+  // Remote production cannot substitute an environment/request/dependency bound.
+  reservation=providedDb?.raw?.protocol==='file'&&deps.pilotReservation
+   ?deps.pilotReservation:reviewedPilotReservation(pilotConfig?.costBoundId);
+ }catch{}
+ const pilotReady=Boolean(config.runtime==='on'&&pilotConfig&&reservation&&Date.now()>=pilotConfig.startAt&&Date.now()<pilotConfig.endAt);
+ const phaseReply=record=>{
+  const response=phaseResponse(record);
+  if(request.phase==='SYNC'&&!pilotReady)response.body.drainAuthorized=false;
+  return response;
+ };
+ // Missing qualification/expiry disables optional work before any database
+ // admission or coordination SQL. SYNC/Morning Brief follows its usual path.
+ if(request.phase==='STAGE6_DRAIN'&&config.runtime==='on'&&!pilotReady)
+  return phaseReply({phase:request.phase,source:request.triggerSource,executionMode:mode,outcome:'DISABLED',releaseSha});
  const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
  // The installed WebSocket driver can silently replace its private connection
  // after errors/age. A phase permits only the HTTP or file runtime boundary;
@@ -68,7 +87,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly,serializeScope:isContinuationRequest(request)})));
    if(claim.cached){overall.assert();admissionBudget.assert();
      try{await admissionBudget.run(()=>projectPhaseCompletion(db,request,claim.cached));}catch{}
-     overall.assert();admissionBudget.assert();return phaseResponse({...claim.cached,settlementState:claim.row.state});}
+     overall.assert();admissionBudget.assert();return phaseReply({...claim.cached,settlementState:claim.row.state});}
    // Production continuations retain the original phase observation date.
    // Explicit now is an isolated-fixture clock and is never accepted from HTTP.
    const explicitFixtureNow=now!==undefined;
@@ -79,7 +98,17 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    const workLimit=claim.workCommitted||reconciliationOnly?limit:Math.max(0,Math.min(limit,claim.workDeadlineAt-Date.now()));
    if(workLimit<=0)throw Object.assign(Error('EXECUTION_STALE_REQUEST'),{code:'EXECUTION_STALE_REQUEST'});
    budget=createExecutionBudget({budgetMs:workLimit,signal:overall.signal});
-   const fence=async()=>{checkAdmission();overall.assert();budget.assert();};
+   let pilotGrant,pilotDenied=false;
+   const fence=async client=>{checkAdmission();overall.assert();budget.assert();if(pilotGrant){
+    if(configurationProof(keys,publicBetaConfiguration(environment),environment,releaseSha)!==proof)throw Object.assign(Error('BETA_PILOT_DENIED'),{code:'BETA_PILOT_DENIED'});
+    await pilotGrant.assert(client);
+   }};
+   if(request.phase==='STAGE6_DRAIN'&&config.runtime==='on'&&!claim.workCommitted&&!reconciliationOnly){
+    try {
+     const permit=createBetaPilotPermit({db,keys,config:pilotConfig,reservation});
+     pilotGrant=await db.withRuntimeFence(fence,()=>budget.run(()=>permit.reserve()));
+    }catch(error){if(error?.code!=='BETA_PILOT_DENIED')throw error;pilotDenied=true;}
+   }
    if(!claim.workCommitted)await db.withRuntimeFence(fence,()=>budget.run(()=>recordPhaseEvent(db,{phase:request.phase,releaseSha,source:request.triggerSource,event:'start',outcome:'PENDING',identity:claim.identity,executionSeq:claim.executionSeq})));
    const executionContext={claim,keys,presentationClock,pending:new Set(),indeterminate:false,authority:{assert:()=>{checkAdmission();overall.assert();budget.assert();}}};
    let result,presentationRuntime;
@@ -95,12 +124,12 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
          const outcome=summary.syncComplete===true?summary.syncOutcome??'COMPLETE_SUCCESS':summary.syncOutcome??'PARTIAL';
          return {outcome,users:summary.users??0,failed:summary.failed??0,durationMs:performance.now()-started};
        }
-       if(config.runtime!=='on')return {outcome:'DISABLED',durationMs:performance.now()-started};
+       if(config.runtime!=='on'||pilotDenied)return {outcome:'DISABLED',durationMs:performance.now()-started};
        const runtime=presentationRuntime=deps.runtime??await createPublicBetaRuntime({db,keys,admission,executionMode:'SHADOW',
-         runtimeCapability:authorizePublicBetaRuntime({executionMode:'SHADOW'}),presentationPolicy:config.policy});
+         runtimeCapability:authorizePublicBetaRuntime({executionMode:'SHADOW'}),presentationPolicy:config.policy,pilotGrant});
        const progress=async({event,...counts})=>recordPhaseEvent(db,{phase:request.phase,releaseSha,source:request.triggerSource,event,
          identity:claim.identity,outcome:'PENDING',...counts});
-       const drained=await runPhase4Stage6({db,worker:runtime.phase4Stage6,triggerSource:request.triggerSource,now,onProgress:progress});
+       const drained=await runPhase4Stage6({db,worker:runtime.phase4Stage6,userId:pilotGrant.userId,pilotGrant,triggerSource:request.triggerSource,now,onProgress:progress});
        budget.assert();
        return {outcome:drained.outcome,jobsConsidered:drained.jobsConsidered,itemsAttempted:drained.itemsAttempted,
          itemsProcessed:drained.processedItems,jobsCompleted:drained.completedJobs,jobsFailed:drained.failedJobs,remainingJobs:drained.remainingJobs,completion:drained.completion,stopReason:drained.stopReason,
@@ -116,6 +145,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    // reconcilable; cancellation does not establish whether it committed.
    const originalAuthority={assert:()=>{
      executionContext.authority.assert();
+     pilotGrant?.assertTime();
      const currentRelease=runningReleaseSha(environment),currentConfig=publicBetaConfiguration(environment);
      if(currentRelease!==releaseSha)throw Object.assign(Error('RELEASE_CHECKOUT_MISMATCH'),{code:'RELEASE_CHECKOUT_MISMATCH'});
      if(configurationProof(keys,currentConfig,environment,currentRelease)!==proof||(currentConfig.runtime==='on'?'SHADOW':'OFF')!==mode)
@@ -152,17 +182,24 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
        catch(error){log.warn('phase4_cleanup_pending',{phase:request.phase,code:error?.code??'CLEANUP_UNCONFIRMED'});}finally{cleanup.close();}
      }
    }
-       if(request.phase==='STAGE6_DRAIN'&&record.settlementState==='FINALIZED_SUCCESS'&&config.mode!=='off'&&presentationRuntime?.betaPresentation) {
-         const users=await db.listSchedulableUsers({activeStatus:'ACTIVE'});
-         for(const user of users){budget.assert();await (deps.deliverBetaSummary??deliverPublicBetaSummary)({db,env,user,
-           presentation:presentationRuntime.betaPresentation,now:new Date(),...(deps.makeTelegram?{makeTelegram:deps.makeTelegram}:{})});}
+       if(request.phase==='STAGE6_DRAIN'&&record.settlementState==='FINALIZED_SUCCESS'&&config.mode!=='off'&&presentationRuntime?.betaPresentation&&pilotGrant) {
+         try {
+          originalAuthority.assert();await pilotGrant.assert();
+          const user=await db.getUser(pilotGrant.userId),original=presentationRuntime.betaPresentation;
+          const presentation={eligible:id=>id===pilotGrant.userId&&original.eligible(id),
+           withCurrentSummary:async(req,work)=>{
+            if(req.userId!==pilotGrant.userId)return null;originalAuthority.assert();await pilotGrant.assert();
+            return original.withCurrentSummary(req,async(text,verify)=>{originalAuthority.assert();await pilotGrant.assert();return work(text,async()=>{originalAuthority.assert();await pilotGrant.assert();await verify();});});
+           }};
+          if(user)await (deps.deliverBetaSummary??deliverPublicBetaSummary)({db,env,user,presentation,now:new Date(),...(deps.makeTelegram?{makeTelegram:deps.makeTelegram}:{})});
+         }catch(error){if(error?.code!=='BETA_PILOT_DENIED')throw error;}
        }
    log.info(request.phase==='SYNC'?'sync_complete':'stage6_drain_complete',{source:request.triggerSource,release_sha:releaseSha,phase:request.phase,
      outcome:record.outcome,duration_ms:record.durationMs,jobs_considered:record.jobsConsidered,items_attempted:record.itemsAttempted,
      jobs_completed:record.jobsCompleted,jobs_failed:record.jobsFailed,items_processed:record.itemsProcessed,work_receipts:record.workReceipts,remaining_jobs:record.remainingJobs,stop_reason:record.stopReason});
    log.info('phase4_run_complete',{source:request.triggerSource,release_sha:releaseSha,phase:request.phase,outcome:record.outcome,duration_ms:performance.now()-started});
    if(!record.resumable&&!['TIMEOUT','CANCELLED','FAILED','COMMIT_INDETERMINATE'].includes(record.outcome))originalAuthority.assert();
-   const response=phaseResponse(record);
+   const response=phaseReply(record);
    if(!record.resumable&&!['TIMEOUT','CANCELLED','FAILED','COMMIT_INDETERMINATE'].includes(record.outcome)){originalAuthority.assert();JSON.stringify(response.body);originalAuthority.assert();}
    return response;
  } catch(error){

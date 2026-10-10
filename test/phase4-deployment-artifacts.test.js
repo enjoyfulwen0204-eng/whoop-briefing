@@ -13,7 +13,7 @@ test('deployment gates retain a reviewed backup, writer drain and staged activat
     '31 minutes after T0', 'no in-flight scheduler request', 'MIGRATION MUST NOT START',
     'turso db branch <PRODUCTION_DB_NAME> <UNIQUE_PRE_V31_BRANCH_NAME>',
     'PRAGMA integrity_check', 'PRAGMA foreign_key_check', 'schema',
-    'one zh-TW, one en, one vi', 'If only two qualify, presentation remains OFF',
+    'authorized zh-TW and vi controlled READY smoke', 'EN_IMPLEMENTED_AND_TESTED_NO_LIVE_USER_YET', 'no third human is required',
     'Restoring the pre-migration snapshot may discard writes',
     'FINAL_REVIEWED_RC_SHA', 'Manually deploy', 'maintenance mode **ON**',
     'public ingress **closed**', 'Render deploy ID', 'deployed commit SHA',

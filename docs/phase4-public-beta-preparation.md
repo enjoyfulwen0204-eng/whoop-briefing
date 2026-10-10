@@ -37,7 +37,7 @@ A summary is sent at most once per user and local date. The existing durable `re
 | Setting | Preparation/default | Proposed initial cohort | Expansion | Rollback |
 | --- | --- | --- | --- | --- |
 | `PHASE4_BETA_SHADOW_RUNTIME` | `off` | `on` in explicit beta composition | `on` | `off` |
-| `PHASE4_PUBLIC_BETA_MODE` | `off` | `allowlist` only after three READY controlled users | No `all` rollout authorized | `off` first |
+| `PHASE4_PUBLIC_BETA_MODE` | `off` | `allowlist` only after authorized zh-TW/vi READY smoke and isolated en coverage | No `all` rollout authorized | `off` first |
 | `PHASE4_PUBLIC_BETA_USER_IDS` | empty | canonical internal `users.id` list | update list | empty |
 | `PHASE4_LOOKUP_KEY`, `PHASE4_AUDIT_KEY` | existing Phase 4 authority | retain same keys | retain | retain, never rotate as rollback |
 | 13 Foundation `PHASE4_*` flags | off | off | off | off |
@@ -62,3 +62,5 @@ The checked-in Cloudflare Worker target is already `*/10 0-3 * * *` UTC (08:00 t
 4. Preserve all v28/v29/v30/v31 data, operation receipts, keys and user data. No DB rollback, deletion, migration downgrade, or LIVE mode promotion.
 
 `npm run beta:smoke` uses synthetic users and a fake Telegram transport. It verifies final daily and Beta Summary payloads for Alice, Bob and an unnamed user, reversed order and a fresh process, with no real send. The historical broad-suite updates distinguish an authentic old schema fixture from an impossible v30 schema rewind: old version constants move to v30; hybrid rewinds must be rejected without weakening v30 postconditions; old downgrade fixtures expect incompatibility; missing scheduler heartbeat is stale under the Stage 6 policy.
+
+English policy: **EN_IMPLEMENTED_AND_TESTED_NO_LIVE_USER_YET**. Production English smoke is **DEFERRED UNTIL AUTHORIZED EN USER EXISTS**. No English human or unauthorized locale change is required for Stage 7 entry. Current production v32 requires no migration for Core C or Settings D.

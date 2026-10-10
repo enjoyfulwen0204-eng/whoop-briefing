@@ -18,7 +18,8 @@ const {createOwnedDb}=await imp('test/stage5OwnedDb.js');
 const {fixtureKeys}=await imp('test/localDb.js');
 const {hranaTransport}=await imp('test/hranaTransport.js');
 const {makeDataset}=await imp('test/fixtures.js');
-const {fakeCoach}=await imp('test/fakes.js');
+const {createCoach}=await imp('src/coach.js');
+const {createTelegram}=await imp('src/telegram.js');
 const {runExecutionPhase}=await imp('src/phase4Execution.js');
 const {configurationProof,readPhaseProgress,readExecution}=await imp('src/phase4ExecutionStore.js');
 const {publicBetaConfiguration}=await imp('src/publicBetaConfig.js');
@@ -30,7 +31,7 @@ const {runHealthspanSnapshot}=await imp('src/healthspanEngine.js');
 const {createReconciler}=await imp('src/reconcile.js');
 const {createWhoopClient}=await imp('src/whoop.js');
 const {createBriefingEndpoint}=await imp('src/briefingEndpoint.js');
-const {discoverPhaseContinuation}=await imp('src/phase4Continuation.js');
+const {discoverExecutionContinuation:discoverPhaseContinuation}=await imp('src/phase4Execution.js');
 const {invoke}=await imp('cloudflare/briefing-scheduler/worker.js');
 const {WHOOP_SYNC}=await imp('src/config.js');
 const now=new Date('2026-10-09T00:00:00Z');
@@ -106,8 +107,15 @@ async function scenario({name,users=3,latency=10,jitter=0,cold=false,partial=fal
     }
     return whoop;
    },
-   makeCoach:()=>{const coach=fakeCoach(),plan=coach.narrativePlan;coach.narrativePlan=(...a)=>measure('briefing_narrative_plan',()=>plan(...a));return coach;},
-   makeTelegram:({chatId})=>({send:async text=>measure('telegram_send',async()=>{payloads.push({chatId,text});return {messageId:payloads.length};}),sendTyping:async()=>true,notifyError:async()=>false}),
+   makeCoach:options=>{const coach=createCoach({...options,env:{},maxRetries:1,fetchImpl:async(_url,init)=>{
+     assert.equal(init.signal.aborted,false);const body=JSON.parse(init.body);
+     const order=[...body.messages[1].content.matchAll(/^([a-zA-Z0-9_.-]+)(?:（必要）)?：/gm)].map(m=>m[1]);
+     return new Response(JSON.stringify({model:'synthetic',choices:[{message:{content:JSON.stringify({order})}}],usage:{prompt_tokens:1,completion_tokens:1}}));
+    }}),plan=coach.narrativePlan;coach.narrativePlan=(...a)=>measure('briefing_narrative_plan',()=>plan(...a));return coach;},
+   makeTelegram:options=>{const telegram=createTelegram({...options,dryRun:false,fetchImpl:async(_url,init)=>{
+     assert.equal(init.signal.aborted,false);const body=JSON.parse(init.body);payloads.push({chatId:String(body.chat_id),text:body.text});
+     return new Response(JSON.stringify({ok:true,result:{message_id:payloads.length,date:Math.floor(Date.now()/1000),chat:{id:Number(body.chat_id),type:'private'},text:body.text}}));
+    }}),send=telegram.send;telegram.send=(...a)=>measure('telegram_send',()=>send(...a));return telegram;},
    makeSync:o=>{const s=createSync(o);return {...s,syncAll:(...a)=>measure('WHOOP_sync',()=>s.syncAll(...a))};},
    makeReconciler:o=>{const r=createReconciler(o);return {...r,reconcileAll:(...a)=>measure('reconciliation',()=>r.reconcileAll(...a))};},
    daily:o=>measure('briefing_build_claim_delivery',()=>runDaily(o)),
@@ -161,8 +169,10 @@ async function scenario({name,users=3,latency=10,jitter=0,cold=false,partial=fal
   const finalClaims=await delivered(),duplicates=(await db.raw.execute("SELECT count(*) n FROM (SELECT user_id,report_type,local_date,count(*) n FROM report_claims GROUP BY user_id,report_type,local_date HAVING count(*)>1)")).rows[0].n;
   assert.equal(lateProviderRequests,0);assert.equal(duplicates,0);assert.ok(finalClaims.every(c=>c.delivery_attempts<=1));
   for(const payload of payloads)assert.doesNotMatch(payload.text,/Body Energy|Kelvin|Beta Summary/);
+  const ledgerRows={};for(const table of ['phase4_executions','phase4_execution_work_receipts','phase4_execution_producers'])ledgerRows[table]=(await db.raw.execute(`SELECT count(*) n FROM ${table}`)).rows[0].n;
+  const storage={pages:(await db.raw.execute('PRAGMA page_count')).rows[0].page_count,pageBytes:(await db.raw.execute('PRAGMA page_size')).rows[0].page_size};
   const progress=await readPhaseProgress(db,'SYNC',source);
-  const out={providerClient:'REAL_CREATE_WHOOP_CLIENT_SYNTHETIC_FETCH',providerRequests,lateProviderRequests,name,users,latency,jitter,cold,partial,tenantDelay,resourceDelay,source,elapsedMs,workRequests,segments,workerDriver,workerInvocations,workerResult,workerError,workerElapsedMs,additionalFinalizedReplaySends,response,error,metrics,claims,finalClaims,sends:before,additionalReplaySends:payloads.length-before,resumed,replayMatched:!!replayed,resumeError,progress:{state:progress.state,settlementState:progress.settlementState,workReceipts:progress.workReceipts}};
+  const out={ledgerRows,storage,coachClient:'REAL_CREATE_COACH_SYNTHETIC_FETCH',telegramClient:'REAL_CREATE_TELEGRAM_RAW_ACK_SYNTHETIC_FETCH',providerClient:'REAL_CREATE_WHOOP_CLIENT_SYNTHETIC_FETCH',providerRequests,lateProviderRequests,name,users,latency,jitter,cold,partial,tenantDelay,resourceDelay,source,elapsedMs,workRequests,segments,workerDriver,workerInvocations,workerResult,workerError,workerElapsedMs,additionalFinalizedReplaySends,response,error,metrics,claims,finalClaims,sends:before,additionalReplaySends:payloads.length-before,resumed,replayMatched:!!replayed,resumeError,progress:{state:progress.state,settlementState:progress.settlementState,workReceipts:progress.workReceipts}};
   results.push(out);await writeFile(join(output,'timings.json'),JSON.stringify(results,null,2));console.log('REVIEW_TIMING '+JSON.stringify({name,elapsedMs,status:response?.status,resumed:resumed?.status,segments,additionalReplaySends:out.additionalReplaySends,additionalFinalizedReplaySends}));
  }finally{try{await seed.close();}catch{}db?.close();transport?.close();await rm(dir,{recursive:true,force:true});}
 }

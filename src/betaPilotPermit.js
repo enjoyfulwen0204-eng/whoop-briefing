@@ -1,6 +1,7 @@
 import {requireUserId} from './userContext.js';
 import {requirePhase4Keys} from './phase4Keys.js';
-import {databaseNowMs} from './phase4ExecutionContext.js';
+import {databaseNowMs,withDurableExecution} from './phase4ExecutionContext.js';
+import {createExecutionBudget,withExecutionBudget} from './executionBudget.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 
 const COMPONENT='phase4_beta_pilot_permit_v1', HASH=/^[a-f0-9]{64}$/;
@@ -9,12 +10,15 @@ export const PILOT_MAX_ATTEMPTS=48;
 export const PILOT_OPERATIONAL_MICRO_USD=400_000;
 const UNIT_KEYS=['rowsRead','rowsWritten','storageBytes','bytesSynced','microUsd'];
 const issuedGrants=new WeakMap(),submittedGrants=new WeakSet(),attemptScope=new AsyncLocalStorage();
+const closureScope=new AsyncLocalStorage();
+export const closingBetaPilotPermit=db=>Boolean(db?.raw)&&closureScope.getStore()===db.raw;
 const fail=()=>{throw Object.assign(Error('BETA_PILOT_DENIED'),{code:'BETA_PILOT_DENIED'});};
 export function requireBetaPilotGrant(grant,userId=grant?.userId,client){
  if(!grant||!issuedGrants.has(grant)||userId!==grant.userId||(client&&issuedGrants.get(grant)!==client))fail();grant.assertTime();return grant;
 }
 export async function withBetaPilotAttempt(grant,userId,work){
- requireBetaPilotGrant(grant,userId);if(submittedGrants.has(grant)||typeof work!=='function')fail();
+ try{requireBetaPilotGrant(grant,userId);}catch(error){if(issuedGrants.has(grant))await grant.settleInvalidation();throw error;}
+ if(submittedGrants.has(grant)||typeof work!=='function')fail();
  submittedGrants.add(grant);await grant.assert();
  return attemptScope.run(grant,work);
 }
@@ -80,7 +84,8 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
  const observe=async client=>(await client.execute({sql:`SELECT ${databaseNowMs} observed_at,
   (SELECT u.lifecycle_generation FROM users u JOIN user_onboarding o ON o.user_id=u.id
    WHERE u.id=? AND u.status='ACTIVE' AND o.state='READY') lifecycle_generation`,args:[config.userId]})).rows[0];
- const eligible=(row,state)=>Number.isSafeInteger(row?.observed_at)&&row.observed_at>=config.startAt&&row.observed_at<config.endAt
+ let latestObservedAt=config.startAt;
+ const eligible=(row,state)=>Number.isSafeInteger(row?.observed_at)&&row.observed_at>=Math.max(config.startAt,latestObservedAt)&&row.observed_at<config.endAt
   &&Number.isSafeInteger(row.lifecycle_generation)&&row.lifecycle_generation>0
   &&(!state||!state.closed&&row.lifecycle_generation===state.lifecycleGeneration&&row.observed_at>=state.lastObservedAt);
  const write=async(row,state,observedAt)=>{
@@ -91,10 +96,43 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
     VALUES('global',?,?,?,?) ON CONFLICT(scope,component) DO NOTHING`,args:[COMPONENT,at,json,at]});
   if(changed.rowsAffected!==1)fail();
  };
- let locallyClosed=false;
+ let locallyClosed=false,closurePromise,closureQueued=false,invalidObservedAt;
+ // Negative-only control metadata. Do not place closure in the failing work
+ // transaction: its rollback would erase the denial. Processing completion
+ // releases the root writer before awaiting this separate bounded CAS.
+ const persistClosure=()=>{
+  if(closurePromise)return closurePromise;
+  closurePromise=(async()=>{
+   const cleanup=createExecutionBudget({budgetMs:5000});
+   // This is control cleanup after work completion, not a synthetic durable
+   // business execution. Clearing that context also lets an idle file receiver
+   // re-admit after definite contention without treating closure as in-flight work.
+   try{return await closureScope.run(db.raw,()=>withDurableExecution(undefined,()=>
+    withExecutionBudget(cleanup,()=>cleanup.run(()=>db.transaction(async()=>{
+     const row=await read(db.raw);if(!row)fail();const state=decode(row);
+     if(!state.closed)await write(row,{...state,closed:true,lastObservedAt:Math.max(state.lastObservedAt,invalidObservedAt??state.lastObservedAt)},Date.now());
+    })))));}
+   finally{cleanup.close();}
+  })();
+  // Synchronous authority checks cannot await. Keep the rejected promise
+  // observable by settleInvalidation(), never turn it into a success proof.
+  closurePromise.catch(()=>{});return closurePromise;
+ };
+ const invalidate=observedAt=>{
+  locallyClosed=true;
+  if(Number.isSafeInteger(observedAt))invalidObservedAt=Math.max(invalidObservedAt??observedAt,observedAt,latestObservedAt);
+  if(db.processingTransactionActive?.()){
+   if(!closureQueued){closureQueued=true;db.afterProcessingCompletion(()=>persistClosure());}
+   return;
+  }
+  return persistClosure();
+ };
  const assert=async client=>{
+  if(closingBetaPilotPermit(db))return;
   const row=await read(client??db.raw);if(!row)fail();const state=decode(row);
-  if(locallyClosed||!eligible(await observe(client??db.raw),state)){locallyClosed=true;fail();}return state;
+  const current=await observe(client??db.raw);
+  if(locallyClosed||!eligible(current,state)){await invalidate(current?.observed_at);fail();}
+  latestObservedAt=Math.max(latestObservedAt,current.observed_at,state.lastObservedAt);return state;
  };
  return Object.freeze({
   userId:config.userId,
@@ -105,6 +143,7 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
      if(previous&&!previous.closed)await write(row,{...previous,closed:true,lastObservedAt:Math.max(previous.lastObservedAt,current.observed_at)},current.observed_at);
      return null;
     }
+    latestObservedAt=Math.max(latestObservedAt,current.observed_at);
     const stateBefore=previous??{version:1,fingerprint,startAt:config.startAt,endAt:config.endAt,lifecycleGeneration:current.lifecycle_generation,attempts:0,lastObservedAt:current.observed_at,closed:false};
     if(stateBefore.attempts>=config.maxAttempts)return null;
     const attempts=stateBefore.attempts+1;
@@ -113,8 +152,10 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
     // COMMIT uncertainty never refunds this reservation. A fresh invocation
     // must reserve again before submission, including retries/continuations.
     const deadline=performance.now()+Math.max(0,config.endAt-current.observed_at);
-    const assertTime=()=>{if(locallyClosed||performance.now()>=deadline){locallyClosed=true;fail();}};
-    const grant=Object.freeze({userId:config.userId,attempt:attempts,assertTime,assert:async client=>{assertTime();return assert(client);}});
+    const assertTime=()=>{if(closingBetaPilotPermit(db))return;if(locallyClosed||performance.now()>=deadline){invalidate(config.endAt);fail();}};
+    const grant=Object.freeze({userId:config.userId,attempt:attempts,assertTime,
+     settleInvalidation:()=>locallyClosed?persistClosure():undefined,
+     assert:async client=>{if(performance.now()>=deadline){await invalidate(config.endAt);fail();}return assert(client);}});
     issuedGrants.set(grant,db.raw);return grant;
    });
    if(!result)fail();return result;

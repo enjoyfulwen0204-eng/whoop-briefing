@@ -1,4 +1,5 @@
 import { canonicalJson } from './phase4EntityStore.js';
+import {readPilotPrefixRows} from './betaPilotBoundedReads.js';
 import { phase4Metric,INTELLIGENCE_VERSIONS,PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
 import { createReceiptRouting } from './phase4ReceiptRouting.js';
 import { FAMILY_DIRECTORY_VERSION as VERSION,FAMILY_DIRECTORY_ENTRIES as ENTRIES,
@@ -110,8 +111,9 @@ export function createFamilyDirectory(client,keys) {
       row.family_manifest_json,row.work_version,row.tip_hmac]});
   }
   async function reconcileInterrupted(context,sourceToken,manifest) {
-    const rows=(await client.execute({sql:`SELECT * FROM ${ENTRIES} WHERE user_id=? AND execution_mode=?
-      AND source_token=? ORDER BY sequence`,args:[context.userId,context.executionMode,sourceToken]})).rows;
+    const args=[context.userId,context.executionMode,sourceToken];
+    const rows=await readPilotPrefixRows(client,context,'family',args,{sql:`SELECT * FROM ${ENTRIES} WHERE user_id=? AND execution_mode=?
+      AND source_token=? ORDER BY sequence`,args});
     if(manifest.entry_count>rows.length)invalid();
     let digest=ZERO;
     for(let i=0;i<rows.length;i++) {
@@ -181,8 +183,9 @@ export function createFamilyDirectory(client,keys) {
       manifest=await ensureManifest(context,sourceToken,'COMPLETE',metricKey);
     }
     verifyManifest(manifest);
-    const rows=(await client.execute({sql:`SELECT * FROM ${ENTRIES} WHERE user_id=? AND execution_mode=?
-      AND source_token=? ORDER BY sequence`,args:[context.userId,context.executionMode,sourceToken]})).rows;
+    const args=[context.userId,context.executionMode,sourceToken];
+    const rows=await readPilotPrefixRows(client,context,'family',args,{sql:`SELECT * FROM ${ENTRIES} WHERE user_id=? AND execution_mode=?
+      AND source_token=? ORDER BY sequence`,args});
     if(rows.length!==manifest.entry_count)invalid();
     let digest=ZERO;
     for(let i=0;i<rows.length;i++) {

@@ -1,4 +1,5 @@
 import { canonicalJson } from './phase4EntityStore.js';
+import {readPilotPrefixRows} from './betaPilotBoundedReads.js';
 import { phase4Metric,INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
 import { ROUTE_VERSION,ROUTE_RECEIPTS,ROUTE_ENTRIES,ROUTE_MANIFESTS } from './phase4V29Schema.js';
 import { OPERATION_RECEIPT_VERSION } from './phase4V27Schema.js';
@@ -220,8 +221,8 @@ export function createReceiptRouting(client,keys) {
       const scope=[userId,mode,kind,subjectToken];
       const manifest=(await client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
         AND subject_kind=? AND subject_token=?`,args:scope})).rows[0];
-      const entries=(await client.execute({sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
-        AND subject_kind=? AND subject_token=? ORDER BY sequence`,args:scope})).rows;
+      const entries=await readPilotPrefixRows(client,context,'routeEntries',scope,{sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
+        AND subject_kind=? AND subject_token=? ORDER BY sequence`,args:scope});
       if(!manifest){if(entries.length)invalid();return {receipts:[],unknown:0,manifest:null};}
       verifyManifest(manifest);
       if(entries.length!==manifest.entry_count)invalid();
@@ -235,10 +236,10 @@ export function createReceiptRouting(client,keys) {
     }
     // The global small routing layer is authenticated without opening any
     // unrelated receipt. It proves that no v27 row was left without a route.
-    const routes=(await client.execute({sql:`SELECT * FROM ${ROUTE_RECEIPTS} WHERE user_id=? AND execution_mode=?
-      ORDER BY operation_kind,operation_key`,args:[userId,mode]})).rows;
-    const actual=(await client.execute({sql:`SELECT operation_kind,operation_key,privacy_artifact_id FROM phase4_operation_receipts
-      WHERE user_id=? AND execution_mode=? ORDER BY operation_kind,operation_key`,args:[userId,mode]})).rows;
+    const routes=await readPilotPrefixRows(client,context,'routes',[userId,mode],{sql:`SELECT * FROM ${ROUTE_RECEIPTS} WHERE user_id=? AND execution_mode=?
+      ORDER BY operation_kind,operation_key`,args:[userId,mode]});
+    const actual=await readPilotPrefixRows(client,context,'receiptProjection',[userId,mode],{sql:`SELECT operation_kind,operation_key,privacy_artifact_id FROM phase4_operation_receipts
+      WHERE user_id=? AND execution_mode=? ORDER BY operation_kind,operation_key`,args:[userId,mode]});
     if(routes.length!==actual.length)invalid();
     let unknown=0;const expected=[];
     for(let i=0;i<routes.length;i++) {
@@ -254,8 +255,8 @@ export function createReceiptRouting(client,keys) {
     const scope=[userId,mode,kind,subjectToken];
     const manifest=(await client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
       AND subject_kind=? AND subject_token=?`,args:scope})).rows[0];
-    const entries=(await client.execute({sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
-      AND subject_kind=? AND subject_token=? ORDER BY sequence`,args:scope})).rows;
+    const entries=await readPilotPrefixRows(client,context,'routeEntries',scope,{sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
+      AND subject_kind=? AND subject_token=? ORDER BY sequence`,args:scope});
     if(!manifest){if(expected.length||entries.length)invalid();return {receipts:[],unknown,manifest:null};}
     verifyManifest(manifest);
     if(entries.length!==manifest.entry_count||expected.length!==entries.length)invalid();

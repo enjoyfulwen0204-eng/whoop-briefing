@@ -10,6 +10,7 @@ export const PILOT_MAX_ATTEMPTS=48;
 export const PILOT_OPERATIONAL_MICRO_USD=400_000;
 const UNIT_KEYS=['rowsRead','rowsWritten','storageBytes','bytesSynced','microUsd'];
 const issuedGrants=new WeakMap(),submittedGrants=new WeakSet(),attemptScope=new AsyncLocalStorage();
+const issuedDatabases=new WeakMap(),prefixReadReservations=new WeakMap();
 const closureScope=new AsyncLocalStorage();
 export const closingBetaPilotPermit=db=>Boolean(db?.raw)&&closureScope.getStore()===db.raw;
 const fail=()=>{throw Object.assign(Error('BETA_PILOT_DENIED'),{code:'BETA_PILOT_DENIED'});};
@@ -23,6 +24,18 @@ export async function withBetaPilotAttempt(grant,userId,work){
  return attemptScope.run(grant,work);
 }
 export function requireCurrentBetaPilotAttempt(userId,client){return requireBetaPilotGrant(attemptScope.getStore(),userId,client);}
+
+/** Logical prefix-work envelope only, NOT provider billed units or a dollar
+ * certificate. The durable attempt was already consumed; failed/denied reads
+ * never refund its slot or these reservations. Ordinary work has no pilot scope. */
+export function reservePilotPrefixRead(context,client){
+ const grant=attemptScope.getStore();if(!grant)return false;
+ requireBetaPilotGrant(grant,context?.userId,client);
+ if(context.executionMode!=='SHADOW'||!issuedDatabases.get(grant)?.processingTransactionActive?.())fail();
+ const used=prefixReadReservations.get(grant)??0;
+ if(used>=32)fail();
+ prefixReadReservations.set(grant,used+1);return true;
+}
 
 /** No provider/query bound has been qualified. A flag, meter, claimed price or
  * operator-supplied JSON must not manufacture this authority. Adding a bound
@@ -156,7 +169,7 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
     const grant=Object.freeze({userId:config.userId,attempt:attempts,assertTime,
      settleInvalidation:()=>locallyClosed?persistClosure():undefined,
      assert:async client=>{if(performance.now()>=deadline){await invalidate(config.endAt);fail();}return assert(client);}});
-    issuedGrants.set(grant,db.raw);return grant;
+    issuedGrants.set(grant,db.raw);issuedDatabases.set(grant,db);return grant;
    });
    if(!result)fail();return result;
   },

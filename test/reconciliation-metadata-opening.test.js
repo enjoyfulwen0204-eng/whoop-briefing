@@ -33,7 +33,7 @@ test('fixed opening order shares one actual transaction and acknowledges run/pen
  assert.equal(result.result,'SUCCESS');assert.deepEqual(order.slice(0,4),['claimReconciliation','getReconciliationState','openReconciliationRun','openPendingWindow']);
  assert.ok(openingHttp<23);console.log('ORDERED_OPENING_ACTUAL_HTTP '+JSON.stringify({openingHttp,originalClaimStateRunCapturePendingHttp:23,syntheticLocalOnly:true}));
  const receipts=(await f.db.raw.execute({sql:'SELECT result_json FROM phase4_execution_work_receipts WHERE execution_id=?',args:[f.context.claim.executionId]})).rows;
- assert.ok(receipts.some(row=>Number.isSafeInteger(JSON.parse(row.result_json??'null'))&&JSON.parse(row.result_json)>0),'opening receipt is only an acknowledged numeric run ID');
+ assert.ok(receipts.some(row=>typeof JSON.parse(row.result_json??'null')==='string'&&/^[a-f0-9]{64}$/.test(JSON.parse(row.result_json))),'opening receipt is only an acknowledged keyed metadata digest');
 });
 test('busy grant records no run; old false receipt cannot clone authority but a distinct admitted cycle may acquire a fresh grant',async t=>{
  const f=await setup(t);await f.db.claimReconciliation({userId:'alice',resource:'sleep',owner:'successor',leaseMs:60000,lifecycleGeneration:1});

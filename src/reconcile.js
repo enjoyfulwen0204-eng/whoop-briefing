@@ -3,6 +3,7 @@ import {workStepOptions} from './phase4WorkStep.js';
 import {readOnlyProcessingCheck} from './processingTransaction.js';
 import {syncShouldYield} from './syncContinuation.js';
 import {currentDurableExecution,readWorkStep} from './phase4ExecutionContext.js';
+import {openingReceiptProof,parseOpeningReceipt} from './reconciliationOpeningReceipt.js';
 /**
  * 對帳 + 增量同步引擎（V1.2 Phase 2）。
  *
@@ -451,7 +452,7 @@ export function createReconciler({
       :spec.pointInTime?{from:null,to:anchor??windowAt(),token:null,resumed:false,pending:false}
       :isDeep?nextDeepSlice(state,{now:anchor??windowAt(),deep:slicePolicy}):nextWindow(resource,state,{now:anchor??windowAt()});
     const claimArgs=()=>({userId:uid,resource:key,owner,leaseMs,now:at(),lifecycleGeneration:lifecycleFence});
-    if(currentDurableExecution()){
+    if(currentDurableExecution()&&currentDurableExecution().receipts!==false){
       // One opening belongs to this owner and immutable admitted window intent.
       // A replay only observes the same live grant/run; it never calls claim or
       // opens another run/pending window. A different admitted cycle is distinct.
@@ -460,6 +461,11 @@ export function createReconciler({
       const anchor=(windowNow===null?new Date(admitted):windowAt()).toISOString();
       const options=workStepOptions('reconciliation.opening',[uid,key,scope,String(owner),leaseMs,lifecycleFence,mode,explicitWindow,anchor,
         isDeep?[slicePolicy.HORIZON_DAYS,slicePolicy.SLICE_DAYS]:null]);
+      const execution=currentDurableExecution();
+      const proof=(outcome,metadata=window,captured=inputProof,id=runId)=>openingReceiptProof({keys:execution.keys,
+        executionIdentity:execution.claim.identity,executionScope:execution.claim.scopeKey,userId:uid,resource:key,scope,owner:String(owner),intent:options.workStep,
+        leaseExpiresAt:state.leaseExpiresAt,lastAttemptAt:state.lastAttemptAt,
+        runId:id,mode,from:metadata.from,to:metadata.to,token:metadata.token??null,inputProof:captured,outcome});
       const lifecycle=readOnlyProcessingCheck(async()=>{if(granted)await assertLifecycle();});
       const opened=await db.transaction(async()=>{
         granted=await db.claimReconciliation(claimArgs());if(!granted)return 0;
@@ -468,36 +474,48 @@ export function createReconciler({
           windowFrom:window.from,windowTo:window.to,now:at()});
         if(!Number.isSafeInteger(runId)||runId<1)throw Error('reconcile_run_opening_lost');
         try{inputProof=await captureWhoopInput(inputOptions);}
-        catch(error){if(error?.code!=='WHOOP_INPUT_FENCED')throw error;openingError=error;return -runId;}
+        catch(error){if(error?.code!=='WHOOP_INPUT_FENCED')throw error;openingError=error;return proof('input_fenced');}
         if(!spec.pointInTime&&!explicitWindow&&!window.pending){
           pendingOpened=await db.openPendingWindow({userId:uid,resource:key,owner,from:window.from,to:window.to,
             now:at(),lifecycleGeneration:lifecycleFence});
         }
         // False pending opening still acknowledges its actual diagnostic run.
         // The original failure/closure path runs after the ACK, without provider work.
-        return pendingOpened===false?-runId:runId;
+        return proof(pendingOpened===false?'pending_fenced':'ready');
       },{...options,after:lifecycle,beforeCommit:lifecycle,replay:async()=>{
         const receipt=await readWorkStep(db.raw,['named',options.workStep]);
-        const saved=JSON.parse(receipt.result_json??'null');if(saved===0)return 0;
-        if(!Number.isSafeInteger(saved)||saved===0)throw Error('reconcile_opening_receipt_invalid');
+        const saved=parseOpeningReceipt(receipt.result_json);if(saved===0)return 0;
         await assertLifecycle();granted=await db.holdsReconciliation({...claimArgs(),now:new Date()});
         if(!granted)return 0;
         state=await db.getReconciliationState(uid,key);
-        const row=(await db.raw.execute({sql:`SELECT id,mode,window_from,window_to,finished_at FROM whoop_reconciliation_runs
-          WHERE user_id=? AND resource=? AND owner=? AND id=?`,args:[uid,key,String(owner),Math.abs(saved)]})).rows[0];
-        if(!row||row.finished_at!==null||row.mode!==mode)return 0;
-        if(explicitWindow&&(row.window_from!==new Date(explicitWindow.from).toISOString()
-          ||row.window_to!==new Date(explicitWindow.to).toISOString()))return 0;
-        if(!spec.pointInTime&&!explicitWindow&&saved>0
-          &&(state.continuationFrom!==row.window_from||state.continuationTo!==row.window_to))return 0;
-        runId=Math.abs(saved);window={from:row.window_from===null?null:new Date(row.window_from),to:new Date(row.window_to),
-          token:explicitWindow?null:state.continuationToken,resumed:!explicitWindow&&Boolean(state.continuationToken),pending:!spec.pointInTime&&!explicitWindow};
-        try{inputProof=await captureWhoopInput(inputOptions);}
-        catch(error){if(error?.code!=='WHOOP_INPUT_FENCED')throw error;openingError=error;return -runId;}
-        pendingOpened=saved<0?false:null;return saved;
+        const rows=(await db.raw.execute({sql:`SELECT id,mode,window_from,window_to,finished_at FROM whoop_reconciliation_runs
+          WHERE user_id=? AND resource=? AND owner=? AND finished_at IS NULL ORDER BY id DESC LIMIT 2`,args:[uid,key,String(owner)]})).rows;
+        let currentProof=null;
+        try{currentProof=await captureWhoopInput(inputOptions);}
+        catch(error){if(error?.code!=='WHOOP_INPUT_FENCED')throw error;}
+        for(const row of rows){
+          if(row.mode!==mode||row.finished_at!==null)continue;
+          if(explicitWindow&&(row.window_from!==explicitWindow.from||row.window_to!==explicitWindow.to))continue;
+          const metadata={from:row.window_from,to:row.window_to,token:spec.pointInTime||explicitWindow?null:state.continuationToken??null};
+          for(const outcome of ['ready','input_fenced','pending_fenced']){
+            if(outcome!=='input_fenced'&&currentProof===null)continue;
+            if(outcome==='ready'&&!spec.pointInTime&&!explicitWindow
+              &&(state.continuationFrom!==row.window_from||state.continuationTo!==row.window_to))continue;
+            let expected;try{expected=proof(outcome,metadata,outcome==='input_fenced'?null:currentProof,Number(row.id));}
+            catch(error){if(error?.code!=='RECONCILIATION_OPENING_RECEIPT_INVALID')throw error;continue;}
+            if(expected!==saved)continue;
+            runId=Number(row.id);window={from:row.window_from===null?null:new Date(row.window_from),to:new Date(row.window_to),
+              token:metadata.token,resumed:Boolean(metadata.token),pending:!spec.pointInTime&&!explicitWindow};
+            // Only a match to the immutable original keyed proof can admit the
+            // current observation. Recapturing input alone never renews authority.
+            inputProof=outcome==='input_fenced'?null:currentProof;pendingOpened=outcome==='pending_fenced'?false:null;
+            if(outcome==='input_fenced')openingError=Object.assign(Error('WHOOP_INPUT_FENCED'),{code:'WHOOP_INPUT_FENCED'});
+            return saved;
+          }
+        }
+        return 0;
       }});
       if(opened===0)return {resource,scope,result:RECONCILE_RESULT.SKIPPED,reason:'claim_busy'};
-      runId=Math.abs(opened);
     }else{
       granted=await db.claimReconciliation(claimArgs());
       if(!granted)return {resource,scope,result:RECONCILE_RESULT.SKIPPED,reason:'claim_busy'};

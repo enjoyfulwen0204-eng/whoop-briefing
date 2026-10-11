@@ -1,3 +1,4 @@
+import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 /**
  * WHOOP OAuth + v2 API client。
  *
@@ -160,18 +161,18 @@ async function postToken(body, tokenUrl = WHOOP.TOKEN_URL, {
   let res;
   const tokenSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs);
   try {
-    res = await abortableResponse(fetchImpl(tokenUrl, {
+    res = await traceExecutionOperation('WHOOP_HTTP',()=>{currentExecutionBudget()?.assert();countExecutionTelemetry('whoop_requests');return abortableResponse(fetchImpl(tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(body),
       signal: tokenSignal,
-    }), tokenSignal);
+    }), tokenSignal);});
   } catch (err) {
     if (tokenSignal.aborted) throw new WhoopMaintenanceDeadlineError();
     // 逾時 / 連線失敗。絕不在訊息裡帶任何 token 內容。
     throw new WhoopAuthError(`WHOOP token endpoint 連線失敗：${err?.name ?? ''} ${err?.message ?? ''}`.trim());
   }
-  const text = await boundedBody(res, {signal:tokenSignal,maxBytes:64*1024});
+  const text = await traceExecutionOperation('WHOOP_BODY',()=>boundedBody(res, {signal:tokenSignal,maxBytes:64*1024}));
   if (!res.ok) {
     throw new WhoopAuthError(`WHOOP token endpoint ${res.status}: ${text.slice(0, 300)}`);
   }
@@ -586,10 +587,10 @@ export function createWhoopClient({
         await currentSyncOwnership()?.assertCurrent();
         await assertProviderAuthorization();
         ensureRequestBudget();
-        res = await abortableResponse(fetchImpl(url.toString(), {
+        res = await traceExecutionOperation('WHOOP_HTTP',()=>{ensureRequestBudget();countExecutionTelemetry('whoop_requests');return abortableResponse(fetchImpl(url.toString(), {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           ...(requestSignal ? { signal: requestSignal } : {}),
-        }), requestSignal);
+        }), requestSignal);});
       } catch (err) {
         if(isStaleAuthorizationError(err))throw err;
         if (requestSignal?.aborted || remainingBudgetMs() <= 0) {
@@ -599,6 +600,7 @@ export function createWhoopClient({
         if (attempt === WHOOP.MAX_RETRIES) {
           throw new WhoopApiError(`WHOOP 連線失敗：${err?.message ?? err}`, 0);
         }
+        countExecutionTelemetry('retry_count');
         await boundedSleep(backoffFor(attempt));
         continue;
       }
@@ -613,6 +615,7 @@ export function createWhoopClient({
         try { void res.body?.cancel().catch(() => {}); } catch {}
         if (retriedAfterAuth) throw new WhoopAuthError('WHOOP 回 401，refresh 後仍失敗（refresh_token 可能已失效，需重新授權）');
         log.warn('whoop_401_refreshing', { path });
+        countExecutionTelemetry('retry_count');
         await getAccessToken({ force: true });
         return apiGet(path, params, { retriedAfterAuth: true });
       }
@@ -624,17 +627,18 @@ export function createWhoopClient({
         if (attempt === WHOOP.MAX_RETRIES) {
           throw new WhoopApiError(`WHOOP ${res.status}（已重試 ${attempt} 次）`, res.status);
         }
+        countExecutionTelemetry('retry_count');
         await boundedSleep(wait);
         continue;
       }
 
       if (!res.ok) {
-        const body = await boundedBody(res,{signal:requestSignal,maxBytes:64*1024});
+        const body = await traceExecutionOperation('WHOOP_BODY',()=>boundedBody(res,{signal:requestSignal,maxBytes:64*1024}));
         ensureRequestBudget();
         throw new WhoopApiError(`WHOOP ${res.status} ${path}: ${body.slice(0, 200)}`, res.status);
       }
 
-      const body = await boundedBody(res,{signal:requestSignal});
+      const body = await traceExecutionOperation('WHOOP_BODY',()=>boundedBody(res,{signal:requestSignal}));
       await assertProviderAuthorization();
       ensureRequestBudget();
       return JSON.parse(body);

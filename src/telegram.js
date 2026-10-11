@@ -1,3 +1,4 @@
+import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 import {validImmediateMessage,validApiSuccess} from './telegramAcknowledgment.js';
 import {transportAuthority} from './transportAuthority.js';
 import {abortableResponse,boundedBody} from './executionBudget.js';
@@ -84,7 +85,7 @@ export function createTelegram({
     let res;
     try {
       authority.assert();
-      res = await abortableResponse(fetchImpl(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      res = await traceExecutionOperation('TELEGRAM_HTTP',()=>{authority.assert();countExecutionTelemetry('telegram_requests');return abortableResponse(fetchImpl(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -94,7 +95,7 @@ export function createTelegram({
         }),
         // 沒有逾時的請求會讓發送權的租約在等待中過期。
         signal: authority.signal,
-      }),authority.signal);
+      }),authority.signal);});
       authority.assert();
     } catch (err) {
       // 連線階段。只有「確定沒連上」才算確定失敗，其餘（逾時、連線被重置）
@@ -113,7 +114,7 @@ export function createTelegram({
 
     let raw;
     try {
-      raw = await boundedBody(res,{signal:authority.signal,maxBytes:1024*1024});
+      raw = await traceExecutionOperation('TELEGRAM_BODY',()=>boundedBody(res,{signal:authority.signal,maxBytes:1024*1024}));
       authority.assert();
     } catch (err) {
       if (definiteReject) {

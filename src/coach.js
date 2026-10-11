@@ -1,3 +1,4 @@
+import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 /**
  * AI 教練文字生成（走 OpenRouter）。
  *
@@ -274,7 +275,7 @@ export function createCoach({
       catch(error){if(!monitor.signal.aborted)calls.getStore()?.cancel.abort(error);}
     })();
     try {
-    const res = await abortableResponse(fetchImpl(`${baseUrl}/chat/completions`, {
+    const res = await traceExecutionOperation('MODEL_HTTP',()=>{currentExecutionBudget()?.assert();countExecutionTelemetry('model_requests');return abortableResponse(fetchImpl(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${apiKey}`,
@@ -284,9 +285,9 @@ export function createCoach({
       },
       body: JSON.stringify(body),
       signal: requestSignal,
-    }), requestSignal);
+    }), requestSignal);});
     await authority();
-    const text = await boundedBody(res, {signal:requestSignal, maxBytes:1024*1024});
+    const text = await traceExecutionOperation('MODEL_BODY',()=>boundedBody(res, {signal:requestSignal, maxBytes:1024*1024}));
     await authority();
     let json = null;
     try {
@@ -323,6 +324,7 @@ export function createCoach({
           ? (status === 429 || status >= 500)
           : (err?.name !== 'AbortError' && err?.name !== 'TimeoutError');
         if (!retryable || attempt === maxRetries) throw err;
+        countExecutionTelemetry('retry_count');
         const wait = backoffFor(attempt);
         log.warn('coach_retry', { attempt, status, wait_ms: wait, error: describeError(err) });
         const backoffSignal = await cancellationSignal();

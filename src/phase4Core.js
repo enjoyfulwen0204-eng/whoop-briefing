@@ -495,7 +495,10 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     return run(context,async()=>{
       await assertExecutionWorkOwner(client);
       const captured=new Map(),raw=new Map(),nodeKey=(table,id)=>JSON.stringify([table,String(id)]);
-      const runRow=(await client.execute({sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND run_id=?',
+      const runRow=(await client.execute(priorRun?{
+        sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',
+        args:[context.userId,context.executionMode,priorRun.id]}:{
+        sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND run_id=?',
         args:[context.userId,context.executionMode,runId]})).rows[0];
       if(!priorRun)compareArtifactRow(context,'evidence_runs',runRow);
       const pending=runRow?[{table:'evidence_runs',row:runRow}]:[];

@@ -17,9 +17,9 @@ const runtimeEnv={timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:1,telegr
 const success=()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS',users:0,failed:0});
 async function fixture(t){
  const dir=await mkdtemp(join(tmpdir(),'pilot-allowance-')),url='file:'+join(dir,'fixture.db'),db=createDb({url});
- t.after(async()=>{db.close();await rm(dir,{recursive:true,force:true});});await db.migrate();await db.admitRuntime();
+ const owned=[db];t.after(async()=>{for(const client of owned.reverse())client.close();await rm(dir,{recursive:true,force:true});});await db.migrate();await db.admitRuntime();
  for(const id of ['pilot-user','other-user']){await db.createUser({id,displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});await db.ensureOnboarding(id);await db.raw.execute({sql:"UPDATE user_onboarding SET state='READY' WHERE user_id=?",args:[id]});}
- return {db,url};
+ return {db,url,own:client=>{owned.push(client);return client;}};
 }
 test('exact financial policy is typed owner approval without fabricated billed units; legacy cost registry remains null',()=>{
  assert.equal(reservation.kind,'OWNER_APPROVED_MONITORED_ALLOWANCE');assert.equal(Object.isFrozen(reservation),true);
@@ -47,7 +47,7 @@ test('stop or invalid monitoring policy disables new optional drain before datab
  }
 });
 test('concurrent monitored reservations, restart and new identities retain a single 12-attempt ceiling with no reset/refund',async t=>{
- const {db,url}=await fixture(t),other=createDb({url});t.after(()=>other.close());await other.admitRuntime();const env=environment();
+ const {db,url,own}=await fixture(t),other=own(createDb({url}));await other.admitRuntime();const env=environment();
  const permits=[permit(db,env),permit(other,env)],results=await Promise.allSettled(Array.from({length:20},(_,n)=>permits[n%2].reserve()));
  assert.equal(results.filter(r=>r.status==='fulfilled').length,12);assert.equal((await record(db)).attempts,12);
  assert.deepEqual(new Set(results.filter(r=>r.status==='fulfilled').map(r=>r.value.attempt)),new Set(Array.from({length:12},(_,i)=>i+1)));

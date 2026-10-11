@@ -1,3 +1,5 @@
+import {stage6CurrentCaptureTime} from './stage6CurrentCaptureTime.js';
+import {bodyEnergyMetricAnalysisTime} from './bodyEnergyDerivedTime.js';
 import { buildPhase4Core,fail } from './phase4Core.js';
 import { composePhase4Stores } from './phase4Repositories.js';
 import { createReanalysisQueue } from './phase4ReanalysisQueue.js';
@@ -282,7 +284,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       const body=await stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)});
       if(['AVAILABLE','LIMITED'].includes(body.row.quality_state)) {
         const current=await stores.readArtifact(context,'body_energy_results',{result_id:body.row.result_id});
-        await metrics(context,await inputs.metric(context,'body_energy',current,asOfUtc));
+        await metrics(context,await inputs.metric(context,'body_energy',current,await bodyEnergyMetricAnalysisTime(core,context,current,asOfUtc)));
       }
       return body.row.quality_state;
     }
@@ -300,11 +302,13 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   async function processSourceV30(context,source,asOfUtc,lease,assertBudget) {
     const root=await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
     if(source.source_type==='USER') {
-      const body=await queue.owned(context,lease,()=>stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}),
+      const body=await queue.owned(context,lease,()=>core.schemaVersion===32?stores.bodyEnergy.computeForCurrentDrain(context)
+        :stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}),
         {assertBudget,workKind:'stage6.body-source',workFacts:[source.source_type,source.source_id,source.cursor,asOfUtc]});
       if(['AVAILABLE','LIMITED'].includes(body.row.quality_state)) {
         const current=await core.run(context,()=>stores.readArtifact(context,'body_energy_results',{result_id:body.row.result_id}));
-        const request=await core.run(context,()=>inputs.metric(context,'body_energy',current,asOfUtc));
+        const analysisTime=await core.run(context,()=>bodyEnergyMetricAnalysisTime(core,context,current,body.row.as_of_utc));
+        const request=await core.run(context,()=>inputs.metric(context,'body_energy',current,analysisTime));
         return await metricsV30(context,request,lease,assertBudget);
       }
       return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
@@ -318,8 +322,10 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
     let firstFailure=null;const units=[];
     for(const [metricKey] of registeredMetrics) {
+      let analysisAsOf=asOfUtc;
       try {
-        const request=await core.run(context,()=>inputs.metric(context,metricKey,root,asOfUtc));
+        if(core.schemaVersion===32)analysisAsOf=await core.run(context,()=>stage6CurrentCaptureTime(core,context,metricKey,root));
+        const request=await core.run(context,()=>inputs.metric(context,metricKey,root,analysisAsOf));
         units.push({kind:'METRIC_SOURCE',metricKey,status:'COMPLETE'});
         const episodeWork=await metricsV30(context,request,lease,assertBudget);
         units.push(episodeWork);
@@ -334,7 +340,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       // source/evidence/predecessor closure. A failed sibling episode family
       // remains unresolved but cannot veto an independent insight unit.
       try {
-        const outcome=await queue.owned(context,lease,()=>associations(context,metricKey,asOfUtc),{assertBudget,workKind:'stage6.associations',workFacts:[source.source_type,source.source_id,source.cursor,metricKey,asOfUtc]});
+        const outcome=await queue.owned(context,lease,()=>associations(context,metricKey,analysisAsOf),{assertBudget,workKind:'stage6.associations',workFacts:[source.source_type,source.source_id,source.cursor,metricKey,analysisAsOf]});
         units.push({kind:'ASSOCIATION_INSIGHT',metricKey,status:'COMPLETE',outcome});
       }
       catch(error) {

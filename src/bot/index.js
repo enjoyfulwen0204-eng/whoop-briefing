@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
 import {createSettings} from './settings.js';
 import {validMessageId} from '../telegramAcknowledgment.js';
 /**
@@ -122,7 +123,8 @@ export async function main({ maxIterations = Infinity } = {}) {
     model: env.openrouterModel,
   });
 
-  const router = createRouter({ db, coachFor });
+  const bodyRuntime=await createBodyEnergyRuntime({db,keys:phase4AuthorityKeys(process.env),environment:process.env,env});
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy });
   const settings = createSettings({db});
 
   // 自助上線需要 WHOOP client id + 回呼網址才能產生授權連結（見 webhook.js）。

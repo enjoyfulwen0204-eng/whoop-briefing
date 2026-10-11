@@ -111,3 +111,19 @@ test('actual canonical receipt serialization does not invent conflicting observe
   assert.equal(analysis.privateAnalysis.earlierBaselineInputCorrelation.pairedTenantDays,30);
   assert.equal(analysis.privateAnalysis.earlierBaselineInputCorrelation.conflictingSourceRevisionsOmitted,0);
 });
+
+
+test('bounded non-score notification capture remains reproducible and hostile source times fail atomically',()=>{
+  const original=selectBodyEnergyInputs(bodyInput()).manifest,manifest=structuredClone(original);
+  manifest.notification_workouts={version:'body-energy-workout-event-v1',rows:[{id:'synthetic-workout',start_at:manifest.wake_at_utc,
+    end_at:null,strain:0,created_at:manifest.as_of_utc,updated_at:manifest.as_of_utc,synced_at:manifest.as_of_utc}],
+    sync:{resource:'workout',last_success_at:manifest.as_of_utc,updated_at:manifest.as_of_utc,age_ms:0}};
+  const saved=calculateBodyEnergy(manifest);assert.deepEqual(saved,calculateBodyEnergy(original));
+  const entry={kind:'CAPTURED_MANIFEST',userId:'a',manifest,savedValue:saved.value,savedQuality:saved.quality_state,
+    provenance:{receiptVerified:true,retainedContent:true,originalCapturedManifest:true}};
+  const okay=evaluateBodyEnergyPrivate(packet([entry]));assert.equal(okay.summary.casesEvaluated,1);assert.equal(okay.summary.capturedResultsReproduced,1);
+  for(const field of ['created_at','updated_at','synced_at']){const bad=structuredClone(entry);bad.manifest.notification_workouts.rows[0][field]=new Date(manifest.as_of_epoch_ms+1).toISOString();
+    const rejected=evaluateBodyEnergyPrivate(packet([bad]));assert.equal(rejected.summary.casesEvaluated,0);assert.equal(rejected.summary.capturedResultsReproduced,0);}
+  const bad=structuredClone(entry);bad.manifest.notification_workouts.rows[0].strain={valueOf:null,toString:null};
+  const rejected=evaluateBodyEnergyPrivate(packet([bad]));assert.equal(rejected.summary.casesEvaluated,0);assert.equal(rejected.summary.capturedResultsReproduced,0);
+});

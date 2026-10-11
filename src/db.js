@@ -1,3 +1,4 @@
+import {verifyBodyEnergyTelegramReplyBoundary} from './bodyEnergyTelegramReplyBoundary.js';
 import {profileRevision} from './profileRevision.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 import {hranaPayload,closeOnlyPayload,closeHranaStream,closeLateHranaResponse} from './hranaCleanup.js';
@@ -197,7 +198,9 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
         AND s.artifact_id=op.privacy_artifact_id AND s.unlinked_at IS NULL AND s.relationship='RECEIPT_FENCE:'||u.lifecycle_generation||':'||COALESCE(t.auth_generation,0)||':'||p.purge_generation)`,args:[updateId,userId]})).rows[0];
     if(!row||row.privacy_artifact_id!==requirePhase4Keys(phase4Keys).lookup(['privacy-artifact-v1','telegram_operations',userId,'SHARED',[updateId]]))return false;
     let stored;try{stored=JSON.parse(row.result_json);}catch{return false;}
-    return stored?.userId===userId&&String(stored.chatId)===String(chatId)&&JSON.stringify(stored.reply)===JSON.stringify(reply);
+    if(stored?.userId!==userId||String(stored.chatId)!==String(chatId)||JSON.stringify(stored.reply)!==JSON.stringify(reply))return false;
+    if(stored.bodyEnergyReplyGuard&&!await verifyBodyEnergyTelegramReplyBoundary({raw:transactionClient},stored.bodyEnergyReplyGuard,userId))return false;
+    return true;
   }
   async function processTelegramOperation(updateId, { owner, ownerUserId=null, nonHealthOperation=false, now = () => new Date() }, fn) {
     const id = Number(updateId);

@@ -6,11 +6,12 @@ import { fail, readableRow } from './phase4Core.js';
 import { canonicalSourceTime } from './phase4SourceVersion.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
+import {currentDurableExecution,assertExecutionWorkOwner} from './phase4ExecutionContext.js';
 
 const columns={
   sleep:'id,health_date,start_at,end_at,nap,score_state,sleep_performance_percentage,updated_at,synced_at',
   recovery:'sleep_id,health_date,score_state,user_calibrating,hrv_rmssd_milli,resting_heart_rate,updated_at,synced_at',
-  cycle:'id,start_at,end_at,strain,updated_at,synced_at',workout:'id,start_at,end_at,strain,updated_at,synced_at',
+  cycle:'id,start_at,end_at,strain,updated_at,synced_at',workout:'id,start_at,end_at,strain,created_at,updated_at,synced_at',
 };
 const tables={sleep:'whoop_sleeps',recovery:'whoop_recoveries',cycle:'whoop_cycles',workout:'whoop_workouts'};
 
@@ -70,7 +71,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       fail('PHASE4_PARENT_STALE');
     return reproduceHistorical(row);
   }
-  async function reproduceAudit(row,context) {
+  async function reproduceAudit(row,context,{equivalentSyncRefresh=false}={}) {
     if(!readableRow(row))fail('CONTENT_REDACTED');
     const linked=(await client.execute({sql:`SELECT 1 FROM phase4_source_links WHERE user_id=? AND artifact_execution_mode=?
       AND artifact_type='body_energy_results' AND artifact_id=? AND unlinked_at IS NULL LIMIT 1`,
@@ -82,6 +83,7 @@ export function createBodyEnergyStore(core,entities,queue) {
     for(const value of [...manifest.baseline.hrv,...manifest.baseline.rhr]){add('sleep',value.sleep);add('recovery',value.recovery);}
     for(const value of manifest.load.rows)add(manifest.load.kind==='CYCLE'?'cycle':'workout',value);
     for(const value of manifest.naps)add('sleep',value.source);
+    for(const value of manifest.notification_workouts?.rows??[])add('workout',value);
     for(const value of manifest.exclusions)if(value.id!==null)required.push({type:value.resource==='baseline'?'sleep':value.resource,id:value.id});
     const seen=new Set();
     for(const source of required) {
@@ -89,6 +91,13 @@ export function createBodyEnergyStore(core,entities,queue) {
       if(seen.size>10000)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
       const current=await core.root(context,source.type,source.id);
       if(source.expected&&row.input_generation===context.inputGeneration)for(const [field,value] of Object.entries(source.expected)) {
+        // A same-version canonical refetch may refresh only its ingestion
+        // bookkeeping. Publication keeps the original snapshot and freshness;
+        // every provider timestamp and calculator-relevant field still matches.
+        if(equivalentSyncRefresh&&field==='synced_at'){
+          const before=typeof value==='string'?Date.parse(value):NaN,after=typeof current.row[field]==='string'?Date.parse(current.row[field]):NaN;
+          if(Number.isFinite(before)&&Number.isFinite(after)&&after>=before&&after<=core.now().getTime())continue;
+        }
         const time=field.endsWith('_at')||field==='as_of_utc';
         if((time?canonicalSourceTime(current.row[field]??null):current.row[field]??null)
           !==(time?canonicalSourceTime(value):value))fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
@@ -104,19 +113,44 @@ export function createBodyEnergyStore(core,entities,queue) {
         return [...(await client.execute({sql:`SELECT user_id,${fields} FROM ${from} WHERE user_id=?`,args:[context.userId]})).rows];
       };
       const sources={};for(const type of Object.keys(tables))sources[type]=await rows(tables[type],columns[type]);
+      const access=await rows('whoop_resource_access','resource,status,auth_generation,lifecycle_generation'),
+        sync=await rows('whoop_sync_state','resource,last_success_at,updated_at'),
+        tombstones=await rows('whoop_resource_tombstones','resource_type,resource_id,state');
       const selection=selectBodyEnergyInputs({userId:context.userId,timezone:context.timezone,asOfEpochMs:req.asOfEpochMs,
         targetHealthDate:req.targetHealthDate,lifecycleGeneration:context.lifecycleGeneration,authGeneration:context.authGeneration,sources,
-        sync:await rows('whoop_sync_state','resource,last_success_at,updated_at'),
-        access:await rows('whoop_resource_access','resource,status,auth_generation,lifecycle_generation'),
+        sync,access,
         capabilities:await rows('whoop_capabilities','key,status,lifecycle_generation'),
-        tombstones:await rows('whoop_resource_tombstones','resource_type,resource_id,state')});
+        tombstones});
+      // Non-score evidence: retain admitted ongoing/completed workout state
+      // around this wake so two authenticated captures can attest completion.
+      // CYCLE remains the sole prioritized load input in the calculator.
+      const wake=Date.parse(selection.manifest.wake_at_utc),workoutSync=sync.find(r=>r.resource==='workout'),
+        accessible=access.some(r=>r.resource==='workout'&&r.status==='ACCESSIBLE'&&r.auth_generation===context.authGeneration
+          &&r.lifecycle_generation===context.lifecycleGeneration),success=Date.parse(workoutSync?.last_success_at),updated=Date.parse(workoutSync?.updated_at);
+      const notificationRows=accessible&&Number.isFinite(wake)&&Number.isFinite(success)&&success<=req.asOfEpochMs
+        &&Number.isFinite(updated)&&updated<=req.asOfEpochMs?sources.workout.filter(r=>{
+          const start=Date.parse(r.start_at),end=r.end_at===null?null:Date.parse(r.end_at),created=r.created_at==null?null:Date.parse(r.created_at),
+            ingested=Date.parse(r.synced_at),version=Date.parse(r.updated_at);
+          return start>=wake&&start<=req.asOfEpochMs&&(end===null||end>start&&end<=req.asOfEpochMs)
+            &&(created===null||Number.isFinite(created)&&created<=req.asOfEpochMs)
+            &&Number.isFinite(ingested)&&ingested<=req.asOfEpochMs&&Number.isFinite(version)&&version<=req.asOfEpochMs
+            &&!tombstones.some(t=>t.resource_type==='workout'&&t.resource_id===r.id&&t.state==='ACTIVE');
+        }).sort((a,b)=>String(a.id)<String(b.id)?-1:String(a.id)>String(b.id)?1:0):[];
+      if(notificationRows.length>128)fail('BODY_ENERGY_WORKOUT_EVENT_BOUNDS');
       const manifest={...selection.manifest,input_generation:context.inputGeneration,lifecycle_generation:context.lifecycleGeneration,
-        auth_generation:context.authGeneration,source_generation:context.sourceGeneration};
+        auth_generation:context.authGeneration,source_generation:context.sourceGeneration,
+        exclusions:selection.manifest.exclusions.map(e=>{const type=e.resource==='baseline'?'sleep':e.resource,
+          row=e.id===null?null:sources[type]?.find(r=>String(r[type==='recovery'?'sleep_id':'id'])===String(e.id));
+          return {...e,source_version:row?{updated_at:row.updated_at??null,synced_at:row.synced_at??null}:null};}),
+        notification_workouts:{version:'body-energy-workout-event-v1',rows:notificationRows.map(r=>Object.fromEntries(columns.workout.split(',').map(field=>[field,r[field]??null]))),
+          sync:accessible&&Number.isFinite(success)&&success<=req.asOfEpochMs&&Number.isFinite(updated)&&updated<=req.asOfEpochMs
+            ?{resource:'workout',last_success_at:workoutSync.last_success_at,updated_at:workoutSync.updated_at,age_ms:req.asOfEpochMs-success}:null}};
       // A retained post-as-of canonical/sync version is not a revision archive.
       // The exact persisted tuple can still be replayed by compute/readExact.
       if(selection.notReproducible)fail('NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS');
       const calculation=calculateBodyEnergy(manifest),refs=[];
       for(const source of selection.references)refs.push((await core.root(context,source.type,source.id)).ref);
+      for(const row of notificationRows)refs.push((await core.root(context,'workout',row.id)).ref);
       refs.push((await core.root(context,'USER',context.userId)).ref);
       const ticket=Object.freeze({kind:'BODY_ENERGY_CAPTURE'});
       const cacheKey=['body-energy-capture-v1',core.newId()];
@@ -155,6 +189,11 @@ export function createBodyEnergyStore(core,entities,queue) {
         input_generation:context.inputGeneration,lifecycle_generation:context.lifecycleGeneration,auth_generation:context.authGeneration,
         input_manifest_json:json,driver_json:canonicalJson(calculation.drivers),missingness_json:canonicalJson(calculation.reasons),
         supersedes_result_id:req.supersedesResultId,created_at:core.timestamp()};
+      if(currentDurableExecution()?.receipts!==false&&currentDurableExecution()){
+        const owner=await assertExecutionWorkOwner(client),created=Date.parse(row.created_at);
+        if(owner?.phase!=='STAGE6_DRAIN'||created<owner.created_at||created<req.asOfEpochMs
+          ||created>Date.now()||created>owner.deadline_at)fail('BODY_ENERGY_CURRENT_DRAIN_CLOCK_FENCED');
+      }
       row.input_manifest_hash=keys.digest(row.content_digest_salt,json);row.result_hash=calculationHash(row,calculation);
       const fields=Object.keys(row);
       reservePilotMutation(context,client,fields.map(k=>row[k]));
@@ -208,7 +247,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       if(!rows.length)return null;
       if(rows.length>1&&rows[0].as_of_epoch_ms===rows[1].as_of_epoch_ms)fail('BODY_ENERGY_RESULT_AMBIGUOUS');
       reproduceCurrent(context,rows[0]);
-      return reproduceAudit(rows[0],context);
+      return reproduceAudit(rows[0],context,{equivalentSyncRefresh:true});
     });
   }
   async function checkpoint(context,{bucketStart,algorithmVersion=C.algorithm}) {
@@ -263,6 +302,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       for(const entry of [...manifest.baseline.hrv,...manifest.baseline.rhr]){add('sleep',entry.sleep);add('recovery',entry.recovery);}
       for(const value of manifest.load.rows)add(manifest.load.kind==='CYCLE'?'cycle':'workout',value);
       for(const value of manifest.naps)add('sleep',value.source);
+      for(const value of manifest.notification_workouts?.rows??[])add('workout',value);
       for(const value of manifest.exclusions)if(value.id!==null)refs.push({type:value.resource==='baseline'?'sleep':value.resource,id:value.id,mode:'SHARED'});
       refs.push({type:'USER',id:userId,mode:'SHARED'});return refs;
     },

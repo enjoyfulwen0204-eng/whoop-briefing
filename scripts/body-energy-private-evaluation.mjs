@@ -29,7 +29,7 @@ function normalizedCapture(manifest){
   const required=['manifest_version','algorithm_version','constants_version','baseline_version','constants_hash','metric_registry_version',
     'as_of_epoch_ms','as_of_utc','timezone','health_date','day_assignment','wake_at_utc','main_sleep','recovery','baseline','load','naps','sync',
     'access_evidence','capability_evidence','eligibility','warnings','reasons','exclusions'];
-  shape(manifest,required.concat('input_generation','lifecycle_generation','auth_generation','source_generation'),required);
+  shape(manifest,required.concat('input_generation','lifecycle_generation','auth_generation','source_generation','notification_workouts'),required);
   const invalid=()=>fail('CAPTURE_MANIFEST_SHAPE_INVALID');
   for(const field of ['manifest_version','algorithm_version','constants_version','baseline_version','constants_hash','metric_registry_version','timezone'])
     if(!text(manifest[field]))invalid();
@@ -93,11 +93,29 @@ function normalizedCapture(manifest){
   for(const name of ['warnings','reasons','exclusions','access_evidence','capability_evidence'])
     if(!Array.isArray(manifest[name]))invalid();
   if([...manifest.warnings,...manifest.reasons].some(x=>typeof x!=='string'||!/^[A-Z0-9_]{1,96}$/.test(x)))invalid();
-  for(const row of manifest.exclusions){shape(row,['resource','id','reason']);if(!text(row.resource)||!scalarId(row.id)||!text(row.reason))invalid();}
+  for(const row of manifest.exclusions){shape(row,['resource','id','reason','source_version'],['resource','id','reason']);if(!text(row.resource)||!scalarId(row.id)||!text(row.reason))invalid();
+    if(row.source_version!=null){shape(row.source_version,['updated_at','synced_at']);timestamp(row.source_version.updated_at);timestamp(row.source_version.synced_at);}}
   for(const row of manifest.access_evidence){shape(row,['resource','status','auth_generation','lifecycle_generation']);
     if(!text(row.resource)||!text(row.status)||!generation(row.auth_generation)||!generation(row.lifecycle_generation))invalid();}
   for(const row of manifest.capability_evidence){shape(row,['key','status','lifecycle_generation']);
     if(!text(row.key)||!text(row.status)||!generation(row.lifecycle_generation))invalid();}
+  if(Object.hasOwn(manifest,'notification_workouts')){
+    const events=manifest.notification_workouts;shape(events,['version','rows','sync']);
+    if(events.version!=='body-energy-workout-event-v1'||!Array.isArray(events.rows)||events.rows.length>128)invalid();
+    const seen=new Set();for(const row of events.rows){
+      shape(row,['id','start_at','end_at','strain','created_at','updated_at','synced_at']);
+      if(!text(row.id)||!row.id||row.id.length>256||seen.has(row.id)||!nullable(row.strain,finite))invalid();seen.add(row.id);
+      for(const field of ['start_at','end_at','created_at','updated_at','synced_at'])timestamp(row[field]);
+      if(!text(row.start_at)||!text(row.updated_at)||!text(row.synced_at)||!text(manifest.wake_at_utc)
+        ||Date.parse(row.start_at)<Date.parse(manifest.wake_at_utc)||row.end_at!==null&&Date.parse(row.end_at)<=Date.parse(row.start_at))invalid();
+    }
+    if(events.sync!==null){shape(events.sync,['resource','last_success_at','updated_at','age_ms']);
+      timestamp(events.sync.last_success_at);timestamp(events.sync.updated_at);
+      if(events.sync.resource!=='workout'||!text(events.sync.last_success_at)||!text(events.sync.updated_at)
+        ||!finite(events.sync.age_ms)||events.sync.age_ms<0
+        ||events.sync.age_ms!==manifest.as_of_epoch_ms-Date.parse(events.sync.last_success_at))invalid();
+    }else if(events.rows.length)invalid();
+  }
   return manifest;
 }
 function matrix(rows,columns=fields) {

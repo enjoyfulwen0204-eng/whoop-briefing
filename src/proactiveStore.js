@@ -7,8 +7,9 @@
  */
 
 import { PROACTIVE_OUTCOME } from './schema.js';
-import { PROACTIVE_PROCESSING_LEASE } from './proactivePolicy.js';
+import { PROACTIVE_PROCESSING_LEASE, ANTI_SPAM_POLICY } from './proactivePolicy.js';
 import { log } from './logger.js';
+import {BODY_ENERGY_NOTIFICATION_POLICY as BODY_POLICY} from './bodyEnergyNotificationPolicy.js';
 import { requireUserId } from './userContext.js';
 
 const nowIso = (d = new Date()) => d.toISOString();
@@ -103,12 +104,25 @@ export function createProactiveStore(client) {
       sql: `INSERT INTO proactive_events
               (user_id, health_date, idempotency_key, signals_json, decision, reason_json,
                policy_version, message_text, created_at, lifecycle_generation)
-            VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id, idempotency_key) DO NOTHING`,
+            SELECT ?,?,?,?,?,?,?,?,?,?
+             WHERE (? NOT IN ('ASK_CONTEXT','NOTIFY') OR
+               (SELECT COUNT(*) FROM proactive_events WHERE user_id=?
+                  AND (? IS NULL OR lifecycle_generation IS ?)
+                  AND julianday(created_at)>=julianday(?)
+                  AND decision IN ('ASK_CONTEXT','NOTIFY'))<?)
+            AND (?<>? OR NOT EXISTS (SELECT 1 FROM proactive_events WHERE user_id=?
+              AND (? IS NULL OR lifecycle_generation IS ?) AND policy_version=?
+              AND decision='NOTIFY' AND julianday(created_at)>=julianday(?)))
+            ON CONFLICT(user_id, idempotency_key) DO NOTHING`,
       args: [
         uid, healthDate, idempotencyKey,
         signals ? JSON.stringify(signals) : null,
         decision, reason ? JSON.stringify(reason) : null,
         policyVersion, messageText ?? null, nowIso(now), expectedLifecycleGeneration,
+        decision,uid,expectedLifecycleGeneration,expectedLifecycleGeneration,
+        nowIso(new Date(now.getTime()-24*60*60_000)),ANTI_SPAM_POLICY.DAILY_PROACTIVE_CAP,
+        policyVersion,BODY_POLICY.version,uid,expectedLifecycleGeneration,expectedLifecycleGeneration,
+        BODY_POLICY.version,nowIso(new Date(now.getTime()-BODY_POLICY.topicCooldownMs)),
       ],
     });
     if (Number(rs.rowsAffected) > 0) {
@@ -120,8 +134,9 @@ export function createProactiveStore(client) {
       sql: 'SELECT lifecycle_generation FROM proactive_events WHERE user_id = ? AND idempotency_key = ?',
       args: [uid, idempotencyKey],
     });
-    log.info('proactive_event_duplicate_suppressed', { user_id: uid, health_date: healthDate });
-    return { claimed: false, id: null, lifecycleGeneration: existing.rows[0]?.lifecycle_generation ?? null };
+    const suppression=existing.rows.length?'DUPLICATE':'RATE_LIMITED';
+    log.info(suppression==='DUPLICATE'?'proactive_event_duplicate_suppressed':'proactive_event_daily_cap_suppressed', { user_id: uid, health_date: healthDate });
+    return { claimed: false, id: null, lifecycleGeneration: existing.rows[0]?.lifecycle_generation ?? null,suppression };
   }
 
   /**

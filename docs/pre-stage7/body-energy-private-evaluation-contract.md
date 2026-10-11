@@ -29,10 +29,13 @@ user IDs, and at most 45 cases/1 MiB total. Each case is either:
   attestations for independent verification, not client-supplied authorization.
 
 Genuine current or captured instants beyond the actual evaluation clock reject.
-Captured manifests must retain the exact normalized shape, with no raw provider
-JSON, foreign-user fields or post-as-of source timestamps. Every case stages all
-analyses before accepted/eligible/reproduced counters advance; malformed cases
-cannot simultaneously count as successful and rejected.
+Captured manifests must retain the exact normalized shape and primitive
+timestamp, age, boolean, generation and numeric types, with no raw provider
+JSON, foreign-user fields or post-as-of source timestamps. Sync ages must match
+their original as-of and success timestamp. Every case stages all freshness,
+row, input-pair, ablation and sensitivity analyses before any accepted, quality,
+eligible or reproduced counter advances; malformed cases cannot simultaneously
+count as successful and rejected.
 
 Only reproduce captured history. A current canonical dataset cannot reconstruct
 overwritten source revisions at earlier times. Earlier-only personal baselines
@@ -43,7 +46,12 @@ The result separates `summary` from `privateAnalysis`. The latter contains
 health-derived aggregate correlation, distribution, ablation and coefficient
 sensitivity and must remain outside Git, logs and ordinary release artifacts;
 retain encrypted private evidence only when separately authorized. No user IDs,
-individual cases or manifests are returned. Even summary eligibility refers to
+individual cases or manifests are returned. `correlation` covers only actual
+reproduced/current result cases. `earlierBaselineInputCorrelation` separately
+covers earlier-only, matched sleep/HRV/RHR input pairs already present in the
+retained baseline; it computes no historical Body Energy score. Tenant/day/source
+pairs are deduplicated across captures; conflicting source revisions omit that
+pair and disclose the conflict count. Even summary eligibility refers to
 the captured instant and is never proof of current publication eligibility.
 
 The coefficient analysis uses analytic partials of the unchanged original

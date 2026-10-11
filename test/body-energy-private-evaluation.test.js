@@ -52,3 +52,47 @@ test('genuine future captures and malformed retained manifests fail with zero ac
   const raw=selectBodyEnergyInputs(bodyInput()).manifest;raw.recovery.raw_json='synthetic';
   assert.equal(evaluateBodyEnergyPrivate(packet([{...bad,manifest:raw}])).summary.rejectionCounts.CAPTURE_MANIFEST_SHAPE_INVALID,1);
 });
+test('JSON primitive coercion traps never partially count a rejected retained capture',()=>{
+  const original=selectBodyEnergyInputs(bodyInput()).manifest,result=calculateBodyEnergy(original);
+  const mutations=[
+    m=>{m.sync.sleep.age_ms={valueOf:null,toString:null};},
+    m=>{m.load.sync.age_ms='0';},
+    m=>{m.as_of_epoch_ms={valueOf:null,toString:null};},
+    m=>{m.main_sleep.end_at={toString:null};},
+    m=>{m.recovery.user_calibrating={valueOf:null};},
+    m=>{m.eligibility.required_sync_valid=1;},
+    m=>{m.baseline.hrv[0].value={valueOf:null};},
+    m=>{m.load.rows[0].strain={valueOf:null,toString:null};},
+    m=>{m.access_evidence[0].auth_generation='1';},
+    m=>{m.sync.recovery.last_success_at={toString:null};},
+  ];
+  for(const mutate of mutations){
+    const manifest=JSON.parse(JSON.stringify(original));mutate(manifest);
+    const summary=evaluateBodyEnergyPrivate(packet([{kind:'CAPTURED_MANIFEST',userId:'a',manifest,
+      savedValue:result.value,savedQuality:result.quality_state,
+      provenance:{receiptVerified:true,retainedContent:true,originalCapturedManifest:true}}])).summary;
+    assert.equal(summary.casesEvaluated,0);assert.equal(summary.capturedResultsReproduced,0);
+    assert.equal(summary.eligibleAtCapturedInstant,0);assert.deepEqual(summary.qualityCounts,{});
+    assert.equal(Object.values(summary.rejectionCounts).reduce((sum,n)=>sum+n,0),1);
+  }
+});
+test('earlier-only paired observed inputs support correlation without invented historical scores or duplicate dominance',()=>{
+  const input=bodyInput();for(let n=1;n<input.sources.sleep.length;n++)input.sources.sleep[n].sleep_performance_percentage=40+n;
+  const result=evaluateBodyEnergyPrivate(packet([current(input)]));
+  assert.equal(result.summary.casesEvaluated,1);assert.equal(result.privateAnalysis.correlation.value.hrv.pearson,null);
+  const earlier=result.privateAnalysis.earlierBaselineInputCorrelation;
+  assert.equal(earlier.pairedTenantDays,30);assert.equal(earlier.matrix.sleepPerformance.hrv.pearson,1);
+  assert.equal(earlier.matrix.hrv.rhr.pearson,1);assert.equal(earlier.matrix.value,undefined);
+  const captured=selectBodyEnergyInputs(input).manifest,calculation=calculateBodyEnergy(captured);
+  const second=structuredClone(captured);second.as_of_epoch_ms+=1;second.as_of_utc=new Date(second.as_of_epoch_ms).toISOString();
+  for(const row of [second.sync.sleep,second.sync.recovery,second.load.sync])row.age_ms+=1;
+  const entry=manifest=>({kind:'CAPTURED_MANIFEST',userId:'a',manifest,savedValue:calculateBodyEnergy(manifest).value,
+    savedQuality:calculateBodyEnergy(manifest).quality_state,provenance:{receiptVerified:true,retainedContent:true,originalCapturedManifest:true}});
+  const repeated=evaluateBodyEnergyPrivate(packet([entry(captured),entry(second)])).privateAnalysis.earlierBaselineInputCorrelation;
+  assert.equal(repeated.pairedTenantDays,30);assert.equal(repeated.conflictingSourceRevisionsOmitted,0);
+  second.baseline.hrv[0].recovery.hrv_rmssd_milli+=1;second.baseline.hrv[0].value+=1;
+  second.baseline.rhr[0].recovery.hrv_rmssd_milli+=1;
+  const conflict=evaluateBodyEnergyPrivate(packet([entry(captured),entry(second)])).privateAnalysis.earlierBaselineInputCorrelation;
+  assert.equal(conflict.pairedTenantDays,29);assert.equal(conflict.conflictingSourceRevisionsOmitted,1);
+  for(const id of [input.userId,input.sources.sleep[1].id])assert.ok(!JSON.stringify(earlier).includes(`"${id}"`));
+});

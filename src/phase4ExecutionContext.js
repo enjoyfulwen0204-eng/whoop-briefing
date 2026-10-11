@@ -57,8 +57,13 @@ function receiptResult(result){
 /** Runs inside the SAME work transaction. Keys are deterministic across owners. */
 const preparedReceipts=new WeakMap();
 const receiptTransactions=new AsyncLocalStorage();
+// An identity only, never execution/receipt authority. Closed producer brands
+// may bind to the same existing root lifetime without exposing mutable state.
+export function currentExecutionReceiptTransactionMarker(){
+ const lifetime=receiptTransactions.getStore();return lifetime?.active?lifetime.marker:null;
+}
 export async function withExecutionReceiptTransaction(work){
- const lifetime={active:true};
+ const lifetime={active:true,marker:Object.freeze({})};
  try{return await receiptTransactions.run(lifetime,work);}finally{lifetime.active=false;}
 }
 export async function prepareExecutionReceipt(client,{step,result,explicit=false}={}){

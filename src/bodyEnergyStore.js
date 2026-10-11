@@ -6,7 +6,26 @@ import { fail, readableRow } from './phase4Core.js';
 import { canonicalSourceTime } from './phase4SourceVersion.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
-import {currentDurableExecution,assertExecutionWorkOwner} from './phase4ExecutionContext.js';
+import {currentDurableExecution,assertExecutionWorkOwner,currentExecutionReceiptTransactionMarker,requireSettledOperation} from './phase4ExecutionContext.js';
+
+// Transport selection only: neither token authorizes a read, effect or source
+// receipt. Only this module's actual new persist can issue the same-root brand.
+const producedBodies=new WeakMap(),newBodyCaptures=new WeakMap();
+export function issueNewBodySourceCapture(core,context,result){
+  const produced=producedBodies.get(result);producedBodies.delete(result);
+  if(!produced||produced.core!==core||produced.context!==context||produced.execution!==currentDurableExecution()
+    ||produced.job!==core.jobAuthority()||produced.marker!==currentExecutionReceiptTransactionMarker())return null;
+  requireSettledOperation();
+  const token=Object.freeze({});newBodyCaptures.set(token,produced);return token;
+}
+export function requireNewBodySourceCapture(core,context,token,source){
+  const produced=newBodyCaptures.get(token);newBodyCaptures.delete(token);
+  if(!produced||produced.core!==core||produced.context!==context||produced.execution!==currentDurableExecution()
+    ||produced.job!==core.jobAuthority()||!produced.marker||produced.marker!==currentExecutionReceiptTransactionMarker()
+    ||source.type!=='body_energy_results'||source.mode!==context.executionMode||source.historicalAsOf
+    ||source.id!==produced.id||canonicalJson(source.row)!==produced.row)fail('BODY_ENERGY_NEW_SOURCE_CAPTURE_REQUIRED');
+  requireSettledOperation();
+}
 
 const columns={
   sleep:'id,health_date,start_at,end_at,nap,score_state,sleep_performance_percentage,updated_at,synced_at',
@@ -225,7 +244,11 @@ export function createBodyEnergyStore(core,entities,queue) {
       if(req.supersedesResultId!==null)await client.execute({sql:`UPDATE body_energy_results SET invalidated_at=COALESCE(invalidated_at,?),
         invalidation_reason=COALESCE(invalidation_reason,'SOURCE_CORRECTION') WHERE user_id=? AND execution_mode=? AND result_id=?`,
         args:[core.timestamp(),context.userId,context.executionMode,req.supersedesResultId]});
-      return {...reproduceCurrent(context,await find(context,key)),created:true};
+      const result={...reproduceCurrent(context,await find(context,key)),created:true},marker=currentExecutionReceiptTransactionMarker();
+      if(marker&&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'&&currentDurableExecution().receipts!==false&&core.jobAuthority())
+        producedBodies.set(result,{core,context,execution:currentDurableExecution(),job:core.jobAuthority(),marker,
+          id:result.row.privacy_artifact_id,row:canonicalJson(result.row)});
+      return result;
     });
   }
   async function compute(context,options) {

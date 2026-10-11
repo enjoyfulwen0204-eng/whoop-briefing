@@ -4,10 +4,11 @@ import {fail,readableRow,RAW_SOURCE_READ_BATCH} from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import {addPrivacyLinks} from './phase4V22Backfill.js';
 import { RESULT_AUTHORITY_TABLE as TABLE, RESULT_AUTHORITY_VERSION as VERSION, RESULT_ROOT_VERSION } from './phase4V26Schema.js';
-import { createBodyEnergyStore } from './bodyEnergyStore.js';
+import { createBodyEnergyStore,requireNewBodySourceCapture } from './bodyEnergyStore.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import {requireMetricUnitProof} from './phase4MetricUnitReceipt.js';
+import {currentDurableExecution,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
 
 const invalid=()=>fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
 const incomplete=()=>fail('PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE');
@@ -150,6 +151,61 @@ export function createResultAuthority(core) {
     const roots=ordered([...entries.values()]),bytes=Buffer.byteLength(canonicalJson(roots));
     if(roots.length>REQUIRED_ROOT_BUDGET.count||bytes>REQUIRED_ROOT_BUDGET.bytes)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
     return {version:BOUNDED_ROOT_VERSION,model:'FLATTENED_CALCULATION_INPUTS',roots,root_count:roots.length,serialized_bytes:bytes};
+  }
+  /** Closed post-effect NEW_BODY_SOURCE data observation. The original source
+   * transaction already owns the newly produced Body row; this does not use
+   * an existing source receipt/producer as acceptance authority. Actual graph,
+   * artifact, audit and flattened input comparisons share one fresh raw union
+   * inside this call. Complex graphs keep the original complete capture. */
+  async function captureNewBodySourceRoots(context,refs,salt,producer){
+    if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||!core.processing.active?.()||!core.jobAuthority()
+      ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)return null;
+    const sources=core.validateReferences(context,refs);
+    if(sources.length!==1||sources[0].type!=='body_energy_results'||sources[0].mode!==context.executionMode||sources[0].historicalAsOf)return null;
+    const source=sources[0];requireNewBodySourceCapture(core,context,producer,source);requireSettledOperation();
+    return core.run(context,async()=>{
+      await assertExecutionWorkOwner(client);
+      const row=(await client.execute({sql:'SELECT * FROM body_energy_results WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',
+        args:[context.userId,context.executionMode,source.id]})).rows[0];
+      // Original revalidateSources row/generation order precedes its graph.
+      if(!readableRow(row)||row.invalidated_at)fail('PHASE4_PARENT_STALE');
+      for(const column of ['input_generation','lifecycle_generation','auth_generation'])
+        if(Object.hasOwn(row,column)&&row[column]!==source.row[column])fail('PHASE4_PARENT_STALE');
+      const body=createBodyEnergyStore(core);let audit,error;
+      try{audit=body.auditPlan(row);}catch(caught){error=caught;}
+      if(audit?.unique.some(value=>typeof value.id!=='string'))return null;
+      const graph=await core.currentBodyRawUnion(context,row,audit?.unique??[]);if(graph.fallback)return null;
+      const current=value=>{
+        const observed=graph.values.get(JSON.stringify([value.type,String(value.id)]));if(!observed)fail('PHASE4_SOURCE_NOT_FOUND');
+        if(observed.status==='rejected')throw observed.reason;return observed.value;
+      };
+      for(const value of graph.actual)current(value);
+      // Original resolved artifact envelope and Body content root come before
+      // audit/expected source comparisons. No current semantic field is merged
+      // into a historical projection and no raw observer mints this manifest.
+      for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],['auth_generation',context.authGeneration]])
+        if(Object.hasOwn(row,column)&&row[column]!==value)fail('PHASE4_PARENT_STALE');
+      if(!row.privacy_artifact_id)fail('PHASE4_HEALTH_PARENT_REQUIRED');
+      const entries=new Map(),put=(descriptor,value)=>{
+        const identity=canonicalJson([descriptor.mode,descriptor.type,descriptor.id,descriptor.as_of]);
+        if(!entries.has(identity))entries.set(identity,{...descriptor,
+          version:['sleep','recovery','cycle','workout','body_energy_results'].includes(descriptor.type)?healthVersion(value):null,
+          content_hash:hash(salt,'required-root-content-v1',rootProjection(value,descriptor.type,BOUNDED_ROOT_VERSION))});
+      };
+      put({type:'body_energy_results',id:source.id,mode:context.executionMode,as_of:null},row);
+      if(error)throw error;
+      for(const value of audit.unique)body.compareAuditSource(context,row,value,current(value));
+      if(audit.result.manifest.manifest_version!=='body-energy-inputs-v1')incomplete();
+      for(const value of audit.unique){
+        const observed=current(value);body.compareAuditSource(context,row,value,observed);
+        put({type:value.type,id:String(value.id),mode:'SHARED',as_of:null},observed.row);
+      }
+      if(!entries.size)incomplete();
+      const roots=ordered([...entries.values()]),bytes=Buffer.byteLength(canonicalJson(roots));
+      if(roots.length>REQUIRED_ROOT_BUDGET.count||bytes>REQUIRED_ROOT_BUDGET.bytes)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
+      await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+      return {version:BOUNDED_ROOT_VERSION,model:'FLATTENED_CALCULATION_INPUTS',roots,root_count:roots.length,serialized_bytes:bytes};
+    });
   }
   // Flattening and historical/derived expansion retain their original queue
   // order. Only a finite set of independent raw observations can overlap in
@@ -462,5 +518,5 @@ export function createResultAuthority(core) {
     return refs;
   }
   return Object.freeze({read,persist,metricOrigin,episodeDependencies,validateExisting,privacyDependencies,
-    captureRoots,validateRoots,validateManifest,compareRootRow,descriptorsForRun,authenticate});
+    captureRoots,captureNewBodySourceRoots,validateRoots,validateManifest,compareRootRow,descriptorsForRun,authenticate});
 }

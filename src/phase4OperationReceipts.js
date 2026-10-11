@@ -23,7 +23,7 @@ import {currentDurableExecution,assertExecutionWorkOwner} from './phase4Executio
 import {workStepOptions} from './phase4WorkStep.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
-import {createBodyEnergyStore} from './bodyEnergyStore.js';
+import {createBodyEnergyStore,issueNewBodySourceCapture} from './bodyEnergyStore.js';
 import {verifyBodyEnergyProducer} from './bodyEnergyDerivedTime.js';
 import {currentBodySourceReceipt} from './phase4MetricUnitReceipt.js';
 
@@ -843,6 +843,7 @@ export function createOperationReceipts(core) {
       if(kind==='EPISODE_REVERSE')await predecessor(context,'observation_episodes',request.prior.episodeId,request.prior.expectedRevision);
       let result=['analyzeMetric','analyzeAssociationFamily'].includes(kind)
         ?await producerScope.run({context,evidence:new Map()},()=>perform(semanticRequest)):await perform(semanticRequest);
+      const newBodyCapture=kind==='BODY_ENERGY_COMPUTE'?issueNewBodySourceCapture(core,context,result):null;
       if(core.jobAuthority())result={...result,jobAuthority:core.jobAuthority()};
       if(recurrencePlan)result={...result,terminalRecurrenceAuthority:{predecessor:recurrencePlan.prior.binding,
         sourceGeneration:context.sourceGeneration,inputGeneration:context.inputGeneration,
@@ -860,7 +861,9 @@ export function createOperationReceipts(core) {
       const envelope=core.envelope(context,TABLE,[kind,key]);
       const dependencies=await dependencyRefs(context,[...refs,...encoded.refs],semanticRequest,kind);
       await encoded.includeDependencies(dependencies);
-      const roots=await authorities.captureRoots(context,dependencies,envelope.content_digest_salt);
+      const newBodyRoots=newBodyCapture
+        ?await authorities.captureNewBodySourceRoots(context,dependencies,envelope.content_digest_salt,newBodyCapture):null;
+      const roots=newBodyRoots??await authorities.captureRoots(context,dependencies,envelope.content_digest_salt);
       const row={...envelope,operation_kind:kind,operation_key:key,receipt_version:VERSION,semantic_at:at,
         request_json:canonicalJson(requestAuthority),result_json:canonicalJson(encoded.result),related_results_json:canonicalJson(encoded.related),
         required_roots_json:canonicalJson(roots),schema_contract_json:canonicalJson(encoded.contracts),

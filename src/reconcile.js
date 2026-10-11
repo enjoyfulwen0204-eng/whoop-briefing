@@ -468,6 +468,13 @@ export function createReconciler({
       return db.transaction(fn,{...workStepOptions(`reconciliation.${kind}`,[uid,key,scope,window.from,window.to,window.token??null,inputProof,facts]),
         before:check,after:check,beforeCommit:check});
     };
+    const canonicalMetadata=readOnlyProcessingCheck(async()=>{
+      const settled=await Promise.allSettled([
+        Promise.resolve().then(()=>assertWhoopInput(inputOptions,inputProof)),
+        Promise.resolve().then(()=>assertLifecycle()),
+      ]);
+      const failure=settled.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+    });
     const settle=args=>guardedInput('settlement',[args,String(owner)],()=>db.settleReconciliation(args));
     const finish = async (result, extra = {}) => {
       await db.closeReconciliationRun(uid,runId, { result, ...counters, now: at(), ...extra });
@@ -485,13 +492,7 @@ export function createReconciler({
         counters.fetched = 1;
         counters.written = await guardedInput('point-effect',[],()=>db.mutateForReconciliation(
           { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to,inputProof] },
-          async () => {
-            await assertWhoopInput(inputOptions,inputProof);
-            // ★ R2 §16：canonical 變更要在**同一個交易裡**證明啟用脈絡。
-            // 租約所有權只證明「沒有別的對帳在跑」，不證明這個帳號還該被處理。
-            await assertLifecycle();
-            return db.upsertBodyMeasurement(uid,bm,{now:at()});
-          },
+          () => db.transaction(()=>db.upsertBodyMeasurement(uid,bm,{now:at()}),{before:canonicalMetadata}),
         ));
         const settled = await settle({
           userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS, windowTo: window.to, now: at(),
@@ -525,11 +526,7 @@ export function createReconciler({
       counters.written = fetched.records.length
         ? await guardedInput('collection-effect',[fetched.nextToken,fetched.complete],()=>db.mutateForReconciliation(
           { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to,window.token??null,fetched.nextToken,fetched.complete,inputProof] },
-          async () => {
-            await assertWhoopInput(inputOptions,inputProof);
-            await assertLifecycle();
-            return persist(resource,fetched.records);
-          },
+          () => db.transaction(()=>persist(resource,fetched.records),{before:canonicalMetadata}),
         ))
         : 0;
       counters.blocked = Math.max(0, counters.fetched - counters.written);

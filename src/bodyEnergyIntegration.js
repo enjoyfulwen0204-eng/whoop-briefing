@@ -4,27 +4,36 @@ import {bodyHealthDate} from './bodyEnergyInputs.js';
 import {assertBodyEnergyPublication} from './bodyEnergyQualificationAuthority.js';
 import {renderBodyEnergy,isBodyEnergyQuery,bodyEnergyQueryPage} from './bodyEnergyPresentation.js';
 import {createBodyEnergyNotificationControl} from './bodyEnergyNotificationControl.js';
+import {createBodyEnergyMorningReadiness} from './bodyEnergyMorningReadiness.js';
+import {currentDurableExecution} from './phase4ExecutionContext.js';
+import {profileRevision as readProfileRevision} from './profileRevision.js';
 
 /** Root composition supplies the existing admitted stores and reviewed grant.
  * Keep context/health objects scoped through rendering and pre-send recheck. */
-export function createBodyEnergyIntegration({db,stores,keys,publicationCapability,now=()=>new Date()}={}){
+export function createBodyEnergyIntegration({db,stores,keys,publicationCapability,environment={},now=()=>new Date()}={}){
   if(typeof db?.getUser!=='function'||typeof db?.getLocale!=='function'
     ||typeof db?.getOnboarding!=='function'
     ||typeof stores?.withContext!=='function'||typeof stores?.bodyEnergy?.readForPublication!=='function')
     throw Error('BODY_ENERGY_INTEGRATION_DEPENDENCIES_REQUIRED');
   const at=()=>new Date(now());
+  // Body consumes existing Settings authority inside owned report execution;
+  // optional rendering must not initialize a profile or mint a work identity.
+  // Ordinary Telegram/Settings call contracts remain unchanged.
+  const revisionFor=id=>currentDurableExecution()?db.transaction(()=>readProfileRevision(db.raw,id,{initialize:false}),{readOnly:true})
+    :typeof db.getProfileRevision==='function'?db.getProfileRevision(id):null;
   const notificationControl=createBodyEnergyNotificationControl({db,keys,now});
+  const morningReadiness=createBodyEnergyMorningReadiness({db,stores,keys,publicationCapability,environment});
   async function withCurrentSection({userId,healthDate,requestedAt=at(),details=false,sourcePage=1},work){
     const id=requireUserId(userId,'bodyEnergySection');
     if(typeof work!=='function'||!Number.isFinite(requestedAt.getTime()))throw Error('BODY_ENERGY_SECTION_REQUEST_REQUIRED');
     const user=await db.getUser(id),locale=await db.getLocale(id);
     if(!user||user.id!==id||user.status!=='ACTIVE'||!locale)return null;
-    const profileRevision=typeof db.getProfileRevision==='function'?await db.getProfileRevision(id):null;
+    const profileRevision=await revisionFor(id);
     const profileVerify=async()=>{
       const current=await db.getUser(id);
       if(!current||current.status!=='ACTIVE'||current.lifecycleGeneration!==user.lifecycleGeneration
         ||(current.displayName??'')!==(user.displayName??'')||await db.getLocale(id)!==locale
-        ||profileRevision!==null&&await db.getProfileRevision(id)!==profileRevision)throw Error('BODY_ENERGY_RECIPIENT_FENCED');
+        ||profileRevision!==null&&await revisionFor(id)!==profileRevision)throw Error('BODY_ENERGY_RECIPIENT_FENCED');
     };
     let grant;try{grant=await assertBodyEnergyPublication(publicationCapability,db,id);}catch{
       return work(renderBodyEnergy({status:'QUALIFICATION_PENDING'},{locale,displayName:user.displayName}),profileVerify,
@@ -42,7 +51,7 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
         const currentUser=await db.getUser(id),currentLocale=await db.getLocale(id);
         if(!currentUser||currentUser.status!=='ACTIVE'||currentUser.lifecycleGeneration!==context.lifecycleGeneration
           ||(currentUser.displayName??'')!==name||currentLocale!==locale
-          ||profileRevision!==null&&await db.getProfileRevision(id)!==profileRevision)throw Error('BODY_ENERGY_RECIPIENT_FENCED');
+          ||profileRevision!==null&&await revisionFor(id)!==profileRevision)throw Error('BODY_ENERGY_RECIPIENT_FENCED');
         const fresh=await stores.bodyEnergy.readForPublication(context,{healthDate:date,asOfEpochMs:at().getTime()});
         if(JSON.stringify(fresh)!==snapshot)throw Error('BODY_ENERGY_CURRENTNESS_FENCED');
       };
@@ -51,7 +60,7 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
   }
   async function currentSection({userId,healthDate,requestedAt,details=false,sourcePage=1}){
     const id=requireUserId(userId,'bodyEnergyQuery'),locale=await db.getLocale(id),
-      profileRevision=typeof db.getProfileRevision==='function'?await db.getProfileRevision(id):null,user=await db.getUser(id);
+      profileRevision=await revisionFor(id),user=await db.getUser(id);
     const result=await withCurrentSection({userId:id,healthDate,requestedAt,details,sourcePage},(message,_,view)=>({message,
       status:view.status,proof:view.publicationProof??null,healthDate:view.healthDate??null}));
     if(!result)return null;
@@ -68,7 +77,7 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
       throw Error('BODY_ENERGY_REPLY_GUARD_INVALID');
     const user=await db.getUser(id);
     if(!user||user.status!=='ACTIVE'||user.lifecycleGeneration!==recipe.lifecycleGeneration||await db.getLocale(id)!==recipe.locale
-      ||(recipe.profileRevision!==null&&await db.getProfileRevision(id)!==recipe.profileRevision))throw Error('BODY_ENERGY_RECIPIENT_FENCED');
+      ||(recipe.profileRevision!==null&&await revisionFor(id)!==recipe.profileRevision))throw Error('BODY_ENERGY_RECIPIENT_FENCED');
     const verified=await withCurrentSection({userId:id,healthDate:recipe.healthDate??undefined},async(_,verify,view)=>{
       if(view.status!==recipe.status||(view.publicationProof??null)!==recipe.publicationProof)throw Error('BODY_ENERGY_CURRENTNESS_FENCED');
       await verify();return true;
@@ -78,5 +87,6 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
   async function query(request){return isBodyEnergyQuery(request?.text)?currentSection({...request,details:true,sourcePage:bodyEnergyQueryPage(request.text)??1}):null;}
   registerBodyEnergyTelegramReplyBoundary(db,verifyReplyGuard);
 
-  return Object.freeze({withCurrentSection,currentSection,verifyReplyGuard,isQuery:isBodyEnergyQuery,query,notificationControl});
+  return Object.freeze({withCurrentSection,currentSection,verifyReplyGuard,isQuery:isBodyEnergyQuery,query,notificationControl,
+    beforeMorning:morningReadiness.inspect});
 }

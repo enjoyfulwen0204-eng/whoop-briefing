@@ -790,10 +790,12 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     );
 
     summary.syncYieldSafe=true;
+    summary.dailyDeferredBody=0;
     for (const [i, r] of results.entries()) {
       const uid = users[i].id;
       if (r.ok) {
         const v = r.value;
+        if(v.daily?.status==='DAILY_DEFERRED_BODY')summary.dailyDeferredBody++;
         const sync = v.sync?.outcome ? v.sync : summarizeSync(v.sync);
         // Nothing due/locale-unset can be a legitimate sync no-op only when the
         // per-user path explicitly proved throttling; unknown results fail closed.

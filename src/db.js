@@ -1326,6 +1326,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     reportRunId = null, detail = null,
   }) {
     const uid = requireUserId(userId, 'recordBriefingEvaluation');
+    if(reportType==='daily_body_readiness')throw Error('BODY_MORNING_MARKER_API_REQUIRED');
     if (!outcome) throw new Error('recordBriefingEvaluation 需要 outcome');
     const at = evaluatedAt ?? new Date().toISOString();
     await client.execute({

@@ -147,7 +147,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
          if(summary.coordinationPending)executionContext.coordinationPending=true;
          if(executionContext.coordinationPending)throw Object.assign(Error('SYNC_SCOPE_BUSY'),{code:'SYNC_SCOPE_BUSY'});
          const outcome=summary.syncComplete===true?summary.syncOutcome??'COMPLETE_SUCCESS':summary.syncOutcome??'PARTIAL';
-         return {outcome,users:summary.users??0,failed:summary.failed??0,durationMs:performance.now()-started,
+         return {outcome,users:summary.users??0,failed:summary.failed??0,dailyDeferredBody:summary.dailyDeferredBody??0,durationMs:performance.now()-started,
           ...(executionContext.syncYieldRequested&&summary.syncYieldSafe===true&&!(summary.errors?.length)?{yieldRequested:true}:{} )};
        }
        if(config.runtime!=='on'||pilotDenied)return {outcome:'DISABLED',durationMs:performance.now()-started};

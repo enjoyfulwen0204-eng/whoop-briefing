@@ -15,7 +15,7 @@ export const HANDOFF_TTL_MS=15*60_000;
 export const EXECUTION_WORK_MAX_AGE_MS=HANDOFF_TTL_MS;
 const OUTCOMES=new Set(['PENDING','COMPLETE','PARTIAL','FAILED','TIMEOUT','CANCELLED','NO_WORK','NO_ELIGIBLE_WORK',
  'COMPLETE_SUCCESS','NO_NEW_DATA_SUCCESS','INTENTIONALLY_INAPPLICABLE','REQUIRED_RESOURCE_FAILED','AUTH_FAILED','DISABLED','POLICY_DEFERRED','BUDGET_EXHAUSTED','COMMIT_INDETERMINATE']);
-const COUNTS=['executionSeq','workReceipts','durationMs','jobsConsidered','itemsAttempted','itemsProcessed','jobsCompleted','jobsFailed','remainingJobs','users','failed','unitsCommitted'];
+const COUNTS=['executionSeq','workReceipts','durationMs','jobsConsidered','itemsAttempted','itemsProcessed','jobsCompleted','jobsFailed','remainingJobs','users','failed','unitsCommitted','dailyDeferredBody'];
 const HASH=/^[a-f0-9]{64}$/;
 const observedCommits=new WeakSet();
 export const observedPhaseWorkCommit=claim=>claim.workCommitted===true||observedCommits.has(claim);

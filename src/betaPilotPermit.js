@@ -201,6 +201,18 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
  };
  return Object.freeze({
   userId:config.userId,
+  // Negative-only readonly scheduling observation. It neither reserves an
+  // attempt nor issues work authority; the later DRAIN still must reserve
+  // and recheck the original permit under all original fences.
+  async availability(){
+   return db.transaction(async()=>{
+    const row=await read(db.raw),current=await observe(db.raw),state=row?decode(row):null;
+    if(locallyClosed||!eligible(current,state)||state&&state.attempts>=config.maxAttempts)
+      return Object.freeze({possible:false});
+    return Object.freeze({possible:true,observedAt:current.observed_at,endAt:config.endAt,
+     remainingAttempts:config.maxAttempts-(state?.attempts??0)});
+   },{readOnly:true});
+  },
   async reserve(){
    const result=await db.transaction(async()=>{
     const row=await read(db.raw),current=await observe(db.raw),previous=row?decode(row):null;

@@ -191,6 +191,18 @@ export async function runDaily({
     };
   }
 
+  // Optional qualified Body ordering, before any report claim or model work.
+  // The original full SYNC and separately admitted DRAIN remain downstream;
+  // a bounded wait never records a send or changes this health-day dedupe key.
+  if(typeof bodyEnergy?.beforeMorning==='function'){
+    const readiness=await bodyEnergy.beforeMorning({userId:uid,healthDate,wakeSleepId:wake.record.sleepId,
+      pollSleeps,pollRecoveries,expectedLifecycleGeneration});
+    if(readiness?.action==='DEFER'){
+      await recordEvaluation(BRIEFING_OUTCOME.READY,{reason:'BODY_SOURCE_ONE_CADENCE_WAIT'});
+      return {status:'DAILY_DEFERRED_BODY',healthDate,localDate:healthDate,retryable:true};
+    }
+  }
+
   log.info('daily_wake_detected', {
     health_date: healthDate,
     sleep_id: wake.record.sleepId,

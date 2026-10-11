@@ -22,7 +22,7 @@ export async function createBodyEnergyRuntime({db,keys,admission,environment={},
   const stores=await createPhase4Foundation({db,keys,admission:admission??await db.admitRuntime()});
   const publicationCapability=config.publication==='on'?authorizeBodyEnergyPublication({db,userIds:config.userIds,
     notificationUserIds:config.alerts==='on'?config.notificationUserIds:[],qualificationId:config.qualificationId}):null;
-  const bodyEnergy=createBodyEnergyIntegration({db,stores,keys,publicationCapability,now});
+  const bodyEnergy=createBodyEnergyIntegration({db,stores,keys,publicationCapability,environment,now});
   const bodyEnergyAlerts=publicationCapability&&config.alerts==='on'
     ?createBodyEnergyAlertDelivery({db,stores,keys,publicationCapability,env,now}):null;
   return Object.freeze({bodyEnergy,bodyEnergyAlerts,publicationQualified:Boolean(publicationCapability),configuration:config});

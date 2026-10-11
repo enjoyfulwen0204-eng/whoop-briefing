@@ -17,6 +17,8 @@ import {runningReleaseSha} from '../src/phase4Release.js';
 import {OWNER_PILOT_APPROVAL_SHA256} from '../src/betaPilotAllowance.js';
 import {requireCurrentBetaPilotAttempt} from '../src/betaPilotPermit.js';
 import {randomUUID} from 'node:crypto';
+import {createBodyEnergyIntegration} from '../src/bodyEnergyIntegration.js';
+import {BODY_ENERGY_QUALIFICATION_REGISTRATION,authorizeBodyEnergyPublication} from '../src/bodyEnergyQualificationAuthority.js';
 
 const latencyMs=Number(process.env.BODY_CORE_HTTP_LATENCY_MS??0);
 assert.ok(Number.isSafeInteger(latencyMs)&&latencyMs>=0&&latencyMs<=150);
@@ -50,6 +52,7 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
  }}),timed=db;
  t.after(async()=>{await new Promise(resolve=>setImmediate(resolve));timed.close();transport.close();await rm(dir,{recursive:true,force:true});});
  await db.createUser({id:'a',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
+ await db.setLocale('a','en');
  await db.ensureOnboarding('a',{state:'READY'});
  const admission=await timed.admitRuntime(),stores=await createPhase4Foundation({db:timed,keys:fixtureKeys,admission});
  await stores.initializeTenant('a','SHADOW');
@@ -122,8 +125,18 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
  }
  const publication=await stores.withContext('a',{executionMode:'SHADOW',providerRequired:true},context=>stores.bodyEnergy.readForPublication(context,
   {healthDate:bodyHealthDate(Date.now(),'Asia/Taipei'),asOfEpochMs:Date.now()}));
- assert.equal(publication.status,'PROCESSING');assert.equal(Object.hasOwn(publication,'value'),false);
- console.log('BODY_CORE_ADMITTED_DRAIN_DURABLE '+JSON.stringify({publicationState:publication.status,bodyRows:rows.length,qualityStates:rows.map(row=>row.quality_state),
+ // The reviewed source-unit consumer distinguishes complete Body from the
+ // still-incomplete historical family. Unknown/unfinalized source parents
+ // retain PROCESSING; a complete mature synthetic source may be AVAILABLE.
+ const sourceFinalized=sourceWorkReceipt&&producerBindingValid&&execution.state==='FINALIZED_SUCCESS';
+ const expectedPublication=sourceFinalized?(baselineDays===30?'AVAILABLE':'LIMITED'):'PROCESSING';
+ assert.equal(publication.status,expectedPublication);assert.equal(Object.hasOwn(publication,'value'),expectedPublication==='AVAILABLE');
+ assert.equal(BODY_ENERGY_QUALIFICATION_REGISTRATION.state,'PENDING_GENUINE_EVIDENCE_AND_FINAL_GATE');
+ assert.equal(BODY_ENERGY_QUALIFICATION_REGISTRATION.approvedPacket,null);
+ const publicationCapability=authorizeBodyEnergyPublication({db:timed,userIds:['a'],qualificationId:'on'});assert.equal(publicationCapability,null);
+ const gated=createBodyEnergyIntegration({db:timed,stores,keys:fixtureKeys,publicationCapability});
+ const query=await gated.query({text:'/energy',userId:'a'});assert.equal(query.status,'QUALIFICATION_PENDING');assert.doesNotMatch(query.message,/\d+\/100/);
+ console.log('BODY_CORE_ADMITTED_DRAIN_DURABLE '+JSON.stringify({sourceConsumerState:publication.status,publicationState:query.status,bodyRows:rows.length,qualityStates:rows.map(row=>row.quality_state),
   checkpointedJobs:jobs.filter(row=>row.full_scan_cursor!==null).length,completeJobs:jobs.filter(row=>row.completed_generation===row.requested_generation).length,
   remainingJobs:jobs.filter(row=>row.completed_generation<row.requested_generation).length,workReceiptCount:work.length,
   domainBodyReceiptCount:domain.length,sourceWorkReceipt,producerBindingValid,
@@ -248,6 +261,6 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
   assert.ok(stages.every(counts=>counts.runs<=1&&counts.items<=1&&counts.authorities<=1),'immutable metric effects do not duplicate');
   const finalPublication=await stores.withContext('a',{executionMode:'SHADOW',providerRequired:true},context=>stores.bodyEnergy.readForPublication(context,
    {healthDate:bodyHealthDate(Date.now(),'Asia/Taipei'),asOfEpochMs:Date.now()}));
-  assert.equal(finalPublication.status,'PROCESSING');assert.equal(Object.hasOwn(finalPublication,'value'),false);
+  assert.equal(finalPublication.status,expectedPublication);assert.equal(Object.hasOwn(finalPublication,'value'),expectedPublication==='AVAILABLE');
  }
 });

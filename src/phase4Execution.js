@@ -1,4 +1,5 @@
-import {discoverPhaseContinuation} from './phase4Continuation.js';
+import {discoverPhaseContinuation,validateContinuationQuery} from './phase4Continuation.js';
+import {continuationScope,STAGE6_SHADOW_CONTINUATION_SCOPE} from './phase4ContinuationScope.js';
 import { loadEnv } from './config.js';
 import { createDb } from './db.js';
 import { runBriefing } from './index.js';
@@ -43,6 +44,9 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
  const releaseSha=runningReleaseSha(environment);
  if(request.releaseSha!==releaseSha)throw Object.assign(new Error('RELEASE_CHECKOUT_MISMATCH'),{code:'RELEASE_CHECKOUT_MISMATCH'});
  const proof=configurationProof(keys,config,environment,releaseSha),mode=config.runtime==='on'?'SHADOW':'OFF';
+ const scope=continuationScope(environment,mode);
+ if(isContinuationRequest(request)&&scope!==STAGE6_SHADOW_CONTINUATION_SCOPE)
+  throw Object.assign(Error('CONTINUATION_SCOPE_REJECTED'),{code:'CONTINUATION_SCOPE_REJECTED'});
  if(request.configProof!==proof||request.executionMode!==mode)throw Object.assign(new Error('EXECUTION_CONFIG_CHANGED'),{code:'EXECUTION_CONFIG_CHANGED'});
  let pilotConfig,reservation,pilotStopped=true;
  try {
@@ -82,6 +86,10 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    checkAdmission();
    stopFollowing=followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
    const admissionFence=()=>{checkAdmission();overall.assert();admissionBudget.assert();};
+   if(isContinuationRequest(request)&&request.phase==='SYNC'){
+    const parent=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>reconcileExecution(db,request,requestIdentity(body))));
+    if(parent.state!=='FINALIZED_SUCCESS')throw Object.assign(Error('CONTINUATION_SCOPE_REJECTED'),{code:'CONTINUATION_SCOPE_REJECTED'});
+   }
    const replay=request.phase==='STAGE6_DRAIN'?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>reconcileExecution(db,request,requestIdentity(body)))):null;
    const finalizedReplay=['FINALIZED_SUCCESS','FINALIZED_FAILURE'].includes(replay?.state);
    const continuation=request.phase==='STAGE6_DRAIN'&&!finalizedReplay?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys))):null;
@@ -215,9 +223,17 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
 /** Authenticated entry composition; the discovery store cannot construct capabilities. */
 export async function discoverExecutionContinuation({query,db:providedDb,keys:providedKeys,environment=process.env,env:providedEnv,signal}={}) {
  const keys=providedKeys??publicBetaKeys(environment),config=publicBetaConfiguration(environment),releaseSha=runningReleaseSha(environment);
+ validateContinuationQuery(query);
+ const mode=config.runtime==='on'?'SHADOW':'OFF',scope=continuationScope(environment,mode),proof=configurationProof(keys,config,environment,releaseSha);
+ if(scope!==STAGE6_SHADOW_CONTINUATION_SCOPE)throw Object.assign(Error('CONTINUATION_SCOPE_REJECTED'),{code:'CONTINUATION_SCOPE_REJECTED'});
+ if(query.releaseSha!==releaseSha)throw Object.assign(Error('RELEASE_CHECKOUT_MISMATCH'),{code:'RELEASE_CHECKOUT_MISMATCH'});
+ if(query.executionMode!==mode||query.configProof!==proof)throw Object.assign(Error('EXECUTION_CONFIG_CHANGED'),{code:'EXECUTION_CONFIG_CHANGED'});
+ // An inactive optional pilot must not redirect an ordinary Morning Brief
+ // invocation into a replay of yesterday's completed parent.
+ let ready=false;try{const pilot=betaPilotConfiguration(environment);ready=Boolean(pilot&&reviewedPilotAdmission(pilot)&&!pilotStopRequested(environment)&&Date.now()>=pilot.startAt&&Date.now()<pilot.endAt);}catch{}
+ if(!ready)return {status:200,body:{ok:true,state:'NONE',requestBody:null}};
  const env=providedDb?null:providedEnv??loadEnv();
  const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
- try {return await discoverPhaseContinuation({query,db,keys,releaseSha,mode:config.runtime==='on'?'SHADOW':'OFF',
-  configProof:configurationProof(keys,config,environment,releaseSha),signal});}
+ try {return await discoverPhaseContinuation({query,db,keys,releaseSha,mode,scope,configProof:proof,signal});}
  finally {if(!providedDb)db.close();}
 }

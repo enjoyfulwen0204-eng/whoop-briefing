@@ -9,6 +9,7 @@ import { requireTriggerSource } from './phase4DrainPolicy.js';
 import { requireReleaseSha, runningReleaseSha } from './phase4Release.js';
 import { syncAuthorizesDrain } from './syncResult.js';
 import {workStepOptions} from './phase4WorkStep.js';
+import {continuationScope} from './phase4ContinuationScope.js';
 export const PHASES=Object.freeze(['SYNC','STAGE6_DRAIN']);
 export const HANDOFF_TTL_MS=15*60_000;
 export const EXECUTION_WORK_MAX_AGE_MS=HANDOFF_TTL_MS;
@@ -51,6 +52,8 @@ export const configurationProof=(keys,config,environment,releaseSha=runningRelea
  if(pilot.some(Boolean))profile.push(['beta-pilot-v1',...pilot]);
  const allowance=['ALLOWANCE_ID','STOP'].map(name=>environment[`PHASE4_BETA_PILOT_${name}`]??'');
  if(allowance.some(Boolean))profile.push(['beta-pilot-allowance-v1',...allowance]);
+ const scope=continuationScope(environment,config.runtime==='on'?'SHADOW':'OFF');
+ if(scope)profile.push(['phase4-continuation-scope-v1',scope]);
  return keys.lookup(profile);
 };
 export const requestIdentity=body=>bodySha256(body);

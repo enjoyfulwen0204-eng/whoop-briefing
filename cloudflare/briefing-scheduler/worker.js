@@ -1,6 +1,6 @@
 const PATH='/internal/briefing/run';
 const CONTINUATION_PATH='/internal/briefing/continuation';
-export const MAX_CONTINUATION_SEGMENTS=8;
+export const MAX_CONTINUATION_SEGMENTS=2;
 export const MAX_ATTEMPTS=2;
 export const TIMEOUT_MS=180_000;
 export const DRAIN_TIMEOUT_MS=100_000;
@@ -53,10 +53,13 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
  const root=crypto.randomUUID();
  const continuation=env.BRIEFING_CONTINUATION_DISCOVERY==='on';
  if(![undefined,'on','off'].includes(env.BRIEFING_CONTINUATION_DISCOVERY))throw error('configuration',true);
+ if(![undefined,'off','stage6-shadow'].includes(env.BRIEFING_CONTINUATION_SCOPE)
+  ||continuation&&(env.BRIEFING_CONTINUATION_SCOPE!=='stage6-shadow'||env.BRIEFING_EXECUTION_MODE!=='SHADOW')
+  ||env.BRIEFING_CONTINUATION_SCOPE==='stage6-shadow'&&!continuation)throw error('configuration',true);
  let recovered=null;
  if(continuation){
   const requestId=crypto.randomUUID(),timestamp=String(now());
-  const body=canonical({releaseSha:env.BRIEFING_RELEASE_SHA,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF});
+  const body=canonical({releaseSha:env.BRIEFING_RELEASE_SHA,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,scope:env.BRIEFING_CONTINUATION_SCOPE});
   const controller=new AbortController(),onAbort=()=>controller.abort();signal?.addEventListener('abort',onAbort,{once:true});
   const discoveryDeadline=Math.min(deadlineAt,now()+30000),timer=setTimer(()=>controller.abort(),discoveryDeadline-now());let response;
   try{
@@ -78,7 +81,7 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
     let request;try{request=JSON.parse(payload.requestBody);}catch{throw error('invalid_discovery',true);}
     const required=request.phase==='STAGE6_DRAIN'?'configProof,executionMode,handoff,phase,releaseSha,requestId,syncRequestId,triggerSource':'configProof,executionMode,phase,releaseSha,requestId,triggerSource';
     if(Object.keys(request).sort().join(',')!==required||!['SYNC','STAGE6_DRAIN'].includes(request.phase)
-     ||!/^p4c1_[a-zA-Z0-9_-]{10,122}$/.test(request.requestId??'')||request.triggerSource!=='cloudflare'||request.releaseSha!==env.BRIEFING_RELEASE_SHA||request.executionMode!==env.BRIEFING_EXECUTION_MODE
+     ||request.phase==='SYNC'&&payload.state!=='FINALIZED_SUCCESS'||request.phase==='STAGE6_DRAIN'&&!/^p4c1_[a-zA-Z0-9_-]{10,122}$/.test(request.requestId??'')||request.triggerSource!=='cloudflare'||request.releaseSha!==env.BRIEFING_RELEASE_SHA||request.executionMode!==env.BRIEFING_EXECUTION_MODE
      ||request.configProof!==env.BRIEFING_CONFIG_PROOF||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{15,127}$/.test(request.requestId)||canonical(request)!==payload.requestBody)throw error('invalid_discovery',true);
     if(request.phase==='STAGE6_DRAIN'&&(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{15,127}$/.test(request.syncRequestId)||!/^[a-f0-9]{64}$/.test(request.handoff)||request.requestId===request.syncRequestId))throw error('invalid_discovery',true);
     recovered={requestId:request.requestId,body:payload.requestBody,phase:request.phase};
@@ -86,12 +89,12 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
   }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
  }
  async function phase(phaseName,handoff) {
-  const requestId=recovered?.phase===phaseName?recovered.requestId:continuation&&handoff?`p4c1_${await sha256(`stage6-drain-v1:${handoff.requestId}`)}`:`${continuation?'p4c1_':''}${root}_${phaseName.toLowerCase()}`;
+  const requestId=recovered?.phase===phaseName?recovered.requestId:continuation&&handoff?`p4c1_${await sha256(`stage6-drain-v1:${handoff.requestId}`)}`:`${root}_${phaseName.toLowerCase()}`;
   const serialize=continuation?canonical:JSON.stringify;
   const body=recovered?.phase===phaseName?recovered.body:serialize({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
    ...(handoff?{syncRequestId:handoff.requestId,handoff:handoff.token}:{})});
   let last, retryWait=0;
-  const maxAttempts=continuation?MAX_CONTINUATION_SEGMENTS:MAX_ATTEMPTS;
+  const maxAttempts=phaseName==='STAGE6_DRAIN'&&continuation?MAX_CONTINUATION_SEGMENTS:MAX_ATTEMPTS;
   for(let attempt=1;attempt<=maxAttempts;attempt++) {
    assertCaller();
    const timestamp=String(now());
@@ -126,7 +129,7 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
       const pending=error('continuation_pending');pending.requestId=requestId;pending.resumable=true;throw pending;
     }
     if(response.status===207||(payload?.syncComplete===false&&payload?.result?.outcome!=='COMMIT_INDETERMINATE'))throw error('sync_incomplete',true);
-    if(continuation&&response.status===409&&['REQUEST_PENDING','REQUEST_SCOPE_PENDING'].includes(payload?.error)){
+    if(continuation&&phaseName==='STAGE6_DRAIN'&&response.status===409&&['REQUEST_PENDING','REQUEST_SCOPE_PENDING'].includes(payload?.error)){
       const delay=payload.retryAfterMs??15000;
       if(!Number.isSafeInteger(delay)||delay<0||delay>225000)throw error('invalid_response',true);
       retryWait=delay;

@@ -3,19 +3,21 @@ import {requireRuntimeAdmission} from './runtimeAdmission.js';
 import {databaseNowMs} from './phase4ExecutionContext.js';
 import {canonicalPhaseRequest,reconcileExecution,requestIdentity,EXECUTION_WORK_MAX_AGE_MS,validatePhaseRequest} from './phase4ExecutionStore.js';
 import {isContinuationRequest} from './phase4ExecutionStore.js';
+import {STAGE6_SHADOW_CONTINUATION_SCOPE} from './phase4ContinuationScope.js';
 export const CONTINUATION_PATH='/internal/briefing/continuation';
 const fail=code=>{throw Object.assign(Error(code),{code});};
 export function validateContinuationQuery(query){
- if(!query||typeof query!=='object'||Array.isArray(query)||Object.keys(query).sort().join(',')!=='configProof,executionMode,releaseSha,triggerSource'
-  ||query.triggerSource!=='cloudflare'||!['OFF','SHADOW'].includes(query.executionMode)||!/^[a-f0-9]{40}$/.test(query.releaseSha)||!/^[a-f0-9]{64}$/.test(query.configProof))fail('CONTINUATION_QUERY_INVALID');
+ if(!query||typeof query!=='object'||Array.isArray(query)||Object.keys(query).sort().join(',')!=='configProof,executionMode,releaseSha,scope,triggerSource'
+  ||query.scope!==STAGE6_SHADOW_CONTINUATION_SCOPE||query.triggerSource!=='cloudflare'||query.executionMode!=='SHADOW'||!/^[a-f0-9]{40}$/.test(query.releaseSha)||!/^[a-f0-9]{64}$/.test(query.configProof))fail('CONTINUATION_QUERY_INVALID');
  return query;
 }
 /** Read-only discovery grants no lease or authority. Each returned canonical
  * identity must still enter the ordinary authenticated/admitted phase runner.
  * Only canonical transport bytes can be reconstructed from existing v32 rows;
  * never substitute a new body digest for an older request's committed receipts. */
-export async function discoverPhaseContinuation({query,db,keys,releaseSha,mode,configProof,signal}={}){
+export async function discoverPhaseContinuation({query,db,keys,releaseSha,mode,configProof,scope,signal}={}){
  validateContinuationQuery(query);
+ if(scope!==STAGE6_SHADOW_CONTINUATION_SCOPE||mode!=='SHADOW')fail('CONTINUATION_SCOPE_REJECTED');
  if(!db?.raw||typeof db.admitRuntime!=='function'||!keys||!releaseSha||!mode||!configProof)fail('CONTINUATION_DEPENDENCIES_REQUIRED');
  if(query.releaseSha!==releaseSha)fail('RELEASE_CHECKOUT_MISMATCH');
  if(query.executionMode!==mode||query.configProof!==configProof)fail('EXECUTION_CONFIG_CHANGED');
@@ -27,18 +29,26 @@ export async function discoverPhaseContinuation({query,db,keys,releaseSha,mode,c
   return db.withRuntimeFence(assert,async()=>{
    const rows=(await db.raw.execute({sql:`SELECT e.* FROM phase4_executions e WHERE
     e.release_sha=? AND e.execution_mode=? AND e.trigger_source='cloudflare' AND e.config_proof=?
-    AND substr(e.execution_id,1,5)='p4c1_'
-    AND ((e.phase='STAGE6_DRAIN' AND (e.state='WORK_COMMITTED' OR (e.state='ESTABLISHED' AND
+    AND ((e.phase='STAGE6_DRAIN' AND substr(e.execution_id,1,5)='p4c1_' AND (e.state='WORK_COMMITTED' OR (e.state='ESTABLISHED' AND
       (EXISTS(SELECT 1 FROM phase4_execution_work_receipts r WHERE r.execution_id=e.execution_id) OR
        EXISTS(SELECT 1 FROM phase4_executions p WHERE p.execution_id=e.sync_execution_id AND p.state='FINALIZED_SUCCESS' AND p.created_at>${databaseNowMs}-?)))))
-     OR (e.phase='SYNC' AND (e.state='WORK_COMMITTED' OR (e.created_at>${databaseNowMs}-? AND
-      (e.state='ESTABLISHED' OR (e.state='FINALIZED_SUCCESS' AND e.execution_mode='SHADOW' AND e.execution_id NOT IN
-       (SELECT d.sync_execution_id FROM phase4_executions d WHERE d.phase='STAGE6_DRAIN' AND d.sync_execution_id IS NOT NULL AND d.state IN ('FINALIZED_SUCCESS','FINALIZED_FAILURE','ABORTED'))))))))
-    ORDER BY CASE WHEN e.phase='STAGE6_DRAIN' THEN 0 WHEN e.state='WORK_COMMITTED' THEN 1 ELSE 2 END,e.execution_seq LIMIT 1`,args:[releaseSha,mode,query.configProof,EXECUTION_WORK_MAX_AGE_MS,EXECUTION_WORK_MAX_AGE_MS]})).rows;
+     OR (e.phase='SYNC' AND e.state='FINALIZED_SUCCESS' AND e.created_at>${databaseNowMs}-? AND e.execution_id NOT IN
+       (SELECT d.sync_execution_id FROM phase4_executions d WHERE d.phase='STAGE6_DRAIN' AND d.sync_execution_id IS NOT NULL AND d.state IN ('FINALIZED_SUCCESS','FINALIZED_FAILURE','ABORTED'))))
+    ORDER BY CASE WHEN e.phase='STAGE6_DRAIN' THEN 0 ELSE 1 END,e.execution_seq LIMIT 16`,args:[releaseSha,mode,query.configProof,EXECUTION_WORK_MAX_AGE_MS,EXECUTION_WORK_MAX_AGE_MS]})).rows;
    if(!rows.length){assert();return {status:200,body:{ok:true,state:'NONE',requestBody:null}};}
-   const row=rows[0];let request;try{request=validatePhaseRequest(JSON.parse(row.canonical_request_json));}catch{fail('EXECUTION_RECORD_CORRUPT');}
-   const body=canonicalPhaseRequest(request);
-   if(!isContinuationRequest(request)||requestIdentity(body)!==row.identity_digest)fail('CONTINUATION_TRANSPORT_IDENTITY_UNAVAILABLE');
+   let row,request,body;
+   for(const candidate of rows){
+    try{request=validatePhaseRequest(JSON.parse(candidate.canonical_request_json));}catch{fail('EXECUTION_RECORD_CORRUPT');}
+    body=canonicalPhaseRequest(request);
+    // A finalized ordinary SYNC can only be replayed if these are its exact
+    // original transport bytes. Never reconstruct legacy bytes or resume SYNC.
+    if(requestIdentity(body)!==candidate.identity_digest){
+     if(candidate.phase==='SYNC')continue;fail('CONTINUATION_TRANSPORT_IDENTITY_UNAVAILABLE');
+    }
+    if(candidate.phase==='STAGE6_DRAIN'&&!isContinuationRequest(request))fail('CONTINUATION_TRANSPORT_IDENTITY_UNAVAILABLE');
+    row=candidate;break;
+   }
+   if(!row){assert();return {status:200,body:{ok:true,state:'NONE',requestBody:null}};}
    const reconciled=await reconcileExecution(db,request,row.identity_digest);assert();
    const observed=reconciled.row;
    if(!['ESTABLISHED','WORK_COMMITTED','FINALIZED_SUCCESS','FINALIZED_FAILURE','ABORTED'].includes(observed.state))fail('EXECUTION_RECORD_CORRUPT');

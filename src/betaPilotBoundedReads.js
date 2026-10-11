@@ -4,7 +4,7 @@ import {reservePilotPrefixRead,requireCurrentBetaPilotAttempt} from './betaPilot
 // join or sort. Do not reuse this helper for arbitrary SQL or source history.
 const specs=Object.freeze({
  family:{table:'phase4_family_directory_entries',prefix:['user_id','execution_mode','source_token'],
-  suffix:['sequence'],fields:['user_id','execution_mode','source_token','sequence','family_token','family_key','descriptor_json','entry_state','directory_version','entry_hmac']},
+  suffix:['sequence'],nullable:['family_key','descriptor_json'],fields:['user_id','execution_mode','source_token','sequence','family_token','family_key','descriptor_json','entry_state','directory_version','entry_hmac']},
  routeEntries:{table:'phase4_receipt_route_entries',prefix:['user_id','execution_mode','subject_kind','subject_token'],
   suffix:['sequence'],fields:['user_id','execution_mode','subject_kind','subject_token','sequence','operation_kind','operation_key','route_version','binding_hmac']},
  routes:{table:'phase4_receipt_routes',prefix:['user_id','execution_mode'],suffix:['operation_kind','operation_key'],
@@ -31,12 +31,15 @@ export async function readPilotPrefixRows(client,context,specId,args,ordinarySta
   boundedArgs=[...args,PILOT_PREFIX_MAX_ROWS+1];
  // UTF-8 bytes, including worst JSON escaping and fixed field-name overhead.
  // length(BLOB) avoids returning/decoding the potentially oversized payload.
- const size=`1024+6*(${spec.fields.map(field=>`coalesce(length(CAST(${field} AS BLOB)),0)`).join('+')})`;
+ const invalidTypes=spec.fields.map(field=>field==='sequence'?`typeof(${field})<>'integer'`
+  :`typeof(${field}) NOT IN (${(spec.nullable??[]).includes(field)?"'text','null'":"'text'"})`).join(' OR ');
+ const size=`CASE WHEN ${invalidTypes} THEN 0 ELSE 1024+6*(${spec.fields.map(field=>`coalesce(length(CAST(${field} AS BLOB)),0)`).join('+')}) END`;
  requireCurrentBetaPilotAttempt(context.userId);
- const result=(await client.execute({sql:`SELECT COUNT(*) candidate_count,coalesce(SUM(serialized_bound),0) serialized_bytes
-  FROM (SELECT ${size} serialized_bound FROM ${source})`,args:boundedArgs})).rows[0];
+ const result=(await client.execute({sql:`SELECT COUNT(*) candidate_count,coalesce(SUM(serialized_bound),0) serialized_bytes,
+  coalesce(SUM(invalid_types),0) invalid_types FROM (SELECT ${size} serialized_bound,
+   CASE WHEN ${invalidTypes} THEN 1 ELSE 0 END invalid_types FROM ${source})`,args:boundedArgs})).rows[0];
  if(!Number.isSafeInteger(result?.candidate_count)||!Number.isSafeInteger(result?.serialized_bytes)
-  ||result.candidate_count>PILOT_PREFIX_MAX_ROWS||result.serialized_bytes>PILOT_PREFIX_MAX_BYTES)denied();
+  ||result.invalid_types!==0||result.candidate_count>PILOT_PREFIX_MAX_ROWS||result.serialized_bytes>PILOT_PREFIX_MAX_BYTES)denied();
  requireCurrentBetaPilotAttempt(context.userId);
  const rows=(await client.execute({sql:`SELECT ${spec.fields.join(',')} FROM ${source}`,args:boundedArgs})).rows;
  requireCurrentBetaPilotAttempt(context.userId,client);

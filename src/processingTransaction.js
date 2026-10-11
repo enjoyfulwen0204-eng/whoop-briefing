@@ -1,7 +1,7 @@
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { currentExecutionBudget,ExecutionBudgetError } from './executionBudget.js';
-import {prepareExecutionReceipt,appendPreparedExecutionReceipt,withExecutionReceiptTransaction,currentDurableExecution,CommitIndeterminateError,requireSettledOperation,readWorkStep} from './phase4ExecutionContext.js';
+import {prepareExecutionReceipt,appendPreparedExecutionReceipt,withExecutionReceiptTransaction,currentDurableExecution,CommitIndeterminateError,requireSettledOperation,readWorkStep,databaseNowMs} from './phase4ExecutionContext.js';
 import {inRuntimeMetadata} from './runtimeMetadataContext.js';
 import {reconcileExecution} from './phase4ExecutionStore.js';
 import {inExecutionCoordination} from './phase4Coordination.js';
@@ -11,6 +11,20 @@ export function readOnlyProcessingCheck(check){readOnlyChecks.add(check);return 
 // Only trusted server checks consisting of non-health control observations
 // and explicit runtime brackets use this narrower transport composition.
 export function controlOnlyProcessingCheck(check){controlOnlyChecks.add(check);return readOnlyProcessingCheck(check);}
+const syncRuntimeChecks=new WeakSet();
+// Eligibility only: this does not alter original runChecks ordering or suppress
+// any guard. The SYNC composition's runtime check remains first and sequential.
+export function syncRuntimeProcessingCheck(check){syncRuntimeChecks.add(check);return check;}
+const normalizedSql=sql=>sql.replace(/\s+/g,' ').trim();
+const receiptColumns=['execution_id','receipt_key','scope_key','request_digest','step_key','generation','committed_at','result_json'];
+const firstAdmissionReads=new Set([
+ 'SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?',
+ 'SELECT status, lifecycle_generation FROM users WHERE id = ?',
+ `SELECT e.*,${receiptColumns.map(name=>`r.${name} AS receipt_${name}`).join(',')}
+  FROM phase4_executions e LEFT JOIN phase4_execution_work_receipts r ON r.receipt_key=?
+  WHERE e.execution_id=? AND e.owner=? AND e.generation=? AND e.state='ESTABLISHED'
+   AND e.lease_until>${databaseNowMs} AND e.deadline_at>${databaseNowMs}`,
+].map(normalizedSql));
 const rolledBackReadOnly=new WeakMap();
 export function consumeReadOnlyRollback(error){
  const proof=error&&typeof error==='object'?rolledBackReadOnly.get(error):null;
@@ -155,6 +169,25 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
                 if(state.workStep===undefined&&!coordination&&!state.receiptWrite)missingStep();
               }
               if(!mutations.every(inExecutionCoordination)&&!state.receiptWrite)state.workWrites=true;}
+            if(state.admissionFirst){
+              // The installed Hrana driver waits for its first batch before
+              // later execute() calls. Prefix the first original readonly
+              // admission statement with the original SELECT1 observation;
+              // its own BEGIN condition keeps both inside the same root.
+              if(!checking.getStore()?.readOnly||statements.some(statement=>!readOnlyStatement(statement)))
+                throw Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');
+              state.admissionFirst=false;
+              // Only these exact non-health metadata projections share BEGIN.
+              // Unknown readonly statements retain the original ACK first.
+              if(key!=='execute'||typeof query!=='string'||!firstAdmissionReads.has(normalizedSql(query))){
+                try{await state.tx.execute('SELECT 1');}
+                catch(error){state.admissionBeginFailure=error;throw error;}
+                return state.tx[key](...args);
+              }
+              try{const results=await state.tx.batch(['SELECT 1',...statements]);
+                return key==='execute'?results[1]:results.slice(1);
+              }catch(error){state.admissionFirstFailure=error;throw error;}
+            }
             const memo=state.readMemo,context=readScope.getStore(),sameScope=state.readBudget===currentExecutionBudget()&&state.readExecution===currentDurableExecution();
             const snapshotKey=key==='execute'&&!mutations.length&&!metadata&&sameScope?readSnapshotKey(args[0],context):null;
             if(mutations.length)memo.clear();
@@ -240,6 +273,14 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       if(readBudget?.signal.aborted)readMemo.close();else readBudget?.signal.addEventListener('abort',closeReadMemo,{once:true});
       const state = { tx:null, cache,readMemo,readBudget,readExecution:execution, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
         commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),workStep,readOnly,replaying:false,receiptWrite:false,failure: null, deferred: null, committed: [], completed: [] };
+      let receipt,admissionChecked=false,admissionFailure;
+      const observeReceipt=readOnlyProcessingCheck(async()=>{receipt=await readWorkStep(client,['named',state.workStep]);});
+      const fixedReceipt=state.workStep!==undefined&&!workStepFrom;
+      const admissionChecks=[...fenceChecks(),...(before?[before]:[]),...(fixedReceipt?[observeReceipt]:[])];
+      const bundledAdmission=privateRuntime&&base.protocol==='http'&&execution?.claim?.request?.phase==='SYNC'
+        &&admissionChecks.length>0&&admissionChecks.every(value=>{
+          const check=typeof value==='function'?value:value.check;return readOnlyChecks.has(check)||syncRuntimeChecks.has(check);
+        });
       try {
         if(rootAdmission)await traceExecutionOperation('RUNTIME_READMISSION',()=>{countExecutionTelemetry('runtime_readmissions');return checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));});
         tx=await retryContention(async()=>{
@@ -247,8 +288,28 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           // HTTP/Hrana transactions lazily submit BEGIN with their first SQL.
           // Force BEGIN acknowledgement before entering any business callback,
           // so explicit contention can retry admission, never business work.
-          if(base.protocol==='http')try{await opened.execute('SELECT 1');}
-          catch(error){try{await opened.rollback();}catch{}opened.close();throw error;}
+          if(base.protocol==='http')try{
+            if(bundledAdmission){
+              state.tx=opened;state.admissionFirst=true;state.admissionFirstFailure=null;state.admissionBeginFailure=null;
+              // Only the original branded readonly admission observations may
+              // share the lazy BEGIN packet. Settle every submitted observation
+              // before cleanup; BEGIN failure retains first priority. Business
+              // work cannot run until its ACK and every original check pass.
+              const results=await Promise.allSettled([
+                scope.run(state,()=>withExecutionReceiptTransaction(()=>readOnlyWork.run(true,()=>runChecks(admissionChecks,client)))),
+              ]);
+              // A check may fail without issuing SQL. BEGIN still has original
+              // first failure priority and must acknowledge before that error.
+              if(state.admissionFirst){state.admissionFirst=false;await opened.execute('SELECT 1');}
+              // The installed driver's public closed flag is true when initial
+              // BEGIN failed; an acknowledged BEGIN with failed metadata stays
+              // open. Only the former may take original definite-BUSY retry.
+              if(state.admissionBeginFailure)throw state.admissionBeginFailure;
+              if(state.admissionFirstFailure&&opened.closed)throw state.admissionFirstFailure;
+              if(results[0].status==='rejected')admissionFailure=results[0].reason;
+              else admissionChecked=true;
+            }else await opened.execute('SELECT 1');
+          }catch(error){try{await opened.rollback();}catch{}opened.close();state.tx=null;state.failure=null;throw error;}
           return opened;
         },{
           // A failed local BEGIN can retain an unfinished native statement.
@@ -256,11 +317,13 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           // before re-admission; never reconnect an active transaction.
           afterBusy:refreshIdleConnection,
         });state.tx=tx;
+        // Metadata failure after acknowledged BEGIN follows the original
+        // failure/rollback path. It is never an admission retry or callback run.
+        if(admissionFailure)throw admissionFailure;
+        if(state.failure)throw state.failure;
+        currentExecutionBudget()?.assert();execution?.authority.assert();requireSettledOperation();
         const result = await scope.run(state, () => withExecutionReceiptTransaction(async () => {
-          let receipt;
-          const observeReceipt=readOnlyProcessingCheck(async()=>{receipt=await readWorkStep(client,['named',state.workStep]);});
-          const fixedReceipt=state.workStep!==undefined&&!workStepFrom;
-          await runChecks([...fenceChecks(),...(before?[before]:[]),...(fixedReceipt?[observeReceipt]:[])],client);
+          if(!admissionChecked)await runChecks(admissionChecks,client);
           if(workStepFrom&&execution&&execution.receipts!==false){
             state.readOnly=true;const prepared=await workStepFrom(client);state.readOnly=readOnly;
             if(prepared===null){readMemo.close();await tx.rollback();return null;}

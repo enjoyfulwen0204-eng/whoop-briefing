@@ -1,4 +1,4 @@
-# Ordinary SYNC read preparation candidate
+# Ordinary SYNC preparation and metadata candidate
 
 This local author candidate starts from exact `600143a29188b867b33a6207b2eb966e015808f5`
 (`358eef807cabb3ace7d173b4c08cf817eb0669bd`). It does not qualify the production
@@ -44,13 +44,34 @@ receipt for swallowed failures. Ordinary first-list read failure still permits
 the original orphan pass; global cancellation/uncertainty stops reaper work while
 preserving its nonthrowing maintenance contract.
 
+Durable FAST settlement and diagnostic run closure now share their original
+guarded-input root unit. They execute as two fixed ordered awaits, with the
+original input, tenant, ownership, lifecycle and COMMIT fences. The scalar receipt
+is bound to the actual owner, run ID, settlement arguments, counters and closure
+fields. Typed resource output is assembled only after acknowledgment. Opening a
+run and opening its pending collection window remain separate and unchanged.
+Provider work and canonical writes retain their original boundaries.
+
+A successful watermark now requires the actual run closure to affect a row and
+return true. A missing run row or definite closure error rolls back settlement;
+the original guarded FAILED/backoff path may then run. Repeated closure failure
+cannot manufacture a successful watermark, run finish or receipt. Submitted
+unknown COMMIT, cancellation and deadline remain indeterminate: actual durable
+watermark and closure can both be reconciled without replaying callbacks. Resource
+expiry or takeover cannot advance the watermark or alter the successor grant.
+PARTIAL, resumed, explicit, deep, point, failed, empty diagnostics and input-fenced
+paths retain their original counter/window/result rules. Non-durable operation
+retains the original separate settlement and closure calls.
+
 An initial isolated full zero-latency fixture measured 2,524 physical HTTP requests
-and 3,541 actual SQL statements. The candidate measured 2,489/3,524, with all three
-real Morning/model/record paths, scheduled Prediction/Healthspan and FAST resources
-finishing, no duplicate acknowledged sends and no real provider request. This is
-35 fewer mocked physical requests; local time is not a latency projection. This
-reduction alone may be insufficient for the original 15-second reserve at 110 ms.
-Root coordinates the next full original-latency qualification; no such run was
+and 3,541 actual SQL statements. Read preparation measured 2,489/3,524; the combined
+candidate measured 2,399/3,404, with all three actual Morning/model/record paths,
+scheduled Prediction/Healthspan and FAST resources finishing, no duplicate
+acknowledged sends and no real provider request. This is 125 fewer mocked physical
+requests. Per-root measurement observed seven physical requests for the original
+run closure; nesting it inside settlement saves six requests per FAST resource,
+90 across the fixture's 15 resources. Local time is not a latency projection.
+Root coordinates the next unchanged 110 ms qualification; no such run was
 started by this author.
 
 Focused controls cover actual installed Hrana coalescing and SQL-failure rollback,
@@ -58,11 +79,15 @@ original live fences, readonly mutation/provider refusal, rollback proof scope a
 consumption, unknown COMMIT/cancel/expiry, all-settled failure priority, original
 reaper mutation/query order and independent pass failure behavior. Existing
 metadata-currentness, maintenance independence, gate suppression and event
-convergence checks remain relevant. Raw native SIGSEGV outputs are retained; the
+convergence checks remain relevant. Actual SQLite/Hrana metadata controls cover
+failure between ordered operations, missing run rows, submitted COMMIT ACK loss,
+deadline/cancellation before and after submission, owner expiry/takeover,
+watermark/closure truthfulness, consumed-grant deduplication and branch-specific
+windows/counters. Raw native SIGSEGV outputs are retained; the
 unchanged `600143a` four-case proactive native control reproduces that failure
 after four passing assertions. No whole proactive file PASS is claimed.
 
 This is author evidence, not independent approval. A separate reviewer must assess
-the exact fallback/readonly unit and composed call sites before any operational
+the exact fallback/readonly unit, composed call sites and ordered metadata unit before any operational
 decision. No provider, credential/environment file, production health, live DB,
 schema/config/pilot, push, deployment or production operation occurs here.

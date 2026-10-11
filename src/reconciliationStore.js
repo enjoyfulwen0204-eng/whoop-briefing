@@ -281,7 +281,7 @@ export function createReconciliationStore(client) {
     errorClass = null, errorDetail = null, retryable = null, now = new Date(),
   }) {
     const uid=requireUserId(userId,'closeReconciliationRun');
-    await client.execute({
+    const rs=await client.execute({
       sql: `UPDATE whoop_reconciliation_runs
                SET finished_at = ?, result = ?, pages = ?, fetched = ?, written = ?, blocked = ?,
                    error_class = ?, error_detail = ?, retryable = ?
@@ -290,6 +290,7 @@ export function createReconciliationStore(client) {
         errorClass, null,
         retryable === null ? null : (retryable ? 1 : 0), uid, Number(runId)],
     });
+    return Number(rs.rowsAffected??0)>0;
   }
 
   async function recentReconciliationRuns(userId, { resource = null, limit = 20 } = {}) {

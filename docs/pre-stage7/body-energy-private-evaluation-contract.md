@@ -28,6 +28,12 @@ user IDs, and at most 45 cases/1 MiB total. Each case is either:
   reproduction must match that saved result. These declarations are evidence
   attestations for independent verification, not client-supplied authorization.
 
+Genuine current or captured instants beyond the actual evaluation clock reject.
+Captured manifests must retain the exact normalized shape, with no raw provider
+JSON, foreign-user fields or post-as-of source timestamps. Every case stages all
+analyses before accepted/eligible/reproduced counters advance; malformed cases
+cannot simultaneously count as successful and rejected.
+
 Only reproduce captured history. A current canonical dataset cannot reconstruct
 overwritten source revisions at earlier times. Earlier-only personal baselines
 remain the actual selector's latest 30 values in 45 days; missing/invalid/stale

@@ -38,3 +38,17 @@ test('synthetic/local analyses and flags never satisfy independent publication p
   assert.equal(r.complete,false);assert.ok(r.reasons.includes('GENUINE_INPUT_EVIDENCE_REQUIRED'));
   assert.ok(r.reasons.includes('APPROVAL_PENDING:independentFinalGate'));
 });
+test('genuine future captures and malformed retained manifests fail with zero accepted-case accounting',()=>{
+  const future=bodyInput({asOf:Date.now()+86400000});
+  const genuine={...packet([current(future)]),dataDeclaration:'GENUINE_AUTHORIZED_RETAINED_INPUTS'};
+  const rejected=evaluateBodyEnergyPrivate(genuine).summary;
+  assert.equal(rejected.rejectionCounts.EVALUATION_FUTURE_CAPTURE,1);assert.equal(rejected.casesEvaluated,0);
+  const manifest=selectBodyEnergyInputs(bodyInput()).manifest,r=calculateBodyEnergy(manifest);delete manifest.warnings;
+  const bad={kind:'CAPTURED_MANIFEST',userId:'a',manifest,savedValue:r.value,savedQuality:r.quality_state,
+    provenance:{receiptVerified:true,retainedContent:true,originalCapturedManifest:true}};
+  const summary=evaluateBodyEnergyPrivate(packet([bad])).summary;
+  assert.equal(summary.casesEvaluated,0);assert.equal(summary.capturedResultsReproduced,0);
+  assert.equal(summary.eligibleAtCapturedInstant,0);assert.equal(summary.rejectionCounts.CAPTURE_MANIFEST_SHAPE_INVALID,1);
+  const raw=selectBodyEnergyInputs(bodyInput()).manifest;raw.recovery.raw_json='synthetic';
+  assert.equal(evaluateBodyEnergyPrivate(packet([{...bad,manifest:raw}])).summary.rejectionCounts.CAPTURE_MANIFEST_SHAPE_INVALID,1);
+});

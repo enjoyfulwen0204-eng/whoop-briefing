@@ -1,3 +1,4 @@
+import {readOnlyProcessingCheck} from './processingTransaction.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {controlOnlyProcessingCheck} from './processingTransaction.js';
 import { compareExact } from './phase4CanonicalOrder.js';

@@ -135,28 +135,40 @@ export function createSync({
   const windowFacts=(resource,patch,inputProof)=>[uid,resource,lifecycleFence,inputProof,patch?.backfillCursor?['BACKFILL',patch.backfillCursor]:[POINT_IN_TIME.has(resource)?'POINT_IN_TIME':'INCREMENTAL']];
   async function committedWindow(resource,patch,inputProof){
     if(!currentDurableExecution())return null;
-    return db.transaction(async()=>{
+    let effect,counts;
+    const observe=readOnlyProcessingCheck(async()=>{
       await assertWhoopInput(inputOptions,inputProof);
-      const effect=await readWorkStep(db.raw,['named',workStepOptions('whoop.window',windowFacts(resource,patch,inputProof)).workStep]);
+      const settled=await Promise.allSettled([
+        Promise.resolve().then(()=>readWorkStep(db.raw,['named',workStepOptions('whoop.window',windowFacts(resource,patch,inputProof)).workStep])),
+        Promise.resolve().then(()=>readWorkStep(db.raw,['named',workStepOptions('whoop.window-count',windowFacts(resource,patch,inputProof)).workStep])),
+      ]);
+      const failure=settled.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+      [effect,counts]=settled.map(result=>result.value);
+    });
+    return db.transaction(async()=>{
       if(!effect)return null;
-      const counts=await readWorkStep(db.raw,['named',workStepOptions('whoop.window-count',windowFacts(resource,patch,inputProof)).workStep]);
       if(!counts)throw Object.assign(Error('EXECUTION_RECEIPT_CORRUPT'),{code:'EXECUTION_RECEIPT_CORRUPT'});
       return {written:JSON.parse(effect.result_json),fetched:JSON.parse(counts.result_json)};
-    },{readOnly:true});
+    },{readOnly:true,before:observe});
   }
   async function commitWindow(resource, payload, cursorPatch, fetched,inputProof) {
-    return db.transaction(async () => {
-      // 只有**帶著啟用脈絡**的呼叫端才受圍欄約束（與這次修正其他地方一致）。
-      // 正式路徑（排程器 runForUser、上線 bootstrap）都會帶；沒有帶的是
-      // 腳本／測試夾具那種「沒有帳號脈絡」的情境，行為維持不變。
+    // Only fixed authorization metadata overlaps. The original transaction
+    // fences, input proof, lifecycle comparison and final COMMIT check all run.
+    const before=readOnlyProcessingCheck(async()=>{
       budget?.assert();
-      await assertWhoopInput(inputOptions,inputProof);
-      if (lifecycleFenced) await db.assertAccountActive(uid, lifecycleFence);
+      const settled=await Promise.allSettled([
+        Promise.resolve().then(()=>assertWhoopInput(inputOptions,inputProof)),
+        Promise.resolve().then(()=>lifecycleFenced?db.assertAccountActive(uid,lifecycleFence):undefined),
+      ]);
+      const failure=settled.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+      budget?.assert();
+    });
+    return db.transaction(async () => {
       const written = await persist(resource, payload);
       if (cursorPatch) await db.saveSyncState(uid, resource, cursorPatch, { now });
       if(currentDurableExecution())await appendExecutionReceipt(db.raw,{step:['named',workStepOptions('whoop.window-count',windowFacts(resource,cursorPatch,inputProof)).workStep],result:fetched,explicit:true});
       return written;
-    },{...workStepOptions('whoop.window',windowFacts(resource,cursorPatch,inputProof)),beforeCommit:readOnlyProcessingCheck(()=>assertWhoopInput(inputOptions,inputProof))});
+    },{...workStepOptions('whoop.window',windowFacts(resource,cursorPatch,inputProof)),before,beforeCommit:readOnlyProcessingCheck(()=>assertWhoopInput(inputOptions,inputProof))});
   }
   /**
    * 一個 resource 的抓取器。全部沿用 whoop client 既有的

@@ -11,6 +11,12 @@ export function readOnlyProcessingCheck(check){readOnlyChecks.add(check);return 
 // Only trusted server checks consisting of non-health control observations
 // and explicit runtime brackets use this narrower transport composition.
 export function controlOnlyProcessingCheck(check){controlOnlyChecks.add(check);return readOnlyProcessingCheck(check);}
+const rolledBackReadOnly=new WeakMap();
+export function consumeReadOnlyRollback(error){
+ const proof=error&&typeof error==='object'?rolledBackReadOnly.get(error):null;
+ if(!proof||proof.budget!==currentExecutionBudget()||proof.execution!==currentDurableExecution())return false;
+ currentExecutionBudget()?.assert();requireSettledOperation();rolledBackReadOnly.delete(error);return true;
+}
 function missingStep(){const execution=currentDurableExecution(),error=Object.assign(Error('EXECUTION_WORK_STEP_REQUIRED'),{code:'EXECUTION_WORK_STEP_REQUIRED'});
  if(execution&&!execution.workRejected)execution.workRejected=error;throw error;}
 // This only separates supported read statements from mutations; it never
@@ -64,6 +70,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
   const scope = new AsyncLocalStorage();
   const readScope=new AsyncLocalStorage(),activeReadMemos=new Set();
   const invalidateReadMemos=()=>{for(const memo of activeReadMemos)memo.close();};
+  const readOnlyWork=new AsyncLocalStorage();
   const fenceScope = new AsyncLocalStorage(), checking = new AsyncLocalStorage();
   const fences = () => checking.getStore() ? [] : (fenceScope.getStore() ?? []);
   async function runChecks(checks,client){
@@ -112,8 +119,9 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         return async (...args) => {
         const query=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
         const metadata=inRuntimeMetadata(query);
-        if(checking.getStore()?.readOnly&&(key==='batch'?args[0]:[args[0]]).some(statement=>!readOnlyStatement(statement)))
-          throw Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');
+        if((checking.getStore()?.readOnly||readOnlyWork.getStore())&&(key==='batch'?args[0]:[args[0]]).some(statement=>!readOnlyStatement(statement))){
+          const error=Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');if(readOnlyWork.getStore()&&scope.getStore())scope.getStore().failure=error;throw error;
+        }
         return traceExecutionOperation(metadata?'DB_METADATA':'DB_QUERY',async()=>{
         countExecutionTelemetry('query_count',key==='batch'&&Array.isArray(args[0])?args[0].length:1);
         if(metadata)countExecutionTelemetry('metadata_query_count');
@@ -185,6 +193,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
   // Roll back the speculative attempt, obtain/cache parsing outside the transaction,
   // then rerun against fresh database state. No speculative write can commit.
   async function outside(key, call) {
+    if(readOnlyWork.getStore()){const error=Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');scope.getStore().failure=error;throw error;}
     const state = scope.getStore();
     if (!state) return call();
     if (state.cache.has(key)) return state.cache.get(key);
@@ -308,9 +317,19 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         return result;
       } catch (error) {
         readMemo.close();
+        if(error&&typeof error==='object')rolledBackReadOnly.delete(error);
         const context=currentDurableExecution();
         if(commitSubmitted&&context)context.indeterminate=true;
-        try { await tx?.rollback(); } catch { /* closed/rolled back by storage */ }
+        let rollbackAcknowledged=false;
+        try { if(tx){await tx.rollback();rollbackAcknowledged=true;} } catch { /* closed/rolled back by storage */ }
+        // Only the new fixed preparation unit can use this private marker.
+        // Unknown COMMIT, parent expiry/cancellation, attempted writes/provider
+        // work and unacknowledged rollback cannot authorize an independent retry.
+        if(state.preparationReadOnly&&rollbackAcknowledged&&!commitSubmitted&&!context?.indeterminate&&!context?.pending?.size&&!context?.workRejected&&!state.workWrites
+          &&error?.message!=='PROCESSING_READ_ONLY_CHECK_REQUIRED'&&error?.code!=='COMMIT_INDETERMINATE'
+          &&!['SYNC_TIMEOUT','SYNC_CANCELLED','ABORT_ERR'].includes(error?.code)&&error?.name!=='AbortError'){
+          try{currentExecutionBudget()?.assert();if(error&&typeof error==='object')rolledBackReadOnly.set(error,{budget:currentExecutionBudget(),execution});}catch{/* original parent remains authoritative */}
+        }
         if(context?.indeterminate&&context.claim?.request){
           try{context.reconciliation=await reconcileExecution({raw:base},context.claim.request,context.claim.identity);}
           catch{context.reconciliation={state:'RECONCILIATION_REQUIRED'};}
@@ -337,5 +356,9 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     if(state){state.completed.push(fn);return;}
     return fn();
   }
-  return { client, transaction,withReadSnapshot:(context,fn)=>privateRuntime?readScope.run(context,fn):fn(),assertFences:()=>checkFences(client),setLifetimeEnding:fn=>{lifetimeEnding=fn;}, setRootAdmission:fn=>{rootAdmission=fn;},setReconnectAdmission:fn=>{reconnectAdmission=fn;}, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
+  const readOnlyTransaction=fn=>{
+    if(scope.getStore())throw Error('PROCESSING_READ_ONLY_ROOT_REQUIRED');
+    return transaction(()=>{scope.getStore().preparationReadOnly=true;return readOnlyWork.run(true,fn);},{readOnly:true});
+  };
+  return { client, transaction,readOnlyTransaction,withReadSnapshot:(context,fn)=>privateRuntime?readScope.run(context,fn):fn(),assertFences:()=>checkFences(client),setLifetimeEnding:fn=>{lifetimeEnding=fn;}, setRootAdmission:fn=>{rootAdmission=fn;},setReconnectAdmission:fn=>{reconnectAdmission=fn;}, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
 }

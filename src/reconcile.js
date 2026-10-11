@@ -468,10 +468,36 @@ export function createReconciler({
       return db.transaction(fn,{...workStepOptions(`reconciliation.${kind}`,[uid,key,scope,window.from,window.to,window.token??null,inputProof,facts]),
         before:check,after:check,beforeCommit:check});
     };
+    const canonicalMetadata=readOnlyProcessingCheck(async()=>{
+      const settled=await Promise.allSettled([
+        Promise.resolve().then(()=>assertWhoopInput(inputOptions,inputProof)),
+        Promise.resolve().then(()=>assertLifecycle()),
+      ]);
+      const failure=settled.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+    });
     const settle=args=>guardedInput('settlement',[args,String(owner)],()=>db.settleReconciliation(args));
+    const projection=result=>({resource,scope,result,...counters,window:{from:window.from,to:window.to,resumed:window.resumed}});
     const finish = async (result, extra = {}) => {
       await db.closeReconciliationRun(uid,runId, { result, ...counters, now: at(), ...extra });
-      return { resource, scope, result, ...counters, window: { from: window.from, to: window.to, resumed: window.resumed } };
+      return projection(result);
+    };
+    const settleAndFinish=async(args,extra={},fencedExtra={})=>{
+      if(!currentDurableExecution()){
+        const settled=await settle(args);
+        return {settled,out:await finish(settled?args.result:RECONCILE_RESULT.FENCED,settled?extra:fencedExtra)};
+      }
+      // Two fixed, ordered metadata operations, with the original input and
+      // parent ownership fences before/after/before COMMIT. The watermark and
+      // run closure must both acknowledge, or neither is a successful result.
+      // Owner + run ID bind this scalar receipt to its actual diagnostic grant.
+      const settled=await guardedInput('settlement-close',[args,String(owner),runId,{...counters},extra,fencedExtra],async()=>{
+        const changed=await db.settleReconciliation(args);
+        const closed=await db.closeReconciliationRun(uid,runId,{result:changed?args.result:RECONCILE_RESULT.FENCED,
+          ...counters,now:at(),...(changed?extra:fencedExtra)});
+        if(closed!==true)throw Error('reconcile_run_closure_lost');
+        return changed;
+      });
+      return {settled,out:projection(settled?args.result:RECONCILE_RESULT.FENCED)};
     };
 
     try {
@@ -485,19 +511,13 @@ export function createReconciler({
         counters.fetched = 1;
         counters.written = await guardedInput('point-effect',[],()=>db.mutateForReconciliation(
           { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to,inputProof] },
-          async () => {
-            await assertWhoopInput(inputOptions,inputProof);
-            // ★ R2 §16：canonical 變更要在**同一個交易裡**證明啟用脈絡。
-            // 租約所有權只證明「沒有別的對帳在跑」，不證明這個帳號還該被處理。
-            await assertLifecycle();
-            return db.upsertBodyMeasurement(uid,bm,{now:at()});
-          },
+          () => db.transaction(()=>db.upsertBodyMeasurement(uid,bm,{now:at()}),{before:canonicalMetadata}),
         ));
-        const settled = await settle({
+        const completion = await settleAndFinish({
           userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS, windowTo: window.to, now: at(),
           lifecycleGeneration: lifecycleFence,
         });
-        return finish(settled ? RECONCILE_RESULT.SUCCESS : RECONCILE_RESULT.FENCED);
+        return completion.out;
       }
 
       // ---- 集合資源：記下未完成窗 → 抓（可續傳）→ 圍欄交易內寫入 → 診斷 → 結案 ----
@@ -525,24 +545,20 @@ export function createReconciler({
       counters.written = fetched.records.length
         ? await guardedInput('collection-effect',[fetched.nextToken,fetched.complete],()=>db.mutateForReconciliation(
           { userId: uid, resource: key, owner, now, workIdentity:['canonical-window',window.from,window.to,window.token??null,fetched.nextToken,fetched.complete,inputProof] },
-          async () => {
-            await assertWhoopInput(inputOptions,inputProof);
-            await assertLifecycle();
-            return persist(resource,fetched.records);
-          },
+          () => db.transaction(()=>persist(resource,fetched.records),{before:canonicalMetadata}),
         ))
         : 0;
       counters.blocked = Math.max(0, counters.fetched - counters.written);
 
       if (!fetched.complete) {
         // 頁數預算用完：存續傳，**水位不動**。
-        const settled = await settle({
+        const completion = await settleAndFinish({
           userId: uid, resource: key, owner, result: RECONCILE_RESULT.PARTIAL,
           continuation: { token: fetched.nextToken, from: window.from, to: window.to },
           latestRemoteUpdatedAt, now: at(), lifecycleGeneration: lifecycleFence,
         });
         log.info('reconcile_partial', { user_id: uid, resource: key, pages: counters.pages, fetched: counters.fetched });
-        return finish(settled ? RECONCILE_RESULT.PARTIAL : RECONCILE_RESULT.FENCED);
+        return completion.out;
       }
 
       // 窗完整 → 診斷。這兩件事失敗不影響水位：資料已經寫進去了，它們是附加診斷。
@@ -571,15 +587,15 @@ export function createReconciler({
 
       // 結案：快路徑 → 水位前進到窗的 end（單調）；深度 → 游標 = 這一片的下緣；
       // 明確窗 → 什麼都不動。
-      const settled = await settle({
+      const completion = await settleAndFinish({
         userId: uid, resource: key, owner, result: RECONCILE_RESULT.SUCCESS,
         windowTo: window.to, cursor: isDeep ? window.from : null, latestRemoteUpdatedAt, now: at(),
         watermarkMode: explicitWindow ? 'keep' : isDeep ? 'set' : 'advance',
         lifecycleGeneration: lifecycleFence,
       });
-      const result = settled ? RECONCILE_RESULT.SUCCESS : RECONCILE_RESULT.FENCED;
+      const result = completion.settled ? RECONCILE_RESULT.SUCCESS : RECONCILE_RESULT.FENCED;
       log.info('reconcile_done', { user_id: uid, resource: key, result, ...counters });
-      return finish(result);
+      return completion.out;
     } catch (err) {
       if (isAccountInactiveError(err)) {
         log.warn('reconcile_lifecycle_fenced', { user_id: uid, resource: key });
@@ -594,26 +610,23 @@ export function createReconciler({
       // 可重試與不可重試都排退避：不可重試（scope / 4xx）多半要等人重新授權，
       // 但也不該每個排程 tick 都去撞一次 403 —— 退避上限把 API 用量綁死。
       const nextAttemptAt = new Date(at().getTime() + reconcileBackoffMs(failures));
-      let settled;
-      try{settled = await settle({
+      let completion;
+      try{completion = await settleAndFinish({
         userId: uid, resource: key, owner, result: RECONCILE_RESULT.FAILED,
         errorClass: cls.class, errorDetail: describeError(err), nextAttemptAt, now: at(),
         lifecycleGeneration: lifecycleFence,
-      });}catch(settlementError){
+      },{errorClass:cls.class,errorDetail:describeError(err),retryable:cls.retryable},{errorClass:ERROR_CLASS.FENCED});}catch(settlementError){
         if(settlementError?.code!=='WHOOP_INPUT_FENCED')throw settlementError;
         return finish(RECONCILE_RESULT.FENCED,{errorClass:ERROR_CLASS.FENCED});
       }
-      if (!settled) {
+      if (!completion.settled) {
         log.warn('reconcile_settlement_fenced', { user_id: uid, resource: key });
-        return finish(RECONCILE_RESULT.FENCED, { errorClass: ERROR_CLASS.FENCED });
+        return completion.out;
       }
       log[cls.class === ERROR_CLASS.SCOPE ? 'warn' : 'error']('reconcile_failed', {
         user_id: uid, resource: key, error_class: cls.class, retryable: cls.retryable,
       });
-      const out = await finish(RECONCILE_RESULT.FAILED, {
-        errorClass: cls.class, errorDetail: describeError(err), retryable: cls.retryable,
-      });
-      return { ...out, errorClass: cls.class, retryable: cls.retryable };
+      return {...completion.out,errorClass:cls.class,retryable:cls.retryable};
     }
   }
 

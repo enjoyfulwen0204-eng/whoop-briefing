@@ -6,9 +6,9 @@ import { healthDateFor } from '../src/journal.js';
 
 const nowMs = Date.parse('2026-09-25T12:00:00.000Z');
 
-async function insertCoverage(f, { startDate, endDate, id = 'coverage-caffeine' }) {
+async function insertCoverage(f, { startDate, endDate, id = 'coverage-caffeine',recordedAt=new Date(nowMs).toISOString() }) {
   const state = (await f.db.raw.execute("SELECT u.lifecycle_generation,COALESCE(t.auth_generation,0) auth_generation,p.purge_generation,c.input_generation FROM users u LEFT JOIN user_whoop_tokens t ON t.user_id=u.id JOIN phase4_user_state p ON p.user_id=u.id JOIN phase4_computation_state c ON c.user_id=u.id AND c.execution_mode='SHADOW' WHERE u.id='a'")).rows[0];
-  const at = new Date(nowMs).toISOString(), privacyId = f.keys.lookup(['synthetic-coverage', id]);
+  const at = recordedAt, privacyId = f.keys.lookup(['synthetic-coverage', id]);
   await f.db.raw.execute({ sql: `INSERT INTO journal_coverage_windows(user_id,coverage_window_id,window_start_utc,window_end_utc,
     health_date_start,health_date_end,recorded_timezone,factor_set_version,factor_keys_json,source_event_key,confirmation_text_hash,
     parser_version,normalizer_version,lifecycle_generation,auth_generation,input_generation,status,revision,answer_confidence,
@@ -23,10 +23,10 @@ async function insertCoverage(f, { startDate, endDate, id = 'coverage-caffeine' 
   return id;
 }
 
-async function setup(t, { days = 60, createFacts = true,wallClock=nowMs,targetVersion } = {}) {
+async function setup(t, { days = 60, createFacts = true,wallClock=nowMs,targetVersion,inputAsOf=nowMs,liveClock=false } = {}) {
   let clock = new Date(wallClock);
-  const f = await syntheticPhase4Fixture(t, { now: () => clock,...(targetVersion===undefined?{}:{targetVersion}) });
-  const input = bodyInput({ asOf: nowMs, days: days - 1 });
+  const f = await syntheticPhase4Fixture(t, { now: () => liveClock?new Date():clock,...(targetVersion===undefined?{}:{targetVersion}) });
+  const input = bodyInput({ asOf: inputAsOf, days: days - 1 });
   for (let index = 0; index < input.sources.recovery.length; index += 1) {
     input.sources.recovery[index].recovery_score = index % 2 === 0 ? 40 : 50;
   }
@@ -41,7 +41,7 @@ async function setup(t, { days = 60, createFacts = true,wallClock=nowMs,targetVe
     assert.equal(created.status, 'ACCEPT'); logicalFacts.push(created.logicalFactId);
   }
   const factorDates = input.sources.recovery.map(row => addDays(row.health_date, -1)).sort();
-  const coverageId = await insertCoverage(f, { startDate: factorDates[0], endDate: factorDates.at(-1) });
+  const coverageId = await insertCoverage(f, { startDate: factorDates[0], endDate: factorDates.at(-1),recordedAt:liveClock?f.core.timestamp():new Date(nowMs).toISOString() });
   const context = await f.stores.capture('a', { executionMode: 'SHADOW' });
   const outcomeRefs = [];
   for (const row of input.sources.recovery) outcomeRefs.push((await f.stores.root(context, 'recovery', row.sleep_id)).ref);

@@ -11,6 +11,8 @@ export const PILOT_OPERATIONAL_MICRO_USD=400_000;
 const UNIT_KEYS=['rowsRead','rowsWritten','storageBytes','bytesSynced','microUsd'];
 const issuedGrants=new WeakMap(),submittedGrants=new WeakSet(),attemptScope=new AsyncLocalStorage();
 const issuedDatabases=new WeakMap(),prefixReadReservations=new WeakMap();
+const mutationReservations=new WeakMap();
+export const PILOT_MAX_MUTATIONS=128,PILOT_MAX_MUTATION_BYTES=256*1024;
 const closureScope=new AsyncLocalStorage();
 export const closingBetaPilotPermit=db=>Boolean(db?.raw)&&closureScope.getStore()===db.raw;
 const fail=()=>{throw Object.assign(Error('BETA_PILOT_DENIED'),{code:'BETA_PILOT_DENIED'});};
@@ -35,6 +37,25 @@ export function reservePilotPrefixRead(context,client){
  const used=prefixReadReservations.get(grant)??0;
  if(used>=32)fail();
  prefixReadReservations.set(grant,used+1);return true;
+}
+
+/** Named payload/link mutation boundaries only. This is submitted scalar
+ * UTF-8 input, not physical pages, trigger/index units or a dollar certificate.
+ * Failed/rolled-back submissions retain the same one-use grant reservation. */
+export function reservePilotMutation(context,client,values){
+ const grant=attemptScope.getStore();if(!grant)return false;
+ requireBetaPilotGrant(grant,context?.userId,client);
+ if(context.executionMode!=='SHADOW'||!issuedDatabases.get(grant)?.processingTransactionActive?.()
+  ||!Array.isArray(values)||values.length>256)fail();
+ let bytes=64;
+ for(const value of values){
+  if(typeof value==='string')bytes+=Buffer.byteLength(value,'utf8');
+  else if(value===null||typeof value==='boolean'||typeof value==='number'&&Number.isFinite(value))bytes+=32;
+  else fail();
+ }
+ const used=mutationReservations.get(grant)??{operations:0,bytes:0};
+ if(!Number.isSafeInteger(bytes)||used.operations>=PILOT_MAX_MUTATIONS||used.bytes+bytes>PILOT_MAX_MUTATION_BYTES)fail();
+ mutationReservations.set(grant,{operations:used.operations+1,bytes:used.bytes+bytes});return true;
 }
 
 /** No provider/query bound has been qualified. A flag, meter, claimed price or

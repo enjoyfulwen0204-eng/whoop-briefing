@@ -1,5 +1,6 @@
 import {workStepOptions} from './phase4WorkStep.js';
 import { compareExact } from './phase4CanonicalOrder.js';
+import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import { coverageLineage } from './phase4CoverageLineage.js';
 /** Internal persistence kernel. No application entry point imports this module
  * directly. The public Foundation factory supplies SHADOW-only authority;
@@ -311,7 +312,8 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     if(verified.has(node))return;
     path.add(node);
     const logical=['observation_episodes','health_insights'].includes(table);
-    const links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM phase4_source_links
+    const from=await pilotPrefixFrom(client,context,'phase4_source_links',[context.userId,context.executionMode,table,artifactId]);
+    const links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM ${from}
       WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL
       ${logical?'AND relationship=?':''}`,
     args:[context.userId,context.executionMode,table,artifactId,...(logical?[`INPUT_GENERATION:${context.inputGeneration}`]:[])]})).rows;

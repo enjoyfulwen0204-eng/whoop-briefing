@@ -5,6 +5,8 @@ import { canonicalJson } from './phase4EntityStore.js';
 import { addPrivacyLink } from './phase4V22Backfill.js';
 import { RESULT_AUTHORITY_TABLE as TABLE, RESULT_AUTHORITY_VERSION as VERSION, RESULT_ROOT_VERSION } from './phase4V26Schema.js';
 import { createBodyEnergyStore } from './bodyEnergyStore.js';
+import {reservePilotMutation} from './betaPilotPermit.js';
+import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 
 const invalid=()=>fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
 const incomplete=()=>fail('PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE');
@@ -239,7 +241,8 @@ export function createResultAuthority(core) {
   }
   async function read(context,evidenceItemId,scope) {
     return core.run(context,async()=>{
-      const row=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope=?`,
+      const from=await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode]);
+      const row=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope=?`,
         args:[context.userId,context.executionMode,evidenceItemId,scope]})).rows[0];
       if(!row)fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');
       verifyEnvelope(context,row);
@@ -280,6 +283,8 @@ export function createResultAuthority(core) {
     for(const field of ['original_result_json','required_roots_json'])if(Buffer.byteLength(record[field])>1048576)incomplete();
     record.authority_hmac=seal(record);
     const fields=Object.keys(record);
+    reservePilotMutation(context,client,fields.map(k=>record[k]));
+    await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode]);
     await client.execute({sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(k=>record[k])});
     for(const source of [...roots.roots,{type:'evidence_items',id:item.row.privacy_artifact_id,mode:context.executionMode,as_of:null}])
       await addPrivacyLink(client,{userId:context.userId,mode:context.executionMode,table:TABLE,artifactId:envelope.privacy_artifact_id,

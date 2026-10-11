@@ -1,5 +1,6 @@
 import { requirePhase4Keys } from './phase4Keys.js';
 import { EXPERIMENT_FIELDS, V22_LEGACY_R_TABLES } from './phase4V22Schema.js';
+import {reservePilotMutation} from './betaPilotPermit.js';
 
 export const HEALTH_REDACTED = '[HEALTH_CONTENT_REDACTED]';
 export const REDACTED_RECEIPT = '{"reply":null,"redacted":true,"reason":"HEALTH_CONTENT_REDACTED"}';
@@ -21,6 +22,7 @@ async function updateRow(client, table, rowid, patch) {
     args: [...entries.map(([,v]) => v), rowid] });
 }
 export async function addPrivacyLink(client, { userId, mode = 'SHARED', table, artifactId, sourceMode = 'SHARED', sourceType, sourceId, relationship = 'DEPENDS_ON', at }) {
+  reservePilotMutation({userId,executionMode:mode},client,[userId,mode,table,artifactId,sourceMode,sourceType,sourceId,relationship,at]);
   await client.execute({
     sql: `INSERT INTO phase4_source_links(user_id,artifact_execution_mode,artifact_type,artifact_id,
       source_execution_mode,source_type,source_id,relationship,linked_at) VALUES (?,?,?,?,?,?,?,?,?)

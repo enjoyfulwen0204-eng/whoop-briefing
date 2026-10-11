@@ -4,6 +4,8 @@ import { calculateBodyEnergy } from './bodyEnergy.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { fail, readableRow } from './phase4Core.js';
 import { canonicalSourceTime } from './phase4SourceVersion.js';
+import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
+import {reservePilotMutation} from './betaPilotPermit.js';
 
 const columns={
   sleep:'id,health_date,start_at,end_at,nap,score_state,sleep_performance_percentage,updated_at,synced_at',
@@ -97,7 +99,10 @@ export function createBodyEnergyStore(core,entities,queue) {
   async function prepare(context,options) {
     const req=request(options);
     return core.run(context,async()=>{
-      const rows=async(table,fields)=>[...(await client.execute({sql:`SELECT user_id,${fields} FROM ${table} WHERE user_id=?`,args:[context.userId]})).rows];
+      const rows=async(table,fields)=>{
+        const from=await pilotPrefixFrom(client,context,table,[context.userId]);
+        return [...(await client.execute({sql:`SELECT user_id,${fields} FROM ${from} WHERE user_id=?`,args:[context.userId]})).rows];
+      };
       const sources={};for(const type of Object.keys(tables))sources[type]=await rows(tables[type],columns[type]);
       const selection=selectBodyEnergyInputs({userId:context.userId,timezone:context.timezone,asOfEpochMs:req.asOfEpochMs,
         targetHealthDate:req.targetHealthDate,lifecycleGeneration:context.lifecycleGeneration,authGeneration:context.authGeneration,sources,
@@ -152,6 +157,7 @@ export function createBodyEnergyStore(core,entities,queue) {
         supersedes_result_id:req.supersedesResultId,created_at:core.timestamp()};
       row.input_manifest_hash=keys.digest(row.content_digest_salt,json);row.result_hash=calculationHash(row,calculation);
       const fields=Object.keys(row);
+      reservePilotMutation(context,client,fields.map(k=>row[k]));
       await client.execute({sql:`INSERT INTO body_energy_results(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(k=>row[k])});
       await core.link(context,'body_energy_results',row.privacy_artifact_id,refs);
       if(manifest.reasons.includes('HEALTH_DATE_REALIGNMENT'))

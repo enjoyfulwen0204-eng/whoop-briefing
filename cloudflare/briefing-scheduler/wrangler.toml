@@ -9,6 +9,7 @@ crons = [] # Enable morning cron only after coordinated RC3 validation.
 # Reviewed values must match the admitted server configuration before activation.
 BRIEFING_EXECUTION_MODE = "OFF"
 BRIEFING_CONTINUATION_DISCOVERY = "off" # Enable only with reviewed continuation/server rollout.
+BRIEFING_CONTINUATION_SCOPE = "off" # Activation requires stage6-shadow on both Worker and Render.
 # Exact approved compatible server commit; non-runnable until review.
 BRIEFING_RELEASE_SHA = "REVIEWED_RELEASE_SHA"
 BRIEFING_CONFIG_PROOF = "REVIEWED_CONFIG_PROOF"

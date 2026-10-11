@@ -1,5 +1,5 @@
 import { canonicalJson } from './phase4EntityStore.js';
-import {readPilotPrefixRows} from './betaPilotBoundedReads.js';
+import {readPilotPrefixRows,pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import { phase4Metric,INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
 import { ROUTE_VERSION,ROUTE_RECEIPTS,ROUTE_ENTRIES,ROUTE_MANIFESTS } from './phase4V29Schema.js';
 import { OPERATION_RECEIPT_VERSION } from './phase4V27Schema.js';
@@ -202,9 +202,11 @@ export function createReceiptRouting(client,keys) {
   }
   async function tip(context,kind,identity) {
     const scope=[context.userId,context.executionMode,kind,token(context.userId,context.executionMode,kind,identity)];
-    const row=(await client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
+    const manifestFrom=await pilotPrefixFrom(client,context,ROUTE_MANIFESTS,scope);
+    const row=(await client.execute({sql:`SELECT * FROM ${manifestFrom} WHERE user_id=? AND execution_mode=?
       AND subject_kind=? AND subject_token=?`,args:scope})).rows[0];
-    const count=(await client.execute({sql:`SELECT COUNT(*) count FROM ${ROUTE_ENTRIES} WHERE user_id=?
+    const entriesFrom=await pilotPrefixFrom(client,context,ROUTE_ENTRIES,scope);
+    const count=(await client.execute({sql:`SELECT COUNT(*) count FROM ${entriesFrom} WHERE user_id=?
       AND execution_mode=? AND subject_kind=? AND subject_token=?`,args:scope})).rows[0].count;
     if(!row){if(count)invalid();return null;}
     verifyManifest(row);
@@ -273,7 +275,8 @@ export function createReceiptRouting(client,keys) {
     if(entries.length>1000)bounds();
     const receipts=[];
     for(const entry of entries) {
-      const receipt=(await client.execute({sql:`SELECT * FROM phase4_operation_receipts WHERE user_id=? AND execution_mode=?
+      const from=await pilotPrefixFrom(client,context,'phase4_operation_receipts',[userId,mode,entry.operation_kind,entry.operation_key]);
+      const receipt=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=?
         AND operation_kind=? AND operation_key=?`,args:[userId,mode,entry.operation_kind,entry.operation_key]})).rows[0];
       if(!receipt)invalid();receipts.push(receipt);
     }

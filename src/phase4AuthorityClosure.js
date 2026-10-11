@@ -2,6 +2,7 @@ import { fail, readableRow } from './phase4Core.js';
 import { physicallyScrubbed } from './phase4Redaction.js';
 import { createReceiptRouting } from './phase4ReceiptRouting.js';
 import { phase4Metric } from './phase4IntelligenceRegistry.js';
+import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 
 /** Discovery never trusts mutable naming links. Retained signed projections
  * identify families; a completed purge may remove an audit-only node from
@@ -107,7 +108,8 @@ export function createTargetAuthorityClosure(core,authenticate) {
       &&(episodeFamilyKey===null||row.episode_family_key===episodeFamilyKey):row.insight_key===insightKey)
       .map(row=>row[idField]));
     if(requestedId!==null&&!ids.has(requestedId))fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
-    const hints=(await client.execute({sql:`SELECT * FROM ${type} WHERE user_id=? AND execution_mode=?
+    const typeFrom=await pilotPrefixFrom(client,context,type,scope),revisionFrom=await pilotPrefixFrom(client,context,revisionTable,scope);
+    const hints=(await client.execute({sql:`SELECT * FROM ${typeFrom} WHERE user_id=? AND execution_mode=?
       AND ${episode?episodeFamilyKey?'episode_family_key':'subject_key':'insight_key'}=? LIMIT 1001`,
       args:[...scope,episode?episodeFamilyKey??metricKey:insightKey]})).rows;
     if(hints.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
@@ -124,11 +126,11 @@ export function createTargetAuthorityClosure(core,authenticate) {
     const tables={[type]:[],[revisionTable]:[],phase4_operation_receipts:records.map(value=>value.receipt)};
     if(!episode)tables.phase4_evidence_result_authorities=[];
     for(const id of ids) {
-      const row=(await client.execute({sql:`SELECT * FROM ${type} WHERE user_id=? AND execution_mode=? AND ${idField}=?`,
+      const row=(await client.execute({sql:`SELECT * FROM ${typeFrom} WHERE user_id=? AND execution_mode=? AND ${idField}=?`,
         args:[...scope,id]})).rows[0];
       if(!row)fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
       tables[type].push(...await retained(context,type,[row]));
-      const revisions=(await client.execute({sql:`SELECT * FROM ${revisionTable} WHERE user_id=? AND execution_mode=?
+      const revisions=(await client.execute({sql:`SELECT * FROM ${revisionFrom} WHERE user_id=? AND execution_mode=?
         AND ${episode?'episode_id':'insight_id'}=? ORDER BY revision LIMIT 1001`,args:[...scope,id]})).rows;
       if(revisions.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
       tables[revisionTable].push(...await retained(context,revisionTable,revisions));
@@ -139,7 +141,8 @@ export function createTargetAuthorityClosure(core,authenticate) {
         .filter(target=>target.type==='evidence_items').map(target=>target.row.evidence_item_id)));
       // An orphan v26 origin can outlive its parent. The origin's ID remains a
       // search hint; every selected authority is authenticated by the caller.
-      const all=(await client.execute({sql:`SELECT * FROM phase4_evidence_result_authorities
+      const authorityFrom=await pilotPrefixFrom(client,context,'phase4_evidence_result_authorities',scope);
+      const all=(await client.execute({sql:`SELECT * FROM ${authorityFrom}
         WHERE user_id=? AND execution_mode=? ORDER BY evidence_item_id,result_scope`,args:scope})).rows;
       for(const row of all) {
         let origin=null;

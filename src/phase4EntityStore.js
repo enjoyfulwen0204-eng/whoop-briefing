@@ -1,5 +1,6 @@
 import { fail, readableRow } from './phase4Core.js';
 import { R_COLUMNS } from './phase4V22Schema.js';
+import {reservePilotMutation} from './betaPilotPermit.js';
 
 const IDENTITIES=Object.freeze({
   body_energy_results:['result_lookup_key'],body_energy_checkpoints:['checkpoint_lookup_key'],
@@ -111,6 +112,7 @@ export function createPhase4EntityStore(core) {
         if(record[c.name]===undefined)record[c.name]=core.newId();
       for(const time of ['created_at','updated_at'])if(names.has(time)&&record[time]===undefined)record[time]=timestamp();
       const fields=Object.keys(record);
+      reservePilotMutation(context,client,fields.map(k=>record[k]));
       await client.execute({sql:`INSERT INTO ${table}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(k=>record[k])});
       await core.link(context,table,record.privacy_artifact_id,refs);
       const key=Object.fromEntries(info.filter(c=>c.pk&&!['user_id','execution_mode'].includes(c.name)).map(c=>[c.name,record[c.name]]));
@@ -132,10 +134,11 @@ export function createPhase4EntityStore(core) {
         if(n==null||d==null||n>d||(d===0?f!==null:f!==n/d))fail('PHASE4_INVALID_UNKNOWN_FRACTION');
       }
       const values={...patch};for(const k of Object.keys(values))if(k.endsWith('_json'))values[k]=canonicalJson(values[k]);
-      const fields=Object.keys(values);
+      const fields=Object.keys(values),args=[...fields.map(k=>values[k]),timestamp(),context.userId,context.executionMode,runId,context.inputGeneration];
+      reservePilotMutation(context,client,args);
       const result=await client.execute({sql:`UPDATE evidence_runs SET ${fields.map(k=>`${k}=?`).concat("state='COMPLETED'",'completed_at=?').join(',')}
         WHERE user_id=? AND execution_mode=? AND run_id=? AND state='STARTED' AND input_generation=?`,
-        args:[...fields.map(k=>values[k]),timestamp(),context.userId,context.executionMode,runId,context.inputGeneration]});
+        args});
       if(result.rowsAffected!==1)fail('PHASE4_CAS_LOST');
       return core.artifact(context,'evidence_runs',{run_id:runId});
     });

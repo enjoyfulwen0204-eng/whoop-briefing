@@ -21,6 +21,8 @@ import { createReceiptRouting } from './phase4ReceiptRouting.js';
 import { createFamilyDirectory } from './phase4FamilyDirectory.js';
 import {currentDurableExecution} from './phase4ExecutionContext.js';
 import {workStepOptions} from './phase4WorkStep.js';
+import {reservePilotMutation} from './betaPilotPermit.js';
+import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 
 const instances=new WeakMap();
 const invalid=()=>fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');
@@ -725,6 +727,8 @@ export function createOperationReceipts(core) {
       for(const field of ['request_json','result_json','related_results_json','required_roots_json','schema_contract_json'])
         if(Buffer.byteLength(row[field])>4194304)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
       row.receipt_hmac=seal(row);
+      reservePilotMutation(context,client,Object.values(row));
+      await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode],'',true);
       const routedSubjects=routing?await routing.register(row,{request:requestAuthority,related:encoded.related}):[];
       const fields=Object.keys(row);
       await client.execute({sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(field=>row[field])});

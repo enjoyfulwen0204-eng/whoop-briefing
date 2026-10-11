@@ -1,5 +1,7 @@
 # F06 guard candidate — preparation only
 
+This document records the initial guard and four-inventory preparation. The subsequent source/authority/mutation preparation is described in [f06-next-work-envelope-preparation.md](f06-next-work-envelope-preparation.md); neither iteration qualifies a nonzero production budget.
+
 This local candidate adds a fail-closed first-day pilot guard to the exact reviewed Core C baseline. It does not activate SHADOW, Public Beta, LIVE or Body Energy. Production cost qualification is deliberately absent: `reviewedPilotReservation()` returns `null`. Neither an environment flag, a request, delayed usage meters nor injected remote dependencies can authorize a production attempt. Missing qualification returns `DISABLED` before database admission, and successful ordinary SYNC still runs while withholding drain authorization.
 
 The one pilot configuration has a fixed ID, one canonical user ID, an absolute UTC start, an end exactly 24 hours later, a consent-evidence digest and a reviewed cost-bound identity. Presentation allowlists do not define execution scope. A dedicated `global / phase4_beta_pilot_permit_v1` row in existing v32 `system_heartbeats` stores only strict timestamps/counters/keyed digests and the canonical lifecycle generation. No tenant identifier, health content or secret is written to it. The record is mutable coordination metadata, **not** an immutable execution receipt. No schema migration, execution-authority change, receipt rewrite, reset, refund or delete API is added.

@@ -1,5 +1,5 @@
 import { canonicalJson } from './phase4EntityStore.js';
-import {readPilotPrefixRows} from './betaPilotBoundedReads.js';
+import {readPilotPrefixRows,pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import { phase4Metric,INTELLIGENCE_VERSIONS,PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
 import { createReceiptRouting } from './phase4ReceiptRouting.js';
 import { FAMILY_DIRECTORY_VERSION as VERSION,FAMILY_DIRECTORY_ENTRIES as ENTRIES,
@@ -60,7 +60,8 @@ export function createFamilyDirectory(client,keys) {
     return routing.tip(context,'EPISODE',[metricKey,phase4Metric(metricKey).domain]);
   }
   async function ensureManifest(context,sourceToken,state='COMPLETE',metricKey=null) {
-    const found=(await client.execute({sql:`SELECT * FROM ${MANIFESTS} WHERE user_id=? AND execution_mode=? AND source_token=?`,
+    const from=await pilotPrefixFrom(client,context,MANIFESTS,[context.userId,context.executionMode,sourceToken]);
+    const found=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=? AND source_token=?`,
       args:[context.userId,context.executionMode,sourceToken]})).rows[0];
     if(found){verifyManifest(found);return found;}
     const row={user_id:context.userId,execution_mode:context.executionMode,source_token:sourceToken,
@@ -71,7 +72,8 @@ export function createFamilyDirectory(client,keys) {
     return row;
   }
   async function touchSource(context,metricKey) {
-    const {token}=source(context,metricKey),prior=(await client.execute({sql:`SELECT * FROM ${MANIFESTS}
+    const {token}=source(context,metricKey),from=await pilotPrefixFrom(client,context,MANIFESTS,[context.userId,context.executionMode,token]),
+      prior=(await client.execute({sql:`SELECT * FROM ${from}
       WHERE user_id=? AND execution_mode=? AND source_token=?`,args:[context.userId,context.executionMode,token]})).rows[0];
     if(!prior&&(await routeTip(context,metricKey))?.entryCount>1)invalid();
     const current=prior??await ensureManifest(context,token,'COMPLETE',metricKey),
@@ -174,7 +176,8 @@ export function createFamilyDirectory(client,keys) {
   }
   async function inventory(context,metricKey) {
     const {token:sourceToken}=source(context,metricKey);
-    let manifest=(await client.execute({sql:`SELECT * FROM ${MANIFESTS} WHERE user_id=?
+    const from=await pilotPrefixFrom(client,context,MANIFESTS,[context.userId,context.executionMode,sourceToken]);
+    let manifest=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=?
       AND execution_mode=? AND source_token=?`,args:[context.userId,context.executionMode,sourceToken]})).rows[0];
     if(!manifest) {
       // A new tenant with no routed history can initialize an empty signed
@@ -247,7 +250,8 @@ export function createFamilyDirectory(client,keys) {
     return true;
   }
   async function requestAll(context) {
-    const rows=(await client.execute({sql:`SELECT * FROM ${TIPS} WHERE user_id=? AND execution_mode=?`,
+    const from=await pilotPrefixFrom(client,context,TIPS,[context.userId,context.executionMode]);
+    const rows=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=?`,
       args:[context.userId,context.executionMode]})).rows;
     const wanted=canonicalJson(await requested(context));
     for(const row of rows) {

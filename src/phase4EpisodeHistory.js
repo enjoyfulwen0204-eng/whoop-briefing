@@ -3,6 +3,7 @@ import { fail, requireInteger, readableRow, DERIVED_TABLES } from './phase4Core.
 import { canonicalJson } from './phase4EntityStore.js';
 import { EPISODE_SNAPSHOT_VERSION } from './phase4V25Schema.js';
 import { addPrivacyLink } from './phase4V22Backfill.js';
+import {reservePilotMutation} from './betaPilotPermit.js';
 
 // Everything else is snapshot-authoritative, including newly added columns.
 // See the complete column classification in docs/phase4-stage5-rc4-verification.md.
@@ -57,9 +58,9 @@ export function createEpisodeHistory(core,{operationAuthority=null}={}) {
       snapshot_version:EPISODE_SNAPSHOT_VERSION,semantic_at:semanticAt,snapshot_json:json,
       snapshot_hash:keys.digest(envelope.content_digest_salt,json),input_generation:context.inputGeneration,
       lifecycle_generation:context.lifecycleGeneration,auth_generation:context.authGeneration,created_at:core.timestamp()};
-    const fields=Object.keys(record);
-    await client.execute({sql:`INSERT INTO ${table}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,
-      args:fields.map(k=>record[k])});
+    const fields=Object.keys(record),args=fields.map(k=>record[k]);
+    reservePilotMutation(context,client,args);
+    await client.execute({sql:`INSERT INTO ${table}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args});
     // Origin and materialization were validated inside this transaction. Direct
     // edges deliberately also cover an INVALIDATED revision, which is stored
     // but cannot be read as a healthy parent. Purge traverses both edges.

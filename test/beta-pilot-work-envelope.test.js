@@ -11,6 +11,7 @@ import {createPhase4EntityStore} from '../src/phase4EntityStore.js';
 import {createTargetAuthorityClosure} from '../src/phase4AuthorityClosure.js';
 import {buildPhase4Core} from '../src/phase4Core.js';
 import {addPrivacyLink} from '../src/phase4V22Backfill.js';
+import {createEpisodeHistory,EPISODE_OPERATIONAL_FIELDS,EPISODE_DELIVERY_FIELDS} from '../src/phase4EpisodeHistory.js';
 const userId='pilot-user',context={userId,executionMode:'SHADOW',timezone:'Asia/Taipei',inputGeneration:0,lifecycleGeneration:1,authGeneration:0,sourceGeneration:0};
 const units={id:'c'.repeat(64),evidenceSha256:'d'.repeat(64),perAttempt:{rowsRead:1,rowsWritten:1,storageBytes:1,bytesSynced:0,microUsd:1},maximum:{rowsRead:48,rowsWritten:48,storageBytes:48,bytesSynced:0,microUsd:48}};
 async function fixture(t){
@@ -125,4 +126,40 @@ test('named mutation reservations consume attempted source-link operations despi
   assert.equal((await db.raw.execute('SELECT COUNT(*) n FROM phase4_source_links')).rows[0].n,0);
   await db.transaction(async()=>{await assert.rejects(()=>link(129),/BETA_PILOT_DENIED/);});
  });assert.equal(reviewedPilotReservation(),null);
+});
+
+async function snapshotBoundary(db,payloadSize){
+ const info=(await db.raw.execute('PRAGMA table_info(observation_episodes)')).rows,
+  ctx={...context,purgeGeneration:0},excluded=new Set([...EPISODE_OPERATIONAL_FIELDS,...EPISODE_DELIVERY_FIELDS]);
+ const row=Object.fromEntries(info.map(field=>[field.name,field.notnull?(field.type==='TEXT'?'synthetic':0):null]));
+ Object.assign(row,{user_id:userId,execution_mode:'SHADOW',episode_id:'snapshot-test',revision:1,state:'OPEN',privacy_artifact_id:'a'.repeat(64),
+  input_generation:0,lifecycle_generation:1,auth_generation:0,purge_generation:0,current_context_json:JSON.stringify({synthetic:'x'.repeat(payloadSize)})});
+ for(const field of info)if(!excluded.has(field.name)&&field.name.endsWith('_json')&&row[field.name]!==null&&field.name!=='current_context_json')row[field.name]='null';
+ const event={privacy_artifact_id:'d'.repeat(64),episode_event_id:'synthetic-event',expected_revision:0,to_state:'OPEN',input_generation:0,content_state:'PRESENT',source_linkage_state:'COMPLETE',health_content_redacted_at:null},submitted=[],execute=db.raw.execute.bind(db.raw);
+ db.raw.execute=async statement=>{
+  if(statement?.sql?.startsWith('SELECT * FROM episode_events'))return {rows:[event]};
+  if(statement?.sql?.startsWith('INSERT INTO phase4_episode_revisions')||statement?.sql?.startsWith('INSERT INTO phase4_source_links')){
+   submitted.push(statement);return {rowsAffected:1};
+  }return execute(statement);
+ };
+ const core={client:db.raw,keys:fixtureKeys,processing:{active:db.processingTransactionActive},tableInfo:async()=>info,
+  envelope:()=>({user_id:userId,execution_mode:'SHADOW',privacy_artifact_id:'b'.repeat(64),content_digest_salt:'c'.repeat(64)}),timestamp:()=> '2026-10-11T00:00:00.000Z'};
+ return {store:createEpisodeHistory(core),ctx,row,submitted};
+}
+test('episode snapshot actual serialized INSERT arguments consume the shared cumulative pilot reservation before submission',async t=>{
+ const {db,run}=await fixture(t),{store,ctx,row,submitted}=await snapshotBoundary(db,115000);
+ await run(async()=>{
+  for(let n=0;n<2;n++)await store.persist(ctx,row,'synthetic-event','2026-10-11T00:00:00.000Z');
+  await assert.rejects(()=>store.persist(ctx,row,'synthetic-event','2026-10-11T00:00:00.000Z'),/BETA_PILOT_DENIED/);
+  assert.equal(submitted.filter(s=>s.sql.startsWith('INSERT INTO phase4_episode_revisions')).length,2);
+ });
+});
+test('one under-existing-1MiB snapshot exceeds pilot cumulative bytes before SQL while ordinary no-grant snapshot semantics stay unchanged',async t=>{
+ const {db,run}=await fixture(t),{store,ctx,row,submitted}=await snapshotBoundary(db,300000);
+ await run(async()=>{
+  await assert.rejects(()=>store.persist(ctx,row,'synthetic-event','2026-10-11T00:00:00.000Z'),/BETA_PILOT_DENIED/);
+  assert.equal(submitted.length,0);
+ });
+ await db.transaction(()=>store.persist(ctx,row,'synthetic-event','2026-10-11T00:00:00.000Z'));
+ assert.equal(submitted.filter(s=>s.sql.startsWith('INSERT INTO phase4_episode_revisions')).length,1);
 });

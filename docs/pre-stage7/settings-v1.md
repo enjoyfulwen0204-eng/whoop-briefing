@@ -1,6 +1,6 @@
 # Settings v1 implementation candidate
 
-This is the first UX patch after Public Beta stabilization. Review/deploy it separately from Core Repair. No production settings, locale, name, webhook registration or Telegram message changed in this engineering session. Stage 7 Quick Actions/TRUSTED_REGISTRY and Stage 8 remain separate; schema remains v32.
+Settings v1 is a separately traceable release on a compatible, independently approved Core base. The owner's 2026-10-11 four-blocker release direction permits this milestone without waiting for Stage 6 backlog completion, Public Beta stabilization or Body Energy calibration. Review any new Core integration boundary; reuse the exact existing Settings D implementation review when its code is unchanged. No production settings, locale, name, webhook registration or Telegram message changed in this engineering session. Stage 7 Quick Actions/TRUSTED_REGISTRY and Stage 8 remain separate; schema remains v32.
 
 ## Product behavior
 
@@ -34,7 +34,7 @@ Focused tests cover all localized labels, routing, language/name persistence, ca
 
 The comprehensive engineering report and hashed evidence index distinguish original failures, corrected reruns, native driver crashes and production prerequisites. No local suite grants production approval.
 
-After Public Beta gates and separate Settings review: deploy exact D identity, preserve original credentials/v32/OFF controls as reviewed, verify webhook and polling accept `message` plus `callback_query`, keep `max_connections=1` and pending updates, and perform separately authorized authorized zh-TW/vi private-user command/button smoke; retain isolated English tests until an authorized en user exists. Never run `telegram:webhook:set` as part of local testing against real Telegram. Roll back Settings using the reviewed Core C binary/profile without schema downgrade; existing expiring session rows remain inert and ordinary commands/briefing continue.
+After compatible Core approval and the applicable Settings integration review: deploy the exact reviewed Settings successor without reverting Core safeguards, preserve original credentials/v32 and the current safe Beta controls, verify webhook and polling accept `message` plus `callback_query`, keep `max_connections=1`, the existing URL/authentication and pending updates, and perform authorized zh-TW/vi private-user command/button smoke. Preserve any other intended existing webhook update types when registering callbacks. English remains implemented and tested in isolation; no live English user or real-user language change is required. Never run `telegram:webhook:set` as part of local testing against real Telegram. Record `DEPLOYED`, `CALLBACK_ROUTING_VERIFIED`, `PERSISTENCE_VERIFIED` and `OWNER_INTERACTION_VERIFIED` independently: registration readback alone is not user acceptance. Roll back Settings using the reviewed compatible same-v32 Core/profile without schema downgrade; existing expiring session rows remain inert and ordinary commands/briefing continue.
 
 ## F07 successor concurrency contract
 

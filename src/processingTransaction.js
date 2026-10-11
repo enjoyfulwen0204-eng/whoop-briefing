@@ -185,7 +185,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     if (parent) {
       if(workStep!==undefined&&parent.workStep===undefined&&currentDurableExecution()&&currentDurableExecution().receipts!==false)missingStep();
       try {
-        if (before) await before(client);
+        if (before) await runChecks([before],client);
         if (after) parent.checks.push(after);
         if (beforeCommit) parent.finalChecks.push(beforeCommit);
         if (commitFence) parent.commitFences.add(commitFence);

@@ -1,3 +1,4 @@
+import {readOnlyProcessingCheck} from './processingTransaction.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import { compareExact } from './phase4CanonicalOrder.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
@@ -158,7 +159,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   }
   async function run(context,fn,options={}) {
     const job=jobScope.getStore();
-    const check=async()=>{await assertContext(context,options);if(job)await job.check(context);};
+    const check=readOnlyProcessingCheck(async()=>{await assertContext(context,options);if(job)await job.check(context);});
     return transaction(()=>fn(context),{readOnly:options.workStep===undefined&&options.workStepFrom===undefined,...options,before:check,after:check,...(job?{commitFence:check}:{})});
   }
   async function runControl(control,mode,fn) {

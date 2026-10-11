@@ -41,3 +41,40 @@ test('all independent read checks settle before a rejected group rolls back',asy
  await assert.rejects(()=>db.withRuntimeFence(failed,()=>db.withRuntimeFence(sibling,()=>db.transaction(async()=>{callback=true;}))));
  assert.equal(settled,true);assert.equal(callback,false);await db.transaction(()=>db.raw.execute('SELECT 444'));
 });
+
+// Actual installed HTTP-driver nested boundary, preserving all original checks.
+test('nested marked before uses checked readonly transport and every original after fence',async t=>{
+ const {db,transport}=await fixture(t);
+ const run=async marked=>{
+  let ownerChecks=0,beforeChecks=0,afterChecks=0;
+  const owner=readOnlyProcessingCheck(async client=>{ownerChecks++;await (client??db.raw).execute('SELECT 1 owner');});
+  const before=async client=>{beforeChecks++;await client.execute('SELECT 2 context');};
+  const after=readOnlyProcessingCheck(async client=>{afterChecks++;await client.execute('SELECT 3 current');});
+  const at=transport.counts.httpRequests;
+  await db.withRuntimeFence(owner,()=>db.transaction(()=>db.transaction(()=>db.raw.execute('SELECT 4 business'),{before:marked?readOnlyProcessingCheck(before):before,after})));
+  assert.equal(beforeChecks,1);assert.equal(afterChecks,1);
+  return {http:transport.counts.httpRequests-at,ownerChecks};
+ };
+ const serial=await run(false),marked=await run(true);
+ assert.equal(serial.http-marked.http,1);assert.equal(serial.ownerChecks-marked.ownerChecks,1);
+});
+test('nested marked before refuses mutation before callback while unmarked before still writes',async t=>{
+ const {db}=await fixture(t);let callback=false;
+ const write=client=>client.execute("INSERT INTO telegram_state VALUES('nested-owner','safe','2026-10-11')");
+ await assert.rejects(()=>db.transaction(()=>db.transaction(()=>{callback=true;},{before:readOnlyProcessingCheck(write)})),/PROCESSING_READ_ONLY_CHECK_REQUIRED/);
+ assert.equal(callback,false);assert.equal((await db.raw.execute("SELECT count(*) n FROM telegram_state WHERE key='nested-owner'")).rows[0].n,0);
+ await db.transaction(()=>db.transaction(()=>{callback=true;},{before:client=>write(client)}));assert.equal(callback,true);
+ assert.equal((await db.raw.execute("SELECT count(*) n FROM telegram_state WHERE key='nested-owner'")).rows[0].n,1);
+});
+test('a nested marked guard observes fresh metadata and rejected before rolls back prior work',async t=>{
+ const {db}=await fixture(t);let callback=false,checks=0;
+ await assert.rejects(()=>db.transaction(async()=>{
+  await db.raw.execute("INSERT INTO telegram_state VALUES('current-owner','revoked','2026-10-11')");
+  await db.transaction(()=>{callback=true;},{before:readOnlyProcessingCheck(async client=>{
+   checks++;const row=(await client.execute("SELECT value FROM telegram_state WHERE key='current-owner'")).rows[0];
+   if(row?.value==='revoked')throw Error('CURRENT_AUTHORITY_REJECTED');
+  })});
+ }),/CURRENT_AUTHORITY_REJECTED/);
+ assert.equal(checks,1);assert.equal(callback,false);
+ assert.equal((await db.raw.execute("SELECT count(*) n FROM telegram_state WHERE key='current-owner'")).rows[0].n,0);
+});

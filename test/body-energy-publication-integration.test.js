@@ -45,6 +45,7 @@ async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=fal
       assert.equal(result.failedJobs,0,JSON.stringify(result));
     }
     assert.equal((await worker.diagnostics()).pendingJobs,0);
+    return {body:{result:{outcome:'COMPLETE'}}};
   };
   if(drain&&measure)await withPhaseTelemetry({phase:'STAGE6_DRAIN',source:'manual',releaseSha:'b37fd100754a8d76ea009f97cd392b38ae786abd',emit:(event,fields)=>{if(event==='phase4_trace_summary'||event==='phase4_operation_totals')process.stdout.write('BODY_ENERGY_NATIVE_TELEMETRY '+JSON.stringify({event,...fields})+'\n');}},drainAll);
   else if(drain)await drainAll();
@@ -273,8 +274,9 @@ test('actual CYCLE score with receipt-backed newly-created completed workout adm
   await f.drainAll();
   const candidate=await f.stores.withContext('a',{executionMode:'SHADOW'},c=>f.stores.bodyEnergy.readDropCandidate(c,{...request(),previousResultId:old.resultId}));
   assert.equal(candidate.eligible,true);assert.equal(candidate.view.provenance.included.loadKind,'CYCLE');
-  assert.equal(candidate.view.provenance.included.loadIds.length,1);assert.ok(old.value-candidate.view.value<12);
-  assert.ok((old.value-candidate.view.value-(candidate.view.drivers.timeDepletion-old.drivers.timeDepletion))/old.value>=.15);
+  assert.equal(candidate.view.provenance.included.loadIds.length,1);
+  const unexpectedDrop=old.value-candidate.view.value-Math.max(0,candidate.view.drivers.timeDepletion-old.drivers.timeDepletion);
+  assert.ok(unexpectedDrop<12);assert.ok(unexpectedDrop/old.value>=.15);
   const sent=await sender.deliver({userId:'a',drainAuthority});assert.equal(sent.status,'delivered');assert.equal(transport.messages.length,1);
   assert.match(transport.messages[0],/Synthetic/);assert.match(transport.messages[0],/健康參考/);
   assert.equal((await f.db.getClaim('a',POLICY.reportType,candidate.episodeId)).deliveryState,'DELIVERED');

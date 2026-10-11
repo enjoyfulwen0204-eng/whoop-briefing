@@ -1,4 +1,5 @@
 import {workStepOptions} from './phase4WorkStep.js';
+import {prepareReadOnly,settledReadPreparation} from './readOnlyPreparation.js';
 /**
  * Proactive Agent 主流程（PA3／PA8／PA9）。
  *
@@ -105,16 +106,16 @@ export async function checkAndAct({
     userId: uid, expectedLifecycleGeneration,
   });
 
-  const readUnit=work=>db.raw&&typeof db.transaction==='function'?db.transaction(work,{readOnly:true}):work();
   // This preparation phase performs only protected data reads. Claims, lazy
   // question expiry, state writes, calculations and Telegram stay outside it.
-  const {coverage,state,probeRows}=await readUnit(async()=>{
+  const prepareProbe=async overlap=>{
     const coverage=await db.coverage(uid),date=coverage?.last_date??null;
     if(!date)return {coverage,state:null,probeRows:[]};
-    const state=await db.getProactiveState(uid);
-    const probeRows=await loadDailyMetrics({db,userId:uid,timezone,from:addDays(date,-FINGERPRINT_WINDOW_DAYS),to:date});
+    const stateRead=()=>db.getProactiveState(uid),probeRead=()=>loadDailyMetrics({db,userId:uid,timezone,from:addDays(date,-FINGERPRINT_WINDOW_DAYS),to:date});
+    const [state,probeRows]=overlap?await settledReadPreparation([stateRead,probeRead]):[await stateRead(),await probeRead()];
     return {coverage,state,probeRows};
-  });
+  };
+  const {coverage,state,probeRows}=await prepareReadOnly(db,()=>prepareProbe(true),()=>prepareProbe(false));
   const latestHealthDate = coverage?.last_date ?? null;
   if (!latestHealthDate) {
     return { triggered: false, reason: 'no_health_data' };
@@ -133,12 +134,13 @@ export async function checkAndAct({
   }
 
   const from = addDays(anchorDate, -LOOKBACK_DAYS);
-  const {rows,insights}=await readUnit(async()=>{
-    const rows=await loadDailyMetrics({db,userId:uid,timezone,from,to:anchorDate});
-    let insights=[];
-    try{insights=await db.getActiveInsights(uid,{});}catch{ /* no messaging on unavailable preparation */ }
+  const prepareMonitoring=async overlap=>{
+    const metricRead=()=>loadDailyMetrics({db,userId:uid,timezone,from,to:anchorDate});
+    const insightRead=()=>db.getActiveInsights(uid,{}).catch(()=>[]);
+    const [rows,insights]=overlap?await settledReadPreparation([metricRead,insightRead]):[await metricRead(),await insightRead()];
     return {rows,insights};
-  });
+  };
+  const {rows,insights}=await prepareReadOnly(db,()=>prepareMonitoring(true),()=>prepareMonitoring(false));
 
   const seriesByMetric = {};
   for (const m of MONITORED_METRICS) seriesByMetric[m] = seriesOf(rows, m);

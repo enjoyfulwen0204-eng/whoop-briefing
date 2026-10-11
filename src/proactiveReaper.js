@@ -72,6 +72,7 @@ import { TELEGRAM_BOT } from './config.js';
 import { PROACTIVE_OUTCOME, PROACTIVE_QUESTION_INTENT } from './schema.js';
 import { requireUserId } from './userContext.js';
 import { log } from './logger.js';
+import {prepareReadOnly} from './readOnlyPreparation.js';
 
 /**
  * 收割一個使用者所有過期未答的主動問題。
@@ -100,15 +101,32 @@ export async function reapExpiredProactiveQuestions({
   // ⚠️ 這兩段都**不可以**提前 return：第二輪（M-03 的孤兒事件）與追問清單
   // 完全無關，即使這裡一題都沒有，那邊仍然可能有事件卡住。
   let stale = [];
+  let preparedOrphans=null;
+  const orphanRead=()=>db.listUnresolvableProactiveEvents(uid,{olderThanIso:new Date(now.getTime()-graceMs).toISOString()});
   if (typeof db.listReapablePendingQuestions === 'function') {
-    try {
-      stale = await db.listReapablePendingQuestions(uid, {
+    const pendingRead=()=>db.listReapablePendingQuestions(uid, {
         now, intent: PROACTIVE_QUESTION_INTENT,
       });
-    } catch (err) {
-      log.warn('proactive_reap_list_failed', { user_id: uid, error: String(err?.message ?? err).slice(0, 200) });
-      stale = [];
+    const independent=async()=>{
+      let rows=[];
+      try{rows=await pendingRead();}catch(err){log.warn('proactive_reap_list_failed',{user_id:uid,error:String(err?.message??err).slice(0,200)});}
+      return {stale:rows,orphans:null};
+    };
+    let prepared;
+    try{prepared=await prepareReadOnly(db,async()=>{
+      const rows=await pendingRead();
+      // No first-pass items means no first-pass writes. Only in that case may
+      // the original orphan read share this snapshot. Otherwise its read stays
+      // after the original expiration/repair loop, with fresh currentness.
+      const orphans=rows.length===0&&typeof db.listUnresolvableProactiveEvents==='function'?await orphanRead():null;
+      return {stale:rows,orphans};
+    },independent);}catch(err){
+      // Preserve the non-throwing maintenance contract. A parent cancellation
+      // or uncertain read-only COMMIT cannot authorize more preparation/work;
+      // ordinary acknowledged read failures already took the independent path.
+      log.warn('proactive_reap_list_failed',{user_id:uid,error:String(err?.message??err).slice(0,200)});return out;
     }
+    stale=prepared.stale;preparedOrphans=prepared.orphans;
   }
 
   for (const q of stale) {
@@ -197,10 +215,9 @@ export async function reapExpiredProactiveQuestions({
   // 安全條件（在 SQL 裡）：沒有任何 OPEN 的追問還指著這個事件，而且事件
   // 送出已經超過 graceMs——所以絕不會跟一個正在處理中的請求打架。
   if (typeof db.listUnresolvableProactiveEvents === 'function') {
-    const olderThanIso = new Date(now.getTime() - graceMs).toISOString();
     let orphans = [];
     try {
-      orphans = await db.listUnresolvableProactiveEvents(uid, { olderThanIso });
+      orphans = preparedOrphans??await orphanRead();
     } catch (err) {
       log.warn('proactive_reap_orphan_list_failed', {
         user_id: uid, error: String(err?.message ?? err).slice(0, 200),

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {traceExecutionOperation} from './executionTelemetry.js';
+import {prepareReadOnly,settledReadPreparation} from './readOnlyPreparation.js';
 import {syncShouldYield} from './syncContinuation.js';
 import { summarizeSync, syncAuthorizesDrain, aggregateSyncOutcome } from './syncResult.js';
 import { withSyncOwnership } from './syncOwnership.js';
@@ -77,11 +78,10 @@ export async function dueForUser({ db, userId, timezone, now }) {
   // daily 的 key 是 health_date，執行前還不知道最新睡眠屬於哪一天，所以無法
   // 精確判斷。保守做法：只有「今天與昨天兩個 health_date 都已 SENT」才算沒事做
   // —— 涵蓋正常當天發送、以及跨午夜補發昨天的情況。
-  const dailySettled = (await db.isSent(userId, 'daily', today))
-    && (await db.isSent(userId, 'daily', yesterday));
+  const daily=async()=>(await db.isSent(userId,'daily',today))&&(await db.isSent(userId,'daily',yesterday));
   // 補發寬限內（預設週一～週三）都算「該檢查週報」，週一故障不會整週漏掉
-  const weeklyDue = localWeekday(today) <= WEEKLY.CATCHUP_DAYS
-    && !(await db.isSent(userId, 'weekly', weekKey));
+  const weekly=async()=>localWeekday(today)<=WEEKLY.CATCHUP_DAYS&&!(await db.isSent(userId,'weekly',weekKey));
+  const [dailySettled,weeklyDue]=await settledReadPreparation([daily,weekly]);
 
   return {
     today, yesterday, weekKey, dailySettled, weeklyDue,
@@ -173,7 +173,6 @@ async function runForUserOwned({
     makeReconciler = createReconciler,
   } = deps;
   const uid = user.id;
-  const readUnit=work=>db.raw&&typeof db.transaction==='function'?db.transaction(work,{readOnly:true}):work();
   // ★ v17：worker 進入點捕捉這一輪的帳號啟用世代。
   //
   // 選取時已經過濾 ACTIVE + READY，但選取到送出之間會經過 provider 往返、
@@ -326,13 +325,20 @@ async function runForUserOwned({
   // 根本沒有機會觸發。
   //
   // 「報告不用發」不等於「健康資料不需要更新」。
-  const due = await dueForUser({ db, userId: uid, timezone: tz, now });
-  const syncDue = await isSyncDue({ db, userId: uid, now }).catch(() => true);
+  const prepareDue=async overlap=>{
+    const reads=[()=>dueForUser({db,userId:uid,timezone:tz,now}),()=>isSyncDue({db,userId:uid,now}).catch(()=>true),
+      ()=>productionMaintenance&&typeof db.getAllReconciliationState==='function'
+        ?automaticFastReconciliationDue({db,userId:uid,now}).then(value=>({value}),error=>({error})):null];
+    if(overlap)return settledReadPreparation(reads);
+    const results=[];for(const read of reads)results.push(await read());return results;
+  };
+  const [due,syncDue,fastDue]=await prepareReadOnly(db,()=>prepareDue(true),()=>prepareDue(false));
   out.syncDue = syncDue;
   let reconciliationPlan = { due: false, dueResources: [] };
   if (productionMaintenance && typeof db.getAllReconciliationState === 'function') {
     try {
-      reconciliationPlan = await automaticFastReconciliationDue({ db, userId: uid, now });
+      if(fastDue.error)throw fastDue.error;
+      reconciliationPlan = fastDue.value;
       out.reconciliation = summarizeFastReconciliation(reconciliationPlan);
     } catch (err) {
       out.errors.push({stage:'fast_reconciliation_due',error:describeError(err)});
@@ -544,20 +550,22 @@ async function runForUserOwned({
   // 失敗時兩者都做不了，所以它有自己的邊界與自己的 stage 名稱。
   let analysisInputs = null;
   try {
-    analysisInputs = await traceExecutionOperation('ANALYSIS_INPUTS',()=>readUnit(async()=>{
+    const prepareAnalysis=async overlap=>{
     const anchor = (await db.coverage(uid))?.last_date ?? null;
     if (anchor) {
-      const predRows = await loadDailyMetrics({
+      const rows=()=>loadDailyMetrics({
         db, userId: uid, timezone: tz, from: addDays(anchor, -PREDICTION_LOOKBACK_DAYS), to: anchor,
       });
       // capability 接線：目標指標**已經證實**拿不到時，成熟度是
       // UNSUPPORTED 而不是「資料還在累積」。查不到 capability（還沒 probe）
       // 一律當成 null → 繼續走樣本數邏輯，絕不誤判成不支援。
-      const caps = await db.getCapabilities(uid).catch(() => ({}));
+      const capabilities=()=>db.getCapabilities(uid).catch(()=>({}));
+      const [predRows,caps]=overlap?await settledReadPreparation([rows,capabilities]):[await rows(),await capabilities()];
       return { anchor, predRows, caps };
     }
     return null;
-    }));
+    };
+    analysisInputs = await traceExecutionOperation('ANALYSIS_INPUTS',()=>prepareReadOnly(db,()=>prepareAnalysis(true),()=>prepareAnalysis(false)));
   } catch (err) {
     if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
     out.errors.push({ stage: 'analysis_inputs', error: describeError(err) });

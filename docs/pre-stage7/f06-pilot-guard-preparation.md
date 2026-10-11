@@ -1,5 +1,7 @@
 # F06 guard candidate — preparation only
 
+Historical strict-cost preparation: the later owner decision supersedes this activation policy; see [f06-owner-approved-monitored-pilot.md](f06-owner-approved-monitored-pilot.md). Prior evidence and exact reviewed identities remain historical and unchanged.
+
 This document records the initial guard and four-inventory preparation. The subsequent source/authority/mutation preparation is described in [f06-next-work-envelope-preparation.md](f06-next-work-envelope-preparation.md); neither iteration qualifies a nonzero production budget.
 
 This local candidate adds a fail-closed first-day pilot guard to the exact reviewed Core C baseline. It does not activate SHADOW, Public Beta, LIVE or Body Energy. Production cost qualification is deliberately absent: `reviewedPilotReservation()` returns `null`. Neither an environment flag, a request, delayed usage meters nor injected remote dependencies can authorize a production attempt. Missing qualification returns `DISABLED` before database admission, and successful ordinary SYNC still runs while withholding drain authorization.

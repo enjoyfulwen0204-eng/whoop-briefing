@@ -48,7 +48,7 @@ const COUNT_FIELDS=new Set(['attempt','attempts','count','changed','unchanged','
   'generation','execution_seq','lifecycle_generation','auth_generation','input_generation','purge_generation','version','from','to',
   'status_code','http_status','retry_after_ms','bytes','tokens','input_tokens','output_tokens',
   'query_count','work_receipts','jobs_considered','items_attempted','items_processed','jobs_completed','jobs_failed','remaining_jobs','users','ok','failed','skipped',
-  'timed_out','cancelled','throttled','scope_missing']);
+  'timed_out','cancelled','throttled','scope_missing','estimated_micro_usd','budget_micro_usd']);
 const ENUM_FIELDS=new Set(['status','state','result','reason','code','error_code','quality','level','class','resource','resource_type','mode','source','provider','outcome','phase','stop_reason']);
 const SAFE_ENUMS=new Set(['ACTIVE','INACTIVE','PENDING','RUNNING','COMPLETED','FAILED','RETRY','READY','BLOCKED','UNAVAILABLE',
   'SHADOW','LIVE','DELIVERED','AMBIGUOUS','DELIVERY_STARTED','NOT_REQUIRED','ACTION_READY','REDACTED','PRESENT','COMPLETE',

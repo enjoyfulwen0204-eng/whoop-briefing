@@ -14,7 +14,8 @@ import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Re
 import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
 import {executionProfile} from './phase4Rollback.js';
 import { requireRuntimeAdmission, followRuntimeRenewal } from './runtimeAdmission.js';
-import {betaPilotConfiguration,reviewedPilotReservation,createBetaPilotPermit,closingBetaPilotPermit} from './betaPilotPermit.js';
+import {betaPilotConfiguration,reviewedPilotAdmission,createBetaPilotPermit,closingBetaPilotPermit} from './betaPilotPermit.js';
+import {pilotStopRequested} from './betaPilotAllowance.js';
 export const ADMISSION_BUDGET_MS=30_000;
 export const SYNC_SOURCE_BUDGETS=Object.freeze({cloudflare:120_000,github:SYNC_BUDGET_MS,manual:SYNC_BUDGET_MS,event:120_000});
 export const DRAIN_SOURCE_BUDGETS=Object.freeze({cloudflare:45_000,github:90_000,manual:45_000,event:25_000});
@@ -43,21 +44,22 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
  if(request.releaseSha!==releaseSha)throw Object.assign(new Error('RELEASE_CHECKOUT_MISMATCH'),{code:'RELEASE_CHECKOUT_MISMATCH'});
  const proof=configurationProof(keys,config,environment,releaseSha),mode=config.runtime==='on'?'SHADOW':'OFF';
  if(request.configProof!==proof||request.executionMode!==mode)throw Object.assign(new Error('EXECUTION_CONFIG_CHANGED'),{code:'EXECUTION_CONFIG_CHANGED'});
- let pilotConfig,reservation;
+ let pilotConfig,reservation,pilotStopped=true;
  try {
-  pilotConfig=betaPilotConfiguration(environment);
+  pilotConfig=betaPilotConfiguration(environment);pilotStopped=pilotStopRequested(environment);
   // Synthetic fixtures may inject a reservation to exercise enforcement.
-  // Remote production cannot substitute an environment/request/dependency bound.
+  // Remote production admits only a reviewed certificate or this exact owner-approved monitored allowance.
   reservation=providedDb?.raw?.protocol==='file'&&deps.pilotReservation
-   ?deps.pilotReservation:reviewedPilotReservation(pilotConfig?.costBoundId);
+   ?deps.pilotReservation:reviewedPilotAdmission(pilotConfig);
  }catch{}
- const pilotReady=Boolean(config.runtime==='on'&&pilotConfig&&reservation&&Date.now()>=pilotConfig.startAt&&Date.now()<pilotConfig.endAt);
+ const pilotReady=Boolean(config.runtime==='on'&&!pilotStopped&&pilotConfig&&reservation&&Date.now()>=pilotConfig.startAt&&Date.now()<pilotConfig.endAt);
  const phaseReply=record=>{
   const response=phaseResponse(record);
-  if(request.phase==='SYNC'&&!pilotReady)response.body.drainAuthorized=false;
+  let stopped=true;try{stopped=pilotStopRequested(environment);}catch{}
+  if(request.phase==='SYNC'&&(!pilotReady||stopped))response.body.drainAuthorized=false;
   return response;
  };
- // Missing qualification/expiry disables optional work before any database
+ // Missing admission policy, operator stop or expiry disables optional work before any database
  // admission or coordination SQL. SYNC/Morning Brief follows its usual path.
  if(request.phase==='STAGE6_DRAIN'&&config.runtime==='on'&&!pilotReady)
   return phaseReply({phase:request.phase,source:request.triggerSource,executionMode:mode,outcome:'DISABLED',releaseSha});

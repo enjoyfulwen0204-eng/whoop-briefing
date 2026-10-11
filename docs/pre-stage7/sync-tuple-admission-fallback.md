@@ -1,0 +1,5 @@
+# SQL tuple admission fallback repair
+
+The different reviewer reproduced a d5af regression with the installed Hrana driver: a valid readonly execute([sql,args]) admission succeeded on f52 but called normalizedSql(undefined) on d5af. The exact repair adds a typeof-string check before the fixed first-packet allowlist. Tuple statements retain the original separate BEGIN ACK path, including tuples whose SQL equals a whitelisted projection. The allowlist, ordering, result handling, callback fences, retries, cancellation, deadlines, schema, keys and production profile remain unchanged.
+
+The exact d5af Monday whole110ms fixture passed all three READY users, six daily/weekly synthetic deliveries, all required analyses and finalized replay under the original three legs. This successor does not claim that as a new production observation. Its exact tuple controls, unchanged normal-statement path zero-RTT measurements, relevant original regressions and actual different successor review must be recorded before release. No source/credentials/health/provider publication is authorized by this local commit.

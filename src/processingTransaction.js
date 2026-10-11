@@ -172,7 +172,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
               state.admissionFirst=false;
               // Only these exact non-health metadata projections share BEGIN.
               // Unknown readonly statements retain the original ACK first.
-              if(key!=='execute'||!firstAdmissionReads.has(normalizedSql(query))){
+              if(key!=='execute'||typeof query!=='string'||!firstAdmissionReads.has(normalizedSql(query))){
                 try{await state.tx.execute('SELECT 1');}
                 catch(error){state.admissionBeginFailure=error;throw error;}
                 return state.tx[key](...args);

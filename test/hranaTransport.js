@@ -10,12 +10,19 @@ const encode=v=>v===null?{type:'null'}:typeof v==='bigint'?{type:'integer',value
  typeof v==='number'?{type:'float',value:v}:typeof v==='string'?{type:'text',value:v}:{type:'blob',base64:Buffer.from(v).toString('base64')};
 export function hranaTransport(url) {
  const streams=new Map();let armed=null,commits=0;
+ const counts={httpRequests:0,sqlStatements:0,byFamily:{}};
  const evidence=[];
  const open=()=>{const client=createClient({url,intMode:'bigint'}),id=randomUUID(),stream={client,sql:new Map(),inTransaction:false};
   streams.set(id,stream);return [id,stream];};
  const statement=async(stream,stmt)=>{
   const sql=stmt.sql??stream.sql.get(stmt.sql_id),args=stmt.named_args?.length?
    Object.fromEntries(stmt.named_args.map(x=>[x.name,decode(x.value)])):(stmt.args??[]).map(decode);
+  counts.sqlStatements++;
+  const family=/\bwhoop_(?:sleeps|recoveries|cycles|workouts|resource_access|capabilities|resource_tombstones)\b/.test(sql)?'CANONICAL_SOURCE'
+   :/\bphase4_source_links\b/.test(sql)?'SOURCE_LINK':/\bphase4_operation_receipts\b/.test(sql)?'RECEIPT'
+   :/\b(?:resource_locks|users|phase4_computation_state|phase4_user_state)\b/.test(sql)?'CONTEXT'
+   :/\bphase4_executions\b/.test(sql)?'EXECUTION_OWNER':'OTHER';
+  counts.byFamily[family]=(counts.byFamily[family]??0)+1;
   if(/^\s*BEGIN\b/i.test(sql)){stream.workResult=false;stream.matched=false;}
   if(sql.includes("SET state='WORK_COMMITTED'"))stream.workResult=true;
   if(armed?.matchSql?.test(sql))stream.matched=true;
@@ -43,6 +50,7 @@ export function hranaTransport(url) {
   c.type==='not'?!condition(c.cond,results,errors,stream):c.type==='and'?c.conds.every(v=>condition(v,results,errors,stream)):
   c.type==='or'?c.conds.some(v=>condition(v,results,errors,stream)):c.type==='is_autocommit'?!stream.inTransaction:false;
  const fetch=async request=>{
+  counts.httpRequests++;
   const body=await request.json();let [id,stream]=body.baton?[body.baton,streams.get(body.baton)]:open();
   if(!stream)throw Error('UNKNOWN_SYNTHETIC_BATON');
   const results=[];
@@ -73,5 +81,5 @@ export function hranaTransport(url) {
   }
   return new Response(JSON.stringify({baton:id,base_url:null,results}),{headers:{'content-type':'application/json'}});
  };
- return {fetch,evidence,arm:attack=>{armed=attack;},close:()=>{for(const stream of streams.values())stream.client.close();streams.clear();}};
+ return {fetch,evidence,counts,arm:attack=>{armed=attack;},close:()=>{for(const stream of streams.values())stream.client.close();streams.clear();}};
 }

@@ -53,7 +53,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   if(!capabilities.has(workerCapability))fail('PHASE4_STAGE6_CAPABILITY_REQUIRED');
   if(db?.raw?.protocol!=='file')requireBetaPilotGrant(pilotGrant,pilotGrant?.userId,db?.raw);
   foundationFlags(configuration);
-  const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,
+  const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,active:db.processingTransactionActive,
     afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
     authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
   if(![28,29,30,31,32].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');

@@ -143,7 +143,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   const phase4Invalidation=createPhase4Invalidation({client:transactionClient,transaction:processing.transaction,queue:phase4Queue});
   let foundationStore;
   async function privacyFoundation() {
-    if(!foundationStore)foundationStore=(async()=>createPhase4Foundation({db:{raw:transactionClient,transaction:processing.transaction,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit,afterProcessingCompletion:processing.afterCompletion},keys:phase4Keys,
+    if(!foundationStore)foundationStore=(async()=>createPhase4Foundation({db:{raw:transactionClient,transaction:processing.transaction,withProcessingReadSnapshot:processing.withReadSnapshot,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit,afterProcessingCompletion:processing.afterCompletion},keys:phase4Keys,
       admission:Number((await transactionClient.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)===32?await runtimeContext():undefined}))();
     try {return await foundationStore;} catch(error) {foundationStore=null;throw error;}
   }
@@ -1761,6 +1761,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     requireRuntimeAdmission: capability => requireRuntimeAdmission(transactionClient, capability, phase4Keys, processing.transaction),
     transaction: processing.transaction,
     withRuntimeFence: processing.withFence,
+    withProcessingReadSnapshot:processing.withReadSnapshot,
     assertRuntimeFences: processing.assertFences,
     assertAccountActive,
     assertTelegramReplySnapshot,

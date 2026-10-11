@@ -2,6 +2,7 @@
  * inputs; this module has no DB/provider, credentials, transport or file input. */
 import {calculateBodyEnergy,robustBaseline} from '../src/bodyEnergy.js';
 import {selectBodyEnergyInputs,validHealthDate,exactBodyInstant} from '../src/bodyEnergyInputs.js';
+import {canonicalJson} from '../src/phase4EntityStore.js';
 import {BODY_ENERGY as C} from '../src/bodyEnergyRegistry.js';
 import {BODY_ENERGY_RELEASE_CRITERIA as CRITERIA} from '../src/bodyEnergyReleaseCriteria.js';
 
@@ -174,11 +175,11 @@ function earlierInputPairs(userId,manifest){
   const rhr=new Map(manifest.baseline.rhr.map(row=>[JSON.stringify([row.health_date,String(row.sleep.id)]),row]));
   return manifest.baseline.hrv.flatMap(row=>{
     const pair=rhr.get(JSON.stringify([row.health_date,String(row.sleep.id)]));
-    if(!pair||JSON.stringify(row.sleep)!==JSON.stringify(pair.sleep)||JSON.stringify(row.recovery)!==JSON.stringify(pair.recovery))return [];
+    if(!pair||canonicalJson(row.sleep)!==canonicalJson(pair.sleep)||canonicalJson(row.recovery)!==canonicalJson(pair.recovery))return [];
     const sleep=row.sleep.sleep_performance_percentage;
     if(!finite(sleep)||sleep<0||sleep>100)return [];
     return [{identity:JSON.stringify([userId,row.health_date,String(row.sleep.id)]),
-      revision:JSON.stringify([row.sleep,row.recovery]),values:{sleepPerformance:sleep,hrv:row.value,rhr:pair.value}}];
+      revision:canonicalJson([row.sleep,row.recovery]),values:{sleepPerformance:sleep,hrv:row.value,rhr:pair.value}}];
   });
 }
 

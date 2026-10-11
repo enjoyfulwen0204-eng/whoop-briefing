@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {bodyInput} from './bodyEnergyFixture.js';
 import {selectBodyEnergyInputs} from '../src/bodyEnergyInputs.js';
+import {canonicalJson} from '../src/phase4EntityStore.js';
 import {calculateBodyEnergy} from '../src/bodyEnergy.js';
 import {evaluateBodyEnergyPrivate} from '../scripts/body-energy-private-evaluation.mjs';
 import {validateBodyEnergyQualificationPacket,BODY_ENERGY_RELEASE_CRITERIA as C} from '../src/bodyEnergyReleaseCriteria.js';
@@ -95,4 +96,18 @@ test('earlier-only paired observed inputs support correlation without invented h
   const conflict=evaluateBodyEnergyPrivate(packet([entry(captured),entry(second)])).privateAnalysis.earlierBaselineInputCorrelation;
   assert.equal(conflict.pairedTenantDays,29);assert.equal(conflict.conflictingSourceRevisionsOmitted,1);
   for(const id of [input.userId,input.sources.sleep[1].id])assert.ok(!JSON.stringify(earlier).includes(`"${id}"`));
+});
+
+test('actual canonical receipt serialization does not invent conflicting observed source revisions',()=>{
+  const input=bodyInput(),original=selectBodyEnergyInputs(input).manifest;
+  const retained=JSON.parse(canonicalJson(original));retained.as_of_epoch_ms+=1;
+  retained.as_of_utc=new Date(retained.as_of_epoch_ms).toISOString();
+  for(const row of [retained.sync.sleep,retained.sync.recovery,retained.load.sync])row.age_ms+=1;
+  const saved=calculateBodyEnergy(retained);
+  const entry={kind:'CAPTURED_MANIFEST',userId:'a',manifest:retained,savedValue:saved.value,savedQuality:saved.quality_state,
+    provenance:{receiptVerified:true,retainedContent:true,originalCapturedManifest:true}};
+  const analysis=evaluateBodyEnergyPrivate(packet([current(input),entry]));
+  assert.equal(analysis.summary.casesEvaluated,2);assert.equal(analysis.summary.capturedResultsReproduced,1);
+  assert.equal(analysis.privateAnalysis.earlierBaselineInputCorrelation.pairedTenantDays,30);
+  assert.equal(analysis.privateAnalysis.earlierBaselineInputCorrelation.conflictingSourceRevisionsOmitted,0);
 });

@@ -366,13 +366,17 @@ export function createSync({
         results.push({ resource, status: scope ? 'scope_missing' : 'failed', ...(err?.name?.startsWith('WhoopAuth')?{failureOutcome:'AUTH_FAILED'}:{}), error: detail });
       }
     }
+    const typed=typedSyncResult(results,{expectedResources:resources});
     log.info('sync_all_done', {
+      outcome:typed.outcome,complete:typed.complete,
       ok: results.filter((r) => r.status === 'ok').length,
       throttled: results.filter((r) => r.status === 'throttled').length,
       failed: results.filter((r) => r.status === 'failed').length,
       scope_missing: results.filter((r) => r.status === 'scope_missing').length,
+      timed_out:results.filter((r)=>r.status==='timeout').length,
+      cancelled:results.filter((r)=>r.status==='cancelled').length,
     });
-    return typedSyncResult(results,{expectedResources:resources});
+    return typed;
   }
   async function syncAll(options) {
     // Explicit unfenced fixtures retain their synthetic contract. All real

@@ -810,7 +810,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
         }
         if (v.skipped) summary.skipped += 1;
         if(v.deferred)summary.syncYieldRequested=true;
-        if (v.errors.length || !syncOk||v.deferred||reconciliation?.due&&reconciliation.complete!==true) summary.failed += 1;
+        if (v.errors.length || reportUnsafe||!syncOk||v.deferred||reconciliation?.due&&reconciliation.complete!==true) summary.failed += 1;
         else summary.ok += 1;
       } else {
         summary.syncYieldSafe=false;

@@ -68,7 +68,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       const group=[];while(index<checks.length&&readOnlyChecks.has(fn(checks[index])))group.push(fn(checks[index++]));
       // Every original check runs; only independent read transport overlaps.
       // Settle the whole group before rollback, and preserve failure ordering.
-      const results=await checking.run({readOnly:true},()=>Promise.allSettled(group.map(check=>check(client))));
+      const results=await checking.run({readOnly:true},()=>Promise.allSettled(group.map(check=>Promise.resolve().then(()=>check(client)))));
       const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
     }
   }

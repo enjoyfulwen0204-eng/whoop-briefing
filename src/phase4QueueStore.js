@@ -11,13 +11,16 @@ export function createPhase4QueueStore(core) {
   const cycleSchema=async()=>(await client.execute('PRAGMA table_info(phase4_jobs)')).rows.some(row=>row.name==='unresolved_since');
   async function markFull(userId,mode,generation,purgeGeneration,reasonCode) {
     if(!core.processing.active())fail('PHASE4_TRANSACTION_REQUIRED');
-    const at=timestamp(),reasons=reason(reasonCode),cycles=await cycleSchema();
-    const pending=(await client.execute({sql:'SELECT pending_purge_count FROM phase4_user_state WHERE user_id=?',args:[userId]})).rows[0]?.pending_purge_count>0;
+    const at=timestamp(),reasons=reason(reasonCode);
+    const [schema,purge]=await client.batch(['PRAGMA table_info(phase4_jobs)',
+      {sql:'SELECT pending_purge_count FROM phase4_user_state WHERE user_id=?',args:[userId]}]);
+    const cycles=schema.rows.some(row=>row.name==='unresolved_since'),pending=purge.rows[0]?.pending_purge_count>0;
+    const statements=[];
     for(const [table,kind] of [['phase4_invalidations',null],...JOB_KINDS.map(k=>['phase4_jobs',k])]) {
       const artifactId=id(table,userId,mode,kind);
       const keepRedacted=pending&&(await client.execute({sql:`SELECT content_state FROM ${table} WHERE user_id=? AND privacy_artifact_id=?`,
         args:[userId,artifactId]})).rows[0]?.content_state==='REDACTED';
-      await client.execute({sql:`INSERT INTO ${table}
+      statements.push({sql:`INSERT INTO ${table}
         (user_id,execution_mode,${kind?'job_kind,':''}requested_generation,scope_kind,reason_codes_json,updated_at,
           content_state,source_linkage_state,privacy_artifact_id,purge_generation${kind&&cycles?',unresolved_since':''})
         VALUES (?,?${kind?',?':''},?,'FULL_TENANT_RECOMPUTE',?,?,'PRESENT','COMPLETE',?,?${kind&&cycles?',?':''})
@@ -40,12 +43,16 @@ export function createPhase4QueueStore(core) {
       // Canonical cleanup may advance generations between T1 and T2. Preserve
       // the pending purge's redaction proof and disconnected graph until T2.
       if(keepRedacted)continue;
-      await client.execute({sql:`INSERT INTO phase4_source_links
+      statements.push({sql:`INSERT INTO phase4_source_links
         (user_id,artifact_execution_mode,artifact_type,artifact_id,source_execution_mode,source_type,source_id,relationship,linked_at)
         VALUES (?,?,?,?,'SHARED','USER',?,'DEPENDS_ON',?)
         ON CONFLICT DO UPDATE SET unlinked_at=NULL,purge_id=NULL,linked_at=excluded.linked_at`,
       args:[userId,mode,table,artifactId,userId,at]});
     }
+    // The fixed queue rows and their links are ordered writes in this already
+    // owned transaction. Batch their transport without splitting atomicity,
+    // bypassing any pending-purge observation, or changing COMMIT fences.
+    await client.batch(statements);
     if(mode==='SHADOW'&&(await client.execute({sql:"SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
       args:[FAMILY_WORK_TIPS]})).rows.length) {
       const row=(await client.execute({sql:`SELECT c.input_generation,c.algorithm_set_version,s.source_generation,s.purge_generation,

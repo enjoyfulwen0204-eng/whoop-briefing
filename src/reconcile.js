@@ -1,5 +1,7 @@
 import {captureWhoopInput,assertWhoopInput} from './whoopInputFence.js';
 import {workStepOptions} from './phase4WorkStep.js';
+import {readOnlyProcessingCheck} from './processingTransaction.js';
+import {syncShouldYield} from './syncContinuation.js';
 import {currentDurableExecution} from './phase4ExecutionContext.js';
 /**
  * 對帳 + 增量同步引擎（V1.2 Phase 2）。
@@ -462,7 +464,7 @@ export function createReconciler({
     let inputProof=null;
     const guardedInput=(kind,facts,fn)=>{
       if(!currentDurableExecution())return fn();
-      const check=()=>assertWhoopInput(inputOptions,inputProof);
+      const check=readOnlyProcessingCheck(()=>assertWhoopInput(inputOptions,inputProof));
       return db.transaction(fn,{...workStepOptions(`reconciliation.${kind}`,[uid,key,scope,window.from,window.to,window.token??null,inputProof,facts]),
         before:check,after:check,beforeCommit:check});
     };
@@ -636,10 +638,13 @@ export function createReconciler({
       }
     };
     for (const resource of resources) {
+      if(syncShouldYield())break;
       await guarded(resource, 'recent', async () => {
         if (!force) {
           const state = await db.getReconciliationState(uid, resource);
-          if (!isReconcileDue(state, { now: at() })) return { resource, scope: 'recent', result: RECONCILE_RESULT.SKIPPED, reason: 'not_due' };
+          const observedNow=at();
+          if (!isReconcileDue(state, { now: observedNow })) return { resource, scope: 'recent', result: RECONCILE_RESULT.SKIPPED,
+            reason:state?.nextAttemptAt&&Date.parse(state.nextAttemptAt)>observedNow.getTime()?'backoff':'not_due' };
         }
         return reconcileResource(resource);
       });

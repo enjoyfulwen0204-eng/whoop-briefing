@@ -3,7 +3,7 @@
  * nonnegative counts, timestamps and authenticated opaque transport hashes;
  * it cannot store tenant IDs, health data, names or arbitrary narrative. */
 import { randomUUID } from 'node:crypto';
-import {databaseNowMs,CommitIndeterminateError} from './phase4ExecutionContext.js';
+import {databaseNowMs,CommitIndeterminateError,requireSettledOperation} from './phase4ExecutionContext.js';
 import { BRIEFING_TRIGGER, bodySha256 } from './briefingTriggerAuth.js';
 import { requireTriggerSource } from './phase4DrainPolicy.js';
 import { requireReleaseSha, runningReleaseSha } from './phase4Release.js';
@@ -21,6 +21,7 @@ const observedCommits=new WeakSet();
 export const observedPhaseWorkCommit=claim=>claim.workCommitted===true||observedCommits.has(claim);
 // Coordination protocol version occupies the existing opaque ID; it grants no authority.
 export const isContinuationRequest=request=>request?.triggerSource==='cloudflare'&&/^p4c1_[a-zA-Z0-9_-]{10,122}$/.test(request?.requestId??'');
+export const isSyncContinuationRequest=request=>request?.phase==='SYNC'&&request?.triggerSource==='cloudflare'&&/^p4s1_[a-zA-Z0-9_-]{10,122}$/.test(request?.requestId??'');
 export const canonicalPhaseRequest=request=>JSON.stringify(Object.fromEntries(Object.keys(request).sort().map(key=>[key,request[key]])));
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 const pendingOwner=row=>{const error=Object.assign(Error('REQUEST_PENDING'),{code:'REQUEST_PENDING',retryAfterMs:Math.max(0,Math.min(225000,Math.ceil(row.deadline_at-Date.now())))});throw error;};
@@ -30,7 +31,7 @@ export function validatePhaseRequest(request) {
  if(typeof request.requestId!=='string'||!BRIEFING_TRIGGER.REQUEST_ID_RE.test(request.requestId)||!['OFF','SHADOW'].includes(request.executionMode)
    ||!HASH.test(request.configProof))fail('EXECUTION_REQUEST_INVALID');
  const allowed=['phase','releaseSha','triggerSource','requestId','executionMode','configProof','syncRequestId','handoff','legacyBodyDigest'];
- if(isContinuationRequest(request)&&request.legacyBodyDigest!==undefined)fail('EXECUTION_REQUEST_INVALID');
+ if((isContinuationRequest(request)||isSyncContinuationRequest(request))&&request.legacyBodyDigest!==undefined)fail('EXECUTION_REQUEST_INVALID');
  if(request.legacyBodyDigest!==undefined&&!HASH.test(request.legacyBodyDigest))fail('EXECUTION_REQUEST_INVALID');
  if(Object.keys(request).some(k=>!allowed.includes(k)))fail('EXECUTION_REQUEST_INVALID');
  if(request.phase==='SYNC'&&(request.syncRequestId!==undefined||request.handoff!==undefined))fail('EXECUTION_REQUEST_INVALID');
@@ -41,7 +42,7 @@ export function validatePhaseRequest(request) {
 export function validatePhaseBody(request,body){
  let parsed;try{parsed=validatePhaseRequest(JSON.parse(body));}catch{fail('EXECUTION_BODY_MISMATCH');}
  if(Object.keys(request).length!==Object.keys(parsed).length||Object.keys(request).some(key=>request[key]!==parsed[key]))fail('EXECUTION_BODY_MISMATCH');
- if(isContinuationRequest(request)&&body!==canonicalPhaseRequest(request))fail('EXECUTION_BODY_MISMATCH');
+ if((isContinuationRequest(request)||isSyncContinuationRequest(request))&&body!==canonicalPhaseRequest(request))fail('EXECUTION_BODY_MISMATCH');
  return parsed;
 }
 export const configurationProof=(keys,config,environment,releaseSha=runningReleaseSha(environment))=>{
@@ -288,6 +289,39 @@ export async function abortPhaseExecution(db,claim,outcome='FAILED',{resumable=f
   state=CASE WHEN ?=0 AND state='ESTABLISHED' AND NOT EXISTS(SELECT 1 FROM phase4_execution_work_receipts WHERE execution_id=phase4_executions.execution_id) THEN 'ABORTED' ELSE state END,abort_outcome=?
   WHERE execution_id=? AND owner=? AND generation=? AND state IN ('ESTABLISHED','WORK_COMMITTED')`,
   args:[resumable?1:0,outcome,claim.executionId,claim.owner,claim.generation]});
+}
+/** A deliberate completed-unit yield leaves the v32 result genuinely uncommitted.
+ * Only the live current generation may tighten its own authority; readback must
+ * prove expiration and NULL immutable result fields before ordinary resumption. */
+export async function yieldSyncPhase(db,claim,authority,result={}){
+ if(!isSyncContinuationRequest(claim?.request)||typeof authority?.assert!=='function')fail('CONTINUATION_SCOPE_REJECTED');
+ if(db.processingTransactionActive?.())fail('EXECUTION_SETTLEMENT_MUST_BE_ROOT');
+ requireSettledOperation();
+ authority.assert();
+ await db.transaction(async()=>{
+  const row=await ownerCheck(db,claim);requestMatches(row,claim.request,claim.identity);
+  if(row.state!=='ESTABLISHED'||row.scope_key!==claim.scopeKey||row.result_json!==null||row.result_digest!==null)fail('EXECUTION_NOT_COMMITTED');
+  authority.assert();
+  const changed=await db.raw.execute({sql:`UPDATE phase4_executions SET lease_until=MIN(lease_until,${databaseNowMs}-1),
+   deadline_at=MIN(deadline_at,${databaseNowMs}-1),updated_at=${databaseNowMs}
+   WHERE execution_id=? AND owner=? AND generation=? AND state='ESTABLISHED' AND result_json IS NULL AND result_digest IS NULL
+    AND deadline_at>${databaseNowMs} AND lease_until>${databaseNowMs} AND created_at>${databaseNowMs}-?`,
+   args:[claim.executionId,claim.owner,claim.generation,EXECUTION_WORK_MAX_AGE_MS]});
+  if(changed.rowsAffected!==1)fail('REQUEST_OWNER_FENCED');
+ },{commitAuthority:authority.assert});
+ authority.assert();
+ let observed;
+ try{
+  observed=(await db.raw.execute({sql:`SELECT *,${databaseNowMs} observed_at FROM phase4_executions WHERE execution_id=?`,args:[claim.executionId]})).rows[0];
+  requestMatches(observed,claim.request,claim.identity);authority.assert();
+  if(observed.owner!==claim.owner||observed.generation!==claim.generation||observed.state!=='ESTABLISHED'
+   ||observed.result_json!==null||observed.result_digest!==null||observed.work_committed_at!==null||observed.finalized_at!==null
+   ||observed.deadline_at>=observed.observed_at||observed.lease_until>=observed.observed_at)throw new CommitIndeterminateError();
+ }catch{throw new CommitIndeterminateError();}
+ return {phase:'SYNC',source:claim.request.triggerSource,releaseSha:claim.request.releaseSha,executionMode:claim.request.executionMode,
+  ...Object.fromEntries(['users','failed','durationMs'].filter(key=>Number.isFinite(result[key])&&result[key]>=0).map(key=>[key,result[key]])),
+  executionSeq:observed.execution_seq,outcome:'PARTIAL',resumable:true,continuationState:'INCOMPLETE_RESUMABLE',retryAfterMs:0,
+  yieldReason:'COMPLETED_UNITS_BUDGET'};
 }
 export async function noteIndeterminateExecution(db,claim){
  await db.raw.execute({sql:`UPDATE phase4_executions SET observed_outcome='COMMIT_INDETERMINATE',updated_at=${databaseNowMs}

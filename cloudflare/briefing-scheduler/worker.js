@@ -1,6 +1,7 @@
 const PATH='/internal/briefing/run';
 const CONTINUATION_PATH='/internal/briefing/continuation';
 export const MAX_CONTINUATION_SEGMENTS=2;
+export const MAX_SYNC_CONTINUATION_SEGMENTS=3;
 export const MAX_ATTEMPTS=2;
 export const TIMEOUT_MS=180_000;
 export const DRAIN_TIMEOUT_MS=100_000;
@@ -14,6 +15,9 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const hex=bytes=>[...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('');
 const sha256=async text=>hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)));
 const canonical=value=>JSON.stringify(Object.fromEntries(Object.keys(value).sort().map(key=>[key,value[key]])));
+const syncScopes=new Set(['sync','sync-and-stage6-shadow']);
+const drainScopes=new Set(['stage6-shadow','sync-and-stage6-shadow']);
+const syncSuccessOutcomes=new Set(['COMPLETE_SUCCESS','NO_NEW_DATA_SUCCESS','INTENTIONALLY_INAPPLICABLE']);
 export async function canonicalMessage({timestamp,requestId,method,path,body}) {return [timestamp,requestId,method.toUpperCase(),path,await sha256(body)].join('\n');}
 export async function signRequest(args,secret) {
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
@@ -53,9 +57,11 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
  const root=crypto.randomUUID();
  const continuation=env.BRIEFING_CONTINUATION_DISCOVERY==='on';
  if(![undefined,'on','off'].includes(env.BRIEFING_CONTINUATION_DISCOVERY))throw error('configuration',true);
- if(![undefined,'off','stage6-shadow'].includes(env.BRIEFING_CONTINUATION_SCOPE)
-  ||continuation&&(env.BRIEFING_CONTINUATION_SCOPE!=='stage6-shadow'||env.BRIEFING_EXECUTION_MODE!=='SHADOW')
-  ||env.BRIEFING_CONTINUATION_SCOPE==='stage6-shadow'&&!continuation)throw error('configuration',true);
+ const scope=env.BRIEFING_CONTINUATION_SCOPE,syncContinuation=continuation&&syncScopes.has(scope),drainContinuation=continuation&&drainScopes.has(scope);
+ if(![undefined,'off',...syncScopes,...drainScopes].includes(scope)
+  ||continuation&&!syncContinuation&&!drainContinuation
+  ||drainScopes.has(scope)&&env.BRIEFING_EXECUTION_MODE!=='SHADOW'
+  ||(syncScopes.has(scope)||drainScopes.has(scope))&&!continuation)throw error('configuration',true);
  let recovered=null;
  if(continuation){
   const requestId=crypto.randomUUID(),timestamp=String(now());
@@ -81,7 +87,9 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
     let request;try{request=JSON.parse(payload.requestBody);}catch{throw error('invalid_discovery',true);}
     const required=request.phase==='STAGE6_DRAIN'?'configProof,executionMode,handoff,phase,releaseSha,requestId,syncRequestId,triggerSource':'configProof,executionMode,phase,releaseSha,requestId,triggerSource';
     if(Object.keys(request).sort().join(',')!==required||!['SYNC','STAGE6_DRAIN'].includes(request.phase)
-     ||request.phase==='SYNC'&&payload.state!=='FINALIZED_SUCCESS'||request.phase==='STAGE6_DRAIN'&&!/^p4c1_[a-zA-Z0-9_-]{10,122}$/.test(request.requestId??'')||request.triggerSource!=='cloudflare'||request.releaseSha!==env.BRIEFING_RELEASE_SHA||request.executionMode!==env.BRIEFING_EXECUTION_MODE
+     ||request.phase==='SYNC'&&(payload.state!=='FINALIZED_SUCCESS'&&(!syncContinuation||!/^p4s1_[a-zA-Z0-9_-]{10,122}$/.test(request.requestId??''))
+      ||/^p4s1_/.test(request.requestId??'')&&!syncContinuation)
+     ||request.phase==='STAGE6_DRAIN'&&(!drainContinuation||!/^p4c1_[a-zA-Z0-9_-]{10,122}$/.test(request.requestId??''))||request.triggerSource!=='cloudflare'||request.releaseSha!==env.BRIEFING_RELEASE_SHA||request.executionMode!==env.BRIEFING_EXECUTION_MODE
      ||request.configProof!==env.BRIEFING_CONFIG_PROOF||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{15,127}$/.test(request.requestId)||canonical(request)!==payload.requestBody)throw error('invalid_discovery',true);
     if(request.phase==='STAGE6_DRAIN'&&(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{15,127}$/.test(request.syncRequestId)||!/^[a-f0-9]{64}$/.test(request.handoff)||request.requestId===request.syncRequestId))throw error('invalid_discovery',true);
     recovered={requestId:request.requestId,body:payload.requestBody,phase:request.phase};
@@ -89,12 +97,13 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
   }finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
  }
  async function phase(phaseName,handoff) {
-  const requestId=recovered?.phase===phaseName?recovered.requestId:continuation&&handoff?`p4c1_${await sha256(`stage6-drain-v1:${handoff.requestId}`)}`:`${root}_${phaseName.toLowerCase()}`;
+  const requestId=recovered?.phase===phaseName?recovered.requestId:drainContinuation&&handoff?`p4c1_${await sha256(`stage6-drain-v1:${handoff.requestId}`)}`:`${phaseName==='SYNC'&&syncContinuation?'p4s1_':''}${root}_${phaseName.toLowerCase()}`;
   const serialize=continuation?canonical:JSON.stringify;
   const body=recovered?.phase===phaseName?recovered.body:serialize({requestId,releaseSha:env.BRIEFING_RELEASE_SHA,phase:phaseName,executionMode:env.BRIEFING_EXECUTION_MODE,triggerSource:'cloudflare',configProof:env.BRIEFING_CONFIG_PROOF,
    ...(handoff?{syncRequestId:handoff.requestId,handoff:handoff.token}:{})});
   let last, retryWait=0;
-  const maxAttempts=phaseName==='STAGE6_DRAIN'&&continuation?MAX_CONTINUATION_SEGMENTS:MAX_ATTEMPTS;
+  const scopedSync=phaseName==='SYNC'&&syncContinuation;
+  const maxAttempts=scopedSync?MAX_SYNC_CONTINUATION_SEGMENTS:phaseName==='STAGE6_DRAIN'&&drainContinuation?MAX_CONTINUATION_SEGMENTS:MAX_ATTEMPTS;
   for(let attempt=1;attempt<=maxAttempts;attempt++) {
    assertCaller();
    const timestamp=String(now());
@@ -119,26 +128,36 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
     if(response.status===200&&!payload)throw error('invalid_response',true);
     if(response.status===200&&payload?.ok===true&&payload.phase===phaseName&&payload.source==='cloudflare'
       &&payload.result?.settlementState==='FINALIZED_SUCCESS'&&(phaseName!=='SYNC'||payload.syncComplete===true)) {
+      if(scopedSync&&(!syncSuccessOutcomes.has(payload.result.outcome)||payload.result.resumable===true))throw error('invalid_response',true);
       console.log(JSON.stringify({event:'briefing_phase_ok',phase:phaseName,attempt,status:response.status}));
       return {requestId,payload,status:response.status,attempt};
     }
     if(response.status===202 && payload?.result?.resumable===true && payload.phase===phaseName && payload.source==='cloudflare' && payload.ok===false) {
+      if(scopedSync&&(payload.syncComplete!==false||payload.drainAuthorized!==false||payload.handoff!==undefined
+       ||['WORK_COMMITTED','FINALIZED_SUCCESS','FINALIZED_FAILURE'].includes(payload.result.settlementState)))throw error('invalid_response',true);
       const wait=payload.result.retryAfterMs;
       if(!Number.isSafeInteger(wait)||wait<0||wait>15_000)throw error('invalid_response',true);
       retryWait=wait;
-      const pending=error('continuation_pending');pending.requestId=requestId;pending.resumable=true;throw pending;
+      const pending=error('continuation_pending');pending.requestId=requestId;pending.resumable=true;
+      pending.acknowledgedSyncYield=scopedSync&&payload.result.outcome==='PARTIAL'&&payload.result.continuationState==='INCOMPLETE_RESUMABLE'
+       &&payload.result.yieldReason==='COMPLETED_UNITS_BUDGET'&&wait===0;
+      throw pending;
     }
     if(response.status===207||(payload?.syncComplete===false&&payload?.result?.outcome!=='COMMIT_INDETERMINATE'))throw error('sync_incomplete',true);
-    if(continuation&&phaseName==='STAGE6_DRAIN'&&response.status===409&&['REQUEST_PENDING','REQUEST_SCOPE_PENDING'].includes(payload?.error)){
+    if((phaseName==='STAGE6_DRAIN'&&drainContinuation||scopedSync)&&response.status===409&&['REQUEST_PENDING','REQUEST_SCOPE_PENDING'].includes(payload?.error)){
       const delay=payload.retryAfterMs??15000;
       if(!Number.isSafeInteger(delay)||delay<0||delay>225000)throw error('invalid_response',true);
       retryWait=delay;
-      const pending=error('continuation_pending');pending.requestId=requestId;pending.resumable=true;throw pending;
+      const pending=error('continuation_pending');pending.requestId=requestId;pending.resumable=true;pending.coordinationPending=true;throw pending;
     }
     last=error(isRedirect(response.status)?'redirect':response.status===401||response.status===403?'authentication':`http_${Math.floor(response.status/100)}xx`,
       !retryableStatus(response.status)&&!(response.status===409&&['REQUEST_PENDING','REQUEST_SCOPE_PENDING'].includes(payload?.error)));
     throw last;
-   }catch(e){if(now()>=deadlineAt)throw error('timeout',true);if(signal?.aborted)throw error('cancelled',true);last=e;if(e?.name==='TypeError'&&/redirect/i.test(e.message))last=error('redirect',true);if(!last.category)last=error(controller.signal.aborted?'timeout':'transport');if(last.nonRetryable||attempt===maxAttempts)throw last;}
+   }catch(e){if(now()>=deadlineAt)throw error('timeout',true);if(signal?.aborted)throw error('cancelled',true);last=e;if(e?.name==='TypeError'&&/redirect/i.test(e.message))last=error('redirect',true);if(!last.category)last=error(controller.signal.aborted?'timeout':'transport');
+    // A third scoped SYNC leg requires a known resumable acknowledgement.
+    // Unknown transport/COMMIT acknowledgements retain the ordinary two-attempt
+    // bound; every retry still signs the exact body for fresh app reconciliation.
+    if(last.nonRetryable||attempt===maxAttempts||scopedSync&&attempt>=MAX_ATTEMPTS&&!last.acknowledgedSyncYield&&!last.coordinationPending)throw last;}
    finally{controller.abort();try{void response?.body?.cancel().catch(()=>{});}catch{}clearTimer(timer);signal?.removeEventListener('abort',onAbort);}
    const wait=Math.max(attempt*500,retryWait);retryWait=0;
    if(now()+wait>=deadlineAt)throw last;
@@ -156,6 +175,7 @@ export async function invoke(env,{fetchImpl=fetch,now=()=>Date.now(),sleep=delay
   const drain=await phase('STAGE6_DRAIN');return {ok:true,status:drain.status,attempt:drain.attempt,phase:'STAGE6_DRAIN',outcome:drain.payload.result?.outcome};
  }
  const sync=await phase('SYNC');
+ if(scope==='sync')return {ok:true,status:sync.status,attempt:sync.attempt,phase:'SYNC',drain:'DISABLED'};
  if(sync.payload.drainAuthorized!==true)return {ok:true,status:sync.status,attempt:sync.attempt,phase:'SYNC',drain:'DISABLED'};
  if(env.BRIEFING_EXECUTION_MODE!=='SHADOW'||!/^[a-f0-9]{64}$/.test(sync.payload.handoff))throw error('invalid_handoff',true);
  const drain=await phase('STAGE6_DRAIN',{requestId:sync.requestId,token:sync.payload.handoff});

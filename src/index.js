@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {traceExecutionOperation} from './executionTelemetry.js';
+import {syncShouldYield} from './syncContinuation.js';
 import { summarizeSync, syncAuthorizesDrain, aggregateSyncOutcome } from './syncResult.js';
 import { withSyncOwnership } from './syncOwnership.js';
 import { requireRuntimeConnection } from './runtimeAdmission.js';
@@ -101,16 +102,26 @@ export async function automaticFastReconciliationDue({
 }) {
   const states = await db.getAllReconciliationState(userId);
   const byResource = new Map(states.map((state) => [state.resource, state]));
-  const dueResources = resources.filter((resource) => isReconcileDue(
-    byResource.get(resource) ?? null, { now, minIntervalMs },
-  ));
+  const execution=currentDurableExecution();
+  const dueResources = resources.filter((resource) => {
+    const state=byResource.get(resource)??null;
+    // A retry backoff is never evidence that a resource attempted by this
+    // canonical parent finished. Keep it required without bypassing backoff.
+    const attempt=Date.parse(state?.lastAttemptAt),success=Date.parse(state?.lastSuccessAt);
+    const unfinished=execution?.syncContinuation&&attempt>=execution.claim.startedAt
+      &&(!(success>=attempt)||Number(state?.consecutiveFailures)>0||state?.continuationFrom&&state?.continuationTo);
+    return unfinished||isReconcileDue(state,{now,minIntervalMs});
+  });
   return { due: dueResources.length > 0, dueResources };
 }
 
 /** 只保留排程觀測需要的安全 metadata，不把 provider payload 放進 summary。 */
 export function summarizeFastReconciliation(plan, results = []) {
   const count = (value) => results.filter((r) => r?.result === value).length;
+  const complete = (plan?.dueResources??[]).every(resource=>results.some(r=>r?.resource===resource&&r?.scope==='recent'
+    &&(r.result===RECONCILE_RESULT.SUCCESS||r.result===RECONCILE_RESULT.SKIPPED&&r.reason==='not_due')));
   return {
+    complete,
     due: Boolean(plan?.due),
     dueResources: [...(plan?.dueResources ?? [])],
     attempted: results.filter((r) => r?.result !== RECONCILE_RESULT.SKIPPED).length,
@@ -162,6 +173,7 @@ async function runForUserOwned({
     makeReconciler = createReconciler,
   } = deps;
   const uid = user.id;
+  const readUnit=work=>db.raw&&typeof db.transaction==='function'?db.transaction(work,{readOnly:true}):work();
   // ★ v17：worker 進入點捕捉這一輪的帳號啟用世代。
   //
   // 選取時已經過濾 ACTIVE + READY，但選取到送出之間會經過 provider 往返、
@@ -188,6 +200,11 @@ async function runForUserOwned({
       out.skipped = 'account_inactive'; return true;
     }
     return false;
+  };
+  const yieldUser=options=>{
+    if(!syncShouldYield(options))return false;
+    out.sync ??= {outcome:'PARTIAL',complete:false,resources:[]};
+    out.deferred=true;return true;
   };
 
   /**
@@ -318,6 +335,7 @@ async function runForUserOwned({
       reconciliationPlan = await automaticFastReconciliationDue({ db, userId: uid, now });
       out.reconciliation = summarizeFastReconciliation(reconciliationPlan);
     } catch (err) {
+      out.errors.push({stage:'fast_reconciliation_due',error:describeError(err)});
       out.reconciliation = {
         due: null, dueResources: [], attempted: 0, completed: 0, partial: 0,
         failed: 0, fenced: 0, deferred: 1, discrepancies: 0,
@@ -338,7 +356,8 @@ async function runForUserOwned({
 
   // 報告不用發、資料也還在節流窗內 → 乾淨的 no-op。
   // 刻意在拿 WHOOP token **之前** 就返回：這一輪完全不碰 WHOOP。
-  if ((!locale || !due.anythingDue) && !syncDue && !reconciliationPlan.due) {
+  const resumedSync=currentDurableExecution()?.syncContinuation&&currentDurableExecution().claim.generation>1;
+  if ((!locale || !due.anythingDue) && !syncDue && !reconciliationPlan.due&&!resumedSync) {
     if (locale) out.skipped = 'nothing_due';
     out.sync = {outcome:'NO_NEW_DATA_SUCCESS',complete:true,resources:[],processed:0};
     return out;
@@ -393,6 +412,7 @@ async function runForUserOwned({
   };
 
   if (await stopHealth()) return out;
+  if(yieldUser())return out;
 
   // ---- daily ----
   // 報告的條件維持原樣（health_date 去重 + report_claims），完全沒有放寬。
@@ -410,6 +430,7 @@ async function runForUserOwned({
   }
 
   if (await stopHealth(out.daily)) return out;
+  if(yieldUser())return out;
 
   // ---- weekly（不因為 daily 的結果而跳過）----
   if (locale && due.weeklyDue) {
@@ -426,6 +447,7 @@ async function runForUserOwned({
   }
 
   if (await stopHealth(out.weekly)) return out;
+  if(yieldUser())return out;
 
   // ---- 長期資料同步 ----
   // 刻意放在報告之後：簡報永遠優先，同步只是附加工作。
@@ -443,6 +465,7 @@ async function runForUserOwned({
   }
 
   if (await stopHealth(out.sync)) return out;
+  if(yieldUser())return out;
 
   // ---- V1.2 production activation：低頻、FAST-only 對帳 -----------------
   // 正常 incremental sync 仍是主要新鮮度路徑；對帳在它之後驗證與修復分歧。
@@ -485,6 +508,7 @@ async function runForUserOwned({
   }
 
   if (await stopHealth(out.reconciliation)) return out;
+  if(yieldUser())return out;
 
   // ---- Proactive Agent（PA3）----
   // 在 sync 之後跑：只有這次 sync 真的帶來新的 health_date 才會做任何事
@@ -501,6 +525,7 @@ async function runForUserOwned({
   }
 
   if (await stopHealth(out.proactive)) return out;
+  if(yieldUser({reserveMs:15_000}))return out;
 
   // ---- 預測生產迴圈（V1.1 Phase 10）----
   // 訓練 → 時序評估 → 對照樸素基準線 → 存模型 → 產生候選預測 → 回填實際值。
@@ -519,7 +544,7 @@ async function runForUserOwned({
   // 失敗時兩者都做不了，所以它有自己的邊界與自己的 stage 名稱。
   let analysisInputs = null;
   try {
-    analysisInputs = await traceExecutionOperation('ANALYSIS_INPUTS',async()=>{
+    analysisInputs = await traceExecutionOperation('ANALYSIS_INPUTS',()=>readUnit(async()=>{
     const anchor = (await db.coverage(uid))?.last_date ?? null;
     if (anchor) {
       const predRows = await loadDailyMetrics({
@@ -532,7 +557,7 @@ async function runForUserOwned({
       return { anchor, predRows, caps };
     }
     return null;
-    });
+    }));
   } catch (err) {
     if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
     out.errors.push({ stage: 'analysis_inputs', error: describeError(err) });
@@ -540,6 +565,7 @@ async function runForUserOwned({
   }
 
   if (await stopHealth()) return out;
+  if(yieldUser({reserveMs:15_000}))return out;
   const outputDb = lifecycleOutputDb(db, { userId: uid, expectedLifecycleGeneration, writers: SCHEDULED_OUTPUT_WRITERS });
 
   // ---- 預測生產迴圈（V1.1 Phase 10）----
@@ -562,6 +588,7 @@ async function runForUserOwned({
   }
 
   if (await stopHealth(out.prediction)) return out;
+  if(yieldUser({reserveMs:15_000}))return out;
 
   // ---- Personal Healthspan 盤點（V1.1 Phase 12）----
   // snapshotContributors 以前沒有任何生產呼叫端，兩張 healthspan 表
@@ -746,6 +773,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
       },
     );
 
+    summary.syncYieldSafe=true;
     for (const [i, r] of results.entries()) {
       const uid = users[i].id;
       if (r.ok) {
@@ -759,6 +787,10 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
         summary.syncResults ??= []; summary.syncResults.push(sync);
 
         const reconciliation = v.reconciliation ?? null;
+        const reportUnsafe=[v.daily?.status,v.weekly?.status].some(status=>['telegram_failed','delivery_ambiguous','claim_busy','claim_lost'].includes(status));
+        if(v.errors.length||reportUnsafe||sync.resources?.some(resource=>!['ok','throttled','scope_missing'].includes(resource.status))
+          ||reconciliation?.failed||reconciliation?.fenced||reconciliation?.results?.some(result=>['backoff','claim_busy'].includes(result.reason)))summary.syncYieldSafe=false;
+        if(reconciliation?.due&&reconciliation.complete!==true)summary.fastIncomplete=true;
         summary.perUser.push({
           userId: uid,
           daily: v.daily?.status ?? 'not_run',
@@ -777,9 +809,11 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
           }
         }
         if (v.skipped) summary.skipped += 1;
-        if (v.errors.length || !syncOk) summary.failed += 1;
+        if(v.deferred)summary.syncYieldRequested=true;
+        if (v.errors.length || !syncOk||v.deferred||reconciliation?.due&&reconciliation.complete!==true) summary.failed += 1;
         else summary.ok += 1;
       } else {
+        summary.syncYieldSafe=false;
         summary.failed += 1;
         if (r.error?.code === 'SYNC_SCOPE_BUSY') summary.coordinationPending = true;
         summary.errors.push({ userId: uid, error: describeError(r.error) });
@@ -790,6 +824,10 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     summary.syncOutcome = aggregateSyncOutcome(summary.syncResults, {failed: summary.failed});
     summary.syncComplete = summary.failed === 0 && summary.errors.length === 0
       && syncAuthorizesDrain({outcome:summary.syncOutcome});
+    if(summary.syncYieldRequested||summary.fastIncomplete){
+      summary.syncComplete=false;
+      if(syncAuthorizesDrain({outcome:summary.syncOutcome})||summary.syncOutcome==='PARTIAL')summary.syncOutcome='PARTIAL';
+    }
     // ---- 供應商存活 vs 每個使用者的結果，是兩件事 ----
     //
     // 之前只要有任何一個使用者失敗就整輪不寫 heartbeat。一個使用者 token 過期，
@@ -875,6 +913,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     users: summary.users, ok: summary.ok, failed: summary.failed,
     skipped: summary.skipped, errors: summary.errors.length,
   });
+  summary.syncYieldSafe=summary.syncYieldSafe===true&&summary.errors.length===0&&!summary.coordinationPending;
   return summary;
 }
 

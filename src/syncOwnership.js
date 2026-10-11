@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { requireUserId } from './userContext.js';
 import { SETTLEMENT_MARGIN_MS, createExecutionBudget } from './executionBudget.js';
+import {readOnlyProcessingCheck} from './processingTransaction.js';
 const scope = new AsyncLocalStorage();
 export class SyncOwnershipError extends Error {
   constructor(code) { super(code); this.code = code; }
@@ -29,12 +30,12 @@ export async function withSyncOwnership({ db, userId, budget, leaseMs }, work) {
     if (execution) execution.coordinationPending = true;
     throw error;
   }
-  const check = async client => {
+  const check = readOnlyProcessingCheck(async client => {
     budget.assert();
     if (client && !(await client.execute({sql:'SELECT 1 FROM resource_locks WHERE name=? AND owner=? AND expires_at=? AND expires_at>?',
       args:[name,owner,expiresAt,new Date().toISOString()]})).rows.length) throw new SyncOwnershipError('SYNC_OWNER_FENCED');
     budget.assert();
-  };
+  });
   const context = Object.freeze({ db, userId:uid, budget, expiresAt:Date.parse(expiresAt), assertCurrent:()=>check(db.raw) });
   try { return await scope.run(context, () => db.withRuntimeFence(check, () => budget.run(() => work(context)))); }
   finally {

@@ -82,6 +82,10 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
     if(property==='execute')return execute;
     if(property==='batch')return async statements=>{
       const call=calls.getStore();
+      // Outside a compatibility health call, execute() already delegates each
+      // statement unchanged. Preserve the installed transaction's batch here
+      // too, instead of expanding owned queue metadata into HTTP round trips.
+      if(!call?.enabled)return client.batch(statements);
       const canonical=call?.enabled?CANONICAL_BATCHES[call.name]:null;
       if(canonical&&statements.length&&statements.every(s=>new RegExp(`^\\s*INSERT\\s+INTO\\s+${canonical}\\s*\\(\\s*user_id\\s*,`,'i').test(sqlOf(s)))){
         if(statements.length>100)fail('PHASE4_CANONICAL_BATCH_LIMIT');

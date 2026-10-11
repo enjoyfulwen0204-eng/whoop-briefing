@@ -89,13 +89,19 @@ test('three-user v32 HTTP phase settles honest throttled sync under transport la
   await db.saveTokens(id,{accessToken:'synthetic',refreshToken:'synthetic',expiresAt:new Date(Date.now()+3600000),whoopUserId:String(2001+i)});
   await db.saveCapabilities(id,[{key:'sleep',status:'SUPPORTED'}],{expectedLifecycleGeneration:1});
   for(const resource of WHOOP_SYNC.RESOURCES)await db.saveSyncState(id,resource,{backfillComplete:true,lastSuccessAt:now.toISOString()},{now});
+  // This fixture proves genuinely throttled work, including current FAST state.
+  for(const resource of WHOOP_SYNC.RESOURCES){
+   const owner=`fixture:${id}:${resource}`;
+   assert.equal(await db.claimReconciliation({userId:id,resource,owner,leaseMs:300000,now,lifecycleGeneration:1}),true);
+   assert.equal(await db.settleReconciliation({userId:id,resource,owner,result:'SUCCESS',windowTo:now,now,lifecycleGeneration:1}),true);
+  }
  }
  const environment={PHASE4_BETA_SHADOW_RUNTIME:'off',PHASE4_PUBLIC_BETA_MODE:'off'},releaseSha=runningReleaseSha();
  const request={releaseSha,requestId:randomUUID(),phase:'SYNC',triggerSource:'cloudflare',executionMode:'OFF',configProof:configurationProof(fixtureKeys,publicBetaConfiguration(environment),environment)};
  let providerCalls=0,sends=0;
  const deps={makeWhoop:()=>({getAccessToken:async()=>'synthetic',sleeps:async()=>{providerCalls++;throw Error('unexpected provider call');}}),
   makeTelegram:()=>({send:async text=>{assert.match(text,/Select language|Choose language|語言|ngôn ngữ/i);sends++;return {messageId:sends};},notifyError:async()=>false}),
-  makeReconciler:()=>({reconcileAll:async()=>[]}),guardian:async()=>null,drainWebhook:async()=>({}),
+  makeReconciler:()=>({reconcileAll:async()=>{throw Error('unexpected due FAST work');}}),guardian:async()=>null,drainWebhook:async()=>({}),
  };
  const env={timezone:'Asia/Taipei',dryRun:true,maxUserConcurrency:3,telegramBotToken:'synthetic',telegramChatId:'synthetic',whoopClientId:'synthetic',whoopClientSecret:'synthetic',openrouterApiKey:'synthetic',openrouterModel:'synthetic',repoLastCommitAt:now.toISOString()};
  calls=0;delay=Number(process.env.PHASE4_FIXTURE_LATENCY_MS??10);

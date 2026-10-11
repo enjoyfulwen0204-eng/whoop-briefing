@@ -105,20 +105,25 @@ export async function checkAndAct({
     userId: uid, expectedLifecycleGeneration,
   });
 
-  const coverage = await db.coverage(uid);
+  const readUnit=work=>db.raw&&typeof db.transaction==='function'?db.transaction(work,{readOnly:true}):work();
+  // This preparation phase performs only protected data reads. Claims, lazy
+  // question expiry, state writes, calculations and Telegram stay outside it.
+  const {coverage,state,probeRows}=await readUnit(async()=>{
+    const coverage=await db.coverage(uid),date=coverage?.last_date??null;
+    if(!date)return {coverage,state:null,probeRows:[]};
+    const state=await db.getProactiveState(uid);
+    const probeRows=await loadDailyMetrics({db,userId:uid,timezone,from:addDays(date,-FINGERPRINT_WINDOW_DAYS),to:date});
+    return {coverage,state,probeRows};
+  });
   const latestHealthDate = coverage?.last_date ?? null;
   if (!latestHealthDate) {
     return { triggered: false, reason: 'no_health_data' };
   }
 
   const anchorDate = latestHealthDate;
-  const state = await db.getProactiveState(uid);
 
   // ---- 便宜的變更偵測：只抓錨點附近幾天，算出生理內容指紋 ----
   // 沒變就在這裡結束，不會去載入 120 天的完整歷史。
-  const probeRows = await loadDailyMetrics({
-    db, userId: uid, timezone, from: addDays(anchorDate, -FINGERPRINT_WINDOW_DAYS), to: anchorDate,
-  });
   const anchorRow = probeRows.find((r) => r.health_date === anchorDate) ?? null;
   const fingerprint = fingerprintOf(anchorRow);
 
@@ -128,8 +133,11 @@ export async function checkAndAct({
   }
 
   const from = addDays(anchorDate, -LOOKBACK_DAYS);
-  const rows = await loadDailyMetrics({
-    db, userId: uid, timezone, from, to: anchorDate,
+  const {rows,insights}=await readUnit(async()=>{
+    const rows=await loadDailyMetrics({db,userId:uid,timezone,from,to:anchorDate});
+    let insights=[];
+    try{insights=await db.getActiveInsights(uid,{});}catch{ /* no messaging on unavailable preparation */ }
+    return {rows,insights};
   });
 
   const seriesByMetric = {};
@@ -139,10 +147,6 @@ export async function checkAndAct({
     seriesByMetric, anchorDate, coreMetrics: CORE_METRICS,
   });
 
-  let insights = [];
-  try {
-    insights = await db.getActiveInsights(uid, {});
-  } catch { /* insights 查詢失敗不該擋住整個流程 */ }
   const hasMatureInsight = insights.some((i) => i.status !== INSIGHT_STATUS.HYPOTHESIS);
   const stage = deriveColdStartStage({
     proactiveMonitoringStatus: monitoring.status, hasMatureInsight,

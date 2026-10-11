@@ -1,10 +1,12 @@
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { currentExecutionBudget,ExecutionBudgetError } from './executionBudget.js';
-import {appendExecutionReceipt,currentDurableExecution,CommitIndeterminateError,requireSettledOperation,readWorkStep} from './phase4ExecutionContext.js';
+import {prepareExecutionReceipt,appendPreparedExecutionReceipt,withExecutionReceiptTransaction,currentDurableExecution,CommitIndeterminateError,requireSettledOperation,readWorkStep} from './phase4ExecutionContext.js';
 import {inRuntimeMetadata} from './runtimeMetadataContext.js';
 import {reconcileExecution} from './phase4ExecutionStore.js';
 import {inExecutionCoordination} from './phase4Coordination.js';
+const readOnlyChecks=new WeakSet();
+export function readOnlyProcessingCheck(check){readOnlyChecks.add(check);return check;}
 function missingStep(){const execution=currentDurableExecution(),error=Object.assign(Error('EXECUTION_WORK_STEP_REQUIRED'),{code:'EXECUTION_WORK_STEP_REQUIRED'});
  if(execution&&!execution.workRejected)execution.workRejected=error;throw error;}
 // This only separates supported read statements from mutations; it never
@@ -58,7 +60,20 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
   const scope = new AsyncLocalStorage();
   const fenceScope = new AsyncLocalStorage(), checking = new AsyncLocalStorage();
   const fences = () => checking.getStore() ? [] : (fenceScope.getStore() ?? []);
-  const checkFences = client => checking.run(true, async () => { for (const check of fenceScope.getStore() ?? []) await check(client); });
+  async function runChecks(checks,client){
+    const fn=value=>typeof value==='function'?value:value.check;
+    for(let index=0;index<checks.length;){
+      if(!readOnlyChecks.has(fn(checks[index]))){const value=checks[index++];
+        if(typeof value==='function')await value(client);else await checking.run(true,()=>value.check(client));continue;}
+      const group=[];while(index<checks.length&&readOnlyChecks.has(fn(checks[index])))group.push(fn(checks[index++]));
+      // Every original check runs; only independent read transport overlaps.
+      // Settle the whole group before rollback, and preserve failure ordering.
+      const results=await checking.run({readOnly:true},()=>Promise.allSettled(group.map(check=>check(client))));
+      const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
+    }
+  }
+  const fenceChecks=()=> (fenceScope.getStore()??[]).map(check=>({check}));
+  const checkFences = client => runChecks(fenceChecks(),client);
   // Several legacy callers intentionally read in Promise.all. Privacy-fenced
   // reads now use this same transactional boundary; serialize root write
   // transactions on a connection, without holding the queue across outside()
@@ -90,6 +105,8 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         return async (...args) => {
         const query=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
         const metadata=inRuntimeMetadata(query);
+        if(checking.getStore()?.readOnly&&(key==='batch'?args[0]:[args[0]]).some(statement=>!readOnlyStatement(statement)))
+          throw Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');
         return traceExecutionOperation(metadata?'DB_METADATA':'DB_QUERY',async()=>{
         countExecutionTelemetry('query_count',key==='batch'&&Array.isArray(args[0])?args[0].length:1);
         if(metadata)countExecutionTelemetry('metadata_query_count');
@@ -203,16 +220,18 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           // before re-admission; never reconnect an active transaction.
           afterBusy:refreshIdleConnection,
         });state.tx=tx;
-        const result = await scope.run(state, async () => {
-          if (fences().length) await checkFences(client);
-          if (before) await before(client);
+        const result = await scope.run(state, () => withExecutionReceiptTransaction(async () => {
+          let receipt;
+          const observeReceipt=readOnlyProcessingCheck(async()=>{receipt=await readWorkStep(client,['named',state.workStep]);});
+          const fixedReceipt=state.workStep!==undefined&&!workStepFrom;
+          await runChecks([...fenceChecks(),...(before?[before]:[]),...(fixedReceipt?[observeReceipt]:[])],client);
           if(workStepFrom&&execution&&execution.receipts!==false){
             state.readOnly=true;const prepared=await workStepFrom(client);state.readOnly=readOnly;
             if(prepared===null){await tx.rollback();return null;}
             if(typeof prepared!=='string'||!prepared||prepared.length>512)missingStep();
             state.workStep=prepared;
           }
-          if(state.workStep!==undefined){const receipt=await readWorkStep(client,['named',state.workStep]);if(receipt){
+          if(state.workStep!==undefined){if(!fixedReceipt)await observeReceipt();if(receipt){
             state.replaying=true;
             const result=replay?await replay():receipt.result_json===null?null:JSON.parse(receipt.result_json);
             for(const check of state.checks)await check(client);currentExecutionBudget()?.assert();
@@ -220,18 +239,22 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           }}
           const result = await fn();
           if (state.failure) throw state.failure;
-          for (const check of state.checks) await check(client);
+          let preparedReceipt;
+          const scalar=result===null||typeof result==='boolean'||typeof result==='number'&&Number.isFinite(result)||typeof result==='string'&&/^[a-f0-9]{64}$/.test(result);
+          const observeCompletion=readOnlyProcessingCheck(async()=>{
+            preparedReceipt=await prepareExecutionReceipt(client,{step:['named',state.workStep],result:discardResult&&!scalar?undefined:result,explicit:true});
+          });
+          await runChecks([...state.checks,...(state.workWrites?[observeCompletion]:[])],client);
           if (state.failure) throw state.failure;
           if(state.workWrites){state.receiptWrite=true;
-            const scalar=result===null||typeof result==='boolean'||typeof result==='number'&&Number.isFinite(result)||typeof result==='string'&&/^[a-f0-9]{64}$/.test(result);
-            try{await appendExecutionReceipt(client,{step:['named',state.workStep],result:discardResult&&!scalar?undefined:result,explicit:true});}
+            // Preparation accepts only read observations. Preserve the exact
+            // counter result at INSERT, after all original checks have passed.
+            try{await appendPreparedExecutionReceipt(client,preparedReceipt);}
             finally{state.receiptWrite=false;}}
           await retryContention(async()=>{
             // Recheck ownership after all deferred result validation and before
             // each COMMIT attempt, including time spent waiting on contention.
-            if (fences().length) await checkFences(client);
-            for(const check of state.finalChecks)await check(client);
-            for(const check of state.commitFences)await check(client);
+            await runChecks([...fenceChecks(),...state.finalChecks,...state.commitFences],client);
             if(state.failure)throw state.failure;
             for(const assert of state.commitAuthorities)assert();
             const original=currentExecutionBudget();original?.assert();
@@ -252,7 +275,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             }finally{context?.pending.delete(token);}
           });
           return result;
-        });
+        }));
         tx.close();tx=null;releaseRoot();
         for (const cleanup of state.committed) { try { await cleanup(); } catch { /* TTL recovery */ } }
         return result;

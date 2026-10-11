@@ -1,4 +1,5 @@
 import {workStepOptions} from './phase4WorkStep.js';
+import {readOnlyProcessingCheck} from './processingTransaction.js';
 import { isLifecycleFenced, LifecycleContextError } from './accountLifecycle.js';
 
 export const SCHEDULED_OUTPUT_WRITERS = Object.freeze([
@@ -11,7 +12,7 @@ export const SCHEDULED_OUTPUT_WRITERS = Object.freeze([
  */
 export function lifecycleOutputDb(db, { userId, expectedLifecycleGeneration, writers }) {
   if (!isLifecycleFenced(expectedLifecycleGeneration)) throw new LifecycleContextError('lifecycleOutputDb');
-  const check = () => db.assertAccountActive(userId, expectedLifecycleGeneration);
+  const check = readOnlyProcessingCheck(() => db.assertAccountActive(userId, expectedLifecycleGeneration));
   const view = { ...db };
   for (const name of writers) {
     if (typeof db[name] !== 'function') continue;

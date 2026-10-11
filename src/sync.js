@@ -1,4 +1,6 @@
 import {workStepOptions} from './phase4WorkStep.js';
+import {readOnlyProcessingCheck} from './processingTransaction.js';
+import {syncShouldYield} from './syncContinuation.js';
 import {currentDurableExecution,readWorkStep,appendExecutionReceipt} from './phase4ExecutionContext.js';
 import {captureWhoopInput,assertWhoopInput} from './whoopInputFence.js';
 /**
@@ -154,7 +156,7 @@ export function createSync({
       if (cursorPatch) await db.saveSyncState(uid, resource, cursorPatch, { now });
       if(currentDurableExecution())await appendExecutionReceipt(db.raw,{step:['named',workStepOptions('whoop.window-count',windowFacts(resource,cursorPatch,inputProof)).workStep],result:fetched,explicit:true});
       return written;
-    },{...workStepOptions('whoop.window',windowFacts(resource,cursorPatch,inputProof)),beforeCommit:()=>assertWhoopInput(inputOptions,inputProof)});
+    },{...workStepOptions('whoop.window',windowFacts(resource,cursorPatch,inputProof)),beforeCommit:readOnlyProcessingCheck(()=>assertWhoopInput(inputOptions,inputProof))});
   }
   /**
    * 一個 resource 的抓取器。全部沿用 whoop client 既有的
@@ -241,6 +243,7 @@ export function createSync({
     let written = 0;
 
     while (chunks < WHOOP_SYNC.MAX_CHUNKS_PER_RUN && cursor.getTime() > target.getTime()) {
+      if(syncShouldYield())break;
       const chunkStart = new Date(
         Math.max(target.getTime(), cursor.getTime() - WHOOP_SYNC.BACKFILL_CHUNK_DAYS * DAY_MS),
       );
@@ -326,6 +329,7 @@ export function createSync({
             continue;
           }
         }
+        if(syncShouldYield())break;
         results.push({ status: 'ok', ...(await syncResource(resource)) });
       } catch (err) {
         if (['SYNC_TIMEOUT','SYNC_CANCELLED','WHOOP_MAINTENANCE_DEADLINE'].includes(err?.code) || budget?.signal.aborted) {

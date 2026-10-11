@@ -1,6 +1,7 @@
 import {withPhaseTelemetry,traceExecutionOperation,setExecutionTelemetrySequence} from './executionTelemetry.js';
 import {discoverPhaseContinuation,validateContinuationQuery} from './phase4Continuation.js';
-import {continuationScope,STAGE6_SHADOW_CONTINUATION_SCOPE} from './phase4ContinuationScope.js';
+import {continuationScope,scopeIncludesSync,scopeIncludesDrain} from './phase4ContinuationScope.js';
+import {SYNC_YIELD_RESERVE_MS} from './syncContinuation.js';
 import { loadEnv } from './config.js';
 import { createDb } from './db.js';
 import { runBriefing } from './index.js';
@@ -10,7 +11,7 @@ import { runPhase4Stage6 } from './shadowDrainScheduler.js';
 import { deliverPublicBetaSummary } from './publicBetaSummaryDelivery.js';
 import { createExecutionBudget, SYNC_BUDGET_MS, withExecutionBudget } from './executionBudget.js';
 import { syncAuthorizesDrain } from './syncResult.js';
-import {isContinuationRequest, validatePhaseRequest,validatePhaseBody,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit,EXECUTION_WORK_MAX_AGE_MS,reconcileExecution,requestIdentity } from './phase4ExecutionStore.js';
+import {isContinuationRequest,isSyncContinuationRequest,yieldSyncPhase, validatePhaseRequest,validatePhaseBody,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit,EXECUTION_WORK_MAX_AGE_MS,reconcileExecution,requestIdentity } from './phase4ExecutionStore.js';
 import { log } from './logger.js';
 import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Release.js';
 import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
@@ -49,7 +50,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
  if(request.releaseSha!==releaseSha)throw Object.assign(new Error('RELEASE_CHECKOUT_MISMATCH'),{code:'RELEASE_CHECKOUT_MISMATCH'});
  const proof=configurationProof(keys,config,environment,releaseSha),mode=config.runtime==='on'?'SHADOW':'OFF';
  const scope=continuationScope(environment,mode);
- if(isContinuationRequest(request)&&scope!==STAGE6_SHADOW_CONTINUATION_SCOPE)
+ if(isContinuationRequest(request)&&!scopeIncludesDrain(scope)||isSyncContinuationRequest(request)&&!scopeIncludesSync(scope))
   throw Object.assign(Error('CONTINUATION_SCOPE_REJECTED'),{code:'CONTINUATION_SCOPE_REJECTED'});
  if(request.configProof!==proof||request.executionMode!==mode)throw Object.assign(new Error('EXECUTION_CONFIG_CHANGED'),{code:'EXECUTION_CONFIG_CHANGED'});
  let pilotConfig,reservation,pilotStopped=true;
@@ -98,7 +99,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
    const finalizedReplay=['FINALIZED_SUCCESS','FINALIZED_FAILURE'].includes(replay?.state);
    const continuation=request.phase==='STAGE6_DRAIN'&&!finalizedReplay?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys))):null;
    const reconciliationOnly=Boolean(continuation?.reconciliationResult);
-   const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>traceExecutionOperation('PHASE_CLAIM',()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly,serializeScope:isContinuationRequest(request)}))));
+   const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>traceExecutionOperation('PHASE_CLAIM',()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly,serializeScope:isContinuationRequest(request)||isSyncContinuationRequest(request)}))));
    setExecutionTelemetrySequence(claim.executionSeq??claim.cached?.executionSeq);
    if(claim.cached){overall.assert();admissionBudget.assert();
      try{await admissionBudget.run(()=>projectPhaseCompletion(db,request,claim.cached));}catch{}
@@ -125,7 +126,10 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
     }catch(error){if(error?.code!=='BETA_PILOT_DENIED')throw error;pilotDenied=true;}
    }
    if(!claim.workCommitted)await db.withRuntimeFence(fence,()=>budget.run(()=>recordPhaseEvent(db,{phase:request.phase,releaseSha,source:request.triggerSource,event:'start',outcome:'PENDING',identity:claim.identity,executionSeq:claim.executionSeq})));
-   const executionContext={claim,keys,presentationClock,pending:new Set(),indeterminate:false,authority:{assert:()=>{checkAdmission();overall.assert();budget.assert();}}};
+   const reserve=deps.syncYieldReserveMs??SYNC_YIELD_RESERVE_MS;
+   if(!Number.isSafeInteger(reserve)||reserve<1||reserve>SYNC_YIELD_RESERVE_MS)throw Error('SYNC_YIELD_RESERVE_INVALID');
+   const executionContext={claim,keys,presentationClock,pending:new Set(),indeterminate:false,syncContinuation:isSyncContinuationRequest(request)&&scopeIncludesSync(scope),syncYieldReserveMs:reserve,
+    authority:{assert:()=>{checkAdmission();overall.assert();budget.assert();}}};
    let result,presentationRuntime;
    try {
      result=continuation?.reconciliationResult??(claim.workCommitted?claim.result:await withDurableExecution(executionContext,()=>withExecutionBudget(budget,()=>db.withRuntimeFence(fence,()=>budget.run(async()=>{
@@ -137,7 +141,8 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
          if(summary.coordinationPending)executionContext.coordinationPending=true;
          if(executionContext.coordinationPending)throw Object.assign(Error('SYNC_SCOPE_BUSY'),{code:'SYNC_SCOPE_BUSY'});
          const outcome=summary.syncComplete===true?summary.syncOutcome??'COMPLETE_SUCCESS':summary.syncOutcome??'PARTIAL';
-         return {outcome,users:summary.users??0,failed:summary.failed??0,durationMs:performance.now()-started};
+         return {outcome,users:summary.users??0,failed:summary.failed??0,durationMs:performance.now()-started,
+          ...(executionContext.syncYieldRequested&&summary.syncYieldSafe===true&&!(summary.errors?.length)?{yieldRequested:true}:{} )};
        }
        if(config.runtime!=='on'||pilotDenied)return {outcome:'DISABLED',durationMs:performance.now()-started};
        const runtime=presentationRuntime=deps.runtime??await createPublicBetaRuntime({db,keys,admission,executionMode:'SHADOW',
@@ -175,7 +180,8 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
      withDurableExecution(executionContext,()=>requireSettledOperation());
      if(result.outcome==='COMMIT_INDETERMINATE')throw Object.assign(Error('COMMIT_INDETERMINATE'),{code:'COMMIT_INDETERMINATE'});
      const settlement=createExecutionBudget({budgetMs:Math.min(PHASE_SETTLEMENT_MS,overall.remainingMs()),signal:budget.signal});
-     try{record=await withDurableExecution({...executionContext,receipts:false},()=>withExecutionBudget(settlement,()=>settlement.run(()=>traceExecutionOperation('PHASE_SETTLEMENT',()=>settlePhaseRequest(db,request,claim,result,keys,originalAuthority)))));
+     try{record=await withDurableExecution({...executionContext,receipts:false},()=>withExecutionBudget(settlement,()=>settlement.run(()=>traceExecutionOperation('PHASE_SETTLEMENT',()=>
+      result.yieldRequested&&result.outcome==='PARTIAL'?yieldSyncPhase(db,claim,originalAuthority,result):settlePhaseRequest(db,request,claim,result,keys,originalAuthority)))));
        originalAuthority.assert();}
      finally{settlement.close();}
    } catch(error) {
@@ -230,15 +236,15 @@ export async function discoverExecutionContinuation({query,db:providedDb,keys:pr
  const keys=providedKeys??publicBetaKeys(environment),config=publicBetaConfiguration(environment),releaseSha=runningReleaseSha(environment);
  validateContinuationQuery(query);
  const mode=config.runtime==='on'?'SHADOW':'OFF',scope=continuationScope(environment,mode),proof=configurationProof(keys,config,environment,releaseSha);
- if(scope!==STAGE6_SHADOW_CONTINUATION_SCOPE)throw Object.assign(Error('CONTINUATION_SCOPE_REJECTED'),{code:'CONTINUATION_SCOPE_REJECTED'});
+ if(!scope||query.scope!==scope)throw Object.assign(Error('CONTINUATION_SCOPE_REJECTED'),{code:'CONTINUATION_SCOPE_REJECTED'});
  if(query.releaseSha!==releaseSha)throw Object.assign(Error('RELEASE_CHECKOUT_MISMATCH'),{code:'RELEASE_CHECKOUT_MISMATCH'});
  if(query.executionMode!==mode||query.configProof!==proof)throw Object.assign(Error('EXECUTION_CONFIG_CHANGED'),{code:'EXECUTION_CONFIG_CHANGED'});
  // An inactive optional pilot must not redirect an ordinary Morning Brief
  // invocation into a replay of yesterday's completed parent.
  let ready=false;try{const pilot=betaPilotConfiguration(environment);ready=Boolean(pilot&&reviewedPilotAdmission(pilot)&&!pilotStopRequested(environment)&&Date.now()>=pilot.startAt&&Date.now()<pilot.endAt);}catch{}
- if(!ready)return {status:200,body:{ok:true,state:'NONE',requestBody:null}};
+ if(!ready&&!scopeIncludesSync(scope))return {status:200,body:{ok:true,state:'NONE',requestBody:null}};
  const env=providedDb?null:providedEnv??loadEnv();
  const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
- try {return await discoverPhaseContinuation({query,db,keys,releaseSha,mode,scope,configProof:proof,signal});}
+ try {return await discoverPhaseContinuation({query,db,keys,releaseSha,mode,scope,configProof:proof,allowDrain:ready,signal});}
  finally {if(!providedDb)db.close();}
 }

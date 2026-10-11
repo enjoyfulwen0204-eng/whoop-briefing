@@ -12,12 +12,8 @@ export function requireSettledOperation(error){
  if(context?.workRejected)throw context.workRejected;
 }
 const fail=code=>{throw Object.assign(Error(code),{code});};
-export async function assertExecutionWorkOwner(client){
- const context=scope.getStore();if(!context||context.receipts===false)return;
- context.authority.assert();const {claim}=context;
- const row=(await client.execute({sql:`SELECT * FROM phase4_executions WHERE execution_id=? AND owner=? AND generation=?
-  AND state='ESTABLISHED' AND lease_until>${databaseNowMs} AND deadline_at>${databaseNowMs}`,
-  args:[claim.executionId,claim.owner,claim.generation]})).rows[0];
+function requireExecutionWorkOwner(context,row){
+ const {claim}=context;
  if(!row)fail('REQUEST_OWNER_FENCED');
  const request=claim.request;
  const canonical=request&&JSON.stringify(Object.fromEntries(Object.keys(request).sort().map(key=>[key,request[key]])));
@@ -27,12 +23,28 @@ export async function assertExecutionWorkOwner(client){
   ||row.execution_mode!==request.executionMode||row.config_proof!==request.configProof||row.sync_execution_id!==(request.syncRequestId??null))fail('REQUEST_ID_CONFLICT');
  context.authority.assert();return row;
 }
+export async function assertExecutionWorkOwner(client){
+ const context=scope.getStore();if(!context||context.receipts===false)return;
+ context.authority.assert();const {claim}=context;
+ const row=(await client.execute({sql:`SELECT * FROM phase4_executions WHERE execution_id=? AND owner=? AND generation=?
+  AND state='ESTABLISHED' AND lease_until>${databaseNowMs} AND deadline_at>${databaseNowMs}`,
+  args:[claim.executionId,claim.owner,claim.generation]})).rows[0];
+ return requireExecutionWorkOwner(context,row);
+}
 export const workStepKey=(context,step)=>context.keys.lookup(['execution-work-step-v2',context.claim.identity,context.claim.scopeKey,step]);
 export async function readWorkStep(client,step){
  const context=scope.getStore();if(!context||context.receipts===false)return null;
- await assertExecutionWorkOwner(client);
- const key=workStepKey(context,step);
- const row=(await client.execute({sql:'SELECT * FROM phase4_execution_work_receipts WHERE receipt_key=?',args:[key]})).rows[0];
+ context.authority.assert();const {claim}=context,key=workStepKey(context,step);
+ // Observe the same fresh database-clock owner predicate and its receipt in
+ // one statement. No owner result is cached across calls or transactions.
+ const columns=['execution_id','receipt_key','scope_key','request_digest','step_key','generation','committed_at','result_json'];
+ const observed=(await client.execute({sql:`SELECT e.*,${columns.map(name=>`r.${name} AS receipt_${name}`).join(',')}
+  FROM phase4_executions e LEFT JOIN phase4_execution_work_receipts r ON r.receipt_key=?
+  WHERE e.execution_id=? AND e.owner=? AND e.generation=? AND e.state='ESTABLISHED'
+   AND e.lease_until>${databaseNowMs} AND e.deadline_at>${databaseNowMs}`,
+  args:[key,claim.executionId,claim.owner,claim.generation]})).rows[0];
+ requireExecutionWorkOwner(context,observed);
+ const row=observed.receipt_receipt_key===null?null:Object.fromEntries(columns.map(name=>[name,observed[`receipt_${name}`]]));
  if(row&&(row.execution_id!==context.claim.executionId||row.request_digest!==context.claim.identity||row.scope_key!==context.claim.scopeKey||row.generation>context.claim.generation))fail('EXECUTION_RECEIPT_CORRUPT');
  return row??null;
 }
@@ -43,14 +55,32 @@ function receiptResult(result){
  fail('EXECUTION_WORK_STEP_RESULT_UNSAFE');
 }
 /** Runs inside the SAME work transaction. Keys are deterministic across owners. */
-export async function appendExecutionReceipt(client,{step,result,explicit=false}={}){
+const preparedReceipts=new WeakMap();
+const receiptTransactions=new AsyncLocalStorage();
+export async function withExecutionReceiptTransaction(work){
+ const lifetime={active:true};
+ try{return await receiptTransactions.run(lifetime,work);}finally{lifetime.active=false;}
+}
+export async function prepareExecutionReceipt(client,{step,result,explicit=false}={}){
  const context=scope.getStore();if(!context||context.receipts===false)return;
- await assertExecutionWorkOwner(client);const {claim}=context;
+ const {claim}=context;
  const key=workStepKey(context,step),prior=await readWorkStep(client,step);
  if(prior)fail('EXECUTION_WORK_STEP_ALREADY_COMMITTED');
+ const lifetime=receiptTransactions.getStore();if(!lifetime?.active)fail('EXECUTION_RECEIPT_CORRUPT');
+ const token=Object.freeze({});preparedReceipts.set(token,{context,claim,key,result,explicit,client,lifetime});return token;
+}
+export async function appendPreparedExecutionReceipt(client,token){
+ if(token===undefined)return;
+ const prepared=preparedReceipts.get(token);preparedReceipts.delete(token);
+ const context=scope.getStore();if(!prepared||prepared.context!==context||prepared.client!==client
+  ||prepared.lifetime!==receiptTransactions.getStore()||!prepared.lifetime.active)fail('EXECUTION_RECEIPT_CORRUPT');
+ const {claim,key,result,explicit}=prepared;context.authority.assert();
  await client.execute({sql:'INSERT INTO phase4_execution_work_receipts(execution_id,receipt_key,scope_key,request_digest,step_key,generation,committed_at,result_json) VALUES(?,?,?,?,?,?,?,?)',
   args:[claim.executionId,key,claim.scopeKey,claim.identity,key,claim.generation,Date.now(),explicit?receiptResult(result):null]});
  context.authority.assert();
+}
+export async function appendExecutionReceipt(client,options={}){
+ return appendPreparedExecutionReceipt(client,await prepareExecutionReceipt(client,options));
 }
 export async function bindProducingExecution(client,context){
  const execution=scope.getStore();if(!execution||execution.receipts===false)return;

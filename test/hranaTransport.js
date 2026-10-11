@@ -1,5 +1,5 @@
 import {createClient} from '@libsql/client/sqlite3';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 
 // Installed HTTP/Hrana driver speaks its real v2 JSON protocol. Every SQL
 // statement is executed by the installed normal SQLite/libsql driver against
@@ -8,14 +8,27 @@ import {randomUUID} from 'node:crypto';
 const decode=v=>v.type==='null'?null:v.type==='integer'?BigInt(v.value):v.type==='blob'?Buffer.from(v.base64,'base64'):v.value;
 const encode=v=>v===null?{type:'null'}:typeof v==='bigint'?{type:'integer',value:String(v)}:
  typeof v==='number'?{type:'float',value:v}:typeof v==='string'?{type:'text',value:v}:{type:'blob',base64:Buffer.from(v).toString('base64')};
-export function hranaTransport(url) {
+export function hranaTransport(url,{operation=()=> 'UNSCOPED'}={}) {
  const streams=new Map();let armed=null,commits=0;
+ const counts={httpRequests:0,sqlStatements:0,byFamily:{},byTemplate:{},byOperation:{}};
  const evidence=[];
  const open=()=>{const client=createClient({url,intMode:'bigint'}),id=randomUUID(),stream={client,sql:new Map(),inTransaction:false};
   streams.set(id,stream);return [id,stream];};
  const statement=async(stream,stmt)=>{
   const sql=stmt.sql??stream.sql.get(stmt.sql_id),args=stmt.named_args?.length?
    Object.fromEntries(stmt.named_args.map(x=>[x.name,decode(x.value)])):(stmt.args??[]).map(decode);
+  // Synthetic RAM counters retain no SQL arguments, records, or SQL text.
+  counts.sqlStatements++;
+  const family=/^\s*SELECT 1 FROM resource_locks/i.test(sql)?'SYNC_OWNER'
+   :/\bphase4_executions\b/.test(sql)?'EXECUTION_OWNER'
+   :/\bphase4_execution_work_receipts\b/.test(sql)?'WORK_RECEIPT'
+   :/^\s*(BEGIN|COMMIT|ROLLBACK)\b/i.test(sql)?'TRANSACTION'
+   :/\bwhoop_(?:sleeps|recoveries|cycles|workouts|body_measurements)\b/.test(sql)?'CANONICAL'
+   :/\bphase4_source_links\b/.test(sql)?'SOURCE_LINK'
+   :/\b(?:users|phase4_user_state|phase4_computation_state)\b/.test(sql)?'CONTEXT':'OTHER';
+  counts.byFamily[family]=(counts.byFamily[family]??0)+1;
+  const template=createHash('sha256').update(sql.replace(/\s+/g,' ').trim()).digest('hex');
+  const prior=counts.byTemplate[template]??{family,count:0};prior.count++;counts.byTemplate[template]=prior;
   if(/^\s*BEGIN\b/i.test(sql)){stream.workResult=false;stream.matched=false;}
   if(sql.includes("SET state='WORK_COMMITTED'"))stream.workResult=true;
   if(armed?.matchSql?.test(sql))stream.matched=true;
@@ -43,6 +56,8 @@ export function hranaTransport(url) {
   c.type==='not'?!condition(c.cond,results,errors,stream):c.type==='and'?c.conds.every(v=>condition(v,results,errors,stream)):
   c.type==='or'?c.conds.some(v=>condition(v,results,errors,stream)):c.type==='is_autocommit'?!stream.inTransaction:false;
  const fetch=async request=>{
+  counts.httpRequests++;
+  const category=operation();counts.byOperation[category]=(counts.byOperation[category]??0)+1;
   const body=await request.json();let [id,stream]=body.baton?[body.baton,streams.get(body.baton)]:open();
   if(!stream)throw Error('UNKNOWN_SYNTHETIC_BATON');
   const results=[];
@@ -73,5 +88,5 @@ export function hranaTransport(url) {
   }
   return new Response(JSON.stringify({baton:id,base_url:null,results}),{headers:{'content-type':'application/json'}});
  };
- return {fetch,evidence,arm:attack=>{armed=attack;},close:()=>{for(const stream of streams.values())stream.client.close();streams.clear();}};
+ return {fetch,evidence,counts,arm:attack=>{armed=attack;},close:()=>{for(const stream of streams.values())stream.client.close();streams.clear();}};
 }

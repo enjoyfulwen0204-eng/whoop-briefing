@@ -1,5 +1,6 @@
 import {profileRevision} from './profileRevision.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
+import {readOnlyProcessingCheck} from './processingTransaction.js';
 import {hranaPayload,closeOnlyPayload,closeHranaStream,closeLateHranaResponse} from './hranaCleanup.js';
 import {currentExecutionBudget,abortableResponse} from './executionBudget.js';
 import {validMessageId} from './telegramAcknowledgment.js';
@@ -352,14 +353,14 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   async function mutateForReconciliation({ userId, resource, owner, now = () => new Date() }, fn) {
     const uid = requireUserId(userId, 'mutateForReconciliation');
     if (!owner) throw new Error('reconcile_owner_required');
-    const check = async () => {
+    const check = readOnlyProcessingCheck(async () => {
       const r = await client.execute({
         sql: `SELECT 1 FROM whoop_reconciliation_state
                WHERE user_id = ? AND resource = ? AND owner = ? AND lease_expires_at > ? LIMIT 1`,
         args: [uid, resource, String(owner), new Date(now()).toISOString()],
       });
       if (!r.rows.length) throw new Error('reconcile_ownership_lost');
-    };
+    });
     return processing.transaction(fn, { before: check, after: check });
   }
 

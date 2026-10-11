@@ -613,11 +613,12 @@ export function createUpdateProcessor({
             throw err;
           }
         }
-        const reply = await handleMessage({
+        const handled = await handleMessage({
           text: c.text, chatId: c.chatId, message: c.message, user: c.user, callback:c.callback,
         });
         return {
-          chatId: c.chatId, reply, userId: c.user.id,
+          chatId: c.chatId,reply:handled?.bodyEnergyReplyGuard&&typeof handled.reply==='string'?handled.reply:handled,userId:c.user.id,
+          ...(handled?.bodyEnergyReplyGuard&&typeof handled.reply==='string'?{bodyEnergyReplyGuard:handled.bodyEnergyReplyGuard}:{}),
           // ★ R3 / R2-QA-DELIVERY-01：帶到**最終送出**那一刻。
           expectedLifecycleGeneration: Number.isInteger(c.user?.lifecycleGeneration)
             ? c.user.lifecycleGeneration : null,

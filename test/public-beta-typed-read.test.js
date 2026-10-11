@@ -32,58 +32,62 @@ test('v30 Body Energy remains a receipt-checked SHADOW result with no publicatio
   assert.equal(await present(f).summary({ userId: 'a', now: at }), null);
 });
 
-test('v30 Beta Summary reads a current episode through the canonical typed and receipt authority after drain', async t => {
-  const f = await setup(t, { targetVersion: 30 });
+test('v32 Beta Summary reads a current episode through the canonical typed and receipt authority after owned drain', async t => {
+  // Retain legacy history construction, then exercise actual v32 storage and
+  // dynamic current clocks; no historical fixture time becomes a current capture.
+  const f = await setup(t, { targetVersion: 30,inputAsOf:Date.now()-1000,liveClock:true });
   await f.db.migrate();
   await f.db.setLocale('a', 'zh-TW');
   const initial = await call(f, 'intelligence', 'analyzeMetric',
-    { ...request(f.initialRefs[0], f.initialRefs.slice(1), at.toISOString()),
+    { ...request(f.initialRefs[0], f.initialRefs.slice(1), new Date().toISOString()),
       windowFamily: 'BETA_TYPED_EPISODE' });
   assert.ok(initial.episode);
   const control = await f.stores.captureControl('a');
   await f.stores.queue.sourceChanged(control);
   const worker = await createPhase4Stage6({ db: f.db, keys: f.keys, executionMode: 'SHADOW',
-    workerCapability: authorizeStage6ShadowWorker({ executionMode: 'SHADOW' }), now: () => at });
+    workerCapability: authorizeStage6ShadowWorker({ executionMode: 'SHADOW' }), now: () => new Date() });
   for (let i = 0; i < 12 && (await worker.diagnostics()).pendingJobs; i++) {
     const drained = await finalizedFixtureDrain(f.db,worker,{ budget: { maxItemsPerTenant: 32, maxItems: 64 } });
     assert.equal(drained.failedJobs, 0, JSON.stringify(drained));
   }
   assert.equal((await worker.diagnostics()).pendingJobs, 0);
+  f.stores=(await f.restart()).stores;
   const summary = await f.stores.withContext('a', { executionMode: 'SHADOW' },
-    context => f.stores.betaSummary.readCurrent(context, { asOfUtc: at.toISOString() }));
+    context => f.stores.betaSummary.readCurrent(context, { asOfUtc: new Date().toISOString() }));
   assert.ok(summary.episodes.some(item => item.resultId === initial.episode.episode.row.episode_id));
   assert.ok(summary.episodes.every(item => item.metricKey !== 'body_energy'));
-  const text = await present(f).summary({ userId: 'a', now: at });
+  const text = await present(f).summary({ userId: 'a', now: new Date() });
   assert.match(text, /Phase 4 Beta 摘要/);
   assert.match(text, /恢復分數/);
   assert.doesNotMatch(text, /身體能量|Body Energy|EPISODE|RECEIPT/);
   assert.deepEqual((await f.stores.withContext('b', { executionMode: 'SHADOW' },
-    context => f.stores.betaSummary.readCurrent(context, { asOfUtc: at.toISOString() }))).episodes, []);
+    context => f.stores.betaSummary.readCurrent(context, { asOfUtc: new Date().toISOString() }))).episodes, []);
   await f.stores.queue.sourceChanged(await f.stores.captureControl('a'));
-  assert.equal(await present(f).summary({ userId: 'a', now: at }), null,
+  assert.equal(await present(f).summary({ userId: 'a', now: new Date() }), null,
     'pending generation cannot present a previous completed result');
 });
 
-test('v30 Beta Summary admits current Journal association claims through typed insight evidence', async t => {
-  const f = await associationSetup(t, { days: 30, targetVersion: 30 });
+test('v32 Beta Summary admits current Journal association claims through typed insight evidence after owned drain', async t => {
+  const f = await associationSetup(t, { days: 30, targetVersion: 30,inputAsOf:Date.now()-1000,liveClock:true });
   await f.db.migrate();
   await f.db.setLocale('a', 'zh-TW');
   const analyzed = await call(f, 'intelligence', 'analyzeAssociationFamily',
-    family('beta-association', hypothesis(f, Array.from({ length: 30 }, (_, i) => i))));
+    family('beta-association', hypothesis(f, Array.from({ length: 30 }, (_, i) => i)),new Date().toISOString()));
   assert.ok(analyzed.items[0].insight);
   await f.stores.queue.sourceChanged(await f.stores.captureControl('a'));
   const worker = await createPhase4Stage6({ db: f.db, keys: f.keys, executionMode: 'SHADOW',
-    workerCapability: authorizeStage6ShadowWorker({ executionMode: 'SHADOW' }), now: () => at });
+    workerCapability: authorizeStage6ShadowWorker({ executionMode: 'SHADOW' }), now: () => new Date() });
   for (let i = 0; i < 16 && (await worker.diagnostics()).pendingJobs; i++) {
     const drained = await finalizedFixtureDrain(f.db,worker,{ budget: { maxItemsPerTenant: 32, maxItems: 64,
       maxWallMs: 90000, leaseMs: 120000 } });
     assert.equal(drained.failedJobs, 0, JSON.stringify(drained));
   }
   assert.equal((await worker.diagnostics()).pendingJobs, 0);
+  f.stores=(await f.restart()).stores;
   const typed = await f.stores.withContext('a', { executionMode: 'SHADOW' },
-    context => f.stores.betaSummary.readCurrent(context, { asOfUtc: at.toISOString() }));
+    context => f.stores.betaSummary.readCurrent(context, { asOfUtc: new Date().toISOString() }));
   assert.ok(typed.insights.length > 0, JSON.stringify(typed));
-  const text = await present(f).summary({ userId: 'a', now: at });
+  const text = await present(f).summary({ userId: 'a', now: new Date() });
   assert.match(text, /Phase 4 Beta 摘要/);
   assert.doesNotMatch(text, /Body Energy|身體能量|INSIGHT|RECEIPT/);
 });

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
 import {createSettings} from './settings.js';
 /**
  * Telegram 入站 webhook（正式環境的傳輸方式）。
@@ -438,7 +439,8 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId,
   });
   const api = createTelegramApi({ botToken: env.telegramBotToken });
-  const router = createRouter({ db, coachFor });
+  const bodyRuntime=await createBodyEnergyRuntime({db,keys:phase4AuthorityKeys(process.env),environment:process.env,env});
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy });
   const settings = createSettings({db});
 
   // ---- 自助上線（V1.2 Phase 3.5）----------------------------------------

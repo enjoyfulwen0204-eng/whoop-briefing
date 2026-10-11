@@ -1,0 +1,52 @@
+import {BODY_ENERGY_NOTIFICATION_POLICY} from './bodyEnergyNotificationPolicy.js';
+import {requireUserId} from './userContext.js';
+import {validateBodyEnergyQualificationPacket,BODY_ENERGY_RELEASE_CRITERIA} from './bodyEnergyReleaseCriteria.js';
+
+/** Temporary release gate. Replace only with the exact genuinely reviewed
+ * qualification packet after private evaluation and independent Final Gate.
+ * An environment value/request cannot register approval or bypass this state. */
+export const BODY_ENERGY_QUALIFICATION_REGISTRATION=Object.freeze({
+  state:'PENDING_GENUINE_EVIDENCE_AND_FINAL_GATE',criteriaVersion:BODY_ENERGY_RELEASE_CRITERIA.version,
+  qualificationId:null,approvedPacket:null,
+});
+const capabilities=new WeakMap();
+const fail=code=>{throw Object.assign(new Error(code),{code});};
+function cohort(users){
+  if(!Array.isArray(users)||users.length<1||users.length>2)fail('BODY_ENERGY_CONTROLLED_COHORT_REQUIRED');
+  return new Set(users.map(id=>requireUserId(id,'bodyEnergyCohort')));
+}
+export function authorizeBodyEnergyPublication({db,userIds,notificationUserIds=[],qualificationId}={}){
+  const registration=BODY_ENERGY_QUALIFICATION_REGISTRATION;
+  if(registration.state!=='APPROVED'||qualificationId!==registration.qualificationId
+    ||!validateBodyEnergyQualificationPacket(registration.approvedPacket).complete)return null;
+  if(!db?.raw)fail('BODY_ENERGY_DATABASE_AUTHORITY_REQUIRED');
+  const users=cohort(userIds),notifications=new Set(notificationUserIds.map(id=>requireUserId(id,'bodyEnergyAlertConsent')));
+  if([...notifications].some(id=>!users.has(id)))fail('BODY_ENERGY_ALERT_COHORT_REQUIRED');
+  if(notifications.size&&(registration.approvedPacket.approvedNotificationPolicy!==BODY_ENERGY_NOTIFICATION_POLICY.version
+    ||registration.approvedPacket.approvals?.bodyEnergyNotificationPolicy?.status!=='PASS'
+    ||!/^[a-f0-9]{64}$/.test(registration.approvedPacket.approvals?.bodyEnergyNotificationPolicy?.evidenceSha256??'')))
+    fail('BODY_ENERGY_ALERT_POLICY_NOT_QUALIFIED');
+  const capability=Object.freeze({});capabilities.set(capability,{db,connection:db.raw,users,notifications,fixture:false});return capability;
+}
+/** Positive integration tests own an empty-filename in-memory DB; neither a
+ * file-backed fixture nor a real provider destination can receive this grant. */
+export async function authorizeBodyEnergyFixturePublication({db,userIds,notificationUserIds=[]}={}){
+  if(!db?.raw||db.raw.protocol!=='file')fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
+  const databases=(await db.raw.execute('PRAGMA database_list')).rows;
+  if(databases.length!==1||databases[0].name!=='main'||databases[0].file!=='')fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
+  const users=cohort(userIds),notifications=new Set(notificationUserIds);
+  if([...notifications].some(id=>!users.has(id)))fail('BODY_ENERGY_ALERT_COHORT_REQUIRED');
+  const capability=Object.freeze({});capabilities.set(capability,{db,connection:db.raw,users,notifications,fixture:true});return capability;
+}
+export async function assertBodyEnergyPublication(capability,db,userId,{purpose='read'}={}){
+  const grant=capabilities.get(capability),id=requireUserId(userId,'bodyEnergyPublication');
+  if(!['read','alerts'].includes(purpose)||!grant||grant.db!==db||grant.connection!==db.raw||!grant.users.has(id)
+    ||purpose==='alerts'&&!grant.notifications.has(id))fail('BODY_ENERGY_PUBLICATION_NOT_QUALIFIED');
+  if(grant.fixture){
+    const databases=(await db.raw.execute('PRAGMA database_list')).rows;
+    if(db.raw.protocol!=='file'||databases.length!==1||databases[0].file!=='')fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
+  }else if(BODY_ENERGY_QUALIFICATION_REGISTRATION.state!=='APPROVED'
+    ||!validateBodyEnergyQualificationPacket(BODY_ENERGY_QUALIFICATION_REGISTRATION.approvedPacket).complete)
+    fail('BODY_ENERGY_PUBLICATION_NOT_QUALIFIED');
+  return {fixture:grant.fixture};
+}

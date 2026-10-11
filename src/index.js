@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createBodyEnergyRuntime,bodyEnergyConfiguration} from './bodyEnergyRuntime.js';
 import {traceExecutionOperation} from './executionTelemetry.js';
 import {syncShouldYield} from './syncContinuation.js';
 import { summarizeSync, syncAuthorizesDrain, aggregateSyncOutcome } from './syncResult.js';
@@ -406,7 +407,7 @@ async function runForUserOwned({
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId: uid,
   });
   const ctx = {
-    db, userId: uid, source, coach, telegram, timezone: tz, locale, now,
+    db, userId: uid, source, coach, telegram, timezone: tz, locale, now,bodyEnergy:deps.bodyEnergy,
     // ★ R2：這一輪的帳號啟用世代，往下帶進報告認領與遞送授權。
     expectedLifecycleGeneration,
   };
@@ -662,6 +663,13 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     if (deps.runtimeAdmission) requireRuntimeConnection(db.raw,deps.runtimeAdmission,db.transaction);
     else if (typeof db.admitRuntime === 'function') requireRuntimeConnection(db.raw,await db.admitRuntime({source:triggerSource}),db.transaction);
     else if (db.raw) throw new Error('PHASE4_RUNTIME_ADMISSION_REQUIRED');
+    // Body display prepares independently from Beta presentation. A pending
+    // empirical registration never enables numeric output or new live workers.
+    if(!deps.bodyEnergy&&db.raw&&bodyEnergyConfiguration(process.env).publication==='on'){
+      const bodyRuntime=await createBodyEnergyRuntime({db,keys:phase4AuthorityKeys(process.env),
+        admission:deps.runtimeAdmission,environment:process.env,env});
+      deps={...deps,bodyEnergy:bodyRuntime.bodyEnergy};
+    }
     // In-memory injected runners have no database schema or migration path.
 
     // ---- V1.2 production activation：scheduler-owned webhook drain -------

@@ -21,7 +21,7 @@ import { renderDaily } from './format.js';
 import { displayNameFor } from './displayName.js';
 import { buildNarrative } from './narrative.js';
 import { buildInsightsSafe } from './insights.js';
-import { requireLifecycle } from './accountLifecycle.js';
+import { requireLifecycle,ACCOUNT_INACTIVE } from './accountLifecycle.js';
 import { log, describeError } from './logger.js';
 import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelivery.js';
 
@@ -31,7 +31,7 @@ import { DELIVERY_RESULT, deliverReport, renewReportClaim } from './reportDelive
  * @param {object} telegram 已經綁定到該使用者 chat 的 telegram client。
  */
 export async function runDaily({
-  db, userId, source, coach, telegram, timezone, locale = 'zh-TW', now = new Date(),
+  db, userId, source, coach, telegram,bodyEnergy, timezone, locale = 'zh-TW', now = new Date(),
   // ★ R3：這一輪的帳號啟用世代（由 index.js 的 worker 進入點捕捉）是**必填**的。
   // 報告是使用者健康路徑：認領、遞送授權、送出都要帶著它。少傳就大聲失敗；
   // 測試／管理用途必須明確寫 LIFECYCLE_UNFENCED。
@@ -252,7 +252,7 @@ export async function runDaily({
   let coachText;
   let narrativeSource = null;
   let narrativeFailure = null;
-  let text;
+  let text,bodyEnergySection,ordinaryText;
   try {
     const { sleeps, recoveries, cycles } = await source.history();
     briefing = buildBriefing({
@@ -281,6 +281,13 @@ export async function runDaily({
 
     await coach?.assertSnapshot?.();
     text = renderDaily(briefing, coachText, { displayName: await displayNameFor(db, uid), locale });
+    ordinaryText=text;
+    if(bodyEnergy){
+      try{bodyEnergySection=await bodyEnergy.currentSection({userId:uid,healthDate,requestedAt:liveNow()});
+        if(bodyEnergySection&&bodyEnergySection.status!=='QUALIFICATION_PENDING')text+='\n\n'+bodyEnergySection.message;
+        else bodyEnergySection=null;
+      }catch{bodyEnergySection=null;}
+    }
     // ★ 補發必須看得出來是補發。標示用的是**這份報告的 health_date**，
     // 不是執行當下的日期 —— 使用者要知道這是哪一天的報告。
 
@@ -311,10 +318,25 @@ export async function runDaily({
     await recordEvaluation(OUTCOME_FOR_REASON[wake.reason]??BRIEFING_OUTCOME.WAITING_FOR_SLEEP,{reason:wake.reason});
     return {status:'not_ready',reason:wake.reason,retryable:wake.reason!=='sleep_too_old'};
   }
-  if(wake.late)text=t(locale,'daily.late',{date:formatLocalDate(healthDate,locale)})+text;
+  if(wake.late){const prefix=t(locale,'daily.late',{date:formatLocalDate(healthDate,locale)});text=prefix+text;ordinaryText=prefix+ordinaryText;}
+  const dailySender=bodyEnergySection?{send:async(content,options)=>{
+    let bodyOnlyFenced=false;
+    const sent=await telegram.send(content,{...options,authorize:async()=>{
+      // This is the transport's last awaited authority, immediately before
+      // fetch. An ordinary snapshot rejection never becomes a Body fallback.
+      if(options?.authorize&&await options.authorize()===false)return false;
+      try{await bodyEnergySection.verifyCurrent();return true;}catch{bodyOnlyFenced=true;return false;}
+    }});
+    // The send contract guarantees authorize=false performs zero transport.
+    // Only that exact suppression can reuse this claim for ordinary text;
+    // no delivery, network error or uncertain acknowledgment is retried.
+    if(bodyOnlyFenced&&sent?.suppressed===ACCOUNT_INACTIVE&&sent?.messageId===null)
+      return telegram.send(ordinaryText,options);
+    return sent;
+  }}:telegram;
 
   const delivery = await deliverReport({
-    db, claimKey, claim, telegram, text, now: () => now,
+    db, claimKey, claim, telegram:dailySender, text, now: () => now,
     authorizeContent:typeof coach?.assertSnapshot==='function'?()=>coach.assertSnapshot():undefined,
   });
 

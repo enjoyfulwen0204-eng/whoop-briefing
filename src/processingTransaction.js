@@ -5,6 +5,7 @@ import {prepareExecutionReceipt,appendPreparedExecutionReceipt,withExecutionRece
 import {inRuntimeMetadata} from './runtimeMetadataContext.js';
 import {reconcileExecution} from './phase4ExecutionStore.js';
 import {inExecutionCoordination} from './phase4Coordination.js';
+import {createReadSnapshotMemo,readSnapshotKey} from './processingReadSnapshot.js';
 const readOnlyChecks=new WeakSet();
 export function readOnlyProcessingCheck(check){readOnlyChecks.add(check);return check;}
 function missingStep(){const execution=currentDurableExecution(),error=Object.assign(Error('EXECUTION_WORK_STEP_REQUIRED'),{code:'EXECUTION_WORK_STEP_REQUIRED'});
@@ -58,6 +59,8 @@ async function retryContention(call,{afterBusy,deadlineAt=Date.now()+15000}={}) 
  * database side effect, even writes hidden behind a store/helper function. */
 export function processingTransactions(base,{privateRuntime=false}={}) {
   const scope = new AsyncLocalStorage();
+  const readScope=new AsyncLocalStorage(),activeReadMemos=new Set();
+  const invalidateReadMemos=()=>{for(const memo of activeReadMemos)memo.close();};
   const fenceScope = new AsyncLocalStorage(), checking = new AsyncLocalStorage();
   const fences = () => checking.getStore() ? [] : (fenceScope.getStore() ?? []);
   async function runChecks(checks,client){
@@ -82,6 +85,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
   const executorOverrides=new Map();
   let reconnectAdmission,rootAdmission,lifetimeEnding;
   const refreshIdleConnection=base.protocol==='file'&&typeof base.reconnect==='function'?async deadlineAt=>retryContention(async()=>{
+    invalidateReadMemos();
     if(currentDurableExecution()){
       lifetimeEnding?.();base.close();throw Object.assign(Error('RUNTIME_REPLACEMENT_REQUIRED'),{code:'RUNTIME_REPLACEMENT_REQUIRED'});
     }
@@ -97,8 +101,8 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
   const client = new Proxy(base, {
     get(target, key) {
       if(privateRuntime&&['transaction','executeMultiple','migrate','sync','limit','_getStream'].includes(key))return undefined;
-      if(key==='close')return ()=>{lifetimeEnding?.();return target.close();};
-      if(key==='reconnect')return ()=>{lifetimeEnding?.();throw Object.assign(Error('RUNTIME_REPLACEMENT_REQUIRED'),{code:'RUNTIME_REPLACEMENT_REQUIRED'});};
+      if(key==='close')return ()=>{invalidateReadMemos();lifetimeEnding?.();return target.close();};
+      if(key==='reconnect')return ()=>{invalidateReadMemos();lifetimeEnding?.();throw Object.assign(Error('RUNTIME_REPLACEMENT_REQUIRED'),{code:'RUNTIME_REPLACEMENT_REQUIRED'});};
       if (key === 'execute' || key === 'batch') {
         if(executorOverrides.has(key))return executorOverrides.get(key);
         const method = target[key].bind(target);
@@ -140,7 +144,15 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
                 if(state.workStep===undefined&&!coordination&&!state.receiptWrite)missingStep();
               }
               if(!mutations.every(inExecutionCoordination)&&!state.receiptWrite)state.workWrites=true;}
-            return await state.tx[key](...args);}
+            const memo=state.readMemo,context=readScope.getStore(),sameScope=state.readBudget===currentExecutionBudget()&&state.readExecution===currentDurableExecution();
+            const snapshotKey=key==='execute'&&!mutations.length&&!metadata&&sameScope?readSnapshotKey(args[0],context):null;
+            if(mutations.length)memo.clear();
+            try{
+              currentExecutionBudget()?.assert();
+              if(snapshotKey){const cached=memo.get(context,snapshotKey);if(cached!==undefined){currentExecutionBudget()?.assert();return cached;}}
+              const epoch=memo.epoch(),result=await state.tx[key](...args);currentExecutionBudget()?.assert();
+              if(snapshotKey)memo.put(context,snapshotKey,result,epoch);return result;
+            }finally{if(mutations.length)memo.clear();}}
           const sql=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
           if(rootAdmission&&!metadata)await traceExecutionOperation('RUNTIME_READMISSION',()=>{countExecutionTelemetry('runtime_readmissions');return checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));});
           // Foundation/schema reads can overlap another process's writer even
@@ -202,7 +214,9 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     for (let attempt = 0; attempt < 12; attempt++) {
       const releaseRoot=await acquireRoot();
       let tx,commitSubmitted=false;
-      const state = { tx:null, cache, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
+      const readMemo=createReadSnapshotMemo(),readBudget=currentExecutionBudget(),closeReadMemo=()=>readMemo.close();activeReadMemos.add(readMemo);
+      if(readBudget?.signal.aborted)readMemo.close();else readBudget?.signal.addEventListener('abort',closeReadMemo,{once:true});
+      const state = { tx:null, cache,readMemo,readBudget,readExecution:execution, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
         commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),workStep,readOnly,replaying:false,receiptWrite:false,failure: null, deferred: null, committed: [], completed: [] };
       try {
         if(rootAdmission)await traceExecutionOperation('RUNTIME_READMISSION',()=>{countExecutionTelemetry('runtime_readmissions');return checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));});
@@ -227,7 +241,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           await runChecks([...fenceChecks(),...(before?[before]:[]),...(fixedReceipt?[observeReceipt]:[])],client);
           if(workStepFrom&&execution&&execution.receipts!==false){
             state.readOnly=true;const prepared=await workStepFrom(client);state.readOnly=readOnly;
-            if(prepared===null){await tx.rollback();return null;}
+            if(prepared===null){readMemo.close();await tx.rollback();return null;}
             if(typeof prepared!=='string'||!prepared||prepared.length>512)missingStep();
             state.workStep=prepared;
           }
@@ -235,7 +249,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             state.replaying=true;
             const result=replay?await replay():receipt.result_json===null?null:JSON.parse(receipt.result_json);
             for(const check of state.checks)await check(client);currentExecutionBudget()?.assert();
-            await tx.rollback();return result;
+            readMemo.close();await tx.rollback();return result;
           }}
           const result = await fn();
           if (state.failure) throw state.failure;
@@ -261,7 +275,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             if(original&&original.remainingMs()<25)throw new ExecutionBudgetError();
             const context=currentDurableExecution();const token={};
             context?.pending.add(token);commitSubmitted=true;
-            try {await tx.commit();}
+            try {readMemo.close();await tx.commit();}
             catch(error){
               // Explicit SQLite BUSY leaves this native transaction open: retry
               // its COMMIT only. Every other acknowledgement is indeterminate.
@@ -280,6 +294,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         for (const cleanup of state.committed) { try { await cleanup(); } catch { /* TTL recovery */ } }
         return result;
       } catch (error) {
+        readMemo.close();
         const context=currentDurableExecution();
         if(commitSubmitted&&context)context.indeterminate=true;
         try { await tx?.rollback(); } catch { /* closed/rolled back by storage */ }
@@ -289,6 +304,8 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         }
         if (!state.deferred) throw error;
       } finally {
+        readMemo.close();activeReadMemos.delete(readMemo);
+        readBudget?.signal.removeEventListener('abort',closeReadMemo);
         try {tx?.close();} finally {releaseRoot();}
         for(const cleanup of state.completed)await cleanup();
       }
@@ -307,5 +324,5 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     if(state){state.completed.push(fn);return;}
     return fn();
   }
-  return { client, transaction,assertFences:()=>checkFences(client),setLifetimeEnding:fn=>{lifetimeEnding=fn;}, setRootAdmission:fn=>{rootAdmission=fn;},setReconnectAdmission:fn=>{reconnectAdmission=fn;}, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
+  return { client, transaction,withReadSnapshot:(context,fn)=>privateRuntime?readScope.run(context,fn):fn(),assertFences:()=>checkFences(client),setLifetimeEnding:fn=>{lifetimeEnding=fn;}, setRootAdmission:fn=>{rootAdmission=fn;},setReconnectAdmission:fn=>{reconnectAdmission=fn;}, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
 }

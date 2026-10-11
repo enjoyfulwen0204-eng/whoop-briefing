@@ -1,3 +1,5 @@
+import {authorizeBodyEnergyFinalizedDrain} from './bodyEnergyDrainAuthority.js';
+import {createBodyEnergyRuntime,bodyEnergyConfiguration} from './bodyEnergyRuntime.js';
 import {withPhaseTelemetry,traceExecutionOperation,setExecutionTelemetrySequence} from './executionTelemetry.js';
 import {discoverPhaseContinuation,validateContinuationQuery} from './phase4Continuation.js';
 import {continuationScope,scopeIncludesSync,scopeIncludesDrain} from './phase4ContinuationScope.js';
@@ -215,6 +217,16 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
           if(user)await (deps.deliverBetaSummary??deliverPublicBetaSummary)({db,env,user,presentation,now:new Date(),...(deps.makeTelegram?{makeTelegram:deps.makeTelegram}:{})});
          }catch(error){if(error?.code!=='BETA_PILOT_DENIED')throw error;}
        }
+   if(request.phase==='STAGE6_DRAIN'&&record.settlementState==='FINALIZED_SUCCESS'&&pilotGrant
+      &&bodyEnergyConfiguration(environment).alerts==='on'){
+     originalAuthority.assert();await pilotGrant.assert();
+     const bodyRuntime=await createBodyEnergyRuntime({db,keys,admission,environment,env});
+     if(bodyRuntime.bodyEnergyAlerts){
+       const drainAuthority=await authorizeBodyEnergyFinalizedDrain({db,keys,executionId:request.requestId,
+         userId:pilotGrant.userId,assertExecution:()=>originalAuthority.assert()});
+       await bodyRuntime.bodyEnergyAlerts.deliver({userId:pilotGrant.userId,drainAuthority});
+     }
+   }
    log.info(request.phase==='SYNC'?'sync_complete':'stage6_drain_complete',{source:request.triggerSource,release_sha:releaseSha,phase:request.phase,
      outcome:record.outcome,duration_ms:record.durationMs,jobs_considered:record.jobsConsidered,items_attempted:record.itemsAttempted,
      jobs_completed:record.jobsCompleted,jobs_failed:record.jobsFailed,items_processed:record.itemsProcessed,work_receipts:record.workReceipts,remaining_jobs:record.remainingJobs,stop_reason:record.stopReason});

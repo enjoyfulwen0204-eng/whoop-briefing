@@ -159,7 +159,8 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   async function run(context,fn,options={}) {
     const job=jobScope.getStore();
     const check=async()=>{await assertContext(context,options);if(job)await job.check(context);};
-    return transaction(()=>fn(context),{readOnly:options.workStep===undefined&&options.workStepFrom===undefined,...options,before:check,after:check,...(job?{commitFence:check}:{})});
+    const work=()=>transaction(()=>fn(context),{readOnly:options.workStep===undefined&&options.workStepFrom===undefined,...options,before:check,after:check,...(job?{commitFence:check}:{})});
+    return processing.withReadSnapshot?processing.withReadSnapshot(context,work):work();
   }
   async function runControl(control,mode,fn) {
     if(!['SHADOW','LIVE'].includes(mode))fail('PHASE4_EXECUTION_MODE_REQUIRED');

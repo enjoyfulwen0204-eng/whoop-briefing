@@ -21,6 +21,8 @@ import { createResultAuthority } from './phase4ResultAuthority.js';
 import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
 import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 import { PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
+import { createBodyEnergyPublicationReader } from './bodyEnergyPublicationReader.js';
+import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
 
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
@@ -69,6 +71,7 @@ export function composePhase4Stores(core) {
   const coverage=createPhase4CoverageStore(core,privacy);
   const journalAnswers=createPhase4JournalAnswers(core,journal,coverage,slots,journalInbound,queue);
   const body=createBodyEnergyStore(core,entities,queue);
+  const bodyPublication=createBodyEnergyPublicationReader(core,{body,receipts,readArtifact});
   async function newBody(context,request,perform,{checkpoint=false}={}) {
     const table=checkpoint?'body_energy_checkpoints':'body_energy_results';
     const existing=(await client.execute({sql:`SELECT 1 FROM ${table} WHERE user_id=? AND execution_mode=? AND input_generation=?
@@ -80,6 +83,25 @@ export function composePhase4Stores(core) {
     return perform();
   }
   const bodyCompute=operation('BODY_ENERGY_COMPUTE',(context,request)=>newBody(context,request,()=>body.compute(context,request)));
+  async function computeForCurrentDrain(context){
+    const request=await core.run(context,async()=>{
+      const execution=await assertExecutionWorkOwner(client);
+      if(context.executionMode!=='SHADOW'||execution?.phase!=='STAGE6_DRAIN')fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
+      const supportedClock=core.now().getTime(),actualClock=Date.now();
+      if(supportedClock>actualClock)fail('BODY_ENERGY_CURRENT_DRAIN_CLOCK_FENCED');
+      const clock=Math.min(supportedClock,actualClock);
+      if(!Number.isSafeInteger(clock)||clock<execution.created_at||clock>execution.deadline_at)fail('BODY_ENERGY_CURRENT_DRAIN_CLOCK_FENCED');
+      // A generation's first Body capture uses the actual supported producer
+      // clock, after its canonical poll. A retry reuses the original receipt
+      // identity; refetch bookkeeping cannot continually renew freshness.
+      const rows=(await client.execute({sql:`SELECT as_of_epoch_ms FROM body_energy_results
+        WHERE user_id=? AND execution_mode=? AND input_generation=? AND invalidated_at IS NULL
+        ORDER BY as_of_epoch_ms LIMIT 2`,args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
+      if(rows.length>1)fail('BODY_ENERGY_CURRENT_DRAIN_AMBIGUOUS');
+      return {asOfEpochMs:rows[0]?.as_of_epoch_ms??clock};
+    });
+    return bodyCompute(context,request);
+  }
   const bodyCheckpoint=operation('BODY_ENERGY_CHECKPOINT',(context,request)=>newBody(context,request,()=>body.checkpoint(context,request),{checkpoint:true}));
   async function initializeTenant(userId,mode) {
     return transaction(async()=>{
@@ -236,7 +258,9 @@ export function composePhase4Stores(core) {
     slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle','answer','resolveValidated'].includes(name)))),
     transport:Object.freeze(createPhase4TransportStore(core,entities,{start:slots.transportStart,settle:slots.transportSettle})),
     experiments:Object.freeze(experiments),
-    bodyEnergy:Object.freeze({prepare:body.prepare,compute:bodyCompute,checkpoint:bodyCheckpoint,
+    bodyEnergy:Object.freeze({prepare:body.prepare,compute:bodyCompute,computeForCurrentDrain,checkpoint:bodyCheckpoint,
+      readForPublication:bodyPublication.readCurrent,
+      readDropCandidate:bodyPublication.readDropCandidate,
       persist:(context,ticket)=>operation('BODY_ENERGY_COMPUTE',(context,request)=>newBody(context,request,()=>body.persist(context,ticket)))(context,body.describeTicket(context,ticket)),
       read:(context,id)=>readArtifact(context,'body_energy_results',{result_id:id}),
       audit:(context,id)=>core.run(context,async()=>{

@@ -403,7 +403,7 @@ export function unavailableReply(result, locale = 'zh-TW') {
 }
 
 export function createRouter({
-  db, coachFor, now = () => new Date(), lookbackDays = 120,
+  db, coachFor,bodyEnergy, now = () => new Date(), lookbackDays = 120,
 }) {
   /**
    * 處理一則訊息，回傳要送出去的文字。
@@ -416,6 +416,12 @@ export function createRouter({
     const locale = typeof db.getLocale === 'function' ? await db.getLocale(userId) : 'zh-TW';
     if (!locale) return LANGUAGE_SELECTOR;
     const timezone = user.timezone;
+    if(bodyEnergy){
+      const control=await bodyEnergy.notificationControl.handle({text,user,chatId});
+      if(control!==null)return {reply:control.message,bodyEnergyReplyGuard:control.replyGuard};
+      const body=await bodyEnergy.query({text,userId,requestedAt:t});
+      if(body)return {reply:body.message,bodyEnergyReplyGuard:body.replyGuard};
+    }
     const provider = coachFor(userId);
     const wrapProvider=target=>target&&db.outsideProcessingTransaction?new Proxy(target,{
       get(target,key){

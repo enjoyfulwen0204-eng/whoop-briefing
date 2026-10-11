@@ -386,6 +386,7 @@ export async function checkAndAct({
   }, owned);
 
   if (!claim.claimed) {
+    if(claim.suppression==='RATE_LIMITED')return {triggered:false,reason:'daily_cap_or_topic_cooldown',messageSent:false};
     if (claim.lifecycleGeneration !== expectedLifecycleGeneration) {
       return { triggered: false, reason: 'stale_claim', messageSent: false };
     }

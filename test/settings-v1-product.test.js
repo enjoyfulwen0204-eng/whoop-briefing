@@ -34,7 +34,14 @@ for(const shadow of ['off','on'])test(`post-Settings three-user Morning Brief/Jo
  const router=createRouter({db,coachFor:()=>({json:async()=>null,ask:async()=>null}),now:()=>now});
  const stores={withContext:async(userId,options,fn)=>fn({userId,...options}),assertCurrent:async()=>true,
   betaSummary:{readCurrent:async context=>({userId:context.userId,executionMode:'SHADOW',episodes:[{metricKey:'hrv',direction:'HIGHER'}],insights:[]})}};
- const presentation=createPublicBetaPresentation({db,stores,policy:publicBetaPolicy({mode:'allowlist',userIds:ids}),runtimeCapability:authorizePublicBetaRuntime({executionMode:'SHADOW'})});
+ const policy=publicBetaPolicy({mode:'allowlist',userIds:ids}),runtimeCapability=authorizePublicBetaRuntime({executionMode:'SHADOW'});
+ // This is a synthetic typed-projection consumer test, not a remote pilot
+ // admission test. The actual remote composition must still deny no-grant
+ // access; the profile-only facade reads the real isolated canonical names and
+ // locales without pretending that the synthetic projection grants authority.
+ assert.throws(()=>createPublicBetaPresentation({db,stores,policy,runtimeCapability}),/BETA_PILOT_DENIED/);
+ const profileReader={getUser:id=>db.getUser(id),getLocale:id=>db.getLocale(id)};
+ const presentation=createPublicBetaPresentation({db:profileReader,stores,policy,runtimeCapability});
  const betaPayloads=[];
  for(const [i,id] of ids.entries()){
   const user=await db.getUser(id),chatId=String(1001+i);

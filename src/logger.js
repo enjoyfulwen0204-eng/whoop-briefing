@@ -47,7 +47,8 @@ const OPAQUE_FIELDS=new Set(['update_id','event_id','run_id','job_id','message_i
 const COUNT_FIELDS=new Set(['attempt','attempts','count','changed','unchanged','blocked','rows','duration_ms','elapsed_ms',
   'generation','execution_seq','lifecycle_generation','auth_generation','input_generation','purge_generation','version','from','to',
   'status_code','http_status','retry_after_ms','bytes','tokens','input_tokens','output_tokens',
-  'query_count','work_receipts','jobs_considered','items_attempted','items_processed','jobs_completed','jobs_failed','remaining_jobs','users','ok','failed','skipped']);
+  'query_count','work_receipts','jobs_considered','items_attempted','items_processed','jobs_completed','jobs_failed','remaining_jobs','users','ok','failed','skipped',
+  'timed_out','cancelled','throttled','scope_missing']);
 const ENUM_FIELDS=new Set(['status','state','result','reason','code','error_code','quality','level','class','resource','resource_type','mode','source','provider','outcome','phase','stop_reason']);
 const SAFE_ENUMS=new Set(['ACTIVE','INACTIVE','PENDING','RUNNING','COMPLETED','FAILED','RETRY','READY','BLOCKED','UNAVAILABLE',
   'SHADOW','LIVE','DELIVERED','AMBIGUOUS','DELIVERY_STARTED','NOT_REQUIRED','ACTION_READY','REDACTED','PRESENT','COMPLETE',
@@ -67,6 +68,7 @@ export function operationalLogFields(fields={}) {
       || typeof value==='string' && /^[A-Za-z0-9:._@#-]{1,256}$/.test(value)))result[key]=redact(value);
     else if(key==='release_sha'&&typeof value==='string'&&/^[a-f0-9]{40}$/.test(value))result[key]=value;
     else if(COUNT_FIELDS.has(key) && typeof value==='number' && Number.isFinite(value))result[key]=value;
+    else if(key==='complete'&&typeof value==='boolean')result[key]=value;
     else if(ENUM_FIELDS.has(key) && SAFE_ENUMS.has(value))result[key]=value;
     else if(['table','column'].includes(key) && typeof value==='string' && /^[a-z_]{1,64}$/.test(value))result[key]=value;
     else if(key==='error')result.error='OPERATION_FAILED';

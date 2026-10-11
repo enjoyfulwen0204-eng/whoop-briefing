@@ -6,8 +6,11 @@ import {inRuntimeMetadata} from './runtimeMetadataContext.js';
 import {reconcileExecution} from './phase4ExecutionStore.js';
 import {inExecutionCoordination} from './phase4Coordination.js';
 import {createReadSnapshotMemo,readSnapshotKey} from './processingReadSnapshot.js';
-const readOnlyChecks=new WeakSet();
+const readOnlyChecks=new WeakSet(),controlOnlyChecks=new WeakSet();
 export function readOnlyProcessingCheck(check){readOnlyChecks.add(check);return check;}
+// Only trusted server checks consisting of non-health control observations
+// and explicit runtime brackets use this narrower transport composition.
+export function controlOnlyProcessingCheck(check){controlOnlyChecks.add(check);return readOnlyProcessingCheck(check);}
 function missingStep(){const execution=currentDurableExecution(),error=Object.assign(Error('EXECUTION_WORK_STEP_REQUIRED'),{code:'EXECUTION_WORK_STEP_REQUIRED'});
  if(execution&&!execution.workRejected)execution.workRejected=error;throw error;}
 // This only separates supported read statements from mutations; it never
@@ -193,11 +196,21 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
 
   async function transaction(fn, { before, after, beforeCommit,commitFence,commitAuthority,workStep,workStepFrom,readOnly=false,discardResult=false,replay } = {}) {
     const parent = scope.getStore();
-    if (fences().length) await checkFences();
+    const guarded=fences().length>0,missingIdentity=parent&&workStep!==undefined&&parent.workStep===undefined&&currentDurableExecution()&&currentDurableExecution().receipts!==false;
+    const overlap=parent&&guarded&&!missingIdentity&&controlOnlyChecks.has(before);
+    if (guarded&&!overlap) await checkFences();
     if (parent) {
       if(workStep!==undefined&&parent.workStep===undefined&&currentDurableExecution()&&currentDurableExecution().receipts!==false)missingStep();
       try {
-        if (before) await before(client);
+        if(overlap){
+          // Both original fresh checks run. The narrow before-check reads no
+          // health content and supplies its own final runtime bracket. Settle
+          // both before business work, retaining the outer fence failure first.
+          const observations=await Promise.allSettled([
+            Promise.resolve().then(()=>checkFences(client)),Promise.resolve().then(()=>runChecks([before],client)),
+          ]);
+          for(const result of observations)if(result.status==='rejected')throw result.reason;
+        }else if (before) await runChecks([before],client);
         if (after) parent.checks.push(after);
         if (beforeCommit) parent.finalChecks.push(beforeCommit);
         if (commitFence) parent.commitFences.add(commitFence);

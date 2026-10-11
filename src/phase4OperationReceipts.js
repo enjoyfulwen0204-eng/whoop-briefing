@@ -1,7 +1,7 @@
 import { compareExact } from './phase4CanonicalOrder.js';
 import { isRequestSet, isRequestTime, isJournalRequestSet, normalizeRequestAliases, requestEvidenceIds } from './phase4RequestContract.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { fail, readableRow, DERIVED_TABLES } from './phase4Core.js';
+import {fail,readableRow,DERIVED_TABLES,RAW_SOURCE_READ_BATCH} from './phase4Core.js';
 import { BODY_ENERGY } from './bodyEnergyRegistry.js';
 import { INTELLIGENCE_VERSIONS,PHASE4_METRICS,phase4Metric } from './phase4IntelligenceRegistry.js';
 import { episodeSemanticProjection } from './phase4EpisodeHistory.js';
@@ -9,7 +9,7 @@ import { canonicalJson } from './phase4EntityStore.js';
 import { canonicalInstant, semanticTime, requireChronology } from './phase4Time.js';
 import { healthSourceVersion } from './phase4SourceVersion.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
-import { addPrivacyLink } from './phase4V22Backfill.js';
+import {addPrivacyLinks} from './phase4V22Backfill.js';
 import { insightIdentityKey } from './phase4InsightStore.js';
 import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 import { OPERATION_RECEIPT_TABLE as TABLE, OPERATION_RECEIPT_VERSION as VERSION } from './phase4V27Schema.js';
@@ -287,11 +287,13 @@ export function createOperationReceipts(core) {
     if(retainedBody) {
       // Retained Body manifests own historical measurements. Current root
       // existence/privacy remains mandatory, but corrections may change values.
+      let pending=[];
+      const flush=async()=>{if(core.readRoots)await core.readRoots(context,pending);else for(const root of pending)await core.root(context,root.type,root.id);pending=[];};
       for(const root of decoded.required_roots_json.roots) {
         if(root.type==='body_energy_results'&&decoded.related_results_json.some(target=>target.type===root.type&&target.id===root.id))continue;
-        if(!['sleep','recovery','cycle','workout','USER'].includes(root.type))invalid();
-        await core.root(context,root.type,root.id);
-      }
+        if(!['sleep','recovery','cycle','workout','USER'].includes(root.type)){await flush();invalid();}
+        pending.push(root);if(pending.length===RAW_SOURCE_READ_BATCH)await flush();
+      }await flush();
     } else await authorities.validateRoots(context,row,decoded.required_roots_json);
     for(const root of decoded.required_roots_json.roots)if(root.type==='evidence_items') {
       const item=(await client.execute({sql:'SELECT evidence_item_id,run_id FROM evidence_items WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',
@@ -748,9 +750,9 @@ export function createOperationReceipts(core) {
           await (await import('./phase4QueueStore.js')).createPhase4QueueStore(core).markFull(
             context.userId,context.executionMode,context.inputGeneration,context.purgeGeneration,'SOURCE_CHANGED');
       }
-      for(const root of roots.roots)await addPrivacyLink(client,{userId:context.userId,mode:context.executionMode,table:TABLE,
+      await addPrivacyLinks(client,roots.roots.map(root=>({userId:context.userId,mode:context.executionMode,table:TABLE,
         artifactId:row.privacy_artifact_id,sourceMode:root.mode,sourceType:root.type,sourceId:root.id,
-        relationship:root.as_of?`DEPENDS_ON_AS_OF:${root.as_of}`:'DEPENDS_ON',at:core.timestamp()});
+        relationship:root.as_of?`DEPENDS_ON_AS_OF:${root.as_of}`:'DEPENDS_ON',at:core.timestamp()})));
       if(refreshPredecessor)await core.transaction(async()=>{}, {beforeCommit:async()=>{
         await refreshAuthority.retained(context,refreshPredecessor);
         await refreshAuthority.fresh(context,semanticRequest,refreshPredecessor);

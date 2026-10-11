@@ -5,6 +5,7 @@ import { canonicalInstant } from './phase4Time.js';
 import { canonicalSourceVersion } from './phase4SourceVersion.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
 import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
+import {metricPreparationContinuation,metricUnitReceipt} from './phase4MetricUnitReceipt.js';
 
 export const LEGACY_DISCOVERY_BUDGET=Object.freeze({runs:500,authorities:1000,deadlineMs:5000});
 const unavailable=()=>fail('PHASE4_LEGACY_DISCOVERY_UNAVAILABLE');
@@ -80,7 +81,19 @@ export function createLegacyDiscovery(core) {
       // A v26 result is not a complete public operation receipt, even if its
       // origin is authentic. A v27 receipt miss with equivalent input also
       // fails closed: it may indicate a missing receipt or unknown dimension.
-      matches.push({run,complete:false});
+      let complete=false;
+      if(kind==='analyzeMetric'&&request.refresh===true&&metricPreparationContinuation(core,context)){
+        const plan={runKey:run.deterministic_run_key,inputHash:run.input_manifest_hash,
+          itemKey:core.keys.lookup(['phase4-evidence-item-v1',run.deterministic_run_key,'baseline-deviation'])};
+        if(records.length!==1||records[0].result_scope!=='METRIC'||items.length!==1||items[0].item_key!==plan.itemKey)invalid();
+        // Only the three original acknowledged, producer-bound units can
+        // complete their missing domain receipt. An arbitrary legacy result
+        // remains unavailable, and every historical/root check above still ran.
+        for(const unit of ['RUN','ITEM','AUTHORITY'])if(!await metricUnitReceipt(core,context,plan,unit))
+          fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+        complete=true;
+      }
+      matches.push({run,complete});
     }
     check();
     // Association has one run per focus in a family. Only duplicate focus
@@ -91,6 +104,6 @@ export function createLegacyDiscovery(core) {
       groups.set(focus,(groups.get(focus)??0)+1);
     }
     if([...groups.values()].some(count=>count>1))fail('PHASE4_LEGACY_IDENTITY_AMBIGUOUS');
-    if(matches.length)fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
+    if(matches.some(match=>!match.complete))fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
   };
 }

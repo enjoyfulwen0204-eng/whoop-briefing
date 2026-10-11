@@ -85,11 +85,13 @@ export function createBodyEnergyStore(core,entities,queue) {
     for(const value of manifest.naps)add('sleep',value.source);
     for(const value of manifest.notification_workouts?.rows??[])add('workout',value);
     for(const value of manifest.exclusions)if(value.id!==null)required.push({type:value.resource==='baseline'?'sleep':value.resource,id:value.id});
-    const seen=new Set();
+    const seen=new Set(),unique=[];
     for(const source of required) {
       const identity=canonicalJson(source);if(seen.has(identity))continue;seen.add(identity);
       if(seen.size>10000)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
-      const current=await core.root(context,source.type,source.id);
+      unique.push(source);
+    }
+    const verify=async(source,current)=>{
       if(source.expected&&row.input_generation===context.inputGeneration)for(const [field,value] of Object.entries(source.expected)) {
         // A same-version canonical refetch may refresh only its ingestion
         // bookkeeping. Publication keeps the original snapshot and freshness;
@@ -102,7 +104,9 @@ export function createBodyEnergyStore(core,entities,queue) {
         if((time?canonicalSourceTime(current.row[field]??null):current.row[field]??null)
           !==(time?canonicalSourceTime(value):value))fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
       }
-    }
+    };
+    if(core.readRoots)await core.readRoots(context,unique,{verify});
+    else for(const source of unique)await verify(source,await core.root(context,source.type,source.id));
     return result;
   }
   async function prepare(context,options) {
@@ -112,14 +116,26 @@ export function createBodyEnergyStore(core,entities,queue) {
         const from=await pilotPrefixFrom(client,context,table,[context.userId]);
         return [...(await client.execute({sql:`SELECT user_id,${fields} FROM ${from} WHERE user_id=?`,args:[context.userId]})).rows];
       };
-      const sources={};for(const type of Object.keys(tables))sources[type]=await rows(tables[type],columns[type]);
-      const access=await rows('whoop_resource_access','resource,status,auth_generation,lifecycle_generation'),
-        sync=await rows('whoop_sync_state','resource,last_success_at,updated_at'),
-        tombstones=await rows('whoop_resource_tombstones','resource_type,resource_id,state');
+      const types=Object.keys(tables),sources={},sourceRows=await Promise.allSettled(types.map(type=>
+        Promise.resolve().then(()=>rows(tables[type],columns[type]))));
+      for(let index=0;index<types.length;index++) {
+        if(sourceRows[index].status==='rejected')throw sourceRows[index].reason;
+        sources[types[index]]=sourceRows[index].value;
+      }
+      // Fixed complete inventories, each retaining its own original prefix
+      // probe/index/row/type/byte admission. No selector sees a partial group.
+      const controlRows=await Promise.allSettled([
+        ['whoop_resource_access','resource,status,auth_generation,lifecycle_generation'],
+        ['whoop_sync_state','resource,last_success_at,updated_at'],
+        ['whoop_resource_tombstones','resource_type,resource_id,state'],
+        ['whoop_capabilities','key,status,lifecycle_generation'],
+      ].map(args=>Promise.resolve().then(()=>rows(...args))));
+      for(const result of controlRows)if(result.status==='rejected')throw result.reason;
+      const [access,sync,tombstones,capabilities]=controlRows.map(result=>result.value);
       const selection=selectBodyEnergyInputs({userId:context.userId,timezone:context.timezone,asOfEpochMs:req.asOfEpochMs,
         targetHealthDate:req.targetHealthDate,lifecycleGeneration:context.lifecycleGeneration,authGeneration:context.authGeneration,sources,
         sync,access,
-        capabilities:await rows('whoop_capabilities','key,status,lifecycle_generation'),
+        capabilities,
         tombstones});
       // Non-score evidence: retain admitted ongoing/completed workout state
       // around this wake so two authenticated captures can attest completion.
@@ -149,9 +165,9 @@ export function createBodyEnergyStore(core,entities,queue) {
       // The exact persisted tuple can still be replayed by compute/readExact.
       if(selection.notReproducible)fail('NOT_REPRODUCIBLE_FROM_RETAINED_INPUTS');
       const calculation=calculateBodyEnergy(manifest),refs=[];
-      for(const source of selection.references)refs.push((await core.root(context,source.type,source.id)).ref);
-      for(const row of notificationRows)refs.push((await core.root(context,'workout',row.id)).ref);
-      refs.push((await core.root(context,'USER',context.userId)).ref);
+      const roots=[...selection.references,...notificationRows.map(row=>({type:'workout',id:row.id})),{type:'USER',id:context.userId}];
+      if(core.readRoots)for(const current of await core.readRoots(context,roots))refs.push(current.ref);
+      else for(const source of roots)refs.push((await core.root(context,source.type,source.id)).ref);
       const ticket=Object.freeze({kind:'BODY_ENERGY_CAPTURE'});
       const cacheKey=['body-energy-capture-v1',core.newId()];
       core.contextRegistry.set(context,cacheKey,{req,manifest,calculation});

@@ -64,7 +64,10 @@ test('READY/lifecycle invalidation durably closes the monitored policy and resta
 });
 test('observed monitored expiry remains closed across restart and later database-clock rollback',async t=>{
  const {db}=await fixture(t),env=environment(),store=permit(db,env),grant=await store.reserve(),config=betaPilotConfiguration(env),execute=db.raw.execute.bind(db.raw);let observed=config.endAt;
- db.raw.execute=async statement=>statement?.sql?.includes('observed_at')&&statement.sql.includes('user_onboarding')?{rows:[{observed_at:observed,lifecycle_generation:1}]}:execute(statement);
+ db.raw.execute=async statement=>{const result=await execute(statement);
+  if(statement?.sql?.includes('observed_at')&&statement.sql.includes('user_onboarding')){
+   result.rows[0].observed_at=observed;result.rows[0].lifecycle_generation=1;
+  }return result;};
  await assert.rejects(()=>grant.assert(),/BETA_PILOT_DENIED/);assert.equal((await record(db)).closed,true);
  observed=config.startAt+1000;await assert.rejects(()=>permit(db,env).reserve(),/BETA_PILOT_DENIED/);assert.equal((await record(db)).attempts,1);
 });

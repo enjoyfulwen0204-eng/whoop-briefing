@@ -13,7 +13,13 @@ export const PILOT_OPERATIONAL_MICRO_USD=400_000;
 const UNIT_KEYS=['rowsRead','rowsWritten','storageBytes','bytesSynced','microUsd'];
 const issuedGrants=new WeakMap(),submittedGrants=new WeakSet(),attemptScope=new AsyncLocalStorage();
 const issuedDatabases=new WeakMap(),prefixReadReservations=new WeakMap();
-const mutationReservations=new WeakMap();
+const mutationReservations=new WeakMap(),issuedWorkProfiles=new WeakMap();
+const originalWorkProfile=Object.freeze({version:'pilot-work-envelope-v1',prefixReadSets:32,mutations:128,mutationBytes:256*1024,receiptPrefixBytes:1024*1024});
+// A finite logical work profile for the original monitored allowance. This
+// does not supply admission, financial authority, a billing certificate or a
+// complete-generation capacity guarantee. Overflow still denies all work.
+export const MONITORED_BODY_WORK_PROFILE=Object.freeze({version:'monitored-body-work-envelope-v1',prefixReadSets:128,
+ mutations:320,mutationBytes:512*1024,receiptPrefixBytes:2*1024*1024});
 export const PILOT_MAX_MUTATIONS=128,PILOT_MAX_MUTATION_BYTES=256*1024;
 const closureScope=new AsyncLocalStorage();
 export const closingBetaPilotPermit=db=>Boolean(db?.raw)&&closureScope.getStore()===db.raw;
@@ -28,6 +34,7 @@ export async function withBetaPilotAttempt(grant,userId,work){
  return attemptScope.run(grant,work);
 }
 export function requireCurrentBetaPilotAttempt(userId,client){return requireBetaPilotGrant(attemptScope.getStore(),userId,client);}
+export function currentPilotWorkProfile(userId,client){return issuedWorkProfiles.get(requireCurrentBetaPilotAttempt(userId,client));}
 
 /** Logical prefix-work envelope only, NOT provider billed units or a dollar
  * certificate. The durable attempt was already consumed; failed/denied reads
@@ -37,7 +44,7 @@ export function reservePilotPrefixRead(context,client){
  requireBetaPilotGrant(grant,context?.userId,client);
  if(context.executionMode!=='SHADOW'||!issuedDatabases.get(grant)?.processingTransactionActive?.())fail();
  const used=prefixReadReservations.get(grant)??0;
- if(used>=32)fail();
+ if(used>=issuedWorkProfiles.get(grant).prefixReadSets)fail();
  prefixReadReservations.set(grant,used+1);return true;
 }
 
@@ -56,7 +63,8 @@ export function reservePilotMutation(context,client,values){
   else fail();
  }
  const used=mutationReservations.get(grant)??{operations:0,bytes:0};
- if(!Number.isSafeInteger(bytes)||used.operations>=PILOT_MAX_MUTATIONS||used.bytes+bytes>PILOT_MAX_MUTATION_BYTES)fail();
+ const limits=issuedWorkProfiles.get(grant);
+ if(!Number.isSafeInteger(bytes)||used.operations>=limits.mutations||used.bytes+bytes>limits.mutationBytes)fail();
  mutationReservations.set(grant,{operations:used.operations+1,bytes:used.bytes+bytes});return true;
 }
 
@@ -130,7 +138,7 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
   (SELECT u.lifecycle_generation FROM users u JOIN user_onboarding o ON o.user_id=u.id
    WHERE u.id=? AND u.status='ACTIVE' AND o.state='READY') lifecycle_generation`,args:[config.userId]})).rows[0];
  let latestObservedAt=config.startAt;
- const eligible=(row,state)=>Number.isSafeInteger(row?.observed_at)&&row.observed_at>=Math.max(config.startAt,latestObservedAt)&&row.observed_at<config.endAt
+ const eligible=(row,state,minimumObservedAt=latestObservedAt)=>Number.isSafeInteger(row?.observed_at)&&row.observed_at>=Math.max(config.startAt,minimumObservedAt)&&row.observed_at<config.endAt
   &&Number.isSafeInteger(row.lifecycle_generation)&&row.lifecycle_generation>0
   &&(!state||!state.closed&&row.lifecycle_generation===state.lifecycleGeneration&&row.observed_at>=state.lastObservedAt);
  const write=async(row,state,observedAt)=>{
@@ -174,9 +182,21 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
  };
  const assert=async client=>{
   if(closingBetaPilotPermit(db))return;
-  const row=await read(client??db.raw);if(!row)fail();const state=decode(row);
-  const current=await observe(client??db.raw);
-  if(locallyClosed||!eligible(current,state)){await invalidate(current?.observed_at);fail();}
+  // A fresh read already in flight may complete after a later-started read.
+  // Keep the proven highwater at invocation as its negative clock fence; an
+  // assertion started after a newer proof still cannot observe a lower clock.
+  // Durable/local closure and the original absolute/durable time bounds apply
+  // at completion, and a late result never lowers the highwater.
+  const minimumObservedAt=latestObservedAt;
+  // Observe the same durable state, READY/lifecycle and current database
+  // clock in one physical statement. Nothing is cached or trusted from a
+  // previous assertion; one processing transaction still owns the snapshot.
+  const current=(await (client??db.raw).execute({sql:`SELECT ${databaseNowMs} observed_at,
+    (SELECT last_detail FROM system_heartbeats WHERE scope='global' AND component=?) last_detail,
+    (SELECT u.lifecycle_generation FROM users u JOIN user_onboarding o ON o.user_id=u.id
+     WHERE u.id=? AND u.status='ACTIVE' AND o.state='READY') lifecycle_generation`,args:[COMPONENT,config.userId]})).rows[0];
+  if(!current||current.last_detail===null)fail();const state=decode(current);
+  if(locallyClosed||!eligible(current,state,minimumObservedAt)){await invalidate(current?.observed_at);fail();}
   latestObservedAt=Math.max(latestObservedAt,current.observed_at,state.lastObservedAt);return state;
  };
  return Object.freeze({
@@ -200,8 +220,16 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
     const assertTime=()=>{if(closingBetaPilotPermit(db))return;if(locallyClosed||performance.now()>=deadline){invalidate(config.endAt);fail();}};
     const grant=Object.freeze({userId:config.userId,attempt:attempts,assertTime,
      settleInvalidation:()=>locallyClosed?persistClosure():undefined,
-     assert:async client=>{if(performance.now()>=deadline){await invalidate(config.endAt);fail();}return assert(client);}});
-    issuedGrants.set(grant,db.raw);issuedDatabases.set(grant,db);return grant;
+     assert:async client=>{
+      if(performance.now()>=deadline){await invalidate(config.endAt);fail();}
+      const observed=await assert(client);
+      // A slow response cannot carry authority past the original deadline,
+      // nor revive a grant closed by another already settled observation.
+      if(performance.now()>=deadline){await invalidate(config.endAt);fail();}
+      if(locallyClosed)fail();return observed;
+     }});
+    issuedGrants.set(grant,db.raw);issuedDatabases.set(grant,db);
+    issuedWorkProfiles.set(grant,allowance?MONITORED_BODY_WORK_PROFILE:originalWorkProfile);return grant;
    });
    if(!result)fail();
    if(allowance)log[result.attempt>=reservation.warningAttempt?'warn':'info']('beta_pilot_monitored_allowance',{

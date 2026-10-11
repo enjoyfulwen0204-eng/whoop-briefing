@@ -19,6 +19,10 @@ export function createReanalysisQueue(core) {
   const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,core.keys):null;
   const read=(context,kind)=>client.execute({sql:'SELECT * FROM phase4_jobs WHERE user_id=? AND execution_mode=? AND job_kind=?',
     args:[context.userId,context.executionMode,kind]}).then(result=>result.rows[0]);
+  const readOwnership=(context,kind)=>client.execute({sql:`SELECT state,lease_owner,lease_expires_at,requested_generation,
+    claimed_generation,scope_revision,claimed_scope_revision,claimed_purge_generation,claimed_lifecycle_generation,
+    claimed_auth_generation FROM phase4_jobs WHERE user_id=? AND execution_mode=? AND job_kind=?`,
+    args:[context.userId,context.executionMode,kind]}).then(result=>result.rows[0]);
   async function select({limit=8,userId=null}={}) {
     if(!Number.isSafeInteger(limit)||limit<1||limit>100)fail('PHASE4_DRAIN_BUDGET_INVALID');
     const rows=(await client.execute({sql:`SELECT user_id,job_kind FROM (
@@ -37,11 +41,18 @@ export function createReanalysisQueue(core) {
     if(context.executionMode!=='SHADOW'||!JOB_KINDS.includes(kind))fail('PHASE4_STAGE6_SHADOW_REQUIRED');
     if(!Number.isSafeInteger(leaseMs)||leaseMs<1000||leaseMs>120000)fail('PHASE4_DRAIN_BUDGET_INVALID');
     return core.run(context,async()=>{
-      const row=await read(context,kind),at=timestamp();
+      // The enclosing Core before-check has admitted this context. Settle
+      // the job snapshot and the additional fresh context metadata together
+      // before considering any lease mutation; preserve job failure priority.
+      const observed=await Promise.allSettled([Promise.resolve().then(()=>read(context,kind)),
+        Promise.resolve().then(()=>core.assertContext(context))]);
+      if(observed[0].status==='rejected')throw observed[0].reason;
+      const row=observed[0].value,at=timestamp();
       if(!row||row.scope_kind==='NONE'&&row.completed_generation>=row.requested_generation
         ||row.next_attempt_at>at||row.lease_owner&&row.lease_expires_at>at)return null;
       if(row.requested_generation!==context.inputGeneration)fail('PHASE4_INPUT_FENCED');
-      const current=await core.assertContext(context);
+      if(observed[1].status==='rejected')throw observed[1].reason;
+      const current=observed[1].value;
       const resume=row.claimed_generation===context.inputGeneration&&row.claimed_lifecycle_generation===context.lifecycleGeneration
         &&row.claimed_auth_generation===context.authGeneration&&row.claimed_purge_generation===context.purgeGeneration
         &&row.claimed_scope_revision===row.scope_revision;
@@ -76,10 +87,18 @@ export function createReanalysisQueue(core) {
     if(!leases.has(lease))return;
     await releaseTenant(lease);leases.delete(lease);
   }
-  async function check(context,lease) {
+  async function check(context,lease,{ownershipOnly=false}={}) {
     if(leases.get(lease)?.context!==context)fail('PHASE4_SERVER_LEASE_REQUIRED');
-    await checkTenant(lease);
-    const row=await read(context,lease.binding.jobKind),b=lease.binding;
+    let row;
+    if(core.processing.active?.()) {
+      // Both are fresh, non-health ownership observations in this already
+      // owned transaction. Complete both and retain tenant-lock failure first.
+      const observed=await Promise.allSettled([Promise.resolve().then(()=>checkTenant(lease)),Promise.resolve().then(()=>
+        (ownershipOnly?readOwnership:read)(context,lease.binding.jobKind))]);
+      for(const result of observed)if(result.status==='rejected')throw result.reason;
+      row=observed[1].value;
+    } else {await checkTenant(lease);row=await (ownershipOnly?readOwnership:read)(context,lease.binding.jobKind);}
+    const b=lease.binding;
     if(!row||row.state!=='RUNNING'||row.lease_owner!==b.owner||row.lease_expires_at!==b.expiresAt||row.lease_expires_at<=timestamp()
       ||row.requested_generation!==b.requestedGeneration||row.claimed_generation!==b.requestedGeneration
       ||row.scope_revision!==b.scopeRevision||row.claimed_scope_revision!==b.scopeRevision
@@ -87,10 +106,12 @@ export function createReanalysisQueue(core) {
       ||row.claimed_auth_generation!==b.authGeneration)fail('PHASE4_LEASE_CAS_LOST');
     return row;
   }
-  const owned=(context,lease,fn,{assertBudget=()=>{},workKind,workFacts}={})=>core.withJobFence(lease.binding,async activeContext=>{
-    assertBudget();if(activeContext!==context)fail('PHASE4_LEASE_SCOPE_MISMATCH');await check(context,lease);
-  },()=>core.run(context,fn,workKind?workStepOptions(workKind,[context.userId,context.executionMode,lease.binding.jobKind,
-    lease.binding.requestedGeneration,lease.binding.scopeRevision,workFacts],{discardResult:true}):{readOnly:true}));
+  const withOwnership=(context,lease,fn,{assertBudget=()=>{}}={})=>core.withJobFence(lease.binding,async activeContext=>{
+    assertBudget();if(activeContext!==context)fail('PHASE4_LEASE_SCOPE_MISMATCH');await check(context,lease,{ownershipOnly:true});
+  },fn);
+  const owned=(context,lease,fn,{assertBudget=()=>{},workKind,workFacts}={})=>withOwnership(context,lease,
+    ()=>core.run(context,fn,workKind?workStepOptions(workKind,[context.userId,context.executionMode,lease.binding.jobKind,
+    lease.binding.requestedGeneration,lease.binding.scopeRevision,workFacts],{discardResult:true}):{readOnly:true}),{assertBudget});
   async function checkpoint(context,lease,cursor) {
     if(!core.processing.active()||!core.jobAuthority())fail('PHASE4_TRANSACTION_REQUIRED');
     await check(context,lease);
@@ -166,5 +187,5 @@ export function createReanalysisQueue(core) {
       lease.binding.scopeRevision,leases.get(lease)?.cursor,errorCode],{discardResult:true}));
     await releaseTenant(lease);return result;
   }
-  return Object.freeze({select,claim,check,owned,checkpoint,end,complete,release,abandon});
+  return Object.freeze({select,claim,check,owned,withOwnership,checkpoint,end,complete,release,abandon});
 }

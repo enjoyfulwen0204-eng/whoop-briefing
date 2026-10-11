@@ -155,6 +155,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
        budget.assert();
        return {outcome:drained.outcome,jobsConsidered:drained.jobsConsidered,itemsAttempted:drained.itemsAttempted,
          itemsProcessed:drained.processedItems,jobsCompleted:drained.completedJobs,jobsFailed:drained.failedJobs,remainingJobs:drained.remainingJobs,completion:drained.completion,stopReason:drained.stopReason,
+         ...(drained.unitsCommitted?{unitsCommitted:drained.unitsCommitted}:{}),
          durationMs:performance.now()-started};
      })))));
    } catch(error) {

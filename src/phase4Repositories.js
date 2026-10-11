@@ -3,7 +3,7 @@ import { createLegacyDiscovery } from './phase4LegacyDiscovery.js';
 import { createOperationReceipts } from './phase4OperationReceipts.js';
 import { fail, requireInteger } from './phase4Core.js';
 import { createPhase4QueueStore } from './phase4QueueStore.js';
-import { createPhase4EntityStore } from './phase4EntityStore.js';
+import { createPhase4EntityStore,canonicalJson } from './phase4EntityStore.js';
 import { createPhase4PrivacyStore } from './phase4PrivacyStore.js';
 import { createPhase4EpisodeStore } from './phase4EpisodeStore.js';
 import { createPhase4MessageStore } from './phase4MessageStore.js';
@@ -23,6 +23,8 @@ import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
 import { PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
 import { createBodyEnergyPublicationReader } from './bodyEnergyPublicationReader.js';
 import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
+import {withMetricPreparationContinuation,currentBodySourceReceipt} from './phase4MetricUnitReceipt.js';
+import {bodyEnergyMetricAnalysisTime} from './bodyEnergyDerivedTime.js';
 
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
@@ -101,6 +103,26 @@ export function composePhase4Stores(core) {
       return {asOfEpochMs:rows[0]?.as_of_epoch_ms??clock};
     });
     return bodyCompute(context,request);
+  }
+  async function readForCurrentDrain(context,asOfUtc){
+    return core.run(context,async()=>{
+      const owner=await assertExecutionWorkOwner(client);
+      if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
+        fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
+      const rows=(await client.execute({sql:`SELECT result_id FROM body_energy_results
+        WHERE user_id=? AND execution_mode=? AND input_generation=? AND invalidated_at IS NULL
+        ORDER BY as_of_epoch_ms LIMIT 2`,args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
+      if(rows.length>1)fail('BODY_ENERGY_CURRENT_DRAIN_AMBIGUOUS');if(!rows.length)return null;
+      if(!await currentBodySourceReceipt(core,context,asOfUtc))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+      const current=await readArtifact(context,'body_energy_results',{result_id:rows[0].result_id});
+      const reproduced=await body.audit(context,current.row.result_id);
+      if(canonicalJson(reproduced.row)!==canonicalJson(current.row))fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
+      const analysisTime=await bodyEnergyMetricAnalysisTime(core,context,current,current.row.as_of_utc);
+      // The original physiological cutoff and source ages are retained. This
+      // current owner receives a freshly verified recorded source, never a
+      // new Body calculation, renewed clock or publication grant.
+      return {body:{...reproduced,created:false},current,analysisTime};
+    });
   }
   const bodyCheckpoint=operation('BODY_ENERGY_CHECKPOINT',(context,request)=>newBody(context,request,()=>body.checkpoint(context,request),{checkpoint:true}));
   async function initializeTenant(userId,mode) {
@@ -252,13 +274,16 @@ export function composePhase4Stores(core) {
         return episodes.readRevision(context,request);
       }),...Object.fromEntries(['open','revise','reverse','refresh','semantic']
       .map(name=>[name,owned(episodes[name])]))}),
-    intelligence:Object.freeze(Object.fromEntries(Object.entries(intelligence).map(([name,fn])=>[name,operation(name,fn)]))),
+    intelligence:Object.freeze({...Object.fromEntries(Object.entries(intelligence).filter(([name])=>name!=='metricPreparationUnit')
+      .map(([name,fn])=>[name,operation(name,fn)])),metricPreparationUnit:intelligence.metricPreparationUnit,
+      resumeMetricPreparation:(context,request)=>withMetricPreparationContinuation(core,context,
+        ()=>operation('analyzeMetric',intelligence.analyzeMetric)(context,request))}),
     insights:Object.freeze({...insights,create:owned(insights.create),transition:owned(insights.transition)}),
     messages:Object.freeze({propose:messages.propose,readReservation:messages.readReservation,simulate:messages.simulate}),
     slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle','answer','resolveValidated'].includes(name)))),
     transport:Object.freeze(createPhase4TransportStore(core,entities,{start:slots.transportStart,settle:slots.transportSettle})),
     experiments:Object.freeze(experiments),
-    bodyEnergy:Object.freeze({prepare:body.prepare,compute:bodyCompute,computeForCurrentDrain,checkpoint:bodyCheckpoint,
+    bodyEnergy:Object.freeze({prepare:body.prepare,compute:bodyCompute,computeForCurrentDrain,readForCurrentDrain,checkpoint:bodyCheckpoint,
       readForPublication:bodyPublication.readCurrent,
       readDropCandidate:bodyPublication.readDropCandidate,
       persist:(context,ticket)=>operation('BODY_ENERGY_COMPUTE',(context,request)=>newBody(context,request,()=>body.persist(context,ticket)))(context,body.describeTicket(context,ticket)),

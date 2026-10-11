@@ -11,6 +11,8 @@ import { assessDataQuality, benjaminiHochberg, buildPersonalBaseline, evaluateJo
   evaluateMeaningfulChange, evidenceConfidence, recencyWeight, validMetricValue,
   validateEvidenceConfidence, compareBaselineSources } from './phase4Intelligence.js';
 import { pearson, pValue } from './analytics/correlation.js';
+import {metricUnitReceipt,metricUnitWork,metricPreparationContinuation} from './phase4MetricUnitReceipt.js';
+import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
 
 const ACTIVE = ['OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING'];
 const MERGE_GAP_MS = 36*60*60*1000;
@@ -327,8 +329,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     await linkMembership(context,current,item,sourceSet,calculation,confidence);
     return {episode:await episodes.read(context,active.episode_id),created:false,replayed:false,event:revised};
   }
-  async function analyzeMetric(context,request) {
-    return core.run(context,async()=>{
+  async function metricPreparation(context,request) {
       if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
       if(!exactKeys(request,['metricKey','currentSource','baselineSources','asOfUtc','windowFamily',...(request.refresh===true?['refresh']:[])])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime()||typeof request.windowFamily!=='string'||!request.windowFamily)
@@ -353,13 +354,93 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       const observationCalculation=evaluateMeaningfulChange({metricKey:request.metricKey,current:sourceSet.current,baseline,quality,priorQualifying});
       const plan=metricEvidencePlan(context,{metricKey:request.metricKey,sourceSet,baseline,quality,
         calculation:observationCalculation,asOfUtc:request.asOfUtc,windowFamily:request.windowFamily,refresh:request.refresh===true});
+      return {request,contract,sourceSet,baseline,quality,baseIdentity,priorQualifying,observationCalculation,plan};
+  }
+  async function metricPreparationUnit(context,request,kind) {
+    if(core.schemaVersion!==32||!core.jobAuthority()||request?.refresh!==true||!['RUN','ITEM','AUTHORITY','NEXT'].includes(kind))
+      fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+    let prepared;
+    const workStepFrom=async()=>{
+      const owner=await assertExecutionWorkOwner(client);if(owner?.phase!=='STAGE6_DRAIN')fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+      prepared=await metricPreparation(context,request);
+      if(kind==='NEXT'){
+        const run=(await client.execute({sql:'SELECT run_id FROM evidence_runs WHERE user_id=? AND execution_mode=? AND deterministic_run_key=?',
+          args:[context.userId,context.executionMode,prepared.plan.runKey]})).rows[0];
+        if(!run)kind='RUN';else{
+          const item=(await client.execute({sql:'SELECT evidence_item_id FROM evidence_items WHERE user_id=? AND execution_mode=? AND run_id=? AND item_key=?',
+            args:[context.userId,context.executionMode,run.run_id,prepared.plan.itemKey]})).rows[0];
+          kind=item?'AUTHORITY':'ITEM';
+        }
+      }
+      return metricUnitWork(context,prepared.plan,kind).workStep;
+    };
+    const perform=async()=>{
+      const {plan,sourceSet,baseline,quality,observationCalculation:calculation}=prepared;
+      const runRow=(await client.execute({sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND deterministic_run_key=?',
+        args:[context.userId,context.executionMode,plan.runKey]})).rows[0];
+      let run;
+      if(runRow){
+        if(!readableRow(runRow)||runRow.invalidated_at||runRow.state!=='COMPLETED'
+          ||runRow.input_manifest_hash!==plan.inputHash||runRow.input_manifest_json!==canonicalJson(plan.input))
+          fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
+        if(!await metricUnitReceipt(core,context,plan,'RUN'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+        run=await core.artifact(context,'evidence_runs',{run_id:runRow.run_id});
+      }else{
+        if(kind!=='RUN')fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+        run=await entities.append(context,'evidence_runs',{deterministic_run_key:plan.runKey,subject_key:request.metricKey,
+          method:'PERSONAL_BASELINE_DEVIATION',window_start_utc:baseline.samples.at(-1)?.observedAt??sourceSet.current.observedAt,
+          window_end_utc:sourceSet.current.observedAt,as_of_utc:request.asOfUtc,timezone:context.timezone,
+          algorithm_version:INTELLIGENCE_VERSIONS.algorithm,registry_version:INTELLIGENCE_VERSIONS.registry,
+          evidence_contract_version:INTELLIGENCE_VERSIONS.evidenceContract,promotion_confound_version:INTELLIGENCE_VERSIONS.promotionConfound,
+          exposure_classification_version:INTELLIGENCE_VERSIONS.exposureClassification,factor_set_version:INTELLIGENCE_VERSIONS.factorSet,
+          state:'STARTED',started_at:request.asOfUtc},sourceSet.refs);
+        run=await entities.completeEvidence(context,run.row.run_id,{sample_count:baseline.sampleCount,exclusion_count:baseline.exclusions.length,
+          input_manifest_json:plan.input,input_manifest_hash:plan.inputHash,missingness_json:{quality_state:quality.status,reason_codes:quality.reasonCodes}});
+      }
+      if(kind==='RUN')return {unit:'RUN',status:'COMPLETE',created:!runRow};
+      if(kind==='AUTHORITY'&&!(await client.execute({sql:`SELECT 1 FROM evidence_items WHERE user_id=? AND execution_mode=? AND run_id=? AND item_key=?`,
+        args:[context.userId,context.executionMode,run.row.run_id,plan.itemKey]})).rows.length)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+      const itemData=metricItemData(request.metricKey,sourceSet,baseline,quality,calculation,plan),item=await entities.append(context,'evidence_items',
+        {...itemData,run_id:run.row.run_id},sourceSet.refs);
+      validateMetricItem(item.row,itemData,run.row.run_id);
+      if(canonicalJson(durableConfidence(item))!==canonicalJson(plan.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
+      const itemProof=!item.created?await metricUnitReceipt(core,context,plan,'ITEM'):null;
+      if(!item.created&&!itemProof)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+      if(kind==='ITEM')return {unit:'ITEM',status:'COMPLETE',created:item.created};
+      const prior=(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
+        WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
+        args:[context.userId,context.executionMode,item.row.evidence_item_id]})).rows[0];
+      if(prior){
+        if(!await metricUnitReceipt(core,context,plan,'AUTHORITY'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+        const verified=await authorities.read(context,item.row.evidence_item_id,'METRIC');
+        if(verified.origin!==null||canonicalJson(verified.calculation)!==canonicalJson(calculation))fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+        return {unit:'AUTHORITY',status:'COMPLETE',created:false,prepared:true};
+      }
+      // An independently created/legacy item cannot acquire a later origin.
+      // Only this exact same-context, current-owner ITEM receipt proof permits
+      // its original null-origin preparation authority to finish durably.
+      await authorities.persist(context,{item,run,scope:'METRIC',origin:null,calculation,sourceRefs:sourceSet.refs,
+        continuation:itemProof?{proof:itemProof,plan}:null});
+      return {unit:'AUTHORITY',status:'COMPLETE',created:true,prepared:true};
+    };
+    return core.run(context,perform,{workStepFrom,discardResult:true,replay:perform});
+  }
+  async function analyzeMetric(context,request) {
+    return core.run(context,async()=>{
+      const {request:normalized,contract,sourceSet,baseline,quality,baseIdentity,priorQualifying,observationCalculation,plan}=await metricPreparation(context,request);
+      request=normalized;
       // A complete, independent calculation. It deliberately has no episode
       // dependency and cannot make a historical episode current. The explicit
       // request and manifest dimension separate it from ordinary analysis.
       if(request.refresh===true) {
         const evidence=await durableEvidence(context,{metricKey:request.metricKey,sourceSet,baseline,quality,
           calculation:observationCalculation,asOfUtc:request.asOfUtc,plan});
-        await authorities.persist(context,{item:evidence.item,run:evidence.run,scope:'METRIC',origin:null,
+        if(!evidence.item.created&&metricPreparationContinuation(core,context)){
+          if(!await metricUnitReceipt(core,context,plan,'AUTHORITY'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+          const verified=await authorities.read(context,evidence.item.row.evidence_item_id,'METRIC');
+          if(verified.origin!==null||canonicalJson(verified.calculation)!==canonicalJson(observationCalculation))
+            fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+        }else await authorities.persist(context,{item:evidence.item,run:evidence.run,scope:'METRIC',origin:null,
           calculation:observationCalculation,sourceRefs:sourceSet.refs});
         return Object.freeze({resultState:'REFRESH_PREPARED',baseline,quality,calculation:observationCalculation,
           run:evidence.run,item:evidence.item,episode:null});
@@ -717,5 +798,5 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       return episodes.read(context,episodeId);
     });
   }
-  return Object.freeze({analyzeMetric,analyzeAssociationFamily,expireInsight,expireEpisode});
+  return Object.freeze({analyzeMetric,analyzeAssociationFamily,expireInsight,expireEpisode,metricPreparationUnit});
 }

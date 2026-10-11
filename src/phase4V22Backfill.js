@@ -21,13 +21,25 @@ async function updateRow(client, table, rowid, patch) {
   await client.execute({ sql: `UPDATE ${table} SET ${entries.map(([n]) => `${n} = ?`).join(',')} WHERE rowid = ?`,
     args: [...entries.map(([,v]) => v), rowid] });
 }
-export async function addPrivacyLink(client, { userId, mode = 'SHARED', table, artifactId, sourceMode = 'SHARED', sourceType, sourceId, relationship = 'DEPENDS_ON', at }) {
-  reservePilotMutation({userId,executionMode:mode},client,[userId,mode,table,artifactId,sourceMode,sourceType,sourceId,relationship,at]);
-  await client.execute({
-    sql: `INSERT INTO phase4_source_links(user_id,artifact_execution_mode,artifact_type,artifact_id,
+function privacyLinkStatement({userId,mode='SHARED',table,artifactId,sourceMode='SHARED',sourceType,sourceId,relationship='DEPENDS_ON',at}) {
+  return {sql:`INSERT INTO phase4_source_links(user_id,artifact_execution_mode,artifact_type,artifact_id,
       source_execution_mode,source_type,source_id,relationship,linked_at) VALUES (?,?,?,?,?,?,?,?,?)
-      ON CONFLICT DO NOTHING`, args: [userId,mode,table,artifactId,sourceMode,sourceType,sourceId,relationship,at],
-  });
+      ON CONFLICT DO NOTHING`,args:[userId,mode,table,artifactId,sourceMode,sourceType,sourceId,relationship,at]};
+}
+const reserveLink=(client,statement)=>reservePilotMutation({userId:statement.args[0],executionMode:statement.args[1]},client,statement.args);
+export async function addPrivacyLink(client,link) {
+  const statement=privacyLinkStatement(link);reserveLink(client,statement);await client.execute(statement);
+}
+// Only validated caller lists inside an existing processing transaction use
+// this path. Each attempted link still consumes its original logical unit,
+// including duplicate/failed/rolled-back submissions. Writes remain ordered.
+export async function addPrivacyLinks(client,links) {
+  if(typeof client.batch!=='function'){for(const link of links)await addPrivacyLink(client,link);return;}
+  for(let start=0;start<links.length;start+=64){
+    const statements=links.slice(start,start+64).map(privacyLinkStatement);
+    for(const statement of statements)reserveLink(client,statement);
+    await client.batch(statements);
+  }
 }
 const redaction = (at, id) => ({ privacy_artifact_id: id, content_state: 'REDACTED',
   source_linkage_state: 'DISCONNECTED', health_content_redacted_at: at,

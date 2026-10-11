@@ -53,7 +53,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   if(!capabilities.has(workerCapability))fail('PHASE4_STAGE6_CAPABILITY_REQUIRED');
   if(db?.raw?.protocol!=='file')requireBetaPilotGrant(pilotGrant,pilotGrant?.userId,db?.raw);
   foundationFlags(configuration);
-  const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,active:db.processingTransactionActive,
+  const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,assertFences:db.assertRuntimeFences,active:db.processingTransactionActive,
     afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
     authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
   if(![28,29,30,31,32].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
@@ -112,6 +112,12 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     const units=[];
     for(const candidate of candidates)try {
       assertBudget();
+      if(core.schemaVersion===32&&req.metricKey==='body_energy'&&candidate.windowFamily){
+        const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnit(context,
+          {...req,windowFamily:candidate.windowFamily,refresh:true},'NEXT'),{assertBudget});
+        if(unit.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:firstFailure,
+          units:[...units,{kind:'METRIC_PREPARATION_UNIT',unit:unit.unit,status:'COMPLETE'}],committedUnits:1};
+      }
       const outcome=await queue.owned(context,lease,async()=>{
         const current=await familyDirectory.inventory(context,req.metricKey),
           entry=current.entries.find(row=>row.family_key===candidate.familyKey);
@@ -143,7 +149,9 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   }
 
   async function metric(context,req,history) {
-    const prepared=await stores.intelligence.analyzeMetric(context,{...req,refresh:true});
+    const prepared=await (core.schemaVersion===32&&req.metricKey==='body_energy'
+      ?stores.intelligence.resumeMetricPreparation(context,{...req,refresh:true})
+      :stores.intelligence.analyzeMetric(context,{...req,refresh:true}));
     if(!['LIMITED','AVAILABLE'].includes(prepared.quality.status)||prepared.quality.confidence<=0)
       return 'VALID_INSUFFICIENT_METRIC_QUALITY';
     const contract=phase4Metric(req.metricKey),baseIdentity={algorithmMajor:INTELLIGENCE_VERSIONS.algorithm,domain:contract.domain,
@@ -299,16 +307,41 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     }
     return 'PROCESSED';
   }
-  async function processSourceV30(context,source,asOfUtc,lease,assertBudget) {
-    const root=await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
+  async function processSourceV30(context,source,asOfUtc,lease,assertBudget,admittedRoot=null,bodyCandidate=false) {
+    const root=admittedRoot??await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
     if(source.source_type==='USER') {
-      const body=await queue.owned(context,lease,()=>core.schemaVersion===32?stores.bodyEnergy.computeForCurrentDrain(context)
-        :stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}),
+      const metricRequest=async body=>{
+        const current=await stores.readArtifact(context,'body_energy_results',{result_id:body.row.result_id});assertBudget();
+        const analysisTime=await bodyEnergyMetricAnalysisTime(core,context,current,body.row.as_of_utc);assertBudget();
+        return inputs.metric(context,'body_energy',current,analysisTime);
+      };
+      const prior=core.schemaVersion===32&&bodyCandidate?await queue.owned(context,lease,async()=>{
+        const retained=await stores.bodyEnergy.readForCurrentDrain(context,asOfUtc);if(!retained)return null;
+        assertBudget();return {body:retained.body,...(['AVAILABLE','LIMITED'].includes(retained.body.row.quality_state)
+          ?{request:await inputs.metric(context,'body_energy',retained.current,retained.analysisTime)}:{})};
+      },{assertBudget}):null;
+      const recorded=prior??await queue.owned(context,lease,async()=>{
+        const body=await (core.schemaVersion===32?stores.bodyEnergy.computeForCurrentDrain(context)
+          :stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}));
+        // Replayed Body and its required metric inputs use the same current
+        // owned transaction. Every original typed artifact/domain/root check
+        // still runs; deterministic read transport can reuse that snapshot.
+        // A newly produced Body commits at its original source boundary first.
+        return {body,...(!body.created&&['AVAILABLE','LIMITED'].includes(body.row.quality_state)?{request:await metricRequest(body)}:{})};
+      },
         {assertBudget,workKind:'stage6.body-source',workFacts:[source.source_type,source.source_id,source.cursor,asOfUtc]});
+      const {body}=recorded;
+      // The original Body/domain/work receipts have committed together. A
+      // budget yield here retains that replayable subunit, without advancing
+      // the USER cursor or claiming its required metric families completed.
+      assertBudget();
       if(['AVAILABLE','LIMITED'].includes(body.row.quality_state)) {
-        const current=await core.run(context,()=>stores.readArtifact(context,'body_energy_results',{result_id:body.row.result_id}));
-        const analysisTime=await core.run(context,()=>bodyEnergyMetricAnalysisTime(core,context,current,body.row.as_of_utc));
-        const request=await core.run(context,()=>inputs.metric(context,'body_energy',current,analysisTime));
+        // These required read-only observations still belong to the same job.
+        // Its existing deadline/context fence applies throughout the nested
+        // artifact/source checks, including when the Body subunit just used
+        // the remaining productive wall time.
+        const request=recorded.request??await queue.owned(context,lease,()=>metricRequest(body),{assertBudget});
+        assertBudget();
         return await metricsV30(context,request,lease,assertBudget);
       }
       return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
@@ -357,7 +390,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     requireTriggerSource(triggerSource);const budget=stage6Budget(triggerSource,overrides),started=monotonicNow();
     const deadline=started+budget.maxWallMs-budget.safetyMarginMs;
     const assertBudget=()=>{if(monotonicNow()>=deadline)fail('PHASE4_DRAIN_DEADLINE_REACHED');};
-    const out={triggerSource,attemptedJobs:0,claimedJobs:0,itemsAttempted:0,processedItems:0,completedJobs:0,failedJobs:0,failures:[],stoppedForBudget:false};
+    const out={triggerSource,attemptedJobs:0,claimedJobs:0,itemsAttempted:0,processedItems:0,completedJobs:0,failedJobs:0,failures:[],stoppedForBudget:false,unitsCommitted:0};
     log.info('stage6_discovery_start',{source:triggerSource});
     await onProgress({event:'discovery_start'});
     const selected=await queue.select({limit:budget.maxJobs,userId});
@@ -376,15 +409,32 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
           try {
             while(handled<budget.maxItemsPerTenant&&out.processedItems<budget.maxItems) {
               assertBudget();
-              const page=await core.run(context,()=>inputs.enumerate(context,cursor,1));
+              // A page and its first raw root are read-only observations in
+              // the same owned Core transaction. Every original root/context
+              // guard still runs; later producer units independently recheck
+              // their source references and current context before any write.
+              const lookedUp=await core.run(context,async()=>{
+                const page=await inputs.enumerate(context,cursor,1);
+                const root=familyDirectory&&page.length?await stores.root(context,page[0].source_type,page[0].source_id):null;
+                const bodyCandidate=core.schemaVersion===32&&page[0]?.source_type==='USER'
+                  &&(await client.execute({sql:`SELECT result_id FROM body_energy_results WHERE user_id=? AND execution_mode=?
+                    AND input_generation=? AND invalidated_at IS NULL LIMIT 1`,args:[context.userId,context.executionMode,context.inputGeneration]})).rows.length>0;
+                return {page,root,bodyCandidate};
+              }),page=lookedUp.page;
               if(!page.length) {
                 const proof=await queue.end(context,lease,(last,limit)=>inputs.enumerate(context,last,limit),{assertBudget});
                 await queue.complete(context,lease,proof,{assertBudget});out.completedJobs++;return;
               }
               const source=page[0];out.itemsAttempted++;
               if(familyDirectory) {
-                const outcome=await processSourceV30(context,source,lease.asOfUtc,lease,assertBudget);
+                const outcome=await processSourceV30(context,source,lease.asOfUtc,lease,assertBudget,lookedUp.root,lookedUp.bodyCandidate);
+                out.unitsCommitted+=outcome.committedUnits??0;
                 if(outcome.failure)throw outcome.failure;
+                if(outcome.status==='INCOMPLETE'){
+                  // Only the actual named unit committed. Its original source
+                  // cursor/family/generation stay pending for a fresh owner.
+                  await queue.release(context,lease);return;
+                }
                 await queue.owned(context,lease,()=>queue.checkpoint(context,lease,source.cursor),{assertBudget,workKind:'stage6.checkpoint',workFacts:[source.cursor]});
               } else await queue.owned(context,lease,async()=>{
                 await processSource(context,source,lease.asOfUtc);
@@ -421,7 +471,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       ${userId?'AND j.user_id=?':''}`,args:userId?[userId]:[]})).rows[0].n;
     out.remainingJobs=Number(remaining);
     out.outcome=out.failedJobs&&out.processedItems===0?'FAILED':out.remainingJobs===0&&!out.failedJobs?(out.claimedJobs?'COMPLETE':'NO_WORK')
-      :out.processedItems||out.completedJobs?'PARTIAL':out.stoppedForBudget?'BUDGET_EXHAUSTED':'NO_ELIGIBLE_WORK';
+      :out.processedItems||out.completedJobs||out.unitsCommitted?'PARTIAL':out.stoppedForBudget?'BUDGET_EXHAUSTED':'NO_ELIGIBLE_WORK';
     out.completion=out.remainingJobs===0&&!out.failedJobs?'COMPLETE':'PARTIAL';
     out.stopReason=out.failedJobs?'FAILURE':out.stoppedForBudget?'WALL_OR_ITEM_LIMIT':out.remainingJobs===0?'QUEUE_COMPLETE'
       :out.processedItems>=budget.maxItems?'ITEM_LIMIT':selected.length?'TENANT_LIMIT':'NO_ELIGIBLE_WORK';

@@ -1,4 +1,4 @@
-import {reservePilotPrefixRead,requireCurrentBetaPilotAttempt} from './betaPilotPermit.js';
+import {reservePilotPrefixRead,requireCurrentBetaPilotAttempt,currentPilotWorkProfile} from './betaPilotPermit.js';
 import {PILOT_V32_PREFIX_SHAPES} from './betaPilotV32ReadShapes.js';
 
 // These original four inventory descriptors have no residual filter/join/sort.
@@ -31,11 +31,12 @@ async function probe(client,context,spec,args){
  }).join(' OR ');
  const size=`CASE WHEN ${invalidTypes} THEN 0 ELSE 1024+6*(${spec.fields.map(field=>`coalesce(length(CAST(${field} AS BLOB)),0)`).join('+')}) END`;
  requireCurrentBetaPilotAttempt(context.userId,client);
+ const maxBytes=spec.table==='phase4_operation_receipts'&&spec.fields.includes('request_json')?currentPilotWorkProfile(context.userId,client).receiptPrefixBytes:PILOT_PREFIX_MAX_BYTES;
  const result=(await client.execute({sql:`SELECT COUNT(*) candidate_count,coalesce(SUM(serialized_bound),0) serialized_bytes,
   coalesce(SUM(invalid_types),0) invalid_types FROM (SELECT ${size} serialized_bound,
    CASE WHEN ${invalidTypes} THEN 1 ELSE 0 END invalid_types FROM ${source})`,args:boundedArgs})).rows[0];
  if(!Number.isSafeInteger(result?.candidate_count)||!Number.isSafeInteger(result?.serialized_bytes)
-  ||result.invalid_types!==0||result.candidate_count>PILOT_PREFIX_MAX_ROWS||result.serialized_bytes>PILOT_PREFIX_MAX_BYTES)denied();
+  ||result.invalid_types!==0||result.candidate_count>PILOT_PREFIX_MAX_ROWS||result.serialized_bytes>maxBytes)denied();
  requireCurrentBetaPilotAttempt(context.userId,client);return {source,boundedArgs,result};
 }
 
@@ -56,9 +57,10 @@ export async function pilotPrefixFrom(client,context,table,args,alias='',tenant=
 
 /** Probe and payload run in the SAME existing processing write transaction.
  * N+1 overflow rejects the entire history; it never passes a truncated prefix
- * to authority/HMAC validation. 32 consumed read-set reservations per attempt
- * allow this helper at most 64 statements / 32*3*(N+1) logical candidate visits and 32MiB
- * accepted serialized payload. Index seeks/pages, fencing queries, triggers,
+ * to authority/HMAC validation. Finite per-grant read-set reservations
+ * retain every complete prefix probe/payload. The original profile allows32
+ * slots; the monitored profile allows128, with2MiB only for full receipt prefixes
+ * and1MiB for other sources. These are logical envelopes, not provider units. Index seeks/pages, fencing queries, triggers,
  * writes/storage and other callsites are NOT certified by this envelope. */
 export async function readPilotPrefixRows(client,context,specId,args,ordinaryStatement){
  if(!reservePilotPrefixRead(context,client))return (await client.execute(ordinaryStatement)).rows;

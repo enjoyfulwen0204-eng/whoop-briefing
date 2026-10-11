@@ -14,10 +14,14 @@ export const REANALYSIS_INPUT_POLICY=Object.freeze({associationDays:30,associati
 export function createReanalysisInputs(core,stores) {
   const {client}=core;
   async function sourceAdmissions(context,types){
-    const from={};
-    for(const type of new Set(types))from[whoop[type][0]]=await pilotPrefixFrom(client,context,whoop[type][0],[context.userId],'r');
-    for(const [table,alias] of [['whoop_resource_access','a'],['whoop_capabilities','c'],['whoop_resource_tombstones','t']])
-      from[table]=await pilotPrefixFrom(client,context,table,[context.userId],alias);
+    const from={},specs=[...[...new Set(types)].map(type=>[whoop[type][0],'r']),
+      ['whoop_resource_access','a'],['whoop_capabilities','c'],['whoop_resource_tombstones','t']];
+    const observed=await Promise.allSettled(specs.map(([table,alias])=>Promise.resolve().then(()=>
+      pilotPrefixFrom(client,context,table,[context.userId],alias))));
+    for(let index=0;index<specs.length;index++) {
+      if(observed[index].status==='rejected')throw observed[index].reason;
+      from[specs[index][0]]=observed[index].value;
+    }
     return from;
   }
   function sourceQuery(context,type,from) {
@@ -38,12 +42,16 @@ export function createReanalysisInputs(core,stores) {
       const query=sourceQuery(context,type,from);
       parts.push(`SELECT '${type}' source_type,CAST(${key} AS TEXT) source_id FROM (${query.sql})`);args.push(...query.args);
     }
-    for(const [type,table,key,predicate] of [
+    const journals=[
       ['JOURNAL_FACT','journal_events','privacy_artifact_id',"fact_status='ACTIVE'"],
       ['JOURNAL_COVERAGE','journal_coverage_windows','coverage_window_id',"status='ACTIVE'"],
       ['EXPERIMENT_DIRECT_ASSERTION','experiment_field_groups','assertion_id',"is_current=1 AND provenance_state='DIRECT' AND assertion_id IS NOT NULL"],
-    ]) {
-      const admitted=await pilotPrefixFrom(client,context,table,[context.userId]);
+    ];
+    const journalAdmissions=await Promise.allSettled(journals.map(([,table])=>Promise.resolve().then(()=>
+      pilotPrefixFrom(client,context,table,[context.userId]))));
+    for(let index=0;index<journals.length;index++) {
+      if(journalAdmissions[index].status==='rejected')throw journalAdmissions[index].reason;
+      const [type,table,key,predicate]=journals[index],admitted=journalAdmissions[index].value;
       parts.push(`SELECT '${type}' source_type,${key} source_id FROM ${admitted} WHERE user_id=? AND ${retained} AND ${predicate}`);
       args.push(context.userId);
     }

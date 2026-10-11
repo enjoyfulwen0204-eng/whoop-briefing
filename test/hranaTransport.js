@@ -10,22 +10,31 @@ const encode=v=>v===null?{type:'null'}:typeof v==='bigint'?{type:'integer',value
  typeof v==='number'?{type:'float',value:v}:typeof v==='string'?{type:'text',value:v}:{type:'blob',base64:Buffer.from(v).toString('base64')};
 export function hranaTransport(url,{operation=()=> 'UNSCOPED'}={}) {
  const streams=new Map();let armed=null,commits=0;
- const counts={httpRequests:0,sqlStatements:0,byFamily:{},byTemplate:{},byOperation:{}};
+ const counts={httpRequests:0,sqlStatements:0,byFamily:{},byTemplate:{},byOperation:{},byHttpMix:{},byHttpFamily:{}};
  const evidence=[];
  const open=()=>{const client=createClient({url,intMode:'bigint'}),id=randomUUID(),stream={client,sql:new Map(),inTransaction:false};
   streams.set(id,stream);return [id,stream];};
- const statement=async(stream,stmt)=>{
+ const statement=async(stream,stmt,httpFamilies)=>{
   const sql=stmt.sql??stream.sql.get(stmt.sql_id),args=stmt.named_args?.length?
    Object.fromEntries(stmt.named_args.map(x=>[x.name,decode(x.value)])):(stmt.args??[]).map(decode);
   // Synthetic RAM counters retain no SQL arguments, records, or SQL text.
   counts.sqlStatements++;
-  const family=/^\s*SELECT 1 FROM resource_locks/i.test(sql)?'SYNC_OWNER'
+  const family=/^\s*SELECT last_detail FROM system_heartbeats/i.test(sql)?'PILOT_STATE'
+   :/\bobserved_at\b/.test(sql)&&/\buser_onboarding\b/.test(sql)?'PILOT_CLOCK'
+   :/^\s*SELECT 1 FROM resource_locks/i.test(sql)?'SYNC_OWNER'
    :/\bphase4_executions\b/.test(sql)?'EXECUTION_OWNER'
    :/\bphase4_execution_work_receipts\b/.test(sql)?'WORK_RECEIPT'
    :/^\s*(BEGIN|COMMIT|ROLLBACK)\b/i.test(sql)?'TRANSACTION'
+   :/^\s*SELECT owner FROM resource_locks/i.test(sql)?'CORE_LEASE'
+   :/\bphase4_jobs\b/.test(sql)?'CORE_JOB'
+   :/\bwhoop_(?:resource_access|capabilities|resource_tombstones)\b/.test(sql)?'SOURCE_GUARD'
    :/\bwhoop_(?:sleeps|recoveries|cycles|workouts|body_measurements)\b/.test(sql)?'CANONICAL'
    :/\bphase4_source_links\b/.test(sql)?'SOURCE_LINK'
+   :/\bphase4_operation_receipts\b/.test(sql)?'OPERATION_RECEIPT'
+   :/\bphase4_evidence_result_authorities\b/.test(sql)?'RESULT_AUTHORITY'
+   :/\bbody_energy_results\b/.test(sql)?'BODY_RESULT'
    :/\b(?:users|phase4_user_state|phase4_computation_state)\b/.test(sql)?'CONTEXT':'OTHER';
+  httpFamilies?.add(family);
   counts.byFamily[family]=(counts.byFamily[family]??0)+1;
   const template=createHash('sha256').update(sql.replace(/\s+/g,' ').trim()).digest('hex');
   const prior=counts.byTemplate[template]??{family,count:0};prior.count++;counts.byTemplate[template]=prior;
@@ -61,15 +70,16 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED'}={}) {
   const body=await request.json();let [id,stream]=body.baton?[body.baton,streams.get(body.baton)]:open();
   if(!stream)throw Error('UNKNOWN_SYNTHETIC_BATON');
   const results=[];
+  const httpFamilies=new Set();
   for(const item of body.requests){
    let response;
    try{
-    if(item.type==='execute')response={type:'execute',result:serialized(await statement(stream,item.stmt))};
+    if(item.type==='execute')response={type:'execute',result:serialized(await statement(stream,item.stmt,httpFamilies))};
     else if(item.type==='batch'){
      const step_results=[],step_errors=[];
      for(const step of item.batch.steps){
       if(!condition(step.condition,step_results,step_errors,stream)){step_results.push(null);step_errors.push(null);continue;}
-      try{step_results.push(serialized(await statement(stream,step.stmt)));step_errors.push(null);}
+      try{step_results.push(serialized(await statement(stream,step.stmt,httpFamilies)));step_errors.push(null);}
       catch(e){if(e.message==='SYNTHETIC_COMMIT_ACK_LOST')throw e;step_results.push(null);step_errors.push(error(e));}
      }response={type:'batch',result:{step_results,step_errors}};
     }else if(item.type==='store_sql'){stream.sql.set(item.sql_id,item.sql);response={type:'store_sql'};}
@@ -86,6 +96,9 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED'}={}) {
     results.push({type:'ok',response});
    }catch(e){if(e.message==='SYNTHETIC_COMMIT_ACK_LOST')throw e;results.push({type:'error',error:error(e)});}
   }
+  const mix=[...httpFamilies].sort().join('+')||'PROTOCOL_ONLY';
+  counts.byHttpMix[mix]=(counts.byHttpMix[mix]??0)+1;
+  for(const family of httpFamilies)counts.byHttpFamily[family]=(counts.byHttpFamily[family]??0)+1;
   return new Response(JSON.stringify({baton:id,base_url:null,results}),{headers:{'content-type':'application/json'}});
  };
  return {fetch,evidence,counts,arm:attack=>{armed=attack;},close:()=>{for(const stream of streams.values())stream.client.close();streams.clear();}};

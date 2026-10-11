@@ -1,4 +1,5 @@
 import {workStepOptions} from './phase4WorkStep.js';
+import {controlOnlyProcessingCheck} from './processingTransaction.js';
 import { compareExact } from './phase4CanonicalOrder.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import { coverageLineage } from './phase4CoverageLineage.js';
@@ -10,7 +11,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { assertPhase4Schema } from './phase4Migrations.js';
 import { requirePhase4Keys } from './phase4Keys.js';
 import { requireUserId } from './userContext.js';
-import { addPrivacyLink } from './phase4V22Backfill.js';
+import {addPrivacyLinks} from './phase4V22Backfill.js';
 import { V23_TABLES } from './phase4V23Schema.js';
 import { V27_TABLES } from './phase4V27Schema.js';
 import { V26_TABLES } from './phase4V26Schema.js';
@@ -29,6 +30,9 @@ export const requireInteger = (value, minimum=0) => {
 };
 export const readableRow = row => Boolean(row && row.content_state==='PRESENT'
   && row.source_linkage_state==='COMPLETE' && row.health_content_redacted_at===null);
+// Finite in-flight raw observations for the complete original 30-day Body
+// graph. This controls transport overlap only, never semantic input limits.
+export const RAW_SOURCE_READ_BATCH=64;
 export const DERIVED_TABLES = Object.freeze(['context_questions','structured_answer_events',...V23_TABLES,'health_insights',...V24_TABLES,...V25_TABLES,...V26_TABLES,...V27_TABLES]);
 const ROOTS = Object.freeze({
   sleep:['whoop_sleeps','id'],recovery:['whoop_recoveries','sleep_id'],cycle:['whoop_cycles','id'],workout:['whoop_workouts','id'],
@@ -100,9 +104,13 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     authorizeMode(executionMode,client);
     const uid=requireUserId(userId,'phase4');
     return transaction(async()=>{
-      const state=await userState(uid);
+      const observed=await Promise.allSettled([Promise.resolve().then(()=>userState(uid)),Promise.resolve().then(()=>
+        client.execute({sql:'SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode=?',args:[uid,executionMode]}))]);
+      if(observed[0].status==='rejected')throw observed[0].reason;
+      const state=observed[0].value;
       if(state.purge_generation===null)fail('PHASE4_TENANT_STATE_MISSING');
-      const computation=(await client.execute({sql:'SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode=?',args:[uid,executionMode]})).rows[0];
+      if(observed[1].status==='rejected')throw observed[1].reason;
+      const computation=observed[1].value.rows[0];
       if(!computation)fail('PHASE4_COMPUTATION_STATE_MISSING');
       const context=Object.freeze({userId:uid,executionMode,lifecycleGeneration:state.lifecycle_generation,
         authGeneration:state.auth_generation,inputGeneration:computation.input_generation,purgeGeneration:state.purge_generation,
@@ -114,15 +122,23 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   async function assertContext(context,{allowPurge=false,allowInactive=false,ignoreInput=false}={}) {
     if(!contexts.has(context))fail('PHASE4_SERVER_CONTEXT_REQUIRED');
     authorizeMode(context.executionMode,client);
-    await contextRegistry.assertLease(context);
     try {
-    const state=await userState(context.userId);
+    // The brand remains first; all three non-health metadata observations use
+    // the same owned transaction and settle before any source/business work.
+    // Preserve lease-first failure priority and every original comparison.
+    const observations=await Promise.allSettled([Promise.resolve().then(()=>contextRegistry.assertLease(context)),
+      Promise.resolve().then(()=>userState(context.userId)),Promise.resolve().then(()=>client.execute({
+      sql:'SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode=?',args:[context.userId,context.executionMode]}))]);
+    if(observations[0].status==='rejected')throw observations[0].reason;
+    if(observations[1].status==='rejected')throw observations[1].reason;
+    const state=observations[1].value;
     if(state.purge_generation===null || state.pending_purge_count===null)fail('PHASE4_PRIVACY_STATE_MISSING');
     if(!allowPurge && (state.pending_purge_count!==0 || state.purge_generation!==context.purgeGeneration))fail('PHASE4_PURGE_FENCED');
     if(!allowInactive && (state.status!=='ACTIVE' || state.lifecycle_generation!==context.lifecycleGeneration))fail('PHASE4_LIFECYCLE_FENCED');
     if(state.timezone!==context.timezone)fail('PHASE4_TIMEZONE_FENCED');
     if(state.auth_generation!==context.authGeneration || (context.providerRequired && state.auth_generation<1))fail('PHASE4_AUTH_FENCED');
-    const current=(await client.execute({sql:'SELECT * FROM phase4_computation_state WHERE user_id=? AND execution_mode=?',args:[context.userId,context.executionMode]})).rows[0];
+    if(observations[2].status==='rejected')throw observations[2].reason;
+    const current=observations[2].value.rows[0];
     if(!current || (!ignoreInput && (current.input_generation!==context.inputGeneration
       || current.source_generation_seen!==state.source_generation||state.source_generation!==context.sourceGeneration
       || current.algorithm_set_version!==context.algorithmSetVersion)))fail('PHASE4_INPUT_FENCED');
@@ -158,7 +174,22 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   }
   async function run(context,fn,options={}) {
     const job=jobScope.getStore();
-    const check=async()=>{await assertContext(context,options);if(job)await job.check(context);};
+    const check=controlOnlyProcessingCheck(async()=>{
+      // Explicitly bracket coalesced metadata checks with their enclosing
+      // runtime guards: read-only checking suppresses recursive interception,
+      // but must retain fresh permit/configuration checks before and after.
+      // These checks inspect only independent non-health control metadata.
+      // Settle all three in the owned transaction, preserve runtime/context/
+      // job failure priority, and pass the fresh final runtime bracket before
+      // the health callback or any mutation/COMMIT can proceed.
+      const observations=await Promise.allSettled([
+        Promise.resolve().then(()=>processing.assertFences?.()),
+        Promise.resolve().then(()=>assertContext(context,options)),
+        ...(job?[Promise.resolve().then(()=>job.check(context))]:[]),
+      ]);
+      for(const result of observations)if(result.status==='rejected')throw result.reason;
+      await processing.assertFences?.();
+    });
     const work=()=>transaction(()=>fn(context),{readOnly:options.workStep===undefined&&options.workStepFrom===undefined,...options,before:check,after:check,...(job?{commitFence:check}:{})});
     return processing.withReadSnapshot?processing.withReadSnapshot(context,work):work();
   }
@@ -201,19 +232,36 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       }
       const spec=ROOTS[type];if(!spec)fail('PHASE4_ROOT_TYPE_REQUIRED');
       const [table,key]=spec,owner=type==='TELEGRAM_OPERATION'?'owner_user_id':'user_id';
-      const row=(await client.execute({sql:`SELECT * FROM ${table} WHERE ${owner}=? AND ${key}=?`,args:[context.userId,id]})).rows[0];
-      if(!row)fail('PHASE4_SOURCE_NOT_FOUND');
-      if(['sleep','recovery','cycle','workout'].includes(type)) {
-        if(context.authGeneration<1)fail('PHASE4_AUTH_FENCED');
-        const access=(await client.execute({sql:`SELECT status FROM whoop_resource_access
+      const whoop=['sleep','recovery','cycle','workout'].includes(type);
+      // The enclosing Core check has already admitted context/runtime before
+      // this health callback. Observe the canonical row and its independent
+      // resource controls together; every execute keeps its original fresh
+      // runtime fence, and source/access/capability/tombstone priority remains.
+      const calls=[()=>client.execute({sql:`SELECT * FROM ${table} WHERE ${owner}=? AND ${key}=?`,args:[context.userId,id]})];
+      if(whoop&&context.authGeneration>=1)calls.push(
+          ()=>client.execute({sql:`SELECT status FROM whoop_resource_access
           WHERE user_id=? AND resource=? AND auth_generation=? AND lifecycle_generation=?`,
-        args:[context.userId,type,context.authGeneration,context.lifecycleGeneration]})).rows[0];
+            args:[context.userId,type,context.authGeneration,context.lifecycleGeneration]}),
+          ()=>client.execute({sql:`SELECT 1 FROM whoop_capabilities
+            WHERE user_id=? AND key=? AND lifecycle_generation=? AND status IN ('UNSUPPORTED','UNAVAILABLE')`,
+            args:[context.userId,type,context.lifecycleGeneration]}),
+          ()=>client.execute({sql:`SELECT 1 FROM whoop_resource_tombstones
+            WHERE user_id=? AND resource_type=? AND resource_id=? AND state='ACTIVE'`,args:[context.userId,type,String(id)]}),
+      );
+      const values=await Promise.allSettled(calls.map(call=>Promise.resolve().then(call)));
+      if(values[0].status==='rejected')throw values[0].reason;
+      const row=values[0].value.rows[0];if(!row)fail('PHASE4_SOURCE_NOT_FOUND');
+      if(whoop) {
+        if(context.authGeneration<1)fail('PHASE4_AUTH_FENCED');
+        const controls=values.slice(1);
+        if(controls[0].status==='rejected')throw controls[0].reason;
+        const access=controls[0].value.rows[0];
         if(access?.status!=='ACCESSIBLE')fail('PHASE4_RESOURCE_FENCED');
-        const unsupported=(await client.execute({sql:`SELECT 1 FROM whoop_capabilities
-          WHERE user_id=? AND key=? AND lifecycle_generation=? AND status IN ('UNSUPPORTED','UNAVAILABLE')`,
-        args:[context.userId,type,context.lifecycleGeneration]})).rows.length;
+        if(controls[1].status==='rejected')throw controls[1].reason;
+        const unsupported=controls[1].value.rows.length;
         if(unsupported)fail('PHASE4_CAPABILITY_FENCED');
-        if((await client.execute({sql:`SELECT 1 FROM whoop_resource_tombstones WHERE user_id=? AND resource_type=? AND resource_id=? AND state='ACTIVE'`,args:[context.userId,type,String(id)]})).rows.length)fail('PHASE4_SOURCE_DELETED');
+        if(controls[2].status==='rejected')throw controls[2].reason;
+        if(controls[2].value.rows.length)fail('PHASE4_SOURCE_DELETED');
       } else {
         if(!readableRow(row))fail('CONTENT_REDACTED');
         if(type==='JOURNAL_FACT' && row.fact_status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');
@@ -224,6 +272,10 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
         if(type==='EXPERIMENT_DIRECT_ASSERTION' && (row.is_current!==1 || row.provenance_state!=='DIRECT'
           || row.source_kind!=='EXPERIMENT_DIRECT_ASSERTION'))fail('PHASE4_UNPROVEN_ASSERTION');
       }
+      // A nested Core after-check also belongs to its parent's COMMIT. Keep
+      // an immediate fresh runtime bracket here so revocation while these
+      // reads settle cannot expose the source to the next business callback.
+      await processing.assertFences?.();
       return {row:{...row},ref:reference(context,type,id,'SHARED',row)};
     });
   }
@@ -319,7 +371,19 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       ${logical?'AND relationship=?':''}`,
     args:[context.userId,context.executionMode,table,artifactId,...(logical?[`INPUT_GENERATION:${context.inputGeneration}`]:[])]})).rows;
     if(!links.length)fail('PHASE4_INCOMPLETE_PROVENANCE');
-    for(const link of links) {
+    for(let index=0;index<links.length;index++) {
+      const link=links[index];
+      if(link.source_execution_mode==='SHARED'&&!link.relationship.startsWith('DEPENDS_ON_AS_OF:')
+        &&['sleep','recovery','cycle','workout','USER'].includes(link.source_type)){
+        const pending=[],identities=new Set();
+        for(;index<links.length;index++){const item=links[index];
+          if(item.source_execution_mode!=='SHARED'||item.relationship.startsWith('DEPENDS_ON_AS_OF:')
+            ||!['sleep','recovery','cycle','workout','USER'].includes(item.source_type)){index--;break;}
+          const identity=JSON.stringify(['SHARED',item.source_type,item.source_id,null]);
+          if(!verified.has(identity)&&!identities.has(identity)){identities.add(identity);pending.push({type:item.source_type,id:item.source_id});}
+        }
+        await readRoots(context,pending);for(const identity of identities)verified.add(identity);continue;
+      }
       if(link.source_execution_mode==='SHARED') {
         // One read-only traversal can reach the same root through many evidence
         // revisions. Verify each root/as-of pair once within this traversal;
@@ -355,9 +419,32 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     }
     path.delete(node);verified.add(node);
   }
+  // Read observations overlap only inside an already owned processing
+  // transaction. Bound in-flight roots, settle every submitted read, retain
+  // original result/failure order, and run every original root/context guard.
+  async function readRoots(context,descriptors,{compareRows=false,verify=null}={}) {
+    const observe=async source=>{const current=await root(context,source.type,source.id);
+      if(compareRows&&source.row&&JSON.stringify(current.row)!==JSON.stringify(source.row))fail('PHASE4_PARENT_STALE');
+      if(verify)await verify(source,current);return current;};
+    const out=[];
+    if(!processing.active?.()){for(const source of descriptors)out.push(await observe(source));return out;}
+    for(let start=0;start<descriptors.length;start+=RAW_SOURCE_READ_BATCH){
+      const results=await Promise.allSettled(descriptors.slice(start,start+RAW_SOURCE_READ_BATCH).map(source=>
+        Promise.resolve().then(()=>observe(source))));
+      const rejected=results.find(result=>result.status==='rejected');if(rejected)throw rejected.reason;
+      out.push(...results.map(result=>result.value));
+    }return out;
+  }
   async function revalidateSources(context,refs) {
     const list=validateReferences(context,refs);
-    for(const source of list) {
+    for(let index=0;index<list.length;index++) {
+      const source=list[index];
+      if(source.mode==='SHARED'&&!source.historicalAsOf&&['sleep','recovery','cycle','workout','USER'].includes(source.type)){
+        const group=[source];while(index+1<list.length&&list[index+1].mode==='SHARED'&&!list[index+1].historicalAsOf
+          &&['sleep','recovery','cycle','workout','USER'].includes(list[index+1].type))group.push(list[++index]);
+        await readRoots(context,group,{compareRows:true});
+        continue;
+      }
       if(source.mode==='SHARED') {
         if(source.historicalAsOf)await validateHistoricalJournal(context,source);
         else {
@@ -380,10 +467,10 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     if(!processing.active())fail('PHASE4_TRANSACTION_REQUIRED');
     const list=await revalidateSources(context,refs);
     if(!list.length)fail('PHASE4_COMPLETE_PROVENANCE_REQUIRED');
-    for(const source of list)await addPrivacyLink(client,{userId:context.userId,mode:context.executionMode,table,artifactId,
+    await addPrivacyLinks(client,list.map(source=>({userId:context.userId,mode:context.executionMode,table,artifactId,
       sourceMode:source.mode,sourceType:source.type,sourceId:source.id,at:timestamp(),
       relationship:['observation_episodes','health_insights'].includes(table)?`INPUT_GENERATION:${context.inputGeneration}`
-        :source.historicalAsOf?`DEPENDS_ON_AS_OF:${source.historicalAsOf}`:'DEPENDS_ON'});
+        :source.historicalAsOf?`DEPENDS_ON_AS_OF:${source.historicalAsOf}`:'DEPENDS_ON'})));
   }
   function envelope(context,table,identity,{salt=keys.newSalt()}={}) {
     if(!contexts.has(context))fail('PHASE4_SERVER_CONTEXT_REQUIRED');
@@ -394,5 +481,5 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   return Object.freeze({client,processing,transaction,keys,now,timestamp,schemaVersion,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
     withJobFence:(binding,check,fn)=>jobScope.run({binding,check},fn),jobAuthority:()=>jobScope.getStore()?.binding??null,
     capturePrivacyControl,assertPrivacyControl,run,runControl,runMaintenance,contextRegistry,
-    tableInfo,root,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});
+    tableInfo,root,readRoots,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});
 }

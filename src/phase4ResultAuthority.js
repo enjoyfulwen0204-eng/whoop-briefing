@@ -1,12 +1,13 @@
 import { compareExact } from './phase4CanonicalOrder.js';
 import { healthSourceVersion, canonicalSourceVersion, canonicalSourceTime } from './phase4SourceVersion.js';
-import { fail, readableRow } from './phase4Core.js';
+import {fail,readableRow,RAW_SOURCE_READ_BATCH} from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
-import { addPrivacyLink } from './phase4V22Backfill.js';
+import {addPrivacyLinks} from './phase4V22Backfill.js';
 import { RESULT_AUTHORITY_TABLE as TABLE, RESULT_AUTHORITY_VERSION as VERSION, RESULT_ROOT_VERSION } from './phase4V26Schema.js';
 import { createBodyEnergyStore } from './bodyEnergyStore.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
+import {requireMetricUnitProof} from './phase4MetricUnitReceipt.js';
 
 const invalid=()=>fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
 const incomplete=()=>fail('PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE');
@@ -88,12 +89,13 @@ export function createResultAuthority(core) {
   async function captureRoots(context,refs,salt) {
     const inputs=await core.revalidateSources(context,refs),pending=inputs.map(source=>({type:source.type,id:source.id,
       mode:source.mode,as_of:source.historicalAsOf??null,version:null})),entries=new Map(),seen=new Set();
-    while(pending.length) {
-      const descriptor=pending.shift(),identity=canonicalJson([descriptor.mode,descriptor.type,descriptor.id,descriptor.as_of]);
+    const identityFor=descriptor=>canonicalJson([descriptor.mode,descriptor.type,descriptor.id,descriptor.as_of]);
+    const captureOne=async descriptor=>{
+      const identity=identityFor(descriptor);
       if(seen.has(identity)) {
         if(descriptor.version!==null&&canonicalSourceVersion(descriptor.version)!==entries.get(identity).version)
           fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
-        if(!descriptor.expected)continue;
+        if(!descriptor.expected)return;
       }
       seen.add(identity);if(seen.size>REQUIRED_ROOT_BUDGET.count)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
       const {row}=await resolve(context,descriptor);
@@ -131,11 +133,32 @@ export function createResultAuthority(core) {
         for(const value of m.exclusions)if(value.id!==null)pending.push({type:value.resource==='baseline'?'sleep':value.resource,
           id:value.id,mode:'SHARED',as_of:null,version:null});
       } else if(!['sleep','recovery','cycle','workout','JOURNAL_FACT','JOURNAL_COVERAGE','USER'].includes(descriptor.type))incomplete();
+    };
+    while(pending.length) {
+      const first=pending.shift(),group=[first],identities=new Set([identityFor(first)]);
+      if(core.processing.active?.()&&rawRoot(first))while(group.length<RAW_SOURCE_READ_BATCH&&pending.length&&rawRoot(pending[0])
+        &&!identities.has(identityFor(pending[0]))) {
+        const next=pending.shift();group.push(next);identities.add(identityFor(next));
+      }
+      await observeGroup(context,group,captureOne);
     }
     if(!entries.size)incomplete();
     const roots=ordered([...entries.values()]),bytes=Buffer.byteLength(canonicalJson(roots));
     if(roots.length>REQUIRED_ROOT_BUDGET.count||bytes>REQUIRED_ROOT_BUDGET.bytes)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
     return {version:BOUNDED_ROOT_VERSION,model:'FLATTENED_CALCULATION_INPUTS',roots,root_count:roots.length,serialized_bytes:bytes};
+  }
+  // Flattening and historical/derived expansion retain their original queue
+  // order. Only a finite set of independent raw observations can overlap in
+  // the same already-owned transaction; every comparison settles before the
+  // next queue expansion or write and the first original failure wins.
+  const rawRoot=entry=>entry.mode==='SHARED'&&entry.as_of===null
+    &&['sleep','recovery','cycle','workout','USER'].includes(entry.type);
+  async function observeGroup(context,entries,observe) {
+    if(entries.length===1||!core.processing.active?.()) {
+      for(const entry of entries)await observe(entry);return;
+    }
+    const results=await Promise.allSettled(entries.map(entry=>Promise.resolve().then(()=>observe(entry))));
+    const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
   }
   function validateManifest(manifest,mode) {
     // Historical signed manifests retain their original array order. HMACs
@@ -154,7 +177,7 @@ export function createResultAuthority(core) {
   }
   async function validateRoots(context,row,manifest) {
     validateManifest(manifest,context.executionMode);
-    for(const entry of manifest.roots) {
+    const validateOne=async entry=>{
       const source=await resolve(context,entry);
       const legacy=manifest.version===RESULT_ROOT_VERSION;
       if(entry.version!==null&&(entry.as_of!==null?source.row.revision:healthVersion(source.row))
@@ -173,6 +196,12 @@ export function createResultAuthority(core) {
       }
       if(hash(row.content_digest_salt,'required-root-content-v1',rootProjection(historical,entry.type,manifest.version))!==entry.content_hash)
         fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
+    };
+    for(let index=0;index<manifest.roots.length;index++) {
+      const first=manifest.roots[index],group=[first];
+      if(rawRoot(first))while(group.length<RAW_SOURCE_READ_BATCH&&index+1<manifest.roots.length&&rawRoot(manifest.roots[index+1]))
+        group.push(manifest.roots[++index]);
+      await observeGroup(context,group,validateOne);
     }
   }
   // This exact verifier is shared by authorized reads and redaction discovery.
@@ -255,12 +284,16 @@ export function createResultAuthority(core) {
       return {row,...verified};
     });
   }
-  async function persist(context,{item,run,scope,origin,calculation,sourceRefs}) {
+  async function persist(context,{item,run,scope,origin,calculation,sourceRefs,continuation=null}) {
     if(!core.processing.active())fail('PHASE4_TRANSACTION_REQUIRED');
     if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
     // This method is internal to the deterministic calculation transaction.
     // Existing/legacy items may never acquire an origin on later reuse.
-    if(!item.created)fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');
+    if(!item.created){
+      if(scope!=='METRIC'||origin!==null||parse(run.row.input_manifest_json).refresh_preparation!==true||!continuation)
+        fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');
+      requireMetricUnitProof(core,context,continuation.proof,continuation.plan,'ITEM');
+    }
     if(scope==='METRIC'&&origin!==null) {
       const snapshot=(await client.execute({sql:`SELECT * FROM phase4_episode_revisions WHERE user_id=? AND execution_mode=?
         AND episode_id=? AND revision=? AND episode_event_id=?`,args:[context.userId,context.executionMode,
@@ -286,10 +319,10 @@ export function createResultAuthority(core) {
     reservePilotMutation(context,client,fields.map(k=>record[k]));
     await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode]);
     await client.execute({sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(k=>record[k])});
-    for(const source of [...roots.roots,{type:'evidence_items',id:item.row.privacy_artifact_id,mode:context.executionMode,as_of:null}])
-      await addPrivacyLink(client,{userId:context.userId,mode:context.executionMode,table:TABLE,artifactId:envelope.privacy_artifact_id,
+    await addPrivacyLinks(client,[...roots.roots,{type:'evidence_items',id:item.row.privacy_artifact_id,mode:context.executionMode,as_of:null}]
+      .map(source=>({userId:context.userId,mode:context.executionMode,table:TABLE,artifactId:envelope.privacy_artifact_id,
         sourceMode:source.mode,sourceType:source.type,sourceId:source.id,
-        relationship:source.as_of?`DEPENDS_ON_AS_OF:${source.as_of}`:'DEPENDS_ON',at:core.timestamp()});
+        relationship:source.as_of?`DEPENDS_ON_AS_OF:${source.as_of}`:'DEPENDS_ON',at:core.timestamp()})));
     return record;
   }
   async function metricOrigin(context,itemId,{episodeId,revision}={}) {

@@ -10,6 +10,11 @@ const bounds=()=>{const error=new Error('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILA
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 const hex=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
 const compare=(a,b)=>a<b?-1:a>b?1:0;
+const READ_BATCH=64;
+// Fixed observations retain their original comparator/failure order. These
+// are signed routing metadata; all reads settle before a caller can mutate.
+const observations=calls=>Promise.allSettled(calls.map(call=>Promise.resolve().then(call)));
+const observed=result=>{if(result.status==='rejected')throw result.reason;return result.value;};
 const parse=value=>{try{const decoded=JSON.parse(value);if(canonicalJson(decoded)!==value)invalid();return decoded;}catch{invalid();}};
 const nonEpisodeOperations=new Set(['INSIGHT_CREATE','INSIGHT_TRANSITION','expireInsight',
   'analyzeAssociationFamily','BODY_ENERGY_COMPUTE','BODY_ENERGY_CHECKPOINT']);
@@ -152,14 +157,20 @@ export function createReceiptRouting(client,keys) {
       (user_id,execution_mode,operation_kind,operation_key,route_version,route_state,subjects_json,route_hmac,created_at)
       VALUES (?,?,?,?,?,?,?,?,?)`,args:[record.user_id,record.execution_mode,record.operation_kind,record.operation_key,
         record.route_version,record.route_state,record.subjects_json,record.route_hmac,record.created_at]});
-    for(const [subject_kind,subject_token] of values) {
+    for(let start=0;start<values.length;start+=READ_BATCH) {
+      const group=values.slice(start,start+READ_BATCH),read=await observations(group.map(([subject_kind,subject_token])=>()=>observations([
+        ()=>client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
+          AND subject_kind=? AND subject_token=?`,args:[row.user_id,row.execution_mode,subject_kind,subject_token]}),
+        ()=>client.execute({sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
+          AND operation_kind=? AND operation_key=? AND subject_kind=? AND subject_token=?`,
+          args:[row.user_id,row.execution_mode,row.operation_kind,row.operation_key,subject_kind,subject_token]}),
+      ])));
+    for(let index=0;index<group.length;index++) {
+      const [subject_kind,subject_token]=group[index],pair=observed(read[index]);
       const scope=[row.user_id,row.execution_mode,subject_kind,subject_token];
-      const prior=(await client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
-        AND subject_kind=? AND subject_token=?`,args:scope})).rows[0];
+      const prior=observed(pair[0]).rows[0];
       if(prior)verifyManifest(prior);
-      const found=(await client.execute({sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
-        AND operation_kind=? AND operation_key=? AND subject_kind=? AND subject_token=?`,
-        args:[row.user_id,row.execution_mode,row.operation_kind,row.operation_key,subject_kind,subject_token]})).rows[0];
+      const found=observed(pair[1]).rows[0];
       if(found) {
         verifyEntry(found);
         const all=(await client.execute({sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
@@ -197,17 +208,20 @@ export function createReceiptRouting(client,keys) {
       else await client.execute({sql:`INSERT INTO ${ROUTE_MANIFESTS}
         (user_id,execution_mode,subject_kind,subject_token,route_version,entry_count,chain_digest,manifest_hmac)
         VALUES (?,?,?,?,?,?,?,?)`,args:[...scope,ROUTE_VERSION,manifest.entry_count,manifest.chain_digest,manifest.manifest_hmac]});
-    }
+    }}
     return values;
   }
   async function tip(context,kind,identity) {
     const scope=[context.userId,context.executionMode,kind,token(context.userId,context.executionMode,kind,identity)];
-    const manifestFrom=await pilotPrefixFrom(client,context,ROUTE_MANIFESTS,scope);
-    const row=(await client.execute({sql:`SELECT * FROM ${manifestFrom} WHERE user_id=? AND execution_mode=?
-      AND subject_kind=? AND subject_token=?`,args:scope})).rows[0];
-    const entriesFrom=await pilotPrefixFrom(client,context,ROUTE_ENTRIES,scope);
-    const count=(await client.execute({sql:`SELECT COUNT(*) count FROM ${entriesFrom} WHERE user_id=?
-      AND execution_mode=? AND subject_kind=? AND subject_token=?`,args:scope})).rows[0].count;
+    const values=await observations([
+      async()=>{const from=await pilotPrefixFrom(client,context,ROUTE_MANIFESTS,scope);
+        return client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=?
+          AND subject_kind=? AND subject_token=?`,args:scope});},
+      async()=>{const from=await pilotPrefixFrom(client,context,ROUTE_ENTRIES,scope);
+        return client.execute({sql:`SELECT COUNT(*) count FROM ${from} WHERE user_id=?
+          AND execution_mode=? AND subject_kind=? AND subject_token=?`,args:scope});},
+    ]);
+    const row=observed(values[0]).rows[0],count=observed(values[1]).rows[0].count;
     if(!row){if(count)invalid();return null;}
     verifyManifest(row);
     if(count!==row.entry_count)invalid();
@@ -221,10 +235,13 @@ export function createReceiptRouting(client,keys) {
       // not a scan of unrelated route records. A due family enters the full
       // precise inventory below before any lifecycle action.
       const scope=[userId,mode,kind,subjectToken];
-      const manifest=(await client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
-        AND subject_kind=? AND subject_token=?`,args:scope})).rows[0];
-      const entries=await readPilotPrefixRows(client,context,'routeEntries',scope,{sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
-        AND subject_kind=? AND subject_token=? ORDER BY sequence`,args:scope});
+      const values=await observations([
+        ()=>client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
+          AND subject_kind=? AND subject_token=?`,args:scope}),
+        ()=>readPilotPrefixRows(client,context,'routeEntries',scope,{sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
+          AND subject_kind=? AND subject_token=? ORDER BY sequence`,args:scope}),
+      ]);
+      const manifest=observed(values[0]).rows[0],entries=observed(values[1]);
       if(!manifest){if(entries.length)invalid();return {receipts:[],unknown:0,manifest:null};}
       verifyManifest(manifest);
       if(entries.length!==manifest.entry_count)invalid();
@@ -238,10 +255,13 @@ export function createReceiptRouting(client,keys) {
     }
     // The global small routing layer is authenticated without opening any
     // unrelated receipt. It proves that no v27 row was left without a route.
-    const routes=await readPilotPrefixRows(client,context,'routes',[userId,mode],{sql:`SELECT * FROM ${ROUTE_RECEIPTS} WHERE user_id=? AND execution_mode=?
-      ORDER BY operation_kind,operation_key`,args:[userId,mode]});
-    const actual=await readPilotPrefixRows(client,context,'receiptProjection',[userId,mode],{sql:`SELECT operation_kind,operation_key,privacy_artifact_id FROM phase4_operation_receipts
-      WHERE user_id=? AND execution_mode=? ORDER BY operation_kind,operation_key`,args:[userId,mode]});
+    const global=await observations([
+      ()=>readPilotPrefixRows(client,context,'routes',[userId,mode],{sql:`SELECT * FROM ${ROUTE_RECEIPTS} WHERE user_id=? AND execution_mode=?
+        ORDER BY operation_kind,operation_key`,args:[userId,mode]}),
+      ()=>readPilotPrefixRows(client,context,'receiptProjection',[userId,mode],{sql:`SELECT operation_kind,operation_key,privacy_artifact_id FROM phase4_operation_receipts
+        WHERE user_id=? AND execution_mode=? ORDER BY operation_kind,operation_key`,args:[userId,mode]}),
+    ]);
+    const routes=observed(global[0]),actual=observed(global[1]);
     if(routes.length!==actual.length)invalid();
     let unknown=0;const expected=[];
     for(let i=0;i<routes.length;i++) {
@@ -255,10 +275,13 @@ export function createReceiptRouting(client,keys) {
       if(subjects.some(([k,t])=>k===kind&&t===subjectToken))expected.push(route);
     }
     const scope=[userId,mode,kind,subjectToken];
-    const manifest=(await client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
-      AND subject_kind=? AND subject_token=?`,args:scope})).rows[0];
-    const entries=await readPilotPrefixRows(client,context,'routeEntries',scope,{sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
-      AND subject_kind=? AND subject_token=? ORDER BY sequence`,args:scope});
+    const precise=await observations([
+      ()=>client.execute({sql:`SELECT * FROM ${ROUTE_MANIFESTS} WHERE user_id=? AND execution_mode=?
+        AND subject_kind=? AND subject_token=?`,args:scope}),
+      ()=>readPilotPrefixRows(client,context,'routeEntries',scope,{sql:`SELECT * FROM ${ROUTE_ENTRIES} WHERE user_id=? AND execution_mode=?
+        AND subject_kind=? AND subject_token=? ORDER BY sequence`,args:scope}),
+    ]);
+    const manifest=observed(precise[0]).rows[0],entries=observed(precise[1]);
     if(!manifest){if(expected.length||entries.length)invalid();return {receipts:[],unknown,manifest:null};}
     verifyManifest(manifest);
     if(entries.length!==manifest.entry_count||expected.length!==entries.length)invalid();
@@ -274,11 +297,13 @@ export function createReceiptRouting(client,keys) {
     if(metadataOnly)return {receipts:[],unknown,manifest:{entryCount:manifest.entry_count,chainDigest:manifest.chain_digest}};
     if(entries.length>1000)bounds();
     const receipts=[];
-    for(const entry of entries) {
-      const from=await pilotPrefixFrom(client,context,'phase4_operation_receipts',[userId,mode,entry.operation_kind,entry.operation_key]);
-      const receipt=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=?
-        AND operation_kind=? AND operation_key=?`,args:[userId,mode,entry.operation_kind,entry.operation_key]})).rows[0];
-      if(!receipt)invalid();receipts.push(receipt);
+    for(let start=0;start<entries.length;start+=READ_BATCH) {
+      const values=await observations(entries.slice(start,start+READ_BATCH).map(entry=>async()=>{
+        const from=await pilotPrefixFrom(client,context,'phase4_operation_receipts',[userId,mode,entry.operation_kind,entry.operation_key]);
+        return (await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=?
+          AND operation_kind=? AND operation_key=?`,args:[userId,mode,entry.operation_kind,entry.operation_key]})).rows[0];
+      }));
+      for(const value of values){const receipt=observed(value);if(!receipt)invalid();receipts.push(receipt);}
     }
     return {receipts,unknown,manifest:{entryCount:manifest.entry_count,chainDigest:manifest.chain_digest}};
   }

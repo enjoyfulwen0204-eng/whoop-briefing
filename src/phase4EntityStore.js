@@ -73,7 +73,7 @@ export function createPhase4EntityStore(core) {
     }
     return refs;
   }
-  async function append(context,table,data,sourceRefs=[]) {
+  async function append(context,table,data,sourceRefs=[],metricPreparationItem=false) {
     if(!IDENTITIES[table])fail('PHASE4_UNKNOWN_ENTITY');
     return core.run(context,async()=>{
       const info=await core.tableInfo(table),names=new Set(info.map(c=>c.name));
@@ -96,9 +96,10 @@ export function createPhase4EntityStore(core) {
         const pk=Object.fromEntries(info.filter(c=>c.pk&&!['user_id','execution_mode'].includes(c.name)).map(c=>[c.name,existing[c.name]]));
         return {...await core.artifact(context,table,pk),created:false};
       }
-      const refs=[...sourceRefs,...await validateParents(context,table,row)];
+      const bundle=metricPreparationItem?await core.metricPreparationItemSources(context,row.run_id,sourceRefs):null;
+      const refs=bundle&&!bundle.fallback?bundle.refs:[...sourceRefs,...await validateParents(context,table,row)];
       if(!refs.length)fail('PHASE4_COMPLETE_PROVENANCE_REQUIRED');
-      await core.revalidateSources(context,refs);
+      if(!bundle||bundle.fallback)await core.revalidateSources(context,refs);
       if(table==='body_energy_results') {
         if(!Number.isSafeInteger(row.as_of_epoch_ms) || Math.abs(row.as_of_epoch_ms)>8640000000000000
           || new Date(row.as_of_epoch_ms).toISOString()!==row.as_of_utc)fail('PHASE4_INVALID_EXACT_AS_OF');
@@ -114,7 +115,8 @@ export function createPhase4EntityStore(core) {
       const fields=Object.keys(record);
       reservePilotMutation(context,client,fields.map(k=>record[k]));
       await client.execute({sql:`INSERT INTO ${table}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(k=>record[k])});
-      await core.link(context,table,record.privacy_artifact_id,refs);
+      if(bundle&&!bundle.fallback)await core.linkMetricPreparationItem(context,record.privacy_artifact_id,refs);
+      else await core.link(context,table,record.privacy_artifact_id,refs);
       const key=Object.fromEntries(info.filter(c=>c.pk&&!['user_id','execution_mode'].includes(c.name)).map(c=>[c.name,record[c.name]]));
       return {...await core.artifact(context,table,key),created:true};
     });
@@ -143,5 +145,6 @@ export function createPhase4EntityStore(core) {
       return core.artifact(context,'evidence_runs',{run_id:runId});
     });
   }
-  return Object.freeze({append,validateParents,completeEvidence});
+  return Object.freeze({append,validateParents,completeEvidence,
+    appendMetricPreparationItem:(context,data,refs)=>append(context,'evidence_items',data,refs,true)});
 }

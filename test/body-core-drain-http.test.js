@@ -23,9 +23,11 @@ assert.ok(Number.isSafeInteger(latencyMs)&&latencyMs>=0&&latencyMs<=150);
 const cancellation=process.env.BODY_CORE_CANCEL_ON_SOURCE==='1',controller=new AbortController();
 const requireDurableBody=process.env.BODY_CORE_REQUIRE_DURABLE_BODY==='1',continueDrain=process.env.BODY_CORE_CONTINUE_DRAIN==='1';
 const metricContinuation=process.env.BODY_CORE_METRIC_CONTINUATION==='1';
+const bundleFault=process.env.BODY_CORE_BUNDLE_FAULT??'';
+assert.ok(['','missing','extra_foreign','corrupt_source','corrupt_receipt','corrupt_body','source_generation','lifecycle','auth','purge','unknown_commit','cancel'].includes(bundleFault));
 const diagnosticSafetyMs=Number(process.env.BODY_CORE_DIAGNOSTIC_SAFETY_MS??15000);
 assert.ok([12000,15000].includes(diagnosticSafetyMs));
-const cancelAfterBody=process.env.BODY_CORE_CANCEL_AFTER_BODY==='1',loseBodyAck=process.env.BODY_CORE_LOSE_BODY_ACK==='1';
+const cancelAfterBody=process.env.BODY_CORE_CANCEL_AFTER_BODY==='1',loseBodyAck=process.env.BODY_CORE_LOSE_BODY_ACK==='1'||bundleFault==='unknown_commit';
 assert.ok(!(cancelAfterBody&&loseBodyAck));
 const triggerSource=process.env.BODY_CORE_TRIGGER_SOURCE??'manual';
 assert.ok(['manual','github'].includes(triggerSource));
@@ -38,11 +40,12 @@ const delta=(after,before)=>({httpRequests:after.httpRequests-before.httpRequest
 test('actual admitted v32 DRAIN claims and checkpoints one original Body job unit over physical Hrana',async t=>{
  const dir=await mkdtemp(join(tmpdir(),'body-core-http-')),url=`file:${join(dir,'db.sqlite')}`,seed=createOwnedDb({url});
  await seed.migrate({targetVersion:32});assert.equal((await seed.raw.execute('PRAGMA journal_mode=WAL')).rows[0].journal_mode,'wal');seed.close();
- const transport=hranaTransport(url);let activeLatency=0,workerEntered=false,canonicalAtStart=Infinity;
+ const transport=hranaTransport(url);let activeLatency=0,workerEntered=false,canonicalAtStart=Infinity,cancelBundleRead=false,cancelBundleAt=Infinity;
  const db=createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch:async request=>{
   if(activeLatency)await new Promise(resolve=>setTimeout(resolve,activeLatency));
   const response=await transport.fetch(request);
   if(cancellation&&workerEntered&&(transport.counts.byFamily.CANONICAL??0)>canonicalAtStart)controller.abort();
+  if(cancelBundleRead&&(transport.counts.byFamily.CANONICAL??0)>cancelBundleAt)controller.abort();
   return response;
  }}),timed=db;
  t.after(async()=>{await new Promise(resolve=>setImmediate(resolve));timed.close();transport.close();await rm(dir,{recursive:true,force:true});});
@@ -65,14 +68,18 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
  assert.equal(sync.body.syncComplete,true);
  const initialJob=(await timed.raw.execute("SELECT * FROM phase4_jobs WHERE user_id='a' ORDER BY updated_at,user_id,job_kind LIMIT 1")).rows[0];
  const initialComputation=(await timed.raw.execute("SELECT * FROM phase4_computation_state WHERE user_id='a' AND execution_mode='SHADOW'")).rows[0];
- let actualWorkerCalls=0,workerStartedAt=null,bodyCommittedAt=null,bodyCommitCounts=null;
+ let actualWorkerCalls=0,workerStartedAt=null,bodyCommittedAt=null,bodyCommitCounts=null,workerCountStart=null,workerClockStart=null;
  options.deps.runtime={phase4Stage6:{drain:async args=>{
   actualWorkerCalls++;workerEntered=true;workerStartedAt=performance.now();
   const pilotGrant=requireCurrentBetaPilotAttempt('a',timed.raw);
   const runtime=await createPublicBetaRuntime({db:timed,keys:fixtureKeys,admission,executionMode:'SHADOW',pilotGrant,
    runtimeCapability:authorizePublicBetaRuntime({executionMode:'SHADOW'})});
+  const beforeWorker=copy(transport.counts),workerClock=performance.now();
+  workerCountStart=beforeWorker;workerClockStart=workerClock;
   const drained=await runtime.phase4Stage6.drain({...args,budget:{maxJobs:1,maxItems:1,maxItemsPerTenant:1,
    ...(diagnosticSafetyMs===12000?{maxWallMs:45000,safetyMarginMs:12000}:{})}});
+  console.log('BODY_CORE_WORKER_UNIT_HTTP '+JSON.stringify({leg:actualWorkerCalls,httpRequests:transport.counts.httpRequests-beforeWorker.httpRequests,
+   elapsedMs:performance.now()-workerClock,unitsCommitted:drained.unitsCommitted,processedItems:drained.processedItems,outcome:drained.outcome}));
   console.log('BODY_CORE_WORKER_RESULT '+JSON.stringify(drained));return drained;
  }}};
  const request=makeRequest({phase:'STAGE6_DRAIN',syncRequestId:syncRequest.requestId,handoff:sync.body.handoff});
@@ -163,6 +170,50 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
   assert.ok(nextMeasurement.elapsedMs<45000);assert.equal(afterJobs.filter(row=>row.full_scan_cursor!==null).length,1);
   assert.equal(resumed.body.result.outcome,'PARTIAL');assert.equal(resumed.body.result.itemsProcessed,1);
  }
+ if(bundleFault){
+  assert.equal(latencyMs,0);assert.equal(rows.length,1);assert.equal(jobs.filter(row=>row.full_scan_cursor!==null).length,0);
+  const manifest=JSON.parse(rows[0].input_manifest_json),sleepId=manifest.main_sleep.id;
+  if(bundleFault==='missing')await timed.raw.execute({sql:'DELETE FROM whoop_sleeps WHERE user_id=? AND id=?',args:['a',sleepId]});
+  if(bundleFault==='corrupt_source')await timed.raw.execute({sql:'UPDATE whoop_sleeps SET sleep_performance_percentage=sleep_performance_percentage+1 WHERE user_id=? AND id=?',args:['a',sleepId]});
+  if(bundleFault==='extra_foreign'){
+   await timed.createUser({id:'b',displayName:'Synthetic foreign',status:'ACTIVE',timezone:'Asia/Taipei'});
+   const original=(await timed.raw.execute({sql:'SELECT * FROM whoop_sleeps WHERE user_id=? AND id=?',args:['a',sleepId]})).rows[0];
+   const foreign={...original,user_id:'b',id:999999};delete foreign.rowid;const columns=Object.keys(foreign);
+   await timed.raw.execute({sql:`INSERT INTO whoop_sleeps(${columns.join(',')}) VALUES(${columns.map(()=>'?').join(',')})`,args:columns.map(name=>foreign[name])});
+   await timed.raw.execute({sql:`INSERT INTO phase4_source_links(user_id,artifact_execution_mode,artifact_type,artifact_id,
+    source_execution_mode,source_type,source_id,relationship,linked_at) VALUES(?,?,?,?,?,?,?,?,?)`,
+    args:['a','SHADOW','body_energy_results',rows[0].privacy_artifact_id,'SHARED','sleep','999999','DEPENDS_ON',new Date().toISOString()]});
+  }
+  let originalExecute=null;
+  if(['corrupt_receipt','corrupt_body'].includes(bundleFault)){
+   // The installed schema correctly forbids receipt mutation. Corrupt only
+   // the returned observation after its actual SQL executes; retain triggers.
+   originalExecute=timed.raw.execute.bind(timed.raw);
+   timed.raw.execute=async statement=>{const value=await originalExecute(statement);
+    const sql=typeof statement==='string'?statement:statement?.sql??'';
+    if(bundleFault==='corrupt_receipt'&&/\bphase4_operation_receipts\b/.test(sql))for(const row of value.rows)if(row.operation_kind==='BODY_ENERGY_COMPUTE')row.receipt_hmac='corrupt';
+    if(bundleFault==='corrupt_body'&&/\bbody_energy_results\b/.test(sql))for(const row of value.rows)if(Object.hasOwn(row,'result_hash'))row.result_hash='corrupt';
+    return value;
+   };
+  }
+  if(bundleFault==='source_generation')await timed.raw.execute("UPDATE phase4_user_state SET source_generation=source_generation+1 WHERE user_id='a'");
+  if(bundleFault==='lifecycle')await timed.raw.execute("UPDATE users SET lifecycle_generation=lifecycle_generation+1 WHERE id='a'");
+  if(bundleFault==='auth')await timed.raw.execute("UPDATE user_whoop_tokens SET auth_generation=auth_generation+1 WHERE user_id='a'");
+  if(bundleFault==='purge')await timed.raw.execute("UPDATE phase4_user_state SET purge_generation=purge_generation+1 WHERE user_id='a'");
+  if(bundleFault==='cancel'){cancelBundleRead=true;cancelBundleAt=transport.counts.byFamily.CANONICAL??0;}
+  const next=makeRequest({phase:'STAGE6_DRAIN',syncRequestId:syncRequest.requestId,handoff:sync.body.handoff});
+  const rejected=await runExecutionPhase({...options,request:next,...(bundleFault==='cancel'?{signal:controller.signal}:{})});cancelBundleRead=false;
+  if(originalExecute)timed.raw.execute=originalExecute;
+  const counts=Object.fromEntries(await Promise.all(['evidence_runs','evidence_items','phase4_evidence_result_authorities'].map(async table=>[table,
+   Number((await timed.raw.execute(`SELECT count(*) n FROM ${table} WHERE user_id='a'`)).rows[0].n)])));
+  console.log('BODY_CORE_ATOMIC_BUNDLE_NEGATIVE '+JSON.stringify({fault:bundleFault,observationCorruptionOnly:['corrupt_receipt','corrupt_body'].includes(bundleFault),status:rejected.status,result:rejected.body.result,counts,
+   classification:'LOCAL_SYNTHETIC_ACTUAL_HRANA_CONTROL_NOT_PUBLICATION'}));
+  assert.ok(['FAILED','CANCELLED','DISABLED','NO_ELIGIBLE_WORK','PARTIAL'].includes(rejected.body.result.outcome));
+  assert.equal(rejected.body.result.itemsProcessed??0,0);assert.equal(rejected.body.result.unitsCommitted??0,0);
+  assert.deepEqual(Object.values(counts),[0,0,0]);
+  assert.equal((await timed.raw.execute("SELECT count(*) n FROM phase4_jobs WHERE user_id='a' AND full_scan_cursor IS NOT NULL")).rows[0].n,0);
+  assert.equal((await timed.raw.execute("SELECT count(*) n FROM phase4_jobs WHERE user_id='a' AND completed_generation=requested_generation")).rows[0].n,0);
+ }
  if(metricContinuation){
   let checkpointed=jobs.some(row=>row.full_scan_cursor!==null),legs=1;
   const unitCounts=async()=>({runs:Number((await timed.raw.execute("SELECT count(*) n FROM evidence_runs WHERE user_id='a'")).rows[0].n),
@@ -173,8 +224,12 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
   while(!checkpointed&&legs<8){
    const next=makeRequest({phase:'STAGE6_DRAIN',syncRequestId:syncRequest.requestId,handoff:sync.body.handoff});
    const countBefore=copy(transport.counts),startNext=performance.now();activeLatency=latencyMs;
+   let unitCommit=null;
+   transport.arm({matchSql:/^(?:INSERT INTO (?:evidence_runs|evidence_items|phase4_evidence_result_authorities)\b|UPDATE evidence_runs SET)/,
+    after:()=>{unitCommit={workerHttpThroughCommit:transport.counts.httpRequests-(workerCountStart?.httpRequests??0),
+      workerElapsedThroughCommitMs:performance.now()-(workerClockStart??startNext),phaseElapsedThroughCommitMs:performance.now()-startNext};}});
    const resumed=await runExecutionPhase({...options,request:next});legs++;activeLatency=0;
-   const nextMeasurement={leg:legs,elapsedMs:performance.now()-startNext,...delta(transport.counts,countBefore),status:resumed.status,result:resumed.body.result};
+   const nextMeasurement={unitCommit,leg:legs,elapsedMs:performance.now()-startNext,...delta(transport.counts,countBefore),status:resumed.status,result:resumed.body.result};
    const afterJobs=(await timed.raw.execute("SELECT * FROM phase4_jobs WHERE user_id='a' ORDER BY job_kind")).rows;
    const counts=await unitCounts();stages.push(counts);checkpointed=afterJobs.some(row=>row.full_scan_cursor!==null);
    console.log('BODY_CORE_METRIC_CONTINUATION '+JSON.stringify({...nextMeasurement,counts,checkpointed}));

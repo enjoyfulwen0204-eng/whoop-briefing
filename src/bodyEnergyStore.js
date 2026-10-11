@@ -77,6 +77,13 @@ export function createBodyEnergyStore(core,entities,queue) {
       AND artifact_type='body_energy_results' AND artifact_id=? AND unlinked_at IS NULL LIMIT 1`,
       args:[row.user_id,row.execution_mode,row.privacy_artifact_id]})).rows.length;
     if(!linked)fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
+    const {result,unique}=auditPlan(row);
+    const verify=(source,current)=>compareAuditSource(context,row,source,current,{equivalentSyncRefresh});
+    if(core.readRoots)await core.readRoots(context,unique,{verify});
+    else for(const source of unique)await verify(source,await core.root(context,source.type,source.id));
+    return result;
+  }
+  function auditPlan(row){
     const result=reproduceHistorical(row),manifest=result.manifest,required=[];
     const add=(type,value)=>{if(value)required.push({type,id:String(value[type==='recovery'?'sleep_id':'id']),expected:value});};
     add('sleep',manifest.main_sleep);add('recovery',manifest.recovery);
@@ -91,7 +98,9 @@ export function createBodyEnergyStore(core,entities,queue) {
       if(seen.size>10000)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
       unique.push(source);
     }
-    const verify=async(source,current)=>{
+    return {result,unique};
+  }
+  function compareAuditSource(context,row,source,current,{equivalentSyncRefresh=false}={}){
       if(source.expected&&row.input_generation===context.inputGeneration)for(const [field,value] of Object.entries(source.expected)) {
         // A same-version canonical refetch may refresh only its ingestion
         // bookkeeping. Publication keeps the original snapshot and freshness;
@@ -104,10 +113,6 @@ export function createBodyEnergyStore(core,entities,queue) {
         if((time?canonicalSourceTime(current.row[field]??null):current.row[field]??null)
           !==(time?canonicalSourceTime(value):value))fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
       }
-    };
-    if(core.readRoots)await core.readRoots(context,unique,{verify});
-    else for(const source of unique)await verify(source,await core.root(context,source.type,source.id));
-    return result;
   }
   async function prepare(context,options) {
     const req=request(options);
@@ -309,7 +314,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       return {row:{...row},result};
     });
   }
-  return Object.freeze({prepare,persist,compute,audit,readExact,readLatestCurrent,checkpoint,auditCheckpoint,
+  return Object.freeze({prepare,persist,compute,audit,readExact,readLatestCurrent,checkpoint,auditCheckpoint,auditPlan,compareAuditSource,
     privacyDependencies:(userId,row)=>{
       if(row.user_id!==userId)fail('PHASE4_PURGE_AUTHORITY_INVALID');
       const {manifest}=reproduceHistorical(row),refs=[];

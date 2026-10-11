@@ -9,6 +9,8 @@ import { coverageLineage } from './phase4CoverageLineage.js';
  * isolated tests supply a distinct factory that owns its in-memory database. */
 import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import {currentDurableExecution,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
+import {READ_SNAPSHOT_LIMITS} from './processingReadSnapshot.js';
 import { assertPhase4Schema } from './phase4Migrations.js';
 import { requirePhase4Keys } from './phase4Keys.js';
 import { requireUserId } from './userContext.js';
@@ -350,15 +352,18 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       if(!key || Object.keys(key).length!==pk.length || pk.some(c=>!Object.hasOwn(key,c.name)))fail('PHASE4_ENTITY_KEY_REQUIRED');
       const row=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND execution_mode=?${pk.map(c=>` AND ${c.name}=?`).join('')}`,
         args:[context.userId,context.executionMode,...pk.map(c=>key[c.name])]})).rows[0];
-      if(!row)fail('PHASE4_PARENT_NOT_FOUND');
-      if(Object.hasOwn(row,'content_state') && !readableRow(row))fail('CONTENT_REDACTED');
-      for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],['auth_generation',context.authGeneration]])
-        if(Object.hasOwn(row,column) && row[column]!==value)fail('PHASE4_PARENT_STALE');
-      if(row.invalidated_at || (table==='health_insights' && row.legacy_classification!=='PHASE4'))fail('PHASE4_PARENT_STALE');
-      if(!row.privacy_artifact_id)fail('PHASE4_HEALTH_PARENT_REQUIRED');
+      compareArtifactRow(context,table,row);
       await validateStoredGraph(context,table,row.privacy_artifact_id);
       return {row:{...row},ref:reference(context,table,row.privacy_artifact_id,context.executionMode,row)};
     });
+  }
+  function compareArtifactRow(context,table,row){
+    if(!row)fail('PHASE4_PARENT_NOT_FOUND');
+    if(Object.hasOwn(row,'content_state') && !readableRow(row))fail('CONTENT_REDACTED');
+    for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],['auth_generation',context.authGeneration]])
+      if(Object.hasOwn(row,column) && row[column]!==value)fail('PHASE4_PARENT_STALE');
+    if(row.invalidated_at || (table==='health_insights' && row.legacy_classification!=='PHASE4'))fail('PHASE4_PARENT_STALE');
+    if(!row.privacy_artifact_id)fail('PHASE4_HEALTH_PARENT_REQUIRED');
   }
   async function validateStoredGraph(context,table,artifactId,path=new Set(),verified=new Set()) {
     const node=JSON.stringify([table,artifactId]);
@@ -436,6 +441,140 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       out.push(...results.map(result=>result.value));
     }return out;
   }
+  // Closed current-Body readonly input. Complex/historical actual graphs keep
+  // the original general verifier. The finite raw graph case observes every
+  // actual link plus every expected audit/domain root once; callers compare
+  // their original purposes against these data before the final fresh gate.
+  async function currentBodyRawUnion(context,row,expected){
+    if(!processing.active?.()||!jobScope.getStore()||!contexts.has(context)||schemaVersion!==32||context.executionMode!=='SHADOW'
+      ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)
+      fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
+    if(row.user_id!==context.userId||row.execution_mode!==context.executionMode||!readableRow(row))fail('CONTENT_REDACTED');
+    for(const [field,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],['auth_generation',context.authGeneration]])
+      if(row[field]!==value)fail('PHASE4_PARENT_STALE');
+    if(row.invalidated_at||!row.privacy_artifact_id)fail('PHASE4_PARENT_STALE');
+    const from=await pilotPrefixFrom(client,context,'phase4_source_links',[context.userId,context.executionMode,'body_energy_results',row.privacy_artifact_id]);
+    const links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM ${from}
+      WHERE user_id=? AND artifact_execution_mode=? AND artifact_type='body_energy_results' AND artifact_id=? AND unlinked_at IS NULL`,
+      args:[context.userId,context.executionMode,row.privacy_artifact_id]})).rows;
+    if(!links.length)fail('PHASE4_INCOMPLETE_PROVENANCE');
+    const raw=value=>['sleep','recovery','cycle','workout','USER'].includes(value.type);
+    if(links.some(link=>link.source_execution_mode!=='SHARED'||link.relationship.startsWith('DEPENDS_ON_AS_OF:')||!raw({type:link.source_type})))
+      return {fallback:true};
+    if(!Array.isArray(expected)||expected.length>10000||expected.some(value=>!raw(value)))fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
+    const actual=links.map(link=>({type:link.source_type,id:link.source_id})),descriptors=[],seen=new Set();
+    for(const source of [...actual,...expected]){
+      const key=JSON.stringify([source.type,String(source.id)]);if(seen.has(key))continue;seen.add(key);
+      if(seen.size>10000)fail('PHASE4_PROVENANCE_CYCLE');descriptors.push({type:source.type,id:String(source.id)});
+    }
+    const values=new Map();let bytes=0;
+    for(let start=0;start<descriptors.length;start+=RAW_SOURCE_READ_BATCH){
+      const group=descriptors.slice(start,start+RAW_SOURCE_READ_BATCH),observations=await Promise.allSettled(group.map(source=>
+        Promise.resolve().then(()=>root(context,source.type,source.id))));
+      for(let index=0;index<group.length;index++){
+        const observed=observations[index];if(observed.status==='fulfilled')bytes+=Buffer.byteLength(JSON.stringify(observed.value.row,
+          (_key,value)=>typeof value==='bigint'?String(value):value),'utf8');
+        values.set(JSON.stringify([group[index].type,group[index].id]),observed);
+      }
+      if(bytes>READ_SNAPSHOT_LIMITS.bytes)return {fallback:true};
+    }
+    return {fallback:false,actual,values};
+  }
+  // Only the owned metric-ITEM entity purpose uses this closure. The complete
+  // actual RUN and Body graphs are observed once, then the original parent and
+  // source comparators run in their original order. A later mutation phase
+  // invokes a NEW closure; no successful graph check or permit is reused.
+  async function metricPreparationItemSources(context,runId,bodyRefs,runRef=null){
+    if(!processing.active?.()||!jobScope.getStore()||schemaVersion!==32||context.executionMode!=='SHADOW'
+      ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)
+      fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+    requireSettledOperation();
+    const bodies=validateReferences(context,bodyRefs),priorRun=runRef?validateReferences(context,[runRef])[0]:null;
+    if(!bodies.length||bodies.length>64||bodies.some(source=>source.mode!==context.executionMode||source.type!=='body_energy_results'
+      ||source.historicalAsOf)||priorRun&&(priorRun.type!=='evidence_runs'||priorRun.mode!==context.executionMode))return {fallback:true};
+    return run(context,async()=>{
+      await assertExecutionWorkOwner(client);
+      const captured=new Map(),raw=new Map(),nodeKey=(table,id)=>JSON.stringify([table,String(id)]);
+      const runRow=(await client.execute({sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND run_id=?',
+        args:[context.userId,context.executionMode,runId]})).rows[0];
+      if(!priorRun)compareArtifactRow(context,'evidence_runs',runRow);
+      const pending=runRow?[{table:'evidence_runs',row:runRow}]:[];
+      // Body references are caller-independent branded calculation inputs.
+      // Every row observation remains tenant/mode scoped and freshly guarded.
+      const bodyRows=await Promise.allSettled(bodies.map(source=>Promise.resolve().then(()=>client.execute({
+        sql:'SELECT * FROM body_energy_results WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',
+        args:[context.userId,context.executionMode,source.id]}))));
+      const observedBodies=[];
+      for(let index=0;index<bodies.length;index++){
+        const value=bodyRows[index];observedBodies.push(value.status==='fulfilled'?{row:value.value.rows[0]}:{error:value.reason});
+        if(value.status==='fulfilled'&&value.value.rows[0])pending.push({table:'body_energy_results',row:value.value.rows[0]});
+      }
+      let bytes=Buffer.byteLength(JSON.stringify(runRow??null));
+      while(pending.length){
+        const node=pending.shift(),identity=nodeKey(node.table,node.row.privacy_artifact_id);if(captured.has(identity))continue;
+        if(captured.size>=10000)return {fallback:true};
+        const from=await pilotPrefixFrom(client,context,'phase4_source_links',[context.userId,context.executionMode,node.table,node.row.privacy_artifact_id]);
+        const links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM ${from}
+          WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL`,
+          args:[context.userId,context.executionMode,node.table,node.row.privacy_artifact_id]})).rows;
+        bytes+=Buffer.byteLength(JSON.stringify([node.row,links]));if(bytes>READ_SNAPSHOT_LIMITS.bytes)return {fallback:true};
+        captured.set(identity,{row:node.row,links});
+        for(const link of links){
+          if(link.source_execution_mode==='SHARED'){
+            if(link.relationship.startsWith('DEPENDS_ON_AS_OF:')||!['sleep','recovery','cycle','workout','USER'].includes(link.source_type))return {fallback:true};
+            raw.set(nodeKey(link.source_type,link.source_id),{type:link.source_type,id:link.source_id});if(raw.size>10000)return {fallback:true};
+          }else if(link.source_execution_mode===context.executionMode&&link.source_type==='body_energy_results'){
+            const key=nodeKey(link.source_type,link.source_id);if(captured.has(key)||pending.some(value=>nodeKey(value.table,value.row.privacy_artifact_id)===key))continue;
+            const parent=(await client.execute({sql:'SELECT * FROM body_energy_results WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',
+              args:[context.userId,context.executionMode,link.source_id]})).rows[0];
+            // Missing parents are retained for the original ordered comparator.
+            if(parent)pending.push({table:link.source_type,row:parent});else captured.set(key,{row:null,links:[]});
+          }else return {fallback:true};
+        }
+      }
+      const rootValues=new Map(),descriptors=[...raw.values()];
+      for(let start=0;start<descriptors.length;start+=RAW_SOURCE_READ_BATCH){
+        const group=descriptors.slice(start,start+RAW_SOURCE_READ_BATCH),values=await Promise.allSettled(group.map(source=>Promise.resolve().then(()=>root(context,source.type,source.id))));
+        for(let index=0;index<group.length;index++){
+          const value=values[index];if(value.status==='fulfilled')bytes+=Buffer.byteLength(JSON.stringify(value.value.row));
+          rootValues.set(nodeKey(group[index].type,group[index].id),value);
+        }
+        if(bytes>READ_SNAPSHOT_LIMITS.bytes)return {fallback:true};
+      }
+      const graph=(table,id,path=new Set(),verified=new Set())=>{
+        const identity=nodeKey(table,id);if(path.has(identity)||path.size>128||verified.size>10000)fail('PHASE4_PROVENANCE_CYCLE');
+        if(verified.has(identity))return;path.add(identity);
+        const node=captured.get(identity);if(!node?.links.length)fail('PHASE4_INCOMPLETE_PROVENANCE');
+        for(const link of node.links){
+          if(link.source_execution_mode==='SHARED'){
+            const key=nodeKey(link.source_type,link.source_id);if(verified.has(key))continue;
+            const observed=rootValues.get(key);if(!observed)fail('PHASE4_SOURCE_NOT_FOUND');if(observed.status==='rejected')throw observed.reason;verified.add(key);
+          }else{
+            const parent=captured.get(nodeKey(link.source_type,link.source_id))?.row;
+            if(!readableRow(parent)||parent.invalidated_at)fail('PHASE4_PARENT_STALE');
+            for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],['auth_generation',context.authGeneration]])
+              if(Object.hasOwn(parent,column)&&parent[column]!==value)fail('PHASE4_PARENT_STALE');
+            graph(link.source_type,link.source_id,path,verified);
+          }
+        }
+        path.delete(identity);verified.add(identity);
+      };
+      if(!priorRun){graph('evidence_runs',runRow.privacy_artifact_id);if(runRow.state!=='COMPLETED')fail('PHASE4_EVIDENCE_NOT_COMPLETED');}
+      for(let index=0;index<bodies.length;index++){
+        const observed=observedBodies[index];if(observed.error)throw observed.error;
+        const row=observed.row,source=bodies[index];if(!readableRow(row)||row.invalidated_at)fail('PHASE4_PARENT_STALE');
+        for(const column of ['input_generation','lifecycle_generation','auth_generation'])if(Object.hasOwn(row,column)&&row[column]!==source.row[column])fail('PHASE4_PARENT_STALE');
+        graph(source.type,source.id);
+      }
+      if(priorRun){
+        if(!readableRow(runRow)||runRow.invalidated_at)fail('PHASE4_PARENT_STALE');
+        for(const column of ['input_generation','lifecycle_generation','auth_generation'])if(Object.hasOwn(runRow,column)&&runRow[column]!==priorRun.row[column])fail('PHASE4_PARENT_STALE');
+        graph(priorRun.type,priorRun.id);
+      }
+      await run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+      return {fallback:false,refs:[...bodyRefs,runRef??reference(context,'evidence_runs',runRow.privacy_artifact_id,context.executionMode,runRow)]};
+    });
+  }
   async function revalidateSources(context,refs) {
     const list=validateReferences(context,refs);
     for(let index=0;index<list.length;index++) {
@@ -473,6 +612,15 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       relationship:['observation_episodes','health_insights'].includes(table)?`INPUT_GENERATION:${context.inputGeneration}`
         :source.historicalAsOf?`DEPENDS_ON_AS_OF:${source.historicalAsOf}`:'DEPENDS_ON'})));
   }
+  async function linkMetricPreparationItem(context,artifactId,refs){
+    const sources=validateReferences(context,refs),parent=sources.at(-1);
+    if(parent?.type!=='evidence_runs')fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+    const observed=await metricPreparationItemSources(context,parent.row.run_id,refs.slice(0,-1),refs.at(-1));
+    if(observed.fallback)return link(context,'evidence_items',artifactId,refs);
+    const list=validateReferences(context,observed.refs);if(!list.length)fail('PHASE4_COMPLETE_PROVENANCE_REQUIRED');
+    await addPrivacyLinks(client,list.map(source=>({userId:context.userId,mode:context.executionMode,table:'evidence_items',artifactId,
+      sourceMode:source.mode,sourceType:source.type,sourceId:source.id,at:timestamp(),relationship:'DEPENDS_ON'})));
+  }
   function envelope(context,table,identity,{salt=keys.newSalt()}={}) {
     if(!contexts.has(context))fail('PHASE4_SERVER_CONTEXT_REQUIRED');
     return {user_id:context.userId,execution_mode:context.executionMode,content_state:'PRESENT',source_linkage_state:'COMPLETE',
@@ -482,5 +630,5 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   return Object.freeze({client,processing,transaction,keys,now,timestamp,schemaVersion,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
     withJobFence:(binding,check,fn)=>jobScope.run({binding,check},fn),jobAuthority:()=>jobScope.getStore()?.binding??null,
     capturePrivacyControl,assertPrivacyControl,run,runControl,runMaintenance,contextRegistry,
-    tableInfo,root,readRoots,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});
+    tableInfo,root,readRoots,currentBodyRawUnion,metricPreparationItemSources,linkMetricPreparationItem,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});
 }

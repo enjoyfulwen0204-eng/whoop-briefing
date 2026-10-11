@@ -23,6 +23,9 @@ import {currentDurableExecution,assertExecutionWorkOwner} from './phase4Executio
 import {workStepOptions} from './phase4WorkStep.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
+import {createBodyEnergyStore} from './bodyEnergyStore.js';
+import {verifyBodyEnergyProducer} from './bodyEnergyDerivedTime.js';
+import {currentBodySourceReceipt} from './phase4MetricUnitReceipt.js';
 
 const instances=new WeakMap();
 const invalid=()=>fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');
@@ -338,19 +341,19 @@ export function createOperationReceipts(core) {
         }
       }
     }
-    async function restore(value) {
+    return restoreResult(context,decoded,decoded.result_json);
+  }
+  function restoreResult(context,decoded,value) {
       if(value===null||typeof value!=='object')return value;
       if(value.$operation_reference) {
         const ref=value.$operation_reference;
         if(!decoded.related_results_json.some(target=>target.type===ref.type&&target.id===ref.id&&same(target.key,ref.key)))invalid();
         return core.reference(context,ref.type,ref.id,ref.mode,ref.row);
       }
-      if(Array.isArray(value)){const list=[];for(const entry of value)list.push(await restore(entry));return list;}
+      if(Array.isArray(value))return value.map(entry=>restoreResult(context,decoded,entry));
       const operational=operationResult(value),entries=[];
-      for(const [key,entry] of Object.entries(value))entries.push([key,operational&&key==='created'?false:operational&&key==='replayed'?true:await restore(entry)]);
+      for(const [key,entry] of Object.entries(value))entries.push([key,operational&&key==='created'?false:operational&&key==='replayed'?true:restoreResult(context,decoded,entry)]);
       return Object.fromEntries(entries);
-    }
-    return restore(decoded.result_json);
   }
   async function forArtifact(context,table,key,{episodeId=null,revision=null,expectedRevision=null,verifyOnly=false,retainedBody=false,deferValidation=false}={}) {
     return core.run(context,async()=>{
@@ -414,6 +417,93 @@ export function createOperationReceipts(core) {
       const recorded=await read(context,receipt);
       if(recorded?.row?.result_id!==resultId||!same(recorded.row,artifact.row))invalid();
       return {...recorded,ref:artifact.ref};
+    });
+  }
+  async function readCurrentBodyBundle(context,asOfUtc){
+    return core.run(context,async()=>{
+      const owner=await assertExecutionWorkOwner(client);
+      if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
+        fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
+      const rows=(await client.execute({sql:`SELECT * FROM body_energy_results
+        WHERE user_id=? AND execution_mode=? AND input_generation=? AND invalidated_at IS NULL
+        ORDER BY as_of_epoch_ms LIMIT 2`,args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
+      if(rows.length>1)fail('BODY_ENERGY_CURRENT_DRAIN_AMBIGUOUS');if(!rows.length)return null;
+      const row=rows[0],resultId=row.result_id;
+      const sourceProof=Promise.resolve().then(()=>currentBodySourceReceipt(core,context,asOfUtc));
+      const observation=Promise.resolve().then(async()=>{
+        const body=createBodyEnergyStore(core),capture=fn=>{try{return {value:fn()};}catch(error){return {error};}};
+        const audit=capture(()=>body.auditPlan(row));
+        const {normalized}=await prepare(context,{asOfEpochMs:row.as_of_epoch_ms},'BODY_ENERGY_COMPUTE');
+        const key=keyForEnvelope(requestEnvelope(context,'BODY_ENERGY_COMPUTE',normalized));
+        const receipt=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
+          AND operation_kind='BODY_ENERGY_COMPUTE' AND operation_key=?`,args:[context.userId,context.executionMode,key]})).rows[0];
+        const domain=capture(()=>{if(!receipt)fail('PHASE4_OPERATION_RESULT_UNAVAILABLE_MISSING_RECEIPT');return authenticate(context,receipt);});
+        const decoded=domain.value,manifest=decoded?.required_roots_json;
+        // Only this original raw current-Body shape uses the atomic boundary.
+        // Historical/complex graphs retain the complete original verifier.
+        const raw=entry=>entry.mode==='SHARED'&&entry.as_of===null&&['sleep','recovery','cycle','workout','USER'].includes(entry.type);
+        if(decoded&&(!Array.isArray(manifest?.roots)||manifest.roots.length>10000||!Array.isArray(decoded.related_results_json)
+          ||!decoded.schema_contract_json||typeof decoded.schema_contract_json!=='object'||Array.isArray(decoded.schema_contract_json)))
+          return {fallback:true,resultId};
+        if(decoded&&(manifest.roots.some(entry=>!raw(entry)&&!(entry.type==='body_energy_results'&&entry.mode===context.executionMode
+          &&entry.as_of===null&&entry.id===row.privacy_artifact_id))||decoded.related_results_json.some(target=>target.type!=='body_energy_results'
+          ||target.id!==row.privacy_artifact_id||target.key?.result_id!==row.result_id)))return {fallback:true,resultId};
+        const contracts=decoded?Object.entries(decoded.schema_contract_json):[];
+        const schemaPromise=Promise.allSettled(contracts.map(([table])=>Promise.resolve().then(async()=>{
+          if(!DERIVED_TABLES.includes(table))invalid();
+          return (await client.execute(`PRAGMA table_info(${table})`)).rows.map(column=>({name:column.name,type:column.type,notnull:column.notnull,pk:column.pk}));
+        })));
+        const expected=[...(manifest?.roots??[]).filter(raw),...(audit.value?.unique??[])];
+        const graphPromise=core.currentBodyRawUnion(context,row,expected);
+        const producerPromise=Promise.resolve().then(()=>verifyBodyEnergyProducer(core,context,row,{allowActive:true}));
+        const settled=await Promise.allSettled([graphPromise,schemaPromise,producerPromise]);
+        return {row,audit,receipt,domain,contracts,settled};
+      });
+      const proofs=await Promise.allSettled([sourceProof,observation]);
+      if(proofs[0].status==='rejected')throw proofs[0].reason;if(!proofs[0].value)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+      if(proofs[1].status==='rejected')throw proofs[1].reason;
+      const observed=proofs[1].value;if(observed.fallback)return {fallback:true};
+      const {audit,receipt,domain,contracts,settled}=observed;
+      // Original source/domain/audit/time rejection order. All readonly
+      // observations have settled before any data/ref can leave this purpose.
+      if(settled[0].status==='rejected')throw settled[0].reason;
+      const graph=settled[0].value;if(graph.fallback)return {fallback:true,resultId};
+      const rootValue=source=>{const value=graph.values.get(JSON.stringify([source.type,String(source.id)]));
+        if(!value)fail('PHASE4_SOURCE_NOT_FOUND');if(value.status==='rejected')throw value.reason;return value.value;};
+      for(const source of graph.actual)rootValue(source);
+      if(domain.error)throw domain.error;
+      const decoded=domain.value;
+      if(decoded.request_json.scope.timezone!==context.timezone)fail('PHASE4_TIMEZONE_FENCED');
+      if(decoded.request_json.scope.algorithm_set_version!==context.algorithmSetVersion)fail('PHASE4_INPUT_FENCED');
+      for(const [field,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],
+        ['auth_generation',context.authGeneration],['purge_generation',context.purgeGeneration]])if(receipt[field]!==value)fail('PHASE4_PARENT_STALE');
+      if(settled[1].status==='rejected')throw settled[1].reason;
+      for(let index=0;index<contracts.length;index++){
+        const value=settled[1].value[index];if(value.status==='rejected')throw value.reason;if(!same(value.value,contracts[index][1]))unavailable();
+      }
+      authorities.validateManifest(decoded.required_roots_json,context.executionMode);
+      for(const entry of decoded.required_roots_json.roots)authorities.compareRootRow(receipt,decoded.required_roots_json,entry,
+        entry.type==='body_energy_results'?row:rootValue(entry).row);
+      for(const target of decoded.related_results_json){
+        const contract=decoded.schema_contract_json[target.type];
+        if(!contract||!same(Object.keys(target.key).sort(),contract.filter(c=>c.pk&&!['user_id','execution_mode'].includes(c.name)).map(c=>c.name).sort()))invalid();
+        if(row.privacy_artifact_id!==target.id)invalid();
+        for(const field of ['input_generation','lifecycle_generation','auth_generation'])if(row[field]!==target.row[field])fail('PHASE4_PARENT_STALE');
+        if(!same(row,target.row))invalid();
+      }
+      const current=restoreResult(context,decoded,decoded.result_json);
+      if(current?.row?.result_id!==resultId||!same(current.row,row))invalid();
+      if(audit.error)throw audit.error;
+      const body=createBodyEnergyStore(core);
+      for(const source of audit.value.unique)body.compareAuditSource(context,row,source,rootValue(source));
+      if(!same(audit.value.result.row,current.row))fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
+      if(typeof row.as_of_utc!=='string'||!Number.isFinite(Date.parse(row.as_of_utc))||row.as_of_epoch_ms!==Date.parse(row.as_of_utc))
+        fail('BODY_ENERGY_SOURCE_CUTOFF_MISMATCH');
+      if(settled[2].status==='rejected')throw settled[2].reason;
+      await core.run(context,async()=>{});await assertExecutionWorkOwner(client);
+      return {body:{...audit.value.result,created:false},current:{...current,
+        ref:core.reference(context,'body_energy_results',row.privacy_artifact_id,context.executionMode,row)},
+        analysisTime:new Date(settled[2].value.createdAt).toISOString()};
     });
   }
   async function recordedMetricPreparation(context,request){
@@ -810,7 +900,7 @@ export function createOperationReceipts(core) {
       return result;
     },step);
   }
-  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,readBodyDrainSource,recordedMetricPreparation,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,
+  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,readBodyDrainSource,readCurrentBodyBundle,recordedMetricPreparation,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,
     resolveInsightLifecycle,metricRefreshPlan:metricRefresh.plan,episodeRecurrencePlan:recurrence.consume,
     episodeRecurrenceInventory:recurrence.inventory});instances.set(core,api);return api;
 }

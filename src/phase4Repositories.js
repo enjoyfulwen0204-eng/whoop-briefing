@@ -72,7 +72,7 @@ export function composePhase4Stores(core) {
       const recorded=await readForCurrentDrain(context,asOfUtc);if(!recorded)fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const request=['AVAILABLE','LIMITED'].includes(recorded.body.row.quality_state)
         ?await createReanalysisInputs(core,{readArtifact,root:core.root}).metric(context,'body_energy',recorded.current,recorded.analysisTime):null;
-      return {request:request?{...request,refresh:true}:null,asOfUtc};
+      return {request:request?{...request,refresh:true}:null,asOfUtc,current:recorded.current};
     },
     discoverInsightPredecessor:receipts.discoverInsightPredecessor,resolveInsightLifecycle:receipts.resolveInsightLifecycle});
   const messages=createPhase4MessageStore(core,entities),slots=createPhase4SlotStore(core,entities,messages);
@@ -113,6 +113,8 @@ export function composePhase4Stores(core) {
     return bodyCompute(context,request);
   }
   async function readForCurrentDrain(context,asOfUtc){
+    const bundle=await receipts.readCurrentBodyBundle(context,asOfUtc);
+    if(!bundle?.fallback)return bundle;
     return core.run(context,async()=>{
       const owner=await assertExecutionWorkOwner(client);
       if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())

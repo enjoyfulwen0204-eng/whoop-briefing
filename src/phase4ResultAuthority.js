@@ -179,23 +179,7 @@ export function createResultAuthority(core) {
     validateManifest(manifest,context.executionMode);
     const validateOne=async entry=>{
       const source=await resolve(context,entry);
-      const legacy=manifest.version===RESULT_ROOT_VERSION;
-      if(entry.version!==null&&(entry.as_of!==null?source.row.revision:healthVersion(source.row))
-        !==(entry.as_of!==null?entry.version:canonicalSourceVersion(entry.version)))
-        fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
-      // v1 signed the original adapter tuple spelling. Its authenticated tuple
-      // can restore only those owned timestamp fields for the old hash check.
-      // The semantic equality check above forbids substituting another instant.
-      let historical=source.row;
-      if(legacy&&typeof entry.version==='string') {
-        const tuple=parse(entry.version);
-        if(!Array.isArray(tuple)||tuple.length!==4)invalid();
-        historical={...source.row};
-        for(const [index,field] of ['updated_at','synced_at','as_of_utc'].entries())
-          if(Object.hasOwn(historical,field))historical[field]=tuple[index];
-      }
-      if(hash(row.content_digest_salt,'required-root-content-v1',rootProjection(historical,entry.type,manifest.version))!==entry.content_hash)
-        fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
+      compareRootRow(row,manifest,entry,source.row);
     };
     for(let index=0;index<manifest.roots.length;index++) {
       const first=manifest.roots[index],group=[first];
@@ -203,6 +187,25 @@ export function createResultAuthority(core) {
         group.push(manifest.roots[++index]);
       await observeGroup(context,group,validateOne);
     }
+  }
+  function compareRootRow(row,manifest,entry,sourceRow){
+      const legacy=manifest.version===RESULT_ROOT_VERSION;
+      if(entry.version!==null&&(entry.as_of!==null?sourceRow.revision:healthVersion(sourceRow))
+        !==(entry.as_of!==null?entry.version:canonicalSourceVersion(entry.version)))
+        fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
+      // v1 signed the original adapter tuple spelling. Its authenticated tuple
+      // can restore only those owned timestamp fields for the old hash check.
+      // The semantic equality check above forbids substituting another instant.
+      let historical=sourceRow;
+      if(legacy&&typeof entry.version==='string') {
+        const tuple=parse(entry.version);
+        if(!Array.isArray(tuple)||tuple.length!==4)invalid();
+        historical={...sourceRow};
+        for(const [index,field] of ['updated_at','synced_at','as_of_utc'].entries())
+          if(Object.hasOwn(historical,field))historical[field]=tuple[index];
+      }
+      if(hash(row.content_digest_salt,'required-root-content-v1',rootProjection(historical,entry.type,manifest.version))!==entry.content_hash)
+        fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
   }
   // This exact verifier is shared by authorized reads and redaction discovery.
   // Redaction does not require roots to remain readable or old generations to
@@ -455,5 +458,5 @@ export function createResultAuthority(core) {
     return refs;
   }
   return Object.freeze({read,persist,metricOrigin,episodeDependencies,validateExisting,privacyDependencies,
-    captureRoots,validateRoots,descriptorsForRun,authenticate});
+    captureRoots,validateRoots,validateManifest,compareRootRow,descriptorsForRun,authenticate});
 }

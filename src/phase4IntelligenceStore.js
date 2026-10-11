@@ -332,14 +332,26 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     await linkMembership(context,current,item,sourceSet,calculation,confidence);
     return {episode:await episodes.read(context,active.episode_id),created:false,replayed:false,event:revised};
   }
-  async function metricPreparation(context,request) {
+  async function metricPreparation(context,request,currentBody=null) {
       if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
       if(!exactKeys(request,['metricKey','currentSource','baselineSources','asOfUtc','windowFamily',...(request.refresh===true?['refresh']:[])])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime()||typeof request.windowFamily!=='string'||!request.windowFamily)
         fail('PHASE4_METRIC_ANALYSIS_REQUEST_INVALID');
       request={...request,asOfUtc:requireSemanticTime(request.asOfUtc)};
-      const contract=phase4Metric(request.metricKey),sourceSet=await sources(context,request.metricKey,request.currentSource,
-        request.baselineSources,request.asOfUtc);
+      const contract=phase4Metric(request.metricKey);let sourceSet;
+      if(currentBody&&request.metricKey==='body_energy'&&request.currentSource===currentBody.ref
+        &&Array.isArray(request.baselineSources)&&request.baselineSources.length===0){
+        // Only the fixed current-Body factory supplies this data inside the
+        // same readonly preparation. The original baseline selector really
+        // selected zero samples; a nonempty baseline follows the full reader.
+        // Recheck context/job/runtime/owner immediately before pure planning.
+        await core.run(context,async()=>{});await assertExecutionWorkOwner(client);
+        const [source]=core.validateReferences(context,[request.currentSource]);
+        if(source.type!=='body_energy_results'||source.mode!==context.executionMode
+          ||canonicalJson(source.row)!==canonicalJson(currentBody.row)||!readableRow(source.row)||source.row.invalidated_at)
+          fail('PHASE4_PARENT_STALE');
+        sourceSet={refs:[request.currentSource],current:sourceValue(request.metricKey,source,context,request.asOfUtc),baseline:[]};
+      }else sourceSet=await sources(context,request.metricKey,request.currentSource,request.baselineSources,request.asOfUtc);
       const baseline=buildPersonalBaseline({metricKey:request.metricKey,targetHealthDate:sourceSet.current.healthDate,
         asOfUtc:request.asOfUtc,observations:sourceSet.baseline});
       const quality=assessDataQuality({metricKey:request.metricKey,current:sourceSet.current,baseline,asOfUtc:request.asOfUtc,
@@ -372,7 +384,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     const sourceWork=(name,facts)=>{const job=core.jobAuthority();return workStepOptions(name,[context.userId,context.executionMode,
       job.jobKind,job.requestedGeneration,job.scopeRevision,facts],{discardResult:true}).workStep;};
     const workStepFrom=async()=>{
-      const owner=await assertExecutionWorkOwner(client);if(owner?.phase!=='STAGE6_DRAIN')fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+      if(!requestFrom){const owner=await assertExecutionWorkOwner(client);if(owner?.phase!=='STAGE6_DRAIN')fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');}
       if(requestFrom){
         bodySource=await requestFrom();request=bodySource.request;
         if(!request){kind='SOURCE';return sourceWork('stage6.body-source',['USER',context.userId,JSON.stringify(['USER',context.userId]),bodySource.asOfUtc]);}
@@ -382,7 +394,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         const inventory=await directory.inventory(context,'body_energy');
         if(inventory.unknownEntries.length)fail('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN');
       }
-      prepared=await metricPreparation(context,request);
+      prepared=await metricPreparation(context,request,requestFrom?bodySource.current:null);
       if(kind==='NEXT'){
         if(await recordedMetricPreparation(context,request)){
           alreadyRecorded=true;kind='AUTHORITY';return metricUnitWork(context,prepared.plan,kind).workStep;
@@ -422,8 +434,10 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
           if(!readableRow(runRow)||runRow.invalidated_at||runRow.input_manifest_hash!==null||runRow.input_manifest_json!==null
             ||runRow.completed_at!==null||!await metricUnitReceipt(core,context,plan,'RUN_START'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
           for(const [field,value] of Object.entries(runData))if(runRow[field]!==value)fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
-          run=await core.artifact(context,'evidence_runs',{run_id:runRow.run_id});
-          run=await entities.completeEvidence(context,run.row.run_id,{sample_count:baseline.sampleCount,exclusion_count:baseline.exclusions.length,
+          // completeEvidence freshly acquires this exact artifact before its
+          // update and again afterward. The unit's separate preceding artifact
+          // traversal supplied no additional binding to those original fences.
+          run=await entities.completeEvidence(context,runRow.run_id,{sample_count:baseline.sampleCount,exclusion_count:baseline.exclusions.length,
             input_manifest_json:plan.input,input_manifest_hash:plan.inputHash,missingness_json:{quality_state:quality.status,reason_codes:quality.reasonCodes}});
           return {unit:'RUN_COMPLETE',status:'COMPLETE',created:true};
         }
@@ -431,7 +445,11 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
           ||runRow.input_manifest_hash!==plan.inputHash||runRow.input_manifest_json!==canonicalJson(plan.input))
           fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
         if(!await metricRunReceipt(core,context,plan))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-        run=await core.artifact(context,'evidence_runs',{run_id:runRow.run_id});
+        // ITEM only needs the immutable parent ID here. append independently
+        // acquires and validates the complete completed-run artifact before
+        // its first effect; its link and returned-artifact checks stay fresh.
+        // The other purposes still require the original run reference.
+        run=kind==='ITEM'?{row:runRow}:await core.artifact(context,'evidence_runs',{run_id:runRow.run_id});
       }else{
         if(!['RUN','RUN_START'].includes(kind))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
         run=await entities.append(context,'evidence_runs',runData,sourceSet.refs);
@@ -442,8 +460,9 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       if(['RUN','RUN_START','RUN_COMPLETE'].includes(kind))return {unit:kind,status:'COMPLETE',created:!runRow};
       if(kind==='AUTHORITY'&&!(await client.execute({sql:`SELECT 1 FROM evidence_items WHERE user_id=? AND execution_mode=? AND run_id=? AND item_key=?`,
         args:[context.userId,context.executionMode,run.row.run_id,plan.itemKey]})).rows.length)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-      const itemData=metricItemData(request.metricKey,sourceSet,baseline,quality,calculation,plan),item=await entities.append(context,'evidence_items',
-        {...itemData,run_id:run.row.run_id},sourceSet.refs);
+      const itemData=metricItemData(request.metricKey,sourceSet,baseline,quality,calculation,plan),item=await (kind==='ITEM'&&request.metricKey==='body_energy'
+        ?entities.appendMetricPreparationItem(context,{...itemData,run_id:run.row.run_id},sourceSet.refs)
+        :entities.append(context,'evidence_items',{...itemData,run_id:run.row.run_id},sourceSet.refs));
       validateMetricItem(item.row,itemData,run.row.run_id);
       if(canonicalJson(durableConfidence(item))!==canonicalJson(plan.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
       const itemProof=!item.created?await metricUnitReceipt(core,context,plan,'ITEM'):null;

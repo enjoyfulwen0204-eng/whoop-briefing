@@ -12,7 +12,9 @@ const fail=code=>{throw Object.assign(Error(code),{code});};
 export async function stage6CurrentCaptureTime(core,context,metricKey,artifact){
   await core.assertContext(context);const owner=await assertExecutionWorkOwner(core.client);
   if(context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN')fail('STAGE6_CURRENT_CAPTURE_OWNER_REQUIRED');
-  const clock=Math.min(core.now().getTime(),Date.now());
+  const supportedClock=core.now().getTime(),actualClock=Date.now();
+  if(supportedClock>actualClock)fail('STAGE6_CURRENT_CAPTURE_CLOCK_FENCED');
+  const clock=Math.min(supportedClock,actualClock);
   if(!Number.isSafeInteger(clock)||clock<owner.created_at||clock>owner.deadline_at)fail('STAGE6_CURRENT_CAPTURE_CLOCK_FENCED');
   const [source]=await core.revalidateSources(context,[artifact.ref]);
   if(source.type!==phase4Metric(metricKey).sourceType||canonicalJson(source.row)!==canonicalJson(artifact.row))fail('STAGE6_CURRENT_CAPTURE_SOURCE_REQUIRED');

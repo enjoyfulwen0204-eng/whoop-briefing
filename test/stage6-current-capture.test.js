@@ -23,13 +23,14 @@ test('current capture requires a real active owner; future injected clock does n
  const done=await finalizePhaseWork(db,sync,sc,fixtureKeys,authority),drain=request({phase:'STAGE6_DRAIN',syncRequestId:sync.requestId,handoff:done.handoff}),dc=await claim(db,drain);
  const execute=(owner=dc,auth=authority,fn)=>withDurableExecution({claim:owner,keys:fixtureKeys,pending:new Set(),authority:auth},()=>stores.withContext('a',{executionMode:'SHADOW'},fn));
  await execute(dc,authority,async context=>{
-   const root=await stores.root(context,'recovery','sleep-00'),clock=await stage6CurrentCaptureTime(core,context,'rhr',root);assert.ok(Date.parse(clock)<=Date.now());
+   const root=await stores.root(context,'recovery','sleep-00');await assert.rejects(stage6CurrentCaptureTime(core,context,'rhr',root),/CLOCK_FENCED/);
    await assert.rejects(stores.bodyEnergy.computeForCurrentDrain(context),/CLOCK_FENCED/);
    assert.equal((await db.raw.execute('SELECT COUNT(*) n FROM body_energy_results')).rows[0].n,0);futureClock=false;
    const body=await stores.bodyEnergy.computeForCurrentDrain(context);assert.ok(body.row.as_of_epoch_ms<=Date.now());
    // The generic compute path retains its exact original manifest/receipt.
    const replay=await stores.bodyEnergy.computeForCurrentDrain(context);assert.equal(replay.row.result_id,body.row.result_id);assert.equal(replay.row.input_manifest_json,body.row.input_manifest_json);
-   const captured=await stage6CurrentCaptureTime(core,context,'rhr',root),inputs=createReanalysisInputs(core,stores),req=await inputs.metric(context,'rhr',root,captured);
+   const captured=await stage6CurrentCaptureTime(core,context,'rhr',root);assert.ok(Date.parse(captured)<=Date.now());
+   const inputs=createReanalysisInputs(core,stores),req=await inputs.metric(context,'rhr',root,captured);
    await stores.intelligence.analyzeMetric(context,{...req,refresh:true});
    assert.equal(await stage6CurrentCaptureTime(core,context,'rhr',root),captured);
    const before=(await db.raw.execute("SELECT request_json FROM phase4_operation_receipts WHERE operation_kind='analyzeMetric'")).rows[0].request_json;

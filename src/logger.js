@@ -48,9 +48,12 @@ const COUNT_FIELDS=new Set(['attempt','attempts','count','changed','unchanged','
   'generation','execution_seq','lifecycle_generation','auth_generation','input_generation','purge_generation','version','from','to',
   'status_code','http_status','retry_after_ms','bytes','tokens','input_tokens','output_tokens',
   'query_count','work_receipts','jobs_considered','items_attempted','items_processed','jobs_completed','jobs_failed','remaining_jobs','users','ok','failed','skipped',
+  'metadata_query_count','runtime_readmissions','completed_operations','failed_operations','max_duration_ms','operation_sequence','operation_count','remaining_ms','outstanding_operations','dropped_events','db_http_requests','whoop_requests','model_requests','telegram_requests','retry_count',
   'timed_out','cancelled','throttled','scope_missing','estimated_micro_usd','budget_micro_usd']);
-const ENUM_FIELDS=new Set(['status','state','result','reason','code','error_code','quality','level','class','resource','resource_type','mode','source','provider','outcome','phase','stop_reason']);
-const SAFE_ENUMS=new Set(['ACTIVE','INACTIVE','PENDING','RUNNING','COMPLETED','FAILED','RETRY','READY','BLOCKED','UNAVAILABLE',
+const ENUM_FIELDS=new Set(['operation','status','state','result','reason','code','error_code','quality','level','class','resource','resource_type','mode','source','provider','outcome','phase','stop_reason']);
+const SAFE_ENUMS=new Set(['OK','PHASE_ADMISSION','PHASE_CLAIM','PHASE_WORK','PHASE_SETTLEMENT','WEBHOOK_DRAIN','ONBOARDING','USER_RUN','USER_MAINTENANCE',
+  'WHOOP_AUTH','DAILY_REPORT','WEEKLY_REPORT','WHOOP_SYNC','FAST_RECONCILIATION','PROACTIVE','ANALYSIS_INPUTS','PREDICTION','HEALTHSPAN','SYSTEM_MAINTENANCE','DB_QUERY','DB_METADATA','RUNTIME_READMISSION','DB_HTTP','WHOOP_HTTP','WHOOP_BODY','MODEL_HTTP','MODEL_BODY','TELEGRAM_HTTP','TELEGRAM_BODY',
+  'ACTIVE','INACTIVE','PENDING','RUNNING','COMPLETED','FAILED','RETRY','READY','BLOCKED','UNAVAILABLE',
   'SHADOW','LIVE','DELIVERED','AMBIGUOUS','DELIVERY_STARTED','NOT_REQUIRED','ACTION_READY','REDACTED','PRESENT','COMPLETE',
   'SOURCE_CHANGED','SOURCE_DELETED','SOURCE_CORRECTED','CONTENT_REDACTED','AUTH_CHANGED','LIFECYCLE_CHANGED',
   'claimed','completed','abandoned','in_progress','unavailable','identity_conflict','sleep','recovery','cycle','workout',

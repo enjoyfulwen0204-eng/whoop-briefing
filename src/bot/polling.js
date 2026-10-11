@@ -73,7 +73,7 @@ export function createPoller({
   // updateProcessor.js 裡，與 webhook 共用同一份。這裡只負責「長輪詢」這個
   // 傳輸方式本身：抓一批、決定 offset 要不要往前推、退避重試。
   const processor = createUpdateProcessor({
-    db, resolveUser, handleMessage, handleUnlinked, sendReply, workerId, now, sleepImpl,
+    db, resolveUser, handleMessage, handleUnlinked, sendReply, answerCallback:id=>api.answerCallbackQuery?.(id), workerId, now, sleepImpl,
   });
 
   /** offset 存檔。失敗只記錄 —— 認領表才是防重複的那一層。 */

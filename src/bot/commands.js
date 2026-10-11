@@ -33,7 +33,7 @@ export function buildHelp({ report, insightCount = 0, predictionReady = false, l
   const line = key => t(locale, `bot.help.${key}`);
   const lines = [line('title'), ''];
 
-  for (const key of ['now','log','logNatural','journal','healthdata','status','cost','experiment','help'])
+  for (const key of ['now','log','logNatural','journal','healthdata','status','settings','cost','experiment','help'])
     lines.push(line(key));
   lines.push('');
 

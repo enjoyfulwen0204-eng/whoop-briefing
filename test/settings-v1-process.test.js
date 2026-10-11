@@ -1,0 +1,21 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {spawn} from 'node:child_process';import {once} from 'node:events';
+import {deliveryFixture,openHttpFixture} from './deliveryDefaultFixture.js';
+import {createSettings,settingsKey} from '../src/bot/settings.js';
+test('actual SIGKILL after name preview preserves the edit for a fresh process and idempotent save',async t=>{
+ const fixture=await deliveryFixture(t);await fixture.db.createUser({id:'alice',status:'ACTIVE',displayName:'Before'});await fixture.db.linkTelegram({userId:'alice',chatId:'1001'});await fixture.db.setLocale('alice','en');fixture.close();
+ const settingsUrl=new URL('../src/bot/settings.js',import.meta.url).href,fixtureUrl=new URL('./deliveryDefaultFixture.js',import.meta.url).href;
+ const program=`import {openHttpFixture} from ${JSON.stringify(fixtureUrl)};import {createSettings} from ${JSON.stringify(settingsUrl)};
+  const f=openHttpFixture(${JSON.stringify(fixture.url)}),flow=createSettings({db:f.db});await f.db.admitRuntime();
+  const call=text=>flow({text,chatId:'1001',user:{id:'alice',status:'ACTIVE',lifecycleGeneration:1}});
+  await call('/name');const preview=await call('Persisted after process death');
+  process.send({data:preview.replyMarkup.inline_keyboard.flat().find(b=>b.callback_data.endsWith('.save')).callback_data});setInterval(()=>{},1000);`;
+ const child=spawn(process.execPath,['--input-type=module','-e',program],{stdio:['ignore','ignore','pipe','ipc']});let errors='';child.stderr.on('data',s=>errors+=s);
+ t.after(()=>{if(child.exitCode===null&&!child.signalCode)child.kill('SIGKILL');});const exited=once(child,'exit');
+ const data=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('PREVIEW_NOT_DURABLE:'+errors)),15000);child.once('message',m=>{clearTimeout(timer);resolve(m.data);});child.once('error',e=>{clearTimeout(timer);reject(e);});});
+ child.kill('SIGKILL');assert.equal((await exited)[1],'SIGKILL');assert.equal(errors,'');
+ const reopened=openHttpFixture(fixture.url);t.after(()=>reopened.close());await reopened.db.admitRuntime();
+ assert.equal((await reopened.db.getUser('alice')).displayName,'Before');assert.ok(await reopened.db.getState(settingsKey('alice')));
+ const flow=createSettings({db:reopened.db}),user=await reopened.db.getUser('alice'),input={text:'',chatId:'1001',user,callback:{data}};
+ assert.equal((await flow(input)).text,'✅ Settings saved.');assert.equal((await reopened.db.getUser('alice')).displayName,'Persisted after process death');assert.equal(await reopened.db.getState(settingsKey('alice')),null);
+ const updated=(await reopened.db.getUser('alice')).updatedAt;await flow(input);assert.equal((await reopened.db.getUser('alice')).updatedAt,updated);
+});

@@ -1,3 +1,5 @@
+import {profileRevision} from './profileRevision.js';
+import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 import {hranaPayload,closeOnlyPayload,closeHranaStream,closeLateHranaResponse} from './hranaCleanup.js';
 import {currentExecutionBudget,abortableResponse} from './executionBudget.js';
 import {validMessageId} from './telegramAcknowledgment.js';
@@ -85,7 +87,7 @@ export function createDb({ url, authToken, phase4Keys,fetch }) {
     if(!budget)return providerFetch(original);
     budget.assert();
     const request=new Request(original,{signal:AbortSignal.any([budget.signal,...[input?.signal,init?.signal].filter(Boolean)])});
-    const work=Promise.resolve().then(()=>{budget.assert();return providerFetch(request);});
+    const work=Promise.resolve().then(()=>{budget.assert();return traceExecutionOperation('DB_HTTP',()=>{budget.assert();countExecutionTelemetry('db_http_requests');return providerFetch(request);});});
     if(payload?.baton){
       const set=pendingStreams.get(payload.baton)??new Set();set.add(work);pendingStreams.set(payload.baton,set);
       work.finally(()=>{set.delete(work);if(!set.size)pendingStreams.delete(payload.baton);}).catch(()=>{});
@@ -1819,7 +1821,8 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     releaseLock,
     userLockName,
     ...phase4Invalidation.wrap(createIdentityStore(client, { transaction: processing.transaction })),
-    ...createLocaleStore(client),
+    ...createLocaleStore(client,{transaction:processing.transaction}),
+    getProfileRevision:uid=>processing.transaction(()=>profileRevision(client,uid)),
     // 墓碑判定與 canonical 寫入必須同一交易（P1-R02-RC2）：把「需要時才開交易」
     // 的執行器交給儲存層。已在 mutateForWhoopEvent 交易裡時會直接沿用，不巢狀。
     ...phase4Invalidation.wrap(health),

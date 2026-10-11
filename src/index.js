@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {traceExecutionOperation} from './executionTelemetry.js';
 import { summarizeSync, syncAuthorizesDrain, aggregateSyncOutcome } from './syncResult.js';
 import { withSyncOwnership } from './syncOwnership.js';
 import { requireRuntimeConnection } from './runtimeAdmission.js';
@@ -136,9 +137,11 @@ export function summarizeFastReconciliation(plan, results = []) {
  * chat」「一個人失敗會不會影響另一個人」都可以真的驗，而不是只讀程式碼。
  */
 export async function runForUser(options) {
+ return traceExecutionOperation('USER_RUN',async()=>{
   if (!options.deps?.executionBudget) return runForUserOwned(options);
   return withSyncOwnership({db:options.db,userId:options.user.id,budget:options.deps.executionBudget},
     () => runForUserOwned(options));
+ });
 }
 
 async function runForUserOwned({
@@ -242,7 +245,7 @@ async function runForUserOwned({
   // 收斂本來就該在 WHOOP 中斷期間繼續進行。所以它現在是流程的**第一步**，
   // 而且不在任何 early return 之後。
   // ---------------------------------------------------------------------
-  await runMaintenance();
+  await traceExecutionOperation('USER_MAINTENANCE',()=>runMaintenance());
 
   // 1) 這個使用者的 Telegram 目的地。沒有綁定就不能發報告（也不該亂發）。
   const chatId = await db.getActiveChatIdForUser(uid, { expectedLifecycleGeneration });
@@ -353,7 +356,7 @@ async function runForUserOwned({
   });
   try {
     // 先把 token 準備好（序列化 refresh，避免後面平行請求同時 refresh）
-    await whoop.getAccessToken();
+    await traceExecutionOperation('WHOOP_AUTH',()=>whoop.getAccessToken());
     // ★ M-08：拿得到 token 就代表授權已經恢復。把累積的失敗紀錄清掉，
     // 否則 Guardian 會靠著那個永遠不會被清的 hits 計數，每 12 小時
     // 重複通知「需要重新授權」——直到天荒地老。
@@ -395,7 +398,7 @@ async function runForUserOwned({
   // 報告的條件維持原樣（health_date 去重 + report_claims），完全沒有放寬。
   if (locale && !due.dailySettled) {
     try {
-      out.daily = await daily(ctx);
+      out.daily = await traceExecutionOperation('DAILY_REPORT',()=>daily(ctx));
     } catch (err) {
       if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
       out.errors.push({ stage: 'daily', error: describeError(err) });
@@ -411,7 +414,7 @@ async function runForUserOwned({
   // ---- weekly（不因為 daily 的結果而跳過）----
   if (locale && due.weeklyDue) {
     try {
-      out.weekly = await weekly(ctx);
+      out.weekly = await traceExecutionOperation('WEEKLY_REPORT',()=>weekly(ctx));
     } catch (err) {
       if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
       out.errors.push({ stage: 'weekly', error: describeError(err) });
@@ -430,9 +433,9 @@ async function runForUserOwned({
   // （resourceSyncDue），它才是節流的權威。上面的 syncDue 只用來決定
   // 「這一輪要不要為了同步而去拿 token」，不重複做逐一 resource 的判斷。
   try {
-    out.sync = await makeSync({
+    out.sync = await traceExecutionOperation('WHOOP_SYNC',()=>makeSync({
       whoop, db, userId: uid, timezone: tz, expectedLifecycleGeneration, now,
-    }).syncAll();
+    }).syncAll());
   } catch (err) {
     if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
     out.errors.push({ stage: 'sync', error: describeError(err) });
@@ -447,14 +450,14 @@ async function runForUserOwned({
   // 阻擋例行報告。DEEP 不在 canonical scheduler 裡，仍由管理者手動觸發。
   if (productionMaintenance && reconciliationPlan.due) {
     try {
-      const reconciliationResults = await makeReconciler({
+      const reconciliationResults = await traceExecutionOperation('FAST_RECONCILIATION',()=>makeReconciler({
         db, whoop, userId: uid, timezone: tz, expectedLifecycleGeneration,
         now: deps.reconcileNow ?? (() => new Date()),
         windowNow: currentDurableExecution()?now:null,
       }).reconcileAll({
         resources: reconciliationPlan.dueResources,
         includeDeep: false,
-      });
+      }));
       out.reconciliation = summarizeFastReconciliation(
         reconciliationPlan, reconciliationResults,
       );
@@ -488,9 +491,9 @@ async function runForUserOwned({
   // （checkAndAct 內部自己比對游標）。一個使用者的訊號偵測失敗絕不影響
   // 他的日報/週報已經送出的結果，也不影響其他使用者。
   try {
-    if (locale) out.proactive = await proactive({
+    if (locale) out.proactive = await traceExecutionOperation('PROACTIVE',()=>proactive({
       db, userId: uid, timezone: tz, locale, telegram, chatId, expectedLifecycleGeneration, now,
-    });
+    }));
   } catch (err) {
     if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
     out.errors.push({ stage: 'proactive', error: describeError(err) });
@@ -516,6 +519,7 @@ async function runForUserOwned({
   // 失敗時兩者都做不了，所以它有自己的邊界與自己的 stage 名稱。
   let analysisInputs = null;
   try {
+    analysisInputs = await traceExecutionOperation('ANALYSIS_INPUTS',async()=>{
     const anchor = (await db.coverage(uid))?.last_date ?? null;
     if (anchor) {
       const predRows = await loadDailyMetrics({
@@ -525,8 +529,10 @@ async function runForUserOwned({
       // UNSUPPORTED 而不是「資料還在累積」。查不到 capability（還沒 probe）
       // 一律當成 null → 繼續走樣本數邏輯，絕不誤判成不支援。
       const caps = await db.getCapabilities(uid).catch(() => ({}));
-      analysisInputs = { anchor, predRows, caps };
+      return { anchor, predRows, caps };
     }
+    return null;
+    });
   } catch (err) {
     if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
     out.errors.push({ stage: 'analysis_inputs', error: describeError(err) });
@@ -540,14 +546,14 @@ async function runForUserOwned({
   if (analysisInputs) {
     try {
       const targetStatus = capabilityStatusForField('recovery', analysisInputs.caps);
-      out.prediction = await predictionCycle({
+      out.prediction = await traceExecutionOperation('PREDICTION',()=>predictionCycle({
         db: outputDb,
         userId: uid,
         rows: analysisInputs.predRows,
         anchorDate: analysisInputs.anchor,
         capabilityUnavailable: isKnownUnavailable(targetStatus),
         now,
-      });
+      }));
     } catch (err) {
       if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
       out.errors.push({ stage: 'prediction', error: describeError(err) });
@@ -566,14 +572,14 @@ async function runForUserOwned({
   // 已經算好的 out.prediction。
   if (analysisInputs) {
     try {
-      out.healthspan = await healthspan({
+      out.healthspan = await traceExecutionOperation('HEALTHSPAN',()=>healthspan({
         db: outputDb,
         userId: uid,
         rows: analysisInputs.predRows,
         endDate: analysisInputs.anchor,
         capabilities: analysisInputs.caps,
         now,
-      });
+      }));
     } catch (err) {
       if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
       out.errors.push({ stage: 'healthspan', error: describeError(err) });
@@ -653,13 +659,13 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
           }
           return clients.get(key);
         });
-        const drained = await (deps.drainWebhook ?? drainWhoopWebhookEvents)({
+        const drained = await traceExecutionOperation('WEBHOOK_DRAIN',()=>(deps.drainWebhook ?? drainWhoopWebhookEvents)({
           db,
           whoopFor,
           owner: deps.webhookDrainOwner
             ?? `scheduler:${triggerSource}:${process.pid}:${randomUUID()}`,
           now: deps.maintenanceNow ?? (() => new Date()),
-        });
+        }));
         summary.webhookDrain = { status: 'completed', ...drained };
         log.info('scheduled_webhook_drain_finished', {
           claimed: drained.claimed,
@@ -677,9 +683,9 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     }
 
     // 運維提醒：GitHub 滿 60 天無 commit 會停用排程。系統層，不屬於任何使用者。
-    await checkRepoFreshness({
+    await traceExecutionOperation('SYSTEM_MAINTENANCE',()=>checkRepoFreshness({
       db, telegram: systemTelegram, now, lastCommitAt: env.repoLastCommitAt,
-    });
+    }));
 
     // ---- V1.2 Phase 3.5：任何還沒有上線狀態的使用者 → 依證據補一列 ------
     //
@@ -688,7 +694,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     // 使用者在**這一輪**就能被排程，不完整的仍然拿到真實狀態。
     try {
       if (typeof db.ensureOnboardingDerivedForAll === 'function') {
-        await db.ensureOnboardingDerivedForAll({ now });
+        await traceExecutionOperation('SYSTEM_MAINTENANCE',()=>db.ensureOnboardingDerivedForAll({ now }));
       }
     } catch (err) {
       log.error('onboarding_backfill_failed', { error: describeError(err) });
@@ -700,11 +706,11 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     // 那個程序可能在半路被回收。排程器每一輪都把還卡著的人往前推一格，
     // 所以「授權完成但沒人接著做」不可能發生。有上限、永遠不拋錯。
     try {
-      const resumed = await (deps.resumeOnboarding ?? resumeOnboarding)({ db, env, now: () => now,
+      const resumed = await traceExecutionOperation('ONBOARDING',()=>(deps.resumeOnboarding ?? resumeOnboarding)({ db, env, now: () => now,
         deps: {...deps.onboarding, onSyncResults: results => {
           summary.syncResults ??= []; summary.syncResults.push(summarizeSync(results));
         }},
-      });
+      }));
       if (resumed.length) {
         summary.onboardingResumed = resumed.map((r) => ({ userId: r.userId, result: r.result }));
         if(resumed.some(r=>!['READY','SKIPPED','ACCOUNT_INACTIVE'].includes(r.result))) {
@@ -825,9 +831,9 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     }
 
     if (users.length) {
-      summary.schedulerWatchdog = await checkPeerScheduler({
+      summary.schedulerWatchdog = await traceExecutionOperation('SYSTEM_MAINTENANCE',()=>checkPeerScheduler({
         db, source: triggerSource, systemTelegram, now,
-      });
+      }));
     }
 
     // ---- System Guardian（V1.1 Phase 9）----
@@ -835,7 +841,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     // 健康時完全靜默。絕不修改任何東西。自己吞掉所有錯誤。
     try {
       if (users.length) {
-        summary.guardian = await guardian({
+        summary.guardian = await traceExecutionOperation('SYSTEM_MAINTENANCE',()=>guardian({
           db,
           systemTelegram,
           makeTelegram: ({ chatId, errorScope }) => (deps.makeTelegram ?? createTelegram)({
@@ -846,7 +852,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
             errorScope,
           }),
           now,
-        });
+        }));
       }
     } catch (err) {
       log.error('guardian_unexpected', { error: describeError(err) });

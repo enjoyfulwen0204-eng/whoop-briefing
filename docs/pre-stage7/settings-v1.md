@@ -1,0 +1,45 @@
+# Settings v1 implementation candidate
+
+Settings v1 is a separately traceable release on a compatible, independently approved Core base. The owner's 2026-10-11 four-blocker release direction permits this milestone without waiting for Stage 6 backlog completion, Public Beta stabilization or Body Energy calibration. Review any new Core integration boundary; reuse the exact existing Settings D implementation review when its code is unchanged. No production settings, locale, name, webhook registration or Telegram message changed in this engineering session. Stage 7 Quick Actions/TRUSTED_REGISTRY and Stage 8 remain separate; schema remains v32.
+
+## Product behavior
+
+`/settings` opens a compact menu, `/language` opens the language chooser, and `/name` begins display-name editing. Every native inline button has a visible emoji icon. An UNSET legacy account can reach the three-language chooser without WHOOP reauthorization. A saved language governs the next Settings reply and subsequent Morning Brief, Coach, Journal and Beta Summary. Confirmation persists only `user_locales`; no user data, authorization or name reset. Name confirmation persists only canonical `users.display_name`, never a Telegram username. A blank name retains the existing neutral greeting.
+
+| Action | zh-TW | en | vi |
+|---|---|---|---|
+| Language | 🌐 更改語言 | 🌐 Change Language | 🌐 Đổi ngôn ngữ |
+| Name | ✏️ 更改顯示名稱 | ✏️ Change Display Name | ✏️ Đổi tên hiển thị |
+| Back | ⬅️ 返回 | ⬅️ Back | ⬅️ Quay lại |
+| Cancel | ❌ 取消 | ❌ Cancel | ❌ Hủy |
+| Confirm | ✅ 確認 | ✅ Confirm | ✅ Xác nhận |
+| Save | ✅ 儲存 | ✅ Save | ✅ Lưu |
+| Edit | ✏️ 編輯名稱 | ✏️ Edit Name | ✏️ Sửa tên |
+
+The chooser uses 🇹🇼 繁體中文 / 🇺🇸 English / 🇻🇳 Tiếng Việt. It previews the selection and requires confirmation. Name entry previews normalized text before Save; Edit, Back and Cancel are available. No custom image keyboard dependency exists.
+
+## Storage, authorization and expiry
+
+Reuse one expiring profile-only row in existing `telegram_state`, keyed by a SHA256 of the canonical user ID. The session contains canonical actor/chat/lifecycle, random 128-bit nonce, revision, mode, expected saved profile, pending choice and a 15-minute expiry. Callback data contains only a narrow `sv1` nonce/revision/action, at most 64 UTF-8 bytes; no user ID or arbitrary command. Every state-changing action re-resolves the active private chat and canonical lifecycle inside the existing operation transaction. Telegram transport rejects bots, group/foreign actors and mismatched sender/chat. Stale nonce/revision/message, unsupported action/locale, wrong actor or lifecycle ABA cannot change a profile.
+
+The existing durable Telegram operation, update claim and conversation lane provide atomic action receipts and reply ordering. Restart during editing resumes existing storage. Repeated confirmation is idempotent. Concurrent saved profile changes are compared before mutation and rejected; a new session invalidates older buttons. Cancel clears only the session. Expired/malformed metadata is cleared and ordinary Coach/Journal text continues routing. Errors reveal no foreign profile or health content.
+
+Names use NFC, trim surrounding whitespace, collapse internal whitespace and require well-formed Unicode with a letter, number or symbol. Reject controls/surrogates/directional/invisible formatting (ZWJ permitted for emoji), empty values, more than 64 grapheme clusters or more than 256 UTF-8 bytes. Both limits apply. Parameterized existing SQL prevents injection. Telegram sends plain text with no parse mode, so HTML/Markdown characters remain literal. All other consumers retain their existing escaping/rendering boundaries.
+
+Callbacks are acknowledged early, best effort, with a three-second bound. Failed acknowledgments cannot roll back or repeat business effects. Definite pre-send errors remain retryable; uncertain sends are durably ambiguous and never retransmitted automatically. Lost COMMIT acknowledgments reconcile existing receipts after lease recovery, rather than executing a second profile update.
+
+## Review and rollout evidence
+
+Focused tests cover all localized labels, routing, language/name persistence, cancel/back/edit/save, duplicate/expired/foreign callbacks, missing locale/name/lifecycle, malformed Unicode, concurrent tenants/profile changes, SQL literal input, rollback on failed updates, lifecycle ABA, restart, uncertain COMMIT, ambiguous delivery and acknowledgment failures. Product tests run three-user Morning Brief through real HTTP/Hrana and canonical router Journal/Coach paths. The Beta consumer test uses a clearly synthetic typed-projection seam plus real canonical profile lookup, report claim/delivery and dedupe; it does not claim production Stage 6 approval.
+
+The comprehensive engineering report and hashed evidence index distinguish original failures, corrected reruns, native driver crashes and production prerequisites. No local suite grants production approval.
+
+After compatible Core approval and the applicable Settings integration review: deploy the exact reviewed Settings successor without reverting Core safeguards, preserve original credentials/v32 and the current safe Beta controls, verify webhook and polling accept `message` plus `callback_query`, keep `max_connections=1`, the existing URL/authentication and pending updates, and perform authorized zh-TW/vi private-user command/button smoke. Preserve any other intended existing webhook update types when registering callbacks. English remains implemented and tested in isolation; no live English user or real-user language change is required. Never run `telegram:webhook:set` as part of local testing against real Telegram. Record `DEPLOYED`, `CALLBACK_ROUTING_VERIFIED`, `PERSISTENCE_VERIFIED` and `OWNER_INTERACTION_VERIFIED` independently: registration readback alone is not user acceptance. Roll back Settings using the reviewed compatible same-v32 Core/profile without schema downgrade; existing expiring session rows remain inert and ordinary commands/briefing continue.
+
+## F07 successor concurrency contract
+
+Settings D captures a monotonic canonical profile revision in addition to actor, lifecycle, nonce, expiry and navigation revision. A permanent reserved row in existing `telegram_state` stores the integer revision; it is distinct from the expiring Settings session. `setLocale` and `updateUser` share atomic revision advancement through the admitted transaction factory. Existing locale/onboarding/operator APIs therefore participate, including cross-process and same-timestamp A→B→A changes. Saves compare the expected revision inside the same transaction as the canonical write and increment. Missing transaction composition fails before mutation. Generic `setState` cannot overwrite/reset this reserved namespace. No new schema object/version is used.
+
+Repeated completed callbacks cannot perform another write; lost COMMIT acknowledgment is reconciled through the existing Telegram receipt and slot state. Rollback of a failed transaction restores both value and revision. Wrong actor, expired nonce and old profile generation fail closed. Privileged raw SQL profile/marker edits are unsupported operator paths; use the reviewed canonical APIs.
+
+Before deployment, drain all older bot/webhook/profile writers and prevent unreviewed operator code from updating profiles while Settings is active. The ordinary Morning Brief can continue because its profile access is read-only. A controlled rollback to a release without shared revisions must first invalidate outstanding Settings sessions through an explicitly authorized metadata procedure, or keep Settings unavailable until every earlier 15-minute session has expired. Never reset permanent revisions. Before re-enabling Settings, prove no older profile writer/in-flight operation remains. These are deployment acceptance requirements, not production actions performed here.

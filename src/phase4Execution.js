@@ -1,3 +1,4 @@
+import {withPhaseTelemetry,traceExecutionOperation,setExecutionTelemetrySequence} from './executionTelemetry.js';
 import {discoverPhaseContinuation,validateContinuationQuery} from './phase4Continuation.js';
 import {continuationScope,STAGE6_SHADOW_CONTINUATION_SCOPE} from './phase4ContinuationScope.js';
 import { loadEnv } from './config.js';
@@ -31,7 +32,10 @@ export function phaseResponse(record) {
    bodyEnergy:'NOT_AUTHORIZED_NOT_PRESENTED'}};
 }
 /** Both CLI jobs and signed HTTP phases share one admitted/fenced composition. */
-export async function runExecutionPhase({request,body=JSON.stringify(request),now,environment=process.env,
+export async function runExecutionPhase(args={}) {
+ return withPhaseTelemetry({phase:args.request?.phase,source:args.request?.triggerSource,releaseSha:args.request?.releaseSha},()=>runExecutionPhaseImpl(args));
+}
+async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,environment=process.env,
  db:providedDb,keys:providedKeys,env:providedEnv,deps={},budgetMs,overallBudgetMs,signal}={}) {
  const phaseStartedAt=Date.now(),started=performance.now();
  if(Number(process.versions.node.split('.')[0])<22)throw new Error('NODE_22_REQUIRED');
@@ -81,7 +85,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
  const overall=createExecutionBudget({budgetMs:overallBudgetMs??wholeLimit,signal,startedAtMs:phaseStartedAt});
  const admissionBudget=createExecutionBudget({budgetMs:ADMISSION_BUDGET_MS,signal:overall.signal});let budget,stopFollowing,pilotGrant;
  try {
-   let admission=await admissionBudget.run(()=>db.admitRuntime({source:request.triggerSource,fresh:true}));
+   let admission=await admissionBudget.run(()=>traceExecutionOperation('PHASE_ADMISSION',()=>db.admitRuntime({source:request.triggerSource,fresh:true})));
    const checkAdmission=()=>requireRuntimeAdmission(db.raw,admission,keys,db.transaction);
    checkAdmission();
    stopFollowing=followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
@@ -94,7 +98,8 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
    const finalizedReplay=['FINALIZED_SUCCESS','FINALIZED_FAILURE'].includes(replay?.state);
    const continuation=request.phase==='STAGE6_DRAIN'&&!finalizedReplay?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys))):null;
    const reconciliationOnly=Boolean(continuation?.reconciliationResult);
-   const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly,serializeScope:isContinuationRequest(request)})));
+   const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>traceExecutionOperation('PHASE_CLAIM',()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly,serializeScope:isContinuationRequest(request)}))));
+   setExecutionTelemetrySequence(claim.executionSeq??claim.cached?.executionSeq);
    if(claim.cached){overall.assert();admissionBudget.assert();
      try{await admissionBudget.run(()=>projectPhaseCompletion(db,request,claim.cached));}catch{}
      overall.assert();admissionBudget.assert();return phaseReply({...claim.cached,settlementState:claim.row.state});}
@@ -126,8 +131,8 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
      result=continuation?.reconciliationResult??(claim.workCommitted?claim.result:await withDurableExecution(executionContext,()=>withExecutionBudget(budget,()=>db.withRuntimeFence(fence,()=>budget.run(async()=>{
        if(request.phase==='SYNC') {
          log.info('sync_start',{source:request.triggerSource,release_sha:releaseSha,phase:'SYNC'});
-         const summary=await (deps.runBriefing??runBriefing)({now,triggerSource:request.triggerSource,deps:{...deps,db,env,
-           runtimeAdmission:admission,executionBudget:budget,keepConnectionOpen:true,phase4Stage6:undefined,betaPresentation:undefined}});
+         const summary=await traceExecutionOperation('PHASE_WORK',()=>(deps.runBriefing??runBriefing)({now,triggerSource:request.triggerSource,deps:{...deps,db,env,
+           runtimeAdmission:admission,executionBudget:budget,keepConnectionOpen:true,phase4Stage6:undefined,betaPresentation:undefined}}));
          budget.assert();
          if(summary.coordinationPending)executionContext.coordinationPending=true;
          if(executionContext.coordinationPending)throw Object.assign(Error('SYNC_SCOPE_BUSY'),{code:'SYNC_SCOPE_BUSY'});
@@ -170,7 +175,7 @@ export async function runExecutionPhase({request,body=JSON.stringify(request),no
      withDurableExecution(executionContext,()=>requireSettledOperation());
      if(result.outcome==='COMMIT_INDETERMINATE')throw Object.assign(Error('COMMIT_INDETERMINATE'),{code:'COMMIT_INDETERMINATE'});
      const settlement=createExecutionBudget({budgetMs:Math.min(PHASE_SETTLEMENT_MS,overall.remainingMs()),signal:budget.signal});
-     try{record=await withDurableExecution({...executionContext,receipts:false},()=>withExecutionBudget(settlement,()=>settlement.run(()=>settlePhaseRequest(db,request,claim,result,keys,originalAuthority))));
+     try{record=await withDurableExecution({...executionContext,receipts:false},()=>withExecutionBudget(settlement,()=>settlement.run(()=>traceExecutionOperation('PHASE_SETTLEMENT',()=>settlePhaseRequest(db,request,claim,result,keys,originalAuthority)))));
        originalAuthority.assert();}
      finally{settlement.close();}
    } catch(error) {

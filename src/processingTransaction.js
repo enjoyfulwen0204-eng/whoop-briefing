@@ -1,3 +1,4 @@
+import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { currentExecutionBudget,ExecutionBudgetError } from './executionBudget.js';
 import {appendExecutionReceipt,currentDurableExecution,CommitIndeterminateError,requireSettledOperation,readWorkStep} from './phase4ExecutionContext.js';
@@ -44,6 +45,7 @@ async function retryContention(call,{afterBusy,deadlineAt=Date.now()+15000}={}) 
       if(error.definiteCommitRejection)throw error;
       const busy=[error,error.cause].some(value=>value&&/^(SQLITE_BUSY|SQLITE_LOCKED)(_|$)/.test(value.code??''));
       if(!busy||attempt>=64||Date.now()>=deadline)throw error;
+      countExecutionTelemetry('retry_count');
       if(afterBusy)await afterBusy(deadline);
       await new Promise(resolve=>setTimeout(resolve,Math.max(0,Math.min(25*2**Math.min(attempt,4)+Math.floor(Math.random()*10),250,deadline-Date.now()))));
     }
@@ -86,15 +88,18 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         if(executorOverrides.has(key))return executorOverrides.get(key);
         const method = target[key].bind(target);
         return async (...args) => {
+        const query=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
+        const metadata=inRuntimeMetadata(query);
+        return traceExecutionOperation(metadata?'DB_METADATA':'DB_QUERY',async()=>{
+        countExecutionTelemetry('query_count',key==='batch'&&Array.isArray(args[0])?args[0].length:1);
+        if(metadata)countExecutionTelemetry('metadata_query_count');
         const state = scope.getStore();
         if(state?.idleAdmission){
-          const sql=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
+          const sql=query;
           if(!/^\s*(SELECT|PRAGMA)\b/i.test(sql))requireSettledOperation();
           if(!/^\s*(SELECT\b|PRAGMA\s+(foreign_keys|ignore_check_constraints)\b)/i.test(sql))throw Error('RUNTIME_READMISSION_READ_ONLY');
           return method(...args);
         }
-        const query=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
-        const metadata=inRuntimeMetadata(query);
         const guarded = fences().length > 0 && !metadata;
         if (guarded) {
           await checkFences();
@@ -120,7 +125,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
               if(!mutations.every(inExecutionCoordination)&&!state.receiptWrite)state.workWrites=true;}
             return await state.tx[key](...args);}
           const sql=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
-          if(rootAdmission&&!metadata)await checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));
+          if(rootAdmission&&!metadata)await traceExecutionOperation('RUNTIME_READMISSION',()=>{countExecutionTelemetry('runtime_readmissions');return checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));});
           // Foundation/schema reads can overlap another process's writer even
           // before a request lease exists. Retry only these read-only statements.
           const readOnly=/^\s*(SELECT\b|PRAGMA\s+(table_info|database_list|index_list|index_info|foreign_key_list|integrity_check|foreign_key_check)\b)/i.test(sql);
@@ -128,6 +133,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         }
         catch (error) { if (state) state.failure = error; throw error; }
         finally {release?.();}
+        });
         };
       }
       const value = target[key];
@@ -182,7 +188,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       const state = { tx:null, cache, checks: after ? [after] : [], finalChecks:beforeCommit?[beforeCommit]:[],commitFences:new Set(commitFence?[commitFence]:[]),
         commitAuthorities:new Set(commitAuthority?[commitAuthority]:[]),workStep,readOnly,replaying:false,receiptWrite:false,failure: null, deferred: null, committed: [], completed: [] };
       try {
-        if(rootAdmission)await checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));
+        if(rootAdmission)await traceExecutionOperation('RUNTIME_READMISSION',()=>{countExecutionTelemetry('runtime_readmissions');return checking.run(true,()=>scope.run({idleAdmission:true},rootAdmission));});
         tx=await retryContention(async()=>{
           const opened=await base.transaction('write');
           // HTTP/Hrana transactions lazily submit BEGIN with their first SQL.

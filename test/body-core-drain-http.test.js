@@ -23,6 +23,8 @@ assert.ok(Number.isSafeInteger(latencyMs)&&latencyMs>=0&&latencyMs<=150);
 const cancellation=process.env.BODY_CORE_CANCEL_ON_SOURCE==='1',controller=new AbortController();
 const requireDurableBody=process.env.BODY_CORE_REQUIRE_DURABLE_BODY==='1',continueDrain=process.env.BODY_CORE_CONTINUE_DRAIN==='1';
 const metricContinuation=process.env.BODY_CORE_METRIC_CONTINUATION==='1';
+const diagnosticSafetyMs=Number(process.env.BODY_CORE_DIAGNOSTIC_SAFETY_MS??15000);
+assert.ok([12000,15000].includes(diagnosticSafetyMs));
 const cancelAfterBody=process.env.BODY_CORE_CANCEL_AFTER_BODY==='1',loseBodyAck=process.env.BODY_CORE_LOSE_BODY_ACK==='1';
 assert.ok(!(cancelAfterBody&&loseBodyAck));
 const triggerSource=process.env.BODY_CORE_TRIGGER_SOURCE??'manual';
@@ -69,7 +71,8 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
   const pilotGrant=requireCurrentBetaPilotAttempt('a',timed.raw);
   const runtime=await createPublicBetaRuntime({db:timed,keys:fixtureKeys,admission,executionMode:'SHADOW',pilotGrant,
    runtimeCapability:authorizePublicBetaRuntime({executionMode:'SHADOW'})});
-  const drained=await runtime.phase4Stage6.drain({...args,budget:{maxJobs:1,maxItems:1,maxItemsPerTenant:1}});
+  const drained=await runtime.phase4Stage6.drain({...args,budget:{maxJobs:1,maxItems:1,maxItemsPerTenant:1,
+   ...(diagnosticSafetyMs===12000?{maxWallMs:45000,safetyMarginMs:12000}:{})}});
   console.log('BODY_CORE_WORKER_RESULT '+JSON.stringify(drained));return drained;
  }}};
  const request=makeRequest({phase:'STAGE6_DRAIN',syncRequestId:syncRequest.requestId,handoff:sync.body.handoff});
@@ -81,6 +84,7 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
  const topTemplates=Object.entries(transport.counts.byTemplate).map(([hash,item])=>({hash,family:item.family,count:item.count-(before.byTemplate[hash]?.count??0)}))
   .filter(item=>item.count>0).sort((a,b)=>b.count-a.count).slice(0,12);
  const measurement={topTemplates,triggerSource,baselineDays,latencyPerRequestMs:latencyMs,parentCancellation:cancellation||cancelAfterBody,
+  diagnosticSafetyMs,extraProductiveMs:15000-diagnosticSafetyMs,productionDefaultsChanged:false,
   elapsedMs:performance.now()-started,workerAdmissionMs:workerStartedAt===null?null:workerStartedAt-started,
   durableBodyAtMs:bodyCommittedAt===null?null:bodyCommittedAt-started,
   ...(bodyCommitCounts?{throughBodyCommit:delta(bodyCommitCounts,before)}:{}),
@@ -162,6 +166,7 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
  if(metricContinuation){
   let checkpointed=jobs.some(row=>row.full_scan_cursor!==null),legs=1;
   const unitCounts=async()=>({runs:Number((await timed.raw.execute("SELECT count(*) n FROM evidence_runs WHERE user_id='a'")).rows[0].n),
+   completedRuns:Number((await timed.raw.execute("SELECT count(*) n FROM evidence_runs WHERE user_id='a' AND state='COMPLETED'")).rows[0].n),
    items:Number((await timed.raw.execute("SELECT count(*) n FROM evidence_items WHERE user_id='a'")).rows[0].n),
    authorities:Number((await timed.raw.execute("SELECT count(*) n FROM phase4_evidence_result_authorities WHERE user_id='a'")).rows[0].n)});
   const stages=[await unitCounts()];
@@ -182,8 +187,10 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
    else assert.equal(resumed.body.result.itemsProcessed,1);
   }
   assert.equal(checkpointed,true,'fresh admitted invocations must advance actual USER work');
-  assert.deepEqual(stages.slice(0,3),[{runs:1,items:0,authorities:0},{runs:1,items:1,authorities:0},{runs:1,items:1,authorities:1}]);
-  assert.ok(stages.every(counts=>counts.runs===1&&counts.items<=1&&counts.authorities<=1),'immutable metric effects do not duplicate');
+  const changedStages=stages.filter((stage,index)=>!index||JSON.stringify(stage)!==JSON.stringify(stages[index-1]));
+  assert.deepEqual(changedStages,[{runs:0,completedRuns:0,items:0,authorities:0},{runs:1,completedRuns:0,items:0,authorities:0},
+   {runs:1,completedRuns:1,items:0,authorities:0},{runs:1,completedRuns:1,items:1,authorities:0},{runs:1,completedRuns:1,items:1,authorities:1}]);
+  assert.ok(stages.every(counts=>counts.runs<=1&&counts.items<=1&&counts.authorities<=1),'immutable metric effects do not duplicate');
   const finalPublication=await stores.withContext('a',{executionMode:'SHADOW',providerRequired:true},context=>stores.bodyEnergy.readForPublication(context,
    {healthDate:bodyHealthDate(Date.now(),'Asia/Taipei'),asOfEpochMs:Date.now()}));
   assert.equal(finalPublication.status,'PROCESSING');assert.equal(Object.hasOwn(finalPublication,'value'),false);

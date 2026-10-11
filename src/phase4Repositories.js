@@ -25,6 +25,7 @@ import { createBodyEnergyPublicationReader } from './bodyEnergyPublicationReader
 import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
 import {withMetricPreparationContinuation,currentBodySourceReceipt} from './phase4MetricUnitReceipt.js';
 import {bodyEnergyMetricAnalysisTime} from './bodyEnergyDerivedTime.js';
+import {createReanalysisInputs} from './phase4ReanalysisInputs.js';
 
 /** Composition is internal to the server factory and the synthetic fixture;
  * it does not issue execution contexts or accept request-owned authority. */
@@ -66,6 +67,13 @@ export function composePhase4Stores(core) {
     return sealed;
   }),create:recorded('INSIGHT_CREATE',insightStore.create),transition:recorded('INSIGHT_TRANSITION',insightStore.transition)};
   const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights,{producedEvidence:receipts.producedEvidence,
+    recordedMetricPreparation:receipts.recordedMetricPreparation,
+    prepareCurrentBodyMetricRequest:async(context,asOfUtc)=>{
+      const recorded=await readForCurrentDrain(context,asOfUtc);if(!recorded)fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
+      const request=['AVAILABLE','LIMITED'].includes(recorded.body.row.quality_state)
+        ?await createReanalysisInputs(core,{readArtifact,root:core.root}).metric(context,'body_energy',recorded.current,recorded.analysisTime):null;
+      return {request:request?{...request,refresh:true}:null,asOfUtc};
+    },
     discoverInsightPredecessor:receipts.discoverInsightPredecessor,resolveInsightLifecycle:receipts.resolveInsightLifecycle});
   const messages=createPhase4MessageStore(core,entities),slots=createPhase4SlotStore(core,entities,messages);
   const experiments=createPhase4ExperimentStore(core,privacy,queue);
@@ -113,9 +121,18 @@ export function composePhase4Stores(core) {
         WHERE user_id=? AND execution_mode=? AND input_generation=? AND invalidated_at IS NULL
         ORDER BY as_of_epoch_ms LIMIT 2`,args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
       if(rows.length>1)fail('BODY_ENERGY_CURRENT_DRAIN_AMBIGUOUS');if(!rows.length)return null;
-      if(!await currentBodySourceReceipt(core,context,asOfUtc))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-      const current=await readArtifact(context,'body_energy_results',{result_id:rows[0].result_id});
-      const reproduced=await body.audit(context,current.row.result_id);
+      // Three fixed, read-only proofs share this already admitted transaction.
+      // Settle every original source receipt/domain/audit check in its original
+      // failure order before the recorded result can become a metric input.
+      const observations=await Promise.allSettled([
+        Promise.resolve().then(()=>currentBodySourceReceipt(core,context,asOfUtc)),
+        Promise.resolve().then(()=>receipts.readBodyDrainSource(context,rows[0].result_id)),
+        Promise.resolve().then(()=>body.audit(context,rows[0].result_id)),
+      ]);
+      if(observations[0].status==='rejected')throw observations[0].reason;
+      if(!observations[0].value)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+      for(const result of observations.slice(1))if(result.status==='rejected')throw result.reason;
+      const current=observations[1].value,reproduced=observations[2].value;
       if(canonicalJson(reproduced.row)!==canonicalJson(current.row))fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
       const analysisTime=await bodyEnergyMetricAnalysisTime(core,context,current,current.row.as_of_utc);
       // The original physiological cutoff and source ages are retained. This
@@ -274,8 +291,9 @@ export function composePhase4Stores(core) {
         return episodes.readRevision(context,request);
       }),...Object.fromEntries(['open','revise','reverse','refresh','semantic']
       .map(name=>[name,owned(episodes[name])]))}),
-    intelligence:Object.freeze({...Object.fromEntries(Object.entries(intelligence).filter(([name])=>name!=='metricPreparationUnit')
+    intelligence:Object.freeze({...Object.fromEntries(Object.entries(intelligence).filter(([name])=>!['metricPreparationUnit','metricPreparationUnitFromCurrentBody'].includes(name))
       .map(([name,fn])=>[name,operation(name,fn)])),metricPreparationUnit:intelligence.metricPreparationUnit,
+      metricPreparationUnitFromCurrentBody:intelligence.metricPreparationUnitFromCurrentBody,
       resumeMetricPreparation:(context,request)=>withMetricPreparationContinuation(core,context,
         ()=>operation('analyzeMetric',intelligence.analyzeMetric)(context,request))}),
     insights:Object.freeze({...insights,create:owned(insights.create),transition:owned(insights.transition)}),

@@ -179,6 +179,7 @@ export function createFamilyDirectory(client,keys) {
     const from=await pilotPrefixFrom(client,context,MANIFESTS,[context.userId,context.executionMode,sourceToken]);
     let manifest=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=?
       AND execution_mode=? AND source_token=?`,args:[context.userId,context.executionMode,sourceToken]})).rows[0];
+    const created=!manifest;
     if(!manifest) {
       // A new tenant with no routed history can initialize an empty signed
       // directory. Existing v29 activity may never be reclassified as empty.
@@ -201,7 +202,13 @@ export function createFamilyDirectory(client,keys) {
     if(!same(parse(manifest.route_tip_json),await routeTip(context,metricKey)))invalid();
     const unknownEntries=rows.filter(row=>row.entry_state!=='KNOWN');
     if(manifest.directory_state!=='COMPLETE'&&!unknownEntries.length)unknown();
-    return {sourceToken,manifest,entries:rows.filter(row=>row.entry_state==='KNOWN'),unknownEntries};
+    return {sourceToken,manifest,entries:rows.filter(row=>row.entry_state==='KNOWN'),unknownEntries,created};
+  }
+  async function exists(context,metricKey){
+    const {token}=source(context,metricKey),from=await pilotPrefixFrom(client,context,MANIFESTS,[context.userId,context.executionMode,token]);
+    const row=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=? AND source_token=?`,
+      args:[context.userId,context.executionMode,token]})).rows[0];
+    if(row)verifyManifest(row);return Boolean(row);
   }
   async function manifestTip(context,familyKey) {
     const proof=await routing.inventory(context,'EPISODE_FAMILY',familyKey,false,{metadataOnly:true});
@@ -259,6 +266,6 @@ export function createFamilyDirectory(client,keys) {
       if(row.requested_json!==wanted)await putTip({...row,requested_json:wanted});
     }
   }
-  return {source,family,register,markUnknown,ensureManifest,touchSource,inventory,manifestTip,resolveIdentity,work,complete,allComplete,requestAll,
+  return {source,family,register,markUnknown,ensureManifest,touchSource,inventory,exists,manifestTip,resolveIdentity,work,complete,allComplete,requestAll,
     verifyEntry,verifyManifest,verifyTip};
 }

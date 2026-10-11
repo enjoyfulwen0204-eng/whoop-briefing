@@ -19,7 +19,7 @@ import { createEpisodeRecurrenceAuthority } from './phase4EpisodeRecurrence.js';
 import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
 import { createReceiptRouting } from './phase4ReceiptRouting.js';
 import { createFamilyDirectory } from './phase4FamilyDirectory.js';
-import {currentDurableExecution} from './phase4ExecutionContext.js';
+import {currentDurableExecution,assertExecutionWorkOwner} from './phase4ExecutionContext.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
@@ -396,6 +396,33 @@ export function createOperationReceipts(core) {
       }
       fail('PHASE4_OPERATION_RESULT_UNAVAILABLE_MISSING_RECEIPT');
     });
+  }
+  async function readBodyDrainSource(context,resultId){
+    return core.run(context,async()=>{
+      const owner=await assertExecutionWorkOwner(client);
+      if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
+        fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
+      const artifact=await core.artifact(context,'body_energy_results',{result_id:resultId});
+      const {normalized}=await prepare(context,{asOfEpochMs:artifact.row.as_of_epoch_ms},'BODY_ENERGY_COMPUTE');
+      const key=keyForEnvelope(requestEnvelope(context,'BODY_ENERGY_COMPUTE',normalized));
+      const receipt=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
+        AND operation_kind='BODY_ENERGY_COMPUTE' AND operation_key=?`,args:[context.userId,context.executionMode,key]})).rows[0];
+      if(!receipt)fail('PHASE4_OPERATION_RESULT_UNAVAILABLE_MISSING_RECEIPT');
+      // This is the existing exact operation-key hit path, with every complete
+      // schema/root/projection/HMAC check. A routed history scan supplies no
+      // additional absence authority for this already named source receipt.
+      const recorded=await read(context,receipt);
+      if(recorded?.row?.result_id!==resultId||!same(recorded.row,artifact.row))invalid();
+      return {...recorded,ref:artifact.ref};
+    });
+  }
+  async function recordedMetricPreparation(context,request){
+    const {normalized}=await prepare(context,request,'analyzeMetric');
+    const key=keyForEnvelope(requestEnvelope(context,'analyzeMetric',normalized));
+    const receipt=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
+      AND operation_kind='analyzeMetric' AND operation_key=?`,args:[context.userId,context.executionMode,key]})).rows[0];
+    if(!receipt)return false;
+    const result=await read(context,receipt);if(result?.resultState!=='REFRESH_PREPARED')invalid();return true;
   }
   async function predecessor(context,table,id,expectedRevision) {
     const episode=table==='observation_episodes',column=episode?'episode_id':'id';
@@ -783,7 +810,7 @@ export function createOperationReceipts(core) {
       return result;
     },step);
   }
-  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,
+  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,readBodyDrainSource,recordedMetricPreparation,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,
     resolveInsightLifecycle,metricRefreshPlan:metricRefresh.plan,episodeRecurrencePlan:recurrence.consume,
     episodeRecurrenceInventory:recurrence.inventory});instances.set(core,api);return api;
 }

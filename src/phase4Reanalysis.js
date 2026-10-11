@@ -98,9 +98,12 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     }
   }
 
-  async function metricsV30(context,req,lease,assertBudget) {
+  async function metricsV30(context,req,lease,assertBudget,{preparedDefault=false}={}) {
     const directory=await queue.owned(context,lease,()=>familyDirectory.inventory(context,req.metricKey),
       {assertBudget,workKind:'stage6.family-inventory',workFacts:[req.metricKey,req.asOfUtc]});
+    if(core.schemaVersion===32&&req.metricKey==='body_energy'&&directory.created)
+      return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,
+        units:[{kind:'FAMILY_DIRECTORY',status:'COMPLETE'}],committedUnits:1};
     const defaultKey=keys.lookup(['episode-family-v1',context.userId,phase4Metric(req.metricKey).domain,
       req.metricKey,INTELLIGENCE_VERSIONS.algorithm,req.metricKey,req.windowFamily]);
     const candidates=[{familyKey:defaultKey,windowFamily:req.windowFamily},
@@ -112,10 +115,10 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     const units=[];
     for(const candidate of candidates)try {
       assertBudget();
-      if(core.schemaVersion===32&&req.metricKey==='body_energy'&&candidate.windowFamily){
+      if(core.schemaVersion===32&&req.metricKey==='body_energy'&&candidate.windowFamily&&!preparedDefault){
         const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnit(context,
           {...req,windowFamily:candidate.windowFamily,refresh:true},'NEXT'),{assertBudget});
-        if(unit.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:firstFailure,
+        if(unit?.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:firstFailure,
           units:[...units,{kind:'METRIC_PREPARATION_UNIT',unit:unit.unit,status:'COMPLETE'}],committedUnits:1};
       }
       const outcome=await queue.owned(context,lease,async()=>{
@@ -310,6 +313,12 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   async function processSourceV30(context,source,asOfUtc,lease,assertBudget,admittedRoot=null,bodyCandidate=false) {
     const root=admittedRoot??await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
     if(source.source_type==='USER') {
+      if(core.schemaVersion===32&&bodyCandidate){
+        const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnitFromCurrentBody(context,asOfUtc),{assertBudget});
+        if(unit.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,
+          units:[{kind:'METRIC_PREPARATION_UNIT',unit:unit.unit,status:'COMPLETE'}],committedUnits:1};
+        if(unit.prepared)return metricsV30(context,unit.request,lease,assertBudget,{preparedDefault:true});
+      }
       const metricRequest=async body=>{
         const current=await stores.readArtifact(context,'body_energy_results',{result_id:body.row.result_id});assertBudget();
         const analysisTime=await bodyEnergyMetricAnalysisTime(core,context,current,body.row.as_of_utc);assertBudget();

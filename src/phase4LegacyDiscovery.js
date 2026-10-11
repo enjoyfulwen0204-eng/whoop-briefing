@@ -5,7 +5,7 @@ import { canonicalInstant } from './phase4Time.js';
 import { canonicalSourceVersion } from './phase4SourceVersion.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
 import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
-import {metricPreparationContinuation,metricUnitReceipt} from './phase4MetricUnitReceipt.js';
+import {metricPreparationContinuation,metricUnitReceipt,metricRunReceipt} from './phase4MetricUnitReceipt.js';
 
 export const LEGACY_DISCOVERY_BUDGET=Object.freeze({runs:500,authorities:1000,deadlineMs:5000});
 const unavailable=()=>fail('PHASE4_LEGACY_DISCOVERY_UNAVAILABLE');
@@ -89,7 +89,8 @@ export function createLegacyDiscovery(core) {
         // Only the three original acknowledged, producer-bound units can
         // complete their missing domain receipt. An arbitrary legacy result
         // remains unavailable, and every historical/root check above still ran.
-        for(const unit of ['RUN','ITEM','AUTHORITY'])if(!await metricUnitReceipt(core,context,plan,unit))
+        if(!await metricRunReceipt(core,context,plan))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+        for(const unit of ['ITEM','AUTHORITY'])if(!await metricUnitReceipt(core,context,plan,unit))
           fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
         complete=true;
       }

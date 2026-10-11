@@ -11,8 +11,10 @@ import { assessDataQuality, benjaminiHochberg, buildPersonalBaseline, evaluateJo
   evaluateMeaningfulChange, evidenceConfidence, recencyWeight, validMetricValue,
   validateEvidenceConfidence, compareBaselineSources } from './phase4Intelligence.js';
 import { pearson, pValue } from './analytics/correlation.js';
-import {metricUnitReceipt,metricUnitWork,metricPreparationContinuation} from './phase4MetricUnitReceipt.js';
+import {metricUnitReceipt,metricRunReceipt,metricUnitWork,metricPreparationContinuation} from './phase4MetricUnitReceipt.js';
 import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
+import {createFamilyDirectory} from './phase4FamilyDirectory.js';
+import {workStepOptions} from './phase4WorkStep.js';
 
 const ACTIVE = ['OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING'];
 const MERGE_GAP_MS = 36*60*60*1000;
@@ -74,7 +76,8 @@ export function canonicalAssociationOutcomeValue(metricKey,source,context,asOfUt
         ?'PRESENT':'INVALID',versionKnown};
   }
 
-export function createPhase4IntelligenceStore(core, entities, episodes, insights,{producedEvidence=()=>{},
+export function createPhase4IntelligenceStore(core, entities, episodes, insights,{producedEvidence=()=>{},recordedMetricPreparation=async()=>false,
+  prepareCurrentBodyMetricRequest=()=>fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED'),
   discoverInsightPredecessor=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE'),
   resolveInsightLifecycle=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE')}={}) {
   const {client,keys}=core,authorities=createResultAuthority(core),sourceValue=canonicalMetricSourceValue,associationOutcomeValue=canonicalAssociationOutcomeValue;
@@ -356,17 +359,37 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         calculation:observationCalculation,asOfUtc:request.asOfUtc,windowFamily:request.windowFamily,refresh:request.refresh===true});
       return {request,contract,sourceSet,baseline,quality,baseIdentity,priorQualifying,observationCalculation,plan};
   }
-  async function metricPreparationUnit(context,request,kind) {
-    if(core.schemaVersion!==32||!core.jobAuthority()||request?.refresh!==true||!['RUN','ITEM','AUTHORITY','NEXT'].includes(kind))
+  async function metricPreparationUnit(context,request,kind){return performMetricPreparationUnit(context,request,kind);}
+  async function metricPreparationUnitFromCurrentBody(context,asOfUtc){
+    return performMetricPreparationUnit(context,null,'NEXT',()=>prepareCurrentBodyMetricRequest(context,asOfUtc));
+  }
+  async function performMetricPreparationUnit(context,request,kind,requestFrom=null) {
+    if(core.schemaVersion!==32||!core.jobAuthority()||!requestFrom&&request?.refresh!==true
+      ||!['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY','NEXT'].includes(kind))
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-    let prepared;
+    let prepared,alreadyRecorded=false,bodySource=null;
+    const directory=createFamilyDirectory(client,keys);
+    const sourceWork=(name,facts)=>{const job=core.jobAuthority();return workStepOptions(name,[context.userId,context.executionMode,
+      job.jobKind,job.requestedGeneration,job.scopeRevision,facts],{discardResult:true}).workStep;};
     const workStepFrom=async()=>{
       const owner=await assertExecutionWorkOwner(client);if(owner?.phase!=='STAGE6_DRAIN')fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+      if(requestFrom){
+        bodySource=await requestFrom();request=bodySource.request;
+        if(!request){kind='SOURCE';return sourceWork('stage6.body-source',['USER',context.userId,JSON.stringify(['USER',context.userId]),bodySource.asOfUtc]);}
+        if(!await directory.exists(context,'body_energy')){
+          kind='DIRECTORY';return sourceWork('stage6.family-inventory',['body_energy',request.asOfUtc]);
+        }
+        const inventory=await directory.inventory(context,'body_energy');
+        if(inventory.unknownEntries.length)fail('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN');
+      }
       prepared=await metricPreparation(context,request);
       if(kind==='NEXT'){
-        const run=(await client.execute({sql:'SELECT run_id FROM evidence_runs WHERE user_id=? AND execution_mode=? AND deterministic_run_key=?',
+        if(await recordedMetricPreparation(context,request)){
+          alreadyRecorded=true;kind='AUTHORITY';return metricUnitWork(context,prepared.plan,kind).workStep;
+        }
+        const run=(await client.execute({sql:'SELECT run_id,state FROM evidence_runs WHERE user_id=? AND execution_mode=? AND deterministic_run_key=?',
           args:[context.userId,context.executionMode,prepared.plan.runKey]})).rows[0];
-        if(!run)kind='RUN';else{
+        if(!run)kind='RUN_START';else if(run.state==='STARTED')kind='RUN_COMPLETE';else{
           const item=(await client.execute({sql:'SELECT evidence_item_id FROM evidence_items WHERE user_id=? AND execution_mode=? AND run_id=? AND item_key=?',
             args:[context.userId,context.executionMode,run.run_id,prepared.plan.itemKey]})).rows[0];
           kind=item?'AUTHORITY':'ITEM';
@@ -375,29 +398,48 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       return metricUnitWork(context,prepared.plan,kind).workStep;
     };
     const perform=async()=>{
+      if(kind==='SOURCE')return {unit:'SOURCE',status:'COMPLETE',created:false,prepared:false};
+      if(kind==='DIRECTORY'){
+        const inventory=await directory.inventory(context,'body_energy');
+        if(!inventory.created)fail('PHASE4_FAMILY_DIRECTORY_AUTHORITY_INVALID');
+        return {unit:'DIRECTORY',status:'COMPLETE',created:true,prepared:false};
+      }
+      if(alreadyRecorded)return {unit:'AUTHORITY',status:'COMPLETE',created:false,prepared:true,recorded:true};
       const {plan,sourceSet,baseline,quality,observationCalculation:calculation}=prepared;
+      request=prepared.request;
+      const runData={deterministic_run_key:plan.runKey,subject_key:request.metricKey,
+        method:'PERSONAL_BASELINE_DEVIATION',window_start_utc:baseline.samples.at(-1)?.observedAt??sourceSet.current.observedAt,
+        window_end_utc:sourceSet.current.observedAt,as_of_utc:request.asOfUtc,timezone:context.timezone,
+        algorithm_version:INTELLIGENCE_VERSIONS.algorithm,registry_version:INTELLIGENCE_VERSIONS.registry,
+        evidence_contract_version:INTELLIGENCE_VERSIONS.evidenceContract,promotion_confound_version:INTELLIGENCE_VERSIONS.promotionConfound,
+        exposure_classification_version:INTELLIGENCE_VERSIONS.exposureClassification,factor_set_version:INTELLIGENCE_VERSIONS.factorSet,
+        state:'STARTED',started_at:request.asOfUtc};
       const runRow=(await client.execute({sql:'SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=? AND deterministic_run_key=?',
         args:[context.userId,context.executionMode,plan.runKey]})).rows[0];
       let run;
       if(runRow){
+        if(kind==='RUN_COMPLETE'&&runRow.state==='STARTED'){
+          if(!readableRow(runRow)||runRow.invalidated_at||runRow.input_manifest_hash!==null||runRow.input_manifest_json!==null
+            ||runRow.completed_at!==null||!await metricUnitReceipt(core,context,plan,'RUN_START'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+          for(const [field,value] of Object.entries(runData))if(runRow[field]!==value)fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
+          run=await core.artifact(context,'evidence_runs',{run_id:runRow.run_id});
+          run=await entities.completeEvidence(context,run.row.run_id,{sample_count:baseline.sampleCount,exclusion_count:baseline.exclusions.length,
+            input_manifest_json:plan.input,input_manifest_hash:plan.inputHash,missingness_json:{quality_state:quality.status,reason_codes:quality.reasonCodes}});
+          return {unit:'RUN_COMPLETE',status:'COMPLETE',created:true};
+        }
         if(!readableRow(runRow)||runRow.invalidated_at||runRow.state!=='COMPLETED'
           ||runRow.input_manifest_hash!==plan.inputHash||runRow.input_manifest_json!==canonicalJson(plan.input))
           fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
-        if(!await metricUnitReceipt(core,context,plan,'RUN'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+        if(!await metricRunReceipt(core,context,plan))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
         run=await core.artifact(context,'evidence_runs',{run_id:runRow.run_id});
       }else{
-        if(kind!=='RUN')fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-        run=await entities.append(context,'evidence_runs',{deterministic_run_key:plan.runKey,subject_key:request.metricKey,
-          method:'PERSONAL_BASELINE_DEVIATION',window_start_utc:baseline.samples.at(-1)?.observedAt??sourceSet.current.observedAt,
-          window_end_utc:sourceSet.current.observedAt,as_of_utc:request.asOfUtc,timezone:context.timezone,
-          algorithm_version:INTELLIGENCE_VERSIONS.algorithm,registry_version:INTELLIGENCE_VERSIONS.registry,
-          evidence_contract_version:INTELLIGENCE_VERSIONS.evidenceContract,promotion_confound_version:INTELLIGENCE_VERSIONS.promotionConfound,
-          exposure_classification_version:INTELLIGENCE_VERSIONS.exposureClassification,factor_set_version:INTELLIGENCE_VERSIONS.factorSet,
-          state:'STARTED',started_at:request.asOfUtc},sourceSet.refs);
+        if(!['RUN','RUN_START'].includes(kind))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+        run=await entities.append(context,'evidence_runs',runData,sourceSet.refs);
+        if(kind==='RUN_START')return {unit:'RUN_START',status:'COMPLETE',created:true};
         run=await entities.completeEvidence(context,run.row.run_id,{sample_count:baseline.sampleCount,exclusion_count:baseline.exclusions.length,
           input_manifest_json:plan.input,input_manifest_hash:plan.inputHash,missingness_json:{quality_state:quality.status,reason_codes:quality.reasonCodes}});
       }
-      if(kind==='RUN')return {unit:'RUN',status:'COMPLETE',created:!runRow};
+      if(['RUN','RUN_START','RUN_COMPLETE'].includes(kind))return {unit:kind,status:'COMPLETE',created:!runRow};
       if(kind==='AUTHORITY'&&!(await client.execute({sql:`SELECT 1 FROM evidence_items WHERE user_id=? AND execution_mode=? AND run_id=? AND item_key=?`,
         args:[context.userId,context.executionMode,run.row.run_id,plan.itemKey]})).rows.length)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
       const itemData=metricItemData(request.metricKey,sourceSet,baseline,quality,calculation,plan),item=await entities.append(context,'evidence_items',
@@ -423,7 +465,11 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         continuation:itemProof?{proof:itemProof,plan}:null});
       return {unit:'AUTHORITY',status:'COMPLETE',created:true,prepared:true};
     };
-    return core.run(context,perform,{workStepFrom,discardResult:true,replay:perform});
+    const result=await core.run(context,perform,{workStepFrom,discardResult:true,replay:perform});
+    // This is only the original immutable source-reference request, never an
+    // authority result. The final domain operation freshly checks its entire
+    // source, historical origin, receipt and producer closure again.
+    return requestFrom&&result.prepared&&!result.created?{...result,request}:result;
   }
   async function analyzeMetric(context,request) {
     return core.run(context,async()=>{
@@ -798,5 +844,5 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       return episodes.read(context,episodeId);
     });
   }
-  return Object.freeze({analyzeMetric,analyzeAssociationFamily,expireInsight,expireEpisode,metricPreparationUnit});
+  return Object.freeze({analyzeMetric,analyzeAssociationFamily,expireInsight,expireEpisode,metricPreparationUnit,metricPreparationUnitFromCurrentBody});
 }

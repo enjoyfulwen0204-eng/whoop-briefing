@@ -4,7 +4,7 @@ import {bodySha256} from './briefingTriggerAuth.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {JOB_KINDS} from './phase4V24Schema.js';
 
-const kinds=new Set(['RUN','ITEM','AUTHORITY']),proofs=new WeakMap();
+const kinds=new Set(['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY']),proofs=new WeakMap();
 const continuationScope=new AsyncLocalStorage();
 export function withMetricPreparationContinuation(core,context,work){
  if(core.schemaVersion!==32||!core.jobAuthority()||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN')fail();
@@ -32,6 +32,10 @@ export async function metricUnitReceipt(core,context,plan,kind){
  if(!receipt)return null;
  const proof=Object.freeze({});proofs.set(proof,{core,context,execution:currentDurableExecution(),job:core.jobAuthority(),
   kind,runKey:plan.runKey,inputHash:plan.inputHash,itemKey:plan.itemKey});return proof;
+}
+export async function metricRunReceipt(core,context,plan){
+ if(await metricUnitReceipt(core,context,plan,'RUN'))return true;
+ return Boolean(await metricUnitReceipt(core,context,plan,'RUN_START')&&await metricUnitReceipt(core,context,plan,'RUN_COMPLETE'));
 }
 export async function currentBodySourceReceipt(core,context,asOfUtc){
  const job=core.jobAuthority();
@@ -63,7 +67,7 @@ async function namedUnitReceipt(core,context,steps){
  const found=[];
  for(let start=0;start<producers.length;start+=64){
   const group=producers.slice(start,start+64),observations=await Promise.allSettled(group.map(p=>Promise.resolve().then(async()=>{
-   if(p.phase!=='STAGE6_DRAIN'||p.execution_seq!==p.final_seq||p.producing_generation>p.final_generation
+   if(p.phase!=='STAGE6_DRAIN'||p.execution_seq!==p.final_seq||p.producing_generation!==p.final_generation
     ||p.tenant_proof!==core.keys.lookup(['execution-producer-v1',context.userId,context.executionMode,
      context.inputGeneration,p.producing_execution_id,p.execution_seq,p.producing_generation]))fail();
    const keys=steps.map(step=>core.keys.lookup(['execution-work-step-v2',p.identity_digest,p.scope_key,['named',step]]));

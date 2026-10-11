@@ -49,6 +49,8 @@ export const configurationProof=(keys,config,environment,releaseSha=runningRelea
  const pilot=['ID','USER_ID','START_AT','CONSENT_SHA256','COST_BOUND_ID'].map(name=>environment[`PHASE4_BETA_PILOT_${name}`]??'');
  // Preserve OFF/legacy proof semantics; pilot changes fence existing work.
  if(pilot.some(Boolean))profile.push(['beta-pilot-v1',...pilot]);
+ const allowance=['ALLOWANCE_ID','STOP'].map(name=>environment[`PHASE4_BETA_PILOT_${name}`]??'');
+ if(allowance.some(Boolean))profile.push(['beta-pilot-allowance-v1',...allowance]);
  return keys.lookup(profile);
 };
 export const requestIdentity=body=>bodySha256(body);

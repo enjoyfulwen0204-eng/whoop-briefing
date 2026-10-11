@@ -3,6 +3,8 @@ import {requirePhase4Keys} from './phase4Keys.js';
 import {databaseNowMs,withDurableExecution} from './phase4ExecutionContext.js';
 import {createExecutionBudget,withExecutionBudget} from './executionBudget.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
+import {reviewedPilotAllowance,isReviewedPilotAllowance} from './betaPilotAllowance.js';
+import {log} from './logger.js';
 
 const COMPONENT='phase4_beta_pilot_permit_v1', HASH=/^[a-f0-9]{64}$/;
 export const PILOT_DURATION_MS=24*60*60_000;
@@ -62,20 +64,28 @@ export function reservePilotMutation(context,client,values){
  * operator-supplied JSON must not manufacture this authority. Adding a bound
  * requires an exact new independently reviewed code candidate and evidence. */
 export function reviewedPilotReservation(){return null;}
+export function reviewedPilotAdmission(config){
+ return config?.allowanceId?reviewedPilotAllowance(config.allowanceId):reviewedPilotReservation(config?.costBoundId);
+}
 
 export function betaPilotConfiguration(environment={}) {
- const names=['ID','USER_ID','START_AT','CONSENT_SHA256','COST_BOUND_ID'];
+ const names=['ID','USER_ID','START_AT','CONSENT_SHA256','COST_BOUND_ID','ALLOWANCE_ID'];
  const values=names.map(name=>environment[`PHASE4_BETA_PILOT_${name}`]??'');
  if(values.every(value=>value===''))return null;
- const [id,userId,startAt,consentSha256,costBoundId]=values;
+ const [id,userId,startAt,consentSha256,costBoundId,allowanceId]=values;
+ const allowance=allowanceId?reviewedPilotAllowance(allowanceId):null;
  const start=Date.parse(startAt);
  if(!HASH.test(id)||typeof userId!=='string'||userId!==requireUserId(userId,'betaPilot')
-   ||!HASH.test(consentSha256)||!HASH.test(costBoundId)||!Number.isSafeInteger(start)
+   ||!HASH.test(consentSha256)||(!allowanceId&&!HASH.test(costBoundId))
+   ||allowanceId&&(!allowance||costBoundId!=='')||!Number.isSafeInteger(start)
    ||new Date(start).toISOString()!==startAt||!Number.isSafeInteger(start+PILOT_DURATION_MS))fail();
- return Object.freeze({id,userId,startAt:start,endAt:start+PILOT_DURATION_MS,consentSha256,costBoundId,maxAttempts:PILOT_MAX_ATTEMPTS});
+ return Object.freeze({id,userId,startAt:start,endAt:start+PILOT_DURATION_MS,consentSha256,
+  ...(allowance?{allowanceId}:{costBoundId}),maxAttempts:allowance?.maxAttempts??PILOT_MAX_ATTEMPTS});
 }
 
 export function validatePilotReservation(reservation) {
+ if(isReviewedPilotAllowance(reservation))return reservation;
+ if(reservation?.kind!==undefined)fail();
  if(!reservation||!HASH.test(reservation.evidenceSha256)||!HASH.test(reservation.id)
    ||!reservation.perAttempt||!reservation.maximum
    ||Object.keys(reservation.perAttempt).length!==UNIT_KEYS.length||Object.keys(reservation.maximum).length!==UNIT_KEYS.length)fail();
@@ -93,13 +103,14 @@ export function validatePilotReservation(reservation) {
  * release, retry or process restart. No DELETE/reset/refund operation exists. */
 export function createBetaPilotPermit({db,keys,config,reservation}={}) {
  requirePhase4Keys(keys);validatePilotReservation(reservation);
+ const allowance=isReviewedPilotAllowance(reservation);
  if(!config||!HASH.test(config.id)||!HASH.test(config.consentSha256)||config.userId!==requireUserId(config.userId,'betaPilot')
-   ||!Number.isSafeInteger(config.startAt)||config.endAt-config.startAt!==PILOT_DURATION_MS||config.maxAttempts!==PILOT_MAX_ATTEMPTS
-   ||reservation.id!==config.costBoundId||!db?.raw||typeof db.transaction!=='function')fail();
+   ||!Number.isSafeInteger(config.startAt)||config.endAt-config.startAt!==PILOT_DURATION_MS||config.maxAttempts!==(allowance?reservation.maxAttempts:PILOT_MAX_ATTEMPTS)
+   ||reservation.id!==(allowance?config.allowanceId:config.costBoundId)||!db?.raw||typeof db.transaction!=='function')fail();
  // The file seam is exclusively a local fixture. Every remote composition,
  // including callers of exported lower-level worker factories, uses the same
- // reviewed qualification; generic JSON cannot grant remote pilot authority.
- if(db.raw.protocol!=='file'&&reservation!==reviewedPilotReservation(config.costBoundId))fail();
+ // reviewed admission policy; generic JSON cannot grant remote pilot authority.
+ if(db.raw.protocol!=='file'&&reservation!==reviewedPilotAdmission(config))fail();
  const fingerprint=keys.lookup(['beta-pilot-v1',config,reservation]);
  const seal=state=>keys.lookup(['beta-pilot-state-v1',state]);
  const decode=row=>{
@@ -181,7 +192,7 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
     const stateBefore=previous??{version:1,fingerprint,startAt:config.startAt,endAt:config.endAt,lifecycleGeneration:current.lifecycle_generation,attempts:0,lastObservedAt:current.observed_at,closed:false};
     if(stateBefore.attempts>=config.maxAttempts)return null;
     const attempts=stateBefore.attempts+1;
-    for(const key of UNIT_KEYS)if(!Number.isSafeInteger(attempts*reservation.perAttempt[key])||attempts*reservation.perAttempt[key]>reservation.maximum[key])return null;
+    if(!allowance)for(const key of UNIT_KEYS)if(!Number.isSafeInteger(attempts*reservation.perAttempt[key])||attempts*reservation.perAttempt[key]>reservation.maximum[key])return null;
     await write(row,{...stateBefore,attempts,lastObservedAt:current.observed_at},current.observed_at);
     // COMMIT uncertainty never refunds this reservation. A fresh invocation
     // must reserve again before submission, including retries/continuations.
@@ -192,7 +203,11 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
      assert:async client=>{if(performance.now()>=deadline){await invalidate(config.endAt);fail();}return assert(client);}});
     issuedGrants.set(grant,db.raw);issuedDatabases.set(grant,db);return grant;
    });
-   if(!result)fail();return result;
+   if(!result)fail();
+   if(allowance)log[result.attempt>=reservation.warningAttempt?'warn':'info']('beta_pilot_monitored_allowance',{
+    attempt:result.attempt,attempts:config.maxAttempts,estimated_micro_usd:result.attempt*reservation.estimatedMicroUsdPerAttempt,
+    budget_micro_usd:reservation.budgetMicroUsd});
+   return result;
   },
   assert,
  });

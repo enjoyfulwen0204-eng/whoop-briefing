@@ -78,6 +78,14 @@ test('pilot reads require the canonical cohort and an existing processing transa
   assert.equal(statements.length,0);
  });
 });
+test('SQLite TEXT affinity cannot admit a JSON BLOB to the scalar serialization bound',async t=>{
+ const {db,client,statements,run}=await fixture(t);
+ await insertFamily(db,1,new TextEncoder().encode('{"synthetic":"x"}'));
+ assert.equal((await db.raw.execute('SELECT typeof(descriptor_json) type FROM phase4_family_directory_entries')).rows[0].type,'blob');
+ await run(async()=>{await assert.rejects(()=>family(client),/PREFIX_BOUNDS_UNAVAILABLE/);
+  assert.equal(statements.length,1);assert.match(statements[0].sql,/invalid_types/);
+ });
+});
 test('no pilot scope preserves exact ordinary SQL including full result cardinality',async()=>{
  const rows=Array.from({length:1002},(_,id)=>({id}));let received;
  const client={execute:async statement=>{received=statement;return {rows};}};

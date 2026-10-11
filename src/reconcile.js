@@ -2,7 +2,7 @@ import {captureWhoopInput,assertWhoopInput} from './whoopInputFence.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {readOnlyProcessingCheck} from './processingTransaction.js';
 import {syncShouldYield} from './syncContinuation.js';
-import {currentDurableExecution} from './phase4ExecutionContext.js';
+import {currentDurableExecution,readWorkStep} from './phase4ExecutionContext.js';
 /**
  * 對帳 + 增量同步引擎（V1.2 Phase 2）。
  *
@@ -439,29 +439,72 @@ export function createReconciler({
     // 狀態列鍵：快路徑 = 資源名；深度路徑 = 資源名/deep。租約、未完成窗、游標各自獨立。
     const key = isDeep ? deepResourceKey(resource) : resource;
 
-    const claimed = await db.claimReconciliation({
-      userId: uid, resource: key, owner, leaseMs, now: at(),
-      lifecycleGeneration: lifecycleFence,
-    });
-    if (!claimed) return { resource, scope, result: RECONCILE_RESULT.SKIPPED, reason: 'claim_busy' };
+    // Snapshot caller metadata before the first await. The named intent and
+    // actual ordered operations must use the same immutable window/policy.
+    explicitWindow=explicitWindow?Object.freeze({from:new Date(explicitWindow.from).toISOString(),to:new Date(explicitWindow.to).toISOString()}):null;
+    const slicePolicy=Object.freeze({HORIZON_DAYS:deep.HORIZON_DAYS,SLICE_DAYS:deep.SLICE_DAYS});
 
-    const state = await db.getReconciliationState(uid, key);
-    let window;
-    if (explicitWindow) {
-      window = { from: new Date(explicitWindow.from), to: new Date(explicitWindow.to), token: null, resumed: false, pending: false };
-    } else if (spec.pointInTime) {
-      window = { from: null, to: windowAt(), token: null, resumed: false, pending: false };
-    } else if (isDeep) {
-      window = nextDeepSlice(state, { now: windowAt(), deep });
-    } else {
-      window = nextWindow(resource, state, { now: windowAt() });
-    }
     const mode = spec.pointInTime ? 'point_in_time' : explicitWindow ? 'explicit_window' : isDeep ? 'deep_slice' : 'incremental';
-    const runId = await db.openReconciliationRun({
-      userId: uid, resource: key, owner, mode, windowFrom: window.from, windowTo: window.to, now: at(),
-    });
+    let state,window,runId,inputProof=null,openingError=null,pendingOpened=null,granted=false;
+    const selectWindow=anchor=>explicitWindow
+      ?{from:new Date(explicitWindow.from),to:new Date(explicitWindow.to),token:null,resumed:false,pending:false}
+      :spec.pointInTime?{from:null,to:anchor??windowAt(),token:null,resumed:false,pending:false}
+      :isDeep?nextDeepSlice(state,{now:anchor??windowAt(),deep:slicePolicy}):nextWindow(resource,state,{now:anchor??windowAt()});
+    const claimArgs=()=>({userId:uid,resource:key,owner,leaseMs,now:at(),lifecycleGeneration:lifecycleFence});
+    if(currentDurableExecution()){
+      // One opening belongs to this owner and immutable admitted window intent.
+      // A replay only observes the same live grant/run; it never calls claim or
+      // opens another run/pending window. A different admitted cycle is distinct.
+      const admitted=currentDurableExecution().claim.startedAt;
+      if(windowNow===null&&!Number.isSafeInteger(admitted))throw Error('reconcile_window_anchor_required');
+      const anchor=(windowNow===null?new Date(admitted):windowAt()).toISOString();
+      const options=workStepOptions('reconciliation.opening',[uid,key,scope,String(owner),leaseMs,lifecycleFence,mode,explicitWindow,anchor,
+        isDeep?[slicePolicy.HORIZON_DAYS,slicePolicy.SLICE_DAYS]:null]);
+      const lifecycle=readOnlyProcessingCheck(async()=>{if(granted)await assertLifecycle();});
+      const opened=await db.transaction(async()=>{
+        granted=await db.claimReconciliation(claimArgs());if(!granted)return 0;
+        state=await db.getReconciliationState(uid,key);window=selectWindow(new Date(anchor));
+        runId=await db.openReconciliationRun({userId:uid,resource:key,owner,mode,
+          windowFrom:window.from,windowTo:window.to,now:at()});
+        if(!Number.isSafeInteger(runId)||runId<1)throw Error('reconcile_run_opening_lost');
+        try{inputProof=await captureWhoopInput(inputOptions);}
+        catch(error){if(error?.code!=='WHOOP_INPUT_FENCED')throw error;openingError=error;return -runId;}
+        if(!spec.pointInTime&&!explicitWindow&&!window.pending){
+          pendingOpened=await db.openPendingWindow({userId:uid,resource:key,owner,from:window.from,to:window.to,
+            now:at(),lifecycleGeneration:lifecycleFence});
+        }
+        // False pending opening still acknowledges its actual diagnostic run.
+        // The original failure/closure path runs after the ACK, without provider work.
+        return pendingOpened===false?-runId:runId;
+      },{...options,after:lifecycle,beforeCommit:lifecycle,replay:async()=>{
+        const receipt=await readWorkStep(db.raw,['named',options.workStep]);
+        const saved=JSON.parse(receipt.result_json??'null');if(saved===0)return 0;
+        if(!Number.isSafeInteger(saved)||saved===0)throw Error('reconcile_opening_receipt_invalid');
+        await assertLifecycle();granted=await db.holdsReconciliation({...claimArgs(),now:new Date()});
+        if(!granted)return 0;
+        state=await db.getReconciliationState(uid,key);
+        const row=(await db.raw.execute({sql:`SELECT id,mode,window_from,window_to,finished_at FROM whoop_reconciliation_runs
+          WHERE user_id=? AND resource=? AND owner=? AND id=?`,args:[uid,key,String(owner),Math.abs(saved)]})).rows[0];
+        if(!row||row.finished_at!==null||row.mode!==mode)return 0;
+        if(explicitWindow&&(row.window_from!==new Date(explicitWindow.from).toISOString()
+          ||row.window_to!==new Date(explicitWindow.to).toISOString()))return 0;
+        if(!spec.pointInTime&&!explicitWindow&&saved>0
+          &&(state.continuationFrom!==row.window_from||state.continuationTo!==row.window_to))return 0;
+        runId=Math.abs(saved);window={from:row.window_from===null?null:new Date(row.window_from),to:new Date(row.window_to),
+          token:explicitWindow?null:state.continuationToken,resumed:!explicitWindow&&Boolean(state.continuationToken),pending:!spec.pointInTime&&!explicitWindow};
+        try{inputProof=await captureWhoopInput(inputOptions);}
+        catch(error){if(error?.code!=='WHOOP_INPUT_FENCED')throw error;openingError=error;return -runId;}
+        pendingOpened=saved<0?false:null;return saved;
+      }});
+      if(opened===0)return {resource,scope,result:RECONCILE_RESULT.SKIPPED,reason:'claim_busy'};
+      runId=Math.abs(opened);
+    }else{
+      granted=await db.claimReconciliation(claimArgs());
+      if(!granted)return {resource,scope,result:RECONCILE_RESULT.SKIPPED,reason:'claim_busy'};
+      state=await db.getReconciliationState(uid,key);window=selectWindow();
+      runId=await db.openReconciliationRun({userId:uid,resource:key,owner,mode,windowFrom:window.from,windowTo:window.to,now:at()});
+    }
     const counters = { pages: 0, fetched: 0, written: 0, blocked: 0, missing: 0, tombstonesChecked: 0, tombstonesUnresolved: 0 };
-    let inputProof=null;
     const guardedInput=(kind,facts,fn)=>{
       if(!currentDurableExecution())return fn();
       const check=readOnlyProcessingCheck(()=>assertWhoopInput(inputOptions,inputProof));
@@ -501,7 +544,13 @@ export function createReconciler({
     };
 
     try {
-      inputProof=await captureWhoopInput(inputOptions);
+      if(openingError)throw openingError;
+      if(inputProof===null)inputProof=await captureWhoopInput(inputOptions);
+      else{
+        await db.assertRuntimeFences();
+        await assertWhoopInput(inputOptions,inputProof);
+        if(!await db.holdsReconciliation({...claimArgs(),now:at()}))throw Error('reconcile_ownership_lost');
+      }
       // ---- body measurement：單一物件、沒有時間戳、沿用日期快照 ----------
       if (spec.pointInTime) {
         const bm = await whoop.bodyMeasurement();
@@ -522,7 +571,8 @@ export function createReconciler({
 
       // ---- 集合資源：記下未完成窗 → 抓（可續傳）→ 圍欄交易內寫入 → 診斷 → 結案 ----
       // P2-R02：窗先耐久化。之後不管怎麼失敗，下一輪都用同一個 [from, to]。
-      if (!explicitWindow && !window.pending) {
+      if(pendingOpened===false)throw new Error('reconcile_ownership_lost');
+      if (pendingOpened===null && !explicitWindow && !window.pending) {
         const opened = await db.openPendingWindow({
           userId: uid, resource: key, owner, from: window.from, to: window.to, now: at(),
           lifecycleGeneration: lifecycleFence,

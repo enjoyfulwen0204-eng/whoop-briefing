@@ -1,4 +1,4 @@
-import {verifyBodyEnergyProducer} from './bodyEnergyDerivedTime.js';
+import {createBodyEnergySourceUnitAuthority} from './bodyEnergySourceUnitAuthority.js';
 import {BODY_ENERGY as C} from './bodyEnergyRegistry.js';
 import {BODY_ENERGY_RELEASE_CRITERIA as CRITERIA} from './bodyEnergyReleaseCriteria.js';
 import {meetsConfidenceThreshold} from './bodyEnergy.js';
@@ -10,27 +10,20 @@ import {PHASE4_METRICS} from './phase4IntelligenceRegistry.js';
  * capability is issued here, and no historical manifest becomes a current UI. */
 export function createBodyEnergyPublicationReader(core,{body,receipts,readArtifact}){
   const {client,keys}=core;
-  async function finalizedProducer(context){
-    const {computation}=await core.assertContext(context);
-    if(context.executionMode!=='SHADOW'||computation.last_completed_generation!==context.inputGeneration)return false;
-    if(Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)!==32)return false;
-    const producers=(await client.execute({sql:`SELECT p.*,e.state,e.phase,e.generation final_generation,e.execution_seq final_seq
-      FROM phase4_execution_producers p JOIN phase4_executions e ON e.execution_id=p.producing_execution_id
-      WHERE p.user_id=? AND p.execution_mode=? AND p.input_generation=?`,args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
-    return producers.length>0&&producers.every(p=>p.state==='FINALIZED_SUCCESS'&&p.phase==='STAGE6_DRAIN'
-      &&p.execution_seq===p.final_seq&&p.producing_generation<=p.final_generation
-      &&p.tenant_proof===keys.lookup(['execution-producer-v1',context.userId,context.executionMode,context.inputGeneration,
-        p.producing_execution_id,p.execution_seq,p.producing_generation]));
-  }
+  const sourceUnits=createBodyEnergySourceUnitAuthority(core,{body,receipts});
   async function current(context,{healthDate,asOfEpochMs},returnCapture=false){
       if(!validHealthDate(healthDate))throw Error('BODY_ENERGY_INVALID_HEALTH_DATE');exactBodyInstant(asOfEpochMs);
-      if(asOfEpochMs>core.now().getTime())throw Error('BODY_ENERGY_FUTURE_REQUEST');
+      const clock=core.now().getTime();
+      if(!Number.isSafeInteger(clock)||clock>Date.now()||asOfEpochMs>clock)throw Error('BODY_ENERGY_FUTURE_REQUEST');
       return core.run(context,async()=>{
-        if(!await finalizedProducer(context))return {status:'PROCESSING',userId:context.userId};
-        const stored=await body.readLatestCurrent(context,{healthDate,asOfEpochMs});
-        if(!stored)return {status:'NO_DATA',userId:context.userId};
-        await receipts.forArtifact(context,'body_energy_results',{result_id:stored.row.result_id},{verifyOnly:true,retainedBody:true});
-        const {row,manifest,calculation}=stored;await verifyBodyEnergyProducer(core,context,row);
+        const {computation}=await core.assertContext(context);
+        if(context.executionMode!=='SHADOW'||Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)!==32)
+          return {status:'PROCESSING',userId:context.userId};
+        const stored=await body.readLatestPublicationCandidate(context,{healthDate,asOfEpochMs});
+        if(!stored)return {status:computation.last_completed_generation===context.inputGeneration?'NO_DATA':'PROCESSING',userId:context.userId};
+        const sourceUnit=await sourceUnits.verify(context,stored);
+        if(!sourceUnit)return {status:'PROCESSING',userId:context.userId};
+        const {row,manifest,calculation}=stored;
         const elapsed=asOfEpochMs-row.as_of_epoch_ms;
         const ages=[manifest.sync.sleep.age_ms,manifest.sync.recovery.age_ms,manifest.load.sync?.age_ms];
         const fresh=elapsed>=0&&elapsed<=CRITERIA.freshMaximumMs&&ages.every(age=>typeof age==='number'
@@ -63,7 +56,9 @@ export function createBodyEnergyPublicationReader(core,{body,receipts,readArtifa
             excluded:Object.freeze(manifest.exclusions.map(e=>Object.freeze({...e}))),
             reasons:Object.freeze([...calculation.reasons]),confidenceMeaning:'DATA_QUALITY_NOT_PHYSIOLOGICAL_ACCURACY'}),
           publicationProof:keys.lookup(['body-energy-publication-proof-v1',context.userId,row.result_id,row.result_hash,
-            context.inputGeneration,context.lifecycleGeneration,context.authGeneration,context.purgeGeneration]),
+            context.inputGeneration,context.lifecycleGeneration,context.authGeneration,context.purgeGeneration,
+            sourceUnit.purpose,sourceUnit.executionId,sourceUnit.sourceReceiptKey,
+            sourceUnit.domainOperationKey,sourceUnit.domainReceiptHmac,sourceUnit.parentResultDigest]),
           interpretation:'KELVIN_HEALTH_OS_ENGINEERING_ESTIMATE_NOT_MEDICAL_OR_REALTIME'});
         return returnCapture?{view,capture:stored}:view;
       });

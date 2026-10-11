@@ -130,6 +130,10 @@ export function createResultAuthority(core) {
         for(const value of [...m.baseline.hrv,...m.baseline.rhr]){add('sleep',value.sleep);add('recovery',value.recovery);}
         for(const value of m.load.rows)add(m.load.kind==='CYCLE'?'cycle':'workout',value);
         for(const value of m.naps)add('sleep',value.source);
+        // These admitted workout rows are notification provenance only. They
+        // never enter the calculator, but a Body source receipt must retain
+        // the same complete closure that its audit/privacy projection names.
+        for(const value of m.notification_workouts?.rows??[])add('workout',value);
         for(const value of m.exclusions)if(value.id!==null)pending.push({type:value.resource==='baseline'?'sleep':value.resource,
           id:value.id,mode:'SHARED',as_of:null,version:null});
       } else if(!['sleep','recovery','cycle','workout','JOURNAL_FACT','JOURNAL_COVERAGE','USER'].includes(descriptor.type))incomplete();

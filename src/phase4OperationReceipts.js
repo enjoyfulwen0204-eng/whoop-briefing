@@ -506,6 +506,29 @@ export function createOperationReceipts(core) {
         analysisTime:new Date(settled[2].value.createdAt).toISOString()};
     });
   }
+  /** Fresh readonly Body consumer. Never reuses an active/expired job lease.
+   * The original operation HMAC/schema/complete source/projection verifier is
+   * retained; Body's current audit separately checks its exact relevant input
+   * values and the already-qualified monotonic ingestion-only exception. */
+  async function readBodyPublicationSource(context,bodyRow){
+    return core.run(context,async()=>{
+      await core.assertContext(context);
+      const {normalized}=await prepare(context,{asOfEpochMs:bodyRow.as_of_epoch_ms},'BODY_ENERGY_COMPUTE');
+      const key=keyForEnvelope(requestEnvelope(context,'BODY_ENERGY_COMPUTE',normalized));
+      const receipt=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=?
+        AND operation_kind='BODY_ENERGY_COMPUTE' AND operation_key=?`,args:[context.userId,context.executionMode,key]})).rows[0];
+      if(!receipt)return null;
+      const decoded=authenticate(context,receipt),scope=decoded.request_json.scope;
+      if(scope.timezone!==context.timezone||scope.algorithm_set_version!==context.algorithmSetVersion
+        ||!same(scope.generations,[context.inputGeneration,context.lifecycleGeneration,context.authGeneration,context.purgeGeneration]))
+        fail('PHASE4_PARENT_STALE');
+      authorities.validateManifest(decoded.required_roots_json,context.executionMode);
+      const recorded=await read(context,receipt,{retainedBody:true});
+      if(recorded?.row?.result_id!==bodyRow.result_id||!same(recorded.row,bodyRow))invalid();
+      await core.assertContext(context);
+      return {receipt,job:recorded.jobAuthority??null,roots:decoded.required_roots_json.roots};
+    });
+  }
   async function recordedMetricPreparation(context,request){
     const {normalized}=await prepare(context,request,'analyzeMetric');
     const key=keyForEnvelope(requestEnvelope(context,'analyzeMetric',normalized));
@@ -900,7 +923,7 @@ export function createOperationReceipts(core) {
       return result;
     },step);
   }
-  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,readBodyDrainSource,readCurrentBodyBundle,recordedMetricPreparation,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,
+  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,readBodyDrainSource,readCurrentBodyBundle,readBodyPublicationSource,recordedMetricPreparation,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,
     resolveInsightLifecycle,metricRefreshPlan:metricRefresh.plan,episodeRecurrencePlan:recurrence.consume,
     episodeRecurrenceInventory:recurrence.inventory});instances.set(core,api);return api;
 }

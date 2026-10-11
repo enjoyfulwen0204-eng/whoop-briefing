@@ -261,6 +261,15 @@ export function createBodyEnergyStore(core,entities,queue) {
     return core.run(context,async()=>{
       const {computation}=await core.assertContext(context);
       if(computation.last_completed_generation!==context.inputGeneration)return null;
+      return readLatestPublicationCandidate(context,{healthDate,asOfEpochMs});
+    });
+  }
+  /** Internal candidate only. The Body-specific publisher must additionally
+   * prove its original named source/domain/parent completion; this selection
+   * does not grant publication or advance aggregate completion. */
+  async function readLatestPublicationCandidate(context,{healthDate,asOfEpochMs}) {
+    if(!validHealthDate(healthDate))fail('BODY_ENERGY_INVALID_IDENTITY');exactBodyInstant(asOfEpochMs);
+    return core.run(context,async()=>{
       const rows=(await client.execute({sql:`SELECT * FROM body_energy_results WHERE user_id=? AND execution_mode=?
         AND health_date=? AND input_generation=? AND algorithm_version=? AND as_of_epoch_ms<=?
         AND invalidated_at IS NULL ORDER BY as_of_epoch_ms DESC LIMIT 2`,
@@ -314,7 +323,7 @@ export function createBodyEnergyStore(core,entities,queue) {
       return {row:{...row},result};
     });
   }
-  return Object.freeze({prepare,persist,compute,audit,readExact,readLatestCurrent,checkpoint,auditCheckpoint,auditPlan,compareAuditSource,
+  return Object.freeze({prepare,persist,compute,audit,readExact,readLatestCurrent,readLatestPublicationCandidate,checkpoint,auditCheckpoint,auditPlan,compareAuditSource,
     privacyDependencies:(userId,row)=>{
       if(row.user_id!==userId)fail('PHASE4_PURGE_AUTHORITY_INVALID');
       const {manifest}=reproduceHistorical(row),refs=[];

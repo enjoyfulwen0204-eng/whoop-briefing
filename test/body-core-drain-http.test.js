@@ -16,7 +16,7 @@ import {publicBetaConfiguration} from '../src/publicBetaConfig.js';
 import {runningReleaseSha} from '../src/phase4Release.js';
 import {OWNER_PILOT_APPROVAL_SHA256} from '../src/betaPilotAllowance.js';
 import {requireCurrentBetaPilotAttempt} from '../src/betaPilotPermit.js';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {createBodyEnergyIntegration} from '../src/bodyEnergyIntegration.js';
 import {BODY_ENERGY_QUALIFICATION_REGISTRATION,authorizeBodyEnergyPublication} from '../src/bodyEnergyQualificationAuthority.js';
 
@@ -137,6 +137,8 @@ test('actual admitted v32 DRAIN claims and checkpoints one original Body job uni
  const gated=createBodyEnergyIntegration({db:timed,stores,keys:fixtureKeys,publicationCapability});
  const query=await gated.query({text:'/energy',userId:'a'});assert.equal(query.status,'QUALIFICATION_PENDING');assert.doesNotMatch(query.message,/\d+\/100/);
  console.log('BODY_CORE_ADMITTED_DRAIN_DURABLE '+JSON.stringify({sourceConsumerState:publication.status,publicationState:query.status,bodyRows:rows.length,qualityStates:rows.map(row=>row.quality_state),
+  sourceParent:{state:execution.state,workCommittedAt:execution.work_committed_at,finalizedAt:execution.finalized_at,deadlineAt:execution.deadline_at,
+    leaseUntil:execution.lease_until,digestVerified:typeof execution.result_json==='string'&&createHash('sha256').update(execution.result_json).digest('hex')===execution.result_digest},
   checkpointedJobs:jobs.filter(row=>row.full_scan_cursor!==null).length,completeJobs:jobs.filter(row=>row.completed_generation===row.requested_generation).length,
   remainingJobs:jobs.filter(row=>row.completed_generation<row.requested_generation).length,workReceiptCount:work.length,
   domainBodyReceiptCount:domain.length,sourceWorkReceipt,producerBindingValid,

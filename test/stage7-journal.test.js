@@ -41,3 +41,9 @@ test('process restart resumes durable correction T0/T1 using canonical staged re
  assert.equal((await f.db.raw.execute("SELECT answer_polarity FROM journal_events WHERE fact_status='ACTIVE'")).rows[0].answer_polarity,'NO');
  assert.equal((await companion.interactions.read('a',row.interaction_id)).state,'COMPLETED');
 });
+
+test('editing an explicit missing response creates one accepted fact and closes its original answer state',async t=>{
+ const f=await stage7Fixture(t);await f.db.setLocale('a','en',{now:f.core.now()});let card=await f.command();card=await f.tap(card,'Alcohol');card=await f.tap(card,'Not sure');const id=card.stage7InteractionId;
+ card=await f.tap(card,'Edit');card=await f.tap(card,'Yes');await f.tap(card,'Confirm');
+ assert.equal((await f.companion.interactions.read('a',id)).state,'COMPLETED');assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,1);
+});

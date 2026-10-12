@@ -32,7 +32,9 @@ export async function createStage7Development({core,stores,db,...options}){
    // The create + result binding + privacy links are one atomic unit.
    return core.transaction(async()=>{
     result=await stores.journal.createTrusted(actor.control,request);
-    if(result.redacted)fail('JOURNAL_SUBJECT_DELETED');await completeFact(actor,row,result.logicalFactId,result.revision);
+    if(result.redacted)fail('JOURNAL_SUBJECT_DELETED');
+    if(row.kind==='QUICK')await core.client.execute({sql:"DELETE FROM phase4_source_links WHERE user_id=? AND artifact_type='quick_action_interactions' AND artifact_execution_mode='SHADOW' AND artifact_id=? AND source_type='quick_action_interactions'",args:[row.user_id,row.privacy_artifact_id]});
+    await completeFact(actor,row,result.logicalFactId,result.revision);
    });
   }
   await core.transaction(async()=>{

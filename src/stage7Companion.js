@@ -63,21 +63,24 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(action==='recent'){
     const locale=await db.getLocale(user.id),c=JOURNAL_COPY[presentationLocale(locale)],facts=await ownFacts(actor);
     // Only registered own entries have editable server handles. Never expose IDs.
-    const recent=(await client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND category IS NOT NULL AND state IN ('COMPLETED','NOT_SURE','SKIPPED') AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 10",args:[user.id]})).rows;
-    const buttons=recent.map(r=>[{text:`✏️ ${r.target_date} · ${c.topics[TOPICS.indexOf(r.category)]}`,action:`open:${r.interaction_id}`}]);
+    const recent=(await client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND category IS NOT NULL AND (state IN ('NOT_SURE','SKIPPED') OR kind='DAILY' AND state='ISSUED' AND expires_at>?) AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 10",args:[user.id,timestamp()]})).rows;
+    const buttons=[...facts.filter(f=>f.provenance_mode==='TRUSTED_REGISTRY').slice(0,10).map(f=>[{text:`✏️ ${f.health_date} · ${c.topics[TOPICS.indexOf(f.category)]}`,action:`fact:${f.logical_fact_id}`}]),...recent.map(r=>[{text:`✏️ ${r.target_date} · ${c.topics[TOPICS.indexOf(r.category)]}`,action:`open:${r.interaction_id}`}])];
     return renderCustom(actor,row,{text:facts.length?facts.slice(0,10).map(f=>`${f.health_date} · ${labelForCategory(f.category,presentationLocale(locale))} · ${f.exposure_state==='CONFIRMED_UNEXPOSED'?c.no:c.yes}`).join('\n'):c.empty,buttons});
    }
-   if(action.startsWith('open:')){
-    const entry=await interactions.read(user.id,action.slice(5));
-    if(!readableRow(entry)||!TOPICS.includes(entry.category))return interactions.expired(actor);
+   if(action.startsWith('open:')||action.startsWith('fact:')){
     let fact=null;
-    if(entry.logical_fact_id){fact=await stores.withContext(user.id,{executionMode:'SHADOW'},async context=>(await stores.journal.read(context,entry.logical_fact_id)).row);if(fact.provenance_mode!=='TRUSTED_REGISTRY')return interactions.expired(actor);}
+    if(action.startsWith('fact:'))fact=await stores.withContext(user.id,{executionMode:'SHADOW'},async context=>(await stores.journal.read(context,action.slice(5)))?.row);
+    const entry=action.startsWith('fact:')?fact:await interactions.read(user.id,action.slice(5));
+    if(!readableRow(entry)||!TOPICS.includes(entry.category))return interactions.expired(actor);
+    if(entry.logical_fact_id&&!fact)fact=await stores.withContext(user.id,{executionMode:'SHADOW'},async context=>(await stores.journal.read(context,entry.logical_fact_id))?.row);
+    if(entry.logical_fact_id&&fact?.provenance_mode!=='TRUSTED_REGISTRY')return interactions.expired(actor);
     // A newly authenticated history view receives new capabilities. An old
     // card's authority is never refreshed. Its original health-day interval is
     // distinct from the current timezone used to fence these new callbacks.
     const recordedTimezone=fact?.recorded_timezone??JSON.parse(entry.diagnostics_json??'null')?.recordedTimezone??entry.timezone;
     const fresh=await interactions.issue(actor,{category:fact?.category??entry.category,targetDate:fact?.health_date??entry.target_date,recordedTimezone,
-     diagnostics:fact?null:{retractInteractionId:JSON.parse(entry.diagnostics_json??'null')?.retractInteractionId??entry.interaction_id}});
+     diagnostics:fact?null:{retractInteractionId:JSON.parse(entry.diagnostics_json??'null')?.retractInteractionId??entry.interaction_id,
+      answerAnchor:JSON.parse(entry.diagnostics_json??'null')?.answerAnchor??{id:entry.interaction_id,revision:entry.revision}}});
     await interactions.bind(actor,fresh.row.interaction_id,row.message_id);await interactions.update(actor,row,{});
     row=await interactions.update(actor,await interactions.read(user.id,fresh.row.interaction_id),{state:fact?'COMPLETED':entry.state,selected_choice:fact?.answer_polarity??entry.selected_choice,
      detail_choice:fact?fact.subtype?.replace(/^last_intake_/,'')??null:entry.detail_choice,note:fact?fact.note:entry.note,logical_fact_id:fact?.logical_fact_id??null,fact_revision:fact?.revision??null,answered_at:fact?.answered_at??entry.answered_at});
@@ -114,10 +117,13 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    }else if(row.state==='AWAITING_DETAIL'&&(action==='skipDetail'||DETAILS[row.category]?.includes(action.slice(7))&&action.startsWith('detail:'))){
     row=await interactions.update(actor,row,{detail_choice:action==='skipDetail'?null:action.slice(7),state:'CONFIRM'});
    }else if(action==='edit'&&['COMPLETED','NOT_SURE','SKIPPED'].includes(row.state)){
-    const issued=await interactions.issue(actor,{category:row.category,targetDate:row.target_date,recordedTimezone:JSON.parse(row.diagnostics_json??'null')?.recordedTimezone??row.timezone});
+    const issued=await interactions.issue(actor,{category:row.category,targetDate:row.target_date,recordedTimezone:JSON.parse(row.diagnostics_json??'null')?.recordedTimezone??row.timezone,
+     diagnostics:row.logical_fact_id?null:{answerAnchor:JSON.parse(row.diagnostics_json??'null')?.answerAnchor??{id:row.interaction_id,revision:row.revision+1}}});
     await interactions.bind(actor,issued.row.interaction_id,row.message_id);
     await interactions.update(actor,row,{});
     row=await interactions.update(actor,await interactions.read(user.id,issued.row.interaction_id),{state:'EDITING',logical_fact_id:row.logical_fact_id,fact_revision:row.fact_revision});
+    if(row.logical_fact_id){const fact=await stores.withContext(user.id,{executionMode:'SHADOW'},async context=>(await stores.journal.read(context,row.logical_fact_id)).row);await interactions.link('quick_action_interactions',row,'JOURNAL_FACT',fact.privacy_artifact_id);}
+    else await interactions.link('quick_action_interactions',row,'quick_action_interactions',resolved.row.privacy_artifact_id);
    }
    else if(action==='note'&&row.state==='CONFIRM')row=await interactions.update(actor,row,{state:'NOTE'});
    else if(action==='confirm'&&row.state==='CONFIRM'){
@@ -146,7 +152,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if((await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' UNION ALL SELECT 1 FROM phase4_question_interaction_slots WHERE user_id=? AND state IN ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER')",args:[user.id,user.id]})).rows.length)return null;
    const rows=(await client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND chat_id=? AND state='NOTE' AND expires_at>? ORDER BY created_at DESC LIMIT 2",args:[user.id,String(chatId),timestamp()]})).rows;
    if(rows.length!==1)return null;const row=rows[0];
-   if(!readableRow(row)||row.lifecycle_generation!==actor.state.lifecycle_generation||row.auth_generation!==actor.state.auth_generation||row.timezone!==actor.state.timezone)return null;
+   if(!readableRow(row)||row.lifecycle_generation!==actor.state.lifecycle_generation||row.auth_generation!==actor.state.auth_generation||row.timezone!==actor.state.timezone||JSON.parse(row.diagnostics_json??'null')?.profileRevision!==actor.profileRevision)return null;
    let note;try{note=normalizeJournalNote(text);}catch{return {text:JOURNAL_COPY[presentationLocale(await db.getLocale(user.id))].invalidNote};}
    return card(actor,await interactions.update(actor,row,{note,state:'CONFIRM'}));
   });

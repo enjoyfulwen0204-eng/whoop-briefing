@@ -19,7 +19,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   if(!current||current.id!==user?.id||current.lifecycleGeneration!==user.lifecycleGeneration)fail('STAGE7_ACTOR_FENCED');
   const control=await core.captureControl(current.id),state=await core.assertControl(control);
   if(state.pending_purge_count!==0&&!allowPendingPurge)fail('PHASE4_PURGE_FENCED');
-  return {control,state,user:current,chat};
+  return {control,state,user:current,chat,profileRevision:await db.getProfileRevision(current.id)};
  }
  const privacyFields=state=>({privacy_artifact_id:core.newId(),content_state:'PRESENT',source_linkage_state:'COMPLETE',content_digest_salt:keys.newSalt(),purge_generation:state.purge_generation});
  async function link(table,row,sourceType='USER',sourceId=row.user_id){
@@ -30,12 +30,13 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  async function issue(actor,{kind='QUICK',semanticKey=core.newId(),category=null,targetDate=null,reason=null,diagnostics=null,dayKey=null,recordedTimezone=null}={}){
   return transaction(async()=>{
    const state=await core.assertControl(actor.control);
-   if(state.pending_purge_count!==0||state.timezone!==actor.state.timezone)fail('STAGE7_STATE_FENCED');
+   if(state.pending_purge_count!==0||state.timezone!==actor.state.timezone||await db.getProfileRevision(actor.control.userId)!==actor.profileRevision)fail('STAGE7_STATE_FENCED');
    const previous=(await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND semantic_key=?',args:[actor.control.userId,semanticKey]})).rows[0];
    if(previous)return {row:previous,created:false};
    if(category!==null&&!TOPICS.includes(category))fail('STAGE7_UNREGISTERED_QUESTION');
    const targetTimezone=recordedTimezone??state.timezone;
    if(recordedTimezone!==null){if(kind!=='QUICK')fail('STAGE7_TARGET_TIMEZONE_REQUIRED');new Intl.DateTimeFormat('en',{timeZone:targetTimezone}).format();diagnostics={...diagnostics,recordedTimezone:targetTimezone};}
+   diagnostics={...diagnostics,profileRevision:actor.profileRevision};
    await client.execute({sql:'DELETE FROM journal_callback_tokens WHERE user_id=? AND expires_at<=?',args:[actor.control.userId,timestamp()]});
    const at=timestamp(),expiry=new Date(Date.parse(at)+(kind==='DAILY'?answerWindowMs:15*60000)).toISOString();
    const row={user_id:actor.control.userId,interaction_id:core.newId(),execution_mode:'SHADOW',semantic_key:semanticKey,day_key:dayKey,kind,
@@ -50,7 +51,8 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  }
  async function render(actor,row,preferences=null){
   const state=await core.assertControl(actor.control);
-  if(row.user_id!==actor.control.userId||row.chat_id!==actor.chat||state.pending_purge_count!==0||!readableRow(row)||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation||row.timezone!==state.timezone)fail('STAGE7_STATE_FENCED');
+  if(row.user_id!==actor.control.userId||row.chat_id!==actor.chat||state.pending_purge_count!==0||!readableRow(row)||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation||row.timezone!==state.timezone
+   ||JSON.parse(row.diagnostics_json??'null')?.profileRevision!==await db.getProfileRevision(actor.control.userId))fail('STAGE7_STATE_FENCED');
   const locale=await db.getLocale(row.user_id),card=journalCard(row,{locale,displayName:actor.user.displayName,preferences});
   const keyboard=[];
   for(const buttons of card.buttons){const list=[];for(const button of buttons){
@@ -67,12 +69,15 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   const row=await read(actor.control.userId,token.interaction_id),state=await core.assertControl(actor.control);
   if(!readableRow(row)||row.revision!==token.revision||row.expires_at<=timestamp()||row.chat_id!==actor.chat||!row.message_id
    ||String(callback.message?.message_id)!==row.message_id||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation
-   ||row.timezone!==state.timezone||state.pending_purge_count!==0&&!(recovery&&row.correction_key===hash(callback.id))||row.registry_version!==JOURNAL_REGISTRY_VERSION)return null;
+   ||row.timezone!==state.timezone||JSON.parse(row.diagnostics_json??'null')?.profileRevision!==await db.getProfileRevision(actor.control.userId)
+   ||state.pending_purge_count!==0&&!(recovery&&row.correction_key===hash(callback.id))||row.registry_version!==JOURNAL_REGISTRY_VERSION)return null;
+  const anchor=JSON.parse(row.diagnostics_json??'null')?.answerAnchor;
+  if(anchor&&!row.logical_fact_id){const origin=await read(row.user_id,anchor.id);if(!readableRow(origin)||origin.revision!==anchor.revision||origin.kind==='DAILY'&&origin.state==='ISSUED'&&origin.expires_at<=timestamp())return null;}
   return {row,action:token.action,receipt:hash(callback.id)};
  }
  async function update(actor,row,patch){
   const state=await core.assertControl(actor.control);
-  if(row.user_id!==actor.control.userId||row.chat_id!==actor.chat||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation)fail('STAGE7_ACTOR_FENCED');
+  if(row.user_id!==actor.control.userId||row.chat_id!==actor.chat||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation||await db.getProfileRevision(actor.control.userId)!==actor.profileRevision)fail('STAGE7_ACTOR_FENCED');
   const fields=Object.keys(patch),changed=await client.execute({sql:`UPDATE quick_action_interactions SET ${fields.map(k=>`${k}=?`).join(',')}${fields.length?',':''}revision=revision+1 WHERE user_id=? AND interaction_id=? AND revision=?`,args:[...fields.map(k=>patch[k]),row.user_id,row.interaction_id,row.revision]});
   if(changed.rowsAffected!==1)fail('STAGE7_CAS_LOST');return read(row.user_id,row.interaction_id);
  }

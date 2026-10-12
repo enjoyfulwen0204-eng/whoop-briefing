@@ -1,6 +1,6 @@
 import {buildNotifyMessage} from './proactiveMessages.js';
 import {buildQuestionText} from './questionEngine.js';
-import {presentationLocale} from './stage7Registry.js';
+import {presentationLocale,JOURNAL_COPY} from './stage7Registry.js';
 import {validateEvidenceConfidence} from './phase4Intelligence.js';
 import {createPhase4EntityStore} from './phase4EntityStore.js';
 import {stage7Decision,STAGE7_METRIC_POLICY,temporalRelevance,DECISION_POLICY_VERSION,COUNTERFACTUAL_VERSION,QUESTION_UTILITY_VERSION,counterfactualDecisionImpact,evaluateNonQuestion} from './stage7DecisionPolicy.js';
@@ -108,7 +108,7 @@ export function createStage7DecisionStore({core,stores}){
    }else{
     questionId=decision.row.question_request_id;
     const question=await core.artifact(context,'context_questions',{question_request_id:questionId});
-    semantic={family:'CONTEXT_QUESTION',identity:questionId};payload=buildQuestionText({category:question.row.factor_question_kind,signal,locale});
+    semantic={family:'CONTEXT_QUESTION',identity:questionId};payload=`${buildQuestionText({category:question.row.factor_question_kind,signal,locale)}\n🗓 ${JOURNAL_COPY[locale].target}: ${localDate(new Date(question.row.target_window_start_utc),context.timezone)}`;
    }
    const proposal=await stores.messages.propose(context,{semantic,message:{decision_id:decisionId,episode_id:decision.row.episode_id,
     ...(questionId?{question_request_id:questionId}:{episode_semantic_event_id:decision.row.episode_semantic_event_id}),payload_text:payload,payload_json:{locale,template:'stage7-registered-proposal-v1'},expires_at:decision.row.expires_at},sourceRefs:[decision.ref,episode.ref]});

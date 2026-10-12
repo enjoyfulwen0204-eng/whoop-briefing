@@ -49,3 +49,29 @@ test('retraction through a fresh uncertain history card removes the original and
  for(const id of [original,copy]){const row=await f.companion.interactions.read('a',id);assert.equal(row.content_state,'REDACTED');assert.equal(row.selected_choice,null);assert.equal(row.target_date,null);}
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
 });
+
+test('timezone ABA cannot restore old callback authority under unchanged lifecycle/auth',async t=>{
+ const f=await stage7Fixture(t);await f.db.setLocale('a','en',{now:f.core.now()});let card=await f.command();card=await f.tap(card,'Alcohol');
+ const revision=await f.db.getProfileRevision('a');await f.db.updateUser('a',{timezone:'America/New_York'},{now:f.core.now()});await f.db.updateUser('a',{timezone:'Asia/Taipei'},{now:f.core.now()});
+ assert.ok(await f.db.getProfileRevision('a')>revision);const actor=await f.companion.interactions.authenticate({user:f.user,chatId:'123'});
+ assert.equal(await f.companion.interactions.resolve(actor,callback(card,'Yes')),null);assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
+});
+
+test('deleting an accepted fact scrubs its unconfirmed Edit draft and token copies',async t=>{
+ const f=await stage7Fixture(t);await f.db.setLocale('a','en',{now:f.core.now()});let card=await f.command();card=await f.tap(card,'Alcohol');card=await f.tap(card,'Yes');card=await f.tap(card,'Confirm');card=await f.tap(card,'Edit');
+ const draft=await f.companion.interactions.read('a',card.stage7InteractionId),fact=(await f.db.raw.execute("SELECT * FROM journal_events WHERE fact_status='ACTIVE'")).rows[0],control=await f.stores.captureControl('a');
+ const removed=await f.stores.journal.remove(control,{logicalFactId:fact.logical_fact_id,idempotencyKey:'stage7-delete-before-confirm'});await f.stores.privacy.complete(control,removed.purgeId);
+ const after=await f.companion.interactions.read('a',draft.interaction_id);assert.equal(after.content_state,'REDACTED');assert.equal(after.category,null);assert.equal(after.target_date,null);assert.equal(after.diagnostics_json,null);
+ assert.equal((await f.db.raw.execute({sql:'SELECT count(*) n FROM journal_callback_tokens WHERE user_id=? AND interaction_id=?',args:['a',draft.interaction_id]})).rows[0].n,0);
+});
+
+test('a fresh pending Daily card after profile change answers the original question once and closes old aliases',async t=>{
+ const f=await stage7Fixture(t);await f.db.setLocale('a','en',{now:f.core.now()});const actor=await f.companion.interactions.authenticate({user:f.user,chatId:'123'});
+ const origin=(await f.companion.interactions.issue(actor,{kind:'DAILY',category:'alcohol',targetDate:'2026-09-18'})).row;
+ await f.db.setLocale('a','vi',{now:f.core.now()});await f.db.setLocale('a','en',{now:f.core.now()});
+ let card=await f.command();card=await f.tap(card,'Recent entries');card=await f.tap(card,'Alcohol');const stale=card;
+ card=await f.tap(card,'Yes');card=await f.tap(card,'Confirm');
+ const answered=await f.companion.interactions.read('a',origin.interaction_id);assert.equal(answered.state,'COMPLETED');assert.equal(answered.selected_choice,'YES');assert.ok(answered.logical_fact_id);
+ await f.tap(stale,'No');assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,1);
+ const fact=(await f.db.raw.execute('SELECT * FROM journal_events')).rows[0];assert.equal(fact.health_date,'2026-09-18');assert.equal(fact.answer_polarity,'YES');
+});

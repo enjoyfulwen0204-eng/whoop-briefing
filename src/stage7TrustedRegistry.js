@@ -2,6 +2,7 @@ import {fail,readableRow} from './phase4Core.js';
 import {JOURNAL_VERSIONS} from './journalFoundationValidation.js';
 import {TOPICS,DETAILS,JOURNAL_REGISTRY_VERSION,registryQuestion,normalizeJournalNote} from './stage7Registry.js';
 import {localMidnightUtc,addDays} from './time.js';
+import {profileRevision} from './profileRevision.js';
 
 /** Called inside the authenticated source-controller transaction. The request
  * contains no category, value, date, polarity, note or destination. */
@@ -13,6 +14,7 @@ export async function trustedJournalFact(core,control,{interactionId,expectedRev
   ||!TOPICS.includes(row.category)||row.registry_id!==registryQuestion(row.category)||row.question_identity!==registryQuestion(row.category)
   ||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation||row.timezone!==state.timezone
   ||!staged&&row.expires_at<=core.timestamp()||!['YES','NO'].includes(row.selected_choice)||typeof callbackReceipt!=='string'||callbackReceipt.length<16)fail('STAGE7_REGISTRY_AUTHORITY_INVALID');
+ if(!staged&&JSON.parse(row.diagnostics_json??'null')?.profileRevision!==await profileRevision(core.client,control.userId,{initialize:false}))fail('STAGE7_REGISTRY_AUTHORITY_INVALID');
  const recordedTimezone=row.kind==='QUICK'?JSON.parse(row.diagnostics_json??'null')?.recordedTimezone??row.timezone:row.timezone;
  const start=localMidnightUtc(row.target_date,recordedTimezone).toISOString(),end=localMidnightUtc(addDays(row.target_date,1),recordedTimezone).toISOString();
  if(start!==row.window_start||end!==row.window_end||Date.parse(end)>core.now().getTime())fail('STAGE7_TARGET_WINDOW_INVALID');

@@ -61,6 +61,13 @@ export function createPhase4JournalStore(core,privacy,queue) {
     await client.execute({sql:`INSERT INTO journal_events(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(k=>row[k])});
     await addPrivacyLink(client,{userId:control.userId,table:'journal_events',artifactId:id,sourceType:'JOURNAL_FACT',sourceId:id,
       relationship:`USER_ASSERTION:${JOURNAL_VERSIONS.taxonomy}`,at});
+    if(fact.provenance_mode==='TRUSTED_REGISTRY'){
+      const interaction=(await client.execute({sql:'SELECT privacy_artifact_id,content_state FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[control.userId,fact.interaction_id]})).rows[0];
+      if(!interaction||interaction.content_state!=='PRESENT')fail('STAGE7_REGISTRY_AUTHORITY_INVALID');
+      // Binding lineage is part of fact creation/correction, even if a later
+      // presentation/result-binding operation is interrupted or fenced.
+      await addPrivacyLink(client,{userId:control.userId,mode:'SHADOW',table:'quick_action_interactions',artifactId:interaction.privacy_artifact_id,sourceType:'JOURNAL_FACT',sourceId:id,sourceMode:'SHARED',at});
+    }
     if(coverageId)await addPrivacyLink(client,{userId:control.userId,table:'journal_events',artifactId:id,sourceType:'JOURNAL_COVERAGE',sourceId:coverageId,at});
     return {logicalFactId:logicalId,revision,created:true};
   }
@@ -146,6 +153,14 @@ export function createPhase4JournalStore(core,privacy,queue) {
       const aligned=alignJournalFact(normalized,await wakes(control.userId,state));
       if(canonicalJson(aligned)!==canonicalJson(f))fail('JOURNAL_REPLACEMENT_INVALID');
       return value;
+    },
+    async staged(control,value){
+      if(value.fact.provenance_mode!=='TRUSTED_REGISTRY')return;
+      const prior=await latest(control.userId,value.logicalId),draft=(await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[control.userId,value.fact.interaction_id]})).rows[0];
+      if(!prior||prior.revision!==value.expectedRevision||!readableRow(draft)||draft.state!=='CONFIRM'||draft.logical_fact_id!==value.logicalId||draft.fact_revision!==value.expectedRevision)fail('JOURNAL_REPLACEMENT_INVALID');
+      // Before confirm this is a copy of prior content. After the validated
+      // replacement has been staged atomically, it is a new USER assertion.
+      await client.execute({sql:"DELETE FROM phase4_source_links WHERE user_id=? AND artifact_type='quick_action_interactions' AND artifact_execution_mode='SHADOW' AND artifact_id=? AND source_type='JOURNAL_FACT' AND source_execution_mode='SHARED' AND source_id=?",args:[control.userId,draft.privacy_artifact_id,prior.privacy_artifact_id]});
     },
     async commit(control,purge,value,staged) {
       const prior=await latest(control.userId,value.logicalId);
@@ -248,12 +263,24 @@ export function createPhase4JournalStore(core,privacy,queue) {
   }
   async function createTrusted(control,request){
     return transaction(async()=>{
-      const state=await healthyControl(control),key=sourceKey(control.userId,`registry:${request.interactionId}`),logicalId=logical(control.userId,key);
+      const state=await healthyControl(control),interaction=(await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[control.userId,request.interactionId]})).rows[0],anchor=JSON.parse(interaction?.diagnostics_json??'null')?.answerAnchor;
+      let origin=null;
+      if(anchor){
+        origin=(await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[control.userId,anchor.id]})).rows[0];
+        if(!readableRow(origin)||origin.revision!==anchor.revision||!['ISSUED','NOT_SURE','SKIPPED'].includes(origin.state)||origin.category!==interaction.category||origin.registry_id!==interaction.registry_id||origin.registry_version!==interaction.registry_version||origin.question_identity!==interaction.question_identity||origin.target_date!==interaction.target_date||origin.window_start!==interaction.window_start||origin.window_end!==interaction.window_end
+          ||origin.kind==='DAILY'&&origin.state==='ISSUED'&&origin.expires_at<=timestamp())fail('STAGE7_QUESTION_SEMANTIC_RESERVED');
+      }
+      const key=sourceKey(control.userId,`registry:${origin?.interaction_id??request.interactionId}`),logicalId=logical(control.userId,key);
       if(await tombstone(control.userId,logicalId))return {logicalFactId:logicalId,redacted:true,created:false};
       const existing=await latest(control.userId,logicalId);
       if(existing)return {logicalFactId:logicalId,revision:existing.revision,created:false};
       const fact=await trustedJournalFact(core,control,request);
       const result=await insertFact(control,fact,{logicalId,revision:1,eventKey:key,purgeGeneration:state.purge_generation,questionId:fact.question_identity});
+      if(origin){
+        const changed=await client.execute({sql:"UPDATE quick_action_interactions SET state='COMPLETED',selected_choice=?,detail_choice=?,note=?,logical_fact_id=?,fact_revision=1,answered_at=?,revision=revision+1 WHERE user_id=? AND interaction_id=? AND revision=?",args:[fact.answer_polarity,interaction.detail_choice,fact.note,logicalId,fact.answered_at,control.userId,origin.interaction_id,origin.revision]});
+        if(changed.rowsAffected!==1)fail('STAGE7_CAS_LOST');
+        await addPrivacyLink(client,{userId:control.userId,mode:'SHADOW',table:'quick_action_interactions',artifactId:origin.privacy_artifact_id,sourceType:'JOURNAL_FACT',sourceId:keys.lookup(['journal-artifact-v1',control.userId,logicalId,1]),sourceMode:'SHARED',at:timestamp()});
+      }
       await queue.advanceSource(control.userId,'JOURNAL_CREATED');return {...result,status:'ACCEPT'};
     });
   }

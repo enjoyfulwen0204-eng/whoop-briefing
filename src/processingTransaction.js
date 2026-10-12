@@ -174,7 +174,8 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
             if(cached===undefined){
               // Server-owned read-only SQL cannot effect a result. Its raw
               // data remains private until the full fresh HMAC/clock/READY
-              // fence passes. Writes and unrecognized queries remain serial.
+              // fence passes. Only read-only SQL in this private Core context
+              // overlaps; mutations and unmarked fences remain serial.
               const values=await Promise.allSettled([
                 Promise.resolve().then(()=>checkFences(client)),
                 Promise.resolve().then(()=>state.tx.execute(...args)),

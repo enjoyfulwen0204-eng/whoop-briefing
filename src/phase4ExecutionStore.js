@@ -3,7 +3,7 @@
  * nonnegative counts, timestamps and authenticated opaque transport hashes;
  * it cannot store tenant IDs, health data, names or arbitrary narrative. */
 import { randomUUID } from 'node:crypto';
-import {databaseNowMs,CommitIndeterminateError,requireSettledOperation} from './phase4ExecutionContext.js';
+import {databaseNowMs,CommitIndeterminateError,requireSettledOperation,currentDurableExecution} from './phase4ExecutionContext.js';
 import { BRIEFING_TRIGGER, bodySha256 } from './briefingTriggerAuth.js';
 import { requireTriggerSource } from './phase4DrainPolicy.js';
 import { requireReleaseSha, runningReleaseSha } from './phase4Release.js';
@@ -88,6 +88,31 @@ export async function recordPhaseEvent(db,{phase,source,event,...record}) {
  if(!['start','discovery_start','discovery_complete','drain_start','complete'].includes(event))fail('EXECUTION_EVENT_INVALID');
  return write(db,`phase4_${phase.toLowerCase()}:${source}:${event}`,{phase,source,...record});
 }
+// The three DRAIN discovery projections are control diagnostics, not work
+// completion. Preserve their observed times and fixed order in one bounded
+// atomic projection receipt; original business receipts remain independent.
+export async function recordDrainProgress(db,events) {
+ const order=['discovery_start','discovery_complete','drain_start'],execution=currentDurableExecution();
+ if(!execution||execution.receipts===false||execution.claim?.request?.phase!=='STAGE6_DRAIN')fail('EXECUTION_EVENT_SEQUENCE_INVALID');
+ if(!Array.isArray(events)||events.length<1||events.length>3)fail('EXECUTION_EVENT_SEQUENCE_INVALID');
+ const records=events.map((entry,index)=>{
+  if(entry?.event!==order[index]||entry.phase!=='STAGE6_DRAIN'||!Number.isSafeInteger(entry.observedAt)
+    ||entry.observedAt<0||entry.observedAt>Date.now()||index&&entry.observedAt<events[index-1].observedAt)
+    fail('EXECUTION_EVENT_SEQUENCE_INVALID');
+  const data=safeRecord(entry);
+  if(data.identity!==execution.claim.identity||data.releaseSha!==execution.claim.request.releaseSha
+    ||data.source!==execution.claim.request.triggerSource)fail('EXECUTION_EVENT_SEQUENCE_INVALID');
+  if(index&&['releaseSha','source','identity','configProof','executionMode'].some(key=>data[key]!==safeRecord(events[0])[key]))
+    fail('EXECUTION_EVENT_SEQUENCE_INVALID');
+  return {name:`phase4_stage6_drain:${data.source}:${entry.event}`,data,at:new Date(entry.observedAt).toISOString()};
+ });
+ await db.transaction(()=>db.raw.batch(records.map(({name,data,at})=>({
+  sql:`INSERT INTO system_heartbeats(scope,component,last_ok_at,last_detail,updated_at) VALUES (?,?,?,?,?)
+   ON CONFLICT(scope,component) DO UPDATE SET last_ok_at=excluded.last_ok_at,last_detail=excluded.last_detail,updated_at=excluded.updated_at`,
+  args:['global',name,at,JSON.stringify(data),at],
+ }))),workStepOptions('phase.observation.batch-v1',records.map(row=>row.name),{discardResult:true}));
+}
+
 export async function readPhaseProgress(db,phase,source) {
  const version=Number((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
  if(version<32)return {state:'LEGACY_UNKNOWN',complete:null,starts:null};

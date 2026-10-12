@@ -13,7 +13,7 @@ import { runPhase4Stage6 } from './shadowDrainScheduler.js';
 import { deliverPublicBetaSummary } from './publicBetaSummaryDelivery.js';
 import { createExecutionBudget, SYNC_BUDGET_MS, withExecutionBudget } from './executionBudget.js';
 import { syncAuthorizesDrain } from './syncResult.js';
-import {isContinuationRequest,isSyncContinuationRequest,yieldSyncPhase, validatePhaseRequest,validatePhaseBody,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit,EXECUTION_WORK_MAX_AGE_MS,reconcileExecution,requestIdentity } from './phase4ExecutionStore.js';
+import {isContinuationRequest,isSyncContinuationRequest,yieldSyncPhase, validatePhaseRequest,validatePhaseBody,configurationProof,claimPhaseRequest,settlePhaseRequest,requireSyncHandoff,recordPhaseEvent,recordDrainProgress,abortPhaseExecution,projectPhaseCompletion,noteIndeterminateExecution,observedPhaseWorkCommit,EXECUTION_WORK_MAX_AGE_MS,reconcileExecution,requestIdentity } from './phase4ExecutionStore.js';
 import { log } from './logger.js';
 import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Release.js';
 import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
@@ -165,9 +165,21 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
        if(config.runtime!=='on'||pilotDenied)return {outcome:'DISABLED',durationMs:performance.now()-started};
        const runtime=presentationRuntime=deps.runtime??await createPublicBetaRuntime({db,keys,admission,executionMode:'SHADOW',
          runtimeCapability:authorizePublicBetaRuntime({executionMode:'SHADOW'}),presentationPolicy:config.policy,pilotGrant});
-       const progress=async({event,...counts})=>recordPhaseEvent(db,{phase:request.phase,releaseSha,source:request.triggerSource,event,
-         identity:claim.identity,outcome:'PENDING',...counts});
-       const drained=await runPhase4Stage6({db,worker:runtime.phase4Stage6,userId:pilotGrant.userId,pilotGrant,triggerSource:request.triggerSource,now,onProgress:progress});
+       const pendingProgress=[],order=['discovery_start','discovery_complete','drain_start'];let submittedProgress=false;
+       const flushProgress=async()=>{
+         if(!pendingProgress.length||submittedProgress)return;
+         submittedProgress=true;await recordDrainProgress(db,pendingProgress);
+       };
+       const progress=async({event,...counts})=>{
+         if(submittedProgress||event!==order[pendingProgress.length])throw Error('EXECUTION_EVENT_SEQUENCE_INVALID');
+         pendingProgress.push({phase:request.phase,releaseSha,source:request.triggerSource,event,
+           observedAt:Date.now(),identity:claim.identity,outcome:'PENDING',
+           ...(counts.jobsConsidered===undefined?{}:{jobsConsidered:counts.jobsConsidered})});
+         if(event==='drain_start')await flushProgress();
+       };
+       let drained;
+       try{drained=await runPhase4Stage6({db,worker:runtime.phase4Stage6,userId:pilotGrant.userId,pilotGrant,triggerSource:request.triggerSource,now,onProgress:progress});}
+       finally{await flushProgress();}
        budget.assert();
        return {outcome:drained.outcome,jobsConsidered:drained.jobsConsidered,itemsAttempted:drained.itemsAttempted,
          itemsProcessed:drained.processedItems,jobsCompleted:drained.completedJobs,jobsFailed:drained.failedJobs,remainingJobs:drained.remainingJobs,completion:drained.completion,stopReason:drained.stopReason,

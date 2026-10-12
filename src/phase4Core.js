@@ -479,6 +479,21 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     if(!row.privacy_artifact_id)fail('PHASE4_HEALTH_PARENT_REQUIRED');
   }
   async function validateStoredGraph(context,table,artifactId,path=new Set(),verified=new Set()) {
+    // The same closed data purpose used by artifact() can serve a top-level
+    // source revalidation. Compare every actual link/root again, then perform
+    // fresh context/job/owner controls. Writes discard the frame immediately;
+    // recursive, historical and unmatched graphs keep the original reader.
+    if(path.size===0&&verified.size===0&&['body_energy_results','evidence_runs','evidence_items'].includes(table)
+      &&currentOwnedBodyMetricObservation(core,context)){
+      const observed=await transaction(async()=>{
+        const frame=ownedEvidenceFrame(context);if(!frame)return false;
+        const row=await ownedArtifactRow(context,frame,table,{privacy_artifact_id:artifactId});
+        if(!row||!ownedDefaultArtifact(context,frame,table,row)||!await ownedDefaultGraph(context,frame,table,row))return false;
+        await run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+        return Boolean(currentOwnedBodyMetricObservation(core,context));
+      },{readOnly:true});
+      if(observed)return;
+    }
     const node=JSON.stringify([table,artifactId]);
     if(path.has(node) || path.size>128 || verified.size>10000)fail('PHASE4_PROVENANCE_CYCLE');
     if(verified.has(node))return;
@@ -716,13 +731,30 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
         if(value.status==='fulfilled'&&value.value.rows[0])pending.push({table:'body_energy_results',row:value.value.rows[0]});
       }
       let bytes=Buffer.byteLength(JSON.stringify(runRow??null));
+      // Only the fixed RUN plus one Body input overlaps their original link
+      // observations. Each invocation is fresh (including after INSERT); no
+      // graph, successful guard or pre-mutation data survives this call.
+      const firstLinks=new Map();
+      if(bodies.length===1&&pending.length===2&&pending[0].table==='evidence_runs'&&pending[1].table==='body_energy_results'){
+        const observations=await Promise.allSettled(pending.map(node=>Promise.resolve().then(async()=>{
+          const from=await pilotPrefixFrom(client,context,'phase4_source_links',[context.userId,context.executionMode,node.table,node.row.privacy_artifact_id]);
+          return (await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM ${from}
+            WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL`,
+            args:[context.userId,context.executionMode,node.table,node.row.privacy_artifact_id]})).rows;
+        })));
+        for(let index=0;index<pending.length;index++)firstLinks.set(nodeKey(pending[index].table,pending[index].row.privacy_artifact_id),observations[index]);
+      }
       while(pending.length){
         const node=pending.shift(),identity=nodeKey(node.table,node.row.privacy_artifact_id);if(captured.has(identity))continue;
         if(captured.size>=10000)return {fallback:true};
-        const from=await pilotPrefixFrom(client,context,'phase4_source_links',[context.userId,context.executionMode,node.table,node.row.privacy_artifact_id]);
-        const links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM ${from}
-          WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL`,
-          args:[context.userId,context.executionMode,node.table,node.row.privacy_artifact_id]})).rows;
+        const prior=firstLinks.get(identity);let links;
+        if(prior){if(prior.status==='rejected')throw prior.reason;links=prior.value;}
+        else{
+          const from=await pilotPrefixFrom(client,context,'phase4_source_links',[context.userId,context.executionMode,node.table,node.row.privacy_artifact_id]);
+          links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM ${from}
+            WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL`,
+            args:[context.userId,context.executionMode,node.table,node.row.privacy_artifact_id]})).rows;
+        }
         bytes+=Buffer.byteLength(JSON.stringify([node.row,links]));if(bytes>READ_SNAPSHOT_LIMITS.bytes)return {fallback:true};
         captured.set(identity,{row:node.row,links});
         for(const link of links){

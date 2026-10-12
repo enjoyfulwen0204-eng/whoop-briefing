@@ -1,3 +1,4 @@
+import {currentOwnedBodyMetricObservation} from './phase4IntelligenceStore.js';
 import { BODY_ENERGY as C, bodyEnergyVersion } from './bodyEnergyRegistry.js';
 import { selectBodyEnergyInputs, exactBodyInstant, validHealthDate } from './bodyEnergyInputs.js';
 import { calculateBodyEnergy } from './bodyEnergy.js';
@@ -98,6 +99,19 @@ export function createBodyEnergyStore(core,entities,queue) {
     if(!linked)fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
     const {result,unique}=auditPlan(row);
     const verify=(source,current)=>compareAuditSource(context,row,source,current,{equivalentSyncRefresh});
+    const selected=currentOwnedBodyMetricObservation(core,context);
+    if(!equivalentSyncRefresh&&selected&&canonicalJson(row)===canonicalJson(selected.currentBody.row)){
+      // The fixed current-Body producer already observed these raw rows in
+      // this same read-only epoch. Repeat every source/audit comparator against
+      // data only, then recheck current context/job/runtime/owner before return.
+      // A mutation or unmatched source keeps the complete generic audit.
+      const observations=unique.map(source=>core.ownedBodyMetricRootData(context,source.type,source.id));
+      if(observations.every(Boolean)){
+        for(let index=0;index<unique.length;index++)verify(unique[index],observations[index]);
+        await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+        if(currentOwnedBodyMetricObservation(core,context))return result;
+      }
+    }
     if(core.readRoots)await core.readRoots(context,unique,{verify});
     else for(const source of unique)await verify(source,await core.root(context,source.type,source.id));
     return result;

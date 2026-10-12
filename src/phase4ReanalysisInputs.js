@@ -37,18 +37,27 @@ export function createReanalysisInputs(core,stores) {
   }
   async function enumerate(context,cursor=null,limit=32) {
     if(!Number.isSafeInteger(limit)||limit<1||limit>100)fail('PHASE4_SCAN_PAGE_INVALID');
-    const parts=[],args=[],from=await sourceAdmissions(context,Object.keys(whoop));
-    for(const [type,[,key]] of Object.entries(whoop)) {
-      const query=sourceQuery(context,type,from);
-      parts.push(`SELECT '${type}' source_type,CAST(${key} AS TEXT) source_id FROM (${query.sql})`);args.push(...query.args);
-    }
+    const parts=[],args=[];
     const journals=[
       ['JOURNAL_FACT','journal_events','privacy_artifact_id',"fact_status='ACTIVE'"],
       ['JOURNAL_COVERAGE','journal_coverage_windows','coverage_window_id',"status='ACTIVE'"],
       ['EXPERIMENT_DIRECT_ASSERTION','experiment_field_groups','assertion_id',"is_current=1 AND provenance_state='DIRECT' AND assertion_id IS NOT NULL"],
     ];
-    const journalAdmissions=await Promise.allSettled(journals.map(([,table])=>Promise.resolve().then(()=>
-      pilotPrefixFrom(client,context,table,[context.userId]))));
+    // All ten bounded prefix probes observe non-health admission metadata
+    // in this same transaction. Settle both groups before the health query;
+    // preserve WHOOP-before-Journal failure order and every original probe.
+    const admissions=await Promise.allSettled([
+      Promise.resolve().then(()=>sourceAdmissions(context,Object.keys(whoop))),
+      Promise.resolve().then(()=>Promise.allSettled(journals.map(([,table])=>Promise.resolve().then(()=>
+        pilotPrefixFrom(client,context,table,[context.userId]))))),
+    ]);
+    if(admissions[0].status==='rejected')throw admissions[0].reason;
+    if(admissions[1].status==='rejected')throw admissions[1].reason;
+    const from=admissions[0].value,journalAdmissions=admissions[1].value;
+    for(const [type,[,key]] of Object.entries(whoop)) {
+      const query=sourceQuery(context,type,from);
+      parts.push(`SELECT '${type}' source_type,CAST(${key} AS TEXT) source_id FROM (${query.sql})`);args.push(...query.args);
+    }
     for(let index=0;index<journals.length;index++) {
       if(journalAdmissions[index].status==='rejected')throw journalAdmissions[index].reason;
       const [type,table,key,predicate]=journals[index],admitted=journalAdmissions[index].value;

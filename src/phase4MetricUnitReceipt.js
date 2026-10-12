@@ -93,7 +93,14 @@ function requireUnitPurpose(core,context){
   ||!execution||execution.receipts===false)fail();
 }
 async function finishUnitObservation(core,context){
- await core.assertContext(context);await assertExecutionWorkOwner(core.client);requireSettledOperation();
+ // Both original non-health observations remain fresh. Settle both and
+ // preserve context-before-owner failure priority before any next branch.
+ const controls=await Promise.allSettled([
+  Promise.resolve().then(()=>core.assertContext(context)),
+  Promise.resolve().then(()=>assertExecutionWorkOwner(core.client)),
+ ]);
+ for(const result of controls)if(result.status==='rejected')throw result.reason;
+ requireSettledOperation();
 }
 /** A closed RUN alternative observation, inside the same original owned unit.
  * Fetch only the three exact named keys once; compare RUN, then START, then

@@ -118,6 +118,25 @@ export function createPhase4EntityStore(core) {
       if(bundle&&!bundle.fallback)await core.linkMetricPreparationItem(context,record.privacy_artifact_id,refs);
       else await core.link(context,table,record.privacy_artifact_id,refs);
       const key=Object.fromEntries(info.filter(c=>c.pk&&!['user_id','execution_mode'].includes(c.name)).map(c=>[c.name,record[c.name]]));
+      if(metricPreparationItem&&bundle&&!bundle.fallback){
+        // This private ITEM unit returns scalar progress, never a source
+        // capability. Its parents were freshly checked both before INSERT
+        // and by linkMetricPreparationItem afterward. Read back this exact
+        // new row and its actual links; later AUTHORITY/DOMAIN still acquire
+        // the complete artifact graph through the unchanged typed reader.
+        const actual=(await client.execute({sql:`SELECT * FROM evidence_items WHERE user_id=? AND execution_mode=? AND evidence_item_id=?`,
+          args:[context.userId,context.executionMode,record.evidence_item_id]})).rows[0];
+        if(actual?.invalidated_at)fail('PHASE4_PARENT_STALE');
+        if(!readableRow(actual)||Object.keys(record).some(field=>actual[field]!==record[field]))fail('PHASE4_IDENTITY_CONTENT_CONFLICT');
+        const expected=core.validateReferences(context,refs).map(source=>[source.mode,source.type,source.id,'DEPENDS_ON']);
+        const links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM phase4_source_links
+          WHERE user_id=? AND artifact_execution_mode=? AND artifact_type='evidence_items' AND artifact_id=? AND unlinked_at IS NULL LIMIT 66`,
+          args:[context.userId,context.executionMode,record.privacy_artifact_id]})).rows;
+        const identities=rows=>[...new Set(rows.map(row=>canonicalJson(row)))].sort();
+        if(canonicalJson(identities(links.map(row=>[row.source_execution_mode,row.source_type,row.source_id,row.relationship])))
+          !==canonicalJson(identities(expected)))fail('PHASE4_INCOMPLETE_PROVENANCE');
+        return {row:{...actual},created:true};
+      }
       return {...await core.artifact(context,table,key),created:true};
     });
   }

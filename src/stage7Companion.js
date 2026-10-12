@@ -101,10 +101,14 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    }
    if(row.kind==='PREFERENCES'){
     const prefs=await preferences(actor);let patch;
-    if(action==='toggleDaily')patch={daily_enabled:prefs.daily_enabled?0:1};
-    else if(action==='toggleWeekly')patch={weekly_enabled:prefs.weekly_enabled?0:1};
-    else if(action.startsWith('topic:')&&TOPICS.includes(action.slice(6))){const values=new Set(JSON.parse(prefs.topics_json));const topic=action.slice(6);values.has(topic)?values.delete(topic):values.add(topic);patch={topics_json:JSON.stringify([...values].sort())};}
-    else if(action.startsWith('exclude:')&&TOPICS.includes(action.slice(8))){const values=new Set(JSON.parse(prefs.excluded_topics_json));const topic=action.slice(8);values.has(topic)?values.delete(topic):values.add(topic);patch={excluded_topics_json:JSON.stringify([...values].sort())};}
+    if(action!=='cancel'){
+     const parts=action.split(':'),kind=parts[1],value=Number(parts.at(-2)),revision=Number(parts.at(-1));
+     if(parts[0]!=='prefs'||![0,1].includes(value)||!Number.isSafeInteger(revision)||revision!==prefs.revision)return interactions.expired(actor);
+     if(parts.length===4&&['daily','weekly'].includes(kind))patch={[kind==='daily'?'daily_enabled':'weekly_enabled']:value};
+     else if(parts.length===5&&['topic','exclude'].includes(kind)&&TOPICS.includes(parts[2])){
+      const field=kind==='topic'?'topics_json':'excluded_topics_json',values=new Set(JSON.parse(prefs[field]));value?values.add(parts[2]):values.delete(parts[2]);patch={[field]:JSON.stringify([...values].sort())};
+     }else return interactions.expired(actor);
+    }
     if(patch){await changePreferences(actor,prefs,patch);row=await interactions.update(actor,row,{});return card(actor,row);}
    }
    if(action.startsWith('category:')&&row.category===null&&TOPICS.includes(action.slice(9))){

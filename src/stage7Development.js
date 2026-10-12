@@ -78,7 +78,7 @@ export async function createStage7Development({core,stores,db,...options}){
  }
  async function correctToMissing(actor,row,receipt,choice){
   const staged=await core.transaction(async()=>{
-   const current=await companion.interactions.read(actor.control.userId,row.interaction_id);
+   const authority=await core.assertControl(actor.control),current=await companion.interactions.read(actor.control.userId,row.interaction_id);
    if(!readableRow(current)||current.revision!==row.revision||current.expires_at<=core.timestamp()||!['ISSUED','EDITING'].includes(current.state)||!current.logical_fact_id
     ||!['NOT_SURE','SKIPPED'].includes(choice)||!TOPICS.includes(current.category)||current.registry_id!==registryQuestion(current.category)
     ||current.registry_version!==JOURNAL_REGISTRY_VERSION||current.question_identity!==current.registry_id)fail('STAGE7_REGISTRY_AUTHORITY_INVALID');
@@ -86,8 +86,11 @@ export async function createStage7Development({core,stores,db,...options}){
    if(fact?.provenance_mode!=='TRUSTED_REGISTRY'||fact.revision!==current.fact_revision||fact.category!==current.category||fact.health_date!==current.target_date||fact.event_at!==current.window_start||fact.event_end_at!==current.window_end)fail('JOURNAL_REVISION_CONFLICT');
    const origin=(await core.client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND logical_fact_id=? AND content_state='PRESENT' AND (kind='DAILY' OR json_extract(diagnostics_json,'$.dailyAnswerKey') IS NOT NULL) ORDER BY created_at LIMIT 1",args:[current.user_id,current.logical_fact_id]})).rows[0];
    const dailyAnswerKey=origin?(JSON.parse(origin.diagnostics_json??'null')?.dailyAnswerKey??origin.semantic_key):null;
+   const obsolete=(await core.client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND content_state='PRESENT' AND json_extract(diagnostics_json,'$.missingCorrection.logicalFactId')=? AND (lifecycle_generation<>? OR auth_generation<>?) LIMIT 21",args:[current.user_id,current.logical_fact_id,authority.lifecycle_generation,authority.auth_generation]})).rows;
+   if(obsolete.length>20)fail('STAGE7_RECOVERY_BOUNDS');
+   for(const old of obsolete)await interactionPrivacy.retract(actor.control,old);
    const issued=await companion.interactions.issue(actor,{category:current.category,targetDate:current.target_date,recordedTimezone:fact.recorded_timezone,
-    semanticKey:core.keys.lookup(['stage7-missing-correction-v1',current.user_id,current.logical_fact_id,fact.revision]),
+    semanticKey:core.keys.lookup(['stage7-missing-correction-v1',current.user_id,current.logical_fact_id,fact.revision,authority.lifecycle_generation,authority.auth_generation]),
     diagnostics:{...(dailyAnswerKey?{dailyAnswerKey}:{}),missingCorrection:{logicalFactId:current.logical_fact_id,choice}}});
    if(!issued.created)fail('STAGE7_QUESTION_SEMANTIC_RESERVED');
    await companion.interactions.bind(actor,issued.row.interaction_id,current.message_id);

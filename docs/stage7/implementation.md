@@ -36,6 +36,8 @@ The registered decision policy now uses material-change age for T, exact support
 
 Focused positive tests use actual canonical metric/association calculations under owned synthetic v32 execution claims, named work receipts, producer binding, settlement and finalization. They exercise all four actions, qualified ASK with a question slot/proposal, consumed semantic replay, post-brief context without supplied hints, and a Weekly Review with actual replicated association evidence. Separate affected-interface testing runs the existing owned Stage 6 worker on v33 through its typed episode projection. Allowlist changes preserve v32 algorithms and do not authorize rollout.
 
+The final exact-candidate check caught a malformed target-date caption and a clock-dependent synthetic fixture failure. The caption now has a runtime assertion. Synthetic sleep/recovery health dates now use their tenant timezone: the former UTC date could disagree after local midnight, triggering the existing Body Energy HEALTH_DATE_REALIGNMENT invalidation and correctly fencing the worker lease. No Stage 6 lease or Body Energy behavior was changed to hide that failure. Boundary fixtures cover both sides of UTC midnight, and syntax validation precedes the final candidate test run.
+
 ## Promotion and rollback plan (not executed)
 
 1. Obtain the final independently reviewed Stage 6 source and confirm its exact deployed artifact. The parallel workstream now records `1eca89c123a3a49a08d2512dc1f5592eee7b1212` as the newer deployed v32 release. Preserve its configuration and pilot permissions. Integrate only verified source, then repeat the affected v33 settlement/Settings/Journal boundaries and independently verify the final artifact.

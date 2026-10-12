@@ -39,7 +39,12 @@ export async function metricRunReceipt(core,context,plan){
  return Boolean(await metricUnitReceipt(core,context,plan,'RUN_START')&&await metricUnitReceipt(core,context,plan,'RUN_COMPLETE'));
 }
 function validateProducer(core,context,p){
- if(p.phase!=='STAGE6_DRAIN'||p.execution_seq!==p.final_seq||p.producing_generation!==p.final_generation
+ // Metadata-only reconciliation can finalize a later owner generation. The
+ // sealed producer and immutable work receipt retain their producing owner;
+ // a still-active producing owner must match the fresh current owner below.
+ if(p.phase!=='STAGE6_DRAIN'||p.execution_seq!==p.final_seq
+  ||!Number.isSafeInteger(p.producing_generation)||p.producing_generation<1
+  ||!Number.isSafeInteger(p.final_generation)||p.final_generation<1||p.producing_generation>p.final_generation
   ||p.tenant_proof!==core.keys.lookup(['execution-producer-v1',context.userId,context.executionMode,
    context.inputGeneration,p.producing_execution_id,p.execution_seq,p.producing_generation]))fail();
 }

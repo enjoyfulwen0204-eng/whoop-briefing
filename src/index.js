@@ -645,8 +645,11 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     max_user_concurrency: env.maxUserConcurrency,
   });
 
+  const authorityKeys = deps.phase4AuthorityKeys ?? ((!deps.db
+    || !deps.bodyEnergy&&bodyEnergyConfiguration(process.env).publication==='on')
+    ? phase4AuthorityKeys(process.env) : undefined);
   const db = deps.db ?? createDb({ url: env.tursoUrl, authToken: env.tursoToken,
-    phase4Keys: phase4AuthorityKeys(process.env) });
+    phase4Keys: authorityKeys });
 
   // 系統層 telegram：只用於「基礎設施故障」通知（Turso 掛了、找不到任何使用者）。
   // chat 用 bootstrap 的 TELEGRAM_CHAT_ID —— 這是唯一還會用到那個 env 的地方。
@@ -674,7 +677,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
     // Body display prepares independently from Beta presentation. A pending
     // empirical registration never enables numeric output or new live workers.
     if(!deps.bodyEnergy&&db.raw&&bodyEnergyConfiguration(process.env).publication==='on'){
-      const bodyRuntime=await createBodyEnergyRuntime({db,keys:phase4AuthorityKeys(process.env),
+      const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,
         admission:deps.runtimeAdmission,environment:process.env,env});
       deps={...deps,bodyEnergy:bodyRuntime.bodyEnergy};
     }

@@ -142,7 +142,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
        if(request.phase==='SYNC') {
          log.info('sync_start',{source:request.triggerSource,release_sha:releaseSha,phase:'SYNC'});
          const summary=await traceExecutionOperation('PHASE_WORK',()=>(deps.runBriefing??runBriefing)({now,triggerSource:request.triggerSource,deps:{...deps,db,env,
-           runtimeAdmission:admission,executionBudget:budget,keepConnectionOpen:true,phase4Stage6:undefined,betaPresentation:undefined}}));
+           runtimeAdmission:admission,phase4AuthorityKeys:keys,executionBudget:budget,keepConnectionOpen:true,phase4Stage6:undefined,betaPresentation:undefined}}));
          budget.assert();
          if(summary.coordinationPending)executionContext.coordinationPending=true;
          if(executionContext.coordinationPending)throw Object.assign(Error('SYNC_SCOPE_BUSY'),{code:'SYNC_SCOPE_BUSY'});

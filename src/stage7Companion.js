@@ -43,12 +43,12 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
     return resolved&&resolved.row.logical_fact_id&&['confirm','undo','NOT_SURE','SKIPPED'].includes(resolved.action)?{actor,...resolved}:null;
    });
    if(pre){
+    let missingResult=null;
     if(pre.action==='confirm'){if(!onAccept)fail('STAGE7_ACCEPT_ADAPTER_REQUIRED');await onAccept(pre.actor,pre.row,pre.receipt);}
-    else{if(!onUndo)fail('STAGE7_UNDO_ADAPTER_REQUIRED');await onUndo(pre.actor,pre.row,pre.receipt);}
+    else{if(!onUndo)fail('STAGE7_UNDO_ADAPTER_REQUIRED');missingResult=await onUndo(pre.actor,pre.row,pre.receipt,['NOT_SURE','SKIPPED'].includes(pre.action)?{missingChoice:pre.action}:{});}
     return transaction(async()=>{
-     let row=await interactions.read(user.id,pre.row.interaction_id);
+     const row=await interactions.read(user.id,missingResult?.interaction_id??pre.row.interaction_id);
      if(pre.action==='undo')return {text:JOURNAL_COPY[presentationLocale(await db.getLocale(user.id))].removed,editMessageId:row.message_id,replyMarkup:{inline_keyboard:[]}};
-     if(['NOT_SURE','SKIPPED'].includes(pre.action)){row=await interactions.update(pre.actor,row,{state:pre.action,selected_choice:pre.action,logical_fact_id:null,fact_revision:null,answered_at:timestamp()});}
      return card(pre.actor,row);
     });
    }
@@ -175,7 +175,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(previous)return {status:'EXISTING',deliveryId:previous.delivery_id};
    const pending=(await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' UNION ALL SELECT 1 FROM phase4_question_interaction_slots WHERE user_id=? AND state IN ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER')",args:[user.id,user.id]})).rows.length;
    if(pending)return {status:'INTERACTION_BUSY'};
-   const targetDate=addDays(healthDay,-1),facts=await ownFacts(actor,{fromDate:addDays(targetDate,-179),toDate:targetDate}),history=(await client.execute({sql:"SELECT privacy_artifact_id,category,target_date FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 60",args:[user.id]})).rows;
+   const targetDate=addDays(healthDay,-1),facts=await ownFacts(actor,{fromDate:addDays(targetDate,-179),toDate:targetDate}),history=(await client.execute({sql:"SELECT privacy_artifact_id,category,target_date FROM quick_action_interactions WHERE user_id=? AND (kind='DAILY' OR json_extract(diagnostics_json,'$.dailyAnswerKey') IS NOT NULL AND state IN ('COMPLETED','NOT_SURE','SKIPPED')) AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 60",args:[user.id]})).rows;
    if(facts.length===500)fail('STAGE7_DAILY_HISTORY_BOUNDS');
    // Use already-computed, receipt-verified current evidence. No WHOOP sync or
    // new physiological computation runs after the briefing. Explicit inputs are

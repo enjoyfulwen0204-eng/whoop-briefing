@@ -33,7 +33,7 @@ export function createStage7WeeklyReview({core,stores,db,companion}){
   return core.transaction(async()=>{
    const state=await core.assertControl(actor.control),week=completedWeeks(core.now(),state.timezone).last,prefs=await companion.preferences(actor),facts=await companion.ownFacts(actor,{fromDate:week.startDate,toDate:week.endDate});
    if(facts.length===500)throw Error('STAGE7_WEEKLY_HISTORY_BOUNDS');
-   const history=(await core.client.execute({sql:"SELECT privacy_artifact_id,target_date,selected_choice,state,answered_at FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND target_date>=? AND target_date<=? AND content_state='PRESENT'",args:[actor.control.userId,week.startDate,week.endDate]})).rows;
+   const history=(await core.client.execute({sql:"SELECT privacy_artifact_id,target_date,selected_choice,state,answered_at FROM quick_action_interactions WHERE user_id=? AND (kind='DAILY' OR json_extract(diagnostics_json,'$.dailyAnswerKey') IS NOT NULL AND state IN ('COMPLETED','NOT_SURE','SKIPPED')) AND target_date>=? AND target_date<=? AND content_state='PRESENT'",args:[actor.control.userId,week.startDate,week.endDate]})).rows;
    const associations=[];
    await stores.withContext(actor.control.userId,{executionMode:'SHADOW'},async context=>{
     const typed=await stores.betaSummary.readCurrent(context,{asOfUtc:core.timestamp()});

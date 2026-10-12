@@ -11,7 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import {currentDurableExecution,currentExecutionReceiptTransactionMarker,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
 import {READ_SNAPSHOT_LIMITS} from './processingReadSnapshot.js';
-import {requireOwnedBodyMetricPurpose} from './phase4IntelligenceStore.js';
+import {requireOwnedBodyMetricPurpose,currentOwnedBodyMetricObservation} from './phase4IntelligenceStore.js';
 import {requireOwnedCurrentBodyData} from './phase4OperationReceipts.js';
 import { assertPhase4Schema } from './phase4Migrations.js';
 import { requirePhase4Keys } from './phase4Keys.js';
@@ -89,7 +89,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   const auditCheck=(await client.execute("SELECT last_cursor FROM phase4_migration_checkpoints WHERE target_version=22 AND step_key='audit_key_check'")).rows[0];
   if(!keys.verifyAuditCheckpoint(auditCheck?.last_cursor))fail('PHASE4_AUDIT_KEY_MISMATCH');
   }
-  const rootObservations=new WeakMap();
+  const rootObservations=new WeakMap(),ownedEvidenceData=new WeakMap();
   const contexts=new WeakSet(),controls=new WeakSet(),privacyControls=new WeakSet(),sources=new WeakMap(),columns=new Map();
   const timestamp=()=>{const value=now();if(!(value instanceof Date) || !Number.isFinite(value.getTime()))fail('PHASE4_INVALID_CLOCK');return value.toISOString();};
   const contextRegistry=createPhase4ContextRegistry({client,keys,now,timestamp,newId:()=>randomUUID()});
@@ -307,6 +307,88 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       ?{status:'rejected',reason:result.reason}:{status:'fulfilled',value:value.type==='USER'?{...result.value}:
         {rows:result.value.rows.map(row=>({...row}))}})};
   }
+  // Closed selected DOMAIN raw Source observations. This never returns a
+  // reference or accepted authority and cannot select arbitrary SQL/roots.
+  function ownedBodyMetricRootData(context,type,id){
+    const selected=currentOwnedBodyMetricObservation(core,context);
+    if(!selected||!['sleep','recovery','cycle','workout','USER'].includes(type))return null;
+    const source=requireOwnedCurrentBodyData(core,context,selected.request.currentSource),
+      data=source.rawRoots.get(JSON.stringify([type,String(id)]));
+    if(!data)return null;
+    return {row:{...compareRootObservation(context,type,String(id),data.values)}};
+  }
+  function ownedEvidenceFrame(context){
+    const selected=currentOwnedBodyMetricObservation(core,context);if(!selected)return null;
+    let frame=ownedEvidenceData.get(selected);
+    if(!frame){
+      const source=requireOwnedCurrentBodyData(core,context,selected.request.currentSource);
+      const bytes=Buffer.byteLength(JSON.stringify([source.row,source.receipt,source.contracts,source.schemas,source.actual,[...source.rawRoots.values()]]));
+      if(bytes>READ_SNAPSHOT_LIMITS.bytes)return null;
+      frame={selected,epoch:processingReadObservationEpoch(client),rows:new Map(),links:new Map(),bytes};ownedEvidenceData.set(selected,frame);
+    }
+    if(frame.epoch!==processingReadObservationEpoch(client))return null;return frame;
+  }
+  function retainOwnedEvidenceData(frame,map,key,value){
+    const copy=JSON.parse(JSON.stringify(value));frame.bytes+=Buffer.byteLength(JSON.stringify(copy));
+    if(frame.bytes>READ_SNAPSHOT_LIMITS.bytes)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');map.set(key,copy);return copy;
+  }
+  async function ownedArtifactRow(context,frame,table,key){
+    const identity=JSON.stringify([table,key]);
+    if(frame.rows.has(identity))return frame.rows.get(identity);
+    const columns=Object.keys(key),row=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND execution_mode=?${columns.map(column=>` AND ${column}=?`).join('')}`,
+      args:[context.userId,context.executionMode,...columns.map(column=>key[column])]})).rows[0];
+    return retainOwnedEvidenceData(frame,frame.rows,identity,row??null);
+  }
+  function ownedDefaultArtifact(context,frame,table,row){
+    if(table==='body_energy_results')return row.privacy_artifact_id===frame.selected.currentBody.row.privacy_artifact_id;
+    if(table==='evidence_runs')return row.run_id===frame.selected.runId&&row.deterministic_run_key===frame.selected.runKey;
+    if(table==='evidence_items')return row.evidence_item_id===frame.selected.itemId&&row.run_id===frame.selected.runId&&row.item_key===frame.selected.itemKey;
+    return false;
+  }
+  async function ownedDefaultGraph(context,frame,table,row,path=new Set(),verified=new Set()){
+    const identity=JSON.stringify([table,row.privacy_artifact_id]);
+    if(path.has(identity)||path.size>128||verified.size>10000)fail('PHASE4_PROVENANCE_CYCLE');
+    if(verified.has(identity))return true;path.add(identity);
+    // Keep every original logical prefix reservation and original bounded
+    // probe. Payload rows alone are reused as raw same-snapshot DATA.
+    const from=await pilotPrefixFrom(client,context,'phase4_source_links',[context.userId,context.executionMode,table,row.privacy_artifact_id]);
+    let links=frame.links.get(identity);
+    if(!links)links=retainOwnedEvidenceData(frame,frame.links,identity,(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM ${from}
+      WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL`,
+      args:[context.userId,context.executionMode,table,row.privacy_artifact_id]})).rows);
+    if(!links.length)fail('PHASE4_INCOMPLETE_PROVENANCE');
+    for(const link of links){
+      if(link.source_execution_mode==='SHARED'){
+        if(link.relationship.startsWith('DEPENDS_ON_AS_OF:')||!['sleep','recovery','cycle','workout','USER'].includes(link.source_type))return false;
+        const shared=JSON.stringify(['SHARED',link.source_type,link.source_id,null]);
+        if(verified.has(shared))continue;
+        if(!ownedBodyMetricRootData(context,link.source_type,link.source_id))return false;verified.add(shared);
+      }else{
+        if(link.source_execution_mode!==context.executionMode||!DERIVED_TABLES.includes(link.source_type))fail('PHASE4_MIXED_MODE_PARENT');
+        if(link.relationship==='ANSWER_LINEAGE'||!['body_energy_results','evidence_runs'].includes(link.source_type))return false;
+        const parent=await ownedArtifactRow(context,frame,link.source_type,{privacy_artifact_id:link.source_id});
+        if(!readableRow(parent)||parent.invalidated_at)fail('PHASE4_PARENT_STALE');
+        if(!ownedDefaultArtifact(context,frame,link.source_type,parent))return false;
+        for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],['auth_generation',context.authGeneration]])
+          if(Object.hasOwn(parent,column)&&parent[column]!==value)fail('PHASE4_PARENT_STALE');
+        if(!await ownedDefaultGraph(context,frame,link.source_type,parent,path,verified))return false;
+      }
+      currentOwnedBodyMetricObservation(core,context);
+    }
+    path.delete(identity);verified.add(identity);return true;
+  }
+  async function ownedBodyMetricArtifact(context,table,key){
+    const frame=ownedEvidenceFrame(context);if(!frame||!['body_energy_results','evidence_runs','evidence_items'].includes(table))return null;
+    const info=await tableInfo(table),pk=info.filter(column=>column.pk&&!['user_id','execution_mode'].includes(column.name)).sort((a,b)=>a.pk-b.pk);
+    if(!key||Object.keys(key).length!==pk.length||pk.some(column=>!Object.hasOwn(key,column.name)))fail('PHASE4_ENTITY_KEY_REQUIRED');
+    const row=await ownedArtifactRow(context,frame,table,key);compareArtifactRow(context,table,row);
+    if(!ownedDefaultArtifact(context,frame,table,row)||!await ownedDefaultGraph(context,frame,table,row))return null;
+    if(!currentOwnedBodyMetricObservation(core,context))return null;
+    // Internal refs may participate only in the enclosing closed comparison
+    // purpose; its mandatory delivery fence precedes calculation/effect/public
+    // return. The frame never stores these refs or an accepted graph/guard.
+    return {row:{...row},ref:reference(context,table,row.privacy_artifact_id,context.executionMode,row)};
+  }
   async function validateHistoricalJournal(context,source) {
     if(!['JOURNAL_FACT','JOURNAL_COVERAGE'].includes(source.type)||!source.historicalAsOf
       ||!Number.isFinite(Date.parse(source.historicalAsOf)))fail('PHASE4_HISTORICAL_SOURCE_INVALID');
@@ -372,6 +454,12 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   }
   async function artifact(context,table,key) {
     if(!DERIVED_TABLES.includes(table))fail('PHASE4_UNKNOWN_ENTITY');
+    // The smaller nested processing boundary keeps fresh execution/pilot
+    // entry and records any pure/SQL failure on the original parent. Catching
+    // a failed comparison cannot permit a later effect or COMMIT.
+    try{if(currentOwnedBodyMetricObservation(core,context)){
+      const closed=await transaction(()=>ownedBodyMetricArtifact(context,table,key),{readOnly:true});if(closed)return closed;
+    }}catch(error){await transaction(()=>{throw error;},{readOnly:true});throw error;}
     return run(context,async()=>{
       const info=await tableInfo(table),pk=info.filter(c=>c.pk && !['user_id','execution_mode'].includes(c.name)).sort((a,b)=>a.pk-b.pk);
       if(!key || Object.keys(key).length!==pk.length || pk.some(c=>!Object.hasOwn(key,c.name)))fail('PHASE4_ENTITY_KEY_REQUIRED');
@@ -748,5 +836,5 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   const core=Object.freeze({client,processing,transaction,keys,now,timestamp,schemaVersion,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
     withJobFence:(binding,check,fn)=>jobScope.run({binding,check},fn),jobAuthority:()=>jobScope.getStore()?.binding??null,
     capturePrivacyControl,assertPrivacyControl,run,runControl,runMaintenance,contextRegistry,
-    tableInfo,root,copyOwnedRootObservation,compareRootObservation,readRoots,currentBodyRawUnion,bodyMetricPreparationRawUnion,metricPreparationItemSources,linkMetricPreparationItem,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});return core;
+    tableInfo,root,ownedBodyMetricRootData,copyOwnedRootObservation,compareRootObservation,readRoots,currentBodyRawUnion,bodyMetricPreparationRawUnion,metricPreparationItemSources,linkMetricPreparationItem,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});return core;
 }

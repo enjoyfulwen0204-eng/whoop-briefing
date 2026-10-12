@@ -8,7 +8,7 @@ import { createBodyEnergyStore,requireNewBodySourceCapture } from './bodyEnergyS
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import {requireMetricUnitProof} from './phase4MetricUnitReceipt.js';
-import {requireBodyMetricPreparationCapture,requireOwnedBodyMetricPurpose} from './phase4IntelligenceStore.js';
+import {requireBodyMetricPreparationCapture,requireOwnedBodyMetricPurpose,currentOwnedBodyMetricObservation} from './phase4IntelligenceStore.js';
 import {processingReadObservationEpoch} from './processingTransaction.js';
 import {currentDurableExecution,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
 
@@ -51,7 +51,8 @@ export function createResultAuthority(core) {
           historicalAsOf:entry.as_of,row:null});
         return {row,ref:null};
       }
-      return core.root(context,entry.type,entry.id);
+      const raw=core.ownedBodyMetricRootData(context,entry.type,entry.id);
+      return raw?{row:raw.row,ref:null}:core.root(context,entry.type,entry.id);
     }
     if(entry.mode!==context.executionMode||!['evidence_items','body_energy_results'].includes(entry.type))invalid();
     const key=entry.type==='evidence_items'?'evidence_item_id':'result_id';
@@ -490,6 +491,10 @@ export function createResultAuthority(core) {
       for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],
         ['auth_generation',context.authGeneration]])if(row[column]!==value)fail('PHASE4_PARENT_STALE');
       await validateRoots(context,row,manifest);
+      if(currentOwnedBodyMetricObservation(core,context)){
+        await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+        currentOwnedBodyMetricObservation(core,context);
+      }
       return {row,...verified};
     });
   }

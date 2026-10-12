@@ -68,6 +68,10 @@ export function composePhase4Stores(core) {
   }),create:recorded('INSIGHT_CREATE',insightStore.create),transition:recorded('INSIGHT_TRANSITION',insightStore.transition)};
   const intelligence=createPhase4IntelligenceStore(core,entities,episodes,insights,{producedEvidence:receipts.producedEvidence,
     recordedMetricPreparation:receipts.recordedMetricPreparation,
+    metricDomainWork:receipts.metricDomainWork,
+    performMetricDomain:(context,request,purpose)=>receipts.execute(context,'analyzeMetric',request,
+      semantic=>intelligence.analyzeMetric(context,semantic,purpose),{discover,bodyMetricPurpose:purpose}),
+    takeMetricDomainProgress:receipts.takeNewMetricDomainProgress,replayMetricDomain:receipts.replayMetricDomain,
     prepareCurrentBodyMetricRequest:async(context,asOfUtc)=>{
       const recorded=await readForCurrentDrain(context,asOfUtc);if(!recorded)fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const request=['AVAILABLE','LIMITED'].includes(recorded.body.row.quality_state)

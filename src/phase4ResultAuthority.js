@@ -8,7 +8,7 @@ import { createBodyEnergyStore,requireNewBodySourceCapture } from './bodyEnergyS
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import {requireMetricUnitProof} from './phase4MetricUnitReceipt.js';
-import {requireBodyMetricPreparationCapture} from './phase4IntelligenceStore.js';
+import {requireBodyMetricPreparationCapture,requireOwnedBodyMetricPurpose} from './phase4IntelligenceStore.js';
 import {processingReadObservationEpoch} from './processingTransaction.js';
 import {currentDurableExecution,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
 
@@ -157,7 +157,11 @@ export function createResultAuthority(core) {
   }
   function bodyMetricRawComparators(context,observed){
     const nodeKey=(table,id)=>canonicalJson([table,String(id)]),node=(table,id)=>observed.nodes.get(nodeKey(table,id)),
-        rawValue=entry=>{const value=observed.values.get(nodeKey(entry.type,entry.id));if(!value)fail('PHASE4_SOURCE_NOT_FOUND');
+        rawValue=entry=>{if(observed.sourceData){
+          requireOwnedBodyMetricPurpose(core,context,observed.ownedPurpose);
+          const data=observed.sourceData.rawRoots.get(nodeKey(entry.type,entry.id));if(!data)fail('PHASE4_SOURCE_NOT_FOUND');
+          return {row:core.compareRootObservation(context,entry.type,String(entry.id),data.values)};
+        }const value=observed.values.get(nodeKey(entry.type,entry.id));if(!value)fail('PHASE4_SOURCE_NOT_FOUND');
           if(value.status==='rejected')throw value.reason;return value.value;};
       const graph=(table,id,path=new Set(),verified=new Set())=>{
         const key=nodeKey(table,id);if(path.has(key)||path.size>128||verified.size>10000)fail('PHASE4_PROVENANCE_CYCLE');
@@ -215,7 +219,7 @@ export function createResultAuthority(core) {
       const manifests=existing.map(row=>{try{return parse(row.required_roots_json);}catch{return null;}});
       if(manifests.some(manifest=>!Array.isArray(manifest?.roots)||manifest.roots.some(entry=>!raw(entry)&&!bodyRoot(entry))))return null;
       const expected=[...(audit?.unique??[]),...manifests.flatMap(manifest=>manifest.roots.filter(raw))];
-      const observed=await core.bodyMetricPreparationRawUnion(context,refs,expected);if(observed.fallback)return null;
+      const observed=await core.bodyMetricPreparationRawUnion(context,refs,expected,brand.ownedPurpose);if(observed.fallback)return null;
       const current=()=>processingReadObservationEpoch(client)===observed.observationEpoch;
       if(!current())return null;
       const {nodeKey,node,rawValue,graph,artifact}=bodyMetricRawComparators(context,observed);
@@ -280,7 +284,7 @@ export function createResultAuthority(core) {
           // its expected comparisons; actual graph validation occurred above.
           if(!node('body_energy_results',descriptor.id)?.links.length)fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
           audit=body.auditPlan(row);
-          if(audit.unique.some(source=>!observed.values.has(nodeKey(source.type,source.id))))return null;
+          if(audit.unique.some(source=>!(observed.sourceData?observed.sourceData.rawRoots:observed.values).has(nodeKey(source.type,source.id))))return null;
           for(const source of audit.unique)body.compareAuditSource(context,row,source,rawValue(source));
           if(audit.result.manifest.manifest_version!=='body-energy-inputs-v1')incomplete();
           for(const source of audit.unique)pending.push({type:source.type,id:String(source.id),mode:'SHARED',as_of:null,version:null,

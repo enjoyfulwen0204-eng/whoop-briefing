@@ -9,8 +9,10 @@ import { coverageLineage } from './phase4CoverageLineage.js';
  * isolated tests supply a distinct factory that owns its in-memory database. */
 import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import {currentDurableExecution,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
+import {currentDurableExecution,currentExecutionReceiptTransactionMarker,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
 import {READ_SNAPSHOT_LIMITS} from './processingReadSnapshot.js';
+import {requireOwnedBodyMetricPurpose} from './phase4IntelligenceStore.js';
+import {requireOwnedCurrentBodyData} from './phase4OperationReceipts.js';
 import { assertPhase4Schema } from './phase4Migrations.js';
 import { requirePhase4Keys } from './phase4Keys.js';
 import { requireUserId } from './userContext.js';
@@ -43,6 +45,21 @@ const ROOTS = Object.freeze({
   EXPERIMENT_DIRECT_ASSERTION:['experiment_field_groups','assertion_id'],TELEGRAM_OPERATION:['telegram_operations','update_id'],
 });
 
+// Pure data comparison shared by generic roots and the closed read purpose.
+function compareRootObservation(context,type,id,values){
+  if(values[0].status==='rejected')throw values[0].reason;
+  const row=type==='USER'?values[0].value:values[0].value.rows[0];
+  if(type==='USER'){if(id!==context.userId)fail('PHASE4_CROSS_TENANT_REFERENCE');return row;}
+  if(!row)fail('PHASE4_SOURCE_NOT_FOUND');
+  if(context.authGeneration<1)fail('PHASE4_AUTH_FENCED');
+  if(values[1].status==='rejected')throw values[1].reason;
+  if(values[1].value.rows[0]?.status!=='ACCESSIBLE')fail('PHASE4_RESOURCE_FENCED');
+  if(values[2].status==='rejected')throw values[2].reason;
+  if(values[2].value.rows.length)fail('PHASE4_CAPABILITY_FENCED');
+  if(values[3].status==='rejected')throw values[3].reason;
+  if(values[3].value.rows.length)fail('PHASE4_SOURCE_DELETED');return row;
+}
+
 /** Server-owned context and source references are branded within this instance.
  * A JSON object, a context from another connection, or a changed mode is not a
  * capability. Authority is supplied only by the owning server/fixture factory. */
@@ -72,6 +89,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   const auditCheck=(await client.execute("SELECT last_cursor FROM phase4_migration_checkpoints WHERE target_version=22 AND step_key='audit_key_check'")).rows[0];
   if(!keys.verifyAuditCheckpoint(auditCheck?.last_cursor))fail('PHASE4_AUDIT_KEY_MISMATCH');
   }
+  const rootObservations=new WeakMap();
   const contexts=new WeakSet(),controls=new WeakSet(),privacyControls=new WeakSet(),sources=new WeakMap(),columns=new Map();
   const timestamp=()=>{const value=now();if(!(value instanceof Date) || !Number.isFinite(value.getTime()))fail('PHASE4_INVALID_CLOCK');return value.toISOString();};
   const contextRegistry=createPhase4ContextRegistry({client,keys,now,timestamp,newId:()=>randomUUID()});
@@ -231,7 +249,10 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     return run(context,async()=>{
       if(type==='USER') {
         if(id!==context.userId)fail('PHASE4_CROSS_TENANT_REFERENCE');
-        return {row:await userState(context.userId),ref:reference(context,type,id,'SHARED',null)};
+        const row=await userState(context.userId),result={row,ref:reference(context,type,id,'SHARED',null)};
+        if(processing.active?.())rootObservations.set(result,{context,type,id:String(id),values:[{status:'fulfilled',value:row}],
+          execution:currentDurableExecution(),job:jobScope.getStore(),marker:currentExecutionReceiptTransactionMarker(),epoch:processingReadObservationEpoch(client)});
+        return result;
       }
       const spec=ROOTS[type];if(!spec)fail('PHASE4_ROOT_TYPE_REQUIRED');
       const [table,key]=spec,owner=type==='TELEGRAM_OPERATION'?'owner_user_id':'user_id';
@@ -255,16 +276,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       if(values[0].status==='rejected')throw values[0].reason;
       const row=values[0].value.rows[0];if(!row)fail('PHASE4_SOURCE_NOT_FOUND');
       if(whoop) {
-        if(context.authGeneration<1)fail('PHASE4_AUTH_FENCED');
-        const controls=values.slice(1);
-        if(controls[0].status==='rejected')throw controls[0].reason;
-        const access=controls[0].value.rows[0];
-        if(access?.status!=='ACCESSIBLE')fail('PHASE4_RESOURCE_FENCED');
-        if(controls[1].status==='rejected')throw controls[1].reason;
-        const unsupported=controls[1].value.rows.length;
-        if(unsupported)fail('PHASE4_CAPABILITY_FENCED');
-        if(controls[2].status==='rejected')throw controls[2].reason;
-        if(controls[2].value.rows.length)fail('PHASE4_SOURCE_DELETED');
+        compareRootObservation(context,type,String(id),values);
       } else {
         if(!readableRow(row))fail('CONTENT_REDACTED');
         if(type==='JOURNAL_FACT' && row.fact_status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');
@@ -279,8 +291,21 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       // an immediate fresh runtime bracket here so revocation while these
       // reads settle cannot expose the source to the next business callback.
       await processing.assertFences?.();
-      return {row:{...row},ref:reference(context,type,id,'SHARED',row)};
+      const result={row:{...row},ref:reference(context,type,id,'SHARED',row)};
+      if(whoop&&processing.active?.())rootObservations.set(result,{context,type,id:String(id),values,
+        execution:currentDurableExecution(),job:jobScope.getStore(),marker:currentExecutionReceiptTransactionMarker(),
+        epoch:processingReadObservationEpoch(client)});
+      return result;
     });
+  }
+  function copyOwnedRootObservation(context,result){
+    const value=rootObservations.get(result);
+    if(!value||value.context!==context||value.execution!==currentDurableExecution()||value.job!==jobScope.getStore()
+      ||!value.marker||value.marker!==currentExecutionReceiptTransactionMarker()||value.epoch===null
+      ||value.epoch!==processingReadObservationEpoch(client))fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+    return {type:value.type,id:value.id,values:value.values.map(result=>result.status==='rejected'
+      ?{status:'rejected',reason:result.reason}:{status:'fulfilled',value:value.type==='USER'?{...result.value}:
+        {rows:result.value.rows.map(row=>({...row}))}})};
   }
   async function validateHistoricalJournal(context,source) {
     if(!['JOURNAL_FACT','JOURNAL_COVERAGE'].includes(source.type)||!source.historicalAsOf
@@ -484,11 +509,13 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   // ITEM and RUN graphs plus expected flattened raw roots in one owned root.
   // It returns raw observations only: its caller executes each original
   // purpose comparator in order and fences again before a receipt effect.
-  async function bodyMetricPreparationRawUnion(context,refs,expected){
+  async function bodyMetricPreparationRawUnion(context,refs,expected,ownedPurpose=null){
     if(!processing.active?.()||!jobScope.getStore()||!contexts.has(context)||schemaVersion!==32||context.executionMode!=='SHADOW'
       ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     requireSettledOperation();
+    const owned=ownedPurpose?requireOwnedBodyMetricPurpose(core,context,ownedPurpose):null,
+      sourceData=owned?requireOwnedCurrentBodyData(core,context,owned.request.currentSource):null;
     const inputs=validateReferences(context,refs),unique=[...new Map(inputs.map(source=>[JSON.stringify([source.type,source.id]),source])).values()],
       body=unique.filter(source=>source.type==='body_energy_results'),items=unique.filter(source=>source.type==='evidence_items');
     if(body.length!==1||items.length!==1||unique.length!==2||inputs.some(source=>source.mode!==context.executionMode||source.historicalAsOf))return {fallback:true};
@@ -543,6 +570,18 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       for(const source of expected)raw.set(nodeKey(source.type,source.id),{type:source.type,id:String(source.id)});
       if(raw.size>10000)return {fallback:true};
       const descriptors=[...raw.values()];
+      if(sourceData){
+        // Raw source data belongs to this complete owned purpose, not a prior
+        // authorization. Every consumer below repeats the original controls.
+        requireOwnedBodyMetricPurpose(core,context,ownedPurpose);
+        if(descriptors.some(source=>!sourceData.rawRoots.has(nodeKey(source.type,source.id))))return {fallback:true};
+        bytes+=Buffer.byteLength(JSON.stringify(descriptors.map(source=>sourceData.rawRoots.get(nodeKey(source.type,source.id)))));
+        if(bytes>READ_SNAPSHOT_LIMITS.bytes)return {fallback:true};
+        // Defer fresh SQL to the closed owner's post-comparison delivery gate;
+        // a later raw SQL failure must not suppress an earlier pure error.
+        if(processingReadObservationEpoch(client)!==observationEpoch)return {fallback:true};
+        return {fallback:false,inputs,inputRows,runObservation,nodes,values,observationEpoch,sourceData,ownedPurpose};
+      }
       for(let start=0;start<descriptors.length;start+=RAW_SOURCE_READ_BATCH){
         const group=descriptors.slice(start,start+RAW_SOURCE_READ_BATCH),observed=await Promise.allSettled(group.map(source=>Promise.resolve().then(()=>root(context,source.type,source.id))));
         for(let index=0;index<group.length;index++){
@@ -706,8 +745,8 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       privacy_artifact_id:keys.lookup(['privacy-artifact-v1',table,context.userId,context.executionMode,identity]),
       content_digest_salt:salt,purge_generation:context.purgeGeneration};
   }
-  return Object.freeze({client,processing,transaction,keys,now,timestamp,schemaVersion,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
+  const core=Object.freeze({client,processing,transaction,keys,now,timestamp,schemaVersion,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
     withJobFence:(binding,check,fn)=>jobScope.run({binding,check},fn),jobAuthority:()=>jobScope.getStore()?.binding??null,
     capturePrivacyControl,assertPrivacyControl,run,runControl,runMaintenance,contextRegistry,
-    tableInfo,root,readRoots,currentBodyRawUnion,bodyMetricPreparationRawUnion,metricPreparationItemSources,linkMetricPreparationItem,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});
+    tableInfo,root,copyOwnedRootObservation,compareRootObservation,readRoots,currentBodyRawUnion,bodyMetricPreparationRawUnion,metricPreparationItemSources,linkMetricPreparationItem,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});return core;
 }

@@ -20,16 +20,34 @@ import { createEpisodeRecurrenceAuthority } from './phase4EpisodeRecurrence.js';
 import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
 import { createReceiptRouting } from './phase4ReceiptRouting.js';
 import { createFamilyDirectory } from './phase4FamilyDirectory.js';
-import {currentDurableExecution,assertExecutionWorkOwner} from './phase4ExecutionContext.js';
+import {currentDurableExecution,currentExecutionReceiptTransactionMarker,assertExecutionWorkOwner} from './phase4ExecutionContext.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import {createBodyEnergyStore,issueNewBodySourceCapture} from './bodyEnergyStore.js';
 import {verifyBodyEnergyProducer} from './bodyEnergyDerivedTime.js';
-import {issueBodyMetricPreparationCapture} from './phase4IntelligenceStore.js';
+import {issueBodyMetricPreparationCapture,requireOwnedBodyMetricPurpose} from './phase4IntelligenceStore.js';
+import {processingReadObservationEpoch} from './processingTransaction.js';
+import {READ_SNAPSHOT_LIMITS} from './processingReadSnapshot.js';
 import {currentBodySourceReceipt,metricPreparationDomainReceipt} from './phase4MetricUnitReceipt.js';
 
-const instances=new WeakMap();
+const instances=new WeakMap(),ownedCurrentBodyData=new WeakMap();
+const freezeData=value=>{if(value&&typeof value==='object'){for(const item of Object.values(value))freezeData(item);Object.freeze(value);}return value;};
+const readonlyDataMap=map=>Object.freeze({size:map.size,get:key=>map.get(key),has:key=>map.has(key),
+  entries:()=>map.entries(),values:()=>map.values(),[Symbol.iterator]:()=>map.entries()});
+export function hasOwnedCurrentBodyData(core,context,ref){
+  const data=ownedCurrentBodyData.get(ref);return Boolean(data&&data.core===core&&data.context===context
+    &&data.execution===currentDurableExecution()&&data.job===core.jobAuthority()
+    &&data.marker===currentExecutionReceiptTransactionMarker()&&data.epoch!==null
+    &&data.epoch===processingReadObservationEpoch(core.client));
+}
+export function requireOwnedCurrentBodyData(core,context,ref){
+  const data=ownedCurrentBodyData.get(ref);
+  if(!data||data.core!==core||data.context!==context||data.execution!==currentDurableExecution()||data.job!==core.jobAuthority()
+    ||!data.marker||data.marker!==currentExecutionReceiptTransactionMarker()||data.epoch===null
+    ||data.epoch!==processingReadObservationEpoch(core.client))fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+  return data;
+}
 const invalid=()=>fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');
 const unavailable=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
@@ -416,6 +434,65 @@ export function createOperationReceipts(core) {
       fail('PHASE4_OPERATION_RESULT_UNAVAILABLE_MISSING_RECEIPT');
     });
   }
+  async function admitOwnedBodyMetricInput(context,purpose){
+    const selected=requireOwnedBodyMetricPurpose(core,context,purpose),
+      data=requireOwnedCurrentBodyData(core,context,selected.request.currentSource),row=data.row;
+    const current=()=>requireOwnedCurrentBodyData(core,context,selected.request.currentSource);
+    const root=entry=>{current();const observation=data.rawRoots.get(JSON.stringify([entry.type,String(entry.id)]));
+      if(!observation)fail('PHASE4_SOURCE_NOT_FOUND');return core.compareRootObservation(context,entry.type,String(entry.id),observation.values);};
+    // Original target artifact/actual graph rejection precedes routing.
+    if(!readableRow(row))fail('CONTENT_REDACTED');
+    for(const [field,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],['auth_generation',context.authGeneration]])
+      if(row[field]!==value)fail('PHASE4_PARENT_STALE');
+    if(row.invalidated_at)fail('PHASE4_PARENT_STALE');if(!row.privacy_artifact_id)fail('PHASE4_HEALTH_PARENT_REQUIRED');
+    for(const entry of data.actual)root(entry);
+    const routed=await routing.inventory(context,'ARTIFACT',row.privacy_artifact_id);current();
+    if(routed.unknown&&!routed.receipts.length)fail('PHASE4_RECEIPT_ROUTE_LEGACY_UNKNOWN');
+    if(routed.receipts.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+    let matched=false;
+    for(const receipt of routed.receipts){
+      if(!readableRow(receipt))continue;const decoded=authenticate(context,receipt);
+      const matches=value=>value&&typeof value==='object'&&value.$operation_reference
+        &&value.$operation_reference.type==='body_energy_results'&&same(value.$operation_reference.key,{result_id:row.result_id});
+      const find=value=>{if(value===null||typeof value!=='object')return null;if(matches(value.ref))return value;
+        for(const entry of Object.values(value)){const found=find(entry);if(found)return found;}return null;};
+      let candidate=find(decoded.result_json);
+      if(!candidate){const target=decoded.related_results_json.find(target=>target.projection_role!=='DEPENDENCY'
+        &&target.type==='body_energy_results'&&same(target.key,{result_id:row.result_id}));
+        if(target)candidate={row:target.row,ref:{$operation_reference:{...target}}};}
+      if(!candidate)continue;
+      // An independently sealed historical/complex alternative keeps the
+      // complete generic reader. No current-source hint supplies authority.
+      if(receipt.operation_key!==data.receipt.operation_key)return false;
+      if(decoded.request_json.scope.timezone!==context.timezone)fail('PHASE4_TIMEZONE_FENCED');
+      if(decoded.request_json.scope.algorithm_set_version!==context.algorithmSetVersion)fail('PHASE4_INPUT_FENCED');
+      for(const [field,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],
+        ['auth_generation',context.authGeneration],['purge_generation',context.purgeGeneration]])if(receipt[field]!==value)fail('PHASE4_PARENT_STALE');
+      for(const [table,contract] of Object.entries(decoded.schema_contract_json)){
+        if(!DERIVED_TABLES.includes(table))invalid();const index=data.contracts.findIndex(([name])=>name===table);
+        if(index<0)return false;const schema=data.schemas[index];if(schema.status==='rejected')throw schema.reason;
+        if(!same(schema.value,contract))unavailable();
+      }
+      authorities.validateManifest(decoded.required_roots_json,context.executionMode);
+      for(const entry of decoded.required_roots_json.roots)authorities.compareRootRow(receipt,decoded.required_roots_json,entry,
+        entry.type==='body_energy_results'?row:root(entry));
+      for(const target of decoded.related_results_json){
+        if(target.type!=='body_energy_results'||target.id!==row.privacy_artifact_id)return false;
+        const contract=decoded.schema_contract_json[target.type];
+        if(!contract||!same(Object.keys(target.key).sort(),contract.filter(c=>c.pk&&!['user_id','execution_mode'].includes(c.name)).map(c=>c.name).sort()))invalid();
+        for(const field of ['input_generation','lifecycle_generation','auth_generation'])if(row[field]!==target.row[field])fail('PHASE4_PARENT_STALE');
+        if(!same(row,target.row))invalid();
+      }
+      const restored=restoreResult(context,decoded,decoded.result_json);
+      if(restored?.row?.result_id!==row.result_id||!same(restored.row,row))invalid();
+      const body=createBodyEnergyStore(core),audit=body.auditPlan(row);
+      for(const source of audit.unique)body.compareAuditSource(context,row,source,{row:root(source)});
+      if(!same(audit.result.row,row))fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
+      matched=true;break;
+    }
+    if(!matched)fail('PHASE4_OPERATION_RESULT_UNAVAILABLE_MISSING_RECEIPT');
+    await core.run(context,async()=>{});current();await assertExecutionWorkOwner(client);current();return true;
+  }
   async function readBodyDrainSource(context,resultId){
     return core.run(context,async()=>{
       const owner=await assertExecutionWorkOwner(client);
@@ -517,9 +594,22 @@ export function createOperationReceipts(core) {
         fail('BODY_ENERGY_SOURCE_CUTOFF_MISMATCH');
       if(settled[2].status==='rejected')throw settled[2].reason;
       await core.run(context,async()=>{});await assertExecutionWorkOwner(client);
-      return {body:{...audit.value.result,created:false},current:{...current,
-        ref:core.reference(context,'body_energy_results',row.privacy_artifact_id,context.executionMode,row)},
-        analysisTime:new Date(settled[2].value.createdAt).toISOString()};
+      const ref=core.reference(context,'body_energy_results',row.privacy_artifact_id,context.executionMode,row),
+        result={body:{...audit.value.result,created:false},current:{...current,ref},
+          analysisTime:new Date(settled[2].value.createdAt).toISOString()};
+      // Complete raw data only, scoped to this exact transaction and epoch.
+      // No accepted authority or guard outcome is memoized.
+      const rawRoots=new Map();
+      for(const [identity,value] of graph.values){
+        if(value.status!=='fulfilled')throw value.reason;
+        rawRoots.set(identity,freezeData(core.copyOwnedRootObservation(context,value.value)));
+      }
+      const bytes=Buffer.byteLength(canonicalJson([row,receipt,contracts,settled[1].value,[...rawRoots.values()]]));
+      if(bytes<=READ_SNAPSHOT_LIMITS.bytes)ownedCurrentBodyData.set(ref,Object.freeze({core,context,execution:currentDurableExecution(),job:core.jobAuthority(),
+        marker:currentExecutionReceiptTransactionMarker(),epoch:processingReadObservationEpoch(client),row:freezeData({...row}),receipt:freezeData({...receipt}),
+        contracts:freezeData(structuredClone(contracts)),schemas:freezeData(structuredClone(settled[1].value)),
+        actual:freezeData(structuredClone(graph.actual)),rawRoots:readonlyDataMap(rawRoots)}));
+      return result;
     });
   }
   /** Fresh readonly Body consumer. Never reuses an active/expired job lease.
@@ -773,7 +863,7 @@ export function createOperationReceipts(core) {
       } else await forArtifact(context,source.type,key,options);
     }
   }
-  async function execute(context,kind,request,perform,{discover=null}={}) {
+  async function execute(context,kind,request,perform,{discover=null,bodyMetricPurpose=null}={}) {
     const execution=currentDurableExecution(),step={};
     if(execution&&execution.receipts!==false){
       const identity=async()=>{const {normalized}=await prepare(context,request,kind);return keyForEnvelope(requestEnvelope(context,kind,normalized));};
@@ -789,6 +879,12 @@ export function createOperationReceipts(core) {
       if(epoch!==null&&epoch!==undefined&&!Number.isSafeInteger(epoch))fail('PHASE4_SEMANTIC_TIME_INVALID');
       const at=requireChronology(semanticTime(normalized.asOfUtc??normalized.semanticAt??(epoch==null?null:new Date(epoch).toISOString())),null,core.now());
       const requestAuthority=requestEnvelope(context,kind,normalized),key=keyForEnvelope(requestAuthority);
+      if(bodyMetricPurpose){
+        const selected=requireOwnedBodyMetricPurpose(core,context,bodyMetricPurpose),
+          expected=workStepOptions('domain.operation',[context.userId,context.executionMode,context.inputGeneration,kind,key]).workStep;
+        if(kind!=='analyzeMetric'||selected.operationKey!==key||selected.domainRequestJson!==canonicalJson(requestAuthority)
+          ||selected.workStep!==expected)fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+      }
       const prior=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=? AND operation_kind=? AND operation_key=?`,
         args:[context.userId,context.executionMode,kind,key]})).rows[0];
       if(prior)return read(context,prior);
@@ -828,7 +924,8 @@ export function createOperationReceipts(core) {
       if(equivalents.length>1)unavailable();
       if(equivalents.length)return read(context,equivalents[0]);
       if(discover)await discover(context,kind,normalized);
-      await admitInputs(context,semanticRequest,refs,kind);
+      const ownedInput=bodyMetricPurpose&&kind==='analyzeMetric'?await admitOwnedBodyMetricInput(context,bodyMetricPurpose):false;
+      if(!ownedInput)await admitInputs(context,semanticRequest,refs,kind);
       if(kind==='INSIGHT_CREATE') {
         const id=keys.lookup(['insight-creation-v1',context.userId,context.executionMode,request.creationKey]);
         if((await client.execute({sql:'SELECT 1 FROM health_insights WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',
@@ -947,6 +1044,17 @@ export function createOperationReceipts(core) {
       return result;
     },step);
   }
+  async function metricDomainWork(context,request){
+    const {normalized}=await prepare(context,request,'analyzeMetric'),key=keyForEnvelope(requestEnvelope(context,'analyzeMetric',normalized));
+    return {workStep:workStepOptions('domain.operation',[context.userId,context.executionMode,context.inputGeneration,'analyzeMetric',key]).workStep,
+      operationKey:key,domainRequestJson:canonicalJson(requestEnvelope(context,'analyzeMetric',normalized))};
+  }
+  async function replayMetricDomain(context,request){
+    const {normalized}=await prepare(context,request,'analyzeMetric'),key=keyForEnvelope(requestEnvelope(context,'analyzeMetric',normalized));
+    const row=(await client.execute({sql:`SELECT * FROM ${TABLE} WHERE user_id=? AND execution_mode=? AND operation_kind='analyzeMetric' AND operation_key=?`,
+      args:[context.userId,context.executionMode,key]})).rows[0];
+    if(!row)fail('EXECUTION_DOMAIN_RECEIPT_MISSING');return read(context,row);
+  }
   async function takeNewMetricDomainProgress(context,result){
     if(core.processing.active?.())fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     const created=newMetricDomains.get(result);newMetricDomains.delete(result);
@@ -955,7 +1063,7 @@ export function createOperationReceipts(core) {
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     return core.run(context,async()=>{await assertExecutionWorkOwner(client);return true;});
   }
-  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,readBodyDrainSource,readCurrentBodyBundle,readBodyPublicationSource,recordedMetricPreparation,takeNewMetricDomainProgress,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,
+  const api=Object.freeze({execute,read,prepare,authenticate,forArtifact,readBodyDrainSource,readCurrentBodyBundle,readBodyPublicationSource,recordedMetricPreparation,metricDomainWork,replayMetricDomain,takeNewMetricDomainProgress,producedEvidence,terminalInsightPredecessor,discoverInsightPredecessor,
     resolveInsightLifecycle,metricRefreshPlan:metricRefresh.plan,episodeRecurrencePlan:recurrence.consume,
     episodeRecurrenceInventory:recurrence.inventory});instances.set(core,api);return api;
 }

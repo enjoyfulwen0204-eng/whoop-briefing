@@ -5,8 +5,8 @@ export function journalCard(row,{locale,displayName=null,preferences=null}={}){
  let text;
  if(row.kind==='PREFERENCES'){
   text=`${c.preferences}\n${c.daily}: ${preferences.daily_enabled?c.enabled:c.disabled}\n${c.weekly}: ${preferences.weekly_enabled?c.enabled:c.disabled}`;
-  const selected=JSON.parse(preferences.topics_json??'[]');
-  TOPICS.forEach((topic,i)=>buttons.push([button(`${selected.includes(topic)?'✅':'▫️'} ${TOPIC_ICONS[topic]} ${c.topics[i]}`,`topic:${topic}`)]));
+  const selected=JSON.parse(preferences.topics_json??'[]'),excluded=JSON.parse(preferences.excluded_topics_json??'[]');
+  TOPICS.forEach((topic,i)=>buttons.push([button(`${selected.includes(topic)?'✅':'▫️'} ${TOPIC_ICONS[topic]} ${c.topics[i]}`,`topic:${topic}`),button(`${excluded.includes(topic)?'🚫':'▫️'} ${c.ignore}`,`exclude:${topic}`)]));
   buttons.push([button(`📔 ${preferences.daily_enabled?c.disable:c.enable}`,'toggleDaily')]);
   buttons.push([button(`🗓 ${preferences.weekly_enabled?c.weeklyDisable:c.weeklyEnable}`,'toggleWeekly')]);
   buttons.push([button(`✅ ${c.confirm}`,'cancel')]);

@@ -121,7 +121,7 @@ export function composePhase4Stores(core) {
     if(!bundle?.fallback)return bundle;
     return core.run(context,async()=>{
       const owner=await assertExecutionWorkOwner(client);
-      if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
+      if(![32,33].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
         fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const rows=(await client.execute({sql:`SELECT result_id FROM body_energy_results
         WHERE user_id=? AND execution_mode=? AND input_generation=? AND invalidated_at IS NULL

@@ -304,7 +304,7 @@ export function createOperationReceipts(core) {
     if(!retainedBody&&decoded.request_json.scope.algorithm_set_version!==context.algorithmSetVersion)fail('PHASE4_INPUT_FENCED');
     for(const [field,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],
       ['auth_generation',context.authGeneration],['purge_generation',context.purgeGeneration]])if(!retainedBody&&row[field]!==value)fail('PHASE4_PARENT_STALE');
-    if(core.schemaVersion===32&&core.jobAuthority()&&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
+    if([32,33].includes(core.schemaVersion)&&core.jobAuthority()&&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
       &&row.operation_kind==='analyzeMetric'&&decoded.request_json.request.metricKey==='body_energy'&&decoded.request_json.request.refresh===true){
       const produced=decoded.result_json.jobAuthority,current=core.jobAuthority();
       // Both original queue kinds consume this same metric domain identity.
@@ -496,7 +496,7 @@ export function createOperationReceipts(core) {
   async function readBodyDrainSource(context,resultId){
     return core.run(context,async()=>{
       const owner=await assertExecutionWorkOwner(client);
-      if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
+      if(![32,33].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
         fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const artifact=await core.artifact(context,'body_energy_results',{result_id:resultId});
       const {normalized}=await prepare(context,{asOfEpochMs:artifact.row.as_of_epoch_ms},'BODY_ENERGY_COMPUTE');
@@ -515,7 +515,7 @@ export function createOperationReceipts(core) {
   async function readCurrentBodyBundle(context,asOfUtc){
     return core.run(context,async()=>{
       const owner=await assertExecutionWorkOwner(client);
-      if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
+      if(![32,33].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
         fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const rows=(await client.execute({sql:`SELECT * FROM body_energy_results
         WHERE user_id=? AND execution_mode=? AND input_generation=? AND invalidated_at IS NULL

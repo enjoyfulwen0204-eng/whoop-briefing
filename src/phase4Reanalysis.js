@@ -101,7 +101,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   async function metricsV30(context,req,lease,assertBudget,{preparedDefault=false}={}) {
     const directory=await queue.owned(context,lease,()=>familyDirectory.inventory(context,req.metricKey),
       {assertBudget,workKind:'stage6.family-inventory',workFacts:[req.metricKey,req.asOfUtc]});
-    if(core.schemaVersion===32&&req.metricKey==='body_energy'&&directory.created)
+    if([32,33].includes(core.schemaVersion)&&req.metricKey==='body_energy'&&directory.created)
       return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,
         units:[{kind:'FAMILY_DIRECTORY',status:'COMPLETE'}],committedUnits:1};
     const defaultKey=keys.lookup(['episode-family-v1',context.userId,phase4Metric(req.metricKey).domain,
@@ -115,7 +115,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     const units=[];
     for(const candidate of candidates)try {
       assertBudget();
-      if(core.schemaVersion===32&&req.metricKey==='body_energy'&&candidate.windowFamily&&!preparedDefault){
+      if([32,33].includes(core.schemaVersion)&&req.metricKey==='body_energy'&&candidate.windowFamily&&!preparedDefault){
         const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnit(context,
           {...req,windowFamily:candidate.windowFamily,refresh:true},'NEXT'),{assertBudget});
         if(unit?.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:firstFailure,
@@ -152,7 +152,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   }
 
   async function metric(context,req,history) {
-    const prepared=await (core.schemaVersion===32&&req.metricKey==='body_energy'
+    const prepared=await ([32,33].includes(core.schemaVersion)&&req.metricKey==='body_energy'
       ?stores.intelligence.resumeMetricPreparation(context,{...req,refresh:true})
       :stores.intelligence.analyzeMetric(context,{...req,refresh:true}));
     if(!['LIMITED','AVAILABLE'].includes(prepared.quality.status)||prepared.quality.confidence<=0)
@@ -313,7 +313,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   async function processSourceV30(context,source,asOfUtc,lease,assertBudget,admittedRoot=null,bodyCandidate=false) {
     const root=admittedRoot??await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
     if(source.source_type==='USER') {
-      if(core.schemaVersion===32&&bodyCandidate){
+      if([32,33].includes(core.schemaVersion)&&bodyCandidate){
         const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnitFromCurrentBody(context,asOfUtc),{assertBudget});
         if(unit.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,
           units:[{kind:'METRIC_PREPARATION_UNIT',unit:unit.unit,status:'COMPLETE'}],committedUnits:1};
@@ -330,13 +330,13 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
         const analysisTime=await bodyEnergyMetricAnalysisTime(core,context,current,body.row.as_of_utc);assertBudget();
         return inputs.metric(context,'body_energy',current,analysisTime);
       };
-      const prior=core.schemaVersion===32&&bodyCandidate?await queue.owned(context,lease,async()=>{
+      const prior=[32,33].includes(core.schemaVersion)&&bodyCandidate?await queue.owned(context,lease,async()=>{
         const retained=await stores.bodyEnergy.readForCurrentDrain(context,asOfUtc);if(!retained)return null;
         assertBudget();return {body:retained.body,...(['AVAILABLE','LIMITED'].includes(retained.body.row.quality_state)
           ?{request:await inputs.metric(context,'body_energy',retained.current,retained.analysisTime)}:{})};
       },{assertBudget}):null;
       const recorded=prior??await queue.owned(context,lease,async()=>{
-        const body=await (core.schemaVersion===32?stores.bodyEnergy.computeForCurrentDrain(context)
+        const body=await ([32,33].includes(core.schemaVersion)?stores.bodyEnergy.computeForCurrentDrain(context)
           :stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}));
         // Replayed Body and its required metric inputs use the same current
         // owned transaction. Every original typed artifact/domain/root check
@@ -372,7 +372,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     for(const [metricKey] of registeredMetrics) {
       let analysisAsOf=asOfUtc;
       try {
-        if(core.schemaVersion===32)analysisAsOf=await core.run(context,()=>stage6CurrentCaptureTime(core,context,metricKey,root));
+        if([32,33].includes(core.schemaVersion))analysisAsOf=await core.run(context,()=>stage6CurrentCaptureTime(core,context,metricKey,root));
         const request=await core.run(context,()=>inputs.metric(context,metricKey,root,analysisAsOf));
         units.push({kind:'METRIC_SOURCE',metricKey,status:'COMPLETE'});
         const episodeWork=await metricsV30(context,request,lease,assertBudget);
@@ -431,7 +431,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
               const lookedUp=await core.run(context,async()=>{
                 const page=await inputs.enumerate(context,cursor,1);
                 const root=familyDirectory&&page.length?await stores.root(context,page[0].source_type,page[0].source_id):null;
-                const bodyCandidate=core.schemaVersion===32&&page[0]?.source_type==='USER'
+                const bodyCandidate=[32,33].includes(core.schemaVersion)&&page[0]?.source_type==='USER'
                   &&(await client.execute({sql:`SELECT result_id FROM body_energy_results WHERE user_id=? AND execution_mode=?
                     AND input_generation=? AND invalidated_at IS NULL LIMIT 1`,args:[context.userId,context.executionMode,context.inputGeneration]})).rows.length>0;
                 return {page,root,bodyCandidate};

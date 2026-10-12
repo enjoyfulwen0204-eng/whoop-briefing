@@ -444,7 +444,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     return withMetricPreparationContinuation(core,context,()=>performMetricPreparationUnit(context,null,'NEXT',()=>prepareCurrentBodyMetricRequest(context,asOfUtc)));
   }
   async function performMetricPreparationUnit(context,request,kind,requestFrom=null) {
-    if(core.schemaVersion!==32||!core.jobAuthority()||!requestFrom&&request?.refresh!==true
+    if(![32,33].includes(core.schemaVersion)||!core.jobAuthority()||!requestFrom&&request?.refresh!==true
       ||!['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY','NEXT'].includes(kind))
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     let prepared,alreadyRecorded=false,bodySource=null,ownedPurpose=null;

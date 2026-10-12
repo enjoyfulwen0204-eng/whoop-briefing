@@ -82,5 +82,10 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   });
  }
  async function expired(actor){return {text:JOURNAL_COPY[presentationLocale(await db.getLocale(actor.control.userId))].expired};}
- return {authenticate,issue,render,resolve,read,update,bind,expired,link,insert,privacyFields,answerWindowMs};
+ async function button(actor,row,b){
+  const token=randomBytes(24).toString('base64url');
+  await insert('journal_callback_tokens',{user_id:row.user_id,token_hash:hash(token),interaction_id:row.interaction_id,revision:row.revision,action:b.action,created_at:timestamp(),expires_at:row.expires_at});
+  return {text:b.text,callback_data:'j7:'+token};
+ }
+ return {authenticate,issue,render,resolve,read,update,bind,expired,link,insert,privacyFields,button,answerWindowMs};
 }

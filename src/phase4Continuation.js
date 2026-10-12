@@ -29,6 +29,12 @@ export async function discoverPhaseContinuation({query,db,keys,releaseSha,mode,c
   const assert=()=>{budget.assert();requireRuntimeAdmission(db.raw,admission,keys,db.transaction);};
   assert();
   return db.withRuntimeFence(assert,async()=>{
+   // A lazy, separately authorized pilot must read its signed availability
+   // inside this existing admitted 30-second scope, before offering DRAIN.
+   if(typeof allowDrain==='function'){
+    allowDrain=await allowDrain();assert();
+    if(typeof allowDrain!=='boolean')fail('CONTINUATION_DEPENDENCIES_REQUIRED');
+   }
    const rows=(await db.raw.execute({sql:`SELECT e.*,${databaseNowMs} observed_at FROM phase4_executions e WHERE
     e.release_sha=? AND e.execution_mode=? AND e.trigger_source='cloudflare' AND e.config_proof=?
     AND ((?=1 AND e.phase='STAGE6_DRAIN' AND substr(e.execution_id,1,5)='p4c1_' AND (e.state='WORK_COMMITTED' OR (e.state='ESTABLISHED' AND

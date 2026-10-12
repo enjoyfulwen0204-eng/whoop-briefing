@@ -20,7 +20,7 @@ import {withDurableExecution,requireSettledOperation} from './phase4ExecutionCon
 import {syncRuntimeProcessingCheck} from './processingTransaction.js';
 import {executionProfile} from './phase4Rollback.js';
 import { requireRuntimeAdmission, followRuntimeRenewal } from './runtimeAdmission.js';
-import {betaPilotConfiguration,reviewedPilotAdmission,createBetaPilotPermit,closingBetaPilotPermit} from './betaPilotPermit.js';
+import {betaPilotConfiguration,reviewedPilotAdmission,createBetaPilotPermit,closingBetaPilotPermit,pilotConfigurationMaySchedule} from './betaPilotPermit.js';
 import {pilotStopRequested} from './betaPilotAllowance.js';
 export const ADMISSION_BUDGET_MS=30_000;
 export const SYNC_SOURCE_BUDGETS=Object.freeze({cloudflare:120_000,github:SYNC_BUDGET_MS,manual:SYNC_BUDGET_MS,event:120_000});
@@ -64,7 +64,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
   reservation=providedDb?.raw?.protocol==='file'&&deps.pilotReservation
    ?deps.pilotReservation:reviewedPilotAdmission(pilotConfig);
  }catch{}
- const pilotReady=Boolean(config.runtime==='on'&&!pilotStopped&&pilotConfig&&reservation&&Date.now()>=pilotConfig.startAt&&Date.now()<pilotConfig.endAt);
+ let pilotReady=Boolean(config.runtime==='on'&&!pilotStopped&&pilotConfig&&reservation&&pilotConfigurationMaySchedule(pilotConfig));
  const phaseReply=record=>{
   const response=phaseResponse(record);
   let stopped=true;try{stopped=pilotStopRequested(environment);}catch{}
@@ -94,6 +94,11 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
    checkAdmission();
    stopFollowing=followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
    const admissionFence=()=>{checkAdmission();overall.assert();admissionBudget.assert();};
+   if(pilotReady&&pilotConfig.startPolicy==='FIRST_RESERVATION'){
+    pilotReady=(await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>
+     createBetaPilotPermit({db,keys,config:pilotConfig,reservation}).availability()))).possible;
+    if(request.phase==='STAGE6_DRAIN'&&!pilotReady)return phaseReply({phase:request.phase,source:request.triggerSource,executionMode:mode,outcome:'DISABLED',releaseSha});
+   }
    if(isContinuationRequest(request)&&request.phase==='SYNC'){
     const parent=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>reconcileExecution(db,request,requestIdentity(body))));
     if(parent.state!=='FINALIZED_SUCCESS')throw Object.assign(Error('CONTINUATION_SCOPE_REJECTED'),{code:'CONTINUATION_SCOPE_REJECTED'});
@@ -258,10 +263,15 @@ export async function discoverExecutionContinuation({query,db:providedDb,keys:pr
  if(query.executionMode!==mode||query.configProof!==proof)throw Object.assign(Error('EXECUTION_CONFIG_CHANGED'),{code:'EXECUTION_CONFIG_CHANGED'});
  // An inactive optional pilot must not redirect an ordinary Morning Brief
  // invocation into a replay of yesterday's completed parent.
- let ready=false;try{const pilot=betaPilotConfiguration(environment);ready=Boolean(pilot&&reviewedPilotAdmission(pilot)&&!pilotStopRequested(environment)&&Date.now()>=pilot.startAt&&Date.now()<pilot.endAt);}catch{}
+ let ready=false;try{const pilot=betaPilotConfiguration(environment);ready=Boolean(pilot&&reviewedPilotAdmission(pilot)&&!pilotStopRequested(environment)&&pilotConfigurationMaySchedule(pilot));}catch{}
  if(!ready&&!scopeIncludesSync(scope))return {status:200,body:{ok:true,state:'NONE',requestBody:null}};
  const env=providedDb?null:providedEnv??loadEnv();
  const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
- try {return await discoverPhaseContinuation({query,db,keys,releaseSha,mode,scope,configProof:proof,allowDrain:ready,signal});}
+ try {
+  const pilot=ready?betaPilotConfiguration(environment):null;
+  const allowDrain=pilot?.startPolicy==='FIRST_RESERVATION'
+   ?async()=>Boolean((await createBetaPilotPermit({db,keys,config:pilot,reservation:reviewedPilotAdmission(pilot)}).availability()).possible)
+   :ready;
+  return await discoverPhaseContinuation({query,db,keys,releaseSha,mode,scope,configProof:proof,allowDrain,signal});}
  finally {if(!providedDb)db.close();}
 }

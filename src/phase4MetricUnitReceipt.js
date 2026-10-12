@@ -3,6 +3,7 @@ import {workStepOptions} from './phase4WorkStep.js';
 import {bodySha256} from './briefingTriggerAuth.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {JOB_KINDS} from './phase4V24Schema.js';
+import {phase4Metric,INTELLIGENCE_VERSIONS} from './phase4IntelligenceRegistry.js';
 
 const kinds=new Set(['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY']),proofs=new WeakMap();
 const continuationScope=new AsyncLocalStorage();
@@ -32,6 +33,23 @@ export async function metricUnitReceipt(core,context,plan,kind){
  if(!receipt)return null;
  const proof=Object.freeze({});proofs.set(proof,{core,context,execution:currentDurableExecution(),job:core.jobAuthority(),
   kind,runKey:plan.runKey,inputHash:plan.inputHash,itemKey:plan.itemKey});return proof;
+}
+// The original analyzeMetric domain operation already has its exact v32
+// named work receipt. A later owned leg requires that actual receipt and
+// sealed finalized producer; the domain row alone cannot complete a family.
+export async function metricPreparationDomainReceipt(core,context,operationKey,request){
+ if(typeof operationKey!=='string'||!/^[a-f0-9]{64}$/.test(operationKey))fail();
+ if(request?.metricKey!=='body_energy'||request.refresh!==true||typeof request.windowFamily!=='string'||!request.windowFamily
+  ||typeof request.asOfUtc!=='string'||!Number.isFinite(Date.parse(request.asOfUtc)))fail();
+ const steps=[workStepOptions('domain.operation',[context.userId,context.executionMode,context.inputGeneration,'analyzeMetric',operationKey]).workStep];
+ // Earlier exact v32 workers committed the same domain inside their original
+ // stage6.family root. Preserve that authentic completed parent alternative;
+ // an unfinalized/unknown-COMMIT family producer still fails the same verifier.
+ const family=core.keys.lookup(['episode-family-v1',context.userId,phase4Metric('body_energy').domain,'body_energy',
+  INTELLIGENCE_VERSIONS.algorithm,'body_energy',request.windowFamily]),job=core.jobAuthority();
+ for(const kind of JOB_KINDS)steps.push(workStepOptions('stage6.family',[context.userId,context.executionMode,kind,
+  job.requestedGeneration,job.scopeRevision,['body_energy',request.asOfUtc,family]]).workStep);
+ return Boolean(await namedUnitReceipt(core,context,steps));
 }
 export async function metricRunReceipt(core,context,plan){
  if(core.processing.active?.())return namedRunReceipt(core,context,plan);

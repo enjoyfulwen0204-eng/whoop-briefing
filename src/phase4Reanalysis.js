@@ -317,7 +317,13 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
         const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnitFromCurrentBody(context,asOfUtc),{assertBudget});
         if(unit.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,
           units:[{kind:'METRIC_PREPARATION_UNIT',unit:unit.unit,status:'COMPLETE'}],committedUnits:1};
-        if(unit.prepared)return metricsV30(context,unit.request,lease,assertBudget,{preparedDefault:true});
+        if(unit.prepared){
+          const domain=await queue.withOwnership(context,lease,()=>stores.intelligence.completeMetricPreparationDomain(context,unit.request),{assertBudget});
+          assertBudget();
+          if(domain.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,
+            units:[{kind:'METRIC_DOMAIN',status:'COMPLETE'}],committedUnits:1};
+          return metricsV30(context,unit.request,lease,assertBudget,{preparedDefault:true});
+        }
       }
       const metricRequest=async body=>{
         const current=await stores.readArtifact(context,'body_energy_results',{result_id:body.row.result_id});assertBudget();

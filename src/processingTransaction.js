@@ -7,6 +7,11 @@ import {reconcileExecution} from './phase4ExecutionStore.js';
 import {inExecutionCoordination} from './phase4Coordination.js';
 import {createReadSnapshotMemo,readSnapshotKey} from './processingReadSnapshot.js';
 const readOnlyChecks=new WeakSet(),controlOnlyChecks=new WeakSet();
+const observationEpochs=new WeakMap();
+// Data lifetime only, never a permit or successful guard observation. Closed
+// typed readers reject their raw union if an intervening business write clears
+// the existing transaction-local data snapshot while reads are settling.
+export function processingReadObservationEpoch(client){return observationEpochs.get(client)?.()??null;}
 export function readOnlyProcessingCheck(check){readOnlyChecks.add(check);return check;}
 // Only trusted server checks consisting of non-health control observations
 // and explicit runtime brackets use this narrower transport composition.
@@ -419,6 +424,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     if(state){state.completed.push(fn);return;}
     return fn();
   }
+  observationEpochs.set(client,()=>scope.getStore()?.readMemo.epoch()??null);
   const readOnlyTransaction=fn=>{
     if(scope.getStore())throw Error('PROCESSING_READ_ONLY_ROOT_REQUIRED');
     return transaction(()=>{scope.getStore().preparationReadOnly=true;return readOnlyWork.run(true,fn);},{readOnly:true});

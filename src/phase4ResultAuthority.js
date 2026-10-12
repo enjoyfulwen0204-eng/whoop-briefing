@@ -8,7 +8,10 @@ import { createBodyEnergyStore,requireNewBodySourceCapture } from './bodyEnergyS
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import {requireMetricUnitProof} from './phase4MetricUnitReceipt.js';
+import {requireBodyMetricPreparationCapture} from './phase4IntelligenceStore.js';
+import {processingReadObservationEpoch} from './processingTransaction.js';
 import {currentDurableExecution,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
+
 
 const invalid=()=>fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
 const incomplete=()=>fail('PHASE4_REQUIRED_ROOT_AUTHORITY_INCOMPLETE');
@@ -151,6 +154,145 @@ export function createResultAuthority(core) {
     const roots=ordered([...entries.values()]),bytes=Buffer.byteLength(canonicalJson(roots));
     if(roots.length>REQUIRED_ROOT_BUDGET.count||bytes>REQUIRED_ROOT_BUDGET.bytes)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
     return {version:BOUNDED_ROOT_VERSION,model:'FLATTENED_CALCULATION_INPUTS',roots,root_count:roots.length,serialized_bytes:bytes};
+  }
+  function bodyMetricRawComparators(context,observed){
+    const nodeKey=(table,id)=>canonicalJson([table,String(id)]),node=(table,id)=>observed.nodes.get(nodeKey(table,id)),
+        rawValue=entry=>{const value=observed.values.get(nodeKey(entry.type,entry.id));if(!value)fail('PHASE4_SOURCE_NOT_FOUND');
+          if(value.status==='rejected')throw value.reason;return value.value;};
+      const graph=(table,id,path=new Set(),verified=new Set())=>{
+        const key=nodeKey(table,id);if(path.has(key)||path.size>128||verified.size>10000)fail('PHASE4_PROVENANCE_CYCLE');
+        if(verified.has(key))return;path.add(key);const current=node(table,id);
+        if(current?.error)throw current.error;if(!current?.links.length)fail('PHASE4_INCOMPLETE_PROVENANCE');
+        for(const link of current.links){
+          if(link.source_execution_mode==='SHARED'){
+            const identity=nodeKey(link.source_type,link.source_id);if(verified.has(identity))continue;
+            rawValue({type:link.source_type,id:link.source_id});verified.add(identity);
+          }else{
+            const parentNode=node(link.source_type,link.source_id);if(parentNode?.error)throw parentNode.error;
+            const parent=parentNode?.row;
+            if(!readableRow(parent)||parent.invalidated_at)fail('PHASE4_PARENT_STALE');
+            for(const column of ['input_generation','lifecycle_generation','auth_generation'])
+              if(Object.hasOwn(parent,column)&&parent[column]!==context[{input_generation:'inputGeneration',lifecycle_generation:'lifecycleGeneration',auth_generation:'authGeneration'}[column]])
+                fail('PHASE4_PARENT_STALE');
+            graph(link.source_type,link.source_id,path,verified);
+          }
+        }
+        path.delete(key);verified.add(key);
+      };
+      const artifact=(table,id)=>{
+        const row=node(table,id)?.row;if(!row)fail('PHASE4_PARENT_NOT_FOUND');
+        if(Object.hasOwn(row,'content_state')&&!readableRow(row))fail('CONTENT_REDACTED');
+        for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],['auth_generation',context.authGeneration]])
+          if(Object.hasOwn(row,column)&&row[column]!==value)fail('PHASE4_PARENT_STALE');
+        if(row.invalidated_at)fail('PHASE4_PARENT_STALE');if(!row.privacy_artifact_id)fail('PHASE4_HEALTH_PARENT_REQUIRED');
+        graph(table,id);return row;
+      };
+    return {nodeKey,node,rawValue,graph,artifact};
+  }
+  /** Only an actual owned REFRESH_PREPARED Body calculation selects this
+   * transport. No comparison is reused as authority: source revalidation,
+   * derived artifacts, Body audit, existing result authority and flattened
+   * capture execute their original pure checks against one fresh raw union. */
+  async function captureBodyMetricPreparationRoots(context,refs,salt,token){
+    if(!token)return null;
+    const brand=requireBodyMetricPreparationCapture(core,context,token,refs);
+    return core.run(context,async()=>{
+      await assertExecutionWorkOwner(client);
+      const inputs=core.validateReferences(context,refs),bodySource=inputs.find(source=>source.type==='body_energy_results'),
+        itemSource=inputs.find(source=>source.type==='evidence_items');
+      if(!bodySource||!itemSource)return null;
+      const body=createBodyEnergyStore(core);let audit;
+      try{audit=body.auditPlan(bodySource.row);}catch{}
+      let existing=[],authorityError;
+      try{
+        const authorityFrom=await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode]);
+        existing=(await client.execute({sql:`SELECT * FROM ${authorityFrom} WHERE user_id=? AND execution_mode=? AND evidence_item_id=?`,
+          args:[context.userId,context.executionMode,itemSource.row.evidence_item_id]})).rows;
+      }catch(error){authorityError=error;}
+      if(existing.some(row=>row.result_scope!=='METRIC'))return null;
+      const raw=entry=>entry&&entry.mode==='SHARED'&&entry.as_of===null&&['sleep','recovery','cycle','workout','USER'].includes(entry.type);
+      const bodyRoot=entry=>entry&&entry.type==='body_energy_results'&&entry.mode===context.executionMode&&entry.as_of===null&&entry.id===bodySource.id;
+      const manifests=existing.map(row=>{try{return parse(row.required_roots_json);}catch{return null;}});
+      if(manifests.some(manifest=>!Array.isArray(manifest?.roots)||manifest.roots.some(entry=>!raw(entry)&&!bodyRoot(entry))))return null;
+      const expected=[...(audit?.unique??[]),...manifests.flatMap(manifest=>manifest.roots.filter(raw))];
+      const observed=await core.bodyMetricPreparationRawUnion(context,refs,expected);if(observed.fallback)return null;
+      const current=()=>processingReadObservationEpoch(client)===observed.observationEpoch;
+      if(!current())return null;
+      const {nodeKey,node,rawValue,graph,artifact}=bodyMetricRawComparators(context,observed);
+      // Original revalidateSources precedes every capture/expansion. Even
+      // repeated references retain each original row-generation comparison.
+      for(const source of inputs){
+        const value=observed.inputRows.get(nodeKey(source.type,source.id));if(value?.error)throw value.error;
+        const row=value?.row;if(!readableRow(row)||row.invalidated_at)fail('PHASE4_PARENT_STALE');
+        for(const column of ['input_generation','lifecycle_generation','auth_generation'])
+          if(Object.hasOwn(row,column)&&row[column]!==source.row[column])fail('PHASE4_PARENT_STALE');
+        graph(source.type,source.id);
+      }
+      const pending=inputs.map(source=>({type:source.type,id:source.id,mode:source.mode,as_of:null,version:null})),entries=new Map(),seen=new Set(),
+        identityFor=descriptor=>canonicalJson([descriptor.mode,descriptor.type,descriptor.id,descriptor.as_of]);
+      while(pending.length){
+        if(!current())return null;
+        const descriptor=pending.shift(),identity=identityFor(descriptor);
+        if(seen.has(identity)){
+          if(descriptor.version!==null&&canonicalSourceVersion(descriptor.version)!==entries.get(identity).version)
+            fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');if(!descriptor.expected)continue;
+        }
+        seen.add(identity);if(seen.size>REQUIRED_ROOT_BUDGET.count)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
+        let row;
+        if(descriptor.mode==='SHARED')row=rawValue(descriptor).row;
+        else{
+          if(!['evidence_items','body_energy_results'].includes(descriptor.type)||descriptor.mode!==context.executionMode)invalid();
+          const info=await core.tableInfo(descriptor.type),key=descriptor.type==='evidence_items'?'evidence_item_id':'result_id';
+          if(!current())return null;
+          if(info.filter(column=>column.pk&&!['user_id','execution_mode'].includes(column.name)).map(column=>column.name).join(',')!==key)
+            fail('PHASE4_ENTITY_KEY_REQUIRED');
+          if(!node(descriptor.type,descriptor.id)?.row)fail('PHASE4_SOURCE_NOT_FOUND');row=artifact(descriptor.type,descriptor.id);
+        }
+        if(descriptor.expected)for(const [field,value] of Object.entries(descriptor.expected)){
+          const temporal=field.endsWith('_at')||field==='as_of_utc';
+          if((temporal?canonicalSourceTime(row[field]??null):row[field]??null)!==(temporal?canonicalSourceTime(value):value))
+            fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
+        }
+        if(descriptor.version!==null&&healthVersion(row)!==canonicalSourceVersion(descriptor.version))fail('PHASE4_REQUIRED_ROOT_VERSION_MISMATCH');
+        const {expected,...stable}=descriptor;
+        entries.set(identity,{...stable,version:['sleep','recovery','cycle','workout','body_energy_results'].includes(descriptor.type)?healthVersion(row):null,
+          content_hash:hash(salt,'required-root-content-v1',rootProjection(row,descriptor.type,BOUNDED_ROOT_VERSION))});
+        if(descriptor.type==='evidence_items'){
+          if(observed.runObservation.error)throw observed.runObservation.error;
+          const runRow=observed.runObservation.row;
+          if(!runRow||runRow.run_id!==row.run_id)fail('PHASE4_PARENT_NOT_FOUND');const run=artifact('evidence_runs',runRow.privacy_artifact_id);
+          if(run.run_id!==brand.runId)invalid();const descriptors=await descriptorsForRun(context,run);
+          if(!current())return null;pending.push(...descriptors);
+          if(authorityError)throw authorityError;
+          for(const authority of existing){
+            verifyEnvelope(context,authority);
+            const currentItem=artifact('evidence_items',descriptor.id),currentRun=artifact('evidence_runs',run.privacy_artifact_id),
+              verified=authenticate(context,authority,currentItem,currentRun);
+            for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],['auth_generation',context.authGeneration]])
+              if(authority[column]!==value)fail('PHASE4_PARENT_STALE');
+            validateManifest(verified.manifest,context.executionMode);
+            for(const entry of verified.manifest.roots)compareRootRow(authority,verified.manifest,entry,
+              entry.mode==='SHARED'?rawValue(entry).row:artifact(entry.type,entry.id));
+            pending.push(...verified.manifest.roots.map(({content_hash,...root})=>root));
+          }
+        }else if(descriptor.type==='body_energy_results'){
+          // reproduceAudit's original linked-presence check precedes plan and
+          // its expected comparisons; actual graph validation occurred above.
+          if(!node('body_energy_results',descriptor.id)?.links.length)fail('BODY_ENERGY_REPRODUCTION_CONFLICT');
+          audit=body.auditPlan(row);
+          if(audit.unique.some(source=>!observed.values.has(nodeKey(source.type,source.id))))return null;
+          for(const source of audit.unique)body.compareAuditSource(context,row,source,rawValue(source));
+          if(audit.result.manifest.manifest_version!=='body-energy-inputs-v1')incomplete();
+          for(const source of audit.unique)pending.push({type:source.type,id:String(source.id),mode:'SHARED',as_of:null,version:null,
+            ...(source.expected?{expected:source.expected}:{})});
+        }else if(!raw(descriptor))incomplete();
+      }
+      if(!entries.size)incomplete();const roots=ordered([...entries.values()]),bytes=Buffer.byteLength(canonicalJson(roots));
+      if(roots.length>REQUIRED_ROOT_BUDGET.count||bytes>REQUIRED_ROOT_BUDGET.bytes)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
+      await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+      if(!current())return null;
+      return {version:BOUNDED_ROOT_VERSION,model:'FLATTENED_CALCULATION_INPUTS',roots,root_count:roots.length,serialized_bytes:bytes};
+    });
   }
   /** Closed post-effect NEW_BODY_SOURCE data observation. The original source
    * transaction already owns the newly produced Body row; this does not use
@@ -518,5 +660,5 @@ export function createResultAuthority(core) {
     return refs;
   }
   return Object.freeze({read,persist,metricOrigin,episodeDependencies,validateExisting,privacyDependencies,
-    captureRoots,captureNewBodySourceRoots,validateRoots,validateManifest,compareRootRow,descriptorsForRun,authenticate});
+    captureRoots,captureBodyMetricPreparationRoots,captureNewBodySourceRoots,validateRoots,validateManifest,compareRootRow,descriptorsForRun,authenticate});
 }

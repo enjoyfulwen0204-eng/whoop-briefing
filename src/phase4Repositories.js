@@ -297,7 +297,15 @@ export function composePhase4Stores(core) {
       .map(([name,fn])=>[name,operation(name,fn)])),metricPreparationUnit:intelligence.metricPreparationUnit,
       metricPreparationUnitFromCurrentBody:intelligence.metricPreparationUnitFromCurrentBody,
       resumeMetricPreparation:(context,request)=>withMetricPreparationContinuation(core,context,
-        ()=>operation('analyzeMetric',intelligence.analyzeMetric)(context,request))}),
+        ()=>operation('analyzeMetric',intelligence.analyzeMetric)(context,request)),
+      completeMetricPreparationDomain:(context,request)=>withMetricPreparationContinuation(core,context,async()=>{
+        if(core.processing.active?.()||request.metricKey!=='body_energy'||request.refresh!==true)
+          fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+        // The original domain receipt and named work receipt commit together
+        // before this internal progress-only indication can leave the call.
+        const result=await operation('analyzeMetric',intelligence.analyzeMetric)(context,request);
+        return {created:await receipts.takeNewMetricDomainProgress(context,result),result};
+      })}),
     insights:Object.freeze({...insights,create:owned(insights.create),transition:owned(insights.transition)}),
     messages:Object.freeze({propose:messages.propose,readReservation:messages.readReservation,simulate:messages.simulate}),
     slots:Object.freeze(Object.fromEntries(Object.entries(slots).filter(([name])=>!['pauseExisting','transportStart','transportSettle','answer','resolveValidated'].includes(name)))),

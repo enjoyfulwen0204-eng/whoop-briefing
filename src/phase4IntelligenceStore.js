@@ -12,9 +12,40 @@ import { assessDataQuality, benjaminiHochberg, buildPersonalBaseline, evaluateJo
   validateEvidenceConfidence, compareBaselineSources } from './phase4Intelligence.js';
 import { pearson, pValue } from './analytics/correlation.js';
 import {metricUnitReceipt,metricRunReceipt,metricUnitWork,metricPreparationContinuation} from './phase4MetricUnitReceipt.js';
-import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
+import {assertExecutionWorkOwner,currentDurableExecution,currentExecutionReceiptTransactionMarker,requireSettledOperation} from './phase4ExecutionContext.js';
 import {createFamilyDirectory} from './phase4FamilyDirectory.js';
 import {workStepOptions} from './phase4WorkStep.js';
+
+// Data-transport selection only. Only the actual owned refresh calculation
+// result can issue this one-use, same-root token; it grants no authority.
+const metricResults=new WeakMap(),metricCaptures=new WeakMap();
+function markBodyMetricPreparationResult(core,context,request,result){
+  const marker=currentExecutionReceiptTransactionMarker();
+  if(request.metricKey==='body_energy'&&request.refresh===true&&request.baselineSources.length===0
+    &&result.resultState==='REFRESH_PREPARED'&&marker&&metricPreparationContinuation(core,context))
+    metricResults.set(result,{core,context,execution:currentDurableExecution(),job:core.jobAuthority(),marker,
+      body:request.currentSource,item:result.item.ref,runId:result.run.row.run_id});
+  return result;
+}
+export function issueBodyMetricPreparationCapture(core,context,result){
+  const recorded=metricResults.get(result);metricResults.delete(result);
+  if(!recorded||recorded.core!==core||recorded.context!==context||recorded.execution!==currentDurableExecution()
+    ||recorded.job!==core.jobAuthority()||recorded.marker!==currentExecutionReceiptTransactionMarker())return null;
+  requireSettledOperation();const token=Object.freeze({});metricCaptures.set(token,recorded);return token;
+}
+
+export function requireBodyMetricPreparationCapture(core,context,token,refs){
+  const recorded=metricCaptures.get(token);metricCaptures.delete(token);
+  if(!recorded||recorded.core!==core||recorded.context!==context||recorded.execution!==currentDurableExecution()
+    ||recorded.job!==core.jobAuthority()||!recorded.marker||recorded.marker!==currentExecutionReceiptTransactionMarker()
+    ||!metricPreparationContinuation(core,context))fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+  const inputs=core.validateReferences(context,refs),body=core.validateReferences(context,[recorded.body])[0],item=core.validateReferences(context,[recorded.item])[0];
+  if(!inputs.some(source=>source.type===body.type&&source.id===body.id)||!inputs.some(source=>source.type===item.type&&source.id===item.id)
+    ||inputs.some(source=>source.type===body.type&&source.id===body.id?canonicalJson(source.row)!==canonicalJson(body.row)
+      :source.type===item.type&&source.id===item.id?canonicalJson(source.row)!==canonicalJson(item.row):true))
+    fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+  requireSettledOperation();return recorded;
+}
 
 const ACTIVE = ['OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING'];
 const MERGE_GAP_MS = 36*60*60*1000;
@@ -507,8 +538,8 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
             fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
         }else await authorities.persist(context,{item:evidence.item,run:evidence.run,scope:'METRIC',origin:null,
           calculation:observationCalculation,sourceRefs:sourceSet.refs});
-        return Object.freeze({resultState:'REFRESH_PREPARED',baseline,quality,calculation:observationCalculation,
-          run:evidence.run,item:evidence.item,episode:null});
+        return markBodyMetricPreparationResult(core,context,request,Object.freeze({resultState:'REFRESH_PREPARED',baseline,quality,calculation:observationCalculation,
+          run:evidence.run,item:evidence.item,episode:null}));
       }
       const replay=await exactMetricReplay(context,{metricKey:request.metricKey,sourceSet,baseline,quality,priorQualifying,
         observationCalculation,asOfUtc:request.asOfUtc,plan});

@@ -11,14 +11,14 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  if(core.schemaVersion!==33||!Number.isSafeInteger(answerWindowMs)||answerWindowMs<3600000||answerWindowMs>7*86400000)fail('STAGE7_V33_CONFIG_REQUIRED');
  const {client,keys,timestamp,transaction}=core;
  const hash=token=>keys.lookup(['stage7-callback',token]);
- async function authenticate({user,chatId,callback=null}){
+ async function authenticate({user,chatId,callback=null,allowPendingPurge=false}){
   const chat=String(chatId);
   if(!/^\d+$/.test(chat))fail('STAGE7_PRIVATE_ACTOR_REQUIRED');
   if(callback&&(String(callback.from?.id)!==chat||callback.from?.is_bot||callback.message?.chat?.type!=='private'||String(callback.message.chat.id)!==chat))fail('STAGE7_PRIVATE_ACTOR_REQUIRED');
   const result=await db.resolveUserByChatId(chat),current=result?.user??result;
   if(!current||current.id!==user?.id||current.lifecycleGeneration!==user.lifecycleGeneration)fail('STAGE7_ACTOR_FENCED');
   const control=await core.captureControl(current.id),state=await core.assertControl(control);
-  if(state.pending_purge_count!==0)fail('PHASE4_PURGE_FENCED');
+  if(state.pending_purge_count!==0&&!allowPendingPurge)fail('PHASE4_PURGE_FENCED');
   return {control,state,user:current,chat};
  }
  const privacyFields=state=>({privacy_artifact_id:core.newId(),content_state:'PRESENT',source_linkage_state:'COMPLETE',content_digest_salt:keys.newSalt(),purge_generation:state.purge_generation});
@@ -57,19 +57,19 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   }keyboard.push(list);}
   return {text:card.text,replyMarkup:{inline_keyboard:keyboard},...(row.message_id?{editMessageId:row.message_id}:{}),stage7InteractionId:row.interaction_id};
  }
- async function resolve(actor,callback){
+ async function resolve(actor,callback,{recovery=false}={}){
   if(!isJournalCallback(callback?.data))return null;
   const token=(await client.execute({sql:'SELECT * FROM journal_callback_tokens WHERE user_id=? AND token_hash=?',args:[actor.control.userId,hash(callback.data.slice(3))]})).rows[0];
   if(!token||token.expires_at<=timestamp())return null;
   const row=await read(actor.control.userId,token.interaction_id),state=await core.assertControl(actor.control);
   if(!readableRow(row)||row.revision!==token.revision||row.expires_at<=timestamp()||row.chat_id!==actor.chat||!row.message_id
    ||String(callback.message?.message_id)!==row.message_id||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation
-   ||row.timezone!==state.timezone||state.pending_purge_count!==0||row.registry_version!==JOURNAL_REGISTRY_VERSION)return null;
+   ||row.timezone!==state.timezone||state.pending_purge_count!==0&&!(recovery&&row.correction_key===hash(callback.id))||row.registry_version!==JOURNAL_REGISTRY_VERSION)return null;
   return {row,action:token.action,receipt:hash(callback.id)};
  }
  async function update(actor,row,patch){
   await core.assertControl(actor.control);
-  const fields=Object.keys(patch),changed=await client.execute({sql:`UPDATE quick_action_interactions SET ${fields.map(k=>`${k}=?`).join(',')},revision=revision+1 WHERE user_id=? AND interaction_id=? AND revision=?`,args:[...fields.map(k=>patch[k]),row.user_id,row.interaction_id,row.revision]});
+  const fields=Object.keys(patch),changed=await client.execute({sql:`UPDATE quick_action_interactions SET ${fields.map(k=>`${k}=?`).join(',')}${fields.length?',':''}revision=revision+1 WHERE user_id=? AND interaction_id=? AND revision=?`,args:[...fields.map(k=>patch[k]),row.user_id,row.interaction_id,row.revision]});
   if(changed.rowsAffected!==1)fail('STAGE7_CAS_LOST');return read(row.user_id,row.interaction_id);
  }
  async function bind(actor,id,messageId){

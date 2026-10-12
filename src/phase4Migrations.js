@@ -329,7 +329,7 @@ export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSI
   if(version>=33){
     for(const table of ['quick_action_interactions','journal_tracking_preferences','journal_prompt_deliveries'])
       await requireZero(client,`SELECT 1 FROM ${table} p LEFT JOIN users u ON u.id=p.user_id WHERE u.id IS NULL LIMIT 1`,'v33_tenant');
-    await requireZero(client,`SELECT 1 FROM journal_events WHERE provenance_mode='TRUSTED_REGISTRY' AND
+    await requireZero(client,`SELECT 1 FROM journal_events WHERE content_state='PRESENT' AND provenance_mode='TRUSTED_REGISTRY' AND
       (source_kind<>'quick_action' OR registry_version IS NULL OR interaction_id IS NULL OR raw_answer_excerpt IS NOT NULL AND note IS NULL) LIMIT 1`,'v33_provenance');
   }
   if (version >= 22) await verifyV22Data(client, { backfill: options.backfillVersion === 22 });

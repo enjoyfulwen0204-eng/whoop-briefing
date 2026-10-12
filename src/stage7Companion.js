@@ -30,6 +30,23 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
   const command=typeof text==='string'&&/^\/journal(?:@[A-Za-z0-9_]+)?\s*$/i.test(text.trim());
   if(callback&&!isJournalCallback(callback.data))return null;
   if(!command&&!callback)return null;
+  if(callback){
+   const pre=await transaction(async()=>{
+    const actor=await interactions.authenticate({user,chatId,callback,allowPendingPurge:true});
+    const resolved=await interactions.resolve(actor,callback,{recovery:true});
+    return resolved&&resolved.row.logical_fact_id&&['confirm','undo','NOT_SURE','SKIPPED'].includes(resolved.action)?{actor,...resolved}:null;
+   });
+   if(pre){
+    if(pre.action==='confirm'){if(!onAccept)fail('STAGE7_ACCEPT_ADAPTER_REQUIRED');await onAccept(pre.actor,pre.row,pre.receipt);}
+    else{if(!onUndo)fail('STAGE7_UNDO_ADAPTER_REQUIRED');await onUndo(pre.actor,pre.row,pre.receipt);}
+    return transaction(async()=>{
+     let row=await interactions.read(user.id,pre.row.interaction_id);
+     if(pre.action==='undo')return {text:JOURNAL_COPY[presentationLocale(await db.getLocale(user.id))].removed,editMessageId:row.message_id,replyMarkup:{inline_keyboard:[]}};
+     if(['NOT_SURE','SKIPPED'].includes(pre.action)){row=await interactions.update(pre.actor,row,{state:pre.action,selected_choice:pre.action,logical_fact_id:null,fact_revision:null,answered_at:timestamp()});}
+     return card(pre.actor,row);
+    });
+   }
+  }
   return transaction(async()=>{
    const actor=await interactions.authenticate({user,chatId,callback});
    if(command){
@@ -70,7 +87,12 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
     }else row=await interactions.update(actor,row,{selected_choice:action,detail_choice:null,state:action==='YES'&&DETAILS[row.category]?'AWAITING_DETAIL':'CONFIRM'});
    }else if(row.state==='AWAITING_DETAIL'&&(action==='skipDetail'||DETAILS[row.category]?.includes(action.slice(7))&&action.startsWith('detail:'))){
     row=await interactions.update(actor,row,{detail_choice:action==='skipDetail'?null:action.slice(7),state:'CONFIRM'});
-   }else if(action==='edit'&&['COMPLETED','NOT_SURE','SKIPPED'].includes(row.state))row=await interactions.update(actor,row,{state:'EDITING',selected_choice:null,detail_choice:null,note:null});
+   }else if(action==='edit'&&['COMPLETED','NOT_SURE','SKIPPED'].includes(row.state)){
+    const issued=await interactions.issue(actor,{category:row.category,targetDate:row.target_date});
+    await interactions.bind(actor,issued.row.interaction_id,row.message_id);
+    await interactions.update(actor,row,{});
+    row=await interactions.update(actor,await interactions.read(user.id,issued.row.interaction_id),{state:'EDITING',logical_fact_id:row.logical_fact_id,fact_revision:row.fact_revision});
+   }
    else if(action==='note'&&row.state==='CONFIRM')row=await interactions.update(actor,row,{state:'NOTE'});
    else if(action==='confirm'&&row.state==='CONFIRM'){
     if(!onAccept)fail('STAGE7_ACCEPT_ADAPTER_REQUIRED');

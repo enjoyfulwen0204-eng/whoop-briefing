@@ -1,3 +1,5 @@
+import {trustedJournalFact} from './stage7TrustedRegistry.js';
+import {V33_JOURNAL_FIELDS} from './phase4V33Schema.js';
 import { fail,readableRow,requireInteger } from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { addPrivacyLink } from './phase4V22Backfill.js';
@@ -51,7 +53,7 @@ export function createPhase4JournalStore(core,privacy,queue) {
   }
   async function insertFact(control,fact,{logicalId,revision,eventKey,purgeGeneration,supersedes=null,questionId=null,episodeId=null,coverageId=null}={}) {
     const id=keys.lookup(['journal-artifact-v1',control.userId,logicalId,revision]),at=timestamp();
-    const row={...fact,user_id:control.userId,logical_fact_id:logicalId,revision,fact_status:'ACTIVE',source:SOURCE,source_event_key:eventKey,
+    const row={...(core.schemaVersion>=33?{source_kind:questionId?'bot_question':'free_text',provenance_mode:'USER_TEXT'}:{}),...fact,user_id:control.userId,logical_fact_id:logicalId,revision,fact_status:'ACTIVE',source:SOURCE,source_event_key:eventKey,
       supersedes_event_id:supersedes,question_id:questionId,episode_id:episodeId,coverage_window_id:coverageId,created_at:at,updated_at:at,
       privacy_artifact_id:id,content_state:'PRESENT',source_linkage_state:'COMPLETE',content_digest_salt:keys.newSalt(),purge_generation:purgeGeneration};
     const fields=Object.keys(row);
@@ -121,11 +123,20 @@ export function createPhase4JournalStore(core,privacy,queue) {
       if(!value||Object.keys(value).some(k=>!['logicalId','expectedRevision','fact','lifecycleGeneration','authGeneration','timezone'].includes(k))
         ||typeof value.logicalId!=='string'||!Number.isSafeInteger(value.expectedRevision)||value.expectedRevision<1
         ||value.lifecycleGeneration!==state.lifecycle_generation||value.authGeneration!==state.auth_generation||value.timezone!==state.timezone
-        ||!value.fact||Object.keys(value.fact).length!==FACT_FIELDS.length||FACT_FIELDS.some(k=>!Object.hasOwn(value.fact,k)))fail('JOURNAL_REPLACEMENT_INVALID');
+        ||!value.fact||FACT_FIELDS.some(k=>!Object.hasOwn(value.fact,k)))fail('JOURNAL_REPLACEMENT_INVALID');
       if(await tombstone(control.userId,value.logicalId))fail('JOURNAL_SUBJECT_DELETED');
       const prior=await latest(control.userId,value.logicalId);
       if(!prior||prior.revision!==value.expectedRevision)fail('JOURNAL_REVISION_CONFLICT');
-      const f=value.fact,normalized=accepted(validateJournalCandidate(normalizedCandidate(f),{sourceText:f.raw_answer_excerpt,timezone:state.timezone,now:core.now(),
+      const f=value.fact;
+      if(f.provenance_mode==='TRUSTED_REGISTRY'){
+        const expected=[...FACT_FIELDS,'source_kind','provenance_mode',...V33_JOURNAL_FIELDS];
+        if(Object.keys(f).length!==expected.length||expected.some(k=>!Object.hasOwn(f,k)))fail('JOURNAL_REPLACEMENT_INVALID');
+        const interaction=(await client.execute({sql:'SELECT revision FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[control.userId,f.interaction_id]})).rows[0];
+        const registered=await trustedJournalFact(core,control,{interactionId:f.interaction_id,expectedRevision:interaction?.revision,callbackReceipt:f.callback_receipt},{staged:true});
+        if(canonicalJson(registered)!==canonicalJson(f))fail('JOURNAL_REPLACEMENT_INVALID');return value;
+      }
+      if(Object.keys(f).length!==FACT_FIELDS.length)fail('JOURNAL_REPLACEMENT_INVALID');
+      const normalized=accepted(validateJournalCandidate(normalizedCandidate(f),{sourceText:f.raw_answer_excerpt,timezone:state.timezone,now:core.now(),
         trustedEventAt:f.event_at,trustedEventEndAt:f.event_end_at,
         displayedWindow:f.time_scope==='HEALTH_DAY'?{start:f.event_at,end:f.event_end_at}:null}));
       const aligned=alignJournalFact(normalized,await wakes(control.userId,state));
@@ -231,5 +242,32 @@ export function createPhase4JournalStore(core,privacy,queue) {
     return insertFact(control,fact,{logicalId,revision:1,eventKey:key,purgeGeneration:context.purgeGeneration,
       questionId:question.question_request_id,episodeId:question.episode_id});
   }
-  return {create,read,list,classify,correct,remove,realign,resumeCorrection,prepareAnswer,forAnswer};
+  async function createTrusted(control,request){
+    return transaction(async()=>{
+      const state=await healthyControl(control),key=sourceKey(control.userId,`registry:${request.interactionId}`),logicalId=logical(control.userId,key);
+      if(await tombstone(control.userId,logicalId))return {logicalFactId:logicalId,redacted:true,created:false};
+      const existing=await latest(control.userId,logicalId);
+      if(existing)return {logicalFactId:logicalId,revision:existing.revision,created:false};
+      const fact=await trustedJournalFact(core,control,request);
+      const result=await insertFact(control,fact,{logicalId,revision:1,eventKey:key,purgeGeneration:state.purge_generation,questionId:fact.question_identity});
+      await queue.advanceSource(control.userId,'JOURNAL_CREATED');return {...result,status:'ACCEPT'};
+    });
+  }
+  async function correctTrusted(control,{logicalFactId,expectedRevision,interactionRevision,idempotencyKey,...request}){
+    requireInteger(expectedRevision,1);
+    const previous=await priorCommand(control,{logicalFactId,idempotencyKey,kind:'CORRECTION'});
+    if(previous){await privacy.redact(control,previous.purge_id);return {purgeId:previous.purge_id};}
+    const prepared=await transaction(async()=>{
+      const state=await healthyControl(control),prior=await latest(control.userId,logicalFactId);
+      if(!prior||!readableRow(prior)||prior.fact_status!=='ACTIVE'||prior.revision!==expectedRevision)fail('JOURNAL_REVISION_CONFLICT');
+      const fact=await trustedJournalFact(core,control,{...request,expectedRevision:interactionRevision});
+      const replacement=await privacy.prepareReplacement(control,{targetType:'JOURNAL_FACT',targetId:logicalFactId,kind:'JOURNAL_FACT',
+        value:{logicalId:logicalFactId,expectedRevision,fact,lifecycleGeneration:state.lifecycle_generation,authGeneration:state.auth_generation,timezone:state.timezone},
+        sourceKey:sourceKey(control.userId,`correction:${idempotencyKey}`),parserVersion:'trusted-registry-v1',normalizerVersion:JOURNAL_VERSIONS.normalizer});
+      return replacement;
+    });
+    const purge=await privacy.admit(control,{targetType:'JOURNAL_FACT',targetId:logicalFactId,operationKind:'CORRECTION',idempotencyKey,replacement:prepared});
+    await privacy.redact(control,purge.purge_id);return {purgeId:purge.purge_id};
+  }
+  return {create,createTrusted,correctTrusted,read,list,classify,correct,remove,realign,resumeCorrection,prepareAnswer,forAnswer};
 }

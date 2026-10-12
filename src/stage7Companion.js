@@ -19,6 +19,9 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
  }
  async function changePreferences(actor,expected,patch){
   const state=await core.assertControl(actor.control),fields=Object.keys(patch);
+  if(fields.some(k=>!['daily_enabled','weekly_enabled','topics_json','excluded_topics_json'].includes(k)))fail('STAGE7_PREFERENCE_FIELDS');
+  for(const key of ['topics_json','excluded_topics_json'])if(Object.hasOwn(patch,key)){const values=JSON.parse(patch[key]);if(!Array.isArray(values)||values.some(v=>!TOPICS.includes(v))||new Set(values).size!==values.length)fail('STAGE7_PREFERENCE_TOPICS');}
+  for(const key of ['daily_enabled','weekly_enabled'])if(Object.hasOwn(patch,key)&&![0,1].includes(patch[key]))fail('STAGE7_PREFERENCE_VALUE');
   const result=await client.execute({sql:`UPDATE journal_tracking_preferences SET ${fields.map(k=>`${k}=?`).join(',')},revision=revision+1,updated_at=? WHERE user_id=? AND revision=? AND lifecycle_generation=?`,args:[...fields.map(k=>patch[k]),timestamp(),actor.control.userId,expected.revision,state.lifecycle_generation]});
   if(result.rowsAffected!==1)fail('STAGE7_PREFERENCE_CONFLICT');return preferences(actor);
  }
@@ -66,7 +69,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
     if(!readableRow(entry)||entry.lifecycle_generation!==actor.state.lifecycle_generation||entry.auth_generation!==actor.state.auth_generation||entry.timezone!==actor.state.timezone)return interactions.expired(actor);
     row=await interactions.update(actor,entry,{expires_at:new Date(core.now().getTime()+15*60000).toISOString()});return card(actor,row);
    }
-   if(action==='weekly')return onWeekly?onWeekly(actor):interactions.expired(actor);
+   if(action==='weekly')return onWeekly?{...await onWeekly(actor),editMessageId:row.message_id,replyMarkup:{inline_keyboard:[]}}:interactions.expired(actor);
    if(action==='preferences'){
     const issued=await interactions.issue(actor,{kind:'PREFERENCES'});await interactions.bind(actor,issued.row.interaction_id,row.message_id);return card(actor,await interactions.read(user.id,issued.row.interaction_id));
    }
@@ -117,6 +120,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
   if(typeof text!=='string'||text.trim().startsWith('/'))return null;
   return transaction(async()=>{
    const actor=await interactions.authenticate({user,chatId});
+   if((await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN'",args:[user.id]})).rows.length)return null;
    const rows=(await client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND chat_id=? AND state='NOTE' AND expires_at>? ORDER BY created_at DESC LIMIT 2",args:[user.id,String(chatId),timestamp()]})).rows;
    if(rows.length!==1)return null;const row=rows[0];
    if(!readableRow(row)||row.lifecycle_generation!==actor.state.lifecycle_generation||row.auth_generation!==actor.state.auth_generation||row.timezone!==actor.state.timezone)return null;

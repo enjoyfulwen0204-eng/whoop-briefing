@@ -1,3 +1,4 @@
+import {createStage7WeeklyReview} from './stage7WeeklyReview.js';
 import {createStage7Companion} from './stage7Companion.js';
 import {fail} from './phase4Core.js';
 
@@ -52,7 +53,8 @@ export async function createStage7Development({core,stores,db,...options}){
    await core.client.execute({sql:'UPDATE quick_action_interactions SET correction_key=? WHERE user_id=? AND interaction_id=?',args:[receipt,row.user_id,row.interaction_id]});});
   if(row.logical_fact_id){const result=await stores.journal.remove(actor.control,{logicalFactId:row.logical_fact_id,idempotencyKey:`stage7-undo:${receipt}`});if(result.purgeId)await stores.privacy.complete(actor.control,result.purgeId);}
  };
- companion=createStage7Companion({core,stores,db,...options,onAccept:accepted,onUndo:undo});
+ companion=createStage7Companion({core,stores,db,...options,onAccept:accepted,onUndo:undo,onWeekly:actor=>weekly.prepare(actor)});
+ const weekly=createStage7WeeklyReview({core,stores,db,companion});
  const handle=companion.handle,handleNote=companion.handleNote;
  async function resumePending({user,chatId,callback=null}){
   const actor=await core.transaction(()=>companion.interactions.authenticate({user,chatId,callback,allowPendingPurge:true}));
@@ -72,7 +74,7 @@ export async function createStage7Development({core,stores,db,...options}){
    }
   }
  }
- return {...companion,resumePending,handle:async input=>{
+ return {...companion,weekly,resumePending,handle:async input=>{
   if(input.callback||typeof input.text==='string'&&/^\/journal(?:@[A-Za-z0-9_]+)?\s*$/i.test(input.text.trim()))await resumePending(input);
   return handle(input);
  },handleNote};

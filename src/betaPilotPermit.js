@@ -82,6 +82,12 @@ export function betaPilotConfiguration(environment={}) {
  if(values.every(value=>value===''))return null;
  const [id,userId,startAt,consentSha256,costBoundId,allowanceId]=values;
  const allowance=allowanceId?reviewedPilotAllowance(allowanceId):null;
+ const second=allowance?.startPolicy==='FIRST_RESERVATION';
+ if(second){
+  if(startAt!=='FIRST_RESERVATION'||!HASH.test(id)||typeof userId!=='string'||userId!==requireUserId(userId,'betaPilot')
+    ||!HASH.test(consentSha256)||costBoundId!=='')fail();
+  return Object.freeze({id,userId,startAt:null,endAt:null,consentSha256,allowanceId,maxAttempts:allowance.maxAttempts,startPolicy:'FIRST_RESERVATION'});
+ }
  const start=Date.parse(startAt);
  if(!HASH.test(id)||typeof userId!=='string'||userId!==requireUserId(userId,'betaPilot')
    ||!HASH.test(consentSha256)||(!allowanceId&&!HASH.test(costBoundId))
@@ -89,6 +95,12 @@ export function betaPilotConfiguration(environment={}) {
    ||new Date(start).toISOString()!==startAt||!Number.isSafeInteger(start+PILOT_DURATION_MS))fail();
  return Object.freeze({id,userId,startAt:start,endAt:start+PILOT_DURATION_MS,consentSha256,
   ...(allowance?{allowanceId}:{costBoundId}),maxAttempts:allowance?.maxAttempts??PILOT_MAX_ATTEMPTS});
+}
+
+// Scheduling possibility only; every second-window discovery/admission reads
+// the signed durable availability before it can advertise or reserve work.
+export function pilotConfigurationMaySchedule(config,now=Date.now()){
+ return Boolean(config&&(config.startPolicy==='FIRST_RESERVATION'||now>=config.startAt&&now<config.endAt));
 }
 
 export function validatePilotReservation(reservation) {
@@ -112,41 +124,60 @@ export function validatePilotReservation(reservation) {
 export function createBetaPilotPermit({db,keys,config,reservation}={}) {
  requirePhase4Keys(keys);validatePilotReservation(reservation);
  const allowance=isReviewedPilotAllowance(reservation);
+ const second=allowance&&reservation.startPolicy==='FIRST_RESERVATION';
+ const component=second?'phase4_beta_pilot_permit_owner_20261012_v2':COMPONENT;
+ const originalEnd=second?reservation.predecessorStartAt+PILOT_DURATION_MS:null;
  if(!config||!HASH.test(config.id)||!HASH.test(config.consentSha256)||config.userId!==requireUserId(config.userId,'betaPilot')
-   ||!Number.isSafeInteger(config.startAt)||config.endAt-config.startAt!==PILOT_DURATION_MS||config.maxAttempts!==(allowance?reservation.maxAttempts:PILOT_MAX_ATTEMPTS)
+   ||(second?(config.startPolicy!=='FIRST_RESERVATION'||config.startAt!==null||config.endAt!==null):(!Number.isSafeInteger(config.startAt)||config.endAt-config.startAt!==PILOT_DURATION_MS))||config.maxAttempts!==(allowance?reservation.maxAttempts:PILOT_MAX_ATTEMPTS)
    ||reservation.id!==(allowance?config.allowanceId:config.costBoundId)||!db?.raw||typeof db.transaction!=='function')fail();
  // The file seam is exclusively a local fixture. Every remote composition,
  // including callers of exported lower-level worker factories, uses the same
  // reviewed admission policy; generic JSON cannot grant remote pilot authority.
  if(db.raw.protocol!=='file'&&reservation!==reviewedPilotAdmission(config))fail();
- const fingerprint=keys.lookup(['beta-pilot-v1',config,reservation]);
- const seal=state=>keys.lookup(['beta-pilot-state-v1',state]);
+ const fingerprint=keys.lookup([second?'beta-pilot-owner-20261012-v2':'beta-pilot-v1',config,reservation]);
+ const seal=state=>keys.lookup([second?'beta-pilot-state-owner-20261012-v2':'beta-pilot-state-v1',state]);
+ const legacyFingerprint=second?keys.lookup(['beta-pilot-v1',{id:config.id,userId:config.userId,
+  startAt:reservation.predecessorStartAt,endAt:originalEnd,consentSha256:config.consentSha256,
+  allowanceId:reservation.predecessorAllowanceId,maxAttempts:reservation.maxAttempts},reviewedPilotAllowance(reservation.predecessorAllowanceId)]):null;
+ const legacyDigest=raw=>{
+  try{const {signature,...s}=JSON.parse(raw);
+   if(Object.keys(s).length!==8||s.version!==1||s.fingerprint!==legacyFingerprint
+    ||s.startAt!==reservation.predecessorStartAt||s.endAt!==originalEnd||s.attempts!==reservation.predecessorAttempts
+    ||!Number.isSafeInteger(s.lifecycleGeneration)||s.lifecycleGeneration<1||typeof s.closed!=='boolean'
+    ||!Number.isSafeInteger(s.lastObservedAt)||s.lastObservedAt<s.startAt
+    ||signature!==keys.lookup(['beta-pilot-state-v1',s])||JSON.stringify({...s,signature})!==raw)fail();
+   return keys.lookup(['beta-pilot-owner-20261012-predecessor',raw]);
+  }catch{fail();}
+ };
  const decode=row=>{
   try {
    const record=JSON.parse(row.last_detail),{signature,...state}=record;
-   if(Object.keys(state).length!==8||state.version!==1||state.fingerprint!==fingerprint
-     ||state.startAt!==config.startAt||state.endAt!==config.endAt
+   if(Object.keys(state).length!==(second?9:8)||state.version!==(second?2:1)||state.fingerprint!==fingerprint
+     ||(second?(!Number.isSafeInteger(state.startAt)||state.startAt<originalEnd||state.endAt-state.startAt!==PILOT_DURATION_MS||!HASH.test(state.predecessorDigest)||JSON.stringify({...state,signature})!==row.last_detail):(state.startAt!==config.startAt||state.endAt!==config.endAt))
      ||!Number.isSafeInteger(state.lifecycleGeneration)||state.lifecycleGeneration<1
      ||!Number.isSafeInteger(state.attempts)||state.attempts<0||state.attempts>config.maxAttempts
-     ||!Number.isSafeInteger(state.lastObservedAt)||state.lastObservedAt<config.startAt||typeof state.closed!=='boolean'
+     ||!Number.isSafeInteger(state.lastObservedAt)||state.lastObservedAt<state.startAt||typeof state.closed!=='boolean'
      ||signature!==seal(state))fail();
    return state;
   }catch{fail();}
  };
- const read=async client=>(await client.execute({sql:'SELECT last_detail FROM system_heartbeats WHERE scope=\'global\' AND component=?',args:[COMPONENT]})).rows[0]??null;
+ const read=async client=>(await client.execute({sql:'SELECT last_detail FROM system_heartbeats WHERE scope=\'global\' AND component=?',args:[component]})).rows[0]??null;
  const observe=async client=>(await client.execute({sql:`SELECT ${databaseNowMs} observed_at,
+  ${second?"(SELECT last_detail FROM system_heartbeats WHERE scope='global' AND component='phase4_beta_pilot_permit_v1') legacy_detail,":''}
   (SELECT u.lifecycle_generation FROM users u JOIN user_onboarding o ON o.user_id=u.id
    WHERE u.id=? AND u.status='ACTIVE' AND o.state='READY') lifecycle_generation`,args:[config.userId]})).rows[0];
- let latestObservedAt=config.startAt;
- const eligible=(row,state,minimumObservedAt=latestObservedAt)=>Number.isSafeInteger(row?.observed_at)&&row.observed_at>=Math.max(config.startAt,minimumObservedAt)&&row.observed_at<config.endAt
+ let latestObservedAt=second?originalEnd:config.startAt;
+ const eligible=(row,state,minimumObservedAt=latestObservedAt)=>Number.isSafeInteger(row?.observed_at)&&row.observed_at>=Math.max(state?.startAt??(second?originalEnd:config.startAt),minimumObservedAt)&&row.observed_at<(state?.endAt??(second?Number.MAX_SAFE_INTEGER-PILOT_DURATION_MS:config.endAt))
+  &&(!second||legacyDigest(row.legacy_detail)===(state?.predecessorDigest??legacyDigest(row.legacy_detail)))
+  &&(!second||row.lifecycle_generation===JSON.parse(row.legacy_detail).lifecycleGeneration)
   &&Number.isSafeInteger(row.lifecycle_generation)&&row.lifecycle_generation>0
   &&(!state||!state.closed&&row.lifecycle_generation===state.lifecycleGeneration&&row.observed_at>=state.lastObservedAt);
  const write=async(row,state,observedAt)=>{
   const json=JSON.stringify({...state,signature:seal(state)}),at=new Date(observedAt).toISOString();
   const changed=row?await db.raw.execute({sql:`UPDATE system_heartbeats SET last_detail=?,updated_at=?
-    WHERE scope='global' AND component=? AND last_detail=?`,args:[json,at,COMPONENT,row.last_detail]}):
+    WHERE scope='global' AND component=? AND last_detail=?`,args:[json,at,component,row.last_detail]}):
    await db.raw.execute({sql:`INSERT INTO system_heartbeats(scope,component,last_ok_at,last_detail,updated_at)
-    VALUES('global',?,?,?,?) ON CONFLICT(scope,component) DO NOTHING`,args:[COMPONENT,at,json,at]});
+    VALUES('global',?,?,?,?) ON CONFLICT(scope,component) DO NOTHING`,args:[component,at,json,at]});
   if(changed.rowsAffected!==1)fail();
  };
  let locallyClosed=false,closurePromise,closureQueued=false,invalidObservedAt;
@@ -192,9 +223,10 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
   // clock in one physical statement. Nothing is cached or trusted from a
   // previous assertion; one processing transaction still owns the snapshot.
   const current=(await (client??db.raw).execute({sql:`SELECT ${databaseNowMs} observed_at,
+    ${second?"(SELECT last_detail FROM system_heartbeats WHERE scope='global' AND component='phase4_beta_pilot_permit_v1') legacy_detail,":''}
     (SELECT last_detail FROM system_heartbeats WHERE scope='global' AND component=?) last_detail,
     (SELECT u.lifecycle_generation FROM users u JOIN user_onboarding o ON o.user_id=u.id
-     WHERE u.id=? AND u.status='ACTIVE' AND o.state='READY') lifecycle_generation`,args:[COMPONENT,config.userId]})).rows[0];
+     WHERE u.id=? AND u.status='ACTIVE' AND o.state='READY') lifecycle_generation`,args:[component,config.userId]})).rows[0];
   if(!current||current.last_detail===null)fail();const state=decode(current);
   if(locallyClosed||!eligible(current,state,minimumObservedAt)){await invalidate(current?.observed_at);fail();}
   latestObservedAt=Math.max(latestObservedAt,current.observed_at,state.lastObservedAt);return state;
@@ -209,7 +241,8 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
     const row=await read(db.raw),current=await observe(db.raw),state=row?decode(row):null;
     if(locallyClosed||!eligible(current,state)||state&&state.attempts>=config.maxAttempts)
       return Object.freeze({possible:false});
-    return Object.freeze({possible:true,observedAt:current.observed_at,endAt:config.endAt,
+    return Object.freeze({possible:true,observedAt:current.observed_at,endAt:state?.endAt??config.endAt,
+     ...(second?{windowStarted:Boolean(state),startAt:state?.startAt??null}:{}),
      remainingAttempts:config.maxAttempts-(state?.attempts??0)});
    },{readOnly:true});
   },
@@ -221,23 +254,26 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
      return null;
     }
     latestObservedAt=Math.max(latestObservedAt,current.observed_at);
-    const stateBefore=previous??{version:1,fingerprint,startAt:config.startAt,endAt:config.endAt,lifecycleGeneration:current.lifecycle_generation,attempts:0,lastObservedAt:current.observed_at,closed:false};
+    const stateBefore=previous??{version:second?2:1,fingerprint,startAt:second?current.observed_at:config.startAt,
+     endAt:second?current.observed_at+PILOT_DURATION_MS:config.endAt,lifecycleGeneration:current.lifecycle_generation,
+     attempts:0,lastObservedAt:current.observed_at,closed:false,...(second?{predecessorDigest:legacyDigest(current.legacy_detail)}:{})};
     if(stateBefore.attempts>=config.maxAttempts)return null;
     const attempts=stateBefore.attempts+1;
     if(!allowance)for(const key of UNIT_KEYS)if(!Number.isSafeInteger(attempts*reservation.perAttempt[key])||attempts*reservation.perAttempt[key]>reservation.maximum[key])return null;
     await write(row,{...stateBefore,attempts,lastObservedAt:current.observed_at},current.observed_at);
     // COMMIT uncertainty never refunds this reservation. A fresh invocation
     // must reserve again before submission, including retries/continuations.
-    const deadline=performance.now()+Math.max(0,config.endAt-current.observed_at);
-    const assertTime=()=>{if(closingBetaPilotPermit(db))return;if(locallyClosed||performance.now()>=deadline){invalidate(config.endAt);fail();}};
+    const grantEndAt=stateBefore.endAt;
+    const deadline=performance.now()+Math.max(0,grantEndAt-current.observed_at);
+    const assertTime=()=>{if(closingBetaPilotPermit(db))return;if(locallyClosed||performance.now()>=deadline){invalidate(grantEndAt);fail();}};
     const grant=Object.freeze({userId:config.userId,attempt:attempts,assertTime,
      settleInvalidation:()=>locallyClosed?persistClosure():undefined,
      assert:async client=>{
-      if(performance.now()>=deadline){await invalidate(config.endAt);fail();}
+      if(performance.now()>=deadline){await invalidate(grantEndAt);fail();}
       const observed=await assert(client);
       // A slow response cannot carry authority past the original deadline,
       // nor revive a grant closed by another already settled observation.
-      if(performance.now()>=deadline){await invalidate(config.endAt);fail();}
+      if(performance.now()>=deadline){await invalidate(grantEndAt);fail();}
       if(locallyClosed)fail();return observed;
      }});
     issuedGrants.set(grant,db.raw);issuedDatabases.set(grant,db);

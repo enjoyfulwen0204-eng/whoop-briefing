@@ -55,6 +55,9 @@ async function setup(t){
   score:{sleep_performance_percentage:r.sleep_performance_percentage,stage_summary:{total_light_sleep_time_milli:18000000,total_slow_wave_sleep_time_milli:3600000,total_rem_sleep_time_milli:7200000}}}));
  const rawRecovery=input.sources.recovery.map(r=>({sleep_id:r.sleep_id,user_id:101,cycle_id:'cycle-current',score_state:'SCORED',updated_at:r.updated_at,
   score:{hrv_rmssd_milli:r.hrv_rmssd_milli,resting_heart_rate:r.resting_heart_rate,recovery_score:99,user_calibrating:false}}));
+ // WHOOP starts the recovery-linked cycle with the main sleep.
+ input.sources.cycle[0].start_at=input.sources.sleep[0].start_at;
+ input.sources.cycle[0].score_state='SCORED';
  const rawCycle=input.sources.cycle.map(r=>({id:r.id,user_id:101,start:r.start_at,end:r.end_at,updated_at:r.updated_at,score_state:'SCORED',score:{strain:r.strain}}));
  input.sources.sleep=input.sources.sleep.slice(1);input.sources.recovery=input.sources.recovery.slice(1);
  await db.transaction(()=>seedBodyInput(db,input));await db.raw.execute("UPDATE user_whoop_tokens SET whoop_user_id=101 WHERE user_id='a'");

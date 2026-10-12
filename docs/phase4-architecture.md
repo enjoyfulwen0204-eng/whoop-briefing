@@ -377,13 +377,15 @@ A current-cycle value is usable only through a new tenant-scoped store query des
 2. excludes tombstoned or source-invalid rows;
 3. requires cycle.start_at at or before as_of;
 4. requires the wake boundary to fall inside the cycle interval, treating a null end as open at as_of;
-5. requires absolute elapsed difference between cycle.start_at and wake_at to be at most the versioned two-hour **cycle_wake_tolerance**;
+5. when the exactly matched recovery names a `cycle_id`, requires that exact scored cycle and an absolute elapsed difference between `cycle.start_at` and the selected main sleep's `start_at` of at most the existing versioned two-hour **cycle_wake_tolerance**; unlinked legacy rows retain the conservative original comparison with `wake_at`;
 6. requires the retained canonical row and its successful cycle synchronization evidence to be at or before as_of;
 7. requires synchronization age no greater than six hours;
 8. requires strain finite and within 0–21;
 9. chooses the greatest start_at, then stable canonical cycle ID as tie-break.
 
 An open/incomplete current cycle is eligible under the same rules. Freshness older than 90 minutes adds a degradation reason; older than six hours makes the cycle unusable.
+
+The 2026-10-12 mapping correction follows WHOOP's [sleep/cycle relationship](https://developer.whoop.com/docs/developing/user-data/sleep/): main sleep starts its cycle. Production's matched recovery names a scored open cycle starting at that sleep's start, approximately eight hours before wake. Comparing it with wake incorrectly rejected genuine load. The selector and morning readiness share the same predicate, capture `recovery.cycle_id` and `cycle.score_state`, and retain wake containment, the two-hour bound, all source fences and the unchanged calculator. This correction grants no publication qualification.
 
 The v20 store API is not assumed to expose this selector or every required timestamp. Until the Stage 2/3 store contract can return and test these exact fields, current-cycle load is unavailable and the implementation must use the workout fallback or report missing load. It must not approximate the query with a date-only lookup.
 

@@ -40,11 +40,25 @@ const project=(row,fields)=>row?Object.fromEntries(fields.map(k=>[k,normalized(r
 const common=['updated_at','synced_at'];
 const fields={
   sleep:['id','health_date','start_at','end_at','nap','score_state','sleep_performance_percentage',...common],
-  recovery:['sleep_id','health_date','score_state','user_calibrating','hrv_rmssd_milli','resting_heart_rate',...common],
-  cycle:['id','start_at','end_at','strain',...common],workout:['id','start_at','end_at','strain',...common],
+  recovery:['sleep_id','cycle_id','health_date','score_state','user_calibrating','hrv_rmssd_milli','resting_heart_rate',...common],
+  cycle:['id','start_at','end_at','score_state','strain',...common],workout:['id','start_at','end_at','strain',...common],
 };
 const sleepOrder=(a,b)=>instant(b.end_at)-instant(a.end_at)
   ||(instant(b.updated_at)??-Infinity)-(instant(a.updated_at)??-Infinity)||binaryCompare(String(a.id),String(b.id));
+
+/** WHOOP's recovery names the cycle started by its main sleep. This fixes
+ * the timestamp mapping, retaining the original two-hour alignment bound,
+ * wake containment and scored-source requirements. Unlinked legacy inputs
+ * retain their original conservative wake-bound selection. */
+export function bodyCycleMatchesSleep(cycle,mainSleep,recovery,asOf) {
+  const cycleId=recovery?.cycle_id,linked=cycleId!=null,
+    wake=instant(mainSleep?.end_at),anchor=linked?instant(mainSleep?.start_at):wake,
+    start=instant(cycle.start_at),end=cycle.end_at===null?asOf:instant(cycle.end_at);
+  if(linked&&(cycleId===''||String(cycle.id)!==String(cycleId)||cycle.score_state!=='SCORED'))return false;
+  if(cycle.score_state!=null&&cycle.score_state!=='SCORED')return false;
+  return wake!==null&&anchor!==null&&start!==null&&end!==null&&start<=asOf&&end<=asOf
+    &&start<=wake&&end>=wake&&end>=start&&Math.abs(start-anchor)<=C.cycleWakeToleranceHours*3600000;
+}
 
 /** Pure adapter over explicitly supplied canonical rows. Database authority is
  * supplied by bodyEnergyStore, never by these testable data-only selectors.
@@ -165,8 +179,7 @@ export function selectBodyEnergyInputs(input) {
     const cycleSync=synchronization('cycle'),workoutSync=()=>synchronization('workout');
     const cycles=[];
     if(cycleSync.age_ms!==null&&cycleSync.age_ms<=C.loadSyncMaxHours*3600000)for(const row of sources.cycle) {
-      const start=instant(row.start_at),end=row.end_at===null?asOf:instant(row.end_at);
-      if(start===null||end===null||start>asOf||end>asOf||start>wake||end<wake||end<start||Math.abs(start-wake)>C.cycleWakeToleranceHours*3600000)continue;
+      if(!bodyCycleMatchesSleep(row,main,recovery,asOf))continue;
       if(!version('cycle',row))continue;
       if(!finite(row.strain)||row.strain<0||row.strain>C.strainMax){exclude('cycle',row,'CYCLE_STRAIN_INVALID');continue;}
       cycles.push(row);

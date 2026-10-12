@@ -29,8 +29,8 @@ export function requireNewBodySourceCapture(core,context,token,source){
 
 const columns={
   sleep:'id,health_date,start_at,end_at,nap,score_state,sleep_performance_percentage,updated_at,synced_at',
-  recovery:'sleep_id,health_date,score_state,user_calibrating,hrv_rmssd_milli,resting_heart_rate,updated_at,synced_at',
-  cycle:'id,start_at,end_at,strain,updated_at,synced_at',workout:'id,start_at,end_at,strain,created_at,updated_at,synced_at',
+  recovery:'sleep_id,cycle_id,health_date,score_state,user_calibrating,hrv_rmssd_milli,resting_heart_rate,updated_at,synced_at',
+  cycle:'id,start_at,end_at,score_state,strain,updated_at,synced_at',workout:'id,start_at,end_at,strain,created_at,updated_at,synced_at',
 };
 const tables={sleep:'whoop_sleeps',recovery:'whoop_recoveries',cycle:'whoop_cycles',workout:'whoop_workouts'};
 

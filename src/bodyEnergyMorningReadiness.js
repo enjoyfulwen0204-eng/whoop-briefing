@@ -2,7 +2,7 @@ import {assertBodyEnergyPublication} from './bodyEnergyQualificationAuthority.js
 import {BODY_ENERGY_RELEASE_CRITERIA as C} from './bodyEnergyReleaseCriteria.js';
 import {BODY_ENERGY as B} from './bodyEnergyRegistry.js';
 import {robustBaseline} from './bodyEnergy.js';
-import {bodyHealthDate,validHealthDate,instant as bodyInstant} from './bodyEnergyInputs.js';
+import {bodyHealthDate,validHealthDate,instant as bodyInstant,bodyCycleMatchesSleep} from './bodyEnergyInputs.js';
 import {currentDurableExecution,assertExecutionWorkOwner,databaseNowMs} from './phase4ExecutionContext.js';
 import {currentSyncOwnership} from './syncOwnership.js';
 import {resourceSyncDue} from './sync.js';
@@ -122,10 +122,11 @@ export function createBodyEnergyMorningReadiness({db,stores,keys,publicationCapa
     // never a fabricated queue entry or a bypass of its one-hour throttle.
     const futureSync=changed&&['sleep','recovery','cycle'].every(due)&&recovery.cycle_id!=null;
     if(!futureSync&&!(queued&&!changed))return proceed();
-    const cycles=(await db.raw.execute({sql:`SELECT start_at,end_at,strain,updated_at,synced_at FROM whoop_cycles WHERE user_id=?
-      AND start_at<=? AND (end_at IS NULL OR end_at>=?) ORDER BY start_at DESC LIMIT 2`,args:[userId,sleep.end,sleep.end]})).rows;
+    const cycleId=recovery.cycle_id==null?null:String(recovery.cycle_id);
+    const cycles=(await db.raw.execute({sql:`SELECT id,score_state,start_at,end_at,strain,updated_at,synced_at FROM whoop_cycles WHERE user_id=?
+      AND (? IS NULL OR id=?) AND start_at<=? AND (end_at IS NULL OR end_at>=?) ORDER BY start_at DESC LIMIT 2`,args:[userId,cycleId,cycleId,sleep.end,sleep.end]})).rows;
     const load=cycles.find(row=>finite(row.strain)&&row.strain>=0&&row.strain<=B.strainMax
-      &&wake-instant(row.start_at)<=B.cycleWakeToleranceHours*3600000
+      &&bodyCycleMatchesSleep(row,{start_at:sleep.start,end_at:sleep.end},recovery,at)
       &&[row.updated_at,row.synced_at].every(time=>Number.isFinite(instant(time))&&instant(time)<=at));
     // A fresh owned recovery names its Cycle, and original admitted normal
     // Cycle SYNC is due. That is a supported future fetch prerequisite, not

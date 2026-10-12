@@ -30,6 +30,9 @@ async function setup(t,{drain=true,wakeMinutes=0,captureAt=AT,ongoingWorkout=fal
   const stores=await createPhase4Foundation({db,keys:fixtureKeys,admission:await db.admitRuntime()});
   for(const id of ['a','b'])await stores.initializeTenant(id,'SHADOW');const f={db,stores,keys:fixtureKeys};await f.db.setLocale('a','zh-TW');await f.db.setLocale('b','vi');
   const input=bodyInput({asOf:captureAt-wakeMinutes*60000});input.asOfEpochMs=captureAt;
+  input.sources.recovery[0].cycle_id=input.sources.cycle[0].id;
+  input.sources.cycle[0].start_at=input.sources.sleep[0].start_at;
+  input.sources.cycle[0].score_state='SCORED';
   for(const rows of Object.values(input.sources))for(const row of rows)row.synced_at=new Date(captureAt).toISOString();
   for(const row of input.sync){row.last_success_at=new Date(captureAt).toISOString();row.updated_at=row.last_success_at;}
   if(ongoingWorkout)input.sources.workout.push({user_id:'a',id:'workout-progress',start_at:input.sources.sleep[0].end_at,end_at:null,strain:0,updated_at:new Date(captureAt).toISOString(),synced_at:new Date(captureAt).toISOString()});for(const sleep of input.sources.sleep){sleep.health_date=bodyHealthDate(Date.parse(sleep.end_at),'Asia/Taipei');
@@ -168,7 +171,7 @@ const whoopDataset=input=>({
     nap:Boolean(row.nap),score_state:row.score_state,score:{sleep_performance_percentage:row.sleep_performance_percentage,respiratory_rate:15,
       stage_summary:{total_light_sleep_time_milli:3e6,total_slow_wave_sleep_time_milli:2e6,total_rem_sleep_time_milli:2e6,total_awake_time_milli:1e6,total_in_bed_time_milli:8e6},
       sleep_needed:{baseline_milli:8e6}}})),
-  recoveries:input.sources.recovery.map(row=>({sleep_id:row.sleep_id,cycle_id:'synthetic-cycle-'+row.sleep_id,created_at:row.updated_at,updated_at:row.updated_at,
+  recoveries:input.sources.recovery.map(row=>({sleep_id:row.sleep_id,cycle_id:row.cycle_id??'synthetic-cycle-'+row.sleep_id,created_at:row.updated_at,updated_at:row.updated_at,
     score_state:row.score_state,score:{recovery_score:60,hrv_rmssd_milli:row.hrv_rmssd_milli,resting_heart_rate:row.resting_heart_rate,user_calibrating:Boolean(row.user_calibrating)}})),
   cycles:input.sources.cycle.map(row=>({id:row.id,start:row.start_at,end:row.end_at,created_at:row.start_at,updated_at:row.updated_at,
     score_state:'SCORED',score:{strain:row.strain}})),

@@ -81,6 +81,30 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   const fields=Object.keys(patch),changed=await client.execute({sql:`UPDATE quick_action_interactions SET ${fields.map(k=>`${k}=?`).join(',')}${fields.length?',':''}revision=revision+1 WHERE user_id=? AND interaction_id=? AND revision=?`,args:[...fields.map(k=>patch[k]),row.user_id,row.interaction_id,row.revision]});
   if(changed.rowsAffected!==1)fail('STAGE7_CAS_LOST');return read(row.user_id,row.interaction_id);
  }
+ async function completeMissing(actor,row,choice){
+  return transaction(async()=>{
+   const state=await core.assertControl(actor.control),diagnostics=JSON.parse(row.diagnostics_json??'null'),anchor=diagnostics?.answerAnchor;
+   if(!['NOT_SURE','SKIPPED'].includes(choice)||row.logical_fact_id||!['ISSUED','EDITING'].includes(row.state)||!readableRow(row)
+    ||!TOPICS.includes(row.category)||row.registry_id!==registryQuestion(row.category)||row.registry_version!==JOURNAL_REGISTRY_VERSION
+    ||row.question_identity!==registryQuestion(row.category)||row.timezone!==state.timezone||row.expires_at<=timestamp()
+    ||diagnostics?.profileRevision!==actor.profileRevision)fail('STAGE7_REGISTRY_AUTHORITY_INVALID');
+   const at=timestamp();let nextDiagnostics=diagnostics;
+   if(anchor){
+    const origin=await read(actor.control.userId,anchor.id);
+    if(!readableRow(origin)||origin.logical_fact_id||origin.revision!==anchor.revision||!['ISSUED','NOT_SURE','SKIPPED'].includes(origin.state)
+     ||['category','registry_id','registry_version','question_identity','target_date','window_start','window_end'].some(k=>origin[k]!==row[k])
+     ||origin.kind==='DAILY'&&origin.state==='ISSUED'&&origin.expires_at<=at)fail('STAGE7_QUESTION_SEMANTIC_RESERVED');
+    // A renewed capability owns the original answer identity. Its own card
+    // remains editable; all concurrent/older aliases retain the stale revision.
+    const changed=await client.execute({sql:"UPDATE quick_action_interactions SET state=?,selected_choice=?,detail_choice=NULL,note=NULL,answered_at=?,revision=revision+1 WHERE user_id=? AND interaction_id=? AND revision=?",args:[choice,choice,at,row.user_id,origin.interaction_id,origin.revision]});
+    if(changed.rowsAffected!==1)fail('STAGE7_CAS_LOST');
+    nextDiagnostics={...diagnostics,answerAnchor:{id:origin.interaction_id,revision:origin.revision+1}};
+   }
+   // This and the original answer CAS commit or roll back together. Explicit
+   // missingness is never a Journal fact or a negative exposure observation.
+   return update(actor,row,{state:choice,selected_choice:choice,detail_choice:null,note:null,answered_at:at,diagnostics_json:JSON.stringify(nextDiagnostics)});
+  });
+ }
  async function bind(actor,id,messageId){
   if(!/^\d+$/.test(String(messageId)))fail('STAGE7_MESSAGE_ID_REQUIRED');
   return transaction(async()=>{
@@ -96,5 +120,5 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   await insert('journal_callback_tokens',{user_id:row.user_id,token_hash:hash(token),interaction_id:row.interaction_id,revision:row.revision,action:b.action,created_at:timestamp(),expires_at:row.expires_at});
   return {text:b.text,callback_data:'j7:'+token};
  }
- return {authenticate,issue,render,resolve,read,update,bind,expired,link,insert,privacyFields,button,answerWindowMs};
+ return {authenticate,issue,render,resolve,read,update,completeMissing,bind,expired,link,insert,privacyFields,button,answerWindowMs};
 }

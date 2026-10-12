@@ -38,6 +38,8 @@ Focused positive tests use actual canonical metric/association calculations unde
 
 The final exact-candidate check caught a malformed target-date caption and a clock-dependent synthetic fixture failure. The caption now has a runtime assertion. Synthetic sleep/recovery health dates now use their tenant timezone: the former UTC date could disagree after local midnight, triggering the existing Body Energy HEALTH_DATE_REALIGNMENT invalidation and correctly fencing the worker lease. No Stage 6 lease or Body Energy behavior was changed to hide that failure. Boundary fixtures cover both sides of UTC midnight, and syntax validation precedes the final candidate test run.
 
+Explicit missing answers through renewed history/pending capabilities now update the original answer identity and the current presentation atomically. NOT_SURE and SKIPPED remain nonfactual states; Weekly Review counts the original daily response, and other aliases become stale. The current result retains the advanced anchor so editing remains possible. A failed alias update rolls back the original answer update. Settings process/product compatibility fixtures explicitly migrate to the candidate v33 contract; their production paths are unchanged.
+
 ## Promotion and rollback plan (not executed)
 
 1. Obtain the final independently reviewed Stage 6 source and confirm its exact deployed artifact. The parallel workstream now records `1eca89c123a3a49a08d2512dc1f5592eee7b1212` as the newer deployed v32 release. Preserve its configuration and pilot permissions. Integrate only verified source, then repeat the affected v33 settlement/Settings/Journal boundaries and independently verify the final artifact.

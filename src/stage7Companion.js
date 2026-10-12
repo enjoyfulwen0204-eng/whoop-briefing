@@ -112,13 +112,15 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    }else if(['YES','NO','NOT_SURE','SKIPPED'].includes(action)&&['ISSUED','EDITING'].includes(row.state)){
     if(['NOT_SURE','SKIPPED'].includes(action)){
      if(row.logical_fact_id)fail('STAGE7_RETRACT_BEFORE_UNCERTAINTY');
-     row=await interactions.update(actor,row,{state:action,selected_choice:action,answered_at:timestamp()});
+     row=await interactions.completeMissing(actor,row,action);
     }else row=await interactions.update(actor,row,{selected_choice:action,detail_choice:null,state:action==='YES'&&DETAILS[row.category]?'AWAITING_DETAIL':'CONFIRM'});
    }else if(row.state==='AWAITING_DETAIL'&&(action==='skipDetail'||DETAILS[row.category]?.includes(action.slice(7))&&action.startsWith('detail:'))){
     row=await interactions.update(actor,row,{detail_choice:action==='skipDetail'?null:action.slice(7),state:'CONFIRM'});
    }else if(action==='edit'&&['COMPLETED','NOT_SURE','SKIPPED'].includes(row.state)){
-    const issued=await interactions.issue(actor,{category:row.category,targetDate:row.target_date,recordedTimezone:JSON.parse(row.diagnostics_json??'null')?.recordedTimezone??row.timezone,
-     diagnostics:row.logical_fact_id?null:{answerAnchor:JSON.parse(row.diagnostics_json??'null')?.answerAnchor??{id:row.interaction_id,revision:row.revision+1}}});
+    const priorDiagnostics=JSON.parse(row.diagnostics_json??'null');
+    const issued=await interactions.issue(actor,{category:row.category,targetDate:row.target_date,recordedTimezone:priorDiagnostics?.recordedTimezone??row.timezone,
+     diagnostics:row.logical_fact_id?null:{retractInteractionId:priorDiagnostics?.retractInteractionId??priorDiagnostics?.answerAnchor?.id??row.interaction_id,
+      answerAnchor:priorDiagnostics?.answerAnchor??{id:row.interaction_id,revision:row.revision+1}}});
     await interactions.bind(actor,issued.row.interaction_id,row.message_id);
     await interactions.update(actor,row,{});
     row=await interactions.update(actor,await interactions.read(user.id,issued.row.interaction_id),{state:'EDITING',logical_fact_id:row.logical_fact_id,fact_revision:row.fact_revision});

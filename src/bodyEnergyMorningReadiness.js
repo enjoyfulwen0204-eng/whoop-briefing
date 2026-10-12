@@ -2,7 +2,7 @@ import {assertBodyEnergyPublication} from './bodyEnergyQualificationAuthority.js
 import {BODY_ENERGY_RELEASE_CRITERIA as C} from './bodyEnergyReleaseCriteria.js';
 import {BODY_ENERGY as B} from './bodyEnergyRegistry.js';
 import {robustBaseline} from './bodyEnergy.js';
-import {bodyHealthDate,validHealthDate} from './bodyEnergyInputs.js';
+import {bodyHealthDate,validHealthDate,instant as bodyInstant} from './bodyEnergyInputs.js';
 import {currentDurableExecution,assertExecutionWorkOwner,databaseNowMs} from './phase4ExecutionContext.js';
 import {currentSyncOwnership} from './syncOwnership.js';
 import {resourceSyncDue} from './sync.js';
@@ -62,11 +62,11 @@ export function createBodyEnergyMorningReadiness({db,stores,keys,publicationCapa
     const sleeps=(pollSleeps??[]).filter(row=>String(row.id)===String(wakeSleepId)),
       recoveries=(pollRecoveries??[]).filter(row=>String(row.sleep_id)===String(wakeSleepId));
     if(sleeps.length!==1||recoveries.length!==1)return proceed();
-    const sleep=sleeps[0],recovery=recoveries[0],wake=instant(sleep.end),
+    const sleep=sleeps[0],recovery=recoveries[0],start=bodyInstant(sleep.start),wake=bodyInstant(sleep.end),
       performance=sleep.score?.sleep_performance_percentage,hrv=recovery.score?.hrv_rmssd_milli,rhr=recovery.score?.resting_heart_rate;
     if([sleep,recovery].some(row=>String(row.user_id)!==String(token.whoop_user_id)||row.score_state!=='SCORED'
        ||!Number.isFinite(instant(row.updated_at))||instant(row.updated_at)>at)
-      ||sleep.nap!==false||!Number.isFinite(wake)||wake>at||bodyHealthDate(wake,context.timezone)!==healthDate
+      ||sleep.nap!==false||start===null||wake===null||start>=wake||wake>at||bodyHealthDate(wake,context.timezone)!==healthDate
       ||!finite(performance)||performance<0||performance>100||!finite(hrv)||hrv<=0||!finite(rhr)||rhr<=0
       ||recovery.score?.user_calibrating!==false)return proceed();
     const w=keys.lookup(['body-morning-owned-wake-v1',userId,String(wakeSleepId),wake]);
@@ -82,7 +82,7 @@ export function createBodyEnergyMorningReadiness({db,stores,keys,publicationCapa
       args:[userId,context.authGeneration,context.lifecycleGeneration,userId,context.lifecycleGeneration,userId,String(wakeSleepId),userId,date.toISOString(),date.toISOString()]})).rows[0];
     if(!metadata||metadata.observed_at>Date.now()||metadata.access_count!==3||metadata.capability_count!==3||metadata.deleted||metadata.blocked)return proceed();
     const from=new Date(wake-C.baselineLookbackDays*86400000).toISOString();
-    const baseline=(await db.raw.execute({sql:`SELECT s.id,s.end_at,s.updated_at,s.synced_at,r.updated_at recovery_updated_at,
+    const baseline=(await db.raw.execute({sql:`SELECT s.id,s.start_at,s.end_at,s.updated_at,s.synced_at,r.updated_at recovery_updated_at,
       r.synced_at recovery_synced_at,r.hrv_rmssd_milli hrv,r.resting_heart_rate rhr
       FROM whoop_sleeps s JOIN whoop_recoveries r ON r.user_id=s.user_id AND r.sleep_id=s.id
       WHERE s.user_id=? AND s.nap=0 AND s.score_state='SCORED' AND r.score_state='SCORED' AND r.user_calibrating=0
@@ -92,7 +92,12 @@ export function createBodyEnergyMorningReadiness({db,stores,keys,publicationCapa
     if(baseline.length>128)return proceed();
     const days=new Map();
     for(const row of baseline){
-     const day=bodyHealthDate(instant(row.end_at),context.timezone);if(day>=healthDate||days.has(day))continue;
+     // Match the original Body selector before admitting a baseline day.
+     // Canonical ingestion can retain a scored zero/reversed interval; it
+     // cannot provide a mature numerical baseline or optional Morning wait.
+     const start=bodyInstant(row.start_at),end=bodyInstant(row.end_at);
+     if(start===null||end===null||start>=end)continue;
+     const day=bodyHealthDate(end,context.timezone);if(day>=healthDate||days.has(day))continue;
      if([row.updated_at,row.synced_at,row.recovery_updated_at,row.recovery_synced_at].some(time=>!Number.isFinite(instant(time))||instant(time)>at))return proceed();
      days.set(day,row);
     }

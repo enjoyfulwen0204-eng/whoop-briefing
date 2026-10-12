@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import Database from 'libsql';
 import {createDb} from '../src/db.js';import {fixtureKeys} from './localDb.js';
 import {createPhase4Foundation} from '../src/phase4Foundation.js';
-import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';import {bodyHealthDate} from '../src/bodyEnergyInputs.js';
+import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';import {bodyHealthDate,selectBodyEnergyInputs} from '../src/bodyEnergyInputs.js';
 import {authorizeBodyEnergyFixturePublication} from '../src/bodyEnergyQualificationAuthority.js';
 import {createBodyEnergyIntegration} from '../src/bodyEnergyIntegration.js';
 import {BODY_MORNING_MARKER_TYPE,bodyMorningNextTick} from '../src/bodyEnergyMorningReadiness.js';
@@ -154,6 +154,31 @@ scenario('bounded marker/prerequisite negatives never reset authority or consume
  const user=await f.db.getUser('a');await f.db.updateUser('a',{displayName:'Synthetic ABA'});await f.db.updateUser('a',{displayName:user.displayName});
  assert.equal((await inspect()).action,'ORDINARY');assert.equal((await f.marker()).detail,first.detail);
  assert.equal(Number((await f.db.raw.execute("SELECT count(*) n FROM report_claims WHERE user_id='a'")).rows[0].n),0);
+});
+
+scenario('actual canonical zero-duration baseline sleeps cannot qualify Body waiting and ordinary Morning sends now',async t=>{
+ morningCalendar(t);const f=await setup(t),at=new Date(Date.now()-1000).toISOString();
+ const invalid=f.evidence.pollSleeps.filter(row=>['sleep-01','sleep-02','sleep-03','sleep-04','sleep-05'].includes(row.id))
+  .map(row=>({...row,start:row.end,updated_at:at}));assert.equal(invalid.length,5);
+ await f.db.upsertSleeps('a',invalid,{timezone:'Asia/Taipei'});
+ const stored=(await f.db.raw.execute("SELECT count(*) n FROM whoop_sleeps WHERE user_id='a' AND start_at=end_at")).rows[0].n;
+ assert.equal(stored,5,'the original canonical upsert accepts these valid timestamp rows');
+ const rows=async table=>(await f.db.raw.execute('SELECT * FROM '+table+" WHERE user_id='a'")).rows;
+ const actual=selectBodyEnergyInputs({userId:'a',timezone:'Asia/Taipei',asOfEpochMs:Date.now(),authGeneration:1,lifecycleGeneration:1,
+  targetHealthDate:f.evidence.healthDate,sources:{sleep:await rows('whoop_sleeps'),recovery:await rows('whoop_recoveries'),
+   cycle:await rows('whoop_cycles'),workout:[]},access:await rows('whoop_resource_access'),sync:await rows('whoop_sync_state'),
+  capabilities:await rows('whoop_capabilities'),tombstones:[]});
+ assert.equal(actual.manifest.baseline.hrv.length,25);assert.equal(actual.manifest.baseline.rhr.length,25);
+ assert.equal((await f.owned(()=>f.bodyEnergy.beforeMorning(f.evidence))).action,'ORDINARY');assert.equal(await f.marker(),undefined);
+ const messages=[];assert.equal((await ordinaryDaily(f,messages)).status,'sent');assert.equal(messages.length,1);
+ assert.equal(await f.marker(),undefined,'invalid baseline cannot create a wait anchor or delay the original report');
+});
+
+scenario('an owned zero-duration current wake cannot qualify Body waiting while original ordinary Morning remains eligible',async t=>{
+ morningCalendar(t);const f=await setup(t),wake=f.evidence.pollSleeps.find(row=>row.id==='sleep-00');wake.start=wake.end;
+ assert.equal((await f.owned(()=>f.bodyEnergy.beforeMorning(f.evidence))).action,'ORDINARY');assert.equal(await f.marker(),undefined);
+ const messages=[];assert.equal((await ordinaryDaily(f,messages)).status,'sent');assert.equal(messages.length,1);
+ assert.equal(await f.marker(),undefined,'optional Body readiness cannot defer a wake excluded by the original selector');
 });
 
 scenario('expired or exhausted original pilot never grants waiting or additional attempts and ordinary Morning still sends once',async t=>{

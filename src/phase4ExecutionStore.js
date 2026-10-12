@@ -116,7 +116,7 @@ export async function recordDrainProgress(db,events) {
 export async function readPhaseProgress(db,phase,source) {
  const version=Number((await db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
  if(version<32)return {state:'LEGACY_UNKNOWN',complete:null,starts:null};
- if(version!==32)fail('phase4_schema_version_mismatch');
+ if(![32,33].includes(version))fail('phase4_schema_version_mismatch');
  const rows=await db.raw.execute({sql:'SELECT * FROM phase4_executions WHERE phase=? AND trigger_source=? ORDER BY execution_seq DESC LIMIT 1',args:[phase,source]});
  const execution=rows.rows[0];
  if(execution){

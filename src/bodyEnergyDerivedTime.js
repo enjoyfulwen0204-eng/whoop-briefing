@@ -44,7 +44,7 @@ export async function bodyEnergyMetricAnalysisTime(core,context,artifact,sourceC
     fail('BODY_ENERGY_DERIVED_SOURCE_REFERENCE_REQUIRED');
   const created=Date.parse(artifact.row.created_at);
   // Earlier-stage isolated fixtures keep their existing exact temporal path.
-  if(core.schemaVersion!==32&&created<=Date.parse(sourceCaptureCutoff))return sourceCaptureCutoff;
+  if(![32,33].includes(core.schemaVersion)&&created<=Date.parse(sourceCaptureCutoff))return sourceCaptureCutoff;
   const verified=await verifyBodyEnergyProducer(core,context,artifact.row,{allowActive:true});
   // Stable original persistence instant keeps retries/unit identities equal.
   // Original input as_of_utc and actual ingestedAt remain untouched.

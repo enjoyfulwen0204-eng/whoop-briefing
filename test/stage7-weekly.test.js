@@ -3,9 +3,13 @@ import {stage7Fixture} from './stage7Fixture.js';
 import {summarizeJournalWeek,renderJournalWeek} from '../src/stage7WeeklyReview.js';
 test('weekly frequency is observed days, NO is coverage, unknown is missing and three locales make no causal claim',()=>{
  const fact=(day,state)=>({health_date:day,category:'caffeine',exposure_state:state,fact_status:'ACTIVE',content_state:'PRESENT'});
- const summary=summarizeJournalWeek({facts:[fact('2026-09-14','EXPOSED'),fact('2026-09-14','EXPOSED'),fact('2026-09-15','CONFIRMED_UNEXPOSED')],history:[{target_date:'2026-09-14',selected_choice:'YES'},{target_date:'2026-09-15',selected_choice:'NOT_SURE'},{target_date:'2026-09-16',selected_choice:null}],topics:['caffeine'],startDate:'2026-09-14',endDate:'2026-09-20'});
+ const summary=summarizeJournalWeek({facts:[fact('2026-09-14','EXPOSED'),fact('2026-09-14','EXPOSED'),fact('2026-09-15','CONFIRMED_UNEXPOSED')],history:[{target_date:'2026-09-14',selected_choice:'YES',state:'COMPLETED',answered_at:'2026-09-15'},{target_date:'2026-09-15',selected_choice:'NOT_SURE',state:'NOT_SURE',answered_at:'2026-09-16'},{target_date:'2026-09-16',selected_choice:null}],topics:['caffeine'],startDate:'2026-09-14',endDate:'2026-09-20'});
  assert.equal(summary.daysRecorded,2);assert.equal(summary.frequency.caffeine,1);assert.equal(summary.coverage.caffeine,2);assert.equal(summary.responses.NO_RESPONSE,1);assert.equal(summary.responses.NOT_ASKED,4);
  for(const locale of ['zh-TW','vi','en'])assert.ok(!renderJournalWeek(summary,locale).text.includes('undefined'));
+});
+test('an unconfirmed button choice is still NO_RESPONSE, never an accepted positive or negative observation',()=>{
+ const summary=summarizeJournalWeek({facts:[],history:[{target_date:'2026-09-14',selected_choice:'YES',state:'CONFIRM'},{target_date:'2026-09-15',selected_choice:'NO',state:'CONFIRM'}],topics:[],startDate:'2026-09-14',endDate:'2026-09-20'});
+ assert.equal(summary.responses.YES,0);assert.equal(summary.responses.NO,0);assert.equal(summary.responses.NO_RESPONSE,2);assert.equal(summary.daysRecorded,0);
 });
 test('on-demand weekly review uses own canonical facts; automatic weekly preference is default off',async t=>{
  const f=await stage7Fixture(t),actor=await f.companion.interactions.authenticate({user:f.user,chatId:'123'});

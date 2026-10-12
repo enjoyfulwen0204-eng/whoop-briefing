@@ -17,7 +17,7 @@ export function createBodyEnergyPublicationReader(core,{body,receipts,readArtifa
       if(!Number.isSafeInteger(clock)||clock>Date.now()||asOfEpochMs>clock)throw Error('BODY_ENERGY_FUTURE_REQUEST');
       return core.run(context,async()=>{
         const {computation}=await core.assertContext(context);
-        if(context.executionMode!=='SHADOW'||Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)!==32)
+        if(context.executionMode!=='SHADOW'||![32,33].includes(Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)))
           return {status:'PROCESSING',userId:context.userId};
         const stored=await body.readLatestPublicationCandidate(context,{healthDate,asOfEpochMs});
         if(!stored)return {status:computation.last_completed_generation===context.inputGeneration?'NO_DATA':'PROCESSING',userId:context.userId};

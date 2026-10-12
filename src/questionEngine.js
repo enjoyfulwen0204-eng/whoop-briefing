@@ -164,7 +164,7 @@ export function selectDailyQuestion({topics,trackingTopics=[],excludedTopics=[],
    const past=history.filter(h=>h.category===category).sort((a,b)=>String(b.target_date).localeCompare(String(a.target_date)));
    const last=past[0]?.target_date,age=last?Math.max(0,Math.round((Date.parse(targetDate)-Date.parse(last))/86400000)):30;
    if(age<3)return null;
-   const covered=new Set(knownFacts.filter(f=>f.category===category&&['EXPOSED','CONFIRMED_UNEXPOSED'].includes(f.exposure_state)).map(f=>f.health_date)).size;
+   const covered=new Set(knownFacts.filter(f=>f.category===category&&f.health_date>=addDays(targetDate,-13)&&f.health_date<=targetDate&&['EXPOSED','CONFIRMED_UNEXPOSED'].includes(f.exposure_state)).map(f=>f.health_date)).size;
    const information=scoreCandidate({category,signal:signal??{level:'MILD'},journalEvents:knownFacts,metricSeries});
    const rotation=Math.min(age,14)/14,tracking=trackingTopics.includes(category)?1:0,missingness=1-Math.min(covered,14)/14;
    const relevance=signal?information.score:0;

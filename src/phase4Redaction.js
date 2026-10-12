@@ -97,6 +97,7 @@ export function createPhase4Redactor(core) {
   }
   async function apply(userId,node,purge) {
     const {row,where,args,columns}=await locate(userId,node);if(!row)return 'REMOVED';
+    if(node.type==='quick_action_interactions')await client.execute({sql:'DELETE FROM journal_callback_tokens WHERE user_id=? AND interaction_id=?',args:[userId,row.interaction_id]});
     if(node.type==='journal_events'&&purge.operation_kind==='DELETION'&&purge.target_source_type==='JOURNAL_FACT'
       &&row.logical_fact_id===purge.target_source_id) {
       // Logical deletion removes every revision, including previously redacted
@@ -173,6 +174,7 @@ export function createPhase4Redactor(core) {
     if(!row || row.content_state!=='REDACTED' || row.source_linkage_state!=='DISCONNECTED'
       || !row.health_content_redacted_at || row.content_digest_salt!==null)fail('PHASE4_REDACTION_POSTCONDITION');
     for(const [field,value] of Object.entries(FIELDS[node.type]||{}))if(Object.hasOwn(row,field)&&row[field]!==value)fail('PHASE4_REDACTION_PLAINTEXT_REMAINS');
+    if(node.type==='quick_action_interactions'&&(await client.execute({sql:'SELECT 1 FROM journal_callback_tokens WHERE user_id=? AND interaction_id=? LIMIT 1',args:[userId,row.interaction_id]})).rows.length)fail('STAGE7_REDACTED_CALLBACK_REMAINS');
     if(node.type==='experiment_field_groups' && row.is_current===1) {
       const projection=(await client.execute({sql:`SELECT ${row.field_name} value FROM experiments WHERE user_id=? AND id=?`,args:[userId,row.experiment_id]})).rows[0];
       if(projection?.value!==EXPERIMENT_SENTINELS[row.field_name])fail('PHASE4_EXPERIMENT_PLAINTEXT_REMAINS');

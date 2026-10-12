@@ -27,20 +27,22 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  }
  async function insert(table,row){const fields=Object.keys(row);await client.execute({sql:`INSERT INTO ${table}(${fields.join(',')}) VALUES(${fields.map(()=>'?').join(',')})`,args:fields.map(k=>row[k])});}
  async function read(uid,id){return (await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[uid,id]})).rows[0]??null;}
- async function issue(actor,{kind='QUICK',semanticKey=core.newId(),category=null,targetDate=null,reason=null,diagnostics=null,dayKey=null}={}){
+ async function issue(actor,{kind='QUICK',semanticKey=core.newId(),category=null,targetDate=null,reason=null,diagnostics=null,dayKey=null,recordedTimezone=null}={}){
   return transaction(async()=>{
    const state=await core.assertControl(actor.control);
    if(state.pending_purge_count!==0||state.timezone!==actor.state.timezone)fail('STAGE7_STATE_FENCED');
    const previous=(await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND semantic_key=?',args:[actor.control.userId,semanticKey]})).rows[0];
    if(previous)return {row:previous,created:false};
    if(category!==null&&!TOPICS.includes(category))fail('STAGE7_UNREGISTERED_QUESTION');
+   const targetTimezone=recordedTimezone??state.timezone;
+   if(recordedTimezone!==null){if(kind!=='QUICK')fail('STAGE7_TARGET_TIMEZONE_REQUIRED');new Intl.DateTimeFormat('en',{timeZone:targetTimezone}).format();diagnostics={...diagnostics,recordedTimezone:targetTimezone};}
    await client.execute({sql:'DELETE FROM journal_callback_tokens WHERE user_id=? AND expires_at<=?',args:[actor.control.userId,timestamp()]});
    const at=timestamp(),expiry=new Date(Date.parse(at)+(kind==='DAILY'?answerWindowMs:15*60000)).toISOString();
    const row={user_id:actor.control.userId,interaction_id:core.newId(),execution_mode:'SHADOW',semantic_key:semanticKey,day_key:dayKey,kind,
     registry_id:category?registryQuestion(category):null,registry_version:JOURNAL_REGISTRY_VERSION,question_identity:category?registryQuestion(category):null,
     category,target_date:targetDate,timezone:state.timezone,
-    window_start:targetDate?localMidnightUtc(targetDate,state.timezone).toISOString():null,
-    window_end:targetDate?localMidnightUtc(addDays(targetDate,1),state.timezone).toISOString():null,
+    window_start:targetDate?localMidnightUtc(targetDate,targetTimezone).toISOString():null,
+    window_end:targetDate?localMidnightUtc(addDays(targetDate,1),targetTimezone).toISOString():null,
     selection_reason:reason,diagnostics_json:diagnostics?JSON.stringify(diagnostics):null,state:'ISSUED',revision:0,
     lifecycle_generation:state.lifecycle_generation,auth_generation:state.auth_generation,chat_id:actor.chat,created_at:at,expires_at:expiry,...privacyFields(state)};
    await insert('quick_action_interactions',row);await link('quick_action_interactions',row);return {row:await read(row.user_id,row.interaction_id),created:true};

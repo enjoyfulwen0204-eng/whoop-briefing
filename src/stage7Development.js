@@ -55,7 +55,12 @@ export async function createStage7Development({core,stores,db,...options}){
    if(current.correction_key&&current.correction_key!==receipt&&current.state==='CONFIRM')fail('STAGE7_CORRECTION_COMMAND_CONFLICT');
    await core.client.execute({sql:'UPDATE quick_action_interactions SET correction_key=? WHERE user_id=? AND interaction_id=?',args:[receipt,row.user_id,row.interaction_id]});});
   if(row.logical_fact_id){const result=await stores.journal.remove(actor.control,{logicalFactId:row.logical_fact_id,idempotencyKey:`stage7-undo:${receipt}`});if(result.purgeId)await stores.privacy.complete(actor.control,result.purgeId);}
-  else await interactionPrivacy.retract(actor.control,row);
+  else{
+   const originalId=JSON.parse(row.diagnostics_json??'null')?.retractInteractionId;
+   const original=originalId?await companion.interactions.read(actor.control.userId,originalId):row;
+   if(!original||original.user_id!==actor.control.userId)fail('STAGE7_PRIVACY_FENCED');
+   await interactionPrivacy.retract(actor.control,original);
+  }
  };
  companion=createStage7Companion({core,stores,db,...options,onAccept:accepted,onUndo:undo,onWeekly:actor=>weekly.prepare(actor)});
  const weekly=createStage7WeeklyReview({core,stores,db,companion});

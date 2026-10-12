@@ -3,7 +3,10 @@ import {PHASE4_METRICS} from './phase4IntelligenceRegistry.js';
 export const DECISION_POLICY_VERSION='stage7-decision-v1';
 export const QUESTION_UTILITY_VERSION='question_utility_v1';
 export const COUNTERFACTUAL_VERSION='counterfactual_decision_impact_v1';
-export const STAGE7_METRIC_POLICY=Object.freeze(Object.fromEntries(Object.keys(PHASE4_METRICS).map(metric=>[metric,Object.freeze({priority:'QUESTION',notificationAllowed:metric!=='body_energy'})])));
+export const STAGE7_METRIC_POLICY=Object.freeze(Object.fromEntries(Object.keys(PHASE4_METRICS).map(metric=>[metric,Object.freeze({priority:'QUESTION',notificationAllowed:metric!=='body_energy',
+ actionKey:metric==='body_energy'?null:['sleep_performance','sleep_duration_minutes','sleep_efficiency'].includes(metric)?'REVIEW_SLEEP_ROUTINE':'CONSIDER_LIGHTER_LOAD',
+ notificationSeverity:3,interpretationVersion:'personal-baseline-wellness-v1'})])));
+export function temporalRelevance(ageMs){return ageMs<0||!Number.isFinite(ageMs)?0:ageMs<=86400000?1:ageMs<=3*86400000?.75:ageMs<=7*86400000?.5:ageMs<=30*86400000?.25:0;}
 const nonQuestionActions=['NO_NOTIFICATION','NOTIFY','DEFER_OBSERVATION'];
 export function counterfactualDecisionImpact({YES,NO,UNKNOWN}){
  for(const branch of [YES,NO,UNKNOWN])if(!branch||!nonQuestionActions.includes(branch.action)||!['INELIGIBLE','CANDIDATE','REPEATED','INSIGHT_SUPPORTING'].includes(branch.evidence_eligibility)||!['EXPLAINED','UNEXPLAINED'].includes(branch.episode_explained_status))throw Error('STAGE7_BRANCH_SIGNATURE_REQUIRED');

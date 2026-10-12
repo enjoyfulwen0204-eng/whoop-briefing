@@ -40,8 +40,8 @@ export async function createStage7TelegramDevelopment({core,stores,db,provider=c
  const dispatcher=createStage7Dispatcher({core,db,companion,provider});
  return {companion,processor,dispatcher,acks,provider,
   // Scheduler/recovery calls this separately after ordinary briefing completion.
-  reconcileDaily:async({user,chatId,healthDay})=>{
-   const result=await companion.prepareAfterBrief({user,chatId,healthDay});
+  reconcileDaily:async({user,chatId,healthDay,signal=null,metricSeries=[]})=>{
+   const result=await companion.prepareAfterBrief({user,chatId,healthDay,signal,metricSeries});
    return result.deliveryId?dispatcher.dispatch({user,chatId,deliveryId:result.deliveryId}):result;
   }};
 }

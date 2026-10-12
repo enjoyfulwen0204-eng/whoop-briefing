@@ -16,7 +16,7 @@ test('YES detail confirmation creates one canonical trusted fact; edit NO revise
  card=await f.tap(card,'Retract');assert.match(card.text,/retracted/);
  assert.equal((await db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);assert.equal((await db.raw.execute('SELECT count(*) n FROM journal_event_tombstones')).rows[0].n,1);
  const interactions=(await db.raw.execute({sql:"SELECT * FROM quick_action_interactions WHERE logical_fact_id=?",args:[fact.logical_fact_id]})).rows;
- for(const row of interactions){assert.equal(row.note,null);assert.equal(row.selected_choice,null);}
+ for(const row of interactions){assert.equal(row.note,null);assert.equal(row.selected_choice,null);assert.equal((await db.raw.execute({sql:'SELECT count(*) n FROM journal_callback_tokens WHERE user_id=? AND interaction_id=?',args:['a',row.interaction_id]})).rows[0].n,0);}
  assert.equal((await db.raw.execute("SELECT count(*) n FROM journal_events WHERE user_id='b'")).rows[0].n,0);
 });
 test('NOT_SURE and SKIPPED are explicit missing states; supplemental injection text is a bounded note only',async t=>{

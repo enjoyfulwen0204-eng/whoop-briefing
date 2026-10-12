@@ -1,5 +1,6 @@
 import {log} from './logger.js';
 import {fail,readableRow} from './phase4Core.js';
+import {presentationLocale} from './stage7Registry.js';
 const synthetic=new WeakSet();
 /** No function/URL/token/provider supplied by caller is executed. */
 export function createSyntheticJournalTelegram({outcomes=[]}={}){
@@ -67,19 +68,22 @@ export async function createStage7Phase4Dispatcher({core,stores,db,provider}){
  if(!synthetic.has(provider)||core.client.protocol!=='file'||files.some(r=>r.file!==''||!['main','temp'].includes(r.name)))fail('STAGE7_FAKE_PROVIDER_REQUIRED');
  async function dispatch({context,messageId,slotRevision=null}){
   const control=await stores.captureControl(context.userId);
-  const current=(await core.client.execute({sql:'SELECT state,revision FROM outbound_messages WHERE user_id=? AND execution_mode=? AND message_id=?',args:[context.userId,context.executionMode,messageId]})).rows[0];
+  const current=(await core.client.execute({sql:'SELECT state,revision,message_class,payload_json FROM outbound_messages WHERE user_id=? AND execution_mode=? AND message_id=?',args:[context.userId,context.executionMode,messageId]})).rows[0];
   if(!current)return {state:'NOT_FOUND'};
   if(['DELIVERY_STARTED','AMBIGUOUS','DELIVERED','SUPPRESSED','INVALIDATED','FAILED_TERMINAL'].includes(current.state))return {state:current.state};
+  const presentation=JSON.parse(current.payload_json??'null');
+  const localeChanged=presentation?.template==='stage7-registered-proposal-v1'&&presentation.locale!==presentationLocale(await db.getLocale(context.userId));
   const count=Number((await core.client.execute({sql:"SELECT count(*) n FROM outbound_messages WHERE user_id=? AND execution_mode=? AND message_class IN ('EPISODE_NOTIFICATION','CONTEXT_QUESTION','ANSWER_FOLLOWUP') AND created_at>?",args:[context.userId,context.executionMode,new Date(core.now().getTime()-86400000).toISOString()]})).rows[0].n);
-  if(count>8){
+  if(localeChanged||count>8&&['EPISODE_NOTIFICATION','CONTEXT_QUESTION','ANSWER_FOLLOWUP'].includes(current.message_class)){
    await core.run(context,async()=>{
     const row=(await core.artifact(context,'outbound_messages',{message_id:messageId})).row;
     if(!['PROPOSED','ELIGIBLE','CLAIMED'].includes(row.state))return;
+    if(row.message_class==='CONTEXT_QUESTION')await stores.slots.suppressBeforeSend(control,context.executionMode,{messageId});
     await core.client.execute({sql:"UPDATE outbound_messages SET state='SUPPRESSED',terminal_reason='SUPPRESSED',revision=revision+1,updated_at=? WHERE user_id=? AND execution_mode=? AND message_id=? AND revision=?",args:[core.timestamp(),context.userId,context.executionMode,messageId,row.revision]});
     await core.client.execute({sql:"UPDATE outbound_semantic_reservations SET state='CLOSED',closed_reason='SUPPRESSED',closed_at=? WHERE user_id=? AND execution_mode=? AND reservation_id=? AND state='RESERVED'",args:[core.timestamp(),context.userId,context.executionMode,row.reservation_id]});
    });
-   log.warn('stage7_abnormal_volume_incident',{reason:'ABNORMAL_VOLUME_CIRCUIT_BREAKER'});
-   return {state:'SUPPRESSED',reason:'ABNORMAL_VOLUME_CIRCUIT_BREAKER'};
+   if(!localeChanged)log.warn('stage7_abnormal_volume_incident',{reason:'ABNORMAL_VOLUME_CIRCUIT_BREAKER'});
+   return {state:'SUPPRESSED',reason:localeChanged?'LOCALE_CHANGED':'ABNORMAL_VOLUME_CIRCUIT_BREAKER'};
   }
   if(current.state==='PROPOSED')await stores.transport.makeEligible(context,{messageId,expectedRevision:current.revision});
   const lease=await stores.transport.claim(context,{messageId,owner:'stage7-synthetic-dispatcher'});if(!lease)return {state:'UNCLAIMED'};

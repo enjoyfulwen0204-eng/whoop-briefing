@@ -9,7 +9,10 @@ export function summarizeJournalWeek({facts,history,topics,startDate,endDate,ass
  const frequency=Object.fromEntries(TOPICS.map(category=>[category,new Set(current.filter(f=>f.category===category&&f.exposure_state==='EXPOSED').map(f=>f.health_date)).size]));
  const coverage=Object.fromEntries(topics.map(category=>[category,new Set(current.filter(f=>f.category===category&&['EXPOSED','CONFIRMED_UNEXPOSED'].includes(f.exposure_state)).map(f=>f.health_date)).size]));
  const asked=history.filter(h=>inRange(h.target_date)),responses={YES:0,NO:0,NOT_SURE:0,SKIPPED:0,NO_RESPONSE:0,NOT_ASKED:7-new Set(asked.map(h=>h.target_date)).size};
- for(const h of asked)responses[['YES','NO','NOT_SURE','SKIPPED'].includes(h.selected_choice)?h.selected_choice:'NO_RESPONSE']++;
+ for(const h of asked){
+  const accepted=h.answered_at&&(['YES','NO'].includes(h.selected_choice)?h.state==='COMPLETED':['NOT_SURE','SKIPPED'].includes(h.selected_choice)&&h.state===h.selected_choice);
+  responses[accepted?h.selected_choice:'NO_RESPONSE']++;
+ }
  const next=topics.filter(c=>coverage[c]<4).sort((a,b)=>coverage[a]-coverage[b]||a.localeCompare(b))[0]??null;
  return {startDate,endDate,daysRecorded:dates.size,frequency,coverage,responses,next,associations,sampling:'ADAPTIVE_OBSERVATIONAL'};
 }
@@ -30,7 +33,7 @@ export function createStage7WeeklyReview({core,stores,db,companion}){
   return core.transaction(async()=>{
    const state=await core.assertControl(actor.control),week=completedWeeks(core.now(),state.timezone).last,prefs=await companion.preferences(actor),facts=await companion.ownFacts(actor,{fromDate:week.startDate,toDate:week.endDate});
    if(facts.length===500)throw Error('STAGE7_WEEKLY_HISTORY_BOUNDS');
-   const history=(await core.client.execute({sql:"SELECT privacy_artifact_id,target_date,selected_choice FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND target_date>=? AND target_date<=? AND content_state='PRESENT'",args:[actor.control.userId,week.startDate,week.endDate]})).rows;
+   const history=(await core.client.execute({sql:"SELECT privacy_artifact_id,target_date,selected_choice,state,answered_at FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND target_date>=? AND target_date<=? AND content_state='PRESENT'",args:[actor.control.userId,week.startDate,week.endDate]})).rows;
    const associations=[];
    await stores.withContext(actor.control.userId,{executionMode:'SHADOW'},async context=>{
     const typed=await stores.betaSummary.readCurrent(context,{asOfUtc:core.timestamp()});

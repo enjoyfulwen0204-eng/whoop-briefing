@@ -29,3 +29,23 @@ test('foreign direct rendering/writing fails, note cannot replace proactive pend
  await assert.rejects(f.companion.interactions.render(b,row),/FENCED/);await assert.rejects(f.db.transaction(()=>f.companion.interactions.update(b,row,{state:'SKIPPED'})),/FENCED/);
  await assert.rejects(f.db.transaction(()=>f.companion.changePreferences(a,{revision:0},{topics_json:'["unsupported"]'})),/TOPICS/);
 });
+
+test('fresh own history capabilities can edit after expiry/timezone change while old buttons stay fenced and the original interval survives',async t=>{
+ let now=new Date('2026-09-19T00:00:00.000Z');const f=await stage7Fixture(t,{now:()=>now});await f.db.setLocale('a','en',{now});
+ let card=await f.command();card=await f.tap(card,'Alcohol');card=await f.tap(card,'Yes');card=await f.tap(card,'Confirm');const old=card;
+ const original=(await f.db.raw.execute("SELECT * FROM journal_events WHERE fact_status='ACTIVE'")).rows[0];
+ now=new Date('2026-09-20T00:00:00.000Z');await f.db.updateUser('a',{timezone:'America/New_York'},{now});
+ const menu=await f.command(),recent=await f.tap(menu,'Recent entries');card=await f.tap(recent,'Alcohol');card=await f.tap(card,'Edit');card=await f.tap(card,'No');await f.tap(card,'Confirm');
+ const current=(await f.db.raw.execute("SELECT * FROM journal_events WHERE fact_status='ACTIVE'")).rows[0];
+ assert.equal(current.answer_polarity,'NO');assert.equal(current.health_date,original.health_date);assert.equal(current.event_at,original.event_at);assert.equal(current.event_end_at,original.event_end_at);assert.equal(current.recorded_timezone,'Asia/Taipei');
+ const before=current.revision;await f.tap(old,'Edit');assert.equal((await f.db.raw.execute("SELECT revision FROM journal_events WHERE fact_status='ACTIVE'")).rows[0].revision,before);
+});
+
+test('retraction through a fresh uncertain history card removes the original and every copy',async t=>{
+ let now=new Date('2026-09-19T00:00:00.000Z');const f=await stage7Fixture(t,{now:()=>now});await f.db.setLocale('a','en',{now});
+ let card=await f.command();card=await f.tap(card,'Alcohol');card=await f.tap(card,'Not sure');const original=card.stage7InteractionId;
+ now=new Date('2026-09-20T00:00:00.000Z');card=await f.command();card=await f.tap(card,'Recent entries');card=await f.tap(card,'Alcohol');const copy=card.stage7InteractionId;
+ await f.tap(card,'Retract');
+ for(const id of [original,copy]){const row=await f.companion.interactions.read('a',id);assert.equal(row.content_state,'REDACTED');assert.equal(row.selected_choice,null);assert.equal(row.target_date,null);}
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
+});

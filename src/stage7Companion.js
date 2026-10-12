@@ -63,14 +63,27 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(action==='recent'){
     const locale=await db.getLocale(user.id),c=JOURNAL_COPY[presentationLocale(locale)],facts=await ownFacts(actor);
     // Only registered own entries have editable server handles. Never expose IDs.
-    const recent=(await client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND state IN ('COMPLETED','NOT_SURE','SKIPPED') AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 10",args:[user.id]})).rows;
+    const recent=(await client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND category IS NOT NULL AND state IN ('COMPLETED','NOT_SURE','SKIPPED') AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 10",args:[user.id]})).rows;
     const buttons=recent.map(r=>[{text:`✏️ ${r.target_date} · ${c.topics[TOPICS.indexOf(r.category)]}`,action:`open:${r.interaction_id}`}]);
     return renderCustom(actor,row,{text:facts.length?facts.slice(0,10).map(f=>`${f.health_date} · ${labelForCategory(f.category,presentationLocale(locale))} · ${f.exposure_state==='CONFIRMED_UNEXPOSED'?c.no:c.yes}`).join('\n'):c.empty,buttons});
    }
    if(action.startsWith('open:')){
     const entry=await interactions.read(user.id,action.slice(5));
-    if(!readableRow(entry)||entry.lifecycle_generation!==actor.state.lifecycle_generation||entry.auth_generation!==actor.state.auth_generation||entry.timezone!==actor.state.timezone)return interactions.expired(actor);
-    row=await interactions.update(actor,entry,{expires_at:new Date(core.now().getTime()+15*60000).toISOString()});return card(actor,row);
+    if(!readableRow(entry)||!TOPICS.includes(entry.category))return interactions.expired(actor);
+    let fact=null;
+    if(entry.logical_fact_id){fact=await stores.withContext(user.id,{executionMode:'SHADOW'},async context=>(await stores.journal.read(context,entry.logical_fact_id)).row);if(fact.provenance_mode!=='TRUSTED_REGISTRY')return interactions.expired(actor);}
+    // A newly authenticated history view receives new capabilities. An old
+    // card's authority is never refreshed. Its original health-day interval is
+    // distinct from the current timezone used to fence these new callbacks.
+    const recordedTimezone=fact?.recorded_timezone??JSON.parse(entry.diagnostics_json??'null')?.recordedTimezone??entry.timezone;
+    const fresh=await interactions.issue(actor,{category:fact?.category??entry.category,targetDate:fact?.health_date??entry.target_date,recordedTimezone,
+     diagnostics:fact?null:{retractInteractionId:JSON.parse(entry.diagnostics_json??'null')?.retractInteractionId??entry.interaction_id}});
+    await interactions.bind(actor,fresh.row.interaction_id,row.message_id);await interactions.update(actor,row,{});
+    row=await interactions.update(actor,await interactions.read(user.id,fresh.row.interaction_id),{state:fact?'COMPLETED':entry.state,selected_choice:fact?.answer_polarity??entry.selected_choice,
+     detail_choice:fact?fact.subtype?.replace(/^last_intake_/,'')??null:entry.detail_choice,note:fact?fact.note:entry.note,logical_fact_id:fact?.logical_fact_id??null,fact_revision:fact?.revision??null,answered_at:fact?.answered_at??entry.answered_at});
+    if(fact)await interactions.link('quick_action_interactions',row,'JOURNAL_FACT',fact.privacy_artifact_id);
+    else await interactions.link('quick_action_interactions',row,'quick_action_interactions',entry.privacy_artifact_id);
+    return card(actor,row);
    }
    if(action==='skipToday'){
     const healthDay=localDate(core.now(),actor.state.timezone),dayKey=core.keys.lookup(['journal-day-v1',user.id,healthDay]);
@@ -101,7 +114,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    }else if(row.state==='AWAITING_DETAIL'&&(action==='skipDetail'||DETAILS[row.category]?.includes(action.slice(7))&&action.startsWith('detail:'))){
     row=await interactions.update(actor,row,{detail_choice:action==='skipDetail'?null:action.slice(7),state:'CONFIRM'});
    }else if(action==='edit'&&['COMPLETED','NOT_SURE','SKIPPED'].includes(row.state)){
-    const issued=await interactions.issue(actor,{category:row.category,targetDate:row.target_date});
+    const issued=await interactions.issue(actor,{category:row.category,targetDate:row.target_date,recordedTimezone:JSON.parse(row.diagnostics_json??'null')?.recordedTimezone??row.timezone});
     await interactions.bind(actor,issued.row.interaction_id,row.message_id);
     await interactions.update(actor,row,{});
     row=await interactions.update(actor,await interactions.read(user.id,issued.row.interaction_id),{state:'EDITING',logical_fact_id:row.logical_fact_id,fact_revision:row.fact_revision});
@@ -154,10 +167,32 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(previous)return {status:'EXISTING',deliveryId:previous.delivery_id};
    const pending=(await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' UNION ALL SELECT 1 FROM phase4_question_interaction_slots WHERE user_id=? AND state IN ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER')",args:[user.id,user.id]})).rows.length;
    if(pending)return {status:'INTERACTION_BUSY'};
-   const targetDate=addDays(healthDay,-1),facts=await ownFacts(actor),history=(await client.execute({sql:"SELECT category,target_date FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 60",args:[user.id]})).rows;
+   const targetDate=addDays(healthDay,-1),facts=await ownFacts(actor,{fromDate:addDays(targetDate,-179),toDate:targetDate}),history=(await client.execute({sql:"SELECT privacy_artifact_id,category,target_date FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 60",args:[user.id]})).rows;
+   if(facts.length===500)fail('STAGE7_DAILY_HISTORY_BOUNDS');
+   // Use already-computed, receipt-verified current evidence. No WHOOP sync or
+   // new physiological computation runs after the briefing. Explicit inputs are
+   // internal synthetic/server composition only, never Telegram payloads.
+   const contextSources=[];
+   if(!signal)await stores.withContext(user.id,{executionMode:'SHADOW'},async context=>{
+    const typed=await stores.betaSummary.readCurrent(context,{asOfUtc:timestamp()});
+    for(const entry of [...typed.episodes].sort((a,b)=>b.severity-a.severity||a.metricKey.localeCompare(b.metricKey))){
+     const episode=await stores.readArtifact(context,'observation_episodes',{episode_id:entry.resultId});
+     const age=core.now().getTime()-Date.parse(episode.row.last_observed_at);
+     if(age<0||age>48*3600000||entry.severity<2)continue;
+     const item=await stores.readArtifact(context,'evidence_items',{evidence_item_id:episode.row.latest_evidence_item_id});
+     if(!['LIMITED','AVAILABLE'].includes(item.row.quality))continue;
+     signal={metric:entry.metricKey,level:entry.severity>=3?'STRONG':'NOTABLE',health_date:healthDay};
+     contextSources.push(item.row.privacy_artifact_id);break;
+    }
+   });
    const selected=selectDailyQuestion({topics:TOPICS,trackingTopics:JSON.parse(prefs.topics_json),excludedTopics:JSON.parse(prefs.excluded_topics_json),history,knownFacts:facts,healthDay,targetDate,signal,metricSeries});
    if(!selected)return {status:'NO_APPROPRIATE_QUESTION'};
    const issued=await interactions.issue(actor,{kind:'DAILY',semanticKey:semantic,dayKey,category:selected.category,targetDate,reason:selected.reason,diagnostics:selected}),reply=await card(actor,issued.row),at=timestamp();
+   // Every copied selection statistic is a descendant of all inputs, including
+   // observations that suppressed an option. Deletion/correction scrubs it.
+   for(const fact of facts)await interactions.link('quick_action_interactions',issued.row,'JOURNAL_FACT',fact.privacy_artifact_id);
+   for(const previous of history)await interactions.link('quick_action_interactions',issued.row,'quick_action_interactions',previous.privacy_artifact_id);
+   for(const id of contextSources)await interactions.link('quick_action_interactions',issued.row,'evidence_items',id);
    const delivery={user_id:user.id,delivery_id:core.newId(),interaction_id:issued.row.interaction_id,semantic_key:semantic,kind:'DAILY',execution_mode:'SHADOW',state:'PROPOSED',payload_json:JSON.stringify(reply),
     lifecycle_generation:actor.state.lifecycle_generation,auth_generation:actor.state.auth_generation,chat_id:actor.chat,preference_revision:prefs.revision,created_at:at,updated_at:at,expires_at:issued.row.expires_at,...interactions.privacyFields(actor.state)};
    await interactions.insert('journal_prompt_deliveries',delivery);await interactions.link('journal_prompt_deliveries',delivery);

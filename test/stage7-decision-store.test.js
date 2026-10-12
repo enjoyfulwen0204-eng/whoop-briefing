@@ -3,7 +3,7 @@ import {syntheticPhase4Fixture} from './phase4Fixture.js';
 import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
 import {createStage7DecisionStore} from '../src/stage7DecisionStore.js';
 
-test('Stage 7 decision reads typed current evidence, atomically selects one slot, and replay retains its original ASK',async t=>{
+test('Stage 7 decision reads typed current evidence, does not invent association utility, and replay retains its original DEFER',async t=>{
  const at=Date.parse('2026-09-25T12:00:00.000Z'),f=await syntheticPhase4Fixture(t,{targetVersion:33,now:()=>new Date(at)}),input=bodyInput({asOf:at,days:30});
  for(let i=0;i<input.sources.recovery.length;i++)input.sources.recovery[i].recovery_score=i===0?15:[40,45,50,55,60][(i-1)%5];
  await f.db.transaction(()=>seedBodyInput(f.db,input));await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});
@@ -16,8 +16,8 @@ test('Stage 7 decision reads typed current evidence, atomically selects one slot
  await f.db.raw.execute("UPDATE phase4_invalidations SET scope_kind='NONE' WHERE user_id='a'");
  const engine=createStage7DecisionStore(f),request={episodeId:result.episode.episode.row.episode_id,semanticEventId:result.episode.episode.row.last_semantic_event_id,triggerKey:'synthetic-trigger'};
  const first=await f.stores.withContext('a',{executionMode:'SHADOW'},context=>engine.evaluate(context,request));
- assert.equal(first.action,'ASK_ONE_HIGHEST_VALUE_QUESTION');
- const second=await f.stores.withContext('a',{executionMode:'SHADOW'},context=>engine.evaluate(context,request));assert.equal(second.created,false);assert.equal(second.row.action,'ASK_ONE_HIGHEST_VALUE_QUESTION');
+ assert.equal(first.row.action,'DEFER_OBSERVATION');
+ const second=await f.stores.withContext('a',{executionMode:'SHADOW'},context=>engine.evaluate(context,request));assert.equal(second.created,false);assert.equal(second.row.action,'DEFER_OBSERVATION');
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM phase4_proactive_decisions')).rows[0].n,1);
- assert.equal((await f.db.raw.execute('SELECT count(*) n FROM context_questions')).rows[0].n,1);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM context_questions')).rows[0].n,0);
 });

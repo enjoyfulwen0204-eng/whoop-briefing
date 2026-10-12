@@ -1,3 +1,4 @@
+import {log} from './logger.js';
 import {fail,readableRow} from './phase4Core.js';
 const synthetic=new WeakSet();
 /** No function/URL/token/provider supplied by caller is executed. */
@@ -8,7 +9,7 @@ export function createSyntheticJournalTelegram({outcomes=[]}={}){
   if(result==='FAILED_DEFINITE')throw Object.assign(Error('SYNTHETIC_NON_ACCEPTANCE'),{definite:true});
   if(result==='AMBIGUOUS')throw Error('SYNTHETIC_TIMEOUT');
   if(result==='MALFORMED')return {};
-  return {messageId:String(++sequence)};
+  return {messageId:card.editMessageId??String(++sequence)};
  }});synthetic.add(provider);return provider;
 }
 export function createStage7Dispatcher({core,db,companion,provider}){
@@ -24,7 +25,7 @@ export function createStage7Dispatcher({core,db,companion,provider}){
    const paused=(await client.execute({sql:'SELECT notifications_paused FROM user_notification_preferences WHERE user_id=?',args:[user.id]})).rows[0];
    const valid=readableRow(row)&&row.lifecycle_generation===actor.state.lifecycle_generation&&row.auth_generation===actor.state.auth_generation
     &&row.chat_id===actor.chat&&row.expires_at>timestamp()&&prefs.revision===row.preference_revision&&!paused?.notifications_paused
-    &&(row.kind==='DAILY'?prefs.daily_enabled&&readableRow(interaction)&&interaction.timezone===actor.state.timezone:false);
+    &&(row.kind==='DAILY'?prefs.daily_enabled&&readableRow(interaction)&&interaction.state==='ISSUED'&&interaction.selected_choice===null&&interaction.timezone===actor.state.timezone:false);
    const occupied=(await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' UNION ALL SELECT 1 FROM phase4_question_interaction_slots WHERE user_id=? AND state IN ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER')",args:[user.id,user.id]})).rows.length;
    // Weekly automatic rollout is intentionally unavailable. Preference is not rollout authority.
    if(!valid||occupied){await client.execute({sql:"UPDATE journal_prompt_deliveries SET state='SUPPRESSED',revision=revision+1,updated_at=? WHERE user_id=? AND delivery_id=?",args:[timestamp(),user.id,deliveryId]});return {status:'SUPPRESSED'};}
@@ -69,6 +70,17 @@ export async function createStage7Phase4Dispatcher({core,stores,db,provider}){
   const current=(await core.client.execute({sql:'SELECT state,revision FROM outbound_messages WHERE user_id=? AND execution_mode=? AND message_id=?',args:[context.userId,context.executionMode,messageId]})).rows[0];
   if(!current)return {state:'NOT_FOUND'};
   if(['DELIVERY_STARTED','AMBIGUOUS','DELIVERED','SUPPRESSED','INVALIDATED','FAILED_TERMINAL'].includes(current.state))return {state:current.state};
+  const count=Number((await core.client.execute({sql:"SELECT count(*) n FROM outbound_messages WHERE user_id=? AND execution_mode=? AND message_class IN ('EPISODE_NOTIFICATION','CONTEXT_QUESTION','ANSWER_FOLLOWUP') AND created_at>?",args:[context.userId,context.executionMode,new Date(core.now().getTime()-86400000).toISOString()]})).rows[0].n);
+  if(count>8){
+   await core.run(context,async()=>{
+    const row=(await core.artifact(context,'outbound_messages',{message_id:messageId})).row;
+    if(!['PROPOSED','ELIGIBLE','CLAIMED'].includes(row.state))return;
+    await core.client.execute({sql:"UPDATE outbound_messages SET state='SUPPRESSED',terminal_reason='SUPPRESSED',revision=revision+1,updated_at=? WHERE user_id=? AND execution_mode=? AND message_id=? AND revision=?",args:[core.timestamp(),context.userId,context.executionMode,messageId,row.revision]});
+    await core.client.execute({sql:"UPDATE outbound_semantic_reservations SET state='CLOSED',closed_reason='SUPPRESSED',closed_at=? WHERE user_id=? AND execution_mode=? AND reservation_id=? AND state='RESERVED'",args:[core.timestamp(),context.userId,context.executionMode,row.reservation_id]});
+   });
+   log.warn('stage7_abnormal_volume_incident',{reason:'ABNORMAL_VOLUME_CIRCUIT_BREAKER'});
+   return {state:'SUPPRESSED',reason:'ABNORMAL_VOLUME_CIRCUIT_BREAKER'};
+  }
   if(current.state==='PROPOSED')await stores.transport.makeEligible(context,{messageId,expectedRevision:current.revision});
   const lease=await stores.transport.claim(context,{messageId,owner:'stage7-synthetic-dispatcher'});if(!lease)return {state:'UNCLAIMED'};
   const attempt=await stores.transport.start(context,lease,{slotRevision});

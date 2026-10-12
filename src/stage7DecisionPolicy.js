@@ -31,7 +31,7 @@ export function stage7Decision({metric,gates,notification,candidates=[]}){
  let action,reason,winner=null;
  if(gates.tenant!==true||gates.lifecycle!==true||gates.authorization!==true){action='NO_NOTIFICATION';reason='AUTHORITY_FENCED';}
  else if(gates.paused===true||gates.destination!==true){action='NO_NOTIFICATION';reason='DELIVERY_FENCED';}
- else if(gates.current!==true||gates.quality!==true||gates.freshness!==true){action=gates.expectedMore===true?'DEFER_OBSERVATION':'NO_NOTIFICATION';reason='EVIDENCE_NOT_READY';}
+ else if(gates.current!==true||gates.quality!==true||gates.confidence!==true||gates.freshness!==true){action=gates.expectedMore===true?'DEFER_OBSERVATION':'NO_NOTIFICATION';reason='EVIDENCE_NOT_READY';}
  else{
   const ranked=candidates.map(c=>({...c,utility:questionUtility(c.components)})).filter(c=>c.registered===true&&c.current===true&&c.known!==true&&c.open!==true&&c.utility!==null&&c.utility>=.60)
    .sort((a,b)=>b.utility-a.utility||b.components.D-a.components.D||b.components.U-a.components.U||a.sensitivity-b.sensitivity||a.key.localeCompare(b.key));

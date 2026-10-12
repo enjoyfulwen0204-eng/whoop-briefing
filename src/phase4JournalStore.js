@@ -1,3 +1,4 @@
+import {assertRegisteredJournalProvenance} from './stage7JournalProvenance.js';
 import {trustedJournalFact} from './stage7TrustedRegistry.js';
 import {V33_JOURNAL_FIELDS} from './phase4V33Schema.js';
 import { fail,readableRow,requireInteger } from './phase4Core.js';
@@ -86,18 +87,21 @@ export function createPhase4JournalStore(core,privacy,queue) {
       return {...source,taxonomyVersion:JOURNAL_VERSIONS.taxonomy};
     });
   }
-  async function list(context,{limit=100}={}) {
+  async function list(context,{limit=100,fromDate=null,toDate=null}={}) {
     requireInteger(limit,1);if(limit>500)fail('JOURNAL_PAGE_TOO_LARGE');
+    const bounded=fromDate!==null||toDate!==null;
+    if(bounded&&([fromDate,toDate].some(d=>typeof d!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(d)||!Number.isFinite(Date.parse(d)))||fromDate>toDate))fail('JOURNAL_DATE_RANGE_REQUIRED');
     return core.run(context,async()=>{
       const rows=(await client.execute({sql:`SELECT * FROM journal_events WHERE user_id=? AND fact_status='ACTIVE' AND content_state='PRESENT'
-        AND source_linkage_state='COMPLETE' AND health_content_redacted_at IS NULL ORDER BY event_at DESC,logical_fact_id LIMIT ?`,args:[context.userId,limit]})).rows;
-      return rows.map(row=>({...row,taxonomyVersion:row.normalizer_version==='legacy-v20'?'legacy-v20':JOURNAL_VERSIONS.taxonomy}));
+        AND source_linkage_state='COMPLETE' AND health_content_redacted_at IS NULL ${bounded?'AND health_date BETWEEN ? AND ?':''} ORDER BY event_at DESC,logical_fact_id LIMIT ?`,args:[context.userId,...(bounded?[fromDate,toDate]:[]),limit]})).rows;
+      rows.forEach(assertRegisteredJournalProvenance);return rows.map(row=>({...row,taxonomyVersion:row.normalizer_version==='legacy-v20'?'legacy-v20':JOURNAL_VERSIONS.taxonomy}));
     });
   }
   async function classify(context,window) {
     return core.run(context,async()=>{
       const facts=(await client.execute({sql:`SELECT * FROM journal_events WHERE user_id=? AND fact_status='ACTIVE' AND content_state='PRESENT'
         AND source_linkage_state='COMPLETE' AND health_content_redacted_at IS NULL`,args:[context.userId]})).rows;
+      facts.forEach(assertRegisteredJournalProvenance);
       const candidates=(await client.execute({sql:`SELECT coverage_window_id FROM journal_coverage_windows
         WHERE user_id=? AND status='ACTIVE' LIMIT 1001`,args:[context.userId]})).rows;
       if(candidates.length>1000)fail('PHASE4_JOURNAL_LINEAGE_BOUNDS_UNAVAILABLE');

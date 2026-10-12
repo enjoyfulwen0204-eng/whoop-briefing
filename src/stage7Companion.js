@@ -1,3 +1,4 @@
+import {labelForCategory} from './journal.js';
 import {createStage7InteractionStore} from './stage7InteractionStore.js';
 import {selectDailyQuestion} from './questionEngine.js';
 import {readableRow,fail} from './phase4Core.js';
@@ -15,7 +16,9 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    await interactions.insert('journal_tracking_preferences',row);await interactions.link('journal_tracking_preferences',row);
    row=(await client.execute({sql:'SELECT * FROM journal_tracking_preferences WHERE user_id=?',args:[actor.control.userId]})).rows[0];
   }
-  if(!readableRow(row)||row.lifecycle_generation!==state.lifecycle_generation)fail('STAGE7_PREFERENCE_FENCED');return row;
+  if(!readableRow(row))fail('STAGE7_PREFERENCE_FENCED');
+  if(row.lifecycle_generation!==state.lifecycle_generation){await client.execute({sql:'UPDATE journal_tracking_preferences SET lifecycle_generation=?,revision=revision+1,updated_at=? WHERE user_id=? AND revision=?',args:[state.lifecycle_generation,timestamp(),actor.control.userId,row.revision]});row=(await client.execute({sql:'SELECT * FROM journal_tracking_preferences WHERE user_id=?',args:[actor.control.userId]})).rows[0];}
+  return row;
  }
  async function changePreferences(actor,expected,patch){
   const state=await core.assertControl(actor.control),fields=Object.keys(patch);
@@ -25,11 +28,11 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
   const result=await client.execute({sql:`UPDATE journal_tracking_preferences SET ${fields.map(k=>`${k}=?`).join(',')},revision=revision+1,updated_at=? WHERE user_id=? AND revision=? AND lifecycle_generation=?`,args:[...fields.map(k=>patch[k]),timestamp(),actor.control.userId,expected.revision,state.lifecycle_generation]});
   if(result.rowsAffected!==1)fail('STAGE7_PREFERENCE_CONFLICT');return preferences(actor);
  }
- async function ownFacts(actor){
-  return stores.withContext(actor.control.userId,{executionMode:'SHADOW'},context=>stores.journal.list(context,{limit:500}));
+ async function ownFacts(actor,range={}){
+  return stores.withContext(actor.control.userId,{executionMode:'SHADOW'},context=>stores.journal.list(context,{limit:500,...range}));
  }
  async function card(actor,row){return interactions.render(actor,row,row.kind==='PREFERENCES'?await preferences(actor):null);}
- async function handle({text,chatId,user,callback=null}){
+ async function handle({text,chatId,user,callback=null,requestKey=null}){
   const command=typeof text==='string'&&/^\/journal(?:@[A-Za-z0-9_]+)?\s*$/i.test(text.trim());
   if(callback&&!isJournalCallback(callback.data))return null;
   if(!command&&!callback)return null;
@@ -53,21 +56,28 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
   return transaction(async()=>{
    const actor=await interactions.authenticate({user,chatId,callback});
    if(command){
-    const issued=await interactions.issue(actor,{targetDate:addDays(localDate(core.now(),actor.state.timezone),-1)});return card(actor,issued.row);
+    const issued=await interactions.issue(actor,{...(requestKey?{semanticKey:core.keys.lookup(['stage7-command',user.id,requestKey])}:{}),targetDate:addDays(localDate(core.now(),actor.state.timezone),-1)});return card(actor,issued.row);
    }
    const resolved=await interactions.resolve(actor,callback);if(!resolved)return interactions.expired(actor);
    let {row,action}=resolved;
    if(action==='recent'){
-    const c=JOURNAL_COPY[presentationLocale(await db.getLocale(user.id))],facts=await ownFacts(actor);
+    const locale=await db.getLocale(user.id),c=JOURNAL_COPY[presentationLocale(locale)],facts=await ownFacts(actor);
     // Only registered own entries have editable server handles. Never expose IDs.
     const recent=(await client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND state IN ('COMPLETED','NOT_SURE','SKIPPED') AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 10",args:[user.id]})).rows;
     const buttons=recent.map(r=>[{text:`✏️ ${r.target_date} · ${c.topics[TOPICS.indexOf(r.category)]}`,action:`open:${r.interaction_id}`}]);
-    return renderCustom(actor,row,{text:facts.length?facts.slice(0,10).map(f=>`${f.health_date} · ${c.topics[TOPICS.indexOf(f.category)]??f.category} · ${f.exposure_state==='CONFIRMED_UNEXPOSED'?c.no:c.yes}`).join('\n'):c.empty,buttons});
+    return renderCustom(actor,row,{text:facts.length?facts.slice(0,10).map(f=>`${f.health_date} · ${labelForCategory(f.category,presentationLocale(locale))} · ${f.exposure_state==='CONFIRMED_UNEXPOSED'?c.no:c.yes}`).join('\n'):c.empty,buttons});
    }
    if(action.startsWith('open:')){
     const entry=await interactions.read(user.id,action.slice(5));
     if(!readableRow(entry)||entry.lifecycle_generation!==actor.state.lifecycle_generation||entry.auth_generation!==actor.state.auth_generation||entry.timezone!==actor.state.timezone)return interactions.expired(actor);
     row=await interactions.update(actor,entry,{expires_at:new Date(core.now().getTime()+15*60000).toISOString()});return card(actor,row);
+   }
+   if(action==='skipToday'){
+    const healthDay=localDate(core.now(),actor.state.timezone),dayKey=core.keys.lookup(['journal-day-v1',user.id,healthDay]);
+    let day=(await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND day_key=?',args:[user.id,dayKey]})).rows[0];
+    if(!day){day=(await interactions.issue(actor,{kind:'DAILY',semanticKey:core.keys.lookup(['daily-journal-v1',user.id,healthDay,DAILY_POLICY_VERSION]),dayKey,targetDate:addDays(healthDay,-1),reason:'USER_SKIP'})).row;}
+    if(day.state!=='COMPLETED')await interactions.update(actor,day,{state:'SKIPPED',selected_choice:'SKIPPED',answered_at:timestamp()});
+    return {text:JOURNAL_COPY[presentationLocale(await db.getLocale(user.id))].skipToday,editMessageId:row.message_id,replyMarkup:{inline_keyboard:[]}};
    }
    if(action==='weekly')return onWeekly?{...await onWeekly(actor),editMessageId:row.message_id,replyMarkup:{inline_keyboard:[]}}:interactions.expired(actor);
    if(action==='preferences'){
@@ -114,13 +124,13 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
  async function renderCustom(actor,row,card){
   // Persist opaque actions exactly as normal card tokens, no client identities.
   const reply=await interactions.render(actor,row);reply.text=card.text;
-  const markup=[];for(const buttons of card.buttons){const list=[];for(const b of buttons){list.push(await interactions.button(actor,row,b));}markup.push(list);}reply.replyMarkup={inline_keyboard:markup};return reply;
+  const markup=[];for(const buttons of card.buttons){const list=[];for(const b of buttons){list.push(await interactions.button(actor,row,b));}markup.push(list);}reply.replyMarkup={inline_keyboard:markup};reply.stage7View='RECENT';return reply;
  }
  async function handleNote({text,user,chatId}){
   if(typeof text!=='string'||text.trim().startsWith('/'))return null;
   return transaction(async()=>{
    const actor=await interactions.authenticate({user,chatId});
-   if((await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN'",args:[user.id]})).rows.length)return null;
+   if((await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' UNION ALL SELECT 1 FROM phase4_question_interaction_slots WHERE user_id=? AND state IN ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER')",args:[user.id,user.id]})).rows.length)return null;
    const rows=(await client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND chat_id=? AND state='NOTE' AND expires_at>? ORDER BY created_at DESC LIMIT 2",args:[user.id,String(chatId),timestamp()]})).rows;
    if(rows.length!==1)return null;const row=rows[0];
    if(!readableRow(row)||row.lifecycle_generation!==actor.state.lifecycle_generation||row.auth_generation!==actor.state.auth_generation||row.timezone!==actor.state.timezone)return null;
@@ -132,18 +142,22 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
   return transaction(async()=>{
    const actor=await interactions.authenticate({user,chatId}),prefs=await preferences(actor);
    if(!prefs.daily_enabled)return {status:'DISABLED'};
+   if(actor.state.auth_generation<1)return {status:'AUTHORIZATION_FENCED'};
    if(healthDay!==localDate(core.now(),actor.state.timezone))return {status:'NOT_CURRENT_DAY'};
    const proof=(await client.execute({sql:"SELECT * FROM report_claims WHERE user_id=? AND report_type='daily' AND local_date=? AND delivery_state='DELIVERED' AND telegram_message_id IS NOT NULL AND lifecycle_generation=?",args:[user.id,healthDay,actor.state.lifecycle_generation]})).rows[0];
    if(!proof)return {status:'BRIEF_NOT_CONFIRMED'};
    const semantic=core.keys.lookup(['daily-journal-v1',user.id,healthDay,DAILY_POLICY_VERSION]);
+   const dayKey=core.keys.lookup(['journal-day-v1',user.id,healthDay]);
+   const priorDay=(await client.execute({sql:'SELECT interaction_id FROM quick_action_interactions WHERE user_id=? AND day_key=?',args:[user.id,dayKey]})).rows[0];
+   if(priorDay){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND interaction_id=?',args:[user.id,priorDay.interaction_id]})).rows[0];return {status:'EXISTING',deliveryId:existing?.delivery_id??null};}
    const previous=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND semantic_key=?',args:[user.id,semantic]})).rows[0];
    if(previous)return {status:'EXISTING',deliveryId:previous.delivery_id};
-   const pending=(await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' UNION ALL SELECT 1 FROM phase4_question_interaction_slots WHERE user_id=? AND state IN ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER') UNION ALL SELECT 1 FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND state IN ('ISSUED','AWAITING_DETAIL','CONFIRM','NOTE','EDITING') AND expires_at>?",args:[user.id,user.id,user.id,timestamp()]})).rows.length;
+   const pending=(await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' UNION ALL SELECT 1 FROM phase4_question_interaction_slots WHERE user_id=? AND state IN ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER')",args:[user.id,user.id]})).rows.length;
    if(pending)return {status:'INTERACTION_BUSY'};
    const targetDate=addDays(healthDay,-1),facts=await ownFacts(actor),history=(await client.execute({sql:"SELECT category,target_date FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 60",args:[user.id]})).rows;
    const selected=selectDailyQuestion({topics:TOPICS,trackingTopics:JSON.parse(prefs.topics_json),excludedTopics:JSON.parse(prefs.excluded_topics_json),history,knownFacts:facts,healthDay,targetDate,signal,metricSeries});
    if(!selected)return {status:'NO_APPROPRIATE_QUESTION'};
-   const issued=await interactions.issue(actor,{kind:'DAILY',semanticKey:semantic,category:selected.category,targetDate,reason:selected.reason,diagnostics:selected}),reply=await card(actor,issued.row),at=timestamp();
+   const issued=await interactions.issue(actor,{kind:'DAILY',semanticKey:semantic,dayKey,category:selected.category,targetDate,reason:selected.reason,diagnostics:selected}),reply=await card(actor,issued.row),at=timestamp();
    const delivery={user_id:user.id,delivery_id:core.newId(),interaction_id:issued.row.interaction_id,semantic_key:semantic,kind:'DAILY',execution_mode:'SHADOW',state:'PROPOSED',payload_json:JSON.stringify(reply),
     lifecycle_generation:actor.state.lifecycle_generation,auth_generation:actor.state.auth_generation,chat_id:actor.chat,preference_revision:prefs.revision,created_at:at,updated_at:at,expires_at:issued.row.expires_at,...interactions.privacyFields(actor.state)};
    await interactions.insert('journal_prompt_deliveries',delivery);await interactions.link('journal_prompt_deliveries',delivery);

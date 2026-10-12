@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {stage7Decision,questionUtility,counterfactualDecisionImpact,evaluateNonQuestion} from '../src/stage7DecisionPolicy.js';
-const gates={tenant:true,lifecycle:true,authorization:true,paused:false,destination:true,current:true,quality:true,freshness:true,expectedMore:false};
+const gates={tenant:true,lifecycle:true,authorization:true,paused:false,destination:true,current:true,quality:true,confidence:true,freshness:true,expectedMore:false};
 const notify={material:true,novel:true,actionable:true,truthful:true,timely:true,unreserved:true,delayReducesAction:false};
 const candidate={key:'registered',registered:true,current:true,known:false,open:false,sensitivity:0,components:{U:1,D:1,R:1,A:1,T:1,K:0,P:0,F:0}};
 test('exact four actions, independent notification evaluation, no normal count cap or ASK downgrade',()=>{

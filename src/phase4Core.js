@@ -1,3 +1,4 @@
+import {assertRegisteredJournalProvenance} from './stage7JournalProvenance.js';
 import {readOnlyProcessingCheck} from './processingTransaction.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {controlOnlyProcessingCheck,processingReadObservationEpoch} from './processingTransaction.js';
@@ -279,7 +280,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
         compareRootObservation(context,type,String(id),values);
       } else {
         if(!readableRow(row))fail('CONTENT_REDACTED');
-        if(type==='JOURNAL_FACT' && row.fact_status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');
+        if(type==='JOURNAL_FACT'){if(row.fact_status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');assertRegisteredJournalProvenance(row);}
         if(type==='JOURNAL_COVERAGE') {
           if(row.status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');
           await coverageLineage(client,context.userId,id);

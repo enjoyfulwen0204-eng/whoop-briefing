@@ -92,8 +92,9 @@ function assertHealthy(check) {
 /** Exported so tests can exercise the same control path on isolated file databases. */
 export async function controlledMigration(client, { apply, keys, targetVersion=31 }) {
   const from = await currentVersion(client);
-  if(targetVersion!==31&&targetVersion!==32)fail('MIGRATION_VERSION_OUT_OF_RANGE');
-  if (from < (targetVersion===32?31:20) || from > targetVersion) fail('MIGRATION_VERSION_OUT_OF_RANGE');
+  if(![31,32,33].includes(targetVersion))fail('MIGRATION_VERSION_OUT_OF_RANGE');
+  if (from < (targetVersion===33?32:targetVersion===32?31:20) || from > targetVersion) fail('MIGRATION_VERSION_OUT_OF_RANGE');
+  const beforeLive=targetVersion===33?Number((await client.execute("SELECT count(*) n FROM phase4_computation_state WHERE execution_mode='LIVE'")).rows[0].n):0;
   const beforeHealth = await health(client);
   assertHealthy(beforeHealth);
   // v21 introduces the frozen checkpoint table and has no key-derived writes.
@@ -119,7 +120,7 @@ export async function controlledMigration(client, { apply, keys, targetVersion=3
   const live = Number((await client.execute(
     "SELECT COUNT(*) AS n FROM phase4_computation_state WHERE execution_mode='LIVE'",
   )).rows[0].n);
-  if (live !== 0) fail('MIGRATION_CREATED_LIVE_STATE');
+  if (live !== beforeLive) fail('MIGRATION_CREATED_LIVE_STATE');
   const bodyEnergyRows = await count(client, 'body_energy_results');
   if (from === 20 && bodyEnergyRows !== 0) fail('MIGRATION_BODY_ENERGY_CREATED');
   return { mode: 'apply', from, target: targetVersion, versionsApplied: [...(from === 20 ? [21] : []), ...result.versionsApplied],
@@ -146,7 +147,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   if (Number(process.versions.node.split('.')[0]) !== 22) fail('MIGRATION_NODE22_REQUIRED');
   const opt = options(argv);
   const targetVersion = Number(opt['target-version'] ?? 31);
-  if (![31, 32].includes(targetVersion)) fail('MIGRATION_VERSION_OUT_OF_RANGE');
+  if (![31, 32, 33].includes(targetVersion)) fail('MIGRATION_VERSION_OUT_OF_RANGE');
   const url = env.TURSO_DATABASE_URL;
   if (!url) fail('MIGRATION_TARGET_MISMATCH');
   const production = !url.startsWith('file:');

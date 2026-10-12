@@ -28,9 +28,9 @@ export function renderJournalWeek(summary,locale){
 export function createStage7WeeklyReview({core,stores,db,companion}){
  async function build(actor){
   return core.transaction(async()=>{
-   const state=await core.assertControl(actor.control),week=completedWeeks(core.now(),state.timezone).last,prefs=await companion.preferences(actor),facts=await companion.ownFacts(actor);
+   const state=await core.assertControl(actor.control),week=completedWeeks(core.now(),state.timezone).last,prefs=await companion.preferences(actor),facts=await companion.ownFacts(actor,{fromDate:week.startDate,toDate:week.endDate});
    if(facts.length===500)throw Error('STAGE7_WEEKLY_HISTORY_BOUNDS');
-   const history=(await core.client.execute({sql:"SELECT target_date,selected_choice FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND target_date>=? AND target_date<=? AND content_state='PRESENT'",args:[actor.control.userId,week.startDate,week.endDate]})).rows;
+   const history=(await core.client.execute({sql:"SELECT privacy_artifact_id,target_date,selected_choice FROM quick_action_interactions WHERE user_id=? AND kind='DAILY' AND target_date>=? AND target_date<=? AND content_state='PRESENT'",args:[actor.control.userId,week.startDate,week.endDate]})).rows;
    const associations=[];
    await stores.withContext(actor.control.userId,{executionMode:'SHADOW'},async context=>{
     const typed=await stores.betaSummary.readCurrent(context,{asOfUtc:core.timestamp()});
@@ -38,12 +38,12 @@ export function createStage7WeeklyReview({core,stores,db,companion}){
      const verified=await stores.insights.read(context,insight.resultId,{asOfUtc:core.timestamp()});
      for(const id of JSON.parse(verified.revision.supporting_evidence_ids_json)){
       const item=await stores.readArtifact(context,'evidence_items',{evidence_item_id:id}),p=JSON.parse(item.row.provenance_json??'{}');
-      if(TOPICS.includes(p.factor)&&p.method==='EXPOSED_VS_CONFIRMED_UNEXPOSED'&&item.row.causal_status==='ASSOCIATION_ONLY')associations.push({factor:p.factor,metric:p.outcome_metric,ref:item.ref});
+      if(TOPICS.includes(p.factor)&&p.method==='EXPOSED_VS_CONFIRMED_UNEXPOSED'&&item.row.causal_status==='ASSOCIATION_ONLY')associations.push({factor:p.factor,metric:p.outcome_metric,evidencePrivacyId:item.row.privacy_artifact_id});
      }
     }
    });
    const summary=summarizeJournalWeek({facts,history,topics:JSON.parse(prefs.topics_json),startDate:week.startDate,endDate:week.endDate,associations});
-   return {...renderJournalWeek(summary,await db.getLocale(actor.control.userId)),sourceFactIds:facts.filter(f=>f.health_date>=week.startDate&&f.health_date<=week.endDate).map(f=>f.privacy_artifact_id)};
+   return {...renderJournalWeek(summary,await db.getLocale(actor.control.userId)),sourceInteractionIds:history.map(h=>h.privacy_artifact_id),sourceEvidenceIds:associations.map(a=>a.evidencePrivacyId),sourceFactIds:facts.filter(f=>f.health_date>=week.startDate&&f.health_date<=week.endDate).map(f=>f.privacy_artifact_id)};
   });
  }
  async function prepare(actor,{automatic=false}={}){
@@ -57,8 +57,10 @@ export function createStage7WeeklyReview({core,stores,db,companion}){
      lifecycle_generation:state.lifecycle_generation,auth_generation:state.auth_generation,chat_id:actor.chat,preference_revision:prefs.revision,created_at:at,updated_at:at,expires_at:new Date(core.now().getTime()+7*86400000).toISOString(),...companion.interactions.privacyFields(state)};
     await companion.interactions.insert('journal_prompt_deliveries',row);await companion.interactions.link('journal_prompt_deliveries',row);
     for(const id of result.sourceFactIds)await companion.interactions.link('journal_prompt_deliveries',row,'JOURNAL_FACT',id);
+    for(const id of result.sourceInteractionIds)await companion.interactions.link('journal_prompt_deliveries',row,'quick_action_interactions',id);
+    for(const id of result.sourceEvidenceIds)await companion.interactions.link('journal_prompt_deliveries',row,'evidence_items',id);
    }
-   return {text:result.text,deliveryId:row.delivery_id,summary:result.summary};
+   return {text:result.text,deliveryId:row.content_state==='REDACTED'?null:row.delivery_id,summary:result.summary,stage7View:'WEEKLY'};
   });
  }
  return {build,prepare};

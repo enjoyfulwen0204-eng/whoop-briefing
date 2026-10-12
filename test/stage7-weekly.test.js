@@ -21,3 +21,11 @@ test('weekly review reserves one week identity but never grants automatic rollou
  await f.db.transaction(async()=>{const prefs=await f.companion.preferences(actor);await f.companion.changePreferences(actor,prefs,{weekly_enabled:1});});
  assert.equal((await f.companion.weekly.prepare(actor,{automatic:true})).status,'ROLLOUT_NOT_APPROVED');
 });
+
+test('retracting NOT_SURE physically clears dependent weekly transport content without manufacturing a Journal fact',async t=>{
+ const f=await stage7Fixture(t,{now:()=>new Date('2026-09-21T00:00:00.000Z')});await f.db.setLocale('a','en',{now:f.core.now()});const actor=await f.companion.interactions.authenticate({user:f.user,chatId:'123'});
+ const issued=await f.companion.interactions.issue(actor,{kind:'DAILY',category:'alcohol',targetDate:'2026-09-20'});let card=await f.companion.card(actor,issued.row);await f.companion.interactions.bind(actor,issued.row.interaction_id,42);card=await f.tap(card,'Not sure');
+ const weekly=await f.companion.weekly.prepare(actor);assert.equal(weekly.summary.responses.NOT_SURE,1);
+ await f.tap(card,'Retract');const row=(await f.db.raw.execute({sql:'SELECT * FROM journal_prompt_deliveries WHERE user_id=? AND delivery_id=?',args:['a',weekly.deliveryId]})).rows[0];
+ assert.equal(row.payload_json,null);assert.equal(row.content_state,'REDACTED');assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
+});

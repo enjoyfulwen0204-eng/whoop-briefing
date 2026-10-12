@@ -18,7 +18,7 @@ test('daily policy rotates neutral days, tracking raises relevance, known contex
 });
 
 test('confirmed Morning Brief is prerequisite; post-brief state is independent, durable and default disabled',async t=>{
- const f=await syntheticPhase4Fixture(t,{targetVersion:33});await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});const user=await f.db.getUser('a');let c=createStage7Companion({...f});
+ const f=await syntheticPhase4Fixture(t,{targetVersion:33});await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});await f.db.saveTokens('a',{accessToken:'synthetic',refreshToken:'synthetic',expiresAt:new Date('2026-12-01T00:00:00.000Z'),scope:'offline',whoopUserId:'synthetic'},{now:f.core.now()});const user=await f.db.getUser('a');let c=createStage7Companion({...f});
  const actor=await c.interactions.authenticate({user,chatId:'123'});await f.db.transaction(async()=>{const p=await c.preferences(actor);await c.changePreferences(actor,p,{daily_enabled:1});});
  const request={user,chatId:'123',healthDay:'2026-09-19'};
  assert.equal((await c.prepareAfterBrief(request)).status,'BRIEF_NOT_CONFIRMED');

@@ -1,3 +1,5 @@
+import {createStage7DecisionStore} from './stage7DecisionStore.js';
+import {createStage7InteractionPrivacy} from './stage7InteractionPrivacy.js';
 import {createStage7WeeklyReview} from './stage7WeeklyReview.js';
 import {createStage7Companion} from './stage7Companion.js';
 import {fail} from './phase4Core.js';
@@ -7,6 +9,7 @@ import {fail} from './phase4Core.js';
 export async function createStage7Development({core,stores,db,...options}){
  const files=(await core.client.execute('PRAGMA database_list')).rows;
  if(core.client.protocol!=='file'||!files.some(r=>r.name==='main')||files.some(r=>!['main','temp'].includes(r.name)||r.file!==''))fail('STAGE7_SYNTHETIC_MEMORY_REQUIRED');
+ const interactionPrivacy=createStage7InteractionPrivacy(core);
  let companion;
  const accepted=async(actor,row,receipt)=>{
   const request=await core.transaction(async()=>{
@@ -52,6 +55,7 @@ export async function createStage7Development({core,stores,db,...options}){
    if(current.correction_key&&current.correction_key!==receipt&&current.state==='CONFIRM')fail('STAGE7_CORRECTION_COMMAND_CONFLICT');
    await core.client.execute({sql:'UPDATE quick_action_interactions SET correction_key=? WHERE user_id=? AND interaction_id=?',args:[receipt,row.user_id,row.interaction_id]});});
   if(row.logical_fact_id){const result=await stores.journal.remove(actor.control,{logicalFactId:row.logical_fact_id,idempotencyKey:`stage7-undo:${receipt}`});if(result.purgeId)await stores.privacy.complete(actor.control,result.purgeId);}
+  else await interactionPrivacy.retract(actor.control,row);
  };
  companion=createStage7Companion({core,stores,db,...options,onAccept:accepted,onUndo:undo,onWeekly:actor=>weekly.prepare(actor)});
  const weekly=createStage7WeeklyReview({core,stores,db,companion});
@@ -74,7 +78,7 @@ export async function createStage7Development({core,stores,db,...options}){
    }
   }
  }
- return {...companion,weekly,resumePending,handle:async input=>{
+ return {...companion,decisions:createStage7DecisionStore({core,stores}),weekly,resumePending,handle:async input=>{
   if(input.callback||typeof input.text==='string'&&/^\/journal(?:@[A-Za-z0-9_]+)?\s*$/i.test(input.text.trim()))await resumePending(input);
   return handle(input);
  },handleNote};

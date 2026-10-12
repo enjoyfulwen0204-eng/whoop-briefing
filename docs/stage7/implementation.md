@@ -44,6 +44,8 @@ Accepted factual entries corrected to missingness stage a fresh independently su
 
 Preference actions retain their displayed desired value and global preference revision behind the opaque token. Daily/weekly/topic/exclusion actions reject stale versions, including ABA and independent concurrent cards, rather than flipping a newer value. Missing-correction reservations bind the current lifecycle/auth generations. A fresh explicitly authorized correction physically retracts same-fact unfinished intents from obsolete authority inside its staging transaction; it never automatically revives an old-authority intent and still reserves one correction within the current authority.
 
+If authority changes after canonical deletion admission/T1 but before T2, recovery uses current authenticated self privacy authority to finish only that existing, receipt-bound DELETION purge. It verifies the tenant, fact target and operation kind, settles admitted purges in generation order, and physically retracts the obsolete nonfactual intent. It never admits a new operation or finalizes an old-authority answer. An obsolete pre-admission intent remains fenced until a fresh explicit correction. This prevents a completed physical deletion from permanently stranding ordinary Journal behind the pending privacy fence.
+
 ## Promotion and rollback plan (not executed)
 
 1. Obtain the final independently reviewed Stage 6 source and confirm its exact deployed artifact. The parallel workstream now records `1eca89c123a3a49a08d2512dc1f5592eee7b1212` as the newer deployed v32 release. Preserve its configuration and pilot permissions. Integrate only verified source, then repeat the affected v33 settlement/Settings/Journal boundaries and independently verify the final artifact.

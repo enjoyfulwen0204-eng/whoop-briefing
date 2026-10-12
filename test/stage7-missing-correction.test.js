@@ -86,3 +86,18 @@ test('two factual aliases reserve one missing correction for the same fact revis
  const weekly=await f.companion.weekly.build(f.actor);assert.equal(weekly.summary.responses.NOT_SURE+weekly.summary.responses.SKIPPED,1);assert.equal(weekly.summary.responses.NO_RESPONSE,0);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
 });
+
+test('revocation between T1 and T2 settles only admitted cleanup and retracts the obsolete missing intent',async t=>{
+ const f=await acceptedDaily(t),edit=await f.tap(f.card,'Edit');
+ const interrupted=await createStage7Development({core:f.core,db:f.db,stores:{...f.stores,privacy:{...f.stores.privacy,complete:async()=>{throw Error('SYNTHETIC_AFTER_T1');}}}});
+ await assert.rejects(tapWith(interrupted,f.user,edit,'Not sure'),/SYNTHETIC_AFTER_T1/);
+ const old=(await f.db.raw.execute("SELECT * FROM quick_action_interactions WHERE json_extract(diagnostics_json,'$.missingCorrection') IS NOT NULL")).rows[0];
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);assert.equal((await f.db.raw.execute("SELECT pending_purge_count n FROM phase4_user_state WHERE user_id='a'")).rows[0].n,1);
+ await f.db.saveTokens('a',{accessToken:'synthetic-new',refreshToken:'synthetic-new',expiresAt:new Date('2026-12-01'),whoopUserId:'synthetic'},{bumpAuthGeneration:true});
+ const restarted=await f.restart(),companion=await createStage7Development({...restarted,db:f.db});await companion.resumePending({user:f.user,chatId:'123'});await companion.resumePending({user:f.user,chatId:'123'});
+ assert.equal((await f.db.raw.execute("SELECT pending_purge_count n FROM phase4_user_state WHERE user_id='a'")).rows[0].n,0);
+ const scrubbed=await companion.interactions.read('a',old.interaction_id);assert.equal(scrubbed.content_state,'REDACTED');assert.equal(scrubbed.diagnostics_json,null);assert.equal(scrubbed.selected_choice,null);
+ assert.equal((await f.db.raw.execute("SELECT count(*) n FROM quick_action_interactions WHERE content_state='PRESENT' AND state IN ('NOT_SURE','SKIPPED')")).rows[0].n,0);
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_event_tombstones')).rows[0].n,1);assert.equal((await f.db.raw.execute('SELECT count(*) n FROM health_plaintext_purges')).rows[0].n,1);
+ const command=await companion.handle({user:f.user,chatId:'123',text:'/journal'});assert.ok(command.replyMarkup.inline_keyboard.length);
+});

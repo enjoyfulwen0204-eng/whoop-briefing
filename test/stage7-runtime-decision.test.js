@@ -55,6 +55,13 @@ test('real current metric evidence reaches NOTIFY, typed localized proposal and 
  assert.equal((await evaluate(f,engine,episode,'stale')).row.action,'DEFER_OBSERVATION');
 });
 
+test('synthetic source health dates follow the tenant day across UTC boundaries',()=>{
+ for(const [timezone,instant,expected] of [['Asia/Taipei','2026-10-12T16:30:00Z','2026-10-13'],['America/New_York','2026-10-12T02:30:00Z','2026-10-11']]){
+  const input=bodyInput({asOf:Date.parse(instant),days:1,timezone});
+  assert.equal(input.sources.sleep[0].health_date,expected);assert.equal(input.sources.recovery[0].health_date,expected);
+ }
+});
+
 test('actual replicated association and unknown current context reach ASK with owned slot/proposal and exact registered components',async t=>{
  const f=await setup(t,{targetVersion:33,days:60,wallClock:AT+12*3600000});
  await f.stores.release(f.context);f.context=null;
@@ -74,6 +81,7 @@ test('actual replicated association and unknown current context reach ASK with o
  assert.equal(winner.components.U,1);assert.equal(winner.components.R,1);assert.equal(winner.components.T,1);assert.equal(winner.components.P,0);assert.equal(winner.components.F,0);
  const proposed=await f.stores.withContext('a',{executionMode:'SHADOW'},context=>engine.propose(context,{decisionId:selected.decisionId}));
  assert.equal(proposed.row.message_class,'CONTEXT_QUESTION');
+ assert.match(proposed.row.payload_text,/\n🗓 .*2026-09-25$/);
  const slot=await f.stores.slots.read(await f.stores.captureControl('a'),'SHADOW');assert.equal(slot.question_request_id,selected.questionRequestId);assert.equal(slot.outbound_message_id,proposed.row.message_id);
  assert.equal((await evaluate(f,engine,episode,'ask')).created,false);
  const companion=await createStage7Development(f),user=await f.db.getUser('a'),actor=await companion.interactions.authenticate({user,chatId:'123'}),weekly=await companion.weekly.build(actor);

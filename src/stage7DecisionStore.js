@@ -108,7 +108,9 @@ export function createStage7DecisionStore({core,stores}){
    }else{
     questionId=decision.row.question_request_id;
     const question=await core.artifact(context,'context_questions',{question_request_id:questionId});
-    semantic={family:'CONTEXT_QUESTION',identity:questionId};payload=`${buildQuestionText({category:question.row.factor_question_kind,signal,locale)}\n🗓 ${JOURNAL_COPY[locale].target}: ${localDate(new Date(question.row.target_window_start_utc),context.timezone)}`;
+    semantic={family:'CONTEXT_QUESTION',identity:questionId};
+    payload=buildQuestionText({category:question.row.factor_question_kind,signal,locale});
+    payload+=`\n🗓 ${JOURNAL_COPY[locale].target}: ${localDate(new Date(question.row.target_window_start_utc),context.timezone)}`;
    }
    const proposal=await stores.messages.propose(context,{semantic,message:{decision_id:decisionId,episode_id:decision.row.episode_id,
     ...(questionId?{question_request_id:questionId}:{episode_semantic_event_id:decision.row.episode_semantic_event_id}),payload_text:payload,payload_json:{locale,template:'stage7-registered-proposal-v1'},expires_at:decision.row.expires_at},sourceRefs:[decision.ref,episode.ref]});

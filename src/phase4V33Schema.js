@@ -62,7 +62,7 @@ export function buildV33(){
  `CREATE TRIGGER IF NOT EXISTS p4_journal_trust_insert BEFORE INSERT ON journal_events
  WHEN NEW.provenance_mode='TRUSTED_REGISTRY' AND (NEW.source_kind<>'quick_action' OR NEW.registry_id IS NULL OR NEW.registry_version IS NULL
  OR NEW.registered_choice IS NULL OR NEW.interaction_id IS NULL OR NEW.callback_receipt IS NULL OR NEW.question_identity IS NULL
- OR NEW.target_health_date IS NULL OR NEW.answer_polarity NOT IN ('YES','NO') OR NEW.answered_at IS NULL)
+ OR NEW.target_health_date IS NULL OR NEW.answer_polarity IS NULL OR NEW.registered_choice NOT IN ('YES','NO') OR NEW.registered_choice IS NOT NEW.answer_polarity OR NEW.answer_polarity NOT IN ('YES','NO') OR NEW.answered_at IS NULL)
  BEGIN SELECT RAISE(ABORT,'journal_registry_provenance_required'); END`,
  `CREATE TRIGGER IF NOT EXISTS p4_daily_barrier_no_delete BEFORE DELETE ON quick_action_interactions
  BEGIN SELECT RAISE(ABORT,'journal_interaction_barrier_permanent'); END`,

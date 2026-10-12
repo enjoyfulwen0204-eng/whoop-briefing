@@ -14,7 +14,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  async function authenticate({user,chatId,callback=null,allowPendingPurge=false}){
   const chat=String(chatId);
   if(!/^\d+$/.test(chat))fail('STAGE7_PRIVATE_ACTOR_REQUIRED');
-  if(callback&&(String(callback.from?.id)!==chat||callback.from?.is_bot||callback.message?.chat?.type!=='private'||String(callback.message.chat.id)!==chat))fail('STAGE7_PRIVATE_ACTOR_REQUIRED');
+  if(callback&&(typeof callback.id!=='string'||callback.id.length<1||callback.id.length>128||String(callback.from?.id)!==chat||callback.from?.is_bot||callback.message?.chat?.type!=='private'||String(callback.message.chat.id)!==chat))fail('STAGE7_PRIVATE_ACTOR_REQUIRED');
   const result=await db.resolveUserByChatId(chat),current=result?.user??result;
   if(!current||current.id!==user?.id||current.lifecycleGeneration!==user.lifecycleGeneration)fail('STAGE7_ACTOR_FENCED');
   const control=await core.captureControl(current.id),state=await core.assertControl(control);
@@ -23,7 +23,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  }
  const privacyFields=state=>({privacy_artifact_id:core.newId(),content_state:'PRESENT',source_linkage_state:'COMPLETE',content_digest_salt:keys.newSalt(),purge_generation:state.purge_generation});
  async function link(table,row,sourceType='USER',sourceId=row.user_id){
-  await addPrivacyLink(client,{userId:row.user_id,mode:row.execution_mode??'SHARED',table,artifactId:row.privacy_artifact_id,sourceType,sourceId,at:timestamp()});
+  await addPrivacyLink(client,{userId:row.user_id,mode:row.execution_mode??'SHARED',table,artifactId:row.privacy_artifact_id,sourceType,sourceId,sourceMode:sourceType==='quick_action_interactions'?'SHADOW':'SHARED',at:timestamp()});
  }
  async function insert(table,row){const fields=Object.keys(row);await client.execute({sql:`INSERT INTO ${table}(${fields.join(',')}) VALUES(${fields.map(()=>'?').join(',')})`,args:fields.map(k=>row[k])});}
  async function read(uid,id){return (await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[uid,id]})).rows[0]??null;}
@@ -47,7 +47,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  }
  async function render(actor,row,preferences=null){
   const state=await core.assertControl(actor.control);
-  if(!readableRow(row)||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation||row.timezone!==state.timezone)fail('STAGE7_STATE_FENCED');
+  if(row.user_id!==actor.control.userId||row.chat_id!==actor.chat||state.pending_purge_count!==0||!readableRow(row)||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation||row.timezone!==state.timezone)fail('STAGE7_STATE_FENCED');
   const locale=await db.getLocale(row.user_id),card=journalCard(row,{locale,displayName:actor.user.displayName,preferences});
   const keyboard=[];
   for(const buttons of card.buttons){const list=[];for(const button of buttons){
@@ -68,7 +68,8 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   return {row,action:token.action,receipt:hash(callback.id)};
  }
  async function update(actor,row,patch){
-  await core.assertControl(actor.control);
+  const state=await core.assertControl(actor.control);
+  if(row.user_id!==actor.control.userId||row.chat_id!==actor.chat||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation)fail('STAGE7_ACTOR_FENCED');
   const fields=Object.keys(patch),changed=await client.execute({sql:`UPDATE quick_action_interactions SET ${fields.map(k=>`${k}=?`).join(',')}${fields.length?',':''}revision=revision+1 WHERE user_id=? AND interaction_id=? AND revision=?`,args:[...fields.map(k=>patch[k]),row.user_id,row.interaction_id,row.revision]});
   if(changed.rowsAffected!==1)fail('STAGE7_CAS_LOST');return read(row.user_id,row.interaction_id);
  }
@@ -76,7 +77,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   if(!/^\d+$/.test(String(messageId)))fail('STAGE7_MESSAGE_ID_REQUIRED');
   return transaction(async()=>{
    await core.assertControl(actor.control);const row=await read(actor.control.userId,id);
-   if(!row||row.chat_id!==actor.chat)fail('STAGE7_ACTOR_FENCED');
+   if(!row||row.chat_id!==actor.chat||row.lifecycle_generation!==actor.state.lifecycle_generation||row.auth_generation!==actor.state.auth_generation)fail('STAGE7_ACTOR_FENCED');
    if(row.message_id&&row.message_id!==String(messageId))fail('STAGE7_MESSAGE_BINDING_CONFLICT');
    await client.execute({sql:'UPDATE quick_action_interactions SET message_id=? WHERE user_id=? AND interaction_id=? AND message_id IS NULL',args:[String(messageId),row.user_id,id]});
   });

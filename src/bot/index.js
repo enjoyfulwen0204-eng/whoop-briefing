@@ -98,8 +98,9 @@ export async function main({ maxIterations = Infinity } = {}) {
   loadDotEnvIfPresent();
   const env = loadEnv();
 
+  const authorityKeys=phase4AuthorityKeys(process.env);
   const db = createDb({ url: env.tursoUrl, authToken: env.tursoToken,
-    phase4Keys: phase4AuthorityKeys(process.env) });
+    phase4Keys: authorityKeys });
   if(Number(process.versions.node.split('.')[0])<22){db.close();throw new Error('NODE_22_REQUIRED');}
   const admissionBudget=createExecutionBudget({budgetMs:30_000});
   try { await admissionBudget.run(()=>db.admitRuntime({source:'event'})); }
@@ -123,7 +124,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     model: env.openrouterModel,
   });
 
-  const bodyRuntime=await createBodyEnergyRuntime({db,keys:phase4AuthorityKeys(process.env),environment:process.env,env});
+  const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
   const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy });
   const settings = createSettings({db});
 

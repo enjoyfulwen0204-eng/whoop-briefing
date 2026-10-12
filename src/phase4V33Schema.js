@@ -18,7 +18,7 @@ export function buildV33(){
  const ddl=[
  `CREATE TABLE IF NOT EXISTS quick_action_interactions(
   user_id TEXT NOT NULL, interaction_id TEXT NOT NULL, execution_mode TEXT NOT NULL CHECK(execution_mode='SHADOW'),
-  semantic_key TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('DAILY','QUICK','PREFERENCES')),
+  semantic_key TEXT NOT NULL, day_key TEXT NULL, kind TEXT NOT NULL CHECK(kind IN ('DAILY','QUICK','PREFERENCES')),
   registry_id TEXT NULL, registry_version TEXT NOT NULL, question_identity TEXT NULL, category TEXT NULL,
   target_date TEXT NULL, timezone TEXT NULL, window_start TEXT NULL, window_end TEXT NULL,
   selection_reason TEXT NULL, diagnostics_json TEXT NULL, selected_choice TEXT NULL, detail_choice TEXT NULL, note TEXT NULL,
@@ -26,7 +26,7 @@ export function buildV33(){
   ${count('revision')}, lifecycle_generation INTEGER NOT NULL, auth_generation INTEGER NOT NULL, chat_id TEXT NOT NULL,
   message_id TEXT NULL, logical_fact_id TEXT NULL, fact_revision INTEGER NULL, correction_key TEXT NULL,
   created_at TEXT NOT NULL, expires_at TEXT NOT NULL, answered_at TEXT NULL, ${R_SQL},
-  PRIMARY KEY(user_id,interaction_id), UNIQUE(user_id,semantic_key), ${privacyChecks}, FOREIGN KEY(user_id) REFERENCES users(id))`,
+  PRIMARY KEY(user_id,interaction_id), UNIQUE(user_id,semantic_key), UNIQUE(user_id,day_key), ${privacyChecks}, FOREIGN KEY(user_id) REFERENCES users(id))`,
  `CREATE TABLE IF NOT EXISTS journal_tracking_preferences(
   user_id TEXT NOT NULL PRIMARY KEY, daily_enabled INTEGER NOT NULL DEFAULT 0 CHECK(daily_enabled IN (0,1)),
   weekly_enabled INTEGER NOT NULL DEFAULT 0 CHECK(weekly_enabled IN (0,1)),

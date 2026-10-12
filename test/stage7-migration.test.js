@@ -4,9 +4,9 @@ import {createDb,fixtureKeys} from './localDb.js';
 import {applyPhase4Migrations,verifyPhase4Schema} from '../src/phase4Migrations.js';
 import {buildV33} from '../src/phase4V33Schema.js';
 
-test('v33 additive restart at every DDL/column/index/trigger boundary withholds marker and preserves v32',async t=>{
+test('v33 additive restart at representative DDL/column/index/trigger boundary withholds marker and preserves v32',async t=>{
  const objects=buildV33();
- for(const stop of [0,1,objects.ddl.length,objects.ddl.length+3,objects.ddl.length+objects.columns.length+2]){
+ for(const stop of [0,1,objects.ddl.length,objects.ddl.length+3,objects.ddl.length+objects.columns.length+2,objects.ddl.length+objects.columns.length+objects.indexes.length+objects.triggers.length-1]){
   const db=createDb({url:':memory:'});
   try{
    await db.migrate({targetVersion:32});await db.createUser({id:'a',displayName:'Synthetic',timezone:'America/New_York',status:'ACTIVE'});

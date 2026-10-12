@@ -8,7 +8,7 @@ const msg=(id,text,chat='1001')=>({update_id:id,message:{message_id:id,text,chat
 const cb=(id,data,chat='1001')=>({update_id:id,callback_query:{id:'query-'+id,data,from:{id:Number(chat),is_bot:false},message:{message_id:1,text:'settings',from:{id:999,is_bot:true},chat:{id:Number(chat),type:'private'}}}});
 const action=(r,code)=>r.replyMarkup.inline_keyboard.flat().find(b=>b.callback_data.endsWith('.'+code)).callback_data;
 async function fixture(t){
- const {db,transport}=await deliveryFixture(t);await db.admitRuntime();for(const [id,chat] of [['alice','1001'],['bob','1002']]){await db.createUser({id,displayName:id,status:'ACTIVE'});await db.linkTelegram({userId:id,chatId:chat});await db.setLocale(id,'en');}
+ const {db,transport}=await deliveryFixture(t,{version:33});await db.admitRuntime();for(const [id,chat] of [['alice','1001'],['bob','1002']]){await db.createUser({id,displayName:id,status:'ACTIVE'});await db.linkTelegram({userId:id,chatId:chat});await db.setLocale(id,'en');}
  let sendFailure=false,ackFailure=false;let at=Date.now(),flow=createSettings({db,now:()=>new Date(at)});const sent=[],acks=[],other=[],events=[];
  const options={db,resolveUser:c=>db.resolveUserByChatId(c),handleMessage:async x=>{const reply=await flow(x);if(reply!==null)return reply;other.push(x.text);return 'Ordinary reply';},sendReply:async r=>{events.push('send');sent.push(r.reply);if(sendFailure){sendFailure=false;throw tagOutcome(Error('synthetic ambiguous send'),SEND_OUTCOME.AMBIGUOUS);}return {sent:true,messageId:sent.length};},answerCallback:async id=>{events.push('ack:'+id);acks.push(id);if(ackFailure)throw Error('synthetic ack network failure');},now:()=>new Date(at)};
  let processor=createUpdateProcessor(options);

@@ -23,19 +23,20 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  }
  const privacyFields=state=>({privacy_artifact_id:core.newId(),content_state:'PRESENT',source_linkage_state:'COMPLETE',content_digest_salt:keys.newSalt(),purge_generation:state.purge_generation});
  async function link(table,row,sourceType='USER',sourceId=row.user_id){
-  await addPrivacyLink(client,{userId:row.user_id,mode:row.execution_mode??'SHARED',table,artifactId:row.privacy_artifact_id,sourceType,sourceId,sourceMode:sourceType==='quick_action_interactions'?'SHADOW':'SHARED',at:timestamp()});
+  await addPrivacyLink(client,{userId:row.user_id,mode:row.execution_mode??'SHARED',table,artifactId:row.privacy_artifact_id,sourceType,sourceId,sourceMode:['quick_action_interactions','evidence_items'].includes(sourceType)?'SHADOW':'SHARED',at:timestamp()});
  }
  async function insert(table,row){const fields=Object.keys(row);await client.execute({sql:`INSERT INTO ${table}(${fields.join(',')}) VALUES(${fields.map(()=>'?').join(',')})`,args:fields.map(k=>row[k])});}
  async function read(uid,id){return (await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[uid,id]})).rows[0]??null;}
- async function issue(actor,{kind='QUICK',semanticKey=core.newId(),category=null,targetDate=null,reason=null,diagnostics=null}={}){
+ async function issue(actor,{kind='QUICK',semanticKey=core.newId(),category=null,targetDate=null,reason=null,diagnostics=null,dayKey=null}={}){
   return transaction(async()=>{
    const state=await core.assertControl(actor.control);
    if(state.pending_purge_count!==0||state.timezone!==actor.state.timezone)fail('STAGE7_STATE_FENCED');
    const previous=(await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND semantic_key=?',args:[actor.control.userId,semanticKey]})).rows[0];
    if(previous)return {row:previous,created:false};
    if(category!==null&&!TOPICS.includes(category))fail('STAGE7_UNREGISTERED_QUESTION');
+   await client.execute({sql:'DELETE FROM journal_callback_tokens WHERE user_id=? AND expires_at<=?',args:[actor.control.userId,timestamp()]});
    const at=timestamp(),expiry=new Date(Date.parse(at)+(kind==='DAILY'?answerWindowMs:15*60000)).toISOString();
-   const row={user_id:actor.control.userId,interaction_id:core.newId(),execution_mode:'SHADOW',semantic_key:semanticKey,kind,
+   const row={user_id:actor.control.userId,interaction_id:core.newId(),execution_mode:'SHADOW',semantic_key:semanticKey,day_key:dayKey,kind,
     registry_id:category?registryQuestion(category):null,registry_version:JOURNAL_REGISTRY_VERSION,question_identity:category?registryQuestion(category):null,
     category,target_date:targetDate,timezone:state.timezone,
     window_start:targetDate?localMidnightUtc(targetDate,state.timezone).toISOString():null,
@@ -55,7 +56,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
    await insert('journal_callback_tokens',{user_id:row.user_id,token_hash:hash(token),interaction_id:row.interaction_id,revision:row.revision,action:button.action,created_at:timestamp(),expires_at:row.expires_at});
    list.push({text:button.label,callback_data:'j7:'+token});
   }keyboard.push(list);}
-  return {text:card.text,replyMarkup:{inline_keyboard:keyboard},...(row.message_id?{editMessageId:row.message_id}:{}),stage7InteractionId:row.interaction_id};
+  return {text:card.text,replyMarkup:{inline_keyboard:keyboard},...(row.message_id?{editMessageId:row.message_id}:{}),stage7InteractionId:row.interaction_id,stage7Revision:row.revision};
  }
  async function resolve(actor,callback,{recovery=false}={}){
   if(!isJournalCallback(callback?.data))return null;

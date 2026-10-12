@@ -14,6 +14,7 @@ export function journalCard(row,{locale,displayName=null,preferences=null}={}){
   text=`${c.menu}\n${c.title}${displayName?`\n${displayName}`:''}`;
   TOPICS.forEach((topic,i)=>buttons.push([button(`${TOPIC_ICONS[topic]} ${c.topics[i]}`,`category:${topic}`)]));
   buttons.push([button(`⚙️ ${c.preferences}`,'preferences'),button(`📋 ${c.recent}`,'recent')]);
+  buttons.push([button(`⏭ ${c.skipToday}`,'skipToday')]);
   buttons.push([button(`🗓 ${c.weekly}`,'weekly'),button(`❌ ${c.cancel}`,'cancel')]);
  }else{
   const index=TOPICS.indexOf(row.category),heading=`${TOPIC_ICONS[row.category]} ${c.topics[index]} · ${c.target}: ${row.target_date}`;

@@ -64,11 +64,16 @@ for(const phase of ['BEFORE_PURGE','AFTER_COMPLETED_PURGE'])test(`durable missin
 test('revocation fences a staged missing assertion and cross-tenant recovery has no write authority',async t=>{
  const f=await acceptedDaily(t),edit=await f.tap(f.card,'Edit'),faulty={...f.stores,journal:{...f.stores.journal,remove:async()=>{throw Error('SYNTHETIC_BEFORE_PURGE');}}};
  const interrupted=await createStage7Development({core:f.core,db:f.db,stores:faulty});await assert.rejects(tapWith(interrupted,f.user,edit,'Skip'),/SYNTHETIC_BEFORE_PURGE/);
+ const oldStage=(await f.db.raw.execute("SELECT * FROM quick_action_interactions WHERE json_extract(diagnostics_json,'$.missingCorrection') IS NOT NULL")).rows[0];
  await f.db.saveTokens('a',{accessToken:'synthetic-new',refreshToken:'synthetic-new',expiresAt:new Date('2026-12-01'),whoopUserId:'synthetic'},{now:f.core.now(),bumpAuthGeneration:true});
  const restarted=await f.restart(),companion=await createStage7Development({...restarted,db:f.db});
  await assert.rejects(companion.resumePending({user:f.user,chatId:'456'}),/STAGE7_ACTOR_FENCED/);await companion.resumePending({user:f.user,chatId:'123'});
  assert.equal((await f.db.raw.execute("SELECT count(*) n FROM quick_action_interactions WHERE state='CONFIRM' AND json_extract(diagnostics_json,'$.missingCorrection') IS NOT NULL")).rows[0].n,1);
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,1);assert.equal((await f.db.raw.execute("SELECT count(*) n FROM journal_events WHERE user_id='b'")).rows[0].n,0);
+ // Reauthorization does not revive the old submitted intent, but a fresh
+ // explicit action must be able to supersede its fenced reservation.
+ let card=await companion.handle({user:f.user,chatId:'123',text:'/journal'});card=await tapWith(companion,f.user,card,'Recent entries');card=await tapWith(companion,f.user,card,'Alcohol');card=await tapWith(companion,f.user,card,'Edit');await tapWith(companion,f.user,card,'Not sure');
+ await assertMissing(f,companion,'NOT_SURE');const scrubbed=await companion.interactions.read('a',oldStage.interaction_id);assert.equal(scrubbed.content_state,'REDACTED');assert.equal(scrubbed.diagnostics_json,null);assert.equal(scrubbed.selected_choice,null);
 });
 
 test('two factual aliases reserve one missing correction for the same fact revision',async t=>{

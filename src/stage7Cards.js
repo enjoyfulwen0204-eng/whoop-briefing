@@ -6,9 +6,9 @@ export function journalCard(row,{locale,displayName=null,preferences=null}={}){
  if(row.kind==='PREFERENCES'){
   text=`${c.preferences}\n${c.daily}: ${preferences.daily_enabled?c.enabled:c.disabled}\n${c.weekly}: ${preferences.weekly_enabled?c.enabled:c.disabled}`;
   const selected=JSON.parse(preferences.topics_json??'[]'),excluded=JSON.parse(preferences.excluded_topics_json??'[]');
-  TOPICS.forEach((topic,i)=>buttons.push([button(`${selected.includes(topic)?'✅':'▫️'} ${TOPIC_ICONS[topic]} ${c.topics[i]}`,`topic:${topic}`),button(`${excluded.includes(topic)?'🚫':'▫️'} ${c.ignore}`,`exclude:${topic}`)]));
-  buttons.push([button(`📔 ${preferences.daily_enabled?c.disable:c.enable}`,'toggleDaily')]);
-  buttons.push([button(`🗓 ${preferences.weekly_enabled?c.weeklyDisable:c.weeklyEnable}`,'toggleWeekly')]);
+  TOPICS.forEach((topic,i)=>buttons.push([button(`${selected.includes(topic)?'✅':'▫️'} ${TOPIC_ICONS[topic]} ${c.topics[i]}`,`prefs:topic:${topic}:${selected.includes(topic)?0:1}:${preferences.revision}`),button(`${excluded.includes(topic)?'🚫':'▫️'} ${c.ignore}`,`prefs:exclude:${topic}:${excluded.includes(topic)?0:1}:${preferences.revision}`)]));
+  buttons.push([button(`📔 ${preferences.daily_enabled?c.disable:c.enable}`,`prefs:daily:${preferences.daily_enabled?0:1}:${preferences.revision}`)]);
+  buttons.push([button(`🗓 ${preferences.weekly_enabled?c.weeklyDisable:c.weeklyEnable}`,`prefs:weekly:${preferences.weekly_enabled?0:1}:${preferences.revision}`)]);
   buttons.push([button(`✅ ${c.confirm}`,'cancel')]);
  }else if(row.category===null){
   text=`${c.menu}\n${c.title}${displayName?`\n${displayName}`:''}`;

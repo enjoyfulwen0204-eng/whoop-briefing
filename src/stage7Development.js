@@ -121,8 +121,22 @@ export async function createStage7Development({core,stores,db,...options}){
   const actor=await core.transaction(()=>companion.interactions.authenticate({user,chatId,callback,allowPendingPurge:true}));
   const missing=(await core.client.execute({sql:"SELECT * FROM quick_action_interactions WHERE user_id=? AND content_state='PRESENT' AND json_extract(diagnostics_json,'$.missingCorrection') IS NOT NULL ORDER BY created_at LIMIT 21",args:[user.id]})).rows;
   if(missing.length>20)fail('STAGE7_RECOVERY_BOUNDS');
+  const retired=[];
+  for(const row of missing){
+   if(row.lifecycle_generation===actor.state.lifecycle_generation&&row.auth_generation===actor.state.auth_generation)continue;
+   const intent=JSON.parse(row.diagnostics_json).missingCorrection,key=core.keys.lookup(['purge-command-v1',user.id,`stage7-undo:${row.correction_key}`]);
+   const purge=(await core.client.execute({sql:'SELECT * FROM health_plaintext_purges WHERE user_id=? AND deletion_or_correction_idempotency_key=?',args:[user.id,key]})).rows[0];
+   if(!purge)continue; // Never admit a new mutation from obsolete authority.
+   if(purge.operation_kind!=='DELETION'||purge.target_source_type!=='JOURNAL_FACT'||purge.target_source_id!==intent.logicalFactId)fail('STAGE7_REGISTRY_AUTHORITY_INVALID');
+   retired.push({row,purge});
+  }
+  // Current self privacy authority may settle an already-admitted cleanup.
+  // It cannot finalize the obsolete answer or restore any scrubbed content.
+  for(const {purge} of retired.sort((a,b)=>a.purge.purge_generation-b.purge.purge_generation)){
+   await stores.privacy.redact(actor.control,purge.purge_id);await stores.privacy.complete(actor.control,purge.purge_id);
+  }
   for(const row of missing){if(row.lifecycle_generation===actor.state.lifecycle_generation&&row.auth_generation===actor.state.auth_generation)await finishMissing(actor,row);}
-  if((await core.assertControl(actor.control)).pending_purge_count===0)return;
+  if((await core.assertControl(actor.control)).pending_purge_count===0){for(const {row} of retired)await interactionPrivacy.retract(actor.control,row);return;}
   const rows=(await core.client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND correction_key IS NOT NULL ORDER BY created_at DESC LIMIT 20',args:[user.id]})).rows;
   for(const row of rows){
    if(row.lifecycle_generation!==actor.state.lifecycle_generation||row.auth_generation!==actor.state.auth_generation)continue;

@@ -17,7 +17,7 @@ import {isContinuationRequest,isSyncContinuationRequest,yieldSyncPhase, validate
 import { log } from './logger.js';
 import { runningReleaseSha, cliTriggerSource, isGitHubContext } from './phase4Release.js';
 import {withDurableExecution,requireSettledOperation} from './phase4ExecutionContext.js';
-import {syncRuntimeProcessingCheck} from './processingTransaction.js';
+import {syncRuntimeProcessingCheck,readObservationProcessingCheck} from './processingTransaction.js';
 import {executionProfile} from './phase4Rollback.js';
 import { requireRuntimeAdmission, followRuntimeRenewal } from './runtimeAdmission.js';
 import {betaPilotConfiguration,reviewedPilotAdmission,createBetaPilotPermit,closingBetaPilotPermit,pilotConfigurationMaySchedule} from './betaPilotPermit.js';
@@ -137,6 +137,14 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
    // SYNC has no pilot grant. This existing fence observes only runtime and
    // budget metadata; its admission marker retains original sequential order.
    if(request.phase==='SYNC')syncRuntimeProcessingCheck(fence);
+   if(request.phase==='STAGE6_DRAIN')readObservationProcessingCheck(fence,()=>{
+    checkAdmission();if(closingBetaPilotPermit(db))return;overall.assert();budget.assert();
+    if(pilotGrant){
+     if(configurationProof(keys,publicBetaConfiguration(environment),environment,releaseSha)!==proof)
+      throw Object.assign(Error('BETA_PILOT_DENIED'),{code:'BETA_PILOT_DENIED'});
+     pilotGrant.assertTime();
+    }
+   });
    if(request.phase==='STAGE6_DRAIN'&&config.runtime==='on'&&!claim.workCommitted&&!reconciliationOnly){
     try {
      const permit=createBetaPilotPermit({db,keys,config:pilotConfig,reservation});

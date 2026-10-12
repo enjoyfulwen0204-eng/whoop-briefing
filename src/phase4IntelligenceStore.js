@@ -234,7 +234,8 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       args:[context.userId,context.executionMode,runKey]})).rows[0],run;
     if(runRow) {
       if(!readableRow(runRow)||runRow.invalidated_at)fail('CONTENT_REDACTED');
-      if(runRow.state!=='COMPLETED'||runRow.input_manifest_hash!==inputHash)fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
+      if(runRow.state!=='COMPLETED'||runRow.input_manifest_hash!==inputHash
+        ||runRow.input_manifest_json!==canonicalJson(input))fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
       run=await core.artifact(context,'evidence_runs',{run_id:runRow.run_id});
     } else {
       run=await entities.append(context,'evidence_runs',{deterministic_run_key:runKey,subject_key:metricKey,
@@ -519,6 +520,22 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       if(alreadyRecorded)return {unit:'AUTHORITY',status:'COMPLETE',created:false,prepared:true,recorded:true};
       const {plan,sourceSet,baseline,quality,observationCalculation:calculation}=prepared;
       request=prepared.request;
+      if(kind==='DOMAIN'){
+        // DOMAIN is the existing public analyzeMetric operation. Its refresh
+        // path below already reopens and validates the complete RUN/ITEM,
+        // exact item payload/confidence, AUTHORITY receipt, sealed producer,
+        // null origin and calculation before any receipt effect. Repeating
+        // that whole preparation here costs another authenticated traversal
+        // of the same immutable inputs in the same owned write snapshot.
+        // Retain the independent original ITEM named proof (the domain does
+        // not otherwise consume it), plus fresh delivery/owner fences. The
+        // selector's mutable authority hint grants no calculation authority.
+        if(!await metricUnitReceipt(core,context,plan,'ITEM'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+        await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+        requireOwnedBodyMetricPurpose(core,context,ownedPurpose);
+        return {unit:'DOMAIN',status:'COMPLETE',created:false,prepared:false,
+          domainResult:await performMetricDomain(context,request,ownedPurpose)};
+      }
       const runData={deterministic_run_key:plan.runKey,subject_key:request.metricKey,
         method:'PERSONAL_BASELINE_DEVIATION',window_start_utc:baseline.samples.at(-1)?.observedAt??sourceSet.current.observedAt,
         window_end_utc:sourceSet.current.observedAt,as_of_utc:request.asOfUtc,timezone:context.timezone,

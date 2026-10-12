@@ -7,6 +7,14 @@ import {reconcileExecution} from './phase4ExecutionStore.js';
 import {inExecutionCoordination} from './phase4Coordination.js';
 import {createReadSnapshotMemo,readSnapshotKey} from './processingReadSnapshot.js';
 const readOnlyChecks=new WeakSet(),controlOnlyChecks=new WeakSet();
+const readObservationChecks=new WeakMap();
+// A server fence may overlap its fresh durable metadata with a private raw
+// DATA observation after its synchronous configuration/budget/expiry bracket.
+// Both must settle; the original fence rejects first. No guard is cached.
+export function readObservationProcessingCheck(check,localCheck){
+ if(typeof check!=='function'||typeof localCheck!=='function')throw Error('PROCESSING_READ_OBSERVATION_CHECK_REQUIRED');
+ readObservationChecks.set(check,localCheck);return check;
+}
 const observationEpochs=new WeakMap();
 // Data lifetime only, never a permit or successful guard observation. Closed
 // typed readers reject their raw union if an intervening business write clears
@@ -152,6 +160,33 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           return method(...args);
         }
         const guarded = fences().length > 0 && !metadata;
+        const context=readScope.getStore(),execution=currentDurableExecution(),checks=fenceScope.getStore()??[];
+        const observationKey=key==='execute'?readSnapshotKey(args[0],context):null;
+        if(privateRuntime&&guarded&&state&&!state.failure&&key==='execute'&&context
+          &&readOnlyStatement(args[0])
+          &&state.readBudget===currentExecutionBudget()&&state.readExecution===execution
+          &&execution?.claim?.request?.phase==='STAGE6_DRAIN'&&execution.claim.request.executionMode==='SHADOW'
+          &&checks.length&&checks.every(check=>readObservationChecks.has(check))){
+          try{
+            requireSettledOperation();currentExecutionBudget()?.assert();execution.authority.assert();
+            for(const check of checks)readObservationChecks.get(check)();
+            const epoch=state.readMemo.epoch(),cached=observationKey?state.readMemo.get(context,observationKey):undefined;
+            if(cached===undefined){
+              // Server-owned read-only SQL cannot effect a result. Its raw
+              // data remains private until the full fresh HMAC/clock/READY
+              // fence passes. Writes and unrecognized queries remain serial.
+              const values=await Promise.allSettled([
+                Promise.resolve().then(()=>checkFences(client)),
+                Promise.resolve().then(()=>state.tx.execute(...args)),
+              ]);
+              for(const value of values)if(value.status==='rejected')throw value.reason;
+              if(state.failure)throw state.failure;
+              currentExecutionBudget()?.assert();execution.authority.assert();requireSettledOperation();
+              if(epoch!==state.readMemo.epoch())throw Error('PROCESSING_READ_OBSERVATION_CHANGED');
+              if(observationKey)state.readMemo.put(context,observationKey,values[1].value,epoch);return values[1].value;
+            }
+          }catch(error){state.failure=error;throw error;}
+        }
         if (guarded) {
           await checkFences();
           const sql = key === 'execute' ? (typeof args[0] === 'string' ? args[0] : args[0]?.sql) : '';

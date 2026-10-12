@@ -1,0 +1,11 @@
+# Stage 6 DOMAIN transport delta
+
+Based on `afc5c93bf6c6fdc656e9491041527b53fb4c72c5`; preserve its prior independent software review. Production has not changed.
+
+The selected current Body DOMAIN already invokes the full public `analyzeMetric` refresh verifier. Enter it once, retaining the independent original ITEM receipt proof. The verifier still opens the RUN/ITEM, compares the canonical payload and confidence, requires the genuine AUTHORITY receipt and finalized producer, authenticates the null origin/calculation, and closes all original generation/owner/receipt fences. Its RUN check now explicitly compares the complete input manifest as the preceding preparation did.
+
+For owned SHADOW DRAIN Core reads only, the fresh durable runtime/pilot metadata and read-only raw SQL may share transport. A synchronous configuration, deadline and pilot expiry bracket precedes submission; all submitted reads settle; full durable fence failure has original priority; raw results cannot return until that fence passes. Cached data, writes, unmarked fences and other phases retain their original path. No accepted authority or clock is cached. No timeout, allowance, schema, receipt identity or job identity changes.
+
+The initial full cold DOMAIN used 601 HTTP requests. Removing duplicate preparation alone used 532. An intermediate data-cache guard prototype was discarded. The current isolated 115 ms test still reached budget exhaustion: zero DOMAIN commits, 372 HTTP requests before stopping. This is **not a capacity PASS** and not Production acceptance. The failed original and successor logs remain under `tmp/stage6-p0-20261013`. Focused snapshot, runtime bracket, clock-order and producer-generation checks passed 36/36.
+
+Next: finish capacity repair and the changed-delta review; freeze exact SHA/tree before requesting any required exact public publication permission. Preserve original six jobs, current Production checkpoints, second pilot 7/12 and its original expiry. No Stage 7 migration or activation is included.

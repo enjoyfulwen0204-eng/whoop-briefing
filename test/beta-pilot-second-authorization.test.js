@@ -77,9 +77,25 @@ test('actual admitted phase composition starts only on DRAIN; final replay consu
  const sr=req('SYNC'),s=await runExecutionPhase({...opts,request:sr});assert.equal(s.body.syncComplete,true);assert.equal(s.body.drainAuthorized,true);assert.equal(await read(db,newComponent),null);
  const dr=req('STAGE6_DRAIN',{syncRequestId:sr.requestId,handoff:s.body.handoff}),d=await runExecutionPhase({...opts,request:dr});assert.equal(d.body.ok,true);assert.deepEqual(calls,['pilot-user']);assert.equal(JSON.parse(await read(db,newComponent)).attempts,1);
  assert.deepEqual(await runExecutionPhase({...opts,request:dr}),d);assert.equal(JSON.parse(await read(db,newComponent)).attempts,1);assert.equal(await read(db,oldComponent),original);
+ for(let i=0;i<11;i++)await permit(db).reserve();
+ assert.deepEqual(await runExecutionPhase({...opts,request:dr}),d);assert.equal(JSON.parse(await read(db,newComponent)).attempts,12);
+ const denied=await runExecutionPhase({...opts,request:req('STAGE6_DRAIN',{syncRequestId:sr.requestId,handoff:s.body.handoff})});
+ assert.equal(denied.body.result.outcome,'DISABLED');assert.deepEqual(calls,['pilot-user']);assert.equal(JSON.parse(await read(db,newComponent)).attempts,12);
  env.PHASE4_BETA_PILOT_STOP='on';const stopped=await runExecutionPhase({...opts,request:req('SYNC')});assert.equal(stopped.body.syncComplete,true);assert.equal(stopped.body.drainAuthorized,false);
 });
 test('actual scheduler discovery admits before lazy availability and keeps the window unstarted',async t=>{
  const {db,original}=await fixture(t),env=environment(),query={releaseSha:runningReleaseSha(),triggerSource:'cloudflare',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,publicBetaConfiguration(env),env),scope:'sync-and-stage6-shadow'};
  const d=await discoverExecutionContinuation({db,keys:fixtureKeys,environment:env,query});assert.equal(d.status,200);assert.equal(d.body.state,'NONE');assert.equal(await read(db,newComponent),null);assert.equal(await read(db,oldComponent),original);
+});
+test('missing or corrupt optional ledger disables DRAIN without blocking ordinary SYNC or discovery',async t=>{
+ const {db}=await fixture(t),env=environment();let calls=0;
+ const opts={db,keys:fixtureKeys,environment:env,env:{dryRun:true},deps:{runBriefing:async()=>{calls++;return {syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS',users:0,failed:0};}}};
+ const request=()=>({releaseSha:runningReleaseSha(),requestId:randomUUID(),phase:'SYNC',triggerSource:'manual',executionMode:'SHADOW',configProof:configurationProof(fixtureKeys,publicBetaConfiguration(env),env)});
+ await db.raw.execute({sql:"DELETE FROM system_heartbeats WHERE component=?",args:[oldComponent]});
+ const missing=await runExecutionPhase({...opts,request:request()});assert.equal(missing.body.syncComplete,true);assert.equal(missing.body.drainAuthorized,false);assert.equal(calls,1);
+ const query={releaseSha:runningReleaseSha(),triggerSource:'cloudflare',executionMode:'SHADOW',scope:'sync-and-stage6-shadow',configProof:configurationProof(fixtureKeys,publicBetaConfiguration(env),env)};
+ const absent=await discoverExecutionContinuation({db,keys:fixtureKeys,environment:env,query});assert.equal(absent.status,200);
+ await db.raw.execute({sql:"INSERT INTO system_heartbeats(scope,component,last_ok_at,last_detail,updated_at) VALUES('global',?,'2026-10-11T07:07:03.633Z','BROKEN','2026-10-11T07:07:03.633Z')",args:[oldComponent]});
+ const corrupt=await runExecutionPhase({...opts,request:request()});assert.equal(corrupt.body.syncComplete,true);assert.equal(corrupt.body.drainAuthorized,false);assert.equal(calls,2);
+ const bad=await discoverExecutionContinuation({db,keys:fixtureKeys,environment:env,query});assert.equal(bad.status,200);assert.equal(await read(db,newComponent),null);
 });

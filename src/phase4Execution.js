@@ -26,6 +26,10 @@ export const ADMISSION_BUDGET_MS=30_000;
 export const SYNC_SOURCE_BUDGETS=Object.freeze({cloudflare:120_000,github:SYNC_BUDGET_MS,manual:SYNC_BUDGET_MS,event:120_000});
 export const DRAIN_SOURCE_BUDGETS=Object.freeze({cloudflare:45_000,github:90_000,manual:45_000,event:25_000});
 export const PHASE_SETTLEMENT_MS=15_000;
+async function optionalPilotAvailable({db,keys,config,reservation}){
+ try{return Boolean((await createBetaPilotPermit({db,keys,config,reservation}).availability()).possible);}
+ catch(error){if(error?.code!=='BETA_PILOT_DENIED')throw error;return false;}
+}
 export function phaseResponse(record) {
  const {startedAt,updatedAt,...publicRecord}=record;
  const complete=record.settlementState==='FINALIZED_SUCCESS'&&syncAuthorizesDrain(record);
@@ -96,8 +100,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
    const admissionFence=()=>{checkAdmission();overall.assert();admissionBudget.assert();};
    if(pilotReady&&pilotConfig.startPolicy==='FIRST_RESERVATION'){
     pilotReady=(await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>
-     createBetaPilotPermit({db,keys,config:pilotConfig,reservation}).availability()))).possible;
-    if(request.phase==='STAGE6_DRAIN'&&!pilotReady)return phaseReply({phase:request.phase,source:request.triggerSource,executionMode:mode,outcome:'DISABLED',releaseSha});
+     optionalPilotAvailable({db,keys,config:pilotConfig,reservation}))));
    }
    if(isContinuationRequest(request)&&request.phase==='SYNC'){
     const parent=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>reconcileExecution(db,request,requestIdentity(body))));
@@ -107,6 +110,10 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
    const finalizedReplay=['FINALIZED_SUCCESS','FINALIZED_FAILURE'].includes(replay?.state);
    const continuation=request.phase==='STAGE6_DRAIN'&&!finalizedReplay?await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>requireSyncHandoff(db,request,keys))):null;
    const reconciliationOnly=Boolean(continuation?.reconciliationResult);
+   // No new work at the cap or after expiry. Existing immutable result replay
+   // and receipt-only settlement retain their original fenced recovery path.
+   if(request.phase==='STAGE6_DRAIN'&&!pilotReady&&!finalizedReplay&&replay?.state!=='WORK_COMMITTED_UNFINALIZED'&&!reconciliationOnly)
+    return phaseReply({phase:request.phase,source:request.triggerSource,executionMode:mode,outcome:'DISABLED',releaseSha});
    const claim=await db.withRuntimeFence(admissionFence,()=>admissionBudget.run(()=>traceExecutionOperation('PHASE_CLAIM',()=>claimPhaseRequest(db,request,body,{keys,deadlineAt:overall.deadlineAt,maxWorkAgeMs:EXECUTION_WORK_MAX_AGE_MS,reconciliationOnly,serializeScope:isContinuationRequest(request)||isSyncContinuationRequest(request)}))));
    setExecutionTelemetrySequence(claim.executionSeq??claim.cached?.executionSeq);
    if(claim.cached){overall.assert();admissionBudget.assert();
@@ -270,8 +277,9 @@ export async function discoverExecutionContinuation({query,db:providedDb,keys:pr
  try {
   const pilot=ready?betaPilotConfiguration(environment):null;
   const allowDrain=pilot?.startPolicy==='FIRST_RESERVATION'
-   ?async()=>Boolean((await createBetaPilotPermit({db,keys,config:pilot,reservation:reviewedPilotAdmission(pilot)}).availability()).possible)
+   ?async()=>optionalPilotAvailable({db,keys,config:pilot,reservation:reviewedPilotAdmission(pilot)})
    :ready;
-  return await discoverPhaseContinuation({query,db,keys,releaseSha,mode,scope,configProof:proof,allowDrain,signal});}
+  return await discoverPhaseContinuation({query,db,keys,releaseSha,mode,scope,configProof:proof,allowDrain,
+   allowDrainRecovery:pilot?.startPolicy==='FIRST_RESERVATION',signal});}
  finally {if(!providedDb)db.close();}
 }

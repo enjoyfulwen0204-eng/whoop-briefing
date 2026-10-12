@@ -78,7 +78,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   if (!admission) await assertPhase4Schema(client,schemaVersion);
   if(admission)followRuntimeRenewal(client,admission,keys,transaction,next=>{admission=next;});
   const databases=(await client.execute('PRAGMA database_list')).rows;
-  const isolatedMemory=client.protocol==='file'&&databases.length===1&&databases[0].name==='main'&&databases[0].file==='';
+  const isolatedMemory=client.protocol==='file'&&databases.some(r=>r.name==='main')&&databases.every(r=>['main','temp'].includes(r.name)&&r.file==='');
   function authorizeMode(mode,connection) {
     if(admission)requireRuntimeAdmission(client,admission,keys,transaction);
     if(mode==='LIVE'&&!isolatedMemory)fail('PHASE4_LIVE_FIXTURE_MEMORY_REQUIRED');

@@ -53,6 +53,7 @@ export function buildV33(){
   FOREIGN KEY(user_id,delivery_id) REFERENCES journal_prompt_deliveries(user_id,delivery_id))`,
  ];
  const indexes=[
+ `CREATE UNIQUE INDEX IF NOT EXISTS p4_journal_callback_receipt ON journal_events(user_id,callback_receipt) WHERE callback_receipt IS NOT NULL`,
  `CREATE INDEX IF NOT EXISTS p4_quick_action_day ON quick_action_interactions(user_id,kind,target_date,created_at)`,
  ...Object.keys(V33_HEALTH_FIELDS).map(table=>`CREATE UNIQUE INDEX IF NOT EXISTS p4_${table}_privacy_id ON ${table}(user_id,privacy_artifact_id)`),
  `CREATE INDEX IF NOT EXISTS p4_journal_registry ON journal_events(user_id,registry_version,question_identity)`,

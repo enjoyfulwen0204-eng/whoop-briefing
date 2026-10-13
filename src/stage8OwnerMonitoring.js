@@ -6,9 +6,12 @@ import {buildPhase4Core,readableRow} from './phase4Core.js';
 import {composePhase4Stores} from './phase4Repositories.js';
 import {issueStage8LiveAuthority} from './stage8LiveAuthority.js';
 import {createStage8MorningPlan} from './stage8MorningPlan.js';
+import {resolveRecipientName} from './recipientIdentity.js';
 import {localDate,completedWeeks} from './time.js';
 const fail=code=>{throw Error(code);};
 const VERSION='owner-current-synthesis-v1';
+export const OWNER_MAX_ATTEMPTS=3;
+export const ownerRetryAt=row=>Date.parse(row.updated_at)+30000*2**Math.max(0,row.attempt_count-1);
 /** Dedicated dual-principal capability. No ordinary Q&A route receives this
  * store. Configuration accepts an explicit enrolled subject, never admin scope. */
 export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new Date()}){
@@ -43,11 +46,12 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
  async function enrolled(actor){await assertActor(actor);const found=await rows(`SELECT u.id FROM users u JOIN user_onboarding o ON o.user_id=u.id
    JOIN phase4_user_state p ON p.user_id=u.id JOIN user_whoop_tokens t ON t.user_id=u.id
    WHERE u.id<>? AND u.status='ACTIVE' AND o.state='READY' AND p.pending_purge_count=0 AND t.auth_generation>0 ORDER BY u.id LIMIT 101`,[ownerId]);
-  if(found.length>100)fail('OWNER_CONFIGURATION_BOUNDS');await assertActor(actor);return found.map(r=>({subjectId:r.id}));}
+  if(found.length>100)fail('OWNER_CONFIGURATION_BOUNDS');await assertActor(actor);return Promise.all(found.map(async r=>({subjectId:r.id,label:await resolveRecipientName({db,userId:r.id}),alias:keys.lookup(['owner-subject-alias-v1',ownerId,r.id]).slice(0,8)})));}
  async function configure(actor,{subjectId,notificationClass,enabled:enable,expectedRevision,operationKey}){
   classCheck(notificationClass);if(typeof enable!=='boolean'||!Number.isSafeInteger(expectedRevision)||expectedRevision<0||typeof operationKey!=='string'||!operationKey||operationKey.length>128||subjectId===ownerId)fail('OWNER_CONFIGURATION_INVALID');
   return db.transaction(async()=>{
    const owner=await assertActor(actor),existing=(await rows('SELECT * FROM owner_monitoring_subscriptions WHERE user_id=? AND owner_id=? AND notification_class=?',[subjectId,ownerId,notificationClass]))[0];
+   if(!existing&&(await rows('SELECT count(*) n FROM owner_monitoring_subscriptions WHERE owner_id=?',[ownerId]))[0].n>=300)fail('OWNER_CONFIGURATION_BOUNDS');
    const subject=enable?await principal(subjectId,{enrolled:true}):existing?{lifecycle_generation:existing.subject_lifecycle,auth_generation:existing.subject_auth,enrollment_revision:existing.enrollment_revision}:null;
    if(!subject)fail('OWNER_SUBSCRIPTION_NOT_FOUND');
    const replay=(await rows('SELECT * FROM owner_monitoring_subscription_events WHERE owner_id=? AND operation_key=?',[ownerId,operationKey]))[0];
@@ -65,7 +69,14 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
    return {revision:record.revision,enabled:enable};
   });
  }
- async function subscriptions(actor){await assertActor(actor);return rows('SELECT user_id subjectId,notification_class notificationClass,enabled,revision FROM owner_monitoring_subscriptions WHERE owner_id=? ORDER BY user_id,notification_class',[ownerId]);}
+ async function subscriptions(actor){await assertActor(actor);return rows('SELECT user_id subjectId,notification_class notificationClass,enabled,revision FROM owner_monitoring_subscriptions WHERE owner_id=? ORDER BY user_id,notification_class LIMIT 301',[ownerId]);}
+ async function schedule(actor){return db.transaction(async()=>{
+  await assertActor(actor);const all=await subscriptions(actor);if(all.length>300)fail('OWNER_CONFIGURATION_BOUNDS');
+  const active=all.filter(row=>row.enabled),key='stage8-owner-cursor:'+keys.lookup(['owner-scheduler-v1',ownerId]),raw=await db.getState(key),offset=raw===null?0:Number(raw);
+  if(!Number.isSafeInteger(offset)||offset<0||offset>300)fail('OWNER_CURSOR_INVALID');
+  const start=active.length?offset%active.length:0,selected=[...active.slice(start),...active.slice(0,start)].slice(0,6);
+  await db.setState(key,String(active.length?(start+selected.length)%active.length:0),{now:now()});return selected;
+ });}
  async function scope(actor,subjectId,notificationClass){
   classCheck(notificationClass);if(subjectId===ownerId)fail('OWNER_DISTINCT_SUBJECT_REQUIRED');
   const owner=await assertActor(actor),subject=await principal(subjectId,{enrolled:true});
@@ -117,11 +128,11 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
   const captured=await scope(actor,subjectId,notificationClass),plan=await synthesis(captured);
   if(canonicalJson(await scope(actor,subjectId,notificationClass))!==canonicalJson(captured))fail('OWNER_SCOPE_CHANGED');
   if(plan.status!=='APPROVED')return {status:plan.status};
-  const expiresAt=new Date(Math.min(Date.parse(plan.expiresAt),now().getTime()+120000)).toISOString();
-  const ticket=Object.freeze({});tickets.set(ticket,{captured,plan,expiresAt});return {status:'APPROVED',ticket};
+  const expiresAt=new Date(Math.min(Date.parse(plan.expiresAt),Date.parse(plan.asOfUtc)+90*60000)).toISOString();
+  const ticket=Object.freeze({});tickets.set(ticket,{captured,plan,expiresAt,ticketExpiresAt:new Date(Math.min(Date.parse(expiresAt),now().getTime()+120000)).toISOString()});return {status:'APPROVED',ticket};
  });}
  async function propose(actor,ticket){return db.transaction(async()=>{
-  const value=tickets.get(ticket);if(!value||value.expiresAt<=timestamp())fail('OWNER_APPROVED_TICKET_REQUIRED');
+  const value=tickets.get(ticket);if(!value||value.ticketExpiresAt<=timestamp())fail('OWNER_APPROVED_TICKET_REQUIRED');
   const {captured,plan}=value,subjectId=captured.subject.id,klass=captured.notificationClass;
   if(canonicalJson(await scope(actor,subjectId,klass))!==canonicalJson(captured)||canonicalJson(await synthesis(captured,new Date(plan.asOfUtc)))!==canonicalJson(plan))fail('OWNER_PLAN_CHANGED');
   const semantic=keys.lookup(['owner-semantic-v1',ownerId,subjectId,klass,plan.semanticIdentity]),existing=(await rows('SELECT message_id,state FROM owner_monitoring_outbox WHERE user_id=? AND owner_id=? AND notification_class=? AND semantic_key=?',[subjectId,ownerId,klass,semantic]))[0];if(existing)return {status:existing.state,messageId:existing.message_id,replayed:true};
@@ -152,9 +163,38 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
   return {row,auth,payload};
  }
  async function start(actor,{subjectId,messageId,expectedRevision}){return db.transaction(async()=>{
-  const {row,payload}=await validate(actor,subjectId,messageId);if(row.state!=='PROPOSED'||row.revision!==expectedRevision||row.attempt_count!==0)fail('OWNER_START_CAS');
-  const id=randomUUID(),at=timestamp();await client.execute({sql:"INSERT INTO owner_monitoring_attempts(user_id,message_id,attempt_id,attempt_number,state,started_at) VALUES(?,?,?,1,'DELIVERY_STARTED',?)",args:[subjectId,messageId,id,at]});
-  const changed=await client.execute({sql:"UPDATE owner_monitoring_outbox SET state='DELIVERY_STARTED',attempt_count=1,revision=revision+1,updated_at=? WHERE user_id=? AND owner_id=? AND message_id=? AND revision=? AND state='PROPOSED'",args:[at,subjectId,ownerId,messageId,expectedRevision]});if(changed.rowsAffected!==1)fail('OWNER_START_CAS');return {attemptId:id,payload};
+  const {row,payload}=await validate(actor,subjectId,messageId);
+  if(!['PROPOSED','FAILED_DEFINITE'].includes(row.state)||row.revision!==expectedRevision||row.attempt_count>=OWNER_MAX_ATTEMPTS)fail('OWNER_START_CAS');
+  if(row.state==='FAILED_DEFINITE'&&now().getTime()<ownerRetryAt(row))fail('OWNER_RETRY_NOT_DUE');
+  const number=row.attempt_count+1,id=randomUUID(),at=timestamp();
+  await client.execute({sql:"INSERT INTO owner_monitoring_attempts(user_id,message_id,attempt_id,attempt_number,state,started_at) VALUES(?,?,?,?, 'DELIVERY_STARTED',?)",args:[subjectId,messageId,id,number,at]});
+  const changed=await client.execute({sql:"UPDATE owner_monitoring_outbox SET state='DELIVERY_STARTED',attempt_count=?,revision=revision+1,updated_at=? WHERE user_id=? AND owner_id=? AND message_id=? AND revision=? AND state IN ('PROPOSED','FAILED_DEFINITE')",args:[number,at,subjectId,ownerId,messageId,expectedRevision]});
+  if(changed.rowsAffected!==1)fail('OWNER_START_CAS');return {attemptId:id,payload};
+ });}
+ async function pending(actor,subjectId,notificationClass){
+  await assertActor(actor);classCheck(notificationClass);
+  return (await rows("SELECT * FROM owner_monitoring_outbox WHERE user_id=? AND owner_id=? AND notification_class=? AND state IN ('PROPOSED','FAILED_DEFINITE','DELIVERY_STARTED') ORDER BY created_at,message_id LIMIT 1",[subjectId,ownerId,notificationClass]))[0]??null;
+ }
+ async function close(actor,subjectId,messageId){return db.transaction(async()=>{
+  await assertActor(actor);const row=(await rows('SELECT * FROM owner_monitoring_outbox WHERE user_id=? AND owner_id=? AND message_id=?',[subjectId,ownerId,messageId]))[0];
+  if(!row)return {status:'NOT_FOUND'};
+  if(['PROPOSED','FAILED_DEFINITE'].includes(row.state))await client.execute({sql:"UPDATE owner_monitoring_outbox SET state='SUPPRESSED',revision=revision+1,updated_at=? WHERE user_id=? AND owner_id=? AND message_id=? AND revision=? AND state IN ('PROPOSED','FAILED_DEFINITE')",args:[timestamp(),subjectId,ownerId,messageId,row.revision]});
+  return {status:row.state==='DELIVERY_STARTED'?'DELIVERY_STARTED':row.state==='PROPOSED'||row.state==='FAILED_DEFINITE'?'SUPPRESSED':row.state,messageId};
+ });}
+ async function prepareDaily(actor,subjectId){return db.transaction(async()=>{
+  const initial=await scope(actor,subjectId,'DAILY_SUMMARY');
+  const grant=issueStage8LiveAuthority({db,keys,admission,userIds:[subjectId],enabled});
+  const core=await buildPhase4Core({keys,admission,liveAuthority:grant,now,
+   processing:{client,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},
+   authorizeMode(mode,connection,uid){if(mode!=='LIVE'||connection!==client||uid!==subjectId||!enabled())fail('OWNER_PLAN_SCOPE');}});
+  await core.initializeTenant(subjectId,'LIVE');const captured=await scope(actor,subjectId,'DAILY_SUMMARY');
+  if(initial.subscriptionRevision!==captured.subscriptionRevision)fail('OWNER_SCOPE_CHANGED');
+  const stores=composePhase4Stores(core),ctx=await core.capture(subjectId,{executionMode:'LIVE',providerRequired:true}),plans=createStage8MorningPlan({core,db,preferences:stores.preferences}),day=localDate(now(),ctx.timezone);
+  const existing=(await rows("SELECT plan_id FROM morning_brief_plans WHERE user_id=? AND execution_mode='LIVE' AND input_generation=? AND health_date=? AND content_state='PRESENT' ORDER BY created_at DESC,plan_id DESC LIMIT 1",[subjectId,ctx.inputGeneration,day]))[0];
+  if(existing){try{const current=await plans.read(ctx,existing.plan_id);if(Date.parse(current.plan.asOfUtc)+60*60000>now().getTime())return {status:'CURRENT_PLAN'};}catch(error){if(!/MORNING_|PHASE4_PARENT_STALE/.test(error.message))throw error;}}
+  const built=await plans.build(ctx,{healthDate:day});if(!built.timing.eligible)return {status:built.timing.reason};
+  if(canonicalJson(await scope(actor,subjectId,'DAILY_SUMMARY'))!==canonicalJson(captured))fail('OWNER_SCOPE_CHANGED');
+  await plans.persist(ctx,built);return {status:'CURRENT_PLAN'};
  });}
  async function settle({subjectId,messageId,attemptId,outcome,providerMessageId=null}){
   if(!['DELIVERED','AMBIGUOUS','FAILED_DEFINITE'].includes(outcome)||providerMessageId!==null&&!/^[A-Za-z0-9:_-]{1,128}$/.test(providerMessageId))fail('OWNER_OUTCOME_INVALID');
@@ -165,5 +205,5 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
    await client.execute({sql:"UPDATE owner_monitoring_outbox SET state=?,provider_message_id=?,revision=revision+1,updated_at=? WHERE user_id=? AND owner_id=? AND message_id=? AND state='DELIVERY_STARTED'",args:[outcome,providerMessageId,timestamp(),subjectId,ownerId,messageId]});return {outcome};
   });
  }
- return Object.freeze({authenticate,enrolled,configure,subscriptions,authorize,propose,start,settle,validate});
+ return Object.freeze({authenticate,enrolled,configure,subscriptions,authorize,propose,start,settle,validate,pending,close,prepareDaily,schedule});
 }

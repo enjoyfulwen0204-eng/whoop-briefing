@@ -49,8 +49,9 @@ export function createStage8MorningStore({core,db,preferences,enabled}){
  async function owns(control,day){const ctx=await context(control),mode=await commitCutover(ctx);return mode.mode==='PHASE4'&&day>=mode.cutover_health_date;}
  async function expire(control,messageId){return core.runMaintenance(control,'LIVE',async()=>{
   const r=(await query("SELECT * FROM outbound_messages WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND message_class=?",[control.userId,messageId,FAMILY]))[0];
-  if(!r||r.expires_at>core.timestamp()||!['PROPOSED','ELIGIBLE'].includes(r.state)||r.attempt_count!==0)return false;
-  if((await query("SELECT 1 FROM outbound_delivery_attempts WHERE user_id=? AND execution_mode='LIVE' AND message_id=? LIMIT 1",[control.userId,messageId])).length)return false;
+  if(!r||r.expires_at>core.timestamp()||!['PROPOSED','ELIGIBLE','FAILED_DEFINITE'].includes(r.state))return false;
+  if(r.state==='FAILED_DEFINITE'){await transport.closeFailed(control,'LIVE',{messageId,expectedRevision:r.revision});return true;}
+  if(r.attempt_count===0&&(await query("SELECT 1 FROM outbound_delivery_attempts WHERE user_id=? AND execution_mode='LIVE' AND message_id=? LIMIT 1",[control.userId,messageId])).length)return false;
   await client.execute({sql:"INSERT INTO morning_expiry_audit(user_id,message_id,reason,expired_at) VALUES(?,?,'EXPIRED_SYSTEM_OUTAGE',?) ON CONFLICT DO NOTHING",args:[control.userId,messageId,core.timestamp()]});
   await client.execute({sql:"UPDATE outbound_messages SET state='SUPPRESSED',terminal_reason='EXPIRED',revision=revision+1,updated_at=? WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND revision=?",args:[core.timestamp(),control.userId,messageId,r.revision]});
   await client.execute({sql:"UPDATE outbound_semantic_reservations SET state='CLOSED',closed_reason='SUPPRESSED',closed_at=? WHERE user_id=? AND execution_mode='LIVE' AND reservation_id=? AND state='RESERVED'",args:[core.timestamp(),control.userId,r.reservation_id]});return true;
@@ -63,6 +64,19 @@ export function createStage8MorningStore({core,db,preferences,enabled}){
    if(reservation?.state&&reservation.state!=='RESERVED')return {status:'ALREADY_SETTLED'};
    let old=reservation?.message_id?(await query("SELECT * FROM outbound_messages WHERE user_id=? AND execution_mode='LIVE' AND message_id=?",[ctx.userId,reservation.message_id]))[0]:null;
    if(old){
+    if(old.state==='FAILED_DEFINITE'){
+     if(old.expires_at<=core.timestamp()){await expire(control,old.message_id);return {status:'FAILED_TERMINAL',messageId:old.message_id};}
+     const last=(await query("SELECT error_code FROM outbound_delivery_attempts WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND attempt_number=?",[ctx.userId,old.message_id,old.attempt_count]))[0];
+     if(old.attempt_count>=3||!['PROVIDER_RATE_LIMIT','PROVIDER_UNAVAILABLE'].includes(last?.error_code)||old.input_generation!==ctx.inputGeneration){
+      await transport.closeFailed(control,'LIVE',{messageId:old.message_id,expectedRevision:old.revision});return {status:'FAILED_TERMINAL',messageId:old.message_id};
+     }
+     await transport.retryDefinite(ctx,{messageId:old.message_id,expectedRevision:old.revision});
+     old=(await query("SELECT * FROM outbound_messages WHERE user_id=? AND execution_mode='LIVE' AND message_id=?",[ctx.userId,old.message_id]))[0];
+    }
+    if(old.state==='ELIGIBLE'&&old.attempt_count>0){
+     if(old.expires_at<=core.timestamp()){await expire(control,old.message_id);return {status:'EXPIRED_SYSTEM_OUTAGE',messageId:old.message_id};}
+     return {status:old.next_attempt_at>core.timestamp()?'RETRY_WAIT':'READY',messageId:old.message_id,revision:old.revision};
+    }
     if(!['PROPOSED','ELIGIBLE'].includes(old.state)||old.attempt_count!==0||old.lease_owner||old.lease_expires_at)return {status:old.state,messageId:old.message_id};
     if(old.expires_at<=core.timestamp())return {status:await expire(control,old.message_id)?'EXPIRED_SYSTEM_OUTAGE':old.state,messageId:old.message_id};
     if(old.lifecycle_generation!==ctx.lifecycleGeneration||old.auth_generation!==ctx.authGeneration||old.purge_generation!==ctx.purgeGeneration
@@ -91,5 +105,9 @@ export function createStage8MorningStore({core,db,preferences,enabled}){
    return {status:'READY',messageId:old.message_id,revision:old.revision+1,refreshed:true};
   });
  }
- return Object.freeze({requestCutover,commitCutover,owns,prepare,expire,transport,plans,context});
+ async function expirePending(control){
+  await core.assertControl(control);const pending=await query("SELECT message_id FROM outbound_messages WHERE user_id=? AND execution_mode='LIVE' AND message_class='MORNING_BRIEF_V1' AND expires_at<=? AND state IN ('PROPOSED','ELIGIBLE','FAILED_DEFINITE') ORDER BY expires_at,message_id LIMIT 8",[control.userId,core.timestamp()]);
+  for(const row of pending)await expire(control,row.message_id);return pending.length;
+ }
+ return Object.freeze({expirePending,requestCutover,commitCutover,owns,prepare,expire,transport,plans,context});
 }

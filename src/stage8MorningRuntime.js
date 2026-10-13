@@ -30,6 +30,7 @@ export async function createStage8MorningRuntime({db,keys,environment,env,admiss
    if(environment.PHASE4_DELIVERY_CUTOVER==='on')await store.requestCutover(control,{expectedRevision:mode.revision});
    return null;
   }
+  await store.expirePending(control);
   const day=localDate(now(),timezone);if(!await store.owns(control,day))return null;
   if(await settled(userId,day))return {status:'already_sent',typed:true,healthDate:day};
   // Only the existing bounded sleep/recovery poll is persisted. No full sync,
@@ -63,7 +64,7 @@ export async function createStage8MorningRuntime({db,keys,environment,env,admiss
    await core.assertContext(current);await db.assertRuntimeFences?.();sendBegan=true;
    const result=await api.sendMessage(binding[0].telegram_chat_id,{text:started.payloadText});
    if(!validMessageId(result?.message_id))throw Error('MORNING_ACK_INVALID');messageId=String(result.message_id);outcome='DELIVERED';errorCode=null;
-  }catch(error){outcome=!sendBegan||error?.sendOutcome===SEND_OUTCOME.DEFINITE_FAILURE?'FAILED_DEFINITE':'AMBIGUOUS';errorCode=sendBegan?outcome==='AMBIGUOUS'?'NETWORK_UNCERTAIN':'PROVIDER_DEFINITE_NON_ACCEPTANCE':'STALE_GENERATION';messageId=null;}
+  }catch(error){outcome=!sendBegan||error?.sendOutcome===SEND_OUTCOME.DEFINITE_FAILURE?'FAILED_DEFINITE':'AMBIGUOUS';errorCode=sendBegan?outcome==='AMBIGUOUS'?'NETWORK_UNCERTAIN':error?.status===429?'PROVIDER_RATE_LIMIT':error?.status>=500?'PROVIDER_UNAVAILABLE':'PROVIDER_DEFINITE_NON_ACCEPTANCE':'STALE_GENERATION';messageId=null;}
   await store.transport.settle(control,'LIVE',{attemptId:started.attemptId,outcome,providerMessageId:messageId,errorCode,...(outcome==='AMBIGUOUS'?{ambiguityReason:'UNKNOWN_ACCEPTANCE'}:{})});
   // Definite failure remains durable and does not create a fresh date/key. The
   // existing bounded transport retry policy can be applied by a later tick.

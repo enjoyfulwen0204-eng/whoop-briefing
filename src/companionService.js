@@ -1,3 +1,4 @@
+import {createStage8Runtime,stage8Configuration} from './stage8Runtime.js';
 import {createDb} from './db.js';
 import {loadEnv} from './config.js';
 import {publicBetaConfiguration,publicBetaKeys} from './publicBetaConfig.js';
@@ -18,20 +19,23 @@ export async function runCompanionService({request,environment=process.env,db:pr
  const proof=()=>configurationProof(keys,publicBetaConfiguration(environment),environment,releaseSha);
  if(request.releaseSha!==releaseSha)throw Error('RELEASE_CHECKOUT_MISMATCH');
  if(request.configProof!==proof()||request.executionMode!==(config.runtime==='on'?'SHADOW':'OFF'))throw Error('EXECUTION_CONFIG_CHANGED');
- const cohort=stage7Configuration(environment);if(cohort.mode==='off')return {status:200,body:{ok:true,kind:COMPANION_KIND,source:'cloudflare',releaseSha,enabled:false,drainAuthorized:false}};
+ const cohort=stage7Configuration(environment),stage8Config=stage8Configuration(environment),ownerEnabled=stage8Config.enabled&&environment.PHASE4_STAGE8_OWNER_MONITORING==='on';if(cohort.mode==='off'&&!ownerEnabled)return {status:200,body:{ok:true,kind:COMPANION_KIND,source:'cloudflare',releaseSha,enabled:false,drainAuthorized:false}};
  const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys}),budget=createExecutionBudget({budgetMs,startedAtMs});let unfollow;
  try{return await withExecutionBudget(budget,()=>budget.run(async()=>{
   let admission=await db.admitRuntime({source:'cloudflare',fresh:true});
   const fence=()=>{budget.assert();requireRuntimeAdmission(db.raw,admission,keys,db.transaction);if(proof()!==request.configProof)throw Error('EXECUTION_CONFIG_CHANGED');};
   unfollow=followRuntimeRenewal(db.raw,admission,keys,db.transaction,value=>{admission=value;});
   return db.withRuntimeFence(fence,async()=>{
+   const ownerRuntime=ownerEnabled?await createStage8Runtime({db,keys,env,environment,now}):null;
    const runtime=await (deps.createRuntime??createStage7Runtime)({db,keys,env,environment,admission,now});let checked=0;
-   for(const id of cohort.userIds){fence();const user=await db.getUser(id);if(!user||user.status!=='ACTIVE'||(await db.getOnboarding?.(id))?.state!=='READY')continue;
+   for(const id of runtime?cohort.userIds:[]){fence();const user=await db.getUser(id);if(!user||user.status!=='ACTIVE'||(await db.getOnboarding?.(id))?.state!=='READY')continue;
     const chatId=await db.getActiveChatIdForUser(id,{expectedLifecycleGeneration:user.lifecycleGeneration});if(!chatId)continue;
     await runtime.tick({user,chatId});checked++;
    }
+   let ownerChecked=0;
+   if(ownerRuntime?.owner){const user=await db.getUser(stage8Config.userIds[0]),chatId=user&&await db.getActiveChatIdForUser(user.id,{expectedLifecycleGeneration:user.lifecycleGeneration});if(chatId){fence();ownerChecked=(await ownerRuntime.owner.tick({user,chatId})).checked;}}
    fence();await db.recordHeartbeat('global','companion_v1',{now:now(),detail:`checked=${checked}`});
-   return {status:200,body:{ok:true,kind:COMPANION_KIND,source:'cloudflare',releaseSha,enabled:true,checked,drainAuthorized:false}};
+   return {status:200,body:{ok:true,kind:COMPANION_KIND,source:'cloudflare',releaseSha,enabled:true,checked,ownerChecked,drainAuthorized:false}};
   });
  }));}finally{unfollow?.();budget.close();if(!providedDb)db.close();}
 }

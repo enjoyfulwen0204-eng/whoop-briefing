@@ -143,6 +143,7 @@ export async function main({ maxIterations = Infinity } = {}) {
   const poller = createPoller({
     db,
     ...(stage7?{stage7Inbound:stage7.stage7Inbound,stage7Reply:stage7.stage7Reply}:{}),
+    authenticatedIdentity:stage8?.captureIdentity,
     botToken: env.telegramBotToken,
     api,
     // 身分解析：chat → ACTIVE 綁定 → ACTIVE 使用者。解析不到回 null。

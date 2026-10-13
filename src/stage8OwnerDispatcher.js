@@ -1,3 +1,4 @@
+import {OWNER_MAX_ATTEMPTS,ownerRetryAt} from './stage8OwnerMonitoring.js';
 import {createTelegramApi} from './bot/api.js';
 import {SEND_OUTCOME} from './sendOutcome.js';
 import {validMessageId} from './telegramAcknowledgment.js';
@@ -9,21 +10,24 @@ const copy={
 /** Server-owned provider boundary. A request cannot supply credentials,
  * transport, destination or claims. Only a freshly validated durable plan
  * reaches Telegram. An uncertain prior attempt permanently prevents resend. */
-export function createStage8OwnerDispatcher({db,monitoring,env,enabled}){
+export function createStage8OwnerDispatcher({db,monitoring,env,enabled,now=()=>new Date()}){
  const api=createTelegramApi({botToken:env.telegramBotToken});
  async function dispatch(input,{subjectId,notificationClass}){
   if(!enabled())throw Error('OWNER_ROLLOUT_FENCED');
-  const actor=await monitoring.authenticate(input),approved=await monitoring.authorize(actor,{subjectId,notificationClass});
-  if(approved.status!=='APPROVED')return approved;
-  const proposal=await monitoring.propose(actor,approved.ticket),messageId=proposal.messageId;
+  const actor=await monitoring.authenticate(input),pending=await monitoring.pending(actor,subjectId,notificationClass);
+  let proposal=pending?{status:pending.state,messageId:pending.message_id}:null;
+  if(!proposal){const approved=await monitoring.authorize(actor,{subjectId,notificationClass});if(approved.status!=='APPROVED')return approved;proposal=await monitoring.propose(actor,approved.ticket);}
+  const messageId=proposal.messageId;
   if(proposal.status==='DELIVERY_STARTED'){
    const attempt=(await db.raw.execute({sql:"SELECT attempt_id FROM owner_monitoring_attempts WHERE user_id=? AND message_id=? AND state='DELIVERY_STARTED'",args:[subjectId,messageId]})).rows[0];
    if(!attempt)throw Error('OWNER_ATTEMPT_NOT_FOUND');
    await monitoring.settle({subjectId,messageId,attemptId:attempt.attempt_id,outcome:'AMBIGUOUS'});
    return {status:'AMBIGUOUS',messageId,recovered:true};
   }
-  if(proposal.status!=='PROPOSED')return proposal;
-  const initial=await monitoring.validate(actor,subjectId,messageId);
+  if(!['PROPOSED','FAILED_DEFINITE'].includes(proposal.status))return proposal;
+  if(pending&&(pending.expires_at<=now().toISOString()||pending.attempt_count>=OWNER_MAX_ATTEMPTS))return monitoring.close(actor,subjectId,messageId);
+  if(pending?.state==='FAILED_DEFINITE'&&now().getTime()<ownerRetryAt(pending))return {status:'FAILED_DEFINITE',messageId,nextAttemptAt:new Date(ownerRetryAt(pending)).toISOString()};
+  let initial;try{initial=await monitoring.validate(actor,subjectId,messageId);}catch(error){await monitoring.close(actor,subjectId,messageId);return {status:'SUPPRESSED',messageId,reason:'AUTHORITY_CHANGED'};}
   const start=await monitoring.start(actor,{subjectId,messageId,expectedRevision:initial.row.revision});
   let outcome='FAILED_DEFINITE',providerMessageId=null,sendBegan=false;
   try{

@@ -1,3 +1,4 @@
+import {assessUrgency} from './triage.js';
 import {isJournalCallback} from '../stage7Cards.js';
 import {isSettingsCallback} from './settings.js';
 import {validMessageId} from '../telegramAcknowledgment.js';
@@ -157,6 +158,7 @@ export function createUpdateProcessor({
   laneTtlMs = TELEGRAM_BOT.USER_LANE_TTL_MS,
   /** Ephemeral Telegram activity; deliberately separate from durable replies. */
   sendTyping = null,
+  authenticatedIdentity = null,
   processStartedAtMs = PROCESS_STARTED_AT_MS,
   startupWindowMs = 90_000,
   typingRefreshMs = 4_000,
@@ -578,6 +580,7 @@ export function createUpdateProcessor({
         }
       }
 
+      if(c.kind==='ok'&&authenticatedIdentity&&!assessUrgency(c.text).urgent)await authenticatedIdentity(c);
       const journalResult=c.kind==='ok'&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
       const dispatch = async () => {
         if (c.kind === 'unlinked') {

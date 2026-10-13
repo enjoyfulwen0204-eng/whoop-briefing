@@ -107,7 +107,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * 用的是官方 v2 `/user/profile/basic`，只讀 `user_id`，
  * **不儲存也不 log 姓名或 email**。
  */
-export async function fetchWhoopUserId({
+const verifiedProfiles=new WeakSet();
+export const isVerifiedWhoopProfile=profile=>Boolean(profile&&verifiedProfiles.has(profile));
+export async function fetchWhoopUserId(options){return (await fetchWhoopProfile(options)).whoopUserId;}
+export async function fetchWhoopProfile({
   accessToken, apiBase = WHOOP.API_BASE, fetchImpl = fetch,
 }) {
   if (!accessToken) throw new WhoopAuthError('fetchWhoopUserId：沒有 access token');
@@ -131,7 +134,7 @@ export async function fetchWhoopUserId({
   if (id === null || id === undefined || id === '' || Number(id) === 0) {
     throw new WhoopApiError('WHOOP 身分查詢沒有回傳 user_id', res.status);
   }
-  return String(id);
+  const profile=Object.freeze({whoopUserId:String(id),firstName:typeof json.first_name==='string'?json.first_name:null});verifiedProfiles.add(profile);return profile;
 }
 
 /** 建立授權網址（一次性授權腳本用）。 */

@@ -249,7 +249,7 @@ export function createWhoopOAuthCallback({
     if (onAuthorized) {
       try {
         await authorizeContinuation();
-        await onAuthorized(userId, { expectedLifecycleGeneration: stateLifecycle });
+        await onAuthorized(userId, { expectedLifecycleGeneration: stateLifecycle,verifiedProfile:result.verifiedProfile,authGeneration:result.authGeneration });
       } catch (err) {
         if (isAccountInactiveError(err)) return inactiveResult();
         // 綁定已經耐久了；通知／bootstrap 失敗不可以把成功變成失敗。

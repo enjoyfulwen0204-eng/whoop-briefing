@@ -7,14 +7,14 @@ export function journalCard(row,{locale,displayName=null,preferences=null}={}){
  if(row.kind==='PREFERENCES'){
   text=`${c.preferences}\n${c.daily}: ${preferences.daily_enabled?c.enabled:c.disabled}\n${c.weekly}: ${preferences.weekly_enabled?c.enabled:c.disabled}`;
   const selected=JSON.parse(preferences.topics_json??'[]'),excluded=JSON.parse(preferences.excluded_topics_json??'[]');
-  TOPICS.forEach((topic,i)=>buttons.push([button(`${selected.includes(topic)?'✅':'▫️'} ${TOPIC_ICONS[topic]} ${c.topics[i]}`,`prefs:topic:${topic}:${selected.includes(topic)?0:1}:${preferences.revision}`),button(`${excluded.includes(topic)?'🚫':'▫️'} ${c.ignore}`,`prefs:exclude:${topic}:${excluded.includes(topic)?0:1}:${preferences.revision}`)]));
+  TOPICS.forEach((topic,i)=>buttons.push([button(`${selected.includes(topic)?'✅':'▫️'} ${TOPIC_ICONS[topic]} ${c.topics[i]}`,`prefs:topic:${topic}:${selected.includes(topic)?0:1}:${preferences.revision}`),button(`🚫 ${excluded.includes(topic)?'✅ ':''}${c.ignore}`,`prefs:exclude:${topic}:${excluded.includes(topic)?0:1}:${preferences.revision}`)]));
   buttons.push([button(`📔 ${preferences.daily_enabled?c.disable:c.enable}`,`prefs:daily:${preferences.daily_enabled?0:1}:${preferences.revision}`)]);
   buttons.push([button(`🗓 ${preferences.weekly_enabled?c.weeklyDisable:c.weeklyEnable}`,`prefs:weekly:${preferences.weekly_enabled?0:1}:${preferences.revision}`)]);
   const cc=COACH_COPY[presentationLocale(locale)],coachTopics=JSON.parse(preferences.coach_topics_json??'[]');
   text+=`\n${cc.coach}: ${preferences.coach_enabled?cc.enabled:cc.disabled}\n${cc.quiet}: ${preferences.quiet_start??'22:00'}–${preferences.quiet_end??'08:00'}`;
   buttons.push([button(`${cc.coach}: ${preferences.coach_enabled?cc.disabled:cc.enabled}`,`prefs:coach:${preferences.coach_enabled?0:1}:${preferences.revision}`)]);
   COACH_TOPICS.forEach((topic,i)=>buttons.push([button(`${coachTopics.includes(topic)?'✅':'▫️'} ${cc.topics[i]}`,`prefs:coachTopic:${topic}:${coachTopics.includes(topic)?0:1}:${preferences.revision}`)]));
-  buttons.push(['22-08','23-07','21-09'].map(v=>button(`🌙 ${v}`,`prefs:quiet:${v}:1:${preferences.revision}`)));
+  buttons.push(['22-08','23-07','21-09'].map(v=>button(`${cc.quiet}: ${v.replace('-','–')}`, `prefs:quiet:${v}:1:${preferences.revision}`)));
   buttons.push([button(`✅ ${c.confirm}`,'cancel')]);
  }else if(row.category===null){
   text=`${c.menu}\n${c.title}${displayName?`\n${displayName}`:''}`;

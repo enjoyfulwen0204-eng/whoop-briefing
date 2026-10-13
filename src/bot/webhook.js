@@ -70,7 +70,7 @@ import { handleUnlinkedMessage, handleOnboardingMessage, handleLocaleOnlyMessage
   MESSAGES as ONBOARDING_MESSAGES } from '../onboarding.js';
 import { LANGUAGE_SELECTOR } from '../localization.js';
 import { runOnboardingBootstrap } from '../onboardingBootstrap.js';
-import { exchangeCode, fetchWhoopUserId } from '../whoop.js';
+import { exchangeCode, fetchWhoopProfile } from '../whoop.js';
 
 /**
  * 定長時間比較。長度不同直接回 false（長度本身不是祕密）。
@@ -464,6 +464,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const processor = createUpdateProcessor({
     db,
     ...(stage7?{stage7Inbound:stage7.stage7Inbound,stage7Reply:stage7.stage7Reply}:{}),
+    authenticatedIdentity:stage8?.captureIdentity,
     resolveUser: (chatId) => db.resolveUserByChatId(chatId),
     handleMessage: async ({ text, chatId, user, callback }) => {
       const settingReply=await settings({text,chatId,user,callback});
@@ -535,9 +536,10 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       code, clientId: env.whoopClientId, clientSecret: env.whoopClientSecret,
       redirectUri: env.whoopRedirectUri,
     }),
-    verifyIdentity: ({ accessToken }) => fetchWhoopUserId({ accessToken }),
-    onAuthorized: async (userId, { expectedLifecycleGeneration }) => {
+    verifyIdentity: ({ accessToken }) => fetchWhoopProfile({ accessToken }),
+    onAuthorized: async (userId, { expectedLifecycleGeneration,verifiedProfile,authGeneration }) => {
       await db.assertAccountActive(userId, expectedLifecycleGeneration);
+      if(stage8&&verifiedProfile)await stage8.identity.recordWhoop({user:await db.getUser(userId),profile:verifiedProfile,expectedAuthGeneration:authGeneration});
       const locale = await db.getLocale(userId);
       await notifyUser(userId, locale ? ONBOARDING_MESSAGES.authorizedSyncing(locale) : LANGUAGE_SELECTOR,
         { expectedLifecycleGeneration })

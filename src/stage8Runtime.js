@@ -1,3 +1,4 @@
+import {createStage8DerivedReader} from './stage8DerivedReader.js';
 import {assertStage8Recovery,stage8ConfigurationFence} from './stage8Policy.js';
 import {createRecipientIdentity} from './recipientIdentity.js';
 import {createScopedHealthContext} from './scopedHealthContext.js';
@@ -21,9 +22,11 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
  const fence=stage8ConfigurationFence(environment);
  let admission=await db.admitRuntime();if(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)!==34)throw Error('STAGE8_V34_REQUIRED');
  followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
- const identity=await createRecipientIdentity({db,keys,now});
- const scopes=await createScopedHealthContext({db,keys,admission,now}),qa=createStage8SelfQa({scopes,db,bodyEnergy,decorate:stage7?.decorate,now});
+ const rawIdentity=await createRecipientIdentity({db,keys,now});
+ const identity=Object.freeze(Object.fromEntries(Object.entries(rawIdentity).map(([name,operation])=>[name,async(...args)=>{fence();return operation(...args);}]))) ;
  const eligible=uid=>{try{fence();return stage8Configuration(environment).userIds.includes(uid);}catch{return false;}};
+ const derivedReader=createStage8DerivedReader({db,keys,admission,eligible,now});
+ const scopes=await createScopedHealthContext({db,keys,admission,now,derivedReader}),qa=createStage8SelfQa({scopes,db,bodyEnergy,decorate:stage7?.decorate,now});
  const core=await buildPhase4Core({keys,admission,now,processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},
   authorizeMode(mode){if(mode!=='SHADOW')throw Error('PHASE4_LIVE_NOT_AUTHORIZED');}});
  const stores=composePhase4Stores(core);
@@ -39,12 +42,20 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
  });
  const ownerEnabled=()=>environment.PHASE4_STAGE8_OWNER_MONITORING==='on'&&eligible(config.userIds[0]);
  const monitoring=ownerEnabled()?await createOwnerMonitoring({db,keys,ownerId:config.userIds[0],enabled:ownerEnabled,now}):null;
- const dispatcher=monitoring?createStage8OwnerDispatcher({db,monitoring,env,enabled:ownerEnabled}):null;
+ const dispatcher=monitoring?createStage8OwnerDispatcher({db,monitoring,env,enabled:ownerEnabled,now}):null;
  const owner=monitoring?Object.freeze({
   enrolled:async input=>monitoring.enrolled(await monitoring.authenticate(input)),
   read:async(input,subjectId)=>Object.fromEntries((await monitoring.subscriptions(await monitoring.authenticate(input))).filter(row=>row.subjectId===subjectId).map(row=>[row.notificationClass,row])),
   configure:async(input,request)=>monitoring.configure(await monitoring.authenticate(input),request),
   dispatch:(input,request)=>dispatcher.dispatch(input,request),
+  tick:async input=>{
+   const actor=await monitoring.authenticate(input),selected=await monitoring.schedule(actor),results=[];
+   for(const row of selected){fence();try{
+    if(row.notificationClass==='DAILY_SUMMARY'){const prepared=await monitoring.prepareDaily(actor,row.subjectId);if(prepared.status!=='CURRENT_PLAN'){results.push({...row,status:prepared.status});continue;}}
+    results.push({...row,...await dispatcher.dispatch(input,row)});
+   }catch(error){results.push({subjectId:row.subjectId,notificationClass:row.notificationClass,status:'FENCED'});}}
+   fence();return {checked:selected.length,results};
+  },
  }):null;
  async function handle(input){fence();return eligible(input.user?.id)?qa.handle(input):null;}
  async function sendReply(send,input){
@@ -53,5 +64,6 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
   if(!await beforeSend())return {sent:false,messageId:null,reason:'stage8_reply_changed'};
   return send({...input,beforeSend});
  }
- return Object.freeze({config,eligible,handle,sendReply,scopes,identity,preferences,owner});
+ async function captureIdentity(input){fence();return identity.recordTelegram(input);}
+ return Object.freeze({config,eligible,captureIdentity,handle,sendReply,scopes,identity,preferences,owner});
 }

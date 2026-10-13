@@ -415,6 +415,8 @@ export function createRouter({
     const userId = requireUserId(user?.id, 'router.handle');
     if (typeof db.getLocale !== 'function' && db.raw) throw new Error('LOCALIZATION_STORE_UNAVAILABLE');
     const locale = typeof db.getLocale === 'function' ? await db.getLocale(userId) : 'zh-TW';
+    if (assessUrgency(text).urgent) return urgentReply(locale??'en');
+    if (isSymptomEducationQuestion(text)) return symptomEducationReply(locale??'en');
     if (!locale) return LANGUAGE_SELECTOR;
     const timezone = user.timezone;
     if(stage8){const scoped=await stage8.handle({text,chatId,user});if(scoped!==null)return scoped;}

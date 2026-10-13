@@ -1,3 +1,4 @@
+import {assertStage8Recovery,stage8ConfigurationFence} from './stage8Policy.js';
 import {createRecipientIdentity} from './recipientIdentity.js';
 import {createScopedHealthContext} from './scopedHealthContext.js';
 import {createStage8SelfQa} from './stage8SelfQa.js';
@@ -7,6 +8,7 @@ import {composePhase4Stores} from './phase4Repositories.js';
 import {createOwnerMonitoring} from './stage8OwnerMonitoring.js';
 import {createStage8OwnerDispatcher} from './stage8OwnerDispatcher.js';
 export function stage8Configuration(environment={}){
+ assertStage8Recovery(environment);
  for(const name of ['PHASE4_STAGE8_RUNTIME','PHASE4_STAGE8_OWNER_MONITORING','STAGE8_MORNING_BRIEF'])if(!['off','on'].includes(environment[name]??'off'))throw Error('STAGE8_CONFIG_INVALID');
  const enabled=environment.PHASE4_STAGE8_RUNTIME==='on';
  const owner=String(environment.PHASE4_BETA_PILOT_USER_ID??'').trim();
@@ -16,11 +18,12 @@ export function stage8Configuration(environment={}){
 }
 export async function createStage8Runtime({db,keys,environment={},env={},bodyEnergy,stage7=null,now=()=>new Date()}){
  const config=stage8Configuration(environment);if(!config.enabled)return null;
+ const fence=stage8ConfigurationFence(environment);
  let admission=await db.admitRuntime();if(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)!==34)throw Error('STAGE8_V34_REQUIRED');
  followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
  const identity=await createRecipientIdentity({db,keys,now});
  const scopes=await createScopedHealthContext({db,keys,admission,now}),qa=createStage8SelfQa({scopes,db,bodyEnergy,decorate:stage7?.decorate,now});
- const eligible=uid=>stage8Configuration(environment).userIds.includes(uid);
+ const eligible=uid=>{try{fence();return stage8Configuration(environment).userIds.includes(uid);}catch{return false;}};
  const core=await buildPhase4Core({keys,admission,now,processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},
   authorizeMode(mode){if(mode!=='SHADOW')throw Error('PHASE4_LIVE_NOT_AUTHORIZED');}});
  const stores=composePhase4Stores(core);
@@ -43,7 +46,7 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
   configure:async(input,request)=>monitoring.configure(await monitoring.authenticate(input),request),
   dispatch:(input,request)=>dispatcher.dispatch(input,request),
  }):null;
- async function handle(input){return eligible(input.user?.id)?qa.handle(input):null;}
+ async function handle(input){fence();return eligible(input.user?.id)?qa.handle(input):null;}
  async function sendReply(send,input){
   const guarded=Boolean(input.reply?.stage8ReplyGuard),previous=input.beforeSend;
   const beforeSend=async()=> (!previous||await previous())&&(!guarded||eligible(input.userId)&&await scopes.verifyReply(input));

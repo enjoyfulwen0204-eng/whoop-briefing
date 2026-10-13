@@ -1,3 +1,4 @@
+import {assessUrgency,urgentReply,isSymptomEducationQuestion,symptomEducationReply} from './bot/triage.js';
 import {labelForCategory} from './journal.js';
 import {JOURNAL_COPY,presentationLocale} from './stage7Registry.js';
 import {resolveIntent,parseCommand} from './bot/intent.js';
@@ -18,6 +19,8 @@ const fields={hrv:['HRV','ms',1],rhr:['RHR','bpm',1],recovery:['Recovery','%',1]
 export function createStage8SelfQa({scopes,db,bodyEnergy,decorate=null,now=()=>new Date()}){
  async function handle({user,chatId,text}){
   const raw=String(text??'').trim(),command=parseCommand(raw);
+  if(assessUrgency(raw).urgent)return {text:urgentReply(await db.getLocale(user.id)??'en')};
+  if(isSymptomEducationQuestion(raw))return {text:symptomEducationReply(await db.getLocale(user.id)??'en')};
   if(command&&!healthCommands.has(command.name??command.command))return null;
   if(command?.command==='journal'&&command.argsText)return null;
   const intent=await resolveIntent(raw,{coach:null});

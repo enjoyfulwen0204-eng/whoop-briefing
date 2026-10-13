@@ -1,3 +1,4 @@
+import {assertStage8Recovery,stage8ConfigurationFence} from './stage8Policy.js';
 import {buildPhase4Core} from './phase4Core.js';
 import {composePhase4Stores} from './phase4Repositories.js';
 import {issueStage8LiveAuthority} from './stage8LiveAuthority.js';
@@ -9,10 +10,11 @@ import {validMessageId} from './telegramAcknowledgment.js';
 import {localDate} from './time.js';
 const fail=code=>{throw Error(code);};
 export async function createStage8MorningRuntime({db,keys,environment,env,admission,now=()=>new Date()}){
+ assertStage8Recovery(environment);const fence=stage8ConfigurationFence(environment);
  if((environment.STAGE8_MORNING_BRIEF??'off')!=='on')return null;
- const config=stage8Configuration({...environment,PHASE4_STAGE8_RUNTIME:'on'}),eligible=uid=>environment.STAGE8_MORNING_BRIEF==='on'&&stage8Configuration({...environment,PHASE4_STAGE8_RUNTIME:'on'}).userIds.includes(uid);
+ const config=stage8Configuration({...environment,PHASE4_STAGE8_RUNTIME:'on'}),eligible=uid=>{try{fence();return environment.STAGE8_MORNING_BRIEF==='on'&&stage8Configuration({...environment,PHASE4_STAGE8_RUNTIME:'on'}).userIds.includes(uid);}catch{return false;}};
  admission??=await db.admitRuntime();
- const liveAuthority=issueStage8LiveAuthority({db,keys,admission,userIds:config.userIds,enabled:()=>environment.STAGE8_MORNING_BRIEF==='on'});
+ const liveAuthority=issueStage8LiveAuthority({db,keys,admission,userIds:config.userIds,enabled:()=>eligible(config.userIds[0])});
  const core=await buildPhase4Core({keys,admission,liveAuthority,now,processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},
   authorizeMode(mode,client,userId){if(mode!=='LIVE'||client!==db.raw||!eligible(userId))fail('MORNING_ROLLOUT_FENCED');}});
  const stores=composePhase4Stores(core),store=createStage8MorningStore({core,db,preferences:stores.preferences,enabled:eligible}),api=createTelegramApi({botToken:env.telegramBotToken});
@@ -33,6 +35,7 @@ export async function createStage8MorningRuntime({db,keys,environment,env,admiss
   // Only the existing bounded sleep/recovery poll is persisted. No full sync,
   // reconciliation, baseline history, model, analytics or DRAIN is invoked.
   const before=await db.getTokens(userId),polled=await source.poll();
+  fence();
   if(!Array.isArray(polled.sleeps)||!Array.isArray(polled.recoveries)||polled.sleeps.length>50||polled.recoveries.length>50)fail('MORNING_REFRESH_BOUNDS');
   await db.transaction(async()=>{
    await db.assertAccountActive(userId,expectedLifecycleGeneration);

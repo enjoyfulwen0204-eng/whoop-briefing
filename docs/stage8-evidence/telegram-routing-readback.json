@@ -1,0 +1,12 @@
+{
+  "atUTC": "2026-10-13T15:08:13.150306+00:00",
+  "providerWrites": 0,
+  "telegramSends": 0,
+  "credentialChanges": 0,
+  "webhookConfigured": true,
+  "webhookMatchesRenderService": true,
+  "health": {
+    "ok": true
+  },
+  "status": "READ_ONLY_VERIFIED"
+}

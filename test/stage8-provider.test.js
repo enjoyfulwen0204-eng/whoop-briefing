@@ -17,7 +17,7 @@ test('Stage 8 default-off touches no database; invalid gates and widened cohort 
 });
 test('real router resolves self source facts through Stage 8 without a model; third-party and general never open health scope',async t=>{
  const f=await stage8Fixture(t),router=createRouter({db:f.db,stage8:f.app,now:f.now,coachFor(){throw Error('LEGACY_MODEL_FORBIDDEN');}});
- const self=await router.handle({...f.input,text:'my HRV today'});assert.match(self.text,/HRV:|No usable source/);assert.ok(self.stage8ReplyGuard);
+ const self=await router.handle({...f.input,text:'my HRV today'});assert.match(self.text,/HRV: 50\.0 ms/);assert.ok(self.stage8ReplyGuard);
  const reads=await count(f.db,'stage8_scoped_read_audit');
  for(const text of ['How is Alice’s recovery?','What is HRV?','What is my wife’s sleep score?'])await router.handle({...f.input,text});
  assert.equal(await count(f.db,'stage8_scoped_read_audit'),reads);
@@ -64,7 +64,7 @@ test('integrated Stage 7/8 Telegram processor sends source answer plus clickable
  const processor=createUpdateProcessor({db:f.db,now:f.now,resolveUser:chat=>f.db.resolveUserByChatId(chat),stage7Inbound:stage7.stage7Inbound,stage7Reply:stage7.stage7Reply,
   handleMessage:async input=>stage7.decorate({...input,reply:await router.handle(input)}),sendReply:input=>app.sendReply(value=>stage7.sendReply(send,value),input),answerCallback:id=>api.answerCallbackQuery(id)});
  const update={update_id:sequence++,message:{message_id:1,text:'my HRV today?',chat:{id:123,type:'private'},from:{id:123,is_bot:false}}};await processor.processUpdate(update);
- let sent=calls.filter(c=>c.method!=='answerCallbackQuery').at(-1);assert.ok(sent);assert.match(sent.body.text,/HRV:|No usable source/);assert.ok(sent.body.reply_markup.inline_keyboard.length);
+ let sent=calls.filter(c=>c.method!=='answerCallbackQuery').at(-1);assert.ok(sent);assert.match(sent.body.text,/HRV: 50\.0 ms/);assert.ok(sent.body.reply_markup.inline_keyboard.length);
  const before=calls.length;await processor.processUpdate(update);assert.equal(calls.length,before);
  const button=sent.body.reply_markup.inline_keyboard.flat()[0];await processor.processUpdate({update_id:sequence++,callback_query:{id:'synthetic',data:button.callback_data,from:{id:123,is_bot:false},message:{message_id:messageId,chat:{id:123,type:'private'}}}});
  assert.ok(calls.some(c=>c.method==='answerCallbackQuery'));assert.ok(calls.some(c=>c.method==='editMessageText'));

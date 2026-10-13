@@ -1,0 +1,41 @@
+{
+  "atUTC": "2026-10-13T14:43:29.503712+00:00",
+  "providerWrites": 0,
+  "telegramSends": 0,
+  "credentialChanges": 0,
+  "render": {
+    "id": "dep-db6utp2vcj2c73f0l180",
+    "status": "live",
+    "createdAt": "2026-10-13T08:42:12.071839Z",
+    "finishedAt": "2026-10-13T08:42:50.329014Z",
+    "commit": "2340e8bc305c6acde29bbfa540753e79dbd34408"
+  },
+  "service": {
+    "id": "srv-dahs71qd0e5s738n94c0",
+    "name": "whoop-telegram-webhook",
+    "type": "web_service",
+    "branch": "main",
+    "autoDeploy": "no"
+  },
+  "instances": [
+    {
+      "id": "srv-dahs71qd0e5s738n94c0-chg99",
+      "status": "RUNNING",
+      "deployId": null,
+      "startedAt": null
+    }
+  ],
+  "flags": {
+    "STAGE7_COMPANION": "off",
+    "PHASE4_STAGE8_RUNTIME": "off",
+    "PHASE4_STAGE8_OWNER_MONITORING": "off",
+    "STAGE8_MORNING_BRIEF": "off",
+    "BODY_ENERGY_PUBLICATION": "off",
+    "BODY_ENERGY_ALERTS": "off"
+  },
+  "databaseMetadata": {
+    "schema": 32,
+    "objects": []
+  },
+  "status": "READ_ONLY_VERIFIED"
+}

@@ -34,7 +34,9 @@ test('admitted production composition uses real Telegram API edit/ACK and update
   const update={update_id:seq++,callback_query:{id:`c-${seq}`,data:b.callback_data,from:{id:123,is_bot:false},message:{message_id:last.body.message_id??messageId,chat:{id:123,type:'private'}}}};
   const result=await processor.processUpdate(update);last=calls.filter(c=>c.method!=='answerCallbackQuery').at(-1);return {result,update};};
  await tap('Sleep');assert.equal(last.method,'editMessageText');assert.equal(last.body.message_id,801);
+ assert.equal(JSON.parse((await f.db.raw.execute("SELECT diagnostics_json FROM quick_action_interactions WHERE kind='COACH' ORDER BY created_at DESC LIMIT 1")).rows[0].diagnostics_json).coachTopic,'sleep');
  const {update}=await tap('Type a question');assert.match(last.body.text,/Type your health question/);
+ assert.equal(JSON.parse((await f.db.raw.execute("SELECT diagnostics_json FROM quick_action_interactions WHERE kind='COACH' ORDER BY created_at DESC LIMIT 1")).rows[0].diagnostics_json).coachFree,true);
  const before=calls.filter(c=>c.method!=='answerCallbackQuery').length;await processor.processUpdate(update);assert.equal(calls.filter(c=>c.method!=='answerCallbackQuery').length,before);
  await processor.processUpdate(message('/settings'));assert.ok(calls.at(-1).body.reply_markup.inline_keyboard.flat().some(b=>b.text.includes('Journal and Coach')));
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);

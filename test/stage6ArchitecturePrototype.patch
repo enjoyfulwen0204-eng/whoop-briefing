@@ -1,0 +1,268 @@
+diff --git a/src/betaPilotBoundedReads.js b/src/betaPilotBoundedReads.js
+index fb2ff9d..7cab89d 100644
+--- a/src/betaPilotBoundedReads.js
++++ b/src/betaPilotBoundedReads.js
+@@ -1,4 +1,5 @@
+-import {reservePilotPrefixRead,requireCurrentBetaPilotAttempt,currentPilotWorkProfile} from './betaPilotPermit.js';
++import {processingPrefixReadData} from './processingTransaction.js';
++import {reservePilotPrefixRead,requireCurrentBetaPilotAttempt,currentPilotWorkProfile,hasCurrentBetaPilotAttempt} from './betaPilotPermit.js';
+ import {PILOT_V32_PREFIX_SHAPES} from './betaPilotV32ReadShapes.js';
+ 
+ // These original four inventory descriptors have no residual filter/join/sort.
+@@ -71,3 +72,33 @@ export async function readPilotPrefixRows(client,context,specId,args,ordinarySta
+  if(rows.length!==result.candidate_count||Buffer.byteLength(JSON.stringify(rows),'utf8')>PILOT_PREFIX_MAX_BYTES)denied();
+  return rows;
+ }
++
++// Complete bounded source-link DATA, scoped by the processing executor. No
++// accepted authority/root/HMAC result is cached; every consumer validates it.
++export async function readPilotSourceLinkRows(client,context,table,artifactId,logical){
++ const spec=PILOT_V32_PREFIX_SHAPES.phase4_source_links,args=[context.userId,context.executionMode,table,artifactId];
++ const ordinary={sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM phase4_source_links
++  WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL
++  ${logical?'AND relationship=?':''}`,args:[...args,...(logical?[`INPUT_GENERATION:${context.inputGeneration}`]:[])]};
++ if(!hasCurrentBetaPilotAttempt(context.userId,client))return (await client.execute(ordinary)).rows;
++ if(args.some(value=>typeof value!=='string'||Buffer.byteLength(value)>256)||context.executionMode!=='SHADOW')denied();
++ const grant=requireCurrentBetaPilotAttempt(context.userId,client),key=JSON.stringify(['complete-source-link-prefix-v1',spec,args]);
++ const validate=data=>{
++  if(!Number.isSafeInteger(data.bounds?.candidate_count)||!Number.isSafeInteger(data.bounds?.serialized_bytes)
++   ||data.bounds.invalid_types!==0||data.bounds.candidate_count>PILOT_PREFIX_MAX_ROWS
++   ||data.bounds.serialized_bytes>PILOT_PREFIX_MAX_BYTES||data.rows.length!==data.bounds.candidate_count
++   ||Buffer.byteLength(JSON.stringify(data.rows))>PILOT_PREFIX_MAX_BYTES
++   ||data.rows.some(row=>spec.fields.some(field=>row[field]===null?!spec.nullable.includes(field):typeof row[field]!=='string')
++     ||spec.prefix.some((field,index)=>row[field]!==args[index])))denied();return data;
++ };
++ const data=await processingPrefixReadData(client,context,key,async()=>{
++  if(!reservePilotPrefixRead(context,client))denied();
++  const {source,boundedArgs,result}=await probe(client,context,spec,args),
++    resultSet=await client.execute({sql:`SELECT ${spec.fields.join(',')} FROM ${source}`,args:boundedArgs});
++  requireCurrentBetaPilotAttempt(context.userId,client);
++  return validate({bounds:{candidate_count:result.candidate_count,serialized_bytes:result.serialized_bytes,invalid_types:result.invalid_types},
++    rows:resultSet.rows.map(row=>Object.fromEntries(spec.fields.map(field=>[field,row[field]])))});
++ },grant);
++ requireCurrentBetaPilotAttempt(context.userId,client);validate(data);
++ return data.rows.filter(row=>row.unlinked_at===null&&(!logical||row.relationship===`INPUT_GENERATION:${context.inputGeneration}`));
++}
+diff --git a/src/betaPilotPermit.js b/src/betaPilotPermit.js
+index eebf4b1..764a398 100644
+--- a/src/betaPilotPermit.js
++++ b/src/betaPilotPermit.js
+@@ -34,6 +34,7 @@ export async function withBetaPilotAttempt(grant,userId,work){
+  return attemptScope.run(grant,work);
+ }
+ export function requireCurrentBetaPilotAttempt(userId,client){return requireBetaPilotGrant(attemptScope.getStore(),userId,client);}
++export function hasCurrentBetaPilotAttempt(userId,client){if(!attemptScope.getStore())return false;requireCurrentBetaPilotAttempt(userId,client);return true;}
+ export function currentPilotWorkProfile(userId,client){return issuedWorkProfiles.get(requireCurrentBetaPilotAttempt(userId,client));}
+ 
+ /** Logical prefix-work envelope only, NOT provider billed units or a dollar
+diff --git a/src/phase4Core.js b/src/phase4Core.js
+index 06f5851..c5d40b0 100644
+--- a/src/phase4Core.js
++++ b/src/phase4Core.js
+@@ -1,9 +1,10 @@
++import {currentExecutionBudget} from './executionBudget.js';
+ import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
+ import {readOnlyProcessingCheck} from './processingTransaction.js';
+ import {workStepOptions} from './phase4WorkStep.js';
+-import {controlOnlyProcessingCheck,processingReadObservationEpoch} from './processingTransaction.js';
++import {coalescibleControlProcessingCheck,controlOnlyProcessingCheck,processingReadObservationEpoch} from './processingTransaction.js';
+ import { compareExact } from './phase4CanonicalOrder.js';
+-import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
++import {readPilotSourceLinkRows,pilotPrefixFrom} from './betaPilotBoundedReads.js';
+ import { coverageLineage } from './phase4CoverageLineage.js';
+ /** Internal persistence kernel. No application entry point imports this module
+  * directly. The public Foundation factory supplies SHADOW-only authority;
+@@ -65,7 +66,7 @@ function compareRootObservation(context,type,id,values){
+  * A JSON object, a context from another connection, or a changed mode is not a
+  * capability. Authority is supplied only by the owning server/fixture factory. */
+ export async function buildPhase4Core({processing,keys,admission,authorizeMode:modeAuthority,now=()=>new Date()}) {
+-  const jobScope=new AsyncLocalStorage();
++  const jobScope=new AsyncLocalStorage(),terminalControlChecks=new WeakMap();
+   requirePhase4Keys(keys);
+   if(typeof modeAuthority!=='function' || typeof processing?.transaction!=='function')fail('PHASE4_SERVER_FACTORY_REQUIRED');
+   const {client,transaction}=processing;
+@@ -196,7 +197,13 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
+   }
+   async function run(context,fn,options={}) {
+     const job=jobScope.getStore();
+-    const check=controlOnlyProcessingCheck(async()=>{
++    const coalescible=schemaVersion===32&&job&&context.executionMode==='SHADOW'
++      &&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
++      &&['allowPurge','allowInactive','ignoreInput'].every(key=>options[key]===undefined||options[key]===false);
++    const prior=coalescible?terminalControlChecks.get(context)?.get(job.check):null,execution=currentDurableExecution(),budget=currentExecutionBudget();
++    const cached=prior?.execution===execution&&prior?.budget===budget?prior.check:null;
++    const controlOptions=coalescible?Object.freeze({allowPurge:false,allowInactive:false,ignoreInput:false}):options;
++    const check=cached??controlOnlyProcessingCheck(async()=>{
+       // Explicitly bracket coalesced metadata checks with their enclosing
+       // runtime guards: read-only checking suppresses recursive interception,
+       // but must retain fresh permit/configuration checks before and after.
+@@ -206,12 +213,14 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
+       // the health callback or any mutation/COMMIT can proceed.
+       const observations=await Promise.allSettled([
+         Promise.resolve().then(()=>processing.assertFences?.()),
+-        Promise.resolve().then(()=>assertContext(context,options)),
++        Promise.resolve().then(()=>assertContext(context,controlOptions)),
+         ...(job?[Promise.resolve().then(()=>job.check(context))]:[]),
+       ]);
+       for(const result of observations)if(result.status==='rejected')throw result.reason;
+       await processing.assertFences?.();
+     });
++    if(coalescible&&!cached){coalescibleControlProcessingCheck(check);const checks=terminalControlChecks.get(context)??new WeakMap();
++      checks.set(job.check,{check,execution,budget});terminalControlChecks.set(context,checks);}
+     const work=()=>transaction(()=>fn(context),{readOnly:options.workStep===undefined&&options.workStepFrom===undefined,...options,before:check,after:check,...(job?{commitFence:check}:{})});
+     return processing.withReadSnapshot?processing.withReadSnapshot(context,work):work();
+   }
+@@ -500,11 +509,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
+     if(verified.has(node))return;
+     path.add(node);
+     const logical=['observation_episodes','health_insights'].includes(table);
+-    const from=await pilotPrefixFrom(client,context,'phase4_source_links',[context.userId,context.executionMode,table,artifactId]);
+-    const links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM ${from}
+-      WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL
+-      ${logical?'AND relationship=?':''}`,
+-    args:[context.userId,context.executionMode,table,artifactId,...(logical?[`INPUT_GENERATION:${context.inputGeneration}`]:[])]})).rows;
++    const links=await readPilotSourceLinkRows(client,context,table,artifactId,logical);
+     if(!links.length)fail('PHASE4_INCOMPLETE_PROVENANCE');
+     for(let index=0;index<links.length;index++) {
+       const link=links[index];
+diff --git a/src/phase4OperationReceipts.js b/src/phase4OperationReceipts.js
+index 0fbeecf..0f8fc7f 100644
+--- a/src/phase4OperationReceipts.js
++++ b/src/phase4OperationReceipts.js
+@@ -1024,7 +1024,9 @@ export function createOperationReceipts(core) {
+         if(Buffer.byteLength(row[field])>4194304)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+       row.receipt_hmac=seal(row);
+       reservePilotMutation(context,client,Object.values(row));
+-      await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode],'',true);
++      if(core.schemaVersion===32&&core.jobAuthority()&&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN')
++        await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode,kind,key]);
++      else await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode],'',true);
+       const routedSubjects=routing?await routing.register(row,{request:requestAuthority,related:encoded.related},
+         {batchNew:Boolean(bodyMetricPurpose&&kind==='analyzeMetric')||rawMetric}):[];
+       const fields=Object.keys(row);
+diff --git a/src/phase4ReanalysisQueue.js b/src/phase4ReanalysisQueue.js
+index 735b0bc..be5beb6 100644
+--- a/src/phase4ReanalysisQueue.js
++++ b/src/phase4ReanalysisQueue.js
+@@ -106,9 +106,14 @@ export function createReanalysisQueue(core) {
+       ||row.claimed_auth_generation!==b.authGeneration)fail('PHASE4_LEASE_CAS_LOST');
+     return row;
+   }
+-  const withOwnership=(context,lease,fn,{assertBudget=()=>{}}={})=>core.withJobFence(lease.binding,async activeContext=>{
+-    assertBudget();if(activeContext!==context)fail('PHASE4_LEASE_SCOPE_MISMATCH');await check(context,lease,{ownershipOnly:true});
+-  },fn);
++  const withOwnership=(context,lease,fn,{assertBudget=()=>{}}={})=>{
++    const state=leases.get(lease),checks=state?.context===context?(state.ownershipChecks??=new WeakMap()):null;
++    let ownerCheck=checks?.get(assertBudget);
++    if(!ownerCheck){ownerCheck=async activeContext=>{
++      assertBudget();if(activeContext!==context)fail('PHASE4_LEASE_SCOPE_MISMATCH');await check(context,lease,{ownershipOnly:true});
++    };checks?.set(assertBudget,ownerCheck);}
++    return core.withJobFence(lease.binding,ownerCheck,fn);
++  };
+   const owned=(context,lease,fn,{assertBudget=()=>{},workKind,workFacts}={})=>withOwnership(context,lease,
+     ()=>core.run(context,fn,workKind?workStepOptions(workKind,[context.userId,context.executionMode,lease.binding.jobKind,
+     lease.binding.requestedGeneration,lease.binding.scopeRevision,workFacts],{discardResult:true}):{readOnly:true}),{assertBudget});
+diff --git a/src/processingReadSnapshot.js b/src/processingReadSnapshot.js
+index 1fee8c1..9ba8017 100644
+--- a/src/processingReadSnapshot.js
++++ b/src/processingReadSnapshot.js
+@@ -56,6 +56,16 @@ export function createReadSnapshotMemo(){
+     rows.set(key,snapshot);contexts.set(context,rows);entries++;bytes+=size;
+    }catch{/* A result outside this narrow clone shape is simply not reused. */}
+   },
++  getData(context,key){const data=contexts.get(context)?.get('data:'+key)?.prefixData;return !closed&&data?structuredClone(data):undefined;},
++  putData(context,key,data,observedEpoch){
++   if(closed||epoch!==observedEpoch||entries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(data?.rows)
++    ||data.rows.length>READ_SNAPSHOT_LIMITS.rows||Buffer.byteLength(key)>READ_SNAPSHOT_LIMITS.keyBytes)return;
++   try{const size=Buffer.byteLength(JSON.stringify(data),'utf8')+Buffer.byteLength(key,'utf8');
++    if(size>READ_SNAPSHOT_LIMITS.resultBytes||bytes+size>READ_SNAPSHOT_LIMITS.bytes)return;
++    const rows=contexts.get(context)??new Map(),dataKey='data:'+key;if(rows.has(dataKey))return;
++    rows.set(dataKey,{prefixData:structuredClone(data)});contexts.set(context,rows);entries++;bytes+=size;
++   }catch{/* Non-canonical or oversize DATA is not reused. */}
++  },
+   clear(){contexts.clear();entries=0;bytes=0;epoch++;},
+   close(){this.clear();closed=true;},
+  };
+diff --git a/src/processingTransaction.js b/src/processingTransaction.js
+index 44067bd..b50e337 100644
+--- a/src/processingTransaction.js
++++ b/src/processingTransaction.js
+@@ -1,12 +1,12 @@
+ import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
+ import { AsyncLocalStorage } from 'node:async_hooks';
+ import { currentExecutionBudget,ExecutionBudgetError } from './executionBudget.js';
+-import {prepareExecutionReceipt,appendPreparedExecutionReceipt,withExecutionReceiptTransaction,currentDurableExecution,CommitIndeterminateError,requireSettledOperation,readWorkStep,databaseNowMs} from './phase4ExecutionContext.js';
++import {prepareExecutionReceipt,appendPreparedExecutionReceipt,withExecutionReceiptTransaction,currentDurableExecution,currentExecutionReceiptTransactionMarker,CommitIndeterminateError,requireSettledOperation,readWorkStep,databaseNowMs} from './phase4ExecutionContext.js';
+ import {inRuntimeMetadata} from './runtimeMetadataContext.js';
+ import {reconcileExecution} from './phase4ExecutionStore.js';
+ import {inExecutionCoordination} from './phase4Coordination.js';
+ import {createReadSnapshotMemo,readSnapshotKey} from './processingReadSnapshot.js';
+-const readOnlyChecks=new WeakSet(),controlOnlyChecks=new WeakSet();
++const readOnlyChecks=new WeakSet(),controlOnlyChecks=new WeakSet(),coalescibleControlChecks=new WeakSet();
+ const readObservationChecks=new WeakMap();
+ // A server fence may overlap its fresh durable metadata with a private raw
+ // DATA observation after its synchronous configuration/budget/expiry bracket.
+@@ -15,7 +15,8 @@ export function readObservationProcessingCheck(check,localCheck){
+  if(typeof check!=='function'||typeof localCheck!=='function')throw Error('PROCESSING_READ_OBSERVATION_CHECK_REQUIRED');
+  readObservationChecks.set(check,localCheck);return check;
+ }
+-const observationEpochs=new WeakMap();
++const observationEpochs=new WeakMap(),prefixDataReaders=new WeakMap();
++export const processingPrefixReadData=(client,context,key,read,grant)=>prefixDataReaders.get(client)?.(context,key,read,grant)??read();
+ // Data lifetime only, never a permit or successful guard observation. Closed
+ // typed readers reject their raw union if an intervening business write clears
+ // the existing transaction-local data snapshot while reads are settling.
+@@ -24,6 +25,7 @@ export function readOnlyProcessingCheck(check){readOnlyChecks.add(check);return
+ // Only trusted server checks consisting of non-health control observations
+ // and explicit runtime brackets use this narrower transport composition.
+ export function controlOnlyProcessingCheck(check){controlOnlyChecks.add(check);return readOnlyProcessingCheck(check);}
++export function coalescibleControlProcessingCheck(check){coalescibleControlChecks.add(check);return controlOnlyProcessingCheck(check);}
+ const syncRuntimeChecks=new WeakSet();
+ // Eligibility only: this does not alter original runChecks ordering or suppress
+ // any guard. The SYNC composition's runtime check remains first and sequential.
+@@ -294,7 +296,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
+           ]);
+           for(const result of observations)if(result.status==='rejected')throw result.reason;
+         }else if (before) await runChecks([before],client);
+-        if (after) parent.checks.push(after);
++        if (after&&(!coalescibleControlChecks.has(after)||parent.checks.at(-1)!==after)) parent.checks.push(after);
+         if (beforeCommit) parent.finalChecks.push(beforeCommit);
+         if (commitFence) parent.commitFences.add(commitFence);
+         if (commitAuthority) parent.commitAuthorities.add(commitAuthority);
+@@ -460,6 +462,36 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
+     if(state){state.completed.push(fn);return;}
+     return fn();
+   }
++  prefixDataReaders.set(client,async(context,key,read,grant)=>{
++    const state=scope.getStore(),execution=currentDurableExecution(),marker=currentExecutionReceiptTransactionMarker();
++    if(!marker||!privateRuntime||!state?.tx||readScope.getStore()!==context||state.readBudget!==currentExecutionBudget()
++      ||state.readExecution!==execution||execution?.claim?.request?.phase!=='STAGE6_DRAIN'
++      ||execution.claim.request.executionMode!=='SHADOW')return read();
++    if(state.failure)throw state.failure;
++    try{
++      requireSettledOperation();currentExecutionBudget()?.assert();execution.authority.assert();
++      const markers=state.prefixDataMarkers??=new WeakMap();let markerId=markers.get(marker);
++      if(markerId===undefined){markerId=state.prefixDataMarkerSequence=(state.prefixDataMarkerSequence??0)+1;markers.set(marker,markerId);}
++      const grants=state.prefixDataGrants??=new WeakMap();let grantId=grant?grants.get(grant):0;
++      if(grant&&grantId===undefined){grantId=state.prefixDataGrantSequence=(state.prefixDataGrantSequence??0)+1;grants.set(grant,grantId);}
++      const scopedKey=JSON.stringify([grantId,markerId,key]),epoch=state.readMemo.epoch(),data=state.readMemo.getData(context,scopedKey);
++      if(data!==undefined){
++        // Preserve the two fresh processing/runtime/permit brackets that the
++        // original probe and full payload execute() calls performed.
++        await checkFences(client);await checkFences(client);
++        currentExecutionBudget()?.assert();execution.authority.assert();requireSettledOperation();
++        if(state.failure)throw state.failure;
++        if(epoch!==state.readMemo.epoch()||marker!==currentExecutionReceiptTransactionMarker())throw Error('PROCESSING_READ_OBSERVATION_CHANGED');
++        return data;
++      }
++      const value=await readOnlyWork.run(true,read);
++      currentExecutionBudget()?.assert();execution.authority.assert();requireSettledOperation();
++      if(state.failure)throw state.failure;
++      if(epoch!==state.readMemo.epoch()||marker!==currentExecutionReceiptTransactionMarker())throw Error('PROCESSING_READ_OBSERVATION_CHANGED');
++      state.readMemo.putData(context,scopedKey,value,epoch);
++      return value;
++    }catch(error){state.failure=error;throw error;}
++  });
+   observationEpochs.set(client,()=>scope.getStore()?.readMemo.epoch()??null);
+   const readOnlyTransaction=fn=>{
+     if(scope.getStore())throw Error('PROCESSING_READ_ONLY_ROOT_REQUIRED');

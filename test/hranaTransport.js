@@ -8,17 +8,24 @@ import {randomUUID,createHash} from 'node:crypto';
 const decode=v=>v.type==='null'?null:v.type==='integer'?BigInt(v.value):v.type==='blob'?Buffer.from(v.base64,'base64'):v.value;
 const encode=v=>v===null?{type:'null'}:typeof v==='bigint'?{type:'integer',value:String(v)}:
  typeof v==='number'?{type:'float',value:v}:typeof v==='string'?{type:'text',value:v}:{type:'blob',base64:Buffer.from(v).toString('base64')};
-export function hranaTransport(url,{operation=()=> 'UNSCOPED'}={}) {
+export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=Infinity}={}) {
  const streams=new Map();let armed=null,commits=0;
  const counts={httpRequests:0,sqlStatements:0,byFamily:{},byTemplate:{},byOperation:{},byHttpMix:{},byHttpFamily:{}};
  const evidence=[];
  const open=()=>{const client=createClient({url,intMode:'bigint'}),id=randomUUID(),stream={client,sql:new Map(),inTransaction:false};
   streams.set(id,stream);return [id,stream];};
+ const assertTransactionAge=async stream=>{
+  if(stream.inTransaction&&Date.now()-stream.transactionStartedAt>=transactionMaxMs){
+   await stream.client.execute('ROLLBACK');stream.inTransaction=false;
+   throw Object.assign(Error('SYNTHETIC_TRANSACTION_TIMEOUT'),{code:'TRANSACTION_TIMEOUT'});
+  }
+ };
  const statement=async(stream,stmt,httpFamilies)=>{
   const sql=stmt.sql??stream.sql.get(stmt.sql_id),args=stmt.named_args?.length?
    Object.fromEntries(stmt.named_args.map(x=>[x.name,decode(x.value)])):(stmt.args??[]).map(decode);
   // Synthetic RAM counters retain no SQL arguments, records, or SQL text.
   counts.sqlStatements++;
+  await assertTransactionAge(stream);
   const family=/^\s*SELECT last_detail FROM system_heartbeats/i.test(sql)?'PILOT_STATE'
    :/\bobserved_at\b/.test(sql)&&/\buser_onboarding\b/.test(sql)?'PILOT_CLOCK'
    :/^\s*SELECT 1 FROM resource_locks/i.test(sql)?'SYNC_OWNER'
@@ -46,6 +53,9 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED'}={}) {
     if(armed.skipMatches){armed.skipMatches--;return stream.client.execute({sql,args}).then(result=>{stream.inTransaction=false;return result;});}
     const attack=armed;armed=null;
     evidence.push({event:'commit_pending',at:Date.now(),commit:commits});await attack.before?.(stream.client);
+    // Recheck at the actual COMMIT boundary after an awaited fault hook. A
+    // durable COMMIT followed by a delayed/lost ACK remains indeterminate.
+    await assertTransactionAge(stream);
     const result=await stream.client.execute({sql,args});stream.inTransaction=false;
     evidence.push({event:'commit_durable',at:Date.now(),commit:commits});await attack.after?.();
     if(attack.loseAcknowledgement)throw Error('SYNTHETIC_COMMIT_ACK_LOST');
@@ -53,7 +63,7 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED'}={}) {
    }
   }
   const result=await stream.client.execute({sql,args});
-  if(/^\s*BEGIN\b/i.test(sql))stream.inTransaction=true;
+  if(/^\s*BEGIN\b/i.test(sql)){stream.inTransaction=true;stream.transactionStartedAt=Date.now();}
   if(/^\s*(COMMIT|ROLLBACK)\b/i.test(sql))stream.inTransaction=false;
   return result;
  };
@@ -101,5 +111,5 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED'}={}) {
   for(const family of httpFamilies)counts.byHttpFamily[family]=(counts.byHttpFamily[family]??0)+1;
   return new Response(JSON.stringify({baton:id,base_url:null,results}),{headers:{'content-type':'application/json'}});
  };
- return {fetch,evidence,counts,arm:attack=>{armed=attack;},close:()=>{for(const stream of streams.values())stream.client.close();streams.clear();}};
+ return {fetch,evidence,counts,setTransactionMaxMs:ms=>{if(ms!==Infinity&&(!Number.isSafeInteger(ms)||ms<1))throw Error('SYNTHETIC_TRANSACTION_LIMIT_INVALID');transactionMaxMs=ms;},arm:attack=>{armed=attack;},close:()=>{for(const stream of streams.values())stream.client.close();streams.clear();}};
 }

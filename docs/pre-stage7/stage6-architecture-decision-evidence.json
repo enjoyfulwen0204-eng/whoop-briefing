@@ -1,0 +1,1848 @@
+{
+  "status": "STAGE6_RAW_SOURCE_CAPACITY_REPAIR_PARTIAL",
+  "baseline": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+  "baselineTree": "15815638667e502f57eef1a807abde34dc6cb50c",
+  "runtimeSrcDiffFromBaseline": "",
+  "prototypePatchSha256": "50df9c9704c831cf743cd446d822cb9a1b43dd7df1bdb7a8be6e04b78947579a",
+  "retainedPhaseTiming": {
+    "wholeMs": 41401.981834000006,
+    "http": 302,
+    "sql": 4987,
+    "exclusivePhases": [
+      {
+        "phase": "other admission/context/claim/enumeration/settlement",
+        "ms": 14751.887084000009,
+        "http": 111,
+        "sql": 163
+      },
+      {
+        "phase": "owned raw selector/BEGIN/outer cleanup (unit minus DOMAIN)",
+        "ms": 8568.578083,
+        "http": 62,
+        "sql": 925
+      },
+      {
+        "phase": "DOMAIN through deadline failure",
+        "ms": 14816.197166999998,
+        "http": 102,
+        "sql": 3859
+      },
+      {
+        "phase": "lease release",
+        "ms": 3265.319499999998,
+        "http": 27,
+        "sql": 40
+      }
+    ],
+    "httpOnlyPilotClock": 123,
+    "domainChildPhases": [
+      {
+        "label": "phase4ResultAuthority.validateRoots",
+        "startedMs": 21426.269584,
+        "ms": 905.8869580000028,
+        "http": 5,
+        "sql": 341
+      },
+      {
+        "label": "phase4ResultAuthority.validateRoots",
+        "startedMs": 28749.027417000005,
+        "ms": 760.1368329999968,
+        "http": 5,
+        "sql": 341
+      },
+      {
+        "label": "phase4ResultAuthority.read",
+        "startedMs": 24600.230584000004,
+        "ms": 4908.950874999995,
+        "http": 32,
+        "sql": 1772
+      },
+      {
+        "label": "phase4IntelligenceStore.analyzeMetric",
+        "startedMs": 23354.121792000005,
+        "ms": 6514.327166999996,
+        "http": 43,
+        "sql": 2127
+      },
+      {
+        "label": "phase4OperationReceipts.encode",
+        "startedMs": 29868.500292000004,
+        "ms": 614.5109579999989,
+        "http": 5,
+        "sql": 10
+      },
+      {
+        "label": "phase4ResultAuthority.captureRoots",
+        "startedMs": 32237.236625000005,
+        "ms": 2699.9641249999986,
+        "http": 19,
+        "sql": 789,
+        "error": "PHASE4_DRAIN_DEADLINE_REACHED"
+      }
+    ],
+    "caveat": "temporary instrumentation, removed; child phases overlap parents and must not be added to totals",
+    "workerReadyMs": 3943.926375000001,
+    "budgetBoundaries": [
+      {
+        "label": "phase4IntelligenceStore.metricPreparationUnitFromCurrentRaw",
+        "wholeStartMs": 11672.381,
+        "workerStartMs": 7728.4546249999985,
+        "remainingWorkerMs": 22271.545375,
+        "newDurableDomainWork": 0
+      },
+      {
+        "label": "phase4OperationReceipts.execute",
+        "wholeStartMs": 20121.037292,
+        "workerStartMs": 16177.110917,
+        "remainingWorkerMs": 13822.889083,
+        "newDurableDomainWork": 0
+      },
+      {
+        "label": "phase4IntelligenceStore.analyzeMetric",
+        "wholeStartMs": 23354.121792000005,
+        "workerStartMs": 19410.195417000003,
+        "remainingWorkerMs": 10589.804582999997,
+        "newDurableDomainWork": 0
+      },
+      {
+        "label": "phase4ResultAuthority.captureRoots",
+        "wholeStartMs": 32237.236625000005,
+        "workerStartMs": 28293.310250000002,
+        "remainingWorkerMs": 1706.6897499999977,
+        "newDurableDomainWork": 0
+      }
+    ]
+  },
+  "regions": {
+    "observedAtUTC": "2026-10-13T17:17:59.725244+00:00",
+    "method": "three bounded management GETs only; no SQL/provider execution",
+    "renderRegion": "oregon",
+    "renderPlan": "0.5c-512mb",
+    "tursoPrimary": "aws-ap-northeast-1",
+    "mutations": 0
+  },
+  "capturedJobs": [
+    {
+      "jobIdentity": "550c532571dc188097262f38c9d1cb01c03b6881534cc7e84a730719b23de1fa",
+      "ownerPilot": false,
+      "kind": "RECOMPUTE_DERIVED",
+      "oldGeneration": 30,
+      "newGeneration": 31,
+      "oldScopeRevision": 29,
+      "newScopeRevision": 30,
+      "oldCursorDigest": null,
+      "newCursorDigest": null,
+      "rawRowsBefore": 120,
+      "rawRowsAfter": 120,
+      "state": "PENDING",
+      "completedGeneration": 0,
+      "cause": "EXTERNAL_AUTHENTICATED_SYNC_INVALIDATION_NOT_THIS_OPERATOR",
+      "originalIdentityPreserved": true,
+      "rawEnumerationNotCompletionEvidence": true
+    },
+    {
+      "jobIdentity": "ce3c5e8cdd0f473fbfb270027252c3874ad2597bb4a76cd3b1dbf806c120d960",
+      "ownerPilot": false,
+      "kind": "REPAIR_CURRENTNESS",
+      "oldGeneration": 30,
+      "newGeneration": 31,
+      "oldScopeRevision": 29,
+      "newScopeRevision": 30,
+      "oldCursorDigest": null,
+      "newCursorDigest": null,
+      "rawRowsBefore": 120,
+      "rawRowsAfter": 120,
+      "state": "PENDING",
+      "completedGeneration": 0,
+      "cause": "EXTERNAL_AUTHENTICATED_SYNC_INVALIDATION_NOT_THIS_OPERATOR",
+      "originalIdentityPreserved": true,
+      "rawEnumerationNotCompletionEvidence": true
+    },
+    {
+      "jobIdentity": "c95606a88ab5f70b676da95f06dbd1e77b2bce2ec429b764730c36a181fbc151",
+      "ownerPilot": false,
+      "kind": "RECOMPUTE_DERIVED",
+      "oldGeneration": 35,
+      "newGeneration": 36,
+      "oldScopeRevision": 34,
+      "newScopeRevision": 35,
+      "oldCursorDigest": null,
+      "newCursorDigest": null,
+      "rawRowsBefore": 43,
+      "rawRowsAfter": 43,
+      "state": "PENDING",
+      "completedGeneration": 0,
+      "cause": "EXTERNAL_AUTHENTICATED_SYNC_INVALIDATION_NOT_THIS_OPERATOR",
+      "originalIdentityPreserved": true,
+      "rawEnumerationNotCompletionEvidence": true
+    },
+    {
+      "jobIdentity": "bab0e74113798cb8249bc72282a56544ae3117f74cf500402a3b88caa5b2510f",
+      "ownerPilot": false,
+      "kind": "REPAIR_CURRENTNESS",
+      "oldGeneration": 35,
+      "newGeneration": 36,
+      "oldScopeRevision": 34,
+      "newScopeRevision": 35,
+      "oldCursorDigest": null,
+      "newCursorDigest": null,
+      "rawRowsBefore": 43,
+      "rawRowsAfter": 43,
+      "state": "PENDING",
+      "completedGeneration": 0,
+      "cause": "EXTERNAL_AUTHENTICATED_SYNC_INVALIDATION_NOT_THIS_OPERATOR",
+      "originalIdentityPreserved": true,
+      "rawEnumerationNotCompletionEvidence": true
+    },
+    {
+      "jobIdentity": "edc2adcddf2370845680619c0d0d9d88255ed68df1218d27c856585e805c9fec",
+      "ownerPilot": true,
+      "kind": "RECOMPUTE_DERIVED",
+      "oldGeneration": 22,
+      "newGeneration": 26,
+      "oldScopeRevision": 21,
+      "newScopeRevision": 25,
+      "oldCursorDigest": "f72b83e85be062455c7027f7dfd97c7cac8e1c5c7f8f8ed015afbf10d6e8507a",
+      "newCursorDigest": null,
+      "rawRowsBefore": 133,
+      "rawRowsAfter": 136,
+      "state": "PENDING",
+      "completedGeneration": 0,
+      "cause": "EXTERNAL_AUTHENTICATED_SYNC_INVALIDATION_NOT_THIS_OPERATOR",
+      "originalIdentityPreserved": true,
+      "rawEnumerationNotCompletionEvidence": true
+    },
+    {
+      "jobIdentity": "f898c9f0278e7e5f45db4490d7a27c2a9e958bd5bb96c12dfb5b33e0ce7e7a21",
+      "ownerPilot": true,
+      "kind": "REPAIR_CURRENTNESS",
+      "oldGeneration": 22,
+      "newGeneration": 26,
+      "oldScopeRevision": 21,
+      "newScopeRevision": 25,
+      "oldCursorDigest": "f72b83e85be062455c7027f7dfd97c7cac8e1c5c7f8f8ed015afbf10d6e8507a",
+      "newCursorDigest": null,
+      "rawRowsBefore": 133,
+      "rawRowsAfter": 136,
+      "state": "PENDING",
+      "completedGeneration": 0,
+      "cause": "EXTERNAL_AUTHENTICATED_SYNC_INVALIDATION_NOT_THIS_OPERATOR",
+      "originalIdentityPreserved": true,
+      "rawEnumerationNotCompletionEvidence": true
+    }
+  ],
+  "capturedReadbackAtUTC": "2026-10-13T01:06:19.355143+00:00",
+  "productionCompletionVerified": false,
+  "paidPermit": "second permit 12/12 exhausted per retained prior evidence; no reset/new paid use",
+  "results": [
+    {
+      "case": "10ms-source-cause",
+      "artifactSha256": "358c7259174549592b6957cc585e4db6b6860ab70f1b2a0492e1ecad365f5a81",
+      "qualification": "exploratory working tree; loaded release 88cc17e; see variant notes",
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 10,
+          "transactionMaxMs": null,
+          "prefixReadStats": null,
+          "modeledBudget": null,
+          "effectiveWorkerMs": null,
+          "wholeMs": 12802.770749999998,
+          "http": 411,
+          "sql": 15192,
+          "ready": 796.2824579999997,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "completion": "PARTIAL",
+            "stopReason": "TENANT_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        },
+        {
+          "leg": 2,
+          "latencyMs": 10,
+          "transactionMaxMs": null,
+          "prefixReadStats": null,
+          "modeledBudget": null,
+          "effectiveWorkerMs": null,
+          "wholeMs": 21057.888499999997,
+          "http": 840,
+          "sql": 17558,
+          "ready": 838.1626670000005,
+          "workerFailureCodes": [
+            {
+              "userId": "a",
+              "jobKind": "RECOMPUTE_DERIVED",
+              "code": "CALCULATION_FAILED"
+            }
+          ],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "FAILED",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 1,
+            "completion": "PARTIAL",
+            "stopReason": "FAILURE",
+            "settlementState": "FINALIZED_FAILURE"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "RETRY_WAIT",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 1,
+              "last_error_code": "CALCULATION_FAILED",
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 10,
+          "operationKey": "ca2fcaf3f2b2a53ab6013b6ab2abadfef83c938cca52d913ebc29691390048ab",
+          "receiptKey": "8c7c2270e0126ce39d533451586d93d94f3e1e70b6c823fee93348e5a89c1978",
+          "producerExecutionId": "c5b335b6-3d03-4766-8f80-987006c1f8c3",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 10615.217292,
+          "committedAt": 1791911656076,
+          "finalizedAt": 1791911658792,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "testsPass": 0,
+      "testsFail": 1
+    },
+    {
+      "case": "25ms-source-cause",
+      "artifactSha256": "a596cf6575e95f182c28737418ea4ebf3fc4c8f06f4d34eb92a53348496844c0",
+      "qualification": "exploratory working tree; loaded release 88cc17e; see variant notes",
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 25,
+          "transactionMaxMs": null,
+          "prefixReadStats": null,
+          "modeledBudget": null,
+          "effectiveWorkerMs": null,
+          "wholeMs": 20510.396999999997,
+          "http": 411,
+          "sql": 15192,
+          "ready": 1512.7422499999993,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "completion": "PARTIAL",
+            "stopReason": "TENANT_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        },
+        {
+          "leg": 2,
+          "latencyMs": 25,
+          "transactionMaxMs": null,
+          "prefixReadStats": null,
+          "modeledBudget": null,
+          "effectiveWorkerMs": null,
+          "wholeMs": 37442.23324999999,
+          "http": 840,
+          "sql": 17526,
+          "ready": 1592.2139169999973,
+          "workerFailureCodes": [
+            {
+              "userId": "a",
+              "jobKind": "RECOMPUTE_DERIVED",
+              "code": "CALCULATION_FAILED"
+            }
+          ],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "FAILED",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 1,
+            "completion": "PARTIAL",
+            "stopReason": "FAILURE",
+            "settlementState": "FINALIZED_FAILURE"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "RETRY_WAIT",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 1,
+              "last_error_code": "CALCULATION_FAILED",
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 25,
+          "operationKey": "3b5a0de03db7ba84d40efbfba6961a4cf51c7932c9482d519fbb55a7141ead98",
+          "receiptKey": "0e499a05be26695ef12deb9564f140eca51d1566ead41e2e6563f322e53c84e0",
+          "producerExecutionId": "c7b3f7f0-5f94-477a-8d29-a13e8b9e1f83",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 16391.302708,
+          "committedAt": 1791911757667,
+          "finalizedAt": 1791911761795,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "testsPass": 0,
+      "testsFail": 1
+    },
+    {
+      "case": "115ms-90s-domain",
+      "artifactSha256": "6ea9f751ba3c1322a8936f55ecff15fd38a037b9550ba0472078ae6c421c000e",
+      "qualification": "exploratory working tree; loaded release 88cc17e; see variant notes",
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 115,
+          "transactionMaxMs": null,
+          "prefixReadStats": null,
+          "modeledBudget": null,
+          "effectiveWorkerMs": null,
+          "wholeMs": 61106.734667,
+          "http": 411,
+          "sql": 15192,
+          "ready": 5580.8083750000005,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "completion": "PARTIAL",
+            "stopReason": "TENANT_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 115,
+          "operationKey": "85b05c97df8d80d608285afce564a35e2facc64a50ce4e6add65b789c77aff2a",
+          "receiptKey": "254d46b5c7c5b60668b9b4ae5a53c39e48a4f1384b33dcd8f866b972ef6297a3",
+          "producerExecutionId": "9c943f54-ba1c-4854-a007-ffc147297713",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 46628.956458,
+          "committedAt": 1791911910646,
+          "finalizedAt": 1791911921161,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "testsPass": 1,
+      "testsFail": 0
+    },
+    {
+      "case": "115ms-180s-source",
+      "artifactSha256": "9610cabc9056343c624788d90f1eaeffa940c354358442d4bcb0f698301413b0",
+      "qualification": "exploratory working tree; loaded release 88cc17e; see variant notes",
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 115,
+          "transactionMaxMs": null,
+          "prefixReadStats": null,
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 60883.779791,
+          "http": 411,
+          "sql": 15192,
+          "ready": 5577.2941660000015,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "completion": "PARTIAL",
+            "stopReason": "TENANT_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        },
+        {
+          "leg": 2,
+          "latencyMs": 115,
+          "transactionMaxMs": null,
+          "prefixReadStats": null,
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 118252.750958,
+          "http": 840,
+          "sql": 17524,
+          "ready": 5558.317708000002,
+          "workerFailureCodes": [
+            {
+              "userId": "a",
+              "jobKind": "RECOMPUTE_DERIVED",
+              "code": "CALCULATION_FAILED"
+            }
+          ],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "FAILED",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 1,
+            "completion": "PARTIAL",
+            "stopReason": "FAILURE",
+            "settlementState": "FINALIZED_FAILURE"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "RETRY_WAIT",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 1,
+              "last_error_code": "CALCULATION_FAILED",
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 115,
+          "operationKey": "f015948b62a5876a6ce4f76dac634b53f99b1503204b0f3d14608fc5db6d944a",
+          "receiptKey": "4171aedfcd53365df93258ce866a704900d256a5bae922dc8ee36c156303852c",
+          "producerExecutionId": "8fc81d79-52f8-447f-8355-e3291a1705e8",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 46427.955626,
+          "committedAt": 1791912304263,
+          "finalizedAt": 1791912314652,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "prefixLimit": [
+        {
+          "used": 128,
+          "limit": 128,
+          "profile": "monitored-body-work-envelope-v1"
+        },
+        {
+          "used": 128,
+          "limit": 128,
+          "profile": "monitored-body-work-envelope-v1"
+        }
+      ],
+      "testsPass": 0,
+      "testsFail": 1
+    },
+    {
+      "case": "prefix-cache-10ms",
+      "artifactSha256": "360a66d8b292caa5bf409f586e8def8156f96a3d3cdddb4aaf621e6f3e3f7624",
+      "qualification": "exploratory working tree; loaded release 88cc17e; see variant notes",
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 10,
+          "transactionMaxMs": null,
+          "prefixReadStats": null,
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 13434.33825,
+          "http": 411,
+          "sql": 15179,
+          "ready": 914.4430830000001,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "completion": "PARTIAL",
+            "stopReason": "TENANT_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        },
+        {
+          "leg": 2,
+          "latencyMs": 10,
+          "transactionMaxMs": null,
+          "prefixReadStats": null,
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 49844.801708000006,
+          "http": 2073,
+          "sql": 38008,
+          "ready": 811.5643750000017,
+          "workerFailureCodes": [
+            {
+              "userId": "a",
+              "jobKind": "RECOMPUTE_DERIVED",
+              "code": "CALCULATION_FAILED"
+            }
+          ],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "FAILED",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 1,
+            "completion": "PARTIAL",
+            "stopReason": "FAILURE",
+            "settlementState": "FINALIZED_FAILURE"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "RETRY_WAIT",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 1,
+              "last_error_code": "CALCULATION_FAILED",
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 10,
+          "operationKey": "28322b06da6fbdfd289e2d1674d772160e53f5f2377c94a9d932e1ce771aca30",
+          "receiptKey": "93f1f1fb8edcf3f85a71a1df06732036a59e548ed5cf2a901c23984c378ae337",
+          "producerExecutionId": "76b44d93-670d-4d3c-8945-cf49fb31d2bf",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 11166.563584,
+          "committedAt": 1791912577078,
+          "finalizedAt": 1791912580079,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "testsPass": 0,
+      "testsFail": 1
+    },
+    {
+      "case": "prefix-exact-10ms",
+      "artifactSha256": "d4633188c9862a9f672980b45cce617a156b65642eb9fd01af83979140175df4",
+      "qualification": "exploratory working tree; loaded release 88cc17e; see variant notes",
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 10,
+          "transactionMaxMs": null,
+          "prefixReadStats": {
+            "hits": 13,
+            "misses": 2,
+            "reservations": 36
+          },
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 12824.158333000001,
+          "http": 411,
+          "sql": 15179,
+          "ready": 805.7690419999999,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "completion": "PARTIAL",
+            "stopReason": "TENANT_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        },
+        {
+          "leg": 2,
+          "latencyMs": 10,
+          "transactionMaxMs": null,
+          "prefixReadStats": {
+            "hits": 97,
+            "misses": 37,
+            "reservations": 127
+          },
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 67882.89279099999,
+          "http": 2222,
+          "sql": 73813,
+          "ready": 813.8209580000002,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 1,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "completion": "PARTIAL",
+            "stopReason": "ITEM_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"cycle\",\"cycle-current\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 3,
+            "items": 3
+          }
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 10,
+          "operationKey": "318f41430b0eaf725bb85639fcac868aed2746b2cfc3927ae10b7497ebb969f1",
+          "receiptKey": "9c4df49eeaccc9d71f9c003c115512327f085c99099c744ff15c8c954e137327",
+          "producerExecutionId": "e3809a42-667e-40d0-a6c0-14c0ac1b3588",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 10638.755292,
+          "committedAt": 1791912852113,
+          "finalizedAt": 1791912854798,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "testsPass": 1,
+      "testsFail": 0
+    },
+    {
+      "case": "prefix-exact-115ms",
+      "artifactSha256": "d85be2a2671c21fce696de657a4f4b2d24103d6fd22c58196355cf75974a7bc6",
+      "qualification": "exploratory working tree; loaded release 88cc17e; see variant notes",
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 115,
+          "transactionMaxMs": null,
+          "prefixReadStats": {
+            "hits": 13,
+            "misses": 2,
+            "reservations": 36
+          },
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 61035.502416999996,
+          "http": 411,
+          "sql": 15179,
+          "ready": 5541.677042000001,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "completion": "PARTIAL",
+            "stopReason": "TENANT_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        },
+        {
+          "leg": 2,
+          "latencyMs": 115,
+          "transactionMaxMs": null,
+          "prefixReadStats": {
+            "hits": 84,
+            "misses": 30,
+            "reservations": 98
+          },
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 181947.11616600002,
+          "http": 1226,
+          "sql": 47752,
+          "ready": 5626.953166000007,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "TIMEOUT",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "completion": "PARTIAL",
+            "stopReason": "FAILURE"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 115,
+          "operationKey": "98e645305f9383b563a17542a4b6c28e0ef0cb0a24b579dd5b8bf6f5af8ce501",
+          "receiptKey": "9d116d228bef362e348a5c59492edd62e21e782442e76c42ee7b212ec9cfbfea",
+          "producerExecutionId": "6b4af898-6b23-4cd6-a693-927dd169325d",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 46576.560458,
+          "committedAt": 1791913010485,
+          "finalizedAt": 1791913021030,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "testsPass": 0,
+      "testsFail": 1
+    },
+    {
+      "case": "terminal-115ms",
+      "artifactSha256": "9fc296662e30987738bb7198258ff954207c32f23ccf9edd7fcb968ddb1386dc",
+      "qualification": "exploratory working tree; loaded release 88cc17e; see variant notes",
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 115,
+          "transactionMaxMs": null,
+          "prefixReadStats": {
+            "hits": 13,
+            "misses": 2,
+            "reservations": 36
+          },
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 58101.05520799999,
+          "http": 411,
+          "sql": 7129,
+          "ready": 5587.726125000001,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "completion": "PARTIAL",
+            "stopReason": "TENANT_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        },
+        {
+          "leg": 2,
+          "latencyMs": 115,
+          "transactionMaxMs": null,
+          "prefixReadStats": {
+            "hits": 84,
+            "misses": 30,
+            "reservations": 106
+          },
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 178274.99175000002,
+          "http": 1276,
+          "sql": 23787,
+          "ready": 5515.109000000011,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "BUDGET_EXHAUSTED",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "completion": "PARTIAL",
+            "stopReason": "WALL_OR_ITEM_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 115,
+          "operationKey": "806b1947ab3a596a42f740e15da816116905661f154eb96ec86378676e042c2f",
+          "receiptKey": "78fd8099e80a13cd0e75621c65e4e710f453dfe9fdbd3e4fae10e21f66369673",
+          "producerExecutionId": "446ecb50-f5ab-4a54-b003-b60bdc49ba8f",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 43510.179583000005,
+          "committedAt": 1791913796649,
+          "finalizedAt": 1791913805511,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "testsPass": 0,
+      "testsFail": 1
+    },
+    {
+      "case": "300s-final-source",
+      "artifactSha256": "94d3ed3da063a4f85c93309549d2807c28979dedc633590073477cc5567fba9a",
+      "qualification": "exploratory working tree; loaded release 88cc17e; see variant notes",
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 115,
+          "transactionMaxMs": null,
+          "prefixReadStats": {
+            "hits": 13,
+            "misses": 2,
+            "reservations": 36
+          },
+          "modeledBudget": {
+            "maxWallMs": 300000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 330000
+          },
+          "effectiveWorkerMs": 285000,
+          "wholeMs": 57992.127333000004,
+          "http": 411,
+          "sql": 7129,
+          "ready": 5566.543125,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "completion": "PARTIAL",
+            "stopReason": "TENANT_LIMIT",
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        },
+        {
+          "leg": 2,
+          "latencyMs": 115,
+          "transactionMaxMs": null,
+          "prefixReadStats": {
+            "hits": 97,
+            "misses": 37,
+            "reservations": 127
+          },
+          "modeledBudget": {
+            "maxWallMs": 300000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 330000
+          },
+          "effectiveWorkerMs": 285000,
+          "wholeMs": 301960.83579100005,
+          "http": 2192,
+          "sql": 35760,
+          "ready": 5587.453125,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "TIMEOUT",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "completion": "PARTIAL",
+            "stopReason": "FAILURE"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 115,
+          "operationKey": "367f5332c76daa4d0ce8c738befffb48e2adb902cb00ada07b93819d555201be",
+          "receiptKey": "36b64bf010f875546cd36dde6587fcdc3091b7cb6a92374e4a561be9199e3a57",
+          "producerExecutionId": "fabc7bfb-7c3a-43ee-8e65-da8b388907c1",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 43450.966292,
+          "committedAt": 1791914277676,
+          "finalizedAt": 1791914286552,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "testsPass": 0,
+      "testsFail": 1
+    },
+    {
+      "case": "5s-server-bound",
+      "artifactSha256": "aefcbf6fa20af254d552cd742788d879d9a50a327533f40c1efc8e810eaeb360",
+      "qualification": "exploratory working tree; loaded release 88cc17e; see variant notes",
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 115,
+          "transactionMaxMs": 5000,
+          "prefixReadStats": {
+            "hits": 0,
+            "misses": 0,
+            "reservations": 29
+          },
+          "modeledBudget": {
+            "maxWallMs": 180000,
+            "safetyMarginMs": 15000,
+            "maxJobs": 16,
+            "maxItems": 128,
+            "maxItemsPerTenant": 8,
+            "leaseMs": 210000
+          },
+          "effectiveWorkerMs": 165000,
+          "wholeMs": 31098.476375000006,
+          "http": 228,
+          "sql": 1603,
+          "ready": 5587.2925,
+          "workerFailureCodes": [
+            {
+              "userId": "a",
+              "jobKind": "REPAIR_CURRENTNESS",
+              "code": "CALCULATION_FAILED"
+            }
+          ],
+          "result": {
+            "releaseSha": "88cc17e41c3a30cb2723ca37c19adf42a23cb08d",
+            "outcome": "FAILED",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 1,
+            "completion": "PARTIAL",
+            "stopReason": "FAILURE",
+            "settlementState": "FINALIZED_FAILURE"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 0,
+              "last_error_code": null,
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "RETRY_WAIT",
+              "requested_generation": 8,
+              "scope_revision": 7,
+              "completed_generation": 0,
+              "claimed_generation": 8,
+              "full_scan_cursor": "[\"USER\",\"a\"]",
+              "attempt": 1,
+              "last_error_code": "CALCULATION_FAILED",
+              "lease_owner": null
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 1,
+            "runs": 2,
+            "items": 2
+          }
+        }
+      ],
+      "testsPass": 0,
+      "testsFail": 1
+    }
+  ],
+  "nativeSixJobStatus": "PASS 1/1; six synthetic native isolated jobs legitimately COMPLETED, not captured production or 115ms qualification",
+  "advisories": [
+    "115ms synthetic, not measured production RTT",
+    "unlimited transaction fixture is not provider qualification",
+    "300-second evaluation was a single diagnostic beyond initial180; no further extension",
+    "HMAC assertions and durable raw DOMAIN are distinct from zero new source progress",
+    "no deployment/publication/schema migration; F02 unchanged"
+  ],
+  "nativeSixJobResult": {
+    "synthetic": true,
+    "capturedProductionJobsCompleted": false,
+    "http115msQualified": false,
+    "production": false,
+    "evidence": [
+      {
+        "fixture": 1,
+        "transport": "native isolated file",
+        "sources": {
+          "sleep": 36,
+          "recovery": 32,
+          "cycle": 36,
+          "workout": 32,
+          "journal": 7,
+          "user": 1
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 64,
+        "signedReceipts": 19,
+        "sealedFinalizedProducers": 64,
+        "noDuplicateDeterministicRun": true,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      },
+      {
+        "fixture": 2,
+        "transport": "native isolated file",
+        "sources": {
+          "sleep": 36,
+          "recovery": 32,
+          "cycle": 36,
+          "workout": 32,
+          "journal": 7,
+          "user": 1
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 64,
+        "signedReceipts": 19,
+        "sealedFinalizedProducers": 64,
+        "noDuplicateDeterministicRun": true,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      },
+      {
+        "fixture": 3,
+        "transport": "native isolated file",
+        "sources": {
+          "sleep": 36,
+          "recovery": 32,
+          "cycle": 36,
+          "workout": 32,
+          "journal": 7,
+          "user": 1
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 64,
+        "signedReceipts": 19,
+        "sealedFinalizedProducers": 64,
+        "noDuplicateDeterministicRun": true,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      }
+    ],
+    "artifactSha256": "341ffd638b4ffe46aa2df17e5d51b807d6843e19bae3aee55c2b5d6b2233b0cf",
+    "qualification": "Working prototype before packaging; all 7 overlay files exactly reviewer-verified. Fresh application DB connection per leg, not full OS crash. Nonzero receipt/producer counts verify authentication loops non-vacuous. Expanded frozen fixture adds work-receipt assertions not run in this exploratory test."
+  },
+  "newFocusedChecks": {
+    "prefixEnvelopeMemo": {
+      "pass": 19,
+      "fail": 0
+    },
+    "independentPrototypeControls": {
+      "pass": 10,
+      "fail": 0
+    },
+    "isolationAndTransactionModel": {
+      "pass": 6,
+      "fail": 0
+    },
+    "legacyV32AckLoss": {
+      "pass": 0,
+      "fail": 2,
+      "cause": "old fixture creates HTTP Stage6 worker without current required pilot grant; both fail before work"
+    },
+    "independentReview": "frozen review pending; source unchanged; no capacity approval"
+  }
+}

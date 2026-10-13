@@ -10,7 +10,8 @@ const {runningReleaseSha}=await mod('src/phase4Release.js');
 const {publicBetaConfiguration}=await mod('src/publicBetaConfig.js');
 const {OWNER_PILOT_APPROVAL_SHA256}=await mod('src/betaPilotAllowance.js');
 const {requireCurrentBetaPilotAttempt}=await mod('src/betaPilotPermit.js');
-async function verifyRawDomainProof(f,profiles,latencyMs){
+const {stage6Budget}=await mod('src/phase4DrainPolicy.js');
+async function verifyRawDomainProof(f,profiles,latencyMs,effectiveWorkerMs){
  const raw=(await f.db.raw.execute("SELECT * FROM evidence_runs WHERE subject_key='cycle_strain'")).rows[0];
  const domainRows=(await f.db.raw.execute("SELECT * FROM phase4_operation_receipts WHERE operation_kind='analyzeMetric'")).rows,
    domain=domainRows.find(row=>JSON.parse(row.request_json).request.metricKey==='cycle_strain');
@@ -36,7 +37,7 @@ async function verifyRawDomainProof(f,profiles,latencyMs){
    assert.ok(ack.committed_at<=e.finalized_at&&e.finalized_at<=e.deadline_at);
    const profile=profiles.find(row=>row.result.identity===e.identity_digest);assert.ok(profile);
    const commit=profile.timeline.find(event=>event.event==='request_end'&&event.kinds.includes('COMMIT')&&event.atMs>=ack.committed_at-profile.startedAtMs);assert.ok(commit);
-   const workerCommitMs=commit.atMs-profile.ready;assert.ok(workerCommitMs<30000);
+   const workerCommitMs=commit.atMs-profile.ready;assert.ok(workerCommitMs<effectiveWorkerMs);
    proof={latencyMs,operationKey:domain.operation_key,receiptKey:key,producerExecutionId:e.execution_id,sourceGeneration:scope.source,inputGeneration:scope.input,
     receiptHmac:true,producerHmac:true,finalized:true,workerCommitMs,committedAt:ack.committed_at,finalizedAt:e.finalized_at,tamperedReceiptRejected:true,foreignTenantRejected:true};
   }
@@ -50,6 +51,8 @@ async function verifyRawDomainProof(f,profiles,latencyMs){
 test('profile exact retained USER successor over installed Hrana with explicit isolated latency',async t=>{
  const latencyMs=Number(process.env.RAW_PROFILE_LATENCY_MS??115);assert.ok(Number.isInteger(latencyMs)&&latencyMs>=1&&latencyMs<=115);
  const legs=Number(process.env.RAW_PROFILE_LEGS??(process.env.RAW_AFTER_AUTH?2:7));assert.ok(Number.isInteger(legs)&&legs>=1&&legs<=100);
+ const triggerSource=process.env.RAW_PROFILE_TRIGGER??'manual';assert.ok(['manual','github'].includes(triggerSource));
+ const modeledBudget=stage6Budget(triggerSource),effectiveWorkerMs=modeledBudget.maxWallMs-modeledBudget.safetyMarginMs;
  const f=await residualFixture(t),syncReq=request(),syncOwner=await claim(f.db,syncReq),authority={assert(){}};
  await commitPhaseWork(f.db,syncReq,syncOwner,{outcome:'NO_NEW_DATA_SUCCESS',durationMs:0},authority);
  const sync=await finalizePhaseWork(f.db,syncReq,syncOwner,fixtureKeys,authority);
@@ -68,17 +71,19 @@ test('profile exact retained USER successor over installed Hrana with explicit i
   assert.equal((await f.db.raw.execute("SELECT count(*) n FROM phase4_operation_receipts WHERE operation_kind='analyzeMetric' AND json_extract(request_json,'$.request.metricKey')='cycle_strain'")).rows[0].n,0);
  }
  await f.toHttp();const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off',PHASE4_BETA_PILOT_ID:'a'.repeat(64),PHASE4_BETA_PILOT_USER_ID:'a',PHASE4_BETA_PILOT_START_AT:new Date(Date.now()-1000).toISOString(),PHASE4_BETA_PILOT_CONSENT_SHA256:'b'.repeat(64),PHASE4_BETA_PILOT_ALLOWANCE_ID:OWNER_PILOT_APPROVAL_SHA256};
- const releaseSha=runningReleaseSha(),configProof=configurationProof(fixtureKeys,publicBetaConfiguration(environment),environment,releaseSha),makeReq=phase=>({requestId:crypto.randomUUID(),releaseSha,configProof,executionMode:'SHADOW',triggerSource:'manual',phase});
+ const releaseSha=runningReleaseSha(),configProof=configurationProof(fixtureKeys,publicBetaConfiguration(environment),environment,releaseSha),makeReq=phase=>({requestId:crypto.randomUUID(),releaseSha,configProof,executionMode:'SHADOW',triggerSource,phase});
  const common=()=>({db:f.db,keys:fixtureKeys,environment,env:{dryRun:false}}),sr=makeReq('SYNC'),s=await runExecutionPhase({...common(),request:sr,deps:{runBriefing:async()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS'})}});
  const observations=[],profiles=[];let origin,ready,workerOutcome;
  for(let leg=1;leg<=legs;leg++){
- await f.fresh();observations.length=0;ready=undefined;workerOutcome=undefined;
- f.setLatency(latencyMs);f.startTrace();const before=structuredClone(f.transport.counts),startedAtMs=Date.now();origin=performance.now();
+ await f.fresh();observations.length=0;ready=undefined;workerOutcome=undefined;globalThis.__stage6PrefixStats={hits:0,misses:0,reservations:0};
+ const transactionMaxMs=process.env.RAW_PROFILE_TXN_MAX_MS?Number(process.env.RAW_PROFILE_TXN_MAX_MS):Infinity;
+ assert.ok(transactionMaxMs===Infinity||Number.isSafeInteger(transactionMaxMs)&&transactionMaxMs>=1000&&transactionMaxMs<=300000);
+ f.transport.setTransactionMaxMs(transactionMaxMs);f.setLatency(latencyMs);f.startTrace();const before=structuredClone(f.transport.counts),startedAtMs=Date.now();origin=performance.now();
  const req={...makeReq('STAGE6_DRAIN'),syncRequestId:sr.requestId,handoff:s.body.handoff},runtime={phase4Stage6:{drain:async args=>{const pilotGrant=requireCurrentBetaPilotAttempt('a',f.db.raw),admission=await f.db.admitRuntime(),worker=await createPhase4Stage6({db:f.db,keys:fixtureKeys,admission,executionMode:'SHADOW',pilotGrant,workerCapability:authorizeStage6ShadowWorker({executionMode:'SHADOW'})});ready=performance.now()-origin;workerOutcome=await worker.drain({...args,budget:{maxItems:1,maxItemsPerTenant:1}});return workerOutcome}}};
  const result=await runExecutionPhase({...common(),request:req,deps:{runtime}}),wholeMs=performance.now()-origin,timeline=f.stopTrace();f.setLatency(0);
- const profile={leg,latencyMs,wholeMs,startedAtMs,timeline,http:f.transport.counts.httpRequests-before.httpRequests,sql:f.transport.counts.sqlStatements-before.sqlStatements,ready,observations,workerFailureCodes:workerOutcome?.failures??[],result:result.body.result,jobs:await f.jobs(),counts:await f.counts()};profiles.push(profile);
+ const profile={leg,latencyMs,transactionMaxMs:Number.isFinite(transactionMaxMs)?transactionMaxMs:null,prefixReadStats:globalThis.__stage6PrefixStats,modeledBudget,effectiveWorkerMs,wholeMs,startedAtMs,timeline,http:f.transport.counts.httpRequests-before.httpRequests,sql:f.transport.counts.sqlStatements-before.sqlStatements,ready,observations,workerFailureCodes:workerOutcome?.failures??[],result:result.body.result,jobs:await f.jobs(),counts:await f.counts()};profiles.push(profile);
  console.log('RAW_PROFILE '+JSON.stringify(profile));
- const domainProof=await verifyRawDomainProof(f,profiles,latencyMs);
+ const domainProof=await verifyRawDomainProof(f,profiles,latencyMs,effectiveWorkerMs);
  if(process.env.RAW_AFTER_AUTH&&leg===1)assert.ok(domainProof,'DOMAIN-only mode requires its new completed raw DOMAIN and exact durable proof');
  assert.equal(result.body.result.settlementState,'FINALIZED_SUCCESS');assert.equal(result.body.result.jobsFailed,0);
  assert.ok((result.body.result.unitsCommitted??0)>0||(result.body.result.itemsProcessed??0)>0,'each raw continuation must commit durable progress');

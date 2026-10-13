@@ -35,3 +35,7 @@ Owner started-attempt recovery now precedes subject plan generation, including a
 `frozen-repair-focused.tap.gz` passes 44/44 with zero skipped/cancelled. A native crash in the optional combined capture suite cleared on isolated polling rerun, 12/12. The two optional onboarding historical-rewind cases fail because invalidHistoricalRewind.js asserts SCHEMA_VERSION=32; the unchanged requested baseline reproduces both failures. They remain pre-existing documentation/test evidence issues and are not represented as passes. The historical helper was not modified.
 
 The final documented integration and regression runs will qualify this runtime freeze; all earlier interrupted runs remain marked interrupted and excluded from final counts.
+
+## Final documented verification
+
+The final runtime source freeze passes 200/200 Stage 7/8 integration cases and 164/164 documented regression cases, both exit 0 with zero skipped/cancelled. This is 364 distinct passing documented cases, including 31 new Stage 8 cases. The original 333 cases remain covered. Final source syntax checks pass 26/26. No runtime/test source changed after this freeze. Actual LIVE producer availability, final reviewed Stage 6 integration and Production/native acceptance remain blocked or open; Stage 8 is not COMPLETE.

@@ -1,5 +1,7 @@
 # Stage 8 Implementation and Review Handoff
 
+This is the original 5dc3462 baseline handoff. The independent review repairs, new evidence and remaining dependencies are documented in [the repair review handoff](stage8-repair-review-handoff.md).
+
 Stage 8 now has a preserved, committed implementation candidate with Provider wiring, isolated v34 migration verification, and passing integration and regression coverage. Production readiness is **NO-GO**. Stage 6 still has six pending items, Stage 7 is not deployed, and this final integrated candidate has not received a separate independent review.
 
 ## Candidate and lineage

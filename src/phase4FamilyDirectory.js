@@ -174,13 +174,14 @@ export function createFamilyDirectory(client,keys) {
       family_manifest_json:null,work_version:VERSION};
     await putTip(tip);return {...row,newlyRegistered:true};
   }
-  async function inventory(context,metricKey) {
+  async function inventory(context,metricKey,{create=true}={}) {
     const {token:sourceToken}=source(context,metricKey);
     const from=await pilotPrefixFrom(client,context,MANIFESTS,[context.userId,context.executionMode,sourceToken]);
     let manifest=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=?
       AND execution_mode=? AND source_token=?`,args:[context.userId,context.executionMode,sourceToken]})).rows[0];
     const created=!manifest;
     if(!manifest) {
+      if(!create)return null;
       // A new tenant with no routed history can initialize an empty signed
       // directory. Existing v29 activity may never be reclassified as empty.
       if(await routeTip(context,metricKey))invalid();
@@ -188,8 +189,13 @@ export function createFamilyDirectory(client,keys) {
     }
     verifyManifest(manifest);
     const args=[context.userId,context.executionMode,sourceToken];
-    const rows=await readPilotPrefixRows(client,context,'family',args,{sql:`SELECT * FROM ${ENTRIES} WHERE user_id=? AND execution_mode=?
-      AND source_token=? ORDER BY sequence`,args});
+    const observed=await Promise.allSettled([
+      Promise.resolve().then(()=>readPilotPrefixRows(client,context,'family',args,{sql:`SELECT * FROM ${ENTRIES} WHERE user_id=? AND execution_mode=?
+        AND source_token=? ORDER BY sequence`,args})),
+      Promise.resolve().then(()=>routeTip(context,metricKey)),
+    ]);
+    if(observed[0].status==='rejected')throw observed[0].reason;
+    const rows=observed[0].value;
     if(rows.length!==manifest.entry_count)invalid();
     let digest=ZERO;
     for(let i=0;i<rows.length;i++) {
@@ -199,7 +205,8 @@ export function createFamilyDirectory(client,keys) {
     // The independently sealed v29 metric tip is a constant-size rollback
     // fence. Registration advances this tip in the same receipt transaction.
     // Family enumeration never opens or authenticates a broad receipt set.
-    if(!same(parse(manifest.route_tip_json),await routeTip(context,metricKey)))invalid();
+    if(observed[1].status==='rejected')throw observed[1].reason;
+    if(!same(parse(manifest.route_tip_json),observed[1].value))invalid();
     const unknownEntries=rows.filter(row=>row.entry_state!=='KNOWN');
     if(manifest.directory_state!=='COMPLETE'&&!unknownEntries.length)unknown();
     return {sourceToken,manifest,entries:rows.filter(row=>row.entry_state==='KNOWN'),unknownEntries,created};

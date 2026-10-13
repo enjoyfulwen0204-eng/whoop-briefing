@@ -1,3 +1,4 @@
+import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import { compareExact } from './phase4CanonicalOrder.js';
 import { isRequestSet, isRequestTime, isJournalRequestSet, normalizeRequestAliases, requestEvidenceIds } from './phase4RequestContract.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -26,7 +27,7 @@ import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import {createBodyEnergyStore,issueNewBodySourceCapture} from './bodyEnergyStore.js';
 import {verifyBodyEnergyProducer} from './bodyEnergyDerivedTime.js';
-import {issueBodyMetricPreparationCapture,requireOwnedBodyMetricPurpose} from './phase4IntelligenceStore.js';
+import {issueBodyMetricPreparationCapture,requireOwnedBodyMetricPurpose,currentOwnedBodyMetricObservation} from './phase4IntelligenceStore.js';
 import {processingReadObservationEpoch} from './processingTransaction.js';
 import {READ_SNAPSHOT_LIMITS} from './processingReadSnapshot.js';
 import {currentBodySourceReceipt,metricPreparationDomainReceipt} from './phase4MetricUnitReceipt.js';
@@ -315,13 +316,19 @@ export function createOperationReceipts(core) {
           'authGeneration','purgeGeneration','algorithmSetVersion'].some(field=>produced[field]!==current[field])
         ||!await metricPreparationDomainReceipt(core,context,row.operation_key,decoded.request_json.request))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     }
-    for(const [table,contract] of Object.entries(decoded.schema_contract_json)) {
+    const selected=currentOwnedBodyMetricObservation(core,context),parallel=Boolean(!retainedBody&&selected
+      &&row.operation_kind==='analyzeMetric'&&row.operation_key===selected.operationKey
+      &&decoded.related_results_json.every(target=>['body_energy_results','evidence_runs','evidence_items',RESULT_AUTHORITY_TABLE].includes(target.type)));
+    const contracts=Object.entries(decoded.schema_contract_json),schema=async([table,contract])=>{
       if(!DERIVED_TABLES.includes(table))invalid();
       const info=(await client.execute(`PRAGMA table_info(${table})`)).rows
         .map(column=>({name:column.name,type:column.type,notnull:column.notnull,pk:column.pk}));
       if(!same(info,contract))unavailable();
-    }
-    if(retainedBody) {
+    };
+    if(parallel){const observations=await Promise.allSettled(contracts.map(contract=>Promise.resolve().then(()=>schema(contract))));
+      for(const value of observations)if(value.status==='rejected')throw value.reason;
+    }else for(const contract of contracts)await schema(contract);
+    const roots=async()=>{if(retainedBody) {
       // Retained Body manifests own historical measurements. Current root
       // existence/privacy remains mandatory, but corrections may change values.
       let pending=[];
@@ -331,7 +338,8 @@ export function createOperationReceipts(core) {
         if(!['sleep','recovery','cycle','workout','USER'].includes(root.type)){await flush();invalid();}
         pending.push(root);if(pending.length===RAW_SOURCE_READ_BATCH)await flush();
       }await flush();
-    } else await authorities.validateRoots(context,row,decoded.required_roots_json);
+    } else await authorities.validateRoots(context,row,decoded.required_roots_json);};
+    const evidence=async()=>{
     for(const root of decoded.required_roots_json.roots)if(root.type==='evidence_items') {
       const item=(await client.execute({sql:'SELECT evidence_item_id,run_id FROM evidence_items WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?',
         args:[context.userId,context.executionMode,root.id]})).rows[0];
@@ -341,8 +349,14 @@ export function createOperationReceipts(core) {
       if(!run)unavailable();
       await authorities.descriptorsForRun(context,run);
       await authorities.validateExisting(context,item.evidence_item_id,{required:parse(run.input_manifest_json).manifest_version.endsWith('-v2')});
-    }
-    for(const target of decoded.related_results_json) {
+    }};
+    if(parallel){
+      // Independent complete readonly closures. Settle all original checks
+      // before exposing any restored result; roots retain failure priority.
+      const checks=await Promise.allSettled([Promise.resolve().then(roots),Promise.resolve().then(evidence)]);
+      for(const value of checks)if(value.status==='rejected')throw value.reason;
+    }else{await roots();await evidence();}
+    const related=async target=>{
       const contract=decoded.schema_contract_json[target.type];
       if(!contract||!same(Object.keys(target.key).sort(),contract.filter(c=>c.pk&&!['user_id','execution_mode'].includes(c.name)).map(c=>c.name).sort()))invalid();
       const names=Object.keys(target.key),current=(await client.execute({sql:`SELECT * FROM ${target.type} WHERE user_id=? AND execution_mode=?
@@ -374,7 +388,15 @@ export function createOperationReceipts(core) {
           if(links.length!==1)unavailable();
         }
       }
-    }
+    };
+    if(parallel){
+      for(let offset=0;offset<decoded.related_results_json.length;offset+=RAW_SOURCE_READ_BATCH){
+        const checks=await Promise.allSettled(decoded.related_results_json.slice(offset,offset+RAW_SOURCE_READ_BATCH)
+          .map(target=>Promise.resolve().then(()=>related(target))));
+        for(const value of checks)if(value.status==='rejected')throw value.reason;
+      }
+      await assertFreshContextAndWorkOwner(core,context);if(!currentOwnedBodyMetricObservation(core,context))fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+    }else for(const target of decoded.related_results_json)await related(target);
     return restoreResult(context,decoded,decoded.result_json);
   }
   function restoreResult(context,decoded,value) {
@@ -491,7 +513,7 @@ export function createOperationReceipts(core) {
       matched=true;break;
     }
     if(!matched)fail('PHASE4_OPERATION_RESULT_UNAVAILABLE_MISSING_RECEIPT');
-    await core.run(context,async()=>{});current();await assertExecutionWorkOwner(client);current();return true;
+    await assertFreshContextAndWorkOwner(core,context);current();return true;
   }
   async function readBodyDrainSource(context,resultId){
     return core.run(context,async()=>{
@@ -593,7 +615,7 @@ export function createOperationReceipts(core) {
       if(typeof row.as_of_utc!=='string'||!Number.isFinite(Date.parse(row.as_of_utc))||row.as_of_epoch_ms!==Date.parse(row.as_of_utc))
         fail('BODY_ENERGY_SOURCE_CUTOFF_MISMATCH');
       if(settled[2].status==='rejected')throw settled[2].reason;
-      await core.run(context,async()=>{});await assertExecutionWorkOwner(client);
+      await assertFreshContextAndWorkOwner(core,context);
       const ref=core.reference(context,'body_energy_results',row.privacy_artifact_id,context.executionMode,row),
         result={body:{...audit.value.result,created:false},current:{...current,ref},
           analysisTime:new Date(settled[2].value.createdAt).toISOString()};
@@ -923,8 +945,19 @@ export function createOperationReceipts(core) {
       }
       if(equivalents.length>1)unavailable();
       if(equivalents.length)return read(context,equivalents[0]);
-      if(discover)await discover(context,kind,normalized);
-      const ownedInput=bodyMetricPurpose&&kind==='analyzeMetric'?await admitOwnedBodyMetricInput(context,bodyMetricPurpose):false;
+      let ownedInput=false,discoveredPreparation=null;
+      if(bodyMetricPurpose&&kind==='analyzeMetric'){
+        // The closed current-Body purpose has two independent readonly
+        // closures. Observe both fully, settle before any calculation/effect,
+        // and retain discovery-before-input failure priority.
+        const observations=await Promise.allSettled([
+          Promise.resolve().then(()=>discover?.(context,kind,normalized)),
+          Promise.resolve().then(()=>admitOwnedBodyMetricInput(context,bodyMetricPurpose)),
+        ]);
+        for(const value of observations)if(value.status==='rejected')throw value.reason;
+        discoveredPreparation=observations[0].value;
+        ownedInput=observations[1].value;
+      }else if(discover)await discover(context,kind,normalized);
       if(!ownedInput)await admitInputs(context,semanticRequest,refs,kind);
       if(kind==='INSIGHT_CREATE') {
         const id=keys.lookup(['insight-creation-v1',context.userId,context.executionMode,request.creationKey]);
@@ -955,7 +988,7 @@ export function createOperationReceipts(core) {
       if(['EPISODE_REVISE','EPISODE_REFRESH'].includes(kind)&&!metricPlan)await predecessor(context,'observation_episodes',request.episodeId,request.expectedRevision);
       if(kind==='EPISODE_REVERSE')await predecessor(context,'observation_episodes',request.prior.episodeId,request.prior.expectedRevision);
       let result=['analyzeMetric','analyzeAssociationFamily'].includes(kind)
-        ?await producerScope.run({context,evidence:new Map()},()=>perform(semanticRequest)):await perform(semanticRequest);
+        ?await producerScope.run({context,evidence:new Map()},()=>perform(semanticRequest,discoveredPreparation)):await perform(semanticRequest);
       const newBodyCapture=kind==='BODY_ENERGY_COMPUTE'?issueNewBodySourceCapture(core,context,result):null;
       const metricCapture=kind==='analyzeMetric'?issueBodyMetricPreparationCapture(core,context,result):null;
       if(core.jobAuthority())result={...result,jobAuthority:core.jobAuthority()};
@@ -989,7 +1022,8 @@ export function createOperationReceipts(core) {
       row.receipt_hmac=seal(row);
       reservePilotMutation(context,client,Object.values(row));
       await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode],'',true);
-      const routedSubjects=routing?await routing.register(row,{request:requestAuthority,related:encoded.related}):[];
+      const routedSubjects=routing?await routing.register(row,{request:requestAuthority,related:encoded.related},
+        {batchNew:Boolean(bodyMetricPurpose&&kind==='analyzeMetric')}):[];
       const fields=Object.keys(row);
       await client.execute({sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(field=>row[field])});
       if(familyDirectory)for(const metricKey of Object.keys(PHASE4_METRICS)) {

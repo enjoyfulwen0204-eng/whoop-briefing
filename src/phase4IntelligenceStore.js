@@ -1,3 +1,4 @@
+import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import { compareExact } from './phase4CanonicalOrder.js';
 import { healthSourceVersion, canonicalSourceTime, canonicalSourceVersion } from './phase4SourceVersion.js';
@@ -12,7 +13,7 @@ import { assessDataQuality, benjaminiHochberg, buildPersonalBaseline, evaluateJo
   evaluateMeaningfulChange, evidenceConfidence, recencyWeight, validMetricValue,
   validateEvidenceConfidence, compareBaselineSources } from './phase4Intelligence.js';
 import { pearson, pValue } from './analytics/correlation.js';
-import {metricUnitReceipt,metricRunReceipt,metricUnitWork,metricPreparationContinuation,withMetricPreparationContinuation} from './phase4MetricUnitReceipt.js';
+import {metricUnitReceipt,metricRunReceipt,metricUnitWork,metricPreparationContinuation,withMetricPreparationContinuation,requireMetricUnitProof} from './phase4MetricUnitReceipt.js';
 import {assertExecutionWorkOwner,currentDurableExecution,currentExecutionReceiptTransactionMarker,requireSettledOperation} from './phase4ExecutionContext.js';
 import {createFamilyDirectory} from './phase4FamilyDirectory.js';
 import {workStepOptions} from './phase4WorkStep.js';
@@ -446,7 +447,75 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         calculation:observationCalculation,asOfUtc:request.asOfUtc,windowFamily:request.windowFamily,refresh:request.refresh===true});
       return {request,contract,sourceSet,baseline,quality,baseIdentity,priorQualifying,observationCalculation,plan};
   }
+  async function currentBodyMetricHints(context,plan){
+    return (await client.execute({sql:`SELECT r.run_id,r.state,i.evidence_item_id,a.evidence_item_id authority_id
+      FROM evidence_runs r LEFT JOIN evidence_items i ON i.user_id=r.user_id AND i.execution_mode=r.execution_mode
+        AND i.run_id=r.run_id AND i.item_key=?
+      LEFT JOIN phase4_evidence_result_authorities a ON a.user_id=i.user_id AND a.execution_mode=i.execution_mode
+        AND a.evidence_item_id=i.evidence_item_id AND a.result_scope='METRIC'
+      WHERE r.user_id=? AND r.execution_mode=? AND r.deterministic_run_key=?`,
+      args:[plan.itemKey,context.userId,context.executionMode,plan.runKey]})).rows[0];
+  }
+  async function issueCurrentBodyMetricPurpose(context,request,prepared,currentBody,runId,itemId,domainHint){
+    requireOwnedCurrentBodyData(core,context,request.currentSource);
+    const requestJson=ownedMetricRequestData(core,context,request),planJson=canonicalJson(prepared.plan),
+      domain=domainHint?await metricDomainWork(context,request):null;
+    if(requestJson!==ownedMetricRequestData(core,context,request)||planJson!==canonicalJson(prepared.plan))
+      fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+    requireOwnedCurrentBodyData(core,context,request.currentSource);
+    const purpose=Object.freeze({});ownedBodyMetricPurposes.set(purpose,Object.freeze({core,context,request,prepared,
+      currentBody,execution:currentDurableExecution(),job:core.jobAuthority(),marker:currentExecutionReceiptTransactionMarker(),
+      epoch:processingReadObservationEpoch(client),requestJson,planJson,runKey:prepared.plan.runKey,
+      inputHash:prepared.plan.inputHash,itemKey:prepared.plan.itemKey,runId,itemId,
+      purposeKind:domainHint?'DOMAIN':'AUTHORITY',...(domain??{})}));
+    return {purpose,domain};
+  }
+  async function withCurrentBodyMetricObservation(context,request,sourceAsOfUtc,work){
+    if(typeof work!=='function')fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+    if(core.schemaVersion!==32||request.metricKey!=='body_energy'||request.windowFamily!=='STAGE6_CURRENT_BODY_ENERGY'
+      ||!Array.isArray(request.baselineSources)||request.baselineSources.length||typeof sourceAsOfUtc!=='string')return work(request);
+    if(!core.processing.active?.())fail('PHASE4_TRANSACTION_REQUIRED');
+    return withMetricPreparationContinuation(core,context,async()=>{
+      // Every root acquires a new genuine current source/receipt/producer union.
+      // No DATA or accepted guard crosses transaction markers. The old typed
+      // consumer still performs its complete replay and result verification.
+      const body=await prepareCurrentBodyMetricRequest(context,sourceAsOfUtc),fresh=body.request;
+      if(!fresh||fresh.baselineSources.length||!hasOwnedCurrentBodyData(core,context,fresh.currentSource))return work(request);
+      if(ownedMetricRequestData(core,context,{...request,refresh:true})!==ownedMetricRequestData(core,context,fresh))
+        fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+      const prepared=await metricPreparation(context,fresh,body.current),hint=await currentBodyMetricHints(context,prepared.plan);
+      if(hint?.state!=='COMPLETED'||!hint.evidence_item_id||!hint.authority_id)return work(request);
+      const {purpose}=await issueCurrentBodyMetricPurpose(context,fresh,prepared,body.current,hint.run_id,hint.evidence_item_id,true);
+      return withOwnedBodyMetricObservations(core,context,purpose,()=>work(fresh));
+    });
+  }
   async function metricPreparationUnit(context,request,kind){return performMetricPreparationUnit(context,request,kind);}
+  async function replayCurrentBodyMetricFamily(context,sourceAsOfUtc,workStepFor,work){
+    if(core.schemaVersion!==32||!core.jobAuthority()||typeof workStepFor!=='function'||typeof work!=='function')
+      fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+    return withMetricPreparationContinuation(core,context,async()=>{
+      let request,inventory,purpose;
+      const workStepFrom=async()=>{
+        const body=await prepareCurrentBodyMetricRequest(context,sourceAsOfUtc);request=body.request;
+        if(!request||request.baselineSources.length||!hasOwnedCurrentBodyData(core,context,request.currentSource))return null;
+        inventory=await createFamilyDirectory(client,keys).inventory(context,'body_energy',{create:false});
+        if(!inventory)return null;
+        if(inventory.unknownEntries.length)fail('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN');
+        const prepared=await metricPreparation(context,request,body.current),hint=await currentBodyMetricHints(context,prepared.plan);
+        if(hint?.state!=='COMPLETED'||!hint.evidence_item_id||!hint.authority_id)return null;
+        const issued=await issueCurrentBodyMetricPurpose(context,request,prepared,body.current,hint.run_id,hint.evidence_item_id,true);
+        purpose=issued.purpose;
+        // This is an existence hint only. Acceptance remains the original
+        // complete typed DOMAIN replay inside the family business callback.
+        const domain=(await client.execute({sql:`SELECT 1 FROM phase4_operation_receipts WHERE user_id=? AND execution_mode=?
+          AND operation_kind='analyzeMetric' AND operation_key=?`,args:[context.userId,context.executionMode,issued.domain.operationKey]})).rows[0];
+        if(!domain)return null;
+        return workStepFor(request);
+      };
+      const perform=(replaying=false)=>withOwnedBodyMetricObservations(core,context,purpose,async()=>({request,inventory,outcome:await work(request,{replaying})}));
+      return core.run(context,()=>perform(false),{workStepFrom,discardResult:true,replay:()=>perform(true)});
+    });
+  }
   async function metricPreparationUnitFromCurrentBody(context,asOfUtc){
     return withMetricPreparationContinuation(core,context,()=>performMetricPreparationUnit(context,null,'NEXT',()=>prepareCurrentBodyMetricRequest(context,asOfUtc)));
   }
@@ -454,7 +523,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     if(core.schemaVersion!==32||!core.jobAuthority()||!requestFrom&&request?.refresh!==true
       ||!['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY','NEXT'].includes(kind))
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-    let prepared,alreadyRecorded=false,bodySource=null,ownedPurpose=null;
+    let prepared,alreadyRecorded=false,bodySource=null,ownedPurpose=null,domainWorkStep=null;
     const directory=createFamilyDirectory(client,keys);
     const sourceWork=(name,facts)=>{const job=core.jobAuthority();return workStepOptions(name,[context.userId,context.executionMode,
       job.jobKind,job.requestedGeneration,job.scopeRevision,facts],{discardResult:true}).workStep;};
@@ -463,26 +532,30 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       if(requestFrom){
         bodySource=await requestFrom();request=bodySource.request;
         if(!request){kind='SOURCE';return sourceWork('stage6.body-source',['USER',context.userId,JSON.stringify(['USER',context.userId]),bodySource.asOfUtc]);}
-        if(!await directory.exists(context,'body_energy')){
+        const inventory=await directory.inventory(context,'body_energy',{create:false});
+        if(!inventory){
           kind='DIRECTORY';return sourceWork('stage6.family-inventory',['body_energy',request.asOfUtc]);
         }
-        const inventory=await directory.inventory(context,'body_energy');
         if(inventory.unknownEntries.length)fail('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN');
       }
       prepared=await metricPreparation(context,request,requestFrom?bodySource.current:null);
       if(kind==='NEXT'){
-        if(await recordedMetricPreparation(context,request)){
-          alreadyRecorded=true;kind='AUTHORITY';return metricUnitWork(context,prepared.plan,kind).workStep;
-        }
-        const run=(await client.execute({sql:'SELECT run_id,state FROM evidence_runs WHERE user_id=? AND execution_mode=? AND deterministic_run_key=?',
+        const closed=requestFrom&&request.metricKey==='body_energy'&&request.baselineSources.length===0
+          &&prepared.plan.input.baseline.samples.length===0&&hasOwnedCurrentBodyData(core,context,request.currentSource);
+        // The exact current-Body selector only obtains immutable IDs/hints.
+        // All acceptance still comes from the original full row/receipt and
+        // producer verifiers below, never this joined existence observation.
+        const run=closed?await currentBodyMetricHints(context,prepared.plan):(await client.execute({
+          sql:'SELECT run_id,state FROM evidence_runs WHERE user_id=? AND execution_mode=? AND deterministic_run_key=?',
           args:[context.userId,context.executionMode,prepared.plan.runKey]})).rows[0];
         if(!run)kind='RUN_START';else if(run.state==='STARTED')kind='RUN_COMPLETE';else{
-          const item=(await client.execute({sql:'SELECT evidence_item_id FROM evidence_items WHERE user_id=? AND execution_mode=? AND run_id=? AND item_key=?',
+          const item=closed?(run.evidence_item_id?{evidence_item_id:run.evidence_item_id}:null)
+            :(await client.execute({sql:'SELECT evidence_item_id FROM evidence_items WHERE user_id=? AND execution_mode=? AND run_id=? AND item_key=?',
             args:[context.userId,context.executionMode,run.run_id,prepared.plan.itemKey]})).rows[0];
           kind=item?'AUTHORITY':'ITEM';
           if(item&&requestFrom&&request.metricKey==='body_energy'&&request.baselineSources.length===0
             &&prepared.plan.input.baseline.samples.length===0&&hasOwnedCurrentBodyData(core,context,request.currentSource)){
-            const authority=(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
+            const authority=closed?run.authority_id:(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
               WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
               args:[context.userId,context.executionMode,item.evidence_item_id]})).rows[0];
             {
@@ -492,22 +565,22 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
               // The actual current selector, canonical zero-baseline plan and
               // raw Body data issue this same-owned-root purpose. Caller empty
               // arrays, copied contexts/flags cannot register it.
-              requireOwnedCurrentBodyData(core,context,request.currentSource);
-              const requestJson=ownedMetricRequestData(core,context,request),planJson=canonicalJson(prepared.plan),
-                domain=authority?await metricDomainWork(context,request):null;
-              if(requestJson!==ownedMetricRequestData(core,context,request)||planJson!==canonicalJson(prepared.plan))
-                fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
-              requireOwnedCurrentBodyData(core,context,request.currentSource);
-              ownedPurpose=Object.freeze({});ownedBodyMetricPurposes.set(ownedPurpose,Object.freeze({core,context,request,prepared,
-                currentBody:bodySource.current,execution:currentDurableExecution(),job:core.jobAuthority(),
-                marker:currentExecutionReceiptTransactionMarker(),epoch:processingReadObservationEpoch(client),requestJson,planJson,
-                runKey:prepared.plan.runKey,inputHash:prepared.plan.inputHash,itemKey:prepared.plan.itemKey,
-                runId:run.run_id,itemId:item.evidence_item_id,purposeKind:authority?'DOMAIN':'AUTHORITY',...(domain??{})}));
-              kind=authority?'DOMAIN':'AUTHORITY';return authority?domain.workStep:metricUnitWork(context,prepared.plan,kind).workStep;
+              const issued=await issueCurrentBodyMetricPurpose(context,request,prepared,bodySource.current,run.run_id,item.evidence_item_id,Boolean(authority));
+              ownedPurpose=issued.purpose;const domain=issued.domain;
+              kind=authority?'DOMAIN':'AUTHORITY';domainWorkStep=domain?.workStep??null;
             }
           }
         }
+        // Hints above select only DATA transport. The original complete typed
+        // replay still runs, including its signed DOMAIN producer/work proof,
+        // before any unit may be selected. Missing/complex rows keep its full
+        // generic reader; the exact current Body can reuse its fresh raw frame.
+        if(await (ownedPurpose?withOwnedBodyMetricObservations(core,context,ownedPurpose,
+          ()=>recordedMetricPreparation(context,request)):recordedMetricPreparation(context,request))){
+          alreadyRecorded=true;kind='AUTHORITY';return metricUnitWork(context,prepared.plan,kind).workStep;
+        }
       }
+      if(kind==='DOMAIN')return domainWorkStep;
       return metricUnitWork(context,prepared.plan,kind).workStep;
     };
     const perform=async()=>{
@@ -527,11 +600,12 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         // null origin and calculation before any receipt effect. Repeating
         // that whole preparation here costs another authenticated traversal
         // of the same immutable inputs in the same owned write snapshot.
-        // Retain the independent original ITEM named proof (the domain does
-        // not otherwise consume it), plus fresh delivery/owner fences. The
-        // selector's mutable authority hint grants no calculation authority.
-        if(!await metricUnitReceipt(core,context,plan,'ITEM'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-        await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+        // The domain's actual legacy discovery obtains all three original
+        // named proofs. Its analyzer below requires the opaque ITEM proof
+        // against its independently recomputed canonical plan, avoiding a
+        // second identical receipt/producer traversal. Keep fresh delivery
+        // and owner fences; the selector hint grants no authority.
+        await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
         requireOwnedBodyMetricPurpose(core,context,ownedPurpose);
         return {unit:'DOMAIN',status:'COMPLETE',created:false,prepared:false,
           domainResult:await performMetricDomain(context,request,ownedPurpose)};
@@ -602,7 +676,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         const verified=await authorities.read(context,item.row.evidence_item_id,'METRIC');
         if(verified.origin!==null||canonicalJson(verified.calculation)!==canonicalJson(calculation))fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
         if(kind==='DOMAIN'){
-          await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+          await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
           requireOwnedBodyMetricPurpose(core,context,ownedPurpose);
           return {unit:'DOMAIN',status:'COMPLETE',created:false,prepared:false,domainResult:await performMetricDomain(context,request,ownedPurpose)};
         }
@@ -624,28 +698,37 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     // This is only the original immutable source-reference request, never an
     // authority result. The final domain operation freshly checks its entire
     // source, historical origin, receipt and producer closure again.
-    return requestFrom&&result.prepared&&!result.created?{...result,request}:result;
+    const returned=requestFrom&&result.prepared&&!result.created?{...result,request}:result;
+    return returned;
   }
-  async function analyzeMetric(context,request,ownedPurpose=null) {
+  async function analyzeMetric(context,request,ownedPurpose=null,discoveredPreparation=null) {
     const observe=async()=>{
       if(ownedPurpose&&ownedMetricRequestData(core,context,request)!==requireOwnedBodyMetricPurpose(core,context,ownedPurpose).requestJson)
         fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
       const {request:normalized,contract,sourceSet,baseline,quality,baseIdentity,priorQualifying,observationCalculation,plan}=await metricPreparation(context,request,ownedPurpose?requireOwnedBodyMetricPurpose(core,context,ownedPurpose).currentBody:null);
       request=normalized;
+      if(ownedPurpose){
+        requireOwnedBodyMetricPurpose(core,context,ownedPurpose);
+        requireMetricUnitProof(core,context,discoveredPreparation?.itemProof,plan,'ITEM');
+      }
       // A complete, independent calculation. It deliberately has no episode
       // dependency and cannot make a historical episode current. The explicit
       // request and manifest dimension separate it from ordinary analysis.
       if(request.refresh===true) {
-        const evidence=await durableEvidence(context,{metricKey:request.metricKey,sourceSet,baseline,quality,
+        const closed=ownedPurpose?await authorities.readOwnedMetricDomainEvidence(context,ownedPurpose,{plan,
+          itemData:metricItemData(request.metricKey,sourceSet,baseline,quality,observationCalculation,plan),discovered:discoveredPreparation}):null;
+        const evidence=closed??await durableEvidence(context,{metricKey:request.metricKey,sourceSet,baseline,quality,
           calculation:observationCalculation,asOfUtc:request.asOfUtc,plan});
+        if(closed&&canonicalJson(durableConfidence(evidence.item))!==canonicalJson(plan.confidence))
+          fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
         if(!evidence.item.created&&metricPreparationContinuation(core,context)){
-          if(!await metricUnitReceipt(core,context,plan,'AUTHORITY'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-          const verified=await authorities.read(context,evidence.item.row.evidence_item_id,'METRIC');
+          if(!closed&&!await metricUnitReceipt(core,context,plan,'AUTHORITY'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+          const verified=closed?.authority??await authorities.read(context,evidence.item.row.evidence_item_id,'METRIC');
           if(verified.origin!==null||canonicalJson(verified.calculation)!==canonicalJson(observationCalculation))
             fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
         }else await authorities.persist(context,{item:evidence.item,run:evidence.run,scope:'METRIC',origin:null,
           calculation:observationCalculation,sourceRefs:sourceSet.refs});
-        if(ownedPurpose){await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+        if(ownedPurpose){await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
           requireOwnedBodyMetricPurpose(core,context,ownedPurpose);}
         return markBodyMetricPreparationResult(core,context,request,Object.freeze({resultState:'REFRESH_PREPARED',baseline,quality,calculation:observationCalculation,
           run:evidence.run,item:evidence.item,episode:null}),ownedPurpose);
@@ -1004,5 +1087,5 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       return episodes.read(context,episodeId);
     });
   }
-  return Object.freeze({analyzeMetric,analyzeAssociationFamily,expireInsight,expireEpisode,metricPreparationUnit,metricPreparationUnitFromCurrentBody});
+  return Object.freeze({analyzeMetric,analyzeAssociationFamily,expireInsight,expireEpisode,metricPreparationUnit,metricPreparationUnitFromCurrentBody,withCurrentBodyMetricObservation,replayCurrentBodyMetricFamily});
 }

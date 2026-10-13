@@ -1,3 +1,4 @@
+import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import { compareExact } from './phase4CanonicalOrder.js';
 import { healthSourceVersion, canonicalSourceVersion, canonicalSourceTime } from './phase4SourceVersion.js';
 import {fail,readableRow,RAW_SOURCE_READ_BATCH} from './phase4Core.js';
@@ -294,7 +295,7 @@ export function createResultAuthority(core) {
       }
       if(!entries.size)incomplete();const roots=ordered([...entries.values()]),bytes=Buffer.byteLength(canonicalJson(roots));
       if(roots.length>REQUIRED_ROOT_BUDGET.count||bytes>REQUIRED_ROOT_BUDGET.bytes)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
-      await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+      await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
       if(!current())return null;
       return {version:BOUNDED_ROOT_VERSION,model:'FLATTENED_CALCULATION_INPUTS',roots,root_count:roots.length,serialized_bytes:bytes};
     });
@@ -350,7 +351,7 @@ export function createResultAuthority(core) {
       if(!entries.size)incomplete();
       const roots=ordered([...entries.values()]),bytes=Buffer.byteLength(canonicalJson(roots));
       if(roots.length>REQUIRED_ROOT_BUDGET.count||bytes>REQUIRED_ROOT_BUDGET.bytes)fail('PHASE4_REQUIRED_ROOT_BOUNDS_UNAVAILABLE');
-      await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+      await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
       return {version:BOUNDED_ROOT_VERSION,model:'FLATTENED_CALCULATION_INPUTS',roots,root_count:roots.length,serialized_bytes:bytes};
     });
   }
@@ -485,17 +486,74 @@ export function createResultAuthority(core) {
         args:[context.userId,context.executionMode,evidenceItemId,scope]})).rows[0];
       if(!row)fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');
       verifyEnvelope(context,row);
-      const item=await core.artifact(context,'evidence_items',{evidence_item_id:evidenceItemId});
-      const run=await core.artifact(context,'evidence_runs',{run_id:row.run_id});
+      const artifacts=await Promise.allSettled([
+        Promise.resolve().then(()=>core.artifact(context,'evidence_items',{evidence_item_id:evidenceItemId})),
+        Promise.resolve().then(()=>core.artifact(context,'evidence_runs',{run_id:row.run_id})),
+      ]);
+      for(const value of artifacts)if(value.status==='rejected')throw value.reason;
+      const item=artifacts[0].value,run=artifacts[1].value;
       const verified=authenticate(context,row,item.row,run.row),{origin,manifest}=verified;
       for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],
         ['auth_generation',context.authGeneration]])if(row[column]!==value)fail('PHASE4_PARENT_STALE');
       await validateRoots(context,row,manifest);
       if(currentOwnedBodyMetricObservation(core,context)){
-        await core.run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+        await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
         currentOwnedBodyMetricObservation(core,context);
       }
       return {row,...verified};
+    });
+  }
+  // A complete readonly DOMAIN closure. Raw ITEM data from the immediately
+  // preceding discovery only selects the actual graph; it is never returned
+  // or trusted as a current row. The fresh union supplies every real row/link,
+  // and every original artifact, item, manifest, hash and root comparator runs.
+  async function readOwnedMetricDomainEvidence(context,purpose,{plan,itemData,discovered}){
+    const selected=requireOwnedBodyMetricPurpose(core,context,purpose);
+    if(selected.purposeKind!=='DOMAIN'||canonicalJson(plan)!==selected.planJson)invalid();
+    requireMetricUnitProof(core,context,discovered?.itemProof,plan,'ITEM');
+    requireMetricUnitProof(core,context,discovered?.authorityProof,plan,'AUTHORITY');
+    const oldItem=discovered?.itemRow;
+    if(oldItem?.evidence_item_id!==selected.itemId||oldItem.run_id!==selected.runId||oldItem.item_key!==selected.itemKey)invalid();
+    return core.run(context,async()=>{
+      await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
+      const from=await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode]);
+      const row=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
+        args:[context.userId,context.executionMode,selected.itemId]})).rows[0];
+      if(!row)fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');verifyEnvelope(context,row);
+      const manifest=parse(row.required_roots_json);
+      validateManifest(manifest,context.executionMode);
+      const raw=entry=>entry.mode==='SHARED'&&entry.as_of===null&&['sleep','recovery','cycle','workout','USER'].includes(entry.type);
+      if(manifest.roots.some(entry=>!raw(entry)&&!(entry.type==='body_energy_results'&&entry.mode===context.executionMode
+        &&entry.as_of===null&&entry.id===selected.request.currentSource.id)))return null;
+      const itemRef=core.reference(context,'evidence_items',oldItem.privacy_artifact_id,context.executionMode,oldItem),
+        observed=await core.bodyMetricPreparationRawUnion(context,[selected.request.currentSource,itemRef],manifest.roots.filter(raw),purpose);
+      if(observed.fallback)return null;
+      const {artifact,rawValue}=bodyMetricRawComparators(context,observed),
+        item=artifact('evidence_items',oldItem.privacy_artifact_id),runRow=observed.runObservation.row;
+      if(observed.runObservation.error)throw observed.runObservation.error;
+      if(!runRow)fail('PHASE4_PARENT_NOT_FOUND');
+      const run=artifact('evidence_runs',runRow.privacy_artifact_id);
+      if(run.run_id!==selected.runId||run.deterministic_run_key!==plan.runKey||run.state!=='COMPLETED'
+        ||run.input_manifest_hash!==plan.inputHash||run.input_manifest_json!==canonicalJson(plan.input))fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
+      // artifact() above repeats the original conditional generation checks:
+      // v32 evidence_items gets its input generation through its RUN, rather
+      // than an input_generation column of its own.
+      for(const [key,value] of Object.entries({...itemData,run_id:run.run_id})){
+        const expected=key.endsWith('_json')&&value!==null?canonicalJson(value):value;
+        if(key.endsWith('_json')&&expected!==null&&Buffer.byteLength(expected)>262144)fail('PHASE4_JSON_TOO_LARGE');
+        if(item[key]!==expected)fail('PHASE4_IDENTITY_CONTENT_CONFLICT');
+      }
+      const verified=authenticate(context,row,item,run);
+      for(const [column,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],
+        ['auth_generation',context.authGeneration]])if(row[column]!==value)fail('PHASE4_PARENT_STALE');
+      for(const entry of verified.manifest.roots)compareRootRow(row,verified.manifest,entry,
+        entry.mode==='SHARED'?rawValue(entry).row:artifact(entry.type,entry.id));
+      await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
+      requireOwnedBodyMetricPurpose(core,context,purpose);
+      if(processingReadObservationEpoch(client)!==observed.observationEpoch)fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+      return {run:{row:{...run},ref:core.reference(context,'evidence_runs',run.privacy_artifact_id,context.executionMode,run),created:false},
+        item:{row:{...item},ref:core.reference(context,'evidence_items',item.privacy_artifact_id,context.executionMode,item),created:false},
+        authority:{row,...verified}};
     });
   }
   async function persist(context,{item,run,scope,origin,calculation,sourceRefs,continuation=null}) {
@@ -668,6 +726,6 @@ export function createResultAuthority(core) {
     for(const id of ids)refs.push((await core.artifact(context,'evidence_items',{evidence_item_id:id})).ref);
     return refs;
   }
-  return Object.freeze({read,persist,metricOrigin,episodeDependencies,validateExisting,privacyDependencies,
+  return Object.freeze({read,readOwnedMetricDomainEvidence,persist,metricOrigin,episodeDependencies,validateExisting,privacyDependencies,
     captureRoots,captureBodyMetricPreparationRoots,captureNewBodySourceRoots,validateRoots,validateManifest,compareRootRow,descriptorsForRun,authenticate});
 }

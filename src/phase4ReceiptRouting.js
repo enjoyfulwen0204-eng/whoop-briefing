@@ -140,7 +140,7 @@ export function createReceiptRouting(client,keys) {
   const verifyEntry=row=>{if(row.route_version!==ROUTE_VERSION||row.binding_hmac!==mac(['ENTRY',...entryValues(row)]))invalid();};
   const verifyManifest=row=>{if(row.route_version!==ROUTE_VERSION||row.manifest_hmac!==mac(['MANIFEST',...manifestValues(row)]))invalid();};
   const chain=(prior,entry)=>mac(['CHAIN',prior,entry.binding_hmac]);
-  async function register(row,decoded=null,{legacyUnknown=false}={}) {
+  async function register(row,decoded=null,{legacyUnknown=false,batchNew=false}={}) {
     const values=legacyUnknown?[]:await subjects(row,decoded),state=legacyUnknown?'LEGACY_ROUTE_UNKNOWN':'KNOWN',json=canonicalJson(values);
     if(!legacyUnknown&&(row.operation_kind.startsWith('EPISODE_')||row.operation_kind==='analyzeMetric'
       ||row.operation_kind==='expireEpisode')&&!values.some(([kind])=>kind==='EPISODE'))invalid();
@@ -165,6 +165,37 @@ export function createReceiptRouting(client,keys) {
           AND operation_kind=? AND operation_key=? AND subject_kind=? AND subject_token=?`,
           args:[row.user_id,row.execution_mode,row.operation_kind,row.operation_key,subject_kind,subject_token]}),
       ])));
+    // Only the owned current-Body DOMAIN asks for this transport. A group
+    // containing any existing entry or failed observation keeps the original
+    // repair/replay path. New independent subjects retain their exact ordered
+    // entry -> manifest writes, HMACs and enclosing atomic COMMIT fences.
+    const allNew=batchNew&&typeof client.batch==='function'&&read.every(value=>value.status==='fulfilled'
+      &&value.value.every(result=>result.status==='fulfilled')&&!value.value[1].value.rows[0]);
+    if(allNew){
+      const writes=[];
+      for(let index=0;index<group.length;index++){
+        const [subject_kind,subject_token]=group[index],pair=observed(read[index]),scope=[row.user_id,row.execution_mode,subject_kind,subject_token],
+          prior=observed(pair[0]).rows[0];
+        if(prior)verifyManifest(prior);
+        const entry={user_id:row.user_id,execution_mode:row.execution_mode,subject_kind,subject_token,
+          sequence:(prior?.entry_count??0)+1,operation_kind:row.operation_kind,operation_key:row.operation_key};
+        entry.binding_hmac=mac(['ENTRY',...entryValues(entry)]);
+        writes.push({sql:`INSERT INTO ${ROUTE_ENTRIES}
+          (user_id,execution_mode,subject_kind,subject_token,sequence,operation_kind,operation_key,route_version,binding_hmac)
+          VALUES (?,?,?,?,?,?,?,?,?)`,args:[...entryValues(entry).slice(0,4),entry.sequence,entry.operation_kind,
+          entry.operation_key,ROUTE_VERSION,entry.binding_hmac]});
+        const manifest={user_id:row.user_id,execution_mode:row.execution_mode,subject_kind,subject_token,
+          entry_count:entry.sequence,chain_digest:chain(prior?.chain_digest??ZERO,entry)};
+        manifest.manifest_hmac=mac(['MANIFEST',...manifestValues(manifest)]);
+        writes.push(prior?{sql:`UPDATE ${ROUTE_MANIFESTS} SET entry_count=?,chain_digest=?,manifest_hmac=?
+          WHERE user_id=? AND execution_mode=? AND subject_kind=? AND subject_token=?`,
+          args:[manifest.entry_count,manifest.chain_digest,manifest.manifest_hmac,...scope]}
+          :{sql:`INSERT INTO ${ROUTE_MANIFESTS}
+          (user_id,execution_mode,subject_kind,subject_token,route_version,entry_count,chain_digest,manifest_hmac)
+          VALUES (?,?,?,?,?,?,?,?)`,args:[...scope,ROUTE_VERSION,manifest.entry_count,manifest.chain_digest,manifest.manifest_hmac]});
+      }
+      await client.batch(writes);continue;
+    }
     for(let index=0;index<group.length;index++) {
       const [subject_kind,subject_token]=group[index],pair=observed(read[index]);
       const scope=[row.user_id,row.execution_mode,subject_kind,subject_token];

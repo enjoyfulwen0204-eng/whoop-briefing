@@ -23,10 +23,14 @@ export function createLegacyDiscovery(core) {
     if(!['analyzeMetric','analyzeAssociationFamily'].includes(kind))return;
     const start=performance.now(),scope=[context.userId,context.executionMode,context.inputGeneration];
     const check=()=>{if(performance.now()-start>LEGACY_DISCOVERY_BUDGET.deadlineMs)unavailable();};
-    const runs=(await core.client.execute({sql:`SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=?
-      AND input_generation=? ORDER BY run_id LIMIT ?`,args:[...scope,LEGACY_DISCOVERY_BUDGET.runs+1]})).rows;
-    const authorities=(await core.client.execute({sql:`SELECT * FROM ${RESULT_AUTHORITY_TABLE} WHERE user_id=? AND execution_mode=?
-      AND input_generation=? ORDER BY evidence_item_id,result_scope LIMIT ?`,args:[...scope,LEGACY_DISCOVERY_BUDGET.authorities+1]})).rows;
+    const inventories=await Promise.allSettled([
+      Promise.resolve().then(()=>core.client.execute({sql:`SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=?
+        AND input_generation=? ORDER BY run_id LIMIT ?`,args:[...scope,LEGACY_DISCOVERY_BUDGET.runs+1]})),
+      Promise.resolve().then(()=>core.client.execute({sql:`SELECT * FROM ${RESULT_AUTHORITY_TABLE} WHERE user_id=? AND execution_mode=?
+        AND input_generation=? ORDER BY evidence_item_id,result_scope LIMIT ?`,args:[...scope,LEGACY_DISCOVERY_BUDGET.authorities+1]})),
+    ]);
+    for(const value of inventories)if(value.status==='rejected')throw value.reason;
+    const runs=inventories[0].value.rows,authorities=inventories[1].value.rows;
     if(runs.length>LEGACY_DISCOVERY_BUDGET.runs||authorities.length>LEGACY_DISCOVERY_BUDGET.authorities)unavailable();
     const runIds=new Set(runs.map(run=>run.run_id));
     for(const row of authorities)if(!runIds.has(row.run_id))invalid();
@@ -81,7 +85,7 @@ export function createLegacyDiscovery(core) {
       // A v26 result is not a complete public operation receipt, even if its
       // origin is authentic. A v27 receipt miss with equivalent input also
       // fails closed: it may indicate a missing receipt or unknown dimension.
-      let complete=false;
+      let complete=false,preparation=null;
       if(kind==='analyzeMetric'&&request.refresh===true&&metricPreparationContinuation(core,context)){
         const plan={runKey:run.deterministic_run_key,inputHash:run.input_manifest_hash,
           itemKey:core.keys.lookup(['phase4-evidence-item-v1',run.deterministic_run_key,'baseline-deviation'])};
@@ -89,12 +93,19 @@ export function createLegacyDiscovery(core) {
         // Only the three original acknowledged, producer-bound units can
         // complete their missing domain receipt. An arbitrary legacy result
         // remains unavailable, and every historical/root check above still ran.
-        if(!await metricRunReceipt(core,context,plan))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-        for(const unit of ['ITEM','AUTHORITY'])if(!await metricUnitReceipt(core,context,plan,unit))
-          fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+        // Independent immutable receipt observations retain every original
+        // current-owner/producer/context check. Settle all before returning,
+        // then preserve RUN -> ITEM -> AUTHORITY failure/absence priority.
+        const units=await Promise.allSettled([
+          Promise.resolve().then(()=>metricRunReceipt(core,context,plan)),
+          ...['ITEM','AUTHORITY'].map(unit=>Promise.resolve().then(()=>metricUnitReceipt(core,context,plan,unit))),
+        ]);
+        for(const value of units){if(value.status==='rejected')throw value.reason;
+          if(!value.value)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');}
+        preparation={plan,itemProof:units[1].value,authorityProof:units[2].value,itemRow:{...items[0]}};
         complete=true;
       }
-      matches.push({run,complete});
+      matches.push({run,complete,preparation});
     }
     check();
     // Association has one run per focus in a family. Only duplicate focus
@@ -106,5 +117,9 @@ export function createLegacyDiscovery(core) {
     }
     if([...groups.values()].some(count=>count>1))fail('PHASE4_LEGACY_IDENTITY_AMBIGUOUS');
     if(matches.some(match=>!match.complete))fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
+    // An opaque ITEM proof can be consumed by this same owned DOMAIN call.
+    // Its consumer must bind the independently recomputed canonical plan;
+    // an absent/ambiguous historical match cannot supply this continuation.
+    return kind==='analyzeMetric'&&matches.length===1?matches[0].preparation:null;
   };
 }

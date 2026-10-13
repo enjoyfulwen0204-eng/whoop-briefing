@@ -1,3 +1,4 @@
+import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import {readOnlyProcessingCheck} from './processingTransaction.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {controlOnlyProcessingCheck,processingReadObservationEpoch} from './processingTransaction.js';
@@ -89,7 +90,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   const auditCheck=(await client.execute("SELECT last_cursor FROM phase4_migration_checkpoints WHERE target_version=22 AND step_key='audit_key_check'")).rows[0];
   if(!keys.verifyAuditCheckpoint(auditCheck?.last_cursor))fail('PHASE4_AUDIT_KEY_MISMATCH');
   }
-  const rootObservations=new WeakMap(),ownedEvidenceData=new WeakMap();
+  const rootObservations=new WeakMap(),ownedEvidenceData=new WeakMap(),ownedMetricUnions=new WeakMap();
   const contexts=new WeakSet(),controls=new WeakSet(),privacyControls=new WeakSet(),sources=new WeakMap(),columns=new Map();
   const timestamp=()=>{const value=now();if(!(value instanceof Date) || !Number.isFinite(value.getTime()))fail('PHASE4_INVALID_CLOCK');return value.toISOString();};
   const contextRegistry=createPhase4ContextRegistry({client,keys,now,timestamp,newId:()=>randomUUID()});
@@ -489,7 +490,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
         const frame=ownedEvidenceFrame(context);if(!frame)return false;
         const row=await ownedArtifactRow(context,frame,table,{privacy_artifact_id:artifactId});
         if(!row||!ownedDefaultArtifact(context,frame,table,row)||!await ownedDefaultGraph(context,frame,table,row))return false;
-        await run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+        await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
         return Boolean(currentOwnedBodyMetricObservation(core,context));
       },{readOnly:true});
       if(observed)return;
@@ -628,6 +629,21 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       await assertExecutionWorkOwner(client);
       const observationEpoch=processingReadObservationEpoch(client);
       if(observationEpoch===null)return {fallback:true};
+      const retained=owned?ownedMetricUnions.get(owned):null;
+      if(retained?.observationEpoch===observationEpoch
+        &&unique.every(source=>retained.inputRows.has(JSON.stringify([source.type,String(source.id)])))
+        &&expected.every(source=>sourceData.rawRoots.has(JSON.stringify([source.type,String(source.id)])))){
+        // DATA only from this exact purpose/root/epoch. Every original prefix
+        // reservation and bounded probe still runs; independent probes share
+        // transport. Consumers repeat their full pure graph/hash/row checks
+        // and their mandatory fresh delivery gate. No accepted guard survives.
+        const probes=await Promise.allSettled([...retained.nodes.values()].map(node=>Promise.resolve().then(()=>
+          pilotPrefixFrom(client,context,'phase4_source_links',[context.userId,context.executionMode,node.table,node.row.privacy_artifact_id]))));
+        for(const value of probes)if(value.status==='rejected')throw value.reason;
+        requireOwnedBodyMetricPurpose(core,context,ownedPurpose);
+        if(processingReadObservationEpoch(client)!==observationEpoch)fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+        return {...retained,inputs};
+      }
       const nodes=new Map(),values=new Map(),raw=new Map(),nodeKey=(table,id)=>JSON.stringify([table,String(id)]);
       const initial=await Promise.allSettled(unique.map(source=>Promise.resolve().then(()=>client.execute({
         sql:`SELECT * FROM ${source.type} WHERE user_id=? AND execution_mode=? AND privacy_artifact_id=?`,args:[context.userId,context.executionMode,source.id]}))));
@@ -653,7 +669,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
             WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL`,
             args:[context.userId,context.executionMode,node.table,node.row.privacy_artifact_id]})).rows;
         }catch(error){nodes.set(identity,{row:node.row,error});continue;}
-        nodes.set(identity,{row:node.row,links});bytes+=Buffer.byteLength(JSON.stringify([node.row,links]));
+        nodes.set(identity,{table:node.table,row:node.row,links});bytes+=Buffer.byteLength(JSON.stringify([node.row,links]));
         if(bytes>READ_SNAPSHOT_LIMITS.bytes)return {fallback:true};
         for(const link of links){
           if(link.source_execution_mode==='SHARED'){
@@ -683,7 +699,9 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
         // Defer fresh SQL to the closed owner's post-comparison delivery gate;
         // a later raw SQL failure must not suppress an earlier pure error.
         if(processingReadObservationEpoch(client)!==observationEpoch)return {fallback:true};
-        return {fallback:false,inputs,inputRows,runObservation,nodes,values,observationEpoch,sourceData,ownedPurpose};
+        const result={fallback:false,inputs,inputRows,runObservation,nodes,values,observationEpoch,sourceData,ownedPurpose};
+        if([...nodes.values()].every(node=>node.table&&node.row&&Array.isArray(node.links)))ownedMetricUnions.set(owned,result);
+        return result;
       }
       for(let start=0;start<descriptors.length;start+=RAW_SOURCE_READ_BATCH){
         const group=descriptors.slice(start,start+RAW_SOURCE_READ_BATCH),observed=await Promise.allSettled(group.map(source=>Promise.resolve().then(()=>root(context,source.type,source.id))));
@@ -693,7 +711,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
         }
         if(bytes>READ_SNAPSHOT_LIMITS.bytes)return {fallback:true};
       }
-      await run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+      await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
       if(processingReadObservationEpoch(client)!==observationEpoch)return {fallback:true};
       return {fallback:false,inputs,inputRows,runObservation,nodes,values,observationEpoch};
     });
@@ -809,7 +827,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
         for(const column of ['input_generation','lifecycle_generation','auth_generation'])if(Object.hasOwn(runRow,column)&&runRow[column]!==priorRun.row[column])fail('PHASE4_PARENT_STALE');
         graph(priorRun.type,priorRun.id);
       }
-      await run(context,async()=>{});await assertExecutionWorkOwner(client);requireSettledOperation();
+      await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
       return {fallback:false,refs:[...bodyRefs,runRef??reference(context,'evidence_runs',runRow.privacy_artifact_id,context.executionMode,runRow)]};
     });
   }

@@ -70,7 +70,7 @@ export function composePhase4Stores(core) {
     recordedMetricPreparation:receipts.recordedMetricPreparation,
     metricDomainWork:receipts.metricDomainWork,
     performMetricDomain:(context,request,purpose)=>receipts.execute(context,'analyzeMetric',request,
-      semantic=>intelligence.analyzeMetric(context,semantic,purpose),{discover,bodyMetricPurpose:purpose}),
+      (semantic,preparation)=>intelligence.analyzeMetric(context,semantic,purpose,preparation),{discover,bodyMetricPurpose:purpose}),
     takeMetricDomainProgress:receipts.takeNewMetricDomainProgress,replayMetricDomain:receipts.replayMetricDomain,
     prepareCurrentBodyMetricRequest:async(context,asOfUtc)=>{
       const recorded=await readForCurrentDrain(context,asOfUtc);if(!recorded)fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
@@ -297,9 +297,16 @@ export function composePhase4Stores(core) {
         return episodes.readRevision(context,request);
       }),...Object.fromEntries(['open','revise','reverse','refresh','semantic']
       .map(name=>[name,owned(episodes[name])]))}),
-    intelligence:Object.freeze({...Object.fromEntries(Object.entries(intelligence).filter(([name])=>!['metricPreparationUnit','metricPreparationUnitFromCurrentBody'].includes(name))
+    intelligence:Object.freeze({...Object.fromEntries(Object.entries(intelligence).filter(([name])=>!['metricPreparationUnit','metricPreparationUnitFromCurrentBody','withCurrentBodyMetricObservation','replayCurrentBodyMetricFamily'].includes(name))
       .map(([name,fn])=>[name,operation(name,fn)])),metricPreparationUnit:intelligence.metricPreparationUnit,
       metricPreparationUnitFromCurrentBody:intelligence.metricPreparationUnitFromCurrentBody,
+      withCurrentBodyMetricObservation:intelligence.withCurrentBodyMetricObservation,
+      replayCurrentBodyMetricFamily:intelligence.replayCurrentBodyMetricFamily,
+      replayExistingMetricPreparation:(context,request)=>withMetricPreparationContinuation(core,context,async()=>{
+        const result=await receipts.replayMetricDomain(context,request);
+        if(result?.resultState!=='REFRESH_PREPARED')fail('PHASE4_OPERATION_RECEIPT_INTEGRITY');
+        return result;
+      }),
       resumeMetricPreparation:(context,request)=>withMetricPreparationContinuation(core,context,
         ()=>operation('analyzeMetric',intelligence.analyzeMetric)(context,request)),
       completeMetricPreparationDomain:(context,request)=>withMetricPreparationContinuation(core,context,async()=>{

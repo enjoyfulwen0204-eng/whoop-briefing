@@ -11,7 +11,7 @@ import {stage7Configuration} from '../src/stage7Runtime.js';
 import {trustedJournalFact} from '../src/stage7TrustedRegistry.js';
 async function fixture(t,{daily=0,topics=['sleep','recovery'],hour=1,outcome='DELIVERED'}={}){
  let at=Date.parse('2026-09-19T00:00:00.000Z')+hour*3600000;
- const f=await syntheticPhase4Fixture(t,{targetVersion:33,now:()=>new Date(at)});await seedBodyInput(f.db,bodyInput({days:2}));
+ const f=await syntheticPhase4Fixture(t,{targetVersion:34,now:()=>new Date(at)});await seedBodyInput(f.db,bodyInput({days:2}));
  await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});await f.db.setLocale('a','en',{now:f.core.now()});
  const user=await f.db.getUser('a'),companion=await createStage7Development(f),coach=createCompanionCoach({...f,companion}),invitations=createCompanionInvitation({...f,companion,coach,configuration:COMPANION_DEFAULTS});
  const actor=await companion.interactions.authenticate({user,chatId:'123'});

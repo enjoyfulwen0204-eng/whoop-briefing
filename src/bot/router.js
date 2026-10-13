@@ -847,8 +847,10 @@ export function createRouter({
   async function handleQuestion({
     text, chatId, t, userId, timezone, coach, locale = 'zh-TW', justLogged = null, signals = null,
   }) {
-    const preliminary=selfQueryPerspective({text,signals,intent:(await resolveIntent(text,{coach:null})).intent});
-    if(!preliminary.usePersonalData){const edu=educationAnswer({text,perspective:preliminary.perspective,locale});return edu?.text??translate(locale,'router.noData');}
+    if(stage8?.eligible(userId)){
+      const preliminary=selfQueryPerspective({text,signals,intent:(await resolveIntent(text,{coach:null})).intent});
+      if(!preliminary.usePersonalData){const edu=educationAnswer({text,perspective:preliminary.perspective,locale});return edu?.text??translate(locale,'router.noData');}
+    }
 
     // 「我是不是喝酒了？」—— 問的是我們這邊有沒有紀錄。這題有確定性的答案，
     // 不需要 intent 分類，也絕不該掉到指令清單或衛教說明。

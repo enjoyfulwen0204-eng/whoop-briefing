@@ -445,7 +445,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   const api = createTelegramApi({ botToken: env.telegramBotToken });
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
   const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env});
-  const stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
+  const stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
   const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8 });
   const settings = createSettings({db,stage8});
 

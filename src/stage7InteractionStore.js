@@ -24,7 +24,9 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  }
  const privacyFields=state=>({privacy_artifact_id:core.newId(),content_state:'PRESENT',source_linkage_state:'COMPLETE',content_digest_salt:keys.newSalt(),purge_generation:state.purge_generation});
  async function link(table,row,sourceType='USER',sourceId=row.user_id){
-  await addPrivacyLink(client,{userId:row.user_id,mode:row.execution_mode??'SHARED',table,artifactId:row.privacy_artifact_id,sourceType,sourceId,sourceMode:sourceType==='outbound_messages'?'LIVE':['quick_action_interactions','journal_prompt_deliveries','evidence_items'].includes(sourceType)?'SHADOW':'SHARED',at:timestamp()});
+  // A copied confirmed delivery receipt is shared presentation provenance.
+  // This edge never promotes a SHADOW computation or relaxes semantic reads.
+  await addPrivacyLink(client,{userId:row.user_id,mode:sourceType==='outbound_messages'?'SHARED':row.execution_mode??'SHARED',table,artifactId:row.privacy_artifact_id,sourceType,sourceId,sourceMode:sourceType==='outbound_messages'?'LIVE':['quick_action_interactions','journal_prompt_deliveries','evidence_items'].includes(sourceType)?'SHADOW':'SHARED',at:timestamp()});
  }
  async function insert(table,row){const fields=Object.keys(row);await client.execute({sql:`INSERT INTO ${table}(${fields.join(',')}) VALUES(${fields.map(()=>'?').join(',')})`,args:fields.map(k=>row[k])});}
  async function read(uid,id){return (await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[uid,id]})).rows[0]??null;}

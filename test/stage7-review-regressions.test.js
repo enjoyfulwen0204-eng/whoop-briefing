@@ -1,3 +1,4 @@
+import {confirmedLegacyBrief} from './confirmedLegacyBriefFixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {stage7Fixture} from './stage7Fixture.js';
@@ -8,6 +9,7 @@ import {createStage7DecisionStore} from '../src/stage7DecisionStore.js';
 
 async function confirmedBrief(f, day) {
   await f.db.raw.execute({sql:"INSERT INTO report_claims(user_id,report_type,local_date,owner,claimed_at,expires_at,lifecycle_generation,delivery_state,telegram_message_id) VALUES('a','daily',?,'synthetic-reviewer',?,?,?,'DELIVERED',11)",args:[day,f.core.timestamp(),f.core.timestamp(),f.user.lifecycleGeneration]});
+  await confirmedLegacyBrief(f,{day});
 }
 async function enableDaily(f) {
   const actor=await f.companion.interactions.authenticate({user:f.user,chatId:'123'});
@@ -46,7 +48,7 @@ test('the Telegram daily reconciliation forwards authorized missing-context inpu
 });
 
 test('deleting a known-context input physically removes persisted decision diagnostics',async t=>{
-  const at=Date.parse('2026-09-25T12:00:00.000Z'),f=await syntheticPhase4Fixture(t,{targetVersion:33,now:()=>new Date(at)}),input=bodyInput({asOf:at,days:30});
+  const at=Date.parse('2026-09-25T12:00:00.000Z'),f=await syntheticPhase4Fixture(t,{targetVersion:34,now:()=>new Date(at)}),input=bodyInput({asOf:at,days:30});
   for(let i=0;i<input.sources.recovery.length;i++)input.sources.recovery[i].recovery_score=i===0?15:[40,45,50,55,60][(i-1)%5];
   await f.db.transaction(()=>seedBodyInput(f.db,input));await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});
   await f.db.raw.execute("INSERT INTO user_onboarding(user_id,state,state_changed_at,created_at,updated_at) VALUES('a','READY','2026-09-25','2026-09-25','2026-09-25')");
@@ -68,7 +70,7 @@ test('deleting a known-context input physically removes persisted decision diagn
 });
 
 test('v33 direct canonical user-text create/correct/delete preserves Foundation boundaries',async t=>{
-  const f=await syntheticPhase4Fixture(t,{targetVersion:33}),control=await f.stores.captureControl('a');
+  const f=await syntheticPhase4Fixture(t,{targetVersion:34}),control=await f.stores.captureControl('a');
   const make=amount=>{const sourceText=`caffeine ${amount}mg`;return {sourceText,sourceEventKey:'independent-direct',candidate:{category:'caffeine',eventAt:f.core.timestamp(),valueKind:'NUMERIC',numericValue:amount,unit:'mg',exposureState:'EXPOSED',extractionConfidence:1,excerptStart:0,excerptEnd:sourceText.length}};};
   const first=await f.stores.journal.create(control,make(100));assert.equal(first.status,'ACCEPT');
   const corrected=await f.stores.journal.correct(control,{...make(200),logicalFactId:first.logicalFactId,expectedRevision:1,idempotencyKey:'independent-direct-correct'});await f.stores.privacy.complete(control,corrected.purgeId);

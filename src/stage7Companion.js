@@ -179,16 +179,17 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(!prefs.daily_enabled)return {status:'DISABLED'};
    if(actor.state.auth_generation<1)return {status:'AUTHORIZATION_FENCED'};
    if(healthDay!==localDate(core.now(),actor.state.timezone))return {status:'NOT_CURRENT_DAY'};
-   const proof=await confirmedMorningReceipt({core,actor,day:healthDay});
-   if(!proof)return {status:'BRIEF_NOT_CONFIRMED'};
-   const occasion=proof.sleepId?core.keys.lookup(['journal-wake-occasion-v1',user.id,proof.sleepId]):null;
-   if(occasion){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND occasion_key=?',args:[user.id,occasion]})).rows[0];if(existing)return {status:'EXISTING',deliveryId:existing.delivery_id};}
    const semantic=core.keys.lookup(['daily-journal-v1',user.id,healthDay,DAILY_POLICY_VERSION]);
    const dayKey=core.keys.lookup(['journal-day-v1',user.id,healthDay]);
    const priorDay=(await client.execute({sql:'SELECT interaction_id FROM quick_action_interactions WHERE user_id=? AND day_key=?',args:[user.id,dayKey]})).rows[0];
    if(priorDay){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND interaction_id=?',args:[user.id,priorDay.interaction_id]})).rows[0];return {status:'EXISTING',deliveryId:existing?.delivery_id??null};}
    const previous=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND semantic_key=?',args:[user.id,semantic]})).rows[0];
    if(previous)return {status:'EXISTING',deliveryId:previous.delivery_id};
+   // Retained daily barriers suppress duplicates even after source erasure.
+   const proof=await confirmedMorningReceipt({core,actor,day:healthDay});
+   if(!proof)return {status:'BRIEF_NOT_CONFIRMED'};
+   const occasion=proof.sleepId?core.keys.lookup(['journal-wake-occasion-v1',user.id,proof.sleepId]):null;
+   if(occasion){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND occasion_key=?',args:[user.id,occasion]})).rows[0];if(existing)return {status:'EXISTING',deliveryId:existing.delivery_id};}
    const pending=await companionEngagementBusy({core,db,actor});
    if(pending)return {status:'INTERACTION_BUSY'};
    const targetDate=addDays(healthDay,-1),facts=await ownFacts(actor,{fromDate:addDays(targetDate,-179),toDate:targetDate}),history=(await client.execute({sql:"SELECT privacy_artifact_id,category,target_date FROM quick_action_interactions WHERE user_id=? AND (kind='DAILY' OR json_extract(diagnostics_json,'$.dailyAnswerKey') IS NOT NULL AND state IN ('COMPLETED','NOT_SURE','SKIPPED')) AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 60",args:[user.id]})).rows;

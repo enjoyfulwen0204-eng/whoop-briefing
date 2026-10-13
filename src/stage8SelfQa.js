@@ -19,7 +19,9 @@ export function createStage8SelfQa({scopes,db,bodyEnergy,decorate=null,now=()=>n
  async function handle({user,chatId,text}){
   const raw=String(text??'').trim(),command=parseCommand(raw);
   if(command&&!healthCommands.has(command.name??command.command))return null;
+  if(command?.command==='journal'&&command.argsText)return null;
   const intent=await resolveIntent(raw,{coach:null});
+  if(intent.intent==='journal_log')return null;
   if(!command&&intent.intent==='unknown'&&!/[?？]|hrv|rhr|sleep|recovery|body energy|睡|恢復|體能|證據|evidence|giấc ngủ|phục hồi/iu.test(raw))return null;
   const locale=await db.getLocale(user.id),c=SCOPED_COPY[locale]??SCOPED_COPY['zh-TW'];
   const perspective=selfQueryPerspective({text:raw,intent:intent.intent});

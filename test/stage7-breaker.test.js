@@ -12,7 +12,7 @@ const countNineCore=core=>({...core,client:{protocol:core.client.protocol,execut
 }}});
 
 test('proactive runaway suppression leaves a valid Morning Brief target independent',async t=>{
-  const f=await syntheticPhase4Fixture(t,{targetVersion:33}),q=await journalQuestion(f,{mode:'LIVE'}),context=q.context,source=await f.stores.root(context,'USER','a');
+  const f=await syntheticPhase4Fixture(t,{targetVersion:34}),q=await journalQuestion(f,{mode:'LIVE'}),context=q.context,source=await f.stores.root(context,'USER','a');
   await f.stores.transport.mode(context,'MORNING_BRIEF_V1');
   await f.db.raw.execute("UPDATE tenant_delivery_modes SET mode='PHASE4',revision=revision+1,reason_code='CUTOVER_COMMITTED',cutover_boundary='2026-09-19T00:00:00.000Z',timezone='Asia/Taipei' WHERE user_id='a' AND execution_mode='LIVE' AND message_family='MORNING_BRIEF_V1'");
   const message=await f.stores.messages.propose(context,{semantic:{family:'MORNING_BRIEF_V1',identity:'2026-09-19'},message:{payload_text:'Synthetic Morning Brief',expires_at:'2026-09-20T00:00:00.000Z'},sourceRefs:[source.ref]});
@@ -22,7 +22,7 @@ test('proactive runaway suppression leaves a valid Morning Brief target independ
 });
 
 test('pre-send breaker cancellation releases its own RESERVED question slot',async t=>{
-  const f=await syntheticPhase4Fixture(t,{targetVersion:33});
+  const f=await syntheticPhase4Fixture(t,{targetVersion:34});
   const deferred={...f,stores:{...f.stores,slots:{...f.stores.slots,beginSimulation:async()=>({}),classifySimulation:async()=>({})}}};
   const q=await journalQuestion(deferred,{mode:'SHADOW'}),question=await f.stores.readArtifact(q.context,'context_questions',{question_request_id:q.selected.questionRequestId});
   const message=await f.stores.messages.propose(q.context,{semantic:{family:'CONTEXT_QUESTION',identity:q.selected.questionRequestId},message:{decision_id:q.selected.decisionId,question_request_id:q.selected.questionRequestId,episode_id:question.row.episode_id,payload_text:'Synthetic question',expires_at:'2026-09-20T00:00:00.000Z'},sourceRefs:[question.ref]});

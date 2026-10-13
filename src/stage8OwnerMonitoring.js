@@ -88,6 +88,15 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
    return claims.length?{status:'APPROVED',semanticIdentity:day,claims,refs:[{table:'morning_brief_plans',id:plan.row.plan_id,hmac:plan.row.plan_hmac}],asOfUtc:plan.plan.asOfUtc,expiresAt:plan.row.expires_at}:{status:'NO_QUALIFYING_CONTENT'};
   }
   if(comp.last_completed_generation!==comp.input_generation)return {status:'ANALYSIS_UPDATING'};
+  // Completion metadata alone cannot authorize an empty LIVE synthesis. The
+  // frozen v32 producer contract is SHADOW-only; preserve that allocation and
+  // report updating until a separately approved LIVE producer exists.
+  const producers=await rows(`SELECT p.*,e.state,e.phase,e.generation final_generation,e.execution_seq final_seq
+    FROM phase4_execution_producers p JOIN phase4_executions e ON e.execution_id=p.producing_execution_id
+    WHERE p.user_id=? AND p.execution_mode='LIVE' AND p.input_generation=?`,[uid,comp.input_generation]);
+  if(!producers.length||producers.some(p=>p.state!=='FINALIZED_SUCCESS'||p.phase!=='STAGE6_DRAIN'||p.execution_seq!==p.final_seq||p.producing_generation>p.final_generation
+    ||p.tenant_proof!==keys.lookup(['execution-producer-v1',uid,'LIVE',comp.input_generation,p.producing_execution_id,p.execution_seq,p.producing_generation])))return {status:'ANALYSIS_UPDATING'};
+
   if((await rows("SELECT 1 FROM phase4_invalidations WHERE user_id=? AND execution_mode='LIVE' AND scope_kind<>'NONE'",[uid])).length)return {status:'ANALYSIS_UPDATING'};
   // Registered typed reads verify operation receipts and current evidence.
   if(klass==='WEEKLY_SUMMARY'){

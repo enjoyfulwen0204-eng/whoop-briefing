@@ -5,7 +5,7 @@ import {fixtureKeys} from './localDb.js';
 import {createSendReply} from '../src/bot/index.js';
 const environment={STAGE7_COMPANION:'on',STAGE7_COMPANION_USER_IDS:'a',PHASE4_BETA_PILOT_USER_ID:'a'};
 async function fixture(t){
- let at=Date.parse('2026-09-19T00:00:00Z');const f=await syntheticPhase4Fixture(t,{targetVersion:33,now:()=>new Date(at)});
+ let at=Date.parse('2026-09-19T00:00:00Z');const f=await syntheticPhase4Fixture(t,{targetVersion:34,now:()=>new Date(at)});
  await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});await f.db.setLocale('a','en',{now:f.core.now()});
  const app=await createStage7Runtime({db:f.db,keys:fixtureKeys,environment,env:{telegramBotToken:'SYNTHETIC_NOT_A_TOKEN'},now:f.core.now}),user=await f.db.getUser('a'),input={user,chatId:'123',text:'/coach',updateId:1};
  const inbound=await app.stage7Inbound(input),reply=await app.stage7Reply({...input,reply:inbound.reply});

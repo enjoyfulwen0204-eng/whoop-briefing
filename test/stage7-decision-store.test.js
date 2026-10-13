@@ -4,7 +4,7 @@ import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
 import {createStage7DecisionStore} from '../src/stage7DecisionStore.js';
 
 test('Stage 7 decision reads typed current evidence, does not invent association utility, and replay retains its original NO_NOTIFICATION',async t=>{
- const at=Date.parse('2026-09-25T12:00:00.000Z'),f=await syntheticPhase4Fixture(t,{targetVersion:33,now:()=>new Date(at)}),input=bodyInput({asOf:at,days:30});
+ const at=Date.parse('2026-09-25T12:00:00.000Z'),f=await syntheticPhase4Fixture(t,{targetVersion:34,now:()=>new Date(at)}),input=bodyInput({asOf:at,days:30});
  for(let i=0;i<input.sources.recovery.length;i++)input.sources.recovery[i].recovery_score=i===0?15:[40,45,50,55,60][(i-1)%5];
  await f.db.transaction(()=>seedBodyInput(f.db,input));await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});
  await f.db.raw.execute("INSERT INTO user_onboarding(user_id,state,state_changed_at,created_at,updated_at) VALUES('a','READY','2026-09-25','2026-09-25','2026-09-25')");

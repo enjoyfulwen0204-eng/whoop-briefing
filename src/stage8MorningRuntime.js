@@ -5,11 +5,12 @@ import {createStage8MorningStore} from './stage8MorningStore.js';
 import {stage8Configuration} from './stage8Runtime.js';
 import {createTelegramApi} from './bot/api.js';
 import {SEND_OUTCOME} from './sendOutcome.js';
+import {validMessageId} from './telegramAcknowledgment.js';
 import {localDate} from './time.js';
 const fail=code=>{throw Error(code);};
 export async function createStage8MorningRuntime({db,keys,environment,env,admission,now=()=>new Date()}){
  if((environment.STAGE8_MORNING_BRIEF??'off')!=='on')return null;
- const config=stage8Configuration({...environment,PHASE4_STAGE8_RUNTIME:'on'}),eligible=uid=>environment.STAGE8_MORNING_BRIEF==='on'&&config.userIds.includes(uid);
+ const config=stage8Configuration({...environment,PHASE4_STAGE8_RUNTIME:'on'}),eligible=uid=>environment.STAGE8_MORNING_BRIEF==='on'&&stage8Configuration({...environment,PHASE4_STAGE8_RUNTIME:'on'}).userIds.includes(uid);
  admission??=await db.admitRuntime();
  const liveAuthority=issueStage8LiveAuthority({db,keys,admission,userIds:config.userIds,enabled:()=>environment.STAGE8_MORNING_BRIEF==='on'});
  const core=await buildPhase4Core({keys,admission,liveAuthority,now,processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},
@@ -57,8 +58,8 @@ export async function createStage8MorningRuntime({db,keys,environment,env,admiss
    const binding=(await db.raw.execute({sql:"SELECT telegram_chat_id FROM user_telegram WHERE user_id=? AND status='ACTIVE'",args:[userId]})).rows;
    if(binding.length!==1||!/^\d+$/.test(binding[0].telegram_chat_id))fail('MORNING_DESTINATION_CHANGED');
    await core.assertContext(current);await db.assertRuntimeFences?.();sendBegan=true;
-   const result=await api.sendMessage(binding[0].telegram_chat_id,{text:started.payloadText});messageId=String(result?.message_id??'');
-   if(!/^\d+$/.test(messageId))throw Error('MORNING_ACK_INVALID');outcome='DELIVERED';errorCode=null;
+   const result=await api.sendMessage(binding[0].telegram_chat_id,{text:started.payloadText});
+   if(!validMessageId(result?.message_id))throw Error('MORNING_ACK_INVALID');messageId=String(result.message_id);outcome='DELIVERED';errorCode=null;
   }catch(error){outcome=!sendBegan||error?.sendOutcome===SEND_OUTCOME.DEFINITE_FAILURE?'FAILED_DEFINITE':'AMBIGUOUS';errorCode=sendBegan?outcome==='AMBIGUOUS'?'NETWORK_UNCERTAIN':'PROVIDER_DEFINITE_NON_ACCEPTANCE':'STALE_GENERATION';messageId=null;}
   await store.transport.settle(control,'LIVE',{attemptId:started.attemptId,outcome,providerMessageId:messageId,errorCode,...(outcome==='AMBIGUOUS'?{ambiguityReason:'UNKNOWN_ACCEPTANCE'}:{})});
   // Definite failure remains durable and does not create a fresh date/key. The

@@ -27,9 +27,10 @@ export async function deliveryFixture(t,{version=32,defaultValue='DELIVERED'}={}
     "ALTER TABLE telegram_operations ADD COLUMN delivery_state TEXT NOT NULL DEFAULT 'AMBIGUOUS'");
   }
   await seed.migrate({targetVersion:31});
-  if([32,33].includes(version))await controlledMigration(seed.raw,{apply:true,keys:fixtureKeys,targetVersion:32});
+  if([32,33,34].includes(version))await controlledMigration(seed.raw,{apply:true,keys:fixtureKeys,targetVersion:32});
   else if(version!==31)throw Error('ISOLATED_FIXTURE_VERSION_REQUIRED');
-  if(version===33)await controlledMigration(seed.raw,{apply:true,keys:fixtureKeys,targetVersion:33});
+  if(version>=33)await controlledMigration(seed.raw,{apply:true,keys:fixtureKeys,targetVersion:33});
+  if(version===34)await controlledMigration(seed.raw,{apply:true,keys:fixtureKeys,targetVersion:34});
  }finally{await seed.close();}
  fixture=openHttpFixture(url);return {...fixture,url,dir};
 }

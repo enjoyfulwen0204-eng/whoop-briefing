@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {syntheticPhase4Fixture} from './phase4Fixture.js';
 import {createStage7InteractionStore} from '../src/stage7InteractionStore.js';
-async function fixture(t){const f=await syntheticPhase4Fixture(t,{targetVersion:33});await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});const user=await f.db.getUser('a');const s=createStage7InteractionStore({...f});const actor=await s.authenticate({user,chatId:'123'});return {...f,s,actor,user};}
+async function fixture(t){const f=await syntheticPhase4Fixture(t,{targetVersion:34});await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});const user=await f.db.getUser('a');const s=createStage7InteractionStore({...f});const actor=await s.authenticate({user,chatId:'123'});return {...f,s,actor,user};}
 const callback=(data,id='1',chat='123')=>({id,data,from:{id:chat},message:{message_id:42,chat:{id:chat,type:'private'}}});
 test('opaque tenant-bound callbacks survive restart and reject forged, stale, duplicate, chat and message switches',async t=>{
  const f=await fixture(t),{s,actor}=f;

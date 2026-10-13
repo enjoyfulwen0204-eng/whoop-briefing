@@ -15,7 +15,7 @@ import {configurationProof} from '../src/phase4ExecutionStore.js';
 import {publicBetaConfiguration} from '../src/publicBetaConfig.js';
 const environment={STAGE7_COMPANION:'on',STAGE7_COMPANION_USER_IDS:'a',PHASE4_BETA_PILOT_USER_ID:'a'};
 test('admitted production composition uses real Telegram API edit/ACK and update receipts with no external IO; owner-only',async t=>{
- const f=await syntheticPhase4Fixture(t,{targetVersion:33}),calls=[];let messageId=800,seq=12001;
+ const f=await syntheticPhase4Fixture(t,{targetVersion:34}),calls=[];let messageId=800,seq=12001;
  t.mock.method(globalThis,'fetch',async(url,options)=>{
   assert.match(String(url),/^https:\/\/api\.telegram\.org\/botSYNTHETIC_NOT_A_TOKEN\/(sendMessage|editMessageText|answerCallbackQuery)$/);
   const body=JSON.parse(options.body);calls.push({method:String(url).split('/').at(-1),body});

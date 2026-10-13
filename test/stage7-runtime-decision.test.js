@@ -1,3 +1,4 @@
+import {confirmedLegacyBrief} from './confirmedLegacyBriefFixture.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {syntheticPhase4Fixture} from './phase4Fixture.js';
@@ -35,7 +36,7 @@ const request=(episode,triggerKey)=>({episodeId:episode.episode_id,semanticEvent
 const evaluate=(f,engine,episode,key)=>f.stores.withContext('a',{executionMode:'SHADOW'},context=>engine.evaluate(context,request(episode,key)));
 
 test('real current metric evidence reaches NOTIFY, typed localized proposal and consumed semantic replay; pause and staleness reach NO/DEFER',async t=>{
- let clock=AT;const f=await syntheticPhase4Fixture(t,{targetVersion:33,now:()=>new Date(clock)}),input=bodyInput({asOf:AT,days:30});
+ let clock=AT;const f=await syntheticPhase4Fixture(t,{targetVersion:34,now:()=>new Date(clock)}),input=bodyInput({asOf:AT,days:30});
  for(let i=0;i<input.sources.recovery.length;i++)input.sources.recovery[i].recovery_score=i===0?0:[40,45,50,55,60][(i-1)%5];
  await f.db.transaction(()=>seedBodyInput(f.db,input));const analyzed=await metric(f,input);await ready(f);
  const engine=createStage7DecisionStore(f),episode=analyzed.episode.episode.row;
@@ -63,7 +64,7 @@ test('synthetic source health dates follow the tenant day across UTC boundaries'
 });
 
 test('actual replicated association and unknown current context reach ASK with owned slot/proposal and exact registered components',async t=>{
- const f=await setup(t,{targetVersion:33,days:60,wallClock:AT+12*3600000});
+ const f=await setup(t,{targetVersion:34,days:60,wallClock:AT+12*3600000});
  await f.stores.release(f.context);f.context=null;
  await f.db.raw.execute("UPDATE whoop_recoveries SET recovery_score=20 WHERE user_id='a' AND sleep_id='sleep-00'");
  await produced(f,()=>metric(f,f.input));
@@ -90,12 +91,13 @@ test('actual replicated association and unknown current context reach ASK with o
 });
 
 test('fully composed post-brief journal derives context from existing typed evidence without caller hints or another sync',async t=>{
- const f=await syntheticPhase4Fixture(t,{targetVersion:33,now:()=>new Date(AT)}),input=bodyInput({asOf:AT,days:30});
+ const f=await syntheticPhase4Fixture(t,{targetVersion:34,now:()=>new Date(AT)}),input=bodyInput({asOf:AT,days:30});
  for(let i=0;i<input.sources.recovery.length;i++)input.sources.recovery[i].recovery_score=i===0?0:[40,45,50,55,60][(i-1)%5];
  await f.db.transaction(()=>seedBodyInput(f.db,input));await produced(f,()=>metric(f,input));await ready(f);
  const app=await createStage7TelegramDevelopment(f),user=await f.db.getUser('a'),actor=await app.companion.interactions.authenticate({user,chatId:'123'});
  await f.db.transaction(async()=>{const p=await app.companion.preferences(actor);await app.companion.changePreferences(actor,p,{daily_enabled:1});});
  await f.db.raw.execute({sql:"INSERT INTO report_claims(user_id,report_type,local_date,owner,claimed_at,expires_at,lifecycle_generation,delivery_state,telegram_message_id) VALUES('a','daily','2026-09-25','synthetic',?,?,?,'DELIVERED',11)",args:[f.core.timestamp(),f.core.timestamp(),user.lifecycleGeneration]});
+ await confirmedLegacyBrief({...f,companion:app.companion,user},{day:'2026-09-25'});
  const result=await app.reconcileDaily({user,chatId:'123',healthDay:'2026-09-25'});assert.equal(result.status,'DELIVERED');
  const row=(await f.db.raw.execute("SELECT * FROM quick_action_interactions WHERE kind='DAILY'")).rows[0];assert.equal(row.selection_reason,'MISSING_CONTEXT');
  assert.ok((await f.db.raw.execute({sql:"SELECT 1 FROM phase4_source_links WHERE user_id='a' AND artifact_id=? AND source_type='evidence_items'",args:[row.privacy_artifact_id]})).rows.length);

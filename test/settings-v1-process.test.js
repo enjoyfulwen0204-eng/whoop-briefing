@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import {spa
 import {deliveryFixture,openHttpFixture} from './deliveryDefaultFixture.js';
 import {createSettings,settingsKey} from '../src/bot/settings.js';
 test('actual SIGKILL after name preview preserves the edit for a fresh process and idempotent save',async t=>{
- const fixture=await deliveryFixture(t,{version:33});await fixture.db.createUser({id:'alice',status:'ACTIVE',displayName:'Before'});await fixture.db.linkTelegram({userId:'alice',chatId:'1001'});await fixture.db.setLocale('alice','en');fixture.close();
+ const fixture=await deliveryFixture(t,{version:34});await fixture.db.createUser({id:'alice',status:'ACTIVE',displayName:'Before'});await fixture.db.linkTelegram({userId:'alice',chatId:'1001'});await fixture.db.setLocale('alice','en');fixture.close();
  const settingsUrl=new URL('../src/bot/settings.js',import.meta.url).href,fixtureUrl=new URL('./deliveryDefaultFixture.js',import.meta.url).href;
  const program=`import {openHttpFixture} from ${JSON.stringify(fixtureUrl)};import {createSettings} from ${JSON.stringify(settingsUrl)};
   const f=openHttpFixture(${JSON.stringify(fixture.url)}),flow=createSettings({db:f.db});await f.db.admitRuntime();

@@ -102,9 +102,9 @@ export async function runMigrations(client, { allowRebuild = true, targetVersion
     requirePhase4Keys(privacyKeys);
   const summary = { from, to: targetVersion, rebuilt: [], created: 0, skipped: from === targetVersion };
 
-  // v32 is additive authority. Never replay legacy DDL/backfills on v31→v32
-  // or a current-v32 operator no-op; full frozen postconditions still run.
-  if (from >= 31 && targetVersion === 32) {
+  // Post-v31 upgrades never replay legacy DDL/backfills. Install each ordered
+  // version and verify its frozen postconditions, including current-version no-ops.
+  if (from >= 31 && targetVersion >= 32) {
     summary.columnsAdded=[];summary.dataMigrations=[];
     summary.versionsApplied=await applyPhase4Migrations(client,from,targetVersion,{privacyKeys,experimentAttestations});
     return summary;

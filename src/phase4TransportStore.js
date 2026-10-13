@@ -1,3 +1,4 @@
+import {verifyMorningPlanAuthority} from './stage8MorningPlan.js';
 import { fail, requireInteger } from './phase4Core.js';
 import { MESSAGE_FAMILIES, OPERATION_ERROR_CODES } from './phase4V24Schema.js';
 
@@ -17,7 +18,7 @@ export async function phase4Destination(core,context) {
 
 /** Durable transport state only. There is deliberately no provider dependency,
  * HTTP request, timer, retry loop, scheduler or default LIVE authority. */
-export function createPhase4TransportStore(core,entities,slotHooks) {
+export function createPhase4TransportStore(core,entities,slotHooks,{morningAuthority=null}={}) {
   const {client,timestamp,keys}=core,leases=new WeakMap();
   const scope=(c,id)=>[c.userId,c.executionMode,id];
   async function mode(context,family) {
@@ -39,7 +40,8 @@ export function createPhase4TransportStore(core,entities,slotHooks) {
       AND c.last_completed_generation=c.input_generation AND c.input_generation=?
       AND NOT EXISTS (SELECT 1 FROM phase4_invalidations i WHERE i.user_id=c.user_id AND i.execution_mode=c.execution_mode AND i.scope_kind<>'NONE')`,
       args:[context.userId,context.inputGeneration]})).rows.length;
-    if(!current)fail('PHASE4_COMPUTATION_NOT_CURRENT');
+    if(row.message_class==='MORNING_BRIEF_V1'&&core.schemaVersion===34&&morningAuthority)await verifyMorningPlanAuthority(morningAuthority,core,context,row);
+    else if(!current)fail('PHASE4_COMPUTATION_NOT_CURRENT');
     if(row.expires_at<=timestamp())fail('PHASE4_MESSAGE_EXPIRED');
     if(row.destination_binding_id!==await destination(context))fail('PHASE4_DESTINATION_CHANGED');
     const ready=(await client.execute({sql:"SELECT state FROM user_onboarding WHERE user_id=?",args:[context.userId]})).rows[0];

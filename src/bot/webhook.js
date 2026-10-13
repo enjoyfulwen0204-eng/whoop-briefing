@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createStage8Runtime} from '../stage8Runtime.js';
 import {createStage7Runtime} from '../stage7Runtime.js';
 import {COMPANION_PATH,runCompanionService} from '../companionService.js';
 import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
@@ -443,9 +444,10 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
   });
   const api = createTelegramApi({ botToken: env.telegramBotToken });
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
-  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy });
   const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env});
-  const settings = createSettings({db});
+  const stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8 });
+  const settings = createSettings({db,stage8});
 
   // ---- 自助上線（V1.2 Phase 3.5）----------------------------------------
   //
@@ -484,7 +486,7 @@ export async function main({ port = process.env.PORT, listen = true } = {}) {
       if (!onboardingConfigured) return null;
       return handleUnlinkedMessage({ db, text, chatId, message, isPrivateChat, ...onboardingArgs });
     },
-    sendReply: stage7?input=>stage7.sendReply(createSendReply({db,api}),input):createSendReply({ db, api }),
+    sendReply: input=>{const send=createSendReply({db,api}),with7=stage7?value=>stage7.sendReply(send,value):send;return stage8?stage8.sendReply(with7,input):with7(input);},
     answerCallback: id=>api.answerCallbackQuery(id),
     // Ephemeral only. The final answer still uses the existing durable delivery
     // receipt/fencing path in updateProcessor.

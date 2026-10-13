@@ -306,7 +306,7 @@ export function createResultAuthority(core) {
    * artifact, audit and flattened input comparisons share one fresh raw union
    * inside this call. Complex graphs keep the original complete capture. */
   async function captureNewBodySourceRoots(context,refs,salt,producer){
-    if(![32,33].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||!core.processing.active?.()||!core.jobAuthority()
+    if(![32,33,34].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||!core.processing.active?.()||!core.jobAuthority()
       ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)return null;
     const sources=core.validateReferences(context,refs);
     if(sources.length!==1||sources[0].type!=='body_energy_results'||sources[0].mode!==context.executionMode||sources[0].historicalAsOf)return null;

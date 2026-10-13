@@ -1,3 +1,4 @@
+import {STAGE8_SETTINGS_MODES,STAGE8_SETTINGS_ACTIONS,stage8SettingsRender,stage8SettingsMenu,stage8SettingsAction} from '../stage8Settings.js';
 import {randomBytes,createHash} from 'node:crypto';
 import {LOCALES} from '../localization.js';
 import {requireUserId} from '../userContext.js';
@@ -21,7 +22,7 @@ export function normalizeSettingsName(value){
  if(size>SETTINGS_NAME_LIMIT||Buffer.byteLength(normalized,'utf8')>256)throw Error('SETTINGS_NAME_INVALID');
  return normalized;
 }
-const callbackPattern=/^sv1:([A-Za-z0-9_-]{22})\.(\d{1,4})\.(language|name|back|cancel|tw|en|vi|confirm|save|edit)$/;
+const callbackPattern=new RegExp('^sv1:([A-Za-z0-9_-]{22})\\.(\\d{1,4})\\.(language|name|back|cancel|tw|en|vi|confirm|save|edit|'+STAGE8_SETTINGS_ACTIONS+')$');
 export const isSettingsCallback=value=>typeof value==='string'&&Buffer.byteLength(value,'utf8')<=64&&callbackPattern.test(value);
 function session(raw,uid,chatId,life,at){
  let s;try{s=JSON.parse(raw);}catch{return null;}
@@ -29,7 +30,7 @@ function session(raw,uid,chatId,life,at){
   ||!Number.isSafeInteger(s.revision)||s.revision<0||s.revision>9999||!/^[-\w]{22}$/.test(s.nonce??'')
   ||!Number.isSafeInteger(s.profileRevision)||s.profileRevision<0
   ||typeof s.expectedName!=='string'||(s.expectedLocale!==null&&!LOCALES.includes(s.expectedLocale))
-  ||!['menu','language','language_confirm','name_edit','name_confirm'].includes(s.mode))return null;
+  ||!['menu','language','language_confirm','name_edit','name_confirm',...STAGE8_SETTINGS_MODES].includes(s.mode))return null;
  if(s.mode==='language_confirm'&&!LOCALES.includes(s.nextLocale))return null;
  if(s.mode==='name_confirm'){try{normalizeSettingsName(s.pendingName);}catch{return null;}}
  return s;
@@ -39,17 +40,18 @@ function render(s,locale){
  const button=(label,action)=>({text:label,callback_data:`sv1:${s.nonce}.${s.revision}.${action}`});
  const nav=[button(c.back,'back'),button(c.cancel,'cancel')];
  let text,rows;
- if(s.mode==='menu'){text=c.title;rows=[[button(c.language,'language')],[button(c.name,'name')],[button(c.cancel,'cancel')]];}
+ if(s.mode==='menu'){text=c.title;rows=[[button(c.language,'language')],[button(c.name,'name')],...stage8SettingsMenu(s,locale,button),[button(c.cancel,'cancel')]];}
  if(s.mode==='language'){text=locale?c.choose:'🌐 Language / 語言 / Ngôn ngữ';rows=languages.map(([code,,label])=>[button(label,code)]);rows.push(nav);}
  if(s.mode==='language_confirm'){text=`${c.confirmLanguage}\n${languages.find(x=>x[1]===s.nextLocale)?.[2]??''}`;rows=[[button(c.confirm,'confirm')],nav];}
  if(s.mode==='name_edit'){text=c.enter;rows=[nav];}
  if(s.mode==='name_confirm'){text=`${c.preview}\n${s.pendingName}`;rows=[[button(c.save,'save'),button(c.edit,'edit')],nav];}
+ const extra=stage8SettingsRender(s,locale,button,nav);if(extra){text=extra.text;rows=extra.rows;}
  return {text,replyMarkup:{inline_keyboard:rows}};
 }
 /** Narrow Settings v1 state machine. Transport authenticates private actor;
  * every action rebinds canonical actor inside the existing operation transaction.
  * One expiring profile-only row in existing telegram_state; no new schema. */
-export function createSettings({db,now=()=>new Date(),nonce=()=>randomBytes(16).toString('base64url')}={}){
+export function createSettings({db,stage8=null,now=()=>new Date(),nonce=()=>randomBytes(16).toString('base64url')}={}){
  return async function handleSettings({text,chatId,user,callback}={}){
   const command=typeof text==='string'?text.trim().match(/^\/(settings|language|name)(?:@[A-Za-z0-9_]+)?\s*$/i):null;
   const data=callback?.data;
@@ -64,7 +66,7 @@ export function createSettings({db,now=()=>new Date(),nonce=()=>randomBytes(16).
    const persist=()=>db.setState(key,JSON.stringify(s),{now:now()});
    if(command){
     s={version:1,profileRevision,uid,chatId:chat,lifecycle:current.lifecycleGeneration,nonce:nonce(),revision:0,expiresAt:at+SETTINGS_TTL_MS,
-     mode:command[1].toLowerCase()==='name'?'name_edit':command[1].toLowerCase()==='language'||!locale?'language':'menu',expectedName:current.displayName??'',expectedLocale:locale};
+     stage8:Boolean(stage8?.eligible(uid)),ownerAvailable:Boolean(stage8?.owner),mode:command[1].toLowerCase()==='name'?'name_edit':command[1].toLowerCase()==='language'||!locale?'language':'menu',expectedName:current.displayName??'',expectedLocale:locale};
     await persist();return render(s,locale);
    }
    if(!s){if(raw)await db.setState(key,null);if(callback)return {text:c.expired};return null;}
@@ -85,10 +87,12 @@ export function createSettings({db,now=()=>new Date(),nonce=()=>randomBytes(16).
      const name=normalizeSettingsName(s.pendingName);
      if(profileRevision!==s.profileRevision||(current.displayName??'')!==s.expectedName)return {text:c.conflict};
      if(name!==current.displayName)await db.updateUser(uid,{displayName:name},{now:now(),expectedProfileRevision:s.profileRevision});
+     if(stage8?.identity)await stage8.identity.recordExplicit({user:current,chatId:chat,name});
      await db.setState(key,null);return {text:c.saved};
-    }else return {text:c.expired};
+    }else if(!await stage8SettingsAction(s,action,stage8,{user:current,chatId:chat,locale,text}))return {text:c.expired};
     s.revision++;await persist();return render(s,locale);
    }
+   if(STAGE8_SETTINGS_MODES.includes(s.mode)){const changed=await stage8SettingsAction(s,null,stage8,{user:current,chatId:chat,locale,text});if(changed===true){s.revision++;await persist();return render(s,locale);}return changed||null;}
    if(s.mode!=='name_edit')return null;
    try{s.pendingName=normalizeSettingsName(text);}catch{return {text:c.invalid};}
    s.mode='name_confirm';s.revision++;await persist();return render(s,locale);

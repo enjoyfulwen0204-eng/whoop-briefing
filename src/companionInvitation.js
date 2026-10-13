@@ -1,3 +1,4 @@
+import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
 import {fail,readableRow} from './phase4Core.js';
 import {localDate} from './time.js';
 import {selectCompanionInvitation,inCompanionQuietHours} from './companionTimingPolicy.js';
@@ -19,19 +20,15 @@ export function createCompanionInvitation({core,stores,db,companion,coach,config
  }
  async function wakeAuthority(actor,day){
   const uid=actor.control.userId;
-  const row=(await client.execute({sql:`SELECT r.sleep_id,r.sent_at,r.privacy_artifact_id report_source,c.telegram_message_id FROM report_claims c
-   JOIN report_runs r ON r.user_id=c.user_id AND r.report_type=c.report_type AND r.local_date=c.local_date AND r.status='SENT'
-   AND r.telegram_message_id=c.telegram_message_id WHERE c.user_id=? AND c.report_type='daily' AND c.local_date=?
-   AND c.delivery_state='DELIVERED' AND c.lifecycle_generation=? AND c.telegram_message_id IS NOT NULL
-   AND r.content_state='PRESENT' AND r.source_linkage_state='COMPLETE' LIMIT 1`,args:[uid,day,actor.state.lifecycle_generation]})).rows[0];
-  if(!row||!row.sleep_id||!row.report_source)return null;
+  const row=await confirmedMorningReceipt({core,actor,day});
+  if(!row?.sleepId||!row.reportSource)return null;
   return stores.withContext(uid,{executionMode:'SHADOW'},async context=>{
-   const sleep=(await stores.root(context,'sleep',String(row.sleep_id))).row,recovery=(await stores.root(context,'recovery',String(row.sleep_id))).row;
-   const wakeAt=Date.parse(sleep.end_at),briefAt=Date.parse(row.sent_at);
+   const sleep=(await stores.root(context,'sleep',String(row.sleepId))).row,recovery=(await stores.root(context,'recovery',String(row.sleepId))).row;
+   const wakeAt=Date.parse(sleep.end_at),briefAt=row.briefAt;
    if(sleep.nap!==0||sleep.score_state!=='SCORED'||recovery.score_state!=='SCORED'||recovery.user_calibrating===1
     ||!Number.isSafeInteger(wakeAt)||!Number.isSafeInteger(briefAt)||localDate(new Date(wakeAt),actor.state.timezone)!==day||briefAt<wakeAt)return null;
-   return {sleepId:String(row.sleep_id),wakeAt,briefAt,reportSource:row.report_source,
-    occasionKey:keys.lookup(['coach-wake-occasion-v1',uid,String(row.sleep_id)]),
+   return {sleepId:String(row.sleepId),wakeAt,briefAt,reportSource:row.reportSource,reportType:row.reportType,
+    occasionKey:keys.lookup(['coach-wake-occasion-v1',uid,String(row.sleepId)]),
     wakeProof:keys.lookup(['coach-wake-source-v1',uid,sleep.id,sleep.end_at,sleep.updated_at,recovery.updated_at])};
   });
  }
@@ -72,7 +69,7 @@ export function createCompanionInvitation({core,stores,db,companion,coach,config
     created_at:at,updated_at:at,expires_at:new Date(selection.expiresAt).toISOString(),...interactions.privacyFields(actor.state)};
    await interactions.insert('journal_prompt_deliveries',row);await interactions.link('journal_prompt_deliveries',row);
    for(const type of ['sleep','recovery'])await interactions.link('journal_prompt_deliveries',row,type,wake.sleepId);
-   await interactions.link('journal_prompt_deliveries',row,'report_runs',wake.reportSource);
+   await interactions.link('journal_prompt_deliveries',row,wake.reportType??'report_runs',wake.reportSource);
    if(schedule.exercise)await interactions.link('journal_prompt_deliveries',row,'workout',schedule.exercise.id);
    if(journal)await interactions.link('journal_prompt_deliveries',row,'journal_prompt_deliveries',journal.privacy_artifact_id);
    return {status:state,deliveryId:row.delivery_id};

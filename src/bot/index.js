@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createStage8Runtime} from '../stage8Runtime.js';
 import {createStage7Runtime} from '../stage7Runtime.js';
 import {createBodyEnergyRuntime} from '../bodyEnergyRuntime.js';
 import {createSettings} from './settings.js';
@@ -127,9 +128,10 @@ export async function main({ maxIterations = Infinity } = {}) {
   });
 
   const bodyRuntime=await createBodyEnergyRuntime({db,keys:authorityKeys,environment:process.env,env});
-  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy });
-  const settings = createSettings({db});
   const stage7=await createStage7Runtime({db,keys:authorityKeys,env,environment:process.env});
+  const stage8=await createStage8Runtime({db,keys:authorityKeys,environment:process.env,bodyEnergy:bodyRuntime.bodyEnergy,stage7});
+  const router = createRouter({ db, coachFor,bodyEnergy:bodyRuntime.bodyEnergy,stage8 });
+  const settings = createSettings({db,stage8});
 
   // 自助上線需要 WHOOP client id + 回呼網址才能產生授權連結（見 webhook.js）。
   const onboardingConfigured = Boolean(
@@ -160,7 +162,7 @@ export async function main({ maxIterations = Infinity } = {}) {
     },
     // Sending is outside the action transaction. A failed/ambiguous send retries
     // the persisted reply, never the committed Journal/action.
-    sendReply: stage7?input=>stage7.sendReply(createSendReply({db,api}),input):createSendReply({ db, api }),
+    sendReply: input=>{const send=createSendReply({db,api}),with7=stage7?value=>stage7.sendReply(send,value):send;return stage8?stage8.sendReply(with7,input):with7(input);},
     answerCallback: id=>api.answerCallbackQuery(id),
     // 未綁定的 chat：先看管理者的 /link <碼>，再走自助上線（Phase 3.5）。
     handleUnlinked: async ({ text, chatId, message, isPrivateChat = false }) => {

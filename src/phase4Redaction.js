@@ -1,3 +1,4 @@
+import {V34_HEALTH_FIELDS} from './phase4V34Schema.js';
 import {V33_HEALTH_FIELDS,V33_JOURNAL_FIELDS} from './phase4V33Schema.js';
 import { fail } from './phase4Core.js';
 import { V22_LEGACY_R_TABLES, V22_NEW_R_TABLES } from './phase4V22Schema.js';
@@ -36,7 +37,7 @@ const FIELDS=Object.freeze({
     'U','D','R','A','T','K','P','F']),
   structured_answer_events:{normalized_answer_json:null},health_purge_replacements:{normalized_replacement_json:null},
   experiment_field_groups:{},
-  ...Object.fromEntries(Object.entries({...V23_HEALTH_FIELDS,...V24_HEALTH_FIELDS,...V25_HEALTH_FIELDS,...V26_HEALTH_FIELDS,...V27_HEALTH_FIELDS,...V33_HEALTH_FIELDS}).map(([t,f])=>[t,nulls(f)])),
+  ...Object.fromEntries(Object.entries({...V23_HEALTH_FIELDS,...V24_HEALTH_FIELDS,...V25_HEALTH_FIELDS,...V26_HEALTH_FIELDS,...V27_HEALTH_FIELDS,...V33_HEALTH_FIELDS,...V34_HEALTH_FIELDS}).map(([t,f])=>[t,nulls(f)])),
 });
 // Erasure is a physical postcondition, independent of typed readability.
 export function physicallyScrubbed(table,row) {
@@ -146,6 +147,7 @@ export function createPhase4Redactor(core) {
       Object.assign(patch,{provenance_state:'REDACTED',updated_at:at});
     }
     if(node.type==='quick_action_interactions'){patch.revision=row.revision+1;patch.state='UNDONE';}
+    if(node.type==='owner_monitoring_outbox'&&!['DELIVERED','AMBIGUOUS'].includes(row.state)){patch.state=row.state==='DELIVERY_STARTED'?'AMBIGUOUS':'SUPPRESSED';patch.revision=row.revision+1;}
     if(node.type==='journal_prompt_deliveries'){
       patch.revision=row.revision+1;
       if(['PROPOSED','FAILED_DEFINITE'].includes(row.state))patch.state='SUPPRESSED';

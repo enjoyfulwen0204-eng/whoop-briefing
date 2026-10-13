@@ -1,3 +1,4 @@
+import {confirmedMorningReceipt} from './confirmedMorningReceipt.js';
 import {companionEngagementBusy} from './companionEngagementGuard.js';
 import {COACH_TOPICS} from './companionCoach.js';
 import {inCompanionQuietHours} from './companionTimingPolicy.js';
@@ -178,10 +179,9 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(!prefs.daily_enabled)return {status:'DISABLED'};
    if(actor.state.auth_generation<1)return {status:'AUTHORIZATION_FENCED'};
    if(healthDay!==localDate(core.now(),actor.state.timezone))return {status:'NOT_CURRENT_DAY'};
-   const proof=(await client.execute({sql:"SELECT * FROM report_claims WHERE user_id=? AND report_type='daily' AND local_date=? AND delivery_state='DELIVERED' AND telegram_message_id IS NOT NULL AND lifecycle_generation=?",args:[user.id,healthDay,actor.state.lifecycle_generation]})).rows[0];
+   const proof=await confirmedMorningReceipt({core,actor,day:healthDay});
    if(!proof)return {status:'BRIEF_NOT_CONFIRMED'};
-   const report=(await client.execute({sql:"SELECT sleep_id FROM report_runs WHERE user_id=? AND report_type='daily' AND local_date=? AND status='SENT' AND telegram_message_id=? AND content_state='PRESENT' LIMIT 1",args:[user.id,healthDay,proof.telegram_message_id]})).rows[0];
-   const occasion=report?.sleep_id?core.keys.lookup(['journal-wake-occasion-v1',user.id,report.sleep_id]):null;
+   const occasion=proof.sleepId?core.keys.lookup(['journal-wake-occasion-v1',user.id,proof.sleepId]):null;
    if(occasion){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND occasion_key=?',args:[user.id,occasion]})).rows[0];if(existing)return {status:'EXISTING',deliveryId:existing.delivery_id};}
    const semantic=core.keys.lookup(['daily-journal-v1',user.id,healthDay,DAILY_POLICY_VERSION]);
    const dayKey=core.keys.lookup(['journal-day-v1',user.id,healthDay]);
@@ -220,6 +220,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    const delivery={user_id:user.id,delivery_id:core.newId(),interaction_id:issued.row.interaction_id,semantic_key:semantic,occasion_key:occasion,kind:'DAILY',execution_mode:'SHADOW',state:'PROPOSED',payload_json:JSON.stringify(reply),
     lifecycle_generation:actor.state.lifecycle_generation,auth_generation:actor.state.auth_generation,chat_id:actor.chat,preference_revision:prefs.revision,created_at:at,updated_at:at,expires_at:issued.row.expires_at,...interactions.privacyFields(actor.state)};
    await interactions.insert('journal_prompt_deliveries',delivery);await interactions.link('journal_prompt_deliveries',delivery);
+   await interactions.link('journal_prompt_deliveries',delivery,proof.reportType,proof.reportSource);
    await interactions.link('journal_prompt_deliveries',delivery,'quick_action_interactions',issued.row.privacy_artifact_id);
    return {status:'PROPOSED',deliveryId:delivery.delivery_id,interactionId:issued.row.interaction_id,selection:selected};
   });

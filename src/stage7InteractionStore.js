@@ -1,3 +1,4 @@
+import {resolveRecipientName} from './recipientIdentity.js';
 import {randomBytes} from 'node:crypto';
 import {fail,readableRow} from './phase4Core.js';
 import {addPrivacyLink} from './phase4V22Backfill.js';
@@ -8,7 +9,7 @@ import {JOURNAL_COPY,JOURNAL_REGISTRY_VERSION,TOPICS,registryQuestion,presentati
 /** Internal server composition, default SHADOW only. Callbacks are opaque
  * random handles resolved under tenant, lifecycle, auth, timezone and revision. */
 export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWER_WINDOW_MS}){
- if(core.schemaVersion!==33||!Number.isSafeInteger(answerWindowMs)||answerWindowMs<3600000||answerWindowMs>7*86400000)fail('STAGE7_V33_CONFIG_REQUIRED');
+ if(![33,34].includes(core.schemaVersion)||!Number.isSafeInteger(answerWindowMs)||answerWindowMs<3600000||answerWindowMs>7*86400000)fail('STAGE7_V33_CONFIG_REQUIRED');
  const {client,keys,timestamp,transaction}=core;
  const hash=token=>keys.lookup(['stage7-callback',token]);
  async function authenticate({user,chatId,callback=null,allowPendingPurge=false}){
@@ -23,7 +24,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
  }
  const privacyFields=state=>({privacy_artifact_id:core.newId(),content_state:'PRESENT',source_linkage_state:'COMPLETE',content_digest_salt:keys.newSalt(),purge_generation:state.purge_generation});
  async function link(table,row,sourceType='USER',sourceId=row.user_id){
-  await addPrivacyLink(client,{userId:row.user_id,mode:row.execution_mode??'SHARED',table,artifactId:row.privacy_artifact_id,sourceType,sourceId,sourceMode:['quick_action_interactions','journal_prompt_deliveries','evidence_items'].includes(sourceType)?'SHADOW':'SHARED',at:timestamp()});
+  await addPrivacyLink(client,{userId:row.user_id,mode:row.execution_mode??'SHARED',table,artifactId:row.privacy_artifact_id,sourceType,sourceId,sourceMode:sourceType==='outbound_messages'?'LIVE':['quick_action_interactions','journal_prompt_deliveries','evidence_items'].includes(sourceType)?'SHADOW':'SHARED',at:timestamp()});
  }
  async function insert(table,row){const fields=Object.keys(row);await client.execute({sql:`INSERT INTO ${table}(${fields.join(',')}) VALUES(${fields.map(()=>'?').join(',')})`,args:fields.map(k=>row[k])});}
  async function read(uid,id){return (await client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[uid,id]})).rows[0]??null;}
@@ -53,7 +54,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   const state=await core.assertControl(actor.control);
   if(row.user_id!==actor.control.userId||row.chat_id!==actor.chat||state.pending_purge_count!==0||!readableRow(row)||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation||row.timezone!==state.timezone
    ||JSON.parse(row.diagnostics_json??'null')?.profileRevision!==await db.getProfileRevision(actor.control.userId))fail('STAGE7_STATE_FENCED');
-  const locale=await db.getLocale(row.user_id),card=journalCard(row,{locale,displayName:actor.user.displayName,preferences});
+  const locale=await db.getLocale(row.user_id),card=journalCard(row,{locale,displayName:core.schemaVersion===34?await resolveRecipientName({db,userId:row.user_id}):actor.user.displayName,preferences});
   const keyboard=[];
   for(const buttons of card.buttons){const list=[];for(const button of buttons){
    const token=randomBytes(24).toString('base64url');

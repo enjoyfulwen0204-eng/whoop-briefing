@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {createStage8MorningRuntime} from './stage8MorningRuntime.js';
 import {createBodyEnergyRuntime,bodyEnergyConfiguration} from './bodyEnergyRuntime.js';
 import {traceExecutionOperation} from './executionTelemetry.js';
 import {prepareReadOnly,settledReadPreparation} from './readOnlyPreparation.js';
@@ -344,6 +345,7 @@ async function runForUserOwned({
     const results=[];for(const read of reads)results.push(await read());return results;
   };
   const [due,syncDue,fastDue]=await prepareReadOnly(db,()=>prepareDue(true),()=>prepareDue(false));
+  if(deps.morning&&await deps.morning.settled(uid,due.today)){due.dailySettled=true;due.anythingDue=due.weeklyDue;}
   out.syncDue = syncDue;
   let reconciliationPlan = { due: false, dueResources: [] };
   if (productionMaintenance && typeof db.getAllReconciliationState === 'function') {
@@ -417,7 +419,7 @@ async function runForUserOwned({
     return out;
   }
 
-  const source = makeSource({ whoop, now, ...(readinessOnly?{pollMaxPages:2}:{}) });
+  const source = makeSource({ whoop, now, ...(readinessOnly||deps.morning?.eligible(uid)?{pollMaxPages:2}:{}) });
   // 傳 db + userId 進去才會把 ai_usage 記在這個人身上
   const coach = makeCoach({
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId: uid,
@@ -435,7 +437,7 @@ async function runForUserOwned({
   // 報告的條件維持原樣（health_date 去重 + report_claims），完全沒有放寬。
   if (locale && !due.dailySettled) {
     try {
-      out.daily = await traceExecutionOperation('DAILY_REPORT',()=>daily(ctx));
+      out.daily = await traceExecutionOperation('DAILY_REPORT',async()=>await deps.morning?.daily(ctx)??daily(ctx));
     } catch (err) {
       if (lifecycleRejected(err)) { out.skipped = 'account_inactive'; return out; }
       out.errors.push({ stage: 'daily', error: describeError(err) });
@@ -692,6 +694,7 @@ export async function runBriefing({ now = new Date(), deps = {}, triggerSource =
         admission:deps.runtimeAdmission,environment:process.env,env});
       deps={...deps,bodyEnergy:bodyRuntime.bodyEnergy};
     }
+    if(!deps.morning&&db.raw&&process.env.STAGE8_MORNING_BRIEF==='on')deps={...deps,morning:await createStage8MorningRuntime({db,keys:authorityKeys,environment:process.env,env,admission:deps.runtimeAdmission,now:deps.presentationClock})};
     // In-memory injected runners have no database schema or migration path.
 
     // ---- V1.2 production activation：scheduler-owned webhook drain -------

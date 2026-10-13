@@ -1,3 +1,4 @@
+import {createStage8MorningRuntime} from './stage8MorningRuntime.js';
 import {createDb} from './db.js';
 import {loadEnv} from './config.js';
 import {runForUser} from './index.js';
@@ -51,6 +52,7 @@ export async function runMorningReadiness({request,environment=process.env,db:pr
     let bodyEnergy=deps.bodyEnergy;
     if(!bodyEnergy&&bodyEnergyConfiguration(environment).publication==='on')
      bodyEnergy=(await createBodyEnergyRuntime({db,keys,admission,environment,env})).bodyEnergy;
+    const morning=deps.morning??await createStage8MorningRuntime({db,keys,admission,environment,env,now});
     const users=await db.listSchedulableUsers({activeStatus:USER_STATUS.ACTIVE});
     // Rotate the start at the coarse deployed slot so slow accounts cannot
     // permanently starve later accounts; retries keep canonical daily claims.
@@ -58,7 +60,7 @@ export async function runMorningReadiness({request,environment=process.env,db:pr
     const ordered=[...users.slice(offset),...users.slice(0,offset)];
     const results=await mapWithConcurrency(ordered,env.maxUserConcurrency,user=>{
      fence();return (deps.runUser??runForUser)({db,env,user,now:now(),readinessOnly:true,
-      deps:{...deps,bodyEnergy,executionBudget:budget,presentationClock:now}});
+      deps:{...deps,bodyEnergy,morning,executionBudget:budget,presentationClock:now}});
     });
     fence();
     const failed=results.filter(r=>!r.ok||r.value?.errors?.length).length;

@@ -12,7 +12,7 @@ export function createBodyEnergySourceUnitAuthority(core,{body,receipts}){
   const {client,keys}=core;
   async function verify(context,stored){
     const {computation}=await core.assertContext(context),{row,manifest}=stored;
-    if(context.executionMode!=='SHADOW'||![32,33].includes(Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)))
+    if(context.executionMode!=='SHADOW'||![32,33,34].includes(Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)))
       fail('BODY_ENERGY_SOURCE_UNIT_SCOPE_REQUIRED');
     if(row.user_id!==context.userId||row.execution_mode!==context.executionMode||row.invalidated_at!==null
       ||row.input_generation!==context.inputGeneration||row.lifecycle_generation!==context.lifecycleGeneration

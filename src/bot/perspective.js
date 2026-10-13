@@ -97,12 +97,15 @@ export function resolvePerspective({ text, signals = null } = {}) {
   const t = String(text ?? '');
   const cues = [];
 
-  const hypothetical = HYPOTHETICAL.test(t)
+  const hypothetical = HYPOTHETICAL.test(t)||/\b(if I|suppose|hypothetically|what if|nếu|giả sử)\b/iu.test(t)
     || (signals && signals.hypothetical === true);
-  const third = THIRD_SPECIFIC.test(t);
-  const generic = GENERIC_PEOPLE.test(t);
-  const selfMark = SELF_MARK.test(t);
-  const generalForm = GENERAL_FORM.test(t);
+  const third = THIRD_SPECIFIC.test(t)||/\b(he|she|his|her|their|my (friend|wife|husband|partner|mother|father|child|colleague))\b/iu.test(t)
+    ||/(?<![\p{L}\p{N}_])(?:anh ấy|cô ấy|bạn (của )?tôi|vợ tôi|chồng tôi|mẹ tôi|bố tôi)(?![\p{L}\p{N}_])/iu.test(t)
+    ||/\b(?:for|about)\s+[A-Z][a-z]+\b|\b[A-Z][a-z]+['’]s\b/.test(t)
+    ||/(?:今天|今日|昨天)\s*[A-Z][a-z]+\s*的/u.test(t);
+  const generic = GENERIC_PEOPLE.test(t)||/\b(people|everyone|someone|in general|mọi người|người khác)\b/iu.test(t);
+  const selfMark = SELF_MARK.test(t)||/\b(I|me|my|mine|tôi|của tôi)\b/iu.test(t);
+  const generalForm = GENERAL_FORM.test(t)||/\b(does|can|usually|generally|is it normal|thường|có thể)\b/iu.test(t);
   if (third) cues.push('third_person');
   if (generic) cues.push('generic_people');
   if (selfMark) cues.push('first_person');

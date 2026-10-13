@@ -8,7 +8,7 @@ export const isStage7ProductionProvider=provider=>providers.has(provider);
  * The caller's exact admitted connection and closed rollout remain authoritative. */
 export function createStage7ProductionProvider({db,core,keys,admission,env,userIds,beforeSend}){
  requireRuntimeAdmission(db.raw,admission,keys,db.transaction);
- if(core.schemaVersion!==33||!Array.isArray(userIds)||userIds.length!==1||typeof beforeSend!=='function')fail('STAGE7_PRODUCTION_AUTHORITY_REQUIRED');
+ if(![33,34].includes(core.schemaVersion)||!Array.isArray(userIds)||userIds.length!==1||typeof beforeSend!=='function')fail('STAGE7_PRODUCTION_AUTHORITY_REQUIRED');
  const api=createTelegramApi({botToken:env.telegramBotToken});
  const provider=Object.freeze({async send({chatId,...card},authority){
   if(!authority||!userIds.includes(authority.userId)||String(authority.chatId)!==String(chatId))throw Object.assign(Error('STAGE7_ROLLOUT_FENCED'),{definite:true});

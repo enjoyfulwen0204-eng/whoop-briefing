@@ -29,7 +29,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  admission??=await db.admitRuntime();
  const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,assertFences:db.assertRuntimeFences,active:db.processingTransactionActive,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
   authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
- if(core.schemaVersion!==33)fail('STAGE7_V33_CONFIG_REQUIRED');
+ if(![33,34].includes(core.schemaVersion))fail('STAGE7_V33_CONFIG_REQUIRED');
  const stores=composePhase4Stores(core),companion=await createStage7Composition({core,stores,db}),coach=createCompanionCoach({core,stores,db,companion}),invitations=createCompanionInvitation({core,stores,db,companion,coach,configuration:config.timing});
  const eligible=user=>Boolean(user&&config.userIds.includes(user.id)&&user.status==='ACTIVE');
  const replies=createStage7ReplyAuthority({core,db,companion});
@@ -77,7 +77,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   return replies.seal(actor,reply);
  }
  async function decorate({user,chatId,text,reply}){
-  if(!eligible(user)||!reply||typeof reply!=='string'&&reply.bodyEnergyReplyGuard)return reply;
+  if(!eligible(user)||!reply||typeof reply!=='string'&&(reply.bodyEnergyReplyGuard||reply.stage8ReplyGuard))return reply;
   const settings=typeof text==='string'&&/^\/settings(?:@[A-Za-z0-9_]+)?\s*$/i.test(text.trim());
   const natural=typeof text==='string'&&!text.trim().startsWith('/')&&/[?？]|睡|恢復|運動|sleep|recovery|exercise|ngủ|phục hồi/i.test(text);
   if(!settings&&!natural)return reply;
@@ -87,11 +87,11 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
    const button=await companion.interactions.button(actor,issued.row,{text:c.preferences,action:'preferences'});
    return replies.seal(actor,{...base,text:typeof reply==='string'?reply:reply.text,replyMarkup:{inline_keyboard:[...(reply.replyMarkup?.inline_keyboard??[]),[button]]},stage7View:'SETTINGS_LINK'});
   }
-  const navigation=await coach.issue(actor);return replies.seal(actor,{...navigation,text:typeof reply==='string'?reply:reply.text});
+  const navigation=await coach.issue(actor);return replies.seal(actor,{...(typeof reply==='object'?reply:{}),...navigation,text:typeof reply==='string'?reply:reply.text});
  }
  async function sendReply(send,input){
   const protectedReply=input.reply?.stage7ReplyGuard||input.reply?.stage7InteractionId||input.reply?.stage7View;
-  const beforeSend=async()=>!protectedReply||eligible(await db.getUser(input.userId))&&await replies.verify({user:await db.getUser(input.userId),chatId:input.chatId,reply:input.reply});
+  const beforeSend=async()=>(!input.beforeSend||await input.beforeSend())&&(!protectedReply||eligible(await db.getUser(input.userId))&&await replies.verify({user:await db.getUser(input.userId),chatId:input.chatId,reply:input.reply}));
   if(!await beforeSend())return {sent:false,messageId:null,reason:'stage7_reply_changed'};
   const result=await send({...input,beforeSend});
   if(result?.sent&&input.userId&&eligible(await db.getUser(input.userId))&&input.reply?.stage7InteractionId){
@@ -103,7 +103,6 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  async function tick({user,chatId}){
   if(!eligible(user))return {status:'NOT_AUTHORIZED'};
   const day=localDate(now(),user.timezone),actor=await companion.interactions.authenticate({user,chatId});
-  if(!await invitations.wakeAuthority(actor,day))return {status:'BRIEF_WAKE_NOT_CONFIRMED'};
   const daily=await companion.prepareAfterBrief({user,chatId,healthDay:day});
   const dailyResult=daily.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:daily.deliveryId}):daily;
   const invitation=await invitations.prepare({user,chatId}),coachResult=invitation.deliveryId?await dispatcher.dispatch({user,chatId,deliveryId:invitation.deliveryId}):invitation;

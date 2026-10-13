@@ -7,7 +7,7 @@ import {profileRevision} from './profileRevision.js';
 /** Called inside the authenticated source-controller transaction. The request
  * contains no category, value, date, polarity, note or destination. */
 export async function trustedJournalFact(core,control,{interactionId,expectedRevision,callbackReceipt},{staged=false}={}){
- if(core.schemaVersion!==33||!core.processing.active())fail('STAGE7_TRUSTED_TRANSACTION_REQUIRED');
+ if(![33,34].includes(core.schemaVersion)||!core.processing.active())fail('STAGE7_TRUSTED_TRANSACTION_REQUIRED');
  const state=await core.assertControl(control);
  const row=(await core.client.execute({sql:'SELECT * FROM quick_action_interactions WHERE user_id=? AND interaction_id=?',args:[control.userId,interactionId]})).rows[0];
  if(!readableRow(row)||!['DAILY','QUICK'].includes(row.kind)||row.revision!==expectedRevision||row.state!=='CONFIRM'||row.registry_version!==JOURNAL_REGISTRY_VERSION

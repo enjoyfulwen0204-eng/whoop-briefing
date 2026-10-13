@@ -38,7 +38,7 @@ export function createStage7ReplyAuthority({core,db,companion}){
  }
  async function verify({user,chatId,reply}){
   try{return await core.transaction(async()=>{
-   const {stage7ReplyGuard:guard,...payload}=reply??{};
+   const {stage7ReplyGuard:guard,stage8ReplyGuard,...payload}=reply??{};
    if(!guard||guard.expiresAt<=core.timestamp()||guard.signature!==core.keys.lookup(['stage7-reply-v1',payload,guard.captured,guard.expiresAt]))return false;
    const actor=await interactions.authenticate({user,chatId});
    if(JSON.stringify(guard.captured)!==JSON.stringify(await stamp(actor)))return false;

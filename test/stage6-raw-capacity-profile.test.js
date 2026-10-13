@@ -10,7 +10,46 @@ const {runningReleaseSha}=await mod('src/phase4Release.js');
 const {publicBetaConfiguration}=await mod('src/publicBetaConfig.js');
 const {OWNER_PILOT_APPROVAL_SHA256}=await mod('src/betaPilotAllowance.js');
 const {requireCurrentBetaPilotAttempt}=await mod('src/betaPilotPermit.js');
-test('profile exact retained USER successor over installed Hrana at115ms',async t=>{
+async function verifyRawDomainProof(f,profiles,latencyMs){
+ const raw=(await f.db.raw.execute("SELECT * FROM evidence_runs WHERE subject_key='cycle_strain'")).rows[0];
+ const domainRows=(await f.db.raw.execute("SELECT * FROM phase4_operation_receipts WHERE operation_kind='analyzeMetric'")).rows,
+   domain=domainRows.find(row=>JSON.parse(row.request_json).request.metricKey==='cycle_strain');
+ if(domain){
+  assert.ok(raw);assert.equal(raw.state,'COMPLETED');assert.equal(raw.invalidated_at,null);
+  const scope=JSON.parse(raw.input_manifest_json).request_scope,context={userId:'a',executionMode:'SHADOW',inputGeneration:scope.input,
+   sourceGeneration:scope.source,lifecycleGeneration:scope.lifecycle,authGeneration:scope.auth,purgeGeneration:scope.purge,
+   algorithmSetVersion:scope.algorithm,timezone:scope.timezone},
+   {createOperationReceipts}=await mod('src/phase4OperationReceipts.js'),{bodySha256}=await mod('src/briefingTriggerAuth.js'),
+   verifier=createOperationReceipts({client:f.db.raw,keys:fixtureKeys,schemaVersion:32}),decoded=verifier.authenticate(context,domain);
+  assert.equal(decoded.request_json.request.asOfUtc,raw.as_of_utc);
+  assert.equal(decoded.result_json.resultState,'REFRESH_PREPARED');
+  assert.throws(()=>verifier.authenticate(context,{...domain,receipt_hmac:'0'.repeat(64)}),/PHASE4_OPERATION_RECEIPT_INTEGRITY/);
+  assert.throws(()=>verifier.authenticate({...context,userId:'peer'},domain),/PHASE4_OPERATION_RECEIPT_INTEGRITY/);
+  const step=fixtureKeys.lookup(['phase4-logical-work-v1','domain.operation',['a','SHADOW',scope.input,'analyzeMetric',domain.operation_key]]),
+    producers=(await f.db.raw.execute({sql:"SELECT p.*,e.* FROM phase4_execution_producers p JOIN phase4_executions e ON e.execution_id=p.producing_execution_id WHERE p.user_id='a' AND p.execution_mode='SHADOW' AND p.input_generation=?",args:[scope.input]})).rows;
+  let proof;
+  for(const e of producers){const key=fixtureKeys.lookup(['execution-work-step-v2',e.identity_digest,e.scope_key,['named',step]]),
+   ack=(await f.db.raw.execute({sql:'SELECT * FROM phase4_execution_work_receipts WHERE execution_id=? AND receipt_key=?',args:[e.execution_id,key]})).rows[0];
+   if(!ack)continue;assert.equal(e.state,'FINALIZED_SUCCESS');assert.equal(bodySha256(e.result_json),e.result_digest);
+   assert.equal(e.tenant_proof,fixtureKeys.lookup(['execution-producer-v1','a','SHADOW',scope.input,e.execution_id,e.execution_seq,e.producing_generation]));
+   assert.equal(ack.generation,e.producing_generation);assert.equal(ack.scope_key,e.scope_key);assert.equal(ack.request_digest,e.identity_digest);assert.equal(ack.step_key,key);
+   assert.ok(ack.committed_at<=e.finalized_at&&e.finalized_at<=e.deadline_at);
+   const profile=profiles.find(row=>row.result.identity===e.identity_digest);assert.ok(profile);
+   const commit=profile.timeline.find(event=>event.event==='request_end'&&event.kinds.includes('COMMIT')&&event.atMs>=ack.committed_at-profile.startedAtMs);assert.ok(commit);
+   const workerCommitMs=commit.atMs-profile.ready;assert.ok(workerCommitMs<30000);
+   proof={latencyMs,operationKey:domain.operation_key,receiptKey:key,producerExecutionId:e.execution_id,sourceGeneration:scope.source,inputGeneration:scope.input,
+    receiptHmac:true,producerHmac:true,finalized:true,workerCommitMs,committedAt:ack.committed_at,finalizedAt:e.finalized_at,tamperedReceiptRejected:true,foreignTenantRejected:true};
+  }
+  assert.ok(proof,'exact durable raw DOMAIN ACK');await f.fresh();
+  const reopened=(await f.db.raw.execute({sql:'SELECT * FROM phase4_operation_receipts WHERE operation_key=?',args:[domain.operation_key]})).rows[0];
+  assert.deepEqual(reopened,domain);proof.restartReceiptUnchanged=true;
+  console.log('RAW_DOMAIN_DURABLE_PROOF '+JSON.stringify(proof));return proof;
+ }
+
+}
+test('profile exact retained USER successor over installed Hrana with explicit isolated latency',async t=>{
+ const latencyMs=Number(process.env.RAW_PROFILE_LATENCY_MS??115);assert.ok(Number.isInteger(latencyMs)&&latencyMs>=1&&latencyMs<=115);
+ const legs=Number(process.env.RAW_PROFILE_LEGS??(process.env.RAW_AFTER_AUTH?2:7));assert.ok(Number.isInteger(legs)&&legs>=1&&legs<=100);
  const f=await residualFixture(t),syncReq=request(),syncOwner=await claim(f.db,syncReq),authority={assert(){}};
  await commitPhaseWork(f.db,syncReq,syncOwner,{outcome:'NO_NEW_DATA_SUCCESS',durationMs:0},authority);
  const sync=await finalizePhaseWork(f.db,syncReq,syncOwner,fixtureKeys,authority);
@@ -23,17 +62,24 @@ test('profile exact retained USER successor over installed Hrana at115ms',async 
   const jobs=await f.jobs();if(jobs.every(j=>j.full_scan_cursor===JSON.stringify(['USER','a']))&&(!process.env.RAW_AFTER_AUTH||Number((await f.db.raw.execute("SELECT count(*) n FROM phase4_evidence_result_authorities WHERE result_scope='METRIC'")).rows[0].n)>1))break;
  }
  assert.ok((await f.jobs()).every(j=>j.full_scan_cursor===JSON.stringify(['USER','a'])));
+ if(process.env.RAW_AFTER_AUTH){
+  const prepared=(await f.db.raw.execute("SELECT r.state FROM evidence_runs r JOIN evidence_items i ON i.user_id=r.user_id AND i.execution_mode=r.execution_mode AND i.run_id=r.run_id JOIN phase4_evidence_result_authorities a ON a.user_id=i.user_id AND a.execution_mode=i.execution_mode AND a.evidence_item_id=i.evidence_item_id WHERE r.subject_key='cycle_strain' AND a.result_scope='METRIC'")).rows;
+  assert.equal(prepared.length,1);assert.equal(prepared[0].state,'COMPLETED');
+  assert.equal((await f.db.raw.execute("SELECT count(*) n FROM phase4_operation_receipts WHERE operation_kind='analyzeMetric' AND json_extract(request_json,'$.request.metricKey')='cycle_strain'")).rows[0].n,0);
+ }
  await f.toHttp();const environment={PHASE4_BETA_SHADOW_RUNTIME:'on',PHASE4_PUBLIC_BETA_MODE:'off',PHASE4_BETA_PILOT_ID:'a'.repeat(64),PHASE4_BETA_PILOT_USER_ID:'a',PHASE4_BETA_PILOT_START_AT:new Date(Date.now()-1000).toISOString(),PHASE4_BETA_PILOT_CONSENT_SHA256:'b'.repeat(64),PHASE4_BETA_PILOT_ALLOWANCE_ID:OWNER_PILOT_APPROVAL_SHA256};
  const releaseSha=runningReleaseSha(),configProof=configurationProof(fixtureKeys,publicBetaConfiguration(environment),environment,releaseSha),makeReq=phase=>({requestId:crypto.randomUUID(),releaseSha,configProof,executionMode:'SHADOW',triggerSource:'manual',phase});
  const common=()=>({db:f.db,keys:fixtureKeys,environment,env:{dryRun:false}}),sr=makeReq('SYNC'),s=await runExecutionPhase({...common(),request:sr,deps:{runBriefing:async()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS'})}});
- const observations=[],profiles=[];let origin,ready;
- for(let leg=1;leg<=Number(process.env.RAW_PROFILE_LEGS??(process.env.RAW_AFTER_AUTH?2:7));leg++){
- await f.fresh();observations.length=0;ready=undefined;
- f.setLatency(115);f.startTrace();const before=structuredClone(f.transport.counts),startedAtMs=Date.now();origin=performance.now();
- const req={...makeReq('STAGE6_DRAIN'),syncRequestId:sr.requestId,handoff:s.body.handoff},runtime={phase4Stage6:{drain:async args=>{const pilotGrant=requireCurrentBetaPilotAttempt('a',f.db.raw),admission=await f.db.admitRuntime(),worker=await createPhase4Stage6({db:f.db,keys:fixtureKeys,admission,executionMode:'SHADOW',pilotGrant,workerCapability:authorizeStage6ShadowWorker({executionMode:'SHADOW'})});ready=performance.now()-origin;return worker.drain({...args,budget:{maxItems:1,maxItemsPerTenant:1}})}}};
+ const observations=[],profiles=[];let origin,ready,workerOutcome;
+ for(let leg=1;leg<=legs;leg++){
+ await f.fresh();observations.length=0;ready=undefined;workerOutcome=undefined;
+ f.setLatency(latencyMs);f.startTrace();const before=structuredClone(f.transport.counts),startedAtMs=Date.now();origin=performance.now();
+ const req={...makeReq('STAGE6_DRAIN'),syncRequestId:sr.requestId,handoff:s.body.handoff},runtime={phase4Stage6:{drain:async args=>{const pilotGrant=requireCurrentBetaPilotAttempt('a',f.db.raw),admission=await f.db.admitRuntime(),worker=await createPhase4Stage6({db:f.db,keys:fixtureKeys,admission,executionMode:'SHADOW',pilotGrant,workerCapability:authorizeStage6ShadowWorker({executionMode:'SHADOW'})});ready=performance.now()-origin;workerOutcome=await worker.drain({...args,budget:{maxItems:1,maxItemsPerTenant:1}});return workerOutcome}}};
  const result=await runExecutionPhase({...common(),request:req,deps:{runtime}}),wholeMs=performance.now()-origin,timeline=f.stopTrace();f.setLatency(0);
- const profile={leg,wholeMs,startedAtMs,timeline,http:f.transport.counts.httpRequests-before.httpRequests,sql:f.transport.counts.sqlStatements-before.sqlStatements,ready,observations,result:result.body.result,jobs:await f.jobs(),counts:await f.counts()};profiles.push(profile);
+ const profile={leg,latencyMs,wholeMs,startedAtMs,timeline,http:f.transport.counts.httpRequests-before.httpRequests,sql:f.transport.counts.sqlStatements-before.sqlStatements,ready,observations,workerFailureCodes:workerOutcome?.failures??[],result:result.body.result,jobs:await f.jobs(),counts:await f.counts()};profiles.push(profile);
  console.log('RAW_PROFILE '+JSON.stringify(profile));
+ const domainProof=await verifyRawDomainProof(f,profiles,latencyMs);
+ if(process.env.RAW_AFTER_AUTH&&leg===1)assert.ok(domainProof,'DOMAIN-only mode requires its new completed raw DOMAIN and exact durable proof');
  assert.equal(result.body.result.settlementState,'FINALIZED_SUCCESS');assert.equal(result.body.result.jobsFailed,0);
  assert.ok((result.body.result.unitsCommitted??0)>0||(result.body.result.itemsProcessed??0)>0,'each raw continuation must commit durable progress');
  }
@@ -68,5 +114,6 @@ test('profile exact retained USER successor over installed Hrana at115ms',async 
   const before=await f.counts();await f.fresh();assert.deepEqual(await f.counts(),before);
   console.log('RAW_DURABLE_ACK_PROOF '+JSON.stringify({units,verifiedUnits,namedAck:true,producerHmac:true,finalized:true,sourceGeneration:scope.source,inputGeneration:scope.input,fullRun:raw.run_id,immutableInputHash:plan.inputHash,restartCountsUnchanged:true,production:false}));
  }
+
 
 });

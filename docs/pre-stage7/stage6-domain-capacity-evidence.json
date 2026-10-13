@@ -1,0 +1,546 @@
+{
+  "status": "STAGE6_RAW_SOURCE_CAPACITY_REPAIR_PARTIAL",
+  "baselineCandidate": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+  "budget": {
+    "configuredWallMs": 45000,
+    "safetyMarginMs": 15000,
+    "effectiveWorkerMs": 30000
+  },
+  "instrumented115msProfile": {
+    "wholeMs": 41401.981834000006,
+    "http": 302,
+    "sql": 4987,
+    "exclusivePhases": [
+      {
+        "phase": "other admission/context/claim/enumeration/settlement",
+        "ms": 14751.887084000009,
+        "http": 111,
+        "sql": 163
+      },
+      {
+        "phase": "owned raw selector/BEGIN/outer cleanup (unit minus DOMAIN)",
+        "ms": 8568.578083,
+        "http": 62,
+        "sql": 925
+      },
+      {
+        "phase": "DOMAIN through deadline failure",
+        "ms": 14816.197166999998,
+        "http": 102,
+        "sql": 3859
+      },
+      {
+        "phase": "lease release",
+        "ms": 3265.319499999998,
+        "http": 27,
+        "sql": 40
+      }
+    ],
+    "httpOnlyPilotClock": 123,
+    "domainChildPhases": [
+      {
+        "label": "phase4ResultAuthority.validateRoots",
+        "startedMs": 21426.269584,
+        "ms": 905.8869580000028,
+        "http": 5,
+        "sql": 341
+      },
+      {
+        "label": "phase4ResultAuthority.validateRoots",
+        "startedMs": 28749.027417000005,
+        "ms": 760.1368329999968,
+        "http": 5,
+        "sql": 341
+      },
+      {
+        "label": "phase4ResultAuthority.read",
+        "startedMs": 24600.230584000004,
+        "ms": 4908.950874999995,
+        "http": 32,
+        "sql": 1772
+      },
+      {
+        "label": "phase4IntelligenceStore.analyzeMetric",
+        "startedMs": 23354.121792000005,
+        "ms": 6514.327166999996,
+        "http": 43,
+        "sql": 2127
+      },
+      {
+        "label": "phase4OperationReceipts.encode",
+        "startedMs": 29868.500292000004,
+        "ms": 614.5109579999989,
+        "http": 5,
+        "sql": 10
+      },
+      {
+        "label": "phase4ResultAuthority.captureRoots",
+        "startedMs": 32237.236625000005,
+        "ms": 2699.9641249999986,
+        "http": 19,
+        "sql": 789,
+        "error": "PHASE4_DRAIN_DEADLINE_REACHED"
+      }
+    ],
+    "caveat": "temporary instrumentation, removed; child phases overlap parents and must not be added to totals",
+    "workerReadyMs": 3943.926375000001,
+    "budgetBoundaries": [
+      {
+        "label": "phase4IntelligenceStore.metricPreparationUnitFromCurrentRaw",
+        "wholeStartMs": 11672.381,
+        "workerStartMs": 7728.4546249999985,
+        "remainingWorkerMs": 22271.545375,
+        "newDurableDomainWork": 0
+      },
+      {
+        "label": "phase4OperationReceipts.execute",
+        "wholeStartMs": 20121.037292,
+        "workerStartMs": 16177.110917,
+        "remainingWorkerMs": 13822.889083,
+        "newDurableDomainWork": 0
+      },
+      {
+        "label": "phase4IntelligenceStore.analyzeMetric",
+        "wholeStartMs": 23354.121792000005,
+        "workerStartMs": 19410.195417000003,
+        "remainingWorkerMs": 10589.804582999997,
+        "newDurableDomainWork": 0
+      },
+      {
+        "label": "phase4ResultAuthority.captureRoots",
+        "wholeStartMs": 32237.236625000005,
+        "workerStartMs": 28293.310250000002,
+        "remainingWorkerMs": 1706.6897499999977,
+        "newDurableDomainWork": 0
+      }
+    ]
+  },
+  "measurements": {
+    "frozenBaseline115ms": {
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": null,
+          "wholeMs": 41217.842042,
+          "ready": 3881.3486249999987,
+          "http": 296,
+          "sql": 4641,
+          "result": {
+            "releaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+            "outcome": "BUDGET_EXHAUSTED",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "executionSeq": 30,
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 1,
+            "runs": 2,
+            "items": 2
+          },
+          "workerFailureCodes": null
+        }
+      ],
+      "domainProofs": [],
+      "loadedReleaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+      "testChangesPresent": false,
+      "capacity115msApproved": false
+    },
+    "removedOverlap115ms": {
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": null,
+          "wholeMs": 41368.440417,
+          "ready": 3741.0365840000013,
+          "http": 299,
+          "sql": 5494,
+          "result": {
+            "releaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+            "outcome": "BUDGET_EXHAUSTED",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "executionSeq": 30,
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 1,
+            "runs": 2,
+            "items": 2
+          },
+          "workerFailureCodes": null
+        }
+      ],
+      "domainProofs": [],
+      "loadedReleaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+      "testChangesPresent": false,
+      "capacity115msApproved": false
+    },
+    "placement25ms": {
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 25,
+          "wholeMs": 24613.101750000005,
+          "ready": 1322.786833000002,
+          "http": 399,
+          "sql": 15180,
+          "result": {
+            "releaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "executionSeq": 30,
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          },
+          "workerFailureCodes": null
+        },
+        {
+          "leg": 2,
+          "latencyMs": 25,
+          "wholeMs": 33074.32616699999,
+          "ready": 1038.393833999995,
+          "http": 718,
+          "sql": 15482,
+          "result": {
+            "releaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+            "outcome": "BUDGET_EXHAUSTED",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "executionSeq": 31,
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          },
+          "workerFailureCodes": null
+        }
+      ],
+      "domainProofs": [],
+      "loadedReleaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+      "testChangesPresent": false,
+      "capacity115msApproved": false
+    },
+    "placement10ms": {
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 10,
+          "wholeMs": 12109.033791999998,
+          "ready": 527.6440000000002,
+          "http": 399,
+          "sql": 15180,
+          "result": {
+            "releaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "executionSeq": 30,
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          },
+          "workerFailureCodes": null
+        },
+        {
+          "leg": 2,
+          "latencyMs": 10,
+          "wholeMs": 20443.200625,
+          "ready": 526.6082079999978,
+          "http": 828,
+          "sql": 17546,
+          "result": {
+            "releaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+            "outcome": "FAILED",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 1,
+            "executionSeq": 31,
+            "settlementState": "FINALIZED_FAILURE"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "RETRY_WAIT",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          },
+          "workerFailureCodes": null
+        }
+      ],
+      "domainProofs": [],
+      "loadedReleaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+      "testChangesPresent": false,
+      "capacity115msApproved": false
+    },
+    "placement10msExactReceipt": {
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 10,
+          "wholeMs": 13025.810042,
+          "ready": 561.3994170000005,
+          "http": 399,
+          "sql": 15180,
+          "result": {
+            "releaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "executionSeq": 30,
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          },
+          "workerFailureCodes": []
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 10,
+          "operationKey": "126a8b9ac87ca8929bee8e972a5d0d6af70709baf7479ed916f31a8098e5f53b",
+          "receiptKey": "eadf9a62bcaf80a695ee1b525cf170ef4658393b2c0fabeb69c7753995f2ff75",
+          "producerExecutionId": "48fb3680-c4e1-4a48-9394-3ffc163fd9f3",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 11079.910707999998,
+          "committedAt": 1791908643812,
+          "finalizedAt": 1791908646891,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "loadedReleaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+      "testChangesPresent": true,
+      "capacity115msApproved": false
+    },
+    "placement10msRequiredReceipt": {
+      "profiles": [
+        {
+          "leg": 1,
+          "latencyMs": 10,
+          "wholeMs": 12532.500833000002,
+          "http": 399,
+          "sql": 15180,
+          "ready": 568.6790000000001,
+          "workerFailureCodes": [],
+          "result": {
+            "releaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+            "outcome": "PARTIAL",
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "jobsFailed": 0,
+            "unitsCommitted": 1,
+            "executionSeq": 30,
+            "settlementState": "FINALIZED_SUCCESS"
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"USER\",\"a\"]"
+            }
+          ],
+          "counts": {
+            "body": 1,
+            "domain": 2,
+            "runs": 2,
+            "items": 2
+          }
+        }
+      ],
+      "domainProofs": [
+        {
+          "latencyMs": 10,
+          "operationKey": "5af037300cd2b559a61e8d5c60fd9eda047dd462eeb55e2e16c86da1cfc44bbc",
+          "receiptKey": "e5f02bc7efc2fa6dd0252f6ebf44708978bccbacab123f755dbd18db8fc0a046",
+          "producerExecutionId": "60de0b07-6076-4509-ba2c-8f51fd8c59bc",
+          "sourceGeneration": 8,
+          "inputGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "finalized": true,
+          "workerCommitMs": 10634.712458,
+          "committedAt": 1791909662916,
+          "finalizedAt": 1791909665569,
+          "tamperedReceiptRejected": true,
+          "foreignTenantRejected": true,
+          "restartReceiptUnchanged": true
+        }
+      ],
+      "loadedReleaseSha": "caf08fc6e5a6af38988aae97ebf834a80bfcfea7",
+      "testChangesPresent": true,
+      "requiresNewDomain": true,
+      "capacity115msApproved": false
+    }
+  },
+  "remainingGates": [
+    "DOMAIN within115ms original deadline",
+    "source/family/cursor settlement afterDOMAIN",
+    "complete actual process-crash sequence",
+    "all six captured jobs completion",
+    "real near-database RTT and CPU/jitter qualification",
+    "exact release and production paid-validation authorization"
+  ],
+  "production": {
+    "operations": 0,
+    "deployment": false,
+    "publicPush": false,
+    "newPermit": false,
+    "credentialsChanged": false,
+    "F02": "OWNER_ACCEPTED_RISK_UNCHANGED",
+    "pilot": "12/12 retained"
+  }
+}

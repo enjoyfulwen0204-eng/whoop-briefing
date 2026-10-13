@@ -1,3 +1,4 @@
+import {SCHEMA_VERSION} from '../src/schema.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -20,8 +21,8 @@ const env={dryRun:true,maxUserConcurrency:2,telegramBotToken:'synthetic',whoopCl
 const impossible=()=>{throw Error('UNRELATED_WORK_REACHED');};
 async function seed(db){await db.createUser({id:'readiness',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});await db.setLocale('readiness','zh-TW');await db.linkTelegram({userId:'readiness',chatId:'12345'});await db.ensureOnboarding('readiness',{state:'READY'});}
 const isolatedDeps=(daily)=>({makeTelegram:()=>({send:impossible,notifyError:impossible}),makeWhoop:()=>({getAccessToken:async()=> 'synthetic'}),makeCoach:()=>({}),makeSource:()=>({}),daily,weekly:impossible,makeSync:impossible,reap:impossible,proactive:impossible,predictionCycle:impossible,healthspan:impossible,makeReconciler:impossible});
-test('real admitted v32 composition runs daily-only while optional pilot stopped; no phase or permit rows',async t=>{
- const {db}=await deliveryFixture(t);await db.admitRuntime({source:'fixture'});await seed(db);let calls=0;
+test('real admitted current-schema composition runs daily-only while optional pilot stopped; no phase or permit rows',async t=>{
+ const {db}=await deliveryFixture(t,{version:SCHEMA_VERSION});await db.admitRuntime({source:'fixture'});await seed(db);let calls=0;
  const result=await runMorningReadiness({request:req(),environment,db,keys:fixtureKeys,env,deps:isolatedDeps(async()=>{calls++;return {status:'not_ready'};})});
  assert.equal(result.status,200,JSON.stringify(result));assert.equal(calls,1);assert.equal(result.body.syncComplete,false);assert.equal(result.body.drainAuthorized,false);assert.equal(result.body.handoff,undefined);
  assert.equal((await db.raw.execute('SELECT count(*) n FROM phase4_executions')).rows[0].n,0);
@@ -29,7 +30,7 @@ test('real admitted v32 composition runs daily-only while optional pilot stopped
  assert.ok(await db.getHeartbeat('global','morning_readiness_v1'));
 });
 test('sent and uncertain current day skip provider, model, maintenance and unrelated work',async t=>{
- const {db}=await deliveryFixture(t);await db.admitRuntime({source:'fixture'});await seed(db);
+ const {db}=await deliveryFixture(t,{version:SCHEMA_VERSION});await db.admitRuntime({source:'fixture'});await seed(db);
  const now=new Date('2026-10-13T05:10:00Z'),user=await db.getUser('readiness');
  for(const deliveryState of ['SENT','AMBIGUOUS','DELIVERY_STARTED']){
   const wrapped={...db,isSent:async()=>deliveryState==='SENT',getClaim:async()=>({deliveryState})};
@@ -84,7 +85,7 @@ test('delayed recovery scoring remains nonnumeric waiting until matched scored i
  assert.equal((await runDaily(args)).status,'not_ready');recovery=data.recoveries;assert.equal((await runDaily(args)).status,'sent');
 });
 test('overlapping readiness requests share existing durable user ownership',async t=>{
- const {db,url}=await deliveryFixture(t);await db.admitRuntime({source:'fixture'});await seed(db);
+ const {db,url}=await deliveryFixture(t,{version:SCHEMA_VERSION});await db.admitRuntime({source:'fixture'});await seed(db);
  const {openHttpFixture}=await import('./deliveryDefaultFixture.js');const second=openHttpFixture(url);t.after(()=>second.close());
  let entered;const began=new Promise(r=>{entered=r;});let release;const gate=new Promise(r=>{release=r;});let calls=0;
  const first=runMorningReadiness({request:req(),environment,db,keys:fixtureKeys,env,deps:isolatedDeps(async()=>{calls++;entered();await gate;return {status:'not_ready'};})});

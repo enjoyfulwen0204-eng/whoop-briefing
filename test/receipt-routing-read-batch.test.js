@@ -1,3 +1,4 @@
+import {SCHEMA_VERSION} from '../src/schema.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {fixture,fixtureKeys} from './v32ReviewFixture.js';
 import {createReceiptRouting} from '../src/phase4ReceiptRouting.js';
@@ -8,7 +9,7 @@ const entries=sql=>/SELECT COUNT\(\*\) count FROM phase4_receipt_route_entries/.
 const sqlOf=statement=>typeof statement==='string'?statement:statement.sql;
 
 test('physical Hrana routing tip dispatches its two independent signed-header observations together',async t=>{
- const {db,transport}=await fixture(t);await db.admitRuntime();
+ const {db,transport}=await fixture(t,SCHEMA_VERSION);await db.admitRuntime();
  const routing=createReceiptRouting(db.raw,fixtureKeys),before=transport.counts.httpRequests;
  assert.equal(await db.transaction(()=>routing.tip(context,'EPISODE',identity)),null);
  const requests=transport.counts.httpRequests-before;
@@ -18,7 +19,7 @@ test('physical Hrana routing tip dispatches its two independent signed-header ob
 });
 
 test('reversed routing read completion retains the original first SQL failure and settles its submitted sibling before rollback',async t=>{
- const {db}=await fixture(t);await db.admitRuntime();const execute=db.raw.execute.bind(db.raw),events=[];
+ const {db}=await fixture(t,SCHEMA_VERSION);await db.admitRuntime();const execute=db.raw.execute.bind(db.raw),events=[];
  db.raw.execute=async statement=>{
   const sql=sqlOf(statement);
   if(manifest(sql)){await execute(statement);await new Promise(resolve=>setTimeout(resolve,40));events.push('manifest');throw Error('FIRST_ROUTE_SQL');}
@@ -32,7 +33,7 @@ test('reversed routing read completion retains the original first SQL failure an
 });
 
 test('a synchronous routing-header throw still waits for the already submitted physical sibling before failing',async t=>{
- const {db}=await fixture(t);await db.admitRuntime();const execute=db.raw.execute.bind(db.raw);let settled=false;
+ const {db}=await fixture(t,SCHEMA_VERSION);await db.admitRuntime();const execute=db.raw.execute.bind(db.raw);let settled=false;
  db.raw.execute=statement=>{
   const sql=sqlOf(statement);if(manifest(sql))throw Error('SYNCHRONOUS_ROUTE_SQL');
   if(entries(sql))return execute(statement).then(async result=>{await new Promise(resolve=>setTimeout(resolve,40));settled=true;return result;});

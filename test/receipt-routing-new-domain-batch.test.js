@@ -1,3 +1,4 @@
+import {SCHEMA_VERSION} from '../src/schema.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {fixture,fixtureKeys} from './v32ReviewFixture.js';
 import {createReceiptRouting} from '../src/phase4ReceiptRouting.js';
@@ -8,7 +9,7 @@ const decoded={request:{request:{metricKey:'body_energy',windowFamily:'SYNTHETIC
  related:[{type:'evidence_runs',id:'synthetic-run'},{type:'evidence_items',id:'synthetic-item'}]};
 const tables=['phase4_receipt_routes','phase4_receipt_route_entries','phase4_receipt_route_manifests'];
 async function setup(t){
- const {db,transport}=await fixture(t);await db.admitRuntime();
+ const {db,transport}=await fixture(t,SCHEMA_VERSION);await db.admitRuntime();
  await db.createUser({id:'a',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
  return {db,transport,routing:createReceiptRouting(db.raw,fixtureKeys)};
 }

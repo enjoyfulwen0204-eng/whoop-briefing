@@ -1,0 +1,58 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {syntheticPhase4Fixture} from './phase4Fixture.js';
+import {createStage7Runtime} from '../src/stage7Runtime.js';
+import {createUpdateProcessor} from '../src/bot/updateProcessor.js';
+import {createSendReply} from '../src/bot/index.js';
+import {createTelegramApi} from '../src/bot/api.js';
+import {createSettings} from '../src/bot/settings.js';
+import {fixtureKeys} from './localDb.js';
+import {createBriefingEndpoint} from '../src/briefingEndpoint.js';
+import {signTriggerRequest} from '../src/briefingTriggerAuth.js';
+import {COMPANION_PATH,COMPANION_KIND,runCompanionService} from '../src/companionService.js';
+import {invokeCompanion} from '../cloudflare/briefing-scheduler/worker.js';
+import {runningReleaseSha} from '../src/phase4Release.js';
+import {configurationProof} from '../src/phase4ExecutionStore.js';
+import {publicBetaConfiguration} from '../src/publicBetaConfig.js';
+const environment={STAGE7_COMPANION:'on',STAGE7_COMPANION_USER_IDS:'a',PHASE4_BETA_PILOT_USER_ID:'a'};
+test('admitted production composition uses real Telegram API edit/ACK and update receipts with no external IO; owner-only',async t=>{
+ const f=await syntheticPhase4Fixture(t,{targetVersion:33}),calls=[];let messageId=800,seq=12001;
+ t.mock.method(globalThis,'fetch',async(url,options)=>{
+  assert.match(String(url),/^https:\/\/api\.telegram\.org\/botSYNTHETIC_NOT_A_TOKEN\/(sendMessage|editMessageText|answerCallbackQuery)$/);
+  const body=JSON.parse(options.body);calls.push({method:String(url).split('/').at(-1),body});
+  const result=String(url).endsWith('answerCallbackQuery')?true:{message_id:body.message_id??++messageId,date:Math.floor(Date.now()/1000),chat:{id:Number(body.chat_id),type:'private'},text:body.text};
+  return new Response(JSON.stringify({ok:true,result}),{status:200,headers:{'content-type':'application/json'}});
+ });
+ await f.db.linkTelegram({userId:'a',chatId:'123',now:f.core.now()});await f.db.setLocale('a','en',{now:f.core.now()});
+ await f.db.saveTokens('a',{accessToken:'synthetic',refreshToken:'synthetic',expiresAt:new Date('2026-12-01'),scope:'offline',whoopUserId:'synthetic'},{now:f.core.now()});
+ const app=await createStage7Runtime({db:f.db,keys:fixtureKeys,environment,env:{telegramBotToken:'SYNTHETIC_NOT_A_TOKEN'},now:f.core.now});
+ const api=createTelegramApi({botToken:'SYNTHETIC_NOT_A_TOKEN'}),settings=createSettings({db:f.db,now:f.core.now}),send=createSendReply({db:f.db,api});
+ const processor=createUpdateProcessor({db:f.db,now:f.core.now,resolveUser:chat=>f.db.resolveUserByChatId(chat),stage7Inbound:app.stage7Inbound,stage7Reply:app.stage7Reply,
+  handleMessage:async input=>app.decorate({...input,reply:await settings(input)??'Synthetic answer.'}),sendReply:input=>app.sendReply(send,input),answerCallback:id=>api.answerCallbackQuery(id)});
+ const message=text=>({update_id:seq++,message:{message_id:1,text,chat:{id:123,type:'private'},from:{id:123,is_bot:false}}});
+ const initial=message('/coach');await processor.processUpdate(initial);let last=calls.filter(c=>c.method!=='answerCallbackQuery').at(-1);assert.match(last.body.text,/explore/);
+ const tap=async label=>{const b=last.body.reply_markup.inline_keyboard.flat().find(b=>b.text.includes(label));assert.ok(b,label);
+  const update={update_id:seq++,callback_query:{id:`c-${seq}`,data:b.callback_data,from:{id:123,is_bot:false},message:{message_id:last.body.message_id??messageId,chat:{id:123,type:'private'}}}};
+  const result=await processor.processUpdate(update);last=calls.filter(c=>c.method!=='answerCallbackQuery').at(-1);return {result,update};};
+ await tap('Sleep');assert.equal(last.method,'editMessageText');assert.equal(last.body.message_id,801);
+ const {update}=await tap('Type a question');assert.match(last.body.text,/Type your health question/);
+ const before=calls.filter(c=>c.method!=='answerCallbackQuery').length;await processor.processUpdate(update);assert.equal(calls.filter(c=>c.method!=='answerCallbackQuery').length,before);
+ await processor.processUpdate(message('/settings'));assert.ok(calls.at(-1).body.reply_markup.inline_keyboard.flat().some(b=>b.text.includes('Journal and Coach')));
+ assert.equal((await f.db.raw.execute('SELECT count(*) n FROM journal_events')).rows[0].n,0);
+ assert.equal(await app.stage7Inbound({user:await f.db.getUser('b'),chatId:'456',text:'/coach',updateId:999}),null);
+});
+test('signed companion endpoint validates kind/path/identity and never enters SYNC; Worker single bounded request',async()=>{
+ const secret='s'.repeat(32),requestId='isolated-companion-request-001',releaseSha='a'.repeat(40),configProof='b'.repeat(64),timestamp=String(Date.now());let calls=0;
+ const request={kind:COMPANION_KIND,requestId,releaseSha,configProof,triggerSource:'cloudflare',executionMode:'OFF'},body=JSON.stringify(request);
+ const endpoint=createBriefingEndpoint({secret,runPhase:()=>{throw Error('SYNC_FORBIDDEN');},runCompanion:async()=>{calls++;return {status:200,body:{ok:true,kind:COMPANION_KIND}};}});
+ const req={url:COMPANION_PATH,method:'POST',headers:{'content-type':'application/json','x-briefing-timestamp':timestamp,'x-briefing-request-id':requestId,'x-briefing-signature':signTriggerRequest({timestamp,requestId,method:'POST',path:COMPANION_PATH,body},secret)}};
+ assert.equal((await endpoint(req,body)).status,200);assert.equal((await endpoint(req,body)).status,200);assert.equal(calls,1);
+ assert.equal((await endpoint({...req,headers:{...req.headers,'x-briefing-signature':'bad'}},body)).status,401);
+ let http=0;const env={BRIEFING_COMPANION_ENABLED:'on',BRIEFING_ENDPOINT_URL:'https://isolated.invalid/internal/briefing/run',BRIEFING_TRIGGER_SECRET:secret,BRIEFING_RELEASE_SHA:releaseSha,BRIEFING_CONFIG_PROOF:configProof,BRIEFING_EXECUTION_MODE:'OFF'};
+ await invokeCompanion(env,{fetchImpl:async(url,options)=>{http++;assert.equal(new URL(url).pathname,COMPANION_PATH);const r=JSON.parse(options.body);assert.equal(r.kind,COMPANION_KIND);assert.equal(r.phase,undefined);return new Response(JSON.stringify({ok:true,kind:COMPANION_KIND,source:'cloudflare',releaseSha,drainAuthorized:false,enabled:true}),{status:200});}});assert.equal(http,1);
+ await assert.rejects(invokeCompanion(env,{fetchImpl:async()=>{http++;return new Response('{}',{status:503});}}),/companion_failed/);assert.equal(http,2);
+});
+test('ordinary companion service default-off does not read or consume an optional pilot or invoke a provider',async()=>{
+ const environment={},releaseSha=runningReleaseSha(),configProof=configurationProof(fixtureKeys,publicBetaConfiguration(environment),environment,releaseSha);
+ const result=await runCompanionService({environment,env:{},keys:fixtureKeys,db:new Proxy({},{get(){throw Error('DB_MUST_NOT_BE_USED');}}),request:{kind:COMPANION_KIND,requestId:'isolated-disabled-companion',releaseSha,configProof,triggerSource:'cloudflare',executionMode:'OFF'}});
+ assert.equal(result.status,200);assert.equal(result.body.enabled,false);
+});

@@ -1,3 +1,6 @@
+import {companionEngagementBusy} from './companionEngagementGuard.js';
+import {COACH_TOPICS} from './companionCoach.js';
+import {inCompanionQuietHours} from './companionTimingPolicy.js';
 import {labelForCategory} from './journal.js';
 import {createStage7InteractionStore} from './stage7InteractionStore.js';
 import {selectDailyQuestion} from './questionEngine.js';
@@ -22,9 +25,11 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
  }
  async function changePreferences(actor,expected,patch){
   const state=await core.assertControl(actor.control),fields=Object.keys(patch);
-  if(fields.some(k=>!['daily_enabled','weekly_enabled','topics_json','excluded_topics_json'].includes(k)))fail('STAGE7_PREFERENCE_FIELDS');
+  if(fields.some(k=>!['daily_enabled','weekly_enabled','topics_json','excluded_topics_json','coach_enabled','coach_topics_json','quiet_start','quiet_end'].includes(k)))fail('STAGE7_PREFERENCE_FIELDS');
   for(const key of ['topics_json','excluded_topics_json'])if(Object.hasOwn(patch,key)){const values=JSON.parse(patch[key]);if(!Array.isArray(values)||values.some(v=>!TOPICS.includes(v))||new Set(values).size!==values.length)fail('STAGE7_PREFERENCE_TOPICS');}
-  for(const key of ['daily_enabled','weekly_enabled'])if(Object.hasOwn(patch,key)&&![0,1].includes(patch[key]))fail('STAGE7_PREFERENCE_VALUE');
+  if(Object.hasOwn(patch,'coach_topics_json')){const v=JSON.parse(patch.coach_topics_json);if(!Array.isArray(v)||v.some(x=>!COACH_TOPICS.includes(x))||new Set(v).size!==v.length)fail('STAGE7_PREFERENCE_TOPICS');}
+  for(const key of ['quiet_start','quiet_end'])if(Object.hasOwn(patch,key))inCompanionQuietHours(core.now(),state.timezone,patch[key],patch[key]);
+  for(const key of ['daily_enabled','weekly_enabled','coach_enabled'])if(Object.hasOwn(patch,key)&&![0,1].includes(patch[key]))fail('STAGE7_PREFERENCE_VALUE');
   const result=await client.execute({sql:`UPDATE journal_tracking_preferences SET ${fields.map(k=>`${k}=?`).join(',')},revision=revision+1,updated_at=? WHERE user_id=? AND revision=? AND lifecycle_generation=?`,args:[...fields.map(k=>patch[k]),timestamp(),actor.control.userId,expected.revision,state.lifecycle_generation]});
   if(result.rowsAffected!==1)fail('STAGE7_PREFERENCE_CONFLICT');return preferences(actor);
  }
@@ -36,6 +41,8 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
   const command=typeof text==='string'&&/^\/journal(?:@[A-Za-z0-9_]+)?\s*$/i.test(text.trim());
   if(callback&&!isJournalCallback(callback.data))return null;
   if(!command&&!callback)return null;
+  // Coach navigation never enters the lifestyle answer state machine.
+  if(callback){const actor=await interactions.authenticate({user,chatId,callback,allowPendingPurge:true}),resolved=await interactions.resolve(actor,callback,{recovery:true});if(resolved?.row.kind==='COACH')return null;}
   if(callback){
    const pre=await transaction(async()=>{
     const actor=await interactions.authenticate({user,chatId,callback,allowPendingPurge:true});
@@ -104,7 +111,9 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
     if(action!=='cancel'){
      const parts=action.split(':'),kind=parts[1],value=Number(parts.at(-2)),revision=Number(parts.at(-1));
      if(parts[0]!=='prefs'||![0,1].includes(value)||!Number.isSafeInteger(revision)||revision!==prefs.revision)return interactions.expired(actor);
-     if(parts.length===4&&['daily','weekly'].includes(kind))patch={[kind==='daily'?'daily_enabled':'weekly_enabled']:value};
+     if(parts.length===4&&['daily','weekly','coach'].includes(kind))patch={[`${kind}_enabled`]:value};
+     else if(parts.length===5&&kind==='coachTopic'&&COACH_TOPICS.includes(parts[2])){const values=new Set(JSON.parse(prefs.coach_topics_json??'[]'));value?values.add(parts[2]):values.delete(parts[2]);patch={coach_topics_json:JSON.stringify([...values].sort())};}
+     else if(parts.length===5&&kind==='quiet'&&['22-08','23-07','21-09'].includes(parts[2])){const [quiet_start,quiet_end]=parts[2].split('-').map(v=>v+':00');patch={quiet_start,quiet_end};}
      else if(parts.length===5&&['topic','exclude'].includes(kind)&&TOPICS.includes(parts[2])){
       const field=kind==='topic'?'topics_json':'excluded_topics_json',values=new Set(JSON.parse(prefs[field]));value?values.add(parts[2]):values.delete(parts[2]);patch={[field]:JSON.stringify([...values].sort())};
      }else return interactions.expired(actor);
@@ -171,13 +180,16 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    if(healthDay!==localDate(core.now(),actor.state.timezone))return {status:'NOT_CURRENT_DAY'};
    const proof=(await client.execute({sql:"SELECT * FROM report_claims WHERE user_id=? AND report_type='daily' AND local_date=? AND delivery_state='DELIVERED' AND telegram_message_id IS NOT NULL AND lifecycle_generation=?",args:[user.id,healthDay,actor.state.lifecycle_generation]})).rows[0];
    if(!proof)return {status:'BRIEF_NOT_CONFIRMED'};
+   const report=(await client.execute({sql:"SELECT sleep_id FROM report_runs WHERE user_id=? AND report_type='daily' AND local_date=? AND status='SENT' AND telegram_message_id=? AND content_state='PRESENT' LIMIT 1",args:[user.id,healthDay,proof.telegram_message_id]})).rows[0];
+   const occasion=report?.sleep_id?core.keys.lookup(['journal-wake-occasion-v1',user.id,report.sleep_id]):null;
+   if(occasion){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND occasion_key=?',args:[user.id,occasion]})).rows[0];if(existing)return {status:'EXISTING',deliveryId:existing.delivery_id};}
    const semantic=core.keys.lookup(['daily-journal-v1',user.id,healthDay,DAILY_POLICY_VERSION]);
    const dayKey=core.keys.lookup(['journal-day-v1',user.id,healthDay]);
    const priorDay=(await client.execute({sql:'SELECT interaction_id FROM quick_action_interactions WHERE user_id=? AND day_key=?',args:[user.id,dayKey]})).rows[0];
    if(priorDay){const existing=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND interaction_id=?',args:[user.id,priorDay.interaction_id]})).rows[0];return {status:'EXISTING',deliveryId:existing?.delivery_id??null};}
    const previous=(await client.execute({sql:'SELECT delivery_id FROM journal_prompt_deliveries WHERE user_id=? AND semantic_key=?',args:[user.id,semantic]})).rows[0];
    if(previous)return {status:'EXISTING',deliveryId:previous.delivery_id};
-   const pending=(await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' UNION ALL SELECT 1 FROM phase4_question_interaction_slots WHERE user_id=? AND state IN ('RESERVED','DELIVERY_STARTED','AMBIGUOUS_WAIT','AWAITING_ANSWER')",args:[user.id,user.id]})).rows.length;
+   const pending=await companionEngagementBusy({core,db,actor});
    if(pending)return {status:'INTERACTION_BUSY'};
    const targetDate=addDays(healthDay,-1),facts=await ownFacts(actor,{fromDate:addDays(targetDate,-179),toDate:targetDate}),history=(await client.execute({sql:"SELECT privacy_artifact_id,category,target_date FROM quick_action_interactions WHERE user_id=? AND (kind='DAILY' OR json_extract(diagnostics_json,'$.dailyAnswerKey') IS NOT NULL AND state IN ('COMPLETED','NOT_SURE','SKIPPED')) AND content_state='PRESENT' ORDER BY created_at DESC LIMIT 60",args:[user.id]})).rows;
    if(facts.length===500)fail('STAGE7_DAILY_HISTORY_BOUNDS');
@@ -205,7 +217,7 @@ export function createStage7Companion({core,stores,db,onAccept=null,onUndo=null,
    for(const fact of facts)await interactions.link('quick_action_interactions',issued.row,'JOURNAL_FACT',fact.privacy_artifact_id);
    for(const previous of history)await interactions.link('quick_action_interactions',issued.row,'quick_action_interactions',previous.privacy_artifact_id);
    for(const id of contextSources)await interactions.link('quick_action_interactions',issued.row,'evidence_items',id);
-   const delivery={user_id:user.id,delivery_id:core.newId(),interaction_id:issued.row.interaction_id,semantic_key:semantic,kind:'DAILY',execution_mode:'SHADOW',state:'PROPOSED',payload_json:JSON.stringify(reply),
+   const delivery={user_id:user.id,delivery_id:core.newId(),interaction_id:issued.row.interaction_id,semantic_key:semantic,occasion_key:occasion,kind:'DAILY',execution_mode:'SHADOW',state:'PROPOSED',payload_json:JSON.stringify(reply),
     lifecycle_generation:actor.state.lifecycle_generation,auth_generation:actor.state.auth_generation,chat_id:actor.chat,preference_revision:prefs.revision,created_at:at,updated_at:at,expires_at:issued.row.expires_at,...interactions.privacyFields(actor.state)};
    await interactions.insert('journal_prompt_deliveries',delivery);await interactions.link('journal_prompt_deliveries',delivery);
    await interactions.link('journal_prompt_deliveries',delivery,'quick_action_interactions',issued.row.privacy_artifact_id);

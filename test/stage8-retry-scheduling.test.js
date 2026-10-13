@@ -65,3 +65,20 @@ test('Owner tick checks at most six subscriptions and never manufactures LIVE an
  const result=await f.app.owner.tick(f.input);assert.equal(result.checked,6);assert.equal(result.results.length,6);const second=await f.app.owner.tick(f.input);assert.ok(new Set([...result.results,...second.results].map(r=>r.subjectId+r.notificationClass)).size===9);assert.ok(result.results.every(r=>r.status!=='DELIVERED'));
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM phase4_execution_producers')).rows[0].n,0);
 });
+test('Morning expired frozen plan closes a failed retry without another send or generation claim',async t=>{
+ const f=await morning(t,()=>reject(429));await f.runtime.daily(f.input);f.setTime('2026-09-20T04:10:00Z');
+ assert.equal((await f.runtime.daily(f.input)).status,'FAILED_TERMINAL');assert.equal(f.sends(),1);assert.equal((await f.db.raw.execute('SELECT state FROM outbound_semantic_reservations')).rows[0].state,'CLOSED');
+});
+test('scheduled Owner recovery marks started attempt ambiguous before revoked-subject plan reads',async t=>{
+ const f=await stage8Fixture(t,{owner:true}),{createOwnerMonitoring}=await import('../src/stage8OwnerMonitoring.js');let sends=0;t.mock.method(globalThis,'fetch',()=>{sends++;throw Error('PROVIDER_FORBIDDEN');});
+ await follow(f,f.app);const monitoring=await createOwnerMonitoring({...f,ownerId:'a',enabled:()=>true,now:f.now}),actor=await monitoring.authenticate(f.input);await monitoring.prepareDaily(actor,'b');
+ const approved=await monitoring.authorize(actor,{subjectId:'b',notificationClass:'DAILY_SUMMARY'}),proposal=await monitoring.propose(actor,approved.ticket);await monitoring.start(actor,{subjectId:'b',messageId:proposal.messageId,expectedRevision:0});
+ const metadata=await monitoring.pending(actor,'b','DAILY_SUMMARY');assert.equal(metadata.payload_json,undefined);
+ await f.db.raw.execute("UPDATE user_onboarding SET state='ACTION_REQUIRED' WHERE user_id='b'");
+ const result=await f.app.owner.tick(f.input);assert.equal(result.results[0].status,'AMBIGUOUS');assert.equal(sends,0);assert.equal((await f.db.raw.execute('SELECT state FROM owner_monitoring_attempts')).rows[0].state,'AMBIGUOUS');
+});
+
+test('Morning reauthorization closes the old failed semantic reservation without retrying old authority',async t=>{
+ const f=await morning(t,()=>reject(429));await f.runtime.daily(f.input);await f.db.raw.execute("UPDATE user_whoop_tokens SET auth_generation=auth_generation+1 WHERE user_id='a'");
+ f.setTime('2026-09-20T02:11:00Z');assert.equal((await f.runtime.daily(f.input)).status,'FAILED_TERMINAL');assert.equal(f.sends(),1);assert.equal((await f.db.raw.execute('SELECT state FROM outbound_semantic_reservations')).rows[0].state,'CLOSED');
+});

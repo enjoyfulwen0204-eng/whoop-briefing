@@ -58,3 +58,10 @@ test('real update processor captures private first-name once before composing pe
  const update={update_id:84001,message:{...message('Processor Name'),message_id:1,text:'/status'}};await processor.processUpdate(update);await processor.processUpdate(update);
  assert.equal(await f.app.identity.resolve('a'),'Processor Name');assert.equal((await f.db.raw.execute('SELECT count(*) n FROM recipient_identity_sources')).rows[0].n,1);
 });
+
+test('polling composition passes authenticated first-name capture to the shared processor and preserves text',async t=>{
+ const f=await stage8Fixture(t),{createPoller}=await import('../src/bot/polling.js');let seen;
+ const poller=createPoller({db:f.db,now:f.now,api:{},resolveUser:chat=>f.db.resolveUserByChatId(chat),authenticatedIdentity:f.app.captureIdentity,handleMessage:async input=>{seen=input.text;return {text:'Synthetic'};},sendReply:async()=>({sent:true,messageId:19})});
+ const update={update_id:85001,message:{...message('Polling Name'),message_id:1,text:'Free text survives'}};await poller.processBatch([update],0);
+ assert.equal(await f.app.identity.resolve('a'),'Polling Name');assert.equal(seen,'Free text survives');
+});

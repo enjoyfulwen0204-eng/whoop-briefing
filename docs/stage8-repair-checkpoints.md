@@ -27,3 +27,11 @@ The runtime now wires `stage8DerivedReader.js`. It checks registered kinds, curr
 ## Typed selector freeze
 
 Actual-schema execution checks caught and repaired the evidence-run timestamp selector. BODY_ENERGY, EPISODES and EVIDENCE now use registered existing columns and exclude incomplete/invalidated/expired selections before typed authority checks. `typed-selector-final.tap.gz` passes 3/3. WHOOP and OAuth compatibility regressions pass 54/54. The first integration/regression runs were interrupted before this runtime freeze and are retained as interrupted evidence, not final PASS.
+
+## Lifecycle hardening and final runtime freeze
+
+Owner started-attempt recovery now precedes subject plan generation, including after enrollment revocation. Recovery discovery reads metadata only. Morning retries close stale, paused, changed-profile/authorization/destination and expired frozen plans without another provider call; expired definite failures retain an expiry audit and close their reservation.
+
+`frozen-repair-focused.tap.gz` passes 44/44 with zero skipped/cancelled. A native crash in the optional combined capture suite cleared on isolated polling rerun, 12/12. The two optional onboarding historical-rewind cases fail because invalidHistoricalRewind.js asserts SCHEMA_VERSION=32; the unchanged requested baseline reproduces both failures. They remain pre-existing documentation/test evidence issues and are not represented as passes. The historical helper was not modified.
+
+The final documented integration and regression runs will qualify this runtime freeze; all earlier interrupted runs remain marked interrupted and excluded from final counts.

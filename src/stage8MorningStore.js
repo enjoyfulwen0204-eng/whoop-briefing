@@ -50,7 +50,7 @@ export function createStage8MorningStore({core,db,preferences,enabled}){
  async function expire(control,messageId){return core.runMaintenance(control,'LIVE',async()=>{
   const r=(await query("SELECT * FROM outbound_messages WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND message_class=?",[control.userId,messageId,FAMILY]))[0];
   if(!r||r.expires_at>core.timestamp()||!['PROPOSED','ELIGIBLE','FAILED_DEFINITE'].includes(r.state))return false;
-  if(r.state==='FAILED_DEFINITE'){await transport.closeFailed(control,'LIVE',{messageId,expectedRevision:r.revision});return true;}
+  if(r.state==='FAILED_DEFINITE'){await client.execute({sql:"INSERT INTO morning_expiry_audit(user_id,message_id,reason,expired_at) VALUES(?,?,'EXPIRED_SYSTEM_OUTAGE',?) ON CONFLICT DO NOTHING",args:[control.userId,messageId,core.timestamp()]});await transport.closeFailed(control,'LIVE',{messageId,expectedRevision:r.revision});return true;}
   if(r.attempt_count===0&&(await query("SELECT 1 FROM outbound_delivery_attempts WHERE user_id=? AND execution_mode='LIVE' AND message_id=? LIMIT 1",[control.userId,messageId])).length)return false;
   await client.execute({sql:"INSERT INTO morning_expiry_audit(user_id,message_id,reason,expired_at) VALUES(?,?,'EXPIRED_SYSTEM_OUTAGE',?) ON CONFLICT DO NOTHING",args:[control.userId,messageId,core.timestamp()]});
   await client.execute({sql:"UPDATE outbound_messages SET state='SUPPRESSED',terminal_reason='EXPIRED',revision=revision+1,updated_at=? WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND revision=?",args:[core.timestamp(),control.userId,messageId,r.revision]});
@@ -67,7 +67,8 @@ export function createStage8MorningStore({core,db,preferences,enabled}){
     if(old.state==='FAILED_DEFINITE'){
      if(old.expires_at<=core.timestamp()){await expire(control,old.message_id);return {status:'FAILED_TERMINAL',messageId:old.message_id};}
      const last=(await query("SELECT error_code FROM outbound_delivery_attempts WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND attempt_number=?",[ctx.userId,old.message_id,old.attempt_count]))[0];
-     if(old.attempt_count>=3||!['PROVIDER_RATE_LIMIT','PROVIDER_UNAVAILABLE'].includes(last?.error_code)||old.input_generation!==ctx.inputGeneration){
+     const plan=(await query("SELECT profile_revision,preference_version,source_generation,as_of_utc,content_state FROM morning_brief_plans WHERE user_id=? AND execution_mode='LIVE' AND plan_id=?",[ctx.userId,JSON.parse(old.payload_json??'null')?.morningPlanId??'']))[0],p=await preferences.read(control);
+     if(old.auth_generation!==ctx.authGeneration||old.lifecycle_generation!==ctx.lifecycleGeneration||old.purge_generation!==ctx.purgeGeneration||old.destination_binding_id!==await transport.destination(ctx)||!plan||plan.content_state!=='PRESENT'||plan.source_generation!==ctx.sourceGeneration||plan.profile_revision!==await db.getProfileRevision(ctx.userId)||plan.preference_version!==p.preference_version||p.notifications_paused||core.now().getTime()-Date.parse(plan.as_of_utc)>90*60000||old.attempt_count>=3||!['PROVIDER_RATE_LIMIT','PROVIDER_UNAVAILABLE'].includes(last?.error_code)||old.input_generation!==ctx.inputGeneration){
       await transport.closeFailed(control,'LIVE',{messageId:old.message_id,expectedRevision:old.revision});return {status:'FAILED_TERMINAL',messageId:old.message_id};
      }
      await transport.retryDefinite(ctx,{messageId:old.message_id,expectedRevision:old.revision});

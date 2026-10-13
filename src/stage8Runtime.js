@@ -51,7 +51,8 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
   tick:async input=>{
    const actor=await monitoring.authenticate(input),selected=await monitoring.schedule(actor),results=[];
    for(const row of selected){fence();try{
-    if(row.notificationClass==='DAILY_SUMMARY'){const prepared=await monitoring.prepareDaily(actor,row.subjectId);if(prepared.status!=='CURRENT_PLAN'){results.push({...row,status:prepared.status});continue;}}
+    const pending=await monitoring.pending(actor,row.subjectId,row.notificationClass);
+    if(!pending&&row.notificationClass==='DAILY_SUMMARY'){const prepared=await monitoring.prepareDaily(actor,row.subjectId);if(prepared.status!=='CURRENT_PLAN'){results.push({...row,status:prepared.status});continue;}}
     results.push({...row,...await dispatcher.dispatch(input,row)});
    }catch(error){results.push({subjectId:row.subjectId,notificationClass:row.notificationClass,status:'FENCED'});}}
    fence();return {checked:selected.length,results};

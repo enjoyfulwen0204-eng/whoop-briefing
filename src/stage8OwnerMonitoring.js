@@ -173,7 +173,7 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
  });}
  async function pending(actor,subjectId,notificationClass){
   await assertActor(actor);classCheck(notificationClass);
-  return (await rows("SELECT * FROM owner_monitoring_outbox WHERE user_id=? AND owner_id=? AND notification_class=? AND state IN ('PROPOSED','FAILED_DEFINITE','DELIVERY_STARTED') ORDER BY created_at,message_id LIMIT 1",[subjectId,ownerId,notificationClass]))[0]??null;
+  return (await rows("SELECT user_id,owner_id,message_id,notification_class,state,attempt_count,revision,updated_at,expires_at FROM owner_monitoring_outbox WHERE user_id=? AND owner_id=? AND notification_class=? AND state IN ('PROPOSED','FAILED_DEFINITE','DELIVERY_STARTED') ORDER BY created_at,message_id LIMIT 1",[subjectId,ownerId,notificationClass]))[0]??null;
  }
  async function close(actor,subjectId,messageId){return db.transaction(async()=>{
   await assertActor(actor);const row=(await rows('SELECT * FROM owner_monitoring_outbox WHERE user_id=? AND owner_id=? AND message_id=?',[subjectId,ownerId,messageId]))[0];

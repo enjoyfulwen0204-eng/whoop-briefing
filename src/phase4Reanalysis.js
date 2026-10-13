@@ -387,7 +387,10 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     const registeredMetrics=Object.entries(PHASE4_METRICS).filter(([,definition])=>definition.sourceType===source.source_type);
     if(!registeredMetrics.length||!inputs.eligible(source.source_type,root.row))
       return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
-    const latest=await core.run(context,()=>inputs.latest(context,source.source_type)),
+    // These source-preparation reads can cross many retained roots. Keep the
+    // same lease and productive deadline active at their original Core guards,
+    // so they cannot consume the interval reserved for release/settlement.
+    const latest=await queue.owned(context,lease,()=>inputs.latest(context,source.source_type),{assertBudget}),
       idKey=source.source_type==='recovery'?'sleep_id':'id';
     if(!latest||String(latest[idKey])!==source.source_id)
       return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
@@ -395,8 +398,8 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     for(const [metricKey] of registeredMetrics) {
       let analysisAsOf=asOfUtc;
       try {
-        if(core.schemaVersion===32)analysisAsOf=await core.run(context,()=>stage6CurrentCaptureTime(core,context,metricKey,root));
-        const request=await core.run(context,()=>inputs.metric(context,metricKey,root,analysisAsOf));
+        if(core.schemaVersion===32)analysisAsOf=await queue.owned(context,lease,()=>stage6CurrentCaptureTime(core,context,metricKey,root),{assertBudget});
+        const request=await queue.owned(context,lease,()=>inputs.metric(context,metricKey,root,analysisAsOf),{assertBudget});
         units.push({kind:'METRIC_SOURCE',metricKey,status:'COMPLETE'});
         const episodeWork=await metricsV30(context,request,lease,assertBudget);
         units.push(episodeWork);
@@ -464,6 +467,11 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
                       AND input_generation=? AND invalidated_at IS NULL LIMIT 1`,args:[context.userId,context.executionMode,context.inputGeneration]})).rows[0]:null;
                 return {page,root,bodyCandidate:Boolean(bodyHints),bodyReplayHint:Boolean(bodyHints?.replay_hint)};
               }),page=lookedUp.page;
+              // Enumeration and root admission are bounded reads, but their
+              // transport can consume the remaining productive time. Recheck
+              // before starting another source (or end proof), preserving the
+              // reserved lease-release and execution-settlement interval.
+              assertBudget();
               if(!page.length) {
                 const proof=await queue.end(context,lease,(last,limit)=>inputs.enumerate(context,last,limit),{assertBudget});
                 await queue.complete(context,lease,proof,{assertBudget});out.completedJobs++;return;

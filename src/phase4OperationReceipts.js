@@ -1072,7 +1072,7 @@ export function createOperationReceipts(core) {
       }});
       if(refreshPredecessor||metricPlan||recurrencePlan||kind==='analyzeMetric'&&request.refresh===true)
         await core.transaction(async()=>{}, {commitFence:()=>core.assertContext(context)});
-      if(kind==='analyzeMetric'&&semanticRequest.metricKey==='body_energy'&&semanticRequest.refresh===true
+      if(kind==='analyzeMetric'&&semanticRequest.refresh===true
         &&result.resultState==='REFRESH_PREPARED'&&core.jobAuthority())
         newMetricDomains.set(result,{context,execution:currentDurableExecution(),job:core.jobAuthority()});
       return result;

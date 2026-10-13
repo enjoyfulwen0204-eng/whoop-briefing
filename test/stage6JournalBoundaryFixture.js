@@ -17,7 +17,7 @@ for(const k of ['info','warn','error'])log[k]=()=>{};
 export async function residualFixture(t,{http=false}={}){
  const dir=await mkdtemp(join(tmpdir(),'whoop-stage6-residual-')),url='file:'+join(dir,'fixture.sqlite');
  const seed=createOwnedDb({url});await seed.migrate({targetVersion:32});await seed.raw.execute('PRAGMA journal_mode=WAL');
- const transport=http?hranaTransport(url):null;let db=seed,latency=0,trace=false,origin=0;const timeline=[];
+ const transport=hranaTransport(url);let db=seed,latency=0,trace=false,origin=0;const timeline=[];
  const fetch=async r=>{
   let kinds=[];if(trace){const body=await r.clone().json();for(const entry of body.requests??[]){
    const sql=entry.stmt?.sql??'';
@@ -48,6 +48,7 @@ export async function residualFixture(t,{http=false}={}){
  await stores.queue.sourceChanged(await stores.captureControl('a'));
  const jobs=async()=>[...(await db.raw.execute("SELECT job_kind,state,requested_generation,scope_revision,completed_generation,claimed_generation,full_scan_cursor,attempt,last_error_code,lease_owner FROM phase4_jobs WHERE user_id='a' ORDER BY job_kind")).rows];
  const counts=async()=>({body:Number((await db.raw.execute('SELECT count(*) n FROM body_energy_results')).rows[0].n),domain:Number((await db.raw.execute("SELECT count(*) n FROM phase4_operation_receipts WHERE operation_kind='analyzeMetric'")).rows[0].n),runs:Number((await db.raw.execute('SELECT count(*) n FROM evidence_runs')).rows[0].n),items:Number((await db.raw.execute('SELECT count(*) n FROM evidence_items')).rows[0].n)});
+ const toHttp=async()=>{await db.close();http=true;db=createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch});return db;};
  const fresh=async()=>{await db.close();db=http?createDb({url:'https://isolated.invalid',phase4Keys:fixtureKeys,fetch}):createOwnedDb({url});return db;};
- return {get db(){return db;},asOf,transport,jobs,counts,fresh,setLatency:v=>{latency=v;},startTrace:()=>{origin=performance.now();trace=true;timeline.length=0;},stopTrace:()=>{trace=false;return timeline.slice();},sourceCounts:{sleep:36,recovery:32,cycle:36,workout:32,journal:7,user:1},synthetic:true};
+ return {get db(){return db;},asOf,transport,jobs,counts,fresh,toHttp,setLatency:v=>{latency=v;},startTrace:()=>{origin=performance.now();trace=true;timeline.length=0;},stopTrace:()=>{trace=false;return timeline.slice();},sourceCounts:{sleep:36,recovery:32,cycle:36,workout:32,journal:7,user:1},synthetic:true};
 }

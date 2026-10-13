@@ -145,6 +145,7 @@ export function canonicalAssociationOutcomeValue(metricKey,source,context,asOfUt
 
 export function createPhase4IntelligenceStore(core, entities, episodes, insights,{producedEvidence=()=>{},recordedMetricPreparation=async()=>false,
   prepareCurrentBodyMetricRequest=()=>fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED'),
+  prepareCurrentRawMetricRequest=()=>fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED'),
   metricDomainWork=()=>fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED'),
   performMetricDomain=()=>fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED'),replayMetricDomain=()=>fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED'),takeMetricDomainProgress=()=>false,
   discoverInsightPredecessor=()=>fail('PHASE4_OPERATION_RESULT_UNAVAILABLE'),
@@ -489,6 +490,33 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       return withOwnedBodyMetricObservations(core,context,purpose,()=>work(fresh));
     });
   }
+  // A pending raw RUN supplies only a clock candidate. Recompute the original
+  // complete plan from current authenticated sources and require its exact
+  // named START receipt and sealed producer before accepting that clock.
+  async function verifyRawMetricPreparationClock(context,request,row){
+    if(!core.processing.active?.()||!core.jobAuthority()||core.schemaVersion!==32
+      ||request.refresh!==true||!['sleep','recovery','cycle','workout'].includes(phase4Metric(request.metricKey).sourceType))
+      fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+    const prepared=await metricPreparation(context,request),{plan,sourceSet,baseline}=prepared;
+    if(row.deterministic_run_key!==plan.runKey)return false;
+    if(!readableRow(row)||row.invalidated_at||row.user_id!==context.userId||row.execution_mode!==context.executionMode
+      ||row.subject_key!==request.metricKey||row.as_of_utc!==request.asOfUtc||row.started_at!==request.asOfUtc
+      ||row.method!=='PERSONAL_BASELINE_DEVIATION'||row.window_end_utc!==sourceSet.current.observedAt
+      ||row.window_start_utc!==(baseline.samples.at(-1)?.observedAt??sourceSet.current.observedAt)
+      ||row.timezone!==context.timezone
+      ||['input_generation','lifecycle_generation','auth_generation','purge_generation'].some(field=>row[field]!==context[{
+        input_generation:'inputGeneration',lifecycle_generation:'lifecycleGeneration',auth_generation:'authGeneration',purge_generation:'purgeGeneration'}[field]])
+      ||row.algorithm_version!==INTELLIGENCE_VERSIONS.algorithm||row.registry_version!==INTELLIGENCE_VERSIONS.registry
+      ||row.evidence_contract_version!==INTELLIGENCE_VERSIONS.evidenceContract
+      ||row.promotion_confound_version!==INTELLIGENCE_VERSIONS.promotionConfound
+      ||row.exposure_classification_version!==INTELLIGENCE_VERSIONS.exposureClassification||row.factor_set_version!==INTELLIGENCE_VERSIONS.factorSet)
+      fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
+    if(row.state==='STARTED'){
+      if(row.input_manifest_hash!==null||row.input_manifest_json!==null||row.completed_at!==null)fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
+    }else if(row.state!=='COMPLETED'||row.input_manifest_hash!==plan.inputHash||row.input_manifest_json!==canonicalJson(plan.input))
+      fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
+    return Boolean(await metricUnitReceipt(core,context,plan,'RUN_START'));
+  }
   async function metricPreparationUnit(context,request,kind){return performMetricPreparationUnit(context,request,kind);}
   async function replayCurrentBodyMetricFamily(context,sourceAsOfUtc,workStepFor,work){
     if(core.schemaVersion!==32||!core.jobAuthority()||typeof workStepFor!=='function'||typeof work!=='function')
@@ -516,6 +544,10 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       return core.run(context,()=>perform(false),{workStepFrom,discardResult:true,replay:()=>perform(true)});
     });
   }
+  async function metricPreparationUnitFromCurrentRaw(context,metricKey,source){
+    return withMetricPreparationContinuation(core,context,()=>performMetricPreparationUnit(context,null,'NEXT',
+      ()=>prepareCurrentRawMetricRequest(context,metricKey,source)));
+  }
   async function metricPreparationUnitFromCurrentBody(context,asOfUtc){
     return withMetricPreparationContinuation(core,context,()=>performMetricPreparationUnit(context,null,'NEXT',()=>prepareCurrentBodyMetricRequest(context,asOfUtc)));
   }
@@ -531,10 +563,10 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       if(!requestFrom){const owner=await assertExecutionWorkOwner(client);if(owner?.phase!=='STAGE6_DRAIN')fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');}
       if(requestFrom){
         bodySource=await requestFrom();request=bodySource.request;
-        if(!request){kind='SOURCE';return sourceWork('stage6.body-source',['USER',context.userId,JSON.stringify(['USER',context.userId]),bodySource.asOfUtc]);}
-        const inventory=await directory.inventory(context,'body_energy',{create:false});
+        if(!request){kind='SOURCE';return sourceWork(bodySource.source?'stage6.raw-selection':'stage6.body-source',bodySource.source??['USER',context.userId,JSON.stringify(['USER',context.userId]),bodySource.asOfUtc]);}
+        const inventory=await directory.inventory(context,request.metricKey,{create:false});
         if(!inventory){
-          kind='DIRECTORY';return sourceWork('stage6.family-inventory',['body_energy',request.asOfUtc]);
+          kind='DIRECTORY';return sourceWork('stage6.family-inventory',[request.metricKey,request.asOfUtc]);
         }
         if(inventory.unknownEntries.length)fail('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN');
       }
@@ -570,6 +602,11 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
               kind=authority?'DOMAIN':'AUTHORITY';domainWorkStep=domain?.workStep??null;
             }
           }
+          if(item&&requestFrom&&request.metricKey!=='body_energy'){
+          const authority=(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
+            WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,args:[context.userId,context.executionMode,item.evidence_item_id]})).rows[0];
+            if(authority){kind='DOMAIN';domainWorkStep=(await metricDomainWork(context,request)).workStep;}
+          }
         }
         // Hints above select only DATA transport. The original complete typed
         // replay still runs, including its signed DOMAIN producer/work proof,
@@ -584,9 +621,9 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       return metricUnitWork(context,prepared.plan,kind).workStep;
     };
     const perform=async()=>{
-      if(kind==='SOURCE')return {unit:'SOURCE',status:'COMPLETE',created:false,prepared:false};
+      if(kind==='SOURCE')return {unit:'SOURCE',status:'COMPLETE',created:false,prepared:false,sourceSkipped:true};
       if(kind==='DIRECTORY'){
-        const inventory=await directory.inventory(context,'body_energy');
+        const inventory=await directory.inventory(context,request.metricKey);
         if(!inventory.created)fail('PHASE4_FAMILY_DIRECTORY_AUTHORITY_INVALID');
         return {unit:'DIRECTORY',status:'COMPLETE',created:true,prepared:false};
       }
@@ -606,7 +643,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         // second identical receipt/producer traversal. Keep fresh delivery
         // and owner fences; the selector hint grants no authority.
         await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
-        requireOwnedBodyMetricPurpose(core,context,ownedPurpose);
+        if(ownedPurpose)requireOwnedBodyMetricPurpose(core,context,ownedPurpose);
         return {unit:'DOMAIN',status:'COMPLETE',created:false,prepared:false,
           domainResult:await performMetricDomain(context,request,ownedPurpose)};
       }
@@ -694,7 +731,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     const result=await core.run(context,performOwned,{workStepFrom,discardResult:true,replay:async()=>kind==='DOMAIN'
       ?{unit:'DOMAIN',status:'COMPLETE',created:false,prepared:false,domainResult:await replayMetricDomain(context,request)}:performOwned()});
     if(kind==='DOMAIN')return {unit:'DOMAIN',status:'COMPLETE',prepared:false,
-      created:await takeMetricDomainProgress(context,result.domainResult)};
+      created:await takeMetricDomainProgress(context,result.domainResult),request};
     // This is only the original immutable source-reference request, never an
     // authority result. The final domain operation freshly checks its entire
     // source, historical origin, receipt and producer closure again.
@@ -717,13 +754,36 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       if(request.refresh===true) {
         const closed=ownedPurpose?await authorities.readOwnedMetricDomainEvidence(context,ownedPurpose,{plan,
           itemData:metricItemData(request.metricKey,sourceSet,baseline,quality,observationCalculation,plan),discovered:discoveredPreparation}):null;
-        const evidence=closed??await durableEvidence(context,{metricKey:request.metricKey,sourceSet,baseline,quality,
+        let rawPrepared=null;
+        if(discoveredPreparation&&!ownedPurpose&&metricPreparationContinuation(core,context)
+          &&['sleep','recovery','cycle','workout'].includes(contract.sourceType)){
+          // The original legacy discovery has verified all three named units.
+          // Observe the original typed RUN, ITEM and signed authority together;
+          // every artifact graph/root check still runs in this owned snapshot.
+          requireMetricUnitProof(core,context,discoveredPreparation.itemProof,plan,'ITEM');
+          requireMetricUnitProof(core,context,discoveredPreparation.authorityProof,plan,'AUTHORITY');
+          const observations=await Promise.allSettled([
+            Promise.resolve().then(()=>core.artifact(context,'evidence_runs',{run_id:discoveredPreparation.runRow.run_id})),
+            Promise.resolve().then(()=>core.artifact(context,'evidence_items',{evidence_item_id:discoveredPreparation.itemRow.evidence_item_id})),
+            Promise.resolve().then(()=>authorities.read(context,discoveredPreparation.itemRow.evidence_item_id,'METRIC')),
+          ]);
+          for(const value of observations)if(value.status==='rejected')throw value.reason;
+          const run=observations[0].value,item=observations[1].value,verified=observations[2].value;
+          if(run.row.state!=='COMPLETED'||run.row.deterministic_run_key!==plan.runKey||run.row.input_manifest_hash!==plan.inputHash
+            ||run.row.input_manifest_json!==canonicalJson(plan.input))fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
+          validateMetricItem(item.row,metricItemData(request.metricKey,sourceSet,baseline,quality,observationCalculation,plan),run.row.run_id);
+          if(canonicalJson(durableConfidence(item))!==canonicalJson(plan.confidence))fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
+          if(verified.origin!==null||canonicalJson(verified.calculation)!==canonicalJson(observationCalculation))fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+          await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
+          rawPrepared={run,item,authority:verified};
+        }
+        const evidence=closed??rawPrepared??await durableEvidence(context,{metricKey:request.metricKey,sourceSet,baseline,quality,
           calculation:observationCalculation,asOfUtc:request.asOfUtc,plan});
         if(closed&&canonicalJson(durableConfidence(evidence.item))!==canonicalJson(plan.confidence))
           fail('PHASE4_EVIDENCE_CONFIDENCE_REPLAY_CONFLICT');
         if(!evidence.item.created&&metricPreparationContinuation(core,context)){
-          if(!closed&&!await metricUnitReceipt(core,context,plan,'AUTHORITY'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
-          const verified=closed?.authority??await authorities.read(context,evidence.item.row.evidence_item_id,'METRIC');
+          if(!closed&&!rawPrepared&&!await metricUnitReceipt(core,context,plan,'AUTHORITY'))fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+          const verified=closed?.authority??rawPrepared?.authority??await authorities.read(context,evidence.item.row.evidence_item_id,'METRIC');
           if(verified.origin!==null||canonicalJson(verified.calculation)!==canonicalJson(observationCalculation))
             fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
         }else await authorities.persist(context,{item:evidence.item,run:evidence.run,scope:'METRIC',origin:null,
@@ -1087,5 +1147,5 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       return episodes.read(context,episodeId);
     });
   }
-  return Object.freeze({analyzeMetric,analyzeAssociationFamily,expireInsight,expireEpisode,metricPreparationUnit,metricPreparationUnitFromCurrentBody,withCurrentBodyMetricObservation,replayCurrentBodyMetricFamily});
+  return Object.freeze({analyzeMetric,analyzeAssociationFamily,expireInsight,expireEpisode,metricPreparationUnit,verifyRawMetricPreparationClock,metricPreparationUnitFromCurrentRaw,metricPreparationUnitFromCurrentBody,withCurrentBodyMetricObservation,replayCurrentBodyMetricFamily});
 }

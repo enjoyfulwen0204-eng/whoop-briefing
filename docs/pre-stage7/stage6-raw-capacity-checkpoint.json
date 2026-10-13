@@ -1,0 +1,11 @@
+{
+  "status": "LOCAL_REPAIR_CHECKPOINT_CAPACITY_GATE_PENDING",
+  "parent": "9770553caba6f4085f4799fb6088db5076433f8e",
+  "effectiveWorkerDeadlineMs": 30000,
+  "latencyMs": 115,
+  "productionCalls": 0,
+  "publication": false,
+  "baseline": [],
+  "batchOnly": [],
+  "ownedSubunits": []
+}

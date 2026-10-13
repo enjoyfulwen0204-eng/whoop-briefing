@@ -107,7 +107,7 @@ export function createReanalysisInputs(core,stores) {
     // The frozen baseline selector chooses the latest valid representative per
     // health day and its registered 30-day sample target. It owns the math.
     const selected=buildPersonalBaseline({metricKey,targetHealthDate:value.healthDate,asOfUtc,observations});
-    const refs=[];for(const source of selected.samples)refs.push((await stores.root(context,type,source.sourceId)).ref);
+    const refs=(await core.readRoots(context,selected.samples.map(source=>({type,id:source.sourceId})))).map(source=>source.ref);
     return {metricKey,currentSource:current.ref,baselineSources:refs,asOfUtc,windowFamily:windowFamily(metricKey)};
   }
   async function associations(context,metricKey,asOfUtc,windowIndex=0) {
@@ -134,9 +134,12 @@ export function createReanalysisInputs(core,stores) {
       const value=canonicalAssociationOutcomeValue(metricKey,{type,id:String(row[q.key]),row},context,asOfUtc);
       if(value.healthDate>=start&&value.healthDate<=end&&!outcomes.has(value.healthDate))outcomes.set(value.healthDate,row);
     }
-    const outcomeSources=[];for(const row of outcomes.values())outcomeSources.push((await stores.root(context,type,String(row[q.key]))).ref);
-    const factRefs=[];for(const row of facts)factRefs.push((await stores.root(context,'JOURNAL_FACT',row.privacy_artifact_id)).ref);
-    const coverageRefs=[];for(const row of coverage)coverageRefs.push((await stores.root(context,'JOURNAL_COVERAGE',row.coverage_window_id)).ref);
+    const descriptors=[...outcomes.values()].map(row=>({type,id:String(row[q.key])})),
+      observed=await core.readRoots(context,[...descriptors,...facts.map(row=>({type:'JOURNAL_FACT',id:row.privacy_artifact_id})),
+        ...coverage.map(row=>({type:'JOURNAL_COVERAGE',id:row.coverage_window_id}))]),
+      outcomeSources=observed.slice(0,descriptors.length).map(root=>root.ref),
+      factRefs=observed.slice(descriptors.length,descriptors.length+facts.length).map(root=>root.ref),
+      coverageRefs=observed.slice(descriptors.length+facts.length).map(root=>root.ref);
     return {asOfUtc,multipleTestingFamily:`stage6:${metricKey}:lag1:window${windowIndex}`,
       hypotheses:factors.map(factor=>({factor,outcomeMetric:metricKey,lagDays:1,
         comparisonHealthDates:Array.from({length:30},(_,i)=>addDays(start,i)),outcomeSources,

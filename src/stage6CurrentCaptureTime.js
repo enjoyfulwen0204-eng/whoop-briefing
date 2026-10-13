@@ -9,7 +9,7 @@ const fail=code=>{throw Object.assign(Error(code),{code});};
 /** The current analyzer captures a supported producer clock. No caller clock,
  * future ingestion, rewritten source snapshot or historical alias is admitted.
  * A committed operation's exact source versions reuse its original instant. */
-export async function stage6CurrentCaptureTime(core,context,metricKey,artifact){
+export async function stage6CurrentCaptureTime(core,context,metricKey,artifact,{preparePending=null,verifyPending=null}={}){
   await core.assertContext(context);const owner=await assertExecutionWorkOwner(core.client);
   if(context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN')fail('STAGE6_CURRENT_CAPTURE_OWNER_REQUIRED');
   const supportedClock=core.now().getTime(),actualClock=Date.now();
@@ -30,14 +30,27 @@ export async function stage6CurrentCaptureTime(core,context,metricKey,artifact){
     const request=receipts.authenticate(context,row).request_json.request,current=request.currentSource;
     if(request.metricKey!==metricKey||current?.source_type!==source.type||current.source_id!==source.id
       ||current.source_version!==healthSourceVersion(source.row))continue;
-    let same=true;for(const baseline of request.baselineSources??[]){
-      const root=await core.root(context,baseline.source_type,baseline.source_id);
-      if(baseline.source_mode!=='SHARED'||baseline.source_version!==healthSourceVersion(root.row)){same=false;break;}
-    }
+    let same=true;const mismatch=Symbol('source-version-mismatch');
+    try{await core.readRoots(context,(request.baselineSources??[]).map(baseline=>({type:baseline.source_type,id:baseline.source_id,baseline})),
+      {verify:(source,root)=>{if(source.baseline.source_mode!=='SHARED'||source.baseline.source_version!==healthSourceVersion(root.row))throw mismatch;}});
+    }catch(error){if(error!==mismatch)throw error;same=false;}
     if(!same)continue;
     const asOf=Date.parse(request.asOfUtc);if(!Number.isFinite(asOf)||asOf>clock)fail('STAGE6_CURRENT_CAPTURE_CLOCK_FENCED');times.add(request.asOfUtc);
   }
   if(times.size>1)fail('STAGE6_CURRENT_CAPTURE_AMBIGUOUS');
+  if(!times.size&&preparePending&&verifyPending){
+    const pending=(await core.client.execute({sql:`SELECT * FROM evidence_runs WHERE user_id=? AND execution_mode=?
+      AND subject_key=? AND input_generation=? AND lifecycle_generation=? AND auth_generation=? AND purge_generation=?
+      AND invalidated_at IS NULL AND state IN ('STARTED','COMPLETED') ORDER BY as_of_utc LIMIT 129`,
+      args:[context.userId,context.executionMode,metricKey,context.inputGeneration,context.lifecycleGeneration,context.authGeneration,context.purgeGeneration]})).rows;
+    if(pending.length>128)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+    for(const row of pending){
+      const time=Date.parse(row.as_of_utc);if(!Number.isFinite(time)||time>clock)fail('STAGE6_CURRENT_CAPTURE_CLOCK_FENCED');
+      const request={...await preparePending(row.as_of_utc),refresh:true};
+      if(await verifyPending(request,row))times.add(row.as_of_utc);
+    }
+    if(times.size>1)fail('STAGE6_CURRENT_CAPTURE_AMBIGUOUS');
+  }
   await assertExecutionWorkOwner(core.client);await core.assertContext(context);
   return times.size?[...times][0]:new Date(clock).toISOString();
 }

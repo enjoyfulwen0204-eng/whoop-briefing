@@ -1,3 +1,4 @@
+import {stage6CurrentCaptureTime} from './stage6CurrentCaptureTime.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import { createLegacyDiscovery } from './phase4LegacyDiscovery.js';
 import { createOperationReceipts } from './phase4OperationReceipts.js';
@@ -20,7 +21,7 @@ import { createPhase4IntelligenceStore } from './phase4IntelligenceStore.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
 import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
 import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
-import { PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
+import { PHASE4_METRICS,phase4Metric } from './phase4IntelligenceRegistry.js';
 import { createBodyEnergyPublicationReader } from './bodyEnergyPublicationReader.js';
 import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
 import {withMetricPreparationContinuation,currentBodySourceReceipt} from './phase4MetricUnitReceipt.js';
@@ -72,6 +73,18 @@ export function composePhase4Stores(core) {
     performMetricDomain:(context,request,purpose)=>receipts.execute(context,'analyzeMetric',request,
       (semantic,preparation)=>intelligence.analyzeMetric(context,semantic,purpose,preparation),{discover,bodyMetricPurpose:purpose}),
     takeMetricDomainProgress:receipts.takeNewMetricDomainProgress,replayMetricDomain:receipts.replayMetricDomain,
+    prepareCurrentRawMetricRequest:async(context,metricKey,source)=>{
+      if(phase4Metric(metricKey).sourceType!==source.source_type)fail('PHASE4_METRIC_SOURCE_MISMATCH');
+      const inputs=createReanalysisInputs(core,{readArtifact,root:core.root}),current=await core.root(context,source.source_type,source.source_id),
+        latest=await inputs.latest(context,source.source_type),idKey=source.source_type==='recovery'?'sleep_id':'id';
+      if(!latest||String(latest[idKey])!==source.source_id)return {request:null,source:[source.source_type,source.source_id,source.cursor,metricKey]};
+      let retained=null;
+      const asOfUtc=await stage6CurrentCaptureTime(core,context,metricKey,current,{preparePending:async time=>{
+        retained=await inputs.metric(context,metricKey,current,time);return retained;
+      },verifyPending:(request,row)=>intelligence.verifyRawMetricPreparationClock(context,request,row)});
+      const request=retained?.asOfUtc===asOfUtc?retained:await inputs.metric(context,metricKey,current,asOfUtc);
+      return {request:{...request,refresh:true},current,asOfUtc};
+    },
     prepareCurrentBodyMetricRequest:async(context,asOfUtc)=>{
       const recorded=await readForCurrentDrain(context,asOfUtc);if(!recorded)fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const request=['AVAILABLE','LIMITED'].includes(recorded.body.row.quality_state)
@@ -297,8 +310,9 @@ export function composePhase4Stores(core) {
         return episodes.readRevision(context,request);
       }),...Object.fromEntries(['open','revise','reverse','refresh','semantic']
       .map(name=>[name,owned(episodes[name])]))}),
-    intelligence:Object.freeze({...Object.fromEntries(Object.entries(intelligence).filter(([name])=>!['metricPreparationUnit','metricPreparationUnitFromCurrentBody','withCurrentBodyMetricObservation','replayCurrentBodyMetricFamily'].includes(name))
+    intelligence:Object.freeze({...Object.fromEntries(Object.entries(intelligence).filter(([name])=>!['metricPreparationUnit','verifyRawMetricPreparationClock','metricPreparationUnitFromCurrentRaw','metricPreparationUnitFromCurrentBody','withCurrentBodyMetricObservation','replayCurrentBodyMetricFamily'].includes(name))
       .map(([name,fn])=>[name,operation(name,fn)])),metricPreparationUnit:intelligence.metricPreparationUnit,
+      metricPreparationUnitFromCurrentRaw:intelligence.metricPreparationUnitFromCurrentRaw,
       metricPreparationUnitFromCurrentBody:intelligence.metricPreparationUnitFromCurrentBody,
       withCurrentBodyMetricObservation:intelligence.withCurrentBodyMetricObservation,
       replayCurrentBodyMetricFamily:intelligence.replayCurrentBodyMetricFamily,

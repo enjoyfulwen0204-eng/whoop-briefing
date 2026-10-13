@@ -102,7 +102,7 @@ export function createLegacyDiscovery(core) {
         ]);
         for(const value of units){if(value.status==='rejected')throw value.reason;
           if(!value.value)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');}
-        preparation={plan,itemProof:units[1].value,authorityProof:units[2].value,itemRow:{...items[0]}};
+        preparation={plan,itemProof:units[1].value,authorityProof:units[2].value,itemRow:{...items[0]},runRow:{...run}};
         complete=true;
       }
       matches.push({run,complete,preparation});

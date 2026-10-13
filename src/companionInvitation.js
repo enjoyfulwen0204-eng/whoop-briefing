@@ -8,6 +8,15 @@ import {COACH_TOPICS} from './companionCoach.js';
 export function createCompanionInvitation({core,stores,db,companion,coach,configuration}){
  const {client,transaction,timestamp,keys}=core,{interactions}=companion;
  const identity=(uid,day)=>keys.lookup(['coach-invitation-day-v1',uid,day]);
+ async function exerciseAuthority(uid,id){
+  if(!(await client.execute({sql:'SELECT 1 FROM whoop_workouts WHERE user_id=? AND id=?',args:[uid,String(id)]})).rows.length)return null;
+  try{return await stores.withContext(uid,{executionMode:'SHADOW'},async context=>{
+   const row=(await stores.root(context,'workout',String(id))).row;
+   if(row.score_state!=='SCORED'||!Number.isFinite(row.strain)||Date.parse(row.start_at)<core.now().getTime()-7*86400000||Date.parse(row.end_at)>core.now().getTime())return null;
+   await stores.assertCurrent(context);
+   return {id:String(id),proof:keys.lookup(['coach-exercise-source-v1',uid,row])};
+  });}catch{return null;}
+ }
  async function wakeAuthority(actor,day){
   const uid=actor.control.userId;
   const row=(await client.execute({sql:`SELECT r.sleep_id,r.sent_at,r.privacy_artifact_id report_source,c.telegram_message_id FROM report_claims c
@@ -35,9 +44,10 @@ export function createCompanionInvitation({core,stores,db,companion,coach,config
    if(!prefs.coach_enabled)return {status:'DISABLED'};
    let topics=JSON.parse(prefs.coach_topics_json??'[]').filter(t=>COACH_TOPICS.includes(t));
    const wake=await wakeAuthority(actor,day);if(!wake)return {status:'BRIEF_WAKE_NOT_CONFIRMED'};
+   let exercise=null;
    if(topics.includes('exercise')){const workout=(await client.execute({sql:"SELECT id FROM whoop_workouts WHERE user_id=? AND score_state='SCORED' AND start_at>=? AND end_at<=? ORDER BY start_at DESC LIMIT 1",args:[uid,new Date(core.now().getTime()-7*86400000).toISOString(),timestamp()]})).rows[0];
-    let eligible=false;if(workout)await stores.withContext(uid,{executionMode:'SHADOW'},async context=>{const value=(await stores.root(context,'workout',String(workout.id))).row;eligible=Number.isFinite(value.strain);});
-    if(!eligible)topics=topics.filter(v=>v!=='exercise');
+    exercise=workout?await exerciseAuthority(uid,workout.id):null;
+    if(!exercise)topics=topics.filter(v=>v!=='exercise');
    }
    // One authentic wake cannot create two invitations through a timezone edit.
    const previousWake=(await client.execute({sql:"SELECT 1 FROM journal_prompt_deliveries WHERE user_id=? AND kind='COACH' AND occasion_key=? LIMIT 1",args:[uid,wake.occasionKey]})).rows.length;
@@ -55,6 +65,7 @@ export function createCompanionInvitation({core,stores,db,companion,coach,config
    const state=topics.length&&selection.state==='SCHEDULED'?'PROPOSED':'SUPPRESSED',at=timestamp();
    const schedule={...selection,healthDay:day,timezone:actor.state.timezone,profileRevision:actor.profileRevision,...wake,journalAt,
     journalDeliveryId:journal?.delivery_id??null,topic:topics.length?topics[Number.parseInt(semantic.slice(0,8),16)%topics.length]:null};
+   if(schedule.topic==='exercise')schedule.exercise=exercise;
    const row={user_id:uid,delivery_id:core.newId(),interaction_id:null,semantic_key:semantic,occasion_key:wake.occasionKey,kind:'COACH',execution_mode:'SHADOW',state,
     payload_json:null,schedule_json:JSON.stringify(schedule),due_at:selection.selectedAt?new Date(selection.selectedAt).toISOString():null,
     lifecycle_generation:actor.state.lifecycle_generation,auth_generation:actor.state.auth_generation,chat_id:actor.chat,preference_revision:prefs.revision,
@@ -62,6 +73,7 @@ export function createCompanionInvitation({core,stores,db,companion,coach,config
    await interactions.insert('journal_prompt_deliveries',row);await interactions.link('journal_prompt_deliveries',row);
    for(const type of ['sleep','recovery'])await interactions.link('journal_prompt_deliveries',row,type,wake.sleepId);
    await interactions.link('journal_prompt_deliveries',row,'report_runs',wake.reportSource);
+   if(schedule.exercise)await interactions.link('journal_prompt_deliveries',row,'workout',schedule.exercise.id);
    if(journal)await interactions.link('journal_prompt_deliveries',row,'journal_prompt_deliveries',journal.privacy_artifact_id);
    return {status:state,deliveryId:row.delivery_id};
   });
@@ -76,6 +88,10 @@ export function createCompanionInvitation({core,stores,db,companion,coach,config
   if(inCompanionQuietHours(now,actor.state.timezone,prefs.quiet_start,prefs.quiet_end)||await companionEngagementBusy({core,db,actor,excludeInteractionId:row.interaction_id}))return {status:'SUPPRESSED'};
   const wake=await wakeAuthority(actor,d.healthDay);
   if(!wake||wake.occasionKey!==d.occasionKey||wake.wakeProof!==d.wakeProof||wake.wakeAt!==d.wakeAt||wake.briefAt!==d.briefAt)return {status:'SUPPRESSED'};
+  if(d.topic==='exercise'){
+   const exercise=d.exercise?.id?await exerciseAuthority(actor.control.userId,d.exercise.id):null;
+   if(!exercise||exercise.proof!==d.exercise.proof)return {status:'SUPPRESSED'};
+  }
   if(d.journalDeliveryId){const delivered=(await client.execute({sql:"SELECT 1 FROM journal_prompt_deliveries WHERE user_id=? AND delivery_id=? AND state='DELIVERED' AND content_state='PRESENT' LIMIT 1",args:[actor.control.userId,d.journalDeliveryId]})).rows.length;if(!delivered)return {status:'SUPPRESSED'};}
   let interaction=row.interaction_id?await interactions.read(actor.control.userId,row.interaction_id):null;
   if(!interaction){const reply=await coach.issue(actor,{semanticKey:keys.lookup(['coach-invitation-card-v1',row.semantic_key]),automatic:true,topic:d.topic});

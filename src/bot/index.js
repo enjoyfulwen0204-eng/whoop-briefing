@@ -54,7 +54,7 @@ export function createSendReply({ db, api }) {
    *   狀態標成終局，而不是留下「還沒送」去誘發未來重送。
    *   真正的送出失敗會**拋錯**，由呼叫端分類成確定失敗或模糊。
    */
-  return async function sendReply({ chatId, reply, userId, expectedLifecycleGeneration = null,updateId }) {
+  return async function sendReply({ chatId, reply, userId, expectedLifecycleGeneration = null,updateId,beforeSend }) {
     if (userId) {
       const current = await db.resolveUserByChatId(chatId);
       if (current?.user?.id !== userId) {
@@ -84,6 +84,7 @@ export function createSendReply({ db, api }) {
     }
     if(userId&&updateId!==undefined&&(!db.assertTelegramReplySnapshot||!await db.assertTelegramReplySnapshot({userId,chatId,reply,updateId})))
       return {sent:false,messageId:null,reason:'health_snapshot_changed'};
+    if(beforeSend&&!await beforeSend())return {sent:false,messageId:null,reason:'reply_authority_changed'};
     const res = await api.sendMessage(chatId, reply);
     const messageId = res?.message_id;
     if(!validMessageId(messageId))throw Object.assign(Error('TELEGRAM_ACK_INVALID'),{sendOutcome:'ambiguous',sendStage:'success_shape'});

@@ -84,3 +84,14 @@ test('schedule plaintext is physically erased while day/occasion dedupe survives
  assert.equal(after.schedule_json,null);assert.equal(after.due_at,null);assert.equal(after.occasion_key,before.occasion_key);
  assert.equal((await f.invitations.prepare(f.request)).deliveryId,p.deliveryId);assert.equal((await f.dispatcher.dispatch({...f.request,deliveryId:p.deliveryId})).status,'SUPPRESSED');assert.equal(f.provider.calls.length,0);
 });
+
+for(const mutation of ['deletion','correction'])test(`exercise invitation retains source dependency and suppresses ${mutation}`,async t=>{
+ const f=await fixture(t,{topics:['exercise']});
+ await f.db.raw.execute("INSERT INTO whoop_workouts(user_id,id,start_at,end_at,score_state,strain,updated_at,synced_at) VALUES('a','exercise-test','2026-09-18T08:00:00Z','2026-09-18T09:00:00Z','SCORED',8,'2026-09-18T09:00:00Z','2026-09-18T09:00:00Z')");
+ const p=await f.invitations.prepare(f.request),row=await f.read(p.deliveryId),schedule=JSON.parse(row.schedule_json);
+ assert.equal(row.state,'PROPOSED');assert.equal(schedule.exercise.id,'exercise-test');
+ assert.equal((await f.db.raw.execute({sql:"SELECT count(*) n FROM phase4_source_links WHERE user_id='a' AND artifact_type='journal_prompt_deliveries' AND artifact_id=? AND source_type='workout' AND source_id='exercise-test' AND unlinked_at IS NULL",args:[row.privacy_artifact_id]})).rows[0].n,1);
+ if(mutation==='deletion')await f.db.raw.execute("DELETE FROM whoop_workouts WHERE user_id='a' AND id='exercise-test'");
+ else await f.db.raw.execute("UPDATE whoop_workouts SET strain=4,updated_at='2026-09-18T09:30:00Z' WHERE user_id='a' AND id='exercise-test'");
+ f.setTime(schedule.selectedAt);assert.equal((await f.dispatcher.dispatch({...f.request,deliveryId:p.deliveryId})).status,'SUPPRESSED');assert.equal(f.provider.calls.length,0);
+});

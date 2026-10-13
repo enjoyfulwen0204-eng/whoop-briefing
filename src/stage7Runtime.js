@@ -11,6 +11,7 @@ import {presentationLocale,JOURNAL_COPY} from './stage7Registry.js';
 import {labelForCategory} from './journal.js';
 import {requireUserId} from './userContext.js';
 import {localDate} from './time.js';
+import {createStage7ReplyAuthority} from './stage7ReplyAuthority.js';
 export function stage7Configuration(environment={}){
  const mode=environment.STAGE7_COMPANION??'off',raw=environment.STAGE7_COMPANION_USER_IDS??'';
  if(!['off','on'].includes(mode)||typeof raw!=='string')fail('STAGE7_CONFIG_INVALID');
@@ -31,6 +32,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  if(core.schemaVersion!==33)fail('STAGE7_V33_CONFIG_REQUIRED');
  const stores=composePhase4Stores(core),companion=await createStage7Composition({core,stores,db}),coach=createCompanionCoach({core,stores,db,companion}),invitations=createCompanionInvitation({core,stores,db,companion,coach,configuration:config.timing});
  const eligible=user=>Boolean(user&&config.userIds.includes(user.id)&&user.status==='ACTIVE');
+ const replies=createStage7ReplyAuthority({core,db,companion});
  const beforeSend=async authority=>core.transaction(async()=>{
   const user=await db.getUser(authority.userId);if(!eligible(user))fail('STAGE7_ROLLOUT_FENCED');
   const actor=await companion.interactions.authenticate({user,chatId:authority.chatId});
@@ -48,7 +50,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   const request={...input,requestKey:String(input.updateId)},reply=await coach.handle({...request,deferQuery:true})??await companion.handle(request)??await companion.handleNote(input);
   return reply?{handled:true,reply}:null;
  }
- async function stage7Reply({user,chatId,reply}){
+ async function projectReply({user,chatId,reply}){
   if(!eligible(user)||!reply)return null;
   const actor=await companion.interactions.authenticate({user,chatId});
   if(reply.stage7View==='WEEKLY'){const fresh=await companion.weekly.build(actor);return {text:fresh.text,editMessageId:reply.editMessageId,replyMarkup:{inline_keyboard:[]},stage7SourceFacts:fresh.sourceFactIds,stage7SourceInteractions:fresh.sourceInteractionIds,stage7SourceEvidence:fresh.sourceEvidenceIds};}
@@ -65,9 +67,14 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
    // Inline invitation in the acknowledged Journal confirmation; no extra send.
    const navigation=await coach.issue(actor,{semanticKey:keys.lookup(['coach-after-journal-v1',user.id,row.interaction_id,row.revision])});
    // A single reply may own two callback rows, both bound at the send boundary.
-   return {...card,replyMarkup:{inline_keyboard:[...card.replyMarkup.inline_keyboard,...navigation.replyMarkup.inline_keyboard]},stage7AdditionalInteractionId:navigation.stage7InteractionId};
+   return {...card,replyMarkup:{inline_keyboard:[...card.replyMarkup.inline_keyboard,...navigation.replyMarkup.inline_keyboard]},stage7AdditionalInteractionId:navigation.stage7InteractionId,stage7AdditionalRevision:navigation.stage7Revision};
   }
   return card;
+ }
+ async function stage7Reply(input){
+  if(!eligible(input.user)||!input.reply)return null;
+  const actor=await companion.interactions.authenticate(input),reply=await projectReply(input);
+  return replies.seal(actor,reply);
  }
  async function decorate({user,chatId,text,reply}){
   if(!eligible(user)||!reply||typeof reply!=='string'&&reply.bodyEnergyReplyGuard)return reply;
@@ -78,12 +85,15 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
   if(settings){
    const issued=await companion.interactions.issue(actor,{kind:'QUICK',diagnostics:{settingsEntry:true}}),base=await companion.card(actor,issued.row),c=COACH_COPY[presentationLocale(await db.getLocale(user.id))];
    const button=await companion.interactions.button(actor,issued.row,{text:c.preferences,action:'preferences'});
-   return {...base,text:typeof reply==='string'?reply:reply.text,replyMarkup:{inline_keyboard:[...(reply.replyMarkup?.inline_keyboard??[]),[button]]},stage7View:'SETTINGS_LINK'};
+   return replies.seal(actor,{...base,text:typeof reply==='string'?reply:reply.text,replyMarkup:{inline_keyboard:[...(reply.replyMarkup?.inline_keyboard??[]),[button]]},stage7View:'SETTINGS_LINK'});
   }
-  const navigation=await coach.issue(actor);return {...navigation,text:typeof reply==='string'?reply:reply.text};
+  const navigation=await coach.issue(actor);return replies.seal(actor,{...navigation,text:typeof reply==='string'?reply:reply.text});
  }
  async function sendReply(send,input){
-  const result=await send(input);
+  const protectedReply=input.reply?.stage7ReplyGuard||input.reply?.stage7InteractionId||input.reply?.stage7View;
+  const beforeSend=async()=>!protectedReply||eligible(await db.getUser(input.userId))&&await replies.verify({user:await db.getUser(input.userId),chatId:input.chatId,reply:input.reply});
+  if(!await beforeSend())return {sent:false,messageId:null,reason:'stage7_reply_changed'};
+  const result=await send({...input,beforeSend});
   if(result?.sent&&input.userId&&eligible(await db.getUser(input.userId))&&input.reply?.stage7InteractionId){
    const user=await db.getUser(input.userId),actor=await companion.interactions.authenticate({user,chatId:input.chatId});
    for(const id of [input.reply.stage7InteractionId,input.reply.stage7AdditionalInteractionId].filter(Boolean))await companion.interactions.bind(actor,id,input.reply.editMessageId??result.messageId);

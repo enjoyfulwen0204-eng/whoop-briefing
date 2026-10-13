@@ -26,9 +26,9 @@ const base = (overrides = {}) => ({
   path: BRIEFING_TRIGGER.PATH, body: '{}', ...overrides,
 });
 
-test('reviewed Worker trigger is the Stage 6 window and keeps the authenticated Render endpoint', () => {
+test('reviewed Worker schedules preserve morning SYNC and add bounded all-wake readiness', () => {
   const config = readFileSync(new URL('../cloudflare/briefing-scheduler/wrangler.toml', import.meta.url), 'utf8');
-  assert.match(config, /crons = \[\]/);
+  assert.match(config, /crons = \["\*\/10 0-3 \* \* \*", "10 4-23 \* \* \*"\]/);
   assert.doesNotMatch(config, /crons = \["\*\/10 \* \* \* \*"\]/);
   assert.match(config, /BRIEFING_ENDPOINT_URL = "https:\/\/whoop-telegram-webhook\.onrender\.com\/internal\/briefing\/run"/);
   assert.doesNotMatch(config, /^BRIEFING_TRIGGER_SECRET\s*=/m);
@@ -179,11 +179,11 @@ test('Worker re-signs each retry while preserving logical request ID', async () 
   assert.equal(authAttempts, 1);
 });
 
-test('scheduler role policy follows the Taipei window and the three-hour GitHub expectation', async () => {
+test('service scheduler expects hourly readiness outside morning and no disabled GitHub fallback', async () => {
   const outside=new Date('2026-09-25T12:00:00.000Z');
-  for(const minutes of [120,131,137,157,180])assert.equal(providerState({lastOkAt:new Date(outside.getTime()-minutes*60000).toISOString()},'github',outside).state,'healthy');
-  for(const minutes of [181,226,272,273,420])assert.equal(providerState({lastOkAt:new Date(outside.getTime()-minutes*60000).toISOString()},'github',outside).state,'stale');
-  for(const value of ['malformed',new Date(outside.getTime()+1).toISOString()])assert.equal(providerState({lastOkAt:value},'github',outside).state,'stale');
+  for(const minutes of [0,30,60,90])assert.equal(providerState({lastOkAt:new Date(outside.getTime()-minutes*60000).toISOString()},'cloudflare',outside).state,'healthy');
+  for(const minutes of [91,120,180,420])assert.equal(providerState({lastOkAt:new Date(outside.getTime()-minutes*60000).toISOString()},'cloudflare',outside).state,'stale');
+  for(const value of ['malformed',new Date(outside.getTime()+1).toISOString()])assert.equal(providerState({lastOkAt:value},'cloudflare',outside).state,'stale');
   const at=new Date('2026-09-25T01:00:00.000Z');let alerts=0;
   const systemTelegram={notifyError:async()=>{alerts++;return true;}};
   const heartbeats=new Map([[HEARTBEAT_COMPONENT.GITHUB,{lastOkAt:new Date(at.getTime()-13*3600000).toISOString()}]]);
@@ -196,7 +196,7 @@ test('scheduler role policy follows the Taipei window and the three-hour GitHub 
   heartbeats.set(HEARTBEAT_COMPONENT.CLOUDFLARE,{lastOkAt:new Date(at.getTime()-3600000).toISOString()});
   heartbeats.set(HEARTBEAT_COMPONENT.GITHUB,{lastOkAt:at.toISOString()});
   const degraded=await checkPeerScheduler({db,source:'github',systemTelegram,now:at});
-  assert.equal(degraded.overall,'degraded');assert.equal(degraded.alerted,true);assert.equal(alerts,1);
+  assert.equal(degraded.overall,'outage');assert.equal(degraded.alerted,true);assert.equal(alerts,1);
   heartbeats.clear();assert.equal((await checkPeerScheduler({db,source:'cloudflare',systemTelegram,now:at})).overall,'outage');
   db.getHeartbeat=async()=>{throw Error('db timeout');};
   assert.equal((await checkPeerScheduler({db,source:'github',systemTelegram,now:at})).overall,'unknown');
@@ -227,7 +227,7 @@ test('primary outage alerts obey cooldown, delivery failure, and concurrent atom
       db, source: 'github', systemTelegram, now: new Date(outageNow + currentHour * 3600_000),
     });
   }
-  assert.equal(sends, 2, 'a mock 2h cooldown is evaluated only during the remaining morning window');
+  assert.equal(sends, 12, 'the synthetic 2h cooldown now observes all-day service; production cooldown remains 24h');
 
   currentHour = 49;
   lastClaim = -Infinity;

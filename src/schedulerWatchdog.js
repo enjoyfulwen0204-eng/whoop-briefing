@@ -1,30 +1,32 @@
 import { GLOBAL_SCOPE } from './schema.js';
 import { HEARTBEAT_COMPONENT } from './guardianPolicy.js';
-import { schedulerProviderState,requireTriggerSource } from './schedulerPolicy.js';
+import { morningServiceProviderState,MORNING_READINESS_HEARTBEAT,requireTriggerSource } from './schedulerPolicy.js';
 import { log,describeError } from './logger.js';
 import { t } from './localization.js';
 import { readPhaseProgress } from './phase4ExecutionStore.js';
 
 export const SCHEDULER_POLICY=Object.freeze({
-  cloudflare:Object.freeze({role:'morning_primary',component:HEARTBEAT_COMPONENT.CLOUDFLARE,
+  cloudflare:Object.freeze({role:'all_wake_primary',component:HEARTBEAT_COMPONENT.CLOUDFLARE,
     healthyAgeMs:30*60000,alertableAgeMs:30*60000,notify:true}),
-  github:Object.freeze({role:'background_and_fallback',component:HEARTBEAT_COMPONENT.GITHUB,
-    healthyAgeMs:3*3600000,alertableAgeMs:3*3600000,notify:true}),
+  github:Object.freeze({role:'disabled',component:HEARTBEAT_COMPONENT.GITHUB,
+    healthyAgeMs:3*3600000,alertableAgeMs:3*3600000,notify:false}),
 });
 export const SCHEDULER_ALERT_COOLDOWN_HOURS=24;
 export const SCHEDULER_ALERT_TYPE='scheduler_primary_stale';
-export const providerState=schedulerProviderState;
+export const providerState=morningServiceProviderState;
 export function aggregateSchedulerState(cloudflare,github) {
   if(cloudflare.state==='not_expected')return github.state==='healthy'?'healthy':'outage';
   if(['healthy','startup_grace'].includes(cloudflare.state))return 'healthy';
-  return github.ageMs!==null&&github.ageMs<=3*3600000?'degraded':'outage';
+  return github.expected&&github.ageMs!==null&&github.ageMs<=3*3600000?'degraded':'outage';
 }
 export async function readSchedulerHealth({db,now=new Date()}) {
-  const [cf,gh]=await Promise.all([
+  const [cf,gh,readiness]=await Promise.all([
     db.getHeartbeat(GLOBAL_SCOPE,HEARTBEAT_COMPONENT.CLOUDFLARE),
     db.getHeartbeat(GLOBAL_SCOPE,HEARTBEAT_COMPONENT.GITHUB),
+    db.getHeartbeat(GLOBAL_SCOPE,MORNING_READINESS_HEARTBEAT),
   ]);
-  const cloudflare=providerState(cf,'cloudflare',now),github=providerState(gh,'github',now);
+  const heartbeat=[cf,readiness].filter(Boolean).sort((a,b)=>Date.parse(b.lastOkAt??b.last_ok_at)-Date.parse(a.lastOkAt??a.last_ok_at))[0];
+  const cloudflare=providerState(heartbeat,'cloudflare',now),github=providerState(gh,'github',now);
   const phases={};
   if(db.raw)for(const source of ['cloudflare','github']) {
     phases[source]={sync:await readPhaseProgress(db,'SYNC',source),stage6:await readPhaseProgress(db,'STAGE6_DRAIN',source)};

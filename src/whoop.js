@@ -651,6 +651,7 @@ export function createWhoopClient({
    * maxPages 是安全上限，避免異常時無限抓。
    */
   async function collect(path, params = {}, { maxPages = WHOOP.MAX_PAGES } = {}) {
+    if(!Number.isSafeInteger(maxPages)||maxPages<1||maxPages>WHOOP.MAX_PAGES)throw new Error('WHOOP_PAGE_LIMIT_INVALID');
     const out = [];
     let nextToken = null;
     let pages = 0;
@@ -681,9 +682,9 @@ export function createWhoopClient({
     apiGet,
     collect,
     /** 睡眠（含小睡）。 */
-    sleeps: (start, end) => collect('/activity/sleep', { start: iso(start), end: iso(end) }),
+    sleeps: (start, end, options) => collect('/activity/sleep', { start: iso(start), end: iso(end) }, options),
     /** 恢復。 */
-    recoveries: (start, end) => collect('/recovery', { start: iso(start), end: iso(end) }),
+    recoveries: (start, end, options) => collect('/recovery', { start: iso(start), end: iso(end) }, options),
     /** 生理週期（day strain 在這裡）。 */
     cycles: (start, end) => collect('/cycle', { start: iso(start), end: iso(end) }),
     /**

@@ -157,7 +157,7 @@ export async function runForUser(options) {
 }
 
 async function runForUserOwned({
-  db, env, user, now, deps = {}, productionMaintenance = false,
+  db, env, user, now, deps = {}, productionMaintenance = false, readinessOnly = false,
 }) {
   const {
     makeTelegram = createTelegram,
@@ -262,7 +262,7 @@ async function runForUserOwned({
   // 收斂本來就該在 WHOOP 中斷期間繼續進行。所以它現在是流程的**第一步**，
   // 而且不在任何 early return 之後。
   // ---------------------------------------------------------------------
-  await traceExecutionOperation('USER_MAINTENANCE',()=>runMaintenance());
+  if (!readinessOnly) await traceExecutionOperation('USER_MAINTENANCE',()=>runMaintenance());
 
   // 1) 這個使用者的 Telegram 目的地。沒有綁定就不能發報告（也不該亂發）。
   const chatId = await db.getActiveChatIdForUser(uid, { expectedLifecycleGeneration });
@@ -276,6 +276,7 @@ async function runForUserOwned({
   // A legacy account stays UNSET until its owner chooses a language.
   if (typeof db.getLocale !== 'function' && db.raw) throw new Error('LOCALIZATION_STORE_UNAVAILABLE');
   const locale = typeof db.getLocale === 'function' ? await db.getLocale(uid) : 'zh-TW';
+  if (readinessOnly && !locale) { out.skipped = 'locale_unset'; return out; }
   if (!locale) {
     if (await db.claimLocalePrompt(uid, { now })) {
       const selectorTelegram = withDeliveryAuthorization(makeTelegram({
@@ -327,6 +328,15 @@ async function runForUserOwned({
   //
   // 「報告不用發」不等於「健康資料不需要更新」。
   const prepareDue=async overlap=>{
+    if (readinessOnly) {
+      const today=localDate(now,tz);
+      const sent=await db.isSent(uid,'daily',today);
+      const claim=sent?null:await db.getClaim(uid,'daily',today);
+      // A terminal or possibly accepted current occasion needs no WHOOP or AI.
+      // Yesterday remains governed by runDaily's canonical wake health date.
+      const dailySettled=sent||Boolean(claim?.telegramSentAt)||['DELIVERY_STARTED','AMBIGUOUS','SENT'].includes(claim?.deliveryState);
+      return [{today,dailySettled,weeklyDue:false,anythingDue:!dailySettled},false,null];
+    }
     const reads=[()=>dueForUser({db,userId:uid,timezone:tz,now}),()=>isSyncDue({db,userId:uid,now}).catch(()=>true),
       ()=>productionMaintenance&&typeof db.getAllReconciliationState==='function'
         ?automaticFastReconciliationDue({db,userId:uid,now}).then(value=>({value}),error=>({error})):null];
@@ -407,13 +417,13 @@ async function runForUserOwned({
     return out;
   }
 
-  const source = makeSource({ whoop, now });
+  const source = makeSource({ whoop, now, ...(readinessOnly?{pollMaxPages:2}:{}) });
   // 傳 db + userId 進去才會把 ai_usage 記在這個人身上
   const coach = makeCoach({
     apiKey: env.openrouterApiKey, model: env.openrouterModel, db, userId: uid,
   });
   const ctx = {
-    db, userId: uid, source, coach, telegram, timezone: tz, locale, now,bodyEnergy:deps.bodyEnergy,
+    db, userId: uid, source, coach, telegram, timezone: tz, locale, now,bodyEnergy:deps.bodyEnergy,presentationClock:deps.presentationClock,
     // ★ R2：這一輪的帳號啟用世代，往下帶進報告認領與遞送授權。
     expectedLifecycleGeneration,
   };
@@ -437,6 +447,7 @@ async function runForUserOwned({
   }
 
   if (await stopHealth(out.daily)) return out;
+  if (readinessOnly) return out;
   if(yieldUser())return out;
 
   // ---- weekly（不因為 daily 的結果而跳過）----

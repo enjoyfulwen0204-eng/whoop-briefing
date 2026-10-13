@@ -2,6 +2,25 @@ import { requireTriggerSource } from './phase4DrainPolicy.js';
 export { requireTriggerSource,TRIGGER_SOURCES,STAGE6_BUDGETS,stage6Budget } from './phase4DrainPolicy.js';
 export const SCHEDULER_TIMEZONE='Asia/Taipei';
 export const FUTURE_CLOUDFLARE_CRON='*/10 0-3 * * *';
+export const MORNING_READINESS_CRON='10 4-23 * * *';
+export const MORNING_READINESS_HEARTBEAT='morning_readiness_v1';
+export const MORNING_SERVICE_CRONS=Object.freeze([FUTURE_CLOUDFLARE_CRON,MORNING_READINESS_CRON]);
+export function morningServiceSlotOrdinal(at=new Date()) {
+ const hour=at.getUTCHours(),minute=at.getUTCMinutes();
+ return Math.floor(at.getTime()/86400000)*44+(hour<4?hour*6+Math.floor(minute/10):24+hour-4);
+}
+/** Service cadence is separate from the unchanged full SYNC / Stage 6 window. */
+export function morningServiceProviderState(heartbeat,provider,now=new Date()) {
+ if(!['cloudflare','github'].includes(provider))throw new Error('SCHEDULER_PROVIDER_REQUIRED');
+ const raw=heartbeat?.lastOkAt??heartbeat?.last_ok_at,age=raw?now.getTime()-Date.parse(raw):null;
+ const ageMs=Number.isFinite(age)&&age>=0?age:null;
+ if(provider==='github')return {provider,state:'not_expected',expected:false,ageMs};
+ const window=schedulerWindow(now);
+ // 07:10 -> 08:00 may be 50 minutes; morning cadence has a startup grace.
+ if(window.startupGrace)return {provider,state:'startup_grace',expected:true,ageMs};
+ const allowed=(window.cloudflareExpected?30:90)*60000;
+ return {provider,state:ageMs!==null&&ageMs<=allowed?'healthy':'stale',expected:true,ageMs};
+}
 export function schedulerWindow(now=new Date()) {
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:SCHEDULER_TIMEZONE,
     hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now).map(p=>[p.type,p.value]));

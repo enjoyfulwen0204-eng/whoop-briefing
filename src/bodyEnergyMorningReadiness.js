@@ -32,7 +32,7 @@ export function createBodyEnergyMorningReadiness({db,stores,keys,publicationCapa
  async function inspect({userId,healthDate,wakeSleepId,pollSleeps,pollRecoveries,expectedLifecycleGeneration}){
   const execution=currentDurableExecution(),sync=currentSyncOwnership();
   try{
-   await assertBodyEnergyPublication(publicationCapability,db,userId);
+   const grant=await assertBodyEnergyPublication(publicationCapability,db,userId);
    if(!execution||execution.claim.request.phase!=='SYNC'||execution.claim.request.triggerSource!=='cloudflare'
      ||!sync||sync.db!==db||sync.userId!==userId)return proceed();
    execution.authority.assert();await sync.assertCurrent();
@@ -41,8 +41,11 @@ export function createBodyEnergyMorningReadiness({db,stores,keys,publicationCapa
     if(context.lifecycleGeneration!==expectedLifecycleGeneration)throw Error('BODY_MORNING_RECIPIENT_FENCED');
     const at=Date.now(),date=new Date(at),next=bodyMorningNextTick(at);
     if(!schedulerWindow(date).cloudflareExpected||!schedulerWindow(new Date(next)).cloudflareExpected)return proceed();
-    const current=await stores.bodyEnergy.readForPublication(context,{healthDate,asOfEpochMs:at});
-    if(current.status==='AVAILABLE')return {action:'READY'};
+    const current=await stores.bodyEnergy.readForPublication(context,{healthDate,asOfEpochMs:at,presentationPolicy:grant.presentationPolicy});
+    if(['AVAILABLE','PROVISIONAL'].includes(current.status))return {action:'READY'};
+    // The trial presentation policy never postpones the ordinary brief to
+    // obtain a score or reserves additional computation authority.
+    if(grant.presentationPolicy)return proceed();
     if(!['PROCESSING','NO_DATA'].includes(current.status))return proceed();
     const config=publicBetaConfiguration(environment),pilot=betaPilotConfiguration(environment);
     if(config.runtime!=='on'||pilotStopRequested(environment)||pilot?.userId!==userId)return proceed();

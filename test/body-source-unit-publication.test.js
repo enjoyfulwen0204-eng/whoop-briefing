@@ -1,3 +1,6 @@
+import {BODY_ENERGY_PROVISIONAL_POLICY as PROVISIONAL} from '../src/bodyEnergyProvisionalPolicy.js';
+import {assertBodyEnergyPublication} from '../src/bodyEnergyQualificationAuthority.js';
+import {renderBodyEnergy} from '../src/bodyEnergyPresentation.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {syntheticPhase4Fixture} from './phase4Fixture.js';
 import Database from 'libsql';import {createDb} from '../src/db.js';
@@ -11,7 +14,7 @@ import {authorizeBodyEnergyPublication,authorizeBodyEnergyFixturePublication} fr
 import {createBodyEnergyIntegration} from '../src/bodyEnergyIntegration.js';
 import {canonicalJson} from '../src/phase4EntityStore.js';import {OPERATION_RECEIPT_VERSION} from '../src/phase4V27Schema.js';
 
-async function setup(t,{applicationMemory=false}={}){
+async function setup(t,{applicationMemory=false,days=30,unequal=false}={}){
  let db;
  if(applicationMemory){
   // Only this case uses the actual application factory + existing strict
@@ -23,7 +26,8 @@ async function setup(t,{applicationMemory=false}={}){
  }else{const fixture=await syntheticPhase4Fixture(t,{targetVersion:30,now:()=>new Date()});db=fixture.db;await db.migrate({targetVersion:32});}
  for(const id of ['a','b'])await db.setLocale(id,id==='a'?'zh-TW':'vi');
  const stores=await createPhase4Foundation({db,keys:fixtureKeys,admission:await db.admitRuntime()});for(const id of ['a','b'])await stores.initializeTenant(id,'SHADOW');
- const input=bodyInput({asOf:Date.now()-1000,days:30});
+ const input=bodyInput({asOf:Date.now()-1000,days});
+ if(unequal)input.sources.recovery[1].hrv_rmssd_milli=null;
  const captureAt=new Date(input.asOfEpochMs).toISOString();
  input.sources.workout.push({user_id:'a',id:'workout-ongoing',start_at:captureAt,end_at:null,strain:1,
   created_at:captureAt,updated_at:captureAt,synced_at:captureAt});
@@ -37,8 +41,8 @@ async function setup(t,{applicationMemory=false}={}){
  assert.equal(drained.outcome,'PARTIAL');assert.equal(drained.completedJobs,0);assert.equal(drained.failedJobs,0);
  const finish=async()=>{await commitPhaseWork(db,r,c,{outcome:drained.outcome,itemsProcessed:drained.processedItems,jobsCompleted:0,jobsFailed:0,remainingJobs:drained.remainingJobs,completion:'PARTIAL'},authority);
   const parent=await finalizePhaseWork(db,r,c,fixtureKeys,authority);assert.equal(parent.settlementState,'FINALIZED_SUCCESS');assert.equal(parent.outcome,'PARTIAL');};
- const read=async(userId='a')=>stores.withContext(userId,{executionMode:'SHADOW',providerRequired:true},context=>stores.bodyEnergy.readForPublication(context,
-  {healthDate:bodyHealthDate(Date.now(),'Asia/Taipei'),asOfEpochMs:Date.now()}));
+ const read=async(userId='a',presentationPolicy=null)=>stores.withContext(userId,{executionMode:'SHADOW',providerRequired:true},context=>stores.bodyEnergy.readForPublication(context,
+  {healthDate:bodyHealthDate(Date.now(),'Asia/Taipei'),asOfEpochMs:Date.now(),presentationPolicy}));
  const metadata=async()=>({state:(await db.raw.execute("SELECT input_generation,last_completed_generation,source_generation_seen FROM phase4_computation_state WHERE user_id='a' AND execution_mode='SHADOW'")).rows[0],
   jobs:(await db.raw.execute("SELECT job_kind,state,scope_kind,full_scan_cursor,requested_generation,completed_generation,lease_owner FROM phase4_jobs WHERE user_id='a' ORDER BY job_kind")).rows});
  return {db,stores,input,worker,finish,read,metadata,r,c};
@@ -131,4 +135,33 @@ test('non-score workout closure still requires exact owned current canonical val
  const futureClock=await createPhase4Foundation({db:f.db,keys:fixtureKeys,admission:await f.db.admitRuntime(),now:()=>new Date(Date.now()+60000)});
  await assert.rejects(futureClock.withContext('a',{executionMode:'SHADOW',providerRequired:true},context=>futureClock.bodyEnergy.readForPublication(context,
   {healthDate:bodyHealthDate(Date.now(),'Asia/Taipei'),asOfEpochMs:Date.now()})),/FUTURE_REQUEST/);
+});
+
+for(const days of [7,27,29])test(`provisional ${days} day result requires real isolated DOMAIN and finalization, then supports owner query and next morning section`,async t=>{
+ const f=await setup(t,{applicationMemory:true,days,unequal:days===27});
+ assert.equal((await f.read('a',PROVISIONAL.version)).status,'PROCESSING');await f.finish();
+ assert.equal((await f.read()).status,'LIMITED');
+ const view=await f.read('a',PROVISIONAL.version);assert.equal(view.status,'PROVISIONAL');assert.equal(view.quality,'LIMITED');
+ assert.equal(view.presentationPolicy,PROVISIONAL.version);assert.ok(Number.isFinite(view.value));
+ const before=await f.metadata();assert.equal(before.state.last_completed_generation,0);
+ const cap=await authorizeBodyEnergyFixturePublication({db:f.db,userIds:['a'],presentationPolicy:PROVISIONAL.version});
+ const ui=createBodyEnergyIntegration({db:f.db,stores:f.stores,keys:fixtureKeys,publicationCapability:cap});
+ const trial={en:'Trial estimate / personal baseline still being established','zh-TW':'試用估計／個人基準仍在建立中',vi:'Ước tính thử nghiệm / dữ liệu nền cá nhân đang được thiết lập'};
+ for(const locale of ['zh-TW','vi','en']){
+  await f.db.setLocale('a',locale);const query=await ui.query({text:'/energy',userId:'a'}),morning=await ui.currentSection({userId:'a'});
+  assert.equal(query.status,'PROVISIONAL');assert.equal(morning.status,'PROVISIONAL');assert.equal(query.replyGuard.version,'body-energy-reply-v2');
+  assert.equal(query.replyGuard.presentationPolicy,PROVISIONAL.version);assert.ok(query.message.includes(trial[locale]));
+  assert.match(query.message,new RegExp(`HRV ${days-(days===27?1:0)}/30 · RHR ${days}/30`));
+  assert.match(query.message,/LIMITED/);assert.match(query.message,/90/);assert.match(query.message,/Kelvin Health OS/);
+  assert.equal(await query.verifyCurrent(),true);assert.equal(await morning.verifyCurrent(),true);
+  assert.throws(()=>renderBodyEnergy(view,{locale,alert:true}),/PUBLIC_VIEW_INVALID/);
+ }
+ assert.deepEqual(await f.metadata(),before);await assert.rejects(assertBodyEnergyPublication(cap,f.db,'a',{purpose:'alerts'}),/NOT_QUALIFIED/);
+ assert.equal((await ui.query({text:'/energy',userId:'b'})).status,'QUALIFICATION_PENDING');
+ const prepared=await ui.query({text:'/energy',userId:'a'});const old=await f.db.getUser('a');
+ await f.db.updateUser('a',{displayName:'ABA'});await f.db.updateUser('a',{displayName:old.displayName});
+ await assert.rejects(prepared.verifyCurrent(),/RECIPIENT_FENCED/);
+ await f.db.raw.execute("UPDATE phase4_user_state SET pending_purge_count=1 WHERE user_id='a'");await assert.rejects(f.read('a',PROVISIONAL.version),/PURGE_FENCED/);
+ await f.db.raw.execute("UPDATE phase4_user_state SET pending_purge_count=0 WHERE user_id='a'");
+ await f.stores.queue.sourceChanged(await f.stores.captureControl('a'));assert.equal((await f.read('a',PROVISIONAL.version)).status,'PROCESSING');
 });

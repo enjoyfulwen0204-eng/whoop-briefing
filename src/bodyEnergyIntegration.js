@@ -43,7 +43,7 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
     if((await db.getOnboarding(id))?.state!=='READY')return work(renderBodyEnergy({status:'UNAVAILABLE'},{locale,displayName:user.displayName}),profileVerify,{status:'UNAVAILABLE',userId:id});
     return stores.withContext(id,{executionMode:'SHADOW',providerRequired:true},async context=>{
       const date=healthDate??bodyHealthDate(requestedAt.getTime(),context.timezone);
-      const view=await stores.bodyEnergy.readForPublication(context,{healthDate:date,asOfEpochMs:requestedAt.getTime()});
+      const view=await stores.bodyEnergy.readForPublication(context,{healthDate:date,asOfEpochMs:requestedAt.getTime(),presentationPolicy:grant.presentationPolicy});
       const snapshot=JSON.stringify(view),name=user.displayName??'';
       const verify=async()=>{
         await profileVerify();await assertBodyEnergyPublication(publicationCapability,db,id);await stores.assertCurrent(context);
@@ -52,7 +52,7 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
         if(!currentUser||currentUser.status!=='ACTIVE'||currentUser.lifecycleGeneration!==context.lifecycleGeneration
           ||(currentUser.displayName??'')!==name||currentLocale!==locale
           ||profileRevision!==null&&await revisionFor(id)!==profileRevision)throw Error('BODY_ENERGY_RECIPIENT_FENCED');
-        const fresh=await stores.bodyEnergy.readForPublication(context,{healthDate:date,asOfEpochMs:at().getTime()});
+        const fresh=await stores.bodyEnergy.readForPublication(context,{healthDate:date,asOfEpochMs:at().getTime(),presentationPolicy:grant.presentationPolicy});
         if(JSON.stringify(fresh)!==snapshot)throw Error('BODY_ENERGY_CURRENTNESS_FENCED');
       };
       await verify();return work(renderBodyEnergy(view,{locale,displayName:name,details,sourcePage}),verify,view);
@@ -62,9 +62,10 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
     const id=requireUserId(userId,'bodyEnergyQuery'),locale=await db.getLocale(id),
       profileRevision=await revisionFor(id),user=await db.getUser(id);
     const result=await withCurrentSection({userId:id,healthDate,requestedAt,details,sourcePage},(message,_,view)=>({message,
-      status:view.status,proof:view.publicationProof??null,healthDate:view.healthDate??null}));
+      status:view.status,presentationPolicy:view.presentationPolicy??null,proof:view.publicationProof??null,healthDate:view.healthDate??null}));
     if(!result)return null;
-    const recipe=Object.freeze({version:'body-energy-reply-v1',status:result.status,publicationProof:result.proof,
+    const recipe=Object.freeze({version:result.presentationPolicy?'body-energy-reply-v2':'body-energy-reply-v1',
+      ...(result.presentationPolicy?{presentationPolicy:result.presentationPolicy}:{}),status:result.status,publicationProof:result.proof,
       healthDate:result.healthDate,locale,profileRevision,lifecycleGeneration:user.lifecycleGeneration});
     return {message:result.message,status:result.status,replyGuard:recipe,
       verifyCurrent:()=>verifyReplyGuard(recipe,id)};
@@ -72,14 +73,16 @@ export function createBodyEnergyIntegration({db,stores,keys,publicationCapabilit
   async function verifyReplyGuard(recipe,userId){
     const id=requireUserId(userId,'bodyEnergyReplyGuard');
     if(recipe?.version==='body-energy-control-reply-v1')return notificationControl.verifyReplyGuard(recipe,id);
-    if(!recipe||recipe.version!=='body-energy-reply-v1'||Object.keys(recipe).sort().join(',')!==
-      ['version','status','publicationProof','healthDate','locale','profileRevision','lifecycleGeneration'].sort().join(','))
+    if(!recipe||!['body-energy-reply-v1','body-energy-reply-v2'].includes(recipe.version)||Object.keys(recipe).sort().join(',')!==
+      ['version','status','publicationProof','healthDate','locale','profileRevision','lifecycleGeneration',
+        ...(recipe.version==='body-energy-reply-v2'?['presentationPolicy']:[])].sort().join(','))
       throw Error('BODY_ENERGY_REPLY_GUARD_INVALID');
     const user=await db.getUser(id);
     if(!user||user.status!=='ACTIVE'||user.lifecycleGeneration!==recipe.lifecycleGeneration||await db.getLocale(id)!==recipe.locale
       ||(recipe.profileRevision!==null&&await revisionFor(id)!==recipe.profileRevision))throw Error('BODY_ENERGY_RECIPIENT_FENCED');
     const verified=await withCurrentSection({userId:id,healthDate:recipe.healthDate??undefined},async(_,verify,view)=>{
-      if(view.status!==recipe.status||(view.publicationProof??null)!==recipe.publicationProof)throw Error('BODY_ENERGY_CURRENTNESS_FENCED');
+      if(view.status!==recipe.status||(view.publicationProof??null)!==recipe.publicationProof
+        ||(view.presentationPolicy??null)!==(recipe.presentationPolicy??null))throw Error('BODY_ENERGY_CURRENTNESS_FENCED');
       await verify();return true;
     });
     if(verified!==true)throw Error('BODY_ENERGY_RECIPIENT_FENCED');return true;

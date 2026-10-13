@@ -1,3 +1,4 @@
+import {BODY_ENERGY_PROVISIONAL_POLICY,baselineOnlyProvisional} from './bodyEnergyProvisionalPolicy.js';
 import {createBodyEnergySourceUnitAuthority} from './bodyEnergySourceUnitAuthority.js';
 import {BODY_ENERGY as C} from './bodyEnergyRegistry.js';
 import {BODY_ENERGY_RELEASE_CRITERIA as CRITERIA} from './bodyEnergyReleaseCriteria.js';
@@ -11,7 +12,8 @@ import {PHASE4_METRICS} from './phase4IntelligenceRegistry.js';
 export function createBodyEnergyPublicationReader(core,{body,receipts,readArtifact}){
   const {client,keys}=core;
   const sourceUnits=createBodyEnergySourceUnitAuthority(core,{body,receipts});
-  async function current(context,{healthDate,asOfEpochMs},returnCapture=false){
+  async function current(context,{healthDate,asOfEpochMs,presentationPolicy=null},returnCapture=false){
+      if(presentationPolicy!==null&&presentationPolicy!==BODY_ENERGY_PROVISIONAL_POLICY.version)throw Error('BODY_ENERGY_PRESENTATION_POLICY_INVALID');
       if(!validHealthDate(healthDate))throw Error('BODY_ENERGY_INVALID_HEALTH_DATE');exactBodyInstant(asOfEpochMs);
       const clock=core.now().getTime();
       if(!Number.isSafeInteger(clock)||clock>Date.now()||asOfEpochMs>clock)throw Error('BODY_ENERGY_FUTURE_REQUEST');
@@ -29,8 +31,10 @@ export function createBodyEnergyPublicationReader(core,{body,receipts,readArtifa
         const fresh=elapsed>=0&&elapsed<=CRITERIA.freshMaximumMs&&ages.every(age=>typeof age==='number'
           &&Number.isFinite(age)&&age>=0&&age+elapsed<=CRITERIA.freshMaximumMs);
         if(!fresh)return {status:'STALE',userId:context.userId};
-        if(row.quality_state!==CRITERIA.publicationQuality||!Number.isInteger(row.value)||row.value<0||row.value>100
-          ||!meetsConfidenceThreshold(row.confidence,CRITERIA.confidenceMinimum))
+        const provisional=presentationPolicy===BODY_ENERGY_PROVISIONAL_POLICY.version&&baselineOnlyProvisional(stored);
+        if(presentationPolicy&&!provisional)return {status:row.quality_state==='AVAILABLE'?'QUALIFICATION_PENDING':row.quality_state??'NO_DATA',userId:context.userId};
+        if(!provisional&&(row.quality_state!==CRITERIA.publicationQuality||!Number.isInteger(row.value)||row.value<0||row.value>100
+          ||!meetsConfidenceThreshold(row.confidence,CRITERIA.confidenceMinimum)))
           return {status:row.quality_state??'NO_DATA',userId:context.userId};
         await core.assertContext(context);
         const sources=new Map(),include=(type,row,role)=>{if(!row)return;const id=String(row[type==='recovery'?'sleep_id':'id']),key=canonicalJson([type,id]);
@@ -41,7 +45,7 @@ export function createBodyEnergyPublicationReader(core,{body,receipts,readArtifa
         for(const row of manifest.load.rows)include(manifest.load.kind==='CYCLE'?'cycle':'workout',row,'LOAD');
         for(const row of manifest.naps)include('sleep',row.source,'NAP');
         for(const row of manifest.notification_workouts?.rows??[])include('workout',row,'NOTIFICATION_EVENT_ONLY');
-        const view=Object.freeze({status:'AVAILABLE',userId:context.userId,resultId:row.result_id,executionMode:'SHADOW',
+        const view=Object.freeze({status:provisional?'PROVISIONAL':'AVAILABLE',presentationPolicy:provisional?BODY_ENERGY_PROVISIONAL_POLICY.version:null,userId:context.userId,resultId:row.result_id,executionMode:'SHADOW',
           healthDate:row.health_date,asOfUtc:row.as_of_utc,asOfEpochMs:row.as_of_epoch_ms,timezone:context.timezone,
           wakeAtUtc:manifest.wake_at_utc,
           value:row.value,quality:row.quality_state,confidence:row.confidence,confidenceLabel:row.confidence_label,
@@ -58,7 +62,8 @@ export function createBodyEnergyPublicationReader(core,{body,receipts,readArtifa
           publicationProof:keys.lookup(['body-energy-publication-proof-v1',context.userId,row.result_id,row.result_hash,
             context.inputGeneration,context.lifecycleGeneration,context.authGeneration,context.purgeGeneration,
             sourceUnit.purpose,sourceUnit.executionId,sourceUnit.sourceReceiptKey,
-            sourceUnit.domainOperationKey,sourceUnit.domainReceiptHmac,sourceUnit.parentResultDigest]),
+            sourceUnit.domainOperationKey,sourceUnit.domainReceiptHmac,sourceUnit.parentResultDigest,
+            ...(provisional?[BODY_ENERGY_PROVISIONAL_POLICY.version]:[])]),
           interpretation:'KELVIN_HEALTH_OS_ENGINEERING_ESTIMATE_NOT_MEDICAL_OR_REALTIME'});
         return returnCapture?{view,capture:stored}:view;
       });

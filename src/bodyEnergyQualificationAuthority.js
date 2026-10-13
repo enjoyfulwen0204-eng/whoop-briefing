@@ -1,3 +1,4 @@
+import {BODY_ENERGY_PROVISIONAL_POLICY} from './bodyEnergyProvisionalPolicy.js';
 import {BODY_ENERGY_NOTIFICATION_POLICY} from './bodyEnergyNotificationPolicy.js';
 import {requireUserId} from './userContext.js';
 import {validateBodyEnergyQualificationPacket,BODY_ENERGY_RELEASE_CRITERIA} from './bodyEnergyReleaseCriteria.js';
@@ -28,15 +29,29 @@ export function authorizeBodyEnergyPublication({db,userIds,notificationUserIds=[
     fail('BODY_ENERGY_ALERT_POLICY_NOT_QUALIFIED');
   const capability=Object.freeze({});capabilities.set(capability,{db,connection:db.raw,users,notifications,fixture:false});return capability;
 }
+/** The owner explicitly authorized this separate baseline-only presentation
+ * policy. It does not approve or mutate the pending mature qualification packet.
+ * Server composition binds the singleton to the existing canonical owner profile;
+ * lifecycle, producing result, currentness and delivery are checked on every read. */
+export function authorizeBodyEnergyOwnerProvisional({db,userIds,ownerUserId,notificationUserIds=[],qualificationId}={}){
+  if(qualificationId!==BODY_ENERGY_PROVISIONAL_POLICY.version)return null;
+  if(!db?.raw)fail('BODY_ENERGY_DATABASE_AUTHORITY_REQUIRED');
+  const users=cohort(userIds),owner=requireUserId(ownerUserId,'bodyEnergyOwner');
+  if(users.size!==1||!users.has(owner)||notificationUserIds.length)fail('BODY_ENERGY_PROVISIONAL_OWNER_ONLY');
+  const capability=Object.freeze({});capabilities.set(capability,{db,connection:db.raw,users,notifications:new Set(),fixture:false,
+    presentationPolicy:BODY_ENERGY_PROVISIONAL_POLICY.version});return capability;
+}
 /** Positive integration tests own an empty-filename in-memory DB; neither a
  * file-backed fixture nor a real provider destination can receive this grant. */
-export async function authorizeBodyEnergyFixturePublication({db,userIds,notificationUserIds=[]}={}){
+export async function authorizeBodyEnergyFixturePublication({db,userIds,notificationUserIds=[],presentationPolicy=null}={}){
   if(!db?.raw||db.raw.protocol!=='file')fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
   const databases=(await db.raw.execute('PRAGMA database_list')).rows;
   if(databases.length!==1||databases[0].name!=='main'||databases[0].file!=='')fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
+  if(presentationPolicy!==null&&presentationPolicy!==BODY_ENERGY_PROVISIONAL_POLICY.version)fail('BODY_ENERGY_PRESENTATION_POLICY_INVALID');
+  if(presentationPolicy&&(userIds.length!==1||notificationUserIds.length))fail('BODY_ENERGY_PROVISIONAL_OWNER_ONLY');
   const users=cohort(userIds),notifications=new Set(notificationUserIds);
   if([...notifications].some(id=>!users.has(id)))fail('BODY_ENERGY_ALERT_COHORT_REQUIRED');
-  const capability=Object.freeze({});capabilities.set(capability,{db,connection:db.raw,users,notifications,fixture:true});return capability;
+  const capability=Object.freeze({});capabilities.set(capability,{db,connection:db.raw,users,notifications,fixture:true,presentationPolicy});return capability;
 }
 export async function assertBodyEnergyPublication(capability,db,userId,{purpose='read'}={}){
   const grant=capabilities.get(capability),id=requireUserId(userId,'bodyEnergyPublication');
@@ -45,8 +60,8 @@ export async function assertBodyEnergyPublication(capability,db,userId,{purpose=
   if(grant.fixture){
     const databases=(await db.raw.execute('PRAGMA database_list')).rows;
     if(db.raw.protocol!=='file'||databases.length!==1||databases[0].file!=='')fail('BODY_ENERGY_FIXTURE_MEMORY_REQUIRED');
-  }else if(BODY_ENERGY_QUALIFICATION_REGISTRATION.state!=='APPROVED'
-    ||!validateBodyEnergyQualificationPacket(BODY_ENERGY_QUALIFICATION_REGISTRATION.approvedPacket).complete)
+  }else if(!grant.presentationPolicy&&(BODY_ENERGY_QUALIFICATION_REGISTRATION.state!=='APPROVED'
+    ||!validateBodyEnergyQualificationPacket(BODY_ENERGY_QUALIFICATION_REGISTRATION.approvedPacket).complete))
     fail('BODY_ENERGY_PUBLICATION_NOT_QUALIFIED');
-  return {fixture:grant.fixture};
+  return {fixture:grant.fixture,presentationPolicy:grant.presentationPolicy??null};
 }

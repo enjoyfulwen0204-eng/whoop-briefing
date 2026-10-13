@@ -1,5 +1,25 @@
 # Body source-unit publication candidate
 
+## Owner V3 baseline-only presentation amendment
+
+`body-energy-owner-provisional-v1` adds an owner-only `PROVISIONAL` display tier.
+It supersedes only the maturity-only hold for a real, reproduced, current,
+receipt-backed result whose stored quality remains `LIMITED` and sole reason
+is `BASELINE_LIMITED`. Both separately selected baselines must satisfy the
+existing engineering minimum and MAD/IQR scale rules; target remains 30.
+Fresh complete scored inputs, noncalibrating matched recovery, valid wake/load
+alignment, actual load coverage, data-quality confidence and finalized producer
+authority remain required. Missing load is never assumed zero.
+
+This tier is a separate owner product decision, not an approved old empirical
+qualification packet, mature score or alert grant. Runtime composition restricts
+it to the original singleton owner presentation cohort. `/energy` and a future
+normal brief show the trial estimate label, actual HRV/RHR counts out of 30,
+as-of/freshness and Kelvin Health OS authorship. Existing briefs are not resent.
+The original mature-score registration and all drop-alert gates remain unchanged.
+Production activation still requires exact changed-code review, an authentic
+current-result sanity check and authorized deployment; local tests are not LIVE evidence.
+
 This local software candidate has no production publication approval. Genuine calibration, the exact reviewed qualification packet, Architecture Owner and independent Final Gate remain required. The registry stays `PENDING_GENUINE_EVIDENCE_AND_FINAL_GATE`; the proposed notification policy remains unapproved. No flags, schedule, coefficients, schema, keys, consent, provider configuration or release deployment change here.
 
 ## Product dependency

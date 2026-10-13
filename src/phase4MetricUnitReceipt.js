@@ -39,16 +39,16 @@ export async function metricUnitReceipt(core,context,plan,kind){
 // sealed finalized producer; the domain row alone cannot complete a family.
 export async function metricPreparationDomainReceipt(core,context,operationKey,request){
  if(typeof operationKey!=='string'||!/^[a-f0-9]{64}$/.test(operationKey))fail();
- if(request?.metricKey!=='body_energy'||request.refresh!==true||typeof request.windowFamily!=='string'||!request.windowFamily
+ if(!request?.metricKey||request.refresh!==true||typeof request.windowFamily!=='string'||!request.windowFamily
   ||typeof request.asOfUtc!=='string'||!Number.isFinite(Date.parse(request.asOfUtc)))fail();
  const steps=[workStepOptions('domain.operation',[context.userId,context.executionMode,context.inputGeneration,'analyzeMetric',operationKey]).workStep];
  // Earlier exact v32 workers committed the same domain inside their original
  // stage6.family root. Preserve that authentic completed parent alternative;
  // an unfinalized/unknown-COMMIT family producer still fails the same verifier.
- const family=core.keys.lookup(['episode-family-v1',context.userId,phase4Metric('body_energy').domain,'body_energy',
-  INTELLIGENCE_VERSIONS.algorithm,'body_energy',request.windowFamily]),job=core.jobAuthority();
+ const family=core.keys.lookup(['episode-family-v1',context.userId,phase4Metric(request.metricKey).domain,request.metricKey,
+  INTELLIGENCE_VERSIONS.algorithm,request.metricKey,request.windowFamily]),job=core.jobAuthority();
  for(const kind of JOB_KINDS)steps.push(workStepOptions('stage6.family',[context.userId,context.executionMode,kind,
-  job.requestedGeneration,job.scopeRevision,['body_energy',request.asOfUtc,family]]).workStep);
+  job.requestedGeneration,job.scopeRevision,[request.metricKey,request.asOfUtc,family]]).workStep);
  return Boolean(await namedUnitReceipt(core,context,steps));
 }
 export async function metricRunReceipt(core,context,plan){

@@ -23,7 +23,7 @@ import {requireOwnedCurrentBodyData,hasOwnedCurrentBodyData} from './phase4Opera
 // Data-transport selection only. Only the actual owned refresh calculation
 // result can issue this one-use, same-root token; it grants no authority.
 const metricResults=new WeakMap(),metricCaptures=new WeakMap(),ownedBodyMetricPurposes=new WeakMap();
-const ownedBodyMetricObservations=new AsyncLocalStorage();
+const ownedBodyMetricObservations=new AsyncLocalStorage(),rawUnitPreparations=new AsyncLocalStorage();
 function ownedMetricRequestData(core,context,request){
   return canonicalJson({metricKey:request.metricKey,asOfUtc:request.asOfUtc,windowFamily:request.windowFamily,refresh:request.refresh,
     currentSource:core.validateReferences(context,[request.currentSource]).map(source=>[source.type,source.id,source.mode,source.historicalAsOf,source.row]),
@@ -515,7 +515,13 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
       if(row.input_manifest_hash!==null||row.input_manifest_json!==null||row.completed_at!==null)fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
     }else if(row.state!=='COMPLETED'||row.input_manifest_hash!==plan.inputHash||row.input_manifest_json!==canonicalJson(plan.input))
       fail('PHASE4_EVIDENCE_REPLAY_CONFLICT');
-    return Boolean(await metricUnitReceipt(core,context,plan,'RUN_START'));
+    const verified=Boolean(await metricUnitReceipt(core,context,plan,'RUN_START')),frame=rawUnitPreparations.getStore();
+    if(verified&&frame?.core===core&&frame.context===context){
+      frame.prepared=prepared;frame.planJson=canonicalJson(prepared.plan);frame.requestJson=ownedMetricRequestData(core,context,prepared.request);
+      frame.execution=currentDurableExecution();frame.job=core.jobAuthority();frame.marker=currentExecutionReceiptTransactionMarker();
+      frame.epoch=processingReadObservationEpoch(client);
+    }
+    return verified;
   }
   async function metricPreparationUnit(context,request,kind){return performMetricPreparationUnit(context,request,kind);}
   async function replayCurrentBodyMetricFamily(context,sourceAsOfUtc,workStepFor,work){
@@ -545,8 +551,8 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     });
   }
   async function metricPreparationUnitFromCurrentRaw(context,metricKey,source){
-    return withMetricPreparationContinuation(core,context,()=>performMetricPreparationUnit(context,null,'NEXT',
-      ()=>prepareCurrentRawMetricRequest(context,metricKey,source)));
+    return rawUnitPreparations.run({core,context},()=>withMetricPreparationContinuation(core,context,()=>performMetricPreparationUnit(context,null,'NEXT',
+      ()=>prepareCurrentRawMetricRequest(context,metricKey,source))));
   }
   async function metricPreparationUnitFromCurrentBody(context,asOfUtc){
     return withMetricPreparationContinuation(core,context,()=>performMetricPreparationUnit(context,null,'NEXT',()=>prepareCurrentBodyMetricRequest(context,asOfUtc)));
@@ -570,7 +576,19 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
         }
         if(inventory.unknownEntries.length)fail('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN');
       }
-      prepared=await metricPreparation(context,request,requestFrom?bodySource.current:null);
+      const frame=rawUnitPreparations.getStore(),sameRawFrame=frame?.prepared&&frame.core===core&&frame.context===context
+        &&frame.execution===currentDurableExecution()&&frame.job===core.jobAuthority()
+        &&frame.marker===currentExecutionReceiptTransactionMarker()&&frame.epoch===processingReadObservationEpoch(client)
+        &&frame.requestJson===ownedMetricRequestData(core,context,request)&&frame.planJson===canonicalJson(frame.prepared.plan);
+      if(sameRawFrame){
+        await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
+        if(frame.marker!==currentExecutionReceiptTransactionMarker()||frame.epoch!==processingReadObservationEpoch(client)
+          ||frame.job!==core.jobAuthority()||frame.execution!==currentDurableExecution()
+          ||frame.requestJson!==ownedMetricRequestData(core,context,request)||frame.planJson!==canonicalJson(frame.prepared.plan))
+          fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
+        prepared=frame.prepared;
+      }
+      else prepared=await metricPreparation(context,request,requestFrom?bodySource.current:null);
       if(kind==='NEXT'){
         const closed=requestFrom&&request.metricKey==='body_energy'&&request.baselineSources.length===0
           &&prepared.plan.input.baseline.samples.length===0&&hasOwnedCurrentBodyData(core,context,request.currentSource);

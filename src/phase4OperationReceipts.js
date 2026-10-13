@@ -30,7 +30,7 @@ import {verifyBodyEnergyProducer} from './bodyEnergyDerivedTime.js';
 import {issueBodyMetricPreparationCapture,requireOwnedBodyMetricPurpose,currentOwnedBodyMetricObservation} from './phase4IntelligenceStore.js';
 import {processingReadObservationEpoch} from './processingTransaction.js';
 import {READ_SNAPSHOT_LIMITS} from './processingReadSnapshot.js';
-import {currentBodySourceReceipt,metricPreparationDomainReceipt} from './phase4MetricUnitReceipt.js';
+import {currentBodySourceReceipt,metricPreparationDomainReceipt,metricPreparationContinuation} from './phase4MetricUnitReceipt.js';
 
 const instances=new WeakMap(),ownedCurrentBodyData=new WeakMap();
 const freezeData=value=>{if(value&&typeof value==='object'){for(const item of Object.values(value))freezeData(item);Object.freeze(value);}return value;};
@@ -306,7 +306,7 @@ export function createOperationReceipts(core) {
     for(const [field,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],
       ['auth_generation',context.authGeneration],['purge_generation',context.purgeGeneration]])if(!retainedBody&&row[field]!==value)fail('PHASE4_PARENT_STALE');
     if(core.schemaVersion===32&&core.jobAuthority()&&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
-      &&row.operation_kind==='analyzeMetric'&&decoded.request_json.request.metricKey==='body_energy'&&decoded.request_json.request.refresh===true){
+      &&row.operation_kind==='analyzeMetric'&&decoded.request_json.request.refresh===true){
       const produced=decoded.result_json.jobAuthority,current=core.jobAuthority();
       // Both original queue kinds consume this same metric domain identity.
       // Keep the old producing kind intact, require both original kinds, and
@@ -957,7 +957,7 @@ export function createOperationReceipts(core) {
         for(const value of observations)if(value.status==='rejected')throw value.reason;
         discoveredPreparation=observations[0].value;
         ownedInput=observations[1].value;
-      }else if(discover)await discover(context,kind,normalized);
+      }else if(discover)discoveredPreparation=await discover(context,kind,normalized);
       if(!ownedInput)await admitInputs(context,semanticRequest,refs,kind);
       if(kind==='INSIGHT_CREATE') {
         const id=keys.lookup(['insight-creation-v1',context.userId,context.executionMode,request.creationKey]);
@@ -1011,7 +1011,10 @@ export function createOperationReceipts(core) {
       const newBodyRoots=newBodyCapture
         ?await authorities.captureNewBodySourceRoots(context,dependencies,envelope.content_digest_salt,newBodyCapture):null;
       const metricRoots=metricCapture?await authorities.captureBodyMetricPreparationRoots(context,dependencies,envelope.content_digest_salt,metricCapture):null;
-      const roots=newBodyRoots??metricRoots??await authorities.captureRoots(context,dependencies,envelope.content_digest_salt);
+      const rawMetric=core.schemaVersion===32&&kind==='analyzeMetric'&&semanticRequest.refresh===true
+        &&['sleep','recovery','cycle','workout'].includes(phase4Metric(semanticRequest.metricKey).sourceType)
+        &&metricPreparationContinuation(core,context);
+      const roots=newBodyRoots??metricRoots??await authorities.captureRoots(context,dependencies,envelope.content_digest_salt,{parallelDerived:rawMetric});
       const row={...envelope,operation_kind:kind,operation_key:key,receipt_version:VERSION,semantic_at:at,
         request_json:canonicalJson(requestAuthority),result_json:canonicalJson(encoded.result),related_results_json:canonicalJson(encoded.related),
         required_roots_json:canonicalJson(roots),schema_contract_json:canonicalJson(encoded.contracts),
@@ -1023,7 +1026,7 @@ export function createOperationReceipts(core) {
       reservePilotMutation(context,client,Object.values(row));
       await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode],'',true);
       const routedSubjects=routing?await routing.register(row,{request:requestAuthority,related:encoded.related},
-        {batchNew:Boolean(bodyMetricPurpose&&kind==='analyzeMetric')}):[];
+        {batchNew:Boolean(bodyMetricPurpose&&kind==='analyzeMetric')||rawMetric}):[];
       const fields=Object.keys(row);
       await client.execute({sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(field=>row[field])});
       if(familyDirectory)for(const metricKey of Object.keys(PHASE4_METRICS)) {

@@ -326,7 +326,8 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     return 'PROCESSED';
   }
   async function processSourceV30(context,source,asOfUtc,lease,assertBudget,admittedRoot=null,bodyCandidate=false,bodyReplayHint=false) {
-    const root=admittedRoot??await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
+    const rawOwned=core.schemaVersion===32&&['sleep','recovery','cycle','workout'].includes(source.source_type);
+    const root=rawOwned?null:admittedRoot??await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
     if(source.source_type==='USER') {
       if(core.schemaVersion===32&&bodyReplayHint){
         const defaultKey=keys.lookup(['episode-family-v1',context.userId,phase4Metric('body_energy').domain,
@@ -386,7 +387,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
     }
     const registeredMetrics=Object.entries(PHASE4_METRICS).filter(([,definition])=>definition.sourceType===source.source_type);
-    if(!registeredMetrics.length||!inputs.eligible(source.source_type,root.row))
+    if(!registeredMetrics.length||root&&!inputs.eligible(source.source_type,root.row))
       return {kind:'SOURCE',status:'COMPLETE',failure:null,units:[]};
     let firstFailure=null;const units=[];
     for(const [metricKey] of registeredMetrics) {
@@ -423,6 +424,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       try {
         const outcome=await queue.owned(context,lease,()=>associations(context,metricKey,analysisAsOf),{assertBudget,workKind:'stage6.associations',workFacts:[source.source_type,source.source_id,source.cursor,metricKey,analysisAsOf]});
         units.push({kind:'ASSOCIATION_INSIGHT',metricKey,status:'COMPLETE',outcome});
+
       }
       catch(error) {
         requireSettledOperation(error);
@@ -463,7 +465,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
               // their source references and current context before any write.
               const lookedUp=await core.run(context,async()=>{
                 const page=await inputs.enumerate(context,cursor,1);
-                const root=familyDirectory&&page.length?await stores.root(context,page[0].source_type,page[0].source_id):null;
+                const root=familyDirectory&&page.length&&!(core.schemaVersion===32&&['sleep','recovery','cycle','workout'].includes(page[0].source_type))?await stores.root(context,page[0].source_type,page[0].source_id):null;
                 const receiptHintFrom=core.schemaVersion===32&&page[0]?.source_type==='USER'
                   ?await pilotPrefixFrom(client,context,'phase4_operation_receipts',[context.userId,context.executionMode],'p',true):null;
                 const bodyHints=core.schemaVersion===32&&page[0]?.source_type==='USER'

@@ -1,11 +1,406 @@
 {
-  "status": "LOCAL_REPAIR_CHECKPOINT_CAPACITY_GATE_PENDING",
+  "status": "STAGE6_RAW_SOURCE_CAPACITY_REPAIR_PARTIAL",
   "parent": "9770553caba6f4085f4799fb6088db5076433f8e",
-  "effectiveWorkerDeadlineMs": 30000,
-  "latencyMs": 115,
-  "productionCalls": 0,
-  "publication": false,
-  "baseline": [],
-  "batchOnly": [],
-  "ownedSubunits": []
+  "checkpointCommit": "2da03c460c17aa0a143f06fc4f9af739a0dc21be",
+  "transport": "installed @libsql/client HTTP/Hrana, isolated SQLite fixture, 115ms per physical HTTP request",
+  "budget": {
+    "configuredMs": 45000,
+    "safetyMarginMs": 15000,
+    "effectiveWorkerMs": 30000
+  },
+  "production": {
+    "performed": false,
+    "completionClaim": false,
+    "existingPilotUsed": 12,
+    "existingPilotLimit": 12,
+    "publicationPerformed": false
+  },
+  "sixJobConvergence": {
+    "passed": false,
+    "reason": "The retained representative raw DOMAIN still reaches its worker deadline before any DOMAIN/cursor commit. The six-job workload is therefore unqualified."
+  },
+  "baseline": [
+    {
+      "leg": null,
+      "http": 322,
+      "sql": 626,
+      "wholeMs": 41301.888958,
+      "ready": 3795.181291000001,
+      "observations": [
+        {
+          "label": "enumerate",
+          "http": 2,
+          "sql": 22,
+          "ms": 276.5207499999997,
+          "remainingMs": 23162.964625
+        },
+        {
+          "label": "latest",
+          "http": 2,
+          "sql": 10,
+          "ms": 256.45191599999816,
+          "remainingMs": 20879.97225
+        },
+        {
+          "label": "baseline_roots",
+          "http": 129,
+          "sql": 288,
+          "ms": 16271.153625000003,
+          "remainingMs": -564.3758749999979
+        }
+      ],
+      "result": {
+        "releaseSha": "9770553caba6f4085f4799fb6088db5076433f8e",
+        "outcome": "BUDGET_EXHAUSTED",
+        "itemsProcessed": 0,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "executionSeq": 25,
+        "settlementState": "FINALIZED_SUCCESS"
+      },
+      "counts": {
+        "body": 1,
+        "domain": 1,
+        "runs": 1,
+        "items": 1
+      }
+    }
+  ],
+  "batchOnly": [
+    {
+      "leg": null,
+      "http": 316,
+      "sql": 3224,
+      "wholeMs": 41862.709042,
+      "ready": 3813.2192919999998,
+      "observations": [
+        {
+          "label": "enumerate",
+          "http": 2,
+          "sql": 22,
+          "ms": 287.77616599999965,
+          "remainingMs": 23149.682917
+        },
+        {
+          "label": "latest",
+          "http": 2,
+          "sql": 10,
+          "ms": 246.60712500000227,
+          "remainingMs": 20899.33375
+        },
+        {
+          "label": "capture_clock",
+          "http": 13,
+          "sql": 41,
+          "ms": 1636.3913749999992,
+          "remainingMs": 17541.960292
+        },
+        {
+          "label": "baseline_roots",
+          "http": 7,
+          "sql": 460,
+          "ms": 1134.2562080000025,
+          "remainingMs": 14631.059333000003
+        },
+        {
+          "label": "metric_analysis",
+          "http": 109,
+          "sql": 2115,
+          "ms": 14677.850166999997,
+          "remainingMs": -1159.8347500000018
+        }
+      ],
+      "result": {
+        "releaseSha": "9770553caba6f4085f4799fb6088db5076433f8e",
+        "outcome": "BUDGET_EXHAUSTED",
+        "itemsProcessed": 0,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "executionSeq": 25,
+        "settlementState": "FINALIZED_SUCCESS"
+      },
+      "counts": {
+        "body": 1,
+        "domain": 1,
+        "runs": 1,
+        "items": 1
+      }
+    }
+  ],
+  "durableReceiptProof": {
+    "units": [
+      "RUN_START",
+      "RUN_COMPLETE",
+      "ITEM",
+      "AUTHORITY"
+    ],
+    "verifiedUnits": [
+      {
+        "unit": "RUN_START",
+        "executionSeq": 26,
+        "receiptKey": "63273c5a562bc0e9f2e074743913d4a1c0d2a99ea195182bd4a24620da000c58",
+        "producerExecutionId": "0b6f83d8-9672-4743-8433-2d231c7a8bff",
+        "committedAt": 1791905472580,
+        "finalizedAt": 1791905479561,
+        "deadlineAt": 1791905539107,
+        "workerCommitMs": 20897.017542,
+        "namedAckAtMs": 23473,
+        "commitAckAtMs": 24781.601792
+      },
+      {
+        "unit": "RUN_COMPLETE",
+        "executionSeq": 27,
+        "receiptKey": "7d50112958a336da7d8626f285983c3498d4683058e08ddb51de859bd5288b38",
+        "producerExecutionId": "4ef07b09-7177-40ee-b5e2-bbf6d4778963",
+        "committedAt": 1791905505394,
+        "finalizedAt": 1791905512472,
+        "deadlineAt": 1791905570705,
+        "workerCommitMs": 21955.540084000007,
+        "namedAckAtMs": 24689,
+        "commitAckAtMs": 25943.25050000001
+      },
+      {
+        "unit": "ITEM",
+        "executionSeq": 28,
+        "receiptKey": "48b34b6a31a425a835a758660537274e445dd37b6bc09c99585010691677cd9b",
+        "producerExecutionId": "f9444e6f-419e-4344-a9ec-74fa52b3b0d4",
+        "committedAt": 1791905543799,
+        "finalizedAt": 1791905551104,
+        "deadlineAt": 1791905603581,
+        "workerCommitMs": 27847.62475099998,
+        "namedAckAtMs": 30218,
+        "commitAckAtMs": 31710.803708999985
+      },
+      {
+        "unit": "AUTHORITY",
+        "executionSeq": 29,
+        "receiptKey": "fa61f9d64b164ee99040ed3c99c74f51693340751d7eb151e49887f2dda02e34",
+        "producerExecutionId": "5bc59dcb-9369-47b1-ac06-f12cd0f36703",
+        "committedAt": 1791905581220,
+        "finalizedAt": 1791905588453,
+        "deadlineAt": 1791905642258,
+        "workerCommitMs": 26449.529375000013,
+        "namedAckAtMs": 28962,
+        "commitAckAtMs": 30357.83583300002
+      }
+    ],
+    "namedAck": true,
+    "producerHmac": true,
+    "finalized": true,
+    "sourceGeneration": 8,
+    "inputGeneration": 8,
+    "fullRun": "3ad0dbc9-6456-4201-ac02-77b46a854bea",
+    "immutableInputHash": "45df7bce6cd3bcfaa41bfc1b2aced4e67c5734f174e6954a4a5a77dc9296f62d",
+    "restartCountsUnchanged": true,
+    "production": false,
+    "actualCommitAckChecked": true,
+    "commitAckTraceVerification": "Post-run join of exact named ACK timestamp and first following physical Hrana COMMIT ACK in the same recorded leg; all four below30s."
+  },
+  "durableSubunits": [
+    {
+      "leg": 1,
+      "http": 200,
+      "sql": 1189,
+      "wholeMs": 26801.453958000006,
+      "startedAtMs": 1791905422278,
+      "ready": 3880.9101250000003,
+      "observations": [],
+      "result": {
+        "releaseSha": "2da03c460c17aa0a143f06fc4f9af739a0dc21be",
+        "outcome": "PARTIAL",
+        "itemsProcessed": 0,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "unitsCommitted": 1,
+        "executionSeq": 25,
+        "settlementState": "FINALIZED_SUCCESS"
+      },
+      "counts": {
+        "body": 1,
+        "domain": 1,
+        "runs": 1,
+        "items": 1
+      },
+      "unit": "DIRECTORY"
+    },
+    {
+      "leg": 2,
+      "http": 228,
+      "sql": 4346,
+      "wholeMs": 31570.057250000005,
+      "startedAtMs": 1791905449107,
+      "ready": 3884.58425,
+      "observations": [],
+      "result": {
+        "releaseSha": "2da03c460c17aa0a143f06fc4f9af739a0dc21be",
+        "outcome": "PARTIAL",
+        "itemsProcessed": 0,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "unitsCommitted": 1,
+        "executionSeq": 26,
+        "settlementState": "FINALIZED_SUCCESS"
+      },
+      "counts": {
+        "body": 1,
+        "domain": 1,
+        "runs": 2,
+        "items": 1
+      },
+      "unit": "RUN_START"
+    },
+    {
+      "leg": 3,
+      "http": 237,
+      "sql": 3578,
+      "wholeMs": 32849.62054100001,
+      "startedAtMs": 1791905480705,
+      "ready": 3987.7104160000017,
+      "observations": [],
+      "result": {
+        "releaseSha": "2da03c460c17aa0a143f06fc4f9af739a0dc21be",
+        "outcome": "PARTIAL",
+        "itemsProcessed": 0,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "unitsCommitted": 1,
+        "executionSeq": 27,
+        "settlementState": "FINALIZED_SUCCESS"
+      },
+      "counts": {
+        "body": 1,
+        "domain": 1,
+        "runs": 2,
+        "items": 1
+      },
+      "unit": "RUN_COMPLETE"
+    },
+    {
+      "leg": 4,
+      "http": 272,
+      "sql": 6688,
+      "wholeMs": 38644.371333,
+      "startedAtMs": 1791905513581,
+      "ready": 3863.178958000004,
+      "observations": [],
+      "result": {
+        "releaseSha": "2da03c460c17aa0a143f06fc4f9af739a0dc21be",
+        "outcome": "PARTIAL",
+        "itemsProcessed": 0,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "unitsCommitted": 1,
+        "executionSeq": 28,
+        "settlementState": "FINALIZED_SUCCESS"
+      },
+      "counts": {
+        "body": 1,
+        "domain": 1,
+        "runs": 2,
+        "items": 2
+      },
+      "unit": "ITEM"
+    },
+    {
+      "leg": 5,
+      "http": 265,
+      "sql": 5398,
+      "wholeMs": 37303.48624999999,
+      "startedAtMs": 1791905552258,
+      "ready": 3908.3064580000064,
+      "observations": [],
+      "result": {
+        "releaseSha": "2da03c460c17aa0a143f06fc4f9af739a0dc21be",
+        "outcome": "PARTIAL",
+        "itemsProcessed": 0,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "unitsCommitted": 1,
+        "executionSeq": 29,
+        "settlementState": "FINALIZED_SUCCESS"
+      },
+      "counts": {
+        "body": 1,
+        "domain": 1,
+        "runs": 2,
+        "items": 2
+      },
+      "unit": "AUTHORITY"
+    }
+  ],
+  "remainingDomain": [
+    {
+      "leg": 1,
+      "http": 296,
+      "sql": 4641,
+      "wholeMs": 41191.955208,
+      "ready": 3835.051375000001,
+      "observations": [],
+      "result": {
+        "releaseSha": "2da03c460c17aa0a143f06fc4f9af739a0dc21be",
+        "outcome": "BUDGET_EXHAUSTED",
+        "itemsProcessed": 0,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "executionSeq": 30,
+        "settlementState": "FINALIZED_SUCCESS"
+      },
+      "counts": {
+        "body": 1,
+        "domain": 1,
+        "runs": 2,
+        "items": 2
+      }
+    }
+  ],
+  "tests": {
+    "primaryFocused": {
+      "passed": 11,
+      "failed": 0,
+      "scope": [
+        "current capture",
+        "Journal authority",
+        "enumeration",
+        "generation/lease/tenant regressions"
+      ]
+    },
+    "managed115msFiveUnits": {
+      "passed": 1,
+      "scope": "DIRECTORY + four real immutable raw calculation units, fresh connection per invocation, exact named ACK/producer HMAC verification"
+    },
+    "strictRawDomain": {
+      "passed": 0,
+      "failed": 1,
+      "scope": "zero progress under deadline is an intentional failing capacity acceptance gate"
+    },
+    "independentSafety": {
+      "scenariosVerified": 8,
+      "wholeCapacityApproved": false
+    }
+  },
+  "measurementIdentity": {
+    "loadedCheckpoint": "2da03c460c17aa0a143f06fc4f9af739a0dc21be",
+    "trackedDeltaPresent": true,
+    "sourceHashes": {
+      "phase4Core.js": "ae1a84f3497b23c552cb92a9a50ca68c0d8c92c3771a64fde9f56aca83ebb8c2",
+      "phase4IntelligenceStore.js": "996f3b727021dc2f4521cde3068237a028c4440567db02a8d744bf4bb8e258c1",
+      "phase4LegacyDiscovery.js": "07830f973c6e13d0f6ebfb1a3f2b06114bfe56474ce5b83835e6c4fb619f7bee",
+      "phase4MetricUnitReceipt.js": "56a559df1e9f0836c27ed0781588537a2958a706eb3520b7f5b64a5f25002e59",
+      "phase4OperationReceipts.js": "d3fa8288bb83c9d3e335e478de68a9e671494da2d1eb5cd3af97a567e877c852",
+      "phase4Reanalysis.js": "4d1e74aa836218d507c902a7a7c4cd27b167d087fd8f985053d123ede0a93db5",
+      "phase4ReanalysisInputs.js": "aacd4c8f5192b93a925e0adb9f0371e1ba8ddee0d3e164d5a35e6accf6c73c01",
+      "phase4Repositories.js": "ea6c25391f4b45a58ffd0b46c3ac75ab7788c208404e9ffe451d799d8db3059a",
+      "phase4ResultAuthority.js": "30fc5ae29d64960a2c09b8d8689f207c895289b69778cc2ce32f2b0cb5e5bc12",
+      "stage6CurrentCaptureTime.js": "77180ac1b855b3fd0a049b38fc4ca2cbeb4dccac3dd15da72014100e26689998"
+    },
+    "finalFrozenCommitTimingQualification": false
+  }
 }

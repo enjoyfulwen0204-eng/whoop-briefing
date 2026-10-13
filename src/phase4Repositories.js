@@ -76,8 +76,10 @@ export function composePhase4Stores(core) {
     prepareCurrentRawMetricRequest:async(context,metricKey,source)=>{
       if(phase4Metric(metricKey).sourceType!==source.source_type)fail('PHASE4_METRIC_SOURCE_MISMATCH');
       const inputs=createReanalysisInputs(core,{readArtifact,root:core.root}),current=await core.root(context,source.source_type,source.source_id),
-        latest=await inputs.latest(context,source.source_type),idKey=source.source_type==='recovery'?'sleep_id':'id';
-      if(!latest||String(latest[idKey])!==source.source_id)return {request:null,source:[source.source_type,source.source_id,source.cursor,metricKey]};
+        skipped=()=>({request:null,source:[source.source_type,source.source_id,source.cursor,metricKey]});
+      if(!inputs.eligible(source.source_type,current.row))return skipped();
+      const latest=await inputs.latest(context,source.source_type),idKey=source.source_type==='recovery'?'sleep_id':'id';
+      if(!latest||String(latest[idKey])!==source.source_id)return skipped();
       let retained=null;
       const asOfUtc=await stage6CurrentCaptureTime(core,context,metricKey,current,{preparePending:async time=>{
         retained=await inputs.metric(context,metricKey,current,time);return retained;

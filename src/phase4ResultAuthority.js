@@ -92,7 +92,7 @@ export function createResultAuthority(core) {
     if(!descriptors.length&&!metric&&version==='v2')add('USER',context.userId);
     return ordered(descriptors);
   }
-  async function captureRoots(context,refs,salt) {
+  async function captureRoots(context,refs,salt,{parallelDerived=false}={}) {
     const inputs=await core.revalidateSources(context,refs),pending=inputs.map(source=>({type:source.type,id:source.id,
       mode:source.mode,as_of:source.historicalAsOf??null,version:null})),entries=new Map(),seen=new Set();
     const identityFor=descriptor=>canonicalJson([descriptor.mode,descriptor.type,descriptor.id,descriptor.as_of]);
@@ -146,7 +146,7 @@ export function createResultAuthority(core) {
     };
     while(pending.length) {
       const first=pending.shift(),group=[first],identities=new Set([identityFor(first)]);
-      if(core.processing.active?.()&&rawRoot(first))while(group.length<RAW_SOURCE_READ_BATCH&&pending.length&&rawRoot(pending[0])
+      if(core.processing.active?.()&&(rawRoot(first)||parallelDerived))while(group.length<RAW_SOURCE_READ_BATCH&&pending.length&&(rawRoot(pending[0])||parallelDerived)
         &&!identities.has(identityFor(pending[0]))) {
         const next=pending.shift();group.push(next);identities.add(identityFor(next));
       }

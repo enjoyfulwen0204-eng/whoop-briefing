@@ -312,7 +312,24 @@ export function createPhase4SlotStore(core,entities,messages) {
       return {blocked:true,reason:'LEGACY_OCCUPIED',slot};
     });
   }
-  return {acquire,beginSimulation,classifySimulation,expire,reconcile,resolveValidated,
+  async function suppressBeforeSend(control,mode,{messageId}){
+    return core.runMaintenance(control,mode,async()=>{
+      const slot=await row(control.userId,mode);
+      if(slot?.state!=='RESERVED'||slot.outbound_message_id!==messageId)return slot;
+      return cancel(control.userId,mode,slot,'PRE_SEND_FAILURE');
+    });
+  }
+  async function bindProposal(context,{questionRequestId,messageId}){
+    return core.run(context,async()=>{
+      const slot=await row(context.userId,context.executionMode),message=await core.artifact(context,'outbound_messages',{message_id:messageId});
+      if(message.row.message_class!=='CONTEXT_QUESTION'||message.row.question_request_id!==questionRequestId||slot?.state!=='RESERVED'||slot.question_request_id!==questionRequestId)fail('PHASE4_SLOT_CAS_LOST');
+      if(slot.outbound_message_id===messageId)return slot;
+      if(slot.outbound_message_id!==null)fail('PHASE4_SLOT_CAS_LOST');
+      await client.execute({sql:'UPDATE context_questions SET outbound_message_id=? WHERE user_id=? AND execution_mode=? AND question_request_id=? AND outbound_message_id IS NULL',args:[messageId,context.userId,context.executionMode,questionRequestId]});
+      return cas(context.userId,context.executionMode,slot,{outbound_message_id:messageId});
+    });
+  }
+  return {acquire,beginSimulation,classifySimulation,expire,reconcile,resolveValidated,suppressBeforeSend,bindProposal,
     syncLegacy,projectPending,
     pauseExisting,transportStart,transportSettle,read:(control,mode)=>core.runMaintenance(control,mode,()=>row(control.userId,mode))};
 }

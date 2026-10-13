@@ -5,7 +5,7 @@ import {displayNameFor} from '../src/displayName.js';
 const buttons=r=>r.replyMarkup.inline_keyboard.flat();
 const action=(r,code)=>buttons(r).find(b=>b.callback_data.endsWith('.'+code)).callback_data;
 async function fixture(t,locale){
- const {db,transport}=await deliveryFixture(t);await db.admitRuntime();
+ const {db,transport}=await deliveryFixture(t,{version:33});await db.admitRuntime();
  for(const [id,chatId] of [['alice','1001'],['bob','1002']]){await db.createUser({id,displayName:id,status:'ACTIVE',timezone:'Asia/Taipei'});await db.linkTelegram({userId:id,chatId});if(locale)await db.setLocale(id,locale);}
  let at=Date.now();const options={db,now:()=>new Date(at)};let handle=createSettings(options);
  const call=async(text,{uid='alice',data}={})=>handle({text,chatId:uid==='alice'?'1001':'1002',user:await db.getUser(uid),...(data?{callback:{data}}:{})});
@@ -27,7 +27,7 @@ for(const locale of ['zh-TW','en','vi'])test(`Settings commands, icon buttons, l
  const other=await f.call('',{uid:'bob',data:action(preview,'save')});assert.equal(other.text,SETTINGS_COPY[locale].expired);assert.equal((await f.db.getUser('bob')).displayName,'bob');
  f.restart();const saved=await f.call('',{data:action(preview,'save')});assert.equal(saved.text,SETTINGS_COPY.en.saved);assert.equal(await displayNameFor(f.db,'alice'),'Ánh <&> 🧑‍💻');
  const updated=(await f.db.getUser('alice')).updatedAt;await f.call('',{data:action(preview,'save')});assert.equal((await f.db.getUser('alice')).updatedAt,updated);
- assert.equal(await f.db.getState(settingsKey('alice')),null);assert.equal((await f.db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0].v,32);
+ assert.equal(await f.db.getState(settingsKey('alice')),null);assert.equal((await f.db.raw.execute('SELECT MAX(version) v FROM schema_version')).rows[0].v,33);
 });
 test('UNSET reaches chooser; expiration, cancel, invalid names and concurrent profile changes fail closed',async t=>{
  const f=await fixture(t,null),chooser=await f.call('/settings');assert.match(chooser.text,/Language.*語言.*Ngôn ngữ/);assert.equal(await f.db.getLocale('alice'),null);

@@ -326,6 +326,12 @@ export async function verifyPhase4Schema(client, version = EXPECTED_SCHEMA_VERSI
     const checkpoint=(await client.execute("SELECT last_cursor,postcondition_state FROM phase4_migration_checkpoints WHERE target_version=32 AND step_key='execution_authority'")).rows[0];
     if(checkpoint?.postcondition_state!=='COMPLETE'||checkpoint.last_cursor!=='phase4-execution-v2')throw new Phase4SchemaError('PHASE4_AUTHORITY_CHECKPOINT_INCOMPLETE','execution_authority');
   }
+  if(version>=33){
+    for(const table of ['quick_action_interactions','journal_tracking_preferences','journal_prompt_deliveries'])
+      await requireZero(client,`SELECT 1 FROM ${table} p LEFT JOIN users u ON u.id=p.user_id WHERE u.id IS NULL LIMIT 1`,'v33_tenant');
+    await requireZero(client,`SELECT 1 FROM journal_events WHERE content_state='PRESENT' AND provenance_mode='TRUSTED_REGISTRY' AND
+      (source_kind<>'quick_action' OR registry_version IS NULL OR interaction_id IS NULL OR raw_answer_excerpt IS NOT NULL AND note IS NULL) LIMIT 1`,'v33_provenance');
+  }
   if (version >= 22) await verifyV22Data(client, { backfill: options.backfillVersion === 22 });
   if (version >= 23 && options.backfillVersion === 23) await requireZero(client, `SELECT 1 FROM health_insights
     WHERE legacy_classification IS NOT 'LEGACY_UNVERIFIED' OR insight_key IS NOT NULL OR current_revision IS NOT NULL

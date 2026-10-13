@@ -472,7 +472,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function withCurrentBodyMetricObservation(context,request,sourceAsOfUtc,work){
     if(typeof work!=='function')fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
-    if(core.schemaVersion!==32||request.metricKey!=='body_energy'||request.windowFamily!=='STAGE6_CURRENT_BODY_ENERGY'
+    if(![32,33].includes(core.schemaVersion)||request.metricKey!=='body_energy'||request.windowFamily!=='STAGE6_CURRENT_BODY_ENERGY'
       ||!Array.isArray(request.baselineSources)||request.baselineSources.length||typeof sourceAsOfUtc!=='string')return work(request);
     if(!core.processing.active?.())fail('PHASE4_TRANSACTION_REQUIRED');
     return withMetricPreparationContinuation(core,context,async()=>{
@@ -491,7 +491,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function metricPreparationUnit(context,request,kind){return performMetricPreparationUnit(context,request,kind);}
   async function replayCurrentBodyMetricFamily(context,sourceAsOfUtc,workStepFor,work){
-    if(core.schemaVersion!==32||!core.jobAuthority()||typeof workStepFor!=='function'||typeof work!=='function')
+    if(![32,33].includes(core.schemaVersion)||!core.jobAuthority()||typeof workStepFor!=='function'||typeof work!=='function')
       fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
     return withMetricPreparationContinuation(core,context,async()=>{
       let request,inventory,purpose;
@@ -520,7 +520,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     return withMetricPreparationContinuation(core,context,()=>performMetricPreparationUnit(context,null,'NEXT',()=>prepareCurrentBodyMetricRequest(context,asOfUtc)));
   }
   async function performMetricPreparationUnit(context,request,kind,requestFrom=null) {
-    if(core.schemaVersion!==32||!core.jobAuthority()||!requestFrom&&request?.refresh!==true
+    if(![32,33].includes(core.schemaVersion)||!core.jobAuthority()||!requestFrom&&request?.refresh!==true
       ||!['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY','NEXT'].includes(kind))
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     let prepared,alreadyRecorded=false,bodySource=null,ownedPurpose=null,domainWorkStep=null;

@@ -1,8 +1,9 @@
 /** Deterministic synthetic inputs; no provider data or credentials. */
+import { localDate } from '../src/time.js';
 export function bodyInput({asOf=Date.parse('2026-09-19T00:00:00.000Z'),days=30,timezone='Asia/Taipei'}={}) {
   const iso=ms=>new Date(ms).toISOString(),at=iso(asOf),sources={sleep:[],recovery:[],cycle:[],workout:[]};
   for(let n=0;n<=days;n++) {
-    const wake=asOf-n*86400000,id=`sleep-${String(n).padStart(2,'0')}`,day=iso(wake).slice(0,10);
+    const wake=asOf-n*86400000,id=`sleep-${String(n).padStart(2,'0')}`,day=localDate(new Date(wake),timezone);
     sources.sleep.push({user_id:'a',id,health_date:day,start_at:iso(wake-8*3600000),end_at:iso(wake),nap:0,score_state:'SCORED',
       sleep_performance_percentage:50,updated_at:iso(wake),synced_at:at});
     const change=n===0?0:(n-15.5)*0.5;

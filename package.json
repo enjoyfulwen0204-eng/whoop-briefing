@@ -32,7 +32,8 @@
     "reconcile:run": "node scripts/reconcile.js run",
     "analytics:status": "node scripts/analytics.js status",
     "analytics:light": "node scripts/analytics.js light",
-    "analytics:heavy": "node scripts/analytics.js heavy"
+    "analytics:heavy": "node scripts/analytics.js heavy",
+    "test:stage7": "node --test test/stage7-*.test.js"
   },
   "dependencies": {
     "@libsql/client": "^0.15.0"

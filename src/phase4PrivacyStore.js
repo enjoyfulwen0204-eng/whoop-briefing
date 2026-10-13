@@ -39,6 +39,9 @@ export function createPhase4PrivacyStore(core,queue) {
           artifact,generation]});
       await addPrivacyLink(client,{userId:control.userId,table:'health_purge_replacements',artifactId:artifact,
         sourceType:'USER',sourceId:control.userId,relationship:`CORRECTION_ASSERTION:${sourceKey}`,at});
+      // Registered handlers may replace a draft-copy dependency with this
+      // independently confirmed assertion only in the same durable T0 stage.
+      if(handler.staged)await handler.staged(control,normalized);
     }});
     return ticket;
   }

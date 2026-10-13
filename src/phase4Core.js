@@ -1,4 +1,5 @@
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
+import {assertRegisteredJournalProvenance} from './stage7JournalProvenance.js';
 import {readOnlyProcessingCheck} from './processingTransaction.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {controlOnlyProcessingCheck,processingReadObservationEpoch} from './processingTransaction.js';
@@ -73,12 +74,12 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   // must separately require v28; unsupported versions still fail closed.
   const schemaVersion=admission ? requireRuntimeAdmission(client,admission,keys,transaction)
     :Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
-  if(![27,28,29,30,31,32].includes(schemaVersion))fail('phase4_schema_version_mismatch');
-  if (!admission && schemaVersion === 32) admission=await admitRuntime(client,keys);
+  if(![27,28,29,30,31,32,33].includes(schemaVersion))fail('phase4_schema_version_mismatch');
+  if (!admission && schemaVersion === 33) admission=await admitRuntime(client,keys);
   if (!admission) await assertPhase4Schema(client,schemaVersion);
   if(admission)followRuntimeRenewal(client,admission,keys,transaction,next=>{admission=next;});
   const databases=(await client.execute('PRAGMA database_list')).rows;
-  const isolatedMemory=client.protocol==='file'&&databases.length===1&&databases[0].name==='main'&&databases[0].file==='';
+  const isolatedMemory=client.protocol==='file'&&databases.some(r=>r.name==='main')&&databases.every(r=>['main','temp'].includes(r.name)&&r.file==='');
   function authorizeMode(mode,connection) {
     if(admission)requireRuntimeAdmission(client,admission,keys,transaction);
     if(mode==='LIVE'&&!isolatedMemory)fail('PHASE4_LIVE_FIXTURE_MEMORY_REQUIRED');
@@ -280,7 +281,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
         compareRootObservation(context,type,String(id),values);
       } else {
         if(!readableRow(row))fail('CONTENT_REDACTED');
-        if(type==='JOURNAL_FACT' && row.fact_status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');
+        if(type==='JOURNAL_FACT'){if(row.fact_status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');assertRegisteredJournalProvenance(row);}
         if(type==='JOURNAL_COVERAGE') {
           if(row.status!=='ACTIVE')fail('PHASE4_SOURCE_NOT_CURRENT');
           await coverageLineage(client,context.userId,id);
@@ -575,7 +576,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   // actual link plus every expected audit/domain root once; callers compare
   // their original purposes against these data before the final fresh gate.
   async function currentBodyRawUnion(context,row,expected){
-    if(!processing.active?.()||!jobScope.getStore()||!contexts.has(context)||schemaVersion!==32||context.executionMode!=='SHADOW'
+    if(!processing.active?.()||!jobScope.getStore()||!contexts.has(context)||![32,33].includes(schemaVersion)||context.executionMode!=='SHADOW'
       ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)
       fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
     if(row.user_id!==context.userId||row.execution_mode!==context.executionMode||!readableRow(row))fail('CONTENT_REDACTED');
@@ -614,7 +615,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   // It returns raw observations only: its caller executes each original
   // purpose comparator in order and fences again before a receipt effect.
   async function bodyMetricPreparationRawUnion(context,refs,expected,ownedPurpose=null){
-    if(!processing.active?.()||!jobScope.getStore()||!contexts.has(context)||schemaVersion!==32||context.executionMode!=='SHADOW'
+    if(!processing.active?.()||!jobScope.getStore()||!contexts.has(context)||![32,33].includes(schemaVersion)||context.executionMode!=='SHADOW'
       ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     requireSettledOperation();
@@ -721,7 +722,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   // source comparators run in their original order. A later mutation phase
   // invokes a NEW closure; no successful graph check or permit is reused.
   async function metricPreparationItemSources(context,runId,bodyRefs,runRef=null){
-    if(!processing.active?.()||!jobScope.getStore()||schemaVersion!==32||context.executionMode!=='SHADOW'
+    if(!processing.active?.()||!jobScope.getStore()||![32,33].includes(schemaVersion)||context.executionMode!=='SHADOW'
       ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     requireSettledOperation();

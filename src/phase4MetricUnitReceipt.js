@@ -8,7 +8,7 @@ import {phase4Metric,INTELLIGENCE_VERSIONS} from './phase4IntelligenceRegistry.j
 const kinds=new Set(['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY']),proofs=new WeakMap();
 const continuationScope=new AsyncLocalStorage();
 export function withMetricPreparationContinuation(core,context,work){
- if(core.schemaVersion!==32||!core.jobAuthority()||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN')fail();
+ if(![32,33].includes(core.schemaVersion)||!core.jobAuthority()||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN')fail();
  return continuationScope.run({core,context,execution:currentDurableExecution(),job:core.jobAuthority()},work);
 }
 export function metricPreparationContinuation(core,context){
@@ -89,7 +89,7 @@ const producerSql=`SELECT p.*,e.state,e.phase,e.generation final_generation,
  WHERE p.user_id=? AND p.execution_mode=? AND p.input_generation=? ORDER BY p.execution_seq LIMIT 129`;
 function requireUnitPurpose(core,context){
  requireSettledOperation();const execution=currentDurableExecution();
- if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||!core.jobAuthority()
+ if(![32,33].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||!core.jobAuthority()
   ||!execution||execution.receipts===false)fail();
 }
 async function finishUnitObservation(core,context){

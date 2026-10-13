@@ -1,3 +1,4 @@
+import {isJournalCallback} from '../stage7Cards.js';
 import {isSettingsCallback} from './settings.js';
 import {validMessageId} from '../telegramAcknowledgment.js';
 /**
@@ -95,14 +96,14 @@ export function isAcknowledgeable(outcome) {
  *
  * 刻意不看訊息文字、不看 username —— 那些都是對方可以隨意控制的。
  */
-function settingsMessage(update) {
+function settingsMessage(update,stage7Enabled=false) {
  const callback=update?.callback_query;
  if(!callback)return update?.message;
- if(!isSettingsCallback(callback.data)||!callback.message)return null;
+ if(!(isSettingsCallback(callback.data)||stage7Enabled&&isJournalCallback(callback.data))||!callback.message)return null;
  return {...callback.message,from:callback.from,text:callback.data};
 }
-export function conversationKeyOf(update) {
-  const msg = settingsMessage(update);
+export function conversationKeyOf(update,{stage7Enabled=false}={}) {
+  const msg = settingsMessage(update,stage7Enabled);
   if (!msg) return null;
   if (typeof msg.text !== 'string' || !msg.text.trim()) return null;
   const chat = msg.chat ?? {};
@@ -134,6 +135,10 @@ export function createUpdateProcessor({
   /** Default-off dedicated control path, before the ordinary action/receipt
    * transaction. No production entry point supplies this foundation adapter. */
   phase4JournalControl = null,
+  /** Default-null Stage 7 development adapter. Business corrections run before
+   * the receipt root; presentation is revalidated inside that root. */
+  stage7Inbound = null,
+  stage7Reply = null,
   /** 送出回覆。帶 HRD-R03 的綁定守衛，回 {sent, messageId}。 */
   sendReply = null,
   answerCallback = null,
@@ -159,6 +164,7 @@ export function createUpdateProcessor({
   setIntervalImpl = setInterval,
   clearIntervalImpl = clearInterval,
 }) {
+  if(Boolean(stage7Inbound)!==Boolean(stage7Reply)||stage7Inbound&&typeof stage7Inbound!=='function'||stage7Reply&&typeof stage7Reply!=='function')throw Error('STAGE7_REPLY_REVALIDATION_REQUIRED');
   const mkAttemptId = newAttemptId ?? (() => `${workerId}#${randomUUID()}`);
   let startupFeedbackClaimed = false;
 
@@ -239,7 +245,7 @@ export function createUpdateProcessor({
    * 被拒絕的訊息**完全不回覆**：對方永遠學不到這個 bot 綁了誰。
    */
   async function classify(update) {
-    const msg = settingsMessage(update);
+    const msg = settingsMessage(update,Boolean(stage7Inbound));
     if (!msg) return { kind: 'not_a_message' };
     const chat = msg.chat ?? {};
     const chatId = String(chat.id ?? '');
@@ -455,7 +461,7 @@ export function createUpdateProcessor({
    */
   const localConversations=new Set();
   async function processUpdate(update) {
-    const key=conversationKeyOf(update);
+    const key=conversationKeyOf(update,{stage7Enabled:Boolean(stage7Inbound)});
     // This is only a fast negative gate, never processing/sending authority.
     // The durable claim/order/lease checks below remain mandatory across
     // processes. A second local request must not wait behind a transaction
@@ -474,7 +480,7 @@ export function createUpdateProcessor({
 
     const attemptId = mkAttemptId();
     // 純結構推導，不查資料庫 —— 所以它在認領的當下就可用。
-    const conversationKey = conversationKeyOf(update);
+    const conversationKey = conversationKeyOf(update,{stage7Enabled:Boolean(stage7Inbound)});
 
     let claimed = false;
     if (typeof db.claimTelegramUpdate === 'function') {
@@ -572,6 +578,7 @@ export function createUpdateProcessor({
         }
       }
 
+      const journalResult=c.kind==='ok'&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
       const dispatch = async () => {
         if (c.kind === 'unlinked') {
           const reply = handleUnlinked ? await handleUnlinked({
@@ -613,7 +620,9 @@ export function createUpdateProcessor({
             throw err;
           }
         }
-        const handled = await handleMessage({
+        const handled = journalResult?.handled
+          ? await stage7Reply({...c,reply:journalResult.reply})
+          : await handleMessage({
           text: c.text, chatId: c.chatId, message: c.message, user: c.user, callback:c.callback,
         });
         return {

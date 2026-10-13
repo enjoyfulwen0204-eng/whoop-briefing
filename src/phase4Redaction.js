@@ -1,3 +1,4 @@
+import {V33_HEALTH_FIELDS,V33_JOURNAL_FIELDS} from './phase4V33Schema.js';
 import { fail } from './phase4Core.js';
 import { V22_LEGACY_R_TABLES, V22_NEW_R_TABLES } from './phase4V22Schema.js';
 import { V23_HEALTH_FIELDS, EPISODE_ACTIVE } from './phase4V23Schema.js';
@@ -11,7 +12,7 @@ const nulls=fields=>Object.fromEntries(fields.map(k=>[k,null]));
 const DISPOSABLE=new Set(['healthspan_metrics','healthspan_snapshots','prediction_runs','prediction_models','analytics_daily_state']);
 const FIELDS=Object.freeze({
   journal_events:{...nulls(['subtype','numeric_value','text_value','unit','severity','note','raw_answer_excerpt','recorded_timezone',
-    'time_scope','event_end_at','health_date_alignment','exposure_state','extraction_confidence']),
+    'time_scope','event_end_at','health_date_alignment','exposure_state','extraction_confidence',...V33_JOURNAL_FIELDS]),
     event_at:HEALTH_REDACTED,health_date:HEALTH_REDACTED,category:HEALTH_REDACTED,source:HEALTH_REDACTED},
   pending_questions:{question:HEALTH_REDACTED,context_json:'{}',original_message:null,answer_text:null,intent:null},
   telegram_operations:{result_json:REDACTED_RECEIPT},
@@ -35,14 +36,14 @@ const FIELDS=Object.freeze({
     'U','D','R','A','T','K','P','F']),
   structured_answer_events:{normalized_answer_json:null},health_purge_replacements:{normalized_replacement_json:null},
   experiment_field_groups:{},
-  ...Object.fromEntries(Object.entries({...V23_HEALTH_FIELDS,...V24_HEALTH_FIELDS,...V25_HEALTH_FIELDS,...V26_HEALTH_FIELDS,...V27_HEALTH_FIELDS}).map(([t,f])=>[t,nulls(f)])),
+  ...Object.fromEntries(Object.entries({...V23_HEALTH_FIELDS,...V24_HEALTH_FIELDS,...V25_HEALTH_FIELDS,...V26_HEALTH_FIELDS,...V27_HEALTH_FIELDS,...V33_HEALTH_FIELDS}).map(([t,f])=>[t,nulls(f)])),
 });
 // Erasure is a physical postcondition, independent of typed readability.
 export function physicallyScrubbed(table,row) {
   return Boolean(row && FIELDS[table] && row.content_state==='REDACTED'
     && row.source_linkage_state==='DISCONNECTED' && row.health_content_redacted_at
     && row.content_digest_salt===null
-    && Object.entries(FIELDS[table]).every(([field,value])=>row[field]===value));
+    && Object.entries(FIELDS[table]).every(([field,value])=>(!Object.hasOwn(row,field)||row[field]===value)));
 }
 export const PRIVACY_TABLES=Object.freeze([...new Set([...V22_LEGACY_R_TABLES,...V22_NEW_R_TABLES,...Object.keys(FIELDS)])]);
 
@@ -95,7 +96,8 @@ export function createPhase4Redactor(core) {
     }
   }
   async function apply(userId,node,purge) {
-    const {row,where,args}=await locate(userId,node);if(!row)return 'REMOVED';
+    const {row,where,args,columns}=await locate(userId,node);if(!row)return 'REMOVED';
+    if(node.type==='quick_action_interactions')await client.execute({sql:'DELETE FROM journal_callback_tokens WHERE user_id=? AND interaction_id=?',args:[userId,row.interaction_id]});
     if(node.type==='journal_events'&&purge.operation_kind==='DELETION'&&purge.target_source_type==='JOURNAL_FACT'
       &&row.logical_fact_id===purge.target_source_id) {
       // Logical deletion removes every revision, including previously redacted
@@ -143,6 +145,12 @@ export function createPhase4Redactor(core) {
         args:[EXPERIMENT_SENTINELS[row.field_name],at,userId,row.experiment_id]});
       Object.assign(patch,{provenance_state:'REDACTED',updated_at:at});
     }
+    if(node.type==='quick_action_interactions'){patch.revision=row.revision+1;patch.state='UNDONE';}
+    if(node.type==='journal_prompt_deliveries'){
+      patch.revision=row.revision+1;
+      if(['PROPOSED','FAILED_DEFINITE'].includes(row.state))patch.state='SUPPRESSED';
+      if(row.state==='DELIVERY_STARTED')patch.state='AMBIGUOUS';
+    }
     if(node.type==='outbound_messages') {
       patch.revision=row.revision+1;patch.updated_at=at;
       if(['PROPOSED','ELIGIBLE','CLAIMED'].includes(row.state))Object.assign(patch,{state:'INVALIDATED',terminal_reason:'CONTENT_REDACTED',lease_owner:null,lease_expires_at:null});
@@ -152,7 +160,7 @@ export function createPhase4Redactor(core) {
           WHERE user_id=? AND execution_mode=? AND reservation_id=? AND state='RESERVED'`,args:[at,userId,row.execution_mode,row.reservation_id]});
       }
     }
-    const fields=Object.keys(patch);
+    const fields=Object.keys(patch).filter(field=>columns.some(c=>c.name===field));
     await client.execute({sql:`UPDATE ${node.type} SET ${fields.map(k=>`${k}=?`).join(',')} WHERE ${where}`,args:[...fields.map(k=>patch[k]),...args]});
     return 'REDACTED';
   }
@@ -165,7 +173,8 @@ export function createPhase4Redactor(core) {
       args:[userId,node.mode,node.type,node.id]})).rows.length)return;
     if(!row || row.content_state!=='REDACTED' || row.source_linkage_state!=='DISCONNECTED'
       || !row.health_content_redacted_at || row.content_digest_salt!==null)fail('PHASE4_REDACTION_POSTCONDITION');
-    for(const [field,value] of Object.entries(FIELDS[node.type]||{}))if(row[field]!==value)fail('PHASE4_REDACTION_PLAINTEXT_REMAINS');
+    for(const [field,value] of Object.entries(FIELDS[node.type]||{}))if(Object.hasOwn(row,field)&&row[field]!==value)fail('PHASE4_REDACTION_PLAINTEXT_REMAINS');
+    if(node.type==='quick_action_interactions'&&(await client.execute({sql:'SELECT 1 FROM journal_callback_tokens WHERE user_id=? AND interaction_id=? LIMIT 1',args:[userId,row.interaction_id]})).rows.length)fail('STAGE7_REDACTED_CALLBACK_REMAINS');
     if(node.type==='experiment_field_groups' && row.is_current===1) {
       const projection=(await client.execute({sql:`SELECT ${row.field_name} value FROM experiments WHERE user_id=? AND id=?`,args:[userId,row.experiment_id]})).rows[0];
       if(projection?.value!==EXPERIMENT_SENTINELS[row.field_name])fail('PHASE4_EXPERIMENT_PLAINTEXT_REMAINS');

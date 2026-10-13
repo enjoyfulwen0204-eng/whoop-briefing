@@ -58,7 +58,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,assertFences:db.assertRuntimeFences,active:db.processingTransactionActive,
     afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
     authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
-  if(![28,29,30,31,32].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
+  if(![28,29,30,31,32,33].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
   const stores=composePhase4Stores(core),queue=createReanalysisQueue(core),inputs=createReanalysisInputs(core,stores),client=core.client;
   const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,keys):null;
 
@@ -128,7 +128,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   async function metricsV30(context,req,lease,assertBudget,{preparedDefault=false,defaultReplay=null}={}) {
     const directory=defaultReplay?.inventory??await queue.owned(context,lease,()=>familyDirectory.inventory(context,req.metricKey),
       {assertBudget,workKind:'stage6.family-inventory',workFacts:[req.metricKey,req.asOfUtc]});
-    if(core.schemaVersion===32&&req.metricKey==='body_energy'&&directory.created)
+    if([32,33].includes(core.schemaVersion)&&req.metricKey==='body_energy'&&directory.created)
       return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,
         units:[{kind:'FAMILY_DIRECTORY',status:'COMPLETE'}],committedUnits:1};
     const defaultKey=keys.lookup(['episode-family-v1',context.userId,phase4Metric(req.metricKey).domain,
@@ -145,7 +145,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
       if(defaultReplay&&candidate.familyKey===defaultKey){
         units.push({kind:'EPISODE_FAMILY',familyKey:defaultKey,status:'COMPLETE',outcome:defaultReplay.outcome});continue;
       }
-      if(core.schemaVersion===32&&req.metricKey==='body_energy'&&candidate.windowFamily&&!preparedDefault){
+      if([32,33].includes(core.schemaVersion)&&req.metricKey==='body_energy'&&candidate.windowFamily&&!preparedDefault){
         const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnit(context,
           {...req,windowFamily:candidate.windowFamily,refresh:true},'NEXT'),{assertBudget});
         if(unit?.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:firstFailure,
@@ -166,7 +166,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   }
 
   async function metric(context,req,history,{replayOnly=false,replayPrepared=null}={}) {
-    const prepared=replayPrepared??await (replayOnly?stores.intelligence.replayExistingMetricPreparation(context,{...req,refresh:true}):core.schemaVersion===32&&req.metricKey==='body_energy'
+    const prepared=replayPrepared??await (replayOnly?stores.intelligence.replayExistingMetricPreparation(context,{...req,refresh:true}):[32,33].includes(core.schemaVersion)&&req.metricKey==='body_energy'
       ?stores.intelligence.resumeMetricPreparation(context,{...req,refresh:true})
       :stores.intelligence.analyzeMetric(context,{...req,refresh:true}));
     if(!['LIMITED','AVAILABLE'].includes(prepared.quality.status)||prepared.quality.confidence<=0)
@@ -327,7 +327,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
   async function processSourceV30(context,source,asOfUtc,lease,assertBudget,admittedRoot=null,bodyCandidate=false,bodyReplayHint=false) {
     const root=admittedRoot??await core.run(context,()=>stores.root(context,source.source_type,source.source_id));
     if(source.source_type==='USER') {
-      if(core.schemaVersion===32&&bodyReplayHint){
+      if([32,33].includes(core.schemaVersion)&&bodyReplayHint){
         const defaultKey=keys.lookup(['episode-family-v1',context.userId,phase4Metric('body_energy').domain,
           'body_energy',INTELLIGENCE_VERSIONS.algorithm,'body_energy','STAGE6_CURRENT_BODY_ENERGY']);
         const replay=await queue.withOwnership(context,lease,()=>stores.intelligence.replayCurrentBodyMetricFamily(context,asOfUtc,
@@ -336,7 +336,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
           (req,{replaying=false}={})=>performMetricFamily(context,req,{familyKey:defaultKey,windowFamily:req.windowFamily},defaultKey,{replayOnly:true,readOnlyReplay:replaying})),{assertBudget});
         if(replay)return metricsV30(context,replay.request,lease,assertBudget,{preparedDefault:true,defaultReplay:replay});
       }
-      if(core.schemaVersion===32&&bodyCandidate){
+      if([32,33].includes(core.schemaVersion)&&bodyCandidate){
         const unit=await queue.withOwnership(context,lease,()=>stores.intelligence.metricPreparationUnitFromCurrentBody(context,asOfUtc),{assertBudget});
         if(unit.created)return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,
           units:[{kind:'METRIC_PREPARATION_UNIT',unit:unit.unit,status:'COMPLETE'}],committedUnits:1};
@@ -353,13 +353,13 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
         const analysisTime=await bodyEnergyMetricAnalysisTime(core,context,current,body.row.as_of_utc);assertBudget();
         return inputs.metric(context,'body_energy',current,analysisTime);
       };
-      const prior=core.schemaVersion===32&&bodyCandidate?await queue.owned(context,lease,async()=>{
+      const prior=[32,33].includes(core.schemaVersion)&&bodyCandidate?await queue.owned(context,lease,async()=>{
         const retained=await stores.bodyEnergy.readForCurrentDrain(context,asOfUtc);if(!retained)return null;
         assertBudget();return {body:retained.body,...(['AVAILABLE','LIMITED'].includes(retained.body.row.quality_state)
           ?{request:await inputs.metric(context,'body_energy',retained.current,retained.analysisTime)}:{})};
       },{assertBudget}):null;
       const recorded=prior??await queue.owned(context,lease,async()=>{
-        const body=await (core.schemaVersion===32?stores.bodyEnergy.computeForCurrentDrain(context)
+        const body=await ([32,33].includes(core.schemaVersion)?stores.bodyEnergy.computeForCurrentDrain(context)
           :stores.bodyEnergy.compute(context,{asOfEpochMs:Date.parse(asOfUtc)}));
         // Replayed Body and its required metric inputs use the same current
         // owned transaction. Every original typed artifact/domain/root check
@@ -395,7 +395,7 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     for(const [metricKey] of registeredMetrics) {
       let analysisAsOf=asOfUtc;
       try {
-        if(core.schemaVersion===32)analysisAsOf=await core.run(context,()=>stage6CurrentCaptureTime(core,context,metricKey,root));
+        if([32,33].includes(core.schemaVersion))analysisAsOf=await core.run(context,()=>stage6CurrentCaptureTime(core,context,metricKey,root));
         const request=await core.run(context,()=>inputs.metric(context,metricKey,root,analysisAsOf));
         units.push({kind:'METRIC_SOURCE',metricKey,status:'COMPLETE'});
         const episodeWork=await metricsV30(context,request,lease,assertBudget);
@@ -454,9 +454,9 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
               const lookedUp=await core.run(context,async()=>{
                 const page=await inputs.enumerate(context,cursor,1);
                 const root=familyDirectory&&page.length?await stores.root(context,page[0].source_type,page[0].source_id):null;
-                const receiptHintFrom=core.schemaVersion===32&&page[0]?.source_type==='USER'
+                const receiptHintFrom=[32,33].includes(core.schemaVersion)&&page[0]?.source_type==='USER'
                   ?await pilotPrefixFrom(client,context,'phase4_operation_receipts',[context.userId,context.executionMode],'p',true):null;
-                const bodyHints=core.schemaVersion===32&&page[0]?.source_type==='USER'
+                const bodyHints=[32,33].includes(core.schemaVersion)&&page[0]?.source_type==='USER'
                   ?(await client.execute({sql:`SELECT result_id,EXISTS(SELECT 1 FROM ${receiptHintFrom}
                     WHERE p.user_id=b.user_id AND p.execution_mode=b.execution_mode AND p.input_generation=b.input_generation
                       AND p.operation_kind='analyzeMetric' LIMIT 1) replay_hint

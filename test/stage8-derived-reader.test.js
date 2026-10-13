@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {stage8Fixture} from './stage8Fixture.js';
-import {createStage8DerivedReader,STAGE8_DERIVED_CONTRACT} from '../src/stage8DerivedReader.js';
+import {createStage8DerivedReader,STAGE8_DERIVED_CONTRACT,STAGE8_DERIVED_SELECTIONS,stage8DerivedSelection} from '../src/stage8DerivedReader.js';
 test('typed LIVE reader rejects external scope/mode/kind and returns updating without a producer for each registered kind',async t=>{
  const f=await stage8Fixture(t);await f.core.initializeTenant('a','LIVE');
  await f.db.raw.execute("UPDATE phase4_computation_state SET last_completed_generation=input_generation WHERE user_id='a' AND execution_mode='LIVE'");
@@ -14,4 +14,11 @@ test('real Self Q&A composition has wired reader, never promotes SHADOW or curre
  const f=await stage8Fixture(t);await f.core.initializeTenant('a','LIVE');await f.db.raw.execute("UPDATE phase4_computation_state SET last_completed_generation=input_generation WHERE user_id='a'");
  assert.match((await f.app.handle({...f.input,text:'/insights'})).text,/Analysis is updating/);const scope=await f.app.scopes.open({...f.input,text:'my recovery'});
  f.environment.PHASE4_STAGE8_RUNTIME='off';await assert.rejects(f.app.scopes.derived(scope,'INSIGHTS'),/SCOPE_REQUIRED/);
+});
+
+test('every registered typed selector executes against authentic v34 columns and excludes unrelated generation',async t=>{
+ const f=await stage8Fixture(t);for(const kind of Object.keys(STAGE8_DERIVED_SELECTIONS)){
+  const query=stage8DerivedSelection(kind,{userId:'a',asOfUtc:f.now().toISOString()},99999);assert.deepEqual((await f.db.raw.execute(query)).rows,[]);
+ }
+ assert.throws(()=>stage8DerivedSelection('SQL',{userId:'b'},1),/KIND_REQUIRED/);
 });

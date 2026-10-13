@@ -3,6 +3,15 @@ import {buildPhase4Core} from './phase4Core.js';
 import {composePhase4Stores} from './phase4Repositories.js';
 import {issueStage8LiveAuthority} from './stage8LiveAuthority.js';
 export const STAGE8_DERIVED_CONTRACT=Object.freeze({version:'stage8-live-derived-reader-v1',mode:'LIVE',producerContract:'execution-producer-v1',kinds:Object.freeze(['BODY_ENERGY','INSIGHTS','EPISODES','EVIDENCE']),maxItems:10});
+export const STAGE8_DERIVED_SELECTIONS=Object.freeze({
+ BODY_ENERGY:Object.freeze({table:'body_energy_results',id:'result_id',time:'created_at',filter:"quality_state IN ('AVAILABLE','LIMITED') AND invalidated_at IS NULL AND as_of_utc<=?"}),
+ EPISODES:Object.freeze({table:'observation_episodes',id:'episode_id',time:'last_material_change_at',filter:"state IN ('OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING') AND invalidated_at IS NULL AND expires_at>?"}),
+ EVIDENCE:Object.freeze({table:'evidence_runs',id:'run_id',time:'started_at',filter:"state='COMPLETED' AND invalidated_at IS NULL AND completed_at<=?"}),
+});
+export function stage8DerivedSelection(kind,scope,inputGeneration){
+ const spec=STAGE8_DERIVED_SELECTIONS[kind];if(!spec)throw Error('STAGE8_DERIVED_KIND_REQUIRED');
+ return {sql:`SELECT ${spec.id} id FROM ${spec.table} WHERE user_id=? AND execution_mode='LIVE' AND input_generation=? AND content_state='PRESENT' AND ${spec.filter} ORDER BY ${spec.time} DESC,${spec.id} LIMIT 10`,args:[scope.userId,inputGeneration,scope.asOfUtc]};
+}
 /** Completion metadata never substitutes for a finalized authenticated producer.
  * v34's frozen producer table is SHADOW-only. This boundary remains UPDATING
  * until a separately reviewed successor producer allocation can supply LIVE.
@@ -26,9 +35,8 @@ export function createStage8DerivedReader({db,keys,admission,eligible,now=()=>ne
     const ids=(await db.raw.execute({sql:"SELECT id FROM health_insights WHERE user_id=? AND execution_mode='LIVE' AND input_generation=? AND status='SUPPORTED' AND legacy_classification='PHASE4' AND expires_at>? ORDER BY last_recalculated_at DESC,id LIMIT 10",args:[scope.userId,inputGeneration,scope.asOfUtc]})).rows;
     for(const {id} of ids){const value=await stores.insights.read(ctx,id,{asOfUtc:scope.asOfUtc});items.push({claim:value.revision.normalized_claim,nonCausal:true});}
    }else{
-    const spec={BODY_ENERGY:['body_energy_results','result_id','created_at'],EPISODES:['observation_episodes','episode_id','last_material_change_at'],EVIDENCE:['evidence_runs','run_id','created_at']}[kind];
-    const ids=(await db.raw.execute({sql:`SELECT ${spec[1]} id FROM ${spec[0]} WHERE user_id=? AND execution_mode='LIVE' AND input_generation=? AND content_state='PRESENT' ORDER BY ${spec[2]} DESC,${spec[1]} LIMIT 10`,args:[scope.userId,inputGeneration]})).rows;
-    for(const {id} of ids){const value=await stores.readArtifact(ctx,spec[0],{[spec[1]]:id});items.push({kind,id:keys.lookup(['stage8-derived-item-v1',scope.userId,kind,id]),value:value.row.value??null});}
+    const spec=STAGE8_DERIVED_SELECTIONS[kind],ids=(await db.raw.execute(stage8DerivedSelection(kind,scope,inputGeneration))).rows;
+    for(const {id} of ids){const value=await stores.readArtifact(ctx,spec.table,{[spec.id]:id});items.push({kind,id:keys.lookup(['stage8-derived-item-v1',scope.userId,kind,id]),value:value.row.value??null});}
    }
    await core.assertContext(ctx);if(!eligible(scope.userId))throw Error('STAGE8_DERIVED_SCOPE_REQUIRED');return {status:'CURRENT',kind,asOfUtc:scope.asOfUtc,items};
   });

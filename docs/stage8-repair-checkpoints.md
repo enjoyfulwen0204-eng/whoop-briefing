@@ -23,3 +23,7 @@ Quiet-hour choices now include localized wording. Owner choices show localized s
 Focused verification: `independent-repair-final.tap.gz`, 39/39 passed, zero skipped/cancelled. Earlier unsuccessful runs remain retained and are superseded, never counted as functionality passes.
 
 The runtime now wires `stage8DerivedReader.js`. It checks registered kinds, current scope/generation, finalized producer authority and typed operation receipt readers. Current v34 cannot supply a LIVE producer; fake complete/current-empty metadata and SHADOW results remain ANALYSIS_UPDATING. Actual LIVE producer availability and final Stage 6 integration remain blocked.
+
+## Typed selector freeze
+
+Actual-schema execution checks caught and repaired the evidence-run timestamp selector. BODY_ENERGY, EPISODES and EVIDENCE now use registered existing columns and exclude incomplete/invalidated/expired selections before typed authority checks. `typed-selector-final.tap.gz` passes 3/3. WHOOP and OAuth compatibility regressions pass 54/54. The first integration/regression runs were interrupted before this runtime freeze and are retained as interrupted evidence, not final PASS.

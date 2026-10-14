@@ -1,3 +1,5 @@
+> Historical repair packet. The three subsequent independent blockers and their repair are covered by [stage8-three-blocker-review-handoff.md](stage8-three-blocker-review-handoff.md).
+
 # Stage 8 independent repair review handoff
 
 This candidate repairs the independently confirmed Stage 8 safety, recovery, scheduling, retry, identity and localized-control defects. It preserves all 50 original Stage 8 paths and approved Stage 7 behavior. Stage 8 is not COMPLETE: final Stage 6 integration and authenticated LIVE analysis producers remain blocked. Formal whole-Stage-8 Final Review and Production readiness are NO-GO; the independent repair delta is ready for focused review with final synthetic verification complete.

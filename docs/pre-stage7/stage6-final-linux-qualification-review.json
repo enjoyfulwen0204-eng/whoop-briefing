@@ -1,0 +1,333 @@
+{
+  "reviewer": "same sole independent focused reviewer; no subagents",
+  "atUTC": "2026-10-14T09:54:25.187732+00:00",
+  "candidate": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+  "baseline": "5b0f9e1f3e06b50a3cc6e6ffe14cd8dc28995b78",
+  "commit": "ffbe057bfd3e5813a4e8b018d81a27aad9a3139a",
+  "tree": "b164fc7f639ff2c793a7e1fd30539891baea9e4c",
+  "workingTree": "two final documentation drafts untracked; reviewed test/runtime commit frozen; reviewer made no repository changes",
+  "scope": "Read-only test/qualification delta including opt-in metrics/provider/combined service/crash fixtures and corrected final drafts; no broad audit, production access or reviewer benchmark",
+  "runtimeSourceUnchanged": true,
+  "dependenciesSchemaDeploymentSourceUnchanged": true,
+  "sourceInventory": {
+    "count": 264,
+    "sha256": "20a87ffa8d258dbba47a84fa9e1cf179d657da30522bba187568465abb41c06e",
+    "serialization": "SHA256 of compact sorted JSON path-to-file-SHA256 map",
+    "selectedHashes": {
+      "src/betaPilotBoundedReads.js": "63b774e17c13c9ecfe7e4556dd698e3c1a45ee4c4f594889e069fcae276186fa",
+      "src/betaPilotPermit.js": "ac0fab0e485d3d64de61f58b9bda10187855f33e45c459f7b50d72f7c220fe19",
+      "src/db.js": "efb67c3ef160c375208670370e74f87e14208e11ec3b12d5e91745e13cbcb9c3",
+      "src/legacyHealthAdapter.js": "8b6b33020f7e3e936a6ef1f0e2a580d7009500a415871d026617e948c21ca7f7",
+      "src/phase4Core.js": "ef4d460138d8b81b07adbd3be7ba5e81abbaba10e62261b130c0172a5747c93f",
+      "src/phase4Execution.js": "ac727773a095e8a5f13014e59eee1293f72b49a397ef4bd8b06471167e0d1cbc",
+      "src/phase4OperationReceipts.js": "475e41345e7820a53038131d7d40f4c55449718a602d7ae045e14cf40c29fd71",
+      "src/phase4ReanalysisQueue.js": "ec365a489e10198c2acb8d18712602624798a607dde49e9eefff86b4913ee370",
+      "src/processingReadSnapshot.js": "7f3fdf9f4cb7660340b937daa3a8ef3775f57421c616a1a715623b4acdd8308d",
+      "src/processingTransaction.js": "34d67726f6a394ded20f171e163917e3db071dc3405d3e97b02c97296fa2cd40",
+      "src/publicBeta.js": "85cd3382fcc0bfa07cea0d2f04b113080ed80a438e3318af916457ce05d4a160",
+      "src/receiverScopeLifetime.js": "44367d6ff9ae85dfb41da8fcbb7ad0c446a7660e3041ef3d1d8b2dd0af79cab5",
+      "src/stage6CapacityRuntime.js": "b509473fd07bb4368c1ae4f9743b1e49cb05c18bc95a0fefa86cdaec33e63b28",
+      "src/stage6RuntimeBinding.js": "115e8be71412ebc5c3e43d8fe29720f1897bf0f0241317cff5edadc6bdcffa57",
+      "src/stage6ShortPublication.js": "5280129a299fbae5f3485fc420c53f62deeaaa48f3ebfd333c2296e80fc756d8"
+    }
+  },
+  "documentHashes": {
+    "qualificationMarkdown": "e279c79354db42f68dd4754411b05767d7550ca14fe32a0e96411baff8bba96f",
+    "evidenceJson": "cbfbc5bae18ee91fc3d12ee1cf89bd862f74f38c9460d0cb29b65039e85d8e6f"
+  },
+  "retainedP0": [],
+  "retainedP1": [],
+  "verdict": {
+    "scopedTestAndSafetyDelta": "ACCEPTED_NO_RETAINED_P0_P1",
+    "target0_5CPU512MiBRuntimeQualification": "NO_GO",
+    "fullMonitoredSixJobQualification": "NO_GO",
+    "sameDatabaseCombinedService": "NOT_QUALIFIED",
+    "financialOrPaidScope": "NO_GO",
+    "providerOrProductionEquivalence": "NO_GO",
+    "productionDeployPush": "NO_GO",
+    "isolated2CPUPartialWorkAndCrashProof": "ACCEPTED_DIAGNOSTIC_SCOPE_ONLY"
+  },
+  "fixedTestIssues": [
+    {
+      "commit": "ee55f78",
+      "problem": "Unconditional constrained external-provider .test.js broke normal npm test glob on Darwin/unrestricted Linux",
+      "fix": "2d5bff6 opt-in .mjs rename retains hard limits when invoked",
+      "independentNegative": {
+        "path": "/private/tmp/stage6-independent-linux-default-glob.tap",
+        "sha256": "86ecdf25cd1d3afc15f221e9edeee7b9aa11e792c527b6f94f54a465569c5642",
+        "result": "FAIL0/1 ENFORCED_LINUX_LIMITS_REQUIRED in0.4s before payload/network"
+      }
+    },
+    {
+      "commit": "fd612097",
+      "problem": "Combined fixture body.ok alone could accept original NO_WORK/NO_ELIGIBLE_WORK without genuine health progress; current DRAIN HMAC/ACK/replay absent",
+      "fix": "dd732310 adds nonzero original work +fresh original full receipt/producer verification +current named ACK/cursor +exact DRAIN replay",
+      "validation": "Read-only exact diff verified; no implementation edit"
+    },
+    {
+      "problem": "Initial combined provider startup fetch failure",
+      "classification": "Pre-execution harness failure; excluded from resource-capacity evidence"
+    },
+    {
+      "problem": "Precise crash calculation-memory peak lacked retained-file provenance",
+      "fix": "Omitted from corrected markdown; recovery metrics kept explicitly separate"
+    }
+  ],
+  "enforcementAssessment": [
+    "Fresh hard gate requires Linux, memory.max536870912, memory.swap.max0, cpu.max50000/100000; explicit diagnostic enum1/2 requires100000/200000 and cannot silently pass unlimited CPU",
+    "Recorded Docker private cgroup namespace/HostConfig agrees with limits. Kernel memory.peak/current/events account for complete application group including children/native allocations; interval process RSS alone does not.",
+    "Process roster is point-in-time; GC/eventloop/process peaks cover instrumented Node only; CPU delta begins metrics initialization, not full image startup.",
+    "Separate synthetic HTTP/Hrana provider emulates installed SQLite/SDK with115ms request latency and5s transaction-age guard outside app cgroup; native preparation RAM remains inside app.",
+    "Final no-extra-test-coordinator run records npm+sh+service Node. This controls process-count caveat, not exact production boot/hardware/allocator equivalence.",
+    "No manualGC, original authority/lease/gen/runtime/time/typed rowset/HMAC/COMMIT gates or128/320/12 constants weakened by test delta.",
+    "Original HMAC/producer/current ACK/fresh reopen/replay controls retained; old cycle DOMAIN is not mislabeled current new operation.",
+    "Reviewer Docker socket read was denied; enforcement was checked against retained records, not claimed as independent daemon inspection."
+  ],
+  "measuredQualification": {
+    "target0_5WithCoordinator": {
+      "pass": 0,
+      "fail": 1,
+      "wholeMs": 35186.382474,
+      "http": 81,
+      "sql": 477,
+      "result": "TIMEOUT/PREPARATION",
+      "healthPublicationOrSourceAdvance": false,
+      "cgroupPeakBytes": 294957056,
+      "eventLoopMaxMs": 22850.568191
+    },
+    "target0_5ServiceProcessCount": {
+      "pass": 0,
+      "fail": 1,
+      "wholeMs": 32689.367014,
+      "http": 108,
+      "sql": 511,
+      "result": "Atomic SHORT_TRANSACTION_HEADROOM_REJECTED before effect writes",
+      "healthPublicationOrSourceAdvance": false,
+      "cgroupPeakBytes": 365273088,
+      "eventLoopMaxMs": 15275.655167
+    },
+    "control1CPU": {
+      "pass": 0,
+      "fail": 1,
+      "wholeMs": 33004.560765,
+      "result": "PUBLICATION_HEADROOM_REQUIRED",
+      "healthPublicationOrSourceAdvance": false,
+      "cgroupPeakBytes": 325226496
+    },
+    "control2CPU": {
+      "pass": 1,
+      "fail": 0,
+      "actualPartialLegs": 2,
+      "bothFinalizedSuccess": true,
+      "jobsCompleted": 0,
+      "remainingJobs": 2,
+      "wholeMs": [
+        30600.70168,
+        24971.34822
+      ],
+      "preparationMs": [
+        18024.663508,
+        13173.990589
+      ],
+      "publicationMs": [
+        2348.399459,
+        1987.700335
+      ],
+      "cgroupPeakBytes": 378077184,
+      "eventLoopMaxMs": 12096.372735,
+      "signedOperations": 19,
+      "finalizedProducerHmacs": [
+        79,
+        80
+      ],
+      "workReceipts": [
+        376,
+        380
+      ],
+      "newFirstOperation": "analyzeAssociationFamily/exact stage6.associations parent ACK +current checkpoint ACK",
+      "secondCurrentCursorAck": true,
+      "noDuplicatesFreshReopenAndReplay": true,
+      "qualification": "Smallest tested successful late-unit resource control only; not complete responsive service or resource purchase authorization"
+    },
+    "combined0_5Service": {
+      "pass": 0,
+      "fail": 1,
+      "usesOriginalSyncMorningBriefAndWebhookFactories": true,
+      "syntheticExternalDoublesOnly": true,
+      "independentPhysicalDatabases": true,
+      "syncStatus": 424,
+      "syncOutcome": "REQUIRED_RESOURCE_FAILED",
+      "syncMs": 118136.481763,
+      "threeReportsDeliveredOnce": true,
+      "oneModelCallEach": true,
+      "drainStatus": 202,
+      "drainOutcome": "TIMEOUT",
+      "drainMs": 35602.182225,
+      "webhookAndRetryStatus": [
+        503,
+        503
+      ],
+      "webhookSends": 0,
+      "externalHealthProbes": 368,
+      "healthMaxMs": 22091.990052,
+      "declaredHealthBoundMs": 2000,
+      "cgroupPeakBytes": 269594624,
+      "all3ReceiversRetired": true,
+      "disabledScopes": 22,
+      "liveScopes": 0,
+      "realProviderCalls": 0,
+      "causality": "CPU throttling/main-thread RAM stalls supported by profile/control evidence; SYNC required-resource failure not proved solely caused by CPU"
+    },
+    "linuxCrashRecovery2CPU": {
+      "pass": 1,
+      "fail": 0,
+      "actualWholeAppSIGKILLAfterOriginalDurableCommitBeforeAck": true,
+      "containerExit": 137,
+      "oomKilled": false,
+      "originalRequestReused": true,
+      "originalDeadlineAlreadyExpiredAtResume": true,
+      "deadlineLeaseCountersNotEdited": true,
+      "result": "RECONCILIATION_ONLY/FINALIZED_SUCCESS",
+      "newProgressInRecovery": 0,
+      "signedOperations": 19,
+      "finalizedProducerHmacs": 79,
+      "workReceipts": 376,
+      "freshHmacCurrentAckAndExactReplay": true,
+      "permitAttempts": 1,
+      "recoveryProcessCgroupPeakBytes": 113119232,
+      "calculationPeakNotClaimed": "No retained-file exact crash peak claim",
+      "qualification": "2CPU synthetic diagnostic crash boundary only; not0.5CPU capacity or real provider power-loss certification"
+    },
+    "monitoredSixJobs": {
+      "completedHere": 0,
+      "qualified": false,
+      "allSixInventoryEntries": "NOT_QUALIFIED",
+      "retainedUnmonitoredAlgorithmSixSuccessNotPromoted": true
+    },
+    "memory": "No OOM in measured groups; below-cap partial memory measurements do not cure deadline/service failures or qualify full multi-job memory"
+  },
+  "regressionQualification": {
+    "receiver": "5/5 PASS",
+    "permit96_2": "17/17 PASS",
+    "workProfileAndUnchangedPrototypeReceiver": "5/5 PASS",
+    "firstUnboundedDarwinPermitSuite": "13 passed plus suite SIGSEGV; retained rejected run",
+    "retainedUnchangedSourceSecuritySigkill": "18/18 retained baseline, no new run claimed",
+    "retainedUnchangedFocused": "51/51 retained baseline, no new run claimed"
+  },
+  "artifactHashesVerified": [
+    {
+      "name": "retained-linux.tap",
+      "path": "/private/tmp/stage6-linux-qualification/retained-linux.tap",
+      "sha256": "31b72b4f7db0732e857d2bad8aa49b77bd782b96480ec827a34152eb8f116726",
+      "pass": 0,
+      "fail": 1
+    },
+    {
+      "name": "control1-linux.tap",
+      "path": "/private/tmp/stage6-linux-qualification/control1-linux.tap",
+      "sha256": "12ec9d27afad5fe725491549807653357646a3ffad3d25e95c108aaa7a772bfe",
+      "pass": 0,
+      "fail": 1
+    },
+    {
+      "name": "control2-linux.tap",
+      "path": "/private/tmp/stage6-linux-qualification/control2-linux.tap",
+      "sha256": "d9b494a0dab32d59328bf424832ce6c27261b96daaf3910e9b3b816f6e888f9d",
+      "pass": 1,
+      "fail": 0
+    },
+    {
+      "name": "process-half-linux.tap",
+      "path": "/private/tmp/stage6-linux-qualification/process-half-linux.tap",
+      "sha256": "e0d23b2dfabffbb813b4fc938b8029efc75b8e8e108a76769234ce0c73daf308",
+      "pass": 0,
+      "fail": 1
+    },
+    {
+      "name": "combined-half-linux.tap",
+      "path": "/private/tmp/stage6-linux-qualification/combined-half-linux.tap",
+      "sha256": "61a803f154d1e4df056939f2c4a24a55c4d1925d386a9979a60a379e214dba4f",
+      "pass": 0,
+      "fail": 1
+    },
+    {
+      "name": "combined-half-final-linux.tap",
+      "path": "/private/tmp/stage6-linux-qualification/combined-half-final-linux.tap",
+      "sha256": "54d29b9817f1457b519c79c997b1d29ff9740358e21a08a227a6e5d82bbd3f0a",
+      "pass": 0,
+      "fail": 1
+    },
+    {
+      "name": "recovery-linux.tap",
+      "path": "/private/tmp/stage6-linux-qualification/recovery-linux.tap",
+      "sha256": "03a5adb6f3dc3212df93e55103fd75120095b7cd1c5a5eec48fe4568ebf5c19c",
+      "pass": 1,
+      "fail": 0
+    },
+    {
+      "name": "permit-regression.tap",
+      "path": "/private/tmp/stage6-linux-qualification/permit-regression.tap",
+      "sha256": "af76a07f4ceb63689692ff2a3c17a0550af0b92c55fb345e06fb3dad7b500dd6",
+      "pass": 13,
+      "fail": 1
+    },
+    {
+      "name": "permit-bounded-regression.tap",
+      "path": "/private/tmp/stage6-linux-qualification/permit-bounded-regression.tap",
+      "sha256": "ed317765211eb9d6bfe9d0ea1b6305fa8a88079a60d0f9857bab232143a0bf84",
+      "pass": 17,
+      "fail": 0
+    },
+    {
+      "name": "receiver-regression.tap",
+      "path": "/private/tmp/stage6-linux-qualification/receiver-regression.tap",
+      "sha256": "b3283ef2bb053339f109f3ab14810bceea0ccd5cb7a1a36b96c589f12eb5caec",
+      "pass": 5,
+      "fail": 0
+    },
+    {
+      "name": "focused-regression.tap",
+      "path": "/private/tmp/stage6-linux-qualification/focused-regression.tap",
+      "sha256": "caa95d11ef12dfc357c032353cb8ced9d04764d1ba4218ae681618abf9db8dd0",
+      "pass": 5,
+      "fail": 0
+    },
+    {
+      "name": "final-container-inspect.txt",
+      "path": "/private/tmp/stage6-linux-qualification/final-container-inspect.txt",
+      "sha256": "b3a3acf776dc27a28c4bf212b24694b9d1e511bfa058ba23eb72fb76f298741b",
+      "pass": null,
+      "fail": null
+    },
+    {
+      "name": "container-hostconfig.jsonl",
+      "path": "/private/tmp/stage6-linux-qualification/container-hostconfig.jsonl",
+      "sha256": "54ef9fda8ae597d60ca8111def66e508d74af5be116b4e090c162f7df0d643f1",
+      "pass": null,
+      "fail": null
+    }
+  ],
+  "extraProofHashes": {
+    "recoveryProofJson": "90af42478a66ef183df7a9bd329a16527949bdfed3eca3fc12db76d43655f756",
+    "durableCommitMarker": "f5fe7bfb88ccc64f7048e437e535a41e19f21d6c2ba04910605e82c5d3fbeace"
+  },
+  "remainingGaps": [
+    "Full original-budget monitored six-job convergence and legitimate financial admission remain unqualified; original exhausted Production12/12 ledger must remain unchanged.",
+    "Same-physical-database SYNC/webhook/retry/cancellation contention unqualified; combined fixture deliberately uses2 independent DBs.",
+    "Actual Render architecture, exact512MB byte/swap ceilings, V8 profile/deployment configuration and physical CPU performance are not inspected or equated to localLinuxaarch64/512MiB.",
+    "Simulated115ms/private external Hrana provider and5s model are not an inspected Production Turso/account ceiling, real provider transaction/network/billing certificate.",
+    "2CPU standalone proof has12s eventloop stall and is not a completed combined-service adjustment; future cooperative scheduling is a proposal requiring fresh scoped safety/capacity proof.",
+    "No Stage7v33/Stage8v34 new schema compatibility approval; no new Owner pilot or Public Beta release gate introduced; F02 Owner Accepted Risk/Journal tenant6 cap unchanged.",
+    "No deployment authorization manifest, SHADOW-to-LIVE promotion, paid resource change, migration, push/deploy or Production authority approved."
+  ],
+  "priceCheck": {
+    "officialSource": "https://render.com/pricing",
+    "date": "2026-10-14",
+    "displayedPlans": {
+      "0.5c-512mb": "$7/month",
+      "2c-4g": "$85/month"
+    },
+    "scope": "Published compute labels only, not per-run cost/cost qualification or purchase approval"
+  },
+  "reviewActions": "Only read-only diff/hash/artifact/public official pricing checks plus one0.4s local default-glob negative; no reviewer Docker mutation, network provider call, source/test/repository edit or new benchmark"
+}

@@ -1,0 +1,1955 @@
+{
+  "status": "STAGE6_FINAL_RUNTIME_QUALIFICATION_PARTIAL",
+  "production": false,
+  "testedCheckpoint": "ffbe057bfd3e5813a4e8b018d81a27aad9a3139a",
+  "baseline": "5b0f9e1f3e06b50a3cc6e6ffe14cd8dc28995b78",
+  "runtimeSourceUnchanged": true,
+  "ancestry977Preserved": true,
+  "productionReadOnlyObservation": {
+    "node": "22.23.2",
+    "liveCommit": "2340e8bc305c6acde29bbfa540753e79dbd34408",
+    "region": "Oregon",
+    "plan": "0.5c-512mb",
+    "entrypoint": "npm run bot:webhook -> node src/bot/webhook.js",
+    "exactCgroupByteLimitAndArchitectureNotInspected": true,
+    "deploymentChanged": false
+  },
+  "linuxModel": {
+    "os": "Debian 12 bookworm",
+    "architecture": "aarch64",
+    "node": "22.23.2",
+    "engine": "Docker Desktop 29.8.2",
+    "cgroupVersion": 2,
+    "memoryMax": 536870912,
+    "swapMax": 0,
+    "cpuMax": "50000 100000",
+    "V8MiB": {
+      "old": 96,
+      "semi": 2
+    },
+    "simulatedProviderLatencyMs": 115,
+    "manualGC": false,
+    "providerOutsideAppCgroup": true,
+    "internalNetworksNoProductionEgress": true,
+    "processComposition": "initial Node test runner adds one Node; final --experimental-test-isolation=none records npm + sh + service Node, matching Node process count",
+    "productionArchitectureEquivalence": "UNCONFIRMED"
+  },
+  "benchmark": {
+    "retained": {
+      "legs": [
+        {
+          "leg": 1,
+          "result": {
+            "status": 202,
+            "body": {
+              "ok": false,
+              "phase": "STAGE6_DRAIN",
+              "source": "manual",
+              "result": {
+                "resumable": true,
+                "continuationState": "INCOMPLETE_RESUMABLE",
+                "retryAfterMs": 15000,
+                "phase": "STAGE6_DRAIN",
+                "releaseSha": "ee55f78ff8080718a15b1179e0831c3dbdae5588",
+                "source": "manual",
+                "executionMode": "SHADOW",
+                "outcome": "TIMEOUT",
+                "durationMs": 34114.956682000004,
+                "completion": "PARTIAL",
+                "stopReason": "FAILURE"
+              },
+              "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+            }
+          },
+          "elapsedMs": 35186.382474,
+          "http": 81,
+          "sql": 477,
+          "capacity": {
+            "active": false,
+            "lastFailure": {
+              "code": "SYNC_TIMEOUT",
+              "stage": "PREPARATION"
+            },
+            "heapLimit": 106954752,
+            "rss": 311853056
+          },
+          "scopes": {
+            "created": 2,
+            "retired": 1,
+            "disabled": 8,
+            "liveReceivers": 1,
+            "activeCallbacks": 0,
+            "liveScopes": 8
+          },
+          "metrics": {
+            "linux": "v22.23.2",
+            "architecture": "arm64",
+            "limits": {
+              "memoryMax": 536870912,
+              "swapMax": "0",
+              "cpuMax": "50000 100000",
+              "heapLimit": 106954752
+            },
+            "elapsedMs": 39163.396392999995,
+            "cgroupPeak": 294957056,
+            "cgroupCurrent": 293572608,
+            "memoryEvents": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0,
+              "oom_group_kill": 0,
+              "sock_throttled": 0
+            },
+            "cpuDelta": {
+              "usage_usec": 13603436,
+              "user_usec": 12786630,
+              "system_usec": 816806,
+              "nice_usec": 0,
+              "nr_periods": 391,
+              "nr_throttled": 239,
+              "throttled_usec": 25807584,
+              "nr_bursts": 0,
+              "burst_usec": 0
+            },
+            "processPeaks": {
+              "rss": 311853056,
+              "heapUsed": 42014224,
+              "external": 8995115,
+              "arrayBuffers": 4963740
+            },
+            "samples": 583,
+            "gc": {
+              "count": 1283,
+              "totalMs": 5892.470857997658,
+              "maxMs": 102.70508400001563
+            },
+            "eventLoop": {
+              "maxMs": 22850.568191,
+              "p99Ms": 43.778047
+            },
+            "resourceUsage": {
+              "userCPUTime": 13055926,
+              "systemCPUTime": 797085,
+              "maxRSS": 304596,
+              "sharedMemorySize": 0,
+              "unsharedDataSize": 0,
+              "unsharedStackSize": 0,
+              "minorPageFault": 132610,
+              "majorPageFault": 0,
+              "swappedOut": 0,
+              "fsRead": 0,
+              "fsWrite": 0,
+              "ipcSent": 0,
+              "ipcReceived": 0,
+              "signalsCount": 0,
+              "voluntaryContextSwitches": 9444,
+              "involuntaryContextSwitches": 1198
+            }
+          },
+          "providerEvidence": []
+        }
+      ],
+      "finalMetrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "50000 100000",
+          "heapLimit": 106954752
+        },
+        "elapsedMs": 39167.997017999995,
+        "cgroupPeak": 294957056,
+        "cgroupCurrent": 293572608,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 13608436,
+          "user_usec": 12790627,
+          "system_usec": 817810,
+          "nice_usec": 0,
+          "nr_periods": 391,
+          "nr_throttled": 239,
+          "throttled_usec": 25807584,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 311984128,
+          "heapUsed": 42145272,
+          "external": 8995115,
+          "arrayBuffers": 4963740
+        },
+        "samples": 584,
+        "gc": {
+          "count": 1283,
+          "totalMs": 5892.470857997658,
+          "maxMs": 102.70508400001563
+        },
+        "eventLoop": {
+          "maxMs": 22850.568191,
+          "p99Ms": 43.778047
+        },
+        "resourceUsage": {
+          "userCPUTime": 13059669,
+          "systemCPUTime": 797085,
+          "maxRSS": 304672,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 132612,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 9444,
+          "involuntaryContextSwitches": 1198
+        }
+      },
+      "memoryHeadroomPercent": 45.06
+    },
+    "control1": {
+      "legs": [
+        {
+          "leg": 1,
+          "result": {
+            "status": 424,
+            "body": {
+              "ok": false,
+              "phase": "STAGE6_DRAIN",
+              "source": "manual",
+              "result": {
+                "version": 2,
+                "releaseSha": "2d5bff6b59438b4e77dbd993f2d455d1aa824528",
+                "phase": "STAGE6_DRAIN",
+                "source": "manual",
+                "outcome": "FAILED",
+                "durationMs": 30974.406639,
+                "identity": "3bdd6f335217236e776ef396693cff3ad19576a803e2c5e8141b84c94bce5066",
+                "configProof": "312ed771aa380d143af52efd6061dfa4f14d75d971b1e6dcd4175973b4d4053d",
+                "executionMode": "SHADOW",
+                "finishedAt": 1791968252286,
+                "executionSeq": 83,
+                "settlementState": "FINALIZED_FAILURE",
+                "finalizedAt": 1791968253038
+              },
+              "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+            }
+          },
+          "elapsedMs": 33004.560765,
+          "http": 105,
+          "sql": 504,
+          "capacity": {
+            "active": false,
+            "lastFailure": {
+              "code": "PUBLICATION_HEADROOM_REQUIRED",
+              "stage": "PUBLICATION"
+            },
+            "heapLimit": 106954752,
+            "rss": 331554816
+          },
+          "scopes": {
+            "created": 2,
+            "retired": 1,
+            "disabled": 8,
+            "liveReceivers": 1,
+            "activeCallbacks": 0,
+            "liveScopes": 8
+          },
+          "metrics": {
+            "linux": "v22.23.2",
+            "architecture": "arm64",
+            "limits": {
+              "memoryMax": 536870912,
+              "swapMax": "0",
+              "cpuMax": "100000 100000",
+              "heapLimit": 106954752
+            },
+            "processes": [
+              {
+                "pid": 1,
+                "command": "npm exec node -",
+                "rssBytes": 78798848
+              },
+              {
+                "pid": 20,
+                "command": "sh",
+                "rssBytes": 1437696
+              },
+              {
+                "pid": 21,
+                "command": "node",
+                "rssBytes": 56238080
+              },
+              {
+                "pid": 27,
+                "command": "node",
+                "rssBytes": 331837440
+              }
+            ],
+            "elapsedMs": 37320.631059,
+            "cgroupPeak": 325226496,
+            "cgroupCurrent": 314515456,
+            "memoryEvents": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0,
+              "oom_group_kill": 0,
+              "sock_throttled": 0
+            },
+            "cpuDelta": {
+              "usage_usec": 19984786,
+              "user_usec": 18463490,
+              "system_usec": 1521296,
+              "nice_usec": 0,
+              "nr_periods": 373,
+              "nr_throttled": 157,
+              "throttled_usec": 7197990,
+              "nr_bursts": 0,
+              "burst_usec": 0
+            },
+            "processPeaks": {
+              "rss": 336003072,
+              "heapUsed": 63165840,
+              "external": 9020091,
+              "arrayBuffers": 4988720
+            },
+            "samples": 748,
+            "gc": {
+              "count": 1488,
+              "totalMs": 3798.8689889980014,
+              "maxMs": 138.36208299989812
+            },
+            "eventLoop": {
+              "maxMs": 16424.894463,
+              "p99Ms": 49.545215
+            },
+            "resourceUsage": {
+              "userCPUTime": 18732657,
+              "systemCPUTime": 1450482,
+              "maxRSS": 334392,
+              "sharedMemorySize": 0,
+              "unsharedDataSize": 0,
+              "unsharedStackSize": 0,
+              "minorPageFault": 110870,
+              "majorPageFault": 0,
+              "swappedOut": 0,
+              "fsRead": 0,
+              "fsWrite": 0,
+              "ipcSent": 0,
+              "ipcReceived": 0,
+              "signalsCount": 0,
+              "voluntaryContextSwitches": 10737,
+              "involuntaryContextSwitches": 1325
+            }
+          },
+          "providerEvidence": []
+        }
+      ],
+      "finalMetrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 78798848
+          },
+          {
+            "pid": 20,
+            "command": "sh",
+            "rssBytes": 1437696
+          },
+          {
+            "pid": 21,
+            "command": "node",
+            "rssBytes": 56258560
+          },
+          {
+            "pid": 27,
+            "command": "node",
+            "rssBytes": 331988992
+          }
+        ],
+        "elapsedMs": 37330.705643,
+        "cgroupPeak": 325226496,
+        "cgroupCurrent": 314515456,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 19995778,
+          "user_usec": 18472454,
+          "system_usec": 1523324,
+          "nice_usec": 0,
+          "nr_periods": 373,
+          "nr_throttled": 157,
+          "throttled_usec": 7197990,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 336003072,
+          "heapUsed": 63165840,
+          "external": 9020091,
+          "arrayBuffers": 4988720
+        },
+        "samples": 749,
+        "gc": {
+          "count": 1488,
+          "totalMs": 3798.8689889980014,
+          "maxMs": 138.36208299989812
+        },
+        "eventLoop": {
+          "maxMs": 16424.894463,
+          "p99Ms": 49.545215
+        },
+        "resourceUsage": {
+          "userCPUTime": 18740873,
+          "systemCPUTime": 1451377,
+          "maxRSS": 334392,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 110919,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 10737,
+          "involuntaryContextSwitches": 1326
+        }
+      },
+      "memoryHeadroomPercent": 39.42
+    },
+    "control2": {
+      "legs": [
+        {
+          "leg": 1,
+          "result": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "phase": "STAGE6_DRAIN",
+              "source": "manual",
+              "result": {
+                "version": 2,
+                "releaseSha": "dd73231026bc75cabf9acee29db408d283a2cc91",
+                "phase": "STAGE6_DRAIN",
+                "source": "manual",
+                "outcome": "PARTIAL",
+                "durationMs": 28536.094596000003,
+                "jobsConsidered": 1,
+                "itemsAttempted": 1,
+                "itemsProcessed": 1,
+                "jobsCompleted": 0,
+                "jobsFailed": 0,
+                "remainingJobs": 2,
+                "identity": "9fd4c6a03b11720d382013f0061250080ff1192cdd1c37b77a547d12d749ef49",
+                "configProof": "76f8a516c617f23b0790c93ba86f00d0ba84056b8262aee99e64a0821c37cf1c",
+                "completion": "PARTIAL",
+                "stopReason": "ITEM_LIMIT",
+                "executionMode": "SHADOW",
+                "finishedAt": 1791969007125,
+                "executionSeq": 83,
+                "settlementState": "FINALIZED_SUCCESS",
+                "finalizedAt": 1791969007833
+              },
+              "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+            }
+          },
+          "elapsedMs": 30600.701680000002,
+          "http": 111,
+          "sql": 4306,
+          "capacity": {
+            "active": false,
+            "lastPublication": {
+              "preparationMs": 18024.663507999998,
+              "transactionMs": 2348.399459,
+              "statements": 3793,
+              "snapshotGroups": 96,
+              "snapshotBytes": 3652489,
+              "workUsage": {
+                "prefixReadSets": 49,
+                "operations": 190,
+                "bytes": 193535
+              }
+            },
+            "heapLimit": 106954752,
+            "rss": 379154432
+          },
+          "scopes": {
+            "created": 2,
+            "retired": 1,
+            "disabled": 8,
+            "liveReceivers": 1,
+            "activeCallbacks": 0,
+            "liveScopes": 8
+          },
+          "metrics": {
+            "linux": "v22.23.2",
+            "architecture": "arm64",
+            "limits": {
+              "memoryMax": 536870912,
+              "swapMax": "0",
+              "cpuMax": "200000 100000",
+              "heapLimit": 106954752
+            },
+            "processes": [
+              {
+                "pid": 1,
+                "command": "npm exec node -",
+                "rssBytes": 77766656
+              },
+              {
+                "pid": 19,
+                "command": "sh",
+                "rssBytes": 1433600
+              },
+              {
+                "pid": 20,
+                "command": "node",
+                "rssBytes": 55869440
+              },
+              {
+                "pid": 26,
+                "command": "node",
+                "rssBytes": 379559936
+              }
+            ],
+            "elapsedMs": 34597.551099000004,
+            "cgroupPeak": 363761664,
+            "cgroupCurrent": 360538112,
+            "memoryEvents": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0,
+              "oom_group_kill": 0,
+              "sock_throttled": 0
+            },
+            "cpuDelta": {
+              "usage_usec": 19878366,
+              "user_usec": 18593686,
+              "system_usec": 1284680,
+              "nice_usec": 0,
+              "nr_periods": 346,
+              "nr_throttled": 5,
+              "throttled_usec": 65231,
+              "nr_bursts": 0,
+              "burst_usec": 0
+            },
+            "processPeaks": {
+              "rss": 379154432,
+              "heapUsed": 88161008,
+              "external": 40906482,
+              "arrayBuffers": 36879824
+            },
+            "samples": 803,
+            "gc": {
+              "count": 1539,
+              "totalMs": 3168.130417996086,
+              "maxMs": 91.70758299995214
+            },
+            "eventLoop": {
+              "maxMs": 12096.372735,
+              "p99Ms": 43.778047
+            },
+            "resourceUsage": {
+              "userCPUTime": 18981545,
+              "systemCPUTime": 1210706,
+              "maxRSS": 373428,
+              "sharedMemorySize": 0,
+              "unsharedDataSize": 0,
+              "unsharedStackSize": 0,
+              "minorPageFault": 122960,
+              "majorPageFault": 0,
+              "swappedOut": 0,
+              "fsRead": 0,
+              "fsWrite": 0,
+              "ipcSent": 0,
+              "ipcReceived": 0,
+              "signalsCount": 0,
+              "voluntaryContextSwitches": 10213,
+              "involuntaryContextSwitches": 1623
+            }
+          },
+          "providerEvidence": []
+        },
+        {
+          "leg": 2,
+          "result": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "phase": "STAGE6_DRAIN",
+              "source": "manual",
+              "result": {
+                "version": 2,
+                "releaseSha": "dd73231026bc75cabf9acee29db408d283a2cc91",
+                "phase": "STAGE6_DRAIN",
+                "source": "manual",
+                "outcome": "PARTIAL",
+                "durationMs": 22900.028177,
+                "jobsConsidered": 1,
+                "itemsAttempted": 1,
+                "itemsProcessed": 1,
+                "jobsCompleted": 0,
+                "jobsFailed": 0,
+                "remainingJobs": 2,
+                "identity": "1e4ffe9255bcbf7342b0f09ee40298ee19fba0d59456445bafbcb2330abdf3db",
+                "configProof": "76f8a516c617f23b0790c93ba86f00d0ba84056b8262aee99e64a0821c37cf1c",
+                "completion": "PARTIAL",
+                "stopReason": "ITEM_LIMIT",
+                "executionMode": "SHADOW",
+                "finishedAt": 1791969036824,
+                "executionSeq": 84,
+                "settlementState": "FINALIZED_SUCCESS",
+                "finalizedAt": 1791969037533
+              },
+              "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+            }
+          },
+          "elapsedMs": 24971.34822,
+          "http": 111,
+          "sql": 4108,
+          "capacity": {
+            "active": false,
+            "lastPublication": {
+              "preparationMs": 13173.990589,
+              "transactionMs": 1987.7003350000014,
+              "statements": 3593,
+              "snapshotGroups": 97,
+              "snapshotBytes": 3876753,
+              "workUsage": {
+                "prefixReadSets": 50,
+                "operations": 0,
+                "bytes": 0
+              }
+            },
+            "heapLimit": 106954752,
+            "rss": 392216576
+          },
+          "scopes": {
+            "created": 5,
+            "retired": 4,
+            "disabled": 31,
+            "liveReceivers": 1,
+            "activeCallbacks": 0,
+            "liveScopes": 8
+          },
+          "metrics": {
+            "linux": "v22.23.2",
+            "architecture": "arm64",
+            "limits": {
+              "memoryMax": 536870912,
+              "swapMax": "0",
+              "cpuMax": "200000 100000",
+              "heapLimit": 106954752
+            },
+            "processes": [
+              {
+                "pid": 1,
+                "command": "npm exec node -",
+                "rssBytes": 77766656
+              },
+              {
+                "pid": 19,
+                "command": "sh",
+                "rssBytes": 1433600
+              },
+              {
+                "pid": 20,
+                "command": "node",
+                "rssBytes": 58609664
+              },
+              {
+                "pid": 26,
+                "command": "node",
+                "rssBytes": 392597504
+              }
+            ],
+            "elapsedMs": 64305.967071,
+            "cgroupPeak": 378077184,
+            "cgroupCurrent": 376430592,
+            "memoryEvents": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0,
+              "oom_group_kill": 0,
+              "sock_throttled": 0
+            },
+            "cpuDelta": {
+              "usage_usec": 33352059,
+              "user_usec": 31210449,
+              "system_usec": 2141610,
+              "nice_usec": 0,
+              "nr_periods": 643,
+              "nr_throttled": 9,
+              "throttled_usec": 127714,
+              "nr_bursts": 0,
+              "burst_usec": 0
+            },
+            "processPeaks": {
+              "rss": 392216576,
+              "heapUsed": 90824784,
+              "external": 41076678,
+              "arrayBuffers": 37020659
+            },
+            "samples": 1614,
+            "gc": {
+              "count": 2587,
+              "totalMs": 4980.900484989397,
+              "maxMs": 91.70758299995214
+            },
+            "eventLoop": {
+              "maxMs": 12096.372735,
+              "p99Ms": 43.188223
+            },
+            "resourceUsage": {
+              "userCPUTime": 31469529,
+              "systemCPUTime": 1952431,
+              "maxRSS": 383024,
+              "sharedMemorySize": 0,
+              "unsharedDataSize": 0,
+              "unsharedStackSize": 0,
+              "minorPageFault": 216089,
+              "majorPageFault": 0,
+              "swappedOut": 0,
+              "fsRead": 0,
+              "fsWrite": 0,
+              "ipcSent": 0,
+              "ipcReceived": 0,
+              "signalsCount": 0,
+              "voluntaryContextSwitches": 18774,
+              "involuntaryContextSwitches": 2894
+            }
+          },
+          "providerEvidence": []
+        }
+      ],
+      "finalMetrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "200000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 77766656
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1433600
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 59019264
+          },
+          {
+            "pid": 26,
+            "command": "node",
+            "rssBytes": 295706624
+          }
+        ],
+        "elapsedMs": 68820.16949,
+        "cgroupPeak": 378077184,
+        "cgroupCurrent": 279408640,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 34044585,
+          "user_usec": 31802897,
+          "system_usec": 2241688,
+          "nice_usec": 0,
+          "nr_periods": 688,
+          "nr_throttled": 9,
+          "throttled_usec": 127714,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 392216576,
+          "heapUsed": 90824784,
+          "external": 41076678,
+          "arrayBuffers": 37020659
+        },
+        "samples": 1776,
+        "gc": {
+          "count": 2627,
+          "totalMs": 5049.552649987396,
+          "maxMs": 91.70758299995214
+        },
+        "eventLoop": {
+          "maxMs": 12096.372735,
+          "p99Ms": 43.188223
+        },
+        "resourceUsage": {
+          "userCPUTime": 32019261,
+          "systemCPUTime": 2038529,
+          "maxRSS": 383024,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 228432,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 19513,
+          "involuntaryContextSwitches": 2975
+        }
+      },
+      "memoryHeadroomPercent": 29.58
+    },
+    "process-half": {
+      "legs": [
+        {
+          "leg": 1,
+          "result": {
+            "status": 424,
+            "body": {
+              "ok": false,
+              "phase": "STAGE6_DRAIN",
+              "source": "manual",
+              "result": {
+                "version": 2,
+                "releaseSha": "ffbe057bfd3e5813a4e8b018d81a27aad9a3139a",
+                "phase": "STAGE6_DRAIN",
+                "source": "manual",
+                "outcome": "FAILED",
+                "durationMs": 30767.090222000003,
+                "identity": "a6d521f6054eed8bb4b79e0d6076abab317659c4e04e52a0deceaef2dde0b625",
+                "configProof": "2f7254c0d0b7714214e9bb30726788e515da962c322612b2ffbcc4d0a89e469f",
+                "executionMode": "SHADOW",
+                "finishedAt": 1791970210471,
+                "executionSeq": 83,
+                "settlementState": "FINALIZED_FAILURE",
+                "finalizedAt": 1791970211180
+              },
+              "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+            }
+          },
+          "elapsedMs": 32689.367014,
+          "http": 108,
+          "sql": 511,
+          "capacity": {
+            "active": false,
+            "lastFailure": {
+              "code": "SQLITE_ERROR",
+              "stage": "PUBLICATION"
+            },
+            "heapLimit": 106954752,
+            "rss": 378544128
+          },
+          "scopes": {
+            "created": 2,
+            "retired": 1,
+            "disabled": 8,
+            "liveReceivers": 1,
+            "activeCallbacks": 0,
+            "liveScopes": 8
+          },
+          "metrics": {
+            "linux": "v22.23.2",
+            "architecture": "arm64",
+            "limits": {
+              "memoryMax": 536870912,
+              "swapMax": "0",
+              "cpuMax": "50000 100000",
+              "heapLimit": 106954752
+            },
+            "processes": [
+              {
+                "pid": 1,
+                "command": "npm exec node -",
+                "rssBytes": 79929344
+              },
+              {
+                "pid": 19,
+                "command": "sh",
+                "rssBytes": 1433600
+              },
+              {
+                "pid": 20,
+                "command": "node",
+                "rssBytes": 378834944
+              }
+            ],
+            "elapsedMs": 36737.029392,
+            "cgroupPeak": 365273088,
+            "cgroupCurrent": 351088640,
+            "memoryEvents": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0,
+              "oom_group_kill": 0,
+              "sock_throttled": 0
+            },
+            "cpuDelta": {
+              "usage_usec": 10328205,
+              "user_usec": 9563316,
+              "system_usec": 764889,
+              "nice_usec": 0,
+              "nr_periods": 367,
+              "nr_throttled": 175,
+              "throttled_usec": 20074195,
+              "nr_bursts": 0,
+              "burst_usec": 0
+            },
+            "processPeaks": {
+              "rss": 378544128,
+              "heapUsed": 83605896,
+              "external": 26262152,
+              "arrayBuffers": 14995312
+            },
+            "samples": 718,
+            "gc": {
+              "count": 1531,
+              "totalMs": 4370.397980992217,
+              "maxMs": 98.42970799980685
+            },
+            "eventLoop": {
+              "maxMs": 15275.655167,
+              "p99Ms": 81.854463
+            },
+            "resourceUsage": {
+              "userCPUTime": 9899729,
+              "systemCPUTime": 763395,
+              "maxRSS": 383500,
+              "sharedMemorySize": 0,
+              "unsharedDataSize": 0,
+              "unsharedStackSize": 0,
+              "minorPageFault": 121519,
+              "majorPageFault": 0,
+              "swappedOut": 0,
+              "fsRead": 0,
+              "fsWrite": 0,
+              "ipcSent": 0,
+              "ipcReceived": 0,
+              "signalsCount": 0,
+              "voluntaryContextSwitches": 10682,
+              "involuntaryContextSwitches": 858
+            }
+          },
+          "providerEvidence": [
+            {
+              "event": "sql_error",
+              "template": "0239184536023d0f0a744a08098fa1e1edcbadc13d980b3867b9cfa6a7443817",
+              "code": "SQLITE_ERROR",
+              "assertionLabel": "SHORT_TRANSACTION_HEADROOM_REJECTED",
+              "prior": {
+                "template": "1475d3cb405ed38e90e95d238ad155cfba97fc30fc8f949617e2ec2e320a660c",
+                "prefix": "SELECT json(CASE WHEN (EXISTS(SELECT 1 FROM resource_locks l JOIN users u ON u.id=? JOIN phase4_user_state p ON p.user_id=u.id WHERE l.name=? AND l.owner=? AND l.expires_at=? AND (",
+                "rowsAffected": 0
+              }
+            }
+          ]
+        }
+      ],
+      "finalMetrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "50000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 79929344
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1433600
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 378982400
+          }
+        ],
+        "elapsedMs": 36740.971933,
+        "cgroupPeak": 365273088,
+        "cgroupCurrent": 351088640,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 10332620,
+          "user_usec": 9567697,
+          "system_usec": 764923,
+          "nice_usec": 0,
+          "nr_periods": 367,
+          "nr_throttled": 175,
+          "throttled_usec": 20074195,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 378675200,
+          "heapUsed": 83743264,
+          "external": 26262152,
+          "arrayBuffers": 14995312
+        },
+        "samples": 719,
+        "gc": {
+          "count": 1531,
+          "totalMs": 4370.397980992217,
+          "maxMs": 98.42970799980685
+        },
+        "eventLoop": {
+          "maxMs": 15275.655167,
+          "p99Ms": 81.854463
+        },
+        "resourceUsage": {
+          "userCPUTime": 9903183,
+          "systemCPUTime": 763401,
+          "maxRSS": 383500,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 121552,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 10682,
+          "involuntaryContextSwitches": 858
+        }
+      },
+      "memoryHeadroomPercent": 31.96
+    }
+  },
+  "combinedService": {
+    "synthetic": true,
+    "independentDatabases": true,
+    "initialHealthMs": 10.654166999999688,
+    "syncMs": 118136.48176299999,
+    "sync": {
+      "status": 424,
+      "body": {
+        "ok": false,
+        "phase": "SYNC",
+        "source": "cloudflare",
+        "result": {
+          "version": 2,
+          "releaseSha": "dd73231026bc75cabf9acee29db408d283a2cc91",
+          "phase": "SYNC",
+          "source": "cloudflare",
+          "outcome": "REQUIRED_RESOURCE_FAILED",
+          "durationMs": 116321.40355399999,
+          "users": 3,
+          "failed": 3,
+          "dailyDeferredBody": 0,
+          "identity": "41a34ceb81daad886b85ffa1d923886ae9c50f620a3709bd0740a05754c0c974",
+          "configProof": "7f4297f7e97c019498a34b98415e2d6a8d257229c1223be0cede45632a87353e",
+          "executionMode": "SHADOW",
+          "finishedAt": 1791969073455,
+          "executionSeq": 1,
+          "settlementState": "FINALIZED_FAILURE",
+          "finalizedAt": 1791969074124
+        },
+        "syncComplete": false,
+        "drainAuthorized": false,
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "drainMs": 35602.182225000004,
+    "drain": {
+      "status": 202,
+      "body": {
+        "ok": false,
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "result": {
+          "resumable": true,
+          "continuationState": "INCOMPLETE_RESUMABLE",
+          "retryAfterMs": 15000,
+          "phase": "STAGE6_DRAIN",
+          "releaseSha": "dd73231026bc75cabf9acee29db408d283a2cc91",
+          "source": "manual",
+          "executionMode": "SHADOW",
+          "outcome": "TIMEOUT",
+          "durationMs": 34538.916266,
+          "completion": "PARTIAL",
+          "stopReason": "FAILURE"
+        },
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "webhook": {
+      "status": 503,
+      "body": {
+        "ok": false,
+        "outcome": "retry"
+      }
+    },
+    "retry": {
+      "status": 503,
+      "body": {
+        "ok": false,
+        "outcome": "retry"
+      }
+    },
+    "syncReplay": {
+      "status": 424,
+      "body": {
+        "ok": false,
+        "phase": "SYNC",
+        "source": "cloudflare",
+        "result": {
+          "version": 2,
+          "releaseSha": "dd73231026bc75cabf9acee29db408d283a2cc91",
+          "phase": "SYNC",
+          "source": "cloudflare",
+          "outcome": "REQUIRED_RESOURCE_FAILED",
+          "durationMs": 116321.40355399999,
+          "users": 3,
+          "failed": 3,
+          "dailyDeferredBody": 0,
+          "identity": "41a34ceb81daad886b85ffa1d923886ae9c50f620a3709bd0740a05754c0c974",
+          "configProof": "7f4297f7e97c019498a34b98415e2d6a8d257229c1223be0cede45632a87353e",
+          "executionMode": "SHADOW",
+          "finishedAt": 1791969073455,
+          "executionSeq": 1,
+          "settlementState": "FINALIZED_FAILURE",
+          "finalizedAt": 1791969074124
+        },
+        "syncComplete": false,
+        "drainAuthorized": false,
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "sends": [
+      "1001",
+      "1002",
+      "1003"
+    ],
+    "webhookSends": [],
+    "claims": [
+      {
+        "user_id": "alice",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "bob",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "lan",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      }
+    ],
+    "modelCounts": [
+      [
+        "alice",
+        1
+      ],
+      [
+        "bob",
+        1
+      ],
+      [
+        "lan",
+        1
+      ]
+    ],
+    "capacity": {
+      "active": false,
+      "lastFailure": {
+        "code": "SYNC_TIMEOUT",
+        "stage": "PREPARATION"
+      },
+      "heapLimit": 106954752,
+      "rss": 280006656
+    },
+    "metrics": {
+      "linux": "v22.23.2",
+      "architecture": "arm64",
+      "limits": {
+        "memoryMax": 536870912,
+        "swapMax": "0",
+        "cpuMax": "50000 100000",
+        "heapLimit": 106954752
+      },
+      "processes": [
+        {
+          "pid": 1,
+          "command": "npm exec node -",
+          "rssBytes": 77864960
+        },
+        {
+          "pid": 19,
+          "command": "sh",
+          "rssBytes": 1433600
+        },
+        {
+          "pid": 20,
+          "command": "node",
+          "rssBytes": 58249216
+        },
+        {
+          "pid": 26,
+          "command": "node",
+          "rssBytes": 280424448
+        }
+      ],
+      "elapsedMs": 123422.720432,
+      "cgroupPeak": 269594624,
+      "cgroupCurrent": 263835648,
+      "memoryEvents": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "cpuDelta": {
+        "usage_usec": 22066976,
+        "user_usec": 20275285,
+        "system_usec": 1791692,
+        "nice_usec": 0,
+        "nr_periods": 1234,
+        "nr_throttled": 252,
+        "throttled_usec": 26395571,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "processPeaks": {
+        "rss": 280006656,
+        "heapUsed": 39050000,
+        "external": 9030992,
+        "arrayBuffers": 4977186
+      },
+      "samples": 3698,
+      "gc": {
+        "count": 1566,
+        "totalMs": 6773.965400002431,
+        "maxMs": 107.29129200009629
+      },
+      "eventLoop": {
+        "maxMs": 22313.697279,
+        "p99Ms": 35.782655
+      },
+      "resourceUsage": {
+        "userCPUTime": 20460684,
+        "systemCPUTime": 1897325,
+        "maxRSS": 278204,
+        "sharedMemorySize": 0,
+        "unsharedDataSize": 0,
+        "unsharedStackSize": 0,
+        "minorPageFault": 126133,
+        "majorPageFault": 0,
+        "swappedOut": 0,
+        "fsRead": 0,
+        "fsWrite": 0,
+        "ipcSent": 0,
+        "ipcReceived": 0,
+        "signalsCount": 0,
+        "voluntaryContextSwitches": 18225,
+        "involuntaryContextSwitches": 2414
+      }
+    },
+    "scopes": {
+      "created": 3,
+      "retired": 1,
+      "disabled": 8,
+      "liveReceivers": 2,
+      "activeCallbacks": 0,
+      "liveScopes": 14
+    },
+    "realProviderRequests": 0,
+    "externalProvider": {
+      "healthProbes": 368,
+      "healthMaxMs": 22091.99005200001,
+      "healthP99Ms": 63.976167000015266,
+      "http": 108,
+      "sql": 509,
+      "morningHttp": 683,
+      "morningSql": 875,
+      "transactionMaxMs": 5000
+    },
+    "final": {
+      "metrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "50000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 77864960
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1433600
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 58449920
+          },
+          {
+            "pid": 26,
+            "command": "node",
+            "rssBytes": 280662016
+          }
+        ],
+        "elapsedMs": 123429.83580700001,
+        "cgroupPeak": 269594624,
+        "cgroupCurrent": 263868416,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 22075459,
+          "user_usec": 20283748,
+          "system_usec": 1791712,
+          "nice_usec": 0,
+          "nr_periods": 1234,
+          "nr_throttled": 252,
+          "throttled_usec": 26395571,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 280137728,
+          "heapUsed": 39050000,
+          "external": 9030992,
+          "arrayBuffers": 4977186
+        },
+        "samples": 3699,
+        "gc": {
+          "count": 1566,
+          "totalMs": 6773.965400002431,
+          "maxMs": 107.29129200009629
+        },
+        "eventLoop": {
+          "maxMs": 22313.697279,
+          "p99Ms": 35.782655
+        },
+        "resourceUsage": {
+          "userCPUTime": 20467567,
+          "systemCPUTime": 1897325,
+          "maxRSS": 278204,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 126229,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 18225,
+          "involuntaryContextSwitches": 2417
+        }
+      },
+      "scopes": {
+        "created": 3,
+        "retired": 3,
+        "disabled": 22,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "realProviderRequests": 0
+    }
+  },
+  "checkpoints": {
+    "retained": {
+      "counts": {
+        "phase4_operation_receipts": 18,
+        "phase4_execution_producers": 78,
+        "phase4_execution_work_receipts": 372
+      },
+      "jobs": [
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "RECOMPUTE_DERIVED",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]"
+        },
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "REPAIR_CURRENTNESS",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]"
+        }
+      ]
+    },
+    "control1": {
+      "counts": {
+        "phase4_operation_receipts": 18,
+        "phase4_execution_producers": 78,
+        "phase4_execution_work_receipts": 372
+      },
+      "jobs": [
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "RECOMPUTE_DERIVED",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]"
+        },
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "REPAIR_CURRENTNESS",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]"
+        }
+      ]
+    },
+    "control2": {
+      "counts": {
+        "phase4_operation_receipts": 19,
+        "phase4_execution_producers": 80,
+        "phase4_execution_work_receipts": 380
+      },
+      "jobs": [
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "RECOMPUTE_DERIVED",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"sleep\",\"sleep-00\"]"
+        },
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "REPAIR_CURRENTNESS",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"sleep\",\"sleep-00\"]"
+        }
+      ]
+    },
+    "combined-half": {
+      "counts": {
+        "phase4_operation_receipts": 18,
+        "phase4_execution_producers": 78,
+        "phase4_execution_work_receipts": 372
+      },
+      "jobs": [
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "RECOMPUTE_DERIVED",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]"
+        },
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "REPAIR_CURRENTNESS",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]"
+        }
+      ]
+    },
+    "crash": {
+      "counts": {
+        "phase4_operation_receipts": 19,
+        "phase4_execution_producers": 79,
+        "phase4_execution_work_receipts": 376
+      },
+      "jobs": [
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "RECOMPUTE_DERIVED",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"sleep\",\"sleep-00\"]"
+        },
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "REPAIR_CURRENTNESS",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]"
+        }
+      ]
+    },
+    "process-half": {
+      "counts": {
+        "phase4_operation_receipts": 18,
+        "phase4_execution_producers": 78,
+        "phase4_execution_work_receipts": 372
+      },
+      "jobs": [
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "RECOMPUTE_DERIVED",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]"
+        },
+        {
+          "user_id": "a",
+          "execution_mode": "SHADOW",
+          "job_kind": "REPAIR_CURRENTNESS",
+          "state": "PENDING",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]"
+        }
+      ]
+    }
+  },
+  "linuxSigkillRecovery": {
+    "synthetic": true,
+    "result": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "result": {
+          "version": 2,
+          "releaseSha": "ffbe057bfd3e5813a4e8b018d81a27aad9a3139a",
+          "phase": "STAGE6_DRAIN",
+          "source": "manual",
+          "outcome": "PARTIAL",
+          "workReceipts": 5,
+          "jobsConsidered": 0,
+          "itemsAttempted": 0,
+          "itemsProcessed": 0,
+          "jobsCompleted": 0,
+          "identity": "22fbec0b5a03cb3235793e92416b11e5a9a5150411ad7fd51489b78a9a8ff39a",
+          "configProof": "8fb8a728fb3a788ef7532317aabe9b823fddfb3f02e965991f833cf18cfa2165",
+          "completion": "PARTIAL",
+          "stopReason": "RECONCILIATION_ONLY",
+          "executionMode": "SHADOW",
+          "finishedAt": 1791969824603,
+          "executionSeq": 83,
+          "settlementState": "FINALIZED_SUCCESS",
+          "finalizedAt": 1791969825317
+        },
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "recoveryMs": 10235.458587000001,
+    "proof": {
+      "signedOperationReceipts": 19,
+      "finalizedProducerHmacs": 79,
+      "workReceipts": 376,
+      "noDuplicateRuns": true,
+      "domainProof": {
+        "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+        "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+        "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+        "inputGeneration": 8,
+        "sourceGeneration": 8,
+        "receiptHmac": true,
+        "producerHmac": true,
+        "exactNamedAck": true
+      }
+    },
+    "current": {
+      "executionId": "58d946f5-98a6-406c-b845-8007fbcaf040",
+      "newOperations": [
+        {
+          "operationKind": "analyzeAssociationFamily",
+          "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+          "executionId": "58d946f5-98a6-406c-b845-8007fbcaf040",
+          "producingGeneration": 1,
+          "workKind": "stage6.associations",
+          "receiptKey": "9a22eebaa8131fc2940675fd266905a2a4082e748721443541abd1df95ec736e",
+          "exactNamedAck": true
+        }
+      ],
+      "cursor": {
+        "jobKind": "RECOMPUTE_DERIVED",
+        "cursor": "[\"sleep\",\"sleep-00\"]",
+        "receiptKey": "02d0f769eadcbbad622e3c81b15aa92b6c3418290543667add8746f7f84d02c3",
+        "exactNamedAck": true
+      }
+    },
+    "permitAttempts": 1,
+    "metrics": {
+      "linux": "v22.23.2",
+      "architecture": "arm64",
+      "limits": {
+        "memoryMax": 536870912,
+        "swapMax": "0",
+        "cpuMax": "200000 100000",
+        "heapLimit": 106954752
+      },
+      "processes": [
+        {
+          "pid": 1,
+          "command": "npm exec node -",
+          "rssBytes": 79720448
+        },
+        {
+          "pid": 19,
+          "command": "sh",
+          "rssBytes": 1437696
+        },
+        {
+          "pid": 20,
+          "command": "node",
+          "rssBytes": 56598528
+        },
+        {
+          "pid": 26,
+          "command": "node",
+          "rssBytes": 115822592
+        }
+      ],
+      "elapsedMs": 10883.963046,
+      "cgroupPeak": 113119232,
+      "cgroupCurrent": 106586112,
+      "memoryEvents": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "cpuDelta": {
+        "usage_usec": 1288565,
+        "user_usec": 1071655,
+        "system_usec": 216910,
+        "nice_usec": 0,
+        "nr_periods": 109,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "processPeaks": {
+        "rss": 116850688,
+        "heapUsed": 28869184,
+        "external": 7886061,
+        "arrayBuffers": 3825277
+      },
+      "samples": 397,
+      "gc": {
+        "count": 61,
+        "totalMs": 41.78670500125736,
+        "maxMs": 1.932125000283122
+      },
+      "eventLoop": {
+        "maxMs": 71.368703,
+        "p99Ms": 30.261247
+      },
+      "resourceUsage": {
+        "userCPUTime": 1325645,
+        "systemCPUTime": 264095,
+        "maxRSS": 116032,
+        "sharedMemorySize": 0,
+        "unsharedDataSize": 0,
+        "unsharedStackSize": 0,
+        "minorPageFault": 38224,
+        "majorPageFault": 0,
+        "swappedOut": 0,
+        "fsRead": 0,
+        "fsWrite": 0,
+        "ipcSent": 0,
+        "ipcReceived": 0,
+        "signalsCount": 0,
+        "voluntaryContextSwitches": 1733,
+        "involuntaryContextSwitches": 99
+      }
+    }
+  },
+  "sixJobs": [
+    {
+      "fixture": 1,
+      "userId": "a",
+      "mode": "SHADOW",
+      "jobKind": "RECOMPUTE_DERIVED",
+      "generation": 8,
+      "scopeRevision": 7,
+      "retainedAlgorithmState": "COMPLETED",
+      "monitoredLinuxFinalCompletion": "NOT_QUALIFIED",
+      "fixtureDomainOperationIdentity": "2465dc569b86c078839d512b19ee26cc713137942230d7e328f3c276392603b2"
+    },
+    {
+      "fixture": 1,
+      "userId": "a",
+      "mode": "SHADOW",
+      "jobKind": "REPAIR_CURRENTNESS",
+      "generation": 8,
+      "scopeRevision": 7,
+      "retainedAlgorithmState": "COMPLETED",
+      "monitoredLinuxFinalCompletion": "NOT_QUALIFIED",
+      "fixtureDomainOperationIdentity": "2465dc569b86c078839d512b19ee26cc713137942230d7e328f3c276392603b2"
+    },
+    {
+      "fixture": 2,
+      "userId": "a",
+      "mode": "SHADOW",
+      "jobKind": "RECOMPUTE_DERIVED",
+      "generation": 8,
+      "scopeRevision": 7,
+      "retainedAlgorithmState": "COMPLETED",
+      "monitoredLinuxFinalCompletion": "NOT_QUALIFIED",
+      "fixtureDomainOperationIdentity": "a86cb0add1c9592532799a0088dfc278996da032338b81838c6b3c2b92e5307b"
+    },
+    {
+      "fixture": 2,
+      "userId": "a",
+      "mode": "SHADOW",
+      "jobKind": "REPAIR_CURRENTNESS",
+      "generation": 8,
+      "scopeRevision": 7,
+      "retainedAlgorithmState": "COMPLETED",
+      "monitoredLinuxFinalCompletion": "NOT_QUALIFIED",
+      "fixtureDomainOperationIdentity": "a86cb0add1c9592532799a0088dfc278996da032338b81838c6b3c2b92e5307b"
+    },
+    {
+      "fixture": 3,
+      "userId": "a",
+      "mode": "SHADOW",
+      "jobKind": "RECOMPUTE_DERIVED",
+      "generation": 8,
+      "scopeRevision": 7,
+      "retainedAlgorithmState": "COMPLETED",
+      "monitoredLinuxFinalCompletion": "NOT_QUALIFIED",
+      "fixtureDomainOperationIdentity": "cad95733cf9cb8ff8ab9a878220eb11d757d16efc71c3b3d432d30c4bf93b40c"
+    },
+    {
+      "fixture": 3,
+      "userId": "a",
+      "mode": "SHADOW",
+      "jobKind": "REPAIR_CURRENTNESS",
+      "generation": 8,
+      "scopeRevision": 7,
+      "retainedAlgorithmState": "COMPLETED",
+      "monitoredLinuxFinalCompletion": "NOT_QUALIFIED",
+      "fixtureDomainOperationIdentity": "cad95733cf9cb8ff8ab9a878220eb11d757d16efc71c3b3d432d30c4bf93b40c"
+    }
+  ],
+  "fullMonitoredSixQualified": false,
+  "regression": {
+    "receiver": "5/5 PASS",
+    "permit96_2": "17/17 PASS",
+    "workProfileAndPrototypeReceiver": "5/5 PASS (3 work-profile + 2 unchanged prototype receiver)",
+    "unchangedSourceSecurityAndSigkill": "18/18 retained baseline",
+    "unchangedFocused": "51/51 retained baseline",
+    "unboundedDarwinPermitRun": "13 tests passed, suite SIGSEGV; retained, subsequent96/2 17/17 PASS"
+  },
+  "negativeControls": {
+    "128_4Admission": {
+      "path": "/private/tmp/stage6-runtime-exact-current-final2.tap",
+      "sha256": "a6bb300837622b91fc47b12fab32f1f9396057d7303dac2e95d2711e0ac27710"
+    },
+    "combinedProviderStartupRace": "Not capacity evidence; corrected via verified provider readiness",
+    "initialLinuxDefaultGlobRegression": "Fixed by opt-in .mjs rename",
+    "combinedNoWorkFalsePositiveGap": "Fixed nonzero work + original fresh current HMAC/ACK/replay checks"
+  },
+  "scope": {
+    "Stage7v33Stage8v34CodeChanged": false,
+    "Stage8RootHead": "899dff0ae61474bb2b9ec0a0743cdbf11a999d3b",
+    "Stage8RootTree": "5a2d81942d7133f0a0a1a4fbb8f1431d17c92936",
+    "F02": "Owner Accepted Risk unchanged",
+    "journalTenantLimit": "Separate retained6-item tenant cap; never fabricated complete",
+    "productionPilot": "Exhausted12/12, unchanged",
+    "shadowToLivePromotion": false,
+    "schemaObjectsAdded": false
+  },
+  "artifacts": {
+    "retained-linux.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/retained-linux.tap",
+      "sha256": "31b72b4f7db0732e857d2bad8aa49b77bd782b96480ec827a34152eb8f116726"
+    },
+    "control1-linux.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/control1-linux.tap",
+      "sha256": "12ec9d27afad5fe725491549807653357646a3ffad3d25e95c108aaa7a772bfe"
+    },
+    "control2-linux.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/control2-linux.tap",
+      "sha256": "d9b494a0dab32d59328bf424832ce6c27261b96daaf3910e9b3b816f6e888f9d"
+    },
+    "process-half-linux.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/process-half-linux.tap",
+      "sha256": "e0d23b2dfabffbb813b4fc938b8029efc75b8e8e108a76769234ce0c73daf308"
+    },
+    "combined-half-linux.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/combined-half-linux.tap",
+      "sha256": "61a803f154d1e4df056939f2c4a24a55c4d1925d386a9979a60a379e214dba4f"
+    },
+    "combined-half-final-linux.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/combined-half-final-linux.tap",
+      "sha256": "54d29b9817f1457b519c79c997b1d29ff9740358e21a08a227a6e5d82bbd3f0a"
+    },
+    "recovery-linux.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/recovery-linux.tap",
+      "sha256": "03a5adb6f3dc3212df93e55103fd75120095b7cd1c5a5eec48fe4568ebf5c19c"
+    },
+    "permit-regression.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/permit-regression.tap",
+      "sha256": "af76a07f4ceb63689692ff2a3c17a0550af0b92c55fb345e06fb3dad7b500dd6"
+    },
+    "permit-bounded-regression.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/permit-bounded-regression.tap",
+      "sha256": "ed317765211eb9d6bfe9d0ea1b6305fa8a88079a60d0f9857bab232143a0bf84"
+    },
+    "receiver-regression.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/receiver-regression.tap",
+      "sha256": "b3283ef2bb053339f109f3ab14810bceea0ccd5cb7a1a36b96c589f12eb5caec"
+    },
+    "focused-regression.tap": {
+      "path": "/private/tmp/stage6-linux-qualification/focused-regression.tap",
+      "sha256": "caa95d11ef12dfc357c032353cb8ced9d04764d1ba4218ae681618abf9db8dd0"
+    },
+    "final-container-inspect.txt": {
+      "path": "/private/tmp/stage6-linux-qualification/final-container-inspect.txt",
+      "sha256": "b3a3acf776dc27a28c4bf212b24694b9d1e511bfa058ba23eb72fb76f298741b"
+    },
+    "container-hostconfig.jsonl": {
+      "path": "/private/tmp/stage6-linux-qualification/container-hostconfig.jsonl",
+      "sha256": "54ef9fda8ae597d60ca8111def66e508d74af5be116b4e090c162f7df0d643f1"
+    }
+  },
+  "acceptance": {
+    "runtimeCode": "NO-GO for full target-resource qualification",
+    "production": "NO-GO"
+  },
+  "narrowNextAction": "Keep original algorithm/publication. Profile and introduce bounded cooperative scheduling only at RAM adapter boundaries, preserving original budget and ALS; test against 2CPU diagnostic then target0.5. TwoCPU is minimum tested late-unit success, NOT a qualified combined-service adjustment. Full six and same-DB concurrent service remain required. No speculative ledger/schema or Production purchase.",
+  "runtimeSourceHashInventory": {
+    "count": 264,
+    "sha256": "20a87ffa8d258dbba47a84fa9e1cf179d657da30522bba187568465abb41c06e",
+    "selected": {
+      "src/betaPilotBoundedReads.js": "63b774e17c13c9ecfe7e4556dd698e3c1a45ee4c4f594889e069fcae276186fa",
+      "src/betaPilotPermit.js": "ac0fab0e485d3d64de61f58b9bda10187855f33e45c459f7b50d72f7c220fe19",
+      "src/db.js": "efb67c3ef160c375208670370e74f87e14208e11ec3b12d5e91745e13cbcb9c3",
+      "src/legacyHealthAdapter.js": "8b6b33020f7e3e936a6ef1f0e2a580d7009500a415871d026617e948c21ca7f7",
+      "src/phase4Core.js": "ef4d460138d8b81b07adbd3be7ba5e81abbaba10e62261b130c0172a5747c93f",
+      "src/phase4Execution.js": "ac727773a095e8a5f13014e59eee1293f72b49a397ef4bd8b06471167e0d1cbc",
+      "src/phase4OperationReceipts.js": "475e41345e7820a53038131d7d40f4c55449718a602d7ae045e14cf40c29fd71",
+      "src/phase4ReanalysisQueue.js": "ec365a489e10198c2acb8d18712602624798a607dde49e9eefff86b4913ee370",
+      "src/processingReadSnapshot.js": "7f3fdf9f4cb7660340b937daa3a8ef3775f57421c616a1a715623b4acdd8308d",
+      "src/processingTransaction.js": "34d67726f6a394ded20f171e163917e3db071dc3405d3e97b02c97296fa2cd40",
+      "src/publicBeta.js": "85cd3382fcc0bfa07cea0d2f04b113080ed80a438e3318af916457ce05d4a160",
+      "src/receiverScopeLifetime.js": "44367d6ff9ae85dfb41da8fcbb7ad0c446a7660e3041ef3d1d8b2dd0af79cab5",
+      "src/stage6CapacityRuntime.js": "b509473fd07bb4368c1ae4f9743b1e49cb05c18bc95a0fefa86cdaec33e63b28",
+      "src/stage6RuntimeBinding.js": "115e8be71412ebc5c3e43d8fe29720f1897bf0f0241317cff5edadc6bdcffa57",
+      "src/stage6ShortPublication.js": "5280129a299fbae5f3485fc420c53f62deeaaa48f3ebfd333c2296e80fc756d8"
+    }
+  }
+}

@@ -77,14 +77,15 @@ function quotedRange(part,mention){return part.quotes.find(q=>mention.start>=q.i
 function stateFor(part,m,previous){
  const next=part.mentions.find(n=>n.start>=m.end);
  const before=part.text.slice(previous?.end??0,m.start),after=part.text.slice(m.end,next?.start??part.text.length),gap=previous?before:null;
- const coordinated=previous&&CONNECTORS.test(gap);
- if(NEGATION.test(before)||coordinated&&previous.state==='NEGATED')return 'NEGATED';
- if(RESOLVED_BEFORE.test(before)||resolutionTail(part,m)||coordinated&&previous.state==='RESOLVED')return 'RESOLVED';
+ const prior=previous??part.coordinatedPrior;
+ const coordinated=prior&&CONNECTORS.test(previous?gap:before);
+ if(NEGATION.test(before)||coordinated&&prior.state==='NEGATED')return 'NEGATED';
+ if(RESOLVED_BEFORE.test(before)||resolutionTail(part,m)||coordinated&&prior.state==='RESOLVED')return 'RESOLVED';
  if(part.hypothetical)return 'HYPOTHETICAL';
 
- if(coordinated&&previous.state==='HISTORICAL')return 'HISTORICAL';
+ if(coordinated&&prior.state==='HISTORICAL')return 'HISTORICAL';
  const quote=quotedRange(part,m),outside=quote?part.text.slice(0,quote.index)+part.text.slice(quote.index+quote[0].length):part.text;
- const present=PRESENT_BEFORE.test(before)||PREDICATE_SUBJECT.test(before)||PRESENT_AFTER.test(after)||coordinated&&previous.state==='CURRENT';
+ const present=PRESENT_BEFORE.test(before)||PREDICATE_SUBJECT.test(before)||PRESENT_AFTER.test(after)||coordinated&&prior.state==='CURRENT';
  if(quote){
   const assertedOutside=PRESENT_BEFORE.test(part.text.slice(0,quote.index))||REPORT.test(part.text.slice(0,quote.index))||CURRENT_TIME.test(outside)&&!EDUCATION.test(outside);
   if(!assertedOutside)return 'QUOTED';
@@ -107,7 +108,7 @@ function actorFor(part,m,previous){
   const actor=actors.at(-1)[0].toLowerCase();
   return {'i':'SELF','my':'SELF','we':'SELF','我':'SELF','tôi':'SELF','我朋友':'my friend','朋友':'my friend','bạn tôi':'my friend','媽媽':'my mother','爸爸':'my father','他':'he','她':'she','anh ấy':'he','cô ấy':'she','his':'he','her':'she'}[actor]??actor;
  }
- return previous&&CONNECTORS.test(before)?previous.actor:null;
+ const prior=previous??part.coordinatedPrior;return prior&&CONNECTORS.test(before)?prior.actor:null;
 }
 function resolveReference(mention){
  // References form a forward-only chain within the fixed clause/mention bound.
@@ -129,7 +130,9 @@ export function interpretUrgentSymptoms(input){
  for(const part of parts){
   part.mentions=candidates(part);if(mentions.length+part.mentions.length>TRIAGE_LIMITS.mentions)return overflow();
   part.quotes=quoteRanges(part.text);
-  const carry=part.join==='soft'&&previousPart;
+  const carry=['soft','cause'].includes(part.join)&&previousPart;
+  const explicitList=part.join==='soft'&&/^\s*(?:(?:and|or|nor|và|hoặc|hay)(?!\p{L})|也|和|與|或)/iu.test(part.text);
+  part.coordinatedPrior=explicitList?previousPart?.mentions.at(-1):null;
   part.hypothetical=HYPOTHETICAL.test(part.text)||Boolean(carry?.hypothetical);
   part.informational=INFORMATIONAL.test(part.text)||Boolean(carry?.informational);
   part.caseFrame=CASE_FRAME.test(part.text)||Boolean(carry?.caseFrame);

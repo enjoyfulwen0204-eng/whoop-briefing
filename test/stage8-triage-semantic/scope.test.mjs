@@ -34,6 +34,9 @@ const groups={
  'My heart is racing but I am not currently feeling dizzy.',
  'I am not having severe intermittent chest pain or difficulty breathing.',
  '我沒有劇烈的胸痛。',
+ 'I am not having chest pain, or difficulty breathing.',
+ '我沒有胸痛，或呼吸困難。',
+ 'Tôi không đau ngực, hoặc khó thở.',
  ],
  resolved:[
  'Tôi đã hết đau ngực',
@@ -94,6 +97,9 @@ const groups={
  '如果我胸痛又喘不過氣，該怎麼辦？',
  'Nếu tôi bị đau ngực và khó thở thì sao?',
  'If I have chest pain, and I cannot breathe, what should I do?',
+ 'Suppose I have chest pain because I cannot breathe, what should I do?',
+ '如果我胸痛因為呼吸困難，該怎麼辦？',
+ 'Nếu tôi đau ngực vì tôi không thở được thì sao?',
  ],
  mixed:[
  'My chest pain is gone, but I cannot breathe now.',
@@ -117,6 +123,8 @@ const groups={
  'The textbook explains chest pain and I cannot breathe now.',
  'Can my current chest pain be caused by stress?',
  'In this example, the patient has chest pain and I cannot breathe now.',
+ 'I am not having chest pain, and I cannot breathe.',
+ 'If I have chest pain, what should I do? I cannot breathe now.',
  ],
  ambiguous:['chest pain','difficulty breathing','喘不過氣','không thở được'],
  separateActors:['My heart is racing, my friend is dizzy.','My friend has palpitations, my mother is dizzy.'],

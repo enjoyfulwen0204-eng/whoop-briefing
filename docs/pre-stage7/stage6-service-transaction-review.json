@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "reviewedAtUtc": "2026-10-14T12:29:58.688138+00:00",
+  "reviewer": {
+    "identity": "independent_delta_review",
+    "soleIndependentReviewer": true,
+    "requestedModel": "Sol6.1",
+    "requestedReasoning": "Extra High",
+    "delegation": false,
+    "proUsed": false,
+    "mode": "read-only scoped delta review with short own synthetic controls"
+  },
+  "candidate": {
+    "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+    "baseline": "3a9db6853c70b1e63f89f5f1c196be5208b91a74",
+    "earlierCorrectionTestSource": "39bda091cf84f91479229b2ceb1fa7b0d82924b9",
+    "reviewedHead": "9a3830d6abd6647f61b4de8cfbddbfc9822eb9f0",
+    "reviewedTree": "308e81a286823316afffab760cb4524afaada42b",
+    "trackedClean": true,
+    "untrackedPrimaryDocuments": [
+      "docs/pre-stage7/stage6-service-transaction-evidence.json",
+      "docs/pre-stage7/stage6-service-transaction-qualification.md"
+    ],
+    "sourceHashes": {
+      "src/bot/updateProcessor.js": "c61fec0e926d856f97ae5c7494e87b23bbec78626f1559ea52710f990f185cfc",
+      "src/db.js": "4a61e0bf8c944eb7bd8999de88647c87688151b09b4fa2ecf8ddff683aa85ccb",
+      "src/legacyHealthAdapter.js": "38cf512ef16f07c723b872ffbd980549b08938e7cfa062f087e248a3d61a5b89",
+      "src/phase4QueueStore.js": "77915983341665c46d44a1c26327b7040dd8b0d329f5c82cf31886934dd113a2",
+      "src/processingTransaction.js": "45517888b85514c22bbc9fafe86e3415912d605352643dc1888a085731d36708",
+      "src/telegramReadOnlyPreparation.js": "dbca050fec99eea616de991ea782c9be9f8aa5e41013d09f1810e144e738b7c6"
+    },
+    "sourceInventory": {
+      "path": "/private/tmp/stage6-service-source-hashes.json",
+      "sha256": "eab2759445961104df0a5812057356c07a185400e04b3ea3db548f068c17ef1a",
+      "files": 266
+    },
+    "stage6CalculationPublicationSourceHmacLeaseFilesUnchanged": true
+  },
+  "scope": [
+    "Ordered source/computation epoch batch and post-write modes lookup in the same original owned transaction.",
+    "Legacy classification/link/scrub metadata retains original SQL order, fresh classification/redacted checks, original transaction rollback and privacy fencing; chunks bounded at100 statements.",
+    "New private read-only preparation/failure latch covers execute/batch, nested read-only work, provider outside barrier and structured clone.",
+    "Trusted /help routing brand plus fresh owned-transaction pending-question fallback; fresh owner/lifecycle/auth/purge/source-generation checks bracket prepared value and original receipt publication.",
+    "Opt-in synthetic diagnostics and transport transaction labels/hashes, without SQL arguments or health row values; no Production execution."
+  ],
+  "verdict": {
+    "scopedDeltaSecurity": "GO",
+    "locatedRetainedP0P1": [],
+    "fullServiceGate": "NO_GO",
+    "stage6RuntimeReadiness": "NO_GO",
+    "productionDeployment": "NO_GO",
+    "fullMonitoredSixJobs": "NOT_QUALIFIED_NOT_RUN_FOCUSED_GATE_FAILED",
+    "renderOneCpuTwoGiB": "NOT_QUALIFIED_NOT_RUN_FOCUSED_GATE_FAILED",
+    "sharedDatabaseCrossProcessContention": "NOT_QUALIFIED",
+    "productionChildSupervisorLifecycle": "NOT_INTEGRATED_NOT_QUALIFIED"
+  },
+  "resolvedFindings": [
+    {
+      "severity": "P1",
+      "location": "39bda:src/db.js:265",
+      "issue": "structuredClone ran after readOnlyPreparation scope ended; returned getter could execute a write and persist reply receipt.",
+      "independentReproduction": {
+        "driver": "/private/tmp/stage6-independent-telegram-clone-boundary.mjs",
+        "tap": "/private/tmp/stage6-independent-telegram-clone-boundary.tap",
+        "sha256": "156a4c6abcdf932f6fd6960add86fdbe0a7fa0e2fd2a83493495e4cb86e7c8f5",
+        "observed": "Getter processingActive=false, mutation accepted, synthetic display_name changed, receipt count1."
+      },
+      "fix": "Clone occurs inside readOnlyPreparation async callback; getter write poisons reader before prepared value delivery.",
+      "frozenIndependentRetest": "PASS; mutation rejected and no unauthorized row/receipt."
+    },
+    {
+      "severity": "P1",
+      "location": "39bda:src/bot/updateProcessor.js:631 and db.js prepared /help route",
+      "issue": "Actual router lazily expires OPEN pending questions before command handling. Unconditional read-only /help preparation rejected original valid expiry and left it OPEN.",
+      "independentReproduction": {
+        "driver": "/private/tmp/stage6-independent-help-expired-question.mjs",
+        "tap": "/private/tmp/stage6-independent-help-expired-question.tap",
+        "sha256": "fdd1b289fd591ee815356cc1d0c7176efdd20844d9d657f62fcb58c583439efb",
+        "observed": "Branded help rejected READ_ONLY and left OPEN; identical original transaction succeeded and marked EXPIRED."
+      },
+      "fix": "Any tenant OPEN question selects original dispatch in every fresh owned receipt transaction, including outside replay. No-OPEN route may prepare; a concurrent OPEN reroutes to fresh original transaction and discards cached value.",
+      "frozenIndependentRetest": "PASS; actual expired help/replay, receipt fault rolls expiry back, and concurrent arrival without source epoch increment settles only fresh result."
+    }
+  ],
+  "independentControlCoverage": [
+    "Clone getter mutation attempt blocked.",
+    "Caught mixed SELECT/mutation batch poisons preparation.",
+    "Nested transaction fallback cannot conceal attempted write.",
+    "Caught outside provider attempt never invokes effect or delivers prepared reply.",
+    "Fresh lifecycle ABA rejected.",
+    "Fresh auth epoch rejected.",
+    "Fresh purge fence rejected.",
+    "Lost update owner rejected.",
+    "Private SDK mutation escape APIs remain unavailable.",
+    "Actual expired help is original atomic dispatch plus one receipt and replay.",
+    "Injected receipt failure rolls original pending expiry back.",
+    "Concurrent pending arrival without source epoch change discards prepared value and uses fresh original transaction."
+  ],
+  "checks": [
+    {
+      "source": "primary",
+      "path": "/private/tmp/stage6-service-qualification/final-boundary-tests.tap",
+      "sha256": "b2837cce92fd92a466cb66cffdbca9397d1e9368ae3c44ba5502006fd73a94bc",
+      "result": {
+        "tests": 10,
+        "pass": 10,
+        "fail": 0
+      },
+      "scope": "frozen boundary regression"
+    },
+    {
+      "source": "primary",
+      "path": "/private/tmp/stage6-service-qualification/final-regressions.tap",
+      "sha256": "8579848a3680b13e7940afbcb800198b70c370e7ab81a707118c76bba7427f03",
+      "result": {
+        "tests": 27,
+        "pass": 27,
+        "fail": 0
+      },
+      "scope": "receiver/canonical/source snapshot/reply regressions"
+    },
+    {
+      "source": "sole independent reviewer",
+      "path": "/private/tmp/stage6-independent-service-fixed-controls.tap",
+      "sha256": "e9eb98a02cd4bf45236bac3eb175a88e28fad6207471281ab6cffab49f2a89bf",
+      "result": {
+        "tests": 14,
+        "pass": 14,
+        "fail": 0
+      },
+      "distinctBoundaryCases": 12,
+      "note": "Node totals include two parent grouping tests; short isolated native SDK fixtures, not Linux capacity."
+    }
+  ],
+  "qualificationEvidence": [
+    {
+      "name": "diagnostic2-child",
+      "path": "/private/tmp/stage6-service-qualification/diagnostic2-child.tap",
+      "sha256": "ffacb5a1cf85e2b521699cbe90b6088caa7956b80f5fcf982f82119f88ee9d17",
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      },
+      "releaseSha": "8b6ed8e5d13faca5336a9f44738e536c9d4bf507",
+      "drainMs": 22933.513177999997,
+      "drain": {
+        "status": 200,
+        "outcome": "PARTIAL",
+        "settlementState": "FINALIZED_SUCCESS",
+        "completion": "PARTIAL",
+        "durationMs": 20446.443010000003,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "remainingJobs": 2,
+        "executionSeq": 83,
+        "executionMode": "SHADOW",
+        "continuationState": null
+      },
+      "syncStatus": 424,
+      "syncOutcome": "REQUIRED_RESOURCE_FAILED",
+      "syncContinuationState": null,
+      "webhookStatus": 503,
+      "webhookReplayStatus": 503,
+      "healthMaxMs": 48.6806660000002,
+      "modeledTimeouts": 8,
+      "beginWaitMsRange": [
+        0,
+        1
+      ],
+      "concurrentWritersMax": 0,
+      "currentOperationAndCursorAckCaptured": true,
+      "newJobsCompleted": 0
+    },
+    {
+      "name": "diagnostic2-same",
+      "path": "/private/tmp/stage6-service-qualification/diagnostic2-same.tap",
+      "sha256": "81e0b845cb7c391972b481b5b95963bd03119606df7ddbb40e37a8e6ccf2dc3f",
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      },
+      "releaseSha": "8b6ed8e5d13faca5336a9f44738e536c9d4bf507",
+      "drainMs": 23641.936092999997,
+      "drain": {
+        "status": 200,
+        "outcome": "PARTIAL",
+        "settlementState": "FINALIZED_SUCCESS",
+        "completion": "PARTIAL",
+        "durationMs": 21596.138759,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "remainingJobs": 2,
+        "executionSeq": 83,
+        "executionMode": "SHADOW",
+        "continuationState": null
+      },
+      "syncStatus": 424,
+      "syncOutcome": "REQUIRED_RESOURCE_FAILED",
+      "syncContinuationState": null,
+      "webhookStatus": 503,
+      "webhookReplayStatus": 503,
+      "healthMaxMs": 5528.924168999998,
+      "modeledTimeouts": 7,
+      "beginWaitMsRange": [
+        0,
+        1
+      ],
+      "concurrentWritersMax": 0,
+      "currentOperationAndCursorAckCaptured": true,
+      "newJobsCompleted": 0
+    },
+    {
+      "name": "corrected-child",
+      "path": "/private/tmp/stage6-service-qualification/corrected-child.tap",
+      "sha256": "8e1dd85613210377f3bbbf9c1dfb77614e4cb766933c9b5dd21a6a94b8bee439",
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      },
+      "releaseSha": "39bda091cf84f91479229b2ceb1fa7b0d82924b9",
+      "drainMs": 33167.27264,
+      "drain": {
+        "status": 200,
+        "outcome": "PARTIAL",
+        "settlementState": "FINALIZED_SUCCESS",
+        "completion": "PARTIAL",
+        "durationMs": 30323.034139,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "remainingJobs": 2,
+        "executionSeq": 83,
+        "executionMode": "SHADOW",
+        "continuationState": null
+      },
+      "syncStatus": 503,
+      "syncOutcome": "COMMIT_INDETERMINATE",
+      "syncContinuationState": "COMMIT_UNCERTAIN",
+      "webhookStatus": 200,
+      "webhookReplayStatus": 200,
+      "healthMaxMs": 138.04483400000026,
+      "modeledTimeouts": 6,
+      "beginWaitMsRange": [
+        0,
+        2
+      ],
+      "concurrentWritersMax": 0,
+      "currentOperationAndCursorAckCaptured": true,
+      "newJobsCompleted": 0
+    }
+  ],
+  "qualificationLimits": [
+    "Final safety source9a3830d6 was focused-tested; the combined performance gate used earlier39bda source. No exact final source full-service capacity PASS is claimed.",
+    "Corrected 1CPU/512MiB/115ms no-diagnostic-loader combined gate remains FAIL: webhook/replay200, SYNC503 COMMIT_INDETERMINATE/COMMIT_UNCERTAIN, six modeled5s transaction rollbacks. DRAIN partial work and current ACK are narrower evidence.",
+    "Diagnostic baseline reproduced transaction timeouts with short native BEGIN waits and no concurrent writer in its traces; this does not establish actual Production account transaction ceiling or shared-DB contention.",
+    "Earlier unlocalized1CPU preparation TypeError was not reproduced and remains UNKNOWN, not declared repaired.",
+    "Fresh source-generation observation alone cannot detect a pending question arrival; frozen fallback re-evaluates any OPEN under the next original owned transaction.",
+    "Normal legacy read helpers can still open their original short owned transactions inside preparation; the change removes the enclosing long help receipt transaction, not every possible BEGIN.",
+    "No full-six or2GiB qualification rerun after the failed service gate, per stopping rule. Historical algorithm-only6/6 is not a new monitored/runtime qualification.",
+    "Production child IPC/global slot/cancellation/shutdown/orphan supervision is not integrated or qualified. Existing test helper does not constitute Production lifecycle implementation.",
+    "No schema/migration, original source/HMAC validation relaxation, lease extension, permit reset, new financial allowance, Production credential use/write, push, deployment or paid operation was performed/approved by reviewer.",
+    "Reviewer changed only private/tmp fixtures and review artifacts; no repository edits."
+  ],
+  "evidenceFactualConfirmation": {
+    "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/docs/pre-stage7/stage6-service-transaction-evidence.json",
+    "sha256": "24fa6958b84305ce8441b1ddade542449ab1e380e02c7478e0e15994c29999ee",
+    "compactOutcomesAndHashesMatchRetainedTaps": true,
+    "fullServiceRuntimeProductionNoGoPreserved": true,
+    "documentationScope": "compact evidence only; final prose documents can be confirmed as a later docs-only delta."
+  },
+  "artifactSha256": {
+    "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/docs/pre-stage7/stage6-service-transaction-evidence.json": "24fa6958b84305ce8441b1ddade542449ab1e380e02c7478e0e15994c29999ee",
+    "/private/tmp/stage6-service-source-hashes.json": "eab2759445961104df0a5812057356c07a185400e04b3ea3db548f068c17ef1a",
+    "/private/tmp/stage6-independent-telegram-clone-boundary.mjs": "c96a6ce3403159731b3d888849b4da58fd7f776e1d7a8821107dc8b478db4bda",
+    "/private/tmp/stage6-independent-telegram-clone-boundary.tap": "156a4c6abcdf932f6fd6960add86fdbe0a7fa0e2fd2a83493495e4cb86e7c8f5",
+    "/private/tmp/stage6-independent-help-expired-question.mjs": "de5c6126814f54aaadc11eddb5e533417fc6fd71b97e241c3903034d069dcd66",
+    "/private/tmp/stage6-independent-help-expired-question.tap": "fdd1b289fd591ee815356cc1d0c7176efdd20844d9d657f62fcb58c583439efb",
+    "/private/tmp/stage6-independent-telegram-safety.mjs": "a186b9c1f6423dad5836bc35b077ab394eb0328c321a7b68bb4f42cf671d5de2",
+    "/private/tmp/stage6-independent-help-fallback-fixed.mjs": "5d247b518b1444d90e49f84125e23c96d17c50221bbd5f4db175791974b2e014",
+    "/private/tmp/stage6-independent-service-fixed-controls.tap": "e9eb98a02cd4bf45236bac3eb175a88e28fad6207471281ab6cffab49f2a89bf",
+    "/private/tmp/stage6-service-qualification/final-boundary-tests.tap": "b2837cce92fd92a466cb66cffdbca9397d1e9368ae3c44ba5502006fd73a94bc",
+    "/private/tmp/stage6-service-qualification/final-regressions.tap": "8579848a3680b13e7940afbcb800198b70c370e7ab81a707118c76bba7427f03",
+    "/private/tmp/stage6-service-qualification/diagnostic2-child.tap": "ffacb5a1cf85e2b521699cbe90b6088caa7956b80f5fcf982f82119f88ee9d17",
+    "/private/tmp/stage6-service-qualification/diagnostic2-same.tap": "81e0b845cb7c391972b481b5b95963bd03119606df7ddbb40e37a8e6ccf2dc3f",
+    "/private/tmp/stage6-service-qualification/corrected-child.tap": "8e1dd85613210377f3bbbf9c1dfb77614e4cb766933c9b5dd21a6a94b8bee439"
+  }
+}

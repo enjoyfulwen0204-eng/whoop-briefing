@@ -1,0 +1,1930 @@
+{
+  "syntheticOnly": true,
+  "baseline": "3a9db6853c70b1e63f89f5f1c196be5208b91a74",
+  "correctionTestSha": "39bda091cf84f91479229b2ceb1fa7b0d82924b9",
+  "finalSafetySourceSha": "9a3830d6abd6647f61b4de8cfbddbfc9822eb9f0",
+  "finalSafetySourceTree": "308e81a286823316afffab760cb4524afaada42b",
+  "cases": {
+    "diagnostic2-child": {
+      "syncMs": 118766.480763,
+      "sync": {
+        "status": 424,
+        "outcome": "REQUIRED_RESOURCE_FAILED",
+        "settlementState": "FINALIZED_FAILURE",
+        "completion": null,
+        "durationMs": 116886.54576299999,
+        "itemsProcessed": null,
+        "jobsCompleted": null,
+        "remainingJobs": null,
+        "executionSeq": 1,
+        "executionMode": "SHADOW",
+        "continuationState": null
+      },
+      "drainMs": 22933.513177999997,
+      "drain": {
+        "status": 200,
+        "outcome": "PARTIAL",
+        "settlementState": "FINALIZED_SUCCESS",
+        "completion": "PARTIAL",
+        "durationMs": 20446.443010000003,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "remainingJobs": 2,
+        "executionSeq": 83,
+        "executionMode": "SHADOW",
+        "continuationState": null
+      },
+      "webhook": {
+        "status": 503,
+        "body": {
+          "ok": false,
+          "outcome": "retry"
+        }
+      },
+      "retry": {
+        "status": 503,
+        "body": {
+          "ok": false,
+          "outcome": "retry"
+        }
+      },
+      "syncReplay": {
+        "status": 424,
+        "outcome": "REQUIRED_RESOURCE_FAILED",
+        "settlementState": "FINALIZED_FAILURE",
+        "completion": null,
+        "durationMs": 116886.54576299999,
+        "itemsProcessed": null,
+        "jobsCompleted": null,
+        "remainingJobs": null,
+        "executionSeq": 1,
+        "executionMode": "SHADOW",
+        "continuationState": null
+      },
+      "sends": [
+        "1001",
+        "1002",
+        "1003"
+      ],
+      "webhookSends": [],
+      "claims": [
+        {
+          "user_id": "alice",
+          "delivery_state": "DELIVERED",
+          "delivery_attempts": 1
+        },
+        {
+          "user_id": "bob",
+          "delivery_state": "DELIVERED",
+          "delivery_attempts": 1
+        },
+        {
+          "user_id": "lan",
+          "delivery_state": "DELIVERED",
+          "delivery_attempts": 1
+        }
+      ],
+      "modelCounts": [
+        [
+          "alice",
+          1
+        ],
+        [
+          "bob",
+          1
+        ],
+        [
+          "lan",
+          1
+        ]
+      ],
+      "capacity": {
+        "active": false,
+        "heapLimit": 106954752,
+        "rss": 140926976
+      },
+      "childCapacity": {
+        "active": false,
+        "lastPublication": {
+          "preparationMs": 10542.475047000002,
+          "transactionMs": 1710.741876,
+          "statements": 3793,
+          "snapshotGroups": 96,
+          "snapshotBytes": 3652475,
+          "workUsage": {
+            "prefixReadSets": 49,
+            "operations": 190,
+            "bytes": 193535
+          }
+        },
+        "heapLimit": 106954752,
+        "rss": 338849792
+      },
+      "childScopes": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 16,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "metrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 78323712
+          },
+          {
+            "pid": 20,
+            "command": "sh",
+            "rssBytes": 1437696
+          },
+          {
+            "pid": 21,
+            "command": "node",
+            "rssBytes": 150396928
+          }
+        ],
+        "elapsedMs": 127461.142349,
+        "cgroupPeak": 398979072,
+        "cgroupCurrent": 121372672,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 17047773,
+          "user_usec": 15521341,
+          "system_usec": 1526431,
+          "nice_usec": 0,
+          "nr_periods": 1275,
+          "nr_throttled": 63,
+          "throttled_usec": 3771495,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 149970944,
+          "heapUsed": 32202976,
+          "external": 8134943,
+          "arrayBuffers": 3976732
+        },
+        "samples": 4646,
+        "gc": {
+          "count": 465,
+          "totalMs": 622.5523390229791,
+          "maxMs": 45.79379200004041
+        },
+        "eventLoop": {
+          "maxMs": 116.129791,
+          "p99Ms": 31.653887
+        },
+        "resourceUsage": {
+          "userCPUTime": 9355574,
+          "systemCPUTime": 975042,
+          "maxRSS": 150080,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 69912,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 14235,
+          "involuntaryContextSwitches": 459
+        }
+      },
+      "childMetrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 78323712
+          },
+          {
+            "pid": 20,
+            "command": "sh",
+            "rssBytes": 1437696
+          },
+          {
+            "pid": 21,
+            "command": "node",
+            "rssBytes": 134676480
+          },
+          {
+            "pid": 59,
+            "command": "node",
+            "rssBytes": 339324928
+          }
+        ],
+        "elapsedMs": 22541.957261,
+        "cgroupPeak": 398979072,
+        "cgroupCurrent": 386211840,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 8267533,
+          "user_usec": 7686631,
+          "system_usec": 580901,
+          "nice_usec": 0,
+          "nr_periods": 226,
+          "nr_throttled": 56,
+          "throttled_usec": 3303865,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 338849792,
+          "heapUsed": 87182160,
+          "external": 25995883,
+          "arrayBuffers": 14888475
+        },
+        "samples": 626,
+        "gc": {
+          "count": 1525,
+          "totalMs": 1315.3720140289515,
+          "maxMs": 56.70358300022781
+        },
+        "eventLoop": {
+          "maxMs": 4701.814783,
+          "p99Ms": 61.833215
+        },
+        "resourceUsage": {
+          "userCPUTime": 6777574,
+          "systemCPUTime": 493061,
+          "maxRSS": 344960,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 90046,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 10694,
+          "involuntaryContextSwitches": 479
+        }
+      },
+      "tap": {
+        "path": "/private/tmp/stage6-service-qualification/diagnostic2-child.tap",
+        "sha256": "ffacb5a1cf85e2b521699cbe90b6088caa7956b80f5fcf982f82119f88ee9d17"
+      },
+      "healthMaxMs": 48.6806660000002,
+      "timeoutTransactions": [
+        {
+          "id": "0e28db83-64ba-4f0d-abee-b7815493e45b",
+          "beginSubmittedAt": 1791978358346,
+          "firstStatementAt": 1791978358346,
+          "startedAt": 1791978358346,
+          "lastStatementAt": 1791978363428,
+          "sqlOperations": 42,
+          "httpOperations": 37,
+          "nativeWaitMs": 36,
+          "beginWaitMs": 0,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978363428,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978363429,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5083,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978358346,
+            "finishedAt": 1791978358346,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_source_links",
+            "template": "ec19c9372f25cc13bc49ea99e24a05f4730d83be4288f9bc9de020b832b6ea19",
+            "submittedAt": 1791978363308,
+            "finishedAt": 1791978363309,
+            "waitMs": 1
+          },
+          "operation": "WEBHOOK_REPLY"
+        },
+        {
+          "id": "f793d22d-76d5-4c97-8302-5ef6497c3c60",
+          "beginSubmittedAt": 1791978409128,
+          "firstStatementAt": 1791978409128,
+          "startedAt": 1791978409128,
+          "lastStatementAt": 1791978414202,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 86,
+          "beginWaitMs": 0,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978414201,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978414204,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5076,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978409128,
+            "finishedAt": 1791978409129,
+            "waitMs": 1
+          },
+          "lastDataStatement": {
+            "verb": "SELECT",
+            "table": "phase4_executions",
+            "template": "a0774f67d9376c685e5b533222c97f0046ced2bddc80b1edd1efe52b18223070",
+            "submittedAt": 1791978414075,
+            "finishedAt": 1791978414076,
+            "waitMs": 1
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "1854bd40-ca3d-436c-848f-8e3174df2b3e",
+          "beginSubmittedAt": 1791978416999,
+          "firstStatementAt": 1791978416999,
+          "startedAt": 1791978417000,
+          "lastStatementAt": 1791978422124,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 93,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978422124,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978422126,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5126,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978417001,
+            "finishedAt": 1791978417001,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "SELECT",
+            "table": "phase4_executions",
+            "template": "a0774f67d9376c685e5b533222c97f0046ced2bddc80b1edd1efe52b18223070",
+            "submittedAt": 1791978421985,
+            "finishedAt": 1791978421987,
+            "waitMs": 2
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "c5a6010d-707c-4a78-a088-91ef162fae26",
+          "beginSubmittedAt": 1791978424405,
+          "firstStatementAt": 1791978424405,
+          "startedAt": 1791978424406,
+          "lastStatementAt": 1791978429523,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 93,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978429523,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978429528,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5122,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978424406,
+            "finishedAt": 1791978424406,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "SELECT",
+            "table": "phase4_executions",
+            "template": "a0774f67d9376c685e5b533222c97f0046ced2bddc80b1edd1efe52b18223070",
+            "submittedAt": 1791978429387,
+            "finishedAt": 1791978429388,
+            "waitMs": 1
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "5f23e2b0-6967-456e-8774-882fde390501",
+          "beginSubmittedAt": 1791978433227,
+          "firstStatementAt": 1791978433227,
+          "startedAt": 1791978433228,
+          "lastStatementAt": 1791978438347,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 98,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978438347,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978438351,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5123,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978433228,
+            "finishedAt": 1791978433228,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791978438217,
+            "finishedAt": 1791978438221,
+            "waitMs": 4
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "d3199fed-9d5f-4031-8fd4-4041126da35d",
+          "beginSubmittedAt": 1791978441091,
+          "firstStatementAt": 1791978441091,
+          "startedAt": 1791978441091,
+          "lastStatementAt": 1791978446143,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 85,
+          "beginWaitMs": 0,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978446143,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978446146,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5055,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978441091,
+            "finishedAt": 1791978441091,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791978446011,
+            "finishedAt": 1791978446013,
+            "waitMs": 2
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "dd526a26-0ed2-4292-aefe-f19c8467bece",
+          "beginSubmittedAt": 1791978448427,
+          "firstStatementAt": 1791978448427,
+          "startedAt": 1791978448428,
+          "lastStatementAt": 1791978453506,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 85,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978453506,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978453510,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5082,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978448428,
+            "finishedAt": 1791978448428,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791978453381,
+            "finishedAt": 1791978453384,
+            "waitMs": 3
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "879be9f3-f75c-4d2d-a4ff-9c1a9c215208",
+          "beginSubmittedAt": 1791978457002,
+          "firstStatementAt": 1791978457002,
+          "startedAt": 1791978457003,
+          "lastStatementAt": 1791978462096,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 84,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978462096,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978462100,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5097,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978457003,
+            "finishedAt": 1791978457003,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791978461969,
+            "finishedAt": 1791978461970,
+            "waitMs": 1
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        }
+      ],
+      "providerCounts": {
+        "counts": {
+          "httpRequests": 138,
+          "sqlStatements": 4338
+        },
+        "morningCounts": {
+          "httpRequests": 876,
+          "sqlStatements": 1132
+        }
+      },
+      "LINUX_CONCURRENT_DURABLE_PROOF": {
+        "signedOperationReceipts": 19,
+        "finalizedProducerHmacs": 79,
+        "workReceipts": 376,
+        "noDuplicateRuns": true,
+        "domainProof": {
+          "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+          "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+          "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+          "inputGeneration": 8,
+          "sourceGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "exactNamedAck": true
+        }
+      },
+      "LINUX_CONCURRENT_CURRENT_PROOF": {
+        "executionId": "4e77372a-5469-4d68-8efd-6b7ca3394245",
+        "newOperations": [
+          {
+            "operationKind": "analyzeAssociationFamily",
+            "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+            "executionId": "4e77372a-5469-4d68-8efd-6b7ca3394245",
+            "producingGeneration": 1,
+            "workKind": "stage6.associations",
+            "receiptKey": "b124943ce2d552af1887e1f48edcb9664a0aa4209cb5cbfd8f8cd20047072826",
+            "exactNamedAck": true
+          }
+        ],
+        "cursor": {
+          "jobKind": "RECOMPUTE_DERIVED",
+          "cursor": "[\"sleep\",\"sleep-00\"]",
+          "receiptKey": "0f31f5dd48dff1bce330974d99c422dee1d1d58d84ae4076d9074ace2e664c86",
+          "exactNamedAck": true
+        }
+      },
+      "closedScopes": {
+        "created": 4,
+        "retired": 4,
+        "disabled": 25,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "realProviderRequests": 0,
+      "diagnosticErrorCounts": {
+        "TRANSACTION_TIMEOUT": 8
+      },
+      "firstDiagnosticErrors": [
+        {
+          "at": 1791978363432,
+          "boundary": "PROCESSING_ROOT",
+          "name": "LibsqlError",
+          "code": "TRANSACTION_TIMEOUT",
+          "causeCode": "TRANSACTION_TIMEOUT",
+          "stack": [
+            "    at mapHranaError (file:///app/node_modules/@libsql/client/lib-esm/hrana.js:279:16)",
+            "    at HttpTransaction.batch (file:///app/node_modules/@libsql/client/lib-esm/hrana.js:107:19)",
+            "    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)",
+            "    at async file:///app/src/processingTransaction.js:242:47",
+            "    at async check (file:///app/src/db.js:220:17)",
+            "    at async runChecks (file:///app/src/processingTransaction.js:111:38)",
+            "    at async file:///app/src/processingTransaction.js:391:11",
+            "    at async withExecutionReceiptTransaction (file:///app/src/phase4ExecutionContext.js:67:13)",
+            "    at async Object.transaction (file:///app/src/processingTransaction.js:370:24)",
+            "    at async Object.processTelegramOperation (file:///app/src/db.js:229:21)"
+          ]
+        },
+        {
+          "at": 1791978414207,
+          "boundary": "PROCESSING_ROOT",
+          "name": "LibsqlError",
+          "code": "TRANSACTION_TIMEOUT",
+          "causeCode": "TRANSACTION_TIMEOUT",
+          "stack": [
+            "    at mapHranaError (file:///app/node_modules/@libsql/client/lib-esm/hrana.js:279:16)",
+            "    at HttpTransaction.batch (file:///app/node_modules/@libsql/client/lib-esm/hrana.js:107:19)",
+            "    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)",
+            "    at async file:///app/src/processingTransaction.js:242:47",
+            "    at async traceExecutionOperation (file:///app/src/executionTelemetry.js:56:15)",
+            "    at async appendPreparedExecutionReceipt (file:///app/src/phase4ExecutionContext.js:83:2)",
+            "    at async file:///app/src/sync.js:169:36",
+            "    at async file:///app/src/processingTransaction.js:384:26",
+            "    at async withExecutionReceiptTransaction (file:///app/src/phase4ExecutionContext.js:67:13)",
+            "    at async Object.transaction (file:///app/src/processingTransaction.js:370:24)"
+          ]
+        }
+      ]
+    },
+    "diagnostic2-same": {
+      "syncMs": 117978.865596,
+      "sync": {
+        "status": 424,
+        "outcome": "REQUIRED_RESOURCE_FAILED",
+        "settlementState": "FINALIZED_FAILURE",
+        "completion": null,
+        "durationMs": 116118.16722,
+        "itemsProcessed": null,
+        "jobsCompleted": null,
+        "remainingJobs": null,
+        "executionSeq": 1,
+        "executionMode": "SHADOW",
+        "continuationState": null
+      },
+      "drainMs": 23641.936092999997,
+      "drain": {
+        "status": 200,
+        "outcome": "PARTIAL",
+        "settlementState": "FINALIZED_SUCCESS",
+        "completion": "PARTIAL",
+        "durationMs": 21596.138759,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "remainingJobs": 2,
+        "executionSeq": 83,
+        "executionMode": "SHADOW",
+        "continuationState": null
+      },
+      "webhook": {
+        "status": 503,
+        "body": {
+          "ok": false,
+          "outcome": "retry"
+        }
+      },
+      "retry": {
+        "status": 503,
+        "body": {
+          "ok": false,
+          "outcome": "retry"
+        }
+      },
+      "syncReplay": {
+        "status": 424,
+        "outcome": "REQUIRED_RESOURCE_FAILED",
+        "settlementState": "FINALIZED_FAILURE",
+        "completion": null,
+        "durationMs": 116118.16722,
+        "itemsProcessed": null,
+        "jobsCompleted": null,
+        "remainingJobs": null,
+        "executionSeq": 1,
+        "executionMode": "SHADOW",
+        "continuationState": null
+      },
+      "sends": [
+        "1001",
+        "1002",
+        "1003"
+      ],
+      "webhookSends": [],
+      "claims": [
+        {
+          "user_id": "alice",
+          "delivery_state": "DELIVERED",
+          "delivery_attempts": 1
+        },
+        {
+          "user_id": "bob",
+          "delivery_state": "DELIVERED",
+          "delivery_attempts": 1
+        },
+        {
+          "user_id": "lan",
+          "delivery_state": "DELIVERED",
+          "delivery_attempts": 1
+        }
+      ],
+      "modelCounts": [
+        [
+          "alice",
+          1
+        ],
+        [
+          "bob",
+          1
+        ],
+        [
+          "lan",
+          1
+        ]
+      ],
+      "capacity": {
+        "active": false,
+        "lastPublication": {
+          "preparationMs": 11472.912255,
+          "transactionMs": 1677.576000000001,
+          "statements": 3793,
+          "snapshotGroups": 96,
+          "snapshotBytes": 3652489,
+          "workUsage": {
+            "prefixReadSets": 49,
+            "operations": 190,
+            "bytes": 193535
+          }
+        },
+        "heapLimit": 106954752,
+        "rss": 309182464
+      },
+      "metrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 78708736
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1425408
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 309415936
+          }
+        ],
+        "elapsedMs": 126700.869683,
+        "cgroupPeak": 339005440,
+        "cgroupCurrent": 278888448,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 17672796,
+          "user_usec": 16294210,
+          "system_usec": 1378585,
+          "nice_usec": 0,
+          "nr_periods": 1265,
+          "nr_throttled": 69,
+          "throttled_usec": 4257129,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 340779008,
+          "heapUsed": 86867152,
+          "external": 18959962,
+          "arrayBuffers": 14807383
+        },
+        "samples": 4381,
+        "gc": {
+          "count": 2386,
+          "totalMs": 2226.816304979846,
+          "maxMs": 59.922416999936104
+        },
+        "eventLoop": {
+          "maxMs": 3636.461567,
+          "p99Ms": 31.014911
+        },
+        "resourceUsage": {
+          "userCPUTime": 16868246,
+          "systemCPUTime": 1293836,
+          "maxRSS": 359548,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 169966,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 24353,
+          "involuntaryContextSwitches": 1420
+        }
+      },
+      "tap": {
+        "path": "/private/tmp/stage6-service-qualification/diagnostic2-same.tap",
+        "sha256": "81e0b845cb7c391972b481b5b95963bd03119606df7ddbb40e37a8e6ccf2dc3f"
+      },
+      "healthMaxMs": 5528.924168999998,
+      "timeoutTransactions": [
+        {
+          "id": "d6bc7656-893d-4365-b31c-161a19b9adb1",
+          "beginSubmittedAt": 1791978491705,
+          "firstStatementAt": 1791978491705,
+          "startedAt": 1791978491705,
+          "lastStatementAt": 1791978496806,
+          "sqlOperations": 42,
+          "httpOperations": 37,
+          "nativeWaitMs": 43,
+          "beginWaitMs": 0,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978496806,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978496806,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5101,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978491705,
+            "finishedAt": 1791978491705,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_source_links",
+            "template": "ec19c9372f25cc13bc49ea99e24a05f4730d83be4288f9bc9de020b832b6ea19",
+            "submittedAt": 1791978496653,
+            "finishedAt": 1791978496653,
+            "waitMs": 0
+          },
+          "operation": "WEBHOOK_REPLY"
+        },
+        {
+          "id": "49775b0d-751f-47eb-995a-b72b45dbbcd8",
+          "beginSubmittedAt": 1791978549531,
+          "firstStatementAt": 1791978549531,
+          "startedAt": 1791978549531,
+          "lastStatementAt": 1791978554645,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 95,
+          "beginWaitMs": 0,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978554644,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978554648,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5117,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978549531,
+            "finishedAt": 1791978549531,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "SELECT",
+            "table": "phase4_executions",
+            "template": "a0774f67d9376c685e5b533222c97f0046ced2bddc80b1edd1efe52b18223070",
+            "submittedAt": 1791978554517,
+            "finishedAt": 1791978554518,
+            "waitMs": 1
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "219a5143-0b29-4b58-8aa0-8c5106ea787e",
+          "beginSubmittedAt": 1791978557412,
+          "firstStatementAt": 1791978557412,
+          "startedAt": 1791978557413,
+          "lastStatementAt": 1791978562482,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 84,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978562482,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978562486,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5073,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978557413,
+            "finishedAt": 1791978557413,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "SELECT",
+            "table": "phase4_executions",
+            "template": "a0774f67d9376c685e5b533222c97f0046ced2bddc80b1edd1efe52b18223070",
+            "submittedAt": 1791978562355,
+            "finishedAt": 1791978562356,
+            "waitMs": 1
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "2a744a2d-aeef-43d3-b9ab-4595b7d0ee2e",
+          "beginSubmittedAt": 1791978564706,
+          "firstStatementAt": 1791978564706,
+          "startedAt": 1791978564706,
+          "lastStatementAt": 1791978569781,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 94,
+          "beginWaitMs": 0,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978569781,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978569786,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5080,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978564706,
+            "finishedAt": 1791978564707,
+            "waitMs": 1
+          },
+          "lastDataStatement": {
+            "verb": "SELECT",
+            "table": "phase4_executions",
+            "template": "a0774f67d9376c685e5b533222c97f0046ced2bddc80b1edd1efe52b18223070",
+            "submittedAt": 1791978569654,
+            "finishedAt": 1791978569656,
+            "waitMs": 2
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "fcfa43aa-5fa9-45c8-909b-9e4688977b3c",
+          "beginSubmittedAt": 1791978573484,
+          "firstStatementAt": 1791978573484,
+          "startedAt": 1791978573485,
+          "lastStatementAt": 1791978578598,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 94,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978578598,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978578600,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5115,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978573485,
+            "finishedAt": 1791978573485,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791978578472,
+            "finishedAt": 1791978578474,
+            "waitMs": 2
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "e471d1f6-6609-4ed2-a760-ad5c592f214b",
+          "beginSubmittedAt": 1791978581380,
+          "firstStatementAt": 1791978581380,
+          "startedAt": 1791978581381,
+          "lastStatementAt": 1791978586418,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 80,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978586418,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978586421,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5040,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978581381,
+            "finishedAt": 1791978581381,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791978586290,
+            "finishedAt": 1791978586293,
+            "waitMs": 3
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "cf9a2240-b3fd-4766-8309-8ec9bcafc62d",
+          "beginSubmittedAt": 1791978588700,
+          "firstStatementAt": 1791978588700,
+          "startedAt": 1791978588701,
+          "lastStatementAt": 1791978593795,
+          "sqlOperations": 56,
+          "httpOperations": 40,
+          "nativeWaitMs": 83,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791978593795,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791978593798,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5097,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791978588701,
+            "finishedAt": 1791978588701,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791978593660,
+            "finishedAt": 1791978593664,
+            "waitMs": 4
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        }
+      ],
+      "providerCounts": {
+        "counts": {
+          "httpRequests": 138,
+          "sqlStatements": 4338
+        },
+        "morningCounts": {
+          "httpRequests": 815,
+          "sqlStatements": 1049
+        }
+      },
+      "LINUX_CONCURRENT_DURABLE_PROOF": {
+        "signedOperationReceipts": 19,
+        "finalizedProducerHmacs": 79,
+        "workReceipts": 376,
+        "noDuplicateRuns": true,
+        "domainProof": {
+          "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+          "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+          "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+          "inputGeneration": 8,
+          "sourceGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "exactNamedAck": true
+        }
+      },
+      "LINUX_CONCURRENT_CURRENT_PROOF": {
+        "executionId": "1c7b465b-149d-4fb2-8b8b-d20197b57a22",
+        "newOperations": [
+          {
+            "operationKind": "analyzeAssociationFamily",
+            "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+            "executionId": "1c7b465b-149d-4fb2-8b8b-d20197b57a22",
+            "producingGeneration": 1,
+            "workKind": "stage6.associations",
+            "receiptKey": "a976455e13b1a738014bed54026fb3756eea331a66b66a4a0b256b0e9dfc7cf0",
+            "exactNamedAck": true
+          }
+        ],
+        "cursor": {
+          "jobKind": "RECOMPUTE_DERIVED",
+          "cursor": "[\"sleep\",\"sleep-00\"]",
+          "receiptKey": "2cc0641591561496a58ed234b3589d8ac81ec05aa3c71945a8c4048aaca3f074",
+          "exactNamedAck": true
+        }
+      },
+      "closedScopes": {
+        "created": 5,
+        "retired": 5,
+        "disabled": 35,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "realProviderRequests": 0,
+      "diagnosticErrorCounts": {
+        "TRANSACTION_TIMEOUT": 7
+      },
+      "firstDiagnosticErrors": [
+        {
+          "at": 1791978502444,
+          "boundary": "PROCESSING_ROOT",
+          "name": "LibsqlError",
+          "code": "TRANSACTION_TIMEOUT",
+          "causeCode": "TRANSACTION_TIMEOUT",
+          "stack": [
+            "    at mapHranaError (file:///app/node_modules/@libsql/client/lib-esm/hrana.js:279:16)",
+            "    at HttpTransaction.batch (file:///app/node_modules/@libsql/client/lib-esm/hrana.js:107:19)",
+            "    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)",
+            "    at async file:///app/src/processingTransaction.js:242:47",
+            "    at async check (file:///app/src/db.js:220:17)",
+            "    at async runChecks (file:///app/src/processingTransaction.js:111:38)",
+            "    at async file:///app/src/processingTransaction.js:391:11",
+            "    at async withExecutionReceiptTransaction (file:///app/src/phase4ExecutionContext.js:67:13)",
+            "    at async Object.transaction (file:///app/src/processingTransaction.js:370:24)",
+            "    at async Object.processTelegramOperation (file:///app/src/db.js:229:21)"
+          ]
+        },
+        {
+          "at": 1791978554652,
+          "boundary": "PROCESSING_ROOT",
+          "name": "LibsqlError",
+          "code": "TRANSACTION_TIMEOUT",
+          "causeCode": "TRANSACTION_TIMEOUT",
+          "stack": [
+            "    at mapHranaError (file:///app/node_modules/@libsql/client/lib-esm/hrana.js:279:16)",
+            "    at HttpTransaction.batch (file:///app/node_modules/@libsql/client/lib-esm/hrana.js:107:19)",
+            "    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)",
+            "    at async file:///app/src/processingTransaction.js:242:47",
+            "    at async traceExecutionOperation (file:///app/src/executionTelemetry.js:56:15)",
+            "    at async appendPreparedExecutionReceipt (file:///app/src/phase4ExecutionContext.js:83:2)",
+            "    at async file:///app/src/sync.js:169:36",
+            "    at async file:///app/src/processingTransaction.js:384:26",
+            "    at async withExecutionReceiptTransaction (file:///app/src/phase4ExecutionContext.js:67:13)",
+            "    at async Object.transaction (file:///app/src/processingTransaction.js:370:24)"
+          ]
+        }
+      ]
+    },
+    "corrected-child": {
+      "syncMs": 114688.46992799999,
+      "sync": {
+        "status": 503,
+        "outcome": "COMMIT_INDETERMINATE",
+        "settlementState": null,
+        "completion": null,
+        "durationMs": 114498.501678,
+        "itemsProcessed": null,
+        "jobsCompleted": null,
+        "remainingJobs": null,
+        "executionSeq": null,
+        "executionMode": "SHADOW",
+        "continuationState": "COMMIT_UNCERTAIN"
+      },
+      "drainMs": 33167.27264,
+      "drain": {
+        "status": 200,
+        "outcome": "PARTIAL",
+        "settlementState": "FINALIZED_SUCCESS",
+        "completion": "PARTIAL",
+        "durationMs": 30323.034139,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "remainingJobs": 2,
+        "executionSeq": 83,
+        "executionMode": "SHADOW",
+        "continuationState": null
+      },
+      "webhook": {
+        "status": 200,
+        "body": {
+          "ok": true,
+          "outcome": "processed"
+        }
+      },
+      "retry": {
+        "status": 200,
+        "body": {
+          "ok": true,
+          "outcome": "replayed"
+        }
+      },
+      "syncReplay": {
+        "status": 409,
+        "outcome": "REQUEST_PENDING",
+        "settlementState": null,
+        "completion": null,
+        "durationMs": null,
+        "itemsProcessed": null,
+        "jobsCompleted": null,
+        "remainingJobs": null,
+        "executionSeq": null,
+        "executionMode": null,
+        "continuationState": null
+      },
+      "sends": [
+        "1001",
+        "1002",
+        "1003"
+      ],
+      "webhookSends": [
+        "1002"
+      ],
+      "claims": [
+        {
+          "user_id": "alice",
+          "delivery_state": "DELIVERED",
+          "delivery_attempts": 1
+        },
+        {
+          "user_id": "bob",
+          "delivery_state": "DELIVERED",
+          "delivery_attempts": 1
+        },
+        {
+          "user_id": "lan",
+          "delivery_state": "DELIVERED",
+          "delivery_attempts": 1
+        }
+      ],
+      "modelCounts": [
+        [
+          "alice",
+          1
+        ],
+        [
+          "bob",
+          1
+        ],
+        [
+          "lan",
+          1
+        ]
+      ],
+      "capacity": {
+        "active": false,
+        "heapLimit": 106954752,
+        "rss": 133476352
+      },
+      "childCapacity": {
+        "active": false,
+        "lastPublication": {
+          "preparationMs": 19166.681801,
+          "transactionMs": 2516.6814170000034,
+          "statements": 3793,
+          "snapshotGroups": 96,
+          "snapshotBytes": 3652489,
+          "workUsage": {
+            "prefixReadSets": 49,
+            "operations": 190,
+            "bytes": 193535
+          }
+        },
+        "heapLimit": 106954752,
+        "rss": 329289728
+      },
+      "childScopes": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 18,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "metrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 78143488
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1437696
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 137265152
+          }
+        ],
+        "elapsedMs": 125589.781974,
+        "cgroupPeak": 387211264,
+        "cgroupCurrent": 108388352,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 28235717,
+          "user_usec": 25543863,
+          "system_usec": 2691855,
+          "nice_usec": 0,
+          "nr_periods": 1256,
+          "nr_throttled": 151,
+          "throttled_usec": 9589598,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 141737984,
+          "heapUsed": 33326568,
+          "external": 6886825,
+          "arrayBuffers": 2763710
+        },
+        "samples": 4590,
+        "gc": {
+          "count": 446,
+          "totalMs": 826.3332520183176,
+          "maxMs": 71.14583400078118
+        },
+        "eventLoop": {
+          "maxMs": 147.193855,
+          "p99Ms": 40.730623
+        },
+        "resourceUsage": {
+          "userCPUTime": 11673429,
+          "systemCPUTime": 1494858,
+          "maxRSS": 139580,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 53372,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 13378,
+          "involuntaryContextSwitches": 1209
+        }
+      },
+      "childMetrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 78143488
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1437696
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 125411328
+          },
+          {
+            "pid": 57,
+            "command": "node",
+            "rssBytes": 329637888
+          }
+        ],
+        "elapsedMs": 32441.521599,
+        "cgroupPeak": 387211264,
+        "cgroupCurrent": 366309376,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 17537245,
+          "user_usec": 16149523,
+          "system_usec": 1387722,
+          "nice_usec": 0,
+          "nr_periods": 325,
+          "nr_throttled": 141,
+          "throttled_usec": 9037851,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 329158656,
+          "heapUsed": 87313672,
+          "external": 18902405,
+          "arrayBuffers": 15068659
+        },
+        "samples": 697,
+        "gc": {
+          "count": 1524,
+          "totalMs": 2951.012072008103,
+          "maxMs": 68.76445900090039
+        },
+        "eventLoop": {
+          "maxMs": 12004.098047,
+          "p99Ms": 71.565311
+        },
+        "resourceUsage": {
+          "userCPUTime": 14349985,
+          "systemCPUTime": 1173656,
+          "maxRSS": 342416,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 86543,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 11130,
+          "involuntaryContextSwitches": 1720
+        }
+      },
+      "tap": {
+        "path": "/private/tmp/stage6-service-qualification/corrected-child.tap",
+        "sha256": "8e1dd85613210377f3bbbf9c1dfb77614e4cb766933c9b5dd21a6a94b8bee439"
+      },
+      "healthMaxMs": 138.04483400000026,
+      "timeoutTransactions": [
+        {
+          "id": "bd3a39f5-e6f9-416f-998c-90a8e14a926f",
+          "beginSubmittedAt": 1791979623373,
+          "firstStatementAt": 1791979623373,
+          "startedAt": 1791979623374,
+          "lastStatementAt": 1791979628381,
+          "sqlOperations": 56,
+          "httpOperations": 38,
+          "nativeWaitMs": 127,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791979628381,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791979628386,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5012,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791979623374,
+            "finishedAt": 1791979623374,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "SELECT",
+            "table": "phase4_executions",
+            "template": "a0774f67d9376c685e5b533222c97f0046ced2bddc80b1edd1efe52b18223070",
+            "submittedAt": 1791979628247,
+            "finishedAt": 1791979628249,
+            "waitMs": 2
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "0868843e-5035-4ad5-8935-603655bd7339",
+          "beginSubmittedAt": 1791979631911,
+          "firstStatementAt": 1791979631911,
+          "startedAt": 1791979631913,
+          "lastStatementAt": 1791979636930,
+          "sqlOperations": 57,
+          "httpOperations": 39,
+          "nativeWaitMs": 105,
+          "beginWaitMs": 2,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791979636930,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791979636935,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5022,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791979631913,
+            "finishedAt": 1791979631913,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791979636797,
+            "finishedAt": 1791979636799,
+            "waitMs": 2
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "da6d737c-6488-4a20-a25c-f54e87793ac0",
+          "beginSubmittedAt": 1791979637364,
+          "firstStatementAt": 1791979637364,
+          "startedAt": 1791979637365,
+          "lastStatementAt": 1791979642422,
+          "sqlOperations": 57,
+          "httpOperations": 39,
+          "nativeWaitMs": 105,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791979642422,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791979642427,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5062,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791979637365,
+            "finishedAt": 1791979637365,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791979642291,
+            "finishedAt": 1791979642292,
+            "waitMs": 1
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "e2022d8a-bede-4624-9440-285b8e468fd2",
+          "beginSubmittedAt": 1791979648450,
+          "firstStatementAt": 1791979648450,
+          "startedAt": 1791979648451,
+          "lastStatementAt": 1791979653486,
+          "sqlOperations": 58,
+          "httpOperations": 40,
+          "nativeWaitMs": 78,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791979653486,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791979653488,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5037,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791979648451,
+            "finishedAt": 1791979648451,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791979653361,
+            "finishedAt": 1791979653361,
+            "waitMs": 0
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "4e1b0046-b1ab-485b-a941-b2e6e8113188",
+          "beginSubmittedAt": 1791979656931,
+          "firstStatementAt": 1791979656931,
+          "startedAt": 1791979656932,
+          "lastStatementAt": 1791979661964,
+          "sqlOperations": 58,
+          "httpOperations": 40,
+          "nativeWaitMs": 65,
+          "beginWaitMs": 1,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791979661964,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791979661966,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5034,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791979656932,
+            "finishedAt": 1791979656932,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "INSERT",
+            "table": "phase4_execution_work_receipts",
+            "template": "c2739fd7f54bffed9af5dfb91a8e97a8d31365632381879d17b0970b1a873039",
+            "submittedAt": 1791979661837,
+            "finishedAt": 1791979661838,
+            "waitMs": 1
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        },
+        {
+          "id": "cc948cb8-b17a-4b8d-99f7-f0f064bf0f14",
+          "beginSubmittedAt": 1791979662368,
+          "firstStatementAt": 1791979662368,
+          "startedAt": 1791979662368,
+          "lastStatementAt": 1791979667487,
+          "sqlOperations": 60,
+          "httpOperations": 41,
+          "nativeWaitMs": 61,
+          "beginWaitMs": 0,
+          "concurrentWritersMax": 0,
+          "lastStatement": {
+            "verb": "ROLLBACK",
+            "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+          },
+          "timeout": {
+            "at": 1791979667487,
+            "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+            "limitMs": 5000
+          },
+          "finishedAt": 1791979667489,
+          "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT",
+          "durationMs": 5121,
+          "firstNonBegin": {
+            "verb": "SELECT",
+            "template": "e004ebd5b5532a4b85984a62f8ad48a81aa3460c1ca07701f386135d72cdecf5",
+            "submittedAt": 1791979662368,
+            "finishedAt": 1791979662368,
+            "waitMs": 0
+          },
+          "lastDataStatement": {
+            "verb": "SELECT",
+            "table": "users",
+            "template": "ad9f955a2123fbb24b5dfb7e3ebd5593751ededcbbe0a4550029b2fe1fa1445d",
+            "submittedAt": 1791979667363,
+            "finishedAt": 1791979667363,
+            "waitMs": 0
+          },
+          "operation": "SYNC_CANONICAL_WINDOW"
+        }
+      ],
+      "providerCounts": {
+        "counts": {
+          "httpRequests": 138,
+          "sqlStatements": 4338
+        },
+        "morningCounts": {
+          "httpRequests": 827,
+          "sqlStatements": 1086
+        }
+      },
+      "LINUX_CONCURRENT_DURABLE_PROOF": {
+        "signedOperationReceipts": 19,
+        "finalizedProducerHmacs": 79,
+        "workReceipts": 376,
+        "noDuplicateRuns": true,
+        "domainProof": {
+          "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+          "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+          "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+          "inputGeneration": 8,
+          "sourceGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "exactNamedAck": true
+        }
+      },
+      "LINUX_CONCURRENT_CURRENT_PROOF": {
+        "executionId": "1e68ae56-5a38-4374-bf21-729849681ee7",
+        "newOperations": [
+          {
+            "operationKind": "analyzeAssociationFamily",
+            "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+            "executionId": "1e68ae56-5a38-4374-bf21-729849681ee7",
+            "producingGeneration": 1,
+            "workKind": "stage6.associations",
+            "receiptKey": "c9c7a0d3cfe02b9e403174e9430b1a7c71bf9cf152dd92b9fb957357101969bb",
+            "exactNamedAck": true
+          }
+        ],
+        "cursor": {
+          "jobKind": "RECOMPUTE_DERIVED",
+          "cursor": "[\"sleep\",\"sleep-00\"]",
+          "receiptKey": "af341514835cf3d7cc332d2bcc1d8c0627cec675f34dad01c8eac8454bef9623",
+          "exactNamedAck": true
+        }
+      },
+      "closedScopes": {
+        "created": 4,
+        "retired": 4,
+        "disabled": 29,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "realProviderRequests": 0
+    }
+  },
+  "focusedTests": [
+    {
+      "path": "/private/tmp/stage6-service-qualification/final-boundary-tests.tap",
+      "sha256": "b2837cce92fd92a466cb66cffdbca9397d1e9368ae3c44ba5502006fd73a94bc",
+      "pass": 10,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-service-qualification/final-regressions.tap",
+      "sha256": "8579848a3680b13e7940afbcb800198b70c370e7ab81a707118c76bba7427f03",
+      "pass": 27,
+      "fail": 0
+    }
+  ],
+  "fullMonitoredSix": "NOT_RUN_FOCUSED_GATE_FAILED",
+  "render1c2gQualification": "NOT_RUN_FOCUSED_GATE_FAILED",
+  "sameDatabaseCrossProcessContention": "NOT_QUALIFIED",
+  "production": "NO_GO"
+}

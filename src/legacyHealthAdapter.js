@@ -79,7 +79,7 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
     }
     // Keep fresh classification reads. Submit the resulting ordered metadata
     // writes together in the existing transaction, with no intervening reads.
-    const metadata=[];await classify(table,call,{execute:async s=>{metadata.push(s);}});
+    const metadata=[];await classify(table,call,{execute:async s=>{metadata.push(s);if(metadata.length===100)await client.batch(metadata.splice(0));}});
     if(metadata.length)await client.batch(metadata);return result;
   }
   const scopedClient=new Proxy(client,{get(target,property) {

@@ -258,11 +258,17 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
       if(enabled && !ownerUserId && !nonHealthOperation)fail('PHASE4_RECEIPT_OWNER_REQUIRED');
       const fence=operationFence;
       let result;
-      if(isReadOnlyTelegramOperation(fn)){
+      // Routing may lazily expire an OPEN question (including bad context).
+      // Keep that original mutation and its reply receipt in the owned TX.
+      // A concurrent question arriving after preparation begins is still
+      // rejected by the read-only guard, then handled by a later retry.
+      const hasOpenQuestion=isReadOnlyTelegramOperation(fn)&&ownerUserId
+        &&(await client.execute({sql:"SELECT 1 FROM pending_questions WHERE user_id=? AND status='OPEN' LIMIT 1",args:[ownerUserId]})).rows.length>0;
+      if(isReadOnlyTelegramOperation(fn)&&!hasOpenQuestion){
         if(!ownerUserId||!operationFence)fail('PHASE4_PREPARATION_AUTHORITY_REQUIRED');
         const prepared=await processing.outside(`telegram-readonly:${id}`,async()=>{
           await check();const generation=await observeSource();
-          const value=structuredClone(await processing.readOnlyPreparation(fn));
+          const value=await processing.readOnlyPreparation(async()=>structuredClone(await fn()));
           await check();if(await observeSource()!==generation)fail('PHASE4_RECEIPT_GENERATION_STALE');
           return {value,generation};
         });

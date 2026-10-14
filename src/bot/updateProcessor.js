@@ -1,4 +1,4 @@
-import {assessUrgency,urgentReply} from './triage.js';
+import {assessUrgency,urgentReply,TRIAGE_DECISION} from './triage.js';
 import {isJournalCallback} from '../stage7Cards.js';
 import {isSettingsCallback} from './settings.js';
 import {validMessageId} from '../telegramAcknowledgment.js';
@@ -582,7 +582,8 @@ export function createUpdateProcessor({
 
       // Transport authentication and durable ownership already hold. Select
       // safety before any identity capture, Journal note or Settings consumer.
-      const urgent=c.kind==='ok'&&!c.callback&&assessUrgency(c.text).urgent;
+      const triage=c.kind==='ok'&&!c.callback?assessUrgency(c.text):null;
+      const urgent=triage!==null&&triage.decision!==TRIAGE_DECISION.CLEARLY_NONURGENT;
       if(c.kind==='ok'&&authenticatedIdentity&&!urgent)await authenticatedIdentity(c);
       const journalResult=c.kind==='ok'&&!urgent&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
       const dispatch = async () => {

@@ -1,5 +1,6 @@
 import {stage6CapacityStatus} from '../src/stage6CapacityRuntime.js';
 import {verifyShortProof} from './stage6ShortProof.mjs';
+import {verifyCurrentRuntimeProof} from './stage6RuntimeCurrentProof.mjs';
 import {reconcileExecution} from '../src/phase4ExecutionStore.js';
 import {ExecutionBudgetError} from '../src/executionBudget.js';
 import test from 'node:test';import assert from 'node:assert/strict';import {spawnSync} from 'node:child_process';import {mkdtemp,rm,writeFile} from 'node:fs/promises';import {join} from 'node:path';import {tmpdir} from 'node:os';import {randomUUID} from 'node:crypto';
@@ -10,7 +11,7 @@ test('actual phase composition uses branded monitored grant and publishes retain
  t.after(()=>rm(dir,{recursive:true,force:true}));
  const completed=process.env.STAGE6_RUNTIME_COMPLETED==='1',checkpoint=completed?'/private/tmp/stage6-late-six-complete1/checkpoint.sqlite':'/private/tmp/stage6-late-78/checkpoint.sqlite';
  const cp=spawnSync('python3',['-c',"import sqlite3,sys;a=sqlite3.connect('file:'+sys.argv[1]+'?mode=ro&immutable=1',uri=True);b=sqlite3.connect(sys.argv[2]);a.backup(b);b.close();a.close()",checkpoint,path],{encoding:'utf8'});assert.equal(cp.status,0,cp.stderr);
- const seed=createOwnedDb({url});assert.deepEqual((await seed.raw.execute('SELECT id,display_name FROM users')).rows.map(r=>[r.id,r.display_name]),[['a','Synthetic']]);await seed.close();
+ const seed=createOwnedDb({url});assert.deepEqual((await seed.raw.execute('SELECT id,display_name FROM users')).rows.map(r=>[r.id,r.display_name]),[['a','Synthetic']]);const oldOperations=(await seed.raw.execute('SELECT operation_key FROM phase4_operation_receipts')).rows.map(r=>r.operation_key);await seed.close();
  const transport=hranaTransport(url,{transactionMaxMs:5000});t.after(()=>transport.close());let latency=115;
  const fault=process.env.STAGE6_RUNTIME_FAULT,controller=new AbortController();assert.ok(fault===undefined||['ACK_LOSS','CANCEL','CANCEL_RAM','SIGKILL_AFTER'].includes(fault));let armedCancellation=false,dataDelivered=false;
  const fetch=async r=>{let data=false;if(['CANCEL','CANCEL_RAM'].includes(fault)&&armedCancellation){const payload=JSON.stringify(await r.clone().json());data=payload.includes('PREPARATION_FRESH_PAGE_BOUNDS');if(fault==='CANCEL'&&data||fault==='CANCEL_RAM'&&dataDelivered&&payload.includes('SELECT * FROM phase4_executions WHERE execution_id=?')){armedCancellation=false;controller.abort(new ExecutionBudgetError('SYNC_CANCELLED'));throw controller.signal.reason;}}await new Promise(ok=>setTimeout(ok,latency));const result=await transport.fetch(r);if(data)dataDelivered=true;return result;};let db=createDb({url:'https://isolated.invalid',fetch,phase4Keys:fixtureKeys});t.after(()=>db.close());
@@ -20,7 +21,7 @@ test('actual phase composition uses branded monitored grant and publishes retain
  const syncReq=request('SYNC'),sync=await runExecutionPhase({...options,request:syncReq,deps:{runBriefing:async()=>({syncComplete:true,syncOutcome:'NO_NEW_DATA_SUCCESS',users:0,failed:0})}});assert.equal(sync.body.drainAuthorized,true);
  const req=request('STAGE6_DRAIN',{syncRequestId:syncReq.requestId,handoff:sync.body.handoff}),before=structuredClone(transport.counts),at=performance.now();
  if(fault==='ACK_LOSS')transport.arm({matchSql:/UPDATE phase4_jobs SET full_scan_cursor=/,loseAcknowledgement:true});if(['CANCEL','CANCEL_RAM'].includes(fault))armedCancellation=true;
- if(fault==='SIGKILL_AFTER'){const marker=process.env.STAGE6_RUNTIME_MARKER;assert.match(marker,/^\/private\/tmp\/whoop-stage6-runtime-crash-[^/]+\/marker.json$/);transport.arm({matchSql:/UPDATE phase4_jobs SET full_scan_cursor=/,after:async()=>{await writeFile(marker,JSON.stringify({synthetic:true,path,url,req,env}));process.kill(process.pid,'SIGKILL');}});}
+ if(fault==='SIGKILL_AFTER'){const marker=process.env.STAGE6_RUNTIME_MARKER;assert.match(marker,/^\/private\/tmp\/whoop-stage6-runtime-crash-[^/]+\/marker.json$/);transport.arm({matchSql:/UPDATE phase4_jobs SET full_scan_cursor=/,after:async()=>{await writeFile(marker,JSON.stringify({synthetic:true,path,url,req,env,oldOperations}));process.kill(process.pid,'SIGKILL');}});}
  const result=await runExecutionPhase({...options,request:req});console.log('RUNTIME_TARGET '+JSON.stringify({result,elapsedMs:performance.now()-at,counts:Object.fromEntries(Object.keys(before).map(k=>[k,transport.counts[k]-before[k]])),scopes:receiverScopeStatistics(),capacity:stage6CapacityStatus(),rejections:transport.evidence}));
  latency=0;console.log('RUNTIME_TARGET_JOBS '+JSON.stringify((await db.raw.execute("SELECT job_kind,state,requested_generation,completed_generation,full_scan_cursor FROM phase4_jobs")).rows));
  if(fault){
@@ -35,6 +36,7 @@ test('actual phase composition uses branded monitored grant and publishes retain
  const replay=await runExecutionPhase({...options,request:req});assert.deepEqual(replay,result);
  const fresh=async()=>{await db.close();db=createDb({url:'https://isolated.invalid',fetch,phase4Keys:fixtureKeys});options.db=db;};
  const f={get db(){return db;},fresh};console.log('RUNTIME_RESTART_PROOF '+JSON.stringify(await verifyShortProof(f,{domainOnly:true})));
+ if(!completed)console.log('RUNTIME_CURRENT_PROOF '+JSON.stringify(await verifyCurrentRuntimeProof(db,req.requestId,oldOperations)));
  assert.deepEqual(await runExecutionPhase({...options,request:req}),result);
  const legs=Number(process.env.STAGE6_RUNTIME_LEGS??2);assert.ok(legs>=2&&legs<=12);
  for(let n=2;n<=legs;n++){

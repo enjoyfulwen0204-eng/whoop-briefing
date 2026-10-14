@@ -12,7 +12,8 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=I
  const streams=new Map();let armed=null,commits=0;
  const counts={httpRequests:0,sqlStatements:0,byFamily:{},byTemplate:{},byOperation:{},byHttpMix:{},byHttpFamily:{}};
  const evidence=[],transactions=[];
- const sqlLabel=sql=>({verb:/^\s*([a-z]+)/i.exec(sql)?.[1]?.toUpperCase(),table:/\b(?:FROM|INTO|UPDATE)\s+"?([a-z0-9_]+)/i.exec(sql)?.[1],template:createHash('sha256').update(sql.replace(/\s+/g,' ').trim()).digest('hex')});
+ const sqlLabel=sql=>({verb:/^\s*([a-z]+)/i.exec(sql)?.[1]?.toUpperCase(),table:/\b(?:FROM|INTO|UPDATE)\s+"?([a-z0-9_]+)/i.exec(sql)?.[1],template:createHash('sha256').update(sql.replace(/\s+/g,' ').trim()).digest('hex'),
+  ...(sql.includes("ELSE 'SYNC_IMMUTABLE_AUTHORITY_CHANGED'")?{operation:'SYNC_COMMIT_WINDOW_AUTHORITY_ASSERTION'}:{})});
  const open=()=>{const client=createClient({url,intMode:'bigint'}),id=randomUUID(),stream={client,sql:new Map(),inTransaction:false};
   if(traceTransactions){const execute=client.execute.bind(client);client.execute=async statement=>{
    const sql=typeof statement==='string'?statement:statement.sql,at=Date.now(),label=sqlLabel(sql),begin=/^\s*BEGIN\b/i.test(sql),end=/^\s*(COMMIT|ROLLBACK)\b/i.test(sql);

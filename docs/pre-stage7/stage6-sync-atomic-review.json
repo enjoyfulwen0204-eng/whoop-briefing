@@ -1,0 +1,303 @@
+{
+  "schemaVersion": 1,
+  "reviewer": "sole independent Sol 6.1 reviewer; no delegation",
+  "reviewedAtUtc": "2026-10-14T14:37:53.933335+00:00",
+  "scope": "Final read-only focused safety and evidence qualification for sync.commitWindow immutable-DATA batching, pure JSON preparation and narrow Linux test harness changes. No broad audit or full-six benchmark by reviewer.",
+  "source": {
+    "commit": "1a7c7b0e11bbe30c6921361166e9e794323b8363",
+    "tree": "706914bbc817ff0859953768e57b7d71f498806f",
+    "baseline": "7ded16c1ada45e8eec9d8c4b2ff26ee3bcc38355",
+    "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+    "sha256": {
+      "src/processingReadSnapshot.js": "0a79e0d554db1a01374b105992594cfda211b7e78e1d394afe771d446ea6474b",
+      "src/processingTransaction.js": "b890286cc3ea5ad82a75e949bf7c0056672e3b8c11a78754c229dd42187a09e7",
+      "src/store.js": "9bac190c596443d172618434842ac7fe7184e773c440ddeabc151e2e4e8596a1",
+      "src/sync.js": "d5cc42707d710b08f4650da2ca3fb0e846434991b665c91a0409a1a99d381e39",
+      "src/syncCanonicalPreparation.js": "57b0e056c7a59122328ed0aa52bdbef85a9c8c07e62083ef3e4a113ef2ea86e8",
+      "src/syncCommitSnapshot.js": "7bbaf0b462989edf1f4aa9bc32ae0f2fc15ff571befba34cdaf1f9f34416a94f"
+    },
+    "unchangedSinceSafetySeal": true,
+    "gitSourceDiff": ""
+  },
+  "workingTestSha256": {
+    "test/hranaTransport.js": "eb09ff23595757c16dd5bedd0beec78e7e440f8921d6d78d1b8fb7b88f0f9b4d",
+    "test/stage6-linux-concurrency.mjs": "c8c84bdf3b3b88843d3874870d26937bc32952527e28449517912dc13a2f21aa",
+    "test/stage6-linux-provider.mjs": "c5ef39c5d9a977b4cd36bed3d99b4ea2c3d2283ce354013b3f1c256c329b1a3e",
+    "test/stage6LinuxMetrics.mjs": "1406f94498c5a4be77a6263302c7d268241679f20336a03c1fa1ec2bc438f567",
+    "test/stage6-linux-child-control.mjs": "5c1ffba7f8ec310ca0da0f39ccb00c2b1bfd5646f2f7c8d69a6116f59440ec48"
+  },
+  "verdict": {
+    "scopedSourceSafety": "GO",
+    "scopedTestSafety": "GO",
+    "retainedDeltaP0": 0,
+    "retainedDeltaP1": 0,
+    "hostFocusedExactSource": "PASS_31_OF_31_TWO_COMMANDS",
+    "freshSyntheticLinuxOneCpuTwoGiBCombinedService": "PASS_TARGETED_SCOPE",
+    "retainedSuccessorContinuity": "PASS_NO_NEW_MORNING_OR_SYNC_TIMING",
+    "oldRequestRetainedConvergence": "FAIL_STALE_REQUEST",
+    "prototypeChildDisconnect": "FAIL_REQUIRES_FORCED_REAP",
+    "fullMonitoredSixJobs": "NOT_QUALIFIED",
+    "unchangedFinancialContractFullWorkload": "BLOCKED",
+    "sharedPhysicalDatabaseContention": "NOT_QUALIFIED",
+    "ProductionChildLifecycle": "NOT_QUALIFIED",
+    "providerEquivalence": "NOT_QUALIFIED",
+    "fullRuntime": "NO_GO",
+    "Production": "NO_GO"
+  },
+  "sourceSafetySeal": {
+    "path": "/private/tmp/stage6-independent-sync-atomic-review.json",
+    "sha256": "4d99870d23c6ceb034dc9900680bd58301b3050284efe32f344fe9d48ac41383",
+    "resolvedP1": "Lossy non-enumerable provider id is rejected before canonical/source/cursor publication.",
+    "invariants": "Actual private receiver closure plus opaque one-use window/owner/execution/budget binding; exact typed cloned DATA in one original acknowledged write transaction; full immutable authority projection comparison after every supported DML request; arbitrary DML/DDL clears; terminal/COMMIT checks clear reuse and run fresh; no clock/lease/receipt/source epoch/health/accepted-authority caching or HMAC/budget/grant changes."
+  },
+  "evidence": [
+    {
+      "path": "/private/tmp/stage6-independent-sync-snapshot-frozen.tap",
+      "sha256": "288303d664fdab74844aea108365397e71d8a0255b4617d3affd0c7ea81c925a",
+      "tap": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0
+      },
+      "scope": "Four own exact-source installed-SDK/runtime controls: hidden JSON field, pending purge trigger, missing computation row trigger, final receipt timezone trigger rejected by uncached COMMIT fence."
+    },
+    {
+      "path": "/private/tmp/stage6-sync-atomic-exact-head-gate.tap",
+      "sha256": "5257e8eff673353fc624d4e26a73b295d0c97a13b783c0724272a18e6605789c",
+      "tap": {
+        "tests": 26,
+        "pass": 26,
+        "fail": 0
+      },
+      "scope": "Exact frozen source SYNC12 + input metadata9 + canonical5 =26; actual request release label1a7c7b0e."
+    },
+    {
+      "path": "/private/tmp/stage6-sync-atomic-exact-lifetime.tap",
+      "sha256": "22f5a2eca8fea9f324783f28c5b79b447de9f69feda5a23a4677a524f68e14f4",
+      "tap": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0
+      },
+      "scope": "Separate exact-source receiver lifetime5; total focused31 across two commands."
+    },
+    {
+      "path": "/private/tmp/stage6-sync-atomic/linux-2g.tap",
+      "sha256": "e48f49c9d25442d2365f63b67a7083ed0ab34ac022635bc228a1076f246d9e89",
+      "tap": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0
+      },
+      "scope": "Fresh actual synthetic Linux combined service with real runtime/router/server/SYNC/Morning factories, original monitored grant, external provider/model/Telegram doubles; two independent databases."
+    },
+    {
+      "path": "/private/tmp/stage6-sync-atomic/linux-successor.tap",
+      "sha256": "980e1cad310be500d139939a3c0e06bca71e8584f0cab166db32a60148bcf6af",
+      "tap": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0
+      },
+      "scope": "Retained new-request post-staleness continuity only, not retroactive old request convergence or new Morning/timing qualification."
+    },
+    {
+      "path": "/private/tmp/stage6-sync-atomic/linux-retained2.tap",
+      "sha256": "9e090423b2fae2d6574a96bae95afa9a8947eebf5d08d6b773558d36ff7bf5ec",
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      },
+      "scope": "Retained old request genuinely failed after three202 continuations and410 EXECUTION_STALE_REQUEST; never reset/extended."
+    },
+    {
+      "path": "/private/tmp/stage6-sync-atomic/linux-child-control.tap",
+      "sha256": "efc0c963ac9797e1c3b3356db822180968c9745b2e2d8a435b0d4a75843b44f2",
+      "tap": {
+        "tests": 2,
+        "pass": 1,
+        "fail": 1
+      },
+      "scope": "Actual admitted children: SIGTERM termination PASS; IPC disconnect retirement FAIL; controller forced SIGKILL cleanup. Measured before final spawn-error/cleanup test hardening; child/runtime implementation unchanged."
+    },
+    {
+      "path": "/private/tmp/stage6-independent-child-cleanup.tap",
+      "sha256": "2b0d8970d2c0d43b0c17064ba720dd83a995b13ff6fc5d4c1406bd5702dd027d",
+      "tap": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0
+      },
+      "scope": "Two own short negatives against updated exact handler/cleanup text: actual fork ENOENT, bounded unacknowledged reap with DB/metrics finally cleanup. No runtime/grant benchmark."
+    }
+  ],
+  "freshLinuxMeasurement": {
+    "memoryMaxBytes": 2147483648,
+    "cpuMax": "100000 100000",
+    "swapMax": "0",
+    "cgroupPeakBytes": 387891200,
+    "oomKill": 0,
+    "healthProbes": 1512,
+    "healthMaxMs": 57.963583000000654,
+    "canonicalWindows": 30,
+    "maxCanonicalMs": 4073,
+    "actualSeededSyncWindows": 15,
+    "maxActualSeededSyncMs": 3845,
+    "modeledTransactionTimeouts": 0,
+    "syncStatuses": [
+      202,
+      202,
+      202,
+      200
+    ],
+    "finalSyncComplete": true,
+    "finalSyncOutcome": "NO_NEW_DATA_SUCCESS",
+    "sameRequestFinalReplayEqual": true,
+    "originalDrainItemsProcessed": 1,
+    "currentProof": {
+      "executionId": "b15d8005-409f-4d8e-a2a6-d66a0d6146ee",
+      "newOperations": [
+        {
+          "operationKind": "analyzeAssociationFamily",
+          "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+          "executionId": "b15d8005-409f-4d8e-a2a6-d66a0d6146ee",
+          "producingGeneration": 1,
+          "workKind": "stage6.associations",
+          "receiptKey": "ad06634332f4e7a22b13b80d85553fe89a2ccfebca6b58592af4f882f42bdc7d",
+          "exactNamedAck": true
+        }
+      ],
+      "cursor": {
+        "jobKind": "RECOMPUTE_DERIVED",
+        "cursor": "[\"sleep\",\"sleep-00\"]",
+        "receiptKey": "da69fb46057e4755c6f741864162b572f98cf7274f851e0bbcdc25cda827082f",
+        "exactNamedAck": true
+      }
+    },
+    "morningDeliveredClaims": [
+      {
+        "user_id": "alice",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "bob",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "lan",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      }
+    ],
+    "morningSendCount": 3,
+    "modelCalls": [
+      [
+        "alice",
+        1
+      ],
+      [
+        "bob",
+        1
+      ],
+      [
+        "lan",
+        1
+      ]
+    ],
+    "freshHelpAndReplayStatuses": [
+      200,
+      200
+    ],
+    "helpSendCount": 1,
+    "externalRealProviderRequests": 0,
+    "finalScopes": {
+      "created": 4,
+      "retired": 4,
+      "disabled": 29,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    },
+    "wholeFixtureDurationMs": 400547.922682,
+    "limits": "PASS is for a fresh one-CPU/two-GiB synthetic service profile only. Peak below512MiB does not qualify the512MiB profile or actual provider equivalence; final SYNC completes across four genuine bounded legs, not one leg."
+  },
+  "retainedContinuityMeasurement": {
+    "memoryMaxBytes": 536870912,
+    "cpuMax": "100000 100000",
+    "cgroupPeakBytes": 247779328,
+    "healthMaxMs": 415.3193749999991,
+    "syncStatus": 200,
+    "sameRequestFinalReplayEqual": true,
+    "newMorningSends": 0,
+    "newModelCalls": [],
+    "newCanonicalWindows": 0,
+    "newSyncWindows": 0,
+    "currentProof": {
+      "executionId": "e4c5a491-0649-48f3-bfda-9d661c589939",
+      "newOperations": [],
+      "cursor": {
+        "jobKind": "RECOMPUTE_DERIVED",
+        "cursor": "[\"sleep\",\"sleep-01\"]",
+        "receiptKey": "6d07df26055a0e65aa4c999de5fdb8f0c0fa1981beddb2b5f9fd1948c2601dbc",
+        "exactNamedAck": true
+      }
+    },
+    "finalScopes": {
+      "created": 4,
+      "retired": 4,
+      "disabled": 29,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    },
+    "limits": "New request under existing unreset allowance after actual old-request stale rejection; original state remains. No new canonical-window timing or fresh Morning workload acceptance."
+  },
+  "childControls": [
+    {
+      "control": "SIGTERM",
+      "admitted": true,
+      "terminated": true,
+      "termination": {
+        "code": null,
+        "signal": "SIGTERM"
+      },
+      "elapsedMs": 6.673499999999876,
+      "forcedCleanup": false
+    },
+    {
+      "control": "disconnect",
+      "admitted": true,
+      "terminated": false,
+      "termination": null,
+      "elapsedMs": 1502.086417999999,
+      "forcedCleanup": true
+    }
+  ],
+  "testFixes": {
+    "timingVacuity": "Tracing and nonempty fresh canonical/seeded window sets required; retained zero-window case explicitly has no new timing PASS.",
+    "timingScope": "4s target covers actual SQL-labeled seeded sync.commitWindow only; every canonical transaction independently must commit <5s. Original modeled server limit remains5000ms.",
+    "finiteController": "Close/error settle spawn failure; reap bounded2s; DB/metrics cleanup finally. Own updated-control2/2 PASS. This does not repair baseline child disconnect behavior.",
+    "bodyIdentity": "Original manual insertion-order body preserved and compared to stored SHA256 identity; cloudflare continuation uses identical canonical body. REQUEST_ID_CONFLICT mis-reproduction is not a runtime bug."
+  },
+  "independentCleanupDriver": {
+    "path": "/private/tmp/stage6-independent-child-cleanup.mjs",
+    "sha256": "fd99bd386a9f08e387558d2c0bbeadda725e2da1f36ac1f7d8cd8bc98cda3a9b"
+  },
+  "blockingGates": [
+    "Actual HTTP monitored admission remains12 attempts/maxItems1; representative full-six workload is not qualified under that unchanged contract. File fixture seam48 grants no HTTP capability. No reset/new allowance/new paid scope.",
+    "Admitted prototype child does not retire on IPC disconnect; forced controller reap is not graceful permit settlement or Production-child lifecycle qualification.",
+    "No shared physical DB service contention, fresh512MiB combined service, actual provider kernel/hardware/account transaction ceiling or deployable Production child integration qualification.",
+    "Production profile remains previously observed0.5CPU/512MiB; synthetic1CPU/2GiB is a distinct bounded alternative requiring owner decisions. No Production action is approved."
+  ],
+  "actions": {
+    "repositoryEdits": false,
+    "gitMutations": false,
+    "agentsSpawned": 0,
+    "credentialsOrProductionCalls": false,
+    "longBenchmarksRunByReviewer": false,
+    "ownChecks": "Frozen four source controls~8.7s and two finite cleanup controls~2.1s; external synthetic only."
+  }
+}

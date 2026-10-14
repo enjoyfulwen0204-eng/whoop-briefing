@@ -1,0 +1,1547 @@
+{
+  "schemaVersion": 1,
+  "status": "SYNC_ATOMIC_REPAIR_LOCAL_GO_RUNTIME_QUALIFICATION_NO_GO",
+  "baseline": {
+    "commit": "7ded16c1ada45e8eec9d8c4b2ff26ee3bcc38355",
+    "tree": "c32c1b27b662cf1eacc7bf6c13c4a35c582b84c5"
+  },
+  "runtimeSource": {
+    "commit": "1a7c7b0e11bbe30c6921361166e9e794323b8363",
+    "tree": "706914bbc817ff0859953768e57b7d71f498806f",
+    "sourceSha256": {
+      "src/processingReadSnapshot.js": "0a79e0d554db1a01374b105992594cfda211b7e78e1d394afe771d446ea6474b",
+      "src/processingTransaction.js": "b890286cc3ea5ad82a75e949bf7c0056672e3b8c11a78754c229dd42187a09e7",
+      "src/store.js": "9bac190c596443d172618434842ac7fe7184e773c440ddeabc151e2e4e8596a1",
+      "src/sync.js": "d5cc42707d710b08f4650da2ca3fb0e846434991b665c91a0409a1a99d381e39",
+      "src/syncCanonicalPreparation.js": "57b0e056c7a59122328ed0aa52bdbef85a9c8c07e62083ef3e4a113ef2ea86e8",
+      "src/syncCommitSnapshot.js": "7bbaf0b462989edf1f4aa9bc32ae0f2fc15ff571befba34cdaf1f9f34416a94f"
+    },
+    "finalTestSha256": {
+      "test/sync-atomic-commit.test.js": "79819173724173de843480d35673e05587dea17b5ae19b8f5c486ac98e2d66c4",
+      "test/hranaTransport.js": "eb09ff23595757c16dd5bedd0beec78e7e440f8921d6d78d1b8fb7b88f0f9b4d",
+      "test/stage6-linux-concurrency.mjs": "c8c84bdf3b3b88843d3874870d26937bc32952527e28449517912dc13a2f21aa",
+      "test/stage6-linux-provider.mjs": "c5ef39c5d9a977b4cd36bed3d99b4ea2c3d2283ce354013b3f1c256c329b1a3e",
+      "test/stage6LinuxMetrics.mjs": "1406f94498c5a4be77a6263302c7d268241679f20336a03c1fa1ec2bc438f567",
+      "test/stage6-linux-child-control.mjs": "5c1ffba7f8ec310ca0da0f39ccb00c2b1bfd5646f2f7c8d69a6116f59440ec48"
+    }
+  },
+  "before": {
+    "tap": {
+      "path": "/private/tmp/stage6-sync-atomic-baseline.tap",
+      "sha256": "8083ae3c4c8ee1745cd6c63b204566e303d99c766e180a0d99bcd5171231c135"
+    },
+    "elapsedMs": 8870.159167,
+    "response": 503,
+    "outcome": "REQUIRED_RESOURCE_FAILED",
+    "windows": [
+      {
+        "id": "f1320d3e-c957-4bbd-ae65-aca9b0a8996b",
+        "beginSubmittedAt": 1791984577944,
+        "firstStatementAt": 1791984577944,
+        "startedAt": 1791984577944,
+        "lastStatementAt": 1791984582978,
+        "sqlOperations": 62,
+        "httpOperations": 43,
+        "nativeWaitMs": 38,
+        "beginWaitMs": 0,
+        "concurrentWritersMax": 0,
+        "lastStatement": {
+          "verb": "ROLLBACK",
+          "template": "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710"
+        },
+        "timeout": {
+          "at": 1791984582978,
+          "source": "SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT",
+          "limitMs": 5000
+        },
+        "finishedAt": 1791984582979,
+        "outcome": "ROLLED_BACK_BY_MODELED_TIMEOUT"
+      }
+    ],
+    "scope": "Incomplete request failed first window; not a completed full-SYNC elapsed-time baseline."
+  },
+  "after": {
+    "tap": {
+      "path": "/private/tmp/stage6-sync-atomic-frozen-focus.tap",
+      "sha256": "f67b3184056c302f449b22d59883d0685ec132007f2a2aef752d133de9af6741"
+    },
+    "elapsedMs": 20101.756833,
+    "response": 200,
+    "outcome": "COMPLETE_SUCCESS",
+    "processed": 21,
+    "snapshot": {
+      "hits": 14,
+      "guardedWrites": 8,
+      "phases": {
+        "snapshotMs": 140.9656249999989,
+        "callbackMs": 2700.9365419999995,
+        "terminalMs": 365.8253330000007,
+        "commitMs": 124.77537500000108,
+        "transactionMs": 3457.261917
+      },
+      "outcome": "COMMITTED"
+    },
+    "windows": [
+      {
+        "id": "1e74b549-f991-471a-ae62-ff8121278737",
+        "beginSubmittedAt": 1791985741973,
+        "firstStatementAt": 1791985741973,
+        "startedAt": 1791985741974,
+        "lastStatementAt": 1791985745420,
+        "sqlOperations": 64,
+        "httpOperations": 30,
+        "nativeWaitMs": 22,
+        "beginWaitMs": 1,
+        "concurrentWritersMax": 0,
+        "lastStatement": {
+          "verb": "COMMIT",
+          "template": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+        },
+        "finishedAt": 1791985745422,
+        "outcome": "COMMITTED"
+      },
+      {
+        "id": "03b4a6c9-c382-4ae8-82d3-d07f0742adb3",
+        "beginSubmittedAt": 1791985747104,
+        "firstStatementAt": 1791985747104,
+        "startedAt": 1791985747104,
+        "lastStatementAt": 1791985750565,
+        "sqlOperations": 65,
+        "httpOperations": 30,
+        "nativeWaitMs": 25,
+        "beginWaitMs": 0,
+        "concurrentWritersMax": 0,
+        "lastStatement": {
+          "verb": "COMMIT",
+          "template": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+        },
+        "finishedAt": 1791985750569,
+        "outcome": "COMMITTED"
+      },
+      {
+        "id": "95398c4e-f0b1-4846-bdf3-6d13671f57ca",
+        "beginSubmittedAt": 1791985752329,
+        "firstStatementAt": 1791985752329,
+        "startedAt": 1791985752330,
+        "lastStatementAt": 1791985755663,
+        "sqlOperations": 62,
+        "httpOperations": 28,
+        "nativeWaitMs": 56,
+        "beginWaitMs": 1,
+        "concurrentWritersMax": 0,
+        "lastStatement": {
+          "verb": "COMMIT",
+          "template": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+        },
+        "finishedAt": 1791985755666,
+        "outcome": "COMMITTED"
+      }
+    ],
+    "scope": "Exact frozen source; all three required resources complete, generation+3, cursor/provenance/receipts and no extra provider fetch on immutable replay."
+  },
+  "phaseBudgets": {
+    "SYNC_cloudflare_ms": 120000,
+    "SYNC_yield_reserve_ms": 30000,
+    "DRAIN_manual_ms": 45000,
+    "DRAIN_effective_worker_ms": 30000,
+    "DRAIN_publication_reserve_ms": 5500,
+    "transaction_limit_fixture_ms": 5000,
+    "productionTursoAbsoluteLimit": "UNVERIFIED"
+  },
+  "focused": {
+    "exactSourceSyncInputCanonical": {
+      "pass": 26,
+      "fail": 0,
+      "tap": {
+        "path": "/private/tmp/stage6-sync-atomic-exact-head-gate.tap",
+        "sha256": "5257e8eff673353fc624d4e26a73b295d0c97a13b783c0724272a18e6605789c"
+      }
+    },
+    "exactSourceReceiverLifetime": {
+      "pass": 5,
+      "fail": 0,
+      "tap": {
+        "path": "/private/tmp/stage6-sync-atomic-exact-lifetime.tap",
+        "sha256": "22f5a2eca8fea9f324783f28c5b79b447de9f69feda5a23a4677a524f68e14f4"
+      }
+    },
+    "independentSafety": {
+      "pass": 4,
+      "fail": 0,
+      "tap": {
+        "path": "/private/tmp/stage6-independent-sync-snapshot-frozen.tap",
+        "sha256": "288303d664fdab74844aea108365397e71d8a0255b4617d3affd0c7ea81c925a"
+      }
+    },
+    "independentControllerNegatives": {
+      "pass": 2,
+      "fail": 0,
+      "tap": {
+        "path": "/private/tmp/stage6-independent-child-cleanup.tap",
+        "sha256": "2b0d8970d2c0d43b0c17064ba720dd83a995b13ff6fc5d4c1406bd5702dd027d"
+      }
+    },
+    "unchangedEvidenceReused": "Prior core security/SIGKILL18/18, permit17/17 and native algorithm6/6 twice; not a new full monitored or new SYNC process-SIGKILL qualification."
+  },
+  "linux512First": {
+    "tap": {
+      "path": "/private/tmp/stage6-sync-atomic/linux-512.tap",
+      "sha256": "aa70d389288e0a27ab4169410560b02b4cba185f02afccd7682110eb30fc3536"
+    },
+    "synthetic": true,
+    "independentDatabases": true,
+    "retained": false,
+    "legitimateSuccessor": false,
+    "sync": {
+      "status": 202,
+      "body": {
+        "ok": false,
+        "phase": "SYNC",
+        "source": "cloudflare",
+        "result": {
+          "phase": "SYNC",
+          "source": "cloudflare",
+          "releaseSha": "1a7c7b0e11bbe30c6921361166e9e794323b8363",
+          "executionMode": "SHADOW",
+          "users": 3,
+          "failed": 3,
+          "durationMs": 104597.072339,
+          "executionSeq": 1,
+          "outcome": "PARTIAL",
+          "resumable": true,
+          "continuationState": "INCOMPLETE_RESUMABLE",
+          "retryAfterMs": 0,
+          "yieldReason": "COMPLETED_UNITS_BUDGET"
+        },
+        "syncComplete": false,
+        "drainAuthorized": false,
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "syncRuns": [
+      {
+        "status": 202,
+        "result": {
+          "outcome": "PARTIAL",
+          "resumable": true,
+          "continuationState": "INCOMPLETE_RESUMABLE",
+          "yieldReason": "COMPLETED_UNITS_BUDGET",
+          "durationMs": 104597.072339,
+          "users": 3,
+          "failed": 3,
+          "executionSeq": 1
+        }
+      }
+    ],
+    "syncTotalMs": 105338.251838,
+    "drain": {
+      "status": 200,
+      "result": {
+        "version": 2,
+        "releaseSha": "1a7c7b0e11bbe30c6921361166e9e794323b8363",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "PARTIAL",
+        "durationMs": 21224.978051000002,
+        "jobsConsidered": 1,
+        "itemsAttempted": 1,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "identity": "54da0eca4401eea480fb28f93cee561ac4bce2a1720f935eab53c7aa99ac380e",
+        "configProof": "e3146ae9a2735cac5041f0d535b004d990403b3de0a770509c8580f4868b39d7",
+        "completion": "PARTIAL",
+        "stopReason": "ITEM_LIMIT",
+        "executionMode": "SHADOW",
+        "finishedAt": 1791986129244,
+        "executionSeq": 83,
+        "settlementState": "FINALIZED_SUCCESS",
+        "finalizedAt": 1791986129940
+      }
+    },
+    "drainTotalMs": 23766.85226,
+    "childCapacity": {
+      "active": false,
+      "lastPublication": {
+        "preparationMs": 11291.69613,
+        "transactionMs": 1820.9804169999989,
+        "statements": 3793,
+        "snapshotGroups": 96,
+        "snapshotBytes": 3652475,
+        "workUsage": {
+          "prefixReadSets": 49,
+          "operations": 190,
+          "bytes": 193535
+        }
+      },
+      "heapLimit": 106954752,
+      "rss": 341680128
+    },
+    "childMetrics": {
+      "scopes": "all retired on normal completion",
+      "peakBytes": 387051520,
+      "limits": {
+        "memoryMax": 536870912,
+        "swapMax": "0",
+        "cpuMax": "100000 100000",
+        "heapLimit": 106954752
+      }
+    },
+    "webhook": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "processed"
+      }
+    },
+    "webhookReplay": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "replayed"
+      }
+    },
+    "freshWebhook": null,
+    "freshWebhookReplay": null,
+    "sendCounts": {
+      "morning": 3,
+      "webhook": 0,
+      "models": [
+        [
+          "alice",
+          1
+        ],
+        [
+          "bob",
+          1
+        ],
+        [
+          "lan",
+          1
+        ]
+      ]
+    },
+    "claims": [
+      {
+        "user_id": "alice",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "bob",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "lan",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      }
+    ],
+    "healthPeakMs": 73.10195799999929,
+    "syncWindowTraces": [],
+    "allCanonicalWindowCount": 21,
+    "allCanonicalPeakMs": 3859,
+    "transactionTimeouts": [],
+    "currentProof": {
+      "executionId": "fc2a7834-d96d-477f-bfa7-25d151446751",
+      "newOperations": [
+        {
+          "operationKind": "analyzeAssociationFamily",
+          "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+          "executionId": "fc2a7834-d96d-477f-bfa7-25d151446751",
+          "producingGeneration": 1,
+          "workKind": "stage6.associations",
+          "receiptKey": "784f9333300a1533abc5c71c0016a66246bc299b5c73d9e13ad833329c3a05f5",
+          "exactNamedAck": true
+        }
+      ],
+      "cursor": {
+        "jobKind": "RECOMPUTE_DERIVED",
+        "cursor": "[\"sleep\",\"sleep-00\"]",
+        "receiptKey": "8c247bd285e79c45fd9c0668fd05f7d4d3a74d5d882b9f7c3b70970465e4faf6",
+        "exactNamedAck": true
+      }
+    },
+    "durableProof": {
+      "signedOperationReceipts": 19,
+      "finalizedProducerHmacs": 79,
+      "workReceipts": 376,
+      "noDuplicateRuns": true,
+      "domainProof": {
+        "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+        "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+        "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+        "inputGeneration": 8,
+        "sourceGeneration": 8,
+        "receiptHmac": true,
+        "producerHmac": true,
+        "exactNamedAck": true
+      }
+    },
+    "final": {
+      "scopes": {
+        "created": 4,
+        "retired": 4,
+        "disabled": 29,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "peakBytes": 387051520,
+      "limits": {
+        "memoryMax": 536870912,
+        "swapMax": "0",
+        "cpuMax": "100000 100000",
+        "heapLimit": 106954752
+      },
+      "oom": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "elapsedMs": 222747.554518
+    }
+  },
+  "linux512RetainedOld": {
+    "tap": {
+      "path": "/private/tmp/stage6-sync-atomic/linux-retained2.tap",
+      "sha256": "9e090423b2fae2d6574a96bae95afa9a8947eebf5d08d6b773558d36ff7bf5ec"
+    },
+    "synthetic": true,
+    "independentDatabases": true,
+    "retained": true,
+    "legitimateSuccessor": false,
+    "sync": {
+      "status": 410,
+      "body": {
+        "ok": false,
+        "error": "EXECUTION_STALE_REQUEST"
+      }
+    },
+    "syncRuns": [
+      {
+        "status": 202,
+        "result": {
+          "outcome": "PARTIAL",
+          "resumable": true,
+          "continuationState": "INCOMPLETE_RESUMABLE",
+          "yieldReason": "COMPLETED_UNITS_BUDGET",
+          "durationMs": 99415.41908699999,
+          "users": 3,
+          "failed": 3,
+          "executionSeq": 1
+        }
+      },
+      {
+        "status": 202,
+        "result": {
+          "outcome": "PARTIAL",
+          "resumable": true,
+          "continuationState": "INCOMPLETE_RESUMABLE",
+          "yieldReason": "COMPLETED_UNITS_BUDGET",
+          "durationMs": 25701.808428999997,
+          "users": 3,
+          "failed": 3,
+          "executionSeq": 1
+        }
+      },
+      {
+        "status": 202,
+        "result": {
+          "outcome": "PARTIAL",
+          "resumable": true,
+          "continuationState": "INCOMPLETE_RESUMABLE",
+          "yieldReason": "COMPLETED_UNITS_BUDGET",
+          "durationMs": 20235.06521699998,
+          "users": 3,
+          "failed": 3,
+          "executionSeq": 1
+        }
+      },
+      {
+        "status": 410,
+        "result": null
+      }
+    ],
+    "syncTotalMs": 149086.219901,
+    "drain": {
+      "status": 200,
+      "result": {
+        "version": 2,
+        "releaseSha": "1a7c7b0e11bbe30c6921361166e9e794323b8363",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "PARTIAL",
+        "durationMs": 19094.355757999998,
+        "jobsConsidered": 1,
+        "itemsAttempted": 1,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "identity": "4eabca81ffd6adb6e1387e94609ef1ab2b560cf3e640b87854ced5422f932658",
+        "configProof": "e3146ae9a2735cac5041f0d535b004d990403b3de0a770509c8580f4868b39d7",
+        "completion": "PARTIAL",
+        "stopReason": "ITEM_LIMIT",
+        "executionMode": "SHADOW",
+        "finishedAt": 1791986879578,
+        "executionSeq": 84,
+        "settlementState": "FINALIZED_SUCCESS",
+        "finalizedAt": 1791986880272
+      }
+    },
+    "drainTotalMs": 21470.269301,
+    "childCapacity": {
+      "active": false,
+      "lastPublication": {
+        "preparationMs": 9325.149420000002,
+        "transactionMs": 1638.9132509999981,
+        "statements": 3593,
+        "snapshotGroups": 97,
+        "snapshotBytes": 3876739,
+        "workUsage": {
+          "prefixReadSets": 50,
+          "operations": 0,
+          "bytes": 0
+        }
+      },
+      "heapLimit": 106954752,
+      "rss": 312205312
+    },
+    "childMetrics": {
+      "scopes": "all retired on normal completion",
+      "peakBytes": 346644480,
+      "limits": {
+        "memoryMax": 536870912,
+        "swapMax": "0",
+        "cpuMax": "100000 100000",
+        "heapLimit": 106954752
+      }
+    },
+    "webhook": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "processed"
+      }
+    },
+    "webhookReplay": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "replayed"
+      }
+    },
+    "freshWebhook": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "processed"
+      }
+    },
+    "freshWebhookReplay": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "replayed"
+      }
+    },
+    "sendCounts": {
+      "morning": 0,
+      "webhook": 2,
+      "models": []
+    },
+    "claims": [
+      {
+        "user_id": "alice",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "bob",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "lan",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      }
+    ],
+    "healthPeakMs": 100.55166699999972,
+    "syncWindowTraces": [],
+    "allCanonicalWindowCount": 9,
+    "allCanonicalPeakMs": 4196,
+    "transactionTimeouts": [],
+    "currentProof": {
+      "executionId": "d0c2c040-a06e-4ab7-8890-b8f96d8fedd6",
+      "newOperations": [],
+      "cursor": {
+        "jobKind": "REPAIR_CURRENTNESS",
+        "cursor": "[\"sleep\",\"sleep-00\"]",
+        "receiptKey": "abd0a4931746ce0f6eb4b13f734a9ec88f0df1c3c1718edc72c0453a2f296dea",
+        "exactNamedAck": true
+      }
+    },
+    "durableProof": {
+      "signedOperationReceipts": 19,
+      "finalizedProducerHmacs": 80,
+      "workReceipts": 380,
+      "noDuplicateRuns": true,
+      "domainProof": {
+        "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+        "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+        "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+        "inputGeneration": 8,
+        "sourceGeneration": 8,
+        "receiptHmac": true,
+        "producerHmac": true,
+        "exactNamedAck": true
+      }
+    },
+    "final": {
+      "scopes": {
+        "created": 4,
+        "retired": 4,
+        "disabled": 29,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "peakBytes": 346644480,
+      "limits": {
+        "memoryMax": 536870912,
+        "swapMax": "0",
+        "cpuMax": "100000 100000",
+        "heapLimit": 106954752
+      },
+      "oom": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "elapsedMs": 170687.979368
+    }
+  },
+  "linux512Successor": {
+    "tap": {
+      "path": "/private/tmp/stage6-sync-atomic/linux-successor.tap",
+      "sha256": "980e1cad310be500d139939a3c0e06bca71e8584f0cab166db32a60148bcf6af"
+    },
+    "synthetic": true,
+    "independentDatabases": true,
+    "retained": true,
+    "legitimateSuccessor": true,
+    "sync": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "phase": "SYNC",
+        "source": "cloudflare",
+        "result": {
+          "version": 2,
+          "releaseSha": "1a7c7b0e11bbe30c6921361166e9e794323b8363",
+          "phase": "SYNC",
+          "source": "cloudflare",
+          "outcome": "NO_NEW_DATA_SUCCESS",
+          "durationMs": 92568.88149999999,
+          "users": 3,
+          "failed": 0,
+          "dailyDeferredBody": 0,
+          "identity": "eb51f5a4edf8a554ad125670b96b688a538596a47334be423a90395b766e8b54",
+          "configProof": "e3146ae9a2735cac5041f0d535b004d990403b3de0a770509c8580f4868b39d7",
+          "executionMode": "SHADOW",
+          "finishedAt": 1791987432604,
+          "executionSeq": 2,
+          "settlementState": "FINALIZED_SUCCESS",
+          "finalizedAt": 1791987433314,
+          "handoff": "344f36231580b0da75d08ff1cd81efbc2aea526f90bfc448b90ce191ce9339db"
+        },
+        "syncComplete": true,
+        "drainAuthorized": true,
+        "handoff": "344f36231580b0da75d08ff1cd81efbc2aea526f90bfc448b90ce191ce9339db",
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "syncRuns": [
+      {
+        "status": 200,
+        "result": {
+          "outcome": "NO_NEW_DATA_SUCCESS",
+          "durationMs": 92568.88149999999,
+          "users": 3,
+          "failed": 0,
+          "executionSeq": 2,
+          "settlementState": "FINALIZED_SUCCESS"
+        }
+      }
+    ],
+    "syncTotalMs": 94426.638335,
+    "drain": {
+      "status": 200,
+      "result": {
+        "version": 2,
+        "releaseSha": "1a7c7b0e11bbe30c6921361166e9e794323b8363",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "PARTIAL",
+        "durationMs": 15233.976007,
+        "jobsConsidered": 1,
+        "itemsAttempted": 1,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "identity": "3827d2ef90f45c48cf7819f2e13842df9d771ab94dc6b7cfa7ab913d8a3fc397",
+        "configProof": "e3146ae9a2735cac5041f0d535b004d990403b3de0a770509c8580f4868b39d7",
+        "completion": "PARTIAL",
+        "stopReason": "ITEM_LIMIT",
+        "executionMode": "SHADOW",
+        "finishedAt": 1791987355648,
+        "executionSeq": 86,
+        "settlementState": "FINALIZED_SUCCESS",
+        "finalizedAt": 1791987356340
+      }
+    },
+    "drainTotalMs": 17586.828799,
+    "childCapacity": {
+      "active": false,
+      "lastPublication": {
+        "preparationMs": 5671.426835,
+        "transactionMs": 1470.568792,
+        "statements": 3600,
+        "snapshotGroups": 97,
+        "snapshotBytes": 3881061,
+        "workUsage": {
+          "prefixReadSets": 50,
+          "operations": 0,
+          "bytes": 0
+        }
+      },
+      "heapLimit": 106954752,
+      "rss": 205631488
+    },
+    "childMetrics": {
+      "scopes": "all retired on normal completion",
+      "peakBytes": 247779328,
+      "limits": {
+        "memoryMax": 536870912,
+        "swapMax": "0",
+        "cpuMax": "100000 100000",
+        "heapLimit": 106954752
+      }
+    },
+    "webhook": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "processed"
+      }
+    },
+    "webhookReplay": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "replayed"
+      }
+    },
+    "freshWebhook": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "processed"
+      }
+    },
+    "freshWebhookReplay": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "replayed"
+      }
+    },
+    "sendCounts": {
+      "morning": 0,
+      "webhook": 2,
+      "models": []
+    },
+    "claims": [
+      {
+        "user_id": "alice",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "bob",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "lan",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      }
+    ],
+    "healthPeakMs": 415.3193749999991,
+    "syncWindowTraces": [],
+    "allCanonicalWindowCount": 0,
+    "allCanonicalPeakMs": null,
+    "transactionTimeouts": [],
+    "currentProof": {
+      "executionId": "e4c5a491-0649-48f3-bfda-9d661c589939",
+      "newOperations": [],
+      "cursor": {
+        "jobKind": "RECOMPUTE_DERIVED",
+        "cursor": "[\"sleep\",\"sleep-01\"]",
+        "receiptKey": "6d07df26055a0e65aa4c999de5fdb8f0c0fa1981beddb2b5f9fd1948c2601dbc",
+        "exactNamedAck": true
+      }
+    },
+    "durableProof": {
+      "signedOperationReceipts": 19,
+      "finalizedProducerHmacs": 81,
+      "workReceipts": 384,
+      "noDuplicateRuns": true,
+      "domainProof": {
+        "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+        "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+        "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+        "inputGeneration": 8,
+        "sourceGeneration": 8,
+        "receiptHmac": true,
+        "producerHmac": true,
+        "exactNamedAck": true
+      }
+    },
+    "final": {
+      "scopes": {
+        "created": 4,
+        "retired": 4,
+        "disabled": 29,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "peakBytes": 247779328,
+      "limits": {
+        "memoryMax": 536870912,
+        "swapMax": "0",
+        "cpuMax": "100000 100000",
+        "heapLimit": 106954752
+      },
+      "oom": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "elapsedMs": 119192.778471
+    }
+  },
+  "linux1Cpu2GiB": {
+    "tap": {
+      "path": "/private/tmp/stage6-sync-atomic/linux-2g.tap",
+      "sha256": "e48f49c9d25442d2365f63b67a7083ed0ab34ac022635bc228a1076f246d9e89"
+    },
+    "synthetic": true,
+    "independentDatabases": true,
+    "retained": false,
+    "legitimateSuccessor": false,
+    "sync": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "phase": "SYNC",
+        "source": "cloudflare",
+        "result": {
+          "version": 2,
+          "releaseSha": "1a7c7b0e11bbe30c6921361166e9e794323b8363",
+          "phase": "SYNC",
+          "source": "cloudflare",
+          "outcome": "NO_NEW_DATA_SUCCESS",
+          "durationMs": 49080.58214799996,
+          "users": 3,
+          "failed": 0,
+          "dailyDeferredBody": 0,
+          "identity": "40656b85f08f01a84d6263e4c6ee1735e3a79b5ce1d4cc3e1bfa2c54257fe6e0",
+          "configProof": "7b1ba74c51e72c1ce3f3d2d611be0dcd552911d43fbcb460430889dc45bb15ef",
+          "executionMode": "SHADOW",
+          "finishedAt": 1791987860923,
+          "executionSeq": 1,
+          "settlementState": "FINALIZED_SUCCESS",
+          "finalizedAt": 1791987861620,
+          "handoff": "ec6e45e2d47828b659893677ce0c7d87ba8e7e91e42f36c4ed3cb51ff849fbba"
+        },
+        "syncComplete": true,
+        "drainAuthorized": true,
+        "handoff": "ec6e45e2d47828b659893677ce0c7d87ba8e7e91e42f36c4ed3cb51ff849fbba",
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "syncRuns": [
+      {
+        "status": 202,
+        "result": {
+          "outcome": "PARTIAL",
+          "resumable": true,
+          "continuationState": "INCOMPLETE_RESUMABLE",
+          "yieldReason": "COMPLETED_UNITS_BUDGET",
+          "durationMs": 104455.29067300001,
+          "users": 3,
+          "failed": 3,
+          "executionSeq": 1
+        }
+      },
+      {
+        "status": 202,
+        "result": {
+          "outcome": "PARTIAL",
+          "resumable": true,
+          "continuationState": "INCOMPLETE_RESUMABLE",
+          "yieldReason": "COMPLETED_UNITS_BUDGET",
+          "durationMs": 107645.07492500001,
+          "users": 3,
+          "failed": 3,
+          "executionSeq": 1
+        }
+      },
+      {
+        "status": 202,
+        "result": {
+          "outcome": "PARTIAL",
+          "resumable": true,
+          "continuationState": "INCOMPLETE_RESUMABLE",
+          "yieldReason": "COMPLETED_UNITS_BUDGET",
+          "durationMs": 112155.45392499998,
+          "users": 3,
+          "failed": 3,
+          "executionSeq": 1
+        }
+      },
+      {
+        "status": 200,
+        "result": {
+          "outcome": "NO_NEW_DATA_SUCCESS",
+          "durationMs": 49080.58214799996,
+          "users": 3,
+          "failed": 0,
+          "executionSeq": 1,
+          "settlementState": "FINALIZED_SUCCESS"
+        }
+      }
+    ],
+    "syncTotalMs": 377465.097297,
+    "drain": {
+      "status": 200,
+      "result": {
+        "version": 2,
+        "releaseSha": "1a7c7b0e11bbe30c6921361166e9e794323b8363",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "PARTIAL",
+        "durationMs": 20803.235884,
+        "jobsConsidered": 1,
+        "itemsAttempted": 1,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "identity": "a40a87055babff2f2011e42a86a64515b2de97cd4970ee11089678df72e70a08",
+        "configProof": "7b1ba74c51e72c1ce3f3d2d611be0dcd552911d43fbcb460430889dc45bb15ef",
+        "completion": "PARTIAL",
+        "stopReason": "ITEM_LIMIT",
+        "executionMode": "SHADOW",
+        "finishedAt": 1791987506438,
+        "executionSeq": 83,
+        "settlementState": "FINALIZED_SUCCESS",
+        "finalizedAt": 1791987507151
+      }
+    },
+    "drainTotalMs": 23175.273677,
+    "childCapacity": {
+      "active": false,
+      "lastPublication": {
+        "preparationMs": 10915.845671000001,
+        "transactionMs": 1710.6495009999999,
+        "statements": 3793,
+        "snapshotGroups": 96,
+        "snapshotBytes": 3652475,
+        "workUsage": {
+          "prefixReadSets": 49,
+          "operations": 190,
+          "bytes": 193535
+        }
+      },
+      "heapLimit": 106954752,
+      "rss": 326631424
+    },
+    "childMetrics": {
+      "linux": "v22.23.2",
+      "architecture": "arm64",
+      "limits": {
+        "memoryMax": 2147483648,
+        "swapMax": "0",
+        "cpuMax": "100000 100000",
+        "heapLimit": 106954752
+      },
+      "processes": [
+        {
+          "pid": 1,
+          "command": "npm exec node -",
+          "rssBytes": 77930496
+        },
+        {
+          "pid": 19,
+          "command": "sh",
+          "rssBytes": 1425408
+        },
+        {
+          "pid": 20,
+          "command": "node",
+          "rssBytes": 125943808
+        },
+        {
+          "pid": 58,
+          "command": "node",
+          "rssBytes": 327163904
+        }
+      ],
+      "elapsedMs": 22821.482884999998,
+      "cgroupPeak": 387891200,
+      "cgroupCurrent": 364650496,
+      "memoryEvents": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "cpuDelta": {
+        "usage_usec": 8449768,
+        "user_usec": 7799868,
+        "system_usec": 649900,
+        "nice_usec": 0,
+        "nr_periods": 228,
+        "nr_throttled": 60,
+        "throttled_usec": 3510762,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "processPeaks": {
+        "rss": 326631424,
+        "heapUsed": 87300792,
+        "external": 18795400,
+        "arrayBuffers": 14961654
+      },
+      "samples": 624,
+      "gc": {
+        "count": 1530,
+        "totalMs": 1423.0450540296733,
+        "maxMs": 58.04566700011492
+      },
+      "eventLoop": {
+        "maxMs": 5091.885055,
+        "p99Ms": 55.607295
+      },
+      "resourceUsage": {
+        "userCPUTime": 6923400,
+        "systemCPUTime": 565093,
+        "maxRSS": 342124,
+        "sharedMemorySize": 0,
+        "unsharedDataSize": 0,
+        "unsharedStackSize": 0,
+        "minorPageFault": 90941,
+        "majorPageFault": 0,
+        "swappedOut": 0,
+        "fsRead": 0,
+        "fsWrite": 0,
+        "ipcSent": 0,
+        "ipcReceived": 0,
+        "signalsCount": 0,
+        "voluntaryContextSwitches": 10437,
+        "involuntaryContextSwitches": 679
+      }
+    },
+    "webhook": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "processed"
+      }
+    },
+    "webhookReplay": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "replayed"
+      }
+    },
+    "freshWebhook": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "processed"
+      }
+    },
+    "freshWebhookReplay": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "outcome": "replayed"
+      }
+    },
+    "sendCounts": {
+      "morning": 3,
+      "webhook": 1,
+      "models": [
+        [
+          "alice",
+          1
+        ],
+        [
+          "bob",
+          1
+        ],
+        [
+          "lan",
+          1
+        ]
+      ]
+    },
+    "claims": [
+      {
+        "user_id": "alice",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "bob",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "lan",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      }
+    ],
+    "healthPeakMs": 57.963583000000654,
+    "syncWindowTraces": [
+      {
+        "durationMs": 3704,
+        "http": 29,
+        "sql": 63,
+        "nativeWaitMs": 89,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3672,
+        "http": 29,
+        "sql": 63,
+        "nativeWaitMs": 89,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3708,
+        "http": 29,
+        "sql": 63,
+        "nativeWaitMs": 79,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3845,
+        "http": 30,
+        "sql": 65,
+        "nativeWaitMs": 87,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3790,
+        "http": 30,
+        "sql": 65,
+        "nativeWaitMs": 93,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3820,
+        "http": 30,
+        "sql": 65,
+        "nativeWaitMs": 106,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3523,
+        "http": 28,
+        "sql": 62,
+        "nativeWaitMs": 78,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3678,
+        "http": 29,
+        "sql": 58,
+        "nativeWaitMs": 89,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3530,
+        "http": 28,
+        "sql": 62,
+        "nativeWaitMs": 77,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3520,
+        "http": 28,
+        "sql": 62,
+        "nativeWaitMs": 80,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3517,
+        "http": 28,
+        "sql": 56,
+        "nativeWaitMs": 80,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3698,
+        "http": 29,
+        "sql": 58,
+        "nativeWaitMs": 93,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3643,
+        "http": 29,
+        "sql": 58,
+        "nativeWaitMs": 92,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3521,
+        "http": 28,
+        "sql": 56,
+        "nativeWaitMs": 72,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      },
+      {
+        "durationMs": 3541,
+        "http": 28,
+        "sql": 56,
+        "nativeWaitMs": 90,
+        "concurrentWritersMax": 0,
+        "outcome": "COMMITTED"
+      }
+    ],
+    "allCanonicalWindowCount": 30,
+    "allCanonicalPeakMs": 4073,
+    "transactionTimeouts": [],
+    "currentProof": {
+      "executionId": "b15d8005-409f-4d8e-a2a6-d66a0d6146ee",
+      "newOperations": [
+        {
+          "operationKind": "analyzeAssociationFamily",
+          "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+          "executionId": "b15d8005-409f-4d8e-a2a6-d66a0d6146ee",
+          "producingGeneration": 1,
+          "workKind": "stage6.associations",
+          "receiptKey": "ad06634332f4e7a22b13b80d85553fe89a2ccfebca6b58592af4f882f42bdc7d",
+          "exactNamedAck": true
+        }
+      ],
+      "cursor": {
+        "jobKind": "RECOMPUTE_DERIVED",
+        "cursor": "[\"sleep\",\"sleep-00\"]",
+        "receiptKey": "da69fb46057e4755c6f741864162b572f98cf7274f851e0bbcdc25cda827082f",
+        "exactNamedAck": true
+      }
+    },
+    "durableProof": {
+      "signedOperationReceipts": 19,
+      "finalizedProducerHmacs": 79,
+      "workReceipts": 376,
+      "noDuplicateRuns": true,
+      "domainProof": {
+        "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+        "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+        "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+        "inputGeneration": 8,
+        "sourceGeneration": 8,
+        "receiptHmac": true,
+        "producerHmac": true,
+        "exactNamedAck": true
+      }
+    },
+    "final": {
+      "metrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 2147483648,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 77930496
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1425408
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 142405632
+          }
+        ],
+        "elapsedMs": 400547.922682,
+        "cgroupPeak": 387891200,
+        "cgroupCurrent": 113430528,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 37100370,
+          "user_usec": 33726976,
+          "system_usec": 3373394,
+          "nice_usec": 0,
+          "nr_periods": 4005,
+          "nr_throttled": 67,
+          "throttled_usec": 4079678,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 143036416,
+          "heapUsed": 35570880,
+          "external": 7456213,
+          "arrayBuffers": 3692305
+        },
+        "samples": 14633,
+        "gc": {
+          "count": 1478,
+          "totalMs": 1861.0238450206816,
+          "maxMs": 27.048790998756886
+        },
+        "eventLoop": {
+          "maxMs": 119.341055,
+          "p99Ms": 30.228479
+        },
+        "resourceUsage": {
+          "userCPUTime": 27087575,
+          "systemCPUTime": 2662658,
+          "maxRSS": 141972,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 87059,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 41707,
+          "involuntaryContextSwitches": 1506
+        }
+      },
+      "scopes": {
+        "created": 4,
+        "retired": 4,
+        "disabled": 29,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "realProviderRequests": 0
+    }
+  },
+  "childControl": {
+    "tap": {
+      "path": "/private/tmp/stage6-sync-atomic/linux-child-control.tap",
+      "sha256": "efc0c963ac9797e1c3b3356db822180968c9745b2e2d8a435b0d4a75843b44f2"
+    },
+    "controls": [
+      {
+        "control": "SIGTERM",
+        "admitted": true,
+        "terminated": true,
+        "termination": {
+          "code": null,
+          "signal": "SIGTERM"
+        },
+        "elapsedMs": 6.673499999999876,
+        "forcedCleanup": false
+      },
+      {
+        "control": "disconnect",
+        "admitted": true,
+        "terminated": false,
+        "termination": null,
+        "elapsedMs": 1502.086417999999,
+        "forcedCleanup": true
+      }
+    ],
+    "pass": 1,
+    "fail": 1,
+    "scope": "SIGTERM proves process termination/reap, not graceful settlement. Admitted IPC-disconnected child stayed alive >1502ms; test force-killed/reaped it. Runtime child unchanged. Final test-only controller error/close/2s-reap correction independently verified with two short negative controls; original measured child failure retained."
+  },
+  "qualificationSetupFailures": [
+    {
+      "path": "/private/tmp/stage6-sync-atomic/linux-retained.tap",
+      "error": "REQUEST_ID_CONFLICT",
+      "cause": "Manual handoff replay bytes were reordered; corrected by verified original identity_digest, no DB state edits."
+    },
+    {
+      "operation": "Optional final child-controller rerun",
+      "error": "DOCKER_SUBNET_POOL_EXHAUSTED",
+      "scope": "No new runtime evidence; only task-owned completed containers/networks were cleaned. Runtime child failure already reproduced; final test-controller cleanup independently verified."
+    }
+  ],
+  "fullMonitoredSix": {
+    "status": "NOT_QUALIFIED_NOT_RERUN",
+    "reason": "Real HTTP admission remains reviewed12 attempts; conservative runtime maxItems1. Representative retained workload144sources x2kinds needs >=288 source units per dataset before additional RAW subunits. File-only synthetic certificate48 does not authorize remote HTTP. No protocol spoof, counter reset or unreviewed financial policy added."
+  },
+  "remaining": [
+    "Production child integration/control slot, IPC disconnect/revocation cancellation and bounded kill/reap/restart settlement",
+    "Full monitored six-job convergence through a legitimate isolated authorization contract; original twelve-slot production ledger stays exhausted",
+    "Shared physical DB concurrent-writer qualification; current service fixtures deliberately separate stage and morning DBs",
+    "Actual Production provider limits/hardware equivalence and independent LIVE producer/admission/release controls"
+  ],
+  "restrictions": {
+    "productionCalls": false,
+    "paidExecution": false,
+    "publicPush": false,
+    "deployment": false,
+    "migration": false,
+    "schemaChanges": false,
+    "credentialAccessOrChanges": false,
+    "F02": "OWNER_ACCEPTED_RISK_UNCHANGED",
+    "Journal": "TENANT_LIMIT_SEPARATE_UNRESOLVED",
+    "realPilot": "EXHAUSTED12_OF12_UNCHANGED",
+    "stage8": {
+      "commit": "899dff0ae61474bb2b9ec0a0743cdbf11a999d3b",
+      "tree": "5a2d81942d7133f0a0a1a4fbb8f1431d17c92936",
+      "clean": true
+    }
+  },
+  "dockerStates": [
+    {
+      "name": "stage6-sync-atomic-app-512",
+      "exitCode": 1,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-provider-512",
+      "exitCode": 0,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-app-resume",
+      "exitCode": 1,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-provider-resume",
+      "exitCode": 0,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-app-resume2",
+      "exitCode": 1,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-provider-resume2",
+      "exitCode": 0,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-app-successor",
+      "exitCode": 0,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-provider-successor",
+      "exitCode": 0,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-app-2g",
+      "exitCode": 0,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-provider-2g",
+      "exitCode": 0,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-app-child-control",
+      "exitCode": 1,
+      "oomKilled": false,
+      "status": "exited"
+    },
+    {
+      "name": "stage6-sync-atomic-provider-child-control",
+      "exitCode": 0,
+      "oomKilled": false,
+      "status": "exited"
+    }
+  ],
+  "review": {
+    "path": "/private/tmp/stage6-independent-sync-final-review.json",
+    "sha256": "9ec83141da715a28a68bdb58fa23e89d72d02e432794b9447bf6fd6fe11408f2"
+  }
+}

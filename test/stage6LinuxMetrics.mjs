@@ -7,7 +7,9 @@ const fields=name=>Object.fromEntries(read(name).split('\n').map(line=>line.spli
 export function linuxMetrics(){
  if(![undefined,'1','2'].includes(process.env.LINUX_CPU_CONTROL))throw Error('LINUX_CPU_CONTROL_INVALID');
  const expectedCpu=process.env.LINUX_CPU_CONTROL?Number(process.env.LINUX_CPU_CONTROL)*100000+' 100000':'50000 100000';
- if(process.platform!=='linux'||read('memory.max')!=='536870912'||read('memory.swap.max')!=='0'||read('cpu.max')!==expectedCpu)throw Error('ENFORCED_LINUX_LIMITS_REQUIRED');
+ if(![undefined,'2g'].includes(process.env.LINUX_MEMORY_CONTROL))throw Error('LINUX_MEMORY_CONTROL_INVALID');
+ const expectedMemory=process.env.LINUX_MEMORY_CONTROL==='2g'?'2147483648':'536870912';
+ if(process.platform!=='linux'||read('memory.max')!==expectedMemory||read('memory.swap.max')!=='0'||read('cpu.max')!==expectedCpu)throw Error('ENFORCED_LINUX_LIMITS_REQUIRED');
  if(global.gc)throw Error('MANUAL_GC_FORBIDDEN');
  const delays=monitorEventLoopDelay({resolution:20});delays.enable();const gc={count:0,totalMs:0,maxMs:0};
  const observer=new PerformanceObserver(list=>{for(const entry of list.getEntries()){gc.count++;gc.totalMs+=entry.duration;gc.maxMs=Math.max(gc.maxMs,entry.duration);}});observer.observe({entryTypes:['gc']});

@@ -11,5 +11,5 @@ const completed=[],active=new Map(),syncTotals=new Map();
 const begin=label=>{const token={label,at:performance.now(),cpu:process.cpuUsage()};active.set(token,true);return token;};
 const end=token=>{if(!token||!active.delete(token))return;const cpu=process.cpuUsage(token.cpu);completed.push({label:token.label,wallMs:performance.now()-token.at,cpuMs:(cpu.user+cpu.system)/1000});};
 globalThis.__stage6SchedulingProfile={begin,end,sync(label,fn){const at=performance.now();try{return fn();}finally{const x=syncTotals.get(label)??{calls:0,wallMs:0};x.calls++;x.wallMs+=performance.now()-at;syncTotals.set(label,x);}},close(){for(const token of [...active.keys()]){end(token);completed.at(-1).incomplete=true;}const result={diagnosticOnly:true,phases:completed,syncTotals:Object.fromEntries(syncTotals)};writeFileSync('/qualification/phase-profile.json',JSON.stringify(result,null,2));console.log('SCHEDULING_PHASE_PROFILE '+JSON.stringify(result));}};
-process.on('beforeExit',()=>globalThis.__stage6SchedulingProfile.close());
+process.once('beforeExit',()=>globalThis.__stage6SchedulingProfile.close());
 register(new URL('./stage6SchedulingProfileLoader.mjs',import.meta.url),{data:{root:new URL('../src/',import.meta.url).href}});

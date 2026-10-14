@@ -67,3 +67,15 @@ test('in-flight publication retains health context and rejects concurrent dispos
   assert.ok(result.result.processedItems||result.result.unitsCommitted);assert.equal((await x.f.db.raw.execute({sql:'SELECT count(*) n FROM resource_locks WHERE name=?',args:[prefix]})).rows[0].n,0);
  });
 });
+
+
+for(const [name,change] of [
+ ['revoked before DATA',"owner='REVOKED'"],
+ ['expired before DATA',"expires_at='2000-01-01T00:00:00.000Z'"],
+])test('outer health context '+name+' rejects delivery and cursor work',async t=>{
+ let x,armed=true;x=await fixture(t,async r=>{const body=await r.clone().json(),steps=body.requests.flatMap(q=>q.batch?.steps??[]);if(armed&&steps.some(q=>(q.stmt?.sql??'').includes('PREPARATION_FRESH_PAGE_BOUNDS'))){armed=false;const lease=`p4ctx:${fixtureKeys.lookup(['context-tenant-v1','a'])}:short:${x.owner.executionId}`;await x.f.db.raw.execute({sql:`UPDATE resource_locks SET ${change} WHERE name=?`,args:[lease]});}return r;});
+ await x.run(()=>assert.rejects(prepareIsolatedUnit({client:x.client})));assert.equal(armed,false);assert.ok((await x.f.jobs()).every(j=>j.full_scan_cursor===null));
+});
+test('outer health lease revoked after preparation rejects publication',async t=>{
+ const x=await fixture(t);await x.run(async()=>{const plan=await prepareIsolatedUnit({client:x.client});await x.f.db.raw.execute({sql:'DELETE FROM resource_locks WHERE name=?',args:[`p4ctx:${fixtureKeys.lookup(['context-tenant-v1','a'])}:short:${x.owner.executionId}`]});await assert.rejects(publishIsolatedUnit(x.client,plan));});assert.ok((await x.f.jobs()).every(j=>j.full_scan_cursor===null));
+});

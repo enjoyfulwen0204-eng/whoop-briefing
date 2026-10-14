@@ -25,7 +25,7 @@ function payloadQuery(table,columns,pk,filter){
  const select=`SELECT ${columns.map(quote).join(',')} FROM ${quote(table)} WHERE ${filter.where} ORDER BY ${(pk.length?pk:columns).map(quote).join(',')} LIMIT ${maxRows+1}`;
  return {sql:select,args:filter.args};
 }
-async function prepareDataUnit({client,userId='a',maxItems=1}){
+async function prepareDataUnit({client,userId='a',maxItems=1},contextGuard){
  const execution=currentDurableExecution(),budget=currentExecutionBudget();if(!clients.has(client)||userId!=='a'||execution?.claim?.request?.phase!=='STAGE6_DRAIN'||execution?.claim?.request?.executionMode!=='SHADOW')fail('ISOLATED_TENANT_SCOPE_REQUIRED');if(!execution?.claim||!budget)fail('PREPARATION_AUTHORITY_REQUIRED');budget.assert();execution.authority.assert();
  requireSettledOperation();const start=performance.now(),schema=(await client.execute("SELECT type,name,tbl_name,sql,json_array(type,name,tbl_name,sql) encoded FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND type IN ('table','index','trigger') ORDER BY type,name")).rows;
  const tables=schema.filter(x=>x.type==='table'),infos=await client.batch(tables.map(t=>`PRAGMA table_info(${quote(t.name)})`),'deferred');
@@ -34,7 +34,7 @@ async function prepareDataUnit({client,userId='a',maxItems=1}){
  const pending=descriptors.filter(d=>d.filter.where!=='0'),keys=new Map(pending.map(d=>[d,[]])),keyBytes=new Map(pending.map(d=>[d,[]]));let active=pending;
  while(active.length){
   const queries=active.map(d=>{if(!d.pk.length)fail('PREPARATION_PRIMARY_KEY_REQUIRED');const previous=keys.get(d).at(-1),range=previous?` AND (${d.pk.map(quote).join(',')})>(${d.pk.map(()=>'?').join(',')})`:'';return {sql:`SELECT ${d.pk.map(quote).join(',')},length(CAST(json_array(${d.columns.map(quote).join(',')}) AS BLOB))+${d.columns.length*64} __bounded_bytes FROM ${quote(d.table)} WHERE (${d.filter.where})${range} ORDER BY ${d.pk.map(quote).join(',')} LIMIT ${maxRows}`,args:[...d.filter.args,...(previous??[])]};});
-  const observed=await client.batch(queries,'deferred'),next=[];
+  const observed=(await client.batch([contextGuard,...queries],'deferred')).slice(1),next=[];
   for(let i=0;i<active.length;i++){const d=active[i],rows=observed[i].rows.map(r=>d.pk.map(k=>r[k]));keys.get(d).push(...rows);keyBytes.get(d).push(...observed[i].rows.map(r=>r.__bounded_bytes));if(keys.get(d).length>16000)fail('PREPARATION_KEY_BOUNDS');if(rows.length===maxRows)next.push(d);}
   active=next;budget.assert();
  }
@@ -56,7 +56,7 @@ async function prepareDataUnit({client,userId='a',maxItems=1}){
  const gates=pages.map(({d,filter})=>({sql:`SELECT json(CASE WHEN count(*)<=${maxRows} AND coalesce(sum(${bytesFor(d)}),0)<=${maxBytes} THEN 'true' ELSE 'PREPARATION_FRESH_PAGE_BOUNDS' END) FROM ${quote(d.table)} WHERE ${filter.where}`,args:filter.args}));
  const aggregate=descriptors.map(d=>`coalesce((SELECT sum(${bytesFor(d)}) FROM ${quote(d.table)} WHERE ${d.filter.where}),0)`);
  gates.push(assertion(`(${aggregate.join('+')})<=${16*1024*1024}`,descriptors.flatMap(d=>d.filter.args),'PREPARATION_FRESH_TOTAL_BOUNDS'));
- const observedSnapshot=await client.batch([...gates,...pages.map(p=>p.query)],'deferred'),snapshot=observedSnapshot.slice(gates.length);let totalBytes=0;
+ const observedSnapshot=await client.batch([contextGuard,...gates,...pages.map(p=>p.query)],'deferred'),snapshot=observedSnapshot.slice(gates.length+1);let totalBytes=0;
  for(const d of descriptors)d.rows=[];
  for(let i=0;i<pages.length;i++){const d=pages[i].d,rows=snapshot[i].rows.map(row=>d.columns.map(c=>row[c]));if(rows.some(row=>row.some(v=>v!==null&&!['string','number'].includes(typeof v))))fail('PREPARATION_SNAPSHOT_TYPE');const bytes=Buffer.byteLength(json(rows));totalBytes+=bytes;
   if(rows.length>maxRows||bytes>maxBytes)fail('PREPARATION_SNAPSHOT_BOUNDS:'+d.table+':'+rows.length+':'+bytes);d.rows.push(...rows);
@@ -90,7 +90,7 @@ async function prepareDataUnit({client,userId='a',maxItems=1}){
   if(!leaseDeadlines.length)fail('PREPARATION_LEASE_CONTRACT');
   const temporalDeadline=Math.min(...leaseDeadlines,budget.deadlineAt,owner.deadline_at,owner.lease_until);
   const plan=Object.freeze({userId,mode:'SHADOW',executionId:execution.claim.executionId,preparationMs:performance.now()-start,snapshotGroups:prefixGroups,snapshotBytes:totalBytes,effects:effects.length,result:structuredClone(result)});
-  issued.set(plan,{client,execution,budget,schemaStatement,schemaPayload,temporalDeadline,descriptors,effects,owner,result:structuredClone(result),seal:fixtureKeys.lookup(['short-transaction-plan-v1',userId,execution.claim.executionId,descriptors.map(d=>[d.table,d.payload]),effects,result])});return plan;
+  issued.set(plan,{client,execution,budget,contextGuard,schemaStatement,schemaPayload,temporalDeadline,descriptors,effects,owner,result:structuredClone(result),seal:fixtureKeys.lookup(['short-transaction-plan-v1',userId,execution.claim.executionId,descriptors.map(d=>[d.table,d.payload]),effects,result])});return plan;
  }finally{await db?.close();}
 }
 export async function prepareIsolatedUnit(options){
@@ -103,8 +103,9 @@ export async function prepareIsolatedUnit(options){
  const registration=fixtureKeys.lookup(['short-context-registration-v1',execution.claim.executionId]);execution.pending.add(registration);
  try{await client.batch([{sql:`INSERT INTO resource_locks(name,owner,acquired_at,expires_at) SELECT ?,?,?,? FROM users u JOIN phase4_user_state p ON p.user_id=u.id WHERE u.id=? AND u.status='ACTIVE' AND p.purge_generation=? AND p.pending_purge_count=0 AND EXISTS(SELECT 1 FROM phase4_executions e WHERE e.execution_id=? AND e.owner=? AND e.generation=? AND e.state='ESTABLISHED' AND e.lease_until>${databaseNowMs} AND e.deadline_at>${databaseNowMs})`,args:[name,owner,at,expires,userId,control.purge_generation,execution.claim.executionId,execution.claim.owner,execution.claim.generation]},assertion('changes()=1',[],'PREPARATION_CONTEXT_REJECTED')],'write');execution.pending.delete(registration);}
  catch(error){if(/^(SQLITE_ERROR|SQLITE_CONSTRAINT(?:_.*)?|TRANSACTION_TIMEOUT|SQL_PARSE_ERROR)$/.test(error?.code??'')){execution.pending.delete(registration);throw error;}execution.indeterminate=true;throw new CommitIndeterminateError();}
- const release=()=>client.execute({sql:'DELETE FROM resource_locks WHERE name=? AND owner=?',args:[name,owner]});
- try{const plan=await prepareDataUnit(options);issued.get(plan).release=release;return plan;}
+ const contextGuard=assertion(`EXISTS(SELECT 1 FROM resource_locks l JOIN users u ON u.id=? JOIN phase4_user_state p ON p.user_id=u.id WHERE l.name=? AND l.owner=? AND l.expires_at=? AND ${databaseNowMs}<? AND u.status='ACTIVE' AND p.pending_purge_count=0 AND p.purge_generation=?)`,[userId,name,owner,expires,Date.parse(expires),control.purge_generation],'PREPARATION_HEALTH_LEASE_REVOKED');
+ const release=()=>client.execute({sql:'DELETE FROM resource_locks WHERE name=? AND owner=? AND expires_at=?',args:[name,owner,expires]});
+ try{const plan=await prepareDataUnit(options,contextGuard);issued.get(plan).release=release;return plan;}
  catch(error){try{await release();}catch{}throw error;}
 }
 export async function disposeIsolatedPlan(plan){
@@ -118,13 +119,13 @@ async function publishDataUnit(client,plan,{beforeCommit}={}){
  requireSettledOperation();p.budget.assert();p.execution.authority.assert();if(p.budget.remainingMs()<5500)fail('PUBLICATION_HEADROOM_REQUIRED');
  if(p.seal!==fixtureKeys.lookup(['short-transaction-plan-v1',plan.userId,plan.executionId,p.descriptors.map(d=>[d.table,d.payload]),p.effects,p.result]))fail('PREPARATION_TAMPERED');
  const ownerCondition=`EXISTS(SELECT 1 FROM phase4_executions WHERE execution_id=? AND owner=? AND generation=? AND identity_digest=? AND scope_key=? AND state='ESTABLISHED' AND lease_until>${databaseNowMs} AND deadline_at>${databaseNowMs})`;
- const ownerArgs=[p.owner.execution_id,p.owner.owner,p.owner.generation,p.owner.identity_digest,p.owner.scope_key],timeGuard=assertion(`${databaseNowMs}<?`,[p.temporalDeadline],'SHORT_TRANSACTION_EXPIRED'),stmts=[assertion(`${databaseNowMs}+5500<?`,[p.temporalDeadline],'SHORT_TRANSACTION_HEADROOM_REJECTED'),assertion('(SELECT foreign_keys FROM pragma_foreign_keys())=1'),assertion('(SELECT ignore_check_constraints FROM pragma_ignore_check_constraints())=0'),assertion(ownerCondition,ownerArgs),timeGuard,assertion(`(${p.schemaStatement}) IS ?`,[p.schemaPayload],'SHORT_TRANSACTION_SCHEMA_CHANGED')];
+ const ownerArgs=[p.owner.execution_id,p.owner.owner,p.owner.generation,p.owner.identity_digest,p.owner.scope_key],timeGuard=assertion(`${databaseNowMs}<?`,[p.temporalDeadline],'SHORT_TRANSACTION_EXPIRED'),stmts=[p.contextGuard,assertion(`${databaseNowMs}+5500<?`,[p.temporalDeadline],'SHORT_TRANSACTION_HEADROOM_REJECTED'),assertion('(SELECT foreign_keys FROM pragma_foreign_keys())=1'),assertion('(SELECT ignore_check_constraints FROM pragma_ignore_check_constraints())=0'),assertion(ownerCondition,ownerArgs),timeGuard,assertion(`(${p.schemaStatement}) IS ?`,[p.schemaPayload],'SHORT_TRANSACTION_SCHEMA_CHANGED')];
  for(const d of p.descriptors){
   stmts.push(assertion(`(SELECT count(*) FROM ${quote(d.table)} WHERE ${d.filter.where})=?`,[...d.filter.args,d.rows.length]));
   for(const row of d.rows)stmts.push(assertion(`EXISTS(SELECT 1 FROM ${quote(d.table)} WHERE (${d.filter.where}) AND ${d.columns.map(c=>quote(c)+' IS ?').join(' AND ')})`,[...d.filter.args,...row]));
  }
  for(const effect of p.effects){stmts.push({sql:effect.sql,args:effect.args});stmts.push(assertion('changes()=?',[effect.rowsAffected],'SHORT_TRANSACTION_ZERO_ROW_REJECTED'));}
- stmts.push(assertion(ownerCondition,ownerArgs),timeGuard);
+ stmts.push(assertion(ownerCondition,ownerArgs),timeGuard,p.contextGuard);
  await beforeCommit?.();p.budget.assert();p.execution.authority.assert();
  const started=performance.now(),pending=fixtureKeys.lookup(['short-publication-pending-v1',plan.executionId,p.seal]);p.execution.pending.add(pending);
  let transactionMs;

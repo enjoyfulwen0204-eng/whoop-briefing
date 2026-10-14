@@ -2,7 +2,7 @@
   "scope": "one local synthetic isolated bounded prototype; no runtime promotion",
   "baselineHead": "75db69fe77d2380206df25509187b79c68d05fd7",
   "runtimeSrcUnchanged": true,
-  "atUTC": "2026-10-14T02:02:34.304963+00:00",
+  "atUTC": "2026-10-14T02:18:25.195226+00:00",
   "model": {
     "httpLatencyMs": 115,
     "workerMs": 30000,
@@ -18,94 +18,94 @@
   "target": [
     {
       "unit": 1,
-      "wholeMs": 3823.3172090000007,
-      "workMs": 2095.3666249999987,
+      "wholeMs": 3742.620958999999,
+      "workMs": 2012.3400409999995,
       "phases": [
         {
           "label": "claim/admission",
           "http": 5,
           "sql": 6,
-          "elapsedMs": 640.3490000000002,
-          "remainingWorkerMs": 29999
+          "elapsedMs": 644.9229999999998,
+          "remainingWorkerMs": 30000
         },
         {
           "label": "control/owner observation",
           "http": 1,
           "sql": 1,
-          "elapsedMs": 123.17050000000017,
-          "remainingWorkerMs": 29876
+          "elapsedMs": 122.765707999999,
+          "remainingWorkerMs": 29877
         },
         {
           "label": "context lease registration",
           "http": 1,
           "sql": 4,
-          "elapsedMs": 159.76129200000014,
-          "remainingWorkerMs": 29716
+          "elapsedMs": 123.99416699999892,
+          "remainingWorkerMs": 29753
         },
         {
           "label": "schema catalog",
           "http": 1,
           "sql": 1,
-          "elapsedMs": 140.0719170000002,
-          "remainingWorkerMs": 29576
+          "elapsedMs": 130.85704199999964,
+          "remainingWorkerMs": 29621
         },
         {
           "label": "column/index metadata",
           "http": 1,
           "sql": 91,
-          "elapsedMs": 165.82483299999967,
-          "remainingWorkerMs": 29410
+          "elapsedMs": 144.20812500000102,
+          "remainingWorkerMs": 29477
         },
         {
           "label": "key/byte metadata",
           "http": 1,
-          "sql": 88,
-          "elapsedMs": 153.10425000000032,
-          "remainingWorkerMs": 29255
+          "sql": 89,
+          "elapsedMs": 141.5169590000005,
+          "remainingWorkerMs": 29334
         },
         {
           "label": "bounded DATA snapshot",
           "http": 1,
-          "sql": 183,
-          "elapsedMs": 221.91191700000036,
-          "remainingWorkerMs": 29031
+          "sql": 184,
+          "elapsedMs": 164.48633299999892,
+          "remainingWorkerMs": 29168
         },
         {
           "label": "control/owner observation",
           "http": 1,
           "sql": 1,
-          "elapsedMs": 122.66954100000112,
-          "remainingWorkerMs": 28286
+          "elapsedMs": 123.58924999999908,
+          "remainingWorkerMs": 28359
         },
         {
           "label": "atomic publication",
           "http": 1,
-          "sql": 922,
-          "elapsedMs": 250.37241600000016,
-          "remainingWorkerMs": 28028
+          "sql": 924,
+          "elapsedMs": 238.4222920000011,
+          "remainingWorkerMs": 28111
         },
         {
           "label": "RAM disposal/context release",
           "http": 1,
           "sql": 1,
-          "elapsedMs": 122.48845900000015,
-          "remainingWorkerMs": 27904
+          "elapsedMs": 122.44341600000007,
+          "remainingWorkerMs": 27988
         },
         {
           "label": "original signed settlement",
           "http": 9,
           "sql": 11,
-          "elapsedMs": 1087.271084
+          "elapsedMs": 1084.9979999999996
         },
         {
           "label": "RAM import/original algorithm/HMAC",
           "http": 0,
           "sql": 0,
-          "elapsedMs": 635.9914999999964
+          "elapsedMs": 700.0567490000012
         }
       ],
       "wholeHttp": 23,
-      "wholeSql": 1309,
+      "wholeSql": 1313,
       "result": {
         "triggerSource": "manual",
         "attemptedJobs": 1,
@@ -122,11 +122,11 @@
         "outcome": "PARTIAL",
         "completion": "PARTIAL",
         "stopReason": "TENANT_LIMIT",
-        "elapsedMs": 534.5164580000001
+        "elapsedMs": 591.3745829999989
       },
-      "transactionMs": 250.7983750000003,
-      "statements": 920,
-      "preparationMs": 1429.5589999999993,
+      "transactionMs": 238.98079099999995,
+      "statements": 922,
+      "preparationMs": 1393.21825,
       "snapshotGroups": 87,
       "snapshotBytes": 631232,
       "jobs": [
@@ -162,98 +162,98 @@
         "items": 2
       },
       "http": 28,
-      "sql": 1314
+      "sql": 1318
     },
     {
       "unit": 2,
-      "wholeMs": 6246.520042,
-      "workMs": 4531.3267080000005,
+      "wholeMs": 6751.942000000001,
+      "workMs": 5024.566958000001,
       "phases": [
         {
           "label": "claim/admission",
           "http": 5,
           "sql": 6,
-          "elapsedMs": 627.283625,
+          "elapsedMs": 635.3213329999999,
           "remainingWorkerMs": 30000
         },
         {
           "label": "control/owner observation",
           "http": 1,
           "sql": 1,
-          "elapsedMs": 122.15679099999943,
-          "remainingWorkerMs": 29878
+          "elapsedMs": 123.1733750000003,
+          "remainingWorkerMs": 29876
         },
         {
           "label": "context lease registration",
           "http": 1,
           "sql": 4,
-          "elapsedMs": 122.38566700000047,
-          "remainingWorkerMs": 29755
+          "elapsedMs": 125.17595799999981,
+          "remainingWorkerMs": 29751
         },
         {
           "label": "schema catalog",
           "http": 1,
           "sql": 1,
-          "elapsedMs": 129.08066599999984,
-          "remainingWorkerMs": 29626
+          "elapsedMs": 130.5711250000004,
+          "remainingWorkerMs": 29620
         },
         {
           "label": "column/index metadata",
           "http": 1,
           "sql": 91,
-          "elapsedMs": 138.804666,
-          "remainingWorkerMs": 29487
+          "elapsedMs": 141.75312499999927,
+          "remainingWorkerMs": 29478
         },
         {
           "label": "key/byte metadata",
           "http": 1,
-          "sql": 88,
-          "elapsedMs": 137.3033749999995,
-          "remainingWorkerMs": 29348
+          "sql": 89,
+          "elapsedMs": 142.41104199999972,
+          "remainingWorkerMs": 29334
         },
         {
           "label": "bounded DATA snapshot",
           "http": 1,
-          "sql": 183,
-          "elapsedMs": 160.8003750000007,
-          "remainingWorkerMs": 29186
+          "sql": 184,
+          "elapsedMs": 166.28491700000086,
+          "remainingWorkerMs": 29166
         },
         {
           "label": "control/owner observation",
           "http": 1,
           "sql": 1,
-          "elapsedMs": 128.11191599999984,
-          "remainingWorkerMs": 25899
+          "elapsedMs": 121.9389590000028,
+          "remainingWorkerMs": 25425
         },
         {
           "label": "atomic publication",
           "http": 1,
-          "sql": 1441,
-          "elapsedMs": 294.2793750000001,
-          "remainingWorkerMs": 25594
+          "sql": 1443,
+          "elapsedMs": 312.2735829999983,
+          "remainingWorkerMs": 25100
         },
         {
           "label": "RAM disposal/context release",
           "http": 1,
           "sql": 1,
-          "elapsedMs": 123.95708300000115,
-          "remainingWorkerMs": 25469
+          "elapsedMs": 123.7544170000001,
+          "remainingWorkerMs": 24975
         },
         {
           "label": "original signed settlement",
           "http": 9,
           "sql": 11,
-          "elapsedMs": 1087.58
+          "elapsedMs": 1091.726917
         },
         {
           "label": "RAM import/original algorithm/HMAC",
           "http": 0,
           "sql": 0,
-          "elapsedMs": 3174.4467939999995
+          "elapsedMs": 3637.2304569999997
         }
       ],
       "wholeHttp": 23,
-      "wholeSql": 1828,
+      "wholeSql": 1832,
       "result": {
         "triggerSource": "manual",
         "attemptedJobs": 1,
@@ -270,11 +270,11 @@
         "outcome": "PARTIAL",
         "completion": "PARTIAL",
         "stopReason": "ITEM_LIMIT",
-        "elapsedMs": 3062.9534170000006
+        "elapsedMs": 3517.6516669999983
       },
-      "transactionMs": 295.26324999999997,
-      "statements": 1439,
-      "preparationMs": 3855.9945829999997,
+      "transactionMs": 313.1007079999981,
+      "statements": 1441,
+      "preparationMs": 4325.995999999999,
       "snapshotGroups": 87,
       "snapshotBytes": 806121,
       "jobs": [
@@ -310,7 +310,7 @@
         "items": 3
       },
       "http": 28,
-      "sql": 1833
+      "sql": 1837
     }
   ],
   "targetSignedProof": [
@@ -320,9 +320,9 @@
       "workReceipts": 85,
       "noDuplicateRuns": true,
       "domainProof": {
-        "operationKey": "de2db2df7dc4a5158ff53270c9a8014fb43212b8e4999bb3420ac04c452ee3e6",
-        "receiptKey": "d220cd6db104b20bac3b5528c7c5ae9256b0eb4b9a1d7d4a2cc6f46c79425d96",
-        "producerExecutionId": "e84ed917-6cf1-4076-8d4f-d392b626bf31",
+        "operationKey": "bed21f97c77cc0dbea6f5ae275d66cc2ee2053c8b89de1d0c1ffe6abbfba473d",
+        "receiptKey": "4c516aa5fc6112875f116ddba67914f02c0e6ce3146e08100b9c415ed7a22e7e",
+        "producerExecutionId": "ec33f428-ce9f-4587-b7d9-7917d9c4fad2",
         "inputGeneration": 8,
         "sourceGeneration": 8,
         "receiptHmac": true,
@@ -337,17 +337,17 @@
       "actualSignal": "SIGKILL",
       "reconciledState": "NOT_COMMITTED",
       "domainRows": 2,
-      "restartWorkMs": 2017.8329999999987,
-      "transactionMs": 226.57395799999904,
+      "restartWorkMs": 2035.901667,
+      "transactionMs": 237.11674999999923,
       "proof": {
         "signedOperationReceipts": 3,
         "finalizedProducerHmacs": 28,
         "workReceipts": 85,
         "noDuplicateRuns": true,
         "domainProof": {
-          "operationKey": "d01c5aa6d7ede88ff0d7919250882ce8338b3222e804746c80a0ad7fb35a52b6",
-          "receiptKey": "c79858c6d5fc8de7ce672d1e2ecb328f6a6faac775c03ffed1408c62e792b551",
-          "producerExecutionId": "4cb9f0cb-a5ff-4a8a-94cc-9f50e3f8bca7",
+          "operationKey": "05ada7157696f146aa61613545a54daefbd2229679d06df952aaae0fd41bc131",
+          "receiptKey": "3fd5da4aee7644272819fcc773a3c722c6c7ca382a2d9eb1b96961a890f878af",
+          "producerExecutionId": "4f3b7bbb-6373-442f-9c99-da69649067dc",
           "inputGeneration": 8,
           "sourceGeneration": 8,
           "receiptHmac": true,
@@ -362,17 +362,17 @@
       "actualSignal": "SIGKILL",
       "reconciledState": "WORK_COMMITTED_UNFINALIZED",
       "domainRows": 2,
-      "restartWorkMs": 5635.1288749999985,
-      "transactionMs": 309.0836249999993,
+      "restartWorkMs": 6012.967124999999,
+      "transactionMs": 322.3307080000013,
       "proof": {
         "signedOperationReceipts": 3,
         "finalizedProducerHmacs": 28,
         "workReceipts": 85,
         "noDuplicateRuns": true,
         "domainProof": {
-          "operationKey": "8329ad9812c4922edf6c4168ebd127db704bd11e2d1b26becba60e960989c5a0",
-          "receiptKey": "14c1bcb1cf4269d258713180f6dc4719dbb57da153e1dd78daf0b038b88be107",
-          "producerExecutionId": "ce6bbd93-5611-41c5-9756-bbbbb07d45b6",
+          "operationKey": "dd4cec05440c398038009f73583c0b87f7f0e8325cff440368ec6f5c55a0a0eb",
+          "receiptKey": "bce6c3fc10c3ba7d7280e1d21d2c476ea2534dbaf6cba8ad6a029d6f2f1eb6ea",
+          "producerExecutionId": "0468d3a7-ae72-4e43-a040-70bf7320e254",
           "inputGeneration": 8,
           "sourceGeneration": 8,
           "receiptHmac": true,
@@ -409,7 +409,7 @@
       "fail": 0
     },
     "securityFinal": {
-      "pass": 13,
+      "pass": 16,
       "fail": 0
     }
   },
@@ -449,6 +449,18 @@
     {
       "path": "/private/tmp/stage6-short-security-lifecycle-final.tap",
       "sha256": "50c41001bc21480561151c15c60a140d7c1517ade8319d120d7841859937a33a"
+    },
+    {
+      "path": "/private/tmp/stage6-short-phase-health-final115.tap",
+      "sha256": "e169ba1df79880b751853521e68c488952ce024b5fe9156b5a61eacaf4dfd9bc"
+    },
+    {
+      "path": "/private/tmp/stage6-short-crash-health-final.tap",
+      "sha256": "e70122fec884702f8b2dbce52c99ade294a571753ac6796088fa4709a37b889b"
+    },
+    {
+      "path": "/private/tmp/stage6-short-security-health-final.tap",
+      "sha256": "d385f68b3ca7557975d2e1d76c3f27e9a820e22ee91339477e18922a5c338031"
     }
   ],
   "sixJobs": {
@@ -517,16 +529,16 @@
       }
     ],
     "measuredHelperSha256": "66e927cd24d308f0718f0312320e14770fb2daa9ca48a956d7af7afe99838b99",
-    "qualification": "Loaded pre-lifecycle-serialization working helper; same algorithm/SQL/gates/bounds. Final lifecycle delta separately targeted/security/SIGKILL retested; not mislabelled as frozen HEAD full-six run."
+    "qualification": "Long capacity run loaded pre-privacy-lifecycle/context-lease guards helper66e927; same original computation/DML/rowsets/bounds/deadlines. Final safety delta target/security/SIGKILL retested, not a frozen-SHA full-six claim."
   },
   "schemaRequired": false,
   "journalTenantLimit": "unchanged six-item TENANT_LIMIT; retained seventh-source proof preserved",
   "permit": "Production 12/12 exhausted; unchanged; no paid invocation",
-  "review": "sole independent reviewer delta in progress; fresh DATA gate independently PASS",
+  "review": "sole reviewer independently reproduced lifecycle and outer-context P1s on old variants; final exact-context guards/serialized disposal delta re-review running",
   "readiness": {
     "localArchitecture": "target capacity/crash proven; six-job gate running",
     "stage6Runtime": "NO-GO pending approved integration",
     "production": "NO-GO"
   },
-  "finalHelperSha256": "eb3d57eb8a4e4626ec6c8270cd56489a65e3bef6f9b392747e344fc4ff2b920c"
+  "finalHelperSha256": "65cb95c4dbdfd72a05a3e39fcd033e2d4c6d9ae6db28c4d96c02d6355fefece4"
 }

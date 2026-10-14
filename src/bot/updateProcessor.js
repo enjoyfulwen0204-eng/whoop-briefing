@@ -1,4 +1,4 @@
-import {assessUrgency} from './triage.js';
+import {assessUrgency,urgentReply} from './triage.js';
 import {isJournalCallback} from '../stage7Cards.js';
 import {isSettingsCallback} from './settings.js';
 import {validMessageId} from '../telegramAcknowledgment.js';
@@ -580,8 +580,11 @@ export function createUpdateProcessor({
         }
       }
 
-      if(c.kind==='ok'&&authenticatedIdentity&&!assessUrgency(c.text).urgent)await authenticatedIdentity(c);
-      const journalResult=c.kind==='ok'&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
+      // Transport authentication and durable ownership already hold. Select
+      // safety before any identity capture, Journal note or Settings consumer.
+      const urgent=c.kind==='ok'&&!c.callback&&assessUrgency(c.text).urgent;
+      if(c.kind==='ok'&&authenticatedIdentity&&!urgent)await authenticatedIdentity(c);
+      const journalResult=c.kind==='ok'&&!urgent&&stage7Inbound?await stage7Inbound({...c,updateId,owner:attemptId}):null;
       const dispatch = async () => {
         if (c.kind === 'unlinked') {
           const reply = handleUnlinked ? await handleUnlinked({
@@ -623,7 +626,7 @@ export function createUpdateProcessor({
             throw err;
           }
         }
-        const handled = journalResult?.handled
+        const handled = urgent ? {text:urgentReply(await db.getLocale?.(c.user.id)??'en')} : journalResult?.handled
           ? await stage7Reply({...c,reply:journalResult.reply})
           : await handleMessage({
           text: c.text, chatId: c.chatId, message: c.message, user: c.user, callback:c.callback,

@@ -56,9 +56,41 @@ export function createStage8MorningStore({core,db,preferences,enabled}){
   await client.execute({sql:"UPDATE outbound_messages SET state='SUPPRESSED',terminal_reason='EXPIRED',revision=revision+1,updated_at=? WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND revision=?",args:[core.timestamp(),control.userId,messageId,r.revision]});
   await client.execute({sql:"UPDATE outbound_semantic_reservations SET state='CLOSED',closed_reason='SUPPRESSED',closed_at=? WHERE user_id=? AND execution_mode='LIVE' AND reservation_id=? AND state='RESERVED'",args:[core.timestamp(),control.userId,r.reservation_id]});return true;
  });}
+ // A failing typed read poisons its transaction. Validate frozen retries in
+ // a separate read transaction, then perform metadata-only conditional cleanup.
+ async function validateRetry(control,ctx,day){
+  let retry=null,stale=false;
+  try{await core.run(ctx,async()=>{
+   const reservation=await messages.readReservation(control,'LIVE',{family:FAMILY,identity:day});
+   if(reservation?.state!=='RESERVED'||!reservation.message_id)return;
+   retry=(await query(`SELECT message_id,state,revision,attempt_count,expires_at,auth_generation,lifecycle_generation,
+    purge_generation,input_generation,destination_binding_id FROM outbound_messages
+    WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND message_class=?
+    AND (state='FAILED_DEFINITE' OR state='ELIGIBLE' AND attempt_count>0)`,[ctx.userId,reservation.message_id,FAMILY]))[0]??null;
+   if(!retry)return;
+   const last=(await query("SELECT state,error_code FROM outbound_delivery_attempts WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND attempt_number=?",[ctx.userId,retry.message_id,retry.attempt_count]))[0];
+   if(last?.state!=='FAILED_DEFINITE')fail('PHASE4_DEFINITE_RETRY_NOT_ALLOWED');
+   stale=retry.expires_at<=core.timestamp()||retry.auth_generation!==ctx.authGeneration||retry.lifecycle_generation!==ctx.lifecycleGeneration
+    ||retry.purge_generation!==ctx.purgeGeneration||retry.input_generation!==ctx.inputGeneration||retry.attempt_count>=3
+    ||!['PROVIDER_RATE_LIMIT','PROVIDER_UNAVAILABLE'].includes(last.error_code)||retry.destination_binding_id!==await transport.destination(ctx);
+   if(stale)return;
+   const message=await core.artifact(ctx,'outbound_messages',{message_id:retry.message_id});await plans.validate(ctx,message.row);
+  });}catch(error){
+   if(!retry||!['PHASE4_PARENT_STALE','CONTENT_REDACTED','PHASE4_SOURCE_DELETED','PHASE4_SOURCE_NOT_FOUND','PHASE4_SOURCE_NOT_CURRENT',
+    'PHASE4_RESOURCE_FENCED','PHASE4_CAPABILITY_FENCED','PHASE4_INCOMPLETE_PROVENANCE','MORNING_PLAN_MISMATCH','MORNING_TYPED_PLAN_REQUIRED',
+    'MORNING_PREFERENCE_CHANGED','MORNING_PLAN_EXPIRED','MORNING_RESOURCE_REVOKED','MORNING_SOURCE_STALE','MORNING_SOURCE_CHANGED'].includes(error.message))throw error;
+   stale=true;
+  }
+  if(!stale)return null;
+  if(retry.expires_at<=core.timestamp())await expire(control,retry.message_id);
+  else if(retry.state==='FAILED_DEFINITE')await transport.closeFailed(control,'LIVE',{messageId:retry.message_id,expectedRevision:retry.revision});
+  else await transport.closeMorningRetry(control,{messageId:retry.message_id,expectedRevision:retry.revision});
+  return {status:'FAILED_TERMINAL',messageId:retry.message_id};
+ }
  async function prepare(control,{healthDate=undefined}={}){
   const ctx=await context(control),day=healthDate??localDate(core.now(),ctx.timezone),mode=await commitCutover(ctx);
   if(mode.mode!=='PHASE4'||day<mode.cutover_health_date)return {status:'LEGACY_OWNS'};
+  const terminal=await validateRetry(control,ctx,day);if(terminal)return terminal;
   return core.run(ctx,async()=>{
    const reservation=await messages.readReservation(control,'LIVE',{family:FAMILY,identity:day});
    if(reservation?.state&&reservation.state!=='RESERVED')return {status:'ALREADY_SETTLED'};

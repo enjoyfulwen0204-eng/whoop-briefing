@@ -186,6 +186,31 @@ export function createPhase4TransportStore(core,entities,slotHooks,{morningAutho
       return {state:'FAILED_TERMINAL'};
     });
   }
+  // Frozen v24 permits ELIGIBLE -> SUPPRESSED. Only a Morning retry whose
+  // original latest attempt proved definite nonacceptance can use this cleanup.
+  async function closeMorningRetry(control,{messageId,expectedRevision}) {
+    requireInteger(expectedRevision);
+    return core.runMaintenance(control,'LIVE',async()=>{
+      const row=(await client.execute({sql:`SELECT reservation_id,attempt_count FROM outbound_messages
+        WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND message_class='MORNING_BRIEF_V1'
+        AND state='ELIGIBLE' AND revision=? AND attempt_count>0 AND lease_owner IS NULL AND lease_expires_at IS NULL`,
+        args:[control.userId,messageId,expectedRevision]})).rows[0];
+      if(!row)fail('PHASE4_OUTBOX_CAS_LOST');
+      const changed=await client.execute({sql:`UPDATE outbound_messages SET state='SUPPRESSED',terminal_reason='FAILED_TERMINAL',revision=revision+1,updated_at=?
+        WHERE user_id=? AND execution_mode='LIVE' AND message_id=? AND message_class='MORNING_BRIEF_V1'
+        AND state='ELIGIBLE' AND revision=? AND attempt_count=? AND lease_owner IS NULL AND lease_expires_at IS NULL
+        AND EXISTS(SELECT 1 FROM outbound_delivery_attempts a WHERE a.user_id=outbound_messages.user_id
+          AND a.execution_mode='LIVE' AND a.message_id=outbound_messages.message_id
+          AND a.attempt_number=outbound_messages.attempt_count AND a.state='FAILED_DEFINITE')`,
+        args:[timestamp(),control.userId,messageId,expectedRevision,row.attempt_count]});
+      if(changed.rowsAffected!==1)fail('PHASE4_OUTBOX_CAS_LOST');
+      const reservation=await client.execute({sql:`UPDATE outbound_semantic_reservations SET state='CLOSED',closed_reason='FAILED_TERMINAL',closed_at=?
+        WHERE user_id=? AND execution_mode='LIVE' AND reservation_id=? AND message_id=? AND state='RESERVED'`,
+        args:[timestamp(),control.userId,row.reservation_id,messageId]});
+      if(reservation.rowsAffected!==1)fail('PHASE4_SEMANTIC_RESERVATION_CONSUMED');
+      return {state:'SUPPRESSED'};
+    });
+  }
   async function retryDefinite(context,{messageId,expectedRevision}) {
     return core.run(context,async()=>{
       const {row}=await core.artifact(context,'outbound_messages',{message_id:messageId});
@@ -201,5 +226,5 @@ export function createPhase4TransportStore(core,entities,slotHooks,{morningAutho
       return {nextAttemptAt:next,retryVersion:TRANSPORT_RETRY_VERSION};
     });
   }
-  return {mode,destination,makeEligible,claim,start,settle,recover,retryDefinite,closeFailed};
+  return {mode,destination,makeEligible,claim,start,settle,recover,retryDefinite,closeFailed,closeMorningRetry};
 }

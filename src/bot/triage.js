@@ -39,13 +39,15 @@ const URGENT_PATTERNS = [
   // 併發組合：心悸 + 其他
   /(心跳|心悸).{0,10}(頭暈|暈|呼吸困難|喘)/,
   /(頭暈|暈).{0,10}(心跳(很)?快|心悸|喘)/,
+  // English and Vietnamese source text; guidance is localized separately.
+  /\b(?:chest (?:pain|pressure|tightness)|(?:my|his|her) chest (?:hurts|is tight))\b/i,
+  /\b(?:cannot breathe|can't breathe|unable to breathe|difficulty breathing|trouble breathing|shortness of breath|struggling to breathe)\b/i,
+  /\b(?:(?:feel|feeling|about to|going to) faint|pass(?:ing|ed)? out|los(?:e|ing|t) consciousness|unconscious|unresponsive|cannot wake up|can't wake up)\b/i,
+  /\b(?:heart (?:is )?racing|palpitations).{0,40}(?:dizz|faint|breath)/i,
+  /(?<![\p{L}\p{N}_])(?:đau ngực|tức ngực|nặng ngực|khó thở|không thở được|không thể thở|sắp ngất|sắp xỉu|ngất xỉu|bất tỉnh|mất ý thức|không tỉnh lại)(?![\p{L}\p{N}_])/iu,
+  /(?<![\p{L}\p{N}_])(?:tim đập nhanh|hồi hộp).{0,40}(?:chóng mặt|ngất|khó thở)/iu,
   // 持續嘔吐
   /一直吐|狂吐|吐不停|嘔吐不止/,
-];
-
-/** 明顯是日常疲倦的說法 —— 不可以被上面的規則誤判成緊急。 */
-const ORDINARY_FATIGUE = [
-  /^只是/, /有點(累|疲|沒精神)/, /比較(累|疲倦)/, /運動後.{0,4}(有點)?累/,
 ];
 
 // ---------------------------------------------------------------------------
@@ -65,7 +67,9 @@ const ORDINARY_FATIGUE = [
 // ---------------------------------------------------------------------------
 
 /** 在問這個症狀是什麼、通常怎麼回事 —— 不是在說自己現在這樣。 */
-const EDUCATIONAL = /(通常|一般來說|一般而言|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道)/;
+const EDUCATIONAL = /通常|一般來說|一般而言|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道|\b(?:what (?:is|are|does|causes)|define|definition|usually|generally|in general|meaning|learn about|want to know|question about|asking about|information about)\b|là gì|nghĩa là|nguyên nhân|thường|tại sao|tìm hiểu/iu;
+const CURRENT_ASSERTION = /現在|正在|此刻|(?:我|他|她)(?:有|感到|出現)|\b(?:i|he|she|we|they)(?:'m|'s|'re)?\s+(?:(?:am|is|are)\s+)?(?:have|has|having|feel|feeling|experiencing|suffering from)\s+(?:(?:a|severe|some|sudden)\s+)?["'「『]?(?:chest|difficulty|trouble|shortness|faint|palpitations|胸|呼吸|đau|khó)|\b(?:i|he|she)\s+(?:cannot|can't)\s+breathe|\b(?:my|his|her) chest (?:hurts|is tight)|(?:chest pain|difficulty breathing|shortness of breath).{0,16}\b(?:i'm|i am|right now)\b|(?:tôi|anh ấy|cô ấy)\s+(?:đang\s+)?(?:bị|có(?!\s+thể)|cảm thấy)\s+(?:đau|khó|tức|sắp|chóng|ngất)|(?:tôi|anh ấy|cô ấy)\s+đang\s+(?:đau|khó|tức|sắp)|hiện tại|bây giờ/iu;
+const HYPOTHETICAL = /^\s*(?:如果|假設|若是|萬一|if\b|suppose\b|what if\b|hypothetically\b|nếu|giả sử)/iu;
 
 /**
  * 譬喻框架：症狀詞的主語是一個「東西」而不是身體狀況。
@@ -83,14 +87,24 @@ const METAPHOR_FRAMES = [
   /(累|忙|煩|氣)\s*到\s*讓人\s*(昏倒|昏過去|喘不過氣|站不起來)/,
   /(工作|案子|天氣|事情|行程|會議|考試|報告)[^。，,]{0,4}(累|忙|煩)\s*到/,
   /嚇死人|誇張到|扯到/,
+  /laugh(?:ing|ed)? (?:so hard|until)|cười.{0,20}(?:khó thở|ngất)/iu,
 ];
 
-/** 已經過去而且已經緩解。 */
-const RESOLVED = /(已經)?(好了|沒事了|恢復了|不會了|沒問題了|退了|緩解了)/;
-
-/** 否定詞（只看症狀詞前面很近的範圍）。 */
-const NEGATORS = /(沒有|沒|不會|不曾|未|並沒|沒在)/;
-const NEG_WINDOW = 6;
+/** Exclusions belong to the symptom's clause, never the whole message. */
+const CLAUSE_BOUNDARY = /[。，,;；.!！？?\n]+|(?<![\p{L}\p{N}_])(?:but|however|yet|nhưng|tuy nhiên)(?![\p{L}\p{N}_])|但是|可是|不過|但/giu;
+const NEGATED = /(?:沒有|沒|不會|不曾|未|並沒|沒在)\s*(?:(?:胸痛|胸悶|呼吸困難|喘不過氣|也|和|與|或)\s*)*$|\b(?:no|not|without|don't(?: have| feel| experience)?|do not(?: have| feel| experience)?|never(?: had)?)\s*(?:(?:any|current|severe|chest pain|chest pressure|shortness of breath|difficulty breathing|trouble breathing|and|or|nor)\s*)*$|(?:không(?: hề| có| bị| thấy| còn)?|chưa(?: từng)?|chẳng)\s*(?:(?:đau ngực|khó thở|và|hoặc|hay)\s*)*$/iu;
+const RESOLUTION = /^(?:\s|已經|現在|都|也|症狀|昨天|昨晚|發生|而且|和|與|或|and|or|it|they|that|the symptoms|has|have|had|is|are|was|were|now|all|completely|yesterday|đã|bây giờ|hiện tại|triệu chứng|và|hôm qua)*(?:好了|沒事了|恢復了|不會了|沒問題了|退了|緩解了|resolved|gone|went away|cleared|hết|khỏi)/iu;
+function clauses(text) {
+  const result=[];let start=0;
+  for(const match of text.matchAll(CLAUSE_BOUNDARY)){result.push({start,end:match.index,text:text.slice(start,match.index)});start=match.index+match[0].length;}
+  result.push({start,end:text.length,text:text.slice(start)});return result;
+}
+function resolvedAfter(text) {
+  // Permit coordinated symptoms to share a resolution. An unrelated subject
+  // (e.g. a resolved headache) cannot resolve a current chest-pain statement.
+  for(const pattern of URGENT_PATTERNS)text=text.replace(new RegExp(pattern.source,pattern.flags+'g'),'');
+  return RESOLUTION.test(text);
+}
 
 /** 這個症狀詞是被引號框起來在討論的嗎？ */
 function isQuoted(text, index, length) {
@@ -104,19 +118,21 @@ function isQuoted(text, index, length) {
  *
  * @returns {?string} 排除原因；null 代表沒有排除理由（維持緊急）
  */
-function contextualExclusion(text, match) {
-  const index = match.index ?? text.indexOf(match[0]);
-  const matched = match[0];
-
-  if (isQuoted(text, index, matched.length)) return 'quoted';
-
-  // 否定：「我沒有胸痛也沒有呼吸困難」
-  const window = text.slice(Math.max(0, index - NEG_WINDOW), index);
-  if (NEGATORS.test(window)) return 'negated';
-
-  if (METAPHOR_FRAMES.some((re) => re.test(text))) return 'figurative';
-  if (EDUCATIONAL.test(text)) return 'educational';
-  if (RESOLVED.test(text)) return 'resolved_past';
+function contextualExclusion(text, match, parts) {
+  const index=match.index,partIndex=parts.findIndex(p=>index>=p.start&&index<p.end),part=parts[partIndex];
+  const before=text.slice(part.start,index),after=text.slice(index+match[0].length,part.end);
+  if(NEGATED.test(before))return 'negated';
+  if(HYPOTHETICAL.test(before))return 'hypothetical';
+  const current=CURRENT_ASSERTION.test(part.text);
+  const quoted=[...part.text.matchAll(/"[^"]*"|「[^」]*」|『[^』]*』|(?<![\p{L}])'[^']*'/gu)];
+  const inQuote=isQuoted(text,index,match[0].length)||quoted.some(m=>index-part.start>=m.index&&index-part.start<m.index+m[0].length);
+  const outsideQuotes=part.text.replace(/"[^"]*"|「[^」]*」|『[^』]*』|(?<![\p{L}])'[^']*'/gu,'');
+  if(inQuote&&((EDUCATIONAL.test(part.text)&&!CURRENT_ASSERTION.test(outsideQuotes))||!current))return 'quoted';
+  if(!current&&METAPHOR_FRAMES.some(re=>re.test(part.text)))return 'figurative';
+  if(!current&&EDUCATIONAL.test(part.text))return 'educational';
+  if(resolvedAfter(after))return 'resolved_past';
+  const next=parts[partIndex+1]?.text;
+  if(next&&!URGENT_PATTERNS.some(re=>re.test(next))&&resolvedAfter(next))return 'resolved_past';
   return null;
 }
 
@@ -126,18 +142,15 @@ function contextualExclusion(text, match) {
  * @returns {{urgent:boolean, matched:?string, excluded:?string}}
  */
 export function assessUrgency(text) {
-  const t = String(text ?? '').trim();
+  const t = String(text ?? '').normalize('NFC').replace(/’/g,"'").trim();
   if (!t) return { urgent: false, matched: null, excluded: null };
 
   let lastExclusion = null;
-  for (const re of URGENT_PATTERNS) {
-    const m = t.match(re);
-    if (!m) continue;
-    // 日常疲倦的措辭優先（「運動後有點累」不該因為含「累」被拉進來）
-    if (ORDINARY_FATIGUE.some((ok) => ok.test(t))) continue;
-    const excluded = contextualExclusion(t, m);
-    if (excluded) { lastExclusion = excluded; continue; }
-    return { urgent: true, matched: m[0], excluded: null };
+  const parts=clauses(t);
+  for(const re of URGENT_PATTERNS)for(const match of t.matchAll(new RegExp(re.source,re.flags+'g'))){
+    const excluded=contextualExclusion(t,match,parts);
+    if(excluded){lastExclusion=excluded;continue;}
+    return {urgent:true,matched:match[0],excluded:null};
   }
   return { urgent: false, matched: null, excluded: lastExclusion };
 }
@@ -153,7 +166,7 @@ export function assessUrgency(text) {
  * 並把人導向能真正回答的地方。
  */
 export function isSymptomEducationQuestion(text) {
-  const t = String(text ?? '').trim();
+  const t = String(text ?? '').normalize('NFC').replace(/’/g,"'").trim();
   if (!t) return false;
   const hit = URGENT_PATTERNS.some((re) => re.test(t));
   if (!hit) return false;

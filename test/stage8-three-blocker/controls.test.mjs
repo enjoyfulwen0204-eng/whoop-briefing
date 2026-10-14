@@ -1,0 +1,18 @@
+import {fileURLToPath} from 'node:url';
+import test from 'node:test';import assert from 'node:assert/strict';
+const root=fileURLToPath(new URL('../..',import.meta.url));
+const {stage8Fixture}=await import(root+'/test/stage8Fixture.js');const {createStage7Runtime}=await import(root+'/src/stage7Runtime.js');const {createSettings}=await import(root+'/src/bot/settings.js');
+const {JOURNAL_COPY}=await import(root+'/src/stage7Registry.js');const {COACH_COPY}=await import(root+'/src/companionCoach.js');const {journalCard}=await import(root+'/src/stage7Cards.js');
+for(const locale of ['zh-TW','vi','en'])test('Actual dynamic recent/Coach/Settings choices and unnamed/named subject '+locale,async t=>{
+ const f=await stage8Fixture(t,{owner:true});await f.db.setLocale('a',locale);const app=await createStage7Runtime({...f,environment:{STAGE7_COMPANION:'on',STAGE7_COMPANION_USER_IDS:'a',PHASE4_BETA_PILOT_USER_ID:'a'},now:f.now});let labels=[];
+ function check(card){const a=card.replyMarkup?.inline_keyboard?.flat().map(b=>b.text)??[];for(const label of a){assert.match(label,/\p{S}/u);assert.match(label,/\p{L}/u);assert.doesNotMatch(label,/undefined/);}labels.push(...a);return card;}
+ async function tap(card,label,coach=false){const actor=await app.companion.interactions.authenticate(f.input);await app.companion.interactions.bind(actor,card.stage7InteractionId,42);const b=card.replyMarkup.inline_keyboard.flat().find(b=>b.text===label||b.text.endsWith(' '+label));assert.ok(b,label);const req={...f.input,callback:{id:'probe',data:b.callback_data,from:{id:123},message:{message_id:42,chat:{id:123,type:'private'}}}};return check(await (coach?app.coach:app.companion).handle(req));}
+ const j=JOURNAL_COPY[locale],c=COACH_COPY[locale];let card=check(await app.companion.handle({...f.input,text:'/journal'}));card=await tap(card,j.topics[0]);card=await tap(card,j.yes);card=await tap(card,j.details[0]);card=await tap(card,j.confirm);
+ card=check(await app.companion.handle({...f.input,text:'/journal'}));card=await tap(card,j.topics[1]);card=await tap(card,j.unsure);card=check(await app.companion.handle({...f.input,text:'/journal'}));card=await tap(card,j.recent);assert.equal(card.replyMarkup.inline_keyboard.flat().length,2);
+ card=check(await app.coach.handle({...f.input,text:'/coach'}));card=await tap(card,c.topics[0],true);card=await tap(card,c.today,true);card=await tap(card,c.free,true);assert.equal(card.text,c.ask);
+ const settings=createSettings({db:f.db,stage8:f.app,now:f.now});let s=check(await settings({...f.input,text:'/settings'}));const action=async action=>{const b=s.replyMarkup.inline_keyboard.flat().find(b=>b.callback_data.endsWith('.'+action));assert.ok(b);s=check(await settings({...f.input,callback:{data:b.callback_data}}));return s;};
+ await action('owner');const alias=s.replyMarkup.inline_keyboard[0][0].text;assert.match(alias,/[a-f0-9]{8}/);await action('subject0');assert.ok(s.text.includes(alias));await action('back');
+ await f.app.identity.recordTelegram({user:await f.db.getUser('b'),chatId:'456',message:{chat:{id:456,type:'private'},from:{id:456,is_bot:false,first_name:'Verified Subject'}}});await action('owner');assert.match(s.replyMarkup.inline_keyboard[0][0].text,/Verified Subject/);
+ const fallback=journalCard({kind:'QUICK',category:null},{locale:null});for(const b of fallback.buttons.flat()){assert.match(b.label,/\p{S}/u);assert.match(b.label,/\p{L}/u);assert.doesNotMatch(b.label,/undefined/);}
+ console.log('CONTROLS_PROBE',JSON.stringify({locale,labelsChecked:labels.length,alias,fallback:fallback.buttons[0][0].label,freeTextPrompt:card.text}));
+});

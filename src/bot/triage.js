@@ -85,10 +85,11 @@ function stateFor(part,m,previous){
 
  if(coordinated&&prior.state==='HISTORICAL')return 'HISTORICAL';
  const quote=quotedRange(part,m),outside=quote?part.text.slice(0,quote.index)+part.text.slice(quote.index+quote[0].length):part.text;
- const present=PRESENT_BEFORE.test(before)||PREDICATE_SUBJECT.test(before)||PRESENT_AFTER.test(after)||coordinated&&prior.state==='CURRENT';
+ let present=PRESENT_BEFORE.test(before)||PREDICATE_SUBJECT.test(before)||PRESENT_AFTER.test(after)||coordinated&&prior.state==='CURRENT';
  if(quote){
-  const assertedOutside=PRESENT_BEFORE.test(part.text.slice(0,quote.index))||REPORT.test(part.text.slice(0,quote.index))||CURRENT_TIME.test(outside)&&!EDUCATION.test(outside);
+  const assertedOutside=PRESENT_BEFORE.test(part.text.slice(0,quote.index))||PREDICATE_SUBJECT.test(part.text.slice(0,quote.index))||REPORT.test(part.text.slice(0,quote.index))||CURRENT_TIME.test(outside)&&!EDUCATION.test(outside);
   if(!assertedOutside)return 'QUOTED';
+  present=true;
  }
  // A subject and a present predicate describe actual experience. Educational
  // verbs elsewhere in this clause cannot reverse that independently local fact.

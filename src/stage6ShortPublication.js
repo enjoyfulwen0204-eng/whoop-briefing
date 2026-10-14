@@ -9,6 +9,7 @@ import {currentDurableExecution,databaseNowMs,CommitIndeterminateError,requireSe
 import {reconcileExecution} from './phase4ExecutionStore.js';
 import {currentExecutionBudget} from './executionBudget.js';
 import {createPreparationScheduling} from './stage6PreparationScheduling.js';
+import {drainProcessPublicationFence,notifyDrainProcessBoundary} from './drainProcessAuthority.js';
 const clients=new WeakMap(),issued=new WeakMap(),quote=x=>'"'+x.replaceAll('"','""')+'"';
 const postResponseFailures=new WeakSet(),receiverCoverage=new WeakMap();
 export function assertPreparedReceiverCoverage(token,db,grant,client){const p=receiverCoverage.get(token);if(!p||p.used||p.db!==db||p.grant!==grant||p.client!==client||p.execution!==currentDurableExecution()||p.budget!==currentExecutionBudget())fail('STAGE6_SNAPSHOT_COVERAGE_REQUIRED');p.budget.assert();p.execution.authority.assert();p.used=true;}
@@ -18,7 +19,7 @@ export function runtimePublicationClient(db,{keys,admission,pilotGrant}){
  requireRuntimeAdmission(db.raw,admission,keys,db.transaction);requireBetaPilotGrant(pilotGrant,pilotGrant.userId,db.raw);
  const {base,keys:ownedKeys}=stage6RuntimeBinding(db);if(keys!==ownedKeys)fail('STAGE6_KEY_OWNER_REQUIRED');
  const call=async(method,...args)=>{await db.assertRuntimeFences();await pilotGrant.assert(base);currentExecutionBudget()?.assert();
-  if(method==='batch'&&args[1]==='write'){const {statement}=pilotPublicationFence(pilotGrant,db.raw);args[0]=[statement,...args[0],statement];}
+  if(method==='batch'&&args[1]==='write'){const {statement}=pilotPublicationFence(pilotGrant,db.raw),parent=drainProcessPublicationFence(currentDurableExecution()?.processAuthority,db);args[0]=[...(parent?[parent]:[]),statement,...args[0],statement,...(parent?[parent]:[])];}
   const result=await base[method](...args);try{await db.assertRuntimeFences();await pilotGrant.assert(base);currentExecutionBudget()?.assert();}catch(error){postResponseFailures.add(error);throw error;}return result;};
  const client={execute:stmt=>call('execute',stmt),batch:(stmts,mode)=>call('batch',stmts,mode)};
  clients.set(client,{db,keys,admission,grant:pilotGrant});return client;
@@ -104,7 +105,7 @@ async function prepareDataUnit({client,userId,maxItems=1,triggerSource='manual'}
   db.raw.batch=async(stmts,...args)=>{if(!db.processingTransactionActive()){const pause=scheduling.checkpoint();if(pause)await pause;}const result=await originalBatch(stmts,...args);stmts.forEach((s,i)=>record(s,result[i]));return result;};
   const admission=await db.admitRuntime(),worker=await createPhase4Stage6({db,keys,admission,executionMode:'SHADOW',workerCapability:authorizeStage6ShadowWorker({executionMode:'SHADOW'})});
   const coverage=Object.freeze({});receiverCoverage.set(coverage,{db,grant,client:binding.db.raw,execution,budget,used:false,snapshotDigest:keys.lookup(['stage6-completed-snapshot-v1',userId,execution.claim.executionId,descriptors.map(d=>[d.table,d.payload])])});
-  let result;try{result=await withPilotPreparedReceiver(grant,binding.db.raw,db,coverage,()=>db.withRuntimeFence(localFence,()=>worker.drain({triggerSource,userId,budget:{maxItems,maxItemsPerTenant:maxItems}})));}finally{receiverCoverage.delete(coverage);}budget.assert();execution.authority.assert();
+  let result;try{notifyDrainProcessBoundary('CALCULATION');result=await withPilotPreparedReceiver(grant,binding.db.raw,db,coverage,()=>db.withRuntimeFence(localFence,()=>worker.drain({triggerSource,userId,budget:{maxItems,maxItemsPerTenant:maxItems}})));}finally{receiverCoverage.delete(coverage);}budget.assert();execution.authority.assert();
   const readOnlyOutcome=!result.failedJobs&&!result.claimedJobs&&!result.jobsConsidered
    &&(result.outcome==='NO_WORK'&&result.completion==='COMPLETE'&&result.remainingJobs===0
     ||result.outcome==='NO_ELIGIBLE_WORK'&&result.completion==='PARTIAL'&&result.remainingJobs>0);

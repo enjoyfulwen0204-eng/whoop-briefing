@@ -22,6 +22,7 @@ import {executionProfile} from './phase4Rollback.js';
 import { requireRuntimeAdmission, followRuntimeRenewal } from './runtimeAdmission.js';
 import {betaPilotConfiguration,reviewedPilotAdmission,createBetaPilotPermit,closingBetaPilotPermit,pilotConfigurationMaySchedule} from './betaPilotPermit.js';
 import {pilotStopRequested} from './betaPilotAllowance.js';
+import {drainProcessLocalAuthority} from './drainProcessAuthority.js';
 export const ADMISSION_BUDGET_MS=30_000;
 export const SYNC_SOURCE_BUDGETS=Object.freeze({cloudflare:120_000,github:SYNC_BUDGET_MS,manual:SYNC_BUDGET_MS,event:120_000});
 export const DRAIN_SOURCE_BUDGETS=Object.freeze({cloudflare:45_000,github:90_000,manual:45_000,event:25_000});
@@ -44,7 +45,7 @@ export async function runExecutionPhase(args={}) {
  return withPhaseTelemetry({phase:args.request?.phase,source:args.request?.triggerSource,releaseSha:args.request?.releaseSha},()=>runExecutionPhaseImpl(args));
 }
 async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,environment=process.env,
- db:providedDb,keys:providedKeys,env:providedEnv,deps={},budgetMs,overallBudgetMs,signal}={}) {
+ db:providedDb,keys:providedKeys,env:providedEnv,deps={},budgetMs,overallBudgetMs,signal,processAuthority}={}) {
  const phaseStartedAt=Date.now(),started=performance.now();
  if(Number(process.versions.node.split('.')[0])<22)throw new Error('NODE_22_REQUIRED');
  validatePhaseRequest(request);
@@ -80,6 +81,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
  if(request.phase==='STAGE6_DRAIN'&&config.runtime==='on'&&!pilotReady)
   return phaseReply({phase:request.phase,source:request.triggerSource,executionMode:mode,outcome:'DISABLED',releaseSha});
  const db=providedDb??createDb({url:env.tursoUrl,authToken:env.tursoToken,phase4Keys:keys});
+ const localAuthority=drainProcessLocalAuthority(processAuthority,{db,keys,request});
  // The installed WebSocket driver can silently replace its private connection
  // after errors/age. A phase permits only the HTTP or file runtime boundary;
  // it cannot prove a no-reconnect lifetime for that WebSocket transport.
@@ -90,8 +92,8 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
  const sourceLimit=request.phase==='SYNC'?SYNC_SOURCE_BUDGETS[request.triggerSource]:DRAIN_SOURCE_BUDGETS[request.triggerSource];
  const limit=budgetMs??sourceLimit,wholeLimit=ADMISSION_BUDGET_MS+limit+PHASE_SETTLEMENT_MS;
  if(limit>sourceLimit||(overallBudgetMs!==undefined&&overallBudgetMs>wholeLimit))throw new Error('PHASE_BUDGET_INVALID');
- const overall=createExecutionBudget({budgetMs:overallBudgetMs??wholeLimit,signal,startedAtMs:phaseStartedAt});
- const admissionBudget=createExecutionBudget({budgetMs:ADMISSION_BUDGET_MS,signal:overall.signal});let budget,stopFollowing,pilotGrant;
+ const overall=createExecutionBudget({budgetMs:overallBudgetMs??wholeLimit,signal,startedAtMs:phaseStartedAt,localAuthority});
+ const admissionBudget=createExecutionBudget({budgetMs:ADMISSION_BUDGET_MS,signal:overall.signal,localAuthority});let budget,stopFollowing,pilotGrant;
  try {
    let admission=await admissionBudget.run(()=>traceExecutionOperation('PHASE_ADMISSION',()=>db.admitRuntime({source:request.triggerSource,fresh:true})));
    const checkAdmission=()=>requireRuntimeAdmission(db.raw,admission,keys,db.transaction);
@@ -128,7 +130,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
    overall.assert();
    const workLimit=claim.workCommitted||reconciliationOnly?limit:Math.max(0,Math.min(limit,claim.workDeadlineAt-Date.now()));
    if(workLimit<=0)throw Object.assign(Error('EXECUTION_STALE_REQUEST'),{code:'EXECUTION_STALE_REQUEST'});
-   budget=createExecutionBudget({budgetMs:workLimit,signal:overall.signal});
+   budget=createExecutionBudget({budgetMs:workLimit,signal:overall.signal,localAuthority});
    let pilotDenied=false;
    const fence=async client=>{checkAdmission();if(closingBetaPilotPermit(db))return;overall.assert();budget.assert();if(pilotGrant){
     if(configurationProof(keys,publicBetaConfiguration(environment),environment,releaseSha)!==proof)throw Object.assign(Error('BETA_PILOT_DENIED'),{code:'BETA_PILOT_DENIED'});
@@ -154,7 +156,7 @@ async function runExecutionPhaseImpl({request,body=JSON.stringify(request),now,e
    if(!claim.workCommitted)await db.withRuntimeFence(fence,()=>budget.run(()=>recordPhaseEvent(db,{phase:request.phase,releaseSha,source:request.triggerSource,event:'start',outcome:'PENDING',identity:claim.identity,executionSeq:claim.executionSeq})));
    const reserve=deps.syncYieldReserveMs??SYNC_YIELD_RESERVE_MS;
    if(!Number.isSafeInteger(reserve)||reserve<1||reserve>SYNC_YIELD_RESERVE_MS)throw Error('SYNC_YIELD_RESERVE_INVALID');
-   const executionContext={claim,keys,presentationClock,pending:new Set(),indeterminate:false,syncContinuation:isSyncContinuationRequest(request)&&scopeIncludesSync(scope),syncYieldReserveMs:reserve,
+   const executionContext={claim,keys,presentationClock,pending:new Set(),indeterminate:false,processAuthority,syncContinuation:isSyncContinuationRequest(request)&&scopeIncludesSync(scope),syncYieldReserveMs:reserve,
     authority:{assert:()=>{checkAdmission();overall.assert();budget.assert();}}};
    let result,presentationRuntime;
    try {

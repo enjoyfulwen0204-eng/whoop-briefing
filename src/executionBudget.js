@@ -9,16 +9,18 @@ export class ExecutionBudgetError extends Error {
 }
 export const SYNC_BUDGET_MS = 180_000;
 export const SETTLEMENT_MARGIN_MS = 15_000;
-export function createExecutionBudget({ budgetMs = SYNC_BUDGET_MS, signal, nowMs = Date.now, startedAtMs = nowMs() } = {}) {
+export function createExecutionBudget({ budgetMs = SYNC_BUDGET_MS, signal, nowMs = Date.now, startedAtMs = nowMs(),localAuthority } = {}) {
   if (!Number.isSafeInteger(budgetMs) || budgetMs < 1 || budgetMs > 225_000) throw new Error('SYNC_BUDGET_INVALID');
+  if(localAuthority!==undefined&&typeof localAuthority!=='function')throw Error('LOCAL_AUTHORITY_REQUIRED');
   const startedAt = startedAtMs, deadlineAt = startedAt + budgetMs, controller = new AbortController();
   const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   const timer = setTimeout(() => controller.abort(new ExecutionBudgetError()), Math.max(0,deadlineAt-nowMs()));
   const assert = () => {
+    localAuthority?.();
     if (combined.aborted || nowMs() >= deadlineAt)
       throw new ExecutionBudgetError(combined.reason?.code==='SYNC_CANCELLED'||signal?.aborted && signal.reason?.code!=='SYNC_TIMEOUT' ? 'SYNC_CANCELLED' : 'SYNC_TIMEOUT');
   };
-  const api={ signal: combined, startedAt, deadlineAt, assert,
+  const api={ signal: combined, startedAt, deadlineAt, assert,...(localAuthority?{localAuthority}:{}),
     remainingMs: () => Math.max(0, deadlineAt - nowMs()),
     run: async fn => executionScope.run(api,async()=>{ assert(); const result = await abortable(Promise.resolve().then(()=>{assert();return fn();}), combined); assert(); return result; }),
     cancel: () => controller.abort(new ExecutionBudgetError('SYNC_CANCELLED')),

@@ -1,0 +1,4057 @@
+[
+  {
+    "text": "I have chest pain after feeling fine yesterday. What is my HRV?",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:1",
+      "metamorphic:4"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-001",
+    "cause": "unrelated_past_context",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have chest pain again after it resolved yesterday. What is my HRV?",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:2",
+      "processor:2"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-002",
+    "cause": "unrelated_past_context",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RECURRENT",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "My chest pain started yesterday and has not resolved.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:3",
+      "metamorphic:8",
+      "processor:7"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-003",
+    "cause": "unrelated_past_context",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "has not resolved",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HISTORICAL",
+          "actor": "SELF",
+          "index": 3,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "has not resolved",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 35,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "ONGOING",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "ADJACENT_REFERENCE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "My chest pain started yesterday and is still present.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:4",
+      "metamorphic:7"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-004",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "is still present",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HISTORICAL",
+          "actor": "SELF",
+          "index": 3,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "is still present",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 35,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "ONGOING",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "ADJACENT_REFERENCE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I cannot breathe after my chest pain resolved yesterday. What is my HRV?",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:5"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-005",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "cannot breathe",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "breathing",
+          "text": "cannot breathe",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 2,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 26,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I want to learn about \"chest pain\", which I am having right now.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:6",
+      "metamorphic:26",
+      "processor:4"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-006",
+    "cause": "quoted_actual_assertion",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "I am having right now",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "QUOTED",
+          "actor": null,
+          "index": 23,
+          "group": 1,
+          "evidence": {
+            "assertion": "UNRESOLVED",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "QUOTED",
+            "quotation": "MENTIONED",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "I am having right now",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 41,
+          "group": 3,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "ONGOING",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "ADJACENT_REFERENCE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am saying \"I cannot breathe\" because it is happening to me now.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:7",
+      "processor:5"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-007",
+    "cause": "quoted_actual_assertion",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "cannot breathe",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "breathing",
+          "text": "cannot breathe",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 15,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "ASSERTED",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "it is happening to me now",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 38,
+          "group": 3,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "ONGOING",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "ADJACENT_REFERENCE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have chest pain; it is happening now, although I felt fine yesterday.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:8"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-008",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "it is happening now",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 18,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "ONGOING",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "ADJACENT_REFERENCE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Chest pain is what I am experiencing right now.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:9"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-009",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "urgent": true,
+      "matched": "Chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "Chest pain",
+          "state": "AMBIGUOUS",
+          "actor": null,
+          "index": 0,
+          "group": 1,
+          "evidence": {
+            "assertion": "UNRESOLVED",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "What causes the chest pain that I am experiencing?",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:10"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-010",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "I am experiencing",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "EDUCATIONAL",
+          "actor": null,
+          "index": 16,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "I am experiencing",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 31,
+          "group": 3,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "ONGOING",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "ADJACENT_REFERENCE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Why am I having chest pain right now?",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:11"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-011",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 16,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我想了解我正在出現的胸痛原因。",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:12"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-012",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "胸痛",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 10,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我現在胸痛，雖然昨天已經好了。今天 HRV 多少？",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:13"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-013",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "胸痛",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 3,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi đang đau ngực dù hôm qua đã hết. HRV hôm nay?",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:14"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-014",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "đau ngực",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 9,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi đang khó thở sau khi đau ngực hôm qua đã hết.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:15"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-015",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "khó thở",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "breathing",
+          "text": "khó thở",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 9,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "RESOLVED",
+          "actor": null,
+          "index": 25,
+          "group": 2,
+          "evidence": {
+            "assertion": "UNRESOLVED",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I want to know what causes chest pain because I have it now.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:16"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-016",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "I have it now",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "EDUCATIONAL",
+          "actor": "SELF",
+          "index": 27,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "I have it now",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 45,
+          "group": 3,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "ONGOING",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "ADJACENT_REFERENCE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我想知道胸痛的原因，但我現在有這個症狀。",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:17"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-017",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "我現在有這個症狀",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "EDUCATIONAL",
+          "actor": "SELF",
+          "index": 4,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "我現在有這個症狀",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 11,
+          "group": 3,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "ONGOING",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "ADJACENT_REFERENCE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am not having chest pain. Tôi đang khó thở.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:18"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-018",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "khó thở",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 16,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "khó thở",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 37,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "My chest pain is gone. 我現在呼吸困難。",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:19"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-019",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "呼吸困難",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 3,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "呼吸困難",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 26,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am not having acute chest pain or difficulty breathing.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:20",
+      "processor:8"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-020",
+    "cause": "negation_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 22,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 36,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am not having any unusual chest pain or difficulty breathing.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:21"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-021",
+    "cause": "negation_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 28,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 42,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am not experiencing intense chest pain.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:22",
+      "metamorphic:12"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-022",
+    "cause": "negation_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 30,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am not having chest pain or any difficulty breathing.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:23",
+      "metamorphic:14"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-023",
+    "cause": "negation_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 16,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 34,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have neither chest pain nor difficulty breathing.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:24",
+      "metamorphic:15",
+      "processor:11"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-024",
+    "cause": "negation_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 15,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 30,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi không bị đau ngực dữ dội hoặc khó thở.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:25"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-025",
+    "cause": "negation_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 13,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "khó thở",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 34,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi không còn bị đau ngực nữa.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:26"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-026",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 17,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我沒有任何持續性的胸痛或呼吸困難。",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:27",
+      "processor:10"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-027",
+    "cause": "negation_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 9,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "呼吸困難",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 12,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我並沒有胸痛，也沒有呼吸困難。",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:28"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-028",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 4,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "呼吸困難",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 10,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "The chest pain I had yesterday has fully resolved.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:29"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-029",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 4,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "POSTNOMINAL_REFERENCE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "My chest pain has completely disappeared.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:30"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-030",
+    "cause": "resolution_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 3,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I had chest pain earlier today, but it is completely gone now.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:31"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-031",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 6,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi đã hết hẳn đau ngực.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:32",
+      "metamorphic:18",
+      "processor:9"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-032",
+    "cause": "resolution_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 15,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我之前胸痛，但現在完全消失了。",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:33"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-033",
+    "cause": "resolution_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 3,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am learning what to do if I have chest pain.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:34",
+      "metamorphic:34"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-034",
+    "cause": "hypothetical_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "hypothetical",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HYPOTHETICAL",
+          "actor": "SELF",
+          "index": 35,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "HYPOTHETICAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Can you explain what happens if someone has difficulty breathing?",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:35"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-035",
+    "cause": "hypothetical_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "hypothetical",
+      "mentions": [
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "HYPOTHETICAL",
+          "actor": "GENERIC",
+          "index": 44,
+          "group": 2,
+          "evidence": {
+            "assertion": "UNRESOLVED",
+            "speaker": "GENERIC",
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "HYPOTHETICAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我想知道如果有人胸痛該怎麼辦。",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:36"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-036",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "hypothetical",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "HYPOTHETICAL",
+          "actor": "GENERIC",
+          "index": 8,
+          "group": 2,
+          "evidence": {
+            "assertion": "UNRESOLVED",
+            "speaker": "GENERIC",
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "HYPOTHETICAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi muốn biết nếu tôi khó thở thì phải làm gì.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:37",
+      "metamorphic:36",
+      "processor:12"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-037",
+    "cause": "hypothetical_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "hypothetical",
+      "mentions": [
+        {
+          "kind": "breathing",
+          "text": "khó thở",
+          "state": "HYPOTHETICAL",
+          "actor": "SELF",
+          "index": 22,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "HYPOTHETICAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "The phrase \"I cannot breathe\" appears in a novel.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:38"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-038",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "quoted",
+      "mentions": [
+        {
+          "kind": "breathing",
+          "text": "cannot breathe",
+          "state": "QUOTED",
+          "actor": "SELF",
+          "index": 14,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "QUOTED",
+            "quotation": "MENTIONED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "My question is what causes chest pain in patients generally.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:39"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-039",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "educational",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "EDUCATIONAL",
+          "actor": "SELF",
+          "index": 27,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "What causes chest pain and difficulty breathing in general?",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:40"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-040",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "educational",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "EDUCATIONAL",
+          "actor": null,
+          "index": 12,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "EDUCATIONAL",
+          "actor": null,
+          "index": 27,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "What causes chest pain, or difficulty breathing in general?",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:41"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-041",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "educational",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "EDUCATIONAL",
+          "actor": null,
+          "index": 12,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "EDUCATIONAL",
+          "actor": null,
+          "index": 27,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "What causes chest pain? And difficulty breathing?",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:42"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-042",
+    "cause": "educational_coordination",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "educational",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "EDUCATIONAL",
+          "actor": null,
+          "index": 12,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "EDUCATIONAL",
+          "actor": null,
+          "index": 28,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "A fictional patient has chest pain. He cannot breathe.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:43"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-043",
+    "cause": "fictional_actor_reference",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "informational",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "INFORMATIONAL",
+          "actor": null,
+          "index": 24,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "INFORMATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "cannot breathe",
+          "state": "INFORMATIONAL",
+          "actor": "he",
+          "index": 39,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "he",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "INFORMATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "A textbook says \"I have chest pain\"; this is a quotation.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:44"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-044",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "quoted",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "QUOTED",
+          "actor": "SELF",
+          "index": 24,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "QUOTED",
+            "quotation": "MENTIONED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have \"chest pain\" and want to learn about it.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:45"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-045",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": null,
+          "index": 8,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "ASSERTED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am currently \"unable to breathe\". What causes that?",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:46"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-046",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "unable to breathe",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "breathing",
+          "text": "unable to breathe",
+          "state": "CURRENT",
+          "actor": null,
+          "index": 16,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "ASSERTED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "He tells me \"I have chest pain right now\" and needs help.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:47",
+      "metamorphic:28"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-047",
+    "cause": "quoted_actual_assertion",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "he",
+          "index": 20,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "he",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "ASSERTED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am having chest pain but yesterday I had no symptoms.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:48"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-048",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 12,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have difficulty breathing, but my chest pain is gone.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:49"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-049",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "difficulty breathing",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 36,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Chest pain. What is my HRV?",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:50"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-050",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "urgent": true,
+      "matched": "Chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "Chest pain",
+          "state": "AMBIGUOUS",
+          "actor": null,
+          "index": 0,
+          "group": 1,
+          "evidence": {
+            "assertion": "UNRESOLVED",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Chest pain means what in general?",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:51"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-051",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "educational",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "Chest pain",
+          "state": "EDUCATIONAL",
+          "actor": null,
+          "index": 0,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "No longer having chest pain, or difficulty breathing.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:52"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-052",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": null,
+          "index": 17,
+          "group": 1,
+          "evidence": {
+            "assertion": "UNRESOLVED",
+            "speaker": null,
+            "polarity": "NEGATED",
+            "temporal": "UNKNOWN",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "NEGATED",
+          "actor": null,
+          "index": 32,
+          "group": 1,
+          "evidence": {
+            "assertion": "UNRESOLVED",
+            "speaker": null,
+            "polarity": "NEGATED",
+            "temporal": "UNKNOWN",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I no longer have chest pain, but I cannot breathe now.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:53"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-053",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "cannot breathe",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 17,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "cannot breathe",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 35,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I do not have chest pain and I am struggling to breathe.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:54"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-054",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "struggling to breathe",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 14,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "struggling to breathe",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 34,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I do not have chest pain and am not struggling to breathe.",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:55"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-055",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 14,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "struggling to breathe",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 36,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have chest pain; what causes it?",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:56"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-056",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I want to learn about HRV; I have chest pain.",
+    "expectedUrgent": true,
+    "origins": [
+      "novel:57"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-057",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 34,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I want to learn about chest pain; what causes it?",
+    "expectedUrgent": false,
+    "origins": [
+      "novel:58"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-058",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "educational",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "EDUCATIONAL",
+          "actor": "SELF",
+          "index": 22,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have chest pain.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:1",
+      "processor:13"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-059",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have chest pain after feeling fine yesterday.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:2",
+      "processor:1"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-060",
+    "cause": "unrelated_past_context",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have chest pain, after feeling fine yesterday.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:3"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-061",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have chest pain again.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:5"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-062",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RECURRENT",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have chest pain again after it resolved yesterday.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:6"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-063",
+    "cause": "unrelated_past_context",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RECURRENT",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am not having chest pain.",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:9"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-064",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 16,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am not having acute chest pain.",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:10"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-065",
+    "cause": "negation_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 22,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am not experiencing chest pain.",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:11"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-066",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 22,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I am not having chest pain or difficulty breathing.",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:13"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-067",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 16,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 30,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I AM NOT HAVING CHEST PAIN OR ANY DIFFICULTY BREATHING.",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:16"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-068",
+    "cause": "negation_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "CHEST PAIN",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 16,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "DIFFICULTY BREATHING",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 34,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi đã hết đau ngực.",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:17",
+      "processor:14"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-069",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 11,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi đã hết đau ngực.",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:19"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-070",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 11,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi đã hết hẳn đau ngực.",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:20"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-071",
+    "cause": "negation_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 15,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我胸痛已經好了。",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:21"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-072",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 1,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我胸痛現在完全消失了。",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:22"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-073",
+    "cause": "resolution_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 1,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我胸痛。已經好了。",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:23"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-074",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 1,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我胸痛。現在完全消失了。",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:24"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-075",
+    "cause": "resolution_scope",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 1,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have \"chest pain\" right now.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:25"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-076",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": null,
+          "index": 8,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "ASSERTED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "He says \"I have chest pain right now\" and needs help.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:27"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-077",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "he",
+          "index": 16,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "he",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "ASSERTED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "\"I have chest pain\"",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:29"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-078",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "quoted",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "QUOTED",
+          "actor": "SELF",
+          "index": 8,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "QUOTED",
+            "quotation": "MENTIONED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "What does \"I have chest pain\" mean?",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:30"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-079",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "quoted",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "QUOTED",
+          "actor": "SELF",
+          "index": 18,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "QUOTED",
+            "quotation": "MENTIONED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "What does “I have chest pain” mean?",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:31"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-080",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "quoted",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "QUOTED",
+          "actor": "SELF",
+          "index": 18,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "QUOTED",
+            "quotation": "MENTIONED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "The phrase \"I have chest pain\" appears in a novel.",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:32"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-081",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "quoted",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "QUOTED",
+          "actor": "SELF",
+          "index": 19,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "QUOTED",
+            "quotation": "MENTIONED",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "If I have chest pain, what should I do?",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:33"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-082",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "hypothetical",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HYPOTHETICAL",
+          "actor": "SELF",
+          "index": 10,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "HYPOTHETICAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Nếu tôi khó thở thì phải làm gì?",
+    "expectedUrgent": false,
+    "origins": [
+      "metamorphic:35"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-083",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "hypothetical",
+      "mentions": [
+        {
+          "kind": "breathing",
+          "text": "khó thở",
+          "state": "HYPOTHETICAL",
+          "actor": "SELF",
+          "index": 8,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "HYPOTHETICAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "My chest pain is gone, but I cannot breathe now.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:37"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-084",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "cannot breathe",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 3,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "cannot breathe",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 29,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "My chest pain is gone. I cannot breathe now.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:38"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-085",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "cannot breathe",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 3,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "cannot breathe",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 25,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi đã hết đau ngực nhưng tôi không thể thở.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:39"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-086",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "không thể thở",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 11,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "không thể thở",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 30,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我胸痛已經好了，但 I cannot breathe now.",
+    "expectedUrgent": true,
+    "origins": [
+      "metamorphic:40"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-087",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "cannot breathe",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 1,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "cannot breathe",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 12,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "My chest pain started yesterday and has not resolved. What is my HRV today?",
+    "expectedUrgent": true,
+    "origins": [
+      "processor:3"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-088",
+    "cause": "unrelated_past_context",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "has not resolved",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HISTORICAL",
+          "actor": "SELF",
+          "index": 3,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "has not resolved",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 35,
+          "group": 2,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "ONGOING",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "ADJACENT_REFERENCE"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have chest pain after feeling fine yesterday. What is my HRV today?",
+    "expectedUrgent": true,
+    "origins": [
+      "processor:6"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-089",
+    "cause": "unrelated_past_context",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我現在胸痛，而且呼吸困難。",
+    "expectedUrgent": true,
+    "origins": [
+      "processor:15"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-090",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "胸痛",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 3,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "呼吸困難",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 8,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "What causes chest pain in general?",
+    "expectedUrgent": false,
+    "origins": [
+      "processor:16"
+    ],
+    "failedAtBaseline": false,
+    "id": "independent-091",
+    "cause": "scope_or_preserved_control",
+    "actual": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "educational",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "EDUCATIONAL",
+          "actor": null,
+          "index": 12,
+          "group": 1,
+          "evidence": {
+            "assertion": "TOPIC",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "EDUCATIONAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "I have chest pain although I felt fine. What is my HRV today?",
+    "expectedUrgent": true,
+    "origins": [
+      "metrics:1"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-092",
+    "cause": "unrelated_past_context",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "Tôi đau ngực dù trước đây khỏe. HRV hôm nay?",
+    "expectedUrgent": true,
+    "origins": [
+      "metrics:2"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-093",
+    "cause": "unrelated_past_context",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "đau ngực",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 4,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "text": "我胸痛雖然以前沒事。今天我的 HRV 多少？",
+    "expectedUrgent": true,
+    "origins": [
+      "metrics:3"
+    ],
+    "failedAtBaseline": true,
+    "id": "independent-094",
+    "cause": "unrelated_past_context",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "胸痛",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 1,
+          "group": 1,
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,179 @@
+{
+  "baseline": "177bfbc9c7ff41b9d3021ded136598f871bcfcfd",
+  "frozenSource": "cd24e9ecfe14438b0a7e7a52f90a93b1d1739c3b",
+  "frozenTree": "3216ef4857dc00c702bfa8cb77cd01f132be8c46",
+  "sourceHashes": {
+    "src/bot/triage.js": "3c4377c6e892e757d9174a5e44cc7d4452b6344102d64b20552ab4f6b293e8ee",
+    "src/bot/updateProcessor.js": "b5f654dc208956666d361f3db9b325f43c39958b5c6fa358fc1d12c5ec312f22",
+    "test/stage8-triage-architecture/boundaries.test.mjs": "f1bf7f3c306404a31b8aeccf15fd5c5814053803dc82a5e0d6ca4d8dcaa134aa",
+    "test/stage8-triage-architecture/corpus.test.mjs": "878843be24d1f8473b68111fd5f30ddb47f447b4baa7f020f9e085043be49466",
+    "test/stage8-triage-architecture/independent-corpus.json": "5b7f649a4a1ba9ccec64bdd9ca4b40bd572e0f75e6785074a21562869fc9e8e5",
+    "test/stage8-triage-architecture/ingress-authority.test.mjs": "ab4fb5a4d471ff4207def96c81d076dacb7518ce98a6595972d00874c4a97c20",
+    "test/stage8-triage-architecture/open-gate.test.mjs": "a068346c6d15b37dc02c1d7ed87905a7bf1ce835a328982f37fe1df2da66718b",
+    "test/stage8-triage-architecture/processor.test.mjs": "b8fe6bf2604439003191382f6f9f7c59421c02f51b7b4644f8b87c6610ae671f",
+    "test/stage8-triage-architecture/uncertainty.test.mjs": "3819041fe3b3e35ec10cbb906936640f1a42fafd26433d882d9639b5f39d1cc1"
+  },
+  "protectedHashes": {
+    "src/stage8MorningStore.js": {
+      "sha256": "c38d9757918b9efe49af8c030cfe1bc3ff718a2f53246bab82e0c79aaf040e61",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4TransportStore.js": {
+      "sha256": "c6a92b645fb658eb107744b56655f366123fa4bcd42465ddb67aaa5582f59113",
+      "byteIdenticalToBaseline": true
+    },
+    "src/stage8MorningRuntime.js": {
+      "sha256": "14155570597a88ac8cc24b9ef408d64d88a720e192d5ea433d01de7d734cf945",
+      "byteIdenticalToBaseline": true
+    },
+    "src/bot/updateProcessor.js": {
+      "sha256": "b5f654dc208956666d361f3db9b325f43c39958b5c6fa358fc1d12c5ec312f22",
+      "byteIdenticalToBaseline": false
+    },
+    "src/bot/router.js": {
+      "sha256": "ffde84fca15c907258534e10cc5b183683cc39b8cf018a90b8fef37e4797995c",
+      "byteIdenticalToBaseline": true
+    },
+    "src/bot/webhook.js": {
+      "sha256": "4524fefe61b582425aa06870cc6b45354f539b661cdff351db984364f1d98441",
+      "byteIdenticalToBaseline": true
+    },
+    "src/bot/polling.js": {
+      "sha256": "b824594c614e72f22cd948bd6ed6874f3364afbed76066a07c72c8266938a2c2",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4V24Schema.js": {
+      "sha256": "b5d0b6f8f43c56e4039f7c56a2bcea324af5011ef4e7cec712c4ae118fa1a297",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4V32Schema.js": {
+      "sha256": "54bda87f006f5563884602dc0d681d6aba50a65bf41de191261fe0f00819f0af",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4V33Schema.js": {
+      "sha256": "c1ea62e295d6b6982b7e185b110c29e1baef835c9c0290994bde24312afaed5c",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4V34Schema.js": {
+      "sha256": "09b20f9de966d3cb06d0eed4f40ba44552b98506a37e8d177ad5459fa08be8bd",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4Migrations.js": {
+      "sha256": "b351357ca7c046442c2d61761d49db4eab1729113b7a3a899f1e843021175618",
+      "byteIdenticalToBaseline": true
+    },
+    "src/migrations.js": {
+      "sha256": "d2f1bc5cb3b4d883e8298794e4dde34b566435972d4335ca1aa371293723670d",
+      "byteIdenticalToBaseline": true
+    },
+    "src/stage8DerivedReader.js": {
+      "sha256": "b57299cc02597105a11694b8b06c09dcbb423d00e7ba3cc0200f1da0813a4ecb",
+      "byteIdenticalToBaseline": true
+    },
+    "src/stage8LiveAuthority.js": {
+      "sha256": "eb3e052be31e774862218311551a371739f0ce5307b1092b8c6265c8c7551940",
+      "byteIdenticalToBaseline": true
+    },
+    "src/stage8OwnerMonitoring.js": {
+      "sha256": "32dacdd0866dfdec2c4ca2ff1decb513e68d3ed40a9aa85b3ebac6a4dcdb1732",
+      "byteIdenticalToBaseline": true
+    },
+    "src/stage8OwnerDispatcher.js": {
+      "sha256": "eab8d0f4adafb5709f5556bf75df4bc934819fbc94209d3124f26ab1af79ff07",
+      "byteIdenticalToBaseline": true
+    },
+    "src/stage8Policy.js": {
+      "sha256": "9bc4f3bb039e43b3971f77c363e85fa85c9959a3fc7909826c54484feadbd407",
+      "byteIdenticalToBaseline": true
+    },
+    "src/recipientIdentity.js": {
+      "sha256": "b759834cba31501458125385e80fd983a9c45f567e2a1d7b1faaa4c748c2e80d",
+      "byteIdenticalToBaseline": true
+    },
+    "src/stage7Runtime.js": {
+      "sha256": "2688128b5dc4c4e368cf8d8a097fb59e0db530207053d43b03a1dfbb7b986e77",
+      "byteIdenticalToBaseline": true
+    },
+    "src/stage7Cards.js": {
+      "sha256": "4ae1dd8203500564f364892812d04c6548873348f448f71902fdde136816bd7e",
+      "byteIdenticalToBaseline": true
+    },
+    "src/stage7Registry.js": {
+      "sha256": "108cb0d11e70cecf153420697ec5bab33f056b78553b4fa560632fbdbfadac57",
+      "byteIdenticalToBaseline": true
+    },
+    "src/companionCoach.js": {
+      "sha256": "d67d3cc457bc5cf2172aee48cbace870519c9597368284f1d3f64fd230fe447c",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4Reanalysis.js": {
+      "sha256": "ea0a6667726ce30189ce5beaf99b696cf1fb6d76a5383921927690bddde8fb8c",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4IntelligenceStore.js": {
+      "sha256": "7356f369ca39499b45a415830c7a074f9af5bf518656f9706a4dcaf9c6cac323",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4MetricUnitReceipt.js": {
+      "sha256": "0b8e8f27fe0fc595730442bc81698319fb38519b9088d4c998214618446b8676",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4OperationReceipts.js": {
+      "sha256": "38339347603814091f58f4bb7d60ba31cc890ac1b0e10217b55de618d31c2968",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4Repositories.js": {
+      "sha256": "bc72bcac2ca82bf29dc0c3179a15636e3690963670c456730bdbdffef959e558",
+      "byteIdenticalToBaseline": true
+    },
+    "src/phase4ResultAuthority.js": {
+      "sha256": "c4b0f7cc4a6d55ec3de18d6290ceeda66d87519bdc9410a93ba3b40a9d100df9",
+      "byteIdenticalToBaseline": true
+    },
+    "src/db.js": {
+      "sha256": "f8966b08732f1b9855f5803100c148160705a1585f6383c7e7451f5a5dba4890",
+      "byteIdenticalToBaseline": true
+    },
+    "test/localDb.js": {
+      "sha256": "73f3ce5d05c6667600f3d0c2aae71d3369d5880bdce702375fafff9b64979625",
+      "byteIdenticalToBaseline": true
+    },
+    "test/conversational-health-hardening.test.js": {
+      "sha256": "29176c9a4455c8f5d967f30613f741d41767e665365cfe88d4af0d43267b41cf",
+      "byteIdenticalToBaseline": true
+    },
+    "test/regate-round4.test.js": {
+      "sha256": "72107972440786371917d5a4c4e7528b5718cac2d1ba85c1d07dade24e2b2b1a",
+      "byteIdenticalToBaseline": true
+    },
+    "package.json": {
+      "sha256": "4918bf6af481cf3bfb95be513cfecca4ad553c2290feaf6fe4156e18c286ca43",
+      "byteIdenticalToBaseline": true
+    },
+    "package-lock.json": {
+      "sha256": "79b263e14c52cb67a1adae0a3ff5102d44b9ffa801990b2f7ad3d30125d9ee2e",
+      "byteIdenticalToBaseline": true
+    },
+    "docs/stage8-live-producer-contract.md": {
+      "sha256": "66d7eafbb9a544b83c0a299999d70c0923cae6498d011c380708d6cb632dc70e",
+      "byteIdenticalToBaseline": true
+    },
+    "docs/stage8-stage6-reconciliation.md": {
+      "sha256": "64854c0c18fbd2cd63fc5de3b7a434db95dcb55c1747a78dbdd060404c519c08",
+      "byteIdenticalToBaseline": true
+    }
+  },
+  "onlyRuntimeChanges": [
+    "src/bot/triage.js",
+    "src/bot/updateProcessor.js"
+  ],
+  "allExistingTestsByteIdentical": true,
+  "expectationsPreserved": 94,
+  "syntaxChecks": 8,
+  "syntaxFailures": 0,
+  "prototypeDiff": {
+    "compressedSha256": "31f37a5573e1d862e1a2743b365e77fa196da8c91fc9499ec186d1859847457f",
+    "uncompressedSha256": "e4d45bf4a1778d3cf9b52d447dd984129ff1c56a2fd32c74ae6896e83c1fa873"
+  },
+  "sourceReviewEvidenceSha256": "19a6d843aa810df3c20f6f9b86fc49579168fb08593f9e59617cf6ebeda05d01"
+}

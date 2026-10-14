@@ -5,7 +5,8 @@ const root='/sys/fs/cgroup/';
 const read=name=>readFileSync(root+name,'utf8').trim();
 const fields=name=>Object.fromEntries(read(name).split('\n').map(line=>line.split(/\s+/).map((s,i)=>i?Number(s):s)));
 export function linuxMetrics(){
- const expectedCpu=process.env.LINUX_CPU_CONTROL==='1'?'100000 100000':'50000 100000';
+ if(![undefined,'1','2'].includes(process.env.LINUX_CPU_CONTROL))throw Error('LINUX_CPU_CONTROL_INVALID');
+ const expectedCpu=process.env.LINUX_CPU_CONTROL?Number(process.env.LINUX_CPU_CONTROL)*100000+' 100000':'50000 100000';
  if(process.platform!=='linux'||read('memory.max')!=='536870912'||read('memory.swap.max')!=='0'||read('cpu.max')!==expectedCpu)throw Error('ENFORCED_LINUX_LIMITS_REQUIRED');
  if(global.gc)throw Error('MANUAL_GC_FORBIDDEN');
  const delays=monitorEventLoopDelay({resolution:20});delays.enable();const gc={count:0,totalMs:0,maxMs:0};

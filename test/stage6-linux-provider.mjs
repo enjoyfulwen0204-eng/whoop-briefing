@@ -4,12 +4,18 @@ const url='file:/fixtures/checkpoint.sqlite',seed=createOwnedDb({url});
 const users=(await seed.raw.execute('SELECT id,display_name FROM users')).rows;
 if(users.length!==1||users[0].id!=='a'||users[0].display_name!=='Synthetic')throw Error('SYNTHETIC_FIXTURE_ONLY');await seed.close();
 const transport=hranaTransport(url,{transactionMaxMs:5000});
+let morning,probeActive=false,probePromise,probes=[];
+if(process.env.LINUX_SERVICE==='1'){
+ const {seedMorningProvider}=await import('./stage6LinuxMorningFixture.mjs');await seedMorningProvider('file:/fixtures/morning.sqlite');morning=hranaTransport('file:/fixtures/morning.sqlite',{transactionMaxMs:5000});
+}
 const server=createServer(async(req,res)=>{try{
- if(req.method==='GET'&&req.url==='/counts'){res.setHeader('content-type','application/json');res.end(JSON.stringify({counts:transport.counts,evidence:transport.evidence}));return;}
- if(req.method!=='POST'||req.url!=='/v2/pipeline'){res.writeHead(404).end();return;}
+ if(req.method==='GET'&&req.url==='/counts'){res.setHeader('content-type','application/json');res.end(JSON.stringify({counts:transport.counts,evidence:transport.evidence,probes,morningCounts:morning?.counts}));return;}
+ if(req.method==='POST'&&req.url==='/probe/start'&&!probeActive){probeActive=true;probes=[];probePromise=(async()=>{while(probeActive){const at=performance.now();try{const r=await fetch('http://app:8081/health',{signal:AbortSignal.timeout(35000)});probes.push({elapsedMs:performance.now()-at,status:r.status});}catch(e){probes.push({elapsedMs:performance.now()-at,error:e.name});}await new Promise(r=>setTimeout(r,250));}})();res.end('{}');return;}
+ if(req.method==='POST'&&req.url==='/probe/stop'){probeActive=false;await probePromise;res.end('{}');return;}
+ if(req.method!=='POST'||!['/v2/pipeline','/morning/v2/pipeline'].includes(req.url)||req.url.startsWith('/morning')&&!morning){res.writeHead(404).end();return;}
  const chunks=[];for await(const part of req)chunks.push(part);await new Promise(r=>setTimeout(r,115));
- const response=await transport.fetch(new Request('https://isolated.invalid/v2/pipeline',{method:'POST',body:Buffer.concat(chunks)}));
+ const response=await (req.url.startsWith('/morning')?morning:transport).fetch(new Request('https://isolated.invalid/v2/pipeline',{method:'POST',body:Buffer.concat(chunks)}));
  res.writeHead(response.status,{'content-type':'application/json'});res.end(await response.text());
  }catch(e){res.writeHead(500).end(JSON.stringify({error:e.code??e.message}));}});
 server.listen(8080,'0.0.0.0');console.log('SYNTHETIC_HRANA_READY');
-process.on('SIGTERM',()=>server.close(()=>{transport.close();process.exit(0);}));
+process.on('SIGTERM',()=>{probeActive=false;server.close(()=>{transport.close();morning?.close();process.exit(0);});});

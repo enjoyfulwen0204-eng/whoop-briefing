@@ -75,7 +75,7 @@ async function prepareDataUnit({client,userId='a',maxItems=1},contextGuard){
   const record=(stmt,result)=>{const sql=typeof stmt==='string'?stmt:stmt.sql;if(!/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql))return;
    const effect={sql,args:typeof stmt==='string'?[]:stmt.args??[],rowsAffected:result.rowsAffected};
    if(db.processingTransactionActive())db.afterProcessingCommit(()=>effects.push(effect));else effects.push(effect);};
-  db.raw.execute=async stmt=>{const result=await originalExecute(stmt);record(stmt,result);return result;};
+  db.raw.execute=async stmt=>{const at=performance.now(),result=await originalExecute(stmt);globalThis.__stage6LateProfile?.sql(stmt,result,performance.now()-at);record(stmt,result);return result;};
   db.raw.batch=async(stmts,...args)=>{const result=await originalBatch(stmts,...args);stmts.forEach((s,i)=>record(s,result[i]));return result;};
   const admission=await db.admitRuntime(),worker=await createPhase4Stage6({db,keys:fixtureKeys,admission,executionMode:'SHADOW',workerCapability:authorizeStage6ShadowWorker({executionMode:'SHADOW'})});
   const result=await worker.drain({triggerSource:'manual',userId,budget:{maxItems,maxItemsPerTenant:maxItems}});budget.assert();execution.authority.assert();

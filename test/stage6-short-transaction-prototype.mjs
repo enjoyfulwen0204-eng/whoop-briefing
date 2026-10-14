@@ -8,6 +8,7 @@ import {isolatedPublicationClient,prepareIsolatedUnit,publishIsolatedUnit} from 
 import {verifyShortProof} from './stage6ShortProof.mjs';
 import {createPhase4Stage6,authorizeStage6ShadowWorker} from '../src/phase4Reanalysis.js';
 import {syncFor,leg} from './stage6ShortTransactionHarness.mjs';
+import {ramScopeCounters} from './stage6RamScopeLifetime.mjs';
 test('bounded original algorithm prepares and atomically publishes a genuine source unit',{skip:process.env.SHORT_SIX==='1'},async t=>{
  const f=await residualFixture(t),sync=await syncFor(f);
  for(let n=0;n<60;n++){const r=await leg(f,sync,{prepare:false});assert.equal(r.result.failedJobs,0);if((await f.jobs()).every(j=>j.full_scan_cursor===JSON.stringify(['USER','a']))&&Number((await f.db.raw.execute("SELECT count(*) n FROM phase4_evidence_result_authorities WHERE result_scope='METRIC'")).rows[0].n)>1)break;}
@@ -27,7 +28,8 @@ test('six successor synthetic jobs converge under bounded 115ms preparation/publ
   const legs=[];
   for(let n=1;n<=180;n++){
    const before=structuredClone(f.transport.counts),r=await leg(f,sync,{client,maxItems:6});assert.equal(r.result.failedJobs,0);assert.ok(r.result.processedItems||r.result.unitsCommitted||r.result.completedJobs);assert.ok(r.transactionMs<4000&&r.workMs<30000&&r.wholeMs<45000);
-   const item={fixture,leg:n,wholeMs:r.wholeMs,workMs:r.workMs,transactionMs:r.transactionMs,http:f.transport.counts.httpRequests-before.httpRequests,sql:f.transport.counts.sqlStatements-before.sqlStatements,items:r.result.processedItems,units:r.result.unitsCommitted,completed:r.result.completedJobs};legs.push(item);console.log('SHORT_SIX_LEG '+JSON.stringify(item));
+   const scopes=ramScopeCounters();assert.equal(scopes.liveOwners,0);assert.equal(scopes.liveScopes,0);assert.equal(scopes.retainedEnabled,0);
+   const item={fixture,leg:n,wholeMs:r.wholeMs,workMs:r.workMs,transactionMs:r.transactionMs,http:f.transport.counts.httpRequests-before.httpRequests,sql:f.transport.counts.sqlStatements-before.sqlStatements,items:r.result.processedItems,units:r.result.unitsCommitted,completed:r.result.completedJobs,scopes,memory:process.memoryUsage()};legs.push(item);console.log('SHORT_SIX_LEG '+JSON.stringify(item));
    if(r.jobs.every(j=>j.completed_generation===j.requested_generation))break;
   }
   f.setLatency(0);await f.fresh();const jobs=await f.jobs();assert.ok(jobs.every(j=>j.completed_generation===j.requested_generation&&j.full_scan_cursor===null&&j.lease_owner===null));

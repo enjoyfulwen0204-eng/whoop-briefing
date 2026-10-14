@@ -1,5 +1,5 @@
-import {register}from'node:module';import{readFileSync}from'node:fs';
-if(process.platform!=='linux'||readFileSync('/sys/fs/cgroup/memory.max','utf8').trim()!=='536870912'||!['stage6-linux-concurrency.mjs','stage6LinuxDrainChild.mjs'].some(x=>process.argv[1]?.endsWith('/test/'+x)))throw Error('SYNTHETIC_SERVICE_DIAGNOSTICS_ONLY');
+import {register}from'node:module';import{readFileSync,realpathSync}from'node:fs';import{fileURLToPath}from'node:url';
+if(process.platform!=='linux'||readFileSync('/sys/fs/cgroup/memory.max','utf8').trim()!=='536870912'||!['stage6-linux-concurrency.mjs','stage6LinuxDrainChild.mjs'].some(x=>realpathSync(process.argv[1]??'')===realpathSync(fileURLToPath(new URL(x,import.meta.url)))))throw Error('SYNTHETIC_SERVICE_DIAGNOSTICS_ONLY');
 const failures=[];globalThis.__stage6ServiceDiagnostics={capture(error,boundary){
  if(failures.length>=64)return;
  const message=error?.name==='TypeError'&&/^Cannot (?:read|convert|set) /.test(error.message)?error.message.replace(/(reading|setting) '[^']+'/g,"$1 '[property]'").slice(0,180):undefined;

@@ -1,206 +1,169 @@
-/**
- * 緊急症狀的優先攔截（確定性，不依賴 LLM）。
- *
- * ## 為什麼必須是確定性的、而且必須排在最前面
- *
- * 「我喝酒後胸痛又喘不過氣」這句話同時符合好幾條既有規則：它提到喝酒
- * （可記錄的事件）、提到累（cause_query）、是個問句。原本的路由會先去
- * 寫一筆 journal、再列出一堆 WHOOP 數字、再解釋基準不足 —— 而使用者
- * 正在描述可能需要立刻就醫的狀況。
- *
- * 所以這一關：
- *   · 排在**所有**路由之前（追問消化、journal 寫入、Q&A、LLM fallback）
- *   · 不呼叫 LLM（分類器不可用、逾時、或判錯都不能影響安全）
- *   · 攔下來之後**不寫入任何東西**、不列數據、不談基準、不猜原因
- *
- * ## 不做診斷
- *
- * 這裡不判斷是什麼病，也不宣稱 WHOOP 能排除危險。只做一件事：
- * 把「這聽起來需要真人評估」講清楚，並沿用產品既有的保守用語。
- */
+import {t} from '../localization.js';
 
-/**
- * 需要立刻被當成緊急處理的描述。
- *
- * 刻意用「症狀詞」而不是情緒強度詞：「累死了」「快虛脫」是日常誇飾，
- * 「喘不過氣」「快昏倒」「意識」不是。
+/** Deterministic safety routing only: no diagnosis, model or health-data read.
+ * Each symptom receives its own semantic state. Coordinated predicates may
+ * share negation/resolution; contrast and new assertions start a new scope.
+ * Educational language never vetoes a separately asserted current symptom.
  */
-const URGENT_PATTERNS = [
-  // 心肺
-  /胸(口|部)?(很|好|超)?(痛|悶|緊)/,
-  /喘不過氣|呼吸困難|吸不到空氣|無法呼吸/,
-  // 意識（含第三人稱轉述：「我朋友叫不醒」「他意識不清」）
-  /快(要)?昏倒|要昏倒了|昏過去|失去意識|意識模糊|意識不清|失去知覺|暈倒/,
-  /叫不醒|叫不起來|沒有反應|沒反應/,
-  // 神經／循環
-  /(突然)?(全身)?無力.{0,6}(站不起來|動不了)/,
-  /站不起來|癱軟/,
-  /冒冷汗/,
-  // 併發組合：心悸 + 其他
-  /(心跳|心悸).{0,10}(頭暈|暈|呼吸困難|喘)/,
-  /(頭暈|暈).{0,10}(心跳(很)?快|心悸|喘)/,
-  // English and Vietnamese source text; guidance is localized separately.
-  /\b(?:chest (?:pain|pressure|tightness)|(?:my|his|her) chest (?:hurts|is tight))\b/i,
-  /\b(?:cannot breathe|can't breathe|unable to breathe|difficulty breathing|trouble breathing|shortness of breath|short of breath|struggling to breathe)\b/i,
-  /\b(?:(?:feel|feeling|about to|going to) faint|pass(?:ing|ed)? out|los(?:e|ing|t) consciousness|unconscious|unresponsive|cannot wake up|can't wake up)\b/i,
-  /\b(?:heart (?:is )?racing|palpitations).{0,40}(?:dizz|faint|breath)/i,
-  /(?<![\p{L}\p{N}_])(?:đau ngực|tức ngực|nặng ngực|khó thở|không thở được|không thể thở|sắp ngất|sắp xỉu|ngất xỉu|bất tỉnh|mất ý thức|không tỉnh lại)(?![\p{L}\p{N}_])/iu,
-  /(?<![\p{L}\p{N}_])(?:tim đập nhanh|hồi hộp).{0,40}(?:chóng mặt|ngất|khó thở)/iu,
-  // 持續嘔吐
-  /一直吐|狂吐|吐不停|嘔吐不止/,
+export const TRIAGE_LIMITS=Object.freeze({characters:8192,clauses:128,mentions:128});
+const SYMPTOMS=[
+ ['chest',true,/胸(?:口|部)?(?:很|好|超)?(?:痛|悶|緊)|\bchest (?:pain|pressure|tightness)\b|\bchest (?:hurts|is tight)\b|(?<!\p{L})(?:đau ngực|tức ngực|nặng ngực)(?!\p{L})/iu],
+ ['breathing',true,/喘不過氣|呼吸困難|吸不到空氣|無法呼吸|\b(?:cannot breathe|can't breathe|unable to breathe|difficulty breathing|trouble breathing|shortness of breath|short of breath|struggling to breathe)\b|(?<!\p{L})(?:khó thở|không thở được|không thể thở)(?!\p{L})/iu],
+ ['consciousness',true,/快(?:要)?昏倒|要昏倒了|昏過去|失去意識|意識模糊|意識不清|失去知覺|暈倒|叫不醒|叫不起來|沒有反應|沒反應|\b(?:(?:feel|feeling|about to|going to) faint|pass(?:ing|ed)? out|los(?:e|ing|t) consciousness|unconscious|unresponsive|cannot wake up|can't wake up)\b|(?<!\p{L})(?:sắp ngất|sắp xỉu|ngất xỉu|bất tỉnh|mất ý thức|không tỉnh lại)(?!\p{L})/iu],
+ ['collapse',true,/(?:突然)?(?:全身)?無力.{0,6}(?:站不起來|動不了)|站不起來|癱軟/iu],
+ ['sweat',true,/冒冷汗/iu],['vomiting',true,/一直吐|狂吐|吐不停|嘔吐不止/iu],
+ // These are urgent only as an asserted combination, not independently.
+ ['heartbeat',false,/心跳(?:很|好)?快|心跳|心悸|\bheart (?:is )?racing\b|\bpalpitations\b|(?<!\p{L})(?:tim đập nhanh|hồi hộp)(?!\p{L})/iu],
+ ['breathingHint',false,/喘/iu],
+ ['dizziness',false,/頭暈|暈|\bdizz(?:y|iness)\b|(?<!\p{L})chóng mặt(?!\p{L})/iu],
 ];
+const BOUNDARY=/[.!?。！？\n]+|[,，;；]+|(?<!\p{L})(?:but|however|yet|because|nhưng|tuy nhiên|vì)(?!\p{L})|但是|可是|不過|因為|但/giu;
+const CONTRAST=/^(?:but|however|yet|nhưng|tuy nhiên|但是|可是|不過|但)$/iu;
+const WORD=/[\p{L}\p{N}_]/u;
+function quoteRanges(text){
+ const ranges=[];let open=null;
+ for(let i=0;i<text.length;i++){const ch=text[i];
+  if(ch==="'"&&WORD.test(text[i-1]??'')&&WORD.test(text[i+1]??''))continue;
+  if(open){if(ch===open.close){ranges.push({index:open.index,0:text.slice(open.index,i+1)});open=null;}}
+  else if(['\"','「','『',"'"].includes(ch)&&!(ch==="'"&&WORD.test(text[i-1]??'')))open={index:i,close:{'「':'」','『':'』'}[ch]??ch};
+ }
+ return ranges;
+}
+function outsideQuotes(text){const chars=text.split('');for(const q of quoteRanges(text))for(let i=q.index;i<q.index+q[0].length;i++)chars[i]=' ';return chars.join('');}
+const CONNECTORS=/^(?:\s|and|or|nor|also|và|hoặc|hay|也|和|與|或|又|而且|且)*(?:(?:my|his|her)\s+)?$/iu;
+const NEGATION=/(?:沒有|沒|不會|不曾|未|並沒|沒在)(?:(?:現在|目前|正在|任何|劇烈|嚴重|輕微|持續|突然|明顯|的)){0,4}\s*$|\b(?:no|not|without|don't|do not|doesn't|does not|never|no longer)(?:\s+(?:have|has|having|had|feel|feeling|experience|experiencing|currently|now|any|a|severe|intermittent|sharp|mild|sudden|persistent|obvious)){0,8}\s*$|(?:không(?: hề| có| bị| thấy| còn)?|chưa(?: từng)?|chẳng)(?:\s+(?:đang|bị|có|cảm thấy))?\s*$/iu;
+const RESOLVED_BEFORE=/(?:已經|現在|目前)?(?:不再|已無|沒有了)\s*$|\b(?:no longer|stopped)(?:\s+(?:have|having|feel|feeling|experiencing))?\s*$|(?:đã\s+)?(?:hết|khỏi)\s*$/iu;
+const RESOLVED_AFTER=/^(?:\s|了|已經|現在|目前|都|也|症狀|而且|和|與|或|and|or|it|they|that|the symptoms|has|have|had|is|are|was|were|now|all|completely|đã|bây giờ|hiện tại|triệu chứng|và)*(?:好了|沒事了|恢復了|不會了|沒問題了|緩解了|沒有了|resolved|gone|went away|cleared|hết|khỏi)(?!\p{L})/iu;
+const PAST=/昨天|昨晚|以前|曾經|\b(?:had|experienced|felt|yesterday|last (?:night|week|month|year)|years ago)\b|hôm qua|trước đây/iu;
+const CURRENT_TIME=/現在|目前|正在|此刻|\b(?:now|currently|current|right now|still)\b|đang|hiện tại|bây giờ/iu;
+const EDUCATION=/通常|一般來說|一般而言|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道|\b(?:what (?:is|are|does|causes)|define|definition|usually|generally|in general|meaning|learn about|want to know|question about|asking about|information about|be caused by|why (?:do|does) (?:people|patients))\b|là gì|nghĩa là|nguyên nhân|thường|tại sao|tìm hiểu/iu;
+const INFORMATIONAL=/\b(?:in (?:this|an?) (?:example|case study)|hypothetical case|the (?:article|textbook|example) (?:says|describes|explains)|fictional)\b|假設案例|教科書|例句|舉例|ví dụ|trường hợp giả định/iu;
+const CASE_FRAME=/\b(?:in (?:this|an?) (?:example|case study)|hypothetical case|fictional)\b|假設案例|例句|舉例|ví dụ|trường hợp giả định/iu;
+const HYPOTHETICAL=/^\s*(?:如果|假設|假如|若是|萬一|if\b|suppose\b|what if\b|hypothetically\b|nếu|giả sử)/iu;
+const PRESENT_BEFORE=/(?:我朋友|我|他|她|媽媽|爸爸|朋友)(?:現在|目前|正在|此刻|突然|有|感到|覺得|出現)*\s*$|(?<![\p{L}\p{N}_])(?:i|he|she|we|they|my (?:friend|mother|father|child|wife|husband))\s+(?:(?:am|is|are)\s+)?(?:(?:currently|now|still)\s+)?(?:have|has|having|feel|feeling|experiencing|suffering from)\s+(?:(?:current|a|severe|some|sudden)\s+)*$|\b(?:my|his|her)\s+(?:current\s+)?$|(?:tôi|anh ấy|cô ấy|bạn tôi)\s+(?:(?:đang|bị|có|cảm thấy)\s+)*$/iu;
+const PREDICATE_SUBJECT=/(?<![\p{L}\p{N}_])(?:i|he|she|we|they|my (?:friend|mother|father|child|wife|husband))\s*(?:(?:am|is|are|'m|'s|'re)\s*)?(?:(?:currently|now|still)\s*)?$/iu;
+const PRESENT_AFTER=/^\s*(?:that\s+)?(?:i|he|she)\s+(?:(?:am|is)\s+)?(?:having|feeling|experiencing)\b|^\s*(?:i am|i'm)\b/iu;
+const WELL=/^\s*(?:(?:i am|i'm|it is|i feel|now i am|now i'm|tôi|hiện tại tôi|bây giờ tôi|現在|我現在|現在我)\s*)?(?:fine|well|okay|back to normal|ổn|bình thường|沒事了|好了)(?:\s*(?:now|hiện tại|bây giờ))?\s*$/iu;
+const FIGURATIVE=/笑(?:到|得|死)|(?:recovery|hrv|strain|分數|數字|指數|股票|房價|價格)[^。，,]{0,6}(?:低|高|爛|差|掉)(?:到|得)|(?:工作|案子|天氣|事情|行程|會議|考試|報告)[^。，,]{0,4}(?:累|忙|煩)到|(?:累|忙|煩|氣)到讓人|laugh(?:ing|ed)? (?:so hard|until)|cười.{0,20}(?:khó thở|ngất)/iu;
+const REPORT=/\b(?:he|she|my (?:friend|mother|father|child))\s+(?:just\s+)?(?:says|said)\s*$|(?:他|她|我朋友)(?:現在|剛剛)?說\s*$|(?:anh ấy|cô ấy)\s+(?:vừa\s+)?nói\s*$/iu;
+const REFERENCE=/(?<![\p{L}\p{N}_])(?:it|this|these symptoms|that pain)(?![\p{L}\p{N}_])|這個症狀|這些症狀|它|(?<!\p{L})(?:nó|triệu chứng này)(?!\p{L})/iu;
+const RECURRENCE=/(?<!\p{L})(?:it|this|these symptoms)\s+(?:(?:is|are|has|have)\s+)?(?:back|returned|returning|recurring|came back)\b|(?<!\p{L})it's\s+back\b|(?:它|這個症狀|這些症狀)(?:現在|目前)?(?:又來了|又出現|復發)|(?:nó|triệu chứng này)\s+(?:đang\s+)?(?:trở lại|tái phát)/iu;
+const ONGOING_REFERENCE=/(?<![\p{L}\p{N}_])(?:i|he|she|we|they)(?:'m|'s|'re)?\s+(?:(?:am|is|are)\s+)?(?:(?:currently|still)\s+)?(?:experiencing|having|feeling|have|has)\s+(?:it|this|these symptoms|that pain)\b|(?:我|他|她)(?:現在|目前|正在)(?:有|感到|經歷)(?:它|這個症狀|這些症狀)|(?:tôi|anh ấy|cô ấy)\s+đang\s+(?:bị|có|cảm thấy)\s+(?:nó|triệu chứng này)/iu;
 
-// ---------------------------------------------------------------------------
-// 語境排除
-//
-// 症狀詞出現 ≠ 這個人現在有這個症狀。獨立稽核找到三種誤判，每一種都會讓
-// 使用者收到一整段急診指引：
-//
-//   這部電影讓我笑到喘不過氣     —— 譬喻
-//   我的 recovery 低到快昏倒     —— 拿指標開玩笑
-//   我想知道胸痛通常是什麼        —— 衛教問題
-//
-// 誤判的代價不只是尷尬：每一次狼來了都讓真正需要升級的那一次更容易被忽略。
-//
-// ⚠️ 排除規則一律**保守**：只排除證據明確的情況。看不懂就維持緊急 ——
-// 這個方向的錯誤（多問一次安全）遠比反方向便宜。
-// ---------------------------------------------------------------------------
+function splitClauses(text,ranges,quotes){
+ const parts=[];let start=0,join='start';
+ for(const b of text.matchAll(BOUNDARY)){
+  // A connective inside a symptom (喘不過氣) or quotation is not a clause.
+  if(ranges.some(m=>b.index>m.start&&b.index<m.end)||quotes.some(q=>b.index>q.index&&b.index<q.index+q[0].length))continue;
+  if(text.slice(start,b.index).trim())parts.push({text:text.slice(start,b.index),start,join});
+  join=CONTRAST.test(b[0])?'contrast':/[.!?。！？\n]/u.test(b[0])?'hard':/[,，;；]/u.test(b[0])?'soft':'cause';start=b.index+b[0].length;
+ }
+ if(text.slice(start).trim())parts.push({text:text.slice(start),start,join});return parts;
+}
+function candidates(part){
+ const found=[];
+ for(const [kind,strong,re] of SYMPTOMS)for(const m of part.text.matchAll(new RegExp(re.source,re.flags+'g')))found.push({kind,strong,text:m[0],start:m.index,end:m.index+m[0].length,clause:part});
+ return found.sort((a,b)=>a.start-b.start||b.end-a.end).filter((m,i,all)=>!all.slice(0,i).some(prior=>prior.start<=m.start&&prior.end>=m.end));
+}
+function resolutionTail(part,mention){
+ let tail=part.text.slice(mention.end),cursor=mention.end;
+ for(const next of part.mentions.filter(m=>m.start>=mention.end)){
+  if(!CONNECTORS.test(part.text.slice(cursor,next.start)))break;
+  tail=tail.replace(next.text,'');cursor=next.end;
+ }
+ return RESOLVED_AFTER.test(tail);
+}
+function quotedRange(part,mention){return part.quotes.find(q=>mention.start>=q.index&&mention.end<=q.index+q[0].length);}
+function stateFor(part,m,previous){
+ const next=part.mentions.find(n=>n.start>=m.end);
+ const before=part.text.slice(previous?.end??0,m.start),after=part.text.slice(m.end,next?.start??part.text.length),gap=previous?before:null;
+ const coordinated=previous&&CONNECTORS.test(gap);
+ if(NEGATION.test(before)||coordinated&&previous.state==='NEGATED')return 'NEGATED';
+ if(RESOLVED_BEFORE.test(before)||resolutionTail(part,m)||coordinated&&previous.state==='RESOLVED')return 'RESOLVED';
+ if(part.hypothetical)return 'HYPOTHETICAL';
 
-/** 在問這個症狀是什麼、通常怎麼回事 —— 不是在說自己現在這樣。 */
-const EDUCATIONAL = /通常|一般來說|一般而言|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道|\b(?:what (?:is|are|does|causes)|define|definition|usually|generally|in general|meaning|learn about|want to know|question about|asking about|information about)\b|là gì|nghĩa là|nguyên nhân|thường|tại sao|tìm hiểu/iu;
-const CURRENT_ASSERTION = /現在|正在|此刻|(?:我|他|她)(?:有|感到|出現)|\b(?:i|he|she|we|they)(?:'m|'s|'re)?\s+(?:(?:am|is|are)\s+)?(?:have|has|having|feel|feeling|experiencing|suffering from)\s+(?:(?:a|severe|some|sudden)\s+)?["'「『]?(?:chest|difficulty|trouble|shortness|faint|palpitations|胸|呼吸|đau|khó)|\b(?:i|he|she)\s+(?:cannot|can't)\s+breathe|\b(?:my|his|her) chest (?:hurts|is tight)|(?:chest pain|difficulty breathing|shortness of breath).{0,16}\b(?:i'm|i am|right now)\b|(?:tôi|anh ấy|cô ấy)\s+(?:đang\s+)?(?:bị|có(?!\s+thể)|cảm thấy)\s+(?:đau|khó|tức|sắp|chóng|ngất)|(?:tôi|anh ấy|cô ấy)\s+đang\s+(?:đau|khó|tức|sắp)|(?:tôi|anh ấy|cô ấy)\s+(?:đau ngực|khó thở|tức ngực|sắp ngất)|\b(?:i am|i'm|he is|she is)\s+(?:short of breath|unable to breathe)|hiện tại|bây giờ/iu;
-const PAST_CONTEXT = /昨天|昨晚|以前|曾經|\b(?:had|experienced|felt|last night|last week)\b|^\s*yesterday\b|hôm qua|trước đây|đã/iu;
-const CURRENT_TIME = /現在|正在|此刻|\b(?:now|currently|right now)\b|đang|hiện tại|bây giờ/iu;
-const WELL_NOW = /^\s*(?:(?:i am|i'm|it is|i feel|now i am|now i'm|tôi|hiện tại tôi|bây giờ tôi|現在|我現在|現在我)\s*)?(?:fine|well|okay|back to normal|ổn|bình thường|沒事了|好了)(?:\s*(?:now|hiện tại|bây giờ))?[.!。]?\s*$/iu;
-const HYPOTHETICAL = /^\s*(?:如果|假設|若是|萬一|if\b|suppose\b|what if\b|hypothetically\b|nếu|giả sử)/iu;
+ if(coordinated&&previous.state==='HISTORICAL')return 'HISTORICAL';
+ const quote=quotedRange(part,m),outside=quote?part.text.slice(0,quote.index)+part.text.slice(quote.index+quote[0].length):part.text;
+ const present=PRESENT_BEFORE.test(before)||PREDICATE_SUBJECT.test(before)||PRESENT_AFTER.test(after)||coordinated&&previous.state==='CURRENT';
+ if(quote){
+  const assertedOutside=PRESENT_BEFORE.test(part.text.slice(0,quote.index))||REPORT.test(part.text.slice(0,quote.index))||CURRENT_TIME.test(outside)&&!EDUCATION.test(outside);
+  if(!assertedOutside)return 'QUOTED';
+ }
+ // A subject and a present predicate describe actual experience. Educational
+ // verbs elsewhere in this clause cannot reverse that independently local fact.
+ if(PAST.test(before+' '+after)&&!CURRENT_TIME.test(before+' '+after))return 'HISTORICAL';
+ if(part.caseFrame&&!(previous&&!coordinated&&present))return 'INFORMATIONAL';
+ if(part.informational&&['he','she','they'].includes(m.actor)&&INFORMATIONAL.test(part.text.slice(0,m.start))&&!(previous&&!coordinated&&present))return 'INFORMATIONAL';
+ if(present)return 'CURRENT';
+ if(part.informational)return 'INFORMATIONAL';
+ if(FIGURATIVE.test(part.text))return 'FIGURATIVE';
+ if(EDUCATION.test(part.text))return 'EDUCATIONAL';
+ return 'AMBIGUOUS';
+}
+function actorFor(part,m,previous){
+ const before=part.text.slice(previous?.end??0,m.start);
+ const actors=[...before.matchAll(/(?<![\p{L}\p{N}_])(?:my (?:friend|mother|father|child|wife|husband)|i|my|he|she|his|her|we|they)(?![\p{L}\p{N}_])|我朋友|我|他|她|媽媽|爸爸|朋友|(?<!\p{L})(?:tôi|anh ấy|cô ấy|bạn tôi)(?!\p{L})/giu)];
+ if(actors.length){
+  const actor=actors.at(-1)[0].toLowerCase();
+  return {'i':'SELF','my':'SELF','we':'SELF','我':'SELF','tôi':'SELF','我朋友':'my friend','朋友':'my friend','bạn tôi':'my friend','媽媽':'my mother','爸爸':'my father','他':'he','她':'she','anh ấy':'he','cô ấy':'she','his':'he','her':'she'}[actor]??actor;
+ }
+ return previous&&CONNECTORS.test(before)?previous.actor:null;
+}
+function resolveReference(mention){
+ // References form a forward-only chain within the fixed clause/mention bound.
+ for(let m=mention;m;m=m.antecedent)if(['CURRENT','AMBIGUOUS','HISTORICAL'].includes(m.state))m.state='RESOLVED';
+}
+function positive(m){return m.state==='CURRENT'||m.state==='AMBIGUOUS';}
+function overflow(){return {mentions:[],urgent:true,matched:null,excluded:null,reason:'scope_limit'};}
 
-/**
- * 譬喻框架：症狀詞的主語是一個「東西」而不是身體狀況。
- *
- * 「笑到喘不過氣」「工作累到讓人昏倒」「recovery 低到快昏倒」——
- * 共同點是症狀前面有一個「X 到／得」的程度補語結構，而 X 是情緒或指標。
+/** Bounded inspectable interpretation. A bare plausible serious symptom is
+ * AMBIGUOUS and receives the same conditional, nondiagnostic safety guidance.
+ * Clearly excluded mentions alone never trigger emergency routing.
  */
-const METAPHOR_FRAMES = [
-  /笑(到|得|死)/,
-  /(這|那)(部|個|種|隻|本)?\s*(電影|影片|工作|案子|天氣|遊戲|書|片|笑話|梗)/,
-  /(recovery|hrv|strain|分數|數字|指數|股票|房價|價格)\s*[^。，,]{0,6}(低|高|爛|差|掉)\s*(到|得)/i,
-  // ⚠️ 這裡刻意只抓**主語不是說話者身體**的用法。
-  //「我累到快昏倒了」是第一人稱在描述自己的狀態 —— 那要維持緊急；
-  //「這個工作累到讓人昏倒」的主語是工作，「讓人」是泛稱，那才是譬喻。
-  /(累|忙|煩|氣)\s*到\s*讓人\s*(昏倒|昏過去|喘不過氣|站不起來)/,
-  /(工作|案子|天氣|事情|行程|會議|考試|報告)[^。，,]{0,4}(累|忙|煩)\s*到/,
-  /嚇死人|誇張到|扯到/,
-  /laugh(?:ing|ed)? (?:so hard|until)|cười.{0,20}(?:khó thở|ngất)/iu,
-];
-
-/** Exclusions belong to the symptom's clause, never the whole message. */
-const CLAUSE_BOUNDARY = /[。，,;；.!！？?\n]+|(?<![\p{L}\p{N}_])(?:but|however|yet|nhưng|tuy nhiên)(?![\p{L}\p{N}_])|但是|可是|不過|但/giu;
-const NEGATED = /(?:沒有|沒|不會|不曾|未|並沒|沒在)\s*(?:(?:胸痛|胸悶|呼吸困難|喘不過氣|也|和|與|或)\s*)*$|\b(?:no|not|without|don't(?: have| feel| experience)?|do not(?: have| feel| experience)?|never(?: had)?)\s*(?:(?:any|current|severe|chest pain|chest pressure|shortness of breath|short of breath|difficulty breathing|trouble breathing|and|or|nor)\s*)*$|(?:không(?: hề| có| bị| thấy| còn)?|chưa(?: từng)?|chẳng)\s*(?:(?:đau ngực|khó thở|và|hoặc|hay)\s*)*$/iu;
-const RESOLUTION = /^(?:\s|已經|現在|都|也|症狀|昨天|昨晚|發生|而且|和|與|或|and|or|it|they|that|the symptoms|has|have|had|is|are|was|were|now|all|completely|yesterday|đã|bây giờ|hiện tại|triệu chứng|và|hôm qua)*(?:好了|沒事了|恢復了|不會了|沒問題了|退了|緩解了|resolved|gone|went away|cleared|hết|khỏi)/iu;
-function clauses(text) {
-  const result=[];let start=0;
-  for(const match of text.matchAll(CLAUSE_BOUNDARY)){const value=text.slice(start,match.index);if(value.trim())result.push({start,end:match.index,text:value});start=match.index+match[0].length;}
-  if(text.slice(start).trim())result.push({start,end:text.length,text:text.slice(start)});return result;
-}
-function escapePattern(text){return text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
-function resolvedAfter(text) {
-  // Permit coordinated symptoms to share a resolution. An unrelated subject
-  // (e.g. a resolved headache) cannot resolve a current chest-pain statement.
-  for(const pattern of URGENT_PATTERNS)text=text.replace(new RegExp(pattern.source,pattern.flags+'g'),'');
-  return RESOLUTION.test(text);
-}
-
-/** 這個症狀詞是被引號框起來在討論的嗎？ */
-function isQuoted(text, index, length) {
-  const before = text.slice(Math.max(0, index - 2), index);
-  const after = text.slice(index + length, index + length + 2);
-  return /[「『"'（(]/.test(before) && /[」』"'）)]/.test(after);
-}
-
-/**
- * 這個匹配到的症狀，在語境上是否**不是**當下的症狀陳述？
- *
- * @returns {?string} 排除原因；null 代表沒有排除理由（維持緊急）
- */
-function contextualExclusion(text, match, parts) {
-  const index=match.index,partIndex=parts.findIndex(p=>index>=p.start&&index<p.end),part=parts[partIndex];
-  const before=text.slice(part.start,index),after=text.slice(index+match[0].length,part.end);
-  if(NEGATED.test(before))return 'negated';
-  const paired=[...match[0].matchAll(/心跳|心悸|頭暈|暈|呼吸困難|喘|heart (?:is )?racing|palpitations|dizz\w*|faint|breath\w*|tim đập nhanh|hồi hộp|chóng mặt|ngất|khó thở/giu)];
-  if(paired.length>1&&NEGATED.test(match[0].slice(0,paired.at(-1).index)))return 'negated';
-  if(HYPOTHETICAL.test(before))return 'hypothetical';
-  const current=CURRENT_ASSERTION.test(part.text);
-  const quoted=[...part.text.matchAll(/"[^"]*"|「[^」]*」|『[^』]*』|(?<![\p{L}])'[^']*'/gu)];
-  const inQuote=isQuoted(text,index,match[0].length)||quoted.some(m=>index-part.start>=m.index&&index-part.start<m.index+m[0].length);
-  const outsideQuotes=part.text.replace(/"[^"]*"|「[^」]*」|『[^』]*』|(?<![\p{L}])'[^']*'/gu,'');
-  if(inQuote&&((EDUCATIONAL.test(part.text)&&!CURRENT_ASSERTION.test(outsideQuotes))||!current))return 'quoted';
-  if(!current&&METAPHOR_FRAMES.some(re=>re.test(part.text)))return 'figurative';
-  if(!current&&EDUCATIONAL.test(part.text))return 'educational';
-  if(resolvedAfter(after))return 'resolved_past';
-  const next=parts[partIndex+1]?.text;
-  if(next&&!URGENT_PATTERNS.some(re=>re.test(next))&&resolvedAfter(next))return 'resolved_past';
-  if(next&&PAST_CONTEXT.test(part.text)&&!CURRENT_TIME.test(part.text)){
-    if(WELL_NOW.test(next))return 'resolved_past';
-    // An explicit absence of the same symptom resolves its earlier historical
-    // mention. Other current symptoms are still assessed independently.
-    const repeats=[...next.matchAll(new RegExp(escapePattern(match[0]),'giu'))];
-    if(repeats.length&&repeats.every(m=>NEGATED.test(next.slice(0,m.index))))return 'resolved_past';
+export function interpretUrgentSymptoms(input){
+ const raw=String(input??'');if(raw.length>TRIAGE_LIMITS.characters)return overflow();
+ const text=raw.normalize('NFC').replace(/[’‘]/g,"'").replace(/[“”]/g,'"').trim();if(!text)return {mentions:[],urgent:false,matched:null,excluded:null};
+ const lexical=candidates({text});if(lexical.length>TRIAGE_LIMITS.mentions)return overflow();
+ const parts=splitClauses(text,lexical,quoteRanges(text));if(parts.length>TRIAGE_LIMITS.clauses)return overflow();
+ let previousPart=null;const mentions=[];
+ for(const part of parts){
+  part.mentions=candidates(part);if(mentions.length+part.mentions.length>TRIAGE_LIMITS.mentions)return overflow();
+  part.quotes=quoteRanges(part.text);
+  const carry=part.join==='soft'&&previousPart;
+  part.hypothetical=HYPOTHETICAL.test(part.text)||Boolean(carry?.hypothetical);
+  part.informational=INFORMATIONAL.test(part.text)||Boolean(carry?.informational);
+  part.caseFrame=CASE_FRAME.test(part.text)||Boolean(carry?.caseFrame);
+  let previous=null;
+  for(const m of part.mentions){m.actor=actorFor(part,m,previous);m.state=stateFor(part,m,previous);mentions.push(m);previous=m;}
+  if(!part.mentions.length&&previousPart?.mentions.length){
+   const prior=previousPart.mentions;
+   const clean=outsideQuotes(part.text);
+   if(!part.hypothetical&&!part.caseFrame&&!(PAST.test(clean)&&!CURRENT_TIME.test(clean))&&REFERENCE.test(clean)&&(ONGOING_REFERENCE.test(clean)||RECURRENCE.test(clean))&&!NEGATION.test(clean.slice(0,clean.search(REFERENCE)))){
+    // An explicit adjacent current anaphor is a new assertion, even when the
+    // original mention was an educational/negated/resolved statement.
+    for(const old of prior){
+     if(mentions.length>=TRIAGE_LIMITS.mentions)return overflow();
+     const ref={...old,text:part.text.trim(),start:part.text.indexOf(part.text.trim()),end:part.text.length,state:'CURRENT',clause:part,antecedent:old};
+     part.mentions.push(ref);mentions.push(ref);
+    }
+   }else if(RESOLVED_AFTER.test(clean)||prior.every(m=>m.state==='HISTORICAL')&&WELL.test(clean)){
+    for(const m of prior)resolveReference(m);
+   }
   }
-  return null;
-}
-
-/**
- * 這則訊息聽起來需不需要立刻的真人評估？
- *
- * @returns {{urgent:boolean, matched:?string, excluded:?string}}
- */
-export function assessUrgency(text) {
-  const t = String(text ?? '').normalize('NFC').replace(/’/g,"'").trim();
-  if (!t) return { urgent: false, matched: null, excluded: null };
-
-  let lastExclusion = null;
-  const parts=clauses(t);
-  for(const re of URGENT_PATTERNS)for(const match of t.matchAll(new RegExp(re.source,re.flags+'g'))){
-    const excluded=contextualExclusion(t,match,parts);
-    if(excluded){lastExclusion=excluded;continue;}
-    return {urgent:true,matched:match[0],excluded:null};
+  // Explicit absence of the same symptom after a historical mention closes that
+  // historical account, without changing any separately current symptom.
+  if(previousPart&&part.mentions.length)for(const old of previousPart.mentions){
+   if(old.state==='HISTORICAL'&&part.mentions.some(m=>m.kind===old.kind&&m.state==='NEGATED'))old.state='RESOLVED';
   }
-  return { urgent: false, matched: null, excluded: lastExclusion };
+  previousPart=part;
+ }
+ const serious=mentions.find(m=>m.strong&&positive(m));
+ const paired=mentions.find(m=>['heartbeat','dizziness','breathingHint'].includes(m.kind)&&positive(m)&&mentions.some(n=>n!==m&&['heartbeat','dizziness','breathingHint'].includes(n.kind)&&n.kind!==m.kind&&positive(n)&&(!n.actor||!m.actor||n.actor===m.actor)&&Math.abs(n.clause.start+n.start-m.clause.start-m.start)<=80));
+ const urgent=Boolean(serious||paired),matched=serious?.text??paired?.text??null;
+ return {urgent,matched,excluded:urgent?null:mentions.at(-1)?.state.toLowerCase()??null,
+  mentions:mentions.map(({kind,text,state,actor,clause,start})=>({kind,text,state,actor,index:clause.start+start}))};
 }
-
-/**
- * 這是在**問一個症狀是什麼**（而不是在說自己現在這樣）嗎？
- *
- * 「我想知道胸痛通常是什麼」「胸痛通常有哪些原因？」「『喘不過氣』是什麼意思？」
- * 都不該觸發急診指引 —— 但也不該掉到指令清單，那等於聽不懂一個合理的問題。
- *
- * 回答則刻意**不做症狀衛教**：胸痛、呼吸困難這類症狀的成因判斷需要真人評估，
- * 給一份「常見原因清單」有可能讓人自己排除掉危險的可能。所以只說明界線，
- * 並把人導向能真正回答的地方。
- */
-export function isSymptomEducationQuestion(text) {
-  const t = String(text ?? '').normalize('NFC').replace(/’/g,"'").trim();
-  if (!t) return false;
-  const hit = URGENT_PATTERNS.some((re) => re.test(t));
-  if (!hit) return false;
-  if (assessUrgency(t).urgent) return false;       // 真的緊急就不是在問問題
-  return EDUCATIONAL.test(t) || /是什麼意思|代表什麼/.test(t);
-}
-
-import { t } from '../localization.js';
-
-/** 症狀類問題的安全回覆：說明界線，不列成因。 */
-export function symptomEducationReply(locale = 'zh-TW') {
-  return t(locale, 'triage.education');
-}
-
-/**
- * 緊急時的回覆。
- *
- * 三件事，不多不少：把安全放在最前面、建議真人評估、說清楚我幫不上這個忙。
- * 刻意**不**列任何數據 —— 那會暗示「數字看起來還好」可以拿來排除危險，
- * 而這個系統沒有能力做那種判斷。
- */
-export function urgentReply(locale = 'zh-TW') {
-  return t(locale, 'triage.urgent');
-}
+export function assessUrgency(text){const {urgent,matched,excluded,reason}=interpretUrgentSymptoms(text);return {urgent,matched,excluded,...(reason?{reason}:{})};}
+export function isSymptomEducationQuestion(text){const result=interpretUrgentSymptoms(text);return !result.urgent&&result.mentions.some(m=>['EDUCATIONAL','INFORMATIONAL','QUOTED'].includes(m.state));}
+export function symptomEducationReply(locale='zh-TW'){return t(locale,'triage.education');}
+export function urgentReply(locale='zh-TW'){return t(locale,'triage.urgent');}

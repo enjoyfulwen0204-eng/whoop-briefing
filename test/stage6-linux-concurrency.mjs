@@ -30,21 +30,23 @@ test('combined real SYNC and webhook factories expose bounded DRAIN service resp
  const initialHealthAt=performance.now(),initialHealth=await networkFetch('http://127.0.0.1:8081/health');const initialHealthMs=performance.now()-initialHealthAt;assert.equal(initialHealth.status,200);
  await networkFetch('http://fixture:8080/probe/start',{method:'POST'});
  const oldOperations=(await stageDb.raw.execute('SELECT operation_key FROM phase4_operation_receipts')).rows.map(r=>r.operation_key),drainRequest=request('STAGE6_DRAIN',{syncRequestId:handoffRequest.requestId,handoff:handoff.body.handoff});
- let childScopes;
+ let childScopes,childCapacity,childMetrics;
  const isolatedDrain=async()=>{
   const child=fork(new URL('./stage6LinuxDrainChild.mjs',import.meta.url),[],{execArgv:[],stdio:['ignore','ignore','ignore','ipc']});
-  const message=await superviseDrainChild(child,{request:drainRequest,environment,env});childScopes=message.scopes;return message.result;
+  const message=await superviseDrainChild(child,{request:drainRequest,environment,env});childScopes=message.scopes;childCapacity=message.capacity;childMetrics=message.metrics;return message.result;
  };
  const syncAt=performance.now(),syncPromise=sendSync(),webhookPromise=sendWebhook(),drainAt=performance.now(),drain=await (process.env.LINUX_DRAIN_ISOLATION==='process'?isolatedDrain():runExecutionPhase({...stageOptions,request:drainRequest})),drainMs=performance.now()-drainAt;
  const webhook=await webhookPromise,retry=await sendWebhook(),sync=await syncPromise,syncMs=performance.now()-syncAt,syncReplay=await sendSync();await networkFetch('http://fixture:8080/probe/stop',{method:'POST'});
  const provider=await(await networkFetch('http://fixture:8080/counts')).json(),claims=(await morningDb.raw.execute("SELECT user_id,delivery_state,delivery_attempts FROM report_claims WHERE report_type='daily' AND local_date='2026-10-11' ORDER BY user_id")).rows;
- console.log('LINUX_CONCURRENT_OUTCOME '+JSON.stringify({synthetic:true,independentDatabases:true,drainIsolation:process.env.LINUX_DRAIN_ISOLATION??'same-process',childScopes,initialHealthMs,syncMs,sync,drainMs,drain,webhook,retry,syncReplay,sends,webhookSends,claims,modelCounts:[...modelCounts],provider,capacity:stage6CapacityStatus(),metrics:metrics.snapshot(),scopes:receiverScopeStatistics(),realProviderRequests}));
- assert.deepEqual(syncReplay,sync);assert.equal(sync.status,200);assert.equal(sync.body.syncComplete,true);assert.equal(sends.length,3);assert.equal(claims.length,3);assert.ok(claims.every(c=>c.delivery_state==='DELIVERED'&&c.delivery_attempts===1));assert.equal(webhook.status,200);assert.equal(retry.status,200);assert.equal(webhookSends.length,1);assert.equal(realProviderRequests,0);
+ console.log('LINUX_CONCURRENT_OUTCOME '+JSON.stringify({synthetic:true,independentDatabases:true,drainIsolation:process.env.LINUX_DRAIN_ISOLATION??'same-process',childScopes,childCapacity,childMetrics,initialHealthMs,syncMs,sync,drainMs,drain,webhook,retry,syncReplay,sends,webhookSends,claims,modelCounts:[...modelCounts],provider,capacity:stage6CapacityStatus(),metrics:metrics.snapshot(),scopes:receiverScopeStatistics(),realProviderRequests}));
  // Resource gates remain real assertions; diagnostic success is never a
  // capacity PASS when the DRAIN deadline or ordinary service response fails.
  assert.equal(drain.body.ok,true,'DRAIN must finish genuine bounded work');assert.ok(drain.body.result.itemsProcessed||drain.body.result.unitsCommitted||drain.body.result.jobsCompleted);
  const fresh=async()=>{await stageDb.close();stageDb=dbFor('/v2/pipeline');stageOptions.db=stageDb;};await fresh();
  console.log('LINUX_CONCURRENT_DURABLE_PROOF '+JSON.stringify(await verifyShortProof({get db(){return stageDb;},fresh},{domainOnly:true})));
  console.log('LINUX_CONCURRENT_CURRENT_PROOF '+JSON.stringify(await verifyCurrentRuntimeProof(stageDb,drainRequest.requestId,oldOperations)));assert.deepEqual(await runExecutionPhase({...stageOptions,request:drainRequest}),drain);
+ if(childScopes){assert.equal(childScopes.liveScopes,0);assert.equal(childScopes.liveReceivers,0);assert.equal(childScopes.activeCallbacks,0);}
+ assert.ok(metrics.snapshot().cgroupPeak<=536870912*.85,'15% whole-cgroup memory headroom required');assert.equal(metrics.snapshot().memoryEvents.oom_kill,0);
  assert.ok(provider.probes.length>3);assert.ok(provider.probes.every(p=>p.status===200&&p.elapsedMs<2000),'ordinary health response must remain below the declared 2s qualification bound');
+ assert.deepEqual(syncReplay,sync);assert.equal(sync.status,200);assert.equal(sync.body.syncComplete,true);assert.equal(sends.length,3);assert.equal(claims.length,3);assert.ok(claims.every(c=>c.delivery_state==='DELIVERED'&&c.delivery_attempts===1));assert.equal(webhook.status,200);assert.equal(retry.status,200);assert.equal(webhookSends.length,1);assert.equal(realProviderRequests,0);
 });

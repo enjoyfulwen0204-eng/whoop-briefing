@@ -1,0 +1,21 @@
+{
+  "id": "neg-other-object",
+  "lane": "name",
+  "locale": "en",
+  "text": "She is not experiencing her chest pain or her difficulty breathing.",
+  "expected": "CLEARLY_NONURGENT",
+  "classification": "CLEARLY_NONURGENT",
+  "pass": false,
+  "failures": [
+    "normal-name-blocked"
+  ],
+  "scopeReads": 0,
+  "reply": "Invalid name. Enter 1–64 characters without control characters.",
+  "observed": {
+    "sends": 1,
+    "consumers": 2,
+    "captures": 1
+  },
+  "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"L7kSb_n1wIQTzfVNQOfmJA\",\"revision\":0,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_edit\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\"}",
+  "notes": []
+}

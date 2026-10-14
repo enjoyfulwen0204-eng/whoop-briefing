@@ -103,7 +103,10 @@ async function prepareDataUnit({client,userId,maxItems=1,triggerSource='manual'}
   const coverage=Object.freeze({});receiverCoverage.set(coverage,{db,grant,client:binding.db.raw,execution,budget,used:false,snapshotDigest:keys.lookup(['stage6-completed-snapshot-v1',userId,execution.claim.executionId,descriptors.map(d=>[d.table,d.payload])])});
   const localFence=()=>{binding.db.assertLocalRuntimeFences();requireRuntimeAdmission(binding.db.raw,binding.admission,keys,binding.db.transaction);budget.assert();execution.authority.assert();grant.assertTime();};
   let result;try{result=await withPilotPreparedReceiver(grant,binding.db.raw,db,coverage,()=>db.withRuntimeFence(localFence,()=>worker.drain({triggerSource,userId,budget:{maxItems,maxItemsPerTenant:maxItems}})));}finally{receiverCoverage.delete(coverage);}budget.assert();execution.authority.assert();
-  if(result.failedJobs||!(result.processedItems||result.unitsCommitted||result.completedJobs))throw Object.assign(Error('PREPARATION_NO_COMPLETED_UNIT'),{code:'PREPARATION_NO_COMPLETED_UNIT',workUsage:pilotWorkUsage(grant,binding.db.raw),calculationFailures:result.failures});
+  const readOnlyOutcome=!result.failedJobs&&!result.claimedJobs&&!result.jobsConsidered
+   &&(result.outcome==='NO_WORK'&&result.completion==='COMPLETE'&&result.remainingJobs===0
+    ||result.outcome==='NO_ELIGIBLE_WORK'&&result.completion==='PARTIAL'&&result.remainingJobs>0);
+  if(result.failedJobs||!(result.processedItems||result.unitsCommitted||result.completedJobs||readOnlyOutcome))throw Object.assign(Error('PREPARATION_NO_COMPLETED_UNIT'),{code:'PREPARATION_NO_COMPLETED_UNIT',workUsage:pilotWorkUsage(grant,binding.db.raw),calculationFailures:result.failures});
   const owner=(await client.execute({sql:'SELECT * FROM phase4_executions WHERE execution_id=?',args:[execution.claim.executionId]})).rows[0];
   if(owner?.owner!==execution.claim.owner||owner?.generation!==execution.claim.generation||owner?.state!=='ESTABLISHED')fail('REQUEST_OWNER_FENCED');
   const leaseDeadlines=[];
@@ -111,7 +114,7 @@ async function prepareDataUnit({client,userId,maxItems=1,triggerSource='manual'}
    if(/INSERT INTO resource_locks/i.test(e.sql)){const expiry=Date.parse(e.args[3]);if(!Number.isSafeInteger(expiry))fail('PREPARATION_LEASE_CONTRACT');leaseDeadlines.push(expiry);}
    if(/UPDATE phase4_jobs SET state='RUNNING',lease_owner=\?,lease_expires_at=\?/i.test(e.sql)){const expiry=Date.parse(e.args[1]);if(!Number.isSafeInteger(expiry))fail('PREPARATION_LEASE_CONTRACT');leaseDeadlines.push(expiry);}
   }
-  if(!leaseDeadlines.length)fail('PREPARATION_LEASE_CONTRACT');
+  if(!leaseDeadlines.length&&!readOnlyOutcome)fail('PREPARATION_LEASE_CONTRACT');
   const temporalDeadline=Math.min(...leaseDeadlines,budget.deadlineAt,owner.deadline_at,owner.lease_until,pilotPublicationFence(grant,binding.db.raw).deadlineAt);
   const plan=Object.freeze({userId,mode:'SHADOW',executionId:execution.claim.executionId,preparationMs:performance.now()-start,snapshotGroups:prefixGroups,snapshotBytes:totalBytes,effects:effects.length,result:structuredClone(result)});
   issued.set(plan,{client,binding,keys,execution,budget,contextGuard,schemaStatement,schemaPayload,temporalDeadline,descriptors,effects,owner,result:structuredClone(result),seal:keys.lookup(['short-transaction-plan-v1',userId,execution.claim.executionId,descriptors.map(d=>[d.table,d.payload]),effects,result])});return plan;

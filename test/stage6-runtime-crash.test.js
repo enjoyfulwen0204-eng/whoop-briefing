@@ -1,8 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {spawn} from 'node:child_process';
+import {getHeapStatistics} from 'node:v8';
 import {mkdtemp,readFile,rm,realpath} from 'node:fs/promises';import {join,dirname} from 'node:path';
 import {createDb} from '../src/db.js';import {fixtureKeys} from './localDb.js';import {hranaTransport} from './hranaTransport.js';
 import {runExecutionPhase} from '../src/phase4Execution.js';import {reconcileExecution} from '../src/phase4ExecutionStore.js';import {verifyShortProof} from './stage6ShortProof.mjs';
-test('actual monitored runtime SIGKILL after atomic COMMIT settles exact receipts after process restart',async t=>{
+test('actual monitored runtime SIGKILL after atomic COMMIT settles exact receipts after process restart',{skip:getHeapStatistics().heap_size_limit>192*1024*1024?'explicit bounded V8 memory qualification only':false},async t=>{
  const dir=await mkdtemp('/private/tmp/whoop-stage6-runtime-crash-'),marker=join(dir,'marker.json');t.after(()=>rm(dir,{recursive:true,force:true}));
  const child=spawn(process.execPath,['--max-old-space-size=128','--max-semi-space-size=4','--experimental-test-isolation=none','--test','test/stage6-runtime-target.test.js'],{cwd:new URL('../',import.meta.url),env:{...process.env,NODE_TEST_CONTEXT:'',STAGE6_RUNTIME_FAULT:'SIGKILL_AFTER',STAGE6_RUNTIME_MARKER:marker},stdio:['ignore','pipe','pipe']});let output='';child.stdout.on('data',b=>output=(output+b).slice(-6000));child.stderr.on('data',b=>output=(output+b).slice(-6000));
  const exit=await new Promise(resolve=>child.on('exit',(code,signal)=>resolve({code,signal})));assert.equal(exit.signal,'SIGKILL',output);

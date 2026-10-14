@@ -1,0 +1,18 @@
+{
+  "count": 1,
+  "pass": 1,
+  "fail": 0,
+  "results": [
+    {
+      "id": "independent-name-limit-adjudication",
+      "classification": "CLEARLY_NONURGENT",
+      "inputLength": 67,
+      "limit": 64,
+      "originalFrozenAssertion": "expects persistence of over-limit input; still FAIL",
+      "normalValidationReply": "Invalid name. Enter 1–64 characters without control characters.",
+      "validContinuation": true,
+      "pass": true,
+      "failures": []
+    }
+  ]
+}

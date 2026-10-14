@@ -1,0 +1,15 @@
+{
+  "total": 224,
+  "safetyMessages": 144,
+  "clearMessages": 80,
+  "safetyZeroOrdinaryReadsConsumersIdentityCaptureAndStateWrites": true,
+  "allPeerSnapshotsPreserved": true,
+  "normalWorkflowAssertionFailures": 0,
+  "exactClassificationFailures": 2,
+  "safetyLaneCounts": {
+    "name": 36,
+    "note": 36,
+    "coach": 36,
+    "health": 36
+  }
+}

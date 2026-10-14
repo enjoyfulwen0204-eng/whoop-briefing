@@ -1,0 +1,1797 @@
+{
+  "frozenBeforeExecution": true,
+  "jobs": [
+    {
+      "id": "unparsed-current-en",
+      "locale": "en",
+      "text": "My chest pain started yesterday and persists.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "name"
+    },
+    {
+      "id": "unparsed-current-en",
+      "locale": "en",
+      "text": "My chest pain started yesterday and persists.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "note"
+    },
+    {
+      "id": "unparsed-current-en",
+      "locale": "en",
+      "text": "My chest pain started yesterday and persists.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "coach"
+    },
+    {
+      "id": "unparsed-current-en",
+      "locale": "en",
+      "text": "My chest pain started yesterday and persists.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "health"
+    },
+    {
+      "id": "unparsed-current-zh-TW",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且持續。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "name"
+    },
+    {
+      "id": "unparsed-current-zh-TW",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且持續。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "note"
+    },
+    {
+      "id": "unparsed-current-zh-TW",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且持續。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "coach"
+    },
+    {
+      "id": "unparsed-current-zh-TW",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且持續。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "health"
+    },
+    {
+      "id": "unparsed-current-vi",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và vẫn còn.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "name"
+    },
+    {
+      "id": "unparsed-current-vi",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và vẫn còn.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "note"
+    },
+    {
+      "id": "unparsed-current-vi",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và vẫn còn.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "coach"
+    },
+    {
+      "id": "unparsed-current-vi",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và vẫn còn.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "health"
+    },
+    {
+      "id": "unparsed-current-mixed",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 持續。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "name"
+    },
+    {
+      "id": "unparsed-current-mixed",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 持續。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "note"
+    },
+    {
+      "id": "unparsed-current-mixed",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 持續。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "coach"
+    },
+    {
+      "id": "unparsed-current-mixed",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 持續。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "family": "unparsed-current",
+      "lane": "health"
+    },
+    {
+      "id": "onset-current-en",
+      "family": "onset-current",
+      "locale": "en",
+      "text": "My chest pain started yesterday and is still present.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "onset-current-en",
+      "family": "onset-current",
+      "locale": "en",
+      "text": "My chest pain started yesterday and is still present.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "onset-current-en",
+      "family": "onset-current",
+      "locale": "en",
+      "text": "My chest pain started yesterday and is still present.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "onset-current-en",
+      "family": "onset-current",
+      "locale": "en",
+      "text": "My chest pain started yesterday and is still present.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "onset-current-zh-TW",
+      "family": "onset-current",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "onset-current-zh-TW",
+      "family": "onset-current",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "onset-current-zh-TW",
+      "family": "onset-current",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "onset-current-zh-TW",
+      "family": "onset-current",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "onset-current-vi",
+      "family": "onset-current",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại vẫn còn.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "onset-current-vi",
+      "family": "onset-current",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại vẫn còn.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "onset-current-vi",
+      "family": "onset-current",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại vẫn còn.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "onset-current-vi",
+      "family": "onset-current",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại vẫn còn.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "onset-current-mixed",
+      "family": "onset-current",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "onset-current-mixed",
+      "family": "onset-current",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "onset-current-mixed",
+      "family": "onset-current",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "onset-current-mixed",
+      "family": "onset-current",
+      "locale": "mixed",
+      "text": "My chest pain started yesterday and 目前仍然存在。",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "open-perfect-en",
+      "family": "open-perfect",
+      "locale": "en",
+      "text": "I have had chest pain since this morning.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "open-perfect-en",
+      "family": "open-perfect",
+      "locale": "en",
+      "text": "I have had chest pain since this morning.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "open-perfect-en",
+      "family": "open-perfect",
+      "locale": "en",
+      "text": "I have had chest pain since this morning.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "open-perfect-en",
+      "family": "open-perfect",
+      "locale": "en",
+      "text": "I have had chest pain since this morning.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "open-perfect-zh-TW",
+      "family": "open-perfect",
+      "locale": "zh-TW",
+      "text": "我從今天早上到現在一直胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "open-perfect-zh-TW",
+      "family": "open-perfect",
+      "locale": "zh-TW",
+      "text": "我從今天早上到現在一直胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "open-perfect-zh-TW",
+      "family": "open-perfect",
+      "locale": "zh-TW",
+      "text": "我從今天早上到現在一直胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "open-perfect-zh-TW",
+      "family": "open-perfect",
+      "locale": "zh-TW",
+      "text": "我從今天早上到現在一直胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "open-perfect-vi",
+      "family": "open-perfect",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực từ sáng nay đến giờ.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "open-perfect-vi",
+      "family": "open-perfect",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực từ sáng nay đến giờ.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "open-perfect-vi",
+      "family": "open-perfect",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực từ sáng nay đến giờ.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "open-perfect-vi",
+      "family": "open-perfect",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực từ sáng nay đến giờ.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "open-perfect-mixed",
+      "family": "open-perfect",
+      "locale": "mixed",
+      "text": "I have had chest pain since this morning. 我目前胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "open-perfect-mixed",
+      "family": "open-perfect",
+      "locale": "mixed",
+      "text": "I have had chest pain since this morning. 我目前胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "open-perfect-mixed",
+      "family": "open-perfect",
+      "locale": "mixed",
+      "text": "I have had chest pain since this morning. 我目前胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "open-perfect-mixed",
+      "family": "open-perfect",
+      "locale": "mixed",
+      "text": "I have had chest pain since this morning. 我目前胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "unrelated-outcome-en",
+      "family": "unrelated-outcome",
+      "locale": "en",
+      "text": "I have chest pain. The headache has resolved.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "unrelated-outcome-en",
+      "family": "unrelated-outcome",
+      "locale": "en",
+      "text": "I have chest pain. The headache has resolved.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "unrelated-outcome-en",
+      "family": "unrelated-outcome",
+      "locale": "en",
+      "text": "I have chest pain. The headache has resolved.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "unrelated-outcome-en",
+      "family": "unrelated-outcome",
+      "locale": "en",
+      "text": "I have chest pain. The headache has resolved.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "unrelated-outcome-zh-TW",
+      "family": "unrelated-outcome",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "unrelated-outcome-zh-TW",
+      "family": "unrelated-outcome",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "unrelated-outcome-zh-TW",
+      "family": "unrelated-outcome",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "unrelated-outcome-zh-TW",
+      "family": "unrelated-outcome",
+      "locale": "zh-TW",
+      "text": "我現在胸痛。頭痛已經好了。",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "unrelated-outcome-vi",
+      "family": "unrelated-outcome",
+      "locale": "vi",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "unrelated-outcome-vi",
+      "family": "unrelated-outcome",
+      "locale": "vi",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "unrelated-outcome-vi",
+      "family": "unrelated-outcome",
+      "locale": "vi",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "unrelated-outcome-vi",
+      "family": "unrelated-outcome",
+      "locale": "vi",
+      "text": "Tôi đang đau ngực. Đau đầu đã hết.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "unrelated-outcome-mixed",
+      "family": "unrelated-outcome",
+      "locale": "mixed",
+      "text": "I have chest pain. 頭痛好了。",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "unrelated-outcome-mixed",
+      "family": "unrelated-outcome",
+      "locale": "mixed",
+      "text": "I have chest pain. 頭痛好了。",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "unrelated-outcome-mixed",
+      "family": "unrelated-outcome",
+      "locale": "mixed",
+      "text": "I have chest pain. 頭痛好了。",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "unrelated-outcome-mixed",
+      "family": "unrelated-outcome",
+      "locale": "mixed",
+      "text": "I have chest pain. 頭痛好了。",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "other-identities-en",
+      "family": "other-identities",
+      "locale": "en",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "other-identities-en",
+      "family": "other-identities",
+      "locale": "en",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "other-identities-en",
+      "family": "other-identities",
+      "locale": "en",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "other-identities-en",
+      "family": "other-identities",
+      "locale": "en",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "other-identities-zh-TW",
+      "family": "other-identities",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在胸痛。我朋友Bo沒有胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "other-identities-zh-TW",
+      "family": "other-identities",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在胸痛。我朋友Bo沒有胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "other-identities-zh-TW",
+      "family": "other-identities",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在胸痛。我朋友Bo沒有胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "other-identities-zh-TW",
+      "family": "other-identities",
+      "locale": "zh-TW",
+      "text": "我朋友Ana現在胸痛。我朋友Bo沒有胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "other-identities-vi",
+      "family": "other-identities",
+      "locale": "vi",
+      "text": "Bạn tôi Ana đang đau ngực. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "other-identities-vi",
+      "family": "other-identities",
+      "locale": "vi",
+      "text": "Bạn tôi Ana đang đau ngực. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "other-identities-vi",
+      "family": "other-identities",
+      "locale": "vi",
+      "text": "Bạn tôi Ana đang đau ngực. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "other-identities-vi",
+      "family": "other-identities",
+      "locale": "vi",
+      "text": "Bạn tôi Ana đang đau ngực. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "other-identities-mixed",
+      "family": "other-identities",
+      "locale": "mixed",
+      "text": "My friend Ana has chest pain. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "other-identities-mixed",
+      "family": "other-identities",
+      "locale": "mixed",
+      "text": "My friend Ana has chest pain. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "other-identities-mixed",
+      "family": "other-identities",
+      "locale": "mixed",
+      "text": "My friend Ana has chest pain. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "other-identities-mixed",
+      "family": "other-identities",
+      "locale": "mixed",
+      "text": "My friend Ana has chest pain. Bạn tôi Bo không bị đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "local-conditional-en",
+      "family": "local-conditional",
+      "locale": "en",
+      "text": "If chest pain is dangerous, please help: I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "local-conditional-en",
+      "family": "local-conditional",
+      "locale": "en",
+      "text": "If chest pain is dangerous, please help: I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "local-conditional-en",
+      "family": "local-conditional",
+      "locale": "en",
+      "text": "If chest pain is dangerous, please help: I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "local-conditional-en",
+      "family": "local-conditional",
+      "locale": "en",
+      "text": "If chest pain is dangerous, please help: I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "local-conditional-zh-TW",
+      "family": "local-conditional",
+      "locale": "zh-TW",
+      "text": "如果胸痛很危險，請幫忙：我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "local-conditional-zh-TW",
+      "family": "local-conditional",
+      "locale": "zh-TW",
+      "text": "如果胸痛很危險，請幫忙：我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "local-conditional-zh-TW",
+      "family": "local-conditional",
+      "locale": "zh-TW",
+      "text": "如果胸痛很危險，請幫忙：我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "local-conditional-zh-TW",
+      "family": "local-conditional",
+      "locale": "zh-TW",
+      "text": "如果胸痛很危險，請幫忙：我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "local-conditional-vi",
+      "family": "local-conditional",
+      "locale": "vi",
+      "text": "Nếu đau ngực nguy hiểm, xin giúp: tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "local-conditional-vi",
+      "family": "local-conditional",
+      "locale": "vi",
+      "text": "Nếu đau ngực nguy hiểm, xin giúp: tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "local-conditional-vi",
+      "family": "local-conditional",
+      "locale": "vi",
+      "text": "Nếu đau ngực nguy hiểm, xin giúp: tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "local-conditional-vi",
+      "family": "local-conditional",
+      "locale": "vi",
+      "text": "Nếu đau ngực nguy hiểm, xin giúp: tôi đang đau ngực.",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "local-conditional-mixed",
+      "family": "local-conditional",
+      "locale": "mixed",
+      "text": "If chest pain is dangerous, please help: 我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "local-conditional-mixed",
+      "family": "local-conditional",
+      "locale": "mixed",
+      "text": "If chest pain is dangerous, please help: 我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "local-conditional-mixed",
+      "family": "local-conditional",
+      "locale": "mixed",
+      "text": "If chest pain is dangerous, please help: 我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "local-conditional-mixed",
+      "family": "local-conditional",
+      "locale": "mixed",
+      "text": "If chest pain is dangerous, please help: 我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "epistemic-en",
+      "family": "epistemic",
+      "locale": "en",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "epistemic-en",
+      "family": "epistemic",
+      "locale": "en",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "epistemic-en",
+      "family": "epistemic",
+      "locale": "en",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "epistemic-en",
+      "family": "epistemic",
+      "locale": "en",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "epistemic-zh-TW",
+      "family": "epistemic",
+      "locale": "zh-TW",
+      "text": "我不能確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "epistemic-zh-TW",
+      "family": "epistemic",
+      "locale": "zh-TW",
+      "text": "我不能確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "epistemic-zh-TW",
+      "family": "epistemic",
+      "locale": "zh-TW",
+      "text": "我不能確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "epistemic-zh-TW",
+      "family": "epistemic",
+      "locale": "zh-TW",
+      "text": "我不能確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "epistemic-vi",
+      "family": "epistemic",
+      "locale": "vi",
+      "text": "Tôi không thể nói rằng tôi không bị đau ngực.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "epistemic-vi",
+      "family": "epistemic",
+      "locale": "vi",
+      "text": "Tôi không thể nói rằng tôi không bị đau ngực.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "epistemic-vi",
+      "family": "epistemic",
+      "locale": "vi",
+      "text": "Tôi không thể nói rằng tôi không bị đau ngực.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "epistemic-vi",
+      "family": "epistemic",
+      "locale": "vi",
+      "text": "Tôi không thể nói rằng tôi không bị đau ngực.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "epistemic-mixed",
+      "family": "epistemic",
+      "locale": "mixed",
+      "text": "I cannot say that 我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "epistemic-mixed",
+      "family": "epistemic",
+      "locale": "mixed",
+      "text": "I cannot say that 我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "epistemic-mixed",
+      "family": "epistemic",
+      "locale": "mixed",
+      "text": "I cannot say that 我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "epistemic-mixed",
+      "family": "epistemic",
+      "locale": "mixed",
+      "text": "I cannot say that 我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "unknown-currentness-en",
+      "family": "unknown-currentness",
+      "locale": "en",
+      "text": "I have had chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "unknown-currentness-en",
+      "family": "unknown-currentness",
+      "locale": "en",
+      "text": "I have had chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "unknown-currentness-en",
+      "family": "unknown-currentness",
+      "locale": "en",
+      "text": "I have had chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "unknown-currentness-en",
+      "family": "unknown-currentness",
+      "locale": "en",
+      "text": "I have had chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "unknown-currentness-zh-TW",
+      "family": "unknown-currentness",
+      "locale": "zh-TW",
+      "text": "胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "unknown-currentness-zh-TW",
+      "family": "unknown-currentness",
+      "locale": "zh-TW",
+      "text": "胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "unknown-currentness-zh-TW",
+      "family": "unknown-currentness",
+      "locale": "zh-TW",
+      "text": "胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "unknown-currentness-zh-TW",
+      "family": "unknown-currentness",
+      "locale": "zh-TW",
+      "text": "胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "unknown-currentness-vi",
+      "family": "unknown-currentness",
+      "locale": "vi",
+      "text": "đau ngực",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "unknown-currentness-vi",
+      "family": "unknown-currentness",
+      "locale": "vi",
+      "text": "đau ngực",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "unknown-currentness-vi",
+      "family": "unknown-currentness",
+      "locale": "vi",
+      "text": "đau ngực",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "unknown-currentness-vi",
+      "family": "unknown-currentness",
+      "locale": "vi",
+      "text": "đau ngực",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "unknown-currentness-mixed",
+      "family": "unknown-currentness",
+      "locale": "mixed",
+      "text": "chest pain 胸痛",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "unknown-currentness-mixed",
+      "family": "unknown-currentness",
+      "locale": "mixed",
+      "text": "chest pain 胸痛",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "unknown-currentness-mixed",
+      "family": "unknown-currentness",
+      "locale": "mixed",
+      "text": "chest pain 胸痛",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "unknown-currentness-mixed",
+      "family": "unknown-currentness",
+      "locale": "mixed",
+      "text": "chest pain 胸痛",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "clear-list-en",
+      "family": "clear-list",
+      "locale": "en",
+      "text": "I am not having chest pain or difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "clear-list-en",
+      "family": "clear-list",
+      "locale": "en",
+      "text": "I am not having chest pain or difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "clear-list-en",
+      "family": "clear-list",
+      "locale": "en",
+      "text": "I am not having chest pain or difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "clear-list-en",
+      "family": "clear-list",
+      "locale": "en",
+      "text": "I am not having chest pain or difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "clear-list-zh-TW",
+      "family": "clear-list",
+      "locale": "zh-TW",
+      "text": "我沒有胸痛或呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "clear-list-zh-TW",
+      "family": "clear-list",
+      "locale": "zh-TW",
+      "text": "我沒有胸痛或呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "clear-list-zh-TW",
+      "family": "clear-list",
+      "locale": "zh-TW",
+      "text": "我沒有胸痛或呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "clear-list-zh-TW",
+      "family": "clear-list",
+      "locale": "zh-TW",
+      "text": "我沒有胸痛或呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "clear-list-vi",
+      "family": "clear-list",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực hoặc khó thở.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "clear-list-vi",
+      "family": "clear-list",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực hoặc khó thở.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "clear-list-vi",
+      "family": "clear-list",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực hoặc khó thở.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "clear-list-vi",
+      "family": "clear-list",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực hoặc khó thở.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "clear-list-mixed",
+      "family": "clear-list",
+      "locale": "mixed",
+      "text": "I am not having chest pain or 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "clear-list-mixed",
+      "family": "clear-list",
+      "locale": "mixed",
+      "text": "I am not having chest pain or 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "clear-list-mixed",
+      "family": "clear-list",
+      "locale": "mixed",
+      "text": "I am not having chest pain or 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "clear-list-mixed",
+      "family": "clear-list",
+      "locale": "mixed",
+      "text": "I am not having chest pain or 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "clear-possessors-en",
+      "family": "clear-possessors",
+      "locale": "en",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "clear-possessors-en",
+      "family": "clear-possessors",
+      "locale": "en",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "clear-possessors-en",
+      "family": "clear-possessors",
+      "locale": "en",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "clear-possessors-en",
+      "family": "clear-possessors",
+      "locale": "en",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "clear-possessors-zh-TW",
+      "family": "clear-possessors",
+      "locale": "zh-TW",
+      "text": "我沒有我的胸痛、我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "clear-possessors-zh-TW",
+      "family": "clear-possessors",
+      "locale": "zh-TW",
+      "text": "我沒有我的胸痛、我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "clear-possessors-zh-TW",
+      "family": "clear-possessors",
+      "locale": "zh-TW",
+      "text": "我沒有我的胸痛、我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "clear-possessors-zh-TW",
+      "family": "clear-possessors",
+      "locale": "zh-TW",
+      "text": "我沒有我的胸痛、我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "clear-possessors-vi",
+      "family": "clear-possessors",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực của tôi, khó thở của tôi.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "clear-possessors-vi",
+      "family": "clear-possessors",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực của tôi, khó thở của tôi.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "clear-possessors-vi",
+      "family": "clear-possessors",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực của tôi, khó thở của tôi.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "clear-possessors-vi",
+      "family": "clear-possessors",
+      "locale": "vi",
+      "text": "Tôi không bị đau ngực của tôi, khó thở của tôi.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "clear-possessors-mixed",
+      "family": "clear-possessors",
+      "locale": "mixed",
+      "text": "I am not having my chest pain, my 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "clear-possessors-mixed",
+      "family": "clear-possessors",
+      "locale": "mixed",
+      "text": "I am not having my chest pain, my 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "clear-possessors-mixed",
+      "family": "clear-possessors",
+      "locale": "mixed",
+      "text": "I am not having my chest pain, my 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "clear-possessors-mixed",
+      "family": "clear-possessors",
+      "locale": "mixed",
+      "text": "I am not having my chest pain, my 呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "completed-en",
+      "family": "completed",
+      "locale": "en",
+      "text": "I had chest pain last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "completed-en",
+      "family": "completed",
+      "locale": "en",
+      "text": "I had chest pain last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "completed-en",
+      "family": "completed",
+      "locale": "en",
+      "text": "I had chest pain last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "completed-en",
+      "family": "completed",
+      "locale": "en",
+      "text": "I had chest pain last year, and it completely resolved.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "completed-zh-TW",
+      "family": "completed",
+      "locale": "zh-TW",
+      "text": "我以前胸痛，而且它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "completed-zh-TW",
+      "family": "completed",
+      "locale": "zh-TW",
+      "text": "我以前胸痛，而且它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "completed-zh-TW",
+      "family": "completed",
+      "locale": "zh-TW",
+      "text": "我以前胸痛，而且它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "completed-zh-TW",
+      "family": "completed",
+      "locale": "zh-TW",
+      "text": "我以前胸痛，而且它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "completed-vi",
+      "family": "completed",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực trước đây, và nó đã hết hoàn toàn.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "completed-vi",
+      "family": "completed",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực trước đây, và nó đã hết hoàn toàn.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "completed-vi",
+      "family": "completed",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực trước đây, và nó đã hết hoàn toàn.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "completed-vi",
+      "family": "completed",
+      "locale": "vi",
+      "text": "Tôi bị đau ngực trước đây, và nó đã hết hoàn toàn.",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "completed-mixed",
+      "family": "completed",
+      "locale": "mixed",
+      "text": "I had chest pain last year, and 它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "completed-mixed",
+      "family": "completed",
+      "locale": "mixed",
+      "text": "I had chest pain last year, and 它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "completed-mixed",
+      "family": "completed",
+      "locale": "mixed",
+      "text": "I had chest pain last year, and 它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "completed-mixed",
+      "family": "completed",
+      "locale": "mixed",
+      "text": "I had chest pain last year, and 它完全好了。",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "educational-en",
+      "family": "educational",
+      "locale": "en",
+      "text": "What causes chest pain in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "educational-en",
+      "family": "educational",
+      "locale": "en",
+      "text": "What causes chest pain in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "educational-en",
+      "family": "educational",
+      "locale": "en",
+      "text": "What causes chest pain in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "educational-en",
+      "family": "educational",
+      "locale": "en",
+      "text": "What causes chest pain in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "educational-zh-TW",
+      "family": "educational",
+      "locale": "zh-TW",
+      "text": "一般來說胸痛是什麼原因？",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "educational-zh-TW",
+      "family": "educational",
+      "locale": "zh-TW",
+      "text": "一般來說胸痛是什麼原因？",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "educational-zh-TW",
+      "family": "educational",
+      "locale": "zh-TW",
+      "text": "一般來說胸痛是什麼原因？",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "educational-zh-TW",
+      "family": "educational",
+      "locale": "zh-TW",
+      "text": "一般來說胸痛是什麼原因？",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "educational-vi",
+      "family": "educational",
+      "locale": "vi",
+      "text": "Nguyên nhân đau ngực thường là gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "educational-vi",
+      "family": "educational",
+      "locale": "vi",
+      "text": "Nguyên nhân đau ngực thường là gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "educational-vi",
+      "family": "educational",
+      "locale": "vi",
+      "text": "Nguyên nhân đau ngực thường là gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "educational-vi",
+      "family": "educational",
+      "locale": "vi",
+      "text": "Nguyên nhân đau ngực thường là gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "educational-mixed",
+      "family": "educational",
+      "locale": "mixed",
+      "text": "What causes 胸痛 in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "educational-mixed",
+      "family": "educational",
+      "locale": "mixed",
+      "text": "What causes 胸痛 in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "educational-mixed",
+      "family": "educational",
+      "locale": "mixed",
+      "text": "What causes 胸痛 in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "educational-mixed",
+      "family": "educational",
+      "locale": "mixed",
+      "text": "What causes 胸痛 in general?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "hypothetical-en",
+      "family": "hypothetical",
+      "locale": "en",
+      "text": "If I have chest pain, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "hypothetical-en",
+      "family": "hypothetical",
+      "locale": "en",
+      "text": "If I have chest pain, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "hypothetical-en",
+      "family": "hypothetical",
+      "locale": "en",
+      "text": "If I have chest pain, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "hypothetical-en",
+      "family": "hypothetical",
+      "locale": "en",
+      "text": "If I have chest pain, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "hypothetical-zh-TW",
+      "family": "hypothetical",
+      "locale": "zh-TW",
+      "text": "如果我胸痛，要怎麼辦？",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "hypothetical-zh-TW",
+      "family": "hypothetical",
+      "locale": "zh-TW",
+      "text": "如果我胸痛，要怎麼辦？",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "hypothetical-zh-TW",
+      "family": "hypothetical",
+      "locale": "zh-TW",
+      "text": "如果我胸痛，要怎麼辦？",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "hypothetical-zh-TW",
+      "family": "hypothetical",
+      "locale": "zh-TW",
+      "text": "如果我胸痛，要怎麼辦？",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "hypothetical-vi",
+      "family": "hypothetical",
+      "locale": "vi",
+      "text": "Nếu tôi bị đau ngực, tôi nên làm gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "hypothetical-vi",
+      "family": "hypothetical",
+      "locale": "vi",
+      "text": "Nếu tôi bị đau ngực, tôi nên làm gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "hypothetical-vi",
+      "family": "hypothetical",
+      "locale": "vi",
+      "text": "Nếu tôi bị đau ngực, tôi nên làm gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "hypothetical-vi",
+      "family": "hypothetical",
+      "locale": "vi",
+      "text": "Nếu tôi bị đau ngực, tôi nên làm gì?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "hypothetical-mixed",
+      "family": "hypothetical",
+      "locale": "mixed",
+      "text": "If tôi bị đau ngực, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "name"
+    },
+    {
+      "id": "hypothetical-mixed",
+      "family": "hypothetical",
+      "locale": "mixed",
+      "text": "If tôi bị đau ngực, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "note"
+    },
+    {
+      "id": "hypothetical-mixed",
+      "family": "hypothetical",
+      "locale": "mixed",
+      "text": "If tôi bị đau ngực, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "hypothetical-mixed",
+      "family": "hypothetical",
+      "locale": "mixed",
+      "text": "If tôi bị đau ngực, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "lane": "health"
+    },
+    {
+      "id": "new-reference-uncertain-en",
+      "family": "new-reference-uncertain",
+      "locale": "en",
+      "text": "I had chest pain yesterday and is still severe.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "new-reference-uncertain-en",
+      "family": "new-reference-uncertain",
+      "locale": "en",
+      "text": "I had chest pain yesterday and is still severe.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "new-reference-uncertain-en",
+      "family": "new-reference-uncertain",
+      "locale": "en",
+      "text": "I had chest pain yesterday and is still severe.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "new-reference-uncertain-en",
+      "family": "new-reference-uncertain",
+      "locale": "en",
+      "text": "I had chest pain yesterday and is still severe.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW",
+      "family": "new-reference-uncertain",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW",
+      "family": "new-reference-uncertain",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW",
+      "family": "new-reference-uncertain",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "new-reference-uncertain-zh-TW",
+      "family": "new-reference-uncertain",
+      "locale": "zh-TW",
+      "text": "我昨天胸痛而且目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "new-reference-uncertain-vi",
+      "family": "new-reference-uncertain",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại nghiêm trọng.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "new-reference-uncertain-vi",
+      "family": "new-reference-uncertain",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại nghiêm trọng.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "new-reference-uncertain-vi",
+      "family": "new-reference-uncertain",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại nghiêm trọng.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "new-reference-uncertain-vi",
+      "family": "new-reference-uncertain",
+      "locale": "vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại nghiêm trọng.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    },
+    {
+      "id": "new-reference-uncertain-mixed",
+      "family": "new-reference-uncertain",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "name"
+    },
+    {
+      "id": "new-reference-uncertain-mixed",
+      "family": "new-reference-uncertain",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "note"
+    },
+    {
+      "id": "new-reference-uncertain-mixed",
+      "family": "new-reference-uncertain",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "coach"
+    },
+    {
+      "id": "new-reference-uncertain-mixed",
+      "family": "new-reference-uncertain",
+      "locale": "mixed",
+      "text": "I had chest pain yesterday and 目前很嚴重。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "lane": "health"
+    }
+  ]
+}

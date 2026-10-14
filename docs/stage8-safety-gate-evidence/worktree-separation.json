@@ -1,0 +1,57 @@
+{
+  "physicallySeparate": true,
+  "observations": [
+    {
+      "path": "/Users/kelvin/.codex/worktrees/stage8-conservative-safety-gate/whoop-briefing",
+      "device": 16777229,
+      "inode": 75531282,
+      "headObserved": "a6eeccfbf3d33f72fb9aabb8aae080f909926587",
+      "statusObserved": [
+        " M src/bot/triage.js",
+        "?? docs/stage8-final-evidence-ownership-review-handoff.md",
+        "?? docs/stage8-final-evidence-safety-gate-alternative.md",
+        "?? docs/stage8-final-evidence/after-traces.json",
+        "?? docs/stage8-final-evidence/corrected-processor-results.json",
+        "?? docs/stage8-final-evidence/direct.tap.gz",
+        "?? docs/stage8-final-evidence/focused.tap.gz",
+        "?? docs/stage8-final-evidence/integration.tap.gz",
+        "?? docs/stage8-final-evidence/integrity.json",
+        "?? docs/stage8-final-evidence/name-limit-results.json",
+        "?? docs/stage8-final-evidence/name.tap.gz",
+        "?? docs/stage8-final-evidence/new-semantic.tap.gz",
+        "?? docs/stage8-final-evidence/polling.tap.gz",
+        "?? docs/stage8-final-evidence/processor-results.json",
+        "?? docs/stage8-final-evidence/processor.tap.gz",
+        "?? docs/stage8-final-evidence/regression.tap.gz",
+        "?? docs/stage8-final-evidence/results.json",
+        "?? docs/stage8-final-evidence/safety.tap.gz",
+        "?? docs/stage8-final-evidence/scoped.tap.gz",
+        "?? docs/stage8-final-evidence/stop-before-after.json",
+        "?? docs/stage8-final-evidence/stop-processor-results.json",
+        "?? docs/stage8-final-evidence/stop-processor.tap.gz",
+        "?? docs/stage8-safety-gate-evidence/",
+        "?? node_modules",
+        "?? src/bot/safetyGate.js",
+        "?? test/stage8-final-evidence/processor.test.mjs",
+        "?? test/stage8-final-evidence/stop-regressions.test.mjs",
+        "?? test/stage8-safety-gate/"
+      ]
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+      "device": 16777229,
+      "inode": 71452797,
+      "headObserved": "7ded16c1ada45e8eec9d8c4b2ff26ee3bcc38355",
+      "statusObserved": [
+        " M src/processingReadSnapshot.js",
+        " M src/processingTransaction.js",
+        " M src/store.js",
+        " M src/sync.js",
+        "?? src/syncCanonicalPreparation.js",
+        "?? src/syncCommitSnapshot.js",
+        "?? test/sync-atomic-commit.test.js"
+      ]
+    }
+  ],
+  "stage6NoWritesByThisLane": true
+}

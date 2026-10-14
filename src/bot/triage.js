@@ -1,4 +1,5 @@
 import {t} from '../localization.js';
+import {reduceSafetyEvidence} from './safetyGate.js';
 
 export const TRIAGE_LIMITS=Object.freeze({characters:8192,clauses:128,mentions:128,predicates:128,operators:256,links:512,depth:16});
 export const TRIAGE_DECISION=Object.freeze({
@@ -32,10 +33,12 @@ const OPERATORS=[
  ['negative',/\b(?:cannot|can't|unable to|no|not|without|never|neither|don't|do not|doesn't|does not)\b|無法|不能|沒有|沒|不會|不曾|並沒|未|(?<!\p{L})(?:không thể|không|chưa|chẳng)(?!\p{L})/giu],
  ['resolution',/\b(?:no longer|stopped|resolved|gone|went away|cleared|disappeared|back to normal|fine|well|okay)\b|不再|已無|好了|沒事了|恢復了|不會了|沒問題了|緩解了|沒有了|消失了|(?<!\p{L})(?:hết|khỏi|ổn|bình thường)(?!\p{L})/giu],
  ['recurrence',/\b(?:again|back|returned|returning|recurring|came back)\b|又來了|又出現|復發|trở lại|tái phát/giu],
- ['education',/\b(?:what (?:is|are|does|causes)|define|definition|usually|generally|in general|meaning|means|learn about|learning|want to know|question about|asking about|information about|be caused by|why (?:do|does) (?:people|patients))\b|通常|一般來說|一般而言|一般|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道|là gì|nghĩa là|nguyên nhân|thường|tại sao|tìm hiểu|hỏi/giu],
+ ['education',/\b(?:what (?:is|are|does|causes)|define|definition|usually|generally|in general|meaning|means|learn about|learning|want to know|question about|asking about|information about|be caused by|why (?:do|does) (?:people|patients))\b|通常|一般來說|一般而言|一般|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道|(?<!\p{L})(?:là gì|nghĩa là|nguyên nhân|thường|tại sao|tìm hiểu|hỏi)(?!\p{L})/giu],
  ['information',/\b(?:in (?:this|an?) (?:example|case study)|hypothetical case|fictional|(?:article|textbook|example))\b|假設案例|教科書|例句|舉例|ví dụ|trường hợp giả định/giu],
  ['report',/\b(?:says|said|saying|tells|told|telling)\b|說|(?<!\p{L})nói(?!\p{L})/giu],
- ['reference',/(?<![\p{L}\p{N}_])(?:it|it's|this|these symptoms|that pain|they)(?![\p{L}\p{N}_])|這個症狀|這些症狀|它|(?<!\p{L})(?:nó|triệu chứng này)(?!\p{L})/giu],
+ ['reference',/(?<![\p{L}\p{N}_])(?:it|it's|this|these symptoms|both symptoms|that pain|they)(?![\p{L}\p{N}_])|這個症狀|這些症狀|它|(?<!\p{L})(?:nó|triệu chứng này)(?!\p{L})/giu],
+ ['degree',/\b(?:completely|fully|totally|entirely|already|really|all)\b|完全|已經|已|都|(?<!\p{L})(?:đã|hoàn toàn|rồi)(?!\p{L})/giu],
+ ['temporalPoint',/\b(?:this (?:morning|afternoon|evening)|today|then|(?:\d+|one|two|three|ten|thirty) (?:seconds?|minutes?|hours?|days?))\b|今天早上|今早|早上|(?<!\p{L})(?:sáng nay|sáng|\d+ phút)(?!\p{L})/giu],
  ['uncertainty',/\b(?:wonder|unsure|uncertain|not sure|whether)\b|不確定|懷疑|không chắc|không biết/giu],
  ['assertionHead',/\b(?:say|state|confirm|know|tell)\b|確定|確認|(?<!\p{L})(?:nói|biết|xác nhận)(?!\p{L})/giu],
  ['openDuration',/\bsince\b|\bfor the last\b|從.{0,12}(?:一直|到現在)|(?<!\p{L})từ.{0,24}(?:đến giờ|tới giờ)(?!\p{L})/giu],
@@ -75,8 +78,9 @@ function edgeKind(word){
 }
 function clausesOf(text,symptoms,quotes){
  const parts=[];let start=0,edge='start',connector='',connectorSpan={start:0,end:0};
+ const references=[...text.matchAll(OPERATORS.find(([type])=>type==='reference')[1])];
  for(const m of text.matchAll(EDGES)){
-  if(symptoms.some(s=>m.index>s.start&&m.index<s.end)||quotes.some(q=>m.index>q.start&&m.index<q.end))continue;
+  if(symptoms.some(s=>m.index>s.start&&m.index<s.end)||quotes.some(q=>m.index>q.start&&m.index<q.end)||references.some(r=>m.index>=r.index&&m.index+m[0].length<r.index+r[0].length))continue;
   if(text.slice(start,m.index).trim())parts.push({start,end:m.index,edge,connector,connectorSpan,text:text.slice(start,m.index)});
   edge=edgeKind(m[0]);connector=m[0];connectorSpan={start:m.index,end:m.index+m[0].length};start=m.index+m[0].length;
  }
@@ -115,7 +119,7 @@ function outcomeEvidence(events){
 }
 // The vocabulary and grammar are one deterministic, in-process contract. No
 // transport, model, database or health-context input participates in parsing.
-export const TRIAGE_GRAMMAR_VERSION='predicate-ownership-v1-scoped';
+export const TRIAGE_GRAMMAR_VERSION='predicate-ownership-v1-final-evidence-safety-gate';
 const spanOf=e=>({start:e.start,end:e.end});
 const isHead=e=>['present','pastPredicate','report','assertionHead'].includes(e.type);
 const intrinsic=s=>/^(?:cannot|can't|unable|không thở|không thể thở|無法|喘不過氣)/iu.test(s.text);
@@ -212,7 +216,35 @@ function governingAspect(unit,text){
  const have=unit.events.find(e=>e.type==='present'&&/^(?:have|has)$/iu.test(e.word));
  const had=unit.events.find(e=>e.type==='pastPredicate'&&/^had$/iu.test(e.word)&&have&&e.start>=have.end&&!text.slice(have.end,e.start).trim());
  const duration=unit.events.find(e=>e.type==='openDuration');
- return {kind:had?(duration?'ONGOING_PERFECT':'UNRESOLVED_PERFECT'):duration?'ONGOING_DURATION':'SIMPLE',head:had?have:null};
+ const causal=duration&&/^since$/iu.test(duration.word)&&unit.events.some(e=>e.type==='actor'&&e.start>=duration.end);
+ const completed=!had&&unit.events.some(e=>e.type==='pastPredicate'||e.type==='pastTime');
+ const presentEndpoint=duration&&/到現在|一直|(?:đến|tới) giờ/iu.test(duration.word);
+ const open=duration&&!causal&&(had||presentEndpoint);
+ return {kind:had?(open?'ONGOING_PERFECT':'UNRESOLVED_PERFECT'):open?'ONGOING_DURATION':'SIMPLE',head:had?have:null,
+  durationProof:!duration?'NONE':causal?'CAUSAL_OR_UNPROVEN':open?'OPEN_INTERVAL':completed?'COMPLETED_PAST':'UNPROVEN'};
+}
+// Exclusion needs an argument proof, not merely a resolution operator. All
+// owned spans must account for an elliptical/deictic predicate; an uncovered
+// noun (even outside the urgent vocabulary) is an unrelated argument barrier.
+function argumentProof(unit,text){
+ let at=unit.start,residual='';
+ for(const e of [...unit.events,...unit.symptoms,...unit.events.filter(e=>e.identitySpan).map(e=>e.identitySpan)].sort((a,b)=>a.start-b.start||b.end-a.end)){
+  if(e.end<=unit.start||e.start>=unit.end)continue;
+  if(e.start>at)residual+=text.slice(at,e.start);at=Math.max(at,e.end);
+ }
+ residual+=text.slice(at,unit.end);
+ return /[\p{L}\p{N}]/u.test(residual)?'EXPLICIT_UNMATCHED_ARGUMENT':'OWNED_ARGUMENT';
+}
+function nominalReference(unit,text,antecedent,graph,p){
+ if(!unit.symptoms.length||unit.events.some(e=>e.type==='actor')||!antecedent?.actorId||antecedent.actorId.includes(':UNPROVEN:')
+  ||p.frame!=='ACTUAL'||p.education||p.epistemic||antecedent.quote!==unit.quote)return null;
+ const first=unit.symptoms[0],prefix=text.slice(unit.start,first.start).trim();
+ if(prefix&&!/^(?:the|this|that|these|這(?:個|些)?|那(?:個|些)?|cơn|triệu chứng này)$/iu.test(prefix))return null;
+ if(argumentProof({...unit,start:first.start},text)!=='OWNED_ARGUMENT')return null;
+ const evidence=evaluatePredicate(antecedent,graph);
+ if(evidence.assertion!=='ACTUAL'||evidence.framing!=='ACTUAL')return null;
+ const sources=unit.symptoms.map(s=>graph.symptoms.find(old=>antecedent.symptomIds.includes(old.id)&&old.kind===s.kind));
+ return sources.every(Boolean)?sources:null;
 }
 function buildOwnership(text,lexical,quotes){
  const {parts,units}=unitsOf(text,lexical,quotes);
@@ -225,9 +257,15 @@ function buildOwnership(text,lexical,quotes){
   const first=unit.symptoms[0],heads=unit.events.filter(isHead);
   const independent=first&&intrinsic(first)&&/^(?:and|also|và|也|又|而且|且)$/iu.test(unit.connector);
   const objectActorId=unit.quote&&unit.quote===previous?.quote&&explicitId==='SELF'?previous.actorId:explicitId;
-  const objectPossessor=actorEvent&&['my','his','her','我'].includes(actorEvent.word.toLowerCase())&&(actorEvent.word!=='我'||text[actorEvent.end]==='的')&&objectActorId===previous?.actorId&&unit.edge==='coordinate'&&!heads.some(e=>e.start<first?.start);
+  const listEdge=unit.edge==='coordinate'||unit.edge==='comma'&&/^[,，、]+$/u.test(unit.connector);
+  const previousHead=previous?.units.some(u=>u.events.some(isHead));
+  const sharedSubjectOutcome=!previousHead&&heads.length&&heads.every(e=>e.start>=first?.end)&&heads.some(e=>/^(?:have|are)$/iu.test(e.word))&&outcomeEvidence(unit.events).resolved;
+  const objectHead=!heads.length||sharedSubjectOutcome;
+  const possessor=actorEvent&&(['my','his','her'].includes(actorEvent.word.toLowerCase())||actorEvent.word==='我'&&text[actorEvent.end]==='的'
+   ||/^tôi$/iu.test(actorEvent.word)&&/của\s*$/iu.test(text.slice(unit.start,actorEvent.start)));
+  const objectPossessor=possessor&&objectActorId===previous?.actorId&&listEdge&&objectHead;
   if(objectPossessor)actorEvent.role='POSSESSOR_OBJECT';
-  const list=previous&&first&&(!actorEvent||objectPossessor)&&unit.quote===previous.quote&&['coordinate','comma'].includes(unit.edge)&&previous.symptomIds.length&&!independent&&!unit.events.some(e=>e.type==='negative'&&e.end<=first.start)&&(!heads.length||heads[0].start>=first.end);
+  const list=previous&&first&&(!actorEvent||objectPossessor)&&unit.quote===previous.quote&&listEdge&&previous.symptomIds.length&&!independent&&!unit.events.some(e=>e.type==='negative'&&e.end<=first.start)&&objectHead;
   if(list){
    previous.ownedSpan.end=unit.end;
    previous.units.push(unit);
@@ -238,7 +276,7 @@ function buildOwnership(text,lexical,quotes){
   }
   const aspect=governingAspect(unit,text);
   const head=aspect.head??heads.find(e=>e.type==='pastPredicate'||e.type==='report')??heads.find(e=>!['am','is','are'].includes(e.word.toLowerCase()))??heads[0]??first??unit.events.find(e=>['resolution','recurrence','reference'].includes(e.type));
-  const p={id:'P'+(predicates.length+1),headSpan:head?spanOf(head):{start:unit.start,end:unit.start},ownedSpan:{start:unit.start,end:unit.end},actor:explicit??null,actorId:explicitId,aspect:aspect.kind,assertion:'UNRESOLVED',frame:'ACTUAL',symptomIds:[],operatorIds:[],edge:unit.edge,quote:unit.quote,units:[unit]};
+  const p={id:'P'+(predicates.length+1),headSpan:head?spanOf(head):{start:unit.start,end:unit.start},ownedSpan:{start:unit.start,end:unit.end},actor:explicit??null,actorId:explicitId,aspect:aspect.kind,durationProof:aspect.durationProof,assertion:'UNRESOLVED',frame:'ACTUAL',symptomIds:[],operatorIds:[],edge:unit.edge,quote:unit.quote,units:[unit]};
   const source=last(unit.events,'information'),education=last(unit.events,'education');
   const ownedCurrent=actorEvent&&['my','his','her','我','tôi'].includes(actorEvent.word.toLowerCase())&&unit.events.some(e=>e.type==='currentTime'&&e.start<=(first?.start??unit.end));
   const assertionHead=unit.events.find(e=>e.type==='assertionHead');
@@ -281,11 +319,16 @@ function buildOwnership(text,lexical,quotes){
   const outcome=outcomeEvidence(unit.events);
   const nearest=predicates.at(-1);
   const antecedent=predicates.find(q=>q.id===nearest?.referenceCarrierId)??nearest; // Real non-symptom predicates are barriers.
-  const implicit=!actorEvent&&!first&&(outcome.resolved||outcome.absent||['coordinate','comma'].includes(unit.edge)&&(outcome.ongoing||last(unit.events,'currentTime')&&last(unit.events,'present')));
+  const argument=argumentProof(unit,text);p.argumentProof=argument;
+  p.tailArgumentProof=argumentProof({...unit,start:unit.symptoms.at(-1)?.end??unit.start},text);
+  const ownedArgument=argument==='OWNED_ARGUMENT';
+  const implicit=ownedArgument&&!actorEvent&&!first&&(outcome.resolved||outcome.absent||['coordinate','comma'].includes(unit.edge)&&(outcome.ongoing||last(unit.events,'currentTime')&&last(unit.events,'present')));
   const samePast=explicitId&&antecedent?.actorId===explicitId&&operators.some(o=>o.ownerPredicateId===antecedent.id&&['pastTime','pastPredicate'].includes(o.type));
   const pluralList=actorEvent?.word.toLowerCase()==='they'&&reference?.word.toLowerCase()==='they'&&antecedent?.symptomIds.length>1;
   const outcomeActorCompatible=!actorEvent||pluralList||explicitId&&explicitId===antecedent?.actorId;
-  const related=Boolean((!outcome.resolved&&!outcome.absent||outcomeActorCompatible)&&antecedent&&!first&&unit.edge!=='subordinate'&&(reference||unit.edge==='relative'||implicit||samePast&&outcome.resolved));
+  const pluralReference=reference&&/^(?:both symptoms|these symptoms|they|這些症狀)$/iu.test(reference.word);
+  const exclusionProof=ownedArgument&&antecedent?.tailArgumentProof!=='EXPLICIT_UNMATCHED_ARGUMENT'&&(!pluralReference||antecedent?.symptomIds.length>1);
+  const related=Boolean((!antecedent?.symptomIds.length||!outcome.resolved&&!outcome.absent||outcomeActorCompatible&&exclusionProof)&&antecedent&&!first&&unit.edge!=='subordinate'&&(reference||unit.edge==='relative'&&ownedArgument||implicit||samePast&&outcome.resolved&&ownedArgument));
   if(related){
    p.actor=pluralList?antecedent.actor:explicit??antecedent.actor;p.actorId=pluralList?antecedent.actorId:explicitId??antecedent.actorId;
    p.referenceProof=antecedent.symptomIds.length?'ADJACENT_SYMPTOM':'NON_SYMPTOM_BARRIER';
@@ -296,7 +339,9 @@ function buildOwnership(text,lexical,quotes){
     for(const id of antecedent.symptomIds){const old=symptoms.find(s=>s.id===id);const node={kind:old.kind,strong:old.strong,text:text.slice(unit.start,unit.end).trim(),start:unit.start,end:unit.end,id:'S'+(symptoms.length+1),span:spanOf(reference??head??unit),ownerPredicateId:p.id,referenceSymptomId:id};symptoms.push(node);p.symptomIds.push(node.id);}
    }
   }
-  for(const symptom of unit.symptoms){const node={...symptom,id:'S'+(symptoms.length+1),span:spanOf(symptom),ownerPredicateId:p.id};symptoms.push(node);p.symptomIds.push(node.id);}
+  const nominal=nominalReference(unit,text,antecedent,{predicates,symptoms,operators,links},p);
+  if(nominal){p.actor=antecedent.actor;p.actorId=antecedent.actorId;p.referenceId=antecedent.id;p.referenceProof='MATCHED_NOMINAL';link('NOMINAL_REFERENCE',antecedent,p,first);}
+  for(const [index,symptom]of unit.symptoms.entries()){const node={...symptom,id:'S'+(symptoms.length+1),span:spanOf(symptom),ownerPredicateId:p.id,...(nominal?{referenceSymptomId:nominal[index].id}:{})};symptoms.push(node);p.symptomIds.push(node.id);}
   for(const event of unit.events){const op={...event,id:'O'+(operators.length+1),span:spanOf(event),ownerPredicateId:p.id};operators.push(op);p.operatorIds.push(op.id);}
   if(unit.edge==='hypothetical'){
    const op={id:'O'+(operators.length+1),type:epistemic?'epistemicFrame':'conditionalFrame',word:unit.connector,start:unit.start-unit.connector.length,end:unit.start,span:{start:unit.start-unit.connector.length,end:unit.start},ownerPredicateId:p.id};operators.push(op);p.operatorIds.push(op.id);p.ownedSpan.start=Math.min(p.ownedSpan.start,op.start);
@@ -321,7 +366,7 @@ function evaluatePredicate(p,graph){
  const ongoingAspect=['ONGOING_PERFECT','ONGOING_DURATION'].includes(p.aspect);
  const uncertainTime=p.aspect==='UNRESOLVED_PERFECT';
  const historicalOutcome=ongoingAspect&&events.some(e=>e.type==='pastTime'&&e.start>(last(events,'resolution')?.end??Infinity));
- const evidence={actorId:p.actorId,aspect:p.aspect,assertion:actual?'ACTUAL':education||p.information||frame==='QUOTED'?'TOPIC':'UNRESOLVED',speaker:p.actor,
+ const evidence={actorId:p.actorId,aspect:p.aspect,durationProof:p.durationProof,assertion:actual?'ACTUAL':education||p.information||frame==='QUOTED'?'TOPIC':'UNRESOLVED',speaker:p.actor,
   polarity:p.epistemic?'UNKNOWN':negativeAt(before,first?.start??p.ownedSpan.end)&&!outcome.ongoing?'NEGATED':'POSITIVE',
   temporal:p.epistemic||uncertainTime?'UNKNOWN':now||ongoingAspect||outcome.ongoing||outcome.recurrence&&!past?'CURRENT':past?'PAST':actual?'CURRENT':'UNKNOWN',
   resolution:p.epistemic||historicalOutcome?'UNKNOWN':outcome.absent?'ABSENT':outcome.resolved&&!outcome.recurrence?'RESOLVED':outcome.ongoing?'ONGOING':outcome.recurrence?'RECURRENT':'UNKNOWN',
@@ -366,15 +411,10 @@ export function interpretUrgentSymptoms(input){
    old.state=closed==='ABSENT'?'NEGATED':'RESOLVED';old.retiredBy=m.predicateId;
   }
  }
- const compatible=(m,n)=>n!==m&&!n.strong&&n.kind!==m.kind&&positive(n)&&(m.predicateId===n.predicateId||m.evidence.actorId&&m.evidence.actorId===n.evidence.actorId)&&Math.abs(n.index-m.index)<=80;
- const currentSerious=mentions.find(m=>m.strong&&m.state==='CURRENT');
- const currentPair=mentions.find(m=>!m.strong&&m.state==='CURRENT'&&mentions.some(n=>compatible(m,n)&&n.state==='CURRENT'));
- const possible=mentions.find(m=>m.strong&&positive(m))??mentions.find(m=>!m.strong&&positive(m)&&mentions.some(n=>compatible(m,n)));
- const selected=currentSerious??currentPair??possible;
- const decision=currentSerious||currentPair?TRIAGE_DECISION.CURRENT_URGENT:possible?TRIAGE_DECISION.POSSIBLE_CURRENT_URGENT:TRIAGE_DECISION.CLEARLY_NONURGENT;
- return {decision,urgent:decision!==TRIAGE_DECISION.CLEARLY_NONURGENT,matched:selected?.text??null,excluded:selected?null:mentions.at(-1)?.state.toLowerCase()??null,
+ const {decision,matched,safetyGate}=reduceSafetyEvidence(text,graph,mentions);
+ return {decision,urgent:decision!==TRIAGE_DECISION.CLEARLY_NONURGENT,matched,excluded:decision!==TRIAGE_DECISION.CLEARLY_NONURGENT?null:mentions.at(-1)?.state.toLowerCase()??null,
   mentions:mentions.map(({kind,text,state,speaker,index,evidence,group,predicateId,retiredBy})=>({kind,text,state,actor:speaker,index,group,predicateId,evidence,...(retiredBy?{retiredBy}:{})})),
-  ownership:{version:graph.version,predicates:graph.predicates.map(({units,quote,...p})=>p),symptoms:graph.symptoms,operators:graph.operators,links:graph.links}};
+  safetyGate,ownership:{version:graph.version,predicates:graph.predicates.map(({units,quote,...p})=>p),symptoms:graph.symptoms,operators:graph.operators,links:graph.links}};
 }
 export function assessUrgency(text){const {decision,urgent,matched,excluded,reason}=interpretUrgentSymptoms(text);return {decision,urgent,matched,excluded,...(reason?{reason}:{})};}
 export function isSymptomEducationQuestion(text){const r=interpretUrgentSymptoms(text);return r.decision===TRIAGE_DECISION.CLEARLY_NONURGENT&&r.mentions.some(m=>['EDUCATIONAL','INFORMATIONAL','QUOTED'].includes(m.state));}

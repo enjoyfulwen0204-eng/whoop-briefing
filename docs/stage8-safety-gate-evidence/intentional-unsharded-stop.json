@@ -1,0 +1,20 @@
+{
+  "reason": "Partition only the new ingress suite across three isolated Node processes; all 224 cases and assertions retained. Completed integration/polling runs retained. Intentional SIGTERM is not the independently recorded polling SIGSEGV.",
+  "terminatedProcesses": [
+    {
+      "pid": 13662,
+      "ppid": 2557,
+      "command": "zsh /private/tmp/stage8-safety-gate-final/run-a.sh"
+    },
+    {
+      "pid": 21477,
+      "ppid": 13662,
+      "command": "node --test test/stage8-safety-gate/processor.test.mjs"
+    },
+    {
+      "pid": 21478,
+      "ppid": 21477,
+      "command": "/Users/kelvin/.local/node-v22.23.2-darwin-arm64/bin/node test/stage8-safety-gate/processor.test.mjs"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "source": "/Users/kelvin/.codex/worktrees/stage8-conservative-safety-gate/whoop-briefing",
+  "node": "v22.23.2",
+  "units": "milliseconds per parse",
+  "measurements": {
+    "normal": {
+      "samples": 500,
+      "characters": 63,
+      "p50": 0.11383299999999963,
+      "p95": 0.4851669999999899,
+      "max": 1.8797910000000115,
+      "heapAfterGCBytes": 6670288,
+      "heapRetainedDeltaBytes": 73216,
+      "sampledHeapGrowthBytes": 2122392,
+      "rssBytes": 61587456
+    },
+    "boundedPredicates": {
+      "samples": 500,
+      "characters": 2279,
+      "p50": 4.154917000000069,
+      "p95": 10.416917000000012,
+      "max": 43.99854200000004,
+      "heapAfterGCBytes": 6935728,
+      "heapRetainedDeltaBytes": 21560,
+      "sampledHeapGrowthBytes": 15625000,
+      "rssBytes": 85671936
+    },
+    "boundedText": {
+      "samples": 500,
+      "characters": 7867,
+      "p50": 4.127124999999978,
+      "p95": 6.617292000000361,
+      "max": 11.536125000000538,
+      "heapAfterGCBytes": 6764560,
+      "heapRetainedDeltaBytes": -31784,
+      "sampledHeapGrowthBytes": 15578824,
+      "rssBytes": 80642048
+    },
+    "overflow": {
+      "samples": 500,
+      "characters": 8193,
+      "p50": 0.0006250000005820766,
+      "p95": 0.0007919999998193816,
+      "max": 0.00741699999980483,
+      "heapAfterGCBytes": 6543496,
+      "heapRetainedDeltaBytes": 984,
+      "sampledHeapGrowthBytes": 172776,
+      "rssBytes": 81068032
+    }
+  }
+}

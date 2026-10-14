@@ -1,0 +1,876 @@
+{
+  "foundationHead": "a6eeccfbf3d33f72fb9aabb8aae080f909926587",
+  "prototypeHeadNotMerged": "c0520010fc8b643a15bc0caf35245f8aeb299f53",
+  "runtimeSha256": {
+    "src/bot/triage.js": "744a9abc9e0107c5e4d3f55393cacd1642f88151e92792b865158495a63e4bd0",
+    "src/bot/safetyGate.js": "9a70f4a62a4b77b723b5f3d42b3e0affb6fc2ef419a028545bc544a242510a80"
+  },
+  "runtimeEditsStopped": true,
+  "statuses": {
+    "repairCode": "NO-GO",
+    "independentAcceptanceReadiness": "NO-GO",
+    "wholeStage8": "NO-GO",
+    "production": "NO-GO"
+  },
+  "documented956": {
+    "tests": 956,
+    "pass": 951,
+    "fail": 5,
+    "nativeExtraProcessFailure": 1
+  },
+  "priorScoped349": {
+    "pass": 349,
+    "fail": 0
+  },
+  "finalSemantic195": {
+    "pass": 195,
+    "fail": 0
+  },
+  "copiedProcessor25": {
+    "pass": 25,
+    "fail": 0
+  },
+  "frozenStopProcessor12": {
+    "pass": 12,
+    "fail": 0
+  },
+  "newSemantic417": {
+    "pass": 397,
+    "fail": 20,
+    "multilingual80": {
+      "pass": 76,
+      "fail": 4
+    },
+    "metamorphic320": {
+      "pass": 304,
+      "fail": 16
+    },
+    "benignWarning4": {
+      "pass": 4,
+      "fail": 0
+    },
+    "structural13": {
+      "pass": 13,
+      "fail": 0
+    }
+  },
+  "newProcessor224": {
+    "pass": 222,
+    "fail": 2,
+    "completeNoOverlapOrOmission": true,
+    "allPersistenceReadAuthConsumerReplayGuardsPass": true
+  },
+  "distinctFinalTestDefinitions": {
+    "tests": 2178,
+    "pass": 2151,
+    "fail": 27
+  },
+  "finalTapIncludingNativeProcessFailure": {
+    "tests": 2179,
+    "pass": 2151,
+    "fail": 28,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "failureBreakdown": {
+    "newBlockingVietnameseRegressionDefinitions": 5,
+    "unadjudicatedQuotationConflictDefinitions": 20,
+    "newlyExposedBaselinePrecisionDefinitions": 2,
+    "existingNativeCleanupProcessFailure": 1
+  },
+  "frozenFailureClosure": [
+    {
+      "run": "safety",
+      "originalFailure": "not ok 8 - preserved ownership invariant independent-004",
+      "after": "PASS"
+    },
+    {
+      "run": "safety",
+      "originalFailure": "not ok 285 - independent-004 scope_or_preserved_control",
+      "after": "PASS"
+    },
+    {
+      "run": "scoped",
+      "originalFailure": "not ok 342 - frozen scoped finding PO-H01",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 1 - STOP current continuation 0 name",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 2 - STOP current continuation 0 note",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 3 - STOP current continuation 0 coach",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 4 - STOP current continuation 0 health",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 5 - STOP current continuation 1 name",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 6 - STOP current continuation 1 note",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 7 - STOP current continuation 1 coach",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 8 - STOP current continuation 1 health",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 9 - STOP current continuation 2 name",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 10 - STOP current continuation 2 note",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 11 - STOP current continuation 2 coach",
+      "after": "PASS"
+    },
+    {
+      "run": "stop-processor",
+      "originalFailure": "not ok 12 - STOP current continuation 2 health",
+      "after": "PASS"
+    }
+  ],
+  "newAuthoredExpectationsChanged": 0,
+  "originalFrozenExpectationsChanged": 0,
+  "settingsContract": "Owner-adjudicated correction inherited unchanged; 67-grapheme input rejects under 64-grapheme/256-byte limit",
+  "native": {
+    "id": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+    "classification": "B_EXISTING_BASELINE_DEFECT",
+    "status": "OPEN",
+    "rootCause": "UNASSIGNED",
+    "observedThisCycle": true,
+    "sameBinaryUuidAndSixOffsetsAndFinalizerStack": true,
+    "firstRun": {
+      "pass": 16,
+      "fail": 1
+    },
+    "diagnosticRerun": {
+      "pass": 16,
+      "fail": 0
+    },
+    "rerunDoesNotResolve": true
+  },
+  "F02": "Owner Accepted Risk; unchanged",
+  "runs": [
+    {
+      "id": "safety",
+      "command": "node --test --test-concurrency=2 test/stage8-three-blocker/*.test.mjs test/stage8-three-blocker-closure.test.mjs test/stage8-triage-semantic/independent-extra.test.mjs test/stage8-triage-semantic/independent-coach.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-semantic/ingress.test.mjs test/stage8-triage-architecture/*.test.mjs test/stage8-predicate-ownership/*.test.mjs",
+      "exitCode": 1,
+      "countedFinal": true,
+      "tests": 576,
+      "pass": 571,
+      "fail": 5,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "safety.tap.gz",
+      "sha256": "03918c6e0af15348f8a72fb2d96ebff15b5f48905da543a6abf4a2c07f84bdad",
+      "gzipSha256": "307279aa539782727dc83cdc30f6776e84171ec9b31b2d04c3d812424627e3a1",
+      "failures": [
+        "not ok 36 - preserved ownership invariant independent-032",
+        "not ok 75 - preserved ownership invariant independent-071",
+        "not ok 313 - independent-032 resolution_scope",
+        "not ok 352 - independent-071 negation_scope",
+        "not ok 402 - independent shared scope 9 note vi"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "integration",
+      "command": "node --test --test-concurrency=3 test/stage8-*.test.js test/stage7-*.test.js test/companion-*.test.js",
+      "exitCode": 0,
+      "countedFinal": true,
+      "tests": 200,
+      "pass": 200,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "integration.tap.gz",
+      "sha256": "cd12f8a008b63a71504f0036e727ddc0613827c34b1f5ad422ee2013ce36c934",
+      "gzipSha256": "842b4adc6b104472883fd57ed2e95715c8cc811996122c40491ad36b3bd25d73",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "polling",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 1,
+      "countedFinal": true,
+      "tests": 17,
+      "pass": 16,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "polling.tap.gz",
+      "sha256": "c30f4114fa0708496cb704cf158872cd4871eee1c6fadeda18d691311709e648",
+      "gzipSha256": "f87d59c459bc2d7c3b2566eb7f0865c70f7693fc0652f407e33be6685f372059",
+      "failures": [
+        "not ok 1 - test/bot-polling.test.js"
+      ],
+      "nativeSignals": [
+        "SIGSEGV"
+      ]
+    },
+    {
+      "id": "regression",
+      "command": "node --test --test-concurrency=3 test/settings-v1.test.js test/settings-v1-product.test.js test/settings-v1-integration.test.js test/settings-v1-process.test.js test/conversational-perspective.test.js test/telegram-webhook.test.js test/cloudflare-scheduler.test.js test/morning-readiness.test.js test/body-provisional-policy.test.js test/phase4-foundation-privacy.test.js test/phase4-privacy.test.js test/phase4-morning-continuity.test.js",
+      "exitCode": 0,
+      "countedFinal": true,
+      "tests": 164,
+      "pass": 164,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "regression.tap.gz",
+      "sha256": "06bedeb62fab3eec948348f1d724874c02f9966671a6615c653253fd858829da",
+      "gzipSha256": "0b831852d48bb5e267bf344738578e0e03194b737518226c7f063834f2b7d0b3",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "scoped",
+      "command": "node --test --test-concurrency=2 test/stage8-scoped-repair/independent-coach.test.mjs test/stage8-scoped-repair/independent-processor.test.mjs test/stage8-scoped-repair/independent-targeted-processor.test.mjs test/stage8-scoped-repair/metamorphic.test.mjs test/stage8-scoped-repair/processor.test.mjs test/stage8-scoped-repair/semantic.test.mjs",
+      "exitCode": 0,
+      "countedFinal": true,
+      "tests": 348,
+      "pass": 348,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "scoped.tap.gz",
+      "sha256": "f99aabcc2529010d5dd723afe2258f2048f7659432ec8029392c3de053f4e7ee",
+      "gzipSha256": "2eebed4629079066f87391b954f14c701fb6fd332bae57993fe41af49dde2c46",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "name",
+      "command": "node --test test/stage8-scoped-repair/contract-limit.test.mjs",
+      "exitCode": 0,
+      "countedFinal": true,
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "name.tap.gz",
+      "sha256": "20d1dca2d956c5fbe6a46ce2b7d91e6c5b6b13893fbf71a47a3148de2a0c435c",
+      "gzipSha256": "ab9a12a889dec4eb9871f6aea842b08f44c955800389de257197f591ad3ab9a2",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "new-semantic",
+      "command": "node --test test/stage8-final-evidence/semantic.test.mjs",
+      "exitCode": 0,
+      "countedFinal": true,
+      "tests": 195,
+      "pass": 195,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "new-semantic.tap.gz",
+      "sha256": "6775fb8d1f28cbd2ff0f85c7bd823600c7bef07155b64c0a847d21efbc9621b0",
+      "gzipSha256": "c0a52467bbfdfec4028e1992bb94c2858493cd29bc602a4bfef7e0a3bfb47b5a",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "processor",
+      "command": "node --test test/stage8-final-evidence/processor.test.mjs",
+      "exitCode": 0,
+      "countedFinal": true,
+      "tests": 25,
+      "pass": 25,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "processor.tap.gz",
+      "sha256": "7ab16db249089fdf338713ac134cc9fa826289cedf5e66535e34249f486c39e9",
+      "gzipSha256": "ce590d9e5b172570e8a843f114c2d5f1db709b76fe83b1db18efa7731f6d66f5",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "stop-processor",
+      "command": "node --test test/stage8-final-evidence/stop-regressions.test.mjs",
+      "exitCode": 0,
+      "countedFinal": true,
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "stop-processor.tap.gz",
+      "sha256": "f9afb310081ad7460a87344c6b4b15c251da668076eca859dd2b994cb9b3cf0c",
+      "gzipSha256": "e9ac6cc308ca643b726520c14df87978d179245c2a08aced164fb1c54293e51c",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "gate-semantic",
+      "command": "node --test test/stage8-safety-gate/semantic.test.mjs",
+      "exitCode": 1,
+      "countedFinal": true,
+      "tests": 417,
+      "pass": 397,
+      "fail": 20,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "gate-semantic.tap.gz",
+      "sha256": "e4517b40088b81cece93980e314c5b80e91e675d2797ba8d381abe289b21e1d8",
+      "gzipSha256": "12f5812743111f17f71074a72f190c61ee00015ee0bce10b6f2330d76586cb38",
+      "failures": [
+        "not ok 61 - multilingual new-unknown-speaker-en",
+        "not ok 62 - multilingual new-unknown-speaker-zh-TW",
+        "not ok 63 - multilingual new-unknown-speaker-vi",
+        "not ok 64 - multilingual new-unknown-speaker-mixed",
+        "not ok 321 - metamorphic new-unknown-speaker-en-space",
+        "not ok 322 - metamorphic new-unknown-speaker-en-newline",
+        "not ok 323 - metamorphic new-unknown-speaker-en-width-punct",
+        "not ok 324 - metamorphic new-unknown-speaker-en-nfd",
+        "not ok 325 - metamorphic new-unknown-speaker-zh-TW-space",
+        "not ok 326 - metamorphic new-unknown-speaker-zh-TW-newline",
+        "not ok 327 - metamorphic new-unknown-speaker-zh-TW-width-punct",
+        "not ok 328 - metamorphic new-unknown-speaker-zh-TW-nfd",
+        "not ok 329 - metamorphic new-unknown-speaker-vi-space",
+        "not ok 330 - metamorphic new-unknown-speaker-vi-newline",
+        "not ok 331 - metamorphic new-unknown-speaker-vi-width-punct",
+        "not ok 332 - metamorphic new-unknown-speaker-vi-nfd",
+        "not ok 333 - metamorphic new-unknown-speaker-mixed-space",
+        "not ok 334 - metamorphic new-unknown-speaker-mixed-newline",
+        "not ok 335 - metamorphic new-unknown-speaker-mixed-width-punct",
+        "not ok 336 - metamorphic new-unknown-speaker-mixed-nfd"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "ingress-shard0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 node --test test/stage8-safety-gate/processor.test.mjs",
+      "exitCode": 1,
+      "countedFinal": true,
+      "tests": 75,
+      "pass": 74,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "ingress-shard0.tap.gz",
+      "sha256": "d18aa58fca98ef73120b583539377451c76766d541317e6ba7fe2bccb677c299",
+      "gzipSha256": "3e4f242b001fc16e4e78105a0e4f84f34536d221769e8c4ed1fb3574634ff67a",
+      "failures": [
+        "not ok 42 - gate actual ingress unknown-currentness-vi health"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "ingress-shard1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 node --test test/stage8-safety-gate/processor.test.mjs",
+      "exitCode": 1,
+      "countedFinal": true,
+      "tests": 75,
+      "pass": 74,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "ingress-shard1.tap.gz",
+      "sha256": "1b550adde020355684fe3e06f7b812d2321559ec51ed06d644f6af1331abb192",
+      "gzipSha256": "8fc6bf37a15356fcb181a5451abe20ba1fc6d5f6f93087f8ce968f00a367bac1",
+      "failures": [
+        "not ok 43 - gate actual ingress unknown-currentness-mixed health"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "ingress-shard2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 node --test test/stage8-safety-gate/processor.test.mjs",
+      "exitCode": 0,
+      "countedFinal": true,
+      "tests": 74,
+      "pass": 74,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "ingress-shard2.tap.gz",
+      "sha256": "887651bfbe552b6847d093c614fc5df394474b63dbfc83f6f9a3d158710ad1f5",
+      "gzipSha256": "86a8d15fd5d40e43c3a6470c07fc6fe85c0f13acc9799a7b70f7693b4158535a",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "polling-rerun",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 0,
+      "countedFinal": false,
+      "reason": "diagnostic rerun; passing does not resolve original native crash",
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "polling-rerun.tap.gz",
+      "sha256": "969e8b160bb435521effd2d9c879cf3bac17ae814a02cb1ae74d14a68f29c867",
+      "gzipSha256": "c5ac7b07d9a949b9a4c7ace2a836c4d288b5b09d8f906941b746a69ff25e4460",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-before-remaining",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 266,
+      "pass": 264,
+      "fail": 2,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-before-remaining.tap.gz",
+      "sha256": "400885343fdd757ddb5cbe5fc35bc5119df6662c0695bd522f87d333ce3a1dfb",
+      "gzipSha256": "6f3496d715cfb6532fafd8857624333c04df38a49f728086d6ba8974784bad4d",
+      "failures": [
+        "not ok 8 - preserved ownership invariant independent-004",
+        "not ok 176 - independent-004 scope_or_preserved_control"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-before",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 339,
+      "pass": 326,
+      "fail": 13,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-before.tap.gz",
+      "sha256": "a277403a7db11424203f0f7ce66e3fa9de786758d808a504ca2514ac23559a3d",
+      "gzipSha256": "382871c747c8f95e7f4da67a1680d26f06d2c96208e68920f7a51a74339766ff",
+      "failures": [
+        "not ok 1 - STOP current continuation 0 name",
+        "not ok 2 - STOP current continuation 0 note",
+        "not ok 3 - STOP current continuation 0 coach",
+        "not ok 4 - STOP current continuation 0 health",
+        "not ok 5 - STOP current continuation 1 name",
+        "not ok 6 - STOP current continuation 1 note",
+        "not ok 7 - STOP current continuation 1 coach",
+        "not ok 8 - STOP current continuation 1 health",
+        "not ok 9 - STOP current continuation 2 name",
+        "not ok 10 - STOP current continuation 2 note",
+        "not ok 11 - STOP current continuation 2 coach",
+        "not ok 12 - STOP current continuation 2 health",
+        "not ok 152 - frozen scoped finding PO-H01"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-direct-complete",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 904,
+      "pass": 904,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-direct-complete.tap.gz",
+      "sha256": "ac9163e2be72e8c927020532a84893c63b05c6e6a9a0f530f1737cb813ac7aab",
+      "gzipSha256": "a93705c2d96cf965964d448b7301478ae00ba904b391195f5d4bb7f8687ccd59",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-direct-final-runtime",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 904,
+      "pass": 900,
+      "fail": 4,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-direct-final-runtime.tap.gz",
+      "sha256": "4eb7abe583d3729eb010e3bfab09e81a7b9d88f2ca0208304236bd8c77af6250",
+      "gzipSha256": "0ccf10d8514cff29bea627cbac3309870dc760a7e3f7a97476e7d375ac5ae03c",
+      "failures": [
+        "not ok 231 - preserved ownership invariant independent-032",
+        "not ok 270 - preserved ownership invariant independent-071",
+        "not ok 701 - independent-032 resolution_scope",
+        "not ok 740 - independent-071 negation_scope"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-direct-final",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 904,
+      "pass": 904,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-direct-final.tap.gz",
+      "sha256": "9155e04892bd1e46ec29bab446e9dc3a7737ff632be7c4363e63d8d12947bfbc",
+      "gzipSha256": "7e89b33cbdabe133e25efc04de77347badd40c4bcef77443a02cd80e488d31b2",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-direct-first",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 904,
+      "pass": 903,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-direct-first.tap.gz",
+      "sha256": "f5b5d875b8b9c0bfd39d40d02d4be4faccbe19a1a264fce097dc3b10e454d6d9",
+      "gzipSha256": "23e7a0f83cf57649f7dc9bad53d81ade0c700abda6f8d9870d0ff04332b73a0b",
+      "failures": [
+        "not ok 337 - owned relationships 7"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-direct-freeze",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 904,
+      "pass": 897,
+      "fail": 7,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-direct-freeze.tap.gz",
+      "sha256": "3b50ebadda189c726e34abfe097c0e8301a72c36937ac969d5578704fac71193",
+      "gzipSha256": "9a3e6ef23e50dc2aa2160252336f61fe499e3f326dcb0c2d6cbd6ec17f17e2a4",
+      "failures": [
+        "not ok 381 - scoped metamorphic 13 same identity",
+        "not ok 387 - scoped metamorphic 19 same identity",
+        "not ok 393 - scoped metamorphic 25 same identity",
+        "not ok 464 - actor identity normalization my friend ana has chest pain. My friend Ana has no chest pain.",
+        "not ok 466 - actor identity normalization my friend bình has chest pain. My friend Bình has no chest pain.",
+        "not ok 663 - same-subject-outcome-2",
+        "not ok 824 - resolved — 我昨天胸痛，但是現在沒有胸痛。"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-direct-locked",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 904,
+      "pass": 904,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-direct-locked.tap.gz",
+      "sha256": "e5e79f4ef85e5e7270a8cd398d5ab0c1acc5f25f8e442d29e2ba0d6ee3532803",
+      "gzipSha256": "1a19def854e936dd98541d1ea61ed046ccf35f6ff480fbdd2d97631eb61f37c1",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-direct-strict",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 904,
+      "pass": 900,
+      "fail": 4,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-direct-strict.tap.gz",
+      "sha256": "e9969b41db666d9869f3de1809b93cb0b8a8959e148eb5f16bb9336ea23c0395",
+      "gzipSha256": "1a3ec2e94eefc35833207cff093fa9155113501f08f8a235d3df486cf0490492",
+      "failures": [
+        "not ok 301 - ownership metamorphic 0 resolved current-first",
+        "not ok 309 - ownership metamorphic 1 resolved current-first",
+        "not ok 317 - ownership metamorphic 2 resolved current-first",
+        "not ok 325 - ownership metamorphic 3 resolved current-first"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-gate-semantic",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 416,
+      "pass": 396,
+      "fail": 20,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-gate-semantic.tap.gz",
+      "sha256": "dc6956948a31c17e9b8ca03a2fcd593780489fb992c070c9e7b2f1d80f9dca28",
+      "gzipSha256": "be8728b41f0bbf77fef42513d629cd428b502c62aa2df223f02b9538694b2a8b",
+      "failures": [
+        "not ok 61 - multilingual new-unknown-speaker-en",
+        "not ok 62 - multilingual new-unknown-speaker-zh-TW",
+        "not ok 63 - multilingual new-unknown-speaker-vi",
+        "not ok 64 - multilingual new-unknown-speaker-mixed",
+        "not ok 321 - metamorphic new-unknown-speaker-en-space",
+        "not ok 322 - metamorphic new-unknown-speaker-en-newline",
+        "not ok 323 - metamorphic new-unknown-speaker-en-width-punct",
+        "not ok 324 - metamorphic new-unknown-speaker-en-nfd",
+        "not ok 325 - metamorphic new-unknown-speaker-zh-TW-space",
+        "not ok 326 - metamorphic new-unknown-speaker-zh-TW-newline",
+        "not ok 327 - metamorphic new-unknown-speaker-zh-TW-width-punct",
+        "not ok 328 - metamorphic new-unknown-speaker-zh-TW-nfd",
+        "not ok 329 - metamorphic new-unknown-speaker-vi-space",
+        "not ok 330 - metamorphic new-unknown-speaker-vi-newline",
+        "not ok 331 - metamorphic new-unknown-speaker-vi-width-punct",
+        "not ok 332 - metamorphic new-unknown-speaker-vi-nfd",
+        "not ok 333 - metamorphic new-unknown-speaker-mixed-space",
+        "not ok 334 - metamorphic new-unknown-speaker-mixed-newline",
+        "not ok 335 - metamorphic new-unknown-speaker-mixed-width-punct",
+        "not ok 336 - metamorphic new-unknown-speaker-mixed-nfd"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-integration",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 200,
+      "pass": 200,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-integration.tap.gz",
+      "sha256": "98e6628f0fb3b4810f94a50c385e4d03b849543fd3979254a5885c8ede462e2f",
+      "gzipSha256": "2200fe687dc2c2f455a60d7bb67e506be526973f7daab9d8e9c04a45d0ab64c9",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-name",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-name.tap.gz",
+      "sha256": "929e50cd0114eb52cfc3d0622404e3de1fe31eefa2e5d1c9adca1f3061f2267d",
+      "gzipSha256": "e2366e8c23b41883599b93a66647b5559addb16628be7226c4bd0e83023021cb",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-new-processor",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "log": "development-new-processor.tap.gz",
+      "sha256": "c3f3e452f8a77acd3ba7ad6ed5ad5492e0ff92a7226ed108c36d0f626271d932",
+      "gzipSha256": "acab5566b32d4b3a7d7df4c9c5fea77cb3a45da3ff9e8d640a15e94fed7ae0a9",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-new-semantic-complete",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 413,
+      "pass": 393,
+      "fail": 20,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-new-semantic-complete.tap.gz",
+      "sha256": "e172e70651134fab920f5f2bbd698239d2ae15a595b8a6cda500d56a836afdb2",
+      "gzipSha256": "3ae508159d3d3335bc9937e61206508263d078ed6f4708783ac6e7f408785924",
+      "failures": [
+        "not ok 61 - multilingual new-unknown-speaker-en",
+        "not ok 62 - multilingual new-unknown-speaker-zh-TW",
+        "not ok 63 - multilingual new-unknown-speaker-vi",
+        "not ok 64 - multilingual new-unknown-speaker-mixed",
+        "not ok 321 - metamorphic new-unknown-speaker-en-space",
+        "not ok 322 - metamorphic new-unknown-speaker-en-newline",
+        "not ok 323 - metamorphic new-unknown-speaker-en-width-punct",
+        "not ok 324 - metamorphic new-unknown-speaker-en-nfd",
+        "not ok 325 - metamorphic new-unknown-speaker-zh-TW-space",
+        "not ok 326 - metamorphic new-unknown-speaker-zh-TW-newline",
+        "not ok 327 - metamorphic new-unknown-speaker-zh-TW-width-punct",
+        "not ok 328 - metamorphic new-unknown-speaker-zh-TW-nfd",
+        "not ok 329 - metamorphic new-unknown-speaker-vi-space",
+        "not ok 330 - metamorphic new-unknown-speaker-vi-newline",
+        "not ok 331 - metamorphic new-unknown-speaker-vi-width-punct",
+        "not ok 332 - metamorphic new-unknown-speaker-vi-nfd",
+        "not ok 333 - metamorphic new-unknown-speaker-mixed-space",
+        "not ok 334 - metamorphic new-unknown-speaker-mixed-newline",
+        "not ok 335 - metamorphic new-unknown-speaker-mixed-width-punct",
+        "not ok 336 - metamorphic new-unknown-speaker-mixed-nfd"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-new-semantic-first",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 407,
+      "pass": 387,
+      "fail": 20,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-new-semantic-first.tap.gz",
+      "sha256": "d003f2d20af39bea050530bc2bfd5bc49ff3306cc880336d597c274e337928a2",
+      "gzipSha256": "51ad8c5bf6b15a251829fbdcbd6147dbd44ac3a0d21d8ae24ae7f1ca204836f9",
+      "failures": [
+        "not ok 61 - multilingual new-unknown-speaker-en",
+        "not ok 62 - multilingual new-unknown-speaker-zh-TW",
+        "not ok 63 - multilingual new-unknown-speaker-vi",
+        "not ok 64 - multilingual new-unknown-speaker-mixed",
+        "not ok 321 - metamorphic new-unknown-speaker-en-space",
+        "not ok 322 - metamorphic new-unknown-speaker-en-newline",
+        "not ok 323 - metamorphic new-unknown-speaker-en-width-punct",
+        "not ok 324 - metamorphic new-unknown-speaker-en-nfd",
+        "not ok 325 - metamorphic new-unknown-speaker-zh-TW-space",
+        "not ok 326 - metamorphic new-unknown-speaker-zh-TW-newline",
+        "not ok 327 - metamorphic new-unknown-speaker-zh-TW-width-punct",
+        "not ok 328 - metamorphic new-unknown-speaker-zh-TW-nfd",
+        "not ok 329 - metamorphic new-unknown-speaker-vi-space",
+        "not ok 330 - metamorphic new-unknown-speaker-vi-newline",
+        "not ok 331 - metamorphic new-unknown-speaker-vi-width-punct",
+        "not ok 332 - metamorphic new-unknown-speaker-vi-nfd",
+        "not ok 333 - metamorphic new-unknown-speaker-mixed-space",
+        "not ok 334 - metamorphic new-unknown-speaker-mixed-newline",
+        "not ok 335 - metamorphic new-unknown-speaker-mixed-width-punct",
+        "not ok 336 - metamorphic new-unknown-speaker-mixed-nfd"
+      ],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-new-semantic",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 195,
+      "pass": 195,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-new-semantic.tap.gz",
+      "sha256": "ea2f014552c979f3fbd30e8e60234bd1a02e7a95f828724ef86c37bfdd9f9da8",
+      "gzipSha256": "9bad7981bece4caf76eb0619ed4faff961f7c90d322750b77536e3c2d9e12b3d",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-polling",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-polling.tap.gz",
+      "sha256": "9142bcd06bed1fedd071f585083ea142d58d3e6fcd116d7b656bb5a4bebed7f6",
+      "gzipSha256": "c5093ee64dfe95575af08798cfc879b07c71156321e1e2ba08ecaf8f8937b766",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-processor",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 25,
+      "pass": 25,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-processor.tap.gz",
+      "sha256": "cd871bcadb937be242e45e443e281e29b577f7e24075c624b492793a082b28f8",
+      "gzipSha256": "4f85a6fc531878755a07de188405bf2fbfca2400ff1ee0d3e07fa3804a3c1430",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-regression",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 164,
+      "pass": 164,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-regression.tap.gz",
+      "sha256": "155f82f299a233f7a31713667aefdb4f565983e58831aba16952dcbb4f864e3b",
+      "gzipSha256": "44b5c0b77690f83b686cfb95fdac699ac492e3bff9d661235065df263191dda8",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-safety",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 576,
+      "pass": 576,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-safety.tap.gz",
+      "sha256": "cf01d9b587693c27a42a516921cbca57835128f30dba643df2d6aef756cd9938",
+      "gzipSha256": "089d1b5128b594c5da55d7886e99e47c043b1424ba2f4a9d682b6e76caab2b4a",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-scoped",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 348,
+      "pass": 348,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-scoped.tap.gz",
+      "sha256": "9945640c85fe3bbf11c19462633af1170181e83b57156f8c274a894dcbc50e79",
+      "gzipSha256": "56986fc7896ff6fa0cd5040263366ba1c0bc61ede6b94dc7af344f6c6db9421c",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "development-stop-final",
+      "countedFinal": false,
+      "sourceStatus": "mutable development runtime; source-specific diagnostics, not final acceptance",
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "development-stop-final.tap.gz",
+      "sha256": "47990ce51731cec7a792c4be6ede480d37ab042ad32842fc4456eae2bab812f6",
+      "gzipSha256": "6acd1bf032fd40a675e21227ec43d03cbe0e19d3b1fa8d59312e64bac5e1e241",
+      "failures": [],
+      "nativeSignals": []
+    },
+    {
+      "id": "diagnostic-new-processor",
+      "countedFinal": false,
+      "intentionallyStopped": true,
+      "log": "diagnostic-new-processor.tap.gz",
+      "sha256": "2e91b09aa32b81a6ba287695618197c98c2016228002d941c8414846f0668245",
+      "gzipSha256": "2dbd6714ed93feb4c995a675eb1549752c6303d06b4af7898dbf3a0abd0839f4",
+      "failures": [],
+      "nativeSignals": []
+    }
+  ]
+}

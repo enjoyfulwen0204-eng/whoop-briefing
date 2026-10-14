@@ -1,0 +1,28 @@
+{
+  "includedIn200NotAdditionalChecks": true,
+  "v34MigrationTests": [
+    "v34 binary refuses exact-v32 fixture until explicit migration; no minimum-version relaxation",
+    "v34 controlled local preflight, narrow upgrade and repeated no-op preserve users, v33 DDL, key authority and LIVE count",
+    "v33 must precede v34; direct controlled v32-to-v34 request is rejected, ordered engine installs both",
+    "v34 requires authentic contiguous v33 marker before any v34 object or marker",
+    "v34 crash before mutation 0 resumes without premature version or legacy damage",
+    "v34 crash before mutation 1 resumes without premature version or legacy damage",
+    "v34 crash before mutation 11 resumes without premature version or legacy damage",
+    "v34 crash before mutation 12 resumes without premature version or legacy damage",
+    "v34 crash before mutation 13 resumes without premature version or legacy damage",
+    "v34 crash before mutation 18 resumes without premature version or legacy damage",
+    "v34 crash before mutation 47 resumes without premature version or legacy damage",
+    "v34 crash before mutation 48 resumes without premature version or legacy damage",
+    "v34 crash before mutation 49 resumes without premature version or legacy damage",
+    "v34 crash before mutation 50 resumes without premature version or legacy damage",
+    "v34 crash before mutation 51 resumes without premature version or legacy damage",
+    "v34 wrong keys and incompatible partial object reject without a marker",
+    "v34 admission rejects missing p4_owner_copy_fence",
+    "v34 admission rejects missing p4_outbound_messages_envelope_v34",
+    "v34 admission rejects missing p4_morning_refresh_consume",
+    "v34 admission rejects missing p4_morning_brief_plans_privacy_id",
+    "v34 CLI and exported apply reject remote targets before network or database access"
+  ],
+  "v34MigrationCount": 21,
+  "allIntegrationChecksPass": true
+}

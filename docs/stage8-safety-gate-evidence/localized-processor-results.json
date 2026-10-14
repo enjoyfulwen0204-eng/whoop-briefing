@@ -1,0 +1,535 @@
+{
+  "count": 33,
+  "pass": 33,
+  "fail": 0,
+  "results": [
+    {
+      "id": "PO-H01",
+      "locale": "en",
+      "lane": "name",
+      "text": "I have chest pain. I had a headache yesterday. It has resolved.",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H01",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我現在胸痛。我昨天頭痛。它已經好了。",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H01",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Tôi đang đau ngực. Tôi đau đầu hôm qua. Nó đã hết. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H02",
+      "locale": "en",
+      "lane": "name",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H02",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我朋友小明胸痛。我朋友小華沒有胸痛。",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H02",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Bạn tôi An đau ngực. Bạn tôi Bình đã hết đau ngực. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H03",
+      "locale": "en",
+      "lane": "name",
+      "text": "I have had chest pain since this morning.",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H03",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我從今天早上一直胸痛。",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H03",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Tôi đau ngực từ sáng nay đến giờ. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H04",
+      "locale": "en",
+      "lane": "name",
+      "text": "If chest pain is dangerous, please help: I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H04",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "如果胸痛很危險，我現在胸痛。",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H04",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Nếu đau ngực nguy hiểm, tôi đang đau ngực. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H05",
+      "locale": "en",
+      "lane": "name",
+      "text": "I had chest pain yesterday I have difficulty breathing.",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H05",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我昨天胸痛我呼吸困難。",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H05",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Tôi đau ngực hôm qua tôi khó thở. What is my HRV today?",
+      "expected": "CURRENT_URGENT",
+      "decision": "CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H06",
+      "locale": "en",
+      "lane": "name",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H06",
+      "locale": "en",
+      "lane": "note",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H06",
+      "locale": "en",
+      "lane": "health",
+      "text": "I cannot say that I do not have chest pain. What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H06",
+      "locale": "zh-TW",
+      "lane": "name",
+      "text": "我無法確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H06",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我無法確定我沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H06",
+      "locale": "zh-TW",
+      "lane": "health",
+      "text": "我無法確定我沒有胸痛。 What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H06",
+      "locale": "vi",
+      "lane": "name",
+      "text": "Tôi không thể nói rằng tôi không đau ngực.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H06",
+      "locale": "vi",
+      "lane": "note",
+      "text": "Tôi không thể nói rằng tôi không đau ngực.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-H06",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Tôi không thể nói rằng tôi không đau ngực. What is my HRV today?",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 0,
+        "consumers": 0
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-M01",
+      "locale": "en",
+      "lane": "name",
+      "text": "I am not experiencing my chest pain or my difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "decision": "CLEARLY_NONURGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 1,
+        "consumers": 2
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-M01",
+      "locale": "en",
+      "lane": "note",
+      "text": "I am not experiencing my chest pain or my difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "decision": "CLEARLY_NONURGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 1,
+        "consumers": 1
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-M01",
+      "locale": "en",
+      "lane": "coach",
+      "text": "I am not experiencing my chest pain or my difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "decision": "CLEARLY_NONURGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 1,
+        "consumers": 2
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-M01",
+      "locale": "zh-TW",
+      "lane": "name",
+      "text": "我沒有胸痛和我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "decision": "CLEARLY_NONURGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 1,
+        "consumers": 2
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-M01",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我沒有胸痛和我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "decision": "CLEARLY_NONURGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 1,
+        "consumers": 1
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-M01",
+      "locale": "zh-TW",
+      "lane": "coach",
+      "text": "我沒有胸痛和我的呼吸困難。",
+      "expected": "CLEARLY_NONURGENT",
+      "decision": "CLEARLY_NONURGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 1,
+        "consumers": 2
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-M01",
+      "locale": "vi",
+      "lane": "name",
+      "text": "Tôi không có đau ngực và tôi không khó thở.",
+      "expected": "CLEARLY_NONURGENT",
+      "decision": "CLEARLY_NONURGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 1,
+        "consumers": 2
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-M01",
+      "locale": "vi",
+      "lane": "note",
+      "text": "Tôi không có đau ngực và tôi không khó thở.",
+      "expected": "CLEARLY_NONURGENT",
+      "decision": "CLEARLY_NONURGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 1,
+        "consumers": 1
+      },
+      "pass": true,
+      "failures": []
+    },
+    {
+      "id": "PO-M01",
+      "locale": "vi",
+      "lane": "coach",
+      "text": "Tôi không có đau ngực và tôi không khó thở.",
+      "expected": "CLEARLY_NONURGENT",
+      "decision": "CLEARLY_NONURGENT",
+      "scopeReads": 0,
+      "observed": {
+        "sends": 1,
+        "captures": 1,
+        "consumers": 2
+      },
+      "pass": true,
+      "failures": []
+    }
+  ]
+}

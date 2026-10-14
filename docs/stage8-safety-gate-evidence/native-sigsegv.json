@@ -1,0 +1,113 @@
+{
+  "originalReportPath": "/Users/kelvin/Library/Logs/DiagnosticReports/node-2026-10-14-203212.ips",
+  "originalSha256": "829f72dda8ad52673bbe193ff03d368b417a8d3b025a9474b437ba8c59e0a5b6",
+  "timestamp": "2026-10-14 20:32:11.9172 +0700",
+  "pid": 21416,
+  "exception": {
+    "codes": "0x0000000000000001, 0x0000000307409c41",
+    "rawCodes": [
+      1,
+      13006576705
+    ],
+    "type": "EXC_BAD_ACCESS",
+    "signal": "SIGSEGV",
+    "subtype": "KERN_INVALID_ADDRESS at 0x0000000307409c41"
+  },
+  "termination": null,
+  "frames": [
+    {
+      "image": "index.node",
+      "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "imageOffset": 4618472,
+      "symbol": null
+    },
+    {
+      "image": "index.node",
+      "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "imageOffset": 2513860,
+      "symbol": null
+    },
+    {
+      "image": "index.node",
+      "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "imageOffset": 2740588,
+      "symbol": null
+    },
+    {
+      "image": "index.node",
+      "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "imageOffset": 506516,
+      "symbol": null
+    },
+    {
+      "image": "index.node",
+      "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "imageOffset": 380320,
+      "symbol": null
+    },
+    {
+      "image": "index.node",
+      "imageUUID": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+      "imageOffset": 470324,
+      "symbol": null
+    },
+    {
+      "image": "node",
+      "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "imageOffset": 863876,
+      "symbol": "void napi_env__::CallIntoModule<void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallbackIntoModule<true, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)::'lambda'(napi_env__*, v8::Local<v8::Value>)>(void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&, void node_napi_env__::CallFinalizer<true>(void (*)(napi_env__*, void*, void*), void*, void*)::'lambda'(napi_env__*)&&)"
+    },
+    {
+      "image": "node",
+      "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "imageOffset": 843712,
+      "symbol": "node_napi_env__::CallFinalizer(void (*)(napi_env__*, void*, void*), void*, void*)"
+    },
+    {
+      "image": "node",
+      "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "imageOffset": 720876,
+      "symbol": "v8impl::Reference::Finalize()"
+    },
+    {
+      "image": "node",
+      "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "imageOffset": 843176,
+      "symbol": "node_napi_env__::DeleteMe()"
+    },
+    {
+      "image": "node",
+      "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "imageOffset": 864460,
+      "symbol": "node::CallbackQueue<void, node::Environment*>::CallbackImpl<node_napi_env__::EnqueueFinalizer(v8impl::RefTracker*)::$_0>::Call(node::Environment*)"
+    },
+    {
+      "image": "node",
+      "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "imageOffset": 645076,
+      "symbol": "node::Environment::RunAndClearNativeImmediates(bool)::$_0::operator()(node::CallbackQueue<void, node::Environment*>*) const"
+    },
+    {
+      "image": "node",
+      "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "imageOffset": 641908,
+      "symbol": "node::Environment::RunAndClearNativeImmediates(bool)"
+    },
+    {
+      "image": "node",
+      "imageUUID": "a3d55146-7095-37e8-81fa-bda56a6b52d1",
+      "imageOffset": 643472,
+      "symbol": "node::Environment::RunCleanup()"
+    }
+  ],
+  "nativeImages": [
+    {
+      "name": "index.node",
+      "uuid": "15297104-5a23-3847-9a99-938dd2f1ac9e"
+    }
+  ],
+  "id": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+  "rootCause": "UNASSIGNED",
+  "status": "OPEN",
+  "passingRerunDoesNotResolve": true
+}

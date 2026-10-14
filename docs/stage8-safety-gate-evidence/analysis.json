@@ -1,0 +1,339 @@
+{
+  "countsAreCorpusRowsNotAdditionalTestDefinitions": true,
+  "groups": {
+    "recovered94": {
+      "cases": 94,
+      "pass": 92,
+      "fail": 2,
+      "positive": 46,
+      "negative": 48,
+      "falseNegative": 0,
+      "falsePositive": 2,
+      "falseNegativeRate": 0,
+      "falsePositiveRate": 0.041666666666666664,
+      "failures": [
+        {
+          "id": "independent-032",
+          "text": "Tôi đã hết hẳn đau ngực.",
+          "expected": false,
+          "expectedUrgent": false,
+          "decision": "POSSIBLE_CURRENT_URGENT",
+          "urgent": true,
+          "pass": false
+        },
+        {
+          "id": "independent-071",
+          "text": "Tôi đã hết hẳn đau ngực.",
+          "expected": false,
+          "expectedUrgent": false,
+          "decision": "POSSIBLE_CURRENT_URGENT",
+          "urgent": true,
+          "pass": false
+        }
+      ]
+    },
+    "independent139": {
+      "cases": 139,
+      "pass": 139,
+      "fail": 0,
+      "positive": 97,
+      "negative": 42,
+      "falseNegative": 0,
+      "falsePositive": 0,
+      "falseNegativeRate": 0,
+      "falsePositiveRate": 0,
+      "failures": []
+    },
+    "independent40": {
+      "cases": 40,
+      "pass": 40,
+      "fail": 0,
+      "positive": 25,
+      "negative": 15,
+      "falseNegative": 0,
+      "falsePositive": 0,
+      "falseNegativeRate": 0,
+      "falsePositiveRate": 0,
+      "failures": []
+    },
+    "finalMetamorphic149": {
+      "cases": 149,
+      "pass": 149,
+      "fail": 0,
+      "positive": 87,
+      "negative": 62,
+      "falseNegative": 0,
+      "falsePositive": 0,
+      "falseNegativeRate": 0,
+      "falsePositiveRate": 0,
+      "failures": []
+    },
+    "newOwnerMandatory48": {
+      "cases": 48,
+      "pass": 48,
+      "fail": 0,
+      "positive": 28,
+      "negative": 20,
+      "falseNegative": 0,
+      "falsePositive": 0,
+      "falseNegativeRate": 0,
+      "falsePositiveRate": 0,
+      "failures": []
+    },
+    "newParaphrases32": {
+      "cases": 32,
+      "pass": 28,
+      "fail": 4,
+      "positive": 20,
+      "negative": 12,
+      "falseNegative": 4,
+      "falsePositive": 0,
+      "falseNegativeRate": 0.2,
+      "falsePositiveRate": 0,
+      "failures": [
+        {
+          "id": "new-unknown-speaker-en",
+          "text": "\"I have chest pressure now\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-zh-TW",
+          "text": "「我現在胸悶」",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-vi",
+          "text": "\"Tôi đang tức ngực\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-mixed",
+          "text": "\"I đang tức ngực\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        }
+      ]
+    },
+    "newMetamorphic320": {
+      "cases": 320,
+      "pass": 304,
+      "fail": 16,
+      "positive": 192,
+      "negative": 128,
+      "falseNegative": 16,
+      "falsePositive": 0,
+      "falseNegativeRate": 0.08333333333333333,
+      "falsePositiveRate": 0,
+      "failures": [
+        {
+          "id": "new-unknown-speaker-en-space",
+          "text": "  \"I have chest pressure now\"  ",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-en-newline",
+          "text": "\"I have chest pressure now\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-en-width-punct",
+          "text": "\"I have chest pressure now\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-en-nfd",
+          "text": "\"I have chest pressure now\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-zh-TW-space",
+          "text": "  「我現在胸悶」  ",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-zh-TW-newline",
+          "text": "「我現在胸悶」",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-zh-TW-width-punct",
+          "text": "「我現在胸悶」",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-zh-TW-nfd",
+          "text": "「我現在胸悶」",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-vi-space",
+          "text": "  \"Tôi đang tức ngực\"  ",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-vi-newline",
+          "text": "\"Tôi đang tức ngực\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-vi-width-punct",
+          "text": "\"Tôi đang tức ngực\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-vi-nfd",
+          "text": "\"Tôi đang tức ngực\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-mixed-space",
+          "text": "  \"I đang tức ngực\"  ",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-mixed-newline",
+          "text": "\"I đang tức ngực\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-mixed-width-punct",
+          "text": "\"I đang tức ngực\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        },
+        {
+          "id": "new-unknown-speaker-mixed-nfd",
+          "text": "\"I đang tức ngực\"",
+          "expected": "POSSIBLE_CURRENT_URGENT",
+          "expectedUrgent": true,
+          "decision": "CLEARLY_NONURGENT",
+          "urgent": false,
+          "pass": false
+        }
+      ]
+    }
+  },
+  "benignWarningProbes": {
+    "count": 4,
+    "safetyWarnings": 4,
+    "rows": [
+      {
+        "id": "benign-warning-en",
+        "locale": "en",
+        "text": "I had chest pain yesterday and am still working.",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "benignWarning": true,
+        "decision": "POSSIBLE_CURRENT_URGENT",
+        "safetyWarning": true
+      },
+      {
+        "id": "benign-warning-zh-TW",
+        "locale": "zh-TW",
+        "text": "我昨天胸痛而且目前忙碌。",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "benignWarning": true,
+        "decision": "POSSIBLE_CURRENT_URGENT",
+        "safetyWarning": true
+      },
+      {
+        "id": "benign-warning-vi",
+        "locale": "vi",
+        "text": "Tôi đau ngực hôm qua và hiện tại làm việc.",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "benignWarning": true,
+        "decision": "POSSIBLE_CURRENT_URGENT",
+        "safetyWarning": true
+      },
+      {
+        "id": "benign-warning-mixed",
+        "locale": "mixed",
+        "text": "I had chest pain yesterday and 目前忙碌。",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "benignWarning": true,
+        "decision": "POSSIBLE_CURRENT_URGENT",
+        "safetyWarning": true
+      }
+    ]
+  },
+  "standaloneQuotationConflict": {
+    "unresolved": true,
+    "frozenExpectsClear": true,
+    "newAuthoredProbesExpectPossible": true,
+    "expectationsUnchanged": true
+  },
+  "realWorldRatesNotEstablished": true
+}

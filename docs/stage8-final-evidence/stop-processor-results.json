@@ -1,0 +1,256 @@
+{
+  "count": 12,
+  "pass": 0,
+  "fail": 12,
+  "results": [
+    {
+      "id": "stop-0",
+      "lane": "name",
+      "text": "My chest pain started yesterday and is still present.",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "PERSISTENCE_CHANGED",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "Confirm display name:\nMy chest pain started yesterday and is still present.",
+      "scopedReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"DjH9QrR3YotOGYLiaCjdxQ\",\"revision\":1,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_confirm\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\",\"pendingName\":\"My chest pain started yesterday and is still present.\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-0",
+      "lane": "note",
+      "text": "My chest pain started yesterday and is still present.",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "PERSISTENCE_CHANGED",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "☕ Caffeine · Journal date: 2026-09-18\nYes\nMy chest pain started yesterday and is still present.",
+      "scopedReads": 0,
+      "name": null,
+      "notes": [
+        {
+          "note": "My chest pain started yesterday and is still present.",
+          "state": "CONFIRM"
+        }
+      ],
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-0",
+      "lane": "coach",
+      "text": "My chest pain started yesterday and is still present.",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "I am not sure what you mean. You could ask:\n· How am I doing today?\n· How has my HRV been lately?\n· Has my sleep been getting worse?\n· What was my best day in the past 30 days?\n\nUse /help for the full guide.",
+      "scopedReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-0",
+      "lane": "health",
+      "text": "My chest pain started yesterday and is still present. What is my HRV today?",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "Which of your metrics and which time range? For example, “my HRV over the last 7 days.”",
+      "scopedReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-1",
+      "lane": "name",
+      "text": "My chest pain started yesterday and is still severe.",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "PERSISTENCE_CHANGED",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "Confirm display name:\nMy chest pain started yesterday and is still severe.",
+      "scopedReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"-_WSDFi1veNGuYgKW-PwoQ\",\"revision\":1,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_confirm\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\",\"pendingName\":\"My chest pain started yesterday and is still severe.\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-1",
+      "lane": "note",
+      "text": "My chest pain started yesterday and is still severe.",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "PERSISTENCE_CHANGED",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "☕ Caffeine · Journal date: 2026-09-18\nYes\nMy chest pain started yesterday and is still severe.",
+      "scopedReads": 0,
+      "name": null,
+      "notes": [
+        {
+          "note": "My chest pain started yesterday and is still severe.",
+          "state": "CONFIRM"
+        }
+      ],
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-1",
+      "lane": "coach",
+      "text": "My chest pain started yesterday and is still severe.",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "I am not sure what you mean. You could ask:\n· How am I doing today?\n· How has my HRV been lately?\n· Has my sleep been getting worse?\n· What was my best day in the past 30 days?\n\nUse /help for the full guide.",
+      "scopedReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-1",
+      "lane": "health",
+      "text": "My chest pain started yesterday and is still severe. What is my HRV today?",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "Which of your metrics and which time range? For example, “my HRV over the last 7 days.”",
+      "scopedReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-2",
+      "lane": "name",
+      "text": "I had chest pain yesterday and is still present.",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "PERSISTENCE_CHANGED",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "Confirm display name:\nI had chest pain yesterday and is still present.",
+      "scopedReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"58M3VuD4gT7QW_Sl9mCRtA\",\"revision\":1,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_confirm\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\",\"pendingName\":\"I had chest pain yesterday and is still present.\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-2",
+      "lane": "note",
+      "text": "I had chest pain yesterday and is still present.",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "PERSISTENCE_CHANGED",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "☕ Caffeine · Journal date: 2026-09-18\nYes\nI had chest pain yesterday and is still present.",
+      "scopedReads": 0,
+      "name": null,
+      "notes": [
+        {
+          "note": "I had chest pain yesterday and is still present.",
+          "state": "CONFIRM"
+        }
+      ],
+      "observed": {
+        "sends": 1,
+        "consumers": 1,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-2",
+      "lane": "coach",
+      "text": "I had chest pain yesterday and is still present.",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "I am not sure what you mean. You could ask:\n· How am I doing today?\n· How has my HRV been lately?\n· Has my sleep been getting worse?\n· What was my best day in the past 30 days?\n\nUse /help for the full guide.",
+      "scopedReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    },
+    {
+      "id": "stop-2",
+      "lane": "health",
+      "text": "I had chest pain yesterday and is still present. What is my HRV today?",
+      "pass": false,
+      "failures": [
+        "MISSING_SAFETY",
+        "ORDINARY_CONSUMER"
+      ],
+      "reply": "Which of your metrics and which time range? For example, “my HRV over the last 7 days.”",
+      "scopedReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 2,
+        "captures": 1
+      }
+    }
+  ]
+}

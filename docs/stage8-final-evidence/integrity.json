@@ -1,0 +1,17 @@
+{
+  "baselineHead": "9dc287fc5d916409002caafe5b845012da476032",
+  "baselineTree": "3b409ceaec663fa3c7b0ea39a4b418c5542d3acb",
+  "runtimeSourceCommit": "bf4da07ec85e6e1276b2cf5b49b019b216738f96",
+  "runtimeSha256": "563015e819e237b3d3f88d32c3a0a4e373c56779760639c8f55cc38a21c11023",
+  "runtimeChangedPaths": [
+    "src/bot/triage.js"
+  ],
+  "otherRuntimeFilesUnchanged": 300,
+  "frozenContractCommit": "72a2225",
+  "frozenMetamorphicAndSettingsCommit": "a6eeccf",
+  "diffCheck": true,
+  "stage7Ancestor": true,
+  "settingsRuntimeUnchanged": true,
+  "stage6LiveSchemaProviderUnchanged": true,
+  "runtimeEditsStopped": true
+}

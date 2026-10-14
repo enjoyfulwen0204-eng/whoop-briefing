@@ -16,6 +16,7 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=I
   streams.set(id,stream);return [id,stream];};
  const assertTransactionAge=async stream=>{
   if(stream.inTransaction&&Date.now()-stream.transactionStartedAt>=transactionMaxMs){
+   evidence.push({event:'transaction_timeout',ageMs:Date.now()-stream.transactionStartedAt,limitMs:transactionMaxMs});
    await stream.client.execute('ROLLBACK');stream.inTransaction=false;
    throw Object.assign(Error('SYNTHETIC_TRANSACTION_TIMEOUT'),{code:'TRANSACTION_TIMEOUT'});
   }

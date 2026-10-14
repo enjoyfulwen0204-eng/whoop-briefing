@@ -3,6 +3,7 @@ import {createDb} from '../src/db.js';import {fixtureKeys} from './localDb.js';i
 import {stage6CapacityStatus} from '../src/stage6CapacityRuntime.js';import {receiverScopeStatistics} from '../src/receiverScopeLifetime.js';import {linuxMetrics} from './stage6LinuxMetrics.mjs';import {morningNow,morningRecords} from './stage6LinuxMorningFixture.mjs';import {fakeCoach} from './fakes.js';
 import {createWebhookServer} from '../src/bot/webhook.js';import {createRouter} from '../src/bot/router.js';import {createUpdateProcessor} from '../src/bot/updateProcessor.js';import {createSendReply} from '../src/bot/index.js';import {createBriefingEndpoint} from '../src/briefingEndpoint.js';import {signTriggerRequest} from '../src/briefingTriggerAuth.js';
 import {verifyShortProof} from './stage6ShortProof.mjs';import {verifyCurrentRuntimeProof} from './stage6RuntimeCurrentProof.mjs';
+import {fork} from 'node:child_process';
 test('combined real SYNC and webhook factories expose bounded DRAIN service responsiveness',async t=>{
  const metrics=linuxMetrics(),networkFetch=globalThis.fetch;let realProviderRequests=0;
  globalThis.fetch=async()=>{realProviderRequests++;throw Error('REAL_PROVIDER_FORBIDDEN');};
@@ -28,10 +29,18 @@ test('combined real SYNC and webhook factories expose bounded DRAIN service resp
  const initialHealthAt=performance.now(),initialHealth=await networkFetch('http://127.0.0.1:8081/health');const initialHealthMs=performance.now()-initialHealthAt;assert.equal(initialHealth.status,200);
  await networkFetch('http://fixture:8080/probe/start',{method:'POST'});
  const oldOperations=(await stageDb.raw.execute('SELECT operation_key FROM phase4_operation_receipts')).rows.map(r=>r.operation_key),drainRequest=request('STAGE6_DRAIN',{syncRequestId:handoffRequest.requestId,handoff:handoff.body.handoff});
- const syncAt=performance.now(),syncPromise=sendSync(),webhookPromise=sendWebhook(),drainAt=performance.now(),drain=await runExecutionPhase({...stageOptions,request:drainRequest}),drainMs=performance.now()-drainAt;
+ let childScopes;
+ const isolatedDrain=()=>new Promise((resolve,reject)=>{
+  const child=fork(new URL('./stage6LinuxDrainChild.mjs',import.meta.url),[],{execArgv:[],stdio:['ignore','ignore','ignore','ipc']});
+  const timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('ORIGINAL_OVERALL_BOUND_EXCEEDED'));},90000);
+  child.once('message',message=>{if(message.error)reject(Error(message.error));else{childScopes=message.scopes;resolve(message.result);}});
+  child.once('exit',code=>{clearTimeout(timer);if(code)reject(Error('DRAIN_CHILD_EXIT'));});child.once('error',reject);
+  child.send({request:drainRequest,environment,env});
+ });
+ const syncAt=performance.now(),syncPromise=sendSync(),webhookPromise=sendWebhook(),drainAt=performance.now(),drain=await (process.env.LINUX_DRAIN_ISOLATION==='process'?isolatedDrain():runExecutionPhase({...stageOptions,request:drainRequest})),drainMs=performance.now()-drainAt;
  const webhook=await webhookPromise,retry=await sendWebhook(),sync=await syncPromise,syncMs=performance.now()-syncAt,syncReplay=await sendSync();await networkFetch('http://fixture:8080/probe/stop',{method:'POST'});
  const provider=await(await networkFetch('http://fixture:8080/counts')).json(),claims=(await morningDb.raw.execute("SELECT user_id,delivery_state,delivery_attempts FROM report_claims WHERE report_type='daily' AND local_date='2026-10-11' ORDER BY user_id")).rows;
- console.log('LINUX_CONCURRENT_OUTCOME '+JSON.stringify({synthetic:true,independentDatabases:true,initialHealthMs,syncMs,sync,drainMs,drain,webhook,retry,syncReplay,sends,webhookSends,claims,modelCounts:[...modelCounts],provider,capacity:stage6CapacityStatus(),metrics:metrics.snapshot(),scopes:receiverScopeStatistics(),realProviderRequests}));
+ console.log('LINUX_CONCURRENT_OUTCOME '+JSON.stringify({synthetic:true,independentDatabases:true,drainIsolation:process.env.LINUX_DRAIN_ISOLATION??'same-process',childScopes,initialHealthMs,syncMs,sync,drainMs,drain,webhook,retry,syncReplay,sends,webhookSends,claims,modelCounts:[...modelCounts],provider,capacity:stage6CapacityStatus(),metrics:metrics.snapshot(),scopes:receiverScopeStatistics(),realProviderRequests}));
  assert.deepEqual(syncReplay,sync);assert.equal(sync.status,200);assert.equal(sync.body.syncComplete,true);assert.equal(sends.length,3);assert.equal(claims.length,3);assert.ok(claims.every(c=>c.delivery_state==='DELIVERED'&&c.delivery_attempts===1));assert.equal(webhook.status,200);assert.equal(retry.status,200);assert.equal(webhookSends.length,1);assert.equal(realProviderRequests,0);
  // Resource gates remain real assertions; diagnostic success is never a
  // capacity PASS when the DRAIN deadline or ordinary service response fails.

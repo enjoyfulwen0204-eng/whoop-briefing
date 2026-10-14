@@ -16,7 +16,7 @@ if(process.env.LINUX_SERVICE==='1'){
  const {seedMorningProvider}=await import('./stage6LinuxMorningFixture.mjs');await seedMorningProvider('file:/fixtures/morning.sqlite');morning=hranaTransport('file:/fixtures/morning.sqlite',{transactionMaxMs:5000});
 }
 const server=createServer(async(req,res)=>{try{
- if(req.method==='GET'&&req.url==='/counts'){res.setHeader('content-type','application/json');res.end(JSON.stringify({counts:transport.counts,evidence:transport.evidence,probes,morningCounts:morning?.counts}));return;}
+ if(req.method==='GET'&&req.url==='/counts'){res.setHeader('content-type','application/json');res.end(JSON.stringify({counts:transport.counts,evidence:transport.evidence,probes,morningCounts:morning?.counts,morningEvidence:morning?.evidence}));return;}
  if(req.method==='POST'&&req.url==='/probe/start'&&!probeActive){probeActive=true;probes=[];probePromise=(async()=>{while(probeActive){const at=performance.now();try{const r=await fetch('http://app:8081/health',{signal:AbortSignal.timeout(35000)});probes.push({elapsedMs:performance.now()-at,status:r.status});}catch(e){probes.push({elapsedMs:performance.now()-at,error:e.name});}await new Promise(r=>setTimeout(r,250));}})();res.end('{}');return;}
  if(req.method==='POST'&&req.url==='/probe/stop'){probeActive=false;await probePromise;res.end('{}');return;}
  if(req.method!=='POST'||!['/v2/pipeline','/morning/v2/pipeline'].includes(req.url)||req.url.startsWith('/morning')&&!morning){res.writeHead(404).end();return;}

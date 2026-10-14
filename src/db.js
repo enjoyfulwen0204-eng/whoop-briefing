@@ -1,3 +1,4 @@
+import {ownReceiverScopes,retireReceiverScopes} from './receiverScopeLifetime.js';
 import {verifyBodyEnergyTelegramReplyBoundary} from './bodyEnergyTelegramReplyBoundary.js';
 import {profileRevision} from './profileRevision.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
@@ -75,7 +76,11 @@ export function isDuplicateSentError(err) {
   return /UNIQUE constraint failed/i.test(String(err?.message ?? ''));
 }
 
-const privateClients=new WeakSet();
+const privateClients=new WeakSet(),stage6Bindings=new WeakMap(),stage6Memory=new WeakSet();
+const bindStage6Runtime=(db,base,keys)=>stage6Bindings.set(db,Object.freeze({base,keys}));
+export function stage6OwnedBinding(db){const b=stage6Bindings.get(db);if(!b||b.base.closed)throw Error('STAGE6_OWNED_RUNTIME_REQUIRED');return b;}
+export const isOwnedStage6Memory=db=>stage6Memory.has(db);
+const markStage6Memory=db=>stage6Memory.add(db);
 export function createDb({ url, authToken, phase4Keys,fetch }) {
   const providerFetch=fetch??globalThis.fetch;
   const pendingStreams=new Map();
@@ -98,8 +103,8 @@ export function createDb({ url, authToken, phase4Keys,fetch }) {
     try{return await abortableResponse(work,budget.signal);}
     catch(error){if(payload?.baton)void closeHranaStream(providerFetch,original,payload.baton,pendingFor(payload.baton)).catch(()=>{});throw error;}
   };
-  const client=createClient({url,authToken,fetch:boundedFetch});privateClients.add(client);
-  return composeDb(client,{phase4Keys});
+  const client=createClient({url,authToken,fetch:boundedFetch});privateClients.add(client);ownReceiverScopes(client);
+  const db=composeDb(client,{phase4Keys});bindStage6Runtime(db,client,phase4Keys);return db;
 }
 /** Owned file fixture/runtime seam: the constructor owns the native receiver;
  * unlike composeDb it never accepts a caller's reconnectable client. */
@@ -110,7 +115,7 @@ export function createOwnedFileDb({url,phase4Keys}){
   await client.execute(mode==='write'?'BEGIN IMMEDIATE':mode==='read'?'BEGIN DEFERRED':'BEGIN');
   return new Sqlite3Transaction(anchor,'number');
  };
- privateClients.add(client);return composeDb(client,{phase4Keys});
+ privateClients.add(client);ownReceiverScopes(client);const db=composeDb(client,{phase4Keys});bindStage6Runtime(db,client,phase4Keys);return db;
 }
 
 /** Internal composition seam: tests can own a named, shared-cache in-memory
@@ -1766,6 +1771,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     withRuntimeFence: processing.withFence,
     withProcessingReadSnapshot:processing.withReadSnapshot,
     assertRuntimeFences: processing.assertFences,
+    assertLocalRuntimeFences: processing.assertLocalFences,
     assertAccountActive,
     assertTelegramReplySnapshot,
     withAnswerOwnership,
@@ -1888,10 +1894,19 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
         }
       },
     }),
-    close: () => {endRuntimeLifetime(transactionClient);client.close();},
+    close: () => {endRuntimeLifetime(transactionClient);client.close();retireReceiverScopes(baseClient);},
   },processing.transaction);
 }
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Private RAM preparation uses the same native ownership/admission/stores. */
+export async function createStage6OwnedMemoryDb(seed,phase4Keys){
+ const anchor=new Database(':memory:'),client=new Sqlite3Client(':memory:',{},anchor,'number');
+ client.transaction=async(mode='write')=>{await client.execute(mode==='write'?'BEGIN IMMEDIATE':'BEGIN');return new Sqlite3Transaction(anchor,'number');};
+ privateClients.add(client);ownReceiverScopes(client);
+ try{await seed(client);const db=composeDb(client,{phase4Keys});markStage6Memory(db);return db;}
+ catch(error){client.close();retireReceiverScopes(client);throw error;}
 }

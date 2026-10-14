@@ -1,0 +1,17 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {AsyncLocalStorage} from 'node:async_hooks';
+import {ownReceiverScopes,shareReceiverScopes,registerReceiverScopes,retireReceiverScopes,receiverScopeStatistics} from '../src/receiverScopeLifetime.js';
+import {withExecutionBudget,currentExecutionBudget} from '../src/executionBudget.js';
+import {createExecutionBudget,abortable} from '../src/executionBudget.js';
+test('cancelled work retains its async context until actual cleanup finishes',async()=>{
+ const base={closed:false},scope=new AsyncLocalStorage(),budget=createExecutionBudget({budgetMs:1000});ownReceiverScopes(base);registerReceiverScopes(base,scope);
+ let release,entered;const gate=new Promise(r=>release=r),ready=new Promise(r=>entered=r);
+ const work=withExecutionBudget(budget,()=>scope.run('tenant-a',async()=>{entered();try{await abortable(gate,budget.signal);}catch(error){assert.equal(scope.getStore(),'tenant-a');assert.equal(currentExecutionBudget(),budget);assert.equal(error.code,'SYNC_CANCELLED');await gate;}}));
+ await ready;budget.cancel();base.closed=true;retireReceiverScopes(base);assert.equal(scope.enabled,true);release();await work;budget.close();assert.equal(scope.enabled,false);assert.equal(receiverScopeStatistics().activeCallbacks,0);
+});
+test('owned close waits for async callbacks; peer and global budget remain',async()=>{const a={closed:false},b={closed:false},s=new AsyncLocalStorage(),peer=new AsyncLocalStorage();ownReceiverScopes(a);ownReceiverScopes(b);registerReceiverScopes(a,s);registerReceiverScopes(b,peer);let release,ready;const gate=new Promise(r=>release=r),entered=new Promise(r=>ready=r),budget={test:'real-global-budget'};const before=receiverScopeStatistics();
+ const work=withExecutionBudget(budget,()=>s.run('private-a',()=>peer.run('private-b',async()=>{ready();await gate;assert.equal(s.getStore(),'private-a');assert.equal(peer.getStore(),'private-b');assert.equal(currentExecutionBudget(),budget);})));
+ await entered;a.closed=true;retireReceiverScopes(a);assert.equal(s.enabled,true);assert.ok(receiverScopeStatistics().activeCallbacks>=2);release();await work;assert.equal(s.enabled,false);assert.equal(peer.enabled,true);b.closed=true;retireReceiverScopes(b);assert.equal(receiverScopeStatistics().retired,before.retired+2);
+});
+test('premature/native close and exact aliases preserve ownership',()=>{const base={closed:false},alias={},scope=new AsyncLocalStorage();ownReceiverScopes(base);shareReceiverScopes(base,alias);registerReceiverScopes(alias,scope);assert.throws(()=>retireReceiverScopes(base),/RECEIVER_CONNECTION_NOT_CLOSED/);base.closed=true;retireReceiverScopes(base);retireReceiverScopes(alias);assert.throws(()=>scope.run('x',()=>1),/RECEIVER_OWNER_CLOSED/);});
+test('exception callback settles ownership before terminal retirement',async()=>{const base={closed:false},scope=new AsyncLocalStorage();ownReceiverScopes(base);registerReceiverScopes(base,scope);await assert.rejects(scope.run('x',async()=>{base.closed=true;retireReceiverScopes(base);throw Error('OWNED_CALLBACK_FAILED');}),/OWNED_CALLBACK_FAILED/);assert.equal(scope.enabled,false);assert.equal(receiverScopeStatistics().activeCallbacks,0);});
+test('unowned ordinary scopes remain untouched',()=>{const ordinary={closed:true},scope=new AsyncLocalStorage();scope.run('live',()=>{});registerReceiverScopes(ordinary,scope);retireReceiverScopes(ordinary);assert.equal(scope.enabled,true);scope.disable();});

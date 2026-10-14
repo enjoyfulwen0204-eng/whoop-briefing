@@ -1,10 +1,11 @@
 import {requireUserId} from './userContext.js';
 import {requirePhase4Keys} from './phase4Keys.js';
-import {databaseNowMs,withDurableExecution} from './phase4ExecutionContext.js';
-import {createExecutionBudget,withExecutionBudget} from './executionBudget.js';
+import {databaseNowMs,withDurableExecution,currentDurableExecution} from './phase4ExecutionContext.js';
+import {createExecutionBudget,withExecutionBudget,currentExecutionBudget} from './executionBudget.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {reviewedPilotAllowance,isReviewedPilotAllowance} from './betaPilotAllowance.js';
 import {log} from './logger.js';
+import {isStage6Memory} from './stage6RuntimeBinding.js';
 
 const COMPONENT='phase4_beta_pilot_permit_v1', HASH=/^[a-f0-9]{64}$/;
 export const PILOT_DURATION_MS=24*60*60_000;
@@ -14,6 +15,9 @@ const UNIT_KEYS=['rowsRead','rowsWritten','storageBytes','bytesSynced','microUsd
 const issuedGrants=new WeakMap(),submittedGrants=new WeakSet(),attemptScope=new AsyncLocalStorage();
 const issuedDatabases=new WeakMap(),prefixReadReservations=new WeakMap();
 const mutationReservations=new WeakMap(),issuedWorkProfiles=new WeakMap();
+const preparationScope=new AsyncLocalStorage(),publicationRules=new WeakMap();
+const workDenials=new WeakMap();
+const denyWork=(grant,reason)=>{workDenials.set(grant,reason);fail();};
 const originalWorkProfile=Object.freeze({version:'pilot-work-envelope-v1',prefixReadSets:32,mutations:128,mutationBytes:256*1024,receiptPrefixBytes:1024*1024});
 // A finite logical work profile for the original monitored allowance. This
 // does not supply admission, financial authority, a billing certificate or a
@@ -25,7 +29,36 @@ const closureScope=new AsyncLocalStorage();
 export const closingBetaPilotPermit=db=>Boolean(db?.raw)&&closureScope.getStore()===db.raw;
 const fail=()=>{throw Object.assign(Error('BETA_PILOT_DENIED'),{code:'BETA_PILOT_DENIED'});};
 export function requireBetaPilotGrant(grant,userId=grant?.userId,client){
- if(!grant||!issuedGrants.has(grant)||userId!==grant.userId||(client&&issuedGrants.get(grant)!==client))fail();grant.assertTime();return grant;
+ const prepared=preparationScope.getStore();
+ if(prepared&&(prepared.execution!==currentDurableExecution()||prepared.budget!==currentExecutionBudget()))fail();
+ if(!grant||!issuedGrants.has(grant)||userId!==grant.userId||(client&&issuedGrants.get(grant)!==client
+   &&!(prepared?.grant===grant&&prepared.db.raw===client)))fail();grant.assertTime();return grant;
+}
+export async function withPilotPreparedReceiver(grant,parentClient,db,coverage,work){
+ if(!isStage6Memory(db)||preparationScope.getStore()||attemptScope.getStore()!==grant)fail();
+ const {assertPreparedReceiverCoverage}=await import('./stage6ShortPublication.js');
+ requireBetaPilotGrant(grant,grant?.userId,parentClient);assertPreparedReceiverCoverage(coverage,db,grant,parentClient);
+ return preparationScope.run({grant,db,coverage,execution:currentDurableExecution(),budget:currentExecutionBudget(),covered:new Set()},work);
+}
+const workDatabase=(grant,client)=>{
+ const prepared=preparationScope.getStore();
+ return prepared?.grant===grant&&prepared.db.raw===client?prepared.db:issuedDatabases.get(grant);
+};
+export function reserveStage6SnapshotReads(grant,client,count){
+ if(attemptScope.getStore()!==grant||!Number.isSafeInteger(count)||count<1||!currentExecutionBudget()||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().claim.request.executionMode!=='SHADOW')fail();
+ requireBetaPilotGrant(grant,grant.userId,client);
+ const used=prefixReadReservations.get(grant)??0;
+ if(used+count>issuedWorkProfiles.get(grant).prefixReadSets)fail();
+ prefixReadReservations.set(grant,used+count);
+}
+export function pilotWorkUsage(grant,client){requireBetaPilotGrant(grant,grant?.userId,client);return {prefixReadSets:prefixReadReservations.get(grant)??0,...(mutationReservations.get(grant)??{operations:0,bytes:0}),...(workDenials.has(grant)?{deniedBoundary:workDenials.get(grant)}:{})};}
+export function pilotPublicationFence(grant,client){
+ requireBetaPilotGrant(grant,grant?.userId,client);const rule=publicationRules.get(grant);if(!rule||attemptScope.getStore()!==grant)fail();
+ return {deadlineAt:rule.endAt,statement:{sql:`SELECT json(CASE WHEN ${databaseNowMs}>=? AND ${databaseNowMs}<?
+  AND EXISTS(SELECT 1 FROM users u JOIN user_onboarding o ON o.user_id=u.id WHERE u.id=? AND u.status='ACTIVE' AND u.lifecycle_generation=? AND o.state='READY')
+  AND EXISTS(SELECT 1 FROM system_heartbeats WHERE scope='global' AND component=? AND json_extract(last_detail,'$.fingerprint')=?
+    AND json_extract(last_detail,'$.closed')=0 AND json_extract(last_detail,'$.endAt')=? AND json_extract(last_detail,'$.attempts')>=?)
+  THEN 'true' ELSE 'STAGE6_PILOT_PUBLICATION_REVOKED' END)`,args:[rule.floor(),rule.endAt,grant.userId,rule.lifecycleGeneration,rule.component,rule.fingerprint,rule.endAt,grant.attempt]}};
 }
 export async function withBetaPilotAttempt(grant,userId,work){
  try{requireBetaPilotGrant(grant,userId);}catch(error){if(issuedGrants.has(grant))await grant.settleInvalidation();throw error;}
@@ -34,17 +67,24 @@ export async function withBetaPilotAttempt(grant,userId,work){
  return attemptScope.run(grant,work);
 }
 export function requireCurrentBetaPilotAttempt(userId,client){return requireBetaPilotGrant(attemptScope.getStore(),userId,client);}
+export function hasCurrentBetaPilotAttempt(userId,client){if(!attemptScope.getStore())return false;requireCurrentBetaPilotAttempt(userId,client);return true;}
 export function currentPilotWorkProfile(userId,client){return issuedWorkProfiles.get(requireCurrentBetaPilotAttempt(userId,client));}
 
 /** Logical prefix-work envelope only, NOT provider billed units or a dollar
  * certificate. The durable attempt was already consumed; failed/denied reads
  * never refund its slot or these reservations. Ordinary work has no pilot scope. */
-export function reservePilotPrefixRead(context,client){
+export function reservePilotPrefixRead(context,client,prefixIdentity){
  const grant=attemptScope.getStore();if(!grant)return false;
  requireBetaPilotGrant(grant,context?.userId,client);
- if(context.executionMode!=='SHADOW'||!issuedDatabases.get(grant)?.processingTransactionActive?.())fail();
+ if(context.executionMode!=='SHADOW'||!workDatabase(grant,client)?.processingTransactionActive?.())fail();
+ const prepared=preparationScope.getStore();
+ if(prepared?.grant===grant&&prepared.db.raw===client){
+  if(typeof prefixIdentity!=='string')fail();
+  const key=JSON.stringify([context.userId,context.executionMode,context.inputGeneration,context.sourceGeneration,context.purgeGeneration,prefixIdentity]);
+  prepared.covered.add(key);if(prepared.covered.size>issuedWorkProfiles.get(grant).prefixReadSets)denyWork(grant,'PREPARED_DISTINCT_PREFIX_LIMIT');return true;
+ }
  const used=prefixReadReservations.get(grant)??0;
- if(used>=issuedWorkProfiles.get(grant).prefixReadSets)fail();
+ if(used>=issuedWorkProfiles.get(grant).prefixReadSets)denyWork(grant,'REMOTE_PREFIX_LIMIT');
  prefixReadReservations.set(grant,used+1);return true;
 }
 
@@ -54,7 +94,7 @@ export function reservePilotPrefixRead(context,client){
 export function reservePilotMutation(context,client,values){
  const grant=attemptScope.getStore();if(!grant)return false;
  requireBetaPilotGrant(grant,context?.userId,client);
- if(context.executionMode!=='SHADOW'||!issuedDatabases.get(grant)?.processingTransactionActive?.()
+ if(context.executionMode!=='SHADOW'||!workDatabase(grant,client)?.processingTransactionActive?.()
   ||!Array.isArray(values)||values.length>256)fail();
  let bytes=64;
  for(const value of values){
@@ -64,7 +104,7 @@ export function reservePilotMutation(context,client,values){
  }
  const used=mutationReservations.get(grant)??{operations:0,bytes:0};
  const limits=issuedWorkProfiles.get(grant);
- if(!Number.isSafeInteger(bytes)||used.operations>=limits.mutations||used.bytes+bytes>limits.mutationBytes)fail();
+ if(!Number.isSafeInteger(bytes)||used.operations>=limits.mutations||used.bytes+bytes>limits.mutationBytes)denyWork(grant,'MUTATION_LIMIT');
  mutationReservations.set(grant,{operations:used.operations+1,bytes:used.bytes+bytes});return true;
 }
 
@@ -269,6 +309,7 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
     const grant=Object.freeze({userId:config.userId,attempt:attempts,assertTime,
      settleInvalidation:()=>locallyClosed?persistClosure():undefined,
      assert:async client=>{
+      if(closingBetaPilotPermit(db))return;
       if(performance.now()>=deadline){await invalidate(grantEndAt);fail();}
       const observed=await assert(client);
       // A slow response cannot carry authority past the original deadline,
@@ -277,6 +318,7 @@ export function createBetaPilotPermit({db,keys,config,reservation}={}) {
       if(locallyClosed)fail();return observed;
      }});
     issuedGrants.set(grant,db.raw);issuedDatabases.set(grant,db);
+    publicationRules.set(grant,{endAt:grantEndAt,floor:()=>latestObservedAt,lifecycleGeneration:stateBefore.lifecycleGeneration,component,fingerprint});
     issuedWorkProfiles.set(grant,allowance?MONITORED_BODY_WORK_PROFILE:originalWorkProfile);return grant;
    });
    if(!result)fail();

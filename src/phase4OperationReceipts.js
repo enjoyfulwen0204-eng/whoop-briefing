@@ -1,3 +1,4 @@
+import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import { compareExact } from './phase4CanonicalOrder.js';
 import { isRequestSet, isRequestTime, isJournalRequestSet, normalizeRequestAliases, requestEvidenceIds } from './phase4RequestContract.js';
@@ -77,7 +78,7 @@ export function createOperationReceipts(core) {
   const newMetricDomains=new WeakMap();
   const routing=core.schemaVersion>=29?createReceiptRouting(client,keys):null;
   const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,keys):null;
-  const producerScope=new AsyncLocalStorage();
+  const producerScope=new AsyncLocalStorage();registerReceiverScopes(client,producerScope);
   const refreshAuthority=createInsightRefreshAuthority(core,{authenticate,authorities,
     validateEvidence:(context,id)=>forArtifact(context,'evidence_items',{evidence_item_id:id})});
   const metricRefresh=createMetricRefreshAuthority(core,{authenticate,authorities,
@@ -1024,7 +1025,9 @@ export function createOperationReceipts(core) {
         if(Buffer.byteLength(row[field])>4194304)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
       row.receipt_hmac=seal(row);
       reservePilotMutation(context,client,Object.values(row));
-      await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode],'',true);
+      if(core.schemaVersion===32&&core.jobAuthority()&&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN')
+        await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode,kind,key]);
+      else await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode],'',true);
       const routedSubjects=routing?await routing.register(row,{request:requestAuthority,related:encoded.related},
         {batchNew:Boolean(bodyMetricPurpose&&kind==='analyzeMetric')||rawMetric}):[];
       const fields=Object.keys(row);

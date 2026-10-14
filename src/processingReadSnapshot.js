@@ -56,6 +56,16 @@ export function createReadSnapshotMemo(){
     rows.set(key,snapshot);contexts.set(context,rows);entries++;bytes+=size;
    }catch{/* A result outside this narrow clone shape is simply not reused. */}
   },
+  getData(context,key){const data=contexts.get(context)?.get('data:'+key)?.prefixData;return !closed&&data?structuredClone(data):undefined;},
+  putData(context,key,data,observedEpoch){
+   if(closed||epoch!==observedEpoch||entries>=READ_SNAPSHOT_LIMITS.entries||!Array.isArray(data?.rows)
+    ||data.rows.length>READ_SNAPSHOT_LIMITS.rows||Buffer.byteLength(key)>READ_SNAPSHOT_LIMITS.keyBytes)return;
+   try{const size=Buffer.byteLength(JSON.stringify(data),'utf8')+Buffer.byteLength(key,'utf8');
+    if(size>READ_SNAPSHOT_LIMITS.resultBytes||bytes+size>READ_SNAPSHOT_LIMITS.bytes)return;
+    const rows=contexts.get(context)??new Map(),dataKey='data:'+key;if(rows.has(dataKey))return;
+    rows.set(dataKey,{prefixData:structuredClone(data)});contexts.set(context,rows);entries++;bytes+=size;
+   }catch{/* Non-canonical or oversize DATA is not reused. */}
+  },
   clear(){contexts.clear();entries=0;bytes=0;epoch++;},
   close(){this.clear();closed=true;},
  };

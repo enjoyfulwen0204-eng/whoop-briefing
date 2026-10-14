@@ -1,9 +1,11 @@
+import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
+import {currentExecutionBudget} from './executionBudget.js';
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import {readOnlyProcessingCheck} from './processingTransaction.js';
 import {workStepOptions} from './phase4WorkStep.js';
-import {controlOnlyProcessingCheck,processingReadObservationEpoch} from './processingTransaction.js';
+import {coalescibleControlProcessingCheck,controlOnlyProcessingCheck,processingReadObservationEpoch} from './processingTransaction.js';
 import { compareExact } from './phase4CanonicalOrder.js';
-import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
+import {readPilotSourceLinkRows,pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import { coverageLineage } from './phase4CoverageLineage.js';
 /** Internal persistence kernel. No application entry point imports this module
  * directly. The public Foundation factory supplies SHADOW-only authority;
@@ -65,10 +67,10 @@ function compareRootObservation(context,type,id,values){
  * A JSON object, a context from another connection, or a changed mode is not a
  * capability. Authority is supplied only by the owning server/fixture factory. */
 export async function buildPhase4Core({processing,keys,admission,authorizeMode:modeAuthority,now=()=>new Date()}) {
-  const jobScope=new AsyncLocalStorage();
+  const jobScope=new AsyncLocalStorage(),terminalControlChecks=new WeakMap();
   requirePhase4Keys(keys);
   if(typeof modeAuthority!=='function' || typeof processing?.transaction!=='function')fail('PHASE4_SERVER_FACTORY_REQUIRED');
-  const {client,transaction}=processing;
+  const {client,transaction}=processing;registerReceiverScopes(client,jobScope);
   // The frozen Stage 5 composition remains usable on v27. A Stage 6 worker
   // must separately require v28; unsupported versions still fail closed.
   const schemaVersion=admission ? requireRuntimeAdmission(client,admission,keys,transaction)
@@ -196,7 +198,13 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   }
   async function run(context,fn,options={}) {
     const job=jobScope.getStore();
-    const check=controlOnlyProcessingCheck(async()=>{
+    const coalescible=schemaVersion===32&&job&&context.executionMode==='SHADOW'
+      &&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
+      &&['allowPurge','allowInactive','ignoreInput'].every(key=>options[key]===undefined||options[key]===false);
+    const prior=coalescible?terminalControlChecks.get(context)?.get(job.check):null,execution=currentDurableExecution(),budget=currentExecutionBudget();
+    const cached=prior?.execution===execution&&prior?.budget===budget?prior.check:null;
+    const controlOptions=coalescible?Object.freeze({allowPurge:false,allowInactive:false,ignoreInput:false}):options;
+    const check=cached??controlOnlyProcessingCheck(async()=>{
       // Explicitly bracket coalesced metadata checks with their enclosing
       // runtime guards: read-only checking suppresses recursive interception,
       // but must retain fresh permit/configuration checks before and after.
@@ -206,12 +214,14 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       // the health callback or any mutation/COMMIT can proceed.
       const observations=await Promise.allSettled([
         Promise.resolve().then(()=>processing.assertFences?.()),
-        Promise.resolve().then(()=>assertContext(context,options)),
+        Promise.resolve().then(()=>assertContext(context,controlOptions)),
         ...(job?[Promise.resolve().then(()=>job.check(context))]:[]),
       ]);
       for(const result of observations)if(result.status==='rejected')throw result.reason;
       await processing.assertFences?.();
     });
+    if(coalescible&&!cached){coalescibleControlProcessingCheck(check);const checks=terminalControlChecks.get(context)??new WeakMap();
+      checks.set(job.check,{check,execution,budget});terminalControlChecks.set(context,checks);}
     const work=()=>transaction(()=>fn(context),{readOnly:options.workStep===undefined&&options.workStepFrom===undefined,...options,before:check,after:check,...(job?{commitFence:check}:{})});
     return processing.withReadSnapshot?processing.withReadSnapshot(context,work):work();
   }
@@ -500,11 +510,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
     if(verified.has(node))return;
     path.add(node);
     const logical=['observation_episodes','health_insights'].includes(table);
-    const from=await pilotPrefixFrom(client,context,'phase4_source_links',[context.userId,context.executionMode,table,artifactId]);
-    const links=(await client.execute({sql:`SELECT source_execution_mode,source_type,source_id,relationship FROM ${from}
-      WHERE user_id=? AND artifact_execution_mode=? AND artifact_type=? AND artifact_id=? AND unlinked_at IS NULL
-      ${logical?'AND relationship=?':''}`,
-    args:[context.userId,context.executionMode,table,artifactId,...(logical?[`INPUT_GENERATION:${context.inputGeneration}`]:[])]})).rows;
+    const links=await readPilotSourceLinkRows(client,context,table,artifactId,logical);
     if(!links.length)fail('PHASE4_INCOMPLETE_PROVENANCE');
     for(let index=0;index<links.length;index++) {
       const link=links[index];

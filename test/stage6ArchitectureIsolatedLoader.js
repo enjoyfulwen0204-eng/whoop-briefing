@@ -1,8 +1,8 @@
 // Evaluation only: loaded by the explicit isolated test preloader, never runtime.
 import {readFileSync} from 'node:fs';
-let root,wallMs,leaseMs,patches,lateProfile,retainRamScopes;
+let root,wallMs,leaseMs,patches,lateProfile,retainRamScopes,runtimeIntegrated;
 export function initialize(data){
- retainRamScopes=data.retainRamScopes;lateProfile=data.lateProfile;root=data.root;wallMs=data.wallMs;leaseMs=data.leaseMs;
+ runtimeIntegrated=data.runtimeIntegrated;retainRamScopes=data.retainRamScopes;lateProfile=data.lateProfile;root=data.root;wallMs=data.wallMs;leaseMs=data.leaseMs;
  if(data.prototype){
   const allowed=new Set(['betaPilotBoundedReads.js','betaPilotPermit.js','phase4Core.js','phase4OperationReceipts.js','phase4ReanalysisQueue.js','processingReadSnapshot.js','processingTransaction.js']);
   patches=new Map();let file,hunk;
@@ -33,7 +33,7 @@ export async function load(url,context,nextLoad){
  }
  `;
 
- for(const hunk of patches?.get(file)??[]){const before=hunk.before.join('\n')+'\n',after=hunk.after.join('\n')+'\n';if(source.indexOf(before)<0||source.indexOf(before)!==source.lastIndexOf(before))throw Error('ISOLATED_PROTOTYPE_SOURCE_MISMATCH');source=source.replace(before,after);}
+ for(const hunk of runtimeIntegrated?[]:patches?.get(file)??[]){const before=hunk.before.join('\n')+'\n',after=hunk.after.join('\n')+'\n';if(source.includes(after))continue;if(source.indexOf(before)<0||source.indexOf(before)!==source.lastIndexOf(before))throw Error('ISOLATED_PROTOTYPE_SOURCE_MISMATCH');source=source.replace(before,after);}
  const replace=(before,after)=>{if(!source.includes(before))throw Error('ISOLATED_PROFILE_SOURCE_MISMATCH');source=source.replace(before,after);};
  if(patches&&['db.js','processingTransaction.js','phase4Core.js','phase4OperationReceipts.js','legacyHealthAdapter.js'].includes(file)){
   source=`import * as _ramScopes from '${new URL('./stage6RamScopeLifetime.mjs',import.meta.url).href}';\n`+source;
@@ -71,7 +71,7 @@ export async function load(url,context,nextLoad){
   replace('const value=await readOnlyWork.run(true,read);',"if(globalThis.__stage6PrefixStats)globalThis.__stage6PrefixStats.misses++;const value=await readOnlyWork.run(true,read);");
  }
  if(url===root+'betaPilotBoundedReads.js')replace("||result.invalid_types!==0||result.candidate_count>PILOT_PREFIX_MAX_ROWS||result.serialized_bytes>maxBytes)denied();","||result.invalid_types!==0||result.candidate_count>PILOT_PREFIX_MAX_ROWS||result.serialized_bytes>maxBytes){console.log('ISOLATED_PREFIX_BOUNDS '+JSON.stringify({table:spec.table,index:spec.index,prefix:spec.prefix,count:result.candidate_count,bytes:result.serialized_bytes,invalidTypes:result.invalid_types,maxBytes}));denied();}");
- if(url===root+'betaPilotPermit.js')replace('if(used>=issuedWorkProfiles.get(grant).prefixReadSets)fail();',"if(used>=issuedWorkProfiles.get(grant).prefixReadSets){console.log('ISOLATED_PREFIX_EXHAUSTED '+JSON.stringify({used,limit:issuedWorkProfiles.get(grant).prefixReadSets,profile:issuedWorkProfiles.get(grant).version}));fail();}");
+ if(!runtimeIntegrated&&url===root+'betaPilotPermit.js')replace('if(used>=issuedWorkProfiles.get(grant).prefixReadSets)fail();',"if(used>=issuedWorkProfiles.get(grant).prefixReadSets){console.log('ISOLATED_PREFIX_EXHAUSTED '+JSON.stringify({used,limit:issuedWorkProfiles.get(grant).prefixReadSets,profile:issuedWorkProfiles.get(grant).version}));fail();}");
  if(url===root+'betaPilotPermit.js')replace('prefixReadReservations.set(grant,used+1);return true;',"prefixReadReservations.set(grant,used+1);if(globalThis.__stage6PrefixStats)globalThis.__stage6PrefixStats.reservations++;return true;");
  return {...result,source};
 }

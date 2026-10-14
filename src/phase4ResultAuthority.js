@@ -7,7 +7,7 @@ import {addPrivacyLinks} from './phase4V22Backfill.js';
 import { RESULT_AUTHORITY_TABLE as TABLE, RESULT_AUTHORITY_VERSION as VERSION, RESULT_ROOT_VERSION } from './phase4V26Schema.js';
 import { createBodyEnergyStore,requireNewBodySourceCapture } from './bodyEnergyStore.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
-import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
+import {pilotResultAuthorityFrom} from './betaPilotBoundedReads.js';
 import {requireMetricUnitProof} from './phase4MetricUnitReceipt.js';
 import {requireBodyMetricPreparationCapture,requireOwnedBodyMetricPurpose,currentOwnedBodyMetricObservation} from './phase4IntelligenceStore.js';
 import {processingReadObservationEpoch} from './processingTransaction.js';
@@ -211,7 +211,7 @@ export function createResultAuthority(core) {
       try{audit=body.auditPlan(bodySource.row);}catch{}
       let existing=[],authorityError;
       try{
-        const authorityFrom=await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode]);
+        const authorityFrom=await pilotResultAuthorityFrom(client,context,itemSource.row.evidence_item_id);
         existing=(await client.execute({sql:`SELECT * FROM ${authorityFrom} WHERE user_id=? AND execution_mode=? AND evidence_item_id=?`,
           args:[context.userId,context.executionMode,itemSource.row.evidence_item_id]})).rows;
       }catch(error){authorityError=error;}
@@ -481,7 +481,7 @@ export function createResultAuthority(core) {
   }
   async function read(context,evidenceItemId,scope) {
     return core.run(context,async()=>{
-      const from=await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode]);
+      const from=await pilotResultAuthorityFrom(client,context,evidenceItemId,scope);
       const row=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope=?`,
         args:[context.userId,context.executionMode,evidenceItemId,scope]})).rows[0];
       if(!row)fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');
@@ -516,7 +516,7 @@ export function createResultAuthority(core) {
     if(oldItem?.evidence_item_id!==selected.itemId||oldItem.run_id!==selected.runId||oldItem.item_key!==selected.itemKey)invalid();
     return core.run(context,async()=>{
       await assertFreshContextAndWorkOwner(core,context);requireSettledOperation();
-      const from=await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode]);
+      const from=await pilotResultAuthorityFrom(client,context,selected.itemId,'METRIC');
       const row=(await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
         args:[context.userId,context.executionMode,selected.itemId]})).rows[0];
       if(!row)fail('PHASE4_EVIDENCE_RESULT_AUTHORITY_UNAVAILABLE');verifyEnvelope(context,row);
@@ -589,7 +589,7 @@ export function createResultAuthority(core) {
     record.authority_hmac=seal(record);
     const fields=Object.keys(record);
     reservePilotMutation(context,client,fields.map(k=>record[k]));
-    await pilotPrefixFrom(client,context,TABLE,[context.userId,context.executionMode]);
+    await pilotResultAuthorityFrom(client,context,item.row.evidence_item_id,scope);
     await client.execute({sql:`INSERT INTO ${TABLE}(${fields.join(',')}) VALUES (${fields.map(()=>'?').join(',')})`,args:fields.map(k=>record[k])});
     await addPrivacyLinks(client,[...roots.roots,{type:'evidence_items',id:item.row.privacy_artifact_id,mode:context.executionMode,as_of:null}]
       .map(source=>({userId:context.userId,mode:context.executionMode,table:TABLE,artifactId:envelope.privacy_artifact_id,

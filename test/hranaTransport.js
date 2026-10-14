@@ -62,7 +62,10 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=I
     return result;
    }
   }
-  const result=await stream.client.execute({sql,args});
+  let result;try{result=await stream.client.execute({sql,args});}catch(e){
+   evidence.push({event:'sql_error',template,code:e.code??'SYNTHETIC_TRANSPORT_ERROR',assertionLabel:/ELSE '([A-Z0-9_]+)'/.exec(sql)?.[1],table:/FROM "?([a-z0-9_]+)"?/i.exec(sql)?.[1],expectedRows:sql.includes('SHORT_TRANSACTION_ZERO_ROW_REJECTED')?Number(args[0]):undefined,prior:stream.priorStatement});throw e;
+  }
+  stream.priorStatement={template,prefix:sql.slice(0,180),rowsAffected:result.rowsAffected,...(/^DELETE FROM resource_locks/.test(sql)?{lockFamily:String(args[0]).split(':')[0]}:{})};
   if(/^\s*BEGIN\b/i.test(sql)){stream.inTransaction=true;stream.transactionStartedAt=Date.now();}
   if(/^\s*(COMMIT|ROLLBACK)\b/i.test(sql))stream.inTransaction=false;
   return result;

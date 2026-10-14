@@ -1,3 +1,4 @@
+import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { requireUserId } from './userContext.js';
@@ -23,7 +24,7 @@ const CANONICAL_BATCHES=Object.freeze({upsertSleeps:'whoop_sleeps',upsertRecover
  * R predicate. There is no persisted view, schema mutation, or SQL from input.
  * Writes and their provenance are enclosed by the existing processing TX. */
 export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
-  const calls=new AsyncLocalStorage(),shapes=new Map();
+  const calls=new AsyncLocalStorage(),shapes=new Map();registerReceiverScopes(client,calls);
   const quoted=table=>new RegExp(`\\b${table}\\b`,'i');
   async function shape(table) {
     if(!shapes.has(table))shapes.set(table,(await client.execute(`PRAGMA table_info(${table})`)).rows);

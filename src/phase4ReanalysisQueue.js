@@ -106,9 +106,14 @@ export function createReanalysisQueue(core) {
       ||row.claimed_auth_generation!==b.authGeneration)fail('PHASE4_LEASE_CAS_LOST');
     return row;
   }
-  const withOwnership=(context,lease,fn,{assertBudget=()=>{}}={})=>core.withJobFence(lease.binding,async activeContext=>{
-    assertBudget();if(activeContext!==context)fail('PHASE4_LEASE_SCOPE_MISMATCH');await check(context,lease,{ownershipOnly:true});
-  },fn);
+  const withOwnership=(context,lease,fn,{assertBudget=()=>{}}={})=>{
+    const state=leases.get(lease),checks=state?.context===context?(state.ownershipChecks??=new WeakMap()):null;
+    let ownerCheck=checks?.get(assertBudget);
+    if(!ownerCheck){ownerCheck=async activeContext=>{
+      assertBudget();if(activeContext!==context)fail('PHASE4_LEASE_SCOPE_MISMATCH');await check(context,lease,{ownershipOnly:true});
+    };checks?.set(assertBudget,ownerCheck);}
+    return core.withJobFence(lease.binding,ownerCheck,fn);
+  };
   const owned=(context,lease,fn,{assertBudget=()=>{},workKind,workFacts}={})=>withOwnership(context,lease,
     ()=>core.run(context,fn,workKind?workStepOptions(workKind,[context.userId,context.executionMode,lease.binding.jobKind,
     lease.binding.requestedGeneration,lease.binding.scopeRevision,workFacts],{discardResult:true}):{readOnly:true}),{assertBudget});

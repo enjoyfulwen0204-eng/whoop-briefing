@@ -1,3 +1,4 @@
+import {createStage6CapacityWorker} from './stage6CapacityRuntime.js';
 import { requireUserId } from './userContext.js';
 import { requirePhase4Keys } from './phase4Keys.js';
 import { createPhase4Foundation } from './phase4Foundation.js';
@@ -131,7 +132,8 @@ export async function createPublicBetaRuntime({ db, keys, admission, executionMo
     admission = await db.admitRuntime();
   const stage6Capability = authorizeStage6ShadowWorker({ executionMode: 'SHADOW' });
   const [worker, stores] = await Promise.all([
-    createPhase4Stage6({ db, keys, admission, executionMode: 'SHADOW', workerCapability: stage6Capability,pilotGrant }),
+    db.raw.protocol==='file'?createPhase4Stage6({ db, keys, admission, executionMode: 'SHADOW', workerCapability: stage6Capability,pilotGrant })
+      :createStage6CapacityWorker({db,keys,admission,pilotGrant}),
     createPhase4Foundation({ db, keys, admission }),
   ]);
   return Object.freeze({ phase4Stage6: worker,

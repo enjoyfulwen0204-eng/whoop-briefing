@@ -1,12 +1,13 @@
+import {registerReceiverScopes,shareReceiverScopes} from './receiverScopeLifetime.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { currentExecutionBudget,ExecutionBudgetError } from './executionBudget.js';
-import {prepareExecutionReceipt,appendPreparedExecutionReceipt,withExecutionReceiptTransaction,currentDurableExecution,CommitIndeterminateError,requireSettledOperation,readWorkStep,databaseNowMs} from './phase4ExecutionContext.js';
+import {prepareExecutionReceipt,appendPreparedExecutionReceipt,withExecutionReceiptTransaction,currentDurableExecution,currentExecutionReceiptTransactionMarker,CommitIndeterminateError,requireSettledOperation,readWorkStep,databaseNowMs} from './phase4ExecutionContext.js';
 import {inRuntimeMetadata} from './runtimeMetadataContext.js';
 import {reconcileExecution} from './phase4ExecutionStore.js';
 import {inExecutionCoordination} from './phase4Coordination.js';
 import {createReadSnapshotMemo,readSnapshotKey} from './processingReadSnapshot.js';
-const readOnlyChecks=new WeakSet(),controlOnlyChecks=new WeakSet();
+const readOnlyChecks=new WeakSet(),controlOnlyChecks=new WeakSet(),coalescibleControlChecks=new WeakSet();
 const readObservationChecks=new WeakMap();
 // A server fence may overlap its fresh durable metadata with a private raw
 // DATA observation after its synchronous configuration/budget/expiry bracket.
@@ -15,7 +16,8 @@ export function readObservationProcessingCheck(check,localCheck){
  if(typeof check!=='function'||typeof localCheck!=='function')throw Error('PROCESSING_READ_OBSERVATION_CHECK_REQUIRED');
  readObservationChecks.set(check,localCheck);return check;
 }
-const observationEpochs=new WeakMap();
+const observationEpochs=new WeakMap(),prefixDataReaders=new WeakMap();
+export const processingPrefixReadData=(client,context,key,read,grant)=>prefixDataReaders.get(client)?.(context,key,read,grant)??read();
 // Data lifetime only, never a permit or successful guard observation. Closed
 // typed readers reject their raw union if an intervening business write clears
 // the existing transaction-local data snapshot while reads are settling.
@@ -24,6 +26,7 @@ export function readOnlyProcessingCheck(check){readOnlyChecks.add(check);return 
 // Only trusted server checks consisting of non-health control observations
 // and explicit runtime brackets use this narrower transport composition.
 export function controlOnlyProcessingCheck(check){controlOnlyChecks.add(check);return readOnlyProcessingCheck(check);}
+export function coalescibleControlProcessingCheck(check){coalescibleControlChecks.add(check);return controlOnlyProcessingCheck(check);}
 const syncRuntimeChecks=new WeakSet();
 // Eligibility only: this does not alter original runChecks ordering or suppress
 // any guard. The SYNC composition's runtime check remains first and sequential.
@@ -99,6 +102,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
   const invalidateReadMemos=()=>{for(const memo of activeReadMemos)memo.close();};
   const readOnlyWork=new AsyncLocalStorage();
   const fenceScope = new AsyncLocalStorage(), checking = new AsyncLocalStorage();
+  registerReceiverScopes(base,scope,readScope,readOnlyWork,fenceScope,checking);
   const fences = () => checking.getStore() ? [] : (fenceScope.getStore() ?? []);
   async function runChecks(checks,client){
     const fn=value=>typeof value==='function'?value:value.check;
@@ -294,7 +298,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
           ]);
           for(const result of observations)if(result.status==='rejected')throw result.reason;
         }else if (before) await runChecks([before],client);
-        if (after) parent.checks.push(after);
+        if (after&&(!coalescibleControlChecks.has(after)||parent.checks.at(-1)!==after)) parent.checks.push(after);
         if (beforeCommit) parent.finalChecks.push(beforeCommit);
         if (commitFence) parent.commitFences.add(commitFence);
         if (commitAuthority) parent.commitAuthorities.add(commitAuthority);
@@ -460,10 +464,41 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     if(state){state.completed.push(fn);return;}
     return fn();
   }
+  prefixDataReaders.set(client,async(context,key,read,grant)=>{
+    const state=scope.getStore(),execution=currentDurableExecution(),marker=currentExecutionReceiptTransactionMarker();
+    if(!marker||!privateRuntime||!state?.tx||readScope.getStore()!==context||state.readBudget!==currentExecutionBudget()
+      ||state.readExecution!==execution||execution?.claim?.request?.phase!=='STAGE6_DRAIN'
+      ||execution.claim.request.executionMode!=='SHADOW')return read();
+    if(state.failure)throw state.failure;
+    try{
+      requireSettledOperation();currentExecutionBudget()?.assert();execution.authority.assert();
+      const markers=state.prefixDataMarkers??=new WeakMap();let markerId=markers.get(marker);
+      if(markerId===undefined){markerId=state.prefixDataMarkerSequence=(state.prefixDataMarkerSequence??0)+1;markers.set(marker,markerId);}
+      const grants=state.prefixDataGrants??=new WeakMap();let grantId=grant?grants.get(grant):0;
+      if(grant&&grantId===undefined){grantId=state.prefixDataGrantSequence=(state.prefixDataGrantSequence??0)+1;grants.set(grant,grantId);}
+      const scopedKey=JSON.stringify([grantId,markerId,key]),epoch=state.readMemo.epoch(),data=state.readMemo.getData(context,scopedKey);
+      if(data!==undefined){
+        // Preserve the two fresh processing/runtime/permit brackets that the
+        // original probe and full payload execute() calls performed.
+        await checkFences(client);await checkFences(client);
+        currentExecutionBudget()?.assert();execution.authority.assert();requireSettledOperation();
+        if(state.failure)throw state.failure;
+        if(epoch!==state.readMemo.epoch()||marker!==currentExecutionReceiptTransactionMarker())throw Error('PROCESSING_READ_OBSERVATION_CHANGED');
+        return data;
+      }
+      const value=await readOnlyWork.run(true,read);
+      currentExecutionBudget()?.assert();execution.authority.assert();requireSettledOperation();
+      if(state.failure)throw state.failure;
+      if(epoch!==state.readMemo.epoch()||marker!==currentExecutionReceiptTransactionMarker())throw Error('PROCESSING_READ_OBSERVATION_CHANGED');
+      state.readMemo.putData(context,scopedKey,value,epoch);
+      return value;
+    }catch(error){state.failure=error;throw error;}
+  });
   observationEpochs.set(client,()=>scope.getStore()?.readMemo.epoch()??null);
   const readOnlyTransaction=fn=>{
     if(scope.getStore())throw Error('PROCESSING_READ_ONLY_ROOT_REQUIRED');
     return transaction(()=>{scope.getStore().preparationReadOnly=true;return readOnlyWork.run(true,fn);},{readOnly:true});
   };
-  return { client, transaction,readOnlyTransaction,withReadSnapshot:(context,fn)=>privateRuntime?readScope.run(context,fn):fn(),assertFences:()=>checkFences(client),setLifetimeEnding:fn=>{lifetimeEnding=fn;}, setRootAdmission:fn=>{rootAdmission=fn;},setReconnectAdmission:fn=>{reconnectAdmission=fn;}, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
+  shareReceiverScopes(base,client);
+  return { client, transaction,readOnlyTransaction,withReadSnapshot:(context,fn)=>privateRuntime?readScope.run(context,fn):fn(),assertFences:()=>checkFences(client),assertLocalFences:()=>{for(const check of fenceScope.getStore()??[]){const local=readObservationChecks.get(check);if(!local)throw Error('PREPARATION_FENCE_UNSUPPORTED');local();}},setLifetimeEnding:fn=>{lifetimeEnding=fn;}, setRootAdmission:fn=>{rootAdmission=fn;},setReconnectAdmission:fn=>{reconnectAdmission=fn;}, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
 }

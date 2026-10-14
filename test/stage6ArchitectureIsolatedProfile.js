@@ -3,7 +3,7 @@ import {realpathSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 // Explicit Node test entrypoints only. An added filename argument cannot opt in.
-const allowed=['stage6-raw-capacity-profile.test.js','stage6-architecture-six-job.mjs','stage6-prefix-data-prototype.mjs'];
+const allowed=['stage6-short-crash-child.mjs','stage6-short-transaction-crash.mjs','stage6-short-transaction-security.mjs','stage6-short-transaction-prototype.mjs','stage6-raw-capacity-profile.test.js','stage6-architecture-six-job.mjs','stage6-prefix-data-prototype.mjs'];
 let entry;
 try{entry=realpathSync(resolve(process.argv[1]??''));}catch{}
 const target=allowed.find(name=>entry===realpathSync(fileURLToPath(new URL(name,import.meta.url))));

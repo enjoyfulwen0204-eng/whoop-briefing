@@ -21,6 +21,16 @@ export async function load(url,context,nextLoad){
  if(!root||!url.startsWith(root)||result.format!=='module')return result;
  let source=String(result.source);
  const file=url.slice(root.length);
+ if(patches&&file==='db.js')source+=`
+ // Explicit isolated prototype loader only: privately owned RAM receiver.
+ export async function createIsolatedOwnedMemoryDb(seed,phase4Keys){
+  const anchor=new Database(':memory:'),client=new Sqlite3Client(':memory:',{},anchor,'number');
+  client.transaction=async(mode='write')=>{await client.execute(mode==='write'?'BEGIN IMMEDIATE':'BEGIN');return new Sqlite3Transaction(anchor,'number');};
+  privateClients.add(client);
+  try{await seed(client);return composeDb(client,{phase4Keys});}catch(error){client.close();throw error;}
+ }
+ `;
+
  for(const hunk of patches?.get(file)??[]){const before=hunk.before.join('\n')+'\n',after=hunk.after.join('\n')+'\n';if(source.indexOf(before)<0||source.indexOf(before)!==source.lastIndexOf(before))throw Error('ISOLATED_PROTOTYPE_SOURCE_MISMATCH');source=source.replace(before,after);}
  const replace=(before,after)=>{if(!source.includes(before))throw Error('ISOLATED_PROFILE_SOURCE_MISMATCH');source=source.replace(before,after);};
  if(wallMs!==undefined&&url===root+'phase4DrainPolicy.js'){

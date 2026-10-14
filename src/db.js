@@ -1,4 +1,5 @@
 import {ownReceiverScopes,retireReceiverScopes} from './receiverScopeLifetime.js';
+import {isReadOnlyTelegramOperation} from './telegramReadOnlyPreparation.js';
 import {verifyBodyEnergyTelegramReplyBoundary} from './bodyEnergyTelegramReplyBoundary.js';
 import {profileRevision} from './profileRevision.js';
 import {traceExecutionOperation,countExecutionTelemetry} from './executionTelemetry.js';
@@ -216,6 +217,11 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
     const operationFence=ownerUserId?await processing.transaction(async()=>{
       const captured=await privacy.capture(ownerUserId);await privacy.track(captured);return captured;
     }):null;
+    let preparedSourceGeneration;
+    const observeSource=async()=>{
+      const row=(await client.execute({sql:'SELECT source_generation FROM phase4_user_state WHERE user_id=?',args:[ownerUserId]})).rows[0];
+      if(!Number.isSafeInteger(row?.source_generation)||row.source_generation<0)fail('PHASE4_RECEIPT_SNAPSHOT_REQUIRED');return row.source_generation;
+    };
     const check = async () => {
       const r = await client.execute({
         sql: `SELECT update_id FROM telegram_processed_updates
@@ -224,6 +230,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
       });
       if (!r.rows.length) throw new Error('telegram_processing_ownership_lost');
       await privacy.assert(operationFence);await privacy.checkLease(operationFence);
+      if(preparedSourceGeneration!==undefined&&await observeSource()!==preparedSourceGeneration)fail('PHASE4_RECEIPT_GENERATION_STALE');
     };
     try {
     const committed=await processing.transaction(async () => {
@@ -250,7 +257,17 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
       const enabled=await privacy.available();
       if(enabled && !ownerUserId && !nonHealthOperation)fail('PHASE4_RECEIPT_OWNER_REQUIRED');
       const fence=operationFence;
-      const result = await fn();
+      let result;
+      if(isReadOnlyTelegramOperation(fn)){
+        if(!ownerUserId||!operationFence)fail('PHASE4_PREPARATION_AUTHORITY_REQUIRED');
+        const prepared=await processing.outside(`telegram-readonly:${id}`,async()=>{
+          await check();const generation=await observeSource();
+          const value=structuredClone(await processing.readOnlyPreparation(fn));
+          await check();if(await observeSource()!==generation)fail('PHASE4_RECEIPT_GENERATION_STALE');
+          return {value,generation};
+        });
+        preparedSourceGeneration=prepared.generation;await check();result=prepared.value;
+      }else result=await fn();
       if(ownerUserId && result?.userId!=null && result.userId!==ownerUserId)fail('PHASE4_RESULT_OWNER_MISMATCH');
       await privacy.assert(fence);
       await client.execute({

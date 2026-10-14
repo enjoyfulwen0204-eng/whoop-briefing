@@ -79,11 +79,16 @@ export function createPhase4QueueStore(core) {
       const state=(await client.execute({sql:'SELECT * FROM phase4_user_state WHERE user_id=?',args:[userId]})).rows[0];
       if(!state || (!removal && state.pending_purge_count!==0))fail('PHASE4_PURGE_FENCED');
       const at=timestamp();
-      await client.execute({sql:`UPDATE phase4_user_state SET source_generation=source_generation+1,updated_at=? WHERE user_id=?`,args:[at,userId]});
       const generation=state.source_generation+1;
-      await client.execute({sql:`UPDATE phase4_computation_state SET input_generation=input_generation+1,
-        source_generation_seen=?,revision=revision+1,updated_at=? WHERE user_id=?`,args:[generation,at,userId]});
-      const modes=(await client.execute({sql:'SELECT execution_mode,input_generation FROM phase4_computation_state WHERE user_id=?',args:[userId]})).rows;
+      // Original order in the same owned transaction; observe the modes only
+      // after both epoch writes. No callback or authority guard is skipped.
+      const results=await client.batch([
+        {sql:`UPDATE phase4_user_state SET source_generation=source_generation+1,updated_at=? WHERE user_id=?`,args:[at,userId]},
+        {sql:`UPDATE phase4_computation_state SET input_generation=input_generation+1,
+          source_generation_seen=?,revision=revision+1,updated_at=? WHERE user_id=?`,args:[generation,at,userId]},
+        {sql:'SELECT execution_mode,input_generation FROM phase4_computation_state WHERE user_id=?',args:[userId]},
+      ]);
+      const modes=results[2].rows;
       for(const mode of modes)await markFull(userId,mode.execution_mode,mode.input_generation,state.purge_generation,reasonCode);
       return {sourceGeneration:generation,modes:modes.map(r=>({...r}))};
   }

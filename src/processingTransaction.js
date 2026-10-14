@@ -100,9 +100,9 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
   const scope = new AsyncLocalStorage();
   const readScope=new AsyncLocalStorage(),activeReadMemos=new Set();
   const invalidateReadMemos=()=>{for(const memo of activeReadMemos)memo.close();};
-  const readOnlyWork=new AsyncLocalStorage();
+  const readOnlyWork=new AsyncLocalStorage(),preparationScope=new AsyncLocalStorage();
   const fenceScope = new AsyncLocalStorage(), checking = new AsyncLocalStorage();
-  registerReceiverScopes(base,scope,readScope,readOnlyWork,fenceScope,checking);
+  registerReceiverScopes(base,scope,readScope,readOnlyWork,preparationScope,fenceScope,checking);
   const fences = () => checking.getStore() ? [] : (fenceScope.getStore() ?? []);
   async function runChecks(checks,client){
     const fn=value=>typeof value==='function'?value:value.check;
@@ -151,7 +151,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
         const query=key==='execute'?(typeof args[0]==='string'?args[0]:args[0]?.sql):'';
         const metadata=inRuntimeMetadata(query);
         if((checking.getStore()?.readOnly||readOnlyWork.getStore())&&(key==='batch'?args[0]:[args[0]]).some(statement=>!readOnlyStatement(statement))){
-          const error=Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');if(readOnlyWork.getStore()&&scope.getStore())scope.getStore().failure=error;throw error;
+          const error=Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');const reader=readOnlyWork.getStore();if(reader&&scope.getStore())scope.getStore().failure=error;if(reader&&typeof reader==='object')reader.failure=error;if(preparationScope.getStore())preparationScope.getStore().failure=error;throw error;
         }
         return traceExecutionOperation(metadata?'DB_METADATA':'DB_QUERY',async()=>{
         countExecutionTelemetry('query_count',key==='batch'&&Array.isArray(args[0])?args[0].length:1);
@@ -271,7 +271,7 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
   // Roll back the speculative attempt, obtain/cache parsing outside the transaction,
   // then rerun against fresh database state. No speculative write can commit.
   async function outside(key, call) {
-    if(readOnlyWork.getStore()){const error=Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');scope.getStore().failure=error;throw error;}
+    if(readOnlyWork.getStore()){const error=Error('PROCESSING_READ_ONLY_CHECK_REQUIRED');const reader=readOnlyWork.getStore();if(scope.getStore())scope.getStore().failure=error;if(typeof reader==='object')reader.failure=error;if(preparationScope.getStore())preparationScope.getStore().failure=error;throw error;}
     const state = scope.getStore();
     if (!state) return call();
     if (state.cache.has(key)) return state.cache.get(key);
@@ -499,6 +499,12 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
     if(scope.getStore())throw Error('PROCESSING_READ_ONLY_ROOT_REQUIRED');
     return transaction(()=>{scope.getStore().preparationReadOnly=true;return readOnlyWork.run(true,fn);},{readOnly:true});
   };
+  const readOnlyPreparation=async fn=>{
+    if(scope.getStore())throw Error('PROCESSING_READ_ONLY_ROOT_REQUIRED');
+    const reader={failure:null},result=await preparationScope.run(reader,()=>readOnlyWork.run(reader,fn));
+    // Optional-data fallback cannot conceal an attempted write.
+    if(reader.failure)throw reader.failure;return result;
+  };
   shareReceiverScopes(base,client);
-  return { client, transaction,readOnlyTransaction,withReadSnapshot:(context,fn)=>privateRuntime?readScope.run(context,fn):fn(),assertFences:()=>checkFences(client),assertLocalFences:()=>{for(const check of fenceScope.getStore()??[]){const local=readObservationChecks.get(check);if(!local)throw Error('PREPARATION_FENCE_UNSUPPORTED');local();}},setLifetimeEnding:fn=>{lifetimeEnding=fn;}, setRootAdmission:fn=>{rootAdmission=fn;},setReconnectAdmission:fn=>{reconnectAdmission=fn;}, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
+  return { client, transaction,readOnlyTransaction,readOnlyPreparation,withReadSnapshot:(context,fn)=>privateRuntime?readScope.run(context,fn):fn(),assertFences:()=>checkFences(client),assertLocalFences:()=>{for(const check of fenceScope.getStore()??[]){const local=readObservationChecks.get(check);if(!local)throw Error('PREPARATION_FENCE_UNSUPPORTED');local();}},setLifetimeEnding:fn=>{lifetimeEnding=fn;}, setRootAdmission:fn=>{rootAdmission=fn;},setReconnectAdmission:fn=>{reconnectAdmission=fn;}, withFence: (check, fn) => fenceScope.run([...(fenceScope.getStore() ?? []), check], fn), outside, afterCommit, afterCompletion, active: () => Boolean(scope.getStore()) };
 }

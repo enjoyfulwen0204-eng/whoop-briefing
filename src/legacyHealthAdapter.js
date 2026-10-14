@@ -48,7 +48,7 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
       await addPrivacyLink(writer,{userId:uid,table,artifactId:id,sourceType:table==='journal_events'?'JOURNAL_FACT':'TENANT_LEGACY',
         sourceId:table==='journal_events'?id:uid,at});
     }
-    if(DIAGNOSTIC_FIELDS[table])await client.execute({sql:`UPDATE ${table} SET ${DIAGNOSTIC_FIELDS[table].map(k=>`${k}=CASE WHEN ${k} IN (${DIAGNOSTIC_CODES}) THEN ${k} ELSE NULL END`).join(',')} WHERE user_id=?`,args:[uid]});
+    if(DIAGNOSTIC_FIELDS[table])await writer.execute({sql:`UPDATE ${table} SET ${DIAGNOSTIC_FIELDS[table].map(k=>`${k}=CASE WHEN ${k} IN (${DIAGNOSTIC_CODES}) THEN ${k} ELSE NULL END`).join(',')} WHERE user_id=?`,args:[uid]});
   }
   async function execute(statement) {
     const call=calls.getStore(),sql=sqlOf(statement);
@@ -77,7 +77,10 @@ export function createLegacyHealthAdapter({client,processing,privacy,keys}) {
       const after=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND content_state='REDACTED'`,args:[call.userId]})).rows;
       if(JSON.stringify(before)!==JSON.stringify(after))fail('CONTENT_REDACTED');
     }
-    await classify(table,call);return result;
+    // Keep fresh classification reads. Submit the resulting ordered metadata
+    // writes together in the existing transaction, with no intervening reads.
+    const metadata=[];await classify(table,call,{execute:async s=>{metadata.push(s);}});
+    if(metadata.length)await client.batch(metadata);return result;
   }
   const scopedClient=new Proxy(client,{get(target,property) {
     if(property==='execute')return execute;

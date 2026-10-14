@@ -1,5 +1,6 @@
 import {isSettingsCallback} from './settings.js';
 import {validMessageId} from '../telegramAcknowledgment.js';
+import {readOnlyTelegramOperation} from '../telegramReadOnlyPreparation.js';
 /**
  * 處理**一則** Telegram Update —— 與傳輸方式無關。
  *
@@ -627,9 +628,11 @@ export function createUpdateProcessor({
 
       // 動作與收據共用同一個交易。提交之後重播會拿回存起來的回覆，
       // 不會把動作再做一次。
+      const operation=c.kind==='ok'&&/^\/help(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(c.text)
+        ?readOnlyTelegramOperation(dispatch):dispatch;
       const execute = () => claimed && db.processTelegramOperation
         ? db.processTelegramOperation(updateId, { owner: attemptId, ownerUserId:c.kind==='ok'?c.user.id:null,
-          nonHealthOperation:c.kind!=='ok',now }, dispatch)
+          nonHealthOperation:c.kind!=='ok',now }, operation)
         : dispatch();
       const typingEligible = c.kind === 'ok' && isNaturalLanguage(c.text);
       const startup = typingEligible ? claimStartupFeedback() : false;

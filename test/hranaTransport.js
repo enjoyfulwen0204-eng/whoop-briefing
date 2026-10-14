@@ -8,14 +8,30 @@ import {randomUUID,createHash} from 'node:crypto';
 const decode=v=>v.type==='null'?null:v.type==='integer'?BigInt(v.value):v.type==='blob'?Buffer.from(v.base64,'base64'):v.value;
 const encode=v=>v===null?{type:'null'}:typeof v==='bigint'?{type:'integer',value:String(v)}:
  typeof v==='number'?{type:'float',value:v}:typeof v==='string'?{type:'text',value:v}:{type:'blob',base64:Buffer.from(v).toString('base64')};
-export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=Infinity}={}) {
+export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=Infinity,traceTransactions=false}={}) {
  const streams=new Map();let armed=null,commits=0;
  const counts={httpRequests:0,sqlStatements:0,byFamily:{},byTemplate:{},byOperation:{},byHttpMix:{},byHttpFamily:{}};
- const evidence=[];
+ const evidence=[],transactions=[];
+ const sqlLabel=sql=>({verb:/^\s*([a-z]+)/i.exec(sql)?.[1]?.toUpperCase(),table:/\b(?:FROM|INTO|UPDATE)\s+"?([a-z0-9_]+)/i.exec(sql)?.[1],template:createHash('sha256').update(sql.replace(/\s+/g,' ').trim()).digest('hex')});
  const open=()=>{const client=createClient({url,intMode:'bigint'}),id=randomUUID(),stream={client,sql:new Map(),inTransaction:false};
+  if(traceTransactions){const execute=client.execute.bind(client);client.execute=async statement=>{
+   const sql=typeof statement==='string'?statement:statement.sql,at=Date.now(),label=sqlLabel(sql),begin=/^\s*BEGIN\b/i.test(sql),end=/^\s*(COMMIT|ROLLBACK)\b/i.test(sql);
+   if(begin){stream.trace={id:randomUUID(),beginSubmittedAt:at,firstStatementAt:at,startedAt:null,lastStatementAt:at,sqlOperations:0,httpOperations:0,nativeWaitMs:0,beginWaitMs:0,concurrentWritersMax:0,statements:[],http:new Set()};}
+   const trace=stream.trace;
+   if(trace&&!trace.finishedAt){trace.sqlOperations++;trace.http.add(stream.http);trace.httpOperations=trace.http.size;trace.lastStatementAt=at;trace.lastStatement=label;
+    trace.concurrentWritersMax=Math.max(trace.concurrentWritersMax,[...streams.values()].filter(s=>s!==stream&&s.trace?.startedAt&&!s.trace.finishedAt).length);
+   }
+   try{const result=await execute(statement),finishedAt=Date.now();
+    if(trace&&!trace.finishedAt){const waitMs=finishedAt-at;trace.nativeWaitMs+=waitMs;if(begin){trace.startedAt=finishedAt;trace.beginWaitMs=waitMs;}
+     if(trace.statements.length<256)trace.statements.push({...label,submittedAt:at,finishedAt,waitMs});
+     if(end){trace.finishedAt=finishedAt;trace.outcome=label.verb==='COMMIT'?'COMMITTED':trace.timeout?'ROLLED_BACK_BY_MODELED_TIMEOUT':'ROLLED_BACK';const {http,...safe}=trace;transactions.push(safe);}}
+    return result;
+   }catch(error){if(trace&&!trace.finishedAt){trace.nativeWaitMs+=Date.now()-at;trace.errors??=[];trace.errors.push({...label,at:Date.now(),code:error.code??error.name});if(begin){trace.finishedAt=Date.now();trace.outcome='BEGIN_REJECTED';const {http,...safe}=trace;transactions.push(safe);}}throw error;}
+  };}
   streams.set(id,stream);return [id,stream];};
  const assertTransactionAge=async stream=>{
   if(stream.inTransaction&&Date.now()-stream.transactionStartedAt>=transactionMaxMs){
+   if(stream.trace)stream.trace.timeout={at:Date.now(),source:'SYNTHETIC_ABSOLUTE_TRANSACTION_LIMIT',limitMs:transactionMaxMs};
    evidence.push({event:'transaction_timeout',ageMs:Date.now()-stream.transactionStartedAt,limitMs:transactionMaxMs});
    await stream.client.execute('ROLLBACK');stream.inTransaction=false;
    throw Object.assign(Error('SYNTHETIC_TRANSACTION_TIMEOUT'),{code:'TRANSACTION_TIMEOUT'});
@@ -83,6 +99,7 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=I
   const category=operation();counts.byOperation[category]=(counts.byOperation[category]??0)+1;
   const body=await request.json();let [id,stream]=body.baton?[body.baton,streams.get(body.baton)]:open();
   if(!stream)throw Error('UNKNOWN_SYNTHETIC_BATON');
+  stream.http=counts.httpRequests;
   const results=[];
   const httpFamilies=new Set();
   for(const item of body.requests){
@@ -115,5 +132,5 @@ export function hranaTransport(url,{operation=()=> 'UNSCOPED',transactionMaxMs=I
   for(const family of httpFamilies)counts.byHttpFamily[family]=(counts.byHttpFamily[family]??0)+1;
   return new Response(JSON.stringify({baton:id,base_url:null,results}),{headers:{'content-type':'application/json'}});
  };
- return {fetch,evidence,counts,setTransactionMaxMs:ms=>{if(ms!==Infinity&&(!Number.isSafeInteger(ms)||ms<1))throw Error('SYNTHETIC_TRANSACTION_LIMIT_INVALID');transactionMaxMs=ms;},arm:attack=>{armed=attack;},close:()=>{for(const stream of streams.values())stream.client.close();streams.clear();}};
+ return {fetch,evidence,counts,transactions,setTransactionMaxMs:ms=>{if(ms!==Infinity&&(!Number.isSafeInteger(ms)||ms<1))throw Error('SYNTHETIC_TRANSACTION_LIMIT_INVALID');transactionMaxMs=ms;},arm:attack=>{armed=attack;},close:()=>{for(const stream of streams.values())stream.client.close();streams.clear();}};
 }

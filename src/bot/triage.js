@@ -1,6 +1,6 @@
 import {t} from '../localization.js';
 
-export const TRIAGE_LIMITS=Object.freeze({characters:8192,clauses:128,mentions:128});
+export const TRIAGE_LIMITS=Object.freeze({characters:8192,clauses:128,mentions:128,predicates:128,operators:256,links:512,depth:16});
 export const TRIAGE_DECISION=Object.freeze({
  CURRENT_URGENT:'CURRENT_URGENT',
  POSSIBLE_CURRENT_URGENT:'POSSIBLE_CURRENT_URGENT',
@@ -40,16 +40,20 @@ const OPERATORS=[
  ['ongoing',/\b(?:experiencing|having|feeling|happening|have|has)\b|有|感到|經歷|發生|(?<!\p{L})(?:bị|có|cảm thấy)(?!\p{L})/giu],
  ['figurative',/笑(?:到|得|死)|(?:recovery|hrv|strain|分數|數字|指數|股票|房價|價格)[^。，,]{0,6}(?:低|高|爛|差|掉)(?:到|得)|(?:工作|案子|天氣|事情|行程|會議|考試|報告)[^。，,]{0,4}(?:累|忙|煩)到|(?:累|忙|煩|氣)到讓人|laugh(?:ing|ed)? (?:so hard|until)|cười.{0,20}(?:khó thở|ngất)/giu],
 ];
-const EDGES=/[.!?。！？\n]+|[,，;；]+|(?<!\p{L})(?:even though|although|however|because|after|while|but|yet|and|or|nor|also|which|that|if|suppose|hypothetically|what if|nhưng|tuy nhiên|mặc dù|sau khi|vì|dù|và|hoặc|hay|nếu|giả sử)(?!\p{L})|但是|可是|不過|因為|雖然|假設|假如|如果|若是|萬一|但|而且|也|和|與|或|又|且/giu;
+const EDGES=/[.!?。！？\n]+|[,，、;；]+|(?<!\p{L})(?:even though|although|however|because|after|while|but|yet|and|or|nor|also|which|that|if|suppose|hypothetically|what if|nhưng|tuy nhiên|mặc dù|sau khi|vì|dù|và|hoặc|hay|nếu|giả sử)(?!\p{L})|但是|可是|不過|因為|雖然|假設|假如|如果|若是|萬一|但|而且|也|和|與|或|又|且/giu;
 const WORD=/[\p{L}\p{N}_]/u;
 function quotesOf(text){
- const out=[];let open=null;
+ const out=[],stack=[];
  for(let i=0;i<text.length;i++){
   const c=text[i];if(c==="'"&&WORD.test(text[i-1]??'')&&WORD.test(text[i+1]??''))continue;
-  if(open){if(c===open.close){out.push({start:open.start,end:i+1});open=null;}}
-  else if(['"',"'",'「','『'].includes(c)&&!(c==="'"&&WORD.test(text[i-1]??'')))open={start:i,close:{'「':'」','『':'』'}[c]??c};
+  if(stack.length&&c===stack.at(-1).close){const q=stack.pop();if(!stack.length)out.push({start:q.start,end:i+1,depth:q.depth});}
+  else if(['"',"'",'「','『'].includes(c)&&!(c==="'"&&WORD.test(text[i-1]??''))){
+   const depth=stack.length+1;if(depth>TRIAGE_LIMITS.depth)return null;
+   for(const q of stack)q.depth=Math.max(q.depth,depth);
+   stack.push({start:i,close:{'「':'」','『':'』'}[c]??c,depth});
+  }
  }
- return out;
+ return stack.length?null:out;
 }
 function symptomsOf(text){
  const all=[];
@@ -58,7 +62,7 @@ function symptomsOf(text){
 }
 function edgeKind(word){
  if(/^[.!?。！？\n]/u.test(word))return 'sentence';
- if(/^[,，;；]/u.test(word))return 'comma';
+ if(/^[,，、;；]/u.test(word))return 'comma';
  if(/^(?:if|what if|suppose|hypothetically|nếu|giả sử|如果|假設|假如|若是|萬一)$/iu.test(word))return 'hypothetical';
  if(/^(?:which|that)$/iu.test(word))return 'relative';
  if(/^(?:although|even though|after|while|mặc dù|sau khi|dù|雖然)$/iu.test(word))return 'subordinate';
@@ -67,13 +71,13 @@ function edgeKind(word){
  return 'coordinate';
 }
 function clausesOf(text,symptoms,quotes){
- const parts=[];let start=0,edge='start',connector='';
+ const parts=[];let start=0,edge='start',connector='',connectorSpan={start:0,end:0};
  for(const m of text.matchAll(EDGES)){
   if(symptoms.some(s=>m.index>s.start&&m.index<s.end)||quotes.some(q=>m.index>q.start&&m.index<q.end))continue;
-  if(text.slice(start,m.index).trim())parts.push({start,end:m.index,edge,connector,text:text.slice(start,m.index)});
-  edge=edgeKind(m[0]);connector=m[0];start=m.index+m[0].length;
+  if(text.slice(start,m.index).trim())parts.push({start,end:m.index,edge,connector,connectorSpan,text:text.slice(start,m.index)});
+  edge=edgeKind(m[0]);connector=m[0];connectorSpan={start:m.index,end:m.index+m[0].length};start=m.index+m[0].length;
  }
- if(text.slice(start).trim())parts.push({start,end:text.length,edge,connector,text:text.slice(start)});
+ if(text.slice(start).trim())parts.push({start,end:text.length,edge,connector,connectorSpan,text:text.slice(start)});
  return parts;
 }
 function eventsOf(part){
@@ -97,149 +101,215 @@ function speakerOf(event){
  return {'我朋友':'my friend','朋友':'my friend','bạn tôi':'my friend','媽媽':'my mother','爸爸':'my father','他':'he','她':'she','anh ấy':'he','cô ấy':'she','his':'he','her':'she'}[word]??word;
 }
 function negativeAt(events,position){
- const neg=ofType(events,'negative').filter(e=>e.end<=position).at(-1);
- if(!neg||position-neg.end>96)return false;
- // A later explicit subject starts a different predicate. Arbitrary adjective
- // tokens do not end polarity, avoiding an adjective whitelist.
- return !events.some(e=>e.type==='actor'&&e.start>neg.end&&e.start<position);
+ // Callers supply only one predicate's owned operators. An object possessor
+ // or an arbitrary modifier cannot terminate that predicate's negation.
+ return events.some(e=>e.type==='negative'&&e.end<=position);
 }
 function outcomeEvidence(events){
  const resolved=last(events,'resolution'),recurrence=last(events,'recurrence');
  const unresolved=resolved&&negativeAt(events,resolved.start);
  return {absent:Boolean(recurrence&&negativeAt(events,recurrence.start)),resolved:Boolean(resolved&&!unresolved),ongoing:Boolean(unresolved),recurrence:Boolean(recurrence&&(!resolved||recurrence.start>resolved.start)&&!negativeAt(events,recurrence.start))};
 }
-function evidenceFor(part,symptom,prior){
- const quoteId=part.quotes.findIndex(q=>symptom.start>=q.start&&symptom.end<=q.end);
- const local=part.events.filter(e=>e.quote===quoteId);
- const sameClause=prior&&prior.index>=part.start&&prior.index<part.end;
- const cutoff=sameClause?prior.end:0;
- const before=local.filter(e=>e.start>=cutoff&&e.end<=symptom.start);
- const next=part.symptoms.find(s=>s.start>=symptom.end);
- const after=local.filter(e=>e.start>=symptom.end&&e.start<(next?.start??part.text.length));
- const actor=last(before,'actor'),speaker=speakerOf(actor)??prior?.speaker??null;
- const topic=last(before,'education'),source=last(before,'information');
- const personal=actor&&speaker!=='GENERIC'&&(!topic||actor.start>topic.start)&&(!source||actor.start>source.start);
- const asserted=Boolean(personal||prior?.evidence.assertion==='ACTUAL'&&!actor);
- const outside=part.events.filter(e=>e.quote===-1);
- const quote=part.quotes[quoteId];
- let quoteAssertion=false,reportSpeaker=null;
- if(quote){
-  const wrapperBefore=outside.filter(e=>e.end<=quote.start),wrapperAfter=outside.filter(e=>e.start>=quote.end);
-  const wa=last(wrapperBefore,'actor'),wt=last(wrapperBefore,'education'),wi=last(wrapperBefore,'information');
-  const externalActor=wa&&speakerOf(wa)!=='GENERIC'&&(!wt||wa.start>wt.start)&&(!wi||wa.start>wi.start);
-  const report=last(wrapperBefore,'report');
-  quoteAssertion=Boolean(externalActor&&(report||wrapperBefore.some(e=>['present','currentTime'].includes(e.type)))||wrapperAfter.some(e=>e.type==='currentTime')&&!outside.some(e=>e.type==='education'||e.type==='information'));
-  if(report&&externalActor)reportSpeaker=speakerOf(wa);
- }
- const tailActor=after.find(e=>e.type==='actor'&&e.word.toLowerCase()!=='they');
- const relative=tailActor&&part.text.slice(symptom.end,tailActor.start).trim()===''&&after.some(e=>['present','pastPredicate'].includes(e.type)&&e.start>=tailActor.end);
- const scopeEnd=relative?part.text.length:tailActor?.start??part.text.length;
- const tail=after.filter(e=>e.start<scopeEnd),outcome=outcomeEvidence([...before,...tail]);
- const ownedCurrent=actor&&['my','his','her'].includes(actor.word.toLowerCase())&&last(before,'currentTime');
- const epistemic=Boolean(part.epistemic||last(before,'uncertainty')&&personal);
- const actual=(asserted||quoteAssertion||Boolean(relative))&&!epistemic;
- const owner=reportSpeaker??(relative?speakerOf(tailActor):speaker);
- const now=Boolean(last([...before,...tail],'currentTime')),past=Boolean(last([...before,...tail],'pastPredicate')||last([...before,...tail],'pastTime'));
- const educational=Boolean(topic||!asserted&&local.some(e=>e.type==='education')||prior?.evidence.framing==='EDUCATIONAL'&&!actor);
- const informational=Boolean(source||part.information&&(!personal||['he','she','they'].includes(speaker)));
- return {
-  assertion:actual?'ACTUAL':educational||informational?'TOPIC':'UNRESOLVED',
-  speaker:owner,polarity:negativeAt(before,symptom.start)||prior?.evidence.polarity==='NEGATED'&&!actor?'NEGATED':'POSITIVE',
-  temporal:epistemic?'UNKNOWN':now||outcome.ongoing||outcome.recurrence?'CURRENT':past?'PAST':actual?'CURRENT':'UNKNOWN',
-  resolution:outcome.absent?'ABSENT':(outcome.resolved||prior?.evidence.resolution==='RESOLVED')&&!outcome.recurrence?'RESOLVED':outcome.ongoing?'ONGOING':outcome.recurrence?'RECURRENT':'UNKNOWN',
-  framing:part.hypothetical&&!epistemic&&!ownedCurrent?'HYPOTHETICAL':quote&&!quoteAssertion?'QUOTED':informational?'INFORMATIONAL':educational&&!actual?'EDUCATIONAL':part.events.some(e=>e.type==='figurative')?'FIGURATIVE':'ACTUAL',
-  quotation:quoteId<0?'NONE':quoteAssertion?'ASSERTED':'MENTIONED',
-  relationship:relative?'POSTNOMINAL_REFERENCE':prior?'COORDINATED':'INDEPENDENT',
- };
-}
+// The vocabulary and grammar are one deterministic, in-process contract. No
+// transport, model, database or health-context input participates in parsing.
+export const TRIAGE_GRAMMAR_VERSION='predicate-ownership-v1';
+const spanOf=e=>({start:e.start,end:e.end});
+const isHead=e=>['present','pastPredicate','report'].includes(e.type);
+const intrinsic=s=>/^(?:cannot|can't|unable|không thở|không thể thở|無法|喘不過氣)/iu.test(s.text);
+const connective=p=>['coordinate','comma','cause'].includes(p.edge);
 function stateOf(e){
  if(e.framing!=='ACTUAL')return e.framing;
- if(e.polarity==='NEGATED')return 'NEGATED';
+ if(e.polarity==='NEGATED'||e.resolution==='ABSENT')return 'NEGATED';
  if(e.resolution==='RESOLVED')return 'RESOLVED';
- if(e.resolution==='ABSENT')return 'NEGATED';
  if(e.temporal==='PAST')return 'HISTORICAL';
  return e.assertion==='ACTUAL'||e.temporal==='CURRENT'?'CURRENT':'AMBIGUOUS';
 }
 function overflow(){return {decision:TRIAGE_DECISION.POSSIBLE_CURRENT_URGENT,urgent:true,matched:null,excluded:null,reason:'scope_limit',mentions:[]};}
-function referenceEvidence(part,previous){
- const events=part.events.filter(e=>e.quote===-1),actor=last(events,'actor'),speaker=speakerOf(actor);
- const reference=last(events,'reference')||part.edge==='relative';
- const outcome=outcomeEvidence(events),present=last(events,'ongoing'),now=last(events,'currentTime'),past=last(events,'pastPredicate')||last(events,'pastTime');
- // A named new subject without a deictic/relative relationship is unrelated:
- // "my headache is gone" cannot close "I have chest pain".
- const implicit=!actor&&!part.symptoms.length&&(outcome.resolved||outcome.absent||['coordinate','comma'].includes(part.edge)&&(outcome.ongoing||now&&last(events,'present')));
- const related=Boolean(reference||implicit||previous.every(m=>m.state==='HISTORICAL')&&outcome.resolved&&speaker==='SELF');
- if(!related||part.edge==='subordinate')return null;
- const ongoing=Boolean(!(past&&!now)&&(outcome.ongoing||!outcome.resolved&&(reference||implicit)&&(present||now||outcome.recurrence)&&!negativeAt(events,last(events,'reference')?.start??part.text.length)));
- if(!outcome.resolved&&!outcome.absent&&!ongoing)return null;
- return {outcome,ongoing,speaker,events,temporal:past&&!now?'PAST':'CURRENT'};
-}
-function applyResolution(mention,resolution='RESOLVED'){
- for(let m=mention;m;m=m.antecedent){
-  if(['CURRENT','AMBIGUOUS','HISTORICAL'].includes(m.state)){
-   m.evidence={...m.evidence,resolution};m.state=stateOf(m.evidence);
+
+// All boundaries are constructed before any symptom is evaluated. Punctuation
+// is a candidate boundary, not evidence authority. An explicit subject with a
+// head also creates a boundary, even when its connector is not in EDGES.
+function unitsOf(text,lexical,quotes){
+ const parts=clausesOf(text,lexical,quotes),units=[];
+ const add=(part,start,end,quote=null,edge=part.edge,connector=part.connector)=>{
+  const value=text.slice(start,end);if(!value.trim())return;
+  const local={text:value,symptoms:symptomsOf(value),quotes:[]};
+  const events=eventsOf(local).map(e=>({...e,start:start+e.start,end:start+e.end}));
+  const symptoms=local.symptoms.map(e=>({...e,start:start+e.start,end:start+e.end}));
+  const actors=ofType(events,'actor');let boundary=start,hasSubject=false;
+  for(const actor of actors){
+   const before=events.filter(e=>e.start>=boundary&&e.end<=actor.start);
+   const beforeSymptoms=symptoms.filter(e=>e.start>=boundary&&e.end<=actor.start);
+   const after=events.filter(e=>e.start>=actor.end);
+   const governing=before.filter(isHead).at(-1),nextSymptom=symptoms.find(e=>e.start>=actor.end);
+   const objectPossessor=['my','his','her'].includes(actor.word.toLowerCase())&&!beforeSymptoms.length&&governing&&!before.some(e=>e.start>governing.start&&['resolution','pastTime','education','uncertainty'].includes(e.type))&&!after.some(e=>isHead(e)&&e.start<(nextSymptom?.start??end));
+   if(objectPossessor){actor.role='POSSESSOR_OBJECT';continue;}
+   actor.role='SUBJECT';
+   const newHead=after.some(isHead)||symptoms.some(e=>e.start>=actor.end)||after.some(e=>['resolution','recurrence'].includes(e.type));
+   if(hasSubject&&newHead&&(beforeSymptoms.length||before.some(e=>isHead(e)||['resolution','education','uncertainty','pastTime','currentTime','negative'].includes(e.type)))){
+    const prefix=before.filter(e=>['pastTime','currentTime','negative','resolution'].includes(e.type)&&!text.slice(e.end,actor.start).trim()).at(-1);
+    const cut=prefix?.start??actor.start;
+    units.push({start:boundary,end:cut,edge,connector,quote,connectorSpan:part.connectorSpan,events:events.filter(e=>e.start>=boundary&&e.end<=cut),symptoms:symptoms.filter(e=>e.start>=boundary&&e.end<=cut)});
+    boundary=cut;edge='subject';connector='';
+   }
+   hasSubject=true;
   }
+  units.push({start:boundary,end,edge,connector,quote,connectorSpan:part.connectorSpan,events:events.filter(e=>e.start>=boundary&&e.end<=end),symptoms:symptoms.filter(e=>e.start>=boundary&&e.end<=end)});
+ };
+ for(const part of parts){
+  let start=part.start;
+  for(const quote of quotes.filter(q=>q.start>=part.start&&q.end<=part.end)){
+   add(part,start,quote.start);
+   const inside=text.slice(quote.start+1,quote.end-1);
+   const inner=clausesOf(inside,symptomsOf(inside),[]);
+   for(const ip of inner)add(part,quote.start+1+ip.start,quote.start+1+ip.end,quote,ip.edge==='start'?'quote':ip.edge,ip.connector);
+   start=quote.end;
+  }
+  add(part,start,part.end,null,start>part.start?'quote-tail':part.edge);
  }
+ // Multiple objects share a predicate only through a proven list edge. A
+ // separate head, or an unsupported symptom relationship, cannot inherit a
+ // preceding past/negative operator merely because punctuation is absent.
+ const bounded=[];
+ for(const unit of units){
+  let start=unit.start,edge=unit.edge;
+  for(let i=1;i<unit.symptoms.length;i++){
+   const old=unit.symptoms[i-1],next=unit.symptoms[i];
+   const between=unit.events.filter(e=>e.start>=old.end&&e.end<=next.start);
+   const head=between.find(e=>isHead(e)&&!between.some(o=>o.type==='resolution'&&o.start>e.start));
+   const modifier=between.filter(e=>['currentTime','negative'].includes(e.type)&&!text.slice(e.end,head?.start??next.start).trim()).at(-1);
+   const cut=modifier?.start??head?.start??next.start;
+   bounded.push({...unit,start,end:cut,edge,events:unit.events.filter(e=>e.start>=start&&e.end<=cut),symptoms:unit.symptoms.filter(e=>e.start>=start&&e.end<=cut)});
+   start=cut;edge=head?'predicate':'unresolved';
+  }
+  bounded.push({...unit,start,edge,events:unit.events.filter(e=>e.start>=start),symptoms:unit.symptoms.filter(e=>e.start>=start)});
+ }
+ return {parts,units:bounded};
+}
+function buildOwnership(text,lexical,quotes){
+ const {parts,units}=unitsOf(text,lexical,quotes);
+ if(parts.length>TRIAGE_LIMITS.clauses)return null;
+ const predicates=[],symptoms=[],operators=[],links=[];
+ const link=(type,from,to,proof)=>links.push({id:'L'+(links.length+1),type,fromPredicateId:from.id,toPredicateId:to.id,span:spanOf(proof)});
+ let previous=null;
+ for(const unit of units){
+  const actorEvent=ofType(unit.events,'actor')[0],explicit=speakerOf(actorEvent);
+  const first=unit.symptoms[0],heads=unit.events.filter(isHead);
+  const independent=first&&intrinsic(first)&&/^(?:and|also|và|也|又|而且|且)$/iu.test(unit.connector);
+  const list=previous&&first&&!actorEvent&&unit.quote===previous.quote&&['coordinate','comma'].includes(unit.edge)&&previous.symptomIds.length&&!independent&&!unit.events.some(e=>e.type==='negative'&&e.end<=first.start)&&(!heads.length||heads[0].start>=first.end);
+  if(list){
+   previous.ownedSpan.end=unit.end;
+   previous.units.push(unit);
+   for(const symptom of unit.symptoms){const node={...symptom,id:'S'+(symptoms.length+1),span:spanOf(symptom),ownerPredicateId:previous.id};symptoms.push(node);previous.symptomIds.push(node.id);}
+   for(const event of unit.events){const op={...event,id:'O'+(operators.length+1),span:spanOf(event),ownerPredicateId:previous.id};operators.push(op);previous.operatorIds.push(op.id);}
+   if(symptoms.length>TRIAGE_LIMITS.mentions||operators.length>TRIAGE_LIMITS.operators)return null;
+   continue;
+  }
+  const head=heads.find(e=>e.type==='pastPredicate'||e.type==='report')??heads.find(e=>!['am','is','are'].includes(e.word.toLowerCase()))??heads[0]??first??unit.events.find(e=>['resolution','recurrence','reference'].includes(e.type));
+  const p={id:'P'+(predicates.length+1),headSpan:head?spanOf(head):{start:unit.start,end:unit.start},ownedSpan:{start:unit.start,end:unit.end},actor:explicit??null,assertion:'UNRESOLVED',frame:'ACTUAL',symptomIds:[],operatorIds:[],edge:unit.edge,quote:unit.quote,units:[unit]};
+  const source=last(unit.events,'information'),education=last(unit.events,'education');
+  const ownedCurrent=actorEvent&&['my','his','her','我','tôi'].includes(actorEvent.word.toLowerCase())&&unit.events.some(e=>e.type==='currentTime'&&e.start<=(first?.start??unit.end));
+  const epistemic=unit.events.some(e=>e.type==='uncertainty')||['hypothetical','subject'].includes(unit.edge)&&previous?.epistemic;
+  p.epistemic=Boolean(epistemic);p.hypothetical=Boolean((unit.edge==='hypothetical'||connective(unit)&&previous?.hypothetical)&&!epistemic&&!ownedCurrent);
+  p.information=Boolean(source||(connective(unit)||unit.edge==='relative'||unit.edge==='sentence'&&['he','she','they'].includes(explicit))&&previous?.information&&explicit!=='SELF');
+  p.education=Boolean(education||!actorEvent&&['coordinate','comma'].includes(unit.edge)&&previous?.education);
+  p.frame=p.hypothetical?'HYPOTHETICAL':p.information?'INFORMATIONAL':unit.quote?'QUOTED':'ACTUAL';
+  if(previous&&(p.hypothetical&&unit.edge!=='hypothetical'||p.epistemic&&!unit.events.some(e=>e.type==='uncertainty')||p.information&&!source||p.education&&!education)){
+   const origin=predicates.find(q=>q.id===previous.frameSourceId)??previous;
+   const proof=operators.find(o=>o.ownerPredicateId===origin.id&&['conditionalFrame','epistemicFrame','uncertainty','information','education'].includes(o.type));
+   if(proof){p.frameSourceId=origin.id;link('FRAME',origin,p,proof);}
+  }
+  if(!actorEvent&&previous&&(connective(unit)||unit.edge==='contrast'||unit.edge==='relative'||unit.edge==='subordinate'||unit.edge==='quote-tail'||unit.edge==='predicate')){
+   p.actor=previous.actor;link('SUBJECT_INHERIT',previous,p,unit.connectorSpan?.end>unit.connectorSpan?.start?unit.connectorSpan:head??unit);
+  }
+  // First person inside a quotation is relative to its actual reporter. A
+  // standalone quotation has no authenticated SELF binding.
+  if(unit.quote){
+   const wrapper=predicates.filter(q=>!q.quote&&q.ownedSpan.end<=unit.quote.start).at(-1);
+   const ev=wrapper?operators.filter(o=>o.ownerPredicateId===wrapper.id):[];
+   const report=last(ev,'report'),present=last(ev,'present')||last(ev,'currentTime');
+   const reporter=wrapper?.actor&&wrapper.actor!=='GENERIC'&&!wrapper.education&&!wrapper.information;
+   if(reporter&&(report||present)){
+    if(!explicit||explicit==='SELF')p.actor=wrapper.actor;
+    p.hypothetical=wrapper.hypothetical;p.epistemic=wrapper.epistemic;p.frame=p.hypothetical?'HYPOTHETICAL':'ACTUAL';p.quotedAssertion=true;link('REPORT',wrapper,p,report??present);
+   }else{p.actor=explicit==='SELF'?null:explicit;p.frame='QUOTED';}
+  }
+  // A local relative/deictic reference can create its own actual predicate;
+  // it never imports the antecedent's temporal or framing operators.
+  const reference=last(unit.events,'reference');
+  const outcome=outcomeEvidence(unit.events);
+  const antecedent=predicates.filter(q=>q.symptomIds.length).at(-1);
+  const implicit=!actorEvent&&!first&&(outcome.resolved||outcome.absent||['coordinate','comma'].includes(unit.edge)&&(outcome.ongoing||last(unit.events,'currentTime')&&last(unit.events,'present')));
+  const samePast=explicit&&antecedent?.actor===explicit&&operators.some(o=>o.ownerPredicateId===antecedent.id&&['pastTime','pastPredicate'].includes(o.type));
+  const related=Boolean(antecedent&&!first&&unit.edge!=='subordinate'&&(reference||unit.edge==='relative'||implicit||samePast&&outcome.resolved));
+  if(related){
+   p.actor=actorEvent?.word.toLowerCase()==='they'&&reference?.word.toLowerCase()==='they'&&antecedent.symptomIds.length>1?antecedent.actor:explicit??antecedent.actor;
+   link('REFERENCE',antecedent,p,reference??head??{start:unit.start,end:unit.end});
+   p.referenceId=antecedent.id;
+   const continued=outcome.resolved||outcome.absent||outcome.ongoing||outcome.recurrence||last(unit.events,'ongoing')||last(unit.events,'currentTime');
+   if(continued&&!p.education&&!p.hypothetical&&!p.information&&!unit.quote){
+    for(const id of antecedent.symptomIds){const old=symptoms.find(s=>s.id===id);const node={kind:old.kind,strong:old.strong,text:text.slice(unit.start,unit.end).trim(),start:unit.start,end:unit.end,id:'S'+(symptoms.length+1),span:spanOf(reference??head??unit),ownerPredicateId:p.id,referenceSymptomId:id};symptoms.push(node);p.symptomIds.push(node.id);}
+   }
+  }
+  for(const symptom of unit.symptoms){const node={...symptom,id:'S'+(symptoms.length+1),span:spanOf(symptom),ownerPredicateId:p.id};symptoms.push(node);p.symptomIds.push(node.id);}
+  for(const event of unit.events){const op={...event,id:'O'+(operators.length+1),span:spanOf(event),ownerPredicateId:p.id};operators.push(op);p.operatorIds.push(op.id);}
+  if(unit.edge==='hypothetical'){
+   const op={id:'O'+(operators.length+1),type:epistemic?'epistemicFrame':'conditionalFrame',word:unit.connector,start:unit.start-unit.connector.length,end:unit.start,span:{start:unit.start-unit.connector.length,end:unit.start},ownerPredicateId:p.id};operators.push(op);p.operatorIds.push(op.id);p.ownedSpan.start=Math.min(p.ownedSpan.start,op.start);
+  }
+  predicates.push(p);previous=p;
+  if(predicates.length>TRIAGE_LIMITS.predicates||symptoms.length>TRIAGE_LIMITS.mentions||operators.length>TRIAGE_LIMITS.operators||links.length>TRIAGE_LIMITS.links)return null;
+ }
+ return {version:TRIAGE_GRAMMAR_VERSION,predicates,symptoms,operators,links};
+}
+function evaluatePredicate(p,graph){
+ // Ownership is the ONLY event selection criterion. No prefix, previous
+ // symptom cutoff or group identifier can supply evidence to this evaluator.
+ const events=graph.operators.filter(e=>e.ownerPredicateId===p.id);
+ const first=graph.symptoms.find(s=>s.ownerPredicateId===p.id);
+ const before=events.filter(e=>e.end<=(first?.start??p.ownedSpan.end));
+ const actorEvent=ofType(events,'actor')[0],topic=last(before,'education'),source=last(before,'information');
+ const personal=p.actor&&p.actor!=='GENERIC'&&(!topic||actorEvent?.start>topic.start)&&(!source||actorEvent?.start>source.start);
+ const outcome=outcomeEvidence(events),now=last(events,'currentTime'),past=last(events,'pastPredicate')||last(events,'pastTime');
+ const actual=Boolean(personal||p.quotedAssertion||p.referenceId&&!p.education)&&!p.epistemic;
+ const education=p.education&&!actual;
+ const frame=p.frame!=='ACTUAL'?p.frame:education?'EDUCATIONAL':events.some(e=>e.type==='figurative')?'FIGURATIVE':'ACTUAL';
+ const evidence={assertion:actual?'ACTUAL':education||p.information||frame==='QUOTED'?'TOPIC':'UNRESOLVED',speaker:p.actor,
+  polarity:negativeAt(before,first?.start??p.ownedSpan.end)&&!outcome.ongoing?'NEGATED':'POSITIVE',
+  temporal:p.epistemic?'UNKNOWN':now||outcome.ongoing||outcome.recurrence&&!past?'CURRENT':past?'PAST':actual?'CURRENT':'UNKNOWN',
+  resolution:outcome.absent?'ABSENT':outcome.resolved&&!outcome.recurrence?'RESOLVED':outcome.ongoing?'ONGOING':outcome.recurrence?'RECURRENT':'UNKNOWN',
+  framing:frame,quotation:p.quote?p.quotedAssertion?'ASSERTED':'MENTIONED':'NONE',relationship:p.referenceId?'ADJACENT_REFERENCE':p.units.length>1?'COORDINATED':'INDEPENDENT'};
+ return evidence;
 }
 function positive(m){return ['CURRENT','AMBIGUOUS'].includes(m.state);}
 
-/** Structured evidence is returned for inspection only and is never logged by
- * ingress. Both current and possible decisions take the conditional safety path.
+/** Full ownership traces are in-memory inspection data only. Ingress consumes
+ * assessUrgency's small decision adapter and never logs or persists this graph.
  */
 export function interpretUrgentSymptoms(input){
  const raw=String(input??'');if(raw.length>TRIAGE_LIMITS.characters)return overflow();
  const text=raw.normalize('NFC').replace(/[’‘]/g,"'").replace(/[“”]/g,'"').trim();
  const lexical=symptomsOf(text);if(lexical.length>TRIAGE_LIMITS.mentions)return overflow();
- const parts=clausesOf(text,lexical,quotesOf(text));if(parts.length>TRIAGE_LIMITS.clauses)return overflow();
- const mentions=[];let previous=null,group=0;
- for(const part of parts){
-  part.symptoms=symptomsOf(part.text);part.quotes=quotesOf(part.text);part.events=eventsOf(part);
-  const unquoted=part.events.filter(e=>e.quote===-1),actor=speakerOf(last(unquoted,'actor'));
-  const connective=['coordinate','comma','cause'].includes(part.edge);
-  part.hypothetical=part.edge==='hypothetical'||Boolean(connective&&previous?.hypothetical);
-  part.epistemic=Boolean(part.edge==='hypothetical'&&previous?.events.some(e=>e.quote===-1&&e.type==='uncertainty')&&speakerOf(last(previous.events.filter(e=>e.quote===-1),'actor'))==='SELF');
-  const source=last(unquoted,'information');
-  part.information=Boolean(source||(connective||part.edge==='relative')&&previous?.information||part.edge==='sentence'&&previous?.information&&['he','she','they'].includes(actor));
-  const predicate=part.symptoms[0]&&/^(?:cannot|can't|unable|không thở|không thể thở|無法|喘不過氣)/iu.test(part.symptoms[0].text);
-  const list=['coordinate','comma'].includes(part.edge)&&previous?.mentions.length&&!last(unquoted.filter(e=>e.end<part.symptoms[0]?.start),'actor')&&!(predicate&&/^(?:and|also|và|也|又|而且|且)$/iu.test(part.connector));
-  const inherited=list?previous.mentions.at(-1):null;
-  part.mentions=[];if(!list)group++;
-  for(const symptom of part.symptoms){
-   const preceding=part.mentions.at(-1);
-   const prefix=part.events.filter(e=>e.start>=(preceding?.end??0)&&e.end<=symptom.start);
-   const gap=preceding?part.text.slice(preceding.end,symptom.start):'';
-   const internalList=preceding&&[...gap.matchAll(EDGES)].some(e=>edgeKind(e[0])==='coordinate')&&!last(prefix,'actor');
-   if(preceding&&!internalList)group++;
-   const prior=internalList?preceding:preceding?null:inherited;
-   const evidence=evidenceFor(part,symptom,prior);
-   if(part.edge==='coordinate'&&!actor&&!prior&&previous?.mentions.at(-1)?.evidence.framing==='EDUCATIONAL')evidence.framing='EDUCATIONAL';
-   const m={...symptom,index:part.start+symptom.start,group,evidence,speaker:evidence.speaker,state:stateOf(evidence)};
-   mentions.push(m);part.mentions.push(m);
-   // One shared predicate resolves an entire coordinated list, but never a
-   // separate subject/predicate. Metadata changes do not cross that group.
-   if(['RESOLVED','ABSENT'].includes(evidence.resolution))for(const old of mentions.filter(n=>n.group===group))applyResolution(old,evidence.resolution);
-   // A latest explicit same-speaker outcome retires that symptom's prior
-   // assertion. Past accounts and a different person cannot rewrite it.
-   const closed=evidence.polarity==='NEGATED'?'ABSENT':evidence.resolution;
-   if(['RESOLVED','ABSENT'].includes(closed)&&evidence.temporal!=='PAST'&&evidence.framing==='ACTUAL'){
-    for(const old of mentions.filter(n=>n!==m&&n.kind===m.kind&&(!m.speaker||n.speaker===m.speaker)))applyResolution(old,closed);
-   }
+ const quotes=quotesOf(text);if(!quotes)return lexical.length?overflow():{decision:TRIAGE_DECISION.CLEARLY_NONURGENT,urgent:false,matched:null,excluded:null,mentions:[]};
+ if(lexical.length&&quotes.some(q=>q.depth>1))return {...overflow(),reason:'quotation_scope'};
+ const graph=buildOwnership(text,lexical,quotes);if(!graph)return overflow();
+ const mentions=[];
+ for(const p of graph.predicates){
+  const evidence=Object.freeze(evaluatePredicate(p,graph));p.assertion=evidence.assertion;p.frame=evidence.framing;
+  for(const id of p.symptomIds){const s=graph.symptoms.find(s=>s.id===id);mentions.push({...s,index:s.start,group:Number(p.id.slice(1)),predicateId:p.id,evidence,speaker:evidence.speaker,state:stateOf(evidence)});}
+ }
+ // Latest same-subject/same-symptom outcomes produce bounded links and derived
+ // active states. Earlier evidence is immutable; historical or other-speaker
+ // outcomes cannot rewrite another assertion.
+ for(const m of mentions){
+  const closed=m.evidence.polarity==='NEGATED'?'ABSENT':m.evidence.resolution;
+  if(!['RESOLVED','ABSENT'].includes(closed)||m.evidence.temporal==='PAST'||m.evidence.framing!=='ACTUAL'||!m.speaker)continue;
+  for(const old of mentions){
+   if(old===m)break;
+   if(old.predicateId===m.predicateId||old.kind!==m.kind||old.speaker!==m.speaker||!['CURRENT','AMBIGUOUS','HISTORICAL'].includes(old.state))continue;
+   if(graph.links.length>=TRIAGE_LIMITS.links)return overflow();
+   graph.links.push({id:'L'+(graph.links.length+1),type:'OUTCOME',fromPredicateId:m.predicateId,toPredicateId:old.predicateId,span:m.span});
+   old.state=closed==='ABSENT'?'NEGATED':'RESOLVED';old.retiredBy=m.predicateId;
   }
-  if(!part.mentions.length&&previous?.mentions.length){
-   const referents=previous.mentions.filter(m=>m.group===previous.mentions.at(-1).group);
-   const ref=referenceEvidence(part,referents);
-   if(ref&&!part.hypothetical&&!part.information){
-    if(ref.ongoing){
-     for(const old of referents){
-      if(mentions.length>=TRIAGE_LIMITS.mentions)return overflow();
-      const evidence={...old.evidence,assertion:'ACTUAL',polarity:'POSITIVE',temporal:'CURRENT',resolution:ref.outcome.recurrence?'RECURRENT':'ONGOING',framing:'ACTUAL',quotation:'NONE',relationship:'ADJACENT_REFERENCE',speaker:ref.speaker??old.speaker};
-      const m={...old,text:part.text.trim(),index:part.start,group:++group,evidence,speaker:evidence.speaker,state:stateOf(evidence),antecedent:old};
-      mentions.push(m);part.mentions.push(m);
-     }
-    }else if(ref.outcome.resolved||ref.outcome.absent){for(const old of referents)applyResolution(old,ref.outcome.absent?'ABSENT':'RESOLVED');part.mentions.push(...referents);}
-   }
-  }
-  previous=part;
  }
  const compatible=(m,n)=>n!==m&&!n.strong&&n.kind!==m.kind&&positive(n)&&(!m.speaker||!n.speaker||m.speaker===n.speaker)&&Math.abs(n.index-m.index)<=80;
  const currentSerious=mentions.find(m=>m.strong&&m.state==='CURRENT');
@@ -248,7 +318,8 @@ export function interpretUrgentSymptoms(input){
  const selected=currentSerious??currentPair??possible;
  const decision=currentSerious||currentPair?TRIAGE_DECISION.CURRENT_URGENT:possible?TRIAGE_DECISION.POSSIBLE_CURRENT_URGENT:TRIAGE_DECISION.CLEARLY_NONURGENT;
  return {decision,urgent:decision!==TRIAGE_DECISION.CLEARLY_NONURGENT,matched:selected?.text??null,excluded:selected?null:mentions.at(-1)?.state.toLowerCase()??null,
-  mentions:mentions.map(({kind,text,state,speaker,index,evidence,group})=>({kind,text,state,actor:speaker,index,group,evidence}))};
+  mentions:mentions.map(({kind,text,state,speaker,index,evidence,group,predicateId,retiredBy})=>({kind,text,state,actor:speaker,index,group,predicateId,evidence,...(retiredBy?{retiredBy}:{})})),
+  ownership:{version:graph.version,predicates:graph.predicates.map(({units,quote,...p})=>p),symptoms:graph.symptoms,operators:graph.operators,links:graph.links}};
 }
 export function assessUrgency(text){const {decision,urgent,matched,excluded,reason}=interpretUrgentSymptoms(text);return {decision,urgent,matched,excluded,...(reason?{reason}:{})};}
 export function isSymptomEducationQuestion(text){const r=interpretUrgentSymptoms(text);return r.decision===TRIAGE_DECISION.CLEARLY_NONURGENT&&r.mentions.some(m=>['EDUCATIONAL','INFORMATIONAL','QUOTED'].includes(m.state));}

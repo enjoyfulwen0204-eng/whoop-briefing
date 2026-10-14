@@ -1,0 +1,11 @@
+{
+  "grammarVersion": "predicate-ownership-v1",
+  "baseline": "dbb89360315a1cf6f1d9291b5310a24204c2e7b1",
+  "cases": [
+    {"text":"I had chest pain yesterday whereas my friend has difficulty breathing.","decision":"CURRENT_URGENT","predicates":[{"actor":"SELF","head":"had","symptoms":["chest"],"operators":["had","yesterday"]},{"actor":"my friend","head":"has","symptoms":["breathing"],"operators":["has"]}]},
+    {"text":"I had chest pain yesterday whereas I have difficulty breathing.","decision":"CURRENT_URGENT","predicates":[{"actor":"SELF","head":"had","symptoms":["chest"],"operators":["had","yesterday"]},{"actor":"SELF","head":"have","symptoms":["breathing"],"operators":["have"]}]},
+    {"text":"我昨天胸痛然而我呼吸困難。","decision":"CURRENT_URGENT","predicates":[{"actor":"SELF","head":"胸痛","symptoms":["chest"],"operators":["昨天"]},{"actor":"SELF","head":"呼吸困難","symptoms":["breathing"],"operators":[]}]},
+    {"text":"I was fine yesterday whereas I have chest pain.","decision":"CURRENT_URGENT","predicates":[{"actor":"SELF","head":"was","symptoms":[],"operators":["was","fine","yesterday"]},{"actor":"SELF","head":"have","symptoms":["chest"],"operators":["have"]}]}
+  ],
+  "historicalCorpus": {"file":"../stage8-triage-architecture/independent-corpus.json","distinctCases":94,"evidenceSha256":"19a6d843aa810df3c20f6f9b86fc49579168fb08593f9e59617cf6ebeda05d01","ownershipRules":["Every symptom has one predicate owner","Every operator has one predicate owner inside its bounded span","Unrelated past and outcome predicates cannot retire a current predicate","Quotation references and reported speakers require explicit links","Shared negation and resolution govern only proven coordinated lists","Conditional and topic exclusions remain local; epistemic scope is possible"]}
+}

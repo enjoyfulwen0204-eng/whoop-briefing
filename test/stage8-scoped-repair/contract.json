@@ -1,0 +1,174 @@
+{
+  "baselineHead": "a2dd62ae7be4cf4058952f3d6471e85f5b15fbd1",
+  "baselineTree": "ea5f2fce740632f9d4b6af7e1a5cc3c8027fe8bb",
+  "reviewSha256": "cd276d0c064e8b07d29d86e8139f8d52b686e766d064d558cae638395ce7c7ad",
+  "frozenBeforeRuntimeEdits": true,
+  "mandatory": [
+    {
+      "finding": "PO-H01",
+      "text": "I have chest pain. I had a headache yesterday. It has resolved.",
+      "expected": "CURRENT_URGENT",
+      "ownership": {
+        "predicates": [
+          "P1 SELF chest CURRENT",
+          "P2 SELF had headache PAST reference barrier",
+          "P3 resolution of nearest P2 only; no chest symptom clone"
+        ],
+        "operators": {
+          "have": "P1",
+          "had": "P2",
+          "yesterday": "P2",
+          "resolved": "P3"
+        },
+        "forbiddenLinks": [
+          "OUTCOME P3->P1",
+          "REFERENCE P1->P3"
+        ]
+      }
+    },
+    {
+      "finding": "PO-H02",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "expected": "CURRENT_URGENT",
+      "ownership": {
+        "predicates": [
+          "P1 OTHER:my friend:ana chest CURRENT",
+          "P2 OTHER:my friend:bo chest NEGATED"
+        ],
+        "operators": {
+          "Ana": "P1 actor identity",
+          "Bo": "P2 actor identity",
+          "no": "P2"
+        },
+        "forbiddenLinks": [
+          "OUTCOME P2->P1"
+        ]
+      }
+    },
+    {
+      "finding": "PO-H03",
+      "text": "I have had chest pain since this morning.",
+      "expected": "CURRENT_URGENT",
+      "ownership": {
+        "predicates": [
+          "P1 SELF chest ONGOING_PERFECT CURRENT"
+        ],
+        "operators": {
+          "have": "P1 governing aspect",
+          "had": "P1 perfect aspect",
+          "since": "P1 open duration"
+        },
+        "forbiddenLinks": []
+      }
+    },
+    {
+      "finding": "PO-H04",
+      "text": "If chest pain is dangerous, please help: I have chest pain now.",
+      "expected": "CURRENT_URGENT",
+      "ownership": {
+        "predicates": [
+          "P1 topic chest HYPOTHETICAL",
+          "P2 non-symptom help",
+          "P3 SELF chest ACTUAL CURRENT"
+        ],
+        "operators": {
+          "If": "P1",
+          "have": "P3",
+          "now": "P3"
+        },
+        "forbiddenLinks": [
+          "FRAME P1->P3"
+        ]
+      }
+    },
+    {
+      "finding": "PO-H05",
+      "text": "I had chest pain yesterday I have difficulty breathing.",
+      "expected": "CURRENT_URGENT",
+      "ownership": {
+        "predicates": [
+          "P1 SELF chest PAST",
+          "P2 SELF breathing CURRENT"
+        ],
+        "operators": {
+          "had": "P1",
+          "yesterday": "P1 trailing temporal",
+          "have": "P2"
+        },
+        "forbiddenLinks": []
+      }
+    },
+    {
+      "finding": "PO-H06",
+      "text": "I cannot say that I do not have chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT",
+      "ownership": {
+        "predicates": [
+          "P1 SELF cannot assert",
+          "P2 SELF chest assertion UNRESOLVED polarity UNKNOWN time UNKNOWN"
+        ],
+        "operators": {
+          "cannot": "P1",
+          "say": "P1 assertion head",
+          "do not": "P2 uncertain embedded negation",
+          "have": "P2"
+        },
+        "requiredLinks": [
+          "FRAME P1->P2"
+        ],
+        "forbiddenLinks": [
+          "OUTCOME from P2"
+        ]
+      }
+    },
+    {
+      "finding": "PO-M01",
+      "text": "I am not experiencing my chest pain or my difficulty breathing.",
+      "expected": "CLEARLY_NONURGENT",
+      "ownership": {
+        "predicates": [
+          "P1 SELF governing experiencing owns chest and breathing NEGATED"
+        ],
+        "operators": {
+          "not": "P1",
+          "experiencing": "P1",
+          "my": "P1 object possessors"
+        },
+        "forbiddenLinks": []
+      }
+    }
+  ],
+  "reportedEquivalents": {
+    "PO-H01": [
+      "I have chest pain. I had a headache yesterday. It has resolved.",
+      "我現在胸痛。我昨天頭痛。它已經好了。",
+      "Tôi đang đau ngực. Tôi đau đầu hôm qua. Nó đã hết.",
+      "I have chest pain. My friend has a headache. It has gone away."
+    ],
+    "PO-H02": [
+      "My friend Alice has chest pain. My friend Bob's chest pain has resolved.",
+      "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "我朋友小明胸痛。我朋友小華胸痛已經好了。",
+      "Bạn tôi An đau ngực. Bạn tôi Bình đã hết đau ngực."
+    ],
+    "PO-H03": [
+      "I have had chest pain since this morning.",
+      "I have had difficulty breathing for the last ten minutes."
+    ],
+    "PO-H04": [
+      "If chest pain is dangerous, please help: I have chest pain now.",
+      "If chest pain can be serious, I have chest pain right now."
+    ],
+    "PO-H05": [
+      "I had chest pain yesterday I have difficulty breathing."
+    ],
+    "PO-H06": [
+      "I cannot say that I do not have chest pain."
+    ],
+    "PO-M01": [
+      "I am not experiencing my chest pain or my difficulty breathing.",
+      "She is not experiencing her chest pain or her difficulty breathing.",
+      "我沒有胸痛和我的呼吸困難。"
+    ]
+  }
+}

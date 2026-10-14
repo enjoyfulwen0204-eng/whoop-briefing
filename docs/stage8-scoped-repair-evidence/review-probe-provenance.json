@@ -1,0 +1,15 @@
+{
+  "reviewSha256": "cd276d0c064e8b07d29d86e8139f8d52b686e766d064d558cae638395ce7c7ad",
+  "testLocationAdaptationsOnly": [
+    "project root",
+    "fixture JSON location",
+    "synthetic output location"
+  ],
+  "expectedClassificationsChanged": 0,
+  "expectedProcessorAssertionsChanged": 0,
+  "originalSources": {
+    "/private/tmp/stage8-ownership-independent-processor.test.mjs": "a4e20bd13580c4fffb8d5b54c92867e1ffbc050b712e44dbde3bfff4315d4154",
+    "/private/tmp/stage8-ownership-independent-targeted-processor.test.mjs": "c55f75260a384c57099b4dfbdfcedf58302e369220ab11a0720af1df64439723",
+    "/private/tmp/stage8-ownership-independent-coach.test.mjs": "7e1c71d9e287b0173ce7a7afee266a4a0fb21ee89778accff4ff42fc79e6c709"
+  }
+}

@@ -1,0 +1,277 @@
+{
+  "count": 15,
+  "pass": 15,
+  "fail": 0,
+  "results": [
+    {
+      "id": "new-reference-regression",
+      "locale": "en",
+      "lane": "name",
+      "text": "I have chest pain. I had a headache yesterday. It has resolved.",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"USW_h-fMRjosY3cyrgzMLQ\",\"revision\":0,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_edit\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "new-reference-regression",
+      "locale": "en",
+      "lane": "note",
+      "text": "I have chest pain. I had a headache yesterday. It has resolved.",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "new-reference-regression",
+      "locale": "en",
+      "lane": "health",
+      "text": "I have chest pain. I had a headache yesterday. It has resolved. What is my HRV today?",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "new-reference-regression",
+      "locale": "zh-TW",
+      "lane": "name",
+      "text": "我現在胸痛。我昨天頭痛。它已經好了。",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":3,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"PQ-43P97vRwwl18ty3dDYQ\",\"revision\":0,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_edit\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"zh-TW\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "new-reference-regression",
+      "locale": "zh-TW",
+      "lane": "note",
+      "text": "我現在胸痛。我昨天頭痛。它已經好了。",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "new-reference-regression",
+      "locale": "zh-TW",
+      "lane": "health",
+      "text": "我現在胸痛。我昨天頭痛。它已經好了。 What is my HRV today?",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "你描述的狀況聽起來需要優先處理安全，這比任何數據都重要。\n\n如果症狀正在發生或持續，請立刻尋求醫療協助 —— 聯絡當地緊急醫療服務，或請身邊的人陪你就醫。\n\n我沒有能力判斷這是什麼狀況，WHOOP 的數據也不能用來排除危險，所以我不會在這裡幫你分析數字。等你安全了，我們再回來看資料。",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "new-reference-regression",
+      "locale": "vi",
+      "lane": "name",
+      "text": "Tôi đang đau ngực. Tôi đau đầu hôm qua. Nó đã hết.",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":3,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"-mdUSgWvtajr2r-UeYLt0g\",\"revision\":0,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_edit\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"vi\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "new-reference-regression",
+      "locale": "vi",
+      "lane": "note",
+      "text": "Tôi đang đau ngực. Tôi đau đầu hôm qua. Nó đã hết.",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "new-reference-regression",
+      "locale": "vi",
+      "lane": "health",
+      "text": "Tôi đang đau ngực. Tôi đau đầu hôm qua. Nó đã hết. What is my HRV today?",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Những gì bạn mô tả cần ưu tiên sự an toàn ngay lúc này, trước mọi số liệu.\n\nNếu triệu chứng đang xảy ra hoặc kéo dài, hãy tìm trợ giúp y tế ngay. Liên hệ dịch vụ cấp cứu tại nơi bạn ở hoặc nhờ người bên cạnh giúp bạn đi khám.\n\nTôi không thể đánh giá tình trạng này, và dữ liệu WHOOP không thể loại trừ nguy hiểm. Tôi sẽ không phân tích các con số ở đây. Khi bạn an toàn, chúng ta có thể xem lại dữ liệu.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "short-distinct-friends",
+      "locale": "en",
+      "lane": "name",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"aH2NdUTSS-uB5E0vBWRabg\",\"revision\":0,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_edit\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "short-distinct-friends",
+      "locale": "en",
+      "lane": "note",
+      "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+      "classification": "CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "unknown-actor-cautious",
+      "locale": "en",
+      "lane": "name",
+      "text": "Alex has chest pain.",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": "{\"version\":1,\"profileRevision\":2,\"uid\":\"a\",\"chatId\":\"123\",\"lifecycle\":1,\"nonce\":\"fMS1wFsbZOt258VmD3N32g\",\"revision\":0,\"expiresAt\":1789781100000,\"stage8\":true,\"ownerAvailable\":false,\"mode\":\"name_edit\",\"expectedName\":\"Synthetic\",\"expectedLocale\":\"en\"}",
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "unknown-actor-cautious",
+      "locale": "en",
+      "lane": "note",
+      "text": "Alex has chest pain.",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "unknown-actor-cautious",
+      "locale": "en",
+      "lane": "coach",
+      "text": "Alex has chest pain.",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    },
+    {
+      "id": "unknown-actor-cautious",
+      "locale": "en",
+      "lane": "health",
+      "text": "Alex has chest pain. What is my HRV today?",
+      "classification": "POSSIBLE_CURRENT_URGENT",
+      "pass": true,
+      "failures": [],
+      "reply": "Your description calls for immediate attention to your safety, ahead of any data.\n\nIf these symptoms are happening now or continuing, seek medical help immediately. Contact your local emergency medical service or ask someone nearby to help you get care.\n\nI cannot assess the condition, and WHOOP data cannot rule out danger. I will not analyze the numbers here. We can return to the data when you are safe.",
+      "scopeReads": 0,
+      "name": null,
+      "notes": [],
+      "observed": {
+        "sends": 1,
+        "consumers": 0,
+        "captures": 0
+      }
+    }
+  ]
+}

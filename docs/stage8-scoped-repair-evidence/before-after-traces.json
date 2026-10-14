@@ -1,0 +1,3306 @@
+[
+  {
+    "finding": "PO-H01",
+    "text": "I have chest pain. I had a headache yesterday. It has resolved.",
+    "expected": "CURRENT_URGENT",
+    "ownership": {
+      "predicates": [
+        "P1 SELF chest CURRENT",
+        "P2 SELF had headache PAST reference barrier",
+        "P3 resolution of nearest P2 only; no chest symptom clone"
+      ],
+      "operators": {
+        "have": "P1",
+        "had": "P2",
+        "yesterday": "P2",
+        "resolved": "P3"
+      },
+      "forbiddenLinks": [
+        "OUTCOME P3->P1",
+        "REFERENCE P1->P3"
+      ]
+    },
+    "before": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "resolved",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          },
+          "retiredBy": "P3"
+        },
+        {
+          "kind": "chest",
+          "text": "It has resolved",
+          "state": "RESOLVED",
+          "actor": "SELF",
+          "index": 46,
+          "group": 3,
+          "predicateId": "P3",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "RESOLVED",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "ADJACENT_REFERENCE"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 2,
+              "end": 6
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 17
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3"
+            ],
+            "edge": "start",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 21,
+              "end": 24
+            },
+            "ownedSpan": {
+              "start": 18,
+              "end": 45
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [],
+            "operatorIds": [
+              "O4",
+              "O5",
+              "O6"
+            ],
+            "edge": "sentence",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P3",
+            "headSpan": {
+              "start": 50,
+              "end": 53
+            },
+            "ownedSpan": {
+              "start": 46,
+              "end": 62
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S2"
+            ],
+            "operatorIds": [
+              "O7",
+              "O8",
+              "O9",
+              "O10"
+            ],
+            "edge": "sentence",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false,
+            "referenceId": "P1"
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 7,
+            "end": 17,
+            "id": "S1",
+            "span": {
+              "start": 7,
+              "end": 17
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "It has resolved",
+            "start": 46,
+            "end": 62,
+            "id": "S2",
+            "span": {
+              "start": 47,
+              "end": 49
+            },
+            "ownerPredicateId": "P3",
+            "referenceSymptomId": "S1"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 0,
+            "end": 1,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "present",
+            "word": "have",
+            "start": 2,
+            "end": 6,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 2,
+              "end": 6
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "ongoing",
+            "word": "have",
+            "start": 2,
+            "end": 6,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 2,
+              "end": 6
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 19,
+            "end": 20,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O4",
+            "span": {
+              "start": 19,
+              "end": 20
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "pastPredicate",
+            "word": "had",
+            "start": 21,
+            "end": 24,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 21,
+              "end": 24
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "pastTime",
+            "word": "yesterday",
+            "start": 36,
+            "end": 45,
+            "quote": -1,
+            "id": "O6",
+            "span": {
+              "start": 36,
+              "end": 45
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "reference",
+            "word": "It",
+            "start": 47,
+            "end": 49,
+            "quote": -1,
+            "id": "O7",
+            "span": {
+              "start": 47,
+              "end": 49
+            },
+            "ownerPredicateId": "P3"
+          },
+          {
+            "type": "present",
+            "word": "has",
+            "start": 50,
+            "end": 53,
+            "quote": -1,
+            "id": "O8",
+            "span": {
+              "start": 50,
+              "end": 53
+            },
+            "ownerPredicateId": "P3"
+          },
+          {
+            "type": "ongoing",
+            "word": "has",
+            "start": 50,
+            "end": 53,
+            "quote": -1,
+            "id": "O9",
+            "span": {
+              "start": 50,
+              "end": 53
+            },
+            "ownerPredicateId": "P3"
+          },
+          {
+            "type": "resolution",
+            "word": "resolved",
+            "start": 54,
+            "end": 62,
+            "quote": -1,
+            "id": "O10",
+            "span": {
+              "start": 54,
+              "end": 62
+            },
+            "ownerPredicateId": "P3"
+          }
+        ],
+        "links": [
+          {
+            "id": "L1",
+            "type": "REFERENCE",
+            "fromPredicateId": "P1",
+            "toPredicateId": "P3",
+            "span": {
+              "start": 47,
+              "end": 49
+            }
+          },
+          {
+            "id": "L2",
+            "type": "OUTCOME",
+            "fromPredicateId": "P3",
+            "toPredicateId": "P1",
+            "span": {
+              "start": 47,
+              "end": 49
+            }
+          }
+        ]
+      }
+    },
+    "after": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 7,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1-scoped",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 2,
+              "end": 6
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 17
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3"
+            ],
+            "edge": "start",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 21,
+              "end": 24
+            },
+            "ownedSpan": {
+              "start": 18,
+              "end": 45
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [],
+            "operatorIds": [
+              "O4",
+              "O5",
+              "O6"
+            ],
+            "edge": "sentence",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P3",
+            "headSpan": {
+              "start": 50,
+              "end": 53
+            },
+            "ownedSpan": {
+              "start": 46,
+              "end": 62
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [],
+            "operatorIds": [
+              "O7",
+              "O8",
+              "O9",
+              "O10"
+            ],
+            "edge": "sentence",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false,
+            "referenceProof": "NON_SYMPTOM_BARRIER",
+            "referenceId": "P2"
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 7,
+            "end": 17,
+            "id": "S1",
+            "span": {
+              "start": 7,
+              "end": 17
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 0,
+            "end": 1,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "present",
+            "word": "have",
+            "start": 2,
+            "end": 6,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 2,
+              "end": 6
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "ongoing",
+            "word": "have",
+            "start": 2,
+            "end": 6,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 2,
+              "end": 6
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 19,
+            "end": 20,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O4",
+            "span": {
+              "start": 19,
+              "end": 20
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "pastPredicate",
+            "word": "had",
+            "start": 21,
+            "end": 24,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 21,
+              "end": 24
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "pastTime",
+            "word": "yesterday",
+            "start": 36,
+            "end": 45,
+            "quote": -1,
+            "id": "O6",
+            "span": {
+              "start": 36,
+              "end": 45
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "reference",
+            "word": "It",
+            "start": 47,
+            "end": 49,
+            "quote": -1,
+            "id": "O7",
+            "span": {
+              "start": 47,
+              "end": 49
+            },
+            "ownerPredicateId": "P3"
+          },
+          {
+            "type": "present",
+            "word": "has",
+            "start": 50,
+            "end": 53,
+            "quote": -1,
+            "id": "O8",
+            "span": {
+              "start": 50,
+              "end": 53
+            },
+            "ownerPredicateId": "P3"
+          },
+          {
+            "type": "ongoing",
+            "word": "has",
+            "start": 50,
+            "end": 53,
+            "quote": -1,
+            "id": "O9",
+            "span": {
+              "start": 50,
+              "end": 53
+            },
+            "ownerPredicateId": "P3"
+          },
+          {
+            "type": "resolution",
+            "word": "resolved",
+            "start": 54,
+            "end": 62,
+            "quote": -1,
+            "id": "O10",
+            "span": {
+              "start": 54,
+              "end": 62
+            },
+            "ownerPredicateId": "P3"
+          }
+        ],
+        "links": [
+          {
+            "id": "L1",
+            "type": "REFERENCE",
+            "fromPredicateId": "P2",
+            "toPredicateId": "P3",
+            "span": {
+              "start": 47,
+              "end": 49
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "finding": "PO-H02",
+    "text": "My friend Ana has chest pain. My friend Bo has no chest pain.",
+    "expected": "CURRENT_URGENT",
+    "ownership": {
+      "predicates": [
+        "P1 OTHER:my friend:ana chest CURRENT",
+        "P2 OTHER:my friend:bo chest NEGATED"
+      ],
+      "operators": {
+        "Ana": "P1 actor identity",
+        "Bo": "P2 actor identity",
+        "no": "P2"
+      },
+      "forbiddenLinks": [
+        "OUTCOME P2->P1"
+      ]
+    },
+    "before": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "my friend",
+          "index": 18,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "my friend",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          },
+          "retiredBy": "P2"
+        },
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "my friend",
+          "index": 50,
+          "group": 2,
+          "predicateId": "P2",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "my friend",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 14,
+              "end": 17
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 28
+            },
+            "actor": "my friend",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3"
+            ],
+            "edge": "start",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 43,
+              "end": 46
+            },
+            "ownedSpan": {
+              "start": 29,
+              "end": 60
+            },
+            "actor": "my friend",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S2"
+            ],
+            "operatorIds": [
+              "O4",
+              "O5",
+              "O6",
+              "O7"
+            ],
+            "edge": "sentence",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 18,
+            "end": 28,
+            "id": "S1",
+            "span": {
+              "start": 18,
+              "end": 28
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 50,
+            "end": 60,
+            "id": "S2",
+            "span": {
+              "start": 50,
+              "end": 60
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "My friend",
+            "start": 0,
+            "end": 9,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 9
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "present",
+            "word": "has",
+            "start": 14,
+            "end": 17,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 14,
+              "end": 17
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "ongoing",
+            "word": "has",
+            "start": 14,
+            "end": 17,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 14,
+              "end": 17
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "My friend",
+            "start": 30,
+            "end": 39,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O4",
+            "span": {
+              "start": 30,
+              "end": 39
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "present",
+            "word": "has",
+            "start": 43,
+            "end": 46,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 43,
+              "end": 46
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "ongoing",
+            "word": "has",
+            "start": 43,
+            "end": 46,
+            "quote": -1,
+            "id": "O6",
+            "span": {
+              "start": 43,
+              "end": 46
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "negative",
+            "word": "no",
+            "start": 47,
+            "end": 49,
+            "quote": -1,
+            "id": "O7",
+            "span": {
+              "start": 47,
+              "end": 49
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "links": [
+          {
+            "id": "L1",
+            "type": "OUTCOME",
+            "fromPredicateId": "P2",
+            "toPredicateId": "P1",
+            "span": {
+              "start": 50,
+              "end": 60
+            }
+          }
+        ]
+      }
+    },
+    "after": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "my friend",
+          "index": 18,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": "OTHER:my friend:ana",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "speaker": "my friend",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "my friend",
+          "index": 50,
+          "group": 2,
+          "predicateId": "P2",
+          "evidence": {
+            "actorId": "OTHER:my friend:bo",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "speaker": "my friend",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1-scoped",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 14,
+              "end": 17
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 28
+            },
+            "actor": "my friend",
+            "actorId": "OTHER:my friend:ana",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3"
+            ],
+            "edge": "start",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 43,
+              "end": 46
+            },
+            "ownedSpan": {
+              "start": 29,
+              "end": 60
+            },
+            "actor": "my friend",
+            "actorId": "OTHER:my friend:bo",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S2"
+            ],
+            "operatorIds": [
+              "O4",
+              "O5",
+              "O6",
+              "O7"
+            ],
+            "edge": "sentence",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 18,
+            "end": 28,
+            "id": "S1",
+            "span": {
+              "start": 18,
+              "end": 28
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 50,
+            "end": 60,
+            "id": "S2",
+            "span": {
+              "start": 50,
+              "end": 60
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "My friend",
+            "start": 0,
+            "end": 9,
+            "quote": -1,
+            "role": "SUBJECT",
+            "identityName": "Ana",
+            "identitySpan": {
+              "start": 10,
+              "end": 13
+            },
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 9
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "present",
+            "word": "has",
+            "start": 14,
+            "end": 17,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 14,
+              "end": 17
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "ongoing",
+            "word": "has",
+            "start": 14,
+            "end": 17,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 14,
+              "end": 17
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "My friend",
+            "start": 30,
+            "end": 39,
+            "quote": -1,
+            "role": "SUBJECT",
+            "identityName": "Bo",
+            "identitySpan": {
+              "start": 40,
+              "end": 42
+            },
+            "id": "O4",
+            "span": {
+              "start": 30,
+              "end": 39
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "present",
+            "word": "has",
+            "start": 43,
+            "end": 46,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 43,
+              "end": 46
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "ongoing",
+            "word": "has",
+            "start": 43,
+            "end": 46,
+            "quote": -1,
+            "id": "O6",
+            "span": {
+              "start": 43,
+              "end": 46
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "negative",
+            "word": "no",
+            "start": 47,
+            "end": 49,
+            "quote": -1,
+            "id": "O7",
+            "span": {
+              "start": 47,
+              "end": 49
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "links": []
+      }
+    }
+  },
+  {
+    "finding": "PO-H03",
+    "text": "I have had chest pain since this morning.",
+    "expected": "CURRENT_URGENT",
+    "ownership": {
+      "predicates": [
+        "P1 SELF chest ONGOING_PERFECT CURRENT"
+      ],
+      "operators": {
+        "have": "P1 governing aspect",
+        "had": "P1 perfect aspect",
+        "since": "P1 open duration"
+      },
+      "forbiddenLinks": []
+    },
+    "before": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "historical",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HISTORICAL",
+          "actor": "SELF",
+          "index": 11,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 7,
+              "end": 10
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 40
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3",
+              "O4",
+              "O5"
+            ],
+            "edge": "start",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 11,
+            "end": 21,
+            "id": "S1",
+            "span": {
+              "start": 11,
+              "end": 21
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 0,
+            "end": 1,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "present",
+            "word": "have",
+            "start": 2,
+            "end": 6,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 2,
+              "end": 6
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "ongoing",
+            "word": "have",
+            "start": 2,
+            "end": 6,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 2,
+              "end": 6
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "pastPredicate",
+            "word": "had",
+            "start": 7,
+            "end": 10,
+            "quote": -1,
+            "id": "O4",
+            "span": {
+              "start": 7,
+              "end": 10
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "reference",
+            "word": "this",
+            "start": 28,
+            "end": 32,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 28,
+              "end": 32
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "links": []
+      }
+    },
+    "after": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 11,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "ONGOING_PERFECT",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1-scoped",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 2,
+              "end": 6
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 40
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "ONGOING_PERFECT",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3",
+              "O4",
+              "O5",
+              "O6"
+            ],
+            "edge": "start",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 11,
+            "end": 21,
+            "id": "S1",
+            "span": {
+              "start": 11,
+              "end": 21
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 0,
+            "end": 1,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "present",
+            "word": "have",
+            "start": 2,
+            "end": 6,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 2,
+              "end": 6
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "ongoing",
+            "word": "have",
+            "start": 2,
+            "end": 6,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 2,
+              "end": 6
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "pastPredicate",
+            "word": "had",
+            "start": 7,
+            "end": 10,
+            "quote": -1,
+            "id": "O4",
+            "span": {
+              "start": 7,
+              "end": 10
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "openDuration",
+            "word": "since",
+            "start": 22,
+            "end": 27,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 22,
+              "end": 27
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "reference",
+            "word": "this",
+            "start": 28,
+            "end": 32,
+            "quote": -1,
+            "id": "O6",
+            "span": {
+              "start": 28,
+              "end": 32
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "links": []
+      }
+    }
+  },
+  {
+    "finding": "PO-H04",
+    "text": "If chest pain is dangerous, please help: I have chest pain now.",
+    "expected": "CURRENT_URGENT",
+    "ownership": {
+      "predicates": [
+        "P1 topic chest HYPOTHETICAL",
+        "P2 non-symptom help",
+        "P3 SELF chest ACTUAL CURRENT"
+      ],
+      "operators": {
+        "If": "P1",
+        "have": "P3",
+        "now": "P3"
+      },
+      "forbiddenLinks": [
+        "FRAME P1->P3"
+      ]
+    },
+    "before": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "hypothetical",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HYPOTHETICAL",
+          "actor": null,
+          "index": 3,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "assertion": "UNRESOLVED",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "HYPOTHETICAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HYPOTHETICAL",
+          "actor": "SELF",
+          "index": 48,
+          "group": 2,
+          "predicateId": "P2",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "HYPOTHETICAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 14,
+              "end": 16
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 26
+            },
+            "actor": null,
+            "assertion": "UNRESOLVED",
+            "frame": "HYPOTHETICAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2"
+            ],
+            "edge": "hypothetical",
+            "epistemic": false,
+            "hypothetical": true,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 43,
+              "end": 47
+            },
+            "ownedSpan": {
+              "start": 27,
+              "end": 62
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "HYPOTHETICAL",
+            "symptomIds": [
+              "S2"
+            ],
+            "operatorIds": [
+              "O3",
+              "O4",
+              "O5",
+              "O6"
+            ],
+            "edge": "comma",
+            "epistemic": false,
+            "hypothetical": true,
+            "information": false,
+            "education": false,
+            "frameSourceId": "P1"
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 3,
+            "end": 13,
+            "id": "S1",
+            "span": {
+              "start": 3,
+              "end": 13
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 48,
+            "end": 58,
+            "id": "S2",
+            "span": {
+              "start": 48,
+              "end": 58
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "operators": [
+          {
+            "type": "present",
+            "word": "is",
+            "start": 14,
+            "end": 16,
+            "quote": -1,
+            "id": "O1",
+            "span": {
+              "start": 14,
+              "end": 16
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "id": "O2",
+            "type": "conditionalFrame",
+            "word": "If",
+            "start": 0,
+            "end": 2,
+            "span": {
+              "start": 0,
+              "end": 2
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 41,
+            "end": 42,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O3",
+            "span": {
+              "start": 41,
+              "end": 42
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "present",
+            "word": "have",
+            "start": 43,
+            "end": 47,
+            "quote": -1,
+            "id": "O4",
+            "span": {
+              "start": 43,
+              "end": 47
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "ongoing",
+            "word": "have",
+            "start": 43,
+            "end": 47,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 43,
+              "end": 47
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "currentTime",
+            "word": "now",
+            "start": 59,
+            "end": 62,
+            "quote": -1,
+            "id": "O6",
+            "span": {
+              "start": 59,
+              "end": 62
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "links": [
+          {
+            "id": "L1",
+            "type": "FRAME",
+            "fromPredicateId": "P1",
+            "toPredicateId": "P2",
+            "span": {
+              "start": 0,
+              "end": 2
+            }
+          }
+        ]
+      }
+    },
+    "after": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HYPOTHETICAL",
+          "actor": null,
+          "index": 3,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": null,
+            "aspect": "SIMPLE",
+            "assertion": "UNRESOLVED",
+            "speaker": null,
+            "polarity": "POSITIVE",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "HYPOTHETICAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 48,
+          "group": 3,
+          "predicateId": "P3",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1-scoped",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 14,
+              "end": 16
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 26
+            },
+            "actor": null,
+            "actorId": null,
+            "aspect": "SIMPLE",
+            "assertion": "UNRESOLVED",
+            "frame": "HYPOTHETICAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2"
+            ],
+            "edge": "hypothetical",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": true,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 27,
+              "end": 27
+            },
+            "ownedSpan": {
+              "start": 27,
+              "end": 39
+            },
+            "actor": null,
+            "actorId": null,
+            "aspect": "SIMPLE",
+            "assertion": "UNRESOLVED",
+            "frame": "HYPOTHETICAL",
+            "symptomIds": [],
+            "operatorIds": [],
+            "edge": "comma",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": true,
+            "information": false,
+            "education": false,
+            "frameSourceId": "P1"
+          },
+          {
+            "id": "P3",
+            "headSpan": {
+              "start": 43,
+              "end": 47
+            },
+            "ownedSpan": {
+              "start": 40,
+              "end": 62
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S2"
+            ],
+            "operatorIds": [
+              "O3",
+              "O4",
+              "O5",
+              "O6"
+            ],
+            "edge": "discourse",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 3,
+            "end": 13,
+            "id": "S1",
+            "span": {
+              "start": 3,
+              "end": 13
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 48,
+            "end": 58,
+            "id": "S2",
+            "span": {
+              "start": 48,
+              "end": 58
+            },
+            "ownerPredicateId": "P3"
+          }
+        ],
+        "operators": [
+          {
+            "type": "present",
+            "word": "is",
+            "start": 14,
+            "end": 16,
+            "quote": -1,
+            "id": "O1",
+            "span": {
+              "start": 14,
+              "end": 16
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "id": "O2",
+            "type": "conditionalFrame",
+            "word": "If",
+            "start": 0,
+            "end": 2,
+            "span": {
+              "start": 0,
+              "end": 2
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 41,
+            "end": 42,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O3",
+            "span": {
+              "start": 41,
+              "end": 42
+            },
+            "ownerPredicateId": "P3"
+          },
+          {
+            "type": "present",
+            "word": "have",
+            "start": 43,
+            "end": 47,
+            "quote": -1,
+            "id": "O4",
+            "span": {
+              "start": 43,
+              "end": 47
+            },
+            "ownerPredicateId": "P3"
+          },
+          {
+            "type": "ongoing",
+            "word": "have",
+            "start": 43,
+            "end": 47,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 43,
+              "end": 47
+            },
+            "ownerPredicateId": "P3"
+          },
+          {
+            "type": "currentTime",
+            "word": "now",
+            "start": 59,
+            "end": 62,
+            "quote": -1,
+            "id": "O6",
+            "span": {
+              "start": 59,
+              "end": 62
+            },
+            "ownerPredicateId": "P3"
+          }
+        ],
+        "links": [
+          {
+            "id": "L1",
+            "type": "FRAME",
+            "fromPredicateId": "P1",
+            "toPredicateId": "P2",
+            "span": {
+              "start": 0,
+              "end": 2
+            }
+          },
+          {
+            "id": "L2",
+            "type": "SUBJECT_INHERIT",
+            "fromPredicateId": "P1",
+            "toPredicateId": "P2",
+            "span": {
+              "start": 26,
+              "end": 27
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "finding": "PO-H05",
+    "text": "I had chest pain yesterday I have difficulty breathing.",
+    "expected": "CURRENT_URGENT",
+    "ownership": {
+      "predicates": [
+        "P1 SELF chest PAST",
+        "P2 SELF breathing CURRENT"
+      ],
+      "operators": {
+        "had": "P1",
+        "yesterday": "P1 trailing temporal",
+        "have": "P2"
+      },
+      "forbiddenLinks": []
+    },
+    "before": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "historical",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HISTORICAL",
+          "actor": "SELF",
+          "index": 6,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "HISTORICAL",
+          "actor": "SELF",
+          "index": 34,
+          "group": 2,
+          "predicateId": "P2",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 2,
+              "end": 5
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 17
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2"
+            ],
+            "edge": "start",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 29,
+              "end": 33
+            },
+            "ownedSpan": {
+              "start": 17,
+              "end": 54
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S2"
+            ],
+            "operatorIds": [
+              "O3",
+              "O4",
+              "O5",
+              "O6"
+            ],
+            "edge": "subject",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 6,
+            "end": 16,
+            "id": "S1",
+            "span": {
+              "start": 6,
+              "end": 16
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "kind": "breathing",
+            "strong": true,
+            "text": "difficulty breathing",
+            "start": 34,
+            "end": 54,
+            "id": "S2",
+            "span": {
+              "start": 34,
+              "end": 54
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 0,
+            "end": 1,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "pastPredicate",
+            "word": "had",
+            "start": 2,
+            "end": 5,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 2,
+              "end": 5
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "pastTime",
+            "word": "yesterday",
+            "start": 17,
+            "end": 26,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 17,
+              "end": 26
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 27,
+            "end": 28,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O4",
+            "span": {
+              "start": 27,
+              "end": 28
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "present",
+            "word": "have",
+            "start": 29,
+            "end": 33,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 29,
+              "end": 33
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "ongoing",
+            "word": "have",
+            "start": 29,
+            "end": 33,
+            "quote": -1,
+            "id": "O6",
+            "span": {
+              "start": 29,
+              "end": 33
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "links": []
+      }
+    },
+    "after": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "difficulty breathing",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "HISTORICAL",
+          "actor": "SELF",
+          "index": 6,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "PAST",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 34,
+          "group": 2,
+          "predicateId": "P2",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1-scoped",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 2,
+              "end": 5
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 27
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3"
+            ],
+            "edge": "start",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 29,
+              "end": 33
+            },
+            "ownedSpan": {
+              "start": 27,
+              "end": 54
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S2"
+            ],
+            "operatorIds": [
+              "O4",
+              "O5",
+              "O6"
+            ],
+            "edge": "subject",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 6,
+            "end": 16,
+            "id": "S1",
+            "span": {
+              "start": 6,
+              "end": 16
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "kind": "breathing",
+            "strong": true,
+            "text": "difficulty breathing",
+            "start": 34,
+            "end": 54,
+            "id": "S2",
+            "span": {
+              "start": 34,
+              "end": 54
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 0,
+            "end": 1,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "pastPredicate",
+            "word": "had",
+            "start": 2,
+            "end": 5,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 2,
+              "end": 5
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "pastTime",
+            "word": "yesterday",
+            "start": 17,
+            "end": 26,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 17,
+              "end": 26
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 27,
+            "end": 28,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O4",
+            "span": {
+              "start": 27,
+              "end": 28
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "present",
+            "word": "have",
+            "start": 29,
+            "end": 33,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 29,
+              "end": 33
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "ongoing",
+            "word": "have",
+            "start": 29,
+            "end": 33,
+            "quote": -1,
+            "id": "O6",
+            "span": {
+              "start": 29,
+              "end": 33
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "links": []
+      }
+    }
+  },
+  {
+    "finding": "PO-H06",
+    "text": "I cannot say that I do not have chest pain.",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "ownership": {
+      "predicates": [
+        "P1 SELF cannot assert",
+        "P2 SELF chest assertion UNRESOLVED polarity UNKNOWN time UNKNOWN"
+      ],
+      "operators": {
+        "cannot": "P1",
+        "say": "P1 assertion head",
+        "do not": "P2 uncertain embedded negation",
+        "have": "P2"
+      },
+      "requiredLinks": [
+        "FRAME P1->P2"
+      ],
+      "forbiddenLinks": [
+        "OUTCOME from P2"
+      ]
+    },
+    "before": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 32,
+          "group": 2,
+          "predicateId": "P2",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 0,
+              "end": 0
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 13
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [],
+            "operatorIds": [
+              "O1"
+            ],
+            "edge": "start",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 27,
+              "end": 31
+            },
+            "ownedSpan": {
+              "start": 17,
+              "end": 42
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O2",
+              "O3",
+              "O4",
+              "O5"
+            ],
+            "edge": "relative",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 32,
+            "end": 42,
+            "id": "S1",
+            "span": {
+              "start": 32,
+              "end": 42
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 0,
+            "end": 1,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 18,
+            "end": 19,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O2",
+            "span": {
+              "start": 18,
+              "end": 19
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "negative",
+            "word": "do not",
+            "start": 20,
+            "end": 26,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 20,
+              "end": 26
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "present",
+            "word": "have",
+            "start": 27,
+            "end": 31,
+            "quote": -1,
+            "id": "O4",
+            "span": {
+              "start": 27,
+              "end": 31
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "ongoing",
+            "word": "have",
+            "start": 27,
+            "end": 31,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 27,
+              "end": 31
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "links": []
+      }
+    },
+    "after": {
+      "decision": "POSSIBLE_CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "AMBIGUOUS",
+          "actor": "SELF",
+          "index": 32,
+          "group": 2,
+          "predicateId": "P2",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "UNRESOLVED",
+            "speaker": "SELF",
+            "polarity": "UNKNOWN",
+            "temporal": "UNKNOWN",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1-scoped",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 9,
+              "end": 12
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 13
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "UNRESOLVED",
+            "frame": "ACTUAL",
+            "symptomIds": [],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3"
+            ],
+            "edge": "start",
+            "assertionUncertain": true,
+            "epistemic": true,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 27,
+              "end": 31
+            },
+            "ownedSpan": {
+              "start": 17,
+              "end": 42
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "UNRESOLVED",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O4",
+              "O5",
+              "O6",
+              "O7"
+            ],
+            "edge": "relative",
+            "assertionUncertain": false,
+            "epistemic": true,
+            "hypothetical": false,
+            "information": false,
+            "education": false,
+            "frameSourceId": "P1"
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 32,
+            "end": 42,
+            "id": "S1",
+            "span": {
+              "start": 32,
+              "end": 42
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 0,
+            "end": 1,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "negative",
+            "word": "cannot",
+            "start": 2,
+            "end": 8,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 2,
+              "end": 8
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "assertionHead",
+            "word": "say",
+            "start": 9,
+            "end": 12,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 9,
+              "end": 12
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 18,
+            "end": 19,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O4",
+            "span": {
+              "start": 18,
+              "end": 19
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "negative",
+            "word": "do not",
+            "start": 20,
+            "end": 26,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 20,
+              "end": 26
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "present",
+            "word": "have",
+            "start": 27,
+            "end": 31,
+            "quote": -1,
+            "id": "O6",
+            "span": {
+              "start": 27,
+              "end": 31
+            },
+            "ownerPredicateId": "P2"
+          },
+          {
+            "type": "ongoing",
+            "word": "have",
+            "start": 27,
+            "end": 31,
+            "quote": -1,
+            "id": "O7",
+            "span": {
+              "start": 27,
+              "end": 31
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "links": [
+          {
+            "id": "L1",
+            "type": "FRAME",
+            "fromPredicateId": "P1",
+            "toPredicateId": "P2",
+            "span": {
+              "start": 9,
+              "end": 12
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "finding": "PO-M01",
+    "text": "I am not experiencing my chest pain or my difficulty breathing.",
+    "expected": "CLEARLY_NONURGENT",
+    "ownership": {
+      "predicates": [
+        "P1 SELF governing experiencing owns chest and breathing NEGATED"
+      ],
+      "operators": {
+        "not": "P1",
+        "experiencing": "P1",
+        "my": "P1 object possessors"
+      },
+      "forbiddenLinks": []
+    },
+    "before": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "difficulty breathing",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 25,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 42,
+          "group": 2,
+          "predicateId": "P2",
+          "evidence": {
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 9,
+              "end": 21
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 36
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3",
+              "O4",
+              "O5",
+              "O6"
+            ],
+            "edge": "start",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          },
+          {
+            "id": "P2",
+            "headSpan": {
+              "start": 42,
+              "end": 62
+            },
+            "ownedSpan": {
+              "start": 38,
+              "end": 62
+            },
+            "actor": "SELF",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S2"
+            ],
+            "operatorIds": [
+              "O7"
+            ],
+            "edge": "coordinate",
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 25,
+            "end": 35,
+            "id": "S1",
+            "span": {
+              "start": 25,
+              "end": 35
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "kind": "breathing",
+            "strong": true,
+            "text": "difficulty breathing",
+            "start": 42,
+            "end": 62,
+            "id": "S2",
+            "span": {
+              "start": 42,
+              "end": 62
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 0,
+            "end": 1,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "present",
+            "word": "am",
+            "start": 2,
+            "end": 4,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 2,
+              "end": 4
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "negative",
+            "word": "not",
+            "start": 5,
+            "end": 8,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 5,
+              "end": 8
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "present",
+            "word": "experiencing",
+            "start": 9,
+            "end": 21,
+            "quote": -1,
+            "id": "O4",
+            "span": {
+              "start": 9,
+              "end": 21
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "ongoing",
+            "word": "experiencing",
+            "start": 9,
+            "end": 21,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 9,
+              "end": 21
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "my",
+            "start": 22,
+            "end": 24,
+            "quote": -1,
+            "role": "POSSESSOR_OBJECT",
+            "id": "O6",
+            "span": {
+              "start": 22,
+              "end": 24
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "my",
+            "start": 39,
+            "end": 41,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O7",
+            "span": {
+              "start": 39,
+              "end": 41
+            },
+            "ownerPredicateId": "P2"
+          }
+        ],
+        "links": []
+      }
+    },
+    "after": {
+      "decision": "CLEARLY_NONURGENT",
+      "urgent": false,
+      "matched": null,
+      "excluded": "negated",
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 25,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        },
+        {
+          "kind": "breathing",
+          "text": "difficulty breathing",
+          "state": "NEGATED",
+          "actor": "SELF",
+          "index": 42,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "NEGATED",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "COORDINATED"
+          }
+        }
+      ],
+      "ownership": {
+        "version": "predicate-ownership-v1-scoped",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 9,
+              "end": 21
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 62
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1",
+              "S2"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3",
+              "O4",
+              "O5",
+              "O6",
+              "O7"
+            ],
+            "edge": "start",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 25,
+            "end": 35,
+            "id": "S1",
+            "span": {
+              "start": 25,
+              "end": 35
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "kind": "breathing",
+            "strong": true,
+            "text": "difficulty breathing",
+            "start": 42,
+            "end": 62,
+            "id": "S2",
+            "span": {
+              "start": 42,
+              "end": 62
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "I",
+            "start": 0,
+            "end": 1,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 0,
+              "end": 1
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "present",
+            "word": "am",
+            "start": 2,
+            "end": 4,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 2,
+              "end": 4
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "negative",
+            "word": "not",
+            "start": 5,
+            "end": 8,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 5,
+              "end": 8
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "present",
+            "word": "experiencing",
+            "start": 9,
+            "end": 21,
+            "quote": -1,
+            "id": "O4",
+            "span": {
+              "start": 9,
+              "end": 21
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "ongoing",
+            "word": "experiencing",
+            "start": 9,
+            "end": 21,
+            "quote": -1,
+            "id": "O5",
+            "span": {
+              "start": 9,
+              "end": 21
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "my",
+            "start": 22,
+            "end": 24,
+            "quote": -1,
+            "role": "POSSESSOR_OBJECT",
+            "id": "O6",
+            "span": {
+              "start": 22,
+              "end": 24
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "my",
+            "start": 39,
+            "end": 41,
+            "quote": -1,
+            "role": "POSSESSOR_OBJECT",
+            "id": "O7",
+            "span": {
+              "start": 39,
+              "end": 41
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "links": []
+      }
+    }
+  }
+]

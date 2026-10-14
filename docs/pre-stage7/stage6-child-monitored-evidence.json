@@ -1,0 +1,364 @@
+{
+  "status": "STAGE6_FINAL_CHILD_MONITORED_QUALIFICATION_PARTIAL",
+  "synthetic": true,
+  "production": false,
+  "baselineHead": "a32210819c160a7bfcd8187315aaba713f7cf5b6",
+  "baselineTree": "824e67e704837224352474607249dd762148705b",
+  "verifiedRuntimeSource": "d1421ea8d5652fd30c550f251c205f13fd2bccab",
+  "verifiedRuntimeTree": "6ad8fd5b89b009d63cb29a34d1e4047ee808e057",
+  "runtimeSourceChangedAfterFrozenTest": false,
+  "schemaChanges": false,
+  "productionMainChildWiring": false,
+  "p0": {
+    "result": "FOCUSED_PASS",
+    "linux": "Debian12 arm64 Node22.23.2",
+    "cpuMax": "100000 100000",
+    "memoryMax": 2147483648,
+    "swapMax": 0,
+    "v8OldSemiMiB": [
+      96,
+      2
+    ],
+    "normal": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "result": {
+          "version": 2,
+          "releaseSha": "d1421ea8d5652fd30c550f251c205f13fd2bccab",
+          "phase": "STAGE6_DRAIN",
+          "source": "manual",
+          "outcome": "PARTIAL",
+          "durationMs": 15969.393674,
+          "jobsConsidered": 1,
+          "itemsAttempted": 1,
+          "itemsProcessed": 1,
+          "jobsCompleted": 0,
+          "jobsFailed": 0,
+          "remainingJobs": 2,
+          "identity": "4d674cb4cf8340db2ea81cbe20fce88a24f25cda63536d4b46e9b52a9e3bbc1a",
+          "configProof": "e3de1932bec34e41741274c83db4562eaf4184da827cfb90c41aee8f19398834",
+          "completion": "PARTIAL",
+          "stopReason": "ITEM_LIMIT",
+          "executionMode": "SHADOW",
+          "finishedAt": 1791993856606,
+          "executionSeq": 92,
+          "settlementState": "FINALIZED_SUCCESS",
+          "finalizedAt": 1791993857316
+        },
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "namedCursorProof": {
+      "executionId": "5379ec33-1ff6-4b1c-b019-473b98ff862e",
+      "newOperations": [],
+      "cursor": {
+        "jobKind": "REPAIR_CURRENTNESS",
+        "cursor": "[\"sleep\",\"sleep-01\"]",
+        "receiptKey": "a9932e0891739f1b3a698ea48946e0740e9c43e161196e02169fbda434373142",
+        "exactNamedAck": true
+      }
+    },
+    "receiptIntegrity": {
+      "authenticatedReceipts": 19,
+      "tamperingRejected": true,
+      "crossTenantRejected": true
+    },
+    "disconnects": [
+      {
+        "boundary": "PREPARATION",
+        "response": {
+          "status": 503,
+          "body": {
+            "ok": false,
+            "error": "DRAIN_COMMIT_REQUIRES_RECONCILIATION",
+            "resumable": true
+          }
+        },
+        "shutdownMs": 613.1045000000013
+      },
+      {
+        "boundary": "CALCULATION",
+        "response": {
+          "status": 503,
+          "body": {
+            "ok": false,
+            "error": "DRAIN_COMMIT_REQUIRES_RECONCILIATION",
+            "resumable": true
+          }
+        },
+        "shutdownMs": 597.8963340000046
+      },
+      {
+        "boundary": "PUBLICATION",
+        "response": {
+          "status": 503,
+          "body": {
+            "ok": false,
+            "error": "DRAIN_COMMIT_REQUIRES_RECONCILIATION",
+            "resumable": true
+          }
+        },
+        "shutdownMs": 627.1343750000015
+      },
+      {
+        "boundary": "COMMIT_ACK",
+        "response": {
+          "status": 503,
+          "body": {
+            "ok": false,
+            "error": "DRAIN_COMMIT_REQUIRES_RECONCILIATION",
+            "resumable": true
+          }
+        },
+        "shutdownMs": 600.7812919999997
+      }
+    ],
+    "afterCommitReconciliation": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "result": {
+          "version": 2,
+          "releaseSha": "d1421ea8d5652fd30c550f251c205f13fd2bccab",
+          "phase": "STAGE6_DRAIN",
+          "source": "manual",
+          "outcome": "PARTIAL",
+          "workReceipts": 4,
+          "jobsConsidered": 0,
+          "itemsAttempted": 0,
+          "itemsProcessed": 0,
+          "jobsCompleted": 0,
+          "identity": "6fbf4e635cd00934da328d4ed6b4242229b3cf71564f3e06ffddbc9aa592b8d7",
+          "configProof": "e3de1932bec34e41741274c83db4562eaf4184da827cfb90c41aee8f19398834",
+          "completion": "PARTIAL",
+          "stopReason": "RECONCILIATION_ONLY",
+          "executionMode": "SHADOW",
+          "finishedAt": 1791993919806,
+          "executionSeq": 96,
+          "settlementState": "FINALIZED_SUCCESS",
+          "finalizedAt": 1791993920480
+        },
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "final": {
+      "metrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 2147483648,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 79597568
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1437696
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 119119872
+          }
+        ],
+        "elapsedMs": 88459.22675,
+        "cgroupPeak": 270524416,
+        "cgroupCurrent": 97435648,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 13172208,
+          "user_usec": 10548888,
+          "system_usec": 2623320,
+          "nice_usec": 0,
+          "nr_periods": 885,
+          "nr_throttled": 45,
+          "throttled_usec": 1594701,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 126701568,
+          "heapUsed": 33690304,
+          "external": 7888859,
+          "arrayBuffers": 3716716
+        },
+        "samples": 3282,
+        "gc": {
+          "count": 124,
+          "totalMs": 113.80996600538492,
+          "maxMs": 10.074916999787092
+        },
+        "eventLoop": {
+          "maxMs": 104.333311,
+          "p99Ms": 30.195711
+        },
+        "resourceUsage": {
+          "userCPUTime": 2302321,
+          "systemCPUTime": 584189,
+          "maxRSS": 123860,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 66055,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 8112,
+          "involuntaryContextSwitches": 350
+        }
+      },
+      "scopes": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 15,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      }
+    },
+    "wholeCgroupHeadroomPercent": 87.40272521972656,
+    "syntheticPermitStartAttempts": 6,
+    "syntheticPermitFinalAttempts": 11,
+    "syntheticPermitCap": 12,
+    "producerProof": {
+      "synthetic": true,
+      "production": false,
+      "readOnly": true,
+      "proof": [
+        {
+          "executionId": "5379ec33-1ff6-4b1c-b019-473b98ff862e",
+          "state": "FINALIZED_SUCCESS",
+          "inputGeneration": 8,
+          "producingGeneration": 1,
+          "producerHmacVerified": true,
+          "resultDigestVerified": true
+        },
+        {
+          "executionId": "d227b128-5bd6-415a-a83c-2143868cbc9a",
+          "state": "FINALIZED_SUCCESS",
+          "inputGeneration": 8,
+          "producingGeneration": 1,
+          "producerHmacVerified": true,
+          "resultDigestVerified": true
+        }
+      ]
+    }
+  },
+  "sharedDb": {
+    "result": "CUT_OFF_NOT_QUALIFIED",
+    "sourceIdentity": "working source under baseline a322108 release labels; not frozen d1421ea acceptance",
+    "physicalDatabases": 1,
+    "normalUsers": 3,
+    "stage6Tenant": "a",
+    "outerFixtureLimitMs": 360000,
+    "http": 2724,
+    "sql": 4157,
+    "transactionOutcomes": {
+      "COMMITTED": 262,
+      "BEGIN_REJECTED": 20,
+      "ROLLED_BACK": 29
+    },
+    "transactionMs": {
+      "p50": 659,
+      "p95": 3447,
+      "max": 4071
+    },
+    "syncWindows": {
+      "count": 15,
+      "allCommitted": true,
+      "httpRange": [
+        28,
+        30
+      ],
+      "sqlRange": [
+        56,
+        65
+      ],
+      "ms": {
+        "min": 3285,
+        "p50": 3579,
+        "p95": 3833,
+        "max": 3855
+      },
+      "marginToModeled5sMs": 1145
+    },
+    "sqlErrorCounts": {
+      "SQLITE_BUSY": 24,
+      "SQLITE_ERROR": 1
+    },
+    "modeledTimeouts": 0,
+    "productionTursoAbsoluteTransactionLimit": "UNVERIFIED; no account connector or permitted metadata available",
+    "health": {
+      "probes": 1380,
+      "all200": true,
+      "maxMs": 58.40974999999162
+    },
+    "memoryPeak": "NOT_AVAILABLE_AFTER_OUTER_CUTOFF; no sustained qualification claimed",
+    "morningDurableClaims": {
+      "delivered": 3,
+      "attemptsEach": 1,
+      "overallExactlyOnceQualification": "NOT_QUALIFIED"
+    },
+    "confirmedFixtureBlocker": "ACTIVE READY a has no Telegram binding, runForUser returns sync=null; original aggregator cannot complete",
+    "syntheticPermitStartAttempts": 6,
+    "syntheticPermitFinalAttempts": 7,
+    "sixMonitoredJobs": "NOT_RUN_FOCUSED_GATE_BLOCKED",
+    "p2NewSyntheticAdmission": "NOT_IMPLEMENTED_FOCUSED_GATE_BLOCKED"
+  },
+  "regressions": {
+    "permit": "17/17 PASS",
+    "receiverLifetime": "7/7 PASS",
+    "processControls": "3/3 PASS",
+    "unlinkedFixtureNegative": "1/1 PASS",
+    "independentControls": "8/8 PASS"
+  },
+  "reviews": {
+    "p0Safety": "GO_SCOPED",
+    "sharedRuntime": "NO_GO",
+    "production": "NO_GO"
+  },
+  "preserved": {
+    "9770553Ancestry": true,
+    "stage7v33AndStage8v34Untouched": true,
+    "mainHead": "899dff0ae61474bb2b9ec0a0743cdbf11a999d3b",
+    "mainTree": "5a2d81942d7133f0a0a1a4fbb8f1431d17c92936",
+    "journalTenantLimit": "SEPARATE_UNCHANGED",
+    "realPilot": "12/12 EXHAUSTED_UNCHANGED",
+    "F02": "OWNER_ACCEPTED_RISK_UNCHANGED",
+    "shadowLive": "NO_PROMOTION"
+  },
+  "rawEvidenceSha256": {
+    "p0-frozen.tap": "428d75948356f09912ec003b4446282dd5427107d4d8c77aec96cbffe416ffa4",
+    "process-controls.tap": "b86757a69dc0651b4b7aa291c5e9b3d0c2aff58f2dbd04d5dde98d871630d452",
+    "lifecycle-regression.tap": "f688d48c9e15dc4fcce8f6a0a84ba3df7bc4368d351f6666c3b996af21e58cea",
+    "fixture-contract.tap": "04b7fff36cd9e084953a163c4c6791ffcfee5abd81a9c5c10f1960148e08bfc4",
+    "producer-proof.json": "3a9e255c963aa06829ba7d4902fb673c5c29725f2fa52317e56869ca9bc4916d",
+    "shared-focused.tap": "f338ba3cacca2c9e0e8ea4b036fd56911df2c1bf309241549855d0c5b1b4b307",
+    "shared-bounded.tap": "5af31db685f7266e1ae1c108a91600c9e6743b311d59c4021086c1fc91ee8a20",
+    "shared-bounded/provider-summary.json": "67e9442588fd3473c1046538d8eac40e918fc415757ba6524f0b85fd1ef269a8"
+  }
+}

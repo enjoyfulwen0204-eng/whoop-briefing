@@ -4,7 +4,12 @@ import {writeFile,readFile} from 'node:fs/promises';
 const url='file:/fixtures/checkpoint.sqlite',seed=createOwnedDb({url});
 const users=(await seed.raw.execute('SELECT id,display_name FROM users')).rows;
 const shared=process.env.LINUX_SHARED_DATABASE==='1';
-if(users.length!==1||users[0].id!=='a'||users[0].display_name!=='Synthetic')throw Error('SYNTHETIC_FIXTURE_ONLY');await seed.close();
+if(users.length!==1||users[0].id!=='a'||users[0].display_name!=='Synthetic')throw Error('SYNTHETIC_FIXTURE_ONLY');
+// A standalone calculation checkpoint is not automatically a complete
+// service fixture. ACTIVE/READY without a destination makes the original
+// SYNC aggregator PARTIAL forever. Reject before any repeated service scan.
+if(shared&&!await seed.getActiveChatIdForUser('a',{expectedLifecycleGeneration:1}))throw Error('SHARED_FIXTURE_LINKED_STAGE6_TENANT_REQUIRED');
+await seed.close();
 if(shared){const {seedMorningProvider}=await import('./stage6LinuxMorningFixture.mjs');await seedMorningProvider(url);}
 const transport=hranaTransport(url,{transactionMaxMs:5000,traceTransactions:process.env.LINUX_TRANSACTION_TRACE==='1'});
 if(process.env.LINUX_CRASH_AFTER==='1')transport.arm({matchSql:/UPDATE phase4_jobs SET full_scan_cursor=/,after:async()=>{

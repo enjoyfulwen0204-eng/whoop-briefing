@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "reviewer": "sole independent Sol 6.1 reviewer; no Pro or delegation",
+  "reviewedAtUtc": "2026-10-14T16:20:38.577637+00:00",
+  "scope": "One read-only frozen delta re-review of child/process authority, parent-slot publication guards, cancellation/replay and narrow qualification tests. No full audit or long benchmark by reviewer.",
+  "candidate": {
+    "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+    "baseline": "a32210819c160a7bfcd8187315aaba713f7cf5b6",
+    "commit": "d1421ea8d5652fd30c550f251c205f13fd2bccab",
+    "tree": "6ad8fd5b89b009d63cb29a34d1e4047ee808e057",
+    "status": "M test/stage6-linux-provider.mjs\n?? test/stage6-shared-fixture-contract.test.js",
+    "sourceSha256": {
+      "src/drainProcessAuthority.js": "8df1ba5fe114b0f7f41bbafe8afcb31190bbf4dca633b567f3fe05575c3c46cd",
+      "src/drainChildLifecycle.js": "9c20cc81914f2ad35c48ee844212c8c7fd1cbbbdefe696301b993c1577d8b352",
+      "src/drainChild.js": "0939cc1e70f812a907eb55b85a30201641e60cdd89f0bb5f7a72ca2ba2fb241b",
+      "src/drainChildSupervisor.js": "60e97ada3baa98b451efa18bc8a5c9b11823b9bf332cdceddcc70f9ec08bf068",
+      "src/executionBudget.js": "c70edf1675b918baf7bfdbb1143e090027c455f209d0b771bd44269bb59a9588",
+      "src/phase4Execution.js": "8d7e6d937f5303df6d8d5a0b50bcad2634f325caf73cb63426aeada9ea456fdf",
+      "src/stage6CapacityRuntime.js": "f2da702080505244963de36ed8438755434b7b41c584ce32db7a814679b0402e",
+      "src/stage6ShortPublication.js": "54eff8bc399fbb8796f6d363a37c8927922407ab2ac55db77c39241286815e91"
+    },
+    "testSha256": {
+      "test/stage6-child-process-control.mjs": "ca48b8ebc5470f014a892c5ca8028dc763a61ebdd00905793d1e20d1514ed804",
+      "test/stage6-linux-provider.mjs": "840e6d8886bb9f1325cf91c3b46a7ec352f96ed5982d5adb09ead53e8d809399",
+      "test/stage6-linux-shared-db.mjs": "34056e79f6798aab71795f9d5bd82a9298e9deb678bcc75e66cf4070181cf3a4",
+      "test/stage6-managed-child.mjs": "01209bd3b6a554513b53ed12362730321449631daac9cda05231f143e905ff60",
+      "test/stage6DrainControlChild.mjs": "0aea79701e0f885ccaa57f29a31884ade71a3cd0836072d82646da5a112c22e3",
+      "test/stage6ManagedDrainChild.mjs": "072a4af2932bdd96d744fcaa83a35ce0b6ffd5160b7faa2db6462591808b1e2c"
+    }
+  },
+  "verdict": {
+    "scopedP0SourceSafety": "GO",
+    "scopedP0TestSafety": "GO",
+    "retainedDeltaP0": 0,
+    "retainedDeltaP1": 0,
+    "focusedLinuxManagedChild": "PASS_PARTIAL_P0_QUALIFICATION",
+    "processControls": "PASS_3_OF_3",
+    "independentFrozenControls": "PASS_8_OF_8",
+    "sharedPhysicalDatabaseCombinedService": "NO_GO_FAILED_OR_CUT_OFF",
+    "P2SyntheticGrantFixture": "PENDING_NOT_IMPLEMENTED",
+    "fullMonitoredSixJobs": "NOT_QUALIFIED_BLOCKED",
+    "sustainedService": "NOT_QUALIFIED_BLOCKED",
+    "originalProductionFinancialPolicy": "UNCHANGED_NO_ADDITIONAL_AUTHORITY",
+    "productionChildMainWiring": "NOT_IMPLEMENTED_UNDER_STOP_GATE",
+    "providerEquivalence": "NOT_QUALIFIED",
+    "fullRuntime": "NO_GO",
+    "Production": "NO_GO"
+  },
+  "resolvedFindings": [
+    "IPC-only positive fallback removed. Success requires exact finalized success, clean code0 valid200 child result without stop/error, then original runExecutionPhase fresh replay admission and exact equality.",
+    "Parent release/config proof checked before any slot acquisition; original fresh replay checks run again before success.",
+    "Losing race deadlines now cancel timers in finally; instant completions no longer retain97s timers/request contexts.",
+    "Kernel exit, explicit ownership-fd retirement and live-process-group confirmation replace reliance on Node close accounting. Linux-specific result is separate from failed portable exploratory hypothesis."
+  ],
+  "independentControls": {
+    "driver": "/private/tmp/stage6-independent-child-supervisor-frozen.mjs",
+    "driverSha256": "08d466d8e4b1926d481c50f682c82d0cdc01218173ecc7b97a4a30c3edd64248",
+    "tap": "/private/tmp/stage6-independent-child-supervisor-frozen.tap",
+    "tapSha256": "da2cebfaaf240f6ad7801d0c4471d76f7fea73c73a62882dd2d861c9c0273ab3",
+    "tests": 8,
+    "pass": 8,
+    "fail": 0,
+    "durationMs": 9918.814625,
+    "cases": [
+      "IPC-only success with no execution row rejected",
+      "Old matching finalized row denied by pre-slot release guard",
+      "Exact DB/key/request-object token binding",
+      "Atomic SQL owner/expiry replacement rejected and CAS release preserves changed lease",
+      "Default API shape excludes optional process guard",
+      "Local guard cannot relax original budget expiry",
+      "Mid-child config change denied by original fresh replay path",
+      "Slot release uncertainty returns503/resumable and leaves lease pending"
+    ],
+    "limits": "Fake child seam tests protocol validation only; original installed SDK/DAO/private slots use isolated synthetic metadata. No Linux PID/grant/HMAC/capacity claim from these own controls."
+  },
+  "evidence": [
+    {
+      "path": "/private/tmp/stage6-child-monitored/p0-frozen.tap",
+      "sha256": "428d75948356f09912ec003b4446282dd5427107d4d8c77aec96cbffe416ffa4",
+      "tap": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0
+      }
+    },
+    {
+      "path": "/private/tmp/stage6-child-monitored/process-controls.tap",
+      "sha256": "b86757a69dc0651b4b7aa291c5e9b3d0c2aff58f2dbd04d5dde98d871630d452",
+      "tap": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0
+      }
+    },
+    {
+      "path": "/private/tmp/stage6-child-monitored/lifecycle-regression.tap",
+      "sha256": "f688d48c9e15dc4fcce8f6a0a84ba3df7bc4368d351f6666c3b996af21e58cea",
+      "tap": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0
+      }
+    },
+    {
+      "path": "/private/tmp/stage6-child-monitored/shared-focused.tap",
+      "sha256": "f338ba3cacca2c9e0e8ea4b036fd56911df2c1bf309241549855d0c5b1b4b307",
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      }
+    },
+    {
+      "path": "/private/tmp/stage6-child-monitored/shared-bounded.tap",
+      "sha256": "5af31db685f7266e1ae1c108a91600c9e6743b311d59c4021086c1fc91ee8a20",
+      "tap": {}
+    }
+  ],
+  "p0": {
+    "normalStatus": 200,
+    "itemsProcessed": 1,
+    "completion": "PARTIAL",
+    "currentNamedCursorAck": true,
+    "newOperations": 0,
+    "authenticatedReceipts": 19,
+    "tamperAndPeerRejected": true,
+    "disconnectShutdownMs": {
+      "PREPARATION": 613.1045000000013,
+      "CALCULATION": 597.8963340000046,
+      "PUBLICATION": 627.1343750000015,
+      "COMMIT_ACK": 600.7812919999997
+    },
+    "preAckCancelledCursorUnchanged": true,
+    "afterAck": {
+      "status": 200,
+      "state": "FINALIZED_SUCCESS",
+      "stopReason": "RECONCILIATION_ONLY",
+      "workReceipts": 4,
+      "itemsProcessed": 0
+    },
+    "limits": {
+      "memoryMax": 2147483648,
+      "swapMax": "0",
+      "cpuMax": "100000 100000",
+      "heapLimit": 106954752
+    },
+    "cgroupPeakBytes": 270524416,
+    "headroomPercent": 87.40272521972656,
+    "cpuUsageMs": 13172.208,
+    "throttleMs": 1594.701,
+    "eventLoopMaxMs": 104.333311,
+    "gcMaxMs": 10.074916999787092,
+    "oomKill": 0,
+    "finalParentScopes": {
+      "created": 2,
+      "retired": 2,
+      "disabled": 15,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    },
+    "scope": "Focused synthetic1CPU/2GiB only; process group checks verify no live members. No full-six or Production child integration approval."
+  },
+  "shared": {
+    "providerSummaryPath": "/private/tmp/stage6-child-monitored/shared-bounded/provider-summary.json",
+    "providerSummarySha256": "67e9442588fd3473c1046538d8eac40e918fc415757ba6524f0b85fd1ef269a8",
+    "status": "CUT_OFF_NOT_QUALIFIED",
+    "outerFixtureBoundSeconds": 360,
+    "committed": 262,
+    "rolledBack": 29,
+    "beginRejected": 20,
+    "sqliteBusy": 24,
+    "modeledTransactionTimeouts": 0,
+    "actualSyncWindows": 15,
+    "minSyncWindowMs": 3285,
+    "maxSyncWindowMs": 3855,
+    "syncWindowsAllCommitted": true,
+    "limits": "Partial committed windows and three durable Morning claims cannot qualify full HTTP response, shared service convergence or final cgroup headroom. No final resource snapshot retained after cutoff."
+  },
+  "latestDeltaConfirmed": [
+    "Slot-release error withholds every positive response and returns503 DRAIN_PARENT_RELEASE_PENDING/resumable; no false cleanup success.",
+    "Default execution budget API omits localAuthority when undefined. Optional process authority is additional denial; original time/signal expiry remains strict.",
+    "CALCULATION boundary notification is inside current original execution/preparation scope and only calls private process control. No original calculation/HMAC validator is skipped.",
+    "Parent slot equality/live DB-clock SQL assertions bracket the same atomic publication batch. Exact opaque token binds DB/key/request and original child control; original lease/generation/pilot/runtime fences remain.",
+    "One START/PID/nonce and fd4 EOF constrain lifecycle; parent cancellation is bounded with group SIGKILL fallback and verified no live process group before slot release."
+  ],
+  "remainingGates": [
+    "Shared physical DB combined service remains failed/incomplete despite every fifteen observed SYNC window committing below4s and zero modeled5s timeouts. Contention/liveness is unresolved.",
+    "No full six-job or sustained run was attempted after stop gate. P2 closed synthetic grant/fixture remains unimplemented; no ability to infer HTTP authority from file fixture seam.",
+    "Ordinary permit policy, Production12/12 and Journal behavior are unchanged; no reset, new owner allowance or paid/Production scope approval.",
+    "Default production child entry has static review but is intentionally not wired into production service under the failed gate; real provider hardware/kernel/server transaction setting remains unqualified."
+  ],
+  "actions": {
+    "repositoryEdits": false,
+    "gitMutations": false,
+    "agentsSpawned": 0,
+    "productionOrCredentials": false,
+    "longBenchmarks": false,
+    "checks": "One focused frozen8-case synthetic protocol/SDK driver~9.9s; retained Linux and failed shared artifacts inspected read-only."
+  }
+}

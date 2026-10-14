@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const root=new URL('../..',import.meta.url).pathname.replace(/\/$/,'');
 const {stage8Fixture}=await import(root+'/test/stage8Fixture.js');
 const {createStage7Runtime}=await import(root+'/src/stage7Runtime.js');
-const {createSettings,settingsKey}=await import(root+'/src/bot/settings.js');
+const {createSettings,settingsKey,normalizeSettingsName,SETTINGS_NAME_LIMIT,SETTINGS_COPY}=await import(root+'/src/bot/settings.js');
 const {createRouter}=await import(root+'/src/bot/router.js');
 const {createUpdateProcessor}=await import(root+'/src/bot/updateProcessor.js');
 const {interpretUrgentSymptoms,urgentReply}=await import(root+'/src/bot/triage.js');
@@ -43,7 +43,7 @@ for(const id of ['neg-possession','neg-other-object'])for(const lane of ['name',
 fs.writeFileSync('/private/tmp/stage8-scoped-repair-independent-processor-cases.json',JSON.stringify({frozenBeforeExecution:true,count:jobs.length,jobs},null,2));
 for(const [i,c] of jobs.entries())test('independent ingress '+c.id+' '+c.lane,async t=>{
  const {f,processor,observed,snapshot}=await setup(t,c.locale,c.lane);
- const before=await snapshot();const text=c.text+(c.lane==='health'?' What is my HRV today?':'');
+ const before=await snapshot();const invalidName=c.id==='neg-other-object'&&c.lane==='name';const profileBefore=invalidName?await f.db.getUser('a'):null,revisionBefore=invalidName?await f.db.getProfileRevision('a'):null;const text=c.text+(c.lane==='health'?' What is my HRV today?':'');
  const u=update(900001+i,text),outcome=await processor.processUpdate(u),replay=await processor.processUpdate(u);
  const after=await snapshot(),scopeReads=Number((await f.db.raw.execute('SELECT count(*) n FROM stage8_scoped_read_audit')).rows[0].n);
  const reply=typeof observed.reply==='string'?observed.reply:observed.reply?.text;
@@ -55,7 +55,14 @@ for(const [i,c] of jobs.entries())test('independent ingress '+c.id+' '+c.lane,as
   if(observed.consumers||observed.captures)failures.push('ordinary-consumer');
  }else{
   if(reply===urgentReply(c.locale))failures.push('false-emergency');
-  if(c.lane==='name'&&JSON.parse(after.name??'{}').pendingName!==text)failures.push('normal-name-blocked');
+  if(c.lane==='name'){
+   if(invalidName){
+    assert.equal([...new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(text)].length,67);assert.equal(SETTINGS_NAME_LIMIT,64);assert.throws(()=>normalizeSettingsName(text),/SETTINGS_NAME_INVALID/);
+    if(reply!==SETTINGS_COPY[c.locale].invalid||after.name!==before.name)failures.push('invalid-name-contract');
+    assert.deepEqual(await f.db.getUser('a'),profileBefore);assert.equal(await f.db.getProfileRevision('a'),revisionBefore);
+    const valid='Valid Reader';assert.equal((await processor.processUpdate(update(990001,valid))).outcome,'processed');assert.equal(JSON.parse((await snapshot()).name).pendingName,valid);assert.equal(observed.sends,2);assert.equal(await f.db.getProfileRevision('a'),revisionBefore);
+   }else if(JSON.parse(after.name??'{}').pendingName!==text)failures.push('normal-name-blocked');
+  }
   if(c.lane==='note'&&!after.interactions.some(r=>r.note===text&&r.state==='CONFIRM'))failures.push('normal-note-blocked');
  }
  const row={id:c.id,lane:c.lane,locale:c.locale,text,expected:c.expected,classification:interpretUrgentSymptoms(text).decision,pass:failures.length===0,failures,scopeReads,reply,observed:{sends:observed.sends,consumers:observed.consumers,captures:observed.captures},name:after.name,notes:after.interactions.filter(r=>r.note).map(r=>({note:r.note,state:r.state}))};record(row);

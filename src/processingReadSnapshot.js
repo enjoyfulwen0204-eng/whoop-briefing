@@ -26,7 +26,7 @@ export function readSnapshotKey(statement,context){
 }
 // Preserve actual installed libSQL ResultSet prototype/toJSON and the numeric
 // non-enumerable row aliases, without sharing mutable driver results.
-function cloneResult(result){
+export function cloneResult(result){
  const object=value=>{const copy=Object.create(Object.getPrototypeOf(value)),descriptors=Object.getOwnPropertyDescriptors(value);
   for(const descriptor of Object.values(descriptors)){
    if(!Object.hasOwn(descriptor,'value'))throw Error('UNSUPPORTED_RESULT_DESCRIPTOR');

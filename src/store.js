@@ -262,7 +262,7 @@ export function createHealthStore(client, { transaction } = {}) {
             num(g.disturbance_count), num(g.sleep_cycle_count),
             num(need.baseline_milli), num(need.need_from_sleep_debt_milli),
             num(need.need_from_recent_strain_milli), num(need.need_from_recent_nap_milli),
-            iso(s.created_at), iso(s.updated_at), syncedAt, JSON.stringify(s),
+            iso(s.created_at), iso(s.updated_at), syncedAt, canonicalRawJSON(s),
           ],
         });
       }
@@ -316,7 +316,7 @@ export function createHealthStore(client, { transaction } = {}) {
             num(r?.score?.recovery_score), num(r?.score?.hrv_rmssd_milli),
             num(r?.score?.resting_heart_rate), num(r?.score?.spo2_percentage),
             num(r?.score?.skin_temp_celsius), bool(r?.score?.user_calibrating),
-            iso(r.created_at), iso(r.updated_at), syncedAt, JSON.stringify(r),
+            iso(r.created_at), iso(r.updated_at), syncedAt, canonicalRawJSON(r),
           ],
         });
       }
@@ -391,7 +391,7 @@ export function createHealthStore(client, { transaction } = {}) {
           str(c.timezone_offset), str(c.score_state),
           num(c?.score?.strain), num(c?.score?.kilojoule),
           num(c?.score?.average_heart_rate), num(c?.score?.max_heart_rate),
-          iso(c.created_at), iso(c.updated_at), syncedAt, JSON.stringify(c),
+          iso(c.created_at), iso(c.updated_at), syncedAt, canonicalRawJSON(c),
         ],
       });
     }
@@ -456,7 +456,7 @@ export function createHealthStore(client, { transaction } = {}) {
             num(w?.score?.altitude_gain_meter), num(w?.score?.altitude_change_meter),
             num(z.zone_zero_milli), num(z.zone_one_milli), num(z.zone_two_milli),
             num(z.zone_three_milli), num(z.zone_four_milli), num(z.zone_five_milli),
-            iso(w.created_at), iso(w.updated_at), syncedAt, JSON.stringify(w),
+            iso(w.created_at), iso(w.updated_at), syncedAt, canonicalRawJSON(w),
           ],
         });
       }
@@ -503,7 +503,7 @@ export function createHealthStore(client, { transaction } = {}) {
               synced_at=excluded.synced_at, raw_json=excluded.raw_json`,
       args: [
         uid, recordedAt, num(bm.height_meter), num(bm.weight_kilogram),
-        num(bm.max_heart_rate), syncedAt, JSON.stringify(bm),
+        num(bm.max_heart_rate), syncedAt, canonicalRawJSON(bm),
       ],
     });
     log.info('store_body_measurement_upserted', { user_id: uid, recorded_at: recordedAt });
@@ -798,3 +798,4 @@ export function createHealthStore(client, { transaction } = {}) {
     getCapabilities,
   };
 }
+import {canonicalRawJSON} from './syncCanonicalPreparation.js';

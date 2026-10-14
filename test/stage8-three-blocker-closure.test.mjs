@@ -18,6 +18,8 @@ test('native, mixed and repeated symptom mentions retain clause-specific current
   'Tôi đang đau ngực và muốn biết HRV hôm nay.',
   'My HRV 今天多少？ Tôi đang khó thở.',
   '我只是有點累，但是 I cannot breathe.',
+  'I am short of breath. What is my HRV?',
+  'Tôi đau ngực và thường theo dõi HRV.',
   'I am having chest pain. HRV là gì?',
   'Tôi đang đau ngực và khó thở.',
  ];
@@ -33,7 +35,13 @@ test('native, mixed and repeated symptom mentions retain clause-specific current
   'What does "I have chest pain" mean?',
   'Tôi có thể hỏi đau ngực là gì?','Tôi đang tìm hiểu khó thở là gì.',
   'Tôi không đau ngực và không khó thở.',
+  'My heart is racing but I am not dizzy.',
+  'Tôi tim đập nhanh nhưng không chóng mặt.',
+  '我心跳很快但沒有頭暈。',
   'Tôi bị đau ngực hôm qua nhưng bây giờ đã hết.',
+  'I had chest pain yesterday but I am fine now.',
+  'Tôi bị đau ngực hôm qua nhưng hiện tại tôi ổn.',
+  '我昨天胸痛，但是現在沒有胸痛。',
   'Nếu tôi bị đau ngực thì sao?','我只是有點累，今天我的 HRV 多少？',
  ];
  for(const text of urgent)assert.equal(assessUrgency(text).urgent,true,text);

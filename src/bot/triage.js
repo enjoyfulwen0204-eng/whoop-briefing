@@ -41,7 +41,7 @@ const URGENT_PATTERNS = [
   /(頭暈|暈).{0,10}(心跳(很)?快|心悸|喘)/,
   // English and Vietnamese source text; guidance is localized separately.
   /\b(?:chest (?:pain|pressure|tightness)|(?:my|his|her) chest (?:hurts|is tight))\b/i,
-  /\b(?:cannot breathe|can't breathe|unable to breathe|difficulty breathing|trouble breathing|shortness of breath|struggling to breathe)\b/i,
+  /\b(?:cannot breathe|can't breathe|unable to breathe|difficulty breathing|trouble breathing|shortness of breath|short of breath|struggling to breathe)\b/i,
   /\b(?:(?:feel|feeling|about to|going to) faint|pass(?:ing|ed)? out|los(?:e|ing|t) consciousness|unconscious|unresponsive|cannot wake up|can't wake up)\b/i,
   /\b(?:heart (?:is )?racing|palpitations).{0,40}(?:dizz|faint|breath)/i,
   /(?<![\p{L}\p{N}_])(?:đau ngực|tức ngực|nặng ngực|khó thở|không thở được|không thể thở|sắp ngất|sắp xỉu|ngất xỉu|bất tỉnh|mất ý thức|không tỉnh lại)(?![\p{L}\p{N}_])/iu,
@@ -68,7 +68,10 @@ const URGENT_PATTERNS = [
 
 /** 在問這個症狀是什麼、通常怎麼回事 —— 不是在說自己現在這樣。 */
 const EDUCATIONAL = /通常|一般來說|一般而言|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道|\b(?:what (?:is|are|does|causes)|define|definition|usually|generally|in general|meaning|learn about|want to know|question about|asking about|information about)\b|là gì|nghĩa là|nguyên nhân|thường|tại sao|tìm hiểu/iu;
-const CURRENT_ASSERTION = /現在|正在|此刻|(?:我|他|她)(?:有|感到|出現)|\b(?:i|he|she|we|they)(?:'m|'s|'re)?\s+(?:(?:am|is|are)\s+)?(?:have|has|having|feel|feeling|experiencing|suffering from)\s+(?:(?:a|severe|some|sudden)\s+)?["'「『]?(?:chest|difficulty|trouble|shortness|faint|palpitations|胸|呼吸|đau|khó)|\b(?:i|he|she)\s+(?:cannot|can't)\s+breathe|\b(?:my|his|her) chest (?:hurts|is tight)|(?:chest pain|difficulty breathing|shortness of breath).{0,16}\b(?:i'm|i am|right now)\b|(?:tôi|anh ấy|cô ấy)\s+(?:đang\s+)?(?:bị|có(?!\s+thể)|cảm thấy)\s+(?:đau|khó|tức|sắp|chóng|ngất)|(?:tôi|anh ấy|cô ấy)\s+đang\s+(?:đau|khó|tức|sắp)|hiện tại|bây giờ/iu;
+const CURRENT_ASSERTION = /現在|正在|此刻|(?:我|他|她)(?:有|感到|出現)|\b(?:i|he|she|we|they)(?:'m|'s|'re)?\s+(?:(?:am|is|are)\s+)?(?:have|has|having|feel|feeling|experiencing|suffering from)\s+(?:(?:a|severe|some|sudden)\s+)?["'「『]?(?:chest|difficulty|trouble|shortness|faint|palpitations|胸|呼吸|đau|khó)|\b(?:i|he|she)\s+(?:cannot|can't)\s+breathe|\b(?:my|his|her) chest (?:hurts|is tight)|(?:chest pain|difficulty breathing|shortness of breath).{0,16}\b(?:i'm|i am|right now)\b|(?:tôi|anh ấy|cô ấy)\s+(?:đang\s+)?(?:bị|có(?!\s+thể)|cảm thấy)\s+(?:đau|khó|tức|sắp|chóng|ngất)|(?:tôi|anh ấy|cô ấy)\s+đang\s+(?:đau|khó|tức|sắp)|(?:tôi|anh ấy|cô ấy)\s+(?:đau ngực|khó thở|tức ngực|sắp ngất)|\b(?:i am|i'm|he is|she is)\s+(?:short of breath|unable to breathe)|hiện tại|bây giờ/iu;
+const PAST_CONTEXT = /昨天|昨晚|以前|曾經|\b(?:had|experienced|felt|last night|last week)\b|^\s*yesterday\b|hôm qua|trước đây|đã/iu;
+const CURRENT_TIME = /現在|正在|此刻|\b(?:now|currently|right now)\b|đang|hiện tại|bây giờ/iu;
+const WELL_NOW = /^\s*(?:(?:i am|i'm|it is|i feel|now i am|now i'm|tôi|hiện tại tôi|bây giờ tôi|現在|我現在|現在我)\s*)?(?:fine|well|okay|back to normal|ổn|bình thường|沒事了|好了)(?:\s*(?:now|hiện tại|bây giờ))?[.!。]?\s*$/iu;
 const HYPOTHETICAL = /^\s*(?:如果|假設|若是|萬一|if\b|suppose\b|what if\b|hypothetically\b|nếu|giả sử)/iu;
 
 /**
@@ -92,13 +95,14 @@ const METAPHOR_FRAMES = [
 
 /** Exclusions belong to the symptom's clause, never the whole message. */
 const CLAUSE_BOUNDARY = /[。，,;；.!！？?\n]+|(?<![\p{L}\p{N}_])(?:but|however|yet|nhưng|tuy nhiên)(?![\p{L}\p{N}_])|但是|可是|不過|但/giu;
-const NEGATED = /(?:沒有|沒|不會|不曾|未|並沒|沒在)\s*(?:(?:胸痛|胸悶|呼吸困難|喘不過氣|也|和|與|或)\s*)*$|\b(?:no|not|without|don't(?: have| feel| experience)?|do not(?: have| feel| experience)?|never(?: had)?)\s*(?:(?:any|current|severe|chest pain|chest pressure|shortness of breath|difficulty breathing|trouble breathing|and|or|nor)\s*)*$|(?:không(?: hề| có| bị| thấy| còn)?|chưa(?: từng)?|chẳng)\s*(?:(?:đau ngực|khó thở|và|hoặc|hay)\s*)*$/iu;
+const NEGATED = /(?:沒有|沒|不會|不曾|未|並沒|沒在)\s*(?:(?:胸痛|胸悶|呼吸困難|喘不過氣|也|和|與|或)\s*)*$|\b(?:no|not|without|don't(?: have| feel| experience)?|do not(?: have| feel| experience)?|never(?: had)?)\s*(?:(?:any|current|severe|chest pain|chest pressure|shortness of breath|short of breath|difficulty breathing|trouble breathing|and|or|nor)\s*)*$|(?:không(?: hề| có| bị| thấy| còn)?|chưa(?: từng)?|chẳng)\s*(?:(?:đau ngực|khó thở|và|hoặc|hay)\s*)*$/iu;
 const RESOLUTION = /^(?:\s|已經|現在|都|也|症狀|昨天|昨晚|發生|而且|和|與|或|and|or|it|they|that|the symptoms|has|have|had|is|are|was|were|now|all|completely|yesterday|đã|bây giờ|hiện tại|triệu chứng|và|hôm qua)*(?:好了|沒事了|恢復了|不會了|沒問題了|退了|緩解了|resolved|gone|went away|cleared|hết|khỏi)/iu;
 function clauses(text) {
   const result=[];let start=0;
-  for(const match of text.matchAll(CLAUSE_BOUNDARY)){result.push({start,end:match.index,text:text.slice(start,match.index)});start=match.index+match[0].length;}
-  result.push({start,end:text.length,text:text.slice(start)});return result;
+  for(const match of text.matchAll(CLAUSE_BOUNDARY)){const value=text.slice(start,match.index);if(value.trim())result.push({start,end:match.index,text:value});start=match.index+match[0].length;}
+  if(text.slice(start).trim())result.push({start,end:text.length,text:text.slice(start)});return result;
 }
+function escapePattern(text){return text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 function resolvedAfter(text) {
   // Permit coordinated symptoms to share a resolution. An unrelated subject
   // (e.g. a resolved headache) cannot resolve a current chest-pain statement.
@@ -122,6 +126,8 @@ function contextualExclusion(text, match, parts) {
   const index=match.index,partIndex=parts.findIndex(p=>index>=p.start&&index<p.end),part=parts[partIndex];
   const before=text.slice(part.start,index),after=text.slice(index+match[0].length,part.end);
   if(NEGATED.test(before))return 'negated';
+  const paired=[...match[0].matchAll(/心跳|心悸|頭暈|暈|呼吸困難|喘|heart (?:is )?racing|palpitations|dizz\w*|faint|breath\w*|tim đập nhanh|hồi hộp|chóng mặt|ngất|khó thở/giu)];
+  if(paired.length>1&&NEGATED.test(match[0].slice(0,paired.at(-1).index)))return 'negated';
   if(HYPOTHETICAL.test(before))return 'hypothetical';
   const current=CURRENT_ASSERTION.test(part.text);
   const quoted=[...part.text.matchAll(/"[^"]*"|「[^」]*」|『[^』]*』|(?<![\p{L}])'[^']*'/gu)];
@@ -133,6 +139,13 @@ function contextualExclusion(text, match, parts) {
   if(resolvedAfter(after))return 'resolved_past';
   const next=parts[partIndex+1]?.text;
   if(next&&!URGENT_PATTERNS.some(re=>re.test(next))&&resolvedAfter(next))return 'resolved_past';
+  if(next&&PAST_CONTEXT.test(part.text)&&!CURRENT_TIME.test(part.text)){
+    if(WELL_NOW.test(next))return 'resolved_past';
+    // An explicit absence of the same symptom resolves its earlier historical
+    // mention. Other current symptoms are still assessed independently.
+    const repeats=[...next.matchAll(new RegExp(escapePattern(match[0]),'giu'))];
+    if(repeats.length&&repeats.every(m=>NEGATED.test(next.slice(0,m.index))))return 'resolved_past';
+  }
   return null;
 }
 

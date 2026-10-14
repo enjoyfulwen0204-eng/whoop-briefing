@@ -4,6 +4,7 @@ import {stage6CapacityStatus} from '../src/stage6CapacityRuntime.js';import {rec
 import {createWebhookServer} from '../src/bot/webhook.js';import {createRouter} from '../src/bot/router.js';import {createUpdateProcessor} from '../src/bot/updateProcessor.js';import {createSendReply} from '../src/bot/index.js';import {createBriefingEndpoint} from '../src/briefingEndpoint.js';import {signTriggerRequest} from '../src/briefingTriggerAuth.js';
 import {verifyShortProof} from './stage6ShortProof.mjs';import {verifyCurrentRuntimeProof} from './stage6RuntimeCurrentProof.mjs';
 import {fork} from 'node:child_process';
+import {superviseDrainChild} from './stage6LinuxDrainSupervisor.mjs';
 test('combined real SYNC and webhook factories expose bounded DRAIN service responsiveness',async t=>{
  const metrics=linuxMetrics(),networkFetch=globalThis.fetch;let realProviderRequests=0;
  globalThis.fetch=async()=>{realProviderRequests++;throw Error('REAL_PROVIDER_FORBIDDEN');};
@@ -30,13 +31,10 @@ test('combined real SYNC and webhook factories expose bounded DRAIN service resp
  await networkFetch('http://fixture:8080/probe/start',{method:'POST'});
  const oldOperations=(await stageDb.raw.execute('SELECT operation_key FROM phase4_operation_receipts')).rows.map(r=>r.operation_key),drainRequest=request('STAGE6_DRAIN',{syncRequestId:handoffRequest.requestId,handoff:handoff.body.handoff});
  let childScopes;
- const isolatedDrain=()=>new Promise((resolve,reject)=>{
+ const isolatedDrain=async()=>{
   const child=fork(new URL('./stage6LinuxDrainChild.mjs',import.meta.url),[],{execArgv:[],stdio:['ignore','ignore','ignore','ipc']});
-  const timer=setTimeout(()=>{child.kill('SIGKILL');reject(Error('ORIGINAL_OVERALL_BOUND_EXCEEDED'));},90000);
-  child.once('message',message=>{if(message.error)reject(Error(message.error));else{childScopes=message.scopes;resolve(message.result);}});
-  child.once('exit',code=>{clearTimeout(timer);if(code)reject(Error('DRAIN_CHILD_EXIT'));});child.once('error',reject);
-  child.send({request:drainRequest,environment,env});
- });
+  const message=await superviseDrainChild(child,{request:drainRequest,environment,env});childScopes=message.scopes;return message.result;
+ };
  const syncAt=performance.now(),syncPromise=sendSync(),webhookPromise=sendWebhook(),drainAt=performance.now(),drain=await (process.env.LINUX_DRAIN_ISOLATION==='process'?isolatedDrain():runExecutionPhase({...stageOptions,request:drainRequest})),drainMs=performance.now()-drainAt;
  const webhook=await webhookPromise,retry=await sendWebhook(),sync=await syncPromise,syncMs=performance.now()-syncAt,syncReplay=await sendSync();await networkFetch('http://fixture:8080/probe/stop',{method:'POST'});
  const provider=await(await networkFetch('http://fixture:8080/counts')).json(),claims=(await morningDb.raw.execute("SELECT user_id,delivery_state,delivery_attempts FROM report_claims WHERE report_type='daily' AND local_date='2026-10-11' ORDER BY user_id")).rows;

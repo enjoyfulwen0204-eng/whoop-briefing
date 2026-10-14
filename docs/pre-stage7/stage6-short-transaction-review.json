@@ -1,0 +1,84 @@
+{
+  "review": "sole independent final scoped safety delta",
+  "atUTC": "2026-10-14T02:28:53.344637+00:00",
+  "head": "1c9580878d4e8782d174e2d006d40ede486205e0",
+  "tree": "87d913f59b50047271936e46260303807dc51d37",
+  "parent": "30041f3d6dc54b62f8d493f05415ac90c76af0e2",
+  "baseline": "75db69fe77d2380206df25509187b79c68d05fd7",
+  "verdict": "SCOPED_TEST_ONLY_SECURITY_DELTA_GO; FULL_SIX_JOB_CAPACITY_RUNTIME_PRODUCTION_NO_GO",
+  "retainedP0": [],
+  "retainedP1": [],
+  "exactTreeChecks": {
+    "ancestry9770553Retained": true,
+    "srcCloudflareScriptsUnchangedFrom75db69f": true,
+    "helperSha256": "65cb95c4dbdfd72a05a3e39fcd033e2d4c6d9ae6db28c4d96c02d6355fefece4",
+    "workingChangesAtReview": "M docs/pre-stage7/stage6-short-transaction-evidence.json\n M docs/pre-stage7/stage6-short-transaction-prototype.md",
+    "qualification": "Review pins immutable commit/tree; subsequent doc-only long-run evidence updates require factual delta confirmation, not a new runtime audit."
+  },
+  "committedCodeHashes": {
+    "test/stage6ShortTransactionPrototype.mjs": "65cb95c4dbdfd72a05a3e39fcd033e2d4c6d9ae6db28c4d96c02d6355fefece4",
+    "test/stage6ShortProof.mjs": "e05cb571ee39f2fbeefaf8f551d5467c5ffb3e6da6b1dad200a767170bbe8f8a",
+    "test/stage6ShortTransactionHarness.mjs": "6c5c8a7baa5303c63aedfc555a9a72dc4c0308c5bc43fa84f456c088ca7d4fc0",
+    "test/stage6ArchitectureIsolatedLoader.js": "e3c16a0dc92e3d2b22c7ad4996d0070d4d48a966834343a500a6f7c235bfd2c9",
+    "test/stage6ArchitectureIsolatedProfile.js": "f5009c5c4667cbf57b25b24a997893d687aa8ff659d530ad0005d651ce1dedc1"
+  },
+  "confirmedP1sFixed": [
+    "Expired original issued job/tenant/context authority at publication",
+    "Actual durable COMMIT ACK loss allowed further work",
+    "Schema comparator bound a later catalog instead of preparation catalog",
+    "Concurrent disposal released p4ctx while publication still retained health DATA",
+    "Revoked/expired original outer p4ctx was absorbed into snapshot and allowed cursor publication"
+  ],
+  "independentFinalPrivacyResults": {
+    "source": "exact1c95808 CLI run using captured byte-identical65cb helper and explicit existing test-only memoryoverlay; only imports rewritten to absolute paths",
+    "pass": 2,
+    "fail": 0,
+    "revokedExpiredOuterContext": "SQLITE_ERROR before publication; no source cursor/job progress",
+    "concurrentDisposal": "PREPARATION_IN_FLIGHT; live barrier retained through active frame; eventual final cleanup releases lease"
+  },
+  "independentPagingResult": {
+    "pass": 1,
+    "injected": "3MiB raw_json growth after key/byte metadata",
+    "result": "same-DATA-snapshot fresh gate rejects before oversized payload; no source progress",
+    "largestReturnedResponseBytes": 638846,
+    "classification": "static TOCTOU recommendation adopted before own negative; not independently reproduced as a pre-fix P1"
+  },
+  "longSixCapacity": {
+    "pass": 0,
+    "fail": 1,
+    "helperSha256": "66e927cd24d308f0718f0312320e14770fb2daa9ca48a956d7af7afe99838b99",
+    "durationMs": 1496908.312083,
+    "jobsCompleted": 2,
+    "jobsPartial": 2,
+    "jobsNotStarted": 2,
+    "fixture1Legs": 102,
+    "fixture2ProductiveLegs": 78,
+    "failedLeg": 79,
+    "error": "PUBLICATION_HEADROOM_REQUIRED",
+    "failedLegNewPublication": 0,
+    "qualification": "earlier guard variant; original calculations/DML unchanged, final guard safety separately retested; not final-SHA six-job PASS"
+  },
+  "unresolvedGates": [
+    "Complete all six synthetic jobs under unchanged30/45/5s bounds",
+    "Six actual captured successor jobs and their independently scoped admission/completion",
+    "Actual branded monitoredgrant/reservation/cancellation integration; no paid scope approved",
+    "Provider account transaction/payload/SQL/cancellation limits and Production RAM sizing",
+    "Approved runtime integration across accepted schema/context/role contracts",
+    "Independent review of any material runtime integration or algorithm repair"
+  ],
+  "approval": {
+    "scopedLocalSyntheticSecurityDelta": true,
+    "wholeCapacity": false,
+    "runtimeIntegration": false,
+    "activeMonitoredGrant": false,
+    "paidExecution": false,
+    "production": false,
+    "deployment": false,
+    "pushPublication": false,
+    "schemaMigration": false
+  },
+  "rawReviewArtifact": {
+    "path": "/private/tmp/stage6-short-transaction-final-review.json",
+    "sha256": "e777f8c0cc8bd706b5ea7b205b40c501fff31d8bf0ea6193cb1b8f1de6bc04fd"
+  }
+}

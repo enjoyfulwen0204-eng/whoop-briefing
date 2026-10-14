@@ -2,7 +2,7 @@
   "scope": "one local synthetic isolated bounded prototype; no runtime promotion",
   "baselineHead": "75db69fe77d2380206df25509187b79c68d05fd7",
   "runtimeSrcUnchanged": true,
-  "atUTC": "2026-10-14T02:18:25.195226+00:00",
+  "atUTC": "2026-10-14T02:30:00.078071+00:00",
   "model": {
     "httpLatencyMs": 115,
     "workerMs": 30000,
@@ -411,6 +411,15 @@
     "securityFinal": {
       "pass": 16,
       "fail": 0
+    },
+    "sixWorkload": {
+      "pass": 0,
+      "fail": 1
+    },
+    "frozenOuterHealthControls": {
+      "pass": 3,
+      "fail": 0,
+      "head": "1c9580878d4e8782d174e2d006d40ede486205e0"
     }
   },
   "artifacts": [
@@ -461,10 +470,14 @@
     {
       "path": "/private/tmp/stage6-short-security-health-final.tap",
       "sha256": "d385f68b3ca7557975d2e1d76c3f27e9a820e22ee91339477e18922a5c338031"
+    },
+    {
+      "path": "/private/tmp/stage6-short-transaction-final-review.json",
+      "sha256": "e777f8c0cc8bd706b5ea7b205b40c501fff31d8bf0ea6193cb1b8f1de6bc04fd"
     }
   ],
   "sixJobs": {
-    "status": "RUNNING",
+    "status": "FAIL",
     "artifact": "/private/tmp/stage6-short-six-bounded-final115.tap",
     "production": false,
     "syntheticSuccessorsOnly": true,
@@ -529,16 +542,64 @@
       }
     ],
     "measuredHelperSha256": "66e927cd24d308f0718f0312320e14770fb2daa9ca48a956d7af7afe99838b99",
-    "qualification": "Long capacity run loaded pre-privacy-lifecycle/context-lease guards helper66e927; same original computation/DML/rowsets/bounds/deadlines. Final safety delta target/security/SIGKILL retested, not a frozen-SHA full-six claim."
+    "qualification": "Long capacity run loaded pre-privacy-lifecycle/context-lease guards helper66e927; same original computation/DML/rowsets/bounds/deadlines. Final safety delta target/security/SIGKILL retested, not a frozen-SHA full-six claim.",
+    "pass": 0,
+    "fail": 1,
+    "jobsCompletedAndVerified": 2,
+    "jobsIncompleteAfterRealProgress": 2,
+    "jobsNotStarted": 2,
+    "productiveCommittedLegs": 180,
+    "blockedFixture": 2,
+    "blockedLeg": 79,
+    "error": "PUBLICATION_HEADROOM_REQUIRED",
+    "remainingRequiredMs": 5500,
+    "preparationLowerBoundMs": 24500,
+    "failedLegNewPublication": 0,
+    "totalSuiteMs": 1496908.312083,
+    "artifactSha256": "372dc233e97a0ea9556f269b615771f804590111d95017c3ac97160bfbe2e48d",
+    "maximumProductiveWholeMs": 25674.478832999943,
+    "maximumProductiveWorkMs": 23558.53895800002,
+    "maximumProductiveTransactionMs": 1615.9016670000274,
+    "secondFixtureLastCommitted": {
+      "fixture": 2,
+      "leg": 78,
+      "wholeMs": 20333.642916000215,
+      "workMs": 18215.80291700014,
+      "transactionMs": 1521.3359169999603,
+      "http": 30,
+      "sql": 3800,
+      "items": 0,
+      "units": 1,
+      "completed": 0
+    },
+    "causeQualification": "Exact failing preparation subphase uninstrumented; not attributed to CPU/GC/HMAC/fixture retention without evidence. No repeated long scan or deadline weakening."
   },
   "schemaRequired": false,
   "journalTenantLimit": "unchanged six-item TENANT_LIMIT; retained seventh-source proof preserved",
   "permit": "Production 12/12 exhausted; unchanged; no paid invocation",
-  "review": "sole reviewer independently reproduced lifecycle and outer-context P1s on old variants; final exact-context guards/serialized disposal delta re-review running",
+  "review": {
+    "head": "1c9580878d4e8782d174e2d006d40ede486205e0",
+    "tree": "87d913f59b50047271936e46260303807dc51d37",
+    "verdict": "SCOPED_TEST_ONLY_SECURITY_DELTA_GO; FULL_SIX_JOB_CAPACITY_RUNTIME_PRODUCTION_NO_GO",
+    "retainedP0": [],
+    "retainedP1": [],
+    "independentFrozenControls": {
+      "pass": 2,
+      "fail": 0
+    },
+    "independentFreshPageControl": {
+      "pass": 1,
+      "fail": 0
+    },
+    "rawArtifact": "/private/tmp/stage6-short-transaction-final-review.json",
+    "rawArtifactSha256": "e777f8c0cc8bd706b5ea7b205b40c501fff31d8bf0ea6193cb1b8f1de6bc04fd",
+    "qualification": "Exact1c95808 security review; final successor changes docs/evidence only, code hashes identical. Capacity/runtime/activegrant/Production NO-GO."
+  },
   "readiness": {
-    "localArchitecture": "target capacity/crash proven; six-job gate running",
-    "stage6Runtime": "NO-GO pending approved integration",
+    "localArchitecture": "DOMAIN/source targets and crash proof pass; complete six-job capacity NO-GO",
+    "stage6Runtime": "NO-GO: no runtime integration or full-six capacity proof",
     "production": "NO-GO"
   },
-  "finalHelperSha256": "65cb95c4dbdfd72a05a3e39fcd033e2d4c6d9ae6db28c4d96c02d6355fefece4"
+  "finalHelperSha256": "65cb95c4dbdfd72a05a3e39fcd033e2d4c6d9ae6db28c4d96c02d6355fefece4",
+  "nextTechnicalAction": "One retained late source/family checkpoint: measure exact RAM import/graph/HMAC/effects phases in cold vs retained process, bound115ms/30s/45s/4s unchanged. Only choose restartable process or valid existing-unit split after attribution; no speculative schema migration."
 }

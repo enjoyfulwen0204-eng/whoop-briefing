@@ -8,6 +8,7 @@ import {createPhase4Stage6,authorizeStage6ShadowWorker} from './phase4Reanalysis
 import {currentDurableExecution,databaseNowMs,CommitIndeterminateError,requireSettledOperation} from './phase4ExecutionContext.js';
 import {reconcileExecution} from './phase4ExecutionStore.js';
 import {currentExecutionBudget} from './executionBudget.js';
+import {createPreparationScheduling} from './stage6PreparationScheduling.js';
 const clients=new WeakMap(),issued=new WeakMap(),quote=x=>'"'+x.replaceAll('"','""')+'"';
 const postResponseFailures=new WeakSet(),receiverCoverage=new WeakMap();
 export function assertPreparedReceiverCoverage(token,db,grant,client){const p=receiverCoverage.get(token);if(!p||p.used||p.db!==db||p.grant!==grant||p.client!==client||p.execution!==currentDurableExecution()||p.budget!==currentExecutionBudget())fail('STAGE6_SNAPSHOT_COVERAGE_REQUIRED');p.budget.assert();p.execution.authority.assert();p.used=true;}
@@ -45,6 +46,8 @@ function payloadQuery(table,columns,pk,filter){
 async function prepareDataUnit({client,userId,maxItems=1,triggerSource='manual'},contextGuard){
  const binding=validClient(client,userId),{keys,grant}=binding;
  const execution=currentDurableExecution(),budget=currentExecutionBudget();validClient(client,userId);if(!execution?.claim||!budget)fail('PREPARATION_AUTHORITY_REQUIRED');budget.assert();execution.authority.assert();
+ const localFence=()=>{binding.db.assertLocalRuntimeFences();requireRuntimeAdmission(binding.db.raw,binding.admission,keys,binding.db.transaction);budget.assert();execution.authority.assert();grant.assertTime();};
+ const scheduling=createPreparationScheduling(localFence);
  requireSettledOperation();const start=performance.now(),schema=(await client.execute("SELECT type,name,tbl_name,sql,json_array(type,name,tbl_name,sql) encoded FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND type IN ('table','index','trigger') ORDER BY type,name")).rows;
  const tables=schema.filter(x=>x.type==='table'),infos=await client.batch(tables.map(t=>`PRAGMA table_info(${quote(t.name)})`),'deferred');
  const descriptors=tables.map((t,i)=>{const columns=infos[i].rows.map(x=>x.name).filter(c=>t.name!=='user_whoop_tokens'||['user_id','auth_generation'].includes(c)),pk=infos[i].rows.filter(x=>x.pk).sort((a,b)=>a.pk-b.pk).map(x=>x.name),filter=projection(t.name,columns,userId,execution.claim.executionId,keys);return {table:t.name,columns,pk,filter,query:payloadQuery(t.name,columns,pk,filter)};});
@@ -87,7 +90,7 @@ async function prepareDataUnit({client,userId,maxItems=1,triggerSource='manual'}
  budget.assert();let db;
  try{
   db=await applicationDb.createStage6OwnedMemoryDb(async seed=>{await seed.execute('PRAGMA foreign_keys=OFF');for(const s of schema.filter(x=>x.type==='table'))await seed.execute(s.sql);
-  for(const d of descriptors)for(const row of d.rows){const extra=d.table==='user_whoop_tokens'?['access_token','refresh_token','access_token_expires_at','updated_at']:[],cols=[...d.columns,...extra],values=[...row,...extra.map(()=> 'STAGE6_REDACTED')];await seed.execute({sql:`INSERT INTO ${quote(d.table)}(${cols.map(quote).join(',')}) VALUES (${values.map(()=>'?').join(',')})`,args:values});}
+  for(const d of descriptors)for(const row of d.rows){const pause=scheduling.checkpoint();if(pause)await pause;const extra=d.table==='user_whoop_tokens'?['access_token','refresh_token','access_token_expires_at','updated_at']:[],cols=[...d.columns,...extra],values=[...row,...extra.map(()=> 'STAGE6_REDACTED')];await seed.execute({sql:`INSERT INTO ${quote(d.table)}(${cols.map(quote).join(',')}) VALUES (${values.map(()=>'?').join(',')})`,args:values});}
   for(const s of schema.filter(x=>x.type==='index'||x.type==='trigger'))await seed.execute(s.sql);await seed.execute('PRAGMA foreign_keys=ON');
   },keys);const effects=[],recordedResults=new WeakSet(),originalExecute=db.raw.execute,originalBatch=db.raw.batch;
   const record=(stmt,result)=>{const sql=typeof stmt==='string'?stmt:stmt.sql;if(!/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql))return;
@@ -97,11 +100,10 @@ async function prepareDataUnit({client,userId,maxItems=1,triggerSource='manual'}
    if(recordedResults.has(result))return;recordedResults.add(result);
    const effect={sql,args:typeof stmt==='string'?[]:stmt.args??[],rowsAffected:result.rowsAffected};
    if(db.processingTransactionActive())db.afterProcessingCommit(()=>effects.push(effect));else effects.push(effect);};
-  db.raw.execute=async stmt=>{const at=performance.now(),result=await originalExecute(stmt);record(stmt,result);return result;};
-  db.raw.batch=async(stmts,...args)=>{const result=await originalBatch(stmts,...args);stmts.forEach((s,i)=>record(s,result[i]));return result;};
+  db.raw.execute=async stmt=>{if(!db.processingTransactionActive()){const pause=scheduling.checkpoint();if(pause)await pause;}const at=performance.now(),result=await originalExecute(stmt);record(stmt,result);return result;};
+  db.raw.batch=async(stmts,...args)=>{if(!db.processingTransactionActive()){const pause=scheduling.checkpoint();if(pause)await pause;}const result=await originalBatch(stmts,...args);stmts.forEach((s,i)=>record(s,result[i]));return result;};
   const admission=await db.admitRuntime(),worker=await createPhase4Stage6({db,keys,admission,executionMode:'SHADOW',workerCapability:authorizeStage6ShadowWorker({executionMode:'SHADOW'})});
   const coverage=Object.freeze({});receiverCoverage.set(coverage,{db,grant,client:binding.db.raw,execution,budget,used:false,snapshotDigest:keys.lookup(['stage6-completed-snapshot-v1',userId,execution.claim.executionId,descriptors.map(d=>[d.table,d.payload])])});
-  const localFence=()=>{binding.db.assertLocalRuntimeFences();requireRuntimeAdmission(binding.db.raw,binding.admission,keys,binding.db.transaction);budget.assert();execution.authority.assert();grant.assertTime();};
   let result;try{result=await withPilotPreparedReceiver(grant,binding.db.raw,db,coverage,()=>db.withRuntimeFence(localFence,()=>worker.drain({triggerSource,userId,budget:{maxItems,maxItemsPerTenant:maxItems}})));}finally{receiverCoverage.delete(coverage);}budget.assert();execution.authority.assert();
   const readOnlyOutcome=!result.failedJobs&&!result.claimedJobs&&!result.jobsConsidered
    &&(result.outcome==='NO_WORK'&&result.completion==='COMPLETE'&&result.remainingJobs===0

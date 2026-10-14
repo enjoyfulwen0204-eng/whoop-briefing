@@ -1,0 +1,40 @@
+{
+  "classification": "B_EXISTING_BASELINE_DEFECT",
+  "resolved": false,
+  "rootCause": "UNASSIGNED",
+  "reportedCrash": "/Users/kelvin/Library/Logs/DiagnosticReports/node-2026-10-14-081736.ips",
+  "independentBaselineCrash": "/Users/kelvin/Library/Logs/DiagnosticReports/node-2026-10-14-084203.ips",
+  "signal": "SIGSEGV",
+  "type": "EXC_BAD_ACCESS",
+  "nativeImage": "index.node",
+  "nativeImageUuid": "15297104-5a23-3847-9a99-938dd2f1ac9e",
+  "matchingNativeOffsets": [
+    4618472,
+    2513860,
+    2740588,
+    506516,
+    380320,
+    470324
+  ],
+  "stack": "matching N-API finalizer / Node environment cleanup",
+  "unchangedBaselinePaths": [
+    "test/conversational-health-hardening.test.js",
+    "test/regate-round4.test.js",
+    "test/localDb.js",
+    "src/db.js",
+    "package.json",
+    "package-lock.json"
+  ],
+  "isolatedPassNotUsedToClaimResolution": true,
+  "trackingId": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+  "status": "OPEN",
+  "currentRepairOccurrence": {
+    "log": "acceptance164.tap.gz",
+    "signal": "SIGSEGV",
+    "file": "test/telegram-webhook.test.js",
+    "diagnostic": "/Users/kelvin/Library/Logs/DiagnosticReports/node-2026-10-14-100450.ips",
+    "nativeUuidAndSixOffsetsMatchBaseline": true,
+    "resolved": false
+  },
+  "evidenceReusedSha256": "425345a0f403e5bbf11c9d2d66a165243c843757463e38504a325f413a5ebe2d"
+}

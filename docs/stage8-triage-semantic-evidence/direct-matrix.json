@@ -1,0 +1,243 @@
+[
+  {
+    "expected": true,
+    "text": "What causes my current chest pain and difficulty breathing?",
+    "urgent": true,
+    "matched": "chest pain",
+    "excluded": null,
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "chest pain",
+        "state": "CURRENT",
+        "actor": "SELF",
+        "index": 23
+      },
+      {
+        "kind": "breathing",
+        "text": "difficulty breathing",
+        "state": "CURRENT",
+        "actor": "SELF",
+        "index": 38
+      }
+    ]
+  },
+  {
+    "expected": true,
+    "text": "Tôi muốn tìm hiểu HRV vì tôi không thở được.",
+    "urgent": true,
+    "matched": "không thở được",
+    "excluded": null,
+    "mentions": [
+      {
+        "kind": "breathing",
+        "text": "không thở được",
+        "state": "CURRENT",
+        "actor": "SELF",
+        "index": 29
+      }
+    ]
+  },
+  {
+    "expected": true,
+    "text": "我想知道我目前胸痛且呼吸困難的原因",
+    "urgent": true,
+    "matched": "胸痛",
+    "excluded": null,
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "胸痛",
+        "state": "CURRENT",
+        "actor": "SELF",
+        "index": 7
+      },
+      {
+        "kind": "breathing",
+        "text": "呼吸困難",
+        "state": "CURRENT",
+        "actor": "SELF",
+        "index": 10
+      }
+    ]
+  },
+  {
+    "expected": true,
+    "text": "I have chest pain and cannot breathe. What is my HRV today?",
+    "urgent": true,
+    "matched": "chest pain",
+    "excluded": null,
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "chest pain",
+        "state": "CURRENT",
+        "actor": "SELF",
+        "index": 7
+      },
+      {
+        "kind": "breathing",
+        "text": "cannot breathe",
+        "state": "CURRENT",
+        "actor": "SELF",
+        "index": 22
+      }
+    ]
+  },
+  {
+    "expected": false,
+    "text": "I am not having chest pain or difficulty breathing",
+    "urgent": false,
+    "matched": null,
+    "excluded": "negated",
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "chest pain",
+        "state": "NEGATED",
+        "actor": "SELF",
+        "index": 16
+      },
+      {
+        "kind": "breathing",
+        "text": "difficulty breathing",
+        "state": "NEGATED",
+        "actor": "SELF",
+        "index": 30
+      }
+    ]
+  },
+  {
+    "expected": false,
+    "text": "Tôi đã hết đau ngực",
+    "urgent": false,
+    "matched": null,
+    "excluded": "resolved",
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "đau ngực",
+        "state": "RESOLVED",
+        "actor": "SELF",
+        "index": 11
+      }
+    ]
+  },
+  {
+    "expected": false,
+    "text": "No longer having chest pain",
+    "urgent": false,
+    "matched": null,
+    "excluded": "negated",
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "chest pain",
+        "state": "NEGATED",
+        "actor": null,
+        "index": 17
+      }
+    ]
+  },
+  {
+    "expected": false,
+    "text": "What causes chest pain in general?",
+    "urgent": false,
+    "matched": null,
+    "excluded": "educational",
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "chest pain",
+        "state": "EDUCATIONAL",
+        "actor": null,
+        "index": 12
+      }
+    ]
+  },
+  {
+    "expected": false,
+    "text": "I had chest pain yesterday but it has completely resolved.",
+    "urgent": false,
+    "matched": null,
+    "excluded": "resolved",
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "chest pain",
+        "state": "RESOLVED",
+        "actor": "SELF",
+        "index": 6
+      }
+    ]
+  },
+  {
+    "expected": true,
+    "text": "My chest pain is gone, but I cannot breathe now.",
+    "urgent": true,
+    "matched": "cannot breathe",
+    "excluded": null,
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "chest pain",
+        "state": "RESOLVED",
+        "actor": "SELF",
+        "index": 3
+      },
+      {
+        "kind": "breathing",
+        "text": "cannot breathe",
+        "state": "CURRENT",
+        "actor": "SELF",
+        "index": 29
+      }
+    ]
+  },
+  {
+    "expected": true,
+    "text": "I am not having chest pain, but I am currently struggling to breathe.",
+    "urgent": true,
+    "matched": "struggling to breathe",
+    "excluded": null,
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "chest pain",
+        "state": "NEGATED",
+        "actor": "SELF",
+        "index": 16
+      },
+      {
+        "kind": "breathing",
+        "text": "struggling to breathe",
+        "state": "CURRENT",
+        "actor": "SELF",
+        "index": 47
+      }
+    ]
+  },
+  {
+    "expected": true,
+    "text": "I want to learn about chest pain, but I am experiencing it right now.",
+    "urgent": true,
+    "matched": "I am experiencing it right now",
+    "excluded": null,
+    "mentions": [
+      {
+        "kind": "chest",
+        "text": "chest pain",
+        "state": "EDUCATIONAL",
+        "actor": "SELF",
+        "index": 22
+      },
+      {
+        "kind": "chest",
+        "text": "I am experiencing it right now",
+        "state": "CURRENT",
+        "actor": "SELF",
+        "index": 38
+      }
+    ]
+  }
+]

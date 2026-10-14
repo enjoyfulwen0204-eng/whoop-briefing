@@ -1,9 +1,16 @@
 // External synthetic database provider, deliberately outside the app cgroup.
 import {createServer} from 'node:http';import {createOwnedDb} from './stage5OwnedDb.js';import {hranaTransport} from './hranaTransport.js';
+import {writeFile} from 'node:fs/promises';
 const url='file:/fixtures/checkpoint.sqlite',seed=createOwnedDb({url});
 const users=(await seed.raw.execute('SELECT id,display_name FROM users')).rows;
 if(users.length!==1||users[0].id!=='a'||users[0].display_name!=='Synthetic')throw Error('SYNTHETIC_FIXTURE_ONLY');await seed.close();
 const transport=hranaTransport(url,{transactionMaxMs:5000});
+if(process.env.LINUX_CRASH_AFTER==='1')transport.arm({matchSql:/UPDATE phase4_jobs SET full_scan_cursor=/,after:async()=>{
+ await writeFile('/fixtures/commit-marker.json',JSON.stringify({synthetic:true,originalCommitDurable:true,at:Date.now()}));
+ // The external controller kills the entire app container while its original
+ // publication ACK is unavailable. No deadline, lease or queue state is edited.
+ await new Promise(r=>setTimeout(r,60000));
+}});
 let morning,probeActive=false,probePromise,probes=[];
 if(process.env.LINUX_SERVICE==='1'){
  const {seedMorningProvider}=await import('./stage6LinuxMorningFixture.mjs');await seedMorningProvider('file:/fixtures/morning.sqlite');morning=hranaTransport('file:/fixtures/morning.sqlite',{transactionMaxMs:5000});

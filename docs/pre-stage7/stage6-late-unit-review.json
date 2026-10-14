@@ -1,0 +1,458 @@
+{
+  "review": "sole independent frozen late-unit scoped delta",
+  "atUTC": "2026-10-14T03:47:00.335227+00:00",
+  "head": "279ec56e3c82785d7d6e88b68c783a686bd7e632",
+  "tree": "92e4375d72439de253e70a6a5334c37a053076e1",
+  "baseline": "1a78d9b1b3b69b1874cda3c2b000422b97209cdf",
+  "workingTreeChangesAtReview": "M docs/pre-stage7/stage6-late-unit-evidence.json\n M docs/pre-stage7/stage6-late-unit-repair.md",
+  "immutableTreeReviewed": true,
+  "trackedCodeUnchangedFromExactTree": true,
+  "runtimeSrcCloudflareScriptsUnchanged": true,
+  "sourceHashes": {
+    "test/stage6RamScopeLifetime.mjs": "d6419df32abb0541e5cef9c5f8c7482b496373d4c2a3a472c3dd4f19a233426d",
+    "test/stage6ArchitectureIsolatedLoader.js": "4ebb466816be170214c064121d04a515c40ae8cfb9d3411c48448a7c77f7df1e",
+    "test/stage6ArchitectureIsolatedProfile.js": "9d60c8bf584af354f054deaa04b562a403e1dd81a7434238460908afbe224066",
+    "test/stage6ShortTransactionPrototype.mjs": "3a35c38e035dd944c71254bd3f6aac842fc4fd9908fb7307331de2c68e061297",
+    "test/stage6LateProfile.mjs": "f88a56bf947828c1dfce5a5ef4e2d593794de435bcff798864f292cc608bf965",
+    "test/stage6-late-unit-profile.mjs": "fcf48424742310793b67e2145cba68e501b886d828626c575e9d8ef8086479bb",
+    "test/stage6-short-transaction-prototype.mjs": "5ba99c8054955c0ec7055b2c410aed7e0d20eac01f44f22b2e09331f389a3c93",
+    "test/stage6-ram-scope-lifetime.test.js": "2e1d479f77d0d6b361de5ccc56d51382c3702d5206d014370a299c0fa5eb3035"
+  },
+  "retainedP0": [],
+  "retainedP1": [],
+  "independentControls": {
+    "pass": 7,
+    "fail": 0,
+    "artifact": "/private/tmp/stage6-independent-ram-scope-review.tap",
+    "artifactSha256": "b13b21a01484af5a58c4337ec6a1eb07b6e4734b0ee45db12008d0ccc755c760",
+    "checks": [
+      "ordinary receiver unaffected",
+      "connection must actually close before disable",
+      "exact alias and idempotent terminal ownership",
+      "peer in-flight scope and global execution budget preserved",
+      "seed failure cleanup",
+      "closed RAM client late SQL rejection",
+      "budget cancellation keeps RAM receiver live until inner preparation finally completes"
+    ]
+  },
+  "independentControlsQualification": "Existing seven short controls reused: registry, ownership, helper behavior unchanged. Later differences only diagnostic observers/profiler cleanup and stronger fixture assertions; read-only delta reviewed, no old suite or capacity benchmark rerun.",
+  "staticChecks": [
+    "only private loader-owned RAM receivers own registered scopes",
+    "actual native client close precedes disable; alias shares exact receiver owner",
+    "peer/global request/budget/receipt transaction scopes unaffected",
+    "seed failures and cancellation preserve awaited inner cleanup ownership",
+    "diagnostics preserve original arguments, return/error and original HMAC/root/graph comparators",
+    "original publication SQL and budgets unchanged"
+  ],
+  "checkedPrimaryArtifacts": {
+    "late79": {
+      "path": "/private/tmp/stage6-late79-final.tap",
+      "sha256": "434294dcd198094b8c52e3a812943b09d90ff39bccb2310da42a8d8438f43c52",
+      "pass": 1,
+      "fail": 0
+    },
+    "early": {
+      "path": "/private/tmp/stage6-early-final.tap",
+      "sha256": "cd8af17b21056679f6c5675e0eb355bce34deb385792a25b9b4a499978020edd",
+      "pass": 1,
+      "fail": 0
+    },
+    "security": {
+      "path": "/private/tmp/stage6-late-security.tap",
+      "sha256": "420e6196329b9d0a01cb439926a477553804e7f163b54bd7ea8b0e0e5cc0aaae",
+      "pass": 16,
+      "fail": 0
+    },
+    "realSIGKILL": {
+      "path": "/private/tmp/stage6-late-crash.tap",
+      "sha256": "97e60952c6e603d978cf91dfbc21372cdec124ee401ddc69dd51d67464523be6",
+      "pass": 2,
+      "fail": 0
+    }
+  },
+  "primaryArtifactsQualification": "Final executable source variants measured before immutable commit creation; checked same-source evidence, not post-commit timing reruns.",
+  "late79": {
+    "preparationMs": 3350.8692500000006,
+    "workMs": 4314.067167,
+    "wholeMs": 6113.745666000001,
+    "transactionMs": 488.19445899999937,
+    "producerCounts": [
+      78,
+      79,
+      80
+    ],
+    "generation": 8,
+    "receiptHmac": true,
+    "producerHmac": true,
+    "exactNamedACK": true,
+    "reopenNoDuplicateRuns": true,
+    "cursor": "recovery -> sleep-05 for both original jobs across two genuine invocations"
+  },
+  "matched900ScopeControl": "Explicit process-retention model: same authenticated checkpoint; without cleanup SYNC_TIMEOUT, with cleanup genuine progress. Not extra health calculation or Production512MiB proof.",
+  "fullSix": {
+    "status": "PASS",
+    "codeCommit": "279ec56e3c82785d7d6e88b68c783a686bd7e632",
+    "artifact": "/private/tmp/stage6-late-full-six-final.tap",
+    "sha256": "bf48ae7cf7a3f3ae681f4d8f8aa239314a3005d98ef6ba31a3d2e72d3b28cce8",
+    "synthetic": true,
+    "production": false,
+    "completedJobs": 6,
+    "productiveCommittedLegs": 306,
+    "signedOperationReceipts": 57,
+    "finalizedProducerHmacs": 306,
+    "workReceipts": 1674,
+    "maxWorkerMs": 4405.722874999978,
+    "maxWholeMs": 6220.239041000023,
+    "maxTransactionMs": 591.4561250000261,
+    "maxPostLegRss": 547192832,
+    "maxPostLegHeapUsed": 295240728,
+    "httpWithReadbacks": 8868,
+    "remoteSqlWithReadbacks": 842193,
+    "processedSourceItems": 864,
+    "rawSubunitCommits": 162,
+    "terminalScopes": {
+      "created": 306,
+      "closed": 306,
+      "disabled": 2448,
+      "retainedEnabled": 0,
+      "liveOwners": 0,
+      "liveScopes": 0
+    },
+    "elapsedMs": 1481129.492625,
+    "fixtures": [
+      {
+        "fixture": 1,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "73c72b70e9ac007eeda9e9f0f52e4bd9d4d516b38d5e796752843c3d863bec15",
+            "receiptKey": "b4537f178cc8ece3905f3e2d59137bafe76817a488b8e620e60bc66a0ea7982c",
+            "producerExecutionId": "0d5634aa-bf9a-4983-8d6d-a7ab54aa94e5",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 5820.767749999999,
+        "maxWorkMs": 4016.132708000019,
+        "maxTransactionMs": 591.4561250000261,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      },
+      {
+        "fixture": 2,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "2e1eeb63b2f59728e05cc1ef04451b882f8744e81bac580b7e0c542ea6d429ba",
+            "receiptKey": "fefc02455221713beb2e984f584443d6e4618ca8cc143405709b6072399ccb60",
+            "producerExecutionId": "c0909e03-ee99-41f1-b232-924191bc0d29",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 6220.239041000023,
+        "maxWorkMs": 4405.722874999978,
+        "maxTransactionMs": 589.0357079999521,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      },
+      {
+        "fixture": 3,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "dddde76ce6fd4d11c76f4297960126d47f61c1278e057a8d56981dc6a7e9bd71",
+            "receiptKey": "3568e2f8db2572d6456e21e60f1ab0b55fc2a151dee7c9030bd1c23717e9f965",
+            "producerExecutionId": "d789bd80-a0b4-48d1-9ca9-836813038dcd",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 6101.688625000184,
+        "maxWorkMs": 4297.472624999937,
+        "maxTransactionMs": 560.5845000001136,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      }
+    ],
+    "sameFrozenExecutableSources": true,
+    "noDuplicateRuns": true,
+    "allFinalGenerationsCursorsLeasesAndHmacsVerified": true,
+    "oldPreSafetyRunNotCounted": true,
+    "qualification": "LOCAL synthetic same-frozen-executable-source run. Started just before immutable commit creation with same source bytes; all six original synthetic jobs complete under unchanged115ms/30s/45s/4s bounds. No runtime/captured/paid acceptance inferred."
+  },
+  "verdict": "SCOPED_LOCAL_SYNTHETIC_CAPACITY_AND_SECURITY_GO; RUNTIME_ACTIVE_GRANT_PROVIDER_PRODUCTION_NO_GO",
+  "approval": {
+    "scopedLocalSyntheticSecurityDelta": true,
+    "runtimeIntegration": false,
+    "activeMonitoredGrant": false,
+    "production": false,
+    "deployment": false,
+    "paidExecution": false,
+    "pushPublication": false,
+    "schemaMigration": false,
+    "localSyntheticCapacity": true,
+    "capturedOrRuntimeCapacity": false
+  },
+  "unresolvedGates": [
+    "Six captured successor jobs and independently scoped real admission/completion",
+    "Branded monitored grant/reservation/cancellation runtime integration",
+    "Provider account payload/transaction/cancellation and Production RAM/cost qualification",
+    "Material runtime integration independent review and explicit owner release authorization"
+  ],
+  "previousFrozenSecurityArtifactSha256": "9c219f62ee0e5f0cdaf31f7a85a51dc48c166374eeebfa83638c0fd1a058a791",
+  "newEvidenceQualification": "Read-only verification only: parsed every306 leg, full completion proof records, exact hashes and bounded counts/maxima. Retained copy independently read-only checked; no tests/long benchmark or Production operation run.",
+  "checkedPrimaryPostFreezeArtifacts": {
+    "security": {
+      "pass": 16,
+      "fail": 0,
+      "artifact": "/private/tmp/stage6-late-security-final.tap",
+      "sha256": "45c5d534851c9180bc21437137d11cce800f2b347bcb2e39a34a1c26e39f0d6e",
+      "codeCommit": "279ec56e3c82785d7d6e88b68c783a686bd7e632"
+    },
+    "realSIGKILL": {
+      "pass": 2,
+      "fail": 0,
+      "artifact": "/private/tmp/stage6-late-crash-final.tap",
+      "sha256": "908284eac6ee8fd1ea07a8d6c74cfaabb12f7d9b32b8cdccb776f659886ecc4a",
+      "codeCommit": "279ec56e3c82785d7d6e88b68c783a686bd7e632"
+    },
+    "lifecycleIsolation": {
+      "pass": 5,
+      "fail": 0,
+      "artifact": "/private/tmp/stage6-late-controls-final.tap",
+      "sha256": "792b5758223afabd0e110aab285385c7f250ae8d57a30b321bdd011fc609d6bf",
+      "codeCommit": "279ec56e3c82785d7d6e88b68c783a686bd7e632"
+    }
+  },
+  "separateNodeProcessRestart": [
+    {
+      "artifact": "/private/tmp/stage6-late-process1.tap",
+      "sha256": "b594b50ae00434e73be96665c4efb6c8f92f6e8651494bc98d45d3eafc5f2d02",
+      "pass": 1,
+      "fail": 0,
+      "durableProof": {
+        "n": 1,
+        "verified": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 79,
+          "workReceipts": 380,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+            "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+            "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "PENDING",
+            "requested_generation": 8,
+            "completed_generation": 0,
+            "full_scan_cursor": "[\"sleep\",\"sleep-05\"]",
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "PENDING",
+            "requested_generation": 8,
+            "completed_generation": 0,
+            "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]",
+            "lease_owner": null
+          }
+        ]
+      }
+    },
+    {
+      "artifact": "/private/tmp/stage6-late-process2.tap",
+      "sha256": "ebaa4f41c6cbd955986a4a162f84985a00792aafd4ccb87978b442405ea0dd3c",
+      "pass": 1,
+      "fail": 0,
+      "durableProof": {
+        "n": 1,
+        "verified": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 80,
+          "workReceipts": 388,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+            "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+            "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "PENDING",
+            "requested_generation": 8,
+            "completed_generation": 0,
+            "full_scan_cursor": "[\"sleep\",\"sleep-05\"]",
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "PENDING",
+            "requested_generation": 8,
+            "completed_generation": 0,
+            "full_scan_cursor": "[\"sleep\",\"sleep-05\"]",
+            "lease_owner": null
+          }
+        ]
+      }
+    }
+  ],
+  "retainedCopyReadOnlyCheck": {
+    "path": "/private/tmp/stage6-late-six-complete1/checkpoint.sqlite",
+    "sha256BeforeAndAfter": "c87367a418dd6e6195c22497d90d578e44b8bd9894b6b12ebb94c3941142e668",
+    "counts": {
+      "signedReceipts": 19,
+      "producers": 102,
+      "workReceipts": 558,
+      "runs": 17,
+      "items": 17
+    },
+    "jobsCompleted": 2,
+    "generation": 8,
+    "nullCursorsAndLeases": true,
+    "noDuplicateRuns": true,
+    "qualification": "Copy read with mode=ro&immutable=1; HMAC/exactACK acceptance comes from frozen verifier proof records, not invented by count checks."
+  },
+  "providerMemoryQualification": {
+    "maxPostLegRssBytes": 547192832,
+    "maxPostLegHeapUsedBytes": 295240728,
+    "betweenLegPeaksObserved": false,
+    "production512MiBQualified": false
+  }
+}

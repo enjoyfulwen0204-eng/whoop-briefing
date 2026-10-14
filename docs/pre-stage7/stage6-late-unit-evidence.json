@@ -205,30 +205,10 @@
               "exclusiveMs": 11084.017944006198,
               "bytes": 0
             },
-            "SQL_OTHER": {
-              "calls": 5380,
-              "inclusiveMs": 33027.07313499994,
-              "exclusiveMs": 33027.07313499994,
-              "bytes": 0,
-              "uniqueSql": 641
-            },
-            "SQL_AUTHORITY": {
-              "calls": 18,
-              "inclusiveMs": 5.9595390000022235,
-              "exclusiveMs": 5.9595390000022235,
-              "bytes": 0,
-              "uniqueSql": 12
-            },
             "GRAPH_ROOTS": {
               "calls": 20,
               "inclusiveMs": 580.597292000004,
               "exclusiveMs": 579.4640860000018,
-              "bytes": 0
-            },
-            "SOURCE_REVALIDATION": {
-              "calls": 4,
-              "inclusiveMs": 101.03820800000085,
-              "exclusiveMs": 0.5345040000001973,
               "bytes": 0
             },
             "MANIFEST_CANONICAL_JSON": {
@@ -236,13 +216,6 @@
               "inclusiveMs": 7.222224000051938,
               "exclusiveMs": 7.222224000051938,
               "bytes": 1426971
-            },
-            "SQL_RUN_ITEM": {
-              "calls": 27,
-              "inclusiveMs": 65.17858300000171,
-              "exclusiveMs": 65.17858300000171,
-              "bytes": 0,
-              "uniqueSql": 12
             },
             "RUN_ENUMERATION": {
               "calls": 3,
@@ -256,29 +229,10 @@
               "exclusiveMs": 75.77759299997888,
               "bytes": 0
             },
-            "SQL_GRAPH": {
-              "calls": 15,
-              "inclusiveMs": 38.2942529999973,
-              "exclusiveMs": 38.2942529999973,
-              "bytes": 0,
-              "uniqueSql": 2
-            },
             "GRAPH_TRAVERSAL": {
               "calls": 15,
               "inclusiveMs": 801.7128329999987,
               "exclusiveMs": 104.71479099999488,
-              "bytes": 0
-            },
-            "ARTIFACT": {
-              "calls": 9,
-              "inclusiveMs": 645.3532080000004,
-              "exclusiveMs": 87.29358300000149,
-              "bytes": 0
-            },
-            "AUTHORITY_READ": {
-              "calls": 2,
-              "inclusiveMs": 220.1825830000007,
-              "exclusiveMs": 0,
               "bytes": 0
             },
             "RECEIPT_SERIALIZATION": {
@@ -287,21 +241,9 @@
               "exclusiveMs": 4.654624999993757,
               "bytes": 0
             },
-            "AUTHORITY_CAPTURE": {
-              "calls": 1,
-              "inclusiveMs": 212.31191699999908,
-              "exclusiveMs": 18.061124999983804,
-              "bytes": 0
-            },
             "UNIT_DOMAIN": {
               "calls": 1,
               "inclusiveMs": 0,
-              "exclusiveMs": 0,
-              "bytes": 0
-            },
-            "RAW_UNIT": {
-              "calls": 1,
-              "inclusiveMs": 551.0304999999989,
               "exclusiveMs": 0,
               "bytes": 0
             }
@@ -345,90 +287,6 @@
             "elapsedMs": 2899.0214589999996
           },
           "snapshotBytes": 807320,
-          "phases": [
-            {
-              "label": "claim/admission",
-              "http": 5,
-              "sql": 6,
-              "elapsedMs": 649.3964590000014,
-              "remainingWorkerMs": 30000
-            },
-            {
-              "label": "control/owner observation",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 134.24083400000018,
-              "remainingWorkerMs": 29864
-            },
-            {
-              "label": "context lease registration",
-              "http": 1,
-              "sql": 4,
-              "elapsedMs": 135.35979099999895,
-              "remainingWorkerMs": 29728
-            },
-            {
-              "label": "schema catalog",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 153.72825000000012,
-              "remainingWorkerMs": 29573
-            },
-            {
-              "label": "column/index metadata",
-              "http": 1,
-              "sql": 91,
-              "elapsedMs": 170.1074580000004,
-              "remainingWorkerMs": 29402
-            },
-            {
-              "label": "key/byte metadata",
-              "http": 1,
-              "sql": 89,
-              "elapsedMs": 165.32712500000162,
-              "remainingWorkerMs": 29236
-            },
-            {
-              "label": "bounded DATA snapshot",
-              "http": 1,
-              "sql": 184,
-              "elapsedMs": 196.3765829999993,
-              "remainingWorkerMs": 29038
-            },
-            {
-              "label": "control/owner observation",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 127.46000000000095,
-              "remainingWorkerMs": 25905
-            },
-            {
-              "label": "atomic publication",
-              "http": 1,
-              "sql": 1474,
-              "elapsedMs": 291.98570800000016,
-              "remainingWorkerMs": 25595
-            },
-            {
-              "label": "RAM disposal/context release",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 127.46720900000037,
-              "remainingWorkerMs": 25467
-            },
-            {
-              "label": "original signed settlement",
-              "http": 9,
-              "sql": 11,
-              "elapsedMs": 1121.2948330000017
-            },
-            {
-              "label": "RAM import/original algorithm/HMAC",
-              "http": 0,
-              "sql": 0,
-              "elapsedMs": 3030.3710009999977
-            }
-          ],
           "peak": {
             "rss": 548012032,
             "heapTotal": 255623168,
@@ -436,151 +294,7 @@
             "external": 6433588,
             "arrayBuffers": 2417434
           },
-          "gcMs": 451.7682499885559,
-          "operations": {
-            "HMAC_JSON": {
-              "calls": 4613,
-              "inclusiveMs": 20.214475999957358,
-              "exclusiveMs": 20.214475999957358,
-              "bytes": 6394965
-            },
-            "HMAC": {
-              "calls": 4613,
-              "inclusiveMs": 14.070344000001569,
-              "exclusiveMs": 14.070344000001569,
-              "bytes": 295232
-            },
-            "PHYSICAL_RAM_SQL": {
-              "calls": 13740,
-              "inclusiveMs": 63550.64395676879,
-              "exclusiveMs": 63550.64395676879,
-              "bytes": 0
-            },
-            "SQL_OTHER": {
-              "calls": 25997,
-              "inclusiveMs": 149226.94808300052,
-              "exclusiveMs": 149226.94808300052,
-              "bytes": 0,
-              "uniqueSql": 2327
-            },
-            "SQL_AUTHORITY": {
-              "calls": 54,
-              "inclusiveMs": 12.721079000004465,
-              "exclusiveMs": 12.721079000004465,
-              "bytes": 0,
-              "uniqueSql": 22
-            },
-            "GRAPH_ROOTS": {
-              "calls": 121,
-              "inclusiveMs": 2318.818375999994,
-              "exclusiveMs": 2312.784300000014,
-              "bytes": 0
-            },
-            "SOURCE_REVALIDATION": {
-              "calls": 24,
-              "inclusiveMs": 872.2474139999977,
-              "exclusiveMs": 32.32731799995963,
-              "bytes": 0
-            },
-            "MANIFEST_CANONICAL_JSON": {
-              "calls": 7797,
-              "inclusiveMs": 26.18296399999599,
-              "exclusiveMs": 26.18296399999599,
-              "bytes": 5934331
-            },
-            "SQL_RUN_ITEM": {
-              "calls": 169,
-              "inclusiveMs": 45.524878999991415,
-              "exclusiveMs": 45.524878999991415,
-              "bytes": 0,
-              "uniqueSql": 24
-            },
-            "SQL_GRAPH": {
-              "calls": 136,
-              "inclusiveMs": 46.95729300000494,
-              "exclusiveMs": 46.95729300000494,
-              "bytes": 0,
-              "uniqueSql": 9
-            },
-            "GRAPH_TRAVERSAL": {
-              "calls": 143,
-              "inclusiveMs": 4117.650577000011,
-              "exclusiveMs": 208.51711800002158,
-              "bytes": 0
-            },
-            "ARTIFACT": {
-              "calls": 43,
-              "inclusiveMs": 1643.5439180000067,
-              "exclusiveMs": 45.85096699999485,
-              "bytes": 0
-            },
-            "AUTHORITY_VALIDATE": {
-              "calls": 9,
-              "inclusiveMs": 346.53050000000076,
-              "exclusiveMs": 239.8181400000558,
-              "bytes": 0
-            },
-            "RUN_ENUMERATION": {
-              "calls": 7,
-              "inclusiveMs": 3.3591679999990447,
-              "exclusiveMs": 0.7009719999896333,
-              "bytes": 0
-            },
-            "AUTHORITY_READ": {
-              "calls": 6,
-              "inclusiveMs": 529.8331670000007,
-              "exclusiveMs": 0,
-              "bytes": 0
-            },
-            "RECEIPT_READ": {
-              "calls": 3,
-              "inclusiveMs": 470.4295010000005,
-              "exclusiveMs": 25.25981800000045,
-              "bytes": 0
-            },
-            "UNIT_AUTHORITY": {
-              "calls": 1,
-              "inclusiveMs": 0,
-              "exclusiveMs": 0,
-              "bytes": 0
-            },
-            "RAW_UNIT": {
-              "calls": 6,
-              "inclusiveMs": 265.57841799999915,
-              "exclusiveMs": 28.71520800001781,
-              "bytes": 0
-            },
-            "AUTHORITY_CLOSURE": {
-              "calls": 2,
-              "inclusiveMs": 6.4322920000013255,
-              "exclusiveMs": 3.0755880000069737,
-              "bytes": 0
-            },
-            "RECEIPT_ARTIFACT": {
-              "calls": 1,
-              "inclusiveMs": 192.44608300000073,
-              "exclusiveMs": 2.632335999998759,
-              "bytes": 0
-            },
-            "RECEIPT_SERIALIZATION": {
-              "calls": 2,
-              "inclusiveMs": 7.254041000000143,
-              "exclusiveMs": 6.566259000001082,
-              "bytes": 0
-            },
-            "AUTHORITY_CAPTURE": {
-              "calls": 4,
-              "inclusiveMs": 726.841292000001,
-              "exclusiveMs": 115.02090800000587,
-              "bytes": 0
-            },
-            "UNIT_SOURCE": {
-              "calls": 5,
-              "inclusiveMs": 0,
-              "exclusiveMs": 0,
-              "bytes": 0
-            }
-          }
+          "gcMs": 451.7682499885559
         }
       ],
       "restartProofs": [
@@ -856,30 +570,10 @@
               "exclusiveMs": 34990.049637936354,
               "bytes": 0
             },
-            "SQL_OTHER": {
-              "calls": 22451,
-              "inclusiveMs": 82748.53067199962,
-              "exclusiveMs": 82748.53067199962,
-              "bytes": 0,
-              "uniqueSql": 2058
-            },
-            "SQL_AUTHORITY": {
-              "calls": 111,
-              "inclusiveMs": 39.60011500000019,
-              "exclusiveMs": 39.60011500000019,
-              "bytes": 0,
-              "uniqueSql": 59
-            },
             "GRAPH_ROOTS": {
               "calls": 112,
               "inclusiveMs": 1187.044548999998,
               "exclusiveMs": 1182.4261799999854,
-              "bytes": 0
-            },
-            "SOURCE_REVALIDATION": {
-              "calls": 41,
-              "inclusiveMs": 270.1846249999985,
-              "exclusiveMs": 33.18612900000426,
               "bytes": 0
             },
             "MANIFEST_CANONICAL_JSON": {
@@ -888,30 +582,10 @@
               "exclusiveMs": 43.5344199999804,
               "bytes": 8844479
             },
-            "SQL_RUN_ITEM": {
-              "calls": 216,
-              "inclusiveMs": 52.54208299999982,
-              "exclusiveMs": 52.54208299999982,
-              "bytes": 0,
-              "uniqueSql": 77
-            },
-            "SQL_GRAPH": {
-              "calls": 84,
-              "inclusiveMs": 28.343709999998282,
-              "exclusiveMs": 28.343709999998282,
-              "bytes": 0,
-              "uniqueSql": 16
-            },
             "GRAPH_TRAVERSAL": {
               "calls": 84,
               "inclusiveMs": 1581.97221,
               "exclusiveMs": 222.86157600000206,
-              "bytes": 0
-            },
-            "ARTIFACT": {
-              "calls": 51,
-              "inclusiveMs": 1073.6272980000008,
-              "exclusiveMs": 52.42117200000348,
               "bytes": 0
             },
             "AUTHORITY_VALIDATE": {
@@ -926,40 +600,16 @@
               "exclusiveMs": 1.9795449999928678,
               "bytes": 0
             },
-            "AUTHORITY_READ": {
-              "calls": 16,
-              "inclusiveMs": 606.9509159999998,
-              "exclusiveMs": 0,
-              "bytes": 0
-            },
-            "RECEIPT_READ": {
-              "calls": 11,
-              "inclusiveMs": 846.8102109999986,
-              "exclusiveMs": 97.8820930000229,
-              "bytes": 0
-            },
             "UNIT_AUTHORITY": {
               "calls": 4,
               "inclusiveMs": 0,
               "exclusiveMs": 0,
               "bytes": 0
             },
-            "RAW_UNIT": {
-              "calls": 9,
-              "inclusiveMs": 302.63845800000036,
-              "exclusiveMs": 55.0387459999929,
-              "bytes": 0
-            },
             "AUTHORITY_CLOSURE": {
               "calls": 4,
               "inclusiveMs": 11.737500000000637,
               "exclusiveMs": 7.500703999995949,
-              "bytes": 0
-            },
-            "AUTHORITY_CAPTURE": {
-              "calls": 3,
-              "inclusiveMs": 302.7254590000002,
-              "exclusiveMs": 59.59059599999455,
               "bytes": 0
             },
             "RECEIPT_SERIALIZATION": {
@@ -1014,104 +664,6 @@
             "elapsedMs": 1372.1582909999997
           },
           "snapshotBytes": 3875557,
-          "phases": [
-            {
-              "label": "claim/admission",
-              "http": 5,
-              "sql": 6,
-              "elapsedMs": 639.3433340000001,
-              "remainingWorkerMs": 29999
-            },
-            {
-              "label": "control/owner observation",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 133.54691600000024,
-              "remainingWorkerMs": 29864
-            },
-            {
-              "label": "context lease registration",
-              "http": 1,
-              "sql": 4,
-              "elapsedMs": 135.91195900000002,
-              "remainingWorkerMs": 29727
-            },
-            {
-              "label": "schema catalog",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 150.8037919999997,
-              "remainingWorkerMs": 29575
-            },
-            {
-              "label": "column/index metadata",
-              "http": 1,
-              "sql": 91,
-              "elapsedMs": 163.1950420000012,
-              "remainingWorkerMs": 29411
-            },
-            {
-              "label": "key/byte metadata",
-              "http": 1,
-              "sql": 89,
-              "elapsedMs": 184.5589999999993,
-              "remainingWorkerMs": 29225
-            },
-            {
-              "label": "key/byte metadata",
-              "http": 1,
-              "sql": 4,
-              "elapsedMs": 151.64708400000018,
-              "remainingWorkerMs": 29072
-            },
-            {
-              "label": "key/byte metadata",
-              "http": 1,
-              "sql": 4,
-              "elapsedMs": 143.1997080000001,
-              "remainingWorkerMs": 28929
-            },
-            {
-              "label": "bounded DATA snapshot",
-              "http": 1,
-              "sql": 204,
-              "elapsedMs": 269.2145419999997,
-              "remainingWorkerMs": 28657
-            },
-            {
-              "label": "control/owner observation",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 124.70516700000007,
-              "remainingWorkerMs": 26918
-            },
-            {
-              "label": "atomic publication",
-              "http": 1,
-              "sql": 3627,
-              "elapsedMs": 504.0864590000001,
-              "remainingWorkerMs": 26368
-            },
-            {
-              "label": "RAM disposal/context release",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 127.15170800000124,
-              "remainingWorkerMs": 26241
-            },
-            {
-              "label": "original signed settlement",
-              "http": 9,
-              "sql": 11,
-              "elapsedMs": 1139.445334
-            },
-            {
-              "label": "RAM import/original algorithm/HMAC",
-              "http": 0,
-              "sql": 0,
-              "elapsedMs": 1670.849664999998
-            }
-          ],
           "peak": {
             "rss": 474218496,
             "heapTotal": 194871296,
@@ -1119,133 +671,7 @@
             "external": 13943418,
             "arrayBuffers": 7373130
           },
-          "gcMs": 173.07145881652832,
-          "operations": {
-            "HMAC_JSON": {
-              "calls": 5856,
-              "inclusiveMs": 41.39663700001165,
-              "exclusiveMs": 41.39663700001165,
-              "bytes": 14827779
-            },
-            "HMAC": {
-              "calls": 5856,
-              "inclusiveMs": 21.265841000126784,
-              "exclusiveMs": 21.265841000126784,
-              "bytes": 374784
-            },
-            "PHYSICAL_RAM_SQL": {
-              "calls": 12017,
-              "inclusiveMs": 23236.429730000018,
-              "exclusiveMs": 23236.429730000018,
-              "bytes": 0
-            },
-            "SQL_OTHER": {
-              "calls": 16556,
-              "inclusiveMs": 57547.53631399989,
-              "exclusiveMs": 57547.53631399989,
-              "bytes": 0,
-              "uniqueSql": 1679
-            },
-            "SQL_AUTHORITY": {
-              "calls": 103,
-              "inclusiveMs": 39.62591999999859,
-              "exclusiveMs": 39.62591999999859,
-              "bytes": 0,
-              "uniqueSql": 56
-            },
-            "GRAPH_ROOTS": {
-              "calls": 92,
-              "inclusiveMs": 848.7400840000064,
-              "exclusiveMs": 845.9977960000142,
-              "bytes": 0
-            },
-            "SOURCE_REVALIDATION": {
-              "calls": 32,
-              "inclusiveMs": 35.675499000000855,
-              "exclusiveMs": 13.96296600000096,
-              "bytes": 0
-            },
-            "MANIFEST_CANONICAL_JSON": {
-              "calls": 10858,
-              "inclusiveMs": 36.07702599996992,
-              "exclusiveMs": 36.07702599996992,
-              "bytes": 7587806
-            },
-            "SQL_RUN_ITEM": {
-              "calls": 202,
-              "inclusiveMs": 42.27450799998769,
-              "exclusiveMs": 42.27450799998769,
-              "bytes": 0,
-              "uniqueSql": 74
-            },
-            "SQL_GRAPH": {
-              "calls": 72,
-              "inclusiveMs": 20.135325999995985,
-              "exclusiveMs": 20.135325999995985,
-              "bytes": 0,
-              "uniqueSql": 16
-            },
-            "GRAPH_TRAVERSAL": {
-              "calls": 72,
-              "inclusiveMs": 1356.0651670000043,
-              "exclusiveMs": 204.21937499999694,
-              "bytes": 0
-            },
-            "ARTIFACT": {
-              "calls": 44,
-              "inclusiveMs": 926.5162859999982,
-              "exclusiveMs": 48.58557799999471,
-              "bytes": 0
-            },
-            "AUTHORITY_VALIDATE": {
-              "calls": 28,
-              "inclusiveMs": 462.30774999999994,
-              "exclusiveMs": 315.7599939999036,
-              "bytes": 0
-            },
-            "RUN_ENUMERATION": {
-              "calls": 12,
-              "inclusiveMs": 3.44887600000402,
-              "exclusiveMs": 0.768039000015051,
-              "bytes": 0
-            },
-            "AUTHORITY_READ": {
-              "calls": 16,
-              "inclusiveMs": 612.8462909999998,
-              "exclusiveMs": 0,
-              "bytes": 0
-            },
-            "RECEIPT_READ": {
-              "calls": 12,
-              "inclusiveMs": 1009.6521660000017,
-              "exclusiveMs": 104.78754499993374,
-              "bytes": 0
-            },
-            "UNIT_AUTHORITY": {
-              "calls": 4,
-              "inclusiveMs": 0,
-              "exclusiveMs": 0,
-              "bytes": 0
-            },
-            "RAW_UNIT": {
-              "calls": 9,
-              "inclusiveMs": 278.41566500000044,
-              "exclusiveMs": 47.01278600005571,
-              "bytes": 0
-            },
-            "AUTHORITY_CLOSURE": {
-              "calls": 4,
-              "inclusiveMs": 12.075165999998717,
-              "exclusiveMs": 7.967087999997602,
-              "bytes": 0
-            },
-            "UNIT_SOURCE": {
-              "calls": 5,
-              "inclusiveMs": 0,
-              "exclusiveMs": 0,
-              "bytes": 0
-            }
-          }
+          "gcMs": 173.07145881652832
         }
       ],
       "restartProofs": [
@@ -1376,9 +802,7 @@
           "workMs": null,
           "wholeMs": null,
           "transactionMs": null,
-          "result": null,
           "snapshotBytes": null,
-          "phases": null,
           "peak": {
             "rss": 1227587584,
             "heapTotal": 962527232,
@@ -1386,121 +810,7 @@
             "external": 4100684,
             "arrayBuffers": 84530
           },
-          "gcMs": 9181.492210388184,
-          "operations": {
-            "HMAC_JSON": {
-              "calls": 6837,
-              "inclusiveMs": 16.1179449999737,
-              "exclusiveMs": 16.1179449999737,
-              "bytes": 5274946
-            },
-            "HMAC": {
-              "calls": 6837,
-              "inclusiveMs": 29.54596299997786,
-              "exclusiveMs": 29.54596299997786,
-              "bytes": 437568
-            },
-            "SQL_OTHER": {
-              "calls": 21475,
-              "inclusiveMs": 1303920.6172429938,
-              "exclusiveMs": 1303920.6172429938,
-              "bytes": 0,
-              "uniqueSql": 5079
-            },
-            "SQL_AUTHORITY": {
-              "calls": 104,
-              "inclusiveMs": 89.04779099998677,
-              "exclusiveMs": 89.04779099998677,
-              "bytes": 0,
-              "uniqueSql": 58
-            },
-            "GRAPH_ROOTS": {
-              "calls": 111,
-              "inclusiveMs": 23096.124461000007,
-              "exclusiveMs": 23089.538902000015,
-              "bytes": 0
-            },
-            "SOURCE_REVALIDATION": {
-              "calls": 41,
-              "inclusiveMs": 4491.245037999994,
-              "exclusiveMs": 310.5142129999804,
-              "bytes": 0
-            },
-            "MANIFEST_CANONICAL_JSON": {
-              "calls": 13609,
-              "inclusiveMs": 45.52980099993965,
-              "exclusiveMs": 45.52980099993965,
-              "bytes": 8323259
-            },
-            "SQL_RUN_ITEM": {
-              "calls": 216,
-              "inclusiveMs": 302.5562950000194,
-              "exclusiveMs": 302.5562950000194,
-              "bytes": 0,
-              "uniqueSql": 77
-            },
-            "SQL_GRAPH": {
-              "calls": 84,
-              "inclusiveMs": 252.76128600002085,
-              "exclusiveMs": 252.76128600002085,
-              "bytes": 0,
-              "uniqueSql": 16
-            },
-            "GRAPH_TRAVERSAL": {
-              "calls": 84,
-              "inclusiveMs": 30612.657247999996,
-              "exclusiveMs": 3299.9104979999947,
-              "bytes": 0
-            },
-            "ARTIFACT": {
-              "calls": 51,
-              "inclusiveMs": 20260.798039,
-              "exclusiveMs": 659.4692500000028,
-              "bytes": 0
-            },
-            "AUTHORITY_VALIDATE": {
-              "calls": 26,
-              "inclusiveMs": 7321.949499000006,
-              "exclusiveMs": 5312.233132000019,
-              "bytes": 0
-            },
-            "RUN_ENUMERATION": {
-              "calls": 28,
-              "inclusiveMs": 10.975545000002057,
-              "exclusiveMs": 5.7452820000080465,
-              "bytes": 0
-            },
-            "AUTHORITY_READ": {
-              "calls": 16,
-              "inclusiveMs": 11099.809457000003,
-              "exclusiveMs": 0,
-              "bytes": 0
-            },
-            "RECEIPT_READ": {
-              "calls": 11,
-              "inclusiveMs": 14401.946416999997,
-              "exclusiveMs": 861.9654639999453,
-              "bytes": 0
-            },
-            "AUTHORITY_CLOSURE": {
-              "calls": 4,
-              "inclusiveMs": 37.388167000001886,
-              "exclusiveMs": 32.58245800010354,
-              "bytes": 0
-            },
-            "AUTHORITY_CAPTURE": {
-              "calls": 3,
-              "inclusiveMs": 4786.0640829999975,
-              "exclusiveMs": 1002.6753589999425,
-              "bytes": 0
-            },
-            "RECEIPT_SERIALIZATION": {
-              "calls": 1,
-              "inclusiveMs": 19.67554100000052,
-              "exclusiveMs": 19.14454200000546,
-              "bytes": 0
-            }
-          }
+          "gcMs": 9181.492210388184
         }
       ]
     },
@@ -1555,123 +865,7 @@
           "workMs": 4854.27525,
           "wholeMs": 6597.4556250000005,
           "transactionMs": 558.948292,
-          "result": {
-            "triggerSource": "manual",
-            "attemptedJobs": 1,
-            "claimedJobs": 1,
-            "itemsAttempted": 6,
-            "processedItems": 6,
-            "completedJobs": 0,
-            "failedJobs": 0,
-            "failures": [],
-            "stoppedForBudget": false,
-            "unitsCommitted": 0,
-            "jobsConsidered": 1,
-            "remainingJobs": 2,
-            "outcome": "PARTIAL",
-            "completion": "PARTIAL",
-            "stopReason": "ITEM_LIMIT",
-            "elapsedMs": 2564.8485
-          },
           "snapshotBytes": 3650878,
-          "phases": [
-            {
-              "label": "claim/admission",
-              "http": 5,
-              "sql": 6,
-              "elapsedMs": 641.464334,
-              "remainingWorkerMs": 30000
-            },
-            {
-              "label": "control/owner observation",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 123.63612499999999,
-              "remainingWorkerMs": 29876
-            },
-            {
-              "label": "context lease registration",
-              "http": 1,
-              "sql": 4,
-              "elapsedMs": 124.86379099999999,
-              "remainingWorkerMs": 29751
-            },
-            {
-              "label": "schema catalog",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 130.54495799999995,
-              "remainingWorkerMs": 29620
-            },
-            {
-              "label": "column/index metadata",
-              "http": 1,
-              "sql": 91,
-              "elapsedMs": 147.54324999999994,
-              "remainingWorkerMs": 29472
-            },
-            {
-              "label": "key/byte metadata",
-              "http": 1,
-              "sql": 89,
-              "elapsedMs": 157.73354199999994,
-              "remainingWorkerMs": 29313
-            },
-            {
-              "label": "key/byte metadata",
-              "http": 1,
-              "sql": 4,
-              "elapsedMs": 134.6679160000001,
-              "remainingWorkerMs": 29177
-            },
-            {
-              "label": "key/byte metadata",
-              "http": 1,
-              "sql": 4,
-              "elapsedMs": 129.08899999999971,
-              "remainingWorkerMs": 29048
-            },
-            {
-              "label": "bounded DATA snapshot",
-              "http": 1,
-              "sql": 202,
-              "elapsedMs": 246.27050000000008,
-              "remainingWorkerMs": 28800
-            },
-            {
-              "label": "control/owner observation",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 122.87874999999985,
-              "remainingWorkerMs": 25867
-            },
-            {
-              "label": "atomic publication",
-              "http": 1,
-              "sql": 3824,
-              "elapsedMs": 556.774958,
-              "remainingWorkerMs": 25269
-            },
-            {
-              "label": "RAM disposal/context release",
-              "http": 1,
-              "sql": 1,
-              "elapsedMs": 121.60941699999967,
-              "remainingWorkerMs": 25146
-            },
-            {
-              "label": "original signed settlement",
-              "http": 9,
-              "sql": 11,
-              "elapsedMs": 1101.3597920000002
-            },
-            {
-              "label": "RAM import/original algorithm/HMAC",
-              "http": 0,
-              "sql": 0,
-              "elapsedMs": 2858.6630430000005
-            }
-          ],
           "peak": {
             "rss": 415956992,
             "heapTotal": 136986624,
@@ -1679,121 +873,7 @@
             "external": 4129441,
             "arrayBuffers": 113287
           },
-          "gcMs": 431.58270502090454,
-          "operations": {
-            "HMAC_JSON": {
-              "calls": 7065,
-              "inclusiveMs": 43.76699900001722,
-              "exclusiveMs": 43.76699900001722,
-              "bytes": 15305985
-            },
-            "HMAC": {
-              "calls": 7065,
-              "inclusiveMs": 31.40350300002285,
-              "exclusiveMs": 31.40350300002285,
-              "bytes": 452160
-            },
-            "SQL_OTHER": {
-              "calls": 22451,
-              "inclusiveMs": 104848.37506200002,
-              "exclusiveMs": 104848.37506200002,
-              "bytes": 0,
-              "uniqueSql": 2217
-            },
-            "SQL_AUTHORITY": {
-              "calls": 111,
-              "inclusiveMs": 43.13241499999867,
-              "exclusiveMs": 43.13241499999867,
-              "bytes": 0,
-              "uniqueSql": 59
-            },
-            "GRAPH_ROOTS": {
-              "calls": 112,
-              "inclusiveMs": 1599.219169,
-              "exclusiveMs": 1593.203955999972,
-              "bytes": 0
-            },
-            "SOURCE_REVALIDATION": {
-              "calls": 41,
-              "inclusiveMs": 362.35900199999924,
-              "exclusiveMs": 37.162687999990794,
-              "bytes": 0
-            },
-            "MANIFEST_CANONICAL_JSON": {
-              "calls": 14782,
-              "inclusiveMs": 51.70283499997231,
-              "exclusiveMs": 51.70283499997231,
-              "bytes": 8843120
-            },
-            "SQL_RUN_ITEM": {
-              "calls": 216,
-              "inclusiveMs": 56.43620699999565,
-              "exclusiveMs": 56.43620699999565,
-              "bytes": 0,
-              "uniqueSql": 77
-            },
-            "SQL_GRAPH": {
-              "calls": 84,
-              "inclusiveMs": 30.728662999996686,
-              "exclusiveMs": 30.728662999996686,
-              "bytes": 0,
-              "uniqueSql": 16
-            },
-            "GRAPH_TRAVERSAL": {
-              "calls": 84,
-              "inclusiveMs": 2121.5617889999985,
-              "exclusiveMs": 276.47057900000027,
-              "bytes": 0
-            },
-            "ARTIFACT": {
-              "calls": 51,
-              "inclusiveMs": 1446.1000369999988,
-              "exclusiveMs": 81.93862000000263,
-              "bytes": 0
-            },
-            "AUTHORITY_VALIDATE": {
-              "calls": 27,
-              "inclusiveMs": 553.854296999999,
-              "exclusiveMs": 393.4537369999971,
-              "bytes": 0
-            },
-            "RUN_ENUMERATION": {
-              "calls": 28,
-              "inclusiveMs": 9.799542999998266,
-              "exclusiveMs": 2.343327000008685,
-              "bytes": 0
-            },
-            "AUTHORITY_READ": {
-              "calls": 16,
-              "inclusiveMs": 808.6649179999995,
-              "exclusiveMs": 0,
-              "bytes": 0
-            },
-            "RECEIPT_READ": {
-              "calls": 11,
-              "inclusiveMs": 1090.9507899999999,
-              "exclusiveMs": 113.48409599998331,
-              "bytes": 0
-            },
-            "AUTHORITY_CLOSURE": {
-              "calls": 4,
-              "inclusiveMs": 13.707041000000117,
-              "exclusiveMs": 9.109495000005154,
-              "bytes": 0
-            },
-            "AUTHORITY_CAPTURE": {
-              "calls": 3,
-              "inclusiveMs": 404.8866250000001,
-              "exclusiveMs": 75.12458200002948,
-              "bytes": 0
-            },
-            "RECEIPT_SERIALIZATION": {
-              "calls": 1,
-              "inclusiveMs": 3.0961669999996957,
-              "exclusiveMs": 2.571331000001919,
-              "bytes": 0
-            }
-          }
+          "gcMs": 431.58270502090454
         }
       ]
     }
@@ -1801,19 +881,404 @@
   "focusedSafety": {
     "pass": 16,
     "fail": 0,
-    "artifact": "/private/tmp/stage6-late-security.tap"
+    "artifact": "/private/tmp/stage6-late-security-final.tap",
+    "sha256": "45c5d534851c9180bc21437137d11cce800f2b347bcb2e39a34a1c26e39f0d6e",
+    "codeCommit": "279ec56e3c82785d7d6e88b68c783a686bd7e632"
   },
   "actualSIGKILL": {
     "pass": 2,
     "fail": 0,
-    "artifact": "/private/tmp/stage6-late-crash.tap"
+    "artifact": "/private/tmp/stage6-late-crash-final.tap",
+    "sha256": "908284eac6ee8fd1ea07a8d6c74cfaabb12f7d9b32b8cdccb776f659886ecc4a",
+    "codeCommit": "279ec56e3c82785d7d6e88b68c783a686bd7e632"
   },
   "fullSix": {
-    "status": "PENDING frozen repaired code run",
+    "status": "PASS",
+    "codeCommit": "279ec56e3c82785d7d6e88b68c783a686bd7e632",
+    "artifact": "/private/tmp/stage6-late-full-six-final.tap",
+    "sha256": "bf48ae7cf7a3f3ae681f4d8f8aa239314a3005d98ef6ba31a3d2e72d3b28cce8",
+    "synthetic": true,
+    "production": false,
+    "completedJobs": 6,
+    "productiveCommittedLegs": 306,
+    "signedOperationReceipts": 57,
+    "finalizedProducerHmacs": 306,
+    "workReceipts": 1674,
+    "maxWorkerMs": 4405.722874999978,
+    "maxWholeMs": 6220.239041000023,
+    "maxTransactionMs": 591.4561250000261,
+    "maxPostLegRss": 547192832,
+    "maxPostLegHeapUsed": 295240728,
+    "httpWithReadbacks": 8868,
+    "remoteSqlWithReadbacks": 842193,
+    "processedSourceItems": 864,
+    "rawSubunitCommits": 162,
+    "terminalScopes": {
+      "created": 306,
+      "closed": 306,
+      "disabled": 2448,
+      "retainedEnabled": 0,
+      "liveOwners": 0,
+      "liveScopes": 0
+    },
+    "elapsedMs": 1481129.492625,
+    "fixtures": [
+      {
+        "fixture": 1,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "73c72b70e9ac007eeda9e9f0f52e4bd9d4d516b38d5e796752843c3d863bec15",
+            "receiptKey": "b4537f178cc8ece3905f3e2d59137bafe76817a488b8e620e60bc66a0ea7982c",
+            "producerExecutionId": "0d5634aa-bf9a-4983-8d6d-a7ab54aa94e5",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 5820.767749999999,
+        "maxWorkMs": 4016.132708000019,
+        "maxTransactionMs": 591.4561250000261,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      },
+      {
+        "fixture": 2,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "2e1eeb63b2f59728e05cc1ef04451b882f8744e81bac580b7e0c542ea6d429ba",
+            "receiptKey": "fefc02455221713beb2e984f584443d6e4618ca8cc143405709b6072399ccb60",
+            "producerExecutionId": "c0909e03-ee99-41f1-b232-924191bc0d29",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 6220.239041000023,
+        "maxWorkMs": 4405.722874999978,
+        "maxTransactionMs": 589.0357079999521,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      },
+      {
+        "fixture": 3,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "dddde76ce6fd4d11c76f4297960126d47f61c1278e057a8d56981dc6a7e9bd71",
+            "receiptKey": "3568e2f8db2572d6456e21e60f1ab0b55fc2a151dee7c9030bd1c23717e9f965",
+            "producerExecutionId": "d789bd80-a0b4-48d1-9ca9-836813038dcd",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 6101.688625000184,
+        "maxWorkMs": 4297.472624999937,
+        "maxTransactionMs": 560.5845000001136,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      }
+    ],
+    "sameFrozenExecutableSources": true,
+    "noDuplicateRuns": true,
+    "allFinalGenerationsCursorsLeasesAndHmacsVerified": true,
     "oldPreSafetyRunNotCounted": true
   },
   "journalTenantLimit": "separate original six-item TENANT_LIMIT; not seventh Journal failure",
   "productionPilot": "12/12 exhausted; none requested/reset/spent",
   "F02": "Owner Accepted Risk, unchanged",
-  "stage7v33Stage8v34": "src/contracts/migrations unchanged, no SHADOW-to-LIVE promotion"
+  "stage7v33Stage8v34": "src/contracts/migrations unchanged, no SHADOW-to-LIVE promotion",
+  "lifecycleIsolation": {
+    "pass": 5,
+    "fail": 0,
+    "artifact": "/private/tmp/stage6-late-controls-final.tap",
+    "sha256": "792b5758223afabd0e110aab285385c7f250ae8d57a30b321bdd011fc609d6bf",
+    "codeCommit": "279ec56e3c82785d7d6e88b68c783a686bd7e632"
+  },
+  "lateSeparateProcessRestart": {
+    "twoDistinctNodeInvocations": true,
+    "results": [
+      {
+        "artifact": "/private/tmp/stage6-late-process1.tap",
+        "sha256": "b594b50ae00434e73be96665c4efb6c8f92f6e8651494bc98d45d3eafc5f2d02",
+        "pass": 1,
+        "fail": 0,
+        "durableProof": {
+          "n": 1,
+          "verified": {
+            "signedOperationReceipts": 19,
+            "finalizedProducerHmacs": 79,
+            "workReceipts": 380,
+            "noDuplicateRuns": true,
+            "domainProof": {
+              "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+              "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+              "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+              "inputGeneration": 8,
+              "sourceGeneration": 8,
+              "receiptHmac": true,
+              "producerHmac": true,
+              "exactNamedAck": true
+            }
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"sleep\",\"sleep-05\"]",
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"recovery\",\"synthetic-old-recovery\"]",
+              "lease_owner": null
+            }
+          ]
+        }
+      },
+      {
+        "artifact": "/private/tmp/stage6-late-process2.tap",
+        "sha256": "ebaa4f41c6cbd955986a4a162f84985a00792aafd4ccb87978b442405ea0dd3c",
+        "pass": 1,
+        "fail": 0,
+        "durableProof": {
+          "n": 1,
+          "verified": {
+            "signedOperationReceipts": 19,
+            "finalizedProducerHmacs": 80,
+            "workReceipts": 388,
+            "noDuplicateRuns": true,
+            "domainProof": {
+              "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+              "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+              "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+              "inputGeneration": 8,
+              "sourceGeneration": 8,
+              "receiptHmac": true,
+              "producerHmac": true,
+              "exactNamedAck": true
+            }
+          },
+          "jobs": [
+            {
+              "job_kind": "RECOMPUTE_DERIVED",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"sleep\",\"sleep-05\"]",
+              "lease_owner": null
+            },
+            {
+              "job_kind": "REPAIR_CURRENTNESS",
+              "state": "PENDING",
+              "requested_generation": 8,
+              "completed_generation": 0,
+              "full_scan_cursor": "[\"sleep\",\"sleep-05\"]",
+              "lease_owner": null
+            }
+          ]
+        }
+      }
+    ],
+    "noDuplicateRuns": true
+  },
+  "retainedFinalCheckpoint": {
+    "path": "/private/tmp/stage6-late-six-complete1/checkpoint.sqlite",
+    "sha256": "c87367a418dd6e6195c22497d90d578e44b8bd9894b6b12ebb94c3941142e668",
+    "bytes": 6242304,
+    "completedJobs": 2,
+    "generation": 8,
+    "cursor": null,
+    "lease": null,
+    "separateProcessReauthentication": true,
+    "signedReceipts": 19,
+    "finalizedProducerHmacs": 102,
+    "workReceipts": 558,
+    "noDuplicateRuns": true,
+    "allHmacAndExactDomainAckVerified": true
+  },
+  "independentReview": {
+    "artifact": "docs/pre-stage7/stage6-late-unit-review.json",
+    "codeCommit": "279ec56e3c82785d7d6e88b68c783a686bd7e632",
+    "securityVerdict": "SCOPED_LOCAL_SYNTHETIC_GO",
+    "retainedP0": [],
+    "retainedP1": [],
+    "independentControlsPass": 7,
+    "fullSixCapacityPending": false,
+    "capacityVerdict": "SCOPED_LOCAL_SYNTHETIC_CAPACITY_AND_SECURITY_GO",
+    "reviewSha256": "e33fccb5ca0464bb1f0abc454e9a82ef59adea91edc0f7b3c05b6ca9be6dbbf6",
+    "finalExecutableBytesVerified": true
+  },
+  "actualFormerLongRunFailureBoundary": {
+    "fixture": 2,
+    "leg": 79,
+    "wholeMs": 6220.239041000023,
+    "workMs": 4405.722874999978,
+    "transactionMs": 498.8672080000397,
+    "http": 30,
+    "sql": 4241,
+    "items": 6,
+    "units": 0,
+    "completed": 0,
+    "scopes": {
+      "created": 181,
+      "closed": 181,
+      "disabled": 1448,
+      "retainedEnabled": 0,
+      "liveOwners": 0,
+      "liveScopes": 0
+    },
+    "memory": {
+      "rss": 485425152,
+      "heapTotal": 218284032,
+      "heapUsed": 189447872,
+      "external": 4138424,
+      "arrayBuffers": 128477
+    },
+    "qualification": "Final reviewed code, real fixture2 leg79 after180 original committed legs; no retention model; genuine six source items atomically committed. Earlier pre-safety long run failed here; not counted as final acceptance."
+  },
+  "readiness": {
+    "isolatedArchitecture": "GO",
+    "stage6Runtime": "NO-GO: test-only architecture; runtime/active monitored grant integration not authorized or qualified",
+    "production": "NO-GO: no release or paid execution authorization/provider RAM/payload/cost qualification",
+    "schemaRequired": false
+  },
+  "finalExecutableHashes": {
+    "test/stage6RamScopeLifetime.mjs": "d6419df32abb0541e5cef9c5f8c7482b496373d4c2a3a472c3dd4f19a233426d",
+    "test/stage6ArchitectureIsolatedLoader.js": "4ebb466816be170214c064121d04a515c40ae8cfb9d3411c48448a7c77f7df1e",
+    "test/stage6ArchitectureIsolatedProfile.js": "9d60c8bf584af354f054deaa04b562a403e1dd81a7434238460908afbe224066",
+    "test/stage6ShortTransactionPrototype.mjs": "3a35c38e035dd944c71254bd3f6aac842fc4fd9908fb7307331de2c68e061297",
+    "test/stage6LateProfile.mjs": "f88a56bf947828c1dfce5a5ef4e2d593794de435bcff798864f292cc608bf965",
+    "test/stage6-late-unit-profile.mjs": "fcf48424742310793b67e2145cba68e501b886d828626c575e9d8ef8086479bb",
+    "test/stage6-short-transaction-prototype.mjs": "5ba99c8054955c0ec7055b2c410aed7e0d20eac01f44f22b2e09331f389a3c93",
+    "test/stage6-ram-scope-lifetime.test.js": "2e1d479f77d0d6b361de5ccc56d51382c3702d5206d014370a299c0fa5eb3035"
+  },
+  "stage8Worktree": {
+    "unchangedHead": "899dff0ae61474bb2b9ec0a0743cdbf11a999d3b",
+    "untouched": true
+  }
 }

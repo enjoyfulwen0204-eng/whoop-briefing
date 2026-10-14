@@ -1,0 +1,354 @@
+{
+  "reviewer": "sole independent reviewer; no agents",
+  "atUTC": "2026-10-14T07:25:09.491030+00:00",
+  "scope": "Focused runtime integration delta from b1 plus final readonly-outcome/proof delta; no full-project audit, production, network or long review benchmark",
+  "candidate": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+  "baseline": "b1e0d193b2eac17de309da8ae424ad7a66b05a42",
+  "sourceCommit": "e9a5bf258561d50bdf81fee482234a35ce12c5ed",
+  "sourceTree": "64ec5f5bcd53d13662a9c744bd56f91fe3bd941e",
+  "testSuccessor": "db0fb92f1a4942af34f95aff3100d19eb47ea37c",
+  "testSuccessorTree": "2553f59b9fb01ddf66441b39cbda34cc3ef3b38e",
+  "sourceIdenticalAcrossTestSuccessor": true,
+  "sourceOnlyDifferenceFromD7": "src/stage6ShortPublication.js original NO_WORK/NO_ELIGIBLE_WORK admission with zero claimed/selected jobs and strict original remaining/completion predicates; original actor/grant/health context/schema/typed rowset/time publication guards retained",
+  "sourceHashes": {
+    "src/receiverScopeLifetime.js": "44367d6ff9ae85dfb41da8fcbb7ad0c446a7660e3041ef3d1d8b2dd0af79cab5",
+    "src/stage6CapacityRuntime.js": "b509473fd07bb4368c1ae4f9743b1e49cb05c18bc95a0fefa86cdaec33e63b28",
+    "src/stage6RuntimeBinding.js": "115e8be71412ebc5c3e43d8fe29720f1897bf0f0241317cff5edadc6bdcffa57",
+    "src/stage6ShortPublication.js": "5280129a299fbae5f3485fc420c53f62deeaaa48f3ebfd333c2296e80fc756d8",
+    "src/db.js": "efb67c3ef160c375208670370e74f87e14208e11ec3b12d5e91745e13cbcb9c3",
+    "src/betaPilotPermit.js": "ac0fab0e485d3d64de61f58b9bda10187855f33e45c459f7b50d72f7c220fe19",
+    "src/betaPilotBoundedReads.js": "63b774e17c13c9ecfe7e4556dd698e3c1a45ee4c4f594889e069fcae276186fa",
+    "src/legacyHealthAdapter.js": "8b6b33020f7e3e936a6ef1f0e2a580d7009500a415871d026617e948c21ca7f7",
+    "src/phase4Core.js": "ef4d460138d8b81b07adbd3be7ba5e81abbaba10e62261b130c0172a5747c93f",
+    "src/phase4OperationReceipts.js": "475e41345e7820a53038131d7d40f4c55449718a602d7ae045e14cf40c29fd71",
+    "src/phase4ReanalysisQueue.js": "ec365a489e10198c2acb8d18712602624798a607dde49e9eefff86b4913ee370",
+    "src/processingReadSnapshot.js": "7f3fdf9f4cb7660340b937daa3a8ef3775f57421c616a1a715623b4acdd8308d",
+    "src/processingTransaction.js": "34d67726f6a394ded20f171e163917e3db071dc3405d3e97b02c97296fa2cd40",
+    "src/publicBeta.js": "85cd3382fcc0bfa07cea0d2f04b113080ed80a438e3318af916457ce05d4a160",
+    "src/phase4ResultAuthority.js": "280375dfe36a9344fd1dffa3d6cfa7fe4cd687f33638e02bcba3061fdb767e87"
+  },
+  "retainedP0": [],
+  "retainedP1": [],
+  "verdict": "GO_FOR_SCOPED_SECURITY_AND_PARTIAL_MONITORED_RUNTIME_PROOF_ONLY; FULL_CAPACITY_FINANCIAL_PROVIDER_PRODUCTION_NO_GO",
+  "approval": {
+    "scopedFrozenRuntimeSecurity": true,
+    "partialMonitoredRuntimeProof": true,
+    "fullMonitoredSixJobCapacity": false,
+    "financialOrPaidScope": false,
+    "Linux512MiBOrProviderMemory": false,
+    "production": false,
+    "deployment": false,
+    "push": false
+  },
+  "independentChecks": {
+    "pilotExpiryAndOwnership": {
+      "pass": 3,
+      "fail": 0,
+      "path": "/private/tmp/stage6-independent-runtime-pilot-expiry-fixed.tap"
+    },
+    "coveragePostCommitAndRepeatedOwnership": {
+      "pass": 6,
+      "fail": 0,
+      "path": "/private/tmp/stage6-independent-runtime-fixed-guards.tap"
+    },
+    "receiverActiveLifecycle": {
+      "pass": 4,
+      "fail": 0,
+      "path": "/private/tmp/stage6-independent-runtime-scopes.tap"
+    },
+    "latchAndOwnership": {
+      "pass": 3,
+      "fail": 0,
+      "path": "/private/tmp/stage6-independent-runtime-latch.tap"
+    },
+    "closureFix": {
+      "pass": 1,
+      "fail": 0,
+      "path": "/private/tmp/stage6-independent-permit-closure-fixed.tap"
+    },
+    "physicalAckIdentity": {
+      "pass": 2,
+      "fail": 0,
+      "path": "/private/tmp/stage6-independent-runtime-ack-identity.tap"
+    }
+  },
+  "independentArtifactHashes": {
+    "postcommit-before": "b49b1aaab1b64becf81b80f6d85351de9510da075863df453a479a81db7fabcb",
+    "postcommit-fixed": "f3aa60c520e7d6885f7ebeffe0bf49b8705bd04a49f04962f4a938528a1a03e9",
+    "pilot-expiry": "138f06dff0076c96b3b8a8fe8088259d8cbc9032e02c3ec2987f6efe6ef6ebee",
+    "pilot-expiry-fixed": "8d75ec36d84cbf0f6fb1f975d4b4511278bfad326af15f88e5716c1dcb3c644c",
+    "coverage": "f26812eb0e1e468e1cbbb7405b9aca82ecb45c6b936fb7d7c213e3896f6a7f7b",
+    "fixed-guards": "817f2f423204b434c22efe3f726199a1832158ad40c0f4bcbfcb1d86d7d03911",
+    "scopes": "da67e75d481a3e91aad525aef3a6dc9b4b4b4c8f6b5bfd7927095159fd3232b8",
+    "latch": "7b46b534a4ed5f0e6999852e31a4ce4c65b40c14f0a56f05357d22a81ff9dacf",
+    "closureFix": "591931039b446ffb5781854135cf015b64580c5064e39eb3e5551f9cfc1afc25",
+    "physicalAckIdentity": "58152cee7dbdb2b7f76138afaad0d723149e1a20104590002e43f434ebc2df4c",
+    "closureBaseline": "06d5e92618b5a95ad4ce380488070c2a445a3fe382e1f956b58e6164334f541c",
+    "closureCurrentBeforeFix": "8d6787797715f12c437366adaa9148baf44d5f4e4ab639ea1b894128e9bfec4d"
+  },
+  "independentMethods": "Owned isolated synthetic SQLite only; publication tests use unchanged helper with imports rewritten and appended private white-box non-health marker issuer, real grant/execution/budget/SQL. These fixtures do not prove full health semantics or runtime capacity. Overlapping ownership cases are not summed as unique tests.",
+  "fixedSafetyFindings": [
+    {
+      "boundary": "post-COMMIT guard SQL error treated as definite rollback",
+      "evidence": "independent non-health marker really COMMITTED with SQLITE_ERROR/pending0/indeterminatefalse; fixed preserves COMMIT_INDETERMINATE/pending1/indeterminatetrue",
+      "method": "unchanged publisher in imports-only helper copy plus appended private white-box fixture issuer; real owned SQL/grant/execution/budget. No semantic or full-runtime qualification inferred from fixture."
+    },
+    {
+      "boundary": "exported mutable constructor/receiver brands",
+      "evidence": "static finding fixed before independent run; readonly lookup/forged receiver/DB clone controls pass"
+    },
+    {
+      "boundary": "original pilot clock absent inside publication",
+      "evidence": "actual1200ms remaining grant +1500ms delayed write batch committed marker beyond expiry while owner budget live; corrected in-batch authentic grant clock/control guard rolls back marker"
+    },
+    {
+      "boundary": "zero-count coverage with no execution/budget or DATA allowed Native grants",
+      "evidence": "independent real grant/toy factory RAM allowed128 prefixes without snapshot; closed private completed-import proof now rejects accepted0"
+    },
+    {
+      "boundary": "eager permit/publication import cycle",
+      "evidence": "normal src/db import failed HEALTH_REDACTED initialization; late readonly proof lookup fixes module startup"
+    },
+    {
+      "boundary": "global active latch budget construction outside guaranteed finally",
+      "evidence": "static finding; fixed genuine expired-budget test and subsequent valid-budget item rejection leave activefalse"
+    },
+    {
+      "boundary": "Original permit closure after work expiry rollback",
+      "evidence": "Failure independently reproduced both pristine b1 and working source; original closure test after narrow private cleanup bypass PASS1; not a new-delta regression."
+    }
+  ],
+  "checkedBoundaries": [
+    "private factory-only immutable transport and RAM brands",
+    "no access/refresh token values imported; user_whoop_tokens projection onlyuser_id/auth_generation",
+    "typed complete projected DATA rows, same-snapshot count/bytes gates; empty-page race rejects",
+    "SHADOW-only derived projection and original schema/graph/root/HMAC comparators retained",
+    "remote original grant clock/control and owned execution/context/generation guards inside atomic write batch",
+    "local fresh configuration/runtime/time fences and exact execution/budget prepared scope",
+    "private complete-import one-use proof bound receiver; scope retirement waits callbacks; global/peer ALS untouched",
+    "original SELECT/INSERT semantics, HMAC/root comparators, full typed fields/1MiB row bounds and immutable index retained; no unrelated authority accepted",
+    "pre-existing closure failure reproduced on pristine b1 and working source; original focused test nowPASS1 including work rollback, durable closure and fresh restartdenial",
+    "installed SDK new ResultSetImpl per actual statement (sqlite3.js287/293); two physical writes give four nested facade deliveries but two distinct ACKs; terminal fence failure produces0 after-commit effects/rows. No cross-preparation set or reduced row assertions.",
+    "e9 original zero-selected no-work branch cannot issue caller-forged outcomes; all original typed snapshot/time/lease/owner/grant checks remain; absence of selected job does not claim job completion"
+  ],
+  "primaryArtifacts": [
+    {
+      "path": "/private/tmp/stage6-runtime-four-final.tap",
+      "sha256": "757af295b8b566fe3da9f3e6e2507e312e96a936f4edd78f55aa3dffa323828d",
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "Four genuine monitored115ms partial source/cursor legs; original12-attempt policy; same reviewed source before freeze. Printed cycle DOMAIN ACK belongs to retained checkpoint, not current request."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-source-frozen-final.tap",
+      "sha256": "eb7470d202e629aa5a9824f9176eaf019f62e8ab07bedfad036f78f17a36cb94",
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "Two actual115ms partial legs plus fresh reopen/replay; request release pin d7. KernelRSS372228096; all7 receivers retired52scopesdisabled."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-completed-final.tap",
+      "sha256": "6c4aee45e6f6b0e838f964e0f0b555c2f4c837a0c15d1b6884adab69fe929844",
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "Original NO_WORK twice: zero selected/claimed/processed/completed, remaining0; retained2jobs alreadyCOMPLETED generation8. Signed operations19/producers102 unchanged; original control work receipts558->559->560."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-cancel-ram-final.tap",
+      "sha256": "eeb1c87ed1c5664f9e6317fbc9a46a443dea2d590bce787e1cb48a25d28d56b6",
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "CANCEL_RAM after delivered snapshot/original algorithm before publication; source cursor and operation receipts unchanged. Actual RAM closed, final receivers3/retired3/disabled22/live0. Earlier CANCEL was preDATA and proves no RAM erasure."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-ack-final.tap",
+      "sha256": "e08c36371ca140190dfe17ec3af0dbc0333d5521d89f2caa88162a6b3c8eb5c1",
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "Actual installed transport durable publication ACK loss; fresh SDK reopens, waits original90s deadline, original request RECONCILIATION_ONLY/FINALIZED_SUCCESS; authenticates19operations/79producers/376work."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-sigkill-final.tap",
+      "sha256": "756c16f7fb6d33b6300c9b98a3b8e3d42eb96461a6859998f7df6c32bf5d9641",
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "Real SIGKILL at actual monitored atomic durable COMMIT; fresh process waits original deadline, reconciliation-only success; permit attempts remain1, no extra reservation;19/79/376 seals."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-source-safety.tap",
+      "sha256": "ce70c16f98c0a863be9cda195c84085b76eec444d4b9aac4de4aa1f7afc78f21",
+      "pass": 18,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "Existing source-only16 security plus2SIGKILL controls; not18 monitored runtime cases."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-permit-final.tap",
+      "sha256": "8f95ddcf1e80c903e29e95512c6c861a6e183d5fdf7665043ef6868a7bd09148",
+      "pass": 17,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "Original focused permit suite17/17; closure-only fix restores durable closure after original work expiry rollback."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-receiver-lifetime.tap",
+      "sha256": "770d2ac2f31602a476665ae6f4ec619f5078319dbd3e545cfe77325b1c94c9c3",
+      "pass": 5,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "Receiver lifetime controls5/5."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-exact-current-final2.tap",
+      "sha256": "a6bb300837622b91fc47b12fab32f1f9396057d7303dac2e95d2711e0ac27710",
+      "pass": 0,
+      "fail": 1,
+      "skipped": 0,
+      "scope": "Whole TAP FAIL. First request is genuine200/PARTIAL/FINALIZED_SUCCESS with new analyzeAssociationFamily receipt + exact current stage6.associations ACK and current stage6.checkpoint ACK. Second request424/FINALIZED_FAILURE before worker; entry RSS denial plausible, not conclusively logged; cannot qualify four-leg memory stability."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-96-current-final.tap",
+      "sha256": "dc019e2a1403e4be75b665aeedab1b858e71024a3b7203f0d3ffe228a9db757c",
+      "pass": 0,
+      "fail": 1,
+      "skipped": 0,
+      "scope": "Contaminated run: request release=e9; db0 commit07:16:56Z occurred during07:16:54..07:17:18 phase. Original release fence rejects settlement after acknowledged publication. This is not a frozen96 capacity or lowRSS failure verdict."
+    },
+    {
+      "path": "/private/tmp/stage6-memory-full-six96.tap",
+      "sha256": "b886a82cb0c804f805fbf69d8e86a5558533b130d6fe6fb7222ec336762a2339",
+      "pass": 1,
+      "fail": 0,
+      "skipped": 1,
+      "scope": "Algorithm-only synthetic6/6 jobs converge306legs under96MiB old/2MiB semi; one test skipped. Darwinarm64 kernelRSS405618688; no forcedGC; not monitored financial contract, Linux/container/provider qualification."
+    },
+    {
+      "path": "/private/tmp/stage6-runtime-96-frozen-final.tap",
+      "sha256": "fb0fc98bdc9a9fb4886f5b682bafc21ad693c6482a8b459d1df84b6ba7ce6940",
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "scope": "Frozen db0 HEAD/source-e9, actual monitored115ms four partial source legs under96/2, no HEAD mutation; each FINALIZED_SUCCESS +fresh reopen/replay, authenticated19operations/79->82producers/376->388work and no duplicate runs. First new analyzeAssociationFamily exact parent stage6.associations ACK +current cursor checkpoint ACK joined. Does not qualify full monitored six-job/financial/Linux/provider capacity."
+    }
+  ],
+  "proofQualification": {
+    "currentAck": "Current first request9e541ba4-41a4-4422-b3ea-4a1dd9908908: new analyzeAssociationFamily65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a, stage6.associations ACKd041f71c3b3b4715e5492bf125d15f46cf29b11e29c3b4ba5adbb19def8d1bcd, cursor ACK46c8d6215dc1e238fa8acbc1b243d48e72280036cb5e036a3ae56ae3b75571f9; execution-producing generation1, job/input generation8. All receipts/producers authenticated separately before this identity join.",
+    "notCurrentDomain": "Retained cycle_strain DOMAIN producerca29230a-cf28-41ad-80d9-c99125c48ab2 is prior fixture. It must not be called a newly committed DOMAIN for these source legs.",
+    "newProofLimit": "New helper validates current first request association/cursor; it is not invoked for every continuation and does not independently require newOperations nonempty. Actual observed first result has1new operation; no broad per-leg/new-DOMAIN claim.",
+    "darwin96AlgorithmMemory": {
+      "sixJobsComplete": 6,
+      "productiveLegs": 306,
+      "signedOperations": 57,
+      "finalizedProducerHmacs": 306,
+      "workReceipts": 1674,
+      "kernelPeakRssBytes": 405618688,
+      "headroomVs512MiBPercent": 24.45,
+      "maxWorkMs": 10679.141458,
+      "maxWholeMs": 12484.214708,
+      "maxTransactionMs": 1120.497125,
+      "gcMs": 69533.37485742569,
+      "wholeSuiteMs": 1556127.050083,
+      "platform": "darwin arm64",
+      "manualGc": false
+    },
+    "newFrozen96CurrentRun": {
+      "status": "PASS_1_0_PARTIAL_MONITORED_RUNTIME_ONLY",
+      "requestReleaseSha": "db0fb92f1a4942af34f95aff3100d19eb47ea37c",
+      "sourceCommit": "e9a5bf258561d50bdf81fee482234a35ce12c5ed",
+      "actualMonitored115msLegs": 4,
+      "allFinalizedSuccess": true,
+      "jobsCompleted": 0,
+      "remainingJobs": 2,
+      "original12AttemptLimitUnchanged": true,
+      "freshReopenReplayProofs": 4,
+      "noDuplicateRuns": true,
+      "signedOperationReceipts": 19,
+      "finalizedProducerHmacs": [
+        79,
+        80,
+        81,
+        82
+      ],
+      "workReceipts": [
+        376,
+        380,
+        384,
+        388
+      ],
+      "kernelPeakRssBytes": 373342208,
+      "heapUsedPeakBytes": 82221888,
+      "externalPeakBytes": 18872417,
+      "gcMs": 2996.7505831718445,
+      "wholeSuiteMs": 75109.980791,
+      "platform": "darwin arm64",
+      "execArgv": [
+        "--max-old-space-size=96",
+        "--max-semi-space-size=2",
+        "--import",
+        "./test/stage6RuntimeMemoryMonitor.mjs"
+      ],
+      "manualGc": false,
+      "receiverScopes": {
+        "created": 13,
+        "retired": 13,
+        "disabled": 98,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "legWholeMs": [
+        21367.290375,
+        17889.979625000004,
+        14873.193708000006,
+        15138.551916999997
+      ],
+      "legPreparationMs": [
+        10717.351209,
+        7565.206249999996,
+        4784.702582999998,
+        4884.803125000006
+      ],
+      "legPublicationMs": [
+        1356.982082999999,
+        1237.956333000002,
+        1145.1396659999955,
+        1264.8560410000064
+      ],
+      "firstCurrentProof": {
+        "executionId": "a6b101b6-e777-406e-a98a-5432b3640fc3",
+        "newOperations": [
+          {
+            "operationKind": "analyzeAssociationFamily",
+            "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+            "executionId": "a6b101b6-e777-406e-a98a-5432b3640fc3",
+            "producingGeneration": 1,
+            "workKind": "stage6.associations",
+            "receiptKey": "874ef153f21cbcf242c1f0228720a45c4852c058ca8fafd8b1b3a13c631f3121",
+            "exactNamedAck": true
+          }
+        ],
+        "cursor": {
+          "jobKind": "RECOMPUTE_DERIVED",
+          "cursor": "[\"sleep\",\"sleep-00\"]",
+          "receiptKey": "a2d7f833b6dfc22fe101d7e9f26597aa53b8621895789eadb0ce7f741bfccb89",
+          "exactNamedAck": true
+        }
+      },
+      "qualification": "This positive fixed96/2 partial runtime profile does not erase earlier128 strict-current continuation failure or the release-fenced contaminated96 run; it does not upgrade full financial, Linux/container/provider or Production approval."
+    }
+  },
+  "unresolvedGates": [
+    "Full representative six jobs under actual monitored12-attempt financial contract unqualified. Original12/128/320 remain unchanged;144sources x2job kinds at tenant6 needs at least48 invocations before RAW subunits; runtime maxItems1 is more restrictive.",
+    "Remote snapshot reservations plus Native distinct bounded complete-DATA reuse change logical work accounting semantics; unchanged constants alone do not authorize paid scope or establish provider cost.",
+    "128MiB strict-current second-request failure retained; RSS admission cause is inferred, not conclusively recorded. Four earlier successful legs do not establish memory stability.",
+    "Linux/provider512MiB, actual provider payload/transaction/cancellation/memory limits and representative full monitored six-job workload are not qualified by Darwin synthetic fixtures.",
+    "Physical ACK identity dedup qualified only for installed @libsql/client0.15.15 owned Native transport; material SDK/adapter change needs requalification.",
+    "No Production, paid authorization, schema migration, deployment or push approval. Original exhausted Production permit was not reset or used."
+  ]
+}

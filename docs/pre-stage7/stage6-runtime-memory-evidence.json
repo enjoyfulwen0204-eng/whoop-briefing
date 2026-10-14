@@ -1,0 +1,1055 @@
+{
+  "synthetic": true,
+  "production": false,
+  "baseline": "b1e0d193b2eac17de309da8ae424ad7a66b05a42",
+  "runtimeSourceCommit": "e9a5bf258561d50bdf81fee482234a35ce12c5ed",
+  "proofCommit": "db0fb92f1a4942af34f95aff3100d19eb47ea37c",
+  "ancestry977Preserved": true,
+  "memoryLimitBytes": 536870912,
+  "priorPostLegPeakBytes": 547192832,
+  "priorPeakMiB": 521.84375,
+  "platform": "darwin-arm64 Node22.23.2",
+  "realDeploymentPlanFromPriorReadOnlyEvidence": "0.5c-512mb Oregon; Turso Tokyo; no new Production read",
+  "simulatedLatencyMs": 115,
+  "processComposition": "single Node process, loader worker and in-process native Hrana SQLite emulator plus private preparation RAM; full test retains 3 fixture transports until teardown; not a Linux cgroup or complete webhook/SYNC load",
+  "manualGc": false,
+  "samplingMs": 20,
+  "memory": {
+    "full128": [
+      {
+        "pid": 32559,
+        "platform": "darwin",
+        "arch": "arm64",
+        "base": {
+          "rss": 45596672,
+          "heapTotal": 6176768,
+          "heapUsed": 5550048,
+          "external": 2322260,
+          "arrayBuffers": 10691
+        },
+        "peak": {
+          "rss": 496353280,
+          "heapTotal": 119291904,
+          "heapUsed": 102301520,
+          "external": 13034853,
+          "arrayBuffers": 8899300
+        },
+        "end": {
+          "rss": 340049920,
+          "heapTotal": 48545792,
+          "heapUsed": 24465104,
+          "external": 4167903,
+          "arrayBuffers": 76380
+        },
+        "gcMs": 36968.47923660278,
+        "gcCount": 50005,
+        "samples": 99841,
+        "heapLimit": 146800640,
+        "manualGc": false,
+        "execArgv": [
+          "--max-old-space-size=128",
+          "--max-semi-space-size=4",
+          "--experimental-test-isolation=none",
+          "--import",
+          "./test/stage6RuntimeMemoryMonitor.mjs",
+          "--import",
+          "./test/stage6ArchitectureIsolatedProfile.js",
+          "--test"
+        ]
+      }
+    ],
+    "full96": [
+      {
+        "pid": 40637,
+        "platform": "darwin",
+        "arch": "arm64",
+        "base": {
+          "rss": 44089344,
+          "heapTotal": 6176768,
+          "heapUsed": 5525576,
+          "external": 2322260,
+          "arrayBuffers": 10691
+        },
+        "peak": {
+          "rss": 391397376,
+          "heapTotal": 109821952,
+          "heapUsed": 97072424,
+          "external": 12389803,
+          "arrayBuffers": 7702225
+        },
+        "end": {
+          "rss": 265715712,
+          "heapTotal": 52822016,
+          "heapUsed": 33490192,
+          "external": 6676407,
+          "arrayBuffers": 2584884
+        },
+        "kernelPeakRssBytes": 405618688,
+        "constrainedMemoryBytes": 0,
+        "gcMs": 69533.37485742569,
+        "gcCount": 100136,
+        "samples": 149716,
+        "heapLimit": 106954752,
+        "manualGc": false,
+        "execArgv": [
+          "--max-old-space-size=96",
+          "--max-semi-space-size=2",
+          "--experimental-test-isolation=none",
+          "--import",
+          "./test/stage6RuntimeMemoryMonitor.mjs",
+          "--import",
+          "./test/stage6ArchitectureIsolatedProfile.js",
+          "--test"
+        ]
+      }
+    ],
+    "runtime4": [
+      {
+        "pid": 47315,
+        "platform": "darwin",
+        "arch": "arm64",
+        "base": {
+          "rss": 44171264,
+          "heapTotal": 6176768,
+          "heapUsed": 5524176,
+          "external": 2322260,
+          "arrayBuffers": 10691
+        },
+        "peak": {
+          "rss": 365887488,
+          "heapTotal": 122650624,
+          "heapUsed": 111328056,
+          "external": 18946499,
+          "arrayBuffers": 14897552
+        },
+        "end": {
+          "rss": 233324544,
+          "heapTotal": 109658112,
+          "heapUsed": 99350216,
+          "external": 11583958,
+          "arrayBuffers": 7527531
+        },
+        "kernelPeakRssBytes": 368705536,
+        "constrainedMemoryBytes": 0,
+        "gcMs": 1139.9854884147644,
+        "gcCount": 1645,
+        "samples": 4316,
+        "heapLimit": 146800640,
+        "manualGc": false,
+        "execArgv": [
+          "--max-old-space-size=128",
+          "--max-semi-space-size=4",
+          "--experimental-test-isolation=none",
+          "--import",
+          "./test/stage6RuntimeMemoryMonitor.mjs",
+          "--test"
+        ]
+      }
+    ],
+    "postFreeze2": [
+      {
+        "pid": 56297,
+        "platform": "darwin",
+        "arch": "arm64",
+        "base": {
+          "rss": 41041920,
+          "heapTotal": 5390336,
+          "heapUsed": 4262864,
+          "external": 1657689,
+          "arrayBuffers": 10687
+        },
+        "peak": {
+          "rss": 340885504,
+          "heapTotal": 110624768,
+          "heapUsed": 101312272,
+          "external": 18833405,
+          "arrayBuffers": 14858552
+        },
+        "end": {
+          "rss": 126550016,
+          "heapTotal": 110149632,
+          "heapUsed": 101318000,
+          "external": 11519690,
+          "arrayBuffers": 7536359
+        },
+        "kernelPeakRssBytes": 372228096,
+        "constrainedMemoryBytes": 0,
+        "receiverScopes": {
+          "created": 7,
+          "retired": 7,
+          "disabled": 52,
+          "liveReceivers": 0,
+          "activeCallbacks": 0,
+          "liveScopes": 0
+        },
+        "gcMs": 2787.8419556617737,
+        "gcCount": 1390,
+        "samples": 2806,
+        "heapLimit": 146800640,
+        "manualGc": false,
+        "execArgv": [
+          "--max-old-space-size=128",
+          "--max-semi-space-size=4",
+          "--import",
+          "./test/stage6RuntimeMemoryMonitor.mjs"
+        ]
+      }
+    ],
+    "cancelPreData": [
+      {
+        "pid": 50141,
+        "platform": "darwin",
+        "arch": "arm64",
+        "base": {
+          "rss": 40402944,
+          "heapTotal": 5390336,
+          "heapUsed": 4262864,
+          "external": 1657689,
+          "arrayBuffers": 10687
+        },
+        "peak": {
+          "rss": 123404288,
+          "heapTotal": 38977536,
+          "heapUsed": 31893624,
+          "external": 4711728,
+          "arrayBuffers": 732398
+        },
+        "end": {
+          "rss": 120799232,
+          "heapTotal": 36290560,
+          "heapUsed": 24656144,
+          "external": 4084408,
+          "arrayBuffers": 96600
+        },
+        "kernelPeakRssBytes": 123404288,
+        "constrainedMemoryBytes": 0,
+        "receiverScopes": {
+          "created": 2,
+          "retired": 2,
+          "disabled": 14,
+          "liveReceivers": 0,
+          "activeCallbacks": 0,
+          "liveScopes": 0
+        },
+        "gcMs": 37.60487413406372,
+        "gcCount": 53,
+        "samples": 643,
+        "heapLimit": 146800640,
+        "manualGc": false,
+        "execArgv": [
+          "--max-old-space-size=128",
+          "--max-semi-space-size=4",
+          "--import",
+          "./test/stage6RuntimeMemoryMonitor.mjs"
+        ]
+      }
+    ],
+    "cancelActiveRam": [
+      {
+        "pid": 58765,
+        "platform": "darwin",
+        "arch": "arm64",
+        "base": {
+          "rss": 40812544,
+          "heapTotal": 5390336,
+          "heapUsed": 4262864,
+          "external": 1657689,
+          "arrayBuffers": 10687
+        },
+        "peak": {
+          "rss": 325959680,
+          "heapTotal": 63815680,
+          "heapUsed": 42451808,
+          "external": 8703452,
+          "arrayBuffers": 4724122
+        },
+        "end": {
+          "rss": 323207168,
+          "heapTotal": 63815680,
+          "heapUsed": 42227320,
+          "external": 4080156,
+          "arrayBuffers": 96825
+        },
+        "kernelPeakRssBytes": 340672512,
+        "constrainedMemoryBytes": 0,
+        "receiverScopes": {
+          "created": 3,
+          "retired": 3,
+          "disabled": 22,
+          "liveReceivers": 0,
+          "activeCallbacks": 0,
+          "liveScopes": 0
+        },
+        "gcMs": 1379.3155884742737,
+        "gcCount": 768,
+        "samples": 1387,
+        "heapLimit": 146800640,
+        "manualGc": false,
+        "execArgv": [
+          "--max-old-space-size=128",
+          "--max-semi-space-size=4",
+          "--import",
+          "./test/stage6RuntimeMemoryMonitor.mjs"
+        ]
+      }
+    ]
+  },
+  "fullSixUnmonitoredAlgorithm": {
+    "full128": [
+      {
+        "fixture": 1,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "c75c7b0b1c7f6f1004630c744e4ec9638632a81ac11e2546c6f6a424a2c483ee",
+            "receiptKey": "d138b34b8a3e67ef093da7b67558b080710c3ce20c139ced64ffd64178b4530d",
+            "producerExecutionId": "4b4e870c-ffe6-4c2d-9026-08783e63ea9f",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 6336.520957999979,
+        "maxWorkMs": 4631.714582999994,
+        "maxTransactionMs": 608.4646249999641,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      },
+      {
+        "fixture": 2,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "70099ff958a61671e1f6cfa604e4e7abbad6148bd13bb54b28f4d676cda584f6",
+            "receiptKey": "f0eddd99f5a85a2c5e9f4676ddc6bd5579076e928b10151bd6bedd150af925ba",
+            "producerExecutionId": "dfb131a8-3faa-4a2a-b6a6-81a28126f669",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 5997.109832999995,
+        "maxWorkMs": 4219.979208000004,
+        "maxTransactionMs": 622.1087080000434,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      },
+      {
+        "fixture": 3,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "9b7bc915dfc78be3875aa9dcda7b4988da7c6914ddc9b361546e509c7446b709",
+            "receiptKey": "d3e0625d8628186440d7dcd0066ae914b0bdf8aa2982cafb40e46c0c48fffd69",
+            "producerExecutionId": "89ed76ec-403a-4a66-af48-01b83ddb4f52",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 6010.474082999863,
+        "maxWorkMs": 4206.973916999996,
+        "maxTransactionMs": 553.9951669999864,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      }
+    ],
+    "full96": [
+      {
+        "fixture": 1,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "2465dc569b86c078839d512b19ee26cc713137942230d7e328f3c276392603b2",
+            "receiptKey": "bfa9896b74b657f1346582ecca89626d279ac400bb0dedcbeae562828de0502d",
+            "producerExecutionId": "74c83b66-9f73-442b-b990-621e93b12e7d",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 8981.448666999997,
+        "maxWorkMs": 7221.722625000009,
+        "maxTransactionMs": 650.1209580000141,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      },
+      {
+        "fixture": 2,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "a86cb0add1c9592532799a0088dfc278996da032338b81838c6b3c2b92e5307b",
+            "receiptKey": "bc3df21c9427831bac0e2fc5250a9a17b43f388111391abde9674475e1775b67",
+            "producerExecutionId": "f229b828-31bc-44e5-8cad-c07c418cdbbb",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 6114.759874999989,
+        "maxWorkMs": 4295.8271670000395,
+        "maxTransactionMs": 648.7719169999473,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      },
+      {
+        "fixture": 3,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 102,
+          "workReceipts": 558,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "cad95733cf9cb8ff8ab9a878220eb11d757d16efc71c3b3d432d30c4bf93b40c",
+            "receiptKey": "748f17d7edc87daf46a50cf662f213a2308c6580fdea0751b6706ce6c1d861d0",
+            "producerExecutionId": "8f212b52-3adc-4951-81c4-dfb120cf94e0",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "jobs": [
+          {
+            "job_kind": "RECOMPUTE_DERIVED",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          },
+          {
+            "job_kind": "REPAIR_CURRENTNESS",
+            "state": "COMPLETED",
+            "requested_generation": 8,
+            "scope_revision": 7,
+            "completed_generation": 8,
+            "claimed_generation": 8,
+            "full_scan_cursor": null,
+            "attempt": 0,
+            "last_error_code": null,
+            "lease_owner": null
+          }
+        ],
+        "legs": 102,
+        "maxWholeMs": 12484.214707999956,
+        "maxWorkMs": 10679.141458000056,
+        "maxTransactionMs": 1120.4971249999944,
+        "http": 2956,
+        "sql": 280731,
+        "receipts": 19,
+        "counts": {
+          "body": 1,
+          "domain": 9,
+          "runs": 17,
+          "items": 17
+        }
+      }
+    ]
+  },
+  "monitoredRuntimeFourLegs": [
+    {
+      "attempt": 1,
+      "elapsedMs": 17397.997417,
+      "http": 111,
+      "sql": 4306,
+      "outcome": "PARTIAL",
+      "settlement": "FINALIZED_SUCCESS",
+      "itemsProcessed": 1,
+      "remainingJobs": 2,
+      "publication": {
+        "preparationMs": 7470.258125000002,
+        "transactionMs": 1073.5254999999997,
+        "statements": 3793,
+        "snapshotGroups": 96,
+        "snapshotBytes": 3652475,
+        "workUsage": {
+          "prefixReadSets": 49,
+          "operations": 190,
+          "bytes": 193535
+        }
+      }
+    },
+    {
+      "attempt": 2,
+      "elapsedMs": 16684.792709,
+      "http": 111,
+      "sql": 4108,
+      "outcome": "PARTIAL",
+      "settlement": "FINALIZED_SUCCESS",
+      "itemsProcessed": 1,
+      "remainingJobs": 2,
+      "publication": {
+        "preparationMs": 6542.841208000002,
+        "transactionMs": 1100.237583000002,
+        "statements": 3593,
+        "snapshotGroups": 97,
+        "snapshotBytes": 3876727,
+        "workUsage": {
+          "prefixReadSets": 50,
+          "operations": 0,
+          "bytes": 0
+        }
+      }
+    },
+    {
+      "attempt": 3,
+      "elapsedMs": 15376.534290999996,
+      "http": 111,
+      "sql": 4114,
+      "outcome": "PARTIAL",
+      "settlement": "FINALIZED_SUCCESS",
+      "itemsProcessed": 1,
+      "remainingJobs": 2,
+      "publication": {
+        "preparationMs": 4989.510457999997,
+        "transactionMs": 1024.5358749999941,
+        "statements": 3599,
+        "snapshotGroups": 97,
+        "snapshotBytes": 3879759,
+        "workUsage": {
+          "prefixReadSets": 50,
+          "operations": 0,
+          "bytes": 0
+        }
+      }
+    },
+    {
+      "attempt": 4,
+      "elapsedMs": 15280.422625,
+      "http": 111,
+      "sql": 4120,
+      "outcome": "PARTIAL",
+      "settlement": "FINALIZED_SUCCESS",
+      "itemsProcessed": 1,
+      "remainingJobs": 2,
+      "publication": {
+        "preparationMs": 5011.599167,
+        "transactionMs": 1077.7697919999919,
+        "statements": 3605,
+        "snapshotGroups": 97,
+        "snapshotBytes": 3882820,
+        "workUsage": {
+          "prefixReadSets": 50,
+          "operations": 0,
+          "bytes": 0
+        }
+      }
+    }
+  ],
+  "currentAckFirstRequest": [],
+  "counterexample": "128/4 stricter current-ACK proof invocation1 committed; invocation2 denied before RAM (42HTTP/48SQL), consistent with RSS admission threshold. Entire TAP FAIL0/1; no manualGC or threshold relaxation. Retained separately from earlier4/4 success.",
+  "monitoredFullSixQualified": false,
+  "financial": "Original reviewed monitored allowance12 attempts remains unchanged. Fresh synthetic dataset144sources x2jobs=288sources; original6/tenant means at least48 productive reservations before RAW. Conservative integrationmax1 means at least288 per dataset before RAW. No exhausted Production12/12 reset or new paid allowance.",
+  "codeAcceptance": "NO_GO for full runtime qualification; focused local delta only",
+  "productionReadiness": "NO_GO",
+  "releasePrerequisites": [
+    "Linux512MiB cgroup and0.5CPU with separated provider fixture, same Node/SDK, repeat full monitored equivalent workload and real concurrent SYNC/webhook composition",
+    "Preserve the128/4 counterexample; candidate96/2 needs repeat full monitored equivalent workload and actual concurrent service proof before profileapproval",
+    "Owner-approved future finite execution/cost contract sufficient for continuation, preserve old ledger and exhausted12/12",
+    "Disposable provider payload/batch/clock/fencing qualification under explicit paid authorization",
+    "Independent final acceptance, exact new public SHA authorization, exact-SHA deployment approval, existing release pin/configProof/handoff controls"
+  ],
+  "unchanged": [
+    "F02 Owner Accepted Risk",
+    "Turso Token",
+    "Stage7v33/Stage8v34 contracts and migrations",
+    "Stage8 independent worktree",
+    "Journal TENANT_LIMIT tracked separately"
+  ],
+  "logs": {
+    "full128": {
+      "path": "/private/tmp/stage6-memory-full-six128.tap",
+      "sha256": "5fbfaf2aa389d416b152986ec4856ebb04f83ad0d031eb05cfed9e79af45f2b3"
+    },
+    "full96": {
+      "path": "/private/tmp/stage6-memory-full-six96.tap",
+      "sha256": "b886a82cb0c804f805fbf69d8e86a5558533b130d6fe6fb7222ec336762a2339"
+    },
+    "runtime4": {
+      "path": "/private/tmp/stage6-runtime-four-final.tap",
+      "sha256": "757af295b8b566fe3da9f3e6e2507e312e96a936f4edd78f55aa3dffa323828d"
+    },
+    "postFreeze2": {
+      "path": "/private/tmp/stage6-runtime-source-frozen-final.tap",
+      "sha256": "eb7470d202e629aa5a9824f9176eaf019f62e8ab07bedfad036f78f17a36cb94"
+    },
+    "completedNoWork": {
+      "path": "/private/tmp/stage6-runtime-completed-final.tap",
+      "sha256": "6c4aee45e6f6b0e838f964e0f0b555c2f4c837a0c15d1b6884adab69fe929844"
+    },
+    "cancelPreData": {
+      "path": "/private/tmp/stage6-runtime-cancel.tap",
+      "sha256": "b870ebb117700a4d2fc8b4d2109ffa19b83e7d0796119b39ffe004012c2241ce"
+    },
+    "cancelActiveRam": {
+      "path": "/private/tmp/stage6-runtime-cancel-ram-final.tap",
+      "sha256": "eeb1c87ed1c5664f9e6317fbc9a46a443dea2d590bce787e1cb48a25d28d56b6"
+    },
+    "lostAckRestart": {
+      "path": "/private/tmp/stage6-runtime-ack-final.tap",
+      "sha256": "e08c36371ca140190dfe17ec3af0dbc0333d5521d89f2caa88162a6b3c8eb5c1"
+    },
+    "sigkillRestart": {
+      "path": "/private/tmp/stage6-runtime-sigkill-final.tap",
+      "sha256": "756c16f7fb6d33b6300c9b98a3b8e3d42eb96461a6859998f7df6c32bf5d9641"
+    },
+    "sourceRegression": {
+      "path": "/private/tmp/stage6-runtime-source-safety.tap",
+      "sha256": "ce70c16f98c0a863be9cda195c84085b76eec444d4b9aac4de4aa1f7afc78f21"
+    },
+    "permitRegression": {
+      "path": "/private/tmp/stage6-runtime-permit-final.tap",
+      "sha256": "8f95ddcf1e80c903e29e95512c6c861a6e183d5fdf7665043ef6868a7bd09148"
+    },
+    "receiverRegression": {
+      "path": "/private/tmp/stage6-receiver-final.tap",
+      "sha256": "920cd538ecfbbc88bdfc0481159dbc6bda8740f10b1420d2be02db259c2b297b"
+    },
+    "strictCurrentAckCounterexample": {
+      "path": "/private/tmp/stage6-runtime-exact-current-final2.tap",
+      "sha256": "a6bb300837622b91fc47b12fab32f1f9396057d7303dac2e95d2711e0ac27710"
+    },
+    "activeRamCancel": {
+      "path": "/private/tmp/stage6-runtime-cancel-ram-final.tap",
+      "sha256": "eeb1c87ed1c5664f9e6317fbc9a46a443dea2d590bce787e1cb48a25d28d56b6"
+    },
+    "releaseChangedDuring96Run": {
+      "path": "/private/tmp/stage6-runtime-96-current-final.tap",
+      "sha256": "dc019e2a1403e4be75b665aeedab1b858e71024a3b7203f0d3ffe228a9db757c"
+    },
+    "frozen96Monitored": {
+      "path": "/private/tmp/stage6-runtime-96-frozen-final.tap",
+      "sha256": "fb0fc98bdc9a9fb4886f5b682bafc21ad693c6482a8b459d1df84b6ba7ce6940"
+    }
+  },
+  "releaseGateCounterexample": "96/2 run requested e9a5bf2, primary created test-only db0fb92 commit at07:16:56Z during phase. Mandatory original release revalidation denied settlement. Not a clean memory/capacity verdict; durable work not claimed finalized. Frozen db0 96/2 retest PASS4leg/noHEADmutation, recorded separately.",
+  "sources": {
+    "nodeMemoryUnits": "https://nodejs.org/docs/latest-v22.x/api/process.html#processresourceusage",
+    "renderMemoryPlanLabels": "https://render.com/docs/compute-plans"
+  },
+  "frozen96MonitoredRuntime": {
+    "sourceReleaseSha": "db0fb92f1a4942af34f95aff3100d19eb47ea37c",
+    "tapPass": 1,
+    "tapFail": 0,
+    "legs": [
+      {
+        "attempt": 1,
+        "elapsedMs": 21367.290375,
+        "http": 111,
+        "sql": 4306,
+        "result": {
+          "outcome": "PARTIAL",
+          "settlementState": "FINALIZED_SUCCESS",
+          "itemsProcessed": 1,
+          "remainingJobs": 2
+        },
+        "publication": {
+          "preparationMs": 10717.351209,
+          "transactionMs": 1356.982082999999,
+          "statements": 3793,
+          "snapshotGroups": 96,
+          "snapshotBytes": 3652475,
+          "workUsage": {
+            "prefixReadSets": 49,
+            "operations": 190,
+            "bytes": 193535
+          }
+        }
+      },
+      {
+        "attempt": 2,
+        "elapsedMs": 17889.979625000004,
+        "http": 111,
+        "sql": 4108,
+        "result": {
+          "outcome": "PARTIAL",
+          "settlementState": "FINALIZED_SUCCESS",
+          "itemsProcessed": 1,
+          "remainingJobs": 2
+        },
+        "publication": {
+          "preparationMs": 7565.206249999996,
+          "transactionMs": 1237.956333000002,
+          "statements": 3593,
+          "snapshotGroups": 97,
+          "snapshotBytes": 3876739,
+          "workUsage": {
+            "prefixReadSets": 50,
+            "operations": 0,
+            "bytes": 0
+          }
+        }
+      },
+      {
+        "attempt": 3,
+        "elapsedMs": 14873.193708000006,
+        "http": 111,
+        "sql": 4114,
+        "result": {
+          "outcome": "PARTIAL",
+          "settlementState": "FINALIZED_SUCCESS",
+          "itemsProcessed": 1,
+          "remainingJobs": 2
+        },
+        "publication": {
+          "preparationMs": 4784.702582999998,
+          "transactionMs": 1145.1396659999955,
+          "statements": 3599,
+          "snapshotGroups": 97,
+          "snapshotBytes": 3879765,
+          "workUsage": {
+            "prefixReadSets": 50,
+            "operations": 0,
+            "bytes": 0
+          }
+        }
+      },
+      {
+        "attempt": 4,
+        "elapsedMs": 15138.551916999997,
+        "http": 111,
+        "sql": 4120,
+        "result": {
+          "outcome": "PARTIAL",
+          "settlementState": "FINALIZED_SUCCESS",
+          "itemsProcessed": 1,
+          "remainingJobs": 2
+        },
+        "publication": {
+          "preparationMs": 4884.803125000006,
+          "transactionMs": 1264.8560410000064,
+          "statements": 3605,
+          "snapshotGroups": 97,
+          "snapshotBytes": 3882826,
+          "workUsage": {
+            "prefixReadSets": 50,
+            "operations": 0,
+            "bytes": 0
+          }
+        }
+      }
+    ],
+    "memory": {
+      "pid": 64003,
+      "platform": "darwin",
+      "arch": "arm64",
+      "base": {
+        "rss": 40796160,
+        "heapTotal": 5390336,
+        "heapUsed": 4262864,
+        "external": 1657689,
+        "arrayBuffers": 10687
+      },
+      "peak": {
+        "rss": 357384192,
+        "heapTotal": 89817088,
+        "heapUsed": 82221888,
+        "external": 18872417,
+        "arrayBuffers": 14897564
+      },
+      "end": {
+        "rss": 207060992,
+        "heapTotal": 51757056,
+        "heapUsed": 35730336,
+        "external": 6586049,
+        "arrayBuffers": 2602718
+      },
+      "kernelPeakRssBytes": 373342208,
+      "constrainedMemoryBytes": 0,
+      "receiverScopes": {
+        "created": 13,
+        "retired": 13,
+        "disabled": 98,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "gcMs": 2996.7505831718445,
+      "gcCount": 3299,
+      "samples": 5972,
+      "heapLimit": 106954752,
+      "manualGc": false,
+      "execArgv": [
+        "--max-old-space-size=96",
+        "--max-semi-space-size=2",
+        "--import",
+        "./test/stage6RuntimeMemoryMonitor.mjs"
+      ]
+    },
+    "restartProofs": [
+      {
+        "signedOperationReceipts": 19,
+        "finalizedProducerHmacs": 79,
+        "workReceipts": 376,
+        "noDuplicateRuns": true,
+        "domainProof": {
+          "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+          "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+          "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+          "inputGeneration": 8,
+          "sourceGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "exactNamedAck": true
+        }
+      },
+      {
+        "signedOperationReceipts": 19,
+        "finalizedProducerHmacs": 80,
+        "workReceipts": 380,
+        "noDuplicateRuns": true,
+        "domainProof": {
+          "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+          "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+          "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+          "inputGeneration": 8,
+          "sourceGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "exactNamedAck": true
+        }
+      },
+      {
+        "signedOperationReceipts": 19,
+        "finalizedProducerHmacs": 81,
+        "workReceipts": 384,
+        "noDuplicateRuns": true,
+        "domainProof": {
+          "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+          "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+          "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+          "inputGeneration": 8,
+          "sourceGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "exactNamedAck": true
+        }
+      },
+      {
+        "signedOperationReceipts": 19,
+        "finalizedProducerHmacs": 82,
+        "workReceipts": 388,
+        "noDuplicateRuns": true,
+        "domainProof": {
+          "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+          "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+          "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+          "inputGeneration": 8,
+          "sourceGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "exactNamedAck": true
+        }
+      }
+    ],
+    "exactCurrentAck": []
+  },
+  "selectedLocalV8Profile": "96MiB old/2MiB semi; partial monitored4 plus unmonitored full6 algorithm bothpass; not full serviceLinux qualification",
+  "independentReview": {
+    "path": "docs/pre-stage7/stage6-runtime-memory-review.json",
+    "sha256": "b35c223bd2aa6284944975202541d5ec96a0e73eebe81c9940532e25659db5e6",
+    "verdict": "SCOPED_GO; FULL_RUNTIME_PRODUCTION_NO_GO; no retained P0/P1"
+  }
+}

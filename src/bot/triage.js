@@ -48,6 +48,9 @@ const FIGURATIVE=/笑(?:到|得|死)|(?:recovery|hrv|strain|分數|數字|指數
 const REPORT=/\b(?:he|she|my (?:friend|mother|father|child))\s+(?:just\s+)?(?:says|said)\s*$|(?:他|她|我朋友)(?:現在|剛剛)?說\s*$|(?:anh ấy|cô ấy)\s+(?:vừa\s+)?nói\s*$/iu;
 const REFERENCE=/(?<![\p{L}\p{N}_])(?:it|this|these symptoms|that pain)(?![\p{L}\p{N}_])|這個症狀|這些症狀|它|(?<!\p{L})(?:nó|triệu chứng này)(?!\p{L})/iu;
 const RECURRENCE=/(?<!\p{L})(?:it|this|these symptoms)\s+(?:(?:is|are|has|have)\s+)?(?:back|returned|returning|recurring|came back)\b|(?<!\p{L})it's\s+back\b|(?:它|這個症狀|這些症狀)(?:現在|目前)?(?:又來了|又出現|復發)|(?:nó|triệu chứng này)\s+(?:đang\s+)?(?:trở lại|tái phát)/iu;
+const ACTORS=/(?<![\p{L}\p{N}_])(?:my (?:friend|mother|father|child|wife|husband)|i|my|he|she|his|her|we|they)(?![\p{L}\p{N}_])|我朋友|我|他|她|媽媽|爸爸|朋友|(?<!\p{L})(?:tôi|anh ấy|cô ấy|bạn tôi)(?!\p{L})/giu;
+const TEMPORAL_PREFIX=new RegExp('(?:'+CURRENT_TIME.source+')\\s*$','iu');
+const GENERAL_SUFFIX=/^\s*(?:通常|一般|有哪些|是什麼|代表什麼|\b(?:usually|generally|in general|means|is defined|is a term|be caused by)\b|là gì|nghĩa là|thường)/iu;
 const ONGOING_REFERENCE=/(?<![\p{L}\p{N}_])(?:i|he|she|we|they)(?:'m|'s|'re)?\s+(?:(?:am|is|are)\s+)?(?:(?:currently|still)\s+)?(?:experiencing|having|feeling|have|has)\s+(?:it|this|these symptoms|that pain)\b|(?:我|他|她)(?:現在|目前|正在)(?:有|感到|經歷)(?:它|這個症狀|這些症狀)|(?:tôi|anh ấy|cô ấy)\s+đang\s+(?:bị|có|cảm thấy)\s+(?:nó|triệu chứng này)/iu;
 
 function splitClauses(text,ranges,quotes){
@@ -99,12 +102,19 @@ function stateFor(part,m,previous){
  if(present)return 'CURRENT';
  if(part.informational)return 'INFORMATIONAL';
  if(FIGURATIVE.test(part.text))return 'FIGURATIVE';
- if(EDUCATION.test(part.text))return 'EDUCATIONAL';
+ if(EDUCATION.test(part.text)){
+  // Education needs positive topic evidence. An unrecognized personal
+  // predicate remains ambiguous; it cannot be dismissed by a later HRV question.
+  const topics=[...before.matchAll(new RegExp(EDUCATION.source,'giu'))],topic=topics.at(-1);
+  const bodyAssertion=topic&&m.actorOffset>topic.index||TEMPORAL_PREFIX.test(before);
+  const generic=!bodyAssertion&&(topic||GENERAL_SUFFIX.test(after));
+  return generic?'EDUCATIONAL':'AMBIGUOUS';
+ }
  return 'AMBIGUOUS';
 }
 function actorFor(part,m,previous){
  const before=part.text.slice(previous?.end??0,m.start);
- const actors=[...before.matchAll(/(?<![\p{L}\p{N}_])(?:my (?:friend|mother|father|child|wife|husband)|i|my|he|she|his|her|we|they)(?![\p{L}\p{N}_])|我朋友|我|他|她|媽媽|爸爸|朋友|(?<!\p{L})(?:tôi|anh ấy|cô ấy|bạn tôi)(?!\p{L})/giu)];
+ const actors=[...before.matchAll(ACTORS)];m.actorOffset=actors.at(-1)?.index??-1;
  if(actors.length){
   const actor=actors.at(-1)[0].toLowerCase();
   return {'i':'SELF','my':'SELF','we':'SELF','我':'SELF','tôi':'SELF','我朋友':'my friend','朋友':'my friend','bạn tôi':'my friend','媽媽':'my mother','爸爸':'my father','他':'he','她':'she','anh ấy':'he','cô ấy':'she','his':'he','her':'she'}[actor]??actor;

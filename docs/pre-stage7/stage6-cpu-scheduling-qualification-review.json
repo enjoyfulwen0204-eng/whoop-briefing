@@ -1,0 +1,495 @@
+{
+  "schemaVersion": 1,
+  "reviewedAtUtc": "2026-10-14T11:24:07.198037+00:00",
+  "reviewer": "independent_delta_review",
+  "reviewMode": "sole independent, read-only delta; short isolated controls only",
+  "candidate": {
+    "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+    "baseline": "bec7c21516ba9baf705a492aa3ceb269ad332beb",
+    "optimizationCommit": "9c042c5bc3cdfa71d4f6d748752037908cd34809",
+    "optimizationTree": "b0dfd103d0fb23588fcea5500ca815b14aca02ab",
+    "reviewedTestHead": "12656c7920cd6eb217f099c59234736e1a531b18",
+    "reviewedTree": "3d54cb8802f356711b2bc9bccca2e6e1eea7b190",
+    "trackedClean": true,
+    "untrackedReviewedDocuments": [
+      "docs/pre-stage7/stage6-cpu-scheduling-qualification-evidence.json",
+      "docs/pre-stage7/stage6-cpu-scheduling-qualification.md"
+    ],
+    "runtimeSourceIdenticalToOptimization": true,
+    "runtimeDeltaPaths": [
+      "src/stage6PreparationScheduling.js",
+      "src/stage6ShortPublication.js"
+    ],
+    "sourceHashes": {
+      "src/stage6PreparationScheduling.js": "3eab34e80b26a1f54d6b1271f1285b234510a531a6062a46db36f0b106914a1b",
+      "src/stage6ShortPublication.js": "5e4f8cf6f6307880990ac683e58d8b0858112ea855ff3a7bec2d6287908a30b9"
+    },
+    "sourceInventory": {
+      "path": "/private/tmp/stage6-cpu-source-hashes.json",
+      "files": 265,
+      "sha256": "aa11ee060f7ae37402687bf1d33cbae48b5c0a67a51ca7b42ba3f127003b5acb",
+      "sortedCompactMapDigest": "19face9579ce326e364e9198e2c3667f0b2dc276cd71d7a2b7937fa6e4bc96fb"
+    }
+  },
+  "verdict": {
+    "scopedSchedulingAndTestSafety": "GO",
+    "retainedLocatedP0P1": [],
+    "targetHalfCpu512MiBRuntime": "NO_GO",
+    "fullServiceConcurrentRuntime": "NO_GO",
+    "fullSixMonitoredJobs": "NOT_QUALIFIED",
+    "providerResourceEquivalence": "NOT_QUALIFIED",
+    "unchangedFinancialContract": "NO_GO",
+    "productionAndDeployment": "NO_GO",
+    "newCpuDocumentationReviewed": true
+  },
+  "safetyBasis": [
+    "Fair scheduling is per private preparation, uses original synchronous local runtime admission/budget/execution/grant assertions before and after setImmediate; no deadline or grant extension.",
+    "Seed import is private and unpublished. RAM execute/batch facades yield only outside their current owned processing transaction. Independent real SDK facade re-entry control observed one physical effect and no yield inside owned transaction.",
+    "Original algorithm, HMAC and graph/root checks, typed snapshot/publication SQL, final atomic publication fences and 5.5s headroom, lease/generation and pilot limits are unchanged.",
+    "Focused cancellation/revocation checks preserve tenant/execution/budget ALS and close failed private receivers before delivery.",
+    "Process comparison is test-only; signed request/environment are sent as ordinary data. Original grant and private capabilities are issued inside child runExecutionPhase; no live capability is transferred.",
+    "Kernel cgroup memory/CPU limits cover npm, shell, parent and child. Parent and child GC/event-loop values are process-specific; final process roster is a point-in-time observation."
+  ],
+  "resolvedFindings": [
+    {
+      "severity": "P1",
+      "scope": "test validity",
+      "location": "51f67bb:test/stage6-linux-concurrency.mjs isolatedDrain exit handler",
+      "issue": "Exit0 without IPC and signal exit cleared watchdog without resolving/rejecting, hiding finite resource termination as a hang.",
+      "negativeFixture": "/private/tmp/stage6-independent-drain-child-exit.mjs",
+      "negativeLog": "/private/tmp/stage6-independent-drain-child-exit.tap",
+      "negativeLogSha256": "b7bcf6c46486c243c8436de39fbff397aebe080c8e02d2135b6c109d05bd33dd",
+      "fixCommit": "9a49439dc1e091bd6b87644237a4cb8f88398d9c",
+      "fix": "Wait for valid reply and clean exit; every premature exit/error/timeout settles and kills still-live child.",
+      "fixedControlLog": "/private/tmp/stage6-independent-drain-supervisor-fixed.tap",
+      "fixedControlLogSha256": "d8248e8bbefcf5fc9ddd0a5cc964b8f61d8f34ea689089f94be602c710599f09",
+      "fixedControls": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0
+      }
+    }
+  ],
+  "independentChecks": [
+    {
+      "log": "/private/tmp/stage6-independent-scheduling.tap",
+      "sha256": "780ae3d14d7923a7cc979b8554d5716f9fded84115415743f1c917fa17cd7bf7",
+      "result": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0
+      },
+      "scope": "5 own controls plus2 repository controls: actual ALS/budget/execution, cancellation, pre/post handoff revocation and real private SDK transaction/facade re-entry; short native scratch database, not Linux capacity."
+    },
+    {
+      "log": "/private/tmp/stage6-independent-drain-supervisor-fixed.tap",
+      "sha256": "d8248e8bbefcf5fc9ddd0a5cc964b8f61d8f34ea689089f94be602c710599f09",
+      "result": {
+        "tests": 7,
+        "pass": 7,
+        "fail": 0
+      },
+      "scope": "3 own controls plus4 repository controls: zero/signal exit, IPC error, reply without exit, proper clean completion."
+    }
+  ],
+  "matchedDiagnosticBeforeAfter": [
+    {
+      "cpu": 0.5,
+      "before": {
+        "tap": {
+          "tests": 1,
+          "pass": 0,
+          "fail": 1
+        },
+        "releaseSha": "9db7cbc4dd3cd9cca17397a2aeed75e8bc97683e",
+        "wholeMs": 31891.456722999996,
+        "http": 108,
+        "sql": 511,
+        "outcome": "FAILED",
+        "itemsProcessed": 0,
+        "providerEvidence": [
+          {
+            "event": "sql_error",
+            "template": "0239184536023d0f0a744a08098fa1e1edcbadc13d980b3867b9cfa6a7443817",
+            "code": "SQLITE_ERROR",
+            "assertionLabel": "SHORT_TRANSACTION_HEADROOM_REJECTED",
+            "prior": {
+              "template": "1475d3cb405ed38e90e95d238ad155cfba97fc30fc8f949617e2ec2e320a660c",
+              "prefix": "SELECT json(CASE WHEN (EXISTS(SELECT 1 FROM resource_locks l JOIN users u ON u.id=? JOIN phase4_user_state p ON p.user_id=u.id WHERE l.name=? AND l.owner=? AND l.expires_at=? AND (",
+              "rowsAffected": 0
+            }
+          }
+        ],
+        "phaseProfile": "/private/tmp/stage6-cpu-qualification/before-half/output/phase-profile.json"
+      },
+      "after": {
+        "tap": {
+          "tests": 1,
+          "pass": 0,
+          "fail": 1
+        },
+        "releaseSha": "9c042c5bc3cdfa71d4f6d748752037908cd34809",
+        "wholeMs": 31542.939137999998,
+        "http": 108,
+        "sql": 511,
+        "outcome": "FAILED",
+        "itemsProcessed": 0,
+        "providerEvidence": [
+          {
+            "event": "sql_error",
+            "template": "0239184536023d0f0a744a08098fa1e1edcbadc13d980b3867b9cfa6a7443817",
+            "code": "SQLITE_ERROR",
+            "assertionLabel": "SHORT_TRANSACTION_HEADROOM_REJECTED",
+            "prior": {
+              "template": "1475d3cb405ed38e90e95d238ad155cfba97fc30fc8f949617e2ec2e320a660c",
+              "prefix": "SELECT json(CASE WHEN (EXISTS(SELECT 1 FROM resource_locks l JOIN users u ON u.id=? JOIN phase4_user_state p ON p.user_id=u.id WHERE l.name=? AND l.owner=? AND l.expires_at=? AND (",
+              "rowsAffected": 0
+            }
+          }
+        ],
+        "phaseProfile": "/private/tmp/stage6-cpu-qualification/after-half/output/phase-profile.json"
+      }
+    },
+    {
+      "cpu": 1,
+      "before": {
+        "tap": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0
+        },
+        "releaseSha": "9db7cbc4dd3cd9cca17397a2aeed75e8bc97683e",
+        "wholeMs": 22428.220177,
+        "http": 111,
+        "sql": 4306,
+        "outcome": "PARTIAL",
+        "itemsProcessed": 1,
+        "providerEvidence": [],
+        "phaseProfile": "/private/tmp/stage6-cpu-qualification/before-one/output/phase-profile.json",
+        "currentAckAndDurableProofCaptured": true
+      },
+      "after": {
+        "tap": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0
+        },
+        "releaseSha": "9c042c5bc3cdfa71d4f6d748752037908cd34809",
+        "wholeMs": 22176.758885,
+        "http": 111,
+        "sql": 4306,
+        "outcome": "PARTIAL",
+        "itemsProcessed": 1,
+        "providerEvidence": [],
+        "phaseProfile": "/private/tmp/stage6-cpu-qualification/after-one/output/phase-profile.json",
+        "currentAckAndDurableProofCaptured": true
+      }
+    },
+    {
+      "cpu": 2,
+      "before": {
+        "tap": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0
+        },
+        "releaseSha": "9db7cbc4dd3cd9cca17397a2aeed75e8bc97683e",
+        "wholeMs": 19965.815133999997,
+        "http": 111,
+        "sql": 4306,
+        "outcome": "PARTIAL",
+        "itemsProcessed": 1,
+        "providerEvidence": [],
+        "phaseProfile": "/private/tmp/stage6-cpu-qualification/before-two/output/phase-profile.json",
+        "currentAckAndDurableProofCaptured": true
+      },
+      "after": {
+        "tap": {
+          "tests": 1,
+          "pass": 1,
+          "fail": 0
+        },
+        "releaseSha": "9c042c5bc3cdfa71d4f6d748752037908cd34809",
+        "wholeMs": 20237.826385,
+        "http": 111,
+        "sql": 4306,
+        "outcome": "PARTIAL",
+        "itemsProcessed": 1,
+        "providerEvidence": [],
+        "phaseProfile": "/private/tmp/stage6-cpu-qualification/after-two/output/phase-profile.json",
+        "currentAckAndDurableProofCaptured": true
+      }
+    }
+  ],
+  "sameProcessConcurrent": [
+    {
+      "cpu": 0.5,
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      },
+      "drainMs": 32801.087473,
+      "drainOutcome": "FAILED",
+      "itemsProcessed": 0,
+      "syncStatus": 424,
+      "webhookStatus": 503,
+      "healthMaxMs": 15545.255549000001,
+      "cgroupPeakBytes": 287100928,
+      "oomKilled": 0,
+      "lastFailure": {
+        "code": "PUBLICATION_HEADROOM_REQUIRED",
+        "stage": "PUBLICATION"
+      },
+      "currentProofNotReachedInOriginalTap": true
+    },
+    {
+      "cpu": 1,
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      },
+      "drainMs": 20937.386551,
+      "drainOutcome": "FAILED",
+      "itemsProcessed": 0,
+      "syncStatus": 424,
+      "webhookStatus": 503,
+      "healthMaxMs": 5732.299418999999,
+      "cgroupPeakBytes": 255983616,
+      "oomKilled": 0,
+      "lastFailure": {
+        "code": "TypeError",
+        "stage": "PREPARATION"
+      },
+      "currentProofNotReachedInOriginalTap": true
+    },
+    {
+      "cpu": 2,
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      },
+      "drainMs": 21766.337927,
+      "drainOutcome": "PARTIAL",
+      "itemsProcessed": 1,
+      "syncStatus": 424,
+      "webhookStatus": 503,
+      "healthMaxMs": 3720.5149180000008,
+      "cgroupPeakBytes": 331972608,
+      "oomKilled": 0,
+      "lastFailure": null,
+      "currentProofNotReachedInOriginalTap": true
+    }
+  ],
+  "historicalProcessIsolation": [
+    {
+      "cpu": 1,
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      },
+      "releaseSha": "51f67bbd150056f73a80f6e554dabb5738d3e846",
+      "drainMs": 23129.264177,
+      "itemsProcessed": 1,
+      "fullServiceOutcome": "FAIL",
+      "healthMaxMs": 56.69854100000157,
+      "cgroupPeakBytes": 385507328,
+      "oomKilled": 0,
+      "freshLinuxReadback": "/private/tmp/stage6-cpu-qualification/readback-one-exact-body.log",
+      "currentOperationAndCursorAck": true,
+      "receiptCounts": {
+        "signedOperationReceipts": 19,
+        "finalizedProducerHmacs": 79,
+        "workReceipts": 376
+      },
+      "permitAttempts": 1
+    },
+    {
+      "cpu": 2,
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      },
+      "releaseSha": "51f67bbd150056f73a80f6e554dabb5738d3e846",
+      "drainMs": 20373.933009,
+      "itemsProcessed": 1,
+      "fullServiceOutcome": "FAIL",
+      "healthMaxMs": 66.06575000000885,
+      "cgroupPeakBytes": 384114688,
+      "oomKilled": 0,
+      "freshLinuxReadback": "/private/tmp/stage6-cpu-qualification/readback-two-exact-body.log",
+      "currentOperationAndCursorAck": true,
+      "receiptCounts": {
+        "signedOperationReceipts": 19,
+        "finalizedProducerHmacs": 79,
+        "workReceipts": 376
+      },
+      "permitAttempts": 1
+    }
+  ],
+  "frozenProcessIsolation": {
+    "cpu": 1,
+    "releaseSha": "12656c7920cd6eb217f099c59234736e1a531b18",
+    "tap": {
+      "tests": 1,
+      "pass": 0,
+      "fail": 1
+    },
+    "drainMs": 22644.343343,
+    "outcome": "PARTIAL",
+    "itemsProcessed": 1,
+    "jobsCompleted": 0,
+    "syncStatus": 424,
+    "webhookStatus": 503,
+    "healthMaxMs": 41.9449159999931,
+    "healthProbeCount": 458,
+    "cgroupPeakBytes": 395890688,
+    "headroomPercent": 26.259613037109375,
+    "oomKilled": 0,
+    "childPreparationMs": 10423.163004000002,
+    "childPublicationMs": 1625.328792999997,
+    "childEventLoopMaxMs": 4622.123007,
+    "parentEventLoopMaxMs": 73.334783,
+    "currentAssociationAndCursorAckCaptured": true,
+    "durableCounts": {
+      "signed": 19,
+      "producers": 79,
+      "work": 376
+    },
+    "replayAsserted": true,
+    "morningTransactionTimeouts": 8,
+    "childFinalScopes": {
+      "created": 2,
+      "retired": 2,
+      "disabled": 16,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    },
+    "parentFinalScopes": {
+      "created": 4,
+      "retired": 4,
+      "disabled": 25,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    }
+  },
+  "sigkillRecovery": {
+    "cpu": 1,
+    "releaseSha": "12656c7920cd6eb217f099c59234736e1a531b18",
+    "tap": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0
+    },
+    "originalCommitDurable": true,
+    "crashExitCode": 137,
+    "crashOomKilled": false,
+    "originalDeadlineWaitMs": 68244,
+    "outcome": "PARTIAL",
+    "settlement": "FINALIZED_SUCCESS",
+    "stopReason": "RECONCILIATION_ONLY",
+    "itemsProcessed": 0,
+    "currentAssociationAndCursorAck": true,
+    "receiptCounts": {
+      "signedOperationReceipts": 19,
+      "finalizedProducerHmacs": 79,
+      "workReceipts": 376
+    },
+    "permitAttempts": 1,
+    "calculationCgroupPeakBytes": 325873664,
+    "separateRecoveryCgroupPeakBytes": 101502976
+  },
+  "qualifications": [
+    "Matched before/after profiles use opt-in source diagnostic loader plus CPU profiling. Whole-process CPU spans can overlap; incomplete publication spans include cleanup. Single runs do not establish statistical improvement or normal release capacity.",
+    "Historical current association and cursor ACKs were verified by fresh Linux readback. Preexisting DOMAIN proof is a different earlier producer and is not claimed as a newly committed DOMAIN.",
+    "First sorted-canonical-body reconstruction was rejected REQUEST_ID_CONFLICT; exact original manual field order was restored in test readback only, preserving original runtime identity rule.",
+    "Combined SYNC/Morning Brief and DRAIN use two independent synthetic databases, so same physical database contention is unqualified. External provider/model/Telegram are doubles; provider transaction timeout is a5s model, not measured exact account ceiling.",
+    "Parent realProviderRequests counter does not cover child JS fetches. Child DB endpoint is fixture-only and internal Docker network is a separate test egress boundary.",
+    "Same-process1CPU TypeError/PREPARATION has no retained stack/localized cause. It remains an additional runtime blocker and is not attributed to CPU or scheduling.",
+    "All6 monitored jobs and the original12-attempt financial envelope are unqualified. No new allowance, permit reset, Production write, paid resource, deployment, schema or Stage7/8 change is approved.",
+    "CPU decision document and compact evidence factual delta reviewed at their recorded SHA256; docs-only commit is pending. Safety GO is distinct from overall runtime/Production NO-GO."
+  ],
+  "cancellationRegression": {
+    "tap": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0
+    },
+    "sourceRelease": "9c042c5bc3cdfa71d4f6d748752037908cd34809",
+    "fault": "CANCEL_RAM",
+    "outcome": "CANCELLED",
+    "publicationAndCursorAdvance": false,
+    "scope": "Private RAM dropped; original base fixture receiver remains live in fault log before fixture teardown."
+  },
+  "providerReadonlyObservation": {
+    "observer": "primary agent; reviewer inspected retained JSON only",
+    "region": "oregon",
+    "plan": "0.5c-512mb",
+    "instances": 1,
+    "startCommand": "npm run bot:webhook",
+    "autoDeploy": "no",
+    "doesNotEstablish": "Provider architecture/image/kernel/resource/runtime equivalence or production SQL transaction ceiling."
+  },
+  "documentationConfirmation": {
+    "paths": {
+      "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/docs/pre-stage7/stage6-cpu-scheduling-qualification.md": "5bc97c50b198d01eb934f84295ffd445b7f54ac73b4fb16fca98b3fe98d418ca",
+      "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/docs/pre-stage7/stage6-cpu-scheduling-qualification-evidence.json": "e96d41baeb0729420f09c8a6b97f68ee89556827b804503e7ffd4f49188db777"
+    },
+    "compactMeasurementsAndArtifactHashesMatchRaw": true,
+    "partialMinimumConfigurationOnly": true,
+    "fullServiceAndFullSixRemainUnqualified": true,
+    "typeErrorUnknownRetained": true,
+    "productionKernelAndSharedDbEquivalenceUnqualified": true,
+    "readOnlyProviderMetadataScopeAccurate": true,
+    "priceVerification": {
+      "primarySource": "https://render.com/pricing",
+      "verifiedDate": "2026-10-14",
+      "currentHalfCpu512MbUsdMonth": 7,
+      "oneCpu2GbUsdMonth": 25,
+      "twoCpu4GbUsdMonth": 85,
+      "increment18AndSeparateTotal32AreArithmeticPlanningOnly": true,
+      "purchaseApproval": false
+    },
+    "noFactualCorrectionRequired": true
+  },
+  "retainedArtifactSha256": {
+    "/private/tmp/stage6-cpu-qualification/before-half.tap": "17225a4c7541d9b52dbf0fc89163474b88e3d76d886f376b91312a084a35ee49",
+    "/private/tmp/stage6-cpu-qualification/before-half/output/phase-profile.json": "cd928b965f97fed7a2f88bcb3c1e6b929d0f59663571ddf1a1e5ee99efbd51c1",
+    "/private/tmp/stage6-cpu-qualification/after-half.tap": "b1fd3e68326b791e3d25bdf3a6abe287fd1bfb0f8f2a9e8e886b62422eefbafd",
+    "/private/tmp/stage6-cpu-qualification/after-half/output/phase-profile.json": "fc5650323a68e38a4e98ff99021756fc73f3bba205920633e1cb9c5ab980665c",
+    "/private/tmp/stage6-cpu-qualification/after-concurrent-half.tap": "6b24a44939cf82db1001c34b8238245d7f897676bedc3da98c702246e3971162",
+    "/private/tmp/stage6-cpu-qualification/before-one.tap": "5834b91d7a9dcb5f7d26a33411d727d2c3f3bca16d2ea4abcab263406eafa04e",
+    "/private/tmp/stage6-cpu-qualification/before-one/output/phase-profile.json": "f7d083c8079ff0375f04c8f9d8f6b27a5c2a37f1f8dc400d0643bac92c51b409",
+    "/private/tmp/stage6-cpu-qualification/after-one.tap": "e0cec7f9ab744ec189573323260fbc38645653dcb6725e2e81ac6cda4b6ec89d",
+    "/private/tmp/stage6-cpu-qualification/after-one/output/phase-profile.json": "55bfe9f59388674dc166315f8439647e320950757931e773de46649de3643c02",
+    "/private/tmp/stage6-cpu-qualification/after-concurrent-one.tap": "c67ff2a836f2df9f9d106cbc3f8e526c0af549c73928c94f49d0ef5a0d9e0519",
+    "/private/tmp/stage6-cpu-qualification/before-two.tap": "c4e6522edd2163d3b9107103d9df386e661c3b15984226047fcfba1b48311a3a",
+    "/private/tmp/stage6-cpu-qualification/before-two/output/phase-profile.json": "5f36513c9e6948fbe859f41f156ed71209d5b96450a474226520dd6c9b31bbbc",
+    "/private/tmp/stage6-cpu-qualification/after-two.tap": "6bf31782bce7906a61a9bddf1755339e256a2404d38b7a090adeae28a9479b1d",
+    "/private/tmp/stage6-cpu-qualification/after-two/output/phase-profile.json": "209978d196db2bf8dce59d62d96626f5f4bf0086475bc01bf58e343327cafe0e",
+    "/private/tmp/stage6-cpu-qualification/after-concurrent-two.tap": "a34689647ba30f032e661387316d0e6979ebecf051fef1b2fa3a7cc5d7cc4442",
+    "/private/tmp/stage6-cpu-qualification/isolated-one.tap": "6b6637ec247f97e6d2a3b5cab80cf8e8f5ea97acfd0f79b743cc6e224825dfce",
+    "/private/tmp/stage6-cpu-qualification/readback-one-exact-body.log": "f0b1a21ee0ea19e66bd29184dbc8093e0db73a4de1c8cd0d095b1f58084d3853",
+    "/private/tmp/stage6-cpu-qualification/isolated-two.tap": "46fae34454914722f025534bdd82dd43f0fe8438269454bb1f76ccb7e43a361e",
+    "/private/tmp/stage6-cpu-qualification/readback-two-exact-body.log": "83f39ff897621cb4eb45e056a4abb80db56dea36d7db4b18749bbb96f9949feb",
+    "/private/tmp/stage6-cpu-qualification/final-isolated-one.tap": "48190e42c9cf5c692a6c7ef25ac8c7d9cfe494f53f6acdaa57df090ba1374ed7",
+    "/private/tmp/stage6-cpu-qualification/final-crash-one-recovery.tap": "13a4e55c573f45951c84ad80e80041cb70913778469d52b65bbb9c912ac70616",
+    "/private/tmp/stage6-cpu-qualification/final-crash-one-kill-proof.json": "f29b2764684c769b3d7ceedb4ccf9bea0aece9e9a7712e9f845d51fbe632bec9",
+    "/private/tmp/stage6-cpu-qualification/final-crash-one/output/recovery-proof.json": "37e7f3484462de3a79fc32b528fbeabc13637a5e5c905d12d48767370d17b911",
+    "/private/tmp/stage6-cpu-qualification/cancel-ram-regression.tap": "b17d9f88189b079828c5e801950c178472a9e8765ab08b6e78c8e6147b01a4d5",
+    "/private/tmp/stage6-cpu-qualification/production-resource-current.json": "c6de13b830bed3cc67c653551767b7e7309fb948204082e0397c126e6e1cdc7e",
+    "/private/tmp/stage6-independent-scheduling.tap": "780ae3d14d7923a7cc979b8554d5716f9fded84115415743f1c917fa17cd7bf7",
+    "/private/tmp/stage6-independent-drain-supervisor-fixed.tap": "d8248e8bbefcf5fc9ddd0a5cc964b8f61d8f34ea689089f94be602c710599f09",
+    "/private/tmp/stage6-independent-drain-child-exit.tap": "b7bcf6c46486c243c8436de39fbff397aebe080c8e02d2135b6c109d05bd33dd",
+    "/private/tmp/stage6-cpu-qualification/readback/readback-program.mjs": "07369c54d7cd4462dec4cc3c88785cba3682096311958c048bbbe38797cb143a",
+    "/private/tmp/stage6-cpu-qualification/readback/readback-original-operations.json": "5302200d3626c5c3d39c55ad4bedcf9f781b6802353de476a46e2ab86e44610a",
+    "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/docs/pre-stage7/stage6-cpu-scheduling-qualification.md": "5bc97c50b198d01eb934f84295ffd445b7f54ac73b4fb16fca98b3fe98d418ca",
+    "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate/docs/pre-stage7/stage6-cpu-scheduling-qualification-evidence.json": "e96d41baeb0729420f09c8a6b97f68ee89556827b804503e7ffd4f49188db777"
+  }
+}

@@ -1,0 +1,2089 @@
+{
+  "status": "STAGE6_CPU_SCHEDULING_QUALIFICATION_PARTIAL",
+  "syntheticOnly": true,
+  "productionMutation": false,
+  "baselineHead": "bec7c21516ba9baf705a492aa3ceb269ad332beb",
+  "baselineTree": "fbcb670d08bc139396076b816a9f6387ccddae7c",
+  "runtimeDeltaHead": "9c042c5bc3cdfa71d4f6d748752037908cd34809",
+  "finalExecutedHead": "12656c7920cd6eb217f099c59234736e1a531b18",
+  "finalExecutedTree": "3d54cb8802f356711b2bc9bccca2e6e1eea7b190",
+  "productionResourceReadonly": {
+    "autoDeploy": "no",
+    "id": "srv-dahs71qd0e5s738n94c0",
+    "name": "whoop-telegram-webhook",
+    "serviceDetails.env": "node",
+    "serviceDetails.envSpecificDetails.buildCommand": "npm ci",
+    "serviceDetails.envSpecificDetails.startCommand": "npm run bot:webhook",
+    "serviceDetails.numInstances": 1,
+    "serviceDetails.plan": "0.5c-512mb",
+    "serviceDetails.region": "oregon",
+    "serviceDetails.runtime": "node"
+  },
+  "productionNodeVersion": "22.23.2 previously read from unchanged Oct13 live deployment logs; not re-read inside Production process",
+  "productionKernelLimitVerified": false,
+  "controlledLinux": {
+    "node": "22.23.2",
+    "debian": 12,
+    "arch": "arm64",
+    "cgroupVersion": 2,
+    "memoryMax": 536870912,
+    "swapMax": 0,
+    "cpuPeriodUs": 100000,
+    "cpuQuotaUs": [
+      50000,
+      100000,
+      200000
+    ],
+    "v8MiB": [
+      96,
+      2
+    ],
+    "noManualGC": true,
+    "hranaLatencyMs": 115,
+    "hranaTransactionMaxMs": 5000,
+    "providerOutsideAppCgroup": true,
+    "internalNetwork": true,
+    "productionHardwareEquivalent": false
+  },
+  "diagnosticProfiles": [
+    {
+      "version": "before",
+      "cpu": 0.5,
+      "diagnosticOnly": true,
+      "elapsedMs": 31891.456722999996,
+      "http": 108,
+      "sql": 511,
+      "outcome": "FAILED",
+      "capacity": {
+        "active": false,
+        "lastFailure": {
+          "code": "SQLITE_ERROR",
+          "stage": "PUBLICATION"
+        },
+        "heapLimit": 106954752,
+        "rss": 317714432
+      },
+      "cgroupPeak": 302620672,
+      "cpuDelta": {
+        "usage_usec": 11890344,
+        "user_usec": 9989245,
+        "system_usec": 1901099,
+        "nice_usec": 0,
+        "nr_periods": 359,
+        "nr_throttled": 175,
+        "throttled_usec": 24980688,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "eventLoop": {
+        "maxMs": 8514.437119,
+        "p99Ms": 79.233023
+      },
+      "gc": {
+        "count": 1542,
+        "totalMs": 3880.3557140035555,
+        "maxMs": 97.88245900068432
+      },
+      "phaseProfile": {
+        "diagnosticOnly": true,
+        "phases": [
+          {
+            "label": "SNAPSHOT_PREPARATION",
+            "wallMs": 4725.210628000001,
+            "cpuMs": 819.901
+          },
+          {
+            "label": "RAM_IMPORT",
+            "wallMs": 967.3347920000015,
+            "cpuMs": 468.449
+          },
+          {
+            "label": "ORIGINAL_RAM_CALCULATION",
+            "wallMs": 14102.123506000004,
+            "cpuMs": 7018.559
+          },
+          {
+            "label": "PLAN_SEAL",
+            "wallMs": 806.4040000000023,
+            "cpuMs": 148.568
+          },
+          {
+            "label": "PUBLICATION_FENCING_AND_BATCH",
+            "wallMs": 4544.823294000002,
+            "cpuMs": 1210.449,
+            "incomplete": true
+          }
+        ],
+        "syncTotals": {
+          "HMAC_JSON": {
+            "calls": 27539,
+            "wallMs": 283.5627349999995
+          },
+          "HMAC": {
+            "calls": 27539,
+            "wallMs": 463.63401199994996
+          }
+        }
+      },
+      "mainThreadHot": [
+        {
+          "function": "(idle)",
+          "file": "",
+          "line": 0,
+          "sampledWallMs": 18222.112
+        },
+        {
+          "function": "(garbage collector)",
+          "file": "",
+          "line": 0,
+          "sampledWallMs": 4251.91
+        },
+        {
+          "function": "_propagate",
+          "file": "async_hooks",
+          "line": 64,
+          "sampledWallMs": 1190.097
+        },
+        {
+          "function": "columns",
+          "file": "index.js",
+          "line": 426,
+          "sampledWallMs": 977.444
+        },
+        {
+          "function": "prepare",
+          "file": "index.js",
+          "line": 126,
+          "sampledWallMs": 955.4
+        },
+        {
+          "function": "(program)",
+          "file": "",
+          "line": 0,
+          "sampledWallMs": 701.274
+        },
+        {
+          "function": "registerDestroyHook",
+          "file": "",
+          "line": 0,
+          "sampledWallMs": 642.003
+        },
+        {
+          "function": "run",
+          "file": "index.js",
+          "line": 327,
+          "sampledWallMs": 640.607
+        }
+      ],
+      "tapSha256": "17225a4c7541d9b52dbf0fc89163474b88e3d76d886f376b91312a084a35ee49"
+    },
+    {
+      "version": "before",
+      "cpu": 1,
+      "diagnosticOnly": true,
+      "elapsedMs": 22428.220177,
+      "http": 111,
+      "sql": 4306,
+      "outcome": "PARTIAL",
+      "capacity": {
+        "active": false,
+        "lastPublication": {
+          "preparationMs": 11111.213713,
+          "transactionMs": 1528.059541999999,
+          "statements": 3793,
+          "snapshotGroups": 96,
+          "snapshotBytes": 3652489,
+          "workUsage": {
+            "prefixReadSets": 49,
+            "operations": 190,
+            "bytes": 193535
+          }
+        },
+        "heapLimit": 106954752,
+        "rss": 317964288
+      },
+      "cgroupPeak": 304750592,
+      "cpuDelta": {
+        "usage_usec": 10303029,
+        "user_usec": 8735056,
+        "system_usec": 1567974,
+        "nice_usec": 0,
+        "nr_periods": 262,
+        "nr_throttled": 65,
+        "throttled_usec": 4338292,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "eventLoop": {
+        "maxMs": 3412.066303,
+        "p99Ms": 49.381375
+      },
+      "gc": {
+        "count": 1555,
+        "totalMs": 1482.0625889990479,
+        "maxMs": 74.42229099944234
+      },
+      "phaseProfile": {
+        "diagnosticOnly": true,
+        "phases": [
+          {
+            "label": "SNAPSHOT_PREPARATION",
+            "wallMs": 4553.088544,
+            "cpuMs": 841.867
+          },
+          {
+            "label": "RAM_IMPORT",
+            "wallMs": 280.29279099999985,
+            "cpuMs": 279.954
+          },
+          {
+            "label": "ORIGINAL_RAM_CALCULATION",
+            "wallMs": 5564.008127000001,
+            "cpuMs": 5560.156
+          },
+          {
+            "label": "PLAN_SEAL",
+            "wallMs": 790.1362919999992,
+            "cpuMs": 173.457
+          },
+          {
+            "label": "PUBLICATION_FENCING_AND_BATCH",
+            "wallMs": 1839.4704180000008,
+            "cpuMs": 728.726
+          }
+        ],
+        "syncTotals": {
+          "HMAC_JSON": {
+            "calls": 27777,
+            "wallMs": 173.50582199982375
+          },
+          "HMAC": {
+            "calls": 27777,
+            "wallMs": 136.3073069999498
+          }
+        }
+      },
+      "mainThreadHot": [
+        {
+          "function": "(idle)",
+          "file": "",
+          "line": 0,
+          "sampledWallMs": 22248.705
+        },
+        {
+          "function": "(garbage collector)",
+          "file": "",
+          "line": 0,
+          "sampledWallMs": 2028.966
+        },
+        {
+          "function": "(program)",
+          "file": "",
+          "line": 0,
+          "sampledWallMs": 498.915
+        },
+        {
+          "function": "_propagate",
+          "file": "async_hooks",
+          "line": 64,
+          "sampledWallMs": 448.25
+        },
+        {
+          "function": "prepare",
+          "file": "index.js",
+          "line": 126,
+          "sampledWallMs": 349.768
+        },
+        {
+          "function": "columns",
+          "file": "index.js",
+          "line": 426,
+          "sampledWallMs": 317.541
+        },
+        {
+          "function": "object",
+          "file": "processingReadSnapshot.js",
+          "line": 30,
+          "sampledWallMs": 308.259
+        },
+        {
+          "function": "spawnSync",
+          "file": "child_process",
+          "line": 1105,
+          "sampledWallMs": 177.357
+        }
+      ],
+      "tapSha256": "5834b91d7a9dcb5f7d26a33411d727d2c3f3bca16d2ea4abcab263406eafa04e"
+    },
+    {
+      "version": "before",
+      "cpu": 2,
+      "diagnosticOnly": true,
+      "elapsedMs": 19965.815133999997,
+      "http": 111,
+      "sql": 4306,
+      "outcome": "PARTIAL",
+      "capacity": {
+        "active": false,
+        "lastPublication": {
+          "preparationMs": 8921.38042,
+          "transactionMs": 1373.2891259999997,
+          "statements": 3793,
+          "snapshotGroups": 96,
+          "snapshotBytes": 3652489,
+          "workUsage": {
+            "prefixReadSets": 49,
+            "operations": 190,
+            "bytes": 193535
+          }
+        },
+        "heapLimit": 106954752,
+        "rss": 328880128
+      },
+      "cgroupPeak": 312795136,
+      "cpuDelta": {
+        "usage_usec": 9535512,
+        "user_usec": 8198851,
+        "system_usec": 1336662,
+        "nice_usec": 0,
+        "nr_periods": 237,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "eventLoop": {
+        "maxMs": 2170.552319,
+        "p99Ms": 37.027839
+      },
+      "gc": {
+        "count": 1545,
+        "totalMs": 783.7321230378002,
+        "maxMs": 10.590208999812603
+      },
+      "phaseProfile": {
+        "diagnosticOnly": true,
+        "phases": [
+          {
+            "label": "SNAPSHOT_PREPARATION",
+            "wallMs": 4481.520127,
+            "cpuMs": 765.004
+          },
+          {
+            "label": "RAM_IMPORT",
+            "wallMs": 259.98370799999975,
+            "cpuMs": 285.82
+          },
+          {
+            "label": "ORIGINAL_RAM_CALCULATION",
+            "wallMs": 3491.1632519999985,
+            "cpuMs": 5061.008
+          },
+          {
+            "label": "PLAN_SEAL",
+            "wallMs": 728.0921259999996,
+            "cpuMs": 128.514
+          },
+          {
+            "label": "PUBLICATION_FENCING_AND_BATCH",
+            "wallMs": 1691.1992500000015,
+            "cpuMs": 662.054
+          }
+        ],
+        "syncTotals": {
+          "HMAC_JSON": {
+            "calls": 27777,
+            "wallMs": 126.15712199966714
+          },
+          "HMAC": {
+            "calls": 27777,
+            "wallMs": 127.97442700041819
+          }
+        }
+      },
+      "mainThreadHot": [
+        {
+          "function": "(idle)",
+          "file": "",
+          "line": 0,
+          "sampledWallMs": 22041.764
+        },
+        {
+          "function": "(garbage collector)",
+          "file": "",
+          "line": 0,
+          "sampledWallMs": 1110.963
+        },
+        {
+          "function": "_propagate",
+          "file": "async_hooks",
+          "line": 64,
+          "sampledWallMs": 376.61
+        },
+        {
+          "function": "(program)",
+          "file": "",
+          "line": 0,
+          "sampledWallMs": 365.101
+        },
+        {
+          "function": "spawnSync",
+          "file": "child_process",
+          "line": 1105,
+          "sampledWallMs": 198.246
+        },
+        {
+          "function": "prepare",
+          "file": "index.js",
+          "line": 126,
+          "sampledWallMs": 183.406
+        },
+        {
+          "function": "columns",
+          "file": "index.js",
+          "line": 426,
+          "sampledWallMs": 160.678
+        },
+        {
+          "function": "run",
+          "file": "index.js",
+          "line": 327,
+          "sampledWallMs": 141.591
+        }
+      ],
+      "tapSha256": "c4e6522edd2163d3b9107103d9df386e661c3b15984226047fcfba1b48311a3a"
+    },
+    {
+      "version": "after",
+      "cpu": 0.5,
+      "diagnosticOnly": true,
+      "elapsedMs": 31542.939137999998,
+      "http": 108,
+      "sql": 511,
+      "outcome": "FAILED",
+      "capacity": {
+        "active": false,
+        "lastFailure": {
+          "code": "SQLITE_ERROR",
+          "stage": "PUBLICATION"
+        },
+        "heapLimit": 106954752,
+        "rss": 364597248
+      },
+      "cgroupPeak": 335986688,
+      "cpuDelta": {
+        "usage_usec": 11623653,
+        "user_usec": 10095722,
+        "system_usec": 1527930,
+        "nice_usec": 0,
+        "nr_periods": 355,
+        "nr_throttled": 172,
+        "throttled_usec": 25690422,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "eventLoop": {
+        "maxMs": 8199.864319,
+        "p99Ms": 80.871423
+      },
+      "gc": {
+        "count": 1537,
+        "totalMs": 4568.59011599794,
+        "maxMs": 103.44258400052786
+      },
+      "phaseProfile": {
+        "diagnosticOnly": true,
+        "phases": [
+          {
+            "label": "SNAPSHOT_PREPARATION",
+            "wallMs": 4733.592877000001,
+            "cpuMs": 875.033
+          },
+          {
+            "label": "RAM_IMPORT",
+            "wallMs": 620.5420000000013,
+            "cpuMs": 319.527
+          },
+          {
+            "label": "ORIGINAL_RAM_CALCULATION",
+            "wallMs": 13892.638757,
+            "cpuMs": 6891.918
+          },
+          {
+            "label": "PLAN_SEAL",
+            "wallMs": 769.5341249999947,
+            "cpuMs": 137.151
+          },
+          {
+            "label": "PUBLICATION_FENCING_AND_BATCH",
+            "wallMs": 4769.039169000003,
+            "cpuMs": 1309.559,
+            "incomplete": true
+          }
+        ],
+        "syncTotals": {
+          "HMAC_JSON": {
+            "calls": 27599,
+            "wallMs": 200.88480900026752
+          },
+          "HMAC": {
+            "calls": 27599,
+            "wallMs": 274.4837759996226
+          }
+        }
+      },
+      "mainThreadHot": null,
+      "tapSha256": "b1fd3e68326b791e3d25bdf3a6abe287fd1bfb0f8f2a9e8e886b62422eefbafd"
+    },
+    {
+      "version": "after",
+      "cpu": 1,
+      "diagnosticOnly": true,
+      "elapsedMs": 22176.758885,
+      "http": 111,
+      "sql": 4306,
+      "outcome": "PARTIAL",
+      "capacity": {
+        "active": false,
+        "lastPublication": {
+          "preparationMs": 10830.748214000001,
+          "transactionMs": 1587.3832509999993,
+          "statements": 3793,
+          "snapshotGroups": 96,
+          "snapshotBytes": 3652489,
+          "workUsage": {
+            "prefixReadSets": 49,
+            "operations": 190,
+            "bytes": 193535
+          }
+        },
+        "heapLimit": 106954752,
+        "rss": 349200384
+      },
+      "cgroupPeak": 340000768,
+      "cpuDelta": {
+        "usage_usec": 9989034,
+        "user_usec": 8587693,
+        "system_usec": 1401342,
+        "nice_usec": 0,
+        "nr_periods": 260,
+        "nr_throttled": 62,
+        "throttled_usec": 3676842,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "eventLoop": {
+        "maxMs": 3269.459967,
+        "p99Ms": 45.776895
+      },
+      "gc": {
+        "count": 1550,
+        "totalMs": 1186.0996050303802,
+        "maxMs": 50.25420800037682
+      },
+      "phaseProfile": {
+        "diagnosticOnly": true,
+        "phases": [
+          {
+            "label": "SNAPSHOT_PREPARATION",
+            "wallMs": 4473.413128,
+            "cpuMs": 812.281
+          },
+          {
+            "label": "RAM_IMPORT",
+            "wallMs": 229.4625419999993,
+            "cpuMs": 234.971
+          },
+          {
+            "label": "ORIGINAL_RAM_CALCULATION",
+            "wallMs": 5406.363918999999,
+            "cpuMs": 5396.223
+          },
+          {
+            "label": "PLAN_SEAL",
+            "wallMs": 761.9548329999998,
+            "cpuMs": 170.66
+          },
+          {
+            "label": "PUBLICATION_FENCING_AND_BATCH",
+            "wallMs": 1902.7853759999998,
+            "cpuMs": 695.35
+          }
+        ],
+        "syncTotals": {
+          "HMAC_JSON": {
+            "calls": 27827,
+            "wallMs": 162.82500899947013
+          },
+          "HMAC": {
+            "calls": 27827,
+            "wallMs": 138.86004599989315
+          }
+        }
+      },
+      "mainThreadHot": null,
+      "tapSha256": "e0cec7f9ab744ec189573323260fbc38645653dcb6725e2e81ac6cda4b6ec89d"
+    },
+    {
+      "version": "after",
+      "cpu": 2,
+      "diagnosticOnly": true,
+      "elapsedMs": 20237.826385,
+      "http": 111,
+      "sql": 4306,
+      "outcome": "PARTIAL",
+      "capacity": {
+        "active": false,
+        "lastPublication": {
+          "preparationMs": 9165.709837000002,
+          "transactionMs": 1344.617875,
+          "statements": 3793,
+          "snapshotGroups": 96,
+          "snapshotBytes": 3652475,
+          "workUsage": {
+            "prefixReadSets": 49,
+            "operations": 190,
+            "bytes": 193535
+          }
+        },
+        "heapLimit": 106954752,
+        "rss": 308789248
+      },
+      "cgroupPeak": 297275392,
+      "cpuDelta": {
+        "usage_usec": 10096006,
+        "user_usec": 8624487,
+        "system_usec": 1471518,
+        "nice_usec": 0,
+        "nr_periods": 241,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "eventLoop": {
+        "maxMs": 2315.255807,
+        "p99Ms": 43.778047
+      },
+      "gc": {
+        "count": 1544,
+        "totalMs": 865.1098280148581,
+        "maxMs": 27.77087500039488
+      },
+      "phaseProfile": {
+        "diagnosticOnly": true,
+        "phases": [
+          {
+            "label": "SNAPSHOT_PREPARATION",
+            "wallMs": 4514.620461,
+            "cpuMs": 820.39
+          },
+          {
+            "label": "RAM_IMPORT",
+            "wallMs": 221.0543749999997,
+            "cpuMs": 240.329
+          },
+          {
+            "label": "ORIGINAL_RAM_CALCULATION",
+            "wallMs": 3749.8632100000013,
+            "cpuMs": 5354.765
+          },
+          {
+            "label": "PLAN_SEAL",
+            "wallMs": 734.2219169999989,
+            "cpuMs": 151.57
+          },
+          {
+            "label": "PUBLICATION_FENCING_AND_BATCH",
+            "wallMs": 1657.6471670000028,
+            "cpuMs": 703.701
+          }
+        ],
+        "syncTotals": {
+          "HMAC_JSON": {
+            "calls": 27827,
+            "wallMs": 156.14949000004293
+          },
+          "HMAC": {
+            "calls": 27827,
+            "wallMs": 132.45101799978056
+          }
+        }
+      },
+      "mainThreadHot": null,
+      "tapSha256": "6bf31782bce7906a61a9bddf1755339e256a2404d38b7a090adeae28a9479b1d"
+    }
+  ],
+  "sameProcessConcurrency": [
+    {
+      "cpu": 0.5,
+      "fullServicePass": false,
+      "drainMs": 32801.087473,
+      "drain": {
+        "version": 2,
+        "releaseSha": "9c042c5bc3cdfa71d4f6d748752037908cd34809",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "FAILED",
+        "durationMs": 30853.493306,
+        "identity": "8f3972c2b852a95a212e905a6399539e153b7cc0404692fce1c869291fa27260",
+        "configProof": "74545be06bcee868f99508b9e6b391125f3a6d9644dc0ec0ade1cbc5b87c129f",
+        "executionMode": "SHADOW",
+        "finishedAt": 1791974529357,
+        "executionSeq": 83,
+        "settlementState": "FINALIZED_FAILURE",
+        "finalizedAt": 1791974530105
+      },
+      "capacity": {
+        "active": false,
+        "lastFailure": {
+          "code": "PUBLICATION_HEADROOM_REQUIRED",
+          "stage": "PUBLICATION"
+        },
+        "heapLimit": 106954752,
+        "rss": 301330432
+      },
+      "syncMs": 118998.271054,
+      "syncStatus": 424,
+      "webhookStatus": 503,
+      "webhookRetryStatus": 503,
+      "sends": [
+        "1001",
+        "1002",
+        "1003"
+      ],
+      "modelCounts": [
+        [
+          "alice",
+          1
+        ],
+        [
+          "bob",
+          1
+        ],
+        [
+          "lan",
+          1
+        ]
+      ],
+      "healthMaxMs": 15545.255549000001,
+      "cgroupPeak": 287100928,
+      "cpuDelta": {
+        "usage_usec": 18135478,
+        "user_usec": 16743650,
+        "system_usec": 1391829,
+        "nice_usec": 0,
+        "nr_periods": 1236,
+        "nr_throttled": 191,
+        "throttled_usec": 22722096,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "eventLoop": {
+        "maxMs": 15644.753919,
+        "p99Ms": 33.439743
+      },
+      "afterCloseScopes": {
+        "created": 3,
+        "retired": 3,
+        "disabled": 22,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "currentProofInThisTap": false,
+      "tapSha256": "6b24a44939cf82db1001c34b8238245d7f897676bedc3da98c702246e3971162"
+    },
+    {
+      "cpu": 1,
+      "fullServicePass": false,
+      "drainMs": 20937.386551,
+      "drain": {
+        "version": 2,
+        "releaseSha": "9c042c5bc3cdfa71d4f6d748752037908cd34809",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "FAILED",
+        "durationMs": 19004.614049,
+        "identity": "fed802b49264079cd9766683ef815e6fb96812513fb20c53972d6fee312e528e",
+        "configProof": "eacf712448467b82f809e491dfaf169d1a965a1d621e66490b351a184e627f90",
+        "executionMode": "SHADOW",
+        "finishedAt": 1791974646006,
+        "executionSeq": 83,
+        "settlementState": "FINALIZED_FAILURE",
+        "finalizedAt": 1791974646732
+      },
+      "capacity": {
+        "active": false,
+        "lastFailure": {
+          "code": "TypeError",
+          "stage": "PREPARATION"
+        },
+        "heapLimit": 106954752,
+        "rss": 283828224
+      },
+      "syncMs": 116961.809427,
+      "syncStatus": 424,
+      "webhookStatus": 503,
+      "webhookRetryStatus": 503,
+      "sends": [
+        "1001",
+        "1002",
+        "1003"
+      ],
+      "modelCounts": [
+        [
+          "alice",
+          1
+        ],
+        [
+          "bob",
+          1
+        ],
+        [
+          "lan",
+          1
+        ]
+      ],
+      "healthMaxMs": 5732.299418999999,
+      "cgroupPeak": 255983616,
+      "cpuDelta": {
+        "usage_usec": 16546099,
+        "user_usec": 15302356,
+        "system_usec": 1243743,
+        "nice_usec": 0,
+        "nr_periods": 1213,
+        "nr_throttled": 64,
+        "throttled_usec": 3091233,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "eventLoop": {
+        "maxMs": 5876.219903,
+        "p99Ms": 30.392319
+      },
+      "afterCloseScopes": {
+        "created": 3,
+        "retired": 3,
+        "disabled": 22,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "currentProofInThisTap": false,
+      "tapSha256": "c67ff2a836f2df9f9d106cbc3f8e526c0af549c73928c94f49d0ef5a0d9e0519"
+    },
+    {
+      "cpu": 2,
+      "fullServicePass": false,
+      "drainMs": 21766.337927,
+      "drain": {
+        "version": 2,
+        "releaseSha": "9c042c5bc3cdfa71d4f6d748752037908cd34809",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "PARTIAL",
+        "durationMs": 19668.871968,
+        "jobsConsidered": 1,
+        "itemsAttempted": 1,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "identity": "dd37ca5f00e19c79a9605d8d02372658210315215bea5474504e953a7876cef6",
+        "configProof": "840ea8a805001a47c912c4ee512b008c8d67d74ee68995cca5e6b1ea0bcf5657",
+        "completion": "PARTIAL",
+        "stopReason": "ITEM_LIMIT",
+        "executionMode": "SHADOW",
+        "finishedAt": 1791974772812,
+        "executionSeq": 83,
+        "settlementState": "FINALIZED_SUCCESS",
+        "finalizedAt": 1791974773508
+      },
+      "capacity": {
+        "active": false,
+        "lastPublication": {
+          "preparationMs": 9778.852963000001,
+          "transactionMs": 1520.927334,
+          "statements": 3793,
+          "snapshotGroups": 96,
+          "snapshotBytes": 3652489,
+          "workUsage": {
+            "prefixReadSets": 49,
+            "operations": 190,
+            "bytes": 193535
+          }
+        },
+        "heapLimit": 106954752,
+        "rss": 278003712
+      },
+      "syncMs": 115620.678012,
+      "syncStatus": 424,
+      "webhookStatus": 503,
+      "webhookRetryStatus": 503,
+      "sends": [
+        "1001",
+        "1002",
+        "1003"
+      ],
+      "modelCounts": [
+        [
+          "alice",
+          1
+        ],
+        [
+          "bob",
+          1
+        ],
+        [
+          "lan",
+          1
+        ]
+      ],
+      "healthMaxMs": 3720.5149180000008,
+      "cgroupPeak": 331972608,
+      "cpuDelta": {
+        "usage_usec": 16990975,
+        "user_usec": 15554896,
+        "system_usec": 1436078,
+        "nice_usec": 0,
+        "nr_periods": 1198,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "eventLoop": {
+        "maxMs": 3760.193535,
+        "p99Ms": 30.572543
+      },
+      "afterCloseScopes": {
+        "created": 3,
+        "retired": 3,
+        "disabled": 22,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "currentProofInThisTap": false,
+      "tapSha256": "a34689647ba30f032e661387316d0e6979ebecf051fef1b2fa3a7cc5d7cc4442"
+    }
+  ],
+  "processIsolation": [
+    {
+      "cpu": 1,
+      "fullServicePass": false,
+      "drainMs": 23129.264177,
+      "drain": {
+        "version": 2,
+        "releaseSha": "51f67bbd150056f73a80f6e554dabb5738d3e846",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "PARTIAL",
+        "durationMs": 20721.869676,
+        "jobsConsidered": 1,
+        "itemsAttempted": 1,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "identity": "a5c14542902a6aa12199a6964b4ea5bd3f1c611e33d9ba389e85303d3ad7b12f",
+        "configProof": "86df0ac477ed580e03cc6324813f15bb66bca583277acf647a373e2d4efee798",
+        "completion": "PARTIAL",
+        "stopReason": "ITEM_LIMIT",
+        "executionMode": "SHADOW",
+        "finishedAt": 1791975363822,
+        "executionSeq": 83,
+        "settlementState": "FINALIZED_SUCCESS",
+        "finalizedAt": 1791975364540
+      },
+      "healthMaxMs": 56.69854100000157,
+      "cgroupPeak": 385507328,
+      "headroomPercent": 28.19366455078125,
+      "cpuDelta": {
+        "usage_usec": 16575748,
+        "user_usec": 14859326,
+        "system_usec": 1716421,
+        "nice_usec": 0,
+        "nr_periods": 1229,
+        "nr_throttled": 62,
+        "throttled_usec": 3478039,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "parentEventLoop": {
+        "maxMs": 83.820543,
+        "p99Ms": 30.654463
+      },
+      "childScopes": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 16,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "syncMs": 118826.93913700001,
+      "syncStatus": 424,
+      "webhookStatus": 503,
+      "morningTimeouts": [
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5110,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5109,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5051,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5065,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5098,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5110,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5084,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5090,
+          "limitMs": 5000
+        }
+      ],
+      "freshReadback": {
+        "synthetic": true,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 79,
+          "workReceipts": 376,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+            "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+            "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "current": {
+          "executionId": "414454db-0c92-48d0-b892-3c33bfab432f",
+          "newOperations": [
+            {
+              "operationKind": "analyzeAssociationFamily",
+              "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+              "executionId": "414454db-0c92-48d0-b892-3c33bfab432f",
+              "producingGeneration": 1,
+              "workKind": "stage6.associations",
+              "receiptKey": "21ea21d76594edb47b0c60b7901f0200c663eadc8fa639c17cbd92c47dfc1b92",
+              "exactNamedAck": true
+            }
+          ],
+          "cursor": {
+            "jobKind": "RECOMPUTE_DERIVED",
+            "cursor": "[\"sleep\",\"sleep-00\"]",
+            "receiptKey": "aeee9a3be285ff0122e147c4c7913da07408bbca03e73f69608a8d6ab62a645b",
+            "exactNamedAck": true
+          }
+        },
+        "replay": {
+          "version": 2,
+          "releaseSha": "51f67bbd150056f73a80f6e554dabb5738d3e846",
+          "phase": "STAGE6_DRAIN",
+          "source": "manual",
+          "outcome": "PARTIAL",
+          "durationMs": 20721.869676,
+          "jobsConsidered": 1,
+          "itemsAttempted": 1,
+          "itemsProcessed": 1,
+          "jobsCompleted": 0,
+          "jobsFailed": 0,
+          "remainingJobs": 2,
+          "identity": "a5c14542902a6aa12199a6964b4ea5bd3f1c611e33d9ba389e85303d3ad7b12f",
+          "configProof": "86df0ac477ed580e03cc6324813f15bb66bca583277acf647a373e2d4efee798",
+          "completion": "PARTIAL",
+          "stopReason": "ITEM_LIMIT",
+          "executionMode": "SHADOW",
+          "finishedAt": 1791975363822,
+          "executionSeq": 83,
+          "settlementState": "FINALIZED_SUCCESS",
+          "finalizedAt": 1791975364540
+        },
+        "permitAttempts": 1
+      },
+      "freshReadbackAfterClose": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 13,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "tapSha256": "6b6637ec247f97e6d2a3b5cab80cf8e8f5ea97acfd0f79b743cc6e224825dfce",
+      "readbackSha256": "f0b1a21ee0ea19e66bd29184dbc8093e0db73a4de1c8cd0d095b1f58084d3853"
+    },
+    {
+      "cpu": 2,
+      "fullServicePass": false,
+      "drainMs": 20373.933009,
+      "drain": {
+        "version": 2,
+        "releaseSha": "51f67bbd150056f73a80f6e554dabb5738d3e846",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "PARTIAL",
+        "durationMs": 18163.532426,
+        "jobsConsidered": 1,
+        "itemsAttempted": 1,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "identity": "a33cc947980a325cf53d00f4d46d8ac4103d7de738a299f443c7a0d84fd3f9b0",
+        "configProof": "35adfb741599a734c9c82c9cb3cb478823c2cb8ef525c31634fb07bc62c1f206",
+        "completion": "PARTIAL",
+        "stopReason": "ITEM_LIMIT",
+        "executionMode": "SHADOW",
+        "finishedAt": 1791975489456,
+        "executionSeq": 83,
+        "settlementState": "FINALIZED_SUCCESS",
+        "finalizedAt": 1791975490132
+      },
+      "healthMaxMs": 66.06575000000885,
+      "cgroupPeak": 384114688,
+      "headroomPercent": 28.45306396484375,
+      "cpuDelta": {
+        "usage_usec": 15874431,
+        "user_usec": 14484297,
+        "system_usec": 1390134,
+        "nice_usec": 0,
+        "nr_periods": 1226,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "parentEventLoop": {
+        "maxMs": 63.897599,
+        "p99Ms": 30.228479
+      },
+      "childScopes": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 16,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "syncMs": 118297.768554,
+      "syncStatus": 424,
+      "webhookStatus": 503,
+      "morningTimeouts": [
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5019,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5085,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5104,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5002,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5113,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5025,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5001,
+          "limitMs": 5000
+        },
+        {
+          "event": "transaction_timeout",
+          "ageMs": 5120,
+          "limitMs": 5000
+        }
+      ],
+      "freshReadback": {
+        "synthetic": true,
+        "proof": {
+          "signedOperationReceipts": 19,
+          "finalizedProducerHmacs": 79,
+          "workReceipts": 376,
+          "noDuplicateRuns": true,
+          "domainProof": {
+            "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+            "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+            "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+            "inputGeneration": 8,
+            "sourceGeneration": 8,
+            "receiptHmac": true,
+            "producerHmac": true,
+            "exactNamedAck": true
+          }
+        },
+        "current": {
+          "executionId": "4dca135e-2e1b-4f4f-a1b4-d8ebfdf39224",
+          "newOperations": [
+            {
+              "operationKind": "analyzeAssociationFamily",
+              "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+              "executionId": "4dca135e-2e1b-4f4f-a1b4-d8ebfdf39224",
+              "producingGeneration": 1,
+              "workKind": "stage6.associations",
+              "receiptKey": "72681b55d591365a3c8f7265c0b8f335c3f4630c1f0b2210201e6140111dbf65",
+              "exactNamedAck": true
+            }
+          ],
+          "cursor": {
+            "jobKind": "RECOMPUTE_DERIVED",
+            "cursor": "[\"sleep\",\"sleep-00\"]",
+            "receiptKey": "7ea8949d33cee4c931ebafc8ca29905242902770f3661b0e33f3e0af00a9e939",
+            "exactNamedAck": true
+          }
+        },
+        "replay": {
+          "version": 2,
+          "releaseSha": "51f67bbd150056f73a80f6e554dabb5738d3e846",
+          "phase": "STAGE6_DRAIN",
+          "source": "manual",
+          "outcome": "PARTIAL",
+          "durationMs": 18163.532426,
+          "jobsConsidered": 1,
+          "itemsAttempted": 1,
+          "itemsProcessed": 1,
+          "jobsCompleted": 0,
+          "jobsFailed": 0,
+          "remainingJobs": 2,
+          "identity": "a33cc947980a325cf53d00f4d46d8ac4103d7de738a299f443c7a0d84fd3f9b0",
+          "configProof": "35adfb741599a734c9c82c9cb3cb478823c2cb8ef525c31634fb07bc62c1f206",
+          "completion": "PARTIAL",
+          "stopReason": "ITEM_LIMIT",
+          "executionMode": "SHADOW",
+          "finishedAt": 1791975489456,
+          "executionSeq": 83,
+          "settlementState": "FINALIZED_SUCCESS",
+          "finalizedAt": 1791975490132
+        },
+        "permitAttempts": 1
+      },
+      "freshReadbackAfterClose": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 13,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "tapSha256": "46fae34454914722f025534bdd82dd43f0fe8438269454bb1f76ccb7e43a361e",
+      "readbackSha256": "83f39ff897621cb4eb45e056a4abb80db56dea36d7db4b18749bbb96f9949feb"
+    }
+  ],
+  "focusedRegressions": {
+    "primarySchedulingAndLifetime": {
+      "pass": 7,
+      "fail": 0
+    },
+    "primarySupervisorRealProcesses": {
+      "pass": 4,
+      "fail": 0
+    },
+    "independentSchedulingAndAuthority": {
+      "pass": 7,
+      "fail": 0
+    },
+    "independentSupervisorAfterFix": {
+      "pass": 7,
+      "fail": 0
+    },
+    "actualCancelRam": {
+      "pass": 1,
+      "fail": 0
+    },
+    "reuseUnchangedSecurityAndSigkill": {
+      "pass": 18,
+      "fail": 0
+    }
+  },
+  "fullMonitoredSixJobs": "NOT_RUN: focused whole-service gates failed; zero final jobs newly completed, preserved algorithm6/6 twice is not monitored acceptance",
+  "stage6Runtime": "NO-GO",
+  "production": "NO-GO",
+  "independentReview": "no retained safety P0/P1; whole runtime NO-GO",
+  "limitations": [
+    "one same-process1CPU PREPARATION TypeError unlocalized, no causal claim",
+    "three Morning Briefs delivered once but fullSYNC424/webhook503",
+    "strict Morning5s modeled transaction timeout, not verified Production setting",
+    "independent physical databases do not qualify shared-database contention",
+    "partial late-unit memory only, not repeated complete multi-job qualification",
+    "parent provider call counter excludes child; internal network is separate egress boundary",
+    "Stage7v33/Stage8v34 source/contracts untouched, not newly qualified"
+  ],
+  "finalMinimumConfiguration": {
+    "fullServicePass": false,
+    "cpu": 1,
+    "drainMs": 22644.343343,
+    "drain": {
+      "version": 2,
+      "releaseSha": "12656c7920cd6eb217f099c59234736e1a531b18",
+      "phase": "STAGE6_DRAIN",
+      "source": "manual",
+      "outcome": "PARTIAL",
+      "durationMs": 20257.676592,
+      "jobsConsidered": 1,
+      "itemsAttempted": 1,
+      "itemsProcessed": 1,
+      "jobsCompleted": 0,
+      "jobsFailed": 0,
+      "remainingJobs": 2,
+      "identity": "205b7105ae0e395a539928bbd02bfa2d4f01516c4cbc9011e840e69d293236ee",
+      "configProof": "8dd51545dd7cf152ad3d31c878840ea4d8caa4c4e2f83fe0ca00a3346f40089c",
+      "completion": "PARTIAL",
+      "stopReason": "ITEM_LIMIT",
+      "executionMode": "SHADOW",
+      "finishedAt": 1791976227520,
+      "executionSeq": 83,
+      "settlementState": "FINALIZED_SUCCESS",
+      "finalizedAt": 1791976228184
+    },
+    "childCapacity": {
+      "active": false,
+      "lastPublication": {
+        "preparationMs": 10423.163004000002,
+        "transactionMs": 1625.328792999997,
+        "statements": 3793,
+        "snapshotGroups": 96,
+        "snapshotBytes": 3652475,
+        "workUsage": {
+          "prefixReadSets": 49,
+          "operations": 190,
+          "bytes": 193535
+        }
+      },
+      "heapLimit": 106954752,
+      "rss": 329330688
+    },
+    "childMetrics": {
+      "linux": "v22.23.2",
+      "architecture": "arm64",
+      "limits": {
+        "memoryMax": 536870912,
+        "swapMax": "0",
+        "cpuMax": "100000 100000",
+        "heapLimit": 106954752
+      },
+      "processes": [
+        {
+          "pid": 1,
+          "command": "npm exec node -",
+          "rssBytes": 79814656
+        },
+        {
+          "pid": 19,
+          "command": "sh",
+          "rssBytes": 1425408
+        },
+        {
+          "pid": 20,
+          "command": "node",
+          "rssBytes": 128548864
+        },
+        {
+          "pid": 57,
+          "command": "node",
+          "rssBytes": 329703424
+        }
+      ],
+      "elapsedMs": 22252.83926,
+      "cgroupPeak": 395890688,
+      "cgroupCurrent": 372215808,
+      "memoryEvents": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "cpuDelta": {
+        "usage_usec": 8027764,
+        "user_usec": 7441533,
+        "system_usec": 586230,
+        "nice_usec": 0,
+        "nr_periods": 222,
+        "nr_throttled": 56,
+        "throttled_usec": 3317322,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "processPeaks": {
+        "rss": 329330688,
+        "heapUsed": 86975752,
+        "external": 19619689,
+        "arrayBuffers": 15785943
+      },
+      "samples": 622,
+      "gc": {
+        "count": 1529,
+        "totalMs": 1221.5906939785928,
+        "maxMs": 56.17958400025964
+      },
+      "eventLoop": {
+        "maxMs": 4622.123007,
+        "p99Ms": 57.081855
+      },
+      "resourceUsage": {
+        "userCPUTime": 6650821,
+        "systemCPUTime": 503759,
+        "maxRSS": 345776,
+        "sharedMemorySize": 0,
+        "unsharedDataSize": 0,
+        "unsharedStackSize": 0,
+        "minorPageFault": 93277,
+        "majorPageFault": 0,
+        "swappedOut": 0,
+        "fsRead": 0,
+        "fsWrite": 0,
+        "ipcSent": 0,
+        "ipcReceived": 0,
+        "signalsCount": 0,
+        "voluntaryContextSwitches": 10207,
+        "involuntaryContextSwitches": 513
+      }
+    },
+    "childScopes": {
+      "created": 2,
+      "retired": 2,
+      "disabled": 16,
+      "liveReceivers": 0,
+      "activeCallbacks": 0,
+      "liveScopes": 0
+    },
+    "parentMetrics": {
+      "linux": "v22.23.2",
+      "architecture": "arm64",
+      "limits": {
+        "memoryMax": 536870912,
+        "swapMax": "0",
+        "cpuMax": "100000 100000",
+        "heapLimit": 106954752
+      },
+      "processes": [
+        {
+          "pid": 1,
+          "command": "npm exec node -",
+          "rssBytes": 79814656
+        },
+        {
+          "pid": 19,
+          "command": "sh",
+          "rssBytes": 1425408
+        },
+        {
+          "pid": 20,
+          "command": "node",
+          "rssBytes": 135147520
+        }
+      ],
+      "elapsedMs": 122671.402473,
+      "cgroupPeak": 395890688,
+      "cgroupCurrent": 108302336,
+      "memoryEvents": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "cpuDelta": {
+        "usage_usec": 15730314,
+        "user_usec": 14359459,
+        "system_usec": 1370855,
+        "nice_usec": 0,
+        "nr_periods": 1226,
+        "nr_throttled": 61,
+        "throttled_usec": 3606606,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "processPeaks": {
+        "rss": 134963200,
+        "heapUsed": 32979904,
+        "external": 5206023,
+        "arrayBuffers": 1078422
+      },
+      "samples": 4500,
+      "gc": {
+        "count": 421,
+        "totalMs": 504.464250985533,
+        "maxMs": 32.415541999042034
+      },
+      "eventLoop": {
+        "maxMs": 73.334783,
+        "p99Ms": 31.014911
+      },
+      "resourceUsage": {
+        "userCPUTime": 8002126,
+        "systemCPUTime": 799002,
+        "maxRSS": 131800,
+        "sharedMemorySize": 0,
+        "unsharedDataSize": 0,
+        "unsharedStackSize": 0,
+        "minorPageFault": 49824,
+        "majorPageFault": 0,
+        "swappedOut": 0,
+        "fsRead": 0,
+        "fsWrite": 0,
+        "ipcSent": 0,
+        "ipcReceived": 0,
+        "signalsCount": 0,
+        "voluntaryContextSwitches": 13115,
+        "involuntaryContextSwitches": 671
+      }
+    },
+    "afterClose": {
+      "metrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 79814656
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1425408
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 137363456
+          }
+        ],
+        "elapsedMs": 127102.157975,
+        "cgroupPeak": 395890688,
+        "cgroupCurrent": 110387200,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 16175155,
+          "user_usec": 14745110,
+          "system_usec": 1430045,
+          "nice_usec": 0,
+          "nr_periods": 1270,
+          "nr_throttled": 61,
+          "throttled_usec": 3606606,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 146485248,
+          "heapUsed": 33094408,
+          "external": 8443832,
+          "arrayBuffers": 3748797
+        },
+        "samples": 4664,
+        "gc": {
+          "count": 462,
+          "totalMs": 529.2753719873726,
+          "maxMs": 32.415541999042034
+        },
+        "eventLoop": {
+          "maxMs": 78.577663,
+          "p99Ms": 31.145983
+        },
+        "resourceUsage": {
+          "userCPUTime": 8385833,
+          "systemCPUTime": 857475,
+          "maxRSS": 144176,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 59442,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 13677,
+          "involuntaryContextSwitches": 693
+        }
+      },
+      "scopes": {
+        "created": 4,
+        "retired": 4,
+        "disabled": 25,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "realProviderRequests": 0
+    },
+    "healthMaxMs": 41.9449159999931,
+    "healthProbeCount": 458,
+    "headroomPercent": 26.259613037109375,
+    "syncMs": 118320.89538799999,
+    "syncStatus": 424,
+    "webhookStatus": 503,
+    "retryStatus": 503,
+    "sends": [
+      "1001",
+      "1002",
+      "1003"
+    ],
+    "claims": [
+      {
+        "user_id": "alice",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "bob",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      },
+      {
+        "user_id": "lan",
+        "delivery_state": "DELIVERED",
+        "delivery_attempts": 1
+      }
+    ],
+    "modelCounts": [
+      [
+        "alice",
+        1
+      ],
+      [
+        "bob",
+        1
+      ],
+      [
+        "lan",
+        1
+      ]
+    ],
+    "morningTimeouts": [
+      {
+        "event": "transaction_timeout",
+        "ageMs": 5107,
+        "limitMs": 5000
+      },
+      {
+        "event": "transaction_timeout",
+        "ageMs": 5093,
+        "limitMs": 5000
+      },
+      {
+        "event": "transaction_timeout",
+        "ageMs": 5114,
+        "limitMs": 5000
+      },
+      {
+        "event": "transaction_timeout",
+        "ageMs": 5074,
+        "limitMs": 5000
+      },
+      {
+        "event": "transaction_timeout",
+        "ageMs": 5118,
+        "limitMs": 5000
+      },
+      {
+        "event": "transaction_timeout",
+        "ageMs": 5095,
+        "limitMs": 5000
+      },
+      {
+        "event": "transaction_timeout",
+        "ageMs": 5056,
+        "limitMs": 5000
+      },
+      {
+        "event": "transaction_timeout",
+        "ageMs": 5025,
+        "limitMs": 5000
+      }
+    ],
+    "currentSignedProof": {
+      "signedOperationReceipts": 19,
+      "finalizedProducerHmacs": 79,
+      "workReceipts": 376,
+      "noDuplicateRuns": true,
+      "domainProof": {
+        "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+        "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+        "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+        "inputGeneration": 8,
+        "sourceGeneration": 8,
+        "receiptHmac": true,
+        "producerHmac": true,
+        "exactNamedAck": true
+      }
+    },
+    "newAssociationCursorProof": {
+      "executionId": "50d4025d-5958-406b-8f13-d5d15efc7307",
+      "newOperations": [
+        {
+          "operationKind": "analyzeAssociationFamily",
+          "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+          "executionId": "50d4025d-5958-406b-8f13-d5d15efc7307",
+          "producingGeneration": 1,
+          "workKind": "stage6.associations",
+          "receiptKey": "19453cbf596041312782c0d00f3bfd0784b9105ea11418b2ffcd7657e77d6299",
+          "exactNamedAck": true
+        }
+      ],
+      "cursor": {
+        "jobKind": "RECOMPUTE_DERIVED",
+        "cursor": "[\"sleep\",\"sleep-00\"]",
+        "receiptKey": "cd68313bcf68c24c33a201ed0fa9c1afe63b6c55061f5d1975fe2ca36c993bff",
+        "exactNamedAck": true
+      }
+    },
+    "tapSha256": "48190e42c9cf5c692a6c7ef25ac8c7d9cfe494f53f6acdaa57df090ba1374ed7"
+  },
+  "finalCrash": {
+    "kill": {
+      "synthetic": true,
+      "originalCommitMarker": {
+        "synthetic": true,
+        "originalCommitDurable": true,
+        "at": 1791976306520
+      },
+      "state": {
+        "ExitCode": 137,
+        "OOMKilled": false,
+        "FinishedAt": "2026-10-14T11:11:46.654686346Z"
+      },
+      "cgroupAtOriginalAckWait": "325873664\nusage_usec 9041291\nuser_usec 8008029\nsystem_usec 1033261\nnice_usec 0\nnr_periods 244\nnr_throttled 72\nthrottled_usec 3191282\nnr_bursts 0\nburst_usec 0\nlow 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0\n"
+    },
+    "recovery": {
+      "synthetic": true,
+      "result": {
+        "status": 200,
+        "body": {
+          "ok": true,
+          "phase": "STAGE6_DRAIN",
+          "source": "manual",
+          "result": {
+            "version": 2,
+            "releaseSha": "12656c7920cd6eb217f099c59234736e1a531b18",
+            "phase": "STAGE6_DRAIN",
+            "source": "manual",
+            "outcome": "PARTIAL",
+            "workReceipts": 5,
+            "jobsConsidered": 0,
+            "itemsAttempted": 0,
+            "itemsProcessed": 0,
+            "jobsCompleted": 0,
+            "identity": "1100e3363a3c0c8189ed140bbb2d24c205cd201c728e136aaeec68adb969fae9",
+            "configProof": "7b379a6d39dee1382fa27bd0ca5343c6d0ecee2c33f57e949ab605296bd432ea",
+            "completion": "PARTIAL",
+            "stopReason": "RECONCILIATION_ONLY",
+            "executionMode": "SHADOW",
+            "finishedAt": 1791976380826,
+            "executionSeq": 83,
+            "settlementState": "FINALIZED_SUCCESS",
+            "finalizedAt": 1791976381520
+          },
+          "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+        }
+      },
+      "recoveryMs": 10383.466921999992,
+      "proof": {
+        "signedOperationReceipts": 19,
+        "finalizedProducerHmacs": 79,
+        "workReceipts": 376,
+        "noDuplicateRuns": true,
+        "domainProof": {
+          "operationKey": "bd56f7fc2bae5e0cb7943a0b0a8b99137b4c81924343e425a1be08596116e4d1",
+          "receiptKey": "8fc066380f75f75c000791f6909e7c154ba738aee63a8df56012879ccbfecf1a",
+          "producerExecutionId": "ca29230a-cf28-41ad-80d9-c99125c48ab2",
+          "inputGeneration": 8,
+          "sourceGeneration": 8,
+          "receiptHmac": true,
+          "producerHmac": true,
+          "exactNamedAck": true
+        }
+      },
+      "current": {
+        "executionId": "0fa773f1-43dc-41a4-8370-c6884e96a338",
+        "newOperations": [
+          {
+            "operationKind": "analyzeAssociationFamily",
+            "operationKey": "65e8e3761439dfdd5f22931e103d123ea3478034074be48e008358a41fc3f24a",
+            "executionId": "0fa773f1-43dc-41a4-8370-c6884e96a338",
+            "producingGeneration": 1,
+            "workKind": "stage6.associations",
+            "receiptKey": "e487573e2f808ddcb8d2ef9f37edd1b0fe6956172b3cf39a89ff4fa4298dc772",
+            "exactNamedAck": true
+          }
+        ],
+        "cursor": {
+          "jobKind": "RECOMPUTE_DERIVED",
+          "cursor": "[\"sleep\",\"sleep-00\"]",
+          "receiptKey": "1130b998e6720b0afe348439195302c3aeb2d1bb846cf79a703563aafaeb674c",
+          "exactNamedAck": true
+        }
+      },
+      "permitAttempts": 1,
+      "metrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 78295040
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1425408
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 110166016
+          }
+        ],
+        "elapsedMs": 79272.02216000001,
+        "cgroupPeak": 101502976,
+        "cgroupCurrent": 87019520,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 2413761,
+          "user_usec": 1842643,
+          "system_usec": 571117,
+          "nice_usec": 0,
+          "nr_periods": 778,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 119853056,
+          "heapUsed": 29031888,
+          "external": 7998945,
+          "arrayBuffers": 3895331
+        },
+        "samples": 2892,
+        "gc": {
+          "count": 78,
+          "totalMs": 85.30695599131286,
+          "maxMs": 8.161499999463558
+        },
+        "eventLoop": {
+          "maxMs": 75.300863,
+          "p99Ms": 30.261247
+        },
+        "resourceUsage": {
+          "userCPUTime": 2098971,
+          "systemCPUTime": 572345,
+          "maxRSS": 117904,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 43112,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 6149,
+          "involuntaryContextSwitches": 133
+        }
+      }
+    },
+    "success": {
+      "outcome": "PARTIAL",
+      "settlement": "FINALIZED_SUCCESS",
+      "receipts": 19,
+      "producers": 79,
+      "work": 376,
+      "permitAttempts": 1
+    },
+    "afterClose": {
+      "metrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 536870912,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "npm exec node -",
+            "rssBytes": 78295040
+          },
+          {
+            "pid": 19,
+            "command": "sh",
+            "rssBytes": 1425408
+          },
+          {
+            "pid": 20,
+            "command": "node",
+            "rssBytes": 110170112
+          }
+        ],
+        "elapsedMs": 79277.502244,
+        "cgroupPeak": 101502976,
+        "cgroupCurrent": 87019520,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 2419818,
+          "user_usec": 1847479,
+          "system_usec": 572338,
+          "nice_usec": 0,
+          "nr_periods": 779,
+          "nr_throttled": 0,
+          "throttled_usec": 0,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 119853056,
+          "heapUsed": 29031888,
+          "external": 7998945,
+          "arrayBuffers": 3895331
+        },
+        "samples": 2893,
+        "gc": {
+          "count": 79,
+          "totalMs": 86.38849799148738,
+          "maxMs": 8.161499999463558
+        },
+        "eventLoop": {
+          "maxMs": 75.300863,
+          "p99Ms": 30.261247
+        },
+        "resourceUsage": {
+          "userCPUTime": 2103011,
+          "systemCPUTime": 573540,
+          "maxRSS": 117904,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 43129,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 8,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 6163,
+          "involuntaryContextSwitches": 133
+        }
+      },
+      "scopes": {
+        "created": 3,
+        "retired": 3,
+        "disabled": 19,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      }
+    },
+    "recoveryTapSha256": "13a4e55c573f45951c84ad80e80041cb70913778469d52b65bbb9c912ac70616"
+  },
+  "recommendation": {
+    "nextLocalIntegration": "one managed bounded DRAIN child/event loop with original grants/deadlines and terminal cancellation; no production helper integrated here",
+    "minimumMeasuredCpu": 1,
+    "testedWholeCgroupMemoryMiB": 512,
+    "maximumMeasuredCombinedPeakBytes": 395890688,
+    "recommendedRenderPlan": "1c-2g",
+    "sameServiceComputeUsdPerMonth": 25,
+    "currentComputeUsdPerMonth": 7,
+    "sameServiceIncrementUsdPerMonth": 18,
+    "separate1CpuWorkerPlusExistingServiceUsdPerMonth": 32,
+    "sameService2CpuUsdPerMonth": 85,
+    "costSource": "https://render.com/pricing",
+    "noPurchase": true,
+    "fullConfigurationProven": false
+  }
+}

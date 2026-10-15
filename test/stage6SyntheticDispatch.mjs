@@ -6,6 +6,8 @@ import {canonicalPhaseRequest} from '../src/phase4ExecutionStore.js';
 import {bodySha256} from '../src/briefingTriggerAuth.js';
 import {decodeState} from './stage6SyntheticState.mjs';
 import {canRetryUnadmittedStartup,observeUnadmittedStartup} from './stage6SyntheticStartupRecovery.mjs';
+import {requireSignedApproval,accountingIdentity,digest} from './stage6SyntheticManifest.mjs';
+import {terminalPredecessorMetadata} from './stage6SyntheticControllerContract.mjs';
 const fail=code=>{throw Object.assign(Error(code),{code});};
 export const syntheticDispatchJobsSql='SELECT user_id,job_kind,state,requested_generation,scope_revision,completed_generation,full_scan_cursor,lease_owner,last_error_code,attempt FROM phase4_jobs WHERE user_id=? ORDER BY user_id,job_kind';
 export function createSyntheticDispatchJournal({db,keys,origin,databaseId,manifestDigest,codeSha,tenantIds,endpoint='http://127.0.0.1:8082/drain'}){
@@ -37,7 +39,7 @@ export function createSyntheticDispatchJournal({db,keys,origin,databaseId,manife
    if(ledger.databaseId!==databaseId||ledger.closed||!Number.isSafeInteger(campaign.observed_at)||campaign.observed_at<ledger.lastObservedAt||campaign.observed_at>=ledger.endAt||ledger.attempts>=4096||ledger.scopes.qualification>=4093)fail('SYNTHETIC_DISPATCH_CAMPAIGN_CLOSED');
    const window={startAt:ledger.startAt,endAt:ledger.endAt};
    const p=await read(pointer),r=await read(component(request.requestId));
-   if(p.value&&p.value.requestId!==request.requestId){const old=await read(component(p.value.requestId));if(old.value?.completed!==true)fail('SYNTHETIC_DISPATCH_ACTIVE_REQUEST');}
+   if(p.value&&p.value.requestId!==request.requestId){const old=await read(component(p.value.requestId));if(old.value?.completed!==true&&!old.value?.retiredFailure)fail('SYNTHETIC_DISPATCH_ACTIVE_REQUEST');}
    let v=r.value;if(v){requireIdentity(v,userId,request);if(!isDeepStrictEqual(v.window,window))fail('SYNTHETIC_DISPATCH_WINDOW_MISMATCH');if(v.completed||v.attempts.length!==1||v.attempts[0].state!=='RETRY_READY')fail('SYNTHETIC_DISPATCH_SPENT_OR_UNCERTAIN');await retryProof(v);}
    else{const rows=beforeJobs.filter(j=>j.user_id===userId);if(rows.length!==2||new Set(rows.map(j=>j.job_kind)).size!==2)fail('SYNTHETIC_DISPATCH_JOB_SNAPSHOT_REQUIRED');v={...common,kind:'REQUEST',codeSha,manifestDigest,userId,request,bodySha:bodySha256(canonicalPhaseRequest(request)),revision:0,beforeJobs:rows,window,completed:false,attempts:[]};}
    const a={id:randomUUID(),number:v.attempts.length+1,state:'RESERVED',reservedAt:campaign.observed_at,permitAttemptsBefore:ledger.attempts,permitScopesBefore:ledger.scopes},next={...v,revision:v.revision+1,attempts:[...v.attempts,a]};
@@ -49,6 +51,29 @@ export function createSyntheticDispatchJournal({db,keys,origin,databaseId,manife
    const r=await own(userId,request,dispatchId);if(r.value.completed||r.value.attempts.length!==1||r.attempt.state!=='RESPONSE')fail('SYNTHETIC_DISPATCH_RETRY_SPENT');
    const observation=await retryProof(r.value);
    r.attempt.state='RETRY_READY';r.attempt.zeroWorkObservation=observation;await update(r,r.value);return observation;
+  });},
+  async retireFailedPredecessor({certificate,request,userId}){return db.transaction(async()=>{
+   // Terminal failure is spent, never completed work or a retry permission.
+   // Authenticate the preceding code certificate and original server response,
+   // then freshly reconcile its exact terminal execution and bound receipts.
+   requireSignedApproval(certificate);const m=certificate.manifest;
+   if(accountingIdentity(certificate)!==origin||m.database.id!==databaseId||m.codeSha!==request.releaseSha||m.codeSha===codeSha
+     ||!m.tenants.some(t=>t.id===userId&&t.scope==='qualification'))fail('SYNTHETIC_DISPATCH_PREDECESSOR_REQUIRED');
+   const p=await read(pointer),r=await read(component(request.requestId)),v=r.value,a=v?.attempts.at(-1);
+   if(p.value?.requestId!==request.requestId||!v||v.completed||v.userId!==userId||v.codeSha!==m.codeSha||v.manifestDigest!==digest(m)
+     ||!isDeepStrictEqual(v.request,request)||v.bodySha!==bodySha256(canonicalPhaseRequest(request))
+     ||a?.state!=='RESPONSE'||a.response?.status!==424||a.responseSha!==bodySha256(JSON.stringify(a.response)))fail('SYNTHETIC_DISPATCH_PREDECESSOR_REQUIRED');
+   const row=(await db.raw.execute({sql:'SELECT * FROM phase4_executions WHERE execution_id=?',args:[request.requestId]})).rows[0],
+     work=(await db.raw.execute({sql:'SELECT * FROM phase4_execution_work_receipts WHERE execution_id=?',args:[request.requestId]})).rows;
+   const {settlementState,executionSeq,finalizedAt,...recordedResult}=a.response.body?.result??{};
+   if(a.response.body?.ok!==false||settlementState!=='FINALIZED_FAILURE'||executionSeq!==row?.execution_seq||finalizedAt!==row?.finalized_at
+     ||!isDeepStrictEqual(recordedResult,JSON.parse(row?.result_json??'null')))fail('SYNTHETIC_DISPATCH_PREDECESSOR_REQUIRED');
+   if(terminalPredecessorMetadata(request,row,work,{requestId:request.requestId,status:a.response.status})!=='FAILURE'
+     ||(await db.raw.execute({sql:'SELECT 1 FROM phase4_execution_producers WHERE producing_execution_id=?',args:[request.requestId]})).rows.length)
+     fail('SYNTHETIC_DISPATCH_PREDECESSOR_REQUIRED');
+   const proof={generation:row.generation,finalizedAt:row.finalized_at,resultDigest:row.result_digest};
+   if(v.retiredFailure){if(!isDeepStrictEqual(v.retiredFailure,proof))fail('SYNTHETIC_DISPATCH_PREDECESSOR_REQUIRED');return;}
+   v.retiredFailure=proof;await update(r,v);
   });},
   async complete({userId,request,dispatchId,response,metadataReconciliation=false}){return db.transaction(async()=>{
    const r=await own(userId,request,dispatchId);if(r.value.completed){if(r.value.completionSha!==bodySha256(JSON.stringify(response)))fail('SYNTHETIC_DISPATCH_COMPLETION_MISMATCH');return;}

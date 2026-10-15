@@ -1,10 +1,10 @@
 // Test-only observations. Never changes SQL, authority, results or deadlines.
 import {writeFileSync} from 'node:fs';
-export function createSyntheticDiagnostics(path){
- const phases=[],active=new Map(),totals=new Map();let preparedResult;
+export function createSyntheticDiagnostics(path,operationId=null){
+ const phases=[],failures=[],active=new Map(),totals=new Map();let preparedResult;
  const begin=label=>{const token={label,at:performance.now(),cpu:process.cpuUsage(),ramFacadeCalls:0};active.set(token,true);return token;};
  const end=token=>{if(!token||!active.delete(token))return;const cpu=process.cpuUsage(token.cpu);phases.push({label:token.label,wallMs:performance.now()-token.at,cpuMs:(cpu.user+cpu.system)/1000,ramFacadeCalls:token.ramFacadeCalls});};
- const api={begin,end,sql(){for(const t of active.keys())t.ramFacadeCalls++;},result(value){preparedResult=value;},sync(label,fn){const at=performance.now();try{return fn();}finally{const total=totals.get(label)??{calls:0,wallMs:0};total.calls++;total.wallMs+=performance.now()-at;totals.set(label,total);}},close(){for(const t of [...active.keys()]){end(t);phases.at(-1).incomplete=true;}const result={diagnosticOnly:true,phases,syncTotals:Object.fromEntries(totals),preparedResult,ramCountScope:'Facade execute calls, including original cache/guard reentry; not a physical SQL count. Nested phase counts overlap.'};writeFileSync(path,JSON.stringify(result));if(globalThis.__stage6SyntheticDiagnostic===api)delete globalThis.__stage6SyntheticDiagnostic;return result;}};
+ const api={begin,end,failure(error,{workGeneration,failureStage}={}){failures.push({operationId,workGeneration,failureStage,type:/^[A-Za-z]{1,40}$/.test(error?.name)?error.name:'Error',code:/^[A-Z0-9_]{1,100}$/.test(error?.code)?error.code:'UNKNOWN',frames:[...String(error?.stack??'').matchAll(/(?:src|test)\/[A-Za-z0-9_.-]+:[0-9]+:[0-9]+/g)].map(x=>x[0])});},sql(){for(const t of active.keys())t.ramFacadeCalls++;},result(value){preparedResult=value;},sync(label,fn){const at=performance.now();try{return fn();}finally{const total=totals.get(label)??{calls:0,wallMs:0};total.calls++;total.wallMs+=performance.now()-at;totals.set(label,total);}},close(){for(const t of [...active.keys()]){end(t);phases.at(-1).incomplete=true;}const result={diagnosticOnly:true,operationId,failures,phases,syncTotals:Object.fromEntries(totals),preparedResult,ramCountScope:'Facade execute calls, including original cache/guard reentry; not a physical SQL count. Nested phase counts overlap.'};writeFileSync(path,JSON.stringify(result));if(globalThis.__stage6SyntheticDiagnostic===api)delete globalThis.__stage6SyntheticDiagnostic;return result;}};
  globalThis.__stage6SyntheticDiagnostic=api;return api;
 }
 export function instrumentSyntheticSource(file,source){
@@ -20,6 +20,7 @@ export function instrumentSyntheticSource(file,source){
   replace('p.execution.pending.delete(pending);return {workUsage:',"globalThis.__stage6SyntheticDiagnostic?.end(publicationPhase);p.execution.pending.delete(pending);return {workUsage:");
  }
  if(file==='src/phase4Reanalysis.js'){
+  replace("units.push({kind:'EPISODE_FAMILY',familyKey:candidate.familyKey,status:'UNRESOLVED',code:error?.code??'UNKNOWN'});","globalThis.__stage6SyntheticDiagnostic?.failure(error,{workGeneration:context.inputGeneration,failureStage:'METRIC_FAMILY'});units.push({kind:'EPISODE_FAMILY',familyKey:candidate.familyKey,status:'UNRESOLVED',code:error?.code??'UNKNOWN'});");
   replace('async function metricsV30(context,req,lease,assertBudget,{preparedDefault=false,defaultReplay=null}={}) {',"async function metricsV30(context,req,lease,assertBudget,{preparedDefault=false,defaultReplay=null}={}) {const diagnostic=globalThis.__stage6SyntheticDiagnostic,phase=diagnostic?.begin('METRIC_FAMILIES');try{");
   replace("return {kind:'METRIC_FAMILIES',status:firstFailure?'UNRESOLVED':'COMPLETE',failure:firstFailure,units};\n  }", "return {kind:'METRIC_FAMILIES',status:firstFailure?'UNRESOLVED':'COMPLETE',failure:firstFailure,units};\n  }finally{diagnostic?.end(phase);}}");
   replace('async function associations(context,metricKey,asOfUtc) {',"async function associations(context,metricKey,asOfUtc) {const diagnostic=globalThis.__stage6SyntheticDiagnostic,phase=diagnostic?.begin('ASSOCIATIONS');try{");

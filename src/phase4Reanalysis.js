@@ -131,6 +131,17 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     const result=await metric(context,{...req,windowFamily},precise,{replayOnly,replayPrepared});
     const settled=await familyDirectory.inventory(context,req.metricKey),
       owned=settled.entries.find(row=>row.family_key===candidate.familyKey);
+    // The default family need not exist when the original authenticated
+    // DOMAIN calculation legitimately produces no episode. Its complete
+    // precise inventory must prove absence; missing registered/custom work
+    // and every non-empty lifecycle outcome still require the signed tip.
+    // This is no additional durable family unit. The caller must finish all
+    // remaining source work and publish the original fenced cursor ACK.
+    if(reportCompletion&&!owned&&!entry&&candidate.familyKey===defaultKey
+      &&!current.unknownEntries.length&&!settled.unknownEntries.length
+      &&precise.latest.size===0&&precise.histories.size===0
+      &&['VALID_INSUFFICIENT_METRIC_QUALITY','VALID_NO_EPISODE','VALID_EXPIRED_EVIDENCE'].includes(result))
+      return {outcome:result,newlyCompleted:false};
     return complete(result,owned);
   }
 

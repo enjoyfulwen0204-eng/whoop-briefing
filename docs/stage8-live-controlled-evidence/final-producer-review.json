@@ -1,0 +1,280 @@
+{
+  "type": "INDEPENDENT_SECURITY_AND_FUNCTIONAL_LIVE_PRODUCER_DELTA_REVIEW",
+  "reviewedHead": "e941fdac95aaeaa4028900e214f428051f7b0073",
+  "reviewedTree": "0a33c6a5960814e07ccbcb78933ae3ac22967ee0",
+  "reviewedAdditionalDelta": {
+    "file": "src/stage8LivePublication.js",
+    "sha256": "ff9a9d2359796bf27d462f07245d7261653c657f59b525eb4ec5e198a4164fa0",
+    "exactSingleReplacement": true,
+    "description": "NULL-safe producer metadata pre-transfer byte-bound expression; finalized nonnull successful execution semantics unchanged."
+  },
+  "finalSuccessorCommitBinding": "PENDING_IMPLEMENTER_FREEZE",
+  "verdicts": {
+    "authenticatedLiveProducerDeltaSource": "GO",
+    "wholeStage8CodeAcceptance": "NO_GO",
+    "production": "NO_GO"
+  },
+  "findings": [],
+  "scope": "Closed, server-owned opt-in v35 analysis producer and typed-reader/security/privacy delta. No automatic scheduler, LIVE proactive alert producer, Production delivery, Stage6 runtime/capacity or native stability acceptance is inferred.",
+  "sourceIntegrity": {
+    "changedSrcFiles": 47,
+    "allMatchFrozenCommit": true,
+    "unchangedAcceptedFiles": [
+      {
+        "file": "src/bot/triage.js",
+        "acceptedExact": true,
+        "sha256": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d"
+      },
+      {
+        "file": "src/bot/safetyGate.js",
+        "acceptedExact": true,
+        "sha256": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d"
+      },
+      {
+        "file": "src/phase4V33Schema.js",
+        "acceptedExact": true,
+        "sha256": "c1ea62e295d6b6982b7e185b110c29e1baef835c9c0290994bde24312afaed5c"
+      },
+      {
+        "file": "src/phase4V34Schema.js",
+        "acceptedExact": true,
+        "sha256": "09b20f9de966d3cb06d0eed4f40ba44552b98506a37e8d177ad5459fa08be8bd"
+      }
+    ],
+    "reviewedStage7Ancestor": true,
+    "snapshot": "/private/tmp/stage8-live-producer-completion/final-review-snapshot",
+    "snapshotTrackedDiff": "",
+    "temporaryDependencySymlinkRemoved": true,
+    "implementationFilesEditedByReviewer": false
+  },
+  "authorizationAndSchema": [
+    {
+      "evidence": [
+        "src/stage8LiveProducer.js:14",
+        "src/stage8LiveProducerAuthority.js:5",
+        "src/phase4Core.js:98"
+      ],
+      "result": "GO",
+      "detail": "Explicit admitted35 producing capability is private WeakMap identity, binds admitted db/key/transaction, actual running checkout release/configuration/cohort and live policy; read authority and SHADOW worker cannot authorize LIVE writes. Registered frozen execution must carry the matching full tenant scope."
+    },
+    {
+      "evidence": [
+        "src/phase4V35Schema.js:1",
+        "src/stage8LiveAllocation.js:1",
+        "src/runtimeAdmission.js:125",
+        "src/migrations.js:92"
+      ],
+      "result": "GO_SYNTHETIC_ONLY",
+      "detail": "LIVE-only sibling allocation and immutable completion/publication metadata preserve frozen v26/v27/v29/v30/v32/v33/v34 DDL. Default fresh migration stays34;35 opt-in. Existing35 default startup validates35 rather than silently downgrading/upgrading. Independent schema review and final certificate/allocation tests cover no-replace, proof shape, safe integers, missing original receipt FK, tampered schema and interrupted migration."
+    }
+  ],
+  "computationAndProofs": [
+    {
+      "evidence": [
+        "src/stage8LiveProducer.js:28",
+        "src/phase4Reanalysis.js:54",
+        "src/phase4ReanalysisQueue.js:143"
+      ],
+      "detail": "Calls original canonical metric/source/family/association computation under private LIVE grant and genuine job lease; does not copy or relabel SHADOW output. Both jobs require opaque EOF/family-complete proof. LIVE completion row and original named receipt are atomic through the existing COMMIT transaction/deferred FK."
+    },
+    {
+      "evidence": [
+        "src/stage8LivePublication.js:71",
+        "src/stage8LivePublication.js:31",
+        "src/stage8LiveExecution.js:67"
+      ],
+      "detail": "Reconstructs original named completion key, exact tenant/parent membership, HMAC, request/scope digest, execution sequence and generation1. Requires successful original finalization before created_at+45000; generation2 crash recovery cannot prove current aggregate. Sealed result, current artifacts and producer manifests are signed and reverified by readers. Certificate TTL15min immutable."
+    },
+    {
+      "evidence": [
+        "src/stage8LiveProducer.js:40",
+        "src/stage8LiveExecution.js:60"
+      ],
+      "detail": "Expired/corrupt/failure/late production drives a genuine new input-generation FULL recomputation, preserving actual source generation. FAILED becomes FINALIZED_FAILURE; same-request replay is sealed and performs no work."
+    }
+  ],
+  "privacyAndBoundaries": [
+    {
+      "evidence": [
+        "src/stage8DerivedReader.js:24",
+        "src/scopedHealthContext.js:20",
+        "src/stage8Runtime.js:30"
+      ],
+      "detail": "Self-only authenticated scope/eligible cohort, same user/mode/generation, provider-required fresh context. Every selected typed artifact still authenticates its original receipt/parent/source graph; current-empty requires full certificate. SHADOW, caller metadata, stale generations and peer context cannot substitute."
+    },
+    {
+      "evidence": [
+        "src/stage8OwnerMonitoring.js:81",
+        "src/stage8OwnerMonitoring.js:104",
+        "src/stage8OwnerMonitoring.js:119"
+      ],
+      "detail": "Owner capability remains a separately authenticated dual principal and explicitly configured enrolled subject subscription; enrollment revision/auth/lifecycle/follow/destination fences remain. Genuine subjectb computation did not create follows/alerts or peer Coach access. Daily positive approved plan; weekly no qualifying content and important no approved current alert were tested as policy-negative paths, not positive LIVE delivery acceptance."
+    },
+    {
+      "evidence": [
+        "src/phase4Stage5Privacy.js:19",
+        "src/phase4Redaction.js:41",
+        "test/stage8-live-pipeline.test.js:38"
+      ],
+      "detail": "Both mode namespaces included in authenticated privacy inventory and redaction. Real canonical LIVE Journal purge blocked reader/producer while pending, physically nulled LIVE health receipt fields and invalidated prior certificate; peer unaffected. Routing/directory/completion/publication remain opaque metadata."
+    },
+    {
+      "evidence": [
+        "src/stage8LiveProducer.js:65",
+        "src/stage8LiveProducer.js:69",
+        "/private/tmp/stage8-live-producer-completion/independent-live-review.test.js"
+      ],
+      "detail": "Fresh READY/eligible/provider/lifecycle/purge runtime fence covers execution and publication. Independent enrollment mutation at publication INSERT rolled back the entire certificate; authorized retry succeeded. Numeric selected-root raw revocation fails PHASE4_RESOURCE_FENCED; actual public recordResourceAccess advances source generation and prior certificate returns UPDATING without affecting peer."
+    }
+  ],
+  "tests": {
+    "independentRuns": [
+      {
+        "file": "/private/tmp/stage8-live-producer-completion/final-review-tests.tap",
+        "sha256": "8f508564b7634714cb9a939947b03838a4c9962e8fad3758b23eb7a39afe4105",
+        "tests": 39,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "durationMs": 342616.704833
+      },
+      {
+        "file": "/private/tmp/stage8-live-producer-completion/final-review-admission-authority.tap",
+        "sha256": "1382a4cffc1358dc236ba0abd1f3c1f2e53b06c55d705512e4a034b5a6bfa2db",
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "durationMs": 310359.426541
+      },
+      {
+        "file": "/private/tmp/stage8-live-producer-completion/final-review-independent-probes.tap",
+        "sha256": "68e9e33a64a2be3512d34e2cbc6040ae55669bd845fc9602e97922eadeb24703",
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "durationMs": 71744.164875
+      },
+      {
+        "file": "/private/tmp/stage8-live-producer-completion/final-review-null-bound.tap",
+        "sha256": "f4c227db577b154796480d29e99eec7a94497203f6ae881b623cc8f022d14b71",
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "durationMs": 298.096292
+      }
+    ],
+    "totalDefinitions": 53,
+    "pass": 53,
+    "fail": 0
+  },
+  "genuineSyntheticOutput": {
+    "selfNumericBodyEnergy": "PASS",
+    "separatelyAuthorizedSubjectB": "PASS",
+    "typedKindsCurrent": "PASS_BODY_NUMERIC_AND_OTHER_REGISTERED_KINDS_CURRENT",
+    "shadowRejection": "PASS",
+    "tenantPrivacySecurity": "PASS",
+    "realChildCrashAndLostCommitAck": "PASS_2",
+    "unauthorizedDelivery": "NO_TRANSPORT_CALLED_OR_NEW_OUTBOUND_CREATED",
+    "productionOutput": "NOT_EXECUTED_OR_CLAIMED"
+  },
+  "retainedExploratoryFailure": {
+    "file": "final-review-independent-probes.initial.tap",
+    "nodeTests": 2,
+    "pass": 0,
+    "fail": 2,
+    "actualLeafFailures": 1,
+    "mechanism": "Initial reviewer probe deleted a resource row directly, bypassing source-generation invalidation on a2-day fixture that had no selected qualifying BODY item, and incorrectly required CURRENT-empty to become UPDATING. This is not treated as proof of unauthorized selected health exposure. Frozen initial test/evidence preserved. Seven-day positive numeric item, direct selected-root revocation and genuine public mutation subsequently verified independently without runtime edits.",
+    "initialSource": "independent-live-review.initial.test.js",
+    "intermediateVerifiedNumericRerun": "final-review-independent-probes.root-revocation.tap"
+  },
+  "performance": {
+    "readerSamplesMs": [
+      75.70345899999666,
+      83.19616600000154,
+      81.70691699999588,
+      86.56520799999998,
+      85.98574999999983
+    ],
+    "readerProcessMaxRssKiB": 476176,
+    "pipelineFixtureDurationMs": 113418.006417,
+    "pipelineProcessMaxRssKiB": 582304,
+    "pipelineBeforeBytes": {
+      "rss": 105840640,
+      "heapUsed": 29691000
+    },
+    "pipelineAfterBytes": {
+      "rss": 166133760,
+      "heapUsed": 72336560
+    },
+    "limits": "Producer metadata4096/16MiB; artifact aggregate10000/64MiB with pre-transfer SQL bounds and64-row paging; immutable15min publication TTL; original45s producing deadline retained.",
+    "interpretation": "Absolute concurrent local synthetic fixture/process measurements include schema/migration/admission/health graph/test overhead. No isolated before/after production performance or memory delta is claimed."
+  },
+  "knownSeparateDependencies": [
+    {
+      "id": "STAGE6_RECONCILIATION",
+      "status": "OPEN",
+      "observedHead": "d871515a6785cf25b2dda10aebb6190dd11b3d03",
+      "worktree": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+      "detail": "Observed only, not accepted/imported. Stage8 worktree inode77664211 vsStage6 inode71452797 proves physical separation; reviewer did not modify either. Reconcile final independently accepted Stage6 canonical changes in another controlled integration while preserving original unit/DOMAIN ACKs, rawOwned/DISCOVERY, cursor-after-family/association completion, INCOMPLETE/lease/resource/privacy boundaries and45s/15s limits. Full Stage6 runtime/shared SYNC/Morning/restart/capacity acceptance remains separate."
+    },
+    {
+      "id": "POSITIVE_WEEKLY_AND_IMPORTANT_INTEGRATION",
+      "status": "OPEN_FOR_WHOLE_STAGE8",
+      "detail": "Need qualifying SUPPORTED weekly association fixture plus reviewed authentic LIVE subject alert upstream/current DELIVERED-or-AMBIGUOUS policy path; none fabricated or inferred from NO_QUALIFYING_CONTENT/NO_APPROVED_CURRENT_ALERT. Producer computation alone does not create a proactive alert transport."
+    },
+    {
+      "id": "TRUSTED_SERVER_INVOCATION_AND_DEPLOYMENT",
+      "status": "OPEN_FOR_PRODUCTION",
+      "detail": "Closed runtime exposes opt-in analysis.run and rejects nested shared execution. Automatic post-SYNC scheduling/real delivery and explicit Production35 migration/activation are not implemented or exercised by this delta and require final integration/deployment approval."
+    },
+    {
+      "id": "NATIVE_SIGSEGV",
+      "status": "OPEN",
+      "detail": "Parent full affected invocation reproduced nativeSIGSEGV in unchanged stage7-delivery file. Independently parsed isolated unchanged rerun4/0 does not resolve the native process-health failure."
+    },
+    {
+      "id": "LEGACY_STAGE6_CAPACITY",
+      "status": "NOT_ACCEPTED_BY_THIS_REVIEW",
+      "detail": "Parent extended authority command entered unchanged target28/60-day worker capacity case with repeated bounded drain legs. Do not claim queued/skipped/interrupted cases passed; report exact eventual outcome separately."
+    },
+    {
+      "id": "F02",
+      "status": "OWNER_ACCEPTED_RISK_UNCHANGED",
+      "detail": "No Turso token, credentials, Stage6 worktree or Production modifications by reviewer."
+    }
+  ],
+  "authorRegressionEvidenceAtReview": {
+    "ownerRegression": {
+      "file": "/private/tmp/stage8-live-controlled-integration/owner-regression-final.tap",
+      "pass": 23,
+      "fail": 0,
+      "status": "PARSED_COMPLETE"
+    },
+    "isolatedNativeRerun": {
+      "file": "/private/tmp/stage8-live-controlled-integration/native-sigsegv-isolated-rerun.tap",
+      "pass": 4,
+      "fail": 0,
+      "status": "PARSED_COMPLETE_NATIVE_ISSUE_STILL_OPEN"
+    },
+    "fullAccepted210": {
+      "file": "/private/tmp/stage8-live-controlled-integration/final-accepted-regression.tap",
+      "status": "RUNNING_NOT_CLAIMED_COMPLETE"
+    },
+    "legacyAuthorityExtended": {
+      "file": "/private/tmp/stage8-live-controlled-integration/final-live-authority.tap",
+      "status": "RUNNING_NOT_CLAIMED_COMPLETE"
+    }
+  },
+  "nextReviewerAction": "Bind final hardening successor HEAD/tree to e941 plus exactly reviewed publication source hash ff9a9d2359796bf27d462f07245d7261653c657f59b525eb4ec5e198a4164fa0 and any docs-only changes. Preserve all original failed/interrupted/native evidence; finish exact affected regressions with distinct logical vs process-health counts. Then reconcile final accepted Stage6 and positive weekly/important/trusted invocation in an isolated integration candidate and independently review only that integration delta before any Production proposal."
+}

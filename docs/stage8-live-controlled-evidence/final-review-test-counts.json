@@ -1,0 +1,51 @@
+{
+  "independentRuns": [
+    {
+      "file": "/private/tmp/stage8-live-producer-completion/final-review-tests.tap",
+      "sha256": "8f508564b7634714cb9a939947b03838a4c9962e8fad3758b23eb7a39afe4105",
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "durationMs": 342616.704833
+    },
+    {
+      "file": "/private/tmp/stage8-live-producer-completion/final-review-admission-authority.tap",
+      "sha256": "1382a4cffc1358dc236ba0abd1f3c1f2e53b06c55d705512e4a034b5a6bfa2db",
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "durationMs": 310359.426541
+    },
+    {
+      "file": "/private/tmp/stage8-live-producer-completion/final-review-independent-probes.tap",
+      "sha256": "68e9e33a64a2be3512d34e2cbc6040ae55669bd845fc9602e97922eadeb24703",
+      "tests": 3,
+      "pass": 3,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "durationMs": 71744.164875
+    },
+    {
+      "file": "/private/tmp/stage8-live-producer-completion/final-review-null-bound.tap",
+      "sha256": "f4c227db577b154796480d29e99eec7a94497203f6ae881b623cc8f022d14b71",
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "durationMs": 298.096292
+    }
+  ],
+  "totalDefinitions": 53,
+  "pass": 53,
+  "fail": 0
+}

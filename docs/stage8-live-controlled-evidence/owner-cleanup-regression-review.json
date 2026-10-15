@@ -1,0 +1,28 @@
+{
+  "type": "READ_ONLY_OWNER_CLEANUP_REGRESSION_DIAGNOSIS",
+  "sourceSha256": {
+    "src/stage8OwnerMonitoring.js": "1f5cc98af12416b605d3047af03422d6f149496b3fb39806c7ea1dffc652c339",
+    "src/stage8OwnerDispatcher.js": "eab8d0f4adafb5709f5556bf75df4bc934819fbc94209d3124f26ab1af79ff07",
+    "src/processingTransaction.js": "8f81e531b9dbfd2ec8bceb68906132920e5778a91ad28582a288c56567af3a66",
+    "src/stage8DerivedReader.js": "1395e1e4af8a90b19c27afb2eaec5ca2e779da97570e70c47584bab01d9a133c"
+  },
+  "sourceEditedByReviewer": false,
+  "testsRunByReviewer": 0,
+  "finding": {
+    "id": "OWNER_VALIDATE_PREMATURE_CONTEXT_RELEASE",
+    "mechanism": "Dispatcher calls monitoring.validate outside a processing transaction. validate calls synthesis, which registers afterProcessingCompletion release immediately after capture and before reading the plan. processingTransaction.afterCompletion calls its callback immediately without an active scope; its unawaited cleanup marks ctx released while synthesis is still using it. Wrapped authorize/propose defer correctly, explaining their success versus initial pre-send suppression.",
+    "evidence": [
+      "stage8OwnerMonitoring.js synthesis cleanup immediately after ctx capture",
+      "stage8OwnerMonitoring.js validate is bare async function",
+      "stage8OwnerDispatcher.js initial await monitoring.validate outside transaction",
+      "processingTransaction.js afterCompletion: if state push; else return fn()",
+      "phase4Cache.js release marks entry.released before its coordination await"
+    ],
+    "safeRepair": "Ensure validate has one enclosing transaction, or defer cleanup only when active and await it in synthesis finally after its last read when no scope exists. Retain cleanup and all authority/currentness expectations. Verify original v34 owner provider and retry tests unchanged."
+  },
+  "relatedEdge": {
+    "id": "DERIVED_GENERATION_REJECTION_LEASE_LEAK",
+    "mechanism": "ctx inputGeneration mismatch is thrown before reader try/finally, leaving a successful fresh capture unreleased on a generation race. Move existing mismatch rejection into its try/finally; preserve rejection."
+  },
+  "scope": "Source inspection while implementer diagnostics/tests run. Final frozen whole-pipeline review remains pending."
+}

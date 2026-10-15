@@ -1,0 +1,609 @@
+{
+  "type": "STAGE8_CONTROLLED_LIVE_PRODUCER_FINAL_EVIDENCE",
+  "baselineHead": "649676e030aa8d25639985d397c5d3837462f484",
+  "baselineTree": "e2445e02e324ff633a256bf244522808fb393ffa",
+  "runtimeHead": "faeb2acff7d86992475bebc7333bf92b1d2e38a5",
+  "runtimeTree": "9ae1360d0dc5d195277011f0ed8124868af7bf7b",
+  "branch": "codex/stage8-live-controlled-integration-20261015",
+  "worktree": "/Users/kelvin/.codex/worktrees/stage8-live-controlled-integration/whoop-briefing",
+  "physicalIdentity": "16777229:77664211",
+  "stage6ReadOnlyObserved": {
+    "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+    "physicalIdentity": "16777229:71452797",
+    "head": "d871515a6785cf25b2dda10aebb6190dd11b3d03",
+    "status": "M test/stage6-synthetic-runner.mjs\n?? test/stage6-synthetic-dispatch.mjs\n?? test/stage6SyntheticDispatch.mjs",
+    "acceptanceInferred": false
+  },
+  "sourceSha256": {
+    "src/bodyEnergyDerivedTime.js": "d22c7b68651a155811ffdaa6c3913d8716d076353a951b261b03c74892aea553",
+    "src/db.js": "4231cef0da8080e7edbc51b57d3072c70b5f912dda73da423e5f10d0cb760c94",
+    "src/migrations.js": "0c71d6b2a37e0cc4e23661136cdc3df7b34e4eed2c1ec20a64da0c71f6f215c8",
+    "src/phase4AuthorityClosure.js": "aca76ebb35b893bf2acaf1217e9ab4b864f44e8a302ddaffc315a5bcdb8e0e08",
+    "src/phase4EpisodeRecurrence.js": "46f827437e6710fcf6b3c14c41dd59440dcc579b0b88449f0fdaa972b1adb418",
+    "src/phase4InsightRefresh.js": "fe2ea07ae67e5dacf85b0ef4075504588d0afddf16db531437ff6b53f08bca61",
+    "src/phase4IntelligenceStore.js": "c65a74ac766c794feb8f65667d16706ff7b3d60ed3d23d72b63a0afb13087a80",
+    "src/phase4LegacyDiscovery.js": "a3c489813e4370c6d02dcf15381c825eeb7a912b268b8042b63c98150479918b",
+    "src/phase4MetricRefresh.js": "fe3ab1d7b76676ef0ac9312436245758d91a9534f709864e5237f1e1304fb279",
+    "src/phase4MetricUnitReceipt.js": "4ddbe9d805ad3530e223fecfc6974c36869ef902dfb2a3394cd70c491793f524",
+    "src/phase4OperationReceipts.js": "9a79b731c4524b7e506f684223733dfac3cf6909a7ab7543a871d5ad10ee8966",
+    "src/phase4QueueStore.js": "4a28def3ff54a238d6676eebea790a23a6c5d6e922243fd99e0ab7a6100758d9",
+    "src/phase4Reanalysis.js": "91b5d883c685481a046b7ea6905ba03b77029fd2075ff3b398239027edc79d63",
+    "src/phase4ReanalysisQueue.js": "f7eb78b6fb7e9a81402f8b45cfe156c8995b6a3d72c24c9d714a1afaa5000602",
+    "src/phase4Redaction.js": "7fd26a796911d0f5fb43b81428751d6781b0cd883f48d7e6acf058f85bf906d1",
+    "src/phase4Repositories.js": "b600a3ab38f1daa22acd5b11cf59ac8937d65aeba7ed5ce9128b2c4920f9c33f",
+    "src/phase4Stage5Privacy.js": "25fe4c9338a759ff462e0e73ca673d3c261ff19075cfd3e61cff12d53a8f7034",
+    "src/phase4V35Schema.js": "3e7144ae5e76b75d4dedce2f86264618a9ed6abd422bcb309d0624a25a8b7156",
+    "src/recipientIdentity.js": "9ec81a15f33cad7fba1421db523267c49ccadb793e4e79c8336a7ea7815b78bd",
+    "src/runtimeSchemaGuard.js": "186e0283b348fa3b0dc3a834220073aa9b73a811f039f2da115e95e22e00790c",
+    "src/scopedHealthContext.js": "47d96f68cc1b91a5be8a277b5ea87ab592ac36023e42cc66c8d05c5dc11afc02",
+    "src/stage6CurrentCaptureTime.js": "74a815c0ec58a61a2551a2197be5543dcbe94338d4d65e5245bab46a1a1cf04a",
+    "src/stage7DecisionStore.js": "84fb8f3ad15abdca667b03bd50afe5bd66fd1f34ca71abad604f9f0fd1c64fd1",
+    "src/stage7InteractionStore.js": "af91d1ad4852cf620fb0cbfd9537c45c314fc0619c6034d1ba896e4d37db8297",
+    "src/stage7Runtime.js": "e75eccb68e657abf1ca06c1a124167279ada1f61c16e2bfeda4149f71a928536",
+    "src/stage7TransportAuthority.js": "e7e4aacf3a0ef92f55227134e8eb773b6451e1ae9fe46c0f4815e966a51a5016",
+    "src/stage7TrustedRegistry.js": "640fa7ac8adfe1580cfe7bba2d6d97fc6ef9ff257f2ffdffcf632b403c1ff2ce",
+    "src/stage8DerivedReader.js": "1395e1e4af8a90b19c27afb2eaec5ca2e779da97570e70c47584bab01d9a133c",
+    "src/stage8LiveExecution.js": "172d02b9241d7e73fb23dc2c84ccdc83dd065850244bc881e1f364adfb1263dd",
+    "src/stage8LiveProducer.js": "6179f859d869f19652a12ee25949e30d0c10a378103a2311a68fc1f6153e6f05",
+    "src/stage8LivePublication.js": "ff9a9d2359796bf27d462f07245d7261653c657f59b525eb4ec5e198a4164fa0",
+    "src/stage8MorningPlan.js": "94423e5f5476162536c770f72d44eec59efb94708c87aa73ab04a52048f1fbc0",
+    "src/stage8MorningStore.js": "4d8f79422bec31cddcfceaa97a4bddd9a480617dcaaece8a946946f4b5b2a58c",
+    "src/stage8OwnerMonitoring.js": "1f5cc98af12416b605d3047af03422d6f149496b3fb39806c7ea1dffc652c339",
+    "src/stage8Policy.js": "625d35de92d4066f03174749a75708a79fc1774c5bd694c5dd5f87b1982748da",
+    "src/stage8Runtime.js": "2467dc2e46ad4dba917e9081752f051da17104910f979793cafbca9e93742d4d",
+    "test/stage8-live-adversarial.test.js": "a79c0e7a266f31321011b508be416aaf13bb170dc6adfb15e1e1729f9adb0eed",
+    "test/stage8-live-certificates.test.js": "5116673c380e29197ece2f01c221ef09e20c09fcc5355853f7c63631deccfe41",
+    "test/stage8-live-owner-subject.test.js": "53f363d6020673e3d621ad7dc845d76736559145051e42521f5ee3a3510a3369",
+    "test/stage8-live-pipeline.test.js": "47daa922882d71f0b38f0e27b0f596884797e25ffdb582000692449b457dbe25",
+    "test/stage8-live-restart.test.js": "e8f0590bc15ecf2b3a5230487cf3990996e33282541a750ddba61ae93a5fc325",
+    "test/stage8LiveCrashChild.js": "864a276c30374d0237ef5bd1136ae534874bcc38a150c9e6891ef3db7342000d"
+  },
+  "unchangedProtectedSha256": {
+    "src/bot/triage.js": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d",
+    "src/bot/safetyGate.js": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d",
+    "src/phase4V33Schema.js": "c1ea62e295d6b6982b7e185b110c29e1baef835c9c0290994bde24312afaed5c",
+    "src/phase4V34Schema.js": "09b20f9de966d3cb06d0eed4f40ba44552b98506a37e8d177ad5459fa08be8bd"
+  },
+  "namespacePatchSha256": "e9dc477d1b3972c6eef5292e03a15016704db803d8f8650caddcaa7a534f4130",
+  "verdicts": {
+    "liveAnalysisProducerDelta": "GO",
+    "genuineSyntheticLiveComputation": "PASS",
+    "typedReader": "PASS",
+    "revocationAndPurge": "PASS",
+    "independentDeltaReview": "GO",
+    "wholeStage8CodeAcceptance": "NO-GO",
+    "production": "NO-GO"
+  },
+  "distinctCoverage": {
+    "originalStage7Stage8CompanionDefinitions": 210,
+    "originalRawFullRun": {
+      "reportedTests": 207,
+      "pass": 206,
+      "fail": 1,
+      "nativeFailure": "stage7-delivery.test.js SIGSEGV"
+    },
+    "originalIsolatedDeliveryRerun": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "stabilityResolved": false
+    },
+    "originalFunctionalCoverageAcrossRuns": {
+      "pass": 210,
+      "fail": 0,
+      "wholeInvocationPass": false
+    },
+    "newLiveDefinitions": {
+      "tests": 36,
+      "pass": 36,
+      "fail": 0
+    },
+    "newLiveAndCurrentCaptureRawRun": {
+      "reportedTests": 38,
+      "pass": 37,
+      "fail": 1,
+      "nativeFailure": "stage6-current-capture.test.js SIGSEGV after passing assertion"
+    },
+    "isolatedCurrentCapture": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "stabilityResolved": false
+    },
+    "existingProviderRetrySubset": {
+      "tests": 23,
+      "pass": 23,
+      "fail": 0,
+      "overlapsOriginal210": true
+    },
+    "routingGenerationInsightIsolation": {
+      "tests": 34,
+      "pass": 34,
+      "fail": 0
+    },
+    "interruptedExtendedAuthorityAndWorkerRun": {
+      "confirmedPass": 40,
+      "confirmedFail": 0,
+      "status": "INTERRUPTED_INCOMPLETE",
+      "reason": "Three successive zero-progress unchanged-budget v28 capacity legs:85963.593,79077.479458,99100.57875ms; no expectation/budget/runtime fix applied",
+      "newLiveQueuedTestsCoveredSeparately": true
+    },
+    "isolatedFinalSettlement": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0
+    },
+    "legacyWorkerDistinctConfirmed": 14,
+    "legacyWorkerUnconfirmed": [
+      "Stage 6 refreshes SUPPORTED insight with two independently recalculated current-generation windows",
+      "Stage 6 fresh contrary evidence weakens a stale insight once and creates the opposite canonical identity"
+    ],
+    "independent": {
+      "repositoryDefinitions": 49,
+      "reviewerAuthoredDefinitions": 4,
+      "total": 53,
+      "pass": 53,
+      "fail": 0
+    }
+  },
+  "performance": {
+    "workerLegCount": 64,
+    "workerLegMaxMs": 7853.993082999998,
+    "workerLegMeanMs": 1586.8833489375,
+    "resources": [
+      {
+        "kind": "LIVE_CERTIFICATE_READER_RESOURCES",
+        "samplesMs": [
+          103.84545899999648,
+          117.16237499999988,
+          106.4653330000001,
+          113.47154099999898,
+          111.26041599999735
+        ],
+        "before": {
+          "rss": 285097984,
+          "heapTotal": 114311168,
+          "heapUsed": 40419664,
+          "external": 3892749,
+          "arrayBuffers": 92714
+        },
+        "after": {
+          "rss": 314802176,
+          "heapTotal": 116228096,
+          "heapUsed": 53211824,
+          "external": 3892789,
+          "arrayBuffers": 92714
+        },
+        "maxRssKiB": 405104
+      },
+      {
+        "kind": "LIVE_PIPELINE_SYNTHETIC_RESOURCES",
+        "durationMs": 71764.910875,
+        "before": {
+          "rss": 101875712,
+          "heapTotal": 54247424,
+          "heapUsed": 28159648,
+          "external": 3874317,
+          "arrayBuffers": 76330
+        },
+        "after": {
+          "rss": 344670208,
+          "heapTotal": 151027712,
+          "heapUsed": 116236584,
+          "external": 3904696,
+          "arrayBuffers": 109098
+        },
+        "maxRssKiB": 827760
+      }
+    ]
+  },
+  "allRawRuns": [
+    {
+      "name": "accepted-regression",
+      "log": "accepted-regression.tap.gz",
+      "sha256": "e8b4ac01d6f58bfb7292f0536a646c1ac33c2885e45ffba8c88cd924bbc26626",
+      "completeTap": true,
+      "reported": {
+        "tests": 210,
+        "pass": 203,
+        "fail": 7,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 780028.84875
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "adversarial-first",
+      "log": "adversarial-first.tap.gz",
+      "sha256": "04fb0b4f983c467a3bb6472b6c9e9dbff1225ac1eaee98594976331bb56a2c68",
+      "completeTap": true,
+      "reported": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 34567.489834
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "baseline-oversized",
+      "log": "baseline-oversized.tap.gz",
+      "sha256": "9117d3de1d2b612f5e39a46e183e12cc9d2fef2b2fba4539a04d28f6a9b5ca90",
+      "completeTap": true,
+      "reported": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 50506.016917
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "candidate-oversized",
+      "log": "candidate-oversized.tap.gz",
+      "sha256": "a70fad9bb3a26adc7eb7bc87297ec7b2798ae97e95ecb83e5529481260618532",
+      "completeTap": true,
+      "reported": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 48683.111375
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "certificates",
+      "log": "certificates.tap.gz",
+      "sha256": "2bf826d659345dafcf367145ffc6574dedb65b6abb3ad1e5aefb7484671fde77",
+      "completeTap": true,
+      "reported": {
+        "tests": 17,
+        "pass": 17,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 255303.875459
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "current-capture-isolated-rerun",
+      "log": "current-capture-isolated-rerun.tap.gz",
+      "sha256": "e401075149c296d9ac023fae036ff580cc4c01ddbbe2c0cd5a1aff2d2248f347",
+      "completeTap": true,
+      "reported": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 8593.448917
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "final-accepted-regression",
+      "log": "final-accepted-regression.tap.gz",
+      "sha256": "7f7c307490a453658033301103b23da3510a272b7f527571ed467c71b202e960",
+      "completeTap": true,
+      "reported": {
+        "tests": 207,
+        "pass": 206,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 1060563.844
+      },
+      "nativeSignals": [
+        "SIGSEGV"
+      ]
+    },
+    {
+      "name": "final-live-authority",
+      "log": "final-live-authority.tap.gz",
+      "sha256": "5c6a2104dba69a203eb2fed93f2882791cf1d835398097d39c807b0b695fcb55",
+      "completeTap": false,
+      "reported": {},
+      "nativeSignals": [],
+      "confirmedCompletedTopLevelPass": 40,
+      "status": "INTERRUPTED_INCOMPLETE"
+    },
+    {
+      "name": "final-live-completion",
+      "log": "final-live-completion.tap.gz",
+      "sha256": "6783af96e37a1e6e8127f46438f1e679d211f3c5fd8448db92cd8ab2f0549182",
+      "completeTap": true,
+      "reported": {
+        "tests": 38,
+        "pass": 37,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 251246.017584
+      },
+      "nativeSignals": [
+        "SIGSEGV"
+      ]
+    },
+    {
+      "name": "final-routing-generation",
+      "log": "final-routing-generation.tap.gz",
+      "sha256": "40bc1933dc317cde6114c8d3ddf25328fd1b1f764b99fd308820a114bf55b7ed",
+      "completeTap": true,
+      "reported": {
+        "tests": 34,
+        "pass": 34,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 762225.356917
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "final-settlement-isolated",
+      "log": "final-settlement-isolated.tap.gz",
+      "sha256": "23e4a3578fdc2d71b0e4a41ba3d95dff89e90dd4678086a664ac0041db5968c2",
+      "completeTap": true,
+      "reported": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 2907.997959
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "namespace-regression",
+      "log": "namespace-regression.tap.gz",
+      "sha256": "42d6dbf096dfb48a40249a7ef0182bd032efd9b4bffdab29002889ce6f1b28fa",
+      "completeTap": true,
+      "reported": {
+        "tests": 19,
+        "pass": 18,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 344024.881833
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "native-sigsegv-isolated-rerun",
+      "log": "native-sigsegv-isolated-rerun.tap.gz",
+      "sha256": "62d45ca8c10cbc54330d73edfaac0878d87fd69cf54702272b27f87016afd97e",
+      "completeTap": true,
+      "reported": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 50952.270375
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "owner-regression-final",
+      "log": "owner-regression-final.tap.gz",
+      "sha256": "6786aa95b7a8b8749dc38af46e192818ec92497f8becb165e558e60872187b6d",
+      "completeTap": true,
+      "reported": {
+        "tests": 23,
+        "pass": 23,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 244165.57
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "owner-regression-repair",
+      "log": "owner-regression-repair.tap.gz",
+      "sha256": "23ca0da352ad0722e539fba6c275fafbb16aba0dd0265398de52b42be45d638d",
+      "completeTap": true,
+      "reported": {
+        "tests": 23,
+        "pass": 19,
+        "fail": 4,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 142187.450625
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "owner-subject-first",
+      "log": "owner-subject-first.tap.gz",
+      "sha256": "167b311e3af9d99f39b5b92f7d8e1090ad4672abf85f75d23a1fdca127b75dd9",
+      "completeTap": true,
+      "reported": {
+        "tests": 6,
+        "pass": 4,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 42162.244084
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "owner-subject-second",
+      "log": "owner-subject-second.tap.gz",
+      "sha256": "7c6d45ed7b85fdb0010ea6217166adee3dfe6366dd42a960be410d66276d17e7",
+      "completeTap": true,
+      "reported": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 45834.73075
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "pipeline-security-first",
+      "log": "pipeline-security-first.tap.gz",
+      "sha256": "4d9e00816fb37614fbb92673228be3536c0d37bda84bd0068cdca980bdb05fb2",
+      "completeTap": true,
+      "reported": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 3398.875541
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "pipeline-security-second",
+      "log": "pipeline-security-second.tap.gz",
+      "sha256": "81d2e5c34f4e6090fdcf62d6df5e16e29bfd791b9a402aba967f6da2d1b1406f",
+      "completeTap": true,
+      "reported": {
+        "tests": 9,
+        "pass": 7,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 93506.392417
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "pipeline-security-third",
+      "log": "pipeline-security-third.tap.gz",
+      "sha256": "bded0e5c57590ab4de141e06719882c62971032b16a1cdbf2ec18bc79134c275",
+      "completeTap": true,
+      "reported": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 100727.33075
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "positive-first",
+      "log": "positive-first.tap.gz",
+      "sha256": "c2024436f3e79f6d7094d7f9db524be0b1c1ef67628aaf9739b47096412f32c1",
+      "completeTap": false,
+      "reported": {},
+      "nativeSignals": [],
+      "confirmedCompletedTopLevelPass": 0,
+      "status": "INTERRUPTED_INCOMPLETE"
+    },
+    {
+      "name": "positive-second",
+      "log": "positive-second.tap.gz",
+      "sha256": "bb8928a42006b14d61f6cb84bb67201e44487f255f25e3831bdaf8061fd274b1",
+      "completeTap": true,
+      "reported": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 10328.004417
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "positive-third",
+      "log": "positive-third.tap.gz",
+      "sha256": "675e2105fa5113fd630546440eca8af0c06bf95eeb5d93c3a26f7237bffc9e32",
+      "completeTap": true,
+      "reported": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 31292.385208
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "privacy-regression",
+      "log": "privacy-regression.tap.gz",
+      "sha256": "155a0399660f64cc2d83b1d5112ae7924483661728b177d72128c2c395970b08",
+      "completeTap": true,
+      "reported": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 115500.932792
+      },
+      "nativeSignals": []
+    },
+    {
+      "name": "restart-first",
+      "log": "restart-first.tap.gz",
+      "sha256": "fcc4c05128e3a02031afaf0ad5b64a2984e4627ae97acaecb2d382b659b464f6",
+      "completeTap": true,
+      "reported": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 34755.6835
+      },
+      "nativeSignals": []
+    }
+  ],
+  "limitations": [
+    "No Production operation or delivery proven; all fixtures synthetic.",
+    "Native SIGSEGV OPEN; passing isolated reruns do not fix it.",
+    "Stage6 final six-file/runtime/capacity reconciliation pending.",
+    "Trusted separate post-sync invocation and explicit authorized subject policy require final integration.",
+    "Positive qualifying WEEKLY and authentic LIVE subject-alert upstream/IMPORTANT acceptance not demonstrated; negative class policy paths and approved DAILY passed.",
+    "v35 proposal only; no Production migration; v33-before-v34 preserved."
+  ],
+  "unchangedRestrictions": [
+    "F02 Owner Accepted Risk",
+    "No Turso Token/real credential change",
+    "No Stage6 worktree writes",
+    "No Production mutation/push/merge/deploy/paid execution/real Telegram sends"
+  ],
+  "finalFreezeReceipt": "Final documentation commit HEAD/tree and independent binding are reported in the owner receipt; runtime hashes remain pinned here."
+}

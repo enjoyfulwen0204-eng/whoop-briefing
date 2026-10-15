@@ -1,0 +1,20 @@
+Independent authenticated LIVE producer SECURITY + FUNCTIONAL delta review
+
+Source review verdict: GO for the bounded producer delta. Whole Stage8 and Production: NO-GO.
+Reviewed HEAD e941fdac95aaeaa4028900e214f428051f7b0073
+Reviewed Tree0a33c6a5960814e07ccbcb78933ae3ac22967ee0
+Additional exact single-line NULL-safe publication bound reviewed, sourceSHA256 ff9a9d2359796bf27d462f07245d7261653c657f59b525eb4ec5e198a4164fa0. Final successor commit binding pending.
+
+No open concrete security/functional defect was found in this bounded producer source delta. Explicit private LIVE authority, canonical source computation, original named ACKs and generation1/45-second finalization proof, HMAC seals, immutable publication, typed readers and LIVE privacy closure are present. No SHADOW relabeling or fabricated follow/consent/delivery was accepted.
+
+Independent completed runs:49 repository definitions PASS/0FAIL, plus4 reviewer-authored definitions PASS/0FAIL, total53/0. Main39/0 includes genuine numeric self LIVE, genuine separately authorized subjectb LIVE, typed acceptance, artifact/receipt tampering, actual canonical LIVE privacy purge, replay and real child crash/lost COMMIT ACK. Admission/kernel/old typed negatives10/0. Extra publication/access revocation3/0. SQL NULL-bound1/0. No skips/cancellations or native crash occurred in these final reviewer runs. Source hashes:47 changed src files match frozene941; triage/safetyGate and frozen v33/v34 DDL are byte-identical to accepted0acd29f; reviewedStage7 ancestor retained. Temporary dependency link and reviewer tests removed from clean private snapshot; test sources/evidence retained outside it.
+
+The reviewer's initial2-day CURRENT-empty raw SQL deletion probe failed one leaf expectation (2 failed Node definitions including parent wrapper). Original file/log retained. It bypassed the public invalidation protocol and did not establish selected numeric health exposure. A7-day numeric item70/LIMITED was then verified: selected-root raw revocation throws PHASE4_RESOURCE_FENCED; actual public access revocation increments source generation and returns UPDATING; peer unchanged. No runtime edit was needed for these probes. Publication enrollment revocation at INSERT rolls back certificate and authorized retry succeeds.
+
+Owner daily is positive. Weekly NO_QUALIFYING_CONTENT and important NO_APPROVED_CURRENT_ALERT are policy-negative coverage, not qualifying weekly/approved LIVE alert/delivery acceptance. The implementation exposes closed opt-in analysis.run; it does not invent an automatic post-SYNC scheduler or LIVE proactive transport. Those integration steps remain explicit.
+
+Measured local reader75.7–86.6ms; adversarial fixture process peak476176KiB; full genuine pipeline fixture113418ms and process peak582304KiB. These include schema/admission/health graph overhead and concurrent local load; no isolated production performance/memory delta is claimed. Runtime inventories are bounded4096/16MiB producers and10000/64MiB artifacts with64-row pages and NULL-safe preflight; certificates expire in15min; original producing45-second deadline remains.
+
+Parent Owner regression parsed23/0 and isolated native rerun4/0. Full affected210 invocation and extended legacy worker run were still running at review time and are not claimed PASS. Native SIGSEGV remains OPEN despite rerun. Final Stage6 reconciliation/runtime/capacity, positive qualifying weekly/important upstream and trusted invocation/deployment remain unresolved. Observed Stage6d871515 is not treated as accepted. No Stage6/Production/credential modifications, real delivery, network/paid calls, push or merge were performed. F02 remains Owner Accepted Risk.
+
+Exact next action: freeze hardening successor and bind its HEAD/tree/source hashes to this review; attach final full-regression logical/process results while retaining failures. Reconcile final accepted Stage6 plus positive weekly/important/trusted invocation in an isolated final integration candidate, then review that integration delta before any Production proposal. See JSON for source references and precise evidence.

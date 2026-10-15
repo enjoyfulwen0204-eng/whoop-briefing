@@ -2,8 +2,8 @@ import { requirePhase4Keys } from './phase4Keys.js';
 import { EXPERIMENT_FIELDS, V22_LEGACY_R_TABLES } from './phase4V22Schema.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
 
-export const HEALTH_REDACTED = '[HEALTH_CONTENT_REDACTED]';
-export const REDACTED_RECEIPT = '{"reply":null,"redacted":true,"reason":"HEALTH_CONTENT_REDACTED"}';
+import {HEALTH_REDACTED,REDACTED_RECEIPT} from './phase4PrivacySentinels.js';
+export {HEALTH_REDACTED,REDACTED_RECEIPT} from './phase4PrivacySentinels.js';
 export const EXPERIMENT_SENTINELS = Object.freeze(Object.fromEntries(Object.keys(EXPERIMENT_FIELDS).map(field =>
   [field, field === 'name' ? HEALTH_REDACTED : ['target_metrics','protocol_json','result_json'].includes(field) ? '{}' : null])));
 const DIAGNOSTICS = {

@@ -8,7 +8,8 @@ import { V27_HEALTH_FIELDS } from './phase4V27Schema.js';
 import { V26_HEALTH_FIELDS } from './phase4V26Schema.js';
 import { V25_HEALTH_FIELDS } from './phase4V25Schema.js';
 import { V24_HEALTH_FIELDS } from './phase4V24Schema.js';
-import { HEALTH_REDACTED, REDACTED_RECEIPT, EXPERIMENT_SENTINELS, addPrivacyLink } from './phase4V22Backfill.js';
+import {HEALTH_REDACTED,REDACTED_RECEIPT} from './phase4PrivacySentinels.js';
+import {EXPERIMENT_SENTINELS,addPrivacyLink} from './phase4V22Backfill.js';
 
 const nulls=fields=>Object.fromEntries(fields.map(k=>[k,null]));
 const DISPOSABLE=new Set(['healthspan_metrics','healthspan_snapshots','prediction_runs','prediction_models','analytics_daily_state']);

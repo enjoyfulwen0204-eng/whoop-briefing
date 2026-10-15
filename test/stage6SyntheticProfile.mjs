@@ -7,4 +7,4 @@ const envelope=JSON.parse(readFileSync('/qualification/manifest.json','utf8')),b
 // The process has no external network namespace. This additionally refuses
 // redirects/provider calls in the application-facing fetch transport.
 const original=globalThis.fetch;globalThis.fetch=(input,init={})=>{const u=new URL(typeof input==='string'||input instanceof URL?input:input.url);if(u.protocol!=='http:'||u.hostname!=='127.0.0.1'||!['18080','18081','8081','8082'].includes(u.port)||u.username||u.password)throw Error('LOCAL_SYNTHETIC_NETWORK_DENIED');return original(input,{...init,redirect:'error'});};
-register(new URL('./stage6SyntheticLoader.mjs',import.meta.url),{data:{...binding,reservationAllowed:name!=='stage6-synthetic-seed.mjs',envelopeDigest:digest(envelope),root:new URL('../',import.meta.url).href,entry:new URL(name,import.meta.url).href}});
+register(new URL('./stage6SyntheticLoader.mjs',import.meta.url),{data:{...binding,reservationAllowed:name!=='stage6-synthetic-seed.mjs',envelopeDigest:digest(envelope),diagnostic:process.env.STAGE6_SYNTHETIC_DIAGNOSTIC==='1',root:new URL('../',import.meta.url).href,entry:new URL(name,import.meta.url).href}});

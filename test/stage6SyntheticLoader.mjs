@@ -1,3 +1,4 @@
+import {instrumentSyntheticSource} from './stage6SyntheticDiagnostics.mjs';
 let data;export function initialize(d){data=d;}
 export async function resolve(specifier,context,next){
  if(specifier==='stage6-synthetic:manifest')return{url:specifier,shortCircuit:true};
@@ -36,5 +37,5 @@ export async function load(url,context,next){
   replace('export function pilotPublicationFence(grant,client){','export function pilotPublicationFence(grant,client){return syntheticPublication(grant,client,originalPilotPublicationFence(grant,client));}\nfunction originalPilotPublicationFence(grant,client){');
   replace("if(allowance)log[result.attempt>=reservation.warningAttempt?'warn':'info']", "if(false)log[result.attempt>=reservation.warningAttempt?'warn':'info']");
  }
- return{...r,source:s};
+ return{...r,source:data.diagnostic?instrumentSyntheticSource(file,s):s};
 }

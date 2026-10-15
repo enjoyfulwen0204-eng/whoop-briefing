@@ -16,7 +16,16 @@ for(const point of ['before-publication','after-durable-commit'])test('real SIGK
  }else{assert.equal(reconciled.state,'NOT_COMMITTED');assert.equal((await f.counts()).domain,1);}
  const leaseName=`p4ctx:${fixtureKeys.lookup(['context-tenant-v1','a'])}:short:${owner.executionId}`;await f.db.raw.execute({sql:'DELETE FROM resource_locks WHERE name=?',args:[leaseName]});
  await f.toHttp();f.setLatency(115);f.transport.setTransactionMaxMs(5000);const client=isolatedPublicationClient(f.syntheticFetch);t.after(()=>client.close());
- const result=await leg(f,sync,{client});assert.ok(result.result.processedItems||result.result.unitsCommitted);f.setLatency(0);
+ let result=await leg(f,sync,{client});assert.ok(result.result.processedItems||result.result.unitsCommitted);f.setLatency(0);
+ // Recovery may first commit a required authenticated family subunit. Every
+ // continuation keeps its own original worker/publication deadline and must
+ // make real signed progress; no result string or unbounded retry is accepted.
+ for(let n=0;point==='after-durable-commit'&&!result.result.processedItems&&n<4;n++){
+  assert.ok(result.result.unitsCommitted>0);assert.equal((await f.counts()).domain,2);
+  await verifyShortProof(f,{domainOnly:true});await f.fresh();
+  f.setLatency(115);result=await leg(f,sync,{client});f.setLatency(0);
+  assert.equal(result.result.failedJobs,0);assert.ok(result.result.processedItems||result.result.unitsCommitted);
+ }
  if(point==='after-durable-commit'){assert.equal((await f.counts()).domain,2);assert.equal(result.result.processedItems,1);}else{assert.equal((await f.counts()).domain,2);proof=await verifyShortProof(f,{domainOnly:true});}
  console.log('SHORT_CRASH_PROOF '+JSON.stringify({point,actualSignal:exit.signal,reconciledState:reconciled.state,domainRows:2,restartWorkMs:result.workMs,transactionMs:result.transactionMs,proof,production:false}));
 });

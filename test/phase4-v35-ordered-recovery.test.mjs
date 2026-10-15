@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {createOwnedDb} from './stage5OwnedDb.js';
 import {fixtureKeys} from './localDb.js';
 import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
+import {createPhase4Foundation} from '../src/phase4Foundation.js';
 import {buildV35} from '../src/phase4V35Schema.js';
 import {executionProfile} from '../src/phase4Rollback.js';
 import {createStage7Runtime} from '../src/stage7Runtime.js';
@@ -15,13 +16,22 @@ test('owned ordered v33-v34-v35 interruption and same-schema recovery preserve s
  const dir=await mkdtemp(join(tmpdir(),'ordered-v35-')),db=createOwnedDb({url:'file:'+join(dir,'fixture.sqlite')});
  t.after(async()=>{await db.close();await rm(dir,{recursive:true,force:true});});
  await db.migrate({targetVersion:32});await db.createUser({id:'a',displayName:'Synthetic',timezone:'Asia/Taipei',status:'ACTIVE'});
- await db.transaction(()=>seedBodyInput(db,bodyInput({asOf:Date.now()-1000,days:7})));
+ await db.linkTelegram({userId:'a',chatId:'10001'});
+ const input=bodyInput({asOf:Date.now()-1000,days:7}),at=new Date(input.asOfEpochMs).toISOString();
+ input.sources.workout.push({user_id:'a',id:'synthetic-workout',start_at:new Date(input.asOfEpochMs-3600000).toISOString(),end_at:at,score_state:'SCORED',strain:6,synced_at:at});
+ await db.transaction(()=>seedBodyInput(db,input));
  const tables=['users','user_telegram','user_whoop_tokens','whoop_sleeps','whoop_recoveries','whoop_cycles','whoop_workouts','journal_events'];
  const sources=async()=>Object.fromEntries(await Promise.all(tables.map(async table=>[table,JSON.stringify((await db.raw.execute(`SELECT * FROM ${table} ORDER BY rowid`)).rows)])));
  const before=await sources();
  assert.deepEqual((await db.migrate({targetVersion:33})).versionsApplied,[33]);
  await assert.rejects(db.admitRuntime(),/CONTROLLED_MIGRATION_REQUIRED/);
  assert.deepEqual((await db.migrate({targetVersion:34})).versionsApplied,[34]);await db.admitRuntime();
+ assert.deepEqual(await sources(),before);
+ const stores=await createPhase4Foundation({db,keys:fixtureKeys,admission:await db.admitRuntime()});await stores.initializeTenant('a','SHADOW');
+ const sourceText='caffeine at '+at,created=await stores.journal.create(await stores.captureControl('a'),{sourceEventKey:'synthetic-migration-journal',sourceText,candidate:{category:'caffeine',eventAt:at,valueKind:'PRESENCE',exposureState:'EXPOSED',extractionConfidence:1,excerptStart:0,excerptEnd:[...sourceText].length}});
+ assert.equal(created.status,'ACCEPT',JSON.stringify(created));
+ const before35=await sources();
+ for(const table of tables)assert.ok(JSON.parse(before35[table]).length>0,table+' has a nonempty preservation witness');
  const definitions=(await db.raw.execute("SELECT type,name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name")).rows;
  // Model an interruption after the first additive CREATE, before any v35 marker.
  await db.raw.execute(buildV35().ddl[0]);
@@ -37,5 +47,5 @@ test('owned ordered v33-v34-v35 interruption and same-schema recovery preserve s
  assert.equal(await createStage8Runtime({db,keys:fixtureKeys,environment}),null);
  assert.equal((await db.raw.execute('SELECT count(*) n FROM stage8_live_executions')).rows[0].n,0);
  assert.equal((await db.raw.execute('SELECT count(*) n FROM stage8_live_publications')).rows[0].n,0);
- assert.deepEqual(await sources(),before);assert.equal((await db.raw.execute('PRAGMA integrity_check')).rows[0].integrity_check,'ok');assert.equal((await db.raw.execute('PRAGMA foreign_key_check')).rows.length,0);
+ assert.deepEqual(await sources(),before35);assert.equal((await db.raw.execute('PRAGMA integrity_check')).rows[0].integrity_check,'ok');assert.equal((await db.raw.execute('PRAGMA foreign_key_check')).rows.length,0);
 });

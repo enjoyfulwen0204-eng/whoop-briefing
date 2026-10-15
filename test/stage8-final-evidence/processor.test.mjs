@@ -11,7 +11,7 @@ const {interpretUrgentSymptoms,urgentReply}=await import(root+'/src/bot/triage.j
 const {JOURNAL_COPY}=await import(root+'/src/stage7Registry.js');
 const original=JSON.parse(fs.readFileSync(new URL('../stage8-scoped-repair/original-cases.json',import.meta.url))).cases;
 const references=JSON.parse(fs.readFileSync(new URL('../stage8-scoped-repair/reference-cases.json',import.meta.url))).cases;
-const output='/private/tmp/stage8-final-processor-results.json';
+const output='/private/tmp/stage8-final-quotation-repair/final/copied-processor-results.json';
 const results=[];
 function record(r){results.push(r);fs.writeFileSync(output,JSON.stringify({count:results.length,pass:results.filter(r=>r.pass).length,fail:results.filter(r=>!r.pass).length,results},null,2));}
 async function tap(app,f,card,label){const actor=await app.companion.interactions.authenticate(f.input);await app.companion.interactions.bind(actor,card.stage7InteractionId,42);const b=card.replyMarkup.inline_keyboard.flat().find(b=>b.text===label||b.text.endsWith(' '+label));assert.ok(b);return app.companion.handle({...f.input,callback:{id:'independent',data:b.callback_data,from:{id:123},message:{message_id:42,chat:{id:123,type:'private'}}}});}
@@ -35,7 +35,7 @@ const novel=JSON.parse(fs.readFileSync(new URL('./independent40.json',import.met
 const jobs=[];
 for(const [id,locale]of[['explicit-other-outcome','en'],['explicit-other-outcome-zh','zh-TW'],['explicit-other-outcome-vi','vi']])for(const lane of ['name','note','coach','health'])jobs.push({...novel.find(c=>c.id===id),locale,lane});
 for(const [id,locale]of[['comma-negation','en'],['ideographic-object-list','zh-TW'],['closed-duration','en'],['causal-since','en'],['explicit-same-outcome','en']])for(const lane of ['name','note'])jobs.push({...novel.find(c=>c.id===id),locale,lane});
-fs.writeFileSync('/private/tmp/stage8-final-processor-cases.json',JSON.stringify({frozenBeforeExecution:true,jobs},null,2));
+fs.writeFileSync('/private/tmp/stage8-final-quotation-repair/final/copied-processor-cases.json',JSON.stringify({frozenBeforeExecution:true,jobs},null,2));
 for(const [i,c]of jobs.entries())test('novel real ingress '+c.id+' '+c.locale+' '+c.lane,async t=>{
  const {f,processor,observed,snapshot}=await setup(t,c.locale,c.lane);const before=await snapshot();const text=c.text+(c.lane==='health'?' What is my HRV today?':'');
  const u=update(991001+i,text);const outcome=await processor.processUpdate(u),replay=await processor.processUpdate(u);const after=await snapshot();

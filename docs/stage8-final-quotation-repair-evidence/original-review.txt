@@ -1,0 +1,157 @@
+WHOOP Kelvin Health OS — Quotation Safety Gate Independent Adjudication
+
+Role: Independent READ-ONLY reviewer
+Final detached checkout clean; temporary dependency symlink removed.
+HEAD: 620033c57ea4813bfad1e031113f8c8cf15fa16c
+Tree: 48a0890130f9178d4a989ff1a518e77b626bf173
+Branch: codex/stage8-quotation-fallback-20261015
+Fresh detached checkout: /Users/kelvin/.codex/worktrees/stage8-quotation-independent-adjudication/whoop-briefing
+Code acceptance: NO-GO. Production: NO-GO. Whole Stage 8: NO-GO.
+
+1. Integrity
+Exact HEAD/tree/branch and ancestry verified. Baseline 10b68fa and Stage 7 828b3ba are ancestors. Only src/bot/safetyGate.js changes at runtime. src/bot/triage.js is byte-identical. Existing test diffs change output destinations only; no expected values changed. All 820 compared prior evidence files are byte-identical.
+Source hashes:
+src/bot/triage.js: a5d35fdbc0c4b9a1372beb529365a82889e263c4f6126ad863f6a38a7cdaf50c
+src/bot/safetyGate.js: d9ce578b9fb8fcbb15c42ecd308bcb32b7fb7c695908358293ff5e107f32bf87
+
+2. High introduced quotation regression: CONFIRMED
+All 9 semantic and 12 actual shared-processor failures reproduce. Exact base statements:
+  "if I have chest pain" is what I am feeling right now.
+  「如果我胸痛」是我現在感到的症狀。
+  "nếu tôi đau ngực" là triệu chứng tôi đang cảm thấy.
+The parent returns CURRENT; this candidate returns CLEAR. The outside predicate owns SELF, an actual positive assertion and currentness. Its serious-symptom reference is outside the quotation.
+Exact root: quotationEvidence uses the inner unit.connector (if/如果/nếu) with the unrelated outer connectorSpan [0,0). It accepts that empty span as LOCAL_QUOTED_CONDITIONAL and copies the frame to P2 merely because P2 is a QUOTE_COMPLEMENT with matching empty metadata. reduceSafetyEvidence applies the exclusion before current evidence. P2 is ACTUAL/CURRENT before reduction, then excluded by a quote-local frame with no nonempty supporting text.
+Actual ingress result: 12 ordinary-consumer and identity-capture entries; 3 Settings pending-name changes and 3 ordinary Journal note changes. The application therefore FAILS the required persistence guard on these inputs. Canonical profile and peer boundaries remain intact. Scoped reads were zero in these probes because the router educational fallback held; no metric exposure is invented.
+Source: src/bot/safetyGate.js lines 33-36, 95-96; parser units use inner connector text with outer span metadata.
+
+3. Chinese negation regression: CONFIRMED (MEDIUM)
+All 5 semantic variants and 4 processor lanes reproduce for: 「胸痛」正是我現在沒有感到的症狀。 Parent CLEAR -> candidate CURRENT.
+Normalized-text evidence: P2 owns negative 沒有 [9,11), positive lexical substring 有 [10,11), and actual experiential head 感到 [11,13). The fallback selects 有 first. Its negative.end <= head.start check evaluates 11 <= 10 as false, then synthesizes BOUNDED_QUOTE_ARGUMENT/CURRENT from an explicitly negated statement.
+Minimum correction: reject a candidate positive head contained within an owned negative lexeme; select the actual experiential head or retain uncertainty. Keep positive standalone 有 valid and keep negation local. All four normal name/note/Coach/health workflows are wrongly interrupted without state corruption.
+Source: src/bot/safetyGate.js lines 40-41, 54-58. No linking-phrase vocabulary expansion is needed.
+
+4. Twenty-seven inherited failures: A, GENUINE DEFECT, MEDIUM
+Each base family has 5 semantic definitions (base, NFD, whitespace, quote style, appended metric) and 4 processor lanes (name, note, Coach, health), so 9 definitions each:
+  hypothetical-en: If "chest pain" is what I am experiencing, what should I do?
+  hypothetical-zh: 假設「胸痛」是我現在感到的症狀。
+  hypothetical-vi: Nếu "đau ngực" là triệu chứng tôi đang cảm thấy.
+All 27 are genuine false-warning defects under the existing hypothetical contract: no independent actual symptom assertion is made. Parent and candidate both return CURRENT; expected CLEAR is valid.
+The real outer connector span contains If/假設/Nếu, but the quoted predicate inner connector is empty. The guard tests that empty connector instead of the valid outer token. Consequently P2 retains ACTUAL/CURRENT despite being part of the conditional antecedent. The defect is the reverse of the introduced inner-frame leak.
+Per-definition adjudication, preserving every raw failure:
+  quotation-semantic | hypothetical-en | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-zh | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-vi | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-en-nfd | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-en-space | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-en-quote-style | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-en-metric | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-zh-nfd | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-zh-space | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-zh-quote-style | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-zh-metric | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-vi-nfd | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-vi-space | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-vi-quote-style | A genuine defect | actual CURRENT_URGENT
+  quotation-semantic | hypothetical-vi-metric | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-en coach | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-zh note | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-vi name | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-vi health | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-en name | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-en health | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-zh coach | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-vi note | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-en note | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-zh name | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-zh health | A genuine defect | actual CURRENT_URGENT
+  quotation-processor | hypothetical-vi coach | A genuine defect | actual CURRENT_URGENT
+
+5. Five disputed controls: C, GENUINE SEMANTIC AMBIGUITY
+Base: My friend Ana said "chest pain". I am feeling relaxed now.
+The named reporter utters a serious-symptom term, without an explicit contemporaneous symptom assertion or a proved educational frame. The later SELF wellness cannot resolve OTHER:my friend:ana. The transport-authenticated user must not be assigned Ana’s symptom. Correct cautious state is POSSIBLE. CLEAR is unjustified; CURRENT is unproven.
+All five raw assertions remain failed and their expected values remain unchanged. This review does not relabel them PASS or count their safety warnings as confirmed clinical false positives. The CURRENT overstatement is a Low precision issue; both safety decisions use the same conditional guidance and prevent ordinary processing.
+Per-case disposition:
+  other-unrelated | 'My friend Ana said "chest pain". I am feeling relaxed now.' | C | original expected CLEAR, actual CURRENT, reviewed target POSSIBLE
+  other-unrelated-nfd | 'My friend Ana said "chest pain". I am feeling relaxed now.' | C | original expected CLEAR, actual CURRENT, reviewed target POSSIBLE
+  other-unrelated-space | '  My friend Ana said "chest pain". I am feeling relaxed now.  ' | C | original expected CLEAR, actual CURRENT, reviewed target POSSIBLE
+  other-unrelated-quote-style | 'My friend Ana said “chest pain”. I am feeling relaxed now.' | C | original expected CLEAR, actual CURRENT, reviewed target POSSIBLE
+  other-unrelated-metric | 'My friend Ana said "chest pain". I am feeling relaxed now. What is my HRV today?' | C | original expected CLEAR, actual CURRENT, reviewed target POSSIBLE
+Category totals across all 62 failing definitions: A = 57; B = 0; C = 5. These are assertion counts across three genuine High/Medium defect families and one ambiguity/precision family, not 62 unique bugs.
+Contract references: docs/stage8-triage-architecture-alternative-design.md lines 35, 38-41.
+
+6. Minimal safe implementation design
+1. Every excluding frame needs a nonempty in-bounds supporting span whose actual normalized text matches the registered operator and whose origin is explicit.
+2. An inner quoted conditional can frame its quoted occurrence; it cannot frame a separately asserted outside personal predicate merely because the symptom is referenced by QUOTE_COMPLEMENT.
+3. A conditional outside quotation may frame the quote plus the copular complement inside that same conditional antecedent. Connector-span equality alone is insufficient: require the same bounded clause/antecedent and no independent assertion boundary.
+4. A valid independently current symptom outside a hypothetical scope remains CURRENT. If personal serious-symptom ownership/currentness is unresolved, retain POSSIBLE instead of granting an exclusion certificate.
+5. A positive head cannot be evidence for affirmation when its span is wholly inside an owned negative lexeme. Preserve negative operators and select the actual experiential head, or retain uncertainty without manufacturing positive evidence.
+6. Negation stays within its proven predicate and coordinated argument list; it cannot suppress a separate positive assertion or another actor.
+7. A reported bare symptom term binds to its actual reporter but does not by itself prove currentness. Keep OTHER identity and cautious routing; require affirmative symptom/assertion evidence before CURRENT. SELF wellness cannot retire OTHER symptoms.
+8. Both safety decisions continue through the existing localized ingress safety path, before identity/name/note/ordinary health consumers, with replay and authorization fencing unchanged.
+Frame correction: At the conditional guard, validate nonempty connectorSpan and inspect text.slice(start,end) rather than pairing the inner connector string with the outer span. Determine whether that validated operator is inside or outside q.quote. Propagate only along a proven same-antecedent frame relationship, never automatically along a symptom reference into an outside actual assertion. Existing raw traces already contain the required quote boundaries and real outer spans.
+Negation correction: Reject a candidate experiential head contained in the same predicate's negative operator span before selecting a positive head. For the exact case, reject 有 [10,11) inside 沒有 [9,11), then choose 感到 [11,13), which is correctly governed by negation. Preserve standalone positive 有 and independent later positive predicates. Do not use Latin word boundaries for Chinese or globally ignore 有.
+Boundary: Prefer a local safetyGate.js correction. Only add a narrowly necessary parser provenance field if an operator origin cannot be proven from existing spans. Do not change ingress, Settings, Journal, Coach, Provider, migrations, Stage 6 or LIVE code.
+Moving the CURRENT branch ahead of every exclusion by itself leaves valid outer hypothetical ownership unresolved. Repair the two frame directions together using actual provenance.
+
+7. Expected acceptance matrix
+  Inside-quote conditional plus actual outside copular symptom assertion -> CURRENT, or at least safety if a relationship remains unresolved | 9 semantic + 12 processor failures must close
+  Standalone quoted conditional without an outside personal assertion -> CLEAR | 9 passing controls must remain passing
+  Conditional outside quotation owns the symptom-complement antecedent -> CLEAR | 15 semantic + 12 processor inherited failures must close
+  Outer conditional followed by an independent actual positive assertion -> Safety; do not propagate the outer frame across the independent predicate | Independent novel controls pass
+  Owned absence containing positive lexical substring, with no independent urgent symptom -> CLEAR | 5 Chinese semantic + 4 processor failures must close; equivalent negation controls remain clear
+  Standalone positive 有 / experiential assertion, and negation followed by a different current symptom -> Safety | Independent positive and mixed-scope controls pass
+  Named OTHER reporter says a bare serious-symptom term; SELF later feels well -> POSSIBLE, reporter remains OTHER | Five disputed definitions remain raw FAIL until a later authorized correction
+  Reported explicit current symptom, educational report, and historical reported symptom -> CURRENT / CLEAR / CLEAR respectively | Preserve accepted reports and independent controls
+  NFC/NFD, whitespace, quote style, unrelated metric suffix, and weak-pair/bounds controls -> Invariant according to semantic scope; overflow remains POSSIBLE | Preserve all existing bounded/privacy tests
+  Real shared processor, every current/plausible message across name/note/Coach/health -> Localized safety; zero name/note/canonical profile writes, zero identity/ordinary consumers or scoped health reads, once on replay, peer unchanged | Original 4 semantic + 16 processor closures must stay closed
+  All preserved and documented definitions -> 2,151 original accepted keys and 2,560 existing definitions preserved, then all 2,901 documented assertions without hiding failures | Full independent reproduction required; no expectation changes to manufacture PASS
+
+8. Independent test reproduction
+No candidate tests or expected results were modified. Processor fixture copies adapt only root/resource resolution and private output destinations. Every partition is checked for complete, nonoverlapping coverage.
+  adjudicated-ingress0: 45 PASS / 0 FAIL / 45 definitions; exit 0
+  adjudicated-ingress1: 45 PASS / 0 FAIL / 45 definitions; exit 0
+  adjudicated-ingress2: 44 PASS / 0 FAIL / 44 definitions; exit 0
+  adjudicated-semantic: 221 PASS / 0 FAIL / 221 definitions; exit 0
+  final-adversarial: 27 PASS / 0 FAIL / 27 definitions; exit 0
+  gate-semantic: 417 PASS / 0 FAIL / 417 definitions; exit 0
+  integration: 200 PASS / 0 FAIL / 200 definitions; exit 0
+  legacy-ingress0: 75 PASS / 0 FAIL / 75 definitions; exit 0
+  legacy-ingress1: 75 PASS / 0 FAIL / 75 definitions; exit 0
+  legacy-ingress2: 74 PASS / 0 FAIL / 74 definitions; exit 0
+  local-frame: 9 PASS / 21 FAIL / 30 definitions; exit 1
+  name: 1 PASS / 0 FAIL / 1 definitions; exit 0
+  new-semantic: 195 PASS / 0 FAIL / 195 definitions; exit 0
+  polling: 16 PASS / 0 FAIL / 16 definitions; exit 0
+  processor: 25 PASS / 0 FAIL / 25 definitions; exit 0
+  quotation-ingress0: 21 PASS / 5 FAIL / 26 definitions; exit 1
+  quotation-ingress1: 20 PASS / 5 FAIL / 25 definitions; exit 1
+  quotation-ingress2: 19 PASS / 6 FAIL / 25 definitions; exit 1
+  quotation-semantic: 210 PASS / 25 FAIL / 235 definitions; exit 1
+  regression: 164 PASS / 0 FAIL / 164 definitions; exit 0
+  safety: 576 PASS / 0 FAIL / 576 definitions; exit 0
+  scoped: 348 PASS / 0 FAIL / 348 definitions; exit 0
+  stop-processor: 12 PASS / 0 FAIL / 12 definitions; exit 0
+Total: 2901 definitions; 2839 PASS / 62 FAIL; 0 skipped/cancelled. Raw failed assertions remain in the totals.
+Original 2,151 preserved definitions: 2,151 PASS, independently matched against the prior independent raw TAP files by run/title/occurrence, with their retained hashes verified. All 2,560 existing definitions also pass.
+The original four quotation false clears and sixteen real processor jobs remain closed. Exact original eleven semantic rows: parent 7/11, candidate 11/11. The four formerly failing rows have the required CURRENT/CURRENT/CURRENT/POSSIBLE classifications.
+Additional independent bounded direct probes: 34 definitions, 24 contract matches / 10 discrepancies: 3 false clears, 6 false warnings, 1 unproved CURRENT overstatement. These reproduce the same families with breathing symptoms, scope movement, independent assertions and Chinese negative/positive pairs. They are separate from the 2,901 documented definitions.
+The private diagnostic copy redirects only imports and captures arguments to the exact real candidate reducer; all 282 public results are identical to the untouched candidate. No classifier logic or expectations were changed to manufacture a PASS.
+
+9. Preservation and safety boundaries
+Integration 200/200, regressions 164/164, scoped repair 348/348 and all preserved ingress partitions pass. Auth, lifecycle, replay, receipts and peer isolation remain intact. No evidence justifies reopening Stage 6, LIVE, migrations, Provider, Morning Retry, Owner Monitoring or other accepted runtime code.
+The 28 positive/plausible jobs in the new 76-case processor suite all take safety with no name/note/profile/identity/peer writes, no ordinary consumers or scoped reads, and one send on replay. Other clearly nonurgent controls continue. The 16 false-warning jobs block normal workflows; the 12 High false-clear jobs bypass semantic safety and enter ordinary handling. These limitations are reported separately from correct authorization/replay behavior.
+
+10. Architecture and defect severity
+Retain Conservative Safety Gate. The required current and negative evidence already exists in the bounded graph. The failures are invalid exclusion provenance and overlapping-token admission, not proof that a general NLP engine is needed. No external LLM or broad architecture rewrite is warranted.
+Remaining High: inner quoted conditional suppresses actual outside assertion. Remaining Medium: Chinese negative-token substring admission, inherited outer conditional quotation scope. Remaining Low: bare reported term promoted to confirmed-current instead of POSSIBLE.
+
+11. Native and release boundaries
+STAGE8_NATIVE_BASELINE_SIGSEGV stays B_EXISTING_BASELINE_DEFECT / OPEN / root cause UNASSIGNED. Current observed native signals: False; extra process failures: 0. Passing reruns do not resolve it. Separate root-cause/stability qualification remains required before eventual integrated release acceptance.
+Latest independently frozen Stage 6 successor reconciliation and authenticated LIVE producers remain separate dependencies. Preserve authority/budget guards; do not import the old partial successor or promote SHADOW to LIVE. F02 remains Owner Accepted Risk.
+
+12. Exact next implementer instructions
+Keep 620033c frozen with all failure evidence. Perform one scoped operand/frame-ownership repair: validate actual nonempty conditional spans and their quotation origin; stop propagation into independent outside assertions; recognize genuine outer conditional ownership; disqualify positive heads contained in negative lexemes. Express the five ambiguous reported-term controls as POSSIBLE in a later authorized test/code correction, retaining the original failures and OTHER identity.
+Preserve all existing three-state ingress, authorization and replay behavior. Run the full 2,901 definitions and the independent scope/negation matrix, close all three High/Medium families, freeze an exact new SHA/tree, and obtain independent delta review. Do not alter unrelated runtime, schemas, Stage 6 or LIVE code.
+Code acceptance NO-GO. Production NO-GO. Whole Stage 8 NO-GO. No completion or independent acceptance marker is issued.
+Only synthetic fixture databases and private review artifacts were written. No Production/credential access or changes, real Telegram sends, paid external execution, push, merge, deployment or Production migration.
+Detailed case-by-case adjudication and raw traces: /private/tmp/stage8-quotation-independent-adjudication/review.json; hash manifest: sha256-manifest.json.

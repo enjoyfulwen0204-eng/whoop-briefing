@@ -11,7 +11,7 @@ const {interpretUrgentSymptoms,urgentReply}=await import(root+'/src/bot/triage.j
 const {JOURNAL_COPY}=await import(root+'/src/stage7Registry.js');
 const original=JSON.parse(fs.readFileSync(new URL('../stage8-scoped-repair/original-cases.json',import.meta.url))).cases;
 const references=JSON.parse(fs.readFileSync(new URL('../stage8-scoped-repair/reference-cases.json',import.meta.url))).cases;
-const output='/private/tmp/stage8-final-stop-processor-results.json';
+const output='/private/tmp/stage8-final-quotation-repair/final/stop-processor-results.json';
 const results=[];
 function record(r){results.push(r);fs.writeFileSync(output,JSON.stringify({count:results.length,pass:results.filter(r=>r.pass).length,fail:results.filter(r=>!r.pass).length,results},null,2));}
 async function tap(app,f,card,label){const actor=await app.companion.interactions.authenticate(f.input);await app.companion.interactions.bind(actor,card.stage7InteractionId,42);const b=card.replyMarkup.inline_keyboard.flat().find(b=>b.text===label||b.text.endsWith(' '+label));assert.ok(b);return app.companion.handle({...f.input,callback:{id:'independent',data:b.callback_data,from:{id:123},message:{message_id:42,chat:{id:123,type:'private'}}}});}

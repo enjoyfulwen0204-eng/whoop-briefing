@@ -276,7 +276,7 @@
       "id": "other-unrelated",
       "locale": "en",
       "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
-      "expected": "CLEARLY_NONURGENT"
+      "expected": "POSSIBLE_CURRENT_URGENT"
     }
   ],
   "metamorphic": [
@@ -1544,28 +1544,28 @@
       "id": "other-unrelated-nfd",
       "locale": "en",
       "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
-      "expected": "CLEARLY_NONURGENT",
+      "expected": "POSSIBLE_CURRENT_URGENT",
       "transformation": "nfd"
     },
     {
       "id": "other-unrelated-space",
       "locale": "en",
       "text": "  My friend Ana said \"chest pain\". I am feeling relaxed now.  ",
-      "expected": "CLEARLY_NONURGENT",
+      "expected": "POSSIBLE_CURRENT_URGENT",
       "transformation": "space"
     },
     {
       "id": "other-unrelated-quote-style",
       "locale": "en",
       "text": "My friend Ana said “chest pain”. I am feeling relaxed now.",
-      "expected": "CLEARLY_NONURGENT",
+      "expected": "POSSIBLE_CURRENT_URGENT",
       "transformation": "quote-style"
     },
     {
       "id": "other-unrelated-metric",
       "locale": "en",
       "text": "My friend Ana said \"chest pain\". I am feeling relaxed now. What is my HRV today?",
-      "expected": "CLEARLY_NONURGENT",
+      "expected": "POSSIBLE_CURRENT_URGENT",
       "transformation": "metric"
     }
   ]

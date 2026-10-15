@@ -1,10 +1,13 @@
 // A bounded safety reduction, independent of the parser's exclusion decision.
 // Missing positive syntax proof is never an exclusion certificate. This module
 // neither clones symptoms nor changes predicate/operator ownership or evidence.
-export const SAFETY_GATE_VERSION='conservative-evidence-v1-quotation-fallback';
+export const SAFETY_GATE_VERSION='conservative-evidence-v1-quotation-ownership';
 const CURRENT='CURRENT_URGENT',POSSIBLE='POSSIBLE_CURRENT_URGENT',CLEAR='CLEARLY_NONURGENT';
 const active=m=>['CURRENT','AMBIGUOUS'].includes(m.state);
 const word=/[\p{L}\p{N}]/u;
+const conditional=/^(?:if|what if|suppose|hypothetically|nếu|giả sử|如果|假設|假如|若是|萬一)$/iu;
+const validSpan=(text,span)=>Number.isInteger(span?.start)&&Number.isInteger(span?.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length;
+const containedInNegative=(head,ops)=>ops.some(o=>o.type==='negative'&&o.start<=head.start&&o.end>=head.end);
 // Only these complete descriptive complements prove continuing presence.
 // Unknown complements retain plausible lineage with POSSIBLE, never absence.
 const continuingPresence=new Set(['present','仍然存在','vẫn còn']);
@@ -21,24 +24,28 @@ function residual(text,start,end,events){
 // Existing lexical heads, actor identities and clause boundaries own all proof.
 function quotationEvidence(text,graph,operators){
  const rows=new Map(),frames=new Map();
- const conditional=/^(?:if|what if|suppose|hypothetically|nếu|giả sử|如果|假設|假如|若是|萬一)$/iu;
  const experiential=/^(?:have|has|having|experience|experiencing|experienced|feel|feeling|felt|suffering from|感到|覺得|有|cảm thấy|bị|có)$/iu;
  // Modality here can only lower confidence; it never excludes a candidate.
  const modal=/\b(?:may|might|could|maybe|perhaps|possibly)\b|可能|也許|(?<!\p{L})có thể(?!\p{L})/iu;
  for(let i=0;i<graph.predicates.length;i++){
   const q=graph.predicates[i],unit=q.units[0];
   if(!q.quote)continue;
-  // A leading registered conditional belongs to the quoted clause, including
-  // a derived quote complement in that same clause; never a later assertion.
-  if(conditional.test(unit.connector)&&unit.connectorSpan.end<=q.quote.start){
-   const frame={sourcePredicateId:q.id,span:unit.connectorSpan,proof:'LOCAL_QUOTED_CONDITIONAL'};
+  const p=graph.predicates[i+1],span=unit.connectorSpan;
+  // Connector text and span can originate on opposite sides of a quote.
+  // Only source-validated OUTER antecedents can frame an outer complement.
+  // An inner conditional stays inside its quotation, even when referenced.
+  if(validSpan(text,span)&&conditional.test(text.slice(span.start,span.end))&&span.end<=q.quote.start&&!text.slice(span.end,q.quote.start).trim()){
+   const frame={sourcePredicateId:q.id,span:{...span},quoteSpan:{...q.quote},origin:'OUTSIDE_QUOTATION',proof:'LOCAL_QUOTED_CONDITIONAL'};
    frames.set(q.id,frame);
-   for(const p of graph.predicates)if(p.referenceProof==='QUOTE_COMPLEMENT'&&p.referenceId===q.id&&p.units[0].connectorSpan.start===unit.connectorSpan.start&&p.units[0].connectorSpan.end===unit.connectorSpan.end)frames.set(p.id,frame);
+   const link=graph.links.find(l=>l.type==='QUOTE_COMPLEMENT'&&l.fromPredicateId===q.id&&l.toPredicateId===p?.id);
+   const next=p?.units[0];
+   // A symptom reference alone is insufficient. Require the adjacent copular
+   // antecedent, its bounded link and the same verified outer connector.
+   if(link&&!p.quote&&p.edge==='quote-tail'&&next.start===q.quote.end&&next.connectorSpan.start===span.start&&next.connectorSpan.end===span.end&&link.span.start>=q.quote.end&&link.span.end<=p.ownedSpan.end)frames.set(p.id,{...frame,linkId:link.id});
   }
-  const p=graph.predicates[i+1];
   if(!p||p.quote||p.edge!=='quote-tail'||p.symptomIds.length||!p.actorId||p.actor==='GENERIC'||p.information||p.hypothetical||frames.has(q.id))continue;
   const ops=operators.get(p.id),actor=ops.find(o=>o.type==='actor'&&o.role!=='POSSESSOR_OBJECT');
-  const head=actor&&ops.find(o=>['present','pastPredicate'].includes(o.type)&&o.start>=actor.end&&experiential.test(o.word));
+  const head=actor&&ops.find(o=>['present','pastPredicate'].includes(o.type)&&o.start>=actor.end&&experiential.test(o.word)&&!containedInNegative(o,ops));
   if(!head||ops.some(o=>['education','information','conditionalFrame'].includes(o.type)&&o.start<head.end))continue;
   // A different explicit argument is a barrier. Whitespace, owned operators
   // and the already supported Chinese symptom nominal exhaust this slot.
@@ -69,7 +76,7 @@ export function reduceSafetyEvidence(text,graph,mentions){
   const visited=new Set();
   for(let depth=0;p&&depth<16&&!visited.has(p.id);depth++){
    visited.add(p.id);
-   if(operators.get(p.id).some(o=>o.type==='conditionalFrame'))return true;
+   if(operators.get(p.id).some(o=>o.type==='conditionalFrame'&&validSpan(text,o.span)&&conditional.test(text.slice(o.start,o.end))&&text.slice(o.start,o.end).toLocaleLowerCase('en')===o.word.toLocaleLowerCase('en')))return true;
    const report=graph.links.find(l=>l.type==='REPORT'&&l.toPredicateId===p.id);
    const source=predicates.get(p.frameSourceId??report?.fromPredicateId);
    p=source?.frame==='HYPOTHETICAL'?source:null;
@@ -96,7 +103,14 @@ export function reduceSafetyEvidence(text,graph,mentions){
   if(quotedFrame){certificates.push({...basis,...quotedFrame});continue;}
   const quotedReference=m.state==='QUOTED'&&quotation.rows.get(p.id);
   if(quotedReference){const row={...basis,...quotedReference,symptomId:m.id,text:m.text};quotationRows.push(row);(row.decision===CURRENT?current:unresolved).push(row);continue;}
-  if(active(m)){(m.state==='CURRENT'&&(m.strong||mentions.some(n=>compatible(m,n)&&n.state==='CURRENT'))?current:unresolved).push({...basis,text:m.text});continue;}
+  if(active(m)){
+   const report=p.quote&&graph.links.find(l=>l.type==='REPORT'&&l.toPredicateId===p.id);
+   // Reporting a bare term establishes a speaker, not clinical currentness.
+   // Explicit quoted assertions (including supported zero-copula subjects)
+   // keep their own evidence. Another actor's wellness is never an exclusion.
+   const bareReport=report&&!ops.some(o=>o.type==='actor'&&o.role!=='POSSESSOR_OBJECT'||['present','pastPredicate','currentTime','assertionHead'].includes(o.type)&&!containedInNegative(o,ops));
+   (m.state==='CURRENT'&&!bareReport&&(m.strong||mentions.some(n=>compatible(m,n)&&n.state==='CURRENT'))?current:unresolved).push({...basis,text:m.text,...(bareReport?{reason:'REPORTED_CURRENTNESS_UNPROVEN',linkId:report.id,sourcePredicateId:report.fromPredicateId}:{})});continue;
+  }
   // Derived retirement must have its bounded, compatible OUTCOME relationship.
   // Original evidence remains intact and a historical outcome cannot close it.
   const outcome=m.retiredBy&&graph.links.find(l=>l.type==='OUTCOME'&&l.fromPredicateId===m.retiredBy&&l.toPredicateId===p.id);

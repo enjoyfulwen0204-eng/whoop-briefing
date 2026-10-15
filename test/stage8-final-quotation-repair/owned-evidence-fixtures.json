@@ -1,0 +1,1153 @@
+{
+  "inner-current-en": {
+    "text": "\"if I have difficulty breathing\" is what I am feeling now.",
+    "graph": {
+      "version": "predicate-ownership-v1-gate-adjudicated",
+      "predicates": [
+        {
+          "id": "P1",
+          "headSpan": {
+            "start": 6,
+            "end": 10
+          },
+          "ownedSpan": {
+            "start": 1,
+            "end": 31
+          },
+          "actor": null,
+          "actorId": null,
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "TOPIC",
+          "frame": "QUOTED",
+          "symptomIds": [
+            "S1"
+          ],
+          "operatorIds": [
+            "O1",
+            "O2",
+            "O3",
+            "O4"
+          ],
+          "edge": "hypothetical",
+          "quote": {
+            "start": 0,
+            "end": 32,
+            "depth": 1
+          },
+          "units": [
+            {
+              "start": 3,
+              "end": 31,
+              "edge": "hypothetical",
+              "connector": "if",
+              "quote": {
+                "start": 0,
+                "end": 32,
+                "depth": 1
+              },
+              "connectorSpan": {
+                "start": 0,
+                "end": 0
+              },
+              "events": [
+                {
+                  "type": "actor",
+                  "word": "I",
+                  "start": 4,
+                  "end": 5,
+                  "quote": -1,
+                  "role": "SUBJECT"
+                },
+                {
+                  "type": "present",
+                  "word": "have",
+                  "start": 6,
+                  "end": 10,
+                  "quote": -1
+                },
+                {
+                  "type": "ongoing",
+                  "word": "have",
+                  "start": 6,
+                  "end": 10,
+                  "quote": -1
+                }
+              ],
+              "symptoms": [
+                {
+                  "kind": "breathing",
+                  "strong": true,
+                  "text": "difficulty breathing",
+                  "start": 11,
+                  "end": 31
+                }
+              ]
+            }
+          ],
+          "assertionUncertain": false,
+          "epistemic": false,
+          "hypothetical": true,
+          "information": false,
+          "education": false,
+          "argumentProof": "OWNED_ARGUMENT",
+          "tailArgumentProof": "OWNED_ARGUMENT"
+        },
+        {
+          "id": "P2",
+          "headSpan": {
+            "start": 46,
+            "end": 53
+          },
+          "ownedSpan": {
+            "start": 32,
+            "end": 57
+          },
+          "actor": "SELF",
+          "actorId": "SELF",
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "ACTUAL",
+          "frame": "ACTUAL",
+          "symptomIds": [
+            "S2"
+          ],
+          "operatorIds": [
+            "O5",
+            "O6",
+            "O7",
+            "O8",
+            "O9",
+            "O10"
+          ],
+          "edge": "quote-tail",
+          "quote": null,
+          "units": [
+            {
+              "start": 32,
+              "end": 57,
+              "edge": "quote-tail",
+              "connector": "",
+              "quote": null,
+              "connectorSpan": {
+                "start": 0,
+                "end": 0
+              },
+              "events": [
+                {
+                  "type": "present",
+                  "word": "is",
+                  "start": 33,
+                  "end": 35,
+                  "quote": -1
+                },
+                {
+                  "type": "actor",
+                  "word": "I",
+                  "start": 41,
+                  "end": 42,
+                  "quote": -1,
+                  "role": "SUBJECT"
+                },
+                {
+                  "type": "present",
+                  "word": "am",
+                  "start": 43,
+                  "end": 45,
+                  "quote": -1
+                },
+                {
+                  "type": "present",
+                  "word": "feeling",
+                  "start": 46,
+                  "end": 53,
+                  "quote": -1
+                },
+                {
+                  "type": "ongoing",
+                  "word": "feeling",
+                  "start": 46,
+                  "end": 53,
+                  "quote": -1
+                },
+                {
+                  "type": "currentTime",
+                  "word": "now",
+                  "start": 54,
+                  "end": 57,
+                  "quote": -1
+                }
+              ],
+              "symptoms": []
+            }
+          ],
+          "assertionUncertain": false,
+          "epistemic": false,
+          "hypothetical": false,
+          "information": false,
+          "education": false,
+          "argumentProof": "EXPLICIT_UNMATCHED_ARGUMENT",
+          "tailArgumentProof": "EXPLICIT_UNMATCHED_ARGUMENT",
+          "referenceId": "P1",
+          "referenceProof": "QUOTE_COMPLEMENT",
+          "complementProof": "OWNED_ARGUMENT"
+        }
+      ],
+      "symptoms": [
+        {
+          "kind": "breathing",
+          "strong": true,
+          "text": "difficulty breathing",
+          "start": 11,
+          "end": 31,
+          "id": "S1",
+          "span": {
+            "start": 11,
+            "end": 31
+          },
+          "ownerPredicateId": "P1"
+        },
+        {
+          "kind": "breathing",
+          "strong": true,
+          "text": "difficulty breathing",
+          "start": 53,
+          "end": 53,
+          "id": "S2",
+          "span": {
+            "start": 46,
+            "end": 53
+          },
+          "ownerPredicateId": "P2",
+          "referenceSymptomId": "S1"
+        }
+      ],
+      "operators": [
+        {
+          "type": "actor",
+          "word": "I",
+          "start": 4,
+          "end": 5,
+          "quote": -1,
+          "role": "SUBJECT",
+          "id": "O1",
+          "span": {
+            "start": 4,
+            "end": 5
+          },
+          "ownerPredicateId": "P1"
+        },
+        {
+          "type": "present",
+          "word": "have",
+          "start": 6,
+          "end": 10,
+          "quote": -1,
+          "id": "O2",
+          "span": {
+            "start": 6,
+            "end": 10
+          },
+          "ownerPredicateId": "P1"
+        },
+        {
+          "type": "ongoing",
+          "word": "have",
+          "start": 6,
+          "end": 10,
+          "quote": -1,
+          "id": "O3",
+          "span": {
+            "start": 6,
+            "end": 10
+          },
+          "ownerPredicateId": "P1"
+        },
+        {
+          "id": "O4",
+          "type": "conditionalFrame",
+          "word": "if",
+          "start": 1,
+          "end": 3,
+          "span": {
+            "start": 1,
+            "end": 3
+          },
+          "ownerPredicateId": "P1"
+        },
+        {
+          "type": "present",
+          "word": "is",
+          "start": 33,
+          "end": 35,
+          "quote": -1,
+          "id": "O5",
+          "span": {
+            "start": 33,
+            "end": 35
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "actor",
+          "word": "I",
+          "start": 41,
+          "end": 42,
+          "quote": -1,
+          "role": "SUBJECT",
+          "id": "O6",
+          "span": {
+            "start": 41,
+            "end": 42
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "present",
+          "word": "am",
+          "start": 43,
+          "end": 45,
+          "quote": -1,
+          "id": "O7",
+          "span": {
+            "start": 43,
+            "end": 45
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "present",
+          "word": "feeling",
+          "start": 46,
+          "end": 53,
+          "quote": -1,
+          "id": "O8",
+          "span": {
+            "start": 46,
+            "end": 53
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "ongoing",
+          "word": "feeling",
+          "start": 46,
+          "end": 53,
+          "quote": -1,
+          "id": "O9",
+          "span": {
+            "start": 46,
+            "end": 53
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "currentTime",
+          "word": "now",
+          "start": 54,
+          "end": 57,
+          "quote": -1,
+          "id": "O10",
+          "span": {
+            "start": 54,
+            "end": 57
+          },
+          "ownerPredicateId": "P2"
+        }
+      ],
+      "links": [
+        {
+          "id": "L1",
+          "type": "QUOTE_COMPLEMENT",
+          "fromPredicateId": "P1",
+          "toPredicateId": "P2",
+          "span": {
+            "start": 32,
+            "end": 41
+          }
+        }
+      ]
+    },
+    "mentions": [
+      {
+        "kind": "breathing",
+        "strong": true,
+        "text": "difficulty breathing",
+        "start": 11,
+        "end": 31,
+        "id": "S1",
+        "span": {
+          "start": 11,
+          "end": 31
+        },
+        "ownerPredicateId": "P1",
+        "index": 11,
+        "group": 1,
+        "predicateId": "P1",
+        "evidence": {
+          "actorId": null,
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "TOPIC",
+          "speaker": null,
+          "polarity": "POSITIVE",
+          "temporal": "UNKNOWN",
+          "resolution": "UNKNOWN",
+          "framing": "QUOTED",
+          "quotation": "MENTIONED",
+          "relationship": "INDEPENDENT"
+        },
+        "speaker": null,
+        "state": "QUOTED"
+      },
+      {
+        "kind": "breathing",
+        "strong": true,
+        "text": "difficulty breathing",
+        "start": 53,
+        "end": 53,
+        "id": "S2",
+        "span": {
+          "start": 46,
+          "end": 53
+        },
+        "ownerPredicateId": "P2",
+        "referenceSymptomId": "S1",
+        "index": 53,
+        "group": 2,
+        "predicateId": "P2",
+        "evidence": {
+          "actorId": "SELF",
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "ACTUAL",
+          "speaker": "SELF",
+          "polarity": "POSITIVE",
+          "temporal": "CURRENT",
+          "resolution": "UNKNOWN",
+          "framing": "ACTUAL",
+          "quotation": "NONE",
+          "relationship": "ADJACENT_REFERENCE"
+        },
+        "speaker": "SELF",
+        "state": "CURRENT"
+      }
+    ]
+  },
+  "outer-hypothetical-en": {
+    "text": "If \"difficulty breathing\" is what I am feeling, what should I do?",
+    "graph": {
+      "version": "predicate-ownership-v1-gate-adjudicated",
+      "predicates": [
+        {
+          "id": "P1",
+          "headSpan": {
+            "start": 4,
+            "end": 24
+          },
+          "ownedSpan": {
+            "start": 4,
+            "end": 24
+          },
+          "actor": null,
+          "actorId": null,
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "TOPIC",
+          "frame": "QUOTED",
+          "symptomIds": [
+            "S1"
+          ],
+          "operatorIds": [],
+          "edge": "quote",
+          "quote": {
+            "start": 3,
+            "end": 25,
+            "depth": 1
+          },
+          "units": [
+            {
+              "start": 4,
+              "end": 24,
+              "edge": "quote",
+              "connector": "",
+              "quote": {
+                "start": 3,
+                "end": 25,
+                "depth": 1
+              },
+              "connectorSpan": {
+                "start": 0,
+                "end": 2
+              },
+              "events": [],
+              "symptoms": [
+                {
+                  "kind": "breathing",
+                  "strong": true,
+                  "text": "difficulty breathing",
+                  "start": 4,
+                  "end": 24
+                }
+              ]
+            }
+          ],
+          "assertionUncertain": false,
+          "epistemic": false,
+          "hypothetical": false,
+          "information": false,
+          "education": false,
+          "argumentProof": "OWNED_ARGUMENT",
+          "tailArgumentProof": "OWNED_ARGUMENT"
+        },
+        {
+          "id": "P2",
+          "headSpan": {
+            "start": 39,
+            "end": 46
+          },
+          "ownedSpan": {
+            "start": 25,
+            "end": 46
+          },
+          "actor": "SELF",
+          "actorId": "SELF",
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "ACTUAL",
+          "frame": "ACTUAL",
+          "symptomIds": [
+            "S2"
+          ],
+          "operatorIds": [
+            "O1",
+            "O2",
+            "O3",
+            "O4",
+            "O5"
+          ],
+          "edge": "quote-tail",
+          "quote": null,
+          "units": [
+            {
+              "start": 25,
+              "end": 46,
+              "edge": "quote-tail",
+              "connector": "If",
+              "quote": null,
+              "connectorSpan": {
+                "start": 0,
+                "end": 2
+              },
+              "events": [
+                {
+                  "type": "present",
+                  "word": "is",
+                  "start": 26,
+                  "end": 28,
+                  "quote": -1
+                },
+                {
+                  "type": "actor",
+                  "word": "I",
+                  "start": 34,
+                  "end": 35,
+                  "quote": -1,
+                  "role": "SUBJECT"
+                },
+                {
+                  "type": "present",
+                  "word": "am",
+                  "start": 36,
+                  "end": 38,
+                  "quote": -1
+                },
+                {
+                  "type": "present",
+                  "word": "feeling",
+                  "start": 39,
+                  "end": 46,
+                  "quote": -1
+                },
+                {
+                  "type": "ongoing",
+                  "word": "feeling",
+                  "start": 39,
+                  "end": 46,
+                  "quote": -1
+                }
+              ],
+              "symptoms": []
+            }
+          ],
+          "assertionUncertain": false,
+          "epistemic": false,
+          "hypothetical": false,
+          "information": false,
+          "education": false,
+          "argumentProof": "EXPLICIT_UNMATCHED_ARGUMENT",
+          "tailArgumentProof": "EXPLICIT_UNMATCHED_ARGUMENT",
+          "referenceId": "P1",
+          "referenceProof": "QUOTE_COMPLEMENT",
+          "complementProof": "OWNED_ARGUMENT"
+        },
+        {
+          "id": "P3",
+          "headSpan": {
+            "start": 47,
+            "end": 47
+          },
+          "ownedSpan": {
+            "start": 47,
+            "end": 64
+          },
+          "actor": "SELF",
+          "actorId": "SELF",
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "ACTUAL",
+          "frame": "ACTUAL",
+          "symptomIds": [],
+          "operatorIds": [
+            "O6"
+          ],
+          "edge": "comma",
+          "quote": null,
+          "units": [
+            {
+              "start": 47,
+              "end": 64,
+              "edge": "comma",
+              "connector": ",",
+              "quote": null,
+              "connectorSpan": {
+                "start": 46,
+                "end": 47
+              },
+              "events": [
+                {
+                  "type": "actor",
+                  "word": "I",
+                  "start": 60,
+                  "end": 61,
+                  "quote": -1,
+                  "role": "SUBJECT"
+                }
+              ],
+              "symptoms": []
+            }
+          ],
+          "assertionUncertain": false,
+          "epistemic": false,
+          "hypothetical": false,
+          "information": false,
+          "education": false,
+          "argumentProof": "EXPLICIT_UNMATCHED_ARGUMENT",
+          "tailArgumentProof": "EXPLICIT_UNMATCHED_ARGUMENT"
+        }
+      ],
+      "symptoms": [
+        {
+          "kind": "breathing",
+          "strong": true,
+          "text": "difficulty breathing",
+          "start": 4,
+          "end": 24,
+          "id": "S1",
+          "span": {
+            "start": 4,
+            "end": 24
+          },
+          "ownerPredicateId": "P1"
+        },
+        {
+          "kind": "breathing",
+          "strong": true,
+          "text": "difficulty breathing",
+          "start": 46,
+          "end": 46,
+          "id": "S2",
+          "span": {
+            "start": 39,
+            "end": 46
+          },
+          "ownerPredicateId": "P2",
+          "referenceSymptomId": "S1"
+        }
+      ],
+      "operators": [
+        {
+          "type": "present",
+          "word": "is",
+          "start": 26,
+          "end": 28,
+          "quote": -1,
+          "id": "O1",
+          "span": {
+            "start": 26,
+            "end": 28
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "actor",
+          "word": "I",
+          "start": 34,
+          "end": 35,
+          "quote": -1,
+          "role": "SUBJECT",
+          "id": "O2",
+          "span": {
+            "start": 34,
+            "end": 35
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "present",
+          "word": "am",
+          "start": 36,
+          "end": 38,
+          "quote": -1,
+          "id": "O3",
+          "span": {
+            "start": 36,
+            "end": 38
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "present",
+          "word": "feeling",
+          "start": 39,
+          "end": 46,
+          "quote": -1,
+          "id": "O4",
+          "span": {
+            "start": 39,
+            "end": 46
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "ongoing",
+          "word": "feeling",
+          "start": 39,
+          "end": 46,
+          "quote": -1,
+          "id": "O5",
+          "span": {
+            "start": 39,
+            "end": 46
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "actor",
+          "word": "I",
+          "start": 60,
+          "end": 61,
+          "quote": -1,
+          "role": "SUBJECT",
+          "id": "O6",
+          "span": {
+            "start": 60,
+            "end": 61
+          },
+          "ownerPredicateId": "P3"
+        }
+      ],
+      "links": [
+        {
+          "id": "L1",
+          "type": "QUOTE_COMPLEMENT",
+          "fromPredicateId": "P1",
+          "toPredicateId": "P2",
+          "span": {
+            "start": 25,
+            "end": 34
+          }
+        }
+      ]
+    },
+    "mentions": [
+      {
+        "kind": "breathing",
+        "strong": true,
+        "text": "difficulty breathing",
+        "start": 4,
+        "end": 24,
+        "id": "S1",
+        "span": {
+          "start": 4,
+          "end": 24
+        },
+        "ownerPredicateId": "P1",
+        "index": 4,
+        "group": 1,
+        "predicateId": "P1",
+        "evidence": {
+          "actorId": null,
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "TOPIC",
+          "speaker": null,
+          "polarity": "POSITIVE",
+          "temporal": "UNKNOWN",
+          "resolution": "UNKNOWN",
+          "framing": "QUOTED",
+          "quotation": "MENTIONED",
+          "relationship": "INDEPENDENT"
+        },
+        "speaker": null,
+        "state": "QUOTED"
+      },
+      {
+        "kind": "breathing",
+        "strong": true,
+        "text": "difficulty breathing",
+        "start": 46,
+        "end": 46,
+        "id": "S2",
+        "span": {
+          "start": 39,
+          "end": 46
+        },
+        "ownerPredicateId": "P2",
+        "referenceSymptomId": "S1",
+        "index": 46,
+        "group": 2,
+        "predicateId": "P2",
+        "evidence": {
+          "actorId": "SELF",
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "ACTUAL",
+          "speaker": "SELF",
+          "polarity": "POSITIVE",
+          "temporal": "CURRENT",
+          "resolution": "UNKNOWN",
+          "framing": "ACTUAL",
+          "quotation": "NONE",
+          "relationship": "ADJACENT_REFERENCE"
+        },
+        "speaker": "SELF",
+        "state": "CURRENT"
+      }
+    ]
+  },
+  "negated-zh-TW": {
+    "text": "「呼吸困難」正是我現在沒有感到的症狀。",
+    "graph": {
+      "version": "predicate-ownership-v1-gate-adjudicated",
+      "predicates": [
+        {
+          "id": "P1",
+          "headSpan": {
+            "start": 1,
+            "end": 5
+          },
+          "ownedSpan": {
+            "start": 1,
+            "end": 5
+          },
+          "actor": null,
+          "actorId": null,
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "TOPIC",
+          "frame": "QUOTED",
+          "symptomIds": [
+            "S1"
+          ],
+          "operatorIds": [],
+          "edge": "quote",
+          "quote": {
+            "start": 0,
+            "end": 6,
+            "depth": 1
+          },
+          "units": [
+            {
+              "start": 1,
+              "end": 5,
+              "edge": "quote",
+              "connector": "",
+              "quote": {
+                "start": 0,
+                "end": 6,
+                "depth": 1
+              },
+              "connectorSpan": {
+                "start": 0,
+                "end": 0
+              },
+              "events": [],
+              "symptoms": [
+                {
+                  "kind": "breathing",
+                  "strong": true,
+                  "text": "呼吸困難",
+                  "start": 1,
+                  "end": 5
+                }
+              ]
+            }
+          ],
+          "assertionUncertain": false,
+          "epistemic": false,
+          "hypothetical": false,
+          "information": false,
+          "education": false,
+          "argumentProof": "OWNED_ARGUMENT",
+          "tailArgumentProof": "OWNED_ARGUMENT"
+        },
+        {
+          "id": "P2",
+          "headSpan": {
+            "start": 12,
+            "end": 13
+          },
+          "ownedSpan": {
+            "start": 6,
+            "end": 18
+          },
+          "actor": "SELF",
+          "actorId": "SELF",
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "ACTUAL",
+          "frame": "ACTUAL",
+          "symptomIds": [],
+          "operatorIds": [
+            "O1",
+            "O2",
+            "O3",
+            "O4",
+            "O5",
+            "O6",
+            "O7"
+          ],
+          "edge": "quote-tail",
+          "quote": null,
+          "units": [
+            {
+              "start": 6,
+              "end": 18,
+              "edge": "quote-tail",
+              "connector": "",
+              "quote": null,
+              "connectorSpan": {
+                "start": 0,
+                "end": 0
+              },
+              "events": [
+                {
+                  "type": "actor",
+                  "word": "我",
+                  "start": 8,
+                  "end": 9,
+                  "quote": -1,
+                  "role": "SUBJECT"
+                },
+                {
+                  "type": "currentTime",
+                  "word": "現在",
+                  "start": 9,
+                  "end": 11,
+                  "quote": -1
+                },
+                {
+                  "type": "negative",
+                  "word": "沒有",
+                  "start": 11,
+                  "end": 13,
+                  "quote": -1
+                },
+                {
+                  "type": "present",
+                  "word": "有",
+                  "start": 12,
+                  "end": 13,
+                  "quote": -1
+                },
+                {
+                  "type": "ongoing",
+                  "word": "有",
+                  "start": 12,
+                  "end": 13,
+                  "quote": -1
+                },
+                {
+                  "type": "present",
+                  "word": "感到",
+                  "start": 13,
+                  "end": 15,
+                  "quote": -1
+                },
+                {
+                  "type": "ongoing",
+                  "word": "感到",
+                  "start": 13,
+                  "end": 15,
+                  "quote": -1
+                }
+              ],
+              "symptoms": []
+            }
+          ],
+          "assertionUncertain": false,
+          "epistemic": false,
+          "hypothetical": false,
+          "information": false,
+          "education": false,
+          "argumentProof": "EXPLICIT_UNMATCHED_ARGUMENT",
+          "tailArgumentProof": "EXPLICIT_UNMATCHED_ARGUMENT"
+        }
+      ],
+      "symptoms": [
+        {
+          "kind": "breathing",
+          "strong": true,
+          "text": "呼吸困難",
+          "start": 1,
+          "end": 5,
+          "id": "S1",
+          "span": {
+            "start": 1,
+            "end": 5
+          },
+          "ownerPredicateId": "P1"
+        }
+      ],
+      "operators": [
+        {
+          "type": "actor",
+          "word": "我",
+          "start": 8,
+          "end": 9,
+          "quote": -1,
+          "role": "SUBJECT",
+          "id": "O1",
+          "span": {
+            "start": 8,
+            "end": 9
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "currentTime",
+          "word": "現在",
+          "start": 9,
+          "end": 11,
+          "quote": -1,
+          "id": "O2",
+          "span": {
+            "start": 9,
+            "end": 11
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "negative",
+          "word": "沒有",
+          "start": 11,
+          "end": 13,
+          "quote": -1,
+          "id": "O3",
+          "span": {
+            "start": 11,
+            "end": 13
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "present",
+          "word": "有",
+          "start": 12,
+          "end": 13,
+          "quote": -1,
+          "id": "O4",
+          "span": {
+            "start": 12,
+            "end": 13
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "ongoing",
+          "word": "有",
+          "start": 12,
+          "end": 13,
+          "quote": -1,
+          "id": "O5",
+          "span": {
+            "start": 12,
+            "end": 13
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "present",
+          "word": "感到",
+          "start": 13,
+          "end": 15,
+          "quote": -1,
+          "id": "O6",
+          "span": {
+            "start": 13,
+            "end": 15
+          },
+          "ownerPredicateId": "P2"
+        },
+        {
+          "type": "ongoing",
+          "word": "感到",
+          "start": 13,
+          "end": 15,
+          "quote": -1,
+          "id": "O7",
+          "span": {
+            "start": 13,
+            "end": 15
+          },
+          "ownerPredicateId": "P2"
+        }
+      ],
+      "links": []
+    },
+    "mentions": [
+      {
+        "kind": "breathing",
+        "strong": true,
+        "text": "呼吸困難",
+        "start": 1,
+        "end": 5,
+        "id": "S1",
+        "span": {
+          "start": 1,
+          "end": 5
+        },
+        "ownerPredicateId": "P1",
+        "index": 1,
+        "group": 1,
+        "predicateId": "P1",
+        "evidence": {
+          "actorId": null,
+          "aspect": "SIMPLE",
+          "durationProof": "NONE",
+          "assertion": "TOPIC",
+          "speaker": null,
+          "polarity": "POSITIVE",
+          "temporal": "UNKNOWN",
+          "resolution": "UNKNOWN",
+          "framing": "QUOTED",
+          "quotation": "MENTIONED",
+          "relationship": "INDEPENDENT"
+        },
+        "speaker": null,
+        "state": "QUOTED"
+      }
+    ]
+  }
+}

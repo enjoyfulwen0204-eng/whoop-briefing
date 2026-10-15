@@ -3,6 +3,8 @@ import{syntheticPublicKey}from'./stage6SyntheticTrust.mjs';
 export const canonical=x=>JSON.stringify(x);
 export const digest=x=>createHash('sha256').update(typeof x==='string'?x:canonical(x)).digest('hex');
 export const deny=()=>{throw Object.assign(Error('LOCAL_SYNTHETIC_ADMISSION_DENIED'),{code:'BETA_PILOT_DENIED'});};
+export function requireReviewMatch(review,{codeSha,manifestDigest,registry}){if(review?.verdict!=='GO'||review.candidateSha!==codeSha||review.manifestContract!=='stage6-local-synthetic-http-v1'||review.manifestDigest!==manifestDigest||registry.pendingDigest!==manifestDigest||registry.approvedDigest!==null&&registry.approvedDigest!==manifestDigest)deny();}
+export function requireUnapprovedCampaign(registry){if(registry?.version!==1||registry.maximumAttempts!==4096||registry.approvedDigest!==null)deny();}
 export function verifyManifest(envelope,{root,commit,now=Date.now(),reservation=false}={}){
  const m=envelope?.manifest;if(!m||!verify(null,Buffer.from(canonical(m)),syntheticPublicKey,Buffer.from(envelope.signature??'','base64')))deny();
  if(m.profile!=='stage6-local-synthetic-http-v1'||m.version!==1||m.codeSha!==commit||!/^[a-f0-9]{40}$/.test(m.codeSha)||m.maximumAttempts!==4096||m.durationMs!==86400000||m.mode!=='SHADOW'||m.paidProviders!==false||m.network!=='loopback-only'||!Number.isSafeInteger(m.startBefore)||!Number.isSafeInteger(m.issuedAt)||now<m.issuedAt||m.startBefore-m.issuedAt!==3600000||m.expiresAt!==m.startBefore+86400000||now>=m.expiresAt)deny();

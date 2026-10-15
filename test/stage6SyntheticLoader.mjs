@@ -21,7 +21,7 @@ export async function load(url,context,next){
  }
  if(file==='src/phase4ExecutionStore.js'){s=`import{syntheticConfigurationIdentity}from'${helper}';\n`+s;replace('return keys.lookup(profile);','profile.push(syntheticConfigurationIdentity(environment));return keys.lookup(profile);');}
  if(file==='src/betaPilotPermit.js'){
-  s=`import{syntheticConfiguration,syntheticAdmission,syntheticPermit,syntheticComponent,syntheticAssertTime,syntheticObservationSql,syntheticAssertObservation,syntheticPublication,syntheticSettle,syntheticClosing}from'${helper}';\n`+s;
+  s=`import{syntheticConfiguration,syntheticAdmission,syntheticPermit,syntheticComponent,syntheticAssertTime,syntheticObservationSql,syntheticAssertObservation,syntheticAssertLifecycle,syntheticPublication,syntheticSettle,syntheticClosing}from'${helper}';\n`+s;
   replace('export const closingBetaPilotPermit=db=>Boolean(db?.raw)&&closureScope.getStore()===db.raw;', 'export const closingBetaPilotPermit=db=>Boolean(db?.raw)&&(closureScope.getStore()===db.raw||syntheticClosing(db));');
   replace('export function betaPilotConfiguration(environment={}) {','export function betaPilotConfiguration(environment={}) {return syntheticConfiguration(environment);}\nfunction originalBetaPilotConfiguration(environment={}) {');
   replace('return config?.allowanceId?reviewedPilotAllowance(config.allowanceId):reviewedPilotReservation(config?.costBoundId);','return syntheticAdmission(config);');
@@ -32,6 +32,7 @@ export async function load(url,context,next){
   replace('settleInvalidation:()=>locallyClosed?persistClosure():undefined,','settleInvalidation:()=>Promise.all([locallyClosed?persistClosure():undefined,syntheticSettle(grant)]),');
   replace('const current=(await (client??db.raw).execute({sql:`SELECT ${databaseNowMs} observed_at,','const current=(await (client??db.raw).execute({sql:`SELECT ${databaseNowMs} observed_at,${syntheticObservationSql(config)}');
   replace('if(!current||current.last_detail===null)fail();const state=decode(current);','syntheticAssertObservation(config,db,keys,current);if(!current||current.last_detail===null)fail();const state=decode(current);');
+  replace('latestObservedAt=Math.max(latestObservedAt,current.observed_at,state.lastObservedAt);return state;','syntheticAssertLifecycle(config);latestObservedAt=Math.max(latestObservedAt,current.observed_at,state.lastObservedAt);return state;');
   replace('export function pilotPublicationFence(grant,client){','export function pilotPublicationFence(grant,client){return syntheticPublication(grant,client,originalPilotPublicationFence(grant,client));}\nfunction originalPilotPublicationFence(grant,client){');
   replace("if(allowance)log[result.attempt>=reservation.warningAttempt?'warn':'info']", "if(false)log[result.attempt>=reservation.warningAttempt?'warn':'info']");
  }

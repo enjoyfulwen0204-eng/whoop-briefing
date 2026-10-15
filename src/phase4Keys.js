@@ -6,6 +6,7 @@ const issued = new WeakSet();
 export function createPhase4Keys({ lookupKey, auditKey }) {
   const lookup = Buffer.from(lookupKey ?? []), audit = Buffer.from(auditKey ?? []);
   if (lookup.length < 32 || audit.length < 32 || lookup.equals(audit)) throw new Error('phase4_distinct_keys_required');
+  if ([lookup,audit].some(key=>key.subarray(0,16).equals(Buffer.from('S6_SYNTHETIC_V1:')))) throw new Error('PHASE4_SYNTHETIC_KEYS_REJECTED');
   const hmac = (key, value) => createHmac('sha256', key).update(JSON.stringify(value)).digest('hex');
   const verifyHex = (stored, expected) => typeof stored === 'string' && /^[a-f0-9]{64}$/.test(stored)
     && timingSafeEqual(Buffer.from(stored, 'hex'), Buffer.from(expected, 'hex'));

@@ -1,3 +1,4 @@
+import {allocationForMode} from './stage8LiveAllocation.js';
 import { fail, readableRow } from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import { createOperationReceipts } from './phase4OperationReceipts.js';
@@ -16,8 +17,17 @@ const EPISODE_TABLES=['observation_episodes','phase4_episode_revisions','episode
  * snapshots authenticate roots; original keyed manifests cover pre-v26 runs.
  * Corruption aborts closure instead of removing an edge from consideration. */
 export async function stage5PrivacyIndex(core,userId,{verifyRemaining=false}={}) {
-  const {client,keys}=core,edges=[],nodes=new Map(),authority=createResultAuthority(core),receipts=createOperationReceipts(core);
-  const tables=[OPERATION_RECEIPT_TABLE,RESULT_AUTHORITY_TABLE,'body_energy_results','body_energy_checkpoints','evidence_runs','evidence_items',...EPISODE_TABLES,'health_insights','insight_revisions'];
+  const {client,keys}=core,edges=[],nodes=new Map();
+  const liveAllocated=Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v)===35;
+  // Namespace-only views authenticate retained rows; original kernel methods
+  // and private write authority stay bound to the original core.
+  const shadowCore=core.liveAllocation?Object.freeze({...core,liveAllocation:false}):core;
+  const liveCore=liveAllocated?Object.freeze({...core,liveAllocation:true}):shadowCore;
+  const authorities={SHADOW:createResultAuthority(shadowCore),LIVE:createResultAuthority(liveCore)};
+  const receiptReaders={SHADOW:createOperationReceipts(shadowCore),LIVE:createOperationReceipts(liveCore)};
+  const operationTables=[OPERATION_RECEIPT_TABLE,...(liveAllocated?[allocationForMode('LIVE',OPERATION_RECEIPT_TABLE)]:[])];
+  const authorityTables=[RESULT_AUTHORITY_TABLE,...(liveAllocated?[allocationForMode('LIVE',RESULT_AUTHORITY_TABLE)]:[])];
+  const tables=[...operationTables,...authorityTables,'body_energy_results','body_energy_checkpoints','evidence_runs','evidence_items',...EPISODE_TABLES,'health_insights','insight_revisions'];
   for(const table of tables) {
     const rows=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? LIMIT 10001`,args:[userId]})).rows;
     if(rows.length>10000)fail('PHASE4_PURGE_SCOPE_BOUNDS_UNAVAILABLE');
@@ -59,22 +69,22 @@ export async function stage5PrivacyIndex(core,userId,{verifyRemaining=false}={})
     if(!parents.length||!parents.some(parent=>parent.row.result_id===row.result_id))invalid();
     for(const parent of parents)edge(node,parent);
   }
-  for(const node of values(RESULT_AUTHORITY_TABLE))if(readableRow(node.row)) {
-    const closure=await authority.privacyDependencies(userId,node.row);
+  for(const node of [...nodes.values()].filter(node=>authorityTables.includes(node.type)))if(readableRow(node.row)) {
+    const closure=await authorities[node.mode].privacyDependencies(userId,node.row);
     for(const root of closure.roots)edge(node,root);
     for(const target of closure.targets) {
       const found=nodes.get(identity(target));if(!found)invalid();
       if(identity(found)!==identity(node))edge(found,node);
     }
   }
-  for(const node of values(OPERATION_RECEIPT_TABLE))if(readableRow(node.row)) {
-    const decoded=receipts.authenticate({userId,executionMode:node.mode},node.row);
+  for(const node of [...nodes.values()].filter(node=>operationTables.includes(node.type)))if(readableRow(node.row)) {
+    const decoded=receiptReaders[node.mode].authenticate({userId,executionMode:node.mode},node.row);
     const historicalBinding=node.row.operation_kind==='INSIGHT_TRANSITION'?decoded.result_json.refreshPredecessor
       :node.row.operation_kind==='EPISODE_REFRESH'?decoded.result_json.metricRefreshAuthority?.predecessor
       :node.row.operation_kind==='EPISODE_OPEN'?decoded.result_json.terminalRecurrenceAuthority?.predecessor:null;
     if(historicalBinding) {
       const binding=historicalBinding;
-      const prior=values(OPERATION_RECEIPT_TABLE).find(value=>value.mode===node.mode
+      const prior=[...nodes.values()].filter(node=>operationTables.includes(node.type)).find(value=>value.mode===node.mode
         &&value.row.operation_kind===binding.operationKind&&value.row.operation_key===binding.receiptKey);
       if(!prior||readableRow(prior.row)&&prior.row.receipt_hmac!==binding.receiptHmac)invalid();
       edge(node,prior);
@@ -89,7 +99,7 @@ export async function stage5PrivacyIndex(core,userId,{verifyRemaining=false}={})
     // Operational scaffolds without a registered manifest remain graph-owned.
     // If orphaned, the completion oracle below refuses to certify them.
     if(node.row.input_manifest_json===null)continue;
-    for(const root of await authority.descriptorsForRun({userId,executionMode:node.mode},node.row))edge(node,root);
+    for(const root of await authorities[node.mode].descriptorsForRun({userId,executionMode:node.mode},node.row))edge(node,root);
     for(const item of values('evidence_items').filter(item=>item.mode===node.mode&&item.row.run_id===node.row.run_id))edge(item,node);
   }
   for(const node of values('phase4_episode_revisions'))if(readableRow(node.row)) {
@@ -145,7 +155,7 @@ export async function stage5PrivacyIndex(core,userId,{verifyRemaining=false}={})
     // Old insight/revision state has no authenticated complete projection.
     // A retained unsigned claim/support list cannot certify what it excludes.
     const authenticated=edges.some(link=>link.artifact_execution_mode===parent.mode&&link.artifact_type===parent.type
-      &&link.artifact_id===parent.id&&[OPERATION_RECEIPT_TABLE,RESULT_AUTHORITY_TABLE].includes(link.source_type));
+      &&link.artifact_id===parent.id&&[...operationTables,...authorityTables].includes(link.source_type));
     if(readableRow(parent.row)&&!authenticated)legacy(parent);
   }
 
@@ -189,7 +199,7 @@ export async function stage5PrivacyIndex(core,userId,{verifyRemaining=false}={})
         if(!rooted.has(target)&&(link.source_execution_mode==='SHARED'||rooted.has(source))) {rooted.add(target);changed=true;}
       }
     }
-    for(const node of nodes.values())if(readableRow(node.row)&&node.mode==='SHADOW'&&!rooted.has(identity(node)))
+    for(const node of nodes.values())if(readableRow(node.row)&&['SHADOW','LIVE'].includes(node.mode)&&!rooted.has(identity(node)))
       fail('PHASE4_PURGE_CLOSURE_UNPROVEN');
   }
   return edges;

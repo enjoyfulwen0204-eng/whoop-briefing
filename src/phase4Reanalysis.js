@@ -100,14 +100,24 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
     }
   }
 
-  async function performMetricFamily(context,req,candidate,defaultKey,{replayOnly=false,readOnlyReplay=false}={}) {
+  async function performMetricFamily(context,req,candidate,defaultKey,{replayOnly=false,readOnlyReplay=false,reportCompletion=false}={}) {
     const current=await familyDirectory.inventory(context,req.metricKey),
       entry=current.entries.find(row=>row.family_key===candidate.familyKey);
     // A completed family tip cannot stand in for its DOMAIN receipt. Even
     // this early exit first performs the original full typed replay once.
     const replayPrepared=replayOnly?await stores.intelligence.replayExistingMetricPreparation(context,{...req,refresh:true}):null;
-    if(entry&&!(await familyDirectory.work(context,entry)).due)return 'ALREADY_COMPLETE';
+    if(entry&&!(await familyDirectory.work(context,entry)).due)
+      return reportCompletion?{outcome:'ALREADY_COMPLETE',newlyCompleted:false}:'ALREADY_COMPLETE';
     if(readOnlyReplay)fail('PHASE4_REANALYSIS_REQUIRED');
+    const complete=async(outcome,owned)=>{
+      if(owned)await familyDirectory.complete(context,owned);
+      if(!reportCompletion)return outcome;
+      // A resumable family unit requires the original fresh, signed completed
+      // work tip. A result string or an absent directory is insufficient.
+      if(!owned||(await familyDirectory.work(context,owned)).due)
+        fail('PHASE4_FAMILY_DIRECTORY_AUTHORITY_INVALID');
+      return {outcome,newlyCompleted:true};
+    };
     const precise=await createOperationReceipts(core).episodeRecurrenceInventory(context,
       {metricKey:req.metricKey,episodeFamilyKey:candidate.familyKey});
     const windowFamily=candidate.windowFamily??familyDirectory.resolveIdentity(context,entry,precise).windowFamily;
@@ -116,13 +126,12 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
         ['OPEN','UPDATING','ESCALATED','EXPLAINED','STABILIZING'].includes(row.state)
         ||row.state==='RESOLVED'&&snapshot.semantic_at<=req.asOfUtc
           &&Date.parse(req.asOfUtc)-Date.parse(snapshot.semantic_at)<=7*86400000);
-      if(!relevant){await familyDirectory.complete(context,entry);return 'VALID_NO_LIFECYCLE_WORK';}
+      if(!relevant)return complete('VALID_NO_LIFECYCLE_WORK',entry);
     }
     const result=await metric(context,{...req,windowFamily},precise,{replayOnly,replayPrepared});
     const settled=await familyDirectory.inventory(context,req.metricKey),
       owned=settled.entries.find(row=>row.family_key===candidate.familyKey);
-    if(owned)await familyDirectory.complete(context,owned);
-    return result;
+    return complete(result,owned);
   }
 
   async function metricsV30(context,req,lease,assertBudget,{preparedDefault=false,defaultReplay=null}={}) {
@@ -152,11 +161,18 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
           units:[...units,{kind:'METRIC_PREPARATION_UNIT',unit:unit.unit,status:'COMPLETE'}],committedUnits:1};
 
       }
-      const performFamily=req=>performMetricFamily(context,req,candidate,defaultKey);
-      const outcome=await queue.owned(context,lease,()=>preparedDefault&&req.metricKey==='body_energy'
+      const reportCompletion=core.schemaVersion===32&&req.metricKey!=='body_energy';
+      const performFamily=req=>performMetricFamily(context,req,candidate,defaultKey,{reportCompletion});
+      const performed=await queue.owned(context,lease,()=>preparedDefault&&req.metricKey==='body_energy'
         ?stores.intelligence.withCurrentBodyMetricObservation(context,req,lease.asOfUtc,performFamily):performFamily(req),
         {assertBudget,workKind:'stage6.family',workFacts:[req.metricKey,req.asOfUtc,candidate.familyKey]});
+      const outcome=reportCompletion?performed?.outcome??null:performed;
       units.push({kind:'EPISODE_FAMILY',familyKey:candidate.familyKey,status:'COMPLETE',outcome});
+      // Keep the existing named family COMMIT separate from remaining source
+      // associations. Publication still fences and commits every original
+      // effect and receipt atomically; only that ACK makes this progress durable.
+      if(reportCompletion&&performed?.newlyCompleted&&firstFailure===null)
+        return {kind:'METRIC_FAMILIES',status:'INCOMPLETE',failure:null,units,committedUnits:1};
     } catch(error) {
         requireSettledOperation(error);
       if(error?.code==='PHASE4_DRAIN_DEADLINE_REACHED')throw error;

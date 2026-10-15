@@ -86,7 +86,9 @@ const producerSql=`SELECT p.*,e.state,e.phase,e.generation final_generation,
  e.execution_seq final_seq,e.identity_digest,e.scope_key,e.created_at,e.deadline_at,e.finalized_at,
  e.result_json,e.result_digest,e.release_sha,e.trigger_source,e.config_proof FROM phase4_execution_producers p
  JOIN phase4_executions e ON e.execution_id=p.producing_execution_id
- WHERE p.user_id=? AND p.execution_mode=? AND p.input_generation=? ORDER BY p.execution_seq LIMIT 129`;
+ WHERE p.user_id=? AND p.execution_mode=? AND p.input_generation=?
+ AND p.producing_execution_id>? COLLATE BINARY
+ ORDER BY p.producing_execution_id COLLATE BINARY LIMIT 65`;
 function requireUnitPurpose(core,context){
  requireSettledOperation();const execution=currentDurableExecution();
  if(core.schemaVersion!==32||context.executionMode!=='SHADOW'||!core.jobAuthority()
@@ -102,38 +104,63 @@ async function finishUnitObservation(core,context){
  for(const result of controls)if(result.status==='rejected')throw result.reason;
  requireSettledOperation();
 }
-/** A closed RUN alternative observation, inside the same original owned unit.
- * Fetch only the three exact named keys once; compare RUN, then START, then
- * COMPLETE in the original short-circuit order. Raw rows never leave this
- * call and no accepted producer/owner observation survives another operation. */
+// One bounded observation page, never a cached receipt/authority result. The
+// existing immutable RAM receiver/publication snapshot owns consistency; every
+// page also retains fresh original context and execution-owner checks. Match
+// only exact (producer,key) pairs, not a broad tenant work-receipt prefix.
+// Seek the existing producer primary key; no chronological prefix rescan or
+// schema/index change is needed. Sequence/HMAC validation remains mandatory.
+async function* namedObservations(core,context,steps){
+ if(!steps.length||steps.length>3)fail();
+ let cursor='',count=0,bytes=0;
+ for(;;){
+  requireUnitPurpose(core,context);
+  const rows=(await core.client.execute({sql:producerSql,args:[context.userId,context.executionMode,context.inputGeneration,cursor]})).rows;
+  if(rows.length>65)fail();const page=rows.slice(0,64),observations=[];
+  if(!count&&!page.length)fail();
+  for(const p of page){
+   if(!Number.isSafeInteger(p.execution_seq)||p.execution_seq<1||typeof p.producing_execution_id!=='string'
+    ||Buffer.compare(Buffer.from(p.producing_execution_id),Buffer.from(cursor))<=0)fail();
+   cursor=p.producing_execution_id;count++;bytes+=Buffer.byteLength(JSON.stringify(p));
+   if(count>16000||bytes>2*1024*1024)fail();
+   try{validateProducer(core,context,p);const keys=steps.map(step=>core.keys.lookup(['execution-work-step-v2',p.identity_digest,p.scope_key,['named',step]]));observations.push({status:'fulfilled',p,keys,receipts:[]});}
+   catch(reason){observations.push({status:'rejected',reason});}
+  }
+  const valid=observations.filter(o=>o.status==='fulfilled'),pairs=valid.flatMap(o=>o.keys.map(key=>[o.p.producing_execution_id,key]));
+  if(pairs.length){
+   try{
+    const selected=(await core.client.execute({sql:`WITH expected(execution_id,receipt_key) AS (VALUES ${pairs.map(()=>'(?,?)').join(',')})
+     SELECT r.* FROM expected x JOIN phase4_execution_producers p ON p.producing_execution_id=x.execution_id
+      AND p.user_id=? AND p.execution_mode=? AND p.input_generation=?
+     JOIN phase4_execution_work_receipts r ON r.execution_id=x.execution_id AND r.receipt_key=x.receipt_key`,
+     args:[...pairs.flat(),context.userId,context.executionMode,context.inputGeneration]})).rows;
+    bytes+=Buffer.byteLength(JSON.stringify(selected));if(bytes>2*1024*1024||selected.length>pairs.length)fail();
+    for(const r of selected){const o=valid.find(o=>o.p.producing_execution_id===r.execution_id&&o.keys.includes(r.receipt_key));if(!o)fail();o.receipts.push(r);}
+   }catch(reason){for(const o of valid){o.status='rejected';o.reason=reason;}}
+  }
+  yield observations;
+  await finishUnitObservation(core,context);
+  if(rows.length<=64)return;
+ }
+}
+/** Closed RUN alternatives retain RUN -> START -> COMPLETE failure and
+ * short-circuit semantics. Only bounded per-branch booleans/errors survive a
+ * page; unused START/COMPLETE errors cannot veto an independently valid RUN. */
 async function namedRunReceipt(core,context,plan){
  requireUnitPurpose(core,context);
  const owner=await assertExecutionWorkOwner(core.client);if(owner?.phase!=='STAGE6_DRAIN')fail();
- const producers=(await core.client.execute({sql:producerSql,args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
- if(!producers.length||producers.length>128)fail();
- const steps=['RUN','RUN_START','RUN_COMPLETE'].map(kind=>metricUnitWork(context,plan,kind).workStep),observed=[];
- for(let start=0;start<producers.length;start+=64){
-  const group=producers.slice(start,start+64),values=await Promise.allSettled(group.map(p=>Promise.resolve().then(async()=>{
-   validateProducer(core,context,p);
-   const keys=steps.map(step=>core.keys.lookup(['execution-work-step-v2',p.identity_digest,p.scope_key,['named',step]]));
-   const receipts=(await core.client.execute({sql:`SELECT * FROM phase4_execution_work_receipts WHERE execution_id=? AND receipt_key IN (?,?,?)`,
-    args:[p.producing_execution_id,...keys]})).rows;
-   return {p,keys,receipts};
-  })));
-  observed.push(...values);
- }
- const branch=index=>{
-  let found=false;
-  for(const value of observed){
-   if(value.status==='rejected')throw value.reason;
-   const {p,keys,receipts}=value.value;validateProducer(core,context,p);
+ const steps=['RUN','RUN_START','RUN_COMPLETE'].map(kind=>metricUnitWork(context,plan,kind).workStep),branches=steps.map(()=>({found:false,error:null}));
+ for await(const observations of namedObservations(core,context,steps))for(const o of observations)for(let index=0;index<branches.length;index++){
+  const branch=branches[index];if(branch.error)continue;
+  try{
+   if(o.status==='rejected')throw o.reason;
+   const {p,keys,receipts}=o;validateProducer(core,context,p);
    if(receipts.length>keys.length||receipts.some(row=>!keys.includes(row.receipt_key)))fail();
    const rows=receipts.filter(row=>row.receipt_key===keys[index]);if(rows.length>1)fail();
-   for(const receipt of rows){validateReceipt(core,context,owner,p,receipt,[keys[index]]);found=true;}
-  }
-  return found;
- };
- // Even an absent branch retains its original post-observation freshness.
+   for(const receipt of rows){validateReceipt(core,context,owner,p,receipt,[keys[index]]);branch.found=true;}
+  }catch(error){branch.error=error;}
+ }
+ const branch=index=>{if(branches[index].error)throw branches[index].error;return branches[index].found;};
  const whole=branch(0);await finishUnitObservation(core,context);if(whole)return true;
  const started=branch(1);await finishUnitObservation(core,context);if(!started)return false;
  const completed=branch(2);await finishUnitObservation(core,context);return completed;
@@ -156,28 +183,15 @@ export async function currentBodySourceReceipt(core,context,asOfUtc){
 async function namedUnitReceipt(core,context,steps){
  requireUnitPurpose(core,context);
  const owner=await assertExecutionWorkOwner(core.client);if(owner?.phase!=='STAGE6_DRAIN')fail();
- const producers=(await core.client.execute({sql:producerSql,
-  args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
- if(!producers.length||producers.length>128)fail();
- const found=[];
- for(let start=0;start<producers.length;start+=64){
-  const group=producers.slice(start,start+64),observations=await Promise.allSettled(group.map(p=>Promise.resolve().then(async()=>{
-   validateProducer(core,context,p);
-   const keys=steps.map(step=>core.keys.lookup(['execution-work-step-v2',p.identity_digest,p.scope_key,['named',step]]));
-   const receipts=(await core.client.execute({sql:keys.length===1
-    ?'SELECT * FROM phase4_execution_work_receipts WHERE execution_id=? AND receipt_key=?'
-    :`SELECT * FROM phase4_execution_work_receipts WHERE execution_id=? AND receipt_key IN (${keys.map(()=>'?').join(',')})`,
-    args:[p.producing_execution_id,...keys]})).rows;
-   if(!receipts.length)return null;if(receipts.length>keys.length)fail();
-   for(const receipt of receipts){
-   validateReceipt(core,context,owner,p,receipt,keys);
-   }
-   return true;
-  })));
-  for(const value of observations){if(value.status==='rejected')throw value.reason;if(value.value)found.push(value.value);}
+ let found=false;
+ for await(const observations of namedObservations(core,context,steps))for(const o of observations){
+  if(o.status==='rejected')throw o.reason;
+  const {p,keys,receipts}=o;
+  if(receipts.length>keys.length)fail();
+  for(const receipt of receipts){validateReceipt(core,context,owner,p,receipt,keys);found=true;}
  }
  await finishUnitObservation(core,context);
- if(!found.length)return null;
+ if(!found)return null;
  // Multiple actual executions may independently verify the same unit, but
  // all receipts remain bound to their own original producer/generation.
  return true;

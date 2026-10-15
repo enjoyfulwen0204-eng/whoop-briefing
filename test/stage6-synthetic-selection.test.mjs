@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {syntheticSelection,nextSyntheticTenant} from './stage6SyntheticSelection.mjs';
+const cohort=[{id:'a'},{id:'b'},{id:'c'}],jobs=cohort.map(t=>({user_id:t.id,completed_generation:0,requested_generation:11}));
+test('fresh focused tenant selection runs without pending state; replay keeps original identity',()=>{
+ const s=syntheticSelection(cohort,{STAGE6_SYNTHETIC_FOCUSED:'1',STAGE6_SYNTHETIC_FOCUSED_LEGS:'4',STAGE6_SYNTHETIC_TARGET:'b'});assert.equal(s.maxLegs,4);assert.equal(nextSyntheticTenant(cohort,jobs,null,0,s).id,'b');assert.equal(nextSyntheticTenant(cohort,jobs,{userId:'c'},0,s).id,'c');
+});
+test('invalid focused bounds and cross-cohort targets fail closed',()=>{for(const v of ['0','7','Infinity','1.5'])assert.throws(()=>syntheticSelection(cohort,{STAGE6_SYNTHETIC_FOCUSED:'1',STAGE6_SYNTHETIC_FOCUSED_LEGS:v}));assert.throws(()=>syntheticSelection(cohort,{STAGE6_SYNTHETIC_TARGET:'b'}));assert.throws(()=>syntheticSelection(cohort,{STAGE6_SYNTHETIC_FOCUSED:'1',STAGE6_SYNTHETIC_TARGET:'outside'}));assert.throws(()=>nextSyntheticTenant(cohort,jobs,{userId:'outside'},0,{target:'b'}));});
+test('full run remains bounded round robin and skips finished tenants',()=>{const s=syntheticSelection(cohort,{});assert.equal(s.maxLegs,4093);assert.equal(nextSyntheticTenant(cohort,jobs,null,1,s).id,'b');const final=jobs.map(j=>({...j,completed_generation:j.user_id==='b'?11:0}));assert.equal(nextSyntheticTenant(cohort,final,null,1,s).id,'c');});

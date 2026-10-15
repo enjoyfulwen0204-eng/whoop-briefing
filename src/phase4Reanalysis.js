@@ -522,8 +522,15 @@ export async function createPhase4Stage6({db,keys,admission,executionMode,worker
                 out.unitsCommitted+=outcome.committedUnits??0;
                 if(outcome.failure)throw outcome.failure;
                 if(outcome.status==='INCOMPLETE'){
-                  // Only the actual named unit committed. Its original source
-                  // cursor/family/generation stay pending for a fresh owner.
+                  // LIVE retains the same lease and original per-tenant work
+                  // ceiling. A committed subunit consumes an item slot, never
+                  // a source ACK; every next unit re-enters its original fresh
+                  // authority/deadline and atomic named-receipt boundaries.
+                  // SHADOW preserves the reviewed one-unit publication path.
+                  if(live&&Number.isSafeInteger(outcome.committedUnits)&&outcome.committedUnits>0){
+                    handled+=outcome.committedUnits;
+                    if(handled<budget.maxItemsPerTenant)continue;
+                  }
                   await queue.release(context,lease);return;
                 }
                 await queue.owned(context,lease,()=>queue.checkpoint(context,lease,source.cursor),{assertBudget,workKind:'stage6.checkpoint',workFacts:[source.cursor]});

@@ -1,0 +1,69 @@
+{
+  "corpusRowsNotAdditionalTestCounts": true,
+  "realWorldRatesNotEstablished": true,
+  "groups": {
+    "independent86": {
+      "cases": 86,
+      "positive": 57,
+      "negative": 29,
+      "pass": 86,
+      "fail": 0,
+      "falseNegative": 0,
+      "falsePositive": 0,
+      "precisionErrors": [],
+      "failures": []
+    },
+    "newCases49": {
+      "cases": 49,
+      "positive": 32,
+      "negative": 17,
+      "pass": 49,
+      "fail": 0,
+      "falseNegative": 0,
+      "falsePositive": 0,
+      "precisionErrors": [],
+      "failures": []
+    },
+    "newMetamorphic81": {
+      "cases": 81,
+      "positive": 50,
+      "negative": 31,
+      "pass": 81,
+      "fail": 0,
+      "falseNegative": 0,
+      "falsePositive": 0,
+      "precisionErrors": [],
+      "failures": []
+    }
+  },
+  "benignConservativeWarnings": [
+    {
+      "id": "benign-warning-en",
+      "text": "I had chest pain yesterday and am still working.",
+      "before": "POSSIBLE_CURRENT_URGENT",
+      "after": "POSSIBLE_CURRENT_URGENT",
+      "clinicalBenignWarning": true
+    },
+    {
+      "id": "benign-warning-zh-TW",
+      "text": "我昨天胸痛而且目前忙碌。",
+      "before": "POSSIBLE_CURRENT_URGENT",
+      "after": "POSSIBLE_CURRENT_URGENT",
+      "clinicalBenignWarning": true
+    },
+    {
+      "id": "benign-warning-vi",
+      "text": "Tôi đau ngực hôm qua và hiện tại làm việc.",
+      "before": "POSSIBLE_CURRENT_URGENT",
+      "after": "POSSIBLE_CURRENT_URGENT",
+      "clinicalBenignWarning": true
+    },
+    {
+      "id": "benign-warning-mixed",
+      "text": "I had chest pain yesterday and 目前忙碌。",
+      "before": "POSSIBLE_CURRENT_URGENT",
+      "after": "POSSIBLE_CURRENT_URGENT",
+      "clinicalBenignWarning": true
+    }
+  ]
+}

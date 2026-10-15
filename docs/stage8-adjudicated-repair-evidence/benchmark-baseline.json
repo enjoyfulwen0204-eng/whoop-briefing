@@ -1,0 +1,94 @@
+{
+  "source": "/Users/kelvin/.codex/worktrees/stage8-conservative-safety-gate/whoop-briefing",
+  "node": "v22.23.2",
+  "samplesPerShape": 500,
+  "warmupsPerShape": 100,
+  "concurrentHostTests": true,
+  "measurements": {
+    "ordinary": {
+      "characters": 63,
+      "p50ms": 0.18949999999998113,
+      "p95ms": 0.5087499999999636,
+      "maxMs": 4.332875000000001,
+      "retainedHeapDeltaBytes": 83824,
+      "sampledTransientGrowthBytes": 2089296,
+      "rssBytes": 61292544,
+      "decisions": {
+        "CURRENT_URGENT": 212,
+        "POSSIBLE_CURRENT_URGENT": 72,
+        "CLEARLY_NONURGENT": 216
+      },
+      "reasons": {}
+    },
+    "quoted": {
+      "characters": 70,
+      "p50ms": 0.22033299999998235,
+      "p95ms": 0.542165999999952,
+      "maxMs": 1.6783329999999523,
+      "retainedHeapDeltaBytes": 13368,
+      "sampledTransientGrowthBytes": 2002872,
+      "rssBytes": 76136448,
+      "decisions": {
+        "CLEARLY_NONURGENT": 244,
+        "CURRENT_URGENT": 256
+      },
+      "reasons": {}
+    },
+    "predicates80": {
+      "characters": 1520,
+      "p50ms": 2.074124999999867,
+      "p95ms": 5.763167000000067,
+      "maxMs": 10.328875000000039,
+      "retainedHeapDeltaBytes": 156616,
+      "sampledTransientGrowthBytes": 15922760,
+      "rssBytes": 150077440,
+      "decisions": {
+        "CURRENT_URGENT": 500
+      },
+      "reasons": {}
+    },
+    "operatorOverflow120": {
+      "characters": 2280,
+      "p50ms": 2.061374999999771,
+      "p95ms": 7.165042000000085,
+      "maxMs": 25.84920800000009,
+      "retainedHeapDeltaBytes": -193712,
+      "sampledTransientGrowthBytes": 16543360,
+      "rssBytes": 143769600,
+      "decisions": {
+        "POSSIBLE_CURRENT_URGENT": 500
+      },
+      "reasons": {
+        "scope_limit": 500
+      }
+    },
+    "nearCharacterLimit": {
+      "characters": 7867,
+      "p50ms": 3.6235829999995985,
+      "p95ms": 11.165957999999591,
+      "maxMs": 52.73195900000064,
+      "retainedHeapDeltaBytes": 106112,
+      "sampledTransientGrowthBytes": 15886344,
+      "rssBytes": 115654656,
+      "decisions": {
+        "CLEARLY_NONURGENT": 500
+      },
+      "reasons": {}
+    },
+    "characterOverflow": {
+      "characters": 8193,
+      "p50ms": 0.0004170000001977314,
+      "p95ms": 0.0005000000001018634,
+      "maxMs": 0.006624999999985448,
+      "retainedHeapDeltaBytes": -6080,
+      "sampledTransientGrowthBytes": 104376,
+      "rssBytes": 115720192,
+      "decisions": {
+        "POSSIBLE_CURRENT_URGENT": 500
+      },
+      "reasons": {
+        "scope_limit": 500
+      }
+    }
+  }
+}

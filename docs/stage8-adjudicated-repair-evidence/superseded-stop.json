@@ -1,0 +1,20 @@
+{
+  "reason": "Complete local metric-operand boundary within the same repair; intentional SIGTERM, not native SIGSEGV; retain partial logs and restart all final commands on one frozen runtime",
+  "pids": [
+    64287,
+    64290,
+    64299,
+    64301,
+    64306,
+    64310,
+    64580,
+    64623,
+    64630,
+    64640,
+    64695,
+    64696,
+    64727,
+    64728,
+    64773
+  ]
+}

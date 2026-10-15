@@ -31,9 +31,9 @@ const OPERATORS=[
  ['pastTime',/昨天|昨晚|以前|曾經|之前|\b(?:yesterday|last (?:night|week|month|year)|years ago)\b|hôm qua|trước đây/giu],
  ['currentTime',/現在|目前|正在|此刻|\b(?:now|currently|current|right now|still)\b|đang|hiện tại|bây giờ/giu],
  ['negative',/\b(?:cannot|can't|unable to|no|not|without|never|neither|don't|do not|doesn't|does not)\b|無法|不能|沒有|沒|不會|不曾|並沒|未|(?<!\p{L})(?:không thể|không|chưa|chẳng)(?!\p{L})/giu],
- ['resolution',/\b(?:no longer|stopped|resolved|gone|went away|cleared|disappeared|back to normal|fine|well|okay)\b|不再|已無|好了|沒事了|恢復了|不會了|沒問題了|緩解了|沒有了|消失了|(?<!\p{L})(?:hết|khỏi|ổn|bình thường)(?!\p{L})/giu],
+ ['resolution',/\b(?:no longer|stopped|resolved|gone|went away|cleared|disappeared|back to normal|fine|well|okay)\b|不再|已無|好了|沒事了|恢復了|不會了|沒問題了|緩解了|沒有了|消失了|(?<!\p{L})(?:hết(?:\s+hẳn)?|khỏi(?:\s+hẳn)?|ổn|bình thường)(?!\p{L})/giu],
  ['recurrence',/\b(?:again|back|returned|returning|recurring|came back)\b|又來了|又出現|復發|trở lại|tái phát/giu],
- ['education',/\b(?:what (?:is|are|does|causes)|define|definition|usually|generally|in general|meaning|means|learn about|learning|want to know|question about|asking about|information about|be caused by|why (?:do|does) (?:people|patients))\b|通常|一般來說|一般而言|一般|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道|(?<!\p{L})(?:là gì|nghĩa là|nguyên nhân|thường|tại sao|tìm hiểu|hỏi)(?!\p{L})/giu],
+ ['education',/\b(?:what (?:is|are|does|causes)|define|definition|usually|generally|in general|meaning|means|learn about|learning|reading about|want to know|question about|asking about|information about|be caused by|why (?:do|does) (?:people|patients))\b|通常|一般來說|一般而言|一般|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道|閱讀|(?<!\p{L})(?:là gì|nghĩa là|nguyên nhân|thường|tại sao|tìm hiểu|đọc về|hỏi)(?!\p{L})/giu],
  ['information',/\b(?:in (?:this|an?) (?:example|case study)|hypothetical case|fictional|(?:article|textbook|example))\b|假設案例|教科書|例句|舉例|ví dụ|trường hợp giả định/giu],
  ['report',/\b(?:says|said|saying|tells|told|telling)\b|說|(?<!\p{L})nói(?!\p{L})/giu],
  ['reference',/(?<![\p{L}\p{N}_])(?:it|it's|this|these symptoms|both symptoms|that pain|they)(?![\p{L}\p{N}_])|這個症狀|這些症狀|它|(?<!\p{L})(?:nó|triệu chứng này)(?!\p{L})/giu],
@@ -119,7 +119,7 @@ function outcomeEvidence(events){
 }
 // The vocabulary and grammar are one deterministic, in-process contract. No
 // transport, model, database or health-context input participates in parsing.
-export const TRIAGE_GRAMMAR_VERSION='predicate-ownership-v1-final-evidence-safety-gate';
+export const TRIAGE_GRAMMAR_VERSION='predicate-ownership-v1-gate-adjudicated';
 const spanOf=e=>({start:e.start,end:e.end});
 const isHead=e=>['present','pastPredicate','report','assertionHead'].includes(e.type);
 const intrinsic=s=>/^(?:cannot|can't|unable|không thở|không thể thở|無法|喘不過氣)/iu.test(s.text);
@@ -143,6 +143,17 @@ function unitsOf(text,lexical,quotes){
   const local={text:value,symptoms:symptomsOf(value),quotes:[]};
   const events=eventsOf(local).map(e=>({...e,start:start+e.start,end:start+e.end}));
   const symptoms=local.symptoms.map(e=>({...e,start:start+e.start,end:start+e.end}));
+  // A following question owns its own actor/head. It is never affirmative
+  // evidence for a preceding bare symptom, even without punctuation.
+  const question=events.find(e=>e.type==='education'&&/^(?:what |why )/iu.test(e.word)&&symptoms.some(m=>m.end<=e.start));
+  if(question){add(part,start,question.start,quote,edge,connector);add(part,question.start,end,quote,'question','');return;}
+  // A registered metric operand cannot supply a bare symptom's missing
+  // actor/head. Retain independent symptom assertions before that operand.
+  const metric=[...value.matchAll(/\b(?:HRV|RHR|recovery|strain|sleep)\b/giu)].find(m=>symptoms.some(q=>q.end<=start+m.index));
+  const target=metric&&symptoms.filter(q=>q.end<=start+metric.index).at(-1);
+  const bare=target&&!events.some(e=>e.end<=target.end&&['actor','present','pastPredicate','negative','resolution','currentTime','pastTime','education','information','uncertainty','report'].includes(e.type));
+  const symptomProof=target&&events.some(e=>e.start>=target.end&&e.end<=start+metric.index&&(perception(e)||['reference','negative','resolution','pastTime','pastPredicate'].includes(e.type)));
+  if(bare&&!symptomProof){add(part,start,target.end,quote,edge,connector);add(part,target.end,end,quote,'question','');return;}
   const actors=ofType(events,'actor');let boundary=start,hasSubject=false;
   for(const actor of actors){
    const before=events.filter(e=>e.start>=boundary&&e.end<=actor.start);
@@ -246,6 +257,23 @@ function nominalReference(unit,text,antecedent,graph,p){
  const sources=unit.symptoms.map(s=>graph.symptoms.find(old=>antecedent.symptomIds.includes(old.id)&&old.kind===s.kind));
  return sources.every(Boolean)?sources:null;
 }
+// These bounded relationships bind a quoted object, not arbitrary surrounding
+// personal language. Unknown operands retain epistemic evidence rather than
+// certifying currentness. No quotation alone supplies a speaker or assertion.
+const perception=e=>e&&['present','pastPredicate'].includes(e.type)&&/^(?:have|has|having|experience|experiencing|experienced|feel|feeling|felt|suffering from|感到|覺得|有|cảm thấy|bị|có)$/iu.test(e.word);
+function quoteComplement(unit,p,antecedent,text){
+ if(unit.edge!=='quote-tail'||!antecedent?.quote||!antecedent.symptomIds.length||!p.actorId||p.actor==='GENERIC'||p.education||p.information||p.hypothetical)return null;
+ const actor=unit.events.find(e=>e.type==='actor'),head=unit.events.find(perception);
+ if(!actor||!head&&!p.epistemic)return null;
+ const prefix=text.slice(unit.start,actor.start),relation=prefix.trim();
+ if(!/^(?:is what|describes what|是|là triệu chứng)?$/iu.test(relation))return null;
+ const proof=[...unit.events];
+ if(relation)proof.push({start:unit.start,end:actor.start});
+ const suffix=text.slice(unit.start,unit.end).match(/的症狀\s*$/u);
+ if(suffix)proof.push({start:unit.start+suffix.index,end:unit.end});
+ return {span:relation?{start:unit.start,end:actor.start}:spanOf(head??actor),head:head??actor,
+  complete:argumentProof({...unit,events:proof},text)==='OWNED_ARGUMENT'};
+}
 function buildOwnership(text,lexical,quotes){
  const {parts,units}=unitsOf(text,lexical,quotes);
  if(parts.length>TRIAGE_LIMITS.clauses)return null;
@@ -305,9 +333,19 @@ function buildOwnership(text,lexical,quotes){
    const ev=wrapper?operators.filter(o=>o.ownerPredicateId===wrapper.id):[];
    const report=last(ev,'report'),present=last(ev,'present')||last(ev,'currentTime');
    const reporter=wrapper?.actor&&wrapper.actor!=='GENERIC'&&!wrapper.education&&!wrapper.information;
-   if(reporter&&(report||present)){
+   const direct=wrapper&&argumentProof(wrapper.units[0],text)==='OWNED_ARGUMENT';
+   const assertion=ev.find(perception),epistemic=wrapper?.epistemic;
+   if(reporter&&(report||present||epistemic)){
     if(!explicit||explicit==='SELF'){p.actor=wrapper.actor;p.actorId=wrapper.actorId;}
-    p.hypothetical=wrapper.hypothetical;p.epistemic=wrapper.epistemic;p.frame=p.hypothetical?'HYPOTHETICAL':'ACTUAL';p.quotedAssertion=true;link('REPORT',wrapper,p,report??present);
+    p.hypothetical=Boolean(p.hypothetical||wrapper.hypothetical);
+    p.epistemic=Boolean(p.epistemic||epistemic||!report&&!assertion&&!direct);
+    p.frame=p.hypothetical?'HYPOTHETICAL':p.information?'INFORMATIONAL':'ACTUAL';
+    // Reporting a topic does not assign the reporter as its clinical actor.
+    // An explicit personal assertion after a question marker stays actual.
+    if(p.education&&(!explicit||explicit==='GENERIC')){p.actor=explicit??null;p.actorId=explicitId;}
+    p.quotedAssertion=!p.education&&!p.information;
+    if(wrapper.hypothetical)p.frameSourceId=wrapper.id;
+    link(report?'REPORT':'QUOTE_ARGUMENT',wrapper,p,report??assertion??present??last(ev,'uncertainty')??wrapper.headSpan);
    }else{p.actor=explicit==='SELF'?null:explicit;p.actorId=explicit==='SELF'?null:explicitId;p.frame='QUOTED';}
   }
   // A local relative/deictic reference can create its own actual predicate;
@@ -342,6 +380,17 @@ function buildOwnership(text,lexical,quotes){
   const nominal=nominalReference(unit,text,antecedent,{predicates,symptoms,operators,links},p);
   if(nominal){p.actor=antecedent.actor;p.actorId=antecedent.actorId;p.referenceId=antecedent.id;p.referenceProof='MATCHED_NOMINAL';link('NOMINAL_REFERENCE',antecedent,p,first);}
   for(const [index,symptom]of unit.symptoms.entries()){const node={...symptom,id:'S'+(symptoms.length+1),span:spanOf(symptom),ownerPredicateId:p.id,...(nominal?{referenceSymptomId:nominal[index].id}:{})};symptoms.push(node);p.symptomIds.push(node.id);}
+  const complement=quoteComplement(unit,p,antecedent,text);
+  if(complement){
+   p.referenceId=antecedent.id;p.referenceProof='QUOTE_COMPLEMENT';p.complementProof=complement.complete?'OWNED_ARGUMENT':'UNRESOLVED_ARGUMENT';
+   p.epistemic=Boolean(p.epistemic||antecedent.epistemic||!complement.complete);
+   link('QUOTE_COMPLEMENT',antecedent,p,complement.span);
+   for(const id of antecedent.symptomIds){
+    const old=symptoms.find(s=>s.id===id),at=complement.head.end;
+    const node={kind:old.kind,strong:old.strong,text:old.text,start:at,end:at,id:'S'+(symptoms.length+1),span:spanOf(complement.head),ownerPredicateId:p.id,referenceSymptomId:id};
+    symptoms.push(node);p.symptomIds.push(node.id);
+   }
+  }
   for(const event of unit.events){const op={...event,id:'O'+(operators.length+1),span:spanOf(event),ownerPredicateId:p.id};operators.push(op);p.operatorIds.push(op.id);}
   if(unit.edge==='hypothetical'){
    const op={id:'O'+(operators.length+1),type:epistemic?'epistemicFrame':'conditionalFrame',word:unit.connector,start:unit.start-unit.connector.length,end:unit.start,span:{start:unit.start-unit.connector.length,end:unit.start},ownerPredicateId:p.id};operators.push(op);p.operatorIds.push(op.id);p.ownedSpan.start=Math.min(p.ownedSpan.start,op.start);

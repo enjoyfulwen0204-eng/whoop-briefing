@@ -1,0 +1,506 @@
+[
+  {
+    "locale": "en",
+    "text": "chest pain How is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "chest pain",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "chest pain",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 0,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "durationProof": "NONE",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "safetyGate": {
+        "version": "conservative-evidence-v1",
+        "candidateIds": [
+          "S1"
+        ],
+        "exclusions": [],
+        "unresolved": [],
+        "continuations": []
+      },
+      "ownership": {
+        "version": "predicate-ownership-v1-gate-adjudicated",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 15,
+              "end": 17
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 30
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "durationProof": "NONE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2",
+              "O3"
+            ],
+            "edge": "start",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false,
+            "argumentProof": "EXPLICIT_UNMATCHED_ARGUMENT",
+            "tailArgumentProof": "EXPLICIT_UNMATCHED_ARGUMENT"
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "chest pain",
+            "start": 0,
+            "end": 10,
+            "id": "S1",
+            "span": {
+              "start": 0,
+              "end": 10
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "operators": [
+          {
+            "type": "present",
+            "word": "is",
+            "start": 15,
+            "end": 17,
+            "quote": -1,
+            "id": "O1",
+            "span": {
+              "start": 15,
+              "end": 17
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "actor",
+            "word": "my",
+            "start": 18,
+            "end": 20,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O2",
+            "span": {
+              "start": 18,
+              "end": 20
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "temporalPoint",
+            "word": "today",
+            "start": 25,
+            "end": 30,
+            "quote": -1,
+            "id": "O3",
+            "span": {
+              "start": 25,
+              "end": 30
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "links": []
+      }
+    }
+  },
+  {
+    "locale": "zh-TW",
+    "text": "胸痛 我的HRV今天是多少？",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "胸痛",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 0,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "durationProof": "NONE",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "safetyGate": {
+        "version": "conservative-evidence-v1",
+        "candidateIds": [
+          "S1"
+        ],
+        "exclusions": [],
+        "unresolved": [],
+        "continuations": []
+      },
+      "ownership": {
+        "version": "predicate-ownership-v1-gate-adjudicated",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 0,
+              "end": 2
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 13
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "durationProof": "NONE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1"
+            ],
+            "edge": "start",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": false,
+            "argumentProof": "EXPLICIT_UNMATCHED_ARGUMENT",
+            "tailArgumentProof": "EXPLICIT_UNMATCHED_ARGUMENT"
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "胸痛",
+            "start": 0,
+            "end": 2,
+            "id": "S1",
+            "span": {
+              "start": 0,
+              "end": 2
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "我",
+            "start": 3,
+            "end": 4,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 3,
+              "end": 4
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "links": []
+      }
+    }
+  },
+  {
+    "locale": "vi",
+    "text": "đau ngực HRV của tôi hôm nay là gì?",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "đau ngực",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "đau ngực",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 0,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "durationProof": "NONE",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "safetyGate": {
+        "version": "conservative-evidence-v1",
+        "candidateIds": [
+          "S1"
+        ],
+        "exclusions": [],
+        "unresolved": [],
+        "continuations": []
+      },
+      "ownership": {
+        "version": "predicate-ownership-v1-gate-adjudicated",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 0,
+              "end": 8
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 34
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "durationProof": "NONE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2"
+            ],
+            "edge": "start",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": true,
+            "argumentProof": "EXPLICIT_UNMATCHED_ARGUMENT",
+            "tailArgumentProof": "EXPLICIT_UNMATCHED_ARGUMENT"
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "đau ngực",
+            "start": 0,
+            "end": 8,
+            "id": "S1",
+            "span": {
+              "start": 0,
+              "end": 8
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "tôi",
+            "start": 17,
+            "end": 20,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 17,
+              "end": 20
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "education",
+            "word": "là gì",
+            "start": 29,
+            "end": 34,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 29,
+              "end": 34
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "links": []
+      }
+    }
+  },
+  {
+    "locale": "mixed",
+    "text": "胸痛 HRV của tôi hôm nay là gì?",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "actual": {
+      "decision": "CURRENT_URGENT",
+      "urgent": true,
+      "matched": "胸痛",
+      "excluded": null,
+      "mentions": [
+        {
+          "kind": "chest",
+          "text": "胸痛",
+          "state": "CURRENT",
+          "actor": "SELF",
+          "index": 0,
+          "group": 1,
+          "predicateId": "P1",
+          "evidence": {
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "durationProof": "NONE",
+            "assertion": "ACTUAL",
+            "speaker": "SELF",
+            "polarity": "POSITIVE",
+            "temporal": "CURRENT",
+            "resolution": "UNKNOWN",
+            "framing": "ACTUAL",
+            "quotation": "NONE",
+            "relationship": "INDEPENDENT"
+          }
+        }
+      ],
+      "safetyGate": {
+        "version": "conservative-evidence-v1",
+        "candidateIds": [
+          "S1"
+        ],
+        "exclusions": [],
+        "unresolved": [],
+        "continuations": []
+      },
+      "ownership": {
+        "version": "predicate-ownership-v1-gate-adjudicated",
+        "predicates": [
+          {
+            "id": "P1",
+            "headSpan": {
+              "start": 0,
+              "end": 2
+            },
+            "ownedSpan": {
+              "start": 0,
+              "end": 28
+            },
+            "actor": "SELF",
+            "actorId": "SELF",
+            "aspect": "SIMPLE",
+            "durationProof": "NONE",
+            "assertion": "ACTUAL",
+            "frame": "ACTUAL",
+            "symptomIds": [
+              "S1"
+            ],
+            "operatorIds": [
+              "O1",
+              "O2"
+            ],
+            "edge": "start",
+            "assertionUncertain": false,
+            "epistemic": false,
+            "hypothetical": false,
+            "information": false,
+            "education": true,
+            "argumentProof": "EXPLICIT_UNMATCHED_ARGUMENT",
+            "tailArgumentProof": "EXPLICIT_UNMATCHED_ARGUMENT"
+          }
+        ],
+        "symptoms": [
+          {
+            "kind": "chest",
+            "strong": true,
+            "text": "胸痛",
+            "start": 0,
+            "end": 2,
+            "id": "S1",
+            "span": {
+              "start": 0,
+              "end": 2
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "operators": [
+          {
+            "type": "actor",
+            "word": "tôi",
+            "start": 11,
+            "end": 14,
+            "quote": -1,
+            "role": "SUBJECT",
+            "id": "O1",
+            "span": {
+              "start": 11,
+              "end": 14
+            },
+            "ownerPredicateId": "P1"
+          },
+          {
+            "type": "education",
+            "word": "là gì",
+            "start": 23,
+            "end": 28,
+            "quote": -1,
+            "id": "O2",
+            "span": {
+              "start": 23,
+              "end": 28
+            },
+            "ownerPredicateId": "P1"
+          }
+        ],
+        "links": []
+      }
+    }
+  }
+]

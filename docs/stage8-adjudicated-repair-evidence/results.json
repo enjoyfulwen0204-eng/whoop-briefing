@@ -1,0 +1,1147 @@
+{
+  "baselineHead": "b69a9d64785a38de220da4ca36f48aa4180b4820",
+  "baselineTree": "63eef422008d88a00be309d5365b6b2f65adf57a",
+  "successorBranch": "codex/stage8-gate-adjudicated-repair-20261015",
+  "successorWorktree": "/Users/kelvin/.codex/worktrees/stage8-gate-adjudicated-repair/whoop-briefing",
+  "finalCommitReceipt": "/private/tmp/stage8-adjudicated-safety-gate-candidate-freeze.json",
+  "generatedAtUTC": "2026-10-15T02:03:44.848833+00:00",
+  "node": "v22.23.2",
+  "runtimeSha256": {
+    "src/bot/triage.js": "a5d35fdbc0c4b9a1372beb529365a82889e263c4f6126ad863f6a38a7cdaf50c",
+    "src/bot/safetyGate.js": "9a70f4a62a4b77b723b5f3d42b3e0affb6fc2ef419a028545bc544a242510a80"
+  },
+  "runtimeEditsStopped": true,
+  "defects": {
+    "CG-H01": "OPEN: exact requested examples pass, but unrecognized outside quote-complement phrases still falsely clear current/plausible assertions",
+    "CG-M01": "CLOSED on NFC/NFD and local resolution corpus",
+    "CG-M02": "CLOSED on educational/reported clinical contrast corpus",
+    "CG-L01": "CLOSED on metric suffix and native paraphrase corpus"
+  },
+  "independentReviewCompletedForSuccessor": false,
+  "invalidExpectations": {
+    "count": 20,
+    "disposition": "Only independently adjudicated standalone quotation outcomes changed; all original values and failures retained",
+    "correctedTestPass": 20,
+    "applicationRepairPass": 7,
+    "authority": "independent-review-reference.json / invalid-expectation-adjudication.json"
+  },
+  "original2151PreviouslyPassing": {
+    "tests": 2151,
+    "pass": 2151,
+    "fail": 0
+  },
+  "original27FailureDisposition": {
+    "tests": 27,
+    "pass": 27,
+    "fail": 0
+  },
+  "originalAll2178": {
+    "tests": 2178,
+    "pass": 2178,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "documented956": {
+    "tests": 956,
+    "pass": 956,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "newSemantic221": {
+    "tests": 221,
+    "pass": 221,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "finalAdversarial27": {
+    "tests": 27,
+    "pass": 7,
+    "fail": 20,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "freshDirect11": {
+    "cases": 11,
+    "positive": 7,
+    "negative": 4,
+    "pass": 7,
+    "fail": 4,
+    "falseNegative": 4,
+    "falsePositive": 0,
+    "newlyIntroducedFalseNegatives": 0,
+    "conclusion": "Remaining High defect; bounded stop condition triggered. No further runtime edits."
+  },
+  "freshRealProcessor16": {
+    "tests": 16,
+    "pass": 0,
+    "fail": 16,
+    "ordinaryHealthReads": 0,
+    "ordinaryConsumerEntries": 16,
+    "stateChangedCases": 8,
+    "peerIsolationPass": true,
+    "byLane": {
+      "name": {
+        "cases": 4,
+        "stateChanged": 4,
+        "healthReads": 0
+      },
+      "note": {
+        "cases": 4,
+        "stateChanged": 4,
+        "healthReads": 0
+      },
+      "coach": {
+        "cases": 4,
+        "stateChanged": 0,
+        "healthReads": 0
+      },
+      "health": {
+        "cases": 4,
+        "stateChanged": 0,
+        "healthReads": 0
+      }
+    },
+    "failuresRetained": true
+  },
+  "newActualProcessor134": {
+    "tests": 134,
+    "pass": 134,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "distinctFinalTestDefinitions": {
+    "tests": 2560,
+    "pass": 2540,
+    "fail": 20,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "finalTapIncludingNativeProcessFailures": {
+    "tests": 2560,
+    "pass": 2540,
+    "fail": 20,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "olderFrozen15Counterexamples": {
+    "tests": 15,
+    "pass": 15,
+    "fail": 0,
+    "closures": [
+      {
+        "run": "safety",
+        "originalFailure": "not ok 8 - preserved ownership invariant independent-004",
+        "after": "PASS"
+      },
+      {
+        "run": "safety",
+        "originalFailure": "not ok 285 - independent-004 scope_or_preserved_control",
+        "after": "PASS"
+      },
+      {
+        "run": "scoped",
+        "originalFailure": "not ok 342 - frozen scoped finding PO-H01",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 1 - STOP current continuation 0 name",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 2 - STOP current continuation 0 note",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 3 - STOP current continuation 0 coach",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 4 - STOP current continuation 0 health",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 5 - STOP current continuation 1 name",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 6 - STOP current continuation 1 note",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 7 - STOP current continuation 1 coach",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 8 - STOP current continuation 1 health",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 9 - STOP current continuation 2 name",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 10 - STOP current continuation 2 note",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 11 - STOP current continuation 2 coach",
+        "after": "PASS"
+      },
+      {
+        "run": "stop-processor",
+        "originalFailure": "not ok 12 - STOP current continuation 2 health",
+        "after": "PASS"
+      }
+    ]
+  },
+  "actualProcessor": {
+    "legacy": {
+      "all": {
+        "tests": 224,
+        "pass": 224,
+        "fail": 0
+      },
+      "safety": {
+        "tests": 144,
+        "pass": 144,
+        "fail": 0
+      },
+      "clear": {
+        "tests": 80,
+        "pass": 80,
+        "fail": 0
+      },
+      "completeNoOverlapOrOmission": true,
+      "zeroUnauthorizedStateOrProfileWritesInSafety": true,
+      "zeroScopedHealthReadsInSafety": true,
+      "zeroOrdinaryConsumersAndIdentityCaptureInSafety": true,
+      "peerIsolationAndReplayPass": true,
+      "invalidNameRejectedAndValidContinuation": []
+    },
+    "new": {
+      "all": {
+        "tests": 134,
+        "pass": 134,
+        "fail": 0
+      },
+      "safety": {
+        "tests": 84,
+        "pass": 84,
+        "fail": 0
+      },
+      "clear": {
+        "tests": 50,
+        "pass": 50,
+        "fail": 0
+      },
+      "reviewed50": {
+        "tests": 50,
+        "pass": 50,
+        "fail": 0
+      },
+      "new84": {
+        "tests": 84,
+        "pass": 84,
+        "fail": 0
+      },
+      "completeNoOverlapOrOmission": true,
+      "zeroUnauthorizedStateOrProfileWritesInSafety": true,
+      "zeroScopedHealthReadsInSafety": true,
+      "zeroOrdinaryConsumersAndIdentityCaptureInSafety": true,
+      "peerIsolationAndReplayPass": true,
+      "invalidNameRejectedAndValidContinuation": [
+        {
+          "invalidName": true,
+          "continuation": {
+            "accepted": "processed",
+            "replay": "replayed",
+            "mode": "name_confirm",
+            "pendingName": "Review Reader",
+            "noncePreserved": true,
+            "sends": 2
+          },
+          "id": "new-reported-generic-education",
+          "locale": "en",
+          "lane": "name",
+          "reviewed": false,
+          "text": "My friend Ana says \"People with chest pain generally need assessment\".",
+          "expected": "CLEARLY_NONURGENT",
+          "classification": "CLEARLY_NONURGENT",
+          "pass": true,
+          "failures": [],
+          "scopeReads": 0,
+          "reply": "Invalid name. Enter 1–64 characters without control characters.",
+          "statePreserved": true,
+          "peerPreserved": true,
+          "observed": {
+            "sends": 1,
+            "consumers": 2,
+            "captures": 1
+          }
+        }
+      ]
+    },
+    "residualHigh16": {
+      "tests": 16,
+      "pass": 0,
+      "fail": 16,
+      "ordinaryHealthReads": 0,
+      "ordinaryConsumerEntries": 16,
+      "stateChangedCases": 8,
+      "peerIsolationPass": true,
+      "byLane": {
+        "name": {
+          "cases": 4,
+          "stateChanged": 4,
+          "healthReads": 0
+        },
+        "note": {
+          "cases": 4,
+          "stateChanged": 4,
+          "healthReads": 0
+        },
+        "coach": {
+          "cases": 4,
+          "stateChanged": 0,
+          "healthReads": 0
+        },
+        "health": {
+          "cases": 4,
+          "stateChanged": 0,
+          "healthReads": 0
+        }
+      },
+      "failuresRetained": true
+    }
+  },
+  "directCorpusRates": {
+    "corpusRowsNotAdditionalTestCounts": true,
+    "realWorldRatesNotEstablished": true,
+    "groups": {
+      "independent86": {
+        "cases": 86,
+        "positive": 57,
+        "negative": 29,
+        "pass": 86,
+        "fail": 0,
+        "falseNegative": 0,
+        "falsePositive": 0,
+        "precisionErrors": [],
+        "failures": []
+      },
+      "newCases49": {
+        "cases": 49,
+        "positive": 32,
+        "negative": 17,
+        "pass": 49,
+        "fail": 0,
+        "falseNegative": 0,
+        "falsePositive": 0,
+        "precisionErrors": [],
+        "failures": []
+      },
+      "newMetamorphic81": {
+        "cases": 81,
+        "positive": 50,
+        "negative": 31,
+        "pass": 81,
+        "fail": 0,
+        "falseNegative": 0,
+        "falsePositive": 0,
+        "precisionErrors": [],
+        "failures": []
+      }
+    },
+    "benignConservativeWarnings": [
+      {
+        "id": "benign-warning-en",
+        "text": "I had chest pain yesterday and am still working.",
+        "before": "POSSIBLE_CURRENT_URGENT",
+        "after": "POSSIBLE_CURRENT_URGENT",
+        "clinicalBenignWarning": true
+      },
+      {
+        "id": "benign-warning-zh-TW",
+        "text": "我昨天胸痛而且目前忙碌。",
+        "before": "POSSIBLE_CURRENT_URGENT",
+        "after": "POSSIBLE_CURRENT_URGENT",
+        "clinicalBenignWarning": true
+      },
+      {
+        "id": "benign-warning-vi",
+        "text": "Tôi đau ngực hôm qua và hiện tại làm việc.",
+        "before": "POSSIBLE_CURRENT_URGENT",
+        "after": "POSSIBLE_CURRENT_URGENT",
+        "clinicalBenignWarning": true
+      },
+      {
+        "id": "benign-warning-mixed",
+        "text": "I had chest pain yesterday and 目前忙碌。",
+        "before": "POSSIBLE_CURRENT_URGENT",
+        "after": "POSSIBLE_CURRENT_URGENT",
+        "clinicalBenignWarning": true
+      }
+    ],
+    "finalAdversarial11": {
+      "cases": 11,
+      "positive": 7,
+      "negative": 4,
+      "pass": 7,
+      "fail": 4,
+      "falseNegative": 4,
+      "falsePositive": 0,
+      "newlyIntroducedFalseNegatives": 0,
+      "conclusion": "Remaining High defect; bounded stop condition triggered. No further runtime edits."
+    },
+    "overallDirectRows": {
+      "cases": 227,
+      "positive": 146,
+      "negative": 81,
+      "falseNegative": 4,
+      "falsePositive": 0,
+      "benignConservativeWarningsSeparate": 4,
+      "populationRatesNotEstablished": true
+    }
+  },
+  "newlyIntroducedRegressionsObserved": [],
+  "remainingHighSafetyFalseNegatives": [
+    "outside-intensifier-en",
+    "outside-intensifier-zh",
+    "outside-intensifier-vi",
+    "outside-uncertain-en"
+  ],
+  "boundedStopTriggered": true,
+  "remainingMechanism": "quoteComplement rejects unrecognized connecting prefixes; no unresolved reference is recorded. The quoted symptom retains QUOTED_MENTION exclusion while the outside SELF current/uncertain predicate has no symptom. This unsupported relationship is therefore treated as absence. No further lexical/runtime edits attempted.",
+  "authorHarnessCorrections": {
+    "frozenExpectationsOtherThanAdjudicated20Changed": 0,
+    "newClearName70GraphemeInput": "unchanged 64-grapheme limit rejects; preserved invalid reply/session/profile, then valid name continuation/replay passes; original harness failure retained",
+    "NFDContinuation": "compare to existing normalization functions; original reviewer source preserved"
+  },
+  "native": {
+    "id": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+    "classification": "B_EXISTING_BASELINE_DEFECT",
+    "status": "OPEN",
+    "rootCause": "UNASSIGNED",
+    "originalCandidateObservation": {
+      "id": "STAGE8_NATIVE_BASELINE_SIGSEGV",
+      "classification": "B_EXISTING_BASELINE_DEFECT",
+      "status": "OPEN",
+      "rootCause": "UNASSIGNED",
+      "observedThisCycle": true,
+      "sameBinaryUuidAndSixOffsetsAndFinalizerStack": true,
+      "firstRun": {
+        "pass": 16,
+        "fail": 1
+      },
+      "diagnosticRerun": {
+        "pass": 16,
+        "fail": 0
+      },
+      "rerunDoesNotResolve": true
+    },
+    "observedThisRepairCycle": false,
+    "newNativeFailureObserved": false,
+    "passingRunsDoNotResolveIt": true
+  },
+  "statuses": {
+    "repairCode": "NO-GO",
+    "independentDeltaReviewReadiness": "NO-GO",
+    "wholeStage8": "NO-GO",
+    "production": "NO-GO"
+  },
+  "remainingDependencies": [
+    "Stage 6 owner-frozen reconciliation/capacity/authority/raw DOMAIN and receipt requirements",
+    "Authenticated LIVE analysis producers",
+    "Independent review of this exact successor",
+    "Final integrated semantic and stability qualification",
+    "Existing native SIGSEGV root cause and qualification"
+  ],
+  "F02": "Owner Accepted Risk; Turso Token unchanged",
+  "productionMutations": 0,
+  "pushMergeDeployRealMigrationsRealTelegramPaidExecutionCredentialChanges": 0,
+  "runs": [
+    {
+      "id": "safety",
+      "command": "node --test --test-concurrency=2 test/stage8-three-blocker/*.test.mjs test/stage8-three-blocker-closure.test.mjs test/stage8-triage-semantic/independent-extra.test.mjs test/stage8-triage-semantic/independent-coach.test.mjs test/stage8-triage-semantic/scope.test.mjs test/stage8-triage-semantic/ingress.test.mjs test/stage8-triage-architecture/*.test.mjs test/stage8-predicate-ownership/*.test.mjs",
+      "exitCode": 0,
+      "tests": 576,
+      "pass": 576,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "safety.tap.gz",
+      "sha256": "e9d5f758ed520e52c53054a944e161a0599f1d0b1893e78c6af8110911343724",
+      "gzipSha256": "7217b7010ae4ee371c48f758742465127397487079ec4e45a2ab8b3fd20e98a4",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "integration",
+      "command": "node --test --test-concurrency=3 test/stage8-*.test.js test/stage7-*.test.js test/companion-*.test.js",
+      "exitCode": 0,
+      "tests": 200,
+      "pass": 200,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "integration.tap.gz",
+      "sha256": "41bedbf8eefeb4a362a87a15cb09b4cbcecd730c93035d2ec2b1193d22fea2c4",
+      "gzipSha256": "bd1321eeb6a45dae69955e7ae09cefb856f83d7a7969303aa5efeadf27052f93",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "regression",
+      "command": "node --test --test-concurrency=3 test/settings-v1.test.js test/settings-v1-product.test.js test/settings-v1-integration.test.js test/settings-v1-process.test.js test/conversational-perspective.test.js test/telegram-webhook.test.js test/cloudflare-scheduler.test.js test/morning-readiness.test.js test/body-provisional-policy.test.js test/phase4-foundation-privacy.test.js test/phase4-privacy.test.js test/phase4-morning-continuity.test.js",
+      "exitCode": 0,
+      "tests": 164,
+      "pass": 164,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "regression.tap.gz",
+      "sha256": "f94e24ba70e513a8ec1763bb5a4eca69efd33bb4522c63c8aea416ac93d047a8",
+      "gzipSha256": "9bad240240f94c1b4fefb196e6eac0213e8bcf523e5d88e72433a14b7c4a5e14",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "polling",
+      "command": "node --test test/bot-polling.test.js test/phase4-transport-store.test.js",
+      "exitCode": 0,
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "polling.tap.gz",
+      "sha256": "2b166442798511b60ec813249b17d3f3f78c1b8804dda0c14d52325bde20ec30",
+      "gzipSha256": "b51516845532e4b25b0b70a6b45c10e5aa1e67be95564ae9a7766710284882f8",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "scoped",
+      "command": "node --test --test-concurrency=2 test/stage8-scoped-repair/independent-coach.test.mjs test/stage8-scoped-repair/independent-processor.test.mjs test/stage8-scoped-repair/independent-targeted-processor.test.mjs test/stage8-scoped-repair/metamorphic.test.mjs test/stage8-scoped-repair/processor.test.mjs test/stage8-scoped-repair/semantic.test.mjs",
+      "exitCode": 0,
+      "tests": 348,
+      "pass": 348,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "scoped.tap.gz",
+      "sha256": "87a6baed95215a6a237f4193727e7492c3d74149e5160a54857de0c51e7dce03",
+      "gzipSha256": "2dc318ac198d6bc49a2d9c2d3b14c814ce25646aeba9319dd0be93b563d03085",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "name",
+      "command": "node --test test/stage8-scoped-repair/contract-limit.test.mjs",
+      "exitCode": 0,
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "name.tap.gz",
+      "sha256": "4829b4da6dd0eda90a4df4178a03c9b5194384be18c86b1b0bd797ba5f5e460f",
+      "gzipSha256": "52d6b4bd61bf2b63ba8d9a9830e9f3a350dc38ec65f27f98ae562f10995a3c72",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "new-semantic",
+      "command": "node --test test/stage8-final-evidence/semantic.test.mjs",
+      "exitCode": 0,
+      "tests": 195,
+      "pass": 195,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "new-semantic.tap.gz",
+      "sha256": "c725e640aaaabd868c0eab2dacfc540426fd275eb53fe613ef67a69b0eeaba20",
+      "gzipSha256": "42cbbee943af050c32b968a6952948c8aeb2f7303b9582472a831615ff7ac6d3",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "processor",
+      "command": "node --test test/stage8-final-evidence/processor.test.mjs",
+      "exitCode": 0,
+      "tests": 25,
+      "pass": 25,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "processor.tap.gz",
+      "sha256": "eeec47ecd3434943fe036c96c21ed5af105183045adb8bcd20b2d77b574291f5",
+      "gzipSha256": "6769bc3d5887e1190c781eadbd4110d7ac8eb2b98a0fda764cbab89c132b814f",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "stop-processor",
+      "command": "node --test test/stage8-final-evidence/stop-regressions.test.mjs",
+      "exitCode": 0,
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "stop-processor.tap.gz",
+      "sha256": "71a51a3cdff29d153c0a461374e1e78f954bb5a3a7bcedde5f1ac8317a5e6735",
+      "gzipSha256": "1fba499b7d8573711d327919d1482d1de07d6847fed11baa9de356a7ee2f1549",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "gate-semantic",
+      "command": "node --test test/stage8-safety-gate/semantic.test.mjs",
+      "exitCode": 0,
+      "tests": 417,
+      "pass": 417,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "gate-semantic.tap.gz",
+      "sha256": "3a6bc5e918b8872f5546546a101d4eecb790f070fb51bd0c740a7e93a143d0b6",
+      "gzipSha256": "f4a7a2ac7664f1906a1adc79890ccd203e761df9a3f43b308670bebcb7316f8c",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "legacy-ingress0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 node --test test/stage8-safety-gate/processor.test.mjs",
+      "exitCode": 0,
+      "tests": 75,
+      "pass": 75,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "legacy-ingress0.tap.gz",
+      "sha256": "0b2274850931464287068c89cb77c73073d80365fd1984f6f666962bf819f012",
+      "gzipSha256": "c91fae529fb5ec83a30639eea14332f7290d4eb1773d69a83546071383504ba0",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "legacy-ingress1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 node --test test/stage8-safety-gate/processor.test.mjs",
+      "exitCode": 0,
+      "tests": 75,
+      "pass": 75,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "legacy-ingress1.tap.gz",
+      "sha256": "2843e0873973d0ce33930f87eeff0bda6be4a22cf767edb13d59ece304862af5",
+      "gzipSha256": "39332c3035bcd601f62bf907f91043cb9c78b98d9453dd7a021a99f31c383dbc",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "legacy-ingress2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 node --test test/stage8-safety-gate/processor.test.mjs",
+      "exitCode": 0,
+      "tests": 74,
+      "pass": 74,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "legacy-ingress2.tap.gz",
+      "sha256": "b61d6cc37bad90c8177364f28bb6e3f79a041569c4ff195c43119b99cb98a518",
+      "gzipSha256": "df7de8404e080a1944be75562ef0f48210dbd0300ebb985116d14221d27118d2",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "baseline2178"
+    },
+    {
+      "id": "adjudicated-semantic",
+      "command": "node --test test/stage8-adjudicated-repair/semantic.test.mjs",
+      "exitCode": 0,
+      "tests": 221,
+      "pass": 221,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "adjudicated-semantic.tap.gz",
+      "sha256": "ca0700b2cfbab5c538934386b0e128f23643149563a81bdc2b6a934aa57bfd4c",
+      "gzipSha256": "d9e313fbae105f757e2b0f4ddad39804518381b0036d994bd25fda59a96b28e2",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "new382"
+    },
+    {
+      "id": "adjudicated-ingress0",
+      "command": "STAGE8_GATE_TEST_SHARD=0 node --test test/stage8-adjudicated-repair/processor.test.mjs",
+      "exitCode": 0,
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "adjudicated-ingress0.tap.gz",
+      "sha256": "0d257837da1fe83ea2d8f8c2990f742f415b5892271255d2d463450e4c9285aa",
+      "gzipSha256": "0a9e5bbcd3ea57b5ea74ad972c40603dcfa34640520a529b98e34fb74ce98973",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "new382"
+    },
+    {
+      "id": "adjudicated-ingress1",
+      "command": "STAGE8_GATE_TEST_SHARD=1 node --test test/stage8-adjudicated-repair/processor.test.mjs",
+      "exitCode": 0,
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "adjudicated-ingress1.tap.gz",
+      "sha256": "edab38daeb669e6e7323a994cee2eeb5f95fa17042d9457f3f44784f59271020",
+      "gzipSha256": "2a4490cd77dfccc74088ce4ba6992a51b9c2ef5eed339e0a3478596ebc6cb2dd",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "new382"
+    },
+    {
+      "id": "adjudicated-ingress2",
+      "command": "STAGE8_GATE_TEST_SHARD=2 node --test test/stage8-adjudicated-repair/processor.test.mjs",
+      "exitCode": 0,
+      "tests": 44,
+      "pass": 44,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "adjudicated-ingress2.tap.gz",
+      "sha256": "7d7d964256e4b2588fc6878c4eb1f471f418eb21e0536a63c330b4d18ead5a85",
+      "gzipSha256": "2dff81101a0f2ed12bee105449c8b3d4a65e070421fd5357d7ff49fa455b52e0",
+      "failures": [],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "new382"
+    },
+    {
+      "id": "final-adversarial",
+      "command": "node --test --test-concurrency=2 test/stage8-adjudicated-repair/final-adversarial.test.mjs test/stage8-adjudicated-repair/residual-processor.test.mjs",
+      "exitCode": 1,
+      "tests": 27,
+      "pass": 7,
+      "fail": 20,
+      "cancelled": 0,
+      "skipped": 0,
+      "log": "final-adversarial.tap.gz",
+      "sha256": "7271bc19579e6f911a62b1b15c3b9c9dcfd5c8f4267a041105092a7e9c3e25c8",
+      "gzipSha256": "f53ba61b6c0b23a3262f4f065edf8248623e2b20f286cf00f80aef2094e0fc23",
+      "failures": [
+        {
+          "title": "residual quote probe outside-intensifier-en",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual quote probe outside-intensifier-zh",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual quote probe outside-intensifier-vi",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual quote probe outside-uncertain-en",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-en name",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-en note",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-en coach",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-en health",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-zh name",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-zh note",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-zh coach",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-zh health",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-vi name",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-vi note",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-vi coach",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-intensifier-vi health",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-uncertain-en name",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-uncertain-en note",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-uncertain-en coach",
+          "occurrence": 1,
+          "pass": false
+        },
+        {
+          "title": "residual real ingress outside-uncertain-en health",
+          "occurrence": 1,
+          "pass": false
+        }
+      ],
+      "nativeSignals": [],
+      "countedFinal": true,
+      "corpus": "new382"
+    }
+  ],
+  "diagnosticReruns": [
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-adjudicated-ingress0.exit.gz",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "gzipSha256": "89ed3b723e0e40d8957a2df55fcb04d57b6d95fa665c5fe67b098df7f29694ae"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-adjudicated-ingress0.tap.gz",
+      "sha256": "df7903e8efe1f9b21073621433b4aed8d0dfa95ecc054ae1984070b415465c9f",
+      "gzipSha256": "ce44b1e2b2eb3ddfb0dda66d1ca1ce89abd8f10d2abcf270c9a10433a3dacc97"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-adjudicated-ingress1.exit.gz",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "gzipSha256": "89ed3b723e0e40d8957a2df55fcb04d57b6d95fa665c5fe67b098df7f29694ae"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-adjudicated-ingress1.tap.gz",
+      "sha256": "1da20da846bc6a5285ae2aa3bab3a8353495f0e6b87345af5d8dc3a1f5951a3d",
+      "gzipSha256": "2ab8cc1a26452444fbd7d2e7106c6809bea78afcf20ee6a5dfd2edd02f7e532c"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-adjudicated-ingress2.tap.gz",
+      "sha256": "7648609cfba3b5ad4512764fb20bb2b0fd442fcd9630ad184bdaec2898ff1d39",
+      "gzipSha256": "5a8dba92000ecc0a61f535ad55185ff1b168a87f8cb2b9e6177d43971aa716ff"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-existing-semantic-first.tap.gz",
+      "sha256": "b14f812decf591e23496c67a067bd190d7e61e77a31bc0f4bfe7e023b863dd06",
+      "gzipSha256": "f74efc2fe269789784ef5ea474dc9a2b9052c30f4e08c5ca8edc8ad8d71cf3da"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-integration.tap.gz",
+      "sha256": "ffcc49a23b3a6f108c608861e30f9e0eceddd514404728c0203ec6c46436a6ff",
+      "gzipSha256": "877f0cd3dc30634f84fb1848608b1c71c4f5dbf6d79588146a41d17b517e7dff"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-legacy-ingress0.tap.gz",
+      "sha256": "8c0555dfab90b53b734fc408ee0f2f3e87475968cc9b7780fb2d552cee325b19",
+      "gzipSha256": "ffef8940adc892d139a76c94bdfafe1398d900ff52486f02f782b74b45053f70"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-legacy-processor-0-cases.json.gz",
+      "sha256": "f81844e703dc3e7bd9e3e35652426d8311468dde6e30b09a6422752dbc462924",
+      "gzipSha256": "ac5c893a0ffbd8e67a717f66cca0f2661c6080ae5c3893f92e8893c134a4fc1f"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-legacy-processor-0-results.json.gz",
+      "sha256": "290322dddc9a8510d5345189cef9cd0857ea8740da9da29c779be1c621e172f6",
+      "gzipSha256": "a4039736cc61df9956dd545e7ffc7d8e83c8bb6545fc8c1912e301606a5d7c0e"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-new-processor-0-cases.json.gz",
+      "sha256": "3c69a6b19ea5d0e15e64a2d218cb37dff5121cdf08d3ab343fbddbe6dab666ee",
+      "gzipSha256": "bebce70a2284df7edbfad3a0dea035e93383d713f7228baafc9513a6af59abc6"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-new-processor-0-results.json.gz",
+      "sha256": "8c62cea1d0fbf147e438ecc0e944ba010ec741c4a62f0eb6ea8792884fea8986",
+      "gzipSha256": "258c427ec9e82d2804b6b94f5b5b41cd6cc664897e4a2539eae586fbfe678bea"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-new-processor-1-cases.json.gz",
+      "sha256": "3c69a6b19ea5d0e15e64a2d218cb37dff5121cdf08d3ab343fbddbe6dab666ee",
+      "gzipSha256": "bebce70a2284df7edbfad3a0dea035e93383d713f7228baafc9513a6af59abc6"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-new-processor-1-results.json.gz",
+      "sha256": "4426a7362dca75b8a31e8b093ded06054eccef00be2e880677122a02f8ab7033",
+      "gzipSha256": "2e15653d0175e7052308a19d22e9218d2af26e91a75c3aec0ca4e54271fefe83"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-new-processor-2-cases.json.gz",
+      "sha256": "3c69a6b19ea5d0e15e64a2d218cb37dff5121cdf08d3ab343fbddbe6dab666ee",
+      "gzipSha256": "bebce70a2284df7edbfad3a0dea035e93383d713f7228baafc9513a6af59abc6"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-new-processor-2-results.json.gz",
+      "sha256": "56cbcf3c6e8b988755fda3655531996393826175dfd5087798ce3b4227a90dc2",
+      "gzipSha256": "9e198a0caf0e6d8ad34fd4a711606d060558dbb2a3da48ec59e2c8e020b72d71"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-new-semantic-first.tap.gz",
+      "sha256": "9002c5b980f058ec4091e7f4b08ed37ab9b9c46a476c139772200f09de427577",
+      "gzipSha256": "dc28c5d210683076da85a533240d41d20da99f39b5904da0b130fc60a423c98a"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-runtime-freeze.json.gz",
+      "sha256": "a1b5a42ce330058321474c12407fc4aeadd70b33d8b16744d9f9f90b635ea693",
+      "gzipSha256": "17438e9f38668bc6e82570c7f02f32b1fa2697088d3b43efd4d4475bfcc7554f"
+    },
+    {
+      "phase": "first-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-first-runtime-safety.tap.gz",
+      "sha256": "dd38ebd9fa811a5a6530bac4d9b2c26021854b30936dea7d06c063ba8ec584db",
+      "gzipSha256": "85ecc2069c43182f60919b37d5810a5cd6fc09e4cbb3e19f364e0e53f7d3732a"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-adjudicated-ingress0.tap.gz",
+      "sha256": "d7b2f721ca9455c52631e49722c0d1933e6216a8090c6b92fba1a1419a0f8dc6",
+      "gzipSha256": "a0ec2e46e7f6ee168fc0f3755aba7e04dfb5887b0d2af487714df947eb2d41e9"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-adjudicated-ingress1.tap.gz",
+      "sha256": "23cd1372069af5c34eaefe13af5daae1aefd04b1f1c1d7c03c57dab0c16a1e85",
+      "gzipSha256": "b0ca7c262c39bc4b69359d52cf8be3d1f915073f60e61f5b6fa6623eda05753f"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-integration.tap.gz",
+      "sha256": "5a950e2eccedfd9dd919246d33378e54636bb7b65b1fdb00e442e0f5891980d8",
+      "gzipSha256": "4724e61ab1a5959a4cef5170d2fbd2c6248c26033fa21c2f4cf0729a529e2809"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-intentional-stop.json.gz",
+      "sha256": "2dd3b9500a7e7f35ec6f9a5bf9b8573b1166f8f5f3b1603b4d041930d4f4c6e6",
+      "gzipSha256": "192b2b57855b30de164672e95a93f1d0c6baf7cb179b40c0d7ff2ba2f11824ef"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-new-processor-0-cases.json.gz",
+      "sha256": "1489553a9ea8f7d996d4eab915ecbc5824ba2d4c3458c3e0f48eeb3925a823e1",
+      "gzipSha256": "52a947af310837758916ac5d8c7d79c7f9fc4f188b3a910a04bddbe82e2b1e31"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-new-processor-0-results.json.gz",
+      "sha256": "45cfce0944328fb9d237c56aac7b03dc4d0467cf389b9dcc8181a2f31c051d70",
+      "gzipSha256": "5f9ae8267d834baaad89637d93a48a8d6f5507b541fe6845f1b6e1d5a4920a18"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-new-processor-1-cases.json.gz",
+      "sha256": "1489553a9ea8f7d996d4eab915ecbc5824ba2d4c3458c3e0f48eeb3925a823e1",
+      "gzipSha256": "52a947af310837758916ac5d8c7d79c7f9fc4f188b3a910a04bddbe82e2b1e31"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-new-processor-1-results.json.gz",
+      "sha256": "61b63fe6cfb2ae870c4b42649c243217c1105a151de7bbe7185eeccdd154db0a",
+      "gzipSha256": "10d5fe1764665c05eaa225989609c91f1025beb6d14e4162a24086baa3cbfd0e"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-runtime-freeze.json.gz",
+      "sha256": "492c1b62c4ddaf617913d69cc264631603fd6c3574f3dd7f1f466666a03c79fb",
+      "gzipSha256": "219ccdfe184cf654415bf64fa05b3c0e33e433a4129739f40e431998e6403501"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-safety.tap.gz",
+      "sha256": "acc97d5d5998276a48be7347fce6b09e4f62ec96a136ae05f6058493e79522d0",
+      "gzipSha256": "e47c471ee196146d7f924294e916b77fef578364989c1e2f32f47660f6c8ae10"
+    },
+    {
+      "phase": "second-runtime",
+      "countedFinal": false,
+      "log": "diagnostic-second-runtime-semantic-final-preflight.tap.gz",
+      "sha256": "83b4bc1067711a4c12a3d87af3f491f767610d22698911463536541da73f9d3e",
+      "gzipSha256": "591bba71da2b675cee90d72bd134c46c859d26c71f7aeb1bbba22e8b64c17dc4"
+    },
+    {
+      "phase": "author-harness-initial",
+      "countedFinal": false,
+      "log": "diagnostic-adjudicated-ingress0.tap.gz",
+      "sha256": "d996f3d796f0b47a4ef21eb9a645c48603d77acb8eec4412a1285cc7f00a5528",
+      "gzipSha256": "7ab0dfb270307bb9034285c43c998151922c02ab787fbb3843b564d990418729"
+    },
+    {
+      "phase": "author-harness-initial",
+      "countedFinal": false,
+      "log": "diagnostic-adjudicated-ingress0.exit.gz",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "gzipSha256": "c28cc69d141393e44a931229323624ef7b8c5bde3ee047ca9b87332daef23c82"
+    },
+    {
+      "phase": "author-harness-initial",
+      "countedFinal": false,
+      "log": "diagnostic-adjudicated-ingress1.tap.gz",
+      "sha256": "1e0ba21c1c25966f0fb45a8869e45e7be0173973aeee3c79ad9b262a5f90656d",
+      "gzipSha256": "6e91c01a343fbf009deeedb65f4e34c8c0bd0415a2570417de856217842e7316"
+    },
+    {
+      "phase": "author-harness-initial",
+      "countedFinal": false,
+      "log": "diagnostic-adjudicated-ingress1.exit.gz",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "gzipSha256": "89ed3b723e0e40d8957a2df55fcb04d57b6d95fa665c5fe67b098df7f29694ae"
+    },
+    {
+      "phase": "author-harness-initial",
+      "countedFinal": false,
+      "log": "diagnostic-adjudicated-ingress2.tap.gz",
+      "sha256": "cd9e40229037085d4a7aade45f88543211df4dcf222372359cb31bbafaf2104b",
+      "gzipSha256": "c45175901b05be6c584d17847fbc55ddb1a2f80e70e291d17f86b616579a7b8e"
+    },
+    {
+      "phase": "author-harness-initial",
+      "countedFinal": false,
+      "log": "diagnostic-adjudicated-ingress2.exit.gz",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "gzipSha256": "89ed3b723e0e40d8957a2df55fcb04d57b6d95fa665c5fe67b098df7f29694ae"
+    },
+    {
+      "phase": "preflight",
+      "countedFinal": false,
+      "log": "diagnostic-semantic-frozen-preflight.tap.gz",
+      "sha256": "30056e41de61aea4f225bbc808e78235a7b282e29d3d1ce5a2c44d2ef0f79b5f",
+      "gzipSha256": "d22cf72ba5c9f9740b31e3ceb6c64fd9a9483e9346e397b9474dfaf39d683d8d"
+    }
+  ]
+}

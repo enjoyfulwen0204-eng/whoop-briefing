@@ -1,0 +1,68 @@
+[
+  {
+    "id": "outside-intensifier-en",
+    "locale": "en",
+    "text": "\"chest pressure\" is exactly what I am experiencing right now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "id": "outside-intensifier-zh",
+    "locale": "zh-TW",
+    "text": "「胸痛」正是我現在感到的症狀。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "id": "outside-intensifier-vi",
+    "locale": "vi",
+    "text": "\"đau ngực\" chính là triệu chứng tôi đang cảm thấy.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "id": "outside-uncertain-en",
+    "locale": "en",
+    "text": "\"chest pressure\" might be what I am feeling right now.",
+    "expected": "POSSIBLE_CURRENT_URGENT"
+  },
+  {
+    "id": "outside-assertion-control-en",
+    "locale": "en",
+    "text": "I am experiencing \"chest pressure\" right now.",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "id": "outside-assertion-control-zh",
+    "locale": "zh-TW",
+    "text": "我現在感到「胸痛」。",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "id": "outside-assertion-control-vi",
+    "locale": "vi",
+    "text": "Tôi đang cảm thấy \"đau ngực\".",
+    "expected": "CURRENT_URGENT"
+  },
+  {
+    "id": "standalone-control-en",
+    "locale": "en",
+    "text": "\"I have chest pressure now\"",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "reading-control-en",
+    "locale": "en",
+    "text": "I am reading about \"chest pain\".",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "education-control-zh",
+    "locale": "zh-TW",
+    "text": "我正在閱讀「胸痛」。",
+    "expected": "CLEARLY_NONURGENT"
+  },
+  {
+    "id": "education-control-vi",
+    "locale": "vi",
+    "text": "Tôi đang đọc về \"đau ngực\".",
+    "expected": "CLEARLY_NONURGENT"
+  }
+]

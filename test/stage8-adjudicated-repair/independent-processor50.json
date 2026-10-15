@@ -1,0 +1,352 @@
+[
+  {
+    "id": "vi-resolution",
+    "text": "Tôi đã hết hẳn đau ngực.",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "name"
+  },
+  {
+    "id": "vi-resolution",
+    "text": "Tôi đã hết hẳn đau ngực.",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "note"
+  },
+  {
+    "id": "vi-resolution",
+    "text": "Tôi đã hết hẳn đau ngực.",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "coach"
+  },
+  {
+    "id": "vi-resolution",
+    "text": "Tôi đã hết hẳn đau ngực. What is my HRV today?",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "health"
+  },
+  {
+    "id": "vi-resolution-nfd",
+    "text": "Tôi đã hết hẳn đau ngực.",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "name"
+  },
+  {
+    "id": "vi-resolution-nfd",
+    "text": "Tôi đã hết hẳn đau ngực.",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "note"
+  },
+  {
+    "id": "vi-resolution-nfd",
+    "text": "Tôi đã hết hẳn đau ngực.",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "coach"
+  },
+  {
+    "id": "vi-resolution-nfd",
+    "text": "Tôi đã hết hẳn đau ngực. What is my HRV today?",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "health"
+  },
+  {
+    "id": "vi-resolution-control",
+    "text": "Tôi đã hết đau ngực.",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "name"
+  },
+  {
+    "id": "vi-resolution-control",
+    "text": "Tôi đã hết đau ngực.",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "note"
+  },
+  {
+    "id": "vi-resolution-control",
+    "text": "Tôi đã hết đau ngực.",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "coach"
+  },
+  {
+    "id": "vi-resolution-control",
+    "text": "Tôi đã hết đau ngực. What is my HRV today?",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "health"
+  },
+  {
+    "id": "vi-current-control",
+    "text": "Tôi đã hết hẳn đau ngực, nhưng tôi đang khó thở.",
+    "expected": "CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "name"
+  },
+  {
+    "id": "vi-current-control",
+    "text": "Tôi đã hết hẳn đau ngực, nhưng tôi đang khó thở.",
+    "expected": "CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "note"
+  },
+  {
+    "id": "vi-current-control",
+    "text": "Tôi đã hết hẳn đau ngực, nhưng tôi đang khó thở.",
+    "expected": "CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "coach"
+  },
+  {
+    "id": "vi-current-control",
+    "text": "Tôi đã hết hẳn đau ngực, nhưng tôi đang khó thở. What is my HRV today?",
+    "expected": "CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "health"
+  },
+  {
+    "id": "quoted-post-assertion-1",
+    "text": "\"chest pressure\" is what I am experiencing right now.",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "name"
+  },
+  {
+    "id": "quoted-post-assertion-1",
+    "text": "\"chest pressure\" is what I am experiencing right now.",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "note"
+  },
+  {
+    "id": "quoted-post-assertion-1",
+    "text": "\"chest pressure\" is what I am experiencing right now.",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "coach"
+  },
+  {
+    "id": "quoted-post-assertion-1",
+    "text": "\"chest pressure\" is what I am experiencing right now. What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "health"
+  },
+  {
+    "id": "quoted-post-assertion-2",
+    "text": "\"I have chest pressure\" describes what I am experiencing now.",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "name"
+  },
+  {
+    "id": "quoted-post-assertion-2",
+    "text": "\"I have chest pressure\" describes what I am experiencing now.",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "note"
+  },
+  {
+    "id": "quoted-post-assertion-2",
+    "text": "\"I have chest pressure\" describes what I am experiencing now.",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "coach"
+  },
+  {
+    "id": "quoted-post-assertion-2",
+    "text": "\"I have chest pressure\" describes what I am experiencing now. What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "health"
+  },
+  {
+    "id": "quoted-uncertainty-zh",
+    "text": "我不確定我是否「胸悶」。",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "zh-TW",
+    "lane": "name"
+  },
+  {
+    "id": "quoted-uncertainty-zh",
+    "text": "我不確定我是否「胸悶」。",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "zh-TW",
+    "lane": "note"
+  },
+  {
+    "id": "quoted-uncertainty-zh",
+    "text": "我不確定我是否「胸悶」。",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "zh-TW",
+    "lane": "coach"
+  },
+  {
+    "id": "quoted-uncertainty-zh",
+    "text": "我不確定我是否「胸悶」。 What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "zh-TW",
+    "lane": "health"
+  },
+  {
+    "id": "precision-vi",
+    "text": "đau ngực",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "name"
+  },
+  {
+    "id": "precision-vi",
+    "text": "đau ngực",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "note"
+  },
+  {
+    "id": "precision-vi",
+    "text": "đau ngực",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "coach"
+  },
+  {
+    "id": "precision-vi",
+    "text": "đau ngực What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "health"
+  },
+  {
+    "id": "precision-mixed",
+    "text": "chest pain 胸痛",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "name"
+  },
+  {
+    "id": "precision-mixed",
+    "text": "chest pain 胸痛",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "note"
+  },
+  {
+    "id": "precision-mixed",
+    "text": "chest pain 胸痛",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "coach"
+  },
+  {
+    "id": "precision-mixed",
+    "text": "chest pain 胸痛 What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "en",
+    "lane": "health"
+  },
+  {
+    "id": "quoted-post-assertion-zh",
+    "text": "「胸痛」是我現在感到的症狀。",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "zh-TW",
+    "lane": "name"
+  },
+  {
+    "id": "quoted-post-assertion-zh",
+    "text": "「胸痛」是我現在感到的症狀。",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "zh-TW",
+    "lane": "note"
+  },
+  {
+    "id": "quoted-post-assertion-zh",
+    "text": "「胸痛」是我現在感到的症狀。",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "zh-TW",
+    "lane": "coach"
+  },
+  {
+    "id": "quoted-post-assertion-zh",
+    "text": "「胸痛」是我現在感到的症狀。 What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "zh-TW",
+    "lane": "health"
+  },
+  {
+    "id": "quoted-post-assertion-vi",
+    "text": "\"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "name"
+  },
+  {
+    "id": "quoted-post-assertion-vi",
+    "text": "\"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "note"
+  },
+  {
+    "id": "quoted-post-assertion-vi",
+    "text": "\"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "coach"
+  },
+  {
+    "id": "quoted-post-assertion-vi",
+    "text": "\"đau ngực\" là triệu chứng tôi đang cảm thấy. What is my HRV today?",
+    "expected": "POSSIBLE_CURRENT_URGENT",
+    "locale": "vi",
+    "lane": "health"
+  },
+  {
+    "id": "reading-quote-en",
+    "text": "I am reading about \"chest pain\".",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "en",
+    "lane": "name"
+  },
+  {
+    "id": "reading-quote-en",
+    "text": "I am reading about \"chest pain\".",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "en",
+    "lane": "note"
+  },
+  {
+    "id": "reading-quote-zh",
+    "text": "我正在閱讀「胸痛」。",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "zh-TW",
+    "lane": "name"
+  },
+  {
+    "id": "reading-quote-zh",
+    "text": "我正在閱讀「胸痛」。",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "zh-TW",
+    "lane": "note"
+  },
+  {
+    "id": "reading-quote-vi",
+    "text": "Tôi đang đọc về \"đau ngực\".",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "name"
+  },
+  {
+    "id": "reading-quote-vi",
+    "text": "Tôi đang đọc về \"đau ngực\".",
+    "expected": "CLEARLY_NONURGENT",
+    "locale": "vi",
+    "lane": "note"
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "baseline": "b69a9d64785a38de220da4ca36f48aa4180b4820",
+  "changedExistingRuntimePaths": [
+    "src/bot/triage.js"
+  ],
+  "unchangedRuntimeConfigDependencyPaths": 305,
+  "safetyGateByteIdentical": true,
+  "oldEvidencePathsByteIdentical": 92,
+  "changedBaselineExpectationIds": [
+    "new-unknown-speaker-en",
+    "new-unknown-speaker-zh-TW",
+    "new-unknown-speaker-vi",
+    "new-unknown-speaker-mixed",
+    "new-unknown-speaker-en-space",
+    "new-unknown-speaker-en-newline",
+    "new-unknown-speaker-en-width-punct",
+    "new-unknown-speaker-en-nfd",
+    "new-unknown-speaker-zh-TW-space",
+    "new-unknown-speaker-zh-TW-newline",
+    "new-unknown-speaker-zh-TW-width-punct",
+    "new-unknown-speaker-zh-TW-nfd",
+    "new-unknown-speaker-vi-space",
+    "new-unknown-speaker-vi-newline",
+    "new-unknown-speaker-vi-width-punct",
+    "new-unknown-speaker-vi-nfd",
+    "new-unknown-speaker-mixed-space",
+    "new-unknown-speaker-mixed-newline",
+    "new-unknown-speaker-mixed-width-punct",
+    "new-unknown-speaker-mixed-nfd"
+  ],
+  "stage7Ancestor": true
+}

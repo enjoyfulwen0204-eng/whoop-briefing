@@ -1,0 +1,62 @@
+{
+  "status": "NO-GO",
+  "runtimeEditsStopped": true,
+  "runtimeSha256": {
+    "src/bot/triage.js": "a5d35fdbc0c4b9a1372beb529365a82889e263c4f6126ad863f6a38a7cdaf50c",
+    "src/bot/safetyGate.js": "9a70f4a62a4b77b723b5f3d42b3e0affb6fc2ef419a028545bc544a242510a80"
+  },
+  "mechanism": "quoteComplement rejects unrecognized connecting prefixes; no unresolved reference is recorded. The quoted symptom retains QUOTED_MENTION exclusion while the outside SELF current/uncertain predicate has no symptom. This unsupported relationship is therefore treated as absence. No further lexical/runtime edits attempted.",
+  "defect": "CG-H01 OPEN",
+  "falseNegativeCases": [
+    "outside-intensifier-en",
+    "outside-intensifier-zh",
+    "outside-intensifier-vi",
+    "outside-uncertain-en"
+  ],
+  "direct": {
+    "cases": 11,
+    "positive": 7,
+    "negative": 4,
+    "pass": 7,
+    "fail": 4,
+    "falseNegative": 4,
+    "falsePositive": 0,
+    "newlyIntroducedFalseNegatives": 0,
+    "conclusion": "Remaining High defect; bounded stop condition triggered. No further runtime edits."
+  },
+  "realProcessor": {
+    "tests": 16,
+    "pass": 0,
+    "fail": 16,
+    "ordinaryHealthReads": 0,
+    "ordinaryConsumerEntries": 16,
+    "stateChangedCases": 8,
+    "peerIsolationPass": true,
+    "byLane": {
+      "name": {
+        "cases": 4,
+        "stateChanged": 4,
+        "healthReads": 0
+      },
+      "note": {
+        "cases": 4,
+        "stateChanged": 4,
+        "healthReads": 0
+      },
+      "coach": {
+        "cases": 4,
+        "stateChanged": 0,
+        "healthReads": 0
+      },
+      "health": {
+        "cases": 4,
+        "stateChanged": 0,
+        "healthReads": 0
+      }
+    },
+    "failuresRetained": true
+  },
+  "sameFourFailOnBaseline": true,
+  "furtherRuntimeEdits": 0,
+  "nextAction": "Independent failure validation at this frozen commit; no acceptance, deployment or further grammar expansion in this cycle."
+}

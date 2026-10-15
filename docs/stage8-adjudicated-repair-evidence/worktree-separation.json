@@ -1,0 +1,18 @@
+{
+  "physicallySeparate": true,
+  "observations": [
+    {
+      "path": "/Users/kelvin/.codex/worktrees/stage8-gate-adjudicated-repair/whoop-briefing",
+      "device": 16777229,
+      "inode": 76151917,
+      "headObserved": "b69a9d64785a38de220da4ca36f48aa4180b4820"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+      "device": 16777229,
+      "inode": 71452797,
+      "headObserved": "40ee6252aeb8905885b49dfff975ab9db059d80e"
+    }
+  ],
+  "stage6NotWritten": true
+}

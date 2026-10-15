@@ -1,0 +1,381 @@
+{
+  "baseline": "b69a9d64785a38de220da4ca36f48aa4180b4820",
+  "authority": "Owner instruction + independent review required27Failures.quotations",
+  "reviewSha256": "53cdd8df27c3fb060e2ed0d252b7d942633d588fe5db33fa42c8bfe47d85d9ee",
+  "onlyChangedExpectations": 20,
+  "originalFailureEvidenceRetained": "../stage8-safety-gate-evidence/{results.json,gate-semantic.tap.gz,frozen-contract.json}",
+  "changes": [
+    {
+      "group": "cases",
+      "original": {
+        "id": "new-unknown-speaker-en",
+        "family": "new-unknown-speaker",
+        "locale": "en",
+        "text": "\"I have chest pressure now\"",
+        "expected": "POSSIBLE_CURRENT_URGENT"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-en",
+        "family": "new-unknown-speaker",
+        "locale": "en",
+        "text": "\"I have chest pressure now\"",
+        "expected": "CLEARLY_NONURGENT"
+      }
+    },
+    {
+      "group": "cases",
+      "original": {
+        "id": "new-unknown-speaker-zh-TW",
+        "family": "new-unknown-speaker",
+        "locale": "zh-TW",
+        "text": "「我現在胸悶」",
+        "expected": "POSSIBLE_CURRENT_URGENT"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-zh-TW",
+        "family": "new-unknown-speaker",
+        "locale": "zh-TW",
+        "text": "「我現在胸悶」",
+        "expected": "CLEARLY_NONURGENT"
+      }
+    },
+    {
+      "group": "cases",
+      "original": {
+        "id": "new-unknown-speaker-vi",
+        "family": "new-unknown-speaker",
+        "locale": "vi",
+        "text": "\"Tôi đang tức ngực\"",
+        "expected": "POSSIBLE_CURRENT_URGENT"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-vi",
+        "family": "new-unknown-speaker",
+        "locale": "vi",
+        "text": "\"Tôi đang tức ngực\"",
+        "expected": "CLEARLY_NONURGENT"
+      }
+    },
+    {
+      "group": "cases",
+      "original": {
+        "id": "new-unknown-speaker-mixed",
+        "family": "new-unknown-speaker",
+        "locale": "mixed",
+        "text": "\"I đang tức ngực\"",
+        "expected": "POSSIBLE_CURRENT_URGENT"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-mixed",
+        "family": "new-unknown-speaker",
+        "locale": "mixed",
+        "text": "\"I đang tức ngực\"",
+        "expected": "CLEARLY_NONURGENT"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-en-space",
+        "family": "new-unknown-speaker",
+        "locale": "en",
+        "text": "  \"I have chest pressure now\"  ",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "space"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-en-space",
+        "family": "new-unknown-speaker",
+        "locale": "en",
+        "text": "  \"I have chest pressure now\"  ",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "space"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-en-newline",
+        "family": "new-unknown-speaker",
+        "locale": "en",
+        "text": "\"I have chest pressure now\"",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "newline"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-en-newline",
+        "family": "new-unknown-speaker",
+        "locale": "en",
+        "text": "\"I have chest pressure now\"",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "newline"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-en-width-punct",
+        "family": "new-unknown-speaker",
+        "locale": "en",
+        "text": "\"I have chest pressure now\"",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "width-punct"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-en-width-punct",
+        "family": "new-unknown-speaker",
+        "locale": "en",
+        "text": "\"I have chest pressure now\"",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "width-punct"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-en-nfd",
+        "family": "new-unknown-speaker",
+        "locale": "en",
+        "text": "\"I have chest pressure now\"",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "nfd"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-en-nfd",
+        "family": "new-unknown-speaker",
+        "locale": "en",
+        "text": "\"I have chest pressure now\"",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "nfd"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-zh-TW-space",
+        "family": "new-unknown-speaker",
+        "locale": "zh-TW",
+        "text": "  「我現在胸悶」  ",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "space"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-zh-TW-space",
+        "family": "new-unknown-speaker",
+        "locale": "zh-TW",
+        "text": "  「我現在胸悶」  ",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "space"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-zh-TW-newline",
+        "family": "new-unknown-speaker",
+        "locale": "zh-TW",
+        "text": "「我現在胸悶」",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "newline"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-zh-TW-newline",
+        "family": "new-unknown-speaker",
+        "locale": "zh-TW",
+        "text": "「我現在胸悶」",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "newline"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-zh-TW-width-punct",
+        "family": "new-unknown-speaker",
+        "locale": "zh-TW",
+        "text": "「我現在胸悶」",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "width-punct"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-zh-TW-width-punct",
+        "family": "new-unknown-speaker",
+        "locale": "zh-TW",
+        "text": "「我現在胸悶」",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "width-punct"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-zh-TW-nfd",
+        "family": "new-unknown-speaker",
+        "locale": "zh-TW",
+        "text": "「我現在胸悶」",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "nfd"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-zh-TW-nfd",
+        "family": "new-unknown-speaker",
+        "locale": "zh-TW",
+        "text": "「我現在胸悶」",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "nfd"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-vi-space",
+        "family": "new-unknown-speaker",
+        "locale": "vi",
+        "text": "  \"Tôi đang tức ngực\"  ",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "space"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-vi-space",
+        "family": "new-unknown-speaker",
+        "locale": "vi",
+        "text": "  \"Tôi đang tức ngực\"  ",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "space"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-vi-newline",
+        "family": "new-unknown-speaker",
+        "locale": "vi",
+        "text": "\"Tôi đang tức ngực\"",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "newline"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-vi-newline",
+        "family": "new-unknown-speaker",
+        "locale": "vi",
+        "text": "\"Tôi đang tức ngực\"",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "newline"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-vi-width-punct",
+        "family": "new-unknown-speaker",
+        "locale": "vi",
+        "text": "\"Tôi đang tức ngực\"",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "width-punct"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-vi-width-punct",
+        "family": "new-unknown-speaker",
+        "locale": "vi",
+        "text": "\"Tôi đang tức ngực\"",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "width-punct"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-vi-nfd",
+        "family": "new-unknown-speaker",
+        "locale": "vi",
+        "text": "\"Tôi đang tức ngực\"",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "nfd"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-vi-nfd",
+        "family": "new-unknown-speaker",
+        "locale": "vi",
+        "text": "\"Tôi đang tức ngực\"",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "nfd"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-mixed-space",
+        "family": "new-unknown-speaker",
+        "locale": "mixed",
+        "text": "  \"I đang tức ngực\"  ",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "space"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-mixed-space",
+        "family": "new-unknown-speaker",
+        "locale": "mixed",
+        "text": "  \"I đang tức ngực\"  ",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "space"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-mixed-newline",
+        "family": "new-unknown-speaker",
+        "locale": "mixed",
+        "text": "\"I đang tức ngực\"",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "newline"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-mixed-newline",
+        "family": "new-unknown-speaker",
+        "locale": "mixed",
+        "text": "\"I đang tức ngực\"",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "newline"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-mixed-width-punct",
+        "family": "new-unknown-speaker",
+        "locale": "mixed",
+        "text": "\"I đang tức ngực\"",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "width-punct"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-mixed-width-punct",
+        "family": "new-unknown-speaker",
+        "locale": "mixed",
+        "text": "\"I đang tức ngực\"",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "width-punct"
+      }
+    },
+    {
+      "group": "metamorphic",
+      "original": {
+        "id": "new-unknown-speaker-mixed-nfd",
+        "family": "new-unknown-speaker",
+        "locale": "mixed",
+        "text": "\"I đang tức ngực\"",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "transformation": "nfd"
+      },
+      "corrected": {
+        "id": "new-unknown-speaker-mixed-nfd",
+        "family": "new-unknown-speaker",
+        "locale": "mixed",
+        "text": "\"I đang tức ngực\"",
+        "expected": "CLEARLY_NONURGENT",
+        "transformation": "nfd"
+      }
+    }
+  ]
+}

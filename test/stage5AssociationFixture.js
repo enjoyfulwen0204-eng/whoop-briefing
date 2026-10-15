@@ -9,15 +9,17 @@ const nowMs = Date.parse('2026-09-25T12:00:00.000Z');
 async function insertCoverage(f, { startDate, endDate, id = 'coverage-caffeine',recordedAt=new Date(nowMs).toISOString() }) {
   const state = (await f.db.raw.execute("SELECT u.lifecycle_generation,COALESCE(t.auth_generation,0) auth_generation,p.purge_generation,c.input_generation FROM users u LEFT JOIN user_whoop_tokens t ON t.user_id=u.id JOIN phase4_user_state p ON p.user_id=u.id JOIN phase4_computation_state c ON c.user_id=u.id AND c.execution_mode='SHADOW' WHERE u.id='a'")).rows[0];
   const at = recordedAt, privacyId = f.keys.lookup(['synthetic-coverage', id]);
+  // A synthetic completed assertion cannot cover a future UTC day boundary.
+  const endAt=new Date(Math.min(Date.parse(`${addDays(endDate,1)}T00:00:00.000Z`),Date.parse(at))).toISOString();
   await f.db.raw.execute({ sql: `INSERT INTO journal_coverage_windows(user_id,coverage_window_id,window_start_utc,window_end_utc,
     health_date_start,health_date_end,recorded_timezone,factor_set_version,factor_keys_json,source_event_key,confirmation_text_hash,
     parser_version,normalizer_version,lifecycle_generation,auth_generation,input_generation,status,revision,answer_confidence,
     created_at,updated_at,content_state,source_linkage_state,privacy_artifact_id,content_digest_salt,purge_generation)
     VALUES ('a',?,?,?,?,?,'Asia/Taipei','journal-factors-v1','["caffeine"]',?,'synthetic-confirmation',
     'journal-candidate-v1','journal-normalizer-v1',?,?,?,'ACTIVE',1,1,?,?,'PRESENT','COMPLETE',?,?,?)`,
-  args: [id, `${startDate}T00:00:00.000Z`, `${addDays(endDate, 1)}T00:00:00.000Z`,
+  args: [id, `${startDate}T00:00:00.000Z`, endAt,
     healthDateFor(new Date(`${startDate}T00:00:00.000Z`),'Asia/Taipei'),
-    healthDateFor(new Date(Date.parse(`${addDays(endDate,1)}T00:00:00.000Z`)-1),'Asia/Taipei'),
+    healthDateFor(new Date(Date.parse(endAt)-1),'Asia/Taipei'),
     `coverage-source-${id}`, state.lifecycle_generation, state.auth_generation, state.input_generation, at, at,
     privacyId, f.keys.newSalt(), state.purge_generation] });
   return id;

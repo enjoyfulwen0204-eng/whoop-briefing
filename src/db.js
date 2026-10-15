@@ -1,3 +1,4 @@
+import {createNativeReceiverScheduling,scheduleNativeReceiverExecutor} from './stage6NativeScheduling.js';
 import {ownReceiverScopes,retireReceiverScopes} from './receiverScopeLifetime.js';
 import {isReadOnlyTelegramOperation} from './telegramReadOnlyPreparation.js';
 import {verifyBodyEnergyTelegramReplyBoundary} from './bodyEnergyTelegramReplyBoundary.js';
@@ -1949,8 +1950,9 @@ function sleep(ms) {
 
 /** Private RAM preparation uses the same native ownership/admission/stores. */
 export async function createStage6OwnedMemoryDb(seed,phase4Keys){
- const anchor=new Database(':memory:'),client=new Sqlite3Client(':memory:',{},anchor,'number');
- client.transaction=async(mode='write')=>{await client.execute(mode==='write'?'BEGIN IMMEDIATE':'BEGIN');return new Sqlite3Transaction(anchor,'number');};
+ const anchor=new Database(':memory:'),client=new Sqlite3Client(':memory:',{},anchor,'number'),pause=createNativeReceiverScheduling();
+ scheduleNativeReceiverExecutor(client,pause);
+ client.transaction=async(mode='write')=>{await client.execute(mode==='write'?'BEGIN IMMEDIATE':'BEGIN');return scheduleNativeReceiverExecutor(new Sqlite3Transaction(anchor,'number'),pause);};
  privateClients.add(client);ownReceiverScopes(client);
  try{await seed(client);const db=composeDb(client,{phase4Keys});markStage6Memory(db);return db;}
  catch(error){client.close();retireReceiverScopes(client);throw error;}

@@ -1,7 +1,8 @@
 // Owner-authorized offline synthetic signer. Never part of an app entrypoint.
 import{readFileSync,writeFileSync,readdirSync,statSync,realpathSync,openSync,closeSync,unlinkSync,renameSync,existsSync}from'node:fs';import{sign,randomBytes}from'node:crypto';import{execFileSync}from'node:child_process';import{fileURLToPath}from'node:url';import{canonical,digest,verifyManifest,requireReviewMatch,requireUnapprovedCampaign}from'./stage6SyntheticManifest.mjs';
+import{persistIssuerRegistry}from'./stage6SyntheticIssuerDurability.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url)),sha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),path='/qualification/manifest.json',privateKey=readFileSync('/issuer/private.pem'),sig=x=>sign(null,Buffer.from(canonical(x)),privateKey).toString('base64');
-const lock=openSync('/issuer/registry.lock','wx',0o600);try{const registryPath='/issuer/registry.json',registry=existsSync(registryPath)?JSON.parse(readFileSync(registryPath)): {version:1,maximumAttempts:4096,approvedDigest:null,preparations:[]};if(registry.version!==1||registry.maximumAttempts!==4096)throw Error('SYNTHETIC_ISSUER_REGISTRY_INVALID');const persist=()=>{writeFileSync('/issuer/registry.next',JSON.stringify(registry),{mode:0o600});renameSync('/issuer/registry.next',registryPath);};
+const lock=openSync('/issuer/registry.lock','wx',0o600);try{const registryPath='/issuer/registry.json',registry=existsSync(registryPath)?JSON.parse(readFileSync(registryPath)): {version:1,maximumAttempts:4096,approvedDigest:null,preparations:[]};if(registry.version!==1||registry.maximumAttempts!==4096)throw Error('SYNTHETIC_ISSUER_REGISTRY_INVALID');const persist=()=>persistIssuerRegistry(registryPath,registry);
 if(process.argv[2]==='prepare'){
  requireUnapprovedCampaign(registry);
  const databasePath=realpathSync('/qualification/physical/dbs/default/data'),s=statSync(databasePath);if(s.size!==0)throw Error('FRESH_EMPTY_DATABASE_REQUIRED');

@@ -1,4 +1,5 @@
 import test from'node:test';import assert from'node:assert/strict';import{readFileSync,writeFileSync}from'node:fs';import{sign,createHmac}from'node:crypto';import{execFileSync,spawnSync}from'node:child_process';import{fileURLToPath}from'node:url';import{verifyManifest,canonical,digest,requireReviewMatch,requireUnapprovedCampaign}from'./stage6SyntheticManifest.mjs';import{nextState,encodeState,decodeState,requireManifestLifecycle}from'./stage6SyntheticState.mjs';import{createPhase4Keys,requirePhase4Keys}from'../src/phase4Keys.js';
+import{persistIssuerRegistry}from'./stage6SyntheticIssuerDurability.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url)),commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),e=JSON.parse(readFileSync('/qualification/manifest.json')),privateKey=readFileSync('/issuer/private.pem'),seal=manifest=>({manifest,signature:sign(null,Buffer.from(canonical(manifest)),privateKey).toString('base64')}),options={root,commit},m=e.manifest,hash=digest(m),keys={lookup:x=>createHmac('sha256','synthetic-state-model-only').update(JSON.stringify(x)).digest('hex')};
 test('signed preparation manifest validates; no approval means zero HTTP reservation authority',()=>{assert.equal(verifyManifest(e,options).manifestDigest,hash);assert.throws(()=>verifyManifest(e,{...options,reservation:true}));});
 test('missing, forged and mismatched code manifests fail closed',()=>{for(const v of [null,{}, {...e,signature:'AAAA'},seal({...m,codeSha:'f'.repeat(40)})])assert.throws(()=>verifyManifest(v,options));});
@@ -15,3 +16,14 @@ console.log('NEGATIVE_ONLY_NO_HTTP_RESERVATIONS');
 test('manifest lifecycle mismatch denies before either counter transition',()=>{const before={global:0,tenant:0};const attempt=life=>{requireManifestLifecycle(life,m.tenants[0]);before.global++;before.tenant++;};for(const life of [null,0,2,undefined])assert.throws(()=>attempt(life));assert.deepEqual(before,{global:0,tenant:0});});
 
 test('review GO cannot be copied to a different manifest/code or a second approved campaign',()=>{const review={verdict:'GO',candidateSha:commit,manifestContract:'stage6-local-synthetic-http-v1',manifestDigest:hash},registry={version:1,maximumAttempts:4096,pendingDigest:hash,approvedDigest:null};assert.doesNotThrow(()=>requireReviewMatch(review,{codeSha:commit,manifestDigest:hash,registry}));for(const change of [{manifestDigest:'0'.repeat(64)},{candidateSha:'0'.repeat(40)},{verdict:'NO_GO'}])assert.throws(()=>requireReviewMatch({...review,...change},{codeSha:commit,manifestDigest:hash,registry}));assert.doesNotThrow(()=>requireUnapprovedCampaign(registry));assert.throws(()=>requireUnapprovedCampaign({...registry,approvedDigest:hash}));assert.throws(()=>requireReviewMatch(review,{codeSha:commit,manifestDigest:hash,registry:{...registry,approvedDigest:'0'.repeat(64)}}));});
+
+test('issuer registry is fsynced before approval publication; every durability failure aborts',()=>{
+ const expected=['openFile','write','syncFile','closeFile','rename','openDirectory','syncDirectory','closeDirectory'];
+ for(const fail of [null,'openFile','write','syncFile','rename','openDirectory','syncDirectory']){
+  const calls=[];let published=false;
+  const step=name=>{calls.push(name);if(name===fail)throw Error('INJECTED_'+name);};
+  const io={openSync:(_p,mode)=>{step(mode==='w'?'openFile':'openDirectory');return mode==='w'?1:2;},writeFileSync:()=>step('write'),fsyncSync:fd=>step(fd===1?'syncFile':'syncDirectory'),closeSync:fd=>step(fd===1?'closeFile':'closeDirectory'),renameSync:()=>step('rename')};
+  const publish=()=>{persistIssuerRegistry('/issuer/registry.json',{approvedDigest:hash},io);published=true;};
+  if(fail){assert.throws(publish,/INJECTED/);assert.equal(published,false);}else{publish();assert.deepEqual(calls,expected);assert.equal(published,true);}
+ }
+});

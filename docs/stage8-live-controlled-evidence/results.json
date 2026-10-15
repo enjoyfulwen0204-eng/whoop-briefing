@@ -605,5 +605,15 @@
     "No Stage6 worktree writes",
     "No Production mutation/push/merge/deploy/paid execution/real Telegram sends"
   ],
-  "finalFreezeReceipt": "Final documentation commit HEAD/tree and independent binding are reported in the owner receipt; runtime hashes remain pinned here."
+  "finalFreezeReceipt": "Final documentation commit HEAD/tree and independent binding are reported in the owner receipt; runtime hashes remain pinned here.",
+  "commands": {
+    "original210": "xargs node --test --test-concurrency=2 < docs/stage8-live-controlled-evidence/final-accepted-regression.files",
+    "finalNewLiveAndCurrentCapture": "node --test --test-concurrency=1 test/stage8-live-certificates.test.js test/stage8-live-pipeline.test.js test/stage8-live-owner-subject.test.js test/stage8-live-restart.test.js test/stage8-live-adversarial.test.js test/stage6-current-capture.test.js",
+    "routingAndGeneration": "node --test --test-concurrency=1 test/phase4-stage6-v29-routing.test.js test/phase4-stage6-v30-cross-generation.test.js test/phase4-stage6-v30-insight-isolation.test.js",
+    "providerRetrySubset": "node --test --test-concurrency=1 test/stage8-provider.test.js test/stage8-retry-scheduling.test.js",
+    "isolatedStage7Delivery": "node --test --test-concurrency=1 test/stage7-delivery.test.js",
+    "isolatedCurrentCapture": "node --test --test-concurrency=1 test/stage6-current-capture.test.js",
+    "isolatedFinalSettlement": "node --test --test-concurrency=1 --test-name-pattern='final completion settlement' test/phase4-stage6-worker.test.js",
+    "interruptedExtendedAuthority": "node --test --test-concurrency=1 test/stage8-live-certificates.test.js test/stage8-live-pipeline.test.js test/stage8-live-owner-subject.test.js test/stage8-live-restart.test.js test/stage8-live-adversarial.test.js test/phase4-stage5-final-fixture.test.js test/phase4-stage6-authority-closure.test.js test/phase4-split-execution.test.js test/phase4-stage6-worker.test.js test/stage6-current-capture.test.js"
+  }
 }

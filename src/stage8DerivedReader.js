@@ -40,7 +40,7 @@ export function createStage8DerivedReader({db,keys,admission,eligible,now=()=>ne
    }else{
     const spec=STAGE8_DERIVED_SELECTIONS[kind],ids=(await db.raw.execute(stage8DerivedSelection(kind,scope,inputGeneration))).rows;
     for(const {id} of ids){const value=await stores.readArtifact(ctx,spec.table,{[spec.id]:id});
-     const projection=kind==='BODY_ENERGY'?stage8BodyEnergyProjection(value.row):{value:value.row.value??null};
+     const projection=kind==='BODY_ENERGY'?stage8BodyEnergyProjection(value.row,Date.parse(scope.asOfUtc)):{value:value.row.value??null};
      if(projection)items.push({kind,id:keys.lookup(['stage8-derived-item-v1',scope.userId,kind,id]),...projection});
     }
    }

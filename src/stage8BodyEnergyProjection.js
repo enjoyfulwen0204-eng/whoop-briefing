@@ -1,15 +1,20 @@
+import {BODY_ENERGY_RELEASE_CRITERIA as CRITERIA} from './bodyEnergyReleaseCriteria.js';
 import {calculateBodyEnergy} from './bodyEnergy.js';
 import {baselineOnlyProvisional,BODY_ENERGY_PROVISIONAL_POLICY} from './bodyEnergyProvisionalPolicy.js';
 
 /** Data-only presentation after the caller authenticates the current artifact,
  * original producer and signed publication. This grants no read/publication
  * authority and does not replace the source/receipt/currentness checks. */
-export function stage8BodyEnergyProjection(row){
- if(!row||!Number.isInteger(row.value)||row.value<0||row.value>100)return null;
+export function stage8BodyEnergyProjection(row,asOfEpochMs){
+ if(!row||!Number.isSafeInteger(asOfEpochMs)||!Number.isSafeInteger(row.as_of_epoch_ms)
+  ||!Number.isInteger(row.value)||row.value<0||row.value>100)return null;
  let manifest,calculation;
  try{manifest=JSON.parse(row.input_manifest_json);calculation=calculateBodyEnergy(manifest);}catch{return null;}
  if(row.value!==calculation.value||row.quality_state!==calculation.quality_state
   ||row.confidence!==calculation.confidence||row.algorithm_version!==calculation.algorithm_version)return null;
+ const elapsed=asOfEpochMs-row.as_of_epoch_ms,ages=[manifest.sync.sleep.age_ms,manifest.sync.recovery.age_ms,manifest.load.sync?.age_ms];
+ if(elapsed<0||elapsed>CRITERIA.freshMaximumMs||ages.some(age=>typeof age!=='number'
+  ||!Number.isFinite(age)||age<0||age+elapsed>CRITERIA.freshMaximumMs))return null;
  const provisional=row.quality_state==='LIMITED';
  if(provisional?!baselineOnlyProvisional({row,manifest,calculation}):row.quality_state!=='AVAILABLE')return null;
  return Object.freeze({value:row.value,quality:row.quality_state,estimated:true,

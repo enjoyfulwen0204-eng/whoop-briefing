@@ -1,3 +1,4 @@
+import {assertStage8Recovery} from '../src/stage8Policy.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {syntheticPhase4Fixture} from './phase4Fixture.js';import {bodyInput,seedBodyInput} from './bodyEnergyFixture.js';
 import {createStage8LiveProducer} from '../src/stage8LiveProducer.js';import {createSyntheticStage8SubjectAlertProvider,createStage8SubjectAlertProvider} from '../src/stage8SubjectAlerts.js';
@@ -20,3 +21,5 @@ test('genuine insufficient-data LIVE computation finalizes legitimate empty type
  assert.equal((await f.db.raw.execute('SELECT count(*) n FROM owner_monitoring_outbox')).rows[0].n,0);
  t.diagnostic(JSON.stringify({kind:'EMPTY_SYNTHETIC_COST',durationMs:performance.now()-started,cpu:process.cpuUsage(cpu),memory:process.memoryUsage(),resource:process.resourceUsage()}));
 });
+
+test('new automatic switches stay off in both ordered recovery profiles',()=>{for(const profile of ['RC2_V32_ROLLBACK','COMPANION_V33_RECOVERY'])for(const field of ['STAGE8_POST_SYNC','STAGE8_SUBJECT_ALERTS'])assert.throws(()=>assertStage8Recovery({PHASE4_EXECUTION_PROFILE:profile,[field]:'on'}),/RECOVERY_STAGE8_FEATURES_OFF_REQUIRED/);});

@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {importantFixture} from './stage8LiveFunctionalFixture.js';
 import {createStage8LiveProducer} from '../src/stage8LiveProducer.js';
-for(const fault of ['PRE_SEND_REVOCATION','PROCESS_LOST_AFTER_SEND'])test(`source integration ${fault} retains provider truth and never manufactures an approved alert`,async t=>{
+for(const fault of ['PRE_SEND_REVOCATION','PRE_SEND_PROACTIVE_DISABLED','PROCESS_LOST_AFTER_SEND'])test(`source integration ${fault} retains provider truth and never manufactures an approved alert`,async t=>{
  const f=await importantFixture(t,'DELIVERED'),execute=f.db.raw.execute.bind(f.db.raw);let injected=false;
  f.db.raw.execute=async statement=>{
   const sql=typeof statement==='string'?statement:statement.sql;
@@ -9,8 +9,8 @@ for(const fault of ['PRE_SEND_REVOCATION','PROCESS_LOST_AFTER_SEND'])test(`sourc
    injected=true;throw Error('SYNTHETIC_PROCESS_LOST_AFTER_SEND');
   }
   const result=await execute(statement);
-  if(fault==='PRE_SEND_REVOCATION'&&!injected&&sql.startsWith('INSERT INTO outbound_delivery_attempts')){
-   injected=true;await execute("UPDATE user_notification_preferences SET notifications_paused=1,preference_version=preference_version+1 WHERE user_id='a'");
+  if(fault.startsWith('PRE_SEND_')&&!injected&&sql.startsWith('INSERT INTO outbound_delivery_attempts')){
+   injected=true;if(fault==='PRE_SEND_REVOCATION')await execute("UPDATE user_notification_preferences SET notifications_paused=1,preference_version=preference_version+1 WHERE user_id='a'");else await execute("INSERT INTO proactive_agent_state(user_id,enabled,updated_at) VALUES('a',0,'2026-10-15') ON CONFLICT(user_id) DO UPDATE SET enabled=0");
   }
   return result;
  };
@@ -20,7 +20,7 @@ for(const fault of ['PRE_SEND_REVOCATION','PROCESS_LOST_AFTER_SEND'])test(`sourc
  }
  f.db.raw.execute=execute;assert.equal(injected,true);
  const message=(await execute("SELECT * FROM outbound_messages WHERE user_id='a' AND message_class='EPISODE_NOTIFICATION'")).rows[0];
- if(fault==='PRE_SEND_REVOCATION'){
+ if(fault.startsWith('PRE_SEND_')){
   assert.equal(error,undefined);assert.equal(result.publication.status,'CURRENT');assert.equal(f.provider.calls.length,0);assert.equal(message.state,'FAILED_DEFINITE');
   assert.equal((await execute("SELECT count(*) n FROM outbound_messages WHERE state IN ('DELIVERED','AMBIGUOUS')")).rows[0].n,0);
  }else{

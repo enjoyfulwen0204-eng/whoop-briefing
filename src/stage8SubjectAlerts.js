@@ -50,7 +50,7 @@ export async function createStage8SubjectAlerts({core,stores,db,capability,provi
    const row=(await core.client.execute({sql:`SELECT d.mode,d.lifecycle_generation,d.auth_generation,n.notifications_paused,o.state
     FROM tenant_delivery_modes d JOIN user_notification_preferences n ON n.user_id=d.user_id JOIN user_onboarding o ON o.user_id=d.user_id
     WHERE d.user_id=? AND d.execution_mode='LIVE' AND d.message_family='EPISODE_NOTIFICATION'`,args:[ctx.userId]})).rows[0];
-   return row?.mode==='PHASE4'&&row.lifecycle_generation===ctx.lifecycleGeneration&&row.auth_generation===ctx.authGeneration&&!row.notifications_paused&&row.state==='READY';
+   return await db.isProactiveEnabled(ctx.userId)&&row?.mode==='PHASE4'&&row.lifecycle_generation===ctx.lifecycleGeneration&&row.auth_generation===ctx.authGeneration&&!row.notifications_paused&&row.state==='READY';
   };
   await step('begin',[],()=>bindProducingExecution(core.client,ctx));
   const pending=(await core.client.execute({sql:"SELECT message_id,revision FROM outbound_messages WHERE user_id=? AND execution_mode='LIVE' AND message_class='EPISODE_NOTIFICATION' AND state='DELIVERY_STARTED' ORDER BY created_at,message_id LIMIT 4",args:[ctx.userId]})).rows;

@@ -1,3 +1,6 @@
+import {subjectAlertExecutionId} from './stage8SubjectAlertManifest.js';
+import {composePhase4Stores} from './phase4Repositories.js';
+import {createStage8SubjectAlerts} from './stage8SubjectAlerts.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {currentDurableExecution} from './phase4ExecutionContext.js';
 import {createPhase4QueueStore} from './phase4QueueStore.js';
@@ -11,7 +14,7 @@ import {publishStage8Live,verifyStage8LivePublication} from './stage8LivePublica
 const fail=code=>{throw Object.assign(Error(code),{code});};
 /** Server composition only. No request may supply source results, receipts,
  * execution mode, SQL, transport, credentials, consent or follow relationships. */
-export async function createStage8LiveProducer({db,keys,admission,userIds,enabled,eligible,environment={}}){
+export async function createStage8LiveProducer({db,keys,admission,userIds,enabled,eligible,environment={},subjectAlertProvider=null}){
  if(!Array.isArray(userIds)||!userIds.length||userIds.length>100||new Set(userIds).size!==userIds.length
   ||userIds.some(id=>typeof id!=='string'||!id||id.length>128)||typeof enabled!=='function'||typeof eligible!=='function')fail('STAGE8_LIVE_CONFIGURATION_REQUIRED');
  const cohort=Object.freeze([...userIds].sort()),releaseSha=runningReleaseSha(environment),
@@ -37,6 +40,8 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
  const assertContext=async ctx=>{if(runningReleaseSha(environment)!==releaseSha)fail('RELEASE_CHECKOUT_MISMATCH');await ready(ctx.userId);return core.assertContext(ctx);};
  const execute=createStage8LiveExecutionRunner({db,keys,capability,capture,assertContext,
   work:async(userId)=>{const v=await worker.drain({userId,triggerSource:'manual'});return {outcome:v.outcome,itemsProcessed:v.processedItems,jobsCompleted:v.completedJobs,jobsFailed:v.failedJobs,remainingJobs:v.remainingJobs,unitsCommitted:v.unitsCommitted};}});
+ const alerts=subjectAlertProvider?await createStage8SubjectAlerts({core,stores:composePhase4Stores(core),db,capability,provider:subjectAlertProvider}):null;
+ const executeAlerts=alerts?createStage8LiveExecutionRunner({db,keys,capability,capture,assertContext,work:async(_uid,ctx)=>alerts.produce(ctx)}):null;
  async function prepareFreshGeneration(userId){
   await db.transaction(async()=>{
    await ready(userId);const ctx=await capture(userId),at=Date.now();
@@ -66,6 +71,10 @@ export async function createStage8LiveProducer({db,keys,admission,userIds,enable
   const ctx=await capture(userId),{computation}=await core.assertContext(ctx);
   let publication={status:'ANALYSIS_UPDATING'};
   if(computation.last_completed_generation===ctx.inputGeneration){
+   const prior=(await db.raw.execute({sql:'SELECT 1 FROM stage8_live_publications WHERE user_id=? AND input_generation=?',args:[userId,ctx.inputGeneration]})).rows.length;
+   // Original canonical job executions are finalized before the separately
+   // signed subject-alert execution. First aggregate publication follows both.
+   if(executeAlerts&&!prior)await db.withRuntimeFence(()=>ready(userId),()=>executeAlerts({userId,requestId:subjectAlertExecutionId(keys,ctx)}));
    publication={status:'CURRENT',...await db.withRuntimeFence(()=>ready(userId),()=>publishStage8Live(core,ctx,capability))};
   }
   await assertContext(ctx);return Object.freeze({...result,publication});

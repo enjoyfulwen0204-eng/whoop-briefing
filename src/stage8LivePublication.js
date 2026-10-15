@@ -1,3 +1,4 @@
+import {verifySubjectAlertExecution} from './stage8SubjectAlertManifest.js';
 import {currentDurableExecution,assertExecutionWorkOwner,workStepKey} from './phase4ExecutionContext.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {liveScopeDigest,isLiveExecution,liveProducerConfiguration} from './stage8LiveProducerAuthority.js';
@@ -44,7 +45,8 @@ async function manifests(core,ctx){
    ||p.finalized_at>p.created_at+45000||p.finalized_at<p.created_at
    ||p.tenant_proof!==keys.lookup(['execution-producer-v1',ctx.userId,'LIVE',ctx.inputGeneration,p.producing_execution_id,p.execution_seq,p.producing_generation])
    ||JSON.parse(p.canonical_request_json).tenantScope!==liveScopeDigest(keys,ctx))fail();
-  if(verifyLiveExecutionResult(keys,p).outcome==='FAILED')fail();
+  const result=verifyLiveExecutionResult(keys,p);
+  if(result.outcome==='FAILED'||result.alertSourceDigest!==undefined&&!await verifySubjectAlertExecution(core,ctx))fail();
  }
  const hashes=[];let count=0,bytes=0;
  for(const table of ARTIFACTS){
@@ -128,3 +130,7 @@ export async function verifyStage8LivePublication(core,ctx){
   await core.assertContext(ctx);return true;
  }catch{return false;}
 }
+
+/** Internal pre-publication gate: original canonical jobs must already have
+ * finalized signed executions. This grants no publication or delivery authority. */
+export async function assertStage8LiveJobsFinalized(core,ctx){await completionProofs(core,ctx);}

@@ -1,3 +1,5 @@
+import {createStage8SubjectAlertProvider} from './stage8SubjectAlerts.js';
+import {createStage8PostSync} from './stage8PostSync.js';
 import {createStage8LiveProducer} from './stage8LiveProducer.js';
 import {currentDurableExecution} from './phase4ExecutionContext.js';
 import {createStage8DerivedReader} from './stage8DerivedReader.js';
@@ -12,7 +14,7 @@ import {createOwnerMonitoring} from './stage8OwnerMonitoring.js';
 import {createStage8OwnerDispatcher} from './stage8OwnerDispatcher.js';
 export function stage8Configuration(environment={}){
  assertStage8Recovery(environment);
- for(const name of ['PHASE4_STAGE8_RUNTIME','PHASE4_STAGE8_OWNER_MONITORING','STAGE8_MORNING_BRIEF','STAGE8_LIVE_ANALYSIS'])if(!['off','on'].includes(environment[name]??'off'))throw Error('STAGE8_CONFIG_INVALID');
+ for(const name of ['PHASE4_STAGE8_RUNTIME','PHASE4_STAGE8_OWNER_MONITORING','STAGE8_MORNING_BRIEF','STAGE8_LIVE_ANALYSIS','STAGE8_POST_SYNC','STAGE8_SUBJECT_ALERTS'])if(!['off','on'].includes(environment[name]??'off'))throw Error('STAGE8_CONFIG_INVALID');
  const enabled=environment.PHASE4_STAGE8_RUNTIME==='on';
  const owner=String(environment.PHASE4_BETA_PILOT_USER_ID??'').trim();
  const users=String(environment.STAGE8_USER_IDS??'').split(',').map(s=>s.trim()).filter(Boolean);
@@ -27,8 +29,10 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
  const rawIdentity=await createRecipientIdentity({db,keys,now});
  const identity=Object.freeze(Object.fromEntries(Object.entries(rawIdentity).map(([name,operation])=>[name,async(...args)=>{fence();return operation(...args);}]))) ;
  const eligible=uid=>{try{fence();return stage8Configuration(environment).userIds.includes(uid);}catch{return false;}};
- const analysis=environment.STAGE8_LIVE_ANALYSIS==='on'?await createStage8LiveProducer({db,keys,admission,userIds:config.userIds,environment,enabled:()=>{try{fence();return environment.STAGE8_LIVE_ANALYSIS==='on';}catch{return false;}},eligible}):null;
- const liveAnalysis=analysis?Object.freeze({run:async request=>{fence();if(currentDurableExecution())throw Error('STAGE8_LIVE_SEPARATE_EXECUTION_REQUIRED');return analysis.run(request);}}):null;
+ const subjectAlertProvider=createStage8SubjectAlertProvider({db,keys,admission,environment,env,eligible});
+ const analysis=environment.STAGE8_LIVE_ANALYSIS==='on'?await createStage8LiveProducer({db,keys,admission,userIds:config.userIds,environment,subjectAlertProvider,enabled:()=>{try{fence();return environment.STAGE8_LIVE_ANALYSIS==='on';}catch{return false;}},eligible}):null;
+ const postSync=analysis?createStage8PostSync({db,keys,producer:analysis,eligible,enabled:()=>environment.STAGE8_POST_SYNC==='on'&&eligible(config.userIds[0]),environment}):null;
+ const liveAnalysis=analysis?Object.freeze({afterSync:request=>postSync.run(request),run:async request=>{fence();if(currentDurableExecution())throw Error('STAGE8_LIVE_SEPARATE_EXECUTION_REQUIRED');return analysis.run(request);}}):null;
  const derivedReader=createStage8DerivedReader({db,keys,admission,eligible,now});
  const scopes=await createScopedHealthContext({db,keys,admission,now,derivedReader}),qa=createStage8SelfQa({scopes,db,bodyEnergy,decorate:stage7?.decorate,now});
  const core=await buildPhase4Core({keys,admission,now,processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},

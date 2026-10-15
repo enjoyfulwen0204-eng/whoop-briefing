@@ -1,3 +1,4 @@
+import {verifySubjectAlertExecution} from './stage8SubjectAlertManifest.js';
 import {verifyStage8LivePublication} from './stage8LivePublication.js';
 import {randomUUID} from 'node:crypto';
 import {requireRuntimeAdmission,followRuntimeRenewal} from './runtimeAdmission.js';
@@ -111,7 +112,7 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
    return claims.length?{status:'APPROVED',semanticIdentity:week.startDate,claims,refs,asOfUtc:asOf.toISOString(),expiresAt:new Date(asOf.getTime()+3600000).toISOString()}:{status:'NO_QUALIFYING_CONTENT'};
   }
   const found=await rows("SELECT message_id FROM outbound_messages WHERE user_id=? AND execution_mode='LIVE' AND message_class='EPISODE_NOTIFICATION' AND state IN ('DELIVERED','AMBIGUOUS') AND input_generation=? AND expires_at>? AND content_state='PRESENT' ORDER BY created_at DESC,message_id LIMIT 1",[uid,ctx.inputGeneration,timestamp()]);
-  if(!found.length)return {status:'NO_APPROVED_CURRENT_ALERT'};
+  if(!found.length||!await verifySubjectAlertExecution(core,ctx))return {status:'NO_APPROVED_CURRENT_ALERT'};
   const message=await core.artifact(ctx,'outbound_messages',{message_id:found[0].message_id}),decision=await core.artifact(ctx,'phase4_proactive_decisions',{decision_id:message.row.decision_id});
   if(decision.row.action!=='NOTIFY'||!message.row.episode_semantic_event_id||!message.row.payload_text)fail('OWNER_ALERT_NOT_APPROVED');
   await stores.episodes.read(ctx,decision.row.episode_id);

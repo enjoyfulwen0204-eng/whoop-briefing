@@ -1,3 +1,5 @@
+import {hasLiveProducingAuthority,isLiveExecution} from './stage8LiveProducerAuthority.js';
+import {currentDurableExecution} from './phase4ExecutionContext.js';
 import {buildNotifyMessage} from './proactiveMessages.js';
 import {buildQuestionText} from './questionEngine.js';
 import {presentationLocale,JOURNAL_COPY} from './stage7Registry.js';
@@ -11,10 +13,11 @@ import {localDate,addDays,localMidnightUtc} from './time.js';
 import {fail} from './phase4Core.js';
 
 /** New Phase 4 decision path; does not invoke legacy cap/downgrade policy. */
-export function createStage7DecisionStore({core,stores}){
+export function createStage7DecisionStore({core,stores,liveProducingAuthority=null}){
  const entities=createPhase4EntityStore(core);
  async function evaluate(context,{episodeId,semanticEventId,triggerKey}){
-  if(context.executionMode!=='SHADOW'||![33,34,35].includes(core.schemaVersion))fail('STAGE7_SHADOW_DECISION_REQUIRED');
+  const live=context.executionMode==='LIVE'&&hasLiveProducingAuthority(liveProducingAuthority,core.client,core.keys,context.userId)&&isLiveExecution(currentDurableExecution(),core.client,core.keys,context.userId,context);
+  if(context.executionMode!=='SHADOW'&&!live||![33,34,35].includes(core.schemaVersion))fail('STAGE7_SHADOW_DECISION_REQUIRED');
   if(typeof triggerKey!=='string'||!triggerKey||triggerKey.length>128)fail('STAGE7_TRIGGER_REQUIRED');
   return core.run(context,async()=>{
    const key=core.keys.lookup(['stage7-decision',context.userId,context.executionMode,semanticEventId,triggerKey]);
@@ -50,7 +53,11 @@ export function createStage7DecisionStore({core,stores}){
    const past=(await core.client.execute({sql:"SELECT q.* FROM context_questions q WHERE user_id=? AND execution_mode=? AND content_state='PRESENT' AND created_at>? ORDER BY created_at LIMIT 1001",args:[context.userId,context.executionMode,new Date(core.now().getTime()-30*86400000).toISOString()]})).rows;
    if(past.length>1000)fail('STAGE7_DECISION_HISTORY_BOUNDS');
    const delivered=Number((await core.client.execute({sql:"SELECT count(*) n FROM outbound_semantic_reservations WHERE user_id=? AND execution_mode=? AND message_family='CONTEXT_QUESTION' AND state='CONSUMED' AND consumed_at>?",args:[context.userId,context.executionMode,new Date(core.now().getTime()-7*86400000).toISOString()]})).rows[0].n);
-   const associations=new Map(),typed=await stores.betaSummary.readCurrent(context,{asOfUtc:at});
+   const associations=new Map();let typed;
+   if(live){
+    const ids=(await core.client.execute({sql:"SELECT id FROM health_insights WHERE user_id=? AND execution_mode='LIVE' AND input_generation=? AND status='SUPPORTED' AND legacy_classification='PHASE4' AND expires_at>? ORDER BY last_recalculated_at DESC,id LIMIT 10",args:[context.userId,context.inputGeneration,at]})).rows;
+    typed={insights:[]};for(const {id} of ids){const value=await stores.insights.read(context,id,{asOfUtc:at});typed.insights.push({resultId:value.row.id,status:value.row.status});}
+   }else typed=await stores.betaSummary.readCurrent(context,{asOfUtc:at});
    for(const insight of typed.insights.filter(i=>i.status==='SUPPORTED')){
     const current=await stores.insights.read(context,insight.resultId,{asOfUtc:at});
     for(const id of JSON.parse(current.revision.supporting_evidence_ids_json)){
@@ -82,6 +89,7 @@ export function createStage7DecisionStore({core,stores}){
     for(const q of past)for(const [table,row] of descendants)await addPrivacyLink(core.client,{userId:context.userId,mode:context.executionMode,table,artifactId:row.privacy_artifact_id,sourceType:'context_questions',sourceId:q.privacy_artifact_id,sourceMode:context.executionMode,at});
     return result;
    }
+   if(live&&selected.action==='ASK_ONE_HIGHEST_VALUE_QUESTION')return {action:selected.action,status:'QUESTION_PATH_OWNED_BY_STAGE7'};
    if(selected.action==='ASK_ONE_HIGHEST_VALUE_QUESTION'){
     const category=selected.winner.category;
     const result=await stores.slots.acquire(context,{question:{episode_id:episodeId,episode_revision:episode.row.revision,factor_question_kind:category,

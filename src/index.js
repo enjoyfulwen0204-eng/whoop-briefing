@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {recordStage8SyncSubject} from './stage8PostSync.js';
 import {createStage8MorningRuntime} from './stage8MorningRuntime.js';
 import {createBodyEnergyRuntime,bodyEnergyConfiguration} from './bodyEnergyRuntime.js';
 import {traceExecutionOperation} from './executionTelemetry.js';
@@ -640,6 +641,7 @@ async function runForUserOwned({
   // 「問了但使用者從此沒再傳任何訊息」以前會永遠停在 OPEN、事件的 outcome
   // 永遠是 NULL。這一步把它收成 EXPIRED + NO_RESPONSE，讓「被無視」變成
   // 資料上真的存在的事實——那是之後要調 TTL 唯一能依據的東西。
+  if(deps.stage8SyncUserIds?.includes(uid)&&out.sync&&summarizeSync(out.sync.resources??out.sync).complete)try{await recordStage8SyncSubject({db,userId:uid,sync:out.sync});}catch(error){log.warn('stage8_sync_subject_fenced',{code:error.code??'STAGE8_SYNC_SUBJECT_FAILED'});}
   return out;
 }
 

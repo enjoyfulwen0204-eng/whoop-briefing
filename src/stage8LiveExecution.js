@@ -5,8 +5,8 @@ import {withDurableExecution,databaseNowMs,requireSettledOperation} from './phas
 import {liveProducerConfiguration,registerLiveExecution,liveScopeDigest} from './stage8LiveProducerAuthority.js';
 const fail=code=>{throw Object.assign(Error(code),{code});};
 const safeResult=value=>Object.fromEntries(Object.entries(value).filter(([key,v])=>
- ['outcome','itemsProcessed','jobsCompleted','jobsFailed','remainingJobs','unitsCommitted'].includes(key)
- &&(key==='outcome'?['COMPLETE','PARTIAL','NO_WORK','NO_ELIGIBLE_WORK','BUDGET_EXHAUSTED','FAILED'].includes(v):Number.isSafeInteger(v)&&v>=0)));
+ ['outcome','itemsProcessed','jobsCompleted','jobsFailed','remainingJobs','unitsCommitted','alertSourceDigest'].includes(key)
+ &&(key==='alertSourceDigest'?typeof v==='string'&&/^[a-f0-9]{64}$/.test(v):key==='outcome'?['COMPLETE','PARTIAL','NO_WORK','NO_ELIGIBLE_WORK','BUDGET_EXHAUSTED','FAILED'].includes(v):Number.isSafeInteger(v)&&v>=0)));
 /** Closed server runner. Work is bound once by composition; callers supply no
  * output, receipts, SQL, result flags, source manifests or delivery transport. */
 export function createStage8LiveExecutionRunner({db,keys,capability,capture,assertContext,work}){

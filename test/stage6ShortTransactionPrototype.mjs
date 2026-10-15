@@ -6,10 +6,11 @@ import {createPhase4Stage6,authorizeStage6ShadowWorker} from '../src/phase4Reana
 import {currentDurableExecution,databaseNowMs,CommitIndeterminateError,requireSettledOperation} from '../src/phase4ExecutionContext.js';
 import {reconcileExecution} from '../src/phase4ExecutionStore.js';
 import {currentExecutionBudget} from '../src/executionBudget.js';
+import {exactRealStatement} from '../src/exactRealStatement.js';
 const clients=new WeakSet(),issued=new WeakMap(),quote=x=>'"'+x.replaceAll('"','""')+'"';
 const fail=x=>{throw Object.assign(Error(x),{code:x});};
 const json=x=>JSON.stringify(x),maxRows=1000,maxBytes=2*1024*1024;
-export function isolatedPublicationClient(fetch){if(typeof fetch!=='function')fail('ISOLATED_FETCH_REQUIRED');const client=createClient({url:'https://isolated.invalid',fetch});clients.add(client);return client;}
+export function isolatedPublicationClient(fetch){if(typeof fetch!=='function')fail('ISOLATED_FETCH_REQUIRED');const client=createClient({url:'https://isolated.invalid',fetch}),execute=client.execute.bind(client),batch=client.batch.bind(client);client.execute=stmt=>execute(exactRealStatement(stmt));client.batch=(stmts,...rest)=>batch(stmts.map(exactRealStatement),...rest);clients.add(client);return client;}
 const closure=`WITH RECURSIVE ids(id) AS (SELECT ? UNION SELECT producing_execution_id FROM phase4_execution_producers WHERE user_id=? AND execution_mode='SHADOW' UNION SELECT e.sync_execution_id FROM phase4_executions e JOIN ids ON e.execution_id=ids.id WHERE e.sync_execution_id IS NOT NULL) SELECT id FROM ids`;
 function projection(table,columns,userId,executionId){
  if(table==='users')return {where:'id=?',args:[userId]};

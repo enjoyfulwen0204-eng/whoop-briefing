@@ -47,15 +47,16 @@ test('service-ready physical DB requires actual finalized SYNC before controlled
  console.log('SERVICE_READY_FOCUSED '+JSON.stringify({phase:'SYNC_TERMINAL_GATE',firstSync,firstLegs,sends,modelCounts:[...modelCounts],provider:await(await networkFetch('http://fixture:8080/counts')).json()}));
  assert.equal(firstSync.status,200,'actual SYNC must finalize before expensive DRAIN qualification');assert.equal(firstSync.body.syncComplete,true);assert.equal(firstSync.body.drainAuthorized,true);handoff=firstSync;
  assert.deepEqual(await sendSync(),firstSync,'final SYNC replay must be immutable');
- syncRequest=request('SYNC',{requestId:'p4s1_'+randomUUID(),triggerSource:'cloudflare'});body=canonicalPhaseRequest(syncRequest);
+ const quiescent=process.env.LINUX_SERVICE_QUIESCENT_DRAIN==='1';
+ if(!quiescent)syncRequest=request('SYNC',{requestId:'p4s1_'+randomUUID(),triggerSource:'cloudflare'});body=canonicalPhaseRequest(syncRequest);
  const overlapTransactionIndex=(await(await networkFetch('http://fixture:8080/counts')).json()).transactions.length,overlapStartedAt=Date.now();
 
  const drainRequest=request('STAGE6_DRAIN',{triggerSource:handoffRequest.triggerSource,syncRequestId:handoffRequest.requestId,handoff:handoff.body.handoff});
  const supervisor=createDrainChildSupervisor({...stageOptions,userId:'a',childUrl:new URL('./stage6ManagedDrainChild.mjs',import.meta.url),childPayload:()=>({environment,env}),spawn:(...args)=>{const child=fork(...args);child.on('message',p=>{if(p.type==='result'){childScopes=p.scopes;childCapacity=p.capacity;childMetrics=p.metrics;}});return child;}});
  t.after(()=>supervisor.close());
  const isolatedDrain=()=>supervisor.runPhase({request:drainRequest});
- const syncAt=performance.now(),syncPromise=sendSync(),webhookPromise=sendWebhook(),drainStartedAt=Date.now(),drainAt=performance.now(),drain=await isolatedDrain().catch(e=>({status:503,body:{ok:false,error:e.code??e.name}})),drainEndedAt=Date.now(),drainMs=performance.now()-drainAt;
- const webhook=await webhookPromise,retry=await sendWebhook();let sync=await syncPromise;const syncRuns=[sync];
+ const syncAt=performance.now(),syncPromise=quiescent?Promise.resolve(firstSync):sendSync(),webhookPromise=quiescent?null:sendWebhook(),drainStartedAt=Date.now(),drainAt=performance.now(),drain=await isolatedDrain().catch(e=>({status:503,body:{ok:false,error:e.code??e.name}})),drainEndedAt=Date.now(),drainMs=performance.now()-drainAt;
+ const webhook=await (webhookPromise??sendWebhook()),retry=await sendWebhook();let sync=await syncPromise;const syncRuns=[sync];
  // A supported 202 is a bounded continuation, not an immutable replay or
  // success. Resume the exact request without changing any clock, lease,
  // budget, grant counter or phase state, then test immutable final replay.
@@ -72,7 +73,7 @@ test('service-ready physical DB requires actual finalized SYNC before controlled
  await networkFetch('http://fixture:8080/probe/stop',{method:'POST'});
  const provider=await(await networkFetch('http://fixture:8080/counts')).json(),claims=(await morningDb.raw.execute("SELECT user_id,delivery_state,delivery_attempts FROM report_claims WHERE report_type='daily' AND local_date='2026-10-11' ORDER BY user_id")).rows;
  const overlapWindows=provider.transactions.slice(overlapTransactionIndex).filter(tx=>tx.outcome==='COMMITTED'&&tx.startedAt<drainEndedAt&&tx.finishedAt>drainStartedAt&&tx.statements.some(s=>s.operation==='SYNC_COMMIT_WINDOW_AUTHORITY_ASSERTION'&&s.submittedAt<drainEndedAt&&s.finishedAt>drainStartedAt));
- console.log('LINUX_OVERLAP_SCOPE '+JSON.stringify({overlapStartedAt,drainStartedAt,drainEndedAt,newSyncRequestId:syncRequest.requestId,canonicalSyncWindowsDuringOverlap:overlapWindows.length,qualification:overlapWindows.length?'CANONICAL_WRITERS_OBSERVED':'CONTROL_AND_THROTTLED_TRAFFIC_ONLY',morning:'FIRST_SYNC_DELIVERY_THEN_SAME_DAY_EXACTLY_ONCE_SUPPRESSION'}));
+ console.log('LINUX_OVERLAP_SCOPE '+JSON.stringify({quiescent,overlapStartedAt,drainStartedAt,drainEndedAt,newSyncRequestId:syncRequest.requestId,canonicalSyncWindowsDuringOverlap:overlapWindows.length,qualification:quiescent?'QUIESCENT_FIRST_PUBLICATION':overlapWindows.length?'CANONICAL_WRITERS_OBSERVED':'CONTROL_AND_THROTTLED_TRAFFIC_ONLY',morning:'FIRST_SYNC_DELIVERY_THEN_SAME_DAY_EXACTLY_ONCE_SUPPRESSION'}));
  console.log('LINUX_CONCURRENT_OUTCOME '+JSON.stringify({synthetic:true,independentDatabases:false,sharedPhysicalDatabase:true,startingClaims,expectedNewSends,retainedPhysicalCheckpoint,overlapStartedAt,overlapTransactionIndex,retainedFixture:Boolean(retained),legitimateSuccessor:successor,originalRequestPreserved:retained?.syncRequest?.requestId,drainIsolation:process.env.LINUX_DRAIN_ISOLATION??'same-process',childScopes,childCapacity,childMetrics,initialHealthMs,syncMs,sync,syncRuns,drainMs,drain,webhook,retry,concurrentDelivery,freshWebhook,freshWebhookReplay,syncReplay,sends,webhookSends,claims,modelCounts:[...modelCounts],provider,capacity:stage6CapacityStatus(),metrics:metrics.snapshot(),scopes:receiverScopeStatistics(),realProviderRequests}));
  // Resource gates remain real assertions; diagnostic success is never a
  // capacity PASS when the DRAIN deadline or ordinary service response fails.

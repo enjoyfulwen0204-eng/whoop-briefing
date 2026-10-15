@@ -10,6 +10,7 @@ import {reconcileExecution} from './phase4ExecutionStore.js';
 import {currentExecutionBudget} from './executionBudget.js';
 import {createPreparationScheduling} from './stage6PreparationScheduling.js';
 import {drainProcessPublicationFence,notifyDrainProcessBoundary} from './drainProcessAuthority.js';
+import {exactRealStatement} from './exactRealStatement.js';
 const clients=new WeakMap(),issued=new WeakMap(),quote=x=>'"'+x.replaceAll('"','""')+'"';
 const postResponseFailures=new WeakSet(),receiverCoverage=new WeakMap();
 export function assertPreparedReceiverCoverage(token,db,grant,client){const p=receiverCoverage.get(token);if(!p||p.used||p.db!==db||p.grant!==grant||p.client!==client||p.execution!==currentDurableExecution()||p.budget!==currentExecutionBudget())fail('STAGE6_SNAPSHOT_COVERAGE_REQUIRED');p.budget.assert();p.execution.authority.assert();p.used=true;}
@@ -20,6 +21,7 @@ export function runtimePublicationClient(db,{keys,admission,pilotGrant}){
  const {base,keys:ownedKeys}=stage6RuntimeBinding(db);if(keys!==ownedKeys)fail('STAGE6_KEY_OWNER_REQUIRED');
  const call=async(method,...args)=>{await db.assertRuntimeFences();await pilotGrant.assert(base);currentExecutionBudget()?.assert();
   if(method==='batch'&&args[1]==='write'){const {statement}=pilotPublicationFence(pilotGrant,db.raw),parent=drainProcessPublicationFence(currentDurableExecution()?.processAuthority,db);args[0]=[...(parent?[parent]:[]),statement,...args[0],statement,...(parent?[parent]:[])];}
+  if(method==='batch')args[0]=args[0].map(exactRealStatement);else args[0]=exactRealStatement(args[0]);
   const result=await base[method](...args);try{await db.assertRuntimeFences();await pilotGrant.assert(base);currentExecutionBudget()?.assert();}catch(error){postResponseFailures.add(error);throw error;}return result;};
  const client={execute:stmt=>call('execute',stmt),batch:(stmts,mode)=>call('batch',stmts,mode)};
  clients.set(client,{db,keys,admission,grant:pilotGrant});return client;

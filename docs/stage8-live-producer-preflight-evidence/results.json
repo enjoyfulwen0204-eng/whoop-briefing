@@ -1,0 +1,34 @@
+{
+  "type": "CONTRACT_PREFLIGHT_NOT_LIVE_IMPLEMENTATION",
+  "baselineHead": "0acd29f9c010e7f924736ec2c8054f5e44435f5d",
+  "baselineTree": "a200a93ab7f58ef0d9b06bd0f55d3d542d4612b7",
+  "branch": "codex/stage8-authenticated-live-producers-20261015",
+  "runtimeChanged": false,
+  "acceptedTriageAndGatePreserved": true,
+  "newBoundaryDefinitions": 3,
+  "unchangedFeatureDefinitions": 200,
+  "tests": {
+    "tests": 203,
+    "pass": 203,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "rawTapSha256": "555f451115149cb2315875255e06bd0aa4f035672b32c9fa7c21842d95a2f544",
+  "genuineAuthorizedLiveOutput": "NOT_IMPLEMENTED_NOT_DEMONSTRATED",
+  "typedReaderPositiveLiveAcceptance": "NOT_DEMONSTRATED",
+  "existingTypedReaderFailClosed": "PASS",
+  "shadowAuthorityCannotMintLive": "PASS",
+  "ownerDailySourcePlan": "PRESERVED_EXISTING_PATH",
+  "ownerWeeklyAndImportantAnalysis": "BLOCKED_MISSING_LIVE_PRODUCER",
+  "nativeSigsegv": {
+    "status": "OPEN",
+    "observedThisRun": false,
+    "passingRunDoesNotResolve": true
+  },
+  "contractClarification": "PENDING: identify approved successor allocation or confirm allocation-definition scope",
+  "independentReview": "PENDING",
+  "stage8CodeAcceptance": "NO-GO",
+  "production": "NO-GO",
+  "F02": "Owner Accepted Risk; unchanged"
+}

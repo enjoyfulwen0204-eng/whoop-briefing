@@ -1,0 +1,65 @@
+{
+  "baseline": {
+    "worktrees": [
+      {
+        "path": "/Users/kelvin/.codex/worktrees/stage8-authenticated-live-producers/whoop-briefing",
+        "device": 16777229,
+        "inode": 77559133,
+        "head": "0acd29f9c010e7f924736ec2c8054f5e44435f5d"
+      },
+      {
+        "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+        "device": 16777229,
+        "inode": 71452797,
+        "head": "a50336fdb3e418960d3983cb53f1e0f5e0fb60ad"
+      }
+    ],
+    "acceptedBase": "0acd29f9c010e7f924736ec2c8054f5e44435f5d",
+    "tree": "a200a93ab7f58ef0d9b06bd0f55d3d542d4612b7",
+    "stage7Ancestor": true,
+    "acceptedProviderAncestor": true,
+    "triageSha256": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d",
+    "gateSha256": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d"
+  },
+  "findings": [
+    {
+      "id": "LIVE_EXECUTION_ALLOCATION_ABSENT",
+      "evidence": "phase4V32Schema.js execution_mode OFF/SHADOW; phases SYNC/STAGE6_DRAIN; frozen producer SHADOW only",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "LIVE_CALCULATION_AUTHORITY_ABSENT",
+      "evidence": "createPhase4Stage6, operation receipts execute and association calculations reject LIVE; Stage8 LiveAuthority is a scope/read brand, not a durable producing execution",
+      "status": "CONFIRMED"
+    },
+    {
+      "id": "SUCCESSOR_CONTRACT_REFERENCE_REQUIRED",
+      "evidence": "stage8-live-producer-contract.md clauses 1-6 require a separately reviewed successor allocation and combined selector/admission/typed-receipt integration; no successor allocation found in inspected history",
+      "status": "CLARIFICATION_PENDING"
+    },
+    {
+      "id": "POLICIES_PRESERVED",
+      "evidence": "DAILY_SUMMARY uses source plan. WEEKLY_SUMMARY needs supported LIVE insights. IMPORTANT_ALERT needs already approved current delivered/ambiguous subject alert. Ordinary Q&A remains self-only; owner follows remain separately authorized.",
+      "status": "UNCHANGED"
+    }
+  ],
+  "sourceSha256": {
+    "docs/stage8-live-producer-contract.md": "66d7eafbb9a544b83c0a299999d70c0923cae6498d011c380708d6cb632dc70e",
+    "docs/stage8-stage6-reconciliation.md": "64854c0c18fbd2cd63fc5de3b7a434db95dcb55c1747a78dbdd060404c519c08",
+    "src/phase4V32Schema.js": "54bda87f006f5563884602dc0d681d6aba50a65bf41de191261fe0f00819f0af",
+    "src/phase4ExecutionContext.js": "968ac99a782611bd50f4e1b7dce5bf957ab6688dd95c2685904ef307ca4ff8c5",
+    "src/phase4ExecutionStore.js": "f869bcf5045b7a1eb1ef4a2b4b2d6e245edaf1c72b2983918bb9a225343603c5",
+    "src/phase4OperationReceipts.js": "38339347603814091f58f4bb7d60ba31cc890ac1b0e10217b55de618d31c2968",
+    "src/phase4IntelligenceStore.js": "7356f369ca39499b45a415830c7a074f9af5bf518656f9706a4dcaf9c6cac323",
+    "src/phase4Reanalysis.js": "ea0a6667726ce30189ce5beaf99b696cf1fb6d76a5383921927690bddde8fb8c",
+    "src/phase4Core.js": "57b0ba539fb50a724009cdb17e0259e6bc369a5466a882524a1f043aaebb33ce",
+    "src/stage8LiveAuthority.js": "eb3e052be31e774862218311551a371739f0ce5307b1092b8c6265c8c7551940",
+    "src/stage8DerivedReader.js": "b57299cc02597105a11694b8b06c09dcbb423d00e7ba3cc0200f1da0813a4ecb",
+    "src/stage8OwnerMonitoring.js": "32dacdd0866dfdec2c4ca2ff1decb513e68d3ed40a9aa85b3ebac6a4dcdb1732",
+    "src/stage8Runtime.js": "d7f3f160be38a8561af20a407537f78bc977bfdf9b4c71b4d75cf5a737f678a9"
+  },
+  "sourceFilesChanged": [],
+  "positiveLiveOutputClaimed": false,
+  "nativeSigsegv": "OPEN separate baseline issue",
+  "ownerPilotOrPublicBetaIntroduced": false
+}

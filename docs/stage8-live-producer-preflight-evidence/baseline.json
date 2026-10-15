@@ -1,0 +1,22 @@
+{
+  "worktrees": [
+    {
+      "path": "/Users/kelvin/.codex/worktrees/stage8-authenticated-live-producers/whoop-briefing",
+      "device": 16777229,
+      "inode": 77559133,
+      "head": "0acd29f9c010e7f924736ec2c8054f5e44435f5d"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+      "device": 16777229,
+      "inode": 71452797,
+      "head": "a50336fdb3e418960d3983cb53f1e0f5e0fb60ad"
+    }
+  ],
+  "acceptedBase": "0acd29f9c010e7f924736ec2c8054f5e44435f5d",
+  "tree": "a200a93ab7f58ef0d9b06bd0f55d3d542d4612b7",
+  "stage7Ancestor": true,
+  "acceptedProviderAncestor": true,
+  "triageSha256": "7ec262425ce9b17bdab84f5fbd3c0d43e5546c703ff2e93a1b1e03c6d77fb78d",
+  "gateSha256": "c62661d6798d255a00fa4329afb35110f510b0fb44682e81a52e0fe6ecddf42d"
+}

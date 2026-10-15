@@ -1,0 +1,101 @@
+{
+  "type": "INDEPENDENT_READ_ONLY_PROPOSED_DIFF_REVIEW",
+  "patchAppliedByReviewer": false,
+  "patchSha256": "3a367edf6fa8ee93a27005a99dd6a054a10d1da5f6817c49556a7fadfa5dc9e4",
+  "verdict": "DIRECTION_GO_COMPLETE_COMPUTATION_INTEGRATION_NO_GO_PENDING_ENUMERATED_OMISSIONS",
+  "testsRunOnPatch": 0,
+  "findings": [
+    {
+      "id": "OMITTED_RESULT_AUTHORITY_SELECTORS",
+      "source": [
+        "phase4IntelligenceStore.js:454",
+        "phase4IntelligenceStore.js:558",
+        "phase4IntelligenceStore.js:671",
+        "phase4OperationReceipts.js:246"
+      ],
+      "mechanism": "Hardcoded SHADOW result-authority joins/SELECT/attach remain despite selected LIVE allocation; genuine LIVE origins would be absent from closure or fail closed."
+    },
+    {
+      "id": "INCONSISTENT_CLOSURE_KEYS",
+      "source": [
+        "proposed phase4AuthorityClosure.js",
+        "phase4InsightRefresh.js:4-5,27,64,142"
+      ],
+      "mechanism": "Proposed operation-receipt inventory keys become physical dynamic names, while result authority arrays stay partly logical SHADOW names. Fallback allocates dynamic result key then accesses hardcoded property; insight refresh imports static constants for both arrays and retained queries. Use one explicit consistent inventory-key contract across every consumer."
+    },
+    {
+      "id": "OMITTED_LEGACY_DISCOVERY",
+      "source": [
+        "phase4LegacyDiscovery.js:7,29"
+      ],
+      "mechanism": "LIVE run enumeration paired with SHADOW authority table lookup can label genuine LIVE source history incomplete. Select actual allocation while preserving missing receipt rejection; do not treat absence as permission to recreate authority."
+    },
+    {
+      "id": "OMITTED_UNIT_AND_DERIVED_TIME_READERS",
+      "source": [
+        "phase4MetricUnitReceipt.js:11,85-92,119,168-169",
+        "bodyEnergyDerivedTime.js:16-19,46"
+      ],
+      "mechanism": "Old schema/mode gates and hardcoded execution/work/producer selects block35 LIVE continuation and Body-derived source timing. Must retain original unit/DOMAIN HMAC, generation, owner/deadline and finalized result digest checks with selected allocation."
+    },
+    {
+      "id": "UNNECESSARY_BETA_BROADENING",
+      "source": [
+        "proposed phase4Repositories.js readBetaSummary"
+      ],
+      "mechanism": "Expanding Public Beta summary from SHADOW to LIVE is not necessary for Stage8 typed LIVE readers and should be omitted; its durable guard rejects >34 anyway. User explicitly requested no Owner pilot or Public Beta rollout stage."
+    },
+    {
+      "id": "DURABLE_KERNEL_NOW_PARTLY_ADAPTED",
+      "source": [
+        "phase4ExecutionContext.js current uncommitted diff"
+      ],
+      "mechanism": "The implementer separately adapted execution/work/producers selection under isLiveExecution; forged LIVE request mode alone fails. This closes those selectors structurally but final kernel tests must cover actual scope, generation, crash/replay and indeterminate COMMIT."
+    },
+    {
+      "id": "EXECUTION_CONTEXT_TUPLE_BINDING",
+      "source": [
+        "stage8LiveProducerAuthority.js registerLiveExecution/isLiveExecution",
+        "phase4Core.js assertAnalysisWrite",
+        "stage8LiveExecution.js tenantScope"
+      ],
+      "mechanism": "Current registration binds user and frozen claim/request identity but does not compare an analyzed context generation/source/auth/lifecycle/purge/algorithm/timezone tuple to the original tenantScope. Bind/check the captured tuple or its server HMAC on every relevant write/producer association; same-user recapture after invalidation must not reuse old execution identity."
+    },
+    {
+      "id": "ESTABLISHED_RECOVERY_GAP",
+      "source": [
+        "stage8LiveExecution.js row-state branch"
+      ],
+      "mechanism": "ESTABLISHED rows are always pending even after lease expiry with committed work receipts. Crash between unit COMMIT and WORK_COMMITTED aggregate cannot resume. WORK_COMMITTED takeover exists, so current kernel is not complete restart proof."
+    },
+    {
+      "id": "FINALIZATION_FRESH_SCOPE",
+      "source": [
+        "stage8LiveExecution.js authority.assert/aggregate/finalization"
+      ],
+      "mechanism": "Policy/admission checks alone do not reassert source/input/auth/lifecycle/purge/resource currentness at aggregate commit/finalization. Preserve fresh captured-context scope and verify result digest/signature on replay."
+    },
+    {
+      "id": "INDETERMINATE_RECONCILIATION",
+      "source": [
+        "processingTransaction.js:438"
+      ],
+      "mechanism": "Generic unknown-COMMIT diagnostics still call old reconcileExecution, which selects SHADOW execution tables. Remains fail-closed RECONCILIATION_REQUIRED, but LIVE recovery must prove its own authoritative row/receipt reconciliation rather than treating this fallback as completed restart behavior."
+    }
+  ],
+  "safelyClosedInterimConcerns": [
+    "private grant record frozen",
+    "producer admission follows same approved db/key/transaction renewal",
+    "core tenant gate passes userId",
+    "execution physical table selection requires registered LIVE brand"
+  ],
+  "preserveSeparatePolicies": [
+    "SHADOW-only Body Energy publication/drain grants",
+    "Public Beta/pilot admissions and bounded-prefix policies",
+    "Stage6 own worktree and pending final acceptance",
+    "unchanged accepted triage",
+    "Owner subscriptions and existing approved alert policy"
+  ],
+  "hmacReview": "Existing operation/result envelope identity includes actual table, tenant, mode and generations. Keeping these values in sealed manifests and every typed graph comparator can safely separate LIVE siblings. Do not translate table/type names after sealing or use a compatibility projection to bypass originals. No positive complete manifest acceptance is claimed.",
+  "status": "PRE_IMPLEMENTATION_ADVICE_NOT_FINAL_ACCEPTANCE"
+}

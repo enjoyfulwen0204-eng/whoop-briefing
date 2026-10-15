@@ -1,7 +1,8 @@
+import {liveTable} from './stage8LiveAllocation.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import {readPilotPrefixRows,pilotPrefixFrom} from './betaPilotBoundedReads.js';
 import { phase4Metric,INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
-import { ROUTE_VERSION,ROUTE_RECEIPTS,ROUTE_ENTRIES,ROUTE_MANIFESTS } from './phase4V29Schema.js';
+import { ROUTE_VERSION,ROUTE_RECEIPTS as SHADOW_RECEIPTS,ROUTE_ENTRIES as SHADOW_ENTRIES,ROUTE_MANIFESTS as SHADOW_MANIFESTS } from './phase4V29Schema.js';
 import { OPERATION_RECEIPT_VERSION } from './phase4V27Schema.js';
 
 const ZERO='0'.repeat(64);
@@ -23,9 +24,9 @@ const insightTargets=new Set(['INSIGHT','INSIGHT_ID','ASSOCIATION']);
 
 /** This verifier uses the frozen v27 seal; migration never infers a family from
  * materialized names or from a receipt whose HMAC has already been erased. */
-export function verifyV27RouteSource(keys,row) {
-  if(row.content_state!=='PRESENT'||row.execution_mode!=='SHADOW'||row.receipt_version!==OPERATION_RECEIPT_VERSION
-    ||row.privacy_artifact_id!==keys.lookup(['privacy-artifact-v1','phase4_operation_receipts',row.user_id,row.execution_mode,
+export function verifyV27RouteSource(keys,row,{live=false}={}) {
+  if(row.content_state!=='PRESENT'||row.execution_mode!==(live?'LIVE':'SHADOW')||row.receipt_version!==OPERATION_RECEIPT_VERSION
+    ||row.privacy_artifact_id!==keys.lookup(['privacy-artifact-v1',live?liveTable('phase4_operation_receipts'):'phase4_operation_receipts',row.user_id,row.execution_mode,
       [row.operation_kind,row.operation_key]]))invalid();
   const sealed=keys.digest(row.content_digest_salt,canonicalJson([OPERATION_RECEIPT_VERSION,
     Object.fromEntries(Object.entries(row).filter(([key])=>!['receipt_hmac','health_content_redacted_at',
@@ -40,7 +41,8 @@ export function verifyV27RouteSource(keys,row) {
   return {request,related};
 }
 
-export function createReceiptRouting(client,keys) {
+export function createReceiptRouting(client,keys,{live=false}={}) {
+  const ROUTE_RECEIPTS=live?liveTable(SHADOW_RECEIPTS):SHADOW_RECEIPTS,ROUTE_ENTRIES=live?liveTable(SHADOW_ENTRIES):SHADOW_ENTRIES,ROUTE_MANIFESTS=live?liveTable(SHADOW_MANIFESTS):SHADOW_MANIFESTS,operationTable=live?liveTable('phase4_operation_receipts'):'phase4_operation_receipts';
   const mac=value=>keys.digest(ZERO,canonicalJson([ROUTE_VERSION,value]));
   const token=(userId,mode,kind,identity)=>keys.lookup(['stage6-route-subject-v1',ROUTE_VERSION,userId,mode,kind,identity]);
   const metric=(userId,mode,key)=>{
@@ -129,7 +131,7 @@ export function createReceiptRouting(client,keys) {
     if(route.route_state!=='LEGACY_ROUTE_UNKNOWN')invalid();
     const bound=receipt?.operation_kind===route.operation_kind
       &&receipt?.operation_key===route.operation_key
-      &&receipt?.privacy_artifact_id===keys.lookup(['privacy-artifact-v1','phase4_operation_receipts',
+      &&receipt?.privacy_artifact_id===keys.lookup(['privacy-artifact-v1',live?liveTable('phase4_operation_receipts'):'phase4_operation_receipts',
         route.user_id,route.execution_mode,[route.operation_kind,route.operation_key]]);
     if(!bound)return true;
     if(episodeTargets.has(targetKind))return !nonEpisodeOperations.has(route.operation_kind);
@@ -289,7 +291,7 @@ export function createReceiptRouting(client,keys) {
     const global=await observations([
       ()=>readPilotPrefixRows(client,context,'routes',[userId,mode],{sql:`SELECT * FROM ${ROUTE_RECEIPTS} WHERE user_id=? AND execution_mode=?
         ORDER BY operation_kind,operation_key`,args:[userId,mode]}),
-      ()=>readPilotPrefixRows(client,context,'receiptProjection',[userId,mode],{sql:`SELECT operation_kind,operation_key,privacy_artifact_id FROM phase4_operation_receipts
+      ()=>readPilotPrefixRows(client,context,'receiptProjection',[userId,mode],{sql:`SELECT operation_kind,operation_key,privacy_artifact_id FROM ${operationTable}
         WHERE user_id=? AND execution_mode=? ORDER BY operation_kind,operation_key`,args:[userId,mode]}),
     ]);
     const routes=observed(global[0]),actual=observed(global[1]);
@@ -330,7 +332,7 @@ export function createReceiptRouting(client,keys) {
     const receipts=[];
     for(let start=0;start<entries.length;start+=READ_BATCH) {
       const values=await observations(entries.slice(start,start+READ_BATCH).map(entry=>async()=>{
-        const from=await pilotPrefixFrom(client,context,'phase4_operation_receipts',[userId,mode,entry.operation_kind,entry.operation_key]);
+        const from=await pilotPrefixFrom(client,context,operationTable,[userId,mode,entry.operation_kind,entry.operation_key]);
         return (await client.execute({sql:`SELECT * FROM ${from} WHERE user_id=? AND execution_mode=?
           AND operation_kind=? AND operation_key=?`,args:[userId,mode,entry.operation_kind,entry.operation_key]})).rows[0];
       }));

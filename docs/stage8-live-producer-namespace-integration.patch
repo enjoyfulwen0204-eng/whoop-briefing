@@ -1,0 +1,297 @@
+--- a/src/phase4Repositories.js
++++ b/src/phase4Repositories.js
+@@ -1,3 +1,4 @@
++import {analysisTable} from './stage8LiveAllocation.js';
+ import {workStepOptions} from './phase4WorkStep.js';
+ import { createLegacyDiscovery } from './phase4LegacyDiscovery.js';
+ import { createOperationReceipts } from './phase4OperationReceipts.js';
+@@ -18,8 +19,8 @@
+ import { createPhase4JournalAnswers } from './phase4JournalAnswers.js';
+ import { createPhase4IntelligenceStore } from './phase4IntelligenceStore.js';
+ import { createResultAuthority } from './phase4ResultAuthority.js';
+-import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
+-import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
++import { OPERATION_RECEIPT_TABLE as SHADOW_OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
++import { RESULT_AUTHORITY_TABLE as SHADOW_RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
+ import { PHASE4_METRICS } from './phase4IntelligenceRegistry.js';
+ import { createBodyEnergyPublicationReader } from './bodyEnergyPublicationReader.js';
+ import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
+@@ -30,6 +31,8 @@
+ /** Composition is internal to the server factory and the synthetic fixture;
+  * it does not issue execution contexts or accept request-owned authority. */
+ export function composePhase4Stores(core) {
++  const RESULT_AUTHORITY_TABLE=analysisTable(core,SHADOW_RESULT_AUTHORITY_TABLE);
++  const OPERATION_RECEIPT_TABLE=analysisTable(core,SHADOW_OPERATION_RECEIPT_TABLE);
+   const {client,transaction,timestamp}=core;
+   const receipts=createOperationReceipts(core),discover=createLegacyDiscovery(core);
+   const contextScopes=new WeakSet();
+--- a/src/phase4InsightRefresh.js
++++ b/src/phase4InsightRefresh.js
+@@ -1,8 +1,9 @@
++import {analysisTable} from './stage8LiveAllocation.js';
+ import { fail, readableRow } from './phase4Core.js';
+ import { canonicalJson } from './phase4EntityStore.js';
+ import { normalizeInsightIdentity } from './phase4InsightStore.js';
+-import { OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
+-import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
++import { OPERATION_RECEIPT_TABLE as SHADOW_OPERATION_RECEIPT_TABLE } from './phase4V27Schema.js';
++import { RESULT_AUTHORITY_TABLE as SHADOW_RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
+ import { INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
+ import { createTargetAuthorityClosure } from './phase4AuthorityClosure.js';
+ 
+@@ -18,6 +19,8 @@
+  * makes an old projection readable as current. Its only caller is the explicit
+  * INSIGHT_TRANSITION refresh branch inside the existing receipt transaction. */
+ export function createInsightRefreshAuthority(core, { authenticate, authorities, validateEvidence }) {
++  const RESULT_AUTHORITY_TABLE=analysisTable(core,SHADOW_RESULT_AUTHORITY_TABLE);
++  const OPERATION_RECEIPT_TABLE=analysisTable(core,SHADOW_OPERATION_RECEIPT_TABLE);
+   const { client, keys } = core;
+   const closure=createTargetAuthorityClosure(core,authenticate);
+   async function inventory(context,target={}) {
+--- a/src/phase4LegacyDiscovery.js
++++ b/src/phase4LegacyDiscovery.js
+@@ -1,10 +1,11 @@
++import {analysisTable} from './stage8LiveAllocation.js';
+ import { fail, readableRow } from './phase4Core.js';
+ import { INTELLIGENCE_VERSIONS } from './phase4IntelligenceRegistry.js';
+ import { canonicalJson } from './phase4EntityStore.js';
+ import { canonicalInstant } from './phase4Time.js';
+ import { canonicalSourceVersion } from './phase4SourceVersion.js';
+ import { createResultAuthority } from './phase4ResultAuthority.js';
+-import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
++import { RESULT_AUTHORITY_TABLE as SHADOW_RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
+ import {metricPreparationContinuation,metricUnitReceipt,metricRunReceipt} from './phase4MetricUnitReceipt.js';
+ 
+ export const LEGACY_DISCOVERY_BUDGET=Object.freeze({runs:500,authorities:1000,deadlineMs:5000});
+@@ -18,6 +19,7 @@
+  * never the completeness boundary. Missing old operation facts are unavailable,
+  * never filled in from the new request or rewritten as new receipts. */
+ export function createLegacyDiscovery(core) {
++  const RESULT_AUTHORITY_TABLE=analysisTable(core,SHADOW_RESULT_AUTHORITY_TABLE);
+   const authority=createResultAuthority(core);
+   return async function discover(context,kind,request) {
+     if(!['analyzeMetric','analyzeAssociationFamily'].includes(kind))return;
+--- a/src/phase4IntelligenceStore.js
++++ b/src/phase4IntelligenceStore.js
+@@ -1,3 +1,4 @@
++import {analysisTable} from './stage8LiveAllocation.js';
+ import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
+ import {AsyncLocalStorage} from 'node:async_hooks';
+ import { compareExact } from './phase4CanonicalOrder.js';
+@@ -451,7 +452,7 @@
+     return (await client.execute({sql:`SELECT r.run_id,r.state,i.evidence_item_id,a.evidence_item_id authority_id
+       FROM evidence_runs r LEFT JOIN evidence_items i ON i.user_id=r.user_id AND i.execution_mode=r.execution_mode
+         AND i.run_id=r.run_id AND i.item_key=?
+-      LEFT JOIN phase4_evidence_result_authorities a ON a.user_id=i.user_id AND a.execution_mode=i.execution_mode
++      LEFT JOIN ${analysisTable(core,'phase4_evidence_result_authorities')} a ON a.user_id=i.user_id AND a.execution_mode=i.execution_mode
+         AND a.evidence_item_id=i.evidence_item_id AND a.result_scope='METRIC'
+       WHERE r.user_id=? AND r.execution_mode=? AND r.deterministic_run_key=?`,
+       args:[plan.itemKey,context.userId,context.executionMode,plan.runKey]})).rows[0];
+@@ -498,7 +499,7 @@
+       const workStepFrom=async()=>{
+         const body=await prepareCurrentBodyMetricRequest(context,sourceAsOfUtc);request=body.request;
+         if(!request||request.baselineSources.length||!hasOwnedCurrentBodyData(core,context,request.currentSource))return null;
+-        inventory=await createFamilyDirectory(client,keys).inventory(context,'body_energy',{create:false});
++        inventory=await createFamilyDirectory(client,keys,{live:core.liveAllocation}).inventory(context,'body_energy',{create:false});
+         if(!inventory)return null;
+         if(inventory.unknownEntries.length)fail('PHASE4_FAMILY_DIRECTORY_LEGACY_UNKNOWN');
+         const prepared=await metricPreparation(context,request,body.current),hint=await currentBodyMetricHints(context,prepared.plan);
+@@ -507,7 +508,7 @@
+         purpose=issued.purpose;
+         // This is an existence hint only. Acceptance remains the original
+         // complete typed DOMAIN replay inside the family business callback.
+-        const domain=(await client.execute({sql:`SELECT 1 FROM phase4_operation_receipts WHERE user_id=? AND execution_mode=?
++        const domain=(await client.execute({sql:`SELECT 1 FROM ${analysisTable(core,'phase4_operation_receipts')} WHERE user_id=? AND execution_mode=?
+           AND operation_kind='analyzeMetric' AND operation_key=?`,args:[context.userId,context.executionMode,issued.domain.operationKey]})).rows[0];
+         if(!domain)return null;
+         return workStepFor(request);
+@@ -524,7 +525,7 @@
+       ||!['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY','NEXT'].includes(kind))
+       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+     let prepared,alreadyRecorded=false,bodySource=null,ownedPurpose=null,domainWorkStep=null;
+-    const directory=createFamilyDirectory(client,keys);
++    const directory=createFamilyDirectory(client,keys,{live:core.liveAllocation});
+     const sourceWork=(name,facts)=>{const job=core.jobAuthority();return workStepOptions(name,[context.userId,context.executionMode,
+       job.jobKind,job.requestedGeneration,job.scopeRevision,facts],{discardResult:true}).workStep;};
+     const workStepFrom=async()=>{
+@@ -555,7 +556,7 @@
+           kind=item?'AUTHORITY':'ITEM';
+           if(item&&requestFrom&&request.metricKey==='body_energy'&&request.baselineSources.length===0
+             &&prepared.plan.input.baseline.samples.length===0&&hasOwnedCurrentBodyData(core,context,request.currentSource)){
+-            const authority=closed?run.authority_id:(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
++            const authority=closed?run.authority_id:(await client.execute({sql:`SELECT evidence_item_id FROM ${analysisTable(core,'phase4_evidence_result_authorities')}
+               WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
+               args:[context.userId,context.executionMode,item.evidence_item_id]})).rows[0];
+             {
+@@ -668,7 +669,7 @@
+       const itemProof=!item.created?await metricUnitReceipt(core,context,plan,'ITEM'):null;
+       if(!item.created&&!itemProof)fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
+       if(kind==='ITEM')return {unit:'ITEM',status:'COMPLETE',created:item.created};
+-      const prior=(await client.execute({sql:`SELECT evidence_item_id FROM phase4_evidence_result_authorities
++      const prior=(await client.execute({sql:`SELECT evidence_item_id FROM ${analysisTable(core,'phase4_evidence_result_authorities')}
+         WHERE user_id=? AND execution_mode=? AND evidence_item_id=? AND result_scope='METRIC'`,
+         args:[context.userId,context.executionMode,item.row.evidence_item_id]})).rows[0];
+       if(prior){
+--- a/src/phase4AuthorityClosure.js
++++ b/src/phase4AuthorityClosure.js
+@@ -1,3 +1,4 @@
++import {analysisTable} from './stage8LiveAllocation.js';
+ import { fail, readableRow } from './phase4Core.js';
+ import { physicallyScrubbed } from './phase4Redaction.js';
+ import { createReceiptRouting } from './phase4ReceiptRouting.js';
+@@ -9,7 +10,8 @@
+  * discovery, but never satisfies a requested root or predecessor dependency.
+  * Callers still validate every selected v25/v26/v27 projection and its roots. */
+ export function createTargetAuthorityClosure(core,authenticate) {
+-  const {client}=core,routing=core.schemaVersion>=29?createReceiptRouting(client,core.keys):null;
++  const OPERATION_RECEIPT_TABLE=analysisTable(core,'phase4_operation_receipts'),RESULT_AUTHORITY_TABLE=analysisTable(core,'phase4_evidence_result_authorities');
++  const {client}=core,routing=core.schemaVersion>=29?createReceiptRouting(client,core.keys,{live:core.liveAllocation}):null;
+   async function retained(context,table,rows) {
+     const result=[];
+     for(const row of rows) {
+@@ -28,9 +30,9 @@
+     if(routing)return scopedInventory(context,{kind,insightKey,insightId,metricKey,episodeId,episodeFamilyKey});
+     const episode=kind==='EPISODE',tables={},scope=[context.userId,context.executionMode];
+     const names=episode?['observation_episodes','phase4_episode_revisions']
+-      :['health_insights','insight_revisions','phase4_evidence_result_authorities'];
+-    for(const table of [...names,'phase4_operation_receipts']) {
+-      const predicate=table==='phase4_operation_receipts'
++      :['health_insights','insight_revisions',RESULT_AUTHORITY_TABLE];
++    for(const table of [...names,OPERATION_RECEIPT_TABLE]) {
++      const predicate=table===OPERATION_RECEIPT_TABLE
+         ?episode?" AND (operation_kind LIKE 'EPISODE_%' OR operation_kind IN ('analyzeMetric','expireEpisode'))"
+           :" AND (operation_kind LIKE 'INSIGHT_%' OR operation_kind IN ('analyzeAssociationFamily','expireInsight'))":'';
+       const rows=(await client.execute({sql:`SELECT * FROM ${table} WHERE user_id=? AND execution_mode=?${predicate} LIMIT 1001`,args:scope})).rows;
+@@ -38,7 +40,7 @@
+       tables[table]=await retained(context,table,rows);
+     }
+     let bytes=0;
+-    const records=tables.phase4_operation_receipts.map(receipt=>{
++    const records=tables[OPERATION_RECEIPT_TABLE].map(receipt=>{
+       bytes+=['request_json','result_json','related_results_json','required_roots_json','schema_contract_json']
+         .reduce((n,key)=>n+Buffer.byteLength(receipt[key]??''),0);
+       if(bytes>64*1024*1024)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+@@ -58,12 +60,12 @@
+     tables[type]=tables[type].filter(row=>selected.has(row[idField]));
+     const revisions=episode?'phase4_episode_revisions':'insight_revisions';
+     tables[revisions]=tables[revisions].filter(row=>selected.has(row[episode?'episode_id':'insight_id']));
+-    tables.phase4_operation_receipts=records.filter(({decoded})=>decoded.related_results_json.some(target=>
++    tables[OPERATION_RECEIPT_TABLE]=records.filter(({decoded})=>decoded.related_results_json.some(target=>
+       target.type===type&&selected.has(target.row[idField]))).map(({receipt})=>receipt);
+     if(!episode) {
+-      const evidence=new Set(records.filter(({receipt})=>tables.phase4_operation_receipts.includes(receipt))
++      const evidence=new Set(records.filter(({receipt})=>tables[OPERATION_RECEIPT_TABLE].includes(receipt))
+         .flatMap(({decoded})=>decoded.related_results_json.filter(target=>target.type==='evidence_items').map(target=>target.row.evidence_item_id)));
+-      tables.phase4_evidence_result_authorities=tables.phase4_evidence_result_authorities.filter(row=>{
++      tables[RESULT_AUTHORITY_TABLE]=tables[RESULT_AUTHORITY_TABLE].filter(row=>{
+         let origin;try{origin=JSON.parse(row.original_result_json);}catch{fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');}
+         return evidence.has(row.evidence_item_id)||selected.has(origin?.insight_id);
+       });
+@@ -96,7 +98,7 @@
+     const selected=await routing.inventory(context,episode&&episodeFamilyKey?'EPISODE_FAMILY':kind,identity);
+     if(selected.unknown)fail('PHASE4_RECEIPT_ROUTE_LEGACY_UNKNOWN');
+     const records=[];let bytes=0;
+-    for(const receipt of await retained(context,'phase4_operation_receipts',selected.receipts)) {
++    for(const receipt of await retained(context,OPERATION_RECEIPT_TABLE,selected.receipts)) {
+       bytes+=['request_json','result_json','related_results_json','required_roots_json','schema_contract_json']
+         .reduce((n,key)=>n+Buffer.byteLength(receipt[key]??''),0);
+       if(bytes>64*1024*1024)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+@@ -123,8 +125,8 @@
+         scopedReceiptKeys.has(`${receipt.operation_kind}:${receipt.operation_key}`)))
+         fail('PHASE4_OPERATION_RESULT_UNAVAILABLE');
+     }
+-    const tables={[type]:[],[revisionTable]:[],phase4_operation_receipts:records.map(value=>value.receipt)};
+-    if(!episode)tables.phase4_evidence_result_authorities=[];
++    const tables={[type]:[],[revisionTable]:[],[OPERATION_RECEIPT_TABLE]:records.map(value=>value.receipt)};
++    if(!episode)tables[RESULT_AUTHORITY_TABLE]=[];
+     for(const id of ids) {
+       const row=(await client.execute({sql:`SELECT * FROM ${typeFrom} WHERE user_id=? AND execution_mode=? AND ${idField}=?`,
+         args:[...scope,id]})).rows[0];
+@@ -141,7 +143,7 @@
+         .filter(target=>target.type==='evidence_items').map(target=>target.row.evidence_item_id)));
+       // An orphan v26 origin can outlive its parent. The origin's ID remains a
+       // search hint; every selected authority is authenticated by the caller.
+-      const authorityFrom=await pilotPrefixFrom(client,context,'phase4_evidence_result_authorities',scope);
++      const authorityFrom=await pilotPrefixFrom(client,context,RESULT_AUTHORITY_TABLE,scope);
+       const all=(await client.execute({sql:`SELECT * FROM ${authorityFrom}
+         WHERE user_id=? AND execution_mode=? ORDER BY evidence_item_id,result_scope`,args:scope})).rows;
+       for(const row of all) {
+@@ -150,8 +152,8 @@
+           fail('PHASE4_DURABLE_REPLAY_BINDING_INVALID');
+         }
+         if(evidence.has(row.evidence_item_id)||ids.has(origin?.insight_id))
+-          tables.phase4_evidence_result_authorities.push(...await retained(context,'phase4_evidence_result_authorities',[row]));
+-        if(tables.phase4_evidence_result_authorities.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
++          tables[RESULT_AUTHORITY_TABLE].push(...await retained(context,RESULT_AUTHORITY_TABLE,[row]));
++        if(tables[RESULT_AUTHORITY_TABLE].length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+       }
+     }
+     return tables;
+--- a/src/phase4MetricRefresh.js
++++ b/src/phase4MetricRefresh.js
+@@ -1,3 +1,4 @@
++import {analysisTable} from './stage8LiveAllocation.js';
+ import { fail, readableRow } from './phase4Core.js';
+ import { canonicalJson } from './phase4EntityStore.js';
+ import { episodeSemanticProjection, EPISODE_OPERATIONAL_FIELDS } from './phase4EpisodeHistory.js';
+@@ -27,7 +28,7 @@
+     const routeFamily=identity?keys.lookup(['episode-family-v1',context.userId,identity.domain,identity.metric,
+       identity.algorithmMajor,identity.subject,identity.windowFamily]):null;
+     const receipts=(await closure.inventory(context,{kind:'EPISODE',episodeId,metricKey:identity?.metric,
+-      episodeFamilyKey:routeFamily})).phase4_operation_receipts;
++      episodeFamilyKey:routeFamily}))[analysisTable(core,'phase4_operation_receipts')];
+     if(receipts.length>1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+     let bytes=0;
+     const signed=[];
+@@ -93,7 +94,7 @@
+   }
+   async function retained(context,binding,depth=0) {
+     if(depth>=1000)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+-    const row=(await client.execute({sql:`SELECT * FROM phase4_operation_receipts WHERE user_id=? AND execution_mode=?
++    const row=(await client.execute({sql:`SELECT * FROM ${analysisTable(core,'phase4_operation_receipts')} WHERE user_id=? AND execution_mode=?
+       AND operation_kind=? AND operation_key=?`,args:[context.userId,context.executionMode,binding.operationKind,binding.receiptKey]})).rows[0];
+     if(!row||row.receipt_hmac!==binding.receiptHmac)invalid();
+     const decoded=authenticate(context,row);
+--- a/src/phase4EpisodeRecurrence.js
++++ b/src/phase4EpisodeRecurrence.js
+@@ -1,3 +1,4 @@
++import {analysisTable} from './stage8LiveAllocation.js';
+ import { fail,readableRow } from './phase4Core.js';
+ import { canonicalJson } from './phase4EntityStore.js';
+ import { episodeSemanticProjection } from './phase4EpisodeHistory.js';
+@@ -19,7 +20,7 @@
+   async function inventory(context,target={}) {
+     const tables=await closure.inventory(context,{kind:'EPISODE',...target});
+     const histories=new Map();let bytes=0;
+-    for(const receipt of tables.phase4_operation_receipts) {
++    for(const receipt of tables[analysisTable(core,'phase4_operation_receipts')]) {
+       bytes+=['request_json','result_json','related_results_json','required_roots_json','schema_contract_json']
+         .reduce((sum,name)=>sum+Buffer.byteLength(receipt[name]??''),0);
+       if(bytes>64*1024*1024)fail('PHASE4_OPERATION_RESULT_BOUNDS_UNAVAILABLE');
+--- a/src/stage6CurrentCaptureTime.js
++++ b/src/stage6CurrentCaptureTime.js
+@@ -1,3 +1,4 @@
++import {analysisTable} from './stage8LiveAllocation.js';
+ import {assertExecutionWorkOwner} from './phase4ExecutionContext.js';
+ import {createReceiptRouting} from './phase4ReceiptRouting.js';
+ import {createOperationReceipts} from './phase4OperationReceipts.js';
+@@ -19,7 +20,7 @@
+   const [source]=await core.revalidateSources(context,[artifact.ref]);
+   if(source.type!==phase4Metric(metricKey).sourceType||canonicalJson(source.row)!==canonicalJson(artifact.row))fail('STAGE6_CURRENT_CAPTURE_SOURCE_REQUIRED');
+   canonicalMetricSourceValue(metricKey,{type:source.type,id:source.id,row:source.row},context,new Date(clock).toISOString());
+-  const routing=createReceiptRouting(core.client,core.keys),contract=phase4Metric(metricKey),
++  const routing=createReceiptRouting(core.client,core.keys,{live:core.liveAllocation}),contract=phase4Metric(metricKey),
+     token=routing.token(context.userId,context.executionMode,'EPISODE',[metricKey,contract.domain]);
+   const inventory=await routing.inventory(context,'EPISODE',token,true);
+   if(inventory.unknown)fail('PHASE4_RECEIPT_ROUTE_LEGACY_UNKNOWN');
+--- a/src/phase4OperationReceipts.js
++++ b/src/phase4OperationReceipts.js
+@@ -243,7 +243,7 @@
+       }
+     }
+     for(const [id,revision] of insights)await attach('insight_revisions','insight_id=? AND revision=?',[id,revision]);
+-    for(const target of [...related].filter(target=>target.type==='evidence_items'))await attach('phase4_evidence_result_authorities',
++    for(const target of [...related].filter(target=>target.type==='evidence_items'))await attach(RESULT_AUTHORITY_TABLE,
+       'evidence_item_id=?',[target.row.evidence_item_id]);
+     const encoded={result:tree,contracts,related:ordered(related),refs,includeDependencies:async dependencies=>{
+       projectionRole='DEPENDENCY';

@@ -1,0 +1,57 @@
+{
+  "type": "READ_ONLY_INTERIM_ALLOCATION_ADVICE_NOT_FINAL_ACCEPTANCE",
+  "baseHead": "cd7633f64d3076ddc09df62de8f799ac769100d5",
+  "uncommittedSnapshotSha256": {
+    "src/phase4V35Schema.js": "bf5e31185518b1be06c8936517f16e9edb8a2e9b5a05976783c954cfe47ced40",
+    "src/stage8LiveAllocation.js": "83085a97fcf4c322d99330f919ab2333cd64d6f899051b9910465003b2976f5a",
+    "src/stage8LiveProducerAuthority.js": "b497d7765c8876d64da6f4dccb81a130d3deed50a3d8a4b274544cbba6b49302",
+    "src/runtimeAdmission.js": "6b26fa38980606c8642779a2f4f6cdeb069ef0f0418fb3021575191a67aad13e",
+    "src/phase4Core.js": "8f1e2a520cb2e56d6d3797dfe20d003bf9151649074591b9bad92e1734e7dc41",
+    "src/migrations.js": "25fac6310c36dc7f86e4fe06e5ceadc9f20a6bec70ac399d890e64367a238065",
+    "src/schema.js": "bdda9a3325a1626f6ed552f0a5874231ed7c267d1704a5f06eab03d2813530ac",
+    "src/phase4Schema.js": "a0705907c163ba2242099470f20ed7b11546013b14a05cadb8d9c45a22f16464",
+    "src/stage8LiveAuthority.js": "2ee868aec2927e499289df792b78676611ef29030c7e0a36d9bf9be7d2444017"
+  },
+  "sourceEditsByReviewer": [],
+  "profileDesign": "VIABLE_OPT_IN_34_35_NO_INTRINSIC_REQUIREMENT_TO_BUMP_DEFAULT",
+  "codeAcceptance": "PENDING",
+  "findings": [
+    {
+      "id": "LIVE_CORE_TENANT_GATE",
+      "status": "CORRECTION_REQUESTED",
+      "evidence": "phase4Core.authorizeMode calls hasLiveProducingAuthority without userId; pass userId through grant eligibility as well as downstream modeAuthority/isLiveExecution. A permissive supplied modeAuthority must not make the private grant cross-tenant."
+    },
+    {
+      "id": "MUTABLE_PRIVATE_GRANT_RECORD",
+      "status": "CORRECTION_REQUESTED",
+      "evidence": "liveProducerConfiguration returns mutable issuer record with enabled/eligible/releaseSha/configProof. Freeze private record or return immutable minimal projection; preserve trusted policy callbacks."
+    },
+    {
+      "id": "EXECUTION_BRAND_SCOPE",
+      "status": "REQUIRE_BEFORE_ENABLING_COMPUTATION",
+      "evidence": "registerLiveExecution currently brands an arbitrary object and the test uses {}. Bind to real durable request/claim/tenant/mode identity and revalidate against original DB owner/generation/deadline on use. Avoid treating branding itself as successful execution authority."
+    },
+    {
+      "id": "ADMISSION_RENEWAL",
+      "status": "REQUIRE_RESTART_RETRY_COVERAGE",
+      "evidence": "producer grant retains original admission while phase4Core follows approved contention reconnect renewal; subscribe private grant to same db/key/transaction renewal, require profile35, or reconstruct grant explicitly. Do not transfer grant to unrelated connection by URL."
+    },
+    {
+      "id": "OPT_IN_PROFILE_COMPATIBILITY",
+      "status": "REQUIRE_AFFECTED_PATH_REVIEW",
+      "evidence": "runtimeSchemaGuard and analytics/reconcile compare exact SCHEMA_VERSION34; db privacyFoundation list [33,34], stage8 factory exact34 guards and default db.migrate from35 target34 need explicit treatment. Preserve unsupported admin/CLI fail-closed behavior if outside scope and document; test actual v35 composition/restart."
+    },
+    {
+      "id": "SCHEMA_TAMPER_AND_RESUME",
+      "status": "TEST_REQUIRED",
+      "evidence": "two new tests check positive v35 upgrade, unchanged frozen objects and basic brand rejection; add missing/tampered object/trigger/FK/admission, partial-install/resume, key continuity and exact v34 default no-op controls."
+    }
+  ],
+  "testsIndependentlyRunOnTheseUncommittedChanges": 0,
+  "baselineIndependentTests": {
+    "pass": 6,
+    "fail": 0,
+    "head": "cd7633f64d3076ddc09df62de8f799ac769100d5"
+  },
+  "sourceReviewLimit": "The implementer continued mode-selected store changes during interim review; hashes freeze files read for this advice. Final whole candidate review is still mandatory."
+}

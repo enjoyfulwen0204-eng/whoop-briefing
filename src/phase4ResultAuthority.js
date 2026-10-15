@@ -1,10 +1,11 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import { compareExact } from './phase4CanonicalOrder.js';
 import { healthSourceVersion, canonicalSourceVersion, canonicalSourceTime } from './phase4SourceVersion.js';
 import {fail,readableRow,RAW_SOURCE_READ_BATCH} from './phase4Core.js';
 import { canonicalJson } from './phase4EntityStore.js';
 import {addPrivacyLinks} from './phase4V22Backfill.js';
-import { RESULT_AUTHORITY_TABLE as TABLE, RESULT_AUTHORITY_VERSION as VERSION, RESULT_ROOT_VERSION } from './phase4V26Schema.js';
+import { RESULT_AUTHORITY_TABLE as SHADOW_TABLE, RESULT_AUTHORITY_VERSION as VERSION, RESULT_ROOT_VERSION } from './phase4V26Schema.js';
 import { createBodyEnergyStore,requireNewBodySourceCapture } from './bodyEnergyStore.js';
 import {reservePilotMutation} from './betaPilotPermit.js';
 import {pilotPrefixFrom} from './betaPilotBoundedReads.js';
@@ -38,6 +39,7 @@ const rootProjection=(row,type,version)=>[NORMALIZED_ROOT_VERSION,BOUNDED_ROOT_V
  * secondary indexes, never consulted to enumerate required semantic roots.
  * Derived inputs are flattened from their versioned calculation manifests. */
 export function createResultAuthority(core) {
+  const TABLE=analysisTable(core,SHADOW_TABLE);
   const {client,keys}=core;
   const hash=(salt,domain,value)=>keys.digest(salt,canonicalJson([domain,value]));
   const seal=row=>hash(row.content_digest_salt,VERSION,Object.fromEntries(Object.entries(row)
@@ -306,7 +308,7 @@ export function createResultAuthority(core) {
    * artifact, audit and flattened input comparisons share one fresh raw union
    * inside this call. Complex graphs keep the original complete capture. */
   async function captureNewBodySourceRoots(context,refs,salt,producer){
-    if(![32,33,34].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||!core.processing.active?.()||!core.jobAuthority()
+    if(![32,33,34,35].includes(core.schemaVersion)||!core.analysisModeAllowed(context)||!core.processing.active?.()||!core.jobAuthority()
       ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)return null;
     const sources=core.validateReferences(context,refs);
     if(sources.length!==1||sources[0].type!=='body_energy_results'||sources[0].mode!==context.executionMode||sources[0].historicalAsOf)return null;
@@ -421,7 +423,7 @@ export function createResultAuthority(core) {
   function verifyEnvelope(context,row) {
     if(!readableRow(row))fail('CONTENT_REDACTED');
     try {
-      if(row.user_id!==context.userId||row.execution_mode!==context.executionMode||row.execution_mode!=='SHADOW'
+      if(row.user_id!==context.userId||row.execution_mode!==context.executionMode||row.execution_mode!==(core.liveAllocation?'LIVE':'SHADOW')
         ||!['METRIC','INSIGHT_CURRENT','INSIGHT_CONTRADICTION'].includes(row.result_scope)
         ||row.authority_version!==VERSION||row.privacy_artifact_id!==artifactId(context,row.evidence_item_id,row.result_scope)
         ||seal(row)!==row.authority_hmac)invalid();
@@ -558,7 +560,7 @@ export function createResultAuthority(core) {
   }
   async function persist(context,{item,run,scope,origin,calculation,sourceRefs,continuation=null}) {
     if(!core.processing.active())fail('PHASE4_TRANSACTION_REQUIRED');
-    if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
+    core.assertAnalysisWrite(context);
     // This method is internal to the deterministic calculation transaction.
     // Existing/legacy items may never acquire an origin on later reuse.
     if(!item.created){
@@ -622,7 +624,7 @@ export function createResultAuthority(core) {
       args:[...scope,row.run_id]})).rows[0];
     const targets=[],add=(type,value)=>{if(value?.privacy_artifact_id)targets.push({mode:row.execution_mode,type,id:value.privacy_artifact_id});};
     // Identity is the trusted registry boundary, even when payload HMAC fails.
-    if(row.user_id!==userId||row.execution_mode!=='SHADOW'||!item||!run||item.run_id!==run.run_id
+    if(row.user_id!==userId||row.execution_mode!==(core.liveAllocation?'LIVE':'SHADOW')||!item||!run||item.run_id!==run.run_id
       ||row.privacy_artifact_id!==artifactId(context,row.evidence_item_id,row.result_scope)
       ||item.privacy_artifact_id!==keys.lookup(['privacy-artifact-v1','evidence_items',userId,row.execution_mode,[item.run_id,item.item_key]])
       ||run.privacy_artifact_id!==keys.lookup(['privacy-artifact-v1','evidence_runs',userId,row.execution_mode,[run.deterministic_run_key]]))

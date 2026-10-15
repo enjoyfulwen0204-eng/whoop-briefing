@@ -1,3 +1,5 @@
+import {hasLiveProducingAuthority,isLiveExecution} from './stage8LiveProducerAuthority.js';
+import {LIVE_HEALTH_FIELDS} from './stage8LiveAllocation.js';
 import {allowsStage8LiveAuthority} from './stage8LiveAuthority.js';
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import {assertRegisteredJournalProvenance} from './stage7JournalProvenance.js';
@@ -41,7 +43,7 @@ export const readableRow = row => Boolean(row && row.content_state==='PRESENT'
 // Finite in-flight raw observations for the complete original 30-day Body
 // graph. This controls transport overlap only, never semantic input limits.
 export const RAW_SOURCE_READ_BATCH=64;
-export const DERIVED_TABLES = Object.freeze(['context_questions','structured_answer_events',...V23_TABLES,'health_insights',...V24_TABLES,...V25_TABLES,...V26_TABLES,...V27_TABLES,'morning_brief_plans']);
+export const DERIVED_TABLES = Object.freeze(['context_questions','structured_answer_events',...V23_TABLES,'health_insights',...V24_TABLES,...V25_TABLES,...V26_TABLES,...V27_TABLES,...Object.keys(LIVE_HEALTH_FIELDS),'morning_brief_plans']);
 const ROOTS = Object.freeze({
   sleep:['whoop_sleeps','id'],recovery:['whoop_recoveries','sleep_id'],cycle:['whoop_cycles','id'],workout:['whoop_workouts','id'],
   JOURNAL_FACT:['journal_events','privacy_artifact_id'],JOURNAL_COVERAGE:['journal_coverage_windows','coverage_window_id'],
@@ -66,7 +68,7 @@ function compareRootObservation(context,type,id,values){
 /** Server-owned context and source references are branded within this instance.
  * A JSON object, a context from another connection, or a changed mode is not a
  * capability. Authority is supplied only by the owning server/fixture factory. */
-export async function buildPhase4Core({processing,keys,admission,authorizeMode:modeAuthority,liveAuthority,now=()=>new Date()}) {
+export async function buildPhase4Core({processing,keys,admission,authorizeMode:modeAuthority,liveAuthority,liveProducingAuthority,now=()=>new Date()}) {
   const jobScope=new AsyncLocalStorage();
   requirePhase4Keys(keys);
   if(typeof modeAuthority!=='function' || typeof processing?.transaction!=='function')fail('PHASE4_SERVER_FACTORY_REQUIRED');
@@ -75,15 +77,16 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   // must separately require v28; unsupported versions still fail closed.
   const schemaVersion=admission ? requireRuntimeAdmission(client,admission,keys,transaction)
     :Number((await client.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v);
-  if(![27,28,29,30,31,32,33,34].includes(schemaVersion))fail('phase4_schema_version_mismatch');
-  if (!admission && [33,34].includes(schemaVersion)) admission=await admitRuntime(client,keys);
+  if(![27,28,29,30,31,32,33,34,35].includes(schemaVersion))fail('phase4_schema_version_mismatch');
+  if (!admission && [33,34,35].includes(schemaVersion)) admission=await admitRuntime(client,keys);
   if (!admission) await assertPhase4Schema(client,schemaVersion);
   if(admission)followRuntimeRenewal(client,admission,keys,transaction,next=>{admission=next;});
   const databases=(await client.execute('PRAGMA database_list')).rows;
   const isolatedMemory=client.protocol==='file'&&databases.some(r=>r.name==='main')&&databases.every(r=>['main','temp'].includes(r.name)&&r.file==='');
   function authorizeMode(mode,connection,userId) {
     if(admission)requireRuntimeAdmission(client,admission,keys,transaction);
-    if(mode==='LIVE'&&!isolatedMemory&&!allowsStage8LiveAuthority(liveAuthority,client,keys,userId))fail('PHASE4_LIVE_FIXTURE_MEMORY_REQUIRED');
+    if(mode==='LIVE'&&liveProducingAuthority&&!hasLiveProducingAuthority(liveProducingAuthority,client,keys,userId))fail('PHASE4_LIVE_FIXTURE_MEMORY_REQUIRED');
+    if(mode==='LIVE'&&!isolatedMemory&&!allowsStage8LiveAuthority(liveAuthority,client,keys,userId)&&!hasLiveProducingAuthority(liveProducingAuthority,client,keys,userId))fail('PHASE4_LIVE_FIXTURE_MEMORY_REQUIRED');
     return modeAuthority(mode,connection,userId);
   }
   if (!admission) {
@@ -91,6 +94,13 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   if(!keys.verifyLookupCheckpoint(keyCheck?.last_cursor))fail('PHASE4_LOOKUP_KEY_MISMATCH');
   const auditCheck=(await client.execute("SELECT last_cursor FROM phase4_migration_checkpoints WHERE target_version=22 AND step_key='audit_key_check'")).rows[0];
   if(!keys.verifyAuditCheckpoint(auditCheck?.last_cursor))fail('PHASE4_AUDIT_KEY_MISMATCH');
+  }
+  const liveAllocation=schemaVersion===35&&Boolean(liveAuthority||hasLiveProducingAuthority(liveProducingAuthority,client,keys));
+  const analysisModeAllowed=context=>context.executionMode==='SHADOW'&&!liveAllocation
+    ||context.executionMode==='LIVE'&&liveAllocation;
+  function assertAnalysisWrite(context){
+    if(!analysisModeAllowed(context)||context.executionMode==='LIVE'&&(!hasLiveProducingAuthority(liveProducingAuthority,client,keys)
+      ||!isLiveExecution(currentDurableExecution(),client,keys,context.userId,context)))fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
   }
   const rootObservations=new WeakMap(),ownedEvidenceData=new WeakMap(),ownedMetricUnions=new WeakMap();
   const contexts=new WeakSet(),controls=new WeakSet(),privacyControls=new WeakSet(),sources=new WeakMap(),columns=new Map();
@@ -577,7 +587,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   // actual link plus every expected audit/domain root once; callers compare
   // their original purposes against these data before the final fresh gate.
   async function currentBodyRawUnion(context,row,expected){
-    if(!processing.active?.()||!jobScope.getStore()||!contexts.has(context)||![32,33,34].includes(schemaVersion)||context.executionMode!=='SHADOW'
+    if(!processing.active?.()||!jobScope.getStore()||!contexts.has(context)||![32,33,34,35].includes(schemaVersion)||!analysisModeAllowed(context)
       ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)
       fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
     if(row.user_id!==context.userId||row.execution_mode!==context.executionMode||!readableRow(row))fail('CONTENT_REDACTED');
@@ -616,7 +626,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   // It returns raw observations only: its caller executes each original
   // purpose comparator in order and fences again before a receipt effect.
   async function bodyMetricPreparationRawUnion(context,refs,expected,ownedPurpose=null){
-    if(!processing.active?.()||!jobScope.getStore()||!contexts.has(context)||![32,33,34].includes(schemaVersion)||context.executionMode!=='SHADOW'
+    if(!processing.active?.()||!jobScope.getStore()||!contexts.has(context)||![32,33,34,35].includes(schemaVersion)||!analysisModeAllowed(context)
       ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     requireSettledOperation();
@@ -723,7 +733,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
   // source comparators run in their original order. A later mutation phase
   // invokes a NEW closure; no successful graph check or permit is reused.
   async function metricPreparationItemSources(context,runId,bodyRefs,runRef=null){
-    if(!processing.active?.()||!jobScope.getStore()||![32,33,34].includes(schemaVersion)||context.executionMode!=='SHADOW'
+    if(!processing.active?.()||!jobScope.getStore()||![32,33,34,35].includes(schemaVersion)||!analysisModeAllowed(context)
       ||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN'||currentDurableExecution().receipts===false)
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     requireSettledOperation();
@@ -885,7 +895,7 @@ export async function buildPhase4Core({processing,keys,admission,authorizeMode:m
       privacy_artifact_id:keys.lookup(['privacy-artifact-v1',table,context.userId,context.executionMode,identity]),
       content_digest_salt:salt,purge_generation:context.purgeGeneration};
   }
-  const core=Object.freeze({client,processing,transaction,keys,now,timestamp,schemaVersion,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
+  const core=Object.freeze({client,processing,transaction,keys,now,timestamp,schemaVersion,liveAllocation,analysisModeAllowed,assertAnalysisWrite,userState,initializeTenant,capture,assertContext,captureControl,assertControl,
     withJobFence:(binding,check,fn)=>jobScope.run({binding,check},fn),jobAuthority:()=>jobScope.getStore()?.binding??null,
     capturePrivacyControl,assertPrivacyControl,run,runControl,runMaintenance,contextRegistry,
     tableInfo,root,ownedBodyMetricRootData,copyOwnedRootObservation,compareRootObservation,readRoots,currentBodyRawUnion,bodyMetricPreparationRawUnion,metricPreparationItemSources,linkMetricPreparationItem,artifact,link,envelope,reference,isReference:value=>sources.has(value),validateReferences,revalidateSources,journalSourcesAsOf,validateHistoricalJournal,validateStoredGraph,newId:()=>randomUUID()});return core;

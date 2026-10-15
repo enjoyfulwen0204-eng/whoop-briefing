@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import {assertFreshContextAndWorkOwner} from './phase4ReadControls.js';
 import { compareExact } from './phase4CanonicalOrder.js';
 import { isRequestSet, isRequestTime, isJournalRequestSet, normalizeRequestAliases, requestEvidenceIds } from './phase4RequestContract.js';
@@ -12,8 +13,8 @@ import { healthSourceVersion } from './phase4SourceVersion.js';
 import { createResultAuthority } from './phase4ResultAuthority.js';
 import {addPrivacyLinks} from './phase4V22Backfill.js';
 import { insightIdentityKey } from './phase4InsightStore.js';
-import { RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
-import { OPERATION_RECEIPT_TABLE as TABLE, OPERATION_RECEIPT_VERSION as VERSION } from './phase4V27Schema.js';
+import { RESULT_AUTHORITY_TABLE as SHADOW_RESULT_AUTHORITY_TABLE } from './phase4V26Schema.js';
+import { OPERATION_RECEIPT_TABLE as SHADOW_TABLE, OPERATION_RECEIPT_VERSION as VERSION } from './phase4V27Schema.js';
 import {JOB_KINDS} from './phase4V24Schema.js';
 import { createInsightRefreshAuthority } from './phase4InsightRefresh.js';
 import { createMetricRefreshAuthority } from './phase4MetricRefresh.js';
@@ -70,13 +71,15 @@ export const INSIGHT_DISCOVERY_BUDGET=Object.freeze({insights:1000,revisions:100
  * Capabilities are reissued only after receipt, roots and fences authenticate.
  * It never merges current semantic fields into historical content. */
 export function createOperationReceipts(core) {
+  const RESULT_AUTHORITY_TABLE=analysisTable(core,SHADOW_RESULT_AUTHORITY_TABLE);
+  const TABLE=analysisTable(core,SHADOW_TABLE);
   if(instances.has(core))return instances.get(core);
   const {client,keys}=core,authorities=createResultAuthority(core);
   // Progress only. An acknowledged new original domain operation can yield
   // one bounded worker leg; this brand never authorizes a later domain read.
   const newMetricDomains=new WeakMap();
-  const routing=core.schemaVersion>=29?createReceiptRouting(client,keys):null;
-  const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,keys):null;
+  const routing=core.schemaVersion>=29?createReceiptRouting(client,keys,{live:core.liveAllocation}):null;
+  const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,keys,{live:core.liveAllocation}):null;
   const producerScope=new AsyncLocalStorage();
   const refreshAuthority=createInsightRefreshAuthority(core,{authenticate,authorities,
     validateEvidence:(context,id)=>forArtifact(context,'evidence_items',{evidence_item_id:id})});
@@ -277,7 +280,7 @@ export function createOperationReceipts(core) {
   }
   function authenticate(context,row) {
     if(!readableRow(row))fail('CONTENT_REDACTED');
-    if(row.user_id!==context.userId||row.execution_mode!==context.executionMode||row.execution_mode!=='SHADOW'
+    if(row.user_id!==context.userId||row.execution_mode!==context.executionMode||row.execution_mode!==(core.liveAllocation?'LIVE':'SHADOW')
       ||row.receipt_version!==VERSION||row.privacy_artifact_id!==identity(context,row.operation_kind,row.operation_key)
       ||seal(row)!==row.receipt_hmac)invalid();
     const decoded={};for(const field of ['request_json','result_json','related_results_json','required_roots_json','schema_contract_json']) {
@@ -305,7 +308,7 @@ export function createOperationReceipts(core) {
     if(!retainedBody&&decoded.request_json.scope.algorithm_set_version!==context.algorithmSetVersion)fail('PHASE4_INPUT_FENCED');
     for(const [field,value] of [['input_generation',context.inputGeneration],['lifecycle_generation',context.lifecycleGeneration],
       ['auth_generation',context.authGeneration],['purge_generation',context.purgeGeneration]])if(!retainedBody&&row[field]!==value)fail('PHASE4_PARENT_STALE');
-    if([32,33,34].includes(core.schemaVersion)&&core.jobAuthority()&&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
+    if([32,33,34,35].includes(core.schemaVersion)&&core.jobAuthority()&&currentDurableExecution()?.claim?.request?.phase==='STAGE6_DRAIN'
       &&row.operation_kind==='analyzeMetric'&&decoded.request_json.request.metricKey==='body_energy'&&decoded.request_json.request.refresh===true){
       const produced=decoded.result_json.jobAuthority,current=core.jobAuthority();
       // Both original queue kinds consume this same metric domain identity.
@@ -518,7 +521,7 @@ export function createOperationReceipts(core) {
   async function readBodyDrainSource(context,resultId){
     return core.run(context,async()=>{
       const owner=await assertExecutionWorkOwner(client);
-      if(![32,33,34].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
+      if(![32,33,34,35].includes(core.schemaVersion)||!core.analysisModeAllowed(context)||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
         fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const artifact=await core.artifact(context,'body_energy_results',{result_id:resultId});
       const {normalized}=await prepare(context,{asOfEpochMs:artifact.row.as_of_epoch_ms},'BODY_ENERGY_COMPUTE');
@@ -537,7 +540,7 @@ export function createOperationReceipts(core) {
   async function readCurrentBodyBundle(context,asOfUtc){
     return core.run(context,async()=>{
       const owner=await assertExecutionWorkOwner(client);
-      if(![32,33,34].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
+      if(![32,33,34,35].includes(core.schemaVersion)||!core.analysisModeAllowed(context)||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
         fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const rows=(await client.execute({sql:`SELECT * FROM body_energy_results
         WHERE user_id=? AND execution_mode=? AND input_generation=? AND invalidated_at IS NULL
@@ -895,7 +898,7 @@ export function createOperationReceipts(core) {
         if(!row)fail('EXECUTION_DOMAIN_RECEIPT_MISSING');return read(context,row);};
     }
     return core.run(context,async()=>{
-      if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
+      core.assertAnalysisWrite(context);
       const {normalized,refs,semanticRequest}=await prepare(context,request,kind);
       const epoch=normalized.asOfEpochMs??(Number.isSafeInteger(normalized.bucketStart)?normalized.bucketStart+15*60000:null);
       if(epoch!==null&&epoch!==undefined&&!Number.isSafeInteger(epoch))fail('PHASE4_SEMANTIC_TIME_INVALID');

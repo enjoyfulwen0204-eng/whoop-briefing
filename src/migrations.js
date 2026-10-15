@@ -22,7 +22,7 @@
  */
 
 import {
-  ADDITIVE_COLUMNS, DATA_MIGRATIONS, LEGACY_TABLES, RESHAPED_TABLES, SCHEMA, SCHEMA_VERSION,
+  ADDITIVE_COLUMNS, DATA_MIGRATIONS, LEGACY_TABLES, RESHAPED_TABLES, SCHEMA, SCHEMA_VERSION, LATEST_SCHEMA_VERSION,
   LEGACY_SCHEMA_VERSION,
 } from './schema.js';
 import { log } from './logger.js';
@@ -93,7 +93,7 @@ export async function runMigrations(client, { allowRebuild = true, targetVersion
   privacyKeys, experimentAttestations = [],
 } = {}) {
   const from = await currentVersion(client);
-  if (!Number.isInteger(targetVersion) || targetVersion < LEGACY_SCHEMA_VERSION || targetVersion > SCHEMA_VERSION
+  if (!Number.isInteger(targetVersion) || targetVersion < LEGACY_SCHEMA_VERSION || targetVersion > LATEST_SCHEMA_VERSION
       || from > targetVersion) throw new Phase4SchemaError('schema_version_incompatible');
   // Only a pre-v21 database with no key authority may bootstrap through v21
   // without secrets. Check this before any schema or data write, including a

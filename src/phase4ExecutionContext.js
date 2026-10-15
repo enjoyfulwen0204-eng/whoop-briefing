@@ -1,3 +1,5 @@
+import {isLiveExecution} from './stage8LiveProducerAuthority.js';
+import {liveTable} from './stage8LiveAllocation.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 const scope=new AsyncLocalStorage();
 export const databaseNowMs="(CAST(strftime('%s','now') AS INTEGER)*1000+CAST(substr(strftime('%f','now'),4,3) AS INTEGER))";
@@ -12,6 +14,11 @@ export function requireSettledOperation(error){
  if(context?.workRejected)throw context.workRejected;
 }
 const fail=code=>{throw Object.assign(Error(code),{code});};
+function executionTable(client,name){
+ const execution=scope.getStore();if(execution?.claim?.request?.executionMode!=='LIVE')return name;
+ if(!isLiveExecution(execution,client,execution.keys))fail('STAGE8_LIVE_PRODUCING_AUTHORITY_REQUIRED');
+ return liveTable(name);
+}
 function requireExecutionWorkOwner(context,row){
  const {claim}=context;
  if(!row)fail('REQUEST_OWNER_FENCED');
@@ -26,7 +33,7 @@ function requireExecutionWorkOwner(context,row){
 export async function assertExecutionWorkOwner(client){
  const context=scope.getStore();if(!context||context.receipts===false)return;
  context.authority.assert();const {claim}=context;
- const row=(await client.execute({sql:`SELECT * FROM phase4_executions WHERE execution_id=? AND owner=? AND generation=?
+ const row=(await client.execute({sql:`SELECT * FROM ${executionTable(client,'phase4_executions')} WHERE execution_id=? AND owner=? AND generation=?
   AND state='ESTABLISHED' AND lease_until>${databaseNowMs} AND deadline_at>${databaseNowMs}`,
   args:[claim.executionId,claim.owner,claim.generation]})).rows[0];
  return requireExecutionWorkOwner(context,row);
@@ -39,7 +46,7 @@ export async function readWorkStep(client,step){
  // one statement. No owner result is cached across calls or transactions.
  const columns=['execution_id','receipt_key','scope_key','request_digest','step_key','generation','committed_at','result_json'];
  const observed=(await client.execute({sql:`SELECT e.*,${columns.map(name=>`r.${name} AS receipt_${name}`).join(',')}
-  FROM phase4_executions e LEFT JOIN phase4_execution_work_receipts r ON r.receipt_key=?
+  FROM ${executionTable(client,'phase4_executions')} e LEFT JOIN ${executionTable(client,'phase4_execution_work_receipts')} r ON r.receipt_key=?
   WHERE e.execution_id=? AND e.owner=? AND e.generation=? AND e.state='ESTABLISHED'
    AND e.lease_until>${databaseNowMs} AND e.deadline_at>${databaseNowMs}`,
   args:[key,claim.executionId,claim.owner,claim.generation]})).rows[0];
@@ -80,7 +87,7 @@ export async function appendPreparedExecutionReceipt(client,token){
  const context=scope.getStore();if(!prepared||prepared.context!==context||prepared.client!==client
   ||prepared.lifetime!==receiptTransactions.getStore()||!prepared.lifetime.active)fail('EXECUTION_RECEIPT_CORRUPT');
  const {claim,key,result,explicit}=prepared;context.authority.assert();
- await client.execute({sql:'INSERT INTO phase4_execution_work_receipts(execution_id,receipt_key,scope_key,request_digest,step_key,generation,committed_at,result_json) VALUES(?,?,?,?,?,?,?,?)',
+ await client.execute({sql:`INSERT INTO ${executionTable(client,'phase4_execution_work_receipts')}(execution_id,receipt_key,scope_key,request_digest,step_key,generation,committed_at,result_json) VALUES(?,?,?,?,?,?,?,?)`,
   args:[claim.executionId,key,claim.scopeKey,claim.identity,key,claim.generation,Date.now(),explicit?receiptResult(result):null]});
  context.authority.assert();
 }
@@ -89,10 +96,11 @@ export async function appendExecutionReceipt(client,options={}){
 }
 export async function bindProducingExecution(client,context){
  const execution=scope.getStore();if(!execution||execution.receipts===false)return;
+ if(context.executionMode==='LIVE'&&!isLiveExecution(execution,client,execution.keys,context.userId,context))fail('STAGE8_LIVE_PRODUCING_AUTHORITY_REQUIRED');
  const row=await assertExecutionWorkOwner(client);
  if(row.phase!=='STAGE6_DRAIN')fail('EXECUTION_PRODUCER_PHASE_INVALID');
  const proof=execution.keys.lookup(['execution-producer-v1',context.userId,context.executionMode,context.inputGeneration,row.execution_id,row.execution_seq,row.generation]);
- await client.execute({sql:`INSERT INTO phase4_execution_producers(user_id,execution_mode,input_generation,producing_execution_id,producing_generation,execution_seq,tenant_proof)
+ await client.execute({sql:`INSERT INTO ${executionTable(client,'phase4_execution_producers')}(user_id,execution_mode,input_generation,producing_execution_id,producing_generation,execution_seq,tenant_proof)
   VALUES(?,?,?,?,?,?,?) ON CONFLICT(user_id,execution_mode,input_generation,producing_execution_id) DO UPDATE SET producing_execution_id=excluded.producing_execution_id,
   producing_generation=excluded.producing_generation,execution_seq=excluded.execution_seq,tenant_proof=excluded.tenant_proof`,
   args:[context.userId,context.executionMode,context.inputGeneration,row.execution_id,row.generation,row.execution_seq,proof]});

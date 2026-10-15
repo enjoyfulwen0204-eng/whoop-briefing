@@ -1,5 +1,7 @@
 # Bounded synthetic HTTP startup recovery
 
+Historical rejected d871 prototype: its claim that the persisted retry marker prevents redispatch across restart was disproven by independent P1 review. Do not activate this predecessor. See `stage6-synthetic-durable-dispatch-20261015.md` for the replacement CAS protocol.
+
 The e97074d full continuation stopped at HTTP leg312 with `DRAIN_CHILD_READY_TIMEOUT`. Child READY was absent; the original supervisor's five-second guard terminated it at5.202s. No execution, work receipt, producer or reservation existed for that failed transport call. Ledger313, all six generation11 jobs and264/864 source visits were retained. The prior unknown503 remains unknown.
 
 Eight no-start-payload Linux1CPU/2GiB probes, using the same approved profile, completed READY in1.258–1.748s with ZERO DB HTTP/SQL operations or reservations. CPU profiles show ESM compilation/loader waiting and GC; they do not reproduce or explain the five-second tail. No timeout/resource/algorithm change is justified by those probes.

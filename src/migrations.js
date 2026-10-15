@@ -89,10 +89,11 @@ export async function inspectReshape(client) {
  * @param {object} client libsql client
  * @param {{ allowRebuild?: boolean }} opts allowRebuild=false 時只建新表、不重建舊形狀表
  */
-export async function runMigrations(client, { allowRebuild = true, targetVersion = SCHEMA_VERSION,
+export async function runMigrations(client, { allowRebuild = true, targetVersion,
   privacyKeys, experimentAttestations = [],
 } = {}) {
   const from = await currentVersion(client);
+  targetVersion??=(from===LATEST_SCHEMA_VERSION?from:SCHEMA_VERSION);
   if (!Number.isInteger(targetVersion) || targetVersion < LEGACY_SCHEMA_VERSION || targetVersion > LATEST_SCHEMA_VERSION
       || from > targetVersion) throw new Phase4SchemaError('schema_version_incompatible');
   // Only a pre-v21 database with no key authority may bootstrap through v21

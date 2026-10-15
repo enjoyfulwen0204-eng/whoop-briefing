@@ -29,7 +29,7 @@ export async function createStage7Runtime({db,keys,env,environment={},admission,
  admission??=await db.admitRuntime();
  const core=await buildPhase4Core({processing:{client:db.raw,transaction:db.transaction,withReadSnapshot:db.withProcessingReadSnapshot,assertFences:db.assertRuntimeFences,active:db.processingTransactionActive,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},keys,admission,now,
   authorizeMode(mode){if(mode!=='SHADOW')fail('PHASE4_LIVE_NOT_AUTHORIZED');}});
- if(![33,34].includes(core.schemaVersion))fail('STAGE7_V33_CONFIG_REQUIRED');
+ if(![33,34,35].includes(core.schemaVersion))fail('STAGE7_V33_CONFIG_REQUIRED');
  const stores=composePhase4Stores(core),companion=await createStage7Composition({core,stores,db}),coach=createCompanionCoach({core,stores,db,companion}),invitations=createCompanionInvitation({core,stores,db,companion,coach,configuration:config.timing});
  const eligible=user=>Boolean(user&&config.userIds.includes(user.id)&&user.status==='ACTIVE');
  const replies=createStage7ReplyAuthority({core,db,companion});

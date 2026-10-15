@@ -1,3 +1,4 @@
+import {recordLiveJobCompletion,liveCompletionWork,liveCompletionCursorHash} from './stage8LivePublication.js';
 import { randomUUID } from 'node:crypto';
 import { fail } from './phase4Core.js';
 import { JOB_KINDS, OPERATION_ERROR_CODES } from './phase4V24Schema.js';
@@ -14,9 +15,10 @@ export const tenantPassLockName=(userId,mode)=>`phase4-stage6-pass:${JSON.string
 /** Internal worker queue. Only the drain holds leases and end-of-scope proofs;
  * the public Foundation queue still cannot settle a FULL pass. */
 export function createReanalysisQueue(core) {
-  if(![28,29,30,31,32,33,34].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
+  if(![28,29,30,31,32,33,34,35].includes(core.schemaVersion))fail('PHASE4_STAGE6_SCHEMA_REQUIRED');
+  const mode=core.liveAllocation?'LIVE':'SHADOW';
   const {client,transaction,timestamp}=core,leases=new WeakMap(),proofs=new WeakMap();
-  const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,core.keys):null;
+  const familyDirectory=core.schemaVersion>=30?createFamilyDirectory(client,core.keys,{live:core.liveAllocation}):null;
   const read=(context,kind)=>client.execute({sql:'SELECT * FROM phase4_jobs WHERE user_id=? AND execution_mode=? AND job_kind=?',
     args:[context.userId,context.executionMode,kind]}).then(result=>result.rows[0]);
   const readOwnership=(context,kind)=>client.execute({sql:`SELECT state,lease_owner,lease_expires_at,requested_generation,
@@ -28,7 +30,7 @@ export function createReanalysisQueue(core) {
     const rows=(await client.execute({sql:`SELECT user_id,job_kind FROM (
       SELECT j.*,ROW_NUMBER() OVER(PARTITION BY j.user_id ORDER BY j.updated_at,j.job_kind) AS position
       FROM phase4_jobs j JOIN users u ON u.id=j.user_id JOIN phase4_user_state p ON p.user_id=j.user_id
-      WHERE j.execution_mode='SHADOW' AND u.status='ACTIVE' AND p.pending_purge_count=0
+      WHERE j.execution_mode='${mode}' AND u.status='ACTIVE' AND p.pending_purge_count=0
         AND (j.scope_kind<>'NONE' OR j.completed_generation<j.requested_generation)
         AND (j.next_attempt_at IS NULL OR j.next_attempt_at<=?) AND (j.lease_owner IS NULL OR j.lease_expires_at<=?)
         AND NOT EXISTS(SELECT 1 FROM resource_locks l
@@ -38,9 +40,10 @@ export function createReanalysisQueue(core) {
     return rows.map(row=>({userId:row.user_id,jobKind:row.job_kind}));
   }
   async function claim(context,kind,{leaseMs=60000}={}) {
-    if(context.executionMode!=='SHADOW'||!JOB_KINDS.includes(kind))fail('PHASE4_STAGE6_SHADOW_REQUIRED');
+    if(context.executionMode!==mode||!JOB_KINDS.includes(kind))fail('PHASE4_STAGE6_SHADOW_REQUIRED');
     if(!Number.isSafeInteger(leaseMs)||leaseMs<1000||leaseMs>120000)fail('PHASE4_DRAIN_BUDGET_INVALID');
     return core.run(context,async()=>{
+      core.assertAnalysisWrite(context);
       // The enclosing Core before-check has admitted this context. Settle
       // the job snapshot and the additional fresh context metadata together
       // before considering any lease mutation; preserve job failure priority.
@@ -56,7 +59,7 @@ export function createReanalysisQueue(core) {
       const resume=row.claimed_generation===context.inputGeneration&&row.claimed_lifecycle_generation===context.lifecycleGeneration
         &&row.claimed_auth_generation===context.authGeneration&&row.claimed_purge_generation===context.purgeGeneration
         &&row.claimed_scope_revision===row.scope_revision;
-      const binding=Object.freeze({userId:context.userId,executionMode:'SHADOW',jobKind:kind,owner:randomUUID(),
+      const binding=Object.freeze({userId:context.userId,executionMode:mode,jobKind:kind,owner:randomUUID(),
         tenantPass:tenantPassLockName(context.userId,context.executionMode),
         expiresAt:new Date(Date.parse(at)+leaseMs).toISOString(),requestedGeneration:context.inputGeneration,scopeRevision:row.scope_revision,
         sourceGeneration:context.sourceGeneration,lifecycleGeneration:context.lifecycleGeneration,authGeneration:context.authGeneration,
@@ -67,7 +70,7 @@ export function createReanalysisQueue(core) {
       if(locked.rowsAffected!==1)return null;
       const changed=await client.execute({sql:`UPDATE phase4_jobs SET state='RUNNING',lease_owner=?,lease_expires_at=?,
         claimed_generation=?,claimed_lifecycle_generation=?,claimed_auth_generation=?,claimed_scope_revision=?,claimed_purge_generation=?,
-        full_scan_cursor=?,updated_at=? WHERE user_id=? AND execution_mode='SHADOW' AND job_kind=?
+        full_scan_cursor=?,updated_at=? WHERE user_id=? AND execution_mode='${mode}' AND job_kind=?
         AND requested_generation=? AND scope_revision=? AND (lease_owner IS NULL OR lease_expires_at<=?)`,
         args:[binding.owner,binding.expiresAt,context.inputGeneration,context.lifecycleGeneration,context.authGeneration,row.scope_revision,
           context.purgeGeneration,resume?row.full_scan_cursor:null,at,context.userId,kind,context.inputGeneration,row.scope_revision,at]});
@@ -151,20 +154,21 @@ export function createReanalysisQueue(core) {
       await client.execute({sql:`UPDATE phase4_jobs SET completed_generation=requested_generation,scope_kind='NONE',state='COMPLETED',
         affected_from=NULL,affected_to=NULL,subject_key=NULL,full_scan_cursor=NULL,unresolved_since=NULL,attempt=0,next_attempt_at=NULL,
         last_error_code=NULL,lease_owner=NULL,lease_expires_at=NULL,updated_at=?
-        WHERE user_id=? AND execution_mode='SHADOW' AND job_kind=?`,args:[timestamp(),context.userId,b.jobKind]});
-      const remaining=(await client.execute({sql:`SELECT 1 FROM phase4_jobs WHERE user_id=? AND execution_mode='SHADOW' AND ${active} LIMIT 1`,
+        WHERE user_id=? AND execution_mode='${mode}' AND job_kind=?`,args:[timestamp(),context.userId,b.jobKind]});
+      if(core.liveAllocation)await recordLiveJobCompletion(core,context,b,pass.cursor);
+      const remaining=(await client.execute({sql:`SELECT 1 FROM phase4_jobs WHERE user_id=? AND execution_mode='${mode}' AND ${active} LIMIT 1`,
         args:[context.userId]})).rows.length;
       if(!remaining) {
         await client.execute({sql:`UPDATE phase4_computation_state SET last_completed_generation=input_generation
-          WHERE user_id=? AND execution_mode='SHADOW' AND input_generation=?`,args:[context.userId,b.requestedGeneration]});
+          WHERE user_id=? AND execution_mode='${mode}' AND input_generation=?`,args:[context.userId,b.requestedGeneration]});
         await client.execute({sql:`UPDATE phase4_invalidations SET scope_kind='NONE',full_scan_cursor=NULL,affected_from=NULL,affected_to=NULL,subject_key=NULL
-          WHERE user_id=? AND execution_mode='SHADOW' AND requested_generation=?`,args:[context.userId,b.requestedGeneration]});
+          WHERE user_id=? AND execution_mode='${mode}' AND requested_generation=?`,args:[context.userId,b.requestedGeneration]});
         const at=timestamp();
         if(core.schemaVersion<32)await client.execute({sql:`INSERT INTO system_heartbeats(scope,component,last_ok_at,last_detail,updated_at)
           VALUES (?,'phase4_stage6_shadow',?,NULL,?) ON CONFLICT(scope,component) DO UPDATE SET
           last_ok_at=excluded.last_ok_at,last_detail=NULL,updated_at=excluded.updated_at`,args:[`user:${context.userId}`,at,at]});
       }
-    },{...workStepOptions('stage6.complete',[context.userId,b.jobKind,b.requestedGeneration,b.scopeRevision,pass.cursor],{discardResult:true}),before:()=>core.assertContext(context),after:settled,commitFence:settled});
+    },{...(core.liveAllocation?liveCompletionWork(context,b,liveCompletionCursorHash(core.keys,pass.cursor)):workStepOptions('stage6.complete',[context.userId,b.jobKind,b.requestedGeneration,b.scopeRevision,pass.cursor],{discardResult:true})),before:()=>core.assertContext(context),after:settled,commitFence:settled});
     await releaseTenant(lease);
     proofs.delete(proof);leases.delete(lease);
   }
@@ -174,7 +178,7 @@ export function createReanalysisQueue(core) {
       const row=await check(context,lease),attempt=row.attempt+(errorCode?1:0),at=timestamp();
       const next=errorCode?new Date(Date.parse(at)+STAGE6_RETRY_MS[Math.min(attempt,5)-1]).toISOString():row.next_attempt_at;
       await client.execute({sql:`UPDATE phase4_jobs SET state=?,attempt=?,next_attempt_at=?,last_error_code=?,
-        lease_owner=NULL,lease_expires_at=NULL,updated_at=? WHERE user_id=? AND execution_mode='SHADOW' AND job_kind=?`,
+        lease_owner=NULL,lease_expires_at=NULL,updated_at=? WHERE user_id=? AND execution_mode='${mode}' AND job_kind=?`,
         args:[attempt>=5?'REPAIR_REQUIRED':attempt?'RETRY_WAIT':'PENDING',attempt,next,errorCode??row.last_error_code,at,context.userId,lease.binding.jobKind]});
       core.processing.afterCommit(()=>leases.delete(lease));
       await transaction(async()=>{}, {commitFence:async()=>{

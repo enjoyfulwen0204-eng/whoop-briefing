@@ -404,7 +404,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     return {episode:await episodes.read(context,active.episode_id),created:false,replayed:false,event:revised};
   }
   async function metricPreparation(context,request,currentBody=null) {
-      if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
+      core.assertAnalysisWrite(context);
       if(!exactKeys(request,['metricKey','currentSource','baselineSources','asOfUtc','windowFamily',...(request.refresh===true?['refresh']:[])])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime()||typeof request.windowFamily!=='string'||!request.windowFamily)
         fail('PHASE4_METRIC_ANALYSIS_REQUEST_INVALID');
@@ -473,7 +473,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function withCurrentBodyMetricObservation(context,request,sourceAsOfUtc,work){
     if(typeof work!=='function')fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
-    if(![32,33,34].includes(core.schemaVersion)||request.metricKey!=='body_energy'||request.windowFamily!=='STAGE6_CURRENT_BODY_ENERGY'
+    if(![32,33,34,35].includes(core.schemaVersion)||request.metricKey!=='body_energy'||request.windowFamily!=='STAGE6_CURRENT_BODY_ENERGY'
       ||!Array.isArray(request.baselineSources)||request.baselineSources.length||typeof sourceAsOfUtc!=='string')return work(request);
     if(!core.processing.active?.())fail('PHASE4_TRANSACTION_REQUIRED');
     return withMetricPreparationContinuation(core,context,async()=>{
@@ -492,7 +492,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function metricPreparationUnit(context,request,kind){return performMetricPreparationUnit(context,request,kind);}
   async function replayCurrentBodyMetricFamily(context,sourceAsOfUtc,workStepFor,work){
-    if(![32,33,34].includes(core.schemaVersion)||!core.jobAuthority()||typeof workStepFor!=='function'||typeof work!=='function')
+    if(![32,33,34,35].includes(core.schemaVersion)||!core.jobAuthority()||typeof workStepFor!=='function'||typeof work!=='function')
       fail('PHASE4_METRIC_PREPARATION_CAPTURE_REQUIRED');
     return withMetricPreparationContinuation(core,context,async()=>{
       let request,inventory,purpose;
@@ -521,7 +521,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
     return withMetricPreparationContinuation(core,context,()=>performMetricPreparationUnit(context,null,'NEXT',()=>prepareCurrentBodyMetricRequest(context,asOfUtc)));
   }
   async function performMetricPreparationUnit(context,request,kind,requestFrom=null) {
-    if(![32,33,34].includes(core.schemaVersion)||!core.jobAuthority()||!requestFrom&&request?.refresh!==true
+    if(![32,33,34,35].includes(core.schemaVersion)||!core.jobAuthority()||!requestFrom&&request?.refresh!==true
       ||!['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY','NEXT'].includes(kind))
       fail('PHASE4_METRIC_UNIT_RECEIPT_REQUIRED');
     let prepared,alreadyRecorded=false,bodySource=null,ownedPurpose=null,domainWorkStep=null;
@@ -951,7 +951,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function analyzeAssociationFamily(context,request) {
     return core.run(context,async()=>{
-      if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
+      core.assertAnalysisWrite(context);
       const evidenceOnly=request?.lifecycleMode==='EVIDENCE_ONLY';
       if(!exactKeys(request,['asOfUtc','multipleTestingFamily','hypotheses',...(evidenceOnly?['lifecycleMode']:[])])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime()||typeof request.multipleTestingFamily!=='string'
@@ -1058,7 +1058,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function expireInsight(context,request) {
     return core.run(context,async()=>{
-      if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
+      core.assertAnalysisWrite(context);
       if(!exactKeys(request,['insightId','asOfUtc'])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime())fail('PHASE4_INSIGHT_EXPIRY_REQUEST_INVALID');
       const {insightId}=request,asOfUtc=requireSemanticTime(request.asOfUtc);
@@ -1074,7 +1074,7 @@ export function createPhase4IntelligenceStore(core, entities, episodes, insights
   }
   async function expireEpisode(context,request) {
     return core.run(context,async()=>{
-      if(context.executionMode!=='SHADOW')fail('PHASE4_INTELLIGENCE_SHADOW_ONLY');
+      core.assertAnalysisWrite(context);
       if(!exactKeys(request,['episodeId','asOfUtc'])||!validInstant(request.asOfUtc)
         ||Date.parse(request.asOfUtc)>core.now().getTime())fail('PHASE4_EPISODE_EXPIRY_REQUEST_INVALID');
       const {episodeId}=request,asOfUtc=requireSemanticTime(request.asOfUtc);

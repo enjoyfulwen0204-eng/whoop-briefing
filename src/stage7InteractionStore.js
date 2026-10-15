@@ -9,7 +9,7 @@ import {JOURNAL_COPY,JOURNAL_REGISTRY_VERSION,TOPICS,registryQuestion,presentati
 /** Internal server composition, default SHADOW only. Callbacks are opaque
  * random handles resolved under tenant, lifecycle, auth, timezone and revision. */
 export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWER_WINDOW_MS}){
- if(![33,34].includes(core.schemaVersion)||!Number.isSafeInteger(answerWindowMs)||answerWindowMs<3600000||answerWindowMs>7*86400000)fail('STAGE7_V33_CONFIG_REQUIRED');
+ if(![33,34,35].includes(core.schemaVersion)||!Number.isSafeInteger(answerWindowMs)||answerWindowMs<3600000||answerWindowMs>7*86400000)fail('STAGE7_V33_CONFIG_REQUIRED');
  const {client,keys,timestamp,transaction}=core;
  const hash=token=>keys.lookup(['stage7-callback',token]);
  async function authenticate({user,chatId,callback=null,allowPendingPurge=false}){
@@ -56,7 +56,7 @@ export function createStage7InteractionStore({core,db,answerWindowMs=DAILY_ANSWE
   const state=await core.assertControl(actor.control);
   if(row.user_id!==actor.control.userId||row.chat_id!==actor.chat||state.pending_purge_count!==0||!readableRow(row)||row.lifecycle_generation!==state.lifecycle_generation||row.auth_generation!==state.auth_generation||row.timezone!==state.timezone
    ||JSON.parse(row.diagnostics_json??'null')?.profileRevision!==await db.getProfileRevision(actor.control.userId))fail('STAGE7_STATE_FENCED');
-  const locale=await db.getLocale(row.user_id),card=journalCard(row,{locale,displayName:core.schemaVersion===34?await resolveRecipientName({db,userId:row.user_id}):actor.user.displayName,preferences});
+  const locale=await db.getLocale(row.user_id),card=journalCard(row,{locale,displayName:[34,35].includes(core.schemaVersion)?await resolveRecipientName({db,userId:row.user_id}):actor.user.displayName,preferences});
   const keyboard=[];
   for(const buttons of card.buttons){const list=[];for(const button of buttons){
    const token=randomBytes(24).toString('base64url');

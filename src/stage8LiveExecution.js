@@ -6,7 +6,7 @@ import {liveProducerConfiguration,registerLiveExecution,liveScopeDigest} from '.
 const fail=code=>{throw Object.assign(Error(code),{code});};
 const safeResult=value=>Object.fromEntries(Object.entries(value).filter(([key,v])=>
  ['outcome','itemsProcessed','jobsCompleted','jobsFailed','remainingJobs','unitsCommitted'].includes(key)
- &&(key==='outcome'?['COMPLETE','PARTIAL','NO_WORK','NO_ELIGIBLE_WORK','BUDGET_EXHAUSTED'].includes(v):Number.isSafeInteger(v)&&v>=0)));
+ &&(key==='outcome'?['COMPLETE','PARTIAL','NO_WORK','NO_ELIGIBLE_WORK','BUDGET_EXHAUSTED','FAILED'].includes(v):Number.isSafeInteger(v)&&v>=0)));
 /** Closed server runner. Work is bound once by composition; callers supply no
  * output, receipts, SQL, result flags, source manifests or delivery transport. */
 export function createStage8LiveExecutionRunner({db,keys,capability,capture,assertContext,work}){
@@ -25,7 +25,7 @@ export function createStage8LiveExecutionRunner({db,keys,capability,capture,asse
    authority.assert();await assertContext(ctx);const row=(await db.raw.execute({sql:'SELECT * FROM stage8_live_executions WHERE execution_id=?',args:[requestId]})).rows[0];
    if(row){
     if(row.canonical_request_json!==canonical||row.identity_digest!==identity||row.scope_key!==scopeKey)fail('STAGE8_LIVE_REQUEST_CONFLICT');
-    if(row.state==='FINALIZED_SUCCESS')return row;
+    if(['FINALIZED_SUCCESS','FINALIZED_FAILURE'].includes(row.state))return row;
     if(!['ESTABLISHED','WORK_COMMITTED'].includes(row.state)||row.lease_until>Date.now())fail('STAGE8_LIVE_REQUEST_PENDING');
     await db.raw.execute({sql:`UPDATE stage8_live_executions SET owner=?,generation=generation+1,lease_until=?,deadline_at=?,updated_at=? WHERE execution_id=? AND state=? AND generation=? AND lease_until<=${databaseNowMs}`,args:[owner,at+60000,at+45000,at,requestId,row.state,row.generation]});
     const updated=(await db.raw.execute({sql:'SELECT * FROM stage8_live_executions WHERE execution_id=?',args:[requestId]})).rows[0];
@@ -35,7 +35,7 @@ export function createStage8LiveExecutionRunner({db,keys,capability,capture,asse
    await db.raw.execute({sql:`INSERT INTO stage8_live_executions(execution_id,identity_digest,scope_key,canonical_request_json,phase,release_sha,execution_mode,trigger_source,config_proof,owner,generation,lease_until,deadline_at,state,created_at,updated_at) VALUES(?,?,?,?,'STAGE6_DRAIN',?,'LIVE','manual',?,?,1,?,?,'ESTABLISHED',?,?)`,args:[requestId,identity,scopeKey,canonical,g.releaseSha,g.configProof,owner,at+60000,at+45000,at,at]});
    claim=Object.freeze({executionId:requestId,request,identity,scopeKey,owner,generation:1});return null;
   });
-  if(prior?.state==='FINALIZED_SUCCESS')return Object.freeze({replayed:true,executionId:requestId,result:verifyLiveExecutionResult(keys,prior)});
+  if(['FINALIZED_SUCCESS','FINALIZED_FAILURE'].includes(prior?.state))return Object.freeze({replayed:true,executionId:requestId,result:verifyLiveExecutionResult(keys,prior)});
   let result=prior?.state==='WORK_COMMITTED'?verifyLiveExecutionResult(keys,prior):null;
   if(!result){
    let output;
@@ -57,7 +57,7 @@ export function createStage8LiveExecutionRunner({db,keys,capability,capture,asse
    });
   }
   await db.transaction(async()=>{
-   authority.assert();await assertContext(ctx);const changed=await db.raw.execute({sql:`UPDATE stage8_live_executions SET state='FINALIZED_SUCCESS',finalized_at=?,updated_at=? WHERE execution_id=? AND owner=? AND generation=? AND state='WORK_COMMITTED' AND deadline_at>${databaseNowMs} AND lease_until>${databaseNowMs}`,args:[Date.now(),Date.now(),requestId,owner,claim.generation]});
+   authority.assert();await assertContext(ctx);const changed=await db.raw.execute({sql:`UPDATE stage8_live_executions SET state=?,finalized_at=?,updated_at=? WHERE execution_id=? AND owner=? AND generation=? AND state='WORK_COMMITTED' AND deadline_at>${databaseNowMs} AND lease_until>${databaseNowMs}`,args:[result.outcome==='FAILED'?'FINALIZED_FAILURE':'FINALIZED_SUCCESS',Date.now(),Date.now(),requestId,owner,claim.generation]});
    if(changed.rowsAffected!==1)fail('REQUEST_OWNER_FENCED');
   });
   return Object.freeze({replayed:false,recovered:Boolean(prior),executionId:requestId,result:Object.freeze(result)});

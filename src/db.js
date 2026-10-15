@@ -145,7 +145,7 @@ export function composeDb(baseClient, { phase4Keys } = {}) {
   let foundationStore;
   async function privacyFoundation() {
     if(!foundationStore)foundationStore=(async()=>createPhase4Foundation({db:{raw:transactionClient,transaction:processing.transaction,withProcessingReadSnapshot:processing.withReadSnapshot,processingTransactionActive:processing.active,afterProcessingCommit:processing.afterCommit,afterProcessingCompletion:processing.afterCompletion},keys:phase4Keys,
-      admission:[33,34].includes(Number((await transactionClient.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v))?await runtimeContext():undefined}))();
+      admission:[33,34,35].includes(Number((await transactionClient.execute('SELECT MAX(version) v FROM schema_version')).rows[0]?.v))?await runtimeContext():undefined}))();
     try {return await foundationStore;} catch(error) {foundationStore=null;throw error;}
   }
   const health = compatibility.wrap(createHealthStore(compatibility.client, { transaction: processing.transaction }));

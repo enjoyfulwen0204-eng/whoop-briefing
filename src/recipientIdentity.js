@@ -16,7 +16,7 @@ export async function resolveRecipientName({db,userId}){
  return '';
 }
 export async function createRecipientIdentity({db,keys,now=()=>new Date()}){
- const admission=await db.admitRuntime();if(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)!==34)throw Error('RECIPIENT_V34_REQUIRED');
+ const admission=await db.admitRuntime();if(![34,35].includes(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)))throw Error('RECIPIENT_V34_REQUIRED');
  async function recordExplicit({user,chatId,name}){return db.transaction(async()=>{
   const canonical=(await db.resolveUserByChatId(chatId))?.user;if(canonical?.id!==user?.id||canonical.lifecycleGeneration!==user.lifecycleGeneration||canonical.displayName!==normalizeSettingsName(name))throw Error('RECIPIENT_ACTOR_CHANGED');
   const state=(await db.raw.execute({sql:'SELECT purge_generation,pending_purge_count FROM phase4_user_state WHERE user_id=?',args:[user.id]})).rows[0];if(!state||state.pending_purge_count)throw Error('RECIPIENT_PRIVACY_FENCED');

@@ -1,3 +1,4 @@
+import {verifyStage8LivePublication} from './stage8LivePublication.js';
 import {randomUUID} from 'node:crypto';
 import {requireRuntimeAdmission,followRuntimeRenewal} from './runtimeAdmission.js';
 import {canonicalJson} from './phase4EntityStore.js';
@@ -16,7 +17,7 @@ export const ownerRetryAt=row=>Date.parse(row.updated_at)+30000*2**Math.max(0,ro
  * store. Configuration accepts an explicit enrolled subject, never admin scope. */
 export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new Date()}){
  if(typeof ownerId!=='string'||!ownerId||typeof enabled!=='function')fail('OWNER_SERVER_CONFIGURATION_REQUIRED');
- let admission=await db.admitRuntime();if(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)!==34)fail('OWNER_V34_REQUIRED');
+ let admission=await db.admitRuntime();if(![34,35].includes(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)))fail('OWNER_V34_REQUIRED');
  followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
  const client=db.raw,actors=new WeakMap(),tickets=new WeakMap(),timestamp=()=>now().toISOString();
  const rows=async(sql,args=[])=>(await client.execute({sql,args})).rows;
@@ -92,6 +93,7 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
    processing:{client,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},
    authorizeMode(mode,connection,userId){if(mode!=='LIVE'||connection!==client||userId!==uid)fail('OWNER_PLAN_SCOPE');}});
   const stores=composePhase4Stores(core),ctx=await core.capture(uid,{executionMode:'LIVE',providerRequired:true}),klass=captured.notificationClass;
+  try{
   if(klass==='DAILY_SUMMARY'){
    const day=localDate(now(),ctx.timezone),ids=await rows("SELECT plan_id FROM morning_brief_plans WHERE user_id=? AND execution_mode='LIVE' AND input_generation=? AND health_date=? AND content_state='PRESENT' ORDER BY created_at DESC,plan_id DESC LIMIT 1",[uid,ctx.inputGeneration,day]);
    if(!ids.length)return {status:'NO_APPROVED_CURRENT_PLAN'};
@@ -99,16 +101,7 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
    return claims.length?{status:'APPROVED',semanticIdentity:day,claims,refs:[{table:'morning_brief_plans',id:plan.row.plan_id,hmac:plan.row.plan_hmac}],asOfUtc:plan.plan.asOfUtc,expiresAt:plan.row.expires_at}:{status:'NO_QUALIFYING_CONTENT'};
   }
   if(comp.last_completed_generation!==comp.input_generation)return {status:'ANALYSIS_UPDATING'};
-  // Completion metadata alone cannot authorize an empty LIVE synthesis. The
-  // frozen v32 producer contract is SHADOW-only; preserve that allocation and
-  // report updating until a separately approved LIVE producer exists.
-  const producers=await rows(`SELECT p.*,e.state,e.phase,e.generation final_generation,e.execution_seq final_seq
-    FROM phase4_execution_producers p JOIN phase4_executions e ON e.execution_id=p.producing_execution_id
-    WHERE p.user_id=? AND p.execution_mode='LIVE' AND p.input_generation=?`,[uid,comp.input_generation]);
-  if(!producers.length||producers.some(p=>p.state!=='FINALIZED_SUCCESS'||p.phase!=='STAGE6_DRAIN'||p.execution_seq!==p.final_seq||p.producing_generation>p.final_generation
-    ||p.tenant_proof!==keys.lookup(['execution-producer-v1',uid,'LIVE',comp.input_generation,p.producing_execution_id,p.execution_seq,p.producing_generation])))return {status:'ANALYSIS_UPDATING'};
-
-  if((await rows("SELECT 1 FROM phase4_invalidations WHERE user_id=? AND execution_mode='LIVE' AND scope_kind<>'NONE'",[uid])).length)return {status:'ANALYSIS_UPDATING'};
+  if(!await verifyStage8LivePublication(core,ctx))return {status:'ANALYSIS_UPDATING'};
   // Registered typed reads verify operation receipts and current evidence.
   if(klass==='WEEKLY_SUMMARY'){
    const week=completedWeeks(asOf,ctx.timezone).last,ids=await rows("SELECT id FROM health_insights WHERE user_id=? AND execution_mode='LIVE' AND input_generation=? AND legacy_classification='PHASE4' AND status='SUPPORTED' AND expires_at>? ORDER BY last_recalculated_at DESC,id LIMIT 3",[uid,ctx.inputGeneration,timestamp()]);
@@ -123,6 +116,7 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
   if(decision.row.action!=='NOTIFY'||!message.row.episode_semantic_event_id||!message.row.payload_text)fail('OWNER_ALERT_NOT_APPROVED');
   await stores.episodes.read(ctx,decision.row.episode_id);
   return {status:'APPROVED',semanticIdentity:message.row.episode_semantic_event_id,claims:[{kind:'APPROVED_IMPORTANT_ALERT',claim:message.row.payload_text}],refs:[{table:'outbound_messages',id:message.row.message_id,hash:message.row.payload_hash}],asOfUtc:asOf.toISOString(),expiresAt:message.row.expires_at};
+  }finally{const cleanup=()=>core.transaction(()=>core.contextRegistry.release(ctx),{readOnly:true});if(db.processingTransactionActive())db.afterProcessingCompletion(cleanup);else await cleanup();}
  }
  async function authorize(actor,{subjectId,notificationClass}){return db.transaction(async()=>{
   const captured=await scope(actor,subjectId,notificationClass),plan=await synthesis(captured);
@@ -190,6 +184,7 @@ export async function createOwnerMonitoring({db,keys,ownerId,enabled,now=()=>new
   await core.initializeTenant(subjectId,'LIVE');const captured=await scope(actor,subjectId,'DAILY_SUMMARY');
   if(initial.subscriptionRevision!==captured.subscriptionRevision)fail('OWNER_SCOPE_CHANGED');
   const stores=composePhase4Stores(core),ctx=await core.capture(subjectId,{executionMode:'LIVE',providerRequired:true}),plans=createStage8MorningPlan({core,db,preferences:stores.preferences}),day=localDate(now(),ctx.timezone);
+  db.afterProcessingCompletion(()=>core.transaction(()=>core.contextRegistry.release(ctx),{readOnly:true}));
   const existing=(await rows("SELECT plan_id FROM morning_brief_plans WHERE user_id=? AND execution_mode='LIVE' AND input_generation=? AND health_date=? AND content_state='PRESENT' ORDER BY created_at DESC,plan_id DESC LIMIT 1",[subjectId,ctx.inputGeneration,day]))[0];
   if(existing){try{const current=await plans.read(ctx,existing.plan_id);if(Date.parse(current.plan.asOfUtc)+60*60000>now().getTime())return {status:'CURRENT_PLAN'};}catch(error){if(!/MORNING_|PHASE4_PARENT_STALE/.test(error.message))throw error;}}
   const built=await plans.build(ctx,{healthDate:day});if(!built.timing.eligible)return {status:built.timing.reason};

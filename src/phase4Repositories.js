@@ -103,7 +103,7 @@ export function composePhase4Stores(core) {
   async function computeForCurrentDrain(context){
     const request=await core.run(context,async()=>{
       const execution=await assertExecutionWorkOwner(client);
-      if(context.executionMode!=='SHADOW'||execution?.phase!=='STAGE6_DRAIN')fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
+      if(!core.analysisModeAllowed(context)||execution?.phase!=='STAGE6_DRAIN')fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const supportedClock=core.now().getTime(),actualClock=Date.now();
       if(supportedClock>actualClock)fail('BODY_ENERGY_CURRENT_DRAIN_CLOCK_FENCED');
       const clock=Math.min(supportedClock,actualClock);
@@ -124,7 +124,7 @@ export function composePhase4Stores(core) {
     if(!bundle?.fallback)return bundle;
     return core.run(context,async()=>{
       const owner=await assertExecutionWorkOwner(client);
-      if(![32,33,34].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
+      if(![32,33,34,35].includes(core.schemaVersion)||!core.analysisModeAllowed(context)||owner?.phase!=='STAGE6_DRAIN'||!core.jobAuthority())
         fail('BODY_ENERGY_CURRENT_DRAIN_REQUIRED');
       const rows=(await client.execute({sql:`SELECT result_id FROM body_energy_results
         WHERE user_id=? AND execution_mode=? AND input_generation=? AND invalidated_at IS NULL

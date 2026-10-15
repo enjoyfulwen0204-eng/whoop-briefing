@@ -14,7 +14,7 @@ import {fail} from './phase4Core.js';
 export function createStage7DecisionStore({core,stores}){
  const entities=createPhase4EntityStore(core);
  async function evaluate(context,{episodeId,semanticEventId,triggerKey}){
-  if(context.executionMode!=='SHADOW'||![33,34].includes(core.schemaVersion))fail('STAGE7_SHADOW_DECISION_REQUIRED');
+  if(context.executionMode!=='SHADOW'||![33,34,35].includes(core.schemaVersion))fail('STAGE7_SHADOW_DECISION_REQUIRED');
   if(typeof triggerKey!=='string'||!triggerKey||triggerKey.length>128)fail('STAGE7_TRIGGER_REQUIRED');
   return core.run(context,async()=>{
    const key=core.keys.lookup(['stage7-decision',context.userId,context.executionMode,semanticEventId,triggerKey]);

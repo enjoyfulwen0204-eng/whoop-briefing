@@ -8,7 +8,7 @@ const FAMILY='MORNING_BRIEF_V1',fail=code=>{throw Error(code);};
 /** All mutations use the admitted shared transaction. Scheduling returns only
  * durable due-state; the dispatcher is the sole owner of a provider capability. */
 export function createStage8MorningStore({core,db,preferences,enabled}){
- if(core.schemaVersion!==34||typeof enabled!=='function')fail('MORNING_V34_FACTORY_REQUIRED');
+ if(![34,35].includes(core.schemaVersion)||typeof enabled!=='function')fail('MORNING_V34_FACTORY_REQUIRED');
  const {client,keys}=core,entities=createPhase4EntityStore(core),messages=createPhase4MessageStore(core,entities),plans=createStage8MorningPlan({core,db,preferences});
  const transport=createPhase4TransportStore(core,entities,null,{morningAuthority:plans});
  const query=async(sql,args)=>(await client.execute({sql,args})).rows;

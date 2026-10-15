@@ -1,3 +1,5 @@
+import {createStage8LiveProducer} from './stage8LiveProducer.js';
+import {currentDurableExecution} from './phase4ExecutionContext.js';
 import {createStage8DerivedReader} from './stage8DerivedReader.js';
 import {assertStage8Recovery,stage8ConfigurationFence} from './stage8Policy.js';
 import {createRecipientIdentity} from './recipientIdentity.js';
@@ -10,7 +12,7 @@ import {createOwnerMonitoring} from './stage8OwnerMonitoring.js';
 import {createStage8OwnerDispatcher} from './stage8OwnerDispatcher.js';
 export function stage8Configuration(environment={}){
  assertStage8Recovery(environment);
- for(const name of ['PHASE4_STAGE8_RUNTIME','PHASE4_STAGE8_OWNER_MONITORING','STAGE8_MORNING_BRIEF'])if(!['off','on'].includes(environment[name]??'off'))throw Error('STAGE8_CONFIG_INVALID');
+ for(const name of ['PHASE4_STAGE8_RUNTIME','PHASE4_STAGE8_OWNER_MONITORING','STAGE8_MORNING_BRIEF','STAGE8_LIVE_ANALYSIS'])if(!['off','on'].includes(environment[name]??'off'))throw Error('STAGE8_CONFIG_INVALID');
  const enabled=environment.PHASE4_STAGE8_RUNTIME==='on';
  const owner=String(environment.PHASE4_BETA_PILOT_USER_ID??'').trim();
  const users=String(environment.STAGE8_USER_IDS??'').split(',').map(s=>s.trim()).filter(Boolean);
@@ -20,11 +22,13 @@ export function stage8Configuration(environment={}){
 export async function createStage8Runtime({db,keys,environment={},env={},bodyEnergy,stage7=null,now=()=>new Date()}){
  const config=stage8Configuration(environment);if(!config.enabled)return null;
  const fence=stage8ConfigurationFence(environment);
- let admission=await db.admitRuntime();if(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)!==34)throw Error('STAGE8_V34_REQUIRED');
+ let admission=await db.admitRuntime();if(![34,35].includes(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)))throw Error('STAGE8_V34_REQUIRED');
  followRuntimeRenewal(db.raw,admission,keys,db.transaction,next=>{admission=next;});
  const rawIdentity=await createRecipientIdentity({db,keys,now});
  const identity=Object.freeze(Object.fromEntries(Object.entries(rawIdentity).map(([name,operation])=>[name,async(...args)=>{fence();return operation(...args);}]))) ;
  const eligible=uid=>{try{fence();return stage8Configuration(environment).userIds.includes(uid);}catch{return false;}};
+ const analysis=environment.STAGE8_LIVE_ANALYSIS==='on'?await createStage8LiveProducer({db,keys,admission,userIds:config.userIds,environment,enabled:()=>{try{fence();return environment.STAGE8_LIVE_ANALYSIS==='on';}catch{return false;}},eligible}):null;
+ const liveAnalysis=analysis?Object.freeze({run:async request=>{fence();if(currentDurableExecution())throw Error('STAGE8_LIVE_SEPARATE_EXECUTION_REQUIRED');return analysis.run(request);}}):null;
  const derivedReader=createStage8DerivedReader({db,keys,admission,eligible,now});
  const scopes=await createScopedHealthContext({db,keys,admission,now,derivedReader}),qa=createStage8SelfQa({scopes,db,bodyEnergy,decorate:stage7?.decorate,now});
  const core=await buildPhase4Core({keys,admission,now,processing:{client:db.raw,transaction:db.transaction,active:db.processingTransactionActive,assertFences:db.assertRuntimeFences,afterCommit:db.afterProcessingCommit,afterCompletion:db.afterProcessingCompletion},
@@ -66,5 +70,5 @@ export async function createStage8Runtime({db,keys,environment={},env={},bodyEne
   return send({...input,beforeSend});
  }
  async function captureIdentity(input){fence();return identity.recordTelegram(input);}
- return Object.freeze({config,eligible,captureIdentity,handle,sendReply,scopes,identity,preferences,owner});
+ return Object.freeze({config,eligible,captureIdentity,handle,sendReply,scopes,identity,preferences,owner,analysis:liveAnalysis});
 }

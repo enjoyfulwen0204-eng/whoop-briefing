@@ -1,3 +1,4 @@
+import {allocationForMode} from './stage8LiveAllocation.js';
 import { fail, requireInteger, readableRow } from './phase4Core.js';
 import { JOB_KINDS, SCOPE_REASON_CODES, OPERATION_ERROR_CODES } from './phase4V24Schema.js';
 import { createFamilyDirectory } from './phase4FamilyDirectory.js';
@@ -53,14 +54,14 @@ export function createPhase4QueueStore(core) {
     // owned transaction. Batch their transport without splitting atomicity,
     // bypassing any pending-purge observation, or changing COMMIT fences.
     await client.batch(statements);
-    if(mode==='SHADOW'&&(await client.execute({sql:"SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-      args:[FAMILY_WORK_TIPS]})).rows.length) {
+    if(['SHADOW','LIVE'].includes(mode)&&(await client.execute({sql:"SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+      args:[allocationForMode(mode,FAMILY_WORK_TIPS)]})).rows.length) {
       const row=(await client.execute({sql:`SELECT c.input_generation,c.algorithm_set_version,s.source_generation,s.purge_generation,
         u.lifecycle_generation,COALESCE(t.auth_generation,0) auth_generation
         FROM phase4_computation_state c JOIN phase4_user_state s ON s.user_id=c.user_id
         JOIN users u ON u.id=c.user_id LEFT JOIN user_whoop_tokens t ON t.user_id=c.user_id
-        WHERE c.user_id=? AND c.execution_mode='SHADOW'`,args:[userId]})).rows[0];
-      await createFamilyDirectory(client,keys).requestAll({userId,executionMode:mode,inputGeneration:row.input_generation,
+        WHERE c.user_id=? AND c.execution_mode=?`,args:[userId,mode]})).rows[0];
+      await createFamilyDirectory(client,keys,{live:mode==='LIVE'}).requestAll({userId,executionMode:mode,inputGeneration:row.input_generation,
         sourceGeneration:row.source_generation,purgeGeneration:row.purge_generation,
         lifecycleGeneration:row.lifecycle_generation,authGeneration:row.auth_generation,
         algorithmSetVersion:row.algorithm_set_version});

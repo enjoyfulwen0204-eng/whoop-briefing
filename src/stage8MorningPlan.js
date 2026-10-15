@@ -36,7 +36,7 @@ export function createStage8MorningPlan({core,db,preferences}){
   return {preferences:p,profileRevision:await db.getProfileRevision(context.userId),locale:await db.getLocale(context.userId)};
  }
  async function build(context,{healthDate}){
-  if(context.executionMode!=='LIVE'||core.schemaVersion!==34)fail('MORNING_LIVE_V34_REQUIRED');
+  if(context.executionMode!=='LIVE'||![34,35].includes(core.schemaVersion))fail('MORNING_LIVE_V34_REQUIRED');
   return core.run(context,async()=>{
    const captured=await state(context),asOf=core.now(),from=localMidnightUtc(healthDate,context.timezone).toISOString(),until=localMidnightUtc(addDays(healthDate,1),context.timezone).toISOString();
    const refs=[(await core.root(context,'USER',context.userId)).ref],proofs=[];

@@ -19,7 +19,7 @@ export function selfQueryPerspective({text,intent=null,signals=null}){
  * caller-selected subject, SQL, execution mode, provider or scheduler exists. */
 export async function createScopedHealthContext({db,keys,admission,now=()=>new Date(),derivedReader=null}){
  admission??=await db.admitRuntime();
- if(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)!==34)fail('SCOPED_V34_REQUIRED');
+ if(![34,35].includes(requireRuntimeAdmission(db.raw,admission,keys,db.transaction)))fail('SCOPED_V34_REQUIRED');
  const scopes=new WeakMap(),client=db.raw;
  followRuntimeRenewal(client,admission,keys,db.transaction,next=>{admission=next;});
  async function state(uid){

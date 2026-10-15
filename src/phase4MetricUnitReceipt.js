@@ -1,3 +1,4 @@
+import {analysisTable} from './stage8LiveAllocation.js';
 import {currentDurableExecution,assertExecutionWorkOwner,requireSettledOperation} from './phase4ExecutionContext.js';
 import {workStepOptions} from './phase4WorkStep.js';
 import {bodySha256} from './briefingTriggerAuth.js';
@@ -8,7 +9,7 @@ import {phase4Metric,INTELLIGENCE_VERSIONS} from './phase4IntelligenceRegistry.j
 const kinds=new Set(['RUN','RUN_START','RUN_COMPLETE','ITEM','AUTHORITY']),proofs=new WeakMap();
 const continuationScope=new AsyncLocalStorage();
 export function withMetricPreparationContinuation(core,context,work){
- if(![32,33,34].includes(core.schemaVersion)||!core.jobAuthority()||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN')fail();
+ if(![32,33,34,35].includes(core.schemaVersion)||!core.jobAuthority()||currentDurableExecution()?.claim?.request?.phase!=='STAGE6_DRAIN')fail();
  return continuationScope.run({core,context,execution:currentDurableExecution(),job:core.jobAuthority()},work);
 }
 export function metricPreparationContinuation(core,context){
@@ -82,14 +83,14 @@ function validateReceipt(core,context,owner,p,receipt,keys){
    ||!['COMPLETE','PARTIAL','NO_WORK','NO_ELIGIBLE_WORK','BUDGET_EXHAUSTED','DISABLED','POLICY_DEFERRED'].includes(record.outcome))fail();
  }
 }
-const producerSql=`SELECT p.*,e.state,e.phase,e.generation final_generation,
+const producerSql=core=>`SELECT p.*,e.state,e.phase,e.generation final_generation,
  e.execution_seq final_seq,e.identity_digest,e.scope_key,e.created_at,e.deadline_at,e.finalized_at,
- e.result_json,e.result_digest,e.release_sha,e.trigger_source,e.config_proof FROM phase4_execution_producers p
- JOIN phase4_executions e ON e.execution_id=p.producing_execution_id
+ e.result_json,e.result_digest,e.release_sha,e.trigger_source,e.config_proof FROM ${analysisTable(core,'phase4_execution_producers')} p
+ JOIN ${analysisTable(core,'phase4_executions')} e ON e.execution_id=p.producing_execution_id
  WHERE p.user_id=? AND p.execution_mode=? AND p.input_generation=? ORDER BY p.execution_seq LIMIT 129`;
 function requireUnitPurpose(core,context){
- requireSettledOperation();const execution=currentDurableExecution();
- if(![32,33,34].includes(core.schemaVersion)||context.executionMode!=='SHADOW'||!core.jobAuthority()
+ requireSettledOperation();core.assertAnalysisWrite(context);const execution=currentDurableExecution();
+ if(![32,33,34,35].includes(core.schemaVersion)||!core.analysisModeAllowed(context)||!core.jobAuthority()
   ||!execution||execution.receipts===false)fail();
 }
 async function finishUnitObservation(core,context){
@@ -109,14 +110,14 @@ async function finishUnitObservation(core,context){
 async function namedRunReceipt(core,context,plan){
  requireUnitPurpose(core,context);
  const owner=await assertExecutionWorkOwner(core.client);if(owner?.phase!=='STAGE6_DRAIN')fail();
- const producers=(await core.client.execute({sql:producerSql,args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
+ const producers=(await core.client.execute({sql:producerSql(core),args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
  if(!producers.length||producers.length>128)fail();
  const steps=['RUN','RUN_START','RUN_COMPLETE'].map(kind=>metricUnitWork(context,plan,kind).workStep),observed=[];
  for(let start=0;start<producers.length;start+=64){
   const group=producers.slice(start,start+64),values=await Promise.allSettled(group.map(p=>Promise.resolve().then(async()=>{
    validateProducer(core,context,p);
    const keys=steps.map(step=>core.keys.lookup(['execution-work-step-v2',p.identity_digest,p.scope_key,['named',step]]));
-   const receipts=(await core.client.execute({sql:`SELECT * FROM phase4_execution_work_receipts WHERE execution_id=? AND receipt_key IN (?,?,?)`,
+   const receipts=(await core.client.execute({sql:`SELECT * FROM ${analysisTable(core,'phase4_execution_work_receipts')} WHERE execution_id=? AND receipt_key IN (?,?,?)`,
     args:[p.producing_execution_id,...keys]})).rows;
    return {p,keys,receipts};
   })));
@@ -156,7 +157,7 @@ export async function currentBodySourceReceipt(core,context,asOfUtc){
 async function namedUnitReceipt(core,context,steps){
  requireUnitPurpose(core,context);
  const owner=await assertExecutionWorkOwner(core.client);if(owner?.phase!=='STAGE6_DRAIN')fail();
- const producers=(await core.client.execute({sql:producerSql,
+ const producers=(await core.client.execute({sql:producerSql(core),
   args:[context.userId,context.executionMode,context.inputGeneration]})).rows;
  if(!producers.length||producers.length>128)fail();
  const found=[];
@@ -165,8 +166,8 @@ async function namedUnitReceipt(core,context,steps){
    validateProducer(core,context,p);
    const keys=steps.map(step=>core.keys.lookup(['execution-work-step-v2',p.identity_digest,p.scope_key,['named',step]]));
    const receipts=(await core.client.execute({sql:keys.length===1
-    ?'SELECT * FROM phase4_execution_work_receipts WHERE execution_id=? AND receipt_key=?'
-    :`SELECT * FROM phase4_execution_work_receipts WHERE execution_id=? AND receipt_key IN (${keys.map(()=>'?').join(',')})`,
+    ?`SELECT * FROM ${analysisTable(core,'phase4_execution_work_receipts')} WHERE execution_id=? AND receipt_key=?`
+    :`SELECT * FROM ${analysisTable(core,'phase4_execution_work_receipts')} WHERE execution_id=? AND receipt_key IN (${keys.map(()=>'?').join(',')})`,
     args:[p.producing_execution_id,...keys]})).rows;
    if(!receipts.length)return null;if(receipts.length>keys.length)fail();
    for(const receipt of receipts){

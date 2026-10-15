@@ -111,9 +111,16 @@ export function processingTransactions(base,{privateRuntime=false}={}) {
       if(!readOnlyChecks.has(fn(checks[index]))){const value=checks[index++];
         if(typeof value==='function')await value(client);else await checking.run(true,()=>value.check(client));continue;}
       const group=[];while(index<checks.length&&readOnlyChecks.has(fn(checks[index])))group.push(fn(checks[index++]));
-      // Every original check runs; only independent read transport overlaps.
-      // Settle the whole group before rollback, and preserve failure ordering.
-      const results=await checking.run({readOnly:true},()=>Promise.allSettled(group.map(check=>Promise.resolve().then(()=>check(client)))));
+      // Every original check still runs, including duplicates and callbacks
+      // after a failure. Bound independent metadata transport so a large
+      // provenance graph cannot create an unbounded Promise fanout. Settle
+      // the entire original group and preserve its first rejection priority.
+      const results=await checking.run({readOnly:true},async()=>{
+        const settled=[];
+        for(let start=0;start<group.length;start+=32)settled.push(...await Promise.allSettled(
+          group.slice(start,start+32).map(check=>Promise.resolve().then(()=>check(client)))));
+        return settled;
+      });
       const failure=results.find(result=>result.status==='rejected');if(failure)throw failure.reason;
     }
   }

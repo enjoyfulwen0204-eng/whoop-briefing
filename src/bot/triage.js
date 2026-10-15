@@ -30,10 +30,12 @@ const OPERATORS=[
  ['pastPredicate',/\b(?:had|experienced|felt|was|were)\b/giu],
  ['pastTime',/昨天|昨晚|以前|曾經|之前|\b(?:yesterday|last (?:night|week|month|year)|years ago)\b|hôm qua|trước đây/giu],
  ['currentTime',/現在|目前|正在|此刻|\b(?:now|currently|current|right now|still)\b|đang|hiện tại|bây giờ/giu],
- ['negative',/\b(?:cannot|can't|unable to|no|not|without|never|neither|don't|do not|doesn't|does not)\b|無法|不能|沒有|沒|不會|不曾|並沒|未|(?<!\p{L})(?:không thể|không|chưa|chẳng)(?!\p{L})/giu],
+ // 還 modifies only the following 沒有, allowing horizontal spacing but never
+ // crossing a clause boundary. Its complete span belongs to one negative.
+ ['negative',/\b(?:cannot|can't|unable to|no|not|without|never|neither|don't|do not|doesn't|does not)\b|無法|不能|還[^\S\r\n]*沒有|沒有|沒|不會|不曾|並沒|未|(?<!\p{L})(?:không thể|không|chưa|chẳng)(?!\p{L})/giu],
  ['resolution',/\b(?:no longer|stopped|resolved|gone|went away|cleared|disappeared|back to normal|fine|well|okay)\b|不再|已無|好了|沒事了|恢復了|不會了|沒問題了|緩解了|沒有了|消失了|(?<!\p{L})(?:hết(?:\s+hẳn)?|khỏi(?:\s+hẳn)?|ổn|bình thường)(?!\p{L})/giu],
  ['recurrence',/\b(?:again|back|returned|returning|recurring|came back)\b|又來了|又出現|復發|trở lại|tái phát/giu],
- ['education',/\b(?:what (?:is|are|does|causes)|define|definition|usually|generally|in general|meaning|means|learn about|learning|reading about|want to know|question about|asking about|information about|be caused by|why (?:do|does) (?:people|patients))\b|通常|一般來說|一般而言|一般|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道|閱讀|(?<!\p{L})(?:là gì|nghĩa là|nguyên nhân|thường|tại sao|tìm hiểu|đọc về|hỏi)(?!\p{L})/giu],
+ ['education',/\b(?:what (?:is|are|does|causes)|define|definition|usually|generally|in general|meaning|means|learn about|learning|reading about|want to know|question about|asking about|information about|be caused by|why (?:do|does) (?:people|patients))\b|通常|一般來說|一般而言|一般|哪些|什麼原因|是什麼意思|代表什麼|定義|怎麼分辨|為什麼會有人|想知道|想了解|閱讀|(?<!\p{L})(?:là gì|nghĩa là|nguyên nhân|thường|tại sao|tìm hiểu|đọc về|hỏi)(?!\p{L})/giu],
  ['information',/\b(?:in (?:this|an?) (?:example|case study)|hypothetical case|fictional|(?:article|textbook|example))\b|假設案例|教科書|例句|舉例|ví dụ|trường hợp giả định/giu],
  ['report',/\b(?:says|said|saying|tells|told|telling)\b|說|(?<!\p{L})nói(?!\p{L})/giu],
  ['reference',/(?<![\p{L}\p{N}_])(?:it|it's|this|these symptoms|both symptoms|that pain|they)(?![\p{L}\p{N}_])|這個症狀|這些症狀|它|(?<!\p{L})(?:nó|triệu chứng này)(?!\p{L})/giu],
@@ -119,7 +121,7 @@ function outcomeEvidence(events){
 }
 // The vocabulary and grammar are one deterministic, in-process contract. No
 // transport, model, database or health-context input participates in parsing.
-export const TRIAGE_GRAMMAR_VERSION='predicate-ownership-v1-gate-adjudicated';
+export const TRIAGE_GRAMMAR_VERSION='predicate-ownership-v1-owned-intent-negation';
 const spanOf=e=>({start:e.start,end:e.end});
 const isHead=e=>['present','pastPredicate','report','assertionHead'].includes(e.type);
 const intrinsic=s=>/^(?:cannot|can't|unable|không thở|không thể thở|無法|喘不過氣)/iu.test(s.text);
@@ -406,7 +408,14 @@ function evaluatePredicate(p,graph){
  const events=graph.operators.filter(e=>e.ownerPredicateId===p.id);
  const first=graph.symptoms.find(s=>s.ownerPredicateId===p.id);
  const before=events.filter(e=>e.end<=(first?.start??p.ownedSpan.end));
- const actorEvent=ofType(events,'actor')[0],topic=last(before,'education'),source=last(before,'information');
+ const actorEvent=ofType(events,'actor')[0],educationBefore=last(before,'education'),source=last(before,'information');
+ // This cognitive intent owns a general topic only within this predicate.
+ // Intent alone, or an owned current/experience operator, cannot exclude a
+ // plausible personal symptom. Other educational operators keep their rules.
+ const inquiry=educationBefore?.word==='想了解';
+ const generalTopic=inquiry&&events.some(e=>e.type==='education'&&/^(?:一般|一般來說|一般而言)$/u.test(e.word)&&e.start>=educationBefore.end);
+ const experience=events.some(e=>['currentTime','present','pastPredicate','ongoing','assertionHead'].includes(e.type));
+ const topic=inquiry&&(!generalTopic||experience)?null:educationBefore;
  const personal=p.actor&&p.actor!=='GENERIC'&&(!topic||actorEvent?.start>topic.start)&&(!source||actorEvent?.start>source.start);
  const outcome=outcomeEvidence(events),now=last(events,'currentTime'),past=last(events,'pastPredicate')||last(events,'pastTime');
  const actual=Boolean(personal||p.quotedAssertion||p.referenceId&&!p.education)&&!p.epistemic;

@@ -1,0 +1,293 @@
+{
+  "frozenBeforeExecution": true,
+  "cases": [
+    {
+      "id": "inner-suppose",
+      "locale": "en",
+      "text": "\"suppose I have difficulty breathing\" is precisely what I am feeling now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "inner-whatif",
+      "locale": "en",
+      "text": "\"what if I have chest pain\" is what I am experiencing right now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "inner-giả",
+      "locale": "vi",
+      "text": "\"giả sử tôi khó thở\" là triệu chứng tôi đang cảm thấy.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "inner-假如",
+      "locale": "zh-TW",
+      "text": "「假如我胸痛」正是我目前感到的症狀。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "inner-mixed",
+      "locale": "mixed",
+      "text": "\"nếu tôi khó thở\" is what I am feeling now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "inner-negated",
+      "locale": "en",
+      "text": "\"if I have chest pain\" is what I am not experiencing now.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "inner-negated-zh",
+      "locale": "zh-TW",
+      "text": "「如果我胸痛」正是我現在沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "inner-negated-vi",
+      "locale": "vi",
+      "text": "\"nếu tôi đau ngực\" là triệu chứng tôi không cảm thấy bây giờ.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "outer-suppose",
+      "locale": "en",
+      "text": "Suppose \"difficulty breathing\" is what I am experiencing, what should I do?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "outer-whatif",
+      "locale": "en",
+      "text": "What if \"chest pain\" is what I am feeling?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "outer-giả",
+      "locale": "vi",
+      "text": "Giả sử \"khó thở\" là triệu chứng tôi đang cảm thấy.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "outer-假如",
+      "locale": "zh-TW",
+      "text": "假如「胸痛」正是我目前感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "outer-mixed",
+      "locale": "mixed",
+      "text": "Nếu \"chest pain\" is what I am feeling now.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "unrelated-conditional",
+      "locale": "en",
+      "text": "If \"chest pain\" is an example, explain it. I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "unrelated-conditional-zh",
+      "locale": "zh-TW",
+      "text": "假設「胸痛」是例句。我現在呼吸困難。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "unrelated-conditional-vi",
+      "locale": "vi",
+      "text": "Nếu \"đau ngực\" là ví dụ. Tôi đang khó thở.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "quoted-conditional-only",
+      "locale": "en",
+      "text": "\"suppose I have chest pain\"",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "quoted-conditional-only-zh",
+      "locale": "zh-TW",
+      "text": "「假如我胸痛」",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "quoted-conditional-only-vi",
+      "locale": "vi",
+      "text": "\"giả sử tôi đau ngực\"",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "outside-uncertain",
+      "locale": "en",
+      "text": "\"if I have difficulty breathing\" is what I may be feeling now.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "outside-uncertain-zh",
+      "locale": "zh-TW",
+      "text": "「如果我胸痛」可能是我目前感到的症狀。",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "outside-uncertain-vi",
+      "locale": "vi",
+      "text": "\"nếu tôi đau ngực\" có thể là triệu chứng tôi đang cảm thấy.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "zh-negative-owned",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」正是我現在並沒有的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "zh-negative-owned2",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」是我現在還沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "zh-positive-owned",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」正是我現在有的症狀。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "zh-positive-owned2",
+      "locale": "zh-TW",
+      "text": "「呼吸困難」正是我目前感到的症狀。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "zh-negative-self-current",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我現在沒有感到的症狀。然而我現在呼吸困難。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "zh-negative-other-current",
+      "locale": "zh-TW",
+      "text": "「胸痛」是我現在沒有感到的症狀。我朋友安娜現在呼吸困難。",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "other-bare-bo",
+      "locale": "en",
+      "text": "My friend Bo said \"difficulty breathing\". I am not having chest pain.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "other-bare-ana",
+      "locale": "en",
+      "text": "My friend Ana said \"difficulty breathing\". My friend Bo is feeling relaxed now.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "other-current-bo",
+      "locale": "en",
+      "text": "My friend Bo says \"I have difficulty breathing now\". I am not having chest pain.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "other-resolved-bo",
+      "locale": "en",
+      "text": "My friend Bo said \"my chest pain has completely resolved\".",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "other-past-bo",
+      "locale": "en",
+      "text": "My friend Bo said \"I had difficulty breathing yesterday\".",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "other-educational-bo",
+      "locale": "en",
+      "text": "In a textbook example, my friend Bo said \"difficulty breathing\".",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "other-bare-vi",
+      "locale": "vi",
+      "text": "Bạn tôi An nói \"khó thở\". Tôi cảm thấy bình thường.",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "other-bare-zh",
+      "locale": "zh-TW",
+      "text": "我朋友安娜說「呼吸困難」。我現在沒有胸痛。",
+      "expected": "POSSIBLE_CURRENT_URGENT"
+    },
+    {
+      "id": "report-hypothetical-current",
+      "locale": "en",
+      "text": "My friend Bo said \"if I have chest pain\". I have difficulty breathing now.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "report-hypothetical",
+      "locale": "en",
+      "text": "My friend Bo said \"if I have chest pain\".",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "plain-resolved",
+      "locale": "en",
+      "text": "I had difficulty breathing yesterday but it has completely resolved.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "plain-resolved-vi",
+      "locale": "vi",
+      "text": "Tôi đã hết hẳn đau ngực.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "plain-negated-list",
+      "locale": "en",
+      "text": "I am not having my chest pain, my trouble breathing.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "plain-negated-zh",
+      "locale": "zh-TW",
+      "text": "我現在沒有胸痛，也沒有呼吸困難。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "plain-educational",
+      "locale": "en",
+      "text": "What causes difficulty breathing in general?",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "plain-educational-zh",
+      "locale": "zh-TW",
+      "text": "我想了解胸痛的一般原因。",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "plain-educational-vi",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu về đau ngực nói chung.",
+      "expected": "CLEARLY_NONURGENT"
+    },
+    {
+      "id": "plain-current",
+      "locale": "en",
+      "text": "What causes my current chest pain and difficulty breathing?",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "plain-current-vi",
+      "locale": "vi",
+      "text": "Tôi muốn tìm hiểu HRV vì tôi không thở được.",
+      "expected": "CURRENT_URGENT"
+    },
+    {
+      "id": "plain-current-zh",
+      "locale": "zh-TW",
+      "text": "我想知道我目前胸痛且呼吸困難的原因",
+      "expected": "CURRENT_URGENT"
+    }
+  ]
+}

@@ -13,7 +13,7 @@ const original=JSON.parse(fs.readFileSync(new URL('../stage8-scoped-repair/origi
 const references=JSON.parse(fs.readFileSync(new URL('../stage8-scoped-repair/reference-cases.json',import.meta.url))).cases;
 const shard=process.env.STAGE8_GATE_TEST_SHARD===undefined?null:Number(process.env.STAGE8_GATE_TEST_SHARD);
 if(shard!==null&&![0,1,2].includes(shard))throw Error('INVALID_TEST_SHARD');
-const output='/private/tmp/stage8-adjudicated-repair/legacy-processor-'+(shard??'all')+'-results.json';
+const output='/private/tmp/stage8-quotation-fallback/final/legacy-processor-'+(shard??'all')+'-results.json';
 const results=[];
 function record(r){results.push(r);fs.writeFileSync(output,JSON.stringify({count:results.length,pass:results.filter(r=>r.pass).length,fail:results.filter(r=>!r.pass).length,results},null,2));}
 async function tap(app,f,card,label){const actor=await app.companion.interactions.authenticate(f.input);await app.companion.interactions.bind(actor,card.stage7InteractionId,42);const b=card.replyMarkup.inline_keyboard.flat().find(b=>b.text===label||b.text.endsWith(' '+label));assert.ok(b);return app.companion.handle({...f.input,callback:{id:'independent',data:b.callback_data,from:{id:123},message:{message_id:42,chat:{id:123,type:'private'}}}});}
@@ -36,7 +36,7 @@ function update(id,text){return{update_id:id,message:{text,message_id:id,chat:{i
 const corpus=JSON.parse(fs.readFileSync(new URL('./cases.json',import.meta.url)));
 const unparsed=[['en','My chest pain started yesterday and persists.'],['zh-TW','我昨天胸痛而且持續。'],['vi','Tôi đau ngực hôm qua và vẫn còn.'],['mixed','My chest pain started yesterday and 持續。']].map(([locale,text])=>({id:'unparsed-current-'+locale,locale,text,expected:'POSSIBLE_CURRENT_URGENT',family:'unparsed-current'}));
 const jobs=[...unparsed,...corpus.cases.filter(c=>!c.family.startsWith('new-')||c.family==='new-reference-uncertain')].flatMap(c=>['name','note','coach','health'].map(lane=>({...c,lane})));
-fs.writeFileSync('/private/tmp/stage8-adjudicated-repair/legacy-processor-'+(shard??'all')+'-cases.json',JSON.stringify({frozenBeforeExecution:true,jobs},null,2));
+fs.writeFileSync('/private/tmp/stage8-quotation-fallback/final/legacy-processor-'+(shard??'all')+'-cases.json',JSON.stringify({frozenBeforeExecution:true,jobs},null,2));
 for(const [i,c]of jobs.entries())if(shard===null||i%3===shard)test('gate actual ingress '+c.id+' '+c.lane,async t=>{
  const locale=c.locale==='mixed'?'en':c.locale;const {f,processor,observed,snapshot}=await setup(t,locale,c.lane);const before=await snapshot();const peer=await f.db.getUser('b');
  const text=c.text+(c.lane==='health'?' What is my HRV today?':'');const u=update(988001+i,text);

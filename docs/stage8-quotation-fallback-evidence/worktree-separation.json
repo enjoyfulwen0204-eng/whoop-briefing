@@ -1,0 +1,17 @@
+{
+  "physicallySeparateBeforeEdits": true,
+  "observations": [
+    {
+      "path": "/Users/kelvin/.codex/worktrees/stage8-quotation-safety-fallback/whoop-briefing",
+      "device": 16777229,
+      "inode": 76425049,
+      "head": "10b68fa5f4f9501c424ad4c16b4bab0eae500595"
+    },
+    {
+      "path": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+      "device": 16777229,
+      "inode": 71452797,
+      "head": "2382ff92b5a4b3e1e7705eb1149bbb6c4d8b7f76"
+    }
+  ]
+}

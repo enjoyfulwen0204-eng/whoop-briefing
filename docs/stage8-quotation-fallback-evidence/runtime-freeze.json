@@ -1,0 +1,8 @@
+{
+  "runtimeEditsStopped": true,
+  "reason": "Introduced systematic Chinese negation false positive; stop condition triggered",
+  "sha256": {
+    "src/bot/triage.js": "a5d35fdbc0c4b9a1372beb529365a82889e263c4f6126ad863f6a38a7cdaf50c",
+    "src/bot/safetyGate.js": "d9ce578b9fb8fcbb15c42ecd308bcb32b7fb7c695908358293ff5e107f32bf87"
+  }
+}

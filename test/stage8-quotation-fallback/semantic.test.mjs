@@ -1,0 +1,9 @@
+import fs from 'node:fs';import test from 'node:test';import assert from 'node:assert/strict';
+import {interpretUrgentSymptoms as parse,assessUrgency} from '../../src/bot/triage.js';
+const corpus=JSON.parse(fs.readFileSync(new URL('./cases.json',import.meta.url)));
+for(const c of [...corpus.cases,...corpus.metamorphic])test('quotation fallback '+c.id,()=>assert.equal(parse(c.text).decision,c.expected,JSON.stringify({c,result:parse(c.text)})));
+test('fallback proof retains source, outside actor and owned operators',()=>{for(const c of corpus.cases){const r=parse(c.text),g=r.ownership;for(const q of r.safetyGate.quotations){assert.ok(g.predicates.find(p=>p.id===q.sourcePredicateId));const p=g.predicates.find(p=>p.id===q.predicateId);assert.equal(p.actorId,q.actorId);for(const id of q.operatorIds)assert.equal(g.operators.find(o=>o.id===id).ownerPredicateId,p.id);}}});
+test('fallback never mutates symptom or operator ownership',()=>{for(const c of corpus.cases){const g=parse(c.text).ownership;for(const [xs,key]of[[g.symptoms,'symptomIds'],[g.operators,'operatorIds']])for(const x of xs){assert.equal(g.predicates.filter(p=>p[key].includes(x.id)).length,1);assert.ok(g.predicates.find(p=>p.id===x.ownerPredicateId)[key].includes(x.id));}}});
+test('current proof and uncertain reference have separate ledger decisions',()=>{for(const [id,proof]of[['current-en','BOUNDED_QUOTE_ARGUMENT'],['uncertain-en','UNRESOLVED_QUOTE_REFERENCE']])assert.ok(parse(corpus.cases.find(c=>c.id===id).text).safetyGate.quotations.some(q=>q.proof===proof));});
+test('same-message OTHER identity is retained by fallback',()=>{const r=parse(corpus.cases.find(c=>c.id==='other-assertion').text);assert.ok(r.safetyGate.quotations.some(q=>q.actorId==='OTHER:my friend:ana'));});
+test('three-state ingress stays small and private',()=>assert.deepEqual(Object.keys(assessUrgency('"chest pain" is precisely what I am feeling now.')).sort(),['decision','excluded','matched','urgent']));

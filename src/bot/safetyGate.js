@@ -1,7 +1,7 @@
 // A bounded safety reduction, independent of the parser's exclusion decision.
 // Missing positive syntax proof is never an exclusion certificate. This module
 // neither clones symptoms nor changes predicate/operator ownership or evidence.
-export const SAFETY_GATE_VERSION='conservative-evidence-v1';
+export const SAFETY_GATE_VERSION='conservative-evidence-v1-quotation-fallback';
 const CURRENT='CURRENT_URGENT',POSSIBLE='POSSIBLE_CURRENT_URGENT',CLEAR='CLEARLY_NONURGENT';
 const active=m=>['CURRENT','AMBIGUOUS'].includes(m.state);
 const word=/[\p{L}\p{N}]/u;
@@ -15,6 +15,49 @@ function residual(text,start,end,events){
   if(e.start>at)result+=text.slice(at,Math.min(e.start,end));at=Math.max(at,e.end);
  }
  return (result+text.slice(Math.min(at,end),end)).trim().replace(/\s+/gu,' ').toLocaleLowerCase('en');
+}
+// Quote-only exclusion is incomplete when an adjacent personal experiential
+// predicate has an unfilled argument. This ledger never changes parser nodes.
+// Existing lexical heads, actor identities and clause boundaries own all proof.
+function quotationEvidence(text,graph,operators){
+ const rows=new Map(),frames=new Map();
+ const conditional=/^(?:if|what if|suppose|hypothetically|nếu|giả sử|如果|假設|假如|若是|萬一)$/iu;
+ const experiential=/^(?:have|has|having|experience|experiencing|experienced|feel|feeling|felt|suffering from|感到|覺得|有|cảm thấy|bị|có)$/iu;
+ // Modality here can only lower confidence; it never excludes a candidate.
+ const modal=/\b(?:may|might|could|maybe|perhaps|possibly)\b|可能|也許|(?<!\p{L})có thể(?!\p{L})/iu;
+ for(let i=0;i<graph.predicates.length;i++){
+  const q=graph.predicates[i],unit=q.units[0];
+  if(!q.quote)continue;
+  // A leading registered conditional belongs to the quoted clause, including
+  // a derived quote complement in that same clause; never a later assertion.
+  if(conditional.test(unit.connector)&&unit.connectorSpan.end<=q.quote.start){
+   const frame={sourcePredicateId:q.id,span:unit.connectorSpan,proof:'LOCAL_QUOTED_CONDITIONAL'};
+   frames.set(q.id,frame);
+   for(const p of graph.predicates)if(p.referenceProof==='QUOTE_COMPLEMENT'&&p.referenceId===q.id&&p.units[0].connectorSpan.start===unit.connectorSpan.start&&p.units[0].connectorSpan.end===unit.connectorSpan.end)frames.set(p.id,frame);
+  }
+  const p=graph.predicates[i+1];
+  if(!p||p.quote||p.edge!=='quote-tail'||p.symptomIds.length||!p.actorId||p.actor==='GENERIC'||p.information||p.hypothetical||frames.has(q.id))continue;
+  const ops=operators.get(p.id),actor=ops.find(o=>o.type==='actor'&&o.role!=='POSSESSOR_OBJECT');
+  const head=actor&&ops.find(o=>['present','pastPredicate'].includes(o.type)&&o.start>=actor.end&&experiential.test(o.word));
+  if(!head||ops.some(o=>['education','information','conditionalFrame'].includes(o.type)&&o.start<head.end))continue;
+  // A different explicit argument is a barrier. Whitespace, owned operators
+  // and the already supported Chinese symptom nominal exhaust this slot.
+  const argument=residual(text,head.end,p.ownedSpan.end,ops).replace(/的症狀\s*$/u,'');
+  if(word.test(argument))continue;
+  const prefix=text.slice(p.ownedSpan.start,actor.start).trim();
+  const relative=/\bwhat\s*$/iu.test(prefix)||/是\s*$/u.test(prefix)||/(?:triệu chứng|điều)\s*$/iu.test(prefix);
+  const copula=/\bis\b|是|(?<!\p{L})là(?!\p{L})/iu.test(prefix);
+  if(!relative&&/^(?:have|has|having|有|bị|có)$/iu.test(head.word))continue;
+  const scope=ops.filter(o=>o.start>=actor.end),uncertain=p.epistemic||modal.test(prefix)||ops.some(o=>o.type==='negative'&&o.start<actor.start);
+  const sameActor=!q.actorId||q.actorId===p.actorId;
+  const precise=relative&&copula&&sameActor&&!q.education&&!q.information&&prefix.length<=96;
+  const negative=scope.some(o=>o.type==='negative'&&o.end<=head.start)||scope.some(o=>o.type==='resolution'&&/^no longer$/iu.test(o.word)&&o.end<=head.start);
+  const past=scope.some(o=>['pastTime','pastPredicate'].includes(o.type))&&!scope.some(o=>o.type==='currentTime');
+  if(precise&&!uncertain&&(negative||past))continue;
+  const decision=precise&&!uncertain&&!negative&&!past&&head.type==='present'?CURRENT:POSSIBLE;
+  rows.set(q.id,{sourcePredicateId:q.id,predicateId:p.id,actorId:p.actorId,operatorIds:ops.map(o=>o.id),span:{start:q.quote.start,end:p.ownedSpan.end},proof:decision===CURRENT?'BOUNDED_QUOTE_ARGUMENT':'UNRESOLVED_QUOTE_REFERENCE',decision});
+ }
+ return {rows,frames};
 }
 export function reduceSafetyEvidence(text,graph,mentions){
  const predicates=new Map(graph.predicates.map(p=>[p.id,p]));
@@ -44,10 +87,15 @@ export function reduceSafetyEvidence(text,graph,mentions){
   // after the outcome cannot invalidate an already bounded certificate.
   return !word.test(firstTarget>=outcome.end?residual(text,outcome.end,firstTarget,ops):residual(text,lastTarget,outcome.end,ops));
  };
+ const quotation=quotationEvidence(text,graph,operators),quotationRows=[];
  const certificates=[],unresolved=[],current=[];
  for(const m of supported){
   const p=predicates.get(m.predicateId),ops=operators.get(p.id),e=m.evidence;
   const basis={symptomId:m.id,predicateId:p.id,actorId:e.actorId,state:m.state,operatorIds:ops.map(o=>o.id)};
+  const quotedFrame=quotation.frames.get(p.id);
+  if(quotedFrame){certificates.push({...basis,...quotedFrame});continue;}
+  const quotedReference=m.state==='QUOTED'&&quotation.rows.get(p.id);
+  if(quotedReference){const row={...basis,...quotedReference,symptomId:m.id,text:m.text};quotationRows.push(row);(row.decision===CURRENT?current:unresolved).push(row);continue;}
   if(active(m)){(m.state==='CURRENT'&&(m.strong||mentions.some(n=>compatible(m,n)&&n.state==='CURRENT'))?current:unresolved).push({...basis,text:m.text});continue;}
   // Derived retirement must have its bounded, compatible OUTCOME relationship.
   // Original evidence remains intact and a historical outcome cannot close it.
@@ -87,5 +135,5 @@ export function reduceSafetyEvidence(text,graph,mentions){
  }
  const selected=current[0]??unresolved[0];
  return {decision:current.length?CURRENT:unresolved.length?POSSIBLE:CLEAR,matched:selected?.text??null,
-  safetyGate:{version:SAFETY_GATE_VERSION,candidateIds:supported.map(m=>m.id),exclusions:certificates,unresolved,continuations}};
+  safetyGate:{version:SAFETY_GATE_VERSION,candidateIds:supported.map(m=>m.id),exclusions:certificates,unresolved,continuations,quotations:quotationRows}};
 }

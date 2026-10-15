@@ -1,0 +1,106 @@
+{
+  "reason": "Selected model at capacity; previous execution sessions unavailable, no task test processes remain",
+  "runtimeUnchanged": true,
+  "completedCommandsPreserved": [
+    "safety",
+    "new-semantic",
+    "gate-semantic",
+    "adjudicated-semantic",
+    "final-adversarial",
+    "quotation-semantic",
+    "quotation-ingress0",
+    "quotation-ingress1",
+    "quotation-ingress2",
+    "local-frame"
+  ],
+  "resumedCommands": [
+    "integration",
+    "scoped",
+    "regression",
+    "legacy-ingress0",
+    "legacy-ingress1",
+    "legacy-ingress2",
+    "adjudicated-ingress0",
+    "adjudicated-ingress1",
+    "adjudicated-ingress2",
+    "polling",
+    "processor",
+    "stop-processor",
+    "name"
+  ],
+  "archivedBeforeResuming": [
+    {
+      "file": "integration.start",
+      "sha256": "6c4427c72eb2d05f37e8e9010c9a667715888b37e9eb23f2dbd12e2c3b127c9f"
+    },
+    {
+      "file": "integration.tap",
+      "sha256": "2c046de176237dcb42188014e8fc80810a446b40f9b165b2aacf7cc0cefbf810"
+    },
+    {
+      "file": "legacy-ingress0.start",
+      "sha256": "46822a2e00ca57dd6f97640b110ae482dca55b2501970969998bd8fa8807f7c3"
+    },
+    {
+      "file": "legacy-ingress0.tap",
+      "sha256": "c589f9879cbb039bc4c4bdc71bd5d86f58c545d91a065a4d326593f05f220cf7"
+    },
+    {
+      "file": "legacy-ingress1.start",
+      "sha256": "a5412885029e119dd743c50a2a553746636305bfd5e30988c9508b9a4a5531d9"
+    },
+    {
+      "file": "legacy-ingress1.tap",
+      "sha256": "07a5522e6bf684e71602d2c5add440fa4f70fbceb2f65676599561d62fb5bb64"
+    },
+    {
+      "file": "legacy-ingress2.start",
+      "sha256": "5e94c8a39e9756c82764dc3994a91323dce222a429edcae6ac5e67b17fea5887"
+    },
+    {
+      "file": "legacy-ingress2.tap",
+      "sha256": "f209ff8e95984eb83b18ba2b51bded6c9e0519816487d4317276ac550e26dd33"
+    },
+    {
+      "file": "legacy-processor-0-cases.json",
+      "sha256": "f81844e703dc3e7bd9e3e35652426d8311468dde6e30b09a6422752dbc462924"
+    },
+    {
+      "file": "legacy-processor-0-results.json",
+      "sha256": "1bd7e849f9410688fd0b6ff7c698f19622199bbd1f79f4684a34b7d0a9f27268"
+    },
+    {
+      "file": "legacy-processor-1-cases.json",
+      "sha256": "f81844e703dc3e7bd9e3e35652426d8311468dde6e30b09a6422752dbc462924"
+    },
+    {
+      "file": "legacy-processor-1-results.json",
+      "sha256": "13756cb9e4e4226f66bd71f871ade1d1bda7896aae69990633e81b43c8cb17d6"
+    },
+    {
+      "file": "legacy-processor-2-cases.json",
+      "sha256": "f81844e703dc3e7bd9e3e35652426d8311468dde6e30b09a6422752dbc462924"
+    },
+    {
+      "file": "legacy-processor-2-results.json",
+      "sha256": "bc4c7aca87c6147e5a9f19494ee1d80d7e190bc5145bdc5a401920814e972599"
+    },
+    {
+      "file": "regression.start",
+      "sha256": "3cd1551f84b30c2908fbc2f99d867d92b8c29b2083b5c236ba33191782768a2c"
+    },
+    {
+      "file": "regression.tap",
+      "sha256": "debfe242e231a967427e5ebd3b54d633b384ef673dde1f9aae7089aa8e89baac"
+    },
+    {
+      "file": "scoped.start",
+      "sha256": "e39fefa0065e4238b43953facdf1b995bfea56f8138e7b2de37ca2b8bc1241e9"
+    },
+    {
+      "file": "scoped.tap",
+      "sha256": "c6b2f20fe4fe991c4eebf44e4a9294ac7162b7205ed6137f7a621ab4adc7fdac"
+    }
+  ],
+  "maxConcurrentProcesses": 3
+}

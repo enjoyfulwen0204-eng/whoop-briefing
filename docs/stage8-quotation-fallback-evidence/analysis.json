@@ -1,0 +1,344 @@
+{
+  "sourceExpectationsChanged": 0,
+  "syntheticCorpusRowsNotPopulationRates": true,
+  "allRows": {
+    "rows": 230,
+    "pass": 205,
+    "fail": 25
+  },
+  "newlyIntroducedFailures": [
+    {
+      "id": "negated-zh",
+      "text": "「胸痛」正是我現在沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CLEARLY_NONURGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "negated-zh-nfd",
+      "text": "「胸痛」正是我現在沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CLEARLY_NONURGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "negated-zh-space",
+      "text": "  「胸痛」正是我現在沒有感到的症狀。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CLEARLY_NONURGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "negated-zh-quote-style",
+      "text": "『胸痛』正是我現在沒有感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CLEARLY_NONURGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "negated-zh-metric",
+      "text": "「胸痛」正是我現在沒有感到的症狀。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CLEARLY_NONURGENT",
+      "after": "CURRENT_URGENT"
+    }
+  ],
+  "preexistingUnresolved": [
+    {
+      "id": "hypothetical-en",
+      "text": "If \"chest pain\" is what I am experiencing, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-zh",
+      "text": "假設「胸痛」是我現在感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-vi",
+      "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-en-nfd",
+      "text": "If \"chest pain\" is what I am experiencing, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-en-space",
+      "text": "  If \"chest pain\" is what I am experiencing, what should I do?  ",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-en-quote-style",
+      "text": "If “chest pain” is what I am experiencing, what should I do?",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-en-metric",
+      "text": "If \"chest pain\" is what I am experiencing, what should I do? What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-zh-nfd",
+      "text": "假設「胸痛」是我現在感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-zh-space",
+      "text": "  假設「胸痛」是我現在感到的症狀。  ",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-zh-quote-style",
+      "text": "假設『胸痛』是我現在感到的症狀。",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-zh-metric",
+      "text": "假設「胸痛」是我現在感到的症狀。 What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-vi-nfd",
+      "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-vi-space",
+      "text": "  Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy.  ",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-vi-quote-style",
+      "text": "Nếu “đau ngực” là triệu chứng tôi đang cảm thấy.",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    },
+    {
+      "id": "hypothetical-vi-metric",
+      "text": "Nếu \"đau ngực\" là triệu chứng tôi đang cảm thấy. What is my HRV today?",
+      "expected": "CLEARLY_NONURGENT",
+      "before": "CURRENT_URGENT",
+      "after": "CURRENT_URGENT"
+    }
+  ],
+  "authorIdentifiedExpectationDispute": {
+    "independentlyAdjudicated": false,
+    "expectationsUnchanged": true,
+    "rows": [
+      {
+        "id": "other-unrelated",
+        "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "other-unrelated-nfd",
+        "text": "My friend Ana said \"chest pain\". I am feeling relaxed now.",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "other-unrelated-space",
+        "text": "  My friend Ana said \"chest pain\". I am feeling relaxed now.  ",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "other-unrelated-quote-style",
+        "text": "My friend Ana said “chest pain”. I am feeling relaxed now.",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "id": "other-unrelated-metric",
+        "text": "My friend Ana said \"chest pain\". I am feeling relaxed now. What is my HRV today?",
+        "expected": "CLEARLY_NONURGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CURRENT_URGENT"
+      }
+    ],
+    "reason": "A named reporter utters a serious-symptom term without educational framing. Existing reporter binding routes it urgently, and the authenticated user's later wellness cannot establish that the quoted term was purely informational. The control does not explicitly state Ana has the symptom; its CLEAR expectation is disputed and requires independent adjudication. Keep all original expected CLEAR values and five FAIL outcomes; do not claim independently approved invalidity or clinical currentness."
+  },
+  "rawNegativeRows": {
+    "rows": 175,
+    "safetyResponses": 25
+  },
+  "authorAnalysisExcludingDisputedRows": {
+    "positiveRows": 55,
+    "falseNegative": 0,
+    "negativeRows": 170,
+    "falsePositive": 20,
+    "newlyIntroducedFalsePositive": 5
+  },
+  "residual4": {
+    "pass": 4,
+    "fail": 0,
+    "classifications": [
+      {
+        "text": "\"chest pressure\" is exactly what I am experiencing right now.",
+        "expected": "CURRENT_URGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "text": "「胸痛」正是我現在感到的症狀。",
+        "expected": "CURRENT_URGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "text": "\"đau ngực\" chính là triệu chứng tôi đang cảm thấy.",
+        "expected": "CURRENT_URGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "CURRENT_URGENT"
+      },
+      {
+        "text": "\"chest pressure\" might be what I am feeling right now.",
+        "expected": "POSSIBLE_CURRENT_URGENT",
+        "before": "CLEARLY_NONURGENT",
+        "after": "POSSIBLE_CURRENT_URGENT"
+      }
+    ]
+  },
+  "stop": {
+    "runtimeEditsStopped": true,
+    "introducedMechanism": "Head selection matches present 有 inside the negative operator 沒有. Negative end is after the selected head start, so the governing negation fails the before-head check. A supported negative Chinese experiential assertion is promoted to CURRENT. Five semantic variants and four processor lanes expose this new false-positive family.",
+    "preexistingMechanism": "Leading conditional clause ownership is lost at a quote boundary. The new guard checks the inner unit connector, not the outer connector span; the quoted complement remains ACTUAL. These three multilingual examples already returned CURRENT on the baseline.",
+    "noFurtherRuntimeEdits": true,
+    "introducedHighMechanism": "For a conditional inside a quoted phrase, the inner unit connector is conditional but its outer connectorSpan is empty (0..0). The guard accepts that unsupported span and also frames the outside actual QUOTE_COMPLEMENT predicate. This retires independently current outside evidence as hypothetical. Scope crosses the quotation boundary; three languages and nine semantic variants reproduce it."
+  },
+  "localFrame18": {
+    "rows": 18,
+    "positiveRows": 9,
+    "negativeRows": 9,
+    "pass": 9,
+    "fail": 9,
+    "introducedFalseNegatives": [
+      {
+        "id": "local-frame-en",
+        "text": "\"if I have chest pain\" is what I am feeling right now.",
+        "expected": "CURRENT_URGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CLEARLY_NONURGENT"
+      },
+      {
+        "id": "local-frame-zh",
+        "text": "「如果我胸痛」是我現在感到的症狀。",
+        "expected": "CURRENT_URGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CLEARLY_NONURGENT"
+      },
+      {
+        "id": "local-frame-vi",
+        "text": "\"nếu tôi đau ngực\" là triệu chứng tôi đang cảm thấy.",
+        "expected": "CURRENT_URGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CLEARLY_NONURGENT"
+      },
+      {
+        "id": "local-frame-en-nfd",
+        "text": "\"if I have chest pain\" is what I am feeling right now.",
+        "expected": "CURRENT_URGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CLEARLY_NONURGENT"
+      },
+      {
+        "id": "local-frame-en-metric",
+        "text": "\"if I have chest pain\" is what I am feeling right now. What is my HRV today?",
+        "expected": "CURRENT_URGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CLEARLY_NONURGENT"
+      },
+      {
+        "id": "local-frame-zh-nfd",
+        "text": "「如果我胸痛」是我現在感到的症狀。",
+        "expected": "CURRENT_URGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CLEARLY_NONURGENT"
+      },
+      {
+        "id": "local-frame-zh-metric",
+        "text": "「如果我胸痛」是我現在感到的症狀。 What is my HRV today?",
+        "expected": "CURRENT_URGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CLEARLY_NONURGENT"
+      },
+      {
+        "id": "local-frame-vi-nfd",
+        "text": "\"nếu tôi đau ngực\" là triệu chứng tôi đang cảm thấy.",
+        "expected": "CURRENT_URGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CLEARLY_NONURGENT"
+      },
+      {
+        "id": "local-frame-vi-metric",
+        "text": "\"nếu tôi đau ngực\" là triệu chứng tôi đang cảm thấy. What is my HRV today?",
+        "expected": "CURRENT_URGENT",
+        "before": "CURRENT_URGENT",
+        "after": "CLEARLY_NONURGENT"
+      }
+    ],
+    "mechanism": "For a conditional inside a quoted phrase, the inner unit connector is conditional but its outer connectorSpan is empty (0..0). The guard accepts that unsupported span and also frames the outside actual QUOTE_COMPLEMENT predicate. This retires independently current outside evidence as hypothetical. Scope crosses the quotation boundary; three languages and nine semantic variants reproduce it."
+  },
+  "combinedNewInputRows": {
+    "rows": 248,
+    "pass": 214,
+    "fail": 34,
+    "expectedPositiveRows": 64,
+    "falseNegative": 9,
+    "rawExpectedNegativeRows": 184,
+    "rawNegativeSafetyResponses": 25,
+    "disputedAuthorRows": 5,
+    "authorAnalysisExcludingDisputedNegativeRows": 179,
+    "falsePositiveExcludingDisputedRows": 20,
+    "introducedFalsePositiveRows": 5,
+    "populationRatesNotEstablished": true
+  },
+  "measuredTradeoff": {
+    "sameFrozenInputRows": 248,
+    "positiveRows": 64,
+    "rawNegativeRows": 184,
+    "beforeFalseClears": 55,
+    "afterFalseClears": 9,
+    "introducedFalseClearRows": 9,
+    "beforeRawNegativeSafetyResponses": 20,
+    "afterRawNegativeSafetyResponses": 25,
+    "introducedFalseWarningRows": 5,
+    "disputedRowsNotRelabeledOrPassed": 5,
+    "syntheticTransformationsNotPopulationEstimate": true,
+    "aggregateImprovementDoesNotPermitNewSystematicSafetyDefects": true
+  }
+}

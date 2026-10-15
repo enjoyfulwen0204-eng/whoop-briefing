@@ -3,15 +3,15 @@
 import {createServer} from 'node:http';
 import {createHash,randomUUID} from 'node:crypto';
 import {writeFile} from 'node:fs/promises';
-const streams=new Map(),transactions=[],evidence=[],probes=[];
+const streams=new Map(),transactions=[],evidence=[],probes=[],probeRuns=[];
 const counts={httpRequests:0,submittedSqlStatements:0,observedExecutedSqlStatements:0},configuration={backend:'upstream-sqld-v0.24.33',latencyMs:115,qualificationTransactionThresholdMs:5000,actualSelfHostedTransactionLimitMs:null,productionTransactionLimit:'UNKNOWN',retries:0};
-let probeActive=false,probePromise;
+let probeActive=false,probePromise,probeRun,probeStopping;
 const label=sql=>({verb:/^\s*([a-z]+)/i.exec(sql)?.[1]?.toUpperCase(),table:/\b(?:FROM|INTO|UPDATE)\s+"?([a-z0-9_]+)/i.exec(sql)?.[1],template:createHash('sha256').update(sql.replace(/\s+/g,' ').trim()).digest('hex'),assertionLabel:/ELSE '([A-Z0-9_]+)'/.exec(sql)?.[1],...(sql.includes("ELSE 'SYNC_IMMUTABLE_AUTHORITY_CHANGED'")?{operation:'SYNC_COMMIT_WINDOW_AUTHORITY_ASSERTION'}:{})});
-const safe=()=>({providerConfiguration:configuration,transactionTraceEnabled:true,counts,evidence,probes,transactions,morningTransactions:transactions});
+const safe=()=>({providerConfiguration:configuration,transactionTraceEnabled:true,counts,evidence,probes,probeRuns,transactions,morningTransactions:transactions});
 const server=createServer(async(req,res)=>{try{
  if(req.method==='GET'&&req.url==='/counts'){res.setHeader('content-type','application/json');res.end(JSON.stringify(safe()));return;}
- if(req.url==='/probe/start'){probeActive=true;probePromise=(async()=>{while(probeActive){const at=performance.now();try{const r=await fetch('http://app:8081/health',{signal:AbortSignal.timeout(5000)});probes.push({status:r.status,elapsedMs:performance.now()-at});}catch(e){probes.push({error:e.name,elapsedMs:performance.now()-at});}await new Promise(r=>setTimeout(r,250));}})();res.end('{}');return;}
- if(req.url==='/probe/stop'){probeActive=false;await probePromise;res.end('{}');return;}
+ if(req.url==='/probe/start'){if(probeActive||probeStopping){res.writeHead(409).end(JSON.stringify({error:'PROBE_ALREADY_ACTIVE'}));return;}const run=probeRun={id:randomUUID(),startedAt:Date.now(),finishedAt:null};probeRuns.push(run);probeActive=true;probePromise=(async()=>{while(probeActive){const at=performance.now(),startedAt=Date.now();try{const r=await fetch('http://app:8081/health',{signal:AbortSignal.timeout(5000)});await r.arrayBuffer();probes.push({runId:run.id,startedAt,finishedAt:Date.now(),status:r.status,elapsedMs:performance.now()-at});}catch(e){probes.push({runId:run.id,startedAt,finishedAt:Date.now(),error:e.name,elapsedMs:performance.now()-at});}await new Promise(r=>setTimeout(r,250));}})();res.end(JSON.stringify({runId:run.id}));return;}
+ if(req.url==='/probe/stop'){if(!probeStopping){const run=probeRun,loop=probePromise;probeActive=false;probeStopping=(async()=>{await loop;if(run)run.finishedAt=Date.now();})().finally(()=>{probeStopping=null;});}await probeStopping;res.end('{}');return;}
  if(req.method!=='POST'||!['/v2/pipeline','/morning/v2/pipeline'].includes(req.url)){res.writeHead(404).end();return;}
  const chunks=[];for await(const part of req)chunks.push(part);const body=JSON.parse(Buffer.concat(chunks)),httpId=++counts.httpRequests;
  const stream=streams.get(body.baton)??{id:randomUUID(),role:req.headers['x-synthetic-role']??'UNSCOPED',sql:new Map()};

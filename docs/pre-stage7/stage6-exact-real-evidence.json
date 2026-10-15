@@ -1,0 +1,848 @@
+{
+  "status": "STAGE6_EXACT_REAL_TRANSPORT_REPAIR_COMPLETE_FOCUSED_ONLY_RUNTIME_QUALIFICATION_PARTIAL",
+  "recordedAtUTC": "2026-10-15T05:52:17.490731+00:00",
+  "baseline": {
+    "head": "b8d69a38405a711824aa5946813ce720911a079f",
+    "tree": "b52e4a68a28dbe22b29fce5098ca4b39a2ec3841",
+    "preservedAncestor": "9770553caba6f4085f4799fb6088db5076433f8e"
+  },
+  "identity": {
+    "runtimeSourceCommit": "c13fc0695471070abf529dc9afe4d6f88b4326cf",
+    "runtimeTree": "07ca35abe643db05395e059fbc7d9b80f18cc803",
+    "image": "stage6-exact-real:c13fc06",
+    "sourceFiles": {
+      "src/exactRealStatement.js": "270dd4f163c768b02ecbcec2cc960a06ab3c41cc3285dd5a2e3d121ff2814428",
+      "src/stage6ShortPublication.js": "e711500ec963bdc4e0e61bafde5282f0308ec90f240752b2cd3b5cdde71604c5"
+    },
+    "afterFreeze": "Only test observer/fixture/current-proof changes, frozen source identical",
+    "client": "@libsql/client0.15.15",
+    "hrana": "@libsql/hrana-client0.7.0",
+    "native": "libsql0.5.29",
+    "server": "sqld0.24.33@sha256:f8ca0134cdded747793888e48591aece07647d9d598d3ac229aabfa93159ca88",
+    "node": "22.23.2",
+    "v8MiB": {
+      "oldSpace": 96,
+      "semiSpace": 2
+    }
+  },
+  "rootCause": {
+    "batchStatement": 34,
+    "table": "evidence_items",
+    "templateSha256": "9b33bf89b4604da9fd0b4abbc5815d51148c175a723b8e5ed497bf214d7ce667",
+    "rows": 17,
+    "guardColumns": 35,
+    "failedColumn": "recency_weight",
+    "publicSyntheticNumber": 0.9048374180359595,
+    "databaseType": "REAL",
+    "nativeAndHttpReadBits": "3fecf46d99d52b3a",
+    "driverOutgoingType": "float",
+    "driverOutgoingValue": 0.9048374180359595,
+    "serverBoundBits": "3fecf46d99d52b3b",
+    "confirmed": "Pinned server JSON float decoding moves the original by one ULP before SQLite. Direct raw JSON lexeme controls isolate it; JS conversion, driver outgoing value, SQLite affinity and NULL are ruled out for this case. Specific Rust module/feature is not established.",
+    "diagnosis": {
+      "path": "/private/tmp/stage6-exact-real-20261015/transport-diagnosis.json",
+      "sha256": "9f272c966016d9566b556bf80fb5e8d492ddd3e3d3a34fffec8ab848a2ddf5f8"
+    },
+    "lexemeControl": {
+      "syntheticPublicNumbers": true,
+      "applicationWrites": 0,
+      "rows": [
+        {
+          "lexeme": "0.9048374180359595",
+          "jsBits": "3fecf46d99d52b3a",
+          "serverBoundBits": "3fecf46d99d52b3b",
+          "storage": "real"
+        },
+        {
+          "lexeme": "0.90483741803595950",
+          "jsBits": "3fecf46d99d52b3a",
+          "serverBoundBits": "3fecf46d99d52b3a",
+          "storage": "real"
+        },
+        {
+          "lexeme": "9.048374180359595e-1",
+          "jsBits": "3fecf46d99d52b3a",
+          "serverBoundBits": "3fecf46d99d52b3b",
+          "storage": "real"
+        },
+        {
+          "lexeme": "9048374180359595e-16",
+          "jsBits": "3fecf46d99d52b3a",
+          "serverBoundBits": "3fecf46d99d52b3b",
+          "storage": "real"
+        },
+        {
+          "lexeme": "0.904837418035959517",
+          "jsBits": "3fecf46d99d52b3a",
+          "serverBoundBits": "3fecf46d99d52b3a",
+          "storage": "real"
+        }
+      ]
+    }
+  },
+  "losslessCorrection": {
+    "method": "Finite binary64 decomposed to signed <=53bit significand and exponent. Bind BigInt as Hrana signed64 decimal integer strings; SQL CAST AS REAL and multiply/divide exact integer powers of2<=2^62. At most18 factors plus significand.",
+    "proof": "Every intermediate is representable exactly between significand and finite target; no decimal REAL parsing, approximation, epsilon or authoritative-value replacement. All2098 finite exponents,2059 HTTP finite/null/zero samples; independent exponent-neighbor/affinity/rollback controls.",
+    "originalGuards": "All35 columns and IS operators remain. Original authority, algorithm, private ownership, admission, lease, generation, HMAC and namedACK paths unchanged.",
+    "null": "Unchanged",
+    "signedZero": "Existing SQLite IS and signed JSON contract identify +/-0. HTTP JSON already canonicalizes -0; native original binding retained. No HTTP signed-zero bit-identity claim.",
+    "nonfinite": "Numeric parameters reject before SQL; nonfinite HTTP reads fail HRANA_PROTO_ERROR. No silent NULL coercion.",
+    "unsupportedBinds": "Compiled named/indexed/ambiguous placeholders reject before SQL",
+    "schemaRequired": false,
+    "newDependencies": false
+  },
+  "beforeAfter": {
+    "nativeOriginalGuardBefore": "17/17 accepted",
+    "httpOriginalGuardBefore": "13/17 accepted;4/17 rejected",
+    "bothAfter": "17/17 accepted with original guard",
+    "oneUlpChangedInput": "REJECTED",
+    "crossTenant": "REJECTED",
+    "immutableAuthoritativeMutation": "Original append-only trigger rejected UPDATE; rollback verified",
+    "baselinePublication": {
+      "verdict": "REPRODUCED_STOP_CONDITION",
+      "matched": {
+        "durationMs": 23266.267135,
+        "publicationMs": 1142,
+        "submittedStatements": 3801,
+        "http": 1,
+        "outcome": "ROLLED_BACK",
+        "response": 503
+      },
+      "quiescent": {
+        "durationMs": 23937.887302,
+        "publicationMs": 772,
+        "submittedStatements": 3802,
+        "http": 1,
+        "outcome": "ROLLED_BACK",
+        "concurrentWriters": false,
+        "response": 503
+      },
+      "exactGuard": {
+        "event": "sql_error",
+        "code": "SQLITE_UNKNOWN",
+        "connectionId": "b8b64596-75e8-4acb-b5cf-49150964e61f",
+        "role": "drain-child",
+        "at": 1792031618369,
+        "batchStep": 34,
+        "statement": {
+          "verb": "SELECT",
+          "table": "evidence_items",
+          "template": "9b33bf89b4604da9fd0b4abbc5815d51148c175a723b8e5ed497bf214d7ce667",
+          "assertionLabel": "SHORT_TRANSACTION_CONDITION_REJECTED"
+        },
+        "reason": "JSON_ASSERTION_REJECTED",
+        "messageDigest": "3737c16f305f2e687abe8fd1ce1fdce23c87e47ef3cb28e9f1c76365964fce0e",
+        "holders": []
+      },
+      "guardType": "ROW_EXISTS_EQUALITY_NOT_COUNT;35columns/17rows",
+      "readOnlyEcho": {
+        "rows": 17,
+        "rejected": 4,
+        "onlyColumn": "recency_weight",
+        "applicationWrites": 0
+      },
+      "minimalPublicRepro": {
+        "literal": "0.9048374180359595",
+        "nativeExactReadBindIS": "PASS",
+        "httpExactReadBindIS": "FAIL_0_NOT_1",
+        "nineLiteralControlRejected": 1,
+        "applicationWrites": 0
+      },
+      "cause": "Pinned HTTP/Hrana REAL value round trip fails exact snapshot equality for unchanged floating-point values. This is independent of calculation, transaction timeout and concurrent writers. Precise decoder/encoder component and Production equivalence are not yet established.",
+      "errorClassification": "Guard json(false-label) reports SQLITE_UNKNOWN; runtime conservatively returns COMMIT_INDETERMINATE and supervisor503. No false completion.",
+      "durableCalculationProgress": 0,
+      "currentCursorAdvance": 0,
+      "newSchemaRequired": "NOT_DEMONSTRATED",
+      "smallestNextCorrection": "Isolate incoming/outgoing REAL representation against the supported driver/server contract. Preserve original exact IEEE value or authenticated exact server representation BOTH when importing RAM calculation data AND when freshly validating publication; accepting a guard over already rounded calculation data is insufficient. No epsilon comparisons, rounding health/HMAC data, skipped guards or blanket SQLITE_UNKNOWN classification. First pass public scalar native/HTTP equality and algorithm equivalence, then one bounded publication retry. No new ledger or schema requirement is demonstrated."
+    },
+    "newSuccessfulAtomicBatches": [
+      {
+        "transactionMs": 760,
+        "http": 1,
+        "sql": 3805,
+        "outcome": "COMMITTED"
+      },
+      {
+        "transactionMs": 1247,
+        "http": 1,
+        "sql": 3811,
+        "outcome": "COMMITTED"
+      }
+    ],
+    "timingScope": "Provider BEGIN-to-COMMIT excludes injected delay before BEGIN; client publication includes fences. Context/history differs from baseline. Two observations are not p95 guarantees.",
+    "sharedSqlErrors": []
+  },
+  "monitoredSharedDB": {
+    "quiescent": {
+      "evidence": {
+        "path": "/private/tmp/stage6-exact-real-20261015/service-scoped-focused.tap",
+        "sha256": "145a6006ec5da93d5e2f7a138fe884ea9713b7cfab0c424706b88c19a7571340"
+      },
+      "source": "manual CLI shared runExecutionPhase; signed HTTP endpoint unchanged",
+      "drainResult": {
+        "version": 2,
+        "releaseSha": "c13fc0695471070abf529dc9afe4d6f88b4326cf",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "PARTIAL",
+        "durationMs": 17404.886258,
+        "jobsConsidered": 1,
+        "itemsAttempted": 1,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "identity": "77901598c9b1fa87eeb36dd73d7491798c793d6f96e0cef4f4c5cbeb4504c329",
+        "configProof": "4be29c37abeca1f9e452751e0b0f4034fa1ffe2806405a97a0bb0d1afb3976ed",
+        "completion": "PARTIAL",
+        "stopReason": "ITEM_LIMIT",
+        "executionMode": "SHADOW",
+        "finishedAt": 1792042410449,
+        "executionSeq": 101,
+        "settlementState": "FINALIZED_SUCCESS",
+        "finalizedAt": 1792042411173
+      },
+      "wholeDrainMs": 23116.476469,
+      "capacity": {
+        "active": false,
+        "lastPublication": {
+          "preparationMs": 6832.028837,
+          "transactionMs": 2165.9512090000007,
+          "statements": 3799,
+          "snapshotGroups": 97,
+          "snapshotBytes": 3942845,
+          "workUsage": {
+            "prefixReadSets": 66,
+            "operations": 0,
+            "bytes": 0
+          }
+        },
+        "heapLimit": 106954752,
+        "rss": 204677120
+      },
+      "proof": {
+        "executionId": "09077d7d-2479-46e7-85ce-d8d5a1c7c126",
+        "producerHmac": true,
+        "resultDigest": true,
+        "newOperations": [],
+        "cursor": {
+          "jobKind": "REPAIR_CURRENTNESS",
+          "cursor": "[\"JOURNAL_FACT\",\"01312597f63d0436744e3dbbf4a1a111f082d50c6a3f45fe83190e2cd2405a12\"]",
+          "receiptKey": "e3b4ae0c658abd22d87baa67b9823f3d593db1d351367a125fd40d8def45344a",
+          "exactNamedAck": true
+        }
+      },
+      "overlap": {
+        "quiescent": true,
+        "overlapStartedAt": 1792042392227,
+        "drainStartedAt": 1792042392236,
+        "drainEndedAt": 1792042415353,
+        "newSyncRequestId": "f411bd76-44a7-4f17-9aac-247d5f071358",
+        "canonicalSyncWindowsDuringOverlap": 0,
+        "qualification": "QUIESCENT_FIRST_PUBLICATION",
+        "morning": "FIRST_SYNC_DELIVERY_THEN_SAME_DAY_EXACTLY_ONCE_SUPPRESSION"
+      },
+      "syncTerminalStatus": 200,
+      "syncMs": 37905.8386,
+      "webhookStatus": 200,
+      "webhookReplayStatus": 200,
+      "newMorningDeliveries": 0,
+      "retainedDeliveredClaims": 4,
+      "allClaimsAttemptOne": true,
+      "health": {
+        "count": 232,
+        "all200": true,
+        "maxMs": 8.437750000000051
+      },
+      "resources": {
+        "node": "v22.23.2",
+        "arch": "arm64",
+        "limits": {
+          "memoryMax": 2147483648,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "cgroupPeakBytes": 251715584,
+        "headroomPercent": 88.27857971191406,
+        "cpu": {
+          "usage_usec": 6846344,
+          "user_usec": 5681182,
+          "system_usec": 1165161,
+          "nice_usec": 0,
+          "nr_periods": 600,
+          "nr_throttled": 17,
+          "throttled_usec": 987955,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "gc": {
+          "count": 149,
+          "totalMs": 194.79229700565338,
+          "maxMs": 38.285875007510185
+        },
+        "parentEventLoop": {
+          "maxMs": 81.395711,
+          "p99Ms": 30.425087
+        },
+        "childEventLoop": {
+          "maxMs": 566.231039,
+          "p99Ms": 51.740671
+        },
+        "oomKill": 0
+      },
+      "finalScopes": {
+        "created": 3,
+        "retired": 3,
+        "disabled": 21,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "realProviderRequests": 0
+    },
+    "concurrent": {
+      "evidence": {
+        "path": "/private/tmp/stage6-exact-real-20261015/service-concurrent.tap",
+        "sha256": "dc94952e4249dff3b4ce794f49b46e57adaad87b490aa6df658fa7f76329b4a1"
+      },
+      "source": "manual CLI shared runExecutionPhase; signed HTTP endpoint unchanged",
+      "drainResult": {
+        "version": 2,
+        "releaseSha": "c13fc0695471070abf529dc9afe4d6f88b4326cf",
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "outcome": "PARTIAL",
+        "durationMs": 18530.197634,
+        "jobsConsidered": 1,
+        "itemsAttempted": 1,
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "jobsFailed": 0,
+        "remainingJobs": 2,
+        "identity": "4da426c39eb52d1d6fa4985ab9f5b4fe57cfa67507fa5d44910c1afdb839e572",
+        "configProof": "4be29c37abeca1f9e452751e0b0f4034fa1ffe2806405a97a0bb0d1afb3976ed",
+        "completion": "PARTIAL",
+        "stopReason": "ITEM_LIMIT",
+        "executionMode": "SHADOW",
+        "finishedAt": 1792042511223,
+        "executionSeq": 103,
+        "settlementState": "FINALIZED_SUCCESS",
+        "finalizedAt": 1792042512154
+      },
+      "wholeDrainMs": 26748.81722,
+      "capacity": {
+        "active": false,
+        "lastPublication": {
+          "preparationMs": 6546.983835999999,
+          "transactionMs": 2640.4677509999983,
+          "statements": 3805,
+          "snapshotGroups": 97,
+          "snapshotBytes": 3945985,
+          "workUsage": {
+            "prefixReadSets": 66,
+            "operations": 0,
+            "bytes": 0
+          }
+        },
+        "heapLimit": 106954752,
+        "rss": 214294528
+      },
+      "proof": {
+        "executionId": "7d51118a-0249-4916-8a02-39d1e27a77cd",
+        "producerHmac": true,
+        "resultDigest": true,
+        "newOperations": [],
+        "cursor": {
+          "jobKind": "RECOMPUTE_DERIVED",
+          "cursor": "[\"JOURNAL_FACT\",\"1e4fcee00257ed80058d1fdcdf25b88b096e94e4bf0605c2f600caa01be18eee\"]",
+          "receiptKey": "499b90eb0a8670b9ec3a37da7fad07c3175ba0013eb4e39784ff984cd0982d99",
+          "exactNamedAck": true
+        }
+      },
+      "overlap": {
+        "quiescent": false,
+        "overlapStartedAt": 1792042491796,
+        "drainStartedAt": 1792042491805,
+        "drainEndedAt": 1792042518553,
+        "newSyncRequestId": "p4s1_0b0eed4b-dc22-41ee-9415-c521289e1d21",
+        "canonicalSyncWindowsDuringOverlap": 0,
+        "qualification": "CONTROL_AND_THROTTLED_TRAFFIC_ONLY",
+        "morning": "FIRST_SYNC_DELIVERY_THEN_SAME_DAY_EXACTLY_ONCE_SUPPRESSION"
+      },
+      "syncTerminalStatus": 200,
+      "syncMs": 88287.693706,
+      "webhookStatus": 200,
+      "webhookReplayStatus": 200,
+      "newMorningDeliveries": 0,
+      "retainedDeliveredClaims": 4,
+      "allClaimsAttemptOne": true,
+      "health": {
+        "count": 428,
+        "all200": true,
+        "maxMs": 33.260290999984136
+      },
+      "resources": {
+        "node": "v22.23.2",
+        "arch": "arm64",
+        "limits": {
+          "memoryMax": 2147483648,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "cgroupPeakBytes": 277045248,
+        "headroomPercent": 87.09907531738281,
+        "cpu": {
+          "usage_usec": 10977513,
+          "user_usec": 9562103,
+          "system_usec": 1415409,
+          "nice_usec": 0,
+          "nr_periods": 1105,
+          "nr_throttled": 17,
+          "throttled_usec": 1203498,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "gc": {
+          "count": 384,
+          "totalMs": 479.91815991699696,
+          "maxMs": 10.717749997973442
+        },
+        "parentEventLoop": {
+          "maxMs": 118.292479,
+          "p99Ms": 30.195711
+        },
+        "childEventLoop": {
+          "maxMs": 564.658175,
+          "p99Ms": 52.854783
+        },
+        "oomKill": 0
+      },
+      "finalScopes": {
+        "created": 3,
+        "retired": 3,
+        "disabled": 21,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "realProviderRequests": 0
+    },
+    "limitations": "Current new work is genuine JournalFact source cursor advancement, no new DOMAIN operation receipt. Concurrent SYNC is no-new-data; zero overlapping canonical writer windows; retained four Morning deliveries, zero new sends. Not full service qualification."
+  },
+  "deadlines": {
+    "configuredDrainMs": 45000,
+    "effectiveWorkerMs": 30000,
+    "publicationReserveMs": 5500,
+    "modeledTransactionMs": 5000,
+    "productionTransactionLimit": "UNKNOWN",
+    "selfHostedLimit": "Prior isolated idle transaction survived5.1s; qualification threshold is not asserted as actual Turso policy."
+  },
+  "childLifecycle": {
+    "evidence": {
+      "path": "/private/tmp/stage6-exact-real-20261015/managed-child-connected.tap",
+      "sha256": "3b62a8a4edc29a5e6cc7d2b19db2eb4984a0cbf1d10685c7060f32bf2ff53a9d"
+    },
+    "result": "PASS_FOCUSED",
+    "normal": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "result": {
+          "version": 2,
+          "releaseSha": "c13fc0695471070abf529dc9afe4d6f88b4326cf",
+          "phase": "STAGE6_DRAIN",
+          "source": "manual",
+          "outcome": "PARTIAL",
+          "durationMs": 26258.88547,
+          "jobsConsidered": 1,
+          "itemsAttempted": 1,
+          "itemsProcessed": 1,
+          "jobsCompleted": 0,
+          "jobsFailed": 0,
+          "remainingJobs": 2,
+          "identity": "8f630c8e2f1e6ba79dbfce766efe837f493a5e3dc711cf0db7aeb2a2ed69a47d",
+          "configProof": "4be29c37abeca1f9e452751e0b0f4034fa1ffe2806405a97a0bb0d1afb3976ed",
+          "completion": "PARTIAL",
+          "stopReason": "ITEM_LIMIT",
+          "executionMode": "SHADOW",
+          "finishedAt": 1792043250364,
+          "executionSeq": 92,
+          "settlementState": "FINALIZED_SUCCESS",
+          "finalizedAt": 1792043251170
+        },
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "proof": {
+      "executionId": "608c10dd-81f3-405d-9aa5-2544c06f34fb",
+      "producerHmac": true,
+      "resultDigest": true,
+      "newOperations": [],
+      "cursor": {
+        "jobKind": "REPAIR_CURRENTNESS",
+        "cursor": "[\"sleep\",\"sleep-01\"]",
+        "receiptKey": "cba6122c73e5f562badcd68449a1aabf2bf283393a5e1f0148e0149c6bf76beb",
+        "exactNamedAck": true
+      }
+    },
+    "integrity": {
+      "authenticatedReceipts": 19,
+      "tamperingRejected": true,
+      "crossTenantRejected": true
+    },
+    "interruptions": [
+      {
+        "boundary": "PREPARATION",
+        "response": {
+          "status": 503,
+          "body": {
+            "ok": false,
+            "error": "DRAIN_COMMIT_REQUIRES_RECONCILIATION",
+            "resumable": true
+          }
+        },
+        "shutdownMs": 710.2417089999944
+      },
+      {
+        "boundary": "CALCULATION",
+        "response": {
+          "status": 503,
+          "body": {
+            "ok": false,
+            "error": "DRAIN_COMMIT_REQUIRES_RECONCILIATION",
+            "resumable": true
+          }
+        },
+        "shutdownMs": 652.9850000000006
+      },
+      {
+        "boundary": "PUBLICATION",
+        "response": {
+          "status": 503,
+          "body": {
+            "ok": false,
+            "error": "DRAIN_COMMIT_REQUIRES_RECONCILIATION",
+            "resumable": true
+          }
+        },
+        "shutdownMs": 628.2438750000001
+      },
+      {
+        "boundary": "COMMIT_ACK",
+        "response": {
+          "status": 503,
+          "body": {
+            "ok": false,
+            "error": "DRAIN_COMMIT_REQUIRES_RECONCILIATION",
+            "resumable": true
+          }
+        },
+        "shutdownMs": 655.0245840000134
+      }
+    ],
+    "afterCommitReplay": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "phase": "STAGE6_DRAIN",
+        "source": "manual",
+        "result": {
+          "version": 2,
+          "releaseSha": "c13fc0695471070abf529dc9afe4d6f88b4326cf",
+          "phase": "STAGE6_DRAIN",
+          "source": "manual",
+          "outcome": "PARTIAL",
+          "workReceipts": 4,
+          "jobsConsidered": 0,
+          "itemsAttempted": 0,
+          "itemsProcessed": 0,
+          "jobsCompleted": 0,
+          "identity": "4cea02506c9eb984c132596e93992b506b3e7eaf6fd1fe4870e34ec6c04c41d2",
+          "configProof": "4be29c37abeca1f9e452751e0b0f4034fa1ffe2806405a97a0bb0d1afb3976ed",
+          "completion": "PARTIAL",
+          "stopReason": "RECONCILIATION_ONLY",
+          "executionMode": "SHADOW",
+          "finishedAt": 1792043334190,
+          "executionSeq": 96,
+          "settlementState": "FINALIZED_SUCCESS",
+          "finalizedAt": 1792043335049
+        },
+        "bodyEnergy": "NOT_AUTHORIZED_NOT_PRESENTED"
+      }
+    },
+    "final": {
+      "metrics": {
+        "linux": "v22.23.2",
+        "architecture": "arm64",
+        "limits": {
+          "memoryMax": 2147483648,
+          "swapMax": "0",
+          "cpuMax": "100000 100000",
+          "heapLimit": 106954752
+        },
+        "processes": [
+          {
+            "pid": 1,
+            "command": "node",
+            "rssBytes": 60346368
+          },
+          {
+            "pid": 13,
+            "command": "node",
+            "rssBytes": 114950144
+          }
+        ],
+        "elapsedMs": 121741.610764,
+        "cgroupPeak": 234549248,
+        "cgroupCurrent": 78692352,
+        "memoryEvents": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0,
+          "sock_throttled": 0
+        },
+        "cpuDelta": {
+          "usage_usec": 29514758,
+          "user_usec": 23309705,
+          "system_usec": 6205052,
+          "nice_usec": 0,
+          "nr_periods": 1217,
+          "nr_throttled": 134,
+          "throttled_usec": 8506687,
+          "nr_bursts": 0,
+          "burst_usec": 0
+        },
+        "processPeaks": {
+          "rss": 118906880,
+          "heapUsed": 32785576,
+          "external": 8829784,
+          "arrayBuffers": 4729357
+        },
+        "samples": 4446,
+        "gc": {
+          "count": 136,
+          "totalMs": 525.410713031888,
+          "maxMs": 116.4907920062542
+        },
+        "eventLoop": {
+          "maxMs": 468.713471,
+          "p99Ms": 46.137343
+        },
+        "resourceUsage": {
+          "userCPUTime": 5398401,
+          "systemCPUTime": 1904317,
+          "maxRSS": 116504,
+          "sharedMemorySize": 0,
+          "unsharedDataSize": 0,
+          "unsharedStackSize": 0,
+          "minorPageFault": 59336,
+          "majorPageFault": 0,
+          "swappedOut": 0,
+          "fsRead": 0,
+          "fsWrite": 0,
+          "ipcSent": 0,
+          "ipcReceived": 0,
+          "signalsCount": 0,
+          "voluntaryContextSwitches": 10361,
+          "involuntaryContextSwitches": 1534
+        }
+      },
+      "scopes": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 15,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      }
+    },
+    "retainedResult": {
+      "synthetic": true,
+      "attempts": 11,
+      "maxAttempts": 12,
+      "jobs": [
+        {
+          "user_id": "a",
+          "job_kind": "RECOMPUTE_DERIVED",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"sleep\",\"sleep-02\"]"
+        },
+        {
+          "user_id": "a",
+          "job_kind": "REPAIR_CURRENTNESS",
+          "requested_generation": 8,
+          "scope_revision": 7,
+          "completed_generation": 0,
+          "full_scan_cursor": "[\"sleep\",\"sleep-01\"]"
+        }
+      ],
+      "parentLocks": 0,
+      "counts": {
+        "httpRequests": 575,
+        "submittedSqlStatements": 9482,
+        "observedExecutedSqlStatements": 9450
+      },
+      "errors": [
+        {
+          "event": "proxy_error",
+          "code": "TypeError"
+        }
+      ],
+      "publications": [
+        {
+          "durationMs": 1657,
+          "http": 1,
+          "sql": 3615,
+          "outcome": "COMMITTED"
+        },
+        {
+          "durationMs": 836,
+          "http": 1,
+          "sql": 3623,
+          "outcome": "COMMITTED"
+        }
+      ]
+    },
+    "accounting": "Separate original checkpoint6/12 ->11/12 through five admissions; no reset/refund.",
+    "scope": "PREPARATION/CALCULATION/PUBLICATION disconnects leave cursor unchanged; afterCOMMIT cursor survives and originalreceipt reconciliation finalizes. All groups reaped; zero parent locks. Process controls includeSIGTERM,groupSIGKILL,prestartdisconnect. Sustained full-service parentSIGKILL not newly qualified."
+  },
+  "admission": {
+    "exhaustedControl": {
+      "path": "/private/tmp/stage6-exact-real-20261015/exhausted-control-final.tap",
+      "sha256": "32eae7f8df9697ce4d46aa00350383c12fa15f5fed5b3b3e6277dbd87501c6a2"
+    },
+    "attempts": 12,
+    "maxAttempts": 12,
+    "freshDrainOutcome": "DISABLED",
+    "unchangedPermitAndCalculations": true,
+    "immutableSyncReplay": "May retain original authorized handoff; fresh reserve still rejects at cap.",
+    "newProfileImplemented": false,
+    "sixMonitoredJobs": "NOT_QUALIFIED. Current HTTP monitored allowance exhausted. File-only native reservation seam has a different profile and cannot establish HTTP monitored convergence.",
+    "production12of12": "UNTOUCHED"
+  },
+  "tests": [
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/native-binary-final.tap",
+      "sha256": "5d0b814a9e48f58eef92485367cdf81133ef269f18757a7e8b389fc10d4b6126",
+      "pass": 5,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/http-typed-final.tap",
+      "sha256": "aa0172fbd67ecd77b0e8f1ef7bdc40e4074677e62a68af3f8b6986d15bbfef56",
+      "pass": 1,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/evidence-guard-final.tap",
+      "sha256": "b281e8b3432429247f5e1396eeeefc95758a1eef3d32a24cda363b42319a8454",
+      "pass": 1,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/publication-security-final.tap",
+      "sha256": "acf0c2c5615d8c1830eba894726c2481aa58c091710cf0588d7acf44fa5192e9",
+      "pass": 16,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/publication-crash-final.tap",
+      "sha256": "f387493c657f0f3adf40f5af529bc62c9ecdc7c4ca4be4c398bb2b97c730cdb2",
+      "pass": 2,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/child-process-control.tap",
+      "sha256": "4620ca5ebbe2d6fd1c95d4fd1ae08960963c7443847602e88187fcd1b80b3fab",
+      "pass": 7,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/managed-child-connected.tap",
+      "sha256": "3b62a8a4edc29a5e6cc7d2b19db2eb4984a0cbf1d10685c7060f32bf2ff53a9d",
+      "pass": 1,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/exhausted-control-final.tap",
+      "sha256": "32eae7f8df9697ce4d46aa00350383c12fa15f5fed5b3b3e6277dbd87501c6a2",
+      "pass": 1,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/probe-lifecycle-final.tap",
+      "sha256": "03553d184d8b4838e7eb319a96f60489b1897428288024d232ee3bf6ca3627b1",
+      "pass": 1,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/service-scoped-focused.tap",
+      "sha256": "145a6006ec5da93d5e2f7a138fe884ea9713b7cfab0c424706b88c19a7571340",
+      "pass": 1,
+      "fail": 0
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/service-concurrent.tap",
+      "sha256": "dc94952e4249dff3b4ce794f49b46e57adaad87b490aa6df658fa7f76329b4a1",
+      "pass": 1,
+      "fail": 0
+    }
+  ],
+  "rejectedEvidence": {
+    "decimalPrototypes": "Rejected before integer-only commit; native decimal parse loses exactness.",
+    "missingPreloader": "Initial security invocation invalid; correct existing preloader16/16PASS.",
+    "cloudflareQuiescent": "Correct policy-deferred outside08-12Taipei; no productivePASS.",
+    "manualHttp": "Endpoint correctly rejects400; manual test uses originalCLIsharedphase.",
+    "unscopedObserver": "Initial durable progress retained,but healthFAIL325 historical errors; all samples retained,scoped observer corrected/retested.",
+    "capControl": "Initial test wrongly expected cached drainAuthorizedfalse; immutable true retained and freshadmission rejection proven.",
+    "managedConnectivity": "First managed fixture listened127.0.0.1; failed beforeadmission. Corrected only containerbinding on sameDB; historicalproxyTypeError retained,noSQLerror."
+  },
+  "compatibility": {
+    "stage7v33": "Unmodified",
+    "stage8v34": "Main clean HEAD899dff0ae61474bb2b9ec0a0743cdbf11a999d3b tree5a2d81942d7133f0a0a1a4fbb8f1431d17c92936 unchanged",
+    "shadowLive": "Separate,no promotion",
+    "journalTenantLimit": "Separate,unchanged",
+    "f02": "OwnerAcceptedRisk,tokenuntouched"
+  },
+  "release": {
+    "exactRealDelta": "GO",
+    "runtime": "NO_GO",
+    "production": "NO_GO",
+    "remainingTechnicalWork": [
+      "Review finite synthetic-only HTTP admission profile,without resetting existing ledger or wideningProductionpolicy",
+      "Complete allsix monitoredjobs with actual bounded admissions and restart",
+      "Qualify actual canonicalwriter overlap,newMorningdelivery and sustainedLinux1CPU2GiB fulljob workload",
+      "Qualify full-service parentSIGKILL and obtain final focused acceptance"
+    ],
+    "requiredExternalApprovals": [
+      "ExactSHA publicpush",
+      "Exactcandidate deployment and resource authorization;preferred1c2gUS$25/month notactivated",
+      "ValidProductionexecution and independentLIVEproducer authority;existing12/12 unusable"
+    ],
+    "ownerReleaseStrategy": "DirectProduction+LIVE after fullfunctionality,independentacceptance,releasesafety;noOwnerpilot/PublicBeta",
+    "productionOperations": []
+  },
+  "independentReview": {
+    "path": "docs/pre-stage7/stage6-exact-real-review.json",
+    "sha256": "1b5ce638f47feba3fb9364a92825dbaf65700f6d2da6a956a4e529a9af0f9f95",
+    "reviewers": 1,
+    "delta": "GO_NO_RETAINED_P0_P1",
+    "runtimeAndProduction": "NO_GO_UNQUALIFIED_GATES"
+  },
+  "cleanup": {
+    "taskOwnedLocalContainers": "STOPPED",
+    "syntheticDatabases": "RETAINED",
+    "mainStage8": "CLEAN_UNCHANGED",
+    "productionOperations": 0,
+    "publicPush": false
+  }
+}

@@ -1,0 +1,417 @@
+{
+  "review": "Sole independent read-only Stage6 exact REAL delta review",
+  "recordedAt": "2026-10-15T05:52:59.830963+00:00",
+  "candidate": "/Users/kelvin/Desktop/whoop-briefing/tmp/stage6-raw-capacity-20261013/candidate",
+  "candidateCommit": "c13fc0695471070abf529dc9afe4d6f88b4326cf",
+  "candidateTree": "07ca35abe643db05395e059fbc7d9b80f18cc803",
+  "baselineCommit": "b8d69a38405a711824aa5946813ce720911a079f",
+  "sourceState": "FROZEN_C13_RUNTIME_SOURCE_WITH_REVIEWED_TEST_ONLY_WORKING_OVERLAY; PRIMARY_EVIDENCE_DOC_NOT_REVIEWED_AS_FROZEN_COMMIT",
+  "sourceFiles": {
+    "src/exactRealStatement.js": "270dd4f163c768b02ecbcec2cc960a06ab3c41cc3285dd5a2e3d121ff2814428",
+    "src/stage6ShortPublication.js": "e711500ec963bdc4e0e61bafde5282f0308ec90f240752b2cd3b5cdde71604c5"
+  },
+  "testOnlyWorkingOverlay": {
+    "test/stage6-linux-service-ready.mjs": "0032793f8324af905fe09bad4d44f2ffad3605e6f01cd1552ebc687eaef149cf",
+    "test/stage6-sqld-proxy.mjs": "622c13a8bf8fac4b1fcbe8de7d64ed91202723b3a009a7614b747c27bef1d950",
+    "test/stage6RuntimeCurrentProof.mjs": "aeef25a98643088fea6c2988a3c32c028e7b54b545f1b42dae29a6468e896cd7",
+    "test/stage6-probe-lifecycle.test.js": "f7308a5b04d40bfc5e1dc4391c3a6aaf6d0d2841a6da075295b2c26f2b4313be",
+    "test/stage6-exhausted-http.mjs": "88b5559ba509ffd2e91e8a5a6a3f31bb9e778e8d3157dbee96a1e4e805538df2"
+  },
+  "verdict": {
+    "deltaSafety": "SCOPED_EXACT_REAL_SAFETY_GO_FROZEN_C13",
+    "retainedP0": [],
+    "retainedP1": [],
+    "exactScalarCompatibility": "NATIVE_AND_PINNED_HTTP_CORPUS_AND_ORIGINAL_EVIDENCE_ROW_GUARD_PASS",
+    "actualMonitoredRuntime": "LIMITED_MANUAL_CLI_JOURNAL_FACT_CURSOR_PROGRESS_PASS",
+    "sharedPhysicalDbService": "LIMITED_CONTROL_NO_NEW_DATA_TRAFFIC_PASS_NO_CANONICAL_WRITER_OVERLAP",
+    "sixJobs": "NOT_QUALIFIED_ORIGINAL_HTTP_ALLOWANCE_EXHAUSTED",
+    "production": "NO_GO",
+    "quiescentFixture": "GO_FOR_QUIESCENT_FIRST_PUBLICATION_ONLY",
+    "fullServiceQualification": "NOT_QUALIFIED",
+    "managedChildLifecycle": "SCOPED_ORIGINAL_MONITORED_CHILD_LIFECYCLE_PASS",
+    "overallRuntime": "NO_GO_FULL_MONITORED_SIX_AND_CANONICAL_WRITER_OVERLAP_NOT_QUALIFIED"
+  },
+  "retainedFindings": [],
+  "resolvedObserverP1": {
+    "description": "START during awaited STOP could launch another observer loop and relabel completion through global mutable run pointer.",
+    "fixedSourceSha256": "622c13a8bf8fac4b1fcbe8de7d64ed91202723b3a009a7614b747c27bef1d950",
+    "fix": "STOPPING latch blocks active-or-stopping START; STOP captures old run/promise and concurrent STOP calls join. All prior probe samples retained; each new sample receives server-generated runID and start/finish timestamps.",
+    "control": {
+      "path": "/private/tmp/stage6-exact-real-probe-race.tap",
+      "sha256": "55d57c2fa1a2a63a1182bdf91b9695d680b2ea999e1a8baf14fc50588379db7e",
+      "outcome": "1PASS_0FAIL_ACTUAL_HANDLER_VM_NO_NETWORK"
+    },
+    "historicalPositiveRunsHaveOverlappingProbeRuns": false,
+    "portableControl": {
+      "path": "test/stage6-probe-lifecycle.test.js",
+      "sha256": "f7308a5b04d40bfc5e1dc4391c3a6aaf6d0d2841a6da075295b2c26f2b4313be",
+      "reviewerInvoked": true,
+      "outcome": "1PASS_AS_PART_OF_LOCAL_6PASS_0FAIL_COMBINED_RUN"
+    }
+  },
+  "safetySummary": [
+    "Finite binary64 is reconstructed using <=53bit integer significand and integer powers of2<=2^62, each explicitlyCASTREAL. Max19bindings per transformed scalar; no decimalparse/epsilon/omitted column.",
+    "Original SQLoperators/NULL/signedzero semantics,private client/plan ownership,HMACinputs,pilot/parent/time/generation/lifecycle fences andunknownACK handling retained.",
+    "Compiler is private owned Stage6 transport mapping; algorithm andRAMseed path unchanged.",
+    "Current proof checks original producerHMAC tuple,stored phase resultdigest andcurrentcursor exactnamedACK. Positive service runs have no new operationreceipts."
+  ],
+  "focusedChecks": [
+    {
+      "path": "/private/tmp/stage6-exact-real-independent-controls.tap",
+      "sha256": "c879124c7e500e3a409c78950162888e2f34f078e3250edcfdb1ef1676945b76",
+      "outcome": "4PASS_0FAIL_OWN_EDGE_AFFINITY_SCANNER_ROLLBACK"
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-independent-source-native.tap",
+      "sha256": "a23ed0452c8fcd9ac305dd2d6c77f2e33ee9bfefee78b2a8ac95aca25fd473ed",
+      "outcome": "5PASS_0FAIL_REVIEWER_INVOKED"
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/http-typed-final.tap",
+      "sha256": "aa0172fbd67ecd77b0e8f1ef7bdc40e4074677e62a68af3f8b6986d15bbfef56",
+      "outcome": "1PASS_0FAIL_2059SAMPLES_2098EXPONENTS_TYPEOF_ULP_NEGATIVE"
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/evidence-guard-final.tap",
+      "sha256": "b281e8b3432429247f5e1396eeeefc95758a1eef3d32a24cda363b42319a8454",
+      "outcome": "1PASS_0FAIL_ORIGINAL35COLUMN17ROWGUARD"
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/publication-security-final.tap",
+      "sha256": "acf0c2c5615d8c1830eba894726c2481aa58c091710cf0588d7acf44fa5192e9",
+      "outcome": "16PASS_0FAIL_ISOLATED_BOUNDARIES"
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/publication-crash-final.tap",
+      "sha256": "f387493c657f0f3adf40f5af529bc62c9ecdc7c4ca4be4c398bb2b97c730cdb2",
+      "outcome": "2PASS_0FAIL_REAL_SIGKILL_HELPER"
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/native-and-observer-final.tap",
+      "sha256": "7d48ffb893342980e4195e334d332641a11a9cccdd9ba3bf6746fe5068158da3",
+      "outcome": "6PASS_0FAIL_PRIMARY_NATIVE_AND_PORTABLE_OBSERVER"
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/exhausted-control-final.tap",
+      "sha256": "32eae7f8df9697ce4d46aa00350383c12fa15f5fed5b3b3e6277dbd87501c6a2",
+      "outcome": "1PASS_0FAIL_ORIGINAL_HTTP_ATTEMPT12_DISABLED_NO_CALCULATION_OR_PERMIT_CHANGE"
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/child-process-control.tap",
+      "sha256": "4620ca5ebbe2d6fd1c95d4fd1ae08960963c7443847602e88187fcd1b80b3fab",
+      "outcome": "7PASS_0FAIL_PROCESS_SIGNAL_GROUP_AND_FINITE_SUPERVISOR"
+    },
+    {
+      "path": "/private/tmp/stage6-exact-real-20261015/managed-child-connected.tap",
+      "sha256": "3b62a8a4edc29a5e6cc7d2b19db2eb4984a0cbf1d10685c7060f32bf2ff53a9d",
+      "outcome": "1PASS_0FAIL_ORIGINAL_MONITORED_CHILD_AND_FOUR_DISCONNECT_BOUNDARIES"
+    }
+  ],
+  "limitedMonitoredService": {
+    "scopedQuiescent": {
+      "path": "/private/tmp/stage6-exact-real-20261015/service-scoped-focused.tap",
+      "sha256": "145a6006ec5da93d5e2f7a138fe884ea9713b7cfab0c424706b88c19a7571340",
+      "outcome": "1PASS_0FAIL",
+      "source": "manual",
+      "drain": {
+        "status": 200,
+        "outcome": "PARTIAL",
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "wholeSupervisorMs": 23116.476469,
+        "phaseWorkerMs": 17404.886258
+      },
+      "publicationMs": 2165.9512090000007,
+      "preparationMs": 6832.028837,
+      "businessMutationCount": 0,
+      "proof": {
+        "producerHmac": true,
+        "resultDigest": true,
+        "currentCursorNamedAck": true,
+        "newOperationReceipts": 0,
+        "cursorType": "JOURNAL_FACT"
+      },
+      "canonicalWritersDuringDrain": 0,
+      "qualification": "QUIESCENT_FIRST_PUBLICATION",
+      "health": {
+        "currentSamples": 232,
+        "totalRetainedSamples": 232,
+        "non200OrErrors": 0,
+        "maxMs": 8.437750000000051
+      },
+      "cgroupPeakBytes": 251715584,
+      "oomKill": 0,
+      "finalScopes": {
+        "created": 3,
+        "retired": 3,
+        "disabled": 21,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "newMorningDeliveries": 0
+    },
+    "concurrentControlTraffic": {
+      "path": "/private/tmp/stage6-exact-real-20261015/service-concurrent.tap",
+      "sha256": "dc94952e4249dff3b4ce794f49b46e57adaad87b490aa6df658fa7f76329b4a1",
+      "outcome": "1PASS_0FAIL",
+      "source": "manual",
+      "drain": {
+        "status": 200,
+        "outcome": "PARTIAL",
+        "itemsProcessed": 1,
+        "jobsCompleted": 0,
+        "wholeSupervisorMs": 26748.81722,
+        "phaseWorkerMs": 18530.197634
+      },
+      "publicationMs": 2640.4677509999983,
+      "preparationMs": 6546.983835999999,
+      "businessMutationCount": 0,
+      "proof": {
+        "producerHmac": true,
+        "resultDigest": true,
+        "currentCursorNamedAck": true,
+        "newOperationReceipts": 0,
+        "cursorType": "JOURNAL_FACT"
+      },
+      "canonicalWritersDuringDrain": 0,
+      "qualification": "CONTROL_AND_THROTTLED_TRAFFIC_ONLY",
+      "health": {
+        "currentSamples": 428,
+        "totalRetainedSamples": 660,
+        "non200OrErrors": 0,
+        "maxMs": 33.260290999984136
+      },
+      "cgroupPeakBytes": 277045248,
+      "oomKill": 0,
+      "finalScopes": {
+        "created": 3,
+        "retired": 3,
+        "disabled": 21,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      },
+      "newMorningDeliveries": 0
+    }
+  },
+  "profile": {
+    "linuxNode": "22.23.2",
+    "architecture": "arm64",
+    "cpu": 1,
+    "memoryBytes": 2147483648,
+    "rttMs": 115,
+    "backend": "isolated pinned sqld0.24.33",
+    "providers": "synthetic WHOOP/model/Telegram doubles",
+    "database": "same retained physical database",
+    "source": "manual CLI shared runExecutionPhase",
+    "scope": "JournalFact cursor progression and concurrent control/no-new-data SYNC+webhook;0canonicalwriter overlap. Retained Morning claims;0new deliveries."
+  },
+  "historicalRejectedEvidence": {
+    "path": "/private/tmp/stage6-exact-real-20261015/service-manual-cli-focused.tap",
+    "sha256": "0075342a66b07f9583963e00fe6bc3e180e4d683682839f4790d5ce4f114d13a",
+    "outcome": "0PASS_1FAIL_325_UNSCOPED_PROBE_ERRORS_NOT_TIMING_ELIGIBLE"
+  },
+  "admissionAssessment": {
+    "request": "Can existing reviewed test-only admission seam authorize full monitored HTTP six-job beyond original12?",
+    "answer": "NO",
+    "originalMonitoredSyntheticAttemptsPrimaryReported": 12,
+    "cap": 12,
+    "productionLedger": "UNTOUCHED_PRIMARY_REPORTED",
+    "sourceFacts": [
+      {
+        "path": "src/phase4Execution.js:69",
+        "fact": "deps.pilotReservation accepted only for providedDb.raw.protocol=file."
+      },
+      {
+        "path": "src/betaPilotPermit.js:176",
+        "fact": "Remote reservation must be identity-equal reviewedPilotAdmission(config)."
+      },
+      {
+        "path": "src/betaPilotPermit.js:114",
+        "fact": "reviewedPilotReservation() returns null; arbitrary JSON is not remote authority."
+      },
+      {
+        "path": "src/betaPilotAllowance.js",
+        "fact": "Both existing owner-approved allowances fixed at12 attempts."
+      }
+    ],
+    "nativeFixtureSeam": {
+      "maxAttempts": 48,
+      "profile": "original32prefix/128mutation vs monitored128prefix/320mutation",
+      "qualification": "Native/file worker and distinct work profile; not equivalent HTTP monitored six-job evidence."
+    },
+    "requiredDecision": "A separate explicitly authorized/reviewed finite synthetic-only HTTP test admission/profile is needed before long qualification. Production policy may remain unchanged, but this is a new test mechanism, not an already reviewed seam.",
+    "forbiddenSubstitutes": [
+      "Reset/delete/refund old ledger",
+      "New permit ID to reset fixed global component",
+      "Protocol spoof file for HTTP runtime",
+      "Generic JSON or unreviewed certificate treated as remote grant",
+      "Calling observed partial/cursor progress full six-job convergence"
+    ],
+    "implementationByReviewer": false,
+    "exhaustionVerifiedBy": "/private/tmp/stage6-exact-real-20261015/exhausted-control-final.tap"
+  },
+  "limitations": [
+    "Not full canonical writer contention,rawDOMAIN/family completion,six-job convergence,Linux512MiB/provider placement,orProduction qualification.",
+    "Original monitored synthetic allowance12/12 exhausted; no reset/refund/newgrant orlongrun authorized by this review.",
+    "Native file-only generic48attempt seam has different32prefix/128mutation profile and cannot qualify monitoredHTTP128prefix/320mutation.",
+    "Probe lifecycle correction was independently checked without network; completed positive service runs were read only,not rerun.",
+    "Rejected decimal implementation,wrong preloader invocation and reviewerRow-iteration harness errors are retained only as historical rejected runs in detail; not counted as implementation PASS.",
+    "Final managed-child lifecycle uses separate retained6→11/12 checkpoint, synthetic SYNC dependency and original manual DRAIN; it neither resets exhausted service12/12 ledger nor qualifies full six-job/current rawDOMAIN/family completion. All19 retained operation receipts authenticated separately; positive cursor runs created no new operation receipts.",
+    "Full monitored six-job, sustained/canonical-writer contention, Production child deployment/wiring, active provider/Linux512MiB equivalence and Production readiness remain NOT_QUALIFIED/NO_GO. No fresh finite admission profile was implemented."
+  ],
+  "independence": {
+    "reviewerCount": 1,
+    "delegates": 0,
+    "repoEdits": 0,
+    "productionAccess": false,
+    "credentialOrPaidOperations": false
+  },
+  "detailedReadOnlyArchive": {
+    "path": "/private/tmp/stage6-exact-real-review-detail.json",
+    "sha256": "9822d07d416b777417ffd5be04a1c8ac77466aa44c252484b3281ec7228add40"
+  },
+  "finalMetadataConfirmation": {
+    "head": "c13fc0695471070abf529dc9afe4d6f88b4326cf",
+    "tree": "07ca35abe643db05395e059fbc7d9b80f18cc803",
+    "runtimeDiffFromHeadEmpty": true,
+    "repositoryEditsByReviewer": 0
+  },
+  "portableControlReview": {
+    "probeLifecycle": "Portable VM control executes actual proxy handler; rejects START409 throughout awaited STOP, concurrent stops join, original run alone receives completion. Reviewer local combined native+observer invocation passed6/6; no network.",
+    "exhaustedHttp": "Original isolated.invalid branded HTTP path, original signed cached SYNC handoff, fresh unique DRAIN; asserts12 attempts, DISABLED and exact permit/jobs/operation-HMACs/evidence-runs/item-count unchanged. No ledger reset/new grant/deadline override.",
+    "proofComment": "Accurately separates this request producerHMAC/resultDigest/currentcursorACK from full-history operation receipt authentication."
+  },
+  "limitedManagedChildLifecycle": {
+    "path": "/private/tmp/stage6-exact-real-20261015/managed-child-connected.tap",
+    "sha256": "3b62a8a4edc29a5e6cc7d2b19db2eb4984a0cbf1d10685c7060f32bf2ff53a9d",
+    "outcome": "1PASS_0FAIL",
+    "runtimeSourceCommit": "c13fc0695471070abf529dc9afe4d6f88b4326cf",
+    "scope": "Separate retained synthetic checkpoint; manual original DRAIN/child supervisor and real remote publication. SYNC dependency is a synthetic NO_NEW_DATA_SUCCESS stub in this lifecycle fixture, not a service-SYNC qualification.",
+    "normal": {
+      "status": 200,
+      "outcome": "PARTIAL",
+      "itemsProcessed": 1,
+      "jobsCompleted": 0,
+      "phaseWorkerMs": 26258.88547,
+      "producerHmac": true,
+      "resultDigest": true,
+      "currentCursorExactNamedAck": true,
+      "newOperationReceipts": 0,
+      "cursor": "[\"sleep\",\"sleep-01\"]",
+      "jobKind": "REPAIR_CURRENTNESS",
+      "immutableReplay": true
+    },
+    "operationReceiptAuthentication": {
+      "count": 19,
+      "originalAuthenticator": true,
+      "tamperRejected": true,
+      "crossTenantRejected": true
+    },
+    "disconnects": [
+      {
+        "boundary": "PREPARATION",
+        "shutdownMs": 710.2417089999944,
+        "status": 503,
+        "processGroupReaped": true,
+        "precommitCursorUnchanged": true
+      },
+      {
+        "boundary": "CALCULATION",
+        "shutdownMs": 652.9850000000006,
+        "status": 503,
+        "processGroupReaped": true,
+        "precommitCursorUnchanged": true
+      },
+      {
+        "boundary": "PUBLICATION",
+        "shutdownMs": 628.2438750000001,
+        "status": 503,
+        "processGroupReaped": true,
+        "precommitCursorUnchanged": true
+      },
+      {
+        "boundary": "COMMIT_ACK",
+        "shutdownMs": 655.0245840000134,
+        "status": 503,
+        "processGroupReaped": true,
+        "precommitCursorUnchanged": false
+      }
+    ],
+    "afterCommitRecovery": {
+      "outcome": "PARTIAL",
+      "stopReason": "RECONCILIATION_ONLY",
+      "settlementState": "FINALIZED_SUCCESS",
+      "workReceipts": 4,
+      "itemsProcessed": 0,
+      "jobsCompleted": 0,
+      "immutableReplay": true,
+      "duplicateEvidenceRunKeys": 0,
+      "priorOperationKeysRetained": true
+    },
+    "finalState": {
+      "path": "/private/tmp/stage6-exact-real-20261015/managed-result-final.json",
+      "sha256": "11cd333d268f8ca86646dae4404a809e02483816b63be211d321808f5d35d88b",
+      "outcome": "FINAL_RETAINED_STATE_READ_ONLY",
+      "attempts": 11,
+      "maxAttempts": 12,
+      "checkpointStartingAttempts": 6,
+      "startingAttemptsProvenance": "Primary-reported retained original checkpoint; no reset implementation in reviewed fixture.",
+      "parentLocks": 0,
+      "publicationCommits": [
+        {
+          "ms": 1657,
+          "http": 1,
+          "sql": 3615
+        },
+        {
+          "ms": 836,
+          "http": 1,
+          "sql": 3623
+        }
+      ],
+      "historicalProxyTypeErrors": 1,
+      "reportedSqlErrors": 0
+    },
+    "metrics": {
+      "linuxNode": "22.23.2",
+      "architecture": "arm64",
+      "cpuMax": "100000 100000",
+      "memoryMaxBytes": 2147483648,
+      "swapMax": "0",
+      "cgroupPeakBytes": 234549248,
+      "oomKill": 0,
+      "eventLoopMaxMs": 468.713471,
+      "gcMaxMs": 116.4907920062542,
+      "finalScopes": {
+        "created": 2,
+        "retired": 2,
+        "disabled": 15,
+        "liveReceivers": 0,
+        "activeCallbacks": 0,
+        "liveScopes": 0
+      }
+    },
+    "qualification": "LIMITED_MONITORED_CHILD_LIFECYCLE_PASS_NOT_FULL_SERVICE_OR_SIX_JOB"
+  },
+  "historicalManagedFixtureFailure": {
+    "path": "/private/tmp/stage6-exact-real-20261015/managed-child-final.tap",
+    "sha256": "29d2e536393e55bb58f926852d8e75e91c56466550379949b5ee4f3d18d95ad9",
+    "outcome": "0PASS_1FAIL_SERVER_HTTP500_TYPEERROR",
+    "explanation": "Primary attributes initial fixture reachability failure to official server listening127.0.0.1; final run uses0.0.0.0 against same retained DB. TAP independently confirms early HTTP500TypeError, not a SQL/runtime qualification pass. Historical proxy error remains in final summary."
+  },
+  "originalAllowanceExhaustion": {
+    "path": "/private/tmp/stage6-exact-real-20261015/exhausted-control-final.tap",
+    "sha256": "32eae7f8df9697ce4d46aa00350383c12fa15f5fed5b3b3e6277dbd87501c6a2",
+    "outcome": "1PASS_0FAIL",
+    "attempts": 12,
+    "cap": 12,
+    "freshDrainOutcome": "DISABLED",
+    "cachedSyncHandoff": "Original immutable signed drainAuthorized true retained; does not authorize new reservation after exhaustion.",
+    "permitUnchanged": true,
+    "calculationSnapshotUnchanged": true,
+    "managedLifecycleCheckpointIsSeparate": true,
+    "newGrantOrPolicyImplemented": false
+  }
+}

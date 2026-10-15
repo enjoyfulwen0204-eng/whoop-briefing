@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';import {fixtureKeys} from './localDb.js';
-// Called after verifyShortProof has authenticated every receipt and producer.
-// Join newly created operations and this request's cursor ACK, not an older
-// cycle DOMAIN retained in the starting fixture.
+import {bodySha256} from '../src/briefingTriggerAuth.js';
+// Authenticate this request's producer/result and match its exact cursor ACK.
+// Full-history receipt verification is a separate caller responsibility; do
+// not substitute an older cycle DOMAIN retained in the starting fixture.
 export async function verifyCurrentRuntimeProof(db,executionId,oldOperations){
- const producer=(await db.raw.execute({sql:`SELECT p.*,e.identity_digest,e.scope_key,e.state,e.finalized_at FROM phase4_execution_producers p JOIN phase4_executions e ON e.execution_id=p.producing_execution_id WHERE p.producing_execution_id=? AND p.user_id='a' AND p.execution_mode='SHADOW'`,args:[executionId]})).rows[0];assert.ok(producer);assert.equal(producer.state,'FINALIZED_SUCCESS');
+ const producer=(await db.raw.execute({sql:`SELECT p.*,e.identity_digest,e.scope_key,e.state,e.finalized_at,e.result_json,e.result_digest FROM phase4_execution_producers p JOIN phase4_executions e ON e.execution_id=p.producing_execution_id WHERE p.producing_execution_id=? AND p.user_id='a' AND p.execution_mode='SHADOW'`,args:[executionId]})).rows[0];assert.ok(producer);assert.equal(producer.state,'FINALIZED_SUCCESS');assert.equal(bodySha256(producer.result_json),producer.result_digest);assert.equal(producer.tenant_proof,fixtureKeys.lookup(['execution-producer-v1','a','SHADOW',producer.input_generation,executionId,producer.execution_seq,producer.producing_generation]));
  const work=(await db.raw.execute({sql:'SELECT * FROM phase4_execution_work_receipts WHERE execution_id=?',args:[executionId]})).rows;
  const named=(kind,facts)=>fixtureKeys.lookup(['execution-work-step-v2',producer.identity_digest,producer.scope_key,['named',fixtureKeys.lookup(['phase4-logical-work-v1',kind,facts])]]);
  const accepted=key=>{const row=work.find(r=>r.receipt_key===key);assert.ok(row);assert.equal(row.generation,producer.producing_generation);assert.ok(row.committed_at<=producer.finalized_at);return key;};
@@ -15,5 +16,5 @@ export async function verifyCurrentRuntimeProof(db,executionId,oldOperations){
   return {operationKind:r.operation_kind,operationKey:r.operation_key,executionId,producingGeneration:producer.producing_generation,workKind:match.kind,receiptKey:accepted(match.key),exactNamedAck:true};
  });
  const cursor=jobs.map(j=>({jobKind:j.job_kind,cursor:j.full_scan_cursor,key:named('stage6.checkpoint',['a','SHADOW',j.job_kind,j.requested_generation,j.scope_revision,[j.full_scan_cursor]])})).find(j=>work.some(r=>r.receipt_key===j.key));assert.ok(cursor);accepted(cursor.key);
- return {executionId,newOperations,cursor:{jobKind:cursor.jobKind,cursor:cursor.cursor,receiptKey:cursor.key,exactNamedAck:true}};
+ return {executionId,producerHmac:true,resultDigest:true,newOperations,cursor:{jobKind:cursor.jobKind,cursor:cursor.cursor,receiptKey:cursor.key,exactNamedAck:true}};
 }

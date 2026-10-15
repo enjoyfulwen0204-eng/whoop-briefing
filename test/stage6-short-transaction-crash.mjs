@@ -16,7 +16,7 @@ for(const point of ['before-publication','after-durable-commit'])test('real SIGK
  }else{assert.equal(reconciled.state,'NOT_COMMITTED');assert.equal((await f.counts()).domain,1);}
  const leaseName=`p4ctx:${fixtureKeys.lookup(['context-tenant-v1','a'])}:short:${owner.executionId}`;await f.db.raw.execute({sql:'DELETE FROM resource_locks WHERE name=?',args:[leaseName]});
  await f.toHttp();f.setLatency(115);f.transport.setTransactionMaxMs(5000);const client=isolatedPublicationClient(f.syntheticFetch);t.after(()=>client.close());
- let result=await leg(f,sync,{client});assert.ok(result.result.processedItems||result.result.unitsCommitted);f.setLatency(0);
+ const beforeResumeJobs=await f.jobs();let result=await leg(f,sync,{client});assert.ok(result.result.processedItems||result.result.unitsCommitted);f.setLatency(0);
  // Recovery may first commit a required authenticated family subunit. Every
  // continuation keeps its own original worker/publication deadline and must
  // make real signed progress; no result string or unbounded retry is accepted.
@@ -27,5 +27,13 @@ for(const point of ['before-publication','after-durable-commit'])test('real SIGK
   assert.equal(result.result.failedJobs,0);assert.ok(result.result.processedItems||result.result.unitsCommitted);
  }
  if(point==='after-durable-commit'){assert.equal((await f.counts()).domain,2);assert.equal(result.result.processedItems,1);}else{assert.equal((await f.counts()).domain,2);proof=await verifyShortProof(f,{domainOnly:true});}
- console.log('SHORT_CRASH_PROOF '+JSON.stringify({point,actualSignal:exit.signal,reconciledState:reconciled.state,domainRows:2,restartWorkMs:result.workMs,transactionMs:result.transactionMs,proof,production:false}));
+ proof=await verifyShortProof(f,{domainOnly:true});await f.fresh();let exactCursorAck;
+ if(point==='after-durable-commit'){
+  const execution=(await f.db.raw.execute({sql:'SELECT * FROM phase4_executions WHERE execution_id=?',args:[result.executionId]})).rows[0];assert.equal(execution.state,'FINALIZED_SUCCESS');
+  const advanced=(await f.jobs()).filter(j=>j.full_scan_cursor&&j.full_scan_cursor!==beforeResumeJobs.find(b=>b.job_kind===j.job_kind).full_scan_cursor);assert.equal(advanced.length,1);
+  const j=advanced[0],logical=fixtureKeys.lookup(['phase4-logical-work-v1','stage6.checkpoint',['a','SHADOW',j.job_kind,j.requested_generation,j.scope_revision,[j.full_scan_cursor]]]);exactCursorAck=fixtureKeys.lookup(['execution-work-step-v2',execution.identity_digest,execution.scope_key,['named',logical]]);
+  const ack=(await f.db.raw.execute({sql:'SELECT * FROM phase4_execution_work_receipts WHERE execution_id=? AND receipt_key=? AND step_key=?',args:[result.executionId,exactCursorAck,exactCursorAck]})).rows[0];assert.ok(ack);assert.equal(ack.generation,execution.generation);assert.ok(ack.committed_at<=execution.finalized_at);
+ }
+ assert.equal((await f.counts()).domain,2);
+ console.log('SHORT_CRASH_PROOF '+JSON.stringify({point,actualSignal:exit.signal,reconciledState:reconciled.state,domainRows:2,restartWorkMs:result.workMs,transactionMs:result.transactionMs,proof,exactCursorAck,production:false,fixtureContextLeaseCleanup:'Explicit synthetic fixture deletion; not monitored-runtime orphan cleanup proof'}));
 });

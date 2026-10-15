@@ -357,15 +357,19 @@ export function createReconciler({
   async function recordMissingRemote(resource, reconciliationResource, spec, window, remoteIds) {
     const local = await localIdsInWindow(spec, window);
     let n = 0;
-    for (const id of local) {
-      if (remoteIds.has(id)) continue;
-      const recorded = await db.recordDiscrepancy({
+    const missing=local.filter(id=>!remoteIds.has(id));
+    // Only an owned durable transaction supplies the new terminal lease
+    // fences. Ordinary callers retain their original per-row clock sampling.
+    const batchSize=currentDurableExecution()?32:1;
+    for (let offset=0;offset<missing.length;offset+=batchSize) {
+      const entries=missing.slice(offset,offset+batchSize).map(id=>({
         userId: uid, resource, resourceId: id, kind: DISCREPANCY_KIND.MISSING_REMOTE,
         windowFrom: window.from, windowTo: window.to, now: at(),
         lifecycleGeneration: lifecycleFence, owner, reconciliationResource,
-      });
+      }));
+      const recorded = batchSize===1?await db.recordDiscrepancy(entries[0]):await db.recordDiscrepancies(entries);
       if (!recorded) throw new Error('reconcile_ownership_lost');
-      n += 1;
+      n += entries.length;
     }
     if (n) log.warn('reconcile_missing_remote_recorded', { user_id: uid, resource, count: n });
     return n;
@@ -525,7 +529,14 @@ export function createReconciler({
     const counters = { pages: 0, fetched: 0, written: 0, blocked: 0, missing: 0, tombstonesChecked: 0, tombstonesUnresolved: 0 };
     const guardedInput=(kind,facts,fn)=>{
       if(!currentDurableExecution())return fn();
-      const check=readOnlyProcessingCheck(()=>assertWhoopInput(inputOptions,inputProof));
+      const check=readOnlyProcessingCheck(async()=>{
+        await assertWhoopInput(inputOptions,inputProof);
+        // A batch prepares all statement timestamps before its one transport.
+        // Preserve the original time contract and freshly fence the diagnostic
+        // resource at every existing transaction boundary, including COMMIT.
+        if(kind==='absence-diagnostic'&&!await db.holdsReconciliation({...claimArgs(),now:at()}))
+          throw Error('reconcile_ownership_lost');
+      });
       return db.transaction(fn,{...workStepOptions(`reconciliation.${kind}`,[uid,key,scope,window.from,window.to,window.token??null,inputProof,facts]),
         before:check,after:check,beforeCommit:check});
     };

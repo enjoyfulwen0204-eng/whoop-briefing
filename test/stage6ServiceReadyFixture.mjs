@@ -4,6 +4,7 @@ import {createOwnedDb} from './stage5OwnedDb.js';import {fixtureKeys} from './lo
 import {createPhase4Foundation} from '../src/phase4Foundation.js';
 import {createWebhookServer} from '../src/bot/webhook.js';import {createUpdateProcessor} from '../src/bot/updateProcessor.js';import {handleLinkAttempt} from '../src/bot/link.js';
 import {createWhoopOAuthCallback} from '../src/whoopOAuthCallback.js';import {WHOOP_SYNC} from '../src/config.js';
+import {createOperationReceipts} from '../src/phase4OperationReceipts.js';
 import {morningNow,morningRecords} from './stage6LinuxMorningFixture.mjs';
 const resources=WHOOP_SYNC.RESOURCES;
 const jobs=db=>db.raw.execute("SELECT job_kind,requested_generation,completed_generation,scope_revision,full_scan_cursor FROM phase4_jobs WHERE user_id='a' ORDER BY job_kind").then(r=>r.rows.map(r=>({...r})));
@@ -54,7 +55,15 @@ export async function seedServiceReadyFixture(url){
   assert.equal(authCalls,4);assert.equal((await db.listSchedulableUsers({activeStatus:'ACTIVE'})).length,4);
   const afterJobs=await jobs(db),afterReceipts=(await db.raw.execute('SELECT operation_key,receipt_hmac FROM phase4_operation_receipts')).rows;assert.equal(fixtureKeys.lookup(['service-fixture-preserved-receipts-v1',afterReceipts]),oldReceiptDigest);
   assert.ok(afterJobs.every((j,i)=>j.requested_generation>beforeJobs[i].requested_generation&&j.completed_generation===beforeJobs[i].completed_generation&&j.scope_revision>beforeJobs[i].scope_revision&&j.full_scan_cursor===null));
-  return {synthetic:true,production:false,identities,authExchangeCalls:authCalls,journalBefore:beforeMode,journalAfter:'wal',busyTimeoutMs:(await db.raw.execute('PRAGMA busy_timeout')).rows[0][0],beforeJobs,afterJobs,preservedReceiptCount:oldReceipts.length,preservedReceiptDigest:oldReceiptDigest};
+  const state=(await db.raw.execute("SELECT u.timezone,u.lifecycle_generation,t.auth_generation,p.source_generation,p.purge_generation,c.input_generation,c.algorithm_set_version FROM users u JOIN user_whoop_tokens t ON t.user_id=u.id JOIN phase4_user_state p ON p.user_id=u.id JOIN phase4_computation_state c ON c.user_id=u.id AND c.execution_mode='SHADOW' WHERE u.id='a'")).rows[0];
+  const context={userId:'a',executionMode:'SHADOW',timezone:state.timezone,lifecycleGeneration:state.lifecycle_generation,authGeneration:state.auth_generation,sourceGeneration:state.source_generation,purgeGeneration:state.purge_generation,inputGeneration:state.input_generation,algorithmSetVersion:state.algorithm_set_version};
+  const verifier=createOperationReceipts({client:db.raw,keys:fixtureKeys,schemaVersion:32}),historical=(await db.raw.execute("SELECT * FROM phase4_operation_receipts WHERE user_id='a' AND execution_mode='SHADOW'")).rows;
+  for(const receipt of historical)verifier.authenticate(context,receipt);
+  const sample=historical.find(r=>r.operation_kind==='analyzeMetric');assert.ok(sample);
+  await assert.rejects(verifier.read(context,sample),{code:'PHASE4_PARENT_STALE'});
+  assert.throws(()=>verifier.authenticate({...context,userId:'alice'},sample),{code:'PHASE4_OPERATION_RECEIPT_INTEGRITY'});
+  assert.throws(()=>verifier.authenticate(context,{...sample,receipt_hmac:'0'.repeat(64)}),{code:'PHASE4_OPERATION_RECEIPT_INTEGRITY'});
+  return {synthetic:true,production:false,identities,authExchangeCalls:authCalls,journalBefore:beforeMode,journalAfter:'wal',busyTimeoutMs:(await db.raw.execute('PRAGMA busy_timeout')).rows[0][0],beforeJobs,afterJobs,preservedReceiptCount:oldReceipts.length,preservedReceiptDigest:oldReceiptDigest,historicalHmacVerified:historical.length,staleCurrentReadRejected:true,crossTenantReceiptRejected:true,tamperedReceiptRejected:true};
  }finally{if(server)await new Promise(r=>server.close(r));await db.close();}
 }
 export function syntheticRecords(userId){

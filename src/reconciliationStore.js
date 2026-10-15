@@ -318,14 +318,14 @@ export function createReconciliationStore(client) {
 
   // ----- 差異紀錄 ---------------------------------------------------------
   /** 記一筆差異。同一個 (user, resource, id, kind) 只有一列，重複看到就累加。 */
-  async function recordDiscrepancy({
+  function discrepancyStatement({
     userId, resource, resourceId, kind, windowFrom = null, windowTo = null, now = new Date(),
     lifecycleGeneration = null, owner = null, reconciliationResource = null,
   }) {
     const uid = requireUserId(userId, 'recordDiscrepancy');
-    if (!owner || !ownsDiagnosticResource(resource, reconciliationResource)) return false;
+    if (!owner || !ownsDiagnosticResource(resource, reconciliationResource)) return null;
     const nowIso = iso(now);
-    const rs = await client.execute({
+    return {
       sql: `INSERT INTO whoop_reconciliation_discrepancies
               (user_id, resource, resource_id, kind, first_seen_at, last_seen_at, seen_count,
                window_from, window_to)
@@ -341,8 +341,22 @@ export function createReconciliationStore(client) {
         windowFrom ? iso(windowFrom) : null, windowTo ? iso(windowTo) : null,
         ...lifecycleArgs(uid, lifecycleGeneration),
         ...ownershipArgs(uid, reconciliationResource, owner, nowIso)],
-    });
+    };
+  }
+  async function recordDiscrepancy(entry) {
+    const statement=discrepancyStatement(entry);if(!statement)return false;
+    const rs=await client.execute(statement);
     return Number(rs.rowsAffected ?? 0) > 0;
+  }
+  // Transport composition only. Every original conditional INSERT retains
+  // its own lifecycle and exact resource-owner predicate. The reconciler's
+  // existing guarded transaction still owns rollback, receipt and final fence.
+  async function recordDiscrepancies(entries) {
+    if(!Array.isArray(entries)||entries.length>32)throw Error('RECONCILIATION_DIAGNOSTIC_BATCH_BOUND');
+    if(!entries.length)return true;
+    const statements=entries.map(discrepancyStatement);if(statements.some(s=>!s))return false;
+    const results=await client.batch(statements,'write');
+    return results.length===entries.length&&results.every(rs=>Number(rs.rowsAffected??0)>0);
   }
 
   async function listDiscrepancies(userId, { resource = null } = {}) {
@@ -427,6 +441,7 @@ export function createReconciliationStore(client) {
     closeReconciliationRun,
     recentReconciliationRuns,
     recordDiscrepancy,
+    recordDiscrepancies,
     listDiscrepancies,
     tombstonesDueForCheck,
     recordTombstoneVerdict,
